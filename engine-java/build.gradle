@@ -1,0 +1,87 @@
+// The OpenRocket 24.12 physics kernel
+// Compiled to a JS module consumed by the web app by TeaVM
+plugins {
+    id 'java'
+    id 'org.teavm' version '0.15.0'   // >= 0.15 REQUIRED: 0.10's JS backend inverts NaN comparisons
+}
+
+repositories {
+    mavenCentral()
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir 'src/java'   // OpenRocket sources (already patched per patches/LEDGER.md)
+            srcDir 'src/shims/java'    // replacements for JVM-only surface (e.g. LongUUID)
+            srcDir 'src/api/java'      // @JSExport facade (api.OpenRocketEngine) consumed by web/
+        }
+    }
+    // java.text.Collator stand-in for TeaVM (its class library lacks it). A SEPARATE source set
+    // is required by javac, not the runtime: JPMS forbids declaring java.* in the unnamed module,
+    // so it compiles with --patch-module (below) — which can't be mixed with ordinary sources in
+    // one compilation. TeaVM links it; on the JVM parity run the real JDK Collator wins, so it
+    // only shapes the JS build. (The java.awt.geom stubs are gone — the kernel now uses Geo2D.)
+    jdkStubs {
+        java {
+            srcDir 'src/jdkstubs'
+        }
+    }
+}
+
+// The parity differential-test harness (test/parity/parity.mjs) compiles ONLY with -Pparity,
+// so the shipped production engine carries no test scenarios.
+if (project.hasProperty('parity')) {
+    sourceSets.main.java.srcDir 'test'
+}
+
+compileJdkStubsJava {
+    // Collator's package (java.text) is patched into java.base.
+    options.compilerArgs += ['--patch-module', "java.base=${file('src/jdkstubs')}"]
+}
+
+dependencies {
+    // Make the stub classes visible to TeaVM's transpiler (it reads bytecode from the
+    // runtime classpath; package names are all that matter to it).
+    implementation files(sourceSets.jdkStubs.output.classesDirs) {
+        builtBy 'compileJdkStubsJava'
+    }
+    implementation 'org.slf4j:slf4j-api:1.7.36'
+    // TeaVM-safe slf4j substitution (real slf4j's binding discovery breaks under TeaVM).
+    implementation 'org.teavm:teavm-extras-slf4j:0.15.0'
+    // @JSExport / JS interop annotations for the API facade.
+    implementation 'org.teavm:teavm-jso:0.15.0'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+teavm.js {
+    // Production entry is the facade; -Pparity swaps in the harness for the parity test.
+    mainClass = project.hasProperty('parity') ? 'parity.ParityMain' : 'api.OpenRocketEngine'
+    obfuscated = false
+    // Native ES module: real named exports. UMD's dynamically-assigned exports are invisible
+    // to bundler static analysis — the whole engine got tree-shaken out of prod bundles.
+    moduleType = org.teavm.gradle.api.JSModuleType.ES2015
+    // REQUIRED: TeaVM's devirtualizer miscompiles the kernel — at FlightConfiguration's tree
+    // walk it inlined RocketComponent.getInstanceCount()'s `return 1`, ignoring FinSet's
+    // override (fin contexts collapsed 3->1, masses zeroed), and pruned virtual methods
+    // reached only via map-key dispatch. Do not change without a full re-verification.
+    optimization = org.teavm.gradle.api.OptimizationLevel.NONE
+    // REQUIRED: class-hierarchy analysis. TeaVM's precise flow analysis under-links
+    // virtual-method impls reached via map-key / recursive-walk dispatch.
+    fastGlobalAnalysis = true
+    // NOTE: strict = true is NOT usable — it breaks util.ArrayList.clone with a
+    // ClassCastException. JS Math transcendentals differ from Java's by 1-2 ULPs.
+}
+
+// JVM reference run of the parity harness; test/parity/parity.mjs compares the TeaVM-JS output
+// against it for bit-identical fidelity. Requires -Pparity (which compiles test/parity).
+tasks.register('parityJvm', JavaExec) {
+    dependsOn 'classes'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'parity.ParityMain'
+}

@@ -1,0 +1,19 @@
+# Gradle (engine-java)
+engine-java/.gradle/
+engine-java/build/
+!engine-java/gradle/wrapper/gradle-wrapper.jar
+
+# Node / Vite (web)
+web/node_modules/
+web/dist/
+*.local
+
+# NOTE: web/src/engine/vendor/orkengine.mjs IS committed — it's the built engine
+# artifact so the web app builds without a JDK (regenerate via engine-java).
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db

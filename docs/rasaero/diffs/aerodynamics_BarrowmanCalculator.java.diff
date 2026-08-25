@@ -1,0 +1,224 @@
+--- C:/Users/corve/AppData/Local/Temp/claude/d--programming-rocketry-fakerocket/70e92ed6-00d6-4ce4-aeeb-d361bff94609/scratchpad/src/info/openrocket/core/aerodynamics/BarrowmanCalculator.java	1980-02-01 00:00:00.000000000 -0600
++++ d:/programming/rocketry/fakerocket/engine-java/src/carved/java/info/openrocket/core/aerodynamics/BarrowmanCalculator.java	2026-08-22 22:22:24.742093600 -0500
+@@ -8,13 +8,21 @@
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ 
++import info.openrocket.core.aerodynamics.barrowman.ComponentAssemblyCalc;
+ import info.openrocket.core.aerodynamics.barrowman.FinSetCalc;
++import info.openrocket.core.aerodynamics.barrowman.LaunchLugCalc;
++import info.openrocket.core.aerodynamics.barrowman.RailButtonCalc;
++import info.openrocket.core.aerodynamics.barrowman.SymmetricComponentCalc;
++import info.openrocket.core.aerodynamics.barrowman.TubeFinSetCalc;
+ import info.openrocket.core.aerodynamics.barrowman.RocketComponentCalc;
+ import info.openrocket.core.rocketcomponent.position.AxialMethod;
+ import info.openrocket.core.rocketcomponent.ComponentAssembly;
+ import info.openrocket.core.rocketcomponent.ExternalComponent;
+ import info.openrocket.core.rocketcomponent.ExternalComponent.Finish;
+ import info.openrocket.core.rocketcomponent.FinSet;
++import info.openrocket.core.rocketcomponent.LaunchLug;
++import info.openrocket.core.rocketcomponent.RailButton;
++import info.openrocket.core.rocketcomponent.TubeFinSet;
+ import info.openrocket.core.rocketcomponent.FlightConfiguration;
+ import info.openrocket.core.rocketcomponent.InstanceContext;
+ import info.openrocket.core.rocketcomponent.InstanceMap;
+@@ -52,10 +60,28 @@
+ 	private static final String BARROWMAN_SUFFIX = "Calc";
+ 	
+ 	private Map<RocketComponent, RocketComponentCalc> calcMap = null;
+-	
++
+ 	private double cacheDiameter = -1;
+ 	private double cacheLength = -1;
+ 
++	/**
++	 * PATCH (RASAero feature #3, see engine-java/patches/LEDGER.md): opt-in
++	 * "Rogers Modified Barrowman" body-in-presence-of-fins interference (Kbf).
++	 * Default false ⇒ bit-identical to classic Barrowman. Threaded into each
++	 * FinSetCalc at construction (createCalcObject).
++	 */
++	private boolean rogersKbf = false;
++
++	/**
++	 * PATCH (RASAero feature #1 Phase 1, see engine-java/patches/LEDGER.md):
++	 * opt-in supersonic aerodynamics — corrected supersonic fin normal force
++	 * (2D Busemann level + finite-span correction), exact NACA-1307 body-fin
++	 * interference, and Mach-dependent nose CNa growth. Threaded into
++	 * FinSetCalc and SymmetricComponentCalc at calcMap build. Default false
++	 * ⇒ bit-identical to classic Extended Barrowman.
++	 */
++	private boolean supersonicAero = false;
++
+ 	private final double stallAngle = 17.5 * Math.PI / 180;
+ 	private double stallMargin;
+ 	
+@@ -66,7 +92,36 @@
+ 	
+ 	@Override
+ 	public BarrowmanCalculator newInstance() {
+-		return new BarrowmanCalculator();
++		BarrowmanCalculator c = new BarrowmanCalculator();
++		c.rogersKbf = this.rogersKbf; // PATCH: preserve the opt-in flag on clone
++		c.supersonicAero = this.supersonicAero; // PATCH (feature #1 Phase 1)
++		return c;
++	}
++
++	/**
++	 * PATCH (RASAero feature #3): enable the opt-in Rogers Modified Barrowman
++	 * body-fin interference (Kbf). Must be set before the first CP/force call
++	 * (the per-component calculators bind the flag when calcMap is built).
++	 */
++	public void setRogersKbf(boolean enabled) {
++		this.rogersKbf = enabled;
++	}
++
++	public boolean isRogersKbf() {
++		return rogersKbf;
++	}
++
++	/**
++	 * PATCH (RASAero feature #1 Phase 1): enable the opt-in supersonic aero
++	 * model. Must be set before the first CP/force call (the per-component
++	 * calculators bind the flag when calcMap is built).
++	 */
++	public void setSupersonicAero(boolean enabled) {
++		this.supersonicAero = enabled;
++	}
++
++	public boolean isSupersonicAero() {
++		return supersonicAero;
+ 	}
+ 
+ 	/**
+@@ -667,12 +722,21 @@
+ 			}
+ 			
+ 			// Compressibility correction
+-			
++
+ 			if (mach < 1.1) {
+ 				c1 = 1 - 0.1 * pow2(mach);
+ 			}
+ 			if (mach > 0.9) {
+ 				c2 = 1 / Math.pow(1 + 0.15 * pow2(mach), 0.58);
++				// PATCH (feature #1 Phase 4): the ^0.58 fit tracks Van Driest II
++				// only to M≈4. Flag on: above M4 fade to the standard VD-II
++				// adiabatic-wall engineering fit 1/(1+0.144 M^2)^0.65
++				// (Hopkins & Inouye, NASA TN D-6945), fully in by M4.5.
++				if (supersonicAero && mach > 3.5) {
++					double cVD = 1 / Math.pow(1 + 0.144 * pow2(mach), 0.65);
++					double t = MathUtil.clamp((mach - 3.5) / 1.0, 0, 1);
++					c2 = c2 * (1 - t) + cVD * t;
++				}
+ 			}
+ 			// Applying continuously around Mach 1
+ 			if (mach < 0.9) {
+@@ -730,7 +794,7 @@
+ 			buildCalcMap(configuration);
+ 		
+ 		stagnation = calculateStagnationCD(conditions.getMach());
+-		base = calculateBaseCD(conditions.getMach());
++		base = effectiveBaseCD(conditions.getMach());
+ 
+ 		total = 0;
+ 		final InstanceMap imap = configuration.getActiveInstances();
+@@ -808,7 +872,7 @@
+ 		if (calcMap == null)
+ 			buildCalcMap(configuration);
+ 		
+-		base = calculateBaseCD(conditions.getMach());
++		base = effectiveBaseCD(conditions.getMach());
+ 		total = 0;
+ 		
+ 		final InstanceMap imap = configuration.getActiveInstances();
+@@ -850,6 +914,21 @@
+ 			// base CD
+ 			if (nextRadius < aftRadius) {
+ 				double area = Math.PI * (pow2(aftRadius) - pow2(nextRadius));
++
++				// PATCH (RASAero power-on base drag, see engine-java/patches/LEDGER.md):
++				// while this component's stage motor is thrusting, the exhaust plume
++				// pressurizes the base over the nozzle-exit footprint, removing that
++				// area's base drag (base-pressure recovery). nozzleExitDiameter
++				// defaults to 0 (no effect), so power-off flight and every existing
++				// golden stay bit-identical. The supersonic large-nozzle extension
++				// (thrust augmentation beyond the base area) is deferred to feature #1.
++				AxialStage stage = s.getStage();
++				double nozzleDia = (stage != null) ? stage.getNozzleExitDiameter() : 0.0;
++				if (nozzleDia > 0.0 && stage != null && conditions.isStageThrusting(stage.getStageNumber())) {
++					double nozzleArea = Math.PI * pow2(nozzleDia / 2.0);
++					area = Math.max(0.0, area - nozzleArea);
++				}
++
+ 				double cd = base * area / conditions.getRefArea();
+ 				total += instanceCount * cd;
+ 				if (forceMap != null) {
+@@ -891,6 +970,20 @@
+ 			return 0.25 / m;
+ 		}
+ 	}
++
++	/**
++	 * PATCH (feature #1 Phase 2): flag-aware base drag. The Hoerner 0.25/M law
++	 * crosses the physical vacuum-base limit region around M≈5; flag on caps it
++	 * at 1.2/M² (≈0.85 of the vacuum limit 2/(γM²), per Hoerner Ch. 16
++	 * supersonic base-pressure recovery data). Flag off ⇒ classic values.
++	 */
++	private double effectiveBaseCD(double m) {
++		double cd = calculateBaseCD(m);
++		if (supersonicAero && m > 1) {
++			cd = Math.min(cd, 1.2 / (m * m));
++		}
++		return cd;
++	}
+ 	
+ 	
+ 	
+@@ -1071,12 +1164,45 @@
+ 				continue;
+ 			}
+ 
+-			RocketComponentCalc calcObj = (RocketComponentCalc) Reflection.construct(BARROWMAN_PACKAGE, comp,
+-					BARROWMAN_SUFFIX, comp);
++			RocketComponentCalc calcObj = createCalcObject(comp);
+ 
+ 			calcMap.put(comp, calcObj);
+ 		}
+ 	}
++
++	/**
++	 * PATCH (see engine-java/patches/LEDGER.md): explicit replacement for
++	 * Reflection.construct(BARROWMAN_PACKAGE, comp, BARROWMAN_SUFFIX, comp),
++	 * which walks the component's class hierarchy looking for a
++	 * <SimpleName>Calc class. Class.forName is unavailable under TeaVM.
++	 * The instanceof chain reproduces the hierarchy-walk order exactly
++	 * (most-derived class first; TubeFinSet/LaunchLug before Tube).
++	 */
++	private RocketComponentCalc createCalcObject(RocketComponent comp) {
++		if (comp instanceof FinSet) {
++			// PATCH (feature #3): bind the opt-in Rogers Kbf flag onto the fin calc.
++			FinSetCalc finCalc = new FinSetCalc((FinSet) comp);
++			finCalc.setRogersKbf(rogersKbf);
++			finCalc.setSupersonicAero(supersonicAero); // PATCH (feature #1 Phase 1)
++			return finCalc;
++		}
++		if (comp instanceof TubeFinSet)
++			return new TubeFinSetCalc(comp);
++		if (comp instanceof LaunchLug)
++			return new LaunchLugCalc(comp);
++		if (comp instanceof RailButton)
++			return new RailButtonCalc(comp);
++		if (comp instanceof SymmetricComponent) {
++			// PATCH (feature #1 Phase 1): bind the supersonic-aero flag.
++			SymmetricComponentCalc scc = new SymmetricComponentCalc(comp);
++			scc.setSupersonicAero(supersonicAero);
++			return scc;
++		}
++		if (comp instanceof ComponentAssembly)
++			return new ComponentAssemblyCalc(comp);
++		throw new info.openrocket.core.util.BugException(
++				"Suitable constructor for component " + comp + " not found");
++	}
+ 	
+ 	@Override
+ 	public ModID getModID() {

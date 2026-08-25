@@ -1,0 +1,198 @@
+--- C:/Users/corve/AppData/Local/Temp/claude/d--programming-rocketry-fakerocket/70e92ed6-00d6-4ce4-aeeb-d361bff94609/scratchpad/src/info/openrocket/core/aerodynamics/barrowman/SymmetricComponentCalc.java	1980-02-01 00:00:00.000000000 -0600
++++ d:/programming/rocketry/fakerocket/engine-java/src/carved/java/info/openrocket/core/aerodynamics/barrowman/SymmetricComponentCalc.java	2026-08-22 22:22:24.754916000 -0500
+@@ -50,6 +50,28 @@
+ 	private final double wetArea;
+ 	private final double sinphi;
+ 
++	/**
++	 * PATCH (RASAero feature #1 Phase 1, see engine-java/patches/LEDGER.md):
++	 * opt-in supersonic aerodynamics. When enabled, a NOSE component's CNa
++	 * grows with Mach above M1 instead of staying frozen at the slender-body
++	 * value: CNa(M) = CNa_slender * (1 + g*(min(M,5)-1)), with g per nose
++	 * shape (0.10 conical, 0.07 ogive-class). The slopes are bracketed by
++	 * exact Taylor-Maccoll cone / ogive theory (Sims NASA SP-3004 class
++	 * values reach ~1.2-1.4x slender by M4-5) and calibrated against the
++	 * ARCAS (TN D-4013/D-4014) and Basic Finner (DREV-TM-9703) CP/CNa
++	 * anchors — see docs/research/validation-anchors-2026-08-03.md and
++	 * validation/score.mjs. Transitions/boattails keep slender values (their
++	 * supersonic behavior is Phase-2+ work). Default false ⇒ bit-identical.
++	 */
++	private boolean supersonicAero = false;
++	/** True for a nose-type component (fore radius zero, i.e. the actual tip). */
++	private boolean isNoseShape = false;
++
++	/** PATCH (feature #1 Phase 1): enable the opt-in supersonic aero model. */
++	public void setSupersonicAero(boolean enabled) {
++		this.supersonicAero = enabled;
++	}
++
+ 	public SymmetricComponentCalc(RocketComponent c) {
+ 		super(c);
+ 		if (!(c instanceof SymmetricComponent)) {
+@@ -74,6 +96,12 @@
+ 
+ 		wetArea = component.getComponentWetArea();
+ 
++		// PATCH (feature #1 Phase 1): a nose is a symmetric component whose fore
++		// radius is (essentially) zero — the supersonic CNa growth applies only
++		// to it, never to mid-body transitions/boattails.
++		isNoseShape = component.getForeRadius() < 1e-9
++				&& component.getAftRadius() > component.getForeRadius();
++
+ 		if (component instanceof BodyTube) {
+ 			shape = null;
+ 			param = 0;
+@@ -132,11 +160,23 @@
+ 
+ 		Coordinate cp;
+ 
++		// PATCH (feature #1 Phase 1): opt-in supersonic nose CNa growth — the
++		// classic kernel freezes body CNa/CP at the slender-body (Mach-1) value
++		// forever. See the field javadoc for the model and its calibration.
++		double cnaEff = cnaCache;
++		if (supersonicAero && !isTube && isNoseShape) {
++			double m = conditions.getMach();
++			if (m > 1) {
++				double g = (shape == Transition.Shape.CONICAL) ? 0.10 : 0.07;
++				cnaEff = cnaCache * (1 + g * (Math.min(m, 5) - 1));
++			}
++		}
++
+ 		// If fore == aft, only body lift is encountered
+ 		if (isTube) {
+ 			cp = getLiftCP(conditions, warnings);
+ 		} else {
+-			cp = new Coordinate(cpCache, 0, 0, cnaCache * conditions.getSincAOA() /
++			cp = new Coordinate(cpCache, 0, 0, cnaEff * conditions.getSincAOA() /
+ 					conditions.getRefArea()).average(getLiftCP(conditions, warnings));
+ 		}
+ 
+@@ -185,6 +225,10 @@
+ 	}
+ 
+ 	private LinearInterpolator interpolator = null;
++	/** PATCH (feature #1 Phase 2): conical/ogive noses have an analytic branch
++	 * that can be evaluated beyond the interpolator's sampled range. */
++	private boolean analyticNose = false;
++	private double analyticMul = 1.0;
+ 
+ 	@Override
+ 	public double calculatePressureCD(FlightConditions conditions,
+@@ -204,12 +248,39 @@
+ 
+ 		// Boattail drag computed directly from base drag
+ 		if (aftRadius < foreRadius) {
+-			if (fineness >= 3)
+-				return 0;
+-			double cd = baseCD * frontalArea / conditions.getRefArea();
+-			if (fineness <= 1)
+-				return cd;
+-			return cd * (3 - fineness) / 2;
++			double cdSub;
++			if (fineness >= 3) {
++				cdSub = 0;
++			} else {
++				cdSub = baseCD * frontalArea / conditions.getRefArea();
++				if (fineness > 1) {
++					cdSub *= (3 - fineness) / 2;
++				}
++			}
++			// PATCH (feature #1 Phase 2): the classic model has NO Mach dependence
++			// for boattails/reducers — the base-scaled subsonic estimate is used at
++			// every speed. Flag on: supersonic wave drag from the linearized strip
++			// estimate Cp = -2*theta/beta on the expansion surface (RASAero's
++			// "Other Body Wave Drag" bucket), blended in over M0.8-1.2. Scored
++			// against the ARCAS supersonic CD anchors (its 12deg boattail).
++			double machB = conditions.getMach();
++			if (!supersonicAero || machB <= 0.8) {
++				return cdSub;
++			}
++			double theta = Math.atan2(foreRadius - aftRadius, length);
++			double frontalRatio = frontalArea / conditions.getRefArea();
++			// The linearized 1/beta form diverges approaching M1 — bridge the
++			// transonic band by blending from the subsonic estimate at M0.8 to
++			// the wave value at M1.5 (first Mach where linearized theory is
++			// trustworthy), matching the ARCAS body-alone transonic data trend.
++			double beta15 = MathUtil.safeSqrt(1.5 * 1.5 - 1);
++			double wave15 = (2 * theta / beta15) * frontalRatio;
++			if (machB >= 1.5) {
++				double beta = MathUtil.safeSqrt(machB * machB - 1);
++				return (2 * theta / beta) * frontalRatio;
++			}
++			double t = (machB - 0.8) / 0.7;
++			return cdSub * (1 - t) + wave15 * t;
+ 		}
+ 
+ 		// All nose cones and shoulders from pre-calculated and interpolating
+@@ -217,7 +288,55 @@
+ 			calculateNoseInterpolator();
+ 		}
+ 
+-		return interpolator.getValue(conditions.getMach()) * frontalArea / conditions.getRefArea();
++		// PATCH (feature #1 Phase 2): the interpolators clamp FLAT beyond their
++		// last data point (M2-4 depending on shape) — wave drag never decays.
++		// Flag on: conical/ogive noses continue on their own analytic branch
++		// (2.1*sinphi^2 + 0.5*sinphi/beta, which has the physical 1/beta decay
++		// and the correct high-M asymptote); table shapes decay with the
++		// Fleeman/Bonney correlation Mach shape (1.59 + 1.83/M^2).
++		double mach = conditions.getMach();
++		double cd;
++		if (supersonicAero && mach > interpolatorMaxMach()) {
++			double mEnd = interpolatorMaxMach();
++			if (analyticNose) {
++				// PATCH (feature #1 Phase 4): the 2.1*sinphi^2 asymptote is a
++				// transonic-range calibration; exact cone solutions and modified
++				// Newtonian theory (Cp_max*sin^2) sit lower at hypersonic Mach.
++				// Fade the coefficient from 2.1 to Cp_max(M) over M4-8.
++				double coeff = 2.1;
++				double t = MathUtil.clamp((mach - 4) / 4, 0, 1);
++				if (t > 0) {
++					coeff = 2.1 * (1 - t) + stagnationCpMax(mach) * t;
++				}
++				cd = analyticMul * (coeff * pow2(sinphi) +
++						0.5 * sinphi / MathUtil.safeSqrt(mach * mach - 1));
++			} else {
++				cd = interpolator.getValue(mEnd) *
++						(1.59 + 1.83 / (mach * mach)) / (1.59 + 1.83 / (mEnd * mEnd));
++			}
++		} else {
++			cd = interpolator.getValue(mach);
++		}
++		return cd * frontalArea / conditions.getRefArea();
++	}
++
++	/**
++	 * PATCH (feature #1 Phase 4): stagnation pressure coefficient behind a
++	 * normal shock (Rayleigh pitot, NACA Report 1135 Eq. 100) — the modified-
++	 * Newtonian Cp_max. Limit 1.839 as M → infinity (gamma = 1.4).
++	 */
++	private static double stagnationCpMax(double m) {
++		double m2 = m * m;
++		double a = Math.pow((GAMMA + 1) * (GAMMA + 1) * m2
++				/ (4 * GAMMA * m2 - 2 * (GAMMA - 1)), GAMMA / (GAMMA - 1));
++		double b = (1 - GAMMA + 2 * GAMMA * m2) / (GAMMA + 1);
++		return (2 / (GAMMA * m2)) * (a * b - 1);
++	}
++
++	/** PATCH (feature #1 Phase 2): last Mach with real data in the interpolator. */
++	private double interpolatorMaxMach() {
++		double[] xs = interpolator.getXPoints();
++		return xs[xs.length - 1];
+ 	}
+ 
+ 	/*
+@@ -302,10 +421,14 @@
+ 		switch (shape) {
+ 			case CONICAL:
+ 				interpolator = calculateOgiveNoseInterpolator(0, sinphi); // param==0 -> conical
++				analyticNose = true; // PATCH (feature #1 Phase 2)
++				analyticMul = 0.72 * pow2(0 - 0.5) + 0.82;
+ 				break;
+ 
+ 			case OGIVE:
+ 				interpolator = calculateOgiveNoseInterpolator(param, sinphi);
++				analyticNose = true; // PATCH (feature #1 Phase 2)
++				analyticMul = 0.72 * pow2(param - 0.5) + 0.82;
+ 				break;
+ 
+ 			case ELLIPSOID:

@@ -1,0 +1,74 @@
+--- C:/Users/corve/AppData/Local/Temp/claude/d--programming-rocketry-fakerocket/70e92ed6-00d6-4ce4-aeeb-d361bff94609/scratchpad/src/info/openrocket/core/aerodynamics/FlightConditions.java	1980-02-01 00:00:00.000000000 -0600
++++ d:/programming/rocketry/fakerocket/engine-java/src/carved/java/info/openrocket/core/aerodynamics/FlightConditions.java	2026-08-22 22:22:24.744186600 -0500
+@@ -3,7 +3,9 @@
+ import java.util.ArrayList;
+ import java.util.EventListener;
+ import java.util.EventObject;
++import java.util.HashSet;
+ import java.util.List;
++import java.util.Set;
+ 
+ import info.openrocket.core.models.atmosphere.AtmosphericConditions;
+ import info.openrocket.core.rocketcomponent.FlightConfiguration;
+@@ -73,6 +75,16 @@
+ 	private ModID modID;
+ 
+ 	/**
++	 * PATCH (see engine-java/patches/LEDGER.md): stage numbers whose motors are
++	 * currently producing thrust (power-on). Empty during coast. Populated per
++	 * time step by the simulation stepper and consumed by the base-drag model
++	 * for the RASAero-style power-on base-drag reduction. Deliberately NOT part
++	 * of equals()/hashCode() — a transient force-model input, not a defining
++	 * flight-condition value.
++	 */
++	private Set<Integer> thrustingStages = new HashSet<>();
++
++	/**
+ 	 * Sole constructor. The reference length is initialized to the reference length
+ 	 * of the <code>Configuration</code>, and the reference area accordingly.
+ 	 * If <code>config</code> is <code>null</code>, then the reference length is set
+@@ -397,6 +409,35 @@
+ 	}
+ 
+ 	/**
++	 * PATCH (see engine-java/patches/LEDGER.md): the set of stage numbers whose
++	 * motors are currently producing thrust (power-on). Empty means fully
++	 * power-off (coast).
++	 *
++	 * @return the thrusting-stage set (live reference).
++	 */
++	public Set<Integer> getThrustingStages() {
++		return thrustingStages;
++	}
++
++	/**
++	 * PATCH: set the stage numbers whose motors are currently producing thrust.
++	 * Does not fire a change event (a transient force-model input).
++	 */
++	public void setThrustingStages(Set<Integer> stages) {
++		this.thrustingStages = (stages != null) ? stages : new HashSet<>();
++	}
++
++	/**
++	 * PATCH: whether the given stage's motor is currently producing thrust.
++	 *
++	 * @param stageNumber the stage number to query.
++	 * @return true if that stage is power-on this time step.
++	 */
++	public boolean isStageThrusting(int stageNumber) {
++		return thrustingStages.contains(stageNumber);
++	}
++
++	/**
+ 	 * Retrieve the modification count of this object.
+ 	 * 
+ 	 * @return modification ID
+@@ -433,6 +474,8 @@
+ 			cond.listenerList = new ArrayList<>();
+ 			cond.event = new EventObject(cond);
+ 			cond.atmosphericConditions = atmosphericConditions.clone();
++			// PATCH: deep-copy so a clone can't share/mutate the source's set.
++			cond.thrustingStages = new HashSet<>(thrustingStages);
+ 			return cond;
+ 		} catch (CloneNotSupportedException e) {
+ 			throw new BugException("clone not supported!", e);

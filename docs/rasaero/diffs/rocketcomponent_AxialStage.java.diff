@@ -1,0 +1,46 @@
+--- C:/Users/corve/AppData/Local/Temp/claude/d--programming-rocketry-fakerocket/70e92ed6-00d6-4ce4-aeeb-d361bff94609/scratchpad/src/info/openrocket/core/rocketcomponent/AxialStage.java	1980-02-01 00:00:00.000000000 -0600
++++ d:/programming/rocketry/fakerocket/engine-java/src/carved/java/info/openrocket/core/rocketcomponent/AxialStage.java	2026-08-22 22:22:24.863585100 -0500
+@@ -13,7 +13,14 @@
+ 	protected FlightConfigurableParameterSet<StageSeparationConfiguration> separations;
+ 	/** number of stages */
+ 	protected int stageNumber;
+-	
++	/**
++	 * PATCH (see engine-java/patches/LEDGER.md): RASAero-style motor nozzle exit
++	 * diameter (metres) for the power-on base-drag reduction. 0 (default) means
++	 * the power-on drag coefficient equals the power-off coefficient — no plume
++	 * base-pressure recovery — so existing designs and goldens are unaffected.
++	 */
++	protected double nozzleExitDiameter = 0.0;
++
+ 	/**
+ 	 * default constructor, builds a rocket with zero stages
+ 	 */
+@@ -148,6 +155,27 @@
+ 		this.stageNumber = newStageNumber;
+ 	}
+ 
++	/**
++	 * PATCH (see engine-java/patches/LEDGER.md): the motor nozzle exit diameter
++	 * (metres) used for the RASAero power-on base-drag reduction. 0 means the
++	 * power-on drag coefficient equals the power-off coefficient.
++	 *
++	 * @return the nozzle exit diameter in metres.
++	 */
++	public double getNozzleExitDiameter() {
++		return nozzleExitDiameter;
++	}
++
++	/**
++	 * PATCH: set the motor nozzle exit diameter (metres) for the power-on
++	 * base-drag reduction. Clamped to be non-negative; 0 disables the reduction.
++	 *
++	 * @param diameter the nozzle exit diameter in metres.
++	 */
++	public void setNozzleExitDiameter(final double diameter) {
++		this.nozzleExitDiameter = Math.max(0.0, diameter);
++	}
++
+ 	@Override
+ 	protected StringBuilder toDebugDetail() {
+ 		StringBuilder buf = super.toDebugDetail();

@@ -1,0 +1,79 @@
+--- C:/Users/corve/AppData/Local/Temp/claude/d--programming-rocketry-fakerocket/70e92ed6-00d6-4ce4-aeeb-d361bff94609/scratchpad/src/info/openrocket/core/rocketcomponent/FinSet.java	1980-02-01 00:00:00.000000000 -0600
++++ d:/programming/rocketry/fakerocket/engine-java/src/carved/java/info/openrocket/core/rocketcomponent/FinSet.java	2026-08-22 22:22:24.891941500 -0500
+@@ -273,6 +273,76 @@
+ 	}
+ 	
+ 	
++	/**
++	 * PATCH (RASAero feature #4, see engine-java/patches/LEDGER.md): fin airfoil
++	 * cross-sections. When non-null, overrides the classic 3-value CrossSection
++	 * for pressure-drag purposes with a RASAero-class section:
++	 * "hexagonal" | "naca" | "doublewedge" | "biconvex" | "hexbluntbase" |
++	 * "singlewedge". Null (the default) ⇒ bit-identical classic behavior.
++	 * The diamond lengths are chamfer lengths measured chordwise at mid-span
++	 * (m); the LE radius (m) adds swept-cylinder bluntness drag (not for NACA,
++	 * whose radius is implicit).
++	 */
++	private String airfoilSection = null;
++	private double airfoilLeDiamond = 0;
++	private double airfoilTeDiamond = 0;
++	private double finLeRadius = 0;
++
++	public String getAirfoilSection() {
++		return airfoilSection;
++	}
++
++	public void setAirfoilSection(String section) {
++		if (section != null && section.isEmpty()) {
++			section = null;
++		}
++		if ((airfoilSection == null && section == null)
++				|| (airfoilSection != null && airfoilSection.equals(section))) {
++			return;
++		}
++		airfoilSection = section;
++		fireComponentChangeEvent(ComponentChangeEvent.AERODYNAMIC_CHANGE);
++	}
++
++	public double getAirfoilLeDiamond() {
++		return airfoilLeDiamond;
++	}
++
++	public void setAirfoilLeDiamond(double length) {
++		length = Math.max(length, 0);
++		if (MathUtil.equals(airfoilLeDiamond, length)) {
++			return;
++		}
++		airfoilLeDiamond = length;
++		fireComponentChangeEvent(ComponentChangeEvent.AERODYNAMIC_CHANGE);
++	}
++
++	public double getAirfoilTeDiamond() {
++		return airfoilTeDiamond;
++	}
++
++	public void setAirfoilTeDiamond(double length) {
++		length = Math.max(length, 0);
++		if (MathUtil.equals(airfoilTeDiamond, length)) {
++			return;
++		}
++		airfoilTeDiamond = length;
++		fireComponentChangeEvent(ComponentChangeEvent.AERODYNAMIC_CHANGE);
++	}
++
++	public double getFinLeRadius() {
++		return finLeRadius;
++	}
++
++	public void setFinLeRadius(double radius) {
++		radius = Math.max(radius, 0);
++		if (MathUtil.equals(finLeRadius, radius)) {
++			return;
++		}
++		finLeRadius = radius;
++		fireComponentChangeEvent(ComponentChangeEvent.AERODYNAMIC_CHANGE);
++	}
++
+ 	public CrossSection getCrossSection() {
+ 		return crossSection;
+ 	}
