@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { APP_VERSION } from '../../services/appInfo';
+import { useWorkspaceStore } from '../../state/store';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { AboutDialog } from './AboutDialog';
 import { PrivacyDialog } from './PrivacyDialog';
@@ -8,13 +9,12 @@ import { SettingsDialog } from './SettingsDialog';
 
 /** Top bar: title + version, language, and a collapsible menu holding the
  *  New / Open .ork / Save .ork / About actions. Owns the hidden file input. */
-export function AppHeader({ canSave, onNew, onOpenFile, onSave }: {
-  canSave: boolean;
-  onNew: () => void;
-  onOpenFile: (file: File) => void;
-  onSave: () => void;
-}) {
+export function AppHeader() {
   const { t } = useTranslation();
+  const canSave = useWorkspaceStore((s) => !!s.info);
+  const onNew = useWorkspaceStore((s) => s.newWorkspace);
+  const onOpenFile = useWorkspaceStore((s) => s.openOrkFile);
+  const onSave = useWorkspaceStore((s) => s.saveOrk);
   const orkRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [aboutOpen, setAboutOpen] = useState(false);

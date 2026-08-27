@@ -1,10 +1,13 @@
 import { useTranslation } from 'react-i18next';
+import { useWorkspaceStore } from '../../state/store';
 
 export type Tab = 'build' | 'sim';
 
 /** Mobile bottom tab bar (hidden at lg+, where the panes sit side by side). */
-export function TabBar({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
+export function TabBar() {
   const { t } = useTranslation();
+  const tab = useWorkspaceStore((s) => s.tab);
+  const onTab = useWorkspaceStore((s) => s.setTab);
   return (
     <nav className="flex border-t border-white/10 bg-slate-900/95 backdrop-blur lg:hidden">
       <TabButton active={tab === 'build'} onClick={() => onTab('build')} label={t('tabs.rocket')} icon="🚀" />

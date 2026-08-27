@@ -1,35 +1,30 @@
-import type { StaticInfo, FlightResult } from '../../engine/api';
-import type { MotorSpec } from '../../engine/openRocketEngine';
-import type { LaunchConditions } from '../../services/orkTree';
-import type { Simulation } from '../../services/simulations';
+import { useWorkspaceStore, selectActive } from '../../state/store';
 import { SimulationsList } from './SimulationsList';
 import { MotorRow } from './MotorRow';
 import { LaunchPanel } from './LaunchPanel';
 import { SimPanel } from './SimPanel';
 
 /** Right pane: the simulations list, then the active sim's motor, launch conditions,
- *  run button and results. */
-export function SimulationsPanel({
-  sims, activeId, motor, launch, runLabel, result, info, busy,
-  onSelectSim, onAddSim, onDeleteSim, onRenameSim, onMotorChange, onLaunchChange, onRun, onError,
-}: {
-  sims: Simulation[];
-  activeId: string;
-  motor: MotorSpec;
-  launch: LaunchConditions;
-  runLabel: string;
-  result: FlightResult | null;
-  info: StaticInfo | null;
-  busy: boolean;
-  onSelectSim: (id: string) => void;
-  onAddSim: () => void;
-  onDeleteSim: (id: string) => void;
-  onRenameSim: (id: string, name: string) => void;
-  onMotorChange: (m: MotorSpec) => void;
-  onLaunchChange: (p: Partial<LaunchConditions>) => void;
-  onRun: () => void;
-  onError: (msg: string | null) => void;
-}) {
+ *  run button and results. Reads the workspace store directly. */
+export function SimulationsPanel() {
+  const sims = useWorkspaceStore((s) => s.sims);
+  const activeId = useWorkspaceStore((s) => selectActive(s).id);
+  const motor = useWorkspaceStore((s) => selectActive(s).motor);
+  const launch = useWorkspaceStore((s) => selectActive(s).launch);
+  const runLabel = useWorkspaceStore((s) => selectActive(s).name);
+  const result = useWorkspaceStore((s) => selectActive(s).result);
+  const info = useWorkspaceStore((s) => s.info);
+  const busy = useWorkspaceStore((s) => s.simBusy);
+
+  const onSelectSim = useWorkspaceStore((s) => s.setActiveId);
+  const onAddSim = useWorkspaceStore((s) => s.addSim);
+  const onDeleteSim = useWorkspaceStore((s) => s.deleteSim);
+  const onRenameSim = useWorkspaceStore((s) => s.renameSim);
+  const onMotorChange = useWorkspaceStore((s) => s.setActiveMotor);
+  const onLaunchChange = useWorkspaceStore((s) => s.patchLaunch);
+  const onRun = useWorkspaceStore((s) => s.runSim);
+  const onError = useWorkspaceStore((s) => s.setErr);
+
   return (
     <>
       <div className="space-y-4 p-3">

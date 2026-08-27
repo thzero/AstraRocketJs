@@ -1,14 +1,12 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { StaticInfo, FlightResult } from '../../engine/api';
-import type { RocketTree } from '../../engine/openRocketEngine';
+import { useWorkspaceStore, selectActive, selectMotorDims } from '../../state/store';
 import { TreeSchematic } from './TreeSchematic';
 import { AftView } from './AftView';
 import { FlightChart } from './FlightChart';
-import { ViewToggle, type ViewMode } from './ViewToggle';
+import { ViewToggle } from './ViewToggle';
 import { StabilityBadge } from './StabilityBadge';
 import { LoadedBanner } from './LoadedBanner';
-import type { MotorDims } from './Rocket3D';
 
 // three.js is heavy, so the 3D views are code-split — their chunks load only when
 // the user actually switches to a 3D view, keeping the default (2D) path light.
@@ -18,33 +16,30 @@ const FlightPath3D = lazy(() => import('./FlightPath3D').then((m) => ({ default:
 /**
  * The center workbench pane: an import banner, the 2D/3D/flight/path view switch,
  * the sized canvas box (with the 2D roll slider + Side/Aft/Reset presets), and the
- * stability readout. Purely presentational — all design/selection state lives in App.
+ * stability readout. Reads the workspace store directly.
  */
-export function CenterView({
-  loadedMeta, onCloseLoaded,
-  view, onView, twoD, onTwoD,
-  roll, onRollValue, onRollBy, onResetView, resetKey,
-  tree, info, motors, selectedId, onSelect, result,
-}: {
-  loadedMeta: { name: string; notes: string[] } | null;
-  onCloseLoaded: () => void;
-  view: ViewMode;
-  onView: (v: ViewMode) => void;
-  twoD: 'side' | 'aft';
-  onTwoD: (v: 'side' | 'aft') => void;
-  roll: number;
-  onRollValue: (r: number) => void;
-  onRollBy: (d: number) => void;
-  onResetView: () => void;
-  resetKey: number;
-  tree: RocketTree;
-  info: StaticInfo | null;
-  motors: MotorDims;
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-  result: FlightResult | null;
-}) {
+export function CenterView() {
   const { t } = useTranslation();
+  const loadedMeta = useWorkspaceStore((s) => s.loadedMeta);
+  const onCloseLoaded = useWorkspaceStore((s) => s.resetWorkspace);
+  const view = useWorkspaceStore((s) => s.view);
+  const onView = useWorkspaceStore((s) => s.setView);
+  const twoD = useWorkspaceStore((s) => s.twoD);
+  const onTwoD = useWorkspaceStore((s) => s.setTwoD);
+  const roll = useWorkspaceStore((s) => s.roll);
+  const onRollValue = useWorkspaceStore((s) => s.setRoll);
+  const onRollBy = useWorkspaceStore((s) => s.rollBy);
+  const onResetView = useWorkspaceStore((s) => s.resetView);
+  const resetKey = useWorkspaceStore((s) => s.resetKey);
+  const tree = useWorkspaceStore((s) => s.tree);
+  const info = useWorkspaceStore((s) => s.info);
+  const selectedId = useWorkspaceStore((s) => s.selectedId);
+  const onSelect = useWorkspaceStore((s) => s.setSelectedId);
+  const result = useWorkspaceStore((s) => selectActive(s).result);
+  const motor = useWorkspaceStore((s) => selectActive(s).motor);
+  const extraMotors = useWorkspaceStore((s) => s.extraMotors);
+  const motors = useMemo(() => selectMotorDims(tree, motor, extraMotors), [tree, motor, extraMotors]);
+
   const deg = Math.round((roll * 180) / Math.PI);
   const loading = <div className="grid h-full place-items-center text-sm text-slate-500">{t('view.loading3d')}</div>;
   const prompt = <div className="grid h-full place-items-center text-sm text-slate-500">{t('sim.prompt')}</div>;

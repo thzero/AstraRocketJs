@@ -19,7 +19,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-i18next": "^17.0.12",
-    "three": "^0.169.0"
+    "three": "^0.169.0",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@react-three/test-renderer": "^8.2.4",
