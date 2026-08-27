@@ -705,25 +705,36 @@ function readLaunchConditions(doc: Document, notes: string[]): Partial<LaunchCon
   if (!Number.isNaN(rodAngle)) launch.launchRodAngleDeg = rodAngle;
 
   const windEls = Array.from(condEl.querySelectorAll(':scope > wind'));
-  // Honesty: a MultiLevel wind profile (24.x altitude-layered winds) is not
-  // modeled here — the average-wind settings below are what actually gets
-  // imported, and the flyer must hear that their simulated winds changed.
-  const windModelType = text(condEl, ':scope > windmodeltype');
-  if (windModelType?.toLowerCase() === 'multilevel'
-      || windEls.some((w) => (w.getAttribute('model') ?? '').toLowerCase() === 'multilevel')) {
-    notes.push(
-      'The file’s simulation used a multilevel wind profile (winds varying with altitude), which this app doesn’t model — its average-wind settings were imported instead.');
-  }
-  const windEl = windEls.find((w) => w.getAttribute('model') === 'average');
-  let avg = windEl ? num(windEl, 'speed', NaN) : NaN;
+  const windModelType = (text(condEl, ':scope > windmodeltype') ?? '').toLowerCase();
+
+  // Average wind: modern <wind model="average"> (speed/direction/standarddeviation)
+  // or the ≤23.09 legacy <windaverage>/<windturbulence>/<winddirection> trio.
+  const avgEl = windEls.find((w) => w.getAttribute('model') === 'average');
+  let avg = avgEl ? num(avgEl, 'speed', NaN) : NaN;
   if (Number.isNaN(avg)) avg = num(condEl, 'windaverage', NaN);
   if (!Number.isNaN(avg)) launch.windAverage = avg;
-  let sd = windEl ? num(windEl, 'standarddeviation', NaN) : NaN;
+  let sd = avgEl ? num(avgEl, 'standarddeviation', NaN) : NaN;
   if (Number.isNaN(sd)) {
     const turb = num(condEl, 'windturbulence', NaN);
     if (!Number.isNaN(turb) && !Number.isNaN(avg)) sd = turb * avg;
   }
   if (!Number.isNaN(sd)) launch.windStdDev = sd;
+  let dirRad = avgEl ? num(avgEl, 'direction', NaN) : NaN;
+  if (Number.isNaN(dirRad)) dirRad = num(condEl, 'winddirection', NaN);
+  if (!Number.isNaN(dirRad)) launch.windDirectionDeg = (dirRad * 180) / Math.PI;
+
+  // Multilevel wind (24.x): <wind model="multilevel"><windlevel altitude speed
+  // direction standarddeviation/>…>. Honored when windmodeltype selects it.
+  const mlEl = windEls.find((w) => (w.getAttribute('model') ?? '').toLowerCase() === 'multilevel');
+  if (mlEl && windModelType.includes('multilevel')) {
+    const levels = Array.from(mlEl.querySelectorAll(':scope > windlevel')).map((w) => ({
+      altitudeM: parseFloat(w.getAttribute('altitude') ?? '0') || 0,
+      speed: parseFloat(w.getAttribute('speed') ?? '0') || 0,
+      directionDeg: ((parseFloat(w.getAttribute('direction') ?? '0') || 0) * 180) / Math.PI,
+      stddev: parseFloat(w.getAttribute('standarddeviation') ?? '0') || 0,
+    }));
+    if (levels.length) launch.windLevels = levels;
+  }
 
   const alt = num(condEl, 'launchaltitude', NaN);
   if (!Number.isNaN(alt)) launch.launchAltitudeM = alt;
@@ -744,11 +755,8 @@ function readLaunchConditions(doc: Document, notes: string[]): Partial<LaunchCon
     }
   }
 
-  const gm = text(condEl, ':scope > geodeticmethod');
-  if (gm && gm !== 'spherical') {
-    notes.push(
-      `Simulation used the “${gm}” geodetic model — this app simulates a spherical Earth.`);
-  }
+  const gm = (text(condEl, ':scope > geodeticmethod') ?? '').toLowerCase();
+  if (gm) launch.geodetic = gm === 'flat' ? 'flat' : gm === 'wgs84' ? 'wgs84' : 'spherical';
 
   return Object.keys(launch).length > 0 ? launch : undefined;
 }
@@ -1448,7 +1456,7 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
   };
 
   emit(0, "<?xml version='1.0' encoding='utf-8'?>");
-  emit(0, '<openrocket version="1.10" creator="MMRocket Sim">');
+  emit(0, '<openrocket version="1.10" creator="ArsRocketJs Sim">');
   emit(1, '<rocket>');
   emit(2, `<name>${escapeXml(name)}</name>`);
   emit(2, `<id>${uuid()}</id>`);

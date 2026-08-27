@@ -5,10 +5,6 @@
 html, body, #root { height: 100%; }
 body { margin: 0; overscroll-behavior: none; }
 
-/* Theme tokens + control styles for the views adopted from mmrocket-sim
-   (TreeSchematic / Rocket3D / ImageExportMenu) — they reference these CSS
-   variables and classes, which don't exist in Tailwind. Mapped to our
-   slate/sky palette so the callouts, hint text and buttons render correctly. */
 :root {
   --text-primary:   #f1f5f9;              /* slate-100 */
   --text-muted:     #94a3b8;              /* slate-400 */

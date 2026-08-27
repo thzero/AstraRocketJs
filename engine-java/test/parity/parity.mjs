@@ -35,7 +35,7 @@ console.error('parity: running JVM reference (parityJvm) …');
 const jvmRaw = gradle(['parityJvm', '-Pparity', '--quiet', '--console=plain']);
 
 // --- TeaVM-JS output: import the parity module and call main(), capturing stdout ---
-const jsPath = join(engineRoot, 'build', 'generated', 'teavm', 'js', 'fakerocket-engine.js');
+const jsPath = join(engineRoot, 'build', 'generated', 'teavm', 'js', 'astrarrocketjs-engine.js');
 if (!existsSync(jsPath)) {
   console.error(`parity: TeaVM output missing: ${jsPath}`);
   process.exit(1);

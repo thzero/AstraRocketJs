@@ -1,20 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { fmtNum } from '../../i18n/format';
 import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Bounds, Line } from '@react-three/drei';
-import type { ComponentNode, ComponentPosition, RocketTree, StaticInfo } from '../engine/openRocketEngine';
+import type { ComponentNode, ComponentPosition, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
 import {
   assemblyBoundingRadius, assemblyChainLength, isAssembly,
   resolveAssemblyRadius, ringInstanceOffsets,
-} from '../tree/assembly.js';
-import { clusterOffsets } from '../tree/cluster.js';
-import { tubeFinRadius } from '../tree/tubefins.js';
-import { outerProfile } from '../tree/shapeProfile.js';
+} from '../../tree/assembly.js';
+import { clusterOffsets } from '../../tree/cluster.js';
+import { tubeFinRadius } from '../../tree/tubefins.js';
+import { outerProfile } from '../../tree/shapeProfile.js';
 import {
   downloadBlob, IMAGE_FORMAT_EXT, snapshotWithHeader,
   type ExportData, type ImageFormat,
-} from '../services/schematicExport.js';
-import { stabilityState, type StabilityState } from '../services/simReport.js';
+} from '../../services/schematicExport.js';
+import { stabilityState, type StabilityState } from '../../services/simReport.js';
+import { colorForType, DEFAULT_PART_COLORS, mergePalette, type PartPalette } from '../../services/partColors';
+import { useSettings } from '../../state/SettingsProvider';
 import { ImageExportMenu, type ImageExportOptions } from './ImageExportMenu.js';
 
 /**
@@ -31,7 +35,9 @@ import { ImageExportMenu, type ImageExportOptions } from './ImageExportMenu.js';
 const presetStyle = (active: boolean): import('react').CSSProperties =>
   active ? { background: '#0284c7', borderColor: '#0284c7', color: '#fff' } : {};
 
-const nodeColor = (n: ComponentNode, dflt: string): string => typeof n['color'] === 'string' ? (n['color'] as string) : dflt;
+// A component's own `color` override, else its group colour from the palette.
+const nodeColor = (n: ComponentNode, palette: PartPalette): string =>
+  typeof n['color'] === 'string' ? (n['color'] as string) : colorForType(n.type, palette);
 
 const num = (n: ComponentNode, key: string, fb: number): number =>
   typeof n[key] === 'number' ? (n[key] as number) : fb;
@@ -64,18 +70,10 @@ function lathePoints(
     .map(([x, r]) => new THREE.Vector2(Math.max(0.0001, r), x));
 }
 
-const MAT = {
-  nose: '#c9c2b5',
-  body: '#e2ded6',
-  transition: '#c9c2b5',
-  fin: '#a98f6f',
-  lug: '#9a978f',
-  inner: '#6b6862',
-  motor: '#c65420',
-};
-
 export interface Piece {
   key: string;
+  /** Owning component's node id — for two-way selection with the tree/2D. */
+  id?: string;
   geometry: THREE.BufferGeometry;
   color: string;
   position?: [number, number, number];
@@ -93,10 +91,13 @@ export interface Piece {
 export type MotorDims = Record<string, { length: number; diameter: number; label?: string }>;
 
 /** Shared with the OBJ exporter — this IS the app's 3D geometry. */
-export function buildPieces(tree: RocketTree, motors?: MotorDims): { pieces: Piece[]; totalLen: number; maxR: number } {
+export function buildPieces(tree: RocketTree, motors?: MotorDims, palette: PartPalette = DEFAULT_PART_COLORS): { pieces: Piece[]; totalLen: number; maxR: number } {
   const pieces: Piece[] = [];
   let maxR = 0.005;
   let k = 0;
+  // Id of the component currently being emitted — every place()/push tags its
+  // pieces with it so clicking a mesh maps back to a tree node (and vice versa).
+  let curId: string | undefined;
 
   // Push a piece. For off-axis assemblies an instance transform `xform` is
   // baked into the geometry (like addFins already does), so the flat Piece[]
@@ -110,13 +111,13 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims): { pieces: Pie
       translucent: translucent === true || undefined,
       innerGlass: translucent === 'glass' || undefined,
     };
-    if (!xform) { pieces.push({ key, geometry, color, position, rotation, ...flags }); return; }
+    if (!xform) { pieces.push({ key, id: curId, geometry, color, position, rotation, ...flags }); return; }
     const g = geometry.clone();
     const m = new THREE.Matrix4().copy(xform);
     if (position) m.multiply(new THREE.Matrix4().makeTranslation(position[0], position[1], position[2]));
     if (rotation) m.multiply(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rotation[0], rotation[1], rotation[2])));
     g.applyMatrix4(m);
-    pieces.push({ key, geometry: g, color, ...flags });
+    pieces.push({ key, id: curId, geometry: g, color, ...flags });
   };
 
   const addFins = (child: ComponentNode, pStart: number, pLen: number, pRadius: number, xform?: THREE.Matrix4) => {
@@ -170,13 +171,14 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims): { pieces: Pie
       g.translate(start, pRadius, 0);
       g.applyMatrix4(new THREE.Matrix4().makeRotationX(angle));
       if (xform) g.applyMatrix4(xform); // off-axis pod instance
-      pieces.push({ key: `fin${k++}`, geometry: g, color: nodeColor(child, MAT.fin) });
+      pieces.push({ key: `fin${k++}`, id: child.id, geometry: g, color: nodeColor(child, palette) });
     }
     geo.dispose();
   };
 
   const addChildren = (parent: ComponentNode, pStart: number, pLen: number, pRadius: number, xform?: THREE.Matrix4) => {
     for (const child of parent.children ?? []) {
+      curId = child.id;
       if (child.type === 'trapezoidfinset' || child.type === 'ellipticalfinset' || child.type === 'freeformfinset') {
         addFins(child, pStart, pLen, pRadius, xform);
       } else if (child.type === 'tubefinset') {
@@ -202,7 +204,7 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims): { pieces: Pie
           geo.translate(start, pRadius + rt, 0);
           geo.applyMatrix4(new THREE.Matrix4().makeRotationX(angle));
           if (xform) geo.applyMatrix4(xform);
-          pieces.push({ key: `tubefin${k++}`, geometry: geo, color: nodeColor(child, MAT.fin) });
+          pieces.push({ key: `tubefin${k++}`, id: child.id, geometry: geo, color: nodeColor(child, palette) });
         }
       } else if (child.type === 'fairing') {
         // External shroud on the +Y surface (radial angle not modeled).
@@ -212,14 +214,14 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims): { pieces: Pie
         const start = axialStart(child, len, pStart, pLen);
         maxR = Math.max(maxR, pRadius + hgt);
         const geo = new THREE.BoxGeometry(len, hgt, wid);
-        place(`fairing${k++}`, geo, nodeColor(child, MAT.lug),
+        place(`fairing${k++}`, geo, nodeColor(child, palette),
           [start + len / 2, pRadius + hgt / 2, 0], [0, 0, 0], xform);
       } else if (child.type === 'launchlug') {
         const len = num(child, 'length', 0.05);
         const r = num(child, 'outerRadius', 0.0022);
         const start = axialStart(child, len, pStart, pLen);
         const geo = new THREE.CylinderGeometry(r, r, len, 16);
-        place(`lug${k++}`, geo, nodeColor(child, MAT.lug),
+        place(`lug${k++}`, geo, nodeColor(child, palette),
           [start + len / 2, pRadius + r, 0], [0, 0, -Math.PI / 2], xform);
       } else if (child.type === 'innertube') {
         // Motor mount / inner tube, one per cluster position — visible through
@@ -233,12 +235,12 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims): { pieces: Pie
           child['cluster'] as string | undefined, r,
           num(child, 'clusterScale', 1), num(child, 'clusterRotation', 0),
         )) {
-          place(`inner${k++}`, new THREE.CylinderGeometry(r, r, len, 32), nodeColor(child, MAT.inner),
+          place(`inner${k++}`, new THREE.CylinderGeometry(r, r, len, 32), nodeColor(child, palette),
             [start + len / 2, off.y, off.z], [0, 0, -Math.PI / 2], xform, 'glass');
           if (motor) {
             const mR = motor.diameter / 2;
             const mStart = start + len - motor.length + num(child, 'motorOverhang', 0);
-            place(`motor${k++}`, new THREE.CylinderGeometry(mR, mR, motor.length, 32), MAT.motor,
+            place(`motor${k++}`, new THREE.CylinderGeometry(mR, mR, motor.length, 32), palette.motor,
               [mStart + motor.length / 2, off.y, off.z], [0, 0, -Math.PI / 2], xform);
           }
         }
@@ -269,19 +271,20 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims): { pieces: Pie
   const addChain = (nodes: ComponentNode[], xform?: THREE.Matrix4): number => {
     let x = 0;
     for (const n of nodes) {
+      curId = n.id;
       const len = num(n, 'length', 0);
       if (n.type === 'nosecone') {
         const R = num(n, 'aftRadius', 0.012);
         const shapeName = typeof n['shape'] === 'string' ? (n['shape'] as string) : 'ogive';
         const pts = lathePoints(shapeName, numOpt(n, 'shapeParameter'), len, 0, R);
-        place(`nose${k++}`, new THREE.LatheGeometry(pts, 48), nodeColor(n, MAT.nose),
+        place(`nose${k++}`, new THREE.LatheGeometry(pts, 48), nodeColor(n, palette),
           [x, 0, 0], [0, 0, -Math.PI / 2], xform, true);
         maxR = Math.max(maxR, R);
         addChildren(n, x, len, R, xform);
         x += len;
       } else if (n.type === 'bodytube') {
         const R = num(n, 'outerRadius', 0.012);
-        place(`body${k++}`, new THREE.CylinderGeometry(R, R, len, 48), nodeColor(n, MAT.body),
+        place(`body${k++}`, new THREE.CylinderGeometry(R, R, len, 48), nodeColor(n, palette),
           [x + len / 2, 0, 0], [0, 0, -Math.PI / 2], xform, true);
         maxR = Math.max(maxR, R);
         // Min-diameter mount: a motor loaded directly in this body tube.
@@ -289,7 +292,7 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims): { pieces: Pie
         if (tubeMotor) {
           const mR = tubeMotor.diameter / 2;
           const mStart = x + len - tubeMotor.length + num(n, 'motorOverhang', 0);
-          place(`motor${k++}`, new THREE.CylinderGeometry(mR, mR, tubeMotor.length, 32), MAT.motor,
+          place(`motor${k++}`, new THREE.CylinderGeometry(mR, mR, tubeMotor.length, 32), palette.motor,
             [mStart + tubeMotor.length / 2, 0, 0], [0, 0, -Math.PI / 2], xform);
         }
         addChildren(n, x, len, R, xform);
@@ -304,7 +307,7 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims): { pieces: Pie
         // file draws the way it simulates.
         const pts = lathePoints(shapeName, numOpt(n, 'shapeParameter'), len, rf, ra,
           typeof n['clipped'] === 'boolean' ? (n['clipped'] as boolean) : undefined);
-        place(`trans${k++}`, new THREE.LatheGeometry(pts, 48), nodeColor(n, MAT.transition),
+        place(`trans${k++}`, new THREE.LatheGeometry(pts, 48), nodeColor(n, palette),
           [x, 0, 0], [0, 0, -Math.PI / 2], xform, true);
         maxR = Math.max(maxR, rf, ra);
         addChildren(n, x, len, Math.max(rf, ra), xform);
@@ -653,7 +656,7 @@ function AxisCallout({ x, dir, color, tex, label, len, markerR }: {
   );
 }
 
-export function Rocket3D({ tree, info, motors, exportData }: {
+export function Rocket3D({ tree, info, motors, exportData, selectedId, onSelect }: {
   tree: RocketTree;
   info: StaticInfo | null;
   /** Loaded motor cases keyed by mount node id — rendered seated at the
@@ -661,8 +664,14 @@ export function Rocket3D({ tree, info, motors, exportData }: {
   motors?: MotorDims;
   /** When set, a 📷 PNG snapshot button appears (issue 2026-08-11a). */
   exportData?: Omit<ExportData, 'spanM'>;
+  /** Two-way selection sync with the component tree / 2D schematic. */
+  selectedId?: string | null;
+  onSelect?: (id: string) => void;
 }) {
-  const { pieces, totalLen, maxR } = useMemo(() => buildPieces(tree, motors), [tree, motors]);
+  const { t } = useTranslation();
+  const { settings } = useSettings();
+  const palette = useMemo(() => mergePalette(settings.partColors), [settings.partColors]);
+  const { pieces, totalLen, maxR } = useMemo(() => buildPieces(tree, motors, palette), [tree, motors, palette]);
   const r3f = useRef<{ gl: THREE.WebGLRenderer; scene: THREE.Scene; camera: THREE.Camera } | null>(null);
 
   // Hi-res snapshot (issue 2026-08-11b): re-render the SAME scene/camera at
@@ -729,14 +738,14 @@ export function Rocket3D({ tree, info, motors, exportData }: {
   // out left→right like the 2D: "CP · X cm   ⚠ N cal · P% — word".
   const cpCallout = useMemo(() => {
     if (!info || !Number.isFinite(info.cp) || cal == null || !Number.isFinite(cal)) return null;
-    const pct = info.length > 0 ? ((info.cp - info.cg) / info.length * 100).toFixed(1) : '0';
-    const word = cal < 1 ? ' — under-stable' : cal > 6 ? ' — over-stable' : '';
+    const pct = info.length > 0 ? fmtNum((info.cp - info.cg) / info.length * 100, 1) : '0';
+    const word = cal < 1 ? ` — ${t('schematic.underStable')}` : cal > 6 ? ` — ${t('schematic.overStable')}` : '';
     const warn = cal < 1 || cal > 6 ? '⚠️ ' : '';
     return {
-      text: `CP · ${(info.cp * 100).toFixed(1)} cm    ${warn}${cal.toFixed(2)} cal · ${pct}%${word}`,
+      text: `${t('schematic.cp')} · ${fmtNum(info.cp * 100, 1)} cm    ${warn}${fmtNum(cal, 2)} ${t('stability.caliber')} · ${pct}%${word}`,
       color: cal < 1 ? '#f0716f' : cal > 6 ? '#e0a53d' : '#4dbd4d',
     };
-  }, [info, cal]);
+  }, [info, cal, t]);
 
   // View presets + recovery (batch 08-21d): a pan or deep zoom could lose the
   // rocket with no way back — these jump the camera to known-good stations.
@@ -770,12 +779,12 @@ export function Rocket3D({ tree, info, motors, exportData }: {
         </div>
       )}
       <div style={{ position: 'absolute', top: 6, left: 6, zIndex: 2, display: 'flex', gap: 6 }}>
-        <button className="file-btn" title="Re-fit the current view (zoom/orbit back to the default framing)"
-          onClick={resetView}>⟲ Reset</button>
-        <button className="file-btn" style={presetStyle(preset === 'side')} title="Straight-on side profile"
-          onClick={() => showView('side')}>Side</button>
-        <button className="file-btn" style={presetStyle(preset === 'aft')} title="From behind — clusters and fin count as they really sit"
-          onClick={() => showView('aft')}>Aft</button>
+        <button className="file-btn" title={t('view.reset3dTitle')}
+          onClick={resetView}>{t('view.reset')}</button>
+        <button className="file-btn" style={presetStyle(preset === 'side')} title={t('view.sideTitle')}
+          onClick={() => showView('side')}>{t('view.side')}</button>
+        <button className="file-btn" style={presetStyle(preset === 'aft')} title={t('view.aftTitle')}
+          onClick={() => showView('aft')}>{t('view.aft')}</button>
       </div>
       <Canvas style={{ flex: '1 1 0%', minHeight: 0 }} camera={{ position: [center, 0, camDist * 1.05], fov: 40 }}
         // Snapshot export reads the drawing buffer after the frame — without
@@ -790,23 +799,31 @@ export function Rocket3D({ tree, info, motors, exportData }: {
         <directionalLight position={[-0.5, -1.5, -2.5]} intensity={0.35} />
         <Bounds fit clip observe margin={1.1}>
         <group>
-          {pieces.map((p) => (
+          {pieces.map((p) => {
+            const selected = !!p.id && p.id === selectedId;
+            return (
             <mesh key={p.key} geometry={p.geometry}
               position={p.position ?? [0, 0, 0]}
               rotation={p.rotation ?? [0, 0, 0]}
-              renderOrder={p.translucent ? 2 : p.innerGlass ? 1 : 0}>
+              renderOrder={selected ? 3 : p.translucent ? 2 : p.innerGlass ? 1 : 0}
+              onClick={p.id && onSelect ? (e) => { e.stopPropagation(); onSelect(p.id!); } : undefined}
+              onPointerOver={p.id && onSelect ? (e) => { e.stopPropagation(); document.body.style.cursor = 'pointer'; } : undefined}
+              onPointerOut={p.id && onSelect ? () => { document.body.style.cursor = ''; } : undefined}>
               {/* See-through layering (batch 08-21d — 0.88 with depth writes
                   on looked opaque in practice): opaque pieces (motor, fins)
                   first, then glassy inner tubes, then the shell — depth writes
                   off for both see-through tiers so each layer shows through
-                  the ones over it; DoubleSide draws far walls for depth. */}
-              <meshStandardMaterial color={p.color} roughness={0.6} metalness={0.05}
-                transparent={!!p.translucent || !!p.innerGlass}
-                opacity={p.translucent ? 0.55 : p.innerGlass ? 0.5 : 1}
-                depthWrite={!p.translucent && !p.innerGlass}
-                side={p.translucent || p.innerGlass ? THREE.DoubleSide : THREE.FrontSide} />
+                  the ones over it; DoubleSide draws far walls for depth. A
+                  selected part glows sky-blue and turns opaque so it reads. */}
+              <meshStandardMaterial color={selected ? '#7dd3fc' : p.color} roughness={0.6} metalness={0.05}
+                emissive={selected ? '#0284c7' : '#000000'} emissiveIntensity={selected ? 0.6 : 0}
+                transparent={!selected && (!!p.translucent || !!p.innerGlass)}
+                opacity={selected ? 1 : p.translucent ? 0.55 : p.innerGlass ? 0.5 : 1}
+                depthWrite={selected || (!p.translucent && !p.innerGlass)}
+                side={!selected && (p.translucent || p.innerGlass) ? THREE.DoubleSide : THREE.FrontSide} />
             </mesh>
-          ))}
+            );
+          })}
           {/* CG/CP sit on the rocket axis — inside the shell — so they must
               render ON TOP (depthTest off, high renderOrder) to be visible,
               exactly like the 2D markers. `transparent` puts them in the
@@ -816,7 +833,7 @@ export function Rocket3D({ tree, info, motors, exportData }: {
               overwhelmed small rockets; the gadget keeps the size rule. */}
           {info && Number.isFinite(info.cg) && (
             <AxisCallout x={info.cg} dir={1} color="#dbe3ea" tex={cgTex}
-              label={`CG · ${(info.cg * 100).toFixed(1)} cm`} len={maxR * 1.7} markerR={markerR} />
+              label={`${t('schematic.cg')} · ${fmtNum(info.cg * 100, 1)} cm`} len={maxR * 1.7} markerR={markerR} />
           )}
           {info && Number.isFinite(info.cp) && (
             <>
@@ -838,8 +855,8 @@ export function Rocket3D({ tree, info, motors, exportData }: {
           minDistance={camDist * 0.12} maxDistance={camDist * 5} />
       </Canvas>
       <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '4px 0 0', textAlign: 'center' }}>
-        drag to rotate · scroll to zoom · <span style={{ color: '#aab2bd' }}>●</span> CG ·{' '}
-        <span style={{ color: '#e34948' }}>●</span> CP
+        {t('view.dragHint')} · <span style={{ color: '#aab2bd' }}>●</span> {t('schematic.cg')} ·{' '}
+        <span style={{ color: '#e34948' }}>●</span> {t('schematic.cp')}
       </p>
     </div>
   );

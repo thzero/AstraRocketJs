@@ -1,7 +1,7 @@
 # RASAero-style supersonic aerodynamics for OpenRocket — extraction & reference
 
 This directory isolates a set of **opt-in aerodynamic model extensions** applied to OpenRocket
-24.12's Extended Barrowman aerodynamics. They were carried in with FakeRocket's engine (see
+24.12's Extended Barrowman aerodynamics. They were carried in with AstraRocketJs's engine (see
 `../../engine-java/patches/LEDGER.md`); this document pulls the physics and the code out on
 their own so they can be reviewed as a potential **OpenRocket contribution**.
 

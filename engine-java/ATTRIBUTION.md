@@ -3,7 +3,7 @@
 `engine-java/` is derived from **OpenRocket 24.12** (https://openrocket.info,
 https://github.com/openrocket/openrocket) — its `info.openrocket.core` module extracted to source
 and minimally patched to compile to JavaScript with TeaVM. OpenRocket is **GPL-3.0-or-later**,
-and this engine (and FakeRocket as a whole) inherits that license.
+and this engine (and AstraRocketJs as a whole) inherits that license.
 
 ## RASAero-style aerodynamics extensions — mmrocket-sim
 
@@ -15,8 +15,7 @@ OpenRocket**: the supersonic-aero model (`supersonicAero`), the Rogers-Kbf body-
 These are the **original work of the mmrocket-sim project**
 (<https://github.com/mtnmanak/mmrocket-sim>, by Mountain Man Rockets) — designed, implemented,
 and calibrated there as opt-in extensions to OpenRocket's Extended Barrowman kernel.
-`patches/LEDGER.md` is mmrocket-sim's own first-hand patch record. Any contribution of this work
-upstream (e.g. to OpenRocket) must credit mmrocket-sim as its author.
+`patches/LEDGER.md` is mmrocket-sim's own first-hand patch record.
 
 Lineage, to be precise: **OpenRocket** (GPL-3.0-or-later) provides the Extended Barrowman kernel
 these extend. **RASAero II** (Rogers Aeroscience) is a separate program, not used or included

@@ -16,6 +16,7 @@ import info.openrocket.core.masscalc.RigidBody;
 import info.openrocket.core.models.atmosphere.ExtendedISAModel;
 import info.openrocket.core.models.gravity.WGSGravityModel;
 import info.openrocket.core.models.wind.PinkNoiseWindModel;
+import info.openrocket.core.models.wind.MultiLevelPinkNoiseWindModel;
 import info.openrocket.core.motor.IgnitionEvent;
 import info.openrocket.core.motor.Manufacturer;
 import info.openrocket.core.motor.Motor;
@@ -175,6 +176,10 @@ public final class OpenRocketEngine {
                     ids.put(stageId, stage);
                 }
                 applySeparationConfig(stage, stageNode);
+                // Stages are built directly (not via ComponentFactory.create), so
+                // apply their own Mass/CG/CD overrides here — e.g. pinning a whole
+                // rocket's measured mass via a stage override + "all subcomponents".
+                ComponentFactory.applyOverrides(stage, stageNode);
                 ComponentFactory.attachChildren(stage, stageNode, ids);
             }
             if (firstStage == null) {
@@ -760,7 +765,7 @@ public final class OpenRocketEngine {
                 JsonLite.dbl(o, "launchLatitude", 28.61),
                 JsonLite.dbl(o, "launchLongitude", -80.60),
                 launchAltitude));
-        conditions.setGeodeticComputation(GeodeticComputationStrategy.SPHERICAL);
+        conditions.setGeodeticComputation(geodeticOf(JsonLite.str(o, "geodetic", "spherical")));
         if (!Double.isNaN(temperature) || !Double.isNaN(pressure)) {
             conditions.setAtmosphericModel(new ExtendedISAModel(
                     launchAltitude,
@@ -774,12 +779,30 @@ public final class OpenRocketEngine {
         aeroCalc.setRogersKbf(ctx.rogersKbf); // feature #3: opt-in body-fin interference
         aeroCalc.setSupersonicAero(ctx.supersonicAero); // feature #1 Phase 1
         int randomSeed = (int) JsonLite.dbl(o, "randomSeed", 42);
-        // Seeded explicitly: the no-arg PinkNoiseWindModel constructor seeds
-        // from new Random().nextInt() — nondeterministic across runs.
-        PinkNoiseWindModel wind = new PinkNoiseWindModel(randomSeed);
-        wind.setAverage(JsonLite.dbl(o, "windAverage", 0));
-        wind.setStandardDeviation(JsonLite.dbl(o, "windStdDeviation", 0));
-        conditions.setWindModel(wind);
+        List<Map<String, Object>> windLevels = JsonLite.objList(o, "windLevels");
+        if (windLevels != null && !windLevels.isEmpty()) {
+            // Altitude-layered winds (24.x multilevel profile): one pink-noise
+            // sub-model per level; the kernel interpolates between levels by
+            // altitude. clearLevels() drops the constructor's default level 0.
+            MultiLevelPinkNoiseWindModel ml = new MultiLevelPinkNoiseWindModel();
+            ml.clearLevels();
+            for (Map<String, Object> lvl : windLevels) {
+                ml.addWindLevel(
+                        JsonLite.dbl(lvl, "altitude", 0),
+                        JsonLite.dbl(lvl, "speed", 0),
+                        JsonLite.dbl(lvl, "direction", Math.PI / 2),
+                        JsonLite.dbl(lvl, "stddev", 0));
+            }
+            conditions.setWindModel(ml);
+        } else {
+            // Seeded explicitly: the no-arg PinkNoiseWindModel constructor seeds
+            // from new Random().nextInt() — nondeterministic across runs.
+            PinkNoiseWindModel wind = new PinkNoiseWindModel(randomSeed);
+            wind.setAverage(JsonLite.dbl(o, "windAverage", 0));
+            wind.setStandardDeviation(JsonLite.dbl(o, "windStdDeviation", 0));
+            wind.setDirection(JsonLite.dbl(o, "windDirection", Math.PI / 2));
+            conditions.setWindModel(wind);
+        }
         conditions.setAerodynamicCalculator(aeroCalc);
         conditions.setMassCalculator(new MassCalculator());
         conditions.setTimeStep(timeStep > 0 ? timeStep : 0.05);
@@ -797,6 +820,16 @@ public final class OpenRocketEngine {
     }
 
     // ---------- helpers ----------
+
+    /** Map a geodetic-model name to the kernel strategy (default spherical). */
+    private static GeodeticComputationStrategy geodeticOf(String name) {
+        switch (name == null ? "" : name.toLowerCase()) {
+            case "flat": return GeodeticComputationStrategy.FLAT;
+            case "wgs84": return GeodeticComputationStrategy.WGS84;
+            case "spherical":
+            default: return GeodeticComputationStrategy.SPHERICAL;
+        }
+    }
 
     private static final class RocketCtx {
         final Rocket rocket;

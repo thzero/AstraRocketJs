@@ -449,7 +449,31 @@ final class ComponentFactory {
             fs.setAirfoilTeDiamond(dbl(node, "airfoilTeDiamond", 0));
             fs.setFinLeRadius(dbl(node, "finLeRadius", 0));
         }
-        // Mass / CG / CD overrides — absent key means "not overridden".
+        applyOverrides(c, node);
+        Map<String, Object> position = obj(node, "position");
+        // Off-axis assemblies (PodSet/ParallelStage) have no parent here yet, and
+        // their setAxialMethod NPEs without one — their position is applied
+        // post-attach in applyAssembly. Every other component positions here.
+        if (position != null && !(c instanceof ComponentAssembly)) {
+            c.setAxialMethod(axialMethodOf(str(position, "method", "top")));
+            c.setAxialOffset(dbl(position, "offset", 0));
+        }
+        return c;
+    }
+
+    /**
+     * Deployment settings for recovery devices, applied to the DEFAULT
+     * deployment configuration (inherited by every flight configuration).
+     * Keys: deployEvent (launch|ejection|apogee|altitude|never),
+     * deployAltitude (m AGL, for "altitude"), deployDelay (s).
+     */
+    /**
+     * Applies a node's Mass / CG / CD overrides (+ the "all subcomponents" flags)
+     * to a component. Reused for the top-level stages in {@link OpenRocketEngine},
+     * which are constructed directly rather than through {@link #create}.
+     * An absent key means "not overridden".
+     */
+    static void applyOverrides(RocketComponent c, Map<String, Object> node) {
         double overrideMass = dbl(node, "overrideMass", Double.NaN);
         if (!Double.isNaN(overrideMass)) {
             c.setOverrideMass(overrideMass);
@@ -477,23 +501,8 @@ final class ComponentFactory {
         if (bool(node, "overrideSubcomponentsCD", false)) {
             c.setSubcomponentsOverriddenCD(true);
         }
-        Map<String, Object> position = obj(node, "position");
-        // Off-axis assemblies (PodSet/ParallelStage) have no parent here yet, and
-        // their setAxialMethod NPEs without one — their position is applied
-        // post-attach in applyAssembly. Every other component positions here.
-        if (position != null && !(c instanceof ComponentAssembly)) {
-            c.setAxialMethod(axialMethodOf(str(position, "method", "top")));
-            c.setAxialOffset(dbl(position, "offset", 0));
-        }
-        return c;
     }
 
-    /**
-     * Deployment settings for recovery devices, applied to the DEFAULT
-     * deployment configuration (inherited by every flight configuration).
-     * Keys: deployEvent (launch|ejection|apogee|altitude|never),
-     * deployAltitude (m AGL, for "altitude"), deployDelay (s).
-     */
     private static void applyDeployment(RecoveryDevice device, Map<String, Object> node) {
         DeploymentConfiguration config = device.getDeploymentConfigurations().getDefault();
         String event = str(node, "deployEvent", null);

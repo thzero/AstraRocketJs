@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { IMAGE_WIDTHS, type ImageFormat } from '../services/schematicExport.js';
+import { IMAGE_WIDTHS, type ImageFormat } from '../../services/schematicExport.js';
 
 /** Per-export toggles carried alongside the format/width choice. Nothing here
  *  is persisted — the picker is reopened for every export anyway. */

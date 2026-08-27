@@ -1,6 +1,3 @@
-// Minimal tree helpers extracted from mmrocket-sim's tree/treeModel.ts — just
-// the two functions orkFile.ts needs, so we avoid pulling in its full tree
-// editor (position/schema). Plus the LaunchConditions shape .ork parsing fills.
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 
 let counter = 1;
@@ -21,13 +18,30 @@ export function asStageNodes(tree: RocketTree): ComponentNode[] {
 }
 
 /** Launch conditions parsed from a .ork's first `<simulation>` `<conditions>`. */
+export interface WindLevel {
+  /** Altitude MSL, metres. */
+  altitudeM: number;
+  /** Wind speed, m/s. */
+  speed: number;
+  /** Wind heading, degrees. */
+  directionDeg: number;
+  /** Gust std-deviation, m/s. */
+  stddev: number;
+}
+
 export interface LaunchConditions {
   launchRodLengthM: number;
   launchRodAngleDeg: number;
   windAverage: number;
   windStdDev: number;
+  /** Wind heading, degrees (single-wind model). */
+  windDirectionDeg?: number;
+  /** Altitude-layered wind profile (24.x multilevel); overrides the single wind. */
+  windLevels?: WindLevel[];
   launchAltitudeM: number;
   latitudeDeg: number;
+  /** Earth model for the trajectory. */
+  geodetic?: 'flat' | 'spherical' | 'wgs84';
   /** null when the file declares the ISA standard atmosphere. */
   temperatureC: number | null;
   /** null when the file declares the ISA standard atmosphere. */

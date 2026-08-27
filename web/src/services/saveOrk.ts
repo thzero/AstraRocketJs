@@ -1,5 +1,3 @@
-// .ork export: render the component tree to OpenRocket XML (orkFile.exportOrk,
-// adopted from mmrocket-sim), zip it as rocket.ork, and trigger a download.
 import { zipSync, strToU8 } from 'fflate';
 import { exportOrk, type OrkTreeExportInput } from './orkFile';
 

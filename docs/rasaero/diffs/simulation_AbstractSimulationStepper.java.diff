@@ -1,5 +1,5 @@
---- C:/Users/corve/AppData/Local/Temp/claude/d--programming-rocketry-fakerocket/70e92ed6-00d6-4ce4-aeeb-d361bff94609/scratchpad/src/info/openrocket/core/simulation/AbstractSimulationStepper.java	1980-02-01 00:00:00.000000000 -0600
-+++ d:/programming/rocketry/fakerocket/engine-java/src/carved/java/info/openrocket/core/simulation/AbstractSimulationStepper.java	2026-08-22 22:22:24.995896900 -0500
+--- C:/Users/corve/AppData/Local/Temp/claude/d--programming-rocketry-astrarrocketjs/70e92ed6-00d6-4ce4-aeeb-d361bff94609/scratchpad/src/info/openrocket/core/simulation/AbstractSimulationStepper.java	1980-02-01 00:00:00.000000000 -0600
++++ d:/programming/rocketry/astrarrocketjs/engine-java/src/carved/java/info/openrocket/core/simulation/AbstractSimulationStepper.java	2026-08-22 22:22:24.995896900 -0500
 @@ -47,6 +47,7 @@
  			// Compute the store values
  			store.thetaRotation = new Rotation2D(store.flightConditions.getTheta());

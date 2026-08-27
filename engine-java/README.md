@@ -132,7 +132,7 @@ node build-engine.mjs        # gradlew generateJavaScript + vendor into web/  (o
 
 # …or the raw steps it wraps:
 ./gradlew generateJavaScript
-cp build/generated/teavm/js/fakerocket-engine.js ../web/src/engine/vendor/openrocket-engine.mjs
+cp build/generated/teavm/js/astrarrocketjs-engine.js ../web/src/engine/vendor/openrocket-engine.mjs
 ```
 
 Non-obvious, load-bearing settings in `build.gradle`:

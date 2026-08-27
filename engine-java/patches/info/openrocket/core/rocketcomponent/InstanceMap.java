@@ -12,7 +12,7 @@ import info.openrocket.core.util.Transformation;
  * @author teyrana (aka Daniel Williams) <equipoise@gmail.com>
  *
  */
-// PATCH(fakerocket): ConcurrentHashMap -> LinkedHashMap. Two reasons:
+// PATCH(astrarrocketjs): ConcurrentHashMap -> LinkedHashMap. Two reasons:
 // (1) TeaVM's classlib needs a plain java.util map here; (2) RocketComponent
 // has no hashCode() override, so hash-map iteration order follows identity
 // hash codes, which vary per JVM process. BarrowmanCalculator iterates this

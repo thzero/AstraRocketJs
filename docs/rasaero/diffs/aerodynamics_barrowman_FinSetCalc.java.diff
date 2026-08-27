@@ -1,5 +1,5 @@
---- C:/Users/corve/AppData/Local/Temp/claude/d--programming-rocketry-fakerocket/70e92ed6-00d6-4ce4-aeeb-d361bff94609/scratchpad/src/info/openrocket/core/aerodynamics/barrowman/FinSetCalc.java	1980-02-01 00:00:00.000000000 -0600
-+++ d:/programming/rocketry/fakerocket/engine-java/src/carved/java/info/openrocket/core/aerodynamics/barrowman/FinSetCalc.java	2026-08-22 22:22:24.747217600 -0500
+--- C:/Users/corve/AppData/Local/Temp/claude/d--programming-rocketry-astrarrocketjs/70e92ed6-00d6-4ce4-aeeb-d361bff94609/scratchpad/src/info/openrocket/core/aerodynamics/barrowman/FinSetCalc.java	1980-02-01 00:00:00.000000000 -0600
++++ d:/programming/rocketry/astrarrocketjs/engine-java/src/carved/java/info/openrocket/core/aerodynamics/barrowman/FinSetCalc.java	2026-08-22 22:22:24.747217600 -0500
 @@ -51,6 +51,61 @@
  	private final int finCount;
  	private final double cantAngle;

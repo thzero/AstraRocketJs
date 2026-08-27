@@ -17,7 +17,7 @@ import process from 'node:process';
 
 const engineRoot = dirname(fileURLToPath(import.meta.url));
 const gradlew = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
-const artifact = join(engineRoot, 'build', 'generated', 'teavm', 'js', 'fakerocket-engine.js');
+const artifact = join(engineRoot, 'build', 'generated', 'teavm', 'js', 'astrarrocketjs-engine.js');
 const vendor = join(engineRoot, '..', 'web', 'src', 'engine', 'vendor', 'openrocket-engine.mjs');
 
 // Only override JAVA_HOME if the caller set a valid one; else let Gradle resolve its own JVM.

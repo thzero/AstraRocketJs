@@ -10,6 +10,7 @@ import {
   type RocketTree,
   type ComponentNode,
 } from './openRocketEngine';
+import { defaultDesignName } from '../services/appInfo';
 
 export type { RocketSpec, StaticInfo, FlightResult } from './openRocketEngine';
 
@@ -37,6 +38,18 @@ export function buildRocket(spec: RocketSpec, motor: MotorSpec = C6): OpenRocket
 }
 
 /**
+ * Build a rocket from an editable component tree and (optionally) seat a motor
+ * in the mount with `mountId`. Used by the tree editor — mirrors buildRocket
+ * but for arbitrary trees. resetEngine() frees the previous design's handles.
+ */
+export function buildRocketTree(tree: RocketTree, motor?: MotorSpec, mountId?: string): OpenRocketDesign {
+  resetEngine();
+  const rocket = OpenRocketDesign.buildTree(tree);
+  if (motor && mountId) rocket.setMotorById(mountId, motor);
+  return rocket;
+}
+
+/**
  * The editor's fixed-layout RocketSpec as a component tree (for `.ork` export):
  * stage → nose + body(fins, motor-mount inner tube, parachute). Returns the
  * mount's node id so the caller can attach the motor by id.
@@ -60,19 +73,40 @@ export function specToTree(spec: RocketSpec): { tree: RocketTree; mountId: strin
         type: 'trapezoidfinset', id: 'fins', finCount: spec.fins.count,
         rootChord: spec.fins.rootChord, tipChord: spec.fins.tipChord, sweep: spec.fins.sweep,
         height: spec.fins.height, thickness: spec.fins.thickness,
+        // Fin sets sit at the aft end of the body tube (bottom-aligned), like
+        // OpenRocket's default — without this they draw up by the nose.
+        position: { method: 'bottom', offset: 0 },
         ...bulk(spec.fins.materialDensity, spec.fins.material),
       },
       {
         type: 'innertube', id: mountId, motorMount: true,
         length: spec.motorMount.length, outerRadius: spec.motorMount.outerRadius, thickness: spec.motorMount.thickness,
+        // Motor mount at the tail so the motor loads from the aft. The motor
+        // protrudes ~0.25 in (6.35 mm) past the aft end, the usual overhang.
+        position: { method: 'bottom', offset: 0 }, motorOverhang: 0.00635,
+      },
+      // Two centering rings hold the motor mount concentric in the body tube:
+      // one at the mount's fore end, one at the aft end. Outer wall = body inner
+      // radius, inner bore = mount outer radius.
+      {
+        type: 'centeringring', id: 'ring-fore',
+        outerRadius: spec.bodyTube.outerRadius - spec.bodyTube.thickness, innerRadius: spec.motorMount.outerRadius, length: 0.003,
+        position: { method: 'top', offset: Math.max(0, spec.bodyTube.length - spec.motorMount.length) },
+      },
+      {
+        type: 'centeringring', id: 'ring-aft',
+        outerRadius: spec.bodyTube.outerRadius - spec.bodyTube.thickness, innerRadius: spec.motorMount.outerRadius, length: 0.003,
+        position: { method: 'bottom', offset: 0 },
       },
       ...(spec.parachute
-        ? [{ type: 'parachute', id: 'chute', diameter: spec.parachute.diameter, cd: spec.parachute.dragCoefficient ?? 0.8 } as ComponentNode]
+        ? [{ type: 'parachute', id: 'chute', diameter: spec.parachute.diameter, cd: spec.parachute.dragCoefficient ?? 0.8,
+            // Recovery packs up near the nose (front of the body tube).
+            position: { method: 'top', offset: 0.02 } } as ComponentNode]
         : []),
     ],
   };
   return {
-    tree: { name: 'FakeRocket design', components: [{ type: 'stage', name: 'Sustainer', id: 's1', children: [nose, body] }] },
+    tree: { name: defaultDesignName(), components: [{ type: 'stage', name: 'Sustainer', id: 's1', children: [nose, body] }] },
     mountId,
   };
 }

@@ -1,9 +1,9 @@
 {
-  "name": "fakerocket-web",
+  "name": "astrarrocketjs-web",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "FakeRocket — mobile-first browser UI for the OpenRocket engine (TeaVM)",
+  "description": "AstraRocketJs — browser UI for the OpenRocket engine",
   "license": "GPL-3.0-or-later",
   "scripts": {
     "dev": "vite",
@@ -14,8 +14,11 @@
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
     "fflate": "^0.8.3",
+    "i18next": "^26.4.0",
+    "i18next-browser-languagedetector": "^8.2.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-i18next": "^17.0.12",
     "three": "^0.169.0"
   },
   "devDependencies": {

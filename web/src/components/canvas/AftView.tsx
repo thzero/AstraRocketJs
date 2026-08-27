@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
-import { clusterOffsets } from '../tree/cluster.js';
-import { tubeFinRadius } from '../tree/tubefins.js';
-import { isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../tree/assembly.js';
+import { useTranslation } from 'react-i18next';
+import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
+import { clusterOffsets } from '../../tree/cluster.js';
+import { tubeFinRadius } from '../../tree/tubefins.js';
+import { isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
 
 /**
  * Aft end view — the rocket seen from behind (down the +X axis). This is the
@@ -36,6 +37,7 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
   /** Horizontal drag on the view spins the roll (delta radians). */
   onRoll?: (deltaRadians: number) => void;
 }) {
+  const { t } = useTranslation();
   // Zoom/pan in viewBox (meter) coordinates — same pattern as TreeSchematic
   // (issue 2026-08-05b #13: "the user needs to be able to zoom the aft view").
   const [zoom, setZoom] = useState({ k: 1, x: 0, y: 0 });
@@ -260,7 +262,7 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
       <svg ref={svgRef} viewBox={`${-E} ${-E} ${2 * E} ${2 * E}`}
         style={{ width: '100%', height: '100%', display: 'block',
           touchAction: 'none', cursor: zoom.k > 1 ? 'grab' : undefined }}
-        role="img" aria-label="Aft end view — looking at the rocket from behind; drag to rotate, wheel to zoom"
+        role="img" aria-label={t('schematic.aftAria')}
         onPointerDown={(e) => {
           // Drag rotates the roll (primary); pan only when zoomed and no onRoll.
           if (onRoll) {
@@ -301,9 +303,9 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
         </g>
       </svg>
       <div className="schematic-controls">
-        <button title="Zoom in" onClick={() => zoomBy(1.5)}>+</button>
-        <button title="Zoom out" onClick={() => zoomBy(1 / 1.5)}>−</button>
-        <button title="Fit" onClick={() => setZoom({ k: 1, x: 0, y: 0 })}>⤢</button>
+        <button title={t('schematic.zoomIn')} onClick={() => zoomBy(1.5)}>+</button>
+        <button title={t('schematic.zoomOut')} onClick={() => zoomBy(1 / 1.5)}>−</button>
+        <button title={t('schematic.fit')} onClick={() => setZoom({ k: 1, x: 0, y: 0 })}>⤢</button>
       </div>
     </div>
   );

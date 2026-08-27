@@ -72,6 +72,13 @@ export interface SimulationOptions {
   launchRodAngle?: number;
   windAverage?: number;
   windStdDeviation?: number;
+  /** Wind heading, RADIANS. Ignored when windLevels is set. */
+  windDirection?: number;
+  /** Altitude-layered wind (overrides windAverage/StdDev/Direction when non-empty).
+   *  altitude m (MSL), speed m/s, direction radians, stddev m/s. */
+  windLevels?: { altitude: number; speed: number; direction: number; stddev: number }[];
+  /** Earth model for the trajectory: 'flat' | 'spherical' (default) | 'wgs84'. */
+  geodetic?: 'flat' | 'spherical' | 'wgs84';
   launchAltitude?: number;
   /** Launch-site temperature (K). Default: ISA standard. */
   temperature?: number;
@@ -521,6 +528,9 @@ export class OpenRocketDesign {
       rodAngle: options.launchRodAngle ?? 0,
       windAverage: options.windAverage ?? 0,
       windStdDeviation: options.windStdDeviation ?? 0,
+      windDirection: options.windDirection,
+      windLevels: options.windLevels,
+      geodetic: options.geodetic,
       launchAltitude: options.launchAltitude ?? 0,
       temperature: options.temperature,
       pressure: options.pressure,
