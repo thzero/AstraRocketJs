@@ -105,6 +105,7 @@ export function samplesToMotorSpec(
 
   return {
     designation: motor.designation,
+    manufacturer: motor.manufacturerAbbrev,
     diameter: motor.diameter / 1000,
     length: motor.length / 1000,
     times,

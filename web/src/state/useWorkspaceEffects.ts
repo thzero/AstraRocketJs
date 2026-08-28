@@ -41,6 +41,23 @@ export function useWorkspaceEffects() {
     return () => clearTimeout(id);
   }, [tree, sims, activeId, extraMotors, loadedMeta]);
 
+  // Flush any change the 500ms debounce hasn't persisted yet on page unload —
+  // otherwise opening a .ork and refreshing quickly would lose it. localStorage
+  // writes run synchronously, so this completes before the page tears down.
+  useEffect(() => {
+    const flush = () => {
+      if (!hydrated.current) return;
+      const s = useWorkspaceStore.getState();
+      getWorkspaceStore().save({ version: 1, tree: s.tree, sims: s.sims, activeId: s.activeId, extraMotors: s.extraMotors, loadedMeta: s.loadedMeta });
+    };
+    window.addEventListener('pagehide', flush);
+    window.addEventListener('beforeunload', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      window.removeEventListener('beforeunload', flush);
+    };
+  }, []);
+
   // Rebuild + recompute static info whenever the design or motors change. The
   // primary mount takes the active sim's `motor`; other mounts take their imports.
   useEffect(() => {

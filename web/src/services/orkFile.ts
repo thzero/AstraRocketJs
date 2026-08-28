@@ -1,5 +1,5 @@
 import { unzipSync, strFromU8 } from 'fflate';
-import type { ComponentNode, ComponentPosition, ComponentType, RocketTree } from '../engine/openRocketEngine';
+import { PLUGGED_DELAY, type ComponentNode, type ComponentPosition, type ComponentType, type RocketTree } from '../engine/openRocketEngine';
 import { asStageNodes, freshId, type LaunchConditions } from './orkTree';
 import { shapeIsClippable, shapeParamDefault } from '../tree/shapeProfile';
 import { escapeXml, xmlText as text } from './xmlUtil';
@@ -197,8 +197,8 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
     if (overhang !== 0) node['motorOverhang'] = overhang;
     // ONE configuration's motor+ignition off this mount. Plugged motors (no
     // ejection charge): the desktop writes the literal string "none"
-    // (Motor.PLUGGED_DELAY). Represent as Infinity — the kernel treats a
-    // +Inf ejection delay as "never fires", matching the desktop.
+    // (Motor.PLUGGED_DELAY). Represent as the JSON-safe PLUGGED_DELAY sentinel,
+    // which the engine maps to +Inf ("never fires") at the kernel boundary.
     const resolveRef = (motorEl: Element, igEl: Element): OrkMotorRef => {
       const delayText = text(motorEl, ':scope > delay');
       return {
@@ -206,7 +206,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         manufacturer: text(motorEl, ':scope > manufacturer') ?? 'unknown',
         diameter: num(motorEl, 'diameter', 0.018),
         length: num(motorEl, 'length', 0.07),
-        delay: delayText === 'none' ? Infinity : num(motorEl, 'delay', 0),
+        delay: delayText === 'none' ? PLUGGED_DELAY : num(motorEl, 'delay', 0),
         mountId: node.id,
         ignitionEvent: text(igEl, ':scope > ignitionevent') ?? undefined,
         ignitionDelay: num(igEl, 'ignitiondelay', 0),
@@ -230,7 +230,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
     // Ignition: the chosen config's block wins over the bare default
     // (desktop writes defaults bare, overrides in <ignitionconfiguration>).
     const ref = resolveRef(motorEl, configScoped(mountEl, 'ignitionconfiguration') ?? mountEl);
-    if (!Number.isFinite(ref.delay)) {
+    if (ref.delay >= PLUGGED_DELAY) {
       notes.push(
         `Motor ${ref.designation}: plugged (no ejection charge) — make sure recovery deploys on apogee/altitude, not the ejection charge.`);
     }
@@ -640,39 +640,35 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
   if (configs.length > 1) {
     const mountMotorEls = Array.from(rocketEl.querySelectorAll('motormount > motor'));
     if (mountMotorEls.length === 0) {
-      // Declared configs but no <motor> in any mount: the pick changed no
-      // motors — claiming one was opened would send the user hunting for a
-      // motor that isn't loaded (the mounts are all empty).
+      // Declared configs but no <motor> in any mount: worth flagging that the
+      // mounts came in empty (nothing to simulate until a motor is picked).
       notes.push(
         `File declares ${configs.length} flight configurations but carried no motors to import.`);
-    } else {
-      const chosen = configs.find((c) => c.id === chosenConfigId)!;
-      notes.push(
-        `Opened flight configuration “${chosen.name ?? chosen.id}” (${configs.length} in the file — switch motors any time under Motors & Launch; reopen the file to switch deployment/separation overrides too).`);
     }
+    // Which configuration was opened (and that there are others) is shown in the
+    // Simulations panel now, so it's no longer a load note.
     // Stage activeness (<stage active="false">) is not applied (Stage C) —
-    // warn when the chosen configuration would actually ground a stage.
+    // warn when the chosen configuration would actually ground a stage. Name it
+    // (never the UUID — that appears nowhere in our UI or OpenRocket's).
     const chosenEl = configEls.find((c) => c.getAttribute('configid') === chosenConfigId);
     if (chosenEl && Array.from(chosenEl.querySelectorAll(':scope > stage'))
         .some((s) => s.getAttribute('active') === 'false')) {
+      const name = configs.find((c) => c.id === chosenConfigId)?.name;
       notes.push(
-        'This configuration deactivates one or more stages — stage activeness isn’t applied here, so all stages fly in the simulation.');
+        `${name ? `Configuration “${name}”` : 'The opened configuration'} deactivates one or more stages — stage activeness isn’t applied here, so all stages fly in the simulation.`);
     }
   } else if (configs.length === 0) {
-    // Hand-rolled files may key <motor configid>s without declaring the
-    // configs. Those kept the legacy first-motor read, so keep the legacy
-    // honesty note: the rest were silently dropped.
+    // Hand-rolled files may key <motor configid>s without declaring the configs,
+    // so those configurations have no names at all. We read the first motor and
+    // drop the rest — say how many, but never a UUID (it means nothing to anyone).
     const strayIds = new Set<string>();
     for (const m of Array.from(rocketEl.getElementsByTagName('motor'))) {
       const id = m.getAttribute('configid');
       if (id) strayIds.add(id);
     }
     if (strayIds.size > 1) {
-      const keptId = Array.from(rocketEl.querySelectorAll('motormount > motor'))
-        .map((m) => m.getAttribute('configid'))
-        .find((id) => id !== null);
       notes.push(
-        `File has ${strayIds.size} flight configurations — kept “${keptId ?? 'the first'}”; the other ${strayIds.size - 1} ${strayIds.size - 1 === 1 ? 'was' : 'were'} not imported.`);
+        `File has ${strayIds.size} flight configurations — only the first was imported; the other ${strayIds.size - 1} ${strayIds.size - 1 === 1 ? 'was' : 'were'} not.`);
     }
   }
 
@@ -1022,7 +1018,7 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
       emit(depth + 2, `<diameter>${m.diameter}</diameter>`);
       emit(depth + 2, `<length>${m.length}</length>`);
       // Plugged (no ejection charge) → the desktop's literal "none".
-      emit(depth + 2, `<delay>${Number.isFinite(m.delay) ? m.delay : 'none'}</delay>`);
+      emit(depth + 2, `<delay>${m.delay >= PLUGGED_DELAY ? 'none' : m.delay}</delay>`);
       emit(depth + 1, '</motor>');
     }
     for (const c of withMotor) {

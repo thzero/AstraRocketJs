@@ -8,6 +8,7 @@ import { buildPieces, type MotorDims } from './Rocket3D';
 import { colorForType, mergePalette, type PartPalette } from '../../services/partColors';
 import { useSettings } from '../../state/SettingsProvider';
 import { fmtNum } from '../../i18n/format';
+import { EVENT_LABEL } from '../../services/simReport';
 
 /**
  * 3D flight path (adapted from Vector Celeste's Flight3D, one better). Draws the
@@ -40,11 +41,6 @@ function findRecovery(tree: RocketTree, palette: PartPalette): Recovery {
   walk(tree.components);
   return found;
 }
-
-const EVENT_LABEL: Record<string, string> = {
-  BURNOUT: 'flight.burnout', APOGEE: 'flight.apogee',
-  RECOVERY_DEVICE_DEPLOYMENT: 'flight.deploy', EJECTION_CHARGE: 'flight.ejection', GROUND_HIT: 'flight.landing',
-};
 
 export function FlightPath3D({ result, tree, motors }: { result: FlightResult; tree: RocketTree; motors?: MotorDims }) {
   const { t } = useTranslation();
@@ -99,7 +95,6 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
     }
     return {
       colors: cols, scenePts: sp, apogeeIdx: ai, deployT: dpT, burnoutT: bt,
-      flightTime: result.summary.flightTime || rows[rows.length - 1]?.t || 1,
       times: rows.map((r) => r.t), alts: rows.map((r) => r.a), vels: rows.map((r) => r.v), callouts: cos,
     };
   }, [result, phase]);
@@ -138,6 +133,11 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
   };
   const handleReset = () => { setPlaying(false); setCountdown(null); progressRef.current = 0; setProgress(0); };
 
+  // Camera framing derives from the trajectory's peak. Computed BEFORE the early
+  // return so the useMemo below is never skipped — hook count must stay constant.
+  const maxY = Math.max(...scenePts.map((p) => p.y));
+  const home = useMemo(() => new THREE.Vector3(maxY * 1.15, maxY * 0.62, maxY * 1.4), [maxY]);
+
   if (scenePts.length < 2) {
     return <div className="grid h-full place-items-center text-sm text-slate-500">{t('sim.prompt')}</div>;
   }
@@ -152,9 +152,7 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
   const nowT = times[idx] ?? 0;
   const descending = nowT >= deployT;
   const boosting = nowT < burnoutT;
-  const maxY = Math.max(...scenePts.map((p) => p.y));
   const midY = maxY / 2;
-  const home = useMemo(() => new THREE.Vector3(maxY * 1.15, maxY * 0.62, maxY * 1.4), [maxY]);
   const followDist = MODEL_LEN * 3.4;
 
   // Orient nose (local -X) along velocity, or hang nose-up once the chute is out.

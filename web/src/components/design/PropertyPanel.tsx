@@ -308,7 +308,7 @@ export function PropertyPanel({ node, onChange, onRemove, onMove, canMoveUp, can
           onSub={(on) => onChange({ overrideSubcomponentsMass: on || undefined })}
         />
         <OverrideRow
-          label={t('override.cg')} unit="mm" step={1}
+          label={t(node.type === 'stage' ? 'override.cgStage' : 'override.cg')} unit="mm" step={1}
           enabled={typeof node.overrideCGX === 'number'} value={numVal(node, 'overrideCGX') * 1000}
           onToggle={(on) => onChange({ overrideCGX: on ? numVal(node, 'overrideCGX') : undefined, overrideSubcomponentsCG: on ? node.overrideSubcomponentsCG as boolean | undefined : undefined })}
           onValue={(v) => onChange({ overrideCGX: v / 1000 })}

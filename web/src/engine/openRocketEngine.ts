@@ -55,6 +55,8 @@ export interface RocketSpec {
 
 export interface MotorSpec {
   designation: string;
+  /** Manufacturer name/abbreviation (display only; the engine ignores it). */
+  manufacturer?: string;
   diameter: number;
   length: number;
   /** Thrust curve: times[i] (s) -> thrusts[i] (N); masses[i] = motor mass (kg) at times[i]. */
@@ -63,13 +65,28 @@ export interface MotorSpec {
   masses: number[];
   /** Motor CG position from its leading end (m). */
   cgX: number;
+  /** Ejection-charge delay (s). Use {@link PLUGGED_DELAY} for a plugged motor. */
   ejectionDelay: number;
 }
+
+/**
+ * JSON-safe sentinel for a plugged motor (no ejection charge). OpenRocket's
+ * kernel uses `Motor.PLUGGED_DELAY = Double.POSITIVE_INFINITY`, but Infinity
+ * cannot survive JSON (localStorage persistence and the motor cache serialize
+ * it to null), so we store this finite value and map it back to Infinity only
+ * at the kernel boundary — see {@link toKernelDelay}.
+ */
+export const PLUGGED_DELAY = 1e9;
+
+/** Map the stored ejection delay to what the kernel expects (Infinity = plugged). */
+const toKernelDelay = (d: number): number => (d >= PLUGGED_DELAY ? Infinity : d);
 
 export interface SimulationOptions {
   launchRodLength?: number;
   /** Radians from vertical. */
   launchRodAngle?: number;
+  /** Launch-rod compass heading, RADIANS (default π/2). */
+  launchRodDirection?: number;
   windAverage?: number;
   windStdDeviation?: number;
   /** Wind heading, RADIANS. Ignored when windLevels is set. */
@@ -427,7 +444,7 @@ export class OpenRocketDesign {
     assertFiniteCurve(motor);
     openrocket.setMotorById(
       this.handle, componentId, motor.designation, motor.diameter, motor.length,
-      motor.times, motor.thrusts, motor.masses, motor.cgX, motor.ejectionDelay);
+      motor.times, motor.thrusts, motor.masses, motor.cgX, toKernelDelay(motor.ejectionDelay));
   }
 
   /**
@@ -466,7 +483,7 @@ export class OpenRocketDesign {
     assertFiniteCurve(motor);
     openrocket.setMotor(
       this.handle, this.mountHandle, motor.designation, motor.diameter, motor.length,
-      motor.times, motor.thrusts, motor.masses, motor.cgX, motor.ejectionDelay);
+      motor.times, motor.thrusts, motor.masses, motor.cgX, toKernelDelay(motor.ejectionDelay));
   }
 
   /**
@@ -526,6 +543,7 @@ export class OpenRocketDesign {
     const raw = openrocket.simulateJson(this.handle, JSON.stringify({
       rodLength: options.launchRodLength ?? 1.0,
       rodAngle: options.launchRodAngle ?? 0,
+      rodDirection: options.launchRodDirection,
       windAverage: options.windAverage ?? 0,
       windStdDeviation: options.windStdDeviation ?? 0,
       windDirection: options.windDirection,

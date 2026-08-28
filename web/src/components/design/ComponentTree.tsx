@@ -44,6 +44,18 @@ const TYPE_COLOR: Record<string, string> = {
   podset: '#e2e8f0', parallelstage: '#e2e8f0',
 };
 
+// A distinct glyph per component type (mmrocket-style), coloured by TYPE_COLOR so
+// the tree reads by shape AND colour at a glance.
+const TYPE_SYMBOL: Record<string, string> = {
+  stage: '≡',
+  nosecone: '▲', transition: '◣', bodytube: '▭', fairing: '◗',
+  trapezoidfinset: '◹', ellipticalfinset: '◜', freeformfinset: '◿', tubefinset: '⊚',
+  innertube: '▫', tubecoupler: '⊟', centeringring: '◎', bulkhead: '▬', engineblock: '⊙',
+  launchlug: '▮', railbutton: '▪', masscomponent: '◆',
+  parachute: '☂', streamer: '≈', shockcord: '∿',
+  podset: '◧', parallelstage: '❚',
+};
+
 const partLabel = (type: string, t: TFunction): string => t(`part.${type}`, { defaultValue: type });
 
 function detail(n: ComponentNode, t: TFunction): string {
@@ -63,6 +75,7 @@ function Row({ node, depth, selectedId, onSelect, t }: {
   node: ComponentNode; depth: number; selectedId?: string | null; onSelect?: (id: string) => void; t: TFunction;
 }) {
   const color = TYPE_COLOR[node.type] ?? '#94a3b8';
+  const symbol = TYPE_SYMBOL[node.type] ?? '□';
   const label = partLabel(node.type, t);
   const name = typeof node.name === 'string' && node.name ? node.name : label;
   const isMount = node.motorMount === true;
@@ -84,7 +97,7 @@ function Row({ node, depth, selectedId, onSelect, t }: {
         style={{ paddingLeft: 8 + depth * 16 }}
         title={label}
       >
-        <span className="h-2 w-2 shrink-0 rounded-[3px]" style={{ background: color }} />
+        <span className="w-4 shrink-0 text-center text-xs leading-none" style={{ color }} aria-hidden>{symbol}</span>
         <span className={`truncate text-sm ${selected ? 'text-sky-200' : 'text-slate-200'}`}>{name}</span>
         {isMount && (
           <span className="shrink-0 rounded bg-sky-500/15 px-1 text-[10px] font-medium text-sky-300">{t('tree.motorTag')}</span>

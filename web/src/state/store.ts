@@ -7,7 +7,8 @@ import type { LaunchConditions } from '../services/orkTree';
 import { downloadOrk } from '../services/saveOrk';
 import type { OrkExportMotor } from '../services/orkFile';
 import { loadOrk, type MountMotor } from '../services/loadOrk';
-import { newSimulation, simConditions, type Simulation } from '../services/simulations';
+import { newSimulation, simConditions, type Simulation, type SimPrefs } from '../services/simulations';
+import { loadSettings } from '../services/settings';
 import { defaultDesignName } from '../services/appInfo';
 import type { MotorDims } from '../components/canvas/Rocket3D';
 import type { ViewMode } from '../components/canvas/ViewToggle';
@@ -20,15 +21,6 @@ const DEFAULT_SPEC: RocketSpec = {
   fins: { count: 3, rootChord: 0.08, tipChord: 0.038, sweep: 0.055, height: 0.058, thickness: 0.0028 },
   motorMount: { length: 0.07, outerRadius: 0.0092, thickness: 0.0004 },
   parachute: { diameter: 0.4, dragCoefficient: 0.8 },
-};
-
-// Sea-level, calm, standard-atmosphere defaults (Cape Canaveral latitude).
-const DEFAULT_LAUNCH: LaunchConditions = {
-  launchRodLengthM: 1, launchRodAngleDeg: 0,
-  windAverage: 0, windStdDev: 0, windDirectionDeg: 90,
-  launchAltitudeM: 0, latitudeDeg: 28.61,
-  temperatureC: null, pressureHPa: null,
-  geodetic: 'spherical',
 };
 
 type Rocket = ReturnType<typeof buildRocketTree>;
@@ -72,9 +64,10 @@ export interface WorkspaceState {
   setActiveMotor: (m: MotorSpec) => void;
   patchLaunch: (p: Partial<LaunchConditions>) => void;
   addSim: () => void;
+  duplicateSim: (id: string) => void;
   deleteSim: (id: string) => void;
   renameSim: (id: string, name: string) => void;
-  runSim: () => void;
+  runSim: (prefs: SimPrefs) => void;
 
   setTab: (tab: Tab) => void;
   setView: (view: ViewMode) => void;
@@ -92,6 +85,31 @@ export interface WorkspaceState {
 /** The active simulation (falls back to the first if the id no longer exists). */
 export const selectActive = (s: WorkspaceState): Simulation => s.sims.find((x) => x.id === s.activeId) ?? s.sims[0];
 
+/** A motor is usable only if it carries a full thrust curve (time/thrust/mass samples). */
+const hasThrustCurve = (m: MotorSpec | undefined | null): boolean =>
+  !!(m && m.times?.length && m.thrusts?.length && m.masses?.length);
+
+/**
+ * Repair a persisted workspace so a stale/partial blob can't blank the app.
+ * Two corruptions have been seen in the wild, both from a save that raced an
+ * async operation: a sim's `launch` missing fields (blank Launch panel), and a
+ * motor persisted before its thrust-curve fetch resolved (empty curve → the
+ * engine rebuild throws "Too short thrust-curve" → no CG/CP/stats). We merge
+ * each launch over the current defaults and swap any curve-less motor for C6 so
+ * the design always renders; the user can re-pick the intended motor.
+ */
+function sanitizeSims(sims: Simulation[]): Simulation[] {
+  const launchDefaults = loadSettings().launchDefaults;
+  const safe = (Array.isArray(sims) ? sims : []).filter((s) => s && typeof s.id === 'string');
+  if (!safe.length) return [newSimulation('Simulation 1', C6, launchDefaults)];
+  return safe.map((s) => ({
+    ...s,
+    launch: { ...launchDefaults, ...(s.launch ?? {}) },
+    motor: hasThrustCurve(s.motor) ? s.motor : C6,
+    result: null,
+  }));
+}
+
 /** Motor case dimensions for the 2D/3D views (primary mount + any extra mounts). */
 export function selectMotorDims(tree: RocketTree, motor: MotorSpec, extraMotors: Record<string, MountMotor>): MotorDims {
   const m: MotorDims = {};
@@ -99,6 +117,15 @@ export function selectMotorDims(tree: RocketTree, motor: MotorSpec, extraMotors:
   if (mountId) m[mountId] = { length: motor.length, diameter: motor.diameter, label: motor.designation };
   for (const [id, mm] of Object.entries(extraMotors)) m[id] = { length: mm.spec.length, diameter: mm.spec.diameter, label: mm.spec.designation };
   return m;
+}
+
+/** First `label(n)` (n = start, start+1, …) not already used by a sim — so New
+ *  and Duplicate never reuse a name, even after deletions. */
+function uniqueSimName(sims: Simulation[], label: (n: number) => string, start: number): string {
+  const taken = new Set(sims.map((x) => x.name));
+  let n = start;
+  while (taken.has(label(n))) n++;
+  return label(n);
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
@@ -116,7 +143,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     extraMotors: {},
     loadedMeta: null,
     rocket: null,
-    sims: [newSimulation('Simulation 1', C6, DEFAULT_LAUNCH)],
+    sims: [newSimulation('Simulation 1', C6, loadSettings().launchDefaults)],
     activeId: '',
     simBusy: false,
     tab: 'build',
@@ -128,7 +155,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     setErr: (err) => set({ err }),
     applyBuild: (info, rocket) => set({ info, rocket }),
     invalidateResults: () => set((s) => (s.sims.some((x) => x.result) ? { sims: s.sims.map((x) => ({ ...x, result: null })) } : {})),
-    hydrate: (w) => set({ tree: w.tree, sims: w.sims, activeId: w.activeId, extraMotors: w.extraMotors, loadedMeta: w.loadedMeta }),
+    hydrate: (w) => {
+      const sims = sanitizeSims(w.sims);
+      const activeId = sims.some((s) => s.id === w.activeId) ? w.activeId : sims[0].id;
+      set({ tree: w.tree, sims, activeId, extraMotors: w.extraMotors ?? {}, loadedMeta: w.loadedMeta ?? null });
+    },
 
     setTree: (tree) => set({ tree }),
     setSelectedId: (selectedId) => set({ selectedId }),
@@ -142,10 +173,23 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     setActiveMotor: (m) => patchActive({ motor: m, result: null }),
     patchLaunch: (p) => patchActive({ launch: { ...selectActive(get()).launch, ...p }, result: null }),
     addSim: () => {
+      // A fresh simulation starts from the app default motor + the user's global
+      // launch defaults (duplicateSim carries an existing setup forward instead).
       const s = get();
-      const a = selectActive(s);
-      const s0 = newSimulation(i18n.t('sims.untitled', { n: s.sims.length + 1 }), a.motor, a.launch);
+      const name = uniqueSimName(s.sims, (n) => i18n.t('sims.untitled', { n }), s.sims.length + 1);
+      const s0 = newSimulation(name, C6, loadSettings().launchDefaults);
       set({ sims: [...s.sims, s0], activeId: s0.id });
+    },
+    duplicateSim: (id) => {
+      const s = get();
+      const src = s.sims.find((x) => x.id === id);
+      if (!src) return;
+      const copy = i18n.t('sims.copyName', { name: src.name });
+      const name = uniqueSimName(s.sims, (n) => (n === 1 ? copy : `${copy} ${n}`), 1);
+      const s0 = newSimulation(name, src.motor, src.launch);
+      const next = [...s.sims];
+      next.splice(s.sims.findIndex((x) => x.id === id) + 1, 0, s0);
+      set({ sims: next, activeId: s0.id });
     },
     deleteSim: (id) => {
       const s = get();
@@ -154,7 +198,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set({ sims: rest, activeId: id === selectActive(s).id ? rest[0].id : s.activeId });
     },
     renameSim: (id, name) => set((s) => ({ sims: s.sims.map((x) => (x.id === id ? { ...x, name } : x)) })),
-    runSim: () => {
+    runSim: (prefs) => {
       set({ simBusy: true });
       const simId = selectActive(get()).id;
       const launch = selectActive(get()).launch;
@@ -163,7 +207,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         try {
           const r = get().rocket;
           if (!r) return;
-          const result = r.simulate(simConditions(launch));
+          const result = r.simulate(simConditions(launch, prefs));
           set((s) => ({ sims: s.sims.map((x) => (x.id === simId ? { ...x, result } : x)), view: 'flight', err: null }));
         } catch (e) {
           set({ err: e instanceof Error ? e.message : String(e) });
@@ -188,19 +232,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const extra = { ...res.motorSpecs };
         const primaryMotor = primary && extra[primary] ? extra[primary].spec : C6;
         if (primary && extra[primary]) delete extra[primary];
-        const sim0 = newSimulation(res.name, primaryMotor, { ...DEFAULT_LAUNCH, ...res.launch });
+        const sim0 = newSimulation(res.name, primaryMotor, { ...loadSettings().launchDefaults, ...res.launch });
         set({
           tree: res.tree, extraMotors: extra,
           loadedMeta: { name: res.name, notes: res.notes, exportMotors: res.motors },
-          sims: [sim0], activeId: sim0.id, selectedId: null, err: null, tab: 'build',
+          sims: [sim0], activeId: sim0.id, selectedId: null, err: null, tab: 'build', view: '2d',
         });
       } catch (e) {
         set({ err: `Could not open .ork: ${e instanceof Error ? e.message : String(e)}` });
       }
     },
     resetWorkspace: () => {
-      const s0 = newSimulation('Simulation 1', C6, DEFAULT_LAUNCH);
-      set({ tree: specToTree(DEFAULT_SPEC).tree, extraMotors: {}, loadedMeta: null, sims: [s0], activeId: s0.id, selectedId: null });
+      const s0 = newSimulation('Simulation 1', C6, loadSettings().launchDefaults);
+      set({ tree: specToTree(DEFAULT_SPEC).tree, extraMotors: {}, loadedMeta: null, sims: [s0], activeId: s0.id, selectedId: null, view: '2d' });
     },
     newWorkspace: () => { if (window.confirm(i18n.t('file.newConfirm'))) get().resetWorkspace(); },
     saveOrk: () => {
@@ -215,7 +259,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           if (!findNode(tree, id)) continue;
           motors[id] = { ...base[id], designation: m.spec.designation, diameter: m.spec.diameter, length: m.spec.length, delay: m.spec.ejectionDelay, ignitionEvent: m.ignitionEvent, ignitionDelay: m.ignitionDelay };
         }
-        downloadOrk({ name: loadedMeta?.name || tree.name || defaultDesignName(), tree, motors });
+        downloadOrk({ name: loadedMeta?.name || tree.name || defaultDesignName(), tree, motors, launch: selectActive(get()).launch });
       } catch (e) {
         set({ err: `Could not save .ork: ${e instanceof Error ? e.message : String(e)}` });
       }

@@ -332,7 +332,7 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
       if (Math.abs(e.clientX - d.pointerX) > 4) dragMoved.current = true;
       const dxModel = ((e.clientX - d.pointerX) * d.clientScale) / (scale * zoom.k);
       const anchors = anchorStarts(d.parent, d.child);
-      const epsilon = (6 * 1) / (scale * zoom.k); // ~6 screen px of magnetism
+      const epsilon = 6 / (scale * zoom.k); // ~6 screen px of magnetism
       const snapped = snapStart(d.relStart + dxModel, anchors, epsilon);
       const pos = (d.child.position ?? { method: 'top', offset: 0 }) as ComponentPosition;
       onPatchNode(d.childId, {

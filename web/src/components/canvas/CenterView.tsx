@@ -1,11 +1,14 @@
-import { lazy, Suspense, useMemo } from 'react';
+import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive, selectMotorDims } from '../../state/store';
+import { useSettings } from '../../state/SettingsProvider';
 import { TreeSchematic } from './TreeSchematic';
 import { AftView } from './AftView';
 import { FlightChart } from './FlightChart';
 import { ViewToggle } from './ViewToggle';
 import { StabilityBadge } from './StabilityBadge';
+import { InfoOverlay } from './InfoOverlay';
+import { DragAnalysis } from './DragAnalysis';
 import { LoadedBanner } from './LoadedBanner';
 
 // three.js is heavy, so the 3D views are code-split — their chunks load only when
@@ -40,18 +43,39 @@ export function CenterView() {
   const extraMotors = useWorkspaceStore((s) => s.extraMotors);
   const motors = useMemo(() => selectMotorDims(tree, motor, extraMotors), [tree, motor, extraMotors]);
 
+  // Optionally auto-run an outdated (never-run/stale) sim when a results view opens.
+  const { settings } = useSettings();
+  const runSim = useWorkspaceStore((s) => s.runSim);
+  const busy = useWorkspaceStore((s) => s.simBusy);
+  useEffect(() => {
+    if (settings.simulation.autoRunOutdated && (view === 'flight' || view === 'path') && !result && info && !busy) {
+      runSim(settings.simulation);
+    }
+  }, [view, result, info, busy, settings.simulation, runSim]);
+
+  // Flight / 3D-path only exist while a result does. If the active result goes
+  // away (a design edit invalidates it) while one of those views is open, fall
+  // back to the design view — unless auto-run is about to refill it.
+  useEffect(() => {
+    const onResultView = view === 'flight' || view === 'path';
+    const willAutoRun = settings.simulation.autoRunOutdated && !!info;
+    if (onResultView && !result && !busy && !willAutoRun) onView('2d');
+  }, [view, result, busy, info, settings.simulation.autoRunOutdated, onView]);
+
   const deg = Math.round((roll * 180) / Math.PI);
   const loading = <div className="grid h-full place-items-center text-sm text-slate-500">{t('view.loading3d')}</div>;
   const prompt = <div className="grid h-full place-items-center text-sm text-slate-500">{t('sim.prompt')}</div>;
 
   return (
-    <>
+    <div className="flex h-full flex-col">
       {loadedMeta && <LoadedBanner loaded={loadedMeta} onClose={onCloseLoaded} />}
-      <div className="flex justify-end px-3 pt-3">
-        <ViewToggle view={view} onChange={onView} />
+      <div className="flex shrink-0 justify-end px-3 pt-3">
+        <ViewToggle view={view} onChange={onView} hasResult={!!result} />
       </div>
-      {/* All views share one sized box so switching doesn't resize the pane. */}
-      <div className="relative h-[70vh] min-h-[420px] w-full px-3 pt-2 lg:h-[calc(100vh_-_14rem)]">
+      {/* The view flexes to fill the pane; the stats strip below is a pinned
+          footer, so switching views never resizes the pane and the strip is
+          always visible without scrolling. */}
+      <div className="relative min-h-0 w-full flex-1 overflow-hidden px-3 pt-2">
         {view === '2d' && (
           <>
             <div
@@ -76,8 +100,12 @@ export function CenterView() {
               <ViewBtn active={twoD === 'side'} onClick={() => onTwoD('side')}>{t('view.side')}</ViewBtn>
               <ViewBtn active={twoD === 'aft'} onClick={() => onTwoD('aft')}>{t('view.aft')}</ViewBtn>
             </div>
-            {/* Always-visible current roll readout. */}
-            <div className="absolute left-11 top-12 z-10 rounded-md bg-slate-800/90 px-2 py-0.5 text-xs font-semibold text-sky-300 ring-1 ring-white/10">
+            {/* Quick-glance stats box, upper-left (mmrocket-style). */}
+            <div className="absolute left-11 top-12 z-10">
+              <InfoOverlay info={info} />
+            </div>
+            {/* Always-visible current roll readout, lower-left. */}
+            <div className="absolute bottom-3 left-11 z-10 rounded-md bg-slate-800/90 px-2 py-0.5 text-xs font-semibold text-sky-300 ring-1 ring-white/10">
               {t('view.roll', { deg })}
             </div>
           </>
@@ -90,10 +118,14 @@ export function CenterView() {
             ? <Suspense fallback={loading}><Rocket3D tree={tree} info={info} motors={motors} selectedId={selectedId} onSelect={onSelect} /></Suspense>
             : view === 'flight'
               ? <div className="h-full p-2">{result ? <FlightChart result={result} /> : prompt}</div>
-              : <div className="h-full p-2">{result ? <Suspense fallback={loading}><FlightPath3D result={result} tree={tree} motors={motors} /></Suspense> : prompt}</div>}
+              : view === 'path'
+                ? <div className="h-full p-2">{result ? <Suspense fallback={loading}><FlightPath3D result={result} tree={tree} motors={motors} /></Suspense> : prompt}</div>
+                : <div className="h-full p-2">{info ? <DragAnalysis /> : prompt}</div>}
       </div>
-      <StabilityBadge info={info} />
-    </>
+      <div className="shrink-0">
+        <StabilityBadge info={info} />
+      </div>
+    </div>
   );
 }
 

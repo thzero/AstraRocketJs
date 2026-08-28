@@ -1,14 +1,18 @@
 import { useTranslation } from 'react-i18next';
 
-export type ViewMode = '2d' | '3d' | 'flight' | 'path';
-const VIEWS: readonly ViewMode[] = ['2d', '3d', 'flight', 'path'];
+export type ViewMode = '2d' | '3d' | 'drag' | 'flight' | 'path';
+/** Always-available design views. */
+const DESIGN_VIEWS: readonly ViewMode[] = ['2d', '3d', 'drag'];
+/** Flight-output views — only offered once a simulation has produced a result. */
+const RESULT_VIEWS: readonly ViewMode[] = ['flight', 'path'];
 
-/** Center-pane view switch: 2D · 3D · Flight profile · 3D path. */
-export function ViewToggle({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode) => void }) {
+/** Center-pane view switch: 2D · 3D · Aero, plus Flight · 3D path once a sim has run. */
+export function ViewToggle({ view, onChange, hasResult }: { view: ViewMode; onChange: (v: ViewMode) => void; hasResult: boolean }) {
   const { t } = useTranslation();
+  const views = hasResult ? [...DESIGN_VIEWS, ...RESULT_VIEWS] : DESIGN_VIEWS;
   return (
     <div className="inline-flex overflow-hidden rounded-lg ring-1 ring-white/10">
-      {VIEWS.map((v) => (
+      {views.map((v) => (
         <button
           key={v}
           onClick={() => onChange(v)}
