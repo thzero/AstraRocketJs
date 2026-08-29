@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive, selectMotorDims } from '../../state/store';
 import { useSettings } from '../../state/SettingsProvider';
@@ -62,6 +62,9 @@ export function CenterView() {
     if (onResultView && !result && !busy && !willAutoRun) onView('2d');
   }, [view, result, busy, info, settings.simulation.autoRunOutdated, onView]);
 
+  // Header slot the 2D schematic's control buttons (calipers, zoom, export)
+  // portal into, so they sit centred in the same row as the view toggle.
+  const [ctrlSlot, setCtrlSlot] = useState<HTMLDivElement | null>(null);
   const deg = Math.round((roll * 180) / Math.PI);
   const loading = <div className="grid h-full place-items-center text-sm text-slate-500">{t('view.loading3d')}</div>;
   const prompt = <div className="grid h-full place-items-center text-sm text-slate-500">{t('sim.prompt')}</div>;
@@ -69,7 +72,19 @@ export function CenterView() {
   return (
     <div className="flex h-full flex-col">
       {loadedMeta && <LoadedBanner loaded={loadedMeta} onClose={onCloseLoaded} />}
-      <div className="flex shrink-0 justify-end px-3 pt-3">
+      <div className="flex shrink-0 items-center justify-between gap-2 px-3 pt-3">
+        {/* 2D view presets, left-justified in the same row as the view toggle. */}
+        <div className="flex gap-1">
+          {view === '2d' && (
+            <>
+              <ViewBtn onClick={onResetView}>{t('view.reset')}</ViewBtn>
+              <ViewBtn active={twoD === 'side'} onClick={() => onTwoD('side')}>{t('view.side')}</ViewBtn>
+              <ViewBtn active={twoD === 'aft'} onClick={() => onTwoD('aft')}>{t('view.aft')}</ViewBtn>
+            </>
+          )}
+        </div>
+        {/* Center slot: the 2D schematic portals its caliper / zoom / export buttons here. */}
+        <div ref={setCtrlSlot} className="flex items-center gap-1" />
         <ViewToggle view={view} onChange={onView} hasResult={!!result} />
       </div>
       {/* The view flexes to fill the pane; the stats strip below is a pinned
@@ -93,26 +108,18 @@ export function CenterView() {
                 style={{ writingMode: 'vertical-lr', width: '100%', flex: '1 1 0%', minHeight: 0 }}
               />
               <span className="pt-1">360°</span>
-            </div>
-            {/* View presets, upper-left (mirrors the 3D view's buttons). */}
-            <div className="absolute left-11 top-3 z-10 flex gap-1">
-              <ViewBtn onClick={onResetView}>{t('view.reset')}</ViewBtn>
-              <ViewBtn active={twoD === 'side'} onClick={() => onTwoD('side')}>{t('view.side')}</ViewBtn>
-              <ViewBtn active={twoD === 'aft'} onClick={() => onTwoD('aft')}>{t('view.aft')}</ViewBtn>
+              {/* Live roll readout, centred on the slider. */}
+              <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded bg-slate-800/95 px-0.5 py-0.5 text-[9px] text-sky-300 ring-1 ring-white/10">{deg}°</span>
             </div>
             {/* Quick-glance stats box, upper-left (mmrocket-style). */}
-            <div className="absolute left-11 top-12 z-10">
+            <div className="absolute left-11 top-3 z-10">
               <InfoOverlay info={info} />
-            </div>
-            {/* Always-visible current roll readout, lower-left. */}
-            <div className="absolute bottom-3 left-11 z-10 rounded-md bg-slate-800/90 px-2 py-0.5 text-xs font-semibold text-sky-300 ring-1 ring-white/10">
-              {t('view.roll', { deg })}
             </div>
           </>
         )}
         {view === '2d'
           ? (twoD === 'side'
-              ? <TreeSchematic key={`side-${resetKey}`} tree={tree} info={info} motors={motors} fillHeight roll={roll} onRoll={onRollBy} selectedId={selectedId} onSelect={onSelect} />
+              ? <TreeSchematic key={`side-${resetKey}`} tree={tree} info={info} motors={motors} fillHeight roll={roll} onRoll={onRollBy} selectedId={selectedId} onSelect={onSelect} controlsSlot={ctrlSlot} />
               : <AftView key={`aft-${resetKey}`} tree={tree} roll={roll} motors={motors} onRoll={onRollBy} />)
           : view === '3d'
             ? <Suspense fallback={loading}><Rocket3D tree={tree} info={info} motors={motors} selectedId={selectedId} onSelect={onSelect} /></Suspense>

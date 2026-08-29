@@ -301,6 +301,8 @@
     "underStable": "under-stable",
     "overStable": "over-stable",
     "ok": "ok",
+    "calipersH": "Length calipers — drag the two vertical lines to measure (snaps to edges)",
+    "calipersV": "Diameter calipers — drag the two horizontal lines to measure a span",
     "zoomIn": "Zoom in — or scroll on the drawing; drag to pan",
     "zoomOut": "Zoom out",
     "fit": "Fit to view",

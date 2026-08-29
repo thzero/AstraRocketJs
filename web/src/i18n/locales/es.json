@@ -301,6 +301,8 @@
     "underStable": "poco estable",
     "overStable": "sobreestable",
     "ok": "ok",
+    "calipersH": "Calibre de longitud — arrastra las dos líneas verticales para medir (se ajusta a los bordes)",
+    "calipersV": "Calibre de diámetro — arrastra las dos líneas horizontales para medir una envergadura",
     "zoomIn": "Acercar — o desplaza sobre el dibujo; arrastra para mover",
     "zoomOut": "Alejar",
     "fit": "Ajustar a la vista",
