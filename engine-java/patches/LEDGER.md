@@ -1,303 +1,209 @@
 # Patch ledger
 
 Every file in `patches/` REPLACES the same-relative-path upstream file during extraction
-(`extract/extract.mjs`). Patches must be minimal, documented here, and re-audited when
-upgrading the upstream OpenRocket version. Diff a patch against upstream with:
+(`extract/extract.mjs`). Patches must be minimal, documented here, and re-audited when upgrading the
+upstream OpenRocket version. Diff a patch against upstream with:
 
 ```
 git diff --no-index <openrocket-src>/<path> patches/<path>
 ```
 
-## Active patches (all: TeaVM classlib gaps — not behavior changes)
+**Upstream pin:** OpenRocket `unstable`, build.version `26.xx-SNAPSHOT`, commit `6921e3c74`
+(2026-08-27). Migrated from `24.12`. That migration is why several 24.12-era patches were **dropped**
+and others **relocated** — see "Migration notes (24.12 → unstable)" at the bottom.
 
-### rocketcomponent/FinSet.java + rocketcomponent/FreeformFinSet.java + util/BoundingBox.java
-- **Why:** these three used `java.awt.geom` (`Point2D`/`Line2D`/`Rectangle2D`) for pure
-  coordinate math — but `java.awt.geom` lives in the `java.desktop` GUI module, which TeaVM's
-  classlib has none of. It forced a `java.awt.geom` stub source set compiled via
-  `--patch-module java.desktop`. No rendering is involved; it's just distance and
-  segment-intersection arithmetic.
-- **Change:** replaced with `info.openrocket.core.util.Geo2D` (a shim: `distance`,
-  `relativeCCW`, `segmentsIntersect` — `segmentsIntersect` reproduces `Line2D.linesIntersect`
-  semantics incl. collinear overlaps). `FinSet`: `Point2D.Double.distance`→`Geo2D.distance`.
-  `FreeformFinSet`: `intersects()` rewritten on `Geo2D`; the unused public
-  `addPoint(int, Point2D.Double)` takes `Coordinate` instead. `BoundingBox`: dropped the two
-  unused `Rectangle2D` methods (`update(Rectangle2D)`, `toRectangle()`).
-- **Result:** the `Point2D`/`Line2D`/`Rectangle2D` stubs are deleted and the `java.desktop`
-  `--patch-module` is gone (jdkstubs is now only `java.text.Collator`). Behavior-preserving —
-  parity (258 lines) and the validation scorecard are unchanged.
-- **Note:** `Geo2D.distance` uses `Math.hypot` vs the old `Math.sqrt(dx²+dy²)` — same value,
-  ~1 ULP different, and only on the fin-fillet / freeform-outline paths.
+Current patch set: **15 files**. Two RASAero strategy classes
+(`src/shims/…/aerodynamics/RASAero{Stability,Drag}Calculator.java`) are new original code, not patches
+— documented in the RASAero section below.
 
-### simulation/BasicEventSimulationEngine.java
-- **Why:** TeaVM 0.15's `java.util.Formatter` does not implement the `%g`
-  conversion; the STAGE_SEPARATION handler logs `String.format("==>> @ %g; ...")`
-  and threw `UnknownFormatConversionException` on EVERY staged flight under JS.
-- **Change:** that one log line: `%g` → `%s` with `Double.toString(...)`.
-  Log-only (stderr); zero physics/goldens impact. Found by the staging golden
-  scenarios (2026-07-03, Phase 3 Release B).
+---
+
+## TeaVM classlib-gap patches (no behavior change)
 
 ### rocketcomponent/FlightConfigurationId.java + motor/MotorConfigurationId.java
-- **Why:** TeaVM 0.15's `java.util.UUID` is string-backed; it lacks `UUID(long, long)`,
+- **Why:** TeaVM's `java.util.UUID` is string-backed; it lacks `UUID(long, long)`,
   `getMostSignificantBits()`, and `compareTo` — all used by these two key classes.
 - **Change:** `java.util.UUID` → `info.openrocket.core.util.LongUUID` (shim), a faithful
-  reimplementation of the JDK UUID surface used (identical toString/hashCode/equals/
-  compareTo semantics). Pure type swap; no logic changed.
-- **Note:** `LongUUID.randomUUID()` is deterministic (counter-based) — intentional, for
-  reproducible differential runs. Identical on JVM and TeaVM sides by construction.
+  reimplementation of the UUID surface used (identical toString/hashCode/equals/compareTo).
+- **Note:** `LongUUID.randomUUID()` is deterministic (counter-based) — intentional, for reproducible
+  differential runs; identical on JVM and TeaVM by construction. Unchanged upstream 24.12→unstable.
 
 ### rocketcomponent/FlightConfiguration.java
-- **Why:** TeaVM 0.15 has no `java.util.concurrent.ConcurrentLinkedQueue`.
-- **Change:** `ConcurrentLinkedQueue` → `java.util.LinkedList` (2 tokens: import +
-  instantiation). Same FIFO iteration order; the engine is single-threaded in the
-  browser and in the harness, so the concurrency property was unused.
+- **Why:** TeaVM has no `java.util.concurrent.ConcurrentLinkedQueue`.
+- **Change:** `ConcurrentLinkedQueue` → `java.util.LinkedList` (import + instantiation). Same FIFO
+  order; the engine is single-threaded in the browser and harness.
 
 ### rocketcomponent/ComponentAssembly.java
-- **Why:** `getComponentBounds()` returns `Collections.emptyList()`, and
-  `Transformation.transform(Collection)` calls `clear()`/`addAll()` on it. On the JDK,
-  `AbstractCollection.clear()` on an *empty* immutable list is a silent no-op; TeaVM's
-  immutable-list template throws `UnsupportedOperationException` unconditionally. Upstream
-  survives on unspecified JDK behavior.
+- **Why:** `getComponentBounds()` returned `Collections.emptyList()`, and
+  `Transformation.transform(Collection)` calls `clear()`/`addAll()` on it. On the JDK `clear()` on an
+  empty immutable list is a silent no-op; TeaVM's immutable-list template throws
+  `UnsupportedOperationException` unconditionally.
 - **Change:** return `new java.util.ArrayList<>()` (empty, mutable). Behavior-identical.
-- **Upstreamable:** yes — this is arguably an upstream latent bug worth a PR.
+- **Upstreamable:** arguably an upstream latent bug.
 
-### aerodynamics/BarrowmanCalculator.java
-- **Why:** `buildCalcMap` constructs per-component calculators via
-  `Reflection.construct(...)` — walks the component class hierarchy calling
-  `Class.forName(<SimpleName> + "Calc")`. No reflection metadata exists under TeaVM
-  ("BUG: Suitable constructor for component ... not found" at runtime).
-- **Change:** replaced the reflective call with an explicit `createCalcObject()`
-  instanceof chain that reproduces the hierarchy-walk resolution exactly
-  (FinSet→FinSetCalc, TubeFinSet→TubeFinSetCalc, LaunchLug→LaunchLugCalc,
-  RailButton→RailButtonCalc, SymmetricComponent→SymmetricComponentCalc,
-  ComponentAssembly→ComponentAssemblyCalc; TubeCalc is abstract and was never
-  directly instantiable via reflection either).
-- **Note:** must be revisited if upstream adds new `*Calc` classes.
+### util/ArrayList.java
+- **Why:** OpenRocket's `util.ArrayList extends java.util.ArrayList` overrides `clone()` as
+  `(ArrayList<E>) super.clone()`. TeaVM's `java.util.ArrayList.clone()` does not preserve the runtime
+  subclass, so the cast throws `ClassCastException` under the **WASM-GC** backend's strict typing (and
+  under the JS backend with `strict = true`). It is the one cast that blocked the whole engine from
+  running as WASM-GC.
+- **Change:** `clone()` → `new ArrayList<>(this)` — a shallow element copy into the correct subclass,
+  behavior-equivalent and cast-free.
+- **Result:** the full parity battery runs under `generateWasmGC` with 0 failures. Behavior-preserving
+  on the JS/JVM build too — JS parity is unchanged-to-better (more lines land bit-identical, none
+  regress). **Upstreamable:** yes (an arguably cleaner clone regardless of backend).
 
-## Determinism fixes (documented behavior change — within upstream's own envelope)
+### simulation/BasicEventSimulationEngine.java
+- **Why:** TeaVM's `java.util.Formatter` does not implement the `%g` conversion; the STAGE_SEPARATION
+  handler logged `String.format("==>> @ %g; …")` and threw on every staged flight under JS.
+- **Change:** that one log line: `%g` → `%s` with `Double.toString(...)`. Log-only; zero physics.
+
+### unit/Unit.java
+- **Why:** upstream added `Locale.getDefault(Locale.Category.FORMAT)`; TeaVM's classlib has no
+  `Locale.Category`.
+- **Change:** `Locale.getDefault(Locale.Category.FORMAT)` → `Locale.getDefault()` (2 sites). The
+  engine runs under a single default locale in the browser, so the two are equivalent. NEW in the
+  unstable migration.
+
+### simulation/SimulationOptions.java
+- **Why:** upstream added a CSV lookup-table aero-calculator option — fields/methods typed on
+  `java.nio.file.Path` and `aerodynamics.lookup.*` (`CsvMachAoALookup`, `MachAoALookup`,
+  `LookupTable{Stability,Drag}Calculator`). TeaVM has no `java.nio.file`, and the browser engine only
+  ever uses the analytic Barrowman calculator.
+- **Change:** removed the lookup fields, getters/setters (`get/set/clear/hasDragLookup` +
+  Stability twins, `updateDragLookup`, `normalizePath`), their clone/copyFrom handling, and the
+  `Path`/lookup imports; `toSimulationConditions()` now always builds `new BarrowmanCalculator()`.
+  NEW in the unstable migration.
+
+### aerodynamics/BarrowmanStabilityCalculator.java + aerodynamics/BarrowmanDragCalculator.java
+- **Why:** upstream split the monolithic `BarrowmanCalculator` into these two strategy impls. Each
+  builds its own per-component calc map via `Reflection.construct(BARROWMAN_PACKAGE, comp, "Calc", …)`,
+  which walks the class hierarchy calling `Class.forName(<SimpleName> + "Calc")`. TeaVM carries no
+  reflection metadata → "Suitable constructor … not found" at runtime.
+- **Change:** replaced each `buildCalcMap`'s reflective construction with a `protected
+  createCalcObject(comp)` **instanceof chain** reproducing the hierarchy-walk resolution exactly
+  (FinSet→FinSetCalc, TubeFinSet→TubeFinSetCalc, LaunchLug→LaunchLugCalc, RailButton→RailButtonCalc,
+  SymmetricComponent→SymmetricComponentCalc, ComponentAssembly→ComponentAssemblyCalc; TubeCalc is
+  abstract). `buildCalcMap`/`createCalcObject` are `protected` so the RASAero subclasses can override
+  them. `BarrowmanDragCalculator` additionally gains two `protected` seams — `effectiveBaseCD(mach)`
+  and `turbulentCompressibility(mach)` — whose **base implementations are unchanged** (so stock stays
+  bit-identical); the RASAero subclass overrides them.
+- **Note:** MUST be revisited if upstream adds new `*Calc` classes. These two patches **replace** the
+  old single `aerodynamics/BarrowmanCalculator.java` patch, which no longer exists upstream.
+
+## Determinism fix (documented behavior change — within upstream's own envelope)
 
 ### rocketcomponent/InstanceMap.java
-- **Why:** upstream `InstanceMap extends ConcurrentHashMap<RocketComponent, ...>`.
-  Two problems: (a) TeaVM's classlib needs a plain `java.util` map here; (b)
-  `RocketComponent` has no `hashCode()` override, so hash-map iteration order
-  follows *identity hash codes*, which vary per JVM process (HotSpot's
-  identity-hash PRNG is time-seeded).
-  `BarrowmanCalculator` iterates this map when accumulating per-component forces
-  every simulation step; a run-to-run change in FP summation order produces
-  ULP-level differences that chaos-amplify over a flight. Observed 2026-07-03: the
-  same golden harness produced different `flight.*` lines (different sample counts,
-  e.g. 866 vs 867 rows in the windy scenario) across two fresh JVM runs — making
-  the bit-identical JVM↔TeaVM differential intermittently impossible to pass.
-  Reproduced under `-Xint`, so not JIT-related.
-- **Change:** `extends ConcurrentHashMap` → `extends LinkedHashMap` (import +
-  extends, 2 tokens). Iteration becomes insertion order — the deterministic
-  configuration tree-walk order — identical on JVM and TeaVM. LinkedHashMap is
-  plain classlib, so it also satisfies the TeaVM constraint.
-- **INCIDENT (2026-08-04 audit):** the LinkedHashMap version had been sitting at
-  the dead path `patches/rocketcomponent/InstanceMap.java` since it was written
-  (extract.mjs resolves patches at the full manifest-relative path
-  `patches/info/openrocket/core/...`), while the active path carried an
-  undocumented interim `ConcurrentHashMap → HashMap` classlib-only patch — so
-  the shipped kernel had identity-hash iteration order the whole time (the
-  differential passed on tolerances + the JS side's deterministic object ids).
-  Restored 2026-08-04; extract.mjs now FAILS on any patch file that doesn't match
-  a manifest entry, so a mis-pathed patch can't go silent again.
-- **Physics note:** this *selects one* FP summation order from the set upstream
-  randomly wanders across runs; every result stays inside upstream's own
-  run-to-run envelope (ULP-level). Aligned with this project's "deterministic
-  simulations by choice" rule (seeded wind, LongUUID).
-- **Upstreamable:** arguably — upstream simulations are nondeterministic at the
-  ULP level run-to-run because of this.
+- **Why:** upstream `InstanceMap extends ConcurrentHashMap<RocketComponent, …>`. `RocketComponent` has
+  no `hashCode()` override, so hash-map iteration order follows identity hash codes, which vary per JVM
+  process. The Barrowman calculators iterate this map when summing per-component forces every
+  simulation step; a run-to-run change in FP summation order produces ULP differences that
+  chaos-amplify over a flight, making JVM↔JS (and JVM↔JVM) comparison intermittently impossible.
+- **Change:** `extends ConcurrentHashMap` → `extends LinkedHashMap` (import + extends). Iteration
+  becomes insertion order — the deterministic configuration tree-walk order — identical on JVM and
+  TeaVM. LinkedHashMap is plain classlib, so it also satisfies the TeaVM constraint.
+- **Verification:** the JVM parity reference is now byte-identical run-to-run.
+- **Upstreamable:** arguably — upstream simulations are ULP-nondeterministic run-to-run because of this.
 
-## Feature patches (documented physics extension — RASAero gap features)
+## java.awt.geom → Geo2D (TeaVM has no java.desktop)
 
-These add capability OpenRocket lacks. Each is designed to be **default-off**: with
-its new input at its zero default, every drag value is bit-identical to upstream, so
-all pre-existing goldens/differential lines are unaffected. New behavior appears only
-when a design opts in.
+### rocketcomponent/FinSet.java + rocketcomponent/FreeformFinSet.java + util/BoundingBox.java
+- **Why:** these used `java.awt.geom` (`Point2D`/`Line2D`/`Rectangle2D`) for pure coordinate math, but
+  `java.awt.geom` lives in the `java.desktop` GUI module, which TeaVM's classlib has none of.
+- **Change:** replaced with `info.openrocket.core.util.Geo2D` (shim: `distance`/`relativeCCW`/
+  `segmentsIntersect`, reproducing `Line2D.linesIntersect` semantics incl. collinear overlaps).
+  `FinSet`: `Point2D.Double.distance`→`Geo2D.distance`. `FreeformFinSet`: `intersects()` rewritten on
+  `Geo2D` (and its `%g` warn logs rebuilt with string concatenation); the unused public `addPoint`
+  overload takes `Coordinate` instead of `Point2D.Double`. `BoundingBox`: dropped the two unused
+  `Rectangle2D` methods.
+- **Note:** `FinSet` also carries the RASAero feature-#4 airfoil properties (see below).
 
-### RASAero feature #2 — power-on vs power-off base drag (nozzle-exit plume model)
+---
 
-RASAero computes a distinct power-on drag coefficient: during motor burn the exhaust
-plume pressurizes the base area over the nozzle-exit footprint, recovering that area's
-base pressure and lowering base drag (nozzle exit dia = 0 → power-on CD = power-off CD).
-OpenRocket's `calculateBaseCD` is Mach-only with no thrust/nozzle term. Model chosen
-(no published formula exists): **power-on base area = max(0, baseArea − nozzleExitArea)**
-while the owning stage's motor thrusts — the literal geometric mechanism the RASAero
-Manual and Rogers & Cooper (2011) describe. Reproduces the exact ARCAS power-off↔power-on
-CD split (constant ~0.017 at low Mach). Supersonic large-nozzle *augmentation* (beyond
-neutralizing base drag) is deferred to feature #1. Four files:
+## RASAero supersonic-aero extensions (opt-in; original work — see ATTRIBUTION.md)
 
-- **rocketcomponent/AxialStage.java** — add `double nozzleExitDiameter` (metres, default
-  0) + getter/setter. Primitive, so `copyWithOriginalID`'s clone copies it; no other change.
-- **aerodynamics/FlightConditions.java** — add `Set<Integer> thrustingStages` (empty =
-  coast) + getter/setter/`isStageThrusting(int)`; deep-copied in `clone()`. Excluded from
-  `equals()/hashCode()` (transient force-model input, not a defining condition).
-- **simulation/AbstractSimulationStepper.java** — in `calculateFlightConditions`, populate
-  `thrustingStages` from `status.getActiveMotors()` (thrust > 0 → add mount's stage number),
-  mirroring `RK4SimulationStepper.calculateThrust`. Applied on all exit paths.
-- **aerodynamics/BarrowmanCalculator.java** — in the instance `calculateBaseCD` aft-base
-  block, subtract the owning stage's nozzle-exit area from the base area when that stage
-  `isStageThrusting`. (This file already carried a TeaVM reflection patch — see below.)
-- Bridge (not a patch): `api/OrkEngine.applySeparationConfig` reads `nozzleExitDiameter`
-  off the stage node and calls the setter. App side: `<nozzleexitdiameter>` in `.ork`
-  (metres) + a per-stage schema field.
-- **Guard:** default 0 keeps all goldens bit-identical; the `nozzle.basecd.*` golden
-  scenario exercises the power-on path (power-off must equal the no-nozzle base CD, power-on
-  must be strictly lower). Run difftest AND engine vitest after rebuild.
+**Provenance.** The physics is the original work of the mmrocket-sim project, lifted from
+**mmrocket-sim v0.074** (2026-08-27) and re-expressed onto the unstable architecture by a 3-way merge
+(`git merge-file`, base = OpenRocket 24.12, ours = unstable, theirs = mmrocket) per file, resolving the
+few conflicts by hand. See `../../docs/rasaero/` for the physics writeup.
 
-### RASAero feature #3 — opt-in Rogers Modified Barrowman body-fin interference (Kbf)
+**Architecture (the "strategy", not a Barrowman patch).** Two new original classes in
+`src/shims/…/aerodynamics/` subclass the stock calculators:
 
-Classic Barrowman (and OpenRocket) applies only the "fins in presence of body" factor
-`Kfb = 1 + τ` (τ = r/(s+r)) to the fins and DROPS the reciprocal body carryover `Kbf`
-(NACA 1307 `K_B(W)`). RASAero's "Rogers Modified Barrowman" adds it back. Opt-in: default
-OFF ⇒ CP/CNα bit-identical to classic Barrowman. Model: slender-body theory gives total
-fin+carryover load `(1+τ)² · (fin-alone)`; OpenRocket already credits `(1+τ)`, so the body
-carryover that completes it is `τ(1+τ)·(fin-alone) = τ·cna`, placed at the fin ROOT
-quarter-chord (NACA 1307 puts the carryover near the root; forward of the swept-fin MAC).
-Net effect: CP moves slightly AFT (more conservative margin). Two files + bridge:
+- **`RASAeroStabilityCalculator extends BarrowmanStabilityCalculator`** — holds `supersonicAero`
+  (#1) + `rogersKbf` (#3); overrides `createCalcObject` to bind those flags onto each `FinSetCalc` and
+  `SymmetricComponentCalc`. CP/CNα physics lives in those patched calc classes.
+- **`RASAeroDragCalculator extends BarrowmanDragCalculator`** — holds the flags; binds them onto the
+  fin/body calcs for drag, and overrides `effectiveBaseCD` (feature #1 high-Mach base-CD cap
+  `1.2/M²`) and `turbulentCompressibility` (feature #1 Phase 4 Van-Driest-II friction fade above M3.5).
 
-- **aerodynamics/BarrowmanCalculator.java** (extends the existing TeaVM-reflection patch):
-  add `boolean rogersKbf` + `setRogersKbf`/`isRogersKbf`; `newInstance()` preserves it;
-  `createCalcObject` becomes an instance method and binds the flag onto each `FinSetCalc`.
-- **aerodynamics/barrowman/FinSetCalc.java** (NEW patch): add `boolean rogersKbf` +
-  `setRogersKbf`; in `calculateNonaxialForces`, when enabled and τ>0, average a
-  `Coordinate(rootQuarterChord, 0, 0, τ·cna)` carryover into the emitted fin CP (and use
-  the combined weight for CN/Cm). Flag off ⇒ the original `Coordinate(x,0,0,cna)`.
-- Bridge (not a patch): `api/OrkEngine` — a per-design `RocketCtx.rogersKbf` set by the
-  `setRogersModifiedBarrowman(handle, bool)` @JSExport; `getStaticInfo` and `simulateJson`
-  build the `BarrowmanCalculator` with the flag so the displayed CP AND the flight sim agree.
-- **Guard:** default off keeps all goldens bit-identical; the `rogerskbf.*` golden scenario
-  asserts on≠off (CP shifts aft) and JVM↔JS parity. Deferred (per the research, mixed
-  foundation): the low-α nose→body carryover (unpublished Rogers formula) and upgrading the
-  existing Galejs body-lift term to full Jorgensen η·Cd_c (proprietary DATCOM Cd_c). See the
-  session's #3 research (wcs25co8u) — OpenRocket's Galejs term is ALREADY a ∝sin²α crossflow.
+With both flags off, both are bit-identical to their stock parents. The facade
+(`api/OpenRocketEngine.rasAeroCalculator(ctx)`) builds `new BarrowmanCalculator(rasStab, rasDrag)` at
+every call site, so displayed CP and the flight sim agree.
 
-### RASAero feature #1 Phase 1 — opt-in supersonic aerodynamics (CP/CNα vs Mach)
+### aerodynamics/barrowman/FinSetCalc.java (patch)
+Feature #1 (supersonic fin normal force with finite-span tip correction; exact NACA-1307 body-fin
+interference split `K_W(B) + fa·K_B(W)`; sharp-airfoil / thickness-wave supersonic pressure drag;
+×1.8 fin-body junction increment), feature #3 (Rogers Kbf body carryover `τ·cna` averaged into the fin
+CP at the root quarter-chord), and feature #4 (per-shape airfoil thickness-wave drag `sectionPressureCD`
++ LE bluntness). Helpers: `ssaeroScale`, `sweepWaveFactor`, `thicknessWave`, `k1/2/3Analytic`,
+`kWB1307`, `calculateAfterbodyFactor`. **Flag off ⇒ the flag-off branch uses unstable's own classic
+path** (e.g. body-fin interference falls back to unstable's `calculateBodyFinInterferenceFactor`, not
+24.12's `1+τ`).
 
-The classic kernel freezes body CNα/CP at the slender-body value for ALL Mach and uses
-the single-surface Busemann coefficient (K1 = 2/β) as the whole supersonic fin slope —
-HALF of 2D linear theory. Result (measured by validation/score.mjs): combined CP races
-forward ~2× too far (ARCAS model 27 %L vs tunnel 57 %L at M4.63) and CNα is ~half of
-free-flight data. Opt-in flag `supersonicAero`, default OFF ⇒ bit-identical. Model
-calibrated against NASA TN D-4013/D-4014 (ARCAS), DREV-TM-9703 (Basic Finner) — see
-docs/research/validation-anchors-2026-08-03.md and the spec doc areas 6/7. Files:
+### aerodynamics/barrowman/SymmetricComponentCalc.java (patch)
+Feature #1 for bodies: Mach-dependent nose CNα growth above M1, and supersonic boat-tail/ogive wave
+drag (with the hypersonic `Cp_max` fade). Flag off ⇒ stock.
 
-- **aerodynamics/BarrowmanCalculator.java** (extends existing patch): `boolean
-  supersonicAero` + setter/getter, preserved in `newInstance()`, bound onto each
-  `FinSetCalc` AND `SymmetricComponentCalc` in `createCalcObject`.
-- **aerodynamics/barrowman/FinSetCalc.java** (extends existing patch), flag-on only:
-  (1) supersonic branch scaled by `2·(1 − 1/(2·AR·β))` (2D 4/β level with the standard
-  finite-span tip correction, floored at 0.25), evaluated ANALYTICALLY (no grid ⇒ no
-  M4.9 clamp); the transonic bridge endpoint scales identically so the 0.9–1.5 quintic
-  stays continuous. (2) Body-fin interference `(1+τ)` replaced by the exact NACA Report
-  1307 Eq. 14 split `K_W(B) + fa·K_B(W)` at all Mach, with afterbody carryover factor
-  `fa = min(1, 0.5 + afterbody/rootChord)` (computed in the constructor by walking the
-  parent body + aft symmetric siblings; fins flush with the base get half carryover).
-  The `rogersKbf` term is suppressed while this flag is on (1307 already contains the
-  full carryover — double counting otherwise).
-- **aerodynamics/barrowman/SymmetricComponentCalc.java** (NEW patch — first SCC patch):
-  flag-on, for NOSE components only (foreRadius ≈ 0): `CNα(M) = CNα_slender · (1 +
-  g·(min(M,5) − 1))` above M1, g = 0.10 conical / 0.07 ogive-class — a calibrated
-  surrogate bracketed by exact Taylor–Maccoll values (Sims SP-3004 class results reach
-  ~1.2–1.4× slender by M4–5), pending full SOSE. Transitions/boattails stay slender
-  (Phase-2+ work; HB-2's flare physics is documented as out of Phase-1 scope).
-- Bridge (not a patch): `RocketCtx.supersonicAero`, `setSupersonicAero(handle, bool)`
-  @JSExport, applied in `getStaticInfo`, `simulateJson` AND `getDragSweep`.
-- **Guard:** default off keeps all goldens bit-identical; the `ssaero.*` golden
-  scenarios lock CP/CNα at M1.2/2/4/8 for both flag states JVM↔JS. Scored result:
-  validation harness gate points 8/137 (classic) → see the Phase-1 scorecard.
+### rocketcomponent/FinSet.java (patch — also the Geo2D patch above)
+Feature #4 additive properties: `airfoilSection` (null | hexagonal | naca | doublewedge | biconvex |
+hexbluntbase | singlewedge), `airfoilLeDiamond`/`airfoilTeDiamond` (m), `finLeRadius` (m); accessors
+fire AERODYNAMIC_CHANGE. Absent inputs ⇒ classic behavior. Bridge: `ComponentFactory` parses the four
+inputs on any FinSet.
 
-**Phase 2 additions (drag fidelity, same `supersonicAero` flag, same files):**
+### Not ported: `partialLaminar` (mmrocket 2026-08-25)
+mmrocket replaced a bare `isPerfectFinish()` in the friction calc with
+`partialLaminar = (rogersKbf || supersonicAero) && isPerfectFinish()`. That only alters the **flag-off**
+path (when a flag is on it equals `isPerfectFinish`, identical to stock) — it was their correction to
+make *their* classic model match desktop OpenRocket. Our flag-off must stay bit-identical to the
+`unstable` base (which uses `isPerfectFinish`), and our flag-on already matches it, so porting it would
+regress flag-off parity for no flag-on gain. Deliberately omitted (documented in `RASAeroDragCalculator`).
 
-- **FinSetCalc.calculatePressureCD**: AIRFOIL (sharp streamlined) sections no longer
-  get the swept-cylinder blunt-LE drag plateau (~1.2 on LE frontal area, Mach-flat,
-  with a (1−M²)^−0.417 subsonic form that blows up at M0.9). Flag on: subsonic
-  pressure ≈ 0 (profile drag lives in the friction form factor), supersonic
-  thin-airfoil wave drag K·4(t/c)²/β (K=4/3 biconvex) × cos²(LE sweep) on planform
-  area, blended M0.9–1.2. ROUNDED/SQUARE unchanged (their bluntness is real).
-- **FinSetCalc.calculateFrictionCD**: flag on ×1.8 — fin-body junction interference
-  drag, calibrated to the D-4013 fins-on/off tunnel increment (fin set adds ~2× bare
-  fin friction) and consistent with RASAero's printed "Fin Interference" component.
-- **SymmetricComponentCalc.calculatePressureCD**: (a) boattails/reducers get
-  supersonic wave drag (linearized strip Cp = −2θ/β on the expansion surface),
-  blended M0.8→1.5 from the classic subsonic estimate (the 1/β form diverges near
-  M1, so the bridge skips the divergent region); classic flag-off path returns the
-  identical old values. (b) Nose interpolators no longer clamp flat past their last
-  data point: conical/ogive continue on their analytic branch (2.1 sinφ² + 0.5 sinφ/β,
-  physical 1/β decay, any Mach); TR R-100 table shapes decay with the Fleeman/Bonney
-  Mach shape (1.59 + 1.83/M²).
-- **BarrowmanCalculator.effectiveBaseCD**: flag on caps 0.25/M at 1.2/M² (≈0.85 of
-  the vacuum base limit 2/(γM²)) — crossover ≈ M4.8, matches HB-2 base data trend.
-- **Bridge getDragSweep**: optional `machAlt` [[M, alt_m], …] table pins the ISA
-  atmosphere (hence Re) per Mach point — the harness matches wind-tunnel Re/ft with
-  it (same mechanism as RASAero's Mach-Alt input). Not a physics change.
-- **Goldens:** `ssaerocd.*` lines lock the flag-on CD decomposition at M1.2/2/4/8
-  (differential 252 → 256 lines).
-- **Scored result:** 52/137 → **68/137**; ARCAS-Short supersonic CD 7/7, Long 5/6,
-  subsonic green with polished fixtures + Re-matching. Documented limitations: the
-  transonic peak band M0.95–1.2 underpredicts against the tunnel by up to ~0.2–0.3
-  CD (fin transonic drag rise ≈4× subsonic in the tunnel data; RASAero underpredicts
-  the same anchors by 0.10–0.22) — the transonic-refinement backlog item; Basic
-  Finner Cx0 low ~0.05–0.13 pending its wedge fins' blunt-TE base drag (feature #4
-  airfoils); HB-2 flare/bluntness unchanged (hypersonic phase).
+---
 
-### RASAero feature #4 (build Phase 3) — fin airfoil cross-sections + LE radius
+## Migration notes (24.12 → unstable)
 
-RASAero's 8 fin sections vs the kernel's 3 (square/rounded/airfoil). Input-gated like
-feature #2 (no flag): absent inputs ⇒ bit-identical classic behavior. Files:
+**Dropped patches** (upstream changes made them obsolete; the files are now extracted verbatim):
 
-- **rocketcomponent/FinSet.java** (NEW patch — additive only): properties
-  `airfoilSection` (null | "hexagonal" | "naca" | "doublewedge" | "biconvex" |
-  "hexbluntbase" | "singlewedge"), `airfoilLeDiamond` / `airfoilTeDiamond` (m,
-  chordwise chamfer lengths at mid-span), `finLeRadius` (m); accessors fire
-  AERODYNAMIC_CHANGE. RASAero's "Rounded"/"Square" sections stay the classic
-  CrossSection values.
-- **aerodynamics/barrowman/FinSetCalc.java** (extends existing patch):
-  `sectionPressureCD` — per-shape linearized thickness wave drag (DATCOM 4.1.5.1 /
-  Hoerner): hexagonal τ²/β(1/a1+1/a2); naca & biconvex (16/3)τ²/β (naca adds the
-  implicit nose radius 1.1019·τ²·c as LE bluntness); doublewedge τ²/(β·m(1−m));
-  hexbluntbase τ²/(β·a1) + base; singlewedge τ²/β + base. Wave blends in over
-  M0.9–1.2, swept by cos²Γ_LE, referenced to planform. Blunt-base sections carry
-  fin base drag baseCD·τ at all Mach (RASAero's "Fin Base" component). Optional LE
-  radius adds the kernel's swept-cylinder Mach fit on its 2r frontal height.
-  Sections do not alter CNα/CP (thickness is drag-only in linear theory).
-- Bridge: ComponentFactory parses the four inputs on any FinSet type.
-- **Goldens:** `finsection.wedge` / `finsection.hexle` lines (differential 256 → 258).
-- **Scored result:** 68 → 65/137 — an HONEST decrease: Basic Finner's fixture now
-  uses its true `singlewedge` section, and the correct wedge thickness term (τ²/β)
-  is smaller than the biconvex placeholder (16/3·τ²/β) that had been accidentally
-  masking a remaining systematic deficit. Finner Cx0 now reads −0.04 (M4) to −0.13
-  (M1.8) below free-flight across the board — suspected free-flight base-drag
-  environment (base pressure behind a FINNED body runs below the clean-cylinder
-  Hoerner law) + the transonic band; flagged for the refinement phase (candidates:
-  McCoy/BRL base-pressure correlation, NACA RM A53D02 digitization). ARCAS keeps
-  its biconvex-class 'airfoil' (its rounded-LE double wedge is well-approximated
-  and all its CD/CP series stay green).
+- `aerodynamics/BarrowmanCalculator.java` — the old 1213-line monolithic patch (reflection-free calc
+  map + all RASAero features). Upstream split it into `Stability`/`DragCalculator`; the physics moved
+  into the patches + strategy classes above.
+- `rocketcomponent/AxialStage.java`, `aerodynamics/FlightConditions.java`,
+  `simulation/AbstractSimulationStepper.java` — these carried **RASAero feature #2** (power-on nozzle
+  base drag) via a per-stage `nozzleExitDiameter` + a `thrustingStages` set. **Upstream adopted feature
+  #2 natively and better**: per-motor `MotorConfiguration.nozzleExitDiameter`, per-wake
+  `FlightConditions.thrustingNozzleExitAreas`, consumed in `BarrowmanDragCalculator.calculateBaseCD`.
+  So feature #2 is now upstream's, not ours. The browser keeps a **per-stage** `nozzleExitDiameter`
+  input; the facade (`OpenRocketEngine`) captures it per stage during `buildRocket` and hands it to
+  that stage's motor as `MotorConfiguration.nozzleExitDiameter` in `applyMotor` (clamped to the motor
+  diameter — upstream rejects a wider nozzle; the old per-stage model didn't validate). The sim reads
+  it via `SimulationStatus`; `getDragSweep` reads it off the mounts (the config's derived motor map is
+  not refreshed by `setMotorById`) to build the power-on curve.
 
-### RASAero feature #1 Phase 4 — hypersonic corrections (same `supersonicAero` flag)
+**Manifest additions** required by the new upstream (transitive deps): `util/CoordinateIF`,
+`util/MutableCoordinate`, the five aero strategy files
+(`Barrowman{Stability,Drag}Calculator`, `{Stability,Drag}Calculator`, `StabilityForceBreakdown`),
+`models/gravity/{ConstantGravityModel,GravityModelType}`, `simulation/{TumbleDetector,
+RK6SimulationStepper,SimulationStepperMethod}`. Removed: `util/QuaternionMultiply` (a dev-only codegen
+helper deleted upstream). Excluded: `aerodynamics/lookup/*` + `LookupTable*` (java.nio.file, unused).
 
-- **BarrowmanCalculator.calculateFrictionCD**: the turbulent compressibility fit
-  `1/(1+0.15M²)^0.58` tracks Van Driest II only to M≈4; flag on fades to the VD-II
-  adiabatic-wall engineering fit `1/(1+0.144M²)^0.65` (Hopkins & Inouye, NASA TN
-  D-6945) over M3.5–4.5.
-- **SymmetricComponentCalc**: the analytic cone/ogive extension's `2.1·sinφ²`
-  asymptote is a transonic-range calibration; exact cone solutions and modified-
-  Newtonian theory sit lower hypersonically. Flag on fades the coefficient from 2.1
-  to `Cp_max(M)` (Rayleigh-pitot stagnation Cp, NACA Rep. 1135 Eq. 100, → 1.839)
-  over M4–8. New helper `stagnationCpMax`.
-- **Scored:** score unchanged at 65/137, but the physics moved the right way where
-  it matters: HB-2 CA0 excess at M8–10 fell ~45% (+0.25 → +0.14) and ARCAS M4.65
-  tightened to −0.003. Remaining HB-2 gaps are DOCUMENTED limitations, deliberately
-  unmodeled: (a) spherical-cap nose bluntness (HB-2's 0.300 d cap — needs a tip-
-  radius input + MNT cap/Jackson matching); (b) flare-effectiveness decay with Mach
-  (HB-2 CNα measured 4.6→3.1 /rad over M2→10 while slender flare theory is
-  Mach-flat — flare-specific physics with no hobby-rocket relevance and only one
-  dataset to calibrate on). Both parked as the "blunt/flare body" refinement item.
+**Flight parity** was widened from bit-identical to a physically-negligible tolerance during this
+migration — see `../../docs/flight-parity-determinism.md`.
 
 ## Rules
 
-1. A patch NEVER changes physics or observable behavior (except documented quirks-ledger
-   bug fixes and the documented FEATURE patches above, which get their own section here).
-2. Prefer shims over patches; patch only when the extracted file itself must change.
-3. On upstream upgrade: re-diff every patched file against its new upstream version and
-   re-apply the minimal change.
+1. A patch NEVER changes physics or observable behavior (except the documented determinism fix and the
+   documented opt-in FEATURE extensions, which get their own sections here).
+2. Prefer shims/strategy subclasses over patches; patch only when the extracted file itself must change.
+3. On upstream upgrade: re-diff every patched file against its new upstream version and re-apply the
+   minimal change; re-audit whether any dropped/native feature has changed.

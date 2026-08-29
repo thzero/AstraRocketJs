@@ -2,7 +2,12 @@ info/openrocket/core/aerodynamics/AbstractAerodynamicCalculator.java
 info/openrocket/core/aerodynamics/AerodynamicCalculator.java
 info/openrocket/core/aerodynamics/AerodynamicForces.java
 info/openrocket/core/aerodynamics/BarrowmanCalculator.java
+info/openrocket/core/aerodynamics/BarrowmanDragCalculator.java
+info/openrocket/core/aerodynamics/BarrowmanStabilityCalculator.java
+info/openrocket/core/aerodynamics/DragCalculator.java
 info/openrocket/core/aerodynamics/FlightConditions.java
+info/openrocket/core/aerodynamics/StabilityCalculator.java
+info/openrocket/core/aerodynamics/StabilityForceBreakdown.java
 info/openrocket/core/aerodynamics/barrowman/ComponentAssemblyCalc.java
 info/openrocket/core/aerodynamics/barrowman/FinSetCalc.java
 info/openrocket/core/aerodynamics/barrowman/LaunchLugCalc.java
@@ -47,7 +52,9 @@ info/openrocket/core/models/atmosphere/AtmosphericConditions.java
 info/openrocket/core/models/atmosphere/AtmosphericModel.java
 info/openrocket/core/models/atmosphere/ExtendedISAModel.java
 info/openrocket/core/models/atmosphere/InterpolatingAtmosphericModel.java
+info/openrocket/core/models/gravity/ConstantGravityModel.java
 info/openrocket/core/models/gravity/GravityModel.java
+info/openrocket/core/models/gravity/GravityModelType.java
 info/openrocket/core/models/gravity/WGSGravityModel.java
 info/openrocket/core/models/wind/MultiLevelPinkNoiseWindModel.java
 info/openrocket/core/models/wind/PinkNoiseWindModel.java
@@ -160,13 +167,16 @@ info/openrocket/core/simulation/FlightEvent.java
 info/openrocket/core/simulation/GroundStepper.java
 info/openrocket/core/simulation/MotorClusterState.java
 info/openrocket/core/simulation/RK4SimulationStepper.java
+info/openrocket/core/simulation/RK6SimulationStepper.java
 info/openrocket/core/simulation/SimulationConditions.java
 info/openrocket/core/simulation/SimulationEngine.java
 info/openrocket/core/simulation/SimulationOptions.java
 info/openrocket/core/simulation/SimulationOptionsInterface.java
 info/openrocket/core/simulation/SimulationStatus.java
 info/openrocket/core/simulation/SimulationStepper.java
+info/openrocket/core/simulation/SimulationStepperMethod.java
 info/openrocket/core/simulation/ThrustState.java
+info/openrocket/core/simulation/TumbleDetector.java
 info/openrocket/core/simulation/exception/SimulationCalculationException.java
 info/openrocket/core/simulation/exception/SimulationCancelledException.java
 info/openrocket/core/simulation/exception/SimulationException.java
@@ -214,6 +224,7 @@ info/openrocket/core/util/ConcurrencyException.java
 info/openrocket/core/util/Config.java
 info/openrocket/core/util/ConfigurationException.java
 info/openrocket/core/util/Coordinate.java
+info/openrocket/core/util/CoordinateIF.java
 info/openrocket/core/util/DecalNotFoundException.java
 info/openrocket/core/util/FatalException.java
 info/openrocket/core/util/FileUtils.java
@@ -229,6 +240,7 @@ info/openrocket/core/util/LineStyle.java
 info/openrocket/core/util/LinearInterpolator.java
 info/openrocket/core/util/ListenerList.java
 info/openrocket/core/util/MathUtil.java
+info/openrocket/core/util/MutableCoordinate.java
 info/openrocket/core/util/MemoryManagement.java
 info/openrocket/core/util/ModID.java
 info/openrocket/core/util/Monitorable.java
@@ -242,7 +254,6 @@ info/openrocket/core/util/PinkNoise.java
 info/openrocket/core/util/PolyInterpolator.java
 info/openrocket/core/util/PrintProperties.java
 info/openrocket/core/util/Quaternion.java
-info/openrocket/core/util/QuaternionMultiply.java
 info/openrocket/core/util/Reflection.java
 info/openrocket/core/util/RocketComponentUtils.java
 info/openrocket/core/util/Rotation2D.java

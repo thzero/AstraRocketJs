@@ -1,21 +1,29 @@
 # Engine attribution
 
-`engine-java/` is derived from **OpenRocket 24.12** (https://openrocket.info,
-https://github.com/openrocket/openrocket) — its `info.openrocket.core` module extracted to source
-and minimally patched to compile to JavaScript with TeaVM. OpenRocket is **GPL-3.0-or-later**,
-and this engine (and AstraRocketJs as a whole) inherits that license.
+`engine-java/` is derived from **OpenRocket `unstable`** (build.version `26.xx-SNAPSHOT`, commit
+`6921e3c74`, 2026-08-27; https://openrocket.info, https://github.com/openrocket/openrocket) — its
+`info.openrocket.core` module extracted to source and minimally patched to compile to JavaScript
+with TeaVM. (Migrated from `24.12`; that upstream refactored the aerodynamics core into a pluggable
+`StabilityCalculator` + `DragCalculator` strategy.) OpenRocket is **GPL-3.0-or-later**, and this
+engine (and AstraRocketJs as a whole) inherits that license.
 
 ## RASAero-style aerodynamics extensions — mmrocket-sim
 
-Some extracted sources also carry **opt-in supersonic-aerodynamics extensions that are NOT part of
+Some extracted sources carry **opt-in supersonic-aerodynamics extensions that are NOT part of
 OpenRocket**: the supersonic-aero model (`supersonicAero`), the Rogers-Kbf body-fin carryover
-(`rogersKbf`), the power-on base-drag term (`nozzleExitDiameter`), the RASAero fin cross-sections
-(`airfoilSection`), and the wind-tunnel validation harness (`validation/`).
+(`rogersKbf`), the RASAero fin cross-sections (`airfoilSection`), and the wind-tunnel validation
+harness (`validation/`). In the `unstable` engine these live in the `RASAero{Stability,Drag}Calculator`
+strategy classes plus the `FinSetCalc`/`SymmetricComponentCalc`/`FinSet` patches.
 
 These are the **original work of the mmrocket-sim project**
-(<https://github.com/mtnmanak/mmrocket-sim>, by Mountain Man Rockets) — designed, implemented,
-and calibrated there as opt-in extensions to OpenRocket's Extended Barrowman kernel.
-`patches/LEDGER.md` is mmrocket-sim's own first-hand patch record.
+(<https://github.com/mtnmanak/mmrocket-sim>, by Mountain Man Rockets) — designed, implemented, and
+calibrated there as opt-in extensions to OpenRocket's Extended Barrowman kernel. The physics carried
+into the `unstable` engine was lifted from **mmrocket-sim v0.074** (2026-08-27). `patches/LEDGER.md`
+records how each deviation was re-expressed onto the `unstable` architecture.
+
+> Note: the power-on base-drag term (`nozzleExitDiameter`) that used to be an mmrocket extension is
+> now **native to OpenRocket** (per-motor `MotorConfiguration.nozzleExitDiameter` + per-wake
+> `FlightConditions.thrustingNozzleExitAreas`), so it is upstream's, not ours.
 
 Lineage, to be precise: **OpenRocket** (GPL-3.0-or-later) provides the Extended Barrowman kernel
 these extend. **RASAero II** (Rogers Aeroscience) is a separate program, not used or included
