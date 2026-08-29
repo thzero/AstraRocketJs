@@ -78,13 +78,9 @@ teavm.js {
     // ClassCastException. JS Math transcendentals differ from Java's by 1-2 ULPs.
 }
 
-// WASM-GC target, parallel to teavm.js. Built + vendored via
-// `node build-engine.mjs --wasm` (→ web/public/engine/); it's the default web backend
-// (JS falls back). Mirrors the JS guardrails against the optimizer miscompile (see teavm.js
-// above). Verified bit-identical to JS on staticInfo. NOTE: WASM-GC uses strict typing, so the
-// `(ArrayList) super.clone()` cast in info.openrocket.core.util.ArrayList threw
-// ClassCastException here (as JS strict=true does) — patched to a copy-ctor clone; watch for
-// other such casts if adding kernel sources.
+// SPIKE: WASM-GC target, parallel to teavm.js. Additive — the JS build and the shipped engine are
+// untouched; `generateWasmGC` writes to build/generated/teavm/wasm-gc/. Mirrors the JS guardrails
+// against the optimizer miscompile (see teavm.js above); re-verify they hold on the WASM backend.
 teavm.wasmGC {
     mainClass = project.hasProperty('parity') ? 'parity.ParityMain' : 'api.OpenRocketEngine'
     obfuscated = false

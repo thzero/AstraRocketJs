@@ -41,11 +41,31 @@ async function loadJsEngine(): Promise<EngineApi> {
   return await import('./vendor/openrocket-engine.mjs');
 }
 
-/** Inject the WASM-GC runtime loader once (it installs globalThis.TeaVM.wasmGC). */
+/** Load the WASM-GC runtime once (it installs globalThis.TeaVM.wasmGC). */
 function loadWasmRuntime(): Promise<void> {
-  const g = globalThis as unknown as { TeaVM?: { wasmGC?: unknown }; document?: Document };
+  const g = globalThis as unknown as { TeaVM?: { wasmGC?: unknown } };
   if (g.TeaVM?.wasmGC) return Promise.resolve();
-  if (typeof document === 'undefined') return Promise.reject(new Error('no document (not a browser)'));
+  // In a Worker there's no `document`, so we can't inject a <script>, and Vite
+  // won't serve a /public file via import(). Fetch the runtime text and import
+  // it through a Blob URL: running the module executes its IIFE, which assigns
+  // globalThis.TeaVM as a side effect (see openrocket-engine.wasm-runtime.js) —
+  // no eval, and blob URLs aren't behind Vite's /public wall. Lets WASM also run
+  // inside the sim worker; on any failure tryLoadWasm falls the worker back to JS.
+  if (typeof document === 'undefined') {
+    return fetch(WASM_RUNTIME_URL)
+      .then((r) => {
+        if (!r.ok) throw new Error(`WASM-GC runtime fetch failed (${r.status})`);
+        return r.text();
+      })
+      .then(async (src) => {
+        const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+        try {
+          await import(/* @vite-ignore */ url);
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      });
+  }
   return new Promise<void>((resolve, reject) => {
     const s = document.createElement('script');
     s.src = WASM_RUNTIME_URL;

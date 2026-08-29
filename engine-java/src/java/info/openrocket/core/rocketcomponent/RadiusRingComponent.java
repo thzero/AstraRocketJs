@@ -1,6 +1,7 @@
 package info.openrocket.core.rocketcomponent;
 
 import info.openrocket.core.preset.ComponentPreset;
+import info.openrocket.core.util.CoordinateIF;
 import info.openrocket.core.util.Coordinate;
 import info.openrocket.core.util.MathUtil;
 
@@ -21,6 +22,7 @@ public abstract class RadiusRingComponent extends RingComponent implements Coaxi
 	@Override
 	protected void loadFromPreset(ComponentPreset preset) {
 		super.loadFromPreset(preset);
+		
 		if (preset.has(ComponentPreset.OUTER_DIAMETER)) {
 			this.outerRadius = preset.get(ComponentPreset.OUTER_DIAMETER) / 2.0;
 			this.outerRadiusAutomatic = false;
@@ -37,8 +39,8 @@ public abstract class RadiusRingComponent extends RingComponent implements Coaxi
 	@Override
 	public double getOuterRadius() {
 		if (outerRadiusAutomatic && getParent() instanceof RadialParent) {
-			double pos1 = this.toRelative(Coordinate.NUL, parent)[0].x;
-			double pos2 = this.toRelative(new Coordinate(getLength()), parent)[0].x;
+			double pos1 = this.toRelative(Coordinate.NUL, parent)[0].getX();
+			double pos2 = this.toRelative(new Coordinate(getLength()), parent)[0].getX();
 			pos1 = MathUtil.clamp(pos1, 0, parent.getLength());
 			pos2 = MathUtil.clamp(pos2, 0, parent.getLength());
 			outerRadius = Math.min(((RadialParent) parent).getInnerRadius(pos1),
@@ -127,6 +129,10 @@ public abstract class RadiusRingComponent extends RingComponent implements Coaxi
 
 	@Override
 	public void setInstanceSeparation(final double _separation) {
+		if (MathUtil.equals(this.instanceSeparation, _separation)) {
+			return;
+		}
+
 		this.instanceSeparation = _separation;
 
 		for (RocketComponent listener : configListeners) {
@@ -134,6 +140,8 @@ public abstract class RadiusRingComponent extends RingComponent implements Coaxi
 				((LineInstanceable) listener).setInstanceSeparation(_separation);
 			}
 		}
+
+		fireComponentChangeEvent(ComponentChangeEvent.BOTH_CHANGE);
 	}
 
 	@Override
@@ -142,14 +150,17 @@ public abstract class RadiusRingComponent extends RingComponent implements Coaxi
 			listener.setInstanceCount(newCount);
 		}
 
-		if (0 < newCount) {
-			this.instanceCount = newCount;
+		if (newCount == this.instanceCount || newCount <= 0) {
+			return;
 		}
+
+		this.instanceCount = newCount;
+		fireComponentChangeEvent(ComponentChangeEvent.BOTH_CHANGE);
 	}
 
 	@Override
-	public Coordinate[] getInstanceOffsets() {
-		Coordinate[] toReturn = new Coordinate[this.getInstanceCount()];
+	public CoordinateIF[] getInstanceOffsets() {
+		CoordinateIF[] toReturn = new CoordinateIF[this.getInstanceCount()];
 		for (int index = 0; index < this.getInstanceCount(); index++) {
 			toReturn[index] = new Coordinate(index * this.instanceSeparation, 0, 0);
 		}

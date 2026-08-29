@@ -13,7 +13,7 @@ import info.openrocket.core.simulation.MotorClusterState;
 import info.openrocket.core.simulation.SimulationStatus;
 import info.openrocket.core.simulation.exception.SimulationException;
 import info.openrocket.core.util.BugException;
-import info.openrocket.core.util.Coordinate;
+import info.openrocket.core.util.CoordinateIF;
 
 /**
  * An abstract base class for implementing simulation listeners. This class
@@ -37,6 +37,16 @@ public class AbstractSimulationListener implements SimulationListener, Simulatio
 
 	@Override
 	public void endSimulation(SimulationStatus status, SimulationException exception) {
+		// No-op
+	}
+
+	@Override
+	public void startSimulationBranch(SimulationStatus status) throws SimulationException {
+		// No-op
+	}
+
+	@Override
+	public void endSimulationBranch(SimulationStatus status, SimulationException exception) {
 		// No-op
 	}
 
@@ -122,7 +132,7 @@ public class AbstractSimulationListener implements SimulationListener, Simulatio
 	}
 
 	@Override
-	public Coordinate preWindModel(SimulationStatus status) throws SimulationException {
+	public CoordinateIF preWindModel(SimulationStatus status) throws SimulationException {
 		return null;
 	}
 
@@ -166,7 +176,7 @@ public class AbstractSimulationListener implements SimulationListener, Simulatio
 	}
 
 	@Override
-	public Coordinate postWindModel(SimulationStatus status, Coordinate wind) throws SimulationException {
+	public CoordinateIF postWindModel(SimulationStatus status, CoordinateIF wind) throws SimulationException {
 		return null;
 	}
 

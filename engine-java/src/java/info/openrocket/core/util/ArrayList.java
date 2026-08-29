@@ -23,7 +23,7 @@ public class ArrayList<E> extends java.util.ArrayList<E> {
 
 	@Override
 	public ArrayList<E> clone() {
-		// PATCH(fakerocket, WASM-GC): construct the subclass + copy instead of
+		// PATCH(astrarrocketjs, WASM-GC): construct the subclass + copy instead of
 		// (ArrayList<E>) super.clone(). TeaVM's java.util.ArrayList.clone() does not
 		// preserve the runtime subclass, so the cast throws ClassCastException under
 		// WASM-GC's strict typing (and under the JS backend's strict=true). A shallow

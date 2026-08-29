@@ -12,6 +12,7 @@ import info.openrocket.core.startup.Application;
 import info.openrocket.core.util.BoundingBox;
 import info.openrocket.core.util.BugException;
 import info.openrocket.core.util.Coordinate;
+import info.openrocket.core.util.CoordinateIF;
 import info.openrocket.core.util.MathUtil;
 
 /**
@@ -175,6 +176,7 @@ public class BodyTube extends SymmetricComponent implements BoxBounded, MotorMou
 
 	@Override
 	protected void loadFromPreset(ComponentPreset preset) {
+		super.loadFromPreset(preset);
 		if (preset.has(ComponentPreset.OUTER_DIAMETER)) {
 			this.autoRadius = false;
 			double outerDiameter = preset.get(ComponentPreset.OUTER_DIAMETER);
@@ -184,9 +186,7 @@ public class BodyTube extends SymmetricComponent implements BoxBounded, MotorMou
 				this.thickness = (outerDiameter - innerDiameter) / 2.0;
 			}
 		}
-		
-		super.loadFromPreset(preset);
-		
+			
 		fireComponentChangeEvent(ComponentChangeEvent.BOTH_CHANGE);
 	}
 	
@@ -302,7 +302,7 @@ public class BodyTube extends SymmetricComponent implements BoxBounded, MotorMou
 	 * Returns the body tube's center of gravity.
 	 */
 	@Override
-	public Coordinate getComponentCG() {
+	public CoordinateIF getComponentCG() {
 		return new Coordinate(length / 2, 0, 0, getComponentMass());
 	}
 	
@@ -511,7 +511,7 @@ public class BodyTube extends SymmetricComponent implements BoxBounded, MotorMou
 	
 	
 	@Override
-	public Coordinate getMotorPosition(FlightConfigurationId id) {
+	public CoordinateIF getMotorPosition(FlightConfigurationId id) {
 		Motor motor = this.motors.get(id).getMotor();
 		if (motor == null) {
 			throw new IllegalArgumentException("No motor with id " + id + " defined.");

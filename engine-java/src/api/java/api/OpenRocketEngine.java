@@ -8,6 +8,8 @@ import org.teavm.jso.JSExport;
 
 import info.openrocket.core.aerodynamics.AerodynamicForces;
 import info.openrocket.core.aerodynamics.BarrowmanCalculator;
+import info.openrocket.core.aerodynamics.RASAeroStabilityCalculator;
+import info.openrocket.core.aerodynamics.RASAeroDragCalculator;
 import info.openrocket.core.aerodynamics.FlightConditions;
 import info.openrocket.core.document.Simulation;
 import info.openrocket.core.logging.WarningSet;
@@ -45,6 +47,7 @@ import info.openrocket.core.simulation.SimulationConditions;
 import info.openrocket.core.simulation.exception.SimulationException;
 import info.openrocket.core.material.Material;
 import info.openrocket.core.util.Coordinate;
+import info.openrocket.core.util.CoordinateIF;
 import info.openrocket.core.util.GeodeticComputationStrategy;
 import info.openrocket.core.util.WorldCoordinate;
 
@@ -153,6 +156,7 @@ public final class OpenRocketEngine {
         }
 
         Map<String, RocketComponent> ids = new HashMap<>();
+        Map<AxialStage, Double> nozzleDia = new HashMap<>();
         AxialStage firstStage = null;
         if (staged) {
             for (Object o : topLevel) {
@@ -175,12 +179,8 @@ public final class OpenRocketEngine {
                 if (stageId != null) {
                     ids.put(stageId, stage);
                 }
-                applySeparationConfig(stage, stageNode);
-                // Stages are built directly (not via ComponentFactory.create), so
-                // apply their own Mass/CG/CD overrides here — e.g. pinning a whole
-                // rocket's measured mass via a stage override + "all subcomponents".
-                ComponentFactory.applyOverrides(stage, stageNode);
-                ComponentFactory.attachChildren(stage, stageNode, ids);
+                applySeparationConfig(stage, stageNode, nozzleDia);
+                ComponentFactory.attachChildren(stage, stageNode, ids, nozzleDia);
             }
             if (firstStage == null) {
                 throw new IllegalArgumentException("Staged rocket has no stages");
@@ -196,11 +196,12 @@ public final class OpenRocketEngine {
 
         RocketCtx ctx = new RocketCtx(rocket, firstStage, fcid);
         ctx.ids.putAll(ids);
+        ctx.nozzleDia.putAll(nozzleDia);
         if (!staged) {
             // The root node's "components" behave like children of the stage.
             Map<String, Object> stageNode = new java.util.LinkedHashMap<>();
             stageNode.put("children", tree.get("components"));
-            ComponentFactory.attachChildren(firstStage, stageNode, ctx.ids);
+            ComponentFactory.attachChildren(firstStage, stageNode, ctx.ids, ctx.nozzleDia);
         }
 
         rocket.enableEvents();
@@ -212,13 +213,15 @@ public final class OpenRocketEngine {
      * Package-private so ComponentFactory can reuse it for a parallelstage
      * (ParallelStage IS an AxialStage) — no duplication.
      */
-    static void applySeparationConfig(AxialStage stage, Map<String, Object> stageNode) {
-        // RASAero power-on base-drag: per-stage nozzle exit diameter (metres).
-        // Applies to every stage (incl. the sustainer), so read it before the
-        // separation-only early return below. Absent/0 => power-off (no effect).
+    static void applySeparationConfig(AxialStage stage, Map<String, Object> stageNode,
+            Map<AxialStage, Double> nozzleDia) {
+        // RASAero power-on base-drag: per-stage nozzle exit diameter (metres). Upstream
+        // owns feature #2 natively via a PER-MOTOR MotorConfiguration.nozzleExitDiameter,
+        // so we capture the per-stage input here and hand it to the stage's motor in
+        // applyMotor. Applies to every stage (incl. the sustainer). Absent/0 => power-off.
         double nozzleExitDiameter = JsonLite.dbl(stageNode, "nozzleExitDiameter", Double.NaN);
-        if (!Double.isNaN(nozzleExitDiameter)) {
-            stage.setNozzleExitDiameter(nozzleExitDiameter);
+        if (!Double.isNaN(nozzleExitDiameter) && nozzleExitDiameter > 0) {
+            nozzleDia.put(stage, nozzleExitDiameter);
         }
 
         String event = JsonLite.str(stageNode, "separationEvent", null);
@@ -377,6 +380,14 @@ public final class OpenRocketEngine {
         MotorConfiguration mc = new MotorConfiguration(mount, ctx.fcid);
         mc.setMotor(motor);
         mc.setEjectionDelay(ejectionDelay);
+        // RASAero feature #2 (power-on base drag): apply this stage's captured nozzle
+        // exit diameter to the motor (upstream's native per-motor model). Upstream
+        // rejects a nozzle wider than the motor (the old per-stage model didn't
+        // validate), so clamp to the motor diameter rather than throw and break the sim.
+        Double nozzle = ctx.nozzleDia.get(((RocketComponent) mount).getStage());
+        if (nozzle != null && nozzle > 0) {
+            mc.setNozzleExitDiameter(Math.min(nozzle, diameter));
+        }
         mount.setMotorConfig(mc, ctx.fcid);
     }
 
@@ -446,33 +457,48 @@ public final class OpenRocketEngine {
         ((RocketCtx) get(rocketHandle)).supersonicAero = enabled;
     }
 
+    /**
+     * Build a BarrowmanCalculator wired with the design's opt-in RASAero
+     * extensions (feature #1 supersonicAero, feature #3 rogersKbf). With both
+     * flags off this is bit-identical to a stock {@code new BarrowmanCalculator()},
+     * so getStaticInfo / getDragSweep / simulateJson all agree.
+     */
+    private static BarrowmanCalculator rasAeroCalculator(RocketCtx ctx) {
+        RASAeroStabilityCalculator stab = new RASAeroStabilityCalculator();
+        stab.setSupersonicAero(ctx.supersonicAero);
+        stab.setRogersKbf(ctx.rogersKbf);
+        RASAeroDragCalculator drag = new RASAeroDragCalculator();
+        drag.setSupersonicAero(ctx.supersonicAero);
+        drag.setRogersKbf(ctx.rogersKbf);
+        return new BarrowmanCalculator(stab, drag);
+    }
+
     @JSExport
     public static String getStaticInfo(int rocketHandle) {
         RocketCtx ctx = (RocketCtx) get(rocketHandle);
         RigidBody structure = MassCalculator.calculateLaunch(ctx.rocket.getSelectedConfiguration());
         RigidBody empty = MassCalculator.calculateStructure(ctx.rocket.getSelectedConfiguration());
 
-        BarrowmanCalculator calc = new BarrowmanCalculator();
-        calc.setRogersKbf(ctx.rogersKbf); // feature #3: opt-in body-fin interference
-        calc.setSupersonicAero(ctx.supersonicAero); // feature #1 Phase 1
+        BarrowmanCalculator calc = rasAeroCalculator(ctx);
         FlightConditions conditions = new FlightConditions(ctx.rocket.getSelectedConfiguration());
         conditions.setMach(0.3);
         conditions.setAOA(0);
         WarningSet warnings = new WarningSet();
-        Coordinate cp = calc.getCP(ctx.rocket.getSelectedConfiguration(), conditions, warnings);
+        // Upstream refactor: getCP()/getCM() now return CoordinateIF (accessor-based).
+        CoordinateIF cp = calc.getCP(ctx.rocket.getSelectedConfiguration(), conditions, warnings);
 
         double refDiameter = conditions.getRefLength(); // refLength IS the reference diameter
-        double cg = structure.getCM().x;
-        double stabilityCal = (cp.x - cg) / conditions.getRefLength();
+        double cg = structure.getCM().getX();
+        double stabilityCal = (cp.getX() - cg) / conditions.getRefLength();
 
         StringBuilder sb = new StringBuilder("{");
         num(sb, "length", ctx.rocket.getLength()).append(',');
         num(sb, "mass", structure.getMass()).append(',');
         num(sb, "massEmpty", empty.getMass()).append(',');
-        num(sb, "cgEmpty", empty.getCM().x).append(',');
+        num(sb, "cgEmpty", empty.getCM().getX()).append(',');
         num(sb, "cg", cg).append(',');
-        num(sb, "cp", cp.x).append(',');
-        num(sb, "cna", cp.weight).append(',');
+        num(sb, "cp", cp.getX()).append(',');
+        num(sb, "cna", cp.getWeight()).append(',');
         num(sb, "stabilityCalibers", stabilityCal).append(',');
         num(sb, "refDiameter", refDiameter).append(',');
         num(sb, "warnings", warnings.size()).append(',');
@@ -500,13 +526,13 @@ public final class OpenRocketEngine {
         if (c == null) {
             throw new IllegalArgumentException("Unknown component id: '" + componentId + "'");
         }
-        Coordinate[] locations = c.getComponentLocations();
-        double absX = locations.length > 0 ? locations[0].x : Double.NaN;
+        CoordinateIF[] locations = c.getComponentLocations();
+        double absX = locations.length > 0 ? locations[0].getX() : Double.NaN;
         StringBuilder sb = new StringBuilder("{");
         num(sb, "length", c.getLength()).append(',');
         num(sb, "mass", c.getMass()).append(',');
         num(sb, "sectionMass", c.getSectionMass()).append(',');
-        num(sb, "cgX", c.getCG().x).append(',');
+        num(sb, "cgX", c.getCG().getX()).append(',');
         num(sb, "positionX", absX);
         return sb.append('}').toString();
     }
@@ -565,21 +591,33 @@ public final class OpenRocketEngine {
         }
         ExtendedISAModel isa = (maMach != null) ? new ExtendedISAModel() : null;
 
-        // Every stage number -> the power-on thrusting set; note if any nozzle set.
-        java.util.Set<Integer> allStages = new java.util.HashSet<>();
-        boolean hasNozzle = false;
+        // RASAero power-on base drag: per-assembly thrusting nozzle-exit areas of the
+        // design's motors (upstream's native per-motor model). Mirrors
+        // AbstractSimulationStepper.setThrustingNozzleExitAreas; the drag sweep is a
+        // static analysis, so every motor is treated as thrusting (the power-on curve).
+        // Read motors straight off the mounts (keyed by fcid) — the FlightConfiguration's
+        // motors map is derived via updateMotors(), which our setMotorById flow doesn't
+        // trigger, so it can be stale here. (The flight sim is unaffected: it reads motors
+        // through SimulationStatus, a separate runtime path.)
+        java.util.Map<ComponentAssembly, Double> nozzleAreas = new java.util.HashMap<>();
         for (RocketComponent c : ctx.rocket) {
-            if (c instanceof AxialStage) {
-                allStages.add(((AxialStage) c).getStageNumber());
-                if (((AxialStage) c).getNozzleExitDiameter() > 0) {
-                    hasNozzle = true;
-                }
+            if (!(c instanceof MotorMount) || !((MotorMount) c).isMotorMount()) {
+                continue;
             }
+            MotorConfiguration mc = ((MotorMount) c).getMotorConfig(ctx.fcid);
+            if (mc == null) {
+                continue;
+            }
+            double d = mc.getNozzleExitDiameter();
+            if (d <= 0) {
+                continue;
+            }
+            double area = mc.getMotorCount() * Math.PI * (d / 2) * (d / 2);
+            nozzleAreas.merge(((MotorMount) c).getAssembly(), area, Double::sum);
         }
+        boolean hasNozzle = !nozzleAreas.isEmpty();
 
-        BarrowmanCalculator calc = new BarrowmanCalculator();
-        calc.setRogersKbf(ctx.rogersKbf); // keep sweep CP consistent with staticInfo
-        calc.setSupersonicAero(ctx.supersonicAero); // feature #1 Phase 1
+        BarrowmanCalculator calc = rasAeroCalculator(ctx);
         WarningSet warnings = new WarningSet();
 
         double[] offTotal = new double[n], offFric = new double[n], offPress = new double[n], offBase = new double[n];
@@ -623,9 +661,9 @@ public final class OpenRocketEngine {
             offFric[i] = fOff.getFrictionCD();
             offPress[i] = fOff.getPressureCD();
             offBase[i] = fOff.getBaseCD();
-            Coordinate cpc = fOff.getCP();
-            cp[i] = cpc.x;
-            cna[i] = cpc.weight;
+            CoordinateIF cpc = fOff.getCP();
+            cp[i] = cpc.getX();
+            cna[i] = cpc.getWeight();
 
             FlightConditions on = new FlightConditions(config);
             if (atm != null) {
@@ -633,7 +671,7 @@ public final class OpenRocketEngine {
             }
             on.setMach(mach);
             on.setAOA(aoa);
-            on.setThrustingStages(new java.util.HashSet<>(allStages));
+            on.setThrustingNozzleExitAreas(nozzleAreas);
             AerodynamicForces fOn = calc.getAerodynamicForces(config, on, warnings);
             onTotal[i] = fOn.getCD();
             onFric[i] = fOn.getFrictionCD();
@@ -767,17 +805,19 @@ public final class OpenRocketEngine {
                 launchAltitude));
         conditions.setGeodeticComputation(geodeticOf(JsonLite.str(o, "geodetic", "spherical")));
         if (!Double.isNaN(temperature) || !Double.isNaN(pressure)) {
+            // Upstream changed the 3-arg ExtendedISAModel to (temp, pressure, humidity)
+            // and added a 4-arg (altitude, temp, pressure, humidity). Use the 4-arg form
+            // with standard humidity so custom temp/pressure keep their altitude meaning.
             conditions.setAtmosphericModel(new ExtendedISAModel(
                     launchAltitude,
                     Double.isNaN(temperature) ? ExtendedISAModel.STANDARD_TEMPERATURE : temperature,
-                    Double.isNaN(pressure) ? ExtendedISAModel.STANDARD_PRESSURE : pressure));
+                    Double.isNaN(pressure) ? ExtendedISAModel.STANDARD_PRESSURE : pressure,
+                    ExtendedISAModel.STANDARD_RELATIVE_HUMIDITY));
         } else {
             conditions.setAtmosphericModel(new ExtendedISAModel());
         }
         conditions.setGravityModel(new WGSGravityModel());
-        BarrowmanCalculator aeroCalc = new BarrowmanCalculator();
-        aeroCalc.setRogersKbf(ctx.rogersKbf); // feature #3: opt-in body-fin interference
-        aeroCalc.setSupersonicAero(ctx.supersonicAero); // feature #1 Phase 1
+        BarrowmanCalculator aeroCalc = rasAeroCalculator(ctx);
         int randomSeed = (int) JsonLite.dbl(o, "randomSeed", 42);
         List<Map<String, Object>> windLevels = JsonLite.objList(o, "windLevels");
         if (windLevels != null && !windLevels.isEmpty()) {
@@ -836,6 +876,14 @@ public final class OpenRocketEngine {
         final AxialStage stage;
         final FlightConfigurationId fcid;
         final Map<String, RocketComponent> ids = new HashMap<>();
+        /**
+         * Per-stage RASAero power-on nozzle-exit diameter (metres), captured from
+         * the `nozzleExitDiameter` stage input. Applied to that stage's motor as
+         * upstream's per-motor MotorConfiguration.nozzleExitDiameter when the motor
+         * is set (see applyMotor) — the browser keeps a per-stage input; the engine
+         * uses OpenRocket's native per-motor model.
+         */
+        final Map<AxialStage, Double> nozzleDia = new HashMap<>();
         /** Opt-in Rogers Modified Barrowman body-fin interference (feature #3). */
         boolean rogersKbf = false;
         /** Opt-in supersonic aerodynamics (feature #1 Phase 1). */
@@ -959,7 +1007,9 @@ public final class OpenRocketEngine {
         if (w instanceof info.openrocket.core.logging.Warning.LargeAOA) {
             return "LargeAOA";
         }
-        if (w instanceof info.openrocket.core.logging.Warning.HighSpeedDeployment) {
+        // Upstream renamed Warning.HighSpeedDeployment -> RecoveryHighSpeedDeployment;
+        // keep the JSON key stable for the web app.
+        if (w instanceof info.openrocket.core.logging.Warning.RecoveryHighSpeedDeployment) {
             return "HighSpeedDeployment";
         }
         if (w instanceof info.openrocket.core.logging.Warning.EventAfterLanding) {

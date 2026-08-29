@@ -6,28 +6,31 @@
 > the project.
 
 AstraRocketJs runs the **OpenRocket physics kernel** in the browser, compiled to
-JavaScript. It's a monorepo:
+**WebAssembly** (with a **JavaScript fallback**). It's a monorepo:
 
-- `engine-java/` — the OpenRocket 24.12 physics core, extracted + minimally
-  patched for TeaVM, compiled to a JS module (GPL-3.0-or-later; see
+- `engine-java/` — the OpenRocket physics core (a post-24.12 development build),
+  extracted + minimally patched for TeaVM, compiled to **two** targets: a
+  WebAssembly (WASM-GC) module and a JavaScript module (GPL-3.0-or-later; see
   `engine-java/ATTRIBUTION.md` and `engine-java/patches/LEDGER.md`).
 - `web/` — the responsive UI: Vite + React + TypeScript + Tailwind CSS. Consumes
-  the engine through a typed wrapper (`web/src/engine/openRocketEngine.ts`).
+  the engine through a typed wrapper (`web/src/engine/openRocketEngine.ts`), which
+  picks the backend at load and shows which one is active in the header.
 
 ## The extracted engine (`engine-java/src/java/`)
 
 OpenRocket's full `core` module is ~700 Java files and pulls in Guice, JAXB,
-GraalVM-JS and classgraph — none of which TeaVM (the Java→JavaScript compiler) can
-handle. **Extraction** is a one-time copy of just the ~259 files the physics and
-simulation actually need, leaving behind all the reflection-heavy machinery (file
-loaders, plugin system, scripting, GUI hooks).
+GraalVM-JS and classgraph — none of which TeaVM (the Java→JavaScript/WASM compiler)
+can handle. **Extraction** is a one-time copy of just the ~270 files the physics
+and simulation actually need, leaving behind all the reflection-heavy machinery
+(file loaders, plugin system, scripting, GUI hooks).
 
-`src/java/` is therefore verbatim OpenRocket 24.12 source with a handful of tiny
-TeaVM-compatibility edits already applied (documented in `patches/LEDGER.md` —
-e.g. `UUID`→`LongUUID`, one concurrent map swapped for a plain one, a
-reflection-free aerodynamic calculator lookup). **This is the engine** — when the
-UI calls `staticInfo()` or `simulate()`, this is the code that runs. Don't edit
-extracted files directly; changes go through a documented patch in
+`src/java/` is therefore verbatim OpenRocket core source (a post-24.12 development
+build) with a handful of tiny TeaVM-compatibility edits already applied (documented
+in `patches/LEDGER.md` — e.g. `UUID`→`LongUUID`, one concurrent map swapped for a
+plain one, a reflection-free aerodynamic calculator lookup, and a copy-constructor
+`ArrayList.clone()` that WASM-GC's strict casts require). **This is the engine** —
+when the UI calls `staticInfo()` or `simulate()`, this is the code that runs. Don't
+edit extracted files directly; changes go through a documented patch in
 `patches/LEDGER.md` (only when upgrading the upstream OpenRocket version).
 
 Extracted sources by area:
@@ -35,28 +38,53 @@ Extracted sources by area:
 | files | package | what it is |
 |------:|---------|------------|
 | 73 | `rocketcomponent` | rocket model: nose cone, body tube, fins, stages, motor mounts, flight configs |
-| 59 | `util` | math/geometry helpers (Coordinate, quaternions, interpolation) |
-| 38 | `simulation` | flight simulator: RK4 integrator, steppers, flight events/data |
+| 60 | `util` | math/geometry helpers (Coordinate, quaternions, interpolation) |
+| 41 | `simulation` | flight simulator: RK4/RK6 integrators, steppers, tumble detection, flight events/data |
+| 18 | `aerodynamics` | Extended Barrowman + RASAero CP / drag / stability (force breakdown) |
 | 16 | `unit` | unit system (SI internally) |
-| 13 | `aerodynamics` | Extended Barrowman CP / drag / stability |
+| 12 | `models` | atmosphere (ISA), gravity models, wind |
 | 10 | `motor` | thrust-curve motor model |
-| 10 | `models` | atmosphere (ISA), gravity, wind |
 | 4 | `masscalc` | CG / mass / moment-of-inertia |
 | … | rest | logging, i18n, materials, presets, appearance |
+
+(~270 kernel files under `src/java/`, plus `src/shims/`, `src/jdkstubs/` and the
+`src/api/` facade — 286 Java files total.)
 
 ## Build → run pipeline
 
 1. `engine-java/` (extracted core + `src/shims/` JVM-only replacements +
    `src/jdkstubs/` a JDK `Collator` stand-in + `src/api/OpenRocketEngine`
-   @JSExport facade) is compiled by TeaVM into one JS module.
-2. That module is committed at `web/src/engine/vendor/openrocket-engine.mjs`, so
-   the web app builds without a JDK.
-3. `web/` imports it through the typed `openRocketEngine.ts` wrapper; React never
-   touches the raw module.
+   @JSExport facade) is compiled by TeaVM to **two targets**: a **WASM-GC** module
+   and a **JavaScript** module. Both come from the same sources via
+   `node engine-java/build-engine.mjs` (JS) / `--wasm` (WASM-GC).
+2. The built artifacts are committed so the web app builds without a JDK:
+   - JS → `web/src/engine/vendor/openrocket-engine.mjs`
+   - WASM → `web/public/engine/openrocket-engine.wasm` (+ its `*.wasm-runtime.js`)
+3. `web/` imports them through the typed `openRocketEngine.ts` wrapper; React never
+   touches the raw modules.
+
+**Backend selection.** `initEngine()` loads **WASM-GC by default** (faster) and
+falls back to the **JS** build when the browser lacks WASM support or a load fails.
+Both are loaded **dynamically** (a separate chunk / fetch), so only one is ever
+downloaded, never both. Override with `?engine=js` / `?engine=wasm` (or
+`localStorage.setItem('engine', …)`); the header badge shows which is live. The two
+backends are verified **bit-identical**.
 
 TeaVM requires `optimization = NONE` + `fastGlobalAnalysis = true` (see
 `engine-java/build.gradle`) — its default optimizer miscompiles the kernel (zeroes
-masses / collapses fin instances).
+masses / collapses fin instances). WASM-GC additionally needs the copy-constructor
+`ArrayList.clone()` patch (its strict casts reject the JVM's
+`(ArrayList) super.clone()`).
+
+**Threading.** The **interactive** engine calls — live CG/CP/stability on every
+edit (`staticInfo`), the drag sweep (`getDragSweep`), component info — run
+**synchronously on the main thread** (they're fast, ~ms, and want to be instant).
+The **flight simulation** (`simulate`, ~500 ms) runs in a **Web Worker** with its
+own engine instance, so a run never freezes the UI (`engine/simClient.ts` +
+`engine/simWorker.ts`; the worker builds the identical rocket via the shared
+`services/buildRocket.ts`). This is Phase 1 of an incremental plan to move more
+engine work off-thread — two options and the full roadmap are in
+[engine-worker-proposal.md](./engine-worker-proposal.md).
 
 ## Motor data & thrust-curve caching
 
@@ -227,7 +255,8 @@ Swapping one does not affect the other.
 
 ## Attribution & license
 
-The engine derives from OpenRocket 24.12, and the opt-in supersonic-aero extensions
-are the original work of the mmrocket-sim project. Full credits and license
-lineage: **`engine-java/ATTRIBUTION.md`** (and `docs/rasaero/` for the extensions'
-physics + diffs).
+The engine derives from the OpenRocket core (a post-24.12 development build), and
+the opt-in supersonic-aero (RASAero) extensions are the original work of the
+mmrocket-sim project. Full credits and license lineage:
+**`engine-java/ATTRIBUTION.md`** (and `docs/rasaero/` for the extensions' physics +
+diffs).

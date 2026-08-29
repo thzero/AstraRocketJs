@@ -3,8 +3,8 @@ package info.openrocket.core.appearance;
 import info.openrocket.core.appearance.Decal.EdgeMode;
 import info.openrocket.core.rocketcomponent.RocketComponent;
 import info.openrocket.core.util.AbstractChangeSource;
-import info.openrocket.core.util.ORColor;
 import info.openrocket.core.util.Coordinate;
+import info.openrocket.core.util.ORColor;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -30,6 +30,7 @@ public class AppearanceBuilder extends AbstractChangeSource {
 	private double rotation;	//
 	private DecalImage image;
 	private Decal.EdgeMode edgeMode;
+	private boolean opacityAffectsTexture;
 	
 	private boolean batch;
 
@@ -71,6 +72,7 @@ public class AppearanceBuilder extends AbstractChangeSource {
 		rotation = 0;
 		image = null;
 		edgeMode = EdgeMode.REPEAT;
+		opacityAffectsTexture = false;
 		if (!bypassAppearanceChangeEvent) {
 			fireChangeEvent();
 		}
@@ -91,6 +93,7 @@ public class AppearanceBuilder extends AbstractChangeSource {
 					setPaint(a.getPaint());
 					setShine(a.getShine());
 					setDecal(a.getTexture());
+					setOpacityAffectsTexture(a.isOpacityAffectsTexture());
 				}
 			}
 		});
@@ -106,9 +109,9 @@ public class AppearanceBuilder extends AbstractChangeSource {
 			listener.setDecal(d);
 		}
 		if (d != null) {
-			setOffset(d.getOffset().x, d.getOffset().y);
-			setCenter(d.getCenter().x, d.getCenter().y);
-			setScaleUV(d.getScale().x, d.getScale().y);
+			setOffset(d.getOffset().getX(), d.getOffset().getY());
+			setCenter(d.getCenter().getX(), d.getCenter().getY());
+			setScaleUV(d.getScale().getX(), d.getScale().getY());
 			setRotation(d.getRotation());
 			setEdgeMode(d.getEdgeMode());
 			setImage(d.getImage());
@@ -136,7 +139,7 @@ public class AppearanceBuilder extends AbstractChangeSource {
 					edgeMode);
 		}
 		
-		return new Appearance(paint, shine, t);
+		return new Appearance(paint, shine, t, opacityAffectsTexture);
 	}
 	
 	
@@ -225,6 +228,20 @@ public class AppearanceBuilder extends AbstractChangeSource {
 		// the setOpacity will not work correctly. (don't ask me why)
 		ORColor c = new ORColor(paint.getRed(), paint.getGreen(), paint.getBlue(), (int) (opacity * 255));
 		setPaint(c);
+	}
+
+	public boolean isOpacityAffectsTexture() {
+		return opacityAffectsTexture;
+	}
+
+	public void setOpacityAffectsTexture(boolean opacityAffectsTexture) {
+		for (AppearanceBuilder listener : configListeners.values()) {
+			listener.setOpacityAffectsTexture(opacityAffectsTexture);
+		}
+		this.opacityAffectsTexture = opacityAffectsTexture;
+		if (!bypassAppearanceChangeEvent) {
+			fireChangeEvent();
+		}
 	}
 	
 	/**

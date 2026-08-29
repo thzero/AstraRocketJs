@@ -449,31 +449,7 @@ final class ComponentFactory {
             fs.setAirfoilTeDiamond(dbl(node, "airfoilTeDiamond", 0));
             fs.setFinLeRadius(dbl(node, "finLeRadius", 0));
         }
-        applyOverrides(c, node);
-        Map<String, Object> position = obj(node, "position");
-        // Off-axis assemblies (PodSet/ParallelStage) have no parent here yet, and
-        // their setAxialMethod NPEs without one — their position is applied
-        // post-attach in applyAssembly. Every other component positions here.
-        if (position != null && !(c instanceof ComponentAssembly)) {
-            c.setAxialMethod(axialMethodOf(str(position, "method", "top")));
-            c.setAxialOffset(dbl(position, "offset", 0));
-        }
-        return c;
-    }
-
-    /**
-     * Deployment settings for recovery devices, applied to the DEFAULT
-     * deployment configuration (inherited by every flight configuration).
-     * Keys: deployEvent (launch|ejection|apogee|altitude|never),
-     * deployAltitude (m AGL, for "altitude"), deployDelay (s).
-     */
-    /**
-     * Applies a node's Mass / CG / CD overrides (+ the "all subcomponents" flags)
-     * to a component. Reused for the top-level stages in {@link OpenRocketEngine},
-     * which are constructed directly rather than through {@link #create}.
-     * An absent key means "not overridden".
-     */
-    static void applyOverrides(RocketComponent c, Map<String, Object> node) {
+        // Mass / CG / CD overrides — absent key means "not overridden".
         double overrideMass = dbl(node, "overrideMass", Double.NaN);
         if (!Double.isNaN(overrideMass)) {
             c.setOverrideMass(overrideMass);
@@ -501,8 +477,23 @@ final class ComponentFactory {
         if (bool(node, "overrideSubcomponentsCD", false)) {
             c.setSubcomponentsOverriddenCD(true);
         }
+        Map<String, Object> position = obj(node, "position");
+        // Off-axis assemblies (PodSet/ParallelStage) have no parent here yet, and
+        // their setAxialMethod NPEs without one — their position is applied
+        // post-attach in applyAssembly. Every other component positions here.
+        if (position != null && !(c instanceof ComponentAssembly)) {
+            c.setAxialMethod(axialMethodOf(str(position, "method", "top")));
+            c.setAxialOffset(dbl(position, "offset", 0));
+        }
+        return c;
     }
 
+    /**
+     * Deployment settings for recovery devices, applied to the DEFAULT
+     * deployment configuration (inherited by every flight configuration).
+     * Keys: deployEvent (launch|ejection|apogee|altitude|never),
+     * deployAltitude (m AGL, for "altitude"), deployDelay (s).
+     */
     private static void applyDeployment(RecoveryDevice device, Map<String, Object> node) {
         DeploymentConfiguration config = device.getDeploymentConfigurations().getDefault();
         String event = str(node, "deployEvent", null);
@@ -546,7 +537,7 @@ final class ComponentFactory {
 
     /** Builds and attaches the node's children recursively. */
     static void attachChildren(RocketComponent parent, Map<String, Object> node,
-            Map<String, RocketComponent> idIndex) {
+            Map<String, RocketComponent> idIndex, Map<AxialStage, Double> nozzleDia) {
         List<Map<String, Object>> kids = JsonLite.objList(node, "children");
         for (Map<String, Object> kid : kids) {
             RocketComponent child = create(kid);
@@ -557,7 +548,7 @@ final class ComponentFactory {
             // ALSO implement RingInstanceable, and applyAssembly would clobber
             // their instance count with the pod default.
             if (child instanceof ComponentAssembly) {
-                applyAssembly(child, kid);
+                applyAssembly(child, kid, nozzleDia);
             }
             if (child instanceof FinSet) {
                 applyFinTabs((FinSet) child, kid);
@@ -566,7 +557,7 @@ final class ComponentFactory {
             if (id != null) {
                 idIndex.put(id, child);
             }
-            attachChildren(child, kid, idIndex);
+            attachChildren(child, kid, idIndex, nozzleDia);
         }
     }
 
@@ -597,7 +588,8 @@ final class ComponentFactory {
      * RELATIVE), so angleMethod is applied for parallelstage only. AFTER axial
      * method is downgraded by the kernel — the app never offers it.
      */
-    private static void applyAssembly(RocketComponent child, Map<String, Object> node) {
+    private static void applyAssembly(RocketComponent child, Map<String, Object> node,
+            Map<AxialStage, Double> nozzleDia) {
         RingInstanceable ring = (RingInstanceable) child;
         ring.setInstanceCount((int) dbl(node, "instanceCount", 2));
         ring.setRadiusMethod(radiusMethodOf(str(node, "radiusMethod", "relative")));
@@ -613,8 +605,9 @@ final class ComponentFactory {
         }
         if (child instanceof ParallelStage) {
             // A ParallelStage separates — reuse OpenRocketEngine's stage-separation
-            // writer (same package, package-private).
-            OpenRocketEngine.applySeparationConfig((AxialStage) child, node);
+            // writer (same package, package-private). Passing nozzleDia so a booster
+            // stage's nozzle exit diameter reaches its motor too.
+            OpenRocketEngine.applySeparationConfig((AxialStage) child, node, nozzleDia);
         }
     }
 

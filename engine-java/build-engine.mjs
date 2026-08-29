@@ -4,10 +4,10 @@
  *
  * Default target is TeaVM-JS (`gradlew generateJavaScript`), copied to
  * ../web/src/engine/vendor/openrocket-engine.mjs (the committed artifact the web app imports).
- * With --wasm it builds the TeaVM WASM-GC target and copies BOTH the `.wasm` and its JS loader
- * runtime to ../web/public/engine/ (openrocket-engine.wasm + openrocket-engine.wasm-runtime.js).
- * WASM-GC needs a modern browser (Chrome 119+/FF 120+/Safari 18+) and async init via
- * TeaVM.wasmGC.load(...); it is a second, opt-in target — the JS build is the fallback default.
+ * With --wasm it builds the TeaVM WASM-GC target (`gradlew buildWasmGC`) and copies BOTH the
+ * `.wasm` and its JS loader runtime to ../web/src/engine/vendor/ (openrocket-engine.wasm +
+ * openrocket-engine.wasm-runtime.js). WASM-GC needs a modern browser (Chrome 119+/FF 120+/Safari 18+)
+ * and async init via TeaVM.wasmGC.load(...); it is a second, opt-in target — the JS build is default.
  * Needs a JDK (JAVA_HOME, or whatever the Gradle wrapper resolves) and Node 22+.
  *
  *   node build-engine.mjs             # build + vendor the JS engine
@@ -24,12 +24,10 @@ const engineRoot = dirname(fileURLToPath(import.meta.url));
 const gradlew = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
 const wasm = process.argv.includes('--wasm');
 const noCopy = process.argv.includes('--no-copy');
-// The JS engine is committed to web/src/engine/vendor/ (so the app builds without a JDK). The
-// WASM + its loader go in web/public/engine/ so Vite serves them verbatim (a .js in src/ gets
-// run through import-analysis, which warns on the loader's internal dynamic imports).
 const vendorDir = join(engineRoot, '..', 'web', 'src', 'engine', 'vendor');
+// WASM + its loader go in web/public/ so Vite serves them verbatim (a .js in src/ gets
+// run through import-analysis, which warns on the loader's internal dynamic imports).
 const publicEngineDir = join(engineRoot, '..', 'web', 'public', 'engine');
-const teavmOut = join(engineRoot, 'build', 'generated', 'teavm');
 
 // Only override JAVA_HOME if the caller set a valid one; else let Gradle resolve its own JVM.
 const env = { ...process.env };
@@ -44,7 +42,8 @@ execFileSync(join(engineRoot, gradlew), [gradleTask, '--console=plain'], {
   shell: process.platform === 'win32',
 });
 
-// (built artifact → vendored copy) pairs to place.
+// (source artifact → committed vendor copy) pairs to place.
+const teavmOut = join(engineRoot, 'build', 'generated', 'teavm');
 const copies = wasm
   ? [
       [join(teavmOut, 'wasm-gc', 'astrarrocketjs-engine.wasm'), join(publicEngineDir, 'openrocket-engine.wasm')],

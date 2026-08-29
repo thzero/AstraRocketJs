@@ -7,10 +7,21 @@ public class ArrayUtils {
 	/**
 	 * Returns a double array with values from start to end with given step.
 	 * Starts exactly at start and stops at the multiple of step <= stop.
+	 * An empty array is returned if the step is not positive, if either bound is
+	 * NaN, or if stop is before start.
 	 */
 	public static double[] range(double start, double stop, double step) {
 
-		int size = (int) Math.floor(((stop - start) / step)) + 1;
+		if (!(step > 0) || Double.isNaN(start) || Double.isNaN(stop)) {
+			return new double[0];
+		}
+
+		double count = Math.floor((stop - start) / step) + 1;
+		if (!(count > 0)) {
+			return new double[0];
+		}
+
+		int size = (int) count;
 
 		// System.out.println("Range from "+start+" to "+stop+" step "+step+" has length
 		// "+size);
@@ -28,24 +39,32 @@ public class ArrayUtils {
 	}
 
 	/**
-	 * Return the mean of an array
+	 * Return the mean of an array, ignoring any NaN values.
+	 * Returns NaN if the array contains no usable values.
 	 */
 	public static double mean(double[] vals) {
 		double subtotal = 0;
+		int count = 0;
 		for (double val : vals) {
 			if (!Double.isNaN(val)) {
 				subtotal += val;
+				count++;
 			}
 		}
-		subtotal = subtotal / vals.length;
-		return subtotal;
+		if (count == 0) {
+			return Double.NaN;
+		}
+		return subtotal / count;
 	}
 
 	/**
-	 * Returns the maximum value in the array.
+	 * Returns the maximum value in the array, or NaN if the array is empty.
 	 */
 
 	public static double max(double[] vals) {
+		if (vals.length == 0) {
+			return Double.NaN;
+		}
 		double m = vals[0];
 		for (int i = 1; i < vals.length; i++)
 			m = Math.max(m, vals[i]);
@@ -53,10 +72,13 @@ public class ArrayUtils {
 	}
 
 	/**
-	 * Returns the minimum value in the array.
+	 * Returns the minimum value in the array, or NaN if the array is empty.
 	 */
 
 	public static double min(double[] vals) {
+		if (vals.length == 0) {
+			return Double.NaN;
+		}
 		double m = vals[0];
 		for (int i = 1; i < vals.length; i++)
 			m = Math.min(m, vals[i]);
@@ -64,19 +86,25 @@ public class ArrayUtils {
 	}
 
 	/**
-	 * Returns the variance of the array of doubles
+	 * Returns the variance of the array of doubles, ignoring any NaN values.
+	 * Returns NaN if the array contains no usable values.
 	 */
 	public static double variance(double[] vals) {
 		double mu = mean(vals);
 		double sumsq = 0.0;
 		double temp = 0;
+		int count = 0;
 		for (double val : vals) {
 			if (!Double.isNaN(val)) {
 				temp = (mu - val);
 				sumsq += temp * temp;
+				count++;
 			}
 		}
-		return sumsq / (vals.length);
+		if (count == 0) {
+			return Double.NaN;
+		}
+		return sumsq / count;
 	}
 
 	/**
@@ -101,42 +129,45 @@ public class ArrayUtils {
 	 * zero
 	 */
 	public static double trapz(double[] y, double dt) {
-		double stop = (y.length - 1) * dt;
-
 		if (y.length <= 1 || dt <= 0)
 			return 0;
 
-		double[] x = range(0, stop, dt);
-
+		// The samples are evenly spaced, so the width of every interval is dt.  Building
+		// the matching x array first only risked it coming out a point short of y.
 		double sum = 0.0;
-		for (int i = 1; i < x.length; i++) {
-			double temp = (x[i] - x[i - 1]) * (y[i] + y[i - 1]);
+		for (int i = 1; i < y.length; i++) {
+			double temp = y[i] + y[i - 1];
 			if (!Double.isNaN(temp)) {
 				sum += temp;
 			}
 		}
-		return sum * 0.5;
+		return sum * 0.5 * dt;
 	}
 
 	/**
-	 * Returns the nearest value in an array to a given value
+	 * Find which element in a uniformly sampled array sits closest to the target
 	 * Search starts from the lowest array index
+	 *
+	 * @param range the array to search
+	 * @param near  the value to find the nearest to
+	 * @param start the starting value corresponding to range[0]
+	 * @param step  the step size between each value in range
+	 * @return the value in the range array nearest to 'near'
 	 */
 	public static double tnear(double[] range, double near, double start, double step) {
+		// TODO: I think this can be rewritten a lot better, without the start and step, and supporting non-uniform arrays
 		double min = Double.POSITIVE_INFINITY;
-		int mini = 0;
+		int minIdx = 0;
 
-		// System.out.println("Nearest to "+near+" in range length "+range.length);
 		for (int i = 0; i < range.length; i++) {
 			double x = Math.abs(range[i] - near);
 			if (x < min) {
 				min = x;
-				mini = i;
+				minIdx = i;
 			}
 		}
 
-		// System.out.println("Found nearest at i="+mini);
-		return start + (mini * step);
+		return start + (minIdx * step);
 	}
 
 	public static <T> T[] copyOf(T[] original, int length) {

@@ -47,6 +47,36 @@ test.describe('AstraRocketJs smoke', () => {
     await expect(page.getByText('not run')).toHaveCount(0);
   });
 
+  test('the sim runs off the main thread (UI stays responsive)', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByText('L/D', { exact: true })).toBeVisible();
+
+    // Plant a requestAnimationFrame heartbeat; the largest gap between frames is
+    // how long the main thread was blocked. A synchronous sim stalls it for the
+    // full ~500 ms compute; the Web Worker keeps it to frame-scale. Guards
+    // against regressing runSim back onto the main thread.
+    await page.evaluate(() => {
+      (window as unknown as { __g: number[] }).__g = [];
+      let last = performance.now();
+      const tick = () => {
+        const now = performance.now();
+        (window as unknown as { __g: number[] }).__g.push(now - last);
+        last = now;
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+    await page.waitForTimeout(300);
+    await page.getByRole('button', { name: /run flight simulation/i }).click();
+    await expect(page.getByRole('button', { name: 'Flight', exact: true })).toBeVisible({ timeout: 30_000 });
+
+    const maxStall = await page.evaluate(() =>
+      Math.max(...(window as unknown as { __g: number[] }).__g));
+    // Generous ceiling: observed ~30 ms on the worker path; a main-thread sim
+    // would blow well past this (~480 ms).
+    expect(maxStall).toBeLessThan(300);
+  });
+
   test('a duplicated simulation survives a page reload', async ({ page }) => {
     await page.goto('/');
 
