@@ -6,11 +6,156 @@
  * Documented exceptions: launchLatitude/launchLongitude are DEGREES.
  * See engine-java/ for the kernel, shims, patches and differential tests.
  */
-// MUST stay above the vendor import: it installs the TeaVM stdout/stderr sinks
+// MUST stay above the engine load: it installs the TeaVM stdout/stderr sinks
 // that the kernel module reads once, as it evaluates. ES modules evaluate in
-// import order, so this line ordering is load-bearing — see kernelLogSink.ts.
+// import order, so this eager import must precede the DYNAMIC engine load below
+// (neither backend is imported statically now) — see kernelLogSink.ts.
 import './kernelLogSink.js';
-import * as openrocket from './vendor/openrocket-engine.mjs';;
+
+// The WASM-GC engine + its loader live in web/public/engine/ (served verbatim by
+// Vite — a .js in src/ would be run through import-analysis, which warns on the
+// loader's internal dynamic imports). Absent files → clean JS fallback.
+const WASM_URL = `${import.meta.env.BASE_URL}engine/openrocket-engine.wasm`;
+const WASM_RUNTIME_URL = `${import.meta.env.BASE_URL}engine/openrocket-engine.wasm-runtime.js`;
+
+// --- Engine backend ---------------------------------------------------------
+// Both engines are DYNAMICALLY loaded — neither is in the initial bundle.
+// initEngine() loads the TeaVM WASM-GC build when the browser supports it
+// (faster, smaller), otherwise the JS build as a fallback. Only ONE engine is
+// ever fetched. EngineApi is a type-only import (erased at build), so it pulls
+// nothing into the bundle.
+type EngineApi = typeof import('./vendor/openrocket-engine.mjs');
+let active: EngineApi | null = null;
+let initPromise: Promise<'wasm' | 'js'> | null = null;
+
+/** The active engine; throws if initEngine() hasn't resolved yet (main.tsx awaits it before mount). */
+function eng(): EngineApi {
+  if (!active) {
+    throw new Error('OpenRocket engine not initialised — await initEngine() before using it.');
+  }
+  return active;
+}
+
+/** Dynamically import the JS engine as its own chunk — loaded only when WASM is unavailable. */
+async function loadJsEngine(): Promise<EngineApi> {
+  return await import('./vendor/openrocket-engine.mjs');
+}
+
+/** Inject the WASM-GC runtime loader once (it installs globalThis.TeaVM.wasmGC). */
+function loadWasmRuntime(): Promise<void> {
+  const g = globalThis as unknown as { TeaVM?: { wasmGC?: unknown }; document?: Document };
+  if (g.TeaVM?.wasmGC) return Promise.resolve();
+  if (typeof document === 'undefined') return Promise.reject(new Error('no document (not a browser)'));
+  return new Promise<void>((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = WASM_RUNTIME_URL;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('WASM-GC runtime failed to load'));
+    document.head.appendChild(s);
+  });
+}
+
+/**
+ * Route the WASM kernel's stdout/stderr into the SAME sink the JS backend uses.
+ * The WASM runtime's default `teavmConsole` writes every char-buffered line
+ * straight to console.log/console.error, so OpenRocket's per-flight INFO spam
+ * ("Starting simulation of branch", "Igniting motor", …) floods the console —
+ * and stderr lands as console.error. The runtime's `load()` runs
+ * `options.installImports(imports)` AFTER building its defaults, so we replace
+ * `teavmConsole` here with putchar functions that buffer to newline and forward
+ * whole lines to `$rt_putStdoutCustom`/`$rt_putStderrCustom` — the globals
+ * kernelLogSink.ts installs (eager import, so they exist by now). Both backends
+ * then feed one ring buffer; the console stays clean.
+ */
+function installKernelConsole(imports: Record<string, unknown>): void {
+  const g = globalThis as Record<string, unknown>;
+  const pump = (globalName: string) => {
+    let buf = '';
+    return (c: number) => {
+      if (c === 10) {
+        const custom = g[globalName];
+        if (typeof custom === 'function') (custom as (s: string) => void)(buf);
+        buf = '';
+      } else {
+        buf += String.fromCharCode(c);
+      }
+    };
+  };
+  imports.teavmConsole = {
+    putcharStdout: pump('$rt_putStdoutCustom'),
+    putcharStderr: pump('$rt_putStderrCustom'),
+  };
+}
+
+async function tryLoadWasm(): Promise<EngineApi | null> {
+  try {
+    if (typeof WebAssembly !== 'object' || typeof WebAssembly.compileStreaming !== 'function') {
+      return null;
+    }
+    // Load the runtime IIFE via a <script> tag; it installs globalThis.TeaVM.wasmGC.
+    await loadWasmRuntime();
+    const wasmGC = (globalThis as unknown as {
+      TeaVM?: { wasmGC?: { load(src: ArrayBuffer, options?: unknown): Promise<{ exports: unknown }> } };
+    }).TeaVM?.wasmGC;
+    if (!wasmGC?.load) return null;
+    // Fetch the bytes ourselves and hand them to load() — passing an ArrayBuffer
+    // takes the WebAssembly.compile(bytes) path, sidestepping the runtime's
+    // Node-vs-browser (fs vs fetch) detection entirely. installImports rewires
+    // the kernel's console output into the shared log sink (see above).
+    const res = await fetch(WASM_URL);
+    if (!res.ok) return null;
+    const bytes = await res.arrayBuffer();
+    const teavm = await wasmGC.load(bytes, { installImports: installKernelConsole });
+    const exports = teavm.exports as EngineApi;
+    // The @JSExport facade must be callable across the WASM↔JS boundary.
+    if (typeof exports.buildRocket !== 'function') return null;
+    return exports;
+  } catch (e) {
+    console.warn('[engine] WASM-GC unavailable — using the JS engine.', e);
+    return null;
+  }
+}
+
+/**
+ * Backend preference. Default is 'auto' → try WASM-GC first, fall back to JS
+ * (the requested "WASM with JS fallback"). WASM-GC runs our OpenRocket 24.12
+ * kernel bit-identically to JS once the WASM-hostile cast in
+ * `info.openrocket.core.util.ArrayList.clone()` is patched (it did
+ * `(ArrayList) super.clone()`, which throws ClassCastException under WASM-GC's
+ * strict typing — see the PATCH in engine-java). Overrides for debugging /
+ * unsupported browsers: `?engine=js` (or `localStorage.setItem('engine','js')`)
+ * forces JS; `?engine=wasm` forces the WASM attempt.
+ */
+function backendPref(): 'wasm' | 'js' | 'auto' {
+  try {
+    const q = new URLSearchParams(location.search).get('engine');
+    if (q === 'wasm' || q === 'js') return q;
+    const ls = localStorage.getItem('engine');
+    if (ls === 'wasm' || ls === 'js') return ls;
+  } catch {
+    /* no location/localStorage (SSR/tests) → auto */
+  }
+  return 'auto';
+}
+
+/**
+ * Load the engine backend once: WASM-GC first (unless `?engine=js` forces JS or
+ * the browser lacks WASM), else the JS build as a fallback. Idempotent. MUST be
+ * awaited before any engine use (main.tsx awaits it before mounting) — engine
+ * calls before it resolves throw, since neither backend is loaded until now.
+ * Resolves to which backend is active.
+ */
+export function initEngine(): Promise<'wasm' | 'js'> {
+  if (!initPromise) {
+    initPromise = (async () => {
+      const wasm = backendPref() === 'js' ? null : await tryLoadWasm();
+      if (wasm) { active = wasm; return 'wasm'; }
+      active = await loadJsEngine();
+      return 'js';
+    })();
+  }
+  return initPromise;
+}
 
 export type NoseShape = 'ogive' | 'conical' | 'ellipsoid' | 'power' | 'parabolic' | 'haack';
 
@@ -431,7 +576,7 @@ export class OpenRocketDesign {
    * Give the motor-mount inner tube an `id` and pass it to setMotorById.
    */
   static buildTree(tree: RocketTree): OpenRocketDesign {
-    const handle = openrocket.buildRocket(JSON.stringify(tree));
+    const handle = eng().buildRocket(JSON.stringify(tree));
     return new OpenRocketDesign(handle, -1);
   }
 
@@ -442,7 +587,7 @@ export class OpenRocketDesign {
     // BigInt", which told the user nothing and blanked their design; catalog
     // data with missing weights is the real-world source (see thrustcurve.ts).
     assertFiniteCurve(motor);
-    openrocket.setMotorById(
+    eng().setMotorById(
       this.handle, componentId, motor.designation, motor.diameter, motor.length,
       motor.times, motor.thrusts, motor.masses, motor.cgX, toKernelDelay(motor.ejectionDelay));
   }
@@ -454,26 +599,26 @@ export class OpenRocketDesign {
    * burnout + 1 s.
    */
   setMotorIgnitionById(componentId: string, event: IgnitionEvent, delayS = 0): void {
-    openrocket.setMotorIgnitionById(this.handle, componentId, event, delayS);
+    eng().setMotorIgnitionById(this.handle, componentId, event, delayS);
   }
 
   /** @deprecated Fixed-layout builder kept for the engine tests; the app uses buildTree(). */
   static build(spec: RocketSpec): OpenRocketDesign {
-    const r = openrocket.newRocket();
-    openrocket.addNoseCone(
+    const r = eng().newRocket();
+    eng().addNoseCone(
       r, spec.noseCone.length, spec.noseCone.aftRadius, spec.noseCone.thickness,
       spec.noseCone.shape ?? 'ogive', spec.noseCone.materialDensity ?? 0);
-    const body = openrocket.addBodyTube(
+    const body = eng().addBodyTube(
       r, spec.bodyTube.length, spec.bodyTube.outerRadius, spec.bodyTube.thickness,
       spec.bodyTube.materialDensity ?? 0);
-    openrocket.addTrapezoidFins(
+    eng().addTrapezoidFins(
       body, spec.fins.count, spec.fins.rootChord, spec.fins.tipChord,
       spec.fins.sweep, spec.fins.height, spec.fins.thickness,
       spec.fins.materialDensity ?? 0);
-    const mount = openrocket.addInnerTube(
+    const mount = eng().addInnerTube(
       body, spec.motorMount.length, spec.motorMount.outerRadius, spec.motorMount.thickness, 0);
     if (spec.parachute) {
-      openrocket.addParachute(body, spec.parachute.diameter, spec.parachute.dragCoefficient ?? 0);
+      eng().addParachute(body, spec.parachute.diameter, spec.parachute.dragCoefficient ?? 0);
     }
     return new OpenRocketDesign(r, mount);
   }
@@ -481,7 +626,7 @@ export class OpenRocketDesign {
   /** @deprecated Pairs with build(); the app assigns motors via setMotorById(). */
   setMotor(motor: MotorSpec): void {
     assertFiniteCurve(motor);
-    openrocket.setMotor(
+    eng().setMotor(
       this.handle, this.mountHandle, motor.designation, motor.diameter, motor.length,
       motor.times, motor.thrusts, motor.masses, motor.cgX, toKernelDelay(motor.ejectionDelay));
   }
@@ -493,7 +638,7 @@ export class OpenRocketDesign {
    * off ⇒ classic Barrowman (bit-identical to before).
    */
   setRogersModifiedBarrowman(enabled: boolean): void {
-    openrocket.setRogersModifiedBarrowman(this.handle, enabled);
+    eng().setRogersModifiedBarrowman(this.handle, enabled);
   }
 
   /**
@@ -505,19 +650,19 @@ export class OpenRocketDesign {
    * Validated against the wind-tunnel anchor suite in validation/.
    */
   setSupersonicAero(enabled: boolean): void {
-    openrocket.setSupersonicAero(this.handle, enabled);
+    eng().setSupersonicAero(this.handle, enabled);
   }
 
   /** Length, mass, CG/CP, stability margin — computed at Mach 0.3, AoA 0. */
   staticInfo(): StaticInfo {
-    const parsed = JSON.parse(openrocket.getStaticInfo(this.handle)) as StaticInfo & { error?: string };
+    const parsed = JSON.parse(eng().getStaticInfo(this.handle)) as StaticInfo & { error?: string };
     if (parsed.error) throw new Error(`Static analysis failed: ${parsed.error}`);
     return parsed;
   }
 
   /** Static info for one component, addressed by its tree-node id. */
   componentInfo(componentId: string): ComponentInfo {
-    const parsed = JSON.parse(openrocket.getComponentInfo(this.handle, componentId)) as ComponentInfo & { error?: string };
+    const parsed = JSON.parse(eng().getComponentInfo(this.handle, componentId)) as ComponentInfo & { error?: string };
     if (parsed.error) throw new Error(`Component info failed: ${parsed.error}`);
     return parsed;
   }
@@ -527,7 +672,7 @@ export class OpenRocketDesign {
    * per-component breakdown. Static — no flight needed. See {@link DragSweep}.
    */
   dragSweep(options: DragSweepOptions = {}): DragSweep {
-    const raw = openrocket.getDragSweep(this.handle, JSON.stringify({
+    const raw = eng().getDragSweep(this.handle, JSON.stringify({
       machMin: options.machMin ?? 0.05,
       machMax: options.machMax ?? 3.0,
       machStep: options.machStep ?? 0.05,
@@ -540,7 +685,7 @@ export class OpenRocketDesign {
   }
 
   simulate(options: SimulationOptions = {}): FlightResult {
-    const raw = openrocket.simulateJson(this.handle, JSON.stringify({
+    const raw = eng().simulateJson(this.handle, JSON.stringify({
       rodLength: options.launchRodLength ?? 1.0,
       rodAngle: options.launchRodAngle ?? 0,
       rodDirection: options.launchRodDirection,
@@ -569,5 +714,5 @@ export class OpenRocketDesign {
 
 /** Frees all engine-side objects (all OpenRocketDesign handles become invalid). */
 export function resetEngine(): void {
-  openrocket.reset();
+  eng().reset();
 }

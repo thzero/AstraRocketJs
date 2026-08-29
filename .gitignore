@@ -17,6 +17,11 @@ web/.playwright/
 # NOTE: web/src/engine/vendor/orkengine.mjs IS committed — it's the built engine
 # artifact so the web app builds without a JDK (regenerate via engine-java).
 
+# NOTE: web/public/engine/openrocket-engine.wasm (+ its .wasm-runtime.js) ARE
+# committed — the WASM-GC engine is the default backend (JS falls back), so a
+# fresh checkout ships it without a JDK. Regenerate via
+# `node engine-java/build-engine.mjs --wasm`.
+
 # IDE / OS
 .idea/
 .vscode/
