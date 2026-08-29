@@ -5,6 +5,8 @@ import java.util.Iterator;
 import java.util.List;
 
 import info.openrocket.core.util.BoundingBox;
+import info.openrocket.core.util.CoordinateIF;
+import info.openrocket.core.util.Coordinate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,7 +18,6 @@ import info.openrocket.core.preset.ComponentPreset;
 import info.openrocket.core.rocketcomponent.position.AxialPositionable;
 import info.openrocket.core.startup.Application;
 import info.openrocket.core.util.BugException;
-import info.openrocket.core.util.Coordinate;
 import info.openrocket.core.util.MathUtil;
 
 /**
@@ -101,6 +102,7 @@ public class InnerTube extends ThicknessRingComponent
 	
 	@Override
 	protected void loadFromPreset(ComponentPreset preset) {
+		super.loadFromPreset(preset);
 		if (preset.has(ComponentPreset.OUTER_DIAMETER)) {
 			double outerDiameter = preset.get(ComponentPreset.OUTER_DIAMETER);
 			this.outerRadius = outerDiameter / 2.0;
@@ -109,9 +111,7 @@ public class InnerTube extends ThicknessRingComponent
 				this.thickness = (outerDiameter - innerDiameter) / 2.0;
 			}
 		}
-		
-		super.loadFromPreset(preset);
-		
+			
 		fireComponentChangeEvent(ComponentChangeEvent.BOTH_CHANGE);
 	}
 	
@@ -260,8 +260,8 @@ public class InnerTube extends ThicknessRingComponent
 		return 2 * getOuterRadius() * clusterScale;
 	}
 	
-	public List<Coordinate> getClusterPoints() {
-		List<Coordinate> list = new ArrayList<>(getInstanceCount());
+	public List<CoordinateIF> getClusterPoints() {
+		List<CoordinateIF> list = new ArrayList<>(getInstanceCount());
 		List<Double> points = cluster.getPoints(clusterRotation - getRadialDirection());
 		double separation = getClusterSeparation();
 		double yOffset = this.radialPosition * Math.cos(this.radialDirection);
@@ -273,9 +273,9 @@ public class InnerTube extends ThicknessRingComponent
 	}
 	
 	@Override
-	public Coordinate[] getInstanceOffsets(){
-		List<Coordinate> points = getClusterPoints();
-		return points.toArray(new Coordinate[0]);
+	public CoordinateIF[] getInstanceOffsets(){
+		List<CoordinateIF> points = getClusterPoints();
+		return points.toArray(new CoordinateIF[0]);
 	}
 	
 //	@Override
@@ -423,7 +423,7 @@ public class InnerTube extends ThicknessRingComponent
 	}
 	
 	@Override
-	public Coordinate getMotorPosition(FlightConfigurationId id) {
+	public CoordinateIF getMotorPosition(FlightConfigurationId id) {
 		Motor motor = motors.get(id).getMotor();
 		if (motor == null) {
 			throw new IllegalArgumentException("No motor with id " + id + " defined.");
@@ -435,15 +435,9 @@ public class InnerTube extends ThicknessRingComponent
 	@Override
 	protected RocketComponent copyWithOriginalID() {
 		InnerTube copy = (InnerTube) super.copyWithOriginalID();
-		if( copy == this ){
-			new IllegalArgumentException(" copyWithOriginalID should return a different instance! ");
-		}
-		if( copy.motors == this.motors ){
-			new IllegalArgumentException(" copyWithOriginalID should produce different motorSet instances! ");
-		}
-		
+		assert copy != this : "copyWithOriginalID should return a different instance!";
 		copy.motors = new MotorConfigurationSet( this.motors, copy );
-		
+		assert copy.motors != this.motors : "copyWithOriginalID should produce different motorSet instances!";
 		return copy;
 	}
 
@@ -459,13 +453,13 @@ public class InnerTube extends ThicknessRingComponent
 	 * @return an instance of an inner tube that represents ONE of the clustered tubes in the cluster represented
 	 *  by <code>theInnerTube</code>
 	 */
-	public static InnerTube makeIndividualClusterComponent(Coordinate coord, String splitName, RocketComponent theInnerTube) {
+	public static InnerTube makeIndividualClusterComponent(CoordinateIF coord, String splitName, RocketComponent theInnerTube) {
 		InnerTube copy = (InnerTube) theInnerTube.copy();
 		copy.clearConfigListeners();
 		copy.setClusterConfiguration(ClusterConfiguration.SINGLE);
 		copy.setClusterRotation(0.0);
 		copy.setClusterScale(1.0);
-		copy.setRadialShift(coord.y, coord.z);
+		copy.setRadialShift(coord.getY(), coord.getZ());
 		copy.setName(splitName);
 		return copy;
 	}

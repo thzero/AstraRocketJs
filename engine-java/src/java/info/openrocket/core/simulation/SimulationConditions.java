@@ -14,6 +14,7 @@ import info.openrocket.core.rocketcomponent.Rocket;
 import info.openrocket.core.simulation.listeners.SimulationListener;
 import info.openrocket.core.util.BugException;
 import info.openrocket.core.util.Coordinate;
+import info.openrocket.core.util.CoordinateIF;
 import info.openrocket.core.util.GeodeticComputationStrategy;
 import info.openrocket.core.util.ModID;
 import info.openrocket.core.util.Monitorable;
@@ -42,9 +43,9 @@ public class SimulationConditions implements Monitorable, Cloneable {
 	private WorldCoordinate launchSite = new WorldCoordinate(0, 0, 0);
 	
 	// Launch location in simulation coordinates (normally always 0, air-start would override this)
-	private Coordinate launchPosition = Coordinate.NUL;
+	private CoordinateIF launchPosition = Coordinate.NUL;
 
-	private Coordinate launchVelocity = Coordinate.NUL;
+	private CoordinateIF launchVelocity = Coordinate.NUL;
 
 	private GeodeticComputationStrategy geodeticComputation = GeodeticComputationStrategy.SPHERICAL;
 
@@ -58,6 +59,11 @@ public class SimulationConditions implements Monitorable, Cloneable {
 	private double timeStep = RK4SimulationStepper.RECOMMENDED_TIME_STEP;
 	private double maxSimulationTime = RK4SimulationStepper.RECOMMENDED_MAX_TIME;
 	private double maximumAngleStep = RK4SimulationStepper.RECOMMENDED_ANGLE_STEP;
+
+	private double recoverySpeedWarning = 20.0;
+	private double drogueLowSpeedWarning = 3.048;
+	private double recoveryDrogueMainHighSpeedWarning = 30.48;
+	private double recoveryDrogueMainLowSpeedWarning = 15.24;
 
 
 	private List<SimulationListener> simulationListeners = new ArrayList<>();
@@ -137,22 +143,22 @@ public class SimulationConditions implements Monitorable, Cloneable {
 		this.modID = new ModID();
 	}
 
-	public Coordinate getLaunchPosition() {
+	public CoordinateIF getLaunchPosition() {
 		return launchPosition;
 	}
 
-	public void setLaunchPosition(Coordinate launchPosition) {
+	public void setLaunchPosition(CoordinateIF launchPosition) {
 		if (this.launchPosition.equals(launchPosition))
 			return;
 		this.launchPosition = launchPosition;
 		this.modID = new ModID();
 	}
 
-	public Coordinate getLaunchVelocity() {
+	public CoordinateIF getLaunchVelocity() {
 		return launchVelocity;
 	}
 
-	public void setLaunchVelocity(Coordinate launchVelocity) {
+	public void setLaunchVelocity(CoordinateIF launchVelocity) {
 		if (this.launchVelocity.equals(launchVelocity))
 			return;
 		this.launchVelocity = launchVelocity;
@@ -226,6 +232,42 @@ public class SimulationConditions implements Monitorable, Cloneable {
 
 	public void setMaximumAngleStep(double maximumAngle) {
 		this.maximumAngleStep = maximumAngle;
+		this.modID = new ModID();
+	}
+
+	public double getRecoverySpeedWarning() {
+		return recoverySpeedWarning;
+	}
+
+	public void setRecoverySpeedWarning(double recoverySpeedWarning) {
+		this.recoverySpeedWarning = recoverySpeedWarning;
+		this.modID = new ModID();
+	}
+
+	public double getDrogueLowSpeedWarning() {
+		return drogueLowSpeedWarning;
+	}
+
+	public void setDrogueLowSpeedWarning(double drogueLowSpeedWarning) {
+		this.drogueLowSpeedWarning = drogueLowSpeedWarning;
+		this.modID = new ModID();
+	}
+
+	public double getRecoveryDrogueMainHighSpeedWarning() {
+		return recoveryDrogueMainHighSpeedWarning;
+	}
+
+	public void setRecoveryDrogueMainHighSpeedWarning(double recoveryDrogueMainHighSpeedWarning) {
+		this.recoveryDrogueMainHighSpeedWarning = recoveryDrogueMainHighSpeedWarning;
+		this.modID = new ModID();
+	}
+
+	public double getRecoveryDrogueMainLowSpeedWarning() {
+		return recoveryDrogueMainLowSpeedWarning;
+	}
+
+	public void setRecoveryDrogueMainLowSpeedWarning(double recoveryDrogueMainLowSpeedWarning) {
+		this.recoveryDrogueMainLowSpeedWarning = recoveryDrogueMainLowSpeedWarning;
 		this.modID = new ModID();
 	}
 

@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EventListener;
@@ -21,6 +22,7 @@ import info.openrocket.core.unit.DegreeUnit;
 import info.openrocket.core.unit.Unit;
 import info.openrocket.core.unit.UnitGroup;
 import info.openrocket.core.util.ChangeSource;
+import info.openrocket.core.util.CoordinateIF;
 import info.openrocket.core.util.Coordinate;
 import info.openrocket.core.util.ModID;
 import info.openrocket.core.util.StateChangeListener;
@@ -105,7 +107,7 @@ public class MultiLevelPinkNoiseWindModel implements WindModel {
 	}
 
 	@Override
-	public Coordinate getWindVelocity(double time, double altitudeMSL, double altitudeAGL) {
+	public CoordinateIF getWindVelocity(double time, double altitudeMSL, double altitudeAGL) {
 		if (altitudeReference == AltitudeReference.MSL) {
 			return getWindVelocity(time, altitudeMSL);
 		} else {
@@ -114,7 +116,7 @@ public class MultiLevelPinkNoiseWindModel implements WindModel {
 	}
 
 	@Override
-	public Coordinate getWindVelocity(double time, double altitude) {
+	public CoordinateIF getWindVelocity(double time, double altitude) {
 		if (levels.isEmpty()) {
 			return Coordinate.ZERO;
 		}
@@ -141,15 +143,15 @@ public class MultiLevelPinkNoiseWindModel implements WindModel {
 		LevelWindModel upperLevel = levels.get(insertionPoint);
 		double fraction = (altitude - lowerLevel.altitude) / (upperLevel.altitude - lowerLevel.altitude);
 
-		Coordinate lowerVelocity = lowerLevel.model.getWindVelocity(time, altitude);
-		Coordinate upperVelocity = upperLevel.model.getWindVelocity(time, altitude);
+		CoordinateIF lowerVelocity = lowerLevel.model.getWindVelocity(time, altitude);
+		CoordinateIF upperVelocity = upperLevel.model.getWindVelocity(time, altitude);
 
 		return lowerVelocity.interpolate(upperVelocity, fraction);
 	}
 
 	public double getWindDirection(double time, double altitude) {
-		Coordinate velocity = getWindVelocity(time, altitude);
-		double direction = Math.atan2(velocity.x, velocity.y);
+		CoordinateIF velocity = getWindVelocity(time, altitude);
+		double direction = Math.atan2(velocity.getX(), velocity.getY());
 
 		// Normalize the result to be between 0 and 2*PI
 		return (direction + 2 * Math.PI) % (2 * Math.PI);
@@ -170,6 +172,21 @@ public class MultiLevelPinkNoiseWindModel implements WindModel {
 	public void setAltitudeReference(AltitudeReference altitudeReference) {
 		this.altitudeReference = altitudeReference;
 		fireChangeEvent();
+	}
+
+	/**
+	 * Seed each level from the given seed.
+	 * <p>
+	 * The levels are given distinct seeds derived from the one supplied, rather than
+	 * sharing it: levels seeded alike would generate identical turbulence, making the
+	 * gusts at every altitude perfectly correlated. Levels are held sorted by
+	 * altitude, so the derivation is a function of the configuration alone.
+	 */
+	@Override
+	public void setSeed(int seed) {
+		for (int i = 0; i < levels.size(); i++) {
+			levels.get(i).model.setSeed(seed * 31 + i);
+		}
 	}
 
 	@Override
@@ -212,7 +229,7 @@ public class MultiLevelPinkNoiseWindModel implements WindModel {
 		// Clear the current levels
 		clearLevels();
 
-		try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+		try (BufferedReader reader = new BufferedReader(new FileReader(file, StandardCharsets.UTF_8))) {
 			TextLineReader textLineReader = new TextLineReader(reader);
 			// Map column indices
 			int altIndex, speedIndex, dirIndex, stddevIndex = -1;

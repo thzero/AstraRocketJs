@@ -8,6 +8,7 @@ import { downloadOrk } from '../services/saveOrk';
 import type { OrkExportMotor } from '../services/orkFile';
 import { loadOrk, type MountMotor } from '../services/loadOrk';
 import { newSimulation, simConditions, type Simulation, type SimPrefs } from '../services/simulations';
+import { simulateInWorker } from '../engine/simClient';
 import { loadSettings } from '../services/settings';
 import { defaultDesignName } from '../services/appInfo';
 import type { MotorDims } from '../components/canvas/Rocket3D';
@@ -67,7 +68,7 @@ export interface WorkspaceState {
   duplicateSim: (id: string) => void;
   deleteSim: (id: string) => void;
   renameSim: (id: string, name: string) => void;
-  runSim: (prefs: SimPrefs) => void;
+  runSim: (prefs: SimPrefs) => Promise<void>;
 
   setTab: (tab: Tab) => void;
   setView: (view: ViewMode) => void;
@@ -198,23 +199,28 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set({ sims: rest, activeId: id === selectActive(s).id ? rest[0].id : s.activeId });
     },
     renameSim: (id, name) => set((s) => ({ sims: s.sims.map((x) => (x.id === id ? { ...x, name } : x)) })),
-    runSim: (prefs) => {
+    runSim: async (prefs) => {
       set({ simBusy: true });
-      const simId = selectActive(get()).id;
-      const launch = selectActive(get()).launch;
-      // Yield so the spinner paints before the (synchronous) engine call.
-      setTimeout(() => {
-        try {
-          const r = get().rocket;
-          if (!r) return;
-          const result = r.simulate(simConditions(launch, prefs));
-          set((s) => ({ sims: s.sims.map((x) => (x.id === simId ? { ...x, result } : x)), view: 'flight', err: null }));
-        } catch (e) {
-          set({ err: e instanceof Error ? e.message : String(e) });
-        } finally {
-          set({ simBusy: false });
-        }
-      }, 0);
+      const s = get();
+      const active = selectActive(s);
+      const simId = active.id;
+      // The sim runs in a Web Worker (its own engine instance), off the main
+      // thread, so a ~500 ms flight never freezes the UI. The worker rebuilds
+      // the rocket from the current tree/motors — identical to the main-thread
+      // build (buildConfiguredRocket) — so the result matches what's on screen.
+      try {
+        const result = await simulateInWorker({
+          tree: s.tree,
+          motor: active.motor,
+          extraMotors: s.extraMotors,
+          options: simConditions(active.launch, prefs),
+        });
+        set((st) => ({ sims: st.sims.map((x) => (x.id === simId ? { ...x, result } : x)), view: 'flight', err: null }));
+      } catch (e) {
+        set({ err: e instanceof Error ? e.message : String(e) });
+      } finally {
+        set({ simBusy: false });
+      }
     },
 
     setTab: (tab) => set({ tab }),

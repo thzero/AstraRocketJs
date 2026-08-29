@@ -11,6 +11,8 @@ import java.util.LinkedList;
 
 import info.openrocket.core.formatting.RocketDescriptor;
 import info.openrocket.core.preferences.ApplicationPreferences;
+import info.openrocket.core.util.Coordinate;
+import info.openrocket.core.util.CoordinateIF;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +21,6 @@ import info.openrocket.core.motor.MotorConfigurationId;
 import info.openrocket.core.startup.Application;
 import info.openrocket.core.util.ArrayList;
 import info.openrocket.core.util.BoundingBox;
-import info.openrocket.core.util.Coordinate;
 import info.openrocket.core.util.MathUtil;
 import info.openrocket.core.util.ModID;
 import info.openrocket.core.util.Monitorable;
@@ -37,7 +38,7 @@ public class FlightConfiguration implements FlightConfigurableParameter<FlightCo
 	private static final ApplicationPreferences prefs = Application.getPreferences();
 
 	private String configurationName;
-	public static String DEFAULT_CONFIG_NAME = "[{motors}]";
+	public static final String DEFAULT_CONFIG_NAME = "[{motors}]";
 	private final RocketDescriptor descriptor = Application.getInjector().getInstance(RocketDescriptor.class);
 
 	protected final Rocket rocket;
@@ -69,6 +70,9 @@ public class FlightConfiguration implements FlightConfigurableParameter<FlightCo
 																		// corresponding stage
 	final protected Map<MotorConfigurationId, MotorConfiguration> motors = new HashMap<>();
 	private Map<Integer, Boolean> preloadStageActiveness = null;
+	// PATCH(astrarrocketjs): ConcurrentLinkedQueue -> LinkedList. TeaVM's classlib
+	// lacks ConcurrentLinkedQueue; the engine is single-threaded in the browser and
+	// harness, so the concurrency property is unused. Same FIFO iteration order.
 	final private Collection<MotorConfiguration> activeMotors = new LinkedList<>();
 	final private InstanceMap activeInstances = new InstanceMap();
 	final private InstanceMap extraRenderInstances = new InstanceMap(); // Extra instances to be rendered, besides the
@@ -443,7 +447,7 @@ public class FlightConfiguration implements FlightConfigurableParameter<FlightCo
 			final Transformation parentTransform) {
 
 		final int instanceCount = component.getInstanceCount();
-		final Coordinate[] allOffsets = component.getInstanceOffsets();
+		final CoordinateIF[] allOffsets = component.getInstanceOffsets();
 		final double[] allAngles = component.getInstanceAngles();
 
 		final Transformation compLocTransform = Transformation.getTranslationTransform(component.getPosition());
@@ -459,12 +463,12 @@ public class FlightConfiguration implements FlightConfigurableParameter<FlightCo
 
 			// constructs entry in-place if this component is active
 			if (this.isComponentActive(component)) {
-				results.emplace(component, currentInstanceNumber, currentTransform);
+				results.emplace(component, currentInstanceNumber, currentTransform, parentTransform);
 			} else if (component instanceof ParallelStage && stages.get(component.getStageNumber()).active) {
 				// Boosters with no children are marked as inactive, but still need to be
 				// rendered.
 				// See GitHub issue #1980 for more information.
-				extraRenderInstances.emplace(component, currentInstanceNumber, currentTransform);
+				extraRenderInstances.emplace(component, currentInstanceNumber, currentTransform, parentTransform);
 			}
 
 			for (RocketComponent child : component.getChildren()) {
@@ -663,6 +667,38 @@ public class FlightConfiguration implements FlightConfigurableParameter<FlightCo
 		return activeMotors;
 	}
 
+	/**
+	 * Returns the lowest positioned renderable motor instances in this configuration.
+	 * "Lowest" here means furthest aft in rocket coordinates, based on the motor nozzle
+	 * position (`mount location + mount length + motor overhang`).
+	 * If multiple motor instances share the same lowest position, all of them are returned.
+	 *
+	 * <p>The returned map includes instances from both the active and extra render instance
+	 * collections, but only for visible motor mounts with an actual motor configured.</p>
+	 *
+	 * @return an {@link InstanceMap} containing only the lowest positioned motor instances
+	 */
+	public InstanceMap getLowestMotorInstances() {
+		InstanceMap lowestMotorInstances = new InstanceMap();
+		double lowestAxialPosition = Double.NEGATIVE_INFINITY;
+		boolean foundMotorInstance = false;
+
+		for (Map.Entry<RocketComponent, java.util.ArrayList<InstanceContext>> entry : getActiveInstances().entrySet()) {
+			LowestMotorState state = collectLowestMotorInstances(entry, lowestMotorInstances, lowestAxialPosition,
+					foundMotorInstance);
+			lowestAxialPosition = state.lowestAxialPosition;
+			foundMotorInstance = state.foundMotorInstance;
+		}
+		for (Map.Entry<RocketComponent, java.util.ArrayList<InstanceContext>> entry : getExtraRenderInstances().entrySet()) {
+			LowestMotorState state = collectLowestMotorInstances(entry, lowestMotorInstances, lowestAxialPosition,
+					foundMotorInstance);
+			lowestAxialPosition = state.lowestAxialPosition;
+			foundMotorInstance = state.foundMotorInstance;
+		}
+
+		return lowestMotorInstances;
+	}
+
 	public void clearAllMotors() {
 		for (RocketComponent comp : getActiveComponents()) {
 			if ((comp instanceof MotorMount) && (((MotorMount) comp).isMotorMount())) {
@@ -697,6 +733,44 @@ public class FlightConfiguration implements FlightConfigurableParameter<FlightCo
 		}
 	}
 
+	private LowestMotorState collectLowestMotorInstances(
+			Map.Entry<RocketComponent, java.util.ArrayList<InstanceContext>> entry,
+			InstanceMap lowestMotorInstances, double lowestAxialPosition, boolean foundMotorInstance) {
+		RocketComponent component = entry.getKey();
+		if (!component.isVisible() || !(component instanceof MotorMount)) {
+			return new LowestMotorState(lowestAxialPosition, foundMotorInstance);
+		}
+
+		MotorMount motorMount = (MotorMount) component;
+		MotorConfiguration motorConfig = motorMount.getMotorConfig(fcid);
+		if (motorConfig == null || motorConfig.getMotor() == null) {
+			return new LowestMotorState(lowestAxialPosition, foundMotorInstance);
+		}
+
+		java.util.ArrayList<InstanceContext> lowestContextsForComponent = new java.util.ArrayList<>();
+		for (InstanceContext context : entry.getValue()) {
+			double nozzleAxialPosition = context.getLocation().getX() + motorMount.getLength() + motorMount.getMotorOverhang();
+
+			if (!foundMotorInstance || nozzleAxialPosition > lowestAxialPosition + MathUtil.EPSILON) {
+				lowestMotorInstances.clear();
+				lowestContextsForComponent.clear();
+				lowestContextsForComponent.add(context);
+				lowestMotorInstances.put(component, lowestContextsForComponent);
+				lowestAxialPosition = nozzleAxialPosition;
+				foundMotorInstance = true;
+			} else if (MathUtil.equals(nozzleAxialPosition, lowestAxialPosition)) {
+				lowestContextsForComponent = lowestMotorInstances.computeIfAbsent(component,
+						key -> new java.util.ArrayList<>());
+				lowestContextsForComponent.add(context);
+			}
+		}
+
+		return new LowestMotorState(lowestAxialPosition, foundMotorInstance);
+	}
+
+	private record LowestMotorState(double lowestAxialPosition, boolean foundMotorInstance) {
+	}
+
 	@Override
 	public void update() {
 		updateStages();
@@ -705,14 +779,22 @@ public class FlightConfiguration implements FlightConfigurableParameter<FlightCo
 	}
 
 	/**
-	 * Return true if rocket has a RecoveryDevice
+	 * Return true if rocket has a RecoveryDevice in an
+	 * active stage
 	 */
 	public boolean hasRecoveryDevice() {
 		if (fcid.hasError()) {
 			return false;
 		}
 
-		return this.getRocket().hasRecoveryDevice();
+		for (AxialStage stage : getRocket().getStageList()) {
+			if (this.isStageActive(stage.getStageNumber()) &&
+				stage.hasRecoveryDevice()) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/////////////// Helper methods ///////////////
@@ -738,7 +820,7 @@ public class FlightConfiguration implements FlightConfigurableParameter<FlightCo
 	 *             when practical.
 	 */
 	@Deprecated
-	public Collection<Coordinate> getBounds() {
+	public Collection<CoordinateIF> getBounds() {
 		return getBoundingBoxAerodynamic().toCollection();
 	}
 
@@ -808,7 +890,7 @@ public class FlightConfiguration implements FlightConfigurableParameter<FlightCo
 				}
 			} else {
 				// Legacy Case: These components do not implement the BoxBounded Interface.
-				Collection<Coordinate> instanceCoordinates = component.getComponentBounds();
+				Collection<CoordinateIF> instanceCoordinates = component.getComponentBounds();
 				List<RocketComponent> parsedContexts = new ArrayList<>();
 				for (InstanceContext context : contexts) {
 					// Don't parse the same context component twice (e.g. multiple copies in a pod
@@ -816,11 +898,11 @@ public class FlightConfiguration implements FlightConfigurableParameter<FlightCo
 					if (parsedContexts.contains(context.component)) {
 						continue;
 					}
-					Collection<Coordinate> transformedCoords = new ArrayList<>(instanceCoordinates);
+					Collection<CoordinateIF> transformedCoords = new ArrayList<>(instanceCoordinates);
 					// mutating. Transforms coordinates in place.
 					context.transform.transform(instanceCoordinates);
 
-					for (Coordinate tc : transformedCoords) {
+					for (CoordinateIF tc : transformedCoords) {
 						if (component.isAerodynamic()) {
 							componentBoundsAerodynamic.update(tc);
 						}
@@ -836,8 +918,8 @@ public class FlightConfiguration implements FlightConfigurableParameter<FlightCo
 		}
 
 		boundsModID = rocket.getModID();
-		cachedLengthAerodynamic = rocketBoundsAerodynamic.span().x;
-		cachedLength = rocketBounds.span().x;
+		cachedLengthAerodynamic = rocketBoundsAerodynamic.span().getX();
+		cachedLength = rocketBounds.span().getX();
 		/*
 		 * Special case for the scenario that all of the stages are removed and are
 		 * inactive. Its possible that this shouldn't be allowed, but it is currently

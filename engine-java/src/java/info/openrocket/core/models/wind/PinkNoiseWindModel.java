@@ -8,6 +8,7 @@ import java.util.Random;
 
 import info.openrocket.core.l10n.Translator;
 import info.openrocket.core.startup.Application;
+import info.openrocket.core.util.CoordinateIF;
 import info.openrocket.core.util.Coordinate;
 import info.openrocket.core.util.MathUtil;
 import info.openrocket.core.util.ModID;
@@ -48,7 +49,7 @@ public class PinkNoiseWindModel implements WindModel {
 	private double direction = Math.PI / 2; // this is an East wind
 	private double standardDeviation = 0;
 
-	private final int seed;
+	private int seed;
 
 	private PinkNoise randomSource = null;
 	private double time1;
@@ -67,6 +68,12 @@ public class PinkNoiseWindModel implements WindModel {
 
 	public PinkNoiseWindModel() {
 		this(new Random().nextInt());
+	}
+
+	@Override
+	public void setSeed(int seed) {
+		this.seed = seed ^ SEED_RANDOMIZATION;
+		reset();
 	}
 
 	/**
@@ -182,12 +189,12 @@ public class PinkNoiseWindModel implements WindModel {
 	}
 
 	@Override
-	public Coordinate getWindVelocity(double time, double altitudeMSL, double altitudeAGL) {
+	public CoordinateIF getWindVelocity(double time, double altitudeMSL, double altitudeAGL) {
 		return getWindVelocity(time, altitudeMSL);
 	}
 
 	@Override
-	public Coordinate getWindVelocity(double time, double altitude) {
+	public CoordinateIF getWindVelocity(double time, double altitude) {
 		if (time < 0) {
 			throw new IllegalArgumentException("Requesting wind speed at t=" + time);
 		}

@@ -3,10 +3,13 @@ package info.openrocket.core.util;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 public abstract class FileUtils {
 	private static final char[] ILLEGAL_CHARS = new char[] { '/', '\\', ':', '*', '?', '"', '<', '>', '|' };
@@ -35,6 +38,36 @@ public abstract class FileUtils {
 
 		return bos.toByteArray();
 
+	}
+
+	/**
+	 * Reads a stream while rejecting content larger than {@code maxBytes}.
+	 *
+	 * @param is input stream
+	 * @param maxBytes maximum number of bytes to return
+	 * @return all bytes from the stream
+	 * @throws IOException if the stream exceeds the limit
+	 */
+	public static byte[] readBytes(InputStream is, int maxBytes) throws IOException {
+		if (maxBytes < 0) {
+			throw new IllegalArgumentException("Maximum byte count cannot be negative");
+		}
+
+		ByteArrayOutputStream bos = new ByteArrayOutputStream(Math.min(1024, maxBytes));
+		byte[] buffer = new byte[8192];
+		int totalBytes = 0;
+		int bytesRead;
+		while ((bytesRead = is.read(buffer)) != -1) {
+			if (bytesRead == 0) {
+				continue;
+			}
+			if (bytesRead > maxBytes - totalBytes) {
+				throw new IOException("Input exceeds maximum size of " + maxBytes + " bytes");
+			}
+			bos.write(buffer, 0, bytesRead);
+			totalBytes += bytesRead;
+		}
+		return bos.toByteArray();
 	}
 
 	/**
@@ -78,4 +111,35 @@ public abstract class FileUtils {
 		return null;
 	}
 
+	public static File makeDirectoryIfNotExists(File dir) throws IOException {
+		if (!dir.exists()) {
+			if (!dir.mkdirs()) {
+				throw new IOException("Could not create directory: " + dir.getAbsolutePath());
+			}
+		} else if (!dir.isDirectory()) {
+			throw new IOException("File exists and is not a directory: " + dir.getAbsolutePath());
+		} else if (!dir.canRead()) {
+			throw new IOException("Directory is not readable: " + dir.getAbsolutePath());
+		}
+		return dir;
+	}
+
+	/**
+	 * Replace targetFile with sourceFile atomically if possible.
+	 * @param sourceFile the file to move
+	 * @param targetFile the target file to replace
+	 * @throws IOException if an I/O error occurs
+	 */
+	public static void replaceFile(File sourceFile, File targetFile) throws IOException {
+		if (sourceFile == null || !sourceFile.isFile()) {
+			throw new IOException("Temporary file missing: " + sourceFile);
+		}
+		try {
+			Files.move(sourceFile.toPath(), targetFile.toPath(),
+					StandardCopyOption.REPLACE_EXISTING,
+					StandardCopyOption.ATOMIC_MOVE);
+		} catch (IOException ignored) {
+			Files.move(sourceFile.toPath(), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+		}
+	}
 }

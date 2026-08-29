@@ -1,9 +1,11 @@
 package info.openrocket.core.rocketcomponent;
 
+import java.util.Iterator;
+
 import info.openrocket.core.l10n.Translator;
 import info.openrocket.core.rocketcomponent.position.AxialMethod;
 import info.openrocket.core.startup.Application;
-import info.openrocket.core.util.Coordinate;
+import info.openrocket.core.util.CoordinateIF;
 
 public class AxialStage extends ComponentAssembly implements FlightConfigurableComponent {
 	
@@ -13,14 +15,7 @@ public class AxialStage extends ComponentAssembly implements FlightConfigurableC
 	protected FlightConfigurableParameterSet<StageSeparationConfiguration> separations;
 	/** number of stages */
 	protected int stageNumber;
-	/**
-	 * PATCH (see engine-java/patches/LEDGER.md): RASAero-style motor nozzle exit
-	 * diameter (metres) for the power-on base-drag reduction. 0 (default) means
-	 * the power-on drag coefficient equals the power-off coefficient — no plume
-	 * base-pressure recovery — so existing designs and goldens are unaffected.
-	 */
-	protected double nozzleExitDiameter = 0.0;
-
+	
 	/**
 	 * default constructor, builds a rocket with zero stages
 	 */
@@ -91,7 +86,7 @@ public class AxialStage extends ComponentAssembly implements FlightConfigurableC
 	public boolean isStageActive(FlightConfiguration fc) {
 		return fc.isStageActive(getStageNumber());
 	}
-	
+
 	@Override
 	public void copyFlightConfiguration(FlightConfigurationId oldConfigId, FlightConfigurationId newConfigId) {
 		separations.copyFlightConfiguration(oldConfigId, newConfigId);
@@ -145,6 +140,21 @@ public class AxialStage extends ComponentAssembly implements FlightConfigurableC
 	public boolean isLaunchStage(FlightConfiguration config) {
 		return (getRocket().getBottomCoreStage(config).equals(this));
 	}
+ 
+	/**
+	 * Return true if this stage has a recovery device
+	 */
+	public boolean hasRecoveryDevice() {
+		Iterator<RocketComponent> iterator = this.iterator();
+		while (iterator.hasNext()) {
+			RocketComponent child = iterator.next();
+			if ((child.getStage() == this) &&
+				(child instanceof RecoveryDevice)) {
+				return true;
+			}
+		}
+		return false;
+	}
 
 	/**
 	 * sets the stage number
@@ -153,27 +163,6 @@ public class AxialStage extends ComponentAssembly implements FlightConfigurableC
 	 */
 	public void setStageNumber(final int newStageNumber) {
 		this.stageNumber = newStageNumber;
-	}
-
-	/**
-	 * PATCH (see engine-java/patches/LEDGER.md): the motor nozzle exit diameter
-	 * (metres) used for the RASAero power-on base-drag reduction. 0 means the
-	 * power-on drag coefficient equals the power-off coefficient.
-	 *
-	 * @return the nozzle exit diameter in metres.
-	 */
-	public double getNozzleExitDiameter() {
-		return nozzleExitDiameter;
-	}
-
-	/**
-	 * PATCH: set the motor nozzle exit diameter (metres) for the power-on
-	 * base-drag reduction. Clamped to be non-negative; 0 disables the reduction.
-	 *
-	 * @param diameter the nozzle exit diameter in metres.
-	 */
-	public void setNozzleExitDiameter(final double diameter) {
-		this.nozzleExitDiameter = Math.max(0.0, diameter);
 	}
 
 	@Override
@@ -225,8 +214,8 @@ public class AxialStage extends ComponentAssembly implements FlightConfigurableC
 	@Override
 	public void toDebugTreeNode(final StringBuilder buffer, final String indent) {
 		
-		Coordinate[] relCoords = this.getInstanceOffsets();
-		Coordinate[] absCoords = this.getComponentLocations();
+		CoordinateIF[] relCoords = this.getInstanceOffsets();
+		CoordinateIF[] absCoords = this.getComponentLocations();
 		if( 1 == getInstanceCount()){
 			buffer.append(String.format("%-40s|  %5.3f; %24s; %24s;", indent+this.getName()+" (# "+this.getStageNumber()+")", 
 					this.getLength(), this.getPosition(), this.getComponentLocations()[0]));
@@ -234,8 +223,8 @@ public class AxialStage extends ComponentAssembly implements FlightConfigurableC
 		}else{
 			buffer.append(String.format("%-40s|(len: %6.4f )(offset: %4.1f via: %s)\n", (indent+this.getName()+"(# "+this.getStageNumber()+")"), this.getLength(), this.getAxialOffset(), this.axialMethod.name() ));
 			for (int instanceNumber = 0; instanceNumber < this.getInstanceCount(); instanceNumber++) {
-				Coordinate instanceRelativePosition = relCoords[instanceNumber];
-				Coordinate instanceAbsolutePosition = absCoords[instanceNumber];
+				CoordinateIF instanceRelativePosition = relCoords[instanceNumber];
+				CoordinateIF instanceAbsolutePosition = absCoords[instanceNumber];
 				final String prefix = String.format("%s    [%2d/%2d]", indent, instanceNumber+1, getInstanceCount()); 
 				buffer.append(String.format("%-40s|  %5.3f; %24s; %24s;\n", prefix, this.getLength(), instanceRelativePosition, instanceAbsolutePosition));
 			}

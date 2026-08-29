@@ -3,10 +3,12 @@ package info.openrocket.core.preferences;
 import info.openrocket.core.database.Databases;
 import info.openrocket.core.material.Material;
 import info.openrocket.core.models.atmosphere.ExtendedISAModel;
+import info.openrocket.core.models.gravity.GravityModelType;
 import info.openrocket.core.models.wind.PinkNoiseWindModel;
 import info.openrocket.core.rocketcomponent.FlightConfiguration;
 import info.openrocket.core.rocketcomponent.RocketComponent;
 import info.openrocket.core.simulation.RK4SimulationStepper;
+import info.openrocket.core.simulation.SimulationStepperMethod;
 import info.openrocket.core.util.GeodeticComputationStrategy;
 
 /**
@@ -90,6 +92,30 @@ public class ApplicationPreferences {
 
     public double getLaunchTemperature() {
         return ExtendedISAModel.STANDARD_TEMPERATURE;
+    }
+
+    /** Upstream default: ExtendedISAModel.STANDARD_RELATIVE_HUMIDITY. */
+    public double getLaunchRelativeHumidity() {
+        return ExtendedISAModel.STANDARD_RELATIVE_HUMIDITY;
+    }
+
+    /** Upstream default gravity model: WGS. */
+    public GravityModelType getGravityModel() {
+        return GravityModelType.WGS;
+    }
+
+    /** Upstream default constant-gravity value (m/s^2). */
+    public double getConstantGravityValue() {
+        return 9.807;
+    }
+
+    /** Upstream default stepper: RK4. No persisted store in the web engine. */
+    public SimulationStepperMethod getSimulationStepperMethodChoice() {
+        return SimulationStepperMethod.RK4;
+    }
+
+    public void setSimulationStepperMethodChoice(SimulationStepperMethod choice) {
+        // no-op: the web engine has no persisted preference store.
     }
 
     public double getLaunchPressure() {

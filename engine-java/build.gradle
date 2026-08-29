@@ -78,6 +78,16 @@ teavm.js {
     // ClassCastException. JS Math transcendentals differ from Java's by 1-2 ULPs.
 }
 
+// SPIKE: WASM-GC target, parallel to teavm.js. Additive — the JS build and the shipped engine are
+// untouched; `generateWasmGC` writes to build/generated/teavm/wasm-gc/. Mirrors the JS guardrails
+// against the optimizer miscompile (see teavm.js above); re-verify they hold on the WASM backend.
+teavm.wasmGC {
+    mainClass = project.hasProperty('parity') ? 'parity.ParityMain' : 'api.OpenRocketEngine'
+    obfuscated = false
+    optimization = org.teavm.gradle.api.OptimizationLevel.NONE
+    fastGlobalAnalysis = true
+}
+
 // JVM reference run of the parity harness; test/parity/parity.mjs compares the TeaVM-JS output
 // against it for bit-identical fidelity. Requires -Pparity (which compiles test/parity).
 tasks.register('parityJvm', JavaExec) {

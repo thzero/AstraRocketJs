@@ -3,6 +3,8 @@ package info.openrocket.core.database;
 import info.openrocket.core.material.Material;
 import info.openrocket.core.material.MaterialGroup;
 
+import info.openrocket.core.database.Database;
+
 /**
  * SHIM replacing OpenRocket's material database (which loads from resources
  * via Guice at startup). Provides findMaterial for the built-in materials the
@@ -12,6 +14,18 @@ import info.openrocket.core.material.MaterialGroup;
 public final class Databases {
 
     private Databases() {}
+
+    /**
+     * SHIM: the web engine synthesizes materials on demand (see findMaterial) and
+     * keeps no material database. MaterialGroup.get() calls this only for the rare
+     * legacy "ThreadsLines" .ork backward-compat path, iterating the result to
+     * reclassify a material by name+density; an empty database leaves the material
+     * in its stored group (acceptable for the web engine). Returns an empty,
+     * iterable Database<Material> matching upstream's signature.
+     */
+    public static Database<Material> getDatabase(Material.Type type) {
+        return new Database<Material>();
+    }
 
     public static Material findMaterial(Material.Type type, String name) {
         return Material.newMaterial(type, name, densityFor(type, name), false);

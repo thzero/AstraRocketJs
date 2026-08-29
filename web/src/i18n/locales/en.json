@@ -1,5 +1,6 @@
 {
   "app": { "title": "AstraRocketJs", "version": "{{name}} version {{version}}", "designName": "{{name}} design" },
+  "engine": { "wasmTip": "Physics engine: WebAssembly (fast path)", "jsTip": "Physics engine: JavaScript (fallback)" },
   "about": {
     "open": "About",
     "tagline": "A lightweight web UI for the OpenRocket engine",

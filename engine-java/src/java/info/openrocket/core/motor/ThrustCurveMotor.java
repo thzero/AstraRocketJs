@@ -7,11 +7,11 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import info.openrocket.core.util.CoordinateIF;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import info.openrocket.core.util.BugException;
-import info.openrocket.core.util.Coordinate;
 import info.openrocket.core.util.Inertia;
 import info.openrocket.core.util.MathUtil;
 
@@ -46,10 +46,18 @@ public class ThrustCurveMotor implements Motor, Comparable<ThrustCurveMotor>, Se
 	private double length;
 	private double[] time = {};
 	private double[] thrust = {};
-	private Coordinate[] cg = {};
+	private CoordinateIF[] cg = {};
 
 	private String caseInfo = "";
 	private String propellantInfo = "";
+
+	// Optional metadata (primarily used when motors come from a database/API)
+	private String tcMotorId = "";
+	private String infoUrl = "";
+	private Integer dataFiles = null;
+	private String updatedOn = "";
+	private String dataSource = "";
+	private boolean sparky = false;
 
 	private double initialMass;
 	private double maxThrust;
@@ -70,7 +78,7 @@ public class ThrustCurveMotor implements Motor, Comparable<ThrustCurveMotor>, Se
 			return this;
 		}
 
-		public Builder setCGPoints(Coordinate[] cg) {
+		public Builder setCGPoints(CoordinateIF[] cg) {
 			motor.cg = cg;
 			return this;
 		}
@@ -127,6 +135,36 @@ public class ThrustCurveMotor implements Motor, Comparable<ThrustCurveMotor>, Se
 
 		public Builder setPropellantInfo(String v) {
 			motor.propellantInfo = v;
+			return this;
+		}
+
+		public Builder setTcMotorId(String v) {
+			motor.tcMotorId = v;
+			return this;
+		}
+
+		public Builder setInfoUrl(String v) {
+			motor.infoUrl = v;
+			return this;
+		}
+
+		public Builder setDataFiles(Integer v) {
+			motor.dataFiles = v;
+			return this;
+		}
+
+		public Builder setUpdatedOn(String v) {
+			motor.updatedOn = v;
+			return this;
+		}
+
+		public Builder setDataSource(String v) {
+			motor.dataSource = v;
+			return this;
+		}
+
+		public Builder setSparky(boolean v) {
+			motor.sparky = v;
 			return this;
 		}
 
@@ -217,21 +255,21 @@ public class ThrustCurveMotor implements Motor, Comparable<ThrustCurveMotor>, Se
 					throw new IllegalArgumentException("Invalid thrust " + t);
 				}
 			}
-			for (Coordinate c : motor.cg) {
+			for (CoordinateIF c : motor.cg) {
 				if (c.isNaN()) {
 					throw new IllegalArgumentException("Invalid CG " + c);
 				}
-				if (c.x < 0) {
-					throw new IllegalArgumentException("Invalid CG position " + String.format("%f", c.x)
+				if (c.getX() < 0) {
+					throw new IllegalArgumentException("Invalid CG position " + String.format("%f", c.getX())
 							+ ": CG is below the start of the motor.");
 				}
-				if (c.x > motor.length) {
+				if (c.getX() > motor.length) {
 					throw new IllegalArgumentException(
-							"Invalid CG position: " + String.format("%f", c.x) + ": CG is above the end of the motor.");
+							"Invalid CG position: " + String.format("%f", c.getX()) + ": CG is above the end of the motor.");
 				}
-				if (c.weight < 0) {
+				if (c.getWeight() < 0) {
 					throw new IllegalArgumentException(
-							"Negative mass " + c.weight + "at time=" + motor.time[Arrays.asList(motor.cg).indexOf(c)]);
+							"Negative mass " + c.getWeight() + "at time=" + motor.time[Arrays.asList(motor.cg).indexOf(c)]);
 				}
 			}
 
@@ -250,9 +288,15 @@ public class ThrustCurveMotor implements Motor, Comparable<ThrustCurveMotor>, Se
 				motor.designation = motor.code;
 			}
 
-			// If I don't have a motor common name (will be the case if I read the
-			// thrustcurve from a flle)
-			// apply the motor code simplification heuristics to generate a common name
+			// Normalize common name: if it matches the standard motor-designation pattern
+			// (e.g. "B6-0", "B6W", "H128W"), reduce it to just the letter+digits part
+			// ("B6", "H128"). Non-standard names (e.g. "RCS 18/20") are left unchanged.
+			if (!motor.commonName.isEmpty()) {
+				Matcher cnMatcher = SIMPLIFY_PATTERN.matcher(motor.commonName);
+				if (cnMatcher.matches()) {
+					motor.commonName = cnMatcher.group(1);
+				}
+			}
 			if (motor.commonName.isEmpty()) {
 				motor.commonName = simplifyDesignation(motor.designation);
 			}
@@ -354,7 +398,7 @@ public class ThrustCurveMotor implements Motor, Comparable<ThrustCurveMotor>, Se
 	@Override
 	public double getCMx(final double motorTime) {
 		double pseudoIndex = getPseudoIndex(motorTime);
-		return this.interpolateCenterOfMassAtIndex(pseudoIndex).x;
+		return this.interpolateCenterOfMassAtIndex(pseudoIndex).getX();
 	}
 
 	public String getCaseInfo() {
@@ -398,7 +442,7 @@ public class ThrustCurveMotor implements Motor, Comparable<ThrustCurveMotor>, Se
 	// return cgx;
 	// }
 
-	public Coordinate[] getCGPoints() {
+	public CoordinateIF[] getCGPoints() {
 		return cg;
 	}
 
@@ -496,22 +540,22 @@ public class ThrustCurveMotor implements Motor, Comparable<ThrustCurveMotor>, Se
 
 	@Override
 	public double getLaunchCGx() {
-		return cg[0].x;// cgx[0];
+		return cg[0].getX();// cgx[0];
 	}
 
 	@Override
 	public double getBurnoutCGx() {
-		return cg[cg.length - 1].x;// cgx[ cg.length - 1];
+		return cg[cg.length - 1].getX();// cgx[ cg.length - 1];
 	}
 
 	@Override
 	public double getLaunchMass() {
-		return cg[0].weight;// mass[0];
+		return cg[0].getWeight();// mass[0];
 	}
 
 	@Override
 	public double getBurnoutMass() {
-		return cg[cg.length - 1].weight; // mass[mass.length - 1];
+		return cg[cg.length - 1].getWeight(); // mass[mass.length - 1];
 	}
 
 	@Override
@@ -560,7 +604,7 @@ public class ThrustCurveMotor implements Motor, Comparable<ThrustCurveMotor>, Se
 	@Override
 	public double getTotalMass(final double motorTime) {
 		final double pseudoIndex = getPseudoIndex(motorTime);
-		return interpolateCenterOfMassAtIndex(pseudoIndex).weight;
+		return interpolateCenterOfMassAtIndex(pseudoIndex).getWeight();
 	}
 
 	public double getPropellantMass() {
@@ -570,11 +614,11 @@ public class ThrustCurveMotor implements Motor, Comparable<ThrustCurveMotor>, Se
 	@Override
 	public double getPropellantMass(final Double motorTime) {
 		final double pseudoIndex = getPseudoIndex(motorTime);
-		final double totalMass = interpolateCenterOfMassAtIndex(pseudoIndex).weight;
+		final double totalMass = interpolateCenterOfMassAtIndex(pseudoIndex).getWeight();
 		return totalMass - this.getBurnoutMass();
 	}
 
-	protected Coordinate interpolateCenterOfMassAtIndex(final double pseudoIndex) {
+	protected CoordinateIF interpolateCenterOfMassAtIndex(final double pseudoIndex) {
 		final double SNAP_TOLERANCE = 0.0001;
 
 		final double upperFrac = pseudoIndex % 1;
@@ -590,8 +634,8 @@ public class ThrustCurveMotor implements Motor, Comparable<ThrustCurveMotor>, Se
 		}
 
 		// return simple linear interpolation
-		final Coordinate lowerValue = cg[lowerIndex].multiply(lowerFrac);
-		final Coordinate upperValue = cg[upperIndex].multiply(upperFrac);
+		final CoordinateIF lowerValue = cg[lowerIndex].multiply(lowerFrac);
+		final CoordinateIF upperValue = cg[upperIndex].multiply(upperFrac);
 
 		return lowerValue.add(upperValue);
 	}
@@ -623,6 +667,30 @@ public class ThrustCurveMotor implements Motor, Comparable<ThrustCurveMotor>, Se
 	@Override
 	public String getDigest() {
 		return digest;
+	}
+
+	public String getTcMotorId() {
+		return tcMotorId;
+	}
+
+	public String getInfoUrl() {
+		return infoUrl;
+	}
+
+	public Integer getDataFiles() {
+		return dataFiles;
+	}
+
+	public String getUpdatedOn() {
+		return updatedOn;
+	}
+
+	public String getDataSource() {
+		return dataSource;
+	}
+
+	public boolean isSparky() {
+		return sparky;
 	}
 
 	public double getCutOffTime() {

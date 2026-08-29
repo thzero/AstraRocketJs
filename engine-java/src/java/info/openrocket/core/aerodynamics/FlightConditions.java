@@ -1,17 +1,20 @@
 package info.openrocket.core.aerodynamics;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EventListener;
 import java.util.EventObject;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 import info.openrocket.core.models.atmosphere.AtmosphericConditions;
+import info.openrocket.core.rocketcomponent.ComponentAssembly;
 import info.openrocket.core.rocketcomponent.FlightConfiguration;
 import info.openrocket.core.util.BugException;
 import info.openrocket.core.util.ChangeSource;
 import info.openrocket.core.util.Coordinate;
+import info.openrocket.core.util.CoordinateIF;
 import info.openrocket.core.util.MathUtil;
 import info.openrocket.core.util.Monitorable;
 import info.openrocket.core.util.StateChangeListener;
@@ -34,6 +37,12 @@ public class FlightConditions implements Cloneable, ChangeSource, Monitorable {
 
 	/** Reference area used in calculations. */
 	private double refArea = Math.PI * 0.25;
+
+	/**
+	 * Nozzle exit area of motors that are currently thrusting, grouped by the
+	 * component assembly whose terminal base wake they affect.
+	 */
+	private Map<ComponentAssembly, Double> thrustingNozzleExitAreas = new HashMap<>();
 
 	/** Angle of attack. */
 	private double aoa = 0;
@@ -68,21 +77,11 @@ public class FlightConditions implements Cloneable, ChangeSource, Monitorable {
 	/** Current yaw rate. */
 	private double yawRate = 0;
 
-	private Coordinate pitchCenter = Coordinate.NUL;
+	private CoordinateIF pitchCenter = Coordinate.NUL;
 
 	private AtmosphericConditions atmosphericConditions = new AtmosphericConditions();
 
 	private ModID modID;
-
-	/**
-	 * PATCH (see engine-java/patches/LEDGER.md): stage numbers whose motors are
-	 * currently producing thrust (power-on). Empty during coast. Populated per
-	 * time step by the simulation stepper and consumed by the base-drag model
-	 * for the RASAero-style power-on base-drag reduction. Deliberately NOT part
-	 * of equals()/hashCode() — a transient force-model input, not a defining
-	 * flight-condition value.
-	 */
-	private Set<Integer> thrustingStages = new HashSet<>();
 
 	/**
 	 * Sole constructor. The reference length is initialized to the reference length
@@ -146,6 +145,81 @@ public class FlightConditions implements Cloneable, ChangeSource, Monitorable {
 	 */
 	public double getRefArea() {
 		return refArea;
+	}
+
+	/**
+	 * Set the nozzle exit areas of currently thrusting motors, grouped by independent
+	 * body wake.  Component assemblies distinguish the core, parallel boosters, and
+	 * pods so that a motor cannot reduce an unrelated terminal base.
+	 *
+	 * @param areas nozzle exit area in square metres for each component assembly
+	 * @throws IllegalArgumentException if the map contains a null assembly or an
+	 *                                  area that is null, negative, or not finite
+	 */
+	public void setThrustingNozzleExitAreas(Map<ComponentAssembly, Double> areas) {
+		if (areas == null) {
+			throw new IllegalArgumentException("Thrusting nozzle exit areas must not be null");
+		}
+
+		Map<ComponentAssembly, Double> validatedAreas = new HashMap<>();
+		for (Map.Entry<ComponentAssembly, Double> entry : areas.entrySet()) {
+			if (entry.getKey() == null || entry.getValue() == null) {
+				throw new IllegalArgumentException("Thrusting nozzle exit areas must not contain null entries");
+			}
+			double area = entry.getValue();
+			validateThrustingNozzleExitArea(area);
+			if (area > 0) {
+				validatedAreas.put(entry.getKey(), area);
+			}
+		}
+
+		if (thrustingNozzleExitAreas.equals(validatedAreas)) {
+			return;
+		}
+
+		thrustingNozzleExitAreas = validatedAreas;
+		fireChangeEvent();
+	}
+
+	/**
+	 * Return the nozzle exit area of motors currently exhausting into one component
+	 * assembly's terminal base wake.
+	 *
+	 * @param assembly component assembly that owns the terminal base wake
+	 * @return thrusting nozzle exit area in square metres, or zero if the wake
+	 *         has no thrusting motors
+	 */
+	public double getThrustingNozzleExitArea(ComponentAssembly assembly) {
+		return thrustingNozzleExitAreas.getOrDefault(assembly, 0.0);
+	}
+
+	/**
+	 * Return a read-only view of the thrusting nozzle exit areas by wake.
+	 *
+	 * @return nozzle exit areas keyed by their component assembly
+	 */
+	public Map<ComponentAssembly, Double> getThrustingNozzleExitAreas() {
+		return Collections.unmodifiableMap(thrustingNozzleExitAreas);
+	}
+
+	/**
+	 * Return the total nozzle exit area of all currently thrusting motors.  This is
+	 * useful for reporting; aerodynamic calculations use the per-assembly values.
+	 *
+	 * @return total thrusting nozzle exit area in square metres
+	 */
+	public double getThrustingNozzleExitArea() {
+		double totalArea = 0;
+		for (double area : thrustingNozzleExitAreas.values()) {
+			totalArea += area;
+		}
+		return totalArea;
+	}
+
+	private static void validateThrustingNozzleExitArea(double area) {
+		if (area < 0 || !Double.isFinite(area)) {
+			throw new IllegalArgumentException("Thrusting nozzle exit area must be finite and non-negative");
+		}
 	}
 
 	/**
@@ -370,14 +444,14 @@ public class FlightConditions implements Cloneable, ChangeSource, Monitorable {
 	/**
 	 * @return the pitchCenter
 	 */
-	public Coordinate getPitchCenter() {
+	public CoordinateIF getPitchCenter() {
 		return pitchCenter;
 	}
 
 	/**
 	 * @param pitchCenter the pitchCenter to set
 	 */
-	public void setPitchCenter(Coordinate pitchCenter) {
+	public void setPitchCenter(CoordinateIF pitchCenter) {
 		if (this.pitchCenter.equals(pitchCenter))
 			return;
 		this.pitchCenter = pitchCenter;
@@ -409,35 +483,6 @@ public class FlightConditions implements Cloneable, ChangeSource, Monitorable {
 	}
 
 	/**
-	 * PATCH (see engine-java/patches/LEDGER.md): the set of stage numbers whose
-	 * motors are currently producing thrust (power-on). Empty means fully
-	 * power-off (coast).
-	 *
-	 * @return the thrusting-stage set (live reference).
-	 */
-	public Set<Integer> getThrustingStages() {
-		return thrustingStages;
-	}
-
-	/**
-	 * PATCH: set the stage numbers whose motors are currently producing thrust.
-	 * Does not fire a change event (a transient force-model input).
-	 */
-	public void setThrustingStages(Set<Integer> stages) {
-		this.thrustingStages = (stages != null) ? stages : new HashSet<>();
-	}
-
-	/**
-	 * PATCH: whether the given stage's motor is currently producing thrust.
-	 *
-	 * @param stageNumber the stage number to query.
-	 * @return true if that stage is power-on this time step.
-	 */
-	public boolean isStageThrusting(int stageNumber) {
-		return thrustingStages.contains(stageNumber);
-	}
-
-	/**
 	 * Retrieve the modification count of this object.
 	 * 
 	 * @return modification ID
@@ -453,6 +498,7 @@ public class FlightConditions implements Cloneable, ChangeSource, Monitorable {
 				"aoa=%.2f\u00b0," +
 				"theta=%.2f\u00b0," +
 				"mach=%.3f," +
+				"thrustingNozzleExitArea=%.6f," +
 				"rollRate=%.2f," +
 				"pitchRate=%.2f," +
 				"yawRate=%.2f," +
@@ -460,7 +506,8 @@ public class FlightConditions implements Cloneable, ChangeSource, Monitorable {
 				"pitchCenter=" + pitchCenter.toString() + "," +
 				"atmosphericConditions=" + atmosphericConditions.toString() +
 				"]",
-				aoa * 180 / Math.PI, theta * 180 / Math.PI, mach, rollRate, pitchRate, yawRate, refLength);
+				aoa * 180 / Math.PI, theta * 180 / Math.PI, mach, getThrustingNozzleExitArea(),
+				rollRate, pitchRate, yawRate, refLength);
 	}
 
 	/**
@@ -473,9 +520,8 @@ public class FlightConditions implements Cloneable, ChangeSource, Monitorable {
 			FlightConditions cond = (FlightConditions) super.clone();
 			cond.listenerList = new ArrayList<>();
 			cond.event = new EventObject(cond);
+			cond.thrustingNozzleExitAreas = new HashMap<>(thrustingNozzleExitAreas);
 			cond.atmosphericConditions = atmosphericConditions.clone();
-			// PATCH: deep-copy so a clone can't share/mutate the source's set.
-			cond.thrustingStages = new HashSet<>(thrustingStages);
 			return cond;
 		} catch (CloneNotSupportedException e) {
 			throw new BugException("clone not supported!", e);
@@ -492,6 +538,7 @@ public class FlightConditions implements Cloneable, ChangeSource, Monitorable {
 		FlightConditions other = (FlightConditions) obj;
 
 		return (MathUtil.equals(this.refLength, other.refLength) &&
+				this.thrustingNozzleExitAreas.equals(other.thrustingNozzleExitAreas) &&
 				MathUtil.equals(this.aoa, other.aoa) &&
 				MathUtil.equals(this.theta, other.theta) &&
 				MathUtil.equals(this.mach, other.mach) &&
@@ -504,7 +551,8 @@ public class FlightConditions implements Cloneable, ChangeSource, Monitorable {
 
 	@Override
 	public int hashCode() {
-		return (int) (1000 * (refLength + aoa + theta + mach + rollRate + pitchRate + yawRate));
+		int hash = (int) (1000 * (refLength + aoa + theta + mach + rollRate + pitchRate + yawRate));
+		return 31 * hash + thrustingNozzleExitAreas.hashCode();
 	}
 
 	@Override
