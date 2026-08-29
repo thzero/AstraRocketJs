@@ -58,39 +58,6 @@ export function LaunchPanel({ launch, onChange }: {
 
   return (
     <div className="space-y-3 p-3">
-      <Group title={t('launch.launchRod')}>
-        <Num label={t('launch.length')} unit="m" step={0.1} min={0} value={launch.launchRodLengthM} onChange={(v) => onChange({ launchRodLengthM: v ?? 0 })} />
-        <Num label={t('launch.angle')} unit="°" step={1} value={launch.launchRodAngleDeg} onChange={(v) => onChange({ launchRodAngleDeg: v ?? 0 })} />
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={launch.launchIntoWind ?? false} onChange={(e) => onChange({ launchIntoWind: e.target.checked })} className="accent-sky-500" />
-          <span className="text-xs text-slate-400">{t('launch.intoWind')}</span>
-        </label>
-        {!launch.launchIntoWind && (
-          <Num label={t('launch.rodDirection')} unit="°" step={5} value={launch.launchRodDirectionDeg ?? 90} onChange={(v) => onChange({ launchRodDirectionDeg: v ?? 0 })} />
-        )}
-      </Group>
-
-      <Group title={t('launch.site')}>
-        <Num label={t('launch.altitude')} unit="m" step={10} value={launch.launchAltitudeM} onChange={(v) => onChange({ launchAltitudeM: v ?? 0 })} />
-        <Num label={t('launch.latitude')} unit="°" step={1} value={launch.latitudeDeg} onChange={(v) => onChange({ latitudeDeg: v ?? 0 })} />
-        <Num label={t('launch.longitude')} unit="°" step={1} value={launch.longitudeDeg ?? null} onChange={(v) => onChange({ longitudeDeg: v ?? undefined })} />
-        {'geolocation' in navigator && (
-          <button
-            onClick={() => navigator.geolocation.getCurrentPosition(
-              (pos) => onChange({ latitudeDeg: +pos.coords.latitude.toFixed(4), longitudeDeg: +pos.coords.longitude.toFixed(4) }),
-              () => { /* denied or unavailable — leave the fields as they are */ },
-              { timeout: 10000 },
-            )}
-            className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
-          >📍 {t('launch.useLocation')}</button>
-        )}
-      </Group>
-
-      <Group title={t('launch.atmosphere')}>
-        <Num label={t('launch.temperature')} unit="°C" step={1} placeholder={t('launch.isa')} value={launch.temperatureC} onChange={(v) => onChange({ temperatureC: v })} />
-        <Num label={t('launch.pressure')} unit="hPa" step={1} placeholder={t('launch.isa')} value={launch.pressureHPa} onChange={(v) => onChange({ pressureHPa: v })} />
-      </Group>
-
       <Group title={t('launch.wind')}>
         <label className="flex items-center justify-between gap-3 pb-1">
           <span className="text-xs text-slate-400">{t('launch.variesWithAltitude')}</span>
@@ -123,6 +90,21 @@ export function LaunchPanel({ launch, onChange }: {
             >{t('launch.addLevel')}</button>
           </div>
         )}
+      </Group>
+
+      <Group title={t('launch.launchRod')}>
+        <Num label={t('launch.length')} unit="m" step={0.1} min={0} value={launch.launchRodLengthM} onChange={(v) => onChange({ launchRodLengthM: v ?? 0 })} />
+        <Num label={t('launch.angle')} unit="°" step={1} value={launch.launchRodAngleDeg} onChange={(v) => onChange({ launchRodAngleDeg: v ?? 0 })} />
+      </Group>
+
+      <Group title={t('launch.site')}>
+        <Num label={t('launch.altitude')} unit="m" step={10} value={launch.launchAltitudeM} onChange={(v) => onChange({ launchAltitudeM: v ?? 0 })} />
+        <Num label={t('launch.latitude')} unit="°" step={1} value={launch.latitudeDeg} onChange={(v) => onChange({ latitudeDeg: v ?? 0 })} />
+      </Group>
+
+      <Group title={t('launch.atmosphere')}>
+        <Num label={t('launch.temperature')} unit="°C" step={1} placeholder={t('launch.isa')} value={launch.temperatureC} onChange={(v) => onChange({ temperatureC: v })} />
+        <Num label={t('launch.pressure')} unit="hPa" step={1} placeholder={t('launch.isa')} value={launch.pressureHPa} onChange={(v) => onChange({ pressureHPa: v })} />
       </Group>
 
       <Group title={t('launch.earthModel')}>

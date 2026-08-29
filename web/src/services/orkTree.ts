@@ -32,10 +32,6 @@ export interface WindLevel {
 export interface LaunchConditions {
   launchRodLengthM: number;
   launchRodAngleDeg: number;
-  /** Launch-rod compass heading, degrees. Ignored when launchIntoWind is set. */
-  launchRodDirectionDeg?: number;
-  /** When true, aim the rod into the wind (overrides the rod direction). */
-  launchIntoWind?: boolean;
   windAverage: number;
   windStdDev: number;
   /** Wind heading, degrees (single-wind model). */
@@ -44,8 +40,6 @@ export interface LaunchConditions {
   windLevels?: WindLevel[];
   launchAltitudeM: number;
   latitudeDeg: number;
-  /** Launch-site longitude, degrees (WGS84 Coriolis; optional). */
-  longitudeDeg?: number;
   /** Earth model for the trajectory. */
   geodetic?: 'flat' | 'spherical' | 'wgs84';
   /** null when the file declares the ISA standard atmosphere. */

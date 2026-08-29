@@ -10,14 +10,12 @@ import {
   type RocketTree,
   type ComponentNode,
 } from './openRocketEngine';
-import { defaultDesignName } from '../services/appInfo';
 
-export type { RocketSpec, StaticInfo, FlightResult, FlightSeries } from './openRocketEngine';
+export type { RocketSpec, StaticInfo, FlightResult } from './openRocketEngine';
 
 /** A stock Estes C6 (SI units): times→thrust, per-sample motor mass. */
 export const C6: MotorSpec = {
   designation: 'C6',
-  manufacturer: 'Estes',
   diameter: 0.018,
   length: 0.07,
   times: [0, 0.2, 0.4, 2.0, 2.1],
@@ -107,7 +105,7 @@ export function specToTree(spec: RocketSpec): { tree: RocketTree; mountId: strin
     ],
   };
   return {
-    tree: { name: defaultDesignName(), components: [{ type: 'stage', name: 'Sustainer', id: 's1', children: [nose, body] }] },
+    tree: { name: 'AstraRocketJs design', components: [{ type: 'stage', name: 'Sustainer', id: 's1', children: [nose, body] }] },
     mountId,
   };
 }

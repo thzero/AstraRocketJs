@@ -1,50 +1,35 @@
 import type { ComponentType } from '../engine/openRocketEngine';
 
 /**
- * Render colours for the 3D model, grouped so the Settings panel exposes a handful
- * of meaningful swatches (nose, body, fins, …) rather than one per component type.
- * A component's own `color` prop still overrides its group colour.
+ * Default render colour per component type — distinct hues so the parts read
+ * apart in the 3D model (and the flight-path recovery device). A component's own
+ * `color` prop (set via the property panel) overrides this. Motors aren't tree
+ * nodes, so their exhaust-case colour is a standalone constant.
  */
-export type PartKey =
-  | 'nose' | 'body' | 'fins' | 'inner' | 'rings' | 'lugs'
-  | 'motor' | 'parachute' | 'streamer' | 'mass';
-
-export const PART_KEYS: PartKey[] = ['nose', 'body', 'fins', 'inner', 'rings', 'lugs', 'motor', 'parachute', 'streamer', 'mass'];
-
-export const DEFAULT_PART_COLORS: Record<PartKey, string> = {
-  nose: '#b9c2cc',
-  body: '#e2ded6',
-  fins: '#c98a5a',
-  inner: '#5f6a72',
-  rings: '#8a8680',
-  lugs: '#9a978f',
-  motor: '#c65420',
+export const PART_COLORS: Partial<Record<ComponentType, string>> = {
+  nosecone: '#b9c2cc',
+  transition: '#b9c2cc',
+  bodytube: '#e2ded6',
+  fairing: '#9a978f',
+  trapezoidfinset: '#c98a5a',
+  ellipticalfinset: '#c98a5a',
+  freeformfinset: '#c98a5a',
+  tubefinset: '#c98a5a',
+  innertube: '#5f6a72',
+  tubecoupler: '#6b6862',
+  centeringring: '#8a8680',
+  bulkhead: '#8a8680',
+  engineblock: '#c65420',
+  launchlug: '#9a978f',
+  railbutton: '#9a978f',
+  masscomponent: '#7c8b9a',
   parachute: '#ff6b3d',
   streamer: '#f59e0b',
-  mass: '#7c8b9a',
+  shockcord: '#b0a58f',
 };
 
-const TYPE_TO_KEY: Partial<Record<ComponentType, PartKey>> = {
-  nosecone: 'nose', transition: 'nose',
-  bodytube: 'body', fairing: 'body',
-  trapezoidfinset: 'fins', ellipticalfinset: 'fins', freeformfinset: 'fins', tubefinset: 'fins',
-  innertube: 'inner', tubecoupler: 'inner',
-  centeringring: 'rings', bulkhead: 'rings', engineblock: 'rings',
-  launchlug: 'lugs', railbutton: 'lugs',
-  parachute: 'parachute', streamer: 'streamer', shockcord: 'streamer',
-  masscomponent: 'mass',
-};
+export const DEFAULT_PART_COLOR = '#cfcabf';
+export const MOTOR_COLOR = '#c65420';
 
-export const UNKNOWN_PART_COLOR = '#cfcabf';
-
-export type PartPalette = Record<PartKey, string>;
-
-/** A full palette from the built-in defaults plus any user overrides (from Settings). */
-export const mergePalette = (overrides?: Partial<Record<PartKey, string>>): PartPalette =>
-  ({ ...DEFAULT_PART_COLORS, ...overrides });
-
-/** The colour for a component type, given a resolved palette. */
-export const colorForType = (type: ComponentType, palette: PartPalette = DEFAULT_PART_COLORS): string => {
-  const k = TYPE_TO_KEY[type];
-  return k ? palette[k] : UNKNOWN_PART_COLOR;
-};
+/** The default colour for a component type (before any per-part override). */
+export const partColor = (type: ComponentType): string => PART_COLORS[type] ?? DEFAULT_PART_COLOR;

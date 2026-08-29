@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-/** Banner shown when a .ork was imported: the design name, a discard button, and
- *  any warnings raised while opening it (nothing else — a clean import is quiet). */
+/** Banner shown when a .ork was imported: name, editable-import note, and any load warnings. */
 export function LoadedBanner({ loaded, onClose }: { loaded: { name: string; notes: string[] }; onClose: () => void }) {
   const { t } = useTranslation();
   return (
@@ -13,9 +12,10 @@ export function LoadedBanner({ loaded, onClose }: { loaded: { name: string; note
         </div>
         <button onClick={onClose} title={t('banner.closeTitle')} className="shrink-0 rounded-lg bg-slate-800 px-3 py-1.5 text-xs text-slate-300">{t('banner.close')}</button>
       </div>
+      <p className="mt-2 text-xs text-slate-500">{t('banner.desc')}</p>
       {loaded.notes.length > 0 && (
         <ul className="mt-2 space-y-1 text-xs text-amber-400/90">
-          {loaded.notes.map((n, i) => <li key={i}>⚠ {n}</li>)}
+          {loaded.notes.map((n, i) => <li key={i}>• {n}</li>)}
         </ul>
       )}
     </div>

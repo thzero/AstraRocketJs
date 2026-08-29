@@ -11,8 +11,4 @@ export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(version) },
   // The vendored TeaVM engine is a large ES module; don't let esbuild choke pre-bundling it.
   optimizeDeps: { exclude: ['./src/engine/vendor/orkengine.mjs'] },
-  // The sim worker (engine/simWorker.ts) is a module worker that dynamic-imports
-  // the engine, so its bundle is code-split — which needs the ES worker format
-  // (the default 'iife' can't code-split).
-  worker: { format: 'es' },
 });

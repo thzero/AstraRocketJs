@@ -6,24 +6,21 @@
  * Documented exceptions: launchLatitude/launchLongitude are DEGREES.
  * See engine-java/ for the kernel, shims, patches and differential tests.
  */
-// MUST stay above the engine load: it installs the TeaVM stdout/stderr sinks
-// that the kernel module reads once, as it evaluates. ES modules evaluate in
-// import order, so this eager import must precede the DYNAMIC engine load below
-// (neither backend is imported statically now) — see kernelLogSink.ts.
+// Installs the TeaVM stdout/stderr sinks the JS kernel reads once, as it evaluates. Kept as a static
+// (eager) import so the sinks are in place before the JS engine is DYNAMICALLY loaded below — see
+// kernelLogSink.ts. (The JS engine itself is no longer statically imported; loadJsEngine() pulls it.)
 import './kernelLogSink.js';
 
-// The WASM-GC engine + its loader live in web/public/engine/ (served verbatim by
-// Vite — a .js in src/ would be run through import-analysis, which warns on the
-// loader's internal dynamic imports). Absent files → clean JS fallback.
+// The WASM-GC engine + its loader live in web/public/engine/ (served verbatim by Vite — a .js in
+// src/ would be run through import-analysis, which warns on the loader's internal dynamic imports).
 const WASM_URL = `${import.meta.env.BASE_URL}engine/openrocket-engine.wasm`;
 const WASM_RUNTIME_URL = `${import.meta.env.BASE_URL}engine/openrocket-engine.wasm-runtime.js`;
 
 // --- Engine backend ---------------------------------------------------------
-// Both engines are DYNAMICALLY loaded — neither is in the initial bundle.
-// initEngine() loads the TeaVM WASM-GC build when the browser supports it
-// (faster, smaller), otherwise the JS build as a fallback. Only ONE engine is
-// ever fetched. EngineApi is a type-only import (erased at build), so it pulls
-// nothing into the bundle.
+// Both engines are DYNAMICALLY loaded — neither is in the initial bundle. initEngine() loads the
+// TeaVM WASM-GC build when the browser supports it (~2× faster, ~2.5 MB), otherwise it loads the JS
+// build (~2.9 MB) as a fallback. So only ONE engine is ever fetched, never both. The type is a
+// type-only import (erased at build), so it pulls nothing into the bundle.
 type EngineApi = typeof import('./vendor/openrocket-engine.mjs');
 let active: EngineApi | null = null;
 let initPromise: Promise<'wasm' | 'js'> | null = null;
@@ -41,31 +38,11 @@ async function loadJsEngine(): Promise<EngineApi> {
   return await import('./vendor/openrocket-engine.mjs');
 }
 
-/** Load the WASM-GC runtime once (it installs globalThis.TeaVM.wasmGC). */
+// Inject the WASM-GC runtime loader once (it installs globalThis.TeaVM.wasmGC).
 function loadWasmRuntime(): Promise<void> {
-  const g = globalThis as unknown as { TeaVM?: { wasmGC?: unknown } };
+  const g = globalThis as unknown as { TeaVM?: { wasmGC?: unknown }; document?: Document };
   if (g.TeaVM?.wasmGC) return Promise.resolve();
-  // In a Worker there's no `document`, so we can't inject a <script>, and Vite
-  // won't serve a /public file via import(). Fetch the runtime text and import
-  // it through a Blob URL: running the module executes its IIFE, which assigns
-  // globalThis.TeaVM as a side effect (see openrocket-engine.wasm-runtime.js) —
-  // no eval, and blob URLs aren't behind Vite's /public wall. Lets WASM also run
-  // inside the sim worker; on any failure tryLoadWasm falls the worker back to JS.
-  if (typeof document === 'undefined') {
-    return fetch(WASM_RUNTIME_URL)
-      .then((r) => {
-        if (!r.ok) throw new Error(`WASM-GC runtime fetch failed (${r.status})`);
-        return r.text();
-      })
-      .then(async (src) => {
-        const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
-        try {
-          await import(/* @vite-ignore */ url);
-        } finally {
-          URL.revokeObjectURL(url);
-        }
-      });
-  }
+  if (typeof document === 'undefined') return Promise.reject(new Error('no document (not a browser)'));
   return new Promise<void>((resolve, reject) => {
     const s = document.createElement('script');
     s.src = WASM_RUNTIME_URL;
@@ -73,38 +50,6 @@ function loadWasmRuntime(): Promise<void> {
     s.onerror = () => reject(new Error('WASM-GC runtime failed to load'));
     document.head.appendChild(s);
   });
-}
-
-/**
- * Route the WASM kernel's stdout/stderr into the SAME sink the JS backend uses.
- * The WASM runtime's default `teavmConsole` writes every char-buffered line
- * straight to console.log/console.error, so OpenRocket's per-flight INFO spam
- * ("Starting simulation of branch", "Igniting motor", …) floods the console —
- * and stderr lands as console.error. The runtime's `load()` runs
- * `options.installImports(imports)` AFTER building its defaults, so we replace
- * `teavmConsole` here with putchar functions that buffer to newline and forward
- * whole lines to `$rt_putStdoutCustom`/`$rt_putStderrCustom` — the globals
- * kernelLogSink.ts installs (eager import, so they exist by now). Both backends
- * then feed one ring buffer; the console stays clean.
- */
-function installKernelConsole(imports: Record<string, unknown>): void {
-  const g = globalThis as Record<string, unknown>;
-  const pump = (globalName: string) => {
-    let buf = '';
-    return (c: number) => {
-      if (c === 10) {
-        const custom = g[globalName];
-        if (typeof custom === 'function') (custom as (s: string) => void)(buf);
-        buf = '';
-      } else {
-        buf += String.fromCharCode(c);
-      }
-    };
-  };
-  imports.teavmConsole = {
-    putcharStdout: pump('$rt_putStdoutCustom'),
-    putcharStderr: pump('$rt_putStderrCustom'),
-  };
 }
 
 async function tryLoadWasm(): Promise<EngineApi | null> {
@@ -115,17 +60,14 @@ async function tryLoadWasm(): Promise<EngineApi | null> {
     // Load the runtime IIFE via a <script> tag; it installs globalThis.TeaVM.wasmGC.
     await loadWasmRuntime();
     const wasmGC = (globalThis as unknown as {
-      TeaVM?: { wasmGC?: { load(src: ArrayBuffer, options?: unknown): Promise<{ exports: unknown }> } };
+      TeaVM?: { wasmGC?: { load(src: ArrayBuffer): Promise<{ exports: unknown }> } };
     }).TeaVM?.wasmGC;
     if (!wasmGC?.load) return null;
     // Fetch the bytes ourselves and hand them to load() — passing an ArrayBuffer
     // takes the WebAssembly.compile(bytes) path, sidestepping the runtime's
-    // Node-vs-browser (fs vs fetch) detection entirely. installImports rewires
-    // the kernel's console output into the shared log sink (see above).
-    const res = await fetch(WASM_URL);
-    if (!res.ok) return null;
-    const bytes = await res.arrayBuffer();
-    const teavm = await wasmGC.load(bytes, { installImports: installKernelConsole });
+    // Node-vs-browser (fs vs fetch) detection entirely.
+    const bytes = await (await fetch(WASM_URL)).arrayBuffer();
+    const teavm = await wasmGC.load(bytes);
     const exports = teavm.exports as EngineApi;
     // The @JSExport facade must be callable across the WASM↔JS boundary.
     if (typeof exports.buildRocket !== 'function') return null;
@@ -137,38 +79,14 @@ async function tryLoadWasm(): Promise<EngineApi | null> {
 }
 
 /**
- * Backend preference. Default is 'auto' → try WASM-GC first, fall back to JS
- * (the requested "WASM with JS fallback"). WASM-GC runs our OpenRocket 24.12
- * kernel bit-identically to JS once the WASM-hostile cast in
- * `info.openrocket.core.util.ArrayList.clone()` is patched (it did
- * `(ArrayList) super.clone()`, which throws ClassCastException under WASM-GC's
- * strict typing — see the PATCH in engine-java). Overrides for debugging /
- * unsupported browsers: `?engine=js` (or `localStorage.setItem('engine','js')`)
- * forces JS; `?engine=wasm` forces the WASM attempt.
- */
-function backendPref(): 'wasm' | 'js' | 'auto' {
-  try {
-    const q = new URLSearchParams(location.search).get('engine');
-    if (q === 'wasm' || q === 'js') return q;
-    const ls = localStorage.getItem('engine');
-    if (ls === 'wasm' || ls === 'js') return ls;
-  } catch {
-    /* no location/localStorage (SSR/tests) → auto */
-  }
-  return 'auto';
-}
-
-/**
- * Load the engine backend once: WASM-GC first (unless `?engine=js` forces JS or
- * the browser lacks WASM), else the JS build as a fallback. Idempotent. MUST be
- * awaited before any engine use (main.tsx awaits it before mounting) — engine
- * calls before it resolves throw, since neither backend is loaded until now.
- * Resolves to which backend is active.
+ * Load the engine backend once: WASM-GC if the browser supports it, else the JS build. Idempotent.
+ * MUST be awaited before any engine use (main.tsx awaits it before mounting) — engine calls before it
+ * resolves throw, since neither backend is loaded until now. Resolves to which backend is eng().
  */
 export function initEngine(): Promise<'wasm' | 'js'> {
   if (!initPromise) {
     initPromise = (async () => {
-      const wasm = backendPref() === 'js' ? null : await tryLoadWasm();
+      const wasm = await tryLoadWasm();
       if (wasm) { active = wasm; return 'wasm'; }
       active = await loadJsEngine();
       return 'js';
@@ -220,8 +138,6 @@ export interface RocketSpec {
 
 export interface MotorSpec {
   designation: string;
-  /** Manufacturer name/abbreviation (display only; the engine ignores it). */
-  manufacturer?: string;
   diameter: number;
   length: number;
   /** Thrust curve: times[i] (s) -> thrusts[i] (N); masses[i] = motor mass (kg) at times[i]. */
@@ -230,28 +146,13 @@ export interface MotorSpec {
   masses: number[];
   /** Motor CG position from its leading end (m). */
   cgX: number;
-  /** Ejection-charge delay (s). Use {@link PLUGGED_DELAY} for a plugged motor. */
   ejectionDelay: number;
 }
-
-/**
- * JSON-safe sentinel for a plugged motor (no ejection charge). OpenRocket's
- * kernel uses `Motor.PLUGGED_DELAY = Double.POSITIVE_INFINITY`, but Infinity
- * cannot survive JSON (localStorage persistence and the motor cache serialize
- * it to null), so we store this finite value and map it back to Infinity only
- * at the kernel boundary — see {@link toKernelDelay}.
- */
-export const PLUGGED_DELAY = 1e9;
-
-/** Map the stored ejection delay to what the kernel expects (Infinity = plugged). */
-const toKernelDelay = (d: number): number => (d >= PLUGGED_DELAY ? Infinity : d);
 
 export interface SimulationOptions {
   launchRodLength?: number;
   /** Radians from vertical. */
   launchRodAngle?: number;
-  /** Launch-rod compass heading, RADIANS (default π/2). */
-  launchRodDirection?: number;
   windAverage?: number;
   windStdDeviation?: number;
   /** Wind heading, RADIANS. Ignored when windLevels is set. */
@@ -609,7 +510,7 @@ export class OpenRocketDesign {
     assertFiniteCurve(motor);
     eng().setMotorById(
       this.handle, componentId, motor.designation, motor.diameter, motor.length,
-      motor.times, motor.thrusts, motor.masses, motor.cgX, toKernelDelay(motor.ejectionDelay));
+      motor.times, motor.thrusts, motor.masses, motor.cgX, motor.ejectionDelay);
   }
 
   /**
@@ -648,7 +549,7 @@ export class OpenRocketDesign {
     assertFiniteCurve(motor);
     eng().setMotor(
       this.handle, this.mountHandle, motor.designation, motor.diameter, motor.length,
-      motor.times, motor.thrusts, motor.masses, motor.cgX, toKernelDelay(motor.ejectionDelay));
+      motor.times, motor.thrusts, motor.masses, motor.cgX, motor.ejectionDelay);
   }
 
   /**
@@ -708,7 +609,6 @@ export class OpenRocketDesign {
     const raw = eng().simulateJson(this.handle, JSON.stringify({
       rodLength: options.launchRodLength ?? 1.0,
       rodAngle: options.launchRodAngle ?? 0,
-      rodDirection: options.launchRodDirection,
       windAverage: options.windAverage ?? 0,
       windStdDeviation: options.windStdDeviation ?? 0,
       windDirection: options.windDirection,

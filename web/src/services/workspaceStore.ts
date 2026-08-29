@@ -28,7 +28,7 @@ export interface WorkspaceStore {
   clear(): Promise<void>;
 }
 
-const KEY = 'astrarrocketjs:workspace';
+const KEY = 'astrarocketjs:workspace';
 
 /** Default store: one JSON blob via a KeyValueStore (localStorage by default). */
 export class KeyValueWorkspaceStore implements WorkspaceStore {

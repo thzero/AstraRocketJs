@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode, ComponentPosition, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
 import { fmtNum } from '../../i18n/format';
@@ -48,25 +47,6 @@ const MARKER_R = 9;
 export const CALLOUT_LANES = 34;
 /** Lane-center distance from the airframe edge (or marker edge, if wider). */
 const LANE_GAP = 13;
-/** Height (viewBox px) reserved at the bottom for the length ruler (side view). */
-const RULER_H = 16;
-/** Width (viewBox px) reserved on the right for the radial (cross-section) ruler. */
-const RULER_W = 26;
-
-/** A "nice" ruler tick step (metres) giving ~8 marks across `totalM`. */
-function niceStep(totalM: number): number {
-  const target = Math.max(totalM, 1e-6) / 8;
-  const pow = Math.pow(10, Math.floor(Math.log10(target)));
-  for (const c of [1, 2, 2.5, 5, 10]) if (c * pow >= target) return c * pow;
-  return 10 * pow;
-}
-
-/** Snap `raw` to the nearest value in `snaps` within `eps`, else return `raw`. */
-function snapNear(raw: number, snaps: number[], eps: number): number {
-  let best = eps, out = raw;
-  for (const s of snaps) { const d = Math.abs(s - raw); if (d < best) { best = d; out = s; } }
-  return out;
-}
 /** CP label footprint in the lower lane, relative to cpX: dot (r 4) plus
  *  the "CP" text to its right — the margin text must not land on it. */
 const CP_LABEL_L = 6;
@@ -151,7 +131,7 @@ interface DragState {
   clientScale: number;
 }
 
-export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480, selectedId, onSelect, exportData, onError, vertical, fillHeight, roll = 0, onRoll, controlsSlot }: {
+export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480, selectedId, onSelect, exportData, onError, vertical, fillHeight, roll = 0, onRoll }: {
   tree: RocketTree;
   info: StaticInfo | null;
   /** Loaded motor case dimensions (m) keyed by mount node id — drawn to
@@ -189,9 +169,6 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
   /** When set, a horizontal drag on the drawing spins the roll (delta radians)
    *  instead of panning — so the user can drag to rotate the rocket. */
   onRoll?: (deltaRadians: number) => void;
-  /** When set, the drawing's control buttons (calipers, zoom, export) render into
-   *  this element (a slot in the pane header) instead of over the drawing. */
-  controlsSlot?: HTMLElement | null;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -211,11 +188,6 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
   const [hoverId, setHoverId] = useState<string | null>(null);
   // View transform (zoom & pan) in viewBox px; identity = whole rocket fits.
   const [zoom, setZoom] = useState({ k: 1, x: 0, y: 0 });
-  // Calipers (measure tool): horizontal (two vertical lines, model x) and/or
-  // vertical (two horizontal lines, radial offset from the centreline). null = off.
-  const [caliperH, setCaliperH] = useState<{ a: number; b: number } | null>(null);
-  const [caliperV, setCaliperV] = useState<{ a: number; b: number } | null>(null);
-  const caliperDrag = useRef<{ axis: 'h' | 'v'; end: 'a' | 'b' } | null>(null);
   const { t } = useTranslation();
   // `active` only becomes true once the pointer has travelled past PAN_SLOP —
   // see beginPan for why a press must not pan until then.
@@ -276,28 +248,6 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
   };
   scanRadial(chain, maxR);
 
-  // Caliper snap targets: axial component + child edges (horizontal), and radial
-  // magnitudes — each component's radius, the body, the full span (vertical).
-  const snapXs: number[] = [];
-  const radialSet = new Set<number>([0, maxR, vHalf]);
-  {
-    let cx = 0;
-    for (const n of chain) {
-      if (n.type === 'nosecone' || n.type === 'bodytube' || n.type === 'transition') {
-        const len = num(n, 'length', 0);
-        snapXs.push(cx, cx + len);
-        for (const child of n.children ?? []) {
-          const clen = axialLength(child);
-          if (clen > 0) { const cs = axialStart(child, clen, cx, len); snapXs.push(cs, cs + clen); }
-        }
-        const r = Math.max(num(n, 'aftRadius', 0), num(n, 'outerRadius', 0), num(n, 'foreRadius', 0));
-        if (r > 0) radialSet.add(r);
-        cx += len;
-      }
-    }
-  }
-  const radialSnaps = [...radialSet];
-
   // Vertical mode swaps the container roles BEFORE layout: all layout math
   // stays horizontal (length along x) and the finished drawing rotates
   // nose-up as one group, so the length axis fits the container HEIGHT and
@@ -310,23 +260,17 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
   // allowance is added to the height AND kept out of the vertical fit —
   // otherwise a height-limited short/fat rocket would fill it and clip them.
   const lanes = info ? CALLOUT_LANES : 0;
-  // Side view reserves a ruler lane at the bottom (length) and on the right
-  // (radial cross-section), both kept out of the fit.
-  const rulerLane = vertical ? 0 : RULER_H;
-  const rulerW = vertical ? 0 : RULER_W;
   const crossCap = vertical ? Math.max(160, cw) : maxHeight;
   const h = vertical || !fillHeight
-    ? Math.round(Math.min(crossCap, Math.max(200, 2 * vHalf * ((w - 2 * pad) / totalLen) + 2 * pad + lanes + rulerLane)))
+    ? Math.round(Math.min(crossCap, Math.max(200, 2 * vHalf * ((w - 2 * pad) / totalLen) + 2 * pad + lanes)))
     : Math.max(200, chPx);
   // Horizontal headroom: `totalLen` covers only the axial chain (nose+body), so
   // aft-swept fins overhang past it and the CG/CP labels reach right of the aft.
   // Fit to ~12% more than the bare length so nothing sits flush to the edge, and
   // centre the drawing so the margin is even on both sides.
-  const scale = Math.min((w - 2 * pad - rulerW) / (totalLen * 1.12), (h - 2 * pad - lanes - rulerLane) / (2 * vHalf));
-  // Centre the rocket in the area LEFT of the right ruler lane.
-  const x0 = Math.max(pad, (w - rulerW - totalLen * scale) / 2);
-  // Centre the rocket in the area ABOVE the bottom ruler lane.
-  const ctx: Ctx = { scale, cy: (h - rulerLane) / 2, x0 };
+  const scale = Math.min((w - 2 * pad) / (totalLen * 1.12), (h - 2 * pad - lanes) / (2 * vHalf));
+  const x0 = Math.max(pad, (w - totalLen * scale) / 2);
+  const ctx: Ctx = { scale, cy: h / 2, x0 };
 
   const beginDrag = (child: ComponentNode, parent: ComponentNode, pLen: number) =>
     (e: React.PointerEvent) => {
@@ -382,48 +326,13 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
     pan.current = { pointerX: e.clientX, pointerY: e.clientY, x0: zoom.x, y0: zoom.y, active: false };
   };
 
-  /** Screen clientX → model x (metres), through the current pan/zoom. */
-  const clientToModelX = (clientX: number): number => {
-    const rect = svgRef.current?.getBoundingClientRect();
-    if (!rect || !rect.width) return 0;
-    const viewBoxX = ((clientX - rect.left) / rect.width) * w;
-    return ((viewBoxX - zoom.x) / zoom.k - ctx.x0) / scale;
-  };
-  /** Screen clientY → radial offset from the centreline (metres, + up). */
-  const clientToModelY = (clientY: number): number => {
-    const rect = svgRef.current?.getBoundingClientRect();
-    if (!rect || !rect.height) return 0;
-    const viewBoxY = ((clientY - rect.top) / rect.height) * h;
-    return (ctx.cy - (viewBoxY - zoom.y) / zoom.k) / scale;
-  };
-
-  const beginCaliperDrag = (axis: 'h' | 'v', end: 'a' | 'b') => (e: React.PointerEvent) => {
-    e.stopPropagation(); // don't also start a pan
-    caliperDrag.current = { axis, end };
-    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-  };
-
   const onMove = (e: React.PointerEvent) => {
-    if (caliperDrag.current) {
-      const { axis, end } = caliperDrag.current;
-      const eps = 6 / (scale * zoom.k); // ~6 screen px of snap magnetism
-      if (axis === 'h') {
-        const mx = Math.max(0, Math.min(totalLen, snapNear(clientToModelX(e.clientX), snapXs, eps)));
-        setCaliperH((c) => (c ? { ...c, [end]: mx } : c));
-      } else {
-        const raw = clientToModelY(e.clientY);
-        const mag = snapNear(Math.abs(raw), radialSnaps, eps);
-        const my = Math.max(-vHalf, Math.min(vHalf, Math.sign(raw || 1) * mag));
-        setCaliperV((c) => (c ? { ...c, [end]: my } : c));
-      }
-      return;
-    }
     const d = drag.current;
     if (d && onPatchNode) {
       if (Math.abs(e.clientX - d.pointerX) > 4) dragMoved.current = true;
       const dxModel = ((e.clientX - d.pointerX) * d.clientScale) / (scale * zoom.k);
       const anchors = anchorStarts(d.parent, d.child);
-      const epsilon = 6 / (scale * zoom.k); // ~6 screen px of magnetism
+      const epsilon = (6 * 1) / (scale * zoom.k); // ~6 screen px of magnetism
       const snapped = snapStart(d.relStart + dxModel, anchors, epsilon);
       const pos = (d.child.position ?? { method: 'top', offset: 0 }) as ComponentPosition;
       onPatchNode(d.childId, {
@@ -460,7 +369,7 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
     }
   };
 
-  const endDrag = () => { drag.current = null; pan.current = null; caliperDrag.current = null; };
+  const endDrag = () => { drag.current = null; pan.current = null; };
 
   // Track the container's size so the viewBox can follow it (height feeds
   // the vertical mode's length axis).
@@ -977,29 +886,6 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
     };
   }
 
-  // Dimension ruler (side view, only at the default fit): nice-round marks every
-  // `rulerStep` metres, labelled in cm. 0 sits at the nose (the datum) but the
-  // baseline + ticks run the FULL viewport width, so it reads as a workbench
-  // rule spanning the canvas rather than a bar clipped to the airframe.
-  const showRuler = !vertical && zoom.k === 1 && zoom.x === 0 && zoom.y === 0;
-  const rulerStep = niceStep(totalLen);
-  const rulerX0 = 2; // left inset (viewBox px)
-  const rulerX1 = w - 2; // right inset
-  const rulerMarks: number[] = [];
-  if (showRuler) {
-    const mLo = Math.ceil((rulerX0 - ctx.x0) / scale / rulerStep - 1e-6) * rulerStep;
-    const mHi = (rulerX1 - ctx.x0) / scale;
-    for (let m = mLo; m <= mHi + 1e-6; m += rulerStep) rulerMarks.push(m);
-  }
-  // Right ruler: spans the FULL sketch height (top to bottom of the drawing,
-  // above the bottom length ruler), to the same scale, labelled in cm.
-  const vTop = 10;
-  const vBot = h - rulerLane - 2;
-  const vSpanM = (vBot - vTop) / scale;
-  const rulerStepV = niceStep(vSpanM);
-  const vTicks: { y: number; label: number }[] = [];
-  if (showRuler) for (let m = 0; m <= vSpanM + 1e-6; m += rulerStepV) vTicks.push({ y: vTop + m * scale, label: m });
-
   return (
     <div ref={wrapRef} style={{ position: 'relative', ...(vertical || fillHeight ? { height: '100%' } : null) }}>
       <svg ref={svgRef} viewBox={vertical ? `0 0 ${h} ${w}` : `0 0 ${w} ${h}`}
@@ -1092,93 +978,12 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
               </g>
             </g>
           )}
-          {caliperH && (() => {
-            const ax = ctx.x0 + caliperH.a * scale, bx = ctx.x0 + caliperH.b * scale;
-            const top = 4, bot = h - rulerLane - 2, dimY = 14, mid = (ax + bx) / 2;
-            return (
-              <g>
-                {(['a', 'b'] as const).map((k) => {
-                  const x = ctx.x0 + caliperH[k] * scale;
-                  return (
-                    <g key={k}>
-                      <line x1={x} y1={top} x2={x} y2={bot} stroke="var(--accent)" strokeWidth="1" strokeDasharray="4 3" vectorEffect="non-scaling-stroke" />
-                      <rect x={x - 5} y={top} width={10} height={bot - top} fill="transparent" style={{ cursor: 'ew-resize', pointerEvents: 'all' }} onPointerDown={beginCaliperDrag('h', k)} />
-                      <circle cx={x} cy={top + 2} r={3.5} fill="var(--accent)" pointerEvents="none" />
-                    </g>
-                  );
-                })}
-                <g pointerEvents="none">
-                  <line x1={ax} y1={dimY} x2={bx} y2={dimY} stroke="var(--accent)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-                  <rect x={mid - 28} y={dimY - 9} width={56} height={14} rx="3" fill="rgba(13,14,18,0.92)" stroke="var(--accent)" strokeWidth="0.8" />
-                  <text x={mid} y={dimY - 1} textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--accent)">{fmtNum(Math.abs(caliperH.b - caliperH.a) * 100, 1)} cm</text>
-                </g>
-              </g>
-            );
-          })()}
-          {caliperV && (() => {
-            const ay = ctx.cy - caliperV.a * scale, by = ctx.cy - caliperV.b * scale;
-            const left = ctx.x0, right = ctx.x0 + totalLen * scale;
-            const dimX = ctx.x0 + 20, mid = (ay + by) / 2;
-            return (
-              <g>
-                {(['a', 'b'] as const).map((k) => {
-                  const y = ctx.cy - caliperV[k] * scale;
-                  return (
-                    <g key={k}>
-                      <line x1={left} y1={y} x2={right} y2={y} stroke="var(--accent)" strokeWidth="1" strokeDasharray="4 3" vectorEffect="non-scaling-stroke" />
-                      <rect x={left - 4} y={y - 8} width={34} height={16} fill="transparent" style={{ cursor: 'ns-resize', pointerEvents: 'all' }} onPointerDown={beginCaliperDrag('v', k)} />
-                      <circle cx={left + 4} cy={y} r={3.5} fill="var(--accent)" pointerEvents="none" />
-                    </g>
-                  );
-                })}
-                <g pointerEvents="none">
-                  <line x1={dimX} y1={ay} x2={dimX} y2={by} stroke="var(--accent)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-                  <rect x={dimX - 24} y={mid - 7} width={48} height={14} rx="3" fill="rgba(13,14,18,0.92)" stroke="var(--accent)" strokeWidth="0.8" />
-                  <text x={dimX} y={mid + 3} textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--accent)">{fmtNum(Math.abs(caliperV.a - caliperV.b) * 100, 1)}</text>
-                </g>
-              </g>
-            );
-          })()}
         </g>
-        {showRuler && (() => {
-          const base = h - RULER_H + 3, tick = h - RULER_H + 8, label = h - 4;
-          return (
-            <g pointerEvents="none">
-              <line x1={rulerX0} y1={base} x2={rulerX1} y2={base} className="stroke-white/20" />
-              {rulerMarks.map((m, i) => {
-                const x = ctx.x0 + m * scale;
-                return (
-                  <g key={i}>
-                    <line x1={x} y1={base} x2={x} y2={tick} className="stroke-white/30" />
-                    <text x={x} y={label} textAnchor="middle" className="fill-slate-500 text-[7px] tabular-nums">{fmtNum(m * 100, 0)}</text>
-                  </g>
-                );
-              })}
-              <text x={rulerX1} y={base - 3} textAnchor="end" className="fill-slate-500 text-[7px]">cm</text>
-            </g>
-          );
-        })()}
-        {showRuler && vTicks.length > 0 && (() => {
-          const bx = w - RULER_W + 3;
-          return (
-            <g pointerEvents="none">
-              <line x1={bx} y1={vTop} x2={bx} y2={vBot} className="stroke-white/20" />
-              {vTicks.map((tk, i) => (
-                <g key={i}>
-                  <line x1={bx} y1={tk.y} x2={bx - 4} y2={tk.y} className="stroke-white/30" />
-                  <text x={bx + 3} y={tk.y} dominantBaseline="central" className="fill-slate-500 text-[7px] tabular-nums">{fmtNum(tk.label * 100, 0)}</text>
-                </g>
-              ))}
-              <text x={bx + 3} y={vTop - 5} className="fill-slate-500 text-[7px]">cm</text>
-            </g>
-          );
-        })()}
       </svg>
       {/* Vertical is read-mostly: no zoom to fit-reset, and the SVG/image
           exports assume the horizontal drawing (identity view transform), so
           the whole strip hides rather than export a sideways page. */}
-      {!vertical && (() => {
-        const content = (<>
+      {!vertical && <div className="schematic-controls">
         {exportData && (
           <>
             <button className="file-btn"
@@ -1211,16 +1016,6 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
               }} />
           </>
         )}
-        <button className="file-btn" title={t('schematic.calipersH')} aria-pressed={!!caliperH}
-          style={caliperH ? { background: 'var(--accent)', color: '#fff' } : undefined}
-          onClick={() => setCaliperH((c) => (c ? null : { a: totalLen * 0.2, b: totalLen * 0.8 }))}>
-          ⟺
-        </button>
-        <button className="file-btn" title={t('schematic.calipersV')} aria-pressed={!!caliperV}
-          style={caliperV ? { background: 'var(--accent)', color: '#fff' } : undefined}
-          onClick={() => setCaliperV((c) => (c ? null : { a: maxR, b: -maxR }))}>
-          ⇕
-        </button>
         {(zoom.k > 1 || zoom.x !== 0 || zoom.y !== 0) && (
           <button className="file-btn"
             title={t('schematic.fit')}
@@ -1232,11 +1027,7 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
           aria-label={t('schematic.zoomIn')} onClick={() => zoomBy(1.5)} disabled={zoom.k >= 12}>+</button>
         <button className="file-btn" title={t('schematic.zoomOut')}
           aria-label={t('schematic.zoomOut')} onClick={() => zoomBy(1 / 1.5)} disabled={zoom.k <= 1}>−</button>
-        </>);
-        return controlsSlot
-          ? createPortal(content, controlsSlot)
-          : <div className="schematic-controls">{content}</div>;
-      })()}
+      </div>}
     </div>
   );
 }

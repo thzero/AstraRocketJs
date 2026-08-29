@@ -1,8 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode, ComponentPosition } from '../../engine/openRocketEngine';
 import { isAxial, hasCatalog, hasMaterial, catalogPatch } from '../../services/treeEdit';
-import { colorForType, mergePalette } from '../../services/partColors';
-import { useSettings } from '../../state/SettingsProvider';
+import { partColor } from '../../services/partColors';
 import type { ComponentType as CatalogType } from '../../services/componentDb';
 import { ComponentPicker } from './ComponentPicker';
 import { MaterialPicker } from './MaterialPicker';
@@ -170,8 +169,6 @@ export function PropertyPanel({ node, onChange, onRemove, onMove, canMoveUp, can
   canMoveDown?: boolean;
 }) {
   const { t } = useTranslation();
-  const { settings } = useSettings();
-  const palette = mergePalette(settings.partColors);
   if (!node) {
     return (
       <section className="rounded-xl bg-slate-900 p-3 text-sm text-slate-500 ring-1 ring-white/10">
@@ -228,7 +225,7 @@ export function PropertyPanel({ node, onChange, onRemove, onMove, canMoveUp, can
           <span className="flex items-center gap-2">
             <input
               type="color"
-              value={typeof node.color === 'string' ? node.color : colorForType(node.type, palette)}
+              value={typeof node.color === 'string' ? node.color : partColor(node.type)}
               onChange={(e) => onChange({ color: e.target.value })}
               className="h-7 w-10 cursor-pointer rounded-md border border-white/10 bg-slate-800 p-0.5"
             />
@@ -308,7 +305,7 @@ export function PropertyPanel({ node, onChange, onRemove, onMove, canMoveUp, can
           onSub={(on) => onChange({ overrideSubcomponentsMass: on || undefined })}
         />
         <OverrideRow
-          label={t(node.type === 'stage' ? 'override.cgStage' : 'override.cg')} unit="mm" step={1}
+          label={t('override.cg')} unit="mm" step={1}
           enabled={typeof node.overrideCGX === 'number'} value={numVal(node, 'overrideCGX') * 1000}
           onToggle={(on) => onChange({ overrideCGX: on ? numVal(node, 'overrideCGX') : undefined, overrideSubcomponentsCG: on ? node.overrideSubcomponentsCG as boolean | undefined : undefined })}
           onValue={(v) => onChange({ overrideCGX: v / 1000 })}

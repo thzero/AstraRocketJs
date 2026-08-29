@@ -105,7 +105,6 @@ export function samplesToMotorSpec(
 
   return {
     designation: motor.designation,
-    manufacturer: motor.manufacturerAbbrev,
     diameter: motor.diameter / 1000,
     length: motor.length / 1000,
     times,
@@ -151,6 +150,7 @@ const CACHE_VERSION = 'v1';
 const SPEC_PREFIX = `tc:${CACHE_VERSION}:motor:`;
 const SAMPLE_PREFIX = `tc:${CACHE_VERSION}:samples:`;
 const META_PREFIX = `tc:${CACHE_VERSION}:meta:`;
+const MASS_PREFIX = `tc:${CACHE_VERSION}:filemass:`;
 
 /** Stable localStorage key for a picked motor + delay. */
 function specKey(cat: CatalogMotor, ejectionDelay: number): string {
@@ -227,6 +227,75 @@ async function fetchSamplesCached(motor: TcMotor, cat: CatalogMotor): Promise<Tc
 }
 
 /**
+ * Parse the loaded + propellant mass from a thrust-curve DATA FILE header.
+ * thrustcurve.org publishes two different mass claims for a motor — the
+ * catalogue record (from search.json) and the header of the data file the curve
+ * itself comes from — and they can disagree (e.g. AeroTech K480W: catalogue
+ * 2078/1292 g vs file 2059/1232 g). Desktop OpenRocket reads the file, so we
+ * prefer the file's numbers too. Returns grams, or null if unparseable.
+ */
+export function parseSimfileMasses(
+  format: string,
+  text: string,
+): { totalWeightG: number; propWeightG: number } | null {
+  const f = (format ?? '').toUpperCase();
+  if (f === 'RASP' || f === 'ENG') {
+    // First non-comment, non-blank line: "name diam len delays propKg totKg mfr".
+    for (const line of text.split(/\r?\n/)) {
+      const t = line.trim();
+      if (!t || t.startsWith(';')) continue;
+      const p = t.split(/\s+/);
+      if (p.length < 7) return null;
+      const propKg = Number(p[4]);
+      const totKg = Number(p[5]);
+      if (!Number.isFinite(propKg) || !Number.isFinite(totKg) || totKg <= 0) return null;
+      return { totalWeightG: totKg * 1000, propWeightG: propKg * 1000 };
+    }
+    return null;
+  }
+  if (f === 'ROCKSIM' || f === 'RSE') {
+    // RockSim .rse: <engine ... initWt="grams" propWt="grams" ...>
+    const init = /initWt\s*=\s*"([\d.]+)"/i.exec(text);
+    const prop = /propWt\s*=\s*"([\d.]+)"/i.exec(text);
+    if (!init || !prop) return null;
+    const totalWeightG = Number(init[1]);
+    const propWeightG = Number(prop[1]);
+    if (!Number.isFinite(totalWeightG) || totalWeightG <= 0 || !Number.isFinite(propWeightG)) return null;
+    return { totalWeightG, propWeightG };
+  }
+  return null;
+}
+
+/**
+ * Fetch the motor's data-file masses (see parseSimfileMasses). TTL-cached; any
+ * failure (offline, unparseable, field absent) returns null so the caller falls
+ * back to the catalogue masses — never a regression from prior behaviour.
+ */
+async function fetchFileMassesCached(
+  motor: TcMotor,
+): Promise<{ totalWeightG: number; propWeightG: number } | null> {
+  const key = MASS_PREFIX + motor.motorId;
+  const ok = (m: unknown) => Number.isFinite((m as { totalWeightG?: number })?.totalWeightG)
+    && (m as { totalWeightG: number }).totalWeightG > 0;
+  const cached = await getMotorStore().readEntry<{ totalWeightG: number; propWeightG: number }>(key, ok);
+  if (cached && !cached.stale) return cached.value;
+  try {
+    const body = await post<{ results?: { format: string; data?: string }[] }>(
+      'download.json', { motorIds: [motor.motorId], data: 'file' });
+    for (const file of body.results ?? []) {
+      if (!file.data) continue;
+      let text: string;
+      try { text = atob(file.data); } catch { continue; }
+      const masses = parseSimfileMasses(file.format, text);
+      if (masses) { await getMotorStore().writeEntry(key, masses); return masses; }
+    }
+    return cached ? cached.value : null;
+  } catch {
+    return cached ? cached.value : null;
+  }
+}
+
+/**
  * Builds the full MotorSpec for a catalog motor: resolve metadata, fetch the
  * thrust curve, interpolate masses. Every layer is TTL-cached in localStorage
  * (spec by motor+delay, metadata and curve by motor) so a repeat pick is
@@ -256,8 +325,15 @@ export async function fetchMotorSpec(cat: CatalogMotor, ejectionDelay: number): 
   if (cached && !cached.stale) return cached.value;
   try {
     const motor = await resolveTcMotorCached(cat);
-    const samples = await fetchSamplesCached(motor, cat);
-    const spec = samplesToMotorSpec(motor, samples, ejectionDelay);
+    // Curve and file-masses in parallel; file masses match what desktop reads.
+    const [samples, fileMasses] = await Promise.all([
+      fetchSamplesCached(motor, cat),
+      fetchFileMassesCached(motor),
+    ]);
+    const motorForSpec = fileMasses
+      ? { ...motor, totalWeightG: fileMasses.totalWeightG, propWeightG: fileMasses.propWeightG }
+      : motor;
+    const spec = samplesToMotorSpec(motorForSpec, samples, ejectionDelay);
     await getMotorStore().writeEntry(key, spec);
     return spec;
   } catch (e) {

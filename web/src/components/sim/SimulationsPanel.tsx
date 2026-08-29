@@ -1,77 +1,43 @@
-import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useWorkspaceStore, selectActive } from '../../state/store';
-import { useSettings } from '../../state/SettingsProvider';
+import type { StaticInfo, FlightResult } from '../../engine/api';
+import type { MotorSpec } from '../../engine/openRocketEngine';
+import type { LaunchConditions } from '../../services/orkTree';
+import type { Simulation } from '../../services/simulations';
 import { SimulationsList } from './SimulationsList';
 import { MotorRow } from './MotorRow';
 import { LaunchPanel } from './LaunchPanel';
 import { SimPanel } from './SimPanel';
 
-/** Right pane: the simulations list, then — for the selected sim — its name,
- *  motor, launch conditions, run button and results. Reads the store directly. */
-export function SimulationsPanel() {
-  const sims = useWorkspaceStore((s) => s.sims);
-  const activeId = useWorkspaceStore((s) => selectActive(s).id);
-  const motor = useWorkspaceStore((s) => selectActive(s).motor);
-  const launch = useWorkspaceStore((s) => selectActive(s).launch);
-  const runLabel = useWorkspaceStore((s) => selectActive(s).name);
-  const result = useWorkspaceStore((s) => selectActive(s).result);
-  const info = useWorkspaceStore((s) => s.info);
-  const busy = useWorkspaceStore((s) => s.simBusy);
-
-  const onSelectSim = useWorkspaceStore((s) => s.setActiveId);
-  const onAddSim = useWorkspaceStore((s) => s.addSim);
-  const onDuplicateSim = useWorkspaceStore((s) => s.duplicateSim);
-  const deleteSim = useWorkspaceStore((s) => s.deleteSim);
-  const onRenameSim = useWorkspaceStore((s) => s.renameSim);
-  const onMotorChange = useWorkspaceStore((s) => s.setActiveMotor);
-  const onLaunchChange = useWorkspaceStore((s) => s.patchLaunch);
-  const runSim = useWorkspaceStore((s) => s.runSim);
-  const onError = useWorkspaceStore((s) => s.setErr);
-  const { t } = useTranslation();
-  const { settings } = useSettings();
-  const onRun = () => runSim(settings.simulation);
-  const onDeleteSim = (id: string) => { if (!settings.simulation.confirmDelete || window.confirm(t('sims.deleteConfirm'))) deleteSim(id); };
-
-  // The list is an accordion: collapsed (default) it shows only the selected
-  // simulation and opens its config below; expanded it lists every sim to switch
-  // between. Selecting / adding / duplicating collapses back to that sim.
-  const [listOpen, setListOpen] = useState(false);
-  const focusSim = (fn: () => void) => { fn(); setListOpen(false); };
-
+/** Right pane: the simulations list, then the active sim's motor, launch conditions,
+ *  run button and results. */
+export function SimulationsPanel({
+  sims, activeId, motor, launch, runLabel, result, info, busy,
+  onSelectSim, onAddSim, onDeleteSim, onRenameSim, onMotorChange, onLaunchChange, onRun, onError,
+}: {
+  sims: Simulation[];
+  activeId: string;
+  motor: MotorSpec;
+  launch: LaunchConditions;
+  runLabel: string;
+  result: FlightResult | null;
+  info: StaticInfo | null;
+  busy: boolean;
+  onSelectSim: (id: string) => void;
+  onAddSim: () => void;
+  onDeleteSim: (id: string) => void;
+  onRenameSim: (id: string, name: string) => void;
+  onMotorChange: (m: MotorSpec) => void;
+  onLaunchChange: (p: Partial<LaunchConditions>) => void;
+  onRun: () => void;
+  onError: (msg: string | null) => void;
+}) {
   return (
     <>
-      {/* Run + results first, so a run's outcome is front-and-centre. */}
-      <SimPanel info={info} runLabel={runLabel} sim={result} busy={busy} onRun={onRun} />
-
-      <div className="space-y-4 p-3 pt-0">
-        <SimulationsList
-          sims={sims} activeId={activeId} open={listOpen}
-          onToggleOpen={() => setListOpen((o) => !o)}
-          onSelect={(id) => focusSim(() => onSelectSim(id))}
-          onAdd={() => focusSim(onAddSim)}
-          onDuplicate={(id) => focusSim(() => onDuplicateSim(id))}
-          onDelete={onDeleteSim}
-        />
-
-        {/* Config for the selected sim — only when the list is collapsed to it. */}
-        {!listOpen && (
-          <>
-            <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
-              <label className="block">
-                <span className="mb-1 block text-[10px] uppercase tracking-wide text-slate-400">{t('sims.name')}</span>
-                <input
-                  value={runLabel} onChange={(e) => onRenameSim(activeId, e.target.value)}
-                  aria-label={t('sims.rename')}
-                  className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-sm font-medium text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
-                />
-              </label>
-            </section>
-            <MotorRow motor={motor} onChange={onMotorChange} onError={onError} />
-          </>
-        )}
+      <div className="space-y-4 p-3">
+        <SimulationsList sims={sims} activeId={activeId} onSelect={onSelectSim} onAdd={onAddSim} onDelete={onDeleteSim} onRename={onRenameSim} />
+        <MotorRow motor={motor} onChange={onMotorChange} onError={onError} />
       </div>
-      {!listOpen && <LaunchPanel launch={launch} onChange={onLaunchChange} />}
+      <LaunchPanel launch={launch} onChange={onLaunchChange} />
+      <SimPanel info={info} runLabel={runLabel} sim={result} busy={busy} onRun={onRun} />
     </>
   );
 }

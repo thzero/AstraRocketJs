@@ -1,7 +1,4 @@
-import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useWorkspaceStore } from './state/store';
-import { useWorkspaceEffects } from './state/useWorkspaceEffects';
+import { useWorkspace } from './state/useWorkspace';
 import { AppHeader } from './components/layout/AppHeader';
 import { CenterView } from './components/canvas/CenterView';
 import { EditorPanel } from './components/design/EditorPanel';
@@ -9,55 +6,49 @@ import { SimulationsPanel } from './components/sim/SimulationsPanel';
 import { TabBar } from './components/layout/TabBar';
 
 export default function App() {
-  useWorkspaceEffects();
-  const { t } = useTranslation();
-  const tab = useWorkspaceStore((s) => s.tab);
-  const err = useWorkspaceStore((s) => s.err);
-  // The right (simulations) pane collapses on desktop for more design room; on
-  // mobile it's a full tab, so this only gates the lg layout.
-  const [simsOpen, setSimsOpen] = useState(true);
+  const w = useWorkspace();
 
   return (
     <div className="flex h-screen flex-col bg-slate-950 text-slate-100">
-      <AppHeader />
+      <AppHeader canSave={!!w.info} onNew={w.newWorkspace} onOpenFile={w.openOrkFile} onSave={w.saveOrk} />
 
-      {err && <p className="border-b border-red-500/30 bg-red-950/60 px-4 py-2 text-sm text-red-300">{err}</p>}
+      {w.err && <p className="border-b border-red-500/30 bg-red-950/60 px-4 py-2 text-sm text-red-300">{w.err}</p>}
 
-      {/* Mobile: one full-height pane at a time via the bottom tabs — the pane
-          fills the viewport (no page scroll) so the canvas is bounded and its
-          stats strip pins as a footer; only the sim form scrolls internally.
-          The design editor is desktop-only. lg+: a 3-pane workbench
-          (editor · canvas · motor+sim). Panels read the store — no prop-drilling. */}
-      <main className={`flex min-h-0 flex-1 flex-col overflow-hidden lg:grid lg:auto-rows-fr ${simsOpen ? 'lg:grid-cols-[340px_minmax(0,1fr)_380px]' : 'lg:grid-cols-[340px_minmax(0,1fr)_2rem]'}`}>
-        {/* CENTER — canvas + stability (the sole build-tab pane on mobile) */}
-        <section className={`${tab === 'build' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col order-1 lg:order-none lg:col-start-2 lg:row-start-1 lg:block lg:h-full lg:overflow-hidden`}>
-          <CenterView />
+      {/* Mobile: one section at a time via the bottom tabs. lg+: a 3-pane
+          workbench (editor · canvas · motor+sim), each pane scrolling on its own. */}
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-24 lg:grid lg:grid-cols-[340px_minmax(0,1fr)_380px] lg:overflow-hidden lg:pb-0">
+        {/* CENTER — canvas + stability (first on mobile) */}
+        <section className={`${w.tab === 'build' ? '' : 'hidden'} order-1 lg:order-none lg:col-start-2 lg:row-start-1 lg:block lg:h-full lg:overflow-y-auto`}>
+          <CenterView
+            loadedMeta={w.loadedMeta} onCloseLoaded={w.resetWorkspace}
+            view={w.view} onView={w.setView} twoD={w.twoD} onTwoD={w.setTwoD}
+            roll={w.roll} onRollValue={w.setRoll} onRollBy={w.rollBy} onResetView={w.resetView} resetKey={w.resetKey}
+            tree={w.tree} info={w.info} motors={w.motorsForView} selectedId={w.selectedId} onSelect={w.setSelectedId}
+            result={w.active.result}
+          />
         </section>
 
-        {/* LEFT — design editor (desktop only; hidden on mobile) */}
-        <section className="hidden order-2 lg:order-none lg:col-start-1 lg:row-start-1 lg:block lg:h-full lg:overflow-y-auto lg:border-r lg:border-white/10">
-          <EditorPanel />
+        {/* LEFT — design editor */}
+        <section className={`${w.tab === 'build' ? '' : 'hidden'} order-2 lg:order-none lg:col-start-1 lg:row-start-1 lg:block lg:h-full lg:overflow-y-auto lg:border-r lg:border-white/10`}>
+          <EditorPanel
+            tree={w.tree} selectedId={w.selectedId} onSelect={w.setSelectedId} onAdd={w.addPartToTree}
+            node={w.selectedNode} onChange={w.patchSelected} onRemove={w.removeSelected} onMove={w.moveSelected}
+            canMoveUp={!!w.sib && w.sib.index > 0} canMoveDown={!!w.sib && w.sib.index < w.sib.count - 1}
+          />
         </section>
 
-        {/* RIGHT — simulations (list + active sim's motor / launch / run / results).
-            A full-height collapse handle sits on the pane's left edge (desktop
-            only) — its own control, separate from the simulations list. */}
-        <div className={`${tab === 'sim' ? 'flex' : 'hidden'} min-h-0 flex-1 order-3 lg:order-none lg:col-start-3 lg:row-start-1 lg:flex lg:h-full lg:border-l lg:border-white/10`}>
-          <button
-            onClick={() => setSimsOpen((o) => !o)}
-            title={simsOpen ? t('sims.hide') : t('sims.show')}
-            aria-label={simsOpen ? t('sims.hide') : t('sims.show')}
-            className="hidden w-8 shrink-0 items-center justify-center text-slate-400 hover:bg-slate-800 hover:text-sky-300 lg:flex lg:border-r lg:border-white/10"
-          >
-            <span className="text-2xl leading-none">{simsOpen ? '›' : '‹'}</span>
-          </button>
-          <div className={`min-w-0 flex-1 overflow-y-auto lg:h-full ${simsOpen ? '' : 'lg:hidden'}`}>
-            <SimulationsPanel />
-          </div>
+        {/* RIGHT — simulations (list + active sim's motor / launch / run / results) */}
+        <div className={`${w.tab === 'sim' ? '' : 'hidden'} order-3 lg:order-none lg:col-start-3 lg:row-start-1 lg:block lg:h-full lg:overflow-y-auto lg:border-l lg:border-white/10`}>
+          <SimulationsPanel
+            sims={w.sims} activeId={w.active.id} motor={w.motor} launch={w.launch} runLabel={w.active.name}
+            result={w.active.result} info={w.info} busy={w.simBusy}
+            onSelectSim={w.setActiveId} onAddSim={w.addSim} onDeleteSim={w.deleteSim} onRenameSim={w.renameSim}
+            onMotorChange={w.setActiveMotor} onLaunchChange={w.patchLaunch} onRun={w.runSim} onError={w.setErr}
+          />
         </div>
       </main>
 
-      <TabBar />
+      <TabBar tab={w.tab} onTab={w.setTab} />
     </div>
   );
 }

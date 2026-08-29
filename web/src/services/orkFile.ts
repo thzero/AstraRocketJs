@@ -1,5 +1,5 @@
 import { unzipSync, strFromU8 } from 'fflate';
-import { PLUGGED_DELAY, type ComponentNode, type ComponentPosition, type ComponentType, type RocketTree } from '../engine/openRocketEngine';
+import type { ComponentNode, ComponentPosition, ComponentType, RocketTree } from '../engine/openRocketEngine';
 import { asStageNodes, freshId, type LaunchConditions } from './orkTree';
 import { shapeIsClippable, shapeParamDefault } from '../tree/shapeProfile';
 import { escapeXml, xmlText as text } from './xmlUtil';
@@ -197,8 +197,8 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
     if (overhang !== 0) node['motorOverhang'] = overhang;
     // ONE configuration's motor+ignition off this mount. Plugged motors (no
     // ejection charge): the desktop writes the literal string "none"
-    // (Motor.PLUGGED_DELAY). Represent as the JSON-safe PLUGGED_DELAY sentinel,
-    // which the engine maps to +Inf ("never fires") at the kernel boundary.
+    // (Motor.PLUGGED_DELAY). Represent as Infinity — the kernel treats a
+    // +Inf ejection delay as "never fires", matching the desktop.
     const resolveRef = (motorEl: Element, igEl: Element): OrkMotorRef => {
       const delayText = text(motorEl, ':scope > delay');
       return {
@@ -206,7 +206,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         manufacturer: text(motorEl, ':scope > manufacturer') ?? 'unknown',
         diameter: num(motorEl, 'diameter', 0.018),
         length: num(motorEl, 'length', 0.07),
-        delay: delayText === 'none' ? PLUGGED_DELAY : num(motorEl, 'delay', 0),
+        delay: delayText === 'none' ? Infinity : num(motorEl, 'delay', 0),
         mountId: node.id,
         ignitionEvent: text(igEl, ':scope > ignitionevent') ?? undefined,
         ignitionDelay: num(igEl, 'ignitiondelay', 0),
@@ -230,7 +230,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
     // Ignition: the chosen config's block wins over the bare default
     // (desktop writes defaults bare, overrides in <ignitionconfiguration>).
     const ref = resolveRef(motorEl, configScoped(mountEl, 'ignitionconfiguration') ?? mountEl);
-    if (ref.delay >= PLUGGED_DELAY) {
+    if (!Number.isFinite(ref.delay)) {
       notes.push(
         `Motor ${ref.designation}: plugged (no ejection charge) — make sure recovery deploys on apogee/altitude, not the ejection charge.`);
     }
@@ -281,7 +281,12 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
       case 'nosecone': {
         const n = base('nosecone', false);
         n['length'] = num(el, 'length', 0.07);
-        n['aftRadius'] = num(el, 'aftradius', 0.012);
+        {
+          const r = radiusField(el, 'aftradius');
+          if (r && 'value' in r) n['aftRadius'] = r.value;
+          else if (r && 'auto' in r) n['_autoAftRadius'] = true;
+          else n['aftRadius'] = 0.012;
+        }
         // Desktop writes <thickness>filled</thickness> for solid components.
         if (text(el, ':scope > thickness') === 'filled') {
           n['filled'] = true;
@@ -302,10 +307,14 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
       case 'transition': {
         const n = base('transition', false);
         n['length'] = num(el, 'length', 0.04);
-        const fore = num(el, 'foreradius', NaN);
-        const aft = num(el, 'aftradius', NaN);
-        if (!Number.isNaN(fore)) n['foreRadius'] = fore;
-        if (!Number.isNaN(aft)) n['aftRadius'] = aft;
+        {
+          const fore = radiusField(el, 'foreradius');
+          if (fore && 'value' in fore) n['foreRadius'] = fore.value;
+          else if (fore && 'auto' in fore) n['_autoForeRadius'] = true;
+          const aft = radiusField(el, 'aftradius');
+          if (aft && 'value' in aft) n['aftRadius'] = aft.value;
+          else if (aft && 'auto' in aft) n['_autoAftRadius'] = true;
+        }
         if (text(el, ':scope > thickness') === 'filled') {
           n['filled'] = true;
         } else {
@@ -331,7 +340,12 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
       case 'bodytube': {
         const n = base('bodytube', false);
         n['length'] = num(el, 'length', 0.3);
-        n['outerRadius'] = num(el, 'radius', 0.012);
+        {
+          const r = radiusField(el, 'radius');
+          if (r && 'value' in r) n['outerRadius'] = r.value;
+          else if (r && 'auto' in r) n['_autoOuterRadius'] = true;
+          else n['outerRadius'] = 0.012;
+        }
         n['thickness'] = num(el, 'thickness', 0.0005);
         readMotor(el, n);
         // Extension tag: sub-minimum flag (motor case is the airframe).
@@ -640,37 +654,45 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
   if (configs.length > 1) {
     const mountMotorEls = Array.from(rocketEl.querySelectorAll('motormount > motor'));
     if (mountMotorEls.length === 0) {
-      // Declared configs but no <motor> in any mount: worth flagging that the
-      // mounts came in empty (nothing to simulate until a motor is picked).
+      // Declared configs but no <motor> in any mount: the pick changed no
+      // motors — claiming one was opened would send the user hunting for a
+      // motor that isn't loaded (the mounts are all empty).
       notes.push(
         `File declares ${configs.length} flight configurations but carried no motors to import.`);
+    } else {
+      const chosen = configs.find((c) => c.id === chosenConfigId)!;
+      notes.push(
+        `Opened flight configuration “${chosen.name ?? chosen.id}” (${configs.length} in the file — switch motors any time under Motors & Launch; reopen the file to switch deployment/separation overrides too).`);
     }
-    // Which configuration was opened (and that there are others) is shown in the
-    // Simulations panel now, so it's no longer a load note.
     // Stage activeness (<stage active="false">) is not applied (Stage C) —
-    // warn when the chosen configuration would actually ground a stage. Name it
-    // (never the UUID — that appears nowhere in our UI or OpenRocket's).
+    // warn when the chosen configuration would actually ground a stage.
     const chosenEl = configEls.find((c) => c.getAttribute('configid') === chosenConfigId);
     if (chosenEl && Array.from(chosenEl.querySelectorAll(':scope > stage'))
         .some((s) => s.getAttribute('active') === 'false')) {
-      const name = configs.find((c) => c.id === chosenConfigId)?.name;
       notes.push(
-        `${name ? `Configuration “${name}”` : 'The opened configuration'} deactivates one or more stages — stage activeness isn’t applied here, so all stages fly in the simulation.`);
+        'This configuration deactivates one or more stages — stage activeness isn’t applied here, so all stages fly in the simulation.');
     }
   } else if (configs.length === 0) {
-    // Hand-rolled files may key <motor configid>s without declaring the configs,
-    // so those configurations have no names at all. We read the first motor and
-    // drop the rest — say how many, but never a UUID (it means nothing to anyone).
+    // Hand-rolled files may key <motor configid>s without declaring the
+    // configs. Those kept the legacy first-motor read, so keep the legacy
+    // honesty note: the rest were silently dropped.
     const strayIds = new Set<string>();
     for (const m of Array.from(rocketEl.getElementsByTagName('motor'))) {
       const id = m.getAttribute('configid');
       if (id) strayIds.add(id);
     }
     if (strayIds.size > 1) {
+      const keptId = Array.from(rocketEl.querySelectorAll('motormount > motor'))
+        .map((m) => m.getAttribute('configid'))
+        .find((id) => id !== null);
       notes.push(
-        `File has ${strayIds.size} flight configurations — only the first was imported; the other ${strayIds.size - 1} ${strayIds.size - 1 === 1 ? 'was' : 'were'} not.`);
+        `File has ${strayIds.size} flight configurations — kept “${keptId ?? 'the first'}”; the other ${strayIds.size - 1} ${strayIds.size - 1 === 1 ? 'was' : 'were'} not imported.`);
     }
   }
+
+  // Resolve OpenRocket-15.03-style bare "auto" radii from neighbouring components
+  // (before this, they defaulted to 12 mm — see radiusField / resolveAutoRadii).
+  resolveAutoRadii(components, notes);
 
   const launch = readLaunchConditions(doc, notes);
 
@@ -678,6 +700,83 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
     name, tree: { name, components }, motor, motors, configs, chosenConfigId,
     ignored: [...ignored], notes, ...(launch ? { launch } : {}),
   };
+}
+
+/**
+ * Resolve bare-"auto" radii (flagged by radiusField as `_autoForeRadius` /
+ * `_autoOuterRadius` / `_autoAftRadius`) from neighbouring airframe components,
+ * the way desktop OpenRocket does: an automatic diameter matches the adjacent
+ * body. A forward pass inherits from the previous component's aft radius; a
+ * backward pass covers leading autos from the next component's fore radius;
+ * anything still unresolved (an isolated auto) falls back to 12 mm. Notes record
+ * what was inferred. Runs per sibling group and recurses into assemblies
+ * (boosters/pods). Strips the transient flags so they never reach the engine.
+ */
+function resolveAutoRadii(nodes: ComponentNode[], notes: string[]): void {
+  const resolved = new Set<string>();
+  const unresolved = new Set<string>();
+  const FALLBACK = 0.012;
+  const isAirframe = (n: ComponentNode) =>
+    n.type === 'bodytube' || n.type === 'nosecone' || n.type === 'transition';
+  const numOr = (v: unknown): number | undefined => (typeof v === 'number' ? v : undefined);
+  // Radius a component presents aft (to the next component) / fore (to the previous).
+  const aftOf = (n: ComponentNode) =>
+    n.type === 'bodytube' ? numOr(n['outerRadius']) : numOr(n['aftRadius']);
+  const foreOf = (n: ComponentNode) =>
+    n.type === 'bodytube' ? numOr(n['outerRadius'])
+      : n.type === 'transition' ? numOr(n['foreRadius']) : undefined;
+  const label = (n: ComponentNode) => (typeof n.name === 'string' ? n.name : n.type);
+
+  const set = (n: ComponentNode, key: string, flag: string, value: number,
+               into: Set<string>) => {
+    n[key] = value;
+    delete n[flag];
+    into.add(label(n));
+  };
+
+  const resolveStack = (siblings: ComponentNode[]) => {
+    const stack = siblings.filter(isAirframe);
+    // Forward: inherit the previous component's aft radius.
+    let running: number | undefined;
+    for (const n of stack) {
+      if (n['_autoForeRadius'] && running !== undefined) set(n, 'foreRadius', '_autoForeRadius', running, resolved);
+      if (n['_autoOuterRadius'] && running !== undefined) set(n, 'outerRadius', '_autoOuterRadius', running, resolved);
+      if (n['_autoAftRadius'] && running !== undefined) set(n, 'aftRadius', '_autoAftRadius', running, resolved);
+      const aft = aftOf(n);
+      if (aft !== undefined) running = aft;
+    }
+    // Backward: leading autos inherit the next component's fore radius.
+    let back: number | undefined;
+    for (let i = stack.length - 1; i >= 0; i--) {
+      const n = stack[i];
+      if (n['_autoAftRadius'] && back !== undefined) set(n, 'aftRadius', '_autoAftRadius', back, resolved);
+      if (n['_autoOuterRadius'] && back !== undefined) set(n, 'outerRadius', '_autoOuterRadius', back, resolved);
+      if (n['_autoForeRadius'] && back !== undefined) set(n, 'foreRadius', '_autoForeRadius', back, resolved);
+      const fore = foreOf(n);
+      if (fore !== undefined) back = fore;
+    }
+    // Isolated autos with no neighbour: fall back to 12 mm.
+    for (const n of stack) {
+      if (n['_autoForeRadius']) set(n, 'foreRadius', '_autoForeRadius', FALLBACK, unresolved);
+      if (n['_autoOuterRadius']) set(n, 'outerRadius', '_autoOuterRadius', FALLBACK, unresolved);
+      if (n['_autoAftRadius']) set(n, 'aftRadius', '_autoAftRadius', FALLBACK, unresolved);
+    }
+  };
+
+  const walk = (siblings: ComponentNode[]) => {
+    resolveStack(siblings);
+    for (const n of siblings) if (n.children?.length) walk(n.children);
+  };
+  walk(nodes);
+
+  if (resolved.size) {
+    notes.push(`Automatic ("auto") diameters resolved from neighbouring components, ` +
+      `the way desktop OpenRocket does: ${[...resolved].join(', ')}.`);
+  }
+  if (unresolved.size) {
+    notes.push(`Automatic ("auto") diameters had no neighbour to match and defaulted to ` +
+      `${(FALLBACK * 2 * 1000).toFixed(0)} mm: ${[...unresolved].join(', ')}.`);
+  }
 }
 
 /**
@@ -1018,7 +1117,7 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
       emit(depth + 2, `<diameter>${m.diameter}</diameter>`);
       emit(depth + 2, `<length>${m.length}</length>`);
       // Plugged (no ejection charge) → the desktop's literal "none".
-      emit(depth + 2, `<delay>${m.delay >= PLUGGED_DELAY ? 'none' : m.delay}</delay>`);
+      emit(depth + 2, `<delay>${Number.isFinite(m.delay) ? m.delay : 'none'}</delay>`);
       emit(depth + 1, '</motor>');
     }
     for (const c of withMotor) {
@@ -1580,6 +1679,23 @@ function num(el: Element, tag: string, fallback: number): number {
   // Values like "auto 0.012" carry an automatic flag + last value.
   const v = t ? Number(t.split(/\s+/).pop()) : NaN;
   return Number.isFinite(v) ? v : fallback;
+}
+
+/**
+ * Read a radius-like field, distinguishing three cases desktop OpenRocket writes:
+ *  - a number ("0.05") or a modern automatic value ("auto 0.05") → { value }
+ *  - a bare "auto" with NO number (OpenRocket 15.03 and earlier) → { auto: true }
+ *  - absent → null
+ * A bare "auto" must be resolved from the neighbouring component (see
+ * resolveAutoRadii), NOT defaulted to a fixed size — doing the latter shrank a
+ * 4-inch airframe to a 12 mm tube and imported 3–4× too much drag.
+ */
+function radiusField(el: Element, tag: string): { value: number } | { auto: true } | null {
+  const t = text(el, `:scope > ${tag}`);
+  if (t == null || t.trim() === '') return null;
+  const last = Number(t.trim().split(/\s+/).pop());
+  if (Number.isFinite(last)) return { value: last };
+  return { auto: true };
 }
 
 function matDensity(el: Element): number | undefined {

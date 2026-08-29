@@ -5,10 +5,8 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Line, Html } from '@react-three/drei';
 import type { ComponentNode, FlightResult, RocketTree } from '../../engine/openRocketEngine';
 import { buildPieces, type MotorDims } from './Rocket3D';
-import { colorForType, mergePalette, type PartPalette } from '../../services/partColors';
-import { useSettings } from '../../state/SettingsProvider';
+import { partColor } from '../../services/partColors';
 import { fmtNum } from '../../i18n/format';
-import { EVENT_LABEL } from '../../services/simReport';
 
 /**
  * 3D flight path (adapted from Vector Celeste's Flight3D, one better). Draws the
@@ -19,6 +17,11 @@ import { EVENT_LABEL } from '../../services/simReport';
  * real diameter, or a streamer, or nothing) on descent. Event callouts, a live
  * HUD, and play · scrub · speed transport.
  */
+const DEFAULT_PHASE = { boost: '#fb923c', coast: '#38bdf8', descent: '#34d399' };
+const PHASE_KEY = 'fp.phaseColors';
+const loadPhaseColors = (): typeof DEFAULT_PHASE => {
+  try { return { ...DEFAULT_PHASE, ...JSON.parse(localStorage.getItem(PHASE_KEY) || '{}') }; } catch { return DEFAULT_PHASE; }
+};
 const MODEL_LEN = 1.6; // scene units the rocket model is scaled to — kept small vs the ~24u arc; the follow-cam makes it readable
 const PLAY_SECONDS = 8; // wall-clock length of a full 1× playback (time-based, so boost isn't slow)
 const UP = new THREE.Vector3(0, 1, 0);
@@ -28,13 +31,13 @@ type Recovery =
   | { kind: 'parachute'; diameter: number; color: string }
   | { kind: 'streamer'; length: number; width: number; color: string }
   | null;
-const recColor = (n: ComponentNode, palette: PartPalette): string => (typeof n.color === 'string' ? n.color : colorForType(n.type, palette));
-function findRecovery(tree: RocketTree, palette: PartPalette): Recovery {
+const recColor = (n: ComponentNode): string => (typeof n.color === 'string' ? n.color : partColor(n.type));
+function findRecovery(tree: RocketTree): Recovery {
   let found: Recovery = null;
   const walk = (nodes: ComponentNode[]) => {
     for (const n of nodes) {
-      if (!found && n.type === 'parachute') found = { kind: 'parachute', diameter: num(n, 'diameter', 0.3), color: recColor(n, palette) };
-      else if (!found && n.type === 'streamer') found = { kind: 'streamer', length: num(n, 'length', 0.4), width: num(n, 'width', 0.05), color: recColor(n, palette) };
+      if (!found && n.type === 'parachute') found = { kind: 'parachute', diameter: num(n, 'diameter', 0.3), color: recColor(n) };
+      else if (!found && n.type === 'streamer') found = { kind: 'streamer', length: num(n, 'length', 0.4), width: num(n, 'width', 0.05), color: recColor(n) };
       if (n.children) walk(n.children);
     }
   };
@@ -42,23 +45,27 @@ function findRecovery(tree: RocketTree, palette: PartPalette): Recovery {
   return found;
 }
 
+const EVENT_LABEL: Record<string, string> = {
+  BURNOUT: 'flight.burnout', APOGEE: 'flight.apogee',
+  RECOVERY_DEVICE_DEPLOYMENT: 'flight.deploy', EJECTION_CHARGE: 'flight.ejection', GROUND_HIT: 'flight.landing',
+};
+
 export function FlightPath3D({ result, tree, motors }: { result: FlightResult; tree: RocketTree; motors?: MotorDims }) {
   const { t } = useTranslation();
-  const { settings, update } = useSettings();
-  const palette = useMemo(() => mergePalette(settings.partColors), [settings.partColors]);
-  const phase = settings.phaseColors; // boost/coast/descent colors, from Settings
   const [progress, setProgress] = useState(0);
   const [playing, setPlaying] = useState(false); // start on the pad; play → countdown → launch
-  const [speed, setSpeed] = useState(settings.playbackSpeed); // seeded from the Settings default
+  const [speed, setSpeed] = useState(1);
   const [follow, setFollow] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [loop, setLoop] = useState(false);
+  const [phase, setPhase] = useState(loadPhaseColors); // boost/coast/descent colors, persisted
+  useEffect(() => { try { localStorage.setItem(PHASE_KEY, JSON.stringify(phase)); } catch { /* ignore */ } }, [phase]);
   const progressRef = useRef(0);
 
-  const { pieces, totalLen, maxR } = useMemo(() => buildPieces(tree, motors, palette), [tree, motors, palette]);
+  const { pieces, totalLen, maxR } = useMemo(() => buildPieces(tree, motors), [tree, motors]);
   useEffect(() => () => { for (const p of pieces) p.geometry.dispose(); }, [pieces]);
   const modelScale = MODEL_LEN / Math.max(totalLen, 0.05);
-  const recovery = useMemo(() => findRecovery(tree, palette), [tree, palette]);
+  const recovery = useMemo(() => findRecovery(tree), [tree]);
 
   const { colors, scenePts, apogeeIdx, deployT, burnoutT, times, alts, vels, callouts } = useMemo(() => {
     const time = (result.series.time ?? []) as number[];
@@ -95,6 +102,7 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
     }
     return {
       colors: cols, scenePts: sp, apogeeIdx: ai, deployT: dpT, burnoutT: bt,
+      flightTime: result.summary.flightTime || rows[rows.length - 1]?.t || 1,
       times: rows.map((r) => r.t), alts: rows.map((r) => r.a), vels: rows.map((r) => r.v), callouts: cos,
     };
   }, [result, phase]);
@@ -133,11 +141,6 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
   };
   const handleReset = () => { setPlaying(false); setCountdown(null); progressRef.current = 0; setProgress(0); };
 
-  // Camera framing derives from the trajectory's peak. Computed BEFORE the early
-  // return so the useMemo below is never skipped — hook count must stay constant.
-  const maxY = Math.max(...scenePts.map((p) => p.y));
-  const home = useMemo(() => new THREE.Vector3(maxY * 1.15, maxY * 0.62, maxY * 1.4), [maxY]);
-
   if (scenePts.length < 2) {
     return <div className="grid h-full place-items-center text-sm text-slate-500">{t('sim.prompt')}</div>;
   }
@@ -152,7 +155,9 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
   const nowT = times[idx] ?? 0;
   const descending = nowT >= deployT;
   const boosting = nowT < burnoutT;
+  const maxY = Math.max(...scenePts.map((p) => p.y));
   const midY = maxY / 2;
+  const home = useMemo(() => new THREE.Vector3(maxY * 1.15, maxY * 0.62, maxY * 1.4), [maxY]);
   const followDist = MODEL_LEN * 3.4;
 
   // Orient nose (local -X) along velocity, or hang nose-up once the chute is out.
@@ -217,9 +222,9 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
         <Hud label={t('flight.time')} value={`${fmtNum(nowT, 1)} s`} />
       </div>
       <div className="pointer-events-none absolute right-3 top-3 flex flex-col gap-1 rounded-lg bg-slate-900/80 px-2 py-1.5 text-[10px] ring-1 ring-white/10">
-        <Legend color={phase.boost} label={t('flight.boost')} onChange={(c) => update({ phaseColors: { ...phase, boost: c } })} />
-        <Legend color={phase.coast} label={t('flight.coast')} onChange={(c) => update({ phaseColors: { ...phase, coast: c } })} />
-        <Legend color={phase.descent} label={t('flight.descent')} onChange={(c) => update({ phaseColors: { ...phase, descent: c } })} />
+        <Legend color={phase.boost} label={t('flight.boost')} onChange={(c) => setPhase((p) => ({ ...p, boost: c }))} />
+        <Legend color={phase.coast} label={t('flight.coast')} onChange={(c) => setPhase((p) => ({ ...p, coast: c }))} />
+        <Legend color={phase.descent} label={t('flight.descent')} onChange={(c) => setPhase((p) => ({ ...p, descent: c }))} />
       </div>
       <div className="absolute inset-x-3 bottom-3 flex items-center gap-2 rounded-lg bg-slate-900/85 px-3 py-2 ring-1 ring-white/10">
         <button onClick={handlePlay} className="shrink-0 rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-200 ring-1 ring-white/10 hover:bg-slate-700">

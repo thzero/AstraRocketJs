@@ -44,7 +44,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
       continue;
     }
     try {
-      const spec = await fetchMotorSpec(cat, ref.delay);
+      const spec = await fetchMotorSpec(cat, Number.isFinite(ref.delay) ? ref.delay : 0);
       design.setMotorById(mountId, spec);
       const entry: MountMotor = { spec };
       if (ref.ignitionEvent && IGNITION_EVENTS.has(ref.ignitionEvent)) {

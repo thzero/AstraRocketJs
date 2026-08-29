@@ -17,8 +17,7 @@ import {
   type ExportData, type ImageFormat,
 } from '../../services/schematicExport.js';
 import { stabilityState, type StabilityState } from '../../services/simReport.js';
-import { colorForType, DEFAULT_PART_COLORS, mergePalette, type PartPalette } from '../../services/partColors';
-import { useSettings } from '../../state/SettingsProvider';
+import { partColor, MOTOR_COLOR } from '../../services/partColors';
 import { ImageExportMenu, type ImageExportOptions } from './ImageExportMenu.js';
 
 /**
@@ -35,9 +34,8 @@ import { ImageExportMenu, type ImageExportOptions } from './ImageExportMenu.js';
 const presetStyle = (active: boolean): import('react').CSSProperties =>
   active ? { background: '#0284c7', borderColor: '#0284c7', color: '#fff' } : {};
 
-// A component's own `color` override, else its group colour from the palette.
-const nodeColor = (n: ComponentNode, palette: PartPalette): string =>
-  typeof n['color'] === 'string' ? (n['color'] as string) : colorForType(n.type, palette);
+// A component's own `color` override, else the type's default from the shared palette.
+const nodeColor = (n: ComponentNode): string => typeof n['color'] === 'string' ? (n['color'] as string) : partColor(n.type);
 
 const num = (n: ComponentNode, key: string, fb: number): number =>
   typeof n[key] === 'number' ? (n[key] as number) : fb;
@@ -91,7 +89,7 @@ export interface Piece {
 export type MotorDims = Record<string, { length: number; diameter: number; label?: string }>;
 
 /** Shared with the OBJ exporter — this IS the app's 3D geometry. */
-export function buildPieces(tree: RocketTree, motors?: MotorDims, palette: PartPalette = DEFAULT_PART_COLORS): { pieces: Piece[]; totalLen: number; maxR: number } {
+export function buildPieces(tree: RocketTree, motors?: MotorDims): { pieces: Piece[]; totalLen: number; maxR: number } {
   const pieces: Piece[] = [];
   let maxR = 0.005;
   let k = 0;
@@ -171,7 +169,7 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims, palette: PartP
       g.translate(start, pRadius, 0);
       g.applyMatrix4(new THREE.Matrix4().makeRotationX(angle));
       if (xform) g.applyMatrix4(xform); // off-axis pod instance
-      pieces.push({ key: `fin${k++}`, id: child.id, geometry: g, color: nodeColor(child, palette) });
+      pieces.push({ key: `fin${k++}`, id: child.id, geometry: g, color: nodeColor(child) });
     }
     geo.dispose();
   };
@@ -204,7 +202,7 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims, palette: PartP
           geo.translate(start, pRadius + rt, 0);
           geo.applyMatrix4(new THREE.Matrix4().makeRotationX(angle));
           if (xform) geo.applyMatrix4(xform);
-          pieces.push({ key: `tubefin${k++}`, id: child.id, geometry: geo, color: nodeColor(child, palette) });
+          pieces.push({ key: `tubefin${k++}`, id: child.id, geometry: geo, color: nodeColor(child) });
         }
       } else if (child.type === 'fairing') {
         // External shroud on the +Y surface (radial angle not modeled).
@@ -214,14 +212,14 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims, palette: PartP
         const start = axialStart(child, len, pStart, pLen);
         maxR = Math.max(maxR, pRadius + hgt);
         const geo = new THREE.BoxGeometry(len, hgt, wid);
-        place(`fairing${k++}`, geo, nodeColor(child, palette),
+        place(`fairing${k++}`, geo, nodeColor(child),
           [start + len / 2, pRadius + hgt / 2, 0], [0, 0, 0], xform);
       } else if (child.type === 'launchlug') {
         const len = num(child, 'length', 0.05);
         const r = num(child, 'outerRadius', 0.0022);
         const start = axialStart(child, len, pStart, pLen);
         const geo = new THREE.CylinderGeometry(r, r, len, 16);
-        place(`lug${k++}`, geo, nodeColor(child, palette),
+        place(`lug${k++}`, geo, nodeColor(child),
           [start + len / 2, pRadius + r, 0], [0, 0, -Math.PI / 2], xform);
       } else if (child.type === 'innertube') {
         // Motor mount / inner tube, one per cluster position — visible through
@@ -235,12 +233,12 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims, palette: PartP
           child['cluster'] as string | undefined, r,
           num(child, 'clusterScale', 1), num(child, 'clusterRotation', 0),
         )) {
-          place(`inner${k++}`, new THREE.CylinderGeometry(r, r, len, 32), nodeColor(child, palette),
+          place(`inner${k++}`, new THREE.CylinderGeometry(r, r, len, 32), nodeColor(child),
             [start + len / 2, off.y, off.z], [0, 0, -Math.PI / 2], xform, 'glass');
           if (motor) {
             const mR = motor.diameter / 2;
             const mStart = start + len - motor.length + num(child, 'motorOverhang', 0);
-            place(`motor${k++}`, new THREE.CylinderGeometry(mR, mR, motor.length, 32), palette.motor,
+            place(`motor${k++}`, new THREE.CylinderGeometry(mR, mR, motor.length, 32), MOTOR_COLOR,
               [mStart + motor.length / 2, off.y, off.z], [0, 0, -Math.PI / 2], xform);
           }
         }
@@ -277,14 +275,14 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims, palette: PartP
         const R = num(n, 'aftRadius', 0.012);
         const shapeName = typeof n['shape'] === 'string' ? (n['shape'] as string) : 'ogive';
         const pts = lathePoints(shapeName, numOpt(n, 'shapeParameter'), len, 0, R);
-        place(`nose${k++}`, new THREE.LatheGeometry(pts, 48), nodeColor(n, palette),
+        place(`nose${k++}`, new THREE.LatheGeometry(pts, 48), nodeColor(n),
           [x, 0, 0], [0, 0, -Math.PI / 2], xform, true);
         maxR = Math.max(maxR, R);
         addChildren(n, x, len, R, xform);
         x += len;
       } else if (n.type === 'bodytube') {
         const R = num(n, 'outerRadius', 0.012);
-        place(`body${k++}`, new THREE.CylinderGeometry(R, R, len, 48), nodeColor(n, palette),
+        place(`body${k++}`, new THREE.CylinderGeometry(R, R, len, 48), nodeColor(n),
           [x + len / 2, 0, 0], [0, 0, -Math.PI / 2], xform, true);
         maxR = Math.max(maxR, R);
         // Min-diameter mount: a motor loaded directly in this body tube.
@@ -292,7 +290,7 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims, palette: PartP
         if (tubeMotor) {
           const mR = tubeMotor.diameter / 2;
           const mStart = x + len - tubeMotor.length + num(n, 'motorOverhang', 0);
-          place(`motor${k++}`, new THREE.CylinderGeometry(mR, mR, tubeMotor.length, 32), palette.motor,
+          place(`motor${k++}`, new THREE.CylinderGeometry(mR, mR, tubeMotor.length, 32), MOTOR_COLOR,
             [mStart + tubeMotor.length / 2, 0, 0], [0, 0, -Math.PI / 2], xform);
         }
         addChildren(n, x, len, R, xform);
@@ -307,7 +305,7 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims, palette: PartP
         // file draws the way it simulates.
         const pts = lathePoints(shapeName, numOpt(n, 'shapeParameter'), len, rf, ra,
           typeof n['clipped'] === 'boolean' ? (n['clipped'] as boolean) : undefined);
-        place(`trans${k++}`, new THREE.LatheGeometry(pts, 48), nodeColor(n, palette),
+        place(`trans${k++}`, new THREE.LatheGeometry(pts, 48), nodeColor(n),
           [x, 0, 0], [0, 0, -Math.PI / 2], xform, true);
         maxR = Math.max(maxR, rf, ra);
         addChildren(n, x, len, Math.max(rf, ra), xform);
@@ -669,9 +667,7 @@ export function Rocket3D({ tree, info, motors, exportData, selectedId, onSelect 
   onSelect?: (id: string) => void;
 }) {
   const { t } = useTranslation();
-  const { settings } = useSettings();
-  const palette = useMemo(() => mergePalette(settings.partColors), [settings.partColors]);
-  const { pieces, totalLen, maxR } = useMemo(() => buildPieces(tree, motors, palette), [tree, motors, palette]);
+  const { pieces, totalLen, maxR } = useMemo(() => buildPieces(tree, motors), [tree, motors]);
   const r3f = useRef<{ gl: THREE.WebGLRenderer; scene: THREE.Scene; camera: THREE.Camera } | null>(null);
 
   // Hi-res snapshot (issue 2026-08-11b): re-render the SAME scene/camera at

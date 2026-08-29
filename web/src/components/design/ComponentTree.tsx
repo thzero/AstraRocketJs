@@ -44,18 +44,6 @@ const TYPE_COLOR: Record<string, string> = {
   podset: '#e2e8f0', parallelstage: '#e2e8f0',
 };
 
-// A distinct glyph per component type (mmrocket-style), coloured by TYPE_COLOR so
-// the tree reads by shape AND colour at a glance.
-const TYPE_SYMBOL: Record<string, string> = {
-  stage: '≡',
-  nosecone: '▲', transition: '◣', bodytube: '▭', fairing: '◗',
-  trapezoidfinset: '◹', ellipticalfinset: '◜', freeformfinset: '◿', tubefinset: '⊚',
-  innertube: '▫', tubecoupler: '⊟', centeringring: '◎', bulkhead: '▬', engineblock: '⊙',
-  launchlug: '▮', railbutton: '▪', masscomponent: '◆',
-  parachute: '☂', streamer: '≈', shockcord: '∿',
-  podset: '◧', parallelstage: '❚',
-};
-
 const partLabel = (type: string, t: TFunction): string => t(`part.${type}`, { defaultValue: type });
 
 function detail(n: ComponentNode, t: TFunction): string {
@@ -75,7 +63,6 @@ function Row({ node, depth, selectedId, onSelect, t }: {
   node: ComponentNode; depth: number; selectedId?: string | null; onSelect?: (id: string) => void; t: TFunction;
 }) {
   const color = TYPE_COLOR[node.type] ?? '#94a3b8';
-  const symbol = TYPE_SYMBOL[node.type] ?? '□';
   const label = partLabel(node.type, t);
   const name = typeof node.name === 'string' && node.name ? node.name : label;
   const isMount = node.motorMount === true;
@@ -97,7 +84,7 @@ function Row({ node, depth, selectedId, onSelect, t }: {
         style={{ paddingLeft: 8 + depth * 16 }}
         title={label}
       >
-        <span className="w-4 shrink-0 text-center text-xs leading-none" style={{ color }} aria-hidden>{symbol}</span>
+        <span className="h-2 w-2 shrink-0 rounded-[3px]" style={{ background: color }} />
         <span className={`truncate text-sm ${selected ? 'text-sky-200' : 'text-slate-200'}`}>{name}</span>
         {isMount && (
           <span className="shrink-0 rounded bg-sky-500/15 px-1 text-[10px] font-medium text-sky-300">{t('tree.motorTag')}</span>
@@ -111,10 +98,9 @@ function Row({ node, depth, selectedId, onSelect, t }: {
   );
 }
 
-export function ComponentTree({ tree, selectedId, onSelect, onAdd, onRenameDesign }: {
+export function ComponentTree({ tree, selectedId, onSelect, onAdd }: {
   tree: RocketTree; selectedId?: string | null; onSelect?: (id: string) => void;
   onAdd?: (type: ComponentType) => void;
-  onRenameDesign?: (name: string) => void;
 }) {
   const { t } = useTranslation();
   // The Add menu is contextual: it offers only the child types valid for the
@@ -150,16 +136,7 @@ export function ComponentTree({ tree, selectedId, onSelect, onAdd, onRenameDesig
       </div>
       <div className="flex items-center gap-2 px-2 pb-1">
         <span className="text-sm">🚀</span>
-        {onRenameDesign ? (
-          <input
-            value={tree.name || ''}
-            onChange={(e) => onRenameDesign(e.target.value)}
-            placeholder={t('tree.rocket')} aria-label={t('prop.name')} title={t('prop.name')}
-            className="min-w-0 flex-1 truncate rounded bg-transparent px-1 text-sm font-semibold text-sky-400 hover:bg-slate-800/60 focus:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
-          />
-        ) : (
-          <span className="truncate text-sm font-semibold text-sky-400">{tree.name || t('tree.rocket')}</span>
-        )}
+        <span className="truncate text-sm font-semibold text-sky-400">{tree.name || t('tree.rocket')}</span>
       </div>
       <div className="border-l border-white/5 pl-1">
         {tree.components.length
