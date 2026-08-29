@@ -8,6 +8,12 @@ web/node_modules/
 web/dist/
 *.local
 
+# Playwright (web e2e) — test output + downloaded browsers, never the specs/config
+web/test-results/
+web/playwright-report/
+web/blob-report/
+web/.playwright/
+
 # NOTE: web/src/engine/vendor/orkengine.mjs IS committed — it's the built engine
 # artifact so the web app builds without a JDK (regenerate via engine-java).
 
