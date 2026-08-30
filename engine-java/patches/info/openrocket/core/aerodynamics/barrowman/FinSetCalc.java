@@ -13,6 +13,7 @@ import info.openrocket.core.rocketcomponent.FinSet;
 import info.openrocket.core.rocketcomponent.RocketComponent;
 import info.openrocket.core.util.BugException;
 import info.openrocket.core.util.Coordinate;
+import info.openrocket.core.util.CoordinateIF;
 import info.openrocket.core.util.LinearInterpolator;
 import info.openrocket.core.util.MathUtil;
 import info.openrocket.core.util.PolyInterpolator;
@@ -44,8 +45,6 @@ public class FinSetCalc extends RocketComponentCalc {
 	
 	protected final WarningSet geometryWarnings = new WarningSet();
 	
-	private final double[] poly = new double[6];
-
 	private final double thickness;
 	private final double bodyRadius;
 	private final int finCount;
@@ -130,7 +129,6 @@ public class FinSetCalc extends RocketComponentCalc {
 		this.finLeRadius = component.getFinLeRadius();
 		
 		calculateFinGeometry(component);
-		calculatePoly();
 		calculateInterferenceFinCount(component);
 		calculateAfterbodyFactor(component);
 	}
@@ -240,11 +238,12 @@ public class FinSetCalc extends RocketComponentCalc {
 			break;
 		}
 				
-		// Body-fin interference effect
+		// Combined body-fin interference effect on the normal force
 		double r = bodyRadius;
 		double tau = r / (span + r);
-		if (Double.isNaN(tau) || Double.isInfinite(tau))
+		if (Double.isNaN(tau) || Double.isInfinite(tau)) {
 			tau = 0;
+		}
 		if (supersonicAero) {
 			// PATCH (feature #1 Phase 1): exact NACA 1307 slender-body split.
 			// K_W(B) multiplies the fin panels; K_B(W) is the body carryover,
@@ -253,9 +252,16 @@ public class FinSetCalc extends RocketComponentCalc {
 			double kbw = pow2(1 + tau) - kwb;
 			cna *= kwb + afterbodyFactor * kbw;
 		} else {
-			cna *= 1 + tau; // Classical Barrowman
+			/*
+			 * (unstable classic path) TODO: Replace this scalar approximation with
+			 * the complete fin/body method from NACA Report 1307 (equations 13-34
+			 * and 58-71; charts 1-5 and 10-16). The report's two-panel,
+			 * constant-radius model must first be generalized and validated for
+			 * radial fin sets; preserve this approximation as the fallback outside
+			 * the full method's applicability range.
+			 */
+			cna *= calculateBodyFinInterferenceFactor(tau, conditions.getMach());
 		}
-		//		cna *= pow2(1 + tau);	// Barrowman thesis (too optimistic??)
 		//		logger.debug("Component cna = {}", cna);
 		
 		// TODO: LOW: check for fin tip mach cone interference
@@ -271,7 +277,8 @@ public class FinSetCalc extends RocketComponentCalc {
 		// Without body-fin interference effect:
 		//		forces.CrollForce = fins * (macSpan+r) * cna1 * component.getCantAngle() / 
 		//			conditions.getRefLength();
-		// With body-fin interference effect:
+		// The body-in-fin lift does not act through the canted fin surface, so
+		// roll forcing retains only the classical fin-in-body correction.
 		forces.setCrollForce((macSpan + r) * cna1 * (1 + tau) * cantAngle / conditions.getRefLength());
 		
 		if (conditions.getAOA() > STALL_ANGLE) {
@@ -293,7 +300,8 @@ public class FinSetCalc extends RocketComponentCalc {
 		// (feature #1 Phase 1: the NACA-1307 interference above already contains
 		// the full body carryover, so the separate Kbf term is suppressed while
 		// supersonicAero is on — it would double-count.)
-		Coordinate cp = new Coordinate(x, 0, 0, cna);
+		// Upstream refactor: CP coordinate is CoordinateIF (average() returns CoordinateIF).
+		CoordinateIF cp = new Coordinate(x, 0, 0, cna);
 		if (rogersKbf && !supersonicAero && tau > 0) {
 			double rootLead = chordLead[0];
 			double rootTrail = chordTrail[0];
@@ -304,9 +312,9 @@ public class FinSetCalc extends RocketComponentCalc {
 			}
 			cp = cp.average(new Coordinate(xCarry, 0, 0, tau * cna));
 		}
-		forces.setCN(cp.weight * MathUtil.min(conditions.getAOA(), STALL_ANGLE));
+		forces.setCN(cp.getWeight() * MathUtil.min(conditions.getAOA(), STALL_ANGLE));
 		forces.setCP(cp);
-		forces.setCm(forces.getCN() * cp.x / conditions.getRefLength());
+		forces.setCm(forces.getCN() * cp.getX() / conditions.getRefLength());
 		
 		/*
 		 * TODO: HIGH:  Compute actual side force and yaw moment.
@@ -345,7 +353,9 @@ public class FinSetCalc extends RocketComponentCalc {
 	 * Pre-calculates the fin geometry values.
 	 */
 	protected void calculateFinGeometry(FinSet component) {
-		
+
+		geometryWarnings.clear();
+
 		span = component.getSpan();
 		finArea = component.getPlanformArea();
 		if (finArea < MathUtil.EPSILON) {
@@ -354,18 +364,17 @@ public class FinSetCalc extends RocketComponentCalc {
 		} else {
 			ar = 2 * pow2(span) / finArea;
 		}
-		
+
 		// Check geometry; don't consider points along fin root for this
 		// (doing so will cause spurious jagged fin warnings)
-		Coordinate[] points = component.getFinPoints();
-		geometryWarnings.clear();
+		CoordinateIF[] points = component.getFinPoints();
 		boolean down = false;
 		for (int i = 1; i < points.length; i++) {
-			if ((points[i].y > points[i - 1].y + 0.001) && down) {
+			if ((points[i].getY() > points[i - 1].getY() + 0.001) && down) {
 				geometryWarnings.add(Warning.JAGGED_EDGED_FIN, component);
 				break;
 			}
-			if (points[i].y < points[i - 1].y - 0.001) {
+			if (points[i].getY() < points[i - 1].getY() - 0.001) {
 				down = true;
 			}
 		}
@@ -383,10 +392,10 @@ public class FinSetCalc extends RocketComponentCalc {
 		Arrays.fill(chordLength, 0);
 		
 		for (int point = 1; point < points.length; point++) {
-			double x1 = points[point - 1].x;
-			double y1 = points[point - 1].y;
-			double x2 = points[point].x;
-			double y2 = points[point].y;
+			double x1 = points[point - 1].getX();
+			double y1 = points[point - 1].getY();
+			double x2 = points[point].getX();
+			double y2 = points[point].getY();
 			
 			// Don't use the default EPSILON since it is too small
 			// and causes too much numerical instability in the computation of x below
@@ -458,7 +467,7 @@ public class FinSetCalc extends RocketComponentCalc {
 		cosGammaLead = 0;
 		rollSum = 0;
 		double area = 0;
-		double radius = component.getFinFront().y;
+		double radius = component.getFinFront().getY();
 		
 		final double dy = span / (DIVISIONS - 1);
 		for (int i = 0; i < DIVISIONS; i++) {
@@ -537,6 +546,34 @@ public class FinSetCalc extends RocketComponentCalc {
 		K2 = new LinearInterpolator(x, k2);
 		K3 = new LinearInterpolator(x, k3);
 	}
+
+	/**
+	 * Calculate the combined fin-in-body and body-in-fin normal-force multiplier.
+	 *
+	 * <p>For slender configurations, equations 14 and 21 of NACA Report 1307
+	 * combine to {@code (1 + tau)^2}.  OpenRocket does not yet model the
+	 * supersonic Mach-cone geometry needed for the body contribution, so that
+	 * additional term is blended out over the existing transonic CNa interval.
+	 * The classical fin-in-body term remains at all Mach numbers.</p>
+	 *
+	 * @param tau body radius divided by the fin semispan measured from the rocket axis
+	 * @param mach flight Mach number
+	 * @return total body-fin interference multiplier
+	 * @see <a href="https://ntrs.nasa.gov/citations/19930091008">NACA Report 1307</a>
+	 */
+	static double calculateBodyFinInterferenceFactor(double tau, double mach) {
+		double finInBodyFactor = 1 + tau;
+		if (mach <= CNA_SUBSONIC) {
+			return pow2(finInBodyFactor);
+		}
+		if (mach >= CNA_SUPERSONIC) {
+			return finInBodyFactor;
+		}
+
+		double bodyInFinFactor = tau * finInBodyFactor;
+		double bodyContributionWeight = (CNA_SUPERSONIC - mach) / (CNA_SUPERSONIC - CNA_SUBSONIC);
+		return finInBodyFactor + bodyContributionWeight * bodyInFinFactor;
+	}
 	
 	protected double calculateFinCNa1(FlightConditions conditions) {
 		double mach = conditions.getMach();
@@ -573,7 +610,7 @@ public class FinSetCalc extends RocketComponentCalc {
 
 		double sq = MathUtil.safeSqrt(1 + (1 - pow2(CNA_SUBSONIC)) * pow2(span * span / (finArea * cosGamma)));
 		subV = 2 * Math.PI * pow2(span) / ref / (1 + sq);
-		subD = 2 * mach * Math.PI * pow(span, 6) / (pow2(finArea * cosGamma) * ref *
+		subD = 2 * CNA_SUBSONIC * Math.PI * pow(span, 6) / (pow2(finArea * cosGamma) * ref *
 				sq * pow2(1 + sq));
 
 		// (feature #1 Phase 1: the supersonic endpoint of the bridge scales with
@@ -596,6 +633,114 @@ public class FinSetCalc extends RocketComponentCalc {
 		double beta = MathUtil.safeSqrt(mach * mach - 1);
 		double corr = Math.max(1 - 1 / (2 * ar * beta), 0.25);
 		return 2 * corr;
+	}
+
+	/**
+	 * PATCH (feature #1 Phase 5): sweep relief on fin THICKNESS wave drag.
+	 * <p>
+	 * Phase 2/3 apply the simple-sweep cos^2(Gamma_LE) relief at every Mach.
+	 * That is only valid while the leading edge is subsonic-normal
+	 * (Mn = M*cos Gamma &lt; 1); once the LE goes sonic the independence
+	 * principle fails and the section behaves 2D at the streamwise Mach
+	 * (Puckett-Stewart supersonic-LE wings approach the unswept 4 tau^2/beta
+	 * level; DATCOM 4.1.5.1's sweep charts show the same collapse). Measured
+	 * consequence on NACA RM A53D02, whose fins have tan Gamma_LE = 3 exactly
+	 * (cos^2 = 0.100): fin wave drag 0.00053 at M5 where ~0.005 is right.
+	 * <p>
+	 * beta*cos Gamma / beta_n is the sheared-wing strip result
+	 * K (tau/cos Gamma)^2/beta_n * cos^3 Gamma rewritten as a factor on the
+	 * code's unswept K tau^2/beta; it tends to 1 as M grows and is capped at 1
+	 * so sweep never INCREASES thickness drag in this model.
+	 * Unswept fins (cos Gamma = 1) return 1 at every Mach, exactly as
+	 * pow2(cosGammaLead) did.
+	 */
+	private double sweepWaveFactor(double mach) {
+		double c2 = pow2(cosGammaLead);
+		double mn = mach * cosGammaLead;
+		if (mn <= 0.9) {
+			return c2;
+		}
+		if (mn < 1.05) {
+			double t = (mn - 0.9) / 0.15;
+			double s = t * t * (3 - 2 * t);
+			return c2 + (1 - c2) * s;
+		}
+		double beta = MathUtil.safeSqrt(mach * mach - 1);
+		double betaN = MathUtil.safeSqrt(mn * mn - 1);
+		return Math.min(1.0, Math.max(c2, beta * cosGammaLead / betaN));
+	}
+
+	/** PATCH (feature #1 Phase 6): thickness-wave transonic band edges. */
+	private static final double WAVE_ONSET_MACH = 0.90;
+	private static final double WAVE_PEAK_MACH = 1.05;
+	/**
+	 * PATCH (feature #1 Phase 6): the transonic similarity parameter
+	 * K = (M^2-1)/[(gamma+1) M^2 tau]^(2/3) at which the LINEARIZED thickness
+	 * wave drag is taken to be trustworthy. K &gt;~ 1 is the textbook validity
+	 * criterion for linearized (Ackeret) supersonic thin-section theory
+	 * (transonic small-disturbance similarity: Liepmann &amp; Roshko
+	 * "Elements of Gasdynamics" ch. 12; Ashley &amp; Landahl "Aerodynamics of
+	 * Wings and Bodies" ch. 12). 1.0 is the criterion itself, not a fit — see
+	 * the sensitivity sweep in validation/scorecard-phase6-2026-08-25.md.
+	 */
+	private static final double SS_TRANSONIC_K = 1.0;
+
+	/**
+	 * PATCH (feature #1 Phase 6): effective beta for linearized thickness wave
+	 * drag, floored at the transonic-similarity limit.
+	 * <p>
+	 * beta_T = sqrt(K) * [(gamma+1) M^2 tau]^(1/3) is the free-stream beta at
+	 * which the similarity parameter equals K, so flooring beta there freezes
+	 * the branch at its last trustworthy value instead of letting the 1/beta
+	 * singularity run away as M -&gt; 1+. The frozen value is
+	 * factor*tau^2/[(gamma+1)tau]^(1/3) ~ tau^(5/3), which is the classic
+	 * transonic-similarity scaling of the peak section wave drag — the law
+	 * comes out of the floor rather than being asserted.
+	 */
+	private static double betaEffThickness(double mach, double tau) {
+		double beta = MathUtil.safeSqrt(mach * mach - 1);
+		double betaT = Math.sqrt(SS_TRANSONIC_K)
+				* pow((GAMMA + 1) * mach * mach * tau, 1.0 / 3.0);
+		return Math.max(beta, betaT);
+	}
+
+	/**
+	 * PATCH (feature #1 Phase 6): transonic SHAPE of the linearized thickness
+	 * wave drag — the same defect, and the same treatment, as the Phase-5
+	 * boat tail.
+	 * <p>
+	 * Phases 2/3 blended LINEARLY from zero at M0.9 up to the branch value at
+	 * M1.2 and only then followed factor*tau^2/beta. But that branch DECREASES
+	 * with Mach (it is 2.07x larger at M1.05 than at M1.20 for this fin), so
+	 * the ramp put the term's maximum at exactly M1.200 — the top of its own
+	 * bridge — while the physics it bridges onto was already falling. Measured
+	 * on the re-fixtured ARCAS Long (flag on, Re-matched): the fin-set wave row
+	 * climbed 0.0254 (M1.05) -&gt; 0.0673 (M1.20) where the tunnel total FALLS
+	 * 0.085 over the same interval.
+	 * <p>
+	 * Phase 6 replaces it with the boat tail's construction:
+	 * <pre>
+	 *   M &lt;= 0.90        zero (profile drag lives in the friction form factor)
+	 *   0.90 -&gt; 1.05     smoothstep rise to the transonic peak
+	 *   M &gt;= 1.05        factor*tau^2/beta_eff, monotone decreasing in M
+	 * </pre>
+	 * M0.90/M1.05 are RASAero's own regime boundaries (RASAero II Users Manual
+	 * p.90: Subsonic M0.01-0.90, Transonic M0.91-1.04, Supersonic-Hypersonic
+	 * from M1.05), and the peak height is set by the similarity floor in
+	 * {@link #betaEffThickness} rather than by the band edge. Above the Mach
+	 * where beta exceeds the floor (M ~ 1.13 for a 4.4 % section) the result is
+	 * bit-identical to the old branch, so nothing supersonic moves.
+	 */
+	private double thicknessWave(double mach, double factor, double tau) {
+		if (mach <= WAVE_ONSET_MACH || tau <= 0) {
+			return 0;
+		}
+		double peak = factor * tau * tau / betaEffThickness(WAVE_PEAK_MACH, tau);
+		if (mach >= WAVE_PEAK_MACH) {
+			return factor * tau * tau / betaEffThickness(mach, tau);
+		}
+		double t = (mach - WAVE_ONSET_MACH) / (WAVE_PEAK_MACH - WAVE_ONSET_MACH);
+		return peak * t * t * (3 - 2 * t);
 	}
 
 	private static double k1Analytic(double M) {
@@ -697,7 +842,7 @@ public class FinSetCalc extends RocketComponentCalc {
 	 * Return the relative position of the CP along the mean aerodynamic chord.
 	 * Below mach 0.5 it is at the quarter chord, above mach 2 calculated using an
 	 * empirical formula, between these two using an interpolation polynomial.
-	 * 
+	 *
 	 * @param cond   Mach speed used
 	 * @return		 CP position along the MAC
 	 */
@@ -706,51 +851,15 @@ public class FinSetCalc extends RocketComponentCalc {
 
 		if (m <= 0.5) {
 			// At subsonic speeds CP at quarter chord
-			return 0.25;
+			return SUBSONIC_CP_POS;
 		}
 		if (m >= 2) {
 			// At supersonic speeds use empirical formula
-			double beta = cond.getBeta();
-			return (ar * beta - 0.67) / (2 * ar * beta - 1);
-		}
-		
-		// In between use interpolation polynomial
-		double x = 1.0;
-		double val = 0;
-
-		for (double v : poly) {
-			val += v * x;
-			x *= m;
+			return supersonicCPPos(ar * cond.getBeta());
 		}
 
-		return val;
-	}
-	
-	/**
-	 * Calculate CP position interpolation polynomial coefficients from the
-	 * fin geometry.  This is a fifth order polynomial that satisfies
-	 * 
-	 * p(0.5)=0.25
-	 * p'(0.5)=0
-	 * p(2) = f(2)
-	 * p'(2) = f'(2)
-	 * p''(2) = 0
-	 * p'''(2) = 0
-	 * 
-	 * where f(M) = (ar*sqrt(M^2-1) - 0.67) / (2*ar*sqrt(M^2-1) - 1).
-	 * 
-	 * The values were calculated analytically in Mathematica.  The coefficients
-	 * are used as poly[0] + poly[1]*x + poly[2]*x^2 + ...
-	 */
-	private void calculatePoly() {
-		double denom = pow2(1 - 3.4641 * ar); // common denominator
-		
-		poly[5] = (-1.58025 * (-0.728769 + ar) * (-0.192105 + ar)) / denom;
-		poly[4] = (12.8395 * (-0.725688 + ar) * (-0.19292 + ar)) / denom;
-		poly[3] = (-39.5062 * (-0.72074 + ar) * (-0.194245 + ar)) / denom;
-		poly[2] = (55.3086 * (-0.711482 + ar) * (-0.196772 + ar)) / denom;
-		poly[1] = (-31.6049 * (-0.705375 + ar) * (-0.198476 + ar)) / denom;
-		poly[0] = (9.16049 * (-0.588838 + ar) * (-0.20624 + ar)) / denom;
+		// Use the shared shape-preserving interpolation between the two regimes.
+		return transonicCPPos(m, ar);
 	}
 	
 	
@@ -795,13 +904,97 @@ public class FinSetCalc extends RocketComponentCalc {
 		}
 
 		double cd = componentCf * (1 + 2 * thickness / macLength) * 2 * finArea / conditions.getRefArea();
-		// PATCH (feature #1 Phase 2): fin-body junction interference drag.
-		// The ARCAS fins-on/fins-off tunnel increment (NASA TN D-4013: the fin
-		// set adds ~0.073-0.08 CD where bare fin friction accounts for ~0.036)
-		// shows the interference is comparable to the fin friction itself, and
-		// RASAero prints a "Fin Interference" drag component of that same
-		// relative size. Flag on: +80% of the fin friction drag.
-		if (supersonicAero) {
+		// PATCH (feature #1 Phase 2): fin-in-presence-of-body interference drag,
+		// ported from RASAero II's "Fin Interference" drag component. RASAero's
+		// own Run Test output prints that component at ~0.84x the fin friction
+		// term at BOTH ends of its Mach range - RASAero II Users Manual p.90
+		// (M0.50: Fin Frict&Press 0.050, Fin Interference 0.042) and p.92
+		// (M2.00: Fin Frict 0.037, Fin Wave 0.067, Fin Interference 0.031).
+		// Flag on: +80% of the fin friction drag. Mach-flat, as RASAero's is.
+		//
+		// PROVENANCE CORRECTED 2026-08-25, and the number RE-MEASURED rather
+		// than re-asserted - full accounting in
+		// validation/scorecard-junction-2026-08-25.md:
+		//  - It is NOT anchored to the ARCAS fins-on/fins-off increment, as an
+		//    earlier version of this comment claimed. That increment (TN D-4013
+		//    CA,corr, Short: 0.073 / 0.078 / 0.080 at M0.60 / 0.70 / 0.80) also
+		//    contains the tunnel model's fin-anchor brackets, which RASAero
+		//    books in a SEPARATE Protuberance column (manual p.92 note; its
+		//    ARCAS deck slide 2 enters those anchors as a rail guide), plus fin
+		//    LE bluntness this kernel charges only when finLeRadius is given.
+		//    It is an UPPER BOUND on fin+interference drag, not a calibration
+		//    target - and taken literally it asks for 2.08x / 2.25x / 2.34x at
+		//    M0.60 / 0.70 / 0.80, not 1.8x.
+		//  - It is NOT junction interference in the Hoerner sense: a junction is
+		//    a corner effect whose drag area scales with t^2, while this scales
+		//    with fin wetted area x Cf. Implied per-junction coefficient across
+		//    the three finned validation cells: 0.92 (ARCAS), 0.47 (Basic
+		//    Finner), 0.52 (RM A53D02) - a factor of two apart, and not tracking
+		//    fin thickness. Do not describe it as a junction term.
+		//  - Removing it entirely was BUILT and SCORED: 65 of 83 gated CD rows
+		//    move away from the data (18 move closer), the aggregate accuracy
+		//    RMS of |delta|/tol goes 2.455 -> 2.595, and both tester flights
+		//    over-predict further. Gate count alone reads +1 because the six
+		//    ARCAS supersonic gates it flips sit on their tolerance edges.
+		//  - Those six gates cannot be attributed to this term either way:
+		//    there is no fins-off tunnel data above M1.2 anywhere in the anchor
+		//    set. Below M1.2, where there IS such data, 1.8x still leaves our
+		//    fin increment 14-39% SHORT of the measured one (0.0631 vs 0.073
+		//    and 0.0616 vs 0.080 on ARCAS Short at M0.60/M0.80; 0.0605 vs 0.100
+		//    on ARCAS Long at M0.60). At 1.0x it is 52-66% short.
+		// Whether it should apply in BOTH models rather than only flag-on is
+		// measured in the same scorecard and is the owner's call (it moves
+		// desktop-OpenRocket parity, so it is not made here).
+		//
+		// MACH-FLAT IS THE MEASURED ANSWER, NOT A SIMPLIFICATION - checked
+		// 2026-08-25, do not re-litigate without new data. It was proposed
+		// (docs/research/trf-aero-research-2026-08-25.md 1.3) that this factor
+		// should fade toward 1.0 by M1.5-2, on the reasoning that junction /
+		// horseshoe-vortex interference is a subsonic boundary-layer effect.
+		// Both halves of that were tested and both fail:
+		//  - The premise is void. This is not a junction term (see above), so
+		//    the physical argument for a fade does not attach to it.
+		//  - The data says flat. The only Mach-resolved measurement of the
+		//    quantity is RASAero's own printed Fin Interference component, and
+		//    it barely moves across its whole printed range: 0.042/0.050 =
+		//    0.840 at M0.50 (p.90) and 0.031/0.037 = 0.838 at M2.00 (p.92) -
+		//    a 0.26% change. Both rows' components were re-verified to sum to
+		//    the printed CD (0.481 exactly; 0.630 vs 0.631 printed), so the
+		//    columns are read right. From 3-decimal rounding alone each ratio
+		//    carries a band - [0.822, 0.859] and [0.813, 0.863] - and they
+		//    overlap over 100% of the subsonic one, so a CONSTANT ratio fits
+		//    both rows. A fade to 1.0x by M1.5-2 needs Fin Interference ~ 0 at
+		//    M2.00; RASAero prints 0.031 there, 4.9% of that run's total CD.
+		//    (The subsonic column is "Fin Frict&Press" vs the supersonic "Fin
+		//    Frict" alone; if RASAero's subsonic fin pressure were non-zero the
+		//    subsonic ratio would be HIGHER than 0.840, which argues for a
+		//    subsonic rise, never a fade.)
+		//  - The supersonic "we run long" evidence the fade was meant to fix is
+		//    now attributed elsewhere. The 2026-08-25 fins-off gates measure
+		//    our BODY at +8.3% (Short) and +17.9% (Long) at M0.60, and that
+		//    body bias, carried forward at its measured rate, accounts for
+		//    53-139% of the ARCAS-Short supersonic overshoot and 194%+ of
+		//    ARCAS-Long's - i.e. all of it, before the fins are touched.
+		//    Fading this term would take drag off the fin set (already 14-39%
+		//    SHORT where it can be measured) to pay for a body error, which is
+		//    the same compensating-error trade the fins-off gates were added to
+		//    stop. Full accounting: validation/scorecard-finsoff-2026-08-25.md.
+		//
+		// 2026-08-25, OWNER'S RULING APPLIED — the term now runs in ROGERS KBF
+		// as well as in Supersonic, and is still absent from the parity model.
+		// scorecard-junction-2026-08-25.md left exactly this as "the option the
+		// data supports ... not a change to make without Eric", because it moves
+		// desktop-OpenRocket parity. Eric ruled (docs/working-notes.md, standing
+		// ruling 2026-08-25) that only "OpenRocket - Extended Barrowman" is a
+		// parity commitment and that Kbf/Supersonic are to be decided on
+		// accuracy alone. The measurement, on the unchanged anchors:
+		// 80 of the 83 gated CD rows move CLOSER to the data (3 move away, all
+		// rma53d02 subsonic rows where we already read high), the aggregate
+		// RMS of |delta|/tol over all gated rows falls 5.279 -> 4.970, and on
+		// the two tester flights LEM-IV's over-prediction goes +7.3% -> +2.2%
+		// and Buckeye's +19.4% -> +11.9%. Re-measured on the 175-gate anchors
+		// in validation/scorecard-transition-2026-08-25.md.
+		if (rogersKbf || supersonicAero) {
 			cd *= 1.8;
 		}
 		return cd;
@@ -810,7 +1003,7 @@ public class FinSetCalc extends RocketComponentCalc {
 	@Override
 	public double calculatePressureCD(FlightConditions conditions,
 									  double stagnationCD, double baseCD, WarningSet warnings) {
-		
+
 		// a fin with 0 area contributes no drag
 		if (finArea < MathUtil.EPSILON) {
 			return 0.0;
@@ -821,7 +1014,25 @@ public class FinSetCalc extends RocketComponentCalc {
 
 		// PATCH (feature #4): RASAero-class airfoil sections — per-shape
 		// linearized/Busemann thickness wave drag + blunt-base + LE bluntness.
-		if (airfoilSection != null) {
+		//
+		// PARITY FIX 2026-08-25 — this used to be INPUT-gated only, i.e. naming
+		// an airfoil section replaced desktop OpenRocket's pressure-drag model
+		// in EVERY aero model, including "OpenRocket - Extended Barrowman",
+		// whose entire claim is bit-identical desktop physics. Desktop has no
+		// airfoilSection concept at all (its FinSet knows only the three-valued
+		// CrossSection), so for a classic run the honest answer is the one
+		// desktop would give from the same design: the crossSection branch
+		// below. Measured size of the violation on a square-vs-doublewedge fin
+		// at M1.8: CD 0.585 vs 0.303 - a factor of ~1.9 on total CD, in the
+		// model that promises no difference at all. Named as a BUG in the
+		// owner's standing ruling (docs/working-notes.md, 2026-08-25: "anything
+		// that currently moves CLASSIC numbers away from desktop must move OUT
+		// of classic"). Effect on the harness, both directions reported, in
+		// validation/scorecard-transition-2026-08-25.md.
+		//
+		// Kbf and Supersonic keep the section model unchanged - this gate is
+		// true for both - so no non-parity user's numbers move by this edit.
+		if (airfoilSection != null && (rogersKbf || supersonicAero)) {
 			return sectionPressureCD(conditions, baseCD);
 		}
 
@@ -833,28 +1044,25 @@ public class FinSetCalc extends RocketComponentCalc {
 		// rise). Flag on: subsonic thickness/profile drag stays in the friction
 		// form factor (1 + 2t/c); supersonic wave drag is thin-airfoil
 		// K*4*(t/c)^2/beta (K = 4/3, biconvex), swept by cos^2(GammaLead),
-		// blended in over M0.9-1.2, referenced to fin planform area. Sharp TE ⇒
-		// no base term. Scored against the ARCAS/Finner CD anchors.
+		// referenced to fin planform area. Sharp TE ⇒ no base term. Scored
+		// against the ARCAS/Finner CD anchors.
+		//
+		// PATCH (feature #1 Phase 6): the M0.9->1.2 LINEAR blend this used to
+		// carry peaked at the top of its own ramp while the branch it bridged
+		// onto was already falling; thicknessWave() replaces it with
+		// rise -> peak at M1.05 -> decay along the branch.
 		if (supersonicAero && crossSection == FinSet.CrossSection.AIRFOIL) {
 			double tc = (macLength > MathUtil.EPSILON) ? thickness / macLength : 0;
-			double wave = 0;
-			if (mach > 0.9) {
-				double beta12 = MathUtil.safeSqrt(1.2 * 1.2 - 1);
-				double wave12 = (4.0 / 3.0) * 4 * pow2(tc) / beta12;
-				if (mach >= 1.2) {
-					double beta = MathUtil.safeSqrt(mach * mach - 1);
-					wave = (4.0 / 3.0) * 4 * pow2(tc) / beta;
-				} else {
-					wave = wave12 * (mach - 0.9) / 0.3;
-				}
-			}
-			return wave * pow2(cosGammaLead) * finArea / conditions.getRefArea();
+			double wave = thicknessWave(mach, 16.0 / 3.0, tc);
+			// PATCH (feature #1 Phase 5): sweep relief fades out once the LE is
+			// supersonic-normal (see sweepWaveFactor). Flag-on path already.
+			return wave * sweepWaveFactor(mach) * finArea / conditions.getRefArea();
 		}
 
 		// Pressure fore-drag
 		if (crossSection == FinSet.CrossSection.AIRFOIL ||
 				crossSection == FinSet.CrossSection.ROUNDED) {
-			
+
 			// Round leading edge
 			if (mach < 0.9) {
 				cd = Math.pow(1 - pow2(mach), -0.417) - 1;
@@ -863,27 +1071,43 @@ public class FinSetCalc extends RocketComponentCalc {
 			} else {
 				cd = 1.214 - 0.502 / pow2(mach) + 0.1095 / pow2(pow2(mach));
 			}
-			
+
 		} else if (crossSection == FinSet.CrossSection.SQUARE) {
 			cd = stagnationCD;
 		} else {
 			throw new UnsupportedOperationException("Unsupported fin profile: " + crossSection);
 		}
-		
+
 		// Slanted leading edge
 		cd *= pow2(cosGammaLead);
-		
-		// Trailing edge drag
-		if (crossSection == FinSet.CrossSection.SQUARE) {
-			cd += baseCD;
-		} else if (crossSection == FinSet.CrossSection.ROUNDED) {
-			cd += baseCD / 2;
-		}
-		// Airfoil assumed to have zero base drag
-		
+
 		// Scale to correct reference area
 		cd *= span * thickness / conditions.getRefArea();
-		
+
+		return cd;
+	}
+
+	@Override
+	public double calculateComponentBaseCD(FlightConditions conditions,
+										   double baseCD, WarningSet warnings) {
+		// a fin with 0 area contributes no drag
+		if (finArea < MathUtil.EPSILON) {
+			return 0.0;
+		}
+
+		double cd = 0;
+
+		// Trailing edge drag
+		if (crossSection == FinSet.CrossSection.SQUARE) {
+			cd = baseCD;
+		} else if (crossSection == FinSet.CrossSection.ROUNDED) {
+			cd = baseCD / 2;
+		}
+		// Airfoil assumed to have zero base drag
+
+		// Scale to correct reference area
+		cd *= span * thickness / conditions.getRefArea();
+
 		return cd;
 	}
 	
@@ -954,9 +1178,19 @@ public class FinSetCalc extends RocketComponentCalc {
 						"Unknown fin airfoil section: " + airfoilSection);
 		}
 
-		// Supersonic thickness wave drag, blended in over M0.9-1.2.
+		// Supersonic thickness wave drag.
+		// PATCH (feature #1 Phase 6): flag on, the M0.9->1.2 linear blend is
+		// replaced by the physically-shaped rise/peak/decay of thicknessWave()
+		// (see its javadoc for the defect and the measurement). Flag OFF keeps
+		// the old ramp verbatim: the section model is INPUT-gated rather than
+		// flag-gated, so an ungated change here would move CLASSIC numbers for
+		// every design that names an airfoil section, and classic is
+		// desktop-OpenRocket parity. Same boundary, and the same open Eric
+		// decision, as the Phase-5 sweep fade below.
 		double wave = 0;
-		if (mach > 0.9 && tau > 0) {
+		if (supersonicAero) {
+			wave = thicknessWave(mach, thicknessFactor, tau);
+		} else if (mach > 0.9 && tau > 0) {
 			double beta12 = MathUtil.safeSqrt(1.2 * 1.2 - 1);
 			double wave12 = thicknessFactor * tau * tau / beta12;
 			if (mach >= 1.2) {
@@ -966,7 +1200,13 @@ public class FinSetCalc extends RocketComponentCalc {
 				wave = wave12 * (mach - 0.9) / 0.3;
 			}
 		}
-		wave *= pow2(cosGammaLead);
+		// PATCH (feature #1 Phase 5): LE-sonic fade of the sweep relief. The
+		// section model itself is INPUT-gated, not flag-gated, so this one is
+		// wrapped in supersonicAero deliberately: classic mode is desktop-
+		// OpenRocket parity and this session is not the place to move it. If the
+		// flag boundary is ever ruled the other way (docs handoff 6a step 2),
+		// deleting the ternary is the whole change.
+		wave *= supersonicAero ? sweepWaveFactor(mach) : pow2(cosGammaLead);
 
 		// Blunt trailing edge: fin base drag on the base frontal height.
 		double base = baseFrac * baseCD * tau;
@@ -995,9 +1235,9 @@ public class FinSetCalc extends RocketComponentCalc {
 			throw new IllegalStateException("fin set without parent component");
 		}
 		
-		double lead = component.toRelative(Coordinate.NUL, parent)[0].x;
+		double lead = component.toRelative(Coordinate.NUL, parent)[0].getX();
 		double trail = component.toRelative(new Coordinate(component.getLength()),
-				parent)[0].x;
+				parent)[0].getX();
 		
 		/*
 		 * The counting fails if the fin root chord is very small, in that case assume
@@ -1009,8 +1249,8 @@ public class FinSetCalc extends RocketComponentCalc {
 			interferenceFinCount = 0;
 			for (RocketComponent c : parent.getChildren()) {
 				if (c instanceof FinSet) {
-					double finLead = c.toRelative(Coordinate.NUL, parent)[0].x;
-					double finTrail = c.toRelative(new Coordinate(c.getLength()), parent)[0].x;
+					double finLead = c.toRelative(Coordinate.NUL, parent)[0].getX();
+					double finTrail = c.toRelative(new Coordinate(c.getLength()), parent)[0].getX();
 					
 					// Compute overlap of the fins
 					
