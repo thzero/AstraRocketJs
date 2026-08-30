@@ -15,6 +15,9 @@
   "bugs": {
     "url": "https://github.com/thzero/AstraRocketJs/issues"
   },
+  "wiki": {
+    "url": "https://github.com/thzero/AstraRocketJs/wiki"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

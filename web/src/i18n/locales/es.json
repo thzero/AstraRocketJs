@@ -34,7 +34,7 @@
     "new": "Nuevo",
     "newConfirm": "¿Descartar el diseño actual y todas las simulaciones y empezar un diseño nuevo?"
   },
-  "menu": { "open": "Menú" },
+  "menu": { "open": "Menú", "help": "Ayuda" },
   "settings": {
     "title": "Ajustes",
     "parts": "Colores de piezas (modelo 3D)",

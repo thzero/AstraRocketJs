@@ -14,6 +14,13 @@ import i18n from '../i18n';
 /** Build version from package.json (e.g. "0.1.0"). */
 export const APP_VERSION: string = __APP_VERSION__;
 
+/**
+ * Help/documentation URL, injected at build time (see vite.config.ts):
+ * package.json's `repository` + "/wiki" by default, or the `HELP_URL` build
+ * override. Read this instead of hard-coding the wiki link.
+ */
+export const HELP_URL: string = __HELP_URL__;
+
 /** The app's display name — translated (i18next singleton; safe outside React). */
 export const appName = (): string => i18n.t('app.title');
 
