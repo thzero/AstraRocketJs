@@ -4,7 +4,17 @@
   "version": "0.1.0",
   "type": "module",
   "description": "AstraRocketJs — browser UI for the OpenRocket engine",
-  "license": "GPL-3.0-or-later",
+  "author": "thZero.com",
+  "author_url": "https://www.thzero.com",
+  "copyright": "2026",
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thzero/AstraRocketJs.git"
+  },
+  "bugs": {
+    "url": "https://github.com/thzero/AstraRocketJs/issues"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

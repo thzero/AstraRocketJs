@@ -38,8 +38,8 @@ revised anchors is `scorecard-audit-2026-08-04.md`.
 Phase 4 (Van Driest II friction above M4; cone wave-drag coefficient fading
 2.1 → Cp_max(M) over M4–8) moved no gates but cut HB-2's high-Mach CA0 excess
 ~45% (+0.25 → +0.14 at M8–10) with ARCAS M4.65 tightening to −0.003. HB-2's
-remaining gaps are deliberate non-goals for a hobby-rocket code, documented in
-LEDGER: spherical-cap nose bluntness and flare-effectiveness decay.
+remaining gaps are deliberate non-goals for a hobby-rocket code: spherical-cap
+nose bluntness and flare-effectiveness decay.
 
 Phase 3's score DECREASE is deliberate honesty: Finner's fixture switched from
 the biconvex placeholder to its true `singlewedge` section, and the correct
@@ -62,7 +62,7 @@ blunt-TE fin base drag → feature #4 airfoils), HB-2 (flare/bluntness →
 hypersonic phase).
 
 Phase 1 (opt-in `supersonicAero` flag — corrected supersonic fin normal force,
-NACA-1307 interference, Mach-dependent nose CNα; see LEDGER.md) turns the CP
+NACA-1307 interference, Mach-dependent nose CNα) turns the CP
 series green: ARCAS supersonic CP 9/9 gated on both configs (matching the
 tunnel where RASAero itself diverges above M3.5), Finner CP 17/23 and CNα
 16/23 (remaining fails: the transonic band M1.05–1.4, whose measured lift

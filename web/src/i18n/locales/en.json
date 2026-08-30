@@ -7,7 +7,7 @@
     "body": "{{name}} is a fast, mobile-friendly app for designing and simulating model rockets. It runs the real OpenRocket physics engine — compiled to JavaScript — entirely in your browser, so there's nothing to install and nothing leaves your device.",
     "ork": "Full OpenRocket (.ork) support: open, edit, and save your designs round-trip.",
     "scope": "It's not a full re-creation of OpenRocket's desktop app — it's a streamlined interface over the same trusted simulation core, focused on the essentials: live CG / CP / stability, 2D & 3D views, and flight simulation.",
-    "credits": "Physics by OpenRocket (GPL-3.0-or-later), compiled to JavaScript with TeaVM.",
+    "credits": "Physics by OpenRocket (GPL-3.0), compiled to JavaScript with TeaVM.",
     "privacy": "Privacy",
     "close": "Close"
   },

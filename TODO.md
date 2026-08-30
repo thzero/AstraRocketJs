@@ -1,8 +1,6 @@
 # AstraRocketJs — TODO / roadmap
 
-## 3D flight-path view (Simulate tab)
-Add a 3D visualization of the **flight trajectory**, not just the altitude chart.
-
+- **Landing / ground-track exports & plot** — add horizontal position (downrange/crossrange) to the flight CSV, and a top-down ground-track plot for "where does it land?".
 - **`.rse` (RockSim) motor import** — currently `.eng` only.
-- **Custom component presets** — user-added parts, mirroring custom motors/materials (a `PresetStore`).
+- **Save custom parts to a reusable library** — let a user save a component they've built (e.g. "my custom nose cone") and pull it from the "Select a part…" picker across *all* their designs, the way custom motors and custom materials already work. Motors have `motors:custom` (`MotorStore.addCustomMotor`) and materials have `materials:custom` (`MaterialStore.add`), but components have **no** equivalent — no `PresetStore` / `parts:custom`. To close the gap, mirror those: a swappable `PresetStore` (localStorage default), a "Save as part" action in the component editor, and merge saved parts into the existing component pickers (flagged + deletable, like imported motors). NOTE: editing/building components with arbitrary geometry already works, and picking real manufacturer parts (the ~2,900-part catalog) already works — this is *only* about saving your own part to reuse it.
 - **Lazy-load the components catalog** — `components.generated.json` is ~880 KB bundled; candidate for dynamic import.
