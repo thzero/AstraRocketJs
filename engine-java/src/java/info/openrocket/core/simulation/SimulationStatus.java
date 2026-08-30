@@ -22,6 +22,7 @@ import info.openrocket.core.simulation.exception.SimulationException;
 import info.openrocket.core.simulation.listeners.SimulationListenerHelper;
 import info.openrocket.core.util.BugException;
 import info.openrocket.core.util.Coordinate;
+import info.openrocket.core.util.CoordinateIF;
 import info.openrocket.core.util.MathUtil;
 import info.openrocket.core.util.ModID;
 import info.openrocket.core.util.Monitorable;
@@ -59,16 +60,22 @@ public class SimulationStatus implements Cloneable, Monitorable {
 
 	private double time;
 
-	private Coordinate position;
+	private CoordinateIF position;
 	private WorldCoordinate worldPosition;
-	private Coordinate velocity;
+	private CoordinateIF velocity;
 
 	private Quaternion orientation;
-	private Coordinate rotationVelocity;
+	private CoordinateIF rotationVelocity;
 
 	private double maxZVelocity = Double.NEGATIVE_INFINITY;
 	private double startWarningsTime = RK4SimulationStepper.RECOMMENDED_MAX_TIME;
-	
+
+	/** Kinematic tumble detector, carrying its filter state across steps. */
+	private TumbleDetector tumbleDetector = new TumbleDetector();
+
+	/** Whether this branch simulates a stage that has been separated and left behind. */
+	private boolean separatedStage = false;
+
 	private double effectiveLaunchRodLength;
 
 	// Set of all motors
@@ -143,7 +150,7 @@ public class SimulationStatus implements Cloneable, Monitorable {
 		double lugPosition = Double.NaN;
 		for (RocketComponent c : this.configuration.getActiveComponents()) {
 			if (c instanceof LaunchLug) {
-				double pos = c.toAbsolute(new Coordinate(c.getLength()))[0].x;
+				double pos = c.toAbsolute(new Coordinate(c.getLength()))[0].getX();
 				if (Double.isNaN(lugPosition) || pos > lugPosition) {
 					lugPosition = pos;
 				}
@@ -151,9 +158,9 @@ public class SimulationStatus implements Cloneable, Monitorable {
 		}
 		if (!Double.isNaN(lugPosition)) {
 			double maxX = 0;
-			for (Coordinate c : this.configuration.getBounds()) {
-				if (c.x > maxX)
-					maxX = c.x;
+			for (CoordinateIF c : this.configuration.getBounds()) {
+				if (c.getX() > maxX)
+					maxX = c.getX();
 			}
 			if (maxX >= lugPosition) {
 				length = Math.max(0, length - (maxX - lugPosition));
@@ -204,7 +211,9 @@ public class SimulationStatus implements Cloneable, Monitorable {
 		this.landed = orig.landed;
 		this.maxZVelocity = orig.maxZVelocity;
 		this.startWarningsTime = orig.startWarningsTime;
-		
+		this.tumbleDetector = new TumbleDetector(orig.tumbleDetector);
+		this.separatedStage = orig.separatedStage;
+
 		this.configuration.copyStages(orig.configuration);
 
 		this.deployedRecoveryDevices.clear();
@@ -278,7 +287,7 @@ public class SimulationStatus implements Cloneable, Monitorable {
 	 * Set the rocket position relative to the launch site; at t = 0s, equals (0, 0, 0).
 	 * @param position the rocket position
 	 */
-	public void setRocketPosition(Coordinate position) {
+	public void setRocketPosition(CoordinateIF position) {
 		this.position = position;
 		modID = new ModID();
 	}
@@ -287,7 +296,7 @@ public class SimulationStatus implements Cloneable, Monitorable {
 	 * Get the rocket position relative to the launch site; at t = 0s, equals (0, 0, 0).
 	 * @return the rocket position
 	 */
-	public Coordinate getRocketPosition() {
+	public CoordinateIF getRocketPosition() {
 		return position;
 	}
 
@@ -308,12 +317,12 @@ public class SimulationStatus implements Cloneable, Monitorable {
 		return worldPosition;
 	}
 
-	public void setRocketVelocity(Coordinate velocity) {
+	public void setRocketVelocity(CoordinateIF velocity) {
 		this.velocity = velocity;
 		modID = new ModID();
 	}
 
-	public Coordinate getRocketVelocity() {
+	public CoordinateIF getRocketVelocity() {
 		return velocity;
 	}
 
@@ -333,11 +342,11 @@ public class SimulationStatus implements Cloneable, Monitorable {
 		modID = new ModID();
 	}
 
-	public Coordinate getRocketRotationVelocity() {
+	public CoordinateIF getRocketRotationVelocity() {
 		return rotationVelocity;
 	}
 
-	public void setRocketRotationVelocity(Coordinate rotation) {
+	public void setRocketRotationVelocity(CoordinateIF rotation) {
 		this.rotationVelocity = rotation;
 	}
 
@@ -463,8 +472,10 @@ public class SimulationStatus implements Cloneable, Monitorable {
 	}
 
 	public void addWarnings(WarningSet warnings) {
-		for (Warning warning : warnings) {
-			addWarning(warning);
+		if (null != warnings) {
+			for (Warning warning : warnings) {
+				addWarning(warning);
+			}
 		}
 	}
 
@@ -621,31 +632,31 @@ public class SimulationStatus implements Cloneable, Monitorable {
 	public void storeData() {
 		flightDataBranch.addPoint();
 		flightDataBranch.setValue(FlightDataType.TYPE_TIME, getSimulationTime());
-		flightDataBranch.setValue(FlightDataType.TYPE_ALTITUDE, getRocketPosition().z);
+		flightDataBranch.setValue(FlightDataType.TYPE_ALTITUDE, getRocketPosition().getZ());
 		flightDataBranch.setValue(FlightDataType.TYPE_ALTITUDE_ABOVE_SEA, getRocketWorldPosition().getAltitude());
-		flightDataBranch.setValue(FlightDataType.TYPE_POSITION_X, getRocketPosition().x);
-		flightDataBranch.setValue(FlightDataType.TYPE_POSITION_Y, getRocketPosition().y);
+		flightDataBranch.setValue(FlightDataType.TYPE_POSITION_X, getRocketPosition().getX());
+		flightDataBranch.setValue(FlightDataType.TYPE_POSITION_Y, getRocketPosition().getY());
 		
 		flightDataBranch.setValue(FlightDataType.TYPE_LATITUDE, getRocketWorldPosition().getLatitudeDeg());
 		flightDataBranch.setValue(FlightDataType.TYPE_LONGITUDE, getRocketWorldPosition().getLongitudeDeg());
 		
 		flightDataBranch.setValue(FlightDataType.TYPE_POSITION_XY,
-					  MathUtil.hypot(getRocketPosition().x, getRocketPosition().y));
+					  MathUtil.hypot(getRocketPosition().getX(), getRocketPosition().getY()));
 		// (x, y) instead of (y, x) because 0 is north
 		flightDataBranch.setValue(FlightDataType.TYPE_POSITION_DIRECTION,
-								  (Math.atan2(getRocketPosition().x, getRocketPosition().y) + (2.0 * Math.PI)) % (2.0 * Math.PI));
+								  (Math.atan2(getRocketPosition().getX(), getRocketPosition().getY()) + (2.0 * Math.PI)) % (2.0 * Math.PI));
 
 		flightDataBranch.setValue(FlightDataType.TYPE_VELOCITY_XY,
-					  MathUtil.hypot(getRocketVelocity().x, getRocketVelocity().y));
-		flightDataBranch.setValue(FlightDataType.TYPE_VELOCITY_Z, getRocketVelocity().z);
-		setMaxZVelocity(Math.max(getRocketVelocity().z, getMaxZVelocity()));
+					  MathUtil.hypot(getRocketVelocity().getX(), getRocketVelocity().getY()));
+		flightDataBranch.setValue(FlightDataType.TYPE_VELOCITY_Z, getRocketVelocity().getZ());
+		setMaxZVelocity(Math.max(getRocketVelocity().getZ(), getMaxZVelocity()));
 		
 		flightDataBranch.setValue(FlightDataType.TYPE_VELOCITY_TOTAL, getRocketVelocity().length());
 		
-		Coordinate c = getRocketOrientationQuaternion().rotateZ();
-		double theta = Math.atan2(c.z, MathUtil.hypot(c.x, c.y));
+		CoordinateIF c = getRocketOrientationQuaternion().rotateZ();
+		double theta = Math.atan2(c.getZ(), MathUtil.hypot(c.getX(), c.getY()));
 		//(x, y) instead of (y, x) because 0 is north
-		double phi = (Math.atan2(c.x, c.y)+ (2.0 * Math.PI)) % (2.0 * Math.PI);
+		double phi = (Math.atan2(c.getX(), c.getY())+ (2.0 * Math.PI)) % (2.0 * Math.PI);
 
 		flightDataBranch.setValue(FlightDataType.TYPE_ORIENTATION_THETA, theta);
 		flightDataBranch.setValue(FlightDataType.TYPE_ORIENTATION_PHI, phi);
@@ -673,6 +684,32 @@ public class SimulationStatus implements Cloneable, Monitorable {
 	}
 	
 	/**
+	 * Get the tumble detector for this simulation branch.
+	 *
+	 * @return the tumble detector
+	 */
+	public TumbleDetector getTumbleDetector() {
+		return tumbleDetector;
+	}
+
+	/**
+	 * Whether this branch simulates a stage that has been separated and left behind,
+	 * rather than the rocket that flew on.
+	 *
+	 * @return true for a separated stage's own branch
+	 */
+	public boolean isSeparatedStage() {
+		return separatedStage;
+	}
+
+	/**
+	 * Mark this branch as simulating a separated stage.
+	 */
+	public void setSeparatedStage(boolean separatedStage) {
+		this.separatedStage = separatedStage;
+	}
+
+	/**
 	 * Determine whether (most) flight event warnings are currently being saved.
 	 * Warnings are not saved until 0.25 seconds after leaving the rail, and again
 	 * after Z velocity is reduced to 20% of the max.
@@ -686,7 +723,7 @@ public class SimulationStatus implements Cloneable, Monitorable {
 			return false;
 		}
 
-		if (getRocketVelocity().z < getMaxZVelocity() * 0.2) {
+		if (getRocketVelocity().getZ() < getMaxZVelocity() * 0.2) {
 			return false;
 		}
 

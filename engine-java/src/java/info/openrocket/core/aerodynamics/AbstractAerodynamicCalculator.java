@@ -5,9 +5,10 @@ import java.util.Map;
 import info.openrocket.core.logging.WarningSet;
 import info.openrocket.core.rocketcomponent.FlightConfiguration;
 import info.openrocket.core.rocketcomponent.RocketComponent;
+import info.openrocket.core.util.CoordinateIF;
+import info.openrocket.core.util.Coordinate;
 import info.openrocket.core.util.MathUtil;
 import info.openrocket.core.util.ModID;
-import info.openrocket.core.util.Coordinate;
 
 /**
  * An abstract aerodynamic calculator implementation, that offers basic
@@ -33,22 +34,18 @@ public abstract class AbstractAerodynamicCalculator implements AerodynamicCalcul
 	private ModID rocketTreeModID = new ModID();
 
 	/**
-	 * Determine whether calculations are suspect because we are stalling
+	 * Get this aerodynamic calculator's maximum stall angle
 	 *
-	 * @return               whether we are stalling, and the margin
-	 *                       between our AOA and a stall
-	 *                       If the return is positive we aren't;
-	 *                       If it's negative we are.
+	 * @return               stall angle (radians)
 	 *             
 	 */
-	@Override
-	public abstract double getStallMargin();
+	public abstract double getStallAngle();
 
 	//////////////// Aerodynamic calculators ////////////////
 
 	@Override
-	public abstract Coordinate getCP(FlightConfiguration configuration, FlightConditions conditions,
-			WarningSet warnings);
+	public abstract CoordinateIF getCP(FlightConfiguration configuration, FlightConditions conditions,
+									   WarningSet warnings);
 
 	@Override
 	public abstract Map<RocketComponent, AerodynamicForces> getForceAnalysis(FlightConfiguration configuration,
@@ -63,17 +60,17 @@ public abstract class AbstractAerodynamicCalculator implements AerodynamicCalcul
 	 * The worst theta angle is stored in conditions.
 	 */
 	@Override
-	public Coordinate getWorstCP(FlightConfiguration configuration, FlightConditions conditions,
-			WarningSet warnings) {
+	public CoordinateIF getWorstCP(FlightConfiguration configuration, FlightConditions conditions,
+								   WarningSet warnings) {
 		FlightConditions cond = conditions.clone();
-		Coordinate worst = new Coordinate(Double.MAX_VALUE);
-		Coordinate cp;
+		CoordinateIF worst = new Coordinate(Double.MAX_VALUE);
+		CoordinateIF cp;
 		double theta = 0;
 
 		for (int i = 0; i < DIVISIONS; i++) {
 			cond.setTheta(2 * Math.PI * i / DIVISIONS);
 			cp = getCP(configuration, cond, warnings);
-			if ((cp.weight > MathUtil.EPSILON) && (cp.x < worst.x)) {
+			if ((cp.getWeight() > MathUtil.EPSILON) && (cp.getX() < worst.getX())) {
 				worst = cp;
 				theta = cond.getTheta();
 			}

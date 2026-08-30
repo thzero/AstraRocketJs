@@ -3,6 +3,7 @@ package info.openrocket.core.masscalc;
 import info.openrocket.core.motor.Motor;
 import info.openrocket.core.rocketcomponent.RocketComponent;
 import info.openrocket.core.util.Coordinate;
+import info.openrocket.core.util.CoordinateIF;
 
 public class CMAnalysisEntry {
 
@@ -22,7 +23,7 @@ public class CMAnalysisEntry {
     public String name;
     public Object source;
     public double eachMass;
-    public Coordinate totalCM;
+    public CoordinateIF totalCM;
 
     public void updateEachMass(final double newMass) {
         if (Double.isNaN(eachMass)) {
@@ -30,11 +31,24 @@ public class CMAnalysisEntry {
         }
     }
 
-    public void updateAverageCM(final Coordinate newCM) {
+    public void updateAverageCM(final CoordinateIF newCM) {
         if (this.totalCM.isNaN()) {
             this.totalCM = newCM;
         } else {
             this.totalCM = totalCM.average(newCM);
         }
+    }
+
+    /**
+     * Add a mass contribution to an assembly row and update its per-instance mass.
+     * Assembly analysis is calculated in separate structure and motor passes, so
+     * both contributions must be combined before the row can report launch mass.
+     *
+     * @param aggregateCM center of mass for all active instances in this pass
+     * @param instanceCount number of active assembly instances represented by the row
+     */
+    public void updateAssemblyMass(final CoordinateIF aggregateCM, final int instanceCount) {
+        updateAverageCM(aggregateCM);
+        eachMass = totalCM.getWeight() / instanceCount;
     }
 }

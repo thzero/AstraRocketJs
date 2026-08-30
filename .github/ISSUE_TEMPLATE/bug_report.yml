@@ -1,0 +1,50 @@
+name: Bug report
+description: Report something that's broken or behaving unexpectedly
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time to report a bug! Please fill in the details below.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you **expect** to happen, and what happened **instead**?
+      placeholder: I expected … but instead …
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+        3. …
+    validations:
+      required: true
+  - type: input
+    id: browser-os
+    attributes:
+      label: Browser and OS
+      placeholder: e.g. Chrome 120 on Windows 11
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: AstraRocketJs version
+      description: Shown next to the title in the header, or under Menu → About.
+      placeholder: e.g. 0.1.0
+    validations:
+      required: false
+  - type: textarea
+    id: extra
+    attributes:
+      label: Design file and screenshots
+      description: >
+        If it's tied to a specific design, **attach the `.ork` file** — that's usually
+        the fastest path to a fix. A screenshot or screen recording helps a lot too.
+    validations:
+      required: false

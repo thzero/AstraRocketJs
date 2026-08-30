@@ -131,10 +131,9 @@ public class MassCalculator implements Monitorable {
 
 	/**
 	 * Compute an analysis of the per-component CG's of the provided configuration.
-	 * The returned map will contain an entry for each physical rocket component
-	 * (not stages)
-	 * with its corresponding (best-effort) CG. Overriding of subcomponents is
-	 * ignored.
+	 * The returned map contains an entry for each physical rocket component and
+	 * component assembly with its corresponding (best-effort) CG. Assembly rows
+	 * include their active descendants, motors, and propellant.
 	 * The CG of the entire configuration with motors is stored in the entry with
 	 * the corresponding
 	 * Rocket as the key.
@@ -169,7 +168,7 @@ public class MassCalculator implements Monitorable {
 
 		CMAnalysisEntry totals = new CMAnalysisEntry(config.getRocket());
 		totals.totalCM = calculation.centerOfMass;
-		totals.eachMass = calculation.centerOfMass.weight;
+		totals.eachMass = calculation.centerOfMass.getWeight();
 		analysisMap.put(config.getRocket().hashCode(), totals);
 
 		return analysisMap;

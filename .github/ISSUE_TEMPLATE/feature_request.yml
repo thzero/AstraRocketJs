@@ -1,0 +1,25 @@
+name: Feature request
+description: Suggest a new capability or improvement
+title: "[Feature Request]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Thanks for the idea! Keep in mind AstraRocketJs is intentionally a *focused*
+        interface over OpenRocket's engine, not a full re-creation of the desktop app —
+        features that fit that scope are the easiest to land.
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What would you like it to do?
+      description: Describe the behavior you'd like AstraRocketJs to have.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why does it matter?
+      description: What does it unblock or improve?
+    validations:
+      required: true

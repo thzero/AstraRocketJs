@@ -1,9 +1,9 @@
 package info.openrocket.core.rocketcomponent;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.LinkedHashMap;
 
 import info.openrocket.core.util.Transformation;
 
@@ -15,13 +15,13 @@ import info.openrocket.core.util.Transformation;
 // PATCH(astrarrocketjs): ConcurrentHashMap -> LinkedHashMap. Two reasons:
 // (1) TeaVM's classlib needs a plain java.util map here; (2) RocketComponent
 // has no hashCode() override, so hash-map iteration order follows identity
-// hash codes, which vary per JVM process. BarrowmanCalculator iterates this
-// map when summing per-component aerodynamic forces every simulation step; a
-// varying summation order produces ULP-level differences that chaos-amplify
-// over a flight, making simulations nondeterministic run-to-run (and
-// JVM-vs-TeaVM differential comparison impossible). LinkedHashMap iterates in
-// insertion order — the deterministic tree-walk order — identically on JVM
-// and TeaVM. See patches/LEDGER.md.
+// hash codes, which vary per JVM process. The Barrowman calculators iterate
+// this map when summing per-component aerodynamic forces every simulation
+// step; a varying summation order produces ULP-level differences that
+// chaos-amplify over a flight, making simulations nondeterministic
+// run-to-run (and JVM-vs-TeaVM differential comparison impossible).
+// LinkedHashMap iterates in insertion order — the deterministic tree-walk
+// order — identically on JVM and TeaVM. See patches/LEDGER.md.
 public class InstanceMap extends LinkedHashMap<RocketComponent, ArrayList<InstanceContext>> {
 
 	// =========== Public Functions ========================
@@ -37,11 +37,24 @@ public class InstanceMap extends LinkedHashMap<RocketComponent, ArrayList<Instan
 	}
 
 	public void emplace(final RocketComponent component, int number, final Transformation transform) {
+		emplace(component, number, transform, Transformation.IDENTITY);
+	}
+
+	/**
+	 * Adds a physical component instance and retains the transform of its parent.
+	 *
+	 * @param component component represented by the instance
+	 * @param number instance number relative to its parent
+	 * @param transform transform from component coordinates to rocket coordinates
+	 * @param parentTransform transform from parent coordinates to rocket coordinates
+	 */
+	public void emplace(final RocketComponent component, int number, final Transformation transform,
+			final Transformation parentTransform) {
 		if (!containsKey(component)) {
 			put(component, new ArrayList<>());
 		}
 
-		final InstanceContext context = new InstanceContext(component, number, transform);
+		final InstanceContext context = new InstanceContext(component, number, transform, parentTransform);
 		get(component).add(context);
 	}
 

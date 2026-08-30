@@ -15,6 +15,7 @@ import info.openrocket.core.rocketcomponent.Rocket;
 import info.openrocket.core.rocketcomponent.Transition;
 import info.openrocket.core.rocketcomponent.TrapezoidFinSet;
 import info.openrocket.core.util.Coordinate;
+import info.openrocket.core.util.CoordinateIF;
 import info.openrocket.core.util.Quaternion;
 
 /**
@@ -45,11 +46,14 @@ public final class ParityMain {
         clusterScenarios();
         stagingScenarios();
         podScenarios();
-        nozzleBaseDragScenarios();
         dragSweepScenarios();
-        rogersKbfScenarios();
         minDiameterScenarios();
+        airfoilSectionScenarios();
+        rogersKbfScenarios();
         supersonicAeroScenarios();
+        // nozzleBaseDragScenarios(): RASAero feature #2 is now upstream-native
+        // (per-motor MotorConfiguration.nozzleExitDiameter). A native-model parity
+        // scenario is deferred with the web nozzle-bridge migration.
     }
 
     /**
@@ -75,28 +79,31 @@ public final class ParityMain {
                     new info.openrocket.core.aerodynamics.FlightConditions(config);
             cOff.setMach(mach);
             cOff.setAOA(Math.toRadians(2));
-            Coordinate cpOff = off.getCP(config, cOff, w);
+            CoordinateIF cpOff = off.getCP(config, cOff, w);
 
+            // feature #1 supersonicAero via the RASAero strategy pair.
+            info.openrocket.core.aerodynamics.RASAeroStabilityCalculator stab =
+                    new info.openrocket.core.aerodynamics.RASAeroStabilityCalculator();
+            stab.setSupersonicAero(true);
+            info.openrocket.core.aerodynamics.RASAeroDragCalculator drag =
+                    new info.openrocket.core.aerodynamics.RASAeroDragCalculator();
+            drag.setSupersonicAero(true);
             info.openrocket.core.aerodynamics.BarrowmanCalculator on =
-                    new info.openrocket.core.aerodynamics.BarrowmanCalculator();
-            on.setSupersonicAero(true);
+                    new info.openrocket.core.aerodynamics.BarrowmanCalculator(stab, drag);
             info.openrocket.core.aerodynamics.FlightConditions cOn =
                     new info.openrocket.core.aerodynamics.FlightConditions(config);
             cOn.setMach(mach);
             cOn.setAOA(Math.toRadians(2));
-            Coordinate cpOn = on.getCP(config, cOn, w);
+            CoordinateIF cpOn = on.getCP(config, cOn, w);
 
-            line("ssaero." + mach, cpOff.x, cpOff.weight, cpOn.x, cpOn.weight);
+            line("ssaero." + mach, cpOff.getX(), cpOff.getWeight(), cpOn.getX(), cpOn.getWeight());
 
-            // Phase 2: lock the flag-on drag decomposition too (fin wave drag,
-            // boattail wave, nose extension, base cap, fin interference).
+            // Phase 2: lock the flag-on drag decomposition too.
             info.openrocket.core.aerodynamics.AerodynamicForces fOn =
                     on.getAerodynamicForces(config, cOn, w);
             line("ssaerocd." + mach, fOn.getCD(), fOn.getFrictionCD(),
                     fOn.getPressureCD(), fOn.getBaseCD());
         }
-
-        airfoilSectionScenarios();
     }
 
     /**
@@ -183,18 +190,24 @@ public final class ParityMain {
                     new info.openrocket.core.aerodynamics.FlightConditions(config);
             cOff.setMach(mach);
             cOff.setAOA(Math.toRadians(2));
-            Coordinate cpOff = off.getCP(config, cOff, w);
+            CoordinateIF cpOff = off.getCP(config, cOff, w);
 
+            // feature #3 Rogers Kbf via the RASAero strategy pair.
+            info.openrocket.core.aerodynamics.RASAeroStabilityCalculator stab =
+                    new info.openrocket.core.aerodynamics.RASAeroStabilityCalculator();
+            stab.setRogersKbf(true);
+            info.openrocket.core.aerodynamics.RASAeroDragCalculator drag =
+                    new info.openrocket.core.aerodynamics.RASAeroDragCalculator();
+            drag.setRogersKbf(true);
             info.openrocket.core.aerodynamics.BarrowmanCalculator on =
-                    new info.openrocket.core.aerodynamics.BarrowmanCalculator();
-            on.setRogersKbf(true);
+                    new info.openrocket.core.aerodynamics.BarrowmanCalculator(stab, drag);
             info.openrocket.core.aerodynamics.FlightConditions cOn =
                     new info.openrocket.core.aerodynamics.FlightConditions(config);
             cOn.setMach(mach);
             cOn.setAOA(Math.toRadians(2));
-            Coordinate cpOn = on.getCP(config, cOn, w);
+            CoordinateIF cpOn = on.getCP(config, cOn, w);
 
-            line("rogerskbf." + mach, cpOff.x, cpOff.weight, cpOn.x, cpOn.weight);
+            line("rogerskbf." + mach, cpOff.getX(), cpOff.getWeight(), cpOn.getX(), cpOn.getWeight());
         }
     }
 
@@ -238,40 +251,11 @@ public final class ParityMain {
      * calculator, so the values must match bit-for-bit.
      */
     private static void nozzleBaseDragScenarios() {
-        Rocket rocket = buildReferenceRocket();
-        AxialStage stage = (AxialStage) rocket.getChild(0);
-        // 16 mm nozzle vs the 24 mm body base diameter — a large-nozzle case.
-        stage.setNozzleExitDiameter(0.016);
-        FlightConfiguration config = rocket.getSelectedConfiguration();
-        info.openrocket.core.aerodynamics.BarrowmanCalculator calc =
-                new info.openrocket.core.aerodynamics.BarrowmanCalculator();
-        info.openrocket.core.logging.WarningSet w =
-                new info.openrocket.core.logging.WarningSet();
-
-        double[] machs = { 0.3, 0.9, 1.5 };
-        for (double mach : machs) {
-            // Power-off (coast): no thrusting stages.
-            info.openrocket.core.aerodynamics.FlightConditions off =
-                    new info.openrocket.core.aerodynamics.FlightConditions(config);
-            off.setMach(mach);
-            off.setAOA(0);
-            info.openrocket.core.aerodynamics.AerodynamicForces fOff =
-                    calc.getAerodynamicForces(config, off, w);
-
-            // Power-on (boost): stage 0's motor thrusting.
-            info.openrocket.core.aerodynamics.FlightConditions on =
-                    new info.openrocket.core.aerodynamics.FlightConditions(config);
-            on.setMach(mach);
-            on.setAOA(0);
-            java.util.Set<Integer> thrusting = new java.util.HashSet<>();
-            thrusting.add(0);
-            on.setThrustingStages(thrusting);
-            info.openrocket.core.aerodynamics.AerodynamicForces fOn =
-                    calc.getAerodynamicForces(config, on, w);
-
-            line("nozzle.basecd." + mach,
-                    fOff.getBaseCD(), fOn.getBaseCD(), fOff.getCD(), fOn.getCD());
-        }
+        // PATCH(migration Stage 1): disabled — used the removed per-stage
+        // setNozzleExitDiameter()/setThrustingStages() APIs. Feature #2 is now
+        // upstream-native (per-motor MotorConfiguration.nozzleExitDiameter +
+        // FlightConditions.thrustingNozzleExitAreas); re-add a native-model
+        // scenario in Stage 2 alongside the web nozzle-bridge migration.
     }
 
     /**
@@ -303,13 +287,13 @@ public final class ParityMain {
                 pod = (info.openrocket.core.rocketcomponent.PodSet) comp;
             }
         }
-        Coordinate[] offs = pod.getInstanceOffsets();
+        CoordinateIF[] offs = pod.getInstanceOffsets();
         double[] geom = new double[2 + offs.length * 2];
         geom[0] = pod.getInstanceCount();
         geom[1] = pod.getAngleOffset();
         for (int i = 0; i < offs.length; i++) {
-            geom[2 + i * 2] = offs[i].y;
-            geom[3 + i * 2] = offs[i].z;
+            geom[2 + i * 2] = offs[i].getY();
+            geom[3 + i * 2] = offs[i].getZ();
         }
         line("pod.geometry", geom);
         lineStaticInfo("pod.info", api.OpenRocketEngine.getStaticInfo(r));
@@ -317,7 +301,7 @@ public final class ParityMain {
 
         RigidBody podStruct = MassCalculator.calculateStructure(rocket.getSelectedConfiguration());
         line("mass.pod.structure", podStruct.getMass(),
-                podStruct.getCM().x, podStruct.getCM().y, podStruct.getCM().z,
+                podStruct.getCM().getX(),podStruct.getCM().getY(),podStruct.getCM().getZ(),
                 podStruct.getIxx(), podStruct.getIyy(), podStruct.getIzz(),
                 podStruct.getLongitudinalInertia(), podStruct.getRotationalInertia());
 
@@ -325,7 +309,7 @@ public final class ParityMain {
         int r1 = api.OpenRocketEngine.buildRocket(podJson.replace("\"instanceCount\":2", "\"instanceCount\":1"));
         RigidBody s1 = MassCalculator.calculateStructure(
                 ((info.openrocket.core.rocketcomponent.Rocket) getRocketFromInfo(r1)).getSelectedConfiguration());
-        line("mass.pod1.offaxis", s1.getMass(), s1.getCM().x, s1.getCM().y, s1.getCM().z,
+        line("mass.pod1.offaxis", s1.getMass(), s1.getCM().getX(),s1.getCM().getY(),s1.getCM().getZ(),
                 s1.getIxx(), s1.getIyy(), s1.getIzz());
 
         // --- (C) Separating ParallelStage booster -> extra flight branch ---
@@ -499,12 +483,12 @@ public final class ParityMain {
                     mount = (info.openrocket.core.rocketcomponent.InnerTube) comp;
                 }
             }
-            Coordinate[] offsets = mount.getInstanceOffsets();
+            CoordinateIF[] offsets = mount.getInstanceOffsets();
             double[] geom = new double[1 + offsets.length * 2];
             geom[0] = mount.getInstanceCount();
             for (int i = 0; i < offsets.length; i++) {
-                geom[1 + i * 2] = offsets[i].y;
-                geom[2 + i * 2] = offsets[i].z;
+                geom[1 + i * 2] = offsets[i].getY();
+                geom[2 + i * 2] = offsets[i].getZ();
             }
             line("cluster." + name + ".geometry", geom);
 
@@ -912,11 +896,11 @@ public final class ParityMain {
                 conditions.setAOA(Math.toRadians(aoaDeg));
 
                 warnings.clear();
-                Coordinate cp = calc.getCP(config, conditions, warnings);
+                CoordinateIF cp = calc.getCP(config, conditions, warnings);
                 info.openrocket.core.aerodynamics.AerodynamicForces forces =
                         calc.getAerodynamicForces(config, conditions, warnings);
 
-                line("aero.cp", mach, aoaDeg, cp.x, cp.weight);
+                line("aero.cp", mach, aoaDeg, cp.getX(), cp.getWeight());
                 line("aero.forces", mach, aoaDeg,
                         forces.getCN(), forces.getCm(), forces.getCD(),
                         forces.getCDaxial(), forces.getPressureCD(),
@@ -981,7 +965,7 @@ public final class ParityMain {
         for (info.openrocket.core.rocketcomponent.RocketComponent c : config.getAllComponents()) {
             double boundsSize = c.getComponentBounds().size();
             double instBox = (c instanceof info.openrocket.core.rocketcomponent.BoxBounded)
-                    ? ((info.openrocket.core.rocketcomponent.BoxBounded) c).getInstanceBoundingBox().span().x
+                    ? ((info.openrocket.core.rocketcomponent.BoxBounded) c).getInstanceBoundingBox().span().getX()
                     : -1;
             line("comp.bounds." + (bi++), boundsSize, instBox);
         }
@@ -1046,13 +1030,13 @@ public final class ParityMain {
 
         RigidBody structure = MassCalculator.calculateStructure(config);
         line("mass.structure", structure.getMass(),
-                structure.getCM().x, structure.getCM().y, structure.getCM().z,
+                structure.getCM().getX(),structure.getCM().getY(),structure.getCM().getZ(),
                 structure.getIxx(), structure.getIyy(), structure.getIzz(),
                 structure.getLongitudinalInertia(), structure.getRotationalInertia());
 
         RigidBody burnout = MassCalculator.calculateBurnout(config);
         line("mass.burnout", burnout.getMass(),
-                burnout.getCM().x, burnout.getCM().y, burnout.getCM().z,
+                burnout.getCM().getX(),burnout.getCM().getY(),burnout.getCM().getZ(),
                 burnout.getLongitudinalInertia(), burnout.getRotationalInertia());
 
         line("rocket.length", rocket.getLength());
@@ -1069,7 +1053,9 @@ public final class ParityMain {
                     c.getMachSpeed(), c.getKinematicViscosity());
         }
         // Custom launch-site model (plan: base configurable at site altitude).
-        ExtendedISAModel site = new ExtendedISAModel(1400, 285.15, 86000);
+        // Upstream added a relative-humidity arg: (altitude, temp, pressure, humidity).
+        ExtendedISAModel site = new ExtendedISAModel(1400, 285.15, 86000,
+                ExtendedISAModel.STANDARD_RELATIVE_HUMIDITY);
         for (double alt : new double[] { 0, 1400, 1401, 3000, 11000, 20000 }) {
             AtmosphericConditions c = site.getConditions(alt);
             line("isa.site1400", alt, c.getTemperature(), c.getPressure(), c.getDensity());
@@ -1088,8 +1074,8 @@ public final class ParityMain {
         for (double[] rv : rotVecs) {
             Quaternion q = Quaternion.rotation(new Coordinate(rv[0], rv[1], rv[2]));
             for (Coordinate v : vecs) {
-                Coordinate r = q.rotate(v);
-                line("quat.rot", rv[0], rv[1], rv[2], v.x, v.y, v.z, r.x, r.y, r.z);
+                CoordinateIF r = q.rotate(v);
+                line("quat.rot", rv[0], rv[1], rv[2], v.x, v.y, v.z, r.getX(), r.getY(), r.getZ());
             }
         }
     }

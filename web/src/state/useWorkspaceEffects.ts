@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive } from './store';
 import { getWorkspaceStore } from '../services/workspaceStore';
-import { buildRocketTree } from '../engine/api';
-import { findMountId, findNode } from '../services/treeEdit';
+import { buildConfiguredRocket } from '../services/buildRocket';
+import { warmSimWorker } from '../engine/simClient';
 import { appName } from '../services/appInfo';
 
 /**
@@ -14,6 +14,11 @@ import { appName } from '../services/appInfo';
 export function useWorkspaceEffects() {
   const { i18n } = useTranslation();
   useEffect(() => { document.title = appName(); }, [i18n.language]);
+
+  // Spawn + warm the sim worker (loads its own engine off-thread) so the first
+  // "Run" isn't delayed by the worker's compile. Best-effort; sims fall back to
+  // spawning it lazily if this is skipped.
+  useEffect(() => { warmSimWorker(); }, []);
 
   // Restore the saved workspace once, then autosave (debounced) on change.
   const hydrated = useRef(false);
@@ -62,13 +67,7 @@ export function useWorkspaceEffects() {
   // primary mount takes the active sim's `motor`; other mounts take their imports.
   useEffect(() => {
     try {
-      const mountId = findMountId(tree);
-      const r = buildRocketTree(tree, motor, mountId);
-      for (const [id, m] of Object.entries(extraMotors)) {
-        if (id === mountId || !findNode(tree, id)) continue; // gone or already the primary
-        r.setMotorById(id, m.spec);
-        if (m.ignitionEvent) r.setMotorIgnitionById(id, m.ignitionEvent, m.ignitionDelay ?? 0);
-      }
+      const r = buildConfiguredRocket(tree, motor, extraMotors);
       useWorkspaceStore.getState().applyBuild(r.staticInfo(), r);
       useWorkspaceStore.getState().setErr(null);
     } catch (e) {

@@ -21,10 +21,14 @@ public class ArrayList<E> extends java.util.ArrayList<E> {
 		super(initialCapacity);
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public ArrayList<E> clone() {
-		return (ArrayList<E>) super.clone();
+		// PATCH(astrarrocketjs, WASM-GC): construct the subclass + copy instead of
+		// (ArrayList<E>) super.clone(). TeaVM's java.util.ArrayList.clone() does not
+		// preserve the runtime subclass, so the cast throws ClassCastException under
+		// WASM-GC's strict typing (and under the JS backend's strict=true). A shallow
+		// element copy into a new ArrayList<E> is behavior-equivalent and cast-free.
+		return new ArrayList<>(this);
 	}
 
 }

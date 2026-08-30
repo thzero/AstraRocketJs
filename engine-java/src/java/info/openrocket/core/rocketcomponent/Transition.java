@@ -11,6 +11,7 @@ import info.openrocket.core.preset.ComponentPreset;
 import info.openrocket.core.preset.ComponentPreset.Type;
 import info.openrocket.core.startup.Application;
 import info.openrocket.core.util.Coordinate;
+import info.openrocket.core.util.CoordinateIF;
 import info.openrocket.core.util.MathUtil;
 
 public class Transition extends SymmetricComponent implements InsideColorComponent {
@@ -162,6 +163,22 @@ public class Transition extends SymmetricComponent implements InsideColorCompone
 		setForeRadiusAutomatic(auto, false);
 	}
 
+    //////// Fore thickness /////////
+
+    /**
+     * Returns the automatic thickness from the front, taken from the previous
+     * component. Returns the thickness of this if there
+     * is no previous component.
+     */
+    protected double getAutoForeThickness() {
+        SymmetricComponent c = this.getPreviousSymmetricComponent();
+        if (c != null) {
+            return c.getThickness();
+        } else {
+            return this.getThickness();
+        }
+    }
+
 	//////// Aft radius /////////
 
 	@Override
@@ -257,7 +274,24 @@ public class Transition extends SymmetricComponent implements InsideColorCompone
 		setAftRadiusAutomatic(auto, false);
 	}
 
-	//// Radius automatics
+    //////// Aft thickness /////////
+
+    /**
+     * Returns the automatic thickness from the rear, taken from the next
+     * component. Returns the thickness of this if there
+     * is no previous component.
+     */
+    protected double getAutoAftThickness() {
+        SymmetricComponent c = this.getNextSymmetricComponent();
+        if (c != null) {
+            return c.getThickness();
+        } else {
+            return this.getThickness();
+        }
+    }
+
+
+    //// Radius automatics
 
 	@Override
 	protected double getFrontAutoRadius() {
@@ -451,6 +485,10 @@ public class Transition extends SymmetricComponent implements InsideColorCompone
 		return foreShoulderLength;
 	}
 
+    /*
+     * Updates the ForeShoulderLength variable and those of the Transition objects linked accordingly
+     * The foreShoulderRadius and foreShoulderThickness values are set by default when changing the length
+     */
 	public void setForeShoulderLength(double foreShoulderLength) {
 		for (RocketComponent listener : configListeners) {
 			if (listener instanceof Transition) {
@@ -460,7 +498,32 @@ public class Transition extends SymmetricComponent implements InsideColorCompone
 
 		if (MathUtil.equals(this.foreShoulderLength, foreShoulderLength))
 			return;
-		this.foreShoulderLength = foreShoulderLength;
+
+        if (MathUtil.equals(foreShoulderLength,0)){
+            this.foreShoulderLength = 0;
+            this.setForeShoulderRadius(0);
+            this.setForeShoulderThickness(0);
+            this.setForeShoulderCapped(false);
+
+        } else if (MathUtil.equals(this.getForeShoulderLength(),0)) {
+            double wallThickness = this.getAutoForeThickness();
+            double radius = this.getAutoForeRadius();
+            this.foreShoulderLength = foreShoulderLength;
+
+            //Only update radius and thickness if those variables were zero beforehand
+            if (MathUtil.equals(this.getForeShoulderRadius(),0)) {
+                this.setForeShoulderRadius(radius - wallThickness);
+            }
+            if (MathUtil.equals(this.getForeShoulderThickness(),0)) {
+                this.setForeShoulderThickness(wallThickness);
+            }
+
+            this.setForeShoulderCapped(true);
+
+        }
+        else {
+            this.foreShoulderLength = foreShoulderLength;
+        }
 		fireComponentChangeEvent(ComponentChangeEvent.MASS_CHANGE);
 	}
 
@@ -534,6 +597,10 @@ public class Transition extends SymmetricComponent implements InsideColorCompone
 		return aftShoulderLength;
 	}
 
+    /*
+     * Updates the aftShoulderLength variable and those of the Transition objects linked accordingly
+     * The aftShoulderRadius and aftShoulderThickness values are set by default when changing the length
+     */
 	public void setAftShoulderLength(double aftShoulderLength) {
 		for (RocketComponent listener : configListeners) {
 			if (listener instanceof Transition) {
@@ -543,7 +610,32 @@ public class Transition extends SymmetricComponent implements InsideColorCompone
 
 		if (MathUtil.equals(this.aftShoulderLength, aftShoulderLength))
 			return;
-		this.aftShoulderLength = aftShoulderLength;
+
+        if (MathUtil.equals(aftShoulderLength,0)){
+            this.aftShoulderLength = 0;
+            this.setAftShoulderRadius(0);
+            this.setAftShoulderThickness(0);
+            this.setAftShoulderCapped(false);
+
+        } else if (MathUtil.equals(this.getAftShoulderLength(),0)) {
+            double wallThickness = this.getAutoAftThickness();
+            double radius = this.getAutoAftRadius();
+            this.aftShoulderLength = aftShoulderLength;
+
+            //Only update radius and thickness if those variables were zero beforehand
+            if (MathUtil.equals(this.getAftShoulderRadius(),0)) {
+                this.setAftShoulderRadius(radius - wallThickness);
+            }
+            if (MathUtil.equals(this.getAftShoulderThickness(),0)) {
+                this.setAftShoulderThickness(wallThickness);
+            }
+
+            this.setAftShoulderCapped(true);
+
+        }
+        else {
+            this.aftShoulderLength = aftShoulderLength;
+        }
 		fireComponentChangeEvent(ComponentChangeEvent.MASS_CHANGE);
 	}
 
@@ -657,8 +749,8 @@ public class Transition extends SymmetricComponent implements InsideColorCompone
 	}
 
 	@Override
-	public Collection<Coordinate> getComponentBounds() {
-		Collection<Coordinate> bounds = super.getComponentBounds();
+	public Collection<CoordinateIF> getComponentBounds() {
+		Collection<CoordinateIF> bounds = super.getComponentBounds();
 		if (foreShoulderLength > MINFEATURE)
 			addBound(bounds, -foreShoulderLength, foreShoulderRadius);
 		if (aftShoulderLength > MINFEATURE)
@@ -679,10 +771,10 @@ public class Transition extends SymmetricComponent implements InsideColorCompone
 			double transVolume = volume;
 			double transLongMOI = longitudinalUnitInertia * transVolume;
 			double transRotMOI = rotationalUnitInertia * transVolume;
-			final Coordinate transCG = cg;
+			final CoordinateIF transCG = cg;
 
 			double foreCapVolume = 0.0;
-			Coordinate foreCapCG = Coordinate.ZERO;
+			CoordinateIF foreCapCG = Coordinate.ZERO;
 			double foreCapLongMOI = 0.0;
 			double foreCapRotMOI = 0.0;
 			if (isForeShoulderCapped()) {
@@ -700,7 +792,7 @@ public class Transition extends SymmetricComponent implements InsideColorCompone
 			}
 
 			double foreShoulderVolume = 0.0;
-			Coordinate foreShoulderCG = Coordinate.ZERO;
+			CoordinateIF foreShoulderCG = Coordinate.ZERO;
 			double foreShoulderLongMOI = 0.0;
 			double foreShoulderRotMOI = 0.0;
 			if (getForeShoulderLength() > MINFEATURE) {
@@ -718,7 +810,7 @@ public class Transition extends SymmetricComponent implements InsideColorCompone
 			}
 
 			double aftShoulderVolume = 0.0;
-			Coordinate aftShoulderCG = Coordinate.ZERO;
+			CoordinateIF aftShoulderCG = Coordinate.ZERO;
 			double aftShoulderLongMOI = 0.0;
 			double aftShoulderRotMOI = 0.0;
 			if (getAftShoulderLength() > MINFEATURE) {
@@ -737,7 +829,7 @@ public class Transition extends SymmetricComponent implements InsideColorCompone
 			}
 
 			double aftCapVolume = 0.0;
-			Coordinate aftCapCG = Coordinate.ZERO;
+			CoordinateIF aftCapCG = Coordinate.ZERO;
 			double aftCapLongMOI = 0.0;
 			double aftCapRotMOI = 0.0;
 			if (isAftShoulderCapped()) {
@@ -757,13 +849,13 @@ public class Transition extends SymmetricComponent implements InsideColorCompone
 			// Combine results
 			volume = foreCapVolume + foreShoulderVolume + transVolume + aftShoulderVolume + aftCapVolume;
 
-			final double cgx = foreCapCG.x * foreCapCG.weight +
-				foreShoulderCG.x * foreShoulderCG.weight +
-				transCG.x * transCG.weight +
-				aftShoulderCG.x * aftShoulderCG.weight +
-				aftCapCG.x * aftCapCG.weight;
+			final double cgx = foreCapCG.getX() * foreCapCG.getWeight() +
+				foreShoulderCG.getX() * foreShoulderCG.getWeight() +
+				transCG.getX() * transCG.getWeight() +
+				aftShoulderCG.getX() * aftShoulderCG.getWeight() +
+				aftCapCG.getX() * aftCapCG.getWeight();
 
-			final double mass = foreCapCG.weight + foreShoulderCG.weight + transCG.weight + aftShoulderCG.weight + aftCapCG.weight;
+			final double mass = foreCapCG.getWeight() + foreShoulderCG.getWeight() + transCG.getWeight() + aftShoulderCG.getWeight() + aftCapCG.getWeight();
 			
 			// If the mass is 0, so are moments of inertia
 			if (mass < MathUtil.EPSILON) {
@@ -777,11 +869,11 @@ public class Transition extends SymmetricComponent implements InsideColorCompone
 			cg = new Coordinate(cgx / mass, 0, 0, mass);
 
 			// need to use parallel axis theorem to move longitudinal MOI to CG of component
-			foreCapLongMOI += pow2(cg.x - foreCapCG.x) * foreCapVolume;
-			foreShoulderLongMOI += pow2(cg.x - foreShoulderCG.x) * foreShoulderVolume;
-			transLongMOI += pow2(cg.x - transCG.x) * transVolume;
-			aftShoulderLongMOI += pow2(cg.x - aftShoulderCG.x) * aftShoulderVolume;
-			aftCapLongMOI += pow2(cg.x - aftCapCG.x) * aftCapVolume;
+			foreCapLongMOI += pow2(cg.getX() - foreCapCG.getX()) * foreCapVolume;
+			foreShoulderLongMOI += pow2(cg.getX() - foreShoulderCG.getX()) * foreShoulderVolume;
+			transLongMOI += pow2(cg.getX() - transCG.getX()) * transVolume;
+			aftShoulderLongMOI += pow2(cg.getX() - aftShoulderCG.getX()) * aftShoulderVolume;
+			aftCapLongMOI += pow2(cg.getX() - aftCapCG.getX()) * aftCapVolume;
 
 			final double longMOI = foreCapLongMOI + foreShoulderLongMOI + transLongMOI + aftShoulderLongMOI + aftCapLongMOI;
 			longitudinalUnitInertia = longMOI/volume;
@@ -831,10 +923,16 @@ public class Transition extends SymmetricComponent implements InsideColorCompone
 
 	@Override
 	protected void loadFromPreset(ComponentPreset preset) {
+		super.loadFromPreset(preset);
 
 		boolean presetFilled = false;
 		if (preset.has(ComponentPreset.FILLED)) {
 			presetFilled = preset.get(ComponentPreset.FILLED);
+		}
+
+		if (preset.has(ComponentPreset.THICKNESS)) {
+			this.foreShoulderThickness = this.thickness;
+			this.aftShoulderThickness = this.thickness;
 		}
 
 		if (preset.has(ComponentPreset.SHAPE)) {
@@ -876,10 +974,7 @@ public class Transition extends SymmetricComponent implements InsideColorCompone
 			}
 		}
 
-		super.loadFromPreset(preset);
-
 		fireComponentChangeEvent(ComponentChangeEvent.BOTH_CHANGE);
-
 	}
 
 	@Override
