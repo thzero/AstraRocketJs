@@ -73,7 +73,7 @@ Please **verify UI changes in a real browser**, not just that it compiles.
 A few house rules that keep the codebase consistent:
 
 - **All user-facing text goes through i18n.** Add keys to `web/src/i18n/locales/en.json` **and** `es.json` — never hardcode strings in components. See [Translation](#translation).
-- **Never hardcode the app name or version.** They come from `web/src/services/appInfo.ts` (name from i18n, version from `package.json`).
+- **Never hardcode the app name, version, or the help/docs URL.** They come from `web/src/services/appInfo.ts` — name from i18n, version from `package.json`, and `HELP_URL` from `package.json`'s `wiki.url` (overridable at build time with `HELP_URL=…`).
 - **Match the surrounding code** — its naming, comment density, and style.
 
 ### Working on the engine

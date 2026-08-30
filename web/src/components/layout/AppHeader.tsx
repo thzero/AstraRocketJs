@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { APP_VERSION } from '../../services/appInfo';
+import { APP_VERSION, HELP_URL } from '../../services/appInfo';
 import { initEngine } from '../../engine/openRocketEngine';
 import { useWorkspaceStore } from '../../state/store';
 import { LanguageSwitcher } from './LanguageSwitcher';
@@ -79,6 +79,8 @@ export function AppHeader() {
               <button role="menuitem" className={item} disabled={!canSave} onClick={() => { setMenuOpen(false); onSave(); }}>{t('file.save')}</button>
               <div className="my-1 border-t border-white/10" />
               <button role="menuitem" className={item} onClick={() => { setMenuOpen(false); setSettingsOpen(true); }}>{t('settings.title')}</button>
+              <a role="menuitem" className={item} href={HELP_URL} target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)}>{t('menu.help')}</a>
+              <div className="my-1 border-t border-white/10" />
               <button role="menuitem" className={item} onClick={() => { setMenuOpen(false); setPrivacyOpen(true); }}>{t('about.privacy')}</button>
               <button role="menuitem" className={item} onClick={() => { setMenuOpen(false); setAboutOpen(true); }}>{t('about.open')}</button>
             </div>

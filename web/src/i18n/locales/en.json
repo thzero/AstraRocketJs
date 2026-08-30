@@ -34,7 +34,7 @@
     "new": "New",
     "newConfirm": "Discard the current design and all simulations and start a fresh design?"
   },
-  "menu": { "open": "Menu" },
+  "menu": { "open": "Menu", "help": "Help" },
   "settings": {
     "title": "Settings",
     "parts": "Part colors (3D model)",
