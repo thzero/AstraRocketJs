@@ -1,0 +1,54 @@
+name: Sync Wiki
+
+# Publishes the in-repo wiki/ folder to the GitHub Wiki (a separate .wiki.git repo).
+# GitHub does NOT read wiki/ automatically — this pushes it there.
+#
+# ONE-TIME SETUP: the wiki repo doesn't exist until the wiki has ≥1 page. Go to the
+# repo's Wiki tab → "Create the first page" → Save (any content), then run this once.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'wiki/**'
+      - '.github/workflows/sync-wiki.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-wiki
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Push wiki/ to the GitHub Wiki
+        run: |
+          set -euo pipefail
+          git config --global user.name  "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          tmp="$(mktemp -d)"
+          url="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.wiki.git"
+          if ! git clone --depth 1 "$url" "$tmp" 2>/dev/null; then
+            echo "::error::Wiki repo not found. Create the first page once in the repo's Wiki tab, then re-run this workflow."
+            exit 1
+          fi
+
+          # Make wiki/ authoritative: drop existing top-level pages, copy ours in.
+          find "$tmp" -maxdepth 1 -type f -name '*.md' -delete
+          cp wiki/*.md "$tmp"/
+
+          cd "$tmp"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Wiki already up to date."
+            exit 0
+          fi
+          git commit -m "Sync wiki from ${{ github.sha }}"
+          git push
