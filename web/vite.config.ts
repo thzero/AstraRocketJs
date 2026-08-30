@@ -6,6 +6,10 @@ import tailwindcss from '@tailwindcss/vite';
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
 
 export default defineConfig({
+  // On GitHub Pages the app is served from https://<user>.github.io/<repo>/, so the
+  // CI build sets PAGES_BASE=/<repo>/ and every asset + engine URL resolves under it.
+  // Local dev/preview leave it unset → '/', so nothing changes locally.
+  base: process.env.PAGES_BASE || '/',
   plugins: [react(), tailwindcss()],
   // Expose the package version to the app (shown in the header).
   define: { __APP_VERSION__: JSON.stringify(version) },
