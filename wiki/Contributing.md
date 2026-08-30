@@ -168,7 +168,7 @@ To add or update a translation:
 
 ## Documentation
 
-The developer reference is the **[Architecture & internals](Architecture)** page (or the [Developer Guide](Developer-Guide) for the short version) — start there to understand how the app fits together. All docs live in this **Wiki**. If your change affects behavior — or the architecture — that contributors or users should know about, please update the relevant Wiki page (or note it in your PR so a maintainer can).
+The developer reference is the **[Architecture & internals](Architecture)** page (or the [Developer Guide](Developer-Guide) for the short version) — start there to understand how the app fits together. All docs live in this **Wiki**, but the source of truth is the repo's **`wiki/` folder** — a GitHub Action syncs `wiki/*.md` to the Wiki on every push to `master`. **Edit the `.md` files under `wiki/` in a PR, not the Wiki UI** (UI edits get overwritten by the next sync). If your change affects behavior — or the architecture — that contributors or users should know about, update the relevant `wiki/` page in the same PR (or note it so a maintainer can).
 
 ---
 
