@@ -519,12 +519,15 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         if (mct && mct !== 'masscomponent') n['massComponentType'] = mct;
         return n;
       }
-      case 'podset':
+      // <podset> (external pods) is intentionally NOT imported for now — it falls
+      // through to the unsupported path (added to `ignored`, surfaced as an import
+      // note). Pods can't yet be added or edited in the app; see TODO. Parallel
+      // boosters (<parallelstage> / legacy <boosterset>) remain fully supported.
       case 'parallelstage':
       case 'boosterset': {
         // <boosterset> is the legacy alias for <parallelstage>. The nested
         // nose/body/fin chain imports via convertChildren (the caller recurses).
-        const asmType: ComponentType = tag === 'podset' ? 'podset' : 'parallelstage';
+        const asmType: ComponentType = 'parallelstage';
         const n = base(asmType, true); // name + overrides + axialoffset/position
         n['instanceCount'] = Math.round(num(el, 'instancecount', 2));
         const radEl = el.querySelector(':scope > radiusoffset');
