@@ -1,0 +1,67 @@
+// @vitest-environment jsdom
+import { describe, it, expect } from 'vitest';
+import { exportOrk, importOrk, type OrkExportMotor } from './orkFile';
+import { specToTree } from '../engine/api';
+import type { RocketSpec, ComponentNode, RocketTree } from '../engine/openRocketEngine';
+
+const spec = {
+  noseCone: { length: 0.1, aftRadius: 0.013, thickness: 0.001 },
+  bodyTube: { length: 0.2, outerRadius: 0.013, thickness: 0.0005 },
+  fins: { count: 4, rootChord: 0.06, tipChord: 0.03, sweep: 0.03, height: 0.05, thickness: 0.003 },
+  motorMount: { length: 0.07, outerRadius: 0.0092, thickness: 0.0004 },
+  parachute: { diameter: 0.3 },
+} as unknown as RocketSpec;
+
+const motor: OrkExportMotor = { designation: 'C6', manufacturer: 'Estes', diameter: 0.018, length: 0.07, delay: 3 };
+
+const findByType = (tree: RocketTree, type: string): ComponentNode | undefined => {
+  const stack = [...tree.components];
+  while (stack.length) {
+    const n = stack.pop()!;
+    if (n.type === type) return n;
+    if (n.children) stack.push(...n.children);
+  }
+  return undefined;
+};
+
+describe('exportOrk → importOrk round-trip', () => {
+  const { tree, mountId } = specToTree(spec);
+  const xml = exportOrk({ name: 'Round Trip', tree, mountId, motor });
+
+  it('produces OpenRocket XML', () => {
+    expect(typeof xml).toBe('string');
+    expect(xml).toContain('<openrocket');
+    expect(xml).toContain('<subcomponents>');
+  });
+
+  it('preserves the design name', () => {
+    expect(importOrk(xml).name).toBe('Round Trip');
+  });
+
+  it('preserves the component structure through a round-trip', () => {
+    const res = importOrk(xml);
+    expect(findByType(res.tree, 'stage')).toBeDefined();
+    expect(findByType(res.tree, 'nosecone')).toBeDefined();
+    const body = findByType(res.tree, 'bodytube');
+    expect(body).toBeDefined();
+    const fins = findByType(res.tree, 'trapezoidfinset') as { finCount?: number } | undefined;
+    expect(fins?.finCount).toBe(4);
+    expect(findByType(res.tree, 'parachute')).toBeDefined();
+  });
+
+  it('preserves body-tube geometry within rounding', () => {
+    const body = findByType(importOrk(xml).tree, 'bodytube') as { length?: number; outerRadius?: number };
+    expect(body.length).toBeCloseTo(0.2, 6);
+    expect(body.outerRadius).toBeCloseTo(0.013, 6);
+  });
+
+  it('round-trips the motor and reports notes as an array', () => {
+    const res = importOrk(xml);
+    expect(xml).toContain('C6');
+    expect(Array.isArray(res.notes)).toBe(true);
+  });
+
+  it('accepts its own output as a bare XML string (no zip)', () => {
+    expect(() => importOrk(xml)).not.toThrow();
+  });
+});

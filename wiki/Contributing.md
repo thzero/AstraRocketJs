@@ -65,6 +65,8 @@ npm install
 npm run dev          # dev server with hot reload — prints a local URL
 npm run build        # typecheck (tsc) + production build — must pass before a PR
 npm run preview      # serve the production build locally
+npm run test         # Vitest unit tests (engine services: parsers, transforms, stores)
+npm run test:watch   # Vitest in watch mode while developing
 npm run e2e          # Playwright end-to-end smoke tests (downloads Chromium the first time)
 ```
 
@@ -119,7 +121,7 @@ Open a PR from your branch to **`master`**. In the description:
 2. The underlying cause.
 3. How you fixed it.
 
-Make sure `npx tsc --noEmit` and `npm run build` pass, and that you've checked the change in the browser. Keep engine `.mjs`/`.wasm` regenerations in the same PR as their Java changes.
+Make sure `npm run build` and `npm run test` pass, and that you've checked the change in the browser. Add or update unit tests for any logic you touch under `web/src/services` or `web/src/engine`. Keep engine `.mjs`/`.wasm` regenerations in the same PR as their Java changes.
 
 ## Maintainer tasks
 

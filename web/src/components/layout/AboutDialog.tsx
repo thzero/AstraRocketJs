@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import { appName, APP_VERSION } from '../../services/appInfo';
 
 // Credited open-source projects → homepage.
@@ -52,7 +52,19 @@ export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => v
         <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-300">
           <p>{t('about.body', { name: appName() })}</p>
           <p>{t('about.ork')}</p>
-          <p>{t('about.scope')}</p>
+          <p>
+            <Trans
+              i18nKey="about.scope"
+              components={{
+                orLink: (
+                  <a
+                    href="https://openrocket.info" target="_blank" rel="noreferrer"
+                    className="text-sky-400 hover:underline"
+                  />
+                ),
+              }}
+            />
+          </p>
         </div>
 
         <div className="mt-4 border-t border-white/10 pt-3 text-xs leading-relaxed text-slate-500">
