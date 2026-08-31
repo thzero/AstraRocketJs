@@ -35,6 +35,9 @@ jobs:
 
       - run: npm ci
 
+      # Gate the publish on the unit tests — a red test blocks the deploy.
+      - run: npm run test
+
       # Serve from https://<user>.github.io/<repo>/ — base must be /<repo>/.
       - run: npm run build
         env:
