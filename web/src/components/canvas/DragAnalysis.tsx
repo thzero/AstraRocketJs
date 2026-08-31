@@ -19,11 +19,10 @@ import type { DragSweep } from '../../engine/openRocketEngine';
 const CAT = ['#3987e5', '#199e70', '#c98500', '#008300', '#9085e9', '#e66767', '#d55181', '#d95926'];
 const POWER_OFF = CAT[0]!;
 const POWER_ON = CAT[7]!;
-const OTHER = '#8a8f98';
 
 const PAD_L = 46, PAD_R = 14, PAD_T = 10, PAD_B = 20, CHART_H = 168;
 
-interface Series { name: string; color: string; values: number[]; }
+interface Series { name: string; color: string; values: number[]; dash?: string; }
 
 /** Engine aero-component keys arrive as "[Class.Instance]"; show the user's name
  *  when set, else the CamelCase class split into words (BodyTube → "Body Tube"). */
@@ -35,12 +34,6 @@ function niceName(raw: string): string {
   return base.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
 }
 
-function sumTail(comps: { name: string; cd: number[] }[]): number[] {
-  const n = comps[0]?.cd.length ?? 0;
-  const out = new Array<number>(n).fill(0);
-  for (const c of comps) for (let i = 0; i < n; i++) out[i] += c.cd[i] ?? 0;
-  return out;
-}
 
 export function DragAnalysis() {
   const { t } = useTranslation();
@@ -71,10 +64,15 @@ export function DragAnalysis() {
         { name: t('drag.pressure'), color: CAT[1]!, values: sweep.powerOff.pressure },
         { name: t('drag.base'), color: CAT[2]!, values: sweep.powerOff.base },
       ]
-    : [
-        ...sweep.components.slice(0, 7).map((c, i) => ({ name: niceName(c.name), color: CAT[i % CAT.length]!, values: c.cd })),
-        ...(sweep.components.length > 7 ? [{ name: t('drag.other'), color: OTHER, values: sumTail(sweep.components.slice(7)) }] : []),
-      ];
+    // Every (external) component individually. There are only 8 palette hues, so
+    // components past the 8th repeat a hue but with a dash pattern, keeping each
+    // line tellable (color alone is never the sole identifier).
+    : sweep.components.map((c, i) => ({
+        name: niceName(c.name),
+        color: CAT[i % CAT.length]!,
+        values: c.cd,
+        dash: i >= CAT.length ? '5 3' : undefined,
+      }));
 
   const bodyLen = info?.length ?? 0;
   const cpValues = cpPct && bodyLen > 0 ? sweep.cp.map((v) => (v / bodyLen) * 100) : sweep.cp.map((v) => v * 100);
@@ -213,11 +211,17 @@ function ChartCard({ title, note, right, machs, machMin, machMax, series, stacke
         {right && <span className="ml-auto">{right}</span>}
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 px-2 pb-1 pt-1">
-        {series.map((se) => {
+        {series.map((se, li) => {
           const val = hoverM != null ? lerpAt(machs, se.values, hoverM) : null;
           return (
-            <span key={se.name} className="inline-flex items-center gap-1 text-[10px] text-slate-300">
-              <span className="inline-block h-2 w-2 rounded-sm" style={{ background: se.color }} />
+            <span key={li} className="inline-flex items-center gap-1 text-[10px] text-slate-300">
+              {se.dash
+                ? (
+                  <svg width="12" height="4" className="shrink-0" aria-hidden>
+                    <line x1="0" y1="2" x2="12" y2="2" stroke={se.color} strokeWidth="2" strokeDasharray={se.dash} />
+                  </svg>
+                )
+                : <span className="inline-block h-2 w-2 rounded-sm" style={{ background: se.color }} />}
               {se.name}
               {val != null && <span className="tabular-nums text-slate-400">· {fmtNum(val, digits)}{unit && ` ${unit}`}</span>}
             </span>
@@ -241,7 +245,8 @@ function ChartCard({ title, note, right, machs, machMin, machMax, series, stacke
                 <path key={i} d={b.d} fill={b.fill} fillOpacity={0.85} stroke="#0f172a" strokeWidth={1} vectorEffect="non-scaling-stroke" />
               ))
             : series.map((se, i) => (
-                <path key={i} d={linePath(se.values)} fill="none" stroke={se.color} strokeWidth={1.75} vectorEffect="non-scaling-stroke" />
+                <path key={i} d={linePath(se.values)} fill="none" stroke={se.color} strokeWidth={1.75}
+                  strokeDasharray={se.dash} vectorEffect="non-scaling-stroke" />
               ))}
           {xTicks.map((m, i) => (
             <text key={i} x={X(m)} y={CHART_H - 5} textAnchor="middle" className="fill-slate-500 text-[9px] tabular-nums">
