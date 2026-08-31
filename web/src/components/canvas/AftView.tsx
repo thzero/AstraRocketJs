@@ -138,9 +138,11 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
         reach(cy, cz, pRadius + hgt);
       } else if (t === 'launchlug' || t === 'railbutton') {
         const r = t === 'railbutton' ? num(child, 'outerDiameter', 0.004) / 2 : num(child, 'outerRadius', 0.002);
-        // Radial direction isn't modeled — shown at the right side.
+        // Seated at its radial mount angle around the body (kernel default 180°).
+        const ang = num(child, 'angleOffset', Math.PI);
+        const rad = pRadius + r;
         outer.push({
-          kind: 'circle', y: cy + pRadius + r, z: cz, r,
+          kind: 'circle', y: cy + rad * Math.cos(ang), z: cz + rad * Math.sin(ang), r,
           fill: colorOf(child, '#c8c5be'), stroke: '#7a786f', title: child.name ?? t,
         });
         reach(cy, cz, pRadius + 2 * r);

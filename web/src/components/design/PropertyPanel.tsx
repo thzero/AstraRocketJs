@@ -19,6 +19,7 @@ type Field =
   | { key: string; label: string; kind: 'mass' }      // stored kg, shown g
   | { key: string; label: string; kind: 'count' }
   | { key: string; label: string; kind: 'number'; step?: number }
+  | { key: string; label: string; kind: 'angle' }   // stored radians, shown degrees
   | { key: string; label: string; kind: 'select'; options: string[] };
 
 // The real OpenRocket shape vocabulary — matches the engine (shapeOf), the
@@ -92,6 +93,11 @@ const FIELDS: Record<string, Field[]> = {
   launchlug: [
     { key: 'length', label: 'length', kind: 'length' },
     { key: 'outerRadius', label: 'radius', kind: 'length' },
+    { key: 'angleOffset', label: 'angleAroundBody', kind: 'angle' },
+  ],
+  railbutton: [
+    { key: 'outerDiameter', label: 'outerDiameter', kind: 'length' },
+    { key: 'angleOffset', label: 'angleAroundBody', kind: 'angle' },
   ],
   parachute: [
     { key: 'diameter', label: 'diameter', kind: 'length' },
@@ -277,6 +283,14 @@ export function PropertyPanel({ node, onChange, onRemove, onMove, canMoveUp, can
           return (
             <NumberField key={f.key} label={flabel(f)} value={numVal(node, f.key)} step={f.step ?? 0.1}
               onChange={(v) => onChange({ [f.key]: v })} />
+          );
+        }
+        if (f.kind === 'angle') {
+          // Stored in radians (kernel/.ork convention), edited in degrees.
+          return (
+            <NumberField key={f.key} label={flabel(f)} unit="°" min={-180} step={5}
+              value={(numVal(node, f.key) * 180) / Math.PI}
+              onChange={(v) => onChange({ [f.key]: (v * Math.PI) / 180 })} />
           );
         }
         // length: stored metres, shown mm

@@ -219,10 +219,14 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims, palette: PartP
       } else if (child.type === 'launchlug') {
         const len = num(child, 'length', 0.05);
         const r = num(child, 'outerRadius', 0.0022);
+        // Ride around the body at the radial mount angle (kernel default 180°),
+        // staying axial. y = R·cosθ, z = R·sinθ — the pod/cluster convention.
+        const ang = num(child, 'angleOffset', Math.PI);
+        const rad = pRadius + r;
         const start = axialStart(child, len, pStart, pLen);
         const geo = new THREE.CylinderGeometry(r, r, len, 16);
         place(`lug${k++}`, geo, nodeColor(child, palette),
-          [start + len / 2, pRadius + r, 0], [0, 0, -Math.PI / 2], xform);
+          [start + len / 2, rad * Math.cos(ang), rad * Math.sin(ang)], [0, 0, -Math.PI / 2], xform);
       } else if (child.type === 'innertube') {
         // Motor mount / inner tube, one per cluster position — visible through
         // the translucent shell. A loaded motor seats flush against the

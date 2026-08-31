@@ -282,6 +282,8 @@
     "motorOverhang": "Motor overhang",
     "outerRadius": "Outer radius",
     "innerRadius": "Inner radius",
+    "outerDiameter": "Outer diameter",
+    "angleAroundBody": "Angle around body",
     "diameter": "Diameter",
     "dragCoeff": "Drag coeff",
     "mass": "Mass",

@@ -65,3 +65,30 @@ describe('exportOrk → importOrk round-trip', () => {
     expect(() => importOrk(xml)).not.toThrow();
   });
 });
+
+describe('launch-lug / rail-button radial angle round-trips', () => {
+  // A tree with a lug at 45° and a rail button at 90° around the body. These
+  // used to be silently overwritten with 180° on every save.
+  const tree = {
+    components: [{
+      type: 'stage', name: 'Sustainer', id: 's1', children: [
+        {
+          type: 'bodytube', id: 'body', length: 0.3, outerRadius: 0.013, thickness: 0.0005,
+          children: [
+            { type: 'launchlug', id: 'lug', length: 0.03, outerRadius: 0.0022, angleOffset: Math.PI / 4, position: { method: 'middle', offset: 0 } },
+            { type: 'railbutton', id: 'btn', outerDiameter: 0.0097, angleOffset: Math.PI / 2, position: { method: 'middle', offset: 0 } },
+          ],
+        },
+      ],
+    }],
+  } as unknown as RocketTree;
+
+  it('preserves the lug and button angle through export → import', () => {
+    const out = importOrk(exportOrk({ name: 'Lugs', tree }));
+    // ids are regenerated on import, so match by type.
+    const lug = findByType(out.tree, 'launchlug') as { angleOffset?: number } | undefined;
+    const btn = findByType(out.tree, 'railbutton') as { angleOffset?: number } | undefined;
+    expect(lug?.angleOffset).toBeCloseTo(Math.PI / 4, 6);
+    expect(btn?.angleOffset).toBeCloseTo(Math.PI / 2, 6);
+  });
+});

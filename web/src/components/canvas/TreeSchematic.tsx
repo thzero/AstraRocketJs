@@ -749,12 +749,18 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
         const len = t === 'railbutton' ? btnDia : num(child, 'length', 0.01);
         const r = t === 'railbutton' ? btnDia / 2 : num(child, 'outerRadius', 0.002);
         const start = axialStart(child, len, pStart, pLen);
-        noteHover(child, ctx.x0 + start * ctx.scale, baseY - (pRadius + 2 * r) * ctx.scale,
-          ctx.x0 + (start + len) * ctx.scale, baseY - pRadius * ctx.scale);
+        // Project the radial mount angle onto the side profile: 0° stands at full
+        // height above the tube, ±90° is edge-on (foreshortens away), 180° sits
+        // below. Vertical offset = radius·cos(angle) (kernel default 180°).
+        const c = Math.cos(num(child, 'angleOffset', Math.PI));
+        const yInner = baseY - pRadius * c * ctx.scale;
+        const yOuter = baseY - (pRadius + 2 * r) * c * ctx.scale;
+        const yTop = Math.min(yInner, yOuter);
+        const h = Math.max(1, Math.abs(yOuter - yInner));
+        noteHover(child, ctx.x0 + start * ctx.scale, yTop, ctx.x0 + (start + len) * ctx.scale, yTop + h);
         shapes.push(
-          <rect key={key++} x={ctx.x0 + start * ctx.scale}
-            y={baseY - (pRadius + 2 * r) * ctx.scale}
-            width={Math.max(2, len * ctx.scale)} height={Math.max(2, 2 * r * ctx.scale)}
+          <rect key={key++} x={ctx.x0 + start * ctx.scale} y={yTop}
+            width={Math.max(2, len * ctx.scale)} height={h}
             fill={fillOf(child, '#c8c5be')} stroke={selStroke(child, '#7a786f')}
             strokeWidth={selWidth(child)} {...grab} />,
         );

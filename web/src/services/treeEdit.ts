@@ -160,7 +160,7 @@ export function defaultNode(type: ComponentType): ComponentNode {
     case 'centeringring': return { type, id, length: 0.003, outerRadius: 0.0125, innerRadius: 0.0092, position: { method: 'bottom', offset: 0 } };
     case 'bulkhead': return { type, id, length: 0.003, outerRadius: 0.0125, position: { method: 'bottom', offset: 0 } };
     case 'engineblock': return { type, id, length: 0.005, outerRadius: 0.0092, position: { method: 'bottom', offset: 0 } };
-    case 'launchlug': return { type, id, length: 0.03, outerRadius: 0.0022, position: { method: 'middle', offset: 0 } };
+    case 'launchlug': return { type, id, length: 0.03, outerRadius: 0.0022, angleOffset: Math.PI, position: { method: 'middle', offset: 0 } };
     case 'parachute': return { type, id, diameter: 0.3, cd: 0.8, position: { method: 'top', offset: 0.02 } };
     case 'streamer': return { type, id, length: 0.4, width: 0.05, position: { method: 'top', offset: 0.02 } };
     case 'masscomponent': return { type, id, mass: 0.01, length: 0.02, position: { method: 'top', offset: 0 } };

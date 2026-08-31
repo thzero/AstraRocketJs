@@ -449,12 +449,14 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         n['length'] = num(el, 'length', 0.05);
         n['outerRadius'] = num(el, 'radius', 0.0022);
         n['thickness'] = num(el, 'thickness', 0.0003);
+        n['angleOffset'] = readAngleAroundBody(el);
         readInstances(el, n);
         return n;
       }
       case 'railbutton': {
         const n = base('railbutton', true);
         n['outerDiameter'] = num(el, 'outerdiameter', 0.0097);
+        n['angleOffset'] = readAngleAroundBody(el);
         readInstances(el, n);
         return n;
       }
@@ -1308,8 +1310,8 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         header(depth + 1, node, 'Launch Lug');
         emit(depth + 1, `<instancecount>${n(node, 'instanceCount', 1)}</instancecount>`);
         emit(depth + 1, `<instanceseparation>${n(node, 'instanceSeparation', 0)}</instanceseparation>`);
-        emit(depth + 1, '<angleoffset method="relative">180.0</angleoffset>');
-        emit(depth + 1, '<radialdirection>180.0</radialdirection>');
+        emit(depth + 1, `<angleoffset method="relative">${(n(node, 'angleOffset', Math.PI) * 180) / Math.PI}</angleoffset>`);
+        emit(depth + 1, `<radialdirection>${(n(node, 'angleOffset', Math.PI) * 180) / Math.PI}</radialdirection>`);
         position(depth + 1, node, 'middle');
         finishXml(depth + 1, node);
         material(depth + 1, node);
@@ -1324,7 +1326,7 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         header(depth + 1, node, 'Rail Button');
         emit(depth + 1, `<instancecount>${n(node, 'instanceCount', 1)}</instancecount>`);
         emit(depth + 1, `<instanceseparation>${n(node, 'instanceSeparation', 0)}</instanceseparation>`);
-        emit(depth + 1, '<angleoffset method="relative">180.0</angleoffset>');
+        emit(depth + 1, `<angleoffset method="relative">${(n(node, 'angleOffset', Math.PI) * 180) / Math.PI}</angleoffset>`);
         position(depth + 1, node, 'middle');
         finishXml(depth + 1, node);
         emit(depth + 1, '<material type="bulk" density="1420.0" group="Plastics">Delrin</material>');
@@ -1634,6 +1636,15 @@ function readInstances(el: Element, node: ComponentNode): void {
   if (count > 1) node['instanceCount'] = count;
   const sep = num(el, 'instanceseparation', 0);
   if (sep !== 0) node['instanceSeparation'] = sep;
+}
+
+/** Radial mounting angle (LaunchLug / RailButton) in RADIANS. OpenRocket writes
+ *  it as <angleoffset> (degrees), older files as <radialdirection>; the kernel
+ *  default is 180°. Stored in radians to match the tree/renderers. */
+function readAngleAroundBody(el: Element): number {
+  const a = num(el, 'angleoffset', NaN);
+  const deg = Number.isFinite(a) ? a : num(el, 'radialdirection', 180);
+  return (deg * Math.PI) / 180;
 }
 
 function readAirfoil(el: Element, node: ComponentNode): void {

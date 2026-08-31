@@ -282,6 +282,8 @@
     "motorOverhang": "Sobresaliente del motor",
     "outerRadius": "Radio exterior",
     "innerRadius": "Radio interior",
+    "outerDiameter": "Diámetro exterior",
+    "angleAroundBody": "Ángulo alrededor del cuerpo",
     "diameter": "Diámetro",
     "dragCoeff": "Coef. de resistencia",
     "mass": "Masa",
