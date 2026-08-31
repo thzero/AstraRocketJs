@@ -11,8 +11,8 @@ class FakeKv implements KeyValueStore {
 }
 
 // Private keys from motorStore.ts, hardcoded so we can seed raw entries.
-const CATALOG_KEY = 'tc:catalog';
-const CATALOG_SIG_KEY = 'tc:catalog:sig';
+const CATALOG_KEY = 'astrarrocketjs:tc:catalog';
+const CATALOG_SIG_KEY = 'astrarrocketjs:tc:catalog:sig';
 
 const cat: CatalogMotor[] = [
   { designation: 'C6', manufacturer: 'Estes', class: 'C', diameter: 18, impulse: 8.8, burn: 1.7, mass: 24 },
@@ -90,7 +90,7 @@ describe('custom motors', () => {
   });
 
   it('filters out invalid custom-motor rows', async () => {
-    await kv.set('motors:custom', JSON.stringify([custom('ok'), { id: 'bad' }, { designation: 'no-id' }]));
+    await kv.set('astrarrocketjs:motors:custom', JSON.stringify([custom('ok'), { id: 'bad' }, { designation: 'no-id' }]));
     const list = await store.listCustomMotors();
     expect(list).toHaveLength(1);
     expect(list[0]!.id).toBe('ok');

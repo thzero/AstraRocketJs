@@ -10,7 +10,7 @@ class FakeKv implements KeyValueStore {
   async remove(k: string) { this.map.delete(k); }
 }
 
-const KEY = 'materials:custom';
+const KEY = 'astrarrocketjs:materials:custom';
 const mat = (name: string, density = 1000): Material => ({ name, type: 'bulk', density } as Material);
 
 let kv: FakeKv;

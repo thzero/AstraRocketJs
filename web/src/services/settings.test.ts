@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { loadSettings, saveSettings, DEFAULT_SETTINGS } from './settings';
 
-const KEY = 'settings:v1';
+const KEY = 'astrarrocketjs:settings:v1';
 
 beforeEach(() => localStorage.clear());
 
@@ -34,6 +34,12 @@ describe('loadSettings', () => {
   it('falls back to defaults on corrupt JSON', () => {
     localStorage.setItem(KEY, '{not valid');
     expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
+  });
+
+  it('defaults wipAcknowledged to false and round-trips a stored true', () => {
+    expect(loadSettings().wipAcknowledged).toBe(false);
+    localStorage.setItem(KEY, JSON.stringify({ wipAcknowledged: true }));
+    expect(loadSettings().wipAcknowledged).toBe(true);
   });
 });
 

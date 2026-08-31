@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
-import { appName, APP_VERSION } from '../../services/appInfo';
+import { appName, APP_VERSION, isPreRelease } from '../../services/appInfo';
 
 // Credited open-source projects → homepage.
 const LINKS: [string, string][] = [
@@ -50,6 +50,11 @@ export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => v
         </div>
 
         <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-300">
+          {isPreRelease() && (
+            <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-amber-300 ring-1 ring-amber-400/30">
+              {t('about.wip')}
+            </p>
+          )}
           <p>{t('about.body', { name: appName() })}</p>
           <p>{t('about.ork')}</p>
           <p>

@@ -7,6 +7,7 @@
     "body": "{{name}} es una aplicación rápida y adaptada a móviles para diseñar y simular cohetes. Ejecuta el motor de física real de OpenRocket — compilado a JavaScript — íntegramente en tu navegador, así que no hay nada que instalar y nada sale de tu dispositivo.",
     "ork": "Compatibilidad total con archivos OpenRocket (.ork): abre, edita y guarda tus diseños de ida y vuelta.",
     "scope": "Es una interfaz simplificada sobre el mismo núcleo de simulación de confianza, centrada en lo esencial: CG / CP / estabilidad en vivo, vistas 2D y 3D, y simulación de vuelo. Si necesitas más funciones, consulta <orLink>OpenRocket</orLink>.",
+    "wip": "⚠️ Trabajo en curso (anterior a 1.0): las funciones pueden estar incompletas, cambiar o fallar.",
     "credits": "Física por OpenRocket (GPL-3.0), compilada a JavaScript con TeaVM.",
     "privacy": "Privacidad",
     "close": "Cerrar"
@@ -35,6 +36,12 @@
     "newConfirm": "¿Descartar el diseño actual y todas las simulaciones y empezar un diseño nuevo?"
   },
   "menu": { "open": "Menú", "help": "Ayuda" },
+  "wip": {
+    "title": "Trabajo en curso",
+    "body": "{{name}} es una versión temprana (anterior a 1.0) en desarrollo activo. Las funciones pueden estar incompletas, cambiar o fallar. ¡Gracias por probarla!",
+    "accept": "Entendido",
+    "badge": "Vista previa"
+  },
   "settings": {
     "title": "Ajustes",
     "parts": "Colores de piezas (modelo 3D)",

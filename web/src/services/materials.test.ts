@@ -11,7 +11,7 @@ class FakeKv implements KeyValueStore {
 }
 
 // Fresh in-memory material store per test (avoids cross-test bleed via the singleton).
-beforeEach(() => setMaterialStore(new KeyValueMaterialStore('materials:custom', new FakeKv())));
+beforeEach(() => setMaterialStore(new KeyValueMaterialStore('astrarrocketjs:materials:custom', new FakeKv())));
 
 describe('builtinsForType', () => {
   it('returns only built-ins of the requested type', () => {

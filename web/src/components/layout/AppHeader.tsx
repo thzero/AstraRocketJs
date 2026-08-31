@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { APP_VERSION, HELP_URL } from '../../services/appInfo';
+import { APP_VERSION, HELP_URL, isPreRelease } from '../../services/appInfo';
 import { initEngine } from '../../engine/openRocketEngine';
 import { useWorkspaceStore } from '../../state/store';
 import { LanguageSwitcher } from './LanguageSwitcher';
@@ -50,6 +50,14 @@ export function AppHeader() {
       >
         v{APP_VERSION}
       </button>
+      {isPreRelease() && (
+        <span
+          title={t('about.wip')}
+          className="rounded bg-amber-500/10 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-300 ring-1 ring-amber-400/30"
+        >
+          {t('wip.badge')}
+        </span>
+      )}
       {backend && (
         <span
           title={t(backend === 'wasm' ? 'engine.wasmTip' : 'engine.jsTip')}

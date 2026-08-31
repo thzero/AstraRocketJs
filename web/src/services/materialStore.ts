@@ -15,7 +15,7 @@ export interface MaterialStore {
   remove(name: string, type: MaterialType): Promise<void>;
 }
 
-const CUSTOM_KEY = 'materials:custom';
+const CUSTOM_KEY = 'astrarrocketjs:materials:custom';
 
 function isMaterial(v: unknown): v is Material {
   const m = v as Material;

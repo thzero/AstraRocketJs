@@ -148,9 +148,9 @@ async function resolveTcMotor(cat: CatalogMotor): Promise<TcMotor> {
 // math or shapes change), since it namespaces every key. Catalog updates are a
 // separate, build-time concern (see motorDb.ts / scripts/sync-motors.mjs).
 const CACHE_VERSION = 'v1';
-const SPEC_PREFIX = `tc:${CACHE_VERSION}:motor:`;
-const SAMPLE_PREFIX = `tc:${CACHE_VERSION}:samples:`;
-const META_PREFIX = `tc:${CACHE_VERSION}:meta:`;
+const SPEC_PREFIX = `astrarrocketjs:tc:${CACHE_VERSION}:motor:`;
+const SAMPLE_PREFIX = `astrarrocketjs:tc:${CACHE_VERSION}:samples:`;
+const META_PREFIX = `astrarrocketjs:tc:${CACHE_VERSION}:meta:`;
 
 /** Stable localStorage key for a picked motor + delay. */
 function specKey(cat: CatalogMotor, ejectionDelay: number): string {

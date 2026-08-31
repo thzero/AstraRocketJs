@@ -7,6 +7,7 @@ import { CenterView } from './components/canvas/CenterView';
 import { EditorPanel } from './components/design/EditorPanel';
 import { SimulationsPanel } from './components/sim/SimulationsPanel';
 import { TabBar } from './components/layout/TabBar';
+import { WorkInProgressDialog } from './components/layout/WorkInProgressDialog';
 
 export default function App() {
   useWorkspaceEffects();
@@ -58,6 +59,7 @@ export default function App() {
       </main>
 
       <TabBar />
+      <WorkInProgressDialog />
     </div>
   );
 }
