@@ -19,7 +19,7 @@ type Field =
   | { key: string; label: string; kind: 'mass' }      // stored kg, shown g
   | { key: string; label: string; kind: 'count' }
   | { key: string; label: string; kind: 'number'; step?: number }
-  | { key: string; label: string; kind: 'angle' }   // stored radians, shown degrees
+  | { key: string; label: string; kind: 'angle'; step?: number }   // stored radians, shown degrees
   | { key: string; label: string; kind: 'select'; options: string[] };
 
 // The real OpenRocket shape vocabulary — matches the engine (shapeOf), the
@@ -53,12 +53,14 @@ const FIELDS: Record<string, Field[]> = {
     { key: 'sweep', label: 'sweep', kind: 'length' },
     { key: 'height', label: 'height', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
+    { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
   ],
   ellipticalfinset: [
     { key: 'finCount', label: 'finCount', kind: 'count' },
     { key: 'rootChord', label: 'rootChord', kind: 'length' },
     { key: 'height', label: 'height', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
+    { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
   ],
   tubefinset: [
     { key: 'finCount', label: 'tubeCount', kind: 'count' },
@@ -288,7 +290,7 @@ export function PropertyPanel({ node, onChange, onRemove, onMove, canMoveUp, can
         if (f.kind === 'angle') {
           // Stored in radians (kernel/.ork convention), edited in degrees.
           return (
-            <NumberField key={f.key} label={flabel(f)} unit="°" min={-180} step={5}
+            <NumberField key={f.key} label={flabel(f)} unit="°" min={-180} step={f.step ?? 5}
               value={(numVal(node, f.key) * 180) / Math.PI}
               onChange={(v) => onChange({ [f.key]: (v * Math.PI) / 180 })} />
           );

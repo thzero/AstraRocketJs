@@ -83,6 +83,12 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
     }],
   } as unknown as RocketTree;
 
+  it('rejects a file containing pods (podset) — loads nothing', () => {
+    const withPod = '<openrocket><rocket><name>P</name><subcomponents><stage><name>S</name>'
+      + '<subcomponents><podset><name>Pod</name></podset></subcomponents></stage></subcomponents></rocket></openrocket>';
+    expect(() => importOrk(withPod)).toThrow(/pods/i);
+  });
+
   it('preserves the lug and button angle through export → import', () => {
     const out = importOrk(exportOrk({ name: 'Lugs', tree }));
     // ids are regenerated on import, so match by type.
@@ -90,5 +96,22 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
     const btn = findByType(out.tree, 'railbutton') as { angleOffset?: number } | undefined;
     expect(lug?.angleOffset).toBeCloseTo(Math.PI / 4, 6);
     expect(btn?.angleOffset).toBeCloseTo(Math.PI / 2, 6);
+  });
+
+  it('preserves a fin-set cant angle through export → import', () => {
+    const canted = {
+      components: [{
+        type: 'stage', name: 'Sustainer', id: 's1', children: [{
+          type: 'bodytube', id: 'body', length: 0.3, outerRadius: 0.013, thickness: 0.0005,
+          children: [{
+            type: 'trapezoidfinset', id: 'fins', finCount: 3, rootChord: 0.06, tipChord: 0.03,
+            sweep: 0.03, height: 0.05, thickness: 0.003, cant: Math.PI / 36, // 5°
+            position: { method: 'bottom', offset: 0 },
+          }],
+        }],
+      }],
+    } as unknown as RocketTree;
+    const fins = findByType(importOrk(exportOrk({ name: 'Cant', tree: canted })).tree, 'trapezoidfinset') as { cant?: number };
+    expect(fins.cant).toBeCloseTo(Math.PI / 36, 6);
   });
 });

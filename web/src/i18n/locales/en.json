@@ -284,6 +284,7 @@
     "innerRadius": "Inner radius",
     "outerDiameter": "Outer diameter",
     "angleAroundBody": "Angle around body",
+    "cant": "Cant angle",
     "diameter": "Diameter",
     "dragCoeff": "Drag coeff",
     "mass": "Mass",

@@ -121,6 +121,13 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
   const rocketEl = doc.querySelector('openrocket > rocket');
   if (!rocketEl) throw new Error('Not a .ork file (missing <rocket>)');
 
+  // Pods (podset) aren't supported yet — they can't be added or edited in the
+  // app. Refuse the whole file rather than importing it partially. (Parallel
+  // boosters are fine.) See TODO: finish pod add/edit, then re-enable import.
+  if (doc.querySelector('podset')) {
+    throw new Error('This design uses pods, which are not supported yet.');
+  }
+
   const ignored = new Set<string>();
   const notes: string[] = [];
   let motor: OrkMotorRef | undefined;
@@ -519,10 +526,10 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         if (mct && mct !== 'masscomponent') n['massComponentType'] = mct;
         return n;
       }
-      // <podset> (external pods) is intentionally NOT imported for now — it falls
-      // through to the unsupported path (added to `ignored`, surfaced as an import
-      // note). Pods can't yet be added or edited in the app; see TODO. Parallel
-      // boosters (<parallelstage> / legacy <boosterset>) remain fully supported.
+      // <podset> (external pods) never reaches here — a file containing one is
+      // rejected up front (see the guard near the top of importOrk), because pods
+      // can't yet be added or edited. Parallel boosters (<parallelstage> / legacy
+      // <boosterset>) remain fully supported.
       case 'parallelstage':
       case 'boosterset': {
         // <boosterset> is the legacy alias for <parallelstage>. The nested

@@ -680,8 +680,12 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
                 fill={fillOf(child, '#b9b7b0')} stroke={selStroke(child, '#7a786f')}
                 strokeWidth={selWidth(child)} {...grab} />
             ) : (
+              // Elliptical fin = the top half of an ellipse: major axis = root
+              // chord (horizontal), semi-minor axis = span. An SVG arc draws it
+              // exactly and reaches the FULL span — a quadratic Bézier only bent
+              // ~halfway to its control point, drawing the fin at ~half height.
               <path key={key++}
-                d={`M ${X} ${y0} Q ${X + (root / 2) * ctx.scale} ${yh + dir * 4} ${X + root * ctx.scale} ${y0} Z`}
+                d={`M ${X} ${y0} A ${(root / 2) * ctx.scale} ${hp * ctx.scale} 0 0 ${dir > 0 ? 1 : 0} ${X + root * ctx.scale} ${y0} Z`}
                 fill={fillOf(child, '#b9b7b0')} stroke={selStroke(child, '#7a786f')}
                 strokeWidth={selWidth(child)} {...grab} />
             ),

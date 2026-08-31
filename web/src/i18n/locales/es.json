@@ -284,6 +284,7 @@
     "innerRadius": "Radio interior",
     "outerDiameter": "Diámetro exterior",
     "angleAroundBody": "Ángulo alrededor del cuerpo",
+    "cant": "Ángulo de inclinación",
     "diameter": "Diámetro",
     "dragCoeff": "Coef. de resistencia",
     "mass": "Masa",
