@@ -296,7 +296,9 @@
     "resetColor": "Reset to default color",
     "deployEvent": "Deploy at",
     "deployAltitude": "Deploy altitude (AGL)",
-    "deployDelay": "Deploy delay"
+    "deployDelay": "Deploy delay",
+    "lineCount": "Shroud lines",
+    "lineLength": "Line length"
   },
   "deployEvent": {
     "ejection": "Motor ejection charge",
@@ -340,6 +342,9 @@
   },
   "material": {
     "title": "Material",
+    "canopy": "Canopy material",
+    "strip": "Strip material",
+    "lines": "Shroud line material",
     "default": "default",
     "defaultOption": "OpenRocket default (per part type)",
     "defaultHint": "No material assigned — OpenRocket uses its built-in default material and density for this component type (e.g. cardboard tubes, balsa fins).",

@@ -184,8 +184,8 @@ export function defaultNode(type: ComponentType): ComponentNode {
     case 'bulkhead': return { type, id, length: 0.003, outerRadius: 0.0125, position: { method: 'bottom', offset: 0 } };
     case 'engineblock': return { type, id, length: 0.005, outerRadius: 0.0092, position: { method: 'bottom', offset: 0 } };
     case 'launchlug': return { type, id, length: 0.03, outerRadius: 0.0022, angleOffset: Math.PI, position: { method: 'middle', offset: 0 } };
-    case 'parachute': return { type, id, diameter: 0.3, cd: 0.8, deployEvent: 'apogee', deployAltitude: 200, deployDelay: 0, position: { method: 'top', offset: 0.02 } };
-    case 'streamer': return { type, id, length: 0.4, width: 0.05, deployEvent: 'apogee', deployAltitude: 200, deployDelay: 0, position: { method: 'top', offset: 0.02 } };
+    case 'parachute': return { type, id, diameter: 0.3, cd: 0.8, lineCount: 6, lineLength: 0.3, deployEvent: 'apogee', deployAltitude: 200, deployDelay: 0, position: { method: 'top', offset: 0.02 } };
+    case 'streamer': return { type, id, stripLength: 0.4, stripWidth: 0.05, cd: 0.6, deployEvent: 'apogee', deployAltitude: 200, deployDelay: 0, position: { method: 'top', offset: 0.02 } };
     case 'masscomponent': return { type, id, mass: 0.01, length: 0.02, position: { method: 'top', offset: 0 } };
     default: return { type, id };
   }

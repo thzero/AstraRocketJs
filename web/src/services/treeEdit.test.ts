@@ -151,6 +151,29 @@ describe('sibling ordering', () => {
   });
 });
 
+describe('recovery-device defaults', () => {
+  it('parachute defaults carry Cd, shroud lines, and an apogee deployment', () => {
+    const p = defaultNode('parachute') as Record<string, unknown>;
+    expect(p.diameter).toBeGreaterThan(0);
+    expect(p.cd).toBeGreaterThan(0);
+    expect(p.lineCount).toBeGreaterThan(0);
+    expect(typeof p.lineLength).toBe('number');
+    expect(p.deployEvent).toBe('apogee');
+  });
+
+  it('streamer defaults use stripLength/stripWidth (not length/width) + Cd + apogee', () => {
+    const s = defaultNode('streamer') as Record<string, unknown>;
+    // Guards the key-name bug: the editor/engine/.ork all key on stripLength/
+    // stripWidth; a regression to length/width silently drops streamer sizing.
+    expect(s.stripLength).toBeGreaterThan(0);
+    expect(s.stripWidth).toBeGreaterThan(0);
+    expect(s.length).toBeUndefined();
+    expect(s.width).toBeUndefined();
+    expect(s.cd).toBeGreaterThan(0);
+    expect(s.deployEvent).toBe('apogee');
+  });
+});
+
 describe('defaultNode', () => {
   it('gives an innertube a motor mount and a nosecone an ogive shape', () => {
     expect((defaultNode('innertube') as { motorMount?: boolean }).motorMount).toBe(true);

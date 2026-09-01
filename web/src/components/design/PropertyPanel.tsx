@@ -109,13 +109,16 @@ const FIELDS: Record<string, Field[]> = {
   parachute: [
     { key: 'diameter', label: 'diameter', kind: 'length' },
     { key: 'cd', label: 'dragCoeff', kind: 'number', step: 0.05 },
+    { key: 'lineCount', label: 'lineCount', kind: 'count' },
+    { key: 'lineLength', label: 'lineLength', kind: 'length' },
     { key: 'deployEvent', label: 'deployEvent', kind: 'select', options: DEPLOY_EVENTS, optI18n: 'deployEvent' },
     { key: 'deployAltitude', label: 'deployAltitude', kind: 'number', unit: 'm', step: 10 },
     { key: 'deployDelay', label: 'deployDelay', kind: 'number', unit: 's', step: 0.5 },
   ],
   streamer: [
-    { key: 'length', label: 'length', kind: 'length' },
-    { key: 'width', label: 'width', kind: 'length' },
+    { key: 'stripLength', label: 'length', kind: 'length' },
+    { key: 'stripWidth', label: 'width', kind: 'length' },
+    { key: 'cd', label: 'dragCoeff', kind: 'number', step: 0.05 },
     { key: 'deployEvent', label: 'deployEvent', kind: 'select', options: DEPLOY_EVENTS, optI18n: 'deployEvent' },
     { key: 'deployAltitude', label: 'deployAltitude', kind: 'number', unit: 'm', step: 10 },
     { key: 'deployDelay', label: 'deployDelay', kind: 'number', unit: 's', step: 0.5 },
@@ -319,6 +322,27 @@ export function PropertyPanel({ node, onChange, onRemove, onMove, canMoveUp, can
             value={typeof node.materialName === 'string' ? node.materialName : undefined}
             onChange={(name, d) => onChange({ materialName: name, density: d || undefined })}
           />
+        </div>
+      )}
+
+      {/* Recovery devices use surface (fabric) + line (cord) materials, not the
+          bulk material above — each feeds the device's mass. */}
+      {(node.type === 'parachute' || node.type === 'streamer') && (
+        <div className="space-y-3 border-t border-white/5 pt-3">
+          <MaterialPicker
+            type="surface"
+            label={t(node.type === 'streamer' ? 'material.strip' : 'material.canopy')}
+            value={typeof node.surfaceMaterialName === 'string' ? node.surfaceMaterialName : undefined}
+            onChange={(name, d) => onChange({ surfaceMaterialName: name, surfaceDensity: d || undefined })}
+          />
+          {node.type === 'parachute' && (
+            <MaterialPicker
+              type="line"
+              label={t('material.lines')}
+              value={typeof node.lineMaterialName === 'string' ? node.lineMaterialName : undefined}
+              onChange={(name, d) => onChange({ lineMaterialName: name, lineDensity: d || undefined })}
+            />
+          )}
         </div>
       )}
 

@@ -21,6 +21,12 @@ test('the parachute editor exposes deployment overrides, simulates, and persists
   // The tree row carries title="Parachute"; clicking it selects the device.
   await page.locator('div[title="Parachute"]').click();
 
+  // Recovery-specific editors: shroud lines + surface/line material pickers.
+  await expect(page.getByLabel('Shroud lines')).toBeVisible();
+  await expect(page.getByLabel('Line length')).toBeVisible();
+  await expect(page.getByText('Canopy material')).toBeVisible();
+  await expect(page.getByText('Shroud line material')).toBeVisible();
+
   const deploy = page.getByLabel('Deploy at');
   await expect(deploy).toBeVisible();
   await expect(deploy).toHaveValue('apogee'); // default

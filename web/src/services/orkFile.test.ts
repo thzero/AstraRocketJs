@@ -123,3 +123,48 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
     expect(fins.cant).toBeCloseTo(Math.PI / 36, 6);
   });
 });
+
+describe('recovery-device features round-trip', () => {
+  const tree = {
+    components: [{
+      type: 'stage', name: 'Sustainer', id: 's1', children: [{
+        type: 'bodytube', id: 'body', length: 0.3, outerRadius: 0.013, thickness: 0.0005,
+        children: [
+          {
+            type: 'parachute', id: 'chute', diameter: 0.5, cd: 0.9,
+            lineCount: 8, lineLength: 0.45,
+            surfaceMaterialName: 'Ripstop nylon', surfaceDensity: 0.067,
+            lineMaterialName: 'Braided nylon (2 mm, 1/16 in)', lineDensity: 0.001,
+            deployEvent: 'apogee', deployAltitude: 200, deployDelay: 0,
+            position: { method: 'top', offset: 0.02 },
+          },
+          {
+            type: 'streamer', id: 'strmr', stripLength: 0.9, stripWidth: 0.07, cd: 0.55,
+            surfaceMaterialName: 'Mylar', surfaceDensity: 0.021,
+            deployEvent: 'apogee', deployAltitude: 200, deployDelay: 0,
+            position: { method: 'top', offset: 0.1 },
+          },
+        ],
+      }],
+    }],
+  } as unknown as RocketTree;
+
+  const out = importOrk(exportOrk({ name: 'Recovery', tree }));
+
+  it('preserves parachute Cd, shroud lines, and canopy/line materials', () => {
+    const c = findByType(out.tree, 'parachute') as Record<string, unknown>;
+    expect(c.cd).toBeCloseTo(0.9, 6);
+    expect(c.lineCount).toBe(8);
+    expect(c.lineLength).toBeCloseTo(0.45, 6);
+    expect(c.surfaceDensity).toBeCloseTo(0.067, 6);
+    expect(c.lineDensity).toBeCloseTo(0.001, 6);
+  });
+
+  it('preserves streamer strip dimensions, Cd, and strip material', () => {
+    const s = findByType(out.tree, 'streamer') as Record<string, unknown>;
+    expect(s.stripLength).toBeCloseTo(0.9, 6);
+    expect(s.stripWidth).toBeCloseTo(0.07, 6);
+    expect(s.cd).toBeCloseTo(0.55, 6);
+    expect(s.surfaceDensity).toBeCloseTo(0.021, 6);
+  });
+});

@@ -296,7 +296,9 @@
     "resetColor": "Restablecer color por defecto",
     "deployEvent": "Desplegar en",
     "deployAltitude": "Altitud de despliegue (AGL)",
-    "deployDelay": "Retardo de despliegue"
+    "deployDelay": "Retardo de despliegue",
+    "lineCount": "Cuerdas de suspensión",
+    "lineLength": "Longitud de cuerda"
   },
   "deployEvent": {
     "ejection": "Carga de eyección del motor",
@@ -340,6 +342,9 @@
   },
   "material": {
     "title": "Material",
+    "canopy": "Material del velamen",
+    "strip": "Material de la cinta",
+    "lines": "Material de las cuerdas",
     "default": "por defecto",
     "defaultOption": "Predeterminado de OpenRocket (por tipo de pieza)",
     "defaultHint": "Sin material asignado — OpenRocket usa su material y densidad predeterminados para este tipo de componente (p. ej. tubos de cartón, aletas de balsa).",
