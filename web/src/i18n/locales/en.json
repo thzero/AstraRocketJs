@@ -293,7 +293,17 @@
     "width": "Width",
     "shape": "Shape",
     "color": "Color",
-    "resetColor": "Reset to default color"
+    "resetColor": "Reset to default color",
+    "deployEvent": "Deploy at",
+    "deployAltitude": "Deploy altitude (AGL)",
+    "deployDelay": "Deploy delay"
+  },
+  "deployEvent": {
+    "ejection": "Motor ejection charge",
+    "apogee": "Apogee",
+    "altitude": "Altitude (descending)",
+    "launch": "Launch",
+    "never": "Never"
   },
   "motor": {
     "selected": "Selected motor",

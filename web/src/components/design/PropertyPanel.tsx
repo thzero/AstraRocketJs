@@ -18,13 +18,18 @@ type Field =
   | { key: string; label: string; kind: 'length' }   // stored m, shown mm
   | { key: string; label: string; kind: 'mass' }      // stored kg, shown g
   | { key: string; label: string; kind: 'count' }
-  | { key: string; label: string; kind: 'number'; step?: number }
+  | { key: string; label: string; kind: 'number'; step?: number; unit?: string }
   | { key: string; label: string; kind: 'angle'; step?: number }   // stored radians, shown degrees
-  | { key: string; label: string; kind: 'select'; options: string[] };
+  | { key: string; label: string; kind: 'select'; options: string[]; optI18n?: string };
 
 // The real OpenRocket shape vocabulary — matches the engine (shapeOf), the
 // drawing (shapeProfile), and the parts catalogue. NOT 'elliptical'/'powerseries'.
 const NOSE_SHAPES = ['ogive', 'conical', 'ellipsoid', 'power', 'parabolic', 'haack'];
+
+// Recovery-device deployment triggers — the kernel DeployEvent vocabulary
+// (ComponentFactory.deployEventOf); the same strings .ork import/export use.
+// Apogee first: it's the default and the most common single-deploy trigger.
+const DEPLOY_EVENTS = ['apogee', 'ejection', 'altitude', 'launch', 'never'];
 
 // `label` is an i18n key suffix under `prop.*` (resolved at render).
 const FIELDS: Record<string, Field[]> = {
@@ -104,10 +109,16 @@ const FIELDS: Record<string, Field[]> = {
   parachute: [
     { key: 'diameter', label: 'diameter', kind: 'length' },
     { key: 'cd', label: 'dragCoeff', kind: 'number', step: 0.05 },
+    { key: 'deployEvent', label: 'deployEvent', kind: 'select', options: DEPLOY_EVENTS, optI18n: 'deployEvent' },
+    { key: 'deployAltitude', label: 'deployAltitude', kind: 'number', unit: 'm', step: 10 },
+    { key: 'deployDelay', label: 'deployDelay', kind: 'number', unit: 's', step: 0.5 },
   ],
   streamer: [
     { key: 'length', label: 'length', kind: 'length' },
     { key: 'width', label: 'width', kind: 'length' },
+    { key: 'deployEvent', label: 'deployEvent', kind: 'select', options: DEPLOY_EVENTS, optI18n: 'deployEvent' },
+    { key: 'deployAltitude', label: 'deployAltitude', kind: 'number', unit: 'm', step: 10 },
+    { key: 'deployDelay', label: 'deployDelay', kind: 'number', unit: 's', step: 0.5 },
   ],
   masscomponent: [
     { key: 'mass', label: 'mass', kind: 'mass' },
@@ -264,7 +275,7 @@ export function PropertyPanel({ node, onChange, onRemove, onMove, canMoveUp, can
                 value={cur} onChange={(e) => onChange({ [f.key]: e.target.value })}
                 className="w-32 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
               >
-                {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                {f.options.map((o) => <option key={o} value={o}>{f.optI18n ? t(`${f.optI18n}.${o}`) : o}</option>)}
               </select>
             </label>
           );
@@ -283,7 +294,7 @@ export function PropertyPanel({ node, onChange, onRemove, onMove, canMoveUp, can
         }
         if (f.kind === 'number') {
           return (
-            <NumberField key={f.key} label={flabel(f)} value={numVal(node, f.key)} step={f.step ?? 0.1}
+            <NumberField key={f.key} label={flabel(f)} unit={f.unit} value={numVal(node, f.key)} step={f.step ?? 0.1}
               onChange={(v) => onChange({ [f.key]: v })} />
           );
         }

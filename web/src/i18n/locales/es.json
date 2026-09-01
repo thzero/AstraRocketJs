@@ -293,7 +293,17 @@
     "width": "Ancho",
     "shape": "Forma",
     "color": "Color",
-    "resetColor": "Restablecer color por defecto"
+    "resetColor": "Restablecer color por defecto",
+    "deployEvent": "Desplegar en",
+    "deployAltitude": "Altitud de despliegue (AGL)",
+    "deployDelay": "Retardo de despliegue"
+  },
+  "deployEvent": {
+    "ejection": "Carga de eyección del motor",
+    "apogee": "Apogeo",
+    "altitude": "Altitud (descendiendo)",
+    "launch": "Lanzamiento",
+    "never": "Nunca"
   },
   "motor": {
     "selected": "Motor seleccionado",
