@@ -353,6 +353,12 @@
     "noResults": "No matching parts.",
     "results": "{{count}} parts"
   },
+  "freeform": {
+    "outline": "Fin outline",
+    "removePoint": "Remove point",
+    "point": "Point {{n}}",
+    "hint": "Drag the amber points to shape the fin; tap a blue midpoint to add one. X runs along the body, Y is height above it."
+  },
   "material": {
     "title": "Material",
     "canopy": "Canopy material",

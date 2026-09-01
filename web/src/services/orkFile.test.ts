@@ -231,4 +231,24 @@ describe('newly-editable component options round-trip', () => {
     const eb = findByType(out.tree, 'engineblock') as Record<string, unknown>;
     expect(eb.thickness).toBeCloseTo(0.0007, 6);
   });
+
+  it('preserves a freeform fin outline (points) through a round-trip', () => {
+    const t = {
+      components: [{
+        type: 'stage', id: 's1', name: 'S', children: [{
+          type: 'bodytube', id: 'bt', length: 0.3, outerRadius: 0.013, thickness: 0.0005, children: [{
+            type: 'freeformfinset', id: 'ff', finCount: 4, thickness: 0.003,
+            points: [[0, 0], [0.03, 0.06], [0.07, 0.04], [0.08, 0]],
+            position: { method: 'bottom', offset: 0 },
+          }],
+        }],
+      }],
+    } as unknown as RocketTree;
+    const ff = findByType(importOrk(exportOrk({ name: 'FF', tree: t })).tree, 'freeformfinset') as Record<string, unknown>;
+    const pts = ff.points as [number, number][];
+    expect(pts).toHaveLength(4);
+    expect(pts[1]![0]).toBeCloseTo(0.03, 6);
+    expect(pts[1]![1]).toBeCloseTo(0.06, 6);
+    expect(pts[3]![0]).toBeCloseTo(0.08, 6);
+  });
 });

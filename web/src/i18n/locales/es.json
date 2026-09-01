@@ -353,6 +353,12 @@
     "noResults": "No hay piezas coincidentes.",
     "results": "{{count}} piezas"
   },
+  "freeform": {
+    "outline": "Perfil de la aleta",
+    "removePoint": "Eliminar punto",
+    "point": "Punto {{n}}",
+    "hint": "Arrastra los puntos ámbar para dar forma a la aleta; toca un punto azul intermedio para añadir uno. X recorre el cuerpo, Y es la altura sobre él."
+  },
   "material": {
     "title": "Material",
     "canopy": "Material del velamen",

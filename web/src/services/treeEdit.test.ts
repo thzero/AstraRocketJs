@@ -161,6 +161,14 @@ describe('recovery-device defaults', () => {
     expect(p.deployEvent).toBe('apogee');
   });
 
+  it('freeform fin is addable and defaults to a valid outline (>= 3 points)', () => {
+    expect(allowedChildren('bodytube')).toContain('freeformfinset');
+    const ff = defaultNode('freeformfinset') as Record<string, unknown>;
+    const pts = ff.points as [number, number][];
+    expect(Array.isArray(pts)).toBe(true);
+    expect(pts.length).toBeGreaterThanOrEqual(3);
+  });
+
   it('streamer defaults use stripLength/stripWidth (not length/width) + Cd + apogee', () => {
     const s = defaultNode('streamer') as Record<string, unknown>;
     // Guards the key-name bug: the editor/engine/.ork all key on stripLength/

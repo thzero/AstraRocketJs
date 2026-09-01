@@ -9,7 +9,7 @@ import { fmtNum } from '../../i18n/format';
 // Labels come from the `part.*` / `tree.*` i18n keys at render time.
 const ADD_GROUPS: { group: string; items: ComponentType[] }[] = [
   { group: 'groupBody', items: ['nosecone', 'bodytube', 'transition'] },
-  { group: 'groupFins', items: ['trapezoidfinset', 'ellipticalfinset', 'tubefinset'] },
+  { group: 'groupFins', items: ['trapezoidfinset', 'ellipticalfinset', 'freeformfinset', 'tubefinset'] },
   { group: 'groupInner', items: ['innertube', 'tubecoupler', 'centeringring', 'bulkhead', 'engineblock'] },
   { group: 'groupRecovery', items: ['parachute', 'streamer'] },
   { group: 'groupOther', items: ['launchlug', 'masscomponent'] },

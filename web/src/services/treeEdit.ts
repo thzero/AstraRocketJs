@@ -97,8 +97,8 @@ export function isAxial(type: string): boolean { return AXIAL.has(type); }
 export const ALLOWED_CHILDREN: Record<string, ComponentType[]> = {
   stage: ['nosecone', 'bodytube', 'transition'],
   nosecone: ['innertube', 'tubecoupler', 'centeringring', 'bulkhead', 'launchlug', 'parachute', 'streamer', 'masscomponent'],
-  bodytube: ['trapezoidfinset', 'ellipticalfinset', 'tubefinset', 'innertube', 'tubecoupler', 'centeringring', 'bulkhead', 'engineblock', 'launchlug', 'parachute', 'streamer', 'masscomponent'],
-  transition: ['trapezoidfinset', 'ellipticalfinset', 'innertube', 'tubecoupler', 'centeringring', 'bulkhead', 'launchlug', 'parachute', 'streamer', 'masscomponent'],
+  bodytube: ['trapezoidfinset', 'ellipticalfinset', 'freeformfinset', 'tubefinset', 'innertube', 'tubecoupler', 'centeringring', 'bulkhead', 'engineblock', 'launchlug', 'parachute', 'streamer', 'masscomponent'],
+  transition: ['trapezoidfinset', 'ellipticalfinset', 'freeformfinset', 'innertube', 'tubecoupler', 'centeringring', 'bulkhead', 'launchlug', 'parachute', 'streamer', 'masscomponent'],
   innertube: ['engineblock', 'masscomponent'],
   tubecoupler: ['centeringring', 'bulkhead', 'masscomponent'],
 };
@@ -177,6 +177,8 @@ export function defaultNode(type: ComponentType): ComponentNode {
     case 'transition': return { type, id, shape: 'conical', length: 0.05, foreRadius: 0.013, aftRadius: 0.019, thickness: 0.0005 };
     case 'trapezoidfinset': return { type, id, finCount: 3, rootChord: 0.06, tipChord: 0.03, sweep: 0.03, height: 0.05, thickness: 0.003, position: { method: 'bottom', offset: 0 } };
     case 'ellipticalfinset': return { type, id, finCount: 3, rootChord: 0.06, height: 0.05, thickness: 0.003, position: { method: 'bottom', offset: 0 } };
+    // Freeform outline (m): a swept quad — root 0→0.06 along the body, tip at 0.05 height.
+    case 'freeformfinset': return { type, id, finCount: 3, thickness: 0.003, points: [[0, 0], [0.02, 0.05], [0.05, 0.05], [0.06, 0]], position: { method: 'bottom', offset: 0 } };
     case 'tubefinset': return { type, id, finCount: 6, length: 0.08, outerRadius: 0.012, thickness: 0.001, position: { method: 'bottom', offset: 0 } };
     case 'innertube': return { type, id, motorMount: true, length: 0.07, outerRadius: 0.0092, thickness: 0.0004, motorOverhang: 0.00635, position: { method: 'bottom', offset: 0 } };
     case 'tubecoupler': return { type, id, length: 0.03, outerRadius: 0.0125, thickness: 0.0005, position: { method: 'bottom', offset: 0 } };

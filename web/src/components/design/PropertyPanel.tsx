@@ -6,6 +6,7 @@ import { useSettings } from '../../state/SettingsProvider';
 import type { ComponentType as CatalogType } from '../../services/componentDb';
 import { ComponentPicker } from './ComponentPicker';
 import { MaterialPicker } from './MaterialPicker';
+import { FreeformFinEditor } from './FreeformFinEditor';
 
 /**
  * Edits the currently-selected component's properties. Type-specific numeric
@@ -85,6 +86,12 @@ const FIELDS: Record<string, Field[]> = {
     { key: 'finCount', label: 'finCount', kind: 'count' },
     { key: 'rootChord', label: 'rootChord', kind: 'length' },
     { key: 'height', label: 'height', kind: 'length' },
+    { key: 'thickness', label: 'thickness', kind: 'length' },
+    { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
+    ...FIN_TABS,
+  ],
+  freeformfinset: [
+    { key: 'finCount', label: 'finCount', kind: 'count' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
     ...FIN_TABS,
@@ -357,6 +364,17 @@ export function PropertyPanel({ node, onChange, onRemove, onMove, canMoveUp, can
           <MaterialPicker
             value={typeof node.materialName === 'string' ? node.materialName : undefined}
             onChange={(name, d) => onChange({ materialName: name, density: d || undefined })}
+          />
+        </div>
+      )}
+
+      {/* Freeform fin: its defining feature is the outline polygon, edited
+          graphically rather than as scalar fields. */}
+      {node.type === 'freeformfinset' && (
+        <div className="border-t border-white/5 pt-3">
+          <FreeformFinEditor
+            points={(node.points as [number, number][] | undefined) ?? []}
+            onChange={(pts) => onChange({ points: pts } as Partial<ComponentNode>)}
           />
         </div>
       )}
