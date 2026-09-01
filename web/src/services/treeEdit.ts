@@ -69,6 +69,22 @@ export function findMounts(tree: RocketTree): ComponentNode[] {
   return out;
 }
 
+/**
+ * Whether a mount sits on a stage that has another stage BELOW it (a sustainer /
+ * upper stage) — the only case where "ignite on the stage below's ejection /
+ * burnout" can ever fire. False for a single (or implicit) stage and for the
+ * bottom booster. Top-level `stage` nodes run desktop order: [0] = top
+ * sustainer … [last] = bottom booster.
+ */
+export function isUpperStageMount(tree: RocketTree, mountId: string): boolean {
+  const stages = tree.components.filter((n) => n.type === 'stage');
+  if (stages.length < 2) return false; // one (or implicit) stage → nothing below any mount
+  const bottom = stages[stages.length - 1]!;
+  // A mount is an upper-stage mount unless it lives in the bottom stage's subtree.
+  for (const n of walk([bottom])) if (n.id === mountId) return false;
+  return true;
+}
+
 const AXIAL: ReadonlySet<string> = new Set(['nosecone', 'bodytube', 'transition']);
 /** Axial components stack nose→tail in the stage; everything else nests inside a tube. */
 export function isAxial(type: string): boolean { return AXIAL.has(type); }

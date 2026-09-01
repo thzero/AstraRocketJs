@@ -128,6 +128,39 @@ test('the manufacturer selection persists across reloads', async ({ page }) => {
   await expect(dialog.locator('summary')).toHaveText(name);
 });
 
+test('the motor card exposes an ignition event that persists across reloads', async ({ page }) => {
+  const ignition = page.getByLabel('Ignition', { exact: true });
+  await expect(ignition).toBeVisible();
+  await expect(ignition).toHaveValue('automatic'); // default: at launch
+
+  // The default rocket is single-stage, so only the events that can actually
+  // fire are offered: automatic + launch. The sustainer triggers and "never"
+  // (which would strand it on the pad) are hidden.
+  await expect(ignition.locator('option')).toHaveCount(2);
+  await expect(ignition.locator('option[value="burnout"]')).toHaveCount(0);
+  await expect(ignition.locator('option[value="ejectioncharge"]')).toHaveCount(0);
+  await expect(ignition.locator('option[value="never"]')).toHaveCount(0);
+
+  await ignition.selectOption('launch');
+  await expect(page.getByLabel('Ignition delay (s)')).toBeVisible();
+
+  // The setting rides on the simulation, so the workspace autosave restores it.
+  await page.waitForTimeout(700);
+  await page.reload();
+  await dismissWip(page);
+  await expect(page.getByLabel('Ignition', { exact: true })).toHaveValue('launch');
+});
+
+test('a launch-delayed primary ignition still simulates end-to-end', async ({ page }) => {
+  // Exercises the primaryIgnition path through the sim worker + engine.
+  await page.getByLabel('Ignition', { exact: true }).selectOption('launch');
+  await page.getByLabel('Ignition delay (s)').fill('3');
+
+  await page.getByRole('button', { name: /run flight simulation/i }).click();
+  await expect(page.getByRole('button', { name: 'Flight', exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('not run')).toHaveCount(0);
+});
+
 test('the motor card opens a read-only thrust-curve popup', async ({ page }) => {
   // The seated C6 gives the card its 📈 thrust-curve button.
   await page.getByRole('button', { name: 'Thrust curve' }).first().click();

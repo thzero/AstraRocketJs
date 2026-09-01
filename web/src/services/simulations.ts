@@ -1,13 +1,17 @@
 // A named simulation = one flight setup over the shared rocket design: its own
 // motor (primary mount) + launch conditions + last result. The right panel is a
 // list of these; switching the active one drives the stability readout and sim.
-import type { MotorSpec, FlightResult } from '../engine/openRocketEngine';
+import type { MotorSpec, FlightResult, IgnitionEvent } from '../engine/openRocketEngine';
 import type { LaunchConditions } from './orkTree';
 
 export interface Simulation {
   id: string;
   name: string;
   motor: MotorSpec;
+  /** When the primary mount's motor ignites (undefined = automatic / at launch). */
+  ignitionEvent?: IgnitionEvent;
+  /** Seconds after the ignition event (default 0). */
+  ignitionDelay?: number;
   launch: LaunchConditions;
   /** Cached last flight result (null until run, cleared when the design changes). */
   result: FlightResult | null;

@@ -358,8 +358,17 @@
     "noMotor": "Sin motor — elige uno",
     "viewCurve": "Curva de empuje",
     "delay": "Retardo",
+    "ignition": "Encendido",
+    "ignitionDelay": "Retardo de encendido (s)",
     "run": "Simular vuelo",
     "emptyHint": "Añade una simulación para empezar."
+  },
+  "ignition": {
+    "automatic": "Automático",
+    "launch": "Lanzamiento",
+    "ejectioncharge": "Eyección de la etapa inferior",
+    "burnout": "Fin de combustión de la etapa inferior",
+    "never": "Nunca"
   },
   "motorDlg": {
     "title": "Seleccionar motor",

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import i18n from '../i18n';
 import { buildRocketTree, specToTree, C6, type RocketSpec, type StaticInfo } from '../engine/api';
-import type { MotorSpec, RocketTree, ComponentNode, ComponentType as PartType } from '../engine/openRocketEngine';
+import type { MotorSpec, RocketTree, ComponentNode, ComponentType as PartType, IgnitionEvent } from '../engine/openRocketEngine';
 import { findMountId, findNode, updateNode, removeNode, addPart, moveNode } from '../services/treeEdit';
 import type { LaunchConditions } from '../services/orkTree';
 import { downloadOrk } from '../services/saveOrk';
@@ -63,8 +63,12 @@ export interface WorkspaceState {
 
   setActiveId: (id: string) => void;
   setActiveMotor: (m: MotorSpec) => void;
+  /** Set when the primary mount's motor ignites (per active simulation). */
+  setActiveIgnition: (event: IgnitionEvent, delay: number) => void;
   /** Set the motor for a non-primary mount (multi-mount rockets). */
   setExtraMotor: (mountId: string, m: MotorSpec) => void;
+  /** Set when a non-primary mount's motor ignites. */
+  setExtraIgnition: (mountId: string, event: IgnitionEvent, delay: number) => void;
   patchLaunch: (p: Partial<LaunchConditions>) => void;
   addSim: () => void;
   duplicateSim: (id: string) => void;
@@ -174,9 +178,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     setActiveId: (activeId) => set({ activeId }),
     setActiveMotor: (m) => patchActive({ motor: m, result: null }),
+    setActiveIgnition: (event, delay) => patchActive({ ignitionEvent: event, ignitionDelay: delay, result: null }),
     setExtraMotor: (mountId, m) => set((s) => ({
       extraMotors: { ...s.extraMotors, [mountId]: { ...s.extraMotors[mountId], spec: m } },
       // Extra motors are workspace-level, so every sim's cached result is now stale.
+      sims: s.sims.some((x) => x.result) ? s.sims.map((x) => ({ ...x, result: null })) : s.sims,
+    })),
+    setExtraIgnition: (mountId, event, delay) => set((s) => ({
+      extraMotors: { ...s.extraMotors, [mountId]: { ...s.extraMotors[mountId], ignitionEvent: event, ignitionDelay: delay } },
       sims: s.sims.some((x) => x.result) ? s.sims.map((x) => ({ ...x, result: null })) : s.sims,
     })),
     patchLaunch: (p) => patchActive({ launch: { ...selectActive(get()).launch, ...p }, result: null }),
@@ -194,7 +203,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (!src) return;
       const copy = i18n.t('sims.copyName', { name: src.name });
       const name = uniqueSimName(s.sims, (n) => (n === 1 ? copy : `${copy} ${n}`), 1);
-      const s0 = newSimulation(name, src.motor, src.launch);
+      // Carry the source's primary-mount ignition setting forward with its motor.
+      const s0 = { ...newSimulation(name, src.motor, src.launch), ignitionEvent: src.ignitionEvent, ignitionDelay: src.ignitionDelay };
       const next = [...s.sims];
       next.splice(s.sims.findIndex((x) => x.id === id) + 1, 0, s0);
       set({ sims: next, activeId: s0.id });
@@ -220,6 +230,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           tree: s.tree,
           motor: active.motor,
           extraMotors: s.extraMotors,
+          primaryIgnition: { event: active.ignitionEvent, delay: active.ignitionDelay },
           options: simConditions(active.launch, prefs),
         });
         set((st) => ({ sims: st.sims.map((x) => (x.id === simId ? { ...x, result } : x)), view: 'flight', err: null }));
@@ -243,9 +254,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // The primary mount's motor drives the Motor panel; the rest ride along in extraMotors.
         const primary = findMountId(res.tree);
         const extra = { ...res.motorSpecs };
-        const primaryMotor = primary && extra[primary] ? extra[primary].spec : C6;
+        const primaryMount = primary ? extra[primary] : undefined;
+        const primaryMotor = primaryMount ? primaryMount.spec : C6;
         if (primary && extra[primary]) delete extra[primary];
-        const sim0 = newSimulation(res.name, primaryMotor, { ...loadSettings().launchDefaults, ...res.launch });
+        // Carry the primary mount's ignition (event + delay) onto the sim — it
+        // lives on the Simulation, not in extraMotors like the other mounts.
+        const sim0 = {
+          ...newSimulation(res.name, primaryMotor, { ...loadSettings().launchDefaults, ...res.launch }),
+          ignitionEvent: primaryMount?.ignitionEvent,
+          ignitionDelay: primaryMount?.ignitionDelay,
+        };
         set({
           tree: res.tree, extraMotors: extra,
           loadedMeta: { name: res.name, notes: res.notes, exportMotors: res.motors },
@@ -263,11 +281,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     saveOrk: () => {
       try {
         const { tree, extraMotors, loadedMeta } = get();
-        const motor = selectActive(get()).motor;
+        const active = selectActive(get());
+        const motor = active.motor;
         const mountId = findMountId(tree);
         const base = loadedMeta?.exportMotors ?? {};
         const motors: Record<string, OrkExportMotor> = {};
-        if (mountId) motors[mountId] = { ...base[mountId], designation: motor.designation, diameter: motor.diameter, length: motor.length, delay: motor.ejectionDelay };
+        if (mountId) motors[mountId] = { ...base[mountId], designation: motor.designation, diameter: motor.diameter, length: motor.length, delay: motor.ejectionDelay, ignitionEvent: active.ignitionEvent, ignitionDelay: active.ignitionDelay };
         for (const [id, m] of Object.entries(extraMotors)) {
           if (!findNode(tree, id)) continue;
           motors[id] = { ...base[id], designation: m.spec.designation, diameter: m.spec.diameter, length: m.spec.length, delay: m.spec.ejectionDelay, ignitionEvent: m.ignitionEvent, ignitionDelay: m.ignitionDelay };

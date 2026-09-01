@@ -37,6 +37,8 @@ export function useWorkspaceEffects() {
   const extraMotors = useWorkspaceStore((s) => s.extraMotors);
   const loadedMeta = useWorkspaceStore((s) => s.loadedMeta);
   const motor = useWorkspaceStore((s) => selectActive(s).motor);
+  const ignitionEvent = useWorkspaceStore((s) => selectActive(s).ignitionEvent);
+  const ignitionDelay = useWorkspaceStore((s) => selectActive(s).ignitionDelay);
 
   useEffect(() => {
     if (!hydrated.current) return;
@@ -67,14 +69,14 @@ export function useWorkspaceEffects() {
   // primary mount takes the active sim's `motor`; other mounts take their imports.
   useEffect(() => {
     try {
-      const r = buildConfiguredRocket(tree, motor, extraMotors);
+      const r = buildConfiguredRocket(tree, motor, extraMotors, { event: ignitionEvent, delay: ignitionDelay });
       useWorkspaceStore.getState().applyBuild(r.staticInfo(), r);
       useWorkspaceStore.getState().setErr(null);
     } catch (e) {
       useWorkspaceStore.getState().applyBuild(null, null);
       useWorkspaceStore.getState().setErr(e instanceof Error ? e.message : String(e));
     }
-  }, [tree, motor, extraMotors]);
+  }, [tree, motor, extraMotors, ignitionEvent, ignitionDelay]);
 
   // Editing the design invalidates every simulation's cached result.
   useEffect(() => { useWorkspaceStore.getState().invalidateResults(); }, [tree]);

@@ -1,7 +1,10 @@
 import { buildRocketTree } from '../engine/api';
-import type { MotorSpec, OpenRocketDesign, RocketTree } from '../engine/openRocketEngine';
+import type { IgnitionEvent, MotorSpec, OpenRocketDesign, RocketTree } from '../engine/openRocketEngine';
 import { findMountId, findNode } from './treeEdit';
 import type { MountMotor } from './loadOrk';
+
+/** A mount's ignition override (undefined event = engine default, "automatic"). */
+export interface Ignition { event?: IgnitionEvent; delay?: number }
 
 /**
  * Build the rocket exactly as the live rebuild effect does: the primary mount
@@ -15,9 +18,13 @@ export function buildConfiguredRocket(
   tree: RocketTree,
   motor: MotorSpec | undefined,
   extraMotors: Record<string, MountMotor>,
+  primaryIgnition?: Ignition,
 ): OpenRocketDesign {
   const mountId = findMountId(tree);
   const r = buildRocketTree(tree, motor, mountId);
+  // Seat the primary mount's ignition override (skip when "automatic" — that's
+  // the engine default and needs no call).
+  if (mountId && primaryIgnition?.event) r.setMotorIgnitionById(mountId, primaryIgnition.event, primaryIgnition.delay ?? 0);
   for (const [id, m] of Object.entries(extraMotors)) {
     if (id === mountId || !findNode(tree, id)) continue; // gone or already the primary
     r.setMotorById(id, m.spec);

@@ -27,11 +27,11 @@ ctx.onmessage = async (e: MessageEvent<WorkerRequest>) => {
       return;
     }
     if (method === 'simulate') {
-      const { tree, motor, extraMotors, options } = args as SimPayload;
+      const { tree, motor, extraMotors, primaryIgnition, options } = args as SimPayload;
       // This worker only ever holds sim rockets; clear prior handles so the
       // engine's handle registry doesn't grow across runs.
       resetEngine();
-      const design = buildConfiguredRocket(tree, motor, extraMotors);
+      const design = buildConfiguredRocket(tree, motor, extraMotors, primaryIgnition);
       const result = design.simulate(options); // already a plain, cloneable object
       reply({ id, ok: true, result });
       return;

@@ -358,8 +358,17 @@
     "noMotor": "No motor — choose one",
     "viewCurve": "Thrust curve",
     "delay": "Delay",
+    "ignition": "Ignition",
+    "ignitionDelay": "Ignition delay (s)",
     "run": "Run flight simulation",
     "emptyHint": "Add a simulation to begin."
+  },
+  "ignition": {
+    "automatic": "Automatic",
+    "launch": "Launch",
+    "ejectioncharge": "Ejection of stage below",
+    "burnout": "Burnout of stage below",
+    "never": "Never"
   },
   "motorDlg": {
     "title": "Select motor",

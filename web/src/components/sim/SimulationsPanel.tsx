@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { findMounts } from '../../services/treeEdit';
+import { findMounts, isUpperStageMount } from '../../services/treeEdit';
 import { useWorkspaceStore, selectActive } from '../../state/store';
 import { useSettings } from '../../state/SettingsProvider';
 import { SimulationsList } from './SimulationsList';
@@ -14,6 +14,8 @@ export function SimulationsPanel() {
   const sims = useWorkspaceStore((s) => s.sims);
   const activeId = useWorkspaceStore((s) => selectActive(s).id);
   const motor = useWorkspaceStore((s) => selectActive(s).motor);
+  const ignitionEvent = useWorkspaceStore((s) => selectActive(s).ignitionEvent);
+  const ignitionDelay = useWorkspaceStore((s) => selectActive(s).ignitionDelay);
   const launch = useWorkspaceStore((s) => selectActive(s).launch);
   const runLabel = useWorkspaceStore((s) => selectActive(s).name);
   const result = useWorkspaceStore((s) => selectActive(s).result);
@@ -34,6 +36,8 @@ export function SimulationsPanel() {
   const deleteSim = useWorkspaceStore((s) => s.deleteSim);
   const onRenameSim = useWorkspaceStore((s) => s.renameSim);
   const onMotorChange = useWorkspaceStore((s) => s.setActiveMotor);
+  const setActiveIgnition = useWorkspaceStore((s) => s.setActiveIgnition);
+  const setExtraIgnition = useWorkspaceStore((s) => s.setExtraIgnition);
   const onLaunchChange = useWorkspaceStore((s) => s.patchLaunch);
   const runSim = useWorkspaceStore((s) => s.runSim);
   const onError = useWorkspaceStore((s) => s.setErr);
@@ -91,6 +95,11 @@ export function SimulationsPanel() {
                   onChange={isPrimary ? onMotorChange : (m) => setExtraMotor(id, m)}
                   onError={onError}
                   mountDiameter={bore}
+                  ignition={isPrimary
+                    ? { event: ignitionEvent ?? 'automatic', delay: ignitionDelay ?? 0 }
+                    : { event: extraMotors[id]?.ignitionEvent ?? 'automatic', delay: extraMotors[id]?.ignitionDelay ?? 0 }}
+                  onIgnitionChange={isPrimary ? setActiveIgnition : (e, d) => setExtraIgnition(id, e, d)}
+                  upperStage={isUpperStageMount(tree, id)}
                 />
               );
             })}

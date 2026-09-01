@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  findNode, updateNode, removeNode, addChild, findMountId, findMounts,
+  findNode, updateNode, removeNode, addChild, findMountId, findMounts, isUpperStageMount,
   isAxial, allowedChildren, hasCatalog, hasMaterial, catalogPatch,
   siblingIndex, moveNode, defaultNode, addPart,
 } from './treeEdit';
@@ -66,6 +66,26 @@ describe('mount + type rules', () => {
     const two = addChild(t, 'b1', { id: 'm2', type: 'innertube', motorMount: true } as never);
     expect(findMounts(two).map((n) => n.id)).toEqual(['m1', 'm2']);
     expect(findMounts(makeTree()).map((n) => n.id)).toEqual(['m1']);
+  });
+
+  it('isUpperStageMount is false on a single (implicit or explicit) stage', () => {
+    expect(isUpperStageMount(makeTree(), 'm1')).toBe(false);
+  });
+
+  it('isUpperStageMount is true for a mount above the bottom booster, false for the booster', () => {
+    // Two stages in desktop order: [0] = top sustainer, [1] = bottom booster.
+    const staged = ({
+      components: [
+        { id: 'sus', type: 'stage', children: [
+          { id: 'bt-s', type: 'bodytube', children: [{ id: 'm-sus', type: 'innertube', motorMount: true }] },
+        ] },
+        { id: 'boost', type: 'stage', children: [
+          { id: 'bt-b', type: 'bodytube', children: [{ id: 'm-boost', type: 'innertube', motorMount: true }] },
+        ] },
+      ],
+    }) as unknown as RocketTree;
+    expect(isUpperStageMount(staged, 'm-sus')).toBe(true);   // has the booster below it
+    expect(isUpperStageMount(staged, 'm-boost')).toBe(false); // bottom stage — nothing below
   });
 
   it('isAxial is true only for axial body components', () => {
