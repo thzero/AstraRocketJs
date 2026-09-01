@@ -89,6 +89,14 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
     expect(() => importOrk(withPod)).toThrow(/pods/i);
   });
 
+  it('rejects a multi-stage (axial) design — loads nothing', () => {
+    const twoStage = '<openrocket><rocket><name>Two</name><subcomponents>'
+      + '<stage><name>Sustainer</name></stage>'
+      + '<stage><name>Booster</name></stage>'
+      + '</subcomponents></rocket></openrocket>';
+    expect(() => importOrk(twoStage)).toThrow(/multiple stages/i);
+  });
+
   it('preserves the lug and button angle through export → import', () => {
     const out = importOrk(exportOrk({ name: 'Lugs', tree }));
     // ids are regenerated on import, so match by type.
