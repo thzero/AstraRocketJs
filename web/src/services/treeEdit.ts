@@ -116,7 +116,7 @@ export function hasCatalog(type: string): boolean { return CATALOG_TYPES.has(typ
 const MATERIAL_TYPES: ReadonlySet<string> = new Set([
   'nosecone', 'bodytube', 'transition', 'fairing', 'trapezoidfinset', 'ellipticalfinset',
   'freeformfinset', 'tubefinset', 'innertube', 'tubecoupler', 'centeringring', 'bulkhead',
-  'engineblock', 'launchlug',
+  'engineblock', 'launchlug', 'railbutton',
 ]);
 export function hasMaterial(type: string): boolean { return MATERIAL_TYPES.has(type); }
 
@@ -182,7 +182,7 @@ export function defaultNode(type: ComponentType): ComponentNode {
     case 'tubecoupler': return { type, id, length: 0.03, outerRadius: 0.0125, thickness: 0.0005, position: { method: 'bottom', offset: 0 } };
     case 'centeringring': return { type, id, length: 0.003, outerRadius: 0.0125, innerRadius: 0.0092, position: { method: 'bottom', offset: 0 } };
     case 'bulkhead': return { type, id, length: 0.003, outerRadius: 0.0125, position: { method: 'bottom', offset: 0 } };
-    case 'engineblock': return { type, id, length: 0.005, outerRadius: 0.0092, position: { method: 'bottom', offset: 0 } };
+    case 'engineblock': return { type, id, length: 0.005, outerRadius: 0.0092, thickness: 0.0005, position: { method: 'bottom', offset: 0 } };
     case 'launchlug': return { type, id, length: 0.03, outerRadius: 0.0022, angleOffset: Math.PI, position: { method: 'middle', offset: 0 } };
     case 'parachute': return { type, id, diameter: 0.3, cd: 0.8, lineCount: 6, lineLength: 0.3, deployEvent: 'apogee', deployAltitude: 200, deployDelay: 0, position: { method: 'top', offset: 0.02 } };
     case 'streamer': return { type, id, stripLength: 0.4, stripWidth: 0.05, cd: 0.6, deployEvent: 'apogee', deployAltitude: 200, deployDelay: 0, position: { method: 'top', offset: 0.02 } };

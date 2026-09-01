@@ -168,3 +168,67 @@ describe('recovery-device features round-trip', () => {
     expect(s.surfaceDensity).toBeCloseTo(0.021, 6);
   });
 });
+
+describe('newly-editable component options round-trip', () => {
+  const tree = {
+    components: [{
+      type: 'stage', id: 's1', name: 'S', children: [
+        {
+          type: 'nosecone', id: 'nc', shape: 'ogive', length: 0.1, aftRadius: 0.013, thickness: 0.001,
+          shoulderLength: 0.02, shoulderRadius: 0.011, shoulderThickness: 0.0008, shoulderCapped: true,
+        },
+        {
+          type: 'transition', id: 'tr', shape: 'conical', length: 0.05, foreRadius: 0.013, aftRadius: 0.019, thickness: 0.0005,
+          foreShoulderLength: 0.015, foreShoulderRadius: 0.012, aftShoulderLength: 0.018, aftShoulderRadius: 0.018,
+          position: { method: 'bottom', offset: 0 },
+        },
+        {
+          type: 'bodytube', id: 'bt', length: 0.3, outerRadius: 0.013, thickness: 0.0005, motorMount: true, motorOverhang: 0.01,
+          children: [
+            {
+              type: 'trapezoidfinset', id: 'fin', finCount: 3, rootChord: 0.06, tipChord: 0.03, sweep: 0.03, height: 0.05, thickness: 0.003,
+              tabHeight: 0.02, tabLength: 0.04, tabOffset: 0, tabOffsetMethod: 'top', position: { method: 'bottom', offset: 0 },
+            },
+            { type: 'engineblock', id: 'eb', length: 0.005, outerRadius: 0.0092, thickness: 0.0007, position: { method: 'bottom', offset: 0 } },
+          ],
+        },
+      ],
+    }],
+  } as unknown as RocketTree;
+
+  const out = importOrk(exportOrk({ name: 'Feat', tree }));
+
+  it('preserves nose-cone shoulder (length/radius/thickness/capped)', () => {
+    const nc = findByType(out.tree, 'nosecone') as Record<string, unknown>;
+    expect(nc.shoulderLength).toBeCloseTo(0.02, 6);
+    expect(nc.shoulderRadius).toBeCloseTo(0.011, 6);
+    expect(nc.shoulderThickness).toBeCloseTo(0.0008, 6);
+    expect(nc.shoulderCapped).toBe(true);
+  });
+
+  it('preserves transition fore/aft shoulders', () => {
+    const tr = findByType(out.tree, 'transition') as Record<string, unknown>;
+    expect(tr.foreShoulderLength).toBeCloseTo(0.015, 6);
+    expect(tr.foreShoulderRadius).toBeCloseTo(0.012, 6);
+    expect(tr.aftShoulderLength).toBeCloseTo(0.018, 6);
+    expect(tr.aftShoulderRadius).toBeCloseTo(0.018, 6);
+  });
+
+  it('preserves the body-tube motor-mount flag + overhang', () => {
+    const bt = findByType(out.tree, 'bodytube') as Record<string, unknown>;
+    expect(bt.motorMount).toBe(true);
+    expect(bt.motorOverhang).toBeCloseTo(0.01, 6);
+  });
+
+  it('preserves the fin tab (height/length/reference)', () => {
+    const fin = findByType(out.tree, 'trapezoidfinset') as Record<string, unknown>;
+    expect(fin.tabHeight).toBeCloseTo(0.02, 6);
+    expect(fin.tabLength).toBeCloseTo(0.04, 6);
+    expect(fin.tabOffsetMethod).toBe('top');
+  });
+
+  it('preserves the engine-block wall thickness', () => {
+    const eb = findByType(out.tree, 'engineblock') as Record<string, unknown>;
+    expect(eb.thickness).toBeCloseTo(0.0007, 6);
+  });
+});

@@ -20,6 +20,7 @@ type Field =
   | { key: string; label: string; kind: 'count' }
   | { key: string; label: string; kind: 'number'; step?: number; unit?: string }
   | { key: string; label: string; kind: 'angle'; step?: number }   // stored radians, shown degrees
+  | { key: string; label: string; kind: 'bool' }
   | { key: string; label: string; kind: 'select'; options: string[]; optI18n?: string };
 
 // The real OpenRocket shape vocabulary — matches the engine (shapeOf), the
@@ -31,6 +32,15 @@ const NOSE_SHAPES = ['ogive', 'conical', 'ellipsoid', 'power', 'parabolic', 'haa
 // Apogee first: it's the default and the most common single-deploy trigger.
 const DEPLOY_EVENTS = ['apogee', 'ejection', 'altitude', 'launch', 'never'];
 
+// Optional through-the-wall fin tab (0 length/height = no tab). Shared by the
+// trapezoidal and elliptical fin editors; keys match the engine + .ork.
+const FIN_TABS: Field[] = [
+  { key: 'tabLength', label: 'tabLength', kind: 'length' },
+  { key: 'tabHeight', label: 'tabHeight', kind: 'length' },
+  { key: 'tabOffset', label: 'tabOffset', kind: 'length' },
+  { key: 'tabOffsetMethod', label: 'tabOffsetMethod', kind: 'select', options: ['top', 'middle', 'bottom'] },
+];
+
 // `label` is an i18n key suffix under `prop.*` (resolved at render).
 const FIELDS: Record<string, Field[]> = {
   nosecone: [
@@ -38,11 +48,17 @@ const FIELDS: Record<string, Field[]> = {
     { key: 'length', label: 'length', kind: 'length' },
     { key: 'aftRadius', label: 'radius', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
+    { key: 'shoulderLength', label: 'shoulderLength', kind: 'length' },
+    { key: 'shoulderRadius', label: 'shoulderRadius', kind: 'length' },
+    { key: 'shoulderThickness', label: 'shoulderThickness', kind: 'length' },
+    { key: 'shoulderCapped', label: 'shoulderCapped', kind: 'bool' },
   ],
   bodytube: [
     { key: 'length', label: 'length', kind: 'length' },
     { key: 'outerRadius', label: 'radius', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
+    { key: 'motorMount', label: 'motorMount', kind: 'bool' },
+    { key: 'motorOverhang', label: 'motorOverhang', kind: 'length' },
   ],
   transition: [
     { key: 'shape', label: 'shape', kind: 'select', options: ['conical', 'ogive', 'ellipsoid', 'power', 'parabolic', 'haack'] },
@@ -50,6 +66,10 @@ const FIELDS: Record<string, Field[]> = {
     { key: 'foreRadius', label: 'foreRadius', kind: 'length' },
     { key: 'aftRadius', label: 'aftRadius', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
+    { key: 'foreShoulderLength', label: 'foreShoulderLength', kind: 'length' },
+    { key: 'foreShoulderRadius', label: 'foreShoulderRadius', kind: 'length' },
+    { key: 'aftShoulderLength', label: 'aftShoulderLength', kind: 'length' },
+    { key: 'aftShoulderRadius', label: 'aftShoulderRadius', kind: 'length' },
   ],
   trapezoidfinset: [
     { key: 'finCount', label: 'finCount', kind: 'count' },
@@ -59,6 +79,7 @@ const FIELDS: Record<string, Field[]> = {
     { key: 'height', label: 'height', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
+    ...FIN_TABS,
   ],
   ellipticalfinset: [
     { key: 'finCount', label: 'finCount', kind: 'count' },
@@ -66,6 +87,7 @@ const FIELDS: Record<string, Field[]> = {
     { key: 'height', label: 'height', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
+    ...FIN_TABS,
   ],
   tubefinset: [
     { key: 'finCount', label: 'tubeCount', kind: 'count' },
@@ -77,6 +99,7 @@ const FIELDS: Record<string, Field[]> = {
     { key: 'length', label: 'length', kind: 'length' },
     { key: 'outerRadius', label: 'radius', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
+    { key: 'motorMount', label: 'motorMount', kind: 'bool' },
     { key: 'motorOverhang', label: 'motorOverhang', kind: 'length' },
   ],
   tubecoupler: [
@@ -94,8 +117,9 @@ const FIELDS: Record<string, Field[]> = {
     { key: 'outerRadius', label: 'radius', kind: 'length' },
   ],
   engineblock: [
-    { key: 'length', label: 'thickness', kind: 'length' },
+    { key: 'length', label: 'length', kind: 'length' },
     { key: 'outerRadius', label: 'radius', kind: 'length' },
+    { key: 'thickness', label: 'thickness', kind: 'length' },
   ],
   launchlug: [
     { key: 'length', label: 'length', kind: 'length' },
@@ -287,6 +311,18 @@ export function PropertyPanel({ node, onChange, onRemove, onMove, canMoveUp, can
           return (
             <NumberField key={f.key} label={flabel(f)} value={numVal(node, f.key)} step={1}
               onChange={(v) => onChange({ [f.key]: Math.max(1, Math.round(v)) })} />
+          );
+        }
+        if (f.kind === 'bool') {
+          return (
+            <label key={f.key} className="flex items-center justify-between gap-3">
+              <span className="text-xs text-slate-400">{flabel(f)}</span>
+              <input
+                type="checkbox" checked={node[f.key] === true}
+                onChange={(e) => onChange({ [f.key]: e.target.checked })}
+                className="accent-sky-500"
+              />
+            </label>
           );
         }
         if (f.kind === 'mass') {

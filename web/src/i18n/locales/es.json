@@ -298,7 +298,20 @@
     "deployAltitude": "Altitud de despliegue (AGL)",
     "deployDelay": "Retardo de despliegue",
     "lineCount": "Cuerdas de suspensión",
-    "lineLength": "Longitud de cuerda"
+    "lineLength": "Longitud de cuerda",
+    "motorMount": "Soporte de motor",
+    "shoulderLength": "Longitud del hombro",
+    "shoulderRadius": "Radio del hombro",
+    "shoulderThickness": "Espesor del hombro",
+    "shoulderCapped": "Hombro tapado",
+    "foreShoulderLength": "Longitud del hombro delantero",
+    "foreShoulderRadius": "Radio del hombro delantero",
+    "aftShoulderLength": "Longitud del hombro trasero",
+    "aftShoulderRadius": "Radio del hombro trasero",
+    "tabLength": "Longitud de la lengüeta",
+    "tabHeight": "Altura de la lengüeta",
+    "tabOffset": "Desplazamiento de la lengüeta",
+    "tabOffsetMethod": "Referencia de la lengüeta"
   },
   "deployEvent": {
     "ejection": "Carga de eyección del motor",

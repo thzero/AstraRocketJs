@@ -298,7 +298,20 @@
     "deployAltitude": "Deploy altitude (AGL)",
     "deployDelay": "Deploy delay",
     "lineCount": "Shroud lines",
-    "lineLength": "Line length"
+    "lineLength": "Line length",
+    "motorMount": "Motor mount",
+    "shoulderLength": "Shoulder length",
+    "shoulderRadius": "Shoulder radius",
+    "shoulderThickness": "Shoulder thickness",
+    "shoulderCapped": "Shoulder capped",
+    "foreShoulderLength": "Fore shoulder length",
+    "foreShoulderRadius": "Fore shoulder radius",
+    "aftShoulderLength": "Aft shoulder length",
+    "aftShoulderRadius": "Aft shoulder radius",
+    "tabLength": "Fin tab length",
+    "tabHeight": "Fin tab height",
+    "tabOffset": "Fin tab offset",
+    "tabOffsetMethod": "Fin tab reference"
   },
   "deployEvent": {
     "ejection": "Motor ejection charge",
