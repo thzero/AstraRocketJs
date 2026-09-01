@@ -41,6 +41,14 @@ describe('filterMotors', () => {
     expect(filterMotors(catalog, filter({ text: '  D1 ' }))).toHaveLength(1);
   });
 
+  it('filters by a diameter range (mm), inclusive', () => {
+    expect(filterMotors(catalog, filter({ maxDiameter: 18 })).map((m) => m.designation)).toEqual(['C6', 'C6', 'B6']);
+    expect(filterMotors(catalog, filter({ maxDiameter: 24 }))).toHaveLength(4); // open min
+    expect(filterMotors(catalog, filter({ minDiameter: 24 })).map((m) => m.designation)).toEqual(['D12']);
+    expect(filterMotors(catalog, filter({ minDiameter: 18, maxDiameter: 18 }))).toHaveLength(3); // just 18 mm
+    expect(filterMotors(catalog, filter({ minDiameter: 24, maxDiameter: 18 }))).toEqual([]); // empty range
+  });
+
   it('AND-s facets together', () => {
     const r = filterMotors(catalog, filter({ classes: new Set(['C']), manufacturers: new Set(['Quest']) }));
     expect(r).toHaveLength(1);

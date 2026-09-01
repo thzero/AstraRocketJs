@@ -62,6 +62,13 @@ export function findMountId(tree: RocketTree): string | undefined {
   return undefined;
 }
 
+/** All motor-mount nodes in tree order (first = primary). */
+export function findMounts(tree: RocketTree): ComponentNode[] {
+  const out: ComponentNode[] = [];
+  for (const n of walk(tree.components)) if (n.motorMount === true && typeof n.id === 'string') out.push(n);
+  return out;
+}
+
 const AXIAL: ReadonlySet<string> = new Set(['nosecone', 'bodytube', 'transition']);
 /** Axial components stack nose→tail in the stage; everything else nests inside a tube. */
 export function isAxial(type: string): boolean { return AXIAL.has(type); }

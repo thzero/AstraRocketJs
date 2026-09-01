@@ -5,28 +5,65 @@ import {
   importCustomMotorFromEng, deleteCustomMotor, type CatalogMotor,
 } from '../../services/motorDb';
 import { fetchMotorSpec } from '../../services/thrustcurve';
-import type { MotorSpec } from '../../engine/openRocketEngine';
+import { STD_DIAMS, MAX_IDX, fitIdx, parseDelays } from '../../services/motorPicker';
+import { PLUGGED_DELAY, type MotorSpec } from '../../engine/openRocketEngine';
 import { fmtNum } from '../../i18n/format';
+import { MotorDetail } from './MotorDetail';
+
+// Selected manufacturers persist across sessions (the user's usual set).
+const MFRS_KEY = 'astrarrocketjs:motorPicker:mfrs';
+const loadMfrs = (): Set<string> => {
+  try { const r = localStorage.getItem(MFRS_KEY); return new Set(r ? (JSON.parse(r) as string[]) : []); } catch { return new Set(); }
+};
+const saveMfrs = (s: Set<string>) => { try { localStorage.setItem(MFRS_KEY, JSON.stringify([...s])); } catch { /* storage off */ } };
+// The diameter range [lowIdx, highIdx] is remembered across sessions.
+const DIA_KEY = 'astrarrocketjs:motorPicker:dia';
+const loadDia = (): [number, number] | null => {
+  try {
+    const v = JSON.parse(localStorage.getItem(DIA_KEY) ?? 'null');
+    return Array.isArray(v) && v.length === 2 ? [v[0], v[1]] : null;
+  } catch { return null; }
+};
+const saveDia = (d: [number, number]) => { try { localStorage.setItem(DIA_KEY, JSON.stringify(d)); } catch { /* storage off */ } };
 
 /**
- * Modal motor picker. Filters the catalogue by engine code (text), manufacturer,
- * and impulse class; imports a custom .eng; and resolves the chosen motor's full
- * thrust curve (with the given ejection delay) via `onSelect`.
+ * Modal motor picker. Filters the catalogue by engine code (text), manufacturer(s),
+ * impulse class, and (by default) whether the motor fits the mount; imports a
+ * custom .eng; resolves the chosen motor's thrust curve via `onSelect`.
  */
-export function MotorDialog({ open, onClose, onSelect, onError }: {
+export function MotorDialog({ open, onClose, onSelect, onError, mountDiameter, current }: {
   open: boolean;
   onClose: () => void;
   onSelect: (m: MotorSpec) => void;
   onError: (msg: string | null) => void;
+  /** Motor-mount bore (mm) — enables the "only motors that fit" filter. */
+  mountDiameter?: number | null;
+  /** The motor already seated on this mount — pre-selected when the dialog opens. */
+  current?: MotorSpec | null;
 }) {
   const { t } = useTranslation();
   const [catalog, setCatalog] = useState<CatalogMotor[]>([]);
   const [text, setText] = useState('');
   const [cls, setCls] = useState<string | null>(null);
-  const [mfr, setMfr] = useState<string>('');
+  const [mfrs, setMfrs] = useState<Set<string>>(loadMfrs);
+  // Diameter range as [low, high] slider indices. Remembered across sessions;
+  // first use defaults the top to the mount's fitting size, the bottom to lowest.
+  const [dia, setDia] = useState<[number, number]>(
+    () => loadDia() ?? [0, mountDiameter != null && mountDiameter > 0 ? fitIdx(mountDiameter) : MAX_IDX],
+  );
   const [delay, setDelay] = useState(3);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  // The highlighted (but not yet applied) row. Applying happens via the Select
+  // button, so a click just previews the choice.
+  const [selected, setSelected] = useState<{ m: CatalogMotor; rowId: string } | null>(null);
+  // Which of the motor's thrust curves to use (some motors have several).
+  const [curveIdx, setCurveIdx] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Pre-selecting the seated motor sets its own delay/curve; this tells the
+  // "reset on selection change" effect below to leave those alone that once.
+  const seedRef = useRef(false);
+  // Seed at most once per opening (cleared when the dialog closes).
+  const seededOpenRef = useRef(false);
 
   useEffect(() => {
     let live = true;
@@ -43,23 +80,67 @@ export function MotorDialog({ open, onClose, onSelect, onError }: {
 
   const classes = useMemo(() => allClasses(catalog), [catalog]);
   const manufacturers = useMemo(() => allManufacturers(catalog), [catalog]);
+  const [lowIdx, highIdx] = dia;
   const matches = useMemo(
     () => filterMotors(catalog, {
       text,
       classes: cls ? new Set([cls]) : new Set(),
-      manufacturers: mfr ? new Set([mfr]) : new Set(),
+      manufacturers: mfrs,
+      // The extreme stops mean "open end" (no floor / no ceiling).
+      minDiameter: lowIdx > 0 ? STD_DIAMS[lowIdx] : undefined,
+      maxDiameter: highIdx < MAX_IDX ? STD_DIAMS[highIdx] : undefined,
     }),
-    [catalog, text, cls, mfr],
+    [catalog, text, cls, mfrs, lowIdx, highIdx],
   );
-  const shown = matches.slice(0, 300);
+  const shown = matches;
+
+  // Persist the manufacturer selection and diameter range across sessions.
+  useEffect(() => { saveMfrs(mfrs); }, [mfrs]);
+  useEffect(() => { saveDia(dia); }, [dia]);
+  // A filter change rebuilds the list (and row ids), so drop any highlight.
+  useEffect(() => { setSelected(null); }, [text, cls, mfrs, lowIdx, highIdx]);
+  // Selecting a different motor resets the curve choice to the best (first).
+  useEffect(() => {
+    // A pre-seeded selection carries the seated motor's own delay/curve — don't
+    // stomp them with the defaults on this first run.
+    if (seedRef.current) { seedRef.current = false; return; }
+    setCurveIdx(0);
+    if (!selected) return;
+    // Default the delay to one of the motor's own charges (a mid value), or
+    // plugged for a plugged-only motor.
+    const { delays, plugged } = parseDelays(selected.m.delays);
+    if (delays.length) setDelay(delays[Math.floor(delays.length / 2)]!);
+    else if (plugged) setDelay(PLUGGED_DELAY);
+  }, [selected?.rowId]);
+
+  // Opening from a card with a motor already on it pre-selects that motor —
+  // highlighted in the list, its curve + delay restored — so "Change…" resumes
+  // from the current choice instead of a blank detail pane.
+  useEffect(() => {
+    if (!open) { seededOpenRef.current = false; return; }
+    if (seededOpenRef.current || catalog.length === 0) return;
+    seededOpenRef.current = true;
+    if (!current) return;
+    const i = matches.findIndex((m) => m.manufacturer === current.manufacturer && m.designation === current.designation);
+    const m = i >= 0 ? matches[i]! : catalog.find((mm) => mm.manufacturer === current.manufacturer && mm.designation === current.designation);
+    if (!m) return;
+    // Highlight the real row when it's in view; otherwise (filtered out) still
+    // show it in the detail pane via a non-colliding id.
+    const rowId = i >= 0 ? `${m.manufacturer}:${m.designation}:${i}` : `seed:${m.manufacturer}:${m.designation}`;
+    seedRef.current = true;
+    setSelected({ m, rowId });
+    setDelay(current.ejectionDelay);
+    const ci = m.curves?.findIndex((c) => c.src === current.curveSrc) ?? -1;
+    setCurveIdx(ci >= 0 ? ci : 0);
+  }, [open, catalog, matches, current]);
 
   if (!open) return null;
 
-  const pick = async (m: CatalogMotor, rowId: string) => {
+  const pick = async (m: CatalogMotor, rowId: string, curveIndex = 0) => {
     setLoadingId(rowId);
     onError(null);
     try {
-      onSelect(await fetchMotorSpec(m, delay));
+      onSelect(await fetchMotorSpec(m, delay, curveIndex));
       onClose();
     } catch (e) {
       onError(e instanceof Error ? e.message : String(e));
@@ -86,12 +167,15 @@ export function MotorDialog({ open, onClose, onSelect, onError }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-slate-900 ring-1 ring-white/10" onClick={(e) => e.stopPropagation()}>
+      <div className="flex h-[720px] max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-slate-900 ring-1 ring-white/10" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between gap-2 border-b border-white/10 p-3">
           <h2 className="text-sm font-semibold text-slate-200">{t('motorDlg.title')}</h2>
           <button onClick={onClose} aria-label={t('banner.close')} className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 hover:bg-slate-700">✕</button>
         </div>
 
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        {/* LEFT: filters + list + count */}
+        <div className={`flex min-h-0 flex-col md:w-[360px] md:shrink-0 md:border-r md:border-white/10 ${selected ? 'hidden md:flex' : 'flex'}`}>
         <div className="space-y-2 p-3">
           <div className="flex gap-2">
             <input
@@ -106,26 +190,39 @@ export function MotorDialog({ open, onClose, onSelect, onError }: {
           </div>
 
           <div className="flex gap-2">
-            <select
-              value={mfr} onChange={(e) => setMfr(e.target.value)}
-              className="min-w-0 flex-1 rounded-lg bg-slate-950 px-2 py-2 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
-            >
-              <option value="">{t('motorDlg.allManufacturers')}</option>
-              {manufacturers.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
-            <label className="flex shrink-0 items-center gap-2 text-sm text-slate-300">
-              <span className="text-slate-500">{t('motor.ejectionDelay')}</span>
-              <input
-                type="number" min={0} max={20} step={0.5} value={delay}
-                onChange={(e) => setDelay(Math.max(0, parseFloat(e.target.value) || 0))}
-                className="w-16 rounded bg-slate-950 px-2 py-1 text-right tabular-nums ring-1 ring-white/10"
-              />
-            </label>
+            <details className="relative min-w-0 flex-1">
+              <summary className="cursor-pointer list-none rounded-lg bg-slate-950 px-3 py-2 text-sm text-slate-100 ring-1 ring-white/10">
+                {mfrs.size === 0 ? t('motorDlg.allManufacturers') : mfrs.size === 1 ? [...mfrs][0] : t('motorDlg.mfrCount', { n: mfrs.size })}
+              </summary>
+              <div className="absolute left-0 top-full z-20 mt-1 max-h-64 w-64 overflow-y-auto rounded-lg bg-slate-950 p-1 shadow-xl ring-1 ring-white/10">
+                <button
+                  onClick={() => setMfrs(new Set())}
+                  className="w-full rounded px-2 py-1 text-left text-xs font-medium text-sky-400 hover:bg-slate-800"
+                >{t('motorDlg.allManufacturers')}</button>
+                {manufacturers.map((m) => (
+                  <label key={m} className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-200 hover:bg-slate-800">
+                    <input
+                      type="checkbox" checked={mfrs.has(m)} className="accent-sky-500"
+                      onChange={() => setMfrs((prev) => { const n = new Set(prev); if (n.has(m)) n.delete(m); else n.add(m); return n; })}
+                    />
+                    {m}
+                  </label>
+                ))}
+              </div>
+            </details>
           </div>
 
           <div className="flex flex-wrap gap-1">
             <Chip label={t('motor.all')} active={cls === null} onClick={() => setCls(null)} />
             {classes.map((c) => <Chip key={c} label={c} active={cls === c} onClick={() => setCls(cls === c ? null : c)} />)}
+          </div>
+
+          <div className="flex items-center gap-3 text-xs text-slate-300">
+            <span className="shrink-0 text-slate-500">{t('motorDlg.diameter')}</span>
+            <RangeSlider count={STD_DIAMS.length} low={lowIdx} high={highIdx} onChange={(lo, hi) => setDia([lo, hi])} label={t('motorDlg.diameter')} />
+            <span className="w-20 shrink-0 text-right tabular-nums text-slate-400">
+              {lowIdx > 0 ? STD_DIAMS[lowIdx] : t('motorDlg.any')}–{highIdx < MAX_IDX ? STD_DIAMS[highIdx] : t('motorDlg.any')} mm
+            </span>
           </div>
         </div>
 
@@ -136,8 +233,13 @@ export function MotorDialog({ open, onClose, onSelect, onError }: {
             return (
               <li key={rowId} className="flex items-stretch">
                 <button
-                  onClick={() => pick(m, rowId)} disabled={loadingId !== null}
-                  className="flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-slate-800 disabled:opacity-50"
+                  onClick={() => setSelected({ m, rowId })}
+                  onDoubleClick={() => pick(m, rowId)}
+                  disabled={loadingId !== null}
+                  aria-pressed={selected?.rowId === rowId}
+                  className={`flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-2 text-left text-sm disabled:opacity-50 ${
+                    selected?.rowId === rowId ? 'bg-sky-600/25 ring-1 ring-inset ring-sky-500/50' : 'hover:bg-slate-800'
+                  }`}
                 >
                   <span className="min-w-0">
                     {m.custom && <span className="mr-1 text-amber-400" title={t('motor.importedTitle')}>★</span>}
@@ -145,7 +247,7 @@ export function MotorDialog({ open, onClose, onSelect, onError }: {
                     <span className="ml-2 text-xs text-slate-500">{m.manufacturer}</span>
                   </span>
                   <span className="shrink-0 text-xs tabular-nums text-slate-400">
-                    {loading ? t('sim.running') : `${fmtNum(m.impulse, m.impulse < 10 ? 1 : 0)} Ns · ${m.diameter} mm`}
+                    {loading ? t('motorDlg.loading') : `${fmtNum(m.impulse, m.impulse < 10 ? 1 : 0)} Ns · ${m.diameter} mm`}
                   </span>
                 </button>
                 {m.custom && (
@@ -159,6 +261,29 @@ export function MotorDialog({ open, onClose, onSelect, onError }: {
         <div className="border-t border-white/10 p-2 text-center text-[11px] uppercase tracking-wide text-slate-500">
           {t('motor.count', { total: matches.length })}{matches.length > shown.length ? t('motor.showing', { shown: shown.length }) : ''}
         </div>
+        </div>{/* end LEFT */}
+
+        {/* RIGHT: detail + apply */}
+        <div className={`min-h-0 min-w-0 flex-1 flex-col ${selected ? 'flex' : 'hidden md:flex'}`}>
+          {selected ? (
+            <>
+              <MotorDetail motor={selected.m} onBack={() => setSelected(null)} curveIndex={curveIdx} onCurveChange={setCurveIdx} />
+              <div className="flex shrink-0 items-center justify-between gap-2 border-t border-white/10 p-2">
+                <DelayControl motor={selected.m} delay={delay} onDelay={setDelay} />
+                <button
+                  onClick={() => pick(selected.m, selected.rowId, curveIdx)}
+                  disabled={loadingId !== null}
+                  className="shrink-0 rounded-lg bg-sky-600 px-5 py-1.5 text-sm font-medium text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
+                >
+                  {loadingId !== null ? t('motorDlg.loading') : t('motorDlg.select')}
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="grid flex-1 place-items-center p-6 text-center text-sm text-slate-500">{t('motorDlg.pickHint')}</div>
+          )}
+        </div>
+        </div>{/* end two-pane */}
       </div>
     </div>
   );
@@ -169,5 +294,62 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
     <button onClick={onClick} className={`rounded-full px-2.5 py-1 text-xs font-medium ${active ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300'}`}>
       {label}
     </button>
+  );
+}
+
+/** Delay picker for the selected motor: its own charges as quick chips (default
+ *  a mid value), an optional Plugged chip, and a manual override. Plugged-only
+ *  motors have no ejection charge, so nothing is shown. */
+function DelayControl({ motor, delay, onDelay }: { motor: CatalogMotor; delay: number; onDelay: (d: number) => void }) {
+  const { t } = useTranslation();
+  const { delays, plugged } = parseDelays(motor.delays);
+  if (plugged && delays.length === 0) return <span />; // plugged-only: already plugged, no choice to make
+  const chip = (active: boolean) =>
+    `rounded px-1.5 py-0.5 text-xs font-medium ${active ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`;
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-1 text-xs text-slate-400">
+      <span className="text-slate-500">{t('sims.delay')}</span>
+      {delays.map((d) => <button key={d} onClick={() => onDelay(d)} className={chip(delay === d)}>{d}</button>)}
+      {/* Any motor can be flown plugged (no ejection charge), not just ones whose
+          spec lists it — useful for staging / alternate recovery triggers. */}
+      <button onClick={() => onDelay(PLUGGED_DELAY)} className={chip(delay >= PLUGGED_DELAY)}>{t('motor.plugged')}</button>
+      <input
+        type="number" min={0} step={0.5}
+        value={delay >= PLUGGED_DELAY ? '' : delay}
+        onChange={(e) => onDelay(Math.max(0, parseFloat(e.target.value) || 0))}
+        placeholder={t('motorDlg.custom')} title={t('motorDlg.custom')}
+        className="w-14 rounded bg-slate-950 px-1.5 py-0.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+      />
+    </div>
+  );
+}
+
+// The slider thumbs sit above a custom track; each native range input is
+// transparent with only its thumb clickable, so the two overlap cleanly.
+const THUMB =
+  'pointer-events-none absolute inset-x-0 top-0 m-0 h-5 w-full cursor-pointer appearance-none bg-transparent focus:outline-none'
+  + ' [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-sky-400 [&::-webkit-slider-thumb]:ring-2 [&::-webkit-slider-thumb]:ring-slate-900'
+  + ' [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-sky-400';
+
+/** A two-thumb range slider over `count` discrete stops (OpenRocket-style). */
+function RangeSlider({ count, low, high, onChange, label }: {
+  count: number; low: number; high: number; onChange: (lo: number, hi: number) => void; label: string;
+}) {
+  const pct = (i: number) => (i / (count - 1)) * 100;
+  return (
+    <div className="relative h-5 min-w-[120px] flex-1">
+      <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-slate-700" />
+      <div className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-sky-500" style={{ left: `${pct(low)}%`, right: `${100 - pct(high)}%` }} />
+      <input
+        type="range" min={0} max={count - 1} step={1} value={low} aria-label={`${label} min`}
+        onChange={(e) => onChange(Math.min(Number(e.target.value), high), high)}
+        className={THUMB} style={{ zIndex: low >= high ? 5 : 3 }}
+      />
+      <input
+        type="range" min={0} max={count - 1} step={1} value={high} aria-label={`${label} max`}
+        onChange={(e) => onChange(low, Math.max(Number(e.target.value), low))}
+        className={THUMB} style={{ zIndex: 4 }}
+      />
+    </div>
   );
 }

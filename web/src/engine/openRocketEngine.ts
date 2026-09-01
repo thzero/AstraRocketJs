@@ -232,6 +232,8 @@ export interface MotorSpec {
   cgX: number;
   /** Ejection-charge delay (s). Use {@link PLUGGED_DELAY} for a plugged motor. */
   ejectionDelay: number;
+  /** Which bundled thrust curve this was built from (e.g. "Certified · RASP") — display only. */
+  curveSrc?: string;
 }
 
 /**

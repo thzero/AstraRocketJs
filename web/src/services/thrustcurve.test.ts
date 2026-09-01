@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { samplesToMotorSpec } from './thrustcurve';
+import { samplesToMotorSpec, fetchMotorSpec } from './thrustcurve';
+import type { CatalogMotor } from './motorDb';
 
 // samplesToMotorSpec's TcMotor param is module-internal; build a shaped literal.
 const motor = (over: Record<string, unknown> = {}) =>
@@ -61,5 +62,43 @@ describe('samplesToMotorSpec', () => {
   it('throws when propellant exceeds loaded mass (negative burnout mass)', () => {
     expect(() => samplesToMotorSpec(motor({ totalWeightG: 10, propWeightG: 20 }), [{ time: 0, thrust: 1 }, { time: 1, thrust: 1 }], 0))
       .toThrow(/more propellant/i);
+  });
+});
+
+describe('fetchMotorSpec — bundled catalog motor (offline path)', () => {
+  const bundled = {
+    designation: 'C6', manufacturer: 'Estes', class: 'C', diameter: 18, impulse: 8.8, burn: 1,
+    mass: 24, length: 70, propWeightG: 10,
+    curves: [{ src: 'Certified · RASP', samples: [[0, 0], [0.5, 20], [1, 0]] }],
+  } as unknown as CatalogMotor;
+
+  it('builds a MotorSpec entirely from bundled data — no thrustcurve.org fetch', async () => {
+    const spec = await fetchMotorSpec(bundled, 5);
+    expect(spec.designation).toBe('C6');
+    expect(spec.diameter).toBeCloseTo(0.018, 9); // mm → m
+    expect(spec.length).toBeCloseTo(0.07, 9);
+    expect(spec.ejectionDelay).toBe(5);
+    expect(spec.times[0]).toBe(0);
+    expect(spec.thrusts).toContain(20);
+    expect(spec.curveSrc).toBe('Certified · RASP');
+  });
+
+  it('builds from the selected curve index and records its source', async () => {
+    const multi = {
+      designation: 'X', manufacturer: 'Y', class: 'C', diameter: 18, impulse: 10, burn: 1,
+      mass: 20, length: 70, propWeightG: 10,
+      curves: [
+        { src: 'Certified · RASP', samples: [[0, 0], [1, 10]] },
+        { src: 'User · RockSim', samples: [[0, 0], [0.5, 40], [1, 0]] },
+      ],
+    } as unknown as CatalogMotor;
+
+    const first = await fetchMotorSpec(multi, 0, 0);
+    expect(first.curveSrc).toBe('Certified · RASP');
+    expect(first.thrusts).toContain(10);
+
+    const second = await fetchMotorSpec(multi, 0, 1);
+    expect(second.curveSrc).toBe('User · RockSim');
+    expect(second.thrusts).toContain(40);
   });
 });

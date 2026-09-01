@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { findMounts } from '../../services/treeEdit';
 import { useWorkspaceStore, selectActive } from '../../state/store';
 import { useSettings } from '../../state/SettingsProvider';
 import { SimulationsList } from './SimulationsList';
@@ -18,6 +19,14 @@ export function SimulationsPanel() {
   const result = useWorkspaceStore((s) => selectActive(s).result);
   const info = useWorkspaceStore((s) => s.info);
   const busy = useWorkspaceStore((s) => s.simBusy);
+  const tree = useWorkspaceStore((s) => s.tree);
+  const extraMotors = useWorkspaceStore((s) => s.extraMotors);
+  const setExtraMotor = useWorkspaceStore((s) => s.setExtraMotor);
+
+  // One card per motor mount. The first (primary) mount's motor is the sim's
+  // `motor`; the rest live in `extraMotors`, keyed by mount id.
+  const mounts = useMemo(() => findMounts(tree), [tree]);
+  const primaryId = mounts[0]?.id;
 
   const onSelectSim = useWorkspaceStore((s) => s.setActiveId);
   const onAddSim = useWorkspaceStore((s) => s.addSim);
@@ -67,7 +76,24 @@ export function SimulationsPanel() {
                 />
               </label>
             </section>
-            <MotorRow motor={motor} onChange={onMotorChange} onError={onError} />
+            {mounts.map((mt, i) => {
+              const id = mt.id as string;
+              const isPrimary = id === primaryId;
+              const name = typeof mt.name === 'string' && mt.name ? mt.name : `${t('part.innertube')} ${i + 1}`;
+              const or = typeof mt.outerRadius === 'number' ? mt.outerRadius : null;
+              const th = typeof mt.thickness === 'number' ? mt.thickness : 0;
+              const bore = or != null ? (or - th) * 2 * 1000 : null; // inner diameter, mm
+              return (
+                <MotorRow
+                  key={id}
+                  title={mounts.length > 1 ? `${t('sims.motor')} - ${name}` : undefined}
+                  motor={isPrimary ? motor : (extraMotors[id]?.spec ?? null)}
+                  onChange={isPrimary ? onMotorChange : (m) => setExtraMotor(id, m)}
+                  onError={onError}
+                  mountDiameter={bore}
+                />
+              );
+            })}
           </>
         )}
       </div>

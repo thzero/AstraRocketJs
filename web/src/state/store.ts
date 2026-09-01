@@ -63,6 +63,8 @@ export interface WorkspaceState {
 
   setActiveId: (id: string) => void;
   setActiveMotor: (m: MotorSpec) => void;
+  /** Set the motor for a non-primary mount (multi-mount rockets). */
+  setExtraMotor: (mountId: string, m: MotorSpec) => void;
   patchLaunch: (p: Partial<LaunchConditions>) => void;
   addSim: () => void;
   duplicateSim: (id: string) => void;
@@ -172,6 +174,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     setActiveId: (activeId) => set({ activeId }),
     setActiveMotor: (m) => patchActive({ motor: m, result: null }),
+    setExtraMotor: (mountId, m) => set((s) => ({
+      extraMotors: { ...s.extraMotors, [mountId]: { ...s.extraMotors[mountId], spec: m } },
+      // Extra motors are workspace-level, so every sim's cached result is now stale.
+      sims: s.sims.some((x) => x.result) ? s.sims.map((x) => ({ ...x, result: null })) : s.sims,
+    })),
     patchLaunch: (p) => patchActive({ launch: { ...selectActive(get()).launch, ...p }, result: null }),
     addSim: () => {
       // A fresh simulation starts from the app default motor + the user's global

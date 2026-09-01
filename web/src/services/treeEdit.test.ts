@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  findNode, updateNode, removeNode, addChild, findMountId,
+  findNode, updateNode, removeNode, addChild, findMountId, findMounts,
   isAxial, allowedChildren, hasCatalog, hasMaterial, catalogPatch,
   siblingIndex, moveNode, defaultNode, addPart,
 } from './treeEdit';
@@ -58,6 +58,14 @@ describe('immutable edits', () => {
 describe('mount + type rules', () => {
   it('findMountId returns the first motor-mount id', () => {
     expect(findMountId(makeTree())).toBe('m1');
+  });
+
+  it('findMounts returns every motor-mount node in order', () => {
+    const t = makeTree();
+    // add a second mount under the body tube
+    const two = addChild(t, 'b1', { id: 'm2', type: 'innertube', motorMount: true } as never);
+    expect(findMounts(two).map((n) => n.id)).toEqual(['m1', 'm2']);
+    expect(findMounts(makeTree()).map((n) => n.id)).toEqual(['m1']);
   });
 
   it('isAxial is true only for axial body components', () => {
