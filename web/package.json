@@ -1,6 +1,6 @@
 {
   "name": "astrarrocketjs-web",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "type": "module",
   "description": "AstraRocketJs — browser UI for the OpenRocket engine",
   "author": "thZero.com",
@@ -53,5 +53,9 @@
     "typescript": "^5.6.3",
     "vite": "^6.0.7",
     "vitest": "^2.1.9"
-  }
+  },
+  "version_major": 0,
+  "version_minor": 0,
+  "version_patch": 1,
+  "version_date": "09/01/2026"
 }
