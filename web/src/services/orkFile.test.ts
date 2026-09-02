@@ -122,6 +122,28 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
     const fins = findByType(importOrk(exportOrk({ name: 'Cant', tree: canted })).tree, 'trapezoidfinset') as { cant?: number };
     expect(fins.cant).toBeCloseTo(Math.PI / 36, 6);
   });
+
+  it('preserves a split-cluster inner tube radial offset through export → import', () => {
+    // A split cluster is single tubes carrying radialPosition (m) + radialDirection (rad).
+    // Regression: the writer used to hard-write 0.0, collapsing every tube onto the axis.
+    const clustered = {
+      components: [{
+        type: 'stage', name: 'Sustainer', id: 's1', children: [{
+          type: 'bodytube', id: 'body', length: 0.3, outerRadius: 0.026, thickness: 0.0005,
+          children: [{
+            type: 'innertube', id: 'mount', length: 0.07, outerRadius: 0.0095, thickness: 0.0005,
+            radialPosition: 0.012, radialDirection: Math.PI / 3, // 60°
+            position: { method: 'bottom', offset: 0 },
+          }],
+        }],
+      }],
+    } as unknown as RocketTree;
+    const tube = findByType(importOrk(exportOrk({ name: 'Cluster', tree: clustered })).tree, 'innertube') as {
+      radialPosition?: number; radialDirection?: number;
+    };
+    expect(tube.radialPosition).toBeCloseTo(0.012, 6);
+    expect(tube.radialDirection).toBeCloseTo(Math.PI / 3, 6);
+  });
 });
 
 describe('recovery-device features round-trip', () => {

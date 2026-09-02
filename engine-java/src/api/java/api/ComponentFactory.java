@@ -253,6 +253,14 @@ final class ComponentFactory {
                     tube.setClusterScale(dbl(node, "clusterScale", 1.0));
                     tube.setClusterRotation(dbl(node, "clusterRotation", 0.0));
                 }
+                // Off-axis / split-cluster offset: desktop splits a cluster into
+                // single tubes, each holding its position as radialPosition (m) +
+                // radialDirection (rad). Applies with OR without a cluster config
+                // (a split tube's config is "single", so it has no cluster block);
+                // 0/0 — the default — leaves the tube on the centreline unchanged,
+                // matching prior behaviour for every non-split design.
+                tube.setRadialPosition(dbl(node, "radialPosition", 0.0));
+                tube.setRadialDirection(dbl(node, "radialDirection", 0.0));
                 c = tube;
                 break;
             }
