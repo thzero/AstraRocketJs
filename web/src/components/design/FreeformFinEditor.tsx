@@ -14,7 +14,7 @@ const FALLBACK: Pt[] = [[0, 0], [0.02, 0.05], [0.05, 0.05], [0.06, 0]];
  * reshape, tap a blue edge-midpoint to insert a vertex, select one to delete it
  * or type exact coordinates. Emits the full point list on every change.
  */
-export function FreeformFinEditor({ points, onChange }: { points: Pt[]; onChange: (pts: Pt[]) => void }) {
+export function FreeformFinEditor({ points, onChange, onCommit }: { points: Pt[]; onChange: (pts: Pt[]) => void; onCommit?: () => void }) {
   const { t } = useTranslation();
   const svgRef = useRef<SVGSVGElement>(null);
   const dragging = useRef<number | null>(null);
@@ -56,6 +56,7 @@ export function FreeformFinEditor({ points, onChange }: { points: Pt[]; onChange
     svgRef.current?.setPointerCapture(e.pointerId);
   };
   const endDrag = (e: React.PointerEvent) => {
+    if (dragging.current != null) onCommit?.(); // a drag is one undo entry, closed on release
     dragging.current = null;
     svgRef.current?.releasePointerCapture?.(e.pointerId);
   };
@@ -64,11 +65,13 @@ export function FreeformFinEditor({ points, onChange }: { points: Pt[]; onChange
     const a = pts[i]!, b = pts[(i + 1) % pts.length]!;
     onChange([...pts.slice(0, i + 1), [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] as Pt, ...pts.slice(i + 1)]);
     setSel(i + 1);
+    onCommit?.();
   };
   const removeSel = () => {
     if (sel == null || pts.length <= 3) return;
     onChange(pts.filter((_, j) => j !== sel));
     setSel(null);
+    onCommit?.();
   };
 
   const poly = pts.map((p) => `${sx(p[0]).toFixed(1)},${sy(p[1]).toFixed(1)}`).join(' ');
@@ -123,6 +126,7 @@ export function FreeformFinEditor({ points, onChange }: { points: Pt[]; onChange
             <input
               type="number" step={1} value={+(selPt[0] * 1000).toFixed(1)}
               onChange={(e) => setPoint(sel!, (parseFloat(e.target.value) || 0) / 1000, selPt[1])}
+              onBlur={onCommit}
               className="w-16 rounded bg-slate-800 px-1.5 py-0.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
             />
             mm
@@ -132,6 +136,7 @@ export function FreeformFinEditor({ points, onChange }: { points: Pt[]; onChange
             <input
               type="number" step={1} value={+(selPt[1] * 1000).toFixed(1)}
               onChange={(e) => setPoint(sel!, selPt[0], (parseFloat(e.target.value) || 0) / 1000)}
+              onBlur={onCommit}
               className="w-16 rounded bg-slate-800 px-1.5 py-0.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
             />
             mm

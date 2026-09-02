@@ -35,10 +35,6 @@ export function CenterView() {
   const onRollBy = useWorkspaceStore((s) => s.rollBy);
   const onResetView = useWorkspaceStore((s) => s.resetView);
   const resetKey = useWorkspaceStore((s) => s.resetKey);
-  const showMarkers = useWorkspaceStore((s) => s.showMarkers);
-  const showInfoCard = useWorkspaceStore((s) => s.showInfoCard);
-  const toggleMarkers = useWorkspaceStore((s) => s.toggleMarkers);
-  const toggleInfoCard = useWorkspaceStore((s) => s.toggleInfoCard);
   const tree = useWorkspaceStore((s) => s.tree);
   const info = useWorkspaceStore((s) => s.info);
   const selectedId = useWorkspaceStore((s) => s.selectedId);
@@ -49,7 +45,12 @@ export function CenterView() {
   const motors = useMemo(() => selectMotorDims(tree, motor, extraMotors), [tree, motor, extraMotors]);
 
   // Optionally auto-run an outdated (never-run/stale) sim when a results view opens.
-  const { settings } = useSettings();
+  const { settings, update } = useSettings();
+  // CG/CP markers + info-card visibility are user preferences (persist across reloads).
+  const showMarkers = settings.showMarkers;
+  const showInfoCard = settings.showInfoCard;
+  const toggleMarkers = () => update({ showMarkers: !settings.showMarkers });
+  const toggleInfoCard = () => update({ showInfoCard: !settings.showInfoCard });
   const runSim = useWorkspaceStore((s) => s.runSim);
   const busy = useWorkspaceStore((s) => s.simBusy);
   useEffect(() => {

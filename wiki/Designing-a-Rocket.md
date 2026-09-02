@@ -16,6 +16,12 @@ Supported components include:
 
 Each part exposes the dimensions and options the engine needs (lengths, radii, thickness, fin geometry, etc.). Editing is debounced — the model rebuilds and the stats refresh as you type/drag.
 
+## Undo / redo
+
+Every edit is undoable. Use the **↶ / ↷** buttons in the top bar, or `Ctrl/⌘+Z` to undo and `Ctrl+Shift+Z` (or `Ctrl+Y`) to redo. One interaction is one step — a whole slider drag or a typed value undoes in a single press, not character by character.
+
+Undo/redo covers the **whole workspace** on one timeline: adding, removing, moving, and editing components, **and** simulation changes (motor, ignition, launch conditions, and adding/renaming/deleting simulations). It restores your selection too, so you land back on the part that changed. Opening a `.ork` or starting a new design clears the history (a fresh document has nothing to undo across). Undo restores your *inputs*; cached flight results are cleared, so re-run to see the flight.
+
 ## Selecting parts from a catalog
 
 Instead of dialing in dimensions by hand, use the contextual **"Select a part…"** pickers to drop in **real manufacturer parts** (Estes / Apogee / LOC / …):
@@ -36,7 +42,9 @@ Every structural component has a **material**, which the engine uses (by its **d
 
 ## Motor mount
 
-To fly, a rocket needs a motor mount (an inner tube) with a motor assigned. Picking and configuring motors is covered in **[Motors](Motors)**.
+To fly, a rocket needs a motor mount (an inner tube, or any body/inner tube with its **Motor mount** box checked) with a motor assigned. Picking and configuring motors is covered in **[Motors](Motors)**.
+
+Mounts and motors stay in sync automatically: add a mount and it comes pre-loaded with a default motor; remove one and its motor is cleaned up. Because a design can't be simulated without one, deleting (or un-checking) your **only** motor mount asks for confirmation first.
 
 ## Stability at a glance
 

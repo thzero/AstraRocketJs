@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { findMounts, isUpperStageMount } from '../../services/treeEdit';
-import { useWorkspaceStore, selectActive } from '../../state/store';
+import { useWorkspaceStore, selectActive, hasThrustCurve } from '../../state/store';
 import { useSettings } from '../../state/SettingsProvider';
 import { SimulationsList } from './SimulationsList';
 import { MotorRow } from './MotorRow';
@@ -39,12 +39,16 @@ export function SimulationsPanel() {
   const setActiveIgnition = useWorkspaceStore((s) => s.setActiveIgnition);
   const setExtraIgnition = useWorkspaceStore((s) => s.setExtraIgnition);
   const onLaunchChange = useWorkspaceStore((s) => s.patchLaunch);
+  const onCommit = useWorkspaceStore((s) => s.commitEdit);
   const runSim = useWorkspaceStore((s) => s.runSim);
   const onError = useWorkspaceStore((s) => s.setErr);
   const { t } = useTranslation();
   const { settings } = useSettings();
   const onRun = () => runSim(settings.simulation);
   const onDeleteSim = (id: string) => { if (!settings.simulation.confirmDelete || window.confirm(t('sims.deleteConfirm'))) deleteSim(id); };
+  // A design with no motor mount (nowhere to seat a motor) or no usable primary
+  // motor can't fly — disable Run and say why, rather than failing on click.
+  const blockReason = mounts.length === 0 ? t('sim.noMount') : !hasThrustCurve(motor) ? t('sim.noMotor') : null;
 
   // The list is an accordion: collapsed (default) it shows only the selected
   // simulation and opens its config below; expanded it lists every sim to switch
@@ -55,7 +59,7 @@ export function SimulationsPanel() {
   return (
     <>
       {/* Run + results first, so a run's outcome is front-and-centre. */}
-      <SimPanel info={info} runLabel={runLabel} sim={result} busy={busy} onRun={onRun} />
+      <SimPanel info={info} runLabel={runLabel} sim={result} busy={busy} onRun={onRun} blockReason={blockReason} />
 
       <div className="space-y-4 p-3 pt-0">
         <SimulationsList
@@ -74,7 +78,7 @@ export function SimulationsPanel() {
               <label className="block">
                 <span className="mb-1 block text-[10px] uppercase tracking-wide text-slate-400">{t('sims.name')}</span>
                 <input
-                  value={runLabel} onChange={(e) => onRenameSim(activeId, e.target.value)}
+                  value={runLabel} onChange={(e) => onRenameSim(activeId, e.target.value)} onBlur={onCommit}
                   aria-label={t('sims.rename')}
                   className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-sm font-medium text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
                 />
@@ -99,6 +103,7 @@ export function SimulationsPanel() {
                     ? { event: ignitionEvent ?? 'automatic', delay: ignitionDelay ?? 0 }
                     : { event: extraMotors[id]?.ignitionEvent ?? 'automatic', delay: extraMotors[id]?.ignitionDelay ?? 0 }}
                   onIgnitionChange={isPrimary ? setActiveIgnition : (e, d) => setExtraIgnition(id, e, d)}
+                  onCommit={onCommit}
                   upperStage={isUpperStageMount(tree, id)}
                 />
               );
@@ -106,7 +111,7 @@ export function SimulationsPanel() {
           </>
         )}
       </div>
-      {!listOpen && <LaunchPanel launch={launch} onChange={onLaunchChange} />}
+      {!listOpen && <LaunchPanel launch={launch} onChange={onLaunchChange} onCommit={onCommit} />}
     </>
   );
 }

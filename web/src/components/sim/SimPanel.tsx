@@ -18,12 +18,15 @@ function lastFinite(arr?: (number | null)[]): number | null {
 
 /** Run button + the active simulation's summary tiles (apogee, max V/A/Mach, times,
  *  rod exit, landing, downrange, deploy speed, optimum delay). */
-export function SimPanel({ info, runLabel, sim, busy, onRun }: {
+export function SimPanel({ info, runLabel, sim, busy, onRun, blockReason }: {
   info: StaticInfo | null;
   runLabel: string;
   sim: FlightResult | null;
   busy: boolean;
   onRun: () => void;
+  /** When set, the design can't be simulated (no mount / no motor): the reason
+   *  is shown and the Run button is disabled. */
+  blockReason?: string | null;
 }) {
   const { t } = useTranslation();
   const { settings } = useSettings();
@@ -46,11 +49,17 @@ export function SimPanel({ info, runLabel, sim, busy, onRun }: {
     <div className="space-y-4 p-3">
       <button
         onClick={onRun}
-        disabled={busy || !info}
+        disabled={busy || !info || !!blockReason}
         className="w-full rounded-xl bg-sky-600 py-3 font-semibold text-white disabled:opacity-50"
       >
         {busy ? t('sim.running') : t('sim.run', { name: runLabel })}
       </button>
+
+      {blockReason && !busy && (
+        <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-center text-sm text-amber-300 ring-1 ring-amber-400/30">
+          ⚠ {blockReason}
+        </p>
+      )}
 
       {s && (
         <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
@@ -76,7 +85,7 @@ export function SimPanel({ info, runLabel, sim, busy, onRun }: {
           <Stat label={t('sim.maxMach')} value={fmtNum(s.maxMachNumber, 2)} sub="Mach" />
         </div>
       )}
-      {!s && !busy && <p className="text-center text-sm text-slate-500">{t('sim.prompt')}</p>}
+      {!s && !busy && !blockReason && <p className="text-center text-sm text-slate-500">{t('sim.prompt')}</p>}
     </div>
   );
 }

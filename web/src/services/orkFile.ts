@@ -431,6 +431,17 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
           n['clusterScale'] = num(el, 'clusterscale', 1);
           n['clusterRotation'] = (num(el, 'clusterrotation', 0) * Math.PI) / 180;
         }
+        // Off-axis / split-cluster offset: desktop splits a cluster into single
+        // tubes, each carrying its position as <radialposition> (metres) +
+        // <radialdirection> (DEGREES). We keep the direction in radians (like
+        // angleOffset) and only carry non-zero values so a centred tube stays
+        // clean. Previously neither was read and the writer hard-wrote 0.0, so
+        // every off-centre tube collapsed onto the centreline and the next save
+        // made it permanent.
+        const radPos = num(el, 'radialposition', 0);
+        if (radPos !== 0) n['radialPosition'] = radPos;
+        const radDir = num(el, 'radialdirection', 0);
+        if (radDir !== 0) n['radialDirection'] = (radDir * Math.PI) / 180;
         // Our extension tag: the mount's physical motor-length limit.
         const mml = num(el, 'maxmotorlength', 0);
         if (mml > 0) n['maxMotorLength'] = mml;
@@ -1249,8 +1260,11 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         position(depth + 1, node, 'bottom');
         material(depth + 1, node);
         emit(depth + 1, `<length>${n(node, 'length', 0.07)}</length>`);
-        emit(depth + 1, '<radialposition>0.0</radialposition>');
-        emit(depth + 1, '<radialdirection>0.0</radialdirection>');
+        // Preserve the off-axis / split-cluster offset (see the innertube reader):
+        // <radialposition> metres, <radialdirection> DEGREES. Defaults to 0 so a
+        // centred tube is byte-identical to before.
+        emit(depth + 1, `<radialposition>${n(node, 'radialPosition', 0)}</radialposition>`);
+        emit(depth + 1, `<radialdirection>${(n(node, 'radialDirection', 0) * 180) / Math.PI}</radialdirection>`);
         emit(depth + 1, `<outerradius>${n(node, 'outerRadius', 0.0095)}</outerradius>`);
         emit(depth + 1, `<thickness>${n(node, 'thickness', 0.0005)}</thickness>`);
         // Desktop stores cluster rotation in DEGREES; we keep radians inside.

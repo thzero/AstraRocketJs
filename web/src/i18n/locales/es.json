@@ -35,6 +35,7 @@
     "new": "Nuevo",
     "newConfirm": "¿Descartar el diseño actual y todas las simulaciones y empezar un diseño nuevo?"
   },
+  "edit": { "undo": "Deshacer", "redo": "Rehacer" },
   "menu": { "open": "Menú", "help": "Ayuda" },
   "wip": {
     "title": "Trabajo en curso",
@@ -143,7 +144,13 @@
     "landing": "Aterrizaje",
     "downrange": "Distancia",
     "deployVelocity": "Vel. despliegue",
-    "optDelay": "Retardo óptimo"
+    "optDelay": "Retardo óptimo",
+    "noMount": "Añade un soporte de motor para ejecutar una simulación.",
+    "noMotor": "Carga un motor para ejecutar una simulación."
+  },
+  "warn": {
+    "lastMountDelete": "Este es el único soporte de motor. ¿Eliminarlo de todos modos? El cohete no podrá simularse hasta que añadas otro.",
+    "lastMountDisable": "Este es el único soporte de motor. ¿Desactivarlo de todos modos? El cohete no podrá simularse hasta que añadas otro."
   },
   "launch": {
     "wind": "Viento",

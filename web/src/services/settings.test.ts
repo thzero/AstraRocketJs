@@ -41,6 +41,14 @@ describe('loadSettings', () => {
     localStorage.setItem(KEY, JSON.stringify({ wipAcknowledged: true }));
     expect(loadSettings().wipAcknowledged).toBe(true);
   });
+
+  it('defaults the CG/CP marker + info-card toggles to on and round-trips a stored false', () => {
+    expect(loadSettings().showMarkers).toBe(true);
+    expect(loadSettings().showInfoCard).toBe(true);
+    localStorage.setItem(KEY, JSON.stringify({ showMarkers: false, showInfoCard: false }));
+    expect(loadSettings().showMarkers).toBe(false);
+    expect(loadSettings().showInfoCard).toBe(false);
+  });
 });
 
 describe('saveSettings', () => {
