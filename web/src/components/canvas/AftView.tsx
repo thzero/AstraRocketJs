@@ -96,7 +96,9 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
       if (isAssembly(t)) {
         const podRadius = resolveAssemblyRadius(child, pRadius);
         const count = Math.max(1, Math.round(num(child, 'instanceCount', 2)));
-        for (const off of ringInstanceOffsets(count, podRadius, num(child, 'angleOffset', 0))) {
+        // +π/2 so the ring's 0° reference is "straight up" — the same reference
+        // the fin sets use here — matching the 3D view (see the lug note below).
+        for (const off of ringInstanceOffsets(count, podRadius, Math.PI / 2 + num(child, 'angleOffset', 0))) {
           walkChain(child.children ?? [], cy + off.y, cz + off.z);
         }
       } else if (t === 'trapezoidfinset' || t === 'ellipticalfinset' || t === 'freeformfinset') {
@@ -138,9 +140,13 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
         reach(cy, cz, pRadius + hgt);
       } else if (t === 'launchlug' || t === 'railbutton') {
         const r = t === 'railbutton' ? num(child, 'outerDiameter', 0.004) / 2 : num(child, 'outerRadius', 0.002);
-        // Radial direction isn't modeled — shown at the right side.
+        // Radial mount angle (kernel default 180°). The +π/2 is the aft view's
+        // "up = 0°" convention — the same offset the fin sets carry here — so a
+        // lug clocks consistently with the fins and with the 3D view.
+        const ang = Math.PI / 2 + num(child, 'angleOffset', Math.PI);
+        const rad = pRadius + r;
         outer.push({
-          kind: 'circle', y: cy + pRadius + r, z: cz, r,
+          kind: 'circle', y: cy + rad * Math.cos(ang), z: cz + rad * Math.sin(ang), r,
           fill: colorOf(child, '#c8c5be'), stroke: '#7a786f', title: child.name ?? t,
         });
         reach(cy, cz, pRadius + 2 * r);
@@ -151,7 +157,10 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
           num(child, 'clusterScale', 1), num(child, 'clusterRotation', 0),
         );
         const motor = child.id ? motors?.[child.id] : undefined;
-        for (const off of offs) {
+        for (const raw of offs) {
+          // Rotate the cluster +π/2 into the aft view's "up = 0°" frame (the fins'
+          // reference), so a split cluster clocks like the fins and the 3D view.
+          const off = { y: -raw.z, z: raw.y };
           inner.push({
             kind: 'circle', y: cy + off.y, z: cz + off.z, r,
             fill: 'none', stroke: colorOf(child, '#9a978f'), dash: '3 2',

@@ -1,11 +1,9 @@
 // Build-time motor catalog sync from the ThrustCurve.org API.
 //
-// Tier A: we ship only factual motor SPECS (total impulse, burn time, mass,
-// dimensions) — the numbers the browser simulation needs. We do NOT ship the
-// thrust-curve sample files (those carry per-file licenses; OpenRocket Core has
-// its own curves). Scope: currently-available motors whose data is public,
-// free, or unlicensed — motors whose only data files are explicitly restricted
-// are dropped.
+// Ships the full motor: factual specs (impulse, burn, mass, dimensions) AND the
+// thrust-curve samples, plus the length + propellant weight needed to build a
+// simulatable motor. Everything is bundled so a picked motor resolves OFFLINE
+// and instantly — no runtime thrustcurve.org call.
 //
 // Run manually or in CI (never inside `vite build`):  node scripts/sync-motors.mjs
 // Data © thrustcurve.org contributors and the certifying bodies (NAR/TRA/CAR).
@@ -30,9 +28,21 @@ async function post(path, body) {
 const round = (n, d) => (Number.isFinite(n) ? Number(n.toFixed(d)) : 0);
 const chunk = (arr, size) => Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
 
-function isPublicLicense(license) {
-  // include public domain, free, or unset/unknown; exclude explicit restrictions
-  return !license || license === "PD" || license === "free";
+// A motor can have several data files (cert vs user submissions, RASP/RockSim
+// formats). Bundle them ALL, best-first, so the picker can offer a choice.
+const SRC_RANK = { cert: 0, mfr: 1, user: 2 };
+const sourceLabel = (s) => ({ cert: "Certified", mfr: "Manufacturer", user: "User" }[s] || (s || "Unknown"));
+
+/** Fetch thrust-curve files for a batch of motorIds → Map<motorId, file[]>. */
+async function fetchSamples(ids) {
+  const out = new Map();
+  const { results: files = [] } = await post("download.json", { motorIds: ids, data: "samples", maxResults: 4000 });
+  for (const f of files) {
+    if (!f.samples || f.samples.length < 2) continue;
+    if (!out.has(f.motorId)) out.set(f.motorId, []);
+    out.get(f.motorId).push({ source: f.source, format: f.format, samples: f.samples });
+  }
+  return out;
 }
 
 async function main() {
@@ -40,41 +50,70 @@ async function main() {
   const { results: motors = [] } = await post("search.json", { availability: "available", maxResults: 5000 });
   console.log(`  ${motors.length} available motors`);
 
-  console.log("Checking data-file licenses…");
-  const restricted = new Set(); // motorIds whose files are ALL restricted
-  const licenseCounts = {};
-  for (const ids of chunk(motors.map((m) => m.motorId), 150)) {
-    const { results: files = [] } = await post("download.json", { motorIds: ids, data: "file", maxResults: 4000 });
-    const byMotor = new Map();
-    for (const f of files) {
-      const key = f.license || "(unset)";
-      licenseCounts[key] = (licenseCounts[key] ?? 0) + 1;
-      if (!byMotor.has(f.motorId)) byMotor.set(f.motorId, []);
-      byMotor.get(f.motorId).push(f.license);
-    }
-    for (const [motorId, licenses] of byMotor) {
-      if (!licenses.some(isPublicLicense)) restricted.add(motorId);
-    }
+  console.log("Fetching thrust curves…");
+  const sampleMap = new Map();
+  const batches = chunk(motors.map((m) => m.motorId), 100);
+  let done = 0;
+  for (const ids of batches) {
+    const got = await fetchSamples(ids);
+    for (const [id, v] of got) sampleMap.set(id, v);
+    done += ids.length;
+    process.stdout.write(`\r  ${done}/${motors.length} motors, ${sampleMap.size} with curves`);
   }
-  console.log("  file license distribution:", licenseCounts);
-  console.log(`  ${restricted.size} motors dropped (restricted-only data)`);
+  console.log("");
+
+  const rankFiles = (files) => [...files].sort((a, b) =>
+    (SRC_RANK[a.source] ?? 9) - (SRC_RANK[b.source] ?? 9) ||    // cert first
+    (a.format === "RASP" ? 0 : 1) - (b.format === "RASP" ? 0 : 1) || // RASP first
+    b.samples.length - a.samples.length);
 
   const catalog = motors
-    .filter((m) => !restricted.has(m.motorId))
     .filter((m) => m.totImpulseNs > 0 && m.burnTimeS > 0)
-    .map((m) => ({
-      designation: m.commonName || m.designation,
-      manufacturer: m.manufacturerAbbrev || m.manufacturer,
-      class: m.impulseClass,
-      diameter: round(m.diameter, 0),
-      impulse: round(m.totImpulseNs, 3),
-      burn: round(m.burnTimeS, 3),
-      mass: round(m.totalWeightG, 2),
-    }))
+    .map((m) => {
+      const curve = sampleMap.get(m.motorId);
+      const row = {
+        designation: m.commonName || m.designation,
+        manufacturer: m.manufacturerAbbrev || m.manufacturer,
+        class: m.impulseClass,
+        diameter: round(m.diameter, 0),
+        impulse: round(m.totImpulseNs, 3),
+        burn: round(m.burnTimeS, 3),
+        mass: round(m.totalWeightG, 2),
+      };
+      // Descriptive metadata for the detail panel (kept on every motor).
+      if (m.designation && m.designation !== row.designation) row.code = m.designation; // full mfr code
+      if (m.type) row.type = m.type;                 // SU / reload / hybrid
+      if (m.delays) row.delays = m.delays;           // "4,6,7,8,10"
+      if (m.propInfo) row.propInfo = m.propInfo;     // propellant type
+      if (m.sparky) row.sparky = true;
+      if (Number.isFinite(m.avgThrustN)) row.avgThrust = round(m.avgThrustN, 2);
+      if (Number.isFinite(m.maxThrustN)) row.maxThrust = round(m.maxThrustN, 2);
+      if (Number.isFinite(m.length)) row.length = round(m.length, 2);          // mm
+      if (Number.isFinite(m.propWeightG)) row.propWeightG = round(m.propWeightG, 2); // g
+      // Bundled thrust curves (best-first), so a picked motor resolves with no
+      // fetch and the picker can offer a choice when there are several.
+      if (curve && Number.isFinite(m.length) && Number.isFinite(m.propWeightG)) {
+        row.curves = rankFiles(curve).map((c) => ({
+          src: `${sourceLabel(c.source)} · ${c.format}`,
+          samples: c.samples.map((s) => [round(s.time, 4), round(s.thrust, 3)]),
+        }));
+      } else {
+        // No bundled curve (none published, or missing length/prop weight so it
+        // can't be built). Flag it so the UI can mark it and block compare/combine.
+        row.noCurve = true;
+      }
+      return row;
+    })
     .sort((a, b) => a.impulse - b.impulse || a.designation.localeCompare(b.designation));
 
+  const withCurves = catalog.filter((m) => m.curves).length;
+  const noCurve = catalog.filter((m) => m.noCurve);
   await writeFile(OUT, JSON.stringify(catalog, null, 0) + "\n");
-  console.log(`\nWrote ${catalog.length} motors → app/motors.generated.json`);
+  console.log(`\nWrote ${catalog.length} motors (${withCurves} with bundled curves) → src/data/motors.generated.json`);
+  if (noCurve.length) {
+    console.log(`  ${noCurve.length} have NO bundled thrust curve (flagged noCurve):`);
+    console.log(`    ${noCurve.map((m) => `${m.manufacturer} ${m.designation}`).join(", ")}`);
+  }
 }
 
 main().catch((err) => {

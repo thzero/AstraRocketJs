@@ -3,6 +3,7 @@ import { PLUGGED_DELAY, type ComponentNode, type ComponentPosition, type Compone
 import { asStageNodes, freshId, type LaunchConditions } from './orkTree';
 import { shapeIsClippable, shapeParamDefault } from '../tree/shapeProfile';
 import { escapeXml, xmlText as text } from './xmlUtil';
+import { FEATURES } from './featureFlags';
 
 export { shapeParamDefault };
 
@@ -121,6 +122,13 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
   const rocketEl = doc.querySelector('openrocket > rocket');
   if (!rocketEl) throw new Error('Not a .ork file (missing <rocket>)');
 
+  // Pods (podset) aren't supported yet — they can't be added or edited in the
+  // app. Refuse the whole file rather than importing it partially. (Parallel
+  // boosters are fine.) See TODO: finish pod add/edit, then drop FEATURES.pods.
+  if (!FEATURES.pods && doc.querySelector('podset')) {
+    throw new Error('This design uses pods, which are not supported yet.');
+  }
+
   const ignored = new Set<string>();
   const notes: string[] = [];
   let motor: OrkMotorRef | undefined;
@@ -129,6 +137,15 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
   const name = text(rocketEl, ':scope > name') ?? 'Imported rocket';
   const stages = Array.from(rocketEl.querySelectorAll(':scope > subcomponents > stage'));
   if (stages.length === 0) throw new Error('No stage found');
+
+  // Multiple (axial) stages aren't supported yet — a second stage can't be added
+  // or edited in the app, and staged flights are untested, so refuse rather than
+  // import a design we can't faithfully author/simulate. (Parallel boosters —
+  // <parallelstage> — are unaffected.) See TODO: author stages + validate a
+  // booster+sustainer flight, then drop FEATURES.multiStage.
+  if (!FEATURES.multiStage && stages.length > 1) {
+    throw new Error('This design has multiple stages, which are not supported yet.');
+  }
 
   // Flight-configuration table: rocket-level <motorconfiguration> blocks
   // (optional <name>, optional default="true" — desktop 24.12
@@ -449,12 +466,14 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         n['length'] = num(el, 'length', 0.05);
         n['outerRadius'] = num(el, 'radius', 0.0022);
         n['thickness'] = num(el, 'thickness', 0.0003);
+        n['angleOffset'] = readAngleAroundBody(el);
         readInstances(el, n);
         return n;
       }
       case 'railbutton': {
         const n = base('railbutton', true);
         n['outerDiameter'] = num(el, 'outerdiameter', 0.0097);
+        n['angleOffset'] = readAngleAroundBody(el);
         readInstances(el, n);
         return n;
       }
@@ -517,12 +536,15 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         if (mct && mct !== 'masscomponent') n['massComponentType'] = mct;
         return n;
       }
-      case 'podset':
+      // <podset> (external pods) never reaches here — a file containing one is
+      // rejected up front (see the guard near the top of importOrk), because pods
+      // can't yet be added or edited. Parallel boosters (<parallelstage> / legacy
+      // <boosterset>) remain fully supported.
       case 'parallelstage':
       case 'boosterset': {
         // <boosterset> is the legacy alias for <parallelstage>. The nested
         // nose/body/fin chain imports via convertChildren (the caller recurses).
-        const asmType: ComponentType = tag === 'podset' ? 'podset' : 'parallelstage';
+        const asmType: ComponentType = 'parallelstage';
         const n = base(asmType, true); // name + overrides + axialoffset/position
         n['instanceCount'] = Math.round(num(el, 'instancecount', 2));
         const radEl = el.querySelector(':scope > radiusoffset');
@@ -1308,8 +1330,8 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         header(depth + 1, node, 'Launch Lug');
         emit(depth + 1, `<instancecount>${n(node, 'instanceCount', 1)}</instancecount>`);
         emit(depth + 1, `<instanceseparation>${n(node, 'instanceSeparation', 0)}</instanceseparation>`);
-        emit(depth + 1, '<angleoffset method="relative">180.0</angleoffset>');
-        emit(depth + 1, '<radialdirection>180.0</radialdirection>');
+        emit(depth + 1, `<angleoffset method="relative">${(n(node, 'angleOffset', Math.PI) * 180) / Math.PI}</angleoffset>`);
+        emit(depth + 1, `<radialdirection>${(n(node, 'angleOffset', Math.PI) * 180) / Math.PI}</radialdirection>`);
         position(depth + 1, node, 'middle');
         finishXml(depth + 1, node);
         material(depth + 1, node);
@@ -1324,7 +1346,7 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         header(depth + 1, node, 'Rail Button');
         emit(depth + 1, `<instancecount>${n(node, 'instanceCount', 1)}</instancecount>`);
         emit(depth + 1, `<instanceseparation>${n(node, 'instanceSeparation', 0)}</instanceseparation>`);
-        emit(depth + 1, '<angleoffset method="relative">180.0</angleoffset>');
+        emit(depth + 1, `<angleoffset method="relative">${(n(node, 'angleOffset', Math.PI) * 180) / Math.PI}</angleoffset>`);
         position(depth + 1, node, 'middle');
         finishXml(depth + 1, node);
         emit(depth + 1, '<material type="bulk" density="1420.0" group="Plastics">Delrin</material>');
@@ -1634,6 +1656,15 @@ function readInstances(el: Element, node: ComponentNode): void {
   if (count > 1) node['instanceCount'] = count;
   const sep = num(el, 'instanceseparation', 0);
   if (sep !== 0) node['instanceSeparation'] = sep;
+}
+
+/** Radial mounting angle (LaunchLug / RailButton) in RADIANS. OpenRocket writes
+ *  it as <angleoffset> (degrees), older files as <radialdirection>; the kernel
+ *  default is 180°. Stored in radians to match the tree/renderers. */
+function readAngleAroundBody(el: Element): number {
+  const a = num(el, 'angleoffset', NaN);
+  const deg = Number.isFinite(a) ? a : num(el, 'radialdirection', 180);
+  return (deg * Math.PI) / 180;
 }
 
 function readAirfoil(el: Element, node: ComponentNode): void {

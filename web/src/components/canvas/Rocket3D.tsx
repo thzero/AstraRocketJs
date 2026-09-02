@@ -219,10 +219,14 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims, palette: PartP
       } else if (child.type === 'launchlug') {
         const len = num(child, 'length', 0.05);
         const r = num(child, 'outerRadius', 0.0022);
+        // Ride around the body at the radial mount angle (kernel default 180°),
+        // staying axial. y = R·cosθ, z = R·sinθ — the pod/cluster convention.
+        const ang = num(child, 'angleOffset', Math.PI);
+        const rad = pRadius + r;
         const start = axialStart(child, len, pStart, pLen);
         const geo = new THREE.CylinderGeometry(r, r, len, 16);
         place(`lug${k++}`, geo, nodeColor(child, palette),
-          [start + len / 2, pRadius + r, 0], [0, 0, -Math.PI / 2], xform);
+          [start + len / 2, rad * Math.cos(ang), rad * Math.sin(ang)], [0, 0, -Math.PI / 2], xform);
       } else if (child.type === 'innertube') {
         // Motor mount / inner tube, one per cluster position — visible through
         // the translucent shell. A loaded motor seats flush against the
@@ -656,9 +660,11 @@ function AxisCallout({ x, dir, color, tex, label, len, markerR }: {
   );
 }
 
-export function Rocket3D({ tree, info, motors, exportData, selectedId, onSelect }: {
+export function Rocket3D({ tree, info, motors, exportData, selectedId, onSelect, showMarkers = true }: {
   tree: RocketTree;
   info: StaticInfo | null;
+  /** Draw the CG/CP markers and callout (default true). */
+  showMarkers?: boolean;
   /** Loaded motor cases keyed by mount node id — rendered seated at the
    *  mount's aft end, showing through the translucent shell (S5). */
   motors?: MotorDims;
@@ -778,7 +784,10 @@ export function Rocket3D({ tree, info, motors, exportData, selectedId, onSelect 
             onPick={snapshot} />
         </div>
       )}
-      <div style={{ position: 'absolute', top: 6, left: 6, zIndex: 2, display: 'flex', gap: 6 }}>
+      {/* Default to top-RIGHT so the quick-glance info card can sit top-left in
+          the same spot as the 2D view. In image-export contexts the 📷 menu owns
+          the top-right, so fall back to top-left there (no info card is shown). */}
+      <div style={{ position: 'absolute', top: 6, ...(exportData ? { left: 6 } : { right: 6 }), zIndex: 2, display: 'flex', gap: 6 }}>
         <button className="file-btn" title={t('view.reset3dTitle')}
           onClick={resetView}>{t('view.reset')}</button>
         <button className="file-btn" style={presetStyle(preset === 'side')} title={t('view.sideTitle')}
@@ -831,11 +840,11 @@ export function Rocket3D({ tree, info, motors, exportData, selectedId, onSelect 
               would wash over them. */}
           {/* 0.45× the shared size rule (batch 08-21d): full-size axis balls
               overwhelmed small rockets; the gadget keeps the size rule. */}
-          {info && Number.isFinite(info.cg) && (
+          {showMarkers && info && Number.isFinite(info.cg) && (
             <AxisCallout x={info.cg} dir={1} color="#dbe3ea" tex={cgTex}
               label={`${t('schematic.cg')} · ${fmtNum(info.cg * 100, 1)} cm`} len={maxR * 1.7} markerR={markerR} />
           )}
-          {info && Number.isFinite(info.cp) && (
+          {showMarkers && info && Number.isFinite(info.cp) && (
             <>
               <sprite position={[info.cp, 0, 0]} scale={[markerR * 0.5, markerR * 0.5, 1]} renderOrder={12}>
                 <spriteMaterial map={cpTex} depthTest={false} transparent />
@@ -855,8 +864,13 @@ export function Rocket3D({ tree, info, motors, exportData, selectedId, onSelect 
           minDistance={camDist * 0.12} maxDistance={camDist * 5} />
       </Canvas>
       <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '4px 0 0', textAlign: 'center' }}>
-        {t('view.dragHint')} · <span style={{ color: '#aab2bd' }}>●</span> {t('schematic.cg')} ·{' '}
-        <span style={{ color: '#e34948' }}>●</span> {t('schematic.cp')}
+        {t('view.dragHint')}
+        {showMarkers && (
+          <>
+            {' · '}<span style={{ color: '#aab2bd' }}>●</span> {t('schematic.cg')} ·{' '}
+            <span style={{ color: '#e34948' }}>●</span> {t('schematic.cp')}
+          </>
+        )}
       </p>
     </div>
   );

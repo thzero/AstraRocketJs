@@ -59,9 +59,9 @@ export interface MotorStore {
   removeCustomMotor(id: string): Promise<void>;
 }
 
-const CATALOG_KEY = 'tc:catalog';
-const CATALOG_SIG_KEY = 'tc:catalog:sig';
-const CUSTOM_MOTORS_KEY = 'motors:custom';
+const CATALOG_KEY = 'astrarrocketjs:tc:catalog';
+const CATALOG_SIG_KEY = 'astrarrocketjs:tc:catalog:sig';
+const CUSTOM_MOTORS_KEY = 'astrarrocketjs:motors:custom';
 const DEFAULT_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
 
 /** An entry stamped with its fetch time, for TTL freshness. */

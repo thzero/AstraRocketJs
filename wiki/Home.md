@@ -18,12 +18,16 @@
 - **[Motors](Motors)** — the motor picker, thrust curves, `.eng` import, custom motors
 - **[Views & Analysis](Views-and-Analysis)** — 2D / 3D / aero / flight views, calipers, stability
 - **[Running a Simulation](Running-a-Simulation)** — launch setup, running, reading results
-- **[Files & Exports](Files-and-Exports)** — `.ork` open/save, CSV and image exports
+- **[Files & Exports](Files-and-Exports)** — `.ork` open/save, CSV, flight-path (KML / GPX), and image exports
 
 ## Developing
 - **[Contributing](Contributing)** — report bugs, set up, build the engine, submit changes
 - **[Developer Guide](Developer-Guide)** — orientation for developers
 - **[Architecture & internals](Architecture)** — the engine, build pipeline, threading, and data flows
+
+---
+
+_Documentation for AstraRocketJs&nbsp;v<!--APP_VERSION-->0.0.2<!--/APP_VERSION-->._
 
 ---
 

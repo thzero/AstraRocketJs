@@ -35,14 +35,29 @@ interface TcSample {
   thrust: number;
 }
 
+// Most motors ship their curve in the bundled catalog and never hit the network;
+// only the handful without a bundled curve reach thrustcurve.org. Cap that fetch
+// so a slow/unreachable server fails cleanly instead of hanging "Loading…".
+const FETCH_TIMEOUT_MS = 5_000;
+
 async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${API}/${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`thrustcurve.org ${path} → HTTP ${res.status}`);
-  return res.json() as Promise<T>;
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${API}/${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctl.signal,
+    });
+    if (!res.ok) throw new Error(`thrustcurve.org ${path} → HTTP ${res.status}`);
+    return res.json() as Promise<T>;
+  } catch (e) {
+    if (ctl.signal.aborted) throw new Error(`thrustcurve.org timed out — check your connection and try again.`);
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
@@ -148,9 +163,9 @@ async function resolveTcMotor(cat: CatalogMotor): Promise<TcMotor> {
 // math or shapes change), since it namespaces every key. Catalog updates are a
 // separate, build-time concern (see motorDb.ts / scripts/sync-motors.mjs).
 const CACHE_VERSION = 'v1';
-const SPEC_PREFIX = `tc:${CACHE_VERSION}:motor:`;
-const SAMPLE_PREFIX = `tc:${CACHE_VERSION}:samples:`;
-const META_PREFIX = `tc:${CACHE_VERSION}:meta:`;
+const SPEC_PREFIX = `astrarrocketjs:tc:${CACHE_VERSION}:motor:`;
+const SAMPLE_PREFIX = `astrarrocketjs:tc:${CACHE_VERSION}:samples:`;
+const META_PREFIX = `astrarrocketjs:tc:${CACHE_VERSION}:meta:`;
 
 /** Stable localStorage key for a picked motor + delay. */
 function specKey(cat: CatalogMotor, ejectionDelay: number): string {
@@ -232,7 +247,7 @@ async function fetchSamplesCached(motor: TcMotor, cat: CatalogMotor): Promise<Tc
  * (spec by motor+delay, metadata and curve by motor) so a repeat pick is
  * offline and instant, while a stale curve refreshes on its next use.
  */
-export async function fetchMotorSpec(cat: CatalogMotor, ejectionDelay: number): Promise<MotorSpec> {
+export async function fetchMotorSpec(cat: CatalogMotor, ejectionDelay: number, curveIndex = 0): Promise<MotorSpec> {
   // Imported (.eng) motors carry their own curve — build the spec from local
   // data, no thrustcurve lookup.
   if (cat.custom && cat.id) {
@@ -249,6 +264,26 @@ export async function fetchMotorSpec(cat: CatalogMotor, ejectionDelay: number): 
       },
       cm.samples, ejectionDelay,
     );
+  }
+
+  // Bundled catalog motor carrying its thrust curve(s) → build entirely from
+  // local data, no thrustcurve.org fetch (the offline/instant path). Uses the
+  // selected curve (default: the best/first).
+  const curve = cat.curves?.[curveIndex] ?? cat.curves?.[0];
+  if (curve && curve.samples.length > 0 && cat.length != null && cat.propWeightG != null) {
+    const spec = samplesToMotorSpec(
+      {
+        motorId: `${cat.manufacturer}:${cat.designation}`,
+        designation: cat.designation, commonName: cat.designation,
+        manufacturerAbbrev: cat.manufacturer,
+        diameter: cat.diameter, length: cat.length,
+        totalWeightG: cat.mass, propWeightG: cat.propWeightG,
+        availability: 'regular',
+      },
+      curve.samples.map(([time, thrust]) => ({ time, thrust })),
+      ejectionDelay,
+    );
+    return { ...spec, curveSrc: curve.src };
   }
 
   const key = specKey(cat, ejectionDelay);

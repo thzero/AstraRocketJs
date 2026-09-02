@@ -21,6 +21,16 @@ export const APP_VERSION: string = __APP_VERSION__;
  */
 export const HELP_URL: string = __HELP_URL__;
 
+/**
+ * True while the app is a pre-1.0 (work-in-progress) build — i.e. the version's
+ * major number is 0. Gates the "work in progress" acknowledgement popup and the
+ * About-dialog notice; both switch off automatically once the version hits 1.0.
+ */
+export const isPreRelease = (version: string = APP_VERSION): boolean => {
+  const major = parseInt(version, 10);
+  return Number.isFinite(major) && major < 1;
+};
+
 /** The app's display name — translated (i18next singleton; safe outside React). */
 export const appName = (): string => i18n.t('app.title');
 

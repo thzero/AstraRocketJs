@@ -9,7 +9,7 @@ import { fmtNum } from '../../i18n/format';
 // Labels come from the `part.*` / `tree.*` i18n keys at render time.
 const ADD_GROUPS: { group: string; items: ComponentType[] }[] = [
   { group: 'groupBody', items: ['nosecone', 'bodytube', 'transition'] },
-  { group: 'groupFins', items: ['trapezoidfinset', 'ellipticalfinset', 'tubefinset'] },
+  { group: 'groupFins', items: ['trapezoidfinset', 'ellipticalfinset', 'freeformfinset', 'tubefinset'] },
   { group: 'groupInner', items: ['innertube', 'tubecoupler', 'centeringring', 'bulkhead', 'engineblock'] },
   { group: 'groupRecovery', items: ['parachute', 'streamer'] },
   { group: 'groupOther', items: ['launchlug', 'masscomponent'] },
@@ -66,6 +66,7 @@ function detail(n: ComponentNode, t: TFunction): string {
     return typeof c === 'number' ? t('tree.fins', { count: c }) : '';
   }
   if (ty === 'parachute') { const d = mm(n.diameter); return d ? `⌀ ${d}` : ''; }
+  if (ty === 'streamer') return mm(n.stripLength) ?? '';
   if (ty === 'masscomponent') return typeof n.mass === 'number' ? `${fmtNum(n.mass * 1000, 1)} g` : '';
   if (ty === 'centeringring' || ty === 'bulkhead') { const d = mm((n.outerRadius as number) * 2); return d ? `⌀ ${d}` : ''; }
   return mm(n.length) ?? '';

@@ -47,6 +47,8 @@ export interface Settings {
   simulation: SimulationSettings;
   /** Default launch conditions for newly-created simulations. */
   launchDefaults: LaunchConditions;
+  /** Whether the user has dismissed the pre-1.0 "work in progress" notice. */
+  wipAcknowledged: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -55,9 +57,10 @@ export const DEFAULT_SETTINGS: Settings = {
   playbackSpeed: 0.5,
   simulation: { timeStep: 0.05, maxTime: 1200, randomSeed: null, confirmDelete: true, autoRunOutdated: false, deploymentSpeedWarn: 20, railExitVelocityMin: 15 },
   launchDefaults: DEFAULT_LAUNCH,
+  wipAcknowledged: false,
 };
 
-const KEY = 'settings:v1';
+const KEY = 'astrarrocketjs:settings:v1';
 
 export function loadSettings(): Settings {
   try {
@@ -70,6 +73,7 @@ export function loadSettings(): Settings {
       playbackSpeed: typeof s.playbackSpeed === 'number' ? s.playbackSpeed : DEFAULT_SETTINGS.playbackSpeed,
       simulation: { ...DEFAULT_SETTINGS.simulation, ...(s.simulation ?? {}) },
       launchDefaults: { ...DEFAULT_SETTINGS.launchDefaults, ...(s.launchDefaults ?? {}) },
+      wipAcknowledged: typeof s.wipAcknowledged === 'boolean' ? s.wipAcknowledged : DEFAULT_SETTINGS.wipAcknowledged,
     };
   } catch {
     return DEFAULT_SETTINGS;

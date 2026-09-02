@@ -151,7 +151,7 @@ interface DragState {
   clientScale: number;
 }
 
-export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480, selectedId, onSelect, exportData, onError, vertical, fillHeight, roll = 0, onRoll, controlsSlot }: {
+export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480, selectedId, onSelect, exportData, onError, vertical, fillHeight, roll = 0, onRoll, controlsSlot, showMarkers = true }: {
   tree: RocketTree;
   info: StaticInfo | null;
   /** Loaded motor case dimensions (m) keyed by mount node id — drawn to
@@ -192,6 +192,8 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
   /** When set, the drawing's control buttons (calipers, zoom, export) render into
    *  this element (a slot in the pane header) instead of over the drawing. */
   controlsSlot?: HTMLElement | null;
+  /** Draw the CG/CP/margin markers and callouts (default true). */
+  showMarkers?: boolean;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -680,8 +682,12 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
                 fill={fillOf(child, '#b9b7b0')} stroke={selStroke(child, '#7a786f')}
                 strokeWidth={selWidth(child)} {...grab} />
             ) : (
+              // Elliptical fin = the top half of an ellipse: major axis = root
+              // chord (horizontal), semi-minor axis = span. An SVG arc draws it
+              // exactly and reaches the FULL span — a quadratic Bézier only bent
+              // ~halfway to its control point, drawing the fin at ~half height.
               <path key={key++}
-                d={`M ${X} ${y0} Q ${X + (root / 2) * ctx.scale} ${yh + dir * 4} ${X + root * ctx.scale} ${y0} Z`}
+                d={`M ${X} ${y0} A ${(root / 2) * ctx.scale} ${hp * ctx.scale} 0 0 ${dir > 0 ? 1 : 0} ${X + root * ctx.scale} ${y0} Z`}
                 fill={fillOf(child, '#b9b7b0')} stroke={selStroke(child, '#7a786f')}
                 strokeWidth={selWidth(child)} {...grab} />
             ),
@@ -749,12 +755,18 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
         const len = t === 'railbutton' ? btnDia : num(child, 'length', 0.01);
         const r = t === 'railbutton' ? btnDia / 2 : num(child, 'outerRadius', 0.002);
         const start = axialStart(child, len, pStart, pLen);
-        noteHover(child, ctx.x0 + start * ctx.scale, baseY - (pRadius + 2 * r) * ctx.scale,
-          ctx.x0 + (start + len) * ctx.scale, baseY - pRadius * ctx.scale);
+        // Project the radial mount angle onto the side profile: 0° stands at full
+        // height above the tube, ±90° is edge-on (foreshortens away), 180° sits
+        // below. Vertical offset = radius·cos(angle) (kernel default 180°).
+        const c = Math.cos(num(child, 'angleOffset', Math.PI));
+        const yInner = baseY - pRadius * c * ctx.scale;
+        const yOuter = baseY - (pRadius + 2 * r) * c * ctx.scale;
+        const yTop = Math.min(yInner, yOuter);
+        const h = Math.max(1, Math.abs(yOuter - yInner));
+        noteHover(child, ctx.x0 + start * ctx.scale, yTop, ctx.x0 + (start + len) * ctx.scale, yTop + h);
         shapes.push(
-          <rect key={key++} x={ctx.x0 + start * ctx.scale}
-            y={baseY - (pRadius + 2 * r) * ctx.scale}
-            width={Math.max(2, len * ctx.scale)} height={Math.max(2, 2 * r * ctx.scale)}
+          <rect key={key++} x={ctx.x0 + start * ctx.scale} y={yTop}
+            width={Math.max(2, len * ctx.scale)} height={h}
             fill={fillOf(child, '#c8c5be')} stroke={selStroke(child, '#7a786f')}
             strokeWidth={selWidth(child)} {...grab} />,
         );
@@ -945,8 +957,10 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
 
   renderChain(chain, 0, ctx.cy);
 
-  const cgX = info ? ctx.x0 + info.cg * scale : null;
-  const cpX = info ? ctx.x0 + info.cp * scale : null;
+  // When markers are toggled off, null out the stations: this disables the
+  // on-axis symbols AND the leader-line callouts (all gated on cgX/cpX below).
+  const cgX = info && showMarkers ? ctx.x0 + info.cg * scale : null;
+  const cpX = info && showMarkers ? ctx.x0 + info.cp * scale : null;
   const stab = info ? stabilityState(info.stabilityCalibers) : null;
   const marginPct = info && info.length > 0 ? ((info.cp - info.cg) / info.length) * 100 : null;
   const stabWord = stab === 'under' ? t('schematic.underStable') : stab === 'over' ? t('schematic.overStable') : t('schematic.ok');

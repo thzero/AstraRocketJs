@@ -6,6 +6,7 @@ import { useSettings } from '../../state/SettingsProvider';
 import type { ComponentType as CatalogType } from '../../services/componentDb';
 import { ComponentPicker } from './ComponentPicker';
 import { MaterialPicker } from './MaterialPicker';
+import { FreeformFinEditor } from './FreeformFinEditor';
 
 /**
  * Edits the currently-selected component's properties. Type-specific numeric
@@ -18,12 +19,28 @@ type Field =
   | { key: string; label: string; kind: 'length' }   // stored m, shown mm
   | { key: string; label: string; kind: 'mass' }      // stored kg, shown g
   | { key: string; label: string; kind: 'count' }
-  | { key: string; label: string; kind: 'number'; step?: number }
-  | { key: string; label: string; kind: 'select'; options: string[] };
+  | { key: string; label: string; kind: 'number'; step?: number; unit?: string }
+  | { key: string; label: string; kind: 'angle'; step?: number }   // stored radians, shown degrees
+  | { key: string; label: string; kind: 'bool' }
+  | { key: string; label: string; kind: 'select'; options: string[]; optI18n?: string };
 
 // The real OpenRocket shape vocabulary — matches the engine (shapeOf), the
 // drawing (shapeProfile), and the parts catalogue. NOT 'elliptical'/'powerseries'.
 const NOSE_SHAPES = ['ogive', 'conical', 'ellipsoid', 'power', 'parabolic', 'haack'];
+
+// Recovery-device deployment triggers — the kernel DeployEvent vocabulary
+// (ComponentFactory.deployEventOf); the same strings .ork import/export use.
+// Apogee first: it's the default and the most common single-deploy trigger.
+const DEPLOY_EVENTS = ['apogee', 'ejection', 'altitude', 'launch', 'never'];
+
+// Optional through-the-wall fin tab (0 length/height = no tab). Shared by the
+// trapezoidal and elliptical fin editors; keys match the engine + .ork.
+const FIN_TABS: Field[] = [
+  { key: 'tabLength', label: 'tabLength', kind: 'length' },
+  { key: 'tabHeight', label: 'tabHeight', kind: 'length' },
+  { key: 'tabOffset', label: 'tabOffset', kind: 'length' },
+  { key: 'tabOffsetMethod', label: 'tabOffsetMethod', kind: 'select', options: ['top', 'middle', 'bottom'] },
+];
 
 // `label` is an i18n key suffix under `prop.*` (resolved at render).
 const FIELDS: Record<string, Field[]> = {
@@ -32,11 +49,17 @@ const FIELDS: Record<string, Field[]> = {
     { key: 'length', label: 'length', kind: 'length' },
     { key: 'aftRadius', label: 'radius', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
+    { key: 'shoulderLength', label: 'shoulderLength', kind: 'length' },
+    { key: 'shoulderRadius', label: 'shoulderRadius', kind: 'length' },
+    { key: 'shoulderThickness', label: 'shoulderThickness', kind: 'length' },
+    { key: 'shoulderCapped', label: 'shoulderCapped', kind: 'bool' },
   ],
   bodytube: [
     { key: 'length', label: 'length', kind: 'length' },
     { key: 'outerRadius', label: 'radius', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
+    { key: 'motorMount', label: 'motorMount', kind: 'bool' },
+    { key: 'motorOverhang', label: 'motorOverhang', kind: 'length' },
   ],
   transition: [
     { key: 'shape', label: 'shape', kind: 'select', options: ['conical', 'ogive', 'ellipsoid', 'power', 'parabolic', 'haack'] },
@@ -44,6 +67,10 @@ const FIELDS: Record<string, Field[]> = {
     { key: 'foreRadius', label: 'foreRadius', kind: 'length' },
     { key: 'aftRadius', label: 'aftRadius', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
+    { key: 'foreShoulderLength', label: 'foreShoulderLength', kind: 'length' },
+    { key: 'foreShoulderRadius', label: 'foreShoulderRadius', kind: 'length' },
+    { key: 'aftShoulderLength', label: 'aftShoulderLength', kind: 'length' },
+    { key: 'aftShoulderRadius', label: 'aftShoulderRadius', kind: 'length' },
   ],
   trapezoidfinset: [
     { key: 'finCount', label: 'finCount', kind: 'count' },
@@ -52,12 +79,22 @@ const FIELDS: Record<string, Field[]> = {
     { key: 'sweep', label: 'sweep', kind: 'length' },
     { key: 'height', label: 'height', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
+    { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
+    ...FIN_TABS,
   ],
   ellipticalfinset: [
     { key: 'finCount', label: 'finCount', kind: 'count' },
     { key: 'rootChord', label: 'rootChord', kind: 'length' },
     { key: 'height', label: 'height', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
+    { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
+    ...FIN_TABS,
+  ],
+  freeformfinset: [
+    { key: 'finCount', label: 'finCount', kind: 'count' },
+    { key: 'thickness', label: 'thickness', kind: 'length' },
+    { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
+    ...FIN_TABS,
   ],
   tubefinset: [
     { key: 'finCount', label: 'tubeCount', kind: 'count' },
@@ -69,6 +106,7 @@ const FIELDS: Record<string, Field[]> = {
     { key: 'length', label: 'length', kind: 'length' },
     { key: 'outerRadius', label: 'radius', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
+    { key: 'motorMount', label: 'motorMount', kind: 'bool' },
     { key: 'motorOverhang', label: 'motorOverhang', kind: 'length' },
   ],
   tubecoupler: [
@@ -86,20 +124,35 @@ const FIELDS: Record<string, Field[]> = {
     { key: 'outerRadius', label: 'radius', kind: 'length' },
   ],
   engineblock: [
-    { key: 'length', label: 'thickness', kind: 'length' },
+    { key: 'length', label: 'length', kind: 'length' },
     { key: 'outerRadius', label: 'radius', kind: 'length' },
+    { key: 'thickness', label: 'thickness', kind: 'length' },
   ],
   launchlug: [
     { key: 'length', label: 'length', kind: 'length' },
     { key: 'outerRadius', label: 'radius', kind: 'length' },
+    { key: 'angleOffset', label: 'angleAroundBody', kind: 'angle' },
+  ],
+  railbutton: [
+    { key: 'outerDiameter', label: 'outerDiameter', kind: 'length' },
+    { key: 'angleOffset', label: 'angleAroundBody', kind: 'angle' },
   ],
   parachute: [
     { key: 'diameter', label: 'diameter', kind: 'length' },
     { key: 'cd', label: 'dragCoeff', kind: 'number', step: 0.05 },
+    { key: 'lineCount', label: 'lineCount', kind: 'count' },
+    { key: 'lineLength', label: 'lineLength', kind: 'length' },
+    { key: 'deployEvent', label: 'deployEvent', kind: 'select', options: DEPLOY_EVENTS, optI18n: 'deployEvent' },
+    { key: 'deployAltitude', label: 'deployAltitude', kind: 'number', unit: 'm', step: 10 },
+    { key: 'deployDelay', label: 'deployDelay', kind: 'number', unit: 's', step: 0.5 },
   ],
   streamer: [
-    { key: 'length', label: 'length', kind: 'length' },
-    { key: 'width', label: 'width', kind: 'length' },
+    { key: 'stripLength', label: 'length', kind: 'length' },
+    { key: 'stripWidth', label: 'width', kind: 'length' },
+    { key: 'cd', label: 'dragCoeff', kind: 'number', step: 0.05 },
+    { key: 'deployEvent', label: 'deployEvent', kind: 'select', options: DEPLOY_EVENTS, optI18n: 'deployEvent' },
+    { key: 'deployAltitude', label: 'deployAltitude', kind: 'number', unit: 'm', step: 10 },
+    { key: 'deployDelay', label: 'deployDelay', kind: 'number', unit: 's', step: 0.5 },
   ],
   masscomponent: [
     { key: 'mass', label: 'mass', kind: 'mass' },
@@ -256,7 +309,7 @@ export function PropertyPanel({ node, onChange, onRemove, onMove, canMoveUp, can
                 value={cur} onChange={(e) => onChange({ [f.key]: e.target.value })}
                 className="w-32 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
               >
-                {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                {f.options.map((o) => <option key={o} value={o}>{f.optI18n ? t(`${f.optI18n}.${o}`) : o}</option>)}
               </select>
             </label>
           );
@@ -267,6 +320,18 @@ export function PropertyPanel({ node, onChange, onRemove, onMove, canMoveUp, can
               onChange={(v) => onChange({ [f.key]: Math.max(1, Math.round(v)) })} />
           );
         }
+        if (f.kind === 'bool') {
+          return (
+            <label key={f.key} className="flex items-center justify-between gap-3">
+              <span className="text-xs text-slate-400">{flabel(f)}</span>
+              <input
+                type="checkbox" checked={node[f.key] === true}
+                onChange={(e) => onChange({ [f.key]: e.target.checked })}
+                className="accent-sky-500"
+              />
+            </label>
+          );
+        }
         if (f.kind === 'mass') {
           return (
             <NumberField key={f.key} label={flabel(f)} unit="g" value={numVal(node, f.key) * 1000} step={0.5}
@@ -275,8 +340,16 @@ export function PropertyPanel({ node, onChange, onRemove, onMove, canMoveUp, can
         }
         if (f.kind === 'number') {
           return (
-            <NumberField key={f.key} label={flabel(f)} value={numVal(node, f.key)} step={f.step ?? 0.1}
+            <NumberField key={f.key} label={flabel(f)} unit={f.unit} value={numVal(node, f.key)} step={f.step ?? 0.1}
               onChange={(v) => onChange({ [f.key]: v })} />
+          );
+        }
+        if (f.kind === 'angle') {
+          // Stored in radians (kernel/.ork convention), edited in degrees.
+          return (
+            <NumberField key={f.key} label={flabel(f)} unit="°" min={-180} step={f.step ?? 5}
+              value={(numVal(node, f.key) * 180) / Math.PI}
+              onChange={(v) => onChange({ [f.key]: (v * Math.PI) / 180 })} />
           );
         }
         // length: stored metres, shown mm
@@ -292,6 +365,38 @@ export function PropertyPanel({ node, onChange, onRemove, onMove, canMoveUp, can
             value={typeof node.materialName === 'string' ? node.materialName : undefined}
             onChange={(name, d) => onChange({ materialName: name, density: d || undefined })}
           />
+        </div>
+      )}
+
+      {/* Freeform fin: its defining feature is the outline polygon, edited
+          graphically rather than as scalar fields. */}
+      {node.type === 'freeformfinset' && (
+        <div className="border-t border-white/5 pt-3">
+          <FreeformFinEditor
+            points={(node.points as [number, number][] | undefined) ?? []}
+            onChange={(pts) => onChange({ points: pts } as Partial<ComponentNode>)}
+          />
+        </div>
+      )}
+
+      {/* Recovery devices use surface (fabric) + line (cord) materials, not the
+          bulk material above — each feeds the device's mass. */}
+      {(node.type === 'parachute' || node.type === 'streamer') && (
+        <div className="space-y-3 border-t border-white/5 pt-3">
+          <MaterialPicker
+            type="surface"
+            label={t(node.type === 'streamer' ? 'material.strip' : 'material.canopy')}
+            value={typeof node.surfaceMaterialName === 'string' ? node.surfaceMaterialName : undefined}
+            onChange={(name, d) => onChange({ surfaceMaterialName: name, surfaceDensity: d || undefined })}
+          />
+          {node.type === 'parachute' && (
+            <MaterialPicker
+              type="line"
+              label={t('material.lines')}
+              value={typeof node.lineMaterialName === 'string' ? node.lineMaterialName : undefined}
+              onChange={(name, d) => onChange({ lineMaterialName: name, lineDensity: d || undefined })}
+            />
+          )}
         </div>
       )}
 

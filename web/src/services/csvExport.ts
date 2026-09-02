@@ -75,13 +75,18 @@ export function dragTableCsv(d: DragSweep): string {
   return lines.join(EOL) + EOL;
 }
 
-/** Trigger a browser download of CSV text. */
-export function downloadCsv(filename: string, text: string): void {
+/** Trigger a browser download of arbitrary text under the given MIME type. */
+export function downloadText(filename: string, text: string, mime = 'text/plain;charset=utf-8'): void {
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+  a.href = URL.createObjectURL(new Blob([text], { type: mime }));
   a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(a.href);
+}
+
+/** Trigger a browser download of CSV text. */
+export function downloadCsv(filename: string, text: string): void {
+  downloadText(filename, text, 'text/csv;charset=utf-8');
 }

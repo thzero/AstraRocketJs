@@ -27,7 +27,13 @@ i18n
     // resolves to our 'es' bundle instead of falling back to English.
     load: 'languageOnly',
     interpolation: { escapeValue: false }, // React already escapes
-    detection: { order: ['querystring', 'localStorage', 'navigator'], caches: ['localStorage'] },
+    detection: {
+      order: ['querystring', 'localStorage', 'navigator'],
+      caches: ['localStorage'],
+      // App-namespaced so we don't collide with another i18next app on the same
+      // origin (the detector's default key is a bare 'i18nextLng').
+      lookupLocalStorage: 'astrarrocketjs:i18nextLng',
+    },
   });
 
 export default i18n;

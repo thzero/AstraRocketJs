@@ -34,7 +34,7 @@ function findRecovery(tree: RocketTree, palette: PartPalette): Recovery {
   const walk = (nodes: ComponentNode[]) => {
     for (const n of nodes) {
       if (!found && n.type === 'parachute') found = { kind: 'parachute', diameter: num(n, 'diameter', 0.3), color: recColor(n, palette) };
-      else if (!found && n.type === 'streamer') found = { kind: 'streamer', length: num(n, 'length', 0.4), width: num(n, 'width', 0.05), color: recColor(n, palette) };
+      else if (!found && n.type === 'streamer') found = { kind: 'streamer', length: num(n, 'stripLength', 0.4), width: num(n, 'stripWidth', 0.05), color: recColor(n, palette) };
       if (n.children) walk(n.children);
     }
   };

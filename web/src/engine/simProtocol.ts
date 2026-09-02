@@ -1,5 +1,6 @@
 import type { MotorSpec, RocketTree, SimulationOptions } from './openRocketEngine';
 import type { MountMotor } from '../services/loadOrk';
+import type { Ignition } from '../services/buildRocket';
 
 /**
  * Shared message contract between the main thread (engine/simClient.ts) and the
@@ -16,6 +17,8 @@ export interface SimPayload {
   tree: RocketTree;
   motor: MotorSpec | undefined;
   extraMotors: Record<string, MountMotor>;
+  /** Primary mount's ignition override (undefined = automatic). */
+  primaryIgnition?: Ignition;
   options: SimulationOptions;
 }
 

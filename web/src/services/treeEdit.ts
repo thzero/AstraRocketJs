@@ -62,6 +62,29 @@ export function findMountId(tree: RocketTree): string | undefined {
   return undefined;
 }
 
+/** All motor-mount nodes in tree order (first = primary). */
+export function findMounts(tree: RocketTree): ComponentNode[] {
+  const out: ComponentNode[] = [];
+  for (const n of walk(tree.components)) if (n.motorMount === true && typeof n.id === 'string') out.push(n);
+  return out;
+}
+
+/**
+ * Whether a mount sits on a stage that has another stage BELOW it (a sustainer /
+ * upper stage) — the only case where "ignite on the stage below's ejection /
+ * burnout" can ever fire. False for a single (or implicit) stage and for the
+ * bottom booster. Top-level `stage` nodes run desktop order: [0] = top
+ * sustainer … [last] = bottom booster.
+ */
+export function isUpperStageMount(tree: RocketTree, mountId: string): boolean {
+  const stages = tree.components.filter((n) => n.type === 'stage');
+  if (stages.length < 2) return false; // one (or implicit) stage → nothing below any mount
+  const bottom = stages[stages.length - 1]!;
+  // A mount is an upper-stage mount unless it lives in the bottom stage's subtree.
+  for (const n of walk([bottom])) if (n.id === mountId) return false;
+  return true;
+}
+
 const AXIAL: ReadonlySet<string> = new Set(['nosecone', 'bodytube', 'transition']);
 /** Axial components stack nose→tail in the stage; everything else nests inside a tube. */
 export function isAxial(type: string): boolean { return AXIAL.has(type); }
@@ -74,8 +97,8 @@ export function isAxial(type: string): boolean { return AXIAL.has(type); }
 export const ALLOWED_CHILDREN: Record<string, ComponentType[]> = {
   stage: ['nosecone', 'bodytube', 'transition'],
   nosecone: ['innertube', 'tubecoupler', 'centeringring', 'bulkhead', 'launchlug', 'parachute', 'streamer', 'masscomponent'],
-  bodytube: ['trapezoidfinset', 'ellipticalfinset', 'tubefinset', 'innertube', 'tubecoupler', 'centeringring', 'bulkhead', 'engineblock', 'launchlug', 'parachute', 'streamer', 'masscomponent'],
-  transition: ['trapezoidfinset', 'ellipticalfinset', 'innertube', 'tubecoupler', 'centeringring', 'bulkhead', 'launchlug', 'parachute', 'streamer', 'masscomponent'],
+  bodytube: ['trapezoidfinset', 'ellipticalfinset', 'freeformfinset', 'tubefinset', 'innertube', 'tubecoupler', 'centeringring', 'bulkhead', 'engineblock', 'launchlug', 'parachute', 'streamer', 'masscomponent'],
+  transition: ['trapezoidfinset', 'ellipticalfinset', 'freeformfinset', 'innertube', 'tubecoupler', 'centeringring', 'bulkhead', 'launchlug', 'parachute', 'streamer', 'masscomponent'],
   innertube: ['engineblock', 'masscomponent'],
   tubecoupler: ['centeringring', 'bulkhead', 'masscomponent'],
 };
@@ -93,7 +116,7 @@ export function hasCatalog(type: string): boolean { return CATALOG_TYPES.has(typ
 const MATERIAL_TYPES: ReadonlySet<string> = new Set([
   'nosecone', 'bodytube', 'transition', 'fairing', 'trapezoidfinset', 'ellipticalfinset',
   'freeformfinset', 'tubefinset', 'innertube', 'tubecoupler', 'centeringring', 'bulkhead',
-  'engineblock', 'launchlug',
+  'engineblock', 'launchlug', 'railbutton',
 ]);
 export function hasMaterial(type: string): boolean { return MATERIAL_TYPES.has(type); }
 
@@ -154,15 +177,17 @@ export function defaultNode(type: ComponentType): ComponentNode {
     case 'transition': return { type, id, shape: 'conical', length: 0.05, foreRadius: 0.013, aftRadius: 0.019, thickness: 0.0005 };
     case 'trapezoidfinset': return { type, id, finCount: 3, rootChord: 0.06, tipChord: 0.03, sweep: 0.03, height: 0.05, thickness: 0.003, position: { method: 'bottom', offset: 0 } };
     case 'ellipticalfinset': return { type, id, finCount: 3, rootChord: 0.06, height: 0.05, thickness: 0.003, position: { method: 'bottom', offset: 0 } };
+    // Freeform outline (m): a swept quad — root 0→0.06 along the body, tip at 0.05 height.
+    case 'freeformfinset': return { type, id, finCount: 3, thickness: 0.003, points: [[0, 0], [0.02, 0.05], [0.05, 0.05], [0.06, 0]], position: { method: 'bottom', offset: 0 } };
     case 'tubefinset': return { type, id, finCount: 6, length: 0.08, outerRadius: 0.012, thickness: 0.001, position: { method: 'bottom', offset: 0 } };
     case 'innertube': return { type, id, motorMount: true, length: 0.07, outerRadius: 0.0092, thickness: 0.0004, motorOverhang: 0.00635, position: { method: 'bottom', offset: 0 } };
     case 'tubecoupler': return { type, id, length: 0.03, outerRadius: 0.0125, thickness: 0.0005, position: { method: 'bottom', offset: 0 } };
     case 'centeringring': return { type, id, length: 0.003, outerRadius: 0.0125, innerRadius: 0.0092, position: { method: 'bottom', offset: 0 } };
     case 'bulkhead': return { type, id, length: 0.003, outerRadius: 0.0125, position: { method: 'bottom', offset: 0 } };
-    case 'engineblock': return { type, id, length: 0.005, outerRadius: 0.0092, position: { method: 'bottom', offset: 0 } };
-    case 'launchlug': return { type, id, length: 0.03, outerRadius: 0.0022, position: { method: 'middle', offset: 0 } };
-    case 'parachute': return { type, id, diameter: 0.3, cd: 0.8, position: { method: 'top', offset: 0.02 } };
-    case 'streamer': return { type, id, length: 0.4, width: 0.05, position: { method: 'top', offset: 0.02 } };
+    case 'engineblock': return { type, id, length: 0.005, outerRadius: 0.0092, thickness: 0.0005, position: { method: 'bottom', offset: 0 } };
+    case 'launchlug': return { type, id, length: 0.03, outerRadius: 0.0022, angleOffset: Math.PI, position: { method: 'middle', offset: 0 } };
+    case 'parachute': return { type, id, diameter: 0.3, cd: 0.8, lineCount: 6, lineLength: 0.3, deployEvent: 'apogee', deployAltitude: 200, deployDelay: 0, position: { method: 'top', offset: 0.02 } };
+    case 'streamer': return { type, id, stripLength: 0.4, stripWidth: 0.05, cd: 0.6, deployEvent: 'apogee', deployAltitude: 200, deployDelay: 0, position: { method: 'top', offset: 0.02 } };
     case 'masscomponent': return { type, id, mass: 0.01, length: 0.02, position: { method: 'top', offset: 0 } };
     default: return { type, id };
   }

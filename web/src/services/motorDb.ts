@@ -28,6 +28,30 @@ export interface CatalogMotor {
   /** Set for user-imported motors; carries the CustomMotor id so it resolves locally. */
   custom?: boolean;
   id?: string;
+  /** Bundled thrust curve (from the build-time sync) — lets the motor resolve
+   *  entirely offline, no thrustcurve.org fetch. Absent → fetched on demand. */
+  length?: number;      // mm
+  propWeightG?: number; // g
+  /** Thrust curves, best-first (a motor can have several — cert/user, RASP/RockSim).
+   *  Each `samples` is [time (s), thrust (N)] pairs. */
+  curves?: { src: string; samples: [number, number][] }[];
+  // Descriptive metadata for the detail panel (bundled by sync-motors.mjs).
+  code?: string;        // full manufacturer designation, e.g. "E26W"
+  type?: string;        // 'SU' | 'reload' | 'hybrid'
+  delays?: string;      // e.g. "4,6,7,8,10"
+  propInfo?: string;    // propellant type, e.g. "White Lightning"
+  sparky?: boolean;
+  avgThrust?: number;   // N
+  maxThrust?: number;   // N
+  /** Set by the sync when no thrust curve could be bundled (none published, or
+   *  missing length/prop weight). Such a motor can't be plotted / combined. */
+  noCurve?: boolean;
+}
+
+/** Whether a catalog motor has a usable bundled thrust curve (≥ 2 samples).
+ *  The single source of truth for "can we plot / compare / combine this offline". */
+export function hasCurve(m: CatalogMotor): boolean {
+  return (m.curves?.[0]?.samples?.length ?? 0) >= 2;
 }
 
 /** Project a stored custom motor down to a catalog row for the picker. */
@@ -47,37 +71,14 @@ function customToRow(cm: CustomMotor): CatalogMotor {
 }
 
 /**
- * Cheap FNV-1a signature of the bundled catalog (hash + length). The MotorStore
- * stamps it on the mirror so a NEWER bundle — shipped by a re-sync + redeploy —
- * supersedes the cached copy instead of being shadowed by it forever.
- */
-function signature(cat: CatalogMotor[]): string {
-  const s = JSON.stringify(cat);
-  let h = 0x811c9dc5;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return `${(h >>> 0).toString(16)}:${cat.length}`;
-}
-
-/**
- * The catalog. Uses the localStorage mirror only while it matches the bundled
- * catalog's signature; a redeploy with a re-synced catalog changes the
- * signature, so the fresh bundle wins automatically (zero thrustcurve load —
- * the catalog is refreshed at build time, not at runtime).
+ * The catalog: the bundled motors (now shipping their thrust curves) plus the
+ * user's imported motors first, so they're easy to find in the picker. The
+ * bundle is the source of truth — no localStorage mirror (a catalog-with-curves
+ * is too large to cache there, and the bundle is always available offline).
  */
 export async function loadCatalog(): Promise<CatalogMotor[]> {
-  const catalog = bundled as CatalogMotor[];
-  const sig = signature(catalog);
-  let base = await getMotorStore().readCatalog(sig);
-  if (!base) {
-    await getMotorStore().writeCatalog(catalog, sig);
-    base = catalog;
-  }
-  // Imported motors first, so they're easy to find in the picker.
   const custom = (await getMotorStore().listCustomMotors()).map(customToRow);
-  return [...custom, ...base];
+  return [...custom, ...(bundled as CatalogMotor[])];
 }
 
 /** Parse a .eng file, store it as a custom motor, and return the refreshed catalog. */
@@ -99,6 +100,9 @@ export interface MotorFilter {
   manufacturers: Set<string>;
   /** Free-text match against designation. */
   text: string;
+  /** Diameter range (mm), inclusive. Undefined ends = open. Defaults fit the mount. */
+  minDiameter?: number;
+  maxDiameter?: number;
 }
 
 export function filterMotors(catalog: CatalogMotor[], filter: MotorFilter): CatalogMotor[] {
@@ -106,6 +110,8 @@ export function filterMotors(catalog: CatalogMotor[], filter: MotorFilter): Cata
   return catalog.filter((m) => {
     if (filter.classes.size > 0 && !filter.classes.has(m.class)) return false;
     if (filter.manufacturers.size > 0 && !filter.manufacturers.has(m.manufacturer)) return false;
+    if (filter.minDiameter != null && m.diameter < filter.minDiameter) return false;
+    if (filter.maxDiameter != null && m.diameter > filter.maxDiameter) return false;
     if (text && !m.designation.toLowerCase().includes(text)) return false;
     return true;
   });

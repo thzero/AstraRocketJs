@@ -5,6 +5,7 @@ import { useSettings } from '../../state/SettingsProvider';
 import { TreeSchematic } from './TreeSchematic';
 import { AftView } from './AftView';
 import { FlightChart } from './FlightChart';
+import { FlightPathExport } from './FlightPathExport';
 import { ViewToggle } from './ViewToggle';
 import { StabilityBadge } from './StabilityBadge';
 import { InfoOverlay } from './InfoOverlay';
@@ -34,6 +35,10 @@ export function CenterView() {
   const onRollBy = useWorkspaceStore((s) => s.rollBy);
   const onResetView = useWorkspaceStore((s) => s.resetView);
   const resetKey = useWorkspaceStore((s) => s.resetKey);
+  const showMarkers = useWorkspaceStore((s) => s.showMarkers);
+  const showInfoCard = useWorkspaceStore((s) => s.showInfoCard);
+  const toggleMarkers = useWorkspaceStore((s) => s.toggleMarkers);
+  const toggleInfoCard = useWorkspaceStore((s) => s.toggleInfoCard);
   const tree = useWorkspaceStore((s) => s.tree);
   const info = useWorkspaceStore((s) => s.info);
   const selectedId = useWorkspaceStore((s) => s.selectedId);
@@ -73,13 +78,20 @@ export function CenterView() {
     <div className="flex h-full flex-col">
       {loadedMeta && <LoadedBanner loaded={loadedMeta} onClose={onCloseLoaded} />}
       <div className="flex shrink-0 items-center justify-between gap-2 px-3 pt-3">
-        {/* 2D view presets, left-justified in the same row as the view toggle. */}
-        <div className="flex gap-1">
+        {/* 2D view presets + the CG/CP · Info toggles, left-justified in the
+            same row as the view toggle. The toggles apply to both 2D and 3D. */}
+        <div className="flex flex-wrap gap-1">
           {view === '2d' && (
             <>
               <ViewBtn onClick={onResetView}>{t('view.reset')}</ViewBtn>
               <ViewBtn active={twoD === 'side'} onClick={() => onTwoD('side')}>{t('view.side')}</ViewBtn>
               <ViewBtn active={twoD === 'aft'} onClick={() => onTwoD('aft')}>{t('view.aft')}</ViewBtn>
+            </>
+          )}
+          {(view === '2d' || view === '3d') && (
+            <>
+              <ViewBtn active={showMarkers} onClick={toggleMarkers} title={t('view.markersTitle')}>{t('view.markers')}</ViewBtn>
+              <ViewBtn active={showInfoCard} onClick={toggleInfoCard} title={t('view.infoCardTitle')}>{t('view.infoCard')}</ViewBtn>
             </>
           )}
         </div>
@@ -111,22 +123,32 @@ export function CenterView() {
               {/* Live roll readout, centred on the slider. */}
               <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded bg-slate-800/95 px-0.5 py-0.5 text-[9px] text-sky-300 ring-1 ring-white/10">{deg}°</span>
             </div>
-            {/* Quick-glance stats box, upper-left (mmrocket-style). */}
-            <div className="absolute left-11 top-3 z-10">
-              <InfoOverlay info={info} />
-            </div>
           </>
+        )}
+        {/* Quick-glance stats card (mmrocket-style), upper-left — same position
+            in both the 2D and 3D views, toggleable via the header Info button. */}
+        {(view === '2d' || view === '3d') && showInfoCard && (
+          <div className="absolute left-11 top-3 z-20">
+            <InfoOverlay info={info} />
+          </div>
         )}
         {view === '2d'
           ? (twoD === 'side'
-              ? <TreeSchematic key={`side-${resetKey}`} tree={tree} info={info} motors={motors} fillHeight roll={roll} onRoll={onRollBy} selectedId={selectedId} onSelect={onSelect} controlsSlot={ctrlSlot} />
+              ? <TreeSchematic key={`side-${resetKey}`} tree={tree} info={info} motors={motors} fillHeight roll={roll} onRoll={onRollBy} selectedId={selectedId} onSelect={onSelect} controlsSlot={ctrlSlot} showMarkers={showMarkers} />
               : <AftView key={`aft-${resetKey}`} tree={tree} roll={roll} motors={motors} onRoll={onRollBy} />)
           : view === '3d'
-            ? <Suspense fallback={loading}><Rocket3D tree={tree} info={info} motors={motors} selectedId={selectedId} onSelect={onSelect} /></Suspense>
+            ? <Suspense fallback={loading}><Rocket3D tree={tree} info={info} motors={motors} selectedId={selectedId} onSelect={onSelect} showMarkers={showMarkers} /></Suspense>
             : view === 'flight'
               ? <div className="h-full p-2">{result ? <FlightChart result={result} /> : prompt}</div>
               : view === 'path'
-                ? <div className="h-full p-2">{result ? <Suspense fallback={loading}><FlightPath3D result={result} tree={tree} motors={motors} /></Suspense> : prompt}</div>
+                ? <div className="relative h-full p-2">{result ? (
+                    <>
+                      <Suspense fallback={loading}><FlightPath3D result={result} tree={tree} motors={motors} /></Suspense>
+                      <div className="pointer-events-none absolute inset-x-0 top-5 z-10 flex justify-center">
+                        <div className="pointer-events-auto"><FlightPathExport variant="overlay" /></div>
+                      </div>
+                    </>
+                  ) : prompt}</div>
                 : <div className="h-full p-2">{info ? <DragAnalysis /> : prompt}</div>}
       </div>
       <div className="shrink-0">
@@ -136,11 +158,14 @@ export function CenterView() {
   );
 }
 
-/** Small overlay button for the 2D view presets (Side / Aft / Reset). */
-function ViewBtn({ active, onClick, children }: { active?: boolean; onClick: () => void; children: React.ReactNode }) {
+/** Small overlay button for the 2D view presets (Side / Aft / Reset) and the
+ *  CG/CP · Info view toggles. */
+function ViewBtn({ active, onClick, title, children }: { active?: boolean; onClick: () => void; title?: string; children: React.ReactNode }) {
   return (
     <button
       onClick={onClick}
+      title={title}
+      aria-pressed={active}
       className={`rounded-md px-2 py-1 text-xs font-medium ring-1 ring-white/10 ${active ? 'bg-sky-600 text-white' : 'bg-slate-800/90 text-slate-200'}`}
     >
       {children}

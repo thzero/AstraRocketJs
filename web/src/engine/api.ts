@@ -101,6 +101,10 @@ export function specToTree(spec: RocketSpec): { tree: RocketTree; mountId: strin
       },
       ...(spec.parachute
         ? [{ type: 'parachute', id: 'chute', diameter: spec.parachute.diameter, cd: spec.parachute.dragCoefficient ?? 0.8,
+            lineCount: 6, lineLength: 0.3,
+            // Deploy at apogee by default (matches the editor default) so the UI
+            // and the engine agree rather than the kernel falling back to ejection.
+            deployEvent: 'apogee', deployAltitude: 200, deployDelay: 0,
             // Recovery packs up near the nose (front of the body tube).
             position: { method: 'top', offset: 0.02 } } as ComponentNode]
         : []),

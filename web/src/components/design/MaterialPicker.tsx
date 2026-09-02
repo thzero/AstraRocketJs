@@ -1,31 +1,40 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { builtinsForType, materialsForType, addCustom, removeCustom } from '../../services/materials';
-import type { Material } from '../../data/materials';
+import type { Material, MaterialType } from '../../data/materials';
 import { fmtNum } from '../../i18n/format';
 
+// Density units + display precision per material type. Bulk is kg/m³ (big
+// numbers); surface (fabric) is kg/m² and line (cord) is kg/m — both tiny.
+const UNIT: Record<MaterialType, string> = { bulk: 'kg/m³', surface: 'kg/m²', line: 'kg/m' };
+const DIGITS: Record<MaterialType, number> = { bulk: 0, surface: 3, line: 4 };
+
 /**
- * Assigns a bulk material (name + density) to a component, from the built-in
- * catalogue plus the user's custom materials (swappable MaterialStore). Emits
+ * Assigns a material (name + density) to a component, from the built-in
+ * catalogue plus the user's custom materials (swappable MaterialStore). `type`
+ * picks the catalogue (bulk / surface / line); `label` names the row. Emits
  * `onChange(name, density)`; density 0 / name undefined means the engine default.
  */
-export function MaterialPicker({ value, onChange }: {
+export function MaterialPicker({ value, onChange, type = 'bulk', label }: {
   value?: string; onChange: (name: string | undefined, density: number) => void;
+  type?: MaterialType; label?: string;
 }) {
   const { t } = useTranslation();
   // Seed with built-ins for the first paint; the store (async, swappable) then
   // merges in the user's custom materials.
-  const [mats, setMats] = useState<Material[]>(() => builtinsForType('bulk'));
+  const [mats, setMats] = useState<Material[]>(() => builtinsForType(type));
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
   const [dens, setDens] = useState('');
   const [addErr, setAddErr] = useState<string | null>(null);
+  const unit = UNIT[type];
+  const digits = DIGITS[type];
 
   useEffect(() => {
     let live = true;
-    materialsForType('bulk').then((m) => { if (live) setMats(m); });
+    materialsForType(type).then((m) => { if (live) setMats(m); });
     return () => { live = false; };
-  }, []);
+  }, [type]);
 
   const groups = useMemo(() => {
     const g = new Map<string, Material[]>();
@@ -47,8 +56,8 @@ export function MaterialPicker({ value, onChange }: {
 
   const submitCustom = async () => {
     try {
-      const next = await addCustom(name, 'bulk', parseFloat(dens));
-      setMats(await materialsForType('bulk'));
+      const next = await addCustom(name, type, parseFloat(dens));
+      setMats(await materialsForType(type));
       onChange(next[0].name, next[0].density);
       setAdding(false); setName(''); setDens(''); setAddErr(null);
     } catch (e) {
@@ -58,17 +67,17 @@ export function MaterialPicker({ value, onChange }: {
 
   const deleteCurrentCustom = async () => {
     if (!current?.custom) return;
-    await removeCustom(current.name, 'bulk');
-    setMats(await materialsForType('bulk'));
+    await removeCustom(current.name, type);
+    setMats(await materialsForType(type));
     onChange(undefined, 0);
   };
 
   return (
     <div>
       <div className="mb-1 flex items-center justify-between text-sm">
-        <span className="text-slate-300">{t('material.title')}</span>
+        <span className="text-slate-300">{label ?? t('material.title')}</span>
         <span className="tabular-nums text-xs text-slate-400">
-          {current ? `${fmtNum(current.density, 0)} kg/m³` : t('material.default')}
+          {current ? `${fmtNum(current.density, digits)} ${unit}` : t('material.default')}
           {current?.custom && (
             <button onClick={deleteCurrentCustom} className="ml-2 text-red-400" aria-label={t('material.deleteCustom')}>✕</button>
           )}
@@ -84,7 +93,7 @@ export function MaterialPicker({ value, onChange }: {
           <optgroup key={g} label={g}>
             {list.map((m) => (
               <option key={`${g}:${m.name}`} value={m.name}>
-                {m.custom ? '★ ' : ''}{m.name} · {fmtNum(m.density, 0)} kg/m³
+                {m.custom ? '★ ' : ''}{m.name} · {fmtNum(m.density, digits)} {unit}
               </option>
             ))}
           </optgroup>

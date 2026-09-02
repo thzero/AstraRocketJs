@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { APP_VERSION, HELP_URL } from '../../services/appInfo';
+import { APP_VERSION, HELP_URL, isPreRelease } from '../../services/appInfo';
 import { initEngine } from '../../engine/openRocketEngine';
 import { useWorkspaceStore } from '../../state/store';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { AboutDialog } from './AboutDialog';
 import { PrivacyDialog } from './PrivacyDialog';
 import { SettingsDialog } from './SettingsDialog';
+import { MotorDashboard } from '../sim/MotorDashboard';
 
 /** Top bar: title + version, language, and a collapsible menu holding the
  *  New / Open .ork / Save .ork / About actions. Owns the hidden file input. */
@@ -21,6 +22,7 @@ export function AppHeader() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [motorsOpen, setMotorsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   // Which physics backend actually loaded (WASM-GC or the JS fallback). initEngine
   // is idempotent and already resolved before mount (main.tsx awaits it), so this
@@ -50,6 +52,14 @@ export function AppHeader() {
       >
         v{APP_VERSION}
       </button>
+      {isPreRelease() && (
+        <span
+          title={t('about.wip')}
+          className="rounded bg-amber-500/10 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-300 ring-1 ring-amber-400/30"
+        >
+          {t('wip.badge')}
+        </span>
+      )}
       {backend && (
         <span
           title={t(backend === 'wasm' ? 'engine.wasmTip' : 'engine.jsTip')}
@@ -78,6 +88,8 @@ export function AppHeader() {
               <button role="menuitem" className={item} onClick={() => { setMenuOpen(false); orkRef.current?.click(); }}>{t('file.open')}</button>
               <button role="menuitem" className={item} disabled={!canSave} onClick={() => { setMenuOpen(false); onSave(); }}>{t('file.save')}</button>
               <div className="my-1 border-t border-white/10" />
+              <button role="menuitem" className={item} onClick={() => { setMenuOpen(false); setMotorsOpen(true); }}>{t('dash.menu')}</button>
+              <div className="my-1 border-t border-white/10" />
               <button role="menuitem" className={item} onClick={() => { setMenuOpen(false); setSettingsOpen(true); }}>{t('settings.title')}</button>
               <a role="menuitem" className={item} href={HELP_URL} target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)}>{t('menu.help')}</a>
               <div className="my-1 border-t border-white/10" />
@@ -92,6 +104,7 @@ export function AppHeader() {
         ref={orkRef} type="file" accept=".ork" className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onOpenFile(f); }}
       />
+      <MotorDashboard open={motorsOpen} onClose={() => setMotorsOpen(false)} />
       <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
       <PrivacyDialog open={privacyOpen} onClose={() => setPrivacyOpen(false)} />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
