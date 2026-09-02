@@ -18,7 +18,7 @@
 - **[Motors](Motors)** — the motor picker, thrust curves, `.eng` import, custom motors
 - **[Views & Analysis](Views-and-Analysis)** — 2D / 3D / aero / flight views, calipers, stability
 - **[Running a Simulation](Running-a-Simulation)** — launch setup, running, reading results
-- **[Files & Exports](Files-and-Exports)** — `.ork` open/save, CSV and image exports
+- **[Files & Exports](Files-and-Exports)** — `.ork` open/save, CSV, flight-path (KML / GPX), and image exports
 
 ## Developing
 - **[Contributing](Contributing)** — report bugs, set up, build the engine, submit changes

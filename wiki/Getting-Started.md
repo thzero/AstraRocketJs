@@ -11,7 +11,7 @@ When it loads you'll see a brief splash while the physics engine loads, then a s
 On a desktop the screen is a **three-pane workbench**:
 
 - **Left — Components.** The rocket's component tree. Add, select, and edit parts here.
-- **Center — Rocket view.** Your rocket, with a toolbar to switch views (2D · 3D · Aero · and, after a sim, Flight · 3D path) and, in 2D, presets, calipers, and zoom. A **stats strip** along the bottom shows length, mass, CG, CP, stability, and more.
+- **Center — Rocket view.** Your rocket, with a toolbar to switch views (2D · 3D · Aero · and, after a sim, Flight · 3D path), toggles for the **CG / CP** markers and the quick-glance **info** card, and — in 2D — presets, calipers, and zoom. A **stats strip** along the bottom shows length, mass, CG, CP, stability, and more.
 - **Right — Simulations.** Your simulation(s), the **Run** button, launch setup, and results.
 
 On a **phone**, the same areas stack into a single column with a tab bar; the components panel is hidden to keep the rocket view large.

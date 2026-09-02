@@ -151,7 +151,7 @@ interface DragState {
   clientScale: number;
 }
 
-export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480, selectedId, onSelect, exportData, onError, vertical, fillHeight, roll = 0, onRoll, controlsSlot }: {
+export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480, selectedId, onSelect, exportData, onError, vertical, fillHeight, roll = 0, onRoll, controlsSlot, showMarkers = true }: {
   tree: RocketTree;
   info: StaticInfo | null;
   /** Loaded motor case dimensions (m) keyed by mount node id — drawn to
@@ -192,6 +192,8 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
   /** When set, the drawing's control buttons (calipers, zoom, export) render into
    *  this element (a slot in the pane header) instead of over the drawing. */
   controlsSlot?: HTMLElement | null;
+  /** Draw the CG/CP/margin markers and callouts (default true). */
+  showMarkers?: boolean;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -955,8 +957,10 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
 
   renderChain(chain, 0, ctx.cy);
 
-  const cgX = info ? ctx.x0 + info.cg * scale : null;
-  const cpX = info ? ctx.x0 + info.cp * scale : null;
+  // When markers are toggled off, null out the stations: this disables the
+  // on-axis symbols AND the leader-line callouts (all gated on cgX/cpX below).
+  const cgX = info && showMarkers ? ctx.x0 + info.cg * scale : null;
+  const cpX = info && showMarkers ? ctx.x0 + info.cp * scale : null;
   const stab = info ? stabilityState(info.stabilityCalibers) : null;
   const marginPct = info && info.length > 0 ? ((info.cp - info.cg) / info.length) * 100 : null;
   const stabWord = stab === 'under' ? t('schematic.underStable') : stab === 'over' ? t('schematic.overStable') : t('schematic.ok');

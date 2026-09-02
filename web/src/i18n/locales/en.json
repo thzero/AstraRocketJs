@@ -100,7 +100,11 @@
     "reset3dTitle": "Re-fit the current view (zoom/orbit back to the default framing)",
     "sideTitle": "Straight-on side profile",
     "aftTitle": "From behind — clusters and fin count as they really sit",
-    "dragHint": "drag to rotate · scroll to zoom"
+    "dragHint": "drag to rotate · scroll to zoom",
+    "markers": "CG / CP",
+    "markersTitle": "Show CG / CP / stability markers",
+    "infoCard": "Info",
+    "infoCardTitle": "Show the length / mass / CG / CP / stability card"
   },
   "stability": {
     "title": "Stability",
@@ -196,6 +200,47 @@
     "reset": "Reset to launch",
     "loop": "Loop playback",
     "exportCsv": "Download flight data (.csv)"
+  },
+  "pathExport": {
+    "open": "Export flight path (KML / GPX / CSV)",
+    "short": "Export",
+    "title": "Export flight path",
+    "format": "Format",
+    "builtIns": "Built-in",
+    "custom": "Imported templates",
+    "import": "Import template…",
+    "downloadTemplate": "Download template",
+    "downloadTemplateTitle": "Download this template's Mustache source to modify and re-import",
+    "delete": "Delete template",
+    "importEmpty": "That template file is empty.",
+    "importError": "Could not read that template file.",
+    "renderError": "This template failed to render. Check its Mustache syntax.",
+    "fmt": {
+      "kml": "KML (Google Earth)",
+      "gpx": "GPX track",
+      "waypoints-csv": "Waypoint CSV"
+    },
+    "waypoints": "Waypoints",
+    "wp": {
+      "pad": "Pad",
+      "liftoff": "Liftoff",
+      "burnout": "Burnout",
+      "apogee": "Apogee",
+      "recovery": "Recovery deployment",
+      "landing": "Landing",
+      "maxVelocity": "Max velocity",
+      "maxAcceleration": "Max acceleration"
+    },
+    "path": "Flight path",
+    "includeFlightPath": "Include flight path line",
+    "includeGroundTrack": "Include ground track",
+    "stride": "Keep every Nth point",
+    "units": "Units",
+    "altitude": "Altitude",
+    "distance": "Distance",
+    "noPosition": "The launch latitude and longitude are both zero, so the exported track will land at (0, 0) off the coast of Africa. Set a launch latitude and longitude for a meaningful track.",
+    "download": "Download",
+    "cancel": "Cancel"
   },
   "drag": {
     "title": "Drag analysis",

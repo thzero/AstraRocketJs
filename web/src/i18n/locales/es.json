@@ -100,7 +100,11 @@
     "reset3dTitle": "Reajustar la vista actual (zoom/órbita al encuadre por defecto)",
     "sideTitle": "Perfil lateral directo",
     "aftTitle": "Desde atrás — clústeres y número de aletas como están realmente",
-    "dragHint": "arrastra para rotar · desplaza para zoom"
+    "dragHint": "arrastra para rotar · desplaza para zoom",
+    "markers": "CG / CP",
+    "markersTitle": "Mostrar marcadores de CG / CP / estabilidad",
+    "infoCard": "Datos",
+    "infoCardTitle": "Mostrar la tarjeta de longitud / masa / CG / CP / estabilidad"
   },
   "stability": {
     "title": "Estabilidad",
@@ -196,6 +200,47 @@
     "reset": "Reiniciar al lanzamiento",
     "loop": "Repetir reproducción",
     "exportCsv": "Descargar datos de vuelo (.csv)"
+  },
+  "pathExport": {
+    "open": "Exportar trayectoria de vuelo (KML / GPX / CSV)",
+    "short": "Exportar",
+    "title": "Exportar trayectoria de vuelo",
+    "format": "Formato",
+    "builtIns": "Integrados",
+    "custom": "Plantillas importadas",
+    "import": "Importar plantilla…",
+    "downloadTemplate": "Descargar plantilla",
+    "downloadTemplateTitle": "Descarga el código Mustache de esta plantilla para modificarla y reimportarla",
+    "delete": "Eliminar plantilla",
+    "importEmpty": "Ese archivo de plantilla está vacío.",
+    "importError": "No se pudo leer ese archivo de plantilla.",
+    "renderError": "Esta plantilla no se pudo procesar. Revisa su sintaxis Mustache.",
+    "fmt": {
+      "kml": "KML (Google Earth)",
+      "gpx": "Traza GPX",
+      "waypoints-csv": "CSV de puntos"
+    },
+    "waypoints": "Puntos de referencia",
+    "wp": {
+      "pad": "Plataforma",
+      "liftoff": "Despegue",
+      "burnout": "Fin de combustión",
+      "apogee": "Apogeo",
+      "recovery": "Despliegue de recuperación",
+      "landing": "Aterrizaje",
+      "maxVelocity": "Velocidad máxima",
+      "maxAcceleration": "Aceleración máxima"
+    },
+    "path": "Trayectoria",
+    "includeFlightPath": "Incluir línea de trayectoria",
+    "includeGroundTrack": "Incluir traza en el suelo",
+    "stride": "Conservar cada N.º punto",
+    "units": "Unidades",
+    "altitude": "Altitud",
+    "distance": "Distancia",
+    "noPosition": "La latitud y longitud de lanzamiento son ambas cero, por lo que la traza exportada caerá en (0, 0) frente a la costa de África. Establece una latitud y longitud de lanzamiento para obtener una traza significativa.",
+    "download": "Descargar",
+    "cancel": "Cancelar"
   },
   "drag": {
     "title": "Análisis de resistencia",

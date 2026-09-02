@@ -12,6 +12,13 @@ A to-scale side view of the rocket with **CG** (▲) and **CP** (●) markers an
 - **Roll** — the side slider spins the rocket about its long axis, so you can see fin sets edge-on or broadside.
 - **Side / Aft** — switch between the side profile and an aft (head-on) view; **Reset** restores the default framing.
 
+## View toggles (2D and 3D)
+
+Two toolbar buttons control what's overlaid on the **2D** and **3D** views:
+
+- **CG / CP** — show or hide the **CG / CP / stability** markers and their callouts.
+- **Info** — show or hide the quick-glance **length · mass · CG · CP · stability** card in the upper-left corner (the same summary as the [stats strip](#reading-the-stats-strip), handy when the strip is scrolled off on a phone).
+
 ## 3D model
 
 An interactive 3D model of the rocket — orbit to inspect the geometry from any angle.
@@ -33,6 +40,8 @@ A panel of **flight charts** over time: altitude, velocity, acceleration, Mach, 
 ## 3D path (after a simulation)
 
 The flight **trajectory in 3D** — the rocket's path through space, including drift from wind.
+
+An **⬇ Export** button saves the flight path for mapping tools — **KML** (Google Earth), **GPX**, or a **waypoint CSV** — with options for which waypoints and lines to include, and support for your own templates. See [Files & Exports](Files-and-Exports#exporting-the-flight-path-kml--gpx--csv).
 
 ## Reading the stats strip
 

@@ -13,7 +13,7 @@ The UI is **responsive**: a three-pane workbench (editor · rocket view · motor
 **Design & analyze**
 - Component-tree editor with **live CG / CP / stability** as you edit — calibers, % of length, **on-pad *and* rail-exit** margins, and fineness ratio.
 - **2D schematic** with drag-to-measure **calipers**, length + cross-section rulers, zoom/pan, spin (roll), and an aft (head-on) view.
-- **3D model** view, plus a **3D flight path** after a simulation.
+- **3D model** view, plus a **3D flight path** after a simulation. CG/CP markers and a length·mass·CG·CP·stability card can be toggled on either view.
 - **Aerodynamics view**: Cd vs Mach, drag breakdown (friction / pressure / base), and CP vs Mach.
 - **Flight charts**: altitude, velocity, acceleration, Mach, thrust, mass, drag, and stability over time.
 
@@ -21,7 +21,7 @@ The UI is **responsive**: a three-pane workbench (editor · rocket view · motor
 - **Full `.ork` support** — open and save round-trip at full fidelity (files re-open in desktop OpenRocket).
 - Real motor **thrust curves** from thrustcurve.org (~800 motors), plus **`.eng` import** and custom motors.
 - OpenRocket **materials** (built-in + your own) and a **component-preset** catalog (~2,900 real Estes/Apogee/LOC/… parts).
-- **Exports**: flight data & drag tables to **CSV**, and the 2D schematic to **SVG / PNG / JPG**.
+- **Exports**: flight data & drag tables to **CSV**, the **flight path** to **KML / GPX / waypoint CSV** (Google Earth / GPS, with importable custom **templates**), and the 2D schematic to **SVG / PNG / JPG**.
 - Multiple named **simulations**, each with full launch setup (rod, site, atmosphere, multi-level wind, earth model).
 
 **Yours, on your device**
