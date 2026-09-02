@@ -1,6 +1,6 @@
 {
   "name": "astrarrocketjs-web",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "description": "AstraRocketJs — browser UI for the OpenRocket engine",
   "author": "thZero.com",
@@ -25,7 +25,8 @@
     "e2e:ui": "playwright test --ui",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build:inc": "library-cli --updateversion --pi --silent"
+    "build:inc": "library-cli --updateversion --pi --silent && node ../scripts/stamp-wiki-version.mjs --silent",
+    "stamp:wiki": "node ../scripts/stamp-wiki-version.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",
@@ -58,6 +59,6 @@
   },
   "version_major": 0,
   "version_minor": 0,
-  "version_patch": 1,
+  "version_patch": 2,
   "version_date": "09/01/2026"
 }

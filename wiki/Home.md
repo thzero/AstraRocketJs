@@ -27,4 +27,8 @@
 
 ---
 
+_Documentation for AstraRocketJs&nbsp;v<!--APP_VERSION-->0.0.2<!--/APP_VERSION-->._
+
+---
+
 *This wiki covers the app. For the physics, AstraRocketJs runs OpenRocket's own engine — see the [OpenRocket documentation](https://openrocket.readthedocs.io) for the underlying models. Not affiliated with the OpenRocket project.*
