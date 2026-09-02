@@ -97,14 +97,23 @@ async function main() {
           src: `${sourceLabel(c.source)} · ${c.format}`,
           samples: c.samples.map((s) => [round(s.time, 4), round(s.thrust, 3)]),
         }));
+      } else {
+        // No bundled curve (none published, or missing length/prop weight so it
+        // can't be built). Flag it so the UI can mark it and block compare/combine.
+        row.noCurve = true;
       }
       return row;
     })
     .sort((a, b) => a.impulse - b.impulse || a.designation.localeCompare(b.designation));
 
   const withCurves = catalog.filter((m) => m.curves).length;
+  const noCurve = catalog.filter((m) => m.noCurve);
   await writeFile(OUT, JSON.stringify(catalog, null, 0) + "\n");
   console.log(`\nWrote ${catalog.length} motors (${withCurves} with bundled curves) → src/data/motors.generated.json`);
+  if (noCurve.length) {
+    console.log(`  ${noCurve.length} have NO bundled thrust curve (flagged noCurve):`);
+    console.log(`    ${noCurve.map((m) => `${m.manufacturer} ${m.designation}`).join(", ")}`);
+  }
 }
 
 main().catch((err) => {

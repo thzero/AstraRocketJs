@@ -43,6 +43,15 @@ export interface CatalogMotor {
   sparky?: boolean;
   avgThrust?: number;   // N
   maxThrust?: number;   // N
+  /** Set by the sync when no thrust curve could be bundled (none published, or
+   *  missing length/prop weight). Such a motor can't be plotted / combined. */
+  noCurve?: boolean;
+}
+
+/** Whether a catalog motor has a usable bundled thrust curve (≥ 2 samples).
+ *  The single source of truth for "can we plot / compare / combine this offline". */
+export function hasCurve(m: CatalogMotor): boolean {
+  return (m.curves?.[0]?.samples?.length ?? 0) >= 2;
 }
 
 /** Project a stored custom motor down to a catalog row for the picker. */

@@ -4,9 +4,20 @@ import {
   allClasses,
   allManufacturers,
   findCatalogMotor,
+  hasCurve,
   type CatalogMotor,
   type MotorFilter,
 } from './motorDb';
+
+describe('hasCurve', () => {
+  const m = (curves?: unknown): CatalogMotor => ({ designation: 'x', manufacturer: 'y', class: 'A', diameter: 18, impulse: 1, burn: 1, mass: 1, curves } as CatalogMotor);
+  it('is true only for a bundled curve with ≥ 2 samples', () => {
+    expect(hasCurve(m([{ src: 'x', samples: [[0, 0], [1, 10]] }]))).toBe(true);
+    expect(hasCurve(m([{ src: 'x', samples: [[0, 0]] }]))).toBe(false); // one point
+    expect(hasCurve(m([]))).toBe(false);
+    expect(hasCurve(m(undefined))).toBe(false);
+  });
+});
 
 const catalog: CatalogMotor[] = [
   { designation: 'C6', manufacturer: 'Estes', class: 'C', diameter: 18, impulse: 8.8, burn: 1.7, mass: 24 },
