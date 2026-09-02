@@ -1,6 +1,5 @@
 {
   "name": "astrarrocketjs-web",
-  "private": true,
   "version": "0.1.0",
   "type": "module",
   "description": "AstraRocketJs — browser UI for the OpenRocket engine",
@@ -25,7 +24,8 @@
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "build:inc": "library-cli --updateversion --pi --silent"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",
@@ -43,6 +43,7 @@
     "@playwright/test": "^1.62.1",
     "@react-three/test-renderer": "^8.2.4",
     "@tailwindcss/vite": "^4.0.0",
+    "@thzero/library_cli": "^0.18.45",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@types/three": "^0.185.4",
