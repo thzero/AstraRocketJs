@@ -65,8 +65,6 @@ export interface WorkspaceState {
   twoD: 'side' | 'aft';
   roll: number;     // 2D fin-spin, radians, kept in [0, 2π)
   resetKey: number; // bump to remount the 2D schematic
-  showMarkers: boolean;  // CG/CP/margin markers on the 2D/3D views
-  showInfoCard: boolean; // length/mass/CG/CP/stability card on the 2D/3D views
 
   // --- actions ---
   setErr: (err: string | null) => void;
@@ -108,8 +106,6 @@ export interface WorkspaceState {
   setRoll: (roll: number) => void;
   rollBy: (d: number) => void;
   resetView: () => void;
-  toggleMarkers: () => void;
-  toggleInfoCard: () => void;
 
   openOrkFile: (file: File) => Promise<void>;
   resetWorkspace: () => void;
@@ -218,8 +214,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     twoD: 'side',
     roll: 0,
     resetKey: 0,
-    showMarkers: true,
-    showInfoCard: true,
 
     setErr: (err) => set({ err }),
     applyBuild: (info, rocket) => set({ info, rocket }),
@@ -359,8 +353,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     setRoll: (roll) => set({ roll }),
     rollBy: (d) => set((s) => { const x = (s.roll + d) % (2 * Math.PI); return { roll: x < 0 ? x + 2 * Math.PI : x }; }),
     resetView: () => set((s) => ({ roll: 0, resetKey: s.resetKey + 1 })),
-    toggleMarkers: () => set((s) => ({ showMarkers: !s.showMarkers })),
-    toggleInfoCard: () => set((s) => ({ showInfoCard: !s.showInfoCard })),
 
     openOrkFile: async (file) => {
       try {
