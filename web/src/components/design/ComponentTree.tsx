@@ -112,10 +112,11 @@ function Row({ node, depth, selectedId, onSelect, t }: {
   );
 }
 
-export function ComponentTree({ tree, selectedId, onSelect, onAdd, onRenameDesign }: {
+export function ComponentTree({ tree, selectedId, onSelect, onAdd, onRenameDesign, onCommit }: {
   tree: RocketTree; selectedId?: string | null; onSelect?: (id: string) => void;
   onAdd?: (type: ComponentType) => void;
   onRenameDesign?: (name: string) => void;
+  onCommit?: () => void; // close the rename's undo entry when the field blurs
 }) {
   const { t } = useTranslation();
   // The Add menu is contextual: it offers only the child types valid for the
@@ -154,7 +155,7 @@ export function ComponentTree({ tree, selectedId, onSelect, onAdd, onRenameDesig
         {onRenameDesign ? (
           <input
             value={tree.name || ''}
-            onChange={(e) => onRenameDesign(e.target.value)}
+            onChange={(e) => onRenameDesign(e.target.value)} onBlur={onCommit}
             placeholder={t('tree.rocket')} aria-label={t('prop.name')} title={t('prop.name')}
             className="min-w-0 flex-1 truncate rounded bg-transparent px-1 text-sm font-semibold text-sky-400 hover:bg-slate-800/60 focus:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
           />

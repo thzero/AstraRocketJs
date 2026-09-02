@@ -17,6 +17,10 @@ export function AppHeader() {
   const onNew = useWorkspaceStore((s) => s.newWorkspace);
   const onOpenFile = useWorkspaceStore((s) => s.openOrkFile);
   const onSave = useWorkspaceStore((s) => s.saveOrk);
+  const onUndo = useWorkspaceStore((s) => s.undo);
+  const onRedo = useWorkspaceStore((s) => s.redo);
+  const canUndo = useWorkspaceStore((s) => s.past.length > 0);
+  const canRedo = useWorkspaceStore((s) => s.future.length > 0);
   const orkRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -40,7 +44,24 @@ export function AppHeader() {
     return () => { window.removeEventListener('mousedown', onDown); window.removeEventListener('keydown', onKey); };
   }, [menuOpen]);
 
+  // Keyboard: Ctrl/⌘+Z undoes, Ctrl+Shift+Z / Ctrl+Y redoes — globally, including
+  // while a field is focused (edits commit on blur, so the field just re-renders
+  // to the restored value). The store actions flush any in-flight edit and no-op
+  // on an empty stack, so this is safe to call unconditionally; go through
+  // getState to stay independent of render timing.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const key = e.key.toLowerCase();
+      if (key === 'z' && !e.shiftKey) { e.preventDefault(); useWorkspaceStore.getState().undo(); }
+      else if ((key === 'z' && e.shiftKey) || key === 'y') { e.preventDefault(); useWorkspaceStore.getState().redo(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const item = 'flex w-full items-center px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-transparent';
+  const iconBtn = 'rounded-lg bg-slate-800 px-2.5 py-1.5 text-sm leading-none text-slate-200 ring-1 ring-white/10 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-slate-800';
 
   return (
     <header className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
@@ -74,6 +95,10 @@ export function AppHeader() {
       )}
 
       <div className="ml-auto flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <button onClick={onUndo} disabled={!canUndo} title={`${t('edit.undo')} (Ctrl+Z)`} aria-label={t('edit.undo')} className={iconBtn}>↶</button>
+          <button onClick={onRedo} disabled={!canRedo} title={`${t('edit.redo')} (Ctrl+Shift+Z)`} aria-label={t('edit.redo')} className={iconBtn}>↷</button>
+        </div>
         <LanguageSwitcher />
         <div className="relative" ref={menuRef}>
           <button

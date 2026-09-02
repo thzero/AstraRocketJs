@@ -37,8 +37,11 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-export function LaunchPanel({ launch, onChange }: {
+export function LaunchPanel({ launch, onChange, onCommit }: {
   launch: LaunchConditions; onChange: (patch: Partial<LaunchConditions>) => void;
+  /** Close the current edit's undo entry. Number fields commit via the panel's
+   *  container blur (React blur bubbles); discrete controls commit immediately. */
+  onCommit?: () => void;
 }) {
   const { t } = useTranslation();
   const levels = launch.windLevels ?? [];
@@ -57,12 +60,14 @@ export function LaunchPanel({ launch, onChange }: {
   };
 
   return (
-    <div className="space-y-3 p-3">
+    // Container blur closes the undo entry for whichever number field was being
+    // edited (React's onBlur bubbles from the focused input).
+    <div className="space-y-3 p-3" onBlur={onCommit}>
       <Group title={t('launch.launchRod')}>
         <Num label={t('launch.length')} unit="m" step={0.1} min={0} value={launch.launchRodLengthM} onChange={(v) => onChange({ launchRodLengthM: v ?? 0 })} />
         <Num label={t('launch.angle')} unit="°" step={1} value={launch.launchRodAngleDeg} onChange={(v) => onChange({ launchRodAngleDeg: v ?? 0 })} />
         <label className="flex items-center gap-2">
-          <input type="checkbox" checked={launch.launchIntoWind ?? false} onChange={(e) => onChange({ launchIntoWind: e.target.checked })} className="accent-sky-500" />
+          <input type="checkbox" checked={launch.launchIntoWind ?? false} onChange={(e) => { onChange({ launchIntoWind: e.target.checked }); onCommit?.(); }} className="accent-sky-500" />
           <span className="text-xs text-slate-400">{t('launch.intoWind')}</span>
         </label>
         {!launch.launchIntoWind && (
@@ -77,7 +82,7 @@ export function LaunchPanel({ launch, onChange }: {
         {'geolocation' in navigator && (
           <button
             onClick={() => navigator.geolocation.getCurrentPosition(
-              (pos) => onChange({ latitudeDeg: +pos.coords.latitude.toFixed(4), longitudeDeg: +pos.coords.longitude.toFixed(4) }),
+              (pos) => { onChange({ latitudeDeg: +pos.coords.latitude.toFixed(4), longitudeDeg: +pos.coords.longitude.toFixed(4) }); onCommit?.(); },
               () => { /* denied or unavailable — leave the fields as they are */ },
               { timeout: 10000 },
             )}
@@ -94,7 +99,7 @@ export function LaunchPanel({ launch, onChange }: {
       <Group title={t('launch.wind')}>
         <label className="flex items-center justify-between gap-3 pb-1">
           <span className="text-xs text-slate-400">{t('launch.variesWithAltitude')}</span>
-          <input type="checkbox" checked={multilevel} onChange={(e) => toggleMultilevel(e.target.checked)} className="accent-sky-500" />
+          <input type="checkbox" checked={multilevel} onChange={(e) => { toggleMultilevel(e.target.checked); onCommit?.(); }} className="accent-sky-500" />
         </label>
 
         {!multilevel ? (
@@ -114,11 +119,11 @@ export function LaunchPanel({ launch, onChange }: {
                 <input type="number" step={0.5} value={+l.speed.toFixed(2)} onChange={(e) => patchLevel(i, { speed: parseFloat(e.target.value) || 0 })} className="w-14 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10" />
                 <input type="number" step={5} value={+l.directionDeg.toFixed(1)} onChange={(e) => patchLevel(i, { directionDeg: parseFloat(e.target.value) || 0 })} className="w-12 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10" />
                 <input type="number" step={0.5} value={+l.stddev.toFixed(2)} onChange={(e) => patchLevel(i, { stddev: parseFloat(e.target.value) || 0 })} className="w-12 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10" />
-                <button onClick={() => setLevels(levels.filter((_, j) => j !== i))} title={t('launch.removeLevel')} className="w-6 rounded bg-red-500/15 py-1 text-xs text-red-300 ring-1 ring-red-500/30">×</button>
+                <button onClick={() => { setLevels(levels.filter((_, j) => j !== i)); onCommit?.(); }} title={t('launch.removeLevel')} className="w-6 rounded bg-red-500/15 py-1 text-xs text-red-300 ring-1 ring-red-500/30">×</button>
               </div>
             ))}
             <button
-              onClick={() => setLevels([...levels, { altitudeM: (levels[levels.length - 1]?.altitudeM ?? 0) + 300, speed: levels[levels.length - 1]?.speed ?? 0, directionDeg: levels[levels.length - 1]?.directionDeg ?? 90, stddev: levels[levels.length - 1]?.stddev ?? 0 }])}
+              onClick={() => { setLevels([...levels, { altitudeM: (levels[levels.length - 1]?.altitudeM ?? 0) + 300, speed: levels[levels.length - 1]?.speed ?? 0, directionDeg: levels[levels.length - 1]?.directionDeg ?? 90, stddev: levels[levels.length - 1]?.stddev ?? 0 }]); onCommit?.(); }}
               className="w-full rounded-md bg-slate-800 py-1 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
             >{t('launch.addLevel')}</button>
           </div>
@@ -130,7 +135,7 @@ export function LaunchPanel({ launch, onChange }: {
           <span className="text-xs text-slate-400">{t('launch.geodetic')}</span>
           <select
             value={launch.geodetic ?? 'spherical'}
-            onChange={(e) => onChange({ geodetic: e.target.value as LaunchConditions['geodetic'] })}
+            onChange={(e) => { onChange({ geodetic: e.target.value as LaunchConditions['geodetic'] }); onCommit?.(); }}
             className="w-32 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
           >
             <option value="flat">{t('launch.flat')}</option>

@@ -6,6 +6,7 @@
 
 ## Design & analysis
 - **Component-tree editor** with live **CG / CP / stability** as you edit — calibers, % of length, **on-pad and rail-exit** margins, and fineness ratio.
+- **Undo / redo** across the whole workspace — component add / remove / edit **and** simulation changes (motor, ignition, launch conditions, add/rename/delete sim) on one timeline, with `Ctrl/⌘+Z` and `Ctrl+Shift+Z` (or the toolbar arrows). One edit = one step, even for a slider drag.
 - **2D schematic** with drag-to-measure **calipers**, length + cross-section rulers, zoom/pan, roll (spin), and an aft (head-on) view.
 - **3D model** view, and a **3D flight path** after a simulation. The **CG / CP** markers and a quick-glance **length · mass · CG · CP · stability** card can be toggled on both the 2D and 3D views.
 - **Aerodynamics view**: Cd vs Mach, drag breakdown (friction / pressure / base), CP vs Mach.

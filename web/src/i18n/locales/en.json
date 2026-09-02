@@ -35,6 +35,7 @@
     "new": "New",
     "newConfirm": "Discard the current design and all simulations and start a fresh design?"
   },
+  "edit": { "undo": "Undo", "redo": "Redo" },
   "menu": { "open": "Menu", "help": "Help" },
   "wip": {
     "title": "Work in progress",
@@ -143,7 +144,13 @@
     "landing": "Landing",
     "downrange": "Downrange",
     "deployVelocity": "Deploy speed",
-    "optDelay": "Optimum delay"
+    "optDelay": "Optimum delay",
+    "noMount": "Add a motor mount to run a simulation.",
+    "noMotor": "Load a motor to run a simulation."
+  },
+  "warn": {
+    "lastMountDelete": "This is the only motor mount. Delete it anyway? The rocket can't be simulated until you add another.",
+    "lastMountDisable": "This is the only motor mount. Turn it off anyway? The rocket can't be simulated until you add another."
   },
   "launch": {
     "wind": "Wind",

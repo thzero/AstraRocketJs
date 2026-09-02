@@ -23,4 +23,4 @@ Custom/imported motors persist locally alongside your custom materials, so they'
 
 ## Multiple mounts
 
-A design can have more than one motor mount (e.g. clustered or staged). The **primary** mount takes the motor shown in the Simulations panel; additional mounts keep the motors they were imported/opened with. See [Running a Simulation](Running-a-Simulation) for staging and ignition.
+A design can have more than one motor mount (e.g. clustered or staged). The **primary** mount (the first, nose-to-tail) takes the motor shown at the top of the Simulations panel; every additional mount gets its own card below it. Additional mounts keep the motors they were imported/opened with, and a newly added mount starts with a **default motor** so the design is always ready to fly — just hit **Change…** on its card to pick the real one. Remove a mount and its motor is dropped automatically. See [Running a Simulation](Running-a-Simulation) for staging and ignition.

@@ -18,6 +18,8 @@ New simulations start from your global [Settings](Settings) defaults.
 
 Press **Run flight simulation**. The flight runs in a background **Web Worker**, so the interface stays responsive — a spinner shows while it computes (typically well under a second). When it finishes, the **Flight** and **3D path** views unlock and the results appear.
 
+If the design can't fly — **no motor mount** or **no motor loaded** — the Run button is disabled and shows why, so add a motor mount (see [Designing a Rocket](Designing-a-Rocket)) or pick a motor first.
+
 ## Read the results
 
 Results are shown as tiles, in roughly chronological flight order, including:
@@ -32,4 +34,4 @@ For the full time-history, open the **[Flight and 3D-path views](Views-and-Analy
 
 ## Editing invalidates results
 
-Changing the design clears each simulation's cached result (the physics no longer matches) — just press **Run** again.
+Changing the design clears each simulation's cached result (the physics no longer matches) — just press **Run** again. The same applies to **undo/redo**: it restores your design and simulation *inputs*, but not cached flight results, so re-run to see the flight.
