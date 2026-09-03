@@ -11,6 +11,7 @@ import { StabilityBadge } from './StabilityBadge';
 import { InfoOverlay } from './InfoOverlay';
 import { DragAnalysis } from './DragAnalysis';
 import { LoadedBanner } from './LoadedBanner';
+import { BusyLock } from '../common/BusyLock';
 
 // three.js is heavy, so the 3D views are code-split — their chunks load only when
 // the user actually switches to a 3D view, keeping the default (2D) path light.
@@ -104,6 +105,10 @@ export function CenterView() {
           footer, so switching views never resizes the pane and the strip is
           always visible without scrolling. */}
       <div className="relative min-h-0 w-full flex-1 overflow-hidden px-3 pt-2">
+        {/* Canvas parts can be dragged to reposition them (a design edit), so
+            lock the design views while a sim runs. Results views (flight/path)
+            don't mutate the design, so they stay interactive. */}
+        {(view === '2d' || view === '3d') && <BusyLock />}
         {view === '2d' && (
           <>
             <div

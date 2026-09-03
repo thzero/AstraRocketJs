@@ -5,6 +5,7 @@ import { findMounts, findNode, siblingIndex } from '../../services/treeEdit';
 import { useWorkspaceStore } from '../../state/store';
 import { ComponentTree } from './ComponentTree';
 import { PropertyPanel } from './PropertyPanel';
+import { BusyLock } from '../common/BusyLock';
 
 /** Left pane: the component tree plus the selected part's property editor. */
 export function EditorPanel() {
@@ -35,7 +36,8 @@ export function EditorPanel() {
   };
 
   return (
-    <div className="space-y-4 p-3">
+    <div className="relative space-y-4 p-3">
+      <BusyLock />
       <ComponentTree tree={tree} selectedId={selectedId} onSelect={onSelect} onAdd={onAdd} onRenameDesign={onRenameDesign} onCommit={onCommit} />
       <PropertyPanel
         node={node}

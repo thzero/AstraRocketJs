@@ -146,7 +146,8 @@
     "deployVelocity": "Deploy speed",
     "optDelay": "Optimum delay",
     "noMount": "Add a motor mount to run a simulation.",
-    "noMotor": "Load a motor to run a simulation."
+    "noMotor": "Load a motor to run a simulation.",
+    "lockedWhileRunning": "Locked while the simulation runs — edits resume when it finishes."
   },
   "warn": {
     "lastMountDelete": "This is the only motor mount. Delete it anyway? The rocket can't be simulated until you add another.",

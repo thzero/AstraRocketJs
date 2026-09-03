@@ -112,6 +112,9 @@ export function MotorDialog({ open, onClose, onSelect, onError, mountDiameter, c
     const { delays, plugged } = parseDelays(selected.m.delays);
     if (delays.length) setDelay(delays[Math.floor(delays.length / 2)]!);
     else if (plugged) setDelay(PLUGGED_DELAY);
+    // Intentionally keyed on rowId only: reset the curve/delay when a DIFFERENT
+    // motor is picked, not on every `selected` identity change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.rowId]);
 
   // Opening from a card with a motor already on it pre-selects that motor —

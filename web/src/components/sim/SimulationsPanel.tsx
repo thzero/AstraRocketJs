@@ -7,6 +7,7 @@ import { SimulationsList } from './SimulationsList';
 import { MotorRow } from './MotorRow';
 import { LaunchPanel } from './LaunchPanel';
 import { SimPanel } from './SimPanel';
+import { BusyLock } from '../common/BusyLock';
 
 /** Right pane: the simulations list, then — for the selected sim — its name,
  *  motor, launch conditions, run button and results. Reads the store directly. */
@@ -61,7 +62,8 @@ export function SimulationsPanel() {
       {/* Run + results first, so a run's outcome is front-and-centre. */}
       <SimPanel info={info} runLabel={runLabel} sim={result} busy={busy} onRun={onRun} blockReason={blockReason} />
 
-      <div className="space-y-4 p-3 pt-0">
+      <div className="relative space-y-4 p-3 pt-0">
+        <BusyLock />
         <SimulationsList
           sims={sims} activeId={activeId} open={listOpen}
           onToggleOpen={() => setListOpen((o) => !o)}

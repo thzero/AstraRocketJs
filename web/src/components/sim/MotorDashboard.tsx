@@ -148,7 +148,9 @@ export function MotorDashboard({ open, onClose }: { open: boolean; onClose: () =
 
   const checkedMotors = [...checked.values()];
   const combined = useMemo(
-    () => combineCurves(checkedMotors.map((m) => (m.curves?.[0]?.samples ?? []) as Sample[])),
+    // Derive the sample lists straight from `checked` so the memo's dep is
+    // honest — `checkedMotors` is a fresh array every render and would defeat it.
+    () => combineCurves([...checked.values()].map((m) => (m.curves?.[0]?.samples ?? []) as Sample[])),
     [checked],
   );
   const effMode: Mode = (mode === 'combine' || mode === 'compare') && checked.size >= 2 ? mode : 'detail';

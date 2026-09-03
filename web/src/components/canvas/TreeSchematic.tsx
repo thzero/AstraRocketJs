@@ -78,7 +78,6 @@ const marginHalfW = (text: string) => (text.length * 7.2) / 2;
 
 /** Same tiered glyphs/vocabulary as StatTiles / SimResults. */
 const STABILITY_GLYPH: Record<StabilityState, string> = { under: '⚠', over: '△', ok: '✓' };
-const STABILITY_WORD: Record<StabilityState, string> = { under: 'under-stable', over: 'over-stable', ok: 'ok' };
 const STABILITY_VAR: Record<StabilityState, string> = {
   under: 'var(--status-serious)', over: 'var(--status-warn)', ok: 'var(--status-good)',
 };
