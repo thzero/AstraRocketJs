@@ -147,7 +147,8 @@
     "optDelay": "Retardo óptimo",
     "noMount": "Añade un soporte de motor para ejecutar una simulación.",
     "noMotor": "Carga un motor para ejecutar una simulación.",
-    "lockedWhileRunning": "Bloqueado mientras se ejecuta la simulación — la edición se reanuda al terminar."
+    "lockedWhileRunning": "Bloqueado mientras se ejecuta la simulación — la edición se reanuda al terminar.",
+    "timeout": "La simulación tardó demasiado y se detuvo. Inténtalo de nuevo o simplifica el diseño."
   },
   "warn": {
     "lastMountDelete": "Este es el único soporte de motor. ¿Eliminarlo de todos modos? El cohete no podrá simularse hasta que añadas otro.",

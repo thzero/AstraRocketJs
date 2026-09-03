@@ -9,7 +9,7 @@ import { downloadOrk } from '../services/saveOrk';
 import type { OrkExportMotor } from '../services/orkFile';
 import { loadOrk, type MountMotor } from '../services/loadOrk';
 import { newSimulation, simConditions, type Simulation, type SimPrefs } from '../services/simulations';
-import { simulateInWorker } from '../engine/simClient';
+import { simulateInWorker, SimTimeoutError } from '../engine/simClient';
 import { loadSettings } from '../services/settings';
 import { defaultDesignName } from '../services/appInfo';
 import type { MotorDims } from '../components/canvas/Rocket3D';
@@ -341,7 +341,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         });
         set((st) => ({ sims: st.sims.map((x) => (x.id === simId ? { ...x, result } : x)), view: 'flight', err: null }));
       } catch (e) {
-        set({ err: e instanceof Error ? e.message : String(e) });
+        // A timeout means the worker was killed mid-hang; show a friendly line
+        // rather than the raw sentinel. The lock releases via `finally`.
+        const msg = e instanceof SimTimeoutError ? i18n.t('sim.timeout')
+          : e instanceof Error ? e.message : String(e);
+        set({ err: msg });
       } finally {
         set({ simBusy: false });
       }
