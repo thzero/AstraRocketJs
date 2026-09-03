@@ -114,7 +114,8 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
   }
 
   // OpenRocket writes a single-quoted XML declaration; some parsers reject it.
-  xml = xml.replace(/^﻿?\s*<\?xml[^?]*\?>/, '');
+  if (xml.charCodeAt(0) === 0xfeff) xml = xml.slice(1); // strip optional BOM
+  xml = xml.replace(/^\s*<\?xml[^?]*\?>/, '');
   const doc = new DOMParser().parseFromString(xml, 'text/xml');
   if (doc.querySelector('parsererror')) {
     throw new Error('Not a valid .ork file (XML parse error)');
@@ -705,7 +706,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
     }
   }
 
-  const launch = readLaunchConditions(doc, notes);
+  const launch = readLaunchConditions(doc);
 
   return {
     name, tree: { name, components }, motor, motors, configs, chosenConfigId,
@@ -722,7 +723,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
  * stored as the INTENSITY ratio stddev/average — is the ≤23.09 legacy form
  * the desktop still writes alongside it.
  */
-function readLaunchConditions(doc: Document, notes: string[]): Partial<LaunchConditions> | undefined {
+function readLaunchConditions(doc: Document): Partial<LaunchConditions> | undefined {
   const simEl = doc.querySelector('openrocket > simulations > simulation');
   const condEl = simEl?.querySelector(':scope > conditions');
   if (!condEl) return undefined;
