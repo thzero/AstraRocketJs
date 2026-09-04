@@ -44,6 +44,9 @@ export function MotorDialog({ open, onClose, onSelect, onError, mountDiameter, c
 }) {
   const { t } = useTranslation();
   const [catalog, setCatalog] = useState<CatalogMotor[]>([]);
+  // The catalog is a dynamically-imported chunk (see motorDb.loadCatalog), so
+  // the first open pays a fetch — show a loading state until it lands.
+  const [catalogLoading, setCatalogLoading] = useState(true);
   const [text, setText] = useState('');
   const [cls, setCls] = useState<string | null>(null);
   const [mfrs, setMfrs] = useState<Set<string>>(loadMfrs);
@@ -68,7 +71,7 @@ export function MotorDialog({ open, onClose, onSelect, onError, mountDiameter, c
 
   useEffect(() => {
     let live = true;
-    loadCatalog().then((c) => { if (live) setCatalog(c); });
+    loadCatalog().then((c) => { if (live) { setCatalog(c); setCatalogLoading(false); } });
     return () => { live = false; };
   }, []);
 
@@ -229,6 +232,11 @@ export function MotorDialog({ open, onClose, onSelect, onError, mountDiameter, c
           </div>
         </div>
 
+        {catalogLoading ? (
+          <div className="grid min-h-0 flex-1 place-items-center p-6 text-center text-sm text-slate-500">
+            {t('motorDlg.loadingCatalog')}
+          </div>
+        ) : (
         <ul className="min-h-0 flex-1 divide-y divide-white/5 overflow-y-auto">
           {matches.map((m, i) => {
             const rowId = `${m.manufacturer}:${m.designation}:${i}`;
@@ -261,9 +269,10 @@ export function MotorDialog({ open, onClose, onSelect, onError, mountDiameter, c
             );
           })}
         </ul>
+        )}
 
         <div className="border-t border-white/10 p-2 text-center text-[11px] uppercase tracking-wide text-slate-500">
-          {t('motor.count', { total: matches.length })}
+          {catalogLoading ? '' : t('motor.count', { total: matches.length })}
         </div>
         </div>{/* end LEFT */}
 

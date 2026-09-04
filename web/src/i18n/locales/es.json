@@ -1,5 +1,6 @@
 {
   "app": { "title": "AstraRocketJs", "version": "{{name}} versión {{version}}", "designName": "Diseño de {{name}}" },
+  "common": { "loading": "Cargando…" },
   "engine": { "wasmTip": "Motor de física: WebAssembly (ruta rápida)", "jsTip": "Motor de física: JavaScript (alternativa)" },
   "about": {
     "open": "Acerca de",
@@ -509,6 +510,7 @@
     "searchCode": "Buscar por código (p. ej. C6)…",
     "select": "Seleccionar",
     "loading": "Cargando…",
+    "loadingCatalog": "Cargando catálogo de motores…",
     "pickHint": "Selecciona un motor para ver su curva de empuje y especificaciones.",
     "backToList": "Volver a la lista",
     "curve": "Curva",

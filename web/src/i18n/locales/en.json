@@ -1,5 +1,6 @@
 {
   "app": { "title": "AstraRocketJs", "version": "{{name}} version {{version}}", "designName": "{{name}} design" },
+  "common": { "loading": "Loading…" },
   "engine": { "wasmTip": "Physics engine: WebAssembly (fast path)", "jsTip": "Physics engine: JavaScript (fallback)" },
   "about": {
     "open": "About",
@@ -509,6 +510,7 @@
     "searchCode": "Search by code (e.g. C6)…",
     "select": "Select",
     "loading": "Loading…",
+    "loadingCatalog": "Loading motor catalog…",
     "pickHint": "Select a motor to see its thrust curve and specifications.",
     "backToList": "Back to list",
     "curve": "Curve",

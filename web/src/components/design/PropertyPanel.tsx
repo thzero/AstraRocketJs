@@ -1,10 +1,13 @@
+import { lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode, ComponentPosition } from '../../engine/openRocketEngine';
 import { isAxial, hasCatalog, hasMaterial, catalogPatch } from '../../services/treeEdit';
 import { colorForType, mergePalette } from '../../services/partColors';
 import { useSettings } from '../../state/SettingsProvider';
 import type { ComponentType as CatalogType } from '../../services/componentDb';
-import { ComponentPicker } from './ComponentPicker';
+// Lazily loaded: it pulls in the ~740 kB component catalog (services/componentDb),
+// so it splits into its own chunk fetched only when a catalog part is selected.
+const ComponentPicker = lazy(() => import('./ComponentPicker').then((m) => ({ default: m.ComponentPicker })));
 import { MaterialPicker } from './MaterialPicker';
 import { FreeformFinEditor } from './FreeformFinEditor';
 import { NumberInput } from '../common/NumberInput';
@@ -303,7 +306,9 @@ export function PropertyPanel({ node, onChange, onCommit, onRemove, onMove, canM
       )}
 
       {hasCatalog(node.type) && (
-        <ComponentPicker type={node.type as CatalogType} onApply={(p) => commitChange(catalogPatch(p))} />
+        <Suspense fallback={<div className="text-xs text-slate-500">{t('common.loading')}</div>}>
+          <ComponentPicker type={node.type as CatalogType} onApply={(p) => commitChange(catalogPatch(p))} />
+        </Suspense>
       )}
 
       {fields.map((f) => {
