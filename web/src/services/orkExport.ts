@@ -1,7 +1,9 @@
 import { PLUGGED_DELAY, type ComponentNode, type ComponentPosition } from '../engine/openRocketEngine';
 import { asStageNodes } from './orkTree';
 import { shapeIsClippable, shapeParamDefault } from '../tree/shapeProfile';
+import { num } from '../tree/nodeProps';
 import { escapeXml } from './xmlUtil';
+import { uuid } from './uuid';
 import type { OrkExportMotor, OrkDeployOverride, OrkTreeExportInput } from './orkTypes';
 
 // ============================ EXPORT ============================
@@ -150,7 +152,7 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
    * only when the design genuinely has no fillet.
    */
   const filletXml = (depth: number, node: ComponentNode) => {
-    emit(depth, `<filletradius>${n(node, 'filletRadius', 0)}</filletradius>`);
+    emit(depth, `<filletradius>${num(node, 'filletRadius', 0)}</filletradius>`);
     const density = typeof node['filletDensity'] === 'number' ? node['filletDensity'] as number : 680;
     const group = typeof node['filletMaterialGroup'] === 'string'
       ? node['filletMaterialGroup'] as string : 'PaperProducts';
@@ -171,13 +173,13 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
   // (front/center/end, OR 15.03 compat) then the modern one (top/middle/
   // bottom); readers apply the last occurrence.
   const finTabsXml = (depth: number, node: ComponentNode) => {
-    const h = n(node, 'tabHeight', 0);
-    const len = n(node, 'tabLength', 0);
+    const h = num(node, 'tabHeight', 0);
+    const len = num(node, 'tabLength', 0);
     if (h <= 0 || len <= 0) return;
     const method = typeof node['tabOffsetMethod'] === 'string'
       ? (node['tabOffsetMethod'] as string) : 'middle';
     const legacy = method === 'top' ? 'front' : method === 'bottom' ? 'end' : 'center';
-    const offset = n(node, 'tabOffset', 0);
+    const offset = num(node, 'tabOffset', 0);
     emit(depth, `<tabheight>${h}</tabheight>`);
     emit(depth, `<tablength>${len}</tablength>`);
     emit(depth, `<tabposition relativeto="${legacy}">${offset}</tabposition>`);
@@ -230,14 +232,11 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
     emit(depth, '</motormount>');
   };
 
-  const n = (node: ComponentNode, key: string, fb: number): number =>
-    typeof node[key] === 'number' ? (node[key] as number) : fb;
-
   // Engine defaults from Transition.Shape.defaultParameter() — writing any
   // other fallback silently reshapes the nose (haack's default is 0, not 1).
   const shapeParamXml = (depth: number, node: ComponentNode) => {
     const dflt = shapeParamDefault(String(node['shape'] ?? 'ogive'));
-    emit(depth, `<shapeparameter>${n(node, 'shapeParameter', dflt)}</shapeparameter>`);
+    emit(depth, `<shapeparameter>${num(node, 'shapeParameter', dflt)}</shapeparameter>`);
   };
 
   const emitChildren = (node: ComponentNode, depth: number) => {
@@ -264,15 +263,15 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         header(depth + 1, node, 'Nose Cone');
         finishXml(depth + 1, node);
         material(depth + 1, node);
-        emit(depth + 1, `<length>${n(node, 'length', 0.07)}</length>`);
+        emit(depth + 1, `<length>${num(node, 'length', 0.07)}</length>`);
         thicknessXml(depth + 1, node, 0.002);
         emit(depth + 1, `<shape>${escapeXml(String(node['shape'] ?? 'ogive'))}</shape>`);
         emit(depth + 1, '<shapeclipped>false</shapeclipped>');
         shapeParamXml(depth + 1, node);
-        emit(depth + 1, `<aftradius>${n(node, 'aftRadius', 0.012)}</aftradius>`);
-        emit(depth + 1, `<aftshoulderradius>${n(node, 'shoulderRadius', 0)}</aftshoulderradius>`);
-        emit(depth + 1, `<aftshoulderlength>${n(node, 'shoulderLength', 0)}</aftshoulderlength>`);
-        emit(depth + 1, `<aftshoulderthickness>${n(node, 'shoulderThickness', 0)}</aftshoulderthickness>`);
+        emit(depth + 1, `<aftradius>${num(node, 'aftRadius', 0.012)}</aftradius>`);
+        emit(depth + 1, `<aftshoulderradius>${num(node, 'shoulderRadius', 0)}</aftshoulderradius>`);
+        emit(depth + 1, `<aftshoulderlength>${num(node, 'shoulderLength', 0)}</aftshoulderlength>`);
+        emit(depth + 1, `<aftshoulderthickness>${num(node, 'shoulderThickness', 0)}</aftshoulderthickness>`);
         emit(depth + 1, `<aftshouldercapped>${node['shoulderCapped'] === true}</aftshouldercapped>`);
         emit(depth + 1, '<isflipped>false</isflipped>');
         close('nosecone');
@@ -283,7 +282,7 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         header(depth + 1, node, 'Transition');
         finishXml(depth + 1, node);
         material(depth + 1, node);
-        emit(depth + 1, `<length>${n(node, 'length', 0.04)}</length>`);
+        emit(depth + 1, `<length>${num(node, 'length', 0.04)}</length>`);
         thicknessXml(depth + 1, node, 0.002);
         emit(depth + 1, `<shape>${escapeXml(String(node['shape'] ?? 'conical'))}</shape>`);
         // Write what actually simulated so the desktop reproduces our
@@ -304,9 +303,9 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         emit(depth + 1, `<aftradius>${typeof node['aftRadius'] === 'number' ? node['aftRadius'] : 'auto'}</aftradius>`);
         for (const side of ['fore', 'aft'] as const) {
           const key = side === 'fore' ? 'foreShoulder' : 'aftShoulder';
-          emit(depth + 1, `<${side}shoulderradius>${n(node, `${key}Radius`, 0)}</${side}shoulderradius>`);
-          emit(depth + 1, `<${side}shoulderlength>${n(node, `${key}Length`, 0)}</${side}shoulderlength>`);
-          emit(depth + 1, `<${side}shoulderthickness>${n(node, `${key}Thickness`, 0)}</${side}shoulderthickness>`);
+          emit(depth + 1, `<${side}shoulderradius>${num(node, `${key}Radius`, 0)}</${side}shoulderradius>`);
+          emit(depth + 1, `<${side}shoulderlength>${num(node, `${key}Length`, 0)}</${side}shoulderlength>`);
+          emit(depth + 1, `<${side}shoulderthickness>${num(node, `${key}Thickness`, 0)}</${side}shoulderthickness>`);
           emit(depth + 1, `<${side}shouldercapped>false</${side}shouldercapped>`);
         }
         close('transition');
@@ -317,16 +316,16 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         header(depth + 1, node, 'Body Tube');
         finishXml(depth + 1, node);
         material(depth + 1, node);
-        emit(depth + 1, `<length>${n(node, 'length', 0.3)}</length>`);
-        emit(depth + 1, `<thickness>${n(node, 'thickness', 0.0005)}</thickness>`);
-        emit(depth + 1, `<radius>${n(node, 'outerRadius', 0.012)}</radius>`);
+        emit(depth + 1, `<length>${num(node, 'length', 0.3)}</length>`);
+        emit(depth + 1, `<thickness>${num(node, 'thickness', 0.0005)}</thickness>`);
+        emit(depth + 1, `<radius>${num(node, 'outerRadius', 0.012)}</radius>`);
         // Extension tag (desktop warns-and-ignores): sub-minimum flag.
         if (node['caseAirframe'] === true) {
           emit(depth + 1, '<caseairframe>true</caseairframe>');
         }
         // Min-diameter: the body tube itself is the motor mount.
         if (node['motorMount'] === true || mountConfigs(node.id).length > 0) {
-          motorMountXml(depth + 1, node.id, n(node, 'motorOverhang', 0));
+          motorMountXml(depth + 1, node.id, num(node, 'motorOverhang', 0));
         }
         close('bodytube');
         break;
@@ -334,42 +333,42 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
       case 'trapezoidfinset': {
         open('trapezoidfinset');
         header(depth + 1, node, 'Trapezoidal Fin Set');
-        emit(depth + 1, `<instancecount>${n(node, 'finCount', 3)}</instancecount>`);
-        emit(depth + 1, `<fincount>${n(node, 'finCount', 3)}</fincount>`);
+        emit(depth + 1, `<instancecount>${num(node, 'finCount', 3)}</instancecount>`);
+        emit(depth + 1, `<fincount>${num(node, 'finCount', 3)}</fincount>`);
         emit(depth + 1, '<radiusoffset method="surface">0.0</radiusoffset>');
         emit(depth + 1, '<angleoffset method="relative">0.0</angleoffset>');
-        emit(depth + 1, `<rotation>${(n(node, 'rotation', 0) * 180) / Math.PI}</rotation>`);
+        emit(depth + 1, `<rotation>${(num(node, 'rotation', 0) * 180) / Math.PI}</rotation>`);
         position(depth + 1, node, 'bottom');
         finishXml(depth + 1, node);
         material(depth + 1, node);
-        emit(depth + 1, `<thickness>${n(node, 'thickness', 0.003)}</thickness>`);
+        emit(depth + 1, `<thickness>${num(node, 'thickness', 0.003)}</thickness>`);
         emit(depth + 1, `<crosssection>${escapeXml(String(node['crossSection'] ?? 'square'))}</crosssection>`);
         airfoilXml(depth + 1, node);
-        emit(depth + 1, `<cant>${(n(node, 'cant', 0) * 180) / Math.PI}</cant>`);
+        emit(depth + 1, `<cant>${(num(node, 'cant', 0) * 180) / Math.PI}</cant>`);
         finTabsXml(depth + 1, node);
         filletXml(depth + 1, node);
-        emit(depth + 1, `<rootchord>${n(node, 'rootChord', 0.05)}</rootchord>`);
-        emit(depth + 1, `<tipchord>${n(node, 'tipChord', 0.03)}</tipchord>`);
-        emit(depth + 1, `<sweeplength>${n(node, 'sweep', 0.02)}</sweeplength>`);
-        emit(depth + 1, `<height>${n(node, 'height', 0.03)}</height>`);
+        emit(depth + 1, `<rootchord>${num(node, 'rootChord', 0.05)}</rootchord>`);
+        emit(depth + 1, `<tipchord>${num(node, 'tipChord', 0.03)}</tipchord>`);
+        emit(depth + 1, `<sweeplength>${num(node, 'sweep', 0.02)}</sweeplength>`);
+        emit(depth + 1, `<height>${num(node, 'height', 0.03)}</height>`);
         close('trapezoidfinset');
         break;
       }
       case 'freeformfinset': {
         open('freeformfinset');
         header(depth + 1, node, 'Freeform Fin Set');
-        emit(depth + 1, `<instancecount>${n(node, 'finCount', 3)}</instancecount>`);
-        emit(depth + 1, `<fincount>${n(node, 'finCount', 3)}</fincount>`);
+        emit(depth + 1, `<instancecount>${num(node, 'finCount', 3)}</instancecount>`);
+        emit(depth + 1, `<fincount>${num(node, 'finCount', 3)}</fincount>`);
         emit(depth + 1, '<radiusoffset method="surface">0.0</radiusoffset>');
         emit(depth + 1, '<angleoffset method="relative">0.0</angleoffset>');
-        emit(depth + 1, `<rotation>${(n(node, 'rotation', 0) * 180) / Math.PI}</rotation>`);
+        emit(depth + 1, `<rotation>${(num(node, 'rotation', 0) * 180) / Math.PI}</rotation>`);
         position(depth + 1, node, 'bottom');
         finishXml(depth + 1, node);
         material(depth + 1, node);
-        emit(depth + 1, `<thickness>${n(node, 'thickness', 0.003)}</thickness>`);
+        emit(depth + 1, `<thickness>${num(node, 'thickness', 0.003)}</thickness>`);
         emit(depth + 1, `<crosssection>${escapeXml(String(node['crossSection'] ?? 'square'))}</crosssection>`);
         airfoilXml(depth + 1, node);
-        emit(depth + 1, `<cant>${(n(node, 'cant', 0) * 180) / Math.PI}</cant>`);
+        emit(depth + 1, `<cant>${(num(node, 'cant', 0) * 180) / Math.PI}</cant>`);
         finTabsXml(depth + 1, node);
         filletXml(depth + 1, node);
         emit(depth + 1, '<finpoints>');
@@ -384,39 +383,39 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
       case 'ellipticalfinset': {
         open('ellipticalfinset');
         header(depth + 1, node, 'Elliptical Fin Set');
-        emit(depth + 1, `<instancecount>${n(node, 'finCount', 3)}</instancecount>`);
-        emit(depth + 1, `<fincount>${n(node, 'finCount', 3)}</fincount>`);
+        emit(depth + 1, `<instancecount>${num(node, 'finCount', 3)}</instancecount>`);
+        emit(depth + 1, `<fincount>${num(node, 'finCount', 3)}</fincount>`);
         emit(depth + 1, '<radiusoffset method="surface">0.0</radiusoffset>');
         emit(depth + 1, '<angleoffset method="relative">0.0</angleoffset>');
-        emit(depth + 1, `<rotation>${(n(node, 'rotation', 0) * 180) / Math.PI}</rotation>`);
+        emit(depth + 1, `<rotation>${(num(node, 'rotation', 0) * 180) / Math.PI}</rotation>`);
         position(depth + 1, node, 'bottom');
         finishXml(depth + 1, node);
         material(depth + 1, node);
-        emit(depth + 1, `<thickness>${n(node, 'thickness', 0.003)}</thickness>`);
+        emit(depth + 1, `<thickness>${num(node, 'thickness', 0.003)}</thickness>`);
         emit(depth + 1, `<crosssection>${escapeXml(String(node['crossSection'] ?? 'square'))}</crosssection>`);
         airfoilXml(depth + 1, node);
-        emit(depth + 1, `<cant>${(n(node, 'cant', 0) * 180) / Math.PI}</cant>`);
+        emit(depth + 1, `<cant>${(num(node, 'cant', 0) * 180) / Math.PI}</cant>`);
         finTabsXml(depth + 1, node);
         filletXml(depth + 1, node);
-        emit(depth + 1, `<rootchord>${n(node, 'rootChord', 0.05)}</rootchord>`);
-        emit(depth + 1, `<height>${n(node, 'height', 0.03)}</height>`);
+        emit(depth + 1, `<rootchord>${num(node, 'rootChord', 0.05)}</rootchord>`);
+        emit(depth + 1, `<height>${num(node, 'height', 0.03)}</height>`);
         close('ellipticalfinset');
         break;
       }
       case 'tubefinset': {
         open('tubefinset');
         header(depth + 1, node, 'Tube Fin Set');
-        emit(depth + 1, `<instancecount>${n(node, 'finCount', 6)}</instancecount>`);
-        emit(depth + 1, `<fincount>${n(node, 'finCount', 6)}</fincount>`);
+        emit(depth + 1, `<instancecount>${num(node, 'finCount', 6)}</instancecount>`);
+        emit(depth + 1, `<fincount>${num(node, 'finCount', 6)}</fincount>`);
         emit(depth + 1, '<radiusoffset method="coaxial">0.0</radiusoffset>');
         emit(depth + 1, '<angleoffset method="fixed">0.0</angleoffset>');
-        emit(depth + 1, `<rotation>${(n(node, 'rotation', 0) * 180) / Math.PI}</rotation>`);
+        emit(depth + 1, `<rotation>${(num(node, 'rotation', 0) * 180) / Math.PI}</rotation>`);
         position(depth + 1, node, 'bottom');
         finishXml(depth + 1, node);
         material(depth + 1, node);
         emit(depth + 1, `<radius>${typeof node['outerRadius'] === 'number' ? node['outerRadius'] : 'auto'}</radius>`);
-        emit(depth + 1, `<length>${n(node, 'length', 0.1)}</length>`);
-        emit(depth + 1, `<thickness>${n(node, 'thickness', 0.0005)}</thickness>`);
+        emit(depth + 1, `<length>${num(node, 'length', 0.1)}</length>`);
+        emit(depth + 1, `<thickness>${num(node, 'thickness', 0.0005)}</thickness>`);
         close('tubefinset');
         break;
       }
@@ -425,25 +424,25 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         header(depth + 1, node, 'Inner Tube');
         position(depth + 1, node, 'bottom');
         material(depth + 1, node);
-        emit(depth + 1, `<length>${n(node, 'length', 0.07)}</length>`);
+        emit(depth + 1, `<length>${num(node, 'length', 0.07)}</length>`);
         // Preserve the off-axis / split-cluster offset (see the innertube reader):
         // <radialposition> metres, <radialdirection> DEGREES. Defaults to 0 so a
         // centred tube is byte-identical to before.
-        emit(depth + 1, `<radialposition>${n(node, 'radialPosition', 0)}</radialposition>`);
-        emit(depth + 1, `<radialdirection>${(n(node, 'radialDirection', 0) * 180) / Math.PI}</radialdirection>`);
-        emit(depth + 1, `<outerradius>${n(node, 'outerRadius', 0.0095)}</outerradius>`);
-        emit(depth + 1, `<thickness>${n(node, 'thickness', 0.0005)}</thickness>`);
+        emit(depth + 1, `<radialposition>${num(node, 'radialPosition', 0)}</radialposition>`);
+        emit(depth + 1, `<radialdirection>${(num(node, 'radialDirection', 0) * 180) / Math.PI}</radialdirection>`);
+        emit(depth + 1, `<outerradius>${num(node, 'outerRadius', 0.0095)}</outerradius>`);
+        emit(depth + 1, `<thickness>${num(node, 'thickness', 0.0005)}</thickness>`);
         // Desktop stores cluster rotation in DEGREES; we keep radians inside.
         emit(depth + 1, `<clusterconfiguration>${escapeXml(typeof node['cluster'] === 'string' ? (node['cluster'] as string) : 'single')}</clusterconfiguration>`);
-        emit(depth + 1, `<clusterscale>${n(node, 'clusterScale', 1)}</clusterscale>`);
-        emit(depth + 1, `<clusterrotation>${(n(node, 'clusterRotation', 0) * 180) / Math.PI}</clusterrotation>`);
+        emit(depth + 1, `<clusterscale>${num(node, 'clusterScale', 1)}</clusterscale>`);
+        emit(depth + 1, `<clusterrotation>${(num(node, 'clusterRotation', 0) * 180) / Math.PI}</clusterrotation>`);
         if (typeof node['maxMotorLength'] === 'number') {
           // Extension tag (desktop warns-and-ignores): the mount's physical
           // motor-length limit travels with the design.
           emit(depth + 1, `<maxmotorlength>${node['maxMotorLength']}</maxmotorlength>`);
         }
         if (node['motorMount'] === true || mountConfigs(node.id).length > 0) {
-          motorMountXml(depth + 1, node.id, n(node, 'motorOverhang', 0));
+          motorMountXml(depth + 1, node.id, num(node, 'motorOverhang', 0));
         }
         close('innertube');
         break;
@@ -453,11 +452,11 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         header(depth + 1, node, 'Tube Coupler');
         position(depth + 1, node, 'bottom');
         material(depth + 1, node);
-        emit(depth + 1, `<length>${n(node, 'length', 0.05)}</length>`);
+        emit(depth + 1, `<length>${num(node, 'length', 0.05)}</length>`);
         emit(depth + 1, '<radialposition>0.0</radialposition>');
         emit(depth + 1, '<radialdirection>0.0</radialdirection>');
         emit(depth + 1, '<outerradius>auto</outerradius>');
-        emit(depth + 1, `<thickness>${n(node, 'thickness', 0.0005)}</thickness>`);
+        emit(depth + 1, `<thickness>${num(node, 'thickness', 0.0005)}</thickness>`);
         close('tubecoupler');
         break;
       }
@@ -465,11 +464,11 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
       case 'bulkhead': {
         open(t);
         header(depth + 1, node, t === 'bulkhead' ? 'Bulkhead' : 'Centering Ring');
-        emit(depth + 1, `<instancecount>${n(node, 'instanceCount', 1)}</instancecount>`);
-        emit(depth + 1, `<instanceseparation>${n(node, 'instanceSeparation', 0)}</instanceseparation>`);
+        emit(depth + 1, `<instancecount>${num(node, 'instanceCount', 1)}</instancecount>`);
+        emit(depth + 1, `<instanceseparation>${num(node, 'instanceSeparation', 0)}</instanceseparation>`);
         position(depth + 1, node, 'bottom');
         material(depth + 1, node);
-        emit(depth + 1, `<length>${n(node, 'length', 0.002)}</length>`);
+        emit(depth + 1, `<length>${num(node, 'length', 0.002)}</length>`);
         emit(depth + 1, '<radialposition>0.0</radialposition>');
         emit(depth + 1, '<radialdirection>0.0</radialdirection>');
         emit(depth + 1, '<outerradius>auto</outerradius>');
@@ -482,11 +481,11 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         header(depth + 1, node, 'Engine Block');
         position(depth + 1, node, 'bottom');
         material(depth + 1, node);
-        emit(depth + 1, `<length>${n(node, 'length', 0.005)}</length>`);
+        emit(depth + 1, `<length>${num(node, 'length', 0.005)}</length>`);
         emit(depth + 1, '<radialposition>0.0</radialposition>');
         emit(depth + 1, '<radialdirection>0.0</radialdirection>');
         emit(depth + 1, '<outerradius>auto</outerradius>');
-        emit(depth + 1, `<thickness>${n(node, 'thickness', 0.001)}</thickness>`);
+        emit(depth + 1, `<thickness>${num(node, 'thickness', 0.001)}</thickness>`);
         close('engineblock');
         break;
       }
@@ -497,40 +496,40 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         header(depth + 1, node, 'Camera shroud');
         position(depth + 1, node, 'middle');
         finishXml(depth + 1, node);
-        emit(depth + 1, `<length>${n(node, 'length', 0.08)}</length>`);
-        emit(depth + 1, `<width>${n(node, 'width', 0.025)}</width>`);
-        emit(depth + 1, `<height>${n(node, 'height', 0.02)}</height>`);
+        emit(depth + 1, `<length>${num(node, 'length', 0.08)}</length>`);
+        emit(depth + 1, `<width>${num(node, 'width', 0.025)}</width>`);
+        emit(depth + 1, `<height>${num(node, 'height', 0.02)}</height>`);
         emit(depth + 1, `<fairingshape>${escapeXml(String(node['fairingShape'] ?? 'halfround'))}</fairingshape>`);
-        emit(depth + 1, `<mass>${n(node, 'mass', 0.03)}</mass>`);
+        emit(depth + 1, `<mass>${num(node, 'mass', 0.03)}</mass>`);
         close('fairing');
         break;
       }
       case 'launchlug': {
         open('launchlug');
         header(depth + 1, node, 'Launch Lug');
-        emit(depth + 1, `<instancecount>${n(node, 'instanceCount', 1)}</instancecount>`);
-        emit(depth + 1, `<instanceseparation>${n(node, 'instanceSeparation', 0)}</instanceseparation>`);
-        emit(depth + 1, `<angleoffset method="relative">${(n(node, 'angleOffset', Math.PI) * 180) / Math.PI}</angleoffset>`);
-        emit(depth + 1, `<radialdirection>${(n(node, 'angleOffset', Math.PI) * 180) / Math.PI}</radialdirection>`);
+        emit(depth + 1, `<instancecount>${num(node, 'instanceCount', 1)}</instancecount>`);
+        emit(depth + 1, `<instanceseparation>${num(node, 'instanceSeparation', 0)}</instanceseparation>`);
+        emit(depth + 1, `<angleoffset method="relative">${(num(node, 'angleOffset', Math.PI) * 180) / Math.PI}</angleoffset>`);
+        emit(depth + 1, `<radialdirection>${(num(node, 'angleOffset', Math.PI) * 180) / Math.PI}</radialdirection>`);
         position(depth + 1, node, 'middle');
         finishXml(depth + 1, node);
         material(depth + 1, node);
-        emit(depth + 1, `<radius>${n(node, 'outerRadius', 0.0022)}</radius>`);
-        emit(depth + 1, `<length>${n(node, 'length', 0.05)}</length>`);
-        emit(depth + 1, `<thickness>${n(node, 'thickness', 0.0003)}</thickness>`);
+        emit(depth + 1, `<radius>${num(node, 'outerRadius', 0.0022)}</radius>`);
+        emit(depth + 1, `<length>${num(node, 'length', 0.05)}</length>`);
+        emit(depth + 1, `<thickness>${num(node, 'thickness', 0.0003)}</thickness>`);
         close('launchlug');
         break;
       }
       case 'railbutton': {
         open('railbutton');
         header(depth + 1, node, 'Rail Button');
-        emit(depth + 1, `<instancecount>${n(node, 'instanceCount', 1)}</instancecount>`);
-        emit(depth + 1, `<instanceseparation>${n(node, 'instanceSeparation', 0)}</instanceseparation>`);
-        emit(depth + 1, `<angleoffset method="relative">${(n(node, 'angleOffset', Math.PI) * 180) / Math.PI}</angleoffset>`);
+        emit(depth + 1, `<instancecount>${num(node, 'instanceCount', 1)}</instancecount>`);
+        emit(depth + 1, `<instanceseparation>${num(node, 'instanceSeparation', 0)}</instanceseparation>`);
+        emit(depth + 1, `<angleoffset method="relative">${(num(node, 'angleOffset', Math.PI) * 180) / Math.PI}</angleoffset>`);
         position(depth + 1, node, 'middle');
         finishXml(depth + 1, node);
         emit(depth + 1, '<material type="bulk" density="1420.0" group="Plastics">Delrin</material>');
-        emit(depth + 1, `<outerdiameter>${n(node, 'outerDiameter', 0.0097)}</outerdiameter>`);
+        emit(depth + 1, `<outerdiameter>${num(node, 'outerDiameter', 0.0097)}</outerdiameter>`);
         emit(depth + 1, '<innerdiameter>0.008</innerdiameter>');
         emit(depth + 1, '<height>0.0097</height>');
         emit(depth + 1, '<baseheight>0.002</baseheight>');
@@ -550,16 +549,16 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         emit(depth + 1, `<cd>${typeof node['cd'] === 'number' ? node['cd'] : 'auto'}</cd>`);
         material(depth + 1, node, 'surface');
         emit(depth + 1, `<deployevent>${escapeXml(String(node['deployEvent'] ?? 'ejection'))}</deployevent>`);
-        emit(depth + 1, `<deployaltitude>${n(node, 'deployAltitude', 200)}</deployaltitude>`);
-        emit(depth + 1, `<deploydelay>${n(node, 'deployDelay', 0)}</deploydelay>`);
+        emit(depth + 1, `<deployaltitude>${num(node, 'deployAltitude', 200)}</deployaltitude>`);
+        emit(depth + 1, `<deploydelay>${num(node, 'deployDelay', 0)}</deploydelay>`);
         deploymentConfigs(depth + 1, node);
-        emit(depth + 1, `<diameter>${n(node, 'diameter', 0.3)}</diameter>`);
+        emit(depth + 1, `<diameter>${num(node, 'diameter', 0.3)}</diameter>`);
         if (typeof node['spillHoleDiameter'] === 'number' && (node['spillHoleDiameter'] as number) > 0) {
           // Extension tag (desktop warns-and-ignores, same as airfoilsection).
           emit(depth + 1, `<spillholediameter>${node['spillHoleDiameter']}</spillholediameter>`);
         }
-        emit(depth + 1, `<linecount>${n(node, 'lineCount', 6)}</linecount>`);
-        emit(depth + 1, `<linelength>${n(node, 'lineLength', 0.3)}</linelength>`);
+        emit(depth + 1, `<linecount>${num(node, 'lineCount', 6)}</linecount>`);
+        emit(depth + 1, `<linelength>${num(node, 'lineLength', 0.3)}</linelength>`);
         if (typeof node['lineDensity'] === 'number') {
           const lname = typeof node['lineMaterialName'] === 'string' ? (node['lineMaterialName'] as string) : 'custom';
           emit(depth + 1, `<linematerial type="line" density="${node['lineDensity']}">${escapeXml(lname)}</linematerial>`);
@@ -580,11 +579,11 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         emit(depth + 1, `<cd>${typeof node['cd'] === 'number' ? node['cd'] : 'auto'}</cd>`);
         material(depth + 1, node, 'surface');
         emit(depth + 1, `<deployevent>${escapeXml(String(node['deployEvent'] ?? 'ejection'))}</deployevent>`);
-        emit(depth + 1, `<deployaltitude>${n(node, 'deployAltitude', 200)}</deployaltitude>`);
-        emit(depth + 1, `<deploydelay>${n(node, 'deployDelay', 0)}</deploydelay>`);
+        emit(depth + 1, `<deployaltitude>${num(node, 'deployAltitude', 200)}</deployaltitude>`);
+        emit(depth + 1, `<deploydelay>${num(node, 'deployDelay', 0)}</deploydelay>`);
         deploymentConfigs(depth + 1, node);
-        emit(depth + 1, `<striplength>${n(node, 'stripLength', 0.5)}</striplength>`);
-        emit(depth + 1, `<stripwidth>${n(node, 'stripWidth', 0.05)}</stripwidth>`);
+        emit(depth + 1, `<striplength>${num(node, 'stripLength', 0.5)}</striplength>`);
+        emit(depth + 1, `<stripwidth>${num(node, 'stripWidth', 0.05)}</stripwidth>`);
         close('streamer');
         break;
       }
@@ -596,7 +595,7 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         emit(depth + 1, '<packedradius>0.0125</packedradius>');
         emit(depth + 1, '<radialposition>0.0</radialposition>');
         emit(depth + 1, '<radialdirection>0.0</radialdirection>');
-        emit(depth + 1, `<cordlength>${n(node, 'cordLength', 0.3)}</cordlength>`);
+        emit(depth + 1, `<cordlength>${num(node, 'cordLength', 0.3)}</cordlength>`);
         material(depth + 1, node, 'line');
         close('shockcord');
         break;
@@ -605,11 +604,11 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         open('masscomponent');
         header(depth + 1, node, 'Mass Component');
         position(depth + 1, node, 'top');
-        emit(depth + 1, `<packedlength>${n(node, 'length', 0.02)}</packedlength>`);
-        emit(depth + 1, `<packedradius>${n(node, 'radius', 0.005)}</packedradius>`);
+        emit(depth + 1, `<packedlength>${num(node, 'length', 0.02)}</packedlength>`);
+        emit(depth + 1, `<packedradius>${num(node, 'radius', 0.005)}</packedradius>`);
         emit(depth + 1, '<radialposition>0.0</radialposition>');
         emit(depth + 1, '<radialdirection>0.0</radialdirection>');
-        emit(depth + 1, `<mass>${n(node, 'mass', 0.01)}</mass>`);
+        emit(depth + 1, `<mass>${num(node, 'mass', 0.01)}</mass>`);
         // Legal values = MassComponent.MassComponentType lowercased:
         // masscomponent, altimeter, flightcomputer, deploymentcharge,
         // tracker, payload, recoveryhardware, battery.
@@ -623,12 +622,12 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         header(depth + 1, node, t === 'podset' ? 'Pod set' : 'Booster');
         // ComponentAssembly: NO <color>/<linestyle>/<radialdirection> — the
         // desktop savers suppress all three for assemblies.
-        emit(depth + 1, `<instancecount>${n(node, 'instanceCount', 2)}</instancecount>`);
+        emit(depth + 1, `<instancecount>${num(node, 'instanceCount', 2)}</instancecount>`);
         const rMethod = node['radiusMethod'] === 'free' ? 'free' : 'relative';
-        emit(depth + 1, `<radiusoffset method="${rMethod}">${n(node, 'radiusOffset', 0)}</radiusoffset>`); // metres
+        emit(depth + 1, `<radiusoffset method="${rMethod}">${num(node, 'radiusOffset', 0)}</radiusoffset>`); // metres
         const aMethod = node['angleMethod'] === 'fixed' ? 'fixed' : 'relative';
         // angleOffset is stored in radians → DEGREES on disk (same as cant).
-        emit(depth + 1, `<angleoffset method="${aMethod}">${(n(node, 'angleOffset', 0) * 180) / Math.PI}</angleoffset>`);
+        emit(depth + 1, `<angleoffset method="${aMethod}">${(num(node, 'angleOffset', 0) * 180) / Math.PI}</angleoffset>`);
         position(depth + 1, node, 'bottom');
         if (t === 'parallelstage') {
           // Same separation block a booster <stage> writes (bare default + config).
@@ -775,10 +774,3 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
   return lines.join('\n') + '\n';
 }
 
-function uuid(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, () =>
-    Math.floor(Math.random() * 16).toString(16));
-}
