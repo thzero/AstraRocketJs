@@ -382,7 +382,6 @@
     "plugged": "plugged",
     "all": "All",
     "count": "{{total}} motors",
-    "showing": " (showing {{shown}})",
     "deleteTitle": "Delete imported motor {{name}}",
     "importedTitle": "Imported motor"
   },

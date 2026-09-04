@@ -586,11 +586,9 @@ function assertFiniteCurve(motor: MotorSpec): void {
 /** A rocket design held inside the engine, addressed by handle. */
 export class OpenRocketDesign {
   private readonly handle: number;
-  private readonly mountHandle: number;
 
-  private constructor(handle: number, mountHandle: number) {
+  private constructor(handle: number) {
     this.handle = handle;
-    this.mountHandle = mountHandle;
   }
 
   /**
@@ -599,7 +597,7 @@ export class OpenRocketDesign {
    */
   static buildTree(tree: RocketTree): OpenRocketDesign {
     const handle = eng().buildRocket(JSON.stringify(tree));
-    return new OpenRocketDesign(handle, -1);
+    return new OpenRocketDesign(handle);
   }
 
   /** Attaches a motor to the mount with the given node id (buildTree rockets). */
@@ -622,35 +620,6 @@ export class OpenRocketDesign {
    */
   setMotorIgnitionById(componentId: string, event: IgnitionEvent, delayS = 0): void {
     eng().setMotorIgnitionById(this.handle, componentId, event, delayS);
-  }
-
-  /** @deprecated Fixed-layout builder kept for the engine tests; the app uses buildTree(). */
-  static build(spec: RocketSpec): OpenRocketDesign {
-    const r = eng().newRocket();
-    eng().addNoseCone(
-      r, spec.noseCone.length, spec.noseCone.aftRadius, spec.noseCone.thickness,
-      spec.noseCone.shape ?? 'ogive', spec.noseCone.materialDensity ?? 0);
-    const body = eng().addBodyTube(
-      r, spec.bodyTube.length, spec.bodyTube.outerRadius, spec.bodyTube.thickness,
-      spec.bodyTube.materialDensity ?? 0);
-    eng().addTrapezoidFins(
-      body, spec.fins.count, spec.fins.rootChord, spec.fins.tipChord,
-      spec.fins.sweep, spec.fins.height, spec.fins.thickness,
-      spec.fins.materialDensity ?? 0);
-    const mount = eng().addInnerTube(
-      body, spec.motorMount.length, spec.motorMount.outerRadius, spec.motorMount.thickness, 0);
-    if (spec.parachute) {
-      eng().addParachute(body, spec.parachute.diameter, spec.parachute.dragCoefficient ?? 0);
-    }
-    return new OpenRocketDesign(r, mount);
-  }
-
-  /** @deprecated Pairs with build(); the app assigns motors via setMotorById(). */
-  setMotor(motor: MotorSpec): void {
-    assertFiniteCurve(motor);
-    eng().setMotor(
-      this.handle, this.mountHandle, motor.designation, motor.diameter, motor.length,
-      motor.times, motor.thrusts, motor.masses, motor.cgX, toKernelDelay(motor.ejectionDelay));
   }
 
   /**

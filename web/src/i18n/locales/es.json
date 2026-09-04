@@ -382,7 +382,6 @@
     "plugged": "taponado",
     "all": "Todos",
     "count": "{{total}} motores",
-    "showing": " (mostrando {{shown}})",
     "deleteTitle": "Eliminar motor importado {{name}}",
     "importedTitle": "Motor importado"
   },

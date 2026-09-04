@@ -1,4 +1,5 @@
 import type { ComponentNode } from '../engine/openRocketEngine';
+import { num } from './nodeProps';
 
 /**
  * Tube-fin tube radius (m). When the set carries no explicit outerRadius the
@@ -8,7 +9,7 @@ import type { ComponentNode } from '../engine/openRocketEngine';
 export function tubeFinRadius(node: ComponentNode, bodyRadius: number): number {
   const explicit = node['outerRadius'];
   if (typeof explicit === 'number' && explicit > 0) return explicit;
-  const n = Math.max(1, Math.round(typeof node['finCount'] === 'number' ? (node['finCount'] as number) : 6));
+  const n = Math.max(1, Math.round(num(node, 'finCount', 6)));
   // Kernel rule (TubeFinSet.getOuterRadius): fewer than 3 fins auto-size to
   // the body radius — and n=2 would divide by zero below (sin π/2 = 1).
   if (n < 3) return bodyRadius;

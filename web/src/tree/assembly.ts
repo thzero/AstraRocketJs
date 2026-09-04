@@ -1,4 +1,5 @@
 import type { ComponentNode } from '../engine/openRocketEngine';
+import { num } from './nodeProps';
 
 /**
  * Geometry helpers for off-axis assemblies (PodSet / ParallelStage) — shared
@@ -8,9 +9,6 @@ import type { ComponentNode } from '../engine/openRocketEngine';
  * getInstanceOffsets), and the RELATIVE radius is a gap from the parent
  * surface.
  */
-
-const num = (n: ComponentNode, key: string, fb: number): number =>
-  typeof n[key] === 'number' ? (n[key] as number) : fb;
 
 /** The assembly's own axial chain members (a mini nose→body→transition stack). */
 const CHAIN_TYPES = new Set(['nosecone', 'bodytube', 'transition']);

@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { LaunchConditions, WindLevel } from '../../services/orkTree';
+import { NumberInput } from '../common/NumberInput';
 
 /**
  * Launch & atmosphere conditions for the flight simulation: wind (single average
@@ -16,10 +17,8 @@ function Num({ label, unit, value, step = 1, min, placeholder, onChange }: {
     <label className="flex items-center justify-between gap-3">
       <span className="text-xs text-slate-400">{label}</span>
       <span className="flex items-center gap-1">
-        <input
-          type="number" step={step} min={min} placeholder={placeholder}
-          value={value === null || value === undefined || Number.isNaN(value) ? '' : +(+value).toFixed(4)}
-          onChange={(e) => onChange(e.target.value === '' ? null : (parseFloat(e.target.value) || 0))}
+        <NumberInput
+          value={value} onChange={onChange} step={step} min={min} placeholder={placeholder}
           className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
         />
         {unit && <span className="w-8 text-xs text-slate-500">{unit}</span>}
@@ -115,10 +114,10 @@ export function LaunchPanel({ launch, onChange, onCommit }: {
             </div>
             {levels.map((l, i) => (
               <div key={i} className="flex items-center gap-1">
-                <input type="number" step={50} value={+l.altitudeM.toFixed(2)} onChange={(e) => patchLevel(i, { altitudeM: parseFloat(e.target.value) || 0 })} className="w-16 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10" />
-                <input type="number" step={0.5} value={+l.speed.toFixed(2)} onChange={(e) => patchLevel(i, { speed: parseFloat(e.target.value) || 0 })} className="w-14 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10" />
-                <input type="number" step={5} value={+l.directionDeg.toFixed(1)} onChange={(e) => patchLevel(i, { directionDeg: parseFloat(e.target.value) || 0 })} className="w-12 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10" />
-                <input type="number" step={0.5} value={+l.stddev.toFixed(2)} onChange={(e) => patchLevel(i, { stddev: parseFloat(e.target.value) || 0 })} className="w-12 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10" />
+                <NumberInput step={50} value={l.altitudeM} onChange={(v) => patchLevel(i, { altitudeM: v ?? 0 })} className="w-16 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10" />
+                <NumberInput step={0.5} value={l.speed} onChange={(v) => patchLevel(i, { speed: v ?? 0 })} className="w-14 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10" />
+                <NumberInput step={5} value={l.directionDeg} onChange={(v) => patchLevel(i, { directionDeg: v ?? 0 })} className="w-12 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10" />
+                <NumberInput step={0.5} value={l.stddev} onChange={(v) => patchLevel(i, { stddev: v ?? 0 })} className="w-12 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10" />
                 <button onClick={() => { setLevels(levels.filter((_, j) => j !== i)); onCommit?.(); }} title={t('launch.removeLevel')} className="w-6 rounded bg-red-500/15 py-1 text-xs text-red-300 ring-1 ring-red-500/30">×</button>
               </div>
             ))}

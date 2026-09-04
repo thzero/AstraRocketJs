@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Bounds, Line } from '@react-three/drei';
 import type { ComponentNode, ComponentPosition, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
+import { num, numOpt } from '../../tree/nodeProps';
 import {
   assemblyBoundingRadius, assemblyChainLength, isAssembly,
   resolveAssemblyRadius, ringInstanceOffsets,
@@ -38,12 +39,6 @@ const presetStyle = (active: boolean): import('react').CSSProperties =>
 // A component's own `color` override, else its group colour from the palette.
 const nodeColor = (n: ComponentNode, palette: PartPalette): string =>
   typeof n['color'] === 'string' ? (n['color'] as string) : colorForType(n.type, palette);
-
-const num = (n: ComponentNode, key: string, fb: number): number =>
-  typeof n[key] === 'number' ? (n[key] as number) : fb;
-
-const numOpt = (n: ComponentNode, key: string): number | undefined =>
-  typeof n[key] === 'number' ? (n[key] as number) : undefined;
 
 function axialStart(child: ComponentNode, childLen: number, pStart: number, pLen: number): number {
   const pos = (child.position ?? { method: 'top', offset: 0 }) as ComponentPosition;

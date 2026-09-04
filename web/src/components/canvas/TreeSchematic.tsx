@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode, ComponentPosition, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
+import { num, numOpt } from '../../tree/nodeProps';
 import { fmtNum } from '../../i18n/format';
 import { anchorStarts, axialLength, offsetForStart, snapStart, startFromPosition } from '../../tree/position.js';
 import { clusterOffsets } from '../../tree/cluster.js';
@@ -32,9 +33,6 @@ interface Ctx {
   cy: number;
   x0: number;
 }
-
-const num = (n: ComponentNode, key: string, fb: number): number =>
-  typeof n[key] === 'number' ? (n[key] as number) : fb;
 
 const fillOf = (n: ComponentNode, dflt: string): string =>
   typeof n['color'] === 'string' ? (n['color'] as string) : dflt;
@@ -1277,7 +1275,7 @@ function profilePath(
 ): string {
   const shape = typeof n['shape'] === 'string' ? (n['shape'] as string)
     : n.type === 'transition' ? 'conical' : 'ogive';
-  const param = typeof n['shapeParameter'] === 'number' ? (n['shapeParameter'] as number) : undefined;
+  const param = numOpt(n, 'shapeParameter');
   // node['clipped'] (.ork <shapeclipped>) rides along so an unclipped
   // transition draws the way it simulates; absent = kernel default (clipped).
   const pts = outerProfile(shape, param, len, foreR, aftR, 24, undefined,

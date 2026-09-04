@@ -93,7 +93,6 @@ export function MotorDialog({ open, onClose, onSelect, onError, mountDiameter, c
     }),
     [catalog, text, cls, mfrs, lowIdx, highIdx],
   );
-  const shown = matches;
 
   // Persist the manufacturer selection and diameter range across sessions.
   useEffect(() => { saveMfrs(mfrs); }, [mfrs]);
@@ -231,7 +230,7 @@ export function MotorDialog({ open, onClose, onSelect, onError, mountDiameter, c
         </div>
 
         <ul className="min-h-0 flex-1 divide-y divide-white/5 overflow-y-auto">
-          {shown.map((m, i) => {
+          {matches.map((m, i) => {
             const rowId = `${m.manufacturer}:${m.designation}:${i}`;
             const loading = loadingId === rowId;
             return (
@@ -264,7 +263,7 @@ export function MotorDialog({ open, onClose, onSelect, onError, mountDiameter, c
         </ul>
 
         <div className="border-t border-white/10 p-2 text-center text-[11px] uppercase tracking-wide text-slate-500">
-          {t('motor.count', { total: matches.length })}{matches.length > shown.length ? t('motor.showing', { shown: shown.length }) : ''}
+          {t('motor.count', { total: matches.length })}
         </div>
         </div>{/* end LEFT */}
 

@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Line, Html } from '@react-three/drei';
 import type { ComponentNode, FlightResult, RocketTree } from '../../engine/openRocketEngine';
+import { num } from '../../tree/nodeProps';
 import { buildPieces, type MotorDims } from './Rocket3D';
 import { colorForType, mergePalette, type PartPalette } from '../../services/partColors';
 import { useSettings } from '../../state/SettingsProvider';
@@ -22,7 +23,6 @@ import { EVENT_LABEL } from '../../services/simReport';
 const MODEL_LEN = 1.6; // scene units the rocket model is scaled to — kept small vs the ~24u arc; the follow-cam makes it readable
 const PLAY_SECONDS = 8; // wall-clock length of a full 1× playback (time-based, so boost isn't slow)
 const UP = new THREE.Vector3(0, 1, 0);
-const num = (n: ComponentNode, k: string, d = 0): number => (typeof n[k] === 'number' ? (n[k] as number) : d);
 
 type Recovery =
   | { kind: 'parachute'; diameter: number; color: string }

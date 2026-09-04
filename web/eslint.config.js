@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
+import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
   { ignores: ['dist', 'coverage', 'playwright-report', 'test-results'] },
@@ -28,4 +29,8 @@ export default tseslint.config(
     files: ['**/*.test.{ts,tsx}', '**/*.config.{ts,js}'],
     languageOptions: { globals: { ...globals.node } },
   },
+  // Must be last: turns off any ESLint rules that would conflict with Prettier's
+  // formatting, so the two tools don't fight. Prettier owns layout; ESLint owns
+  // correctness.
+  prettier,
 );
