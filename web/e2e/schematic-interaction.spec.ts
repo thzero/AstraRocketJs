@@ -1,7 +1,10 @@
 import { test, expect, type Page } from '@playwright/test';
 
 async function dismissWip(page: Page) {
-  await page.getByRole('button', { name: 'I understand' }).click({ timeout: 10_000 }).catch(() => {});
+  await page
+    .getByRole('button', { name: 'I understand' })
+    .click({ timeout: 10_000 })
+    .catch(() => {});
 }
 
 /**
@@ -11,7 +14,11 @@ async function dismissWip(page: Page) {
  * renderer, whose shapes carry the interaction handlers.
  */
 test.describe('2D schematic interaction', () => {
-  const schematic = (page: Page) => page.locator('svg').filter({ has: page.locator('title') }).first();
+  const schematic = (page: Page) =>
+    page
+      .locator('svg')
+      .filter({ has: page.locator('title') })
+      .first();
 
   test('clicking a component on the canvas selects it (property editor opens)', async ({ page }) => {
     await page.goto('/');

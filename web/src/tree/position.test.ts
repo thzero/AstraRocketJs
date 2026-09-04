@@ -1,13 +1,24 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import {
-  axialLength, startFromPosition, offsetForStart,
-  resolveAbsolutePositions, anchorStarts, snapStart,
+  axialLength,
+  startFromPosition,
+  offsetForStart,
+  resolveAbsolutePositions,
+  anchorStarts,
+  snapStart,
 } from './position';
 
 describe('axialLength', () => {
   it('uses the furthest point x for a freeform fin set', () => {
-    const fin = { type: 'freeformfinset', points: [[0, 0], [0.03, 0.02], [0.06, 0]] } as unknown as ComponentNode;
+    const fin = {
+      type: 'freeformfinset',
+      points: [
+        [0, 0],
+        [0.03, 0.02],
+        [0.06, 0],
+      ],
+    } as unknown as ComponentNode;
     expect(axialLength(fin)).toBeCloseTo(0.06);
   });
 
@@ -33,7 +44,8 @@ describe('axialLength', () => {
 });
 
 describe('startFromPosition', () => {
-  const pLen = 0.2, cLen = 0.05;
+  const pLen = 0.2,
+    cLen = 0.05;
   it('top / absolute are the offset itself', () => {
     expect(startFromPosition({ method: 'top', offset: 0.02 }, cLen, pLen)).toBeCloseTo(0.02);
     expect(startFromPosition({ method: 'absolute', offset: 0.02 }, cLen, pLen)).toBeCloseTo(0.02);
@@ -47,7 +59,8 @@ describe('startFromPosition', () => {
 });
 
 describe('offsetForStart', () => {
-  const pLen = 0.2, cLen = 0.05;
+  const pLen = 0.2,
+    cLen = 0.05;
   it('inverts startFromPosition for every method', () => {
     for (const method of ['top', 'middle', 'bottom', 'absolute'] as const) {
       const start = startFromPosition({ method, offset: 0.013 }, cLen, pLen);
@@ -59,16 +72,21 @@ describe('offsetForStart', () => {
 describe('resolveAbsolutePositions', () => {
   it('rewrites an absolute child into the equivalent parent-relative top offset', () => {
     const tree: RocketTree = {
-      components: [{
-        id: 's1', type: 'stage', children: [
-          { id: 'nc', type: 'nosecone', length: 0.1 },
-          {
-            id: 'bt', type: 'bodytube', length: 0.2, children: [
-              { id: 'it', type: 'innertube', length: 0.05, position: { method: 'absolute', offset: 0.15 } },
-            ],
-          },
-        ],
-      }],
+      components: [
+        {
+          id: 's1',
+          type: 'stage',
+          children: [
+            { id: 'nc', type: 'nosecone', length: 0.1 },
+            {
+              id: 'bt',
+              type: 'bodytube',
+              length: 0.2,
+              children: [{ id: 'it', type: 'innertube', length: 0.05, position: { method: 'absolute', offset: 0.15 } }],
+            },
+          ],
+        },
+      ],
     };
     const out = resolveAbsolutePositions(tree);
     const it = out.components[0].children![1].children![0];
@@ -79,13 +97,20 @@ describe('resolveAbsolutePositions', () => {
 
   it('returns the same tree object when there is nothing absolute to fix', () => {
     const tree: RocketTree = {
-      components: [{
-        id: 's1', type: 'stage', children: [
-          { id: 'bt', type: 'bodytube', length: 0.2, children: [
-            { id: 'it', type: 'innertube', length: 0.05, position: { method: 'top', offset: 0.02 } },
-          ] },
-        ],
-      }],
+      components: [
+        {
+          id: 's1',
+          type: 'stage',
+          children: [
+            {
+              id: 'bt',
+              type: 'bodytube',
+              length: 0.2,
+              children: [{ id: 'it', type: 'innertube', length: 0.05, position: { method: 'top', offset: 0.02 } }],
+            },
+          ],
+        },
+      ],
     };
     expect(resolveAbsolutePositions(tree)).toBe(tree);
   });
@@ -98,9 +123,9 @@ describe('anchorStarts', () => {
     const parent: ComponentNode = { type: 'bodytube', length: 0.2, children: [child] };
     const a = anchorStarts(parent, child);
     expect(a).toHaveLength(3);
-    expect(a[0]).toBeCloseTo(0);       // leading edge
-    expect(a[1]).toBeCloseTo(0.075);   // centered
-    expect(a[2]).toBeCloseTo(0.15);    // trailing edge
+    expect(a[0]).toBeCloseTo(0); // leading edge
+    expect(a[1]).toBeCloseTo(0.075); // centered
+    expect(a[2]).toBeCloseTo(0.15); // trailing edge
   });
 
   it('adds sibling alignment and butt anchors', () => {
@@ -108,9 +133,9 @@ describe('anchorStarts', () => {
     const parent: ComponentNode = { type: 'bodytube', length: 0.2, children: [child, sib] };
     const a = anchorStarts(parent, child);
     const has = (v: number) => a.some((x) => Math.abs(x - v) < 1e-9);
-    expect(has(0.05)).toBe(true);  // butt in front of the sibling (0.1 − 0.05)
-    expect(has(0.1)).toBe(true);   // align leading edges
-    expect(has(0.14)).toBe(true);  // butt behind the sibling (0.1 + 0.04)
+    expect(has(0.05)).toBe(true); // butt in front of the sibling (0.1 − 0.05)
+    expect(has(0.1)).toBe(true); // align leading edges
+    expect(has(0.14)).toBe(true); // butt behind the sibling (0.1 + 0.04)
     expect(a).toEqual([...a].sort((p, q) => p - q)); // sorted
   });
 });

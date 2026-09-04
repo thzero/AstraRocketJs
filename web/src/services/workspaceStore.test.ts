@@ -4,9 +4,15 @@ import type { KeyValueStore } from './keyValueStore';
 
 class FakeKv implements KeyValueStore {
   map = new Map<string, string>();
-  async get(k: string) { return this.map.has(k) ? this.map.get(k)! : null; }
-  async set(k: string, v: string) { this.map.set(k, v); }
-  async remove(k: string) { this.map.delete(k); }
+  async get(k: string) {
+    return this.map.has(k) ? this.map.get(k)! : null;
+  }
+  async set(k: string, v: string) {
+    this.map.set(k, v);
+  }
+  async remove(k: string) {
+    this.map.delete(k);
+  }
 }
 
 // The store's private key (workspaceStore.ts). Hardcoded so we can seed raw blobs.
@@ -24,7 +30,10 @@ const workspace = (): Workspace =>
 
 let kv: FakeKv;
 let store: KeyValueWorkspaceStore;
-beforeEach(() => { kv = new FakeKv(); store = new KeyValueWorkspaceStore(kv); });
+beforeEach(() => {
+  kv = new FakeKv();
+  store = new KeyValueWorkspaceStore(kv);
+});
 
 describe('KeyValueWorkspaceStore', () => {
   it('load() is null when nothing is stored', async () => {

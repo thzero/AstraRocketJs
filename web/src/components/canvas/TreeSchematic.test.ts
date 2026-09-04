@@ -2,15 +2,22 @@ import { describe, it, expect } from 'vitest';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import type { RocketTree } from '../../engine/openRocketEngine';
 import {
-  niceStep, snapNear, axialStart, collect, profilePath,
-  calloutLayout, finTabFront, CALLOUT_LANES, computeSchematicLayout,
+  niceStep,
+  snapNear,
+  axialStart,
+  collect,
+  profilePath,
+  calloutLayout,
+  finTabFront,
+  CALLOUT_LANES,
+  computeSchematicLayout,
 } from './schematicGeometry';
 
 describe('niceStep', () => {
   it('picks a 1/2/2.5/5/10 × 10ⁿ step giving ~8 marks', () => {
-    expect(niceStep(1)).toBeCloseTo(0.2);   // target 0.125 → 0.2
+    expect(niceStep(1)).toBeCloseTo(0.2); // target 0.125 → 0.2
     expect(niceStep(0.5)).toBeCloseTo(0.1); // target 0.0625 → 0.1
-    expect(niceStep(8)).toBeCloseTo(1);     // target 1 → 1
+    expect(niceStep(8)).toBeCloseTo(1); // target 1 → 1
     expect(niceStep(80)).toBeCloseTo(10);
   });
   it('stays positive and finite for a degenerate zero length', () => {
@@ -65,7 +72,9 @@ describe('finTabFront', () => {
     expect(finTabFront({ type: 'trapezoidfinset', tabOffset: 0.01, tabOffsetMethod: 'top' }, 0.05)).toBeCloseTo(0.01);
   });
   it('bottom: offset + (finLen − tabLen)', () => {
-    expect(finTabFront({ type: 'trapezoidfinset', tabOffset: 0, tabLength: 0.02, tabOffsetMethod: 'bottom' }, 0.05)).toBeCloseTo(0.03);
+    expect(
+      finTabFront({ type: 'trapezoidfinset', tabOffset: 0, tabLength: 0.02, tabOffsetMethod: 'bottom' }, 0.05),
+    ).toBeCloseTo(0.03);
   });
   it('middle (default): centers the tab', () => {
     expect(finTabFront({ type: 'trapezoidfinset', tabOffset: 0, tabLength: 0.02 }, 0.05)).toBeCloseTo(0.015);
@@ -112,10 +121,22 @@ describe('profilePath', () => {
 });
 
 describe('computeSchematicLayout', () => {
-  const tree = { components: [{ type: 'stage', children: [
-    { type: 'nosecone', length: 0.1, aftRadius: 0.012 },
-    { type: 'bodytube', length: 0.3, outerRadius: 0.012, children: [{ type: 'trapezoidfinset', rootChord: 0.05, height: 0.03 }] },
-  ] }] } as unknown as RocketTree;
+  const tree = {
+    components: [
+      {
+        type: 'stage',
+        children: [
+          { type: 'nosecone', length: 0.1, aftRadius: 0.012 },
+          {
+            type: 'bodytube',
+            length: 0.3,
+            outerRadius: 0.012,
+            children: [{ type: 'trapezoidfinset', rootChord: 0.05, height: 0.03 }],
+          },
+        ],
+      },
+    ],
+  } as unknown as RocketTree;
   const dims = { chPx: 480, cw: 640, maxHeight: 480 };
 
   it('flattens the stage into a nose + body axial chain', () => {

@@ -26,25 +26,39 @@ export function flightDataCsv(r: FlightResult): string {
   };
   const lines: string[] = [];
   for (const e of r.events ?? []) lines.push(`# Event ${e.type} at t=${cell(e.time, 3)} s`);
-  lines.push(row([
-    'Time (s)', 'Altitude (m)', 'Velocity (m/s)', 'Acceleration (m/s^2)', 'Mass (g)',
-    'Thrust (N)', 'Drag (N)', 'Mach', 'Stability (cal)', 'CP (cm)', 'CG (cm)', 'AoA (deg)',
-  ]));
+  lines.push(
+    row([
+      'Time (s)',
+      'Altitude (m)',
+      'Velocity (m/s)',
+      'Acceleration (m/s^2)',
+      'Mass (g)',
+      'Thrust (N)',
+      'Drag (N)',
+      'Mach',
+      'Stability (cal)',
+      'CP (cm)',
+      'CG (cm)',
+      'AoA (deg)',
+    ]),
+  );
   for (let i = 0; i < n; i++) {
-    lines.push(row([
-      cell(at('time', i), 4),
-      cell(at('altitude', i)),
-      cell(at('velocity', i)),
-      cell(at('acceleration', i)),
-      cell(mul(at('mass', i), 1000)),
-      cell(at('thrust', i)),
-      cell(at('drag', i)),
-      cell(at('mach', i)),
-      cell(at('stability', i)),
-      cell(mul(at('cpLocation', i), 100)),
-      cell(mul(at('cgLocation', i), 100)),
-      cell(mul(at('aoa', i), 180 / Math.PI)),
-    ]));
+    lines.push(
+      row([
+        cell(at('time', i), 4),
+        cell(at('altitude', i)),
+        cell(at('velocity', i)),
+        cell(at('acceleration', i)),
+        cell(mul(at('mass', i), 1000)),
+        cell(at('thrust', i)),
+        cell(at('drag', i)),
+        cell(at('mach', i)),
+        cell(at('stability', i)),
+        cell(mul(at('cpLocation', i), 100)),
+        cell(mul(at('cgLocation', i), 100)),
+        cell(mul(at('aoa', i), 180 / Math.PI)),
+      ]),
+    );
   }
   return lines.join(EOL) + EOL;
 }

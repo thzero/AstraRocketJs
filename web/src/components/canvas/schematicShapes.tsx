@@ -3,10 +3,7 @@ import { num } from '../../tree/nodeProps';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { DISPLAY_NAME } from '../../tree/schema.js';
-import {
-  assemblyChainLength, isAssembly,
-  resolveAssemblyRadius, ringInstanceOffsets,
-} from '../../tree/assembly.js';
+import { assemblyChainLength, isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
 import { axialStart, finTabFront, profilePath, type Ctx } from './schematicGeometry';
 
 const fillOf = (n: ComponentNode, dflt: string): string =>
@@ -48,8 +45,22 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   hoverName: string;
 } {
   const {
-    chain, ctx, scale, w, h, roll, motors, vertical,
-    selectedId, onSelect, setHoverId, hoverId, onPatchNode, beginDrag, dragMoved, textUp,
+    chain,
+    ctx,
+    scale,
+    w,
+    h,
+    roll,
+    motors,
+    vertical,
+    selectedId,
+    onSelect,
+    setHoverId,
+    hoverId,
+    onPatchNode,
+    beginDrag,
+    dragMoved,
+    textUp,
   } = cfg;
 
   // Selection sync: click any drawn component to select it in the tree; the
@@ -58,18 +69,18 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   const clickable = (n: ComponentNode) => ({
     ...(n.id
       ? {
-        onPointerEnter: () => setHoverId(n.id!),
-        onPointerLeave: () => setHoverId((cur) => (cur === n.id ? null : cur)),
-      }
+          onPointerEnter: () => setHoverId(n.id!),
+          onPointerLeave: () => setHoverId((cur) => (cur === n.id ? null : cur)),
+        }
       : {}),
     ...(onSelect && n.id
       ? {
-        onClick: (e: React.MouseEvent) => {
-          e.stopPropagation();
-          if (!dragMoved.current) onSelect(n.id!);
-        },
-        style: { cursor: 'pointer' } as React.CSSProperties,
-      }
+          onClick: (e: React.MouseEvent) => {
+            e.stopPropagation();
+            if (!dragMoved.current) onSelect(n.id!);
+          },
+          style: { cursor: 'pointer' } as React.CSSProperties,
+        }
       : {}),
   });
   const selStroke = (n: ComponentNode, dflt: string) => (isSel(n) ? 'var(--accent)' : dflt);
@@ -92,8 +103,10 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
     if (!hoverId || n.id !== hoverId) return;
     hoverName = n.name ?? DISPLAY_NAME[n.type];
     hoverBoxes.push({
-      x0: Math.min(x0, x1), y0: Math.min(y0, y1),
-      x1: Math.max(x0, x1), y1: Math.max(y0, y1),
+      x0: Math.min(x0, x1),
+      y0: Math.min(y0, y1),
+      x1: Math.max(x0, x1),
+      y1: Math.max(y0, y1),
     });
   };
 
@@ -101,22 +114,40 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   // the designation printed in the case when it's long enough to carry it.
   const motorShapes = (
     motor: { length: number; diameter: number; label?: string },
-    mStart: number, cY: number,
+    mStart: number,
+    cY: number,
   ): React.ReactNode[] => {
     const mR = motor.diameter / 2;
     const out: React.ReactNode[] = [
-      <rect key={key++} x={ctx.x0 + mStart * ctx.scale} y={cY - mR * ctx.scale}
-        width={Math.max(2, motor.length * ctx.scale)} height={Math.max(2, 2 * mR * ctx.scale)}
-        rx="1" fill="var(--launch)" fillOpacity="0.85"
-        stroke="#e0764a" strokeWidth="0.8"
-        style={{ pointerEvents: 'none' }} />,
+      <rect
+        key={key++}
+        x={ctx.x0 + mStart * ctx.scale}
+        y={cY - mR * ctx.scale}
+        width={Math.max(2, motor.length * ctx.scale)}
+        height={Math.max(2, 2 * mR * ctx.scale)}
+        rx="1"
+        fill="var(--launch)"
+        fillOpacity="0.85"
+        stroke="#e0764a"
+        strokeWidth="0.8"
+        style={{ pointerEvents: 'none' }}
+      />,
     ];
     if (motor.label && motor.length * ctx.scale > 36) {
       const lx = ctx.x0 + (mStart + motor.length / 2) * ctx.scale;
       out.push(
-        <text key={key++} x={lx} y={cY} textAnchor="middle" dominantBaseline="central"
-          fontSize="10" fontWeight="bold" fill="#ffffff" {...textUp(lx, cY)}
-          style={{ pointerEvents: 'none' }}>
+        <text
+          key={key++}
+          x={lx}
+          y={cY}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize="10"
+          fontWeight="bold"
+          fill="#ffffff"
+          {...textUp(lx, cY)}
+          style={{ pointerEvents: 'none' }}
+        >
           {motor.label}
         </text>,
       );
@@ -144,9 +175,9 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         ...clickable(child),
         ...(onPatchNode && child.id && !vertical
           ? {
-            onPointerDown: beginDrag(child, parent, pLen),
-            style: { cursor: 'grab' } as React.CSSProperties,
-          }
+              onPointerDown: beginDrag(child, parent, pLen),
+              style: { cursor: 'grab' } as React.CSSProperties,
+            }
           : {}),
       };
       // Through-the-wall fin tab: dashed rect from the body surface inward.
@@ -156,15 +187,21 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         if (tabH <= 0 || tabLen <= 0) return;
         const front = finStart + finTabFront(child, finLen);
         for (const dir of [1, -1] as const) {
-          const yTop = dir === 1
-            ? baseY + (pRadius - tabH) * ctx.scale
-            : baseY - pRadius * ctx.scale;
+          const yTop = dir === 1 ? baseY + (pRadius - tabH) * ctx.scale : baseY - pRadius * ctx.scale;
           shapes.push(
-            <rect key={key++} x={ctx.x0 + front * ctx.scale} y={yTop}
-              width={Math.max(2, tabLen * ctx.scale)} height={Math.max(1.5, tabH * ctx.scale)}
-              fill={fillOf(child, '#b9b7b0')} fillOpacity="0.35"
-              stroke="#7a786f" strokeWidth="1" strokeDasharray="3 2"
-              style={{ pointerEvents: 'none' }} />,
+            <rect
+              key={key++}
+              x={ctx.x0 + front * ctx.scale}
+              y={yTop}
+              width={Math.max(2, tabLen * ctx.scale)}
+              height={Math.max(1.5, tabH * ctx.scale)}
+              fill={fillOf(child, '#b9b7b0')}
+              fillOpacity="0.35"
+              stroke="#7a786f"
+              strokeWidth="1"
+              strokeDasharray="3 2"
+              style={{ pointerEvents: 'none' }}
+            />,
           );
         }
       };
@@ -174,16 +211,26 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           const chord = Math.max(...raw.map((p) => p[0]));
           const start = axialStart(child, chord, pStart, pLen);
           const ymax = Math.max(0, ...raw.map((p) => p[1]));
-          noteHover(child, ctx.x0 + start * ctx.scale, baseY - (pRadius + ymax) * ctx.scale,
-            ctx.x0 + (start + chord) * ctx.scale, baseY + (pRadius + ymax) * ctx.scale);
+          noteHover(
+            child,
+            ctx.x0 + start * ctx.scale,
+            baseY - (pRadius + ymax) * ctx.scale,
+            ctx.x0 + (start + chord) * ctx.scale,
+            baseY + (pRadius + ymax) * ctx.scale,
+          );
           for (const dir of [1, -1] as const) {
             const ptsStr = raw
               .map(([px, py]) => `${ctx.x0 + (start + px) * ctx.scale},${baseY + dir * (pRadius + py) * ctx.scale}`)
               .join(' ');
             shapes.push(
-              <polygon key={key++} points={ptsStr}
-                fill={fillOf(child, '#b9b7b0')} stroke={selStroke(child, '#7a786f')}
-                strokeWidth={selWidth(child)} {...grab} />,
+              <polygon
+                key={key++}
+                points={ptsStr}
+                fill={fillOf(child, '#b9b7b0')}
+                stroke={selStroke(child, '#7a786f')}
+                strokeWidth={selWidth(child)}
+                {...grab}
+              />,
             );
           }
           renderTab(start, chord);
@@ -194,9 +241,13 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         const sweep = t === 'trapezoidfinset' ? num(child, 'sweep', 0.02) : root / 2;
         const height = num(child, 'height', 0.03);
         const start = axialStart(child, root, pStart, pLen);
-        noteHover(child, ctx.x0 + start * ctx.scale, baseY - (pRadius + height) * ctx.scale,
+        noteHover(
+          child,
+          ctx.x0 + start * ctx.scale,
+          baseY - (pRadius + height) * ctx.scale,
           ctx.x0 + (start + Math.max(root, sweep + tip)) * ctx.scale,
-          baseY + (pRadius + height) * ctx.scale);
+          baseY + (pRadius + height) * ctx.scale,
+        );
         // Spin about the axis: each of the N fins projects into the side view
         // by cos(roll + i·2π/N). |cos|=1 → broadside (full height), 0 → edge-on
         // (invisible). Draw edge-on-ish fins last so broadside ones sit on top.
@@ -212,19 +263,27 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           const X = ctx.x0 + start * ctx.scale;
           shapes.push(
             t === 'trapezoidfinset' ? (
-              <polygon key={key++}
+              <polygon
+                key={key++}
                 points={`${X},${y0} ${X + sweep * ctx.scale},${yh} ${X + (sweep + tip) * ctx.scale},${yh} ${X + root * ctx.scale},${y0}`}
-                fill={fillOf(child, '#b9b7b0')} stroke={selStroke(child, '#7a786f')}
-                strokeWidth={selWidth(child)} {...grab} />
+                fill={fillOf(child, '#b9b7b0')}
+                stroke={selStroke(child, '#7a786f')}
+                strokeWidth={selWidth(child)}
+                {...grab}
+              />
             ) : (
               // Elliptical fin = the top half of an ellipse: major axis = root
               // chord (horizontal), semi-minor axis = span. An SVG arc draws it
               // exactly and reaches the FULL span — a quadratic Bézier only bent
               // ~halfway to its control point, drawing the fin at ~half height.
-              <path key={key++}
+              <path
+                key={key++}
                 d={`M ${X} ${y0} A ${(root / 2) * ctx.scale} ${hp * ctx.scale} 0 0 ${dir > 0 ? 1 : 0} ${X + root * ctx.scale} ${y0} Z`}
-                fill={fillOf(child, '#b9b7b0')} stroke={selStroke(child, '#7a786f')}
-                strokeWidth={selWidth(child)} {...grab} />
+                fill={fillOf(child, '#b9b7b0')}
+                stroke={selStroke(child, '#7a786f')}
+                strokeWidth={selWidth(child)}
+                {...grab}
+              />
             ),
           );
         }
@@ -238,19 +297,41 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         const rt = tubeFinRadius(child, pRadius);
         const start = axialStart(child, len, pStart, pLen);
         const X = ctx.x0 + start * ctx.scale;
-        noteHover(child, X, baseY - (pRadius + 2 * rt) * ctx.scale,
-          X + len * ctx.scale, baseY + (pRadius + 2 * rt) * ctx.scale);
+        noteHover(
+          child,
+          X,
+          baseY - (pRadius + 2 * rt) * ctx.scale,
+          X + len * ctx.scale,
+          baseY + (pRadius + 2 * rt) * ctx.scale,
+        );
         for (const dir of [1, -1] as const) {
           const yNear = baseY + dir * pRadius * ctx.scale;
           const yFar = baseY + dir * (pRadius + 2 * rt) * ctx.scale;
           shapes.push(
-            <rect key={key++} x={X} y={Math.min(yNear, yFar)}
-              width={Math.max(2, len * ctx.scale)} height={Math.abs(yFar - yNear)}
-              rx="2" fill={fillOf(child, '#c8c5be')} fillOpacity="0.6"
-              stroke={selStroke(child, '#7a786f')} strokeWidth={selWidth(child)} {...grab} />,
-            <line key={key++} x1={X} y1={(yNear + yFar) / 2} x2={X + len * ctx.scale} y2={(yNear + yFar) / 2}
-              stroke="#7a786f" strokeWidth="0.8" strokeDasharray="4 3"
-              style={{ pointerEvents: 'none' }} />,
+            <rect
+              key={key++}
+              x={X}
+              y={Math.min(yNear, yFar)}
+              width={Math.max(2, len * ctx.scale)}
+              height={Math.abs(yFar - yNear)}
+              rx="2"
+              fill={fillOf(child, '#c8c5be')}
+              fillOpacity="0.6"
+              stroke={selStroke(child, '#7a786f')}
+              strokeWidth={selWidth(child)}
+              {...grab}
+            />,
+            <line
+              key={key++}
+              x1={X}
+              y1={(yNear + yFar) / 2}
+              x2={X + len * ctx.scale}
+              y2={(yNear + yFar) / 2}
+              stroke="#7a786f"
+              strokeWidth="0.8"
+              strokeDasharray="4 3"
+              style={{ pointerEvents: 'none' }}
+            />,
           );
         }
       } else if (t === 'fairing') {
@@ -267,20 +348,35 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         noteHover(child, X, yh, Xe, y0);
         shapes.push(
           fshape === 'streamlined' ? (
-            <polygon key={key++}
+            <polygon
+              key={key++}
               points={`${X},${y0} ${X + 0.3 * len * ctx.scale},${yh} ${X + 0.7 * len * ctx.scale},${yh} ${Xe},${y0}`}
-              fill={fillOf(child, '#c8c5be')} stroke={selStroke(child, '#7a786f')}
-              strokeWidth={selWidth(child)} {...grab} />
+              fill={fillOf(child, '#c8c5be')}
+              stroke={selStroke(child, '#7a786f')}
+              strokeWidth={selWidth(child)}
+              {...grab}
+            />
           ) : fshape === 'halfround' ? (
-            <path key={key++}
+            <path
+              key={key++}
               d={`M ${X} ${y0} L ${X} ${yh + 0.35 * (y0 - yh)} Q ${X} ${yh} ${X + Math.min(8, len * ctx.scale * 0.25)} ${yh} L ${Xe - Math.min(8, len * ctx.scale * 0.25)} ${yh} Q ${Xe} ${yh} ${Xe} ${yh + 0.35 * (y0 - yh)} L ${Xe} ${y0} Z`}
-              fill={fillOf(child, '#c8c5be')} stroke={selStroke(child, '#7a786f')}
-              strokeWidth={selWidth(child)} {...grab} />
+              fill={fillOf(child, '#c8c5be')}
+              stroke={selStroke(child, '#7a786f')}
+              strokeWidth={selWidth(child)}
+              {...grab}
+            />
           ) : (
-            <rect key={key++} x={X} y={yh}
-              width={Math.max(2, len * ctx.scale)} height={Math.max(2, hgt * ctx.scale)}
-              fill={fillOf(child, '#c8c5be')} stroke={selStroke(child, '#7a786f')}
-              strokeWidth={selWidth(child)} {...grab} />
+            <rect
+              key={key++}
+              x={X}
+              y={yh}
+              width={Math.max(2, len * ctx.scale)}
+              height={Math.max(2, hgt * ctx.scale)}
+              fill={fillOf(child, '#c8c5be')}
+              stroke={selStroke(child, '#7a786f')}
+              strokeWidth={selWidth(child)}
+              {...grab}
+            />
           ),
         );
       } else if (t === 'launchlug' || t === 'railbutton') {
@@ -300,10 +396,17 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         const h = Math.max(1, Math.abs(yOuter - yInner));
         noteHover(child, ctx.x0 + start * ctx.scale, yTop, ctx.x0 + (start + len) * ctx.scale, yTop + h);
         shapes.push(
-          <rect key={key++} x={ctx.x0 + start * ctx.scale} y={yTop}
-            width={Math.max(2, len * ctx.scale)} height={h}
-            fill={fillOf(child, '#c8c5be')} stroke={selStroke(child, '#7a786f')}
-            strokeWidth={selWidth(child)} {...grab} />,
+          <rect
+            key={key++}
+            x={ctx.x0 + start * ctx.scale}
+            y={yTop}
+            width={Math.max(2, len * ctx.scale)}
+            height={h}
+            fill={fillOf(child, '#c8c5be')}
+            stroke={selStroke(child, '#7a786f')}
+            strokeWidth={selWidth(child)}
+            {...grab}
+          />,
         );
       } else {
         // Internal component: dashed outline inside the parent. A clustered
@@ -328,28 +431,40 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           num(child, 'outerRadius', num(child, 'radius', num(child, 'packedRadius', pRadius * 0.7))),
         );
         const start = axialStart(child, len, pStart, pLen);
-        const offsets = child.type === 'innertube'
-          ? clusterOffsets(
-            child['cluster'] as string | undefined,
-            num(child, 'outerRadius', 0.0095),
-            num(child, 'clusterScale', 1),
-            num(child, 'clusterRotation', 0),
-          )
-          : [{ y: 0, z: 0 }];
+        const offsets =
+          child.type === 'innertube'
+            ? clusterOffsets(
+                child['cluster'] as string | undefined,
+                num(child, 'outerRadius', 0.0095),
+                num(child, 'clusterScale', 1),
+                num(child, 'clusterRotation', 0),
+              )
+            : [{ y: 0, z: 0 }];
         // Loaded motor: a brownish silhouette at the REAL case size, seated
         // flush against the mount's aft end (how motors actually load).
         const motor = child.type === 'innertube' && child.id ? motors?.[child.id] : undefined;
         for (const off of offsets) {
           const inkColor = isSel(child) ? 'var(--accent)' : fillOf(child, style?.stroke ?? '#9a978f');
-          noteHover(child, ctx.x0 + start * ctx.scale, baseY + (off.y - r) * ctx.scale,
-            ctx.x0 + (start + len) * ctx.scale, baseY + (off.y + r) * ctx.scale);
+          noteHover(
+            child,
+            ctx.x0 + start * ctx.scale,
+            baseY + (off.y - r) * ctx.scale,
+            ctx.x0 + (start + len) * ctx.scale,
+            baseY + (off.y + r) * ctx.scale,
+          );
           overlay.push(
-            <rect key={key++} x={ctx.x0 + start * ctx.scale}
+            <rect
+              key={key++}
+              x={ctx.x0 + start * ctx.scale}
               y={baseY + (off.y - r) * ctx.scale}
-              width={Math.max(2, len * ctx.scale)} height={2 * r * ctx.scale}
+              width={Math.max(2, len * ctx.scale)}
+              height={2 * r * ctx.scale}
               fill={child.type === 'bulkhead' ? 'url(#bulkhead-hatch)' : 'rgba(127,127,127,0.001)'}
-              stroke={inkColor} strokeWidth={selWidth(child)}
-              strokeDasharray="3 2" {...grab}>
+              stroke={inkColor}
+              strokeWidth={selWidth(child)}
+              strokeDasharray="3 2"
+              {...grab}
+            >
               <title>{child.name ?? DISPLAY_NAME[child.type]}</title>
             </rect>,
           );
@@ -363,43 +478,72 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           const gs = Math.min(bw * 0.8, bh * 0.7); // glyph box size
           if (gs >= 8) {
             const g = gs / 2;
-            const glyphProps = { stroke: fillOf(child, style?.stroke ?? '#9a978f'), fill: 'none', strokeWidth: 1.2, style: { pointerEvents: 'none' as const } };
+            const glyphProps = {
+              stroke: fillOf(child, style?.stroke ?? '#9a978f'),
+              fill: 'none',
+              strokeWidth: 1.2,
+              style: { pointerEvents: 'none' as const },
+            };
             if (child.type === 'parachute') {
               overlay.push(
                 <g key={key++} {...glyphProps}>
                   <path d={`M ${gcx - g} ${gcy} A ${g} ${g} 0 0 1 ${gcx + g} ${gcy}`} />
-                  <path d={`M ${gcx - g} ${gcy} L ${gcx} ${gcy + g} L ${gcx + g} ${gcy} M ${gcx - g * 0.45} ${gcy - g * 0.65} L ${gcx} ${gcy + g} M ${gcx + g * 0.45} ${gcy - g * 0.65} L ${gcx} ${gcy + g}`} />
+                  <path
+                    d={`M ${gcx - g} ${gcy} L ${gcx} ${gcy + g} L ${gcx + g} ${gcy} M ${gcx - g * 0.45} ${gcy - g * 0.65} L ${gcx} ${gcy + g} M ${gcx + g * 0.45} ${gcy - g * 0.65} L ${gcx} ${gcy + g}`}
+                  />
                 </g>,
               );
             } else if (child.type === 'masscomponent') {
               overlay.push(
                 <g key={key++} {...glyphProps}>
-                  <rect x={gcx - g * 0.7} y={gcy - g * 0.35} width={g * 1.4} height={g * 1.05}
-                    fill={fillOf(child, style?.stroke ?? '#9a978f')} fillOpacity="0.35" />
-                  <path d={`M ${gcx - g * 0.35} ${gcy - g * 0.35} A ${g * 0.4} ${g * 0.5} 0 0 1 ${gcx + g * 0.35} ${gcy - g * 0.35}`} />
+                  <rect
+                    x={gcx - g * 0.7}
+                    y={gcy - g * 0.35}
+                    width={g * 1.4}
+                    height={g * 1.05}
+                    fill={fillOf(child, style?.stroke ?? '#9a978f')}
+                    fillOpacity="0.35"
+                  />
+                  <path
+                    d={`M ${gcx - g * 0.35} ${gcy - g * 0.35} A ${g * 0.4} ${g * 0.5} 0 0 1 ${gcx + g * 0.35} ${gcy - g * 0.35}`}
+                  />
                 </g>,
               );
             } else if (child.type === 'centeringring') {
               // Ring cross-section: material near the walls, bore in the middle.
               overlay.push(
                 <g key={key++} {...glyphProps}>
-                  <line x1={gcx} y1={gcy - bh / 2 + 1.5} x2={gcx} y2={gcy - bh * 0.16} strokeWidth={Math.max(2, bw * 0.5)} />
-                  <line x1={gcx} y1={gcy + bh * 0.16} x2={gcx} y2={gcy + bh / 2 - 1.5} strokeWidth={Math.max(2, bw * 0.5)} />
+                  <line
+                    x1={gcx}
+                    y1={gcy - bh / 2 + 1.5}
+                    x2={gcx}
+                    y2={gcy - bh * 0.16}
+                    strokeWidth={Math.max(2, bw * 0.5)}
+                  />
+                  <line
+                    x1={gcx}
+                    y1={gcy + bh * 0.16}
+                    x2={gcx}
+                    y2={gcy + bh / 2 - 1.5}
+                    strokeWidth={Math.max(2, bw * 0.5)}
+                  />
                 </g>,
               );
             } else if (child.type === 'shockcord') {
               const seg = gs / 4;
               overlay.push(
-                <path key={key++} {...glyphProps}
-                  d={`M ${gcx - g} ${gcy} ${[1, 2, 3, 4].map((i) => `L ${gcx - g + i * seg * 2 - seg} ${gcy + (i % 2 ? -1 : 1) * g * 0.45} L ${gcx - g + i * seg * 2} ${gcy}`).join(' ')}`} />,
+                <path
+                  key={key++}
+                  {...glyphProps}
+                  d={`M ${gcx - g} ${gcy} ${[1, 2, 3, 4].map((i) => `L ${gcx - g + i * seg * 2 - seg} ${gcy + (i % 2 ? -1 : 1) * g * 0.45} L ${gcx - g + i * seg * 2} ${gcy}`).join(' ')}`}
+                />,
               );
             }
           }
           // Type tag, when the box has room for it — glyph types skip the
           // text once their picture is drawn. Counter-rotated tags read
           // horizontally in vertical mode, so the room roles swap.
-          const hasGlyph = gs >= 8
-            && ['parachute', 'masscomponent', 'centeringring', 'shockcord'].includes(child.type);
+          const hasGlyph = gs >= 8 && ['parachute', 'masscomponent', 'centeringring', 'shockcord'].includes(child.type);
           const tagRoom = vertical
             ? 2 * r * ctx.scale > 26 && len * ctx.scale > 11
             : len * ctx.scale > 26 && 2 * r * ctx.scale > 11;
@@ -407,18 +551,29 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
             const tx = ctx.x0 + (start + len / 2) * ctx.scale;
             const ty = baseY + off.y * ctx.scale;
             overlay.push(
-              <text key={key++} x={tx} y={ty}
-                textAnchor="middle" dominantBaseline="central"
-                fontSize="8.5" fill={fillOf(child, style.stroke)} {...textUp(tx, ty)}
-                style={{ pointerEvents: 'none', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <text
+                key={key++}
+                x={tx}
+                y={ty}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize="8.5"
+                fill={fillOf(child, style.stroke)}
+                {...textUp(tx, ty)}
+                style={{ pointerEvents: 'none', textTransform: 'uppercase', letterSpacing: '0.04em' }}
+              >
                 {style.tag}
               </text>,
             );
           }
           if (motor) {
-            overlay.push(...motorShapes(
-              motor, start + len - motor.length + num(child, 'motorOverhang', 0),
-              baseY + off.y * ctx.scale));
+            overlay.push(
+              ...motorShapes(
+                motor,
+                start + len - motor.length + num(child, 'motorOverhang', 0),
+                baseY + off.y * ctx.scale,
+              ),
+            );
           }
         }
         renderChildren(child, start, len, r, baseY);
@@ -432,10 +587,18 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   const shoulderRect = (startX: number, lenSi: number, rSi: number, color: string, baseY: number) => {
     if (lenSi <= 0 || rSi <= 0) return;
     overlay.push(
-      <rect key={key++} x={ctx.x0 + startX * scale} y={baseY - rSi * scale}
-        width={Math.max(1.5, lenSi * scale)} height={2 * rSi * scale}
-        fill="rgba(127,127,127,0.001)" stroke={color} strokeWidth="1"
-        strokeDasharray="3 2" style={{ pointerEvents: 'none' }} />,
+      <rect
+        key={key++}
+        x={ctx.x0 + startX * scale}
+        y={baseY - rSi * scale}
+        width={Math.max(1.5, lenSi * scale)}
+        height={2 * rSi * scale}
+        fill="rgba(127,127,127,0.001)"
+        stroke={color}
+        strokeWidth="1"
+        strokeDasharray="3 2"
+        style={{ pointerEvents: 'none' }}
+      />,
     );
   };
 
@@ -448,8 +611,16 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
       if (n.type === 'nosecone') {
         const r = num(n, 'aftRadius', 0.012);
         noteHover(n, ctx.x0 + cx * scale, baseY - r * scale, ctx.x0 + (cx + len) * scale, baseY + r * scale);
-        shapes.push(<path key={key++} d={profilePath(ctx, n, cx, len, 0, r, baseY)} fill={fillOf(n, '#d5d2cb')}
-          stroke={selStroke(n, '#7a786f')} strokeWidth={selWidth(n)} {...clickable(n)} />);
+        shapes.push(
+          <path
+            key={key++}
+            d={profilePath(ctx, n, cx, len, 0, r, baseY)}
+            fill={fillOf(n, '#d5d2cb')}
+            stroke={selStroke(n, '#7a786f')}
+            strokeWidth={selWidth(n)}
+            {...clickable(n)}
+          />,
+        );
         shoulderRect(cx + len, num(n, 'shoulderLength', 0), num(n, 'shoulderRadius', 0), '#9a978f', baseY);
         renderChildren(n, cx, len, r, baseY);
         cx += len;
@@ -457,29 +628,45 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         const r = num(n, 'outerRadius', 0.012);
         noteHover(n, ctx.x0 + cx * scale, baseY - r * scale, ctx.x0 + (cx + len) * scale, baseY + r * scale);
         shapes.push(
-          <rect key={key++} x={ctx.x0 + cx * scale} y={baseY - r * scale}
-            width={len * scale} height={2 * r * scale}
-            fill={fillOf(n, '#e7e5e0')} stroke={selStroke(n, '#7a786f')}
-            strokeWidth={selWidth(n)} {...clickable(n)} />,
+          <rect
+            key={key++}
+            x={ctx.x0 + cx * scale}
+            y={baseY - r * scale}
+            width={len * scale}
+            height={2 * r * scale}
+            fill={fillOf(n, '#e7e5e0')}
+            stroke={selStroke(n, '#7a786f')}
+            strokeWidth={selWidth(n)}
+            {...clickable(n)}
+          />,
         );
         // Min-diameter: a motor loaded directly in this body tube draws at its
         // real case size, seated flush against the tube's aft end.
         const tubeMotor = n.id ? motors?.[n.id] : undefined;
         if (tubeMotor) {
-          shapes.push(...motorShapes(
-            tubeMotor, cx + len - tubeMotor.length + num(n, 'motorOverhang', 0), baseY));
+          shapes.push(...motorShapes(tubeMotor, cx + len - tubeMotor.length + num(n, 'motorOverhang', 0), baseY));
         }
         renderChildren(n, cx, len, r, baseY);
         cx += len;
       } else if (n.type === 'transition') {
         const rf = num(n, 'foreRadius', 0.012);
         const ra = num(n, 'aftRadius', 0.009);
-        noteHover(n, ctx.x0 + cx * scale, baseY - Math.max(rf, ra) * scale,
-          ctx.x0 + (cx + len) * scale, baseY + Math.max(rf, ra) * scale);
+        noteHover(
+          n,
+          ctx.x0 + cx * scale,
+          baseY - Math.max(rf, ra) * scale,
+          ctx.x0 + (cx + len) * scale,
+          baseY + Math.max(rf, ra) * scale,
+        );
         shapes.push(
-          <path key={key++} d={profilePath(ctx, n, cx, len, rf, ra, baseY)}
-            fill={fillOf(n, '#d5d2cb')} stroke={selStroke(n, '#7a786f')}
-            strokeWidth={selWidth(n)} {...clickable(n)} />,
+          <path
+            key={key++}
+            d={profilePath(ctx, n, cx, len, rf, ra, baseY)}
+            fill={fillOf(n, '#d5d2cb')}
+            stroke={selStroke(n, '#7a786f')}
+            strokeWidth={selWidth(n)}
+            {...clickable(n)}
+          />,
         );
         const fsl = num(n, 'foreShoulderLength', 0);
         shoulderRect(cx - fsl, fsl, num(n, 'foreShoulderRadius', 0), '#9a978f', baseY);
@@ -497,9 +684,11 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   // selection outline so the two stay distinguishable.
   const hoverBox = hoverBoxes.length
     ? hoverBoxes.reduce((a, b) => ({
-      x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0),
-      x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1),
-    }))
+        x0: Math.min(a.x0, b.x0),
+        y0: Math.min(a.y0, b.y0),
+        x1: Math.max(a.x1, b.x1),
+        y1: Math.max(a.y1, b.y1),
+      }))
     : null;
   let hoverTag: { x: number; y: number; tw: number } | null = null;
   if (hoverBox) {

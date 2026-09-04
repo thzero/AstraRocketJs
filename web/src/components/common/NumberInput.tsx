@@ -17,7 +17,14 @@ const fmt = (v: number) => String(Number(v.toFixed(6)));
  * noise-trimmed value from the prop.
  */
 export function NumberInput({
-  value, onChange, onCommit, step, min, disabled, placeholder, className,
+  value,
+  onChange,
+  onCommit,
+  step,
+  min,
+  disabled,
+  placeholder,
+  className,
 }: {
   value: number | null;
   onChange: (v: number | null) => void;
@@ -33,8 +40,12 @@ export function NumberInput({
   const blank = value === null || value === undefined || Number.isNaN(value);
   return (
     <input
-      type="number" step={step} min={min} disabled={disabled}
-      placeholder={placeholder} className={className}
+      type="number"
+      step={step}
+      min={min}
+      disabled={disabled}
+      placeholder={placeholder}
+      className={className}
       value={draft ?? (blank ? '' : fmt(value as number))}
       onFocus={() => setDraft(blank ? '' : String(value))}
       onChange={(e) => {
@@ -43,7 +54,10 @@ export function NumberInput({
         const n = parseFloat(raw);
         onChange(raw === '' || Number.isNaN(n) ? null : n);
       }}
-      onBlur={() => { setDraft(null); onCommit?.(); }}
+      onBlur={() => {
+        setDraft(null);
+        onCommit?.();
+      }}
     />
   );
 }

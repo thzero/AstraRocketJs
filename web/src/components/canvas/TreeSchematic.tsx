@@ -5,13 +5,22 @@ import type { ComponentNode, ComponentPosition, RocketTree, StaticInfo } from '.
 import { fmtNum } from '../../i18n/format';
 import { anchorStarts, axialLength, offsetForStart, snapStart, startFromPosition } from '../../tree/position.js';
 import {
-  downloadBlob, IMAGE_FORMAT_EXT, schematicSvg, svgToImage, type ExportData,
+  downloadBlob,
+  IMAGE_FORMAT_EXT,
+  schematicSvg,
+  svgToImage,
+  type ExportData,
 } from '../../services/schematicExport.js';
 import { ImageExportMenu } from './ImageExportMenu.js';
 import { stabilityState, type StabilityState } from '../../services/simReport.js';
 import {
-  calloutLayout, computeSchematicLayout, MARKER_R,
-  niceStep, RULER_H, RULER_W, snapNear,
+  calloutLayout,
+  computeSchematicLayout,
+  MARKER_R,
+  niceStep,
+  RULER_H,
+  RULER_W,
+  snapNear,
 } from './schematicGeometry';
 import { buildSchematicShapes } from './schematicShapes';
 
@@ -31,7 +40,9 @@ const PAN_SLOP = 4;
 /** Same tiered glyphs/vocabulary as StatTiles / SimResults. */
 const STABILITY_GLYPH: Record<StabilityState, string> = { under: '⚠', over: '△', ok: '✓' };
 const STABILITY_VAR: Record<StabilityState, string> = {
-  under: 'var(--status-serious)', over: 'var(--status-warn)', ok: 'var(--status-good)',
+  under: 'var(--status-serious)',
+  over: 'var(--status-warn)',
+  ok: 'var(--status-good)',
 };
 
 interface DragState {
@@ -46,7 +57,23 @@ interface DragState {
   clientScale: number;
 }
 
-export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480, selectedId, onSelect, exportData, onError, vertical, fillHeight, roll = 0, onRoll, controlsSlot, showMarkers = true }: {
+export function TreeSchematic({
+  tree,
+  info,
+  motors,
+  onPatchNode,
+  maxHeight = 480,
+  selectedId,
+  onSelect,
+  exportData,
+  onError,
+  vertical,
+  fillHeight,
+  roll = 0,
+  onRoll,
+  controlsSlot,
+  showMarkers = true,
+}: {
   tree: RocketTree;
   info: StaticInfo | null;
   /** Loaded motor case dimensions (m) keyed by mount node id — drawn to
@@ -116,36 +143,36 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
   const { t } = useTranslation();
   // `active` only becomes true once the pointer has travelled past PAN_SLOP —
   // see beginPan for why a press must not pan until then.
-  const pan = useRef<
-    { pointerX: number; pointerY: number; x0: number; y0: number; active: boolean } | null
-  >(null);
+  const pan = useRef<{ pointerX: number; pointerY: number; x0: number; y0: number; active: boolean } | null>(null);
 
   // --- measure the axial chain (memoized) ---
   // Pure geometry derived from the tree, info and container size, so the
   // frequently-changing state (hover, zoom, calipers, roll) no longer
   // recomputes the whole layout on every render.
-  const layout = useMemo(() => computeSchematicLayout(tree, info, { vertical, chPx, cw, maxHeight, fillHeight }), [tree, info, vertical, chPx, cw, maxHeight, fillHeight]);
+  const layout = useMemo(
+    () => computeSchematicLayout(tree, info, { vertical, chPx, cw, maxHeight, fillHeight }),
+    [tree, info, vertical, chPx, cw, maxHeight, fillHeight],
+  );
   const { chain, totalLen, maxR, vHalf, snapXs, radialSnaps, rulerLane, w, h, scale, ctx } = layout;
 
-  const beginDrag = (child: ComponentNode, parent: ComponentNode, pLen: number) =>
-    (e: React.PointerEvent) => {
-      if (!onPatchNode || !child.id) return;
-      const rect = svgRef.current?.getBoundingClientRect();
-      if (!rect || rect.width === 0) return;
-      e.stopPropagation(); // don't also start a background pan
-      dragMoved.current = false;
-      const pos = (child.position ?? { method: 'top', offset: 0 }) as ComponentPosition;
-      drag.current = {
-        childId: child.id,
-        parent,
-        child,
-        pLen,
-        relStart: startFromPosition(pos, axialLength(child), pLen),
-        pointerX: e.clientX,
-        clientScale: w / rect.width,
-      };
-      (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+  const beginDrag = (child: ComponentNode, parent: ComponentNode, pLen: number) => (e: React.PointerEvent) => {
+    if (!onPatchNode || !child.id) return;
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0) return;
+    e.stopPropagation(); // don't also start a background pan
+    dragMoved.current = false;
+    const pos = (child.position ?? { method: 'top', offset: 0 }) as ComponentPosition;
+    drag.current = {
+      childId: child.id,
+      parent,
+      child,
+      pLen,
+      relStart: startFromPosition(pos, axialLength(child), pLen),
+      pointerX: e.clientX,
+      clientScale: w / rect.width,
     };
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+  };
 
   /**
    * Clears the "this press became a drag" latch at the START of every press.
@@ -156,7 +183,9 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
    * body tube, transition) has no pointerdown handler of its own to clear it.
    * Clicking those became a permanent no-op while children kept working.
    */
-  const resetDragLatch = () => { dragMoved.current = false; };
+  const resetDragLatch = () => {
+    dragMoved.current = false;
+  };
 
   /**
    * Arms a background pan — but does NOT start one, and deliberately does not
@@ -259,7 +288,11 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
     }
   };
 
-  const endDrag = () => { drag.current = null; pan.current = null; caliperDrag.current = null; };
+  const endDrag = () => {
+    drag.current = null;
+    pan.current = null;
+    caliperDrag.current = null;
+  };
 
   // Track the container's size so the viewBox can follow it (height feeds
   // the vertical mode's length axis).
@@ -301,22 +334,36 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
 
   // Button zoom steps around the view center (the wheel handles precise
   // pointer-anchored zoom; these make the capability visible).
-  const zoomBy = (f: number) => setZoom((z) => {
-    const k = Math.min(12, Math.max(1, z.k * f));
-    if (k === z.k) return z;
-    const mx = (w / 2 - z.x) / z.k;
-    const my = (h / 2 - z.y) / z.k;
-    return k === 1 ? { k: 1, x: 0, y: 0 } : { k, x: w / 2 - mx * k, y: h / 2 - my * k };
-  });
+  const zoomBy = (f: number) =>
+    setZoom((z) => {
+      const k = Math.min(12, Math.max(1, z.k * f));
+      if (k === z.k) return z;
+      const mx = (w / 2 - z.x) / z.k;
+      const my = (h / 2 - z.y) / z.k;
+      return k === 1 ? { k: 1, x: 0, y: 0 } : { k, x: w / 2 - mx * k, y: h / 2 - my * k };
+    });
 
   // Nose-up rendering rotates the whole drawing; every text label counter-
   // rotates about its own anchor so it still reads horizontally.
-  const textUp = (x: number, y: number) =>
-    (vertical ? { transform: `rotate(-90 ${x} ${y})` } : {});
+  const textUp = (x: number, y: number) => (vertical ? { transform: `rotate(-90 ${x} ${y})` } : {});
 
   const { shapes, overlay, hoverBox, hoverTag, hoverName } = buildSchematicShapes({
-    chain, ctx, scale, w, h, roll, motors, vertical,
-    selectedId, onSelect, setHoverId, hoverId, onPatchNode, beginDrag, dragMoved, textUp,
+    chain,
+    ctx,
+    scale,
+    w,
+    h,
+    roll,
+    motors,
+    vertical,
+    selectedId,
+    onSelect,
+    setHoverId,
+    hoverId,
+    onPatchNode,
+    beginDrag,
+    dragMoved,
+    textUp,
   });
 
   // When markers are toggled off, null out the stations: this disables the
@@ -325,10 +372,12 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
   const cpX = info && showMarkers ? ctx.x0 + info.cp * scale : null;
   const stab = info ? stabilityState(info.stabilityCalibers) : null;
   const marginPct = info && info.length > 0 ? ((info.cp - info.cg) / info.length) * 100 : null;
-  const stabWord = stab === 'under' ? t('schematic.underStable') : stab === 'over' ? t('schematic.overStable') : t('schematic.ok');
-  const marginText = info && stab
-    ? `${STABILITY_GLYPH[stab]} ${fmtNum(info.stabilityCalibers, 2)} ${t('stability.caliber')} · ${fmtNum(marginPct!, 1)}% — ${stabWord}`
-    : null;
+  const stabWord =
+    stab === 'under' ? t('schematic.underStable') : stab === 'over' ? t('schematic.overStable') : t('schematic.ok');
+  const marginText =
+    info && stab
+      ? `${STABILITY_GLYPH[stab]} ${fmtNum(info.stabilityCalibers, 2)} ${t('stability.caliber')} · ${fmtNum(marginPct!, 1)}% — ${stabWord}`
+      : null;
   const cgLabel = info ? `${t('schematic.cg')} · ${fmtNum(info.cg * 100, 1)} cm` : t('schematic.cg');
   const cpLabel = info ? `${t('schematic.cp')} · ${fmtNum(info.cp * 100, 1)} cm` : t('schematic.cp');
   const callouts = calloutLayout(cgX, cpX, ctx.cy, vHalf * scale, w, h, marginText);
@@ -358,20 +407,32 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
 
   return (
     <div ref={wrapRef} style={{ position: 'relative', ...(vertical || fillHeight ? { height: '100%' } : null) }}>
-      <svg ref={svgRef} viewBox={vertical ? `0 0 ${h} ${w}` : `0 0 ${w} ${h}`}
-          style={vertical
+      <svg
+        ref={svgRef}
+        viewBox={vertical ? `0 0 ${h} ${w}` : `0 0 ${w} ${h}`}
+        style={
+          vertical
             ? { height: '100%', maxWidth: '100%', display: 'block', margin: '0 auto' }
-            : { width: '100%', height: 'auto', display: 'block', touchAction: 'none',
-              cursor: zoom.k > 1 ? 'grab' : undefined }}
-          role="img"
-          aria-label={vertical
+            : {
+                width: '100%',
+                height: 'auto',
+                display: 'block',
+                touchAction: 'none',
+                cursor: zoom.k > 1 ? 'grab' : undefined,
+              }
+        }
+        role="img"
+        aria-label={
+          vertical
             ? 'Rocket side view, nose up, with CG and CP markers'
-            : 'Rocket side view with CG and CP markers — drag components, wheel to zoom, drag background to pan'}
-          onPointerDownCapture={resetDragLatch}
-          onPointerDown={vertical ? undefined : beginPan}
-          onPointerMove={vertical ? undefined : onMove}
-          onPointerUp={vertical ? undefined : endDrag}
-          onPointerLeave={vertical ? undefined : endDrag}>
+            : 'Rocket side view with CG and CP markers — drag components, wheel to zoom, drag background to pan'
+        }
+        onPointerDownCapture={resetDragLatch}
+        onPointerDown={vertical ? undefined : beginPan}
+        onPointerMove={vertical ? undefined : onMove}
+        onPointerUp={vertical ? undefined : endDrag}
+        onPointerLeave={vertical ? undefined : endDrag}
+      >
         <defs>
           {/* Bulkhead fill: the engineering-drawing diagonal hatch. */}
           <pattern id="bulkhead-hatch" patternUnits="userSpaceOnUse" width="5" height="5">
@@ -381,9 +442,7 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
         {/* Vertical: one rigid rotation of the horizontal layout — the w×h
             layout rect maps exactly onto the transposed h×w viewBox with the
             nose (layout left) up. rotate(-90) would put it nose DOWN. */}
-        <g transform={vertical
-          ? `rotate(90 ${h / 2} ${h / 2})`
-          : `translate(${zoom.x} ${zoom.y}) scale(${zoom.k})`}>
+        <g transform={vertical ? `rotate(90 ${h / 2} ${h / 2})` : `translate(${zoom.x} ${zoom.y}) scale(${zoom.k})`}>
           {shapes}
           {overlay}
           {/* pointerEvents none on BOTH marker groups: they are decoration
@@ -393,9 +452,22 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
               below already follows. */}
           {cgX !== null && (
             <g pointerEvents="none">
-              <circle cx={cgX} cy={ctx.cy} r={MARKER_R} fill="var(--surface-1)" stroke="var(--text-primary)" strokeWidth="1.5" />
-              <path d={`M ${cgX} ${ctx.cy} L ${cgX + MARKER_R} ${ctx.cy} A ${MARKER_R} ${MARKER_R} 0 0 1 ${cgX} ${ctx.cy + MARKER_R} Z`} fill="var(--text-primary)" />
-              <path d={`M ${cgX} ${ctx.cy} L ${cgX - MARKER_R} ${ctx.cy} A ${MARKER_R} ${MARKER_R} 0 0 1 ${cgX} ${ctx.cy - MARKER_R} Z`} fill="var(--text-primary)" />
+              <circle
+                cx={cgX}
+                cy={ctx.cy}
+                r={MARKER_R}
+                fill="var(--surface-1)"
+                stroke="var(--text-primary)"
+                strokeWidth="1.5"
+              />
+              <path
+                d={`M ${cgX} ${ctx.cy} L ${cgX + MARKER_R} ${ctx.cy} A ${MARKER_R} ${MARKER_R} 0 0 1 ${cgX} ${ctx.cy + MARKER_R} Z`}
+                fill="var(--text-primary)"
+              />
+              <path
+                d={`M ${cgX} ${ctx.cy} L ${cgX - MARKER_R} ${ctx.cy} A ${MARKER_R} ${MARKER_R} 0 0 1 ${cgX} ${ctx.cy - MARKER_R} Z`}
+                fill="var(--text-primary)"
+              />
             </g>
           )}
           {cpX !== null && (
@@ -408,191 +480,387 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
             <g pointerEvents="none">
               {callouts.cg && (
                 <>
-                  <line x1={callouts.cg.x} y1={callouts.cg.leaderY1} x2={callouts.cg.x} y2={callouts.cg.leaderY2}
-                    stroke="var(--text-primary)" strokeWidth="1" strokeDasharray="4 3" />
+                  <line
+                    x1={callouts.cg.x}
+                    y1={callouts.cg.leaderY1}
+                    x2={callouts.cg.x}
+                    y2={callouts.cg.leaderY2}
+                    stroke="var(--text-primary)"
+                    strokeWidth="1"
+                    strokeDasharray="4 3"
+                  />
                   <circle cx={callouts.cg.x} cy={callouts.cg.leaderY2} r={4} fill="var(--text-primary)" />
-                  <text x={callouts.cg.x + 8} y={callouts.cg.leaderY2} dominantBaseline="central"
-                    fontSize="11" fontWeight="bold" fill="var(--text-primary)"
-                    {...textUp(callouts.cg.x + 8, callouts.cg.leaderY2)}>{cgLabel}</text>
+                  <text
+                    x={callouts.cg.x + 8}
+                    y={callouts.cg.leaderY2}
+                    dominantBaseline="central"
+                    fontSize="11"
+                    fontWeight="bold"
+                    fill="var(--text-primary)"
+                    {...textUp(callouts.cg.x + 8, callouts.cg.leaderY2)}
+                  >
+                    {cgLabel}
+                  </text>
                 </>
               )}
               {callouts.cp && (
                 <>
-                  <line x1={callouts.cp.x} y1={callouts.cp.leaderY1} x2={callouts.cp.x} y2={callouts.cp.leaderY2}
-                    stroke="var(--status-serious)" strokeWidth="1" strokeDasharray="4 3" />
+                  <line
+                    x1={callouts.cp.x}
+                    y1={callouts.cp.leaderY1}
+                    x2={callouts.cp.x}
+                    y2={callouts.cp.leaderY2}
+                    stroke="var(--status-serious)"
+                    strokeWidth="1"
+                    strokeDasharray="4 3"
+                  />
                   <circle cx={callouts.cp.x} cy={callouts.cp.leaderY2} r={4} fill="var(--status-serious)" />
-                  <text x={callouts.cp.x + 8} y={callouts.cp.leaderY2} dominantBaseline="central"
-                    fontSize="11" fontWeight="bold" fill="var(--status-serious)"
-                    {...textUp(callouts.cp.x + 8, callouts.cp.leaderY2)}>{cpLabel}</text>
+                  <text
+                    x={callouts.cp.x + 8}
+                    y={callouts.cp.leaderY2}
+                    dominantBaseline="central"
+                    fontSize="11"
+                    fontWeight="bold"
+                    fill="var(--status-serious)"
+                    {...textUp(callouts.cp.x + 8, callouts.cp.leaderY2)}
+                  >
+                    {cpLabel}
+                  </text>
                 </>
               )}
               {callouts.margin && stab && (
-                <text x={callouts.margin.x} y={callouts.margin.y} textAnchor="middle" dominantBaseline="central"
-                  fontSize="11" fontWeight="bold" fill={STABILITY_VAR[stab]}
-                  {...textUp(callouts.margin.x, callouts.margin.y)}>{marginText}</text>
+                <text
+                  x={callouts.margin.x}
+                  y={callouts.margin.y}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontSize="11"
+                  fontWeight="bold"
+                  fill={STABILITY_VAR[stab]}
+                  {...textUp(callouts.margin.x, callouts.margin.y)}
+                >
+                  {marginText}
+                </text>
               )}
             </g>
           )}
           {hoverBox && hoverTag && (
             <g pointerEvents="none">
-              <rect x={hoverBox.x0 - 2} y={hoverBox.y0 - 2}
-                width={hoverBox.x1 - hoverBox.x0 + 4} height={hoverBox.y1 - hoverBox.y0 + 4}
-                rx="3" fill="var(--accent)" fillOpacity="0.14"
-                stroke="var(--accent)" strokeWidth="1" strokeOpacity="0.6" />
+              <rect
+                x={hoverBox.x0 - 2}
+                y={hoverBox.y0 - 2}
+                width={hoverBox.x1 - hoverBox.x0 + 4}
+                height={hoverBox.y1 - hoverBox.y0 + 4}
+                rx="3"
+                fill="var(--accent)"
+                fillOpacity="0.14"
+                stroke="var(--accent)"
+                strokeWidth="1"
+                strokeOpacity="0.6"
+              />
               <g {...textUp(hoverTag.x, hoverTag.y)}>
-                <rect x={hoverTag.x - hoverTag.tw / 2} y={hoverTag.y - 9}
-                  width={hoverTag.tw} height={18} rx="4"
-                  fill="rgba(13,14,18,0.9)" stroke="var(--border)" strokeWidth="1" />
-                <text x={hoverTag.x} y={hoverTag.y} textAnchor="middle" dominantBaseline="central"
-                  fontSize="11" fill="#ffffff">{hoverName}</text>
+                <rect
+                  x={hoverTag.x - hoverTag.tw / 2}
+                  y={hoverTag.y - 9}
+                  width={hoverTag.tw}
+                  height={18}
+                  rx="4"
+                  fill="rgba(13,14,18,0.9)"
+                  stroke="var(--border)"
+                  strokeWidth="1"
+                />
+                <text
+                  x={hoverTag.x}
+                  y={hoverTag.y}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontSize="11"
+                  fill="#ffffff"
+                >
+                  {hoverName}
+                </text>
               </g>
             </g>
           )}
-          {caliperH && (() => {
-            const ax = ctx.x0 + caliperH.a * scale, bx = ctx.x0 + caliperH.b * scale;
-            const top = 4, bot = h - rulerLane - 2, dimY = 14, mid = (ax + bx) / 2;
-            return (
-              <g>
-                {(['a', 'b'] as const).map((k) => {
-                  const x = ctx.x0 + caliperH[k] * scale;
-                  return (
-                    <g key={k}>
-                      <line x1={x} y1={top} x2={x} y2={bot} stroke="var(--accent)" strokeWidth="1" strokeDasharray="4 3" vectorEffect="non-scaling-stroke" />
-                      <rect x={x - 5} y={top} width={10} height={bot - top} fill="transparent" style={{ cursor: 'ew-resize', pointerEvents: 'all' }} onPointerDown={beginCaliperDrag('h', k)} />
-                      <circle cx={x} cy={top + 2} r={3.5} fill="var(--accent)" pointerEvents="none" />
-                    </g>
-                  );
-                })}
-                <g pointerEvents="none">
-                  <line x1={ax} y1={dimY} x2={bx} y2={dimY} stroke="var(--accent)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-                  <rect x={mid - 28} y={dimY - 9} width={56} height={14} rx="3" fill="rgba(13,14,18,0.92)" stroke="var(--accent)" strokeWidth="0.8" />
-                  <text x={mid} y={dimY - 1} textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--accent)">{fmtNum(Math.abs(caliperH.b - caliperH.a) * 100, 1)} cm</text>
-                </g>
-              </g>
-            );
-          })()}
-          {caliperV && (() => {
-            const ay = ctx.cy - caliperV.a * scale, by = ctx.cy - caliperV.b * scale;
-            const left = ctx.x0, right = ctx.x0 + totalLen * scale;
-            const dimX = ctx.x0 + 20, mid = (ay + by) / 2;
-            return (
-              <g>
-                {(['a', 'b'] as const).map((k) => {
-                  const y = ctx.cy - caliperV[k] * scale;
-                  return (
-                    <g key={k}>
-                      <line x1={left} y1={y} x2={right} y2={y} stroke="var(--accent)" strokeWidth="1" strokeDasharray="4 3" vectorEffect="non-scaling-stroke" />
-                      <rect x={left - 4} y={y - 8} width={34} height={16} fill="transparent" style={{ cursor: 'ns-resize', pointerEvents: 'all' }} onPointerDown={beginCaliperDrag('v', k)} />
-                      <circle cx={left + 4} cy={y} r={3.5} fill="var(--accent)" pointerEvents="none" />
-                    </g>
-                  );
-                })}
-                <g pointerEvents="none">
-                  <line x1={dimX} y1={ay} x2={dimX} y2={by} stroke="var(--accent)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-                  <rect x={dimX - 24} y={mid - 7} width={48} height={14} rx="3" fill="rgba(13,14,18,0.92)" stroke="var(--accent)" strokeWidth="0.8" />
-                  <text x={dimX} y={mid + 3} textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--accent)">{fmtNum(Math.abs(caliperV.a - caliperV.b) * 100, 1)}</text>
-                </g>
-              </g>
-            );
-          })()}
-        </g>
-        {showRuler && (() => {
-          const base = h - RULER_H + 3, tick = h - RULER_H + 8, label = h - 4;
-          return (
-            <g pointerEvents="none">
-              <line x1={rulerX0} y1={base} x2={rulerX1} y2={base} className="stroke-white/20" />
-              {rulerMarks.map((m, i) => {
-                const x = ctx.x0 + m * scale;
-                return (
-                  <g key={i}>
-                    <line x1={x} y1={base} x2={x} y2={tick} className="stroke-white/30" />
-                    <text x={x} y={label} textAnchor="middle" className="fill-slate-500 text-[7px] tabular-nums">{fmtNum(m * 100, 0)}</text>
+          {caliperH &&
+            (() => {
+              const ax = ctx.x0 + caliperH.a * scale,
+                bx = ctx.x0 + caliperH.b * scale;
+              const top = 4,
+                bot = h - rulerLane - 2,
+                dimY = 14,
+                mid = (ax + bx) / 2;
+              return (
+                <g>
+                  {(['a', 'b'] as const).map((k) => {
+                    const x = ctx.x0 + caliperH[k] * scale;
+                    return (
+                      <g key={k}>
+                        <line
+                          x1={x}
+                          y1={top}
+                          x2={x}
+                          y2={bot}
+                          stroke="var(--accent)"
+                          strokeWidth="1"
+                          strokeDasharray="4 3"
+                          vectorEffect="non-scaling-stroke"
+                        />
+                        <rect
+                          x={x - 5}
+                          y={top}
+                          width={10}
+                          height={bot - top}
+                          fill="transparent"
+                          style={{ cursor: 'ew-resize', pointerEvents: 'all' }}
+                          onPointerDown={beginCaliperDrag('h', k)}
+                        />
+                        <circle cx={x} cy={top + 2} r={3.5} fill="var(--accent)" pointerEvents="none" />
+                      </g>
+                    );
+                  })}
+                  <g pointerEvents="none">
+                    <line
+                      x1={ax}
+                      y1={dimY}
+                      x2={bx}
+                      y2={dimY}
+                      stroke="var(--accent)"
+                      strokeWidth="1"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    <rect
+                      x={mid - 28}
+                      y={dimY - 9}
+                      width={56}
+                      height={14}
+                      rx="3"
+                      fill="rgba(13,14,18,0.92)"
+                      stroke="var(--accent)"
+                      strokeWidth="0.8"
+                    />
+                    <text x={mid} y={dimY - 1} textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--accent)">
+                      {fmtNum(Math.abs(caliperH.b - caliperH.a) * 100, 1)} cm
+                    </text>
                   </g>
-                );
-              })}
-              <text x={rulerX1} y={base - 3} textAnchor="end" className="fill-slate-500 text-[7px]">cm</text>
-            </g>
-          );
-        })()}
-        {showRuler && vTicks.length > 0 && (() => {
-          const bx = w - RULER_W + 3;
-          return (
-            <g pointerEvents="none">
-              <line x1={bx} y1={vTop} x2={bx} y2={vBot} className="stroke-white/20" />
-              {vTicks.map((tk, i) => (
-                <g key={i}>
-                  <line x1={bx} y1={tk.y} x2={bx - 4} y2={tk.y} className="stroke-white/30" />
-                  <text x={bx + 3} y={tk.y} dominantBaseline="central" className="fill-slate-500 text-[7px] tabular-nums">{fmtNum(tk.label * 100, 0)}</text>
                 </g>
-              ))}
-              <text x={bx + 3} y={vTop - 5} className="fill-slate-500 text-[7px]">cm</text>
-            </g>
-          );
-        })()}
+              );
+            })()}
+          {caliperV &&
+            (() => {
+              const ay = ctx.cy - caliperV.a * scale,
+                by = ctx.cy - caliperV.b * scale;
+              const left = ctx.x0,
+                right = ctx.x0 + totalLen * scale;
+              const dimX = ctx.x0 + 20,
+                mid = (ay + by) / 2;
+              return (
+                <g>
+                  {(['a', 'b'] as const).map((k) => {
+                    const y = ctx.cy - caliperV[k] * scale;
+                    return (
+                      <g key={k}>
+                        <line
+                          x1={left}
+                          y1={y}
+                          x2={right}
+                          y2={y}
+                          stroke="var(--accent)"
+                          strokeWidth="1"
+                          strokeDasharray="4 3"
+                          vectorEffect="non-scaling-stroke"
+                        />
+                        <rect
+                          x={left - 4}
+                          y={y - 8}
+                          width={34}
+                          height={16}
+                          fill="transparent"
+                          style={{ cursor: 'ns-resize', pointerEvents: 'all' }}
+                          onPointerDown={beginCaliperDrag('v', k)}
+                        />
+                        <circle cx={left + 4} cy={y} r={3.5} fill="var(--accent)" pointerEvents="none" />
+                      </g>
+                    );
+                  })}
+                  <g pointerEvents="none">
+                    <line
+                      x1={dimX}
+                      y1={ay}
+                      x2={dimX}
+                      y2={by}
+                      stroke="var(--accent)"
+                      strokeWidth="1"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    <rect
+                      x={dimX - 24}
+                      y={mid - 7}
+                      width={48}
+                      height={14}
+                      rx="3"
+                      fill="rgba(13,14,18,0.92)"
+                      stroke="var(--accent)"
+                      strokeWidth="0.8"
+                    />
+                    <text x={dimX} y={mid + 3} textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--accent)">
+                      {fmtNum(Math.abs(caliperV.a - caliperV.b) * 100, 1)}
+                    </text>
+                  </g>
+                </g>
+              );
+            })()}
+        </g>
+        {showRuler &&
+          (() => {
+            const base = h - RULER_H + 3,
+              tick = h - RULER_H + 8,
+              label = h - 4;
+            return (
+              <g pointerEvents="none">
+                <line x1={rulerX0} y1={base} x2={rulerX1} y2={base} className="stroke-white/20" />
+                {rulerMarks.map((m, i) => {
+                  const x = ctx.x0 + m * scale;
+                  return (
+                    <g key={i}>
+                      <line x1={x} y1={base} x2={x} y2={tick} className="stroke-white/30" />
+                      <text x={x} y={label} textAnchor="middle" className="fill-slate-500 text-[7px] tabular-nums">
+                        {fmtNum(m * 100, 0)}
+                      </text>
+                    </g>
+                  );
+                })}
+                <text x={rulerX1} y={base - 3} textAnchor="end" className="fill-slate-500 text-[7px]">
+                  cm
+                </text>
+              </g>
+            );
+          })()}
+        {showRuler &&
+          vTicks.length > 0 &&
+          (() => {
+            const bx = w - RULER_W + 3;
+            return (
+              <g pointerEvents="none">
+                <line x1={bx} y1={vTop} x2={bx} y2={vBot} className="stroke-white/20" />
+                {vTicks.map((tk, i) => (
+                  <g key={i}>
+                    <line x1={bx} y1={tk.y} x2={bx - 4} y2={tk.y} className="stroke-white/30" />
+                    <text
+                      x={bx + 3}
+                      y={tk.y}
+                      dominantBaseline="central"
+                      className="fill-slate-500 text-[7px] tabular-nums"
+                    >
+                      {fmtNum(tk.label * 100, 0)}
+                    </text>
+                  </g>
+                ))}
+                <text x={bx + 3} y={vTop - 5} className="fill-slate-500 text-[7px]">
+                  cm
+                </text>
+              </g>
+            );
+          })()}
       </svg>
       {/* Vertical is read-mostly: no zoom to fit-reset, and the SVG/image
           exports assume the horizontal drawing (identity view transform), so
           the whole strip hides rather than export a sideways page. */}
-      {!vertical && (() => {
-        const content = (<>
-        {exportData && (
-          <>
-            <button className="file-btn"
-              title="True-scale 2D drawing (SVG) with design data — physical mm size, prints at 100% scale"
-              onClick={() => {
-                if (!svgRef.current) return;
-                try {
-                  const data = { ...exportData, spanM: 2 * vHalf };
-                  downloadBlob(schematicSvg(svgRef.current, scale, w, h, data),
-                    `${data.name.replace(/[^\w-]+/g, '_')}-2d.svg`);
-                } catch (e) {
-                  onError?.(`SVG export failed: ${e instanceof Error ? e.message : String(e)}`);
-                }
-              }}>
-              ⬇ SVG
-            </button>
-            <ImageExportMenu label="⬇ Image"
-              title="High-resolution 2D image with design data — pick PNG or JPG and a width"
-              onPick={async (format, widthPx) => {
-                if (!svgRef.current) return;
-                try {
-                  const data = { ...exportData, spanM: 2 * vHalf };
-                  const svg = schematicSvg(svgRef.current, scale, w, h, data);
-                  downloadBlob(await svgToImage(svg, widthPx, format),
-                    `${data.name.replace(/[^\w-]+/g, '_')}-2d.${IMAGE_FORMAT_EXT[format]}`);
-                } catch (e) {
-                  onError?.(`Image export failed: ${e instanceof Error ? e.message : String(e)}`
-                    + ' — try a smaller width, or use ⬇ SVG.');
-                }
-              }} />
-          </>
-        )}
-        <button className="file-btn" title={t('schematic.calipersH')} aria-pressed={!!caliperH}
-          style={caliperH ? { background: 'var(--accent)', color: '#fff' } : undefined}
-          onClick={() => setCaliperH((c) => (c ? null : { a: totalLen * 0.2, b: totalLen * 0.8 }))}>
-          ⟺
-        </button>
-        <button className="file-btn" title={t('schematic.calipersV')} aria-pressed={!!caliperV}
-          style={caliperV ? { background: 'var(--accent)', color: '#fff' } : undefined}
-          onClick={() => setCaliperV((c) => (c ? null : { a: maxR, b: -maxR }))}>
-          ⇕
-        </button>
-        {(zoom.k > 1 || zoom.x !== 0 || zoom.y !== 0) && (
-          <button className="file-btn"
-            title={t('schematic.fit')}
-            onClick={() => setZoom({ k: 1, x: 0, y: 0 })}>
-            ⤢ {t('schematic.fit')}
-          </button>
-        )}
-        <button className="file-btn" title={t('schematic.zoomIn')}
-          aria-label={t('schematic.zoomIn')} onClick={() => zoomBy(1.5)} disabled={zoom.k >= 12}>+</button>
-        <button className="file-btn" title={t('schematic.zoomOut')}
-          aria-label={t('schematic.zoomOut')} onClick={() => zoomBy(1 / 1.5)} disabled={zoom.k <= 1}>−</button>
-        </>);
-        return controlsSlot
-          ? createPortal(content, controlsSlot)
-          : <div className="schematic-controls">{content}</div>;
-      })()}
+      {!vertical &&
+        (() => {
+          const content = (
+            <>
+              {exportData && (
+                <>
+                  <button
+                    className="file-btn"
+                    title="True-scale 2D drawing (SVG) with design data — physical mm size, prints at 100% scale"
+                    onClick={() => {
+                      if (!svgRef.current) return;
+                      try {
+                        const data = { ...exportData, spanM: 2 * vHalf };
+                        downloadBlob(
+                          schematicSvg(svgRef.current, scale, w, h, data),
+                          `${data.name.replace(/[^\w-]+/g, '_')}-2d.svg`,
+                        );
+                      } catch (e) {
+                        onError?.(`SVG export failed: ${e instanceof Error ? e.message : String(e)}`);
+                      }
+                    }}
+                  >
+                    ⬇ SVG
+                  </button>
+                  <ImageExportMenu
+                    label="⬇ Image"
+                    title="High-resolution 2D image with design data — pick PNG or JPG and a width"
+                    onPick={async (format, widthPx) => {
+                      if (!svgRef.current) return;
+                      try {
+                        const data = { ...exportData, spanM: 2 * vHalf };
+                        const svg = schematicSvg(svgRef.current, scale, w, h, data);
+                        downloadBlob(
+                          await svgToImage(svg, widthPx, format),
+                          `${data.name.replace(/[^\w-]+/g, '_')}-2d.${IMAGE_FORMAT_EXT[format]}`,
+                        );
+                      } catch (e) {
+                        onError?.(
+                          `Image export failed: ${e instanceof Error ? e.message : String(e)}` +
+                            ' — try a smaller width, or use ⬇ SVG.',
+                        );
+                      }
+                    }}
+                  />
+                </>
+              )}
+              <button
+                className="file-btn"
+                title={t('schematic.calipersH')}
+                aria-pressed={!!caliperH}
+                style={caliperH ? { background: 'var(--accent)', color: '#fff' } : undefined}
+                onClick={() => setCaliperH((c) => (c ? null : { a: totalLen * 0.2, b: totalLen * 0.8 }))}
+              >
+                ⟺
+              </button>
+              <button
+                className="file-btn"
+                title={t('schematic.calipersV')}
+                aria-pressed={!!caliperV}
+                style={caliperV ? { background: 'var(--accent)', color: '#fff' } : undefined}
+                onClick={() => setCaliperV((c) => (c ? null : { a: maxR, b: -maxR }))}
+              >
+                ⇕
+              </button>
+              {(zoom.k > 1 || zoom.x !== 0 || zoom.y !== 0) && (
+                <button className="file-btn" title={t('schematic.fit')} onClick={() => setZoom({ k: 1, x: 0, y: 0 })}>
+                  ⤢ {t('schematic.fit')}
+                </button>
+              )}
+              <button
+                className="file-btn"
+                title={t('schematic.zoomIn')}
+                aria-label={t('schematic.zoomIn')}
+                onClick={() => zoomBy(1.5)}
+                disabled={zoom.k >= 12}
+              >
+                +
+              </button>
+              <button
+                className="file-btn"
+                title={t('schematic.zoomOut')}
+                aria-label={t('schematic.zoomOut')}
+                onClick={() => zoomBy(1 / 1.5)}
+                disabled={zoom.k <= 1}
+              >
+                −
+              </button>
+            </>
+          );
+          return controlsSlot ? (
+            createPortal(content, controlsSlot)
+          ) : (
+            <div className="schematic-controls">{content}</div>
+          );
+        })()}
     </div>
   );
 }

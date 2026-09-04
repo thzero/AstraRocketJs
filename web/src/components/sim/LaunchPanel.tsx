@@ -9,8 +9,21 @@ import { NumberInput } from '../common/NumberInput';
  * App feeds these straight into simulate(). Populated from an imported .ork.
  */
 
-function Num({ label, unit, value, step = 1, min, placeholder, onChange }: {
-  label: string; unit?: string; value: number | null; step?: number; min?: number; placeholder?: string;
+function Num({
+  label,
+  unit,
+  value,
+  step = 1,
+  min,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  unit?: string;
+  value: number | null;
+  step?: number;
+  min?: number;
+  placeholder?: string;
   onChange: (v: number | null) => void;
 }) {
   return (
@@ -18,7 +31,11 @@ function Num({ label, unit, value, step = 1, min, placeholder, onChange }: {
       <span className="text-xs text-slate-400">{label}</span>
       <span className="flex items-center gap-1">
         <NumberInput
-          value={value} onChange={onChange} step={step} min={min} placeholder={placeholder}
+          value={value}
+          onChange={onChange}
+          step={step}
+          min={min}
+          placeholder={placeholder}
           className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
         />
         {unit && <span className="w-8 text-xs text-slate-500">{unit}</span>}
@@ -36,8 +53,13 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-export function LaunchPanel({ launch, onChange, onCommit }: {
-  launch: LaunchConditions; onChange: (patch: Partial<LaunchConditions>) => void;
+export function LaunchPanel({
+  launch,
+  onChange,
+  onCommit,
+}: {
+  launch: LaunchConditions;
+  onChange: (patch: Partial<LaunchConditions>) => void;
   /** Close the current edit's undo entry. Number fields commit via the panel's
    *  container blur (React blur bubbles); discrete controls commit immediately. */
   onCommit?: () => void;
@@ -52,7 +74,16 @@ export function LaunchPanel({ launch, onChange, onCommit }: {
 
   const toggleMultilevel = (on: boolean) => {
     if (on) {
-      onChange({ windLevels: [{ altitudeM: 0, speed: launch.windAverage || 0, directionDeg: launch.windDirectionDeg ?? 90, stddev: launch.windStdDev || 0 }] });
+      onChange({
+        windLevels: [
+          {
+            altitudeM: 0,
+            speed: launch.windAverage || 0,
+            directionDeg: launch.windDirectionDeg ?? 90,
+            stddev: launch.windStdDev || 0,
+          },
+        ],
+      });
     } else {
       onChange({ windLevels: undefined });
     }
@@ -63,68 +94,213 @@ export function LaunchPanel({ launch, onChange, onCommit }: {
     // edited (React's onBlur bubbles from the focused input).
     <div className="space-y-3 p-3" onBlur={onCommit}>
       <Group title={t('launch.launchRod')}>
-        <Num label={t('launch.length')} unit="m" step={0.1} min={0} value={launch.launchRodLengthM} onChange={(v) => onChange({ launchRodLengthM: v ?? 0 })} />
-        <Num label={t('launch.angle')} unit="°" step={1} value={launch.launchRodAngleDeg} onChange={(v) => onChange({ launchRodAngleDeg: v ?? 0 })} />
+        <Num
+          label={t('launch.length')}
+          unit="m"
+          step={0.1}
+          min={0}
+          value={launch.launchRodLengthM}
+          onChange={(v) => onChange({ launchRodLengthM: v ?? 0 })}
+        />
+        <Num
+          label={t('launch.angle')}
+          unit="°"
+          step={1}
+          value={launch.launchRodAngleDeg}
+          onChange={(v) => onChange({ launchRodAngleDeg: v ?? 0 })}
+        />
         <label className="flex items-center gap-2">
-          <input type="checkbox" checked={launch.launchIntoWind ?? false} onChange={(e) => { onChange({ launchIntoWind: e.target.checked }); onCommit?.(); }} className="accent-sky-500" />
+          <input
+            type="checkbox"
+            checked={launch.launchIntoWind ?? false}
+            onChange={(e) => {
+              onChange({ launchIntoWind: e.target.checked });
+              onCommit?.();
+            }}
+            className="accent-sky-500"
+          />
           <span className="text-xs text-slate-400">{t('launch.intoWind')}</span>
         </label>
         {!launch.launchIntoWind && (
-          <Num label={t('launch.rodDirection')} unit="°" step={5} value={launch.launchRodDirectionDeg ?? 90} onChange={(v) => onChange({ launchRodDirectionDeg: v ?? 0 })} />
+          <Num
+            label={t('launch.rodDirection')}
+            unit="°"
+            step={5}
+            value={launch.launchRodDirectionDeg ?? 90}
+            onChange={(v) => onChange({ launchRodDirectionDeg: v ?? 0 })}
+          />
         )}
       </Group>
 
       <Group title={t('launch.site')}>
-        <Num label={t('launch.altitude')} unit="m" step={10} value={launch.launchAltitudeM} onChange={(v) => onChange({ launchAltitudeM: v ?? 0 })} />
-        <Num label={t('launch.latitude')} unit="°" step={1} value={launch.latitudeDeg} onChange={(v) => onChange({ latitudeDeg: v ?? 0 })} />
-        <Num label={t('launch.longitude')} unit="°" step={1} value={launch.longitudeDeg ?? null} onChange={(v) => onChange({ longitudeDeg: v ?? undefined })} />
+        <Num
+          label={t('launch.altitude')}
+          unit="m"
+          step={10}
+          value={launch.launchAltitudeM}
+          onChange={(v) => onChange({ launchAltitudeM: v ?? 0 })}
+        />
+        <Num
+          label={t('launch.latitude')}
+          unit="°"
+          step={1}
+          value={launch.latitudeDeg}
+          onChange={(v) => onChange({ latitudeDeg: v ?? 0 })}
+        />
+        <Num
+          label={t('launch.longitude')}
+          unit="°"
+          step={1}
+          value={launch.longitudeDeg ?? null}
+          onChange={(v) => onChange({ longitudeDeg: v ?? undefined })}
+        />
         {'geolocation' in navigator && (
           <button
-            onClick={() => navigator.geolocation.getCurrentPosition(
-              (pos) => { onChange({ latitudeDeg: +pos.coords.latitude.toFixed(4), longitudeDeg: +pos.coords.longitude.toFixed(4) }); onCommit?.(); },
-              () => { /* denied or unavailable — leave the fields as they are */ },
-              { timeout: 10000 },
-            )}
+            onClick={() =>
+              navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                  onChange({
+                    latitudeDeg: +pos.coords.latitude.toFixed(4),
+                    longitudeDeg: +pos.coords.longitude.toFixed(4),
+                  });
+                  onCommit?.();
+                },
+                () => {
+                  /* denied or unavailable — leave the fields as they are */
+                },
+                { timeout: 10000 },
+              )
+            }
             className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
-          >📍 {t('launch.useLocation')}</button>
+          >
+            📍 {t('launch.useLocation')}
+          </button>
         )}
       </Group>
 
       <Group title={t('launch.atmosphere')}>
-        <Num label={t('launch.temperature')} unit="°C" step={1} placeholder={t('launch.isa')} value={launch.temperatureC} onChange={(v) => onChange({ temperatureC: v })} />
-        <Num label={t('launch.pressure')} unit="hPa" step={1} placeholder={t('launch.isa')} value={launch.pressureHPa} onChange={(v) => onChange({ pressureHPa: v })} />
+        <Num
+          label={t('launch.temperature')}
+          unit="°C"
+          step={1}
+          placeholder={t('launch.isa')}
+          value={launch.temperatureC}
+          onChange={(v) => onChange({ temperatureC: v })}
+        />
+        <Num
+          label={t('launch.pressure')}
+          unit="hPa"
+          step={1}
+          placeholder={t('launch.isa')}
+          value={launch.pressureHPa}
+          onChange={(v) => onChange({ pressureHPa: v })}
+        />
       </Group>
 
       <Group title={t('launch.wind')}>
         <label className="flex items-center justify-between gap-3 pb-1">
           <span className="text-xs text-slate-400">{t('launch.variesWithAltitude')}</span>
-          <input type="checkbox" checked={multilevel} onChange={(e) => { toggleMultilevel(e.target.checked); onCommit?.(); }} className="accent-sky-500" />
+          <input
+            type="checkbox"
+            checked={multilevel}
+            onChange={(e) => {
+              toggleMultilevel(e.target.checked);
+              onCommit?.();
+            }}
+            className="accent-sky-500"
+          />
         </label>
 
         {!multilevel ? (
           <>
-            <Num label={t('launch.speed')} unit="m/s" step={0.5} min={0} value={launch.windAverage} onChange={(v) => onChange({ windAverage: v ?? 0 })} />
-            <Num label={t('launch.direction')} unit="°" step={5} value={launch.windDirectionDeg ?? 90} onChange={(v) => onChange({ windDirectionDeg: v ?? 0 })} />
-            <Num label={t('launch.gusts')} unit="m/s" step={0.5} min={0} value={launch.windStdDev} onChange={(v) => onChange({ windStdDev: v ?? 0 })} />
+            <Num
+              label={t('launch.speed')}
+              unit="m/s"
+              step={0.5}
+              min={0}
+              value={launch.windAverage}
+              onChange={(v) => onChange({ windAverage: v ?? 0 })}
+            />
+            <Num
+              label={t('launch.direction')}
+              unit="°"
+              step={5}
+              value={launch.windDirectionDeg ?? 90}
+              onChange={(v) => onChange({ windDirectionDeg: v ?? 0 })}
+            />
+            <Num
+              label={t('launch.gusts')}
+              unit="m/s"
+              step={0.5}
+              min={0}
+              value={launch.windStdDev}
+              onChange={(v) => onChange({ windStdDev: v ?? 0 })}
+            />
           </>
         ) : (
           <div className="space-y-2">
             <div className="flex gap-1 px-1 text-[10px] uppercase tracking-wide text-slate-500">
-              <span className="w-16">Alt m</span><span className="w-14">m/s</span><span className="w-12">dir°</span><span className="w-12">gust</span><span className="w-6" />
+              <span className="w-16">Alt m</span>
+              <span className="w-14">m/s</span>
+              <span className="w-12">dir°</span>
+              <span className="w-12">gust</span>
+              <span className="w-6" />
             </div>
             {levels.map((l, i) => (
               <div key={i} className="flex items-center gap-1">
-                <NumberInput step={50} value={l.altitudeM} onChange={(v) => patchLevel(i, { altitudeM: v ?? 0 })} className="w-16 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10" />
-                <NumberInput step={0.5} value={l.speed} onChange={(v) => patchLevel(i, { speed: v ?? 0 })} className="w-14 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10" />
-                <NumberInput step={5} value={l.directionDeg} onChange={(v) => patchLevel(i, { directionDeg: v ?? 0 })} className="w-12 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10" />
-                <NumberInput step={0.5} value={l.stddev} onChange={(v) => patchLevel(i, { stddev: v ?? 0 })} className="w-12 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10" />
-                <button onClick={() => { setLevels(levels.filter((_, j) => j !== i)); onCommit?.(); }} title={t('launch.removeLevel')} className="w-6 rounded bg-red-500/15 py-1 text-xs text-red-300 ring-1 ring-red-500/30">×</button>
+                <NumberInput
+                  step={50}
+                  value={l.altitudeM}
+                  onChange={(v) => patchLevel(i, { altitudeM: v ?? 0 })}
+                  className="w-16 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10"
+                />
+                <NumberInput
+                  step={0.5}
+                  value={l.speed}
+                  onChange={(v) => patchLevel(i, { speed: v ?? 0 })}
+                  className="w-14 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10"
+                />
+                <NumberInput
+                  step={5}
+                  value={l.directionDeg}
+                  onChange={(v) => patchLevel(i, { directionDeg: v ?? 0 })}
+                  className="w-12 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10"
+                />
+                <NumberInput
+                  step={0.5}
+                  value={l.stddev}
+                  onChange={(v) => patchLevel(i, { stddev: v ?? 0 })}
+                  className="w-12 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10"
+                />
+                <button
+                  onClick={() => {
+                    setLevels(levels.filter((_, j) => j !== i));
+                    onCommit?.();
+                  }}
+                  title={t('launch.removeLevel')}
+                  className="w-6 rounded bg-red-500/15 py-1 text-xs text-red-300 ring-1 ring-red-500/30"
+                >
+                  ×
+                </button>
               </div>
             ))}
             <button
-              onClick={() => { setLevels([...levels, { altitudeM: (levels[levels.length - 1]?.altitudeM ?? 0) + 300, speed: levels[levels.length - 1]?.speed ?? 0, directionDeg: levels[levels.length - 1]?.directionDeg ?? 90, stddev: levels[levels.length - 1]?.stddev ?? 0 }]); onCommit?.(); }}
+              onClick={() => {
+                setLevels([
+                  ...levels,
+                  {
+                    altitudeM: (levels[levels.length - 1]?.altitudeM ?? 0) + 300,
+                    speed: levels[levels.length - 1]?.speed ?? 0,
+                    directionDeg: levels[levels.length - 1]?.directionDeg ?? 90,
+                    stddev: levels[levels.length - 1]?.stddev ?? 0,
+                  },
+                ]);
+                onCommit?.();
+              }}
               className="w-full rounded-md bg-slate-800 py-1 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
-            >{t('launch.addLevel')}</button>
+            >
+              {t('launch.addLevel')}
+            </button>
           </div>
         )}
       </Group>
@@ -134,7 +310,10 @@ export function LaunchPanel({ launch, onChange, onCommit }: {
           <span className="text-xs text-slate-400">{t('launch.geodetic')}</span>
           <select
             value={launch.geodetic ?? 'spherical'}
-            onChange={(e) => { onChange({ geodetic: e.target.value as LaunchConditions['geodetic'] }); onCommit?.(); }}
+            onChange={(e) => {
+              onChange({ geodetic: e.target.value as LaunchConditions['geodetic'] });
+              onCommit?.();
+            }}
             className="w-32 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
           >
             <option value="flat">{t('launch.flat')}</option>

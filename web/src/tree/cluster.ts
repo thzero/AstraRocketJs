@@ -33,13 +33,33 @@ export const CLUSTER_POINTS: Record<string, number[]> = {
   '5-star': ring(5, 1, true),
   '6-star': [0, 0, 0, 1, SQRT3 / 2, 0.5, SQRT3 / 2, -0.5, 0, -1, -SQRT3 / 2, -0.5, -SQRT3 / 2, 0.5],
   '9-grid': [-1.4, 1.4, 0, 1.4, 1.4, 1.4, -1.4, 0, 0, 0, 1.4, 0, -1.4, -1.4, 0, -1.4, 1.4, -1.4],
-  '9-star': [0, 0, 1.4, 0, 1.4 / SQRT2, -1.4 / SQRT2, 0, -1.4, -1.4 / SQRT2, -1.4 / SQRT2, -1.4, 0, -1.4 / SQRT2, 1.4 / SQRT2, 0, 1.4, 1.4 / SQRT2, 1.4 / SQRT2],
+  '9-star': [
+    0,
+    0,
+    1.4,
+    0,
+    1.4 / SQRT2,
+    -1.4 / SQRT2,
+    0,
+    -1.4,
+    -1.4 / SQRT2,
+    -1.4 / SQRT2,
+    -1.4,
+    0,
+    -1.4 / SQRT2,
+    1.4 / SQRT2,
+    0,
+    1.4,
+    1.4 / SQRT2,
+    1.4 / SQRT2,
+  ],
 };
 
 /** Dropdown options in kernel order, labelled with their motor counts. */
-export const CLUSTER_OPTIONS: [string, string][] = Object.entries(CLUSTER_POINTS).map(
-  ([name, pts]) => [name, name === 'single' ? 'Single' : `${name} (${pts.length / 2} motors)`],
-);
+export const CLUSTER_OPTIONS: [string, string][] = Object.entries(CLUSTER_POINTS).map(([name, pts]) => [
+  name,
+  name === 'single' ? 'Single' : `${name} (${pts.length / 2} motors)`,
+]);
 
 /** Motors in this cluster pattern (1 for single/unknown). */
 export function clusterCount(cluster: string | undefined): number {

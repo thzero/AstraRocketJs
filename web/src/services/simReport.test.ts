@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  stabilityState,
-  stabilityTone,
-  stabilityVerdictKey,
-  EVENT_LABEL,
-  EVENT_PRIORITY,
-} from './simReport';
+import { stabilityState, stabilityTone, stabilityVerdictKey, EVENT_LABEL, EVENT_PRIORITY } from './simReport';
 
 describe('stabilityState (healthy-band classifier)', () => {
   it('returns null for null/undefined/non-finite input', () => {

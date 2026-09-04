@@ -58,9 +58,9 @@ export const BUILTIN_MATERIALS: Material[] = [
   { name: 'Ripstop nylon', type: 'surface', density: 0.067, group: 'Fabrics' },
   { name: 'Mylar', type: 'surface', density: 0.021, group: 'Plastics' },
   { name: 'Polyethylene (thin)', type: 'surface', density: 0.015, group: 'Plastics' },
-  { name: 'Polyethylene (heavy)', type: 'surface', density: 0.040, group: 'Plastics' },
-  { name: 'Silk', type: 'surface', density: 0.060, group: 'Fabrics' },
-  { name: 'Paper (office)', type: 'surface', density: 0.080, group: 'Paper' },
+  { name: 'Polyethylene (heavy)', type: 'surface', density: 0.04, group: 'Plastics' },
+  { name: 'Silk', type: 'surface', density: 0.06, group: 'Fabrics' },
+  { name: 'Paper (office)', type: 'surface', density: 0.08, group: 'Paper' },
   { name: 'Cellophane', type: 'surface', density: 0.018, group: 'Plastics' },
   { name: 'Crêpe paper', type: 'surface', density: 0.025, group: 'Paper' },
 

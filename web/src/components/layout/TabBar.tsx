@@ -16,7 +16,17 @@ export function TabBar() {
   );
 }
 
-function TabButton({ active, onClick, label, icon }: { active: boolean; onClick: () => void; label: string; icon: string }) {
+function TabButton({
+  active,
+  onClick,
+  label,
+  icon,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  icon: string;
+}) {
   return (
     <button
       onClick={onClick}

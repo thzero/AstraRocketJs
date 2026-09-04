@@ -32,8 +32,15 @@ export function niceStep(totalM: number): number {
 
 /** Snap `raw` to the nearest value in `snaps` within `eps`, else return `raw`. */
 export function snapNear(raw: number, snaps: number[], eps: number): number {
-  let best = eps, out = raw;
-  for (const s of snaps) { const d = Math.abs(s - raw); if (d < best) { best = d; out = s; } }
+  let best = eps,
+    out = raw;
+  for (const s of snaps) {
+    const d = Math.abs(s - raw);
+    if (d < best) {
+      best = d;
+      out = s;
+    }
+  }
   return out;
 }
 /** CP label footprint in the lower lane, relative to cpX: dot (r 4) plus
@@ -63,8 +70,12 @@ export interface CalloutLayout {
  * @param halfPx drawn vertical half-extent (viewBox px) = vHalf * scale
  */
 export function calloutLayout(
-  cgX: number | null, cpX: number | null,
-  cy: number, halfPx: number, w: number, h: number,
+  cgX: number | null,
+  cpX: number | null,
+  cy: number,
+  halfPx: number,
+  w: number,
+  h: number,
   marginText: string | null,
 ): CalloutLayout {
   const laneTop = Math.max(10, cy - Math.max(halfPx, MARKER_R) - LANE_GAP);
@@ -119,19 +130,34 @@ export function collect<T>(nodes: ComponentNode[], f: (n: ComponentNode) => T): 
  * edge aft→fore, Z closes the fore edge.
  */
 export function profilePath(
-  ctx: Ctx, n: ComponentNode, x: number, len: number,
-  foreR: number, aftR: number, baseY: number,
+  ctx: Ctx,
+  n: ComponentNode,
+  x: number,
+  len: number,
+  foreR: number,
+  aftR: number,
+  baseY: number,
 ): string {
-  const shape = typeof n['shape'] === 'string' ? (n['shape'] as string)
-    : n.type === 'transition' ? 'conical' : 'ogive';
+  const shape = typeof n['shape'] === 'string' ? (n['shape'] as string) : n.type === 'transition' ? 'conical' : 'ogive';
   const param = numOpt(n, 'shapeParameter');
   // node['clipped'] (.ork <shapeclipped>) rides along so an unclipped
   // transition draws the way it simulates; absent = kernel default (clipped).
-  const pts = outerProfile(shape, param, len, foreR, aftR, 24, undefined,
-    typeof n['clipped'] === 'boolean' ? (n['clipped'] as boolean) : undefined);
+  const pts = outerProfile(
+    shape,
+    param,
+    len,
+    foreR,
+    aftR,
+    24,
+    undefined,
+    typeof n['clipped'] === 'boolean' ? (n['clipped'] as boolean) : undefined,
+  );
   const px = (xi: number) => ctx.x0 + (x + xi) * ctx.scale;
   const top = pts.map(([xi, r]) => `${px(xi)} ${baseY - r * ctx.scale}`);
-  const bottom = pts.slice().reverse().map(([xi, r]) => `${px(xi)} ${baseY + r * ctx.scale}`);
+  const bottom = pts
+    .slice()
+    .reverse()
+    .map(([xi, r]) => `${px(xi)} ${baseY + r * ctx.scale}`);
   return `M ${top.join(' L ')} L ${bottom.join(' L ')} Z`;
 }
 
@@ -144,11 +170,23 @@ export function computeSchematicLayout(
   tree: RocketTree,
   info: StaticInfo | null,
   dims: { vertical?: boolean; chPx: number; cw: number; maxHeight: number; fillHeight?: boolean },
-): { chain: ComponentNode[]; totalLen: number; maxR: number; vHalf: number; snapXs: number[]; radialSnaps: number[]; rulerLane: number; w: number; h: number; scale: number; ctx: Ctx } {
+): {
+  chain: ComponentNode[];
+  totalLen: number;
+  maxR: number;
+  vHalf: number;
+  snapXs: number[];
+  radialSnaps: number[];
+  rulerLane: number;
+  w: number;
+  h: number;
+  scale: number;
+  ctx: Ctx;
+} {
   const { vertical, chPx, cw, maxHeight, fillHeight } = dims;
   // Stages flatten into one nose-to-tail chain (sustainer first, boosters
   // after — the desktop's stacking order); legacy flat trees pass through.
-  const chain = tree.components.flatMap((n) => (n.type === 'stage' ? n.children ?? [] : [n]));
+  const chain = tree.components.flatMap((n) => (n.type === 'stage' ? (n.children ?? []) : [n]));
   let totalLen = 0;
   let maxR = 0.001;
   for (const n of chain) {
@@ -172,13 +210,8 @@ export function computeSchematicLayout(
     if (n.type === 'tubefinset') return 2 * tubeFinRadius(n, maxR);
     return num(n, 'height', 0.03);
   };
-  const protuberanceSpan = (n: ComponentNode): number =>
-    (n.type === 'fairing' ? num(n, 'height', 0.02) : 0);
-  const finH = Math.max(
-    0,
-    ...collect(tree.components, finSpan),
-    ...collect(tree.components, protuberanceSpan),
-  );
+  const protuberanceSpan = (n: ComponentNode): number => (n.type === 'fairing' ? num(n, 'height', 0.02) : 0);
+  const finH = Math.max(0, ...collect(tree.components, finSpan), ...collect(tree.components, protuberanceSpan));
   totalLen = Math.max(totalLen, 0.05);
 
   // Vertical half-extent (m): the core body + fins, plus any off-axis pod's
@@ -210,7 +243,10 @@ export function computeSchematicLayout(
         snapXs.push(cx, cx + len);
         for (const child of n.children ?? []) {
           const clen = axialLength(child);
-          if (clen > 0) { const cs = axialStart(child, clen, cx, len); snapXs.push(cs, cs + clen); }
+          if (clen > 0) {
+            const cs = axialStart(child, clen, cx, len);
+            snapXs.push(cs, cs + clen);
+          }
         }
         const r = Math.max(num(n, 'aftRadius', 0), num(n, 'outerRadius', 0), num(n, 'foreRadius', 0));
         if (r > 0) radialSet.add(r);
@@ -237,9 +273,12 @@ export function computeSchematicLayout(
   const rulerLane = vertical ? 0 : RULER_H;
   const rulerW = vertical ? 0 : RULER_W;
   const crossCap = vertical ? Math.max(160, cw) : maxHeight;
-  const h = vertical || !fillHeight
-    ? Math.round(Math.min(crossCap, Math.max(200, 2 * vHalf * ((w - 2 * pad) / totalLen) + 2 * pad + lanes + rulerLane)))
-    : Math.max(200, chPx);
+  const h =
+    vertical || !fillHeight
+      ? Math.round(
+          Math.min(crossCap, Math.max(200, 2 * vHalf * ((w - 2 * pad) / totalLen) + 2 * pad + lanes + rulerLane)),
+        )
+      : Math.max(200, chPx);
   // Horizontal headroom: `totalLen` covers only the axial chain (nose+body), so
   // aft-swept fins overhang past it and the CG/CP labels reach right of the aft.
   // Fit to ~12% more than the bare length so nothing sits flush to the edge, and

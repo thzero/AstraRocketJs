@@ -28,6 +28,4 @@ export interface WorkerRequest {
   args: SimPayload | null;
 }
 
-export type WorkerResponse =
-  | { id: number; ok: true; result: unknown }
-  | { id: number; ok: false; error: string };
+export type WorkerResponse = { id: number; ok: true; result: unknown } | { id: number; ok: false; error: string };

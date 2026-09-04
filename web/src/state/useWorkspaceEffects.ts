@@ -13,22 +13,30 @@ import { appName } from '../services/appInfo';
  */
 export function useWorkspaceEffects() {
   const { i18n } = useTranslation();
-  useEffect(() => { document.title = appName(); }, [i18n.language]);
+  useEffect(() => {
+    document.title = appName();
+  }, [i18n.language]);
 
   // Spawn + warm the sim worker (loads its own engine off-thread) so the first
   // "Run" isn't delayed by the worker's compile. Best-effort; sims fall back to
   // spawning it lazily if this is skipped.
-  useEffect(() => { warmSimWorker(); }, []);
+  useEffect(() => {
+    warmSimWorker();
+  }, []);
 
   // Restore the saved workspace once, then autosave (debounced) on change.
   const hydrated = useRef(false);
   useEffect(() => {
     let live = true;
-    getWorkspaceStore().load().then((w) => {
-      if (live && w) useWorkspaceStore.getState().hydrate(w);
-      hydrated.current = true;
-    });
-    return () => { live = false; };
+    getWorkspaceStore()
+      .load()
+      .then((w) => {
+        if (live && w) useWorkspaceStore.getState().hydrate(w);
+        hydrated.current = true;
+      });
+    return () => {
+      live = false;
+    };
   }, []);
 
   const tree = useWorkspaceStore((s) => s.tree);
@@ -55,7 +63,14 @@ export function useWorkspaceEffects() {
     const flush = () => {
       if (!hydrated.current) return;
       const s = useWorkspaceStore.getState();
-      getWorkspaceStore().save({ version: 1, tree: s.tree, sims: s.sims, activeId: s.activeId, extraMotors: s.extraMotors, loadedMeta: s.loadedMeta });
+      getWorkspaceStore().save({
+        version: 1,
+        tree: s.tree,
+        sims: s.sims,
+        activeId: s.activeId,
+        extraMotors: s.extraMotors,
+        loadedMeta: s.loadedMeta,
+      });
     };
     window.addEventListener('pagehide', flush);
     window.addEventListener('beforeunload', flush);
@@ -79,5 +94,7 @@ export function useWorkspaceEffects() {
   }, [tree, motor, extraMotors, ignitionEvent, ignitionDelay]);
 
   // Editing the design invalidates every simulation's cached result.
-  useEffect(() => { useWorkspaceStore.getState().invalidateResults(); }, [tree]);
+  useEffect(() => {
+    useWorkspaceStore.getState().invalidateResults();
+  }, [tree]);
 }

@@ -29,9 +29,13 @@ export default function App() {
           stats strip pins as a footer; only the sim form scrolls internally.
           The design editor is desktop-only. lg+: a 3-pane workbench
           (editor · canvas · motor+sim). Panels read the store — no prop-drilling. */}
-      <main className={`flex min-h-0 flex-1 flex-col overflow-hidden lg:grid lg:auto-rows-fr ${simsOpen ? 'lg:grid-cols-[340px_minmax(0,1fr)_380px]' : 'lg:grid-cols-[340px_minmax(0,1fr)_2rem]'}`}>
+      <main
+        className={`flex min-h-0 flex-1 flex-col overflow-hidden lg:grid lg:auto-rows-fr ${simsOpen ? 'lg:grid-cols-[340px_minmax(0,1fr)_380px]' : 'lg:grid-cols-[340px_minmax(0,1fr)_2rem]'}`}
+      >
         {/* CENTER — canvas + stability (the sole build-tab pane on mobile) */}
-        <section className={`${tab === 'build' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col order-1 lg:order-none lg:col-start-2 lg:row-start-1 lg:block lg:h-full lg:overflow-hidden`}>
+        <section
+          className={`${tab === 'build' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col order-1 lg:order-none lg:col-start-2 lg:row-start-1 lg:block lg:h-full lg:overflow-hidden`}
+        >
           <CenterView />
         </section>
 
@@ -43,7 +47,9 @@ export default function App() {
         {/* RIGHT — simulations (list + active sim's motor / launch / run / results).
             A full-height collapse handle sits on the pane's left edge (desktop
             only) — its own control, separate from the simulations list. */}
-        <div className={`${tab === 'sim' ? 'flex' : 'hidden'} min-h-0 flex-1 order-3 lg:order-none lg:col-start-3 lg:row-start-1 lg:flex lg:h-full lg:border-l lg:border-white/10`}>
+        <div
+          className={`${tab === 'sim' ? 'flex' : 'hidden'} min-h-0 flex-1 order-3 lg:order-none lg:col-start-3 lg:row-start-1 lg:flex lg:h-full lg:border-l lg:border-white/10`}
+        >
           <button
             onClick={() => setSimsOpen((o) => !o)}
             title={simsOpen ? t('sims.hide') : t('sims.show')}

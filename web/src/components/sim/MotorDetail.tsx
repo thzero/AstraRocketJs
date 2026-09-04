@@ -10,8 +10,16 @@ const TYPE_KEY: Record<string, string> = { SU: 'typeSU', reload: 'typeReload', h
 
 /** Detail panel for a catalog motor: manufacturer/class header, thrust-curve
  *  chart, and the spec grid. Reads only bundled data (no fetch). */
-export function MotorDetail({ motor, onBack, curveIndex, onCurveChange }: {
-  motor: CatalogMotor; onBack?: () => void; curveIndex: number; onCurveChange: (i: number) => void;
+export function MotorDetail({
+  motor,
+  onBack,
+  curveIndex,
+  onCurveChange,
+}: {
+  motor: CatalogMotor;
+  onBack?: () => void;
+  curveIndex: number;
+  onCurveChange: (i: number) => void;
 }) {
   const { t } = useTranslation();
   const curves = motor.curves ?? [];
@@ -40,15 +48,19 @@ export function MotorDetail({ motor, onBack, curveIndex, onCurveChange }: {
           ← {t('motorDlg.backToList')}
         </button>
       )}
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-400/90">
-        {motor.manufacturer}
-      </div>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-400/90">{motor.manufacturer}</div>
       <div className="mt-1 flex items-center gap-2">
-        <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-xs font-semibold text-emerald-300">{motor.class}</span>
+        <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-xs font-semibold text-emerald-300">
+          {motor.class}
+        </span>
         <h3 className="text-2xl font-bold text-slate-100">{title}</h3>
       </div>
       <div className="mt-0.5 text-sm text-slate-400">
-        {showCommon && <>{t('motorDlg.commonName')} {motor.designation} · </>}
+        {showCommon && (
+          <>
+            {t('motorDlg.commonName')} {motor.designation} ·{' '}
+          </>
+        )}
         {motor.type ? t(`motorDlg.${TYPE_KEY[motor.type] ?? ''}`, { defaultValue: motor.type }) : ''}
       </div>
       <a href={tcUrl} target="_blank" rel="noreferrer" className="mt-1 self-start text-sm text-sky-400 hover:underline">
@@ -57,23 +69,35 @@ export function MotorDetail({ motor, onBack, curveIndex, onCurveChange }: {
 
       {curves.length > 1 && (
         <label className="mt-4 flex items-center gap-2">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{t('motorDlg.curve')}</span>
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            {t('motorDlg.curve')}
+          </span>
           <select
-            value={curveIndex} onChange={(e) => onCurveChange(Number(e.target.value))}
+            value={curveIndex}
+            onChange={(e) => onCurveChange(Number(e.target.value))}
             className="rounded-md bg-slate-950 px-2 py-1 text-xs text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
           >
-            {curves.map((c, i) => <option key={i} value={i}>{c.src} ({c.samples.length})</option>)}
+            {curves.map((c, i) => (
+              <option key={i} value={i}>
+                {c.src} ({c.samples.length})
+              </option>
+            ))}
           </select>
         </label>
       )}
 
-      {samples.length >= 2
-        ? <ThrustChart samples={samples} avg={avg} burn={motor.burn} />
-        : <p className="my-4 rounded-lg bg-slate-800/50 p-3 text-xs text-slate-400">{t('motorDlg.noCurve')}</p>}
+      {samples.length >= 2 ? (
+        <ThrustChart samples={samples} avg={avg} burn={motor.burn} />
+      ) : (
+        <p className="my-4 rounded-lg bg-slate-800/50 p-3 text-xs text-slate-400">{t('motorDlg.noCurve')}</p>
+      )}
 
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
         <Stat label={t('motorDlg.commonName')} value={motor.designation} />
-        <Stat label={t('motorDlg.motorType')} value={motor.type ? t(`motorDlg.${TYPE_KEY[motor.type] ?? ''}`, { defaultValue: motor.type }) : '—'} />
+        <Stat
+          label={t('motorDlg.motorType')}
+          value={motor.type ? t(`motorDlg.${TYPE_KEY[motor.type] ?? ''}`, { defaultValue: motor.type }) : '—'}
+        />
         <Stat label={t('motorDlg.delays')} value={motor.delays ?? '—'} />
         <Stat label={t('prop.diameter')} value={g(motor.diameter, 'mm', 0)} />
         <Stat label={t('prop.length')} value={g(motor.length, 'mm')} />
@@ -106,7 +130,12 @@ export function Stat({ label, value }: { label: string; value: string }) {
 /** Compact thrust-vs-time chart: filled curve, average-thrust line, burn marker. */
 export function ThrustChart({ samples, avg, burn }: { samples: [number, number][]; avg: number; burn: number }) {
   const { t } = useTranslation();
-  const W = 460, H = 150, PL = 34, PR = 10, PT = 10, PB = 22;
+  const W = 460,
+    H = 150,
+    PL = 34,
+    PR = 10,
+    PT = 10,
+    PB = 22;
   const tMax = samples[samples.length - 1]![0] || 1;
   const fMax = Math.max(...samples.map((s) => s[1]), avg) * 1.08 || 1;
   const X = (tt: number) => PL + (tt / tMax) * (W - PL - PR);
@@ -125,28 +154,44 @@ export function ThrustChart({ samples, avg, burn }: { samples: [number, number][
           </linearGradient>
         </defs>
         {/* initial-thrust window (0–0.5 s) */}
-        {0.5 < tMax && <rect x={X(0)} y={PT} width={X(0.5) - X(0)} height={H - PT - PB} fill="#22d3ee" opacity="0.06" />}
+        {0.5 < tMax && (
+          <rect x={X(0)} y={PT} width={X(0.5) - X(0)} height={H - PT - PB} fill="#22d3ee" opacity="0.06" />
+        )}
         {[0, 0.5, 1].map((f) => {
           const gy = Y(fMax * f);
-          return <g key={f}>
-            <line x1={PL} y1={gy} x2={W - PR} y2={gy} className="stroke-white/10" />
-            <text x={PL - 4} y={gy + 3} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">{fmtNum(fMax * f, 0)}</text>
-          </g>;
+          return (
+            <g key={f}>
+              <line x1={PL} y1={gy} x2={W - PR} y2={gy} className="stroke-white/10" />
+              <text x={PL - 4} y={gy + 3} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
+                {fmtNum(fMax * f, 0)}
+              </text>
+            </g>
+          );
         })}
         <path d={area} fill="url(#thrustFill)" />
         <line x1={PL} y1={Y(avg)} x2={W - PR} y2={Y(avg)} stroke="#2dd4bf" strokeWidth="1" strokeDasharray="4 3" />
-        {burn > 0 && burn <= tMax && <line x1={X(burn)} y1={PT} x2={X(burn)} y2={H - PB} stroke="#eab308" strokeWidth="1" strokeDasharray="2 3" />}
+        {burn > 0 && burn <= tMax && (
+          <line x1={X(burn)} y1={PT} x2={X(burn)} y2={H - PB} stroke="#eab308" strokeWidth="1" strokeDasharray="2 3" />
+        )}
         <path d={line} fill="none" stroke="#f97316" strokeWidth="1.75" />
         <circle cx={X(peak[0])} cy={Y(peak[1])} r="3" fill="#f97316" />
-        <text x={X(peak[0])} y={Y(peak[1]) - 6} textAnchor="middle" className="fill-slate-200 text-[9px] font-semibold">{fmtNum(peak[1], 1)} N</text>
+        <text x={X(peak[0])} y={Y(peak[1]) - 6} textAnchor="middle" className="fill-slate-200 text-[9px] font-semibold">
+          {fmtNum(peak[1], 1)} N
+        </text>
         {[0, tMax / 2, tMax].map((tt, i) => (
-          <text key={i} x={X(tt)} y={H - 6} textAnchor="middle" className="fill-slate-500 text-[9px] tabular-nums">{fmtNum(tt, tt < 10 ? 1 : 0)}</text>
+          <text key={i} x={X(tt)} y={H - 6} textAnchor="middle" className="fill-slate-500 text-[9px] tabular-nums">
+            {fmtNum(tt, tt < 10 ? 1 : 0)}
+          </text>
         ))}
       </svg>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-400">
         <Legend color="#f97316">{t('motorDlg.chartThrust')}</Legend>
-        <Legend color="#2dd4bf" dash>{t('motorDlg.chartAvg')}</Legend>
-        <Legend color="#eab308" dash>{t('motorDlg.chartBurn')}</Legend>
+        <Legend color="#2dd4bf" dash>
+          {t('motorDlg.chartAvg')}
+        </Legend>
+        <Legend color="#eab308" dash>
+          {t('motorDlg.chartBurn')}
+        </Legend>
       </div>
     </div>
   );
@@ -155,7 +200,9 @@ export function ThrustChart({ samples, avg, burn }: { samples: [number, number][
 function Legend({ color, dash, children }: { color: string; dash?: boolean; children: ReactNode }) {
   return (
     <span className="inline-flex items-center gap-1">
-      <svg width="14" height="4" aria-hidden><line x1="0" y1="2" x2="14" y2="2" stroke={color} strokeWidth="2" strokeDasharray={dash ? '3 2' : undefined} /></svg>
+      <svg width="14" height="4" aria-hidden>
+        <line x1="0" y1="2" x2="14" y2="2" stroke={color} strokeWidth="2" strokeDasharray={dash ? '3 2' : undefined} />
+      </svg>
       {children}
     </span>
   );

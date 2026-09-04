@@ -23,21 +23,34 @@ export function axialLength(n: ComponentNode): number {
 
 export function startFromPosition(pos: ComponentPosition, childLen: number, pLen: number): number {
   switch (pos.method) {
-    case 'middle': return (pLen - childLen) / 2 + pos.offset;
-    case 'bottom': return pLen - childLen + pos.offset;
-    case 'absolute': return pos.offset;
+    case 'middle':
+      return (pLen - childLen) / 2 + pos.offset;
+    case 'bottom':
+      return pLen - childLen + pos.offset;
+    case 'absolute':
+      return pos.offset;
     case 'top':
-    default: return pos.offset;
+    default:
+      return pos.offset;
   }
 }
 
-export function offsetForStart(method: ComponentPosition['method'], start: number, childLen: number, pLen: number): number {
+export function offsetForStart(
+  method: ComponentPosition['method'],
+  start: number,
+  childLen: number,
+  pLen: number,
+): number {
   switch (method) {
-    case 'middle': return start - (pLen - childLen) / 2;
-    case 'bottom': return start - (pLen - childLen);
-    case 'absolute': return start;
+    case 'middle':
+      return start - (pLen - childLen) / 2;
+    case 'bottom':
+      return start - (pLen - childLen);
+    case 'absolute':
+      return start;
     case 'top':
-    default: return start;
+    default:
+      return start;
   }
 }
 
@@ -73,16 +86,14 @@ export function resolveAbsolutePositions(tree: RocketTree): RocketTree {
   // sequentially (their own position field is not used for layout).
   let x = 0;
   const components = tree.components.map((stage) => {
-    const kids = stage.type === 'stage' ? stage.children ?? [] : [stage];
+    const kids = stage.type === 'stage' ? (stage.children ?? []) : [stage];
     const fixedKids = kids.map((n) => {
       const len = chainTypes.has(n.type) ? num(n, 'length', 0) : 0;
       const fixed = fixChildren(n, x, len);
       x += len;
       return fixed;
     });
-    return stage.type === 'stage'
-      ? ({ ...stage, children: fixedKids } as ComponentNode)
-      : fixedKids[0]!;
+    return stage.type === 'stage' ? ({ ...stage, children: fixedKids } as ComponentNode) : fixedKids[0]!;
   });
   return changed ? { ...tree, components } : tree;
 }
@@ -102,24 +113,22 @@ export function anchorStarts(parent: ComponentNode, child: ComponentNode): numbe
     const sLen = axialLength(sib);
     const pos = (sib.position ?? { method: 'top', offset: 0 }) as ComponentPosition;
     const sStart = startFromPosition(pos, sLen, pLen);
-    anchors.add(sStart);               // align leading edges
+    anchors.add(sStart); // align leading edges
     anchors.add(sStart + sLen - cLen); // align trailing edges
-    anchors.add(sStart - cLen);        // butt in front of the sibling
-    anchors.add(sStart + sLen);        // butt behind the sibling
+    anchors.add(sStart - cLen); // butt in front of the sibling
+    anchors.add(sStart + sLen); // butt behind the sibling
     // Fin tabs: centering rings butt against the tab's front/rear edges in
     // real builds (the tab passes through the wall between the rings).
     const tabH = num(sib, 'tabHeight', 0);
     const tabLen = num(sib, 'tabLength', 0);
     if (sib.type.endsWith('finset') && tabH > 0 && tabLen > 0) {
-      const method = typeof sib['tabOffsetMethod'] === 'string'
-        ? (sib['tabOffsetMethod'] as string) : 'middle';
+      const method = typeof sib['tabOffsetMethod'] === 'string' ? (sib['tabOffsetMethod'] as string) : 'middle';
       const off = num(sib, 'tabOffset', 0);
-      const tabFront = sStart + (method === 'top' ? off
-        : method === 'bottom' ? off + sLen - tabLen
-        : off + (sLen - tabLen) / 2);
-      anchors.add(tabFront - cLen);          // butt in front of the tab
-      anchors.add(tabFront + tabLen);        // butt behind the tab
-      anchors.add(tabFront);                 // align with tab front
+      const tabFront =
+        sStart + (method === 'top' ? off : method === 'bottom' ? off + sLen - tabLen : off + (sLen - tabLen) / 2);
+      anchors.add(tabFront - cLen); // butt in front of the tab
+      anchors.add(tabFront + tabLen); // butt behind the tab
+      anchors.add(tabFront); // align with tab front
       anchors.add(tabFront + tabLen - cLen); // align with tab rear
     }
   }

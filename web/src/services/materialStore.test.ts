@@ -5,17 +5,26 @@ import type { Material } from '../data/materials';
 
 class FakeKv implements KeyValueStore {
   map = new Map<string, string>();
-  async get(k: string) { return this.map.has(k) ? this.map.get(k)! : null; }
-  async set(k: string, v: string) { this.map.set(k, v); }
-  async remove(k: string) { this.map.delete(k); }
+  async get(k: string) {
+    return this.map.has(k) ? this.map.get(k)! : null;
+  }
+  async set(k: string, v: string) {
+    this.map.set(k, v);
+  }
+  async remove(k: string) {
+    this.map.delete(k);
+  }
 }
 
 const KEY = 'astrarrocketjs:materials:custom';
-const mat = (name: string, density = 1000): Material => ({ name, type: 'bulk', density } as Material);
+const mat = (name: string, density = 1000): Material => ({ name, type: 'bulk', density }) as Material;
 
 let kv: FakeKv;
 let store: KeyValueMaterialStore;
-beforeEach(() => { kv = new FakeKv(); store = new KeyValueMaterialStore(KEY, kv); });
+beforeEach(() => {
+  kv = new FakeKv();
+  store = new KeyValueMaterialStore(KEY, kv);
+});
 
 describe('KeyValueMaterialStore', () => {
   it('starts empty', async () => {
@@ -52,11 +61,14 @@ describe('KeyValueMaterialStore', () => {
   });
 
   it('filters out invalid rows from stored data', async () => {
-    await kv.set(KEY, JSON.stringify([
-      { name: 'Balsa', type: 'bulk', density: 160 },
-      { name: 'no-density' },
-      { type: 'bulk', density: Number.NaN },
-    ]));
+    await kv.set(
+      KEY,
+      JSON.stringify([
+        { name: 'Balsa', type: 'bulk', density: 160 },
+        { name: 'no-density' },
+        { type: 'bulk', density: Number.NaN },
+      ]),
+    );
     const list = await store.list();
     expect(list).toHaveLength(1);
     expect(list[0]!.name).toBe('Balsa');

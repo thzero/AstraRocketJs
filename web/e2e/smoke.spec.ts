@@ -3,7 +3,10 @@ import { test, expect, type Page } from '@playwright/test';
 // The pre-1.0 "work in progress" modal shows on a fresh context and its overlay
 // swallows clicks, so every test dismisses it right after loading.
 async function dismissWip(page: Page) {
-  await page.getByRole('button', { name: 'I understand' }).click({ timeout: 10_000 }).catch(() => {});
+  await page
+    .getByRole('button', { name: 'I understand' })
+    .click({ timeout: 10_000 })
+    .catch(() => {});
 }
 
 /**
@@ -79,8 +82,7 @@ test.describe('AstraRocketJs smoke', () => {
     await page.getByRole('button', { name: /run flight simulation/i }).click();
     await expect(page.getByRole('button', { name: 'Flight', exact: true })).toBeVisible({ timeout: 30_000 });
 
-    const maxStall = await page.evaluate(() =>
-      Math.max(...(window as unknown as { __g: number[] }).__g));
+    const maxStall = await page.evaluate(() => Math.max(...(window as unknown as { __g: number[] }).__g));
     // Generous ceiling: observed ~30 ms on the worker path; a main-thread sim
     // would blow well past this (~480 ms).
     expect(maxStall).toBeLessThan(300);

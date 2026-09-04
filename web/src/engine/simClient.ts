@@ -62,12 +62,17 @@ function call<T>(method: WorkerRequest['method'], args: WorkerRequest['args'], t
   return new Promise<T>((resolve, reject) => {
     // On timeout the worker is hung mid-call and can't be interrupted, so kill
     // it — that rejects this promise (still in `pending`) via the wrapper below.
-    const timer = timeoutMs && timeoutMs > 0
-      ? setTimeout(() => killWorker(new SimTimeoutError()), timeoutMs)
-      : undefined;
+    const timer =
+      timeoutMs && timeoutMs > 0 ? setTimeout(() => killWorker(new SimTimeoutError()), timeoutMs) : undefined;
     pending.set(id, {
-      resolve: (v: unknown) => { clearTimeout(timer); (resolve as (x: unknown) => void)(v); },
-      reject: (err: Error) => { clearTimeout(timer); reject(err); },
+      resolve: (v: unknown) => {
+        clearTimeout(timer);
+        (resolve as (x: unknown) => void)(v);
+      },
+      reject: (err: Error) => {
+        clearTimeout(timer);
+        reject(err);
+      },
     });
     w.postMessage({ id, method, args } satisfies WorkerRequest);
   });
@@ -75,7 +80,9 @@ function call<T>(method: WorkerRequest['method'], args: WorkerRequest['args'], t
 
 /** Spawn + warm the worker (loads its engine) so the first sim isn't delayed. */
 export function warmSimWorker(): void {
-  void call('ping', null).catch(() => { /* warming is best-effort */ });
+  void call('ping', null).catch(() => {
+    /* warming is best-effort */
+  });
 }
 
 /** Run a flight simulation off the main thread. Rejects with the engine error

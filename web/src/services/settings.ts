@@ -3,10 +3,17 @@ import type { LaunchConditions } from './orkTree';
 
 // Sea-level, calm, standard-atmosphere defaults (Cape Canaveral latitude).
 export const DEFAULT_LAUNCH: LaunchConditions = {
-  launchRodLengthM: 1, launchRodAngleDeg: 0, launchRodDirectionDeg: 90, launchIntoWind: false,
-  windAverage: 0, windStdDev: 0, windDirectionDeg: 90,
-  launchAltitudeM: 0, latitudeDeg: 28.61,
-  temperatureC: null, pressureHPa: null,
+  launchRodLengthM: 1,
+  launchRodAngleDeg: 0,
+  launchRodDirectionDeg: 90,
+  launchIntoWind: false,
+  windAverage: 0,
+  windStdDev: 0,
+  windDirectionDeg: 90,
+  launchAltitudeM: 0,
+  latitudeDeg: 28.61,
+  temperatureC: null,
+  pressureHPa: null,
   geodetic: 'spherical',
 };
 
@@ -59,7 +66,15 @@ export const DEFAULT_SETTINGS: Settings = {
   partColors: {},
   phaseColors: { boost: '#fb923c', coast: '#38bdf8', descent: '#34d399' },
   playbackSpeed: 0.5,
-  simulation: { timeStep: 0.05, maxTime: 1200, randomSeed: null, confirmDelete: true, autoRunOutdated: false, deploymentSpeedWarn: 20, railExitVelocityMin: 15 },
+  simulation: {
+    timeStep: 0.05,
+    maxTime: 1200,
+    randomSeed: null,
+    confirmDelete: true,
+    autoRunOutdated: false,
+    deploymentSpeedWarn: 20,
+    railExitVelocityMin: 15,
+  },
   launchDefaults: DEFAULT_LAUNCH,
   showMarkers: true,
   showInfoCard: true,
@@ -89,5 +104,9 @@ export function loadSettings(): Settings {
 }
 
 export function saveSettings(s: Settings): void {
-  try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* storage disabled */ }
+  try {
+    localStorage.setItem(KEY, JSON.stringify(s));
+  } catch {
+    /* storage disabled */
+  }
 }

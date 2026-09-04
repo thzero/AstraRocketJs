@@ -1,9 +1,18 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-:root { color-scheme: dark; }
+:root {
+  color-scheme: dark;
+}
 
-html, body, #root { height: 100%; }
-body { margin: 0; overscroll-behavior: none; }
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  overscroll-behavior: none;
+}
 
 /* <button> uses the arrow cursor by default — the finger/pointer is a browser
    default only for links, and Tailwind v4's Preflight doesn't add it. Give every
@@ -11,23 +20,23 @@ body { margin: 0; overscroll-behavior: none; }
    `disabled:cursor-not-allowed` utilities already set on them. */
 @layer base {
   button:not(:disabled),
-  [role="button"]:not(:disabled),
+  [role='button']:not(:disabled),
   summary {
     cursor: pointer;
   }
 }
 
 :root {
-  --text-primary:   #f1f5f9;              /* slate-100 */
-  --text-muted:     #94a3b8;              /* slate-400 */
-  --border:         rgba(255,255,255,0.12);
-  --surface-1:      #1e293b;              /* slate-800 */
-  --hover:          #334155;              /* slate-700 */
-  --accent:         #38bdf8;              /* sky-400 */
-  --launch:         #38bdf8;              /* sky-400 */
-  --status-good:    #34d399;              /* emerald-400 */
-  --status-warn:    #fbbf24;              /* amber-400 */
-  --status-serious: #f87171;              /* red-400 */
+  --text-primary: #f1f5f9; /* slate-100 */
+  --text-muted: #94a3b8; /* slate-400 */
+  --border: rgba(255, 255, 255, 0.12);
+  --surface-1: #1e293b; /* slate-800 */
+  --hover: #334155; /* slate-700 */
+  --accent: #38bdf8; /* sky-400 */
+  --launch: #38bdf8; /* sky-400 */
+  --status-good: #34d399; /* emerald-400 */
+  --status-warn: #fbbf24; /* amber-400 */
+  --status-serious: #f87171; /* red-400 */
 }
 
 .file-btn {
@@ -43,7 +52,9 @@ body { margin: 0; overscroll-behavior: none; }
   border-radius: 6px;
   cursor: pointer;
 }
-.file-btn:hover { background: var(--hover); }
+.file-btn:hover {
+  background: var(--hover);
+}
 
 .schematic-controls {
   position: absolute;

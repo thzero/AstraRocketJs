@@ -62,9 +62,9 @@ export function shapeIsClippable(shape: string): boolean {
 export function shapeRadius(shape: string, x: number, radius: number, length: number, param: number): number {
   switch (shape) {
     case 'conical':
-      return radius * x / length;
+      return (radius * x) / length;
     case 'ellipsoid': {
-      const xs = x * radius / length;
+      const xs = (x * radius) / length;
       return safeSqrt(2 * radius * xs - xs * xs); // radius/length * sphere
     }
     case 'power': {
@@ -74,9 +74,9 @@ export function shapeRadius(shape: string, x: number, radius: number, length: nu
       return radius * Math.pow(x / length, param);
     }
     case 'parabolic':
-      return radius * ((2 * x / length - param * pow2(x / length)) / (2 - param));
+      return radius * (((2 * x) / length - param * pow2(x / length)) / (2 - param));
     case 'haack': {
-      const theta = Math.acos(1 - 2 * x / length);
+      const theta = Math.acos(1 - (2 * x) / length);
       if (param === 0) {
         return radius * safeSqrt((theta - Math.sin(2 * theta) / 2) / Math.PI);
       }
@@ -86,14 +86,16 @@ export function shapeRadius(shape: string, x: number, radius: number, length: nu
     default: {
       // Impossible to calculate ogive for length < radius, scale instead.
       if (length < radius) {
-        x = x * radius / length;
+        x = (x * radius) / length;
         length = radius;
       }
       if (param < MINFEATURE) {
         return shapeRadius('conical', x, radius, length, param);
       }
-      const R = safeSqrt((pow2(length) + pow2(radius)) *
-        (pow2((2 - param) * length) + pow2(param * radius)) / (4 * pow2(param * radius)));
+      const R = safeSqrt(
+        ((pow2(length) + pow2(radius)) * (pow2((2 - param) * length) + pow2(param * radius))) /
+          (4 * pow2(param * radius)),
+      );
       const L = length / param;
       const y0 = safeSqrt(R * R - L * L);
       return safeSqrt(R * R - (L - x) * (L - x)) - y0;
@@ -179,8 +181,13 @@ function sampleXs(length: number, steps: number, extra?: readonly number[]): num
  * Transition.isClipped(), which returns false outright for the rest.
  */
 export function outerProfile(
-  shape: string, param: number | undefined, length: number,
-  foreR: number, aftR: number, steps = 32, extraX?: readonly number[],
+  shape: string,
+  param: number | undefined,
+  length: number,
+  foreR: number,
+  aftR: number,
+  steps = 32,
+  extraX?: readonly number[],
   clipped?: boolean,
 ): [number, number][] {
   const p = Math.min(Math.max(param ?? shapeParamDefault(shape), 0), shapeParamMax(shape));

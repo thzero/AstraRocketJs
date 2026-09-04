@@ -1,8 +1,21 @@
 import { describe, it, expect } from 'vitest';
 import {
-  findNode, updateNode, removeNode, addChild, findMountId, findMounts, isUpperStageMount,
-  isAxial, allowedChildren, hasCatalog, hasMaterial, catalogPatch,
-  siblingIndex, moveNode, defaultNode, addPart,
+  findNode,
+  updateNode,
+  removeNode,
+  addChild,
+  findMountId,
+  findMounts,
+  isUpperStageMount,
+  isAxial,
+  allowedChildren,
+  hasCatalog,
+  hasMaterial,
+  catalogPatch,
+  siblingIndex,
+  moveNode,
+  defaultNode,
+  addPart,
 } from './treeEdit';
 import type { RocketTree } from '../engine/openRocketEngine';
 import type { Component } from './componentDb';
@@ -11,10 +24,14 @@ const makeTree = (): RocketTree =>
   ({
     components: [
       {
-        id: 's1', type: 'stage', children: [
+        id: 's1',
+        type: 'stage',
+        children: [
           { id: 'n1', type: 'nosecone' },
           {
-            id: 'b1', type: 'bodytube', children: [
+            id: 'b1',
+            type: 'bodytube',
+            children: [
               { id: 'm1', type: 'innertube', motorMount: true },
               { id: 'f1', type: 'trapezoidfinset' },
             ],
@@ -74,17 +91,25 @@ describe('mount + type rules', () => {
 
   it('isUpperStageMount is true for a mount above the bottom booster, false for the booster', () => {
     // Two stages in desktop order: [0] = top sustainer, [1] = bottom booster.
-    const staged = ({
+    const staged = {
       components: [
-        { id: 'sus', type: 'stage', children: [
-          { id: 'bt-s', type: 'bodytube', children: [{ id: 'm-sus', type: 'innertube', motorMount: true }] },
-        ] },
-        { id: 'boost', type: 'stage', children: [
-          { id: 'bt-b', type: 'bodytube', children: [{ id: 'm-boost', type: 'innertube', motorMount: true }] },
-        ] },
+        {
+          id: 'sus',
+          type: 'stage',
+          children: [
+            { id: 'bt-s', type: 'bodytube', children: [{ id: 'm-sus', type: 'innertube', motorMount: true }] },
+          ],
+        },
+        {
+          id: 'boost',
+          type: 'stage',
+          children: [
+            { id: 'bt-b', type: 'bodytube', children: [{ id: 'm-boost', type: 'innertube', motorMount: true }] },
+          ],
+        },
       ],
-    }) as unknown as RocketTree;
-    expect(isUpperStageMount(staged, 'm-sus')).toBe(true);   // has the booster below it
+    } as unknown as RocketTree;
+    expect(isUpperStageMount(staged, 'm-sus')).toBe(true); // has the booster below it
     expect(isUpperStageMount(staged, 'm-boost')).toBe(false); // bottom stage — nothing below
   });
 
@@ -110,22 +135,55 @@ describe('mount + type rules', () => {
 
 describe('catalogPatch', () => {
   it('maps a filled nosecone (radius + solid thickness + material)', () => {
-    const p = { type: 'nosecone', shape: 'ogive', length: 0.1, outerDiameter: 0.05, filled: true, materialDensity: 680, material: 'Balsa' } as unknown as Component;
-    expect(catalogPatch(p)).toMatchObject({ shape: 'ogive', length: 0.1, aftRadius: 0.025, thickness: 0.025, density: 680, materialName: 'Balsa' });
+    const p = {
+      type: 'nosecone',
+      shape: 'ogive',
+      length: 0.1,
+      outerDiameter: 0.05,
+      filled: true,
+      materialDensity: 680,
+      material: 'Balsa',
+    } as unknown as Component;
+    expect(catalogPatch(p)).toMatchObject({
+      shape: 'ogive',
+      length: 0.1,
+      aftRadius: 0.025,
+      thickness: 0.025,
+      density: 680,
+      materialName: 'Balsa',
+    });
   });
 
   it('derives body-tube wall thickness from OD/ID and clamps to a floor', () => {
-    const wall = { type: 'bodytube', outerDiameter: 0.05, innerDiameter: 0.048, length: 0.2, materialDensity: 930 } as unknown as Component;
+    const wall = {
+      type: 'bodytube',
+      outerDiameter: 0.05,
+      innerDiameter: 0.048,
+      length: 0.2,
+      materialDensity: 930,
+    } as unknown as Component;
     const wallPatch = catalogPatch(wall) as { outerRadius: number; length: number; thickness: number };
     expect(wallPatch).toMatchObject({ outerRadius: 0.025, length: 0.2 });
     expect(wallPatch.thickness).toBeCloseTo(0.001, 9); // (OD−ID)/2
-    const paper = { type: 'bodytube', outerDiameter: 0.05, innerDiameter: 0.049999, length: 0.2, materialDensity: 800 } as unknown as Component;
+    const paper = {
+      type: 'bodytube',
+      outerDiameter: 0.05,
+      innerDiameter: 0.049999,
+      length: 0.2,
+      materialDensity: 800,
+    } as unknown as Component;
     expect((catalogPatch(paper) as { thickness: number }).thickness).toBe(0.0001); // clamped
   });
 
   it('defaults parachute Cd to 0.8 when the catalog omits it', () => {
-    expect(catalogPatch({ type: 'parachute', diameter: 0.3, cd: null } as unknown as Component)).toEqual({ diameter: 0.3, cd: 0.8 });
-    expect(catalogPatch({ type: 'parachute', diameter: 0.3, cd: 1.5 } as unknown as Component)).toEqual({ diameter: 0.3, cd: 1.5 });
+    expect(catalogPatch({ type: 'parachute', diameter: 0.3, cd: null } as unknown as Component)).toEqual({
+      diameter: 0.3,
+      cd: 0.8,
+    });
+    expect(catalogPatch({ type: 'parachute', diameter: 0.3, cd: 1.5 } as unknown as Component)).toEqual({
+      diameter: 0.3,
+      cd: 1.5,
+    });
   });
 
   it('omits material fields when the part has no density', () => {

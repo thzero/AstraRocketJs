@@ -1,5 +1,10 @@
 import { unzipSync, strFromU8 } from 'fflate';
-import { PLUGGED_DELAY, type ComponentNode, type ComponentPosition, type ComponentType } from '../engine/openRocketEngine';
+import {
+  PLUGGED_DELAY,
+  type ComponentNode,
+  type ComponentPosition,
+  type ComponentType,
+} from '../engine/openRocketEngine';
 import { freshId, type LaunchConditions } from './orkTree';
 import { shapeParamDefault } from '../tree/shapeProfile';
 import { xmlText as text } from './xmlUtil';
@@ -16,8 +21,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
     const bytes = new Uint8Array(data);
     if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
       const entries = unzipSync(bytes);
-      const entryName = Object.keys(entries).find((n) => n.endsWith('.ork'))
-        ?? Object.keys(entries)[0];
+      const entryName = Object.keys(entries).find((n) => n.endsWith('.ork')) ?? Object.keys(entries)[0];
       if (!entryName) throw new Error('Empty .ork archive');
       xml = strFromU8(entries[entryName]!);
     } else {
@@ -75,10 +79,10 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
     .filter((c) => c.id !== '');
   const requested = opts?.configId;
   const chosenConfigId =
-    (requested != null && configs.some((c) => c.id === requested) ? requested : null)
-    ?? configs.find((c) => c.isDefault)?.id
-    ?? configs[0]?.id
-    ?? null;
+    (requested != null && configs.some((c) => c.id === requested) ? requested : null) ??
+    configs.find((c) => c.isDefault)?.id ??
+    configs[0]?.id ??
+    null;
 
   // The chosen configuration's child of `el` by tag name (per-config motor
   // or override block). With no declared configs, the first such child —
@@ -87,8 +91,8 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
   const configScoped = (el: Element, tag: string): Element | null =>
     chosenConfigId === null
       ? el.querySelector(`:scope > ${tag}`)
-      : Array.from(el.children).find(
-          (c) => c.tagName === tag && c.getAttribute('configid') === chosenConfigId) ?? null;
+      : (Array.from(el.children).find((c) => c.tagName === tag && c.getAttribute('configid') === chosenConfigId) ??
+        null);
 
   /**
    * Record EVERY configuration's <deploymentconfiguration> for this recovery
@@ -99,7 +103,8 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
   const captureDeployments = (el: Element, node: ComponentNode): void => {
     for (const c of configs) {
       const block = Array.from(el.children).find(
-        (x) => x.tagName === 'deploymentconfiguration' && x.getAttribute('configid') === c.id);
+        (x) => x.tagName === 'deploymentconfiguration' && x.getAttribute('configid') === c.id,
+      );
       // Fall back to the BARE tags for a configuration that declares no block
       // of its own. Recording the resolved value (not "nothing") is what makes
       // the round-trip safe: on save the bare defaults are rewritten from the
@@ -147,8 +152,8 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
     // chosen read below). Quiet — only the chosen config's notes surface.
     if (node.id) {
       for (const cfg of configs) {
-        const byId = (tag: string) => Array.from(mountEl.children).find(
-          (c) => c.tagName === tag && c.getAttribute('configid') === cfg.id);
+        const byId = (tag: string) =>
+          Array.from(mountEl.children).find((c) => c.tagName === tag && c.getAttribute('configid') === cfg.id);
         const cfgMotorEl = byId('motor');
         if (!cfgMotorEl) continue; // no motor for this config here — empty
         cfg.motors[node.id] = resolveRef(cfgMotorEl, byId('ignitionconfiguration') ?? mountEl);
@@ -162,7 +167,8 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
     const ref = resolveRef(motorEl, configScoped(mountEl, 'ignitionconfiguration') ?? mountEl);
     if (ref.delay >= PLUGGED_DELAY) {
       notes.push(
-        `Motor ${ref.designation}: plugged (no ejection charge) — make sure recovery deploys on apogee/altitude, not the ejection charge.`);
+        `Motor ${ref.designation}: plugged (no ejection charge) — make sure recovery deploys on apogee/altitude, not the ejection charge.`,
+      );
     }
     if (node.id) {
       motors[node.id] = ref;
@@ -248,7 +254,10 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         // kernel default (clipped, matching the desktop).
         const clip = text(el, ':scope > shapeclipped');
         if (clip === 'true' || clip === 'false') n['clipped'] = clip === 'true';
-        for (const [side, key] of [['fore', 'foreShoulder'], ['aft', 'aftShoulder']] as const) {
+        for (const [side, key] of [
+          ['fore', 'foreShoulder'],
+          ['aft', 'aftShoulder'],
+        ] as const) {
           const r = num(el, `${side}shoulderradius`, 0);
           const l = num(el, `${side}shoulderlength`, 0);
           if (r > 0) n[`${key}Radius`] = r;
@@ -475,16 +484,16 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         if (radEl) {
           const rv = Number(radEl.textContent?.trim());
           n['radiusOffset'] = Number.isFinite(rv) ? rv : 0; // metres, no conversion
-          n['radiusMethod'] = (radEl.getAttribute('method') ?? 'relative').toLowerCase() === 'free'
-            ? 'free' : 'relative';
+          n['radiusMethod'] =
+            (radEl.getAttribute('method') ?? 'relative').toLowerCase() === 'free' ? 'free' : 'relative';
         }
         const angEl = el.querySelector(':scope > angleoffset');
         if (angEl) {
           const av = Number(angEl.textContent?.trim());
-          n['angleOffset'] = (Number.isFinite(av) ? av : 0) * Math.PI / 180; // deg → rad, like cant
+          n['angleOffset'] = ((Number.isFinite(av) ? av : 0) * Math.PI) / 180; // deg → rad, like cant
           if (asmType === 'parallelstage') {
-            n['angleMethod'] = (angEl.getAttribute('method') ?? 'relative').toLowerCase() === 'fixed'
-              ? 'fixed' : 'relative';
+            n['angleMethod'] =
+              (angEl.getAttribute('method') ?? 'relative').toLowerCase() === 'fixed' ? 'fixed' : 'relative';
           }
         }
         if (asmType === 'parallelstage') {
@@ -560,24 +569,31 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
   // both change mass, and mass changes the stability the user is designing to.
   const allNodes: ComponentNode[] = [];
   const collect = (ns: ComponentNode[]) => {
-    for (const nd of ns) { allNodes.push(nd); collect(nd.children ?? []); }
+    for (const nd of ns) {
+      allNodes.push(nd);
+      collect(nd.children ?? []);
+    }
   };
   collect(components);
   if (allNodes.some((nd) => typeof nd['filletRadius'] === 'number' && (nd['filletRadius'] as number) > 0)) {
     notes.push(
-      'Fin fillets are kept in the file but are not yet counted in mass or CG, '
-        + 'so masses read slightly light against desktop OpenRocket.',
+      'Fin fillets are kept in the file but are not yet counted in mass or CG, ' +
+        'so masses read slightly light against desktop OpenRocket.',
     );
   }
   const instanced = allNodes.filter(
-    (nd) => typeof nd['instanceCount'] === 'number' && (nd['instanceCount'] as number) > 1
-      && nd.type !== 'parallelstage' && nd.type !== 'podset');
+    (nd) =>
+      typeof nd['instanceCount'] === 'number' &&
+      (nd['instanceCount'] as number) > 1 &&
+      nd.type !== 'parallelstage' &&
+      nd.type !== 'podset',
+  );
   if (instanced.length > 0) {
     notes.push(
-      `${instanced.length} component${instanced.length === 1 ? '' : 's'} in this design `
-        + `(${[...new Set(instanced.map((nd) => nd.name ?? nd.type))].join(', ')}) `
-        + 'repeat as multiple instances. The file keeps every instance, but the '
-        + 'drawing and the simulation currently show one.',
+      `${instanced.length} component${instanced.length === 1 ? '' : 's'} in this design ` +
+        `(${[...new Set(instanced.map((nd) => nd.name ?? nd.type))].join(', ')}) ` +
+        'repeat as multiple instances. The file keeps every instance, but the ' +
+        'drawing and the simulation currently show one.',
     );
   }
 
@@ -588,8 +604,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
     if (mountMotorEls.length === 0) {
       // Declared configs but no <motor> in any mount: worth flagging that the
       // mounts came in empty (nothing to simulate until a motor is picked).
-      notes.push(
-        `File declares ${configs.length} flight configurations but carried no motors to import.`);
+      notes.push(`File declares ${configs.length} flight configurations but carried no motors to import.`);
     }
     // Which configuration was opened (and that there are others) is shown in the
     // Simulations panel now, so it's no longer a load note.
@@ -597,11 +612,14 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
     // warn when the chosen configuration would actually ground a stage. Name it
     // (never the UUID — that appears nowhere in our UI or OpenRocket's).
     const chosenEl = configEls.find((c) => c.getAttribute('configid') === chosenConfigId);
-    if (chosenEl && Array.from(chosenEl.querySelectorAll(':scope > stage'))
-        .some((s) => s.getAttribute('active') === 'false')) {
+    if (
+      chosenEl &&
+      Array.from(chosenEl.querySelectorAll(':scope > stage')).some((s) => s.getAttribute('active') === 'false')
+    ) {
       const name = configs.find((c) => c.id === chosenConfigId)?.name;
       notes.push(
-        `${name ? `Configuration “${name}”` : 'The opened configuration'} deactivates one or more stages — stage activeness isn’t applied here, so all stages fly in the simulation.`);
+        `${name ? `Configuration “${name}”` : 'The opened configuration'} deactivates one or more stages — stage activeness isn’t applied here, so all stages fly in the simulation.`,
+      );
     }
   } else if (configs.length === 0) {
     // Hand-rolled files may key <motor configid>s without declaring the configs,
@@ -614,15 +632,23 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
     }
     if (strayIds.size > 1) {
       notes.push(
-        `File has ${strayIds.size} flight configurations — only the first was imported; the other ${strayIds.size - 1} ${strayIds.size - 1 === 1 ? 'was' : 'were'} not.`);
+        `File has ${strayIds.size} flight configurations — only the first was imported; the other ${strayIds.size - 1} ${strayIds.size - 1 === 1 ? 'was' : 'were'} not.`,
+      );
     }
   }
 
   const launch = readLaunchConditions(doc);
 
   return {
-    name, tree: { name, components }, motor, motors, configs, chosenConfigId,
-    ignored: [...ignored], notes, ...(launch ? { launch } : {}),
+    name,
+    tree: { name, components },
+    motor,
+    motors,
+    configs,
+    chosenConfigId,
+    ignored: [...ignored],
+    notes,
+    ...(launch ? { launch } : {}),
   };
 }
 
@@ -728,8 +754,14 @@ function matName_(el: Element, type: string, selector = ':scope > material'): st
 }
 
 /** Surface/line material density+name for recovery devices and cords. */
-function readSoftMaterial(el: Element, node: ComponentNode, kind: 'surface' | 'line',
-    densityKey: string, nameKey: string, selector = ':scope > material'): void {
+function readSoftMaterial(
+  el: Element,
+  node: ComponentNode,
+  kind: 'surface' | 'line',
+  densityKey: string,
+  nameKey: string,
+  selector = ':scope > material',
+): void {
   const m = el.querySelector(selector);
   if (!m || m.getAttribute('type') !== kind) return;
   const d = Number(m.getAttribute('density'));
@@ -828,9 +860,8 @@ function readFinTabs(el: Element, node: ComponentNode): void {
   const last = positions[positions.length - 1];
   if (last) {
     const rel = (last.getAttribute('relativeto') ?? 'middle').toLowerCase();
-    const method = rel.includes('front') || rel === 'top' ? 'top'
-      : rel.includes('end') || rel === 'bottom' ? 'bottom'
-      : 'middle';
+    const method =
+      rel.includes('front') || rel === 'top' ? 'top' : rel.includes('end') || rel === 'bottom' ? 'bottom' : 'middle';
     node['tabOffsetMethod'] = method;
     const v = Number(last.textContent?.trim());
     node['tabOffset'] = Number.isFinite(v) ? v : 0;

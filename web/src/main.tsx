@@ -12,7 +12,9 @@ import './i18n';
 // we render in .finally() regardless.
 initEngine()
   .then((backend) => console.info(`[engine] backend: ${backend}`))
-  .catch(() => { /* JS fallback already active */ })
+  .catch(() => {
+    /* JS fallback already active */
+  })
   .finally(() => {
     ReactDOM.createRoot(document.getElementById('root')!).render(
       <React.StrictMode>

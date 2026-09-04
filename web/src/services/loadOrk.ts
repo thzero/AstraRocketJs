@@ -1,10 +1,21 @@
-import { OpenRocketDesign, resetEngine, type StaticInfo, type IgnitionEvent, type RocketTree, type MotorSpec } from '../engine/openRocketEngine';
+import {
+  OpenRocketDesign,
+  resetEngine,
+  type StaticInfo,
+  type IgnitionEvent,
+  type RocketTree,
+  type MotorSpec,
+} from '../engine/openRocketEngine';
 import { importOrk } from './orkFile';
 import type { OrkExportMotor } from './orkFile';
 import type { LaunchConditions } from './orkTree';
 
 /** A resolved motor + its ignition override, keyed by mount id for rebuilds. */
-export interface MountMotor { spec: MotorSpec; ignitionEvent?: IgnitionEvent; ignitionDelay?: number }
+export interface MountMotor {
+  spec: MotorSpec;
+  ignitionEvent?: IgnitionEvent;
+  ignitionDelay?: number;
+}
 import { loadCatalog, findCatalogMotor } from './motorDb';
 import { fetchMotorSpec } from './thrustcurve';
 
@@ -24,9 +35,7 @@ export interface LoadedOrk {
   launch?: Partial<LaunchConditions>;
 }
 
-const IGNITION_EVENTS: ReadonlySet<string> = new Set([
-  'automatic', 'launch', 'ejectioncharge', 'burnout', 'never',
-]);
+const IGNITION_EVENTS: ReadonlySet<string> = new Set(['automatic', 'launch', 'ejectioncharge', 'burnout', 'never']);
 
 export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   resetEngine(); // free the previous design's handles

@@ -11,7 +11,9 @@ class FakeWorker {
   terminate = vi.fn();
   // Set per-test: how this worker answers a postMessage (default: never).
   static onPost: (self: FakeWorker, msg: { id: number }) => void = () => {};
-  postMessage(msg: { id: number }) { FakeWorker.onPost(this, msg); }
+  postMessage(msg: { id: number }) {
+    FakeWorker.onPost(this, msg);
+  }
 }
 
 const created: FakeWorker[] = [];
@@ -19,7 +21,14 @@ const created: FakeWorker[] = [];
 beforeEach(() => {
   created.length = 0;
   FakeWorker.onPost = () => {}; // a hung worker: never replies
-  vi.stubGlobal('Worker', vi.fn(() => { const w = new FakeWorker(); created.push(w); return w; }));
+  vi.stubGlobal(
+    'Worker',
+    vi.fn(() => {
+      const w = new FakeWorker();
+      created.push(w);
+      return w;
+    }),
+  );
   vi.useFakeTimers();
   vi.resetModules();
 });

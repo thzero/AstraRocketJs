@@ -72,10 +72,17 @@ interface Envelope<T> {
 
 function isCustomMotor(v: unknown): v is CustomMotor {
   const m = v as CustomMotor;
-  return !!m && typeof m.id === 'string' && typeof m.designation === 'string'
-    && typeof m.diameter === 'number' && typeof m.length === 'number'
-    && typeof m.totalWeightG === 'number' && typeof m.propWeightG === 'number'
-    && Array.isArray(m.samples) && m.samples.length > 0;
+  return (
+    !!m &&
+    typeof m.id === 'string' &&
+    typeof m.designation === 'string' &&
+    typeof m.diameter === 'number' &&
+    typeof m.length === 'number' &&
+    typeof m.totalWeightG === 'number' &&
+    typeof m.propWeightG === 'number' &&
+    Array.isArray(m.samples) &&
+    m.samples.length > 0
+  );
 }
 
 /**
@@ -92,7 +99,7 @@ export class KeyValueMotorStore implements MotorStore {
 
   async readCatalog(signature: string): Promise<CatalogMotor[] | null> {
     try {
-      if (await this.kv.get(CATALOG_SIG_KEY) !== signature) return null;
+      if ((await this.kv.get(CATALOG_SIG_KEY)) !== signature) return null;
       const raw = await this.kv.get(CATALOG_KEY);
       if (!raw) return null;
       const parsed = JSON.parse(raw) as unknown;

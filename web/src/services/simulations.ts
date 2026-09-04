@@ -20,7 +20,9 @@ export interface Simulation {
 
 /** Globally-unique id for a new simulation — a UUID (like OpenRocket's own ids),
  *  so ids minted after a reload can't collide with persisted ones. */
-function newSimId(): string { return uuid(); }
+function newSimId(): string {
+  return uuid();
+}
 
 export function newSimulation(name: string, motor: MotorSpec, launch: LaunchConditions): Simulation {
   return { id: newSimId(), name, motor, launch, result: null };
@@ -29,7 +31,11 @@ export function newSimulation(name: string, motor: MotorSpec, launch: LaunchCond
 const rad = (deg: number) => (deg * Math.PI) / 180;
 
 /** Global simulation preferences applied to every run (see services/settings.ts). */
-export interface SimPrefs { timeStep: number; maxTime: number; randomSeed: number | null }
+export interface SimPrefs {
+  timeStep: number;
+  maxTime: number;
+  randomSeed: number | null;
+}
 
 /** Map UI launch conditions (+ global sim prefs) to the engine's simulate() options
  *  (radians, kelvin, Pa). */
@@ -45,7 +51,12 @@ export function simConditions(launch: LaunchConditions, prefs?: SimPrefs) {
     windAverage: launch.windAverage,
     windStdDeviation: launch.windStdDev,
     windDirection: rad(launch.windDirectionDeg ?? 90),
-    windLevels: launch.windLevels?.map((l) => ({ altitude: l.altitudeM, speed: l.speed, direction: rad(l.directionDeg), stddev: l.stddev })),
+    windLevels: launch.windLevels?.map((l) => ({
+      altitude: l.altitudeM,
+      speed: l.speed,
+      direction: rad(l.directionDeg),
+      stddev: l.stddev,
+    })),
     geodetic: launch.geodetic,
     launchAltitude: launch.launchAltitudeM,
     launchLatitude: launch.latitudeDeg,

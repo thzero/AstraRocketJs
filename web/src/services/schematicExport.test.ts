@@ -3,8 +3,13 @@ import { dataHeaderLines, type ExportData } from './schematicExport';
 import type { StaticInfo } from '../engine/openRocketEngine';
 
 const info = {
-  length: 0.6, refDiameter: 0.024, mass: 0.12, massEmpty: 0.09,
-  cg: 0.35, cp: 0.42, stabilityCalibers: 1.234,
+  length: 0.6,
+  refDiameter: 0.024,
+  mass: 0.12,
+  massEmpty: 0.09,
+  cg: 0.35,
+  cp: 0.42,
+  stabilityCalibers: 1.234,
 } as unknown as StaticInfo;
 
 const data = (over: Partial<ExportData> = {}): ExportData => ({

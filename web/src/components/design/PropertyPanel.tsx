@@ -21,11 +21,11 @@ import { num } from '../../tree/nodeProps';
  */
 
 type Field =
-  | { key: string; label: string; kind: 'length' }   // stored m, shown mm
-  | { key: string; label: string; kind: 'mass' }      // stored kg, shown g
+  | { key: string; label: string; kind: 'length' } // stored m, shown mm
+  | { key: string; label: string; kind: 'mass' } // stored kg, shown g
   | { key: string; label: string; kind: 'count' }
   | { key: string; label: string; kind: 'number'; step?: number; unit?: string }
-  | { key: string; label: string; kind: 'angle'; step?: number }   // stored radians, shown degrees
+  | { key: string; label: string; kind: 'angle'; step?: number } // stored radians, shown degrees
   | { key: string; label: string; kind: 'bool' }
   | { key: string; label: string; kind: 'select'; options: string[]; optI18n?: string };
 
@@ -67,7 +67,12 @@ const FIELDS: Record<string, Field[]> = {
     { key: 'motorOverhang', label: 'motorOverhang', kind: 'length' },
   ],
   transition: [
-    { key: 'shape', label: 'shape', kind: 'select', options: ['conical', 'ogive', 'ellipsoid', 'power', 'parabolic', 'haack'] },
+    {
+      key: 'shape',
+      label: 'shape',
+      kind: 'select',
+      options: ['conical', 'ogive', 'ellipsoid', 'power', 'parabolic', 'haack'],
+    },
     { key: 'length', label: 'length', kind: 'length' },
     { key: 'foreRadius', label: 'foreRadius', kind: 'length' },
     { key: 'aftRadius', label: 'aftRadius', kind: 'length' },
@@ -165,9 +170,21 @@ const FIELDS: Record<string, Field[]> = {
   ],
 };
 
-
-function NumberField({ label, unit, value, step, min = 0, onChange, onCommit }: {
-  label: string; unit?: string; value: number; step: number; min?: number; onChange: (v: number) => void;
+function NumberField({
+  label,
+  unit,
+  value,
+  step,
+  min = 0,
+  onChange,
+  onCommit,
+}: {
+  label: string;
+  unit?: string;
+  value: number;
+  step: number;
+  min?: number;
+  onChange: (v: number) => void;
   onCommit?: () => void; // fires on blur — closes the undo entry for this edit
 }) {
   return (
@@ -175,8 +192,11 @@ function NumberField({ label, unit, value, step, min = 0, onChange, onCommit }: 
       <span className="text-xs text-slate-400">{label}</span>
       <span className="flex items-center gap-1">
         <NumberInput
-          value={Number.isFinite(value) ? value : 0} onChange={(v) => onChange(v ?? 0)} onCommit={onCommit}
-          step={step} min={min}
+          value={Number.isFinite(value) ? value : 0}
+          onChange={(v) => onChange(v ?? 0)}
+          onCommit={onCommit}
+          step={step}
+          min={min}
           className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
         />
         {unit && <span className="w-6 text-xs text-slate-500">{unit}</span>}
@@ -187,22 +207,54 @@ function NumberField({ label, unit, value, step, min = 0, onChange, onCommit }: 
 
 /** One override (mass / CG / CD): an enable checkbox + value, and — once enabled —
  *  an "apply to all subcomponents" toggle (OpenRocket's override-subtree flag). */
-function OverrideRow({ label, unit, enabled, value, step, onToggle, onValue, onCommit, subLabel, sub, onSub }: {
-  label: string; unit?: string; enabled: boolean; value: number; step: number;
-  onToggle: (on: boolean) => void; onValue: (v: number) => void; onCommit?: () => void;
-  subLabel: string; sub: boolean; onSub: (on: boolean) => void;
+function OverrideRow({
+  label,
+  unit,
+  enabled,
+  value,
+  step,
+  onToggle,
+  onValue,
+  onCommit,
+  subLabel,
+  sub,
+  onSub,
+}: {
+  label: string;
+  unit?: string;
+  enabled: boolean;
+  value: number;
+  step: number;
+  onToggle: (on: boolean) => void;
+  onValue: (v: number) => void;
+  onCommit?: () => void;
+  subLabel: string;
+  sub: boolean;
+  onSub: (on: boolean) => void;
 }) {
   return (
     <div className="space-y-1">
       <label className="flex items-center justify-between gap-3">
         <span className="flex items-center gap-2 text-xs text-slate-400">
-          <input type="checkbox" checked={enabled} onChange={(e) => { onToggle(e.target.checked); onCommit?.(); }} className="accent-sky-500" />
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(e) => {
+              onToggle(e.target.checked);
+              onCommit?.();
+            }}
+            className="accent-sky-500"
+          />
           {label}
         </span>
         <span className="flex items-center gap-1">
           <NumberInput
-            value={Number.isFinite(value) ? value : 0} onChange={(v) => onValue(v ?? 0)} onCommit={onCommit}
-            disabled={!enabled} step={step} min={0}
+            value={Number.isFinite(value) ? value : 0}
+            onChange={(v) => onValue(v ?? 0)}
+            onCommit={onCommit}
+            disabled={!enabled}
+            step={step}
+            min={0}
             className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500 disabled:opacity-40"
           />
           {unit && <span className="w-6 text-xs text-slate-500">{unit}</span>}
@@ -210,7 +262,15 @@ function OverrideRow({ label, unit, enabled, value, step, onToggle, onValue, onC
       </label>
       {enabled && (
         <label className="flex items-center gap-2 pl-6 text-[11px] text-slate-500">
-          <input type="checkbox" checked={sub} onChange={(e) => { onSub(e.target.checked); onCommit?.(); }} className="accent-sky-500" />
+          <input
+            type="checkbox"
+            checked={sub}
+            onChange={(e) => {
+              onSub(e.target.checked);
+              onCommit?.();
+            }}
+            className="accent-sky-500"
+          />
           {subLabel}
         </label>
       )}
@@ -218,7 +278,15 @@ function OverrideRow({ label, unit, enabled, value, step, onToggle, onValue, onC
   );
 }
 
-export function PropertyPanel({ node, onChange, onCommit, onRemove, onMove, canMoveUp, canMoveDown }: {
+export function PropertyPanel({
+  node,
+  onChange,
+  onCommit,
+  onRemove,
+  onMove,
+  canMoveUp,
+  canMoveDown,
+}: {
   node: ComponentNode | null;
   onChange: (patch: Partial<ComponentNode>) => void;
   /** Close the current edit's undo entry. Number/text fields fire it on blur;
@@ -246,7 +314,10 @@ export function PropertyPanel({ node, onChange, onCommit, onRemove, onMove, canM
   const pos = (node.position as ComponentPosition | undefined) ?? { method: 'top', offset: 0 };
   // Discrete controls (select / checkbox / pickers) finish the moment they
   // change, so patch and close the undo entry in one shot.
-  const commitChange = (patch: Partial<ComponentNode>) => { onChange(patch); onCommit?.(); };
+  const commitChange = (patch: Partial<ComponentNode>) => {
+    onChange(patch);
+    onCommit?.();
+  };
 
   return (
     <section className="space-y-3 rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
@@ -257,13 +328,21 @@ export function PropertyPanel({ node, onChange, onCommit, onRemove, onMove, canM
             {onMove && (
               <>
                 <button
-                  onClick={() => onMove(-1)} disabled={!canMoveUp} title={t('prop.moveUp')}
+                  onClick={() => onMove(-1)}
+                  disabled={!canMoveUp}
+                  title={t('prop.moveUp')}
                   className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-slate-800"
-                >↑</button>
+                >
+                  ↑
+                </button>
                 <button
-                  onClick={() => onMove(1)} disabled={!canMoveDown} title={t('prop.moveDown')}
+                  onClick={() => onMove(1)}
+                  disabled={!canMoveDown}
+                  title={t('prop.moveDown')}
                   className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-slate-800"
-                >↓</button>
+                >
+                  ↓
+                </button>
               </>
             )}
             <button
@@ -279,8 +358,11 @@ export function PropertyPanel({ node, onChange, onCommit, onRemove, onMove, canM
       <label className="flex items-center justify-between gap-3">
         <span className="text-xs text-slate-400">{t('prop.name')}</span>
         <input
-          type="text" value={typeof node.name === 'string' ? node.name : ''} placeholder={label}
-          onChange={(e) => onChange({ name: e.target.value })} onBlur={onCommit}
+          type="text"
+          value={typeof node.name === 'string' ? node.name : ''}
+          placeholder={label}
+          onChange={(e) => onChange({ name: e.target.value })}
+          onBlur={onCommit}
           className="w-40 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
         />
       </label>
@@ -292,14 +374,18 @@ export function PropertyPanel({ node, onChange, onCommit, onRemove, onMove, canM
             <input
               type="color"
               value={typeof node.color === 'string' ? node.color : colorForType(node.type, palette)}
-              onChange={(e) => onChange({ color: e.target.value })} onBlur={onCommit}
+              onChange={(e) => onChange({ color: e.target.value })}
+              onBlur={onCommit}
               className="h-7 w-10 cursor-pointer rounded-md border border-white/10 bg-slate-800 p-0.5"
             />
             {typeof node.color === 'string' && (
               <button
-                onClick={() => commitChange({ color: undefined })} title={t('prop.resetColor')}
+                onClick={() => commitChange({ color: undefined })}
+                title={t('prop.resetColor')}
                 className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-400 ring-1 ring-white/10 hover:bg-slate-700"
-              >↺</button>
+              >
+                ↺
+              </button>
             )}
           </span>
         </label>
@@ -318,18 +404,29 @@ export function PropertyPanel({ node, onChange, onCommit, onRemove, onMove, canM
             <label key={f.key} className="flex items-center justify-between gap-3">
               <span className="text-xs text-slate-400">{flabel(f)}</span>
               <select
-                value={cur} onChange={(e) => commitChange({ [f.key]: e.target.value })}
+                value={cur}
+                onChange={(e) => commitChange({ [f.key]: e.target.value })}
                 className="w-32 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
               >
-                {f.options.map((o) => <option key={o} value={o}>{f.optI18n ? t(`${f.optI18n}.${o}`) : o}</option>)}
+                {f.options.map((o) => (
+                  <option key={o} value={o}>
+                    {f.optI18n ? t(`${f.optI18n}.${o}`) : o}
+                  </option>
+                ))}
               </select>
             </label>
           );
         }
         if (f.kind === 'count') {
           return (
-            <NumberField key={f.key} label={flabel(f)} value={num(node, f.key)} step={1}
-              onChange={(v) => onChange({ [f.key]: Math.max(1, Math.round(v)) })} onCommit={onCommit} />
+            <NumberField
+              key={f.key}
+              label={flabel(f)}
+              value={num(node, f.key)}
+              step={1}
+              onChange={(v) => onChange({ [f.key]: Math.max(1, Math.round(v)) })}
+              onCommit={onCommit}
+            />
           );
         }
         if (f.kind === 'bool') {
@@ -337,7 +434,8 @@ export function PropertyPanel({ node, onChange, onCommit, onRemove, onMove, canM
             <label key={f.key} className="flex items-center justify-between gap-3">
               <span className="text-xs text-slate-400">{flabel(f)}</span>
               <input
-                type="checkbox" checked={node[f.key] === true}
+                type="checkbox"
+                checked={node[f.key] === true}
                 onChange={(e) => commitChange({ [f.key]: e.target.checked })}
                 className="accent-sky-500"
               />
@@ -346,28 +444,56 @@ export function PropertyPanel({ node, onChange, onCommit, onRemove, onMove, canM
         }
         if (f.kind === 'mass') {
           return (
-            <NumberField key={f.key} label={flabel(f)} unit="g" value={num(node, f.key) * 1000} step={0.5}
-              onChange={(v) => onChange({ [f.key]: v / 1000 })} onCommit={onCommit} />
+            <NumberField
+              key={f.key}
+              label={flabel(f)}
+              unit="g"
+              value={num(node, f.key) * 1000}
+              step={0.5}
+              onChange={(v) => onChange({ [f.key]: v / 1000 })}
+              onCommit={onCommit}
+            />
           );
         }
         if (f.kind === 'number') {
           return (
-            <NumberField key={f.key} label={flabel(f)} unit={f.unit} value={num(node, f.key)} step={f.step ?? 0.1}
-              onChange={(v) => onChange({ [f.key]: v })} onCommit={onCommit} />
+            <NumberField
+              key={f.key}
+              label={flabel(f)}
+              unit={f.unit}
+              value={num(node, f.key)}
+              step={f.step ?? 0.1}
+              onChange={(v) => onChange({ [f.key]: v })}
+              onCommit={onCommit}
+            />
           );
         }
         if (f.kind === 'angle') {
           // Stored in radians (kernel/.ork convention), edited in degrees.
           return (
-            <NumberField key={f.key} label={flabel(f)} unit="°" min={-180} step={f.step ?? 5}
+            <NumberField
+              key={f.key}
+              label={flabel(f)}
+              unit="°"
+              min={-180}
+              step={f.step ?? 5}
               value={(num(node, f.key) * 180) / Math.PI}
-              onChange={(v) => onChange({ [f.key]: (v * Math.PI) / 180 })} onCommit={onCommit} />
+              onChange={(v) => onChange({ [f.key]: (v * Math.PI) / 180 })}
+              onCommit={onCommit}
+            />
           );
         }
         // length: stored metres, shown mm
         return (
-          <NumberField key={f.key} label={flabel(f)} unit="mm" value={num(node, f.key) * 1000} step={0.5}
-            onChange={(v) => onChange({ [f.key]: v / 1000 })} onCommit={onCommit} />
+          <NumberField
+            key={f.key}
+            label={flabel(f)}
+            unit="mm"
+            value={num(node, f.key) * 1000}
+            step={0.5}
+            onChange={(v) => onChange({ [f.key]: v / 1000 })}
+            onCommit={onCommit}
+          />
         );
       })}
 
@@ -418,27 +544,56 @@ export function PropertyPanel({ node, onChange, onCommit, onRemove, onMove, canM
       <div className="space-y-3 border-t border-white/5 pt-3">
         <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{t('override.title')}</div>
         <OverrideRow
-          label={t('override.mass')} unit="g" step={0.5}
-          enabled={typeof node.overrideMass === 'number'} value={num(node, 'overrideMass') * 1000}
-          onToggle={(on) => onChange({ overrideMass: on ? Math.max(num(node, 'overrideMass'), 0.01) : undefined, overrideSubcomponentsMass: on ? node.overrideSubcomponentsMass as boolean | undefined : undefined })}
-          onValue={(v) => onChange({ overrideMass: v / 1000 })} onCommit={onCommit}
-          subLabel={t('override.applyAll')} sub={node.overrideSubcomponentsMass === true}
+          label={t('override.mass')}
+          unit="g"
+          step={0.5}
+          enabled={typeof node.overrideMass === 'number'}
+          value={num(node, 'overrideMass') * 1000}
+          onToggle={(on) =>
+            onChange({
+              overrideMass: on ? Math.max(num(node, 'overrideMass'), 0.01) : undefined,
+              overrideSubcomponentsMass: on ? (node.overrideSubcomponentsMass as boolean | undefined) : undefined,
+            })
+          }
+          onValue={(v) => onChange({ overrideMass: v / 1000 })}
+          onCommit={onCommit}
+          subLabel={t('override.applyAll')}
+          sub={node.overrideSubcomponentsMass === true}
           onSub={(on) => onChange({ overrideSubcomponentsMass: on || undefined })}
         />
         <OverrideRow
-          label={t(node.type === 'stage' ? 'override.cgStage' : 'override.cg')} unit="mm" step={1}
-          enabled={typeof node.overrideCGX === 'number'} value={num(node, 'overrideCGX') * 1000}
-          onToggle={(on) => onChange({ overrideCGX: on ? num(node, 'overrideCGX') : undefined, overrideSubcomponentsCG: on ? node.overrideSubcomponentsCG as boolean | undefined : undefined })}
-          onValue={(v) => onChange({ overrideCGX: v / 1000 })} onCommit={onCommit}
-          subLabel={t('override.applyAll')} sub={node.overrideSubcomponentsCG === true}
+          label={t(node.type === 'stage' ? 'override.cgStage' : 'override.cg')}
+          unit="mm"
+          step={1}
+          enabled={typeof node.overrideCGX === 'number'}
+          value={num(node, 'overrideCGX') * 1000}
+          onToggle={(on) =>
+            onChange({
+              overrideCGX: on ? num(node, 'overrideCGX') : undefined,
+              overrideSubcomponentsCG: on ? (node.overrideSubcomponentsCG as boolean | undefined) : undefined,
+            })
+          }
+          onValue={(v) => onChange({ overrideCGX: v / 1000 })}
+          onCommit={onCommit}
+          subLabel={t('override.applyAll')}
+          sub={node.overrideSubcomponentsCG === true}
           onSub={(on) => onChange({ overrideSubcomponentsCG: on || undefined })}
         />
         <OverrideRow
-          label={t('override.cd')} step={0.05}
-          enabled={typeof node.overrideCD === 'number'} value={num(node, 'overrideCD')}
-          onToggle={(on) => onChange({ overrideCD: on ? (num(node, 'overrideCD') || 0.5) : undefined, overrideSubcomponentsCD: on ? node.overrideSubcomponentsCD as boolean | undefined : undefined })}
-          onValue={(v) => onChange({ overrideCD: v })} onCommit={onCommit}
-          subLabel={t('override.applyAll')} sub={node.overrideSubcomponentsCD === true}
+          label={t('override.cd')}
+          step={0.05}
+          enabled={typeof node.overrideCD === 'number'}
+          value={num(node, 'overrideCD')}
+          onToggle={(on) =>
+            onChange({
+              overrideCD: on ? num(node, 'overrideCD') || 0.5 : undefined,
+              overrideSubcomponentsCD: on ? (node.overrideSubcomponentsCD as boolean | undefined) : undefined,
+            })
+          }
+          onValue={(v) => onChange({ overrideCD: v })}
+          onCommit={onCommit}
+          subLabel={t('override.applyAll')}
+          sub={node.overrideSubcomponentsCD === true}
           onSub={(on) => onChange({ overrideSubcomponentsCD: on || undefined })}
         />
         <p className="text-[11px] leading-snug text-slate-500">{t('override.cpNote')}</p>
@@ -451,14 +606,27 @@ export function PropertyPanel({ node, onChange, onCommit, onRemove, onMove, canM
             <span className="text-xs text-slate-400">{t('prop.positionFrom')}</span>
             <select
               value={pos.method}
-              onChange={(e) => commitChange({ position: { ...pos, method: e.target.value as ComponentPosition['method'] } })}
+              onChange={(e) =>
+                commitChange({ position: { ...pos, method: e.target.value as ComponentPosition['method'] } })
+              }
               className="w-32 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
             >
-              {(['top', 'middle', 'bottom', 'absolute'] as const).map((m) => <option key={m} value={m}>{m}</option>)}
+              {(['top', 'middle', 'bottom', 'absolute'] as const).map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
             </select>
           </label>
-          <NumberField label={t('prop.offset')} unit="mm" value={pos.offset * 1000} step={1} min={-100000}
-            onChange={(v) => onChange({ position: { ...pos, offset: v / 1000 } })} onCommit={onCommit} />
+          <NumberField
+            label={t('prop.offset')}
+            unit="mm"
+            value={pos.offset * 1000}
+            step={1}
+            min={-100000}
+            onChange={(v) => onChange({ position: { ...pos, offset: v / 1000 } })}
+            onCommit={onCommit}
+          />
         </div>
       )}
     </section>

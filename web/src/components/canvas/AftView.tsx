@@ -17,16 +17,45 @@ import { isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tr
  * (cluster offsets and pod ring offsets are already {y,z} in that frame).
  */
 
-interface MotorDims { length: number; diameter: number }
+interface MotorDims {
+  length: number;
+  diameter: number;
+}
 
 const colorOf = (n: ComponentNode, dflt: string): string =>
   typeof n['color'] === 'string' ? (n['color'] as string) : dflt;
 
 type Shape =
-  | { kind: 'circle'; y: number; z: number; r: number; fill: string; stroke: string; dash?: string; width?: number; title?: string }
-  | { kind: 'fin'; y: number; z: number; angle: number; from: number; to: number; thick: number; fill: string; stroke: string; title?: string };
+  | {
+      kind: 'circle';
+      y: number;
+      z: number;
+      r: number;
+      fill: string;
+      stroke: string;
+      dash?: string;
+      width?: number;
+      title?: string;
+    }
+  | {
+      kind: 'fin';
+      y: number;
+      z: number;
+      angle: number;
+      from: number;
+      to: number;
+      thick: number;
+      fill: string;
+      stroke: string;
+      title?: string;
+    };
 
-export function AftView({ tree, motors, roll = 0, onRoll }: {
+export function AftView({
+  tree,
+  motors,
+  roll = 0,
+  onRoll,
+}: {
   tree: RocketTree;
   /** Loaded motor dimensions per mount node id (real case sizes). */
   motors?: Record<string, MotorDims>;
@@ -63,11 +92,12 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
     svg.addEventListener('wheel', onWheel, { passive: false });
     return () => svg.removeEventListener('wheel', onWheel);
   }, []);
-  const zoomBy = (f: number) => setZoom((z) => {
-    // About the viewBox origin — the rocket axis is always at (0,0) here.
-    const k = Math.min(12, Math.max(1, z.k * f));
-    return k === 1 ? { k: 1, x: 0, y: 0 } : { k, x: z.x * (k / z.k), y: z.y * (k / z.k) };
-  });
+  const zoomBy = (f: number) =>
+    setZoom((z) => {
+      // About the viewBox origin — the rocket axis is always at (0,0) here.
+      const k = Math.min(12, Math.max(1, z.k * f));
+      return k === 1 ? { k: 1, x: 0, y: 0 } : { k, x: z.x * (k / z.k), y: z.y * (k / z.k) };
+    });
   // Painter's layers: hulls (opaque, big→small), then internals, then externals.
   const hulls: Shape[] = [];
   const inner: Shape[] = [];
@@ -108,8 +138,15 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
           // set's own rotation about the body axis.
           const angle = Math.PI / 2 + num(child, 'rotation', 0) + (2 * Math.PI * i) / count;
           outer.push({
-            kind: 'fin', y: cy, z: cz, angle, from: pRadius, to: pRadius + span,
-            thick, fill: colorOf(child, '#b9b7b0'), stroke: '#7a786f',
+            kind: 'fin',
+            y: cy,
+            z: cz,
+            angle,
+            from: pRadius,
+            to: pRadius + span,
+            thick,
+            fill: colorOf(child, '#b9b7b0'),
+            stroke: '#7a786f',
             title: `${child.name ?? 'Fins'} ×${count}`,
           });
         }
@@ -121,8 +158,13 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
           const angle = Math.PI / 2 + num(child, 'rotation', 0) + (2 * Math.PI * i) / count;
           const d = pRadius + rt;
           outer.push({
-            kind: 'circle', y: cy + d * Math.cos(angle), z: cz + d * Math.sin(angle), r: rt,
-            fill: 'none', stroke: '#7a786f', title: `${child.name ?? 'Tube fins'} ×${count}`,
+            kind: 'circle',
+            y: cy + d * Math.cos(angle),
+            z: cz + d * Math.sin(angle),
+            r: rt,
+            fill: 'none',
+            stroke: '#7a786f',
+            title: `${child.name ?? 'Tube fins'} ×${count}`,
           });
         }
         reach(cy, cz, pRadius + 2 * rt);
@@ -131,8 +173,15 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
         const wid = num(child, 'width', 0.025);
         const hgt = num(child, 'height', 0.02);
         outer.push({
-          kind: 'fin', y: cy, z: cz, angle: Math.PI / 2, from: pRadius, to: pRadius + hgt,
-          thick: wid, fill: colorOf(child, '#c8c5be'), stroke: '#7a786f',
+          kind: 'fin',
+          y: cy,
+          z: cz,
+          angle: Math.PI / 2,
+          from: pRadius,
+          to: pRadius + hgt,
+          thick: wid,
+          fill: colorOf(child, '#c8c5be'),
+          stroke: '#7a786f',
           title: child.name ?? 'Camera shroud',
         });
         reach(cy, cz, pRadius + hgt);
@@ -144,15 +193,22 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
         const ang = Math.PI / 2 + num(child, 'angleOffset', Math.PI);
         const rad = pRadius + r;
         outer.push({
-          kind: 'circle', y: cy + rad * Math.cos(ang), z: cz + rad * Math.sin(ang), r,
-          fill: colorOf(child, '#c8c5be'), stroke: '#7a786f', title: child.name ?? t,
+          kind: 'circle',
+          y: cy + rad * Math.cos(ang),
+          z: cz + rad * Math.sin(ang),
+          r,
+          fill: colorOf(child, '#c8c5be'),
+          stroke: '#7a786f',
+          title: child.name ?? t,
         });
         reach(cy, cz, pRadius + 2 * r);
       } else if (t === 'innertube') {
         const r = num(child, 'outerRadius', 0.0095);
         const offs = clusterOffsets(
-          child['cluster'] as string | undefined, r,
-          num(child, 'clusterScale', 1), num(child, 'clusterRotation', 0),
+          child['cluster'] as string | undefined,
+          r,
+          num(child, 'clusterScale', 1),
+          num(child, 'clusterRotation', 0),
         );
         const motor = child.id ? motors?.[child.id] : undefined;
         for (const raw of offs) {
@@ -160,14 +216,24 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
           // reference), so a split cluster clocks like the fins and the 3D view.
           const off = { y: -raw.z, z: raw.y };
           inner.push({
-            kind: 'circle', y: cy + off.y, z: cz + off.z, r,
-            fill: 'none', stroke: colorOf(child, '#9a978f'), dash: '3 2',
+            kind: 'circle',
+            y: cy + off.y,
+            z: cz + off.z,
+            r,
+            fill: 'none',
+            stroke: colorOf(child, '#9a978f'),
+            dash: '3 2',
             title: child.name ?? 'Inner tube',
           });
           if (motor) {
             inner.push({
-              kind: 'circle', y: cy + off.y, z: cz + off.z, r: motor.diameter / 2,
-              fill: '#8b5a2b', stroke: '#6b4520', title: 'Motor',
+              kind: 'circle',
+              y: cy + off.y,
+              z: cz + off.z,
+              r: motor.diameter / 2,
+              fill: '#8b5a2b',
+              stroke: '#6b4520',
+              title: 'Motor',
             });
           }
           reach(cy + off.y, cz + off.z, r);
@@ -176,8 +242,13 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
       } else if (t === 'tubecoupler' || t === 'centeringring' || t === 'engineblock' || t === 'bulkhead') {
         const r = Math.min(pRadius * 0.98, num(child, 'outerRadius', pRadius * 0.95));
         inner.push({
-          kind: 'circle', y: cy, z: cz, r,
-          fill: 'none', stroke: colorOf(child, '#9a978f'), dash: '2 3',
+          kind: 'circle',
+          y: cy,
+          z: cz,
+          r,
+          fill: 'none',
+          stroke: colorOf(child, '#9a978f'),
+          dash: '2 3',
           title: child.name ?? t,
         });
       }
@@ -194,8 +265,13 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
       const r = Math.max(num(n, 'outerRadius', 0), num(n, 'aftRadius', 0), num(n, 'foreRadius', 0));
       if (r <= 0) continue;
       hulls.push({
-        kind: 'circle', y: cy, z: cz, r,
-        fill: colorOf(n, '#e7e5e0'), stroke: '#7a786f', title: n.name ?? n.type,
+        kind: 'circle',
+        y: cy,
+        z: cz,
+        r,
+        fill: colorOf(n, '#e7e5e0'),
+        stroke: '#7a786f',
+        title: n.name ?? n.type,
       });
       reach(cy, cz, r);
       // Body-tube mounts (minimum/sub-minimum builds) draw their motor too —
@@ -204,8 +280,13 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
         const motor = n.id ? motors?.[n.id] : undefined;
         if (motor) {
           inner.push({
-            kind: 'circle', y: cy, z: cz, r: motor.diameter / 2,
-            fill: '#8b5a2b', stroke: '#6b4520', title: 'Motor',
+            kind: 'circle',
+            y: cy,
+            z: cz,
+            r: motor.diameter / 2,
+            fill: '#8b5a2b',
+            stroke: '#6b4520',
+            title: 'Motor',
           });
         }
       }
@@ -226,11 +307,24 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
   const drawShape = (s: Shape, i: number) => {
     if (s.kind === 'circle') {
       return (
-        <circle key={i} cx={toSvg(s.y)} cy={-toSvg(s.z)} r={toSvg(s.r)}
-          fill={s.fill} fillOpacity={s.fill === '#8b5a2b' ? 0.45 : undefined}
-          stroke={s.stroke} strokeWidth={E / 220} strokeDasharray={s.dash
-            ? s.dash.split(' ').map((d) => (Number(d) * E) / 110).join(' ')
-            : undefined}>
+        <circle
+          key={i}
+          cx={toSvg(s.y)}
+          cy={-toSvg(s.z)}
+          r={toSvg(s.r)}
+          fill={s.fill}
+          fillOpacity={s.fill === '#8b5a2b' ? 0.45 : undefined}
+          stroke={s.stroke}
+          strokeWidth={E / 220}
+          strokeDasharray={
+            s.dash
+              ? s.dash
+                  .split(' ')
+                  .map((d) => (Number(d) * E) / 110)
+                  .join(' ')
+              : undefined
+          }
+        >
           {s.title ? <title>{s.title}</title> : null}
         </circle>
       );
@@ -248,9 +342,13 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
       [s.y + s.from * cos - ny * h, s.z + s.from * sin - nz * h],
     ];
     return (
-      <polygon key={i}
+      <polygon
+        key={i}
         points={pts.map(([y, z]) => `${toSvg(y!)},${-toSvg(z!)}`).join(' ')}
-        fill={s.fill} stroke={s.stroke} strokeWidth={E / 220}>
+        fill={s.fill}
+        stroke={s.stroke}
+        strokeWidth={E / 220}
+      >
         {s.title ? <title>{s.title}</title> : null}
       </polygon>
     );
@@ -266,10 +364,18 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
   };
   return (
     <div style={{ position: 'relative', height: '100%' }}>
-      <svg ref={svgRef} viewBox={`${-E} ${-E} ${2 * E} ${2 * E}`}
-        style={{ width: '100%', height: '100%', display: 'block',
-          touchAction: 'none', cursor: zoom.k > 1 ? 'grab' : undefined }}
-        role="img" aria-label={t('schematic.aftAria')}
+      <svg
+        ref={svgRef}
+        viewBox={`${-E} ${-E} ${2 * E} ${2 * E}`}
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'block',
+          touchAction: 'none',
+          cursor: zoom.k > 1 ? 'grab' : undefined,
+        }}
+        role="img"
+        aria-label={t('schematic.aftAria')}
         onPointerDown={(e) => {
           // Drag rotates the roll (primary); pan only when zoomed and no onRoll.
           if (onRoll) {
@@ -298,8 +404,15 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
           const { vx, vy } = toView(e.clientX, e.clientY);
           setZoom((z) => ({ ...z, x: p.x + (vx - p.px), y: p.y + (vy - p.py) }));
         }}
-        onPointerUp={() => { pan.current = null; rollDrag.current = null; }}
-        onPointerLeave={() => { pan.current = null; rollDrag.current = null; }}>
+        onPointerUp={() => {
+          pan.current = null;
+          rollDrag.current = null;
+        }}
+        onPointerLeave={() => {
+          pan.current = null;
+          rollDrag.current = null;
+        }}
+      >
         <g transform={`translate(${zoom.x} ${zoom.y}) scale(${zoom.k}) rotate(${(roll * 180) / Math.PI})`}>
           {hulls.map((s) => drawShape(s, i++))}
           {inner.map((s) => drawShape(s, i++))}
@@ -310,9 +423,15 @@ export function AftView({ tree, motors, roll = 0, onRoll }: {
         </g>
       </svg>
       <div className="schematic-controls">
-        <button title={t('schematic.zoomIn')} onClick={() => zoomBy(1.5)}>+</button>
-        <button title={t('schematic.zoomOut')} onClick={() => zoomBy(1 / 1.5)}>−</button>
-        <button title={t('schematic.fit')} onClick={() => setZoom({ k: 1, x: 0, y: 0 })}>⤢</button>
+        <button title={t('schematic.zoomIn')} onClick={() => zoomBy(1.5)}>
+          +
+        </button>
+        <button title={t('schematic.zoomOut')} onClick={() => zoomBy(1 / 1.5)}>
+          −
+        </button>
+        <button title={t('schematic.fit')} onClick={() => setZoom({ k: 1, x: 0, y: 0 })}>
+          ⤢
+        </button>
       </div>
     </div>
   );

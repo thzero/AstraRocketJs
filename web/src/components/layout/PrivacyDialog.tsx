@@ -9,7 +9,9 @@ export function PrivacyDialog({ open, onClose }: { open: boolean; onClose: () =>
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
@@ -19,15 +21,20 @@ export function PrivacyDialog({ open, onClose }: { open: boolean; onClose: () =>
     <div className="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4" onClick={onClose}>
       <div
         className="w-full max-w-lg rounded-2xl bg-slate-900 p-6 ring-1 ring-white/10"
-        role="dialog" aria-modal="true" aria-label={t('privacy.title')}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('privacy.title')}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
           <h2 className="text-lg font-semibold text-slate-100">{t('privacy.title')}</h2>
           <button
-            onClick={onClose} aria-label={t('privacy.close')}
+            onClick={onClose}
+            aria-label={t('privacy.close')}
             className="shrink-0 rounded-lg bg-slate-800 px-2 py-1 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
-          >✕</button>
+          >
+            ✕
+          </button>
         </div>
 
         <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-300">
@@ -41,7 +48,9 @@ export function PrivacyDialog({ open, onClose }: { open: boolean; onClose: () =>
           <button
             onClick={onClose}
             className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
-          >{t('privacy.close')}</button>
+          >
+            {t('privacy.close')}
+          </button>
         </div>
       </div>
     </div>

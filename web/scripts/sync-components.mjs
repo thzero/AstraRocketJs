@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 // Override with --src / OPENROCKET_PRESETS to point at another `.orc` tree.
 const DEFAULT_SRC = 'D:/programming/java/openrocket/openrocket-database/orc';
 const argSrc = process.argv.indexOf('--src');
-const SRC = argSrc >= 0 ? process.argv[argSrc + 1] : (process.env.OPENROCKET_PRESETS || DEFAULT_SRC);
+const SRC = argSrc >= 0 ? process.argv[argSrc + 1] : process.env.OPENROCKET_PRESETS || DEFAULT_SRC;
 const OUT = resolve(fileURLToPath(new URL('../src/data', import.meta.url)), 'components.generated.json');
 
 // Unit → SI factors.
@@ -93,7 +93,14 @@ for (const f of files) {
     const outerDiameter = lenM(b, 'OutsideDiameter');
     const length = lenM(b, 'Length');
     if (!outerDiameter || !length) continue;
-    push({ type: 'bodytube', ...common(b), ...withMaterial(b), outerDiameter, innerDiameter: lenM(b, 'InsideDiameter'), length });
+    push({
+      type: 'bodytube',
+      ...common(b),
+      ...withMaterial(b),
+      outerDiameter,
+      innerDiameter: lenM(b, 'InsideDiameter'),
+      length,
+    });
   }
 
   for (const b of blocks(text, 'NoseCone')) {
@@ -101,10 +108,13 @@ for (const f of files) {
     const length = lenM(b, 'Length');
     if (!outerDiameter || !length) continue;
     push({
-      type: 'nosecone', ...common(b), ...withMaterial(b),
+      type: 'nosecone',
+      ...common(b),
+      ...withMaterial(b),
       shape: (str(b, 'Shape') || 'OGIVE').toLowerCase(),
       filled: str(b, 'Filled') === 'true',
-      outerDiameter, length,
+      outerDiameter,
+      length,
     });
   }
 
@@ -121,24 +131,48 @@ for (const f of files) {
     const outerDiameter = lenM(b, 'OutsideDiameter');
     const length = lenM(b, 'Length');
     if (!outerDiameter || !length) continue;
-    push({ type: 'tubecoupler', ...common(b), ...withMaterial(b), outerDiameter, innerDiameter: lenM(b, 'InsideDiameter'), length });
+    push({
+      type: 'tubecoupler',
+      ...common(b),
+      ...withMaterial(b),
+      outerDiameter,
+      innerDiameter: lenM(b, 'InsideDiameter'),
+      length,
+    });
   }
 
   for (const b of blocks(text, 'CenteringRing')) {
     const outerDiameter = lenM(b, 'OutsideDiameter');
     const length = lenM(b, 'Length');
     if (!outerDiameter || !length) continue;
-    push({ type: 'centeringring', ...common(b), ...withMaterial(b), outerDiameter, innerDiameter: lenM(b, 'InsideDiameter'), length });
+    push({
+      type: 'centeringring',
+      ...common(b),
+      ...withMaterial(b),
+      outerDiameter,
+      innerDiameter: lenM(b, 'InsideDiameter'),
+      length,
+    });
   }
 
   for (const b of blocks(text, 'BulkHead')) {
     const outerDiameter = lenM(b, 'OutsideDiameter');
     const length = lenM(b, 'Length');
     if (!outerDiameter || !length) continue;
-    push({ type: 'bulkhead', ...common(b), ...withMaterial(b), outerDiameter, length, filled: str(b, 'Filled') === 'true' });
+    push({
+      type: 'bulkhead',
+      ...common(b),
+      ...withMaterial(b),
+      outerDiameter,
+      length,
+      filled: str(b, 'Filled') === 'true',
+    });
   }
 }
 
 const byType = components.reduce((m, p) => ((m[p.type] = (m[p.type] ?? 0) + 1), m), {});
-writeFileSync(OUT, JSON.stringify({ generated: new Date().toISOString(), count: components.length, components }) + '\n');
+writeFileSync(
+  OUT,
+  JSON.stringify({ generated: new Date().toISOString(), count: components.length, components }) + '\n',
+);
 console.log(`Wrote ${components.length} components → src/data/components.generated.json`, byType);

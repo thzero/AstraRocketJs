@@ -38,7 +38,14 @@ export function EditorPanel() {
   return (
     <div className="relative space-y-4 p-3">
       <BusyLock />
-      <ComponentTree tree={tree} selectedId={selectedId} onSelect={onSelect} onAdd={onAdd} onRenameDesign={onRenameDesign} onCommit={onCommit} />
+      <ComponentTree
+        tree={tree}
+        selectedId={selectedId}
+        onSelect={onSelect}
+        onAdd={onAdd}
+        onRenameDesign={onRenameDesign}
+        onCommit={onCommit}
+      />
       <PropertyPanel
         node={node}
         onChange={onChange}

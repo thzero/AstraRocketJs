@@ -6,10 +6,20 @@ import type { ComponentType } from '../engine/openRocketEngine';
  * A component's own `color` prop still overrides its group colour.
  */
 export type PartKey =
-  | 'nose' | 'body' | 'fins' | 'inner' | 'rings' | 'lugs'
-  | 'motor' | 'parachute' | 'streamer' | 'mass';
+  'nose' | 'body' | 'fins' | 'inner' | 'rings' | 'lugs' | 'motor' | 'parachute' | 'streamer' | 'mass';
 
-export const PART_KEYS: PartKey[] = ['nose', 'body', 'fins', 'inner', 'rings', 'lugs', 'motor', 'parachute', 'streamer', 'mass'];
+export const PART_KEYS: PartKey[] = [
+  'nose',
+  'body',
+  'fins',
+  'inner',
+  'rings',
+  'lugs',
+  'motor',
+  'parachute',
+  'streamer',
+  'mass',
+];
 
 export const DEFAULT_PART_COLORS: Record<PartKey, string> = {
   nose: '#b9c2cc',
@@ -25,13 +35,24 @@ export const DEFAULT_PART_COLORS: Record<PartKey, string> = {
 };
 
 const TYPE_TO_KEY: Partial<Record<ComponentType, PartKey>> = {
-  nosecone: 'nose', transition: 'nose',
-  bodytube: 'body', fairing: 'body',
-  trapezoidfinset: 'fins', ellipticalfinset: 'fins', freeformfinset: 'fins', tubefinset: 'fins',
-  innertube: 'inner', tubecoupler: 'inner',
-  centeringring: 'rings', bulkhead: 'rings', engineblock: 'rings',
-  launchlug: 'lugs', railbutton: 'lugs',
-  parachute: 'parachute', streamer: 'streamer', shockcord: 'streamer',
+  nosecone: 'nose',
+  transition: 'nose',
+  bodytube: 'body',
+  fairing: 'body',
+  trapezoidfinset: 'fins',
+  ellipticalfinset: 'fins',
+  freeformfinset: 'fins',
+  tubefinset: 'fins',
+  innertube: 'inner',
+  tubecoupler: 'inner',
+  centeringring: 'rings',
+  bulkhead: 'rings',
+  engineblock: 'rings',
+  launchlug: 'lugs',
+  railbutton: 'lugs',
+  parachute: 'parachute',
+  streamer: 'streamer',
+  shockcord: 'streamer',
   masscomponent: 'mass',
 };
 
@@ -40,8 +61,10 @@ export const UNKNOWN_PART_COLOR = '#cfcabf';
 export type PartPalette = Record<PartKey, string>;
 
 /** A full palette from the built-in defaults plus any user overrides (from Settings). */
-export const mergePalette = (overrides?: Partial<Record<PartKey, string>>): PartPalette =>
-  ({ ...DEFAULT_PART_COLORS, ...overrides });
+export const mergePalette = (overrides?: Partial<Record<PartKey, string>>): PartPalette => ({
+  ...DEFAULT_PART_COLORS,
+  ...overrides,
+});
 
 /** The colour for a component type, given a resolved palette. */
 export const colorForType = (type: ComponentType, palette: PartPalette = DEFAULT_PART_COLORS): string => {

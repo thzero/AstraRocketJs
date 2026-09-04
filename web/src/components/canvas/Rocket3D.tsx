@@ -7,15 +7,21 @@ import { OrbitControls, Bounds, Line } from '@react-three/drei';
 import type { ComponentNode, ComponentPosition, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
 import { num, numOpt } from '../../tree/nodeProps';
 import {
-  assemblyBoundingRadius, assemblyChainLength, isAssembly,
-  resolveAssemblyRadius, ringInstanceOffsets,
+  assemblyBoundingRadius,
+  assemblyChainLength,
+  isAssembly,
+  resolveAssemblyRadius,
+  ringInstanceOffsets,
 } from '../../tree/assembly.js';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { outerProfile } from '../../tree/shapeProfile.js';
 import {
-  downloadBlob, IMAGE_FORMAT_EXT, snapshotWithHeader,
-  type ExportData, type ImageFormat,
+  downloadBlob,
+  IMAGE_FORMAT_EXT,
+  snapshotWithHeader,
+  type ExportData,
+  type ImageFormat,
 } from '../../services/schematicExport.js';
 import { stabilityState, type StabilityState } from '../../services/simReport.js';
 import { colorForType, DEFAULT_PART_COLORS, mergePalette, type PartPalette } from '../../services/partColors';
@@ -43,10 +49,14 @@ const nodeColor = (n: ComponentNode, palette: PartPalette): string =>
 function axialStart(child: ComponentNode, childLen: number, pStart: number, pLen: number): number {
   const pos = (child.position ?? { method: 'top', offset: 0 }) as ComponentPosition;
   switch (pos.method) {
-    case 'middle': return pStart + (pLen - childLen) / 2 + pos.offset;
-    case 'bottom': return pStart + pLen - childLen + pos.offset;
-    case 'absolute': return pos.offset;
-    default: return pStart + pos.offset;
+    case 'middle':
+      return pStart + (pLen - childLen) / 2 + pos.offset;
+    case 'bottom':
+      return pStart + pLen - childLen + pos.offset;
+    case 'absolute':
+      return pos.offset;
+    default:
+      return pStart + pos.offset;
   }
 }
 
@@ -56,13 +66,18 @@ function axialStart(child: ComponentNode, childLen: number, pStart: number, pLen
  * the tip from degenerating.
  */
 function lathePoints(
-  shape: string, param: number | undefined, length: number,
-  foreR: number, aftR: number, clipped?: boolean,
+  shape: string,
+  param: number | undefined,
+  length: number,
+  foreR: number,
+  aftR: number,
+  clipped?: boolean,
 ): THREE.Vector2[] {
   // `clipped` = the node's stored flag; absent keeps the kernel default
   // (clipped), so the drawn transition matches the geometry the engine flies.
-  return outerProfile(shape, param, length, foreR, aftR, undefined, undefined, clipped)
-    .map(([x, r]) => new THREE.Vector2(Math.max(0.0001, r), x));
+  return outerProfile(shape, param, length, foreR, aftR, undefined, undefined, clipped).map(
+    ([x, r]) => new THREE.Vector2(Math.max(0.0001, r), x),
+  );
 }
 
 export interface Piece {
@@ -86,7 +101,11 @@ export interface Piece {
 export type MotorDims = Record<string, { length: number; diameter: number; label?: string }>;
 
 /** Shared with the OBJ exporter — this IS the app's 3D geometry. */
-export function buildPieces(tree: RocketTree, motors?: MotorDims, palette: PartPalette = DEFAULT_PART_COLORS): { pieces: Piece[]; totalLen: number; maxR: number } {
+export function buildPieces(
+  tree: RocketTree,
+  motors?: MotorDims,
+  palette: PartPalette = DEFAULT_PART_COLORS,
+): { pieces: Piece[]; totalLen: number; maxR: number } {
   const pieces: Piece[] = [];
   let maxR = 0.005;
   let k = 0;
@@ -98,41 +117,53 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims, palette: PartP
   // baked into the geometry (like addFins already does), so the flat Piece[]
   // stays position/rotation-free there and the OBJ exporter needs no changes.
   const place = (
-    key: string, geometry: THREE.BufferGeometry, color: string,
-    position?: [number, number, number], rotation?: [number, number, number],
-    xform?: THREE.Matrix4, translucent?: boolean | 'glass',
+    key: string,
+    geometry: THREE.BufferGeometry,
+    color: string,
+    position?: [number, number, number],
+    rotation?: [number, number, number],
+    xform?: THREE.Matrix4,
+    translucent?: boolean | 'glass',
   ) => {
     const flags = {
       translucent: translucent === true || undefined,
       innerGlass: translucent === 'glass' || undefined,
     };
-    if (!xform) { pieces.push({ key, id: curId, geometry, color, position, rotation, ...flags }); return; }
+    if (!xform) {
+      pieces.push({ key, id: curId, geometry, color, position, rotation, ...flags });
+      return;
+    }
     const g = geometry.clone();
     const m = new THREE.Matrix4().copy(xform);
     if (position) m.multiply(new THREE.Matrix4().makeTranslation(position[0], position[1], position[2]));
-    if (rotation) m.multiply(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rotation[0], rotation[1], rotation[2])));
+    if (rotation)
+      m.multiply(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rotation[0], rotation[1], rotation[2])));
     g.applyMatrix4(m);
     pieces.push({ key, id: curId, geometry: g, color, ...flags });
   };
 
   const addFins = (child: ComponentNode, pStart: number, pLen: number, pRadius: number, xform?: THREE.Matrix4) => {
     const count = Math.max(1, Math.round(num(child, 'finCount', 3)));
-    const ffPoints = child.type === 'freeformfinset'
-      ? ((child['points'] as [number, number][] | undefined) ?? [])
-      : [];
-    const root = child.type === 'freeformfinset' && ffPoints.length
-      ? Math.max(...ffPoints.map((p) => p[0]))
-      : num(child, 'rootChord', 0.05);
-    const height = child.type === 'freeformfinset' && ffPoints.length
-      ? Math.max(...ffPoints.map((p) => p[1]))
-      : num(child, 'height', 0.03);
+    const ffPoints = child.type === 'freeformfinset' ? ((child['points'] as [number, number][] | undefined) ?? []) : [];
+    const root =
+      child.type === 'freeformfinset' && ffPoints.length
+        ? Math.max(...ffPoints.map((p) => p[0]))
+        : num(child, 'rootChord', 0.05);
+    const height =
+      child.type === 'freeformfinset' && ffPoints.length
+        ? Math.max(...ffPoints.map((p) => p[1]))
+        : num(child, 'height', 0.03);
     const thickness = num(child, 'thickness', 0.003);
     const start = axialStart(child, root, pStart, pLen);
     maxR = Math.max(maxR, pRadius + height);
 
     const shape = new THREE.Shape();
     if (child.type === 'freeformfinset') {
-      const raw = (child['points'] as [number, number][] | undefined) ?? [[0, 0], [0.02, 0.03], [0.05, 0]];
+      const raw = (child['points'] as [number, number][] | undefined) ?? [
+        [0, 0],
+        [0.02, 0.03],
+        [0.05, 0],
+      ];
       shape.moveTo(raw[0]![0], raw[0]![1]);
       for (let i = 1; i < raw.length; i++) {
         shape.lineTo(raw[i]![0], raw[i]![1]);
@@ -209,8 +240,14 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims, palette: PartP
         const start = axialStart(child, len, pStart, pLen);
         maxR = Math.max(maxR, pRadius + hgt);
         const geo = new THREE.BoxGeometry(len, hgt, wid);
-        place(`fairing${k++}`, geo, nodeColor(child, palette),
-          [start + len / 2, pRadius + hgt / 2, 0], [0, 0, 0], xform);
+        place(
+          `fairing${k++}`,
+          geo,
+          nodeColor(child, palette),
+          [start + len / 2, pRadius + hgt / 2, 0],
+          [0, 0, 0],
+          xform,
+        );
       } else if (child.type === 'launchlug') {
         const len = num(child, 'length', 0.05);
         const r = num(child, 'outerRadius', 0.0022);
@@ -220,8 +257,14 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims, palette: PartP
         const rad = pRadius + r;
         const start = axialStart(child, len, pStart, pLen);
         const geo = new THREE.CylinderGeometry(r, r, len, 16);
-        place(`lug${k++}`, geo, nodeColor(child, palette),
-          [start + len / 2, rad * Math.cos(ang), rad * Math.sin(ang)], [0, 0, -Math.PI / 2], xform);
+        place(
+          `lug${k++}`,
+          geo,
+          nodeColor(child, palette),
+          [start + len / 2, rad * Math.cos(ang), rad * Math.sin(ang)],
+          [0, 0, -Math.PI / 2],
+          xform,
+        );
       } else if (child.type === 'innertube') {
         // Motor mount / inner tube, one per cluster position — visible through
         // the translucent shell. A loaded motor seats flush against the
@@ -231,16 +274,31 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims, palette: PartP
         const start = axialStart(child, len, pStart, pLen);
         const motor = child.id ? motors?.[child.id] : undefined;
         for (const off of clusterOffsets(
-          child['cluster'] as string | undefined, r,
-          num(child, 'clusterScale', 1), num(child, 'clusterRotation', 0),
+          child['cluster'] as string | undefined,
+          r,
+          num(child, 'clusterScale', 1),
+          num(child, 'clusterRotation', 0),
         )) {
-          place(`inner${k++}`, new THREE.CylinderGeometry(r, r, len, 32), nodeColor(child, palette),
-            [start + len / 2, off.y, off.z], [0, 0, -Math.PI / 2], xform, 'glass');
+          place(
+            `inner${k++}`,
+            new THREE.CylinderGeometry(r, r, len, 32),
+            nodeColor(child, palette),
+            [start + len / 2, off.y, off.z],
+            [0, 0, -Math.PI / 2],
+            xform,
+            'glass',
+          );
           if (motor) {
             const mR = motor.diameter / 2;
             const mStart = start + len - motor.length + num(child, 'motorOverhang', 0);
-            place(`motor${k++}`, new THREE.CylinderGeometry(mR, mR, motor.length, 32), palette.motor,
-              [mStart + motor.length / 2, off.y, off.z], [0, 0, -Math.PI / 2], xform);
+            place(
+              `motor${k++}`,
+              new THREE.CylinderGeometry(mR, mR, motor.length, 32),
+              palette.motor,
+              [mStart + motor.length / 2, off.y, off.z],
+              [0, 0, -Math.PI / 2],
+              xform,
+            );
           }
         }
       } else if (isAssembly(child.type)) {
@@ -255,7 +313,8 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims, palette: PartP
         const angleOffset = num(child, 'angleOffset', 0);
         maxR = Math.max(maxR, podRadius + assemblyBoundingRadius(child));
         for (const off of ringInstanceOffsets(count, podRadius, angleOffset)) {
-          const m = new THREE.Matrix4().makeRotationX(off.angle)
+          const m = new THREE.Matrix4()
+            .makeRotationX(off.angle)
             .multiply(new THREE.Matrix4().makeTranslation(podStart, podRadius, 0));
           addChain(podChain, xform ? new THREE.Matrix4().copy(xform).multiply(m) : m);
         }
@@ -276,23 +335,43 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims, palette: PartP
         const R = num(n, 'aftRadius', 0.012);
         const shapeName = typeof n['shape'] === 'string' ? (n['shape'] as string) : 'ogive';
         const pts = lathePoints(shapeName, numOpt(n, 'shapeParameter'), len, 0, R);
-        place(`nose${k++}`, new THREE.LatheGeometry(pts, 48), nodeColor(n, palette),
-          [x, 0, 0], [0, 0, -Math.PI / 2], xform, true);
+        place(
+          `nose${k++}`,
+          new THREE.LatheGeometry(pts, 48),
+          nodeColor(n, palette),
+          [x, 0, 0],
+          [0, 0, -Math.PI / 2],
+          xform,
+          true,
+        );
         maxR = Math.max(maxR, R);
         addChildren(n, x, len, R, xform);
         x += len;
       } else if (n.type === 'bodytube') {
         const R = num(n, 'outerRadius', 0.012);
-        place(`body${k++}`, new THREE.CylinderGeometry(R, R, len, 48), nodeColor(n, palette),
-          [x + len / 2, 0, 0], [0, 0, -Math.PI / 2], xform, true);
+        place(
+          `body${k++}`,
+          new THREE.CylinderGeometry(R, R, len, 48),
+          nodeColor(n, palette),
+          [x + len / 2, 0, 0],
+          [0, 0, -Math.PI / 2],
+          xform,
+          true,
+        );
         maxR = Math.max(maxR, R);
         // Min-diameter mount: a motor loaded directly in this body tube.
         const tubeMotor = n.id ? motors?.[n.id] : undefined;
         if (tubeMotor) {
           const mR = tubeMotor.diameter / 2;
           const mStart = x + len - tubeMotor.length + num(n, 'motorOverhang', 0);
-          place(`motor${k++}`, new THREE.CylinderGeometry(mR, mR, tubeMotor.length, 32), palette.motor,
-            [mStart + tubeMotor.length / 2, 0, 0], [0, 0, -Math.PI / 2], xform);
+          place(
+            `motor${k++}`,
+            new THREE.CylinderGeometry(mR, mR, tubeMotor.length, 32),
+            palette.motor,
+            [mStart + tubeMotor.length / 2, 0, 0],
+            [0, 0, -Math.PI / 2],
+            xform,
+          );
         }
         addChildren(n, x, len, R, xform);
         x += len;
@@ -304,10 +383,23 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims, palette: PartP
         // rotation.z = -π/2 the lathe's +Y axis points along +X (aft).
         // node['clipped'] (.ork <shapeclipped>) rides along so an unclipped
         // file draws the way it simulates.
-        const pts = lathePoints(shapeName, numOpt(n, 'shapeParameter'), len, rf, ra,
-          typeof n['clipped'] === 'boolean' ? (n['clipped'] as boolean) : undefined);
-        place(`trans${k++}`, new THREE.LatheGeometry(pts, 48), nodeColor(n, palette),
-          [x, 0, 0], [0, 0, -Math.PI / 2], xform, true);
+        const pts = lathePoints(
+          shapeName,
+          numOpt(n, 'shapeParameter'),
+          len,
+          rf,
+          ra,
+          typeof n['clipped'] === 'boolean' ? (n['clipped'] as boolean) : undefined,
+        );
+        place(
+          `trans${k++}`,
+          new THREE.LatheGeometry(pts, 48),
+          nodeColor(n, palette),
+          [x, 0, 0],
+          [0, 0, -Math.PI / 2],
+          xform,
+          true,
+        );
         maxR = Math.max(maxR, rf, ra);
         addChildren(n, x, len, Math.max(rf, ra), xform);
         x += len;
@@ -317,15 +409,14 @@ export function buildPieces(tree: RocketTree, motors?: MotorDims, palette: PartP
   };
 
   // Stages flatten into one nose-to-tail chain (sustainer first, boosters after).
-  const chain = tree.components.flatMap((n) => (n.type === 'stage' ? n.children ?? [] : [n]));
+  const chain = tree.components.flatMap((n) => (n.type === 'stage' ? (n.children ?? []) : [n]));
   const totalLen = addChain(chain);
 
   return { pieces, totalLen: Math.max(totalLen, 0.05), maxR };
 }
 
 /** One size rule for the on-axis marker spheres AND the callout gadget. */
-const markerRadius = (totalLen: number, maxR: number): number =>
-  Math.max(totalLen * 0.015, maxR * 0.35);
+const markerRadius = (totalLen: number, maxR: number): number => Math.max(totalLen * 0.015, maxR * 0.35);
 
 /**
  * OpenRocket-style CG/CP symbol as a billboard texture — a quartered circle
@@ -335,10 +426,16 @@ const markerRadius = (totalLen: number, maxR: number): number =>
 function markerTexture(color: string): THREE.CanvasTexture {
   const s = 128;
   const cvs = document.createElement('canvas');
-  cvs.width = s; cvs.height = s;
+  cvs.width = s;
+  cvs.height = s;
   const ctx = cvs.getContext('2d')!;
-  const cx = s / 2, cy = s / 2, r = s / 2 - 6;
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
+  const cx = s / 2,
+    cy = s / 2,
+    r = s / 2 - 6;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
   for (let i = 0; i < 4; i++) {
     ctx.beginPath();
     ctx.moveTo(cx, cy);
@@ -347,8 +444,11 @@ function markerTexture(color: string): THREE.CanvasTexture {
     ctx.fillStyle = i % 2 === 0 ? color : '#ffffff';
     ctx.fill();
   }
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.lineWidth = 6; ctx.strokeStyle = color; ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = color;
+  ctx.stroke();
   const tex = new THREE.CanvasTexture(cvs);
   tex.anisotropy = 4;
   return tex;
@@ -357,7 +457,9 @@ function markerTexture(color: string): THREE.CanvasTexture {
 // DARK-theme status hexes on purpose: the 3D background is the dusk gradient
 // in both themes, so the dark-theme inks are the legible set here.
 const MARGIN_COLOR: Record<StabilityState, string> = {
-  ok: '#4dbd4d', over: '#e0a53d', under: '#f0716f',
+  ok: '#4dbd4d',
+  over: '#e0a53d',
+  under: '#f0716f',
 };
 
 export interface CalloutGadget {
@@ -388,11 +490,14 @@ export function calloutGadget(info: StaticInfo | null, maxR: number, totalLen: n
     r: markerR * 0.55,
     cg: { pos: [info.cg, 0, off], text: 'CG', color: '#e9edf1' },
     cp: { pos: [info.cp, 0, off], text: 'CP', color: '#e34948' },
-    margin: state === null ? null : {
-      pos: [(info.cg + info.cp) / 2, 0, off],
-      text: `${info.stabilityCalibers.toFixed(2)} cal`,
-      color: MARGIN_COLOR[state],
-    },
+    margin:
+      state === null
+        ? null
+        : {
+            pos: [(info.cg + info.cp) / 2, 0, off],
+            text: `${info.stabilityCalibers.toFixed(2)} cal`,
+            color: MARGIN_COLOR[state],
+          },
   };
 }
 
@@ -417,9 +522,9 @@ export function piecesBounds(pieces: Piece[]): THREE.Box3 {
     if (p.position || p.rotation) {
       const r = p.rotation ?? [0, 0, 0];
       const t = p.position ?? [0, 0, 0];
-      one.applyMatrix4(new THREE.Matrix4()
-        .makeRotationFromEuler(new THREE.Euler(r[0], r[1], r[2]))
-        .setPosition(t[0], t[1], t[2]));
+      one.applyMatrix4(
+        new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(r[0], r[1], r[2])).setPosition(t[0], t[1], t[2]),
+      );
     }
     box.union(one);
   }
@@ -439,9 +544,10 @@ export function piecesBounds(pieces: Piece[]): THREE.Box3 {
  * before auto-fit existed.
  */
 export function isFittableBox(box: THREE.Box3): boolean {
-  return !box.isEmpty() && [
-    box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z,
-  ].every((v) => Number.isFinite(v));
+  return (
+    !box.isEmpty() &&
+    [box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z].every((v) => Number.isFinite(v))
+  );
 }
 
 /** Breathing room around the fitted subject — 6 % keeps the nose tip and the
@@ -499,7 +605,8 @@ export function fitCameraToBox(
   // non-degenerate case, skips its own nudge, and rebuilds this very basis.
   const right = new THREE.Vector3().crossVectors(upv, back);
   if (right.lengthSq() === 0) {
-    if (Math.abs(upv.z) === 1) back.x += 1e-4; else back.z += 1e-4;
+    if (Math.abs(upv.z) === 1) back.x += 1e-4;
+    else back.z += 1e-4;
     back.normalize();
     right.crossVectors(upv, back);
   }
@@ -508,8 +615,7 @@ export function fitCameraToBox(
 
   // Support function of an AABB along an axis: the box's half-extent as seen
   // along that axis, whatever the viewing angle.
-  const extent = (a: THREE.Vector3) =>
-    Math.abs(half.x * a.x) + Math.abs(half.y * a.y) + Math.abs(half.z * a.z);
+  const extent = (a: THREE.Vector3) => Math.abs(half.x * a.x) + Math.abs(half.y * a.y) + Math.abs(half.z * a.z);
 
   const tanHalfFov = Math.tan((fovDeg * Math.PI) / 360);
   const m = Number.isFinite(margin) && margin > 0 ? margin : 1;
@@ -539,11 +645,10 @@ export function fitCameraToBox(
     // ±Infinity extremes but reports a (0,0,0) size, so going through `half`
     // keeps this loop finite and lets the degenerate guard below do its job.
     rel.set(i & 1 ? half.x : -half.x, i & 2 ? half.y : -half.y, i & 4 ? half.z : -half.z);
-    const u = rel.dot(right), v = rel.dot(trueUp), w = rel.dot(back);
-    raw = Math.max(raw, Math.max(
-      (m * Math.abs(u)) / (tanHalfFov * aspect),
-      (m * Math.abs(v)) / tanHalfFov,
-    ) + w);
+    const u = rel.dot(right),
+      v = rel.dot(trueUp),
+      w = rel.dot(back);
+    raw = Math.max(raw, Math.max((m * Math.abs(u)) / (tanHalfFov * aspect), (m * Math.abs(v)) / tanHalfFov) + w);
   }
   const dist = Number.isFinite(raw) && raw > 0 ? raw : Math.max(extent(back), MIN_FIT_DIST);
 
@@ -555,11 +660,15 @@ export function fitCameraToBox(
  * Kept out of the snapshot handler so the whole export view — framing AND
  * clipping planes — is provable without a mounted canvas.
  */
-export function exportCamera(
-  box: THREE.Box3, src: THREE.PerspectiveCamera, aspect: number,
-): THREE.PerspectiveCamera {
+export function exportCamera(box: THREE.Box3, src: THREE.PerspectiveCamera, aspect: number): THREE.PerspectiveCamera {
   const { position, target } = fitCameraToBox(
-    box, src.getWorldDirection(new THREE.Vector3()), src.fov, aspect, FIT_MARGIN, src.up);
+    box,
+    src.getWorldDirection(new THREE.Vector3()),
+    src.fov,
+    aspect,
+    FIT_MARGIN,
+    src.up,
+  );
   const cam = new THREE.PerspectiveCamera(src.fov, aspect);
   cam.up.copy(src.up);
   cam.position.copy(position);
@@ -612,22 +721,37 @@ function labelTexture(text: string, color: string): { texture: THREE.CanvasTextu
  * CP sit almost on one line, so hanging all three to the right piles them up
  * exactly when the margin is small — the case that matters most.
  */
-function CalloutLabel({ text, color, position, height, gap, place = 'right' }: {
-  text: string; color: string; position: [number, number, number];
-  height: number; gap: number; place?: 'right' | 'left' | 'above' | 'below';
+function CalloutLabel({
+  text,
+  color,
+  position,
+  height,
+  gap,
+  place = 'right',
+}: {
+  text: string;
+  color: string;
+  position: [number, number, number];
+  height: number;
+  gap: number;
+  place?: 'right' | 'left' | 'above' | 'below';
 }) {
   const { texture, aspect } = useMemo(() => labelTexture(text, color), [text, color]);
   // The JSX-declared material is R3F-disposed on unmount; its map is ours.
   useEffect(() => () => texture.dispose(), [texture]);
   const center = useMemo(
-    () => place === 'above' ? new THREE.Vector2(0.5, -(gap / height))
-      : place === 'below' ? new THREE.Vector2(0.5, 1 + gap / height)
-      : place === 'left' ? new THREE.Vector2(1 + gap / (height * aspect), 0.5)
-      : new THREE.Vector2(-(gap / (height * aspect)), 0.5),
-    [place, gap, height, aspect]);
+    () =>
+      place === 'above'
+        ? new THREE.Vector2(0.5, -(gap / height))
+        : place === 'below'
+          ? new THREE.Vector2(0.5, 1 + gap / height)
+          : place === 'left'
+            ? new THREE.Vector2(1 + gap / (height * aspect), 0.5)
+            : new THREE.Vector2(-(gap / (height * aspect)), 0.5),
+    [place, gap, height, aspect],
+  );
   return (
-    <sprite position={position} scale={[height * aspect, height, 1]}
-      center={center} renderOrder={13}>
+    <sprite position={position} scale={[height * aspect, height, 1]} center={center} renderOrder={13}>
       <spriteMaterial map={texture} depthTest={false} transparent />
     </sprite>
   );
@@ -638,8 +762,22 @@ function CalloutLabel({ text, color, position, height, gap, place = 'right' }: {
  * station, a dashed leader out past the rocket (CG up, CP down), and the label
  * in the clear at the leader's end. Mirrors TreeSchematic's leader-line lanes.
  */
-function AxisCallout({ x, dir, color, tex, label, len, markerR }: {
-  x: number; dir: 1 | -1; color: string; tex: THREE.Texture; label: string; len: number; markerR: number;
+function AxisCallout({
+  x,
+  dir,
+  color,
+  tex,
+  label,
+  len,
+  markerR,
+}: {
+  x: number;
+  dir: 1 | -1;
+  color: string;
+  tex: THREE.Texture;
+  label: string;
+  len: number;
+  markerR: number;
 }) {
   const end: [number, number, number] = [x, dir * len, 0];
   return (
@@ -647,15 +785,38 @@ function AxisCallout({ x, dir, color, tex, label, len, markerR }: {
       <sprite position={[x, 0, 0]} scale={[markerR * 0.5, markerR * 0.5, 1]} renderOrder={12}>
         <spriteMaterial map={tex} depthTest={false} transparent />
       </sprite>
-      <Line points={[[x, 0, 0], end]} color={color} lineWidth={1.4}
-        dashed dashSize={len * 0.09} gapSize={len * 0.06} depthTest={false} transparent renderOrder={12} />
-      <CalloutLabel text={label} color={color} place={dir === 1 ? 'above' : 'below'}
-        position={end} height={markerR * 0.52} gap={markerR * 0.3} />
+      <Line
+        points={[[x, 0, 0], end]}
+        color={color}
+        lineWidth={1.4}
+        dashed
+        dashSize={len * 0.09}
+        gapSize={len * 0.06}
+        depthTest={false}
+        transparent
+        renderOrder={12}
+      />
+      <CalloutLabel
+        text={label}
+        color={color}
+        place={dir === 1 ? 'above' : 'below'}
+        position={end}
+        height={markerR * 0.52}
+        gap={markerR * 0.3}
+      />
     </>
   );
 }
 
-export function Rocket3D({ tree, info, motors, exportData, selectedId, onSelect, showMarkers = true }: {
+export function Rocket3D({
+  tree,
+  info,
+  motors,
+  exportData,
+  selectedId,
+  onSelect,
+  showMarkers = true,
+}: {
   tree: RocketTree;
   info: StaticInfo | null;
   /** Draw the CG/CP markers and callout (default true). */
@@ -706,9 +867,7 @@ export function Rocket3D({ tree, info, motors, exportData, selectedId, onSelect,
     // offset). spanM stays 2*maxR: framing moves the camera, never the rocket.
     const src = st.camera as THREE.PerspectiveCamera;
     const box = opts?.fit && src.isPerspectiveCamera ? piecesBounds(pieces) : null;
-    const cam: THREE.Camera = box && isFittableBox(box)
-      ? exportCamera(box, src, widthPx / outH)
-      : st.camera;
+    const cam: THREE.Camera = box && isFittableBox(box) ? exportCamera(box, src, widthPx / outH) : st.camera;
 
     try {
       st.gl.setPixelRatio(1);
@@ -725,21 +884,30 @@ export function Rocket3D({ tree, info, motors, exportData, selectedId, onSelect,
   // Mesh keys are stable across rebuilds, so R3F never unmounts/auto-disposes
   // the swapped-out geometries — release them ourselves or every edit leaks
   // a full set of GPU buffers.
-  useEffect(() => () => {
-    for (const p of pieces) p.geometry.dispose();
-  }, [pieces]);
+  useEffect(
+    () => () => {
+      for (const p of pieces) p.geometry.dispose();
+    },
+    [pieces],
+  );
   const center = totalLen / 2;
   const camDist = Math.max(totalLen * 1.1, maxR * 6, 0.25);
   const markerR = markerRadius(totalLen, maxR);
   const cgTex = useMemo(() => markerTexture('#2b6cff'), []);
   const cpTex = useMemo(() => markerTexture('#e34948'), []);
-  useEffect(() => () => { cgTex.dispose(); cpTex.dispose(); }, [cgTex, cpTex]);
+  useEffect(
+    () => () => {
+      cgTex.dispose();
+      cpTex.dispose();
+    },
+    [cgTex, cpTex],
+  );
   const cal = info?.stabilityCalibers;
   // The CP row as ONE text label (proven labelTexture/CalloutLabel path), laid
   // out left→right like the 2D: "CP · X cm   ⚠ N cal · P% — word".
   const cpCallout = useMemo(() => {
     if (!info || !Number.isFinite(info.cp) || cal == null || !Number.isFinite(cal)) return null;
-    const pct = info.length > 0 ? fmtNum((info.cp - info.cg) / info.length * 100, 1) : '0';
+    const pct = info.length > 0 ? fmtNum(((info.cp - info.cg) / info.length) * 100, 1) : '0';
     const word = cal < 1 ? ` — ${t('schematic.underStable')}` : cal > 6 ? ` — ${t('schematic.overStable')}` : '';
     const warn = cal < 1 || cal > 6 ? '⚠️ ' : '';
     return {
@@ -767,34 +935,70 @@ export function Rocket3D({ tree, info, motors, exportData, selectedId, onSelect,
     c.target.set(center, 0, 0);
     c.update();
   };
-  const showView = (which: 'side' | 'aft') => { setPreset(which); moveCam(which === 'side' ? sidePos : aftPos); };
+  const showView = (which: 'side' | 'aft') => {
+    setPreset(which);
+    moveCam(which === 'side' ? sidePos : aftPos);
+  };
   const resetView = () => moveCam(preset === 'side' ? sidePos : aftPos);
 
   return (
-    <div className="rocket3d-wrap" style={{ position: 'relative', height: '100%', minHeight: 320, display: 'flex', flexDirection: 'column' }}>
+    <div
+      className="rocket3d-wrap"
+      style={{ position: 'relative', height: '100%', minHeight: 320, display: 'flex', flexDirection: 'column' }}
+    >
       {exportData && (
         <div style={{ position: 'absolute', top: 6, right: 6, zIndex: 2 }}>
-          <ImageExportMenu label="📷 Image" fitOption
+          <ImageExportMenu
+            label="📷 Image"
+            fitOption
             title="Snapshot the current 3D view with design data — rotate to the angle you want, then pick PNG or JPG and a width (re-rendered at that resolution)"
-            onPick={snapshot} />
+            onPick={snapshot}
+          />
         </div>
       )}
       {/* Default to top-RIGHT so the quick-glance info card can sit top-left in
           the same spot as the 2D view. In image-export contexts the 📷 menu owns
           the top-right, so fall back to top-left there (no info card is shown). */}
-      <div style={{ position: 'absolute', top: 6, ...(exportData ? { left: 6 } : { right: 6 }), zIndex: 2, display: 'flex', gap: 6 }}>
-        <button className="file-btn" title={t('view.reset3dTitle')}
-          onClick={resetView}>{t('view.reset')}</button>
-        <button className="file-btn" style={presetStyle(preset === 'side')} title={t('view.sideTitle')}
-          onClick={() => showView('side')}>{t('view.side')}</button>
-        <button className="file-btn" style={presetStyle(preset === 'aft')} title={t('view.aftTitle')}
-          onClick={() => showView('aft')}>{t('view.aft')}</button>
+      <div
+        style={{
+          position: 'absolute',
+          top: 6,
+          ...(exportData ? { left: 6 } : { right: 6 }),
+          zIndex: 2,
+          display: 'flex',
+          gap: 6,
+        }}
+      >
+        <button className="file-btn" title={t('view.reset3dTitle')} onClick={resetView}>
+          {t('view.reset')}
+        </button>
+        <button
+          className="file-btn"
+          style={presetStyle(preset === 'side')}
+          title={t('view.sideTitle')}
+          onClick={() => showView('side')}
+        >
+          {t('view.side')}
+        </button>
+        <button
+          className="file-btn"
+          style={presetStyle(preset === 'aft')}
+          title={t('view.aftTitle')}
+          onClick={() => showView('aft')}
+        >
+          {t('view.aft')}
+        </button>
       </div>
-      <Canvas style={{ flex: '1 1 0%', minHeight: 0 }} camera={{ position: [center, 0, camDist * 1.05], fov: 40 }}
+      <Canvas
+        style={{ flex: '1 1 0%', minHeight: 0 }}
+        camera={{ position: [center, 0, camDist * 1.05], fov: 40 }}
         // Snapshot export reads the drawing buffer after the frame — without
         // this flag WebGL may have discarded it and toDataURL returns black.
         gl={{ preserveDrawingBuffer: true }}
-        onCreated={(state) => { r3f.current = { gl: state.gl, scene: state.scene, camera: state.camera }; }}>
+        onCreated={(state) => {
+          r3f.current = { gl: state.gl, scene: state.scene, camera: state.camera };
+        }}
+      >
         {/* Soft studio setup (S5): warm-neutral key, cool fill, low rim —
             subtle and blueprint-serious, no shadows or environment maps. */}
         <ambientLight intensity={0.55} />
@@ -802,67 +1006,130 @@ export function Rocket3D({ tree, info, motors, exportData, selectedId, onSelect,
         <directionalLight position={[-2, 0.5, -1]} intensity={0.45} color="#e8eef8" />
         <directionalLight position={[-0.5, -1.5, -2.5]} intensity={0.35} />
         <Bounds fit clip observe margin={1.1}>
-        <group>
-          {pieces.map((p) => {
-            const selected = !!p.id && p.id === selectedId;
-            return (
-            <mesh key={p.key} geometry={p.geometry}
-              position={p.position ?? [0, 0, 0]}
-              rotation={p.rotation ?? [0, 0, 0]}
-              renderOrder={selected ? 3 : p.translucent ? 2 : p.innerGlass ? 1 : 0}
-              onClick={p.id && onSelect ? (e) => { e.stopPropagation(); onSelect(p.id!); } : undefined}
-              onPointerOver={p.id && onSelect ? (e) => { e.stopPropagation(); document.body.style.cursor = 'pointer'; } : undefined}
-              onPointerOut={p.id && onSelect ? () => { document.body.style.cursor = ''; } : undefined}>
-              {/* See-through layering (batch 08-21d — 0.88 with depth writes
+          <group>
+            {pieces.map((p) => {
+              const selected = !!p.id && p.id === selectedId;
+              return (
+                <mesh
+                  key={p.key}
+                  geometry={p.geometry}
+                  position={p.position ?? [0, 0, 0]}
+                  rotation={p.rotation ?? [0, 0, 0]}
+                  renderOrder={selected ? 3 : p.translucent ? 2 : p.innerGlass ? 1 : 0}
+                  onClick={
+                    p.id && onSelect
+                      ? (e) => {
+                          e.stopPropagation();
+                          onSelect(p.id!);
+                        }
+                      : undefined
+                  }
+                  onPointerOver={
+                    p.id && onSelect
+                      ? (e) => {
+                          e.stopPropagation();
+                          document.body.style.cursor = 'pointer';
+                        }
+                      : undefined
+                  }
+                  onPointerOut={
+                    p.id && onSelect
+                      ? () => {
+                          document.body.style.cursor = '';
+                        }
+                      : undefined
+                  }
+                >
+                  {/* See-through layering (batch 08-21d — 0.88 with depth writes
                   on looked opaque in practice): opaque pieces (motor, fins)
                   first, then glassy inner tubes, then the shell — depth writes
                   off for both see-through tiers so each layer shows through
                   the ones over it; DoubleSide draws far walls for depth. A
                   selected part glows sky-blue and turns opaque so it reads. */}
-              <meshStandardMaterial color={selected ? '#7dd3fc' : p.color} roughness={0.6} metalness={0.05}
-                emissive={selected ? '#0284c7' : '#000000'} emissiveIntensity={selected ? 0.6 : 0}
-                transparent={!selected && (!!p.translucent || !!p.innerGlass)}
-                opacity={selected ? 1 : p.translucent ? 0.55 : p.innerGlass ? 0.5 : 1}
-                depthWrite={selected || (!p.translucent && !p.innerGlass)}
-                side={!selected && (p.translucent || p.innerGlass) ? THREE.DoubleSide : THREE.FrontSide} />
-            </mesh>
-            );
-          })}
-          {/* CG/CP sit on the rocket axis — inside the shell — so they must
+                  <meshStandardMaterial
+                    color={selected ? '#7dd3fc' : p.color}
+                    roughness={0.6}
+                    metalness={0.05}
+                    emissive={selected ? '#0284c7' : '#000000'}
+                    emissiveIntensity={selected ? 0.6 : 0}
+                    transparent={!selected && (!!p.translucent || !!p.innerGlass)}
+                    opacity={selected ? 1 : p.translucent ? 0.55 : p.innerGlass ? 0.5 : 1}
+                    depthWrite={selected || (!p.translucent && !p.innerGlass)}
+                    side={!selected && (p.translucent || p.innerGlass) ? THREE.DoubleSide : THREE.FrontSide}
+                  />
+                </mesh>
+              );
+            })}
+            {/* CG/CP sit on the rocket axis — inside the shell — so they must
               render ON TOP (depthTest off, high renderOrder) to be visible,
               exactly like the 2D markers. `transparent` puts them in the
               transparent queue AFTER the see-through shell, or the shell
               would wash over them. */}
-          {/* 0.45× the shared size rule (batch 08-21d): full-size axis balls
+            {/* 0.45× the shared size rule (batch 08-21d): full-size axis balls
               overwhelmed small rockets; the gadget keeps the size rule. */}
-          {showMarkers && info && Number.isFinite(info.cg) && (
-            <AxisCallout x={info.cg} dir={1} color="#dbe3ea" tex={cgTex}
-              label={`${t('schematic.cg')} · ${fmtNum(info.cg * 100, 1)} cm`} len={maxR * 1.7} markerR={markerR} />
-          )}
-          {showMarkers && info && Number.isFinite(info.cp) && (
-            <>
-              <sprite position={[info.cp, 0, 0]} scale={[markerR * 0.5, markerR * 0.5, 1]} renderOrder={12}>
-                <spriteMaterial map={cpTex} depthTest={false} transparent />
-              </sprite>
-              <Line points={[[info.cp, 0, 0], [info.cp, -maxR * 1.7, 0]]} color="#e34948" lineWidth={1.4}
-                dashed dashSize={maxR * 0.15} gapSize={maxR * 0.1} depthTest={false} transparent renderOrder={12} />
-              {cpCallout && <CalloutLabel text={cpCallout.text} color={cpCallout.color} place="right"
-                position={[info.cp, -maxR * 1.7, 0]} height={markerR * 0.52} gap={markerR * 0.3} />}
-            </>
-          )}
-        </group>
+            {showMarkers && info && Number.isFinite(info.cg) && (
+              <AxisCallout
+                x={info.cg}
+                dir={1}
+                color="#dbe3ea"
+                tex={cgTex}
+                label={`${t('schematic.cg')} · ${fmtNum(info.cg * 100, 1)} cm`}
+                len={maxR * 1.7}
+                markerR={markerR}
+              />
+            )}
+            {showMarkers && info && Number.isFinite(info.cp) && (
+              <>
+                <sprite position={[info.cp, 0, 0]} scale={[markerR * 0.5, markerR * 0.5, 1]} renderOrder={12}>
+                  <spriteMaterial map={cpTex} depthTest={false} transparent />
+                </sprite>
+                <Line
+                  points={[
+                    [info.cp, 0, 0],
+                    [info.cp, -maxR * 1.7, 0],
+                  ]}
+                  color="#e34948"
+                  lineWidth={1.4}
+                  dashed
+                  dashSize={maxR * 0.15}
+                  gapSize={maxR * 0.1}
+                  depthTest={false}
+                  transparent
+                  renderOrder={12}
+                />
+                {cpCallout && (
+                  <CalloutLabel
+                    text={cpCallout.text}
+                    color={cpCallout.color}
+                    place="right"
+                    position={[info.cp, -maxR * 1.7, 0]}
+                    height={markerR * 0.52}
+                    gap={markerR * 0.3}
+                  />
+                )}
+              </>
+            )}
+          </group>
         </Bounds>
         {/* Distance limits (batch 08-21d): an unbounded zoom could bury the
             camera inside the hull or fling it to where the rocket is a pixel;
             the view buttons above are the recovery path either way. */}
-        <OrbitControls makeDefault ref={controls} target={[center, 0, 0]} enableDamping dampingFactor={0.1}
-          minDistance={camDist * 0.12} maxDistance={camDist * 5} />
+        <OrbitControls
+          makeDefault
+          ref={controls}
+          target={[center, 0, 0]}
+          enableDamping
+          dampingFactor={0.1}
+          minDistance={camDist * 0.12}
+          maxDistance={camDist * 5}
+        />
       </Canvas>
       <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '4px 0 0', textAlign: 'center' }}>
         {t('view.dragHint')}
         {showMarkers && (
           <>
-            {' · '}<span style={{ color: '#aab2bd' }}>●</span> {t('schematic.cg')} ·{' '}
+            {' · '}
+            <span style={{ color: '#aab2bd' }}>●</span> {t('schematic.cg')} ·{' '}
             <span style={{ color: '#e34948' }}>●</span> {t('schematic.cp')}
           </>
         )}

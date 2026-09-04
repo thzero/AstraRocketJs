@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  PART_KEYS,
-  DEFAULT_PART_COLORS,
-  UNKNOWN_PART_COLOR,
-  mergePalette,
-  colorForType,
-} from './partColors';
+import { PART_KEYS, DEFAULT_PART_COLORS, UNKNOWN_PART_COLOR, mergePalette, colorForType } from './partColors';
 
 describe('part palette', () => {
   it('DEFAULT_PART_COLORS has an entry for every PART_KEY', () => {

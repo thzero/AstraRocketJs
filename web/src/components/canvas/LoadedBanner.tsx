@@ -11,11 +11,19 @@ export function LoadedBanner({ loaded, onClose }: { loaded: { name: string; note
           <div className="text-[10px] uppercase tracking-wide text-slate-400">{t('banner.loaded')}</div>
           <div className="truncate text-lg font-semibold text-sky-400">{loaded.name}</div>
         </div>
-        <button onClick={onClose} title={t('banner.closeTitle')} className="shrink-0 rounded-lg bg-slate-800 px-3 py-1.5 text-xs text-slate-300">{t('banner.close')}</button>
+        <button
+          onClick={onClose}
+          title={t('banner.closeTitle')}
+          className="shrink-0 rounded-lg bg-slate-800 px-3 py-1.5 text-xs text-slate-300"
+        >
+          {t('banner.close')}
+        </button>
       </div>
       {loaded.notes.length > 0 && (
         <ul className="mt-2 space-y-1 text-xs text-amber-400/90">
-          {loaded.notes.map((n, i) => <li key={i}>⚠ {n}</li>)}
+          {loaded.notes.map((n, i) => (
+            <li key={i}>⚠ {n}</li>
+          ))}
         </ul>
       )}
     </div>

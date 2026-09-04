@@ -19,8 +19,13 @@ const CUSTOM_KEY = 'astrarrocketjs:materials:custom';
 
 function isMaterial(v: unknown): v is Material {
   const m = v as Material;
-  return !!m && typeof m.name === 'string' && typeof m.density === 'number'
-    && Number.isFinite(m.density) && (m.type === 'bulk' || m.type === 'surface' || m.type === 'line');
+  return (
+    !!m &&
+    typeof m.name === 'string' &&
+    typeof m.density === 'number' &&
+    Number.isFinite(m.density) &&
+    (m.type === 'bulk' || m.type === 'surface' || m.type === 'line')
+  );
 }
 
 /**

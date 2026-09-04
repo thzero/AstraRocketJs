@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
-  shapeParamDefault, shapeUsesParameter, shapeParamMax, shapeIsClippable,
-  shapeRadius, outerProfile,
+  shapeParamDefault,
+  shapeUsesParameter,
+  shapeParamMax,
+  shapeIsClippable,
+  shapeRadius,
+  outerProfile,
 } from './shapeProfile';
 
 describe('shape parameter metadata', () => {

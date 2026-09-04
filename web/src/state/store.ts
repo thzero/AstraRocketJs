@@ -1,7 +1,13 @@
 import { create } from 'zustand';
 import i18n from '../i18n';
 import { buildRocketTree, specToTree, C6, type RocketSpec, type StaticInfo } from '../engine/api';
-import type { MotorSpec, RocketTree, ComponentNode, ComponentType as PartType, IgnitionEvent } from '../engine/openRocketEngine';
+import type {
+  MotorSpec,
+  RocketTree,
+  ComponentNode,
+  ComponentType as PartType,
+  IgnitionEvent,
+} from '../engine/openRocketEngine';
 import { findMountId, findMounts, findNode, updateNode, removeNode, addPart, moveNode } from '../services/treeEdit';
 import { reconcileMounts } from '../services/mountMotors';
 import type { LaunchConditions } from '../services/orkTree';
@@ -62,14 +68,20 @@ export interface WorkspaceState {
   tab: Tab;
   view: ViewMode;
   twoD: 'side' | 'aft';
-  roll: number;     // 2D fin-spin, radians, kept in [0, 2π)
+  roll: number; // 2D fin-spin, radians, kept in [0, 2π)
   resetKey: number; // bump to remount the 2D schematic
 
   // --- actions ---
   setErr: (err: string | null) => void;
   applyBuild: (info: StaticInfo | null, rocket: Rocket | null) => void; // from the rebuild effect
-  invalidateResults: () => void;                                        // from the tree-change effect
-  hydrate: (w: { tree: RocketTree; sims: Simulation[]; activeId: string; extraMotors: Record<string, MountMotor>; loadedMeta: LoadedMeta }) => void;
+  invalidateResults: () => void; // from the tree-change effect
+  hydrate: (w: {
+    tree: RocketTree;
+    sims: Simulation[];
+    activeId: string;
+    extraMotors: Record<string, MountMotor>;
+    loadedMeta: LoadedMeta;
+  }) => void;
 
   setTree: (tree: RocketTree) => void;
   setSelectedId: (id: string | null) => void;
@@ -141,7 +153,11 @@ function sanitizeSims(sims: Simulation[]): Simulation[] {
 }
 
 /** Motor case dimensions for the 2D/3D views (primary mount + any extra mounts). */
-export function selectMotorDims(tree: RocketTree, motor: MotorSpec, extraMotors: Record<string, MountMotor>): MotorDims {
+export function selectMotorDims(
+  tree: RocketTree,
+  motor: MotorSpec,
+  extraMotors: Record<string, MountMotor>,
+): MotorDims {
   const m: MotorDims = {};
   const mountId = findMountId(tree);
   if (mountId) m[mountId] = { length: motor.length, diameter: motor.diameter, label: motor.designation };
@@ -188,12 +204,32 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       extraMotors: s.extraMotors,
     });
   };
-  const restore = (e: HistoryEntry) => ({ tree: e.tree, selectedId: e.selectedId, sims: e.sims, activeId: e.activeId, extraMotors: e.extraMotors });
-  const pushPast = (entry: HistoryEntry) => set((s) => ({ past: [...s.past, entry].slice(-HISTORY_LIMIT), future: [] }));
-  const beginEdit = () => { if (!txn) txn = snap(); };                       // idempotent: open a txn
-  const commitEdit = () => { if (txn) { pushPast(txn); txn = null; } };      // finalize the open txn
-  const recordStep = () => { commitEdit(); pushPast(snap()); };             // flush pending, then log this step
-  const clearHistory = () => { txn = null; set({ past: [], future: [] }); }; // on load / new design
+  const restore = (e: HistoryEntry) => ({
+    tree: e.tree,
+    selectedId: e.selectedId,
+    sims: e.sims,
+    activeId: e.activeId,
+    extraMotors: e.extraMotors,
+  });
+  const pushPast = (entry: HistoryEntry) =>
+    set((s) => ({ past: [...s.past, entry].slice(-HISTORY_LIMIT), future: [] }));
+  const beginEdit = () => {
+    if (!txn) txn = snap();
+  }; // idempotent: open a txn
+  const commitEdit = () => {
+    if (txn) {
+      pushPast(txn);
+      txn = null;
+    }
+  }; // finalize the open txn
+  const recordStep = () => {
+    commitEdit();
+    pushPast(snap());
+  }; // flush pending, then log this step
+  const clearHistory = () => {
+    txn = null;
+    set({ past: [], future: [] });
+  }; // on load / new design
 
   return {
     tree: specToTree(DEFAULT_SPEC).tree,
@@ -216,11 +252,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     setErr: (err) => set({ err }),
     applyBuild: (info, rocket) => set({ info, rocket }),
-    invalidateResults: () => set((s) => (s.sims.some((x) => x.result) ? { sims: s.sims.map((x) => ({ ...x, result: null })) } : {})),
+    invalidateResults: () =>
+      set((s) => (s.sims.some((x) => x.result) ? { sims: s.sims.map((x) => ({ ...x, result: null })) } : {})),
     hydrate: (w) => {
       const sims = sanitizeSims(w.sims);
       const activeId = sims.some((s) => s.id === w.activeId) ? w.activeId : sims[0].id;
-      set({ tree: w.tree, sims, activeId, extraMotors: reconcileMounts(w.tree, w.extraMotors ?? {}), loadedMeta: w.loadedMeta ?? null });
+      set({
+        tree: w.tree,
+        sims,
+        activeId,
+        extraMotors: reconcileMounts(w.tree, w.extraMotors ?? {}),
+        loadedMeta: w.loadedMeta ?? null,
+      });
     },
 
     // Each structural/field edit reconciles the extra-mount motors to the new
@@ -256,7 +299,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const next = moveNode(tree, selectedId, dir);
       set({ tree: next, extraMotors: reconcileMounts(next, extraMotors) });
     },
-    renameDesign: (name) => { beginEdit(); set((s) => ({ tree: { ...s.tree, name } })); },
+    renameDesign: (name) => {
+      beginEdit();
+      set((s) => ({ tree: { ...s.tree, name } }));
+    },
     commitEdit,
     undo: () => {
       commitEdit(); // fold any in-flight edit into history so it undoes in one step
@@ -273,18 +319,36 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     setActiveId: (activeId) => set({ activeId }), // switching the active sim isn't an edit — no history
-    setActiveMotor: (m) => { recordStep(); patchActive({ motor: m, result: null }); },
-    setActiveIgnition: (event, delay) => { beginEdit(); patchActive({ ignitionEvent: event, ignitionDelay: delay, result: null }); },
-    setExtraMotor: (mountId, m) => { recordStep(); set((s) => ({
-      extraMotors: { ...s.extraMotors, [mountId]: { ...s.extraMotors[mountId], spec: m } },
-      // Extra motors are workspace-level, so every sim's cached result is now stale.
-      sims: s.sims.some((x) => x.result) ? s.sims.map((x) => ({ ...x, result: null })) : s.sims,
-    })); },
-    setExtraIgnition: (mountId, event, delay) => { beginEdit(); set((s) => ({
-      extraMotors: { ...s.extraMotors, [mountId]: { ...s.extraMotors[mountId], ignitionEvent: event, ignitionDelay: delay } },
-      sims: s.sims.some((x) => x.result) ? s.sims.map((x) => ({ ...x, result: null })) : s.sims,
-    })); },
-    patchLaunch: (p) => { beginEdit(); patchActive({ launch: { ...selectActive(get()).launch, ...p }, result: null }); },
+    setActiveMotor: (m) => {
+      recordStep();
+      patchActive({ motor: m, result: null });
+    },
+    setActiveIgnition: (event, delay) => {
+      beginEdit();
+      patchActive({ ignitionEvent: event, ignitionDelay: delay, result: null });
+    },
+    setExtraMotor: (mountId, m) => {
+      recordStep();
+      set((s) => ({
+        extraMotors: { ...s.extraMotors, [mountId]: { ...s.extraMotors[mountId], spec: m } },
+        // Extra motors are workspace-level, so every sim's cached result is now stale.
+        sims: s.sims.some((x) => x.result) ? s.sims.map((x) => ({ ...x, result: null })) : s.sims,
+      }));
+    },
+    setExtraIgnition: (mountId, event, delay) => {
+      beginEdit();
+      set((s) => ({
+        extraMotors: {
+          ...s.extraMotors,
+          [mountId]: { ...s.extraMotors[mountId], ignitionEvent: event, ignitionDelay: delay },
+        },
+        sims: s.sims.some((x) => x.result) ? s.sims.map((x) => ({ ...x, result: null })) : s.sims,
+      }));
+    },
+    patchLaunch: (p) => {
+      beginEdit();
+      patchActive({ launch: { ...selectActive(get()).launch, ...p }, result: null });
+    },
     addSim: () => {
       // A fresh simulation starts from the app default motor + the user's global
       // launch defaults (duplicateSim carries an existing setup forward instead).
@@ -302,7 +366,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const copy = i18n.t('sims.copyName', { name: src.name });
       const name = uniqueSimName(s.sims, (n) => (n === 1 ? copy : `${copy} ${n}`), 1);
       // Carry the source's primary-mount ignition setting forward with its motor.
-      const s0 = { ...newSimulation(name, src.motor, src.launch), ignitionEvent: src.ignitionEvent, ignitionDelay: src.ignitionDelay };
+      const s0 = {
+        ...newSimulation(name, src.motor, src.launch),
+        ignitionEvent: src.ignitionEvent,
+        ignitionDelay: src.ignitionDelay,
+      };
       const next = [...s.sims];
       next.splice(s.sims.findIndex((x) => x.id === id) + 1, 0, s0);
       set({ sims: next, activeId: s0.id });
@@ -314,15 +382,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       recordStep();
       set({ sims: rest, activeId: id === selectActive(s).id ? rest[0].id : s.activeId });
     },
-    renameSim: (id, name) => { beginEdit(); set((s) => ({ sims: s.sims.map((x) => (x.id === id ? { ...x, name } : x)) })); },
+    renameSim: (id, name) => {
+      beginEdit();
+      set((s) => ({ sims: s.sims.map((x) => (x.id === id ? { ...x, name } : x)) }));
+    },
     runSim: async (prefs) => {
       const s = get();
       // Can't fly a rocket with no motor mount (nowhere to seat a motor) or no
       // usable motor. The Run button is disabled for these too — this is the
       // belt-and-suspenders guard so a programmatic run can't throw deep in the
       // engine.
-      if (findMounts(s.tree).length === 0) { set({ err: i18n.t('sim.noMount') }); return; }
-      if (!hasThrustCurve(selectActive(s).motor)) { set({ err: i18n.t('sim.noMotor') }); return; }
+      if (findMounts(s.tree).length === 0) {
+        set({ err: i18n.t('sim.noMount') });
+        return;
+      }
+      if (!hasThrustCurve(selectActive(s).motor)) {
+        set({ err: i18n.t('sim.noMotor') });
+        return;
+      }
       set({ simBusy: true });
       const active = selectActive(s);
       const simId = active.id;
@@ -342,8 +419,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       } catch (e) {
         // A timeout means the worker was killed mid-hang; show a friendly line
         // rather than the raw sentinel. The lock releases via `finally`.
-        const msg = e instanceof SimTimeoutError ? i18n.t('sim.timeout')
-          : e instanceof Error ? e.message : String(e);
+        const msg = e instanceof SimTimeoutError ? i18n.t('sim.timeout') : e instanceof Error ? e.message : String(e);
         set({ err: msg });
       } finally {
         set({ simBusy: false });
@@ -354,7 +430,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     setView: (view) => set({ view }),
     setTwoD: (twoD) => set({ twoD }),
     setRoll: (roll) => set({ roll }),
-    rollBy: (d) => set((s) => { const x = (s.roll + d) % (2 * Math.PI); return { roll: x < 0 ? x + 2 * Math.PI : x }; }),
+    rollBy: (d) =>
+      set((s) => {
+        const x = (s.roll + d) % (2 * Math.PI);
+        return { roll: x < 0 ? x + 2 * Math.PI : x };
+      }),
     resetView: () => set((s) => ({ roll: 0, resetKey: s.resetKey + 1 })),
 
     openOrkFile: async (file) => {
@@ -379,9 +459,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         };
         clearHistory(); // a loaded design is a fresh document — nothing to undo across the load
         set({
-          tree: res.tree, extraMotors: reconcileMounts(res.tree, extra),
+          tree: res.tree,
+          extraMotors: reconcileMounts(res.tree, extra),
           loadedMeta: { name: res.name, notes: res.notes, exportMotors: res.motors },
-          sims: [sim0], activeId: sim0.id, selectedId: null, err: null, tab: 'build', view: '2d',
+          sims: [sim0],
+          activeId: sim0.id,
+          selectedId: null,
+          err: null,
+          tab: 'build',
+          view: '2d',
         });
       } catch (e) {
         set({ err: `Could not open .ork: ${e instanceof Error ? e.message : String(e)}` });
@@ -390,9 +476,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     resetWorkspace: () => {
       const s0 = newSimulation('Simulation 1', C6, loadSettings().launchDefaults);
       clearHistory(); // starting a new design drops the previous design's undo stack
-      set({ tree: specToTree(DEFAULT_SPEC).tree, extraMotors: {}, loadedMeta: null, sims: [s0], activeId: s0.id, selectedId: null, view: '2d' });
+      set({
+        tree: specToTree(DEFAULT_SPEC).tree,
+        extraMotors: {},
+        loadedMeta: null,
+        sims: [s0],
+        activeId: s0.id,
+        selectedId: null,
+        view: '2d',
+      });
     },
-    newWorkspace: () => { if (window.confirm(i18n.t('file.newConfirm'))) get().resetWorkspace(); },
+    newWorkspace: () => {
+      if (window.confirm(i18n.t('file.newConfirm'))) get().resetWorkspace();
+    },
     saveOrk: async () => {
       try {
         const { tree, extraMotors, loadedMeta } = get();
@@ -401,14 +497,36 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const mountId = findMountId(tree);
         const base = loadedMeta?.exportMotors ?? {};
         const motors: Record<string, OrkExportMotor> = {};
-        if (mountId) motors[mountId] = { ...base[mountId], designation: motor.designation, diameter: motor.diameter, length: motor.length, delay: motor.ejectionDelay, ignitionEvent: active.ignitionEvent, ignitionDelay: active.ignitionDelay };
+        if (mountId)
+          motors[mountId] = {
+            ...base[mountId],
+            designation: motor.designation,
+            diameter: motor.diameter,
+            length: motor.length,
+            delay: motor.ejectionDelay,
+            ignitionEvent: active.ignitionEvent,
+            ignitionDelay: active.ignitionDelay,
+          };
         for (const [id, m] of Object.entries(extraMotors)) {
           if (id === mountId || !findNode(tree, id)) continue; // primary is exported above; skip its (ignored) entry + gone mounts
-          motors[id] = { ...base[id], designation: m.spec.designation, diameter: m.spec.diameter, length: m.spec.length, delay: m.spec.ejectionDelay, ignitionEvent: m.ignitionEvent, ignitionDelay: m.ignitionDelay };
+          motors[id] = {
+            ...base[id],
+            designation: m.spec.designation,
+            diameter: m.spec.diameter,
+            length: m.spec.length,
+            delay: m.spec.ejectionDelay,
+            ignitionEvent: m.ignitionEvent,
+            ignitionDelay: m.ignitionDelay,
+          };
         }
         // The .ork writer is a lazily-imported chunk — only needed on save.
         const { downloadOrk } = await import('../services/saveOrk');
-        downloadOrk({ name: loadedMeta?.name || tree.name || defaultDesignName(), tree, motors, launch: selectActive(get()).launch });
+        downloadOrk({
+          name: loadedMeta?.name || tree.name || defaultDesignName(),
+          tree,
+          motors,
+          launch: selectActive(get()).launch,
+        });
       } catch (e) {
         set({ err: `Could not save .ork: ${e instanceof Error ? e.message : String(e)}` });
       }

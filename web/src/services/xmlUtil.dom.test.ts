@@ -2,8 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { xmlText } from './xmlUtil';
 
-const parse = (xml: string): Element =>
-  new DOMParser().parseFromString(xml, 'text/xml').documentElement;
+const parse = (xml: string): Element => new DOMParser().parseFromString(xml, 'text/xml').documentElement;
 
 describe('xmlText', () => {
   it('returns the trimmed text of the first matching element', () => {

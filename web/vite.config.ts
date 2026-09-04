@@ -11,8 +11,7 @@ const { version } = pkg;
 // Single source in package.json, plus a build-time override:
 //   HELP_URL=https://docs.example.com npm run build
 const repoUrl: string = (pkg.repository?.url ?? '').replace(/^git\+/, '').replace(/\.git$/, '');
-const helpUrl: string =
-  process.env.HELP_URL || pkg.wiki?.url || (repoUrl ? `${repoUrl}/wiki` : '');
+const helpUrl: string = process.env.HELP_URL || pkg.wiki?.url || (repoUrl ? `${repoUrl}/wiki` : '');
 
 export default defineConfig({
   // On GitHub Pages the app is served from https://<user>.github.io/<repo>/, so the

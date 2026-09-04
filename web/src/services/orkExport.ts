@@ -8,7 +8,16 @@ import type { OrkExportMotor, OrkDeployOverride, OrkTreeExportInput } from './or
 
 // ============================ EXPORT ============================
 
-export function exportOrk({ name, tree, motors, motor, mountId, launch, configs, activeConfigId }: OrkTreeExportInput): string {
+export function exportOrk({
+  name,
+  tree,
+  motors,
+  motor,
+  mountId,
+  launch,
+  configs,
+  activeConfigId,
+}: OrkTreeExportInput): string {
   const motorMap: Record<string, OrkExportMotor> = { ...(motors ?? {}) };
   if (motor && mountId && !motorMap[mountId]) motorMap[mountId] = motor;
   // The configurations to write. Classic path (no configs): ONE minted
@@ -23,24 +32,25 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
   }> =
     configs && configs.length > 0
       ? configs.map((c) => ({
-        id: c.id,
-        name: c.name,
-        motors: c === active ? motorMap : c.motors,
-        deployments: c === active ? null : (c.deployments ?? {}),
-      }))
+          id: c.id,
+          name: c.name,
+          motors: c === active ? motorMap : c.motors,
+          deployments: c === active ? null : (c.deployments ?? {}),
+        }))
       : [{ id: uuid(), name: null, motors: motorMap, deployments: null }];
   // Active = none but motors loaded: mint an extra config carrying the live
   // set, unnamed (the desktop renders unnamed configs as their motor list).
-  const minted = configs && configs.length > 0 && !active && Object.keys(motorMap).length > 0
-    ? { id: uuid(), name: null, motors: motorMap, deployments: null }
-    : null;
+  const minted =
+    configs && configs.length > 0 && !active && Object.keys(motorMap).length > 0
+      ? { id: uuid(), name: null, motors: motorMap, deployments: null }
+      : null;
   if (minted) writeConfigs.push(minted);
   // default="true" (also what <simulation> references): the active config,
   // else the minted custom one, else the original default.
-  const defaultId = active?.id ?? minted?.id
-    ?? (configs && configs.length > 0
-      ? (configs.find((c) => c.isDefault)?.id ?? configs[0]!.id)
-      : writeConfigs[0]!.id);
+  const defaultId =
+    active?.id ??
+    minted?.id ??
+    (configs && configs.length > 0 ? (configs.find((c) => c.isDefault)?.id ?? configs[0]!.id) : writeConfigs[0]!.id);
   const lines: string[] = [];
   const emit = (depth: number, s: string) => lines.push('  '.repeat(depth) + s);
 
@@ -54,19 +64,21 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
       }
     } else if (kind === 'surface') {
       if (typeof node['surfaceDensity'] === 'number') {
-        const name = typeof node['surfaceMaterialName'] === 'string'
-          ? (node['surfaceMaterialName'] as string) : 'custom';
+        const name =
+          typeof node['surfaceMaterialName'] === 'string' ? (node['surfaceMaterialName'] as string) : 'custom';
         emit(depth, `<material type="surface" density="${node['surfaceDensity']}">${escapeXml(name)}</material>`);
       } else {
         emit(depth, '<material type="surface" density="0.067" group="Fabrics">Ripstop nylon</material>');
       }
     } else {
       if (typeof node['lineDensity'] === 'number') {
-        const name = typeof node['lineMaterialName'] === 'string'
-          ? (node['lineMaterialName'] as string) : 'custom';
+        const name = typeof node['lineMaterialName'] === 'string' ? (node['lineMaterialName'] as string) : 'custom';
         emit(depth, `<material type="line" density="${node['lineDensity']}">${escapeXml(name)}</material>`);
       } else {
-        emit(depth, '<material type="line" density="0.0018" group="ThreadsLines">Elastic cord (round 2 mm, 1/16 in)</material>');
+        emit(
+          depth,
+          '<material type="line" density="0.0018" group="ThreadsLines">Elastic cord (round 2 mm, 1/16 in)</material>',
+        );
       }
     }
   };
@@ -129,13 +141,16 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
   const deploymentConfigs = (depth: number, node: ComponentNode) => {
     if (writeConfigs.length < 2) return;
     for (const c of writeConfigs) {
-      const o: OrkDeployOverride = c.deployments === null
-        ? {
-          deployEvent: String(node['deployEvent'] ?? 'ejection'),
-          deployAltitude: typeof node['deployAltitude'] === 'number' ? node['deployAltitude'] as number : 200,
-          deployDelay: typeof node['deployDelay'] === 'number' ? node['deployDelay'] as number : 0,
-        }
-        : (node.id ? c.deployments[node.id] ?? {} : {});
+      const o: OrkDeployOverride =
+        c.deployments === null
+          ? {
+              deployEvent: String(node['deployEvent'] ?? 'ejection'),
+              deployAltitude: typeof node['deployAltitude'] === 'number' ? (node['deployAltitude'] as number) : 200,
+              deployDelay: typeof node['deployDelay'] === 'number' ? (node['deployDelay'] as number) : 0,
+            }
+          : node.id
+            ? (c.deployments[node.id] ?? {})
+            : {};
       if (Object.keys(o).length === 0) continue;
       emit(depth, `<deploymentconfiguration configid="${c.id}">`);
       if (o.deployEvent !== undefined) emit(depth + 1, `<deployevent>${escapeXml(o.deployEvent)}</deployevent>`);
@@ -153,13 +168,16 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
    */
   const filletXml = (depth: number, node: ComponentNode) => {
     emit(depth, `<filletradius>${num(node, 'filletRadius', 0)}</filletradius>`);
-    const density = typeof node['filletDensity'] === 'number' ? node['filletDensity'] as number : 680;
-    const group = typeof node['filletMaterialGroup'] === 'string'
-      ? node['filletMaterialGroup'] as string : 'PaperProducts';
-    const matName = typeof node['filletMaterialName'] === 'string'
-      ? node['filletMaterialName'] as string : 'Cardboard';
-    emit(depth, `<filletmaterial type="bulk" density="${density}" group="${escapeXml(group)}">`
-      + `${escapeXml(matName)}</filletmaterial>`);
+    const density = typeof node['filletDensity'] === 'number' ? (node['filletDensity'] as number) : 680;
+    const group =
+      typeof node['filletMaterialGroup'] === 'string' ? (node['filletMaterialGroup'] as string) : 'PaperProducts';
+    const matName =
+      typeof node['filletMaterialName'] === 'string' ? (node['filletMaterialName'] as string) : 'Cardboard';
+    emit(
+      depth,
+      `<filletmaterial type="bulk" density="${density}" group="${escapeXml(group)}">` +
+        `${escapeXml(matName)}</filletmaterial>`,
+    );
   };
 
   const finishXml = (depth: number, node: ComponentNode) => {
@@ -176,8 +194,7 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
     const h = num(node, 'tabHeight', 0);
     const len = num(node, 'tabLength', 0);
     if (h <= 0 || len <= 0) return;
-    const method = typeof node['tabOffsetMethod'] === 'string'
-      ? (node['tabOffsetMethod'] as string) : 'middle';
+    const method = typeof node['tabOffsetMethod'] === 'string' ? (node['tabOffsetMethod'] as string) : 'middle';
     const legacy = method === 'top' ? 'front' : method === 'bottom' ? 'end' : 'center';
     const offset = num(node, 'tabOffset', 0);
     emit(depth, `<tabheight>${h}</tabheight>`);
@@ -188,14 +205,16 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
 
   // The desktop encodes "solid" as <thickness>filled</thickness>.
   const thicknessXml = (depth: number, node: ComponentNode, fb: number) => {
-    emit(depth, node['filled'] === true
-      ? '<thickness>filled</thickness>'
-      : `<thickness>${typeof node['thickness'] === 'number' ? node['thickness'] : fb}</thickness>`);
+    emit(
+      depth,
+      node['filled'] === true
+        ? '<thickness>filled</thickness>'
+        : `<thickness>${typeof node['thickness'] === 'number' ? node['thickness'] : fb}</thickness>`,
+    );
   };
 
   /** The write-configs that hold a motor for this mount, in write order. */
-  const mountConfigs = (nodeId: string | undefined) =>
-    nodeId ? writeConfigs.filter((c) => c.motors[nodeId]) : [];
+  const mountConfigs = (nodeId: string | undefined) => (nodeId ? writeConfigs.filter((c) => c.motors[nodeId]) : []);
 
   // Configs may all be empty here: a mount with no motor loaded still writes
   // <motormount> so the mount flag survives the round trip (desktop same).
@@ -294,12 +313,14 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         // anyway would grow a 'clipped' field on re-import that the golden
         // file never had (breaking bit-stable round trips).
         if (shapeIsClippable(String(node['shape'] ?? 'conical'))) {
-          const clippedOut = typeof node['clipped'] === 'boolean'
-            ? (node['clipped'] as boolean) : true;
+          const clippedOut = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : true;
           emit(depth + 1, `<shapeclipped>${clippedOut}</shapeclipped>`);
         }
         shapeParamXml(depth + 1, node);
-        emit(depth + 1, `<foreradius>${typeof node['foreRadius'] === 'number' ? node['foreRadius'] : 'auto'}</foreradius>`);
+        emit(
+          depth + 1,
+          `<foreradius>${typeof node['foreRadius'] === 'number' ? node['foreRadius'] : 'auto'}</foreradius>`,
+        );
         emit(depth + 1, `<aftradius>${typeof node['aftRadius'] === 'number' ? node['aftRadius'] : 'auto'}</aftradius>`);
         for (const side of ['fore', 'aft'] as const) {
           const key = side === 'fore' ? 'foreShoulder' : 'aftShoulder';
@@ -433,7 +454,10 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         emit(depth + 1, `<outerradius>${num(node, 'outerRadius', 0.0095)}</outerradius>`);
         emit(depth + 1, `<thickness>${num(node, 'thickness', 0.0005)}</thickness>`);
         // Desktop stores cluster rotation in DEGREES; we keep radians inside.
-        emit(depth + 1, `<clusterconfiguration>${escapeXml(typeof node['cluster'] === 'string' ? (node['cluster'] as string) : 'single')}</clusterconfiguration>`);
+        emit(
+          depth + 1,
+          `<clusterconfiguration>${escapeXml(typeof node['cluster'] === 'string' ? (node['cluster'] as string) : 'single')}</clusterconfiguration>`,
+        );
         emit(depth + 1, `<clusterscale>${num(node, 'clusterScale', 1)}</clusterscale>`);
         emit(depth + 1, `<clusterrotation>${(num(node, 'clusterRotation', 0) * 180) / Math.PI}</clusterrotation>`);
         if (typeof node['maxMotorLength'] === 'number') {
@@ -509,7 +533,10 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         header(depth + 1, node, 'Launch Lug');
         emit(depth + 1, `<instancecount>${num(node, 'instanceCount', 1)}</instancecount>`);
         emit(depth + 1, `<instanceseparation>${num(node, 'instanceSeparation', 0)}</instanceseparation>`);
-        emit(depth + 1, `<angleoffset method="relative">${(num(node, 'angleOffset', Math.PI) * 180) / Math.PI}</angleoffset>`);
+        emit(
+          depth + 1,
+          `<angleoffset method="relative">${(num(node, 'angleOffset', Math.PI) * 180) / Math.PI}</angleoffset>`,
+        );
         emit(depth + 1, `<radialdirection>${(num(node, 'angleOffset', Math.PI) * 180) / Math.PI}</radialdirection>`);
         position(depth + 1, node, 'middle');
         finishXml(depth + 1, node);
@@ -525,7 +552,10 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         header(depth + 1, node, 'Rail Button');
         emit(depth + 1, `<instancecount>${num(node, 'instanceCount', 1)}</instancecount>`);
         emit(depth + 1, `<instanceseparation>${num(node, 'instanceSeparation', 0)}</instanceseparation>`);
-        emit(depth + 1, `<angleoffset method="relative">${(num(node, 'angleOffset', Math.PI) * 180) / Math.PI}</angleoffset>`);
+        emit(
+          depth + 1,
+          `<angleoffset method="relative">${(num(node, 'angleOffset', Math.PI) * 180) / Math.PI}</angleoffset>`,
+        );
         position(depth + 1, node, 'middle');
         finishXml(depth + 1, node);
         emit(depth + 1, '<material type="bulk" density="1420.0" group="Plastics">Delrin</material>');
@@ -561,9 +591,15 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         emit(depth + 1, `<linelength>${num(node, 'lineLength', 0.3)}</linelength>`);
         if (typeof node['lineDensity'] === 'number') {
           const lname = typeof node['lineMaterialName'] === 'string' ? (node['lineMaterialName'] as string) : 'custom';
-          emit(depth + 1, `<linematerial type="line" density="${node['lineDensity']}">${escapeXml(lname)}</linematerial>`);
+          emit(
+            depth + 1,
+            `<linematerial type="line" density="${node['lineDensity']}">${escapeXml(lname)}</linematerial>`,
+          );
         } else {
-          emit(depth + 1, '<linematerial type="line" density="0.0018" group="ThreadsLines">Elastic cord (round 2 mm, 1/16 in)</linematerial>');
+          emit(
+            depth + 1,
+            '<linematerial type="line" density="0.0018" group="ThreadsLines">Elastic cord (round 2 mm, 1/16 in)</linematerial>',
+          );
         }
         close('parachute');
         break;
@@ -612,7 +648,10 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         // Legal values = MassComponent.MassComponentType lowercased:
         // masscomponent, altimeter, flightcomputer, deploymentcharge,
         // tracker, payload, recoveryhardware, battery.
-        emit(depth + 1, `<masscomponenttype>${escapeXml(String(node['massComponentType'] ?? 'masscomponent'))}</masscomponenttype>`);
+        emit(
+          depth + 1,
+          `<masscomponenttype>${escapeXml(String(node['massComponentType'] ?? 'masscomponent'))}</masscomponenttype>`,
+        );
         close('masscomponent');
         break;
       }
@@ -627,7 +666,10 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
         emit(depth + 1, `<radiusoffset method="${rMethod}">${num(node, 'radiusOffset', 0)}</radiusoffset>`); // metres
         const aMethod = node['angleMethod'] === 'fixed' ? 'fixed' : 'relative';
         // angleOffset is stored in radians → DEGREES on disk (same as cant).
-        emit(depth + 1, `<angleoffset method="${aMethod}">${(num(node, 'angleOffset', 0) * 180) / Math.PI}</angleoffset>`);
+        emit(
+          depth + 1,
+          `<angleoffset method="${aMethod}">${(num(node, 'angleOffset', 0) * 180) / Math.PI}</angleoffset>`,
+        );
         position(depth + 1, node, 'bottom');
         if (t === 'parallelstage') {
           // Same separation block a booster <stage> writes (bare default + config).
@@ -735,8 +777,7 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
     // ≤23.09 legacy trio the desktop still writes: turbulence here is the
     // INTENSITY ratio stddev/average (PinkNoiseWindModel maps zero wind to
     // 0 or 1 — mirror it so old desktops recover the same stddev).
-    const turb = launch.windAverage !== 0 ? launch.windStdDev / launch.windAverage
-      : launch.windStdDev !== 0 ? 1 : 0;
+    const turb = launch.windAverage !== 0 ? launch.windStdDev / launch.windAverage : launch.windStdDev !== 0 ? 1 : 0;
     emit(4, `<windaverage>${launch.windAverage}</windaverage>`);
     emit(4, `<windturbulence>${turb}</windturbulence>`);
     // Wind direction is RADIANS on disk (unlike the rod elements — the
@@ -773,4 +814,3 @@ export function exportOrk({ name, tree, motors, motor, mountId, launch, configs,
   emit(0, '</openrocket>');
   return lines.join('\n') + '\n';
 }
-

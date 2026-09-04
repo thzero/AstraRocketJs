@@ -50,57 +50,93 @@ export function specToTree(spec: RocketSpec): { tree: RocketTree; mountId: strin
     density ? { density, ...(materialName ? { materialName } : {}) } : {};
 
   const nose: ComponentNode = {
-    type: 'nosecone', id: 'nose', shape: spec.noseCone.shape ?? 'ogive',
-    length: spec.noseCone.length, aftRadius: spec.noseCone.aftRadius, thickness: spec.noseCone.thickness,
+    type: 'nosecone',
+    id: 'nose',
+    shape: spec.noseCone.shape ?? 'ogive',
+    length: spec.noseCone.length,
+    aftRadius: spec.noseCone.aftRadius,
+    thickness: spec.noseCone.thickness,
     ...bulk(spec.noseCone.materialDensity, spec.noseCone.material),
   };
   const body: ComponentNode = {
-    type: 'bodytube', id: 'body',
-    length: spec.bodyTube.length, outerRadius: spec.bodyTube.outerRadius, thickness: spec.bodyTube.thickness,
+    type: 'bodytube',
+    id: 'body',
+    length: spec.bodyTube.length,
+    outerRadius: spec.bodyTube.outerRadius,
+    thickness: spec.bodyTube.thickness,
     ...bulk(spec.bodyTube.materialDensity, spec.bodyTube.material),
     children: [
       {
-        type: 'trapezoidfinset', id: 'fins', finCount: spec.fins.count,
-        rootChord: spec.fins.rootChord, tipChord: spec.fins.tipChord, sweep: spec.fins.sweep,
-        height: spec.fins.height, thickness: spec.fins.thickness,
+        type: 'trapezoidfinset',
+        id: 'fins',
+        finCount: spec.fins.count,
+        rootChord: spec.fins.rootChord,
+        tipChord: spec.fins.tipChord,
+        sweep: spec.fins.sweep,
+        height: spec.fins.height,
+        thickness: spec.fins.thickness,
         // Fin sets sit at the aft end of the body tube (bottom-aligned), like
         // OpenRocket's default — without this they draw up by the nose.
         position: { method: 'bottom', offset: 0 },
         ...bulk(spec.fins.materialDensity, spec.fins.material),
       },
       {
-        type: 'innertube', id: mountId, motorMount: true,
-        length: spec.motorMount.length, outerRadius: spec.motorMount.outerRadius, thickness: spec.motorMount.thickness,
+        type: 'innertube',
+        id: mountId,
+        motorMount: true,
+        length: spec.motorMount.length,
+        outerRadius: spec.motorMount.outerRadius,
+        thickness: spec.motorMount.thickness,
         // Motor mount at the tail so the motor loads from the aft. The motor
         // protrudes ~0.25 in (6.35 mm) past the aft end, the usual overhang.
-        position: { method: 'bottom', offset: 0 }, motorOverhang: 0.00635,
+        position: { method: 'bottom', offset: 0 },
+        motorOverhang: 0.00635,
       },
       // Two centering rings hold the motor mount concentric in the body tube:
       // one at the mount's fore end, one at the aft end. Outer wall = body inner
       // radius, inner bore = mount outer radius.
       {
-        type: 'centeringring', id: 'ring-fore',
-        outerRadius: spec.bodyTube.outerRadius - spec.bodyTube.thickness, innerRadius: spec.motorMount.outerRadius, length: 0.003,
+        type: 'centeringring',
+        id: 'ring-fore',
+        outerRadius: spec.bodyTube.outerRadius - spec.bodyTube.thickness,
+        innerRadius: spec.motorMount.outerRadius,
+        length: 0.003,
         position: { method: 'top', offset: Math.max(0, spec.bodyTube.length - spec.motorMount.length) },
       },
       {
-        type: 'centeringring', id: 'ring-aft',
-        outerRadius: spec.bodyTube.outerRadius - spec.bodyTube.thickness, innerRadius: spec.motorMount.outerRadius, length: 0.003,
+        type: 'centeringring',
+        id: 'ring-aft',
+        outerRadius: spec.bodyTube.outerRadius - spec.bodyTube.thickness,
+        innerRadius: spec.motorMount.outerRadius,
+        length: 0.003,
         position: { method: 'bottom', offset: 0 },
       },
       ...(spec.parachute
-        ? [{ type: 'parachute', id: 'chute', diameter: spec.parachute.diameter, cd: spec.parachute.dragCoefficient ?? 0.8,
-            lineCount: 6, lineLength: 0.3,
-            // Deploy at apogee by default (matches the editor default) so the UI
-            // and the engine agree rather than the kernel falling back to ejection.
-            deployEvent: 'apogee', deployAltitude: 200, deployDelay: 0,
-            // Recovery packs up near the nose (front of the body tube).
-            position: { method: 'top', offset: 0.02 } } as ComponentNode]
+        ? [
+            {
+              type: 'parachute',
+              id: 'chute',
+              diameter: spec.parachute.diameter,
+              cd: spec.parachute.dragCoefficient ?? 0.8,
+              lineCount: 6,
+              lineLength: 0.3,
+              // Deploy at apogee by default (matches the editor default) so the UI
+              // and the engine agree rather than the kernel falling back to ejection.
+              deployEvent: 'apogee',
+              deployAltitude: 200,
+              deployDelay: 0,
+              // Recovery packs up near the nose (front of the body tube).
+              position: { method: 'top', offset: 0.02 },
+            } as ComponentNode,
+          ]
         : []),
     ],
   };
   return {
-    tree: { name: defaultDesignName(), components: [{ type: 'stage', name: 'Sustainer', id: 's1', children: [nose, body] }] },
+    tree: {
+      name: defaultDesignName(),
+      components: [{ type: 'stage', name: 'Sustainer', id: 's1', children: [nose, body] }],
+    },
     mountId,
   };
 }

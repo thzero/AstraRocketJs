@@ -1,12 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode } from '../engine/openRocketEngine';
 import {
-  assemblyChainLength, assemblyBoundingRadius, resolveAssemblyRadius,
-  ringInstanceOffsets, isAssembly,
+  assemblyChainLength,
+  assemblyBoundingRadius,
+  resolveAssemblyRadius,
+  ringInstanceOffsets,
+  isAssembly,
 } from './assembly';
 
-const pod = (children: ComponentNode[], props: Record<string, unknown> = {}): ComponentNode =>
-  ({ type: 'podset', children, ...props });
+const pod = (children: ComponentNode[], props: Record<string, unknown> = {}): ComponentNode => ({
+  type: 'podset',
+  children,
+  ...props,
+});
 
 describe('assemblyChainLength', () => {
   it('sums the axial chain members and ignores internal parts', () => {

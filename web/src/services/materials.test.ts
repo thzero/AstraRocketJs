@@ -5,9 +5,15 @@ import type { KeyValueStore } from './keyValueStore';
 
 class FakeKv implements KeyValueStore {
   map = new Map<string, string>();
-  async get(k: string) { return this.map.has(k) ? this.map.get(k)! : null; }
-  async set(k: string, v: string) { this.map.set(k, v); }
-  async remove(k: string) { this.map.delete(k); }
+  async get(k: string) {
+    return this.map.has(k) ? this.map.get(k)! : null;
+  }
+  async set(k: string, v: string) {
+    this.map.set(k, v);
+  }
+  async remove(k: string) {
+    this.map.delete(k);
+  }
 }
 
 // Fresh in-memory material store per test (avoids cross-test bleed via the singleton).

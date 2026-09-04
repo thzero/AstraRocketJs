@@ -15,9 +15,16 @@ const DIGITS: Record<MaterialType, number> = { bulk: 0, surface: 3, line: 4 };
  * picks the catalogue (bulk / surface / line); `label` names the row. Emits
  * `onChange(name, density)`; density 0 / name undefined means the engine default.
  */
-export function MaterialPicker({ value, onChange, type = 'bulk', label }: {
-  value?: string; onChange: (name: string | undefined, density: number) => void;
-  type?: MaterialType; label?: string;
+export function MaterialPicker({
+  value,
+  onChange,
+  type = 'bulk',
+  label,
+}: {
+  value?: string;
+  onChange: (name: string | undefined, density: number) => void;
+  type?: MaterialType;
+  label?: string;
 }) {
   const { t } = useTranslation();
   // Seed with built-ins for the first paint; the store (async, swappable) then
@@ -32,8 +39,12 @@ export function MaterialPicker({ value, onChange, type = 'bulk', label }: {
 
   useEffect(() => {
     let live = true;
-    materialsForType(type).then((m) => { if (live) setMats(m); });
-    return () => { live = false; };
+    materialsForType(type).then((m) => {
+      if (live) setMats(m);
+    });
+    return () => {
+      live = false;
+    };
   }, [type]);
 
   const groups = useMemo(() => {
@@ -59,7 +70,10 @@ export function MaterialPicker({ value, onChange, type = 'bulk', label }: {
       const next = await addCustom(name, type, parseFloat(dens));
       setMats(await materialsForType(type));
       onChange(next[0].name, next[0].density);
-      setAdding(false); setName(''); setDens(''); setAddErr(null);
+      setAdding(false);
+      setName('');
+      setDens('');
+      setAddErr(null);
     } catch (e) {
       setAddErr(e instanceof Error ? e.message : String(e));
     }
@@ -79,7 +93,9 @@ export function MaterialPicker({ value, onChange, type = 'bulk', label }: {
         <span className="tabular-nums text-xs text-slate-400">
           {current ? `${fmtNum(current.density, digits)} ${unit}` : t('material.default')}
           {current?.custom && (
-            <button onClick={deleteCurrentCustom} className="ml-2 text-red-400" aria-label={t('material.deleteCustom')}>✕</button>
+            <button onClick={deleteCurrentCustom} className="ml-2 text-red-400" aria-label={t('material.deleteCustom')}>
+              ✕
+            </button>
           )}
         </span>
       </div>
@@ -93,7 +109,8 @@ export function MaterialPicker({ value, onChange, type = 'bulk', label }: {
           <optgroup key={g} label={g}>
             {list.map((m) => (
               <option key={`${g}:${m.name}`} value={m.name}>
-                {m.custom ? '★ ' : ''}{m.name} · {fmtNum(m.density, digits)} {unit}
+                {m.custom ? '★ ' : ''}
+                {m.name} · {fmtNum(m.density, digits)} {unit}
               </option>
             ))}
           </optgroup>
@@ -106,18 +123,34 @@ export function MaterialPicker({ value, onChange, type = 'bulk', label }: {
       {adding && (
         <div className="mt-2 space-y-2 rounded-lg bg-slate-950 p-2 ring-1 ring-white/10">
           <input
-            value={name} onChange={(e) => setName(e.target.value)} placeholder={t('material.namePlaceholder')}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t('material.namePlaceholder')}
             className="w-full rounded bg-slate-900 px-2 py-1.5 text-sm ring-1 ring-white/10 placeholder:text-slate-500"
           />
           <input
-            value={dens} onChange={(e) => setDens(e.target.value)} type="number" min={0} step="any"
+            value={dens}
+            onChange={(e) => setDens(e.target.value)}
+            type="number"
+            min={0}
+            step="any"
             placeholder={t('material.densityPlaceholder')}
             className="w-full rounded bg-slate-900 px-2 py-1.5 text-sm tabular-nums ring-1 ring-white/10 placeholder:text-slate-500"
           />
           {addErr && <p className="text-xs text-red-400">{addErr}</p>}
           <div className="flex gap-2">
-            <button onClick={submitCustom} className="flex-1 rounded bg-sky-600 py-1.5 text-sm font-medium text-white">{t('material.save')}</button>
-            <button onClick={() => { setAdding(false); setAddErr(null); }} className="flex-1 rounded bg-slate-800 py-1.5 text-sm text-slate-300">{t('material.cancel')}</button>
+            <button onClick={submitCustom} className="flex-1 rounded bg-sky-600 py-1.5 text-sm font-medium text-white">
+              {t('material.save')}
+            </button>
+            <button
+              onClick={() => {
+                setAdding(false);
+                setAddErr(null);
+              }}
+              className="flex-1 rounded bg-slate-800 py-1.5 text-sm text-slate-300"
+            >
+              {t('material.cancel')}
+            </button>
           </div>
         </div>
       )}

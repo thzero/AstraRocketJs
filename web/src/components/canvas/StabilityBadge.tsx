@@ -23,8 +23,19 @@ export function StabilityBadge({ info }: { info: StaticInfo | null }) {
       <Stat card label={t('stats.cgEmpty')} value={fmtNum(info.cgEmpty * 100, 1)} sub="cm" />
       <Stat card label={t('stats.cgLoaded')} value={fmtNum(info.cg * 100, 1)} sub="cm" />
       <Stat card label={t('stability.cp')} value={fmtNum(info.cp * 100, 1)} sub="cm" />
-      <Stat card label={t('stats.fineness')} value={fmtNum(info.refDiameter > 0 ? info.length / info.refDiameter : 0, 1)} sub="L/D" />
-      <Stat card label={t('stability.onPad')} value={fmtNum(cal, 2)} sub={`${t('stability.caliber')} · ${t(stabilityVerdictKey(cal))}`} tone={stabilityTone(cal)} />
+      <Stat
+        card
+        label={t('stats.fineness')}
+        value={fmtNum(info.refDiameter > 0 ? info.length / info.refDiameter : 0, 1)}
+        sub="L/D"
+      />
+      <Stat
+        card
+        label={t('stability.onPad')}
+        value={fmtNum(cal, 2)}
+        sub={`${t('stability.caliber')} · ${t(stabilityVerdictKey(cal))}`}
+        tone={stabilityTone(cal)}
+      />
       <Stat card label={t('stats.stabilityPct')} value={fmtNum(pct, 1)} sub="%" />
     </div>
   );

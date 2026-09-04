@@ -8,17 +8,17 @@
 // Run manually or in CI (never inside `vite build`):  node scripts/sync-motors.mjs
 // Data © thrustcurve.org contributors and the certifying bodies (NAR/TRA/CAR).
 
-import { writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const API = "https://www.thrustcurve.org/api/v1";
-const OUT = resolve(fileURLToPath(new URL("../src/data", import.meta.url)), "motors.generated.json");
+const API = 'https://www.thrustcurve.org/api/v1';
+const OUT = resolve(fileURLToPath(new URL('../src/data', import.meta.url)), 'motors.generated.json');
 
 async function post(path, body) {
   const res = await fetch(`${API}/${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`${path} → HTTP ${res.status}`);
@@ -26,17 +26,18 @@ async function post(path, body) {
 }
 
 const round = (n, d) => (Number.isFinite(n) ? Number(n.toFixed(d)) : 0);
-const chunk = (arr, size) => Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
+const chunk = (arr, size) =>
+  Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
 
 // A motor can have several data files (cert vs user submissions, RASP/RockSim
 // formats). Bundle them ALL, best-first, so the picker can offer a choice.
 const SRC_RANK = { cert: 0, mfr: 1, user: 2 };
-const sourceLabel = (s) => ({ cert: "Certified", mfr: "Manufacturer", user: "User" }[s] || (s || "Unknown"));
+const sourceLabel = (s) => ({ cert: 'Certified', mfr: 'Manufacturer', user: 'User' })[s] || s || 'Unknown';
 
 /** Fetch thrust-curve files for a batch of motorIds → Map<motorId, file[]>. */
 async function fetchSamples(ids) {
   const out = new Map();
-  const { results: files = [] } = await post("download.json", { motorIds: ids, data: "samples", maxResults: 4000 });
+  const { results: files = [] } = await post('download.json', { motorIds: ids, data: 'samples', maxResults: 4000 });
   for (const f of files) {
     if (!f.samples || f.samples.length < 2) continue;
     if (!out.has(f.motorId)) out.set(f.motorId, []);
@@ -46,13 +47,16 @@ async function fetchSamples(ids) {
 }
 
 async function main() {
-  console.log("Fetching available motors…");
-  const { results: motors = [] } = await post("search.json", { availability: "available", maxResults: 5000 });
+  console.log('Fetching available motors…');
+  const { results: motors = [] } = await post('search.json', { availability: 'available', maxResults: 5000 });
   console.log(`  ${motors.length} available motors`);
 
-  console.log("Fetching thrust curves…");
+  console.log('Fetching thrust curves…');
   const sampleMap = new Map();
-  const batches = chunk(motors.map((m) => m.motorId), 100);
+  const batches = chunk(
+    motors.map((m) => m.motorId),
+    100,
+  );
   let done = 0;
   for (const ids of batches) {
     const got = await fetchSamples(ids);
@@ -60,12 +64,15 @@ async function main() {
     done += ids.length;
     process.stdout.write(`\r  ${done}/${motors.length} motors, ${sampleMap.size} with curves`);
   }
-  console.log("");
+  console.log('');
 
-  const rankFiles = (files) => [...files].sort((a, b) =>
-    (SRC_RANK[a.source] ?? 9) - (SRC_RANK[b.source] ?? 9) ||    // cert first
-    (a.format === "RASP" ? 0 : 1) - (b.format === "RASP" ? 0 : 1) || // RASP first
-    b.samples.length - a.samples.length);
+  const rankFiles = (files) =>
+    [...files].sort(
+      (a, b) =>
+        (SRC_RANK[a.source] ?? 9) - (SRC_RANK[b.source] ?? 9) || // cert first
+        (a.format === 'RASP' ? 0 : 1) - (b.format === 'RASP' ? 0 : 1) || // RASP first
+        b.samples.length - a.samples.length,
+    );
 
   const catalog = motors
     .filter((m) => m.totImpulseNs > 0 && m.burnTimeS > 0)
@@ -82,13 +89,13 @@ async function main() {
       };
       // Descriptive metadata for the detail panel (kept on every motor).
       if (m.designation && m.designation !== row.designation) row.code = m.designation; // full mfr code
-      if (m.type) row.type = m.type;                 // SU / reload / hybrid
-      if (m.delays) row.delays = m.delays;           // "4,6,7,8,10"
-      if (m.propInfo) row.propInfo = m.propInfo;     // propellant type
+      if (m.type) row.type = m.type; // SU / reload / hybrid
+      if (m.delays) row.delays = m.delays; // "4,6,7,8,10"
+      if (m.propInfo) row.propInfo = m.propInfo; // propellant type
       if (m.sparky) row.sparky = true;
       if (Number.isFinite(m.avgThrustN)) row.avgThrust = round(m.avgThrustN, 2);
       if (Number.isFinite(m.maxThrustN)) row.maxThrust = round(m.maxThrustN, 2);
-      if (Number.isFinite(m.length)) row.length = round(m.length, 2);          // mm
+      if (Number.isFinite(m.length)) row.length = round(m.length, 2); // mm
       if (Number.isFinite(m.propWeightG)) row.propWeightG = round(m.propWeightG, 2); // g
       // Bundled thrust curves (best-first), so a picked motor resolves with no
       // fetch and the picker can offer a choice when there are several.
@@ -108,11 +115,11 @@ async function main() {
 
   const withCurves = catalog.filter((m) => m.curves).length;
   const noCurve = catalog.filter((m) => m.noCurve);
-  await writeFile(OUT, JSON.stringify(catalog, null, 0) + "\n");
+  await writeFile(OUT, JSON.stringify(catalog, null, 0) + '\n');
   console.log(`\nWrote ${catalog.length} motors (${withCurves} with bundled curves) → src/data/motors.generated.json`);
   if (noCurve.length) {
     console.log(`  ${noCurve.length} have NO bundled thrust curve (flagged noCurve):`);
-    console.log(`    ${noCurve.map((m) => `${m.manufacturer} ${m.designation}`).join(", ")}`);
+    console.log(`    ${noCurve.map((m) => `${m.manufacturer} ${m.designation}`).join(', ')}`);
   }
 }
 

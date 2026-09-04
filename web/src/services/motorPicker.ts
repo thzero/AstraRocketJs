@@ -24,7 +24,10 @@ export function parseDelays(s?: string): { delays: number[]; plugged: boolean } 
   const delays: number[] = [];
   for (const tok of s.split(/[,\s-]+/)) {
     if (!tok) continue;
-    if (/^p/i.test(tok)) { plugged = true; continue; } // "P" / "Plugged"
+    if (/^p/i.test(tok)) {
+      plugged = true;
+      continue;
+    } // "P" / "Plugged"
     const n = Number(tok);
     if (Number.isFinite(n)) delays.push(n);
   }
@@ -34,12 +37,16 @@ export function parseDelays(s?: string): { delays: number[]; plugged: boolean } 
 /** Mean thrust over the first `win` seconds (trapezoid, clipped to the window). */
 export function initialThrust(samples: [number, number][], win = 0.5): number | null {
   if (samples.length < 2) return null;
-  let imp = 0, dur = 0;
+  let imp = 0,
+    dur = 0;
   for (let i = 1; i < samples.length; i++) {
     const [t0, f0] = samples[i - 1]!;
     let [t1, f1] = samples[i]!;
     if (t0 >= win) break;
-    if (t1 > win) { f1 = f0 + (f1 - f0) * ((win - t0) / (t1 - t0)); t1 = win; }
+    if (t1 > win) {
+      f1 = f0 + (f1 - f0) * ((win - t0) / (t1 - t0));
+      t1 = win;
+    }
     imp += ((t1 - t0) * (f0 + f1)) / 2;
     dur += t1 - t0;
   }

@@ -70,30 +70,54 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
   // A tree with a lug at 45° and a rail button at 90° around the body. These
   // used to be silently overwritten with 180° on every save.
   const tree = {
-    components: [{
-      type: 'stage', name: 'Sustainer', id: 's1', children: [
-        {
-          type: 'bodytube', id: 'body', length: 0.3, outerRadius: 0.013, thickness: 0.0005,
-          children: [
-            { type: 'launchlug', id: 'lug', length: 0.03, outerRadius: 0.0022, angleOffset: Math.PI / 4, position: { method: 'middle', offset: 0 } },
-            { type: 'railbutton', id: 'btn', outerDiameter: 0.0097, angleOffset: Math.PI / 2, position: { method: 'middle', offset: 0 } },
-          ],
-        },
-      ],
-    }],
+    components: [
+      {
+        type: 'stage',
+        name: 'Sustainer',
+        id: 's1',
+        children: [
+          {
+            type: 'bodytube',
+            id: 'body',
+            length: 0.3,
+            outerRadius: 0.013,
+            thickness: 0.0005,
+            children: [
+              {
+                type: 'launchlug',
+                id: 'lug',
+                length: 0.03,
+                outerRadius: 0.0022,
+                angleOffset: Math.PI / 4,
+                position: { method: 'middle', offset: 0 },
+              },
+              {
+                type: 'railbutton',
+                id: 'btn',
+                outerDiameter: 0.0097,
+                angleOffset: Math.PI / 2,
+                position: { method: 'middle', offset: 0 },
+              },
+            ],
+          },
+        ],
+      },
+    ],
   } as unknown as RocketTree;
 
   it('rejects a file containing pods (podset) — loads nothing', () => {
-    const withPod = '<openrocket><rocket><name>P</name><subcomponents><stage><name>S</name>'
-      + '<subcomponents><podset><name>Pod</name></podset></subcomponents></stage></subcomponents></rocket></openrocket>';
+    const withPod =
+      '<openrocket><rocket><name>P</name><subcomponents><stage><name>S</name>' +
+      '<subcomponents><podset><name>Pod</name></podset></subcomponents></stage></subcomponents></rocket></openrocket>';
     expect(() => importOrk(withPod)).toThrow(/pods/i);
   });
 
   it('rejects a multi-stage (axial) design — loads nothing', () => {
-    const twoStage = '<openrocket><rocket><name>Two</name><subcomponents>'
-      + '<stage><name>Sustainer</name></stage>'
-      + '<stage><name>Booster</name></stage>'
-      + '</subcomponents></rocket></openrocket>';
+    const twoStage =
+      '<openrocket><rocket><name>Two</name><subcomponents>' +
+      '<stage><name>Sustainer</name></stage>' +
+      '<stage><name>Booster</name></stage>' +
+      '</subcomponents></rocket></openrocket>';
     expect(() => importOrk(twoStage)).toThrow(/multiple stages/i);
   });
 
@@ -108,18 +132,40 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
 
   it('preserves a fin-set cant angle through export → import', () => {
     const canted = {
-      components: [{
-        type: 'stage', name: 'Sustainer', id: 's1', children: [{
-          type: 'bodytube', id: 'body', length: 0.3, outerRadius: 0.013, thickness: 0.0005,
-          children: [{
-            type: 'trapezoidfinset', id: 'fins', finCount: 3, rootChord: 0.06, tipChord: 0.03,
-            sweep: 0.03, height: 0.05, thickness: 0.003, cant: Math.PI / 36, // 5°
-            position: { method: 'bottom', offset: 0 },
-          }],
-        }],
-      }],
+      components: [
+        {
+          type: 'stage',
+          name: 'Sustainer',
+          id: 's1',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'body',
+              length: 0.3,
+              outerRadius: 0.013,
+              thickness: 0.0005,
+              children: [
+                {
+                  type: 'trapezoidfinset',
+                  id: 'fins',
+                  finCount: 3,
+                  rootChord: 0.06,
+                  tipChord: 0.03,
+                  sweep: 0.03,
+                  height: 0.05,
+                  thickness: 0.003,
+                  cant: Math.PI / 36, // 5°
+                  position: { method: 'bottom', offset: 0 },
+                },
+              ],
+            },
+          ],
+        },
+      ],
     } as unknown as RocketTree;
-    const fins = findByType(importOrk(exportOrk({ name: 'Cant', tree: canted })).tree, 'trapezoidfinset') as { cant?: number };
+    const fins = findByType(importOrk(exportOrk({ name: 'Cant', tree: canted })).tree, 'trapezoidfinset') as {
+      cant?: number;
+    };
     expect(fins.cant).toBeCloseTo(Math.PI / 36, 6);
   });
 
@@ -127,19 +173,38 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
     // A split cluster is single tubes carrying radialPosition (m) + radialDirection (rad).
     // Regression: the writer used to hard-write 0.0, collapsing every tube onto the axis.
     const clustered = {
-      components: [{
-        type: 'stage', name: 'Sustainer', id: 's1', children: [{
-          type: 'bodytube', id: 'body', length: 0.3, outerRadius: 0.026, thickness: 0.0005,
-          children: [{
-            type: 'innertube', id: 'mount', length: 0.07, outerRadius: 0.0095, thickness: 0.0005,
-            radialPosition: 0.012, radialDirection: Math.PI / 3, // 60°
-            position: { method: 'bottom', offset: 0 },
-          }],
-        }],
-      }],
+      components: [
+        {
+          type: 'stage',
+          name: 'Sustainer',
+          id: 's1',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'body',
+              length: 0.3,
+              outerRadius: 0.026,
+              thickness: 0.0005,
+              children: [
+                {
+                  type: 'innertube',
+                  id: 'mount',
+                  length: 0.07,
+                  outerRadius: 0.0095,
+                  thickness: 0.0005,
+                  radialPosition: 0.012,
+                  radialDirection: Math.PI / 3, // 60°
+                  position: { method: 'bottom', offset: 0 },
+                },
+              ],
+            },
+          ],
+        },
+      ],
     } as unknown as RocketTree;
     const tube = findByType(importOrk(exportOrk({ name: 'Cluster', tree: clustered })).tree, 'innertube') as {
-      radialPosition?: number; radialDirection?: number;
+      radialPosition?: number;
+      radialDirection?: number;
     };
     expect(tube.radialPosition).toBeCloseTo(0.012, 6);
     expect(tube.radialDirection).toBeCloseTo(Math.PI / 3, 6);
@@ -148,27 +213,53 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
 
 describe('recovery-device features round-trip', () => {
   const tree = {
-    components: [{
-      type: 'stage', name: 'Sustainer', id: 's1', children: [{
-        type: 'bodytube', id: 'body', length: 0.3, outerRadius: 0.013, thickness: 0.0005,
+    components: [
+      {
+        type: 'stage',
+        name: 'Sustainer',
+        id: 's1',
         children: [
           {
-            type: 'parachute', id: 'chute', diameter: 0.5, cd: 0.9,
-            lineCount: 8, lineLength: 0.45,
-            surfaceMaterialName: 'Ripstop nylon', surfaceDensity: 0.067,
-            lineMaterialName: 'Braided nylon (2 mm, 1/16 in)', lineDensity: 0.001,
-            deployEvent: 'apogee', deployAltitude: 200, deployDelay: 0,
-            position: { method: 'top', offset: 0.02 },
-          },
-          {
-            type: 'streamer', id: 'strmr', stripLength: 0.9, stripWidth: 0.07, cd: 0.55,
-            surfaceMaterialName: 'Mylar', surfaceDensity: 0.021,
-            deployEvent: 'apogee', deployAltitude: 200, deployDelay: 0,
-            position: { method: 'top', offset: 0.1 },
+            type: 'bodytube',
+            id: 'body',
+            length: 0.3,
+            outerRadius: 0.013,
+            thickness: 0.0005,
+            children: [
+              {
+                type: 'parachute',
+                id: 'chute',
+                diameter: 0.5,
+                cd: 0.9,
+                lineCount: 8,
+                lineLength: 0.45,
+                surfaceMaterialName: 'Ripstop nylon',
+                surfaceDensity: 0.067,
+                lineMaterialName: 'Braided nylon (2 mm, 1/16 in)',
+                lineDensity: 0.001,
+                deployEvent: 'apogee',
+                deployAltitude: 200,
+                deployDelay: 0,
+                position: { method: 'top', offset: 0.02 },
+              },
+              {
+                type: 'streamer',
+                id: 'strmr',
+                stripLength: 0.9,
+                stripWidth: 0.07,
+                cd: 0.55,
+                surfaceMaterialName: 'Mylar',
+                surfaceDensity: 0.021,
+                deployEvent: 'apogee',
+                deployAltitude: 200,
+                deployDelay: 0,
+                position: { method: 'top', offset: 0.1 },
+              },
+            ],
           },
         ],
-      }],
-    }],
+      },
+    ],
   } as unknown as RocketTree;
 
   const out = importOrk(exportOrk({ name: 'Recovery', tree }));
@@ -193,29 +284,75 @@ describe('recovery-device features round-trip', () => {
 
 describe('newly-editable component options round-trip', () => {
   const tree = {
-    components: [{
-      type: 'stage', id: 's1', name: 'S', children: [
-        {
-          type: 'nosecone', id: 'nc', shape: 'ogive', length: 0.1, aftRadius: 0.013, thickness: 0.001,
-          shoulderLength: 0.02, shoulderRadius: 0.011, shoulderThickness: 0.0008, shoulderCapped: true,
-        },
-        {
-          type: 'transition', id: 'tr', shape: 'conical', length: 0.05, foreRadius: 0.013, aftRadius: 0.019, thickness: 0.0005,
-          foreShoulderLength: 0.015, foreShoulderRadius: 0.012, aftShoulderLength: 0.018, aftShoulderRadius: 0.018,
-          position: { method: 'bottom', offset: 0 },
-        },
-        {
-          type: 'bodytube', id: 'bt', length: 0.3, outerRadius: 0.013, thickness: 0.0005, motorMount: true, motorOverhang: 0.01,
-          children: [
-            {
-              type: 'trapezoidfinset', id: 'fin', finCount: 3, rootChord: 0.06, tipChord: 0.03, sweep: 0.03, height: 0.05, thickness: 0.003,
-              tabHeight: 0.02, tabLength: 0.04, tabOffset: 0, tabOffsetMethod: 'top', position: { method: 'bottom', offset: 0 },
-            },
-            { type: 'engineblock', id: 'eb', length: 0.005, outerRadius: 0.0092, thickness: 0.0007, position: { method: 'bottom', offset: 0 } },
-          ],
-        },
-      ],
-    }],
+    components: [
+      {
+        type: 'stage',
+        id: 's1',
+        name: 'S',
+        children: [
+          {
+            type: 'nosecone',
+            id: 'nc',
+            shape: 'ogive',
+            length: 0.1,
+            aftRadius: 0.013,
+            thickness: 0.001,
+            shoulderLength: 0.02,
+            shoulderRadius: 0.011,
+            shoulderThickness: 0.0008,
+            shoulderCapped: true,
+          },
+          {
+            type: 'transition',
+            id: 'tr',
+            shape: 'conical',
+            length: 0.05,
+            foreRadius: 0.013,
+            aftRadius: 0.019,
+            thickness: 0.0005,
+            foreShoulderLength: 0.015,
+            foreShoulderRadius: 0.012,
+            aftShoulderLength: 0.018,
+            aftShoulderRadius: 0.018,
+            position: { method: 'bottom', offset: 0 },
+          },
+          {
+            type: 'bodytube',
+            id: 'bt',
+            length: 0.3,
+            outerRadius: 0.013,
+            thickness: 0.0005,
+            motorMount: true,
+            motorOverhang: 0.01,
+            children: [
+              {
+                type: 'trapezoidfinset',
+                id: 'fin',
+                finCount: 3,
+                rootChord: 0.06,
+                tipChord: 0.03,
+                sweep: 0.03,
+                height: 0.05,
+                thickness: 0.003,
+                tabHeight: 0.02,
+                tabLength: 0.04,
+                tabOffset: 0,
+                tabOffsetMethod: 'top',
+                position: { method: 'bottom', offset: 0 },
+              },
+              {
+                type: 'engineblock',
+                id: 'eb',
+                length: 0.005,
+                outerRadius: 0.0092,
+                thickness: 0.0007,
+                position: { method: 'bottom', offset: 0 },
+              },
+            ],
+          },
+        ],
+      },
+    ],
   } as unknown as RocketTree;
 
   const out = importOrk(exportOrk({ name: 'Feat', tree }));
@@ -256,17 +393,42 @@ describe('newly-editable component options round-trip', () => {
 
   it('preserves a freeform fin outline (points) through a round-trip', () => {
     const t = {
-      components: [{
-        type: 'stage', id: 's1', name: 'S', children: [{
-          type: 'bodytube', id: 'bt', length: 0.3, outerRadius: 0.013, thickness: 0.0005, children: [{
-            type: 'freeformfinset', id: 'ff', finCount: 4, thickness: 0.003,
-            points: [[0, 0], [0.03, 0.06], [0.07, 0.04], [0.08, 0]],
-            position: { method: 'bottom', offset: 0 },
-          }],
-        }],
-      }],
+      components: [
+        {
+          type: 'stage',
+          id: 's1',
+          name: 'S',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'bt',
+              length: 0.3,
+              outerRadius: 0.013,
+              thickness: 0.0005,
+              children: [
+                {
+                  type: 'freeformfinset',
+                  id: 'ff',
+                  finCount: 4,
+                  thickness: 0.003,
+                  points: [
+                    [0, 0],
+                    [0.03, 0.06],
+                    [0.07, 0.04],
+                    [0.08, 0],
+                  ],
+                  position: { method: 'bottom', offset: 0 },
+                },
+              ],
+            },
+          ],
+        },
+      ],
     } as unknown as RocketTree;
-    const ff = findByType(importOrk(exportOrk({ name: 'FF', tree: t })).tree, 'freeformfinset') as Record<string, unknown>;
+    const ff = findByType(importOrk(exportOrk({ name: 'FF', tree: t })).tree, 'freeformfinset') as Record<
+      string,
+      unknown
+    >;
     const pts = ff.points as [number, number][];
     expect(pts).toHaveLength(4);
     expect(pts[1]![0]).toBeCloseTo(0.03, 6);

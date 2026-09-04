@@ -46,7 +46,9 @@ export function SimulationsPanel() {
   const { t } = useTranslation();
   const { settings } = useSettings();
   const onRun = () => runSim(settings.simulation);
-  const onDeleteSim = (id: string) => { if (!settings.simulation.confirmDelete || window.confirm(t('sims.deleteConfirm'))) deleteSim(id); };
+  const onDeleteSim = (id: string) => {
+    if (!settings.simulation.confirmDelete || window.confirm(t('sims.deleteConfirm'))) deleteSim(id);
+  };
   // A design with no motor mount (nowhere to seat a motor) or no usable primary
   // motor can't fly — disable Run and say why, rather than failing on click.
   const blockReason = mounts.length === 0 ? t('sim.noMount') : !hasThrustCurve(motor) ? t('sim.noMotor') : null;
@@ -55,7 +57,10 @@ export function SimulationsPanel() {
   // simulation and opens its config below; expanded it lists every sim to switch
   // between. Selecting / adding / duplicating collapses back to that sim.
   const [listOpen, setListOpen] = useState(false);
-  const focusSim = (fn: () => void) => { fn(); setListOpen(false); };
+  const focusSim = (fn: () => void) => {
+    fn();
+    setListOpen(false);
+  };
 
   return (
     <>
@@ -65,7 +70,9 @@ export function SimulationsPanel() {
       <div className="relative space-y-4 p-3 pt-0">
         <BusyLock />
         <SimulationsList
-          sims={sims} activeId={activeId} open={listOpen}
+          sims={sims}
+          activeId={activeId}
+          open={listOpen}
           onToggleOpen={() => setListOpen((o) => !o)}
           onSelect={(id) => focusSim(() => onSelectSim(id))}
           onAdd={() => focusSim(onAddSim)}
@@ -80,7 +87,9 @@ export function SimulationsPanel() {
               <label className="block">
                 <span className="mb-1 block text-[10px] uppercase tracking-wide text-slate-400">{t('sims.name')}</span>
                 <input
-                  value={runLabel} onChange={(e) => onRenameSim(activeId, e.target.value)} onBlur={onCommit}
+                  value={runLabel}
+                  onChange={(e) => onRenameSim(activeId, e.target.value)}
+                  onBlur={onCommit}
                   aria-label={t('sims.rename')}
                   className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-sm font-medium text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
                 />
@@ -101,9 +110,14 @@ export function SimulationsPanel() {
                   onChange={isPrimary ? onMotorChange : (m) => setExtraMotor(id, m)}
                   onError={onError}
                   mountDiameter={bore}
-                  ignition={isPrimary
-                    ? { event: ignitionEvent ?? 'automatic', delay: ignitionDelay ?? 0 }
-                    : { event: extraMotors[id]?.ignitionEvent ?? 'automatic', delay: extraMotors[id]?.ignitionDelay ?? 0 }}
+                  ignition={
+                    isPrimary
+                      ? { event: ignitionEvent ?? 'automatic', delay: ignitionDelay ?? 0 }
+                      : {
+                          event: extraMotors[id]?.ignitionEvent ?? 'automatic',
+                          delay: extraMotors[id]?.ignitionDelay ?? 0,
+                        }
+                  }
                   onIgnitionChange={isPrimary ? setActiveIgnition : (e, d) => setExtraIgnition(id, e, d)}
                   onCommit={onCommit}
                   upperStage={isUpperStageMount(tree, id)}

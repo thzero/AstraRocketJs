@@ -7,7 +7,15 @@ const DESIGN_VIEWS: readonly ViewMode[] = ['2d', '3d', 'drag'];
 const RESULT_VIEWS: readonly ViewMode[] = ['flight', 'path'];
 
 /** Center-pane view switch: 2D · 3D · Aero, plus Flight · 3D path once a sim has run. */
-export function ViewToggle({ view, onChange, hasResult }: { view: ViewMode; onChange: (v: ViewMode) => void; hasResult: boolean }) {
+export function ViewToggle({
+  view,
+  onChange,
+  hasResult,
+}: {
+  view: ViewMode;
+  onChange: (v: ViewMode) => void;
+  hasResult: boolean;
+}) {
   const { t } = useTranslation();
   const views = hasResult ? [...DESIGN_VIEWS, ...RESULT_VIEWS] : DESIGN_VIEWS;
   return (

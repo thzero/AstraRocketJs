@@ -3,7 +3,10 @@ import { test, expect, type Page } from '@playwright/test';
 // The pre-1.0 "work in progress" modal overlays the canvas and swallows clicks;
 // dismiss it right after load (same helper as the other specs).
 async function dismissWip(page: Page) {
-  await page.getByRole('button', { name: 'I understand' }).click({ timeout: 10_000 }).catch(() => {});
+  await page
+    .getByRole('button', { name: 'I understand' })
+    .click({ timeout: 10_000 })
+    .catch(() => {});
 }
 
 /**
@@ -17,7 +20,11 @@ async function dismissWip(page: Page) {
  * logo svg has none), so `svg:has(title)` selects it unambiguously.
  */
 test.describe('2D schematic', () => {
-  const schematic = (page: Page) => page.locator('svg').filter({ has: page.locator('title') }).first();
+  const schematic = (page: Page) =>
+    page
+      .locator('svg')
+      .filter({ has: page.locator('title') })
+      .first();
 
   test('draws the default airframe with labeled components', async ({ page }) => {
     await page.goto('/');
@@ -38,11 +45,14 @@ test.describe('2D schematic', () => {
     await expect(svg).toBeVisible();
 
     // The zoom/pan group carries a `scale(k)` transform; identity is k=1.
-    const scaleOf = () => page.evaluate(() => {
-      const g = [...document.querySelectorAll('svg g')].find((el) => /scale\(/.test(el.getAttribute('transform') || ''));
-      const m = g?.getAttribute('transform')?.match(/scale\(([\d.]+)\)/);
-      return m ? parseFloat(m[1]) : 1;
-    });
+    const scaleOf = () =>
+      page.evaluate(() => {
+        const g = [...document.querySelectorAll('svg g')].find((el) =>
+          /scale\(/.test(el.getAttribute('transform') || ''),
+        );
+        const m = g?.getAttribute('transform')?.match(/scale\(([\d.]+)\)/);
+        return m ? parseFloat(m[1]) : 1;
+      });
 
     expect(await scaleOf()).toBe(1);
     await page.getByTitle(/Zoom in/i).click();

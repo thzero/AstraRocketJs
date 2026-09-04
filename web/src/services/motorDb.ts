@@ -29,19 +29,19 @@ export interface CatalogMotor {
   id?: string;
   /** Bundled thrust curve (from the build-time sync) — lets the motor resolve
    *  entirely offline, no thrustcurve.org fetch. Absent → fetched on demand. */
-  length?: number;      // mm
+  length?: number; // mm
   propWeightG?: number; // g
   /** Thrust curves, best-first (a motor can have several — cert/user, RASP/RockSim).
    *  Each `samples` is [time (s), thrust (N)] pairs. */
   curves?: { src: string; samples: [number, number][] }[];
   // Descriptive metadata for the detail panel (bundled by sync-motors.mjs).
-  code?: string;        // full manufacturer designation, e.g. "E26W"
-  type?: string;        // 'SU' | 'reload' | 'hybrid'
-  delays?: string;      // e.g. "4,6,7,8,10"
-  propInfo?: string;    // propellant type, e.g. "White Lightning"
+  code?: string; // full manufacturer designation, e.g. "E26W"
+  type?: string; // 'SU' | 'reload' | 'hybrid'
+  delays?: string; // e.g. "4,6,7,8,10"
+  propInfo?: string; // propellant type, e.g. "White Lightning"
   sparky?: boolean;
-  avgThrust?: number;   // N
-  maxThrust?: number;   // N
+  avgThrust?: number; // N
+  maxThrust?: number; // N
   /** Set by the sync when no thrust curve could be bundled (none published, or
    *  missing length/prop weight). Such a motor can't be plotted / combined. */
   noCurve?: boolean;
@@ -80,7 +80,9 @@ export async function loadCatalog(): Promise<CatalogMotor[]> {
   // fetched only when something first needs the catalog (e.g. the motor picker
   // opens) rather than weighing down the initial app bundle.
   const [custom, bundled] = await Promise.all([
-    getMotorStore().listCustomMotors().then((ms) => ms.map(customToRow)),
+    getMotorStore()
+      .listCustomMotors()
+      .then((ms) => ms.map(customToRow)),
     import('../data/motors.generated.json').then((m) => m.default as CatalogMotor[]),
   ]);
   return [...custom, ...bundled];

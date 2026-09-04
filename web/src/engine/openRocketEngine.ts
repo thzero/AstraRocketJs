@@ -114,9 +114,11 @@ async function tryLoadWasm(): Promise<EngineApi | null> {
     }
     // Load the runtime IIFE via a <script> tag; it installs globalThis.TeaVM.wasmGC.
     await loadWasmRuntime();
-    const wasmGC = (globalThis as unknown as {
-      TeaVM?: { wasmGC?: { load(src: ArrayBuffer, options?: unknown): Promise<{ exports: unknown }> } };
-    }).TeaVM?.wasmGC;
+    const wasmGC = (
+      globalThis as unknown as {
+        TeaVM?: { wasmGC?: { load(src: ArrayBuffer, options?: unknown): Promise<{ exports: unknown }> } };
+      }
+    ).TeaVM?.wasmGC;
     if (!wasmGC?.load) return null;
     // Fetch the bytes ourselves and hand them to load() — passing an ArrayBuffer
     // takes the WebAssembly.compile(bytes) path, sidestepping the runtime's
@@ -169,7 +171,10 @@ export function initEngine(): Promise<'wasm' | 'js'> {
   if (!initPromise) {
     initPromise = (async () => {
       const wasm = backendPref() === 'js' ? null : await tryLoadWasm();
-      if (wasm) { active = wasm; return 'wasm'; }
+      if (wasm) {
+        active = wasm;
+        return 'wasm';
+      }
       active = await loadJsEngine();
       return 'js';
     })();
@@ -310,20 +315,34 @@ export interface StaticInfo {
 
 export type ComponentType =
   | 'stage'
-  | 'nosecone' | 'transition' | 'bodytube'
-  | 'trapezoidfinset' | 'ellipticalfinset' | 'freeformfinset' | 'tubefinset'
-  | 'innertube' | 'tubecoupler' | 'centeringring' | 'bulkhead' | 'engineblock'
-  | 'launchlug' | 'railbutton'
+  | 'nosecone'
+  | 'transition'
+  | 'bodytube'
+  | 'trapezoidfinset'
+  | 'ellipticalfinset'
+  | 'freeformfinset'
+  | 'tubefinset'
+  | 'innertube'
+  | 'tubecoupler'
+  | 'centeringring'
+  | 'bulkhead'
+  | 'engineblock'
+  | 'launchlug'
+  | 'railbutton'
   // App-level component: the editor's engineTree() lowers a fairing to a
   // kernel strake-fin + CD/mass overrides before buildTree — the kernel
   // itself never sees this type.
   | 'fairing'
-  | 'parachute' | 'streamer' | 'shockcord' | 'masscomponent'
+  | 'parachute'
+  | 'streamer'
+  | 'shockcord'
+  | 'masscomponent'
   // Off-axis assemblies (ComponentAssembly): a non-separating pod, or a
   // separable parallel booster. Nested under a body component, never at the
   // rocket root. Kernel support (PodSet/ParallelStage) is compiled in; the
   // JS-bridge build path lands in a later phase.
-  | 'podset' | 'parallelstage';
+  | 'podset'
+  | 'parallelstage';
 
 /**
  * Stage separation trigger (lower stages only; desktop default "ejection").
@@ -332,8 +351,15 @@ export type ComponentType =
  * (m; RASAero power-on base-drag reduction, 0/absent = power-off, all stages).
  */
 export type SeparationEvent =
-  | 'launch' | 'ignition' | 'burnout' | 'ejection' | 'upperignition'
-  | 'altitudeascending' | 'apogee' | 'altitudedescending' | 'never';
+  | 'launch'
+  | 'ignition'
+  | 'burnout'
+  | 'ejection'
+  | 'upperignition'
+  | 'altitudeascending'
+  | 'apogee'
+  | 'altitudedescending'
+  | 'never';
 
 /**
  * When a mount's motor ignites. "automatic" = launch-stage motors at launch,
@@ -568,8 +594,7 @@ function assertFiniteCurve(motor: MotorSpec): void {
   }
   if (motor.masses.some((m) => m < 0)) {
     throw new Error(
-      `Motor ${motor.designation}: thrust curve ends at a negative mass ` +
-        '(propellant mass exceeds loaded mass).',
+      `Motor ${motor.designation}: thrust curve ends at a negative mass ` + '(propellant mass exceeds loaded mass).',
     );
   }
   // A motor that weighs nothing for the whole burn is not a motor. The kernel
@@ -608,8 +633,17 @@ export class OpenRocketDesign {
     // data with missing weights is the real-world source (see thrustcurve.ts).
     assertFiniteCurve(motor);
     eng().setMotorById(
-      this.handle, componentId, motor.designation, motor.diameter, motor.length,
-      motor.times, motor.thrusts, motor.masses, motor.cgX, toKernelDelay(motor.ejectionDelay));
+      this.handle,
+      componentId,
+      motor.designation,
+      motor.diameter,
+      motor.length,
+      motor.times,
+      motor.thrusts,
+      motor.masses,
+      motor.cgX,
+      toKernelDelay(motor.ejectionDelay),
+    );
   }
 
   /**
@@ -663,38 +697,44 @@ export class OpenRocketDesign {
    * per-component breakdown. Static — no flight needed. See {@link DragSweep}.
    */
   dragSweep(options: DragSweepOptions = {}): DragSweep {
-    const raw = eng().getDragSweep(this.handle, JSON.stringify({
-      machMin: options.machMin ?? 0.05,
-      machMax: options.machMax ?? 3.0,
-      machStep: options.machStep ?? 0.05,
-      aoaDeg: options.aoaDeg ?? 0,
-      machAlt: options.machAlt,
-    }));
+    const raw = eng().getDragSweep(
+      this.handle,
+      JSON.stringify({
+        machMin: options.machMin ?? 0.05,
+        machMax: options.machMax ?? 3.0,
+        machStep: options.machStep ?? 0.05,
+        aoaDeg: options.aoaDeg ?? 0,
+        machAlt: options.machAlt,
+      }),
+    );
     const parsed = JSON.parse(raw) as DragSweep & { error?: string };
     if (parsed.error) throw new Error(`Drag sweep failed: ${parsed.error}`);
     return parsed;
   }
 
   simulate(options: SimulationOptions = {}): FlightResult {
-    const raw = eng().simulateJson(this.handle, JSON.stringify({
-      rodLength: options.launchRodLength ?? 1.0,
-      rodAngle: options.launchRodAngle ?? 0,
-      rodDirection: options.launchRodDirection,
-      windAverage: options.windAverage ?? 0,
-      windStdDeviation: options.windStdDeviation ?? 0,
-      windDirection: options.windDirection,
-      windLevels: options.windLevels,
-      geodetic: options.geodetic,
-      launchAltitude: options.launchAltitude ?? 0,
-      temperature: options.temperature,
-      pressure: options.pressure,
-      launchLatitude: options.launchLatitude,
-      launchLongitude: options.launchLongitude,
-      timeStep: options.timeStep ?? 0.05,
-      maxTime: options.maxTime,
-      randomSeed: options.randomSeed,
-      series: options.series,
-    }));
+    const raw = eng().simulateJson(
+      this.handle,
+      JSON.stringify({
+        rodLength: options.launchRodLength ?? 1.0,
+        rodAngle: options.launchRodAngle ?? 0,
+        rodDirection: options.launchRodDirection,
+        windAverage: options.windAverage ?? 0,
+        windStdDeviation: options.windStdDeviation ?? 0,
+        windDirection: options.windDirection,
+        windLevels: options.windLevels,
+        geodetic: options.geodetic,
+        launchAltitude: options.launchAltitude ?? 0,
+        temperature: options.temperature,
+        pressure: options.pressure,
+        launchLatitude: options.launchLatitude,
+        launchLongitude: options.launchLongitude,
+        timeStep: options.timeStep ?? 0.05,
+        maxTime: options.maxTime,
+        randomSeed: options.randomSeed,
+        series: options.series,
+      }),
+    );
     const parsed = JSON.parse(raw) as FlightResult & { error?: string };
     if (parsed.error) {
       throw new Error(`Simulation failed: ${parsed.error}`);

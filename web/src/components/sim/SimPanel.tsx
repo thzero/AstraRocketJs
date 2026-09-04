@@ -18,7 +18,14 @@ function lastFinite(arr?: (number | null)[]): number | null {
 
 /** Run button + the active simulation's summary tiles (apogee, max V/A/Mach, times,
  *  rod exit, landing, downrange, deploy speed, optimum delay). */
-export function SimPanel({ info, runLabel, sim, busy, onRun, blockReason }: {
+export function SimPanel({
+  info,
+  runLabel,
+  sim,
+  busy,
+  onRun,
+  blockReason,
+}: {
   info: StaticInfo | null;
   runLabel: string;
   sim: FlightResult | null;
@@ -33,7 +40,8 @@ export function SimPanel({ info, runLabel, sim, busy, onRun, blockReason }: {
   const { deploymentSpeedWarn, railExitVelocityMin } = settings.simulation;
   const s = sim?.summary;
   // Safe-if-green thresholds (global settings): fast off the rail, gentle at deploy.
-  const goodTone = 'text-emerald-400', warnTone = 'text-amber-400';
+  const goodTone = 'text-emerald-400',
+    warnTone = 'text-amber-400';
   // Static margin at the instant the rocket clears the rod/rail — the
   // flight-relevant figure (real velocity + partly-burned mass), vs. the on-pad
   // "Stability" tile (Mach 0.3, fully loaded). OpenRocket records the same
@@ -64,22 +72,40 @@ export function SimPanel({ info, runLabel, sim, busy, onRun, blockReason }: {
       {s && (
         <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
           {/* Chronological: liftoff → boost → apogee → recovery → landing, then peaks. */}
-          <Stat label={t('sim.rodExit')} value={fmtNum(s.launchRodVelocity, 1)} sub="m/s" tone={s.launchRodVelocity >= railExitVelocityMin ? goodTone : warnTone} />
+          <Stat
+            label={t('sim.rodExit')}
+            value={fmtNum(s.launchRodVelocity, 1)}
+            sub="m/s"
+            tone={s.launchRodVelocity >= railExitVelocityMin ? goodTone : warnTone}
+          />
           {railMargin != null && (
             <Stat
               label={t('sim.railMargin')}
               value={fmtNum(railMargin, 2)}
-              sub={railCp != null ? `${t('stability.caliber')} · CP ${fmtNum(railCp * 100, 1)} cm` : t('stability.caliber')}
+              sub={
+                railCp != null ? `${t('stability.caliber')} · CP ${fmtNum(railCp * 100, 1)} cm` : t('stability.caliber')
+              }
               tone={stabilityTone(railMargin)}
             />
           )}
           {s.optimumDelay != null && <Stat label={t('sim.optDelay')} value={fmtNum(s.optimumDelay, 1)} sub="s" />}
           <Stat label={t('sim.toApogee')} value={fmtNum(s.timeToApogee, 1)} sub="s" />
           <Stat label={t('sim.apogee')} value={fmtNum(s.maxAltitude, 0)} sub="m" tone="text-sky-400" />
-          {s.deploymentVelocity != null && <Stat label={t('sim.deployVelocity')} value={fmtNum(s.deploymentVelocity, 1)} sub="m/s" tone={s.deploymentVelocity < deploymentSpeedWarn ? goodTone : warnTone} />}
-          {Number.isFinite(s.groundHitVelocity) && <Stat label={t('sim.landing')} value={fmtNum(s.groundHitVelocity, 1)} sub="m/s" />}
+          {s.deploymentVelocity != null && (
+            <Stat
+              label={t('sim.deployVelocity')}
+              value={fmtNum(s.deploymentVelocity, 1)}
+              sub="m/s"
+              tone={s.deploymentVelocity < deploymentSpeedWarn ? goodTone : warnTone}
+            />
+          )}
+          {Number.isFinite(s.groundHitVelocity) && (
+            <Stat label={t('sim.landing')} value={fmtNum(s.groundHitVelocity, 1)} sub="m/s" />
+          )}
           <Stat label={t('sim.flightTime')} value={fmtNum(s.flightTime, 1)} sub="s" />
-          {Number.isFinite(s.groundHitVelocity) && downrange != null && <Stat label={t('sim.downrange')} value={fmtNum(downrange, 0)} sub="m" />}
+          {Number.isFinite(s.groundHitVelocity) && downrange != null && (
+            <Stat label={t('sim.downrange')} value={fmtNum(downrange, 0)} sub="m" />
+          )}
           <Stat label={t('sim.maxAccel')} value={fmtNum(s.maxAcceleration, 0)} sub="m/s²" />
           <Stat label={t('sim.maxSpeed')} value={fmtNum(s.maxVelocity, 0)} sub="m/s" />
           <Stat label={t('sim.maxMach')} value={fmtNum(s.maxMachNumber, 2)} sub="Mach" />

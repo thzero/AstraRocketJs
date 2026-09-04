@@ -33,7 +33,7 @@ describe('workspace undo/redo', () => {
     expect(len('nose')).toBe(0.42);
 
     s().undo();
-    expect(len('nose')).toBe(before);       // jumps straight back to the pre-edit value
+    expect(len('nose')).toBe(before); // jumps straight back to the pre-edit value
     expect(s().past).toHaveLength(0);
     expect(s().future).toHaveLength(1);
   });
@@ -44,7 +44,7 @@ describe('workspace undo/redo', () => {
     s().commitEdit();
     s().setSelectedId('nose'); // selection moves after the edit
     s().undo();
-    expect(s().selectedId).toBe('body');    // undo re-focuses the edited part
+    expect(s().selectedId).toBe('body'); // undo re-focuses the edited part
   });
 
   it('undoes an add and a remove, reselecting what changed', () => {
@@ -62,7 +62,7 @@ describe('workspace undo/redo', () => {
     expect(findNode(s().tree, 'fins')).toBeNull();
     s().undo();
     expect(findNode(s().tree, 'fins')).toBeTruthy(); // the removed part is back
-    expect(s().selectedId).toBe('fins');            // and reselected
+    expect(s().selectedId).toBe('fins'); // and reselected
   });
 
   it('redoes, and a fresh edit clears the redo stack', () => {
@@ -101,7 +101,9 @@ describe('workspace undo/redo', () => {
 });
 
 describe('simulation undo/redo', () => {
-  beforeEach(() => { s().resetWorkspace(); });
+  beforeEach(() => {
+    s().resetWorkspace();
+  });
 
   it('undoes a motor change', () => {
     const before = active().motor.designation;
@@ -147,7 +149,7 @@ describe('simulation undo/redo', () => {
   });
 
   it('does not record history when just switching the active sim', () => {
-    s().addSim();               // one entry
+    s().addSim(); // one entry
     const firstId = s().sims[0].id;
     const before = s().past.length;
     s().setActiveId(firstId);
@@ -166,18 +168,20 @@ describe('simulation undo/redo', () => {
   it('shares one timeline with tree edits', () => {
     s().setSelectedId('nose');
     s().patchSelected({ length: 0.3 });
-    s().commitEdit();                       // entry 1: tree edit
+    s().commitEdit(); // entry 1: tree edit
     s().setActiveMotor({ ...C6, designation: 'Q1' }); // entry 2: sim edit
     expect(s().past).toHaveLength(2);
-    s().undo();                              // reverts the motor
+    s().undo(); // reverts the motor
     expect(active().motor.designation).not.toBe('Q1');
-    s().undo();                              // reverts the tree edit
+    s().undo(); // reverts the tree edit
     expect(findNode(s().tree, 'nose')!.length).not.toBe(0.3);
   });
 });
 
 describe('mount ↔ motor reconciliation', () => {
-  beforeEach(() => { s().resetWorkspace(); }); // default design: one mount ('mount'), no extras
+  beforeEach(() => {
+    s().resetWorkspace();
+  }); // default design: one mount ('mount'), no extras
 
   it('seeds a default motor when a second mount is added', () => {
     expect(Object.keys(s().extraMotors)).toHaveLength(0);
@@ -203,13 +207,15 @@ describe('mount ↔ motor reconciliation', () => {
     s().addPartToTree('innertube');
     const addedId = s().selectedId!;
     s().undo();
-    expect(findNode(s().tree, addedId)).toBeNull();          // mount gone
-    expect(s().extraMotors[addedId]).toBeUndefined();         // and its seeded motor
+    expect(findNode(s().tree, addedId)).toBeNull(); // mount gone
+    expect(s().extraMotors[addedId]).toBeUndefined(); // and its seeded motor
   });
 });
 
 describe('simulation run guards', () => {
-  beforeEach(() => { s().resetWorkspace(); });
+  beforeEach(() => {
+    s().resetWorkspace();
+  });
 
   it('hasThrustCurve distinguishes a real motor from an empty one', () => {
     expect(hasThrustCurve(C6)).toBe(true);
@@ -222,8 +228,8 @@ describe('simulation run guards', () => {
     s().removeSelected();
     expect(findMounts(s().tree)).toHaveLength(0);
     await s().runSim({} as SimPrefs);
-    expect(s().err).toBeTruthy();     // a reason was surfaced
-    expect(s().simBusy).toBe(false);  // never entered the running state
+    expect(s().err).toBeTruthy(); // a reason was surfaced
+    expect(s().simBusy).toBe(false); // never entered the running state
     expect(active().result).toBeNull();
   });
 });

@@ -36,9 +36,9 @@ export function impulse(samples: Sample[]): number {
 export interface Combined {
   samples: Sample[];
   totalImpulse: number; // N·s
-  peakThrust: number;   // N
-  avgThrust: number;    // N (over the longest burn)
-  burnTime: number;     // s (the longest-burning motor)
+  peakThrust: number; // N
+  avgThrust: number; // N (over the longest burn)
+  burnTime: number; // s (the longest-burning motor)
   motorCount: number;
 }
 

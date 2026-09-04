@@ -15,9 +15,7 @@ const CHAIN_TYPES = new Set(['nosecone', 'bodytube', 'transition']);
 
 /** Total axial length of the assembly's own body chain (m). */
 export function assemblyChainLength(pod: ComponentNode): number {
-  return (pod.children ?? [])
-    .filter((c) => CHAIN_TYPES.has(c.type))
-    .reduce((s, c) => s + num(c, 'length', 0), 0);
+  return (pod.children ?? []).filter((c) => CHAIN_TYPES.has(c.type)).reduce((s, c) => s + num(c, 'length', 0), 0);
 }
 
 /** Largest outer radius among the assembly's own body chain (m). */
@@ -45,7 +43,11 @@ export function resolveAssemblyRadius(pod: ComponentNode, parentOuterRadius: num
   return offset + parentOuterRadius + assemblyBoundingRadius(pod);
 }
 
-export interface RingInstance { y: number; z: number; angle: number }
+export interface RingInstance {
+  y: number;
+  z: number;
+  angle: number;
+}
 
 /**
  * The `count` instance centers around the parent axis at `radius`, spaced

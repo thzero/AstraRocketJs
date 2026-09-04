@@ -7,7 +7,10 @@ import { test, expect, type Page } from '@playwright/test';
  */
 
 async function dismissWip(page: Page) {
-  await page.getByRole('button', { name: 'I understand' }).click({ timeout: 10_000 }).catch(() => {});
+  await page
+    .getByRole('button', { name: 'I understand' })
+    .click({ timeout: 10_000 })
+    .catch(() => {});
 }
 
 async function openDashboard(page: Page) {
@@ -72,7 +75,19 @@ test('adding many columns scrolls the grid, it does not shove the detail pane', 
 
   // Turn on every optional column.
   await dialog.getByText('Columns', { exact: true }).click();
-  for (const name of ['Peak N', 'Length mm', 'Mass g', 'Prop g', 'Delays', 'Type', 'Designation', 'Isp s', 'Mass frac.', 'Sparky', 'Curves']) {
+  for (const name of [
+    'Peak N',
+    'Length mm',
+    'Mass g',
+    'Prop g',
+    'Delays',
+    'Type',
+    'Designation',
+    'Isp s',
+    'Mass frac.',
+    'Sparky',
+    'Curves',
+  ]) {
     await dialog.getByRole('checkbox', { name, exact: true }).check();
   }
   await dialog.getByText('Columns', { exact: true }).click(); // close the dropdown
