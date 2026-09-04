@@ -5,9 +5,8 @@ import type { MotorSpec, RocketTree, ComponentNode, ComponentType as PartType, I
 import { findMountId, findMounts, findNode, updateNode, removeNode, addPart, moveNode } from '../services/treeEdit';
 import { reconcileMounts } from '../services/mountMotors';
 import type { LaunchConditions } from '../services/orkTree';
-import { downloadOrk } from '../services/saveOrk';
 import type { OrkExportMotor } from '../services/orkFile';
-import { loadOrk, type MountMotor } from '../services/loadOrk';
+import type { MountMotor } from '../services/loadOrk';
 import { newSimulation, simConditions, type Simulation, type SimPrefs } from '../services/simulations';
 import { simulateInWorker, SimTimeoutError } from '../engine/simClient';
 import { loadSettings } from '../services/settings';
@@ -360,7 +359,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     openOrkFile: async (file) => {
       try {
-        const res = await loadOrk(await file.arrayBuffer());
+        // The .ork parser (fflate + XML importer) is a lazily-imported chunk —
+        // it isn't part of first paint, only of opening a file.
+        const bytes = await file.arrayBuffer();
+        const { loadOrk } = await import('../services/loadOrk');
+        const res = await loadOrk(bytes);
         // The primary mount's motor drives the Motor panel; the rest ride along in extraMotors.
         const primary = findMountId(res.tree);
         const extra = { ...res.motorSpecs };
@@ -390,7 +393,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set({ tree: specToTree(DEFAULT_SPEC).tree, extraMotors: {}, loadedMeta: null, sims: [s0], activeId: s0.id, selectedId: null, view: '2d' });
     },
     newWorkspace: () => { if (window.confirm(i18n.t('file.newConfirm'))) get().resetWorkspace(); },
-    saveOrk: () => {
+    saveOrk: async () => {
       try {
         const { tree, extraMotors, loadedMeta } = get();
         const active = selectActive(get());
@@ -403,6 +406,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           if (id === mountId || !findNode(tree, id)) continue; // primary is exported above; skip its (ignored) entry + gone mounts
           motors[id] = { ...base[id], designation: m.spec.designation, diameter: m.spec.diameter, length: m.spec.length, delay: m.spec.ejectionDelay, ignitionEvent: m.ignitionEvent, ignitionDelay: m.ignitionDelay };
         }
+        // The .ork writer is a lazily-imported chunk — only needed on save.
+        const { downloadOrk } = await import('../services/saveOrk');
         downloadOrk({ name: loadedMeta?.name || tree.name || defaultDesignName(), tree, motors, launch: selectActive(get()).launch });
       } catch (e) {
         set({ err: `Could not save .ork: ${e instanceof Error ? e.message : String(e)}` });
