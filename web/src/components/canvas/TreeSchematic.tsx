@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode, ComponentPosition, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
@@ -222,7 +222,11 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
     { pointerX: number; pointerY: number; x0: number; y0: number; active: boolean } | null
   >(null);
 
-  // --- measure the axial chain ---
+  // --- measure the axial chain (memoized) ---
+  // Pure geometry derived from the tree, info and container size, so the
+  // frequently-changing state (hover, zoom, calipers, roll) no longer
+  // recomputes the whole layout on every render.
+  const layout = useMemo(() => {
   // Stages flatten into one nose-to-tail chain (sustainer first, boosters
   // after — the desktop's stacking order); legacy flat trees pass through.
   const chain = tree.components.flatMap((n) => (n.type === 'stage' ? n.children ?? [] : [n]));
@@ -326,6 +330,9 @@ export function TreeSchematic({ tree, info, motors, onPatchNode, maxHeight = 480
   const x0 = Math.max(pad, (w - rulerW - totalLen * scale) / 2);
   // Centre the rocket in the area ABOVE the bottom ruler lane.
   const ctx: Ctx = { scale, cy: (h - rulerLane) / 2, x0 };
+  return { chain, totalLen, maxR, vHalf, snapXs, radialSnaps, rulerLane, w, h, scale, ctx };
+  }, [tree, info, vertical, chPx, cw, maxHeight, fillHeight]);
+  const { chain, totalLen, maxR, vHalf, snapXs, radialSnaps, rulerLane, w, h, scale, ctx } = layout;
 
   const beginDrag = (child: ComponentNode, parent: ComponentNode, pLen: number) =>
     (e: React.PointerEvent) => {
