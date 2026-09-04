@@ -204,7 +204,11 @@ export function CenterView() {
         )}
       </div>
       <div className="shrink-0">
-        <StabilityBadge info={info} />
+        <StabilityBadge
+          info={info}
+          expanded={settings.showStats}
+          onToggle={() => update({ showStats: !settings.showStats })}
+        />
       </div>
     </div>
   );

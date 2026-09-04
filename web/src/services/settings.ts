@@ -58,6 +58,8 @@ export interface Settings {
   showMarkers: boolean;
   /** Show the length · mass · CG · CP · stability info card on the 2D & 3D views. */
   showInfoCard: boolean;
+  /** Expand the "All stats" strip under the canvas (collapsed = just its header). */
+  showStats: boolean;
   /** Whether the user has dismissed the pre-1.0 "work in progress" notice. */
   wipAcknowledged: boolean;
 }
@@ -78,6 +80,7 @@ export const DEFAULT_SETTINGS: Settings = {
   launchDefaults: DEFAULT_LAUNCH,
   showMarkers: true,
   showInfoCard: true,
+  showStats: true,
   wipAcknowledged: false,
 };
 
@@ -96,6 +99,7 @@ export function loadSettings(): Settings {
       launchDefaults: { ...DEFAULT_SETTINGS.launchDefaults, ...(s.launchDefaults ?? {}) },
       showMarkers: typeof s.showMarkers === 'boolean' ? s.showMarkers : DEFAULT_SETTINGS.showMarkers,
       showInfoCard: typeof s.showInfoCard === 'boolean' ? s.showInfoCard : DEFAULT_SETTINGS.showInfoCard,
+      showStats: typeof s.showStats === 'boolean' ? s.showStats : DEFAULT_SETTINGS.showStats,
       wipAcknowledged: typeof s.wipAcknowledged === 'boolean' ? s.wipAcknowledged : DEFAULT_SETTINGS.wipAcknowledged,
     };
   } catch {

@@ -124,6 +124,7 @@
     "overstable": "Sobreestable"
   },
   "stats": {
+    "title": "Todas las estadísticas",
     "length": "Longitud",
     "maxDiameter": "Diámetro máx.",
     "fineness": "Esbeltez",

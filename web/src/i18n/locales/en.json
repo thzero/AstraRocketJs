@@ -121,6 +121,7 @@
     "overstable": "Overstable"
   },
   "stats": {
+    "title": "Rocket static stats",
     "length": "Length",
     "maxDiameter": "Max diameter",
     "fineness": "Fineness",
