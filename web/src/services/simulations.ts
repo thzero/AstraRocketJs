@@ -3,6 +3,7 @@
 // list of these; switching the active one drives the stability readout and sim.
 import type { MotorSpec, FlightResult, IgnitionEvent } from '../engine/openRocketEngine';
 import type { LaunchConditions } from './orkTree';
+import { uuid } from './uuid';
 
 export interface Simulation {
   id: string;
@@ -19,7 +20,7 @@ export interface Simulation {
 
 /** Globally-unique id for a new simulation — a UUID (like OpenRocket's own ids),
  *  so ids minted after a reload can't collide with persisted ones. */
-function newSimId(): string { return crypto.randomUUID(); }
+function newSimId(): string { return uuid(); }
 
 export function newSimulation(name: string, motor: MotorSpec, launch: LaunchConditions): Simulation {
   return { id: newSimId(), name, motor, launch, result: null };

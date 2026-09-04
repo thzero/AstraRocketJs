@@ -28,20 +28,9 @@ export const C6: MotorSpec = {
 };
 
 /**
- * Rebuild the rocket from scratch and attach the motor. resetEngine() frees the
- * previous design's handles, so always rebuild before reading static info / simulating.
- */
-export function buildRocket(spec: RocketSpec, motor: MotorSpec = C6): OpenRocketDesign {
-  resetEngine();
-  const rocket = OpenRocketDesign.build(spec);
-  rocket.setMotor(motor);
-  return rocket;
-}
-
-/**
  * Build a rocket from an editable component tree and (optionally) seat a motor
- * in the mount with `mountId`. Used by the tree editor — mirrors buildRocket
- * but for arbitrary trees. resetEngine() frees the previous design's handles.
+ * in the mount with `mountId`. Used by the tree editor. resetEngine() frees the
+ * previous design's handles, so always rebuild before reading static info / simulating.
  */
 export function buildRocketTree(tree: RocketTree, motor?: MotorSpec, mountId?: string): OpenRocketDesign {
   resetEngine();

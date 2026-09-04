@@ -1,14 +1,12 @@
 import type { ComponentNode, ComponentPosition, RocketTree } from '../engine/openRocketEngine';
 import { assemblyChainLength, isAssembly } from './assembly.js';
+import { num } from './nodeProps';
 
 /**
  * Axial-position math shared by the 2D schematic (drag) and the property
  * panel (slider snapping). All SI. "start" = a child's leading edge measured
  * from its parent's leading edge.
  */
-
-const num = (n: ComponentNode, key: string, fb: number): number =>
-  typeof n[key] === 'number' ? (n[key] as number) : fb;
 
 /** A component's axial extent used for positioning (fins use root chord). */
 export function axialLength(n: ComponentNode): number {
@@ -77,7 +75,7 @@ export function resolveAbsolutePositions(tree: RocketTree): RocketTree {
   const components = tree.components.map((stage) => {
     const kids = stage.type === 'stage' ? stage.children ?? [] : [stage];
     const fixedKids = kids.map((n) => {
-      const len = chainTypes.has(n.type) ? (typeof n['length'] === 'number' ? (n['length'] as number) : 0) : 0;
+      const len = chainTypes.has(n.type) ? num(n, 'length', 0) : 0;
       const fixed = fixChildren(n, x, len);
       x += len;
       return fixed;

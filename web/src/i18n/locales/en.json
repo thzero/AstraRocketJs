@@ -1,5 +1,6 @@
 {
   "app": { "title": "AstraRocketJs", "version": "{{name}} version {{version}}", "designName": "{{name}} design" },
+  "common": { "loading": "Loading…" },
   "engine": { "wasmTip": "Physics engine: WebAssembly (fast path)", "jsTip": "Physics engine: JavaScript (fallback)" },
   "about": {
     "open": "About",
@@ -146,7 +147,9 @@
     "deployVelocity": "Deploy speed",
     "optDelay": "Optimum delay",
     "noMount": "Add a motor mount to run a simulation.",
-    "noMotor": "Load a motor to run a simulation."
+    "noMotor": "Load a motor to run a simulation.",
+    "lockedWhileRunning": "Locked while the simulation runs — edits resume when it finishes.",
+    "timeout": "The simulation took too long and was stopped. Try again, or simplify the design."
   },
   "warn": {
     "lastMountDelete": "This is the only motor mount. Delete it anyway? The rocket can't be simulated until you add another.",
@@ -380,7 +383,6 @@
     "plugged": "plugged",
     "all": "All",
     "count": "{{total}} motors",
-    "showing": " (showing {{shown}})",
     "deleteTitle": "Delete imported motor {{name}}",
     "importedTitle": "Imported motor"
   },
@@ -508,6 +510,7 @@
     "searchCode": "Search by code (e.g. C6)…",
     "select": "Select",
     "loading": "Loading…",
+    "loadingCatalog": "Loading motor catalog…",
     "pickHint": "Select a motor to see its thrust curve and specifications.",
     "backToList": "Back to list",
     "curve": "Curve",

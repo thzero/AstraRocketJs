@@ -5,7 +5,6 @@
 //
 // The bundled JSON is the seed; on first load we mirror it into localStorage so
 // the catalog itself lives in local alongside the fetched curves.
-import bundled from '../data/motors.generated.json';
 import { getMotorStore, type CustomMotor } from './motorStore';
 import { parseEng, totalImpulse } from './engParser';
 
@@ -77,8 +76,14 @@ function customToRow(cm: CustomMotor): CatalogMotor {
  * is too large to cache there, and the bundle is always available offline).
  */
 export async function loadCatalog(): Promise<CatalogMotor[]> {
-  const custom = (await getMotorStore().listCustomMotors()).map(customToRow);
-  return [...custom, ...(bundled as CatalogMotor[])];
+  // The 700 kB+ catalog is dynamically imported so it splits into its own chunk,
+  // fetched only when something first needs the catalog (e.g. the motor picker
+  // opens) rather than weighing down the initial app bundle.
+  const [custom, bundled] = await Promise.all([
+    getMotorStore().listCustomMotors().then((ms) => ms.map(customToRow)),
+    import('../data/motors.generated.json').then((m) => m.default as CatalogMotor[]),
+  ]);
+  return [...custom, ...bundled];
 }
 
 /** Parse a .eng file, store it as a custom motor, and return the refreshed catalog. */

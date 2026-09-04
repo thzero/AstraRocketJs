@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
+import { num } from '../../tree/nodeProps';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
@@ -17,9 +18,6 @@ import { isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tr
  */
 
 interface MotorDims { length: number; diameter: number }
-
-const num = (n: ComponentNode, key: string, fb: number): number =>
-  typeof n[key] === 'number' ? (n[key] as number) : fb;
 
 const colorOf = (n: ComponentNode, dflt: string): string =>
   typeof n['color'] === 'string' ? (n['color'] as string) : dflt;
