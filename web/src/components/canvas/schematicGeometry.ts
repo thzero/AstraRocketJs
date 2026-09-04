@@ -1,13 +1,20 @@
-import type { ComponentNode, ComponentPosition } from '../../engine/openRocketEngine';
+import type { ComponentNode, ComponentPosition, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
 import { num, numOpt } from '../../tree/nodeProps';
-import { startFromPosition } from '../../tree/position.js';
+import { axialLength, startFromPosition } from '../../tree/position.js';
 import { outerProfile } from '../../tree/shapeProfile.js';
+import { tubeFinRadius } from '../../tree/tubefins.js';
+import { assemblyBoundingRadius, isAssembly, resolveAssemblyRadius } from '../../tree/assembly.js';
 
 export interface Ctx {
   scale: number;
   cy: number;
   x0: number;
 }
+
+/** Height (viewBox px) reserved at the bottom for the length ruler (side view). */
+export const RULER_H = 16;
+/** Width (viewBox px) reserved on the right for the radial (cross-section) ruler. */
+export const RULER_W = 26;
 
 export const MARKER_R = 9;
 /** Total viewBox px of height reserved for the two callout lanes (S2). */
@@ -126,4 +133,121 @@ export function profilePath(
   const top = pts.map(([xi, r]) => `${px(xi)} ${baseY - r * ctx.scale}`);
   const bottom = pts.slice().reverse().map(([xi, r]) => `${px(xi)} ${baseY + r * ctx.scale}`);
   return `M ${top.join(' L ')} L ${bottom.join(' L ')} Z`;
+}
+
+/**
+ * Pure geometry derived from the tree, info and container size, so the
+ * frequently-changing state (hover, zoom, calipers, roll) no longer
+ * recomputes the whole layout on every render.
+ */
+export function computeSchematicLayout(
+  tree: RocketTree,
+  info: StaticInfo | null,
+  dims: { vertical?: boolean; chPx: number; cw: number; maxHeight: number; fillHeight?: boolean },
+): { chain: ComponentNode[]; totalLen: number; maxR: number; vHalf: number; snapXs: number[]; radialSnaps: number[]; rulerLane: number; w: number; h: number; scale: number; ctx: Ctx } {
+  const { vertical, chPx, cw, maxHeight, fillHeight } = dims;
+  // Stages flatten into one nose-to-tail chain (sustainer first, boosters
+  // after — the desktop's stacking order); legacy flat trees pass through.
+  const chain = tree.components.flatMap((n) => (n.type === 'stage' ? n.children ?? [] : [n]));
+  let totalLen = 0;
+  let maxR = 0.001;
+  for (const n of chain) {
+    if (n.type === 'nosecone' || n.type === 'bodytube' || n.type === 'transition') {
+      totalLen += num(n, 'length', 0);
+      maxR = Math.max(maxR, num(n, 'aftRadius', 0), num(n, 'outerRadius', 0), num(n, 'foreRadius', 0));
+    }
+  }
+  // A fin set's vertical span: freeform fins carry no 'height' key — their
+  // reach is the outline's y-max (the 0.03 default clipped tall freeform fins
+  // out of the adaptive-height frame).
+  const finSpan = (n: ComponentNode): number => {
+    if (!n.type.endsWith('finset')) return 0;
+    if (n.type === 'freeformfinset') {
+      const pts = n['points'];
+      if (Array.isArray(pts) && pts.length > 0) {
+        return Math.max(0, ...pts.map((p) => (Array.isArray(p) ? Number(p[1]) || 0 : 0)));
+      }
+    }
+    // Tube fins reach one tube diameter above the body surface.
+    if (n.type === 'tubefinset') return 2 * tubeFinRadius(n, maxR);
+    return num(n, 'height', 0.03);
+  };
+  const protuberanceSpan = (n: ComponentNode): number =>
+    (n.type === 'fairing' ? num(n, 'height', 0.02) : 0);
+  const finH = Math.max(
+    0,
+    ...collect(tree.components, finSpan),
+    ...collect(tree.components, protuberanceSpan),
+  );
+  totalLen = Math.max(totalLen, 0.05);
+
+  // Vertical half-extent (m): the core body + fins, plus any off-axis pod's
+  // reach (its centerline radius + its own body + its fins) so pods don't clip.
+  let vHalf = maxR + finH;
+  const scanRadial = (nodes: ComponentNode[], parentR: number) => {
+    for (const n of nodes) {
+      if (isAssembly(n.type)) {
+        const podFin = Math.max(0, ...collect(n.children ?? [], finSpan));
+        vHalf = Math.max(vHalf, resolveAssemblyRadius(n, parentR) + assemblyBoundingRadius(n) + podFin);
+        scanRadial(n.children ?? [], assemblyBoundingRadius(n));
+      } else {
+        const r = Math.max(num(n, 'aftRadius', 0), num(n, 'outerRadius', 0), num(n, 'foreRadius', 0)) || parentR;
+        scanRadial(n.children ?? [], r);
+      }
+    }
+  };
+  scanRadial(chain, maxR);
+
+  // Caliper snap targets: axial component + child edges (horizontal), and radial
+  // magnitudes — each component's radius, the body, the full span (vertical).
+  const snapXs: number[] = [];
+  const radialSet = new Set<number>([0, maxR, vHalf]);
+  {
+    let cx = 0;
+    for (const n of chain) {
+      if (n.type === 'nosecone' || n.type === 'bodytube' || n.type === 'transition') {
+        const len = num(n, 'length', 0);
+        snapXs.push(cx, cx + len);
+        for (const child of n.children ?? []) {
+          const clen = axialLength(child);
+          if (clen > 0) { const cs = axialStart(child, clen, cx, len); snapXs.push(cs, cs + clen); }
+        }
+        const r = Math.max(num(n, 'aftRadius', 0), num(n, 'outerRadius', 0), num(n, 'foreRadius', 0));
+        if (r > 0) radialSet.add(r);
+        cx += len;
+      }
+    }
+  }
+  const radialSnaps = [...radialSet];
+
+  // Vertical mode swaps the container roles BEFORE layout: all layout math
+  // stays horizontal (length along x) and the finished drawing rotates
+  // nose-up as one group, so the length axis fits the container HEIGHT and
+  // the cross extent its width.
+  const w = Math.max(320, vertical ? chPx : cw);
+  const pad = 26;
+  // Height follows the rocket's own proportions (clamped): a long thin
+  // rocket gets a wide low band, not a fixed frame of empty sky. When info
+  // is present the CG/CP callout lanes need sky of their own, so their
+  // allowance is added to the height AND kept out of the vertical fit —
+  // otherwise a height-limited short/fat rocket would fill it and clip them.
+  const lanes = info ? CALLOUT_LANES : 0;
+  // Side view reserves a ruler lane at the bottom (length) and on the right
+  // (radial cross-section), both kept out of the fit.
+  const rulerLane = vertical ? 0 : RULER_H;
+  const rulerW = vertical ? 0 : RULER_W;
+  const crossCap = vertical ? Math.max(160, cw) : maxHeight;
+  const h = vertical || !fillHeight
+    ? Math.round(Math.min(crossCap, Math.max(200, 2 * vHalf * ((w - 2 * pad) / totalLen) + 2 * pad + lanes + rulerLane)))
+    : Math.max(200, chPx);
+  // Horizontal headroom: `totalLen` covers only the axial chain (nose+body), so
+  // aft-swept fins overhang past it and the CG/CP labels reach right of the aft.
+  // Fit to ~12% more than the bare length so nothing sits flush to the edge, and
+  // centre the drawing so the margin is even on both sides.
+  const scale = Math.min((w - 2 * pad - rulerW) / (totalLen * 1.12), (h - 2 * pad - lanes - rulerLane) / (2 * vHalf));
+  // Centre the rocket in the area LEFT of the right ruler lane.
+  const x0 = Math.max(pad, (w - rulerW - totalLen * scale) / 2);
+  // Centre the rocket in the area ABOVE the bottom ruler lane.
+  const ctx: Ctx = { scale, cy: (h - rulerLane) / 2, x0 };
+  return { chain, totalLen, maxR, vHalf, snapXs, radialSnaps, rulerLane, w, h, scale, ctx };
 }

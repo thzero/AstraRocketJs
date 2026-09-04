@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode } from '../../engine/openRocketEngine';
+import type { RocketTree } from '../../engine/openRocketEngine';
 import {
   niceStep, snapNear, axialStart, collect, profilePath,
-  calloutLayout, finTabFront, CALLOUT_LANES,
+  calloutLayout, finTabFront, CALLOUT_LANES, computeSchematicLayout,
 } from './schematicGeometry';
 
 describe('niceStep', () => {
@@ -107,5 +108,50 @@ describe('profilePath', () => {
     // outerProfile samples 24 steps ⇒ 25 points; the outline is top (25) + bottom (25).
     expect(d.split(' L ').length).toBe(50);
     expect(d).not.toMatch(/NaN/);
+  });
+});
+
+describe('computeSchematicLayout', () => {
+  const tree = { components: [{ type: 'stage', children: [
+    { type: 'nosecone', length: 0.1, aftRadius: 0.012 },
+    { type: 'bodytube', length: 0.3, outerRadius: 0.012, children: [{ type: 'trapezoidfinset', rootChord: 0.05, height: 0.03 }] },
+  ] }] } as unknown as RocketTree;
+  const dims = { chPx: 480, cw: 640, maxHeight: 480 };
+
+  it('flattens the stage into a nose + body axial chain', () => {
+    const out = computeSchematicLayout(tree, null, dims);
+    expect(out.chain).toHaveLength(2);
+  });
+
+  it('measures the axial length and body radius', () => {
+    const out = computeSchematicLayout(tree, null, dims);
+    expect(out.totalLen).toBeCloseTo(0.4);
+    expect(out.maxR).toBeGreaterThanOrEqual(0.012);
+  });
+
+  it('produces a positive scale and a sensibly sized canvas', () => {
+    const out = computeSchematicLayout(tree, null, dims);
+    expect(out.scale).toBeGreaterThan(0);
+    expect(out.w).toBeGreaterThanOrEqual(320);
+    expect(out.h).toBeGreaterThanOrEqual(200);
+  });
+
+  it('returns a drawing context matching the scale with finite geometry', () => {
+    const out = computeSchematicLayout(tree, null, dims);
+    expect(out.ctx.scale).toBe(out.scale);
+    expect(Number.isFinite(out.ctx.cy)).toBe(true);
+    expect(Number.isFinite(out.ctx.x0)).toBe(true);
+  });
+
+  it('exposes caliper snap targets', () => {
+    const out = computeSchematicLayout(tree, null, dims);
+    expect(out.snapXs.length).toBeGreaterThan(0);
+  });
+
+  it('stays finite in vertical (nose-up) mode', () => {
+    const out = computeSchematicLayout(tree, null, { ...dims, vertical: true });
+    expect(Number.isFinite(out.w)).toBe(true);
+    expect(Number.isFinite(out.h)).toBe(true);
+    expect(Number.isFinite(out.scale)).toBe(true);
   });
 });
