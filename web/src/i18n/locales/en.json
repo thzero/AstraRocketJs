@@ -332,6 +332,8 @@
     "collapse": "Collapse",
     "expandAll": "Expand all",
     "collapseAll": "Collapse all",
+    "collapseTree": "Hide the component list",
+    "expandTree": "Show the component list",
     "scale": "⤢ Scale",
     "rocket": "Rocket",
     "motorTag": "motor",

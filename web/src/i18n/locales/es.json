@@ -335,6 +335,8 @@
     "collapse": "Contraer",
     "expandAll": "Expandir todo",
     "collapseAll": "Contraer todo",
+    "collapseTree": "Ocultar la lista de componentes",
+    "expandTree": "Mostrar la lista de componentes",
     "scale": "⤢ Escalar",
     "rocket": "Cohete",
     "motorTag": "motor",

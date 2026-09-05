@@ -240,6 +240,14 @@ export function ComponentTree({
   const allCollapsed = branchIds.length > 0 && branchIds.every((id) => collapsed.has(id));
   const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(branchIds));
 
+  // Fold the whole list away (header stays) so the property editor gets the room
+  // once a part is picked. Collapsed, the header names the selected part.
+  const [listOpen, setListOpen] = useState(true);
+  const selectedNode = selectedId ? findNode(tree, selectedId) : null;
+  const selectedName = selectedNode
+    ? (typeof selectedNode.name === 'string' && selectedNode.name ? selectedNode.name : partLabel(selectedNode.type, t))
+    : null;
+
   // The Add menu is contextual: it offers only the child types valid for the
   // selected part (the stage when nothing is selected). A leaf part → no menu.
   const parent = selectedId ? findNode(tree, selectedId) : null;
@@ -254,8 +262,22 @@ export function ComponentTree({
     <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('tree.components')}</h2>
-          {branchIds.length > 0 && (
+          {/* Fold the whole tree list — the header (and this toggle) stay put. */}
+          <button
+            onClick={() => setListOpen((o) => !o)}
+            aria-expanded={listOpen}
+            title={listOpen ? t('tree.collapseTree') : t('tree.expandTree')}
+            className="flex min-w-0 items-center gap-1.5 rounded px-1 py-0.5 hover:bg-slate-800"
+          >
+            <span className="text-base leading-none text-sky-400">{listOpen ? '▾' : '▸'}</span>
+            <h2 className="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              {t('tree.components')}
+            </h2>
+            {!listOpen && selectedName && (
+              <span className="truncate text-xs font-medium text-sky-300">· {selectedName}</span>
+            )}
+          </button>
+          {listOpen && branchIds.length > 0 && (
             <button
               onClick={toggleAll}
               title={allCollapsed ? t('tree.expandAll') : t('tree.collapseAll')}
@@ -266,7 +288,7 @@ export function ComponentTree({
             </button>
           )}
         </div>
-        {onAdd && (
+        {listOpen && onAdd && (
           <select
             value=""
             disabled={groups.length === 0}
@@ -322,24 +344,26 @@ export function ComponentTree({
           </button>
         )}
       </div>
-      <div className="border-l border-white/5 pl-1">
-        {tree.components.length ? (
-          tree.components.map((c, i) => (
-            <Row
-              key={(c.id as string) ?? `${c.type}-${i}`}
-              node={c}
-              depth={0}
-              selectedId={selectedId}
-              onSelect={onSelect}
-              collapsed={collapsed}
-              onToggleCollapse={toggleCollapse}
-              t={t}
-            />
-          ))
-        ) : (
-          <p className="px-2 py-1 text-sm text-slate-500">{t('tree.noComponents')}</p>
-        )}
-      </div>
+      {listOpen && (
+        <div className="border-l border-white/5 pl-1">
+          {tree.components.length ? (
+            tree.components.map((c, i) => (
+              <Row
+                key={(c.id as string) ?? `${c.type}-${i}`}
+                node={c}
+                depth={0}
+                selectedId={selectedId}
+                onSelect={onSelect}
+                collapsed={collapsed}
+                onToggleCollapse={toggleCollapse}
+                t={t}
+              />
+            ))
+          ) : (
+            <p className="px-2 py-1 text-sm text-slate-500">{t('tree.noComponents')}</p>
+          )}
+        </div>
+      )}
     </section>
   );
 }
