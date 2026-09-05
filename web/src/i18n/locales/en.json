@@ -317,6 +317,10 @@
   },
   "tree": {
     "components": "Components",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all",
     "rocket": "Rocket",
     "motorTag": "motor",
     "noComponents": "No components.",

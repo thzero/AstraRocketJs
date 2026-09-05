@@ -320,6 +320,10 @@
   },
   "tree": {
     "components": "Componentes",
+    "expand": "Expandir",
+    "collapse": "Contraer",
+    "expandAll": "Expandir todo",
+    "collapseAll": "Contraer todo",
     "rocket": "Cohete",
     "motorTag": "motor",
     "noComponents": "Sin componentes.",

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import type { ComponentNode, ComponentType, RocketTree } from '../../engine/openRocketEngine';
@@ -115,12 +115,16 @@ function Row({
   depth,
   selectedId,
   onSelect,
+  collapsed,
+  onToggleCollapse,
   t,
 }: {
   node: ComponentNode;
   depth: number;
   selectedId?: string | null;
   onSelect?: (id: string) => void;
+  collapsed: ReadonlySet<string>;
+  onToggleCollapse: (id: string) => void;
   t: TFunction;
 }) {
   const color = TYPE_COLOR[node.type] ?? '#94a3b8';
@@ -131,6 +135,10 @@ function Row({
   const det = detail(node, t);
   const id = typeof node.id === 'string' ? node.id : undefined;
   const selected = !!id && id === selectedId;
+  const hasKids = (node.children?.length ?? 0) > 0;
+  // Only id-bearing nodes can be remembered as collapsed; a childless or id-less
+  // node just shows a spacer so every row's label lines up.
+  const isCollapsed = hasKids && !!id && collapsed.has(id);
   const rowRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (selected) rowRef.current?.scrollIntoView({ block: 'nearest' });
@@ -146,6 +154,21 @@ function Row({
         style={{ paddingLeft: 8 + depth * 16 }}
         title={label}
       >
+        {hasKids && id ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // toggle the branch without selecting the row
+              onToggleCollapse(id);
+            }}
+            aria-label={isCollapsed ? t('tree.expand') : t('tree.collapse')}
+            aria-expanded={!isCollapsed}
+            className="w-6 shrink-0 text-center text-xl leading-none text-slate-500 hover:text-slate-200"
+          >
+            {isCollapsed ? '▸' : '▾'}
+          </button>
+        ) : (
+          <span className="w-6 shrink-0" aria-hidden />
+        )}
         <span className="w-4 shrink-0 text-center text-xs leading-none" style={{ color }} aria-hidden>
           {symbol}
         </span>
@@ -157,16 +180,19 @@ function Row({
         )}
         {det && <span className="ml-auto shrink-0 pl-2 text-[11px] tabular-nums text-slate-500">{det}</span>}
       </div>
-      {node.children?.map((c, i) => (
-        <Row
-          key={(c.id as string) ?? `${c.type}-${i}`}
-          node={c}
-          depth={depth + 1}
-          selectedId={selectedId}
-          onSelect={onSelect}
-          t={t}
-        />
-      ))}
+      {!isCollapsed &&
+        node.children?.map((c, i) => (
+          <Row
+            key={(c.id as string) ?? `${c.type}-${i}`}
+            node={c}
+            depth={depth + 1}
+            selectedId={selectedId}
+            onSelect={onSelect}
+            collapsed={collapsed}
+            onToggleCollapse={onToggleCollapse}
+            t={t}
+          />
+        ))}
     </>
   );
 }
@@ -187,6 +213,31 @@ export function ComponentTree({
   onCommit?: () => void; // close the rename's undo entry when the field blurs
 }) {
   const { t } = useTranslation();
+  // Ids of collapsed (folded) branches — ephemeral view state per node id.
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleCollapse = (id: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  // Every id-bearing node that has children (the collapsible ones), so the
+  // header toggle can fold or unfold the whole tree at once.
+  const branchIds = (() => {
+    const ids: string[] = [];
+    const walk = (nodes: ComponentNode[]) => {
+      for (const n of nodes) {
+        if (typeof n.id === 'string' && (n.children?.length ?? 0) > 0) ids.push(n.id);
+        walk(n.children ?? []);
+      }
+    };
+    walk(tree.components);
+    return ids;
+  })();
+  const allCollapsed = branchIds.length > 0 && branchIds.every((id) => collapsed.has(id));
+  const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(branchIds));
+
   // The Add menu is contextual: it offers only the child types valid for the
   // selected part (the stage when nothing is selected). A leaf part → no menu.
   const parent = selectedId ? findNode(tree, selectedId) : null;
@@ -200,7 +251,19 @@ export function ComponentTree({
   return (
     <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('tree.components')}</h2>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('tree.components')}</h2>
+          {branchIds.length > 0 && (
+            <button
+              onClick={toggleAll}
+              title={allCollapsed ? t('tree.expandAll') : t('tree.collapseAll')}
+              aria-label={allCollapsed ? t('tree.expandAll') : t('tree.collapseAll')}
+              className="rounded px-1 text-xl leading-none text-slate-500 hover:bg-slate-800 hover:text-slate-200"
+            >
+              {allCollapsed ? '⊞' : '⊟'}
+            </button>
+          )}
+        </div>
         {onAdd && (
           <select
             value=""
@@ -255,6 +318,8 @@ export function ComponentTree({
               depth={0}
               selectedId={selectedId}
               onSelect={onSelect}
+              collapsed={collapsed}
+              onToggleCollapse={toggleCollapse}
               t={t}
             />
           ))
