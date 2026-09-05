@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { findMounts, findNode, siblingIndex } from '../../services/treeEdit';
@@ -6,6 +6,7 @@ import { useWorkspaceStore } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
 import { ComponentTree } from './ComponentTree';
 import { PropertyPanel } from './PropertyPanel';
+import { ScaleDialog } from './ScaleDialog';
 import { BusyLock } from '../common/BusyLock';
 
 /** Left pane: the component tree plus the selected part's property editor. */
@@ -20,6 +21,7 @@ export function EditorPanel() {
   const onCommit = useWorkspaceStore((s) => s.commitEdit);
   const remove = useWorkspaceStore((s) => s.removeSelected);
   const onMove = useWorkspaceStore((s) => s.moveSelected);
+  const [scaleOpen, setScaleOpen] = useState(false);
 
   const node = useMemo(() => (selectedId ? findNode(tree, selectedId) : null), [tree, selectedId]);
   const sib = useMemo(() => (selectedId ? siblingIndex(tree, selectedId) : null), [tree, selectedId]);
@@ -51,6 +53,7 @@ export function EditorPanel() {
         onAdd={onAdd}
         onRenameDesign={onRenameDesign}
         onCommit={onCommit}
+        onScale={() => setScaleOpen(true)}
       />
       <PropertyPanel
         node={node}
@@ -61,6 +64,7 @@ export function EditorPanel() {
         canMoveUp={!!sib && sib.index > 0}
         canMoveDown={!!sib && sib.index < sib.count - 1}
       />
+      <ScaleDialog open={scaleOpen} onClose={() => setScaleOpen(false)} />
     </div>
   );
 }

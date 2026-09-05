@@ -204,6 +204,7 @@ export function ComponentTree({
   onAdd,
   onRenameDesign,
   onCommit,
+  onScale,
 }: {
   tree: RocketTree;
   selectedId?: string | null;
@@ -211,6 +212,7 @@ export function ComponentTree({
   onAdd?: (type: ComponentType) => void;
   onRenameDesign?: (name: string) => void;
   onCommit?: () => void; // close the rename's undo entry when the field blurs
+  onScale?: () => void; // open the whole-rocket scale dialog
 }) {
   const { t } = useTranslation();
   // Ids of collapsed (folded) branches — ephemeral view state per node id.
@@ -306,7 +308,18 @@ export function ComponentTree({
             className="min-w-0 flex-1 truncate rounded bg-transparent px-1 text-sm font-semibold text-sky-400 hover:bg-slate-800/60 focus:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
           />
         ) : (
-          <span className="truncate text-sm font-semibold text-sky-400">{tree.name || t('tree.rocket')}</span>
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-sky-400">
+            {tree.name || t('tree.rocket')}
+          </span>
+        )}
+        {onScale && (
+          <button
+            onClick={onScale}
+            title={t('scale.title')}
+            className="shrink-0 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
+          >
+            {t('tree.scale')}
+          </button>
         )}
       </div>
       <div className="border-l border-white/5 pl-1">

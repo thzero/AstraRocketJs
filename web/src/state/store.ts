@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import i18n from '../i18n';
 import { confirm } from './confirmStore';
+import { scaleRocket } from '../tree/scaleRocket';
 import { buildRocketTree, specToTree, C6, type RocketSpec, type StaticInfo } from '../engine/api';
 import type {
   MotorSpec,
@@ -85,6 +86,7 @@ export interface WorkspaceState {
   }) => void;
 
   setTree: (tree: RocketTree) => void;
+  scaleDesign: (factor: number) => void;
   setSelectedId: (id: string | null) => void;
   patchSelected: (patch: Partial<ComponentNode>) => void;
   removeSelected: () => void;
@@ -273,6 +275,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     // can never drift from the mounts. reconcileMounts returns the same object
     // when nothing mount-related changed, so ordinary edits stay cheap.
     setTree: (tree) => set((s) => ({ tree, extraMotors: reconcileMounts(tree, s.extraMotors) })),
+    scaleDesign: (factor) => {
+      const { tree, extraMotors } = get();
+      const next = scaleRocket(tree, factor);
+      if (next === tree) return; // 1×, or a non-positive/non-finite factor — nothing to do
+      recordStep(); // one undo step for the whole scale
+      set({ tree: next, selectedId: null, extraMotors: reconcileMounts(next, extraMotors) });
+    },
     setSelectedId: (selectedId) => set({ selectedId }),
     patchSelected: (patch) => {
       const { selectedId, tree, extraMotors } = get();

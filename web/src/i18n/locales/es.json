@@ -42,6 +42,17 @@
     "newConfirm": "¿Descartar el diseño actual y todas las simulaciones y empezar un diseño nuevo?"
   },
   "edit": { "undo": "Deshacer", "redo": "Rehacer" },
+  "scale": {
+    "title": "Escalar cohete",
+    "intro": "Multiplica cada longitud, diámetro, pared, planta de aleta y posición axial por un factor. Se aplica en un solo paso — Ctrl+Z lo deshace.",
+    "factor": "Escalar por",
+    "newDiameter": "Nuevo Ø del cuerpo (mm)",
+    "currentDiameter": "El mayor es {{mm}} mm ahora.",
+    "becomes": "pasa a ser",
+    "massNote": "Las piezas sólidas conservan su material, así que su masa va con el cubo (~{{cube}}×). La tela de recuperación escala por área, no por volumen, así que el diseño ya no es exactamente similar — revisa el tamaño del paracaídas y que el motor siga cabiendo en su soporte.",
+    "noAirframe": "Este diseño no tiene tubo, ojiva ni transición que medir, así que no hay nada que escalar. Añade un fuselaje primero.",
+    "apply": "Escalar al {{pct}}%"
+  },
   "menu": { "open": "Menú", "help": "Ayuda" },
   "wip": {
     "title": "Trabajo en curso",
@@ -324,6 +335,7 @@
     "collapse": "Contraer",
     "expandAll": "Expandir todo",
     "collapseAll": "Contraer todo",
+    "scale": "⤢ Escalar",
     "rocket": "Cohete",
     "motorTag": "motor",
     "noComponents": "Sin componentes.",

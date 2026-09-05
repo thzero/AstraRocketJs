@@ -39,6 +39,17 @@
     "newConfirm": "Discard the current design and all simulations and start a fresh design?"
   },
   "edit": { "undo": "Undo", "redo": "Redo" },
+  "scale": {
+    "title": "Scale rocket",
+    "intro": "Multiply every length, diameter, wall, fin planform and axial position by one factor. Applied as a single step — Ctrl+Z undoes it.",
+    "factor": "Scale by",
+    "newDiameter": "New body Ø (mm)",
+    "currentDiameter": "Widest is {{mm}} mm now.",
+    "becomes": "becomes",
+    "massNote": "Solid parts keep their material, so their mass goes as the cube (~{{cube}}×). Recovery fabric scales by area, not volume, so the design is no longer exactly similar — re-check the parachute size and that the motor still fits its mount.",
+    "noAirframe": "This design has no body tube, nose cone or transition to measure, so there's nothing to scale from. Add an airframe first.",
+    "apply": "Scale to {{pct}}%"
+  },
   "menu": { "open": "Menu", "help": "Help" },
   "wip": {
     "title": "Work in progress",
@@ -321,6 +332,7 @@
     "collapse": "Collapse",
     "expandAll": "Expand all",
     "collapseAll": "Collapse all",
+    "scale": "⤢ Scale",
     "rocket": "Rocket",
     "motorTag": "motor",
     "noComponents": "No components.",
