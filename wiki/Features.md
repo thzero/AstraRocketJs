@@ -5,7 +5,8 @@
 - Flight simulations run in a **Web Worker**, off the main thread, so the interface stays responsive during a run.
 
 ## Design & analysis
-- **Component-tree editor** with live **CG / CP / stability** as you edit — calibers, % of length, **on-pad and rail-exit** margins, and fineness ratio.
+- **Component-tree editor** (collapsible branches and list) with live **CG / CP / stability** as you edit — calibers and % of length — plus fineness ratio, Mach-0.3 **drag coefficient** and **normal-force slope** (CNα), and the loaded **roll / pitch moments of inertia**, in the stats strip.
+- **Scale the whole rocket** by a factor or to a target body diameter, in one undoable step — every length, diameter, wall, fin planform and position, with fixed-size hardware (rail buttons, camera shrouds, lug bores) left alone.
 - **Undo / redo** across the whole workspace — component add / remove / edit **and** simulation changes (motor, ignition, launch conditions, add/rename/delete sim) on one timeline, with `Ctrl/⌘+Z` and `Ctrl+Shift+Z` (or the toolbar arrows). One edit = one step, even for a slider drag.
 - **2D schematic** with drag-to-measure **calipers**, length + cross-section rulers, zoom/pan, roll (spin), and an aft (head-on) view.
 - **3D model** view, and a **3D flight path** after a simulation. The **CG / CP** markers and a quick-glance **length · mass · CG · CP · stability** card can be toggled on both the 2D and 3D views.
@@ -17,7 +18,7 @@
 - **Motor picker** with real **thrust curves** from [thrustcurve.org](https://www.thrustcurve.org) (~800 motors) **bundled for offline use** — no network needed at runtime. Filter by engine code, impulse class, manufacturer(s), and a **diameter range** that defaults to the motor-mount bore; selections are remembered.
 - Pick from a motor's **multiple thrust curves** (the chosen one is what the engine simulates), set the **ejection delay** from the motor's own charges or a manual value, or **plug** any motor. A per-motor card shows the curve and delay, with a **thrust-curve popup**; multi-mount rockets get **one card per motor tube**. Plus **`.eng` import** and custom motors.
 - OpenRocket **materials** (built-in + your own) and a **component-preset** catalog (~2,900 real Estes / Apogee / LOC / … parts).
-- **Exports**: flight data & drag tables to **CSV**, the **flight path** to **KML / GPX / waypoint CSV** (Google Earth / GPS mapping) with importable custom **Mustache templates**, and the 2D schematic to **SVG / PNG / JPG**.
+- **Exports**: the design to **RASAero II (`.CDX1`)** for aero analysis, flight data & drag tables to **CSV**, the **flight path** to **KML / GPX / waypoint CSV** (Google Earth / GPS mapping) with importable custom **Mustache templates**, and the 2D schematic to **SVG / PNG / JPG**.
 - Multiple named **simulations**, each with a full launch setup (rod, site, atmosphere, multi-level wind, earth model).
 
 ## Platform

@@ -11,6 +11,14 @@ A save → re-open round-trip is verified to preserve the physics (mass, CG, CP,
 
 > The design lives on **your disk** as a `.ork` file. The app also keeps a working copy in your browser so a refresh won't lose your current rocket — but **Save** is how you keep a design permanently.
 
+## Exporting to RASAero II (`.CDX1`)
+
+**Menu → Export → RASAero II (.CDX1)** writes the design as a RASAero II `.CDX1` file, so you can open it in **[RASAero II](https://www.rasaero.com/)** for its own aerodynamic and flight analysis.
+
+RASAero models only the **external aerodynamic shape**, so the export carries the airframe — nose cone, body tubes, transitions / boat tails, fins, and launch lugs — plus the loaded **weight and CG** (written into RASAero's simulation block). Internal parts with no aerodynamic effect (centering rings, bulkheads, shock cords, engine blocks) are dropped; parachutes become RASAero recovery entries. Dimensions are converted to RASAero's units (inches, pounds, feet, °F).
+
+Because RASAero can't represent every shape, the export **stops with a clear message** rather than write a file RASAero would reject — for example tube or elliptical fins, a non-conical transition, more than one fin set on a tube, or a freeform fin that isn't a simple trapezoid. In those cases, use `.ork` instead.
+
 ## Exporting data
 
 **Flight and drag data** can be exported as **CSV** for use in a spreadsheet or your own analysis (values are in metric/SI units):

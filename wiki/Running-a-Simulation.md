@@ -1,6 +1,6 @@
 # Running a Simulation
 
-Simulations live in the right-hand panel. You can keep **several named simulations** for one design (e.g. different motors or launch sites), **duplicate** one as a starting point, and delete them.
+Simulations live in the right-hand panel. You can keep **several named simulations** for one design (e.g. different motors or launch sites), **duplicate** one as a starting point, and delete them. The red **Delete simulation** button (next to the current simulation's name) removes it after a confirmation; the workspace always keeps at least one, so it's disabled when only one remains.
 
 ## Set up the launch
 
