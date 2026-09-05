@@ -135,7 +135,7 @@
     "overstable": "Sobreestable"
   },
   "stats": {
-    "title": "Todas las estadísticas",
+    "title": "Estadísticas estáticas del cohete",
     "length": "Longitud",
     "maxDiameter": "Diámetro máx.",
     "fineness": "Esbeltez",
