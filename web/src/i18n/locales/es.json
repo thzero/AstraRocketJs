@@ -109,7 +109,16 @@
     "markers": "CG / CP",
     "markersTitle": "Mostrar marcadores de CG / CP / estabilidad",
     "infoCard": "Datos",
-    "infoCardTitle": "Mostrar la tarjeta de longitud / masa / CG / CP / estabilidad"
+    "infoCardTitle": "Mostrar la tarjeta de longitud / masa / CG / CP / estabilidad",
+    "rulers": "Reglas",
+    "ruler_top": "Regla superior",
+    "ruler_bottom": "Regla inferior",
+    "ruler_left": "Regla izquierda",
+    "ruler_right": "Regla derecha",
+    "ruler_top_abbr": "Ar",
+    "ruler_bottom_abbr": "Ab",
+    "ruler_left_abbr": "Iz",
+    "ruler_right_abbr": "De"
   },
   "stability": {
     "title": "Estabilidad",

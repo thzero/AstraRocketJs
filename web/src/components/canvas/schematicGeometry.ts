@@ -11,10 +11,12 @@ export interface Ctx {
   x0: number;
 }
 
-/** Height (viewBox px) reserved at the bottom for the length ruler (side view). */
-export const RULER_H = 16;
-/** Width (viewBox px) reserved on the right for the radial (cross-section) ruler. */
-export const RULER_W = 26;
+/** Height (viewBox px) reserved on the top & bottom for the length rulers.
+ *  Sized so the edge-pinned number labels clear the (12px) major tick tips with
+ *  a ~5px gap, rather than the ticks running up into the numbers. */
+export const RULER_H = 32;
+/** Width (viewBox px) reserved on the left & right for the radial rulers. */
+export const RULER_W = 46;
 
 export const MARKER_R = 9;
 /** Total viewBox px of height reserved for the two callout lanes (S2). */
@@ -169,7 +171,15 @@ export function profilePath(
 export function computeSchematicLayout(
   tree: RocketTree,
   info: StaticInfo | null,
-  dims: { vertical?: boolean; chPx: number; cw: number; maxHeight: number; fillHeight?: boolean },
+  dims: {
+    vertical?: boolean;
+    chPx: number;
+    cw: number;
+    maxHeight: number;
+    fillHeight?: boolean;
+    /** Which sides carry a ruler; each present side reserves a lane. Absent = all. */
+    rulers?: { top: boolean; bottom: boolean; left: boolean; right: boolean };
+  },
 ): {
   chain: ComponentNode[];
   totalLen: number;
@@ -177,7 +187,11 @@ export function computeSchematicLayout(
   vHalf: number;
   snapXs: number[];
   radialSnaps: number[];
-  rulerLane: number;
+  /** Reserved ruler-lane thickness (viewBox px) per side; 0 when that side is off. */
+  rTop: number;
+  rBot: number;
+  rLeft: number;
+  rRight: number;
   w: number;
   h: number;
   scale: number;
@@ -268,25 +282,36 @@ export function computeSchematicLayout(
   // allowance is added to the height AND kept out of the vertical fit —
   // otherwise a height-limited short/fat rocket would fill it and clip them.
   const lanes = info ? CALLOUT_LANES : 0;
-  // Side view reserves a ruler lane at the bottom (length) and on the right
-  // (radial cross-section), both kept out of the fit.
-  const rulerLane = vertical ? 0 : RULER_H;
-  const rulerW = vertical ? 0 : RULER_W;
+  // Side view reserves a ruler lane per requested side (length top/bottom, radial
+  // left/right); each kept out of the fit so the drawing centres inside the frame.
+  // A side that's toggled off reserves nothing, so the drawing reclaims that space.
+  const R = dims.rulers ?? { top: true, bottom: true, left: true, right: true };
+  const rTop = vertical || !R.top ? 0 : RULER_H;
+  const rBot = vertical || !R.bottom ? 0 : RULER_H;
+  const rLeft = vertical || !R.left ? 0 : RULER_W;
+  const rRight = vertical || !R.right ? 0 : RULER_W;
   const crossCap = vertical ? Math.max(160, cw) : maxHeight;
   const h =
     vertical || !fillHeight
       ? Math.round(
-          Math.min(crossCap, Math.max(200, 2 * vHalf * ((w - 2 * pad) / totalLen) + 2 * pad + lanes + rulerLane)),
+          Math.min(
+            crossCap,
+            Math.max(200, 2 * vHalf * ((w - 2 * pad - rLeft - rRight) / totalLen) + 2 * pad + lanes + rTop + rBot),
+          ),
         )
       : Math.max(200, chPx);
   // Horizontal headroom: `totalLen` covers only the axial chain (nose+body), so
   // aft-swept fins overhang past it and the CG/CP labels reach right of the aft.
   // Fit to ~12% more than the bare length so nothing sits flush to the edge, and
-  // centre the drawing so the margin is even on both sides.
-  const scale = Math.min((w - 2 * pad - rulerW) / (totalLen * 1.12), (h - 2 * pad - lanes - rulerLane) / (2 * vHalf));
-  // Centre the rocket in the area LEFT of the right ruler lane.
-  const x0 = Math.max(pad, (w - rulerW - totalLen * scale) / 2);
-  // Centre the rocket in the area ABOVE the bottom ruler lane.
-  const ctx: Ctx = { scale, cy: (h - rulerLane) / 2, x0 };
-  return { chain, totalLen, maxR, vHalf, snapXs, radialSnaps, rulerLane, w, h, scale, ctx };
+  // centre the drawing between the left/right ruler lanes.
+  const scale = Math.min(
+    (w - 2 * pad - rLeft - rRight) / (totalLen * 1.12),
+    (h - 2 * pad - lanes - rTop - rBot) / (2 * vHalf),
+  );
+  // Centre the rocket between the left/right ruler lanes, and vertically between
+  // the top/bottom ones — the centreline shifts by half the top/bottom imbalance
+  // so an asymmetric set of rulers still frames the drawing evenly.
+  const x0 = Math.max(pad + rLeft, (w - totalLen * scale) / 2);
+  const ctx: Ctx = { scale, cy: (h + rTop - rBot) / 2, x0 };
+  return { chain, totalLen, maxR, vHalf, snapXs, radialSnaps, rTop, rBot, rLeft, rRight, w, h, scale, ctx };
 }

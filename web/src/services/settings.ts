@@ -43,6 +43,14 @@ export interface SimulationSettings {
   railExitVelocityMin: number;
 }
 
+/** Which sides of the 2D side view carry a measurement ruler. */
+export interface RulerSides {
+  top: boolean;
+  bottom: boolean;
+  left: boolean;
+  right: boolean;
+}
+
 export interface Settings {
   /** Per-group colour overrides for the 3D model (empty = built-in defaults). */
   partColors: Partial<Record<PartKey, string>>;
@@ -60,6 +68,8 @@ export interface Settings {
   showInfoCard: boolean;
   /** Expand the "All stats" strip under the canvas (collapsed = just its header). */
   showStats: boolean;
+  /** Which sides of the 2D side view are framed by a measurement ruler. */
+  rulers: RulerSides;
   /** Whether the user has dismissed the pre-1.0 "work in progress" notice. */
   wipAcknowledged: boolean;
 }
@@ -81,6 +91,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showMarkers: true,
   showInfoCard: true,
   showStats: true,
+  rulers: { top: true, bottom: true, left: true, right: true },
   wipAcknowledged: false,
 };
 
@@ -90,7 +101,21 @@ export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return DEFAULT_SETTINGS;
-    const s = JSON.parse(raw) as Partial<Settings>;
+    const s = JSON.parse(raw) as Partial<Settings> & { showRulers?: boolean };
+    // Migrate the legacy single on/off flag → every side follows it; a saved
+    // per-side object (if present) then wins over the migration.
+    const legacyRulers =
+      typeof s.showRulers === 'boolean'
+        ? { top: s.showRulers, bottom: s.showRulers, left: s.showRulers, right: s.showRulers }
+        : {};
+    const savedRulers =
+      s.rulers && typeof s.rulers === 'object'
+        ? (Object.fromEntries(
+            (['top', 'bottom', 'left', 'right'] as const)
+              .filter((k) => typeof s.rulers![k] === 'boolean')
+              .map((k) => [k, s.rulers![k]]),
+          ) as Partial<RulerSides>)
+        : {};
     return {
       partColors: { ...(s.partColors ?? {}) },
       phaseColors: { ...DEFAULT_SETTINGS.phaseColors, ...(s.phaseColors ?? {}) },
@@ -100,6 +125,7 @@ export function loadSettings(): Settings {
       showMarkers: typeof s.showMarkers === 'boolean' ? s.showMarkers : DEFAULT_SETTINGS.showMarkers,
       showInfoCard: typeof s.showInfoCard === 'boolean' ? s.showInfoCard : DEFAULT_SETTINGS.showInfoCard,
       showStats: typeof s.showStats === 'boolean' ? s.showStats : DEFAULT_SETTINGS.showStats,
+      rulers: { ...DEFAULT_SETTINGS.rulers, ...legacyRulers, ...savedRulers },
       wipAcknowledged: typeof s.wipAcknowledged === 'boolean' ? s.wipAcknowledged : DEFAULT_SETTINGS.wipAcknowledged,
     };
   } catch {

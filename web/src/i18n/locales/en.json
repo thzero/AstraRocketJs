@@ -106,7 +106,16 @@
     "markers": "CG / CP",
     "markersTitle": "Show CG / CP / stability markers",
     "infoCard": "Info",
-    "infoCardTitle": "Show the length / mass / CG / CP / stability card"
+    "infoCardTitle": "Show the length / mass / CG / CP / stability card",
+    "rulers": "Rulers",
+    "ruler_top": "Top ruler",
+    "ruler_bottom": "Bottom ruler",
+    "ruler_left": "Left ruler",
+    "ruler_right": "Right ruler",
+    "ruler_top_abbr": "T",
+    "ruler_bottom_abbr": "B",
+    "ruler_left_abbr": "L",
+    "ruler_right_abbr": "R"
   },
   "stability": {
     "title": "Stability",

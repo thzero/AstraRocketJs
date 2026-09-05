@@ -50,8 +50,11 @@ export function CenterView() {
   // CG/CP markers + info-card visibility are user preferences (persist across reloads).
   const showMarkers = settings.showMarkers;
   const showInfoCard = settings.showInfoCard;
+  const rulers = settings.rulers;
   const toggleMarkers = () => update({ showMarkers: !settings.showMarkers });
   const toggleInfoCard = () => update({ showInfoCard: !settings.showInfoCard });
+  const toggleRulerSide = (side: keyof typeof rulers) =>
+    update({ rulers: { ...settings.rulers, [side]: !settings.rulers[side] } });
   const runSim = useWorkspaceStore((s) => s.runSim);
   const busy = useWorkspaceStore((s) => s.simBusy);
   useEffect(() => {
@@ -73,6 +76,9 @@ export function CenterView() {
   // portal into, so they sit centred in the same row as the view toggle.
   const [ctrlSlot, setCtrlSlot] = useState<HTMLDivElement | null>(null);
   const deg = Math.round((roll * 180) / Math.PI);
+  // The roll slider overlays the far-left strip; reserve a gutter that width so
+  // the 2D drawing (and its left ruler) starts clear of it instead of underneath.
+  const ROLL_GUTTER = 30;
   const loading = <div className="grid h-full place-items-center text-sm text-slate-500">{t('view.loading3d')}</div>;
   const prompt = <div className="grid h-full place-items-center text-sm text-slate-500">{t('sim.prompt')}</div>;
 
@@ -102,6 +108,22 @@ export function CenterView() {
               <ViewBtn active={showInfoCard} onClick={toggleInfoCard} title={t('view.infoCardTitle')}>
                 {t('view.infoCard')}
               </ViewBtn>
+              {/* Rulers only frame the 2D side view; one toggle per side (T/B/L/R). */}
+              {view === '2d' && (
+                <div className="flex items-center gap-1">
+                  <span className="pl-1 text-xs font-medium text-slate-400">{t('view.rulers')}</span>
+                  {(['top', 'bottom', 'left', 'right'] as const).map((side) => (
+                    <ViewBtn
+                      key={side}
+                      active={rulers[side]}
+                      onClick={() => toggleRulerSide(side)}
+                      title={t(`view.ruler_${side}`)}
+                    >
+                      {t(`view.ruler_${side}_abbr`)}
+                    </ViewBtn>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -144,31 +166,43 @@ export function CenterView() {
             </div>
           </>
         )}
-        {/* Quick-glance stats card (mmrocket-style), upper-left — same position
-            in both the 2D and 3D views, toggleable via the header Info button. */}
+        {/* Quick-glance stats card (mmrocket-style): sits INSIDE the ruler frame on
+            the 2D view (clear of the top + left rulers when they're on), and in the
+            upper-left corner in 3D. Toggleable via the header Info button. */}
         {(view === '2d' || view === '3d') && showInfoCard && (
-          <div className="absolute left-11 top-3 z-20">
+          <div
+            className="absolute z-20"
+            style={
+              view === '2d'
+                ? { left: (rulers.left ? 60 : 44) + ROLL_GUTTER, top: rulers.top ? 44 : 12 }
+                : { left: 44, top: 12 }
+            }
+          >
             <InfoOverlay info={info} />
           </div>
         )}
         {view === '2d' ? (
-          twoD === 'side' ? (
-            <TreeSchematic
-              key={`side-${resetKey}`}
-              tree={tree}
-              info={info}
-              motors={motors}
-              fillHeight
-              roll={roll}
-              onRoll={onRollBy}
-              selectedId={selectedId}
-              onSelect={onSelect}
-              controlsSlot={ctrlSlot}
-              showMarkers={showMarkers}
-            />
-          ) : (
-            <AftView key={`aft-${resetKey}`} tree={tree} roll={roll} motors={motors} onRoll={onRollBy} />
-          )
+          // Left-padded so the drawing clears the roll slider's gutter.
+          <div className="h-full" style={{ paddingLeft: ROLL_GUTTER }}>
+            {twoD === 'side' ? (
+              <TreeSchematic
+                key={`side-${resetKey}`}
+                tree={tree}
+                info={info}
+                motors={motors}
+                fillHeight
+                roll={roll}
+                onRoll={onRollBy}
+                selectedId={selectedId}
+                onSelect={onSelect}
+                controlsSlot={ctrlSlot}
+                showMarkers={showMarkers}
+                rulers={rulers}
+              />
+            ) : (
+              <AftView key={`aft-${resetKey}`} tree={tree} roll={roll} motors={motors} onRoll={onRollBy} />
+            )}
+          </div>
         ) : view === '3d' ? (
           <Suspense fallback={loading}>
             <Rocket3D

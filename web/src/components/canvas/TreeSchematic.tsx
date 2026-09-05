@@ -73,6 +73,7 @@ export function TreeSchematic({
   onRoll,
   controlsSlot,
   showMarkers = true,
+  rulers = { top: true, bottom: true, left: true, right: true },
 }: {
   tree: RocketTree;
   info: StaticInfo | null;
@@ -116,6 +117,8 @@ export function TreeSchematic({
   controlsSlot?: HTMLElement | null;
   /** Draw the CG/CP/margin markers and callouts (default true). */
   showMarkers?: boolean;
+  /** Which sides of the side view are framed by a measurement ruler (default all). */
+  rulers?: { top: boolean; bottom: boolean; left: boolean; right: boolean };
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -150,10 +153,10 @@ export function TreeSchematic({
   // frequently-changing state (hover, zoom, calipers, roll) no longer
   // recomputes the whole layout on every render.
   const layout = useMemo(
-    () => computeSchematicLayout(tree, info, { vertical, chPx, cw, maxHeight, fillHeight }),
-    [tree, info, vertical, chPx, cw, maxHeight, fillHeight],
+    () => computeSchematicLayout(tree, info, { vertical, chPx, cw, maxHeight, fillHeight, rulers }),
+    [tree, info, vertical, chPx, cw, maxHeight, fillHeight, rulers],
   );
-  const { chain, totalLen, maxR, vHalf, snapXs, radialSnaps, rulerLane, w, h, scale, ctx } = layout;
+  const { chain, totalLen, maxR, vHalf, snapXs, radialSnaps, rTop, rBot, w, h, scale, ctx } = layout;
 
   const beginDrag = (child: ComponentNode, parent: ComponentNode, pLen: number) => (e: React.PointerEvent) => {
     if (!onPatchNode || !child.id) return;
@@ -386,24 +389,130 @@ export function TreeSchematic({
   // `rulerStep` metres, labelled in cm. 0 sits at the nose (the datum) but the
   // baseline + ticks run the FULL viewport width, so it reads as a workbench
   // rule spanning the canvas rather than a bar clipped to the airframe.
-  const showRuler = !vertical && zoom.k === 1 && zoom.x === 0 && zoom.y === 0;
-  const rulerStep = niceStep(totalLen);
-  const rulerX0 = 2; // left inset (viewBox px)
-  const rulerX1 = w - 2; // right inset
+  // Rulers only at the default fit (a pan/zoom would slide them off scale). Each
+  // side is toggled independently; length (top/bottom) and radial (left/right)
+  // marks are computed if either ruler of that pair is on.
+  const rulersActive = !vertical && zoom.k === 1 && zoom.x === 0 && zoom.y === 0;
+  const showLen = rulersActive && (rulers.top || rulers.bottom);
+  const showRad = rulersActive && (rulers.left || rulers.right);
+  // Labelled majors are DENSE: aim for one roughly every ~12 screen px (rounded
+  // to a nice 1/2/5 mm step), so the scale reads like a real drafting ruler
+  // (a number every ~10 mm) rather than a handful of marks across the canvas.
+  const rulerStep = niceStep((8 * 22) / scale);
+  // Each ruler stops a few px short of the corner where it would meet another,
+  // so the frame reads as four separate rules rather than one welded box. A
+  // ruler that instead runs to the viewport edge (its neighbour is off) keeps no
+  // gap there — nothing to separate from.
+  const CORNER_GAP = 5;
+  const rulerX0 = rulers.left ? RULER_W - 4 + CORNER_GAP : 2;
+  const rulerX1 = rulers.right ? w - RULER_W + 4 - CORNER_GAP : w - 2;
+  const frameTopY = rulers.top ? RULER_H - 4 + CORNER_GAP : 2;
+  const frameBotY = rulers.bottom ? h - RULER_H + 4 - CORNER_GAP : h - 2;
   const rulerMarks: number[] = [];
-  if (showRuler) {
+  if (showLen) {
     const mLo = Math.ceil((rulerX0 - ctx.x0) / scale / rulerStep - 1e-6) * rulerStep;
     const mHi = (rulerX1 - ctx.x0) / scale;
     for (let m = mLo; m <= mHi + 1e-6; m += rulerStep) rulerMarks.push(m);
   }
-  // Right ruler: spans the FULL sketch height (top to bottom of the drawing,
-  // above the bottom length ruler), to the same scale, labelled in cm.
-  const vTop = 10;
-  const vBot = h - rulerLane - 2;
+  // Radial rulers span the drawing height between the top/bottom lanes, to the
+  // same scale, labelled in mm.
+  const vTop = rTop + 4;
+  const vBot = h - rBot - 4;
   const vSpanM = (vBot - vTop) / scale;
-  const rulerStepV = niceStep(vSpanM);
+  const rulerStepV = niceStep((8 * 22) / scale);
   const vTicks: { y: number; label: number }[] = [];
-  if (showRuler) for (let m = 0; m <= vSpanM + 1e-6; m += rulerStepV) vTicks.push({ y: vTop + m * scale, label: m });
+  if (showRad) for (let m = 0; m <= vSpanM + 1e-6; m += rulerStepV) vTicks.push({ y: vTop + m * scale, label: m });
+  // Minor subdivisions: 10 per labelled major, plus a taller "medium" tick at
+  // the half-major, for a properly graduated ruler.
+  const rulerMinorMarks: number[] = [];
+  const vMinorTicks: number[] = [];
+  if (showLen) {
+    const minorX = rulerStep / 5;
+    const mLo = Math.ceil((rulerX0 - ctx.x0) / scale / minorX - 1e-6) * minorX;
+    const mHi = (rulerX1 - ctx.x0) / scale;
+    for (let m = mLo; m <= mHi + 1e-6; m += minorX) rulerMinorMarks.push(m);
+  }
+  if (showRad) {
+    const minorV = rulerStepV / 5;
+    for (let m = 0; m <= vSpanM + 1e-6; m += minorV) vMinorTicks.push(m);
+  }
+  // One length (horizontal) ruler: faint minor subdivisions + bold labelled
+  // majors. `dir` points the ticks away from the drawing (down at the bottom
+  // edge, up at the top). Drawn on both edges for a full measuring frame.
+  const lengthRuler = (baseY: number, dir: 1 | -1, labelY: number, unitY: number) => (
+    <g pointerEvents="none">
+      <line x1={rulerX0} y1={baseY} x2={rulerX1} y2={baseY} className="stroke-white/55" />
+      {rulerMinorMarks.map((m, i) => {
+        const x = ctx.x0 + m * scale;
+        const medium = Math.abs(((((m / rulerStep) % 1) + 1) % 1) - 0.5) < 0.02;
+        return (
+          <line
+            key={`n${i}`}
+            x1={x}
+            y1={baseY}
+            x2={x}
+            y2={baseY + dir * (medium ? 10 : 7)}
+            className={medium ? 'stroke-white/80' : 'stroke-white/60'}
+          />
+        );
+      })}
+      {rulerMarks.map((m, i) => {
+        const x = ctx.x0 + m * scale;
+        return (
+          <g key={i}>
+            <line x1={x} y1={baseY} x2={x} y2={baseY + dir * 12} className="stroke-white/90" strokeWidth={1.5} />
+            <text x={x} y={labelY} textAnchor="middle" className="fill-slate-100 text-[8px] tabular-nums">
+              {fmtNum(m * 1000, 0)}
+            </text>
+          </g>
+        );
+      })}
+      <text x={rulerX1} y={unitY} textAnchor="end" className="fill-slate-300 text-[9px] font-medium">
+        mm
+      </text>
+    </g>
+  );
+  // One radial (vertical) ruler: same treatment; `dir` points the ticks into the
+  // side lane (away from the drawing) so the numbers sit clear of the airframe.
+  const radialRuler = (baseX: number, dir: 1 | -1, labelX: number, anchor: 'start' | 'end') => (
+    <g pointerEvents="none">
+      {/* Baseline runs corner-to-corner (to the top/bottom length-ruler baselines,
+          or the viewport edge where that side's ruler is off) so the rulers close
+          into one frame; the ticks stay in vTop..vBot. */}
+      <line x1={baseX} y1={frameTopY} x2={baseX} y2={frameBotY} className="stroke-white/55" />
+      {vMinorTicks.map((m, i) => {
+        const y = vTop + m * scale;
+        const medium = Math.abs(((((m / rulerStepV) % 1) + 1) % 1) - 0.5) < 0.02;
+        return (
+          <line
+            key={`n${i}`}
+            x1={baseX}
+            y1={y}
+            x2={baseX + dir * (medium ? 10 : 7)}
+            y2={y}
+            className={medium ? 'stroke-white/80' : 'stroke-white/60'}
+          />
+        );
+      })}
+      {vTicks.map((tk, i) => (
+        <g key={i}>
+          <line x1={baseX} y1={tk.y} x2={baseX + dir * 12} y2={tk.y} className="stroke-white/90" strokeWidth={1.5} />
+          <text
+            x={labelX}
+            y={tk.y}
+            textAnchor={anchor}
+            dominantBaseline="central"
+            className="fill-slate-100 text-[8px] tabular-nums"
+          >
+            {fmtNum(tk.label * 1000, 0)}
+          </text>
+        </g>
+      ))}
+      <text x={labelX} y={vTop - 6} textAnchor={anchor} className="fill-slate-300 text-[9px] font-medium">
+        mm
+      </text>
+    </g>
+  );
 
   return (
     <div ref={wrapRef} style={{ position: 'relative', ...(vertical || fillHeight ? { height: '100%' } : null) }}>
@@ -587,7 +696,7 @@ export function TreeSchematic({
               const ax = ctx.x0 + caliperH.a * scale,
                 bx = ctx.x0 + caliperH.b * scale;
               const top = 4,
-                bot = h - rulerLane - 2,
+                bot = h - rBot - 2,
                 dimY = 14,
                 mid = (ax + bx) / 2;
               return (
@@ -711,57 +820,13 @@ export function TreeSchematic({
               );
             })()}
         </g>
-        {showRuler &&
-          (() => {
-            const base = h - RULER_H + 3,
-              tick = h - RULER_H + 8,
-              label = h - 4;
-            return (
-              <g pointerEvents="none">
-                <line x1={rulerX0} y1={base} x2={rulerX1} y2={base} className="stroke-white/20" />
-                {rulerMarks.map((m, i) => {
-                  const x = ctx.x0 + m * scale;
-                  return (
-                    <g key={i}>
-                      <line x1={x} y1={base} x2={x} y2={tick} className="stroke-white/30" />
-                      <text x={x} y={label} textAnchor="middle" className="fill-slate-500 text-[7px] tabular-nums">
-                        {fmtNum(m * 100, 0)}
-                      </text>
-                    </g>
-                  );
-                })}
-                <text x={rulerX1} y={base - 3} textAnchor="end" className="fill-slate-500 text-[7px]">
-                  cm
-                </text>
-              </g>
-            );
-          })()}
-        {showRuler &&
-          vTicks.length > 0 &&
-          (() => {
-            const bx = w - RULER_W + 3;
-            return (
-              <g pointerEvents="none">
-                <line x1={bx} y1={vTop} x2={bx} y2={vBot} className="stroke-white/20" />
-                {vTicks.map((tk, i) => (
-                  <g key={i}>
-                    <line x1={bx} y1={tk.y} x2={bx - 4} y2={tk.y} className="stroke-white/30" />
-                    <text
-                      x={bx + 3}
-                      y={tk.y}
-                      dominantBaseline="central"
-                      className="fill-slate-500 text-[7px] tabular-nums"
-                    >
-                      {fmtNum(tk.label * 100, 0)}
-                    </text>
-                  </g>
-                ))}
-                <text x={bx + 3} y={vTop - 5} className="fill-slate-500 text-[7px]">
-                  cm
-                </text>
-              </g>
-            );
-          })()}
+        {/* Length rulers frame the top + bottom edges; radial rulers the left +
+            right — each drawn only when that side is toggled on (see lengthRuler
+            / radialRuler above). */}
+        {rulersActive && rulers.bottom && lengthRuler(h - RULER_H + 4, 1, h - 3, h - 3)}
+        {rulersActive && rulers.top && lengthRuler(RULER_H - 4, -1, 11, 11)}
+        {rulersActive && rulers.right && vTicks.length > 0 && radialRuler(w - RULER_W + 4, 1, w - RULER_W + 20, 'start')}
+        {rulersActive && rulers.left && vTicks.length > 0 && radialRuler(RULER_W - 4, -1, RULER_W - 20, 'end')}
       </svg>
       {/* Vertical is read-mostly: no zoom to fit-reset, and the SVG/image
           exports assume the horizontal drawing (identity view transform), so
