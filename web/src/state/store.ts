@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import i18n from '../i18n';
+import { confirm } from './confirmStore';
 import { buildRocketTree, specToTree, C6, type RocketSpec, type StaticInfo } from '../engine/api';
 import type {
   MotorSpec,
@@ -487,8 +488,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         view: '2d',
       });
     },
-    newWorkspace: () => {
-      if (window.confirm(i18n.t('file.newConfirm'))) get().resetWorkspace();
+    newWorkspace: async () => {
+      const ok = await confirm({
+        title: i18n.t('file.new'),
+        message: i18n.t('file.newConfirm'),
+        confirmLabel: i18n.t('common.discard'),
+        danger: true,
+      });
+      if (ok) get().resetWorkspace();
     },
     saveOrk: async () => {
       try {

@@ -1,6 +1,6 @@
 {
   "app": { "title": "AstraRocketJs", "version": "{{name}} versión {{version}}", "designName": "Diseño de {{name}}" },
-  "common": { "loading": "Cargando…" },
+  "common": { "loading": "Cargando…", "confirmTitle": "¿Estás seguro?", "confirm": "Confirmar", "cancel": "Cancelar", "delete": "Eliminar", "discard": "Descartar" },
   "engine": {
     "wasmTip": "Motor de física: WebAssembly (ruta rápida)",
     "jsTip": "Motor de física: JavaScript (alternativa)"
@@ -168,6 +168,7 @@
     "timeout": "La simulación tardó demasiado y se detuvo. Inténtalo de nuevo o simplifica el diseño."
   },
   "warn": {
+    "deletePart": "¿Eliminar {{name}}?",
     "lastMountDelete": "Este es el único soporte de motor. ¿Eliminarlo de todos modos? El cohete no podrá simularse hasta que añadas otro.",
     "lastMountDisable": "Este es el único soporte de motor. ¿Desactivarlo de todos modos? El cohete no podrá simularse hasta que añadas otro."
   },
@@ -290,7 +291,8 @@
   "banner": {
     "loaded": "Diseño cargado (.ork)",
     "close": "Cerrar",
-    "closeTitle": "Descartar esta importación y empezar un diseño nuevo"
+    "closeTitle": "Descartar esta importación y empezar un diseño nuevo",
+    "closeConfirm": "¿Descartar este diseño cargado y empezar uno nuevo? Se perderán los cambios no guardados."
   },
   "part": {
     "stage": "Etapa",
@@ -497,6 +499,7 @@
     "copyName": "{{name}} copia",
     "delete": "Eliminar simulación",
     "deleteConfirm": "¿Eliminar esta simulación?",
+    "deleteLast": "No se puede eliminar la única simulación",
     "notRun": "sin ejecutar",
     "motor": "Motor",
     "changeMotor": "Cambiar…",

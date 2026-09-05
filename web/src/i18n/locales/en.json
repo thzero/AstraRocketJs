@@ -1,6 +1,6 @@
 {
   "app": { "title": "AstraRocketJs", "version": "{{name}} version {{version}}", "designName": "{{name}} design" },
-  "common": { "loading": "Loading…" },
+  "common": { "loading": "Loading…", "confirmTitle": "Are you sure?", "confirm": "Confirm", "cancel": "Cancel", "delete": "Delete", "discard": "Discard" },
   "engine": { "wasmTip": "Physics engine: WebAssembly (fast path)", "jsTip": "Physics engine: JavaScript (fallback)" },
   "about": {
     "open": "About",
@@ -165,6 +165,7 @@
     "timeout": "The simulation took too long and was stopped. Try again, or simplify the design."
   },
   "warn": {
+    "deletePart": "Delete {{name}}?",
     "lastMountDelete": "This is the only motor mount. Delete it anyway? The rocket can't be simulated until you add another.",
     "lastMountDisable": "This is the only motor mount. Turn it off anyway? The rocket can't be simulated until you add another."
   },
@@ -287,7 +288,8 @@
   "banner": {
     "loaded": "Loaded design (.ork)",
     "close": "Close",
-    "closeTitle": "Discard this import and start a fresh design"
+    "closeTitle": "Discard this import and start a fresh design",
+    "closeConfirm": "Discard this loaded design and start a fresh one? Unsaved changes will be lost."
   },
   "part": {
     "stage": "Stage",
@@ -494,6 +496,7 @@
     "copyName": "{{name}} copy",
     "delete": "Delete simulation",
     "deleteConfirm": "Delete this simulation?",
+    "deleteLast": "Can't delete the only simulation",
     "notRun": "not run",
     "motor": "Motor",
     "changeMotor": "Change…",

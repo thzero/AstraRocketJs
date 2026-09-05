@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive, selectMotorDims } from '../../state/store';
+import { confirm } from '../../state/confirmStore';
 import { useSettings } from '../../state/SettingsProvider';
 import { TreeSchematic } from './TreeSchematic';
 import { AftView } from './AftView';
@@ -26,7 +27,13 @@ const FlightPath3D = lazy(() => import('./FlightPath3D').then((m) => ({ default:
 export function CenterView() {
   const { t } = useTranslation();
   const loadedMeta = useWorkspaceStore((s) => s.loadedMeta);
-  const onCloseLoaded = useWorkspaceStore((s) => s.resetWorkspace);
+  const resetWorkspace = useWorkspaceStore((s) => s.resetWorkspace);
+  // "Close" discards the loaded design and resets to a fresh one — confirm first.
+  const onCloseLoaded = async () => {
+    if (await confirm({ message: t('banner.closeConfirm'), confirmLabel: t('common.discard'), danger: true })) {
+      resetWorkspace();
+    }
+  };
   const view = useWorkspaceStore((s) => s.view);
   const onView = useWorkspaceStore((s) => s.setView);
   const twoD = useWorkspaceStore((s) => s.twoD);

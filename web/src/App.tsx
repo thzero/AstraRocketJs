@@ -8,6 +8,7 @@ import { EditorPanel } from './components/design/EditorPanel';
 import { SimulationsPanel } from './components/sim/SimulationsPanel';
 import { TabBar } from './components/layout/TabBar';
 import { WorkInProgressDialog } from './components/layout/WorkInProgressDialog';
+import { ConfirmDialog } from './components/common/ConfirmDialog';
 
 export default function App() {
   useWorkspaceEffects();
@@ -66,6 +67,7 @@ export default function App() {
 
       <TabBar />
       <WorkInProgressDialog />
+      <ConfirmDialog />
     </div>
   );
 }
