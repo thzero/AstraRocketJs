@@ -55,9 +55,10 @@ export function FlightPathExport({ variant = 'chip' }: { variant?: 'chip' | 'ove
 
   if (!result) return null;
 
-  const btnClass = variant === 'overlay'
-    ? 'rounded-md bg-slate-900/80 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-800'
-    : 'rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700';
+  const btnClass =
+    variant === 'overlay'
+      ? 'rounded-md bg-slate-900/80 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-800'
+      : 'rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700';
 
   return (
     <>
@@ -77,7 +78,10 @@ export function FlightPathExport({ variant = 'chip' }: { variant?: 'chip' | 'ove
 }
 
 function ExportDialog({
-  onClose, meta, launch, result,
+  onClose,
+  meta,
+  launch,
+  result,
 }: {
   onClose: () => void;
   meta: { simName: string; rocketName: string; motorName: string };
@@ -92,12 +96,19 @@ function ExportDialog({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  useEffect(() => { store.list().then(setTemplates).catch(() => setTemplates([])); }, [store]);
+  useEffect(() => {
+    store
+      .list()
+      .then(setTemplates)
+      .catch(() => setTemplates([]));
+  }, [store]);
 
   // Resolve the current selection to either a built-in format or a user template.
   const resolved = useMemo(() => {
@@ -116,11 +127,13 @@ function ExportDialog({
   const noPosition = !hasLaunchPosition(launch);
   const selectedUser = resolved.kind === 'user' ? resolved.template : null;
 
-  const toggleWaypoint = (k: WaypointKind) => setOpts((o) => {
-    const waypoints = new Set(o.waypoints);
-    if (waypoints.has(k)) waypoints.delete(k); else waypoints.add(k);
-    return { ...o, waypoints };
-  });
+  const toggleWaypoint = (k: WaypointKind) =>
+    setOpts((o) => {
+      const waypoints = new Set(o.waypoints);
+      if (waypoints.has(k)) waypoints.delete(k);
+      else waypoints.add(k);
+      return { ...o, waypoints };
+    });
 
   const onImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -128,7 +141,10 @@ function ExportDialog({
     if (!file) return;
     try {
       const source = await file.text();
-      if (!source.trim()) { setError(t('pathExport.importEmpty')); return; }
+      if (!source.trim()) {
+        setError(t('pathExport.importEmpty'));
+        return;
+      }
       const { id, name, ext } = parseTemplateFilename(file.name);
       await store.add({ id, name, ext, source });
       setTemplates(await store.list());
@@ -184,32 +200,51 @@ function ExportDialog({
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
       <div
         className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-slate-900 p-5 ring-1 ring-white/10"
-        role="dialog" aria-modal="true" aria-label={t('pathExport.title')}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('pathExport.title')}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
           <h2 className="text-base font-semibold text-slate-100">{t('pathExport.title')}</h2>
           <button
-            onClick={onClose} aria-label={t('pathExport.cancel')}
+            onClick={onClose}
+            aria-label={t('pathExport.cancel')}
             className="shrink-0 rounded-lg bg-slate-800 px-2 py-1 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
-          >✕</button>
+          >
+            ✕
+          </button>
         </div>
 
         <div className="mt-4 space-y-4">
           {/* Format */}
           <div className="space-y-2">
             <label className="flex items-center justify-between gap-3">
-              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">{t('pathExport.format')}</span>
+              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                {t('pathExport.format')}
+              </span>
               <select
-                value={selected} onChange={(e) => { setSelected(e.target.value); setError(null); }}
+                value={selected}
+                onChange={(e) => {
+                  setSelected(e.target.value);
+                  setError(null);
+                }}
                 className="flex-1 rounded-md bg-slate-800 px-2 py-1.5 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
               >
                 <optgroup label={t('pathExport.builtIns')}>
-                  {EXPORT_FORMATS.map((f) => <option key={f.id} value={f.id}>{t(`pathExport.fmt.${f.id}`)}</option>)}
+                  {EXPORT_FORMATS.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {t(`pathExport.fmt.${f.id}`)}
+                    </option>
+                  ))}
                 </optgroup>
                 {templates.length > 0 && (
                   <optgroup label={t('pathExport.custom')}>
-                    {templates.map((tp) => <option key={tp.id} value={`${USER_PREFIX}${tp.id}`}>{tp.name} (.{tp.ext})</option>)}
+                    {templates.map((tp) => (
+                      <option key={tp.id} value={`${USER_PREFIX}${tp.id}`}>
+                        {tp.name} (.{tp.ext})
+                      </option>
+                    ))}
                   </optgroup>
                 )}
               </select>
@@ -243,7 +278,12 @@ function ExportDialog({
           <Section title={t('pathExport.waypoints')}>
             <div className="grid grid-cols-2 gap-1.5">
               {WAYPOINT_KINDS.map((k) => (
-                <Check key={k} checked={opts.waypoints.has(k)} onChange={() => toggleWaypoint(k)} label={t(WP_LABEL_KEY[k])} />
+                <Check
+                  key={k}
+                  checked={opts.waypoints.has(k)}
+                  onChange={() => toggleWaypoint(k)}
+                  label={t(WP_LABEL_KEY[k])}
+                />
               ))}
             </div>
           </Section>
@@ -251,13 +291,26 @@ function ExportDialog({
           {/* Path geometry — irrelevant to the built-in waypoint CSV. */}
           {showPath && (
             <Section title={t('pathExport.path')}>
-              <Check checked={opts.includeFlightPath} onChange={(v) => setOpts((o) => ({ ...o, includeFlightPath: v }))} label={t('pathExport.includeFlightPath')} />
-              <Check checked={opts.includeGroundTrack} onChange={(v) => setOpts((o) => ({ ...o, includeGroundTrack: v }))} label={t('pathExport.includeGroundTrack')} />
+              <Check
+                checked={opts.includeFlightPath}
+                onChange={(v) => setOpts((o) => ({ ...o, includeFlightPath: v }))}
+                label={t('pathExport.includeFlightPath')}
+              />
+              <Check
+                checked={opts.includeGroundTrack}
+                onChange={(v) => setOpts((o) => ({ ...o, includeGroundTrack: v }))}
+                label={t('pathExport.includeGroundTrack')}
+              />
               <label className="mt-1 flex items-center justify-between gap-3">
                 <span className="text-xs text-slate-400">{t('pathExport.stride')}</span>
                 <input
-                  type="number" min={1} step={1} value={opts.pathStride}
-                  onChange={(e) => setOpts((o) => ({ ...o, pathStride: Math.max(1, Math.floor(Number(e.target.value) || 1)) }))}
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={opts.pathStride}
+                  onChange={(e) =>
+                    setOpts((o) => ({ ...o, pathStride: Math.max(1, Math.floor(Number(e.target.value) || 1)) }))
+                  }
                   className="w-20 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
                 />
               </label>
@@ -266,8 +319,16 @@ function ExportDialog({
 
           {/* Units */}
           <Section title={t('pathExport.units')}>
-            <UnitRow label={t('pathExport.altitude')} value={opts.altitudeUnit} onChange={(u) => setOpts((o) => ({ ...o, altitudeUnit: u }))} />
-            <UnitRow label={t('pathExport.distance')} value={opts.distanceUnit} onChange={(u) => setOpts((o) => ({ ...o, distanceUnit: u }))} />
+            <UnitRow
+              label={t('pathExport.altitude')}
+              value={opts.altitudeUnit}
+              onChange={(u) => setOpts((o) => ({ ...o, altitudeUnit: u }))}
+            />
+            <UnitRow
+              label={t('pathExport.distance')}
+              value={opts.distanceUnit}
+              onChange={(u) => setOpts((o) => ({ ...o, distanceUnit: u }))}
+            />
           </Section>
 
           {noPosition && (
@@ -283,10 +344,16 @@ function ExportDialog({
         </div>
 
         <div className="mt-5 flex justify-end gap-2">
-          <button onClick={onClose} className="rounded-lg bg-slate-800 px-4 py-2 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700">
+          <button
+            onClick={onClose}
+            className="rounded-lg bg-slate-800 px-4 py-2 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+          >
             {t('pathExport.cancel')}
           </button>
-          <button onClick={download} className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500">
+          <button
+            onClick={download}
+            className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
+          >
             {t('pathExport.download')}
           </button>
         </div>
@@ -307,21 +374,39 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Check({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <label className="flex items-center gap-2 text-sm text-slate-300">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="accent-sky-500" />
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="accent-sky-500"
+      />
       {label}
     </label>
   );
 }
 
-function UnitRow({ label, value, onChange }: { label: string; value: DistanceUnit; onChange: (u: DistanceUnit) => void }) {
+function UnitRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: DistanceUnit;
+  onChange: (u: DistanceUnit) => void;
+}) {
   return (
     <label className="flex items-center justify-between gap-3">
       <span className="text-xs text-slate-400">{label}</span>
       <select
-        value={value} onChange={(e) => onChange(e.target.value as DistanceUnit)}
+        value={value}
+        onChange={(e) => onChange(e.target.value as DistanceUnit)}
         className="w-24 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
       >
-        {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+        {UNITS.map((u) => (
+          <option key={u} value={u}>
+            {u}
+          </option>
+        ))}
       </select>
     </label>
   );

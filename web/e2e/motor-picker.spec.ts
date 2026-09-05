@@ -22,11 +22,17 @@ import { test, expect, type Page } from '@playwright/test';
 // Fresh Playwright contexts start with empty storage, so the pre-1.0 "work in
 // progress" modal blocks the UI on every test until acknowledged.
 async function dismissWip(page: Page) {
-  await page.getByRole('button', { name: 'I understand' }).click({ timeout: 10_000 }).catch(() => {});
+  await page
+    .getByRole('button', { name: 'I understand' })
+    .click({ timeout: 10_000 })
+    .catch(() => {});
 }
 
 async function openPicker(page: Page) {
-  await page.getByRole('button', { name: /change/i }).first().click();
+  await page
+    .getByRole('button', { name: /change/i })
+    .first()
+    .click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   return dialog;

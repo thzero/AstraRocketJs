@@ -20,14 +20,17 @@ export function ComponentPicker({ type, onApply }: { type: ComponentType; onAppl
   useEffect(() => {
     if (!open) return;
     setQ('');
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
 
   const dims = (p: Component): string => {
     if (p.type === 'parachute') return `⌀ ${fmtNum(p.diameter * 1000, 0)} mm · Cd ${fmtNum(p.cd ?? 0.8, 2)}`;
-    if (p.type === 'nosecone') return `${p.shape} · ⌀ ${fmtNum(p.outerDiameter * 1000, 1)} mm · ${fmtNum(p.length * 1000, 0)} mm`;
+    if (p.type === 'nosecone')
+      return `${p.shape} · ⌀ ${fmtNum(p.outerDiameter * 1000, 1)} mm · ${fmtNum(p.length * 1000, 0)} mm`;
     return `⌀ ${fmtNum(p.outerDiameter * 1000, 1)} mm · ${fmtNum(p.length * 1000, 0)} mm`;
   };
 
@@ -54,14 +57,19 @@ export function ComponentPicker({ type, onApply }: { type: ComponentType; onAppl
             <div className="flex items-center justify-between gap-2 border-b border-white/10 p-3">
               <h2 className="text-sm font-semibold text-slate-200">{t('picker.dialogTitle')}</h2>
               <button
-                onClick={() => setOpen(false)} aria-label={t('picker.close')}
+                onClick={() => setOpen(false)}
+                aria-label={t('picker.close')}
                 className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 hover:bg-slate-700"
-              >✕</button>
+              >
+                ✕
+              </button>
             </div>
 
             <div className="p-3">
               <input
-                value={q} onChange={(e) => setQ(e.target.value)} autoFocus
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                autoFocus
                 placeholder={t('picker.search')}
                 className="w-full rounded-lg bg-slate-950 px-3 py-2 text-sm text-slate-100 ring-1 ring-white/10 placeholder:text-slate-500 focus:outline-none focus:ring-sky-500"
               />
@@ -71,12 +79,16 @@ export function ComponentPicker({ type, onApply }: { type: ComponentType; onAppl
               {matches.map((p, i) => (
                 <li key={`${p.mfr}:${p.partNo}:${i}`}>
                   <button
-                    onClick={() => { onApply(p); setOpen(false); }}
+                    onClick={() => {
+                      onApply(p);
+                      setOpen(false);
+                    }}
                     className="flex w-full flex-col gap-0.5 px-3 py-2 text-left hover:bg-slate-800"
                   >
                     <span className="flex items-center justify-between gap-2 text-sm">
                       <span className="min-w-0 truncate">
-                        <span className="text-slate-500">{p.mfr}</span> <span className="font-medium text-slate-100">{p.partNo}</span>
+                        <span className="text-slate-500">{p.mfr}</span>{' '}
+                        <span className="font-medium text-slate-100">{p.partNo}</span>
                       </span>
                       <span className="shrink-0 tabular-nums text-xs text-slate-400">{dims(p)}</span>
                     </span>

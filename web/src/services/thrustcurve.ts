@@ -67,11 +67,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
  * OpenRocket treats .eng files. CG is fixed at half the motor length (the
  * same approximation OpenRocket applies to RASP data without CG info).
  */
-export function samplesToMotorSpec(
-  motor: TcMotor,
-  samples: TcSample[],
-  ejectionDelay: number,
-): MotorSpec {
+export function samplesToMotorSpec(motor: TcMotor, samples: TcSample[], ejectionDelay: number): MotorSpec {
   // Normalize: sorted, starting at t=0.
   const pts = [...samples].sort((a, b) => a.time - b.time);
   if (pts.length === 0) {
@@ -140,9 +136,11 @@ export function samplesToMotorSpec(
 async function resolveTcMotor(cat: CatalogMotor): Promise<TcMotor> {
   const pick = (list: TcMotor[]): TcMotor | undefined => {
     if (list.length === 0) return undefined;
-    return [...list].sort((a, b) =>
-      Math.abs(a.diameter - cat.diameter) - Math.abs(b.diameter - cat.diameter) ||
-      Number(b.availability === 'regular') - Number(a.availability === 'regular'))[0];
+    return [...list].sort(
+      (a, b) =>
+        Math.abs(a.diameter - cat.diameter) - Math.abs(b.diameter - cat.diameter) ||
+        Number(b.availability === 'regular') - Number(a.availability === 'regular'),
+    )[0];
   };
 
   for (const query of [{ commonName: cat.designation }, { designation: cat.designation }]) {
@@ -183,9 +181,9 @@ function metaKey(cat: CatalogMotor): string {
 // only for a motor the user picks AGAIN once its entry has aged out. Falling
 // back to the stale value keeps a failed refresh (offline / API down) working.
 const isSampleArray = (v: unknown): boolean =>
-  Array.isArray(v) && v.length > 0
-  && v.every((s) => typeof (s as TcSample)?.time === 'number'
-    && typeof (s as TcSample)?.thrust === 'number');
+  Array.isArray(v) &&
+  v.length > 0 &&
+  v.every((s) => typeof (s as TcSample)?.time === 'number' && typeof (s as TcSample)?.thrust === 'number');
 
 const isSpec = (v: unknown): boolean => {
   const s = v as MotorSpec;
@@ -221,14 +219,13 @@ async function fetchSamplesCached(motor: TcMotor, cat: CatalogMotor): Promise<Tc
   const cached = await getMotorStore().readEntry<TcSample[]>(key, isSampleArray);
   if (cached && !cached.stale) return cached.value;
   try {
-    const body = await post<{ results?: { format: string; samples?: TcSample[] }[] }>(
-      'download.json',
-      { motorIds: [motor.motorId], data: 'samples' },
-    );
+    const body = await post<{ results?: { format: string; samples?: TcSample[] }[] }>('download.json', {
+      motorIds: [motor.motorId],
+      data: 'samples',
+    });
     const files = body.results ?? [];
     // Prefer RASP data, fall back to any file with samples.
-    const file = files.find((f) => f.format === 'RASP' && f.samples?.length)
-      ?? files.find((f) => f.samples?.length);
+    const file = files.find((f) => f.format === 'RASP' && f.samples?.length) ?? files.find((f) => f.samples?.length);
     if (!file?.samples) {
       if (cached) return cached.value;
       throw new Error(`No thrust-curve data available for ${cat.designation}`);
@@ -258,11 +255,18 @@ export async function fetchMotorSpec(cat: CatalogMotor, ejectionDelay: number, c
     }
     return samplesToMotorSpec(
       {
-        motorId: cm.id, designation: cm.designation, commonName: cm.designation,
-        manufacturerAbbrev: cm.manufacturer, diameter: cm.diameter, length: cm.length,
-        totalWeightG: cm.totalWeightG, propWeightG: cm.propWeightG, availability: 'custom',
+        motorId: cm.id,
+        designation: cm.designation,
+        commonName: cm.designation,
+        manufacturerAbbrev: cm.manufacturer,
+        diameter: cm.diameter,
+        length: cm.length,
+        totalWeightG: cm.totalWeightG,
+        propWeightG: cm.propWeightG,
+        availability: 'custom',
       },
-      cm.samples, ejectionDelay,
+      cm.samples,
+      ejectionDelay,
     );
   }
 
@@ -274,10 +278,13 @@ export async function fetchMotorSpec(cat: CatalogMotor, ejectionDelay: number, c
     const spec = samplesToMotorSpec(
       {
         motorId: `${cat.manufacturer}:${cat.designation}`,
-        designation: cat.designation, commonName: cat.designation,
+        designation: cat.designation,
+        commonName: cat.designation,
         manufacturerAbbrev: cat.manufacturer,
-        diameter: cat.diameter, length: cat.length,
-        totalWeightG: cat.mass, propWeightG: cat.propWeightG,
+        diameter: cat.diameter,
+        length: cat.length,
+        totalWeightG: cat.mass,
+        propWeightG: cat.propWeightG,
         availability: 'regular',
       },
       curve.samples.map(([time, thrust]) => ({ time, thrust })),

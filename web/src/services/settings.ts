@@ -3,10 +3,17 @@ import type { LaunchConditions } from './orkTree';
 
 // Sea-level, calm, standard-atmosphere defaults (Cape Canaveral latitude).
 export const DEFAULT_LAUNCH: LaunchConditions = {
-  launchRodLengthM: 1, launchRodAngleDeg: 0, launchRodDirectionDeg: 90, launchIntoWind: false,
-  windAverage: 0, windStdDev: 0, windDirectionDeg: 90,
-  launchAltitudeM: 0, latitudeDeg: 28.61,
-  temperatureC: null, pressureHPa: null,
+  launchRodLengthM: 1,
+  launchRodAngleDeg: 0,
+  launchRodDirectionDeg: 90,
+  launchIntoWind: false,
+  windAverage: 0,
+  windStdDev: 0,
+  windDirectionDeg: 90,
+  launchAltitudeM: 0,
+  latitudeDeg: 28.61,
+  temperatureC: null,
+  pressureHPa: null,
   geodetic: 'spherical',
 };
 
@@ -36,6 +43,14 @@ export interface SimulationSettings {
   railExitVelocityMin: number;
 }
 
+/** Which sides of the 2D side view carry a measurement ruler. */
+export interface RulerSides {
+  top: boolean;
+  bottom: boolean;
+  left: boolean;
+  right: boolean;
+}
+
 export interface Settings {
   /** Per-group colour overrides for the 3D model (empty = built-in defaults). */
   partColors: Partial<Record<PartKey, string>>;
@@ -51,6 +66,10 @@ export interface Settings {
   showMarkers: boolean;
   /** Show the length · mass · CG · CP · stability info card on the 2D & 3D views. */
   showInfoCard: boolean;
+  /** Expand the "All stats" strip under the canvas (collapsed = just its header). */
+  showStats: boolean;
+  /** Which sides of the 2D side view are framed by a measurement ruler. */
+  rulers: RulerSides;
   /** Whether the user has dismissed the pre-1.0 "work in progress" notice. */
   wipAcknowledged: boolean;
 }
@@ -59,10 +78,20 @@ export const DEFAULT_SETTINGS: Settings = {
   partColors: {},
   phaseColors: { boost: '#fb923c', coast: '#38bdf8', descent: '#34d399' },
   playbackSpeed: 0.5,
-  simulation: { timeStep: 0.05, maxTime: 1200, randomSeed: null, confirmDelete: true, autoRunOutdated: false, deploymentSpeedWarn: 20, railExitVelocityMin: 15 },
+  simulation: {
+    timeStep: 0.05,
+    maxTime: 1200,
+    randomSeed: null,
+    confirmDelete: true,
+    autoRunOutdated: false,
+    deploymentSpeedWarn: 20,
+    railExitVelocityMin: 15,
+  },
   launchDefaults: DEFAULT_LAUNCH,
   showMarkers: true,
   showInfoCard: true,
+  showStats: true,
+  rulers: { top: true, bottom: true, left: true, right: true },
   wipAcknowledged: false,
 };
 
@@ -72,7 +101,21 @@ export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return DEFAULT_SETTINGS;
-    const s = JSON.parse(raw) as Partial<Settings>;
+    const s = JSON.parse(raw) as Partial<Settings> & { showRulers?: boolean };
+    // Migrate the legacy single on/off flag → every side follows it; a saved
+    // per-side object (if present) then wins over the migration.
+    const legacyRulers =
+      typeof s.showRulers === 'boolean'
+        ? { top: s.showRulers, bottom: s.showRulers, left: s.showRulers, right: s.showRulers }
+        : {};
+    const savedRulers =
+      s.rulers && typeof s.rulers === 'object'
+        ? (Object.fromEntries(
+            (['top', 'bottom', 'left', 'right'] as const)
+              .filter((k) => typeof s.rulers![k] === 'boolean')
+              .map((k) => [k, s.rulers![k]]),
+          ) as Partial<RulerSides>)
+        : {};
     return {
       partColors: { ...(s.partColors ?? {}) },
       phaseColors: { ...DEFAULT_SETTINGS.phaseColors, ...(s.phaseColors ?? {}) },
@@ -81,6 +124,8 @@ export function loadSettings(): Settings {
       launchDefaults: { ...DEFAULT_SETTINGS.launchDefaults, ...(s.launchDefaults ?? {}) },
       showMarkers: typeof s.showMarkers === 'boolean' ? s.showMarkers : DEFAULT_SETTINGS.showMarkers,
       showInfoCard: typeof s.showInfoCard === 'boolean' ? s.showInfoCard : DEFAULT_SETTINGS.showInfoCard,
+      showStats: typeof s.showStats === 'boolean' ? s.showStats : DEFAULT_SETTINGS.showStats,
+      rulers: { ...DEFAULT_SETTINGS.rulers, ...legacyRulers, ...savedRulers },
       wipAcknowledged: typeof s.wipAcknowledged === 'boolean' ? s.wipAcknowledged : DEFAULT_SETTINGS.wipAcknowledged,
     };
   } catch {
@@ -89,5 +134,9 @@ export function loadSettings(): Settings {
 }
 
 export function saveSettings(s: Settings): void {
-  try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* storage disabled */ }
+  try {
+    localStorage.setItem(KEY, JSON.stringify(s));
+  } catch {
+    /* storage disabled */
+  }
 }

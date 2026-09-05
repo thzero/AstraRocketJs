@@ -24,12 +24,18 @@ import type { LaunchConditions } from './orkTree';
 
 /** The single-point waypoints that can be emitted for each flight branch. */
 export type WaypointKind =
-  | 'pad' | 'liftoff' | 'burnout' | 'apogee'
-  | 'recovery' | 'landing' | 'maxvelocity' | 'maxacceleration';
+  'pad' | 'liftoff' | 'burnout' | 'apogee' | 'recovery' | 'landing' | 'maxvelocity' | 'maxacceleration';
 
 /** Waypoint kinds in display/emit order (matches the reference enum). */
 export const WAYPOINT_KINDS: WaypointKind[] = [
-  'pad', 'liftoff', 'burnout', 'apogee', 'recovery', 'landing', 'maxvelocity', 'maxacceleration',
+  'pad',
+  'liftoff',
+  'burnout',
+  'apogee',
+  'recovery',
+  'landing',
+  'maxvelocity',
+  'maxacceleration',
 ];
 
 /** Distance units offered for the human-facing altitude/distance columns. */
@@ -77,10 +83,10 @@ export interface FlightPathWaypoint {
   altitudeMslMeters: number;
   time: number;
   timeStr: string;
-  altitude: string;    // above the pad, display unit
+  altitude: string; // above the pad, display unit
   altitudeMsl: string; // above sea level, display unit
-  distance: string;    // horizontal distance from pad, display unit
-  bearing: string;     // compass degrees from pad
+  distance: string; // horizontal distance from pad, display unit
+  bearing: string; // compass degrees from pad
 }
 
 export interface FlightPathPoint {
@@ -154,8 +160,7 @@ const EARTH_RADIUS_M = 6_371_000; // spherical Earth (OpenRocket's default model
 // ---------------------------------------------------------------------------
 
 const num = (v: number | null | undefined): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
-const series = (s: FlightSeries, key: string): (number | null)[] | undefined =>
-  s[key] as (number | null)[] | undefined;
+const series = (s: FlightSeries, key: string): (number | null)[] | undefined => s[key] as (number | null)[] | undefined;
 
 /**
  * Build the flight-path model from a simulation result and its launch site.
@@ -200,13 +205,18 @@ export function buildFlightPathModel(
 
   // Staged flights carry per-branch data (branch 0 = sustainer stack); a single
   // flight is exported as one synthetic branch from the top-level series.
-  const rawBranches = result.branches && result.branches.length
-    ? result.branches
-    : [{ name: meta.rocketName || meta.simName || 'Flight', events: result.events, series: result.series }];
+  const rawBranches =
+    result.branches && result.branches.length
+      ? result.branches
+      : [{ name: meta.rocketName || meta.simName || 'Flight', events: result.events, series: result.series }];
 
   for (const raw of rawBranches) {
     const branch = buildBranch(raw, options, waypointLabel, {
-      toLat, toLon, launchAlt, altUnit: options.altitudeUnit, distUnit: options.distanceUnit,
+      toLat,
+      toLon,
+      launchAlt,
+      altUnit: options.altitudeUnit,
+      distUnit: options.distanceUnit,
     });
     if (branch) model.branches.push(branch);
   }
@@ -289,10 +299,14 @@ function buildBranch(
   }
 
   if (options.waypoints.has('maxvelocity') && vel && vel.length) {
-    branch.waypoints.push(mkWaypoint(indexOfMax(vel, Math.min(n, vel.length)), 'maxvelocity', waypointLabel('maxvelocity'), null));
+    branch.waypoints.push(
+      mkWaypoint(indexOfMax(vel, Math.min(n, vel.length)), 'maxvelocity', waypointLabel('maxvelocity'), null),
+    );
   }
   if (options.waypoints.has('maxacceleration') && acc && acc.length) {
-    branch.waypoints.push(mkWaypoint(indexOfMax(acc, Math.min(n, acc.length)), 'maxacceleration', waypointLabel('maxacceleration'), null));
+    branch.waypoints.push(
+      mkWaypoint(indexOfMax(acc, Math.min(n, acc.length)), 'maxacceleration', waypointLabel('maxacceleration'), null),
+    );
   }
 
   branch.waypoints.sort((a, b) => a.time - b.time);
@@ -492,9 +506,30 @@ const WAYPOINTS_CSV_TEMPLATE_SOURCE =
   '{{/waypoints}}{{/branches}}\r\n';
 
 export const EXPORT_FORMATS: ExportFormat[] = [
-  { id: 'kml', extension: 'kml', mime: 'application/vnd.google-earth.kml+xml', render: renderKml, source: KML_TEMPLATE_SOURCE, templateFilename: 'flightpath.kml.mustache' },
-  { id: 'gpx', extension: 'gpx', mime: 'application/gpx+xml', render: renderGpx, source: GPX_TEMPLATE_SOURCE, templateFilename: 'flightpath.gpx.mustache' },
-  { id: 'waypoints-csv', extension: 'csv', mime: 'text/csv;charset=utf-8', render: renderWaypointCsv, source: WAYPOINTS_CSV_TEMPLATE_SOURCE, templateFilename: 'waypoints.csv.mustache' },
+  {
+    id: 'kml',
+    extension: 'kml',
+    mime: 'application/vnd.google-earth.kml+xml',
+    render: renderKml,
+    source: KML_TEMPLATE_SOURCE,
+    templateFilename: 'flightpath.kml.mustache',
+  },
+  {
+    id: 'gpx',
+    extension: 'gpx',
+    mime: 'application/gpx+xml',
+    render: renderGpx,
+    source: GPX_TEMPLATE_SOURCE,
+    templateFilename: 'flightpath.gpx.mustache',
+  },
+  {
+    id: 'waypoints-csv',
+    extension: 'csv',
+    mime: 'text/csv;charset=utf-8',
+    render: renderWaypointCsv,
+    source: WAYPOINTS_CSV_TEMPLATE_SOURCE,
+    templateFilename: 'waypoints.csv.mustache',
+  },
 ];
 
 /** True when the launch site is at (0,0) — the exported track lands on Null Island. */
@@ -512,12 +547,13 @@ function escaperFor(extension: string): (raw: string) => string {
     case 'kml':
     case 'gpx':
     case 'xml':
-      return (raw) => raw
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&apos;');
+      return (raw) =>
+        raw
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&apos;');
     case 'csv':
       return (raw) => raw.replace(/"/g, '""');
     default:
@@ -528,12 +564,18 @@ function escaperFor(extension: string): (raw: string) => string {
 /** Best-effort MIME type for a downloaded export file, by extension. */
 export function mimeForExtension(extension: string): string {
   switch (extension.toLowerCase()) {
-    case 'kml': return 'application/vnd.google-earth.kml+xml';
-    case 'gpx': return 'application/gpx+xml';
-    case 'csv': return 'text/csv;charset=utf-8';
-    case 'xml': return 'application/xml;charset=utf-8';
-    case 'json': return 'application/json;charset=utf-8';
-    default: return 'text/plain;charset=utf-8';
+    case 'kml':
+      return 'application/vnd.google-earth.kml+xml';
+    case 'gpx':
+      return 'application/gpx+xml';
+    case 'csv':
+      return 'text/csv;charset=utf-8';
+    case 'xml':
+      return 'application/xml;charset=utf-8';
+    case 'json':
+      return 'application/json;charset=utf-8';
+    default:
+      return 'text/plain;charset=utf-8';
   }
 }
 

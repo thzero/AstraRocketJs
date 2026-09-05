@@ -13,22 +13,30 @@ import { appName } from '../services/appInfo';
  */
 export function useWorkspaceEffects() {
   const { i18n } = useTranslation();
-  useEffect(() => { document.title = appName(); }, [i18n.language]);
+  useEffect(() => {
+    document.title = appName();
+  }, [i18n.language]);
 
   // Spawn + warm the sim worker (loads its own engine off-thread) so the first
   // "Run" isn't delayed by the worker's compile. Best-effort; sims fall back to
   // spawning it lazily if this is skipped.
-  useEffect(() => { warmSimWorker(); }, []);
+  useEffect(() => {
+    warmSimWorker();
+  }, []);
 
   // Restore the saved workspace once, then autosave (debounced) on change.
   const hydrated = useRef(false);
   useEffect(() => {
     let live = true;
-    getWorkspaceStore().load().then((w) => {
-      if (live && w) useWorkspaceStore.getState().hydrate(w);
-      hydrated.current = true;
-    });
-    return () => { live = false; };
+    getWorkspaceStore()
+      .load()
+      .then((w) => {
+        if (live && w) useWorkspaceStore.getState().hydrate(w);
+        hydrated.current = true;
+      });
+    return () => {
+      live = false;
+    };
   }, []);
 
   const tree = useWorkspaceStore((s) => s.tree);
@@ -55,7 +63,14 @@ export function useWorkspaceEffects() {
     const flush = () => {
       if (!hydrated.current) return;
       const s = useWorkspaceStore.getState();
-      getWorkspaceStore().save({ version: 1, tree: s.tree, sims: s.sims, activeId: s.activeId, extraMotors: s.extraMotors, loadedMeta: s.loadedMeta });
+      getWorkspaceStore().save({
+        version: 1,
+        tree: s.tree,
+        sims: s.sims,
+        activeId: s.activeId,
+        extraMotors: s.extraMotors,
+        loadedMeta: s.loadedMeta,
+      });
     };
     window.addEventListener('pagehide', flush);
     window.addEventListener('beforeunload', flush);
@@ -70,7 +85,16 @@ export function useWorkspaceEffects() {
   useEffect(() => {
     try {
       const r = buildConfiguredRocket(tree, motor, extraMotors, { event: ignitionEvent, delay: ignitionDelay });
-      useWorkspaceStore.getState().applyBuild(r.staticInfo(), r);
+      const info = r.staticInfo();
+      // Surface the coast drag coefficient at Mach 0.3 (a geometry property, not
+      // in the static JSON) via a single-point drag sweep. Best-effort: a design
+      // the sweep can't evaluate just leaves cd undefined.
+      try {
+        info.cd = r.dragSweep({ machMin: 0.3, machMax: 0.3, machStep: 0.05 }).powerOff.total[0];
+      } catch {
+        /* leave cd undefined */
+      }
+      useWorkspaceStore.getState().applyBuild(info, r);
       useWorkspaceStore.getState().setErr(null);
     } catch (e) {
       useWorkspaceStore.getState().applyBuild(null, null);
@@ -79,5 +103,7 @@ export function useWorkspaceEffects() {
   }, [tree, motor, extraMotors, ignitionEvent, ignitionDelay]);
 
   // Editing the design invalidates every simulation's cached result.
-  useEffect(() => { useWorkspaceStore.getState().invalidateResults(); }, [tree]);
+  useEffect(() => {
+    useWorkspaceStore.getState().invalidateResults();
+  }, [tree]);
 }

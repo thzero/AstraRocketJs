@@ -15,7 +15,17 @@ const UPPER_STAGE_EVENTS: IgnitionEvent[] = ['ejectioncharge', 'burnout', 'never
  * + a "Change…" button opening the picker, and a 📈 thrust-curve popup. `title`
  * names the mount on multi-mount rockets; `motor` is null for an empty mount.
  */
-export function MotorRow({ motor, onChange, onError, mountDiameter, title, ignition, onIgnitionChange, onCommit, upperStage }: {
+export function MotorRow({
+  motor,
+  onChange,
+  onError,
+  mountDiameter,
+  title,
+  ignition,
+  onIgnitionChange,
+  onCommit,
+  upperStage,
+}: {
   motor: MotorSpec | null;
   onChange: (m: MotorSpec) => void;
   onError: (msg: string | null) => void;
@@ -43,10 +53,12 @@ export function MotorRow({ motor, onChange, onError, mountDiameter, title, ignit
             <>
               <div className="truncate text-lg font-semibold text-sky-400">{motor.designation}</div>
               <div className="text-xs text-slate-500">
-                {fmtNum(motor.diameter * 1000, 0)} mm · {fmtNum(motor.length * 1000, 0)} mm · {fmtNum(motor.masses[0] * 1000, 1)} g
+                {fmtNum(motor.diameter * 1000, 0)} mm · {fmtNum(motor.length * 1000, 0)} mm ·{' '}
+                {fmtNum(motor.masses[0] * 1000, 1)} g
               </div>
               <div className="mt-0.5 text-xs text-slate-500">
-                {t('sims.delay')} {motor.ejectionDelay >= PLUGGED_DELAY ? t('motor.plugged') : `${fmtNum(motor.ejectionDelay, 1)} s`}
+                {t('sims.delay')}{' '}
+                {motor.ejectionDelay >= PLUGGED_DELAY ? t('motor.plugged') : `${fmtNum(motor.ejectionDelay, 1)} s`}
                 {motor.curveSrc ? <span className="text-slate-400"> · {motor.curveSrc}</span> : null}
               </div>
             </>
@@ -57,7 +69,9 @@ export function MotorRow({ motor, onChange, onError, mountDiameter, title, ignit
         <div className="flex shrink-0 items-center gap-1">
           {motor && (
             <button
-              onClick={() => setCurveOpen(true)} title={t('sims.viewCurve')} aria-label={t('sims.viewCurve')}
+              onClick={() => setCurveOpen(true)}
+              title={t('sims.viewCurve')}
+              aria-label={t('sims.viewCurve')}
               className="rounded-lg bg-slate-800 px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-700"
             >
               📈
@@ -72,9 +86,22 @@ export function MotorRow({ motor, onChange, onError, mountDiameter, title, ignit
         </div>
       </div>
       {motor && ignition && onIgnitionChange && (
-        <IgnitionControl event={ignition.event} delay={ignition.delay} onChange={onIgnitionChange} onCommit={onCommit} upperStage={upperStage} />
+        <IgnitionControl
+          event={ignition.event}
+          delay={ignition.delay}
+          onChange={onIgnitionChange}
+          onCommit={onCommit}
+          upperStage={upperStage}
+        />
       )}
-      <MotorDialog open={open} onClose={() => setOpen(false)} onSelect={onChange} onError={onError} mountDiameter={mountDiameter} current={motor} />
+      <MotorDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        onSelect={onChange}
+        onError={onError}
+        mountDiameter={mountDiameter}
+        current={motor}
+      />
       {motor && <MotorSpecDialog motor={motor} open={curveOpen} onClose={() => setCurveOpen(false)} />}
     </section>
   );
@@ -84,34 +111,58 @@ export function MotorRow({ motor, onChange, onError, mountDiameter, title, ignit
  *  after that event. "Automatic" lights launch-stage motors at launch and upper
  *  stages on the stage-below's ejection; the others (+ delay) drive air-starts
  *  and electronically-lit sustainers. */
-function IgnitionControl({ event, delay, onChange, onCommit, upperStage }: {
-  event: IgnitionEvent; delay: number; onChange: (event: IgnitionEvent, delay: number) => void; onCommit?: () => void; upperStage?: boolean;
+function IgnitionControl({
+  event,
+  delay,
+  onChange,
+  onCommit,
+  upperStage,
+}: {
+  event: IgnitionEvent;
+  delay: number;
+  onChange: (event: IgnitionEvent, delay: number) => void;
+  onCommit?: () => void;
+  upperStage?: boolean;
 }) {
   const { t } = useTranslation();
   // Bottom/only stage: just automatic / launch. Upper stage adds the sustainer
   // triggers + "never". Never drop the current value, though — a stale one would
   // otherwise blank the dropdown.
   const events: IgnitionEvent[] = [
-    'automatic', 'launch',
+    'automatic',
+    'launch',
     ...UPPER_STAGE_EVENTS.filter((e) => upperStage || e === event),
   ];
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-white/5 pt-2 text-xs">
       <span className="text-slate-500">{t('sims.ignition')}</span>
       <select
-        value={event} aria-label={t('sims.ignition')}
-        onChange={(e) => { onChange(e.target.value as IgnitionEvent, delay); onCommit?.(); }}
+        value={event}
+        aria-label={t('sims.ignition')}
+        onChange={(e) => {
+          onChange(e.target.value as IgnitionEvent, delay);
+          onCommit?.();
+        }}
         className="min-w-0 flex-1 rounded-md bg-slate-950 px-2 py-1 text-xs text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
       >
-        {events.map((ev) => <option key={ev} value={ev}>{t(`ignition.${ev}`)}</option>)}
+        {events.map((ev) => (
+          <option key={ev} value={ev}>
+            {t(`ignition.${ev}`)}
+          </option>
+        ))}
       </select>
       {event !== 'never' && (
         <label className="flex shrink-0 items-center gap-1 text-slate-500">
           +
           <input
-            type="number" min={0} step={0.5} value={delay}
-            aria-label={t('sims.ignitionDelay')} title={t('sims.ignitionDelay')}
-            onChange={(e) => onChange(event, Math.max(0, parseFloat(e.target.value) || 0))} onBlur={onCommit}
+            type="number"
+            min={0}
+            step={0.5}
+            value={delay}
+            aria-label={t('sims.ignitionDelay')}
+            title={t('sims.ignitionDelay')}
+            onChange={(e) => onChange(event, Math.max(0, parseFloat(e.target.value) || 0))}
+            onBlur={onCommit}
             className="w-14 rounded bg-slate-950 px-1.5 py-0.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
           />
           s

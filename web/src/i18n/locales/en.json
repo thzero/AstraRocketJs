@@ -1,5 +1,6 @@
 {
   "app": { "title": "AstraRocketJs", "version": "{{name}} version {{version}}", "designName": "{{name}} design" },
+  "common": { "loading": "Loading…", "confirmTitle": "Are you sure?", "confirm": "Confirm", "cancel": "Cancel", "delete": "Delete", "discard": "Discard" },
   "engine": { "wasmTip": "Physics engine: WebAssembly (fast path)", "jsTip": "Physics engine: JavaScript (fallback)" },
   "about": {
     "open": "About",
@@ -30,12 +31,25 @@
     "cpNote": "CP is computed from the shape and isn't directly overridable — OpenRocket overrides mass, CG and drag."
   },
   "file": {
-    "open": "Open .ork",
-    "save": "Save .ork",
+    "open": "Open Rocket",
+    "save": "Save Rocket",
+    "export": "Export",
+    "rasaero": "RASAero II (.CDX1)",
     "new": "New",
     "newConfirm": "Discard the current design and all simulations and start a fresh design?"
   },
   "edit": { "undo": "Undo", "redo": "Redo" },
+  "scale": {
+    "title": "Scale rocket",
+    "intro": "Multiply every length, diameter, wall, fin planform and axial position by one factor. Applied as a single step — Ctrl+Z undoes it.",
+    "factor": "Scale by",
+    "newDiameter": "New body Ø (mm)",
+    "currentDiameter": "Widest is {{mm}} mm now.",
+    "becomes": "becomes",
+    "massNote": "Solid parts keep their material, so their mass goes as the cube (~{{cube}}×). Recovery fabric scales by area, not volume, so the design is no longer exactly similar — re-check the parachute size and that the motor still fits its mount.",
+    "noAirframe": "This design has no body tube, nose cone or transition to measure, so there's nothing to scale from. Add an airframe first.",
+    "apply": "Scale to {{pct}}%"
+  },
   "menu": { "open": "Menu", "help": "Help" },
   "wip": {
     "title": "Work in progress",
@@ -105,7 +119,16 @@
     "markers": "CG / CP",
     "markersTitle": "Show CG / CP / stability markers",
     "infoCard": "Info",
-    "infoCardTitle": "Show the length / mass / CG / CP / stability card"
+    "infoCardTitle": "Show the length / mass / CG / CP / stability card",
+    "rulers": "Rulers",
+    "ruler_top": "Top ruler",
+    "ruler_bottom": "Bottom ruler",
+    "ruler_left": "Left ruler",
+    "ruler_right": "Right ruler",
+    "ruler_top_abbr": "T",
+    "ruler_bottom_abbr": "B",
+    "ruler_left_abbr": "L",
+    "ruler_right_abbr": "R"
   },
   "stability": {
     "title": "Stability",
@@ -120,14 +143,16 @@
     "overstable": "Overstable"
   },
   "stats": {
+    "title": "Rocket static stats",
     "length": "Length",
     "maxDiameter": "Max diameter",
     "fineness": "Fineness",
-    "massEmpty": "Mass (empty)",
-    "massLoaded": "Mass (loaded)",
-    "cgEmpty": "CG (empty)",
-    "cgLoaded": "CG (loaded)",
-    "stabilityPct": "Stability (%)"
+    "emptyLoaded": "empty / loaded",
+    "cna": "Normal-force slope",
+    "stabilityPct": "Stability (%)",
+    "cd": "Drag coeff.",
+    "rollInertia": "Roll inertia (loaded)",
+    "pitchInertia": "Pitch inertia (loaded)"
   },
   "sim": {
     "run": "Run flight simulation",
@@ -146,9 +171,12 @@
     "deployVelocity": "Deploy speed",
     "optDelay": "Optimum delay",
     "noMount": "Add a motor mount to run a simulation.",
-    "noMotor": "Load a motor to run a simulation."
+    "noMotor": "Load a motor to run a simulation.",
+    "lockedWhileRunning": "Locked while the simulation runs — edits resume when it finishes.",
+    "timeout": "The simulation took too long and was stopped. Try again, or simplify the design."
   },
   "warn": {
+    "deletePart": "Delete {{name}}?",
     "lastMountDelete": "This is the only motor mount. Delete it anyway? The rocket can't be simulated until you add another.",
     "lastMountDisable": "This is the only motor mount. Turn it off anyway? The rocket can't be simulated until you add another."
   },
@@ -271,7 +299,8 @@
   "banner": {
     "loaded": "Loaded design (.ork)",
     "close": "Close",
-    "closeTitle": "Discard this import and start a fresh design"
+    "closeTitle": "Discard this import and start a fresh design",
+    "closeConfirm": "Discard this loaded design and start a fresh one? Unsaved changes will be lost."
   },
   "part": {
     "stage": "Stage",
@@ -299,6 +328,13 @@
   },
   "tree": {
     "components": "Components",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all",
+    "collapseTree": "Hide the component list",
+    "expandTree": "Show the component list",
+    "scale": "⤢ Scale",
     "rocket": "Rocket",
     "motorTag": "motor",
     "noComponents": "No components.",
@@ -380,7 +416,6 @@
     "plugged": "plugged",
     "all": "All",
     "count": "{{total}} motors",
-    "showing": " (showing {{shown}})",
     "deleteTitle": "Delete imported motor {{name}}",
     "importedTitle": "Imported motor"
   },
@@ -479,6 +514,7 @@
     "copyName": "{{name}} copy",
     "delete": "Delete simulation",
     "deleteConfirm": "Delete this simulation?",
+    "deleteLast": "Can't delete the only simulation",
     "notRun": "not run",
     "motor": "Motor",
     "changeMotor": "Change…",
@@ -508,6 +544,7 @@
     "searchCode": "Search by code (e.g. C6)…",
     "select": "Select",
     "loading": "Loading…",
+    "loadingCatalog": "Loading motor catalog…",
     "pickHint": "Select a motor to see its thrust curve and specifications.",
     "backToList": "Back to list",
     "curve": "Curve",

@@ -9,7 +9,8 @@ export function lerpAt(xs: readonly number[], ys: readonly (number | null)[], x:
   if (x <= xs[0]!) return ys[0] ?? null;
   for (let i = 1; i < xs.length; i++) {
     if (x <= xs[i]!) {
-      const y0 = ys[i - 1], y1 = ys[i];
+      const y0 = ys[i - 1],
+        y1 = ys[i];
       if (y0 == null || y1 == null) return y1 ?? y0 ?? null;
       const span = xs[i]! - xs[i - 1]!;
       return span === 0 ? y1 : y0 + ((x - xs[i - 1]!) / span) * (y1 - y0);

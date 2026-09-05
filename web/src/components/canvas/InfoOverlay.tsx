@@ -20,7 +20,12 @@ export function InfoOverlay({ info }: { info: StaticInfo | null }) {
     [t('stability.mass'), `${fmtNum(info.mass * 1000, 1)} g`],
     [t('stability.cg'), `${fmtNum(info.cg * 100, 1)} cm`],
     [t('stability.cp'), `${fmtNum(info.cp * 100, 1)} cm`],
-    [t('stability.onPad'), <span className={stabilityTone(cal)}>{stabilityGlyph(cal)} {fmtNum(cal, 2)} {t('stability.caliber')}</span>],
+    [
+      t('stability.onPad'),
+      <span className={stabilityTone(cal)}>
+        {stabilityGlyph(cal)} {fmtNum(cal, 2)} {t('stability.caliber')}
+      </span>,
+    ],
   ];
   return (
     <div className="pointer-events-none rounded-lg bg-slate-900/85 px-3 py-2 ring-1 ring-white/10">

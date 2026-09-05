@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive, selectMotorDims } from '../../state/store';
+import { confirm } from '../../state/confirmStore';
 import { useSettings } from '../../state/SettingsProvider';
 import { TreeSchematic } from './TreeSchematic';
 import { AftView } from './AftView';
@@ -11,6 +12,7 @@ import { StabilityBadge } from './StabilityBadge';
 import { InfoOverlay } from './InfoOverlay';
 import { DragAnalysis } from './DragAnalysis';
 import { LoadedBanner } from './LoadedBanner';
+import { BusyLock } from '../common/BusyLock';
 
 // three.js is heavy, so the 3D views are code-split — their chunks load only when
 // the user actually switches to a 3D view, keeping the default (2D) path light.
@@ -25,7 +27,13 @@ const FlightPath3D = lazy(() => import('./FlightPath3D').then((m) => ({ default:
 export function CenterView() {
   const { t } = useTranslation();
   const loadedMeta = useWorkspaceStore((s) => s.loadedMeta);
-  const onCloseLoaded = useWorkspaceStore((s) => s.resetWorkspace);
+  const resetWorkspace = useWorkspaceStore((s) => s.resetWorkspace);
+  // "Close" discards the loaded design and resets to a fresh one — confirm first.
+  const onCloseLoaded = async () => {
+    if (await confirm({ message: t('banner.closeConfirm'), confirmLabel: t('common.discard'), danger: true })) {
+      resetWorkspace();
+    }
+  };
   const view = useWorkspaceStore((s) => s.view);
   const onView = useWorkspaceStore((s) => s.setView);
   const twoD = useWorkspaceStore((s) => s.twoD);
@@ -49,8 +57,11 @@ export function CenterView() {
   // CG/CP markers + info-card visibility are user preferences (persist across reloads).
   const showMarkers = settings.showMarkers;
   const showInfoCard = settings.showInfoCard;
+  const rulers = settings.rulers;
   const toggleMarkers = () => update({ showMarkers: !settings.showMarkers });
   const toggleInfoCard = () => update({ showInfoCard: !settings.showInfoCard });
+  const toggleRulerSide = (side: keyof typeof rulers) =>
+    update({ rulers: { ...settings.rulers, [side]: !settings.rulers[side] } });
   const runSim = useWorkspaceStore((s) => s.runSim);
   const busy = useWorkspaceStore((s) => s.simBusy);
   useEffect(() => {
@@ -72,6 +83,9 @@ export function CenterView() {
   // portal into, so they sit centred in the same row as the view toggle.
   const [ctrlSlot, setCtrlSlot] = useState<HTMLDivElement | null>(null);
   const deg = Math.round((roll * 180) / Math.PI);
+  // The roll slider overlays the far-left strip; reserve a gutter that width so
+  // the 2D drawing (and its left ruler) starts clear of it instead of underneath.
+  const ROLL_GUTTER = 30;
   const loading = <div className="grid h-full place-items-center text-sm text-slate-500">{t('view.loading3d')}</div>;
   const prompt = <div className="grid h-full place-items-center text-sm text-slate-500">{t('sim.prompt')}</div>;
 
@@ -85,14 +99,38 @@ export function CenterView() {
           {view === '2d' && (
             <>
               <ViewBtn onClick={onResetView}>{t('view.reset')}</ViewBtn>
-              <ViewBtn active={twoD === 'side'} onClick={() => onTwoD('side')}>{t('view.side')}</ViewBtn>
-              <ViewBtn active={twoD === 'aft'} onClick={() => onTwoD('aft')}>{t('view.aft')}</ViewBtn>
+              <ViewBtn active={twoD === 'side'} onClick={() => onTwoD('side')}>
+                {t('view.side')}
+              </ViewBtn>
+              <ViewBtn active={twoD === 'aft'} onClick={() => onTwoD('aft')}>
+                {t('view.aft')}
+              </ViewBtn>
             </>
           )}
           {(view === '2d' || view === '3d') && (
             <>
-              <ViewBtn active={showMarkers} onClick={toggleMarkers} title={t('view.markersTitle')}>{t('view.markers')}</ViewBtn>
-              <ViewBtn active={showInfoCard} onClick={toggleInfoCard} title={t('view.infoCardTitle')}>{t('view.infoCard')}</ViewBtn>
+              <ViewBtn active={showMarkers} onClick={toggleMarkers} title={t('view.markersTitle')}>
+                {t('view.markers')}
+              </ViewBtn>
+              <ViewBtn active={showInfoCard} onClick={toggleInfoCard} title={t('view.infoCardTitle')}>
+                {t('view.infoCard')}
+              </ViewBtn>
+              {/* Rulers only frame the 2D side view; one toggle per side (T/B/L/R). */}
+              {view === '2d' && (
+                <div className="flex items-center gap-1">
+                  <span className="pl-1 text-xs font-medium text-slate-400">{t('view.rulers')}</span>
+                  {(['top', 'bottom', 'left', 'right'] as const).map((side) => (
+                    <ViewBtn
+                      key={side}
+                      active={rulers[side]}
+                      onClick={() => toggleRulerSide(side)}
+                      title={t(`view.ruler_${side}`)}
+                    >
+                      {t(`view.ruler_${side}_abbr`)}
+                    </ViewBtn>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -104,6 +142,10 @@ export function CenterView() {
           footer, so switching views never resizes the pane and the strip is
           always visible without scrolling. */}
       <div className="relative min-h-0 w-full flex-1 overflow-hidden px-3 pt-2">
+        {/* Canvas parts can be dragged to reposition them (a design edit), so
+            lock the design views while a sim runs. Results views (flight/path)
+            don't mutate the design, so they stay interactive. */}
+        {(view === '2d' || view === '3d') && <BusyLock />}
         {view === '2d' && (
           <>
             <div
@@ -112,7 +154,10 @@ export function CenterView() {
             >
               <span className="pb-1">0°</span>
               <input
-                type="range" min={0} max={360} step={5}
+                type="range"
+                min={0}
+                max={360}
+                step={5}
                 value={deg}
                 onChange={(e) => onRollValue((parseFloat(e.target.value) * Math.PI) / 180)}
                 title={t('view.roll', { deg })}
@@ -122,38 +167,89 @@ export function CenterView() {
               />
               <span className="pt-1">360°</span>
               {/* Live roll readout, centred on the slider. */}
-              <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded bg-slate-800/95 px-0.5 py-0.5 text-[9px] text-sky-300 ring-1 ring-white/10">{deg}°</span>
+              <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded bg-slate-800/95 px-0.5 py-0.5 text-[9px] text-sky-300 ring-1 ring-white/10">
+                {deg}°
+              </span>
             </div>
           </>
         )}
-        {/* Quick-glance stats card (mmrocket-style), upper-left — same position
-            in both the 2D and 3D views, toggleable via the header Info button. */}
+        {/* Quick-glance stats card (mmrocket-style): sits INSIDE the ruler frame on
+            the 2D view (clear of the top + left rulers when they're on), and in the
+            upper-left corner in 3D. Toggleable via the header Info button. */}
         {(view === '2d' || view === '3d') && showInfoCard && (
-          <div className="absolute left-11 top-3 z-20">
+          <div
+            className="absolute z-20"
+            style={
+              view === '2d'
+                ? { left: (rulers.left ? 60 : 44) + ROLL_GUTTER, top: rulers.top ? 44 : 12 }
+                : { left: 44, top: 12 }
+            }
+          >
             <InfoOverlay info={info} />
           </div>
         )}
-        {view === '2d'
-          ? (twoD === 'side'
-              ? <TreeSchematic key={`side-${resetKey}`} tree={tree} info={info} motors={motors} fillHeight roll={roll} onRoll={onRollBy} selectedId={selectedId} onSelect={onSelect} controlsSlot={ctrlSlot} showMarkers={showMarkers} />
-              : <AftView key={`aft-${resetKey}`} tree={tree} roll={roll} motors={motors} onRoll={onRollBy} />)
-          : view === '3d'
-            ? <Suspense fallback={loading}><Rocket3D tree={tree} info={info} motors={motors} selectedId={selectedId} onSelect={onSelect} showMarkers={showMarkers} /></Suspense>
-            : view === 'flight'
-              ? <div className="h-full p-2">{result ? <FlightChart result={result} /> : prompt}</div>
-              : view === 'path'
-                ? <div className="relative h-full p-2">{result ? (
-                    <>
-                      <Suspense fallback={loading}><FlightPath3D result={result} tree={tree} motors={motors} /></Suspense>
-                      <div className="pointer-events-none absolute inset-x-0 top-5 z-10 flex justify-center">
-                        <div className="pointer-events-auto"><FlightPathExport variant="overlay" /></div>
-                      </div>
-                    </>
-                  ) : prompt}</div>
-                : <div className="h-full p-2">{info ? <DragAnalysis /> : prompt}</div>}
+        {view === '2d' ? (
+          // Left-padded so the drawing clears the roll slider's gutter.
+          <div className="h-full" style={{ paddingLeft: ROLL_GUTTER }}>
+            {twoD === 'side' ? (
+              <TreeSchematic
+                key={`side-${resetKey}`}
+                tree={tree}
+                info={info}
+                motors={motors}
+                fillHeight
+                roll={roll}
+                onRoll={onRollBy}
+                selectedId={selectedId}
+                onSelect={onSelect}
+                controlsSlot={ctrlSlot}
+                showMarkers={showMarkers}
+                rulers={rulers}
+              />
+            ) : (
+              <AftView key={`aft-${resetKey}`} tree={tree} roll={roll} motors={motors} onRoll={onRollBy} />
+            )}
+          </div>
+        ) : view === '3d' ? (
+          <Suspense fallback={loading}>
+            <Rocket3D
+              tree={tree}
+              info={info}
+              motors={motors}
+              selectedId={selectedId}
+              onSelect={onSelect}
+              showMarkers={showMarkers}
+            />
+          </Suspense>
+        ) : view === 'flight' ? (
+          <div className="h-full p-2">{result ? <FlightChart result={result} /> : prompt}</div>
+        ) : view === 'path' ? (
+          <div className="relative h-full p-2">
+            {result ? (
+              <>
+                <Suspense fallback={loading}>
+                  <FlightPath3D result={result} tree={tree} motors={motors} />
+                </Suspense>
+                <div className="pointer-events-none absolute inset-x-0 top-5 z-10 flex justify-center">
+                  <div className="pointer-events-auto">
+                    <FlightPathExport variant="overlay" />
+                  </div>
+                </div>
+              </>
+            ) : (
+              prompt
+            )}
+          </div>
+        ) : (
+          <div className="h-full p-2">{info ? <DragAnalysis /> : prompt}</div>
+        )}
       </div>
       <div className="shrink-0">
-        <StabilityBadge info={info} />
+        <StabilityBadge
+          info={info}
+          expanded={settings.showStats}
+          onToggle={() => update({ showStats: !settings.showStats })}
+        />
       </div>
     </div>
   );
@@ -161,7 +257,17 @@ export function CenterView() {
 
 /** Small overlay button for the 2D view presets (Side / Aft / Reset) and the
  *  CG/CP · Info view toggles. */
-function ViewBtn({ active, onClick, title, children }: { active?: boolean; onClick: () => void; title?: string; children: React.ReactNode }) {
+function ViewBtn({
+  active,
+  onClick,
+  title,
+  children,
+}: {
+  active?: boolean;
+  onClick: () => void;
+  title?: string;
+  children: React.ReactNode;
+}) {
   return (
     <button
       onClick={onClick}

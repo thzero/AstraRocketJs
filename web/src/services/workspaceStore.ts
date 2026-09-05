@@ -58,5 +58,9 @@ export class KeyValueWorkspaceStore implements WorkspaceStore {
 }
 
 let store: WorkspaceStore = new KeyValueWorkspaceStore();
-export function getWorkspaceStore(): WorkspaceStore { return store; }
-export function setWorkspaceStore(next: WorkspaceStore): void { store = next; }
+export function getWorkspaceStore(): WorkspaceStore {
+  return store;
+}
+export function setWorkspaceStore(next: WorkspaceStore): void {
+  store = next;
+}

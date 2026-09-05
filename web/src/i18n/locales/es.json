@@ -1,6 +1,10 @@
 {
   "app": { "title": "AstraRocketJs", "version": "{{name}} versión {{version}}", "designName": "Diseño de {{name}}" },
-  "engine": { "wasmTip": "Motor de física: WebAssembly (ruta rápida)", "jsTip": "Motor de física: JavaScript (alternativa)" },
+  "common": { "loading": "Cargando…", "confirmTitle": "¿Estás seguro?", "confirm": "Confirmar", "cancel": "Cancelar", "delete": "Eliminar", "discard": "Descartar" },
+  "engine": {
+    "wasmTip": "Motor de física: WebAssembly (ruta rápida)",
+    "jsTip": "Motor de física: JavaScript (alternativa)"
+  },
   "about": {
     "open": "Acerca de",
     "tagline": "Una interfaz web ligera para el motor de OpenRocket",
@@ -32,10 +36,23 @@
   "file": {
     "open": "Abrir .ork",
     "save": "Guardar .ork",
+    "export": "Exportar",
+    "rasaero": "RASAero II (.CDX1)",
     "new": "Nuevo",
     "newConfirm": "¿Descartar el diseño actual y todas las simulaciones y empezar un diseño nuevo?"
   },
   "edit": { "undo": "Deshacer", "redo": "Rehacer" },
+  "scale": {
+    "title": "Escalar cohete",
+    "intro": "Multiplica cada longitud, diámetro, pared, planta de aleta y posición axial por un factor. Se aplica en un solo paso — Ctrl+Z lo deshace.",
+    "factor": "Escalar por",
+    "newDiameter": "Nuevo Ø del cuerpo (mm)",
+    "currentDiameter": "El mayor es {{mm}} mm ahora.",
+    "becomes": "pasa a ser",
+    "massNote": "Las piezas sólidas conservan su material, así que su masa va con el cubo (~{{cube}}×). La tela de recuperación escala por área, no por volumen, así que el diseño ya no es exactamente similar — revisa el tamaño del paracaídas y que el motor siga cabiendo en su soporte.",
+    "noAirframe": "Este diseño no tiene tubo, ojiva ni transición que medir, así que no hay nada que escalar. Añade un fuselaje primero.",
+    "apply": "Escalar al {{pct}}%"
+  },
   "menu": { "open": "Menú", "help": "Ayuda" },
   "wip": {
     "title": "Trabajo en curso",
@@ -105,7 +122,16 @@
     "markers": "CG / CP",
     "markersTitle": "Mostrar marcadores de CG / CP / estabilidad",
     "infoCard": "Datos",
-    "infoCardTitle": "Mostrar la tarjeta de longitud / masa / CG / CP / estabilidad"
+    "infoCardTitle": "Mostrar la tarjeta de longitud / masa / CG / CP / estabilidad",
+    "rulers": "Reglas",
+    "ruler_top": "Regla superior",
+    "ruler_bottom": "Regla inferior",
+    "ruler_left": "Regla izquierda",
+    "ruler_right": "Regla derecha",
+    "ruler_top_abbr": "Ar",
+    "ruler_bottom_abbr": "Ab",
+    "ruler_left_abbr": "Iz",
+    "ruler_right_abbr": "De"
   },
   "stability": {
     "title": "Estabilidad",
@@ -120,14 +146,16 @@
     "overstable": "Sobreestable"
   },
   "stats": {
+    "title": "Estadísticas estáticas del cohete",
     "length": "Longitud",
     "maxDiameter": "Diámetro máx.",
     "fineness": "Esbeltez",
-    "massEmpty": "Masa (vacío)",
-    "massLoaded": "Masa (cargado)",
-    "cgEmpty": "CG (vacío)",
-    "cgLoaded": "CG (cargado)",
-    "stabilityPct": "Estabilidad (%)"
+    "emptyLoaded": "vacío / cargado",
+    "cna": "Pendiente fuerza normal",
+    "stabilityPct": "Estabilidad (%)",
+    "cd": "Coef. resistencia",
+    "rollInertia": "Inercia de alabeo (cargado)",
+    "pitchInertia": "Inercia de cabeceo (cargado)"
   },
   "sim": {
     "run": "Simular vuelo ({{name}})",
@@ -146,9 +174,12 @@
     "deployVelocity": "Vel. despliegue",
     "optDelay": "Retardo óptimo",
     "noMount": "Añade un soporte de motor para ejecutar una simulación.",
-    "noMotor": "Carga un motor para ejecutar una simulación."
+    "noMotor": "Carga un motor para ejecutar una simulación.",
+    "lockedWhileRunning": "Bloqueado mientras se ejecuta la simulación — la edición se reanuda al terminar.",
+    "timeout": "La simulación tardó demasiado y se detuvo. Inténtalo de nuevo o simplifica el diseño."
   },
   "warn": {
+    "deletePart": "¿Eliminar {{name}}?",
     "lastMountDelete": "Este es el único soporte de motor. ¿Eliminarlo de todos modos? El cohete no podrá simularse hasta que añadas otro.",
     "lastMountDisable": "Este es el único soporte de motor. ¿Desactivarlo de todos modos? El cohete no podrá simularse hasta que añadas otro."
   },
@@ -271,7 +302,8 @@
   "banner": {
     "loaded": "Diseño cargado (.ork)",
     "close": "Cerrar",
-    "closeTitle": "Descartar esta importación y empezar un diseño nuevo"
+    "closeTitle": "Descartar esta importación y empezar un diseño nuevo",
+    "closeConfirm": "¿Descartar este diseño cargado y empezar uno nuevo? Se perderán los cambios no guardados."
   },
   "part": {
     "stage": "Etapa",
@@ -299,6 +331,13 @@
   },
   "tree": {
     "components": "Componentes",
+    "expand": "Expandir",
+    "collapse": "Contraer",
+    "expandAll": "Expandir todo",
+    "collapseAll": "Contraer todo",
+    "collapseTree": "Ocultar la lista de componentes",
+    "expandTree": "Mostrar la lista de componentes",
+    "scale": "⤢ Escalar",
     "rocket": "Cohete",
     "motorTag": "motor",
     "noComponents": "Sin componentes.",
@@ -380,7 +419,6 @@
     "plugged": "taponado",
     "all": "Todos",
     "count": "{{total}} motores",
-    "showing": " (mostrando {{shown}})",
     "deleteTitle": "Eliminar motor importado {{name}}",
     "importedTitle": "Motor importado"
   },
@@ -479,6 +517,7 @@
     "copyName": "{{name}} copia",
     "delete": "Eliminar simulación",
     "deleteConfirm": "¿Eliminar esta simulación?",
+    "deleteLast": "No se puede eliminar la única simulación",
     "notRun": "sin ejecutar",
     "motor": "Motor",
     "changeMotor": "Cambiar…",
@@ -508,6 +547,7 @@
     "searchCode": "Buscar por código (p. ej. C6)…",
     "select": "Seleccionar",
     "loading": "Cargando…",
+    "loadingCatalog": "Cargando catálogo de motores…",
     "pickHint": "Selecciona un motor para ver su curva de empuje y especificaciones.",
     "backToList": "Volver a la lista",
     "curve": "Curva",

@@ -18,20 +18,20 @@ describe('reconcileMounts', () => {
 
   it('seeds a default C6 for a newly added non-primary mount', () => {
     const next = reconcileMounts(tree(['m1', 'm2']), {});
-    expect(Object.keys(next)).toEqual(['m2']);          // primary (m1) is not stored here
+    expect(Object.keys(next)).toEqual(['m2']); // primary (m1) is not stored here
     expect(next.m2.spec.designation).toBe('C6');
   });
 
   it('drops entries for mounts that no longer exist', () => {
     const next = reconcileMounts(tree(['m1', 'm2']), { gone: other(), m2: other() });
     expect(next.gone).toBeUndefined();
-    expect(next.m2.spec.designation).toBe('X');         // surviving mount keeps its motor
+    expect(next.m2.spec.designation).toBe('X'); // surviving mount keeps its motor
   });
 
-  it('keeps a now-primary mount\'s entry (consumers ignore it) so its motor survives', () => {
+  it("keeps a now-primary mount's entry (consumers ignore it) so its motor survives", () => {
     const next = reconcileMounts(tree(['m1', 'm2']), { m1: other() });
-    expect(next.m1.spec.designation).toBe('X');          // preserved even though m1 is primary
-    expect(next.m2.spec.designation).toBe('C6');          // m2 seeded
+    expect(next.m1.spec.designation).toBe('X'); // preserved even though m1 is primary
+    expect(next.m2.spec.designation).toBe('C6'); // m2 seeded
   });
 
   it('prunes everything when the last mount is removed', () => {

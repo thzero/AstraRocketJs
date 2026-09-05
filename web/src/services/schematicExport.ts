@@ -33,13 +33,15 @@ export function dataHeaderLines(d: ExportData): string[] {
       ...(d.spanM ? [`span ${fmtSi('length', u.length, d.spanM, 3)} ${u.length}`] : []),
     ];
     lines.push(dims.join(', '));
-    lines.push(d.withMotors
-      ? `Launch mass ${fmtSi('mass', u.mass, i.mass)} ${u.mass} (dry ${fmtSi('mass', u.mass, i.massEmpty)} ${u.mass})`
-      : `Dry mass ${fmtSi('mass', u.mass, i.massEmpty)} ${u.mass} — no motors loaded`);
     lines.push(
-      `CG ${fmtSi('length', u.length, i.cg, 3)} ${u.length}, `
-      + `CP ${fmtSi('length', u.length, i.cp, 3)} ${u.length} from nose tip, `
-      + `margin ${i.stabilityCalibers.toFixed(2)} cal`,
+      d.withMotors
+        ? `Launch mass ${fmtSi('mass', u.mass, i.mass)} ${u.mass} (dry ${fmtSi('mass', u.mass, i.massEmpty)} ${u.mass})`
+        : `Dry mass ${fmtSi('mass', u.mass, i.massEmpty)} ${u.mass} — no motors loaded`,
+    );
+    lines.push(
+      `CG ${fmtSi('length', u.length, i.cg, 3)} ${u.length}, ` +
+        `CP ${fmtSi('length', u.length, i.cp, 3)} ${u.length} from nose tip, ` +
+        `margin ${i.stabilityCalibers.toFixed(2)} cal`,
     );
   }
   lines.push(`ArsRocketJs Sim v${d.appVersion} — ${new Date().toISOString().slice(0, 10)}`);
@@ -70,7 +72,11 @@ export const EXPORT_VARS: [string, string][] = [
  * @param viewW/viewH the drawing's viewBox size
  */
 export function schematicSvg(
-  svgEl: SVGSVGElement, pxPerM: number, viewW: number, viewH: number, d: ExportData,
+  svgEl: SVGSVGElement,
+  pxPerM: number,
+  viewW: number,
+  viewH: number,
+  d: ExportData,
 ): string {
   const clone = svgEl.cloneNode(true) as SVGSVGElement;
   // Identity view: exports always show the whole rocket, whatever the
@@ -94,9 +100,13 @@ export function schematicSvg(
   const totalH = viewH + headerH;
 
   const mm = (px: number) => (px / pxPerM) * 1000;
-  const header = lines.map((l, i) =>
-    `<text x="${Math.round(fs * 0.8)}" y="${lineH * (i + 1)}" font-size="${i === 0 ? Math.round(fs * 1.25) : fs}"`
-    + `${i === 0 ? ' font-weight="bold"' : ''}>${escapeXml(l)}</text>`).join('\n');
+  const header = lines
+    .map(
+      (l, i) =>
+        `<text x="${Math.round(fs * 0.8)}" y="${lineH * (i + 1)}" font-size="${i === 0 ? Math.round(fs * 1.25) : fs}"` +
+        `${i === 0 ? ' font-weight="bold"' : ''}>${escapeXml(l)}</text>`,
+    )
+    .join('\n');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${viewW} ${totalH}"
@@ -119,8 +129,11 @@ const JPEG_QUALITY = 0.92;
 
 const encodeCanvas = (canvas: HTMLCanvasElement, format: ImageFormat): Promise<Blob> =>
   new Promise((resolve, reject) => {
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('image encode failed'))),
-      `image/${format}`, format === 'jpeg' ? JPEG_QUALITY : undefined);
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error('image encode failed'))),
+      `image/${format}`,
+      format === 'jpeg' ? JPEG_QUALITY : undefined,
+    );
   });
 
 /** Rasterize an SVG string at the given pixel width. */
@@ -152,7 +165,11 @@ export function svgToImage(svgString: string, widthPx = 3840, format: ImageForma
  * Compose a 3D-view snapshot with the data header band above it.
  * The WebGL canvas must have preserveDrawingBuffer for toDataURL/drawImage.
  */
-export function snapshotWithHeader(glCanvas: HTMLCanvasElement, d: ExportData, format: ImageFormat = 'png'): Promise<Blob> {
+export function snapshotWithHeader(
+  glCanvas: HTMLCanvasElement,
+  d: ExportData,
+  format: ImageFormat = 'png',
+): Promise<Blob> {
   const w = glCanvas.width;
   const fs = Math.max(12, Math.round(w * 0.016));
   const lineH = Math.round(fs * 1.45);

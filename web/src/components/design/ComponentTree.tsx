@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import type { ComponentNode, ComponentType, RocketTree } from '../../engine/openRocketEngine';
@@ -36,44 +36,96 @@ const mm = (v: unknown): string | null => {
 // Category colors match the app palette: structure = sky, fins = amber,
 // recovery = emerald, inner structure = slate, attachments/mass = violet.
 const TYPE_COLOR: Record<string, string> = {
-  stage: '#e2e8f0', nosecone: '#38bdf8', transition: '#38bdf8', bodytube: '#38bdf8', fairing: '#38bdf8',
-  trapezoidfinset: '#fbbf24', ellipticalfinset: '#fbbf24', freeformfinset: '#fbbf24', tubefinset: '#fbbf24',
-  innertube: '#94a3b8', tubecoupler: '#94a3b8', centeringring: '#94a3b8', bulkhead: '#94a3b8', engineblock: '#94a3b8',
-  launchlug: '#a78bfa', railbutton: '#a78bfa', masscomponent: '#a78bfa',
-  parachute: '#34d399', streamer: '#34d399', shockcord: '#34d399',
-  podset: '#e2e8f0', parallelstage: '#e2e8f0',
+  stage: '#e2e8f0',
+  nosecone: '#38bdf8',
+  transition: '#38bdf8',
+  bodytube: '#38bdf8',
+  fairing: '#38bdf8',
+  trapezoidfinset: '#fbbf24',
+  ellipticalfinset: '#fbbf24',
+  freeformfinset: '#fbbf24',
+  tubefinset: '#fbbf24',
+  innertube: '#94a3b8',
+  tubecoupler: '#94a3b8',
+  centeringring: '#94a3b8',
+  bulkhead: '#94a3b8',
+  engineblock: '#94a3b8',
+  launchlug: '#a78bfa',
+  railbutton: '#a78bfa',
+  masscomponent: '#a78bfa',
+  parachute: '#34d399',
+  streamer: '#34d399',
+  shockcord: '#34d399',
+  podset: '#e2e8f0',
+  parallelstage: '#e2e8f0',
 };
 
 // A distinct glyph per component type (mmrocket-style), coloured by TYPE_COLOR so
 // the tree reads by shape AND colour at a glance.
 const TYPE_SYMBOL: Record<string, string> = {
   stage: '≡',
-  nosecone: '▲', transition: '◣', bodytube: '▭', fairing: '◗',
-  trapezoidfinset: '◹', ellipticalfinset: '◜', freeformfinset: '◿', tubefinset: '⊚',
-  innertube: '▫', tubecoupler: '⊟', centeringring: '◎', bulkhead: '▬', engineblock: '⊙',
-  launchlug: '▮', railbutton: '▪', masscomponent: '◆',
-  parachute: '☂', streamer: '≈', shockcord: '∿',
-  podset: '◧', parallelstage: '❚',
+  nosecone: '▲',
+  transition: '◣',
+  bodytube: '▭',
+  fairing: '◗',
+  trapezoidfinset: '◹',
+  ellipticalfinset: '◜',
+  freeformfinset: '◿',
+  tubefinset: '⊚',
+  innertube: '▫',
+  tubecoupler: '⊟',
+  centeringring: '◎',
+  bulkhead: '▬',
+  engineblock: '⊙',
+  launchlug: '▮',
+  railbutton: '▪',
+  masscomponent: '◆',
+  parachute: '☂',
+  streamer: '≈',
+  shockcord: '∿',
+  podset: '◧',
+  parallelstage: '❚',
 };
 
 const partLabel = (type: string, t: TFunction): string => t(`part.${type}`, { defaultValue: type });
 
 function detail(n: ComponentNode, t: TFunction): string {
   const ty = n.type;
-  if (ty === 'nosecone') return [typeof n.shape === 'string' ? n.shape : null, mm(n.length)].filter(Boolean).join(' · ');
+  if (ty === 'nosecone')
+    return [typeof n.shape === 'string' ? n.shape : null, mm(n.length)].filter(Boolean).join(' · ');
   if (ty.endsWith('finset')) {
     const c = (n.finCount ?? n.count) as unknown;
     return typeof c === 'number' ? t('tree.fins', { count: c }) : '';
   }
-  if (ty === 'parachute') { const d = mm(n.diameter); return d ? `⌀ ${d}` : ''; }
+  if (ty === 'parachute') {
+    const d = mm(n.diameter);
+    return d ? `⌀ ${d}` : '';
+  }
   if (ty === 'streamer') return mm(n.stripLength) ?? '';
   if (ty === 'masscomponent') return typeof n.mass === 'number' ? `${fmtNum(n.mass * 1000, 1)} g` : '';
-  if (ty === 'centeringring' || ty === 'bulkhead') { const d = mm((n.outerRadius as number) * 2); return d ? `⌀ ${d}` : ''; }
+  if (ty === 'centeringring' || ty === 'bulkhead') {
+    const d = mm((n.outerRadius as number) * 2);
+    return d ? `⌀ ${d}` : '';
+  }
   return mm(n.length) ?? '';
 }
 
-function Row({ node, depth, selectedId, onSelect, t }: {
-  node: ComponentNode; depth: number; selectedId?: string | null; onSelect?: (id: string) => void; t: TFunction;
+function Row({
+  node,
+  depth,
+  selectedId,
+  onSelect,
+  collapsed,
+  onToggleCollapse,
+  t,
+}: {
+  node: ComponentNode;
+  depth: number;
+  selectedId?: string | null;
+  onSelect?: (id: string) => void;
+  collapsed: ReadonlySet<string>;
+  onToggleCollapse: (id: string) => void;
+  t: TFunction;
 }) {
   const color = TYPE_COLOR[node.type] ?? '#94a3b8';
   const symbol = TYPE_SYMBOL[node.type] ?? '□';
@@ -83,6 +135,10 @@ function Row({ node, depth, selectedId, onSelect, t }: {
   const det = detail(node, t);
   const id = typeof node.id === 'string' ? node.id : undefined;
   const selected = !!id && id === selectedId;
+  const hasKids = (node.children?.length ?? 0) > 0;
+  // Only id-bearing nodes can be remembered as collapsed; a childless or id-less
+  // node just shows a spacer so every row's label lines up.
+  const isCollapsed = hasKids && !!id && collapsed.has(id);
   const rowRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (selected) rowRef.current?.scrollIntoView({ block: 'nearest' });
@@ -98,53 +154,164 @@ function Row({ node, depth, selectedId, onSelect, t }: {
         style={{ paddingLeft: 8 + depth * 16 }}
         title={label}
       >
-        <span className="w-4 shrink-0 text-center text-xs leading-none" style={{ color }} aria-hidden>{symbol}</span>
+        {hasKids && id ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // toggle the branch without selecting the row
+              onToggleCollapse(id);
+            }}
+            aria-label={isCollapsed ? t('tree.expand') : t('tree.collapse')}
+            aria-expanded={!isCollapsed}
+            className="w-6 shrink-0 text-center text-xl leading-none text-slate-500 hover:text-slate-200"
+          >
+            {isCollapsed ? '▸' : '▾'}
+          </button>
+        ) : (
+          <span className="w-6 shrink-0" aria-hidden />
+        )}
+        <span className="w-4 shrink-0 text-center text-xs leading-none" style={{ color }} aria-hidden>
+          {symbol}
+        </span>
         <span className={`truncate text-sm ${selected ? 'text-sky-200' : 'text-slate-200'}`}>{name}</span>
         {isMount && (
-          <span className="shrink-0 rounded bg-sky-500/15 px-1 text-[10px] font-medium text-sky-300">{t('tree.motorTag')}</span>
+          <span className="shrink-0 rounded bg-sky-500/15 px-1 text-[10px] font-medium text-sky-300">
+            {t('tree.motorTag')}
+          </span>
         )}
         {det && <span className="ml-auto shrink-0 pl-2 text-[11px] tabular-nums text-slate-500">{det}</span>}
       </div>
-      {node.children?.map((c, i) => (
-        <Row key={(c.id as string) ?? `${c.type}-${i}`} node={c} depth={depth + 1} selectedId={selectedId} onSelect={onSelect} t={t} />
-      ))}
+      {!isCollapsed &&
+        node.children?.map((c, i) => (
+          <Row
+            key={(c.id as string) ?? `${c.type}-${i}`}
+            node={c}
+            depth={depth + 1}
+            selectedId={selectedId}
+            onSelect={onSelect}
+            collapsed={collapsed}
+            onToggleCollapse={onToggleCollapse}
+            t={t}
+          />
+        ))}
     </>
   );
 }
 
-export function ComponentTree({ tree, selectedId, onSelect, onAdd, onRenameDesign, onCommit }: {
-  tree: RocketTree; selectedId?: string | null; onSelect?: (id: string) => void;
+export function ComponentTree({
+  tree,
+  selectedId,
+  onSelect,
+  onAdd,
+  onRenameDesign,
+  onCommit,
+  onScale,
+}: {
+  tree: RocketTree;
+  selectedId?: string | null;
+  onSelect?: (id: string) => void;
   onAdd?: (type: ComponentType) => void;
   onRenameDesign?: (name: string) => void;
   onCommit?: () => void; // close the rename's undo entry when the field blurs
+  onScale?: () => void; // open the whole-rocket scale dialog
 }) {
   const { t } = useTranslation();
+  // Ids of collapsed (folded) branches — ephemeral view state per node id.
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleCollapse = (id: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  // Every id-bearing node that has children (the collapsible ones), so the
+  // header toggle can fold or unfold the whole tree at once.
+  const branchIds = (() => {
+    const ids: string[] = [];
+    const walk = (nodes: ComponentNode[]) => {
+      for (const n of nodes) {
+        if (typeof n.id === 'string' && (n.children?.length ?? 0) > 0) ids.push(n.id);
+        walk(n.children ?? []);
+      }
+    };
+    walk(tree.components);
+    return ids;
+  })();
+  const allCollapsed = branchIds.length > 0 && branchIds.every((id) => collapsed.has(id));
+  const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(branchIds));
+
+  // Fold the whole list away (header stays) so the property editor gets the room
+  // once a part is picked. Collapsed, the header names the selected part.
+  const [listOpen, setListOpen] = useState(true);
+  const selectedNode = selectedId ? findNode(tree, selectedId) : null;
+  const selectedName = selectedNode
+    ? (typeof selectedNode.name === 'string' && selectedNode.name ? selectedNode.name : partLabel(selectedNode.type, t))
+    : null;
+
   // The Add menu is contextual: it offers only the child types valid for the
   // selected part (the stage when nothing is selected). A leaf part → no menu.
   const parent = selectedId ? findNode(tree, selectedId) : null;
   const parentType = parent?.type ?? 'stage';
   const parentLabel = partLabel(parentType, t);
   const allowed = new Set<ComponentType>(allowedChildren(parentType));
-  const groups = ADD_GROUPS
-    .map((g) => ({ group: g.group, items: g.items.filter((ty) => allowed.has(ty)) }))
-    .filter((g) => g.items.length > 0);
+  const groups = ADD_GROUPS.map((g) => ({ group: g.group, items: g.items.filter((ty) => allowed.has(ty)) })).filter(
+    (g) => g.items.length > 0,
+  );
 
   return (
     <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('tree.components')}</h2>
-        {onAdd && (
+        <div className="flex min-w-0 items-center gap-1.5">
+          {/* Fold the whole tree list — the header (and this toggle) stay put. */}
+          <button
+            onClick={() => setListOpen((o) => !o)}
+            aria-expanded={listOpen}
+            title={listOpen ? t('tree.collapseTree') : t('tree.expandTree')}
+            className="flex min-w-0 items-center gap-1.5 rounded px-1 py-0.5 hover:bg-slate-800"
+          >
+            <span className="text-base leading-none text-sky-400">{listOpen ? '▾' : '▸'}</span>
+            <h2 className="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              {t('tree.components')}
+            </h2>
+            {!listOpen && selectedName && (
+              <span className="truncate text-xs font-medium text-sky-300">· {selectedName}</span>
+            )}
+          </button>
+          {listOpen && branchIds.length > 0 && (
+            <button
+              onClick={toggleAll}
+              title={allCollapsed ? t('tree.expandAll') : t('tree.collapseAll')}
+              aria-label={allCollapsed ? t('tree.expandAll') : t('tree.collapseAll')}
+              className="rounded px-1 text-xl leading-none text-slate-500 hover:bg-slate-800 hover:text-slate-200"
+            >
+              {allCollapsed ? '⊞' : '⊟'}
+            </button>
+          )}
+        </div>
+        {listOpen && onAdd && (
           <select
             value=""
             disabled={groups.length === 0}
-            onChange={(e) => { const v = e.target.value as ComponentType; if (v) onAdd(v); e.currentTarget.value = ''; }}
+            onChange={(e) => {
+              const v = e.target.value as ComponentType;
+              if (v) onAdd(v);
+              e.currentTarget.value = '';
+            }}
             className="rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-sky-300 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500 disabled:text-slate-600"
-            title={groups.length ? t('tree.canHost', { parent: parentLabel }) : t('tree.cantHost', { parent: parentLabel })}
+            title={
+              groups.length ? t('tree.canHost', { parent: parentLabel }) : t('tree.cantHost', { parent: parentLabel })
+            }
           >
-            <option value="">{groups.length ? t('tree.addTo', { parent: parentLabel }) : t('tree.nothingToAdd')}</option>
+            <option value="">
+              {groups.length ? t('tree.addTo', { parent: parentLabel }) : t('tree.nothingToAdd')}
+            </option>
             {groups.map((g) => (
               <optgroup key={g.group} label={t(`tree.${g.group}`)}>
-                {g.items.map((ty) => <option key={ty} value={ty}>{partLabel(ty, t)}</option>)}
+                {g.items.map((ty) => (
+                  <option key={ty} value={ty}>
+                    {partLabel(ty, t)}
+                  </option>
+                ))}
               </optgroup>
             ))}
           </select>
@@ -155,21 +322,48 @@ export function ComponentTree({ tree, selectedId, onSelect, onAdd, onRenameDesig
         {onRenameDesign ? (
           <input
             value={tree.name || ''}
-            onChange={(e) => onRenameDesign(e.target.value)} onBlur={onCommit}
-            placeholder={t('tree.rocket')} aria-label={t('prop.name')} title={t('prop.name')}
+            onChange={(e) => onRenameDesign(e.target.value)}
+            onBlur={onCommit}
+            placeholder={t('tree.rocket')}
+            aria-label={t('prop.name')}
+            title={t('prop.name')}
             className="min-w-0 flex-1 truncate rounded bg-transparent px-1 text-sm font-semibold text-sky-400 hover:bg-slate-800/60 focus:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
           />
         ) : (
-          <span className="truncate text-sm font-semibold text-sky-400">{tree.name || t('tree.rocket')}</span>
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-sky-400">
+            {tree.name || t('tree.rocket')}
+          </span>
+        )}
+        {onScale && (
+          <button
+            onClick={onScale}
+            title={t('scale.title')}
+            className="shrink-0 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
+          >
+            {t('tree.scale')}
+          </button>
         )}
       </div>
-      <div className="border-l border-white/5 pl-1">
-        {tree.components.length
-          ? tree.components.map((c, i) => (
-              <Row key={(c.id as string) ?? `${c.type}-${i}`} node={c} depth={0} selectedId={selectedId} onSelect={onSelect} t={t} />
+      {listOpen && (
+        <div className="border-l border-white/5 pl-1">
+          {tree.components.length ? (
+            tree.components.map((c, i) => (
+              <Row
+                key={(c.id as string) ?? `${c.type}-${i}`}
+                node={c}
+                depth={0}
+                selectedId={selectedId}
+                onSelect={onSelect}
+                collapsed={collapsed}
+                onToggleCollapse={toggleCollapse}
+                t={t}
+              />
             ))
-          : <p className="px-2 py-1 text-sm text-slate-500">{t('tree.noComponents')}</p>}
-      </div>
+          ) : (
+            <p className="px-2 py-1 text-sm text-slate-500">{t('tree.noComponents')}</p>
+          )}
+        </div>
+      )}
     </section>
   );
 }

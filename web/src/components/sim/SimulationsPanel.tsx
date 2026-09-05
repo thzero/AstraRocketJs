@@ -2,11 +2,13 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { findMounts, isUpperStageMount } from '../../services/treeEdit';
 import { useWorkspaceStore, selectActive, hasThrustCurve } from '../../state/store';
+import { confirm } from '../../state/confirmStore';
 import { useSettings } from '../../state/SettingsProvider';
 import { SimulationsList } from './SimulationsList';
 import { MotorRow } from './MotorRow';
 import { LaunchPanel } from './LaunchPanel';
 import { SimPanel } from './SimPanel';
+import { BusyLock } from '../common/BusyLock';
 
 /** Right pane: the simulations list, then — for the selected sim — its name,
  *  motor, launch conditions, run button and results. Reads the store directly. */
@@ -45,7 +47,14 @@ export function SimulationsPanel() {
   const { t } = useTranslation();
   const { settings } = useSettings();
   const onRun = () => runSim(settings.simulation);
-  const onDeleteSim = (id: string) => { if (!settings.simulation.confirmDelete || window.confirm(t('sims.deleteConfirm'))) deleteSim(id); };
+  const onDeleteSim = async (id: string) => {
+    if (
+      !settings.simulation.confirmDelete ||
+      (await confirm({ message: t('sims.deleteConfirm'), confirmLabel: t('common.delete'), danger: true }))
+    ) {
+      deleteSim(id);
+    }
+  };
   // A design with no motor mount (nowhere to seat a motor) or no usable primary
   // motor can't fly — disable Run and say why, rather than failing on click.
   const blockReason = mounts.length === 0 ? t('sim.noMount') : !hasThrustCurve(motor) ? t('sim.noMotor') : null;
@@ -54,16 +63,22 @@ export function SimulationsPanel() {
   // simulation and opens its config below; expanded it lists every sim to switch
   // between. Selecting / adding / duplicating collapses back to that sim.
   const [listOpen, setListOpen] = useState(false);
-  const focusSim = (fn: () => void) => { fn(); setListOpen(false); };
+  const focusSim = (fn: () => void) => {
+    fn();
+    setListOpen(false);
+  };
 
   return (
     <>
       {/* Run + results first, so a run's outcome is front-and-centre. */}
       <SimPanel info={info} runLabel={runLabel} sim={result} busy={busy} onRun={onRun} blockReason={blockReason} />
 
-      <div className="space-y-4 p-3 pt-0">
+      <div className="relative space-y-4 p-3 pt-0">
+        <BusyLock />
         <SimulationsList
-          sims={sims} activeId={activeId} open={listOpen}
+          sims={sims}
+          activeId={activeId}
+          open={listOpen}
           onToggleOpen={() => setListOpen((o) => !o)}
           onSelect={(id) => focusSim(() => onSelectSim(id))}
           onAdd={() => focusSim(onAddSim)}
@@ -75,14 +90,26 @@ export function SimulationsPanel() {
         {!listOpen && (
           <>
             <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
-              <label className="block">
-                <span className="mb-1 block text-[10px] uppercase tracking-wide text-slate-400">{t('sims.name')}</span>
-                <input
-                  value={runLabel} onChange={(e) => onRenameSim(activeId, e.target.value)} onBlur={onCommit}
-                  aria-label={t('sims.rename')}
-                  className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-sm font-medium text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
-                />
-              </label>
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <span className="text-[10px] uppercase tracking-wide text-slate-400">{t('sims.name')}</span>
+                {/* Delete THIS simulation; disabled (with a reason) when it's the
+                    only one, since the workspace always keeps at least one. */}
+                <button
+                  onClick={() => onDeleteSim(activeId)}
+                  disabled={sims.length <= 1}
+                  title={sims.length <= 1 ? t('sims.deleteLast') : t('sims.delete')}
+                  className="shrink-0 rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-500"
+                >
+                  {t('sims.delete')}
+                </button>
+              </div>
+              <input
+                value={runLabel}
+                onChange={(e) => onRenameSim(activeId, e.target.value)}
+                onBlur={onCommit}
+                aria-label={t('sims.rename')}
+                className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-sm font-medium text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+              />
             </section>
             {mounts.map((mt, i) => {
               const id = mt.id as string;
@@ -99,9 +126,14 @@ export function SimulationsPanel() {
                   onChange={isPrimary ? onMotorChange : (m) => setExtraMotor(id, m)}
                   onError={onError}
                   mountDiameter={bore}
-                  ignition={isPrimary
-                    ? { event: ignitionEvent ?? 'automatic', delay: ignitionDelay ?? 0 }
-                    : { event: extraMotors[id]?.ignitionEvent ?? 'automatic', delay: extraMotors[id]?.ignitionDelay ?? 0 }}
+                  ignition={
+                    isPrimary
+                      ? { event: ignitionEvent ?? 'automatic', delay: ignitionDelay ?? 0 }
+                      : {
+                          event: extraMotors[id]?.ignitionEvent ?? 'automatic',
+                          delay: extraMotors[id]?.ignitionDelay ?? 0,
+                        }
+                  }
                   onIgnitionChange={isPrimary ? setActiveIgnition : (e, d) => setExtraIgnition(id, e, d)}
                   onCommit={onCommit}
                   upperStage={isUpperStageMount(tree, id)}

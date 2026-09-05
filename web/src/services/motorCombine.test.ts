@@ -1,8 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { thrustAt, impulse, combineCurves, impulseClass, type Sample } from './motorCombine';
 
-const A: Sample[] = [[0, 0], [1, 10], [2, 0]]; // triangle, impulse 10, burn 2
-const B: Sample[] = [[0, 0], [0.5, 20], [1, 0]]; // triangle, impulse 10, burn 1
+const A: Sample[] = [
+  [0, 0],
+  [1, 10],
+  [2, 0],
+]; // triangle, impulse 10, burn 2
+const B: Sample[] = [
+  [0, 0],
+  [0.5, 20],
+  [1, 0],
+]; // triangle, impulse 10, burn 1
 
 describe('thrustAt', () => {
   it('interpolates linearly inside the curve', () => {
@@ -26,11 +34,11 @@ describe('combineCurves', () => {
   it('sums simultaneous curves and aggregates cluster stats', () => {
     const c = combineCurves([A, B]);
     expect(c.motorCount).toBe(2);
-    expect(c.burnTime).toBeCloseTo(2, 9);          // longest-burning motor
-    expect(c.totalImpulse).toBeCloseTo(20, 6);     // 10 + 10
+    expect(c.burnTime).toBeCloseTo(2, 9); // longest-burning motor
+    expect(c.totalImpulse).toBeCloseTo(20, 6); // 10 + 10
     // At t=0.5, A gives 5 and B peaks at 20 → 25 N combined peak region.
     expect(c.peakThrust).toBeCloseTo(25, 6);
-    expect(c.avgThrust).toBeCloseTo(10, 6);        // 20 N·s / 2 s
+    expect(c.avgThrust).toBeCloseTo(10, 6); // 20 N·s / 2 s
   });
   it('returns a zeroed result for no usable curves', () => {
     expect(combineCurves([]).motorCount).toBe(0);

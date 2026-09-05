@@ -8,7 +8,10 @@ import { test, expect, type Page } from '@playwright/test';
  */
 
 async function dismissWip(page: Page) {
-  await page.getByRole('button', { name: 'I understand' }).click({ timeout: 10_000 }).catch(() => {});
+  await page
+    .getByRole('button', { name: 'I understand' })
+    .click({ timeout: 10_000 })
+    .catch(() => {});
 }
 
 test.beforeEach(async ({ page }) => {

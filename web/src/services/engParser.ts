@@ -30,12 +30,17 @@ export function totalImpulse(samples: { time: number; thrust: number }[]): numbe
 }
 
 export function parseEng(text: string): CustomMotor {
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith(';'));
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith(';'));
   if (lines.length < 2) throw new Error('Not a valid .eng file (no motor data found).');
 
   const header = lines[0]!.split(/\s+/);
   if (header.length < 7) {
-    throw new Error('Malformed .eng header — expected: designation diameter length delays propWeight totalWeight manufacturer.');
+    throw new Error(
+      'Malformed .eng header — expected: designation diameter length delays propWeight totalWeight manufacturer.',
+    );
   }
   const [designation, diaS, lenS, delaysS, propS, totalS, ...mfr] = header;
   const diameter = Number(diaS);

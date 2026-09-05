@@ -14,11 +14,11 @@
 - **[Settings](Settings)** — units, simulation defaults, and safety warnings
 
 ## User Guide
-- **[Designing a Rocket](Designing-a-Rocket)** — the component tree, editing, presets, materials
+- **[Designing a Rocket](Designing-a-Rocket)** — the component tree, editing, presets, materials, scaling
 - **[Motors](Motors)** — the motor picker, thrust curves, `.eng` import, custom motors
 - **[Views & Analysis](Views-and-Analysis)** — 2D / 3D / aero / flight views, calipers, stability
 - **[Running a Simulation](Running-a-Simulation)** — launch setup, running, reading results
-- **[Files & Exports](Files-and-Exports)** — `.ork` open/save, CSV, flight-path (KML / GPX), and image exports
+- **[Files & Exports](Files-and-Exports)** — `.ork` open/save, RASAero `.CDX1`, CSV, flight-path (KML / GPX), and image exports
 
 ## Developing
 - **[Contributing](Contributing)** — report bugs, set up, build the engine, submit changes
@@ -27,7 +27,7 @@
 
 ---
 
-_Documentation for AstraRocketJs&nbsp;v<!--APP_VERSION-->0.0.4<!--/APP_VERSION-->._
+_Documentation for AstraRocketJs&nbsp;v<!--APP_VERSION-->0.0.5<!--/APP_VERSION-->._
 
 ---
 

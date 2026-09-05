@@ -42,7 +42,14 @@ const launch: LaunchConditions = {
 
 const label = (k: WaypointKind) => k; // identity labels for assertions
 
-const model = () => buildFlightPathModel(result, launch, { simName: 'Sim 1', rocketName: 'My <Rocket>', motorName: 'C6' }, defaultExportOptions(), label);
+const model = () =>
+  buildFlightPathModel(
+    result,
+    launch,
+    { simName: 'Sim 1', rocketName: 'My <Rocket>', motorName: 'C6' },
+    defaultExportOptions(),
+    label,
+  );
 
 describe('buildFlightPathModel', () => {
   it('projects Px/Py drift onto lat/lon about the launch site', () => {
@@ -115,7 +122,9 @@ describe('renderKml', () => {
     const opts = defaultExportOptions();
     opts.includeFlightPath = false;
     opts.includeGroundTrack = false;
-    const k = renderKml(buildFlightPathModel(result, launch, { simName: 'S', rocketName: 'R', motorName: 'C6' }, opts, label));
+    const k = renderKml(
+      buildFlightPathModel(result, launch, { simName: 'S', rocketName: 'R', motorName: 'C6' }, opts, label),
+    );
     expect(k).not.toContain('#flightPath');
     expect(k).not.toContain('#groundTrack');
   });
@@ -167,7 +176,8 @@ describe('hasLaunchPosition', () => {
 
 describe('renderUserTemplate (Mustache)', () => {
   it('renders a template using the desktop model field names', () => {
-    const src = 'Rocket: {{rocketName}} / Motor: {{motor}}\n{{#branches}}{{name}}: {{#waypoints}}[{{label}}]{{/waypoints}}{{/branches}}';
+    const src =
+      'Rocket: {{rocketName}} / Motor: {{motor}}\n{{#branches}}{{name}}: {{#waypoints}}[{{label}}]{{/waypoints}}{{/branches}}';
     const out = renderUserTemplate(src, 'txt', model());
     expect(out).toContain('Rocket: My <Rocket> / Motor: C6'); // txt → no escaping
     expect(out).toContain('[apogee]');
@@ -226,7 +236,9 @@ describe('EXPORT_FORMATS built-in template sources', () => {
 
   it('the downloadable waypoint-CSV template re-renders the header row', () => {
     const csv = renderUserTemplate(EXPORT_FORMATS[2]!.source, 'csv', model());
-    expect(csv.split('\r\n')[0]).toBe('"altitude(m)","latitude","longitude","label","symbol","color","label_color","name"');
+    expect(csv.split('\r\n')[0]).toBe(
+      '"altitude(m)","latitude","longitude","label","symbol","color","label_color","name"',
+    );
   });
 });
 

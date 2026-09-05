@@ -4,18 +4,37 @@ import type { KeyValueStore } from './keyValueStore';
 
 class FakeKv implements KeyValueStore {
   map = new Map<string, string>();
-  async get(k: string) { return this.map.has(k) ? this.map.get(k)! : null; }
-  async set(k: string, v: string) { this.map.set(k, v); }
-  async remove(k: string) { this.map.delete(k); }
+  async get(k: string) {
+    return this.map.has(k) ? this.map.get(k)! : null;
+  }
+  async set(k: string, v: string) {
+    this.map.set(k, v);
+  }
+  async remove(k: string) {
+    this.map.delete(k);
+  }
 }
 
 const KEY = 'astrarrocketjs:templates:custom';
-const tpl = (id: string, ext = 'kml'): UserTemplate => ({ id, name: id.replace(/\..*$/, ''), ext, source: `{{title}}` });
+const tpl = (id: string, ext = 'kml'): UserTemplate => ({
+  id,
+  name: id.replace(/\..*$/, ''),
+  ext,
+  source: `{{title}}`,
+});
 
 describe('parseTemplateFilename', () => {
   it('splits <name>.<ext>.mustache into name + extension', () => {
-    expect(parseTemplateFilename('my-waypoints.csv.mustache')).toEqual({ id: 'my-waypoints.csv.mustache', name: 'my-waypoints', ext: 'csv' });
-    expect(parseTemplateFilename('track.kml.mustache')).toEqual({ id: 'track.kml.mustache', name: 'track', ext: 'kml' });
+    expect(parseTemplateFilename('my-waypoints.csv.mustache')).toEqual({
+      id: 'my-waypoints.csv.mustache',
+      name: 'my-waypoints',
+      ext: 'csv',
+    });
+    expect(parseTemplateFilename('track.kml.mustache')).toEqual({
+      id: 'track.kml.mustache',
+      name: 'track',
+      ext: 'kml',
+    });
   });
 
   it('defaults a bare <name>.mustache to the txt extension', () => {

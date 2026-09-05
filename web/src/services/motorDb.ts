@@ -5,7 +5,6 @@
 //
 // The bundled JSON is the seed; on first load we mirror it into localStorage so
 // the catalog itself lives in local alongside the fetched curves.
-import bundled from '../data/motors.generated.json';
 import { getMotorStore, type CustomMotor } from './motorStore';
 import { parseEng, totalImpulse } from './engParser';
 
@@ -30,19 +29,19 @@ export interface CatalogMotor {
   id?: string;
   /** Bundled thrust curve (from the build-time sync) — lets the motor resolve
    *  entirely offline, no thrustcurve.org fetch. Absent → fetched on demand. */
-  length?: number;      // mm
+  length?: number; // mm
   propWeightG?: number; // g
   /** Thrust curves, best-first (a motor can have several — cert/user, RASP/RockSim).
    *  Each `samples` is [time (s), thrust (N)] pairs. */
   curves?: { src: string; samples: [number, number][] }[];
   // Descriptive metadata for the detail panel (bundled by sync-motors.mjs).
-  code?: string;        // full manufacturer designation, e.g. "E26W"
-  type?: string;        // 'SU' | 'reload' | 'hybrid'
-  delays?: string;      // e.g. "4,6,7,8,10"
-  propInfo?: string;    // propellant type, e.g. "White Lightning"
+  code?: string; // full manufacturer designation, e.g. "E26W"
+  type?: string; // 'SU' | 'reload' | 'hybrid'
+  delays?: string; // e.g. "4,6,7,8,10"
+  propInfo?: string; // propellant type, e.g. "White Lightning"
   sparky?: boolean;
-  avgThrust?: number;   // N
-  maxThrust?: number;   // N
+  avgThrust?: number; // N
+  maxThrust?: number; // N
   /** Set by the sync when no thrust curve could be bundled (none published, or
    *  missing length/prop weight). Such a motor can't be plotted / combined. */
   noCurve?: boolean;
@@ -77,8 +76,16 @@ function customToRow(cm: CustomMotor): CatalogMotor {
  * is too large to cache there, and the bundle is always available offline).
  */
 export async function loadCatalog(): Promise<CatalogMotor[]> {
-  const custom = (await getMotorStore().listCustomMotors()).map(customToRow);
-  return [...custom, ...(bundled as CatalogMotor[])];
+  // The 700 kB+ catalog is dynamically imported so it splits into its own chunk,
+  // fetched only when something first needs the catalog (e.g. the motor picker
+  // opens) rather than weighing down the initial app bundle.
+  const [custom, bundled] = await Promise.all([
+    getMotorStore()
+      .listCustomMotors()
+      .then((ms) => ms.map(customToRow)),
+    import('../data/motors.generated.json').then((m) => m.default as CatalogMotor[]),
+  ]);
+  return [...custom, ...bundled];
 }
 
 /** Parse a .eng file, store it as a custom motor, and return the refreshed catalog. */

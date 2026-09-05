@@ -5,9 +5,15 @@ import type { CatalogMotor } from './motorDb';
 
 class FakeKv implements KeyValueStore {
   map = new Map<string, string>();
-  async get(k: string) { return this.map.has(k) ? this.map.get(k)! : null; }
-  async set(k: string, v: string) { this.map.set(k, v); }
-  async remove(k: string) { this.map.delete(k); }
+  async get(k: string) {
+    return this.map.has(k) ? this.map.get(k)! : null;
+  }
+  async set(k: string, v: string) {
+    this.map.set(k, v);
+  }
+  async remove(k: string) {
+    this.map.delete(k);
+  }
 }
 
 // Private keys from motorStore.ts, hardcoded so we can seed raw entries.
@@ -18,13 +24,27 @@ const cat: CatalogMotor[] = [
   { designation: 'C6', manufacturer: 'Estes', class: 'C', diameter: 18, impulse: 8.8, burn: 1.7, mass: 24 },
 ];
 const custom = (id: string): CustomMotor => ({
-  id, designation: 'X', manufacturer: 'Me', class: 'C', diameter: 18, length: 70,
-  totalWeightG: 20, propWeightG: 10, samples: [{ time: 0, thrust: 1 }, { time: 1, thrust: 0 }], source: 'eng',
+  id,
+  designation: 'X',
+  manufacturer: 'Me',
+  class: 'C',
+  diameter: 18,
+  length: 70,
+  totalWeightG: 20,
+  propWeightG: 10,
+  samples: [
+    { time: 0, thrust: 1 },
+    { time: 1, thrust: 0 },
+  ],
+  source: 'eng',
 });
 
 let kv: FakeKv;
 let store: KeyValueMotorStore;
-beforeEach(() => { kv = new FakeKv(); store = new KeyValueMotorStore(kv, 1000); });
+beforeEach(() => {
+  kv = new FakeKv();
+  store = new KeyValueMotorStore(kv, 1000);
+});
 afterEach(() => vi.useRealTimers());
 
 describe('catalog mirror + signature guard', () => {
@@ -90,7 +110,10 @@ describe('custom motors', () => {
   });
 
   it('filters out invalid custom-motor rows', async () => {
-    await kv.set('astrarrocketjs:motors:custom', JSON.stringify([custom('ok'), { id: 'bad' }, { designation: 'no-id' }]));
+    await kv.set(
+      'astrarrocketjs:motors:custom',
+      JSON.stringify([custom('ok'), { id: 'bad' }, { designation: 'no-id' }]),
+    );
     const list = await store.listCustomMotors();
     expect(list).toHaveLength(1);
     expect(list[0]!.id).toBe('ok');

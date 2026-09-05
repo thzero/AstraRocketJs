@@ -14,8 +14,17 @@ import { EVENT_LABEL, EVENT_PRIORITY } from '../../services/simReport';
  * across every visible panel. All eleven series already ride in on every sim run.
  */
 type Key =
-  | 'altitude' | 'velocity' | 'acceleration' | 'mach' | 'thrust' | 'drag'
-  | 'mass' | 'stability' | 'cpLocation' | 'cgLocation' | 'aoa';
+  | 'altitude'
+  | 'velocity'
+  | 'acceleration'
+  | 'mach'
+  | 'thrust'
+  | 'drag'
+  | 'mass'
+  | 'stability'
+  | 'cpLocation'
+  | 'cgLocation'
+  | 'aoa';
 
 interface Meta {
   key: Key;
@@ -86,7 +95,9 @@ export function FlightChart({ result }: { result: FlightResult }) {
   // the rocket stops flying forward (recovery deploy, else apogee).
   const clipT = useMemo(() => {
     const at = (type: string) => result.events?.find((e) => e.type === type)?.time;
-    return at('RECOVERY_DEVICE_DEPLOYMENT') ?? at('EJECTION_CHARGE') ?? at('APOGEE') ?? result.summary.timeToApogee ?? maxT;
+    return (
+      at('RECOVERY_DEVICE_DEPLOYMENT') ?? at('EJECTION_CHARGE') ?? at('APOGEE') ?? result.summary.timeToApogee ?? maxT
+    );
   }, [result, maxT]);
 
   // Cluster near-coincident events (small rockets fire burnout→apogee→deploy in
@@ -180,7 +191,16 @@ export function FlightChart({ result }: { result: FlightResult }) {
   );
 }
 
-function Panel({ meta, result, w, X, hoverT, clipT, events, labels }: {
+function Panel({
+  meta,
+  result,
+  w,
+  X,
+  hoverT,
+  clipT,
+  events,
+  labels,
+}: {
   meta: Meta;
   result: FlightResult;
   w: number;
@@ -216,7 +236,10 @@ function Panel({ meta, result, w, X, hoverT, clipT, events, labels }: {
       if (y < dMin) dMin = y;
       if (y > dMax) dMax = y;
     }
-    if (!p.length) { dMin = 0; dMax = 1; }
+    if (!p.length) {
+      dMin = 0;
+      dMax = 1;
+    }
     let l: number;
     let h: number;
     if (meta.level) {
@@ -234,9 +257,10 @@ function Panel({ meta, result, w, X, hoverT, clipT, events, labels }: {
   const path = (cmd: (p: Pt, i: number) => string) => pts.map(cmd).join(' ');
   const line = pts.length >= 2 ? path((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`) : '';
   const baseY = Y(Math.max(lo, 0));
-  const area = !meta.level && pts.length >= 2
-    ? `M${X(pts[0]![0]).toFixed(1)},${baseY.toFixed(1)} ${path((p) => `L${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`)} L${X(pts[pts.length - 1]![0]).toFixed(1)},${baseY.toFixed(1)} Z`
-    : '';
+  const area =
+    !meta.level && pts.length >= 2
+      ? `M${X(pts[0]![0]).toFixed(1)},${baseY.toFixed(1)} ${path((p) => `L${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`)} L${X(pts[pts.length - 1]![0]).toFixed(1)},${baseY.toFixed(1)} Z`
+      : '';
 
   const hv = hoverT != null ? lerpAt(xs, ys, hoverT) : null;
   // Header reads the hovered value, else the peak-magnitude value.
@@ -261,18 +285,42 @@ function Panel({ meta, result, w, X, hoverT, clipT, events, labels }: {
         </defs>
         {zeroInRange && <line x1={PAD_L} y1={Y(0)} x2={w - PAD_R} y2={Y(0)} className="stroke-white/15" />}
         {events.map((e, i) => (
-          <line key={i} x1={X(e.time)} y1={padT} x2={X(e.time)} y2={PANEL_H - padB} className="stroke-amber-400/25" strokeDasharray="3 2" vectorEffect="non-scaling-stroke" />
+          <line
+            key={i}
+            x1={X(e.time)}
+            y1={padT}
+            x2={X(e.time)}
+            y2={PANEL_H - padB}
+            className="stroke-amber-400/25"
+            strokeDasharray="3 2"
+            vectorEffect="non-scaling-stroke"
+          />
         ))}
         {labels?.map((l, i) => (
-          <text key={i} x={l.x} y={l.ly} textAnchor="middle" className="fill-amber-400/80 text-[9px]">{t(EVENT_LABEL[l.type])}</text>
+          <text key={i} x={l.x} y={l.ly} textAnchor="middle" className="fill-amber-400/80 text-[9px]">
+            {t(EVENT_LABEL[l.type])}
+          </text>
         ))}
         {area && <path d={area} fill={`url(#fc-${meta.key})`} />}
-        {line && <path d={line} className="fill-none stroke-sky-400" strokeWidth={1.75} vectorEffect="non-scaling-stroke" />}
-        <text x={PAD_L - 4} y={padT + 7} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">{fmtNum(hi, meta.digits)}</text>
-        <text x={PAD_L - 4} y={PANEL_H - padB} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">{fmtNum(lo, meta.digits)}</text>
+        {line && (
+          <path d={line} className="fill-none stroke-sky-400" strokeWidth={1.75} vectorEffect="non-scaling-stroke" />
+        )}
+        <text x={PAD_L - 4} y={padT + 7} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
+          {fmtNum(hi, meta.digits)}
+        </text>
+        <text x={PAD_L - 4} y={PANEL_H - padB} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
+          {fmtNum(lo, meta.digits)}
+        </text>
         {hoverT != null && hv != null && (
           <g pointerEvents="none">
-            <line x1={X(hoverT)} y1={padT} x2={X(hoverT)} y2={PANEL_H - padB} className="stroke-slate-300/40" vectorEffect="non-scaling-stroke" />
+            <line
+              x1={X(hoverT)}
+              y1={padT}
+              x2={X(hoverT)}
+              y2={PANEL_H - padB}
+              className="stroke-slate-300/40"
+              vectorEffect="non-scaling-stroke"
+            />
             <circle cx={X(hoverT)} cy={Y(hv)} r={3} className="fill-sky-300" />
           </g>
         )}
