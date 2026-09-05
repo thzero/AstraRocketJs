@@ -85,7 +85,16 @@ export function useWorkspaceEffects() {
   useEffect(() => {
     try {
       const r = buildConfiguredRocket(tree, motor, extraMotors, { event: ignitionEvent, delay: ignitionDelay });
-      useWorkspaceStore.getState().applyBuild(r.staticInfo(), r);
+      const info = r.staticInfo();
+      // Surface the coast drag coefficient at Mach 0.3 (a geometry property, not
+      // in the static JSON) via a single-point drag sweep. Best-effort: a design
+      // the sweep can't evaluate just leaves cd undefined.
+      try {
+        info.cd = r.dragSweep({ machMin: 0.3, machMax: 0.3, machStep: 0.05 }).powerOff.total[0];
+      } catch {
+        /* leave cd undefined */
+      }
+      useWorkspaceStore.getState().applyBuild(info, r);
       useWorkspaceStore.getState().setErr(null);
     } catch (e) {
       useWorkspaceStore.getState().applyBuild(null, null);

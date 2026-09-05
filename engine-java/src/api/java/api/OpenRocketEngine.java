@@ -501,6 +501,8 @@ public final class OpenRocketEngine {
         num(sb, "cna", cp.getWeight()).append(',');
         num(sb, "stabilityCalibers", stabilityCal).append(',');
         num(sb, "refDiameter", refDiameter).append(',');
+        num(sb, "rollInertia", structure.getRotationalInertia()).append(',');
+        num(sb, "pitchInertia", structure.getLongitudinalInertia()).append(',');
         num(sb, "warnings", warnings.size()).append(',');
         sb.append("\"warningTexts\":[");
         boolean first = true;

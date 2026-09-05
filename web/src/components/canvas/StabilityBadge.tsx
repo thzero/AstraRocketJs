@@ -26,8 +26,15 @@ export function StabilityBadge({
   if (!info) return null;
   const cal = info.stabilityCalibers;
   const pct = info.length > 0 ? ((info.cp - info.cg) / info.length) * 100 : 0;
+  // Moments of inertia span orders of magnitude (roll ~1e-5, pitch ~1e-3 kg·m²);
+  // exponential below 1e-4, 4-sig-fig fixed above, so both read cleanly.
+  const fmtInertia = (v: number) => {
+    if (!Number.isFinite(v)) return '—';
+    if (v === 0) return '0';
+    return Math.abs(v) < 1e-4 ? v.toExponential(3) : String(Number(v.toPrecision(4)));
+  };
   return (
-    <div className="mx-3 mb-3 mt-3">
+    <div className="@container mx-3 mb-3 mt-3">
       <button
         onClick={onToggle}
         aria-expanded={expanded}
@@ -48,13 +55,24 @@ export function StabilityBadge({
         )}
       </button>
       {expanded && (
-        <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+        /* Container queries: columns track THIS strip's width (see the @container
+           parent), not the browser window — so the side panels don't throw the
+           count off. <576px → 2, 576–1151 → 3, ≥1152 → 6. */
+        <div className="mt-2 grid grid-cols-2 gap-2 @xl:grid-cols-3 @6xl:grid-cols-6">
           <Stat card label={t('stats.length')} value={fmtNum(info.length * 1000, 0)} sub="mm" />
           <Stat card label={t('stats.maxDiameter')} value={fmtNum(info.refDiameter * 1000, 0)} sub="mm" />
-          <Stat card label={t('stats.massEmpty')} value={fmtNum(info.massEmpty * 1000, 0)} sub="g" />
-          <Stat card label={t('stats.massLoaded')} value={fmtNum(info.mass * 1000, 0)} sub="g" />
-          <Stat card label={t('stats.cgEmpty')} value={fmtNum(info.cgEmpty * 100, 1)} sub="cm" />
-          <Stat card label={t('stats.cgLoaded')} value={fmtNum(info.cg * 100, 1)} sub="cm" />
+          <Stat
+            card
+            label={t('stability.mass')}
+            value={`${fmtNum(info.massEmpty * 1000, 0)} / ${fmtNum(info.mass * 1000, 0)}`}
+            sub={`g · ${t('stats.emptyLoaded')}`}
+          />
+          <Stat
+            card
+            label={t('stability.cg')}
+            value={`${fmtNum(info.cgEmpty * 100, 1)} / ${fmtNum(info.cg * 100, 1)}`}
+            sub={`cm · ${t('stats.emptyLoaded')}`}
+          />
           <Stat card label={t('stability.cp')} value={fmtNum(info.cp * 100, 1)} sub="cm" />
           <Stat
             card
@@ -70,6 +88,12 @@ export function StabilityBadge({
             tone={stabilityTone(cal)}
           />
           <Stat card label={t('stats.stabilityPct')} value={fmtNum(pct, 1)} sub="%" />
+          <Stat card label={t('stats.cd')} value={info.cd != null ? fmtNum(info.cd, 3) : '—'} sub="Ma 0.3" />
+          {/* Symbol lives in the sub — the tile label is uppercased, which would
+              turn the Greek α into Α (a plain "A"). */}
+          <Stat card label={t('stats.cna')} value={fmtNum(info.cna, 2)} sub="CNα · rad⁻¹" />
+          <Stat card label={t('stats.pitchInertia')} value={fmtInertia(info.pitchInertia)} sub="kg·m²" />
+          <Stat card label={t('stats.rollInertia')} value={fmtInertia(info.rollInertia)} sub="kg·m²" />
         </div>
       )}
     </div>

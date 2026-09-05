@@ -137,11 +137,12 @@
     "length": "Longitud",
     "maxDiameter": "Diámetro máx.",
     "fineness": "Esbeltez",
-    "massEmpty": "Masa (vacío)",
-    "massLoaded": "Masa (cargado)",
-    "cgEmpty": "CG (vacío)",
-    "cgLoaded": "CG (cargado)",
-    "stabilityPct": "Estabilidad (%)"
+    "emptyLoaded": "vacío / cargado",
+    "cna": "Pendiente fuerza normal",
+    "stabilityPct": "Estabilidad (%)",
+    "cd": "Coef. resistencia",
+    "rollInertia": "Inercia de alabeo (cargado)",
+    "pitchInertia": "Inercia de cabeceo (cargado)"
   },
   "sim": {
     "run": "Simular vuelo ({{name}})",

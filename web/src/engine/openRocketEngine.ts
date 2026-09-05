@@ -306,9 +306,19 @@ export interface StaticInfo {
   cna: number;
   stabilityCalibers: number;
   refDiameter: number;
+  /** Loaded (with-motor) roll moment of inertia, about the long axis (kg·m²). */
+  rollInertia: number;
+  /** Loaded (with-motor) pitch moment of inertia, transverse (kg·m²). */
+  pitchInertia: number;
   warnings: number;
   /** Engine warning messages (geometry problems etc.). */
   warningTexts: string[];
+  /**
+   * Power-off (coast) total drag coefficient at Mach 0.3 — NOT part of the
+   * engine's static JSON; the store fills it from a one-point {@link Rocket.dragSweep}
+   * so the "all stats" strip can show it. Undefined if the sweep failed.
+   */
+  cd?: number;
 }
 
 // ---------- Component-tree API (P2.1) ----------

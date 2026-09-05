@@ -134,11 +134,12 @@
     "length": "Length",
     "maxDiameter": "Max diameter",
     "fineness": "Fineness",
-    "massEmpty": "Mass (empty)",
-    "massLoaded": "Mass (loaded)",
-    "cgEmpty": "CG (empty)",
-    "cgLoaded": "CG (loaded)",
-    "stabilityPct": "Stability (%)"
+    "emptyLoaded": "empty / loaded",
+    "cna": "Normal-force slope",
+    "stabilityPct": "Stability (%)",
+    "cd": "Drag coeff.",
+    "rollInertia": "Roll inertia (loaded)",
+    "pitchInertia": "Pitch inertia (loaded)"
   },
   "sim": {
     "run": "Run flight simulation",
