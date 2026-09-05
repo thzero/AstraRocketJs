@@ -36,6 +36,8 @@
   "file": {
     "open": "Abrir .ork",
     "save": "Guardar .ork",
+    "export": "Exportar",
+    "rasaero": "RASAero II (.CDX1)",
     "new": "Nuevo",
     "newConfirm": "¿Descartar el diseño actual y todas las simulaciones y empezar un diseño nuevo?"
   },

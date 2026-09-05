@@ -31,8 +31,10 @@
     "cpNote": "CP is computed from the shape and isn't directly overridable — OpenRocket overrides mass, CG and drag."
   },
   "file": {
-    "open": "Open .ork",
-    "save": "Save .ork",
+    "open": "Open Rocket",
+    "save": "Save Rocket",
+    "export": "Export",
+    "rasaero": "RASAero II (.CDX1)",
     "new": "New",
     "newConfirm": "Discard the current design and all simulations and start a fresh design?"
   },

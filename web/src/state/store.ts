@@ -122,6 +122,7 @@ export interface WorkspaceState {
   resetWorkspace: () => void;
   newWorkspace: () => void;
   saveOrk: () => void;
+  saveRasaero: () => void;
 }
 
 /** The active simulation (falls back to the first if the id no longer exists). */
@@ -529,6 +530,53 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         });
       } catch (e) {
         set({ err: `Could not save .ork: ${e instanceof Error ? e.message : String(e)}` });
+      }
+    },
+    saveRasaero: async () => {
+      try {
+        const { tree, extraMotors, loadedMeta, info } = get();
+        const active = selectActive(get());
+        const motor = active.motor;
+        const mountId = findMountId(tree);
+        const base = loadedMeta?.exportMotors ?? {};
+        // Same motor map the .ork exporter builds — OrkExportMotor satisfies the
+        // CDX1 engine-string writer's Cdx1ExportEngine verbatim.
+        const motors: Record<string, OrkExportMotor> = {};
+        if (mountId)
+          motors[mountId] = {
+            ...base[mountId],
+            designation: motor.designation,
+            diameter: motor.diameter,
+            length: motor.length,
+            delay: motor.ejectionDelay,
+            ignitionEvent: active.ignitionEvent,
+            ignitionDelay: active.ignitionDelay,
+          };
+        for (const [id, m] of Object.entries(extraMotors)) {
+          if (id === mountId || !findNode(tree, id)) continue;
+          motors[id] = {
+            ...base[id],
+            designation: m.spec.designation,
+            diameter: m.spec.diameter,
+            length: m.spec.length,
+            delay: m.spec.ejectionDelay,
+            ignitionEvent: m.ignitionEvent,
+            ignitionDelay: m.ignitionDelay,
+          };
+        }
+        // The RASAero writer is a lazily-imported chunk — only needed on export.
+        const { downloadCdx1 } = await import('../services/rasaeroExport');
+        downloadCdx1({
+          name: loadedMeta?.name || tree.name || defaultDesignName(),
+          tree,
+          motors,
+          launch: active.launch,
+          // Whole-rocket loaded mass/CG feed RASAero's mandatory simulation block.
+          launchMassKg: info?.mass,
+          launchCgM: info?.cg,
+        });
+      } catch (e) {
+        set({ err: `Could not export RASAero: ${e instanceof Error ? e.message : String(e)}` });
       }
     },
   };

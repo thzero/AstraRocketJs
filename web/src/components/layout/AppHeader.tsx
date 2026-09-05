@@ -17,6 +17,7 @@ export function AppHeader() {
   const onNew = useWorkspaceStore((s) => s.newWorkspace);
   const onOpenFile = useWorkspaceStore((s) => s.openOrkFile);
   const onSave = useWorkspaceStore((s) => s.saveOrk);
+  const onSaveRasaero = useWorkspaceStore((s) => s.saveRasaero);
   const onUndo = useWorkspaceStore((s) => s.undo);
   const onRedo = useWorkspaceStore((s) => s.redo);
   const canUndo = useWorkspaceStore((s) => s.past.length > 0);
@@ -28,6 +29,12 @@ export function AppHeader() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [motorsOpen, setMotorsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // "Export ▸" reveals its format sub-items inline (a flyout would be clipped by
+  // the menu's overflow-hidden). Collapsed whenever the menu itself closes.
+  const [exportOpen, setExportOpen] = useState(false);
+  useEffect(() => {
+    if (!menuOpen) setExportOpen(false);
+  }, [menuOpen]);
   // Which physics backend actually loaded (WASM-GC or the JS fallback). initEngine
   // is idempotent and already resolved before mount (main.tsx awaits it), so this
   // settles on the first tick.
@@ -82,6 +89,9 @@ export function AppHeader() {
 
   const item =
     'flex w-full items-center px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-transparent';
+  // Same row style, indented for the Export flyout's format entries.
+  const subItem =
+    'flex w-full items-center py-2 pl-8 pr-3 text-left text-xs font-medium text-slate-200 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-transparent';
   const iconBtn =
     'rounded-lg bg-slate-800 px-2.5 py-1.5 text-sm leading-none text-slate-200 ring-1 ring-white/10 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-slate-800';
 
@@ -185,6 +195,32 @@ export function AppHeader() {
               >
                 {t('file.save')}
               </button>
+              <button
+                role="menuitem"
+                className={item}
+                aria-haspopup="true"
+                aria-expanded={exportOpen}
+                disabled={!canSave}
+                onClick={() => setExportOpen((o) => !o)}
+              >
+                <span className="flex-1">{t('file.export')}</span>
+                <span aria-hidden className="text-slate-400">
+                  {exportOpen ? '▾' : '▸'}
+                </span>
+              </button>
+              {exportOpen && (
+                <button
+                  role="menuitem"
+                  className={subItem}
+                  disabled={!canSave}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onSaveRasaero();
+                  }}
+                >
+                  {t('file.rasaero')}
+                </button>
+              )}
               <div className="my-1 border-t border-white/10" />
               <button
                 role="menuitem"
