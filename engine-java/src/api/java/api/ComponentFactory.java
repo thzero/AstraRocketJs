@@ -137,6 +137,10 @@ final class ComponentFactory {
                 if (!Double.isNaN(aShL)) {
                     t.setAftShoulderLength(aShL);
                 }
+                // Capped shoulder = a closed disc of the part's own material, so
+                // it has mass. The flag round-trips in the file but a nose cone's
+                // was the only one read; a transition's was dropped.
+                t.setAftShoulderCapped(bool(node, "shoulderCapped", false));
                 c = t;
                 break;
             }
@@ -317,6 +321,10 @@ final class ComponentFactory {
                 lug.setLength(dbl(node, "length", 0.05));
                 lug.setOuterRadius(dbl(node, "outerRadius", 0.0022));
                 lug.setThickness(dbl(node, "thickness", 0.0003));
+                // Angle around the body (rad). Without it every lug flew at the
+                // kernel default π (180°), ignoring the design/file value; this
+                // shifts lateral balance and the wind response, not drag.
+                lug.setAngleOffset(dbl(node, "angleOffset", Math.PI));
                 c = lug;
                 break;
             }
@@ -326,6 +334,10 @@ final class ComponentFactory {
                 if (!Double.isNaN(od)) {
                     rb.setOuterDiameter(od);
                 }
+                // Same as the launch lug: the angle was dropped, so every button
+                // flew at the kernel default π (180°). (Height/inner-diameter are
+                // not modelled by the app, so they keep the kernel defaults.)
+                rb.setAngleOffset(dbl(node, "angleOffset", Math.PI));
                 c = rb;
                 break;
             }
@@ -385,6 +397,11 @@ final class ComponentFactory {
                 m.setComponentMass(dbl(node, "mass", 0.01));
                 m.setLength(dbl(node, "length", 0.02));
                 m.setRadius(dbl(node, "radius", 0.005));
+                // Off-centreline placement — drawn and saved since v0.087 but
+                // never reaching the engine, so an off-axis weight flew on the
+                // axis (wrong mass distribution and inertia). 0/0 = centred.
+                m.setRadialPosition(dbl(node, "radialPosition", 0));
+                m.setRadialDirection(dbl(node, "radialDirection", 0));
                 c = m;
                 break;
             }
@@ -550,6 +567,11 @@ final class ComponentFactory {
         for (Map<String, Object> kid : kids) {
             RocketComponent child = create(kid);
             parent.addChild(child);
+            // Wall thickness of an AUTOMATIC-radius part (tube coupler, engine
+            // block, tube fin) clamps against the outer radius, which is only
+            // known post-attach — set in create() it would clamp to zero (zero
+            // mass / zero wall). (Re)apply it here, now that the parent is set.
+            applyWallThickness(child, kid);
             // Assemblies and fin tabs configure AFTER addChild (they read the
             // parent for reprojection / radius clamping). Guard on
             // ComponentAssembly, NOT RingInstanceable — FinSet/SymmetricComponent
@@ -575,6 +597,25 @@ final class ComponentFactory {
      * is only known post-attach. Keys: tabHeight, tabLength (both > 0 to
      * enable), tabOffset, tabOffsetMethod (top|middle|bottom).
      */
+    /**
+     * (Re)apply the wall thickness of a part whose {@code setThickness} clamps
+     * against the outer radius. For an automatic-radius part the radius is only
+     * resolved after {@code addChild}, so a thickness applied in {@code create()}
+     * clamped to zero. Idempotent for an explicit-radius part.
+     */
+    private static void applyWallThickness(RocketComponent child, Map<String, Object> node) {
+        if (child instanceof TubeCoupler) {
+            ((TubeCoupler) child).setThickness(dbl(node, "thickness", 0.0005));
+        } else if (child instanceof EngineBlock) {
+            ((EngineBlock) child).setThickness(dbl(node, "thickness", 0.00095));
+        } else if (child instanceof TubeFinSet) {
+            double th = dbl(node, "thickness", Double.NaN);
+            if (!Double.isNaN(th)) {
+                ((TubeFinSet) child).setThickness(th);
+            }
+        }
+    }
+
     private static void applyFinTabs(FinSet fins, Map<String, Object> node) {
         double tabHeight = dbl(node, "tabHeight", 0);
         double tabLength = dbl(node, "tabLength", 0);

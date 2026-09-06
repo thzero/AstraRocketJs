@@ -642,8 +642,10 @@ export function exportOrk({
         position(depth + 1, node, 'top');
         emit(depth + 1, `<packedlength>${num(node, 'length', 0.02)}</packedlength>`);
         emit(depth + 1, `<packedradius>${num(node, 'radius', 0.005)}</packedradius>`);
-        emit(depth + 1, '<radialposition>0.0</radialposition>');
-        emit(depth + 1, '<radialdirection>0.0</radialdirection>');
+        // Off-axis placement (metres + degrees). Was hard-wired to 0, so a mass
+        // off the centreline collapsed onto the axis on save/reload.
+        emit(depth + 1, `<radialposition>${num(node, 'radialPosition', 0)}</radialposition>`);
+        emit(depth + 1, `<radialdirection>${(num(node, 'radialDirection', 0) * 180) / Math.PI}</radialdirection>`);
         emit(depth + 1, `<mass>${num(node, 'mass', 0.01)}</mass>`);
         // Legal values = MassComponent.MassComponentType lowercased:
         // masscomponent, altimeter, flightcomputer, deploymentcharge,

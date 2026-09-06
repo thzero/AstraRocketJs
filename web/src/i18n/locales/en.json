@@ -149,6 +149,8 @@
     "fineness": "Fineness",
     "emptyLoaded": "empty / loaded",
     "cna": "Normal-force slope",
+    "recoveryWeight": "Recovery weight",
+    "needsMotor": "load a motor",
     "stabilityPct": "Stability (%)",
     "cd": "Drag coeff.",
     "rollInertia": "Roll inertia (loaded)",
@@ -501,6 +503,22 @@
     "save": "Save",
     "cancel": "Cancel",
     "deleteCustom": "Delete custom material"
+  },
+  "recovery": {
+    "title": "Descent sizing",
+    "needsMotor": "Load a motor to size against the descent mass (loaded mass minus propellant).",
+    "forMass": "For a descent mass of {{mass}} g:",
+    "thisChute": "This canopy",
+    "mainTarget": "Main (15–20 ft/s)",
+    "drogueTarget": "Drogue (50–75 ft/s)",
+    "atCd": "Diameters at Cd {{cd}}, at the launch-site air density.",
+    "verdict": {
+      "slow": "very slow",
+      "main": "main range",
+      "between": "between bands",
+      "drogue": "drogue range",
+      "fast": "very fast"
+    }
   },
   "sims": {
     "title": "Simulations",

@@ -10,6 +10,7 @@ import type { ComponentType as CatalogType } from '../../services/componentDb';
 const ComponentPicker = lazy(() => import('./ComponentPicker').then((m) => ({ default: m.ComponentPicker })));
 import { MaterialPicker } from './MaterialPicker';
 import { FreeformFinEditor } from './FreeformFinEditor';
+import { RecoverySizingReadout } from './RecoverySizingReadout';
 import { NumberInput } from '../common/NumberInput';
 import { num } from '../../tree/nodeProps';
 
@@ -538,6 +539,11 @@ export function PropertyPanel({
           )}
         </div>
       )}
+
+      {/* Descent sizing — canopy diameter for the descent bands + this chute's
+          own descent rate, from the live descent mass. Parachutes only (the
+          sqrt-law is diameter-based; streamers size differently). */}
+      {node.type === 'parachute' && <RecoverySizingReadout node={node} />}
 
       {/* Mass / CG / CD overrides (OpenRocket semantics). A stage-level override
           with "all subcomponents" on is the usual way to pin a measured mass/CG. */}

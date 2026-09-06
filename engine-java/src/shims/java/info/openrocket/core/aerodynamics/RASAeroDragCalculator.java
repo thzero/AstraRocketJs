@@ -74,6 +74,9 @@ public class RASAeroDragCalculator extends BarrowmanDragCalculator {
 			((FinSetCalc) calc).setSupersonicAero(supersonicAero);
 		} else if (calc instanceof SymmetricComponentCalc) {
 			((SymmetricComponentCalc) calc).setSupersonicAero(supersonicAero);
+			// PATCH (C7): the stubby-nose subsonic floor is gated rogersKbf ||
+			// supersonicAero, so the Rogers flag has to reach the nose calc too.
+			((SymmetricComponentCalc) calc).setRogersKbf(rogersKbf);
 		}
 		return calc;
 	}

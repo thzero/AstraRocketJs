@@ -152,6 +152,8 @@
     "fineness": "Esbeltez",
     "emptyLoaded": "vacío / cargado",
     "cna": "Pendiente fuerza normal",
+    "recoveryWeight": "Peso de recuperación",
+    "needsMotor": "carga un motor",
     "stabilityPct": "Estabilidad (%)",
     "cd": "Coef. resistencia",
     "rollInertia": "Inercia de alabeo (cargado)",
@@ -504,6 +506,22 @@
     "save": "Guardar",
     "cancel": "Cancelar",
     "deleteCustom": "Eliminar material personalizado"
+  },
+  "recovery": {
+    "title": "Dimensionado de descenso",
+    "needsMotor": "Carga un motor para dimensionar según la masa de descenso (masa cargada menos propelente).",
+    "forMass": "Para una masa de descenso de {{mass}} g:",
+    "thisChute": "Este paracaídas",
+    "mainTarget": "Principal (15–20 ft/s)",
+    "drogueTarget": "Piloto (50–75 ft/s)",
+    "atCd": "Diámetros con Cd {{cd}}, a la densidad del aire del sitio de lanzamiento.",
+    "verdict": {
+      "slow": "muy lento",
+      "main": "rango principal",
+      "between": "entre rangos",
+      "drogue": "rango piloto",
+      "fast": "muy rápido"
+    }
   },
   "sims": {
     "title": "Simulaciones",
