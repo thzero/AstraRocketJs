@@ -7,6 +7,7 @@
 // the catalog itself lives in local alongside the fetched curves.
 import { getMotorStore, type CustomMotor } from './motorStore';
 import { parseEng, totalImpulse } from './engParser';
+import { fetchCatalog } from './remoteData';
 
 /** One catalog row — the VC sync utility's schema, plus optional custom-motor tags. */
 export interface CatalogMotor {
@@ -76,14 +77,15 @@ function customToRow(cm: CustomMotor): CatalogMotor {
  * is too large to cache there, and the bundle is always available offline).
  */
 export async function loadCatalog(): Promise<CatalogMotor[]> {
-  // The 700 kB+ catalog is dynamically imported so it splits into its own chunk,
-  // fetched only when something first needs the catalog (e.g. the motor picker
-  // opens) rather than weighing down the initial app bundle.
+  // The 700 kB+ catalog is a runtime file under public/data (see remoteData.ts),
+  // fetched only when something first needs it (e.g. the motor picker opens)
+  // rather than weighing down the initial app bundle — and refreshable without
+  // rebuilding the app.
   const [custom, bundled] = await Promise.all([
     getMotorStore()
       .listCustomMotors()
       .then((ms) => ms.map(customToRow)),
-    import('../data/motors.generated.json').then((m) => m.default as CatalogMotor[]),
+    fetchCatalog<CatalogMotor[]>('motors'),
   ]);
   return [...custom, ...bundled];
 }

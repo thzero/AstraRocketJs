@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filterComponents, componentsForType, type Component } from './componentDb';
+import { filterComponents, projectByType, type Component } from './componentDb';
 
 const parts = [
   { type: 'nosecone', mfr: 'Estes', partNo: 'PNC-50K', desc: 'Ogive nose cone' },
@@ -30,10 +30,11 @@ describe('filterComponents', () => {
   });
 });
 
-describe('componentsForType', () => {
-  it('projects the bundled catalog to a single type', () => {
-    const tubes = componentsForType('bodytube');
-    expect(Array.isArray(tubes)).toBe(true);
+describe('projectByType', () => {
+  it('filters a loaded catalog to a single type', () => {
+    const cat = { generated: '', count: parts.length, components: parts };
+    const tubes = projectByType(cat, 'bodytube');
     expect(tubes.every((c) => c.type === 'bodytube')).toBe(true);
+    expect(tubes).toHaveLength(1);
   });
 });
