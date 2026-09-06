@@ -250,17 +250,28 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         );
         // Spin about the axis: each of the N fins projects into the side view
         // by cos(roll + i·2π/N). |cos|=1 → broadside (full height), 0 → edge-on
-        // (invisible). Draw edge-on-ish fins last so broadside ones sit on top.
+        // (invisible). Draw edge-on-ish fins first so broadside ones sit on top.
         const finCount = Math.max(1, Math.round(num(child, 'finCount', 3)));
+        // As a fin nears edge-on its projection collapses to a thin swept sliver
+        // over the centreline (jutting past the motor). Fade it out there instead
+        // of drawing that sliver: opaque by ~55° off edge-on, gone by ~78°.
+        const finOpacity = (p: number) => {
+          const tt = Math.max(0, Math.min(1, (Math.abs(p) - 0.25) / 0.25));
+          return tt * tt; // squared: near-edge-on slivers vanish fast; solid by |proj| ≥ 0.5
+        };
         const projected = Array.from({ length: finCount }, (_, fi) => Math.cos(roll + (fi * 2 * Math.PI) / finCount))
-          .filter((p) => Math.abs(p) >= 0.03)
+          .filter((p) => finOpacity(p) > 0.02)
           .sort((a, b) => Math.abs(a) - Math.abs(b));
         for (const proj of projected) {
-          const dir = proj >= 0 ? 1 : -1;
-          const hp = height * Math.abs(proj);
-          const y0 = baseY + dir * pRadius * ctx.scale;
-          const yh = baseY + dir * (pRadius + hp) * ctx.scale;
+          // A point at radius r on the airframe projects to y = r·cos(roll+…) in
+          // the side view, so BOTH the root (body attach line, r = pRadius) and
+          // the tip (r = pRadius + height) scale by the same signed `proj`. The
+          // whole fin then collapses toward the centreline as it turns edge-on,
+          // instead of the root staying pinned to the hull as a flat sliver.
+          const y0 = baseY + pRadius * proj * ctx.scale; // projected root
+          const yh = baseY + (pRadius + height) * proj * ctx.scale; // projected tip
           const X = ctx.x0 + start * ctx.scale;
+          const opacity = finOpacity(proj);
           shapes.push(
             t === 'trapezoidfinset' ? (
               <polygon
@@ -269,19 +280,21 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
                 fill={fillOf(child, '#b9b7b0')}
                 stroke={selStroke(child, '#7a786f')}
                 strokeWidth={selWidth(child)}
+                opacity={opacity}
                 {...grab}
               />
             ) : (
-              // Elliptical fin = the top half of an ellipse: major axis = root
-              // chord (horizontal), semi-minor axis = span. An SVG arc draws it
-              // exactly and reaches the FULL span — a quadratic Bézier only bent
-              // ~halfway to its control point, drawing the fin at ~half height.
+              // Elliptical fin = a half-ellipse: major axis = root chord
+              // (horizontal), semi-minor axis = the projected span |yh − y0|. An
+              // SVG arc draws it exactly and reaches the full projected span (a
+              // quadratic Bézier only bends ~halfway to its control point).
               <path
                 key={key++}
-                d={`M ${X} ${y0} A ${(root / 2) * ctx.scale} ${hp * ctx.scale} 0 0 ${dir > 0 ? 1 : 0} ${X + root * ctx.scale} ${y0} Z`}
+                d={`M ${X} ${y0} A ${(root / 2) * ctx.scale} ${Math.abs(yh - y0)} 0 0 ${proj >= 0 ? 1 : 0} ${X + root * ctx.scale} ${y0} Z`}
                 fill={fillOf(child, '#b9b7b0')}
                 stroke={selStroke(child, '#7a786f')}
                 strokeWidth={selWidth(child)}
+                opacity={opacity}
                 {...grab}
               />
             ),
