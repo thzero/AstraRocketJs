@@ -448,6 +448,19 @@ public final class OpenRocketEngine {
     }
 
     /**
+     * Opt-in stubby nose-cone drag correction: a subsonic pressure-drag floor
+     * for short stored-table nose shapes (ellipsoid, power, parabolic, Haack),
+     * which the classic model leaves with ~zero subsonic pressure drag. A
+     * standalone correction (independent of the supersonic / Rogers models),
+     * submitted upstream to OpenRocket. Off by default; off ⇒ bit-identical.
+     * Applies to staticInfo, simulate and getDragSweep.
+     */
+    @JSExport
+    public static void setStubbyNoseDrag(int rocketHandle, boolean enabled) {
+        ((RocketCtx) get(rocketHandle)).stubbyNoseFloor = enabled;
+    }
+
+    /**
      * RASAero feature #1 (Phase 1): opt-in supersonic aerodynamics — corrected
      * supersonic fin normal force, NACA-1307 body-fin interference, and
      * Mach-dependent nose CNa. Applies to staticInfo, simulate and getDragSweep.
@@ -470,6 +483,7 @@ public final class OpenRocketEngine {
         RASAeroDragCalculator drag = new RASAeroDragCalculator();
         drag.setSupersonicAero(ctx.supersonicAero);
         drag.setRogersKbf(ctx.rogersKbf);
+        drag.setStubbyNoseFloor(ctx.stubbyNoseFloor);
         return new BarrowmanCalculator(stab, drag);
     }
 
@@ -890,6 +904,12 @@ public final class OpenRocketEngine {
         boolean rogersKbf = false;
         /** Opt-in supersonic aerodynamics (feature #1 Phase 1). */
         boolean supersonicAero = false;
+        /**
+         * Opt-in stubby stored-table nose-cone subsonic pressure-drag floor.
+         * Standalone (not part of the RASAero models); submitted upstream to
+         * OpenRocket, so this fork flag retires once that lands natively.
+         */
+        boolean stubbyNoseFloor = false;
 
         RocketCtx(Rocket rocket, AxialStage stage, FlightConfigurationId fcid) {
             this.rocket = rocket;

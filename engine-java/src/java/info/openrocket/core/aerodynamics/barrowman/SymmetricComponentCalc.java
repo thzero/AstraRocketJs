@@ -74,17 +74,17 @@ public class SymmetricComponentCalc extends RocketComponentCalc {
 	}
 
 	/**
-	 * PATCH (C7 stubby-nose floor): opt-in "Rogers Modified Barrowman" flag,
-	 * plumbed here only to gate the subsonic stubby-nose pressure floor the same
-	 * way FinSetCalc gates its extensions (rogersKbf || supersonicAero). Default
-	 * false, so with neither opt-in model on the floor never runs and this class
-	 * stays bit-identical to the shipped kernel. See applyStubbyNoseFloor.
+	 * PATCH (C7 stubby-nose floor): its own opt-in flag, independent of the
+	 * RASAero supersonic/Rogers models — the floor is a standalone
+	 * upstream-bound correction (submitted to OpenRocket), not part of those.
+	 * Default false, so with it off this class stays bit-identical to the shipped
+	 * kernel. See applyStubbyNoseFloor.
 	 */
-	private boolean rogersKbf = false;
+	private boolean stubbyNoseFloor = false;
 
-	/** PATCH (C7): enable the Rogers-model gate for the stubby-nose floor. */
-	public void setRogersKbf(boolean enabled) {
-		this.rogersKbf = enabled;
+	/** PATCH (C7): enable the stubby-nose subsonic pressure-drag floor. */
+	public void setStubbyNoseFloor(boolean enabled) {
+		this.stubbyNoseFloor = enabled;
 	}
 
 	public SymmetricComponentCalc(RocketComponent c) {
@@ -714,7 +714,7 @@ public class SymmetricComponentCalc extends RocketComponentCalc {
 		if (!tableShape || !isNoseShape) {
 			return;
 		}
-		if (!rogersKbf && !supersonicAero) {
+		if (!stubbyNoseFloor) {
 			return;
 		}
 		if (!(fineness > 0) || fineness >= STUBBY_NOSE_FINENESS_LIMIT) {
