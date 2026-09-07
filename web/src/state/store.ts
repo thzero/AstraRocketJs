@@ -126,6 +126,8 @@ export interface WorkspaceState {
   newWorkspace: () => void;
   saveOrk: () => void;
   saveRasaero: () => void;
+  /** Export a single component as a 3D mesh (stl/obj/glb) or a 2D cut sheet (dxf). */
+  exportComponent: (nodeId: string, format: 'stl' | 'obj' | 'glb' | 'dxf') => void;
 }
 
 /** The active simulation (falls back to the first if the id no longer exists). */
@@ -593,6 +595,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         });
       } catch (e) {
         set({ err: `Could not export RASAero: ${e instanceof Error ? e.message : String(e)}` });
+      }
+    },
+    exportComponent: async (nodeId, format) => {
+      try {
+        const { exportComponent } = await import('../services/componentExport');
+        const ok = await exportComponent(get().tree, nodeId, format);
+        if (!ok) set({ err: `This component can't be exported as ${format.toUpperCase()}.` });
+      } catch (e) {
+        set({ err: `Could not export ${format.toUpperCase()}: ${e instanceof Error ? e.message : String(e)}` });
       }
     },
   };

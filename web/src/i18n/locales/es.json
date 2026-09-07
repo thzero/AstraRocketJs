@@ -38,6 +38,10 @@
     "save": "Guardar .ork",
     "export": "Exportar",
     "rasaero": "RASAero II (.CDX1)",
+    "stl": "Malla 3D (.stl)",
+    "obj": "Modelo 3D (.obj)",
+    "glb": "Escena 3D (.glb)",
+    "dxf": "Plantilla de corte (.dxf)",
     "new": "Nuevo",
     "newConfirm": "¿Descartar el diseño actual y todas las simulaciones y empezar un diseño nuevo?"
   },

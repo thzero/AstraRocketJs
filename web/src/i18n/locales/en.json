@@ -35,6 +35,10 @@
     "save": "Save Rocket",
     "export": "Export",
     "rasaero": "RASAero II (.CDX1)",
+    "stl": "3D mesh (.stl)",
+    "obj": "3D model (.obj)",
+    "glb": "3D scene (.glb)",
+    "dxf": "Cut sheet (.dxf)",
     "new": "New",
     "newConfirm": "Discard the current design and all simulations and start a fresh design?"
   },

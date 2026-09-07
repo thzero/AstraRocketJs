@@ -41,6 +41,15 @@ Instead of dialing in dimensions by hand, use the contextual **"Select a part…
 
 Applying a preset just fills in the component's fields — you can tweak it afterward. The catalog is bundled reference data (~2,900 parts); nothing is fetched at runtime.
 
+### Sizing a parachute
+
+Selecting a **parachute** shows a **descent-sizing** readout in its panel. From the design's descent mass (see *recovery weight*) and the air density at the launch site, it gives:
+
+- the **descent rate** this canopy actually produces (m/s and ft/s), colour-coded against the accepted **main** (15–20 ft/s) and **drogue** (50–75 ft/s) bands, and
+- the **canopy diameter** you'd need to hit each band, at this canopy's own drag coefficient.
+
+It needs a motor loaded (to know the descent mass). It's an on-screen aid only — nothing is written to the design.
+
 ## Materials
 
 Every structural component has a **material**, which the engine uses (by its **density**) to compute mass and CG:
@@ -58,4 +67,4 @@ Mounts and motors stay in sync automatically: add a mount and it comes pre-loade
 
 ## Stability at a glance
 
-The bottom **stats strip** always shows the current design's length, max diameter, fineness ratio, empty/loaded mass and CG, CP, stability (in calibers on the pad and as % of length), the Mach-0.3 drag coefficient and normal-force slope, and the loaded roll/pitch moments of inertia. More detail is in **[Views & Analysis](Views-and-Analysis)**.
+The bottom **stats strip** always shows the current design's length, max diameter, fineness ratio, empty/loaded mass and CG, CP, recovery weight (descent mass), stability (in calibers on the pad and as % of length), the Mach-0.3 drag coefficient and normal-force slope, and the loaded roll/pitch moments of inertia. More detail is in **[Views & Analysis](Views-and-Analysis)**.

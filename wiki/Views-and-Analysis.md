@@ -50,6 +50,7 @@ The bottom strip summarizes the current design as a grid of tiles (collapse it w
 - **Length**, **max diameter**, **fineness ratio** (length / diameter).
 - **Mass** and **CG**, each shown **empty / loaded** (dry, and with the motor) in one tile.
 - **CP** (center of pressure).
+- **Recovery weight** — the descent mass (loaded mass minus the propellant that burns off). Shown once a motor is loaded; this is the mass the parachute actually brings down.
 - **Stability** — in **calibers** (on the pad) and as **% of length**.
 - **Drag coeff.** — the coast (power-off) drag coefficient at Mach 0.3.
 - **Normal-force slope** — CNα (per radian), the Barrowman normal-force-coefficient slope at Mach 0.3.

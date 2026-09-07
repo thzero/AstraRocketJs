@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import type { ComponentNode, ComponentType, RocketTree } from '../../engine/openRocketEngine';
 import { allowedChildren, findNode } from '../../services/treeEdit';
+import { ComponentExportButton } from './ComponentExportButton';
 import { fmtNum } from '../../i18n/format';
 
 // Parts offered in the "Add part" menu, grouped like OpenRocket's palette.
@@ -178,7 +179,10 @@ function Row({
             {t('tree.motorTag')}
           </span>
         )}
-        {det && <span className="ml-auto shrink-0 pl-2 text-[11px] tabular-nums text-slate-500">{det}</span>}
+        <div className="ml-auto flex shrink-0 items-center gap-1 pl-2">
+          {det && <span className="text-[11px] tabular-nums text-slate-500">{det}</span>}
+          <ComponentExportButton node={node} />
+        </div>
       </div>
       {!isCollapsed &&
         node.children?.map((c, i) => (
