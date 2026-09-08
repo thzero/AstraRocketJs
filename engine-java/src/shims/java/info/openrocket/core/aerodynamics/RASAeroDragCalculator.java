@@ -41,6 +41,7 @@ public class RASAeroDragCalculator extends BarrowmanDragCalculator {
 
 	private boolean supersonicAero = false;
 	private boolean rogersKbf = false;
+	private boolean stubbyNoseFloor = false;
 
 	public void setSupersonicAero(boolean enabled) {
 		this.supersonicAero = enabled;
@@ -58,11 +59,17 @@ public class RASAeroDragCalculator extends BarrowmanDragCalculator {
 		return rogersKbf;
 	}
 
+	/** PATCH (C7): the stubby-nose subsonic pressure-drag floor, its own opt-in. */
+	public void setStubbyNoseFloor(boolean enabled) {
+		this.stubbyNoseFloor = enabled;
+	}
+
 	@Override
 	public DragCalculator newInstance() {
 		RASAeroDragCalculator copy = new RASAeroDragCalculator();
 		copy.supersonicAero = this.supersonicAero;
 		copy.rogersKbf = this.rogersKbf;
+		copy.stubbyNoseFloor = this.stubbyNoseFloor;
 		return copy;
 	}
 
@@ -74,6 +81,9 @@ public class RASAeroDragCalculator extends BarrowmanDragCalculator {
 			((FinSetCalc) calc).setSupersonicAero(supersonicAero);
 		} else if (calc instanceof SymmetricComponentCalc) {
 			((SymmetricComponentCalc) calc).setSupersonicAero(supersonicAero);
+			// PATCH (C7): the stubby-nose floor is its own switch, independent of
+			// the supersonic / Rogers models.
+			((SymmetricComponentCalc) calc).setStubbyNoseFloor(stubbyNoseFloor);
 		}
 		return calc;
 	}

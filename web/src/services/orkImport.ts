@@ -467,6 +467,12 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         // No mass/CG effect, but the desktop shows it and users set it there.
         const mct = text(el, ':scope > masscomponenttype');
         if (mct && mct !== 'masscomponent') n['massComponentType'] = mct;
+        // Off-axis placement: <radialposition> (m) + <radialdirection> (deg → rad),
+        // only kept when non-zero so a centred mass stays clean.
+        const radPos = num(el, 'radialposition', 0);
+        if (radPos !== 0) n['radialPosition'] = radPos;
+        const radDir = num(el, 'radialdirection', 0);
+        if (radDir !== 0) n['radialDirection'] = (radDir * Math.PI) / 180;
         return n;
       }
       // <podset> (external pods) never reaches here — a file containing one is

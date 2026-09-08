@@ -1,0 +1,138 @@
+--- a/core/src/main/java/info/openrocket/core/aerodynamics/barrowman/SymmetricComponentCalc.java
++++ b/core/src/main/java/info/openrocket/core/aerodynamics/barrowman/SymmetricComponentCalc.java
+@@ -389,11 +389,20 @@
+ 			int1 = int3;
+ 		}
+ 
++		// int1 != null is exactly the four stored-table shapes (ELLIPSOID, POWER,
++		// PARABOLIC, HAACK); CONICAL and OGIVE build the interpolator analytically
++		// above and never touch int1. That is the scope of the stubby-nose subsonic
++		// pressure-drag floor applied at the foot of this method.
++		final boolean tableShape = int1 != null;
++
+ 		// Extrapolate for fineness ratio if necessary
+ 		if (int1 != null) {
+ 			double log4 = Math.log(fineness + 1) / Math.log(4);
+ 			for (double m : int1.getXPoints()) {
+ 				double stag = bluntInterpolator.getValue(m);
++				// This extrapolation is multiplicative, so it maps a tabulated 0 to 0
++				// at every fineness ratio: it cannot lift a zero leading point, which
++				// is why the stubby-nose floor below is a separate step.
+ 				interpolator.addPoint(m, stag * Math.pow(int1.getValue(m) / stag, log4));
+ 			}
+ 		}
+@@ -405,25 +414,102 @@
+ 
+ 		double min = interpolator.getXPoints()[0];
+ 		double minValue = interpolator.getValue(min);
+-		if (minValue < 0.001) {
+-			// No interpolation necessary
+-			return;
+-		}
+ 
+ 		double cdMach0 = 0.8 * pow2(sinphi);
+ 		double minDeriv = (interpolator.getValue(min + 0.01) - minValue) / 0.01;
+ 
+-		// These should not occur, but might cause havoc for the interpolation
+-		if ((cdMach0 >= minValue - 0.01) || (minDeriv <= 0.01)) {
+-			return;
++		// The subsonic power-law fit runs only when the leading tabulated point is
++		// non-zero and well-conditioned (the two "should not occur" guards). This
++		// was three early returns; it is now a single guard so the stubby-nose
++		// floor below still runs. A stored-table nose starts at its drag-divergence
++		// Mach with a tabulated 0, so an early return here would skip both the fit
++		// and the floor. The guard condition is the exact negation of the three old
++		// returns, so nose shapes that took the fit before are unaffected.
++		if (minValue >= 0.001 && cdMach0 < minValue - 0.01 && minDeriv > 0.01) {
++			// Cd = a*M^b + cdMach0
++			final double b = min * minDeriv / (minValue - cdMach0);
++			final double a = (minValue - cdMach0) / Math.pow(min, b);
++
++			for (double m = 0; m < min; m += 0.05) {
++				interpolator.addPoint(m, a * Math.pow(m, b) + cdMach0);
++			}
+ 		}
+ 
+-		// Cd = a*M^b + cdMach0
+-		final double b = min * minDeriv / (minValue - cdMach0);
+-		final double a = (minValue - cdMach0) / Math.pow(min, b);
++		applyStubbyNoseFloor(interpolator, min, tableShape);
++	}
+ 
+-		for (double m = 0; m < min; m += 0.05) {
+-			interpolator.addPoint(m, a * Math.pow(m, b) + cdMach0);
++	/**
++	 * Fineness ratio at and above which a nose's shape stops affecting its
++	 * subsonic pressure drag. Centuri TIR-100 section 8 (a wind-tunnel series
++	 * swapping one nose at a time on a Centuri Javelin, whole-rocket Cd on body
++	 * frontal area) measures no significant variation across the standard
++	 * catalogue nose shapes from fineness ratio 4.0 down to the BC-70 at 1.8.
++	 */
++	private static final double STUBBY_NOSE_FINENESS_LIMIT = 1.8;
++
++	/**
++	 * A stubby rounded nose's subsonic pressure drag, expressed as a fraction of
++	 * a cone of the same fineness ratio. Bracketed from measured deltas rather
++	 * than from theory: Mark Mercer's TIR-100 series at fineness ratio 0.50 puts
++	 * a rounded stubby nose at 0.20-0.48 of a real cone, and this class's own
++	 * conical branch is itself roughly 2-4x high at the blunt end, so
++	 * rounded-as-a-fraction-of-this-model's-cone lands near 1/3. That reads about
++	 * 0.12 (on body frontal area) at fineness ratio 0.5, consistent with an
++	 * independent CFD estimate for a stubby nose on a Cd-0.5 model. Erring high
++	 * charges more drag and predicts less altitude, the conservative direction.
++	 * This is a bracket on the endpoint and the shape of the law, not a
++	 * calibrated curve; the range between fineness ratio 0.5 and the 1.8 cut-off
++	 * is interpolation.
++	 */
++	private static final double STUBBY_NOSE_ROUNDNESS = 1.0 / 3.0;
++
++	/**
++	 * Add a subsonic pressure-drag floor for a stubby stored-table nose.
++	 * <p>
++	 * The stored-table nose shapes (ELLIPSOID, POWER, PARABOLIC, HAACK) begin
++	 * their tabulated pressure-drag curve at the drag-divergence Mach with the
++	 * value 0, and the fineness-ratio extrapolation above is multiplicative, so a
++	 * short example of these shapes is left with (essentially) zero subsonic
++	 * pressure drag at every fineness ratio. That is non-physical for a blunt
++	 * body: a stubby ellipsoid or Von Karman has a real, measurable subsonic
++	 * pressure drag. This applies a floor, as max(existing, floor) over the whole
++	 * subsonic range including the leading tabulated point, so the shape does not
++	 * sit at the floor and then jump at its drag-divergence Mach.
++	 * <p>
++	 * Scope is deliberately the four stored-table shapes only. CONICAL and OGIVE
++	 * build their curve analytically and a cone's own Cd(M=0) is about three
++	 * times this floor, so max() would ignore it; a short tangent ogive is a
++	 * distinct case that wants its own evidence.
++	 *
++	 * @param interpolator the pressure-drag interpolator being built
++	 * @param min          the lowest Mach with a real (tabulated/analytic) point
++	 * @param tableShape   whether this nose uses a stored table (see caller)
++	 */
++	private void applyStubbyNoseFloor(LinearInterpolator interpolator, double min, boolean tableShape) {
++		// A nose is a symmetric component whose fore radius is (essentially) zero;
++		// mid-body transitions and boattails are out of scope.
++		final boolean isNose = foreRadius < 1e-9 && aftRadius > foreRadius;
++		if (!tableShape || !isNose) {
++			return;
++		}
++		if (!(fineness > 0) || fineness >= STUBBY_NOSE_FINENESS_LIMIT) {
++			return;
++		}
++		// 0.8/(1+4f^2) is this class's own conical Cd(M=0) value (0.8*sin^2(phi)
++		// with sin(phi) = 1/sqrt(1+4f^2) for a cone of fineness ratio f).
++		double cone = 0.8 / (1 + 4 * fineness * fineness);
++		double taper = 1 - pow2(fineness / STUBBY_NOSE_FINENESS_LIMIT);
++		double floor = STUBBY_NOSE_ROUNDNESS * cone * taper;
++		if (!(floor > 0)) {
++			return;
++		}
++		for (double m = 0; m <= min + 1e-9; m += 0.05) {
++			if (interpolator.getValue(m) < floor) {
++				interpolator.addPoint(m, floor);
++			}
++		}
++		if (interpolator.getValue(min) < floor) {
++			interpolator.addPoint(min, floor);
+ 		}
+ 	}
+ 

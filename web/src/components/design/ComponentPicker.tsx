@@ -11,7 +11,21 @@ import { fmtNum } from '../../i18n/format';
  */
 export function ComponentPicker({ type, onApply }: { type: ComponentType; onApply: (p: Component) => void }) {
   const { t } = useTranslation();
-  const all = useMemo(() => componentsForType(type), [type]);
+  // The catalog is fetched at runtime (see componentDb / remoteData), so load it
+  // on mount and hold the result. Same trigger as before (this picker is itself
+  // lazy-loaded); it's just async now.
+  const [all, setAll] = useState<Component[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let ok = true;
+    setLoading(true);
+    componentsForType(type)
+      .then((c) => ok && (setAll(c), setLoading(false)))
+      .catch(() => ok && setLoading(false));
+    return () => {
+      ok = false;
+    };
+  }, [type]);
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const matches = useMemo(() => filterComponents(all, q).slice(0, 300), [all, q]);
@@ -38,9 +52,10 @@ export function ComponentPicker({ type, onApply }: { type: ComponentType; onAppl
     <>
       <button
         onClick={() => setOpen(true)}
-        className="w-full rounded-lg bg-slate-800 px-2 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700"
+        disabled={loading}
+        className="w-full rounded-lg bg-slate-800 px-2 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 disabled:text-slate-500"
       >
-        {t('picker.pick', { count: all.length })}
+        {loading ? t('common.loading') : t('picker.pick', { count: all.length })}
       </button>
 
       {open && (

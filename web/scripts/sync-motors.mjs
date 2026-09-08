@@ -11,9 +11,13 @@
 import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeDataManifest } from './lib/dataManifest.mjs';
 
 const API = 'https://www.thrustcurve.org/api/v1';
-const OUT = resolve(fileURLToPath(new URL('../src/data', import.meta.url)), 'motors.generated.json');
+// public/data is served as-is (not bundled) so the catalog can be refreshed
+// without rebuilding the app — see src/services/remoteData.ts.
+const DATA_DIR = fileURLToPath(new URL('../public/data', import.meta.url));
+const OUT = resolve(DATA_DIR, 'motors.generated.json');
 
 async function post(path, body) {
   const res = await fetch(`${API}/${path}`, {
@@ -116,7 +120,8 @@ async function main() {
   const withCurves = catalog.filter((m) => m.curves).length;
   const noCurve = catalog.filter((m) => m.noCurve);
   await writeFile(OUT, JSON.stringify(catalog, null, 0) + '\n');
-  console.log(`\nWrote ${catalog.length} motors (${withCurves} with bundled curves) → src/data/motors.generated.json`);
+  writeDataManifest(DATA_DIR); // refresh the cache-bust hashes
+  console.log(`\nWrote ${catalog.length} motors (${withCurves} with bundled curves) → public/data/motors.generated.json`);
   if (noCurve.length) {
     console.log(`  ${noCurve.length} have NO bundled thrust curve (flagged noCurve):`);
     console.log(`    ${noCurve.map((m) => `${m.manufacturer} ${m.designation}`).join(', ')}`);

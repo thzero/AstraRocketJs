@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive, selectMotorDims } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
 import { useSettings } from '../../state/SettingsProvider';
+import { descentMass } from '../../services/recoverySizing';
 import { TreeSchematic } from './TreeSchematic';
 import { AftView } from './AftView';
 import { FlightChart } from './FlightChart';
@@ -51,6 +52,13 @@ export function CenterView() {
   const motor = useWorkspaceStore((s) => selectActive(s).motor);
   const extraMotors = useWorkspaceStore((s) => s.extraMotors);
   const motors = useMemo(() => selectMotorDims(tree, motor, extraMotors), [tree, motor, extraMotors]);
+  // Recovery weight = loaded mass − the propellant that burns off (every motor's
+  // loaded-minus-burnout mass). Undefined with no motor loaded — nothing to
+  // subtract — so the tile shows a "needs a motor" hint instead of a wrong number.
+  const recoveryWeight = useMemo(
+    () => descentMass(info?.mass, [motor, ...Object.values(extraMotors).map((e) => e.spec)]) ?? undefined,
+    [info?.mass, motor, extraMotors],
+  );
 
   // Optionally auto-run an outdated (never-run/stale) sim when a results view opens.
   const { settings, update } = useSettings();
@@ -247,6 +255,7 @@ export function CenterView() {
       <div className="shrink-0">
         <StabilityBadge
           info={info}
+          recoveryWeight={recoveryWeight}
           expanded={settings.showStats}
           onToggle={() => update({ showStats: !settings.showStats })}
         />

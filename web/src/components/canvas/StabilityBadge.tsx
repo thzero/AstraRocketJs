@@ -15,10 +15,13 @@ import { Stat } from '../common/Stat';
  */
 export function StabilityBadge({
   info,
+  recoveryWeight,
   expanded,
   onToggle,
 }: {
   info: StaticInfo | null;
+  /** Descent mass (kg) = loaded − expelled propellant; undefined with no motor. */
+  recoveryWeight?: number;
   expanded: boolean;
   onToggle: () => void;
 }) {
@@ -74,6 +77,14 @@ export function StabilityBadge({
             sub={`cm · ${t('stats.emptyLoaded')}`}
           />
           <Stat card label={t('stability.cp')} value={fmtNum(info.cp * 100, 1)} sub="cm" />
+          {/* Descent mass — loaded minus the propellant that burns off. Needs a
+              motor loaded to have propellant to subtract. */}
+          <Stat
+            card
+            label={t('stats.recoveryWeight')}
+            value={recoveryWeight != null ? fmtNum(recoveryWeight * 1000, 0) : '—'}
+            sub={recoveryWeight != null ? 'g' : t('stats.needsMotor')}
+          />
           <Stat
             card
             label={t('stats.fineness')}

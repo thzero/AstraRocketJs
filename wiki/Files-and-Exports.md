@@ -19,6 +19,43 @@ RASAero models only the **external aerodynamic shape**, so the export carries th
 
 Because RASAero can't represent every shape, the export **stops with a clear message** rather than write a file RASAero would reject — for example tube or elliptical fins, a non-conical transition, more than one fin set on a tube, or a freeform fin that isn't a simple trapezoid. In those cases, use `.ork` instead.
 
+## Exporting a component as a 3D model or cut file
+
+Export is **per component**, not whole-rocket: in the **Components** tree, every part that has a real shape carries a small **⬇** button that offers the formats appropriate to *that* part. Parts with no printable object — parachutes, streamers, shock cords, mass components, rail buttons — carry no button.
+
+- **3D models — STL, OBJ, GLB.** A single, **watertight solid** of the part, built for 3D printing and CAD (STL/OBJ import into any slicer or modeller; GLB also carries a color for viewers). Offered for nose cones, transitions, body tubes, inner tubes, launch lugs, tube fins, fin sets, centering rings, bulkheads, couplers and engine blocks.
+- **DXF — 2D cut sheet.** The flat outline of a **plate-cut** part for a laser cutter or CNC router (AutoCAD R12, in millimeters, CUT / REFERENCE layers). Offered only for the parts you actually cut from sheet: **fins, centering rings and bulkheads**. Fin outlines fold in any through-the-wall tab; discs carry the bore and a center cross-hair.
+
+Notes on the 3D geometry:
+
+- Everything is scaled to **millimeters** (the unit slicers and CAD assume) and each part is a **watertight, manifold solid** — a slicer won't reject it.
+- **Tubes are hollow** (real wall thickness), not solid rods; nose cones and transitions include their **shoulders**; a nose/transition/bulkhead is a solid body.
+- A **fin set** exports one fin; a **tube fin set** exports one tube — you print/cut as many as the design has.
+- Filenames come from the component's name (or its type).
+
+## Rocket design report (PDF / CSV)
+
+**Menu → Rocket Design Report** opens a **Print or export** dialog to produce a full design report — the same content as OpenRocket's printout.
+
+Tick the elements to include:
+
+- **Design report** — a schematic of the rocket plus the summary numbers (length, max diameter, empty/loaded mass and CG, CP, fineness, stability in calibers and %, Mach-0.3 drag coefficient, normal-force slope, and pitch/roll inertia), for the whole rocket and each stage.
+- **Parts detail** — per stage, every component with its material, dimensions and mass.
+- **Fin templates**, **Nose cone templates**, **Transition templates** — **1:1** cut/trace outlines (fins fold in any through-the-wall tab), with a cm/inch ruler to verify the print scale. Print at **100% / actual size** (no page scaling).
+
+Plus a few options:
+
+- **Include motors** — per simulation, a flight summary (apogee, times, and off-rod / max / deployment / landing velocities) and a motor table (average and peak thrust, burn time, total impulse, thrust-to-weight, weight, size).
+- **Update simulation data** — re-runs the simulation first so the flight numbers are current (it doesn't change your on-screen view).
+- **Show by stage** — group the summary and parts by stage.
+
+Then choose an output:
+
+- **Save as PDF** — a real PDF file (vector text, tables and 1:1 templates; the schematic is drawn to scale).
+- **Save as CSV** — the design summary as a tidy `Scope, Field, Value, Unit` table (Design / Rocket / per-stage blocks, plus each fin set's root position), for a spreadsheet.
+
+The **Settings** button (persisted) controls the **template fill / border colors**, **paper size** (Letter / A4) and **orientation** (Portrait / Landscape). Values are in the app's metric units.
+
 ## Exporting data
 
 **Flight and drag data** can be exported as **CSV** for use in a spreadsheet or your own analysis (values are in metric/SI units):

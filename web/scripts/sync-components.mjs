@@ -10,6 +10,7 @@
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeDataManifest } from './lib/dataManifest.mjs';
 
 // Source: the OpenRocket-Components DB (dbcook/openrocket-database), the
 // community-maintained parts database OpenRocket's component data comes from.
@@ -17,7 +18,10 @@ import { fileURLToPath } from 'node:url';
 const DEFAULT_SRC = 'D:/programming/java/openrocket/openrocket-database/orc';
 const argSrc = process.argv.indexOf('--src');
 const SRC = argSrc >= 0 ? process.argv[argSrc + 1] : process.env.OPENROCKET_PRESETS || DEFAULT_SRC;
-const OUT = resolve(fileURLToPath(new URL('../src/data', import.meta.url)), 'components.generated.json');
+// public/data is served as-is (not bundled) so the catalog can be refreshed
+// without rebuilding the app — see src/services/remoteData.ts.
+const DATA_DIR = fileURLToPath(new URL('../public/data', import.meta.url));
+const OUT = resolve(DATA_DIR, 'components.generated.json');
 
 // Unit → SI factors.
 const LEN = { in: 0.0254, mm: 0.001, cm: 0.01, m: 1, ft: 0.3048, '': 1 };
@@ -175,4 +179,5 @@ writeFileSync(
   OUT,
   JSON.stringify({ generated: new Date().toISOString(), count: components.length, components }) + '\n',
 );
-console.log(`Wrote ${components.length} components → src/data/components.generated.json`, byType);
+writeDataManifest(DATA_DIR); // refresh the cache-bust hashes
+console.log(`Wrote ${components.length} components → public/data/components.generated.json`, byType);

@@ -73,6 +73,20 @@ public class SymmetricComponentCalc extends RocketComponentCalc {
 		this.supersonicAero = enabled;
 	}
 
+	/**
+	 * PATCH (C7 stubby-nose floor): its own opt-in flag, independent of the
+	 * RASAero supersonic/Rogers models — the floor is a standalone
+	 * upstream-bound correction (submitted to OpenRocket), not part of those.
+	 * Default false, so with it off this class stays bit-identical to the shipped
+	 * kernel. See applyStubbyNoseFloor.
+	 */
+	private boolean stubbyNoseFloor = false;
+
+	/** PATCH (C7): enable the stubby-nose subsonic pressure-drag floor. */
+	public void setStubbyNoseFloor(boolean enabled) {
+		this.stubbyNoseFloor = enabled;
+	}
+
 	public SymmetricComponentCalc(RocketComponent c) {
 		super(c);
 		if (!(c instanceof SymmetricComponent)) {
@@ -613,11 +627,20 @@ public class SymmetricComponentCalc extends RocketComponentCalc {
 			int1 = int3;
 		}
 
+		// PATCH (C7): `int1 != null` is EXACTLY the four stored-table shapes -
+		// ELLIPSOID, POWER, PARABOLIC, HAACK. CONICAL and OGIVE build `interpolator`
+		// analytically above and never touch int1. That is the scope of the subsonic
+		// stubby-nose floor at the foot of this method; see applyStubbyNoseFloor.
+		final boolean tableShape = int1 != null;
+
 		// Extrapolate for fineness ratio if necessary
 		if (int1 != null) {
 			double log4 = Math.log(fineness + 1) / Math.log(4);
 			for (double m : int1.getXPoints()) {
 				double stag = bluntInterpolator.getValue(m);
+				// NOTE this extrapolation is MULTIPLICATIVE, so it maps a tabulated 0
+				// to 0 at every fineness - it cannot lift a zero, which is why the
+				// floor below is a separate step rather than a change here.
 				interpolator.addPoint(m, stag * Math.pow(int1.getValue(m) / stag, log4));
 			}
 		}
@@ -629,25 +652,90 @@ public class SymmetricComponentCalc extends RocketComponentCalc {
 
 		double min = interpolator.getXPoints()[0];
 		double minValue = interpolator.getValue(min);
-		if (minValue < 0.001) {
-			// No interpolation necessary
-			return;
-		}
 
 		double cdMach0 = 0.8 * pow2(sinphi);
 		double minDeriv = (interpolator.getValue(min + 0.01) - minValue) / 0.01;
 
-		// These should not occur, but might cause havoc for the interpolation
-		if ((cdMach0 >= minValue - 0.01) || (minDeriv <= 0.01)) {
-			return;
+		// PATCH (C7): these WERE three separate `return`s - `minValue < 0.001` first,
+		// then the two "should not occur" guards. Guarding the subsonic fit rather
+		// than returning lets the stubby-nose floor below still run (a stored-table
+		// nose starts at drag-divergence Mach with value 0, so `minValue < 0.001`
+		// would otherwise skip the fit AND the floor). The guard condition is the
+		// exact negation of the old returns, so with the floor's own opt-in gate off
+		// this is bit-identical to the shipped kernel.
+		if (minValue >= 0.001 && cdMach0 < minValue - 0.01 && minDeriv > 0.01) {
+			// Cd = a*M^b + cdMach0
+			final double b = min * minDeriv / (minValue - cdMach0);
+			final double a = (minValue - cdMach0) / Math.pow(min, b);
+
+			for (double m = 0; m < min; m += 0.05) {
+				interpolator.addPoint(m, a * Math.pow(m, b) + cdMach0);
+			}
 		}
 
-		// Cd = a*M^b + cdMach0
-		final double b = min * minDeriv / (minValue - cdMach0);
-		final double a = (minValue - cdMach0) / Math.pow(min, b);
+		applyStubbyNoseFloor(interpolator, min, tableShape);
+	}
 
-		for (double m = 0; m < min; m += 0.05) {
-			interpolator.addPoint(m, a * Math.pow(m, b) + cdMach0);
+	/**
+	 * Fineness at and above which a nose's SHAPE stops mattering subsonically.
+	 * Centuri TIR-100 section 8 (Mark Mercer's wind-tunnel series on a Centuri
+	 * Javelin, one nose swapped at a time, whole-rocket Cd) measures no
+	 * significant variation across the standard catalogue nose shapes from L/D
+	 * 4.0 down to the BC-70's L/D 1.8.
+	 */
+	private static final double STUBBY_NOSE_FINENESS_LIMIT = 1.8;
+
+	/**
+	 * A stubby ROUNDED nose's subsonic pressure drag, as a fraction of a CONE of
+	 * the same fineness. Bracketed from measured deltas, not theory: Mercer at
+	 * L/D 0.50 puts a rounded stubby nose at 0.20-0.48 of a real cone, and this
+	 * file's own conical value is itself ~2-4x high at the blunt end, so
+	 * rounded-as-a-fraction-of-OUR-cone lands near 1/3 - which reads 0.123 at
+	 * L/D 0.5, where @Buckeye's CFD independently puts a stubby nose (~27 % of a
+	 * Cd-0.5 rocket). DeMar (NARAM-37) corroborates the blunt end. Erring high
+	 * charges MORE drag / predicts LESS altitude, the safe direction. This is a
+	 * bracket on the endpoint and the shape of the law, never a calibrated curve.
+	 */
+	private static final double STUBBY_NOSE_ROUNDNESS = 1.0 / 3.0;
+
+	/**
+	 * PATCH (C7): add a subsonic pressure-drag floor for a stubby STORED-TABLE
+	 * nose (ELLIPSOID, POWER, PARABOLIC, HAACK). Applied as max(existing, floor)
+	 * over the whole subsonic range including the leading tabulated point, so a
+	 * Von Karman at L/D 0.5 does not sit at the floor and then jump at its
+	 * drag-divergence Mach. CONICAL/OGIVE are excluded: a cone's own cdMach0 is
+	 * three times this floor (max() would ignore it), and stubby ogives want
+	 * their own evidence.
+	 *
+	 * Opt-in: gated on rogersKbf || supersonicAero exactly like FinSetCalc's
+	 * extensions, so the classic model stays bit-identical to desktop 24.12.
+	 */
+	private void applyStubbyNoseFloor(LinearInterpolator interpolator, double min, boolean tableShape) {
+		if (!tableShape || !isNoseShape) {
+			return;
+		}
+		if (!stubbyNoseFloor) {
+			return;
+		}
+		if (!(fineness > 0) || fineness >= STUBBY_NOSE_FINENESS_LIMIT) {
+			return;
+		}
+		// 0.8/(1+4f^2) IS this file's own conical Newtonian value, verified against
+		// the shipped kernel's measured isolated-nose pressure Cd at fineness
+		// 5 / 3 / 1 / 0.5 -> 0.007921 / 0.021623 / 0.161170 / 0.400935.
+		double cone = 0.8 / (1 + 4 * fineness * fineness);
+		double taper = 1 - pow2(fineness / STUBBY_NOSE_FINENESS_LIMIT);
+		double floor = STUBBY_NOSE_ROUNDNESS * cone * taper;
+		if (!(floor > 0)) {
+			return;
+		}
+		for (double m = 0; m <= min + 1e-9; m += 0.05) {
+			if (interpolator.getValue(m) < floor) {
+				interpolator.addPoint(m, floor);
+			}
+		}
+		if (interpolator.getValue(min) < floor) {
+			interpolator.addPoint(min, floor);
 		}
 	}
 

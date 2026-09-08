@@ -209,6 +209,47 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
     expect(tube.radialPosition).toBeCloseTo(0.012, 6);
     expect(tube.radialDirection).toBeCloseTo(Math.PI / 3, 6);
   });
+
+  it('preserves an off-axis mass component radial offset through export → import', () => {
+    // Regression: the writer hard-wrote radialposition 0.0 and never emitted a
+    // radialdirection, and the reader ignored both — so an off-centreline mass
+    // (ballast, altimeter) snapped back onto the axis on every save/load.
+    const withMass = {
+      components: [
+        {
+          type: 'stage',
+          name: 'Sustainer',
+          id: 's1',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'body',
+              length: 0.3,
+              outerRadius: 0.026,
+              thickness: 0.0005,
+              children: [
+                {
+                  type: 'masscomponent',
+                  id: 'ballast',
+                  length: 0.02,
+                  mass: 0.05,
+                  radialPosition: 0.018,
+                  radialDirection: Math.PI / 4, // 45°
+                  position: { method: 'top', offset: 0.01 },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    const mass = findByType(importOrk(exportOrk({ name: 'Mass', tree: withMass })).tree, 'masscomponent') as {
+      radialPosition?: number;
+      radialDirection?: number;
+    };
+    expect(mass.radialPosition).toBeCloseTo(0.018, 6);
+    expect(mass.radialDirection).toBeCloseTo(Math.PI / 4, 6);
+  });
 });
 
 describe('recovery-device features round-trip', () => {

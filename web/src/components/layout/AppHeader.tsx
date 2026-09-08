@@ -5,6 +5,7 @@ import { initEngine } from '../../engine/openRocketEngine';
 import { useWorkspaceStore } from '../../state/store';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { AboutDialog } from './AboutDialog';
+import { ExportDialog } from '../report/ExportDialog';
 import { PrivacyDialog } from './PrivacyDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { MotorDashboard } from '../sim/MotorDashboard';
@@ -28,6 +29,7 @@ export function AppHeader() {
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [motorsOpen, setMotorsOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   // "Export ▸" reveals its format sub-items inline (a flyout would be clipped by
   // the menu's overflow-hidden). Collapsed whenever the menu itself closes.
@@ -89,7 +91,7 @@ export function AppHeader() {
 
   const item =
     'flex w-full items-center px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-transparent';
-  // Same row style, indented for the Export flyout's format entries.
+  // Indented row style for the Export flyout's format entries.
   const subItem =
     'flex w-full items-center py-2 pl-8 pr-3 text-left text-xs font-medium text-slate-200 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-transparent';
   const iconBtn =
@@ -221,6 +223,17 @@ export function AppHeader() {
                   {t('file.rasaero')}
                 </button>
               )}
+              <button
+                role="menuitem"
+                className={item}
+                disabled={!canSave}
+                onClick={() => {
+                  setMenuOpen(false);
+                  setReportOpen(true);
+                }}
+              >
+                {t('file.report')}
+              </button>
               <div className="my-1 border-t border-white/10" />
               <button
                 role="menuitem"
@@ -291,6 +304,7 @@ export function AppHeader() {
         }}
       />
       <MotorDashboard open={motorsOpen} onClose={() => setMotorsOpen(false)} />
+      <ExportDialog open={reportOpen} onClose={() => setReportOpen(false)} />
       <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
       <PrivacyDialog open={privacyOpen} onClose={() => setPrivacyOpen(false)} />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />

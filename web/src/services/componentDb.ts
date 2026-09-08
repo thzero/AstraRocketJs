@@ -1,10 +1,11 @@
 // Component catalog — real manufacturer parts extracted from OpenRocket's
-// bundled `.orc` files at build time (scripts/sync-components.mjs). (OpenRocket
-// calls these "component presets"; here they're just the components catalog,
-// symmetric with the motors catalog.) Pure bundled reference data (no runtime
-// fetch, no store): the picker reads it and prefills the editor's geometry +
-// material. SI units throughout (m, kg/m^3).
-import bundled from '../data/components.generated.json';
+// `.orc` files by scripts/sync-components.mjs. (OpenRocket calls these
+// "component presets"; here they're just the components catalog, symmetric with
+// the motors catalog.) The catalog is a runtime file under public/data, fetched
+// on demand (see remoteData.ts) so it can be refreshed without rebuilding the
+// app; the picker reads it and prefills the editor's geometry + material. SI
+// units throughout (m, kg/m^3).
+import { fetchCatalog } from './remoteData';
 import type { NoseShape } from '../engine/openRocketEngine';
 
 interface ComponentBase {
@@ -72,13 +73,32 @@ interface ComponentMap {
 export type ComponentType = keyof ComponentMap;
 export type Component = ComponentMap[ComponentType];
 
-const db = bundled as { generated: string; count: number; components: Component[] };
+interface ComponentCatalog {
+  generated: string;
+  count: number;
+  components: Component[];
+}
 
-export const COMPONENTS_DATE: string = db.generated;
+// The catalog is a runtime file under public/data (see remoteData.ts), fetched
+// once and memoized, so it can be refreshed without rebuilding the app.
+let catalogP: Promise<ComponentCatalog> | null = null;
+function loadCatalog(): Promise<ComponentCatalog> {
+  return (catalogP ??= fetchCatalog<ComponentCatalog>('components'));
+}
 
-/** All catalog components of a type. */
-export function componentsForType<T extends ComponentType>(type: T): ComponentMap[T][] {
-  return db.components.filter((p): p is ComponentMap[T] => p.type === type);
+/** The date the component catalog was generated (from its manifest). */
+export async function componentsDate(): Promise<string> {
+  return (await loadCatalog()).generated;
+}
+
+/** Filter a loaded catalog to a single component type (pure). */
+export function projectByType<T extends ComponentType>(cat: ComponentCatalog, type: T): ComponentMap[T][] {
+  return cat.components.filter((p): p is ComponentMap[T] => p.type === type);
+}
+
+/** All catalog components of a type — loads (and caches) the catalog on first use. */
+export async function componentsForType<T extends ComponentType>(type: T): Promise<ComponentMap[T][]> {
+  return projectByType(await loadCatalog(), type);
 }
 
 /**
