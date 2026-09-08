@@ -33,6 +33,29 @@ Notes on the 3D geometry:
 - A **fin set** exports one fin; a **tube fin set** exports one tube — you print/cut as many as the design has.
 - Filenames come from the component's name (or its type).
 
+## Rocket design report (PDF / CSV)
+
+**Menu → Rocket Design Report** opens a **Print or export** dialog to produce a full design report — the same content as OpenRocket's printout.
+
+Tick the elements to include:
+
+- **Design report** — a schematic of the rocket plus the summary numbers (length, max diameter, empty/loaded mass and CG, CP, fineness, stability in calibers and %, Mach-0.3 drag coefficient, normal-force slope, and pitch/roll inertia), for the whole rocket and each stage.
+- **Parts detail** — per stage, every component with its material, dimensions and mass.
+- **Fin templates**, **Nose cone templates**, **Transition templates** — **1:1** cut/trace outlines (fins fold in any through-the-wall tab), with a cm/inch ruler to verify the print scale. Print at **100% / actual size** (no page scaling).
+
+Plus a few options:
+
+- **Include motors** — per simulation, a flight summary (apogee, times, and off-rod / max / deployment / landing velocities) and a motor table (average and peak thrust, burn time, total impulse, thrust-to-weight, weight, size).
+- **Update simulation data** — re-runs the simulation first so the flight numbers are current (it doesn't change your on-screen view).
+- **Show by stage** — group the summary and parts by stage.
+
+Then choose an output:
+
+- **Save as PDF** — a real PDF file (vector text, tables and 1:1 templates; the schematic is drawn to scale).
+- **Save as CSV** — the design summary as a tidy `Scope, Field, Value, Unit` table (Design / Rocket / per-stage blocks, plus each fin set's root position), for a spreadsheet.
+
+The **Settings** button (persisted) controls the **template fill / border colours**, **paper size** (Letter / A4) and **orientation** (Portrait / Landscape). Values are in the app's metric units.
+
 ## Exporting data
 
 **Flight and drag data** can be exported as **CSV** for use in a spreadsheet or your own analysis (values are in metric/SI units):
