@@ -70,9 +70,30 @@ export interface Settings {
   showStats: boolean;
   /** Which sides of the 2D side view are framed by a measurement ruler. */
   rulers: RulerSides;
+  /** PDF report / template output preferences. */
+  report: ReportSettings;
   /** Whether the user has dismissed the pre-1.0 "work in progress" notice. */
   wipAcknowledged: boolean;
 }
+
+/** Persistent output options for the PDF report (the "Settings" sub-dialog). */
+export interface ReportSettings {
+  /** Template fill colour (hex), or '' for outline only. */
+  templateFill: string;
+  /** Template border colour (hex). */
+  templateStroke: string;
+  /** Page size. */
+  paper: 'letter' | 'a4';
+  /** Page orientation. */
+  orientation: 'portrait' | 'landscape';
+}
+
+export const DEFAULT_REPORT: ReportSettings = {
+  templateFill: '',
+  templateStroke: '#111827',
+  paper: 'letter',
+  orientation: 'portrait',
+};
 
 export const DEFAULT_SETTINGS: Settings = {
   partColors: {},
@@ -92,6 +113,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showInfoCard: true,
   showStats: true,
   rulers: { top: true, bottom: true, left: true, right: true },
+  report: DEFAULT_REPORT,
   wipAcknowledged: false,
 };
 
@@ -126,6 +148,7 @@ export function loadSettings(): Settings {
       showInfoCard: typeof s.showInfoCard === 'boolean' ? s.showInfoCard : DEFAULT_SETTINGS.showInfoCard,
       showStats: typeof s.showStats === 'boolean' ? s.showStats : DEFAULT_SETTINGS.showStats,
       rulers: { ...DEFAULT_SETTINGS.rulers, ...legacyRulers, ...savedRulers },
+      report: { ...DEFAULT_REPORT, ...(s.report ?? {}) },
       wipAcknowledged: typeof s.wipAcknowledged === 'boolean' ? s.wipAcknowledged : DEFAULT_SETTINGS.wipAcknowledged,
     };
   } catch {
