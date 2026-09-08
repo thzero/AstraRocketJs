@@ -45,7 +45,7 @@ Applying a preset just fills in the component's fields — you can tweak it afte
 
 Selecting a **parachute** shows a **descent-sizing** readout in its panel. From the design's descent mass (see *recovery weight*) and the air density at the launch site, it gives:
 
-- the **descent rate** this canopy actually produces (m/s and ft/s), colour-coded against the accepted **main** (15–20 ft/s) and **drogue** (50–75 ft/s) bands, and
+- the **descent rate** this canopy actually produces (m/s and ft/s), color-coded against the accepted **main** (15–20 ft/s) and **drogue** (50–75 ft/s) bands, and
 - the **canopy diameter** you'd need to hit each band, at this canopy's own drag coefficient.
 
 It needs a motor loaded (to know the descent mass). It's an on-screen aid only — nothing is written to the design.

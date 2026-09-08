@@ -23,12 +23,12 @@ Because RASAero can't represent every shape, the export **stops with a clear mes
 
 Export is **per component**, not whole-rocket: in the **Components** tree, every part that has a real shape carries a small **⬇** button that offers the formats appropriate to *that* part. Parts with no printable object — parachutes, streamers, shock cords, mass components, rail buttons — carry no button.
 
-- **3D models — STL, OBJ, GLB.** A single, **watertight solid** of the part, built for 3D printing and CAD (STL/OBJ import into any slicer or modeller; GLB also carries a colour for viewers). Offered for nose cones, transitions, body tubes, inner tubes, launch lugs, tube fins, fin sets, centering rings, bulkheads, couplers and engine blocks.
-- **DXF — 2D cut sheet.** The flat outline of a **plate-cut** part for a laser cutter or CNC router (AutoCAD R12, in millimetres, CUT / REFERENCE layers). Offered only for the parts you actually cut from sheet: **fins, centering rings and bulkheads**. Fin outlines fold in any through-the-wall tab; discs carry the bore and a centre cross-hair.
+- **3D models — STL, OBJ, GLB.** A single, **watertight solid** of the part, built for 3D printing and CAD (STL/OBJ import into any slicer or modeller; GLB also carries a color for viewers). Offered for nose cones, transitions, body tubes, inner tubes, launch lugs, tube fins, fin sets, centering rings, bulkheads, couplers and engine blocks.
+- **DXF — 2D cut sheet.** The flat outline of a **plate-cut** part for a laser cutter or CNC router (AutoCAD R12, in millimeters, CUT / REFERENCE layers). Offered only for the parts you actually cut from sheet: **fins, centering rings and bulkheads**. Fin outlines fold in any through-the-wall tab; discs carry the bore and a center cross-hair.
 
 Notes on the 3D geometry:
 
-- Everything is scaled to **millimetres** (the unit slicers and CAD assume) and each part is a **watertight, manifold solid** — a slicer won't reject it.
+- Everything is scaled to **millimeters** (the unit slicers and CAD assume) and each part is a **watertight, manifold solid** — a slicer won't reject it.
 - **Tubes are hollow** (real wall thickness), not solid rods; nose cones and transitions include their **shoulders**; a nose/transition/bulkhead is a solid body.
 - A **fin set** exports one fin; a **tube fin set** exports one tube — you print/cut as many as the design has.
 - Filenames come from the component's name (or its type).
@@ -54,7 +54,7 @@ Then choose an output:
 - **Save as PDF** — a real PDF file (vector text, tables and 1:1 templates; the schematic is drawn to scale).
 - **Save as CSV** — the design summary as a tidy `Scope, Field, Value, Unit` table (Design / Rocket / per-stage blocks, plus each fin set's root position), for a spreadsheet.
 
-The **Settings** button (persisted) controls the **template fill / border colours**, **paper size** (Letter / A4) and **orientation** (Portrait / Landscape). Values are in the app's metric units.
+The **Settings** button (persisted) controls the **template fill / border colors**, **paper size** (Letter / A4) and **orientation** (Portrait / Landscape). Values are in the app's metric units.
 
 ## Exporting data
 
