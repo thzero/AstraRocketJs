@@ -37,6 +37,33 @@ export interface LoadedOrk {
 
 const IGNITION_EVENTS: ReadonlySet<string> = new Set(['automatic', 'launch', 'ejectioncharge', 'burnout', 'never']);
 
+/**
+ * A placeholder for a .ork motor we couldn't resolve — it keeps the designation
+ * and dimensions the file named but carries NO thrust curve, so `hasThrustCurve`
+ * is false: the run is blocked ("no motor") and the design builds with an empty
+ * mount. Crucially it is NOT swapped for a default (C6), so the sim never
+ * silently flies a motor the file didn't specify.
+ */
+function unresolvedMotor(ref: {
+  designation: string;
+  manufacturer?: string;
+  diameter: number;
+  length: number;
+  delay: number;
+}): MotorSpec {
+  return {
+    designation: ref.designation,
+    manufacturer: ref.manufacturer,
+    diameter: ref.diameter,
+    length: ref.length,
+    times: [],
+    thrusts: [],
+    masses: [],
+    cgX: ref.length / 2,
+    ejectionDelay: ref.delay,
+  };
+}
+
 export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   resetEngine(); // free the previous design's handles
   const res = importOrk(buffer);
@@ -49,7 +76,11 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   for (const [mountId, ref] of Object.entries(res.motors ?? {})) {
     const cat = findCatalogMotor(catalog, ref.designation, ref.manufacturer);
     if (!cat) {
-      notes.push(`Motor "${ref.designation}" not found in the catalog — that mount was left empty.`);
+      // Keep the designation as an UNRESOLVED (curve-less) motor rather than a
+      // default: the mount shows what the file wanted, the run is blocked until
+      // the user picks a real motor, and nothing silently flies a C6.
+      notes.push(`Motor "${ref.designation}" isn't in the catalog — pick a motor for that mount (it won't fly a default).`);
+      motorSpecs[mountId] = { spec: unresolvedMotor(ref) };
       continue;
     }
     try {
@@ -65,6 +96,28 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
     } catch (e) {
       notes.push(`Motor "${ref.designation}": ${e instanceof Error ? e.message : String(e)}`);
     }
+  }
+
+  // The app imports ONE configuration as a single simulation, but a .ork can
+  // carry several (each a sim on the desktop). Scan the OTHER configurations'
+  // motors too, so a missing engine in a not-opened config isn't silent. Only
+  // the opened config's motors were catalog-checked above; dedupe by name and
+  // skip any the opened config already resolved.
+  const openedRefs = new Set(Object.values(res.motors ?? {}).map((r) => r.designation.toLowerCase()));
+  const missingOther = new Map<string, string>(); // key → display designation
+  for (const cfg of res.configs ?? []) {
+    if (cfg.id === res.chosenConfigId) continue;
+    for (const ref of Object.values(cfg.motors ?? {})) {
+      if (openedRefs.has(ref.designation.toLowerCase())) continue;
+      if (findCatalogMotor(catalog, ref.designation, ref.manufacturer)) continue; // we have it
+      missingOther.set(`${ref.designation.toLowerCase()}|${(ref.manufacturer ?? '').toLowerCase()}`, ref.designation);
+    }
+  }
+  if (missingOther.size) {
+    notes.push(
+      `Other flight configurations use motors not in the catalog: ${[...missingOther.values()].join(', ')}. ` +
+        `Those configurations can't be simulated here until you add the motor(s).`,
+    );
   }
 
   const info = design.staticInfo();

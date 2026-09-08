@@ -313,7 +313,10 @@
     "follow": "Seguir",
     "reset": "Reiniciar al lanzamiento",
     "loop": "Repetir reproducción",
-    "exportCsv": "Descargar datos de vuelo (.csv)"
+    "exportCsv": "Descargar datos de vuelo (.csv)",
+    "zoomIn": "Acercar",
+    "zoomOut": "Alejar",
+    "zoomReset": "Restablecer zoom"
   },
   "pathExport": {
     "open": "Exportar trayectoria de vuelo (KML / GPX / CSV)",
@@ -414,6 +417,8 @@
     "collapseTree": "Ocultar la lista de componentes",
     "expandTree": "Mostrar la lista de componentes",
     "scale": "⤢ Escalar",
+    "addStage": "＋ Etapa",
+    "addStageTitle": "Añadir una etapa propulsora debajo",
     "rocket": "Cohete",
     "motorTag": "motor",
     "noComponents": "Sin componentes.",
@@ -432,8 +437,12 @@
     "selectHint": "Selecciona un componente en el árbol o el dibujo para editar sus propiedades.",
     "name": "Nombre",
     "delete": "Eliminar",
+    "lastStage": "Un cohete necesita al menos una etapa",
     "moveUp": "Subir",
     "moveDown": "Bajar",
+    "separationEvent": "Separación de etapa",
+    "separationDelay": "Retardo de separación",
+    "separationAltitude": "Altitud de separación (AGL)",
     "positionFrom": "Posición desde",
     "offset": "Desplazamiento",
     "length": "Longitud",
@@ -485,6 +494,17 @@
     "apogee": "Apogeo",
     "altitude": "Altitud (descendiendo)",
     "launch": "Lanzamiento",
+    "never": "Nunca"
+  },
+  "separationEvent": {
+    "ejection": "Carga de eyección de la etapa superior",
+    "burnout": "Fin de combustión de la etapa superior",
+    "launch": "Lanzamiento",
+    "ignition": "Encendido de la etapa superior",
+    "upperignition": "Encendido de la siguiente etapa",
+    "apogee": "Apogeo",
+    "altitudeascending": "Altitud (ascendiendo)",
+    "altitudedescending": "Altitud (descendiendo)",
     "never": "Nunca"
   },
   "motor": {
@@ -614,6 +634,7 @@
     "motor": "Motor",
     "changeMotor": "Cambiar…",
     "noMotor": "Sin motor — elige uno",
+    "motorNotFound": "No está en el catálogo — elige un motor",
     "viewCurve": "Curva de empuje",
     "delay": "Retardo",
     "ignition": "Encendido",

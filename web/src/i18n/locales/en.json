@@ -310,7 +310,10 @@
     "follow": "Follow",
     "reset": "Reset to launch",
     "loop": "Loop playback",
-    "exportCsv": "Download flight data (.csv)"
+    "exportCsv": "Download flight data (.csv)",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "zoomReset": "Reset zoom"
   },
   "pathExport": {
     "open": "Export flight path (KML / GPX / CSV)",
@@ -411,6 +414,8 @@
     "collapseTree": "Hide the component list",
     "expandTree": "Show the component list",
     "scale": "⤢ Scale",
+    "addStage": "＋ Stage",
+    "addStageTitle": "Add a booster stage below",
     "rocket": "Rocket",
     "motorTag": "motor",
     "noComponents": "No components.",
@@ -429,8 +434,12 @@
     "selectHint": "Select a component in the tree or drawing to edit its properties.",
     "name": "Name",
     "delete": "Delete",
+    "lastStage": "A rocket needs at least one stage",
     "moveUp": "Move up",
     "moveDown": "Move down",
+    "separationEvent": "Stage separation",
+    "separationDelay": "Separation delay",
+    "separationAltitude": "Separation altitude (AGL)",
     "positionFrom": "Position from",
     "offset": "Offset",
     "length": "Length",
@@ -482,6 +491,17 @@
     "apogee": "Apogee",
     "altitude": "Altitude (descending)",
     "launch": "Launch",
+    "never": "Never"
+  },
+  "separationEvent": {
+    "ejection": "Upper-stage ejection charge",
+    "burnout": "Upper-stage burnout",
+    "launch": "Launch",
+    "ignition": "Upper-stage ignition",
+    "upperignition": "Next-stage ignition",
+    "apogee": "Apogee",
+    "altitudeascending": "Altitude (ascending)",
+    "altitudedescending": "Altitude (descending)",
     "never": "Never"
   },
   "motor": {
@@ -611,6 +631,7 @@
     "motor": "Motor",
     "changeMotor": "Change…",
     "noMotor": "No motor — choose one",
+    "motorNotFound": "Not in the catalog — choose a motor",
     "viewCurve": "Thrust curve",
     "delay": "Delay",
     "ignition": "Ignition",

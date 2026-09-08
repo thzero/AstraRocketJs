@@ -31,6 +31,7 @@ export function buildConfiguredRocket(
     r.setMotorIgnitionById(mountId, primaryIgnition.event, primaryIgnition.delay ?? 0);
   for (const [id, m] of Object.entries(extraMotors)) {
     if (id === mountId || !findNode(tree, id)) continue; // gone or already the primary
+    if ((m.spec.times?.length ?? 0) < 2) continue; // unresolved/curve-less motor — leave the mount empty
     r.setMotorById(id, m.spec);
     if (m.ignitionEvent) r.setMotorIgnitionById(id, m.ignitionEvent, m.ignitionDelay ?? 0);
   }

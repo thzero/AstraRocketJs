@@ -39,6 +39,21 @@ const NOSE_SHAPES = ['ogive', 'conical', 'ellipsoid', 'power', 'parabolic', 'haa
 // Apogee first: it's the default and the most common single-deploy trigger.
 const DEPLOY_EVENTS = ['apogee', 'ejection', 'altitude', 'launch', 'never'];
 
+// Stage-separation triggers (SeparationEvent, ComponentFactory.separationEventOf)
+// — when a stage lets go of the one above it. Ejection first: the desktop default
+// and the low/mid-power norm (drop off on the upper stage's ejection charge).
+const SEPARATION_EVENTS = [
+  'ejection',
+  'burnout',
+  'launch',
+  'ignition',
+  'upperignition',
+  'apogee',
+  'altitudeascending',
+  'altitudedescending',
+  'never',
+];
+
 // Optional through-the-wall fin tab (0 length/height = no tab). Shared by the
 // trapezoidal and elliptical fin editors; keys match the engine + .ork.
 const FIN_TABS: Field[] = [
@@ -50,6 +65,13 @@ const FIN_TABS: Field[] = [
 
 // `label` is an i18n key suffix under `prop.*` (resolved at render).
 const FIELDS: Record<string, Field[]> = {
+  // Separation only — shown for a non-first stage (see the render guard). The
+  // altitude is used only by the altitude events; harmless (like deployAltitude).
+  stage: [
+    { key: 'separationEvent', label: 'separationEvent', kind: 'select', options: SEPARATION_EVENTS, optI18n: 'separationEvent' },
+    { key: 'separationDelay', label: 'separationDelay', kind: 'number', unit: 's', step: 0.5 },
+    { key: 'separationAltitude', label: 'separationAltitude', kind: 'number', unit: 'm', step: 10 },
+  ],
   nosecone: [
     { key: 'shape', label: 'shape', kind: 'select', options: NOSE_SHAPES },
     { key: 'length', label: 'length', kind: 'length' },
@@ -287,6 +309,8 @@ export function PropertyPanel({
   onMove,
   canMoveUp,
   canMoveDown,
+  canRemove = true,
+  isFirstStage = false,
 }: {
   node: ComponentNode | null;
   onChange: (patch: Partial<ComponentNode>) => void;
@@ -297,6 +321,10 @@ export function PropertyPanel({
   onMove?: (dir: -1 | 1) => void;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
+  /** False disables Delete (e.g. the only stage — a rocket needs at least one). */
+  canRemove?: boolean;
+  /** The selected node is the top stage — has nothing above it, so no separation. */
+  isFirstStage?: boolean;
 }) {
   const { t } = useTranslation();
   const { settings } = useSettings();
@@ -309,7 +337,8 @@ export function PropertyPanel({
     );
   }
 
-  const fields = FIELDS[node.type] ?? [];
+  // The top stage separates from nothing above it — hide its separation fields.
+  const fields = node.type === 'stage' && isFirstStage ? [] : (FIELDS[node.type] ?? []);
   const label = t(`part.${node.type}`, { defaultValue: node.type });
   const flabel = (f: Field) => t(`prop.${f.label}`);
   const pos = (node.position as ComponentPosition | undefined) ?? { method: 'top', offset: 0 };
@@ -324,36 +353,36 @@ export function PropertyPanel({
     <section className="space-y-3 rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</h2>
-        {node.type !== 'stage' && (
-          <div className="flex items-center gap-1">
-            {onMove && (
-              <>
-                <button
-                  onClick={() => onMove(-1)}
-                  disabled={!canMoveUp}
-                  title={t('prop.moveUp')}
-                  className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-slate-800"
-                >
-                  ↑
-                </button>
-                <button
-                  onClick={() => onMove(1)}
-                  disabled={!canMoveDown}
-                  title={t('prop.moveDown')}
-                  className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-slate-800"
-                >
-                  ↓
-                </button>
-              </>
-            )}
-            <button
-              onClick={onRemove}
-              className="rounded-md bg-red-500/15 px-2 py-1 text-xs font-medium text-red-300 ring-1 ring-red-500/30 hover:bg-red-500/25"
-            >
-              {t('prop.delete')}
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-1">
+          {onMove && (
+            <>
+              <button
+                onClick={() => onMove(-1)}
+                disabled={!canMoveUp}
+                title={t('prop.moveUp')}
+                className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-slate-800"
+              >
+                ↑
+              </button>
+              <button
+                onClick={() => onMove(1)}
+                disabled={!canMoveDown}
+                title={t('prop.moveDown')}
+                className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-slate-800"
+              >
+                ↓
+              </button>
+            </>
+          )}
+          <button
+            onClick={onRemove}
+            disabled={!canRemove}
+            title={canRemove ? t('prop.delete') : t('prop.lastStage')}
+            className="rounded-md bg-red-500/15 px-2 py-1 text-xs font-medium text-red-300 ring-1 ring-red-500/30 hover:bg-red-500/25 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-600 disabled:ring-white/10 disabled:hover:bg-slate-800"
+          >
+            {t('prop.delete')}
+          </button>
+        </div>
       </div>
 
       <label className="flex items-center justify-between gap-3">

@@ -4,7 +4,7 @@ import type { FlightResult } from '../../engine/openRocketEngine';
 import { fmtNum } from '../../i18n/format';
 import { flightDataCsv, downloadCsv } from '../../services/csvExport';
 import { lerpAt } from '../../services/interpolate';
-import { EVENT_LABEL, EVENT_PRIORITY } from '../../services/simReport';
+import { EVENT_LABEL, clusterEventLabels } from '../../services/simReport';
 
 /**
  * Flight data as SMALL MULTIPLES (mmrocket-style): time on a shared x, and one
@@ -12,6 +12,8 @@ import { EVENT_LABEL, EVENT_PRIORITY } from '../../services/simReport';
  * measures of different magnitude are never dual-axed. A chip bar toggles which
  * panels show; a single hover drives a synchronized crosshair + value readout
  * across every visible panel. All eleven series already ride in on every sim run.
+ * The x (time) axis zooms/pans (buttons, drag, ctrl/pinch-wheel); a sticky strip
+ * up top row-packs the event labels so they never overlap.
  */
 type Key =
   | 'altitude'
@@ -63,6 +65,7 @@ const PAD_L = 44;
 const PAD_R = 12;
 const HOST_INSET = 12;
 const PANEL_H = 104;
+const EVENT_ROW_H = 12; // one row of the event-label strip
 
 type Pt = readonly [number, number];
 
@@ -73,6 +76,21 @@ export function FlightChart({ result }: { result: FlightResult }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(640);
 
+  const time = result.series.time ?? [];
+  const maxT = Math.max(result.summary.flightTime || 1, ...(time.length ? time : [1]), 1);
+
+  // Visible time window (null = full flight). The x-axis zooms/pans within it.
+  const [zoom, setZoom] = useState<{ t0: number; t1: number } | null>(null);
+  const t0 = zoom ? zoom.t0 : 0;
+  const t1 = zoom ? zoom.t1 : maxT;
+  const zoomed = t1 - t0 < maxT - 1e-9;
+  const iw = w - PAD_L - PAD_R;
+  const X = (tt: number) => PAD_L + ((tt - t0) / (t1 - t0)) * iw;
+  const invX = (px: number) => t0 + ((px - PAD_L) / iw) * (t1 - t0);
+
+  // A new flight resets the view; keep it in sync when the flight time changes.
+  useEffect(() => setZoom(null), [result]);
+
   useEffect(() => {
     const el = hostRef.current;
     if (!el) return;
@@ -81,10 +99,35 @@ export function FlightChart({ result }: { result: FlightResult }) {
     return () => ro.disconnect();
   }, []);
 
-  const time = result.series.time ?? [];
-  const maxT = Math.max(result.summary.flightTime || 1, ...(time.length ? time : [1]), 1);
-  const iw = w - PAD_L - PAD_R;
-  const X = (tt: number) => PAD_L + (tt / maxT) * iw;
+  const clampWin = (a: number, b: number): { t0: number; t1: number } | null => {
+    const minW = Math.max(maxT / 500, 0.05);
+    const width = Math.min(Math.max(b - a, minW), maxT);
+    if (width >= maxT - 1e-9) return null; // fully zoomed out → no window
+    const lo = Math.min(Math.max(a, 0), maxT - width);
+    return { t0: lo, t1: lo + width };
+  };
+  // Zoom by `factor` (<1 = in), keeping `anchorT` under the same screen x.
+  const zoomAt = (factor: number, anchorT: number) => {
+    const nw = (t1 - t0) * factor;
+    const na0 = anchorT - (anchorT - t0) * factor;
+    setZoom(clampWin(na0, na0 + nw));
+  };
+  const centerT = () => hoverT ?? (t0 + t1) / 2;
+
+  // Ctrl/pinch-wheel zooms about the cursor (plain wheel still scrolls the
+  // panel list). Native non-passive listener so we can preventDefault.
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      const px = e.clientX - el.getBoundingClientRect().left - HOST_INSET;
+      zoomAt(e.deltaY > 0 ? 1.2 : 1 / 1.2, invX(px));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [t0, t1, maxT, iw]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const events = useMemo(
     () => (result.events ?? []).filter((e) => EVENT_LABEL[e.type] && e.time <= maxT),
@@ -100,36 +143,57 @@ export function FlightChart({ result }: { result: FlightResult }) {
     );
   }, [result, maxT]);
 
-  // Cluster near-coincident events (small rockets fire burnout→apogee→deploy in
-  // ~a second), keep each cluster's most significant, and stagger labels. Drawn
-  // only on the top panel; the dashed lines repeat in every panel.
+  // Cluster near-coincident event labels (a recovery deployment always keeps its
+  // own marker), drop any outside the visible window, then GREEDILY row-pack so
+  // labels never overlap: each takes the lowest row whose last label has cleared.
   const eventLabels = useMemo(() => {
-    const groups: { x: number; type: string }[] = [];
-    for (const e of [...events].sort((a, b) => a.time - b.time)) {
-      const x = X(e.time);
-      const last = groups[groups.length - 1];
-      if (last && x - last.x < 20) {
-        if (EVENT_PRIORITY.indexOf(e.type) < EVENT_PRIORITY.indexOf(last.type)) last.type = e.type;
-      } else groups.push({ x, type: e.type });
-    }
-    let lastGx = -Infinity;
-    let grow = 0;
-    return groups.map((g) => {
-      grow = g.x - lastGx < 60 ? (grow === 0 ? 1 : 0) : 0;
-      lastGx = g.x;
-      return { x: g.x, type: g.type, ly: 8 + grow * 9 };
-    });
-  }, [events, w, maxT]); // eslint-disable-line react-hooks/exhaustive-deps
+    const labelW = (type: string) => t(EVENT_LABEL[type]).length * 5.2 + 10;
+    const rowRight: number[] = [];
+    return clusterEventLabels(events, X)
+      .filter((g) => g.x >= PAD_L - 2 && g.x <= w - PAD_R + 2)
+      .map((g) => {
+        const half = labelW(g.type) / 2;
+        let row = 0;
+        while (row < rowRight.length && rowRight[row]! > g.x - half) row++;
+        rowRight[row] = g.x + half;
+        return { x: g.x, type: g.type, row };
+      });
+  }, [events, w, t0, t1, t]); // eslint-disable-line react-hooks/exhaustive-deps
+  const eventRows = eventLabels.reduce((m, l) => Math.max(m, l.row + 1), 0);
+  const stripH = eventRows ? eventRows * EVENT_ROW_H + 4 : 0;
 
   const toggle = (k: Key) => setOn((cur) => (cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k]));
   const activeMetas = SERIES.filter((m) => on.includes(m.key));
 
-  const onMove = (e: React.PointerEvent) => {
+  // Pointer: drag pans (only when zoomed in); otherwise it drives the hover crosshair.
+  const drag = useRef<{ x: number; t0: number; t1: number } | null>(null);
+  const localX = (clientX: number) => {
     const host = hostRef.current;
-    if (!host) return;
-    const x = e.clientX - host.getBoundingClientRect().left - HOST_INSET;
-    setHoverT(Math.max(0, Math.min(maxT, ((x - PAD_L) / iw) * maxT)));
+    return host ? clientX - host.getBoundingClientRect().left - HOST_INSET : 0;
   };
+  const onDown = (e: React.PointerEvent) => {
+    if (!zoomed) return; // nothing to pan at full view — keep hover behaviour
+    drag.current = { x: e.clientX, t0, t1 };
+    hostRef.current?.setPointerCapture?.(e.pointerId);
+    setHoverT(null);
+  };
+  const onMove = (e: React.PointerEvent) => {
+    if (drag.current) {
+      const span = drag.current.t1 - drag.current.t0;
+      const dt = ((e.clientX - drag.current.x) / iw) * span;
+      setZoom(clampWin(drag.current.t0 - dt, drag.current.t1 - dt));
+      return;
+    }
+    setHoverT(Math.max(t0, Math.min(t1, invX(localX(e.clientX)))));
+  };
+  const endDrag = (e: React.PointerEvent) => {
+    if (drag.current) {
+      drag.current = null;
+      hostRef.current?.releasePointerCapture?.(e.pointerId);
+    }
+  };
+
+  const zBtn = 'rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-40';
 
   return (
     <div className="flex h-full flex-col rounded-xl bg-slate-900 ring-1 ring-white/10">
@@ -139,6 +203,17 @@ export function FlightChart({ result }: { result: FlightResult }) {
           <span className="text-xs tabular-nums text-slate-400">
             {t('flight.time')} {fmtNum(hoverT ?? maxT, hoverT != null ? 2 : 1)} s
           </span>
+          <div className="flex items-center gap-1">
+            <button onClick={() => zoomAt(1 / 0.6, centerT())} disabled={!zoomed} title={t('flight.zoomOut')} aria-label={t('flight.zoomOut')} className={zBtn}>
+              −
+            </button>
+            <button onClick={() => zoomAt(0.6, centerT())} title={t('flight.zoomIn')} aria-label={t('flight.zoomIn')} className={zBtn}>
+              +
+            </button>
+            <button onClick={() => setZoom(null)} disabled={!zoomed} title={t('flight.zoomReset')} aria-label={t('flight.zoomReset')} className={zBtn}>
+              ⤢
+            </button>
+          </div>
           <button
             onClick={() => downloadCsv('flight-data.csv', flightDataCsv(result))}
             title={t('flight.exportCsv')}
@@ -165,26 +240,41 @@ export function FlightChart({ result }: { result: FlightResult }) {
       </div>
       <div
         ref={hostRef}
-        className="min-h-0 flex-1 overflow-y-auto px-3 pb-3"
+        className={`min-h-0 flex-1 overflow-y-auto px-3 pb-3 ${zoomed ? 'cursor-grab' : ''}`}
+        onPointerDown={onDown}
         onPointerMove={onMove}
-        onPointerLeave={() => setHoverT(null)}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onPointerLeave={() => {
+          if (!drag.current) setHoverT(null);
+        }}
       >
         {activeMetas.length === 0 ? (
           <p className="grid h-full place-items-center text-sm text-slate-500">{t('flight.pickSeries')}</p>
         ) : (
-          activeMetas.map((m, i) => (
-            <Panel
-              key={m.key}
-              meta={m}
-              result={result}
-              w={w}
-              X={X}
-              hoverT={hoverT}
-              clipT={clipT}
-              events={events}
-              labels={i === 0 ? eventLabels : undefined}
-            />
-          ))
+          <>
+            {stripH > 0 && (
+              <svg
+                viewBox={`0 0 ${w} ${stripH}`}
+                width="100%"
+                height={stripH}
+                preserveAspectRatio="none"
+                className="sticky top-0 z-10 block bg-slate-900"
+              >
+                {eventLabels.map((l, i) => (
+                  <g key={i}>
+                    <line x1={l.x} y1={l.row * EVENT_ROW_H + EVENT_ROW_H - 2} x2={l.x} y2={stripH} className="stroke-amber-400/30" vectorEffect="non-scaling-stroke" />
+                    <text x={l.x} y={l.row * EVENT_ROW_H + 9} textAnchor="middle" className="fill-amber-400/90 text-[9px]">
+                      {t(EVENT_LABEL[l.type])}
+                    </text>
+                  </g>
+                ))}
+              </svg>
+            )}
+            {activeMetas.map((m) => (
+              <Panel key={m.key} meta={m} result={result} w={w} X={X} hoverT={hoverT} clipT={clipT} events={events} />
+            ))}
+          </>
         )}
       </div>
     </div>
@@ -199,7 +289,6 @@ function Panel({
   hoverT,
   clipT,
   events,
-  labels,
 }: {
   meta: Meta;
   result: FlightResult;
@@ -208,13 +297,13 @@ function Panel({
   hoverT: number | null;
   clipT: number;
   events: { type: string; time: number }[];
-  labels?: { x: number; ly: number; type: string }[];
 }) {
   const { t } = useTranslation();
   const padT = 8;
   const padB = 8;
   const ih = PANEL_H - padT - padB;
   const scale = meta.scale ?? 1;
+  const clipId = `fc-clip-${meta.key}`;
 
   const { pts, xs, ys, lo, hi } = useMemo(() => {
     const time = result.series.time ?? [];
@@ -282,48 +371,50 @@ function Panel({
             <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.25" />
             <stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
           </linearGradient>
+          {/* Clip everything time-mapped to the plot area, so zoomed-out-of-window
+              points don't spill over the y-axis labels / panel edges. */}
+          <clipPath id={clipId}>
+            <rect x={PAD_L} y={0} width={Math.max(0, w - PAD_L - PAD_R)} height={PANEL_H} />
+          </clipPath>
         </defs>
         {zeroInRange && <line x1={PAD_L} y1={Y(0)} x2={w - PAD_R} y2={Y(0)} className="stroke-white/15" />}
-        {events.map((e, i) => (
-          <line
-            key={i}
-            x1={X(e.time)}
-            y1={padT}
-            x2={X(e.time)}
-            y2={PANEL_H - padB}
-            className="stroke-amber-400/25"
-            strokeDasharray="3 2"
-            vectorEffect="non-scaling-stroke"
-          />
-        ))}
-        {labels?.map((l, i) => (
-          <text key={i} x={l.x} y={l.ly} textAnchor="middle" className="fill-amber-400/80 text-[9px]">
-            {t(EVENT_LABEL[l.type])}
-          </text>
-        ))}
-        {area && <path d={area} fill={`url(#fc-${meta.key})`} />}
-        {line && (
-          <path d={line} className="fill-none stroke-sky-400" strokeWidth={1.75} vectorEffect="non-scaling-stroke" />
-        )}
+        <g clipPath={`url(#${clipId})`}>
+          {events.map((e, i) => (
+            <line
+              key={i}
+              x1={X(e.time)}
+              y1={padT}
+              x2={X(e.time)}
+              y2={PANEL_H - padB}
+              className="stroke-amber-400/25"
+              strokeDasharray="3 2"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+          {area && <path d={area} fill={`url(#fc-${meta.key})`} />}
+          {line && (
+            <path d={line} className="fill-none stroke-sky-400" strokeWidth={1.75} vectorEffect="non-scaling-stroke" />
+          )}
+          {hoverT != null && hv != null && (
+            <g pointerEvents="none">
+              <line
+                x1={X(hoverT)}
+                y1={padT}
+                x2={X(hoverT)}
+                y2={PANEL_H - padB}
+                className="stroke-slate-300/40"
+                vectorEffect="non-scaling-stroke"
+              />
+              <circle cx={X(hoverT)} cy={Y(hv)} r={3} className="fill-sky-300" />
+            </g>
+          )}
+        </g>
         <text x={PAD_L - 4} y={padT + 7} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
           {fmtNum(hi, meta.digits)}
         </text>
         <text x={PAD_L - 4} y={PANEL_H - padB} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
           {fmtNum(lo, meta.digits)}
         </text>
-        {hoverT != null && hv != null && (
-          <g pointerEvents="none">
-            <line
-              x1={X(hoverT)}
-              y1={padT}
-              x2={X(hoverT)}
-              y2={PANEL_H - padB}
-              className="stroke-slate-300/40"
-              vectorEffect="non-scaling-stroke"
-            />
-            <circle cx={X(hoverT)} cy={Y(hv)} r={3} className="fill-sky-300" />
-          </g>
-        )}
       </svg>
     </div>
   );

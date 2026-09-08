@@ -65,6 +65,17 @@ describe('workspace undo/redo', () => {
     expect(s().selectedId).toBe('fins'); // and reselected
   });
 
+  it('adds a stage as a new bottom sibling, selects it, and undoes cleanly', () => {
+    const stageCount = () => s().tree.components.filter((n) => n.type === 'stage').length;
+    const before = stageCount();
+    s().addStageToTree();
+    const stages = s().tree.components.filter((n) => n.type === 'stage');
+    expect(stages).toHaveLength(before + 1);
+    expect(s().selectedId).toBe(stages[stages.length - 1]!.id); // the new stage is selected
+    s().undo();
+    expect(stageCount()).toBe(before); // add is one undo step
+  });
+
   it('redoes, and a fresh edit clears the redo stack', () => {
     s().patchSelected({ length: 0.25 });
     s().commitEdit();

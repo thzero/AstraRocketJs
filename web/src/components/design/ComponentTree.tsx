@@ -209,6 +209,7 @@ export function ComponentTree({
   onRenameDesign,
   onCommit,
   onScale,
+  onAddStage,
 }: {
   tree: RocketTree;
   selectedId?: string | null;
@@ -217,6 +218,7 @@ export function ComponentTree({
   onRenameDesign?: (name: string) => void;
   onCommit?: () => void; // close the rename's undo entry when the field blurs
   onScale?: () => void; // open the whole-rocket scale dialog
+  onAddStage?: () => void; // append a new (booster) stage at the bottom
 }) {
   const { t } = useTranslation();
   // Ids of collapsed (folded) branches — ephemeral view state per node id.
@@ -337,6 +339,15 @@ export function ComponentTree({
           <span className="min-w-0 flex-1 truncate text-sm font-semibold text-sky-400">
             {tree.name || t('tree.rocket')}
           </span>
+        )}
+        {onAddStage && (
+          <button
+            onClick={onAddStage}
+            title={t('tree.addStageTitle')}
+            className="shrink-0 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
+          >
+            {t('tree.addStage')}
+          </button>
         )}
         {onScale && (
           <button

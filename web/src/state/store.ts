@@ -10,7 +10,7 @@ import type {
   ComponentType as PartType,
   IgnitionEvent,
 } from '../engine/openRocketEngine';
-import { findMountId, findMounts, findNode, updateNode, removeNode, addPart, moveNode } from '../services/treeEdit';
+import { findMountId, findMounts, findNode, updateNode, removeNode, addPart, addStage, moveNode } from '../services/treeEdit';
 import { reconcileMounts } from '../services/mountMotors';
 import type { LaunchConditions } from '../services/orkTree';
 import type { OrkExportMotor } from '../services/orkFile';
@@ -91,6 +91,7 @@ export interface WorkspaceState {
   patchSelected: (patch: Partial<ComponentNode>) => void;
   removeSelected: () => void;
   addPartToTree: (type: PartType) => void;
+  addStageToTree: () => void;
   moveSelected: (dir: -1 | 1) => void;
   renameDesign: (name: string) => void;
   /** Finalize the in-flight edit (slider drag / text entry) into one undo entry.
@@ -139,12 +140,11 @@ export const hasThrustCurve = (m: MotorSpec | undefined | null): boolean =>
 
 /**
  * Repair a persisted workspace so a stale/partial blob can't blank the app.
- * Two corruptions have been seen in the wild, both from a save that raced an
- * async operation: a sim's `launch` missing fields (blank Launch panel), and a
- * motor persisted before its thrust-curve fetch resolved (empty curve → the
- * engine rebuild throws "Too short thrust-curve" → no CG/CP/stats). We merge
- * each launch over the current defaults and swap any curve-less motor for C6 so
- * the design always renders; the user can re-pick the intended motor.
+ * We merge each launch over the current defaults (a `launch` missing fields
+ * would blank the Launch panel) and drop any stale results. A curve-less motor
+ * is KEPT as-is — the rebuild no longer seats it (so it can't blank the app),
+ * the run stays blocked ("no motor"), and an unresolved .ork motor is never
+ * silently replaced with a default. Only a wholly-missing motor falls back to C6.
  */
 function sanitizeSims(sims: Simulation[]): Simulation[] {
   const launchDefaults = loadSettings().launchDefaults;
@@ -153,7 +153,7 @@ function sanitizeSims(sims: Simulation[]): Simulation[] {
   return safe.map((s) => ({
     ...s,
     launch: { ...launchDefaults, ...(s.launch ?? {}) },
-    motor: hasThrustCurve(s.motor) ? s.motor : C6,
+    motor: s.motor ?? C6,
     result: null,
   }));
 }
@@ -303,6 +303,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       recordStep();
       const { tree, selectedId, extraMotors } = get();
       const { tree: next, id } = addPart(tree, type, selectedId);
+      set({ tree: next, selectedId: id, extraMotors: reconcileMounts(next, extraMotors) });
+    },
+    addStageToTree: () => {
+      recordStep();
+      const { tree, extraMotors } = get();
+      const { tree: next, id } = addStage(tree);
       set({ tree: next, selectedId: id, extraMotors: reconcileMounts(next, extraMotors) });
     },
     moveSelected: (dir) => {

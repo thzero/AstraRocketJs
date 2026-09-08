@@ -112,13 +112,17 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
     expect(() => importOrk(withPod)).toThrow(/pods/i);
   });
 
-  it('rejects a multi-stage (axial) design — loads nothing', () => {
+  it('loads a multi-stage (axial) design — both stages present', () => {
+    const tube = '<bodytube><length>0.2</length><radius>0.013</radius><thickness>0.0005</thickness></bodytube>';
     const twoStage =
       '<openrocket><rocket><name>Two</name><subcomponents>' +
-      '<stage><name>Sustainer</name></stage>' +
-      '<stage><name>Booster</name></stage>' +
+      `<stage><name>Sustainer</name><subcomponents>${tube}</subcomponents></stage>` +
+      `<stage><name>Booster</name><subcomponents>${tube}</subcomponents></stage>` +
       '</subcomponents></rocket></openrocket>';
-    expect(() => importOrk(twoStage)).toThrow(/multiple stages/i);
+    const res = importOrk(twoStage);
+    const stages = res.tree.components.filter((n) => n.type === 'stage');
+    expect(stages).toHaveLength(2);
+    expect(stages.map((s) => s.name)).toEqual(['Sustainer', 'Booster']);
   });
 
   it('preserves the lug and button angle through export → import', () => {

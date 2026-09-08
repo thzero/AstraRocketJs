@@ -55,15 +55,6 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
   const stages = Array.from(rocketEl.querySelectorAll(':scope > subcomponents > stage'));
   if (stages.length === 0) throw new Error('No stage found');
 
-  // Multiple (axial) stages aren't supported yet — a second stage can't be added
-  // or edited in the app, and staged flights are untested, so refuse rather than
-  // import a design we can't faithfully author/simulate. (Parallel boosters —
-  // <parallelstage> — are unaffected.) See TODO: author stages + validate a
-  // booster+sustainer flight, then drop FEATURES.multiStage.
-  if (!FEATURES.multiStage && stages.length > 1) {
-    throw new Error('This design has multiple stages, which are not supported yet.');
-  }
-
   // Flight-configuration table: rocket-level <motorconfiguration> blocks
   // (optional <name>, optional default="true" — desktop 24.12
   // MotorConfigurationHandler).

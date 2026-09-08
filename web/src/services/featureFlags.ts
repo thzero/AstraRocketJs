@@ -6,8 +6,6 @@
  * tree-shakes the gated-out branch away in production builds. See TODO.md.
  */
 export const FEATURES = {
-  /** Load `.ork` designs with multiple axial stages (booster + sustainer). */
-  multiStage: false,
   /** Load `.ork` designs containing external pods (`<podset>`). */
   pods: false,
 } as const;

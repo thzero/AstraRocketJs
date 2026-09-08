@@ -260,6 +260,10 @@ export function moveNode(tree: RocketTree, id: string, dir: -1 | 1): RocketTree 
 export function defaultNode(type: ComponentType): ComponentNode {
   const id = newId(type);
   switch (type) {
+    // A bare stage: no parts yet (the user adds them). Seeded with the desktop-
+    // default separation (used only when it sits below another stage).
+    case 'stage':
+      return { type, id, separationEvent: 'ejection', separationDelay: 0 };
     case 'nosecone':
       return { type, id, shape: 'ogive', length: 0.1, aftRadius: 0.013, thickness: 0.001 };
     case 'bodytube':
@@ -392,6 +396,33 @@ export function defaultNode(type: ComponentType): ComponentNode {
     default:
       return { type, id };
   }
+}
+
+/** Top-level stage nodes, in desktop order ([0] = top sustainer … [last] = bottom booster). */
+export function stageNodes(tree: RocketTree): ComponentNode[] {
+  return tree.components.filter((n) => n.type === 'stage');
+}
+
+/** Whether `id` is the top stage — the one with nothing above it to separate from. */
+export function isFirstStage(tree: RocketTree, id: string): boolean {
+  const stages = stageNodes(tree);
+  return stages.length > 0 && stages[0]!.id === id;
+}
+
+/**
+ * Add a new empty stage as the bottom booster: a top-level sibling appended
+ * after the existing stages. Named "Booster" for the second stage and "Stage N"
+ * beyond, matching the "Sustainer" the base design ships with. Returns the new
+ * tree and the new stage's id (so the caller can select it).
+ */
+export function addStage(tree: RocketTree): { tree: RocketTree; id: string } {
+  const node = defaultNode('stage');
+  const id = node.id!;
+  const count = stageNodes(tree).length;
+  node.name = count === 1 ? 'Booster' : `Stage ${count + 1}`;
+  const next = clone(tree);
+  next.components.push(node);
+  return { tree: next, id };
 }
 
 /**
