@@ -105,11 +105,31 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
     ],
   } as unknown as RocketTree;
 
-  it('rejects a file containing pods (podset) — loads nothing', () => {
+  it('loads a design with external pods (podset) and round-trips it', () => {
+    const podBody = '<bodytube><length>0.12</length><radius>0.009</radius><thickness>0.0005</thickness></bodytube>';
     const withPod =
-      '<openrocket><rocket><name>P</name><subcomponents><stage><name>S</name>' +
-      '<subcomponents><podset><name>Pod</name></podset></subcomponents></stage></subcomponents></rocket></openrocket>';
-    expect(() => importOrk(withPod)).toThrow(/pods/i);
+      '<openrocket><rocket><name>P</name><subcomponents><stage><name>S</name><subcomponents>' +
+      '<bodytube><length>0.3</length><radius>0.013</radius><thickness>0.0005</thickness><subcomponents>' +
+      '<podset><name>Pod</name><instancecount>3</instancecount>' +
+      '<radiusoffset method="relative">0.005</radiusoffset><angleoffset method="relative">90.0</angleoffset>' +
+      `<subcomponents>${podBody}</subcomponents></podset>` +
+      '</subcomponents></bodytube></subcomponents></stage></subcomponents></rocket></openrocket>';
+    const res = importOrk(withPod);
+    const pod = findByType(res.tree, 'podset');
+    expect(pod).toBeDefined();
+    expect(pod!.instanceCount).toBe(3);
+    expect(pod!.radiusOffset).toBeCloseTo(0.005, 6);
+    expect(pod!.radiusMethod).toBe('relative');
+    expect(pod!.angleOffset).toBeCloseTo(Math.PI / 2, 6); // 90° → radians
+    expect(findByType({ components: pod!.children ?? [] } as RocketTree, 'bodytube')).toBeDefined();
+
+    // Export → re-import keeps the pod and its placement (round-trip).
+    const back = importOrk(exportOrk({ name: 'P', tree: res.tree }));
+    const pod2 = findByType(back.tree, 'podset');
+    expect(pod2).toBeDefined();
+    expect(pod2!.instanceCount).toBe(3);
+    expect(pod2!.radiusOffset).toBeCloseTo(0.005, 6);
+    expect(pod2!.angleOffset).toBeCloseTo(Math.PI / 2, 6);
   });
 
   it('loads a multi-stage (axial) design — both stages present', () => {

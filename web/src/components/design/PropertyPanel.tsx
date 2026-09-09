@@ -63,6 +63,24 @@ const FIN_TABS: Field[] = [
   { key: 'tabOffsetMethod', label: 'tabOffsetMethod', kind: 'select', options: ['top', 'middle', 'bottom'] },
 ];
 
+// Off-axis assembly placement (PodSet / ParallelStage) — how many instances
+// ring the parent axis, how far off it, and where they start. radiusMethod:
+// 'relative' measures the offset as a gap from the parent surface, 'free' from
+// the parent centerline (see tree/assembly.resolveAssemblyRadius). Shared by
+// pods (non-separating) and parallel boosters (which add separation below).
+const ASSEMBLY_FIELDS: Field[] = [
+  { key: 'instanceCount', label: 'instanceCount', kind: 'count' },
+  { key: 'radiusOffset', label: 'radialDistance', kind: 'length' },
+  {
+    key: 'radiusMethod',
+    label: 'radialReference',
+    kind: 'select',
+    options: ['relative', 'free'],
+    optI18n: 'radiusMethod',
+  },
+  { key: 'angleOffset', label: 'angleAroundBody', kind: 'angle' },
+];
+
 // `label` is an i18n key suffix under `prop.*` (resolved at render).
 const FIELDS: Record<string, Field[]> = {
   // Separation only — shown for a non-first stage (see the render guard). The
@@ -190,6 +208,17 @@ const FIELDS: Record<string, Field[]> = {
   masscomponent: [
     { key: 'mass', label: 'mass', kind: 'mass' },
     { key: 'length', label: 'length', kind: 'length' },
+  ],
+  // External pods: assembly placement only (their own chain is edited as
+  // children).
+  podset: ASSEMBLY_FIELDS,
+  // Parallel booster: assembly placement + the same separation trigger a
+  // booster <stage> carries (when it lets go of the core).
+  parallelstage: [
+    ...ASSEMBLY_FIELDS,
+    { key: 'separationEvent', label: 'separationEvent', kind: 'select', options: SEPARATION_EVENTS, optI18n: 'separationEvent' },
+    { key: 'separationDelay', label: 'separationDelay', kind: 'number', unit: 's', step: 0.5 },
+    { key: 'separationAltitude', label: 'separationAltitude', kind: 'number', unit: 'm', step: 10 },
   ],
 };
 

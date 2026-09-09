@@ -431,7 +431,8 @@
     "groupFins": "Aletas",
     "groupInner": "Interior",
     "groupRecovery": "Recuperación",
-    "groupOther": "Otros"
+    "groupOther": "Otros",
+    "groupAssembly": "Ensamblaje"
   },
   "prop": {
     "selectHint": "Selecciona un componente en el árbol o el dibujo para editar sus propiedades.",
@@ -460,6 +461,9 @@
     "innerRadius": "Radio interior",
     "outerDiameter": "Diámetro exterior",
     "angleAroundBody": "Ángulo alrededor del cuerpo",
+    "instanceCount": "Número de instancias",
+    "radialDistance": "Distancia radial",
+    "radialReference": "Referencia radial",
     "cant": "Ángulo de inclinación",
     "diameter": "Diámetro",
     "dragCoeff": "Coef. de resistencia",
@@ -506,6 +510,10 @@
     "altitudeascending": "Altitud (ascendiendo)",
     "altitudedescending": "Altitud (descendiendo)",
     "never": "Nunca"
+  },
+  "radiusMethod": {
+    "relative": "Relativo a la superficie",
+    "free": "Desde el centro"
   },
   "motor": {
     "selected": "Motor seleccionado",

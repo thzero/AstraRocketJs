@@ -8,7 +8,6 @@ import {
 import { freshId, type LaunchConditions } from './orkTree';
 import { shapeParamDefault } from '../tree/shapeProfile';
 import { xmlText as text } from './xmlUtil';
-import { FEATURES } from './featureFlags';
 import type { OrkMotorRef, OrkFlightConfig, OrkDeployOverride, OrkImportResult } from './orkTypes';
 
 // ============================ IMPORT ============================
@@ -38,13 +37,6 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
   }
   const rocketEl = doc.querySelector('openrocket > rocket');
   if (!rocketEl) throw new Error('Not a .ork file (missing <rocket>)');
-
-  // Pods (podset) aren't supported yet — they can't be added or edited in the
-  // app. Refuse the whole file rather than importing it partially. (Parallel
-  // boosters are fine.) See TODO: finish pod add/edit, then drop FEATURES.pods.
-  if (!FEATURES.pods && doc.querySelector('podset')) {
-    throw new Error('This design uses pods, which are not supported yet.');
-  }
 
   const ignored = new Set<string>();
   const notes: string[] = [];
@@ -469,17 +461,16 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         if (radDir !== 0) n['radialDirection'] = (radDir * Math.PI) / 180;
         return n;
       }
-      // <podset> (external pods) never reaches here — a file containing one is
-      // rejected up front (see the guard near the top of importOrk), because pods
-      // can't yet be added or edited. Parallel boosters (<parallelstage> / legacy
-      // <boosterset>) remain fully supported.
+      // Off-axis assemblies. <podset> = external pods (non-separating, always
+      // relative angle); <parallelstage> / legacy <boosterset> = strap-on
+      // boosters (separating). The nested nose/body/fin chain imports via
+      // convertChildren (the caller recurses).
+      case 'podset':
       case 'parallelstage':
       case 'boosterset': {
-        // <boosterset> is the legacy alias for <parallelstage>. The nested
-        // nose/body/fin chain imports via convertChildren (the caller recurses).
-        const asmType: ComponentType = 'parallelstage';
+        const asmType: ComponentType = tag === 'podset' ? 'podset' : 'parallelstage';
         const n = base(asmType, true); // name + overrides + axialoffset/position
-        n['instanceCount'] = Math.round(num(el, 'instancecount', 2));
+        n['instanceCount'] = Math.round(num(el, 'instancecount', asmType === 'podset' ? 1 : 2));
         const radEl = el.querySelector(':scope > radiusoffset');
         if (radEl) {
           const rv = Number(radEl.textContent?.trim());

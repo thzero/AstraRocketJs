@@ -428,7 +428,8 @@
     "groupFins": "Fins",
     "groupInner": "Inner",
     "groupRecovery": "Recovery",
-    "groupOther": "Other"
+    "groupOther": "Other",
+    "groupAssembly": "Assembly"
   },
   "prop": {
     "selectHint": "Select a component in the tree or drawing to edit its properties.",
@@ -457,6 +458,9 @@
     "innerRadius": "Inner radius",
     "outerDiameter": "Outer diameter",
     "angleAroundBody": "Angle around body",
+    "instanceCount": "Instance count",
+    "radialDistance": "Radial distance",
+    "radialReference": "Radial reference",
     "cant": "Cant angle",
     "diameter": "Diameter",
     "dragCoeff": "Drag coeff",
@@ -503,6 +507,10 @@
     "altitudeascending": "Altitude (ascending)",
     "altitudedescending": "Altitude (descending)",
     "never": "Never"
+  },
+  "radiusMethod": {
+    "relative": "Relative to surface",
+    "free": "From centerline"
   },
   "motor": {
     "selected": "Selected motor",

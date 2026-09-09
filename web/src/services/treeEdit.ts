@@ -116,6 +116,7 @@ export const ALLOWED_CHILDREN: Record<string, ComponentType[]> = {
     'parachute',
     'streamer',
     'masscomponent',
+    'podset',
   ],
   bodytube: [
     'trapezoidfinset',
@@ -131,6 +132,7 @@ export const ALLOWED_CHILDREN: Record<string, ComponentType[]> = {
     'parachute',
     'streamer',
     'masscomponent',
+    'podset',
   ],
   transition: [
     'trapezoidfinset',
@@ -144,9 +146,13 @@ export const ALLOWED_CHILDREN: Record<string, ComponentType[]> = {
     'parachute',
     'streamer',
     'masscomponent',
+    'podset',
   ],
   innertube: ['engineblock', 'masscomponent'],
   tubecoupler: ['centeringring', 'bulkhead', 'masscomponent'],
+  // A PodSet hosts its own axial chain (a mini nose→body→transition stack),
+  // just like a stage; the chain members then host fins / inner tubes / etc.
+  podset: ['nosecone', 'bodytube', 'transition'],
 };
 
 /** Child types that may be added under a parent of `parentType` (empty for leaves). */
@@ -393,6 +399,25 @@ export function defaultNode(type: ComponentType): ComponentNode {
       };
     case 'masscomponent':
       return { type, id, mass: 0.01, length: 0.02, position: { method: 'top', offset: 0 } };
+    // An external pod: a mini body chain riding alongside the airframe. Seeded
+    // with one slim body tube so it's visible and immediately editable.
+    // radiusOffset 0 (relative) means the pod just touches the parent surface;
+    // instanceCount 1 = a single pod (raise it for a symmetric ring).
+    case 'podset': {
+      const body = defaultNode('bodytube');
+      body.length = 0.12;
+      body.outerRadius = 0.009;
+      return {
+        type,
+        id,
+        instanceCount: 1,
+        radiusOffset: 0,
+        radiusMethod: 'relative',
+        angleOffset: 0,
+        position: { method: 'bottom', offset: 0 },
+        children: [body],
+      };
+    }
     default:
       return { type, id };
   }

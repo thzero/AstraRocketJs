@@ -30,7 +30,6 @@
 ## Not (yet) supported
 - **Metric/SI units only** — no imperial / unit-preference option yet.
 - **Single-stage rockets only** — multi-stage (booster + sustainer) isn't authorable in the app yet and staged flights are untested.
-- **Pods** in a `.ork` are not loaded yet (a design that uses them won't open).
 - No offline install (PWA) and a single (dark) theme.
 
 See the [FAQ](FAQ) for more on the current limits.

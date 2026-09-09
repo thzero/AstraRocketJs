@@ -14,6 +14,7 @@ const ADD_GROUPS: { group: string; items: ComponentType[] }[] = [
   { group: 'groupInner', items: ['innertube', 'tubecoupler', 'centeringring', 'bulkhead', 'engineblock'] },
   { group: 'groupRecovery', items: ['parachute', 'streamer'] },
   { group: 'groupOther', items: ['launchlug', 'masscomponent'] },
+  { group: 'groupAssembly', items: ['podset'] },
 ];
 
 /**
