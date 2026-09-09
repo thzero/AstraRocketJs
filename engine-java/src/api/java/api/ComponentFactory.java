@@ -343,6 +343,10 @@ final class ComponentFactory {
             }
             case "parachute": {
                 Parachute p = new Parachute();
+                // Packed length (from <packedlength>). Governs where a bottom-/top-
+                // referenced recovery device's mass sits; without it the default
+                // 25 mm misplaces the CG (a shock cord can be tens of mm off).
+                p.setLength(dbl(node, "length", 0.025));
                 p.setDiameter(dbl(node, "diameter", 0.3));
                 double cd = dbl(node, "cd", Double.NaN);
                 if (!Double.isNaN(cd)) {
@@ -366,6 +370,7 @@ final class ComponentFactory {
             }
             case "streamer": {
                 Streamer s = new Streamer();
+                s.setLength(dbl(node, "length", 0.025));
                 s.setStripLength(dbl(node, "stripLength", 0.5));
                 s.setStripWidth(dbl(node, "stripWidth", 0.05));
                 double cd = dbl(node, "cd", Double.NaN);
@@ -383,6 +388,7 @@ final class ComponentFactory {
             }
             case "shockcord": {
                 ShockCord sc = new ShockCord();
+                sc.setLength(dbl(node, "length", 0.025));
                 sc.setCordLength(dbl(node, "cordLength", 0.3));
                 double cordLine = dbl(node, "lineDensity", Double.NaN);
                 if (!Double.isNaN(cordLine)) {

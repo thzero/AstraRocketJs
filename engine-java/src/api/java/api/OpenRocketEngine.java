@@ -389,6 +389,12 @@ public final class OpenRocketEngine {
             mc.setNozzleExitDiameter(Math.min(nozzle, diameter));
         }
         mount.setMotorConfig(mc, ctx.fcid);
+        // Refresh the configuration's active-motor list so mass-based static analysis
+        // (MassCalculator.calculateLaunch → getStaticInfo's loaded CG/stability) counts
+        // this motor. setMotorConfig alone leaves the config's motors map stale — our
+        // build path never fires the change event that would trigger updateMotors() — so
+        // without this the on-pad CG/CP/stability reflect the UNLOADED rocket.
+        ctx.rocket.getSelectedConfiguration().update();
     }
 
     /**

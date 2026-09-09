@@ -64,10 +64,16 @@ async function post<T>(path: string, body: unknown): Promise<T> {
  * Pure transform: thrust samples + catalog metadata → engine MotorSpec.
  * Mass at each sample time interpolates from total weight down to burnout
  * weight proportionally to CUMULATIVE IMPULSE (trapezoidal), matching how
- * OpenRocket treats .eng files. CG is fixed at half the motor length (the
- * same approximation OpenRocket applies to RASP data without CG info).
+ * OpenRocket treats .eng files. CG uses the file's real launch CG (`cgSamples`,
+ * from the RockSim data) when available, else falls back to half the motor
+ * length — the same approximation OpenRocket applies to RASP data without CG.
  */
-export function samplesToMotorSpec(motor: TcMotor, samples: TcSample[], ejectionDelay: number): MotorSpec {
+export function samplesToMotorSpec(
+  motor: TcMotor,
+  samples: TcSample[],
+  ejectionDelay: number,
+  cgSamples?: [number, number][],
+): MotorSpec {
   // Normalize: sorted, starting at t=0.
   const pts = [...samples].sort((a, b) => a.time - b.time);
   if (pts.length === 0) {
@@ -122,7 +128,10 @@ export function samplesToMotorSpec(motor: TcMotor, samples: TcSample[], ejection
     times,
     thrusts,
     masses,
-    cgX: motor.length / 2000,
+    // Real launch CG from the file (m from nose) when the sync bundled it, else
+    // mid-length — matching OpenRocket, which reads CG from the RockSim file and
+    // falls back to half-length for RASP-only motors.
+    cgX: cgSamples?.[0]?.[1] ?? motor.length / 2000,
     ejectionDelay,
   };
 }
@@ -289,6 +298,7 @@ export async function fetchMotorSpec(cat: CatalogMotor, ejectionDelay: number, c
       },
       curve.samples.map(([time, thrust]) => ({ time, thrust })),
       ejectionDelay,
+      cat.cg,
     );
     return { ...spec, curveSrc: curve.src };
   }

@@ -415,6 +415,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
       }
       case 'parachute': {
         const n = base('parachute', true);
+        n['length'] = num(el, 'packedlength', 0.025);
         n['diameter'] = num(el, 'diameter', 0.3);
         const cdText = text(el, ':scope > cd');
         if (cdText && cdText !== 'auto') n['cd'] = Number(cdText);
@@ -434,6 +435,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
       }
       case 'streamer': {
         const n = base('streamer', true);
+        n['length'] = num(el, 'packedlength', 0.025);
         n['stripLength'] = num(el, 'striplength', 0.5);
         n['stripWidth'] = num(el, 'stripwidth', 0.05);
         const cdText = text(el, ':scope > cd');
@@ -445,6 +447,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
       }
       case 'shockcord': {
         const n = base('shockcord', true);
+        n['length'] = num(el, 'packedlength', 0.025);
         n['cordLength'] = num(el, 'cordlength', 0.3);
         readSoftMaterial(el, n, 'line', 'lineDensity', 'lineMaterialName');
         return n;

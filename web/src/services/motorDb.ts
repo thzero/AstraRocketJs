@@ -46,6 +46,10 @@ export interface CatalogMotor {
   /** Set by the sync when no thrust curve could be bundled (none published, or
    *  missing length/prop weight). Such a motor can't be plotted / combined. */
   noCurve?: boolean;
+  /** CG-vs-time as [[t (s), cgFromNose (m)]], read from the motor file (RockSim)
+   *  — the real CG OpenRocket uses. Launch CG = cg[0][1]. Absent → the motor
+   *  build falls back to mid-length (same as OpenRocket for RASP-only data). */
+  cg?: [number, number][];
 }
 
 /** Whether a catalog motor has a usable bundled thrust curve (≥ 2 samples).
