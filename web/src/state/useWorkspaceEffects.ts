@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive } from './store';
 import { getWorkspaceStore } from '../services/workspaceStore';
@@ -25,7 +25,11 @@ export function useWorkspaceEffects() {
   }, []);
 
   // Restore the saved workspace once, then autosave (debounced) on change.
+  // `ready` (state) gates the rebuild effect so it fires ONCE, after hydration —
+  // otherwise it builds the default rocket + drag sweep, then hydrate swaps in
+  // the real design and it builds again (two full engine builds on every load).
   const hydrated = useRef(false);
+  const [ready, setReady] = useState(false);
   useEffect(() => {
     let live = true;
     getWorkspaceStore()
@@ -33,6 +37,7 @@ export function useWorkspaceEffects() {
       .then((w) => {
         if (live && w) useWorkspaceStore.getState().hydrate(w);
         hydrated.current = true;
+        setReady(true);
       });
     return () => {
       live = false;
@@ -51,7 +56,13 @@ export function useWorkspaceEffects() {
   useEffect(() => {
     if (!hydrated.current) return;
     const id = setTimeout(() => {
-      getWorkspaceStore().save({ version: 1, tree, sims, activeId, extraMotors, loadedMeta });
+      getWorkspaceStore()
+        .save({ version: 1, tree, sims, activeId, extraMotors, loadedMeta })
+        .catch(() =>
+          useWorkspaceStore
+            .getState()
+            .setErr('Could not save your work — browser storage is full. Export your design to keep it.'),
+        );
     }, 500);
     return () => clearTimeout(id);
   }, [tree, sims, activeId, extraMotors, loadedMeta]);
@@ -63,14 +74,16 @@ export function useWorkspaceEffects() {
     const flush = () => {
       if (!hydrated.current) return;
       const s = useWorkspaceStore.getState();
-      getWorkspaceStore().save({
-        version: 1,
-        tree: s.tree,
-        sims: s.sims,
-        activeId: s.activeId,
-        extraMotors: s.extraMotors,
-        loadedMeta: s.loadedMeta,
-      });
+      getWorkspaceStore()
+        .save({
+          version: 1,
+          tree: s.tree,
+          sims: s.sims,
+          activeId: s.activeId,
+          extraMotors: s.extraMotors,
+          loadedMeta: s.loadedMeta,
+        })
+        .catch(() => {}); // page is unloading — nothing to surface, just don't reject
     };
     window.addEventListener('pagehide', flush);
     window.addEventListener('beforeunload', flush);
@@ -83,6 +96,7 @@ export function useWorkspaceEffects() {
   // Rebuild + recompute static info whenever the design or motors change. The
   // primary mount takes the active sim's `motor`; other mounts take their imports.
   useEffect(() => {
+    if (!ready) return; // wait for hydration so we build the real design once, not the default first
     try {
       const r = buildConfiguredRocket(tree, motor, extraMotors, { event: ignitionEvent, delay: ignitionDelay });
       const info = r.staticInfo();
@@ -100,7 +114,7 @@ export function useWorkspaceEffects() {
       useWorkspaceStore.getState().applyBuild(null, null);
       useWorkspaceStore.getState().setErr(e instanceof Error ? e.message : String(e));
     }
-  }, [tree, motor, extraMotors, ignitionEvent, ignitionDelay]);
+  }, [ready, tree, motor, extraMotors, ignitionEvent, ignitionDelay]);
 
   // Editing the design invalidates every simulation's cached result.
   useEffect(() => {

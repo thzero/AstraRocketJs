@@ -60,7 +60,7 @@ export interface ReportModel {
   finSetsByStage: { stage: string; sets: FinSetPosition[] }[];
 }
 
-function stageParts(stage: ComponentNode, rocket: { componentInfo: (id: string) => { mass: number } }): PartRow[] {
+export function stageParts(stage: ComponentNode, rocket: { componentInfo: (id: string) => { mass: number } }): PartRow[] {
   const rows: PartRow[] = [];
   const walk = (node: ComponentNode, depth: number) => {
     if (node.type !== 'stage') {
@@ -143,7 +143,7 @@ export function assembleReport(): ReportModel | null {
 }
 
 /** Each fin set in a stage, with its root's axial span from the nose (m). */
-function finSetPositions(stage: ComponentNode, rocket: { componentInfo: (id: string) => { positionX: number } }): FinSetPosition[] {
+export function finSetPositions(stage: ComponentNode, rocket: { componentInfo: (id: string) => { positionX: number } }): FinSetPosition[] {
   const out: FinSetPosition[] = [];
   const walk = (nodes: ComponentNode[]) => {
     for (const n of nodes) {

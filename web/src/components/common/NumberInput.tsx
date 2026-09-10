@@ -22,6 +22,7 @@ export function NumberInput({
   onCommit,
   step,
   min,
+  max,
   disabled,
   placeholder,
   className,
@@ -31,6 +32,7 @@ export function NumberInput({
   onCommit?: () => void;
   step?: number;
   min?: number;
+  max?: number;
   disabled?: boolean;
   placeholder?: string;
   className?: string;
@@ -43,6 +45,7 @@ export function NumberInput({
       type="number"
       step={step}
       min={min}
+      max={max}
       disabled={disabled}
       placeholder={placeholder}
       className={className}
@@ -52,7 +55,19 @@ export function NumberInput({
         const raw = e.target.value;
         setDraft(raw);
         const n = parseFloat(raw);
-        onChange(raw === '' || Number.isNaN(n) ? null : n);
+        if (raw === '' || Number.isNaN(n)) {
+          onChange(null);
+          return;
+        }
+        // Clamp to the declared bounds: the HTML min/max are only spinner hints,
+        // so a typed-in negative (or out-of-range) value would otherwise reach
+        // the live engine rebuild and produce degenerate geometry. The raw
+        // keystrokes still show in `draft`; blur snaps the field to the stored
+        // (clamped) value.
+        let v = n;
+        if (min != null && v < min) v = min;
+        if (max != null && v > max) v = max;
+        onChange(v);
       }}
       onBlur={() => {
         setDraft(null);

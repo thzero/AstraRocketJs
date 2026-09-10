@@ -286,6 +286,9 @@
   },
   "flight": {
     "title": "Flight profile",
+    "play": "Play flight",
+    "pause": "Pause",
+    "cancel": "Cancel countdown",
     "altitude": "Altitude",
     "velocity": "Velocity",
     "acceleration": "Acceleration",

@@ -225,7 +225,7 @@ function ChartCard({
   useEffect(() => {
     const el = hostRef.current;
     if (!el) return;
-    const ro = new ResizeObserver((e) => setW(Math.max(240, e[0].contentRect.width)));
+    const ro = new ResizeObserver((e) => setW(Math.max(240, e[0]!.contentRect.width)));
     ro.observe(el);
     return () => ro.disconnect();
   }, []);

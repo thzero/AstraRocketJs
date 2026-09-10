@@ -86,11 +86,6 @@ function loadCatalog(): Promise<ComponentCatalog> {
   return (catalogP ??= fetchCatalog<ComponentCatalog>('components'));
 }
 
-/** The date the component catalog was generated (from its manifest). */
-export async function componentsDate(): Promise<string> {
-  return (await loadCatalog()).generated;
-}
-
 /** Filter a loaded catalog to a single component type (pure). */
 export function projectByType<T extends ComponentType>(cat: ComponentCatalog, type: T): ComponentMap[T][] {
   return cat.components.filter((p): p is ComponentMap[T] => p.type === type);

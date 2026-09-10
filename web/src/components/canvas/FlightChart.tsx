@@ -94,7 +94,7 @@ export function FlightChart({ result }: { result: FlightResult }) {
   useEffect(() => {
     const el = hostRef.current;
     if (!el) return;
-    const ro = new ResizeObserver((entries) => setW(Math.max(280, entries[0].contentRect.width)));
+    const ro = new ResizeObserver((entries) => setW(Math.max(280, entries[0]!.contentRect.width)));
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -147,7 +147,7 @@ export function FlightChart({ result }: { result: FlightResult }) {
   // own marker), drop any outside the visible window, then GREEDILY row-pack so
   // labels never overlap: each takes the lowest row whose last label has cleared.
   const eventLabels = useMemo(() => {
-    const labelW = (type: string) => t(EVENT_LABEL[type]).length * 5.2 + 10;
+    const labelW = (type: string) => t(EVENT_LABEL[type] ?? type).length * 5.2 + 10;
     const rowRight: number[] = [];
     return clusterEventLabels(events, X)
       .filter((g) => g.x >= PAD_L - 2 && g.x <= w - PAD_R + 2)
@@ -265,7 +265,7 @@ export function FlightChart({ result }: { result: FlightResult }) {
                   <g key={i}>
                     <line x1={l.x} y1={l.row * EVENT_ROW_H + EVENT_ROW_H - 2} x2={l.x} y2={stripH} className="stroke-amber-400/30" vectorEffect="non-scaling-stroke" />
                     <text x={l.x} y={l.row * EVENT_ROW_H + 9} textAnchor="middle" className="fill-amber-400/90 text-[9px]">
-                      {t(EVENT_LABEL[l.type])}
+                      {t(EVENT_LABEL[l.type] ?? l.type)}
                     </text>
                   </g>
                 ))}

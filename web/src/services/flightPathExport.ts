@@ -555,7 +555,11 @@ function escaperFor(extension: string): (raw: string) => string {
           .replace(/"/g, '&quot;')
           .replace(/'/g, '&apos;');
     case 'csv':
-      return (raw) => raw.replace(/"/g, '""');
+      // Neutralize spreadsheet formula injection: a file-sourced value (e.g. a
+      // rocket named `=HYPERLINK(...)`) must not execute when the CSV is opened
+      // in Excel/Sheets. Prefix a `'` when it leads with a formula trigger, then
+      // double quotes for RFC-4180 (the template wraps values in quotes).
+      return (raw) => (/^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw).replace(/"/g, '""');
     default:
       return (raw) => raw;
   }

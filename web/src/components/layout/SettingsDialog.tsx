@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../state/SettingsProvider';
 import { DEFAULT_SETTINGS, type SimulationSettings } from '../../services/settings';
 import { PART_KEYS, mergePalette } from '../../services/partColors';
+import { useFocusTrap } from '../common/useFocusTrap';
 import { LaunchPanel } from '../sim/LaunchPanel';
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4];
@@ -26,8 +27,9 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
   const isDesktop = useIsDesktop();
   const visibleTabs = isDesktop ? TABS : TABS.filter((tb) => tb.key !== 'parts');
   const [tab, setTab] = useState<TabKey>(() => (isDesktop ? 'parts' : 'phases'));
+  const panelRef = useFocusTrap<HTMLDivElement>(open);
   useEffect(() => {
-    if (!visibleTabs.some((tb) => tb.key === tab)) setTab(visibleTabs[0].key);
+    if (!visibleTabs.some((tb) => tb.key === tab)) setTab(visibleTabs[0]!.key);
   }, [visibleTabs, tab]);
 
   useEffect(() => {
@@ -62,6 +64,7 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
       <div
+        ref={panelRef}
         className="flex h-[560px] max-h-[85vh] w-full max-w-md flex-col rounded-2xl bg-slate-900 ring-1 ring-white/10"
         role="dialog"
         aria-modal="true"

@@ -9,6 +9,7 @@ class FakeKv implements KeyValueStore {
   }
   async set(k: string, v: string) {
     this.map.set(k, v);
+    return true;
   }
   async remove(k: string) {
     this.map.delete(k);

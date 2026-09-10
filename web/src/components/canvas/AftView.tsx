@@ -423,13 +423,13 @@ export function AftView({
         </g>
       </svg>
       <div className="schematic-controls">
-        <button title={t('schematic.zoomIn')} onClick={() => zoomBy(1.5)}>
+        <button title={t('schematic.zoomIn')} aria-label={t('schematic.zoomIn')} onClick={() => zoomBy(1.5)}>
           +
         </button>
-        <button title={t('schematic.zoomOut')} onClick={() => zoomBy(1 / 1.5)}>
+        <button title={t('schematic.zoomOut')} aria-label={t('schematic.zoomOut')} onClick={() => zoomBy(1 / 1.5)}>
           −
         </button>
-        <button title={t('schematic.fit')} onClick={() => setZoom({ k: 1, x: 0, y: 0 })}>
+        <button title={t('schematic.fit')} aria-label={t('schematic.fit')} onClick={() => setZoom({ k: 1, x: 0, y: 0 })}>
           ⤢
         </button>
       </div>

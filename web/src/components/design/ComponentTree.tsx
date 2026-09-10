@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import type { ComponentNode, ComponentType, RocketTree } from '../../engine/openRocketEngine';
@@ -149,7 +149,22 @@ function Row({
     <>
       <div
         ref={rowRef}
+        role={id && onSelect ? 'button' : undefined}
+        tabIndex={id && onSelect ? 0 : undefined}
         onClick={id && onSelect ? () => onSelect(id) : undefined}
+        onKeyDown={
+          id && onSelect
+            ? (e) => {
+                // Keyboard selection: this was the ONLY way to select a part
+                // (the 2D/3D canvases are pointer-only too), so a keyboard user
+                // could reach no component at all.
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelect(id);
+                }
+              }
+            : undefined
+        }
         className={`flex items-center gap-2 rounded-md py-1 pr-2 ${id && onSelect ? 'cursor-pointer' : ''} ${
           selected ? 'bg-sky-600/25 ring-1 ring-inset ring-sky-500/50' : 'hover:bg-slate-800'
         }`}
@@ -232,8 +247,10 @@ export function ComponentTree({
       return next;
     });
   // Every id-bearing node that has children (the collapsible ones), so the
-  // header toggle can fold or unfold the whole tree at once.
-  const branchIds = (() => {
+  // header toggle can fold or unfold the whole tree at once. Memoized: it walks
+  // the whole tree and only changes when the components do — not on every
+  // selection/hover re-render.
+  const branchIds = useMemo(() => {
     const ids: string[] = [];
     const walk = (nodes: ComponentNode[]) => {
       for (const n of nodes) {
@@ -243,7 +260,7 @@ export function ComponentTree({
     };
     walk(tree.components);
     return ids;
-  })();
+  }, [tree.components]);
   const allCollapsed = branchIds.length > 0 && branchIds.every((id) => collapsed.has(id));
   const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(branchIds));
 

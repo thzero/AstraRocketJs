@@ -16,6 +16,12 @@ describe('num', () => {
   it('defaults the fallback to 0', () => {
     expect(num(node({}), 'length')).toBe(0);
   });
+  it('treats NaN / Infinity as absent (falls back) so non-finite never reaches geometry', () => {
+    expect(num(node({ length: NaN }), 'length', 0.05)).toBe(0.05);
+    expect(num(node({ length: Infinity }), 'length', 0.05)).toBe(0.05);
+    expect(num(node({ length: -Infinity }), 'length', 0.05)).toBe(0.05);
+    expect(num(node({ length: NaN }), 'length')).toBe(0); // default fallback
+  });
 });
 
 describe('numOpt', () => {
@@ -23,6 +29,10 @@ describe('numOpt', () => {
     expect(numOpt(node({ shapeParameter: 0.7 }), 'shapeParameter')).toBe(0.7);
     expect(numOpt(node({}), 'shapeParameter')).toBeUndefined();
     expect(numOpt(node({ shapeParameter: null }), 'shapeParameter')).toBeUndefined();
+  });
+  it('yields undefined for NaN / Infinity', () => {
+    expect(numOpt(node({ shapeParameter: NaN }), 'shapeParameter')).toBeUndefined();
+    expect(numOpt(node({ shapeParameter: Infinity }), 'shapeParameter')).toBeUndefined();
   });
 });
 

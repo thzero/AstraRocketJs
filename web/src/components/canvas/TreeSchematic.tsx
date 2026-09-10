@@ -534,7 +534,11 @@ export function TreeSchematic({
                 cursor: zoom.k > 1 ? 'grab' : undefined,
               }
         }
-        role="img"
+        // role="img" ONLY for the read-only nose-up view: on the editable view it
+        // would tell assistive tech the whole SVG is a single static image and
+        // hide every clickable component. (Keyboard selection lives in the
+        // component tree, which is now focusable.)
+        role={vertical ? 'img' : undefined}
         aria-label={
           vertical
             ? 'Rocket side view, nose up, with CG and CP markers'
@@ -888,6 +892,7 @@ export function TreeSchematic({
               <button
                 className="file-btn"
                 title={t('schematic.calipersH')}
+                aria-label={t('schematic.calipersH')}
                 aria-pressed={!!caliperH}
                 style={caliperH ? { background: 'var(--accent)', color: '#fff' } : undefined}
                 onClick={() => setCaliperH((c) => (c ? null : { a: totalLen * 0.2, b: totalLen * 0.8 }))}
@@ -897,6 +902,7 @@ export function TreeSchematic({
               <button
                 className="file-btn"
                 title={t('schematic.calipersV')}
+                aria-label={t('schematic.calipersV')}
                 aria-pressed={!!caliperV}
                 style={caliperV ? { background: 'var(--accent)', color: '#fff' } : undefined}
                 onClick={() => setCaliperV((c) => (c ? null : { a: maxR, b: -maxR }))}

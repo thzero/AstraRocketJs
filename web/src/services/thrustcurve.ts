@@ -39,6 +39,7 @@ interface TcSample {
 // only the handful without a bundled curve reach thrustcurve.org. Cap that fetch
 // so a slow/unreachable server fails cleanly instead of hanging "Loading…".
 const FETCH_TIMEOUT_MS = 5_000;
+const MAX_RESPONSE_BYTES = 16 * 1024 * 1024; // 16 MiB — motor lists/curves are KB-scale
 
 async function post<T>(path: string, body: unknown): Promise<T> {
   const ctl = new AbortController();
@@ -51,6 +52,8 @@ async function post<T>(path: string, body: unknown): Promise<T> {
       signal: ctl.signal,
     });
     if (!res.ok) throw new Error(`thrustcurve.org ${path} → HTTP ${res.status}`);
+    const len = Number(res.headers.get('content-length'));
+    if (Number.isFinite(len) && len > MAX_RESPONSE_BYTES) throw new Error(`thrustcurve.org ${path} response too large`);
     return res.json() as Promise<T>;
   } catch (e) {
     if (ctl.signal.aborted) throw new Error(`thrustcurve.org timed out — check your connection and try again.`);
@@ -99,6 +102,15 @@ export function samplesToMotorSpec(
       `${motor.designation} is catalogued with more propellant (${motor.propWeightG} g) than ` +
         `loaded mass (${motor.totalWeightG} g), so its burn would end at a negative mass. ` +
         'Pick another motor.',
+    );
+  }
+  // diameter/length feed kernel geometry (÷1000 → m); a malformed/compromised
+  // catalog entry with a non-finite or non-positive size would NaN/blank the design.
+  const badSize = (v: number) => !Number.isFinite(v) || v <= 0;
+  if (badSize(motor.diameter) || badSize(motor.length)) {
+    throw new Error(
+      `thrustcurve.org gives ${motor.designation} a bad size ` +
+        `(diameter ${motor.diameter} mm, length ${motor.length} mm), so it can't be simulated. Pick another motor.`,
     );
   }
 

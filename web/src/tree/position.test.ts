@@ -89,7 +89,7 @@ describe('resolveAbsolutePositions', () => {
       ],
     };
     const out = resolveAbsolutePositions(tree);
-    const it = out.components[0].children![1].children![0];
+    const it = out.components[0]!.children![1]!.children![0]!;
     // bodytube starts at x=0.1 (after the 0.1 nose), so 0.15 absolute ⇒ 0.05 from the tube's fore edge
     expect(it.position!.method).toBe('top');
     expect(it.position!.offset).toBeCloseTo(0.05);

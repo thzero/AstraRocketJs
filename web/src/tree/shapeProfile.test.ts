@@ -67,10 +67,10 @@ describe('outerProfile', () => {
     const pts = outerProfile('conical', 0, 0.1, 0, 0.05, 4);
     expect(pts).toHaveLength(5);
     expect(pts[0]).toEqual([0, 0]);
-    expect(pts[2][0]).toBeCloseTo(0.05);
-    expect(pts[2][1]).toBeCloseTo(0.025);
-    expect(pts[4][0]).toBeCloseTo(0.1);
-    expect(pts[4][1]).toBeCloseTo(0.05);
+    expect(pts[2]![0]).toBeCloseTo(0.05);
+    expect(pts[2]![1]).toBeCloseTo(0.025);
+    expect(pts[4]![0]).toBeCloseTo(0.1);
+    expect(pts[4]![1]).toBeCloseTo(0.05);
   });
 
   it('draws a straight tube when the ends are equal', () => {
@@ -80,8 +80,8 @@ describe('outerProfile', () => {
 
   it('flips so the fore radius leads for a shrinking transition', () => {
     const pts = outerProfile('conical', 0, 0.1, 0.05, 0.02, 4);
-    expect(pts[0][1]).toBeCloseTo(0.05);
-    expect(pts[pts.length - 1][1]).toBeCloseTo(0.02);
+    expect(pts[0]![1]).toBeCloseTo(0.05);
+    expect(pts[pts.length - 1]![1]).toBeCloseTo(0.02);
   });
 
   it('merges an exact extra abscissa without dropping the even ladder', () => {

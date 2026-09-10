@@ -132,7 +132,7 @@ export interface WorkspaceState {
 }
 
 /** The active simulation (falls back to the first if the id no longer exists). */
-export const selectActive = (s: WorkspaceState): Simulation => s.sims.find((x) => x.id === s.activeId) ?? s.sims[0];
+export const selectActive = (s: WorkspaceState): Simulation => s.sims.find((x) => x.id === s.activeId) ?? s.sims[0]!;
 
 /** A motor is usable only if it carries a full thrust curve (time/thrust/mass samples). */
 export const hasThrustCurve = (m: MotorSpec | undefined | null): boolean =>
@@ -262,7 +262,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set((s) => (s.sims.some((x) => x.result) ? { sims: s.sims.map((x) => ({ ...x, result: null })) } : {})),
     hydrate: (w) => {
       const sims = sanitizeSims(w.sims);
-      const activeId = sims.some((s) => s.id === w.activeId) ? w.activeId : sims[0].id;
+      const activeId = sims.some((s) => s.id === w.activeId) ? w.activeId : sims[0]!.id;
       set({
         tree: w.tree,
         sims,
@@ -290,7 +290,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (!selectedId) return;
       beginEdit();
       const next = updateNode(tree, selectedId, patch);
-      set({ tree: next, extraMotors: reconcileMounts(next, extraMotors) });
+      // Only a change to the motor-mount flag can alter mount topology; a
+      // name/length/colour/slider patch can't, so skip reconcileMounts' full
+      // tree walk on the hot per-keystroke edit path.
+      const touchesMounts = 'motorMount' in patch;
+      set({ tree: next, extraMotors: touchesMounts ? reconcileMounts(next, extraMotors) : extraMotors });
     },
     removeSelected: () => {
       const { selectedId, tree, extraMotors } = get();
@@ -327,13 +331,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       commitEdit(); // fold any in-flight edit into history so it undoes in one step
       const { past, future } = get();
       if (!past.length) return;
-      const prev = past[past.length - 1];
+      const prev = past[past.length - 1]!;
       set({ past: past.slice(0, -1), future: [...future, snap()], ...restore(prev) });
     },
     redo: () => {
       const { past, future } = get();
       if (!future.length) return;
-      const next = future[future.length - 1];
+      const next = future[future.length - 1]!;
       set({ future: future.slice(0, -1), past: [...past, snap()], ...restore(next) });
     },
 
@@ -359,7 +363,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set((s) => ({
         extraMotors: {
           ...s.extraMotors,
-          [mountId]: { ...s.extraMotors[mountId], ignitionEvent: event, ignitionDelay: delay },
+          [mountId]: { ...s.extraMotors[mountId]!, ignitionEvent: event, ignitionDelay: delay },
         },
         sims: s.sims.some((x) => x.result) ? s.sims.map((x) => ({ ...x, result: null })) : s.sims,
       }));
@@ -399,7 +403,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const rest = s.sims.filter((x) => x.id !== id);
       if (!rest.length) return;
       recordStep();
-      set({ sims: rest, activeId: id === selectActive(s).id ? rest[0].id : s.activeId });
+      set({ sims: rest, activeId: id === selectActive(s).id ? rest[0]!.id : s.activeId });
     },
     renameSim: (id, name) => {
       beginEdit();

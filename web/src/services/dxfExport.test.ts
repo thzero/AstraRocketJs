@@ -46,7 +46,7 @@ const tree = {
 function pairs(dxf: string): Array<[string, string]> {
   const lines = dxf.split('\n');
   const out: Array<[string, string]> = [];
-  for (let i = 0; i + 1 < lines.length; i += 2) out.push([lines[i], lines[i + 1]]);
+  for (let i = 0; i + 1 < lines.length; i += 2) out.push([lines[i]!, lines[i + 1]!]);
   return out;
 }
 
@@ -60,7 +60,7 @@ describe('per-component DXF export', () => {
     const ys: number[] = [];
     const ps = pairs(dxf);
     for (let i = 0; i < ps.length; i++) {
-      if (ps[i][0] === '0' && ps[i][1] === 'VERTEX') {
+      if (ps[i]![0] === '0' && ps[i]![1] === 'VERTEX') {
         const y = ps.slice(i, i + 6).find(([c]) => c === '20');
         if (y) ys.push(Number(y[1]));
       }

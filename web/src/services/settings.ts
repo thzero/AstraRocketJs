@@ -142,7 +142,15 @@ export function loadSettings(): Settings {
       partColors: { ...(s.partColors ?? {}) },
       phaseColors: { ...DEFAULT_SETTINGS.phaseColors, ...(s.phaseColors ?? {}) },
       playbackSpeed: typeof s.playbackSpeed === 'number' ? s.playbackSpeed : DEFAULT_SETTINGS.playbackSpeed,
-      simulation: { ...DEFAULT_SETTINGS.simulation, ...(s.simulation ?? {}) },
+      simulation: (() => {
+        const sim = { ...DEFAULT_SETTINGS.simulation, ...(s.simulation ?? {}) };
+        // A corrupt/hand-edited timeStep or maxTime ≤ 0 makes the RK4 loop
+        // (maxTime/timeStep steps) hang or NaN — clamp back to the default.
+        const pos = (v: number, d: number) => (Number.isFinite(v) && v > 0 ? v : d);
+        sim.timeStep = pos(sim.timeStep, DEFAULT_SETTINGS.simulation.timeStep);
+        sim.maxTime = pos(sim.maxTime, DEFAULT_SETTINGS.simulation.maxTime);
+        return sim;
+      })(),
       launchDefaults: { ...DEFAULT_SETTINGS.launchDefaults, ...(s.launchDefaults ?? {}) },
       showMarkers: typeof s.showMarkers === 'boolean' ? s.showMarkers : DEFAULT_SETTINGS.showMarkers,
       showInfoCard: typeof s.showInfoCard === 'boolean' ? s.showInfoCard : DEFAULT_SETTINGS.showInfoCard,

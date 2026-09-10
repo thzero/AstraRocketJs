@@ -251,7 +251,7 @@ export function moveNode(tree: RocketTree, id: string, dir: -1 | 1): RocketTree 
       const j = i + dir;
       if (j >= 0 && j < nodes.length) {
         const [x] = nodes.splice(i, 1);
-        nodes.splice(j, 0, x);
+        nodes.splice(j, 0, x!);
       }
       return true;
     }

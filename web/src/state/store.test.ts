@@ -161,7 +161,7 @@ describe('simulation undo/redo', () => {
 
   it('does not record history when just switching the active sim', () => {
     s().addSim(); // one entry
-    const firstId = s().sims[0].id;
+    const firstId = s().sims[0]!.id;
     const before = s().past.length;
     s().setActiveId(firstId);
     expect(s().past).toHaveLength(before); // selection isn't an edit
@@ -173,7 +173,7 @@ describe('simulation undo/redo', () => {
     const id = active().id;
     useWorkspaceStore.setState({ sims: s().sims.map((x) => (x.id === id ? { ...x, result: fake } : x)) });
     s().addSim(); // recordStep snapshots the pre-add state (which had the result)
-    expect(s().past[0].sims.every((x) => x.result === null)).toBe(true);
+    expect(s().past[0]!.sims.every((x) => x.result === null)).toBe(true);
   });
 
   it('shares one timeline with tree edits', () => {
@@ -200,7 +200,7 @@ describe('mount ↔ motor reconciliation', () => {
     s().addPartToTree('innertube'); // default innertube is a motor mount
     const ids = Object.keys(s().extraMotors);
     expect(ids).toHaveLength(1);
-    expect(s().extraMotors[ids[0]].spec.designation).toBe('C6'); // new mount is loaded
+    expect(s().extraMotors[ids[0]!]!.spec.designation).toBe('C6'); // new mount is loaded
   });
 
   it('drops the extra-motor entry when its mount is removed', () => {

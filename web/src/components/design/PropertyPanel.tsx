@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode, ComponentPosition } from '../../engine/openRocketEngine';
 import { isAxial, hasCatalog, hasMaterial, catalogPatch } from '../../services/treeEdit';
@@ -357,7 +357,7 @@ export function PropertyPanel({
 }) {
   const { t } = useTranslation();
   const { settings } = useSettings();
-  const palette = mergePalette(settings.partColors);
+  const palette = useMemo(() => mergePalette(settings.partColors), [settings.partColors]);
   if (!node) {
     return (
       <section className="rounded-xl bg-slate-900 p-3 text-sm text-slate-500 ring-1 ring-white/10">

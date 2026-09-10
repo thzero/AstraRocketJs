@@ -14,6 +14,7 @@ import { fetchMotorSpec } from '../../services/thrustcurve';
 import { STD_DIAMS, MAX_IDX, fitIdx, parseDelays } from '../../services/motorPicker';
 import { PLUGGED_DELAY, type MotorSpec } from '../../engine/openRocketEngine';
 import { fmtNum } from '../../i18n/format';
+import { useFocusTrap } from '../common/useFocusTrap';
 import { MotorDetail } from './MotorDetail';
 import { RangeSlider } from './RangeSlider';
 
@@ -100,6 +101,7 @@ export function MotorDialog({
   const seedRef = useRef(false);
   // Seed at most once per opening (cleared when the dialog closes).
   const seededOpenRef = useRef(false);
+  const panelRef = useFocusTrap<HTMLDivElement>(open);
 
   useEffect(() => {
     let live = true;
@@ -244,6 +246,7 @@ export function MotorDialog({
       aria-modal="true"
     >
       <div
+        ref={panelRef}
         className="flex h-[720px] max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-slate-900 ring-1 ring-white/10"
         onClick={(e) => e.stopPropagation()}
       >

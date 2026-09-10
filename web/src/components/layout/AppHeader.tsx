@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { APP_VERSION, HELP_URL, isPreRelease } from '../../services/appInfo';
 import { initEngine } from '../../engine/openRocketEngine';
@@ -25,6 +25,8 @@ export function AppHeader() {
   const canRedo = useWorkspaceStore((s) => s.future.length > 0);
   const orkRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
+  const menuElRef = useRef<HTMLDivElement>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -67,6 +69,55 @@ export function AppHeader() {
       window.removeEventListener('keydown', onKey);
     };
   }, [menuOpen]);
+
+  // Fulfil the menu role (WAI-ARIA menu-button pattern): on open, pull focus to
+  // the first item and take every item out of the Tab sequence so ↑/↓ drive
+  // navigation and Tab leaves the menu. Re-runs when the Export sub-item shows /
+  // hides or Save enables, but only steals focus on the initial open (guarded by
+  // "is focus already inside the menu?").
+  useEffect(() => {
+    if (!menuOpen) return;
+    const menu = menuElRef.current;
+    if (!menu) return;
+    const items = Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+    items.forEach((el) => (el.tabIndex = -1));
+    if (!menu.contains(document.activeElement)) {
+      items.find((el) => !el.hasAttribute('disabled'))?.focus();
+    }
+  }, [menuOpen, exportOpen, canSave]);
+
+  // Arrow-key roving among the enabled, visible menu items; Escape closes and
+  // returns focus to the trigger; Tab closes and lets focus move on naturally.
+  const onMenuKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    const menu = menuElRef.current;
+    if (!menu) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setMenuOpen(false);
+      menuBtnRef.current?.focus();
+      return;
+    }
+    if (e.key === 'Tab') {
+      setMenuOpen(false); // no preventDefault — focus proceeds out of the menu
+      return;
+    }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+    e.preventDefault();
+    const items = Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])')).filter(
+      (el) => el.offsetParent !== null,
+    );
+    if (items.length === 0) return;
+    const i = items.indexOf(document.activeElement as HTMLElement);
+    const to =
+      e.key === 'Home'
+        ? 0
+        : e.key === 'End'
+          ? items.length - 1
+          : e.key === 'ArrowDown'
+            ? (i + 1) % items.length
+            : (i - 1 + items.length) % items.length;
+    items[to]?.focus();
+  };
 
   // Keyboard: Ctrl/⌘+Z undoes, Ctrl+Shift+Z / Ctrl+Y redoes — globally, including
   // while a field is focused (edits commit on blur, so the field just re-renders
@@ -153,6 +204,7 @@ export function AppHeader() {
         <LanguageSwitcher />
         <div className="relative" ref={menuRef}>
           <button
+            ref={menuBtnRef}
             onClick={() => setMenuOpen((o) => !o)}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
@@ -163,7 +215,9 @@ export function AppHeader() {
           </button>
           {menuOpen && (
             <div
+              ref={menuElRef}
               role="menu"
+              onKeyDown={onMenuKey}
               className="absolute right-0 z-50 mt-1 w-44 overflow-hidden rounded-lg bg-slate-800 py-1 shadow-xl ring-1 ring-white/10"
             >
               <button

@@ -60,6 +60,12 @@ export function shapeIsClippable(shape: string): boolean {
  * distance x from its (virtual) tip. Exact port, shape by shape.
  */
 export function shapeRadius(shape: string, x: number, radius: number, length: number, param: number): number {
+  // A degenerate shape (zero/negative/non-finite length or radius) has no
+  // profile — every branch below divides by `length` (or, for ogive, by
+  // `radius`), so return 0 rather than emit Infinity/NaN. outerProfile already
+  // guards length<=0 and passes a positive delta radius, so this only shields
+  // direct callers.
+  if (!(length > 0) || !(radius > 0)) return 0;
   switch (shape) {
     case 'conical':
       return (radius * x) / length;
@@ -149,8 +155,11 @@ function calculateClip(shape: string, param: number, length: number, r1: number,
  * is bit-identical, and shapeProfile.test.ts pins that.
  */
 function sampleXs(length: number, steps: number, extra?: readonly number[]): number[] {
+  // Floor steps to >=1: steps=0 would make the divisor 0 and emit a single NaN
+  // abscissa. Integer steps>=1 are unchanged (bit-identical), which the tests pin.
+  const s = Math.max(1, Math.floor(steps));
   const xs: number[] = [];
-  for (let i = 0; i <= steps; i++) xs.push((i / steps) * length);
+  for (let i = 0; i <= s; i++) xs.push((i / s) * length);
   if (!extra || extra.length === 0) return xs;
   for (const e of extra) {
     if (!Number.isFinite(e) || e < 0 || e > length) continue;

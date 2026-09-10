@@ -12,7 +12,7 @@ import {
 } from './openRocketEngine';
 import { defaultDesignName } from '../services/appInfo';
 
-export type { RocketSpec, StaticInfo, FlightResult, FlightSeries } from './openRocketEngine';
+export type { RocketSpec, StaticInfo, FlightResult } from './openRocketEngine';
 
 /** A stock Estes C6 (SI units): times→thrust, per-sample motor mass. */
 export const C6: MotorSpec = {

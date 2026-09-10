@@ -152,7 +152,7 @@ export function exportOrk({
             ? (c.deployments[node.id] ?? {})
             : {};
       if (Object.keys(o).length === 0) continue;
-      emit(depth, `<deploymentconfiguration configid="${c.id}">`);
+      emit(depth, `<deploymentconfiguration configid="${escapeXml(c.id)}">`);
       if (o.deployEvent !== undefined) emit(depth + 1, `<deployevent>${escapeXml(o.deployEvent)}</deployevent>`);
       if (o.deployAltitude !== undefined) emit(depth + 1, `<deployaltitude>${o.deployAltitude}</deployaltitude>`);
       if (o.deployDelay !== undefined) emit(depth + 1, `<deploydelay>${o.deployDelay}</deploydelay>`);
@@ -231,7 +231,7 @@ export function exportOrk({
     emit(depth + 1, `<overhang>${overhangM}</overhang>`);
     for (const c of withMotor) {
       const m = c.motors[nodeId!]!;
-      emit(depth + 1, `<motor configid="${c.id}">`);
+      emit(depth + 1, `<motor configid="${escapeXml(c.id)}">`);
       emit(depth + 2, '<type>single</type>');
       emit(depth + 2, `<manufacturer>${escapeXml(m.manufacturer ?? 'custom')}</manufacturer>`);
       emit(depth + 2, `<designation>${escapeXml(m.designation)}</designation>`);
@@ -243,7 +243,7 @@ export function exportOrk({
     }
     for (const c of withMotor) {
       const m = c.motors[nodeId!]!;
-      emit(depth + 1, `<ignitionconfiguration configid="${c.id}">`);
+      emit(depth + 1, `<ignitionconfiguration configid="${escapeXml(c.id)}">`);
       emit(depth + 2, `<ignitionevent>${escapeXml(m.ignitionEvent ?? 'automatic')}</ignitionevent>`);
       emit(depth + 2, `<ignitiondelay>${m.ignitionDelay ?? 0}</ignitiondelay>`);
       emit(depth + 1, '</ignitionconfiguration>');
@@ -685,7 +685,7 @@ export function exportOrk({
           };
           sep(depth + 1);
           for (const c of writeConfigs) {
-            emit(depth + 1, `<separationconfiguration configid="${c.id}">`);
+            emit(depth + 1, `<separationconfiguration configid="${escapeXml(c.id)}">`);
             sep(depth + 2);
             emit(depth + 1, '</separationconfiguration>');
           }
@@ -708,7 +708,7 @@ export function exportOrk({
   // desktop model); legacy flat trees wrap into one implicit stage.
   const stageNodes = asStageNodes(tree);
   for (const c of writeConfigs) {
-    emit(2, `<motorconfiguration configid="${c.id}"${c.id === defaultId ? ' default="true"' : ''}>`);
+    emit(2, `<motorconfiguration configid="${escapeXml(c.id)}"${c.id === defaultId ? ' default="true"' : ''}>`);
     if (c.name !== null) emit(3, `<name>${escapeXml(c.name)}</name>`);
     for (let i = 0; i < stageNodes.length; i++) {
       emit(3, `<stage number="${i}" active="true"/>`);
@@ -741,7 +741,7 @@ export function exportOrk({
       };
       sep(4);
       for (const c of writeConfigs) {
-        emit(4, `<separationconfiguration configid="${c.id}">`);
+        emit(4, `<separationconfiguration configid="${escapeXml(c.id)}">`);
         sep(5);
         emit(4, '</separationconfiguration>');
       }
@@ -768,7 +768,7 @@ export function exportOrk({
     emit(3, '<simulator>RK4Simulator</simulator>');
     emit(3, '<calculator>BarrowmanCalculator</calculator>');
     emit(3, '<conditions>');
-    emit(4, `<configid>${defaultId}</configid>`);
+    emit(4, `<configid>${escapeXml(defaultId)}</configid>`);
     emit(4, `<launchrodlength>${launch.launchRodLengthM}</launchrodlength>`);
     // Desktop defaults for options we don't model: launch into wind, and
     // rod/wind direction (rod direction is DEGREES on disk, 90 = π/2 rad).

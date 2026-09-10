@@ -38,7 +38,7 @@ describe('component mesh export', () => {
         minX = Math.min(minX, x); maxX = Math.max(maxX, x);
       }
       for (let e = 0; e < 3; e++) {
-        const a = key(v[e]), b = key(v[(e + 1) % 3]);
+        const a = key(v[e]!), b = key(v[(e + 1) % 3]!);
         const kk = a < b ? `${a}|${b}` : `${b}|${a}`;
         edges.set(kk, (edges.get(kk) ?? 0) + 1);
       }

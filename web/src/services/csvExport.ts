@@ -65,7 +65,10 @@ export function flightDataCsv(r: FlightResult): string {
 
 /** Cd / CP / CNα vs Mach, with the friction/pressure/base split and per-component Cd. */
 export function dragTableCsv(d: DragSweep): string {
-  const compHeader = (name: string) => `Cd_${name.replace(/[[\]]/g, '').replace(/,/g, ';')}`;
+  // Strip the delimiters/newlines/quotes an imported component name could carry
+  // so it can't split or corrupt the comma-joined row. (No formula-injection
+  // risk: the `Cd_` prefix means the cell never leads with =/+/-/@.)
+  const compHeader = (name: string) => `Cd_${name.replace(/[[\]"\r\n]/g, '').replace(/,/g, ';')}`;
   const header = ['Mach', 'Cd', 'Cd_friction', 'Cd_pressure', 'Cd_base'];
   if (d.hasNozzle) header.push('Cd_powerOn');
   header.push('CP (cm)', 'CNalpha (/rad)');

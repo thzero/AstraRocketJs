@@ -27,6 +27,18 @@ describe('recovery sizing physics', () => {
     expect(fast / slow).toBeCloseTo(2, 6);
   });
 
+  it('returns Infinity (never NaN) for non-positive descent mass', () => {
+    expect(descentRate(0, 0.6, 0.8, 1.225)).toBe(Infinity);
+    expect(descentRate(-1, 0.6, 0.8, 1.225)).toBe(Infinity);
+    expect(canopyDiameter(-1, MAIN_BAND.target, 0.8, 1.225)).toBe(Infinity);
+  });
+
+  it('descentMass is null when propellant meets or exceeds loaded mass', () => {
+    expect(descentMass(0.5, [{ masses: [0.6, 0] }])).toBeNull(); // 0.6 propellant > 0.5 loaded
+    expect(descentMass(0.5, [{ masses: [0.5, 0] }])).toBeNull(); // exactly zero descent mass
+    expect(descentMass(1.0, [{ masses: [0.3, 0.1] }])).toBeCloseTo(0.8, 6); // normal
+  });
+
   it('matches a hand-worked descent rate', () => {
     // 1 kg, 1 m canopy, Cd 0.8, rho 1.225:
     // A = pi/4 = 0.785398; v = sqrt(2*1*9.80665/(1.225*0.8*0.785398)) = 5.048 m/s

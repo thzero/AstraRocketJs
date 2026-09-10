@@ -80,19 +80,24 @@ export function descentMass(
   if (loadedMassKg == null) return null;
   let propellant = 0;
   for (const m of motors) propellant += propellantMass(m);
-  return propellant > 0 ? loadedMassKg - propellant : null;
+  if (propellant <= 0) return null;
+  // Propellant exceeding loaded mass is a data error (a bad motor curve): a
+  // negative descent mass is meaningless and would sqrt→NaN downstream, so
+  // treat it as "no distinct descent mass" rather than passing it on.
+  const dm = loadedMassKg - propellant;
+  return dm > 0 ? dm : null;
 }
 
 /** Descent rate (m/s) of a canopy of diameter D (m) and drag coefficient Cd. */
 export function descentRate(massKg: number, diameterM: number, cd: number, rho: number): number {
   const area = (Math.PI * diameterM * diameterM) / 4;
-  if (!(area > 0) || !(cd > 0) || !(rho > 0)) return Infinity;
+  if (!(massKg > 0) || !(area > 0) || !(cd > 0) || !(rho > 0)) return Infinity;
   return Math.sqrt((2 * massKg * G0) / (rho * cd * area));
 }
 
 /** Canopy diameter (m) that lands `massKg` at descent rate `rateMs` (m/s). */
 export function canopyDiameter(massKg: number, rateMs: number, cd: number, rho: number): number {
-  if (!(rateMs > 0) || !(cd > 0) || !(rho > 0)) return Infinity;
+  if (!(massKg > 0) || !(rateMs > 0) || !(cd > 0) || !(rho > 0)) return Infinity;
   const area = (2 * massKg * G0) / (rho * cd * rateMs * rateMs);
   return Math.sqrt((4 * area) / Math.PI);
 }
@@ -116,8 +121,6 @@ export const MAIN_BAND: Band = { key: 'main', min: 15 * FT_S, max: 20 * FT_S, ta
 
 /** Drogue / high-speed descent: 50-75 ft/s, sized at 60. */
 export const DROGUE_BAND: Band = { key: 'drogue', min: 50 * FT_S, max: 75 * FT_S, target: 60 * FT_S };
-
-export const BANDS: Band[] = [MAIN_BAND, DROGUE_BAND];
 
 /** Where a descent rate falls relative to the accepted bands. */
 export type RateVerdict = 'slow' | 'main' | 'between' | 'drogue' | 'fast';

@@ -52,8 +52,8 @@ export class KeyValueMaterialStore implements MaterialStore {
     }
   }
 
-  private write(list: Material[]): Promise<void> {
-    return this.kv.set(this.key, JSON.stringify(list));
+  private async write(list: Material[]): Promise<void> {
+    await this.kv.set(this.key, JSON.stringify(list)); // best-effort (re-addable)
   }
 
   async list(): Promise<Material[]> {

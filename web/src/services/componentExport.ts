@@ -38,11 +38,6 @@ export function componentFormats(type: string): ExportFormat[] {
   return formats;
 }
 
-/** True when a component type can be exported in at least one format. */
-export function isExportable(type: string): boolean {
-  return MESH_TYPES.has(type) || DXF_CUTTABLE.has(type);
-}
-
 /** Build and download one component in the given format. Returns false on a no-op. */
 export async function exportComponent(tree: RocketTree, nodeId: string, format: ExportFormat): Promise<boolean> {
   const node = findNode(tree, nodeId);

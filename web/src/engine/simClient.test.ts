@@ -46,7 +46,7 @@ describe('simClient timeout', () => {
     await vi.advanceTimersByTimeAsync(1000);
     await rejects;
     expect(created).toHaveLength(1);
-    expect(created[0].terminate).toHaveBeenCalledOnce(); // hung worker was killed
+    expect(created[0]!.terminate).toHaveBeenCalledOnce(); // hung worker was killed
   });
 
   it('resolves normally and does not fire the timeout for a prompt reply', async () => {
@@ -58,6 +58,6 @@ describe('simClient timeout', () => {
     expect(result).toEqual({ apogee: 42 });
     // Advancing past the timeout must not retroactively kill the (now idle) worker.
     await vi.advanceTimersByTimeAsync(2000);
-    expect(created[0].terminate).not.toHaveBeenCalled();
+    expect(created[0]!.terminate).not.toHaveBeenCalled();
   });
 });

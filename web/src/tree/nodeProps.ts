@@ -7,13 +7,17 @@ import type { ComponentNode } from '../engine/openRocketEngine';
  * every consumer used to hand-roll as a local `num` / `numVal` helper.
  */
 
-/** Numeric parameter, or `fb` (default 0) when absent / non-numeric. */
+/** Numeric parameter, or `fb` (default 0) when absent / non-numeric / non-finite.
+ *  The `Number.isFinite` guard is load-bearing: a `NaN`/`Infinity` that slipped
+ *  in from a malformed file, a lost JSON round-trip, or a bad field would
+ *  otherwise flow straight into every geometry/mesh/report path as NaN
+ *  coordinates. Treat non-finite as absent (fall back). */
 export const num = (n: ComponentNode, key: string, fb = 0): number =>
-  typeof n[key] === 'number' ? (n[key] as number) : fb;
+  typeof n[key] === 'number' && Number.isFinite(n[key] as number) ? (n[key] as number) : fb;
 
-/** Like {@link num} but yields `undefined` (not a fallback) when non-numeric. */
+/** Like {@link num} but yields `undefined` (not a fallback) when absent / non-finite. */
 export const numOpt = (n: ComponentNode, key: string): number | undefined =>
-  typeof n[key] === 'number' ? (n[key] as number) : undefined;
+  typeof n[key] === 'number' && Number.isFinite(n[key] as number) ? (n[key] as number) : undefined;
 
 /** String parameter, or `fb` (default '') when absent / non-string. */
 export const str = (n: ComponentNode, key: string, fb = ''): string =>

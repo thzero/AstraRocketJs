@@ -10,6 +10,16 @@ import { shapeParamDefault } from '../tree/shapeProfile';
 import { xmlText as text } from './xmlUtil';
 import type { OrkMotorRef, OrkFlightConfig, OrkDeployOverride, OrkImportResult } from './orkTypes';
 
+// Decompression caps for the untrusted `.ork` zip (a real design is a few
+// hundred KB of XML; these are generous ceilings, not tuning knobs).
+const MAX_ARCHIVE_ENTRIES = 256;
+const MAX_ARCHIVE_ENTRY_BYTES = 64 * 1024 * 1024; // 64 MiB uncompressed per member
+const MAX_ARCHIVE_TOTAL_BYTES = 128 * 1024 * 1024; // 128 MiB uncompressed total
+// A real design nests ~4-5 levels; this bounds a crafted deeply-nested
+// <subcomponents> chain so the recursive walk throws a clear error instead of
+// overflowing the JS stack with an opaque RangeError.
+const MAX_NESTING_DEPTH = 100;
+
 // ============================ IMPORT ============================
 
 export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string }): OrkImportResult {
@@ -19,7 +29,22 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
   } else {
     const bytes = new Uint8Array(data);
     if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
-      const entries = unzipSync(bytes);
+      // Zip-bomb guard: a `.ork` is a zip, and fflate's unzipSync has no built-in
+      // cap — a crafted archive (huge declared size, or millions of entries)
+      // would OOM the tab. The `filter` runs per member BEFORE it inflates,
+      // carrying the declared uncompressed `originalSize`, so we reject there.
+      let entryCount = 0;
+      let totalSize = 0;
+      const entries = unzipSync(bytes, {
+        filter: (file) => {
+          if (++entryCount > MAX_ARCHIVE_ENTRIES) throw new Error('.ork archive has too many entries');
+          totalSize += file.originalSize;
+          if (file.originalSize > MAX_ARCHIVE_ENTRY_BYTES || totalSize > MAX_ARCHIVE_TOTAL_BYTES) {
+            throw new Error('.ork archive is too large (possible zip bomb)');
+          }
+          return true;
+        },
+      });
       const entryName = Object.keys(entries).find((n) => n.endsWith('.ork')) ?? Object.keys(entries)[0];
       if (!entryName) throw new Error('Empty .ork archive');
       xml = strFromU8(entries[entryName]!);
@@ -505,7 +530,10 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
     }
   };
 
-  const convertChildren = (parentEl: Element): ComponentNode[] => {
+  const convertChildren = (parentEl: Element, depth = 0): ComponentNode[] => {
+    if (depth > MAX_NESTING_DEPTH) {
+      throw new Error('This .ork is nested too deeply to open (possibly malformed).');
+    }
     const out: ComponentNode[] = [];
     const wrap = parentEl.querySelector(':scope > subcomponents');
     if (!wrap) return out;
@@ -515,7 +543,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         ignored.add(el.tagName);
         continue;
       }
-      const kids = convertChildren(el);
+      const kids = convertChildren(el, depth + 1);
       if (kids.length > 0) node.children = kids;
       out.push(node);
     }

@@ -84,7 +84,7 @@ function dedupe(pts: Pt[]): Pt[] {
     if (!last || Math.abs(last.x - p.x) > EPS || Math.abs(last.y - p.y) > EPS) out.push(p);
   }
   // Also drop a closing duplicate (poly is implicitly closed).
-  while (out.length > 1 && Math.abs(out[0].x - out[out.length - 1].x) <= EPS && Math.abs(out[0].y - out[out.length - 1].y) <= EPS) {
+  while (out.length > 1 && Math.abs(out[0]!.x - out[out.length - 1]!.x) <= EPS && Math.abs(out[0]!.y - out[out.length - 1]!.y) <= EPS) {
     out.pop();
   }
   return out;

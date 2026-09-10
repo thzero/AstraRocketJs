@@ -355,23 +355,6 @@ export type ComponentType =
   | 'parallelstage';
 
 /**
- * Stage separation trigger (lower stages only; desktop default "ejection").
- * On a `stage` node: `separationEvent`, `separationDelay` (s),
- * `separationAltitude` (m, for the altitude events), and `nozzleExitDiameter`
- * (m; RASAero power-on base-drag reduction, 0/absent = power-off, all stages).
- */
-export type SeparationEvent =
-  | 'launch'
-  | 'ignition'
-  | 'burnout'
-  | 'ejection'
-  | 'upperignition'
-  | 'altitudeascending'
-  | 'apogee'
-  | 'altitudedescending'
-  | 'never';
-
-/**
  * When a mount's motor ignites. "automatic" = launch-stage motors at launch,
  * upper-stage motors on the ejection charge of the stage below (the low/mid-
  * power pattern). High-power sustainers use electronics: "burnout" or

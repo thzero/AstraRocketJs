@@ -79,6 +79,15 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
       plan = [[start, R], [start + sweep, R + height], [start + sweep + tip, R + height], [start + root, R]];
     } else if (node.type === 'freeformfinset' && ff.length) {
       plan = ff.map(([px, py]) => [start + px, R + py] as Pt);
+    } else if (node.type === 'ellipticalfinset') {
+      // A true half-ellipse (height·sin(π·t)), matching finPlanformMm's template
+      // and oneFinSolid's 3D — not the old crude 4-point trapezoid.
+      plan = [];
+      const N = 40;
+      for (let i = 0; i <= N; i++) {
+        const t = i / N;
+        plan.push([start + root * t, R + height * Math.sin(Math.PI * t)]);
+      }
     } else {
       plan = [[start, R], [start + root * 0.15, R + height], [start + root * 0.7, R + height], [start + root, R]];
     }

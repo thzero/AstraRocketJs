@@ -78,8 +78,8 @@ export class KeyValueTemplateStore implements TemplateStore {
     }
   }
 
-  private write(list: UserTemplate[]): Promise<void> {
-    return this.kv.set(this.key, JSON.stringify(list));
+  private async write(list: UserTemplate[]): Promise<void> {
+    await this.kv.set(this.key, JSON.stringify(list)); // best-effort (re-addable)
   }
 
   async list(): Promise<UserTemplate[]> {
@@ -96,12 +96,8 @@ export class KeyValueTemplateStore implements TemplateStore {
   }
 }
 
-let store: TemplateStore = new KeyValueTemplateStore();
+const store: TemplateStore = new KeyValueTemplateStore();
 
 export function getTemplateStore(): TemplateStore {
   return store;
-}
-
-export function setTemplateStore(next: TemplateStore): void {
-  store = next;
 }

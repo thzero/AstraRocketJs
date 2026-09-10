@@ -34,6 +34,21 @@ describe('exportOrk → importOrk round-trip', () => {
     expect(xml).toContain('<subcomponents>');
   });
 
+  it('escapes a malicious flight-config id (no XML injection on export)', () => {
+    const evil = 'x"><injected foo="bar';
+    const out = exportOrk({
+      name: 'Evil',
+      tree,
+      mountId,
+      motor,
+      configs: [{ id: evil, name: null, isDefault: true, motors: {}, deployments: {} }],
+      activeConfigId: evil,
+    });
+    expect(out).not.toContain('<injected'); // the raw tag must never form
+    expect(out).toContain('&lt;injected'); // escaped instead
+    expect(importOrk(out)).toBeTruthy(); // still parses as valid XML
+  });
+
   it('preserves the design name', () => {
     expect(importOrk(xml).name).toBe('Round Trip');
   });

@@ -12,7 +12,12 @@ import { num } from './nodeProps';
 export function axialLength(n: ComponentNode): number {
   if (n.type === 'freeformfinset') {
     const pts = (n['points'] as [number, number][] | undefined) ?? [];
-    return pts.length ? Math.max(...pts.map((p) => p[0])) : 0.05;
+    // Only finite x's; fall back to the default when none are positive, so a
+    // malformed planform can't return 0/negative/NaN axial length into the
+    // snap/layout math.
+    const xs = pts.map((p) => p[0]).filter((x) => Number.isFinite(x));
+    const maxX = xs.length ? Math.max(...xs) : 0;
+    return maxX > 0 ? maxX : 0.05;
   }
   if (n.type === 'trapezoidfinset' || n.type === 'ellipticalfinset') {
     return num(n, 'rootChord', 0.05);

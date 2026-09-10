@@ -11,6 +11,7 @@ import {
 import { STD_DIAMS, MAX_IDX } from '../../services/motorPicker';
 import { combineCurves, impulseClass, type Sample } from '../../services/motorCombine';
 import { fmtNum } from '../../i18n/format';
+import { useFocusTrap } from '../common/useFocusTrap';
 import { MotorDetail, Stat } from './MotorDetail';
 import { RangeSlider } from './RangeSlider';
 
@@ -150,6 +151,7 @@ export function MotorDashboard({ open, onClose }: { open: boolean; onClose: () =
   const [checked, setChecked] = useState<Map<string, CatalogMotor>>(new Map());
   const [mode, setMode] = useState<Mode>('detail');
   const bodyRef = useRef<HTMLTableSectionElement>(null);
+  const panelRef = useFocusTrap<HTMLDivElement>(open);
 
   useEffect(() => {
     let live = true;
@@ -255,6 +257,7 @@ export function MotorDashboard({ open, onClose }: { open: boolean; onClose: () =
       aria-modal="true"
     >
       <div
+        ref={panelRef}
         className="flex h-[760px] max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-slate-900 ring-1 ring-white/10"
         onClick={(e) => e.stopPropagation()}
       >
