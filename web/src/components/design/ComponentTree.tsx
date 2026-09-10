@@ -222,8 +222,7 @@ export function ComponentTree({
   selectedId,
   onSelect,
   onAdd,
-  onRenameDesign,
-  onCommit,
+  onEditDesign,
   onScale,
   onAddStage,
 }: {
@@ -231,8 +230,7 @@ export function ComponentTree({
   selectedId?: string | null;
   onSelect?: (id: string) => void;
   onAdd?: (type: ComponentType) => void;
-  onRenameDesign?: (name: string) => void;
-  onCommit?: () => void; // close the rename's undo entry when the field blurs
+  onEditDesign?: () => void; // open the Rocket-configuration dialog (name, designer, …)
   onScale?: () => void; // open the whole-rocket scale dialog
   onAddStage?: () => void; // append a new (booster) stage at the bottom
 }) {
@@ -343,16 +341,15 @@ export function ComponentTree({
       </div>
       <div className="flex items-center gap-2 px-2 pb-1">
         <span className="text-sm">🚀</span>
-        {onRenameDesign ? (
-          <input
-            value={tree.name || ''}
-            onChange={(e) => onRenameDesign(e.target.value)}
-            onBlur={onCommit}
-            placeholder={t('tree.rocket')}
-            aria-label={t('prop.name')}
-            title={t('prop.name')}
-            className="min-w-0 flex-1 truncate rounded bg-transparent px-1 text-sm font-semibold text-sky-400 hover:bg-slate-800/60 focus:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
-          />
+        {onEditDesign ? (
+          <button
+            onClick={onEditDesign}
+            aria-label={t('config.edit')}
+            title={t('config.edit')}
+            className="min-w-0 flex-1 truncate rounded bg-transparent px-1 text-left text-sm font-semibold text-sky-400 hover:bg-slate-800/60 focus:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
+          >
+            {tree.name || t('tree.rocket')}
+          </button>
         ) : (
           <span className="min-w-0 flex-1 truncate text-sm font-semibold text-sky-400">
             {tree.name || t('tree.rocket')}

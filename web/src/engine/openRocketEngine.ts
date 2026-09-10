@@ -387,8 +387,28 @@ export interface ComponentNode {
 
 export interface RocketTree {
   name?: string;
+  /** "Designer" free-text (OpenRocket's Rocket configuration) — round-tripped. */
+  designer?: string;
+  /** Design "Comments" free-text — round-tripped. */
+  comment?: string;
+  /** "Revision history" free-text — round-tripped. */
+  revision?: string;
+  /** Design-type token: original | commercial_kit | clone_kit | upscale_kit |
+   *  downscale_kit | modified_kit | kit_bash (OpenRocket DesignType). */
+  designType?: string;
   components: ComponentNode[];
 }
+
+/** OpenRocket DesignType tokens, in menu order (ORIGINAL first). */
+export const DESIGN_TYPES = [
+  'original',
+  'commercial_kit',
+  'clone_kit',
+  'upscale_kit',
+  'downscale_kit',
+  'modified_kit',
+  'kit_bash',
+] as const;
 
 export interface FlightSummary {
   maxAltitude: number;

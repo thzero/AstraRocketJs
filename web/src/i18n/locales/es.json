@@ -179,6 +179,23 @@
       "mass": "Componente de masa"
     }
   },
+  "config": {
+    "title": "Configuración del cohete",
+    "edit": "Editar la configuración del cohete",
+    "name": "Nombre del diseño",
+    "designer": "Diseñador",
+    "designType": "Tipo de diseño",
+    "comments": "Comentarios",
+    "revision": "Historial de revisiones",
+    "save": "Aceptar",
+    "type_original": "Diseño original / otro",
+    "type_commercial_kit": "Kit comercial",
+    "type_clone_kit": "Clon de un kit",
+    "type_upscale_kit": "Ampliación de un kit",
+    "type_downscale_kit": "Reducción de un kit",
+    "type_modified_kit": "Kit modificado",
+    "type_kit_bash": "Combinación de kits"
+  },
   "tabs": { "rocket": "Cohete", "motor": "Motor", "simulate": "Simular" },
   "view": {
     "2d": "2D",

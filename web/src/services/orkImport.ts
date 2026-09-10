@@ -69,6 +69,12 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
   const motors: Record<string, OrkMotorRef> = {};
 
   const name = text(rocketEl, ':scope > name') ?? 'Imported rocket';
+  // Design-level metadata (OpenRocket's Rocket configuration) — preserved so a
+  // round-trip export doesn't drop the designer / comments / revision.
+  const designer = text(rocketEl, ':scope > designer') ?? undefined;
+  const comment = text(rocketEl, ':scope > comment') ?? undefined;
+  const revision = text(rocketEl, ':scope > revision') ?? undefined;
+  const designType = text(rocketEl, ':scope > designtype')?.toLowerCase() ?? undefined;
   const stages = Array.from(rocketEl.querySelectorAll(':scope > subcomponents > stage'));
   if (stages.length === 0) throw new Error('No stage found');
 
@@ -660,7 +666,14 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
 
   return {
     name,
-    tree: { name, components },
+    tree: {
+      name,
+      components,
+      ...(designer ? { designer } : {}),
+      ...(comment ? { comment } : {}),
+      ...(revision ? { revision } : {}),
+      ...(designType ? { designType } : {}),
+    },
     motor,
     motors,
     configs,

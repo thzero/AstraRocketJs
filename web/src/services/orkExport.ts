@@ -703,7 +703,16 @@ export function exportOrk({
   emit(2, `<id>${uuid()}</id>`);
   emit(2, '<axialoffset method="absolute">0.0</axialoffset>');
   emit(2, '<position type="absolute">0.0</position>');
-  emit(2, '<designtype>original</designtype>');
+  // Design-level metadata (Rocket configuration) — emit only what's set so an
+  // untouched design stays clean; the loader keys on element name, not order.
+  const metaField = (key: 'comment' | 'designer' | 'revision') => {
+    const v = tree[key];
+    if (typeof v === 'string' && v.trim()) emit(2, `<${key}>${escapeXml(v)}</${key}>`);
+  };
+  metaField('comment');
+  metaField('designer');
+  metaField('revision');
+  emit(2, `<designtype>${escapeXml(tree.designType || 'original')}</designtype>`);
   // Stage nodes at the top level export as sibling <stage> blocks (the
   // desktop model); legacy flat trees wrap into one implicit stage.
   const stageNodes = asStageNodes(tree);

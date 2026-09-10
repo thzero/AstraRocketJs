@@ -7,6 +7,7 @@ import { confirm } from '../../state/confirmStore';
 import { ComponentTree } from './ComponentTree';
 import { PropertyPanel } from './PropertyPanel';
 import { ScaleDialog } from './ScaleDialog';
+import { RocketConfigDialog } from './RocketConfigDialog';
 import { BusyLock } from '../common/BusyLock';
 
 /** Left pane: the component tree plus the selected part's property editor. */
@@ -17,12 +18,12 @@ export function EditorPanel() {
   const onSelect = useWorkspaceStore((s) => s.setSelectedId);
   const onAdd = useWorkspaceStore((s) => s.addPartToTree);
   const onAddStage = useWorkspaceStore((s) => s.addStageToTree);
-  const onRenameDesign = useWorkspaceStore((s) => s.renameDesign);
   const patch = useWorkspaceStore((s) => s.patchSelected);
   const onCommit = useWorkspaceStore((s) => s.commitEdit);
   const remove = useWorkspaceStore((s) => s.removeSelected);
   const onMove = useWorkspaceStore((s) => s.moveSelected);
   const [scaleOpen, setScaleOpen] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
 
   const node = useMemo(() => (selectedId ? findNode(tree, selectedId) : null), [tree, selectedId]);
   const sib = useMemo(() => (selectedId ? siblingIndex(tree, selectedId) : null), [tree, selectedId]);
@@ -56,8 +57,7 @@ export function EditorPanel() {
         selectedId={selectedId}
         onSelect={onSelect}
         onAdd={onAdd}
-        onRenameDesign={onRenameDesign}
-        onCommit={onCommit}
+        onEditDesign={() => setConfigOpen(true)}
         onScale={() => setScaleOpen(true)}
         onAddStage={onAddStage}
       />
@@ -73,6 +73,7 @@ export function EditorPanel() {
         isFirstStage={isFirstStage}
       />
       <ScaleDialog open={scaleOpen} onClose={() => setScaleOpen(false)} />
+      <RocketConfigDialog open={configOpen} onClose={() => setConfigOpen(false)} />
     </div>
   );
 }

@@ -81,6 +81,49 @@ describe('exportOrk → importOrk round-trip', () => {
   });
 });
 
+describe('design metadata (Rocket configuration) round-trip', () => {
+  const { tree, mountId } = specToTree(spec);
+  const withMeta: RocketTree = {
+    ...tree,
+    name: 'Meta Rocket',
+    designer: 'Ada Lovelace',
+    comment: 'Best F motor.\nTwo 2-56 nylon screws → 42.8 lb shear.',
+    revision: 'v3 — moved the CP forward',
+    designType: 'upscale_kit',
+  };
+  const xml = exportOrk({ name: withMeta.name!, tree: withMeta, mountId, motor });
+
+  it('emits the metadata elements (only what is set)', () => {
+    expect(xml).toContain('<designer>Ada Lovelace</designer>');
+    expect(xml).toContain('<revision>v3 — moved the CP forward</revision>');
+    expect(xml).toContain('<designtype>upscale_kit</designtype>');
+    expect(xml).toContain('Best F motor.'); // comment body present
+  });
+
+  it('imports the metadata back onto the tree', () => {
+    const res = importOrk(xml);
+    expect(res.tree.designer).toBe('Ada Lovelace');
+    expect(res.tree.comment).toContain('42.8 lb shear');
+    expect(res.tree.revision).toBe('v3 — moved the CP forward');
+    expect(res.tree.designType).toBe('upscale_kit');
+  });
+
+  it('escapes metadata so a crafted comment cannot inject XML', () => {
+    const evil: RocketTree = { ...tree, name: 'X', comment: '</comment><injected/>' };
+    const out = exportOrk({ name: 'X', tree: evil, mountId, motor });
+    expect(out).not.toContain('<injected/>'); // the raw tag must never form
+    expect(out).toContain('&lt;injected/&gt;'); // escaped instead
+    expect(importOrk(out)).toBeTruthy(); // still valid XML
+  });
+
+  it('omits absent metadata and defaults design type to original', () => {
+    const bare = exportOrk({ name: 'Bare', tree: { ...tree, name: 'Bare' }, mountId, motor });
+    expect(bare).not.toContain('<designer>');
+    expect(bare).not.toContain('<revision>');
+    expect(bare).toContain('<designtype>original</designtype>');
+  });
+});
+
 describe('launch-lug / rail-button radial angle round-trips', () => {
   // A tree with a lug at 45° and a rail button at 90° around the body. These
   // used to be silently overwritten with 180° on every save.

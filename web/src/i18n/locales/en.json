@@ -176,6 +176,23 @@
       "mass": "Mass component"
     }
   },
+  "config": {
+    "title": "Rocket configuration",
+    "edit": "Edit rocket configuration",
+    "name": "Design name",
+    "designer": "Designer",
+    "designType": "Design type",
+    "comments": "Comments",
+    "revision": "Revision history",
+    "save": "OK",
+    "type_original": "Original design / other",
+    "type_commercial_kit": "Commercial kit",
+    "type_clone_kit": "Clone of a kit",
+    "type_upscale_kit": "Upscale of a kit",
+    "type_downscale_kit": "Downscale of a kit",
+    "type_modified_kit": "Modified kit",
+    "type_kit_bash": "Kit bash"
+  },
   "tabs": { "rocket": "Rocket", "motor": "Motor", "simulate": "Simulate" },
   "view": {
     "2d": "2D",

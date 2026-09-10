@@ -95,7 +95,7 @@ export interface WorkspaceState {
   addPartToTree: (type: PartType) => void;
   addStageToTree: () => void;
   moveSelected: (dir: -1 | 1) => void;
-  renameDesign: (name: string) => void;
+  updateDesignMeta: (patch: Partial<Pick<RocketTree, 'name' | 'designer' | 'comment' | 'revision' | 'designType'>>) => void;
   /** Finalize the in-flight edit (slider drag / text entry) into one undo entry.
    *  Called by the editors when an interaction ends (blur / discrete change). */
   commitEdit: () => void;
@@ -324,9 +324,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const next = moveNode(tree, selectedId, dir);
       set({ tree: next, extraMotors: reconcileMounts(next, extraMotors) });
     },
-    renameDesign: (name) => {
+    updateDesignMeta: (patch) => {
+      // Applied in one shot from the Rocket-configuration dialog → one undo step.
       beginEdit();
-      set((s) => ({ tree: { ...s.tree, name } }));
+      set((s) => ({ tree: { ...s.tree, ...patch } }));
+      commitEdit();
     },
     commitEdit,
     undo: () => {
@@ -521,7 +523,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // The .ork writer is a lazily-imported chunk — only needed on save.
         const { downloadOrk } = await import('../services/saveOrk');
         downloadOrk({
-          name: loadedMeta?.name || tree.name || defaultDesignName(),
+          name: tree.name || loadedMeta?.name || defaultDesignName(),
           tree,
           motors,
           launch: selectActive(get()).launch,
@@ -545,7 +547,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // The RASAero writer is a lazily-imported chunk — only needed on export.
         const { downloadCdx1 } = await import('../services/rasaeroExport');
         downloadCdx1({
-          name: loadedMeta?.name || tree.name || defaultDesignName(),
+          name: tree.name || loadedMeta?.name || defaultDesignName(),
           tree,
           motors,
           launch: active.launch,
