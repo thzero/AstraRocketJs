@@ -122,8 +122,8 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
       const o: OrkDeployOverride = {};
       const event = text(src, ':scope > deployevent');
       if (event) o.deployEvent = event;
-      if (text(src, ':scope > deployaltitude') !== null) o.deployAltitude = num(src, 'deployaltitude', 200);
-      if (text(src, ':scope > deploydelay') !== null) o.deployDelay = num(src, 'deploydelay', 0);
+      if (text(src, ':scope > deployaltitude') !== null) o.deployAltitude = numTag(src, 'deployaltitude', 200);
+      if (text(src, ':scope > deploydelay') !== null) o.deployDelay = numTag(src, 'deploydelay', 0);
       if (Object.keys(o).length > 0 && node.id) c.deployments[node.id] = o;
     }
   };
@@ -136,7 +136,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
     // same as the desktop). The flag survives even with no motor loaded.
     node['motorMount'] = true;
     // Motor overhang (m): aft protrusion past the mount — min-diameter practice.
-    const overhang = num(mountEl, 'overhang', 0);
+    const overhang = numTag(mountEl, 'overhang', 0);
     if (overhang !== 0) node['motorOverhang'] = overhang;
     // ONE configuration's motor+ignition off this mount. Plugged motors (no
     // ejection charge): the desktop writes the literal string "none"
@@ -147,12 +147,12 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
       return {
         designation: text(motorEl, ':scope > designation') ?? 'unknown',
         manufacturer: text(motorEl, ':scope > manufacturer') ?? 'unknown',
-        diameter: num(motorEl, 'diameter', 0.018),
-        length: num(motorEl, 'length', 0.07),
-        delay: delayText === 'none' ? PLUGGED_DELAY : num(motorEl, 'delay', 0),
+        diameter: numTag(motorEl, 'diameter', 0.018),
+        length: numTag(motorEl, 'length', 0.07),
+        delay: delayText === 'none' ? PLUGGED_DELAY : numTag(motorEl, 'delay', 0),
         mountId: node.id,
         ignitionEvent: text(igEl, ':scope > ignitionevent') ?? undefined,
-        ignitionDelay: num(igEl, 'ignitiondelay', 0),
+        ignitionDelay: numTag(igEl, 'ignitiondelay', 0),
       };
     };
     // Stage B: EVERY declared configuration's motor rides along as a preset
@@ -196,11 +196,11 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
       if (matName) node['materialName'] = matName;
       const fin = text(el, ':scope > finish');
       if (fin && fin !== 'normal') node['finish'] = fin;
-      const om = num(el, 'overridemass', NaN);
+      const om = numTag(el, 'overridemass', NaN);
       if (!Number.isNaN(om)) node['overrideMass'] = om;
-      const ocg = num(el, 'overridecg', NaN);
+      const ocg = numTag(el, 'overridecg', NaN);
       if (!Number.isNaN(ocg)) node['overrideCGX'] = ocg;
-      const ocd = num(el, 'overridecd', NaN);
+      const ocd = numTag(el, 'overridecd', NaN);
       if (!Number.isNaN(ocd)) node['overrideCD'] = ocd;
       // "Override for all subcomponents": per-quantity flags (24.x format);
       // legacy files carry a single <overridesubcomponents> covering all.
@@ -224,39 +224,39 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
     switch (tag) {
       case 'nosecone': {
         const n = base('nosecone', false);
-        n['length'] = num(el, 'length', 0.07);
-        n['aftRadius'] = num(el, 'aftradius', 0.012);
+        n['length'] = numTag(el, 'length', 0.07);
+        n['aftRadius'] = numTag(el, 'aftradius', 0.012);
         // Desktop writes <thickness>filled</thickness> for solid components.
         if (text(el, ':scope > thickness') === 'filled') {
           n['filled'] = true;
         } else {
-          n['thickness'] = num(el, 'thickness', 0.002);
+          n['thickness'] = numTag(el, 'thickness', 0.002);
         }
         n['shape'] = text(el, ':scope > shape') ?? 'ogive';
-        n['shapeParameter'] = num(el, 'shapeparameter', shapeParamDefault(String(n['shape'])));
-        const shR = num(el, 'aftshoulderradius', 0);
-        const shL = num(el, 'aftshoulderlength', 0);
+        n['shapeParameter'] = numTag(el, 'shapeparameter', shapeParamDefault(String(n['shape'])));
+        const shR = numTag(el, 'aftshoulderradius', 0);
+        const shL = numTag(el, 'aftshoulderlength', 0);
         if (shR > 0) n['shoulderRadius'] = shR;
         if (shL > 0) n['shoulderLength'] = shL;
-        const shT = num(el, 'aftshoulderthickness', 0);
+        const shT = numTag(el, 'aftshoulderthickness', 0);
         if (shT > 0) n['shoulderThickness'] = shT;
         if (text(el, ':scope > aftshouldercapped') === 'true') n['shoulderCapped'] = true;
         return n;
       }
       case 'transition': {
         const n = base('transition', false);
-        n['length'] = num(el, 'length', 0.04);
-        const fore = num(el, 'foreradius', NaN);
-        const aft = num(el, 'aftradius', NaN);
+        n['length'] = numTag(el, 'length', 0.04);
+        const fore = numTag(el, 'foreradius', NaN);
+        const aft = numTag(el, 'aftradius', NaN);
         if (!Number.isNaN(fore)) n['foreRadius'] = fore;
         if (!Number.isNaN(aft)) n['aftRadius'] = aft;
         if (text(el, ':scope > thickness') === 'filled') {
           n['filled'] = true;
         } else {
-          n['thickness'] = num(el, 'thickness', 0.002);
+          n['thickness'] = numTag(el, 'thickness', 0.002);
         }
         n['shape'] = text(el, ':scope > shape') ?? 'conical';
-        n['shapeParameter'] = num(el, 'shapeparameter', shapeParamDefault(String(n['shape'])));
+        n['shapeParameter'] = numTag(el, 'shapeparameter', shapeParamDefault(String(n['shape'])));
         // <shapeclipped>: clipped vs full profile (ellipsoid/power/haack).
         // Forwarded to the kernel bridge as 'clipped'; absent keeps the
         // kernel default (clipped, matching the desktop).
@@ -266,20 +266,20 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
           ['fore', 'foreShoulder'],
           ['aft', 'aftShoulder'],
         ] as const) {
-          const r = num(el, `${side}shoulderradius`, 0);
-          const l = num(el, `${side}shoulderlength`, 0);
+          const r = numTag(el, `${side}shoulderradius`, 0);
+          const l = numTag(el, `${side}shoulderlength`, 0);
           if (r > 0) n[`${key}Radius`] = r;
           if (l > 0) n[`${key}Length`] = l;
-          const th = num(el, `${side}shoulderthickness`, 0);
+          const th = numTag(el, `${side}shoulderthickness`, 0);
           if (th > 0) n[`${key}Thickness`] = th;
         }
         return n;
       }
       case 'bodytube': {
         const n = base('bodytube', false);
-        n['length'] = num(el, 'length', 0.3);
-        n['outerRadius'] = num(el, 'radius', 0.012);
-        n['thickness'] = num(el, 'thickness', 0.0005);
+        n['length'] = numTag(el, 'length', 0.3);
+        n['outerRadius'] = numTag(el, 'radius', 0.012);
+        n['thickness'] = numTag(el, 'thickness', 0.0005);
         readMotor(el, n);
         // Extension tag: sub-minimum flag (motor case is the airframe).
         if (text(el, ':scope > caseairframe') === 'true') n['caseAirframe'] = true;
@@ -287,13 +287,13 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
       }
       case 'trapezoidfinset': {
         const n = base('trapezoidfinset', true);
-        n['finCount'] = Math.round(num(el, 'fincount', 3));
-        n['rootChord'] = num(el, 'rootchord', 0.05);
-        n['tipChord'] = num(el, 'tipchord', 0.03);
-        n['sweep'] = num(el, 'sweeplength', 0.02);
-        n['height'] = num(el, 'height', 0.03);
-        n['thickness'] = num(el, 'thickness', 0.003);
-        const cantDeg = num(el, 'cant', 0);
+        n['finCount'] = Math.round(numTag(el, 'fincount', 3));
+        n['rootChord'] = numTag(el, 'rootchord', 0.05);
+        n['tipChord'] = numTag(el, 'tipchord', 0.03);
+        n['sweep'] = numTag(el, 'sweeplength', 0.02);
+        n['height'] = numTag(el, 'height', 0.03);
+        n['thickness'] = numTag(el, 'thickness', 0.003);
+        const cantDeg = numTag(el, 'cant', 0);
         if (cantDeg !== 0) n['cant'] = (cantDeg * Math.PI) / 180;
         const cs = text(el, ':scope > crosssection');
         if (cs && cs !== 'square') n['crossSection'] = cs;
@@ -304,9 +304,9 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
       }
       case 'freeformfinset': {
         const n = base('freeformfinset', true);
-        n['finCount'] = Math.round(num(el, 'fincount', 3));
-        n['thickness'] = num(el, 'thickness', 0.003);
-        const cantDegF = num(el, 'cant', 0);
+        n['finCount'] = Math.round(numTag(el, 'fincount', 3));
+        n['thickness'] = numTag(el, 'thickness', 0.003);
+        const cantDegF = numTag(el, 'cant', 0);
         if (cantDegF !== 0) n['cant'] = (cantDegF * Math.PI) / 180;
         const csF = text(el, ':scope > crosssection');
         if (csF && csF !== 'square') n['crossSection'] = csF;
@@ -325,11 +325,11 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
       }
       case 'ellipticalfinset': {
         const n = base('ellipticalfinset', true);
-        n['finCount'] = Math.round(num(el, 'fincount', 3));
-        n['rootChord'] = num(el, 'rootchord', 0.05);
-        n['height'] = num(el, 'height', 0.03);
-        n['thickness'] = num(el, 'thickness', 0.003);
-        const cantDegE = num(el, 'cant', 0);
+        n['finCount'] = Math.round(numTag(el, 'fincount', 3));
+        n['rootChord'] = numTag(el, 'rootchord', 0.05);
+        n['height'] = numTag(el, 'height', 0.03);
+        n['thickness'] = numTag(el, 'thickness', 0.003);
+        const cantDegE = numTag(el, 'cant', 0);
         if (cantDegE !== 0) n['cant'] = (cantDegE * Math.PI) / 180;
         const csE = text(el, ':scope > crosssection');
         if (csE && csE !== 'square') n['crossSection'] = csE;
@@ -340,26 +340,26 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
       }
       case 'tubefinset': {
         const n = base('tubefinset', true);
-        n['finCount'] = Math.round(num(el, 'fincount', 6));
-        n['length'] = num(el, 'length', 0.1);
-        const r = num(el, 'radius', NaN);
+        n['finCount'] = Math.round(numTag(el, 'fincount', 6));
+        n['length'] = numTag(el, 'length', 0.1);
+        const r = numTag(el, 'radius', NaN);
         if (!Number.isNaN(r)) n['outerRadius'] = r;
-        const th = num(el, 'thickness', NaN);
+        const th = numTag(el, 'thickness', NaN);
         if (!Number.isNaN(th)) n['thickness'] = th;
         readFinRotation(el, n);
         return n;
       }
       case 'innertube': {
         const n = base('innertube', true);
-        n['length'] = num(el, 'length', 0.07);
-        n['outerRadius'] = num(el, 'outerradius', 0.0095);
-        n['thickness'] = num(el, 'thickness', 0.0005);
+        n['length'] = numTag(el, 'length', 0.07);
+        n['outerRadius'] = numTag(el, 'outerradius', 0.0095);
+        n['thickness'] = numTag(el, 'thickness', 0.0005);
         // Cluster (desktop stores rotation in DEGREES; we keep radians).
         const cluster = text(el, ':scope > clusterconfiguration');
         if (cluster && cluster !== 'single') {
           n['cluster'] = cluster;
-          n['clusterScale'] = num(el, 'clusterscale', 1);
-          n['clusterRotation'] = (num(el, 'clusterrotation', 0) * Math.PI) / 180;
+          n['clusterScale'] = numTag(el, 'clusterscale', 1);
+          n['clusterRotation'] = (numTag(el, 'clusterrotation', 0) * Math.PI) / 180;
         }
         // Off-axis / split-cluster offset: desktop splits a cluster into single
         // tubes, each carrying its position as <radialposition> (metres) +
@@ -368,52 +368,52 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         // clean. Previously neither was read and the writer hard-wrote 0.0, so
         // every off-centre tube collapsed onto the centreline and the next save
         // made it permanent.
-        const radPos = num(el, 'radialposition', 0);
+        const radPos = numTag(el, 'radialposition', 0);
         if (radPos !== 0) n['radialPosition'] = radPos;
-        const radDir = num(el, 'radialdirection', 0);
+        const radDir = numTag(el, 'radialdirection', 0);
         if (radDir !== 0) n['radialDirection'] = (radDir * Math.PI) / 180;
         // Our extension tag: the mount's physical motor-length limit.
-        const mml = num(el, 'maxmotorlength', 0);
+        const mml = numTag(el, 'maxmotorlength', 0);
         if (mml > 0) n['maxMotorLength'] = mml;
         readMotor(el, n);
         return n;
       }
       case 'tubecoupler': {
         const n = base('tubecoupler', true);
-        n['length'] = num(el, 'length', 0.05);
-        n['thickness'] = num(el, 'thickness', 0.0005);
+        n['length'] = numTag(el, 'length', 0.05);
+        n['thickness'] = numTag(el, 'thickness', 0.0005);
         return n;
       }
       case 'centeringring': {
         const n = base('centeringring', true);
-        n['length'] = num(el, 'length', 0.002);
+        n['length'] = numTag(el, 'length', 0.002);
         readInstances(el, n);
         return n;
       }
       case 'bulkhead': {
         const n = base('bulkhead', true);
-        n['length'] = num(el, 'length', 0.003);
+        n['length'] = numTag(el, 'length', 0.003);
         readInstances(el, n);
         return n;
       }
       case 'engineblock': {
         const n = base('engineblock', true);
-        n['length'] = num(el, 'length', 0.005);
-        n['thickness'] = num(el, 'thickness', 0.001);
+        n['length'] = numTag(el, 'length', 0.005);
+        n['thickness'] = numTag(el, 'thickness', 0.001);
         return n;
       }
       case 'launchlug': {
         const n = base('launchlug', true);
-        n['length'] = num(el, 'length', 0.05);
-        n['outerRadius'] = num(el, 'radius', 0.0022);
-        n['thickness'] = num(el, 'thickness', 0.0003);
+        n['length'] = numTag(el, 'length', 0.05);
+        n['outerRadius'] = numTag(el, 'radius', 0.0022);
+        n['thickness'] = numTag(el, 'thickness', 0.0003);
         n['angleOffset'] = readAngleAroundBody(el);
         readInstances(el, n);
         return n;
       }
       case 'railbutton': {
         const n = base('railbutton', true);
-        n['outerDiameter'] = num(el, 'outerdiameter', 0.0097);
+        n['outerDiameter'] = numTag(el, 'outerdiameter', 0.0097);
         n['angleOffset'] = readAngleAroundBody(el);
         readInstances(el, n);
         return n;
@@ -422,22 +422,22 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
       // the unknown element and skips it.
       case 'fairing': {
         const n = base('fairing', true);
-        n['length'] = num(el, 'length', 0.08);
-        n['width'] = num(el, 'width', 0.025);
-        n['height'] = num(el, 'height', 0.02);
+        n['length'] = numTag(el, 'length', 0.08);
+        n['width'] = numTag(el, 'width', 0.025);
+        n['height'] = numTag(el, 'height', 0.02);
         const fs = text(el, ':scope > fairingshape');
         if (fs) n['fairingShape'] = fs;
-        n['mass'] = num(el, 'mass', 0.03);
+        n['mass'] = numTag(el, 'mass', 0.03);
         return n;
       }
       case 'parachute': {
         const n = base('parachute', true);
-        n['length'] = num(el, 'packedlength', 0.025);
-        n['diameter'] = num(el, 'diameter', 0.3);
+        n['length'] = numTag(el, 'packedlength', 0.025);
+        n['diameter'] = numTag(el, 'diameter', 0.3);
         const cdText = text(el, ':scope > cd');
         if (cdText && cdText !== 'auto') n['cd'] = Number(cdText);
-        n['lineCount'] = Math.round(num(el, 'linecount', 6));
-        n['lineLength'] = num(el, 'linelength', 0.3);
+        n['lineCount'] = Math.round(numTag(el, 'linecount', 6));
+        n['lineLength'] = numTag(el, 'linelength', 0.3);
         readSoftMaterial(el, n, 'surface', 'surfaceDensity', 'surfaceMaterialName');
         readSoftMaterial(el, n, 'line', 'lineDensity', 'lineMaterialName', ':scope > linematerial');
         // <deploymentconfiguration> only overrides when a config was chosen —
@@ -446,15 +446,15 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         readDeployment(el, n, chosenConfigId === null ? null : configScoped(el, 'deploymentconfiguration'));
         captureDeployments(el, n);
         // Our extension tag (desktop warns-and-ignores) — spill hole diameter.
-        const spill = num(el, 'spillholediameter', 0);
+        const spill = numTag(el, 'spillholediameter', 0);
         if (spill > 0) n['spillHoleDiameter'] = spill;
         return n;
       }
       case 'streamer': {
         const n = base('streamer', true);
-        n['length'] = num(el, 'packedlength', 0.025);
-        n['stripLength'] = num(el, 'striplength', 0.5);
-        n['stripWidth'] = num(el, 'stripwidth', 0.05);
+        n['length'] = numTag(el, 'packedlength', 0.025);
+        n['stripLength'] = numTag(el, 'striplength', 0.5);
+        n['stripWidth'] = numTag(el, 'stripwidth', 0.05);
         const cdText = text(el, ':scope > cd');
         if (cdText && cdText !== 'auto') n['cd'] = Number(cdText);
         readSoftMaterial(el, n, 'surface', 'surfaceDensity', 'surfaceMaterialName');
@@ -464,25 +464,25 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
       }
       case 'shockcord': {
         const n = base('shockcord', true);
-        n['length'] = num(el, 'packedlength', 0.025);
-        n['cordLength'] = num(el, 'cordlength', 0.3);
+        n['length'] = numTag(el, 'packedlength', 0.025);
+        n['cordLength'] = numTag(el, 'cordlength', 0.3);
         readSoftMaterial(el, n, 'line', 'lineDensity', 'lineMaterialName');
         return n;
       }
       case 'masscomponent': {
         const n = base('masscomponent', true);
-        n['mass'] = num(el, 'mass', 0.01);
-        n['length'] = num(el, 'packedlength', 0.02);
-        n['radius'] = num(el, 'packedradius', 0.005);
+        n['mass'] = numTag(el, 'mass', 0.01);
+        n['length'] = numTag(el, 'packedlength', 0.02);
+        n['radius'] = numTag(el, 'packedradius', 0.005);
         // Preserve-through: what KIND of mass this is (altimeter, payload…).
         // No mass/CG effect, but the desktop shows it and users set it there.
         const mct = text(el, ':scope > masscomponenttype');
         if (mct && mct !== 'masscomponent') n['massComponentType'] = mct;
         // Off-axis placement: <radialposition> (m) + <radialdirection> (deg → rad),
         // only kept when non-zero so a centred mass stays clean.
-        const radPos = num(el, 'radialposition', 0);
+        const radPos = numTag(el, 'radialposition', 0);
         if (radPos !== 0) n['radialPosition'] = radPos;
-        const radDir = num(el, 'radialdirection', 0);
+        const radDir = numTag(el, 'radialdirection', 0);
         if (radDir !== 0) n['radialDirection'] = (radDir * Math.PI) / 180;
         return n;
       }
@@ -495,7 +495,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
       case 'boosterset': {
         const asmType: ComponentType = tag === 'podset' ? 'podset' : 'parallelstage';
         const n = base(asmType, true); // name + overrides + axialoffset/position
-        n['instanceCount'] = Math.round(num(el, 'instancecount', asmType === 'podset' ? 1 : 2));
+        n['instanceCount'] = Math.round(numTag(el, 'instancecount', asmType === 'podset' ? 1 : 2));
         const radEl = el.querySelector(':scope > radiusoffset');
         if (radEl) {
           const rv = Number(radEl.textContent?.trim());
@@ -518,9 +518,9 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
           const sepEl = configScoped(el, 'separationconfiguration') ?? el;
           const ev = text(sepEl, ':scope > separationevent');
           if (ev && ev !== 'ejection') n['separationEvent'] = ev;
-          const delay = num(sepEl, 'separationdelay', 0);
+          const delay = numTag(sepEl, 'separationdelay', 0);
           if (delay !== 0) n['separationDelay'] = delay;
-          const alt = num(sepEl, 'separationaltitude', NaN);
+          const alt = numTag(sepEl, 'separationaltitude', NaN);
           if (!Number.isNaN(alt) && alt !== 200) n['separationAltitude'] = alt;
         }
         return n;
@@ -559,7 +559,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
       name: text(stageEl, ':scope > name') ?? (i === 0 ? 'Sustainer' : `Booster ${i}`),
     };
     // RASAero power-on base-drag input (metres) — every stage, incl. sustainer.
-    const nozzle = num(stageEl, 'nozzleexitdiameter', NaN);
+    const nozzle = numTag(stageEl, 'nozzleexitdiameter', NaN);
     if (!Number.isNaN(nozzle) && nozzle > 0) stage['nozzleExitDiameter'] = nozzle;
     if (i > 0) {
       // Like ignition: the chosen config's block overrides the bare defaults
@@ -567,9 +567,9 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
       const sepEl = configScoped(stageEl, 'separationconfiguration') ?? stageEl;
       const ev = text(sepEl, ':scope > separationevent');
       if (ev && ev !== 'ejection') stage['separationEvent'] = ev;
-      const delay = num(sepEl, 'separationdelay', 0);
+      const delay = numTag(sepEl, 'separationdelay', 0);
       if (delay !== 0) stage['separationDelay'] = delay;
-      const alt = num(sepEl, 'separationaltitude', NaN);
+      const alt = numTag(sepEl, 'separationaltitude', NaN);
       if (!Number.isNaN(alt) && alt !== 200) stage['separationAltitude'] = alt;
     }
     const kids = convertChildren(stageEl);
@@ -686,9 +686,9 @@ function readLaunchConditions(doc: Document): Partial<LaunchConditions> | undefi
   if (!condEl) return undefined;
   const launch: Partial<LaunchConditions> = {};
 
-  const rodLen = num(condEl, 'launchrodlength', NaN);
+  const rodLen = numTag(condEl, 'launchrodlength', NaN);
   if (!Number.isNaN(rodLen)) launch.launchRodLengthM = rodLen;
-  const rodAngle = num(condEl, 'launchrodangle', NaN);
+  const rodAngle = numTag(condEl, 'launchrodangle', NaN);
   if (!Number.isNaN(rodAngle)) launch.launchRodAngleDeg = rodAngle;
 
   const windEls = Array.from(condEl.querySelectorAll(':scope > wind'));
@@ -697,17 +697,17 @@ function readLaunchConditions(doc: Document): Partial<LaunchConditions> | undefi
   // Average wind: modern <wind model="average"> (speed/direction/standarddeviation)
   // or the ≤23.09 legacy <windaverage>/<windturbulence>/<winddirection> trio.
   const avgEl = windEls.find((w) => w.getAttribute('model') === 'average');
-  let avg = avgEl ? num(avgEl, 'speed', NaN) : NaN;
-  if (Number.isNaN(avg)) avg = num(condEl, 'windaverage', NaN);
+  let avg = avgEl ? numTag(avgEl, 'speed', NaN) : NaN;
+  if (Number.isNaN(avg)) avg = numTag(condEl, 'windaverage', NaN);
   if (!Number.isNaN(avg)) launch.windAverage = avg;
-  let sd = avgEl ? num(avgEl, 'standarddeviation', NaN) : NaN;
+  let sd = avgEl ? numTag(avgEl, 'standarddeviation', NaN) : NaN;
   if (Number.isNaN(sd)) {
-    const turb = num(condEl, 'windturbulence', NaN);
+    const turb = numTag(condEl, 'windturbulence', NaN);
     if (!Number.isNaN(turb) && !Number.isNaN(avg)) sd = turb * avg;
   }
   if (!Number.isNaN(sd)) launch.windStdDev = sd;
-  let dirRad = avgEl ? num(avgEl, 'direction', NaN) : NaN;
-  if (Number.isNaN(dirRad)) dirRad = num(condEl, 'winddirection', NaN);
+  let dirRad = avgEl ? numTag(avgEl, 'direction', NaN) : NaN;
+  if (Number.isNaN(dirRad)) dirRad = numTag(condEl, 'winddirection', NaN);
   if (!Number.isNaN(dirRad)) launch.windDirectionDeg = (dirRad * 180) / Math.PI;
 
   // Multilevel wind (24.x): <wind model="multilevel"><windlevel altitude speed
@@ -723,9 +723,9 @@ function readLaunchConditions(doc: Document): Partial<LaunchConditions> | undefi
     if (levels.length) launch.windLevels = levels;
   }
 
-  const alt = num(condEl, 'launchaltitude', NaN);
+  const alt = numTag(condEl, 'launchaltitude', NaN);
   if (!Number.isNaN(alt)) launch.launchAltitudeM = alt;
-  const lat = num(condEl, 'launchlatitude', NaN);
+  const lat = numTag(condEl, 'launchlatitude', NaN);
   if (!Number.isNaN(lat)) launch.latitudeDeg = lat;
 
   const atmEl = condEl.querySelector(':scope > atmosphere');
@@ -735,9 +735,9 @@ function readLaunchConditions(doc: Document): Partial<LaunchConditions> | undefi
       launch.temperatureC = null;
       launch.pressureHPa = null;
     } else {
-      const tK = num(atmEl, 'basetemperature', NaN);
+      const tK = numTag(atmEl, 'basetemperature', NaN);
       if (!Number.isNaN(tK)) launch.temperatureC = tK - 273.15;
-      const pPa = num(atmEl, 'basepressure', NaN);
+      const pPa = numTag(atmEl, 'basepressure', NaN);
       if (!Number.isNaN(pPa)) launch.pressureHPa = pPa / 100;
     }
   }
@@ -750,7 +750,10 @@ function readLaunchConditions(doc: Document): Partial<LaunchConditions> | undefi
 
 // ============================ helpers ============================
 
-function num(el: Element, tag: string, fallback: number): number {
+/** Read a numeric child `<tag>` of an .ork element, or `fallback` when it's
+ *  absent / non-finite. Not the tree-node reader (`nodeProps.num`): this parses
+ *  XML text, including the "auto 0.012" flag+value form OpenRocket writes. */
+function numTag(el: Element, tag: string, fallback: number): number {
   const t = text(el, `:scope > ${tag}`);
   // Values like "auto 0.012" carry an automatic flag + last value.
   const v = t ? Number(t.split(/\s+/).pop()) : NaN;
@@ -811,9 +814,9 @@ function readSoftMaterial(
  * says so rather than letting the difference stay silent.
  */
 function readInstances(el: Element, node: ComponentNode): void {
-  const count = Math.round(num(el, 'instancecount', 1));
+  const count = Math.round(numTag(el, 'instancecount', 1));
   if (count > 1) node['instanceCount'] = count;
-  const sep = num(el, 'instanceseparation', 0);
+  const sep = numTag(el, 'instanceseparation', 0);
   if (sep !== 0) node['instanceSeparation'] = sep;
 }
 
@@ -821,19 +824,19 @@ function readInstances(el: Element, node: ComponentNode): void {
  *  it as <angleoffset> (degrees), older files as <radialdirection>; the kernel
  *  default is 180°. Stored in radians to match the tree/renderers. */
 function readAngleAroundBody(el: Element): number {
-  const a = num(el, 'angleoffset', NaN);
-  const deg = Number.isFinite(a) ? a : num(el, 'radialdirection', 180);
+  const a = numTag(el, 'angleoffset', NaN);
+  const deg = Number.isFinite(a) ? a : numTag(el, 'radialdirection', 180);
   return (deg * Math.PI) / 180;
 }
 
 function readAirfoil(el: Element, node: ComponentNode): void {
   const section = text(el, ':scope > airfoilsection');
   if (section) node['airfoilSection'] = section;
-  const led = num(el, 'airfoillediamond', 0);
+  const led = numTag(el, 'airfoillediamond', 0);
   if (led > 0) node['airfoilLeDiamond'] = led;
-  const ted = num(el, 'airfoiltediamond', 0);
+  const ted = numTag(el, 'airfoiltediamond', 0);
   if (ted > 0) node['airfoilTeDiamond'] = ted;
-  const ler = num(el, 'finleradius', 0);
+  const ler = numTag(el, 'finleradius', 0);
   if (ler > 0) node['finLeRadius'] = ler;
   readFillet(el, node);
 }
@@ -850,7 +853,7 @@ function readAirfoil(el: Element, node: ComponentNode): void {
  * destruction; the mass still is not counted, which the import note says.
  */
 function readFillet(el: Element, node: ComponentNode): void {
-  const r = num(el, 'filletradius', 0);
+  const r = numTag(el, 'filletradius', 0);
   if (!(r > 0)) return;
   node['filletRadius'] = r;
   const m = el.querySelector(':scope > filletmaterial');
@@ -865,13 +868,13 @@ function readFillet(el: Element, node: ComponentNode): void {
 
 /** Fin-set rotation about the body axis (.ork stores DEGREES; we keep rad). */
 function readFinRotation(el: Element, node: ComponentNode): void {
-  const deg = num(el, 'rotation', 0);
+  const deg = numTag(el, 'rotation', 0);
   if (deg !== 0) node['rotation'] = (deg * Math.PI) / 180;
 }
 
 function readFinTabs(el: Element, node: ComponentNode): void {
-  const h = num(el, 'tabheight', 0);
-  const len = num(el, 'tablength', 0);
+  const h = numTag(el, 'tabheight', 0);
+  const len = numTag(el, 'tablength', 0);
   if (h <= 0 || len <= 0) return;
   node['tabHeight'] = h;
   node['tabLength'] = len;
@@ -898,10 +901,10 @@ function readDeployment(el: Element, node: ComponentNode, configEl: Element | nu
     const event = text(src, ':scope > deployevent');
     if (event) node['deployEvent'] = event;
     if (text(src, ':scope > deployaltitude') !== null) {
-      node['deployAltitude'] = num(src, 'deployaltitude', 200);
+      node['deployAltitude'] = numTag(src, 'deployaltitude', 200);
     }
     if (text(src, ':scope > deploydelay') !== null) {
-      node['deployDelay'] = num(src, 'deploydelay', 0);
+      node['deployDelay'] = numTag(src, 'deploydelay', 0);
     }
   }
 }

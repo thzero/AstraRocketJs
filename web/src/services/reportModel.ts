@@ -1,4 +1,4 @@
-import type { ComponentNode, StaticInfo } from '../engine/openRocketEngine';
+import type { ComponentNode, OpenRocketDesign, StaticInfo } from '../engine/openRocketEngine';
 import { useWorkspaceStore, selectActive } from '../state/store';
 import { buildConfiguredRocket } from './buildRocket';
 import { motorStats, type MotorStats } from './rocketReport';
@@ -92,6 +92,37 @@ export function stageParts(stage: ComponentNode, rocket: { componentInfo: (id: s
   return rows;
 }
 
+/** One full engine build: its static info plus the live handle to install. */
+interface Built {
+  info: StaticInfo;
+  handle: OpenRocketDesign;
+}
+
+/**
+ * One static-info summary per stage for a multi-stage rocket. Each per-stage
+ * build resets the shared engine, so the whole-rocket handle is rebuilt and
+ * reinstalled afterwards — in a `finally`, so a stage that fails to build can't
+ * leave the app's live 3D/stability handle stranded on the last stage built.
+ *
+ * The engine work is injected so this stays testable without the real engine:
+ * `buildStage` builds an isolated rocket from one stage and returns its static
+ * info, `buildWhole` rebuilds the full rocket, and `restore` installs that final
+ * build as the live handle.
+ */
+export function multiStageSummaries(
+  stages: ComponentNode[],
+  stageName: (st: ComponentNode, i: number) => string,
+  buildStage: (st: ComponentNode) => StaticInfo,
+  buildWhole: () => Built,
+  restore: (built: Built) => void,
+): Summary[] {
+  try {
+    return stages.map((st, i) => ({ label: stageName(st, i), info: buildStage(st) }));
+  } finally {
+    restore(buildWhole());
+  }
+}
+
 /** Assemble the report from the live design + simulations (synchronous engine work). */
 export function assembleReport(): ReportModel | null {
   const s = useWorkspaceStore.getState();
@@ -118,13 +149,21 @@ export function assembleReport(): ReportModel | null {
 
   // One summary per stage. A single-stage rocket's stage IS the whole rocket, so
   // reuse its info (no rebuild). Multiple stages build each alone — those builds
-  // reset the engine, so restore the app's live handle afterwards.
+  // reset the engine, so the app's live handle is rebuilt and restored (in a
+  // finally, see multiStageSummaries) even if a stage build throws.
   let stageSummaries: Summary[];
   if (stages.length > 1) {
     const active = selectActive(s);
-    stageSummaries = stages.map((st, i) => ({ label: stageName(st, i), info: buildConfiguredRocket({ name, components: [st] } as never, active.motor, s.extraMotors).staticInfo() }));
-    const main = buildConfiguredRocket(tree, active.motor, s.extraMotors);
-    s.applyBuild(main.staticInfo(), main);
+    stageSummaries = multiStageSummaries(
+      stages,
+      stageName,
+      (st) => buildConfiguredRocket({ name, components: [st] } as never, active.motor, s.extraMotors).staticInfo(),
+      () => {
+        const main = buildConfiguredRocket(tree, active.motor, s.extraMotors);
+        return { info: main.staticInfo(), handle: main };
+      },
+      (built) => s.applyBuild(built.info, built.handle),
+    );
   } else {
     stageSummaries = stageList.map((st, i) => ({ label: stageName(st, i), info }));
   }

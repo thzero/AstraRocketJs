@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive } from './store';
 import { getWorkspaceStore } from '../services/workspaceStore';
-import { buildConfiguredRocket } from '../services/buildRocket';
+import { computeStaticInfo } from '../services/buildRocket';
 import { warmSimWorker } from '../engine/simClient';
 import { appName } from '../services/appInfo';
 
@@ -97,22 +97,14 @@ export function useWorkspaceEffects() {
   // primary mount takes the active sim's `motor`; other mounts take their imports.
   useEffect(() => {
     if (!ready) return; // wait for hydration so we build the real design once, not the default first
-    try {
-      const r = buildConfiguredRocket(tree, motor, extraMotors, { event: ignitionEvent, delay: ignitionDelay });
-      const info = r.staticInfo();
-      // Surface the coast drag coefficient at Mach 0.3 (a geometry property, not
-      // in the static JSON) via a single-point drag sweep. Best-effort: a design
-      // the sweep can't evaluate just leaves cd undefined.
-      try {
-        info.cd = r.dragSweep({ machMin: 0.3, machMax: 0.3, machStep: 0.05 }).powerOff.total[0];
-      } catch {
-        /* leave cd undefined */
-      }
-      useWorkspaceStore.getState().applyBuild(info, r);
-      useWorkspaceStore.getState().setErr(null);
-    } catch (e) {
-      useWorkspaceStore.getState().applyBuild(null, null);
-      useWorkspaceStore.getState().setErr(e instanceof Error ? e.message : String(e));
+    const store = useWorkspaceStore.getState();
+    const res = computeStaticInfo(tree, motor, extraMotors, { event: ignitionEvent, delay: ignitionDelay });
+    if ('error' in res) {
+      store.applyBuild(null, null);
+      store.setErr(res.error);
+    } else {
+      store.applyBuild(res.info, res.rocket);
+      store.setErr(null);
     }
   }, [ready, tree, motor, extraMotors, ignitionEvent, ignitionDelay]);
 

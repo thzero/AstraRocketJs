@@ -15,6 +15,8 @@ import { reconcileMounts } from '../services/mountMotors';
 import type { LaunchConditions } from '../services/orkTree';
 import type { OrkExportMotor } from '../services/orkFile';
 import type { MountMotor } from '../services/loadOrk';
+import { buildExportMotorMap } from '../services/exportMotors';
+import { wireLoadedOrk } from '../services/wireLoadedOrk';
 import { newSimulation, simConditions, type Simulation, type SimPrefs } from '../services/simulations';
 import { simulateInWorker, SimTimeoutError } from '../engine/simClient';
 import { loadSettings } from '../services/settings';
@@ -467,24 +469,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const bytes = await file.arrayBuffer();
         const { loadOrk } = await import('../services/loadOrk');
         const res = await loadOrk(bytes);
-        // The primary mount's motor drives the Motor panel; the rest ride along in extraMotors.
-        const primary = findMountId(res.tree);
-        const extra = { ...res.motorSpecs };
-        const primaryMount = primary ? extra[primary] : undefined;
-        const primaryMotor = primaryMount ? primaryMount.spec : C6;
-        if (primary && extra[primary]) delete extra[primary];
-        // Carry the primary mount's ignition (event + delay) onto the sim — it
-        // lives on the Simulation, not in extraMotors like the other mounts.
-        const sim0 = {
-          ...newSimulation(res.name, primaryMotor, { ...loadSettings().launchDefaults, ...res.launch }),
-          ignitionEvent: primaryMount?.ignitionEvent,
-          ignitionDelay: primaryMount?.ignitionDelay,
-        };
+        const { tree, extraMotors, sim0, loadedMeta } = wireLoadedOrk(res, loadSettings().launchDefaults);
         clearHistory(); // a loaded design is a fresh document — nothing to undo across the load
         set({
-          tree: res.tree,
-          extraMotors: reconcileMounts(res.tree, extra),
-          loadedMeta: { name: res.name, notes: res.notes, exportMotors: res.motors },
+          tree,
+          extraMotors,
+          loadedMeta,
           sims: [sim0],
           activeId: sim0.id,
           selectedId: null,
@@ -522,32 +512,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       try {
         const { tree, extraMotors, loadedMeta } = get();
         const active = selectActive(get());
-        const motor = active.motor;
-        const mountId = findMountId(tree);
-        const base = loadedMeta?.exportMotors ?? {};
-        const motors: Record<string, OrkExportMotor> = {};
-        if (mountId)
-          motors[mountId] = {
-            ...base[mountId],
-            designation: motor.designation,
-            diameter: motor.diameter,
-            length: motor.length,
-            delay: motor.ejectionDelay,
-            ignitionEvent: active.ignitionEvent,
-            ignitionDelay: active.ignitionDelay,
-          };
-        for (const [id, m] of Object.entries(extraMotors)) {
-          if (id === mountId || !findNode(tree, id)) continue; // primary is exported above; skip its (ignored) entry + gone mounts
-          motors[id] = {
-            ...base[id],
-            designation: m.spec.designation,
-            diameter: m.spec.diameter,
-            length: m.spec.length,
-            delay: m.spec.ejectionDelay,
-            ignitionEvent: m.ignitionEvent,
-            ignitionDelay: m.ignitionDelay,
-          };
-        }
+        const motors = buildExportMotorMap(
+          tree,
+          { motor: active.motor, ignitionEvent: active.ignitionEvent, ignitionDelay: active.ignitionDelay },
+          extraMotors,
+          loadedMeta?.exportMotors ?? {},
+        );
         // The .ork writer is a lazily-imported chunk — only needed on save.
         const { downloadOrk } = await import('../services/saveOrk');
         downloadOrk({
@@ -564,34 +534,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       try {
         const { tree, extraMotors, loadedMeta, info } = get();
         const active = selectActive(get());
-        const motor = active.motor;
-        const mountId = findMountId(tree);
-        const base = loadedMeta?.exportMotors ?? {};
         // Same motor map the .ork exporter builds — OrkExportMotor satisfies the
         // CDX1 engine-string writer's Cdx1ExportEngine verbatim.
-        const motors: Record<string, OrkExportMotor> = {};
-        if (mountId)
-          motors[mountId] = {
-            ...base[mountId],
-            designation: motor.designation,
-            diameter: motor.diameter,
-            length: motor.length,
-            delay: motor.ejectionDelay,
-            ignitionEvent: active.ignitionEvent,
-            ignitionDelay: active.ignitionDelay,
-          };
-        for (const [id, m] of Object.entries(extraMotors)) {
-          if (id === mountId || !findNode(tree, id)) continue;
-          motors[id] = {
-            ...base[id],
-            designation: m.spec.designation,
-            diameter: m.spec.diameter,
-            length: m.spec.length,
-            delay: m.spec.ejectionDelay,
-            ignitionEvent: m.ignitionEvent,
-            ignitionDelay: m.ignitionDelay,
-          };
-        }
+        const motors = buildExportMotorMap(
+          tree,
+          { motor: active.motor, ignitionEvent: active.ignitionEvent, ignitionDelay: active.ignitionDelay },
+          extraMotors,
+          loadedMeta?.exportMotors ?? {},
+        );
         // The RASAero writer is a lazily-imported chunk — only needed on export.
         const { downloadCdx1 } = await import('../services/rasaeroExport');
         downloadCdx1({

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import type { ComponentNode } from '../engine/openRocketEngine';
-import { stageParts, finSetPositions } from './reportModel';
+import type { ComponentNode, StaticInfo } from '../engine/openRocketEngine';
+import { stageParts, finSetPositions, multiStageSummaries } from './reportModel';
 
 const node = (o: object): ComponentNode => o as unknown as ComponentNode;
 
@@ -78,5 +78,46 @@ describe('finSetPositions', () => {
       ],
     });
     expect(finSetPositions(s, rocket)).toHaveLength(0);
+  });
+});
+
+describe('multiStageSummaries', () => {
+  const stages = [node({ type: 'stage', name: 'A' }), node({ type: 'stage', name: 'B' })];
+  const stageName = (st: ComponentNode, i: number) => (st.name as string) || `Stage ${i + 1}`;
+  const info = (mass: number) => ({ mass } as unknown as StaticInfo);
+  // The rebuilt whole-rocket handle the app should end up holding after the report.
+  const whole = { info: info(99), handle: {} as never };
+
+  it('returns one summary per stage and restores the whole-rocket handle once', () => {
+    const restored: unknown[] = [];
+    const out = multiStageSummaries(
+      stages,
+      stageName,
+      (st) => info(st.name === 'A' ? 1 : 2),
+      () => whole,
+      (b) => restored.push(b),
+    );
+    expect(out.map((sm) => sm.label)).toEqual(['A', 'B']);
+    expect(out.map((sm) => (sm.info as unknown as { mass: number }).mass)).toEqual([1, 2]);
+    expect(restored).toEqual([whole]); // live handle restored exactly once
+  });
+
+  it('still restores the live handle when a stage build throws (finally)', () => {
+    const restored: unknown[] = [];
+    expect(() =>
+      multiStageSummaries(
+        stages,
+        stageName,
+        (st) => {
+          if (st.name === 'B') throw new Error('bad stage');
+          return info(1);
+        },
+        () => whole,
+        (b) => restored.push(b),
+      ),
+    ).toThrow(/bad stage/);
+    // The regression this refactor fixes: without the finally, a throwing stage
+    // build would leave the app's live handle stranded on the last stage.
+    expect(restored).toEqual([whole]);
   });
 });

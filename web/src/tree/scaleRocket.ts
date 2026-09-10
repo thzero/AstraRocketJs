@@ -1,4 +1,5 @@
 import type { ComponentNode, ComponentPosition, RocketTree } from '../engine/openRocketEngine';
+import { numOpt } from './nodeProps';
 
 /**
  * Scale a whole rocket by one factor — the "upscale/downscale a plan" workflow.
@@ -25,9 +26,6 @@ import type { ComponentNode, ComponentPosition, RocketTree } from '../engine/ope
  * goes as k³, a canopy/streamer as k² (surface), a shock cord as k (line). A
  * design carrying recovery gear is therefore not exactly similar after scaling.
  */
-
-const num = (n: ComponentNode, key: string): number | null =>
-  typeof n[key] === 'number' && Number.isFinite(n[key] as number) ? (n[key] as number) : null;
 
 /** Length-valued keys per component type. Present-only, multiplied by k. */
 const LENGTH_KEYS: Record<string, readonly string[]> = {
@@ -101,8 +99,8 @@ function scaleNode(n: ComponentNode, k: number): ComponentNode {
   const out: ComponentNode = { ...n };
 
   for (const key of LENGTH_KEYS[type] ?? []) {
-    const v = num(n, key);
-    if (v !== null) out[key] = round(v * k);
+    const v = numOpt(n, key);
+    if (v !== undefined) out[key] = round(v * k);
   }
 
   // A freeform fin's planform lives entirely in `points` — [x along the body,
@@ -121,12 +119,12 @@ function scaleNode(n: ComponentNode, k: number): ComponentNode {
   if (!fixed) {
     const exp = MASS_EXPONENT[type] ?? 3;
     for (const key of MASS_KEYS) {
-      const v = num(n, key);
-      if (v !== null) out[key] = round(v * k ** exp, 15);
+      const v = numOpt(n, key);
+      if (v !== undefined) out[key] = round(v * k ** exp, 15);
     }
     // An override CG is a station from the component's own front — a length.
-    const cg = num(n, 'overrideCGX');
-    if (cg !== null) out['overrideCGX'] = round(cg * k);
+    const cg = numOpt(n, 'overrideCGX');
+    if (cg !== undefined) out['overrideCGX'] = round(cg * k);
   }
 
   // Axial placement: startFromPosition is homogeneous of degree 1 in
@@ -162,9 +160,9 @@ export function maxBodyDiameter(tree: RocketTree): number {
   const walk = (nodes: ComponentNode[]) => {
     for (const n of nodes) {
       const t = n.type as string;
-      if (t === 'bodytube') r = Math.max(r, num(n, 'outerRadius') ?? 0);
-      else if (t === 'nosecone') r = Math.max(r, num(n, 'aftRadius') ?? 0);
-      else if (t === 'transition') r = Math.max(r, num(n, 'foreRadius') ?? 0, num(n, 'aftRadius') ?? 0);
+      if (t === 'bodytube') r = Math.max(r, numOpt(n, 'outerRadius') ?? 0);
+      else if (t === 'nosecone') r = Math.max(r, numOpt(n, 'aftRadius') ?? 0);
+      else if (t === 'transition') r = Math.max(r, numOpt(n, 'foreRadius') ?? 0, numOpt(n, 'aftRadius') ?? 0);
       walk(n.children ?? []);
     }
   };
@@ -182,7 +180,7 @@ export function rocketLength(tree: RocketTree): number {
     for (const n of nodes) {
       const t = n.type as string;
       if (OFF_AXIS.has(t)) continue;
-      if (CHAIN.has(t)) total += num(n, 'length') ?? 0;
+      if (CHAIN.has(t)) total += numOpt(n, 'length') ?? 0;
       walk(n.children ?? []);
     }
   };

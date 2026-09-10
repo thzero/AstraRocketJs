@@ -1,5 +1,5 @@
 import { buildRocketTree } from '../engine/api';
-import type { IgnitionEvent, MotorSpec, OpenRocketDesign, RocketTree } from '../engine/openRocketEngine';
+import type { IgnitionEvent, MotorSpec, OpenRocketDesign, RocketTree, StaticInfo } from '../engine/openRocketEngine';
 import { findMountId, findNode } from './treeEdit';
 import type { MountMotor } from './loadOrk';
 
@@ -36,4 +36,38 @@ export function buildConfiguredRocket(
     if (m.ignitionEvent) r.setMotorIgnitionById(id, m.ignitionEvent, m.ignitionDelay ?? 0);
   }
   return r;
+}
+
+/** Static info + the live handle it was read from, or a build/read error message. */
+export type StaticInfoResult = { info: StaticInfo; rocket: OpenRocketDesign } | { error: string };
+
+/**
+ * Build the configured rocket and read its static info (CG / CP / stability),
+ * then fill in the Mach-0.3 coast drag coefficient — a geometry property absent
+ * from the static JSON — via a best-effort single-point drag sweep. This is the
+ * pure core of the rebuild effect (useWorkspaceEffects), lifted out so the app's
+ * central physics orchestration is testable and reusable: it returns the static
+ * info plus the live engine handle, or an `error` message if the build/read
+ * throws. The `build` step is injectable so tests need no real engine.
+ */
+export function computeStaticInfo(
+  tree: RocketTree,
+  motor: MotorSpec | undefined,
+  extraMotors: Record<string, MountMotor>,
+  ignition?: Ignition,
+  build: typeof buildConfiguredRocket = buildConfiguredRocket,
+): StaticInfoResult {
+  try {
+    const rocket = build(tree, motor, extraMotors, ignition);
+    const info = rocket.staticInfo();
+    // Best-effort: a design the sweep can't evaluate just leaves cd undefined.
+    try {
+      info.cd = rocket.dragSweep({ machMin: 0.3, machMax: 0.3, machStep: 0.05 }).powerOff.total[0];
+    } catch {
+      /* leave cd undefined */
+    }
+    return { info, rocket };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
 }
