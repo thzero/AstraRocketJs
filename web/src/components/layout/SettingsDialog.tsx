@@ -9,14 +9,17 @@ import { LaunchPanel } from '../sim/LaunchPanel';
 const SPEEDS = [0.25, 0.5, 1, 2, 4];
 const speedLabel = (s: number) => (s === 0.25 ? '¼×' : s === 0.5 ? '½×' : `${s}×`);
 
-type TabKey = 'parts' | 'phases' | 'playback' | 'sim' | 'launch';
+type TabKey = 'parts' | 'phases' | 'playback' | 'sketch' | 'sim' | 'launch';
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'parts', label: 'settings.tabParts' },
   { key: 'phases', label: 'settings.tabPhases' },
   { key: 'playback', label: 'settings.tabPlayback' },
+  { key: 'sketch', label: 'settings.tabSketch' },
   { key: 'sim', label: 'settings.tabSim' },
   { key: 'launch', label: 'settings.tabLaunch' },
 ];
+
+const RULER_SIDES = ['top', 'bottom', 'left', 'right'] as const;
 
 /** Settings panel — tabbed: 3D part colours, flight-path phase colours, and the
  *  default playback speed. Persisted via the SettingsProvider. */
@@ -57,6 +60,8 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
     if (tab === 'parts') update({ partColors: {} });
     else if (tab === 'phases') update({ phaseColors: DEFAULT_SETTINGS.phaseColors });
     else if (tab === 'playback') update({ playbackSpeed: DEFAULT_SETTINGS.playbackSpeed });
+    else if (tab === 'sketch')
+      update({ showMarkers: DEFAULT_SETTINGS.showMarkers, rulers: DEFAULT_SETTINGS.rulers });
     else if (tab === 'sim') update({ simulation: DEFAULT_SETTINGS.simulation });
     else update({ launchDefaults: DEFAULT_SETTINGS.launchDefaults });
   };
@@ -144,6 +149,28 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
                 ))}
               </select>
             </label>
+          )}
+
+          {tab === 'sketch' && (
+            <>
+              <p className="text-[11px] leading-snug text-slate-500">{t('settings.sketchNote')}</p>
+              <CheckRow
+                label={t('settings.sketchMarkers')}
+                checked={settings.showMarkers}
+                onChange={(v) => update({ showMarkers: v })}
+              />
+              <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                {t('settings.sketchRulers')}
+              </div>
+              {RULER_SIDES.map((side) => (
+                <CheckRow
+                  key={side}
+                  label={t(`view.ruler_${side}`)}
+                  checked={settings.rulers[side]}
+                  onChange={(v) => update({ rulers: { ...settings.rulers, [side]: v } })}
+                />
+              ))}
+            </>
           )}
 
           {tab === 'sim' && (
