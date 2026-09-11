@@ -338,7 +338,9 @@
     "exportCsv": "Download flight data (.csv)",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
-    "zoomReset": "Reset zoom"
+    "zoomReset": "Reset zoom",
+    "stages": "Stages",
+    "stage": "Stage"
   },
   "pathExport": {
     "open": "Export flight path (KML / GPX / CSV)",

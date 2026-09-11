@@ -341,7 +341,9 @@
     "exportCsv": "Descargar datos de vuelo (.csv)",
     "zoomIn": "Acercar",
     "zoomOut": "Alejar",
-    "zoomReset": "Restablecer zoom"
+    "zoomReset": "Restablecer zoom",
+    "stages": "Etapas",
+    "stage": "Etapa"
   },
   "pathExport": {
     "open": "Exportar trayectoria de vuelo (KML / GPX / CSV)",
