@@ -23,7 +23,11 @@ beforeEach(() => {
   FakeWorker.onPost = () => {}; // a hung worker: never replies
   vi.stubGlobal(
     'Worker',
-    vi.fn(() => {
+    // A regular function (not an arrow): vitest 5's spies keep the underlying
+    // implementation's (non-)constructability, and `new Worker(...)` — how the
+    // client creates it — needs a constructable stub. Returning an object from a
+    // `new` call yields that object, so each construction hands back a FakeWorker.
+    vi.fn(function () {
       const w = new FakeWorker();
       created.push(w);
       return w;

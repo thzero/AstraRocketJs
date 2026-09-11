@@ -287,6 +287,10 @@ export function solidForNode(node: ComponentNode): THREE.BufferGeometry | null {
     case 'tubefinset': {
       const R = num(node, 'outerRadius', 0.012);
       const wall = num(node, 'thickness', node.type === 'launchlug' ? 0.0003 : 0.0005);
+      // A zero/negative outer radius (or length) revolves to an empty mesh that
+      // still reads as "watertight"; return null so it's skipped from export
+      // rather than handed over as a hollow non-solid (matches nose/transition/fin).
+      if (!(R > 0) || !(len > 0)) return null;
       return discSolid(R, Math.max(0, R - wall), len);
     }
     case 'trapezoidfinset':

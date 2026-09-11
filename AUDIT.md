@@ -91,7 +91,7 @@ Legend: 🔴 security · 🟠 architecture + tooling (incl. perf) · 🟡 correc
 **LOW** | more validation | `orkImport.ts:508` uncapped recursion + `loadOrk.ts:69` no try/catch → deep nesting throws uncaught. `workspaceStore.ts:41` trusts parsed blob (+ NaN/Inf→null). `settings.ts:145` no `timeStep>0` clamp (hangs RK4). `position.ts:14` freeform `axialLength` 0/neg/NaN. `shapeProfile.ts:153` steps=0 → NaN. `cluster.ts:82` radius 0. `AftView.tsx:303` ref-write in render; `:316` magic-hex motor detection. `PropertyPanel.tsx:530` angle no max clamp. | Silent-wrong / crash-on-edge. | Guard/clamp each; explicit `motor` flag on Shape.
 
 ### A11y
-**MED** | `design/ComponentTree.tsx:150-158` | Rows are `<div onClick>` (no role/tabIndex/keydown). | Keyboard users can't select a component anywhere (canvases are also pointer-only). | Make the row a `<button>`.
+**RESOLVED** | `design/ComponentTree.tsx:150-217` | Rows are now `role="button"` with `tabIndex`/`onKeyDown` (Enter/Space to select) **plus roving-tabindex arrow navigation** (↑/↓/Home/End between rows, ←/→ collapse/expand) — the whole tree is one tab stop and keyboard-selectable. | — | Done.
 
 **MED** | `canvas/TreeSchematic.tsx:537-542` | Editing SVG is `role="img"` with children carrying onClick/onPointerDown. | `role="img"` hides the interactive subtree from AT; 2D editor inaccessible. | Drop `role="img"` for the editable view / add keyboard path.
 

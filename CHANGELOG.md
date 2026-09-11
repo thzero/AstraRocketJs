@@ -4,6 +4,21 @@ All notable changes to AstraRocketJs are recorded here. The engine is validated
 against desktop **OpenRocket** (`.ork` round-trips and its Component Analysis),
 so most entries describe getting a computation to match OpenRocket exactly.
 
+## [Unreleased]
+
+### Added
+- **Multi-stage flight charts.** The Flight tab now plots each stage of a staged flight as its own coloured line, with a stage selector to choose which to overlay. A spent booster's separate climb, descent, and landing are drawn from its own flight branch; the time axis spans every stage, and event markers and the hover readout cover all shown stages. Single-stage flights are unchanged.
+- **Keyboard navigation for the component tree.** The tree is now a single tab stop with roving focus: ↑/↓ (and Home/End) move between parts, ←/→ collapse/expand a branch, and Enter/Space select — instead of one tab stop per part with no arrow keys.
+
+### Changed
+- **Taller flight charts.** The Flight-tab chart panels are twice as tall for easier reading.
+
+### Fixed
+- **Freeform fin drawn ahead of where it flies.** A freeform fin whose tip trailing corner overhangs its root was measured to its aftmost point instead of its root chord, so a bottom-/middle-anchored fin was drawn, dragged, and snapped forward of its true station by the overhang. (The property panel and the simulation were always correct — this was a 2D-view display error.)
+
+### Accessibility
+- **Aft (head-on) view names its parts.** The aft view was marked `role="img"`, which collapsed it to a single node and hid every part name from screen readers; it's now a labelled group that still exposes each part.
+
 ## [0.0.7]
 
 ### Fixed — mass, CG & stability now match OpenRocket

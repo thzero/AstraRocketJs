@@ -17,7 +17,16 @@ export default tseslint.config(
       'react-hooks': reactHooks,
     },
     rules: {
-      ...reactHooks.configs.recommended.rules,
+      // Pin the two hook rules the project has always enforced. Do NOT spread
+      // reactHooks.configs.recommended: v7 folded the React-Compiler lint set
+      // (set-state-in-effect, refs, immutability, purity, …) into "recommended",
+      // which flags long-standing intentional patterns. Adopting those is a
+      // separate code-cleanup task, not part of a tooling bump.
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+      // New in ESLint 10's recommended set; requires `cause` on every rethrow.
+      // Deferred with the same reasoning — enable when we do the cleanup pass.
+      'preserve-caught-error': 'off',
       // tsc's noUnusedLocals/noUnusedParameters already covers unused vars in
       // src; defer to it (with the leading-underscore escape hatch) rather than
       // double-reporting.

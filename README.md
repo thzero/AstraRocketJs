@@ -12,10 +12,11 @@ The UI is **responsive**: a three-pane workbench (editor · rocket view · motor
 
 **Design & analyze**
 - Component-tree editor with **live CG / CP / stability** as you edit — calibers, % of length, **on-pad *and* rail-exit** margins, and fineness ratio.
+- **Multi-stage rockets** — add booster stages, pods, and parallel boosters, with configurable separation and upper-stage ignition (staged flights simulate as independent branches; trajectory validation vs. OpenRocket is in progress).
 - **2D schematic** with drag-to-measure **calipers**, length + cross-section rulers, zoom/pan, spin (roll), and an aft (head-on) view.
 - **3D model** view, plus a **3D flight path** after a simulation. CG/CP markers and a length·mass·CG·CP·stability card can be toggled on either view.
 - **Aerodynamics view**: Cd vs Mach, drag breakdown (friction / pressure / base), and CP vs Mach.
-- **Flight charts**: altitude, velocity, acceleration, Mach, thrust, mass, drag, and stability over time.
+- **Flight charts**: altitude, velocity, acceleration, Mach, thrust, mass, drag, and stability over time — with per-stage trajectory overlays for staged flights.
 
 **Data & I/O**
 - **Full `.ork` support** — open and save round-trip at full fidelity (files re-open in desktop OpenRocket).

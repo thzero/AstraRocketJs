@@ -441,7 +441,10 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         n['length'] = numTag(el, 'packedlength', 0.025);
         n['diameter'] = numTag(el, 'diameter', 0.3);
         const cdText = text(el, ':scope > cd');
-        if (cdText && cdText !== 'auto') n['cd'] = Number(cdText);
+        if (cdText && cdText !== 'auto') {
+          const cdv = Number(cdText);
+          if (Number.isFinite(cdv)) n['cd'] = cdv; // ignore a garbage <cd> rather than store (and re-export) NaN
+        }
         n['lineCount'] = Math.round(numTag(el, 'linecount', 6));
         n['lineLength'] = numTag(el, 'linelength', 0.3);
         readSoftMaterial(el, n, 'surface', 'surfaceDensity', 'surfaceMaterialName');
@@ -462,7 +465,10 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         n['stripLength'] = numTag(el, 'striplength', 0.5);
         n['stripWidth'] = numTag(el, 'stripwidth', 0.05);
         const cdText = text(el, ':scope > cd');
-        if (cdText && cdText !== 'auto') n['cd'] = Number(cdText);
+        if (cdText && cdText !== 'auto') {
+          const cdv = Number(cdText);
+          if (Number.isFinite(cdv)) n['cd'] = cdv; // ignore a garbage <cd> rather than store (and re-export) NaN
+        }
         readSoftMaterial(el, n, 'surface', 'surfaceDensity', 'surfaceMaterialName');
         readDeployment(el, n, chosenConfigId === null ? null : configScoped(el, 'deploymentconfiguration'));
         captureDeployments(el, n);
