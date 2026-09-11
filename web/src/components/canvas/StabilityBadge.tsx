@@ -91,12 +91,14 @@ export function StabilityBadge({
             value={fmtNum(info.refDiameter > 0 ? info.length / info.refDiameter : 0, 1)}
             sub="L/D"
           />
-          {/* Calibers is the headline; the sub folds in the verdict and % of length. */}
+          {/* One card, both conventions for the same margin — calibers and % of
+              length as paired values (like Mass/CG's empty / loaded), with the
+              verdict in the sub. */}
           <Stat
             card
             label={t('stability.onPad')}
-            value={fmtNum(cal, 2)}
-            sub={`${t('stability.caliber')} · ${t(stabilityVerdictKey(cal))} · ${fmtNum(pct, 1)}%`}
+            value={`${fmtNum(cal, 2)} / ${fmtNum(pct, 1)}`}
+            sub={`${t('stability.caliber')} / % · ${t(stabilityVerdictKey(cal))}`}
             tone={stabilityTone(cal)}
           />
           <Stat card label={t('stats.cd')} value={info.cd != null ? fmtNum(info.cd, 3) : '—'} sub="Ma 0.3" />

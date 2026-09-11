@@ -72,20 +72,25 @@ export function CenterView() {
     update({ rulers: { ...settings.rulers, [side]: !settings.rulers[side] } });
   const runSim = useWorkspaceStore((s) => s.runSim);
   const busy = useWorkspaceStore((s) => s.simBusy);
+  // Both effects below only ask "is there a design?", so they gate on a BOOLEAN,
+  // never the `info` object: an engine rebuild (applyBuild) hands the store a
+  // fresh info identity, and depending on that re-fires the effect for a design
+  // that hasn't actually changed. `result` going stale is the real trigger.
+  const hasDesign = !!info;
   useEffect(() => {
-    if (settings.simulation.autoRunOutdated && (view === 'flight' || view === 'path') && !result && info && !busy) {
+    if (settings.simulation.autoRunOutdated && (view === 'flight' || view === 'path') && !result && hasDesign && !busy) {
       runSim(settings.simulation);
     }
-  }, [view, result, info, busy, settings.simulation, runSim]);
+  }, [view, result, hasDesign, busy, settings.simulation, runSim]);
 
   // Flight / 3D-path only exist while a result does. If the active result goes
   // away (a design edit invalidates it) while one of those views is open, fall
   // back to the design view — unless auto-run is about to refill it.
   useEffect(() => {
     const onResultView = view === 'flight' || view === 'path';
-    const willAutoRun = settings.simulation.autoRunOutdated && !!info;
+    const willAutoRun = settings.simulation.autoRunOutdated && hasDesign;
     if (onResultView && !result && !busy && !willAutoRun) onView('2d');
-  }, [view, result, busy, info, settings.simulation.autoRunOutdated, onView]);
+  }, [view, result, busy, hasDesign, settings.simulation.autoRunOutdated, onView]);
 
   // Header slot the 2D schematic's control buttons (calipers, zoom, export)
   // portal into, so they sit centred in the same row as the view toggle.
