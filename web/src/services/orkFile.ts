@@ -8,8 +8,6 @@
  * XML — both are accepted; export writes bare XML.
  */
 
-export { shapeParamDefault } from '../tree/shapeProfile';
-
 export * from './orkTypes';
 export * from './orkImport';
 export * from './orkExport';

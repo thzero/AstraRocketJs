@@ -10,11 +10,14 @@ import type {
   ComponentType as PartType,
   IgnitionEvent,
 } from '../engine/openRocketEngine';
-import { findMountId, findMounts, findNode, updateNode, removeNode, addPart, moveNode } from '../services/treeEdit';
+import { findMountId, findMounts, findNode, updateNode, removeNode, addPart, addStage, moveNode } from '../services/treeEdit';
 import { reconcileMounts } from '../services/mountMotors';
 import type { LaunchConditions } from '../services/orkTree';
 import type { OrkExportMotor } from '../services/orkFile';
+import type { DesignInfo } from '../services/orkTypes';
 import type { MountMotor } from '../services/loadOrk';
+import { buildExportMotorMap } from '../services/exportMotors';
+import { wireLoadedOrk } from '../services/wireLoadedOrk';
 import { newSimulation, simConditions, type Simulation, type SimPrefs } from '../services/simulations';
 import { simulateInWorker, SimTimeoutError } from '../engine/simClient';
 import { loadSettings } from '../services/settings';
@@ -91,8 +94,9 @@ export interface WorkspaceState {
   patchSelected: (patch: Partial<ComponentNode>) => void;
   removeSelected: () => void;
   addPartToTree: (type: PartType) => void;
+  addStageToTree: () => void;
   moveSelected: (dir: -1 | 1) => void;
-  renameDesign: (name: string) => void;
+  updateDesignMeta: (patch: Partial<Pick<RocketTree, 'name' | 'designer' | 'comment' | 'revision' | 'designType'>>) => void;
   /** Finalize the in-flight edit (slider drag / text entry) into one undo entry.
    *  Called by the editors when an interaction ends (blur / discrete change). */
   commitEdit: () => void;
@@ -131,7 +135,7 @@ export interface WorkspaceState {
 }
 
 /** The active simulation (falls back to the first if the id no longer exists). */
-export const selectActive = (s: WorkspaceState): Simulation => s.sims.find((x) => x.id === s.activeId) ?? s.sims[0];
+export const selectActive = (s: WorkspaceState): Simulation => s.sims.find((x) => x.id === s.activeId) ?? s.sims[0]!;
 
 /** A motor is usable only if it carries a full thrust curve (time/thrust/mass samples). */
 export const hasThrustCurve = (m: MotorSpec | undefined | null): boolean =>
@@ -139,12 +143,11 @@ export const hasThrustCurve = (m: MotorSpec | undefined | null): boolean =>
 
 /**
  * Repair a persisted workspace so a stale/partial blob can't blank the app.
- * Two corruptions have been seen in the wild, both from a save that raced an
- * async operation: a sim's `launch` missing fields (blank Launch panel), and a
- * motor persisted before its thrust-curve fetch resolved (empty curve → the
- * engine rebuild throws "Too short thrust-curve" → no CG/CP/stats). We merge
- * each launch over the current defaults and swap any curve-less motor for C6 so
- * the design always renders; the user can re-pick the intended motor.
+ * We merge each launch over the current defaults (a `launch` missing fields
+ * would blank the Launch panel) and drop any stale results. A curve-less motor
+ * is KEPT as-is — the rebuild no longer seats it (so it can't blank the app),
+ * the run stays blocked ("no motor"), and an unresolved .ork motor is never
+ * silently replaced with a default. Only a wholly-missing motor falls back to C6.
  */
 function sanitizeSims(sims: Simulation[]): Simulation[] {
   const launchDefaults = loadSettings().launchDefaults;
@@ -153,7 +156,7 @@ function sanitizeSims(sims: Simulation[]): Simulation[] {
   return safe.map((s) => ({
     ...s,
     launch: { ...launchDefaults, ...(s.launch ?? {}) },
-    motor: hasThrustCurve(s.motor) ? s.motor : C6,
+    motor: s.motor ?? C6,
     result: null,
   }));
 }
@@ -262,7 +265,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set((s) => (s.sims.some((x) => x.result) ? { sims: s.sims.map((x) => ({ ...x, result: null })) } : {})),
     hydrate: (w) => {
       const sims = sanitizeSims(w.sims);
-      const activeId = sims.some((s) => s.id === w.activeId) ? w.activeId : sims[0].id;
+      const activeId = sims.some((s) => s.id === w.activeId) ? w.activeId : sims[0]!.id;
       set({
         tree: w.tree,
         sims,
@@ -290,7 +293,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (!selectedId) return;
       beginEdit();
       const next = updateNode(tree, selectedId, patch);
-      set({ tree: next, extraMotors: reconcileMounts(next, extraMotors) });
+      // Only a change to the motor-mount flag can alter mount topology; a
+      // name/length/colour/slider patch can't, so skip reconcileMounts' full
+      // tree walk on the hot per-keystroke edit path.
+      const touchesMounts = 'motorMount' in patch;
+      set({ tree: next, extraMotors: touchesMounts ? reconcileMounts(next, extraMotors) : extraMotors });
     },
     removeSelected: () => {
       const { selectedId, tree, extraMotors } = get();
@@ -305,6 +312,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const { tree: next, id } = addPart(tree, type, selectedId);
       set({ tree: next, selectedId: id, extraMotors: reconcileMounts(next, extraMotors) });
     },
+    addStageToTree: () => {
+      recordStep();
+      const { tree, extraMotors } = get();
+      const { tree: next, id } = addStage(tree);
+      set({ tree: next, selectedId: id, extraMotors: reconcileMounts(next, extraMotors) });
+    },
     moveSelected: (dir) => {
       const { selectedId, tree, extraMotors } = get();
       if (!selectedId) return;
@@ -312,22 +325,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const next = moveNode(tree, selectedId, dir);
       set({ tree: next, extraMotors: reconcileMounts(next, extraMotors) });
     },
-    renameDesign: (name) => {
+    updateDesignMeta: (patch) => {
+      // Applied in one shot from the Rocket-configuration dialog → one undo step.
       beginEdit();
-      set((s) => ({ tree: { ...s.tree, name } }));
+      set((s) => ({ tree: { ...s.tree, ...patch } }));
+      commitEdit();
     },
     commitEdit,
     undo: () => {
       commitEdit(); // fold any in-flight edit into history so it undoes in one step
       const { past, future } = get();
       if (!past.length) return;
-      const prev = past[past.length - 1];
+      const prev = past[past.length - 1]!;
       set({ past: past.slice(0, -1), future: [...future, snap()], ...restore(prev) });
     },
     redo: () => {
       const { past, future } = get();
       if (!future.length) return;
-      const next = future[future.length - 1];
+      const next = future[future.length - 1]!;
       set({ future: future.slice(0, -1), past: [...past, snap()], ...restore(next) });
     },
 
@@ -353,7 +368,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set((s) => ({
         extraMotors: {
           ...s.extraMotors,
-          [mountId]: { ...s.extraMotors[mountId], ignitionEvent: event, ignitionDelay: delay },
+          [mountId]: { ...s.extraMotors[mountId]!, ignitionEvent: event, ignitionDelay: delay },
         },
         sims: s.sims.some((x) => x.result) ? s.sims.map((x) => ({ ...x, result: null })) : s.sims,
       }));
@@ -393,7 +408,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const rest = s.sims.filter((x) => x.id !== id);
       if (!rest.length) return;
       recordStep();
-      set({ sims: rest, activeId: id === selectActive(s).id ? rest[0].id : s.activeId });
+      set({ sims: rest, activeId: id === selectActive(s).id ? rest[0]!.id : s.activeId });
     },
     renameSim: (id, name) => {
       beginEdit();
@@ -457,24 +472,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const bytes = await file.arrayBuffer();
         const { loadOrk } = await import('../services/loadOrk');
         const res = await loadOrk(bytes);
-        // The primary mount's motor drives the Motor panel; the rest ride along in extraMotors.
-        const primary = findMountId(res.tree);
-        const extra = { ...res.motorSpecs };
-        const primaryMount = primary ? extra[primary] : undefined;
-        const primaryMotor = primaryMount ? primaryMount.spec : C6;
-        if (primary && extra[primary]) delete extra[primary];
-        // Carry the primary mount's ignition (event + delay) onto the sim — it
-        // lives on the Simulation, not in extraMotors like the other mounts.
-        const sim0 = {
-          ...newSimulation(res.name, primaryMotor, { ...loadSettings().launchDefaults, ...res.launch }),
-          ignitionEvent: primaryMount?.ignitionEvent,
-          ignitionDelay: primaryMount?.ignitionDelay,
-        };
+        const { tree, extraMotors, sim0, loadedMeta } = wireLoadedOrk(res, loadSettings().launchDefaults);
         clearHistory(); // a loaded design is a fresh document — nothing to undo across the load
         set({
-          tree: res.tree,
-          extraMotors: reconcileMounts(res.tree, extra),
-          loadedMeta: { name: res.name, notes: res.notes, exportMotors: res.motors },
+          tree,
+          extraMotors,
+          loadedMeta,
           sims: [sim0],
           activeId: sim0.id,
           selectedId: null,
@@ -512,39 +515,33 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       try {
         const { tree, extraMotors, loadedMeta } = get();
         const active = selectActive(get());
-        const motor = active.motor;
-        const mountId = findMountId(tree);
-        const base = loadedMeta?.exportMotors ?? {};
-        const motors: Record<string, OrkExportMotor> = {};
-        if (mountId)
-          motors[mountId] = {
-            ...base[mountId],
-            designation: motor.designation,
-            diameter: motor.diameter,
-            length: motor.length,
-            delay: motor.ejectionDelay,
-            ignitionEvent: active.ignitionEvent,
-            ignitionDelay: active.ignitionDelay,
-          };
-        for (const [id, m] of Object.entries(extraMotors)) {
-          if (id === mountId || !findNode(tree, id)) continue; // primary is exported above; skip its (ignored) entry + gone mounts
-          motors[id] = {
-            ...base[id],
-            designation: m.spec.designation,
-            diameter: m.spec.diameter,
-            length: m.spec.length,
-            delay: m.spec.ejectionDelay,
-            ignitionEvent: m.ignitionEvent,
-            ignitionDelay: m.ignitionDelay,
-          };
+        const motors = buildExportMotorMap(
+          tree,
+          { motor: active.motor, ignitionEvent: active.ignitionEvent, ignitionDelay: active.ignitionDelay },
+          extraMotors,
+          loadedMeta?.exportMotors ?? {},
+        );
+        // Derived-statistics block — only when the user opted in (off by default,
+        // so a normal save stays byte-identical). Built from the same report model
+        // the PDF export uses; both are lazily imported (also avoids a static
+        // store → reportModel → store import cycle).
+        let designInfo: DesignInfo | undefined;
+        if (loadSettings().saveDesignInfo) {
+          const [{ assembleReport }, { buildDesignInfo }] = await Promise.all([
+            import('../services/reportModel'),
+            import('../services/designInfo'),
+          ]);
+          const report = assembleReport();
+          if (report) designInfo = buildDesignInfo(report);
         }
         // The .ork writer is a lazily-imported chunk — only needed on save.
         const { downloadOrk } = await import('../services/saveOrk');
         downloadOrk({
-          name: loadedMeta?.name || tree.name || defaultDesignName(),
+          name: tree.name || loadedMeta?.name || defaultDesignName(),
           tree,
           motors,
           launch: selectActive(get()).launch,
+          designInfo,
         });
       } catch (e) {
         set({ err: `Could not save .ork: ${e instanceof Error ? e.message : String(e)}` });
@@ -554,38 +551,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       try {
         const { tree, extraMotors, loadedMeta, info } = get();
         const active = selectActive(get());
-        const motor = active.motor;
-        const mountId = findMountId(tree);
-        const base = loadedMeta?.exportMotors ?? {};
         // Same motor map the .ork exporter builds — OrkExportMotor satisfies the
         // CDX1 engine-string writer's Cdx1ExportEngine verbatim.
-        const motors: Record<string, OrkExportMotor> = {};
-        if (mountId)
-          motors[mountId] = {
-            ...base[mountId],
-            designation: motor.designation,
-            diameter: motor.diameter,
-            length: motor.length,
-            delay: motor.ejectionDelay,
-            ignitionEvent: active.ignitionEvent,
-            ignitionDelay: active.ignitionDelay,
-          };
-        for (const [id, m] of Object.entries(extraMotors)) {
-          if (id === mountId || !findNode(tree, id)) continue;
-          motors[id] = {
-            ...base[id],
-            designation: m.spec.designation,
-            diameter: m.spec.diameter,
-            length: m.spec.length,
-            delay: m.spec.ejectionDelay,
-            ignitionEvent: m.ignitionEvent,
-            ignitionDelay: m.ignitionDelay,
-          };
-        }
+        const motors = buildExportMotorMap(
+          tree,
+          { motor: active.motor, ignitionEvent: active.ignitionEvent, ignitionDelay: active.ignitionDelay },
+          extraMotors,
+          loadedMeta?.exportMotors ?? {},
+        );
         // The RASAero writer is a lazily-imported chunk — only needed on export.
         const { downloadCdx1 } = await import('../services/rasaeroExport');
         downloadCdx1({
-          name: loadedMeta?.name || tree.name || defaultDesignName(),
+          name: tree.name || loadedMeta?.name || defaultDesignName(),
           tree,
           motors,
           launch: active.launch,

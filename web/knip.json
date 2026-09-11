@@ -1,0 +1,8 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": ["src/engine/simWorker.ts", "src/**/*.test.ts"],
+  "project": ["src/**/*.{ts,tsx}"],
+  "ignore": ["src/engine/vendor/**"],
+  "ignoreDependencies": ["tailwindcss", "@react-three/test-renderer", "three-stdlib"],
+  "ignoreExportsUsedInFile": true
+}

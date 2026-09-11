@@ -31,7 +31,7 @@ export interface MotorStats {
 export function motorStats(spec: MotorSpec): MotorStats {
   const samples: Sample[] = spec.times.map((t, i) => [t, spec.thrusts[i] ?? 0]);
   const totalImpulse = impulse(samples);
-  const burnTime = spec.times.length ? spec.times[spec.times.length - 1] : 0;
+  const burnTime = spec.times.length ? spec.times[spec.times.length - 1]! : 0;
   return {
     designation: spec.designation,
     manufacturer: spec.manufacturer,

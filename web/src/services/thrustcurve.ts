@@ -39,6 +39,7 @@ interface TcSample {
 // only the handful without a bundled curve reach thrustcurve.org. Cap that fetch
 // so a slow/unreachable server fails cleanly instead of hanging "Loading…".
 const FETCH_TIMEOUT_MS = 5_000;
+const MAX_RESPONSE_BYTES = 16 * 1024 * 1024; // 16 MiB — motor lists/curves are KB-scale
 
 async function post<T>(path: string, body: unknown): Promise<T> {
   const ctl = new AbortController();
@@ -51,6 +52,8 @@ async function post<T>(path: string, body: unknown): Promise<T> {
       signal: ctl.signal,
     });
     if (!res.ok) throw new Error(`thrustcurve.org ${path} → HTTP ${res.status}`);
+    const len = Number(res.headers.get('content-length'));
+    if (Number.isFinite(len) && len > MAX_RESPONSE_BYTES) throw new Error(`thrustcurve.org ${path} response too large`);
     return res.json() as Promise<T>;
   } catch (e) {
     if (ctl.signal.aborted) throw new Error(`thrustcurve.org timed out — check your connection and try again.`);
@@ -64,10 +67,16 @@ async function post<T>(path: string, body: unknown): Promise<T> {
  * Pure transform: thrust samples + catalog metadata → engine MotorSpec.
  * Mass at each sample time interpolates from total weight down to burnout
  * weight proportionally to CUMULATIVE IMPULSE (trapezoidal), matching how
- * OpenRocket treats .eng files. CG is fixed at half the motor length (the
- * same approximation OpenRocket applies to RASP data without CG info).
+ * OpenRocket treats .eng files. CG uses the file's real launch CG (`cgSamples`,
+ * from the RockSim data) when available, else falls back to half the motor
+ * length — the same approximation OpenRocket applies to RASP data without CG.
  */
-export function samplesToMotorSpec(motor: TcMotor, samples: TcSample[], ejectionDelay: number): MotorSpec {
+export function samplesToMotorSpec(
+  motor: TcMotor,
+  samples: TcSample[],
+  ejectionDelay: number,
+  cgSamples?: [number, number][],
+): MotorSpec {
   // Normalize: sorted, starting at t=0.
   const pts = [...samples].sort((a, b) => a.time - b.time);
   if (pts.length === 0) {
@@ -93,6 +102,15 @@ export function samplesToMotorSpec(motor: TcMotor, samples: TcSample[], ejection
       `${motor.designation} is catalogued with more propellant (${motor.propWeightG} g) than ` +
         `loaded mass (${motor.totalWeightG} g), so its burn would end at a negative mass. ` +
         'Pick another motor.',
+    );
+  }
+  // diameter/length feed kernel geometry (÷1000 → m); a malformed/compromised
+  // catalog entry with a non-finite or non-positive size would NaN/blank the design.
+  const badSize = (v: number) => !Number.isFinite(v) || v <= 0;
+  if (badSize(motor.diameter) || badSize(motor.length)) {
+    throw new Error(
+      `thrustcurve.org gives ${motor.designation} a bad size ` +
+        `(diameter ${motor.diameter} mm, length ${motor.length} mm), so it can't be simulated. Pick another motor.`,
     );
   }
 
@@ -122,7 +140,10 @@ export function samplesToMotorSpec(motor: TcMotor, samples: TcSample[], ejection
     times,
     thrusts,
     masses,
-    cgX: motor.length / 2000,
+    // Real launch CG from the file (m from nose) when the sync bundled it, else
+    // mid-length — matching OpenRocket, which reads CG from the RockSim file and
+    // falls back to half-length for RASP-only motors.
+    cgX: cgSamples?.[0]?.[1] ?? motor.length / 2000,
     ejectionDelay,
   };
 }
@@ -289,6 +310,7 @@ export async function fetchMotorSpec(cat: CatalogMotor, ejectionDelay: number, c
       },
       curve.samples.map(([time, thrust]) => ({ time, thrust })),
       ejectionDelay,
+      cat.cg,
     );
     return { ...spec, curveSrc: curve.src };
   }

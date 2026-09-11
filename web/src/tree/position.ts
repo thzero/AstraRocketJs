@@ -12,7 +12,17 @@ import { num } from './nodeProps';
 export function axialLength(n: ComponentNode): number {
   if (n.type === 'freeformfinset') {
     const pts = (n['points'] as [number, number][] | undefined) ?? [];
-    return pts.length ? Math.max(...pts.map((p) => p[0])) : 0.05;
+    // Root chord = the axial span between the first and last points, both of
+    // which sit on the body (matches the engine: length = last.x − first.x).
+    // NOT the furthest-aft point (Math.max): a fin whose tip trailing corner
+    // overhangs the root is longer to its aftmost point than its root chord,
+    // and using that overhang here would position a bottom/middle-anchored fin
+    // forward of its true station by exactly the overhang.
+    const first = pts[0];
+    const last = pts[pts.length - 1];
+    const root =
+      first && last && Number.isFinite(first[0]) && Number.isFinite(last[0]) ? last[0] - first[0] : 0;
+    return root > 0 ? root : 0.05;
   }
   if (n.type === 'trapezoidfinset' || n.type === 'ellipticalfinset') {
     return num(n, 'rootChord', 0.05);

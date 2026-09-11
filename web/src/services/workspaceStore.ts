@@ -39,7 +39,17 @@ export class KeyValueWorkspaceStore implements WorkspaceStore {
     if (!raw) return null;
     try {
       const w = JSON.parse(raw) as Workspace;
-      return w && w.version === 1 && w.tree && Array.isArray(w.sims) && w.sims.length > 0 ? w : null;
+      // Validate the shape before handing the tree to the engine: a truncated or
+      // hand-edited blob whose `tree.components` isn't an array would crash
+      // buildTree deep in the kernel rather than fail cleanly here.
+      return w &&
+        w.version === 1 &&
+        w.tree &&
+        Array.isArray((w.tree as { components?: unknown }).components) &&
+        Array.isArray(w.sims) &&
+        w.sims.length > 0
+        ? w
+        : null;
     } catch {
       return null;
     }
@@ -49,7 +59,11 @@ export class KeyValueWorkspaceStore implements WorkspaceStore {
     // Drop cached flight results — they're recomputable and the time-series can
     // be large. The design + each sim's motor / launch / name are what persist.
     const lean: Workspace = { ...w, sims: w.sims.map((s) => ({ ...s, result: null })) };
-    await this.kv.set(KEY, JSON.stringify(lean));
+    // The design is the ONE thing here that can't be recomputed, so surface a
+    // failed write (storage full) instead of silently dropping the user's work.
+    if (!(await this.kv.set(KEY, JSON.stringify(lean)))) {
+      throw new Error('storage-full');
+    }
   }
 
   async clear(): Promise<void> {
@@ -57,10 +71,7 @@ export class KeyValueWorkspaceStore implements WorkspaceStore {
   }
 }
 
-let store: WorkspaceStore = new KeyValueWorkspaceStore();
+const store: WorkspaceStore = new KeyValueWorkspaceStore();
 export function getWorkspaceStore(): WorkspaceStore {
   return store;
-}
-export function setWorkspaceStore(next: WorkspaceStore): void {
-  store = next;
 }

@@ -27,7 +27,7 @@
 
 ---
 
-_Documentation for AstraRocketJs&nbsp;v<!--APP_VERSION-->0.0.6<!--/APP_VERSION-->._
+_Documentation for AstraRocketJs&nbsp;v<!--APP_VERSION-->0.0.8<!--/APP_VERSION-->._
 
 ---
 

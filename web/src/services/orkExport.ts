@@ -4,6 +4,7 @@ import { shapeIsClippable, shapeParamDefault } from '../tree/shapeProfile';
 import { num } from '../tree/nodeProps';
 import { escapeXml } from './xmlUtil';
 import { uuid } from './uuid';
+import { sig4 } from './designInfo';
 import type { OrkExportMotor, OrkDeployOverride, OrkTreeExportInput } from './orkTypes';
 
 // ============================ EXPORT ============================
@@ -17,6 +18,7 @@ export function exportOrk({
   launch,
   configs,
   activeConfigId,
+  designInfo,
 }: OrkTreeExportInput): string {
   const motorMap: Record<string, OrkExportMotor> = { ...(motors ?? {}) };
   if (motor && mountId && !motorMap[mountId]) motorMap[mountId] = motor;
@@ -152,7 +154,7 @@ export function exportOrk({
             ? (c.deployments[node.id] ?? {})
             : {};
       if (Object.keys(o).length === 0) continue;
-      emit(depth, `<deploymentconfiguration configid="${c.id}">`);
+      emit(depth, `<deploymentconfiguration configid="${escapeXml(c.id)}">`);
       if (o.deployEvent !== undefined) emit(depth + 1, `<deployevent>${escapeXml(o.deployEvent)}</deployevent>`);
       if (o.deployAltitude !== undefined) emit(depth + 1, `<deployaltitude>${o.deployAltitude}</deployaltitude>`);
       if (o.deployDelay !== undefined) emit(depth + 1, `<deploydelay>${o.deployDelay}</deploydelay>`);
@@ -231,7 +233,7 @@ export function exportOrk({
     emit(depth + 1, `<overhang>${overhangM}</overhang>`);
     for (const c of withMotor) {
       const m = c.motors[nodeId!]!;
-      emit(depth + 1, `<motor configid="${c.id}">`);
+      emit(depth + 1, `<motor configid="${escapeXml(c.id)}">`);
       emit(depth + 2, '<type>single</type>');
       emit(depth + 2, `<manufacturer>${escapeXml(m.manufacturer ?? 'custom')}</manufacturer>`);
       emit(depth + 2, `<designation>${escapeXml(m.designation)}</designation>`);
@@ -243,7 +245,7 @@ export function exportOrk({
     }
     for (const c of withMotor) {
       const m = c.motors[nodeId!]!;
-      emit(depth + 1, `<ignitionconfiguration configid="${c.id}">`);
+      emit(depth + 1, `<ignitionconfiguration configid="${escapeXml(c.id)}">`);
       emit(depth + 2, `<ignitionevent>${escapeXml(m.ignitionEvent ?? 'automatic')}</ignitionevent>`);
       emit(depth + 2, `<ignitiondelay>${m.ignitionDelay ?? 0}</ignitiondelay>`);
       emit(depth + 1, '</ignitionconfiguration>');
@@ -685,7 +687,7 @@ export function exportOrk({
           };
           sep(depth + 1);
           for (const c of writeConfigs) {
-            emit(depth + 1, `<separationconfiguration configid="${c.id}">`);
+            emit(depth + 1, `<separationconfiguration configid="${escapeXml(c.id)}">`);
             sep(depth + 2);
             emit(depth + 1, '</separationconfiguration>');
           }
@@ -703,12 +705,21 @@ export function exportOrk({
   emit(2, `<id>${uuid()}</id>`);
   emit(2, '<axialoffset method="absolute">0.0</axialoffset>');
   emit(2, '<position type="absolute">0.0</position>');
-  emit(2, '<designtype>original</designtype>');
+  // Design-level metadata (Rocket configuration) — emit only what's set so an
+  // untouched design stays clean; the loader keys on element name, not order.
+  const metaField = (key: 'comment' | 'designer' | 'revision') => {
+    const v = tree[key];
+    if (typeof v === 'string' && v.trim()) emit(2, `<${key}>${escapeXml(v)}</${key}>`);
+  };
+  metaField('comment');
+  metaField('designer');
+  metaField('revision');
+  emit(2, `<designtype>${escapeXml(tree.designType || 'original')}</designtype>`);
   // Stage nodes at the top level export as sibling <stage> blocks (the
   // desktop model); legacy flat trees wrap into one implicit stage.
   const stageNodes = asStageNodes(tree);
   for (const c of writeConfigs) {
-    emit(2, `<motorconfiguration configid="${c.id}"${c.id === defaultId ? ' default="true"' : ''}>`);
+    emit(2, `<motorconfiguration configid="${escapeXml(c.id)}"${c.id === defaultId ? ' default="true"' : ''}>`);
     if (c.name !== null) emit(3, `<name>${escapeXml(c.name)}</name>`);
     for (let i = 0; i < stageNodes.length; i++) {
       emit(3, `<stage number="${i}" active="true"/>`);
@@ -741,7 +752,7 @@ export function exportOrk({
       };
       sep(4);
       for (const c of writeConfigs) {
-        emit(4, `<separationconfiguration configid="${c.id}">`);
+        emit(4, `<separationconfiguration configid="${escapeXml(c.id)}">`);
         sep(5);
         emit(4, '</separationconfiguration>');
       }
@@ -768,7 +779,7 @@ export function exportOrk({
     emit(3, '<simulator>RK4Simulator</simulator>');
     emit(3, '<calculator>BarrowmanCalculator</calculator>');
     emit(3, '<conditions>');
-    emit(4, `<configid>${defaultId}</configid>`);
+    emit(4, `<configid>${escapeXml(defaultId)}</configid>`);
     emit(4, `<launchrodlength>${launch.launchRodLengthM}</launchrodlength>`);
     // Desktop defaults for options we don't model: launch into wind, and
     // rod/wind direction (rod direction is DEGREES on disk, 90 = π/2 rad).
@@ -813,6 +824,32 @@ export function exportOrk({
     emit(2, '</simulation>');
   }
   emit(1, '</simulations>');
+
+  // Optional derived-statistics block (sibling of <rocket>) — only when the
+  // caller opts in. OpenRocket recomputes this and skips it on load; older / other
+  // software ignores it with a harmless "unknown element" warning.
+  if (designInfo && (designInfo.groups.length > 0 || designInfo.finsets.length > 0)) {
+    emit(1, '<designinfo>');
+    for (const g of designInfo.groups) {
+      const attrs =
+        g.scope === 'rocket'
+          ? 'scope="rocket"'
+          : `scope="stage" stagenumber="${g.stageNumber ?? 0}" name="${escapeXml(g.name ?? '')}"`;
+      emit(2, `<statistics ${attrs}>`);
+      for (const st of g.stats) {
+        emit(3, `<stat field="${escapeXml(st.field)}" value="${escapeXml(st.value)}" unit="${escapeXml(st.unit)}"/>`);
+      }
+      emit(2, '</statistics>');
+    }
+    for (const f of designInfo.finsets) {
+      emit(2, `<finset stagenumber="${f.stageNumber}" stage="${escapeXml(f.stage)}" name="${escapeXml(f.name)}">`);
+      emit(3, `<nosetoroottop unit="m">${sig4(f.topX)}</nosetoroottop>`);
+      emit(3, `<nosetorootbottom unit="m">${sig4(f.bottomX)}</nosetorootbottom>`);
+      emit(2, '</finset>');
+    }
+    emit(1, '</designinfo>');
+  }
+
   emit(0, '</openrocket>');
   return lines.join('\n') + '\n';
 }

@@ -65,6 +65,17 @@ describe('workspace undo/redo', () => {
     expect(s().selectedId).toBe('fins'); // and reselected
   });
 
+  it('adds a stage as a new bottom sibling, selects it, and undoes cleanly', () => {
+    const stageCount = () => s().tree.components.filter((n) => n.type === 'stage').length;
+    const before = stageCount();
+    s().addStageToTree();
+    const stages = s().tree.components.filter((n) => n.type === 'stage');
+    expect(stages).toHaveLength(before + 1);
+    expect(s().selectedId).toBe(stages[stages.length - 1]!.id); // the new stage is selected
+    s().undo();
+    expect(stageCount()).toBe(before); // add is one undo step
+  });
+
   it('redoes, and a fresh edit clears the redo stack', () => {
     s().patchSelected({ length: 0.25 });
     s().commitEdit();
@@ -97,6 +108,42 @@ describe('workspace undo/redo', () => {
     s().resetWorkspace();
     expect(s().past).toHaveLength(0);
     expect(s().future).toHaveLength(0);
+  });
+});
+
+describe('design metadata (Rocket configuration)', () => {
+  beforeEach(() => {
+    s().resetWorkspace(); // fresh design + cleared history
+  });
+
+  it('patches the tree metadata as a single undo step', () => {
+    const before = s().tree.name;
+    s().updateDesignMeta({
+      name: 'My Rocket',
+      designer: 'Ada',
+      comment: 'shear-pin notes',
+      revision: 'r1',
+      designType: 'clone_kit',
+    });
+    expect(s().tree.name).toBe('My Rocket');
+    expect(s().tree.designer).toBe('Ada');
+    expect(s().tree.comment).toBe('shear-pin notes');
+    expect(s().tree.revision).toBe('r1');
+    expect(s().tree.designType).toBe('clone_kit');
+    expect(s().past).toHaveLength(1); // one atomic step, not one per field
+
+    s().undo();
+    expect(s().tree.name).toBe(before);
+    expect(s().tree.designer).toBeUndefined();
+    expect(s().tree.comment).toBeUndefined();
+  });
+
+  it('merges a partial patch, leaving untouched fields in place', () => {
+    s().updateDesignMeta({ designer: 'Ada' });
+    s().updateDesignMeta({ revision: 'r2' });
+    expect(s().tree.designer).toBe('Ada'); // survived the second patch
+    expect(s().tree.revision).toBe('r2');
+    expect(s().past).toHaveLength(2); // two separate edits
   });
 });
 
@@ -150,7 +197,7 @@ describe('simulation undo/redo', () => {
 
   it('does not record history when just switching the active sim', () => {
     s().addSim(); // one entry
-    const firstId = s().sims[0].id;
+    const firstId = s().sims[0]!.id;
     const before = s().past.length;
     s().setActiveId(firstId);
     expect(s().past).toHaveLength(before); // selection isn't an edit
@@ -162,7 +209,7 @@ describe('simulation undo/redo', () => {
     const id = active().id;
     useWorkspaceStore.setState({ sims: s().sims.map((x) => (x.id === id ? { ...x, result: fake } : x)) });
     s().addSim(); // recordStep snapshots the pre-add state (which had the result)
-    expect(s().past[0].sims.every((x) => x.result === null)).toBe(true);
+    expect(s().past[0]!.sims.every((x) => x.result === null)).toBe(true);
   });
 
   it('shares one timeline with tree edits', () => {
@@ -189,7 +236,7 @@ describe('mount ↔ motor reconciliation', () => {
     s().addPartToTree('innertube'); // default innertube is a motor mount
     const ids = Object.keys(s().extraMotors);
     expect(ids).toHaveLength(1);
-    expect(s().extraMotors[ids[0]].spec.designation).toBe('C6'); // new mount is loaded
+    expect(s().extraMotors[ids[0]!]!.spec.designation).toBe('C6'); // new mount is loaded
   });
 
   it('drops the extra-motor entry when its mount is removed', () => {

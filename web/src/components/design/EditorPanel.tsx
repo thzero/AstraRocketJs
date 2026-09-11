@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { findMounts, findNode, siblingIndex } from '../../services/treeEdit';
+import { findMounts, findNode, siblingIndex, stageNodes } from '../../services/treeEdit';
 import { useWorkspaceStore } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
 import { ComponentTree } from './ComponentTree';
 import { PropertyPanel } from './PropertyPanel';
 import { ScaleDialog } from './ScaleDialog';
+import { RocketConfigDialog } from './RocketConfigDialog';
 import { BusyLock } from '../common/BusyLock';
 
 /** Left pane: the component tree plus the selected part's property editor. */
@@ -16,12 +17,13 @@ export function EditorPanel() {
   const selectedId = useWorkspaceStore((s) => s.selectedId);
   const onSelect = useWorkspaceStore((s) => s.setSelectedId);
   const onAdd = useWorkspaceStore((s) => s.addPartToTree);
-  const onRenameDesign = useWorkspaceStore((s) => s.renameDesign);
+  const onAddStage = useWorkspaceStore((s) => s.addStageToTree);
   const patch = useWorkspaceStore((s) => s.patchSelected);
   const onCommit = useWorkspaceStore((s) => s.commitEdit);
   const remove = useWorkspaceStore((s) => s.removeSelected);
   const onMove = useWorkspaceStore((s) => s.moveSelected);
   const [scaleOpen, setScaleOpen] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
 
   const node = useMemo(() => (selectedId ? findNode(tree, selectedId) : null), [tree, selectedId]);
   const sib = useMemo(() => (selectedId ? siblingIndex(tree, selectedId) : null), [tree, selectedId]);
@@ -29,8 +31,12 @@ export function EditorPanel() {
   // Guard the last motor mount: deleting it — or turning its motorMount off —
   // leaves nowhere to seat a motor, so the rocket can no longer be simulated.
   const isOnlyMount = !!node && node.motorMount === true && findMounts(tree).length === 1;
+  // A rocket needs at least one stage — the only remaining stage can't be deleted.
+  const stages = stageNodes(tree);
+  const isOnlyStage = !!node && node.type === 'stage' && stages.length <= 1;
+  const isFirstStage = !!node && node.type === 'stage' && stages[0]?.id === node.id;
   const onRemove = async () => {
-    if (!node) return;
+    if (!node || isOnlyStage) return;
     // Every deletion confirms; the last motor mount carries an extra warning
     // (it also loses simulate-ability). Name the part being removed.
     const label = (node.name as string) || t(`part.${node.type}`, { defaultValue: node.type });
@@ -51,9 +57,9 @@ export function EditorPanel() {
         selectedId={selectedId}
         onSelect={onSelect}
         onAdd={onAdd}
-        onRenameDesign={onRenameDesign}
-        onCommit={onCommit}
+        onEditDesign={() => setConfigOpen(true)}
         onScale={() => setScaleOpen(true)}
+        onAddStage={onAddStage}
       />
       <PropertyPanel
         node={node}
@@ -63,8 +69,11 @@ export function EditorPanel() {
         onMove={onMove}
         canMoveUp={!!sib && sib.index > 0}
         canMoveDown={!!sib && sib.index < sib.count - 1}
+        canRemove={!isOnlyStage}
+        isFirstStage={isFirstStage}
       />
       <ScaleDialog open={scaleOpen} onClose={() => setScaleOpen(false)} />
+      <RocketConfigDialog open={configOpen} onClose={() => setConfigOpen(false)} />
     </div>
   );
 }

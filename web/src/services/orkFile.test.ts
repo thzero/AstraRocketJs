@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { exportOrk, importOrk, type OrkExportMotor } from './orkFile';
 import { specToTree } from '../engine/api';
 import type { RocketSpec, ComponentNode, RocketTree } from '../engine/openRocketEngine';
+import type { DesignInfo } from './orkTypes';
 
 const spec = {
   noseCone: { length: 0.1, aftRadius: 0.013, thickness: 0.001 },
@@ -34,6 +35,21 @@ describe('exportOrk → importOrk round-trip', () => {
     expect(xml).toContain('<subcomponents>');
   });
 
+  it('escapes a malicious flight-config id (no XML injection on export)', () => {
+    const evil = 'x"><injected foo="bar';
+    const out = exportOrk({
+      name: 'Evil',
+      tree,
+      mountId,
+      motor,
+      configs: [{ id: evil, name: null, isDefault: true, motors: {}, deployments: {} }],
+      activeConfigId: evil,
+    });
+    expect(out).not.toContain('<injected'); // the raw tag must never form
+    expect(out).toContain('&lt;injected'); // escaped instead
+    expect(importOrk(out)).toBeTruthy(); // still parses as valid XML
+  });
+
   it('preserves the design name', () => {
     expect(importOrk(xml).name).toBe('Round Trip');
   });
@@ -63,6 +79,86 @@ describe('exportOrk → importOrk round-trip', () => {
 
   it('accepts its own output as a bare XML string (no zip)', () => {
     expect(() => importOrk(xml)).not.toThrow();
+  });
+});
+
+describe('design metadata (Rocket configuration) round-trip', () => {
+  const { tree, mountId } = specToTree(spec);
+  const withMeta: RocketTree = {
+    ...tree,
+    name: 'Meta Rocket',
+    designer: 'Ada Lovelace',
+    comment: 'Best F motor.\nTwo 2-56 nylon screws → 42.8 lb shear.',
+    revision: 'v3 — moved the CP forward',
+    designType: 'upscale_kit',
+  };
+  const xml = exportOrk({ name: withMeta.name!, tree: withMeta, mountId, motor });
+
+  it('emits the metadata elements (only what is set)', () => {
+    expect(xml).toContain('<designer>Ada Lovelace</designer>');
+    expect(xml).toContain('<revision>v3 — moved the CP forward</revision>');
+    expect(xml).toContain('<designtype>upscale_kit</designtype>');
+    expect(xml).toContain('Best F motor.'); // comment body present
+  });
+
+  it('imports the metadata back onto the tree', () => {
+    const res = importOrk(xml);
+    expect(res.tree.designer).toBe('Ada Lovelace');
+    expect(res.tree.comment).toContain('42.8 lb shear');
+    expect(res.tree.revision).toBe('v3 — moved the CP forward');
+    expect(res.tree.designType).toBe('upscale_kit');
+  });
+
+  it('escapes metadata so a crafted comment cannot inject XML', () => {
+    const evil: RocketTree = { ...tree, name: 'X', comment: '</comment><injected/>' };
+    const out = exportOrk({ name: 'X', tree: evil, mountId, motor });
+    expect(out).not.toContain('<injected/>'); // the raw tag must never form
+    expect(out).toContain('&lt;injected/&gt;'); // escaped instead
+    expect(importOrk(out)).toBeTruthy(); // still valid XML
+  });
+
+  it('omits absent metadata and defaults design type to original', () => {
+    const bare = exportOrk({ name: 'Bare', tree: { ...tree, name: 'Bare' }, mountId, motor });
+    expect(bare).not.toContain('<designer>');
+    expect(bare).not.toContain('<revision>');
+    expect(bare).toContain('<designtype>original</designtype>');
+  });
+});
+
+describe('optional <designinfo> block', () => {
+  const { tree, mountId } = specToTree(spec);
+
+  it('is absent by default — a normal save is unchanged', () => {
+    expect(exportOrk({ name: 'X', tree, mountId, motor })).not.toContain('<designinfo>');
+  });
+
+  it('emits statistics and fin-set positions when provided', () => {
+    const designInfo: DesignInfo = {
+      groups: [
+        { scope: 'rocket', stats: [{ field: 'Length', value: '0.425', unit: 'm' }] },
+        { scope: 'stage', stageNumber: 1, name: 'Booster', stats: [{ field: 'CP', value: '0.331', unit: 'm' }] },
+      ],
+      finsets: [{ stageNumber: 0, stage: 'Sustainer', name: 'Trapezoidal fin set', topX: 0.35, bottomX: 0.4 }],
+    };
+    const out = exportOrk({ name: 'X', tree, mountId, motor, designInfo });
+    expect(out).toContain('<designinfo>');
+    expect(out).toContain('<statistics scope="rocket">');
+    expect(out).toContain('<stat field="Length" value="0.425" unit="m"/>');
+    expect(out).toContain('<statistics scope="stage" stagenumber="1" name="Booster">');
+    expect(out).toContain('<finset stagenumber="0" stage="Sustainer" name="Trapezoidal fin set">');
+    expect(out).toContain('<nosetoroottop unit="m">0.35</nosetoroottop>');
+    expect(out).toContain('<nosetorootbottom unit="m">0.4</nosetorootbottom>');
+    expect(importOrk(out)).toBeTruthy(); // still valid XML; the loader ignores it
+  });
+
+  it('escapes attributes so crafted stat/finset text cannot inject XML', () => {
+    const designInfo: DesignInfo = {
+      groups: [{ scope: 'rocket', stats: [{ field: 'x"><evil', value: '0', unit: '' }] }],
+      finsets: [],
+    };
+    const out = exportOrk({ name: 'X', tree, mountId, motor, designInfo });
+    expect(out).not.toContain('"><evil'); // the raw break-out must never form
+    expect(out).toContain('&quot;&gt;&lt;evil'); // escaped instead
   });
 });
 
@@ -105,20 +201,44 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
     ],
   } as unknown as RocketTree;
 
-  it('rejects a file containing pods (podset) — loads nothing', () => {
+  it('loads a design with external pods (podset) and round-trips it', () => {
+    const podBody = '<bodytube><length>0.12</length><radius>0.009</radius><thickness>0.0005</thickness></bodytube>';
     const withPod =
-      '<openrocket><rocket><name>P</name><subcomponents><stage><name>S</name>' +
-      '<subcomponents><podset><name>Pod</name></podset></subcomponents></stage></subcomponents></rocket></openrocket>';
-    expect(() => importOrk(withPod)).toThrow(/pods/i);
+      '<openrocket><rocket><name>P</name><subcomponents><stage><name>S</name><subcomponents>' +
+      '<bodytube><length>0.3</length><radius>0.013</radius><thickness>0.0005</thickness><subcomponents>' +
+      '<podset><name>Pod</name><instancecount>3</instancecount>' +
+      '<radiusoffset method="relative">0.005</radiusoffset><angleoffset method="relative">90.0</angleoffset>' +
+      `<subcomponents>${podBody}</subcomponents></podset>` +
+      '</subcomponents></bodytube></subcomponents></stage></subcomponents></rocket></openrocket>';
+    const res = importOrk(withPod);
+    const pod = findByType(res.tree, 'podset');
+    expect(pod).toBeDefined();
+    expect(pod!.instanceCount).toBe(3);
+    expect(pod!.radiusOffset).toBeCloseTo(0.005, 6);
+    expect(pod!.radiusMethod).toBe('relative');
+    expect(pod!.angleOffset).toBeCloseTo(Math.PI / 2, 6); // 90° → radians
+    expect(findByType({ components: pod!.children ?? [] } as RocketTree, 'bodytube')).toBeDefined();
+
+    // Export → re-import keeps the pod and its placement (round-trip).
+    const back = importOrk(exportOrk({ name: 'P', tree: res.tree }));
+    const pod2 = findByType(back.tree, 'podset');
+    expect(pod2).toBeDefined();
+    expect(pod2!.instanceCount).toBe(3);
+    expect(pod2!.radiusOffset).toBeCloseTo(0.005, 6);
+    expect(pod2!.angleOffset).toBeCloseTo(Math.PI / 2, 6);
   });
 
-  it('rejects a multi-stage (axial) design — loads nothing', () => {
+  it('loads a multi-stage (axial) design — both stages present', () => {
+    const tube = '<bodytube><length>0.2</length><radius>0.013</radius><thickness>0.0005</thickness></bodytube>';
     const twoStage =
       '<openrocket><rocket><name>Two</name><subcomponents>' +
-      '<stage><name>Sustainer</name></stage>' +
-      '<stage><name>Booster</name></stage>' +
+      `<stage><name>Sustainer</name><subcomponents>${tube}</subcomponents></stage>` +
+      `<stage><name>Booster</name><subcomponents>${tube}</subcomponents></stage>` +
       '</subcomponents></rocket></openrocket>';
-    expect(() => importOrk(twoStage)).toThrow(/multiple stages/i);
+    const res = importOrk(twoStage);
+    const stages = res.tree.components.filter((n) => n.type === 'stage');
+    expect(stages).toHaveLength(2);
+    expect(stages.map((s) => s.name)).toEqual(['Sustainer', 'Booster']);
   });
 
   it('preserves the lug and button angle through export → import', () => {

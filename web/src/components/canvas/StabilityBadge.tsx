@@ -70,15 +70,8 @@ export function StabilityBadge({
             value={`${fmtNum(info.massEmpty * 1000, 0)} / ${fmtNum(info.mass * 1000, 0)}`}
             sub={`g · ${t('stats.emptyLoaded')}`}
           />
-          <Stat
-            card
-            label={t('stability.cg')}
-            value={`${fmtNum(info.cgEmpty * 100, 1)} / ${fmtNum(info.cg * 100, 1)}`}
-            sub={`cm · ${t('stats.emptyLoaded')}`}
-          />
-          <Stat card label={t('stability.cp')} value={fmtNum(info.cp * 100, 1)} sub="cm" />
           {/* Descent mass — loaded minus the propellant that burns off. Needs a
-              motor loaded to have propellant to subtract. */}
+              motor loaded to have propellant to subtract. Sits next to Mass. */}
           <Stat
             card
             label={t('stats.recoveryWeight')}
@@ -87,18 +80,25 @@ export function StabilityBadge({
           />
           <Stat
             card
+            label={t('stability.cg')}
+            value={`${fmtNum(info.cgEmpty * 100, 1)} / ${fmtNum(info.cg * 100, 1)}`}
+            sub={`cm · ${t('stats.emptyLoaded')}`}
+          />
+          <Stat card label={t('stability.cp')} value={fmtNum(info.cp * 100, 1)} sub="cm" />
+          <Stat
+            card
             label={t('stats.fineness')}
             value={fmtNum(info.refDiameter > 0 ? info.length / info.refDiameter : 0, 1)}
             sub="L/D"
           />
+          {/* Calibers is the headline; the sub folds in the verdict and % of length. */}
           <Stat
             card
             label={t('stability.onPad')}
             value={fmtNum(cal, 2)}
-            sub={`${t('stability.caliber')} · ${t(stabilityVerdictKey(cal))}`}
+            sub={`${t('stability.caliber')} · ${t(stabilityVerdictKey(cal))} · ${fmtNum(pct, 1)}%`}
             tone={stabilityTone(cal)}
           />
-          <Stat card label={t('stats.stabilityPct')} value={fmtNum(pct, 1)} sub="%" />
           <Stat card label={t('stats.cd')} value={info.cd != null ? fmtNum(info.cd, 3) : '—'} sub="Ma 0.3" />
           {/* Symbol lives in the sub — the tile label is uppercased, which would
               turn the Greek α into Α (a plain "A"). */}

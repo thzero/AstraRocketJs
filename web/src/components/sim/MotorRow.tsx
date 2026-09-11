@@ -44,6 +44,9 @@ export function MotorRow({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [curveOpen, setCurveOpen] = useState(false);
+  // An unresolved .ork motor is seated as a curve-less placeholder: show its
+  // name but flag it as not-found and hide the (empty) thrust-curve view.
+  const hasCurve = !!motor?.masses?.length;
   return (
     <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
       <div className="flex items-start justify-between gap-2">
@@ -53,21 +56,25 @@ export function MotorRow({
             <>
               <div className="truncate text-lg font-semibold text-sky-400">{motor.designation}</div>
               <div className="text-xs text-slate-500">
-                {fmtNum(motor.diameter * 1000, 0)} mm · {fmtNum(motor.length * 1000, 0)} mm ·{' '}
-                {fmtNum(motor.masses[0] * 1000, 1)} g
+                {fmtNum(motor.diameter * 1000, 0)} mm · {fmtNum(motor.length * 1000, 0)} mm
+                {hasCurve ? ` · ${fmtNum(motor.masses[0]! * 1000, 1)} g` : ''}
               </div>
-              <div className="mt-0.5 text-xs text-slate-500">
-                {t('sims.delay')}{' '}
-                {motor.ejectionDelay >= PLUGGED_DELAY ? t('motor.plugged') : `${fmtNum(motor.ejectionDelay, 1)} s`}
-                {motor.curveSrc ? <span className="text-slate-400"> · {motor.curveSrc}</span> : null}
-              </div>
+              {hasCurve ? (
+                <div className="mt-0.5 text-xs text-slate-500">
+                  {t('sims.delay')}{' '}
+                  {motor.ejectionDelay >= PLUGGED_DELAY ? t('motor.plugged') : `${fmtNum(motor.ejectionDelay, 1)} s`}
+                  {motor.curveSrc ? <span className="text-slate-400"> · {motor.curveSrc}</span> : null}
+                </div>
+              ) : (
+                <div className="mt-0.5 text-xs text-amber-400">{t('sims.motorNotFound')}</div>
+              )}
             </>
           ) : (
             <div className="mt-0.5 text-sm text-slate-500">{t('sims.noMotor')}</div>
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {motor && (
+          {hasCurve && (
             <button
               onClick={() => setCurveOpen(true)}
               title={t('sims.viewCurve')}
@@ -102,7 +109,7 @@ export function MotorRow({
         mountDiameter={mountDiameter}
         current={motor}
       />
-      {motor && <MotorSpecDialog motor={motor} open={curveOpen} onClose={() => setCurveOpen(false)} />}
+      {hasCurve && motor && <MotorSpecDialog motor={motor} open={curveOpen} onClose={() => setCurveOpen(false)} />}
     </section>
   );
 }

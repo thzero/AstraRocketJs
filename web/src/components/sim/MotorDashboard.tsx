@@ -11,13 +11,16 @@ import {
 import { STD_DIAMS, MAX_IDX } from '../../services/motorPicker';
 import { combineCurves, impulseClass, type Sample } from '../../services/motorCombine';
 import { fmtNum } from '../../i18n/format';
+import { useFocusTrap } from '../common/useFocusTrap';
 import { MotorDetail, Stat } from './MotorDetail';
 import { RangeSlider } from './RangeSlider';
+import { ChartAxes, chartScales, linePath, baselineArea } from './chartAxes';
 
 /** Stable identity for a motor across filter/sort changes (mfr + name + bore). */
 const keyOf = (m: CatalogMotor) => `${m.manufacturer}|${m.designation}|${m.diameter}`;
 const avgOf = (m: CatalogMotor) => m.avgThrust ?? (m.burn > 0 ? m.impulse / m.burn : 0);
-const num = (v: number | undefined, d: number) => (v != null && Number.isFinite(v) ? fmtNum(v, d) : '—');
+/** Format a numeric cell to `d` decimals, or an em dash when absent / non-finite. */
+const fmtCell = (v: number | undefined, d: number) => (v != null && Number.isFinite(v) ? fmtNum(v, d) : '—');
 
 const G = 9.80665;
 /** Specific impulse (s) — total impulse per unit propellant weight; NaN if unknown. */
@@ -62,16 +65,16 @@ const COLUMNS: Col[] = [
     cell: (m) => fmtNum(m.impulse, m.impulse < 10 ? 1 : 0),
     sortVal: (m) => m.impulse,
   },
-  { id: 'avg', label: 'colAvg', align: 'right', cell: (m) => num(avgOf(m), 0), sortVal: (m) => avgOf(m) },
-  { id: 'peak', label: 'colPeak', align: 'right', cell: (m) => num(m.maxThrust, 0), sortVal: (m) => m.maxThrust ?? 0 },
+  { id: 'avg', label: 'colAvg', align: 'right', cell: (m) => fmtCell(avgOf(m), 0), sortVal: (m) => avgOf(m) },
+  { id: 'peak', label: 'colPeak', align: 'right', cell: (m) => fmtCell(m.maxThrust, 0), sortVal: (m) => m.maxThrust ?? 0 },
   { id: 'burn', label: 'colBurn', align: 'right', cell: (m) => fmtNum(m.burn, 1), sortVal: (m) => m.burn },
-  { id: 'length', label: 'colLength', align: 'right', cell: (m) => num(m.length, 0), sortVal: (m) => m.length ?? 0 },
-  { id: 'mass', label: 'colMass', align: 'right', cell: (m) => num(m.mass, 0), sortVal: (m) => m.mass ?? 0 },
+  { id: 'length', label: 'colLength', align: 'right', cell: (m) => fmtCell(m.length, 0), sortVal: (m) => m.length ?? 0 },
+  { id: 'mass', label: 'colMass', align: 'right', cell: (m) => fmtCell(m.mass, 0), sortVal: (m) => m.mass ?? 0 },
   {
     id: 'prop',
     label: 'colProp',
     align: 'right',
-    cell: (m) => num(m.propWeightG, 0),
+    cell: (m) => fmtCell(m.propWeightG, 0),
     sortVal: (m) => m.propWeightG ?? 0,
   },
   { id: 'delays', label: 'colDelays', align: 'center', cell: (m) => m.delays ?? '—' },
@@ -83,7 +86,7 @@ const COLUMNS: Col[] = [
     cell: (m) => m.code || m.designation,
     sortVal: (m) => m.code || m.designation,
   },
-  { id: 'isp', label: 'colIsp', align: 'right', cell: (m) => num(ispOf(m), 0), sortVal: (m) => sortNum(ispOf(m)) },
+  { id: 'isp', label: 'colIsp', align: 'right', cell: (m) => fmtCell(ispOf(m), 0), sortVal: (m) => sortNum(ispOf(m)) },
   {
     id: 'massFrac',
     label: 'colMassFrac',
@@ -150,6 +153,7 @@ export function MotorDashboard({ open, onClose }: { open: boolean; onClose: () =
   const [checked, setChecked] = useState<Map<string, CatalogMotor>>(new Map());
   const [mode, setMode] = useState<Mode>('detail');
   const bodyRef = useRef<HTMLTableSectionElement>(null);
+  const panelRef = useFocusTrap<HTMLDivElement>(open);
 
   useEffect(() => {
     let live = true;
@@ -255,6 +259,7 @@ export function MotorDashboard({ open, onClose }: { open: boolean; onClose: () =
       aria-modal="true"
     >
       <div
+        ref={panelRef}
         className="flex h-[760px] max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-slate-900 ring-1 ring-white/10"
         onClick={(e) => e.stopPropagation()}
       >
@@ -597,19 +602,13 @@ function CombineChart({
 }) {
   const { t } = useTranslation();
   const usable = series.filter((s) => s.pts.length >= 2);
-  const W = 560,
-    H = 220,
-    PL = 40,
-    PR = 12,
-    PT = 12,
-    PB = 24;
+  const dims = { width: 560, height: 220, padL: 40, padR: 12, padT: 12, padB: 24 };
+  const { width: W, height: H } = dims;
   const tMax = Math.max(1, combined[combined.length - 1]?.[0] ?? 0, ...usable.flatMap((s) => s.pts.map((p) => p[0])));
   const fMax = Math.max(1, ...combined.map((s) => s[1])) * 1.08; // the sum is the envelope (max)
-  const X = (tt: number) => PL + (tt / tMax) * (W - PL - PR);
-  const Y = (f: number) => H - PB - (f / fMax) * (H - PT - PB);
-  const path = (pts: Sample[]) =>
-    pts.map((p, i) => `${i ? 'L' : 'M'} ${X(p[0]).toFixed(1)} ${Y(p[1]).toFixed(1)}`).join(' ');
-  const area = `M ${X(0).toFixed(1)} ${Y(0).toFixed(1)} ${combined.map((p) => `L ${X(p[0]).toFixed(1)} ${Y(p[1]).toFixed(1)}`).join(' ')} L ${X(tMax).toFixed(1)} ${Y(0).toFixed(1)} Z`;
+  const { X, Y } = chartScales(dims, tMax, fMax);
+  const path = (pts: Sample[]) => linePath(pts, X, Y);
+  const area = baselineArea(combined, X, Y, tMax);
   const labelDirect = usable.length <= 4;
 
   return (
@@ -621,22 +620,7 @@ function CombineChart({
             <stop offset="100%" stopColor="#f97316" stopOpacity="0.03" />
           </linearGradient>
         </defs>
-        {[0, 0.5, 1].map((f) => {
-          const gy = Y(fMax * f);
-          return (
-            <g key={f}>
-              <line x1={PL} y1={gy} x2={W - PR} y2={gy} className="stroke-white/10" />
-              <text x={PL - 4} y={gy + 3} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
-                {fmtNum(fMax * f, 0)}
-              </text>
-            </g>
-          );
-        })}
-        {[0, tMax / 2, tMax].map((tt, i) => (
-          <text key={i} x={X(tt)} y={H - 6} textAnchor="middle" className="fill-slate-500 text-[9px] tabular-nums">
-            {fmtNum(tt, tt < 10 ? 1 : 0)}
-          </text>
-        ))}
+        <ChartAxes dims={dims} tMax={tMax} fMax={fMax} X={X} Y={Y} />
         <path d={area} fill="url(#combFill)" />
         {usable.map((s) => {
           const peak = s.pts.reduce((a, b) => (b[1] > a[1] ? b : a));
@@ -698,16 +682,11 @@ function ComparePane({ motors, cols }: { motors: CatalogMotor[]; cols: Col[] }) 
   // Identity is the motor name (+ colour dot); show every other chosen column.
   const specCols = cols.filter((c) => c.id !== 'designation');
 
-  const W = 440,
-    H = 190,
-    PL = 36,
-    PR = 12,
-    PT = 12,
-    PB = 24;
+  const dims = { width: 440, height: 190, padL: 36, padR: 12, padT: 12, padB: 24 };
+  const { width: W, height: H } = dims;
   const tMax = Math.max(1, ...series.flatMap((s) => s.pts.map((p) => p[0])));
   const fMax = Math.max(1, ...series.flatMap((s) => s.pts.map((p) => p[1]))) * 1.08;
-  const X = (tt: number) => PL + (tt / tMax) * (W - PL - PR);
-  const Y = (f: number) => H - PB - (f / fMax) * (H - PT - PB);
+  const { X, Y } = chartScales(dims, tMax, fMax);
   const labelDirect = series.length <= 4;
 
   return (
@@ -720,24 +699,9 @@ function ComparePane({ motors, cols }: { motors: CatalogMotor[]; cols: Col[] }) 
       {series.length >= 1 ? (
         <>
           <svg viewBox={`0 0 ${W} ${H}`} width="100%" className="mt-2 block max-w-xl">
-            {[0, 0.5, 1].map((f) => {
-              const gy = Y(fMax * f);
-              return (
-                <g key={f}>
-                  <line x1={PL} y1={gy} x2={W - PR} y2={gy} className="stroke-white/10" />
-                  <text x={PL - 4} y={gy + 3} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
-                    {fmtNum(fMax * f, 0)}
-                  </text>
-                </g>
-              );
-            })}
-            {[0, tMax / 2, tMax].map((tt, i) => (
-              <text key={i} x={X(tt)} y={H - 6} textAnchor="middle" className="fill-slate-500 text-[9px] tabular-nums">
-                {fmtNum(tt, tt < 10 ? 1 : 0)}
-              </text>
-            ))}
+            <ChartAxes dims={dims} tMax={tMax} fMax={fMax} X={X} Y={Y} />
             {series.map((s) => {
-              const d = s.pts.map((p, i) => `${i ? 'L' : 'M'} ${X(p[0]).toFixed(1)} ${Y(p[1]).toFixed(1)}`).join(' ');
+              const d = linePath(s.pts, X, Y);
               const peak = s.pts.reduce((a, b) => (b[1] > a[1] ? b : a));
               return (
                 <g key={keyOf(s.m)}>

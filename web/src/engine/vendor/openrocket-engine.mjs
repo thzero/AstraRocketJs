@@ -45418,7 +45418,7 @@ a_OpenRocketEngine_setMotor = ($rocketHandle, $mountHandle, $designation, $diame
     a_OpenRocketEngine_applyMotor($ctx, $mount, $designation, $diameter, $length, $times, $thrusts, $masses, $cgX, $ejectionDelay);
 },
 a_OpenRocketEngine_applyMotor = ($ctx, $mount, $designation, $diameter, $length, $times, $thrusts, $masses, $cgX, $ejectionDelay) => {
-    let var$11, $cgPoints, $i, var$14, var$15, var$16, var$17, $motor, $mc, $nozzle;
+    let var$11, $cgPoints, $i, var$14, var$15, var$16, $motor, $mc, $nozzle;
     a_OpenRocketEngine_$callClinit();
     var$11 = $times.data.length;
     $cgPoints = $rt_createArray(iocu_Coordinate, var$11);
@@ -45442,11 +45442,11 @@ a_OpenRocketEngine_applyMotor = ($ctx, $mount, $designation, $diameter, $length,
     var$15 = var$15.$setLength1($length);
     var$15 = var$15.$setTimePoints($times);
     var$15 = var$15.$setThrustPoints($thrusts);
-    var$16 = var$15.$setCGPoints($cgPoints);
-    var$17 = jl_StringBuilder__init_();
-    jl_StringBuilder_append(jl_StringBuilder_append(var$17, $rt_s(1378)), $designation);
-    var$15 = jl_StringBuilder_toString(var$17);
-    var$15 = var$16.$setDigest(var$15);
+    var$15 = var$15.$setCGPoints($cgPoints);
+    var$16 = jl_StringBuilder__init_();
+    jl_StringBuilder_append(jl_StringBuilder_append(var$16, $rt_s(1378)), $designation);
+    var$16 = jl_StringBuilder_toString(var$16);
+    var$15 = var$15.$setDigest(var$16);
     $motor = var$15.$build();
     $mc = iocm_MotorConfiguration__init_1($mount, $ctx.$fcid1);
     $mc.$setMotor($motor);
@@ -45455,6 +45455,7 @@ a_OpenRocketEngine_applyMotor = ($ctx, $mount, $designation, $diameter, $length,
     if ($nozzle !== null && $nozzle.$doubleValue() > 0.0)
         $mc.$setNozzleExitDiameter(jl_Math_min0($nozzle.$doubleValue(), $diameter));
     $mount.$setMotorConfig($mc, $ctx.$fcid1);
+    ($ctx.$rocket0.$getSelectedConfiguration()).$update();
 },
 a_OpenRocketEngine_setMotorIgnitionById = ($rocketHandle, $componentId, $ignitionEvent, $ignitionDelay) => {
     let $ctx, $comp, var$7, var$8, $mc;
@@ -49124,6 +49125,7 @@ a_ComponentFactory_create = $node => {
                 break b;
             case 14:
                 $c = iocr_Parachute__init_0();
+                $c.$setLength(a_JsonLite_dbl($node, $rt_s(1385), 0.025));
                 $c.$setDiameter(a_JsonLite_dbl($node, $rt_s(1578), 0.3));
                 $cd = a_JsonLite_dbl($node, $rt_s(1579), NaN);
                 if (!(isNaN($cd) ? 1 : 0))
@@ -49148,6 +49150,7 @@ a_ComponentFactory_create = $node => {
                 break b;
             case 15:
                 $c = iocr_Streamer__init_0();
+                $c.$setLength(a_JsonLite_dbl($node, $rt_s(1385), 0.025));
                 $c.$setStripLength(a_JsonLite_dbl($node, $rt_s(1586), 0.5));
                 $c.$setStripWidth(a_JsonLite_dbl($node, $rt_s(1587), 0.05));
                 $cd = a_JsonLite_dbl($node, $rt_s(1579), NaN);
@@ -49164,6 +49167,7 @@ a_ComponentFactory_create = $node => {
                 break b;
             case 16:
                 $c = iocr_ShockCord__init_0();
+                $c.$setLength(a_JsonLite_dbl($node, $rt_s(1385), 0.025));
                 $c.$setCordLength(a_JsonLite_dbl($node, $rt_s(1588), 0.3));
                 $cordLine = a_JsonLite_dbl($node, $rt_s(1584), NaN);
                 if (!(isNaN($cordLine) ? 1 : 0)) {

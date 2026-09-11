@@ -38,7 +38,7 @@ const safe = (name: string) => (name || 'rocket').trim().replace(/[^a-z0-9._-]+/
 const hexToRgb = (hex: string): [number, number, number] => {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return [17, 24, 39];
-  const n = parseInt(m[1], 16);
+  const n = parseInt(m[1]!, 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 };
 
@@ -94,24 +94,24 @@ export async function downloadReportPdf(model: ReportModel, tree: RocketTree, t:
   const fillScaled = (pts: Pt[], ox: number, oy: number, sx: number, sy: number, fill: [number, number, number] | null, stroke: [number, number, number]) => {
     if (pts.length < 3) return;
     const P = pts.map(([px, py]) => [ox + px * sx, oy + py * sy] as [number, number]);
-    const deltas = P.slice(1).map((p, i) => [p[0] - P[i][0], p[1] - P[i][1]] as [number, number]);
+    const deltas = P.slice(1).map((p, i) => [p[0] - P[i]![0], p[1] - P[i]![1]] as [number, number]);
     doc.setDrawColor(...stroke).setLineWidth(0.3);
     if (fill) {
       doc.setFillColor(...fill);
-      doc.lines(deltas, P[0][0], P[0][1], [1, 1], 'FD', true);
+      doc.lines(deltas, P[0]![0], P[0]![1], [1, 1], 'FD', true);
     } else {
-      doc.lines(deltas, P[0][0], P[0][1], [1, 1], 'S', true);
+      doc.lines(deltas, P[0]![0], P[0]![1], [1, 1], 'S', true);
     }
   };
   const fillPolygon = (pts: Pt[], ox: number, oy: number) => {
     if (pts.length < 3) return;
-    const deltas = pts.slice(1).map((p, i) => [p[0] - pts[i][0], p[1] - pts[i][1]] as [number, number]);
+    const deltas = pts.slice(1).map((p, i) => [p[0] - pts[i]![0], p[1] - pts[i]![1]] as [number, number]);
     doc.setDrawColor(...hexToRgb(opts.templateStroke)).setLineWidth(0.3);
     if (opts.templateFill) {
       doc.setFillColor(...hexToRgb(opts.templateFill));
-      doc.lines(deltas, ox + pts[0][0], oy + pts[0][1], [1, 1], 'FD', true);
+      doc.lines(deltas, ox + pts[0]![0], oy + pts[0]![1], [1, 1], 'FD', true);
     } else {
-      doc.lines(deltas, ox + pts[0][0], oy + pts[0][1], [1, 1], 'S', true);
+      doc.lines(deltas, ox + pts[0]![0], oy + pts[0]![1], [1, 1], 'S', true);
     }
   };
 
@@ -151,7 +151,7 @@ export async function downloadReportPdf(model: ReportModel, tree: RocketTree, t:
       doc.setFont('helvetica', last ? 'bold' : 'normal');
       let x2 = M;
       row.forEach((cell, i) => {
-        const c = cols[i];
+        const c = cols[i]!;
         doc.text(cell, c.align === 'right' ? x2 + c.w - 1 : x2 + 1, y + 3, { align: c.align ?? 'left' });
         x2 += c.w;
       });

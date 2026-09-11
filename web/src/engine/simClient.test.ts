@@ -23,7 +23,11 @@ beforeEach(() => {
   FakeWorker.onPost = () => {}; // a hung worker: never replies
   vi.stubGlobal(
     'Worker',
-    vi.fn(() => {
+    // A regular function (not an arrow): vitest 5's spies keep the underlying
+    // implementation's (non-)constructability, and `new Worker(...)` — how the
+    // client creates it — needs a constructable stub. Returning an object from a
+    // `new` call yields that object, so each construction hands back a FakeWorker.
+    vi.fn(function () {
       const w = new FakeWorker();
       created.push(w);
       return w;
@@ -46,7 +50,7 @@ describe('simClient timeout', () => {
     await vi.advanceTimersByTimeAsync(1000);
     await rejects;
     expect(created).toHaveLength(1);
-    expect(created[0].terminate).toHaveBeenCalledOnce(); // hung worker was killed
+    expect(created[0]!.terminate).toHaveBeenCalledOnce(); // hung worker was killed
   });
 
   it('resolves normally and does not fire the timeout for a prompt reply', async () => {
@@ -58,6 +62,6 @@ describe('simClient timeout', () => {
     expect(result).toEqual({ apogee: 42 });
     // Advancing past the timeout must not retroactively kill the (now idle) worker.
     await vi.advanceTimersByTimeAsync(2000);
-    expect(created[0].terminate).not.toHaveBeenCalled();
+    expect(created[0]!.terminate).not.toHaveBeenCalled();
   });
 });

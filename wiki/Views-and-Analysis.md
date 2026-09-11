@@ -35,7 +35,9 @@ You can export these as **CSV** (see [Files & Exports](Files-and-Exports)).
 
 ## Flight (after a simulation)
 
-A panel of **flight charts** over time: altitude, velocity, acceleration, Mach, thrust, mass, drag, and stability. Flight events (burnout, apogee, deployment, landing) are marked.
+A panel of **flight charts** over time: altitude, velocity, acceleration, Mach, thrust, mass, drag, and stability. Flight events (burnout, apogee, deployment, landing) are marked. Toggle which measures show from the chip bar, hover for a synchronized crosshair and value readout across every chart, and zoom / pan the time axis (the +/− buttons, drag, or Ctrl / pinch-scroll).
+
+**Staged rockets** — when a flight separated into more than one stage, a **stage selector** appears above the charts. Each selected stage draws as its own coloured line — a spent booster's separate climb, descent, and landing — sharing each chart's scale, with the hover readout and event markers covering every shown stage. Deselect a stage to focus on the rest.
 
 ## 3D path (after a simulation)
 

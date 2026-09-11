@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
 import type { CatalogMotor } from '../../services/motorDb';
 import { initialThrust } from '../../services/motorPicker';
+import { ChartAxes, chartScales, linePath, baselineArea } from './chartAxes';
 
 const G = 9.80665;
 
@@ -130,18 +131,13 @@ export function Stat({ label, value }: { label: string; value: string }) {
 /** Compact thrust-vs-time chart: filled curve, average-thrust line, burn marker. */
 export function ThrustChart({ samples, avg, burn }: { samples: [number, number][]; avg: number; burn: number }) {
   const { t } = useTranslation();
-  const W = 460,
-    H = 150,
-    PL = 34,
-    PR = 10,
-    PT = 10,
-    PB = 22;
+  const dims = { width: 460, height: 150, padL: 34, padR: 10, padT: 10, padB: 22 };
+  const { width: W, height: H, padL: PL, padR: PR, padT: PT, padB: PB } = dims;
   const tMax = samples[samples.length - 1]![0] || 1;
   const fMax = Math.max(...samples.map((s) => s[1]), avg) * 1.08 || 1;
-  const X = (tt: number) => PL + (tt / tMax) * (W - PL - PR);
-  const Y = (f: number) => H - PB - (f / fMax) * (H - PT - PB);
-  const line = samples.map((s, i) => `${i ? 'L' : 'M'} ${X(s[0]).toFixed(1)} ${Y(s[1]).toFixed(1)}`).join(' ');
-  const area = `M ${X(0).toFixed(1)} ${Y(0).toFixed(1)} ${samples.map((s) => `L ${X(s[0]).toFixed(1)} ${Y(s[1]).toFixed(1)}`).join(' ')} L ${X(tMax).toFixed(1)} ${Y(0).toFixed(1)} Z`;
+  const { X, Y } = chartScales(dims, tMax, fMax);
+  const line = linePath(samples, X, Y);
+  const area = baselineArea(samples, X, Y, tMax);
   const peak = samples.reduce((a, b) => (b[1] > a[1] ? b : a));
 
   return (
@@ -157,17 +153,7 @@ export function ThrustChart({ samples, avg, burn }: { samples: [number, number][
         {0.5 < tMax && (
           <rect x={X(0)} y={PT} width={X(0.5) - X(0)} height={H - PT - PB} fill="#22d3ee" opacity="0.06" />
         )}
-        {[0, 0.5, 1].map((f) => {
-          const gy = Y(fMax * f);
-          return (
-            <g key={f}>
-              <line x1={PL} y1={gy} x2={W - PR} y2={gy} className="stroke-white/10" />
-              <text x={PL - 4} y={gy + 3} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
-                {fmtNum(fMax * f, 0)}
-              </text>
-            </g>
-          );
-        })}
+        <ChartAxes dims={dims} tMax={tMax} fMax={fMax} X={X} Y={Y} />
         <path d={area} fill="url(#thrustFill)" />
         <line x1={PL} y1={Y(avg)} x2={W - PR} y2={Y(avg)} stroke="#2dd4bf" strokeWidth="1" strokeDasharray="4 3" />
         {burn > 0 && burn <= tMax && (
@@ -178,11 +164,6 @@ export function ThrustChart({ samples, avg, burn }: { samples: [number, number][
         <text x={X(peak[0])} y={Y(peak[1]) - 6} textAnchor="middle" className="fill-slate-200 text-[9px] font-semibold">
           {fmtNum(peak[1], 1)} N
         </text>
-        {[0, tMax / 2, tMax].map((tt, i) => (
-          <text key={i} x={X(tt)} y={H - 6} textAnchor="middle" className="fill-slate-500 text-[9px] tabular-nums">
-            {fmtNum(tt, tt < 10 ? 1 : 0)}
-          </text>
-        ))}
       </svg>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-400">
         <Legend color="#f97316">{t('motorDlg.chartThrust')}</Legend>

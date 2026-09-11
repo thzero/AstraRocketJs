@@ -3,32 +3,34 @@ import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../state/SettingsProvider';
 import { DEFAULT_SETTINGS, type SimulationSettings } from '../../services/settings';
 import { PART_KEYS, mergePalette } from '../../services/partColors';
+import { useFocusTrap } from '../common/useFocusTrap';
 import { LaunchPanel } from '../sim/LaunchPanel';
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4];
 const speedLabel = (s: number) => (s === 0.25 ? '¼×' : s === 0.5 ? '½×' : `${s}×`);
 
-type TabKey = 'parts' | 'phases' | 'playback' | 'sim' | 'launch';
+type TabKey = 'general' | 'colors' | 'playback' | 'sketch' | 'sim' | 'launch';
 const TABS: { key: TabKey; label: string }[] = [
-  { key: 'parts', label: 'settings.tabParts' },
-  { key: 'phases', label: 'settings.tabPhases' },
+  { key: 'general', label: 'settings.tabGeneral' },
+  { key: 'colors', label: 'settings.tabColors' },
   { key: 'playback', label: 'settings.tabPlayback' },
+  { key: 'sketch', label: 'settings.tabSketch' },
   { key: 'sim', label: 'settings.tabSim' },
   { key: 'launch', label: 'settings.tabLaunch' },
 ];
+
+const RULER_SIDES = ['top', 'bottom', 'left', 'right'] as const;
 
 /** Settings panel — tabbed: 3D part colours, flight-path phase colours, and the
  *  default playback speed. Persisted via the SettingsProvider. */
 export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation();
   const { settings, update, reset } = useSettings();
-  // Part colours are a desktop 3D-model concern; hide that tab on mobile (< lg).
+  // The 3D part-colour section is a desktop-only concern (no 3D model on mobile);
+  // the Colors tab still shows the flight-path phase colours there.
   const isDesktop = useIsDesktop();
-  const visibleTabs = isDesktop ? TABS : TABS.filter((tb) => tb.key !== 'parts');
-  const [tab, setTab] = useState<TabKey>(() => (isDesktop ? 'parts' : 'phases'));
-  useEffect(() => {
-    if (!visibleTabs.some((tb) => tb.key === tab)) setTab(visibleTabs[0].key);
-  }, [visibleTabs, tab]);
+  const [tab, setTab] = useState<TabKey>('general');
+  const panelRef = useFocusTrap<HTMLDivElement>(open);
 
   useEffect(() => {
     if (!open) return;
@@ -52,9 +54,11 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
   const setSim = (patch: Partial<SimulationSettings>) => update({ simulation: { ...settings.simulation, ...patch } });
 
   const resetSection = () => {
-    if (tab === 'parts') update({ partColors: {} });
-    else if (tab === 'phases') update({ phaseColors: DEFAULT_SETTINGS.phaseColors });
+    if (tab === 'general') update({ saveDesignInfo: DEFAULT_SETTINGS.saveDesignInfo });
+    else if (tab === 'colors') update({ partColors: {}, phaseColors: DEFAULT_SETTINGS.phaseColors });
     else if (tab === 'playback') update({ playbackSpeed: DEFAULT_SETTINGS.playbackSpeed });
+    else if (tab === 'sketch')
+      update({ showMarkers: DEFAULT_SETTINGS.showMarkers, rulers: DEFAULT_SETTINGS.rulers });
     else if (tab === 'sim') update({ simulation: DEFAULT_SETTINGS.simulation });
     else update({ launchDefaults: DEFAULT_SETTINGS.launchDefaults });
   };
@@ -62,7 +66,8 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="flex h-[560px] max-h-[85vh] w-full max-w-md flex-col rounded-2xl bg-slate-900 ring-1 ring-white/10"
+        ref={panelRef}
+        className="flex h-[560px] max-h-[85vh] w-full max-w-lg flex-col rounded-2xl bg-slate-900 ring-1 ring-white/10"
         role="dialog"
         aria-modal="true"
         aria-label={t('settings.title')}
@@ -81,7 +86,7 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
 
         {/* Tabs */}
         <div className="flex flex-wrap gap-1 px-4 pt-3">
-          {visibleTabs.map((tb) => (
+          {TABS.map((tb) => (
             <button
               key={tb.key}
               onClick={() => setTab(tb.key)}
@@ -93,21 +98,29 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
         </div>
 
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
-          {tab === 'parts' &&
-            PART_KEYS.map((key) => (
-              <ColorRow
-                key={key}
-                label={t(`settings.part.${key}`)}
-                value={palette[key]}
-                overridden={key in settings.partColors}
-                onChange={(c) => setPart(key, c)}
-                onReset={() => resetPart(key)}
-                resetTitle={t('settings.resetOne')}
-              />
-            ))}
-
-          {tab === 'phases' && (
+          {tab === 'colors' && (
             <>
+              {isDesktop && (
+                <>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    {t('settings.parts')}
+                  </div>
+                  {PART_KEYS.map((key) => (
+                    <ColorRow
+                      key={key}
+                      label={t(`settings.part.${key}`)}
+                      value={palette[key]}
+                      overridden={key in settings.partColors}
+                      onChange={(c) => setPart(key, c)}
+                      onReset={() => resetPart(key)}
+                      resetTitle={t('settings.resetOne')}
+                    />
+                  ))}
+                </>
+              )}
+              <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                {t('settings.phases')}
+              </div>
               <ColorRow
                 label={t('flight.boost')}
                 value={settings.phaseColors.boost}
@@ -122,6 +135,17 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
                 label={t('flight.descent')}
                 value={settings.phaseColors.descent}
                 onChange={(c) => setPhase('descent', c)}
+              />
+            </>
+          )}
+
+          {tab === 'general' && (
+            <>
+              <p className="text-[11px] leading-snug text-slate-500">{t('settings.generalNote')}</p>
+              <CheckRow
+                label={t('settings.saveDesignInfo')}
+                checked={settings.saveDesignInfo}
+                onChange={(v) => update({ saveDesignInfo: v })}
               />
             </>
           )}
@@ -141,6 +165,28 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
                 ))}
               </select>
             </label>
+          )}
+
+          {tab === 'sketch' && (
+            <>
+              <p className="text-[11px] leading-snug text-slate-500">{t('settings.sketchNote')}</p>
+              <CheckRow
+                label={t('settings.sketchMarkers')}
+                checked={settings.showMarkers}
+                onChange={(v) => update({ showMarkers: v })}
+              />
+              <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                {t('settings.sketchRulers')}
+              </div>
+              {RULER_SIDES.map((side) => (
+                <CheckRow
+                  key={side}
+                  label={t(`view.ruler_${side}`)}
+                  checked={settings.rulers[side]}
+                  onChange={(v) => update({ rulers: { ...settings.rulers, [side]: v } })}
+                />
+              ))}
+            </>
           )}
 
           {tab === 'sim' && (

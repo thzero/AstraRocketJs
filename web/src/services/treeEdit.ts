@@ -116,6 +116,7 @@ export const ALLOWED_CHILDREN: Record<string, ComponentType[]> = {
     'parachute',
     'streamer',
     'masscomponent',
+    'podset',
   ],
   bodytube: [
     'trapezoidfinset',
@@ -131,6 +132,7 @@ export const ALLOWED_CHILDREN: Record<string, ComponentType[]> = {
     'parachute',
     'streamer',
     'masscomponent',
+    'podset',
   ],
   transition: [
     'trapezoidfinset',
@@ -144,9 +146,13 @@ export const ALLOWED_CHILDREN: Record<string, ComponentType[]> = {
     'parachute',
     'streamer',
     'masscomponent',
+    'podset',
   ],
   innertube: ['engineblock', 'masscomponent'],
   tubecoupler: ['centeringring', 'bulkhead', 'masscomponent'],
+  // A PodSet hosts its own axial chain (a mini nose→body→transition stack),
+  // just like a stage; the chain members then host fins / inner tubes / etc.
+  podset: ['nosecone', 'bodytube', 'transition'],
 };
 
 /** Child types that may be added under a parent of `parentType` (empty for leaves). */
@@ -245,7 +251,7 @@ export function moveNode(tree: RocketTree, id: string, dir: -1 | 1): RocketTree 
       const j = i + dir;
       if (j >= 0 && j < nodes.length) {
         const [x] = nodes.splice(i, 1);
-        nodes.splice(j, 0, x);
+        nodes.splice(j, 0, x!);
       }
       return true;
     }
@@ -260,6 +266,10 @@ export function moveNode(tree: RocketTree, id: string, dir: -1 | 1): RocketTree 
 export function defaultNode(type: ComponentType): ComponentNode {
   const id = newId(type);
   switch (type) {
+    // A bare stage: no parts yet (the user adds them). Seeded with the desktop-
+    // default separation (used only when it sits below another stage).
+    case 'stage':
+      return { type, id, separationEvent: 'ejection', separationDelay: 0 };
     case 'nosecone':
       return { type, id, shape: 'ogive', length: 0.1, aftRadius: 0.013, thickness: 0.001 };
     case 'bodytube':
@@ -389,9 +399,55 @@ export function defaultNode(type: ComponentType): ComponentNode {
       };
     case 'masscomponent':
       return { type, id, mass: 0.01, length: 0.02, position: { method: 'top', offset: 0 } };
+    // An external pod: a mini body chain riding alongside the airframe. Seeded
+    // with one slim body tube so it's visible and immediately editable.
+    // radiusOffset 0 (relative) means the pod just touches the parent surface;
+    // instanceCount 1 = a single pod (raise it for a symmetric ring).
+    case 'podset': {
+      const body = defaultNode('bodytube');
+      body.length = 0.12;
+      body.outerRadius = 0.009;
+      return {
+        type,
+        id,
+        instanceCount: 1,
+        radiusOffset: 0,
+        radiusMethod: 'relative',
+        angleOffset: 0,
+        position: { method: 'bottom', offset: 0 },
+        children: [body],
+      };
+    }
     default:
       return { type, id };
   }
+}
+
+/** Top-level stage nodes, in desktop order ([0] = top sustainer … [last] = bottom booster). */
+export function stageNodes(tree: RocketTree): ComponentNode[] {
+  return tree.components.filter((n) => n.type === 'stage');
+}
+
+/** Whether `id` is the top stage — the one with nothing above it to separate from. */
+export function isFirstStage(tree: RocketTree, id: string): boolean {
+  const stages = stageNodes(tree);
+  return stages.length > 0 && stages[0]!.id === id;
+}
+
+/**
+ * Add a new empty stage as the bottom booster: a top-level sibling appended
+ * after the existing stages. Named "Booster" for the second stage and "Stage N"
+ * beyond, matching the "Sustainer" the base design ships with. Returns the new
+ * tree and the new stage's id (so the caller can select it).
+ */
+export function addStage(tree: RocketTree): { tree: RocketTree; id: string } {
+  const node = defaultNode('stage');
+  const id = node.id!;
+  const count = stageNodes(tree).length;
+  node.name = count === 1 ? 'Booster' : `Stage ${count + 1}`;
+  const next = clone(tree);
+  next.components.push(node);
+  return { tree: next, id };
 }
 
 /**

@@ -168,12 +168,8 @@ export class KeyValueMotorStore implements MotorStore {
   }
 }
 
-let store: MotorStore = new KeyValueMotorStore();
+const store: MotorStore = new KeyValueMotorStore();
 
 export function getMotorStore(): MotorStore {
   return store;
-}
-
-export function setMotorStore(next: MotorStore): void {
-  store = next;
 }

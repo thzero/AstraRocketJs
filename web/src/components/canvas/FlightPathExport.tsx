@@ -90,7 +90,7 @@ function ExportDialog({
 }) {
   const { t } = useTranslation();
   const store = useMemo(() => getTemplateStore(), []);
-  const [selected, setSelected] = useState<string>(EXPORT_FORMATS[0].id);
+  const [selected, setSelected] = useState<string>(EXPORT_FORMATS[0]!.id);
   const [opts, setOpts] = useState<FlightPathExportOptions>(() => defaultExportOptions());
   const [templates, setTemplates] = useState<UserTemplate[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -117,7 +117,7 @@ function ExportDialog({
       const template = templates.find((tp) => tp.id === id);
       if (template) return { kind: 'user' as const, template };
     }
-    const format = EXPORT_FORMATS.find((f) => f.id === selected) ?? EXPORT_FORMATS[0];
+    const format = EXPORT_FORMATS.find((f) => f.id === selected) ?? EXPORT_FORMATS[0]!;
     return { kind: 'builtin' as const, format };
   }, [selected, templates]);
 
@@ -159,7 +159,7 @@ function ExportDialog({
     if (!selectedUser) return;
     await store.remove(selectedUser.id);
     setTemplates(await store.list());
-    setSelected(EXPORT_FORMATS[0].id);
+    setSelected(EXPORT_FORMATS[0]!.id);
     setError(null);
   };
 

@@ -34,8 +34,5 @@ export const isPreRelease = (version: string = APP_VERSION): boolean => {
 /** The app's display name — translated (i18next singleton; safe outside React). */
 export const appName = (): string => i18n.t('app.title');
 
-/** Name + version, e.g. "AstraRocketJs 0.1.0". */
-export const appLabel = (): string => `${appName()} ${APP_VERSION}`;
-
 /** Default name for a new / exported design, e.g. "AstraRocketJs design" (translated). */
 export const defaultDesignName = (): string => i18n.t('app.designName', { name: appName() });

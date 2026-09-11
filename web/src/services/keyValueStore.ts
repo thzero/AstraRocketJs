@@ -7,7 +7,10 @@
 // a shared store) can be dropped in without reshaping callers.
 export interface KeyValueStore {
   get(key: string): Promise<string | null>;
-  set(key: string, value: string): Promise<void>;
+  /** Persist `value`. Resolves `true` on success, `false` on failure (quota
+   *  exceeded, storage blocked) — best-effort callers ignore it; callers holding
+   *  the only copy of something (the workspace) check it to surface a warning. */
+  set(key: string, value: string): Promise<boolean>;
   remove(key: string): Promise<void>;
 }
 
@@ -21,11 +24,12 @@ export class LocalStorageKeyValueStore implements KeyValueStore {
     }
   }
 
-  async set(key: string, value: string): Promise<void> {
+  async set(key: string, value: string): Promise<boolean> {
     try {
       localStorage.setItem(key, value);
+      return true;
     } catch {
-      // best-effort
+      return false; // quota exceeded / storage blocked
     }
   }
 

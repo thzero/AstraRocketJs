@@ -83,14 +83,17 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
     for (let i = 0; i < time.length; i++) {
       if (!Number.isFinite(time[i]) || !Number.isFinite(alt[i])) continue;
       rows.push({
-        t: time[i],
-        a: alt[i],
-        v: Number.isFinite(vel[i]) ? vel[i] : 0,
+        t: time[i]!,
+        a: alt[i]!,
+        v: Number.isFinite(vel[i]) ? vel[i]! : 0,
         x: Number(px[i]) || 0,
         z: Number(py[i]) || 0,
       });
     }
-    const maxA = Math.max(1, ...rows.map((r) => r.a));
+    // Loop, don't spread: a long/fine-timestep flight has tens of thousands of
+    // samples, and Math.max(...bigArray) overflows the call-argument stack.
+    let maxA = 1;
+    for (const r of rows) if (r.a > maxA) maxA = r.a;
     const s = 24 / maxA;
     const evT = (type: string) => result.events.find((e) => e.type === type)?.time;
     const bt = evT('BURNOUT') ?? 0;
@@ -103,7 +106,7 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
     });
     let ai = 0;
     rows.forEach((r, i) => {
-      if (r.a > rows[ai].a) ai = i;
+      if (r.a > rows[ai]!.a) ai = i;
     });
     const idxAt = (tt: number) => {
       let bi = 0,
@@ -127,7 +130,7 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
     const cos: { type: string; pos: THREE.Vector3; time: number }[] = [];
     for (const [type, tt] of wanted) {
       if (tt == null) continue;
-      const pos = sp[idxAt(tt)];
+      const pos = sp[idxAt(tt)]!;
       if (cos.some((c) => c.pos.distanceTo(pos) < 1.5)) continue; // skip coincident label
       cos.push({ type, pos, time: tt });
     }
@@ -206,7 +209,8 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
 
   // Camera framing derives from the trajectory's peak. Computed BEFORE the early
   // return so the useMemo below is never skipped — hook count must stay constant.
-  const maxY = Math.max(...scenePts.map((p) => p.y));
+  let maxY = 0; // loop, not Math.max(...spread), to survive long flights
+  for (const p of scenePts) if (p.y > maxY) maxY = p.y;
   const home = useMemo(() => new THREE.Vector3(maxY * 1.15, maxY * 0.62, maxY * 1.4), [maxY]);
 
   if (scenePts.length < 2) {
@@ -218,8 +222,8 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
   // samples into the fast boost/coast, so index-based playback crawls. Map by time.
   const totalT = times[n - 1] || 1;
   let idx = 0;
-  while (idx < n - 1 && times[idx + 1] <= progress * totalT) idx++;
-  const markerPos = scenePts[idx];
+  while (idx < n - 1 && times[idx + 1]! <= progress * totalT) idx++;
+  const markerPos = scenePts[idx]!;
   const nowT = times[idx] ?? 0;
   const descending = nowT >= deployT;
   const boosting = nowT < burnoutT;
@@ -227,7 +231,7 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
   const followDist = MODEL_LEN * 3.4;
 
   // Orient nose (local -X) along velocity, or hang nose-up once the chute is out.
-  const tangent = new THREE.Vector3().subVectors(scenePts[Math.min(n - 1, idx + 1)], scenePts[Math.max(0, idx - 1)]);
+  const tangent = new THREE.Vector3().subVectors(scenePts[Math.min(n - 1, idx + 1)]!, scenePts[Math.max(0, idx - 1)]!);
   if (tangent.lengthSq() < 1e-8) tangent.set(0, 1, 0);
   else tangent.normalize();
   const dir = descending ? UP : tangent;
@@ -252,16 +256,16 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
         <gridHelper args={[120, 60, '#33506a', '#18293a']} position={[0, 0.02, 0]} />
         {/* Reveal the path only where the rocket has already flown; the rest stays hidden. */}
         {idx >= 1 && <Line points={scenePts.slice(0, idx + 1)} vertexColors={colors.slice(0, idx + 1)} lineWidth={3} />}
-        <Marker pos={scenePts[0]} color="#e2e8f0" />
-        {idx >= apogeeIdx && <Marker pos={scenePts[apogeeIdx]} color={phase.coast} />}
-        {idx >= n - 1 && <Marker pos={scenePts[n - 1]} color={phase.descent} />}
+        <Marker pos={scenePts[0]!} color="#e2e8f0" />
+        {idx >= apogeeIdx && <Marker pos={scenePts[apogeeIdx]!} color={phase.coast} />}
+        {idx >= n - 1 && <Marker pos={scenePts[n - 1]!} color={phase.descent} />}
 
         {callouts
           .filter((c) => nowT >= c.time)
           .map((c, i) => (
             <Html key={i} position={[c.pos.x, c.pos.y, c.pos.z]} center style={{ pointerEvents: 'none' }}>
               <div className="whitespace-nowrap rounded bg-slate-900/85 px-1.5 py-0.5 text-[10px] font-medium text-amber-300 ring-1 ring-white/10">
-                {t(EVENT_LABEL[c.type])}
+                {t(EVENT_LABEL[c.type] ?? c.type)}
               </div>
             </Html>
           ))}
@@ -330,6 +334,7 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
       <div className="absolute inset-x-3 bottom-3 flex items-center gap-2 rounded-lg bg-slate-900/85 px-3 py-2 ring-1 ring-white/10">
         <button
           onClick={handlePlay}
+          aria-label={countdown !== null ? t('flight.cancel') : playing ? t('flight.pause') : t('flight.play')}
           className="shrink-0 rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
         >
           {countdown !== null ? '✕' : playing ? '⏸' : '▶'}
@@ -465,7 +470,7 @@ function Flame({ len, r }: { len: number; r: number }) {
     const g = new THREE.ConeGeometry(r * 0.95, H, 24, 1, true); // open cone, apex +Y, base −Y
     g.rotateZ(Math.PI / 2); // apex → −X, base → +X
     g.translate(H / 2, 0, 0); // apex (point) at origin/nozzle, base (wide) at +X (trailing)
-    const pos = g.attributes.position;
+    const pos = g.attributes.position!;
     const hot = new THREE.Color('#fff4cf'),
       mid = new THREE.Color('#ffb020'),
       edge = new THREE.Color('#ff4d10');
@@ -544,7 +549,7 @@ function Streamer({
     L = Math.max(1.5, length);
   const geo = useMemo(() => {
     const g = new THREE.PlaneGeometry(w, L, 1, 14);
-    const pos = g.attributes.position;
+    const pos = g.attributes.position!;
     for (let i = 0; i < pos.count; i++) {
       const y = pos.getY(i);
       pos.setZ(i, Math.sin((y / L) * Math.PI * 4) * w * 0.9); // static flutter

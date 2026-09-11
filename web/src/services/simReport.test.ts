@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { stabilityState, stabilityTone, stabilityVerdictKey, EVENT_LABEL, EVENT_PRIORITY } from './simReport';
+import {
+  stabilityState,
+  stabilityTone,
+  stabilityVerdictKey,
+  EVENT_LABEL,
+  EVENT_PRIORITY,
+  clusterEventLabels,
+} from './simReport';
 
 describe('stabilityState (healthy-band classifier)', () => {
   it('returns null for null/undefined/non-finite input', () => {
@@ -45,5 +52,39 @@ describe('flight-event tables', () => {
 
   it('orders APOGEE ahead of BURNOUT (most-significant first)', () => {
     expect(EVENT_PRIORITY.indexOf('APOGEE')).toBeLessThan(EVENT_PRIORITY.indexOf('BURNOUT'));
+  });
+});
+
+describe('clusterEventLabels', () => {
+  // 1 px per second keeps the math obvious.
+  const x = (t: number) => t;
+
+  it('keeps the drogue deployment at apogee as its own label (Fireball case)', () => {
+    // Sustainer branch: apogee 13.2, ejection 14.7, drogue 14.7, main 34.2.
+    const evts = [
+      { time: 13.2, type: 'APOGEE' },
+      { time: 14.7, type: 'EJECTION_CHARGE' },
+      { time: 14.7, type: 'RECOVERY_DEVICE_DEPLOYMENT' },
+      { time: 34.2, type: 'RECOVERY_DEVICE_DEPLOYMENT' },
+    ];
+    const out = clusterEventLabels(evts, x);
+    // Apogee absorbs the coincident ejection charge; BOTH deployments survive.
+    expect(out.map((g) => g.type)).toEqual(['APOGEE', 'RECOVERY_DEVICE_DEPLOYMENT', 'RECOVERY_DEVICE_DEPLOYMENT']);
+  });
+
+  it('still folds a burnout+apogee pileup into the highest-priority label', () => {
+    const evts = [
+      { time: 10.0, type: 'BURNOUT' },
+      { time: 10.1, type: 'APOGEE' },
+    ];
+    expect(clusterEventLabels(evts, x).map((g) => g.type)).toEqual(['APOGEE']);
+  });
+
+  it('does not merge deployments that are far apart', () => {
+    const evts = [
+      { time: 5, type: 'RECOVERY_DEVICE_DEPLOYMENT' },
+      { time: 40, type: 'RECOVERY_DEVICE_DEPLOYMENT' },
+    ];
+    expect(clusterEventLabels(evts, x)).toHaveLength(2);
   });
 });

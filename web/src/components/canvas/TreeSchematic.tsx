@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode, ComponentPosition, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
@@ -350,13 +350,17 @@ export function TreeSchematic({
   // rotates about its own anchor so it still reads horizontally.
   const textUp = (x: number, y: number) => (vertical ? { transform: `rotate(-90 ${x} ${y})` } : {});
 
-  const { shapes, overlay, hoverBox, hoverTag, hoverName } = buildSchematicShapes({
+  // Namespaces this instance's clipPath ids so two schematics sharing a document
+  // can't cross-clip (url(#id) resolves to the first match in the document).
+  const uid = useId().replace(/:/g, '');
+  const { shapes, overlay, wires, clipDefs, hoverBox, hoverTag, hoverName } = buildSchematicShapes({
     chain,
     ctx,
     scale,
     w,
     h,
     roll,
+    uid,
     motors,
     vertical,
     selectedId,
@@ -530,7 +534,11 @@ export function TreeSchematic({
                 cursor: zoom.k > 1 ? 'grab' : undefined,
               }
         }
-        role="img"
+        // role="img" ONLY for the read-only nose-up view: on the editable view it
+        // would tell assistive tech the whole SVG is a single static image and
+        // hide every clickable component. (Keyboard selection lives in the
+        // component tree, which is now focusable.)
+        role={vertical ? 'img' : undefined}
         aria-label={
           vertical
             ? 'Rocket side view, nose up, with CG and CP markers'
@@ -547,6 +555,8 @@ export function TreeSchematic({
           <pattern id="bulkhead-hatch" patternUnits="userSpaceOnUse" width="5" height="5">
             <path d="M0 5 L5 0" stroke="#66748c" strokeWidth="0.9" />
           </pattern>
+          {/* Airframe-band cuts: clip a far fin's fill at the tube wall. */}
+          {clipDefs}
         </defs>
         {/* Vertical: one rigid rotation of the horizontal layout — the w×h
             layout rect maps exactly onto the transposed h×w viewBox with the
@@ -554,6 +564,8 @@ export function TreeSchematic({
         <g transform={vertical ? `rotate(90 ${h / 2} ${h / 2})` : `translate(${zoom.x} ${zoom.y}) scale(${zoom.k})`}>
           {shapes}
           {overlay}
+          {/* Wireframe fin outlines while the view is rolled (paint topmost). */}
+          {wires}
           {/* pointerEvents none on BOTH marker groups: they are decoration
               drawn on the centreline — precisely where you click to select a
               nose cone or body tube — and an 18px opaque disc with no handler
@@ -880,6 +892,7 @@ export function TreeSchematic({
               <button
                 className="file-btn"
                 title={t('schematic.calipersH')}
+                aria-label={t('schematic.calipersH')}
                 aria-pressed={!!caliperH}
                 style={caliperH ? { background: 'var(--accent)', color: '#fff' } : undefined}
                 onClick={() => setCaliperH((c) => (c ? null : { a: totalLen * 0.2, b: totalLen * 0.8 }))}
@@ -889,6 +902,7 @@ export function TreeSchematic({
               <button
                 className="file-btn"
                 title={t('schematic.calipersV')}
+                aria-label={t('schematic.calipersV')}
                 aria-pressed={!!caliperV}
                 style={caliperV ? { background: 'var(--accent)', color: '#fff' } : undefined}
                 onClick={() => setCaliperV((c) => (c ? null : { a: maxR, b: -maxR }))}

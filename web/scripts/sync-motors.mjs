@@ -38,16 +38,55 @@ const chunk = (arr, size) =>
 const SRC_RANK = { cert: 0, mfr: 1, user: 2 };
 const sourceLabel = (s) => ({ cert: 'Certified', mfr: 'Manufacturer', user: 'User' })[s] || s || 'Unknown';
 
-/** Fetch thrust-curve files for a batch of motorIds → Map<motorId, file[]>. */
+/** Fetch thrust-curve files for a batch of motorIds → Map<motorId, file[]>.
+ *  `data: 'both'` also returns the raw file (base64) so we can read the loaded
+ *  mass and CG straight from it — the values OpenRocket uses (see below). */
 async function fetchSamples(ids) {
   const out = new Map();
-  const { results: files = [] } = await post('download.json', { motorIds: ids, data: 'samples', maxResults: 4000 });
+  const { results: files = [] } = await post('download.json', { motorIds: ids, data: 'both', maxResults: 4000 });
   for (const f of files) {
     if (!f.samples || f.samples.length < 2) continue;
     if (!out.has(f.motorId)) out.set(f.motorId, []);
-    out.get(f.motorId).push({ source: f.source, format: f.format, samples: f.samples });
+    out.get(f.motorId).push({ source: f.source, format: f.format, samples: f.samples, data: f.data });
   }
   return out;
+}
+
+/**
+ * Loaded mass (g) read straight from the thrust-curve FILE — RASP header
+ * `totalWeight` (kg) or RockSim `<engine initWt>` (g). This is the mass
+ * OpenRocket uses; thrustcurve.org's `totalWeightG` metadata can disagree with
+ * the file (e.g. AeroTech J350W: file 651 g vs metadata 665 g), which throws off
+ * loaded CG and stability. We prefer the file to match OpenRocket.
+ */
+function fileLoadedMassG(format, b64) {
+  if (!b64) return null;
+  const text = Buffer.from(b64, 'base64').toString('utf8');
+  if (format === 'RASP') {
+    // name  diameter  length  delays  propWeight(kg)  totalWeight(kg)  manufacturer
+    const header = text.split('\n').find((l) => l.trim() && !l.trim().startsWith(';'));
+    const total = header ? parseFloat(header.trim().split(/\s+/)[5]) : NaN;
+    return Number.isFinite(total) ? total * 1000 : null;
+  }
+  if (format === 'RockSim') {
+    const m = text.match(/<engine\b[^>]*\binitWt="([\d.]+)"/i);
+    return m ? parseFloat(m[1]) : null;
+  }
+  return null;
+}
+
+/** CG-vs-time as [[t(s), cgFromNose(m)]] from a RockSim file's `<eng-data cg t>`
+ *  (cg is mm from the motor's forward end). null when the file carries no CG. */
+function rockSimCg(b64) {
+  if (!b64) return null;
+  const text = Buffer.from(b64, 'base64').toString('utf8');
+  const pts = [];
+  for (const m of text.matchAll(/<eng-data\b([^>]*)\/>/g)) {
+    const cg = m[1].match(/\bcg="([\d.]+)"/);
+    const t = m[1].match(/\bt="([\d.]+)"/);
+    if (cg && t) pts.push([round(parseFloat(t[1]), 4), round(parseFloat(cg[1]) / 1000, 5)]);
+  }
+  return pts.length ? pts : null;
 }
 
 async function main() {
@@ -104,10 +143,20 @@ async function main() {
       // Bundled thrust curves (best-first), so a picked motor resolves with no
       // fetch and the picker can offer a choice when there are several.
       if (curve && Number.isFinite(m.length) && Number.isFinite(m.propWeightG)) {
-        row.curves = rankFiles(curve).map((c) => ({
+        const ranked = rankFiles(curve);
+        row.curves = ranked.map((c) => ({
           src: `${sourceLabel(c.source)} · ${c.format}`,
           samples: c.samples.map((s) => [round(s.time, 4), round(s.thrust, 3)]),
         }));
+        // Loaded mass from the primary bundled file (the one the app uses by
+        // default) — matches OpenRocket; overrides the metadata mass set above.
+        const fileMass = fileLoadedMassG(ranked[0].format, ranked[0].data);
+        if (Number.isFinite(fileMass)) row.mass = round(fileMass, 2);
+        // Real CG-vs-time from the best RockSim file, if any (else the motor
+        // build falls back to mid-length, same as OpenRocket for RASP-only data).
+        const rockSim = ranked.find((c) => c.format === 'RockSim');
+        const cg = rockSim ? rockSimCg(rockSim.data) : null;
+        if (cg) row.cg = cg;
       } else {
         // No bundled curve (none published, or missing length/prop weight so it
         // can't be built). Flag it so the UI can mark it and block compare/combine.

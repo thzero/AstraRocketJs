@@ -9,6 +9,19 @@ import { axialStart, finTabFront, profilePath, type Ctx } from './schematicGeome
 const fillOf = (n: ComponentNode, dflt: string): string =>
   typeof n['color'] === 'string' ? (n['color'] as string) : dflt;
 
+/**
+ * One drawn instance of a fin set in the side view. `p` is the foreshortening
+ * on the radial coordinates: cos(clock angle), so +1 is straight up, 0 edge-on,
+ * −1 straight down (the desktop's FinSetShapes.getShapesSide, 24.12). `near` is
+ * the half a flat silhouette can't express: a fin at +z is in FRONT of the
+ * airframe (drawn whole); one at −z is behind (the tube covers its root, so its
+ * fill is clipped at the wall).
+ */
+interface FinInstance {
+  p: number;
+  near: boolean;
+}
+
 /** Everything the airframe-shape render helpers close over — the memoized
  *  layout (chain/ctx/scale/w/h), the interaction state and callbacks, and the
  *  view state (roll, hover, motors) they read while drawing. */
@@ -19,6 +32,9 @@ export interface SchematicShapesCfg {
   w: number;
   h: number;
   roll: number;
+  /** Unique id namespace for this instance's clipPaths (two schematics can
+   *  share one document — an unqualified id would cross-clip). */
+  uid: string;
   motors?: Record<string, { length: number; diameter: number; label?: string }>;
   vertical?: boolean;
   selectedId?: string | null;
@@ -40,6 +56,10 @@ export interface SchematicShapesCfg {
 export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   shapes: React.ReactNode[];
   overlay: React.ReactNode[];
+  /** Wireframe fin outlines drawn while the view is rolled (paint after overlay). */
+  wires: React.ReactNode[];
+  /** clipPath defs for the airframe-band cuts (paint inside the svg's <defs>). */
+  clipDefs: React.ReactNode[];
   hoverBox: { x0: number; y0: number; x1: number; y1: number } | null;
   hoverTag: { x: number; y: number; tw: number } | null;
   hoverName: string;
@@ -51,6 +71,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
     w,
     h,
     roll,
+    uid,
     motors,
     vertical,
     selectedId,
@@ -93,7 +114,99 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   // tube used to vanish under that tube's opaque fill (while the overhang into
   // the PREVIOUS tube, already painted, stayed visible — Eric's ebay report).
   const overlay: React.ReactNode[] = [];
+  // Wireframe fin outlines and their hit surfaces, painted after overlay: while
+  // the view is rolled every fin becomes a plain outline over the body (desktop
+  // OpenRocket's convention), so all N fins stay on screen and each can be
+  // followed round the airframe.
+  const wires: React.ReactNode[] = [];
   let key = 0;
+
+  // ROLLED = WIREFRAME (fins only). At rest the drawing is filled — near fins
+  // whole, far fins cut at the airframe wall. The moment the roll slider leaves
+  // zero, every fin is drawn as a plain outline, over the body, nothing hidden.
+  const wire = roll !== 0;
+
+  // One clip per (centreline, body radius): everything OUTSIDE the airframe
+  // band, as two rects. Cuts a FAR fin's fill at the tube wall (a fin behind the
+  // body has its root hidden). Memoised so a shared band reuses one def.
+  const clipDefs: React.ReactNode[] = [];
+  const airframeClips = new Map<string, string>();
+  const airframeClip = (baseY: number, pRadius: number): string => {
+    const top = baseY - pRadius * ctx.scale;
+    const bottom = baseY + pRadius * ctx.scale;
+    const memo = `${top.toFixed(3)}:${bottom.toFixed(3)}`;
+    const seen = airframeClips.get(memo);
+    if (seen) return seen;
+    const id = `${uid}-outside-${airframeClips.size}`;
+    airframeClips.set(memo, id);
+    const FAR = 1e4; // certainly covers the drawing; lives inside the view transform
+    clipDefs.push(
+      <clipPath key={id} id={id}>
+        <rect x={-FAR} y={-FAR} width={2 * FAR} height={FAR + top} />
+        <rect x={-FAR} y={bottom} width={2 * FAR} height={FAR} />
+      </clipPath>,
+    );
+    return id;
+  };
+
+  /**
+   * Where each fin of a set lands in the side view: a signed foreshortening
+   * factor `p` on its radial coordinates (+1 up, 0 edge-on, −1 down = cos θ,
+   * the desktop's FinSetShapes), and `near` = whether it's in FRONT of the
+   * airframe (sin θ ≥ 0). EVERY instance comes back, including hidden ones;
+   * furthest-out last so the reaching fin reads on top when a rolled set overlaps.
+   */
+  const finFactors = (n: ComponentNode, dfltCount = 3): FinInstance[] => {
+    const count = Math.max(1, Math.round(num(n, 'finCount', dfltCount)));
+    const base = num(n, 'rotation', 0) + roll;
+    const out: FinInstance[] = [];
+    for (let i = 0; i < count; i++) {
+      const a = base + (2 * Math.PI * i) / count;
+      out.push({ p: Math.cos(a), near: Math.sin(a) >= 0 });
+    }
+    return out.sort((x, y) => Math.abs(x.p) - Math.abs(y.p));
+  };
+
+  // Ink for a fin drawn as a wireframe outline: the component's own colour, no fill.
+  const wireInk = (n: ComponentNode, grab: Record<string, unknown>) => ({
+    ...grab,
+    fill: 'none',
+    stroke: selStroke(n, fillOf(n, '#7a786f')),
+    strokeWidth: selWidth(n, 1.4),
+  });
+
+  // One wire fin: the visible outline plus an INVISIBLE hit surface clipped to
+  // OUTSIDE the airframe band, so a click on bare body tube doesn't land on a
+  // fin lying flat inside it.
+  const pushWire = (
+    n: ComponentNode,
+    grab: Record<string, unknown>,
+    clip: string,
+    shape: (extra: Record<string, unknown>) => React.ReactNode,
+  ) => {
+    wires.push(shape(wireInk(n, grab)));
+    wires.push(shape({ ...grab, fill: 'transparent', stroke: 'none', clipPath: `url(#${clip})` }));
+  };
+
+  // Hover extent for a fin set: the union of what is actually DRAWN (tip and the
+  // airframe edge each instance emerges from), so a foreshortened set doesn't
+  // wash empty sky beyond its shortened blades.
+  const noteHoverFins = (
+    n: ComponentNode,
+    x0: number,
+    x1: number,
+    baseY: number,
+    reach: number,
+    pRadius: number,
+    projections: FinInstance[],
+  ) => {
+    if (!projections.length) return;
+    const ys = projections.flatMap(({ p, near }) => [
+      baseY - reach * p * ctx.scale,
+      baseY - pRadius * (near || wire ? p : Math.sign(p)) * ctx.scale,
+    ]);
+    noteHover(n, x0, Math.min(...ys), x1, Math.max(...ys));
+  };
 
   // Hovered component's drawn extent (layout px), unioned across instances
   // (cluster copies, pod rings) as the shapes render.
@@ -160,14 +273,16 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
       const t = child.type;
       // Off-axis assembly: draw its whole chain once per ring instance at the
       // instance's projected baseline (side view projects y, ignores depth z).
+      // The view roll turns the ring; −off.y since the section frame's +y is UP
+      // and SVG y grows down.
       if (isAssembly(t)) {
         const podChain = child.children ?? [];
         const podLen = assemblyChainLength(child);
         const podRadius = resolveAssemblyRadius(child, pRadius);
         const podStart = axialStart(child, podLen, pStart, pLen);
         const count = Math.max(1, Math.round(num(child, 'instanceCount', 2)));
-        for (const off of ringInstanceOffsets(count, podRadius, num(child, 'angleOffset', 0))) {
-          renderChain(podChain, podStart, baseY + off.y * ctx.scale);
+        for (const off of ringInstanceOffsets(count, podRadius, num(child, 'angleOffset', 0) + roll)) {
+          renderChain(podChain, podStart, baseY - off.y * ctx.scale);
         }
         continue;
       }
@@ -180,60 +295,90 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
             }
           : {}),
       };
-      // Through-the-wall fin tab: dashed rect from the body surface inward.
-      const renderTab = (finStart: number, finLen: number) => {
+      // Through-the-wall fin tab: dashed rect from the body surface inward,
+      // foreshortened with the fin instance `p` it belongs to.
+      const renderTab = (finStart: number, finLen: number, p: number) => {
         const tabH = Math.min(num(child, 'tabHeight', 0), pRadius);
         const tabLen = num(child, 'tabLength', 0);
         if (tabH <= 0 || tabLen <= 0) return;
         const front = finStart + finTabFront(child, finLen);
-        for (const dir of [1, -1] as const) {
-          const yTop = dir === 1 ? baseY + (pRadius - tabH) * ctx.scale : baseY - pRadius * ctx.scale;
-          shapes.push(
-            <rect
-              key={key++}
-              x={ctx.x0 + front * ctx.scale}
-              y={yTop}
-              width={Math.max(2, tabLen * ctx.scale)}
-              height={Math.max(1.5, tabH * ctx.scale)}
-              fill={fillOf(child, '#b9b7b0')}
-              fillOpacity="0.35"
-              stroke="#7a786f"
-              strokeWidth="1"
-              strokeDasharray="3 2"
-              style={{ pointerEvents: 'none' }}
-            />,
-          );
-        }
+        const yInner = baseY - (pRadius - tabH) * p * ctx.scale;
+        const ySurface = baseY - pRadius * p * ctx.scale;
+        const hPx = Math.abs(yInner - ySurface);
+        if (wire && hPx < 0.5) return;
+        (wire ? wires : shapes).push(
+          <rect
+            key={key++}
+            x={ctx.x0 + front * ctx.scale}
+            y={Math.min(yInner, ySurface)}
+            width={Math.max(2, tabLen * ctx.scale)}
+            height={wire ? hPx : Math.max(1.5, hPx)}
+            fill={wire ? 'none' : fillOf(child, '#b9b7b0')}
+            fillOpacity={wire ? undefined : '0.35'}
+            stroke="#7a786f"
+            strokeWidth="1"
+            strokeDasharray="3 2"
+            style={{ pointerEvents: 'none' }}
+          />,
+        );
       };
       if (t === 'freeformfinset') {
         const raw = (child['points'] as [number, number][] | undefined) ?? [];
         if (raw.length >= 3) {
-          const chord = Math.max(...raw.map((p) => p[0]));
+          const xs = raw.map((p) => p[0]);
+          // Root chord (first→last point, where the outline meets the body)
+          // positions the fin and its tab — the same measure the engine uses.
+          // The furthest-aft outline point (aftX) can sit behind the root when
+          // the tip trailing corner overhangs; it only widens the drawn shape
+          // and its hover/hit box, and must NOT move the fin forward.
+          const root = xs[xs.length - 1]! - xs[0]!;
+          const chord = root > 0 ? root : Math.max(...xs);
+          const aftX = Math.max(...xs);
           const start = axialStart(child, chord, pStart, pLen);
           const ymax = Math.max(0, ...raw.map((p) => p[1]));
-          noteHover(
+          const reach = pRadius + ymax;
+          const projections = finFactors(child);
+          noteHoverFins(
             child,
             ctx.x0 + start * ctx.scale,
-            baseY - (pRadius + ymax) * ctx.scale,
-            ctx.x0 + (start + chord) * ctx.scale,
-            baseY + (pRadius + ymax) * ctx.scale,
+            ctx.x0 + (start + aftX) * ctx.scale,
+            baseY,
+            reach,
+            pRadius,
+            projections,
           );
-          for (const dir of [1, -1] as const) {
+          const clip = airframeClip(baseY, pRadius);
+          for (const { p, near } of projections) {
             const ptsStr = raw
-              .map(([px, py]) => `${ctx.x0 + (start + px) * ctx.scale},${baseY + dir * (pRadius + py) * ctx.scale}`)
+              .map(([px, py]) => `${ctx.x0 + (start + px) * ctx.scale},${baseY - (pRadius + py) * p * ctx.scale}`)
               .join(' ');
-            shapes.push(
+            // Rolled: an outline over the body — every instance, including one
+            // lying flat inside the airframe (the one you follow round).
+            if (wire) {
+              pushWire(child, grab, clip, (extra) => <polygon key={key++} points={ptsStr} {...extra} />);
+              renderTab(start, chord, p);
+              continue;
+            }
+            const body = (
               <polygon
                 key={key++}
                 points={ptsStr}
+                clipPath={near ? undefined : `url(#${clip})`}
                 fill={fillOf(child, '#b9b7b0')}
                 stroke={selStroke(child, '#7a786f')}
                 strokeWidth={selWidth(child)}
                 {...grab}
-              />,
+              />
             );
+            // Only fins that poke past the airframe are drawn: an edge-on blade
+            // (reach·|p| ≤ pRadius) is hidden behind the body, not a bar down
+            // the centreline. Near ones go in the overlay (on top); far ones
+            // under the hull, their root cut at the wall by the clip.
+            if (reach * Math.abs(p) > pRadius) {
+              (near ? overlay : shapes).push(body);
+              renderTab(start, chord, p);
+            }
           }
-          renderTab(start, chord);
         }
       } else if (t === 'trapezoidfinset' || t === 'ellipticalfinset') {
         const root = num(child, 'rootChord', 0.05);
@@ -241,71 +386,74 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         const sweep = t === 'trapezoidfinset' ? num(child, 'sweep', 0.02) : root / 2;
         const height = num(child, 'height', 0.03);
         const start = axialStart(child, root, pStart, pLen);
-        noteHover(
+        const reach = pRadius + height;
+        const projections = finFactors(child);
+        noteHoverFins(
           child,
           ctx.x0 + start * ctx.scale,
-          baseY - (pRadius + height) * ctx.scale,
           ctx.x0 + (start + Math.max(root, sweep + tip)) * ctx.scale,
-          baseY + (pRadius + height) * ctx.scale,
+          baseY,
+          reach,
+          pRadius,
+          projections,
         );
-        // Spin about the axis: each of the N fins projects into the side view
-        // by cos(roll + i·2π/N). |cos|=1 → broadside (full height), 0 → edge-on
-        // (invisible). Draw edge-on-ish fins first so broadside ones sit on top.
-        const finCount = Math.max(1, Math.round(num(child, 'finCount', 3)));
-        // As a fin nears edge-on its projection collapses to a thin swept sliver
-        // over the centreline (jutting past the motor). Fade it out there instead
-        // of drawing that sliver: opaque by ~55° off edge-on, gone by ~78°.
-        const finOpacity = (p: number) => {
-          const tt = Math.max(0, Math.min(1, (Math.abs(p) - 0.25) / 0.25));
-          return tt * tt; // squared: near-edge-on slivers vanish fast; solid by |proj| ≥ 0.5
-        };
-        const projected = Array.from({ length: finCount }, (_, fi) => Math.cos(roll + (fi * 2 * Math.PI) / finCount))
-          .filter((p) => finOpacity(p) > 0.02)
-          .sort((a, b) => Math.abs(a) - Math.abs(b));
-        for (const proj of projected) {
-          // A point at radius r on the airframe projects to y = r·cos(roll+…) in
-          // the side view, so BOTH the root (body attach line, r = pRadius) and
-          // the tip (r = pRadius + height) scale by the same signed `proj`. The
-          // whole fin then collapses toward the centreline as it turns edge-on,
-          // instead of the root staying pinned to the hull as a flat sliver.
-          const y0 = baseY + pRadius * proj * ctx.scale; // projected root
-          const yh = baseY + (pRadius + height) * proj * ctx.scale; // projected tip
+        const finClip = airframeClip(baseY, pRadius);
+        for (const { p, near } of projections) {
+          // A point at radius r projects to y = baseY − r·cos θ (angle 0 = up);
+          // both the root (r = pRadius) and the tip (r = reach) scale by `p`.
+          const y0 = baseY - pRadius * p * ctx.scale;
+          const yh = baseY - reach * p * ctx.scale;
           const X = ctx.x0 + start * ctx.scale;
-          const opacity = finOpacity(proj);
-          shapes.push(
+          const ry = Math.abs(y0 - yh);
+          // Elliptical fin = a true half-ellipse by SVG arc (a quadratic Bézier
+          // only reaches ~57% of its control height). ry unfloored while wired
+          // so an edge-on ellipse degenerates to the line the other shapes draw.
+          const ellipse = `M ${X} ${y0} A ${(root / 2) * ctx.scale} ${wire ? ry : Math.max(2, ry)} 0 0 ${p > 0 ? 1 : 0} ${X + root * ctx.scale} ${y0} Z`;
+          const trap = `${X},${y0} ${X + sweep * ctx.scale},${yh} ${X + (sweep + tip) * ctx.scale},${yh} ${X + root * ctx.scale},${y0}`;
+          if (wire) {
+            pushWire(child, grab, finClip, (extra) =>
+              t === 'trapezoidfinset' ? (
+                <polygon key={key++} points={trap} {...extra} />
+              ) : (
+                <path key={key++} d={ellipse} {...extra} />
+              ),
+            );
+            renderTab(start, root, p);
+            continue;
+          }
+          const outsideClip = near ? undefined : `url(#${finClip})`;
+          const body =
             t === 'trapezoidfinset' ? (
               <polygon
                 key={key++}
-                points={`${X},${y0} ${X + sweep * ctx.scale},${yh} ${X + (sweep + tip) * ctx.scale},${yh} ${X + root * ctx.scale},${y0}`}
+                clipPath={outsideClip}
+                points={trap}
                 fill={fillOf(child, '#b9b7b0')}
                 stroke={selStroke(child, '#7a786f')}
                 strokeWidth={selWidth(child)}
-                opacity={opacity}
                 {...grab}
               />
             ) : (
-              // Elliptical fin = a half-ellipse: major axis = root chord
-              // (horizontal), semi-minor axis = the projected span |yh − y0|. An
-              // SVG arc draws it exactly and reaches the full projected span (a
-              // quadratic Bézier only bends ~halfway to its control point).
               <path
                 key={key++}
-                d={`M ${X} ${y0} A ${(root / 2) * ctx.scale} ${Math.abs(yh - y0)} 0 0 ${proj >= 0 ? 1 : 0} ${X + root * ctx.scale} ${y0} Z`}
+                clipPath={outsideClip}
+                d={ellipse}
                 fill={fillOf(child, '#b9b7b0')}
                 stroke={selStroke(child, '#7a786f')}
                 strokeWidth={selWidth(child)}
-                opacity={opacity}
                 {...grab}
               />
-            ),
-          );
+            );
+          if (reach * Math.abs(p) > pRadius) {
+            (near ? overlay : shapes).push(body);
+            renderTab(start, root, p);
+          }
         }
-        renderTab(start, root);
       } else if (t === 'tubefinset') {
-        // Side view: the top and bottom tubes of the ring, sitting on the
-        // body surface (side tubes project onto the body — omitted). Each
-        // is drawn as its silhouette rectangle with a center line hinting
-        // at the tube bore.
+        // Side view: every tube of the ring at its projected height. A tube runs
+        // PARALLEL to the axis, so roll doesn't squash its 2·rt silhouette — only
+        // its centre moves, to (pRadius + rt)·cos θ. Tubes whose silhouette falls
+        // entirely inside the airframe are hidden behind it and dropped.
         const len = num(child, 'length', 0.1);
         const rt = tubeFinRadius(child, pRadius);
         const start = axialStart(child, len, pStart, pLen);
@@ -317,35 +465,63 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           X + len * ctx.scale,
           baseY + (pRadius + 2 * rt) * ctx.scale,
         );
-        for (const dir of [1, -1] as const) {
-          const yNear = baseY + dir * pRadius * ctx.scale;
-          const yFar = baseY + dir * (pRadius + 2 * rt) * ctx.scale;
-          shapes.push(
-            <rect
-              key={key++}
-              x={X}
-              y={Math.min(yNear, yFar)}
-              width={Math.max(2, len * ctx.scale)}
-              height={Math.abs(yFar - yNear)}
-              rx="2"
-              fill={fillOf(child, '#c8c5be')}
-              fillOpacity="0.6"
-              stroke={selStroke(child, '#7a786f')}
-              strokeWidth={selWidth(child)}
-              {...grab}
-            />,
-            <line
-              key={key++}
-              x1={X}
-              y1={(yNear + yFar) / 2}
-              x2={X + len * ctx.scale}
-              y2={(yNear + yFar) / 2}
-              stroke="#7a786f"
-              strokeWidth="0.8"
-              strokeDasharray="4 3"
-              style={{ pointerEvents: 'none' }}
-            />,
-          );
+        const tubes = finFactors(child, 6);
+        const tubeClip = airframeClip(baseY, pRadius);
+        for (const { p, near } of tubes) {
+          const yc = baseY - (pRadius + rt) * p * ctx.scale;
+          const half = rt * ctx.scale;
+          const w2 = Math.max(2, len * ctx.scale);
+          if (wire) {
+            pushWire(child, grab, tubeClip, (extra) => (
+              <rect key={key++} x={X} y={yc - half} width={w2} height={2 * half} rx="2" {...extra} />
+            ));
+            wires.push(
+              <line
+                key={key++}
+                x1={X}
+                y1={yc}
+                x2={X + len * ctx.scale}
+                y2={yc}
+                stroke="#7a786f"
+                strokeWidth="0.8"
+                strokeDasharray="4 3"
+                style={{ pointerEvents: 'none' }}
+              />,
+            );
+            continue;
+          }
+          const cut = near ? undefined : `url(#${tubeClip})`;
+          if ((pRadius + rt) * Math.abs(p) + rt > pRadius) {
+            const into = near ? overlay : shapes;
+            into.push(
+              <rect
+                key={key++}
+                x={X}
+                y={yc - half}
+                clipPath={cut}
+                width={w2}
+                height={2 * half}
+                rx="2"
+                fill={fillOf(child, '#c8c5be')}
+                fillOpacity="0.6"
+                stroke={selStroke(child, '#7a786f')}
+                strokeWidth={selWidth(child)}
+                {...grab}
+              />,
+              <line
+                key={key++}
+                x1={X}
+                y1={yc}
+                x2={X + len * ctx.scale}
+                y2={yc}
+                clipPath={cut}
+                stroke="#7a786f"
+                strokeWidth="0.8"
+                strokeDasharray="4 3"
+                style={{ pointerEvents: 'none' }}
+              />,
+            );
+          }
         }
       } else if (t === 'fairing') {
         // External shroud: SOLID outline (it's on the outside — Eric's spec),
@@ -639,20 +815,27 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         cx += len;
       } else if (n.type === 'bodytube') {
         const r = num(n, 'outerRadius', 0.012);
-        noteHover(n, ctx.x0 + cx * scale, baseY - r * scale, ctx.x0 + (cx + len) * scale, baseY + r * scale);
-        shapes.push(
-          <rect
-            key={key++}
-            x={ctx.x0 + cx * scale}
-            y={baseY - r * scale}
-            width={len * scale}
-            height={2 * r * scale}
-            fill={fillOf(n, '#e7e5e0')}
-            stroke={selStroke(n, '#7a786f')}
-            strokeWidth={selWidth(n)}
-            {...clickable(n)}
-          />,
-        );
+        // A zero-size "phantom" tube (length 0, radius 0) is a modelling hack
+        // used only to hang an off-axis fin set at a chosen radius (e.g. a
+        // T-tail's horizontal stabiliser). Draw no rect for it — a degenerate
+        // rect leaves a stray dot/line — but still lay out its children below.
+        const degenerate = r < 1e-6 || len < 1e-6;
+        if (!degenerate) {
+          noteHover(n, ctx.x0 + cx * scale, baseY - r * scale, ctx.x0 + (cx + len) * scale, baseY + r * scale);
+          shapes.push(
+            <rect
+              key={key++}
+              x={ctx.x0 + cx * scale}
+              y={baseY - r * scale}
+              width={len * scale}
+              height={2 * r * scale}
+              fill={fillOf(n, '#e7e5e0')}
+              stroke={selStroke(n, '#7a786f')}
+              strokeWidth={selWidth(n)}
+              {...clickable(n)}
+            />,
+          );
+        }
         // Min-diameter: a motor loaded directly in this body tube draws at its
         // real case size, seated flush against the tube's aft end.
         const tubeMotor = n.id ? motors?.[n.id] : undefined;
@@ -714,5 +897,5 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
     };
   }
 
-  return { shapes, overlay, hoverBox, hoverTag, hoverName };
+  return { shapes, overlay, wires, clipDefs, hoverBox, hoverTag, hoverName };
 }

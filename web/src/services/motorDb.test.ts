@@ -118,3 +118,41 @@ describe('findCatalogMotor', () => {
     expect(findCatalogMotor(catalog, 'X9')).toBeUndefined();
   });
 });
+
+describe('findCatalogMotor — full .ork designations vs short catalog names', () => {
+  // Catalog keys the SHORT designation; the full name lives in `code`, exactly
+  // as our bundled motors.generated.json does (see Fireball.ZL1.DD.multi.ork).
+  const cat: CatalogMotor[] = [
+    { designation: 'H128', manufacturer: 'AeroTech', class: 'H', diameter: 29, impulse: 1, burn: 1, mass: 1, code: 'H128W' },
+    { designation: 'I180', manufacturer: 'AeroTech', class: 'I', diameter: 38, impulse: 1, burn: 1, mass: 1, code: 'I180W' },
+    { designation: 'I180', manufacturer: 'Cesaroni', class: 'I', diameter: 38, impulse: 1, burn: 1, mass: 1, code: '338I180-14A' },
+    { designation: 'J350', manufacturer: 'AeroTech', class: 'J', diameter: 38, impulse: 1, burn: 1, mass: 1, code: 'J350W' },
+    { designation: 'J350', manufacturer: 'Loki', class: 'J', diameter: 38, impulse: 1, burn: 1, mass: 1, code: 'J350-SF' },
+    { designation: 'G84', manufacturer: 'Cesaroni', class: 'G', diameter: 29, impulse: 1, burn: 1, mass: 1, code: '131G84-10A' },
+  ];
+
+  it('matches an AeroTech full name via the code field', () => {
+    expect(findCatalogMotor(cat, 'H128W', 'AeroTech')!.designation).toBe('H128');
+  });
+
+  it('matches a Cesaroni full name (case + delay) via the code field', () => {
+    const m = findCatalogMotor(cat, '131G84-10A', 'Cesaroni Technology')!;
+    expect(m.designation).toBe('G84');
+    expect(m.manufacturer).toBe('Cesaroni');
+  });
+
+  it('disambiguates duplicate short names by manufacturer', () => {
+    expect(findCatalogMotor(cat, 'I180W', 'AeroTech')!.manufacturer).toBe('AeroTech');
+    expect(findCatalogMotor(cat, '338I180-14A', 'Cesaroni')!.manufacturer).toBe('Cesaroni');
+  });
+
+  it('resolves a variant suffix by stripping it (J350W-OLD → J350 AeroTech)', () => {
+    const m = findCatalogMotor(cat, 'J350W-OLD', 'AeroTech')!;
+    expect(m.designation).toBe('J350');
+    expect(m.manufacturer).toBe('AeroTech');
+  });
+
+  it('still returns undefined when the motor genuinely is not present', () => {
+    expect(findCatalogMotor(cat, 'K1100T', 'AeroTech')).toBeUndefined();
+  });
+});

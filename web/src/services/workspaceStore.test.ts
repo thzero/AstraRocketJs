@@ -4,11 +4,14 @@ import type { KeyValueStore } from './keyValueStore';
 
 class FakeKv implements KeyValueStore {
   map = new Map<string, string>();
+  full = false; // simulate quota exceeded → set() reports failure
   async get(k: string) {
     return this.map.has(k) ? this.map.get(k)! : null;
   }
   async set(k: string, v: string) {
+    if (this.full) return false;
     this.map.set(k, v);
+    return true;
   }
   async remove(k: string) {
     this.map.delete(k);
@@ -72,5 +75,15 @@ describe('KeyValueWorkspaceStore', () => {
 
     await kv.set(KEY, JSON.stringify({ version: 1, tree: { components: [] }, sims: [] })); // empty sims
     expect(await store.load()).toBeNull();
+  });
+
+  it('rejects a blob whose tree.components is not an array', async () => {
+    await kv.set(KEY, JSON.stringify({ version: 1, tree: {}, sims: [{ id: 's1' }] }));
+    expect(await store.load()).toBeNull();
+  });
+
+  it('save() throws when storage is full instead of silently dropping work', async () => {
+    kv.full = true;
+    await expect(store.save(workspace())).rejects.toThrow(/storage-full/);
   });
 });

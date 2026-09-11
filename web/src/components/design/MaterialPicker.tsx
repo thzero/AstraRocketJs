@@ -69,7 +69,8 @@ export function MaterialPicker({
     try {
       const next = await addCustom(name, type, parseFloat(dens));
       setMats(await materialsForType(type));
-      onChange(next[0].name, next[0].density);
+      const added = next[0];
+      if (added) onChange(added.name, added.density);
       setAdding(false);
       setName('');
       setDens('');

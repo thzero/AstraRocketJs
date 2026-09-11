@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import type { ComponentNode, ComponentType, RocketTree } from '../../engine/openRocketEngine';
@@ -14,6 +14,7 @@ const ADD_GROUPS: { group: string; items: ComponentType[] }[] = [
   { group: 'groupInner', items: ['innertube', 'tubecoupler', 'centeringring', 'bulkhead', 'engineblock'] },
   { group: 'groupRecovery', items: ['parachute', 'streamer'] },
   { group: 'groupOther', items: ['launchlug', 'masscomponent'] },
+  { group: 'groupAssembly', items: ['podset'] },
 ];
 
 /**
@@ -115,6 +116,7 @@ function Row({
   node,
   depth,
   selectedId,
+  tabbableId,
   onSelect,
   collapsed,
   onToggleCollapse,
@@ -123,6 +125,10 @@ function Row({
   node: ComponentNode;
   depth: number;
   selectedId?: string | null;
+  // Roving tabindex: exactly one row carries tabIndex 0 (this id); the rest are
+  // -1 and reached with the arrow keys. Keeps the whole tree to a single tab
+  // stop instead of one per part.
+  tabbableId?: string | null;
   onSelect?: (id: string) => void;
   collapsed: ReadonlySet<string>;
   onToggleCollapse: (id: string) => void;
@@ -148,7 +154,26 @@ function Row({
     <>
       <div
         ref={rowRef}
+        role={id && onSelect ? 'button' : undefined}
+        tabIndex={id && onSelect ? (id === tabbableId ? 0 : -1) : undefined}
+        data-tree-row={id && onSelect ? '1' : undefined}
+        data-id={id && onSelect ? id : undefined}
+        data-haskids={hasKids && id ? '1' : undefined}
+        data-collapsed={isCollapsed ? '1' : undefined}
         onClick={id && onSelect ? () => onSelect(id) : undefined}
+        onKeyDown={
+          id && onSelect
+            ? (e) => {
+                // Keyboard selection: this was the ONLY way to select a part
+                // (the 2D/3D canvases are pointer-only too), so a keyboard user
+                // could reach no component at all.
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelect(id);
+                }
+              }
+            : undefined
+        }
         className={`flex items-center gap-2 rounded-md py-1 pr-2 ${id && onSelect ? 'cursor-pointer' : ''} ${
           selected ? 'bg-sky-600/25 ring-1 ring-inset ring-sky-500/50' : 'hover:bg-slate-800'
         }`}
@@ -163,6 +188,7 @@ function Row({
             }}
             aria-label={isCollapsed ? t('tree.expand') : t('tree.collapse')}
             aria-expanded={!isCollapsed}
+            tabIndex={-1}
             className="w-6 shrink-0 text-center text-xl leading-none text-slate-500 hover:text-slate-200"
           >
             {isCollapsed ? '▸' : '▾'}
@@ -191,6 +217,7 @@ function Row({
             node={c}
             depth={depth + 1}
             selectedId={selectedId}
+            tabbableId={tabbableId}
             onSelect={onSelect}
             collapsed={collapsed}
             onToggleCollapse={onToggleCollapse}
@@ -206,17 +233,17 @@ export function ComponentTree({
   selectedId,
   onSelect,
   onAdd,
-  onRenameDesign,
-  onCommit,
+  onEditDesign,
   onScale,
+  onAddStage,
 }: {
   tree: RocketTree;
   selectedId?: string | null;
   onSelect?: (id: string) => void;
   onAdd?: (type: ComponentType) => void;
-  onRenameDesign?: (name: string) => void;
-  onCommit?: () => void; // close the rename's undo entry when the field blurs
+  onEditDesign?: () => void; // open the Rocket-configuration dialog (name, designer, …)
   onScale?: () => void; // open the whole-rocket scale dialog
+  onAddStage?: () => void; // append a new (booster) stage at the bottom
 }) {
   const { t } = useTranslation();
   // Ids of collapsed (folded) branches — ephemeral view state per node id.
@@ -229,8 +256,10 @@ export function ComponentTree({
       return next;
     });
   // Every id-bearing node that has children (the collapsible ones), so the
-  // header toggle can fold or unfold the whole tree at once.
-  const branchIds = (() => {
+  // header toggle can fold or unfold the whole tree at once. Memoized: it walks
+  // the whole tree and only changes when the components do — not on every
+  // selection/hover re-render.
+  const branchIds = useMemo(() => {
     const ids: string[] = [];
     const walk = (nodes: ComponentNode[]) => {
       for (const n of nodes) {
@@ -240,9 +269,83 @@ export function ComponentTree({
     };
     walk(tree.components);
     return ids;
-  })();
+  }, [tree.components]);
   const allCollapsed = branchIds.length > 0 && branchIds.every((id) => collapsed.has(id));
   const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(branchIds));
+
+  // Roving-tabindex arrow navigation. `orderedIds` is the visible, selectable
+  // rows in the order they're drawn (children of a collapsed branch are
+  // skipped). Exactly one of them is tabbable at a time; the arrow keys move
+  // focus between them, so the whole tree is one tab stop, not one per part.
+  const listRef = useRef<HTMLDivElement>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const orderedIds = useMemo(() => {
+    const out: string[] = [];
+    const walk = (nodes: ComponentNode[]) => {
+      for (const n of nodes) {
+        const nid = typeof n.id === 'string' ? n.id : undefined;
+        if (nid && onSelect) out.push(nid);
+        const hasKids = (n.children?.length ?? 0) > 0;
+        const isCollapsed = hasKids && !!nid && collapsed.has(nid);
+        if (!isCollapsed) walk(n.children ?? []);
+      }
+    };
+    walk(tree.components);
+    return out;
+  }, [tree.components, collapsed, onSelect]);
+  // The single tabbable row: the last arrow-focused row if still visible, else
+  // the selected row, else the first — so Tab always lands somewhere sensible.
+  const tabbableId =
+    (activeId && orderedIds.includes(activeId) && activeId) ||
+    (selectedId && orderedIds.includes(selectedId) && selectedId) ||
+    orderedIds[0] ||
+    null;
+
+  const onTreeKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const rowEl = (e.target as HTMLElement).closest<HTMLElement>('[data-tree-row]');
+    if (!rowEl || !listRef.current?.contains(rowEl)) return;
+    const rows = Array.from(listRef.current.querySelectorAll<HTMLElement>('[data-tree-row]'));
+    const idx = rows.indexOf(rowEl);
+    if (idx < 0) return;
+    const move = (to?: HTMLElement) => {
+      if (!to) return;
+      e.preventDefault();
+      to.focus();
+      const rid = to.getAttribute('data-id');
+      if (rid) setActiveId(rid);
+    };
+    const rid = rowEl.getAttribute('data-id');
+    const hasKids = rowEl.getAttribute('data-haskids') === '1';
+    const isCollapsed = rowEl.getAttribute('data-collapsed') === '1';
+    switch (e.key) {
+      case 'ArrowDown':
+        move(rows[idx + 1]);
+        break;
+      case 'ArrowUp':
+        move(rows[idx - 1]);
+        break;
+      case 'Home':
+        move(rows[0]);
+        break;
+      case 'End':
+        move(rows[rows.length - 1]);
+        break;
+      case 'ArrowRight':
+        // Collapsed branch → expand; otherwise step to the next row.
+        if (rid && hasKids && isCollapsed) {
+          e.preventDefault();
+          toggleCollapse(rid);
+        } else move(rows[idx + 1]);
+        break;
+      case 'ArrowLeft':
+        // Expanded branch → collapse; otherwise step to the previous row.
+        if (rid && hasKids && !isCollapsed) {
+          e.preventDefault();
+          toggleCollapse(rid);
+        } else move(rows[idx - 1]);
+        break;
+    }
+  };
 
   // Fold the whole list away (header stays) so the property editor gets the room
   // once a part is picked. Collapsed, the header names the selected part.
@@ -264,92 +367,106 @@ export function ComponentTree({
 
   return (
     <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-1.5">
-          {/* Fold the whole tree list — the header (and this toggle) stay put. */}
-          <button
-            onClick={() => setListOpen((o) => !o)}
-            aria-expanded={listOpen}
-            title={listOpen ? t('tree.collapseTree') : t('tree.expandTree')}
-            className="flex min-w-0 items-center gap-1.5 rounded px-1 py-0.5 hover:bg-slate-800"
-          >
-            <span className="text-base leading-none text-sky-400">{listOpen ? '▾' : '▸'}</span>
-            <h2 className="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              {t('tree.components')}
-            </h2>
-            {!listOpen && selectedName && (
-              <span className="truncate text-xs font-medium text-sky-300">· {selectedName}</span>
-            )}
-          </button>
-          {listOpen && branchIds.length > 0 && (
-            <button
-              onClick={toggleAll}
-              title={allCollapsed ? t('tree.expandAll') : t('tree.collapseAll')}
-              aria-label={allCollapsed ? t('tree.expandAll') : t('tree.collapseAll')}
-              className="rounded px-1 text-xl leading-none text-slate-500 hover:bg-slate-800 hover:text-slate-200"
-            >
-              {allCollapsed ? '⊞' : '⊟'}
-            </button>
+      <div className="mb-2 flex min-w-0 items-center gap-1.5">
+        {/* Fold the whole tree list — the header (and this toggle) stay put. */}
+        <button
+          onClick={() => setListOpen((o) => !o)}
+          aria-expanded={listOpen}
+          title={listOpen ? t('tree.collapseTree') : t('tree.expandTree')}
+          className="flex min-w-0 items-center gap-1.5 rounded px-1 py-0.5 hover:bg-slate-800"
+        >
+          <span className="text-base leading-none text-sky-400">{listOpen ? '▾' : '▸'}</span>
+          <h2 className="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            {t('tree.components')}
+          </h2>
+          {!listOpen && selectedName && (
+            <span className="truncate text-xs font-medium text-sky-300">· {selectedName}</span>
           )}
-        </div>
-        {listOpen && onAdd && (
-          <select
-            value=""
-            disabled={groups.length === 0}
-            onChange={(e) => {
-              const v = e.target.value as ComponentType;
-              if (v) onAdd(v);
-              e.currentTarget.value = '';
-            }}
-            className="rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-sky-300 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500 disabled:text-slate-600"
-            title={
-              groups.length ? t('tree.canHost', { parent: parentLabel }) : t('tree.cantHost', { parent: parentLabel })
-            }
+        </button>
+        {listOpen && branchIds.length > 0 && (
+          <button
+            onClick={toggleAll}
+            title={allCollapsed ? t('tree.expandAll') : t('tree.collapseAll')}
+            aria-label={allCollapsed ? t('tree.expandAll') : t('tree.collapseAll')}
+            className="rounded px-1 text-xl leading-none text-slate-500 hover:bg-slate-800 hover:text-slate-200"
           >
-            <option value="">
-              {groups.length ? t('tree.addTo', { parent: parentLabel }) : t('tree.nothingToAdd')}
-            </option>
-            {groups.map((g) => (
-              <optgroup key={g.group} label={t(`tree.${g.group}`)}>
-                {g.items.map((ty) => (
-                  <option key={ty} value={ty}>
-                    {partLabel(ty, t)}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        )}
-      </div>
-      <div className="flex items-center gap-2 px-2 pb-1">
-        <span className="text-sm">🚀</span>
-        {onRenameDesign ? (
-          <input
-            value={tree.name || ''}
-            onChange={(e) => onRenameDesign(e.target.value)}
-            onBlur={onCommit}
-            placeholder={t('tree.rocket')}
-            aria-label={t('prop.name')}
-            title={t('prop.name')}
-            className="min-w-0 flex-1 truncate rounded bg-transparent px-1 text-sm font-semibold text-sky-400 hover:bg-slate-800/60 focus:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
-          />
-        ) : (
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-sky-400">
-            {tree.name || t('tree.rocket')}
-          </span>
+            {allCollapsed ? '⊞' : '⊟'}
+          </button>
         )}
         {onScale && (
           <button
             onClick={onScale}
             title={t('scale.title')}
-            className="shrink-0 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
+            className="ml-auto shrink-0 whitespace-nowrap rounded-md bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
           >
             {t('tree.scale')}
           </button>
         )}
       </div>
+      {/* Design name on its own full-width row so a long name isn't squeezed by
+          the action buttons; click it to open the Rocket-configuration dialog. */}
+      <div className="mb-2 flex items-center gap-2 px-1">
+        <span className="shrink-0 text-base leading-none">🚀</span>
+        {onEditDesign ? (
+          <button
+            onClick={onEditDesign}
+            aria-label={t('config.edit')}
+            title={t('config.edit')}
+            className="group flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-sm font-semibold text-sky-400 hover:bg-slate-800/60 focus:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
+          >
+            <span className="min-w-0 flex-1 truncate">{tree.name || t('tree.rocket')}</span>
+            <span aria-hidden className="shrink-0 text-xs text-slate-500 group-hover:text-sky-300">
+              ✎
+            </span>
+          </button>
+        ) : (
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-sky-400">
+            {tree.name || t('tree.rocket')}
+          </span>
+        )}
+      </div>
+
+      {/* Actions on their own row — add a component to the selected part, add a
+          stage, or scale the whole rocket; wrap when the panel is narrow. */}
+      {(onAdd || onAddStage) && (
+        <div className="mb-2 flex flex-wrap items-center gap-2 px-1">
+          {onAddStage && (
+            <button
+              onClick={onAddStage}
+              title={t('tree.addStageTitle')}
+              className="whitespace-nowrap rounded-md bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
+            >
+              {t('tree.addStage')}
+            </button>
+          )}
+          {listOpen && onAdd && (
+            <select
+              value=""
+              disabled={groups.length === 0}
+              onChange={(e) => {
+                const v = e.target.value as ComponentType;
+                if (v) onAdd(v);
+                e.currentTarget.value = '';
+              }}
+              className="rounded-md bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500 disabled:text-slate-600"
+              title={groups.length ? t('tree.canHost', { parent: parentLabel }) : t('tree.cantHost', { parent: parentLabel })}
+            >
+              <option value="">{t('tree.add')}</option>
+              {groups.map((g) => (
+                <optgroup key={g.group} label={t(`tree.${g.group}`)}>
+                  {g.items.map((ty) => (
+                    <option key={ty} value={ty}>
+                      {partLabel(ty, t)}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
       {listOpen && (
-        <div className="border-l border-white/5 pl-1">
+        <div ref={listRef} onKeyDown={onTreeKeyDown} className="border-l border-white/5 pl-1">
           {tree.components.length ? (
             tree.components.map((c, i) => (
               <Row
@@ -357,6 +474,7 @@ export function ComponentTree({
                 node={c}
                 depth={0}
                 selectedId={selectedId}
+                tabbableId={tabbableId}
                 onSelect={onSelect}
                 collapsed={collapsed}
                 onToggleCollapse={toggleCollapse}

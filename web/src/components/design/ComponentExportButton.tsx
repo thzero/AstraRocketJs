@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { useWorkspaceStore } from '../../state/store';
-import { componentFormats, type ExportFormat } from '../../services/componentExport';
+import { componentFormats, type ExportFormat } from '../../services/componentFormats';
 
 const LABEL: Record<ExportFormat, string> = { stl: 'file.stl', obj: 'file.obj', glb: 'file.glb', dxf: 'file.dxf' };
 

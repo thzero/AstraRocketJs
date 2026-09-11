@@ -16,6 +16,9 @@ import {
   moveNode,
   defaultNode,
   addPart,
+  addStage,
+  stageNodes,
+  isFirstStage,
 } from './treeEdit';
 import type { RocketTree } from '../engine/openRocketEngine';
 import type { Component } from './componentDb';
@@ -265,5 +268,43 @@ describe('addPart', () => {
     const { tree, id } = addPart(flat, 'bodytube', null);
     expect(tree.components).toHaveLength(2);
     expect(tree.components.some((c) => c.id === id)).toBe(true);
+  });
+});
+
+describe('defaultNode(stage)', () => {
+  it('is a bare stage seeded with the desktop-default separation', () => {
+    const n = defaultNode('stage');
+    expect(n.type).toBe('stage');
+    expect(n.children ?? []).toHaveLength(0);
+    expect(n.separationEvent).toBe('ejection');
+    expect(n.separationDelay).toBe(0);
+  });
+});
+
+describe('addStage', () => {
+  it('appends a new empty stage as the bottom sibling and names it "Booster"', () => {
+    const { tree, id } = addStage(makeTree());
+    const stages = stageNodes(tree);
+    expect(stages).toHaveLength(2);
+    expect(stages[1]!.id).toBe(id); // appended last (the bottom booster)
+    expect(stages[1]!.name).toBe('Booster');
+    expect(stages[1]!.children ?? []).toHaveLength(0);
+  });
+
+  it('numbers a third stage and leaves the original tree untouched', () => {
+    const t = makeTree();
+    const once = addStage(t).tree;
+    const twice = addStage(once).tree;
+    expect(stageNodes(twice).map((s) => s.name)).toEqual([undefined, 'Booster', 'Stage 3']);
+    expect(t.components).toHaveLength(1); // immutable — original unchanged
+  });
+});
+
+describe('stage helpers', () => {
+  it('stageNodes returns top-level stages in order; isFirstStage flags the top one', () => {
+    const { tree, id } = addStage(makeTree());
+    expect(stageNodes(tree).map((s) => s.id)).toEqual(['s1', id]);
+    expect(isFirstStage(tree, 's1')).toBe(true);
+    expect(isFirstStage(tree, id)).toBe(false);
   });
 });

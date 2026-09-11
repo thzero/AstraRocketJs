@@ -355,23 +355,6 @@ export type ComponentType =
   | 'parallelstage';
 
 /**
- * Stage separation trigger (lower stages only; desktop default "ejection").
- * On a `stage` node: `separationEvent`, `separationDelay` (s),
- * `separationAltitude` (m, for the altitude events), and `nozzleExitDiameter`
- * (m; RASAero power-on base-drag reduction, 0/absent = power-off, all stages).
- */
-export type SeparationEvent =
-  | 'launch'
-  | 'ignition'
-  | 'burnout'
-  | 'ejection'
-  | 'upperignition'
-  | 'altitudeascending'
-  | 'apogee'
-  | 'altitudedescending'
-  | 'never';
-
-/**
  * When a mount's motor ignites. "automatic" = launch-stage motors at launch,
  * upper-stage motors on the ejection charge of the stage below (the low/mid-
  * power pattern). High-power sustainers use electronics: "burnout" or
@@ -404,8 +387,28 @@ export interface ComponentNode {
 
 export interface RocketTree {
   name?: string;
+  /** "Designer" free-text (OpenRocket's Rocket configuration) — round-tripped. */
+  designer?: string;
+  /** Design "Comments" free-text — round-tripped. */
+  comment?: string;
+  /** "Revision history" free-text — round-tripped. */
+  revision?: string;
+  /** Design-type token: original | commercial_kit | clone_kit | upscale_kit |
+   *  downscale_kit | modified_kit | kit_bash (OpenRocket DesignType). */
+  designType?: string;
   components: ComponentNode[];
 }
+
+/** OpenRocket DesignType tokens, in menu order (ORIGINAL first). */
+export const DESIGN_TYPES = [
+  'original',
+  'commercial_kit',
+  'clone_kit',
+  'upscale_kit',
+  'downscale_kit',
+  'modified_kit',
+  'kit_bash',
+] as const;
 
 export interface FlightSummary {
   maxAltitude: number;

@@ -374,7 +374,11 @@ export function AftView({
           touchAction: 'none',
           cursor: zoom.k > 1 ? 'grab' : undefined,
         }}
-        role="img"
+        // role="group" (not "img"): "img" collapses the whole SVG into one
+        // node and suppresses every per-part <title> inside, so a screen reader
+        // would hear only the one aria-label and none of the parts. "group"
+        // keeps the overall name yet still exposes the named parts within.
+        role="group"
         aria-label={t('schematic.aftAria')}
         onPointerDown={(e) => {
           // Drag rotates the roll (primary); pan only when zoomed and no onRoll.
@@ -423,13 +427,13 @@ export function AftView({
         </g>
       </svg>
       <div className="schematic-controls">
-        <button title={t('schematic.zoomIn')} onClick={() => zoomBy(1.5)}>
+        <button title={t('schematic.zoomIn')} aria-label={t('schematic.zoomIn')} onClick={() => zoomBy(1.5)}>
           +
         </button>
-        <button title={t('schematic.zoomOut')} onClick={() => zoomBy(1 / 1.5)}>
+        <button title={t('schematic.zoomOut')} aria-label={t('schematic.zoomOut')} onClick={() => zoomBy(1 / 1.5)}>
           −
         </button>
-        <button title={t('schematic.fit')} onClick={() => setZoom({ k: 1, x: 0, y: 0 })}>
+        <button title={t('schematic.fit')} aria-label={t('schematic.fit')} onClick={() => setZoom({ k: 1, x: 0, y: 0 })}>
           ⤢
         </button>
       </div>

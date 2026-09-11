@@ -159,7 +159,8 @@ const EARTH_RADIUS_M = 6_371_000; // spherical Earth (OpenRocket's default model
 // Model builder (mirrors FlightPathModelBuilder)
 // ---------------------------------------------------------------------------
 
-const num = (v: number | null | undefined): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+/** Coerce a possibly-missing series value to a finite number, or 0. */
+const finiteOr0 = (v: number | null | undefined): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const series = (s: FlightSeries, key: string): (number | null)[] | undefined => s[key] as (number | null)[] | undefined;
 
 /**
@@ -247,8 +248,8 @@ function buildBranch(
   const acc = series(raw.series, 'acceleration');
   const n = Math.min(time.length, alt.length);
 
-  const eastAt = (i: number) => num(east?.[i]);
-  const northAt = (i: number) => num(north?.[i]);
+  const eastAt = (i: number) => finiteOr0(east?.[i]);
+  const northAt = (i: number) => finiteOr0(north?.[i]);
   const distanceAt = (i: number) => Math.hypot(eastAt(i), northAt(i));
   const bearingAt = (i: number) => {
     const deg = (Math.atan2(eastAt(i), northAt(i)) * 180) / Math.PI;
@@ -256,11 +257,11 @@ function buildBranch(
   };
 
   const mkWaypoint = (i: number, type: WaypointKind, label: string, device: string | null): FlightPathWaypoint => {
-    const altAgl = num(alt[i]);
+    const altAgl = finiteOr0(alt[i]);
     const latitude = ctx.toLat(northAt(i));
     const longitude = ctx.toLon(eastAt(i));
     const mslMeters = altAgl + ctx.launchAlt;
-    const t = num(time[i]);
+    const t = finiteOr0(time[i]);
     return {
       type,
       label,
@@ -314,8 +315,8 @@ function buildBranch(
   if (options.includeFlightPath || options.includeGroundTrack) {
     const stride = Math.max(1, options.pathStride);
     const pushPoint = (i: number) => {
-      const altAgl = num(alt[i]);
-      const t = num(time[i]);
+      const altAgl = finiteOr0(alt[i]);
+      const t = finiteOr0(time[i]);
       branch.path.push({
         latitude: ctx.toLat(northAt(i)),
         longitude: ctx.toLon(eastAt(i)),
@@ -349,7 +350,7 @@ function indexOfTime(time: (number | null)[], t: number, n: number): number {
   let bestDiff = Infinity;
   const limit = Math.min(n, time.length);
   for (let i = 0; i < limit; i++) {
-    const diff = Math.abs(num(time[i]) - t);
+    const diff = Math.abs(finiteOr0(time[i]) - t);
     if (diff < bestDiff) {
       bestDiff = diff;
       best = i;
@@ -555,7 +556,11 @@ function escaperFor(extension: string): (raw: string) => string {
           .replace(/"/g, '&quot;')
           .replace(/'/g, '&apos;');
     case 'csv':
-      return (raw) => raw.replace(/"/g, '""');
+      // Neutralize spreadsheet formula injection: a file-sourced value (e.g. a
+      // rocket named `=HYPERLINK(...)`) must not execute when the CSV is opened
+      // in Excel/Sheets. Prefix a `'` when it leads with a formula trigger, then
+      // double quotes for RFC-4180 (the template wraps values in quotes).
+      return (raw) => (/^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw).replace(/"/g, '""');
     default:
       return (raw) => raw;
   }

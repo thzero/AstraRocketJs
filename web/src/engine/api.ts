@@ -12,7 +12,7 @@ import {
 } from './openRocketEngine';
 import { defaultDesignName } from '../services/appInfo';
 
-export type { RocketSpec, StaticInfo, FlightResult, FlightSeries } from './openRocketEngine';
+export type { RocketSpec, StaticInfo, FlightResult } from './openRocketEngine';
 
 /** A stock Estes C6 (SI units): times→thrust, per-sample motor mass. */
 export const C6: MotorSpec = {
@@ -35,7 +35,11 @@ export const C6: MotorSpec = {
 export function buildRocketTree(tree: RocketTree, motor?: MotorSpec, mountId?: string): OpenRocketDesign {
   resetEngine();
   const rocket = OpenRocketDesign.buildTree(tree);
-  if (motor && mountId) rocket.setMotorById(mountId, motor);
+  // Only seat a motor that actually carries a thrust curve (≥ 2 samples). An
+  // unresolved .ork motor is a curve-less placeholder; setMotorById on it would
+  // throw "Too short thrust-curve". Skipping it leaves the mount empty so the
+  // design still builds (and the run stays blocked until a real motor is picked).
+  if (motor && mountId && (motor.times?.length ?? 0) >= 2) rocket.setMotorById(mountId, motor);
   return rocket;
 }
 

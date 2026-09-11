@@ -53,51 +53,72 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
   const posAttr = g.getAttribute('position');
   if (!idx || !posAttr) return g;
 
-  // Directed boundary edges: an undirected edge used by exactly one triangle.
-  // Keep the direction it had in that triangle so the caps can be wound to match.
+  // Directed boundary edges (a→b): an undirected edge used by exactly one
+  // triangle, keeping the direction it had there so the caps wind to match.
   const undirected = new Map<string, number>();
-  const directed = new Map<number, number>(); // a -> b for boundary edges
   const dirList: Array<[number, number]> = [];
   for (let i = 0; i < idx.count; i += 3) {
     const a = idx.getX(i), b = idx.getX(i + 1), c = idx.getX(i + 2);
     for (const [u, v] of [[a, b], [b, c], [c, a]] as const) {
-      undirected.set(edgeKey(u, v), (undirected.get(edgeKey(u, v)) ?? 0) + 1);
+      const k = edgeKey(u, v);
+      undirected.set(k, (undirected.get(k) ?? 0) + 1);
       dirList.push([u, v]);
     }
   }
+  // Successors keyed by START vertex, as a MULTIMAP. A vertex where two boundary
+  // loops meet (a self-touching planform, a figure-8 seam) is the start of more
+  // than one boundary edge; a plain Map<number,number> kept only the last and
+  // left the other loop uncapped, so the "watertight" result was not. Each edge
+  // is consumed exactly once by the walk below.
+  const outgoing = new Map<number, number[]>();
+  let boundaryEdges = 0;
   for (const [u, v] of dirList) {
-    if (undirected.get(edgeKey(u, v)) === 1) directed.set(u, v);
+    if (undirected.get(edgeKey(u, v)) === 1) {
+      const arr = outgoing.get(u);
+      if (arr) arr.push(v);
+      else outgoing.set(u, [v]);
+      boundaryEdges++;
+    }
   }
-  if (directed.size === 0) return g; // already watertight
+  if (boundaryEdges === 0) return g; // already watertight
 
   const positions: number[] = Array.from(posAttr.array as ArrayLike<number>);
   const indices: number[] = Array.from({ length: idx.count }, (_, i) => idx.getX(i));
   const vec = (i: number) => new THREE.Vector3(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
 
-  // Walk the directed boundary edges into closed loops and fan-cap each.
-  const visited = new Set<number>();
-  for (const [startFrom] of directed) {
-    if (visited.has(startFrom)) continue;
-    const loop: number[] = [];
-    let cur: number | undefined = startFrom;
-    let guard = 0;
-    while (cur !== undefined && !visited.has(cur) && guard++ < directed.size + 1) {
-      visited.add(cur);
-      loop.push(cur);
-      cur = directed.get(cur);
-    }
-    if (loop.length < 3) continue;
+  // Consume one outgoing boundary edge from `u` (undefined when none remain).
+  const step = (u: number): number | undefined => outgoing.get(u)?.pop();
 
-    // Centroid vertex, then a fan. Winding (centroid, v[i+1], v[i]) opposes the
-    // boundary direction so the cap's outward face agrees with the shell it closes.
-    const centroid = new THREE.Vector3();
-    for (const v of loop) centroid.add(vec(v));
-    centroid.multiplyScalar(1 / loop.length);
-    const cIdx = positions.length / 3;
-    positions.push(centroid.x, centroid.y, centroid.z);
-    for (let i = 0; i < loop.length; i++) {
-      const v0 = loop[i], v1 = loop[(i + 1) % loop.length];
-      indices.push(cIdx, v1, v0);
+  // Walk the boundary into CLOSED loops and fan-cap each. Starting a fresh loop
+  // from every vertex that still has an unconsumed edge handles multiple loops
+  // sharing a vertex; `boundaryEdges` bounds the total work.
+  for (const start of outgoing.keys()) {
+    while ((outgoing.get(start)?.length ?? 0) > 0) {
+      const loop: number[] = [start];
+      let cur = step(start);
+      let closed = false;
+      let guard = 0;
+      while (cur !== undefined && guard++ <= boundaryEdges) {
+        if (cur === start) {
+          closed = true;
+          break;
+        }
+        loop.push(cur);
+        cur = step(cur);
+      }
+      if (!closed || loop.length < 3) continue; // only cap edges that form a real loop
+
+      // Centroid vertex, then a fan. Winding (centroid, v[i+1], v[i]) opposes the
+      // boundary direction so the cap's outward face agrees with the shell it closes.
+      const centroid = new THREE.Vector3();
+      for (const v of loop) centroid.add(vec(v));
+      centroid.multiplyScalar(1 / loop.length);
+      const cIdx = positions.length / 3;
+      positions.push(centroid.x, centroid.y, centroid.z);
+      for (let i = 0; i < loop.length; i++) {
+        const v0 = loop[i]!, v1 = loop[(i + 1) % loop.length]!;
+        indices.push(cIdx, v1, v0);
+      }
     }
   }
 
@@ -137,10 +158,11 @@ function dropDegenerate(geo: THREE.BufferGeometry): THREE.BufferGeometry {
  */
 function revolveSolidX(surface: [number, number][], axialOffset: number): THREE.BufferGeometry {
   const n = surface.length;
+  if (n === 0) return new THREE.BufferGeometry(); // nothing to revolve (guards surface[0] below)
   const pts: THREE.Vector2[] = [];
-  if (surface[0][1] > 1e-9) pts.push(new THREE.Vector2(0, surface[0][0])); // fore cap to axis
+  if (surface[0]![1] > 1e-9) pts.push(new THREE.Vector2(0, surface[0]![0])); // fore cap to axis
   for (const [ax, r] of surface) pts.push(new THREE.Vector2(Math.max(0, r), ax));
-  if (surface[n - 1][1] > 1e-9) pts.push(new THREE.Vector2(0, surface[n - 1][0])); // aft cap to axis
+  if (surface[n - 1]![1] > 1e-9) pts.push(new THREE.Vector2(0, surface[n - 1]![0])); // aft cap to axis
   let geo: THREE.BufferGeometry = new THREE.LatheGeometry(pts, SEGMENTS);
   // mergeVertices compares ALL attributes, and a lathe's revolution seam and its
   // radius-0 poles carry different uv/normal at the same position — so they only
@@ -184,17 +206,22 @@ export function discSolid(outerR: number, innerR: number, length: number): THREE
 
 /** One fin as a flat, watertight extruded solid at the origin (planform in XY,
  *  thickness centred on Z) — ready to lay on a print bed. */
-function oneFinSolid(child: ComponentNode): THREE.BufferGeometry {
+function oneFinSolid(child: ComponentNode): THREE.BufferGeometry | null {
   const ff = child.type === 'freeformfinset' ? ((child['points'] as [number, number][] | undefined) ?? []) : [];
   const root = child.type === 'freeformfinset' && ff.length ? Math.max(...ff.map((p) => p[0])) : num(child, 'rootChord', 0.05);
   const height = child.type === 'freeformfinset' && ff.length ? Math.max(...ff.map((p) => p[1])) : num(child, 'height', 0.03);
   const thickness = num(child, 'thickness', 0.003);
 
+  // Degenerate planform → no printable solid: a zero-area outline (thickness,
+  // root or height ≤ 0) or a freeform with < 3 points extrudes to a broken /
+  // empty mesh. Skip it rather than emit non-manifold garbage into the export.
+  if (!(thickness > 0) || !(root > 0) || !(height > 0)) return null;
+  if (child.type === 'freeformfinset' && ff.length < 3) return null;
+
   const shape = new THREE.Shape();
   if (child.type === 'freeformfinset') {
-    const raw = ff.length ? ff : ([[0, 0], [0.02, 0.03], [0.05, 0]] as [number, number][]);
-    shape.moveTo(raw[0][0], raw[0][1]);
-    for (let i = 1; i < raw.length; i++) shape.lineTo(raw[i][0], raw[i][1]);
+    shape.moveTo(ff[0]![0], ff[0]![1]);
+    for (let i = 1; i < ff.length; i++) shape.lineTo(ff[i]![0], ff[i]![1]);
   } else if (child.type === 'ellipticalfinset') {
     shape.moveTo(0, 0);
     const steps = 32;
@@ -229,6 +256,7 @@ export function solidForNode(node: ComponentNode): THREE.BufferGeometry | null {
   switch (node.type) {
     case 'nosecone': {
       const R = num(node, 'aftRadius', 0.012);
+      if (!(R > 0) || !(len > 0)) return null; // zero-radius/length → empty, non-manifold lathe
       const shape = typeof node['shape'] === 'string' ? (node['shape'] as string) : 'ogive';
       const surface = outerProfile(shape, numOpt(node, 'shapeParameter'), len, 0, R, SEGMENTS);
       // Aft shoulder: a smaller-radius stub that plugs into the body tube.
@@ -240,6 +268,7 @@ export function solidForNode(node: ComponentNode): THREE.BufferGeometry | null {
     case 'transition': {
       const rf = num(node, 'foreRadius', 0.012);
       const ra = num(node, 'aftRadius', 0.009);
+      if (!(len > 0) || !(Math.max(rf, ra) > 0)) return null; // degenerate → no solid
       const shape = typeof node['shape'] === 'string' ? (node['shape'] as string) : 'conical';
       const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
       let surface = outerProfile(shape, numOpt(node, 'shapeParameter'), len, rf, ra, SEGMENTS, undefined, clipped);
@@ -258,6 +287,10 @@ export function solidForNode(node: ComponentNode): THREE.BufferGeometry | null {
     case 'tubefinset': {
       const R = num(node, 'outerRadius', 0.012);
       const wall = num(node, 'thickness', node.type === 'launchlug' ? 0.0003 : 0.0005);
+      // A zero/negative outer radius (or length) revolves to an empty mesh that
+      // still reads as "watertight"; return null so it's skipped from export
+      // rather than handed over as a hollow non-solid (matches nose/transition/fin).
+      if (!(R > 0) || !(len > 0)) return null;
       return discSolid(R, Math.max(0, R - wall), len);
     }
     case 'trapezoidfinset':

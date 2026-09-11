@@ -46,6 +46,10 @@ export interface CatalogMotor {
   /** Set by the sync when no thrust curve could be bundled (none published, or
    *  missing length/prop weight). Such a motor can't be plotted / combined. */
   noCurve?: boolean;
+  /** CG-vs-time as [[t (s), cgFromNose (m)]], read from the motor file (RockSim)
+   *  — the real CG OpenRocket uses. Launch CG = cg[0][1]. Absent → the motor
+   *  build falls back to mid-length (same as OpenRocket for RASP-only data). */
+  cg?: [number, number][];
 }
 
 /** Whether a catalog motor has a usable bundled thrust curve (≥ 2 samples).
@@ -137,9 +141,17 @@ export function allManufacturers(catalog: CatalogMotor[]): string[] {
 }
 
 /**
- * Best catalog match for a designation from a .ork file (which names a motor
- * but carries no curve). Matches designation exactly, then loosely (ignoring
- * spaces/dashes), preferring the given manufacturer. Returns undefined if none.
+ * Best catalog match for a designation from a .ork file (which names a motor but
+ * carries no curve). A .ork stores the FULL manufacturer designation — AeroTech
+ * "H128W" (propellant letter), Cesaroni "131G84-10A" (case + delay) — while our
+ * catalog keys the SHORT name ("H128", "G84") and stashes the full one in `code`.
+ * So we match, progressively looser, against both `designation` and `code`:
+ *   1) exact designation           2) exact code (the full name)
+ *   3) normalized either (ignore -/space)
+ *   4) strip a trailing -VARIANT (…-OLD / …-10A) and/or a trailing propellant
+ *      letter, then retry — this is what resolves "J350W-OLD" → "J350"/"J350W".
+ * The requested manufacturer breaks ties within each tier (AeroTech vs Cesaroni
+ * "I180"). Returns undefined if nothing matches at all.
  */
 export function findCatalogMotor(
   catalog: CatalogMotor[],
@@ -147,17 +159,37 @@ export function findCatalogMotor(
   manufacturer?: string,
 ): CatalogMotor | undefined {
   const norm = (s: string) => s.trim().toLowerCase().replace(/[-\s]/g, '');
-  const want = designation.trim().toLowerCase();
+  const raw = designation.trim();
+  const want = raw.toLowerCase();
   if (!want) return undefined;
-  let cands = catalog.filter((m) => m.designation.toLowerCase() === want);
-  if (cands.length === 0) cands = catalog.filter((m) => norm(m.designation) === norm(designation));
-  if (manufacturer) {
+  const code = (m: CatalogMotor) => (m.code ?? '').toLowerCase();
+
+  // Prefer the requested manufacturer, but never let it empty a non-empty set.
+  const byMfr = (cands: CatalogMotor[]): CatalogMotor[] => {
+    if (!manufacturer || cands.length <= 1) return cands;
     const mf = manufacturer.trim().toLowerCase();
-    const byMfr = cands.filter((m) => {
+    const hit = cands.filter((m) => {
       const mm = m.manufacturer.toLowerCase();
       return mm === mf || mm.includes(mf) || mf.includes(mm);
     });
-    if (byMfr.length) cands = byMfr;
+    return hit.length ? hit : cands;
+  };
+
+  // `H128W-OLD` → base `H128W` (drop one trailing -/_ suffix) → bare `H128`
+  // (drop trailing propellant letters). Both are retried against designation+code.
+  const base = raw.replace(/[-_][^-_]*$/, '');
+  const bare = base.replace(/[A-Za-z]+$/, '');
+  const stripped = [base, bare].map((s) => s.toLowerCase()).filter((s) => s && s !== want);
+
+  const tiers: Array<() => CatalogMotor[]> = [
+    () => catalog.filter((m) => m.designation.toLowerCase() === want),
+    () => catalog.filter((m) => code(m) === want),
+    () => catalog.filter((m) => norm(m.designation) === norm(raw) || norm(m.code ?? '') === norm(raw)),
+    () => catalog.filter((m) => stripped.some((s) => m.designation.toLowerCase() === s || code(m) === s)),
+  ];
+  for (const tier of tiers) {
+    const hit = byMfr(tier());
+    if (hit.length) return hit[0];
   }
-  return cands[0];
+  return undefined;
 }

@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
+import * as THREE from 'three';
 import type * as THREEType from 'three';
 import type { ComponentNode } from '../engine/openRocketEngine';
-import { solidForNode, discSolid } from './solidMesh';
+import { solidForNode, discSolid, makeWatertight, countBoundaryEdges } from './solidMesh';
 
 /** Count open (hole) and non-manifold edges of one geometry, by vertex position. */
 function quality(g: THREEType.BufferGeometry): { hole: number; nonManifold: number } {
@@ -14,7 +15,7 @@ function quality(g: THREEType.BufferGeometry): { hole: number; nonManifold: numb
   for (let i = 0; i < idx.count; i += 3) {
     const k = [key(idx.getX(i)), key(idx.getX(i + 1)), key(idx.getX(i + 2))];
     for (let e = 0; e < 3; e++) {
-      const kk = ek(k[e], k[(e + 1) % 3]);
+      const kk = ek(k[e]!, k[(e + 1) % 3]!);
       m.set(kk, (m.get(kk) ?? 0) + 1);
     }
   }
@@ -51,6 +52,29 @@ describe('solid mesher (per component)', () => {
     for (const type of ['parachute', 'streamer', 'shockcord', 'masscomponent', 'railbutton']) {
       expect(solidForNode({ type } as unknown as ComponentNode)).toBeNull();
     }
+  });
+
+  it('makeWatertight caps EVERY boundary loop when two share a vertex', () => {
+    // Two open triangles sharing one corner (vertex 0). That shared vertex is
+    // the start of two boundary edges — the old single-successor Map kept only
+    // the last and left one triangle's loop uncapped; the multimap caps both.
+    const g = new THREE.BufferGeometry();
+    g.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 0.5, 1, 0, -1, 0, 0, -0.5, -1, 0], 3),
+    );
+    g.setIndex([0, 1, 2, 0, 3, 4]);
+    expect(countBoundaryEdges(g)).toBeGreaterThan(0); // open to begin with
+    expect(countBoundaryEdges(makeWatertight(g))).toBe(0); // both loops sealed
+  });
+
+  it('returns null for degenerate geometry instead of a broken/non-manifold solid', () => {
+    const n = (o: object) => solidForNode(o as unknown as ComponentNode);
+    expect(n({ type: 'nosecone', shape: 'ogive', length: 0.1, aftRadius: 0 })).toBeNull(); // zero radius
+    expect(n({ type: 'nosecone', shape: 'ogive', length: 0, aftRadius: 0.013 })).toBeNull(); // zero length
+    expect(n({ type: 'transition', shape: 'conical', length: 0, foreRadius: 0.01, aftRadius: 0.008 })).toBeNull();
+    expect(n({ type: 'trapezoidfinset', rootChord: 0.06, height: 0, thickness: 0.003 })).toBeNull(); // zero-area fin
+    expect(n({ type: 'freeformfinset', points: [[0, 0], [0.05, 0.03]], thickness: 0.003 })).toBeNull(); // < 3 points
   });
 
   it('a solid disc (bulkhead) is watertight and manifold', () => {

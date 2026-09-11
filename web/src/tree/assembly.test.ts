@@ -67,8 +67,8 @@ describe('ringInstanceOffsets', () => {
   it('a single instance sits at angle 0 (y = radius, z = 0)', () => {
     const out = ringInstanceOffsets(1, 0.05);
     expect(out).toHaveLength(1);
-    expect(out[0].y).toBeCloseTo(0.05);
-    expect(out[0].z).toBeCloseTo(0);
+    expect(out[0]!.y).toBeCloseTo(0.05);
+    expect(out[0]!.z).toBeCloseTo(0);
   });
 
   it('spaces N instances evenly around the axis (y = r·cosθ, z = r·sinθ)', () => {
@@ -84,8 +84,8 @@ describe('ringInstanceOffsets', () => {
 
   it('applies the angle offset', () => {
     const out = ringInstanceOffsets(1, 1, Math.PI / 2);
-    expect(out[0].y).toBeCloseTo(0);
-    expect(out[0].z).toBeCloseTo(1);
+    expect(out[0]!.y).toBeCloseTo(0);
+    expect(out[0]!.z).toBeCloseTo(1);
   });
 });
 
