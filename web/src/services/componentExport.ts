@@ -2,41 +2,16 @@ import type { RocketTree } from '../engine/openRocketEngine';
 import { findNode } from './treeEdit';
 import { solidForNode, discSolid } from './solidMesh';
 import { solidToStl, solidToObj, solidToGlb, safeName, downloadFile, STL_MIME, OBJ_MIME, GLB_MIME } from './meshExport';
-import { componentToDxf, resolveDisc, DXF_MIME, DXF_CUTTABLE } from './dxfExport';
+import { componentToDxf, resolveDisc, DXF_MIME } from './dxfExport';
+import { DISC_TYPES, type ExportFormat } from './componentFormats';
 
 /**
- * Per-component export: which formats a component type can produce, and the
- * dispatch that builds + downloads one. Not every part is exportable — only the
- * geometric structural ones — so the tree only offers export where it means
- * something (a parachute or a mass has no object to export).
+ * The HEAVY half of per-component export: the dispatch that builds + downloads
+ * one component as a mesh (STL/OBJ/GLB) or a DXF. Pulls in the meshers and the
+ * DXF writer, so it's loaded on demand (store.exportComponent) rather than at
+ * first paint. Which formats a part offers lives in the light `componentFormats`
+ * module, imported by the tree's export button.
  */
-
-export type ExportFormat = 'stl' | 'obj' | 'glb' | 'dxf';
-
-/** Disc / ring / tube parts — solids of revolution needing parent-tube context. */
-const DISC_TYPES = new Set(['centeringring', 'bulkhead', 'tubecoupler', 'engineblock']);
-
-/** Types with a 3D-printable solid body (STL / OBJ / GLB). */
-const MESH_TYPES = new Set([
-  'nosecone',
-  'bodytube',
-  'transition',
-  'trapezoidfinset',
-  'ellipticalfinset',
-  'freeformfinset',
-  'innertube',
-  'launchlug',
-  'tubefinset',
-  ...DISC_TYPES,
-]);
-
-/** The export formats a component type supports, in menu order (empty = none). */
-export function componentFormats(type: string): ExportFormat[] {
-  const formats: ExportFormat[] = [];
-  if (MESH_TYPES.has(type)) formats.push('stl', 'obj', 'glb');
-  if (DXF_CUTTABLE.has(type)) formats.push('dxf');
-  return formats;
-}
 
 /** Build and download one component in the given format. Returns false on a no-op. */
 export async function exportComponent(tree: RocketTree, nodeId: string, format: ExportFormat): Promise<boolean> {

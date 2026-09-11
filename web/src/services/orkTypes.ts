@@ -89,6 +89,42 @@ export interface OrkExportMotor {
   ignitionDelay?: number;
 }
 
+// ---- Optional <designinfo> block (derived statistics + fin-root positions) ----
+// Written only when the "save design info" preference is on. Purely informational:
+// OpenRocket recomputes it live and skips this on load; other software ignores it.
+
+/** One derived statistic: a label, a pre-formatted value (4 significant figures,
+ *  no exponent), and its unit token (m | kg | kg*m^2 | cal | % | 1/rad | ''). */
+export interface DesignStat {
+  field: string;
+  value: string;
+  unit: string;
+}
+
+/** A statistics group — the whole rocket, or one stage of a multi-stage design. */
+export interface DesignStatGroup {
+  scope: 'rocket' | 'stage';
+  stageNumber?: number;
+  name?: string;
+  stats: DesignStat[];
+}
+
+/** A fin set's nose-tip → fin-root distances (m). */
+export interface DesignFinSet {
+  stageNumber: number;
+  stage: string;
+  name: string;
+  /** Nose tip → fore (top) of the fin root. */
+  topX: number;
+  /** Nose tip → aft (bottom) of the fin root. */
+  bottomX: number;
+}
+
+export interface DesignInfo {
+  groups: DesignStatGroup[];
+  finsets: DesignFinSet[];
+}
+
 /** One flight configuration to write (Stage B) — the stable id from import. */
 export interface OrkExportConfig {
   id: string;
@@ -124,4 +160,6 @@ export interface OrkTreeExportInput {
   configs?: OrkExportConfig[];
   /** Which config the working set (`motors`) came from; null = none/custom. */
   activeConfigId?: string | null;
+  /** Derived statistics block; emitted only when the caller opts in (preference). */
+  designInfo?: DesignInfo;
 }

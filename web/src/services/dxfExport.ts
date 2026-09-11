@@ -22,19 +22,6 @@ import { finTabFront } from '../components/canvas/schematicGeometry';
 
 export const DXF_MIME = 'image/vnd.dxf';
 
-/**
- * Component types offered for DXF — flat, plate-cut parts only (fins, centring
- * rings, bulkheads). Tube couplers and engine blocks are tubes, not plate, so
- * they export as 3D solids (STL/OBJ/GLB) instead.
- */
-export const DXF_CUTTABLE = new Set([
-  'trapezoidfinset',
-  'ellipticalfinset',
-  'freeformfinset',
-  'centeringring',
-  'bulkhead',
-]);
-
 const M_TO_MM = 1000;
 const EPS = 1e-6;
 /** Used when a ring's outer radius can't be resolved from its parent tube. */

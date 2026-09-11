@@ -14,6 +14,7 @@ import { findMountId, findMounts, findNode, updateNode, removeNode, addPart, add
 import { reconcileMounts } from '../services/mountMotors';
 import type { LaunchConditions } from '../services/orkTree';
 import type { OrkExportMotor } from '../services/orkFile';
+import type { DesignInfo } from '../services/orkTypes';
 import type { MountMotor } from '../services/loadOrk';
 import { buildExportMotorMap } from '../services/exportMotors';
 import { wireLoadedOrk } from '../services/wireLoadedOrk';
@@ -520,6 +521,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           extraMotors,
           loadedMeta?.exportMotors ?? {},
         );
+        // Derived-statistics block — only when the user opted in (off by default,
+        // so a normal save stays byte-identical). Built from the same report model
+        // the PDF export uses; both are lazily imported (also avoids a static
+        // store → reportModel → store import cycle).
+        let designInfo: DesignInfo | undefined;
+        if (loadSettings().saveDesignInfo) {
+          const [{ assembleReport }, { buildDesignInfo }] = await Promise.all([
+            import('../services/reportModel'),
+            import('../services/designInfo'),
+          ]);
+          const report = assembleReport();
+          if (report) designInfo = buildDesignInfo(report);
+        }
         // The .ork writer is a lazily-imported chunk — only needed on save.
         const { downloadOrk } = await import('../services/saveOrk');
         downloadOrk({
@@ -527,6 +541,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           tree,
           motors,
           launch: selectActive(get()).launch,
+          designInfo,
         });
       } catch (e) {
         set({ err: `Could not save .ork: ${e instanceof Error ? e.message : String(e)}` });

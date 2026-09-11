@@ -4,6 +4,7 @@ import { shapeIsClippable, shapeParamDefault } from '../tree/shapeProfile';
 import { num } from '../tree/nodeProps';
 import { escapeXml } from './xmlUtil';
 import { uuid } from './uuid';
+import { sig4 } from './designInfo';
 import type { OrkExportMotor, OrkDeployOverride, OrkTreeExportInput } from './orkTypes';
 
 // ============================ EXPORT ============================
@@ -17,6 +18,7 @@ export function exportOrk({
   launch,
   configs,
   activeConfigId,
+  designInfo,
 }: OrkTreeExportInput): string {
   const motorMap: Record<string, OrkExportMotor> = { ...(motors ?? {}) };
   if (motor && mountId && !motorMap[mountId]) motorMap[mountId] = motor;
@@ -822,6 +824,32 @@ export function exportOrk({
     emit(2, '</simulation>');
   }
   emit(1, '</simulations>');
+
+  // Optional derived-statistics block (sibling of <rocket>) — only when the
+  // caller opts in. OpenRocket recomputes this and skips it on load; older / other
+  // software ignores it with a harmless "unknown element" warning.
+  if (designInfo && (designInfo.groups.length > 0 || designInfo.finsets.length > 0)) {
+    emit(1, '<designinfo>');
+    for (const g of designInfo.groups) {
+      const attrs =
+        g.scope === 'rocket'
+          ? 'scope="rocket"'
+          : `scope="stage" stagenumber="${g.stageNumber ?? 0}" name="${escapeXml(g.name ?? '')}"`;
+      emit(2, `<statistics ${attrs}>`);
+      for (const st of g.stats) {
+        emit(3, `<stat field="${escapeXml(st.field)}" value="${escapeXml(st.value)}" unit="${escapeXml(st.unit)}"/>`);
+      }
+      emit(2, '</statistics>');
+    }
+    for (const f of designInfo.finsets) {
+      emit(2, `<finset stagenumber="${f.stageNumber}" stage="${escapeXml(f.stage)}" name="${escapeXml(f.name)}">`);
+      emit(3, `<nosetoroottop unit="m">${sig4(f.topX)}</nosetoroottop>`);
+      emit(3, `<nosetorootbottom unit="m">${sig4(f.bottomX)}</nosetorootbottom>`);
+      emit(2, '</finset>');
+    }
+    emit(1, '</designinfo>');
+  }
+
   emit(0, '</openrocket>');
   return lines.join('\n') + '\n';
 }

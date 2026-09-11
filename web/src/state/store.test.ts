@@ -111,6 +111,42 @@ describe('workspace undo/redo', () => {
   });
 });
 
+describe('design metadata (Rocket configuration)', () => {
+  beforeEach(() => {
+    s().resetWorkspace(); // fresh design + cleared history
+  });
+
+  it('patches the tree metadata as a single undo step', () => {
+    const before = s().tree.name;
+    s().updateDesignMeta({
+      name: 'My Rocket',
+      designer: 'Ada',
+      comment: 'shear-pin notes',
+      revision: 'r1',
+      designType: 'clone_kit',
+    });
+    expect(s().tree.name).toBe('My Rocket');
+    expect(s().tree.designer).toBe('Ada');
+    expect(s().tree.comment).toBe('shear-pin notes');
+    expect(s().tree.revision).toBe('r1');
+    expect(s().tree.designType).toBe('clone_kit');
+    expect(s().past).toHaveLength(1); // one atomic step, not one per field
+
+    s().undo();
+    expect(s().tree.name).toBe(before);
+    expect(s().tree.designer).toBeUndefined();
+    expect(s().tree.comment).toBeUndefined();
+  });
+
+  it('merges a partial patch, leaving untouched fields in place', () => {
+    s().updateDesignMeta({ designer: 'Ada' });
+    s().updateDesignMeta({ revision: 'r2' });
+    expect(s().tree.designer).toBe('Ada'); // survived the second patch
+    expect(s().tree.revision).toBe('r2');
+    expect(s().past).toHaveLength(2); // two separate edits
+  });
+});
+
 describe('simulation undo/redo', () => {
   beforeEach(() => {
     s().resetWorkspace();

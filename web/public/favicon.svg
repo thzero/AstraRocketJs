@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="AstraRocketJs">
+  <defs>
+    <!-- soft dark halo so the rocket reads on light or dark tabs; no hard edges -->
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#020617" stop-opacity="0.6"/>
+      <stop offset="55%" stop-color="#020617" stop-opacity="0.42"/>
+      <stop offset="100%" stop-color="#020617" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="16" cy="16" r="16" fill="url(#halo)"/>
+  <!-- rocket, tilted 45° (nose up-right, like the 🚀 emoji) -->
+  <g transform="rotate(45 16 16)">
+    <!-- exhaust flame -->
+    <path d="M16 30c-2.2-3-2.2-5 0-7 2.2 2 2.2 4 0 7z" fill="#fb923c"/>
+    <path d="M16 28c-1.1-1.9-1.1-3.2 0-4.4 1.1 1.2 1.1 2.5 0 4.4z" fill="#fde047"/>
+    <!-- fins -->
+    <path d="M11.5 17.5 7 24l4.5-2.2z" fill="#38bdf8"/>
+    <path d="M20.5 17.5 25 24l-4.5-2.2z" fill="#38bdf8"/>
+    <!-- fuselage -->
+    <path d="M16 2.5c3.4 3.5 4.6 8 4.6 12.2v6.1c0 1.7-9.2 1.7-9.2 0v-6.1C11.4 10.5 12.6 6 16 2.5z" fill="#e2e8f0"/>
+    <!-- window -->
+    <circle cx="16" cy="12.5" r="2.6" fill="#0284c7"/>
+    <circle cx="16" cy="12.5" r="1.2" fill="#bae6fd"/>
+  </g>
+</svg>

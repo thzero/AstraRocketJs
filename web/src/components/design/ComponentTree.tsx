@@ -282,98 +282,104 @@ export function ComponentTree({
 
   return (
     <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-1.5">
-          {/* Fold the whole tree list — the header (and this toggle) stay put. */}
-          <button
-            onClick={() => setListOpen((o) => !o)}
-            aria-expanded={listOpen}
-            title={listOpen ? t('tree.collapseTree') : t('tree.expandTree')}
-            className="flex min-w-0 items-center gap-1.5 rounded px-1 py-0.5 hover:bg-slate-800"
-          >
-            <span className="text-base leading-none text-sky-400">{listOpen ? '▾' : '▸'}</span>
-            <h2 className="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              {t('tree.components')}
-            </h2>
-            {!listOpen && selectedName && (
-              <span className="truncate text-xs font-medium text-sky-300">· {selectedName}</span>
-            )}
-          </button>
-          {listOpen && branchIds.length > 0 && (
-            <button
-              onClick={toggleAll}
-              title={allCollapsed ? t('tree.expandAll') : t('tree.collapseAll')}
-              aria-label={allCollapsed ? t('tree.expandAll') : t('tree.collapseAll')}
-              className="rounded px-1 text-xl leading-none text-slate-500 hover:bg-slate-800 hover:text-slate-200"
-            >
-              {allCollapsed ? '⊞' : '⊟'}
-            </button>
+      <div className="mb-2 flex min-w-0 items-center gap-1.5">
+        {/* Fold the whole tree list — the header (and this toggle) stay put. */}
+        <button
+          onClick={() => setListOpen((o) => !o)}
+          aria-expanded={listOpen}
+          title={listOpen ? t('tree.collapseTree') : t('tree.expandTree')}
+          className="flex min-w-0 items-center gap-1.5 rounded px-1 py-0.5 hover:bg-slate-800"
+        >
+          <span className="text-base leading-none text-sky-400">{listOpen ? '▾' : '▸'}</span>
+          <h2 className="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            {t('tree.components')}
+          </h2>
+          {!listOpen && selectedName && (
+            <span className="truncate text-xs font-medium text-sky-300">· {selectedName}</span>
           )}
-        </div>
-        {listOpen && onAdd && (
-          <select
-            value=""
-            disabled={groups.length === 0}
-            onChange={(e) => {
-              const v = e.target.value as ComponentType;
-              if (v) onAdd(v);
-              e.currentTarget.value = '';
-            }}
-            className="rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-sky-300 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500 disabled:text-slate-600"
-            title={
-              groups.length ? t('tree.canHost', { parent: parentLabel }) : t('tree.cantHost', { parent: parentLabel })
-            }
-          >
-            <option value="">
-              {groups.length ? t('tree.addTo', { parent: parentLabel }) : t('tree.nothingToAdd')}
-            </option>
-            {groups.map((g) => (
-              <optgroup key={g.group} label={t(`tree.${g.group}`)}>
-                {g.items.map((ty) => (
-                  <option key={ty} value={ty}>
-                    {partLabel(ty, t)}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        )}
-      </div>
-      <div className="flex items-center gap-2 px-2 pb-1">
-        <span className="text-sm">🚀</span>
-        {onEditDesign ? (
+        </button>
+        {listOpen && branchIds.length > 0 && (
           <button
-            onClick={onEditDesign}
-            aria-label={t('config.edit')}
-            title={t('config.edit')}
-            className="min-w-0 flex-1 truncate rounded bg-transparent px-1 text-left text-sm font-semibold text-sky-400 hover:bg-slate-800/60 focus:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
+            onClick={toggleAll}
+            title={allCollapsed ? t('tree.expandAll') : t('tree.collapseAll')}
+            aria-label={allCollapsed ? t('tree.expandAll') : t('tree.collapseAll')}
+            className="rounded px-1 text-xl leading-none text-slate-500 hover:bg-slate-800 hover:text-slate-200"
           >
-            {tree.name || t('tree.rocket')}
-          </button>
-        ) : (
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-sky-400">
-            {tree.name || t('tree.rocket')}
-          </span>
-        )}
-        {onAddStage && (
-          <button
-            onClick={onAddStage}
-            title={t('tree.addStageTitle')}
-            className="shrink-0 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
-          >
-            {t('tree.addStage')}
+            {allCollapsed ? '⊞' : '⊟'}
           </button>
         )}
         {onScale && (
           <button
             onClick={onScale}
             title={t('scale.title')}
-            className="shrink-0 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
+            className="ml-auto shrink-0 whitespace-nowrap rounded-md bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
           >
             {t('tree.scale')}
           </button>
         )}
       </div>
+      {/* Design name on its own full-width row so a long name isn't squeezed by
+          the action buttons; click it to open the Rocket-configuration dialog. */}
+      <div className="mb-2 flex items-center gap-2 px-1">
+        <span className="shrink-0 text-base leading-none">🚀</span>
+        {onEditDesign ? (
+          <button
+            onClick={onEditDesign}
+            aria-label={t('config.edit')}
+            title={t('config.edit')}
+            className="group flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-sm font-semibold text-sky-400 hover:bg-slate-800/60 focus:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
+          >
+            <span className="min-w-0 flex-1 truncate">{tree.name || t('tree.rocket')}</span>
+            <span aria-hidden className="shrink-0 text-xs text-slate-500 group-hover:text-sky-300">
+              ✎
+            </span>
+          </button>
+        ) : (
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-sky-400">
+            {tree.name || t('tree.rocket')}
+          </span>
+        )}
+      </div>
+
+      {/* Actions on their own row — add a component to the selected part, add a
+          stage, or scale the whole rocket; wrap when the panel is narrow. */}
+      {(onAdd || onAddStage) && (
+        <div className="mb-2 flex flex-wrap items-center gap-2 px-1">
+          {onAddStage && (
+            <button
+              onClick={onAddStage}
+              title={t('tree.addStageTitle')}
+              className="whitespace-nowrap rounded-md bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
+            >
+              {t('tree.addStage')}
+            </button>
+          )}
+          {listOpen && onAdd && (
+            <select
+              value=""
+              disabled={groups.length === 0}
+              onChange={(e) => {
+                const v = e.target.value as ComponentType;
+                if (v) onAdd(v);
+                e.currentTarget.value = '';
+              }}
+              className="rounded-md bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500 disabled:text-slate-600"
+              title={groups.length ? t('tree.canHost', { parent: parentLabel }) : t('tree.cantHost', { parent: parentLabel })}
+            >
+              <option value="">{t('tree.add')}</option>
+              {groups.map((g) => (
+                <optgroup key={g.group} label={t(`tree.${g.group}`)}>
+                  {g.items.map((ty) => (
+                    <option key={ty} value={ty}>
+                      {partLabel(ty, t)}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
       {listOpen && (
         <div className="border-l border-white/5 pl-1">
           {tree.components.length ? (

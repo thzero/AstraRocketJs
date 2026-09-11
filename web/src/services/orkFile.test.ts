@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { exportOrk, importOrk, type OrkExportMotor } from './orkFile';
 import { specToTree } from '../engine/api';
 import type { RocketSpec, ComponentNode, RocketTree } from '../engine/openRocketEngine';
+import type { DesignInfo } from './orkTypes';
 
 const spec = {
   noseCone: { length: 0.1, aftRadius: 0.013, thickness: 0.001 },
@@ -121,6 +122,43 @@ describe('design metadata (Rocket configuration) round-trip', () => {
     expect(bare).not.toContain('<designer>');
     expect(bare).not.toContain('<revision>');
     expect(bare).toContain('<designtype>original</designtype>');
+  });
+});
+
+describe('optional <designinfo> block', () => {
+  const { tree, mountId } = specToTree(spec);
+
+  it('is absent by default — a normal save is unchanged', () => {
+    expect(exportOrk({ name: 'X', tree, mountId, motor })).not.toContain('<designinfo>');
+  });
+
+  it('emits statistics and fin-set positions when provided', () => {
+    const designInfo: DesignInfo = {
+      groups: [
+        { scope: 'rocket', stats: [{ field: 'Length', value: '0.425', unit: 'm' }] },
+        { scope: 'stage', stageNumber: 1, name: 'Booster', stats: [{ field: 'CP', value: '0.331', unit: 'm' }] },
+      ],
+      finsets: [{ stageNumber: 0, stage: 'Sustainer', name: 'Trapezoidal fin set', topX: 0.35, bottomX: 0.4 }],
+    };
+    const out = exportOrk({ name: 'X', tree, mountId, motor, designInfo });
+    expect(out).toContain('<designinfo>');
+    expect(out).toContain('<statistics scope="rocket">');
+    expect(out).toContain('<stat field="Length" value="0.425" unit="m"/>');
+    expect(out).toContain('<statistics scope="stage" stagenumber="1" name="Booster">');
+    expect(out).toContain('<finset stagenumber="0" stage="Sustainer" name="Trapezoidal fin set">');
+    expect(out).toContain('<nosetoroottop unit="m">0.35</nosetoroottop>');
+    expect(out).toContain('<nosetorootbottom unit="m">0.4</nosetorootbottom>');
+    expect(importOrk(out)).toBeTruthy(); // still valid XML; the loader ignores it
+  });
+
+  it('escapes attributes so crafted stat/finset text cannot inject XML', () => {
+    const designInfo: DesignInfo = {
+      groups: [{ scope: 'rocket', stats: [{ field: 'x"><evil', value: '0', unit: '' }] }],
+      finsets: [],
+    };
+    const out = exportOrk({ name: 'X', tree, mountId, motor, designInfo });
+    expect(out).not.toContain('"><evil'); // the raw break-out must never form
+    expect(out).toContain('&quot;&gt;&lt;evil'); // escaped instead
   });
 });
 
