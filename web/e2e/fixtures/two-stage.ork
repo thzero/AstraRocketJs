@@ -1,0 +1,177 @@
+<?xml version='1.0' encoding='utf-8'?>
+<openrocket version="1.10" creator="ArsRocketJs Sim">
+  <rocket>
+    <name>Two Stage</name>
+    <id>d067e789-4b38-4cad-b76a-e088fa83e37f</id>
+    <axialoffset method="absolute">0.0</axialoffset>
+    <position type="absolute">0.0</position>
+    <designtype>original</designtype>
+    <motorconfiguration configid="49a65f11-ed90-4c6a-8110-ae1c38607dba" default="true">
+      <stage number="0" active="true"/>
+      <stage number="1" active="true"/>
+    </motorconfiguration>
+    <referencetype>maximum</referencetype>
+    <subcomponents>
+      <stage>
+        <name>Sustainer</name>
+        <id>c1792a91-abac-4b47-8d74-15bf6ef26437</id>
+        <subcomponents>
+          <nosecone>
+            <name>Nose Cone</name>
+            <id>ad2360be-4132-4b98-9f27-4b0e150bf355</id>
+            <finish>normal</finish>
+            <material type="bulk" density="680.0" group="PaperProducts">Cardboard</material>
+            <length>0.1</length>
+            <thickness>0.001</thickness>
+            <shape>ogive</shape>
+            <shapeclipped>false</shapeclipped>
+            <shapeparameter>1</shapeparameter>
+            <aftradius>0.013</aftradius>
+            <aftshoulderradius>0</aftshoulderradius>
+            <aftshoulderlength>0</aftshoulderlength>
+            <aftshoulderthickness>0</aftshoulderthickness>
+            <aftshouldercapped>false</aftshouldercapped>
+            <isflipped>false</isflipped>
+          </nosecone>
+          <bodytube>
+            <name>Body Tube</name>
+            <id>2749122b-7812-408f-84b0-4b8044300618</id>
+            <finish>normal</finish>
+            <material type="bulk" density="680.0" group="PaperProducts">Cardboard</material>
+            <length>0.2</length>
+            <thickness>0.0005</thickness>
+            <radius>0.013</radius>
+            <subcomponents>
+              <trapezoidfinset>
+                <name>Trapezoidal Fin Set</name>
+                <id>8128ccfd-5292-498a-bb63-588c211a63bf</id>
+                <instancecount>4</instancecount>
+                <fincount>4</fincount>
+                <radiusoffset method="surface">0.0</radiusoffset>
+                <angleoffset method="relative">0.0</angleoffset>
+                <rotation>0</rotation>
+                <axialoffset method="bottom">0</axialoffset>
+                <position type="bottom">0</position>
+                <finish>normal</finish>
+                <material type="bulk" density="680.0" group="PaperProducts">Cardboard</material>
+                <thickness>0.003</thickness>
+                <crosssection>square</crosssection>
+                <cant>0</cant>
+                <filletradius>0</filletradius>
+                <filletmaterial type="bulk" density="680" group="PaperProducts">Cardboard</filletmaterial>
+                <rootchord>0.06</rootchord>
+                <tipchord>0.03</tipchord>
+                <sweeplength>0.03</sweeplength>
+                <height>0.05</height>
+              </trapezoidfinset>
+              <innertube>
+                <name>Inner Tube</name>
+                <id>02312ea7-a9e2-4bea-8f24-eceb4f87b38f</id>
+                <axialoffset method="bottom">0</axialoffset>
+                <position type="bottom">0</position>
+                <material type="bulk" density="680.0" group="PaperProducts">Cardboard</material>
+                <length>0.07</length>
+                <radialposition>0</radialposition>
+                <radialdirection>0</radialdirection>
+                <outerradius>0.0092</outerradius>
+                <thickness>0.0004</thickness>
+                <clusterconfiguration>single</clusterconfiguration>
+                <clusterscale>1</clusterscale>
+                <clusterrotation>0</clusterrotation>
+                <motormount>
+                  <ignitionevent>automatic</ignitionevent>
+                  <ignitiondelay>0</ignitiondelay>
+                  <overhang>0.00635</overhang>
+                  <motor configid="49a65f11-ed90-4c6a-8110-ae1c38607dba">
+                    <type>single</type>
+                    <manufacturer>Estes</manufacturer>
+                    <designation>C6</designation>
+                    <diameter>0.018</diameter>
+                    <length>0.07</length>
+                    <delay>3</delay>
+                  </motor>
+                  <ignitionconfiguration configid="49a65f11-ed90-4c6a-8110-ae1c38607dba">
+                    <ignitionevent>automatic</ignitionevent>
+                    <ignitiondelay>0</ignitiondelay>
+                  </ignitionconfiguration>
+                </motormount>
+              </innertube>
+              <centeringring>
+                <name>Centering Ring</name>
+                <id>7d5be035-9c88-4e7e-a507-de563fc79786</id>
+                <instancecount>1</instancecount>
+                <instanceseparation>0</instanceseparation>
+                <axialoffset method="top">0.13</axialoffset>
+                <position type="top">0.13</position>
+                <material type="bulk" density="680.0" group="PaperProducts">Cardboard</material>
+                <length>0.003</length>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <outerradius>auto</outerradius>
+                <innerradius>auto</innerradius>
+              </centeringring>
+              <centeringring>
+                <name>Centering Ring</name>
+                <id>6f1ab25f-6e21-4507-801e-c5d65554e7a9</id>
+                <instancecount>1</instancecount>
+                <instanceseparation>0</instanceseparation>
+                <axialoffset method="bottom">0</axialoffset>
+                <position type="bottom">0</position>
+                <material type="bulk" density="680.0" group="PaperProducts">Cardboard</material>
+                <length>0.003</length>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <outerradius>auto</outerradius>
+                <innerradius>auto</innerradius>
+              </centeringring>
+              <parachute>
+                <name>Parachute</name>
+                <id>8bba9ea8-9cc7-4a02-8f6c-888a82306fd3</id>
+                <axialoffset method="top">0.02</axialoffset>
+                <position type="top">0.02</position>
+                <packedlength>0.025</packedlength>
+                <packedradius>0.0125</packedradius>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <cd>0.8</cd>
+                <material type="surface" density="0.067" group="Fabrics">Ripstop nylon</material>
+                <deployevent>apogee</deployevent>
+                <deployaltitude>200</deployaltitude>
+                <deploydelay>0</deploydelay>
+                <diameter>0.3</diameter>
+                <linecount>6</linecount>
+                <linelength>0.3</linelength>
+                <linematerial type="line" density="0.0018" group="ThreadsLines">Elastic cord (round 2 mm, 1/16 in)</linematerial>
+              </parachute>
+            </subcomponents>
+          </bodytube>
+        </subcomponents>
+      </stage>
+      <stage>
+        <name>Booster</name>
+        <id>180c174b-6ce3-437c-94fa-051b9d52974d</id>
+        <separationevent>ejection</separationevent>
+        <separationaltitude>200</separationaltitude>
+        <separationdelay>0</separationdelay>
+        <separationconfiguration configid="49a65f11-ed90-4c6a-8110-ae1c38607dba">
+          <separationevent>ejection</separationevent>
+          <separationaltitude>200</separationaltitude>
+          <separationdelay>0</separationdelay>
+        </separationconfiguration>
+        <subcomponents>
+          <bodytube>
+            <name>Booster Tube</name>
+            <id>8a12794c-c1ed-4b82-92f4-15fe9257978d</id>
+            <finish>normal</finish>
+            <material type="bulk" density="680.0" group="PaperProducts">Cardboard</material>
+            <length>0.15</length>
+            <thickness>0.0005</thickness>
+            <radius>0.013</radius>
+          </bodytube>
+        </subcomponents>
+      </stage>
+    </subcomponents>
+  </rocket>
+  <simulations>
+  </simulations>
+</openrocket>

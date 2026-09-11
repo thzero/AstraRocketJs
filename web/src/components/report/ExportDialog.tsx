@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
 import { useSettings } from '../../state/SettingsProvider';
@@ -36,11 +36,17 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const { t } = useTranslation();
   const { settings, update } = useSettings();
   const tree = useWorkspaceStore((s) => s.tree);
-  const info = useWorkspaceStore((s) => s.info);
-  const rocket = useWorkspaceStore((s) => s.rocket);
+  // Readiness as a BOOLEAN, never the info/rocket objects themselves: a
+  // multi-stage assembleReport() rebuilds the live handle (applyBuild) and so
+  // hands the store fresh info/rocket identities. Depending on those objects
+  // re-triggered the effect below, which assembled again, which rebuilt
+  // again — an update loop React kills the whole app over.
+  const ready = useWorkspaceStore((s) => !!s.info && !!s.rocket);
   const runSim = useWorkspaceStore((s) => s.runSim);
   const [model, setModel] = useState<ReportModel | null>(null);
   const [sel, setSel] = useState<Sel | null>(null);
+  /** Once-per-open latch for the assemble below (a ref, so setting it never renders). */
+  const assembled = useRef(false);
   const [showSettings, setShowSettings] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -49,14 +55,24 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
 
   useEffect(() => {
     if (!open) {
+      assembled.current = false;
       setModel(null);
       setSel(null);
       return;
     }
     // Wait until the live design is ready, then assemble once (keep the user's
-    // selections stable for the rest of the dialog's life).
-    if (model || !info || !rocket) return;
-    const m = assembleReport();
+    // selections stable for the rest of the dialog's life). `assembled` — not
+    // `model` — is the once-guard, so a null result doesn't re-enter here.
+    if (assembled.current || !ready) return;
+    assembled.current = true;
+    // Per-stage builds run the real engine; a design it chokes on must leave
+    // the dialog standing with its "no design" message, not take the app down.
+    let m: ReportModel | null = null;
+    try {
+      m = assembleReport();
+    } catch (e) {
+      useWorkspaceStore.getState().setErr(`Could not assemble the design report: ${e instanceof Error ? e.message : String(e)}`);
+    }
     setModel(m);
     if (m) {
       setSel({
@@ -75,7 +91,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
         })),
       });
     }
-  }, [open, model, info, rocket, hasNoses, hasTransitions]);
+  }, [open, ready, hasNoses, hasTransitions]);
 
   if (!open) return null;
 
