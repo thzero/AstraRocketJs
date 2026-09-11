@@ -15,6 +15,9 @@ export function InfoOverlay({ info }: { info: StaticInfo | null }) {
   const { t } = useTranslation();
   if (!info) return null;
   const cal = info.stabilityCalibers;
+  // Margin as a fraction of overall length — the same figure the stat tiles and
+  // the CP callout carry, so the quick-glance card isn't missing a data item.
+  const pct = info.length > 0 ? ((info.cp - info.cg) / info.length) * 100 : 0;
   const rows: [string, React.ReactNode][] = [
     [t('stats.length'), `${fmtNum(info.length * 1000, 0)} mm`],
     [t('stability.mass'), `${fmtNum(info.mass * 1000, 1)} g`],
@@ -23,7 +26,7 @@ export function InfoOverlay({ info }: { info: StaticInfo | null }) {
     [
       t('stability.onPad'),
       <span className={stabilityTone(cal)}>
-        {stabilityGlyph(cal)} {fmtNum(cal, 2)} {t('stability.caliber')}
+        {stabilityGlyph(cal)} {fmtNum(cal, 2)} {t('stability.caliber')} · {fmtNum(pct, 1)}%
       </span>,
     ],
   ];
