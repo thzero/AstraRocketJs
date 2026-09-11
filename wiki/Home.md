@@ -24,10 +24,11 @@
 - **[Contributing](Contributing)** — report bugs, set up, build the engine, submit changes
 - **[Developer Guide](Developer-Guide)** — orientation for developers
 - **[Architecture & internals](Architecture)** — the engine, build pipeline, threading, and data flows
+- **[Dependencies](Dependencies)** — version policy, and why a package is held back from its latest
 
 ---
 
-_Documentation for AstraRocketJs&nbsp;v<!--APP_VERSION-->0.0.8<!--/APP_VERSION-->._
+_Documentation for AstraRocketJs&nbsp;v<!--APP_VERSION-->0.0.9<!--/APP_VERSION-->._
 
 ---
 
