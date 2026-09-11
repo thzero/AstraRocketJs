@@ -4,6 +4,7 @@ AstraRocketJs is a monorepo: a **web app** (`web/`) and the **OpenRocket engine*
 
 - **[Architecture & internals](Architecture)** — how it all fits together: the extracted engine, the WASM/JS build pipeline and backend selection, threading (the simulation Web Worker), and the motor / material / component / `.ork` data flows.
 - **[Contributing](Contributing)** — requirements, install, running the app, rebuilding the engine, the catalog tools, tests, and how to report bugs, translate, and submit changes.
+- **[Dependencies](Dependencies)** — the npm version policy, and why a package is deliberately held back from its latest (read this before "fixing" anything `npm outdated` flags).
 
 ## The short version
 
