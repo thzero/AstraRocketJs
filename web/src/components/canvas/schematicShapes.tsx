@@ -325,7 +325,15 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
       if (t === 'freeformfinset') {
         const raw = (child['points'] as [number, number][] | undefined) ?? [];
         if (raw.length >= 3) {
-          const chord = Math.max(...raw.map((p) => p[0]));
+          const xs = raw.map((p) => p[0]);
+          // Root chord (first→last point, where the outline meets the body)
+          // positions the fin and its tab — the same measure the engine uses.
+          // The furthest-aft outline point (aftX) can sit behind the root when
+          // the tip trailing corner overhangs; it only widens the drawn shape
+          // and its hover/hit box, and must NOT move the fin forward.
+          const root = xs[xs.length - 1]! - xs[0]!;
+          const chord = root > 0 ? root : Math.max(...xs);
+          const aftX = Math.max(...xs);
           const start = axialStart(child, chord, pStart, pLen);
           const ymax = Math.max(0, ...raw.map((p) => p[1]));
           const reach = pRadius + ymax;
@@ -333,7 +341,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           noteHoverFins(
             child,
             ctx.x0 + start * ctx.scale,
-            ctx.x0 + (start + chord) * ctx.scale,
+            ctx.x0 + (start + aftX) * ctx.scale,
             baseY,
             reach,
             pRadius,

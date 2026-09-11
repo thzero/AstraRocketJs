@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import type { ComponentNode, ComponentType, RocketTree } from '../../engine/openRocketEngine';
@@ -116,6 +116,7 @@ function Row({
   node,
   depth,
   selectedId,
+  tabbableId,
   onSelect,
   collapsed,
   onToggleCollapse,
@@ -124,6 +125,10 @@ function Row({
   node: ComponentNode;
   depth: number;
   selectedId?: string | null;
+  // Roving tabindex: exactly one row carries tabIndex 0 (this id); the rest are
+  // -1 and reached with the arrow keys. Keeps the whole tree to a single tab
+  // stop instead of one per part.
+  tabbableId?: string | null;
   onSelect?: (id: string) => void;
   collapsed: ReadonlySet<string>;
   onToggleCollapse: (id: string) => void;
@@ -150,7 +155,11 @@ function Row({
       <div
         ref={rowRef}
         role={id && onSelect ? 'button' : undefined}
-        tabIndex={id && onSelect ? 0 : undefined}
+        tabIndex={id && onSelect ? (id === tabbableId ? 0 : -1) : undefined}
+        data-tree-row={id && onSelect ? '1' : undefined}
+        data-id={id && onSelect ? id : undefined}
+        data-haskids={hasKids && id ? '1' : undefined}
+        data-collapsed={isCollapsed ? '1' : undefined}
         onClick={id && onSelect ? () => onSelect(id) : undefined}
         onKeyDown={
           id && onSelect
@@ -179,6 +188,7 @@ function Row({
             }}
             aria-label={isCollapsed ? t('tree.expand') : t('tree.collapse')}
             aria-expanded={!isCollapsed}
+            tabIndex={-1}
             className="w-6 shrink-0 text-center text-xl leading-none text-slate-500 hover:text-slate-200"
           >
             {isCollapsed ? '▸' : '▾'}
@@ -207,6 +217,7 @@ function Row({
             node={c}
             depth={depth + 1}
             selectedId={selectedId}
+            tabbableId={tabbableId}
             onSelect={onSelect}
             collapsed={collapsed}
             onToggleCollapse={onToggleCollapse}
@@ -261,6 +272,80 @@ export function ComponentTree({
   }, [tree.components]);
   const allCollapsed = branchIds.length > 0 && branchIds.every((id) => collapsed.has(id));
   const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(branchIds));
+
+  // Roving-tabindex arrow navigation. `orderedIds` is the visible, selectable
+  // rows in the order they're drawn (children of a collapsed branch are
+  // skipped). Exactly one of them is tabbable at a time; the arrow keys move
+  // focus between them, so the whole tree is one tab stop, not one per part.
+  const listRef = useRef<HTMLDivElement>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const orderedIds = useMemo(() => {
+    const out: string[] = [];
+    const walk = (nodes: ComponentNode[]) => {
+      for (const n of nodes) {
+        const nid = typeof n.id === 'string' ? n.id : undefined;
+        if (nid && onSelect) out.push(nid);
+        const hasKids = (n.children?.length ?? 0) > 0;
+        const isCollapsed = hasKids && !!nid && collapsed.has(nid);
+        if (!isCollapsed) walk(n.children ?? []);
+      }
+    };
+    walk(tree.components);
+    return out;
+  }, [tree.components, collapsed, onSelect]);
+  // The single tabbable row: the last arrow-focused row if still visible, else
+  // the selected row, else the first — so Tab always lands somewhere sensible.
+  const tabbableId =
+    (activeId && orderedIds.includes(activeId) && activeId) ||
+    (selectedId && orderedIds.includes(selectedId) && selectedId) ||
+    orderedIds[0] ||
+    null;
+
+  const onTreeKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const rowEl = (e.target as HTMLElement).closest<HTMLElement>('[data-tree-row]');
+    if (!rowEl || !listRef.current?.contains(rowEl)) return;
+    const rows = Array.from(listRef.current.querySelectorAll<HTMLElement>('[data-tree-row]'));
+    const idx = rows.indexOf(rowEl);
+    if (idx < 0) return;
+    const move = (to?: HTMLElement) => {
+      if (!to) return;
+      e.preventDefault();
+      to.focus();
+      const rid = to.getAttribute('data-id');
+      if (rid) setActiveId(rid);
+    };
+    const rid = rowEl.getAttribute('data-id');
+    const hasKids = rowEl.getAttribute('data-haskids') === '1';
+    const isCollapsed = rowEl.getAttribute('data-collapsed') === '1';
+    switch (e.key) {
+      case 'ArrowDown':
+        move(rows[idx + 1]);
+        break;
+      case 'ArrowUp':
+        move(rows[idx - 1]);
+        break;
+      case 'Home':
+        move(rows[0]);
+        break;
+      case 'End':
+        move(rows[rows.length - 1]);
+        break;
+      case 'ArrowRight':
+        // Collapsed branch → expand; otherwise step to the next row.
+        if (rid && hasKids && isCollapsed) {
+          e.preventDefault();
+          toggleCollapse(rid);
+        } else move(rows[idx + 1]);
+        break;
+      case 'ArrowLeft':
+        // Expanded branch → collapse; otherwise step to the previous row.
+        if (rid && hasKids && !isCollapsed) {
+          e.preventDefault();
+          toggleCollapse(rid);
+        } else move(rows[idx - 1]);
+        break;
+    }
+  };
 
   // Fold the whole list away (header stays) so the property editor gets the room
   // once a part is picked. Collapsed, the header names the selected part.
@@ -381,7 +466,7 @@ export function ComponentTree({
         </div>
       )}
       {listOpen && (
-        <div className="border-l border-white/5 pl-1">
+        <div ref={listRef} onKeyDown={onTreeKeyDown} className="border-l border-white/5 pl-1">
           {tree.components.length ? (
             tree.components.map((c, i) => (
               <Row
@@ -389,6 +474,7 @@ export function ComponentTree({
                 node={c}
                 depth={0}
                 selectedId={selectedId}
+                tabbableId={tabbableId}
                 onSelect={onSelect}
                 collapsed={collapsed}
                 onToggleCollapse={toggleCollapse}

@@ -374,7 +374,11 @@ export function AftView({
           touchAction: 'none',
           cursor: zoom.k > 1 ? 'grab' : undefined,
         }}
-        role="img"
+        // role="group" (not "img"): "img" collapses the whole SVG into one
+        // node and suppresses every per-part <title> inside, so a screen reader
+        // would hear only the one aria-label and none of the parts. "group"
+        // keeps the overall name yet still exposes the named parts within.
+        role="group"
         aria-label={t('schematic.aftAria')}
         onPointerDown={(e) => {
           // Drag rotates the roll (primary); pan only when zoomed and no onRoll.
