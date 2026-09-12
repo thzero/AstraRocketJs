@@ -7,6 +7,9 @@ so most entries describe getting a computation to match OpenRocket exactly.
 ## [Unreleased]
 
 ### Added
+- **Works offline, and installs.** The app now caches itself, the physics engine, and both reference catalogs, so it opens and runs a full simulation with no connection — useful at a launch site with no signal. Your browser will also offer to install it (home screen on mobile, its own window on desktop). When a new version is deployed, a prompt offers to reload rather than reloading under you mid-design.
+- **Loading screens say what they are doing.** The startup splash reports the engine download with real progress ("Downloading engine… 1.4 / 2.3 MB") and names the compile step, and the motor and component pickers show the same for their catalog downloads — instead of a single static "Loading…" through a multi-megabyte transfer. A failed catalog load now reports the error and offers a retry, where it previously left an empty list with no explanation.
+- **Catalogs refresh without a redeploy.** Motor and component catalogs are published weekly to a separate `data` branch and served over a CDN, so a catalog update reaches the app without rebuilding or redeploying it. The copy inside the build remains a fallback for when the CDN is unreachable.
 - **Multi-stage flight charts.** The Flight tab now plots each stage of a staged flight as its own coloured line, with a stage selector to choose which to overlay. A spent booster's separate climb, descent, and landing are drawn from its own flight branch; the time axis spans every stage, and event markers and the hover readout cover all shown stages. Single-stage flights are unchanged.
 - **Keyboard navigation for the component tree.** The tree is now a single tab stop with roving focus: ↑/↓ (and Home/End) move between parts, ←/→ collapse/expand a branch, and Enter/Space select — instead of one tab stop per part with no arrow keys.
 
@@ -14,6 +17,7 @@ so most entries describe getting a computation to match OpenRocket exactly.
 - **Taller flight charts.** The Flight-tab chart panels are twice as tall for easier reading.
 
 ### Fixed
+- **Two different motors acting as one in the dashboard.** Motors sharing a manufacturer, common name, and diameter — AeroTech's F67W (White Lightning) and F67C (Classic), several Cesaroni reloads, 14 pairs in all — shared a row identity, so selecting or check-boxing one also took the other, and a compare or combine could pull the wrong thrust curve. The full manufacturer designation is now part of that identity.
 - **Freeform fin drawn ahead of where it flies.** A freeform fin whose tip trailing corner overhangs its root was measured to its aftmost point instead of its root chord, so a bottom-/middle-anchored fin was drawn, dragged, and snapped forward of its true station by the overhang. (The property panel and the simulation were always correct — this was a 2D-view display error.)
 
 ### Accessibility

@@ -91,7 +91,7 @@
     "title": "Política de privacidad",
     "intro": "{{name}} funciona íntegramente en tu navegador. No hay cuentas, ni seguimiento, ni analíticas, ni anuncios.",
     "storage": "Tus diseños, simulaciones, preferencias y cualquier material o motor personalizado se guardan en el almacenamiento local de tu navegador, en tu dispositivo — nunca se envían a nosotros ni a nadie. Borrar los datos del navegador (o usar Nuevo) los elimina.",
-    "network": "Al elegir un motor, la aplicación puede descargar los datos de la curva de empuje de ese motor desde una base de datos pública de motores y almacenarlos localmente; esa solicitud está sujeta a los términos de ese proveedor. Por lo demás, la aplicación no realiza llamadas de red con tus datos.",
+    "network": "La aplicación descarga sus catálogos de motores y componentes desde una red pública de distribución de contenidos y, al elegir un motor, puede descargar los datos de la curva de empuje de ese motor desde una base de datos pública de motores; ambos se almacenan localmente y están sujetos a los términos de esos proveedores. Por lo demás, la aplicación no realiza llamadas de red con tus datos.",
     "hosting": "Quien aloje la aplicación puede conservar registros de acceso del servidor web estándar (como la dirección IP y la marca de tiempo), como cualquier sitio web. La aplicación en sí no recopila nada.",
     "close": "Cerrar"
   },
@@ -745,5 +745,10 @@
     "failedMotors": "No se pudo cargar el catálogo de motores.",
     "failedComponents": "No se pudo cargar el catálogo de componentes.",
     "retry": "Reintentar"
+  },
+  "update": {
+    "available": "Hay una nueva versión disponible.",
+    "reload": "Recargar",
+    "dismiss": "Descartar"
   }
 }

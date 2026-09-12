@@ -43,23 +43,35 @@ TeaVM requires `optimization = NONE` + `fastGlobalAnalysis = true` (see `engine-
 
 **Threading.** The **interactive** engine calls — live CG/CP/stability on every edit (`staticInfo`), the drag sweep (`getDragSweep`), component info — run **synchronously on the main thread** (they're fast, ~ms, and want to be instant). The **flight simulation** (`simulate`, ~500 ms) runs in a **Web Worker** with its own engine instance, so a run never freezes the UI (`engine/simClient.ts` + `engine/simWorker.ts`; the worker builds the identical rocket via the shared `services/buildRocket.ts`). This is Phase 1 of an incremental plan to move more engine work off-thread — two options and the full roadmap are in [engine-worker-proposal.md](https://github.com/thzero/AstraRocketJs/blob/HEAD/docs/engine-worker-proposal.md).
 
+## Offline & installability (PWA)
+
+Everything the app needs is static — the WASM kernel runs the physics in-browser and there is no backend — so it can work with no connection at all. `vite-plugin-pwa` (configured in `web/vite.config.ts`) emits a service worker that precaches the app shell, the WASM engine and both catalogs (~7.8 MB), plus a web app manifest that makes it installable.
+
+Two deliberate exclusions and additions:
+
+- The **JS fallback engine** (~970 kB, emitted twice — main thread and sim worker) is kept *out* of the precache and runtime-cached on first use instead. WASM-GC is the path essentially every current browser takes, so precaching ~1.9 MB of unused fallback on every install is a bad trade.
+- The **`data`-branch catalogs** get a `StaleWhileRevalidate` rule, so they render instantly from cache and refresh in the background — which is how a weekly catalog refresh reaches an installed copy.
+
+The worker is registered with `registerType: 'prompt'`, not `autoUpdate`: a silent activation reloads the page, which would interrupt an edit in progress. `components/layout/UpdateToast.tsx` asks instead, and dismissing keeps the running version until the next natural reload.
+
+Icons are generated from `web/public/favicon.svg` by `npm run gen:icons` (rerun after changing the favicon). The maskable variant is inset to the ~80% safe zone because launchers crop to a circle or squircle and would otherwise clip the fins.
+
 ## Motor data & thrust-curve caching
 
 Motors come from [thrustcurve.org](https://www.thrustcurve.org), in two tiers that keep recurring API load to essentially one scheduled job:
 
-1. **Catalog (build-time).** `web/scripts/sync-motors.mjs` sweeps thrustcurve for every available, license-clean motor and writes the specs to `web/src/data/motors.generated.json` (~811 motors). This is a **build artifact** — refresh it by re-running the sweep on a schedule (e.g. a monthly CI job), committing, and redeploying:
+1. **Catalog (generated, fetched at runtime).** `web/scripts/sync-motors.mjs` sweeps thrustcurve for every available, license-clean motor and writes the specs — and their bundled thrust curves — to `web/public/data/motors.generated.json` (~815 motors). `public/data` is copied verbatim into the build rather than compiled into the JS bundle, and `services/remoteData.ts` fetches it on first use. `.github/workflows/sync-catalogs.yml` runs the sweep weekly and publishes the result to the orphan `data` branch, which the deployed app reads over jsDelivr (`VITE_DATA_BASE`), so a refresh needs no rebuild; the committed copy is the fallback when that host is unreachable. To regenerate locally:
 
    ```bash
-   cd web && node scripts/sync-motors.mjs   # regenerate the bundled catalog
+   cd web && npm run sync:motors            # regenerate the committed fallback catalog
    ```
 
-   The app loads the bundle and mirrors it to `localStorage` (`tc:catalog`), stamped with a content signature so a freshly re-synced bundle supersedes the mirror automatically — the catalog is never fetched from thrustcurve at runtime.
+   The catalog is **not** mirrored to `localStorage` — it now ships its thrust curves, which is far too large for that — but it is memoized for the session and cache-busted by the content hash in `public/data/manifest.json`. thrustcurve.org itself is never called for the catalog at runtime.
 
 2. **Thrust curves (runtime, on demand).** The catalog carries specs but no curve. When a motor is picked, `web/src/services/thrustcurve.ts` resolves it (`search.json`) and pulls its curve (`download.json`), then builds the engine `MotorSpec` (trapezoidal impulse → per-sample mass). Everything is cached in `localStorage`:
 
    | key | holds | refetched |
    |-----|-------|-----------|
-   | `tc:catalog` | the bundled catalog | never (build-time; signature-invalidated) |
    | `tc:v1:meta:<mfr>:<desig>` | resolved metadata (motorId, dims, weights) | after the TTL |
    | `tc:v1:samples:<motorId>` | the thrust curve | after the TTL |
    | `tc:v1:motor:<mfr>:<desig>:<delay>` | the built `MotorSpec` | after the TTL |
@@ -83,7 +95,7 @@ The material selection is applied to the kernel as a density override (`material
 
 Real manufacturer parts (Estes/Apogee/LOC/BlueTube/…), extracted from the **OpenRocket-Components DB** ([`dbcook/openrocket-database`](https://github.com/dbcook/openrocket-database)) — the community-maintained `.orc` parts database OpenRocket's component data comes from — the third and last reference catalog (after motors and materials). (OpenRocket calls these "component presets"; here it's just the components catalog, symmetric with motors.)
 
-- **`web/scripts/sync-components.mjs`** reads the `.orc` XML, resolves each part's material to a density, normalizes units to SI, and writes **`web/src/data/components.generated.json`** (~2,940 parts, six types: body tubes, nose cones, parachutes, tube couplers, centering rings, bulkheads). Point `--src` at a checkout of the components DB's `orc/` dir (default is a local clone); it's local data, no network at app runtime.
+- **`web/scripts/sync-components.mjs`** reads the `.orc` XML, resolves each part's material to a density, normalizes units to SI, and writes **`web/public/data/components.generated.json`** (~2,940 parts, six types: body tubes, nose cones, parachutes, tube couplers, centering rings, bulkheads). Point `OPENROCKET_PRESETS` (or `--src`) at a checkout of the components DB's `orc/` dir; the default is a local clone. Generating it needs no network, and neither does the CI job beyond cloning that database.
 
   **To refresh the catalog** (pick up new parts from the community DB):
 
@@ -95,7 +107,7 @@ Real manufacturer parts (Estes/Apogee/LOC/BlueTube/…), extracted from the **Op
 - **`web/src/services/componentDb.ts`** loads it (a discriminated union by `type`) and filters.
 - **UI:** contextual **"Select a part…"** pickers in the editor — nose cone and body tube prefill their geometry + material; a **Recovery** group's parachute picker prefills diameter + Cd. Applying a part is pure app-side (it fills the `RocketSpec`); the engine is unchanged.
 
-It's bundled reference data (no runtime fetch, no store). (The catalog adds ~880 KB to the bundle; a candidate for lazy-loading later.)
+Like the motor catalog, it is a generated file under `public/data/` fetched on first use (see above) rather than compiled into the bundle, so it costs nothing until a picker is opened — and it is published to the `data` branch on the same weekly schedule.
 
 ## Opening `.ork` files
 

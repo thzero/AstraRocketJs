@@ -88,7 +88,7 @@
     "title": "Privacy Policy",
     "intro": "{{name}} runs entirely in your browser. There are no accounts, no tracking, no analytics, and no ads.",
     "storage": "Your designs, simulations, preferences, and any custom materials or motors are saved in your browser's local storage, on your device — never sent to us or anyone else. Clearing your browser data (or using New) removes them.",
-    "network": "When you pick a motor, the app may fetch that motor's thrust-curve data from a public motor database and cache it locally; that request is subject to that provider's terms. Otherwise the app makes no network calls with your data.",
+    "network": "The app downloads its motor and component catalogs from a public content-delivery network, and when you pick a motor it may fetch that motor's thrust-curve data from a public motor database; both are cached locally and subject to those providers' terms. Otherwise the app makes no network calls with your data.",
     "hosting": "Whoever hosts the app may keep standard web-server access logs (such as IP address and timestamp), as any website does. The app itself collects nothing.",
     "close": "Close"
   },
@@ -742,5 +742,10 @@
     "failedMotors": "Could not load the motor catalog.",
     "failedComponents": "Could not load the component catalog.",
     "retry": "Retry"
+  },
+  "update": {
+    "available": "A new version is available.",
+    "reload": "Reload",
+    "dismiss": "Dismiss"
   }
 }

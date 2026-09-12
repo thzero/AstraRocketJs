@@ -1,6 +1,6 @@
 # AstraRocketJs
 
-**▶ [Launch the app](https://thzero.github.io/AstraRocketJs/)** — runs in your browser, nothing to install.
+**▶ [Launch the app](https://thzero.github.io/AstraRocketJs/)** — runs in your browser, nothing to install. Works **offline** once loaded, and can be installed to your home screen or desktop if you want it there.
 
 A **lightweight, browser-based UI for the OpenRocket engine** — not a full re-creation of OpenRocket's desktop app, but a fast, mobile-friendly interface over the same trusted physics, with **full OpenRocket (.ork) support** (open, edit, save round-trip). Design a rocket, watch its CG/CP/stability update live, and run a full flight simulation — entirely in the browser, with nothing to install and nothing uploaded.
 
