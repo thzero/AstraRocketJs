@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { componentsForType, filterComponents, type ComponentType, type Component } from '../../services/componentDb';
 import { fmtNum } from '../../i18n/format';
+import { useCatalogProgress } from '../common/CatalogLoading';
 
 /**
  * Picks a real catalogued part (from the bundled OpenRocket component DB) of a
@@ -16,16 +17,29 @@ export function ComponentPicker({ type, onApply }: { type: ComponentType; onAppl
   // lazy-loaded); it's just async now.
   const [all, setAll] = useState<Component[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  // Bumped by the retry button to re-run the load effect.
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let ok = true;
     setLoading(true);
+    setError(null);
     componentsForType(type)
       .then((c) => ok && (setAll(c), setLoading(false)))
-      .catch(() => ok && setLoading(false));
+      .catch((e: unknown) => {
+        if (!ok) return;
+        // Previously swallowed, leaving the button reading "Pick (0)" as though
+        // the catalog were simply empty. Say what happened and offer a retry.
+        setError(e instanceof Error ? e.message : String(e));
+        setLoading(false);
+      });
     return () => {
       ok = false;
     };
-  }, [type]);
+  }, [type, attempt]);
+  // Live bytes for the ~1 MB component catalog, so a slow link is legible.
+  const progress = useCatalogProgress('components');
+  const pct = progress?.total ? Math.min(100, Math.round((progress.loaded / progress.total) * 100)) : null;
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const matches = useMemo(() => filterComponents(all, q).slice(0, 300), [all, q]);
@@ -51,11 +65,18 @@ export function ComponentPicker({ type, onApply }: { type: ComponentType; onAppl
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => (error ? setAttempt((n) => n + 1) : setOpen(true))}
         disabled={loading}
-        className="w-full rounded-lg bg-slate-800 px-2 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 disabled:text-slate-500"
+        title={error ?? undefined}
+        className={`w-full rounded-lg px-2 py-1.5 text-xs font-medium hover:bg-slate-700 disabled:text-slate-500 ${
+          error ? 'bg-slate-800 text-amber-300' : 'bg-slate-800 text-slate-200'
+        }`}
       >
-        {loading ? t('common.loading') : t('picker.pick', { count: all.length })}
+        {error
+          ? t('catalog.retry')
+          : loading
+            ? `${t('common.loading')}${pct == null ? '' : ` ${pct}%`}`
+            : t('picker.pick', { count: all.length })}
       </button>
 
       {open && (

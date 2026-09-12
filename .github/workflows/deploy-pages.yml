@@ -51,6 +51,15 @@ jobs:
       - run: npm run build
         env:
           PAGES_BASE: /${{ github.event.repository.name }}/
+          # Read the motor/component catalogs from the separately published `data`
+          # branch (see sync-catalogs.yml) instead of the copy inside this build, so
+          # a catalog refresh goes live without a deploy. The in-build copy stays as
+          # the fallback for when the CDN is unreachable.
+          #
+          # UNCOMMENT once sync-catalogs.yml has run and created the `data` branch.
+          # Enabling it before then costs every page load three failed CDN requests
+          # before it falls back to the in-build copy.
+          # VITE_DATA_BASE: https://cdn.jsdelivr.net/gh/${{ github.repository }}@data/
 
       - uses: actions/configure-pages@v5
 

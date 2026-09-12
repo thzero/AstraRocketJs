@@ -83,7 +83,14 @@ interface ComponentCatalog {
 // once and memoized, so it can be refreshed without rebuilding the app.
 let catalogP: Promise<ComponentCatalog> | null = null;
 function loadCatalog(): Promise<ComponentCatalog> {
-  return (catalogP ??= fetchCatalog<ComponentCatalog>('components'));
+  if (!catalogP) {
+    catalogP = fetchCatalog<ComponentCatalog>('components');
+    // Don't memoize a FAILURE: a cached rejected promise would replay the same
+    // error on every retry, so the picker could never recover from one bad load.
+    // (remoteData clears its own cache on failure for the same reason.)
+    catalogP.catch(() => (catalogP = null));
+  }
+  return catalogP;
 }
 
 /** Filter a loaded catalog to a single component type (pure). */

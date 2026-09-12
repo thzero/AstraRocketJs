@@ -729,5 +729,21 @@
     "chartBurn": "tiempo de comb.",
     "calcNote": "* El empuje inicial, el Isp y la fracción de masa se calculan a partir de la curva de empuje y los pesos."
   },
-  "lang": { "label": "Idioma" }
+  "lang": { "label": "Idioma" },
+  "boot": {
+    "downloading": "Descargando el motor de cálculo…",
+    "downloadingOf": "Descargando el motor de cálculo… {{done}} / {{total}} MB",
+    "downloaded": "Descargando el motor de cálculo… {{done}} MB",
+    "starting": "Iniciando el motor de cálculo…",
+    "failed": "Motor de cálculo no disponible: iniciando igualmente"
+  },
+  "catalog": {
+    "loadingMotors": "Cargando el catálogo de motores…",
+    "loadingComponents": "Cargando el catálogo de componentes…",
+    "loadingOf": "{{done}} / {{total}} MB",
+    "loadedSoFar": "{{done}} MB",
+    "failedMotors": "No se pudo cargar el catálogo de motores.",
+    "failedComponents": "No se pudo cargar el catálogo de componentes.",
+    "retry": "Reintentar"
+  }
 }

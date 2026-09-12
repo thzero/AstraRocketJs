@@ -726,5 +726,21 @@
     "chartBurn": "burn time",
     "calcNote": "* Initial thrust, Isp, and mass fraction are calculated from the thrust curve and weights."
   },
-  "lang": { "label": "Language" }
+  "lang": { "label": "Language" },
+  "boot": {
+    "downloading": "Downloading engine…",
+    "downloadingOf": "Downloading engine… {{done}} / {{total}} MB",
+    "downloaded": "Downloading engine… {{done}} MB",
+    "starting": "Starting engine…",
+    "failed": "Engine unavailable — starting anyway"
+  },
+  "catalog": {
+    "loadingMotors": "Loading motor catalog…",
+    "loadingComponents": "Loading component catalog…",
+    "loadingOf": "{{done}} / {{total}} MB",
+    "loadedSoFar": "{{done}} MB",
+    "failedMotors": "Could not load the motor catalog.",
+    "failedComponents": "Could not load the component catalog.",
+    "retry": "Retry"
+  }
 }
