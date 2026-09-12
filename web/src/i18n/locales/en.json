@@ -51,11 +51,11 @@
   "export": {
     "title": "Design Report",
     "select": "Select elements to include:",
-    "designReport": "Design report",
+    "designReport": "Design Report",
     "finTemplates": "Fin templates",
     "noseTemplates": "Nose cone templates",
     "transitionTemplates": "Transition templates",
-    "includeMotors": "Include motors",
+    "includeMotors": "Motors Summary",
     "updateSim": "Update simulation data",
     "showByStage": "Show by stage",
     "settings": "Settings",
@@ -575,8 +575,8 @@
     "results": "{{count}} parts"
   },
   "dash": {
-    "menu": "Motor dashboard",
-    "title": "Motor dashboard",
+    "menu": "Motor Dashboard",
+    "title": "Motor Dashboard",
     "hint": "Select a motor to see its thrust curve and specifications, or check motors to compare or combine them.",
     "select": "Select {{name}}",
     "combine": "Combine ({{n}})",

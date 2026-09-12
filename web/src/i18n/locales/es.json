@@ -55,7 +55,7 @@
     "finTemplates": "Plantillas de aletas",
     "noseTemplates": "Plantillas de ojiva",
     "transitionTemplates": "Plantillas de transición",
-    "includeMotors": "Incluir motores",
+    "includeMotors": "Resumen de motores",
     "updateSim": "Actualizar datos de simulación",
     "showByStage": "Mostrar por etapa",
     "settings": "Ajustes",
@@ -258,7 +258,7 @@
     "pitchInertia": "Inercia de cabeceo (cargado)"
   },
   "sim": {
-    "run": "Simular vuelo ({{name}})",
+    "run": "Simular vuelo",
     "running": "Simulando…",
     "prompt": "Ejecuta una simulación para ver el perfil de vuelo.",
     "apogee": "Apogeo",
