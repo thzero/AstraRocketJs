@@ -1,0 +1,22 @@
+{
+  "version.label": {
+    "message": "Next",
+    "description": "The label for version current"
+  },
+  "sidebar.docs.category.Introduction": {
+    "message": "Introducción",
+    "description": "The label for category 'Introduction' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Getting Started": {
+    "message": "Primeros pasos",
+    "description": "The label for category 'Getting Started' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.User Guide": {
+    "message": "Guía de uso",
+    "description": "The label for category 'User Guide' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Developing": {
+    "message": "Desarrollo",
+    "description": "The label for category 'Developing' in sidebar 'docs'"
+  }
+}

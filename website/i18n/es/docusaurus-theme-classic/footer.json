@@ -1,0 +1,6 @@
+{
+  "copyright": {
+    "message": "AstraRocketJs runs OpenRocket’s own engine. Not affiliated with the OpenRocket project. See the <a href=\"https://openrocket.readthedocs.io\">OpenRocket documentation</a> for the underlying physics.",
+    "description": "The footer copyright"
+  }
+}

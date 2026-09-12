@@ -1,0 +1,18 @@
+{
+  "title": {
+    "message": "AstraRocketJs",
+    "description": "The title in the navbar"
+  },
+  "item.label.Documentation": {
+    "message": "Documentación",
+    "description": "Navbar item with label Documentation"
+  },
+  "item.label.Launch the app": {
+    "message": "Abrir la aplicación",
+    "description": "Navbar item with label Launch the app"
+  },
+  "item.label.GitHub": {
+    "message": "GitHub",
+    "description": "Navbar item with label GitHub"
+  }
+}
