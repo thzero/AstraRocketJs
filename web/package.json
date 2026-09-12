@@ -1,10 +1,10 @@
 {
   "name": "astrarocketjs-web",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "version_major": 0,
   "version_minor": 0,
-  "version_patch": 9,
-  "version_date": "09/11/2026",
+  "version_patch": 10,
+  "version_date": "09/12/2026",
   "type": "module",
   "description": "AstraRocketJs — browser UI for the OpenRocket engine",
   "author": "thZero.com",
@@ -19,7 +19,7 @@
     "url": "https://github.com/thzero/AstraRocketJs/issues"
   },
   "wiki": {
-    "url": "https://github.com/thzero/AstraRocketJs/wiki"
+    "url": "https://thzero.github.io/AstraRocketJs/docs/"
   },
   "scripts": {
     "dev": "vite",
@@ -34,8 +34,7 @@
     "e2e:ui": "playwright test --ui",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build:inc": "library-cli --updateversion --pi --silent && node ../scripts/stamp-wiki-version.mjs --silent",
-    "stamp:wiki": "node ../scripts/stamp-wiki-version.mjs",
+    "build:inc": "library-cli --updateversion --pi --silent",
     "gen:icons": "node scripts/gen-icons.mjs",
     "sync:motors": "node scripts/sync-motors.mjs",
     "sync:components": "node scripts/sync-components.mjs",

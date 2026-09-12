@@ -31,7 +31,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          cache-dependency-path: |
+            web/package-lock.json
+            website/package-lock.json
 
       - run: npm ci
 
@@ -47,6 +49,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
+      # Docs are built BEFORE the app and into web/public, so the service worker
+      # precaches them: Help has to work offline, which is much of the point of
+      # the PWA. public/ is copied verbatim into dist by Vite.
+      - name: Install docs deps
+        working-directory: website
+        run: npm ci
+
+      - name: Build docs into the app
+        working-directory: website
+        run: npx docusaurus build --out-dir "$GITHUB_WORKSPACE/web/public/docs"
+        env:
+          DOCS_BASE_URL: /${{ github.event.repository.name }}/docs/
       # Serve from https://<user>.github.io/<repo>/ — base must be /<repo>/.
       - run: npm run build
         env:

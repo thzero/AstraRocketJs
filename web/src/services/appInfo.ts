@@ -16,10 +16,26 @@ export const APP_VERSION: string = __APP_VERSION__;
 
 /**
  * Help/documentation URL, injected at build time (see vite.config.ts):
- * package.json's `repository` + "/wiki" by default, or the `HELP_URL` build
- * override. Read this instead of hard-coding the wiki link.
+ * package.json's `wiki.url`, or the `HELP_URL` build override. Read this
+ * instead of hard-coding the docs link.
  */
 export const HELP_URL: string = __HELP_URL__;
+
+/**
+ * The docs URL for a UI language. The docs site serves English at the root and
+ * other locales under a sub-path (`/docs/es/`), and an untranslated page there
+ * falls back to English rather than 404ing — so pointing a Spanish user at the
+ * Spanish tree is always safe.
+ *
+ * Falls back to the plain help URL for a language the docs do not build, or if
+ * the URL was overridden to something without a locale layout.
+ */
+const DOC_LOCALES = new Set(['es']);
+export function helpUrlFor(language: string): string {
+  const lang = (language || '').split('-')[0]!.toLowerCase();
+  if (!HELP_URL || !DOC_LOCALES.has(lang)) return HELP_URL;
+  return `${HELP_URL.replace(/\/*$/, '/')}${lang}/`;
+}
 
 /**
  * Where the About dialog's contributors heading links — by default the

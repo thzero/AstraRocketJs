@@ -70,6 +70,11 @@ export default defineConfig({
         // The WASM kernel alone is ~2.5 MB, over Workbox's 2 MiB default.
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         cleanupOutdatedCaches: true,
+        // The docs site is copied into dist/docs at deploy time, so it is NOT
+        // part of the precache — but the SW's navigation fallback would still
+        // answer every /docs/ navigation with the app shell, replacing the docs
+        // with the app for anyone who has visited before. Exclude them.
+        navigateFallbackDenylist: [/\/docs\//],
         runtimeCaching: [
           {
             // Catalogs published to the `data` branch (see sync-catalogs.yml).

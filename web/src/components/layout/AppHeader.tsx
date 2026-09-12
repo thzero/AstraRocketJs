@@ -1,6 +1,6 @@
 import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { APP_VERSION, HELP_URL, isPreRelease } from '../../services/appInfo';
+import { APP_VERSION, helpUrlFor, isPreRelease } from '../../services/appInfo';
 import { initEngine } from '../../engine/openRocketEngine';
 import { useWorkspaceStore } from '../../state/store';
 import { DesignLibraryDialog } from './DesignLibraryDialog';
@@ -17,7 +17,7 @@ import { MotorDashboard } from '../sim/MotorDashboard';
  *  New / Open (library) / Save / Save As / Import / Export / About actions.
  *  Owns the hidden .ork file input that Import triggers. */
 export function AppHeader() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const canSave = useWorkspaceStore((s) => !!s.info);
   const onNew = useWorkspaceStore((s) => s.newWorkspace);
   const onOpenFile = useWorkspaceStore((s) => s.openOrkFile);
@@ -389,7 +389,7 @@ export function AppHeader() {
               <a
                 role="menuitem"
                 className={item}
-                href={HELP_URL}
+                href={helpUrlFor(i18n.language)}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setMenuOpen(false)}

@@ -51,9 +51,9 @@ Full setup — dev server, build, engine rebuild, catalog tools, and tests — i
 
 ## Documentation
 
-- **[Wiki](https://github.com/thzero/AstraRocketJs/wiki)** — the user guide: getting started, designing a rocket, motors, the views, running simulations, and files/exports.
-- **[Architecture & internals](https://github.com/thzero/AstraRocketJs/wiki/Architecture)** — how the extracted engine, motor/material/component data, `.ork` I/O, and swappable stores work (the developer reference).
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** — how to report bugs, develop, translate, and submit changes (full guide in the [Wiki](https://github.com/thzero/AstraRocketJs/wiki/Contributing)).
+- **[Documentation](https://thzero.github.io/AstraRocketJs/docs/)** — the user guide: getting started, designing a rocket, motors, the views, running simulations, and files/exports.
+- **[Architecture & internals](https://thzero.github.io/AstraRocketJs/docs/architecture)** — how the extracted engine, motor/material/component data, `.ork` I/O, and swappable stores work (the developer reference).
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — how to report bugs, develop, translate, and submit changes (full guide in the [documentation](https://thzero.github.io/AstraRocketJs/docs/contributing)).
 - **[Code of Conduct](CODE_OF_CONDUCT.md)**
 
 ## Contributing
