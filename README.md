@@ -1,5 +1,7 @@
 # AstraRocketJs
 
+**▶ [Launch the app](https://thzero.github.io/AstraRocketJs/)** — runs in your browser, nothing to install.
+
 A **lightweight, browser-based UI for the OpenRocket engine** — not a full re-creation of OpenRocket's desktop app, but a fast, mobile-friendly interface over the same trusted physics, with **full OpenRocket (.ork) support** (open, edit, save round-trip). Design a rocket, watch its CG/CP/stability update live, and run a full flight simulation — entirely in the browser, with nothing to install and nothing uploaded.
 
 The UI is **responsive**: a three-pane workbench (editor · rocket view · motor/sim) on desktop that collapses to a single stacked, tabbed column on phones. The rocket view switches between a **2D schematic**, a **3D model**, an **aerodynamics** view, and — after a simulation — **flight charts** and a **3D flight path**.
@@ -31,7 +33,9 @@ The UI is **responsive**: a three-pane workbench (editor · rocket view · motor
 
 ## Getting started
 
-Needs only **Node 22+** — no JDK to run the app (it uses a committed engine build):
+Just want to use it? Open **<https://thzero.github.io/AstraRocketJs/>** — that's the current `master` build, deployed to GitHub Pages.
+
+To run it locally you need only **Node 22+** — no JDK (it uses a committed engine build):
 
 ```bash
 cd web && npm install && npm run dev

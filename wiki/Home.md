@@ -2,6 +2,8 @@
 
 **AstraRocketJs** is a lightweight, browser-based UI for the real OpenRocket physics engine — design a rocket, watch its stability update live, and run a full flight simulation, entirely in your browser with nothing to install.
 
+**▶ [Launch the app](https://thzero.github.io/AstraRocketJs/)**
+
 > New here? Start with **[Overview](Overview)** → **[Getting Started](Getting-Started)**.
 
 ## Introduction

@@ -2,7 +2,7 @@
 
 ## Open the app
 
-AstraRocketJs runs in your web browser — **there's nothing to install**. Open the app URL and you're ready. It works on desktop and mobile; a modern browser (Chrome, Firefox, Safari, Edge) is all you need.
+AstraRocketJs runs in your web browser — **there's nothing to install**. Open **<https://thzero.github.io/AstraRocketJs/>** and you're ready. It works on desktop and mobile; a modern browser (Chrome, Firefox, Safari, Edge) is all you need.
 
 When it loads you'll see a brief splash while the physics engine loads, then a starter rocket. The header shows a small **`WASM`** or **`JS`** badge indicating which engine backend loaded (WebAssembly is the fast default; JavaScript is the fallback).
 
