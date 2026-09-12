@@ -12,6 +12,7 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify('0.0.0-test'),
     __HELP_URL__: JSON.stringify('https://example.test/wiki'),
+    __CONTRIBUTORS_URL__: JSON.stringify('https://example.test/graphs/contributors'),
   },
   test: {
     include: ['src/**/*.test.ts'],

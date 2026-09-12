@@ -22,6 +22,14 @@ export const APP_VERSION: string = __APP_VERSION__;
 export const HELP_URL: string = __HELP_URL__;
 
 /**
+ * Where the About dialog's contributors heading links — by default the
+ * repository's GitHub contributor graph, overridable at build time (see
+ * vite.config.ts) via `contributorsPage.url` in package.json or the
+ * `CONTRIBUTORS_URL` env var. Empty string ⇒ render the heading unlinked.
+ */
+export const CONTRIBUTORS_URL: string = __CONTRIBUTORS_URL__;
+
+/**
  * True while the app is a pre-1.0 (work-in-progress) build — i.e. the version's
  * major number is 0. Gates the "work in progress" acknowledgement popup and the
  * About-dialog notice; both switch off automatically once the version hits 1.0.

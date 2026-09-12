@@ -13,6 +13,15 @@ const { version } = pkg;
 const repoUrl: string = (pkg.repository?.url ?? '').replace(/^git\+/, '').replace(/\.git$/, '');
 const helpUrl: string = process.env.HELP_URL || pkg.wiki?.url || (repoUrl ? `${repoUrl}/wiki` : '');
 
+// Where the About dialog's "contributors" heading links. Same shape as the Help
+// link: `contributorsPage.url` in package.json (NOT `contributors` — that key is
+// npm's own people array), else the repository's contributor graph. Build-time
+// override:
+//   CONTRIBUTORS_URL=https://example.com/team npm run build
+// Set either to '' to render the heading as plain, unlinked text.
+const contributorsUrl: string =
+  process.env.CONTRIBUTORS_URL ?? pkg.contributorsPage?.url ?? (repoUrl ? `${repoUrl}/graphs/contributors` : '');
+
 export default defineConfig({
   // On GitHub Pages the app is served from https://<user>.github.io/<repo>/, so the
   // CI build sets PAGES_BASE=/<repo>/ and every asset + engine URL resolves under it.
@@ -20,7 +29,11 @@ export default defineConfig({
   base: process.env.PAGES_BASE || '/',
   plugins: [react(), tailwindcss()],
   // Expose the package version to the app (shown in the header).
-  define: { __APP_VERSION__: JSON.stringify(version), __HELP_URL__: JSON.stringify(helpUrl) },
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+    __HELP_URL__: JSON.stringify(helpUrl),
+    __CONTRIBUTORS_URL__: JSON.stringify(contributorsUrl),
+  },
   // The vendored TeaVM engine is a large ES module; don't let esbuild choke pre-bundling it.
   optimizeDeps: { exclude: ['./src/engine/vendor/orkengine.mjs'] },
   // The sim worker (engine/simWorker.ts) is a module worker that dynamic-imports

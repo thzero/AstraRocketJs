@@ -2,3 +2,5 @@
 declare const __APP_VERSION__: string;
 /** Help/docs URL — package.json repository + "/wiki", or the HELP_URL build override. */
 declare const __HELP_URL__: string;
+/** Contributors page — repository + "/graphs/contributors", or the CONTRIBUTORS_URL override; '' hides the link. */
+declare const __CONTRIBUTORS_URL__: string;

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
-import { appName, APP_VERSION, isPreRelease } from '../../services/appInfo';
+import { appName, APP_VERSION, CONTRIBUTORS_URL, isPreRelease } from '../../services/appInfo';
 import contributorData from '../../data/contributors.generated.json';
 
 // GitHub contributors, baked in at build time by scripts/sync-contributors.mjs
@@ -90,7 +90,23 @@ export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => v
 
         {CONTRIBUTORS.length > 0 && (
           <div className="mt-4 border-t border-white/10 pt-3 text-xs leading-relaxed text-slate-500">
-            <p>{t('about.contributors')}</p>
+            <p>
+              {/* The heading links to the full contributor graph when one is
+                  configured — the bundled list is a build-time snapshot. */}
+              {CONTRIBUTORS_URL ? (
+                <a
+                  href={CONTRIBUTORS_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={t('about.contributorsAll')}
+                  className="text-sky-400 hover:underline"
+                >
+                  {t('about.contributors')}
+                </a>
+              ) : (
+                t('about.contributors')
+              )}
+            </p>
             <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-2">
               {CONTRIBUTORS.map((c) => (
                 <li key={c.login}>
