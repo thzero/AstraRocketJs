@@ -1,9 +1,10 @@
 // Swappable client-side store for the user's custom flight-path EXPORT TEMPLATES
 // (Mustache). This is the browser equivalent of OpenRocket's desktop
 // `ExportTemplates` folder: instead of scanning a user directory, we persist
-// imported templates through a KeyValueStore (localStorage by default). Mirrors
+// imported templates through a KeyValueStore (IndexedDB by default). Mirrors
 // the material/motor stores; swap setTemplateStore(...) for a bespoke backend.
-import { type KeyValueStore, LocalStorageKeyValueStore } from './keyValueStore';
+import type { KeyValueStore } from './keyValueStore';
+import { IndexedDbKeyValueStore } from './idbKeyValueStore';
 
 /** A user-imported export template. */
 export interface UserTemplate {
@@ -58,12 +59,12 @@ function isUserTemplate(v: unknown): v is UserTemplate {
 
 /**
  * Default TemplateStore: serializes the template list to a single key-value
- * entry through a KeyValueStore (localStorage by default).
+ * entry through a KeyValueStore (IndexedDB by default).
  */
 export class KeyValueTemplateStore implements TemplateStore {
   constructor(
     private readonly key: string = CUSTOM_KEY,
-    private readonly kv: KeyValueStore = new LocalStorageKeyValueStore(),
+    private readonly kv: KeyValueStore = new IndexedDbKeyValueStore(),
   ) {}
 
   private async read(): Promise<UserTemplate[]> {

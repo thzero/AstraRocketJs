@@ -68,7 +68,7 @@ Motors come from [thrustcurve.org](https://www.thrustcurve.org), in two tiers th
 
    The catalog is **not** mirrored to `localStorage` — it now ships its thrust curves, which is far too large for that — but it is memoized for the session and cache-busted by the content hash in `public/data/manifest.json`. thrustcurve.org itself is never called for the catalog at runtime.
 
-2. **Thrust curves (runtime, on demand).** The catalog carries specs but no curve. When a motor is picked, `web/src/services/thrustcurve.ts` resolves it (`search.json`) and pulls its curve (`download.json`), then builds the engine `MotorSpec` (trapezoidal impulse → per-sample mass). Everything is cached in `localStorage`:
+2. **Thrust curves.** The sweep bundles each motor's curve samples into the catalog (781 of 815; the rest are flagged `noCurve`, having none published), so a picked motor builds its `MotorSpec` with **no runtime call**. Only a `noCurve` motor falls through to `web/src/services/thrustcurve.ts`, which resolves it (`search.json`), pulls its curve (`download.json`) and builds the spec (trapezoidal impulse → per-sample mass). Those fetches are cached through the `MotorStore` (IndexedDB):
 
    | key | holds | refetched |
    |-----|-------|-----------|
@@ -80,7 +80,7 @@ Motors come from [thrustcurve.org](https://www.thrustcurve.org), in two tiers th
 
    **Imported motors.** A user can import a `.eng` (RASP) file — it carries its own thrust curve, so it needs no thrustcurve lookup: `engParser.ts` parses it, the `MotorStore` persists it (`motors:custom`), `loadCatalog()` merges it into the picker (flagged, deletable), and `fetchMotorSpec` builds its `MotorSpec` from the stored samples. This is user content, symmetric to custom materials.
 
-   The catalog mirror, per-motor entries, and imported motors all persist through the swappable **`MotorStore`** (`web/src/services/motorStore.ts`; default `KeyValueMotorStore` over `localStorage`), which owns the freshness policy (catalog signature, per-entry TTL). Replace it with `setMotorStore(...)` to move motor data elsewhere — see **Where user data lives** below.
+   The catalog mirror, per-motor entries, and imported motors all persist through the swappable **`MotorStore`** (`web/src/services/motorStore.ts`; default `KeyValueMotorStore` over IndexedDB), which owns the freshness policy (catalog signature, per-entry TTL). Replace it with `setMotorStore(...)` to move motor data elsewhere — see **Where user data lives** below.
 
 ## Materials
 
@@ -127,7 +127,15 @@ Like the motor catalog, it is a generated file under `public/data/` fetched on f
 Client-side user data lives behind **two independently swappable, typed domain stores** — one for motors, one for materials — so either can be replaced with a different implementation without touching the services or the UI:
 
 ```
-keyValueStore.ts    KeyValueStore (get/set/remove) + LocalStorageKeyValueStore  — the building block
+keyValueStore.ts    KeyValueStore (get/set/remove) + LocalStorageKeyValueStore  — the interface
+idbKeyValueStore.ts IndexedDbKeyValueStore — the DEFAULT backend for every store
+
+designLibrary.ts    DesignLibrary — getDesignLibrary() / setDesignLibrary(lib)
+   list / read / write / create / rename / remove, plus the active-design pointer. One
+   key per design (astrarrocketjs:designs:<id>) and a small separate index of
+   {id, name, updatedAt} — autosave rewrites ONE design on a 500 ms debounce, so a single
+   document holding every design would be rewritten on every keystroke and grow with the
+   library. workspaceStore.ts is a narrow façade over "the design being edited".
 
 motorStore.ts       MotorStore   — getMotorStore() / setMotorStore(store)
    readCatalog / writeCatalog (signature-guarded mirror) · readEntry / writeEntry (per-motor,
@@ -139,7 +147,7 @@ materialStore.ts    MaterialStore — getMaterialStore() / setMaterialStore(stor
    materials.ts owns the domain rules (validation, merging built-ins with custom).
 ```
 
-Both default to persisting through a `LocalStorageKeyValueStore`, and their interfaces are async so a different implementation (IndexedDB, a backend, a shared store) fits without reshaping callers. To replace one on the client, implement its interface and swap it:
+All of them default to persisting through an **`IndexedDbKeyValueStore`**, and their interfaces are async so a different implementation (a backend, a shared store) fits without reshaping callers. To replace one on the client, implement its interface and swap it:
 
 - **Motors:** `setMotorStore(new MyMotorStore())`
 - **Materials:** `setMaterialStore(new MyMaterialStore())`
@@ -150,6 +158,21 @@ Both default to persisting through a `LocalStorageKeyValueStore`, and their inte
 - `setMaterialStore(new KeyValueMaterialStore('materials:custom', new MyKeyValueStore()))`
 
 Swapping one does not affect the other.
+
+### Why IndexedDB, and the two places localStorage remains
+
+localStorage is synchronous — every read and write blocks the main thread — and capped near **5 MB per origin**, shared across designs, custom motors and materials, imported templates and the thrust-curve caches. `workspaceStore.save()` throwing `storage-full` is that cap showing through. IndexedDB is async and effectively uncapped.
+
+Existing data migrates **lazily, per key, on first read**: a key absent from IndexedDB but present in localStorage is copied across, and the original is deleted only once the write is confirmed — an interrupted migration retries next load rather than destroying the only copy. If IndexedDB is unavailable (blocked by policy, some private modes), every operation transparently falls back to localStorage, so the app degrades to its previous behaviour rather than losing storage.
+
+The app held exactly ONE design before this — a single blob replaced whenever you opened another. `designLibrary.ts` makes designs addressable instead, and folds that pre-library workspace in as the first entry on first use (named after its imported `.ork` if it had one). Because switching designs is now possible, the unload journal records **which** design it belongs to: replaying it into whatever happens to be open would overwrite an unrelated rocket.
+
+Two things stay on localStorage deliberately:
+
+- **Settings** (`settings.ts`) are read **synchronously** so the very first render already has the user's units and preferences — an async read would flash defaults.
+- **The unload journal.** An IndexedDB write cannot complete while the page is tearing down, so `WorkspaceStore.saveSync()` writes the workspace to localStorage on `pagehide`/`beforeunload` and the next `load()` folds it back in (it is by definition the newest copy) and clears it. Without this, an edit made inside the 500 ms autosave debounce would be lost on a quick refresh. A `visibilitychange → hidden` handler also fires the ordinary async save, which on mobile is often the last chance before the tab is discarded.
+
+Small UI preferences (dashboard columns, picker filters) also stay on localStorage — they are tiny, and a synchronous read keeps the first paint correct.
 
 ## Attribution & license
 

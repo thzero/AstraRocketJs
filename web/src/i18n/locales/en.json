@@ -1,6 +1,6 @@
 {
   "app": { "title": "AstraRocketJs", "version": "{{name}} version {{version}}", "designName": "{{name}} design" },
-  "common": { "loading": "Loading…", "confirmTitle": "Are you sure?", "confirm": "Confirm", "cancel": "Cancel", "delete": "Delete", "discard": "Discard", "close": "Close" },
+  "common": { "loading": "Loading…", "confirmTitle": "Are you sure?", "confirm": "Confirm", "save": "Save", "cancel": "Cancel", "delete": "Delete", "discard": "Discard", "close": "Close" },
   "report": {
     "title": "Rocket Design",
     "noDesign": "No valid design to export.",
@@ -103,7 +103,11 @@
   },
   "file": {
     "open": "Open Rocket",
-    "save": "Save Rocket",
+    "save": "Save…",
+    "openLibrary": "Open…",
+    "saveAs": "Save As…",
+    "import": "Import",
+    "ork": "OpenRocket",
     "export": "Export",
     "report": "Rocket Design Report",
     "rasaero": "RASAero II",
@@ -747,5 +751,19 @@
     "available": "A new version is available.",
     "reload": "Reload",
     "dismiss": "Dismiss"
+  },
+  "storage": {
+    "full": "Could not save your work — browser storage is full. Export your design to keep it.",
+    "degraded": "Your browser is blocking its database, so the app has fallen back to a much smaller storage area (about 5 MB) and saving may fail as your design grows. Private browsing is the usual cause. Export anything you want to keep."
+  },
+  "library": {
+    "title": "My Rockets",
+    "empty": "No saved rockets yet. Your design is saved automatically as you work.",
+    "open": "open",
+    "rename": "Rename",
+    "name": "Name",
+    "untitled": "Untitled rocket",
+    "duplicateName": "Another rocket already has this name.",
+    "missing": "That rocket is no longer saved."
   }
 }

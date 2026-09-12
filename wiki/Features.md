@@ -15,6 +15,9 @@
 - **Aerodynamics view**: Cd vs Mach, drag breakdown (friction / pressure / base), CP vs Mach.
 - **Flight charts**: altitude, velocity, acceleration, Mach, thrust, mass, drag, and stability over time. For a staged flight, each stage's trajectory overlays as its own line, with a stage selector to choose which to show.
 
+- **Several rockets at once** — the app keeps a library of your designs in the browser; switch between them from **Open…**, rename or delete, and **Save As…** to branch a copy. Everything autosaves as you work. See **[Files & Exports](Files-and-Exports)**.
+- **Works offline and installs** — the app, engine and catalogs are kept on your device after the first visit, so you can design and simulate with no connection; your browser will also offer to add it to your home screen or desktop. See **[Offline & Installing](Offline-and-Installing)**.
+
 ## Data & I/O
 - **Full `.ork` support** — open and save round-trip at full fidelity (files re-open in desktop OpenRocket).
 - **Motor picker** with real **thrust curves** from [thrustcurve.org](https://www.thrustcurve.org) (~800 motors), downloaded once and cached for offline use. Filter by engine code, impulse class, manufacturer(s), and a **diameter range** that defaults to the motor-mount bore; selections are remembered.

@@ -1,5 +1,6 @@
 import type { StaticInfo } from '../engine/openRocketEngine';
 import type { ReportModel } from './reportModel';
+import { saveText } from './saveFile';
 
 /**
  * Design-info CSV export — the same Scope / Field / Value / Unit layout
@@ -47,7 +48,8 @@ export function buildDesignCsv(model: ReportModel): string {
   push('Design', 'Stages', String(model.stages.length), '');
 
   for (const [field, value, unit] of summaryRows(model.whole.info)) push('Rocket', field, value, unit);
-  for (const st of model.stageSummaries) for (const [field, value, unit] of summaryRows(st.info)) push(st.label, field, value, unit);
+  for (const st of model.stageSummaries)
+    for (const [field, value, unit] of summaryRows(st.info)) push(st.label, field, value, unit);
 
   for (const st of model.finSetsByStage) {
     for (const s of st.sets) {
@@ -64,10 +66,5 @@ const safe = (name: string) => (name || 'rocket').trim().replace(/[^a-z0-9._-]+/
 
 /** Build and download the design-info CSV. */
 export function downloadDesignCsv(model: ReportModel): void {
-  const url = URL.createObjectURL(new Blob([buildDesignCsv(model)], { type: 'text/csv;charset=utf-8' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${safe(model.name)}-design.csv`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  void saveText(buildDesignCsv(model), `${safe(model.name)}-design.csv`, 'text/csv;charset=utf-8');
 }

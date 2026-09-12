@@ -8,7 +8,8 @@
 // Replace it on the client, independently of the material store:
 //   setMotorStore(new MyMotorStore())
 import type { CatalogMotor } from './motorDb';
-import { type KeyValueStore, LocalStorageKeyValueStore } from './keyValueStore';
+import type { KeyValueStore } from './keyValueStore';
+import { IndexedDbKeyValueStore } from './idbKeyValueStore';
 
 /** A cached value plus whether it is past its freshness window. */
 export interface CachedEntry<T> {
@@ -86,14 +87,14 @@ function isCustomMotor(v: unknown): v is CustomMotor {
 }
 
 /**
- * Default MotorStore: persists through a KeyValueStore (localStorage by
+ * Default MotorStore: persists through a KeyValueStore (IndexedDB by
  * default), applying a fixed-TTL freshness policy to per-motor entries and a
  * signature guard to the catalog mirror. Pass a different KeyValueStore to move
  * the bytes elsewhere, or a different `ttlMs` to tune revalidation.
  */
 export class KeyValueMotorStore implements MotorStore {
   constructor(
-    private readonly kv: KeyValueStore = new LocalStorageKeyValueStore(),
+    private readonly kv: KeyValueStore = new IndexedDbKeyValueStore(),
     private readonly ttlMs: number = DEFAULT_TTL_MS,
   ) {}
 

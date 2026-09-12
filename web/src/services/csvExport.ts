@@ -1,4 +1,5 @@
 import type { FlightResult, DragSweep, FlightSeries } from '../engine/openRocketEngine';
+import { saveText } from './saveFile';
 
 /**
  * CSV exporters for the flight time-series and the drag sweep. Metric units
@@ -94,13 +95,7 @@ export function dragTableCsv(d: DragSweep): string {
 
 /** Trigger a browser download of arbitrary text under the given MIME type. */
 export function downloadText(filename: string, text: string, mime = 'text/plain;charset=utf-8'): void {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([text], { type: mime }));
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(a.href);
+  void saveText(text, filename, mime);
 }
 
 /** Trigger a browser download of CSV text. */

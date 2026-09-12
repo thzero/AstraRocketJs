@@ -4,7 +4,7 @@
 
 AstraRocketJs runs in your web browser — **there's nothing to install**. Open **<https://thzero.github.io/AstraRocketJs/>** and you're ready. It works on desktop and mobile; a modern browser (Chrome, Firefox, Safari, Edge) is all you need.
 
-After that first visit it keeps working **offline**, so you can design and simulate at a launch site with no signal. If you'd like it alongside your other apps, your browser will offer to **install** it — "Add to Home Screen" on mobile, or the install icon in the address bar on desktop.
+After that first visit it keeps working **offline**, so you can design and simulate at a launch site with no signal, and your browser will offer to **install** it alongside your other apps — see **[Offline & Installing](Offline-and-Installing)**.
 
 When it loads you'll see a brief splash while the physics engine loads, then a starter rocket. The header shows a small **`WASM`** or **`JS`** badge indicating which engine backend loaded (WebAssembly is the fast default; JavaScript is the fallback).
 
@@ -27,7 +27,7 @@ The top bar has the **app menu** (New / Open `.ork` / Save `.ork` / Settings / A
 3. **Pick a motor** in the right panel. See [Motors](Motors).
 4. **Set your launch conditions** and press **Run flight simulation**. See [Running a Simulation](Running-a-Simulation).
 5. **Explore the results** — apogee and other tiles, plus the Flight and 3D-path views. See [Views & Analysis](Views-and-Analysis).
-6. **Save** your design as an `.ork` file (menu → Save). See [Files & Exports](Files-and-Exports).
+6. Your rocket **saves itself as you work**, and menu → **Open…** switches between saved rockets. To keep a copy on your disk or open it in desktop OpenRocket, use menu → **Export → OpenRocket**. See [Files & Exports](Files-and-Exports).
 
 ## Where your data lives
 

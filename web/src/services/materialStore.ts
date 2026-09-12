@@ -4,7 +4,8 @@
 // thing with any MaterialStore on the client (setMaterialStore(...)),
 // independently of the motor store.
 import type { Material, MaterialType } from '../data/materials';
-import { type KeyValueStore, LocalStorageKeyValueStore } from './keyValueStore';
+import type { KeyValueStore } from './keyValueStore';
+import { IndexedDbKeyValueStore } from './idbKeyValueStore';
 
 export interface MaterialStore {
   /** All stored custom materials (implementation decides ordering). */
@@ -30,14 +31,14 @@ function isMaterial(v: unknown): v is Material {
 
 /**
  * Default MaterialStore: serializes the custom-material list to a single
- * key-value entry through a KeyValueStore (localStorage by default). Pass a
+ * key-value entry through a KeyValueStore (IndexedDB by default). Pass a
  * different KeyValueStore to persist custom materials elsewhere, or replace the
  * whole MaterialStore via setMaterialStore for a bespoke backend.
  */
 export class KeyValueMaterialStore implements MaterialStore {
   constructor(
     private readonly key: string = CUSTOM_KEY,
-    private readonly kv: KeyValueStore = new LocalStorageKeyValueStore(),
+    private readonly kv: KeyValueStore = new IndexedDbKeyValueStore(),
   ) {}
 
   private async read(): Promise<Material[]> {

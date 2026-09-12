@@ -7,6 +7,9 @@ so most entries describe getting a computation to match OpenRocket exactly.
 ## [Unreleased]
 
 ### Added
+- **Keep several rockets.** Designs are now a library rather than one working file: **Open…** lists your saved rockets to switch between, **Save As…** branches a copy, and **New** starts a fresh one without disturbing the last. Everything still autosaves as you edit. Your existing design is carried into the library automatically the first time you open the app.
+- **Import / Export replace Open / Save for files.** Menu → **Open** and **Save** now mean the in-app library; `.ork` files move to and from your disk through **Import ▸ OpenRocket** and **Export ▸ OpenRocket**, alongside the other export formats.
+- **Exports work in the installed app on iPhone and iPad.** A download started from an installed PWA silently did nothing on iOS; exports there now go through the system share sheet ("Save to Files"). Every export — `.ork`, RASAero, CSV, 3D meshes, cut sheets, schematics — shares one save path.
 - **Works offline, and installs.** The app now caches itself, the physics engine, and both reference catalogs, so it opens and runs a full simulation with no connection — useful at a launch site with no signal. Your browser will also offer to install it (home screen on mobile, its own window on desktop). When a new version is deployed, a prompt offers to reload rather than reloading under you mid-design.
 - **Loading screens say what they are doing.** The startup splash reports the engine download with real progress ("Downloading engine… 1.4 / 2.3 MB") and names the compile step, and the motor and component pickers show the same for their catalog downloads — instead of a single static "Loading…" through a multi-megabyte transfer. A failed catalog load now reports the error and offers a retry, where it previously left an empty list with no explanation.
 - **Catalogs refresh without a redeploy.** Motor and component catalogs are published weekly to a separate `data` branch and served over a CDN, so a catalog update reaches the app without rebuilding or redeploying it. The copy inside the build remains a fallback for when the CDN is unreachable.
@@ -14,6 +17,7 @@ so most entries describe getting a computation to match OpenRocket exactly.
 - **Keyboard navigation for the component tree.** The tree is now a single tab stop with roving focus: ↑/↓ (and Home/End) move between parts, ←/→ collapse/expand a branch, and Enter/Space select — instead of one tab stop per part with no arrow keys.
 
 ### Changed
+- **Your work is stored in a larger, safer place.** Designs, custom motors, materials and templates moved from browser local storage — synchronous and capped near 5 MB — to IndexedDB, which is asynchronous and effectively uncapped; existing data migrates on first load. The app also asks the browser not to evict your designs under disk pressure, and warns up front if the browser blocks IndexedDB (usually private browsing) rather than letting you discover it later as a failed save.
 - **Taller flight charts.** The Flight-tab chart panels are twice as tall for easier reading.
 
 ### Fixed

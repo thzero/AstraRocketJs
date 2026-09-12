@@ -2,6 +2,7 @@ import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import type { LaunchConditions } from './orkTree';
 import { asStageNodes } from './orkTree';
 import { escapeXml as esc } from './xmlUtil';
+import { saveBlob, safeFilename } from './saveFile';
 
 /**
  * RASAero II (.CDX1) design EXPORT. Ported from the sibling mmrocket-sim
@@ -62,8 +63,18 @@ const RASAERO_MFG: Array<[abbrev: string, names: string[]]> = [
   ['ES', ['ESTES', 'ESTES INDUSTRIES', 'ES', 'E']],
   ['AP', ['APOGEE', 'APOGEE COMPONENTS', 'AP']],
   ['QU', ['QUEST', 'QUEST AEROSPACE', 'QU', 'Q']],
-  ['CTI', ['CESARONI', 'CESARONI TECHNOLOGY', 'CESARONI TECHNOLOGY INC',
-    'CESARONI TECHNOLOGY INCORPORATED', 'CTI', 'CES', 'PRO38']],
+  [
+    'CTI',
+    [
+      'CESARONI',
+      'CESARONI TECHNOLOGY',
+      'CESARONI TECHNOLOGY INC',
+      'CESARONI TECHNOLOGY INCORPORATED',
+      'CTI',
+      'CES',
+      'PRO38',
+    ],
+  ],
   ['EM', ['ELLIS', 'ELLIS MOUNTAIN', 'EM']],
   ['Contrail', ['CONTRAIL', 'CONTRAIL ROCKETS', 'CONTRAIL ROCKET', 'CR']],
   ['RV', ['ROCKETVISION', 'ROCKETVISION FLIGHT-STAR', 'ROCKET VISION', 'RV']],
@@ -78,7 +89,8 @@ const RASAERO_MFG: Array<[abbrev: string, names: string[]]> = [
   ['AMW', ['AMW', 'ANIMAL MOTOR WORKS', 'ANIMAL', 'AMW PROX', 'AMW/PROX']],
 ];
 const RASAERO_MFG_LOOKUP: Record<string, string> = Object.fromEntries(
-  RASAERO_MFG.flatMap(([abbrev, names]) => names.map((n) => [n, abbrev])));
+  RASAERO_MFG.flatMap(([abbrev, names]) => names.map((n) => [n, abbrev])),
+);
 
 /**
  * The RASAero abbreviation for one of our manufacturer strings, or null when
@@ -126,7 +138,16 @@ export interface Cdx1ExportInput {
 const FIN_MIN = 3;
 const FIN_MAX = 8;
 
-export function exportCdx1({ name, tree, launchMassKg, launchCgM, launch, motors, engineExport, machAlt }: Cdx1ExportInput): string {
+export function exportCdx1({
+  name,
+  tree,
+  launchMassKg,
+  launchCgM,
+  launch,
+  motors,
+  engineExport,
+  machAlt,
+}: Cdx1ExportInput): string {
   const stagesIn = asStageNodes(tree);
   if (stagesIn.length > 3) throw new Error('RASAero supports at most 3 stages.');
 
@@ -140,7 +161,10 @@ export function exportCdx1({ name, tree, launchMassKg, launchCgM, launch, motors
     const seek = (nodes: ComponentNode[]) => {
       for (const n of nodes) {
         if (found) return;
-        if (n.id && motors[n.id]) { found = motors[n.id]; return; }
+        if (n.id && motors[n.id]) {
+          found = motors[n.id];
+          return;
+        }
         seek(n.children ?? []);
       }
     };
@@ -182,9 +206,14 @@ export function exportCdx1({ name, tree, launchMassKg, launchCgM, launch, motors
       const pts = (fin['points'] as [number, number][] | undefined) ?? [];
       const eps = 1e-9;
       const flat = (v: number) => Math.abs(v) < eps;
-      if (pts.length === 4 && flat(pts[0]![1]) && flat(pts[3]![1])
-          && Math.abs(pts[1]![1] - pts[2]![1]) < eps && pts[1]![1] > 0
-          && pts[2]![0] >= pts[1]![0] - eps) {
+      if (
+        pts.length === 4 &&
+        flat(pts[0]![1]) &&
+        flat(pts[3]![1]) &&
+        Math.abs(pts[1]![1] - pts[2]![1]) < eps &&
+        pts[1]![1] > 0 &&
+        pts[2]![0] >= pts[1]![0] - eps
+      ) {
         return {
           root: pts[3]![0] - pts[0]![0],
           tip: pts[2]![0] - pts[1]![0],
@@ -215,9 +244,11 @@ export function exportCdx1({ name, tree, launchMassKg, launchCgM, launch, motors
     if (!plan) {
       // Never drop fins silently — an aero program with no fins is a radically
       // different rocket.
-      throw new Error(fin.type === 'freeformfinset'
-        ? `RASAero fins are trapezoids — the freeform outline of “${fin.name ?? 'Fins'}” isn't a simple 3/4-point trapezoid. Simplify it or export as .ork.`
-        : `RASAero has no ${fin.type === 'ellipticalfinset' ? 'elliptical' : 'tube'} fins — “${fin.name ?? 'Fins'}” can't be exported. Use trapezoid fins or export as .ork.`);
+      throw new Error(
+        fin.type === 'freeformfinset'
+          ? `RASAero fins are trapezoids — the freeform outline of “${fin.name ?? 'Fins'}” isn't a simple 3/4-point trapezoid. Simplify it or export as .ork.`
+          : `RASAero has no ${fin.type === 'ellipticalfinset' ? 'elliptical' : 'tube'} fins — “${fin.name ?? 'Fins'}” can't be exported. Use trapezoid fins or export as .ork.`,
+      );
     }
     const count = Math.round(nnum(fin, 'finCount', 3));
     if (count < FIN_MIN || count > FIN_MAX) {
@@ -226,10 +257,14 @@ export function exportCdx1({ name, tree, launchMassKg, launchCgM, launch, motors
     const pos = fin.position ?? { method: 'bottom', offset: 0 };
     // Convert any position method to a bottom-referenced offset.
     const tubeLen = nnum(parent, 'length', 0);
-    const bottomOffset = pos.method === 'bottom' ? pos.offset
-      : pos.method === 'top' ? pos.offset + plan.root - tubeLen
-      : pos.method === 'middle' ? pos.offset + (plan.root - tubeLen) / 2
-      : 0; // 'absolute' has no tube-relative meaning here
+    const bottomOffset =
+      pos.method === 'bottom'
+        ? pos.offset
+        : pos.method === 'top'
+          ? pos.offset + plan.root - tubeLen
+          : pos.method === 'middle'
+            ? pos.offset + (plan.root - tubeLen) / 2
+            : 0; // 'absolute' has no tube-relative meaning here
     // Fin Location = front edge from the tube bottom (inches).
     const locIn = (plan.root - bottomOffset) * IN;
     const cs = String(fin['crossSection'] ?? 'square');
@@ -245,7 +280,9 @@ export function exportCdx1({ name, tree, launchMassKg, launchCgM, launch, motors
     emit(`<Thickness>${fmt(nnum(fin, 'thickness', 0.003) * IN)}</Thickness>`);
     emit(`<LERadius>${section ? fmt(nnum(fin, 'finLeRadius', 0) * IN) : '0'}</LERadius>`);
     emit(`<Location>${fmt(locIn)}</Location>`);
-    emit(`<AirfoilSection>${section ?? (cs === 'airfoil' ? 'Subsonic NACA' : cs === 'rounded' ? 'Rounded' : 'Square')}</AirfoilSection>`);
+    emit(
+      `<AirfoilSection>${section ?? (cs === 'airfoil' ? 'Subsonic NACA' : cs === 'rounded' ? 'Rounded' : 'Square')}</AirfoilSection>`,
+    );
     emit(`<FX1>${section ? fmt(nnum(fin, 'airfoilLeDiamond', 0) * IN) : '0'}</FX1>`);
     emit(`<FX3>${fin['airfoilSection'] === 'hexagonal' ? fmt(nnum(fin, 'airfoilTeDiamond', 0) * IN) : '0'}</FX3>`);
     emit('</Fin>');
@@ -259,9 +296,15 @@ export function exportCdx1({ name, tree, launchMassKg, launchCgM, launch, motors
     if (shape === 'conical') rasShape = 'Conical';
     else if (shape === 'ogive') rasShape = 'Tangent Ogive';
     else if (shape === 'ellipsoid') rasShape = 'Elliptical';
-    else if (shape === 'haack') rasShape = !Number.isNaN(param) && Math.abs(param - 0.33) < 0.01 ? 'LV-Haack' : 'Von Karman Ogive';
-    else if (shape === 'power') { rasShape = 'Power Law'; powerLaw = Number.isNaN(param) ? 0.5 : param; }
-    else throw new Error(`RASAero has no "${shape}" nose shape — use conical/ogive/ellipsoid/haack/power, or export as .ork.`);
+    else if (shape === 'haack')
+      rasShape = !Number.isNaN(param) && Math.abs(param - 0.33) < 0.01 ? 'LV-Haack' : 'Von Karman Ogive';
+    else if (shape === 'power') {
+      rasShape = 'Power Law';
+      powerLaw = Number.isNaN(param) ? 0.5 : param;
+    } else
+      throw new Error(
+        `RASAero has no "${shape}" nose shape — use conical/ogive/ellipsoid/haack/power, or export as .ork.`,
+      );
     const len = nnum(node, 'length', 0.07);
     emit('<NoseCone>');
     emit('<PartType>NoseCone</PartType>');
@@ -340,14 +383,23 @@ export function exportCdx1({ name, tree, launchMassKg, launchCgM, launch, motors
     const bodyLen = tubes.reduce((s, t) => s + nnum(t, 'length', 0.1), 0);
     const externals = kids.filter((c) => c.type === 'bodytube' || c.type === 'transition');
     const first = externals[0];
-    const shoulder = first && first.type === 'transition'
-      && nnum(first, 'foreRadius', 0) <= nnum(first, 'aftRadius', 0) ? first : null;
+    const shoulder =
+      first && first.type === 'transition' && nnum(first, 'foreRadius', 0) <= nnum(first, 'aftRadius', 0)
+        ? first
+        : null;
     const last = externals[externals.length - 1];
-    const boattail = last && last !== shoulder && last.type === 'transition'
-      && nnum(last, 'foreRadius', 0) > nnum(last, 'aftRadius', 0) ? last : null;
+    const boattail =
+      last &&
+      last !== shoulder &&
+      last.type === 'transition' &&
+      nnum(last, 'foreRadius', 0) > nnum(last, 'aftRadius', 0)
+        ? last
+        : null;
     const extraTrans = kids.filter((c) => c.type === 'transition' && c !== shoulder && c !== boattail);
     if (extraTrans.length > 0) {
-      throw new Error(`RASAero boosters support only a shoulder and a boat tail — stage "${st.name}" has other transitions; export as .ork.`);
+      throw new Error(
+        `RASAero boosters support only a shoulder and a boat tail — stage "${st.name}" has other transitions; export as .ork.`,
+      );
     }
     const shoulderLen = shoulder ? nnum(shoulder, 'length', 0) : 0;
     const btLen = boattail ? nnum(boattail, 'length', 0) : 0;
@@ -359,7 +411,9 @@ export function exportCdx1({ name, tree, launchMassKg, launchCgM, launch, motors
     emit('<PartType>Booster</PartType>');
     emit(`<Length>${fmt(bodyLen * IN)}</Length>`);
     emit(`<Diameter>${fmt(nnum(tubes[0]!, 'outerRadius', 0.012) * 2 * IN)}</Diameter>`);
-    emit(`<InsideDiameter>${fmt((shoulder ? nnum(shoulder, 'foreRadius', 0.012) : nnum(tubes[0]!, 'outerRadius', 0.012)) * 2 * IN)}</InsideDiameter>`);
+    emit(
+      `<InsideDiameter>${fmt((shoulder ? nnum(shoulder, 'foreRadius', 0.012) : nnum(tubes[0]!, 'outerRadius', 0.012)) * 2 * IN)}</InsideDiameter>`,
+    );
     emit('<LaunchLugDiameter>0</LaunchLugDiameter>');
     emit('<LaunchLugLength>0</LaunchLugLength>');
     emit('<RailGuideDiameter>0</RailGuideDiameter>');
@@ -407,10 +461,12 @@ export function exportCdx1({ name, tree, launchMassKg, launchCgM, launch, motors
   // RASAero's own "unset"; Temperature has no unset, so ISA null becomes 59 °F.
   emit('<LaunchSite>');
   emit(`<Altitude>${fmt((launch?.launchAltitudeM ?? 0) * FT)}</Altitude>`);
-  emit(`<Pressure>${launch ? (launch.pressureHPa != null ? fmt(launch.pressureHPa / INHG) : '0') : '29.92'}</Pressure>`);
+  emit(
+    `<Pressure>${launch ? (launch.pressureHPa != null ? fmt(launch.pressureHPa / INHG) : '0') : '29.92'}</Pressure>`,
+  );
   emit(`<RodAngle>${fmt(launch?.launchRodAngleDeg ?? 0)}</RodAngle>`);
   emit(`<RodLength>${launch?.launchRodLengthM != null ? fmt(launch.launchRodLengthM * FT) : '10'}</RodLength>`);
-  emit(`<Temperature>${launch?.temperatureC != null ? fmt(launch.temperatureC * 9 / 5 + 32) : '59'}</Temperature>`);
+  emit(`<Temperature>${launch?.temperatureC != null ? fmt((launch.temperatureC * 9) / 5 + 32) : '59'}</Temperature>`);
   emit(`<WindSpeed>${fmt((launch?.windAverage ?? 0) * MPH)}</WindSpeed>`);
   emit('</LaunchSite>');
 
@@ -464,8 +520,7 @@ export function exportCdx1({ name, tree, launchMassKg, launchCgM, launch, motors
   const stackCg = (i: number): string => fmt((i === lastStage ? (launchCgM ?? 0) : 0) * IN);
   const stageSeparationDelay = (i: number): string => {
     const st = stagesIn[i];
-    return fmt(st && String(st['separationEvent'] ?? 'ejection') === 'burnout'
-      ? nnum(st, 'separationDelay', 0) : 0);
+    return fmt(st && String(st['separationEvent'] ?? 'ejection') === 'burnout' ? nnum(st, 'separationDelay', 0) : 0);
   };
   emit('<SimulationList>');
   emit('<Simulation>');
@@ -503,12 +558,5 @@ export function exportCdx1({ name, tree, launchMassKg, launchCgM, launch, motors
 export function downloadCdx1(input: Cdx1ExportInput): void {
   const xml = exportCdx1(input);
   const blob = new Blob([xml], { type: 'application/xml' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${(input.name || 'rocket').trim().replace(/[^a-z0-9._-]+/gi, '_') || 'rocket'}.CDX1`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  void saveBlob(blob, `${safeFilename(input.name)}.CDX1`);
 }

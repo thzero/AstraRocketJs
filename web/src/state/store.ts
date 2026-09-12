@@ -10,7 +10,16 @@ import type {
   ComponentType as PartType,
   IgnitionEvent,
 } from '../engine/openRocketEngine';
-import { findMountId, findMounts, findNode, updateNode, removeNode, addPart, addStage, moveNode } from '../services/treeEdit';
+import {
+  findMountId,
+  findMounts,
+  findNode,
+  updateNode,
+  removeNode,
+  addPart,
+  addStage,
+  moveNode,
+} from '../services/treeEdit';
 import { reconcileMounts } from '../services/mountMotors';
 import type { LaunchConditions } from '../services/orkTree';
 import type { OrkExportMotor } from '../services/orkFile';
@@ -22,6 +31,8 @@ import { newSimulation, simConditions, type Simulation, type SimPrefs } from '..
 import { simulateInWorker, SimTimeoutError } from '../engine/simClient';
 import { loadSettings } from '../services/settings';
 import { defaultDesignName } from '../services/appInfo';
+import { getDesignLibrary, type DesignMeta } from '../services/designLibrary';
+import { getWorkspaceStore, type Workspace } from '../services/workspaceStore';
 import type { MotorDims } from '../components/canvas/Rocket3D';
 import type { ViewMode } from '../components/canvas/ViewToggle';
 import type { Tab } from '../components/layout/TabBar';
@@ -96,7 +107,9 @@ export interface WorkspaceState {
   addPartToTree: (type: PartType) => void;
   addStageToTree: () => void;
   moveSelected: (dir: -1 | 1) => void;
-  updateDesignMeta: (patch: Partial<Pick<RocketTree, 'name' | 'designer' | 'comment' | 'revision' | 'designType'>>) => void;
+  updateDesignMeta: (
+    patch: Partial<Pick<RocketTree, 'name' | 'designer' | 'comment' | 'revision' | 'designType'>>,
+  ) => void;
   /** Finalize the in-flight edit (slider drag / text entry) into one undo entry.
    *  Called by the editors when an interaction ends (blur / discrete change). */
   commitEdit: () => void;
@@ -127,6 +140,18 @@ export interface WorkspaceState {
 
   openOrkFile: (file: File) => Promise<void>;
   resetWorkspace: () => void;
+  /** Saved designs, newest first (designLibrary.ts). Refreshed on demand. */
+  designs: DesignMeta[];
+  /** Id of the design currently being edited, or null before the first save. */
+  activeDesignId: string | null;
+  refreshDesigns: () => Promise<void>;
+  openDesign: (id: string) => Promise<void>;
+  /** Commit the open design now. Resolves false when there is nothing to save
+   *  into yet (never named) — the caller should offer Save As instead. */
+  saveDesign: () => Promise<boolean>;
+  saveDesignAs: (name: string) => Promise<void>;
+  renameDesign: (id: string, name: string) => Promise<void>;
+  deleteDesign: (id: string) => Promise<void>;
   newWorkspace: () => void;
   saveOrk: () => void;
   saveRasaero: () => void;
@@ -235,6 +260,31 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     commitEdit();
     pushPast(snap());
   }; // flush pending, then log this step
+  /** The persistable shape of the current design (what autosave writes). */
+  const snapshotOf = (s: {
+    tree: Workspace['tree'];
+    sims: Workspace['sims'];
+    activeId: string;
+    extraMotors: Workspace['extraMotors'];
+    loadedMeta: Workspace['loadedMeta'];
+  }): Workspace => ({
+    version: 1,
+    tree: s.tree,
+    sims: s.sims,
+    activeId: s.activeId,
+    extraMotors: s.extraMotors,
+    loadedMeta: s.loadedMeta,
+  });
+
+  /** Write the open design out now, ahead of switching away from it. */
+  const flushActive = async () => {
+    try {
+      await getWorkspaceStore().save(snapshotOf(useWorkspaceStore.getState()));
+    } catch {
+      // Storage full: the switch still proceeds, and the banner already says so.
+    }
+  };
+
   const clearHistory = () => {
     txn = null;
     set({ past: [], future: [] });
@@ -258,6 +308,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     twoD: 'side',
     roll: 0,
     resetKey: 0,
+    designs: [],
+    activeDesignId: null,
 
     setErr: (err) => set({ err }),
     applyBuild: (info, rocket) => set({ info, rocket }),
@@ -474,6 +526,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const res = await loadOrk(bytes);
         const { tree, extraMotors, sim0, loadedMeta } = wireLoadedOrk(res, loadSettings().launchDefaults);
         clearHistory(); // a loaded design is a fresh document — nothing to undo across the load
+        // An imported rocket becomes its OWN library entry rather than
+        // replacing whatever was open.
+        getWorkspaceStore().setActiveId?.(null);
         set({
           tree,
           extraMotors,
@@ -484,14 +539,78 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           err: null,
           tab: 'build',
           view: '2d',
+          activeDesignId: null,
         });
       } catch (e) {
         set({ err: `Could not open .ork: ${e instanceof Error ? e.message : String(e)}` });
       }
     },
+    refreshDesigns: async () => {
+      const lib = getDesignLibrary();
+      set({ designs: await lib.list(), activeDesignId: await lib.activeId() });
+    },
+
+    openDesign: async (id) => {
+      const lib = getDesignLibrary();
+      const w = await lib.read(id);
+      if (!w) {
+        set({ err: i18n.t('library.missing') });
+        await get().refreshDesigns();
+        return;
+      }
+      // Persist whatever is open BEFORE switching, or the edits since the last
+      // debounced autosave would be lost to the swap.
+      await flushActive();
+      await lib.setActive(id);
+      getWorkspaceStore().setActiveId?.(id);
+      clearHistory(); // a different design is a different document
+      get().hydrate(w);
+      set({ selectedId: null, view: '2d' });
+      await get().refreshDesigns();
+    },
+
+    saveDesign: async () => {
+      // Autosave already runs on a 500 ms debounce, so this is not the only
+      // thing standing between the user and data loss — it is the explicit
+      // "commit it now" they expect from a Save menu item, and it also names
+      // a design that has never been saved (New / freshly imported).
+      if (!get().activeDesignId) return false;
+      await flushActive();
+      await get().refreshDesigns();
+      return true;
+    },
+
+    saveDesignAs: async (name) => {
+      const s = get();
+      const meta = await getDesignLibrary().create(name.trim() || i18n.t('library.untitled'), snapshotOf(s));
+      getWorkspaceStore().setActiveId?.(meta.id);
+      await get().refreshDesigns();
+    },
+
+    renameDesign: async (id, name) => {
+      await getDesignLibrary().rename(id, name.trim() || i18n.t('library.untitled'));
+      await get().refreshDesigns();
+    },
+
+    deleteDesign: async (id) => {
+      const lib = getDesignLibrary();
+      await lib.remove(id);
+      // Deleting the open design leaves nothing to autosave into; start fresh so
+      // the next edit creates a new library entry rather than resurrecting it.
+      if (get().activeDesignId === id) {
+        getWorkspaceStore().setActiveId?.(null);
+        get().resetWorkspace();
+      }
+      await get().refreshDesigns();
+    },
+
     resetWorkspace: () => {
       const s0 = newSimulation('Simulation 1', C6, loadSettings().launchDefaults);
       clearHistory(); // starting a new design drops the previous design's undo stack
+      // Detach from the open library entry, or the first autosave would write
+      // this blank design straight over the rocket the user just had open.
+      getWorkspaceStore().setActiveId?.(null);
+      set({ activeDesignId: null });
       set({
         tree: specToTree(DEFAULT_SPEC).tree,
         extraMotors: {},

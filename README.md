@@ -22,6 +22,7 @@ The UI is **responsive**: a three-pane workbench (editor · rocket view · motor
 
 **Data & I/O**
 - **Full `.ork` support** — open and save round-trip at full fidelity (files re-open in desktop OpenRocket).
+- Keep **several rockets** in the browser and switch between them; everything autosaves, and `.ork` import/export moves designs to and from your disk.
 - Real motor **thrust curves** from thrustcurve.org (~800 motors), plus **`.eng` import** and custom motors.
 - OpenRocket **materials** (built-in + your own) and a **component-preset** catalog (~2,900 real Estes/Apogee/LOC/… parts).
 - **Exports**: the design to **RASAero II (`.CDX1`)**, flight data & drag tables to **CSV**, the **flight path** to **KML / GPX / waypoint CSV** (Google Earth / GPS, with importable custom **templates**), and the 2D schematic to **SVG / PNG / JPG**.

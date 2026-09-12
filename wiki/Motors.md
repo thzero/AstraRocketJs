@@ -7,7 +7,7 @@ A motor is assigned to a rocket's **motor mount** (inner tube). The right-hand S
 The picker searches a bundled catalog of **~800 real motors** from [thrustcurve.org](https://www.thrustcurve.org) — filter by manufacturer, diameter, impulse class, and designation. Selecting a motor shows its dimensions and total impulse.
 
 - The **catalog** (specs for every motor) ships with the app — no lookup needed to browse.
-- The **thrust curve** for a chosen motor is fetched on demand the first time you pick it and then cached in your browser (so it works offline afterward, and revalidates occasionally). If a fetch fails, the last cached curve is used.
+- The **thrust curve** comes bundled with the catalog for 781 of the 815 motors, so picking one resolves instantly and works offline. The 34 motors with no published curve are marked in the picker; their curve is fetched from thrustcurve.org on first pick and then cached (revalidating occasionally, and falling back to the cached copy if a fetch fails).
 
 ## Ejection delay
 

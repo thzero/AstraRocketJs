@@ -19,7 +19,7 @@ By the time the rocket leaves the launch rod/rail it's a little lighter (some pr
 Not yet — the app is **metric/SI only** for now.
 
 ### Does it work offline?
-Yes. The app is a **PWA**: after your first visit it caches itself, the physics engine and both catalogs, so it opens and runs with no connection — useful at a launch site with no signal. Your browser will also offer to **install** it (home screen on mobile, its own window on desktop). Individual thrust curves fetched from thrustcurve.org are cached as you pick them, so motors you've used before stay available too.
+Yes. After your first visit the app keeps itself, the physics engine and both catalogs on your device, so it opens and runs a full simulation with no connection — useful at a launch site with no signal. Your browser will also offer to **install** it. See **[Offline & Installing](Offline-and-Installing)**.
 
 ### What's the `WASM` / `JS` badge in the header?
 Which engine backend loaded: **WASM** (WebAssembly — the fast default) or **JS** (JavaScript — the fallback for browsers without WASM support). Both produce identical results.

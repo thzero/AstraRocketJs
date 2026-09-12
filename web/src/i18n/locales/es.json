@@ -1,6 +1,6 @@
 {
   "app": { "title": "AstraRocketJs", "version": "{{name}} versión {{version}}", "designName": "Diseño de {{name}}" },
-  "common": { "loading": "Cargando…", "confirmTitle": "¿Estás seguro?", "confirm": "Confirmar", "cancel": "Cancelar", "delete": "Eliminar", "discard": "Descartar", "close": "Cerrar" },
+  "common": { "loading": "Cargando…", "confirmTitle": "¿Estás seguro?", "confirm": "Confirmar", "save": "Guardar", "cancel": "Cancelar", "delete": "Eliminar", "discard": "Descartar", "close": "Cerrar" },
   "report": {
     "title": "Diseño del cohete",
     "noDesign": "No hay un diseño válido para exportar.",
@@ -106,10 +106,14 @@
   },
   "file": {
     "open": "Abrir .ork",
-    "save": "Guardar .ork",
+    "save": "Guardar",
+    "openLibrary": "Abrir…",
+    "saveAs": "Guardar como…",
+    "import": "Importar",
+    "ork": "OpenRocket",
     "export": "Exportar",
     "report": "Informe del cohete (PDF)",
-    "rasaero": "RASAero II (.CDX1)",
+    "rasaero": "RASAero II",
     "stl": "Malla 3D (.stl)",
     "obj": "Modelo 3D (.obj)",
     "glb": "Escena 3D (.glb)",
@@ -750,5 +754,19 @@
     "available": "Hay una nueva versión disponible.",
     "reload": "Recargar",
     "dismiss": "Descartar"
+  },
+  "storage": {
+    "full": "No se pudo guardar tu trabajo: el almacenamiento del navegador está lleno. Exporta tu diseño para conservarlo.",
+    "degraded": "Tu navegador está bloqueando su base de datos, así que la aplicación ha recurrido a un área de almacenamiento mucho más pequeña (unos 5 MB) y el guardado puede fallar a medida que crezca tu diseño. La navegación privada suele ser la causa. Exporta lo que quieras conservar."
+  },
+  "library": {
+    "title": "Mis cohetes",
+    "empty": "Todavía no hay cohetes guardados. Tu diseño se guarda automáticamente mientras trabajas.",
+    "open": "abierto",
+    "rename": "Renombrar",
+    "name": "Nombre",
+    "untitled": "Cohete sin título",
+    "duplicateName": "Otro cohete ya tiene este nombre.",
+    "missing": "Ese cohete ya no está guardado."
   }
 }

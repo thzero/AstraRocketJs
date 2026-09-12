@@ -14,6 +14,7 @@
 ## Getting Started
 - **[Getting Started](Getting-Started)** — open the app, the layout, your first rocket
 - **[Settings](Settings)** — units, simulation defaults, and safety warnings
+- **[Offline & Installing](Offline-and-Installing)** — using it with no connection, and adding it to your home screen or desktop
 
 ## User Guide
 - **[Designing a Rocket](Designing-a-Rocket)** — the component tree, editing, presets, materials, scaling

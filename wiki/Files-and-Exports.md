@@ -4,12 +4,25 @@
 
 AstraRocketJs reads and writes standard **OpenRocket `.ork`** files, so designs move both ways between it and desktop OpenRocket.
 
-- **Open** (menu → Open) loads an existing `.ork` at full fidelity — stages, transitions, couplers, rings, bulkheads, and more, not just the simple editor layout. A banner notes anything that couldn't be fully resolved (e.g. an unknown motor).
-- **Save** (menu → Save) writes the current design back to a `.ork` file (downloaded to your device).
+- **Import** (menu → Import → OpenRocket) loads an existing `.ork` at full fidelity — stages, transitions, couplers, rings, bulkheads, and more, not just the simple editor layout. A banner notes anything that couldn't be fully resolved (e.g. an unknown motor). The imported rocket becomes its own entry in your saved designs.
+- **Export** (menu → Export → OpenRocket) writes the current design back to a `.ork` file on your device.
 
-A save → re-open round-trip is verified to preserve the physics (mass, CG, CP, stability), and the files re-open in desktop OpenRocket.
+A round-trip through export and import is verified to preserve the physics (mass, CG, CP, stability), and the files re-open in desktop OpenRocket.
 
-> The design lives on **your disk** as a `.ork` file. The app also keeps a working copy in your browser so a refresh won't lose your current rocket — but **Save** is how you keep a design permanently.
+> **Menu → Open and Save work on designs saved inside the app** (see [Saved designs](#saved-designs) below); `.ork` files move to and from your disk through **Import** and **Export**.
+
+## Saved designs
+
+The app keeps a library of your rockets in the browser, so you can work on several and switch between them without exporting a file each time.
+
+- **Open…** lists your saved rockets ("My Rockets"), newest first. Pick one to switch to it; you can rename or delete from the same list.
+- **Save** commits the open design now. Editing already autosaves every half-second, so this is reassurance rather than a requirement — and if the rocket has never been named, it asks for a name first.
+- **Save As…** stores a copy under a new name, leaving the original as it was.
+- **New** starts a fresh rocket as a separate entry, without touching the one you had open.
+
+> **Saved designs are per-browser and per-device.** The library lives in this browser on this machine — it does not sync, and clearing your browser data removes it (see [Offline & Installing](Offline-and-Installing)).
+>
+> **`.ork` files are how you sync.** Export to a folder your system already syncs — iCloud Drive, OneDrive, Google Drive, Dropbox — and the design is on your other machines, backed up, and shareable; import it there to carry on. That also works with desktop OpenRocket, since it is the same file format.
 
 ## Exporting to RASAero II (`.CDX1`)
 
@@ -45,7 +58,7 @@ Tick the elements to include:
 
 Plus a few options:
 
-- **Include motors** — per simulation, a flight summary (apogee, times, and off-rod / max / deployment / landing velocities) and a motor table (average and peak thrust, burn time, total impulse, thrust-to-weight, weight, size).
+- **Motors Summary** — per simulation, a flight summary (apogee, times, and off-rod / max / deployment / landing velocities) and a motor table (average and peak thrust, burn time, total impulse, thrust-to-weight, weight, size).
 - **Update simulation data** — re-runs the simulation first so the flight numbers are current (it doesn't change your on-screen view).
 - **Show by stage** — group the summary and parts by stage.
 
