@@ -11,8 +11,9 @@ name: Sync Catalogs
 # (`npm run sync:motors && npm run sync:components`, then commit) when you want
 # the offline floor moved up — it is deliberately not touched by this workflow.
 #
-# ONE-TIME SETUP: after the first successful run creates the `data` branch,
-# uncomment VITE_DATA_BASE in deploy-pages.yml so the deployed app reads from it.
+# deploy-pages.yml already points the built app at this branch via VITE_DATA_BASE,
+# so no setup is needed: until the first run creates it, the app falls back to the
+# catalogs inside the build.
 
 on:
   schedule:
