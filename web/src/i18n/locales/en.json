@@ -1,6 +1,6 @@
 {
   "app": { "title": "AstraRocketJs", "version": "{{name}} version {{version}}", "designName": "{{name}} design" },
-  "common": { "loading": "Loading…", "confirmTitle": "Are you sure?", "confirm": "Confirm", "cancel": "Cancel", "delete": "Delete", "discard": "Discard", "close": "Close" },
+  "common": { "loading": "Loading…", "confirmTitle": "Are you sure?", "confirm": "Confirm", "save": "Save", "cancel": "Cancel", "delete": "Delete", "discard": "Discard", "close": "Close" },
   "report": {
     "title": "Rocket Design",
     "noDesign": "No valid design to export.",
@@ -51,11 +51,11 @@
   "export": {
     "title": "Design Report",
     "select": "Select elements to include:",
-    "designReport": "Design report",
+    "designReport": "Design Report",
     "finTemplates": "Fin templates",
     "noseTemplates": "Nose cone templates",
     "transitionTemplates": "Transition templates",
-    "includeMotors": "Include motors",
+    "includeMotors": "Motors Summary",
     "updateSim": "Update simulation data",
     "showByStage": "Show by stage",
     "settings": "Settings",
@@ -78,6 +78,8 @@
     "ork": "Full OpenRocket (.ork) support: open, edit, and save your designs round-trip.",
     "scope": "It's a streamlined interface over the same trusted simulation core, focused on the essentials: live CG / CP / stability, 2D & 3D views, and flight simulation. If you need more of its capabilities, please refer to <orLink>OpenRocket</orLink>.",
     "wip": "⚠️ Work in progress (pre-1.0) — features may be incomplete, change, or break.",
+    "contributors": "Built by these contributors:",
+    "contributorsAll": "See all contributors on GitHub",
     "credits": "Physics by OpenRocket (GPL-3.0), compiled to WASM and JavaScript with TeaVM.",
     "privacy": "Privacy",
     "close": "Close"
@@ -86,7 +88,7 @@
     "title": "Privacy Policy",
     "intro": "{{name}} runs entirely in your browser. There are no accounts, no tracking, no analytics, and no ads.",
     "storage": "Your designs, simulations, preferences, and any custom materials or motors are saved in your browser's local storage, on your device — never sent to us or anyone else. Clearing your browser data (or using New) removes them.",
-    "network": "When you pick a motor, the app may fetch that motor's thrust-curve data from a public motor database and cache it locally; that request is subject to that provider's terms. Otherwise the app makes no network calls with your data.",
+    "network": "The app downloads its motor and component catalogs from a public content-delivery network, and when you pick a motor it may fetch that motor's thrust-curve data from a public motor database; both are cached locally and subject to those providers' terms. Otherwise the app makes no network calls with your data.",
     "hosting": "Whoever hosts the app may keep standard web-server access logs (such as IP address and timestamp), as any website does. The app itself collects nothing.",
     "close": "Close"
   },
@@ -101,7 +103,11 @@
   },
   "file": {
     "open": "Open Rocket",
-    "save": "Save Rocket",
+    "save": "Save…",
+    "openLibrary": "Open…",
+    "saveAs": "Save As…",
+    "import": "Import",
+    "ork": "OpenRocket",
     "export": "Export",
     "report": "Rocket Design Report",
     "rasaero": "RASAero II",
@@ -573,8 +579,8 @@
     "results": "{{count}} parts"
   },
   "dash": {
-    "menu": "Motor dashboard",
-    "title": "Motor dashboard",
+    "menu": "Motor Dashboard",
+    "title": "Motor Dashboard",
     "hint": "Select a motor to see its thrust curve and specifications, or check motors to compare or combine them.",
     "select": "Select {{name}}",
     "combine": "Combine ({{n}})",
@@ -724,5 +730,40 @@
     "chartBurn": "burn time",
     "calcNote": "* Initial thrust, Isp, and mass fraction are calculated from the thrust curve and weights."
   },
-  "lang": { "label": "Language" }
+  "lang": { "label": "Language" },
+  "boot": {
+    "downloading": "Downloading engine…",
+    "downloadingOf": "Downloading engine… {{done}} / {{total}} MB",
+    "downloaded": "Downloading engine… {{done}} MB",
+    "starting": "Starting engine…",
+    "failed": "Engine unavailable — starting anyway"
+  },
+  "catalog": {
+    "loadingMotors": "Loading motor catalog…",
+    "loadingComponents": "Loading component catalog…",
+    "loadingOf": "{{done}} / {{total}} MB",
+    "loadedSoFar": "{{done}} MB",
+    "failedMotors": "Could not load the motor catalog.",
+    "failedComponents": "Could not load the component catalog.",
+    "retry": "Retry"
+  },
+  "update": {
+    "available": "A new version is available.",
+    "reload": "Reload",
+    "dismiss": "Dismiss"
+  },
+  "storage": {
+    "full": "Could not save your work — browser storage is full. Export your design to keep it.",
+    "degraded": "Your browser is blocking its database, so the app has fallen back to a much smaller storage area (about 5 MB) and saving may fail as your design grows. Private browsing is the usual cause. Export anything you want to keep."
+  },
+  "library": {
+    "title": "My Rockets",
+    "empty": "No saved rockets yet. Your design is saved automatically as you work.",
+    "open": "open",
+    "rename": "Rename",
+    "name": "Name",
+    "untitled": "Untitled rocket",
+    "duplicateName": "Another rocket already has this name.",
+    "missing": "That rocket is no longer saved."
+  }
 }

@@ -1,6 +1,6 @@
 # Proposal: run the engine off the main thread (Web Worker)
 
-> Design proposal / decision record. Status: **Phase 1 (Option B) implemented; Phases 2–3 proposed.** Companion to the [Architecture & internals](https://github.com/thzero/AstraRocketJs/wiki/Architecture) wiki page. Documents two options (A and B) and the incremental roadmap from B to A.
+> Design proposal / decision record. Status: **Phase 1 (Option B) implemented; Phases 2–3 proposed.** Companion to the [Architecture & internals](https://thzero.github.io/AstraRocketJs/docs/architecture) documentation page. Documents two options (A and B) and the incremental roadmap from B to A.
 
 ## Problem
 

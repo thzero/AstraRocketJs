@@ -1,6 +1,6 @@
 {
   "app": { "title": "AstraRocketJs", "version": "{{name}} versión {{version}}", "designName": "Diseño de {{name}}" },
-  "common": { "loading": "Cargando…", "confirmTitle": "¿Estás seguro?", "confirm": "Confirmar", "cancel": "Cancelar", "delete": "Eliminar", "discard": "Descartar", "close": "Cerrar" },
+  "common": { "loading": "Cargando…", "confirmTitle": "¿Estás seguro?", "confirm": "Confirmar", "save": "Guardar", "cancel": "Cancelar", "delete": "Eliminar", "discard": "Descartar", "close": "Cerrar" },
   "report": {
     "title": "Diseño del cohete",
     "noDesign": "No hay un diseño válido para exportar.",
@@ -55,7 +55,7 @@
     "finTemplates": "Plantillas de aletas",
     "noseTemplates": "Plantillas de ojiva",
     "transitionTemplates": "Plantillas de transición",
-    "includeMotors": "Incluir motores",
+    "includeMotors": "Resumen de motores",
     "updateSim": "Actualizar datos de simulación",
     "showByStage": "Mostrar por etapa",
     "settings": "Ajustes",
@@ -81,6 +81,8 @@
     "ork": "Compatibilidad total con archivos OpenRocket (.ork): abre, edita y guarda tus diseños de ida y vuelta.",
     "scope": "Es una interfaz simplificada sobre el mismo núcleo de simulación de confianza, centrada en lo esencial: CG / CP / estabilidad en vivo, vistas 2D y 3D, y simulación de vuelo. Si necesitas más funciones, consulta <orLink>OpenRocket</orLink>.",
     "wip": "⚠️ Trabajo en curso (anterior a 1.0): las funciones pueden estar incompletas, cambiar o fallar.",
+    "contributors": "Creado por estas personas colaboradoras:",
+    "contributorsAll": "Ver todas las personas colaboradoras en GitHub",
     "credits": "Física por OpenRocket (GPL-3.0), compilada a JavaScript con TeaVM.",
     "privacy": "Privacidad",
     "close": "Cerrar"
@@ -89,7 +91,7 @@
     "title": "Política de privacidad",
     "intro": "{{name}} funciona íntegramente en tu navegador. No hay cuentas, ni seguimiento, ni analíticas, ni anuncios.",
     "storage": "Tus diseños, simulaciones, preferencias y cualquier material o motor personalizado se guardan en el almacenamiento local de tu navegador, en tu dispositivo — nunca se envían a nosotros ni a nadie. Borrar los datos del navegador (o usar Nuevo) los elimina.",
-    "network": "Al elegir un motor, la aplicación puede descargar los datos de la curva de empuje de ese motor desde una base de datos pública de motores y almacenarlos localmente; esa solicitud está sujeta a los términos de ese proveedor. Por lo demás, la aplicación no realiza llamadas de red con tus datos.",
+    "network": "La aplicación descarga sus catálogos de motores y componentes desde una red pública de distribución de contenidos y, al elegir un motor, puede descargar los datos de la curva de empuje de ese motor desde una base de datos pública de motores; ambos se almacenan localmente y están sujetos a los términos de esos proveedores. Por lo demás, la aplicación no realiza llamadas de red con tus datos.",
     "hosting": "Quien aloje la aplicación puede conservar registros de acceso del servidor web estándar (como la dirección IP y la marca de tiempo), como cualquier sitio web. La aplicación en sí no recopila nada.",
     "close": "Cerrar"
   },
@@ -104,10 +106,14 @@
   },
   "file": {
     "open": "Abrir .ork",
-    "save": "Guardar .ork",
+    "save": "Guardar",
+    "openLibrary": "Abrir…",
+    "saveAs": "Guardar como…",
+    "import": "Importar",
+    "ork": "OpenRocket",
     "export": "Exportar",
     "report": "Informe del cohete (PDF)",
-    "rasaero": "RASAero II (.CDX1)",
+    "rasaero": "RASAero II",
     "stl": "Malla 3D (.stl)",
     "obj": "Modelo 3D (.obj)",
     "glb": "Escena 3D (.glb)",
@@ -256,7 +262,7 @@
     "pitchInertia": "Inercia de cabeceo (cargado)"
   },
   "sim": {
-    "run": "Simular vuelo ({{name}})",
+    "run": "Simular vuelo",
     "running": "Simulando…",
     "prompt": "Ejecuta una simulación para ver el perfil de vuelo.",
     "apogee": "Apogeo",
@@ -727,5 +733,40 @@
     "chartBurn": "tiempo de comb.",
     "calcNote": "* El empuje inicial, el Isp y la fracción de masa se calculan a partir de la curva de empuje y los pesos."
   },
-  "lang": { "label": "Idioma" }
+  "lang": { "label": "Idioma" },
+  "boot": {
+    "downloading": "Descargando el motor de cálculo…",
+    "downloadingOf": "Descargando el motor de cálculo… {{done}} / {{total}} MB",
+    "downloaded": "Descargando el motor de cálculo… {{done}} MB",
+    "starting": "Iniciando el motor de cálculo…",
+    "failed": "Motor de cálculo no disponible: iniciando igualmente"
+  },
+  "catalog": {
+    "loadingMotors": "Cargando el catálogo de motores…",
+    "loadingComponents": "Cargando el catálogo de componentes…",
+    "loadingOf": "{{done}} / {{total}} MB",
+    "loadedSoFar": "{{done}} MB",
+    "failedMotors": "No se pudo cargar el catálogo de motores.",
+    "failedComponents": "No se pudo cargar el catálogo de componentes.",
+    "retry": "Reintentar"
+  },
+  "update": {
+    "available": "Hay una nueva versión disponible.",
+    "reload": "Recargar",
+    "dismiss": "Descartar"
+  },
+  "storage": {
+    "full": "No se pudo guardar tu trabajo: el almacenamiento del navegador está lleno. Exporta tu diseño para conservarlo.",
+    "degraded": "Tu navegador está bloqueando su base de datos, así que la aplicación ha recurrido a un área de almacenamiento mucho más pequeña (unos 5 MB) y el guardado puede fallar a medida que crezca tu diseño. La navegación privada suele ser la causa. Exporta lo que quieras conservar."
+  },
+  "library": {
+    "title": "Mis cohetes",
+    "empty": "Todavía no hay cohetes guardados. Tu diseño se guarda automáticamente mientras trabajas.",
+    "open": "abierto",
+    "rename": "Renombrar",
+    "name": "Nombre",
+    "untitled": "Cohete sin título",
+    "duplicateName": "Otro cohete ya tiene este nombre.",
+    "missing": "Ese cohete ya no está guardado."
+  }
 }

@@ -1,8 +1,11 @@
 import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { APP_VERSION, HELP_URL, isPreRelease } from '../../services/appInfo';
+import { APP_VERSION, helpUrlFor, isPreRelease } from '../../services/appInfo';
 import { initEngine } from '../../engine/openRocketEngine';
 import { useWorkspaceStore } from '../../state/store';
+import { DesignLibraryDialog } from './DesignLibraryDialog';
+import { DesignPropertiesDialog } from './DesignPropertiesDialog';
+import { defaultDesignName } from '../../services/appInfo';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { AboutDialog } from './AboutDialog';
 import { ExportDialog } from '../report/ExportDialog';
@@ -11,13 +14,22 @@ import { SettingsDialog } from './SettingsDialog';
 import { MotorDashboard } from '../sim/MotorDashboard';
 
 /** Top bar: title + version, language, and a collapsible menu holding the
- *  New / Open .ork / Save .ork / About actions. Owns the hidden file input. */
+ *  New / Open (library) / Save / Save As / Import / Export / About actions.
+ *  Owns the hidden .ork file input that Import triggers. */
 export function AppHeader() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const canSave = useWorkspaceStore((s) => !!s.info);
   const onNew = useWorkspaceStore((s) => s.newWorkspace);
   const onOpenFile = useWorkspaceStore((s) => s.openOrkFile);
   const onSave = useWorkspaceStore((s) => s.saveOrk);
+  const saveDesignAs = useWorkspaceStore((s) => s.saveDesignAs);
+  const saveDesign = useWorkspaceStore((s) => s.saveDesign);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [saveAsOpen, setSaveAsOpen] = useState(false);
+  const designs = useWorkspaceStore((s) => s.designs);
+  const refreshDesigns = useWorkspaceStore((s) => s.refreshDesigns);
+  // Pre-fill Save As with the imported .ork's name when there is one.
+  const loadedName = useWorkspaceStore((s) => s.loadedMeta?.name);
   const onSaveRasaero = useWorkspaceStore((s) => s.saveRasaero);
   const onUndo = useWorkspaceStore((s) => s.undo);
   const onRedo = useWorkspaceStore((s) => s.redo);
@@ -33,11 +45,17 @@ export function AppHeader() {
   const [motorsOpen, setMotorsOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  // "Export ▸" reveals its format sub-items inline (a flyout would be clipped by
-  // the menu's overflow-hidden). Collapsed whenever the menu itself closes.
+  // "Import ▸" and "Export ▸" reveal their format sub-items inline (a flyout
+  // would be clipped by the menu's overflow-hidden). Both collapse whenever the
+  // menu itself closes.
   const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  // Collapse both submenus when the menu closes, so it reopens in a known state.
   useEffect(() => {
-    if (!menuOpen) setExportOpen(false);
+    if (!menuOpen) {
+      setExportOpen(false);
+      setImportOpen(false);
+    }
   }, [menuOpen]);
   // Which physics backend actually loaded (WASM-GC or the JS fallback). initEngine
   // is idempotent and already resolved before mount (main.tsx awaits it), so this
@@ -73,7 +91,7 @@ export function AppHeader() {
   // Fulfil the menu role (WAI-ARIA menu-button pattern): on open, pull focus to
   // the first item and take every item out of the Tab sequence so ↑/↓ drive
   // navigation and Tab leaves the menu. Re-runs when the Export sub-item shows /
-  // hides or Save enables, but only steals focus on the initial open (guarded by
+  // hides (Import or Export) or Save enables, but only steals focus on the initial open (guarded by
   // "is focus already inside the menu?").
   useEffect(() => {
     if (!menuOpen) return;
@@ -84,7 +102,7 @@ export function AppHeader() {
     if (!menu.contains(document.activeElement)) {
       items.find((el) => !el.hasAttribute('disabled'))?.focus();
     }
-  }, [menuOpen, exportOpen, canSave]);
+  }, [menuOpen, exportOpen, importOpen, canSave]);
 
   // Arrow-key roving among the enabled, visible menu items; Escape closes and
   // returns focus to the trigger; Tab closes and lets focus move on naturally.
@@ -142,7 +160,7 @@ export function AppHeader() {
 
   const item =
     'flex w-full items-center px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-transparent';
-  // Indented row style for the Export flyout's format entries.
+  // Indented row style for the Import / Export format entries.
   const subItem =
     'flex w-full items-center py-2 pl-8 pr-3 text-left text-xs font-medium text-slate-200 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-transparent';
   const iconBtn =
@@ -235,10 +253,10 @@ export function AppHeader() {
                 className={item}
                 onClick={() => {
                   setMenuOpen(false);
-                  orkRef.current?.click();
+                  setLibraryOpen(true);
                 }}
               >
-                {t('file.open')}
+                {t('file.openLibrary')}
               </button>
               <button
                 role="menuitem"
@@ -246,11 +264,56 @@ export function AppHeader() {
                 disabled={!canSave}
                 onClick={() => {
                   setMenuOpen(false);
-                  onSave();
+                  void (async () => {
+                    // A design that has never been named has nowhere to save to,
+                    // so Save becomes Save As — the usual desktop behaviour.
+                    if (!(await saveDesign())) {
+                      await refreshDesigns();
+                      setSaveAsOpen(true);
+                    }
+                  })();
                 }}
               >
                 {t('file.save')}
               </button>
+              <button
+                role="menuitem"
+                className={item}
+                disabled={!canSave}
+                onClick={() => {
+                  setMenuOpen(false);
+                  // Names of existing designs drive the duplicate warning.
+                  void refreshDesigns();
+                  setSaveAsOpen(true);
+                }}
+              >
+                {t('file.saveAs')}
+              </button>
+              <div className="my-1 border-t border-white/10" />
+              <button
+                role="menuitem"
+                className={item}
+                aria-haspopup="true"
+                aria-expanded={importOpen}
+                onClick={() => setImportOpen((o) => !o)}
+              >
+                <span className="flex-1">{t('file.import')}</span>
+                <span aria-hidden className="text-slate-400">
+                  {importOpen ? '▾' : '▸'}
+                </span>
+              </button>
+              {importOpen && (
+                <button
+                  role="menuitem"
+                  className={subItem}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    orkRef.current?.click();
+                  }}
+                >
+                  {t('file.ork')}
+                </button>
+              )}
               <button
                 role="menuitem"
                 className={item}
@@ -264,6 +327,19 @@ export function AppHeader() {
                   {exportOpen ? '▾' : '▸'}
                 </span>
               </button>
+              {exportOpen && (
+                <button
+                  role="menuitem"
+                  className={subItem}
+                  disabled={!canSave}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onSave();
+                  }}
+                >
+                  {t('file.ork')}
+                </button>
+              )}
               {exportOpen && (
                 <button
                   role="menuitem"
@@ -313,7 +389,7 @@ export function AppHeader() {
               <a
                 role="menuitem"
                 className={item}
-                href={HELP_URL}
+                href={helpUrlFor(i18n.language)}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setMenuOpen(false)}
@@ -362,6 +438,19 @@ export function AppHeader() {
       <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
       <PrivacyDialog open={privacyOpen} onClose={() => setPrivacyOpen(false)} />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <DesignLibraryDialog open={libraryOpen} onClose={() => setLibraryOpen(false)} />
+      <DesignPropertiesDialog
+        open={saveAsOpen}
+        title={t('file.saveAs')}
+        confirmLabel={t('common.save')}
+        initialName={loadedName ?? defaultDesignName()}
+        takenNames={designs.map((d) => d.name)}
+        onCancel={() => setSaveAsOpen(false)}
+        onConfirm={(name) => {
+          setSaveAsOpen(false);
+          void saveDesignAs(name);
+        }}
+      />
     </header>
   );
 }

@@ -1,5 +1,7 @@
 # AstraRocketJs
 
+**▶ [Launch the app](https://thzero.github.io/AstraRocketJs/)** — runs in your browser, nothing to install. Works **offline** once loaded, and can be installed to your home screen or desktop if you want it there.
+
 A **lightweight, browser-based UI for the OpenRocket engine** — not a full re-creation of OpenRocket's desktop app, but a fast, mobile-friendly interface over the same trusted physics, with **full OpenRocket (.ork) support** (open, edit, save round-trip). Design a rocket, watch its CG/CP/stability update live, and run a full flight simulation — entirely in the browser, with nothing to install and nothing uploaded.
 
 The UI is **responsive**: a three-pane workbench (editor · rocket view · motor/sim) on desktop that collapses to a single stacked, tabbed column on phones. The rocket view switches between a **2D schematic**, a **3D model**, an **aerodynamics** view, and — after a simulation — **flight charts** and a **3D flight path**.
@@ -20,6 +22,7 @@ The UI is **responsive**: a three-pane workbench (editor · rocket view · motor
 
 **Data & I/O**
 - **Full `.ork` support** — open and save round-trip at full fidelity (files re-open in desktop OpenRocket).
+- Keep **several rockets** in the browser and switch between them; everything autosaves, and `.ork` import/export moves designs to and from your disk.
 - Real motor **thrust curves** from thrustcurve.org (~800 motors), plus **`.eng` import** and custom motors.
 - OpenRocket **materials** (built-in + your own) and a **component-preset** catalog (~2,900 real Estes/Apogee/LOC/… parts).
 - **Exports**: the design to **RASAero II (`.CDX1`)**, flight data & drag tables to **CSV**, the **flight path** to **KML / GPX / waypoint CSV** (Google Earth / GPS, with importable custom **templates**), and the 2D schematic to **SVG / PNG / JPG**.
@@ -31,7 +34,9 @@ The UI is **responsive**: a three-pane workbench (editor · rocket view · motor
 
 ## Getting started
 
-Needs only **Node 22+** — no JDK to run the app (it uses a committed engine build):
+Just want to use it? Open **<https://thzero.github.io/AstraRocketJs/>** — that's the current `master` build, deployed to GitHub Pages.
+
+To run it locally you need only **Node 22+** — no JDK (it uses a committed engine build):
 
 ```bash
 cd web && npm install && npm run dev
@@ -46,9 +51,9 @@ Full setup — dev server, build, engine rebuild, catalog tools, and tests — i
 
 ## Documentation
 
-- **[Wiki](https://github.com/thzero/AstraRocketJs/wiki)** — the user guide: getting started, designing a rocket, motors, the views, running simulations, and files/exports.
-- **[Architecture & internals](https://github.com/thzero/AstraRocketJs/wiki/Architecture)** — how the extracted engine, motor/material/component data, `.ork` I/O, and swappable stores work (the developer reference).
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** — how to report bugs, develop, translate, and submit changes (full guide in the [Wiki](https://github.com/thzero/AstraRocketJs/wiki/Contributing)).
+- **[Documentation](https://thzero.github.io/AstraRocketJs/docs/)** — the user guide: getting started, designing a rocket, motors, the views, running simulations, and files/exports.
+- **[Architecture & internals](https://thzero.github.io/AstraRocketJs/docs/architecture)** — how the extracted engine, motor/material/component data, `.ork` I/O, and swappable stores work (the developer reference).
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — how to report bugs, develop, translate, and submit changes (full guide in the [documentation](https://thzero.github.io/AstraRocketJs/docs/contributing)).
 - **[Code of Conduct](CODE_OF_CONDUCT.md)**
 
 ## Contributing

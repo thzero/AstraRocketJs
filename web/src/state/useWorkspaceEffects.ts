@@ -2,17 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive } from './store';
 import { getWorkspaceStore } from '../services/workspaceStore';
+import { onStorageDegraded } from '../services/idbKeyValueStore';
+import { requestPersistentStorage } from '../services/persistStorage';
 import { computeStaticInfo } from '../services/buildRocket';
 import { warmSimWorker } from '../engine/simClient';
 import { appName } from '../services/appInfo';
 
 /**
  * The React-side effects for the workspace store: keep the browser title in sync,
- * hydrate + autosave to localStorage, and rebuild the engine (recomputing
+ * hydrate + autosave to browser storage, and rebuild the engine (recomputing
  * stability) whenever the design or its motors change. Mounted once, in App.
  */
 export function useWorkspaceEffects() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   useEffect(() => {
     document.title = appName();
   }, [i18n.language]);
@@ -58,38 +60,59 @@ export function useWorkspaceEffects() {
     const id = setTimeout(() => {
       getWorkspaceStore()
         .save({ version: 1, tree, sims, activeId, extraMotors, loadedMeta })
-        .catch(() =>
-          useWorkspaceStore
-            .getState()
-            .setErr('Could not save your work — browser storage is full. Export your design to keep it.'),
-        );
+        // There is now a design worth keeping, so ask the browser not to evict
+        // this origin under disk pressure. Once per session, best-effort.
+        .then(() => void requestPersistentStorage())
+        .catch(() => useWorkspaceStore.getState().setErr(t('storage.full')));
     }, 500);
     return () => clearTimeout(id);
-  }, [tree, sims, activeId, extraMotors, loadedMeta]);
+  }, [t, tree, sims, activeId, extraMotors, loadedMeta]);
+
+  // IndexedDB blocked (policy, some private modes) means we are back on the 5 MB
+  // localStorage cap this move existed to escape. Say so NOW rather than letting
+  // the user meet it later as an unexplained failed save mid-design.
+  useEffect(() => onStorageDegraded(() => useWorkspaceStore.getState().setErr(t('storage.degraded'))), [t]);
 
   // Flush any change the 500ms debounce hasn't persisted yet on page unload —
-  // otherwise opening a .ork and refreshing quickly would lose it. localStorage
-  // writes run synchronously, so this completes before the page tears down.
+  // otherwise opening a .ork and refreshing quickly would lose it.
+  //
+  // The store is IndexedDB-backed and an async write CANNOT finish while the
+  // page tears down, so this takes the store's synchronous path (a localStorage
+  // journal the next load folds back in). `visibilitychange` gets the ordinary
+  // async save too: on mobile, hidden is often the last event before the tab is
+  // discarded outright, and there it still has time to complete.
   useEffect(() => {
+    const snapshot = () => {
+      const s = useWorkspaceStore.getState();
+      return {
+        version: 1 as const,
+        tree: s.tree,
+        sims: s.sims,
+        activeId: s.activeId,
+        extraMotors: s.extraMotors,
+        loadedMeta: s.loadedMeta,
+      };
+    };
     const flush = () => {
       if (!hydrated.current) return;
-      const s = useWorkspaceStore.getState();
+      const store = getWorkspaceStore();
+      if (store.saveSync) store.saveSync(snapshot());
+      else store.save(snapshot()).catch(() => {}); // unloading — nothing to surface
+    };
+    const onHidden = () => {
+      if (!hydrated.current || document.visibilityState !== 'hidden') return;
       getWorkspaceStore()
-        .save({
-          version: 1,
-          tree: s.tree,
-          sims: s.sims,
-          activeId: s.activeId,
-          extraMotors: s.extraMotors,
-          loadedMeta: s.loadedMeta,
-        })
-        .catch(() => {}); // page is unloading — nothing to surface, just don't reject
+        .save(snapshot())
+        .catch(() => {});
+      flush();
     };
     window.addEventListener('pagehide', flush);
     window.addEventListener('beforeunload', flush);
+    document.addEventListener('visibilitychange', onHidden);
     return () => {
       window.removeEventListener('pagehide', flush);
       window.removeEventListener('beforeunload', flush);
+      document.removeEventListener('visibilitychange', onHidden);
     };
   }, []);
 

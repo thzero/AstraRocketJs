@@ -9,6 +9,7 @@ import { SimulationsPanel } from './components/sim/SimulationsPanel';
 import { TabBar } from './components/layout/TabBar';
 import { WorkInProgressDialog } from './components/layout/WorkInProgressDialog';
 import { ConfirmDialog } from './components/common/ConfirmDialog';
+import { UpdateToast } from './components/layout/UpdateToast';
 
 export default function App() {
   useWorkspaceEffects();
@@ -22,6 +23,7 @@ export default function App() {
   return (
     <div className="flex h-screen flex-col bg-slate-950 text-slate-100">
       <AppHeader />
+      <UpdateToast />
 
       {err && <p className="border-b border-red-500/30 bg-red-950/60 px-4 py-2 text-sm text-red-300">{err}</p>}
 

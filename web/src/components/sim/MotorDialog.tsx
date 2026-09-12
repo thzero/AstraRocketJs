@@ -15,6 +15,7 @@ import { STD_DIAMS, MAX_IDX, fitIdx, parseDelays } from '../../services/motorPic
 import { PLUGGED_DELAY, type MotorSpec } from '../../engine/openRocketEngine';
 import { fmtNum } from '../../i18n/format';
 import { useFocusTrap } from '../common/useFocusTrap';
+import { CatalogLoading, CatalogError } from '../common/CatalogLoading';
 import { MotorDetail } from './MotorDetail';
 import { RangeSlider } from './RangeSlider';
 
@@ -80,6 +81,9 @@ export function MotorDialog({
   // The catalog is a dynamically-imported chunk (see motorDb.loadCatalog), so
   // the first open pays a fetch — show a loading state until it lands.
   const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  // Bumped by the retry button to re-run the load effect.
+  const [attempt, setAttempt] = useState(0);
   const [text, setText] = useState('');
   const [cls, setCls] = useState<string | null>(null);
   const [mfrs, setMfrs] = useState<Set<string>>(loadMfrs);
@@ -105,16 +109,26 @@ export function MotorDialog({
 
   useEffect(() => {
     let live = true;
-    loadCatalog().then((c) => {
-      if (live) {
-        setCatalog(c);
+    setCatalogLoading(true);
+    setCatalogError(null);
+    loadCatalog()
+      .then((c) => {
+        if (live) {
+          setCatalog(c);
+          setCatalogLoading(false);
+        }
+      })
+      .catch((e: unknown) => {
+        // Without this the rejection was unhandled and the list sat empty and
+        // silent forever; fetchCatalog rejects once every base is unreachable.
+        if (!live) return;
+        setCatalogError(e instanceof Error ? e.message : String(e));
         setCatalogLoading(false);
-      }
-    });
+      });
     return () => {
       live = false;
     };
-  }, []);
+  }, [attempt]);
 
   useEffect(() => {
     if (!open) return;
@@ -348,9 +362,16 @@ export function MotorDialog({
               </div>
             </div>
 
-            {catalogLoading ? (
-              <div className="grid min-h-0 flex-1 place-items-center p-6 text-center text-sm text-slate-500">
-                {t('motorDlg.loadingCatalog')}
+            {catalogError ? (
+              <div className="grid min-h-0 flex-1 place-items-center p-6">
+                <CatalogError
+                  message={`${t('catalog.failedMotors')} ${catalogError}`}
+                  onRetry={() => setAttempt((n) => n + 1)}
+                />
+              </div>
+            ) : catalogLoading ? (
+              <div className="grid min-h-0 flex-1 place-items-center p-6">
+                <CatalogLoading name="motors" label={t('motorDlg.loadingCatalog')} />
               </div>
             ) : (
               <ul className="min-h-0 flex-1 divide-y divide-white/5 overflow-y-auto">

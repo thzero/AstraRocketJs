@@ -3,8 +3,11 @@
 // material store each hold one of these and can be swapped independently for a
 // different implementation (see motorStore.ts / materialStore.ts).
 //
-// Async by design so a non-localStorage implementation (IndexedDB, a backend,
-// a shared store) can be dropped in without reshaping callers.
+// Async by design so a non-localStorage implementation can be dropped in
+// without reshaping callers — which is what idbKeyValueStore.ts does, and is
+// now the default for every store. This localStorage one remains as its
+// fallback for browsers where IndexedDB is blocked, and for the synchronous
+// unload journal in workspaceStore.ts.
 export interface KeyValueStore {
   get(key: string): Promise<string | null>;
   /** Persist `value`. Resolves `true` on success, `false` on failure (quota

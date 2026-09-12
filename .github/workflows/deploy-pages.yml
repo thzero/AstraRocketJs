@@ -31,17 +31,50 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          cache-dependency-path: |
+            web/package-lock.json
+            website/package-lock.json
 
       - run: npm ci
 
       # Gate the publish on the unit tests — a red test blocks the deploy.
       - run: npm run test
 
+      # Refresh the About dialog's contributor list from the GitHub API so a newly
+      # merged contributor is credited on the next deploy without a manual commit.
+      # Best-effort: if the API is down or throttled the step is skipped and the
+      # build uses the committed src/data/contributors.generated.json instead.
+      - run: npm run sync:contributors
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      # Docs are built BEFORE the app and into web/public, so the service worker
+      # precaches them: Help has to work offline, which is much of the point of
+      # the PWA. public/ is copied verbatim into dist by Vite.
+      - name: Install docs deps
+        working-directory: website
+        run: npm ci
+
+      - name: Build docs into the app
+        working-directory: website
+        run: npx docusaurus build --out-dir "$GITHUB_WORKSPACE/web/public/docs"
+        env:
+          DOCS_BASE_URL: /${{ github.event.repository.name }}/docs/
       # Serve from https://<user>.github.io/<repo>/ — base must be /<repo>/.
       - run: npm run build
         env:
           PAGES_BASE: /${{ github.event.repository.name }}/
+          # Read the motor/component catalogs from the separately published `data`
+          # branch (see sync-catalogs.yml) instead of the copy inside this build, so
+          # a catalog refresh goes live without a deploy. The in-build copy stays as
+          # the fallback for when the CDN is unreachable.
+          #
+          # Safe before the `data` branch exists: jsDelivr 404s a missing branch in
+          # ~0.4s (measured — as fast as it serves a real file), and the catalogs are
+          # fetched when a picker first opens, not at page load. So until the first
+          # sync runs this costs ~0.4s on first open and then falls back.
+          VITE_DATA_BASE: https://cdn.jsdelivr.net/gh/${{ github.repository }}@data/
 
       - uses: actions/configure-pages@v5
 

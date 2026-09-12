@@ -8,6 +8,13 @@ web/node_modules/
 web/dist/
 *.local
 
+# Docusaurus (website) — build output, caches and generated locale files
+website/node_modules/
+website/build/
+website/.docusaurus/
+# Docs built into the app for precaching (see deploy-pages.yml)
+web/public/docs/
+
 # Playwright (web e2e) — test output + downloaded browsers, never the specs/config
 web/test-results/
 web/playwright-report/

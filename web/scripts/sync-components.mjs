@@ -7,7 +7,7 @@
 // Brings in the three types the current editor uses: body tubes, nose cones,
 // and parachutes (recovery). Run manually / in CI when refreshing the catalog:
 //   node scripts/sync-components.mjs [--src <openrocket presets dir>]
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeDataManifest } from './lib/dataManifest.mjs';
@@ -175,9 +175,20 @@ for (const f of files) {
 }
 
 const byType = components.reduce((m, p) => ((m[p.type] = (m[p.type] ?? 0) + 1), m), {});
-writeFileSync(
-  OUT,
-  JSON.stringify({ generated: new Date().toISOString(), count: components.length, components }) + '\n',
-);
+// Reuse the previous `generated` stamp when the parts themselves are unchanged.
+// Nothing reads the stamp, but rewriting it changes the file, which flips its
+// manifest hash (lib/dataManifest.mjs hashes the whole document) — re-busting
+// every client's cached copy of a ~1 MB catalog that did not actually change,
+// and making a no-op refresh show up as a repo diff.
+let generated = new Date().toISOString();
+if (existsSync(OUT)) {
+  try {
+    const prev = JSON.parse(readFileSync(OUT, 'utf8'));
+    if (JSON.stringify(prev.components) === JSON.stringify(components)) generated = prev.generated;
+  } catch {
+    // Unreadable/corrupt previous catalog — fall through and stamp it now.
+  }
+}
+writeFileSync(OUT, JSON.stringify({ generated, count: components.length, components }) + '\n');
 writeDataManifest(DATA_DIR); // refresh the cache-bust hashes
 console.log(`Wrote ${components.length} components → public/data/components.generated.json`, byType);

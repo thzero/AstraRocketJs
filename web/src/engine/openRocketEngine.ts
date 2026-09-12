@@ -11,6 +11,7 @@
 // import order, so this eager import must precede the DYNAMIC engine load below
 // (neither backend is imported statically now) — see kernelLogSink.ts.
 import './kernelLogSink.js';
+import { declaredLength, readStreamWithProgress } from '../services/fetchProgress';
 
 // The WASM-GC engine + its loader live in web/public/engine/ (served verbatim by
 // Vite — a .js in src/ would be run through import-analysis, which warns on the
@@ -107,7 +108,14 @@ function installKernelConsole(imports: Record<string, unknown>): void {
   };
 }
 
-async function tryLoadWasm(): Promise<EngineApi | null> {
+/** What the boot splash is waiting on. `downloading` carries byte counts when the
+ *  host declares a length; `starting` is the compile/instantiate step, which has
+ *  no measurable progress but is a large part of the wait on a slow device. */
+export type EngineLoadStatus =
+  | { phase: 'downloading'; loaded: number; total: number | null }
+  | { phase: 'starting' };
+
+async function tryLoadWasm(onStatus?: (s: EngineLoadStatus) => void): Promise<EngineApi | null> {
   try {
     if (typeof WebAssembly !== 'object' || typeof WebAssembly.compileStreaming !== 'function') {
       return null;
@@ -126,7 +134,17 @@ async function tryLoadWasm(): Promise<EngineApi | null> {
     // the kernel's console output into the shared log sink (see above).
     const res = await fetch(WASM_URL);
     if (!res.ok) return null;
-    const bytes = await res.arrayBuffer();
+    // Stream it so the boot splash can show real bytes: this is ~2.3 MB, the
+    // largest thing the app fetches, and on a slow link it is most of the wait.
+    const streamed = res.body
+      ? await readStreamWithProgress(res.body, declaredLength(res), (p) => onStatus?.({ phase: 'downloading', ...p }))
+      : null;
+    // `.buffer` is typed ArrayBufferLike (it could be shared in general), but
+    // readStreamWithProgress always allocates a plain ArrayBuffer.
+    const bytes = streamed ? (streamed.buffer as ArrayBuffer) : await res.arrayBuffer();
+    // Bytes are in; compiling and instantiating is the remaining (unmeasurable)
+    // step, and it is slow enough on modest hardware to be worth naming.
+    onStatus?.({ phase: 'starting' });
     const teavm = await wasmGC.load(bytes, { installImports: installKernelConsole });
     const exports = teavm.exports as EngineApi;
     // The @JSExport facade must be callable across the WASM↔JS boundary.
@@ -167,15 +185,19 @@ function backendPref(): 'wasm' | 'js' | 'auto' {
  * calls before it resolves throw, since neither backend is loaded until now.
  * Resolves to which backend is active.
  */
-export function initEngine(): Promise<'wasm' | 'js'> {
+export function initEngine(onStatus?: (s: EngineLoadStatus) => void): Promise<'wasm' | 'js'> {
   if (!initPromise) {
     initPromise = (async () => {
-      const wasm = backendPref() === 'js' ? null : await tryLoadWasm();
+      const wasm = backendPref() === 'js' ? null : await tryLoadWasm(onStatus);
       if (wasm) {
         active = wasm;
         return 'wasm';
       }
+      // The JS build is a dynamic import, so the bundler owns the fetch and there
+      // are no byte counts to report — just name the step.
+      onStatus?.({ phase: 'downloading', loaded: 0, total: null });
       active = await loadJsEngine();
+      onStatus?.({ phase: 'starting' });
       return 'js';
     })();
   }

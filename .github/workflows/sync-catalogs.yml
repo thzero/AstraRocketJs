@@ -1,0 +1,166 @@
+name: Sync Catalogs
+
+# Regenerates the runtime reference catalogs — motors ("engines") from the
+# ThrustCurve.org API and components from the OpenRocket-Components database —
+# and publishes them to the orphan `data` branch.
+#
+# The app fetches these at runtime (web/src/services/remoteData.ts), so a refresh
+# published here is live WITHOUT an app rebuild or a Pages deploy, as soon as the
+# CDN edge expires. The copy committed under web/public/data stays in the build
+# as a fallback for when the data host is unreachable; refresh that one by hand
+# (`npm run sync:motors && npm run sync:components`, then commit) when you want
+# the offline floor moved up — it is deliberately not touched by this workflow.
+#
+# deploy-pages.yml already points the built app at this branch via VITE_DATA_BASE,
+# so no setup is needed: until the first run creates it, the app falls back to the
+# catalogs inside the build.
+
+on:
+  schedule:
+    # Mondays 06:00 UTC. Scheduled runs always use the default branch (master).
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Which catalog to regenerate
+        type: choice
+        options: [both, motors, components]
+        default: both
+
+permissions:
+  contents: write
+
+# Never cancel a half-finished publish — a cancelled run could leave the data
+# branch holding a manifest that disagrees with its catalogs.
+concurrency:
+  group: sync-catalogs
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      TARGET: ${{ inputs.target || 'both' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        working-directory: web
+        run: npm ci
+
+      # Start from what is CURRENTLY PUBLISHED, not from the committed fallback.
+      # manifest.json carries a hash for both catalogs and is rewritten in full by
+      # either sync script, so a motors-only run would otherwise republish the
+      # committed components file and its hash — silently reverting the live
+      # component catalog. Seeding first makes every run a no-op for whatever it
+      # did not regenerate.
+      - name: Seed from the published catalogs
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          # Authenticated, so "clone failed" can only mean the branch does not
+          # exist yet — never a permissions failure that would silently seed from
+          # the (possibly stale) committed copy and republish it.
+          url="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          if git clone --depth 1 --branch data "$url" "$tmp" 2>/dev/null; then
+            cp "$tmp"/*.json "$GITHUB_WORKSPACE/web/public/data/"
+            echo "Seeded from the data branch."
+          else
+            echo "No data branch yet — seeding from the committed copy (first run)."
+          fi
+
+      # The component presets come from the community parts DB that OpenRocket's
+      # own component data is built from. sync-components.mjs defaults to a local
+      # path, so point it at this checkout via OPENROCKET_PRESETS.
+      - name: Check out the OpenRocket components database
+        if: env.TARGET != 'motors'
+        uses: actions/checkout@v4
+        with:
+          repository: dbcook/openrocket-database
+          path: .openrocket-database
+          ref: master
+
+      - name: Regenerate motors
+        if: env.TARGET != 'components'
+        working-directory: web
+        run: npm run sync:motors
+
+      - name: Regenerate components
+        if: env.TARGET != 'motors'
+        working-directory: web
+        env:
+          OPENROCKET_PRESETS: ${{ github.workspace }}/.openrocket-database/orc
+        run: npm run sync:components
+
+      - name: Publish to the `data` branch
+        run: |
+          set -euo pipefail
+          src="$GITHUB_WORKSPACE/web/public/data"
+          tmp="$(mktemp -d)"
+          url="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+
+          git config --global user.name  "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # `data` is an ORPHAN branch: catalogs only, none of the app history.
+          if git clone --depth 1 --branch data "$url" "$tmp" 2>/dev/null; then
+            :
+          else
+            echo "Creating the data branch."
+            git init -q "$tmp"
+            git -C "$tmp" checkout -q --orphan data
+            git -C "$tmp" remote add origin "$url"
+          fi
+
+          cp "$src"/motors.generated.json "$src"/components.generated.json "$src"/manifest.json "$tmp"/
+
+          git -C "$tmp" add -A
+          if git -C "$tmp" diff --cached --quiet; then
+            echo "Catalogs already up to date — nothing published."
+            echo "no_change=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          git -C "$tmp" commit -q -m "Refresh ${TARGET} catalog(s) from ${GITHUB_SHA}"
+          git -C "$tmp" push -q origin data
+
+      - name: Summary
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE/web/public/data"
+          {
+            echo "### Catalog sync — \`${TARGET}\`"
+            echo
+            if [ "${no_change:-0}" = "1" ]; then echo "No change; the \`data\` branch was already current."; echo; fi
+            echo "| Catalog | Entries | Manifest hash |"
+            echo "| --- | ---: | --- |"
+            node -e '
+              const fs = require("fs");
+              const man = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
+              const motors = JSON.parse(fs.readFileSync("motors.generated.json", "utf8"));
+              const comps = JSON.parse(fs.readFileSync("components.generated.json", "utf8"));
+              const row = (n, c, h) => `| ${n} | ${c.toLocaleString("en-US")} | \`${h ?? "—"}\` |`;
+              console.log(row("motors", motors.length, man.motors));
+              console.log(row("components", comps.count, man.components));
+              const noCurve = motors.filter((m) => m.noCurve).length;
+              console.log("");
+              console.log(`${noCurve.toLocaleString("en-US")} motors have no bundled thrust curve.`);
+              // Must match keyOf() in components/sim/MotorDashboard.tsx — it is the
+              // row key AND the selection identity, so a collision makes two distinct
+              // motors select as one. Upstream can introduce a new pair at any time.
+              const seen = new Set();
+              const dupes = motors
+                .map((m) => `${m.manufacturer}|${m.designation}|${m.diameter}|${m.code ?? ""}`)
+                .filter((k) => (seen.has(k) ? true : (seen.add(k), false)));
+              if (dupes.length) {
+                console.log("");
+                console.log(`> [!WARNING]`);
+                console.log(`> ${dupes.length} motors collide on the dashboard row key: ${dupes.join(", ")}`);
+              }
+            '
+          } >> "$GITHUB_STEP_SUMMARY"

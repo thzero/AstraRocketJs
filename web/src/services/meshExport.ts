@@ -3,6 +3,7 @@ import { OBJExporter } from 'three/examples/jsm/exporters/OBJExporter.js';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
 import { makeWatertight } from './solidMesh';
+import { saveBlob } from './saveFile';
 
 /**
  * 3D mesh export (STL / OBJ / glTF-binary) of a SINGLE component's solid.
@@ -59,12 +60,5 @@ export function safeName(name: string | undefined): string {
 
 /** Trigger a browser download of some bytes/text. */
 export function downloadFile(data: BlobPart, filename: string, mime: string): void {
-  const url = URL.createObjectURL(new Blob([data], { type: mime }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  // Defer revocation: revoking synchronously can cancel the download before the
-  // browser has read the blob.
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  void saveBlob(new Blob([data], { type: mime }), filename);
 }

@@ -12,12 +12,23 @@ import { STD_DIAMS, MAX_IDX } from '../../services/motorPicker';
 import { combineCurves, impulseClass, type Sample } from '../../services/motorCombine';
 import { fmtNum } from '../../i18n/format';
 import { useFocusTrap } from '../common/useFocusTrap';
+import { CatalogLoading, CatalogError } from '../common/CatalogLoading';
 import { MotorDetail, Stat } from './MotorDetail';
 import { RangeSlider } from './RangeSlider';
 import { ChartAxes, chartScales, linePath, baselineArea } from './chartAxes';
 
-/** Stable identity for a motor across filter/sort changes (mfr + name + bore). */
-const keyOf = (m: CatalogMotor) => `${m.manufacturer}|${m.designation}|${m.diameter}`;
+/**
+ * Stable identity for a motor across filter/sort changes.
+ *
+ * `code` (the full manufacturer designation) is part of the key because mfr +
+ * common name + bore is NOT unique: AeroTech ships an F67W (White Lightning,
+ * 61 N·s) and an F67C (Classic, 77 N·s), both "F67" in 29 mm, and Cesaroni
+ * reloads collide the same way. 14 such pairs are in the current catalog. This
+ * key is the row key AND the selection / checkbox / series-color identity, so a
+ * collision does not just warn in the console — it makes two distinct motors
+ * select and check as one.
+ */
+export const keyOf = (m: CatalogMotor) => `${m.manufacturer}|${m.designation}|${m.diameter}|${m.code ?? ''}`;
 const avgOf = (m: CatalogMotor) => m.avgThrust ?? (m.burn > 0 ? m.impulse / m.burn : 0);
 /** Format a numeric cell to `d` decimals, or an em dash when absent / non-finite. */
 const fmtCell = (v: number | undefined, d: number) => (v != null && Number.isFinite(v) ? fmtNum(v, d) : '—');
@@ -155,15 +166,32 @@ export function MotorDashboard({ open, onClose }: { open: boolean; onClose: () =
   const bodyRef = useRef<HTMLTableSectionElement>(null);
   const panelRef = useFocusTrap<HTMLDivElement>(open);
 
+  // The catalog is a ~1.6 MB runtime download (see services/remoteData.ts).
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  // Bumped by the retry button to re-run the load effect.
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let live = true;
-    loadCatalog().then((c) => {
-      if (live) setCatalog(c);
-    });
+    setCatalogLoading(true);
+    setCatalogError(null);
+    loadCatalog()
+      .then((c) => {
+        if (!live) return;
+        setCatalog(c);
+        setCatalogLoading(false);
+      })
+      .catch((e: unknown) => {
+        // Was uncaught: a failed load became an unhandled rejection and left the
+        // table permanently empty with nothing on screen to explain why.
+        if (!live) return;
+        setCatalogError(e instanceof Error ? e.message : String(e));
+        setCatalogLoading(false);
+      });
     return () => {
       live = false;
     };
-  }, []);
+  }, [attempt]);
   useEffect(() => {
     saveCols(visCols);
   }, [visCols]);
@@ -411,6 +439,20 @@ export function MotorDashboard({ open, onClose }: { open: boolean; onClose: () =
                   </tr>
                 </thead>
                 <tbody ref={bodyRef}>
+                  {(catalogLoading || catalogError) && (
+                    <tr>
+                      <td colSpan={cols.length + 1} className="p-4">
+                        {catalogError ? (
+                          <CatalogError
+                            message={`${t('catalog.failedMotors')} ${catalogError}`}
+                            onRetry={() => setAttempt((n) => n + 1)}
+                          />
+                        ) : (
+                          <CatalogLoading name="motors" label={t('catalog.loadingMotors')} />
+                        )}
+                      </td>
+                    </tr>
+                  )}
                   {shown.map((m) => {
                     const k = keyOf(m);
                     const isSel = !!selected && keyOf(selected) === k;

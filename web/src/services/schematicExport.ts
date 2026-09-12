@@ -1,6 +1,7 @@
 import type { StaticInfo } from '../engine/openRocketEngine';
 import { fmtSi, type UnitSelection } from '../prefs/units.js';
 import { escapeXml } from './xmlUtil.js';
+import { saveBlob } from './saveFile';
 
 /**
  * 2D/3D image + model export with a data header (issue 2026-08-11a).
@@ -194,9 +195,5 @@ export function snapshotWithHeader(
 /** Shared download-anchor dance for the export buttons. */
 export function downloadBlob(blob: Blob | string, filename: string): void {
   const b = typeof blob === 'string' ? new Blob([blob], { type: 'image/svg+xml' }) : blob;
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(b);
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(a.href);
+  void saveBlob(b, filename);
 }
