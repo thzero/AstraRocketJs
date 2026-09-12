@@ -103,9 +103,13 @@ cd web
 node scripts/sync-motors.mjs        # sweep thrustcurve.org → src/data/motors.generated.json (~800 motors)
 node scripts/sync-components.mjs     # parse the OpenRocket-Components DB → src/data/components.generated.json (~2,900 parts)
 #   sync-components takes --src <path-to>/openrocket-database/orc if the DB isn't at the default local path
+node scripts/sync-contributors.mjs   # GitHub contributors → src/data/contributors.generated.json (About dialog)
+#   avatars are inlined as data URIs; set GITHUB_TOKEN to avoid the 60 req/hour unauthenticated limit
 ```
 
 Refreshing a catalog is a **commit the regenerated JSON + redeploy** step (e.g. a scheduled CI job), not something the app does live.
+
+The contributor list is the exception: the Pages deploy re-runs `sync-contributors.mjs` before `npm run build`, so a newly merged contributor is credited automatically on the next deploy to `master`. That step is best-effort (`continue-on-error`) — if the GitHub API is unavailable the build falls back to the committed JSON, which is why the file stays in the repo. Run `npm run sync:contributors` locally only if you want the list current in a dev build.
 
 ### Commit etiquette
 

@@ -1,6 +1,11 @@
 import { useEffect } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { appName, APP_VERSION, isPreRelease } from '../../services/appInfo';
+import contributorData from '../../data/contributors.generated.json';
+
+// GitHub contributors, baked in at build time by scripts/sync-contributors.mjs
+// (avatars inlined as data URIs) so the dialog makes no runtime call to github.com.
+const CONTRIBUTORS: { login: string; url: string; avatar?: string }[] = contributorData.contributors;
 
 // Credited open-source projects → homepage.
 const LINKS: [string, string][] = [
@@ -82,6 +87,36 @@ export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => v
             />
           </p>
         </div>
+
+        {CONTRIBUTORS.length > 0 && (
+          <div className="mt-4 border-t border-white/10 pt-3 text-xs leading-relaxed text-slate-500">
+            <p>{t('about.contributors')}</p>
+            <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-2">
+              {CONTRIBUTORS.map((c) => (
+                <li key={c.login}>
+                  <a
+                    href={c.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 text-sky-400 hover:underline"
+                  >
+                    {c.avatar ? (
+                      <img src={c.avatar} alt="" aria-hidden className="size-5 rounded-full ring-1 ring-white/10" />
+                    ) : (
+                      <span
+                        aria-hidden
+                        className="grid size-5 place-items-center rounded-full bg-slate-800 text-[10px] font-medium text-slate-300 ring-1 ring-white/10"
+                      >
+                        {c.login.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                    {c.login}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="mt-4 border-t border-white/10 pt-3 text-xs leading-relaxed text-slate-500">
           <p>{t('about.credits')}</p>

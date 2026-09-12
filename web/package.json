@@ -35,7 +35,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build:inc": "library-cli --updateversion --pi --silent && node ../scripts/stamp-wiki-version.mjs --silent",
-    "stamp:wiki": "node ../scripts/stamp-wiki-version.mjs"
+    "stamp:wiki": "node ../scripts/stamp-wiki-version.mjs",
+    "sync:contributors": "node scripts/sync-contributors.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

@@ -38,6 +38,15 @@ jobs:
       # Gate the publish on the unit tests — a red test blocks the deploy.
       - run: npm run test
 
+      # Refresh the About dialog's contributor list from the GitHub API so a newly
+      # merged contributor is credited on the next deploy without a manual commit.
+      # Best-effort: if the API is down or throttled the step is skipped and the
+      # build uses the committed src/data/contributors.generated.json instead.
+      - run: npm run sync:contributors
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
       # Serve from https://<user>.github.io/<repo>/ — base must be /<repo>/.
       - run: npm run build
         env:
