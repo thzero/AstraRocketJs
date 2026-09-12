@@ -1,4 +1,4 @@
-# Engineering Audit — `web/` (fakerocket)
+# Engineering Audit — `web/` (AstraRocketJs)
 
 **Date:** 2026-09-09
 **Scope:** `web/` — browser re-creation of OpenRocket (React 18 + TypeScript + Vite + Vitest + three.js).
