@@ -9,6 +9,7 @@ import { buildPieces, type MotorDims } from './Rocket3D';
 import { colorForType, mergePalette, type PartPalette } from '../../services/partColors';
 import { useSettings } from '../../state/SettingsProvider';
 import { fmtNum } from '../../i18n/format';
+import { useUnits } from '../../prefs/useUnits';
 import { EVENT_LABEL } from '../../services/simReport';
 
 /**
@@ -52,6 +53,7 @@ function findRecovery(tree: RocketTree, palette: PartPalette): Recovery {
 
 export function FlightPath3D({ result, tree, motors }: { result: FlightResult; tree: RocketTree; motors?: MotorDims }) {
   const { t } = useTranslation();
+  const u = useUnits();
   const { settings, update } = useSettings();
   const palette = useMemo(() => mergePalette(settings.partColors), [settings.partColors]);
   const phase = settings.phaseColors; // boost/coast/descent colors, from Settings
@@ -310,8 +312,14 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
       </Canvas>
 
       <div className="pointer-events-none absolute left-3 top-3 flex gap-3 rounded-lg bg-slate-900/80 px-3 py-2 text-xs ring-1 ring-white/10">
-        <Hud label={t('flight.altitude')} value={`${fmtNum(alts[idx] ?? 0, 0)} m`} />
-        <Hud label={t('flight.velocity')} value={`${fmtNum(vels[idx] ?? 0, 0)} m/s`} />
+        <Hud
+          label={t('flight.altitude')}
+          value={`${u.fmt('distance', alts[idx] ?? 0)} ${u.sym('distance')}`}
+        />
+        <Hud
+          label={t('flight.velocity')}
+          value={`${u.fmt('velocity', vels[idx] ?? 0)} ${u.sym('velocity')}`}
+        />
         <Hud label={t('flight.time')} value={`${fmtNum(nowT, 1)} s`} />
       </div>
       <div className="pointer-events-none absolute right-3 top-3 flex flex-col gap-1 rounded-lg bg-slate-900/80 px-2 py-1.5 text-[10px] ring-1 ring-white/10">

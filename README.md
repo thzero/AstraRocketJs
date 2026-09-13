@@ -64,7 +64,7 @@ Contributions are very welcome — code, bug reports, translations, docs, and mo
 
 Engine: working, validated bit-identical against upstream OpenRocket (JVM↔JS, and WASM↔JS). UI: actively developed — component-tree editor, stability, 2D/3D views, motor picker, `.ork` import/export, and flight simulation with charts (run off the main thread in a Web Worker to keep the UI responsive).
 
-**Units are metric/SI only for now** — an imperial / unit-preference option isn't wired up yet, so lengths, masses, etc. are shown in mm/cm/m, g/kg, and so on.
+**Units are yours to pick** — metric or imperial presets, or a unit per quantity (lengths, altitude, mass, velocity, wind, acceleration, angle, density, temperature, pressure, thrust, impulse), and the unit printed beside any value is a picker for that one field. Designs are always stored in SI, so switching units never edits a rocket or changes how a `.ork` is written — units live in your browser, not in the file, so a design opened in desktop OpenRocket shows in OpenRocket's units.
 
 ## Attribution & license
 

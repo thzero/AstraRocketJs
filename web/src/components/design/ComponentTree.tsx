@@ -4,7 +4,7 @@ import type { TFunction } from 'i18next';
 import type { ComponentNode, ComponentType, RocketTree } from '../../engine/openRocketEngine';
 import { allowedChildren, findNode } from '../../services/treeEdit';
 import { ComponentExportButton } from './ComponentExportButton';
-import { fmtNum } from '../../i18n/format';
+import { useUnits, type Units } from '../../prefs/useUnits';
 
 // Parts offered in the "Add part" menu, grouped like OpenRocket's palette.
 // Labels come from the `part.*` / `tree.*` i18n keys at render time.
@@ -29,11 +29,9 @@ const ADD_GROUPS: { group: string; items: ComponentType[] }[] = [
  * row here and scrolls it into view.
  */
 
-const mm = (v: unknown): string | null => {
-  if (typeof v !== 'number' || !Number.isFinite(v)) return null;
-  const x = v * 1000;
-  return `${fmtNum(x, x < 10 ? 1 : 0)} mm`;
-};
+/** A tree row's key dimension, in the user's length unit. */
+const len = (u: Units, v: unknown): string | null =>
+  typeof v === 'number' && Number.isFinite(v) ? `${u.fmt('length', v)} ${u.sym('length')}` : null;
 
 // Category colors match the app palette: structure = sky, fins = amber,
 // recovery = emerald, inner structure = slate, attachments/mass = violet.
@@ -91,25 +89,26 @@ const TYPE_SYMBOL: Record<string, string> = {
 
 const partLabel = (type: string, t: TFunction): string => t(`part.${type}`, { defaultValue: type });
 
-function detail(n: ComponentNode, t: TFunction): string {
+function detail(n: ComponentNode, t: TFunction, u: Units): string {
   const ty = n.type;
   if (ty === 'nosecone')
-    return [typeof n.shape === 'string' ? n.shape : null, mm(n.length)].filter(Boolean).join(' · ');
+    return [typeof n.shape === 'string' ? n.shape : null, len(u, n.length)].filter(Boolean).join(' · ');
   if (ty.endsWith('finset')) {
     const c = (n.finCount ?? n.count) as unknown;
     return typeof c === 'number' ? t('tree.fins', { count: c }) : '';
   }
   if (ty === 'parachute') {
-    const d = mm(n.diameter);
+    const d = len(u, n.diameter);
     return d ? `⌀ ${d}` : '';
   }
-  if (ty === 'streamer') return mm(n.stripLength) ?? '';
-  if (ty === 'masscomponent') return typeof n.mass === 'number' ? `${fmtNum(n.mass * 1000, 1)} g` : '';
+  if (ty === 'streamer') return len(u, n.stripLength) ?? '';
+  if (ty === 'masscomponent')
+    return typeof n.mass === 'number' ? `${u.fmt('mass', n.mass)} ${u.sym('mass')}` : '';
   if (ty === 'centeringring' || ty === 'bulkhead') {
-    const d = mm((n.outerRadius as number) * 2);
+    const d = len(u, (n.outerRadius as number) * 2);
     return d ? `⌀ ${d}` : '';
   }
-  return mm(n.length) ?? '';
+  return len(u, n.length) ?? '';
 }
 
 function Row({
@@ -121,6 +120,7 @@ function Row({
   collapsed,
   onToggleCollapse,
   t,
+  u,
 }: {
   node: ComponentNode;
   depth: number;
@@ -133,13 +133,14 @@ function Row({
   collapsed: ReadonlySet<string>;
   onToggleCollapse: (id: string) => void;
   t: TFunction;
+  u: Units;
 }) {
   const color = TYPE_COLOR[node.type] ?? '#94a3b8';
   const symbol = TYPE_SYMBOL[node.type] ?? '□';
   const label = partLabel(node.type, t);
   const name = typeof node.name === 'string' && node.name ? node.name : label;
   const isMount = node.motorMount === true;
-  const det = detail(node, t);
+  const det = detail(node, t, u);
   const id = typeof node.id === 'string' ? node.id : undefined;
   const selected = !!id && id === selectedId;
   const hasKids = (node.children?.length ?? 0) > 0;
@@ -222,6 +223,7 @@ function Row({
             collapsed={collapsed}
             onToggleCollapse={onToggleCollapse}
             t={t}
+            u={u}
           />
         ))}
     </>
@@ -246,6 +248,7 @@ export function ComponentTree({
   onAddStage?: () => void; // append a new (booster) stage at the bottom
 }) {
   const { t } = useTranslation();
+  const u = useUnits();
   // Ids of collapsed (folded) branches — ephemeral view state per node id.
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
   const toggleCollapse = (id: string) =>
@@ -479,6 +482,7 @@ export function ComponentTree({
                 collapsed={collapsed}
                 onToggleCollapse={toggleCollapse}
                 t={t}
+                u={u}
               />
             ))
           ) : (

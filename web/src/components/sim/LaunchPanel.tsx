@@ -1,6 +1,12 @@
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LaunchConditions, WindLevel } from '../../services/orkTree';
 import { NumberInput } from '../common/NumberInput';
+import { UnitChip } from '../common/UnitChip';
+import { useUnits, type Units } from '../../prefs/useUnits';
+import { unitScope } from '../../prefs/units';
+import { LAUNCH_SI, type LaunchUnitKind } from '../../prefs/launchUnits';
+
 
 /**
  * Launch & atmosphere conditions for the flight simulation: wind (single average
@@ -19,7 +25,7 @@ function Num({
   onChange,
 }: {
   label: string;
-  unit?: string;
+  unit?: ReactNode;
   value: number | null;
   step?: number;
   min?: number;
@@ -31,6 +37,7 @@ function Num({
       <span className="text-xs text-slate-400">{label}</span>
       <span className="flex items-center gap-1">
         <NumberInput
+          ariaLabel={label}
           value={value}
           onChange={onChange}
           step={step}
@@ -38,9 +45,52 @@ function Num({
           placeholder={placeholder}
           className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
         />
-        {unit && <span className="w-8 text-xs text-slate-500">{unit}</span>}
+        {unit && <span className="min-w-10 text-xs text-slate-500">{unit}</span>}
       </span>
     </label>
+  );
+}
+
+/**
+ * A launch-condition field in the user's chosen unit. `value`/`onChange` speak
+ * the STORED convention (see SI above); `stepSi`/`minSi` are given in SI, so a
+ * sensible 0.5 m/s or 10 m stays sensible once it is shown in ft/s or ft.
+ */
+function QNum({
+  label,
+  field,
+  kind,
+  u,
+  value,
+  stepSi,
+  minSi,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  /** Names this launch field, so its unit is its own (see `unitScope`). */
+  field: string;
+  kind: LaunchUnitKind;
+  u: Units;
+  value: number | null;
+  stepSi: number;
+  minSi?: number;
+  placeholder?: string;
+  onChange: (v: number | null) => void;
+}) {
+  const c = LAUNCH_SI[kind];
+  const scope = unitScope('launch', field);
+  const fu = u.at(scope, c.q);
+  return (
+    <Num
+      label={label}
+      unit={<UnitChip quantity={c.q} scope={scope} />}
+      step={fu.step(stepSi)}
+      min={minSi !== undefined ? fu.toUi(minSi) : undefined}
+      placeholder={placeholder}
+      value={value === null ? null : fu.toUi(c.toSi(value))}
+      onChange={(v) => onChange(v === null ? null : c.fromSi(fu.fromUi(v)))}
+    />
   );
 }
 
@@ -65,6 +115,7 @@ export function LaunchPanel({
   onCommit?: () => void;
 }) {
   const { t } = useTranslation();
+  const u = useUnits();
   const levels = launch.windLevels ?? [];
   const multilevel = levels.length > 0;
 
@@ -94,18 +145,22 @@ export function LaunchPanel({
     // edited (React's onBlur bubbles from the focused input).
     <div className="space-y-3 p-3" onBlur={onCommit}>
       <Group title={t('launch.launchRod')}>
-        <Num
+        <QNum
           label={t('launch.length')}
-          unit="m"
-          step={0.1}
-          min={0}
+          field="length"
+          kind="length"
+          u={u}
+          stepSi={0.1}
+          minSi={0}
           value={launch.launchRodLengthM}
           onChange={(v) => onChange({ launchRodLengthM: v ?? 0 })}
         />
-        <Num
+        <QNum
           label={t('launch.angle')}
-          unit="°"
-          step={1}
+          field="angle"
+          kind="deg"
+          u={u}
+          stepSi={Math.PI / 180}
           value={launch.launchRodAngleDeg}
           onChange={(v) => onChange({ launchRodAngleDeg: v ?? 0 })}
         />
@@ -122,10 +177,12 @@ export function LaunchPanel({
           <span className="text-xs text-slate-400">{t('launch.intoWind')}</span>
         </label>
         {!launch.launchIntoWind && (
-          <Num
+          <QNum
             label={t('launch.rodDirection')}
-            unit="°"
-            step={5}
+            field="rodDirection"
+            kind="deg"
+            u={u}
+            stepSi={(5 * Math.PI) / 180}
             value={launch.launchRodDirectionDeg ?? 90}
             onChange={(v) => onChange({ launchRodDirectionDeg: v ?? 0 })}
           />
@@ -133,10 +190,12 @@ export function LaunchPanel({
       </Group>
 
       <Group title={t('launch.site')}>
-        <Num
+        <QNum
           label={t('launch.altitude')}
-          unit="m"
-          step={10}
+          field="altitude"
+          kind="distance"
+          u={u}
+          stepSi={10}
           value={launch.launchAltitudeM}
           onChange={(v) => onChange({ launchAltitudeM: v ?? 0 })}
         />
@@ -179,18 +238,22 @@ export function LaunchPanel({
       </Group>
 
       <Group title={t('launch.atmosphere')}>
-        <Num
+        <QNum
           label={t('launch.temperature')}
-          unit="°C"
-          step={1}
+          field="temperature"
+          kind="degC"
+          u={u}
+          stepSi={1}
           placeholder={t('launch.isa')}
           value={launch.temperatureC}
           onChange={(v) => onChange({ temperatureC: v })}
         />
-        <Num
+        <QNum
           label={t('launch.pressure')}
-          unit="hPa"
-          step={1}
+          field="pressure"
+          kind="hPa"
+          u={u}
+          stepSi={100}
           placeholder={t('launch.isa')}
           value={launch.pressureHPa}
           onChange={(v) => onChange({ pressureHPa: v })}
@@ -213,26 +276,32 @@ export function LaunchPanel({
 
         {!multilevel ? (
           <>
-            <Num
+            <QNum
               label={t('launch.speed')}
-              unit="m/s"
-              step={0.5}
-              min={0}
+              field="speed"
+              kind="windspeed"
+              u={u}
+              stepSi={0.5}
+              minSi={0}
               value={launch.windAverage}
               onChange={(v) => onChange({ windAverage: v ?? 0 })}
             />
-            <Num
+            <QNum
               label={t('launch.direction')}
-              unit="°"
-              step={5}
+              field="direction"
+              kind="deg"
+              u={u}
+              stepSi={(5 * Math.PI) / 180}
               value={launch.windDirectionDeg ?? 90}
               onChange={(v) => onChange({ windDirectionDeg: v ?? 0 })}
             />
-            <Num
+            <QNum
               label={t('launch.gusts')}
-              unit="m/s"
-              step={0.5}
-              min={0}
+              field="gusts"
+              kind="windspeed"
+              u={u}
+              stepSi={0.5}
+              minSi={0}
               value={launch.windStdDev}
               onChange={(v) => onChange({ windStdDev: v ?? 0 })}
             />
@@ -240,36 +309,38 @@ export function LaunchPanel({
         ) : (
           <div className="space-y-2">
             <div className="flex gap-1 px-1 text-[10px] uppercase tracking-wide text-slate-500">
-              <span className="w-16">Alt m</span>
-              <span className="w-14">m/s</span>
-              <span className="w-12">dir°</span>
-              <span className="w-12">gust</span>
+              <span className="w-16">{u.sym('distance')}</span>
+              <span className="w-14">{u.sym('windspeed')}</span>
+              <span className="w-12">{u.sym('angle')}</span>
+              <span className="w-12">{t('launch.gusts')}</span>
               <span className="w-6" />
             </div>
             {levels.map((l, i) => (
               <div key={i} className="flex items-center gap-1">
                 <NumberInput
-                  step={50}
-                  value={l.altitudeM}
-                  onChange={(v) => patchLevel(i, { altitudeM: v ?? 0 })}
+                  step={u.step('distance', 50)}
+                  value={u.toUi('distance', l.altitudeM)}
+                  onChange={(v) => patchLevel(i, { altitudeM: u.fromUi('distance', v ?? 0) })}
                   className="w-16 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10"
                 />
                 <NumberInput
-                  step={0.5}
-                  value={l.speed}
-                  onChange={(v) => patchLevel(i, { speed: v ?? 0 })}
+                  step={u.step('windspeed', 0.5)}
+                  value={u.toUi('windspeed', l.speed)}
+                  onChange={(v) => patchLevel(i, { speed: u.fromUi('windspeed', v ?? 0) })}
                   className="w-14 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10"
                 />
                 <NumberInput
-                  step={5}
-                  value={l.directionDeg}
-                  onChange={(v) => patchLevel(i, { directionDeg: v ?? 0 })}
+                  step={u.step('angle', (5 * Math.PI) / 180)}
+                  value={u.toUi('angle', (l.directionDeg * Math.PI) / 180)}
+                  onChange={(v) =>
+                    patchLevel(i, { directionDeg: (u.fromUi('angle', v ?? 0) * 180) / Math.PI })
+                  }
                   className="w-12 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10"
                 />
                 <NumberInput
-                  step={0.5}
-                  value={l.stddev}
-                  onChange={(v) => patchLevel(i, { stddev: v ?? 0 })}
+                  step={u.step('windspeed', 0.5)}
+                  value={u.toUi('windspeed', l.stddev)}
+                  onChange={(v) => patchLevel(i, { stddev: u.fromUi('windspeed', v ?? 0) })}
                   className="w-12 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10"
                 />
                 <button

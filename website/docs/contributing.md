@@ -67,7 +67,7 @@ npm install
 npm run dev          # dev server with hot reload — prints a local URL
 npm run build        # typecheck (tsc) + production build — must pass before a PR
 npm run preview      # serve the production build locally
-npm run test         # Vitest unit tests (engine services: parsers, transforms, stores)
+npm run test         # Vitest: unit tests (.test.ts) and component tests (.test.tsx)
 npm run test:watch   # Vitest in watch mode while developing
 npm run e2e          # Playwright end-to-end smoke tests (downloads Chromium the first time)
 ```
@@ -133,7 +133,19 @@ Open a PR from your branch to **`master`**. In the description:
 2. The underlying cause.
 3. How you fixed it.
 
-Make sure `npm run build` and `npm run test` pass, and that you've checked the change in the browser. Add or update unit tests for any logic you touch under `web/src/services` or `web/src/engine`. Keep engine `.mjs`/`.wasm` regenerations in the same PR as their Java changes.
+Make sure `npm run build` and `npm run test` pass, and that you've checked the change in the browser. Add or update tests for any logic you touch under `web/src/services` or `web/src/engine`. Keep engine `.mjs`/`.wasm` regenerations in the same PR as their Java changes.
+
+### Which kind of test
+
+| | For | Example |
+| --- | --- | --- |
+| **`.test.ts`** (Vitest, node) | Pure logic: parsers, transforms, conversions, stores. Most tests are these. | `prefs/units.test.ts` |
+| **`.test.tsx`** (Vitest + React Testing Library, jsdom) | A rule that lives in a component and has no service to test instead. | `components/common/UnitChip.test.tsx` |
+| **`e2e/*.spec.ts`** (Playwright) | Whole journeys, and anything needing the real engine, layout or persistence across a reload. | `e2e/units.spec.ts` |
+
+Component tests render through `src/testing/renderWithProviders.tsx`, which wraps the component in the app's providers and initialises real translations — so assertions read the strings a user actually sees, and a renamed i18n key fails a test instead of showing a raw key on screen. Seed preferences with `seedSettings({ … })` before rendering and read back what a component wrote with `readSettings()`.
+
+**Prefer a `.test.ts`.** If logic is hard to reach without rendering, that is usually a sign it should move into a module of its own — as the launch-condition unit bridge did (`prefs/launchUnits.ts`), which had been unreachable inside a `.tsx` and therefore untested.
 
 ## Maintainer tasks
 

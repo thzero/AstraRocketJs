@@ -176,6 +176,33 @@ Two things stay on localStorage deliberately:
 
 Small UI preferences (dashboard columns, picker filters) also stay on localStorage — they are tiny, and a synchronous read keeps the first paint correct.
 
+## Units
+
+The engine, the component tree and every saved file are **pure SI / radians**. Units are a display-and-entry concern that lives only at the UI edge — a unit that leaks inward is how upstream OpenRocket got bugs like #2475, and `.ork` round-trips have to stay byte-stable.
+
+- **`web/src/prefs/units.ts`** — the unit groups (mirroring the desktop's `UnitGroup`), their SI factors, and the pure conversion functions. The convention matches the desktop: `si = (ui + offset) * toSI`, with `offset` used only by temperature. `siToUiDelta` converts a *difference* rather than a reading, so a 1 K spinner step is 1 °C and not −272.15.
+- **`web/src/prefs/useUnits.ts`** — the React hook everything that puts a number on screen goes through: `sym / toUi / fromUi / fmt / step / factor` for the preference-level units, plus `at(scope, quantity)` for one field's own. `at` is a plain function rather than its own hook because fields are rendered in loops. `fmt` is locale-aware (it routes through `i18n/format`); `units.ts`'s own `fmtSi` stays plain ASCII for export code, which runs outside React and must not depend on the active language.
+- **`web/src/components/common/UnitChip.tsx`** — the unit printed beside a value, as a picker for that field.
+
+Two layers, both persisted in `settings.ts`, resolved by `unitFor(units, unitOverrides, quantity, scope)`:
+
+| field | keyed by | written by | reach |
+| --- | --- | --- | --- |
+| `units` | quantity | the Units tab only | everything without an override of its own |
+| `unitOverrides` | field (`unitScope(…)`) | `UnitChip` only | that one field |
+
+**A chip changes its own field and stops there** — the owner's call (2026-09-13): re-basing every length in the app is too big an effect to hang off a small control next to one number. Component fields are scoped by component TYPE, not per instance, so selecting another body tube does not forget the unit just set on that card.
+
+Stored symbols are validated at READ time, in `unitFor`, against the quantity the field turns out to be. A scope key does not name its quantity, so an `in` left behind on a field that is now a mass would otherwise reach `unitDef` and quietly become grams.
+
+Three rules keep the two layers from getting stuck: picking the preference back from a chip **removes** the override rather than storing a matching one (so the field resumes following the preference); the Metric / Imperial presets **clear every override**, or they would leave stranded fields on top of the preset; and the Units tab surfaces a **Reset N fields** button whenever any exist, since a per-field choice is otherwise hard to find again.
+
+Orphaned keys are **not** pruned. A scope only exists while its field renders, so nothing can enumerate the live set at load time, and a renamed field key simply leaves an entry nothing reads (`unitFor` falls back for it). That is a deliberate non-feature: the map tops out in the low tens of entries at a few dozen bytes each, so a reaper would cost more code than the bytes it reclaims. `PropertyPanel.scopes.test.ts` guards the failure that would actually matter — two fields of one component type colliding on a key, which would silently make them share a unit.
+
+Exports deliberately do NOT see the per-field layer — a document half in inches and half in centimetres because of where someone clicked is not one anyone wants. The report dialog picks `current` (the preferences), `metric` or `imperial` through `resolveUnitChoice`.
+
+Values stored in a non-SI convention convert at their own boundary and nowhere else — `LaunchConditions` (degrees, °C, hPa) in `LaunchPanel`, and the motor catalog (mm, g) in the motor components.
+
 ## Attribution & license
 
 The engine derives from the OpenRocket core (a post-24.12 development build), and the opt-in supersonic-aero (RASAero) extensions are the original work of the mmrocket-sim project. Full credits and license lineage: [`engine-java/ATTRIBUTION.md`](https://github.com/thzero/AstraRocketJs/blob/HEAD/engine-java/ATTRIBUTION.md) (and `docs/rasaero/` for the extensions' physics + diffs).

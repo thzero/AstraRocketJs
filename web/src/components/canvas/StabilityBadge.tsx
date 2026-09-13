@@ -3,6 +3,9 @@ import { fmtNum } from '../../i18n/format';
 import type { StaticInfo } from '../../engine/api';
 import { stabilityTone, stabilityVerdictKey } from '../../services/simReport';
 import { Stat } from '../common/Stat';
+import { UnitChip } from '../common/UnitChip';
+import { useUnits } from '../../prefs/useUnits';
+import { unitScope } from '../../prefs/units';
 
 /**
  * "All stats" strip under the canvas (mmrocket-style): length, max diameter,
@@ -26,6 +29,15 @@ export function StabilityBadge({
   onToggle: () => void;
 }) {
   const { t } = useTranslation();
+  const u = useUnits();
+  // Each tile carries its own unit, so reading CP in inches does not drag the
+  // length tile, the tree and the rulers along with it.
+  const lengthTile = u.at(unitScope('stats', 'length'), 'length');
+  const diameterTile = u.at(unitScope('stats', 'maxDiameter'), 'length');
+  const massTile = u.at(unitScope('stats', 'mass'), 'mass');
+  const recoveryTile = u.at(unitScope('stats', 'recoveryWeight'), 'mass');
+  const cgTile = u.at(unitScope('stats', 'cg'), 'length');
+  const cpTile = u.at(unitScope('stats', 'cp'), 'length');
   if (!info) return null;
   const cal = info.stabilityCalibers;
   const pct = info.length > 0 ? ((info.cp - info.cg) / info.length) * 100 : 0;
@@ -50,7 +62,7 @@ export function StabilityBadge({
             still leaves the essentials (overall length + on-pad stability). */}
         {!expanded && (
           <span className="ml-auto truncate text-[11px] tabular-nums text-slate-400">
-            {fmtNum(info.length * 1000, 0)} mm ·{' '}
+            {lengthTile.fmt(info.length)} {lengthTile.sym} ·{' '}
             <span className={stabilityTone(cal)}>
               {fmtNum(cal, 2)} {t('stability.caliber')}
             </span>
@@ -62,29 +74,58 @@ export function StabilityBadge({
            parent), not the browser window — so the side panels don't throw the
            count off. <576px → 2, 576–1151 → 3, ≥1152 → 6. */
         <div className="mt-2 grid grid-cols-2 gap-2 @xl:grid-cols-3 @6xl:grid-cols-6">
-          <Stat card label={t('stats.length')} value={fmtNum(info.length * 1000, 0)} sub="mm" />
-          <Stat card label={t('stats.maxDiameter')} value={fmtNum(info.refDiameter * 1000, 0)} sub="mm" />
+          <Stat
+            card
+            label={t('stats.length')}
+            value={lengthTile.fmt(info.length)}
+            sub={<UnitChip quantity="length" scope={unitScope('stats', 'length')} />}
+          />
+          <Stat
+            card
+            label={t('stats.maxDiameter')}
+            value={diameterTile.fmt(info.refDiameter)}
+            sub={<UnitChip quantity="length" scope={unitScope('stats', 'maxDiameter')} />}
+          />
           <Stat
             card
             label={t('stability.mass')}
-            value={`${fmtNum(info.massEmpty * 1000, 0)} / ${fmtNum(info.mass * 1000, 0)}`}
-            sub={`g · ${t('stats.emptyLoaded')}`}
+            value={`${massTile.fmt(info.massEmpty)} / ${massTile.fmt(info.mass)}`}
+            sub={
+              <>
+                <UnitChip quantity="mass" scope={unitScope('stats', 'mass')} /> · {t('stats.emptyLoaded')}
+              </>
+            }
           />
           {/* Descent mass — loaded minus the propellant that burns off. Needs a
               motor loaded to have propellant to subtract. Sits next to Mass. */}
           <Stat
             card
             label={t('stats.recoveryWeight')}
-            value={recoveryWeight != null ? fmtNum(recoveryWeight * 1000, 0) : '—'}
-            sub={recoveryWeight != null ? 'g' : t('stats.needsMotor')}
+            value={recoveryWeight != null ? recoveryTile.fmt(recoveryWeight) : '—'}
+            sub={
+              recoveryWeight != null ? (
+                <UnitChip quantity="mass" scope={unitScope('stats', 'recoveryWeight')} />
+              ) : (
+                t('stats.needsMotor')
+              )
+            }
           />
           <Stat
             card
             label={t('stability.cg')}
-            value={`${fmtNum(info.cgEmpty * 100, 1)} / ${fmtNum(info.cg * 100, 1)}`}
-            sub={`cm · ${t('stats.emptyLoaded')}`}
+            value={`${cgTile.fmt(info.cgEmpty)} / ${cgTile.fmt(info.cg)}`}
+            sub={
+              <>
+                <UnitChip quantity="length" scope={unitScope('stats', 'cg')} /> · {t('stats.emptyLoaded')}
+              </>
+            }
           />
-          <Stat card label={t('stability.cp')} value={fmtNum(info.cp * 100, 1)} sub="cm" />
+          <Stat
+            card
+            label={t('stability.cp')}
+            value={cpTile.fmt(info.cp)}
+            sub={<UnitChip quantity="length" scope={unitScope('stats', 'cp')} />}
+          />
           <Stat
             card
             label={t('stats.fineness')}

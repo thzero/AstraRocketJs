@@ -11,6 +11,9 @@ import {
 import { STD_DIAMS, MAX_IDX } from '../../services/motorPicker';
 import { combineCurves, impulseClass, type Sample } from '../../services/motorCombine';
 import { fmtNum } from '../../i18n/format';
+import type { TFunction } from 'i18next';
+import { useUnits, type Units } from '../../prefs/useUnits';
+import type { Quantity } from '../../prefs/units';
 import { useFocusTrap } from '../common/useFocusTrap';
 import { CatalogLoading, CatalogError } from '../common/CatalogLoading';
 import { MotorDetail, Stat } from './MotorDetail';
@@ -52,9 +55,25 @@ interface Col {
   label: string; // i18n suffix under `dash.*`
   align: 'left' | 'center' | 'right';
   always?: boolean;
-  cell: (m: CatalogMotor) => string;
+  cell: (m: CatalogMotor, u: Units) => string;
   sortVal?: (m: CatalogMotor) => number | string; // omit → not sortable
+  /**
+   * Preference group for the column's unit. The header appends its symbol, so
+   * the labels stay unitless; a column with a FIXED unit (seconds, a percent)
+   * keeps it in the label instead. `siScale` lifts the catalog's own units
+   * (mm / g — see CatalogMotor) to SI first.
+   */
+  quantity?: Quantity;
+  siScale?: number;
 }
+
+/** Column heading: the unitless label, plus the unit the column is shown in. */
+const heading = (c: Col, t: TFunction, u: Units): string =>
+  c.quantity ? `${t(`dash.${c.label}`)} ${u.sym(c.quantity)}` : t(`dash.${c.label}`);
+
+/** A catalog value in the user's unit — the catalog's mm/g lifted to SI first. */
+const cell = (u: Units, q: Quantity, v: number | undefined, siScale: number, d: number): string =>
+  v != null && Number.isFinite(v) ? u.fmt(q, v * siScale, d) : '—';
 
 // Every column the grid can show. `always` = the anchor (Motor), never hidden.
 const COLUMNS: Col[] = [
@@ -68,24 +87,62 @@ const COLUMNS: Col[] = [
   },
   { id: 'manufacturer', label: 'colMfr', align: 'left', cell: (m) => m.manufacturer, sortVal: (m) => m.manufacturer },
   { id: 'class', label: 'colClass', align: 'center', cell: (m) => m.class, sortVal: (m) => m.class },
-  { id: 'diameter', label: 'colDia', align: 'right', cell: (m) => String(m.diameter), sortVal: (m) => m.diameter },
+  {
+    id: 'diameter',
+    label: 'colDia',
+    align: 'right',
+    quantity: 'motorDimensions',
+    siScale: 0.001,
+    cell: (m, u) => cell(u, 'motorDimensions', m.diameter, 0.001, 0),
+    sortVal: (m) => m.diameter,
+  },
   {
     id: 'impulse',
     label: 'colImpulse',
     align: 'right',
-    cell: (m) => fmtNum(m.impulse, m.impulse < 10 ? 1 : 0),
+    quantity: 'impulse',
+    cell: (m, u) => u.fmt('impulse', m.impulse, m.impulse < 10 ? 1 : 0),
     sortVal: (m) => m.impulse,
   },
-  { id: 'avg', label: 'colAvg', align: 'right', cell: (m) => fmtCell(avgOf(m), 0), sortVal: (m) => avgOf(m) },
-  { id: 'peak', label: 'colPeak', align: 'right', cell: (m) => fmtCell(m.maxThrust, 0), sortVal: (m) => m.maxThrust ?? 0 },
+  {
+    id: 'avg',
+    label: 'colAvg',
+    align: 'right',
+    quantity: 'force',
+    cell: (m, u) => cell(u, 'force', avgOf(m), 1, 0),
+    sortVal: (m) => avgOf(m),
+  },
+  {
+    id: 'peak',
+    label: 'colPeak',
+    align: 'right',
+    quantity: 'force',
+    cell: (m, u) => cell(u, 'force', m.maxThrust, 1, 0),
+    sortVal: (m) => m.maxThrust ?? 0,
+  },
   { id: 'burn', label: 'colBurn', align: 'right', cell: (m) => fmtNum(m.burn, 1), sortVal: (m) => m.burn },
-  { id: 'length', label: 'colLength', align: 'right', cell: (m) => fmtCell(m.length, 0), sortVal: (m) => m.length ?? 0 },
-  { id: 'mass', label: 'colMass', align: 'right', cell: (m) => fmtCell(m.mass, 0), sortVal: (m) => m.mass ?? 0 },
+  {
+    id: 'length',
+    label: 'colLength',
+    align: 'right',
+    quantity: 'motorDimensions',
+    cell: (m, u) => cell(u, 'motorDimensions', m.length, 0.001, 0),
+    sortVal: (m) => m.length ?? 0,
+  },
+  {
+    id: 'mass',
+    label: 'colMass',
+    align: 'right',
+    quantity: 'mass',
+    cell: (m, u) => cell(u, 'mass', m.mass, 0.001, 0),
+    sortVal: (m) => m.mass ?? 0,
+  },
   {
     id: 'prop',
     label: 'colProp',
     align: 'right',
-    cell: (m) => fmtCell(m.propWeightG, 0),
+    quantity: 'mass',
+    cell: (m, u) => cell(u, 'mass', m.propWeightG, 0.001, 0),
     sortVal: (m) => m.propWeightG ?? 0,
   },
   { id: 'delays', label: 'colDelays', align: 'center', cell: (m) => m.delays ?? '—' },
@@ -152,6 +209,7 @@ type Mode = 'detail' | 'combine' | 'compare';
  */
 export function MotorDashboard({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation();
+  const u = useUnits();
   const [catalog, setCatalog] = useState<CatalogMotor[]>([]);
   const [text, setText] = useState('');
   const [cls, setCls] = useState<string | null>(null);
@@ -428,11 +486,11 @@ export function MotorDashboard({ open, onClose }: { open: boolean; onClose: () =
                             onClick={() => clickHeader(c.id)}
                             className={`inline-flex items-center gap-0.5 hover:text-slate-300 ${sort?.id === c.id ? 'text-sky-400' : ''}`}
                           >
-                            {t(`dash.${c.label}`)}
+                            {heading(c, t, u)}
                             {sort?.id === c.id && <span aria-hidden>{sort.dir === 1 ? '▲' : '▼'}</span>}
                           </button>
                         ) : (
-                          t(`dash.${c.label}`)
+                          heading(c, t, u)
                         )}
                       </th>
                     ))}
@@ -484,7 +542,7 @@ export function MotorDashboard({ open, onClose }: { open: boolean; onClose: () =
                             className={`px-2 py-1.5 ${ALIGN[c.align]} ${c.always ? 'font-medium text-slate-100' : 'text-slate-300'}`}
                           >
                             {c.always && m.custom && <span className="mr-1 text-amber-400">★</span>}
-                            {c.cell(m)}
+                            {c.cell(m, u)}
                             {c.always && !hasCurve(m) && (
                               <span className="ml-1.5 rounded bg-slate-700 px-1 py-0.5 text-[9px] font-normal uppercase tracking-wide text-slate-400">
                                 {t('dash.noCurve')}
@@ -643,6 +701,7 @@ function CombineChart({
   series: { m: CatalogMotor; color: string; pts: Sample[] }[];
 }) {
   const { t } = useTranslation();
+  const u = useUnits();
   const usable = series.filter((s) => s.pts.length >= 2);
   const dims = { width: 560, height: 220, padL: 40, padR: 12, padT: 12, padB: 24 };
   const { width: W, height: H } = dims;
@@ -662,7 +721,7 @@ function CombineChart({
             <stop offset="100%" stopColor="#f97316" stopOpacity="0.03" />
           </linearGradient>
         </defs>
-        <ChartAxes dims={dims} tMax={tMax} fMax={fMax} X={X} Y={Y} />
+        <ChartAxes dims={dims} tMax={tMax} fMax={fMax} X={X} Y={Y} fScale={u.factor('force')} />
         <path d={area} fill="url(#combFill)" />
         {usable.map((s) => {
           const peak = s.pts.reduce((a, b) => (b[1] > a[1] ? b : a));
@@ -711,6 +770,7 @@ function CombineChart({
  *  columns. */
 function ComparePane({ motors, cols }: { motors: CatalogMotor[]; cols: Col[] }) {
   const { t } = useTranslation();
+  const u = useUnits();
   // Assign a colour only to motors that actually have a curve (in order), so the
   // chart, legend and table dots agree — and a curveless motor gets none.
   const colorFor = new Map<string, string>();
@@ -741,7 +801,7 @@ function ComparePane({ motors, cols }: { motors: CatalogMotor[]; cols: Col[] }) 
       {series.length >= 1 ? (
         <>
           <svg viewBox={`0 0 ${W} ${H}`} width="100%" className="mt-2 block max-w-xl">
-            <ChartAxes dims={dims} tMax={tMax} fMax={fMax} X={X} Y={Y} />
+            <ChartAxes dims={dims} tMax={tMax} fMax={fMax} X={X} Y={Y} fScale={u.factor('force')} />
             {series.map((s) => {
               const d = linePath(s.pts, X, Y);
               const peak = s.pts.reduce((a, b) => (b[1] > a[1] ? b : a));
@@ -786,7 +846,7 @@ function ComparePane({ motors, cols }: { motors: CatalogMotor[]; cols: Col[] }) 
               <th className="px-2 py-1 text-left font-semibold">{t('dash.colMotor')}</th>
               {specCols.map((c) => (
                 <th key={c.id} className={`px-2 py-1 font-semibold ${ALIGN[c.align]}`}>
-                  {t(`dash.${c.label}`)}
+                  {heading(c, t, u)}
                 </th>
               ))}
             </tr>
@@ -806,7 +866,7 @@ function ComparePane({ motors, cols }: { motors: CatalogMotor[]; cols: Col[] }) 
                 </td>
                 {specCols.map((c) => (
                   <td key={c.id} className={`px-2 py-1 text-slate-300 ${ALIGN[c.align]}`}>
-                    {c.cell(m)}
+                    {c.cell(m, u)}
                   </td>
                 ))}
               </tr>

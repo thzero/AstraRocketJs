@@ -177,6 +177,33 @@ Dos cosas se quedan en localStorage a propósito:
 
 Las preferencias pequeñas de interfaz (columnas del panel, filtros del selector) también se quedan en localStorage: son diminutas, y una lectura síncrona mantiene correcto el primer pintado.
 
+## Unidades {#units}
+
+El motor de física, el árbol de componentes y todos los archivos guardados están en **SI puro / radianes**. Las unidades son un asunto de visualización y entrada que vive únicamente en el borde de la interfaz: una unidad que se filtra hacia dentro es el origen de errores como el #2475 de OpenRocket, y los viajes de ida y vuelta de `.ork` deben seguir siendo idénticos byte a byte.
+
+- **`web/src/prefs/units.ts`** — los grupos de unidades (que reflejan el `UnitGroup` del escritorio), sus factores SI y las funciones de conversión puras. La convención coincide con la del escritorio: `si = (ui + offset) * toSI`, donde `offset` solo lo usa la temperatura. `siToUiDelta` convierte una *diferencia* en lugar de una lectura, de modo que un paso de 1 K es 1 °C y no −272,15.
+- **`web/src/prefs/useUnits.ts`** — el hook de React por el que pasa todo lo que pone un número en pantalla: `sym / toUi / fromUi / fmt / step / factor` para las unidades de las preferencias, más `at(scope, quantity)` para la unidad propia de un campo. `at` es una función normal y no otro hook porque los campos se renderizan en bucles. `fmt` respeta la configuración regional (pasa por `i18n/format`); el `fmtSi` del propio `units.ts` se queda en ASCII simple para el código de exportación, que se ejecuta fuera de React y no debe depender del idioma activo.
+- **`web/src/components/common/UnitChip.tsx`** — la unidad impresa junto a un valor, como selector de ese campo.
+
+Dos capas, ambas persistidas en `settings.ts` y resueltas por `unitFor(units, unitOverrides, quantity, scope)`:
+
+| campo | indexado por | lo escribe | alcance |
+| --- | --- | --- | --- |
+| `units` | magnitud | solo la pestaña Unidades | todo lo que no tenga una anulación propia |
+| `unitOverrides` | campo (`unitScope(…)`) | solo `UnitChip` | ese único campo |
+
+**Un selector cambia su propio campo y ahí se detiene**, decisión del propietario (2026-09-13): rebasar todas las longitudes de la aplicación es un efecto demasiado grande para colgarlo de un control pequeño junto a un número. Los campos de componente se indexan por TIPO de componente, no por instancia, así que seleccionar otro tubo no olvida la unidad recién puesta en esa ficha.
+
+Los símbolos guardados se validan al LEER, en `unitFor`, contra la magnitud que resulta tener el campo. Una clave de ámbito no nombra su magnitud, así que un `in` que quedara en un campo que ahora es una masa llegaría a `unitDef` y se convertiría calladamente en gramos.
+
+Tres reglas impiden que las dos capas se atasquen: volver a elegir la preferencia desde un selector **elimina** la anulación en vez de guardar una que coincide (así el campo vuelve a seguir la preferencia); los preajustes métrico / imperial **borran todas las anulaciones**, o dejarían campos varados encima del preajuste; y la pestaña Unidades muestra un botón **Restablecer N campos** siempre que exista alguna, ya que una elección por campo es difícil de reencontrar.
+
+Las claves huérfanas **no** se eliminan. Un ámbito solo existe mientras su campo se renderiza, así que nada puede enumerar el conjunto vivo al cargar, y renombrar la clave de un campo simplemente deja una entrada que nadie lee (`unitFor` recurre al valor por defecto). Es una no-funcionalidad deliberada: el mapa se queda en unas pocas decenas de entradas de unos pocos bytes cada una, así que un recolector costaría más código que los bytes que recuperaría. `PropertyPanel.scopes.test.ts` protege el fallo que sí importaría: dos campos de un mismo tipo de componente chocando en una clave, lo que en silencio les haría compartir unidad.
+
+Las exportaciones deliberadamente NO ven la capa por campo: un documento mitad en pulgadas y mitad en centímetros según dónde haya hecho clic alguien no le sirve a nadie. El diálogo del informe elige `current` (las preferencias), `metric` o `imperial` mediante `resolveUnitChoice`.
+
+Los valores guardados en una convención que no es SI convierten en su propia frontera y en ningún otro sitio: `LaunchConditions` (grados, °C, hPa) en `LaunchPanel`, y el catálogo de motores (mm, g) en los componentes de motor.
+
 ## Atribución y licencia {#attribution--license}
 
 El motor deriva del núcleo de OpenRocket (una compilación de desarrollo posterior a la 24.12), y las extensiones opcionales de aerodinámica supersónica (RASAero) son obra original del proyecto mmrocket-sim. Créditos completos y linaje de licencias: [`engine-java/ATTRIBUTION.md`](https://github.com/thzero/AstraRocketJs/blob/HEAD/engine-java/ATTRIBUTION.md) (y `docs/rasaero/` para la física y los diffs de las extensiones).

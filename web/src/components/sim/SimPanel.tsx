@@ -1,5 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
+import { UnitChip } from '../common/UnitChip';
+import { useUnits } from '../../prefs/useUnits';
+import { unitScope } from '../../prefs/units';
 import type { StaticInfo, FlightResult } from '../../engine/api';
 import { lerpAt } from '../../services/interpolate';
 import { stabilityTone } from '../../services/simReport';
@@ -36,6 +39,17 @@ export function SimPanel({
   blockReason?: string | null;
 }) {
   const { t } = useTranslation();
+  const u = useUnits();
+  // Each result tile owns its unit: reading apogee in feet should not drag
+  // landing speed, downrange and the rest along with it.
+  const rodExit = u.at(unitScope('sim', 'rodExit'), 'velocity');
+  const railCpUnit = u.at(unitScope('sim', 'railCp'), 'length');
+  const apogee = u.at(unitScope('sim', 'apogee'), 'distance');
+  const deployVel = u.at(unitScope('sim', 'deployVelocity'), 'velocity');
+  const landingVel = u.at(unitScope('sim', 'landing'), 'velocity');
+  const downrangeUnit = u.at(unitScope('sim', 'downrange'), 'distance');
+  const maxAccel = u.at(unitScope('sim', 'maxAccel'), 'acceleration');
+  const maxSpeed = u.at(unitScope('sim', 'maxSpeed'), 'velocity');
   const { settings } = useSettings();
   const { deploymentSpeedWarn, railExitVelocityMin } = settings.simulation;
   const s = sim?.summary;
@@ -74,8 +88,10 @@ export function SimPanel({
           {/* Chronological: liftoff → boost → apogee → recovery → landing, then peaks. */}
           <Stat
             label={t('sim.rodExit')}
-            value={fmtNum(s.launchRodVelocity, 1)}
-            sub="m/s"
+            value={rodExit.fmt(s.launchRodVelocity, 1)}
+            sub={<UnitChip quantity="velocity" scope={unitScope('sim', 'rodExit')} />}
+            // The threshold is stored in SI, so the comparison stays in SI —
+            // only the number on screen changes unit.
             tone={s.launchRodVelocity >= railExitVelocityMin ? goodTone : warnTone}
           />
           {railMargin != null && (
@@ -83,31 +99,59 @@ export function SimPanel({
               label={t('sim.railMargin')}
               value={fmtNum(railMargin, 2)}
               sub={
-                railCp != null ? `${t('stability.caliber')} · CP ${fmtNum(railCp * 100, 1)} cm` : t('stability.caliber')
+                railCp != null ? (
+                  <>
+                    {t('stability.caliber')} · CP {railCpUnit.fmt(railCp)}{' '}
+                    <UnitChip quantity="length" scope={unitScope('sim', 'railCp')} />
+                  </>
+                ) : (
+                  t('stability.caliber')
+                )
               }
               tone={stabilityTone(railMargin)}
             />
           )}
           {s.optimumDelay != null && <Stat label={t('sim.optDelay')} value={fmtNum(s.optimumDelay, 1)} sub="s" />}
           <Stat label={t('sim.toApogee')} value={fmtNum(s.timeToApogee, 1)} sub="s" />
-          <Stat label={t('sim.apogee')} value={fmtNum(s.maxAltitude, 0)} sub="m" tone="text-sky-400" />
+          <Stat
+            label={t('sim.apogee')}
+            value={apogee.fmt(s.maxAltitude)}
+            sub={<UnitChip quantity="distance" scope={unitScope('sim', 'apogee')} />}
+            tone="text-sky-400"
+          />
           {s.deploymentVelocity != null && (
             <Stat
               label={t('sim.deployVelocity')}
-              value={fmtNum(s.deploymentVelocity, 1)}
-              sub="m/s"
+              value={deployVel.fmt(s.deploymentVelocity, 1)}
+              sub={<UnitChip quantity="velocity" scope={unitScope('sim', 'deployVelocity')} />}
               tone={s.deploymentVelocity < deploymentSpeedWarn ? goodTone : warnTone}
             />
           )}
           {Number.isFinite(s.groundHitVelocity) && (
-            <Stat label={t('sim.landing')} value={fmtNum(s.groundHitVelocity, 1)} sub="m/s" />
+            <Stat
+              label={t('sim.landing')}
+              value={landingVel.fmt(s.groundHitVelocity, 1)}
+              sub={<UnitChip quantity="velocity" scope={unitScope('sim', 'landing')} />}
+            />
           )}
           <Stat label={t('sim.flightTime')} value={fmtNum(s.flightTime, 1)} sub="s" />
           {Number.isFinite(s.groundHitVelocity) && downrange != null && (
-            <Stat label={t('sim.downrange')} value={fmtNum(downrange, 0)} sub="m" />
+            <Stat
+              label={t('sim.downrange')}
+              value={downrangeUnit.fmt(downrange)}
+              sub={<UnitChip quantity="distance" scope={unitScope('sim', 'downrange')} />}
+            />
           )}
-          <Stat label={t('sim.maxAccel')} value={fmtNum(s.maxAcceleration, 0)} sub="m/s²" />
-          <Stat label={t('sim.maxSpeed')} value={fmtNum(s.maxVelocity, 0)} sub="m/s" />
+          <Stat
+            label={t('sim.maxAccel')}
+            value={maxAccel.fmt(s.maxAcceleration, 0)}
+            sub={<UnitChip quantity="acceleration" scope={unitScope('sim', 'maxAccel')} />}
+          />
+          <Stat
+            label={t('sim.maxSpeed')}
+            value={maxSpeed.fmt(s.maxVelocity, 0)}
+            sub={<UnitChip quantity="velocity" scope={unitScope('sim', 'maxSpeed')} />}
+          />
           <Stat label={t('sim.maxMach')} value={fmtNum(s.maxMachNumber, 2)} sub="Mach" />
         </div>
       )}

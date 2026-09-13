@@ -67,7 +67,7 @@ npm install
 npm run dev          # servidor de desarrollo con recarga en caliente — imprime una URL local
 npm run build        # comprobación de tipos (tsc) + compilación de producción — debe pasar antes de un PR
 npm run preview      # sirve la compilación de producción en local
-npm run test         # pruebas unitarias con Vitest (servicios del motor: analizadores, transformaciones, almacenes)
+npm run test         # Vitest: pruebas unitarias (.test.ts) y de componentes (.test.tsx)
 npm run test:watch   # Vitest en modo observación mientras desarrollas
 npm run e2e          # pruebas de humo de extremo a extremo con Playwright (descarga Chromium la primera vez)
 ```
@@ -133,7 +133,19 @@ Abre un PR desde tu rama hacia **`master`**. En la descripción:
 2. La causa de fondo.
 3. Cómo lo has arreglado.
 
-Asegúrate de que `npm run build` y `npm run test` pasan, y de que has comprobado el cambio en el navegador. Añade o actualiza pruebas unitarias para cualquier lógica que toques bajo `web/src/services` o `web/src/engine`. Mantén las regeneraciones de `.mjs`/`.wasm` del motor en el mismo PR que sus cambios de Java.
+Asegúrate de que `npm run build` y `npm run test` pasan, y de que has comprobado el cambio en el navegador. Añade o actualiza pruebas para cualquier lógica que toques bajo `web/src/services` o `web/src/engine`. Mantén las regeneraciones de `.mjs`/`.wasm` del motor en el mismo PR que sus cambios de Java.
+
+### Qué tipo de prueba {#which-kind-of-test}
+
+| | Para | Ejemplo |
+| --- | --- | --- |
+| **`.test.ts`** (Vitest, node) | Lógica pura: analizadores, transformaciones, conversiones, almacenes. La mayoría son de este tipo. | `prefs/units.test.ts` |
+| **`.test.tsx`** (Vitest + React Testing Library, jsdom) | Una regla que vive en un componente y no tiene un servicio donde probarse. | `components/common/UnitChip.test.tsx` |
+| **`e2e/*.spec.ts`** (Playwright) | Recorridos completos, y todo lo que necesite el motor real, el diseño en pantalla o persistencia entre recargas. | `e2e/units.spec.ts` |
+
+Las pruebas de componentes se renderizan con `src/testing/renderWithProviders.tsx`, que envuelve el componente en los proveedores de la aplicación e inicializa las traducciones reales: así las comprobaciones usan los textos que ve una persona usuaria, y una clave i18n renombrada hace fallar una prueba en vez de mostrar la clave en crudo. Prepara las preferencias con `seedSettings({ … })` antes de renderizar y lee lo que el componente escribió con `readSettings()`.
+
+**Prefiere una `.test.ts`.** Si la lógica es difícil de alcanzar sin renderizar, suele ser señal de que debería mudarse a su propio módulo, como hizo el puente de unidades de las condiciones de lanzamiento (`prefs/launchUnits.ts`), que era inalcanzable dentro de un `.tsx` y por tanto no se probaba.
 
 ## Tareas de mantenimiento {#maintainer-tasks}
 

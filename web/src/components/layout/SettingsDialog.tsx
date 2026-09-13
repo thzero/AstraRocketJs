@@ -5,13 +5,16 @@ import { DEFAULT_SETTINGS, type SimulationSettings } from '../../services/settin
 import { PART_KEYS, mergePalette } from '../../services/partColors';
 import { useFocusTrap } from '../common/useFocusTrap';
 import { LaunchPanel } from '../sim/LaunchPanel';
+import { IMPERIAL_UNITS, METRIC_UNITS, QUANTITIES, UNITS } from '../../prefs/units';
+import { useUnits } from '../../prefs/useUnits';
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4];
 const speedLabel = (s: number) => (s === 0.25 ? '¼×' : s === 0.5 ? '½×' : `${s}×`);
 
-type TabKey = 'general' | 'colors' | 'playback' | 'sketch' | 'sim' | 'launch';
+type TabKey = 'general' | 'units' | 'colors' | 'playback' | 'sketch' | 'sim' | 'launch';
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'general', label: 'settings.tabGeneral' },
+  { key: 'units', label: 'settings.tabUnits' },
   { key: 'colors', label: 'settings.tabColors' },
   { key: 'playback', label: 'settings.tabPlayback' },
   { key: 'sketch', label: 'settings.tabSketch' },
@@ -26,6 +29,7 @@ const RULER_SIDES = ['top', 'bottom', 'left', 'right'] as const;
 export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation();
   const { settings, update, reset } = useSettings();
+  const u = useUnits();
   // The 3D part-colour section is a desktop-only concern (no 3D model on mobile);
   // the Colors tab still shows the flight-path phase colours there.
   const isDesktop = useIsDesktop();
@@ -52,9 +56,11 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
   const setPhase = (k: 'boost' | 'coast' | 'descent', c: string) =>
     update({ phaseColors: { ...settings.phaseColors, [k]: c } });
   const setSim = (patch: Partial<SimulationSettings>) => update({ simulation: { ...settings.simulation, ...patch } });
+  const overriddenFields = Object.keys(settings.unitOverrides).length;
 
   const resetSection = () => {
     if (tab === 'general') update({ saveDesignInfo: DEFAULT_SETTINGS.saveDesignInfo });
+    else if (tab === 'units') update({ units: DEFAULT_SETTINGS.units, unitOverrides: {} });
     else if (tab === 'colors') update({ partColors: {}, phaseColors: DEFAULT_SETTINGS.phaseColors });
     else if (tab === 'playback') update({ playbackSpeed: DEFAULT_SETTINGS.playbackSpeed });
     else if (tab === 'sketch')
@@ -150,6 +156,61 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
             </>
           )}
 
+          {tab === 'units' && (
+            <>
+              <p className="text-[11px] leading-snug text-slate-500">{t('settings.unitsNote')}</p>
+              {/* Whole-system presets first: most people want "imperial" and are
+                  done, and only then reach in to change one quantity. A preset
+                  is a clean slate, so it also drops every per-field override —
+                  otherwise "Imperial defaults" would leave a field a chip had
+                  touched still showing its old unit. */}
+              <div className="flex gap-2 pb-1">
+                <button
+                  onClick={() => update({ units: METRIC_UNITS, unitOverrides: {} })}
+                  className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+                >
+                  {t('settings.unitsMetric')}
+                </button>
+                <button
+                  onClick={() => update({ units: IMPERIAL_UNITS, unitOverrides: {} })}
+                  className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+                >
+                  {t('settings.unitsImperial')}
+                </button>
+              </div>
+              {QUANTITIES.map((q) => (
+                <label key={q} className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-slate-300">{t(`units.q.${q}`)}</span>
+                  <select
+                    aria-label={t(`units.q.${q}`)}
+                    value={settings.units[q]}
+                    onChange={(e) => update({ units: { ...settings.units, [q]: e.target.value } })}
+                    className="w-28 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+                  >
+                    {UNITS[q].map((u) => (
+                      <option key={u.symbol} value={u.symbol}>
+                        {u.symbol}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+              {/* A unit set from a chip lives on one field, which makes it easy
+                  to forget where it was: a field showing inches while this tab
+                  says cm looks like a bug unless you remember changing it. This
+                  is the one place that can say how many there are and undo them
+                  all — hidden when there are none, so it is never noise. */}
+              {overriddenFields > 0 && (
+                <button
+                  onClick={() => update({ unitOverrides: {} })}
+                  className="mt-1 w-full rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-amber-300 ring-1 ring-white/10 hover:bg-slate-700"
+                >
+                  {t('settings.unitsClearFields', { count: overriddenFields })}
+                </button>
+              )}
+            </>
+          )}
+
           {tab === 'playback' && (
             <label className="flex items-center justify-between gap-3">
               <span className="text-sm text-slate-300">{t('settings.defaultSpeed')}</span>
@@ -203,19 +264,29 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
               </div>
               <NumRow
                 label={t('settings.railExitMin')}
-                unit="m/s"
-                step={1}
+                unit={u.sym('velocity')}
+                step={u.step('velocity', 1)}
                 min={0}
-                value={settings.simulation.railExitVelocityMin}
-                onChange={(v) => setSim({ railExitVelocityMin: v ?? DEFAULT_SETTINGS.simulation.railExitVelocityMin })}
+                value={u.toUi('velocity', settings.simulation.railExitVelocityMin)}
+                onChange={(v) =>
+                  setSim({
+                    railExitVelocityMin:
+                      v == null ? DEFAULT_SETTINGS.simulation.railExitVelocityMin : u.fromUi('velocity', v),
+                  })
+                }
               />
               <NumRow
                 label={t('settings.deploySpeedWarn')}
-                unit="m/s"
-                step={1}
+                unit={u.sym('velocity')}
+                step={u.step('velocity', 1)}
                 min={0}
-                value={settings.simulation.deploymentSpeedWarn}
-                onChange={(v) => setSim({ deploymentSpeedWarn: v ?? DEFAULT_SETTINGS.simulation.deploymentSpeedWarn })}
+                value={u.toUi('velocity', settings.simulation.deploymentSpeedWarn)}
+                onChange={(v) =>
+                  setSim({
+                    deploymentSpeedWarn:
+                      v == null ? DEFAULT_SETTINGS.simulation.deploymentSpeedWarn : u.fromUi('velocity', v),
+                  })
+                }
               />
               <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 {t('settings.simOptions')}
@@ -353,7 +424,7 @@ function NumRow({
           onChange={(e) => onChange(e.target.value === '' ? null : parseFloat(e.target.value) || 0)}
           className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
         />
-        {unit && <span className="w-4 text-xs text-slate-500">{unit}</span>}
+        {unit && <span className="min-w-8 text-xs text-slate-500">{unit}</span>}
       </span>
     </label>
   );

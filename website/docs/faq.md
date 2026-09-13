@@ -14,11 +14,16 @@ No. Everything runs on your device. Your design is a `.ork` file on your disk; t
 ### Will my `.ork` files work in desktop OpenRocket?
 Yes — open and save are full-fidelity round-trips, and a saved file re-opens in desktop OpenRocket.
 
+### Do my unit choices show up in desktop OpenRocket?
+No. Units live in your browser's settings, not in the `.ork` — the file has nowhere to record them, and desktop OpenRocket keeps its own in its preferences. Your file opens there in OpenRocket's units and back here in yours; the rocket is the same either way. For the same reason your units don't follow you to another computer or browser. See **[Settings](./settings.md#units)**.
+
 ### Why is the stability different "on the pad" vs "at rail exit"?
 By the time the rocket leaves the launch rod/rail it's a little lighter (some propellant burned) and its CG has shifted, so its stability margin differs from the fully-loaded on-pad value. Rail-exit is usually the more meaningful number.
 
 ### Can I use inches / imperial units?
-Not yet — the app is **metric/SI only** for now.
+Yes. **Settings ▸ Units** has an **Imperial defaults** button, and you can set each quantity separately (lengths in inches, altitude in feet, mass in ounces, wind in mph, and so on). The unit printed next to any value is also a picker — click it to change that one field, leaving everything else on your defaults.
+
+Units only affect what's shown and typed: your design is always stored in SI, so switching units never changes a rocket or how a `.ork` file is written. See **[Settings](./settings.md#units)**.
 
 ### Does it work offline?
 Yes. After your first visit the app keeps itself, the physics engine and both catalogs on your device, so it opens and runs a full simulation with no connection — useful at a launch site with no signal. Your browser will also offer to **install** it. See **[Offline & Installing](./offline-and-installing.md)**.

@@ -31,11 +31,11 @@ sidebar_position: 2
 ## Plataforma {#platform}
 - **Solo en el cliente** — sin servidor, sin cuentas, sin subir nada. Tus cohetes se guardan en el navegador y puedes exportar un `.ork` a tu disco.
 - **Adaptable** — un banco de trabajo de tres paneles en escritorio que se pliega en una sola columna con pestañas en el móvil.
+- **Las unidades que prefieras** — valores métricos o imperiales, o una unidad por magnitud (dimensiones de componentes y de motor, altitud, masa, velocidad, viento, aceleración, ángulo, densidad, temperatura, presión, empuje, impulso). La unidad junto a cualquier valor también es un selector para ese campo concreto. Los diseños siguen en SI, así que cambiarlas nunca modifica un cohete. Consulta **[Ajustes](./settings.md#units)**.
 - **Navegación por teclado** — el árbol de componentes se recorre completamente con las flechas (una accesibilidad más amplia es un trabajo en curso).
 - Disponible en **inglés y español**.
 
 ## Aún no compatible {#not-yet-supported}
-- **Solo unidades métricas/SI** — todavía no hay opción imperial ni preferencia de unidades.
 - **Las trayectorias de vuelo por etapas aún no están validadas** — los cohetes de varias etapas se pueden crear y simular (cada propulsor vuela su propia rama), y su masa, CG y estabilidad estáticos coinciden con OpenRocket, pero la trayectoria volada por etapas no se ha comprobado de principio a fin contra OpenRocket de escritorio. Considera los resultados de vuelo por etapas como preliminares.
 - Un único tema (oscuro).
 

@@ -48,4 +48,30 @@ test.describe('Rocket Design Report dialog', () => {
     await expect(page.getByText('L/D', { exact: true })).toBeVisible();
     expect(errors).toEqual([]);
   });
+
+  test('the report can be pinned to a unit system, and the choice is remembered', async ({ page }) => {
+    await page.goto('/');
+    await dismissWip(page);
+    await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+
+    await page.getByRole('button', { name: /menu|☰/i }).first().click();
+    await page.getByRole('menuitem', { name: /Rocket Design Report/i }).click();
+    let dialog = page.getByRole('dialog').first();
+    await expect(dialog.getByLabel('Units')).toHaveValue('current');
+
+    // Pin the document to imperial — the app itself stays metric, because an
+    // export's units are the document's choice, not a preference change.
+    await dialog.getByLabel('Units').selectOption('imperial');
+    await page.getByRole('button', { name: '✕' }).first().click();
+    await expect(page.getByLabel('Component dimensions unit').first()).toHaveValue('cm');
+
+    // It is remembered across a reload, like the other report output options.
+    await page.reload();
+    await dismissWip(page);
+    await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+    await page.getByRole('button', { name: /menu|☰/i }).first().click();
+    await page.getByRole('menuitem', { name: /Rocket Design Report/i }).click();
+    dialog = page.getByRole('dialog').first();
+    await expect(dialog.getByLabel('Units')).toHaveValue('imperial');
+  });
 });

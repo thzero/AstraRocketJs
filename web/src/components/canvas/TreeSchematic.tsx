@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode, ComponentPosition, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
 import { fmtNum } from '../../i18n/format';
+import { useUnits } from '../../prefs/useUnits';
 import { anchorStarts, axialLength, offsetForStart, snapStart, startFromPosition } from '../../tree/position.js';
 import {
   downloadBlob,
@@ -144,6 +145,7 @@ export function TreeSchematic({
   const [caliperV, setCaliperV] = useState<{ a: number; b: number } | null>(null);
   const caliperDrag = useRef<{ axis: 'h' | 'v'; end: 'a' | 'b' } | null>(null);
   const { t } = useTranslation();
+  const u = useUnits();
   // `active` only becomes true once the pointer has travelled past PAN_SLOP —
   // see beginPan for why a press must not pan until then.
   const pan = useRef<{ pointerX: number; pointerY: number; x0: number; y0: number; active: boolean } | null>(null);
@@ -385,8 +387,12 @@ export function TreeSchematic({
     info && stab
       ? `${STABILITY_GLYPH[stab]} ${fmtNum(info.stabilityCalibers, 2)} ${t('stability.caliber')} · ${fmtNum(marginPct!, 1)}% — ${stabWord}`
       : null;
-  const cgLabel = info ? `${t('schematic.cg')} · ${fmtNum(info.cg * 100, 1)} cm` : t('schematic.cg');
-  const cpLabel = info ? `${t('schematic.cp')} · ${fmtNum(info.cp * 100, 1)} cm` : t('schematic.cp');
+  const cgLabel = info
+    ? `${t('schematic.cg')} · ${u.fmt('length', info.cg)} ${u.sym('length')}`
+    : t('schematic.cg');
+  const cpLabel = info
+    ? `${t('schematic.cp')} · ${u.fmt('length', info.cp)} ${u.sym('length')}`
+    : t('schematic.cp');
   const callouts = calloutLayout(cgX, cpX, ctx.cy, vHalf * scale, w, h, marginText);
 
   // Dimension ruler (side view, only at the default fit): nice-round marks every
@@ -402,7 +408,10 @@ export function TreeSchematic({
   // Labelled majors are DENSE: aim for one roughly every ~12 screen px (rounded
   // to a nice 1/2/5 mm step), so the scale reads like a real drafting ruler
   // (a number every ~10 mm) rather than a handful of marks across the canvas.
-  const rulerStep = niceStep((8 * 22) / scale);
+  const rulerStepUi = niceStep(u.toUi('length', (8 * 22) / scale));
+  const rulerStep = u.fromUi('length', rulerStepUi);
+  // Enough decimals to tell one graduation from the next, and no more.
+  const rulerDigits = rulerStepUi >= 1 ? 0 : rulerStepUi >= 0.1 ? 1 : 2;
   // Each ruler stops a few px short of the corner where it would meet another,
   // so the frame reads as four separate rules rather than one welded box. A
   // ruler that instead runs to the viewport edge (its neighbour is off) keeps no
@@ -423,7 +432,7 @@ export function TreeSchematic({
   const vTop = rTop + 4;
   const vBot = h - rBot - 4;
   const vSpanM = (vBot - vTop) / scale;
-  const rulerStepV = niceStep((8 * 22) / scale);
+  const rulerStepV = rulerStep;
   const vTicks: { y: number; label: number }[] = [];
   if (showRad) for (let m = 0; m <= vSpanM + 1e-6; m += rulerStepV) vTicks.push({ y: vTop + m * scale, label: m });
   // Minor subdivisions: 10 per labelled major, plus a taller "medium" tick at
@@ -466,13 +475,13 @@ export function TreeSchematic({
           <g key={i}>
             <line x1={x} y1={baseY} x2={x} y2={baseY + dir * 12} className="stroke-white/90" strokeWidth={1.5} />
             <text x={x} y={labelY} textAnchor="middle" className="fill-slate-100 text-[8px] tabular-nums">
-              {fmtNum(m * 1000, 0)}
+              {u.fmt('length', m, rulerDigits)}
             </text>
           </g>
         );
       })}
       <text x={rulerX1} y={unitY} textAnchor="end" className="fill-slate-300 text-[9px] font-medium">
-        mm
+        {u.sym('length')}
       </text>
     </g>
   );
@@ -508,12 +517,12 @@ export function TreeSchematic({
             dominantBaseline="central"
             className="fill-slate-100 text-[8px] tabular-nums"
           >
-            {fmtNum(tk.label * 1000, 0)}
+            {u.fmt('length', tk.label, rulerDigits)}
           </text>
         </g>
       ))}
       <text x={labelX} y={vTop - 6} textAnchor={anchor} className="fill-slate-300 text-[9px] font-medium">
-        mm
+        {u.sym('length')}
       </text>
     </g>
   );
@@ -761,7 +770,7 @@ export function TreeSchematic({
                       strokeWidth="0.8"
                     />
                     <text x={mid} y={dimY - 1} textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--accent)">
-                      {fmtNum(Math.abs(caliperH.b - caliperH.a) * 100, 1)} cm
+                      {u.fmt('length', Math.abs(caliperH.b - caliperH.a))} {u.sym('length')}
                     </text>
                   </g>
                 </g>
@@ -825,7 +834,7 @@ export function TreeSchematic({
                       strokeWidth="0.8"
                     />
                     <text x={dimX} y={mid + 3} textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--accent)">
-                      {fmtNum(Math.abs(caliperV.a - caliperV.b) * 100, 1)}
+                      {u.fmt('length', Math.abs(caliperV.a - caliperV.b))}
                     </text>
                   </g>
                 </g>

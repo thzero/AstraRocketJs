@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { componentsForType, filterComponents, type ComponentType, type Component } from '../../services/componentDb';
 import { fmtNum } from '../../i18n/format';
+import { useUnits } from '../../prefs/useUnits';
 import { useCatalogProgress } from '../common/CatalogLoading';
 
 /**
@@ -12,6 +13,7 @@ import { useCatalogProgress } from '../common/CatalogLoading';
  */
 export function ComponentPicker({ type, onApply }: { type: ComponentType; onApply: (p: Component) => void }) {
   const { t } = useTranslation();
+  const u = useUnits();
   // The catalog is fetched at runtime (see componentDb / remoteData), so load it
   // on mount and hold the result. Same trigger as before (this picker is itself
   // lazy-loaded); it's just async now.
@@ -56,10 +58,13 @@ export function ComponentPicker({ type, onApply }: { type: ComponentType; onAppl
   }, [open]);
 
   const dims = (p: Component): string => {
-    if (p.type === 'parachute') return `⌀ ${fmtNum(p.diameter * 1000, 0)} mm · Cd ${fmtNum(p.cd ?? 0.8, 2)}`;
-    if (p.type === 'nosecone')
-      return `${p.shape} · ⌀ ${fmtNum(p.outerDiameter * 1000, 1)} mm · ${fmtNum(p.length * 1000, 0)} mm`;
-    return `⌀ ${fmtNum(p.outerDiameter * 1000, 1)} mm · ${fmtNum(p.length * 1000, 0)} mm`;
+    // The catalog is SI; `sym` is appended once at the end so a two-dimension
+    // line reads "24 x 70 mm" rather than repeating the unit.
+    const L = (v: number) => u.fmt('length', v);
+    const sym = u.sym('length');
+    if (p.type === 'parachute') return `⌀ ${L(p.diameter)} ${sym} · Cd ${fmtNum(p.cd ?? 0.8, 2)}`;
+    if (p.type === 'nosecone') return `${p.shape} · ⌀ ${L(p.outerDiameter)} × ${L(p.length)} ${sym}`;
+    return `⌀ ${L(p.outerDiameter)} × ${L(p.length)} ${sym}`;
   };
 
   return (

@@ -60,7 +60,7 @@ Applying a preset just fills in the component's fields — you can tweak it afte
 
 Selecting a **parachute** shows a **descent-sizing** readout in its panel. From the design's descent mass (see *recovery weight*) and the air density at the launch site, it gives:
 
-- the **descent rate** this canopy actually produces (m/s and ft/s), color-coded against the accepted **main** (15–20 ft/s) and **drogue** (50–75 ft/s) bands, and
+- the **descent rate** this canopy actually produces, in your [velocity unit](./settings.md#units), color-coded against the accepted **main** (15–20 ft/s) and **drogue** (50–75 ft/s) bands, and
 - the **canopy diameter** you'd need to hit each band, at this canopy's own drag coefficient.
 
 It needs a motor loaded (to know the descent mass). It's an on-screen aid only — nothing is written to the design.
@@ -69,7 +69,7 @@ It needs a motor loaded (to know the descent mass). It's an on-screen aid only �
 
 Every structural component has a **material**, which the engine uses (by its **density**) to compute mass and CG:
 
-- **Built-in materials** — OpenRocket's full list (bulk / surface / line, with densities).
+- **Built-in materials** — OpenRocket's full list (bulk / surface / line, with densities). Each kind has its own [density unit](./settings.md#units) — bulk stock by volume, parachute fabric by area, cord by length — and a custom material's density is read in whichever unit is shown.
 - **Custom materials** — define your own (name + density); they're saved in your browser and reusable across designs.
 
 > Note: a material's **density** (and therefore all physics) is preserved through a `.ork` round-trip, but a non-default material's **name** may not yet survive save/reload — see the [FAQ](./faq.md).

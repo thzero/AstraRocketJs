@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive } from '../../state/store';
 import { downloadText } from '../../services/csvExport';
+import { useUnits } from '../../prefs/useUnits';
 import {
   buildFlightPathModel,
   defaultExportOptions,
@@ -91,7 +92,8 @@ function ExportDialog({
   const { t } = useTranslation();
   const store = useMemo(() => getTemplateStore(), []);
   const [selected, setSelected] = useState<string>(EXPORT_FORMATS[0]!.id);
-  const [opts, setOpts] = useState<FlightPathExportOptions>(() => defaultExportOptions());
+  const units = useUnits();
+  const [opts, setOpts] = useState<FlightPathExportOptions>(() => defaultExportOptions(units.sym('distance')));
   const [templates, setTemplates] = useState<UserTemplate[]>([]);
   const [error, setError] = useState<string | null>(null);
 

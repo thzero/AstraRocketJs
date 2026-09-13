@@ -3,12 +3,15 @@ import type { ReportModel } from './reportModel';
 import { rocketSideView, finPlanformMm, profileMm, type Pt } from './reportGeometry';
 import { num } from '../tree/nodeProps';
 import { fmtNum } from '../i18n/format';
+import { siToUi, type Quantity, type UnitSelection } from '../prefs/units';
 
 /**
  * Build the rocket report as a real PDF (vector) and download it. Which sections
  * appear, the paper size/orientation, and the template colours all come from
  * {@link ReportOptions} (the export dialog). Every 1:1 template is drawn in
- * millimetres, so it prints true scale.
+ * millimetres, so it prints true scale — the printed scale bar stays in mm/cm
+ * for the same reason, since it measures the PAGE, not the rocket. Everything
+ * the report READS OUT follows the user's unit preference.
  */
 
 type T = (key: string, opts?: Record<string, unknown>) => string;
@@ -54,7 +57,13 @@ const finSetsOf = (stage: ComponentNode): ComponentNode[] => {
   return out;
 };
 
-export async function downloadReportPdf(model: ReportModel, tree: RocketTree, t: T, opts: ReportOptions): Promise<void> {
+export async function downloadReportPdf(
+  model: ReportModel,
+  tree: RocketTree,
+  t: T,
+  opts: ReportOptions,
+  units: UnitSelection,
+): Promise<void> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: opts.paper, orientation: opts.orientation });
   const PW = doc.internal.pageSize.getWidth();
@@ -161,15 +170,21 @@ export async function downloadReportPdf(model: ReportModel, tree: RocketTree, t:
     y += 3;
   };
 
-  const mm = (m: number) => `${fmtNum(m * 1000, 0)} mm`;
-  const g = (kg: number) => `${fmtNum(kg * 1000, 0)} g`;
+  /** An SI value in the user's unit, with its symbol. */
+  const q = (quantity: Quantity, si: number, digits = 1) =>
+    Number.isFinite(si) ? `${fmtNum(siToUi(quantity, units[quantity], si), digits)} ${units[quantity]}` : '—';
+  /** The number only — for a cell that already carries the unit once. */
+  const qv = (quantity: Quantity, si: number, digits = 1) =>
+    fmtNum(siToUi(quantity, units[quantity], si), digits);
+  const len = (m: number) => q('length', m);
+  const g = (kg: number) => q('mass', kg, 0);
   const summaryRows = (info: StaticInfo): [string, string][] => {
     const pct = info.length > 0 ? ((info.cp - info.cg) / info.length) * 100 : 0;
     return [
-      [t('report.length'), mm(info.length)], [t('report.maxDiameter'), mm(info.refDiameter)],
+      [t('report.length'), len(info.length)], [t('report.maxDiameter'), len(info.refDiameter)],
       [t('report.massEmpty'), g(info.massEmpty)], [t('report.massLoaded'), g(info.mass)],
-      [t('report.fineness'), fmtNum(info.refDiameter > 0 ? info.length / info.refDiameter : 0, 2)], [t('report.cgEmpty'), `${fmtNum(info.cgEmpty * 100, 1)} cm`],
-      [t('report.cgLoaded'), `${fmtNum(info.cg * 100, 1)} cm`], [t('report.cp'), `${fmtNum(info.cp * 100, 1)} cm`],
+      [t('report.fineness'), fmtNum(info.refDiameter > 0 ? info.length / info.refDiameter : 0, 2)], [t('report.cgEmpty'), len(info.cgEmpty)],
+      [t('report.cgLoaded'), len(info.cg)], [t('report.cp'), len(info.cp)],
       [t('report.stabilityCal'), `${fmtNum(info.stabilityCalibers, 2)} cal`], [t('report.stabilityPct'), `${fmtNum(pct, 1)} %`],
       [t('report.cd'), info.cd != null ? fmtNum(info.cd, 3) : '—'], [t('report.cna'), `${fmtNum(info.cna, 2)} /rad`],
     ];
@@ -208,10 +223,10 @@ export async function downloadReportPdf(model: ReportModel, tree: RocketTree, t:
       sub(c.name);
       if (c.flight) {
         kvGrid([
-          [t('report.altitude'), `${fmtNum(c.flight.maxAltitude, 0)} m`], [t('report.flightTime'), `${fmtNum(c.flight.flightTime, 1)} s`],
-          [t('report.timeToApogee'), `${fmtNum(c.flight.timeToApogee, 1)} s`], [t('report.velOffRod'), `${fmtNum(c.flight.launchRodVelocity, 1)} m/s`],
-          [t('report.maxVel'), `${fmtNum(c.flight.maxVelocity, 0)} m/s`], [t('report.velDeploy'), c.flight.deploymentVelocity != null ? `${fmtNum(c.flight.deploymentVelocity, 1)} m/s` : '—'],
-          [t('report.landingVel'), `${fmtNum(c.flight.groundHitVelocity, 1)} m/s`],
+          [t('report.altitude'), q('distance', c.flight.maxAltitude, 0)], [t('report.flightTime'), `${fmtNum(c.flight.flightTime, 1)} s`],
+          [t('report.timeToApogee'), `${fmtNum(c.flight.timeToApogee, 1)} s`], [t('report.velOffRod'), q('velocity', c.flight.launchRodVelocity)],
+          [t('report.maxVel'), q('velocity', c.flight.maxVelocity, 0)], [t('report.velDeploy'), c.flight.deploymentVelocity != null ? q('velocity', c.flight.deploymentVelocity) : '—'],
+          [t('report.landingVel'), q('velocity', c.flight.groundHitVelocity)],
         ]);
       }
       const w = CW;
@@ -222,11 +237,11 @@ export async function downloadReportPdf(model: ReportModel, tree: RocketTree, t:
         { title: t('report.motorWt'), w: w * 0.1, align: 'right' }, { title: t('report.size'), w: w * 0.1, align: 'right' },
       ];
       const rows = c.motors.map((m) => [
-        `${m.manufacturer ? m.manufacturer + ' ' : ''}${m.designation}`, `${fmtNum(m.avgThrust, 1)} N`, `${fmtNum(m.burnTime, 2)} s`,
-        `${fmtNum(m.maxThrust, 0)} N`, `${fmtNum(m.totalImpulse, 0)} N·s`, `${fmtNum(m.avgThrust / (c.loadedMass * 9.80665), 2)}:1`,
-        `${fmtNum(m.weight * 1000, 0)} g`, `${fmtNum(m.diameter * 1000, 0)}/${fmtNum(m.length * 1000, 0)} mm`,
+        `${m.manufacturer ? m.manufacturer + ' ' : ''}${m.designation}`, q('force', m.avgThrust), `${fmtNum(m.burnTime, 2)} s`,
+        q('force', m.maxThrust, 0), q('impulse', m.totalImpulse, 0), `${fmtNum(m.avgThrust / (c.loadedMass * 9.80665), 2)}:1`,
+        g(m.weight), `${qv('motorDimensions', m.diameter, 0)}/${qv('motorDimensions', m.length, 0)} ${units.motorDimensions}`,
       ]);
-      rows.push([t('report.total'), '', '', '', `${fmtNum(c.motors.reduce((a, m) => a + m.totalImpulse, 0), 0)} N·s`, '', `${fmtNum(c.motors.reduce((a, m) => a + m.weight, 0) * 1000, 0)} g`, '']);
+      rows.push([t('report.total'), '', '', '', q('impulse', c.motors.reduce((a, m) => a + m.totalImpulse, 0), 0), '', g(c.motors.reduce((a, m) => a + m.weight, 0)), '']);
       table(cols, rows, true);
     }
   }
@@ -242,10 +257,10 @@ export async function downloadReportPdf(model: ReportModel, tree: RocketTree, t:
     ];
     const toRow = (r: ReportModel['partsByStage'][number]['rows'][number]) => {
       const dims = [
-        r.outerR != null ? `Ø ${fmtNum(r.outerR * 2000, 1)}${r.innerR != null ? '/' + fmtNum(r.innerR * 2000, 1) : ''} mm` : '',
-        r.length > 0 ? `L ${fmtNum(r.length * 1000, 1)} mm` : '', r.thickness != null ? `w ${fmtNum(r.thickness * 1000, 2)} mm` : '',
+        r.outerR != null ? `Ø ${qv('length', r.outerR * 2)}${r.innerR != null ? '/' + qv('length', r.innerR * 2) : ''} ${units.length}` : '',
+        r.length > 0 ? `L ${len(r.length)}` : '', r.thickness != null ? `w ${qv('length', r.thickness, 2)} ${units.length}` : '',
       ].filter(Boolean).join(' · ');
-      return [`${'  '.repeat(r.depth)}${r.name || t(`part.${r.type}`, { defaultValue: r.type })}`, `${r.material ?? '—'}${r.density ? ` (${fmtNum(r.density / 1000, 3)} g/cm³)` : ''}`, dims, `${fmtNum(r.mass * 1000, 2)} g`];
+      return [`${'  '.repeat(r.depth)}${r.name || t(`part.${r.type}`, { defaultValue: r.type })}`, `${r.material ?? '—'}${r.density ? ` (${fmtNum(siToUi('density', units.density, r.density), 3)} ${units.density})` : ''}`, dims, q('mass', r.mass, 2)];
     };
     if (opts.showByStage) {
       for (const st of partsStages) { sub(`${t('report.stage')}: ${st.stage}`, 9); table(cols, st.rows.map(toRow)); }

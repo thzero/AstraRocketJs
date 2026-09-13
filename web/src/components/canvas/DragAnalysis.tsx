@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
 import { fmtNum } from '../../i18n/format';
+import { useUnits } from '../../prefs/useUnits';
 import { dragTableCsv, downloadCsv } from '../../services/csvExport';
 import { lerpAt } from '../../services/interpolate';
 import type { DragSweep } from '../../engine/openRocketEngine';
@@ -45,6 +46,7 @@ function niceName(raw: string): string {
 
 export function DragAnalysis() {
   const { t } = useTranslation();
+  const u = useUnits();
   const rocket = useWorkspaceStore((s) => s.rocket);
   const info = useWorkspaceStore((s) => s.info);
   const [machMax, setMachMax] = useState(3);
@@ -88,7 +90,12 @@ export function DragAnalysis() {
         }));
 
   const bodyLen = info?.length ?? 0;
-  const cpValues = cpPct && bodyLen > 0 ? sweep.cp.map((v) => (v / bodyLen) * 100) : sweep.cp.map((v) => v * 100);
+  // As a percentage of body length CP has no unit; as a position it takes the
+  // user's length unit (`factor`, since a whole series is being scaled).
+  const cpValues =
+    cpPct && bodyLen > 0
+      ? sweep.cp.map((v) => (v / bodyLen) * 100)
+      : sweep.cp.map((v) => v * u.factor('length'));
   const cpSeries: Series[] = [{ name: t('flight.cp'), color: POWER_OFF, values: cpValues }];
 
   return (
@@ -98,7 +105,7 @@ export function DragAnalysis() {
         <span className="text-[10px] text-slate-500">{t('drag.maxMach')}</span>
         <Seg options={[2, 3, 5] as const} value={machMax} onChange={setMachMax} fmt={(v) => `M${v}`} />
         <button
-          onClick={() => downloadCsv('drag-table.csv', dragTableCsv(sweep))}
+          onClick={() => downloadCsv('drag-table.csv', dragTableCsv(sweep, u.all))}
           title={t('drag.exportCsv')}
           className="rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
         >
@@ -143,7 +150,7 @@ export function DragAnalysis() {
           machMin={machMin}
           machMax={machMax}
           series={cpSeries}
-          unit={cpPct ? '%' : 'cm'}
+          unit={cpPct ? '%' : u.sym('length')}
           digits={1}
           hoverM={hoverM}
           setHoverM={setHoverM}
@@ -153,7 +160,7 @@ export function DragAnalysis() {
               options={[false, true] as const}
               value={cpPct}
               onChange={setCpPct}
-              fmt={(v) => (v ? t('drag.pctBody') : 'cm')}
+              fmt={(v) => (v ? t('drag.pctBody') : u.sym('length'))}
               disabled={bodyLen <= 0}
             />
           }

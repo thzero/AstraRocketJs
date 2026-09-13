@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { FlightResult, FlightSeries } from '../../engine/openRocketEngine';
 import { fmtNum } from '../../i18n/format';
+import { useUnits } from '../../prefs/useUnits';
+import type { Quantity } from '../../prefs/units';
 import { flightDataCsv, downloadCsv } from '../../services/csvExport';
 import { lerpAt } from '../../services/interpolate';
 import { EVENT_LABEL, clusterEventLabels } from '../../services/simReport';
@@ -31,8 +33,15 @@ type Key =
 interface Meta {
   key: Key;
   label: string;
+  /** Fixed unit label, for series that have no user-selectable unit (Mach, cal). */
   unit: string;
   digits: number;
+  /**
+   * The preference group this series belongs to. When set it supplies both the
+   * scale and the label, and `unit`/`scale`/`digits` below are unused — they
+   * stay for the handful of series (Mach, calibers) that are unitless.
+   */
+  quantity?: Quantity;
   /** Multiply the raw SI series into display units (kg→g, m→cm, rad→deg). */
   scale?: number;
   /** Level bands (CG/CP/mass/stability) get a tight y-domain + no area fill;
@@ -45,17 +54,17 @@ interface Meta {
 }
 
 const SERIES: Meta[] = [
-  { key: 'altitude', label: 'flight.altitude', unit: 'm', digits: 0 },
-  { key: 'velocity', label: 'flight.velocity', unit: 'm/s', digits: 0 },
-  { key: 'acceleration', label: 'flight.acceleration', unit: 'm/s²', digits: 0 },
+  { key: 'altitude', label: 'flight.altitude', unit: 'm', digits: 0, quantity: 'distance' },
+  { key: 'velocity', label: 'flight.velocity', unit: 'm/s', digits: 0, quantity: 'velocity' },
+  { key: 'acceleration', label: 'flight.acceleration', unit: 'm/s²', digits: 0, quantity: 'acceleration' },
   { key: 'mach', label: 'flight.mach', unit: '', digits: 2 },
-  { key: 'thrust', label: 'flight.thrust', unit: 'N', digits: 1 },
-  { key: 'drag', label: 'flight.drag', unit: 'N', digits: 2 },
-  { key: 'mass', label: 'flight.mass', unit: 'g', digits: 0, scale: 1000, level: true },
+  { key: 'thrust', label: 'flight.thrust', unit: 'N', digits: 1, quantity: 'force' },
+  { key: 'drag', label: 'flight.drag', unit: 'N', digits: 2, quantity: 'force' },
+  { key: 'mass', label: 'flight.mass', unit: 'g', digits: 0, scale: 1000, level: true, quantity: 'mass' },
   { key: 'stability', label: 'flight.stability', unit: 'cal', digits: 2, level: true, aero: true },
-  { key: 'cpLocation', label: 'flight.cp', unit: 'cm', digits: 1, scale: 100, level: true, aero: true },
-  { key: 'cgLocation', label: 'flight.cg', unit: 'cm', digits: 1, scale: 100, level: true },
-  { key: 'aoa', label: 'flight.aoa', unit: '°', digits: 1, scale: 180 / Math.PI },
+  { key: 'cpLocation', label: 'flight.cp', unit: 'cm', digits: 1, scale: 100, level: true, aero: true, quantity: 'length' },
+  { key: 'cgLocation', label: 'flight.cg', unit: 'cm', digits: 1, scale: 100, level: true, quantity: 'length' },
+  { key: 'aoa', label: 'flight.aoa', unit: '°', digits: 1, scale: 180 / Math.PI, quantity: 'angle' },
 ];
 const DEFAULT_ON: Key[] = ['altitude', 'velocity', 'acceleration'];
 
@@ -86,6 +95,7 @@ type Pt = readonly [number, number];
 
 export function FlightChart({ result }: { result: FlightResult }) {
   const { t } = useTranslation();
+  const u = useUnits();
   const [on, setOn] = useState<Key[]>(DEFAULT_ON);
   const [hoverT, setHoverT] = useState<number | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -262,7 +272,7 @@ export function FlightChart({ result }: { result: FlightResult }) {
             </button>
           </div>
           <button
-            onClick={() => downloadCsv('flight-data.csv', flightDataCsv(result))}
+            onClick={() => downloadCsv('flight-data.csv', flightDataCsv(result, u.all))}
             title={t('flight.exportCsv')}
             className="rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
           >
@@ -379,10 +389,15 @@ function Panel({
   events: { type: string; time: number }[];
 }) {
   const { t } = useTranslation();
+  const u = useUnits();
   const padT = 8;
   const padB = 8;
   const ih = PANEL_H - padT - padB;
-  const scale = meta.scale ?? 1;
+  // A quantity-backed series scales and labels itself from the preference; the
+  // rest keep their fixed unit. `factor`, not `toUi`, because this scales a
+  // whole series — none of these carry a temperature-style offset.
+  const scale = meta.quantity ? u.factor(meta.quantity) : (meta.scale ?? 1);
+  const unit = meta.quantity ? u.sym(meta.quantity) : meta.unit;
   const clipId = `fc-clip-${meta.key}`;
   const single = branches.length === 1;
 
@@ -429,6 +444,16 @@ function Panel({
     return { list: out, lo: l, hi: h === l ? l + 1 : h };
   }, [branches, meta.key, meta.level, meta.aero, scale, clipT]);
 
+  // A fixed decimal count belongs to a fixed unit: "0 dp" is right for metres
+  // of altitude and wrong for kilometres. For a quantity-backed series the
+  // count comes from the span actually on screen instead.
+  const digits = meta.quantity
+    ? (() => {
+        const span = Math.abs(hi - lo);
+        return span >= 100 ? 0 : span >= 10 ? 1 : span >= 1 ? 2 : 3;
+      })()
+    : meta.digits;
+
   const Y = (v: number) => padT + (1 - (v - lo) / (hi - lo)) * ih;
   const mkLine = (pts: Pt[]) =>
     pts.length >= 2 ? pts.map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(' ') : '';
@@ -457,8 +482,8 @@ function Panel({
       <div className="flex items-baseline justify-between px-2 pt-1.5">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t(meta.label)}</span>
         <span className="text-xs font-semibold tabular-nums text-slate-100">
-          {fmtNum(shown, meta.digits)}
-          {meta.unit && <span className="ml-0.5 text-[10px] text-slate-500">{meta.unit}</span>}
+          {fmtNum(shown, digits)}
+          {unit && <span className="ml-0.5 text-[10px] text-slate-500">{unit}</span>}
         </span>
       </div>
       <svg viewBox={`0 0 ${w} ${PANEL_H}`} width="100%" height={PANEL_H} preserveAspectRatio="none" className="block">
@@ -521,7 +546,7 @@ function Panel({
                     <circle cx={X(hoverT)} cy={Y(hv)} r={3} fill={s.color} />
                     {!single && (
                       <text x={X(hoverT) + 5} y={Y(hv) - 3} className="text-[9px] tabular-nums" fill={s.color}>
-                        {fmtNum(hv, meta.digits)}
+                        {fmtNum(hv, digits)}
                       </text>
                     )}
                   </g>
@@ -531,10 +556,10 @@ function Panel({
           )}
         </g>
         <text x={PAD_L - 4} y={padT + 7} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
-          {fmtNum(hi, meta.digits)}
+          {fmtNum(hi, digits)}
         </text>
         <text x={PAD_L - 4} y={PANEL_H - padB} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
-          {fmtNum(lo, meta.digits)}
+          {fmtNum(lo, digits)}
         </text>
       </svg>
     </div>

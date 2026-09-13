@@ -56,15 +56,25 @@ export interface FlightPathExportOptions {
   distanceUnit: DistanceUnit;
 }
 
-/** Default options: every waypoint, both tracks, keep all points, metric. */
-export function defaultExportOptions(): FlightPathExportOptions {
+/**
+ * Default options: every waypoint, both tracks, keep all points. The two
+ * distance units START from the user's `distance` preference, so someone who
+ * works in feet doesn't have to re-pick feet on every export — but they stay
+ * separate fields, because the file's unit is a property of the FILE and a
+ * KML meant for someone else may want metres whatever the app is showing.
+ * A preference this dialog has no unit for (yd, km, mi is covered; anything
+ * else) falls back to metres rather than writing a unit the format can't name.
+ */
+export function defaultExportOptions(preferred?: string): FlightPathExportOptions {
+  const unit: DistanceUnit =
+    preferred === 'ft' || preferred === 'km' || preferred === 'mi' ? preferred : 'm';
   return {
     waypoints: new Set(WAYPOINT_KINDS),
     includeFlightPath: true,
     includeGroundTrack: true,
     pathStride: 1,
-    altitudeUnit: 'm',
-    distanceUnit: 'm',
+    altitudeUnit: unit,
+    distanceUnit: unit,
   };
 }
 

@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
 import { NumberInput } from '../common/NumberInput';
-import { fmtNum } from '../../i18n/format';
+import { UnitChip } from '../common/UnitChip';
+import { useUnits } from '../../prefs/useUnits';
+import { unitScope } from '../../prefs/units';
 import { maxBodyDiameter, rocketLength } from '../../tree/scaleRocket';
 
 /**
@@ -14,6 +16,11 @@ import { maxBodyDiameter, rocketLength } from '../../tree/scaleRocket';
  */
 export function ScaleDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation();
+  const u = useUnits();
+  // The typed target diameter and the before/after summary read the same unit;
+  // one scope keeps them agreeing.
+  const scope = unitScope('scale', 'length');
+  const fu = u.at(scope, 'length');
   const tree = useWorkspaceStore((s) => s.tree);
   const scaleDesign = useWorkspaceStore((s) => s.scaleDesign);
   const [factor, setFactor] = useState(2);
@@ -99,23 +106,26 @@ export function ScaleDialog({ open, onClose }: { open: boolean; onClose: () => v
                   {t('scale.newDiameter')}
                 </label>
                 <NumberInput
-                  value={Number((baseD * factor * 1000).toFixed(2))}
-                  onChange={(v) => v !== null && v > 0 && baseD > 0 && setFactor(v / 1000 / baseD)}
+                  value={Number(fu.toUi(baseD * factor).toFixed(2))}
+                  onChange={(v) => v !== null && v > 0 && baseD > 0 && setFactor(fu.fromUi(v) / baseD)}
                   step={1}
                   min={0.1}
                   className={input}
                 />
-                <span className="text-xs text-slate-500">{t('scale.currentDiameter', { mm: fmtNum(baseD * 1000, 1) })}</span>
+                <span className="text-xs text-slate-500">
+                  {t('scale.currentDiameter', { mm: `${fu.fmt(baseD)} ${fu.sym}` })}
+                </span>
               </div>
             </div>
 
             <p className="mt-4 text-sm leading-relaxed text-slate-300">
               <span className="font-semibold text-slate-100">
-                {fmtNum(baseL * 1000, 0)} × {fmtNum(baseD * 1000, 1)} mm
+                {fu.fmt(baseL)} × {fu.fmt(baseD)} <UnitChip quantity="length" scope={scope} />
               </span>{' '}
               {t('scale.becomes')}{' '}
               <span className="font-semibold text-sky-300">
-                {fmtNum(baseL * factor * 1000, 0)} × {fmtNum(baseD * factor * 1000, 1)} mm
+                {fu.fmt(baseL * factor)} × {fu.fmt(baseD * factor)}{' '}
+                <UnitChip quantity="length" scope={scope} />
               </span>
             </p>
             <p className="mt-2 text-xs leading-relaxed text-slate-500">
