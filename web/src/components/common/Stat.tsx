@@ -1,5 +1,7 @@
 /** A compact labelled stat tile (value + unit/sub), used by the stability and sim panels.
- *  `card` wraps the tile in its own surface (mmrocket-style one-card-per-stat). */
+ *  `card` wraps the tile in its own surface (mmrocket-style one-card-per-stat).
+ *  `sub` is a node, not just text, so a tile can put a UnitChip in its unit slot
+ *  and let the unit be changed from where it is read. */
 export function Stat({
   label,
   value,
@@ -9,7 +11,7 @@ export function Stat({
 }: {
   label: string;
   value: string;
-  sub: string;
+  sub: React.ReactNode;
   tone?: string;
   card?: boolean;
 }) {

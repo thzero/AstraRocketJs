@@ -47,12 +47,12 @@ test('grid columns are sortable (toggle asc/desc)', async ({ page }) => {
 test('column chooser adds columns and remembers them across a reload', async ({ page }) => {
   let dialog = await openDashboard(page);
 
-  // "Peak N" is off by default.
+  // "Peak" is off by default.
   await expect(dialog.getByRole('button', { name: /Peak/ })).toHaveCount(0);
 
   // Enable Peak + a couple more via the Columns picker.
   await dialog.getByText('Columns', { exact: true }).click();
-  for (const name of ['Peak N', 'Mass g', 'Type']) {
+  for (const name of ['Peak', 'Mass', 'Type']) {
     await dialog.getByRole('checkbox', { name, exact: true }).check();
   }
   await expect(dialog.getByRole('button', { name: /Peak/ })).toBeVisible();
@@ -76,10 +76,10 @@ test('adding many columns scrolls the grid, it does not shove the detail pane', 
   // Turn on every optional column.
   await dialog.getByText('Columns', { exact: true }).click();
   for (const name of [
-    'Peak N',
-    'Length mm',
-    'Mass g',
-    'Prop g',
+    'Peak',
+    'Length',
+    'Mass',
+    'Prop',
     'Delays',
     'Type',
     'Designation',

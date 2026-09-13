@@ -2,6 +2,9 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { fmtNum } from '../../i18n/format';
+import { UnitChip } from '../common/UnitChip';
+import { useUnits } from '../../prefs/useUnits';
+import { unitScope } from '../../prefs/units';
 import { num } from '../../tree/nodeProps';
 import { useWorkspaceStore, selectActive } from '../../state/store';
 import {
@@ -12,7 +15,6 @@ import {
   descentRate,
   DROGUE_BAND,
   MAIN_BAND,
-  msToFtS,
   type RateVerdict,
 } from '../../services/recoverySizing';
 
@@ -35,6 +37,11 @@ const VERDICT_TONE: Record<RateVerdict, string> = {
  */
 export function RecoverySizingReadout({ node }: { node: ComponentNode }) {
   const { t } = useTranslation();
+  const u = useUnits();
+  const rateUnit = u.at(unitScope('recovery', 'rate'), 'velocity');
+  const mainUnit = u.at(unitScope('recovery', 'mainD'), 'length');
+  const drogueUnit = u.at(unitScope('recovery', 'drogueD'), 'length');
+  const massUnit = u.at(unitScope('recovery', 'mass'), 'mass');
   const info = useWorkspaceStore((s) => s.info);
   const motor = useWorkspaceStore((s) => selectActive(s).motor);
   const extraMotors = useWorkspaceStore((s) => s.extraMotors);
@@ -65,28 +72,30 @@ export function RecoverySizingReadout({ node }: { node: ComponentNode }) {
       ) : (
         <>
           <p className="text-[11px] text-slate-500">
-            {t('recovery.forMass', { mass: fmtNum(sizing.mass * 1000, 0) })}
+            {t('recovery.forMass', { mass: `${massUnit.fmt(sizing.mass)} ${massUnit.sym}` })}
           </p>
           {sizing.rate != null && sizing.verdict != null && (
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-xs text-slate-400">{t('recovery.thisChute')}</span>
               <span className="text-sm tabular-nums">
-                <span className={VERDICT_TONE[sizing.verdict]}>
-                  {fmtNum(sizing.rate, 1)} m/s
-                </span>{' '}
-                <span className="text-slate-500">
-                  ({fmtNum(msToFtS(sizing.rate), 0)} ft/s · {t(`recovery.verdict.${sizing.verdict}`)})
-                </span>
+                <span className={VERDICT_TONE[sizing.verdict]}>{rateUnit.fmt(sizing.rate, 1)}</span>{' '}
+                <UnitChip quantity="velocity" scope={unitScope('recovery', 'rate')} />{' '}
+                <span className="text-slate-500">({t(`recovery.verdict.${sizing.verdict}`)})</span>
               </span>
             </div>
           )}
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-xs text-slate-400">{t('recovery.mainTarget')}</span>
-            <span className="text-sm tabular-nums text-slate-200">Ø {fmtNum(sizing.mainD * 100, 0)} cm</span>
+            <span className="text-sm tabular-nums text-slate-200">
+              Ø {mainUnit.fmt(sizing.mainD)} <UnitChip quantity="length" scope={unitScope('recovery', 'mainD')} />
+            </span>
           </div>
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-xs text-slate-400">{t('recovery.drogueTarget')}</span>
-            <span className="text-sm tabular-nums text-slate-200">Ø {fmtNum(sizing.drogueD * 100, 0)} cm</span>
+            <span className="text-sm tabular-nums text-slate-200">
+              Ø {drogueUnit.fmt(sizing.drogueD)}{' '}
+              <UnitChip quantity="length" scope={unitScope('recovery', 'drogueD')} />
+            </span>
           </div>
           <p className="text-[10px] text-slate-600">{t('recovery.atCd', { cd: fmtNum(cd, 2) })}</p>
         </>

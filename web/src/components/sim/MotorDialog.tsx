@@ -13,7 +13,7 @@ import {
 import { fetchMotorSpec } from '../../services/thrustcurve';
 import { STD_DIAMS, MAX_IDX, fitIdx, parseDelays } from '../../services/motorPicker';
 import { PLUGGED_DELAY, type MotorSpec } from '../../engine/openRocketEngine';
-import { fmtNum } from '../../i18n/format';
+import { useUnits } from '../../prefs/useUnits';
 import { useFocusTrap } from '../common/useFocusTrap';
 import { CatalogLoading, CatalogError } from '../common/CatalogLoading';
 import { MotorDetail } from './MotorDetail';
@@ -77,6 +77,7 @@ export function MotorDialog({
   current?: MotorSpec | null;
 }) {
   const { t } = useTranslation();
+  const u = useUnits();
   const [catalog, setCatalog] = useState<CatalogMotor[]>([]);
   // The catalog is a dynamically-imported chunk (see motorDb.loadCatalog), so
   // the first open pays a fetch — show a loading state until it lands.
@@ -355,9 +356,13 @@ export function MotorDialog({
                   onChange={(lo, hi) => setDia([lo, hi])}
                   label={t('motorDlg.diameter')}
                 />
+                {/* The stops are the standard motor sizes, held in mm because
+                    that is what the catalog and the fit query speak; only the
+                    readout moves to the user's unit. */}
                 <span className="w-20 shrink-0 text-right tabular-nums text-slate-400">
-                  {lowIdx > 0 ? STD_DIAMS[lowIdx] : t('motorDlg.any')}–
-                  {highIdx < MAX_IDX ? STD_DIAMS[highIdx] : t('motorDlg.any')} mm
+                  {lowIdx > 0 ? u.fmt('motorDimensions', STD_DIAMS[lowIdx]! / 1000) : t('motorDlg.any')}–
+                  {highIdx < MAX_IDX ? u.fmt('motorDimensions', STD_DIAMS[highIdx]! / 1000) : t('motorDlg.any')}{' '}
+                  {u.sym('motorDimensions')}
                 </span>
               </div>
             </div>
@@ -411,7 +416,9 @@ export function MotorDialog({
                         <span className="shrink-0 text-xs tabular-nums text-slate-400">
                           {loading
                             ? t('motorDlg.loading')
-                            : `${fmtNum(m.impulse, m.impulse < 10 ? 1 : 0)} Ns · ${m.diameter} mm`}
+                            : `${u.fmt('impulse', m.impulse, m.impulse < 10 ? 1 : 0)} ${u.sym(
+                                'impulse',
+                              )} · ${u.fmt('motorDimensions', m.diameter / 1000, 0)} ${u.sym('motorDimensions')}`}
                         </span>
                       </button>
                       {m.custom && (

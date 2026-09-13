@@ -1,5 +1,8 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { UnitChip } from '../common/UnitChip';
+import { useUnits } from '../../prefs/useUnits';
+import { unitScope } from '../../prefs/units';
 
 type Pt = [number, number];
 
@@ -29,6 +32,9 @@ export function FreeformFinEditor({
   onCommit?: () => void;
 }) {
   const { t } = useTranslation();
+  const u = useUnits();
+  const ptX = u.at(unitScope('freeform', 'x'), 'length');
+  const ptY = u.at(unitScope('freeform', 'y'), 'length');
   const svgRef = useRef<SVGSVGElement>(null);
   const dragging = useRef<number | null>(null);
   const [sel, setSel] = useState<number | null>(null);
@@ -155,25 +161,25 @@ export function FreeformFinEditor({
             X
             <input
               type="number"
-              step={1}
-              value={+(selPt[0] * 1000).toFixed(1)}
-              onChange={(e) => setPoint(sel!, (parseFloat(e.target.value) || 0) / 1000, selPt[1])}
+              step={ptX.step(0.001)}
+              value={+ptX.toUi(selPt[0]).toFixed(3)}
+              onChange={(e) => setPoint(sel!, ptX.fromUi(parseFloat(e.target.value) || 0), selPt[1])}
               onBlur={onCommit}
               className="w-16 rounded bg-slate-800 px-1.5 py-0.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
             />
-            mm
+            <UnitChip quantity="length" scope={unitScope('freeform', 'x')} />
           </label>
           <label className="flex items-center gap-1">
             Y
             <input
               type="number"
-              step={1}
-              value={+(selPt[1] * 1000).toFixed(1)}
-              onChange={(e) => setPoint(sel!, selPt[0], (parseFloat(e.target.value) || 0) / 1000)}
+              step={ptY.step(0.001)}
+              value={+ptY.toUi(selPt[1]).toFixed(3)}
+              onChange={(e) => setPoint(sel!, selPt[0], ptY.fromUi(parseFloat(e.target.value) || 0))}
               onBlur={onCommit}
               className="w-16 rounded bg-slate-800 px-1.5 py-0.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
             />
-            mm
+            <UnitChip quantity="length" scope={unitScope('freeform', 'y')} />
           </label>
         </div>
       )}

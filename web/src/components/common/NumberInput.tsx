@@ -26,6 +26,7 @@ export function NumberInput({
   disabled,
   placeholder,
   className,
+  ariaLabel,
 }: {
   value: number | null;
   onChange: (v: number | null) => void;
@@ -36,6 +37,13 @@ export function NumberInput({
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  /**
+   * Names the input explicitly. A field row is a <label> that also holds the
+   * UnitChip, and a wrapping label's accessible name is its whole subtree — so
+   * without this the chip's selected symbol glues itself onto every field name
+   * ("Length mm"), and the name changes whenever the unit does.
+   */
+  ariaLabel?: string;
 }) {
   // null ⇒ not editing: mirror the prop. A string ⇒ the in-progress keystrokes.
   const [draft, setDraft] = useState<string | null>(null);
@@ -49,6 +57,7 @@ export function NumberInput({
       disabled={disabled}
       placeholder={placeholder}
       className={className}
+      aria-label={ariaLabel}
       value={draft ?? (blank ? '' : fmt(value as number))}
       onFocus={() => setDraft(blank ? '' : String(value))}
       onChange={(e) => {

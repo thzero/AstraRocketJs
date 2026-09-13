@@ -8,6 +8,12 @@ import { defineConfig } from 'vitest/config';
 // tests (orkFile import, xmlUtil.xmlText, schematicExport) opt in per-file with a
 //   // @vitest-environment jsdom
 // comment at the top of the file.
+//
+// `.test.tsx` files are COMPONENT tests, rendered with React Testing Library.
+// They always need a DOM, so they declare the jsdom environment the same way.
+// Use them where behaviour lives in the component rather than in a service —
+// a rule the component itself enforces, say — and leave whole-app journeys and
+// anything needing a real engine or layout to Playwright.
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify('0.0.0-test'),
@@ -15,7 +21,7 @@ export default defineConfig({
     __CONTRIBUTORS_URL__: JSON.stringify('https://example.test/graphs/contributors'),
   },
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     environment: 'node',
   },
 });

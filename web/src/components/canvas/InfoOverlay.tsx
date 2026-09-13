@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
 import type { StaticInfo } from '../../engine/api';
 import { stabilityTone } from '../../services/simReport';
+import { useUnits } from '../../prefs/useUnits';
 
 /** Margin-sign glyph, matching stabilityTone's tiers (shared with the stat tiles). */
 const stabilityGlyph = (cal: number) => (cal >= 1 ? '✓' : cal >= 0 ? '⚠' : '✕');
@@ -13,16 +14,17 @@ const stabilityGlyph = (cal: number) => (cal >= 1 ? '✓' : cal >= 0 ? '⚠' : '
  */
 export function InfoOverlay({ info }: { info: StaticInfo | null }) {
   const { t } = useTranslation();
+  const u = useUnits();
   if (!info) return null;
   const cal = info.stabilityCalibers;
   // Margin as a fraction of overall length — the same figure the stat tiles and
   // the CP callout carry, so the quick-glance card isn't missing a data item.
   const pct = info.length > 0 ? ((info.cp - info.cg) / info.length) * 100 : 0;
   const rows: [string, React.ReactNode][] = [
-    [t('stats.length'), `${fmtNum(info.length * 1000, 0)} mm`],
-    [t('stability.mass'), `${fmtNum(info.mass * 1000, 1)} g`],
-    [t('stability.cg'), `${fmtNum(info.cg * 100, 1)} cm`],
-    [t('stability.cp'), `${fmtNum(info.cp * 100, 1)} cm`],
+    [t('stats.length'), `${u.fmt('length', info.length)} ${u.sym('length')}`],
+    [t('stability.mass'), `${u.fmt('mass', info.mass)} ${u.sym('mass')}`],
+    [t('stability.cg'), `${u.fmt('length', info.cg)} ${u.sym('length')}`],
+    [t('stability.cp'), `${u.fmt('length', info.cp)} ${u.sym('length')}`],
     [
       t('stability.onPad'),
       <span className={stabilityTone(cal)}>

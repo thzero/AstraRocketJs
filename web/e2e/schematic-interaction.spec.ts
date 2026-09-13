@@ -67,7 +67,7 @@ test.describe('2D schematic interaction', () => {
     await dismissWip(page);
     await page.getByTitle(/Length calipers/i).click();
     const svg = schematic(page);
-    // The caliper distance is the accent-colored "<n> cm" label.
+    // The caliper distance is the accent-colored "<n> <unit>" label — cm by default.
     await expect(svg.locator('text[fill="var(--accent)"]', { hasText: /cm/ }).first()).toBeVisible();
   });
 });

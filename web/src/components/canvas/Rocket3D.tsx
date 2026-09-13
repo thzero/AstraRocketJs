@@ -27,6 +27,7 @@ import { stabilityState, type StabilityState } from '../../services/simReport.js
 import { colorForType, DEFAULT_PART_COLORS, mergePalette, type PartPalette } from '../../services/partColors';
 import { useSettings } from '../../state/SettingsProvider';
 import { ImageExportMenu, type ImageExportOptions } from './ImageExportMenu.js';
+import { useUnits } from '../../prefs/useUnits';
 
 /**
  * 3D rocket view (react-three-fiber). Geometry is generated from the
@@ -831,6 +832,7 @@ export function Rocket3D({
   onSelect?: (id: string) => void;
 }) {
   const { t } = useTranslation();
+  const u = useUnits();
   const { settings } = useSettings();
   const palette = useMemo(() => mergePalette(settings.partColors), [settings.partColors]);
   const { pieces, totalLen, maxR } = useMemo(() => buildPieces(tree, motors, palette), [tree, motors, palette]);
@@ -911,10 +913,10 @@ export function Rocket3D({
     const word = cal < 1 ? ` — ${t('schematic.underStable')}` : cal > 6 ? ` — ${t('schematic.overStable')}` : '';
     const warn = cal < 1 || cal > 6 ? '⚠️ ' : '';
     return {
-      text: `${t('schematic.cp')} · ${fmtNum(info.cp * 100, 1)} cm    ${warn}${fmtNum(cal, 2)} ${t('stability.caliber')} · ${pct}%${word}`,
+      text: `${t('schematic.cp')} · ${u.fmt('length', info.cp)} ${u.sym('length')}    ${warn}${fmtNum(cal, 2)} ${t('stability.caliber')} · ${pct}%${word}`,
       color: cal < 1 ? '#f0716f' : cal > 6 ? '#e0a53d' : '#4dbd4d',
     };
-  }, [info, cal, t]);
+  }, [info, cal, t, u]);
 
   // View presets + recovery (batch 08-21d): a pan or deep zoom could lose the
   // rocket with no way back — these jump the camera to known-good stations.
@@ -1073,7 +1075,7 @@ export function Rocket3D({
                 dir={1}
                 color="#dbe3ea"
                 tex={cgTex}
-                label={`${t('schematic.cg')} · ${fmtNum(info.cg * 100, 1)} cm`}
+                label={`${t('schematic.cg')} · ${u.fmt('length', info.cg)} ${u.sym('length')}`}
                 len={maxR * 1.7}
                 markerR={markerR}
               />

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { flightDataCsv, dragTableCsv } from './csvExport';
+import { METRIC_UNITS, IMPERIAL_UNITS } from '../prefs/units';
 import type { FlightResult, DragSweep } from '../engine/openRocketEngine';
 
 const result = {
@@ -24,7 +25,7 @@ const result = {
 } as unknown as FlightResult;
 
 describe('flightDataCsv', () => {
-  const csv = flightDataCsv(result);
+  const csv = flightDataCsv(result, METRIC_UNITS);
   const lines = csv.split('\r\n');
 
   it('uses CRLF line endings and a trailing newline', () => {
@@ -39,11 +40,11 @@ describe('flightDataCsv', () => {
 
   it('emits the metric column header', () => {
     expect(lines[2]).toBe(
-      'Time (s),Altitude (m),Velocity (m/s),Acceleration (m/s^2),Mass (g),Thrust (N),Drag (N),Mach,Stability (cal),CP (cm),CG (cm),AoA (deg)',
+      'Time (s),Altitude (m),Velocity (m/s),Acceleration (m/s²),Mass (g),Thrust (N),Drag (N),Mach,Stability (cal),CP (cm),CG (cm),AoA (°)',
     );
   });
 
-  it('applies unit conversions per row (mass×1000, cp/cg×100, aoa→deg)', () => {
+  it('applies the chosen unit to every column (kg→g, m→cm, rad→°)', () => {
     // data rows follow the 2 event lines + 1 header line
     expect(lines[3]).toBe('0.0000,0,0,10,50,6,0,0,1.5,22.3,20,0');
     expect(lines[4]).toBe('1.0000,100,50,20,40,0,1,0.3,2,22.5,21,1');
@@ -54,7 +55,7 @@ describe('flightDataCsv', () => {
       series: { time: [0], altitude: [null], velocity: [NaN] },
       events: [],
     } as unknown as FlightResult;
-    const row = flightDataCsv(r).split('\r\n')[1]; // header is line 0 (no events)
+    const row = flightDataCsv(r, METRIC_UNITS).split('\r\n')[1]; // header is line 0 (no events)
     expect(row!.startsWith('0.0000,,,')).toBe(true);
   });
 });
@@ -71,7 +72,7 @@ const sweep = {
 
 describe('dragTableCsv', () => {
   it('includes the Cd_powerOn column and sanitizes component header names', () => {
-    const lines = dragTableCsv(sweep).split('\r\n');
+    const lines = dragTableCsv(sweep, METRIC_UNITS).split('\r\n');
     // brackets stripped, comma → semicolon
     expect(lines[0]).toBe('Mach,Cd,Cd_friction,Cd_pressure,Cd_base,Cd_powerOn,CP (cm),CNalpha (/rad),Cd_Nose1;x');
     expect(lines[1]).toBe('0.500,0.5,0.1,0.2,0.2,0.6,22.3,2,0.05');
@@ -79,7 +80,14 @@ describe('dragTableCsv', () => {
 
   it('omits the Cd_powerOn column when there is no nozzle', () => {
     const noNozzle = { ...sweep, hasNozzle: false } as unknown as DragSweep;
-    const header = dragTableCsv(noNozzle).split('\r\n')[0];
+    const header = dragTableCsv(noNozzle, METRIC_UNITS).split('\r\n')[0];
     expect(header!.includes('Cd_powerOn')).toBe(false);
+  });
+
+  it('converts the CP column and names the unit it used', () => {
+    const lines = dragTableCsv(sweep, IMPERIAL_UNITS).split('\r\n');
+    expect(lines[0]!.includes('CP (in)')).toBe(true);
+    // 0.223 m = 8.779527559... in
+    expect(lines[1]!.split(',')[6]).toBe('8.779528');
   });
 });

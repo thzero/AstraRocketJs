@@ -1,5 +1,14 @@
 import type { PartKey } from './partColors';
 import type { LaunchConditions } from './orkTree';
+import {
+  METRIC_UNITS,
+  UNIT_CHOICES,
+  type UnitChoice,
+  normalizeUnitOverrides,
+  normalizeUnits,
+  type UnitOverrides,
+  type UnitSelection,
+} from '../prefs/units';
 
 // Sea-level, calm, standard-atmosphere defaults (Cape Canaveral latitude).
 export const DEFAULT_LAUNCH: LaunchConditions = {
@@ -52,6 +61,13 @@ export interface RulerSides {
 }
 
 export interface Settings {
+  /** The unit each quantity DEFAULTS to, as set in Settings ▸ Units. The tree,
+   *  the kernel and every saved file stay SI — this is a display/entry
+   *  preference only. */
+  units: UnitSelection;
+  /** Units changed from an inline unit chip. A separate layer over `units` so a
+   *  chip never rewrites the defaults chosen in the dialog; see UnitOverrides. */
+  unitOverrides: UnitOverrides;
   /** Per-group colour overrides for the 3D model (empty = built-in defaults). */
   partColors: Partial<Record<PartKey, string>>;
   /** Flight-path phase colours. */
@@ -81,6 +97,11 @@ export interface Settings {
 
 /** Persistent output options for the PDF report (the "Settings" sub-dialog). */
 export interface ReportSettings {
+  /** Which units the report and the design CSV are written in. `current` follows
+   *  the app's units; the other two pin the document to a system regardless of
+   *  what the app is showing, which is what you want when it is for someone
+   *  else. Absent/unknown reads as `current`. */
+  units: UnitChoice;
   /** Template fill colour (hex), or '' for outline only. */
   templateFill: string;
   /** Template border colour (hex). */
@@ -92,6 +113,7 @@ export interface ReportSettings {
 }
 
 export const DEFAULT_REPORT: ReportSettings = {
+  units: 'current',
   templateFill: '',
   templateStroke: '#111827',
   paper: 'letter',
@@ -99,6 +121,8 @@ export const DEFAULT_REPORT: ReportSettings = {
 };
 
 export const DEFAULT_SETTINGS: Settings = {
+  units: METRIC_UNITS,
+  unitOverrides: {},
   partColors: {},
   phaseColors: { boost: '#fb923c', coast: '#38bdf8', descent: '#34d399' },
   playbackSpeed: 0.5,
@@ -143,6 +167,10 @@ export function loadSettings(): Settings {
           ) as Partial<RulerSides>)
         : {};
     return {
+      // Unknown/absent symbols fall back per quantity, so an older store (which
+      // has no `units` at all) keeps exactly the units it was displaying.
+      units: normalizeUnits(s.units),
+      unitOverrides: normalizeUnitOverrides(s.unitOverrides),
       partColors: { ...(s.partColors ?? {}) },
       phaseColors: { ...DEFAULT_SETTINGS.phaseColors, ...(s.phaseColors ?? {}) },
       playbackSpeed: typeof s.playbackSpeed === 'number' ? s.playbackSpeed : DEFAULT_SETTINGS.playbackSpeed,
@@ -161,7 +189,13 @@ export function loadSettings(): Settings {
       showStats: typeof s.showStats === 'boolean' ? s.showStats : DEFAULT_SETTINGS.showStats,
       rulers: { ...DEFAULT_SETTINGS.rulers, ...legacyRulers, ...savedRulers },
       saveDesignInfo: typeof s.saveDesignInfo === 'boolean' ? s.saveDesignInfo : DEFAULT_SETTINGS.saveDesignInfo,
-      report: { ...DEFAULT_REPORT, ...(s.report ?? {}) },
+      report: (() => {
+        const r = { ...DEFAULT_REPORT, ...(s.report ?? {}) };
+        // A hand-edited or future-version choice falls back rather than being
+        // handed to resolveUnitChoice, where it would silently mean `current`.
+        if (!UNIT_CHOICES.includes(r.units)) r.units = DEFAULT_REPORT.units;
+        return r;
+      })(),
       wipAcknowledged: typeof s.wipAcknowledged === 'boolean' ? s.wipAcknowledged : DEFAULT_SETTINGS.wipAcknowledged,
     };
   } catch {

@@ -60,7 +60,7 @@ Aplicar un preajuste solo rellena los campos del componente: puedes retocarlo de
 
 Al seleccionar un **paracaídas** aparece una lectura de **dimensionado del descenso** en su panel. A partir de la masa de descenso del diseño (consulta *peso de recuperación*) y la densidad del aire en el campo de vuelo, ofrece:
 
-- la **velocidad de descenso** que produce realmente esta campana (m/s y ft/s), coloreada frente a las bandas aceptadas de **principal** (15–20 ft/s) y **piloto** (50–75 ft/s), y
+- la **velocidad de descenso** que produce realmente esta campana, en [tu unidad de velocidad](./settings.md#units), coloreada frente a las bandas aceptadas de **principal** (15–20 ft/s) y **piloto** (50–75 ft/s), y
 - el **diámetro de campana** que necesitarías para alcanzar cada banda, con el propio coeficiente de resistencia de esta campana.
 
 Necesita un motor cargado (para conocer la masa de descenso). Es solo una ayuda en pantalla: no se escribe nada en el diseño.
@@ -69,7 +69,7 @@ Necesita un motor cargado (para conocer la masa de descenso). Es solo una ayuda 
 
 Todo componente estructural tiene un **material**, que el motor de física usa (por su **densidad**) para calcular la masa y el CG:
 
-- **Materiales incorporados** — la lista completa de OpenRocket (volumen / superficie / línea, con sus densidades).
+- **Materiales incorporados** — la lista completa de OpenRocket (volumen / superficie / línea, con sus densidades). Cada tipo tiene su propia [unidad de densidad](./settings.md#units) — el material sólido por volumen, la tela del paracaídas por superficie y la cuerda por longitud — y la densidad de un material personalizado se lee en la unidad que esté mostrándose.
 - **Materiales personalizados** — define los tuyos (nombre + densidad); se guardan en tu navegador y se reutilizan en todos los diseños.
 
 > Nota: la **densidad** de un material (y por tanto toda la física) se conserva en un viaje de ida y vuelta por `.ork`, pero el **nombre** de un material no predeterminado puede no sobrevivir todavía a guardar y recargar — consulta las [Preguntas frecuentes](./faq.md).

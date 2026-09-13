@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { dataHeaderLines, type ExportData } from './schematicExport';
+import { METRIC_UNITS } from '../prefs/units';
 import type { StaticInfo } from '../engine/openRocketEngine';
 
 const info = {
@@ -15,7 +16,7 @@ const info = {
 const data = (over: Partial<ExportData> = {}): ExportData => ({
   name: 'My Rocket',
   info,
-  units: { length: 'm', mass: 'g' },
+  units: { ...METRIC_UNITS, length: 'm', mass: 'g' },
   withMotors: true,
   appVersion: '9.9.9',
   ...over,

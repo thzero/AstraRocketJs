@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { Simulation } from '../../services/simulations';
 import type { MotorSpec } from '../../engine/openRocketEngine';
-import { fmtNum } from '../../i18n/format';
+import { useUnits } from '../../prefs/useUnits';
 
 /** "Estes C6" — manufacturer + designation, or just the designation if unknown. */
 function motorLabel(m: MotorSpec): string {
@@ -34,8 +34,10 @@ export function SimulationsList({
   onDelete: (id: string) => void;
 }) {
   const { t } = useTranslation();
+  const u = useUnits();
   const active = sims.find((s) => s.id === activeId) ?? sims[0]!;
-  const summaryOf = (s: Simulation) => (s.result ? `${fmtNum(s.result.summary.maxAltitude, 0)} m` : t('sims.notRun'));
+  const summaryOf = (s: Simulation) =>
+    s.result ? `${u.fmt('distance', s.result.summary.maxAltitude)} ${u.sym('distance')}` : t('sims.notRun');
 
   return (
     <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">

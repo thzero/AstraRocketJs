@@ -53,6 +53,8 @@ export function ChartAxes({
   X,
   Y,
   levels = [0, 0.5, 1],
+  fScale = 1,
+  fDigits = 0,
 }: {
   dims: ChartDims;
   tMax: number;
@@ -60,6 +62,9 @@ export function ChartAxes({
   X: (t: number) => number;
   Y: (f: number) => number;
   levels?: number[];
+  /** Multiplier from newtons to the unit the axis is LABELLED in. */
+  fScale?: number;
+  fDigits?: number;
 }) {
   return (
     <>
@@ -69,7 +74,7 @@ export function ChartAxes({
           <g key={f}>
             <line x1={dims.padL} y1={gy} x2={dims.width - dims.padR} y2={gy} className="stroke-white/10" />
             <text x={dims.padL - 4} y={gy + 3} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
-              {fmtNum(fMax * f, 0)}
+              {fmtNum(fMax * f * fScale, fDigits)}
             </text>
           </g>
         );

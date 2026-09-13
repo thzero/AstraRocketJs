@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo } from 'react';
+import { lazy, Suspense, useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode, ComponentPosition } from '../../engine/openRocketEngine';
 import { isAxial, hasCatalog, hasMaterial, catalogPatch } from '../../services/treeEdit';
@@ -12,21 +12,29 @@ import { MaterialPicker } from './MaterialPicker';
 import { FreeformFinEditor } from './FreeformFinEditor';
 import { RecoverySizingReadout } from './RecoverySizingReadout';
 import { NumberInput } from '../common/NumberInput';
+import { UnitChip } from '../common/UnitChip';
+import { useUnits } from '../../prefs/useUnits';
+import { unitScope } from '../../prefs/units';
 import { num } from '../../tree/nodeProps';
 
 /**
  * Edits the currently-selected component's properties. Type-specific numeric
- * fields (lengths in mm, mass in g), a shape/select where relevant, the part
- * name, an axial-position editor for nested parts, and a Delete button. Emits a
- * shallow patch on every change; App merges it into the tree and rebuilds.
+ * fields, a shape/select where relevant, the part name, an axial-position editor
+ * for nested parts, and a Delete button. Emits a shallow patch on every change;
+ * App merges it into the tree and rebuilds.
+ *
+ * The tree is always SI (metres, kilograms, radians). Every field converts to
+ * the user's chosen unit on the way out and back on the way in — the unit label
+ * beside each field is a UnitChip, so it doubles as the picker.
  */
 
 type Field =
-  | { key: string; label: string; kind: 'length' } // stored m, shown mm
-  | { key: string; label: string; kind: 'mass' } // stored kg, shown g
+  | { key: string; label: string; kind: 'length' } // stored m, shown in units.length
+  | { key: string; label: string; kind: 'mass' } // stored kg, shown in units.mass
   | { key: string; label: string; kind: 'count' }
+  | { key: string; label: string; kind: 'distance'; step?: number } // stored m, shown in units.distance
   | { key: string; label: string; kind: 'number'; step?: number; unit?: string }
-  | { key: string; label: string; kind: 'angle'; step?: number } // stored radians, shown degrees
+  | { key: string; label: string; kind: 'angle'; step?: number } // stored radians, shown in units.angle
   | { key: string; label: string; kind: 'bool' }
   | { key: string; label: string; kind: 'select'; options: string[]; optI18n?: string };
 
@@ -82,13 +90,25 @@ const ASSEMBLY_FIELDS: Field[] = [
 ];
 
 // `label` is an i18n key suffix under `prop.*` (resolved at render).
-const FIELDS: Record<string, Field[]> = {
+/**
+ * Unit-scope keys the panel uses for its own rows, beyond the type-specific
+ * fields. Named here so the scope test can check no FIELDS entry reuses one.
+ */
+export const PANEL_SCOPE_KEYS = ['overrideMass', 'overrideCGX', 'offset'] as const;
+
+/**
+ * Exported for `PropertyPanel.scopes.test.ts`, which checks that no two fields
+ * of a type collide on a unit scope. The scopes are strings assembled from
+ * (type, key), so a duplicated key would silently make two fields share one
+ * unit choice.
+ */
+export const FIELDS: Record<string, Field[]> = {
   // Separation only — shown for a non-first stage (see the render guard). The
   // altitude is used only by the altitude events; harmless (like deployAltitude).
   stage: [
     { key: 'separationEvent', label: 'separationEvent', kind: 'select', options: SEPARATION_EVENTS, optI18n: 'separationEvent' },
     { key: 'separationDelay', label: 'separationDelay', kind: 'number', unit: 's', step: 0.5 },
-    { key: 'separationAltitude', label: 'separationAltitude', kind: 'number', unit: 'm', step: 10 },
+    { key: 'separationAltitude', label: 'separationAltitude', kind: 'distance', step: 10 },
   ],
   nosecone: [
     { key: 'shape', label: 'shape', kind: 'select', options: NOSE_SHAPES },
@@ -194,7 +214,7 @@ const FIELDS: Record<string, Field[]> = {
     { key: 'lineCount', label: 'lineCount', kind: 'count' },
     { key: 'lineLength', label: 'lineLength', kind: 'length' },
     { key: 'deployEvent', label: 'deployEvent', kind: 'select', options: DEPLOY_EVENTS, optI18n: 'deployEvent' },
-    { key: 'deployAltitude', label: 'deployAltitude', kind: 'number', unit: 'm', step: 10 },
+    { key: 'deployAltitude', label: 'deployAltitude', kind: 'distance', step: 10 },
     { key: 'deployDelay', label: 'deployDelay', kind: 'number', unit: 's', step: 0.5 },
   ],
   streamer: [
@@ -202,7 +222,7 @@ const FIELDS: Record<string, Field[]> = {
     { key: 'stripWidth', label: 'width', kind: 'length' },
     { key: 'cd', label: 'dragCoeff', kind: 'number', step: 0.05 },
     { key: 'deployEvent', label: 'deployEvent', kind: 'select', options: DEPLOY_EVENTS, optI18n: 'deployEvent' },
-    { key: 'deployAltitude', label: 'deployAltitude', kind: 'number', unit: 'm', step: 10 },
+    { key: 'deployAltitude', label: 'deployAltitude', kind: 'distance', step: 10 },
     { key: 'deployDelay', label: 'deployDelay', kind: 'number', unit: 's', step: 0.5 },
   ],
   masscomponent: [
@@ -218,7 +238,7 @@ const FIELDS: Record<string, Field[]> = {
     ...ASSEMBLY_FIELDS,
     { key: 'separationEvent', label: 'separationEvent', kind: 'select', options: SEPARATION_EVENTS, optI18n: 'separationEvent' },
     { key: 'separationDelay', label: 'separationDelay', kind: 'number', unit: 's', step: 0.5 },
-    { key: 'separationAltitude', label: 'separationAltitude', kind: 'number', unit: 'm', step: 10 },
+    { key: 'separationAltitude', label: 'separationAltitude', kind: 'distance', step: 10 },
   ],
 };
 
@@ -232,7 +252,7 @@ function NumberField({
   onCommit,
 }: {
   label: string;
-  unit?: string;
+  unit?: ReactNode;
   value: number;
   step: number;
   min?: number;
@@ -244,6 +264,7 @@ function NumberField({
       <span className="text-xs text-slate-400">{label}</span>
       <span className="flex items-center gap-1">
         <NumberInput
+          ariaLabel={label}
           value={Number.isFinite(value) ? value : 0}
           onChange={(v) => onChange(v ?? 0)}
           onCommit={onCommit}
@@ -251,7 +272,7 @@ function NumberField({
           min={min}
           className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
         />
-        {unit && <span className="w-6 text-xs text-slate-500">{unit}</span>}
+        {unit && <span className="min-w-10 text-xs text-slate-500">{unit}</span>}
       </span>
     </label>
   );
@@ -273,7 +294,7 @@ function OverrideRow({
   onSub,
 }: {
   label: string;
-  unit?: string;
+  unit?: ReactNode;
   enabled: boolean;
   value: number;
   step: number;
@@ -301,6 +322,7 @@ function OverrideRow({
         </span>
         <span className="flex items-center gap-1">
           <NumberInput
+            ariaLabel={label}
             value={Number.isFinite(value) ? value : 0}
             onChange={(v) => onValue(v ?? 0)}
             onCommit={onCommit}
@@ -309,7 +331,7 @@ function OverrideRow({
             min={0}
             className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500 disabled:opacity-40"
           />
-          {unit && <span className="w-6 text-xs text-slate-500">{unit}</span>}
+          {unit && <span className="min-w-10 text-xs text-slate-500">{unit}</span>}
         </span>
       </label>
       {enabled && (
@@ -357,6 +379,7 @@ export function PropertyPanel({
 }) {
   const { t } = useTranslation();
   const { settings } = useSettings();
+  const u = useUnits();
   const palette = useMemo(() => mergePalette(settings.partColors), [settings.partColors]);
   if (!node) {
     return (
@@ -365,6 +388,14 @@ export function PropertyPanel({
       </section>
     );
   }
+
+  // The three rows below the type-specific fields carry their own units too.
+  const massOverrideScope = unitScope('prop', node.type, PANEL_SCOPE_KEYS[0]);
+  const cgOverrideScope = unitScope('prop', node.type, PANEL_SCOPE_KEYS[1]);
+  const offsetScope = unitScope('prop', node.type, PANEL_SCOPE_KEYS[2]);
+  const overrideMassUnit = u.at(massOverrideScope, 'mass');
+  const overrideCgUnit = u.at(cgOverrideScope, 'length');
+  const offsetUnit = u.at(offsetScope, 'length');
 
   // The top stage separates from nothing above it — hide its separation fields.
   const fields = node.type === 'stage' && isFirstStage ? [] : (FIELDS[node.type] ?? []);
@@ -457,6 +488,10 @@ export function PropertyPanel({
       )}
 
       {fields.map((f) => {
+        // One scope per field of this component TYPE: every body tube is the
+        // same Length field on the same card, so selecting another must not
+        // forget the unit just set on it — but a nose cone's Length is its own.
+        const scope = unitScope('prop', node.type, f.key);
         if (f.kind === 'select') {
           const cur = typeof node[f.key] === 'string' ? (node[f.key] as string) : f.options[0];
           return (
@@ -502,14 +537,29 @@ export function PropertyPanel({
           );
         }
         if (f.kind === 'mass') {
+          const fu = u.at(scope, 'mass');
           return (
             <NumberField
               key={f.key}
               label={flabel(f)}
-              unit="g"
-              value={num(node, f.key) * 1000}
-              step={0.5}
-              onChange={(v) => onChange({ [f.key]: v / 1000 })}
+              unit={<UnitChip quantity="mass" scope={scope} />}
+              value={fu.toUi(num(node, f.key))}
+              step={fu.step(0.0005)}
+              onChange={(v) => onChange({ [f.key]: fu.fromUi(v) })}
+              onCommit={onCommit}
+            />
+          );
+        }
+        if (f.kind === 'distance') {
+          const fu = u.at(scope, 'distance');
+          return (
+            <NumberField
+              key={f.key}
+              label={flabel(f)}
+              unit={<UnitChip quantity="distance" scope={scope} />}
+              value={fu.toUi(num(node, f.key))}
+              step={fu.step(f.step ?? 10)}
+              onChange={(v) => onChange({ [f.key]: fu.fromUi(v) })}
               onCommit={onCommit}
             />
           );
@@ -528,29 +578,33 @@ export function PropertyPanel({
           );
         }
         if (f.kind === 'angle') {
-          // Stored in radians (kernel/.ork convention), edited in degrees.
+          // Stored in radians (kernel/.ork convention), edited in the user's unit.
+          const fu = u.at(scope, 'angle');
           return (
             <NumberField
               key={f.key}
               label={flabel(f)}
-              unit="°"
-              min={-180}
-              step={f.step ?? 5}
-              value={(num(node, f.key) * 180) / Math.PI}
-              onChange={(v) => onChange({ [f.key]: (v * Math.PI) / 180 })}
+              unit={<UnitChip quantity="angle" scope={scope} />}
+              // Half a turn either way, in whatever unit is selected — a fixed
+              // −180 would clamp a radian entry to well inside its legal range.
+              min={-fu.toUi(Math.PI)}
+              step={fu.step(((f.step ?? 5) * Math.PI) / 180)}
+              value={fu.toUi(num(node, f.key))}
+              onChange={(v) => onChange({ [f.key]: fu.fromUi(v) })}
               onCommit={onCommit}
             />
           );
         }
-        // length: stored metres, shown mm
+        // length: stored metres, shown in this field's length unit
+        const fu = u.at(scope, 'length');
         return (
           <NumberField
             key={f.key}
             label={flabel(f)}
-            unit="mm"
-            value={num(node, f.key) * 1000}
-            step={0.5}
-            onChange={(v) => onChange({ [f.key]: v / 1000 })}
+            unit={<UnitChip quantity="length" scope={scope} />}
+            value={fu.toUi(num(node, f.key))}
+            step={fu.step(0.0005)}
+            onChange={(v) => onChange({ [f.key]: fu.fromUi(v) })}
             onCommit={onCommit}
           />
         );
@@ -609,17 +663,17 @@ export function PropertyPanel({
         <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{t('override.title')}</div>
         <OverrideRow
           label={t('override.mass')}
-          unit="g"
-          step={0.5}
+          unit={<UnitChip quantity="mass" scope={massOverrideScope} />}
+          step={overrideMassUnit.step(0.0005)}
           enabled={typeof node.overrideMass === 'number'}
-          value={num(node, 'overrideMass') * 1000}
+          value={overrideMassUnit.toUi(num(node, 'overrideMass'))}
           onToggle={(on) =>
             onChange({
               overrideMass: on ? Math.max(num(node, 'overrideMass'), 0.01) : undefined,
               overrideSubcomponentsMass: on ? (node.overrideSubcomponentsMass as boolean | undefined) : undefined,
             })
           }
-          onValue={(v) => onChange({ overrideMass: v / 1000 })}
+          onValue={(v) => onChange({ overrideMass: overrideMassUnit.fromUi(v) })}
           onCommit={onCommit}
           subLabel={t('override.applyAll')}
           sub={node.overrideSubcomponentsMass === true}
@@ -627,17 +681,17 @@ export function PropertyPanel({
         />
         <OverrideRow
           label={t(node.type === 'stage' ? 'override.cgStage' : 'override.cg')}
-          unit="mm"
-          step={1}
+          unit={<UnitChip quantity="length" scope={cgOverrideScope} />}
+          step={overrideCgUnit.step(0.001)}
           enabled={typeof node.overrideCGX === 'number'}
-          value={num(node, 'overrideCGX') * 1000}
+          value={overrideCgUnit.toUi(num(node, 'overrideCGX'))}
           onToggle={(on) =>
             onChange({
               overrideCGX: on ? num(node, 'overrideCGX') : undefined,
               overrideSubcomponentsCG: on ? (node.overrideSubcomponentsCG as boolean | undefined) : undefined,
             })
           }
-          onValue={(v) => onChange({ overrideCGX: v / 1000 })}
+          onValue={(v) => onChange({ overrideCGX: overrideCgUnit.fromUi(v) })}
           onCommit={onCommit}
           subLabel={t('override.applyAll')}
           sub={node.overrideSubcomponentsCG === true}
@@ -684,11 +738,13 @@ export function PropertyPanel({
           </label>
           <NumberField
             label={t('prop.offset')}
-            unit="mm"
-            value={pos.offset * 1000}
-            step={1}
-            min={-100000}
-            onChange={(v) => onChange({ position: { ...pos, offset: v / 1000 } })}
+            unit={<UnitChip quantity="length" scope={offsetScope} />}
+            value={offsetUnit.toUi(pos.offset)}
+            step={offsetUnit.step(0.001)}
+            // A negative offset is legal (a part sitting proud of its parent);
+            // the bound is in the field's unit so it doesn't shrink in inches.
+            min={-offsetUnit.toUi(100)}
+            onChange={(v) => onChange({ position: { ...pos, offset: offsetUnit.fromUi(v) } })}
             onCommit={onCommit}
           />
         </div>

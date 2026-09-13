@@ -14,11 +14,16 @@ No. Todo se ejecuta en tu dispositivo. Tus cohetes, tus motores y materiales per
 ### ¿Mis archivos `.ork` funcionarán en OpenRocket de escritorio?
 Sí: la importación y la exportación son de ida y vuelta con total fidelidad, y un archivo exportado se vuelve a abrir en OpenRocket de escritorio.
 
+### ¿Mis unidades aparecen en OpenRocket de escritorio?
+No. Las unidades viven en los ajustes de tu navegador, no en el `.ork`: el archivo no tiene dónde guardarlas, y OpenRocket de escritorio mantiene las suyas en sus preferencias. Tu archivo se abre allí con las unidades de OpenRocket y aquí con las tuyas; el cohete es el mismo en ambos casos. Por la misma razón, tus unidades no te siguen a otro ordenador ni a otro navegador. Consulta **[Ajustes](./settings.md#units)**.
+
 ### ¿Por qué la estabilidad es distinta «en la rampa» y «al salir del raíl»?
 Cuando el cohete abandona la varilla o el raíl ya pesa algo menos (ha quemado algo de propelente) y su CG se ha desplazado, así que su margen de estabilidad difiere del valor en la rampa con el cohete cargado. El valor de salida del raíl suele ser el más significativo.
 
 ### ¿Puedo usar pulgadas o unidades imperiales?
-Todavía no: por ahora la aplicación es **solo métrica/SI**.
+Sí. **Ajustes ▸ Unidades** tiene un botón de **Valores imperiales**, y puedes configurar cada magnitud por separado (longitudes en pulgadas, altitud en pies, masa en onzas, viento en mph, etc.). La unidad impresa junto a cualquier valor también es un selector: haz clic para cambiar ese campo concreto, dejando todo lo demás en tus valores por defecto.
+
+Las unidades solo afectan a lo que se muestra y se escribe: tu diseño se guarda siempre en SI, así que cambiar de unidades nunca modifica un cohete ni cómo se escribe un archivo `.ork`. Consulta **[Ajustes](./settings.md#units)**.
 
 ### ¿Funciona sin conexión?
 Sí. Tras la primera visita, la aplicación conserva en tu dispositivo tanto la propia aplicación como el motor de física y los dos catálogos, así que se abre y ejecuta una simulación completa sin conexión — útil en un campo de vuelo sin cobertura. Tu navegador también te ofrecerá **instalarla**. Consulta **[Sin conexión e instalación](./offline-and-installing.md)**.

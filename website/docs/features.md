@@ -31,11 +31,11 @@ sidebar_position: 2
 ## Platform
 - **Client-only** — no server, no accounts, nothing uploaded. A working copy of your design persists in the browser (so a refresh won't lose it); the design itself is a `.ork` file on your disk.
 - **Responsive** — a three-pane desktop workbench that collapses to a tabbed single column on phones.
+- **Your choice of units** — metric or imperial presets, or a unit per quantity (component and motor dimensions, altitude, mass, velocity, wind, acceleration, angle, density, temperature, pressure, thrust, impulse). The unit beside any value is also a picker for that one field. Designs stay SI, so switching never edits a rocket. See **[Settings](./settings.md#units)**.
 - **Keyboard navigation** — the component tree is fully arrow-key navigable (broader accessibility is an ongoing effort).
 - Available in **English and Spanish**.
 
 ## Not (yet) supported
-- **Metric/SI units only** — no imperial / unit-preference option yet.
 - **Staged flight trajectories aren't validated yet** — multi-stage rockets are authorable and simulate (each booster flies its own branch), and their static mass / CG / stability match OpenRocket, but the flown staged trajectory hasn't been checked end-to-end against desktop OpenRocket. Treat staged flight results as preliminary.
 - A single (dark) theme.
 

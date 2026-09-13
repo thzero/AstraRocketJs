@@ -2,12 +2,20 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { builtinsForType, materialsForType, addCustom, removeCustom } from '../../services/materials';
 import type { Material, MaterialType } from '../../data/materials';
-import { fmtNum } from '../../i18n/format';
+import { UnitChip } from '../common/UnitChip';
+import { useUnits } from '../../prefs/useUnits';
+import { unitScope, type Quantity } from '../../prefs/units';
 
-// Density units + display precision per material type. Bulk is kg/m³ (big
-// numbers); surface (fabric) is kg/m² and line (cord) is kg/m — both tiny.
-const UNIT: Record<MaterialType, string> = { bulk: 'kg/m³', surface: 'kg/m²', line: 'kg/m' };
-const DIGITS: Record<MaterialType, number> = { bulk: 0, surface: 3, line: 4 };
+/**
+ * Each material kind measures a different density, so each has its own
+ * preference group: bulk stock by volume, fabric by area, cord by length.
+ * The catalogue and the engine hold all three in SI (kg/m³, kg/m², kg/m).
+ */
+const QUANTITY: Record<MaterialType, Quantity> = {
+  bulk: 'density',
+  surface: 'surfaceDensity',
+  line: 'lineDensity',
+};
 
 /**
  * Assigns a material (name + density) to a component, from the built-in
@@ -34,8 +42,15 @@ export function MaterialPicker({
   const [name, setName] = useState('');
   const [dens, setDens] = useState('');
   const [addErr, setAddErr] = useState<string | null>(null);
-  const unit = UNIT[type];
-  const digits = DIGITS[type];
+  const u = useUnits();
+  const quantity = QUANTITY[type];
+  // One scope per material kind — fabric and cord densities are read in quite
+  // different units from bulk stock, so they must not share a choice.
+  const scope = unitScope('material', type);
+  const fu = u.at(scope, quantity);
+  // No fixed decimal count: one that suits kg/m³ (680) is wrong for g/cm³
+  // (0.68), and the unit can change under this readout at any time.
+  const density = (si: number) => fu.fmt(si);
 
   useEffect(() => {
     let live = true;
@@ -67,7 +82,7 @@ export function MaterialPicker({
 
   const submitCustom = async () => {
     try {
-      const next = await addCustom(name, type, parseFloat(dens));
+      const next = await addCustom(name, type, fu.fromUi(parseFloat(dens)));
       setMats(await materialsForType(type));
       const added = next[0];
       if (added) onChange(added.name, added.density);
@@ -92,7 +107,13 @@ export function MaterialPicker({
       <div className="mb-1 flex items-center justify-between text-sm">
         <span className="text-slate-300">{label ?? t('material.title')}</span>
         <span className="tabular-nums text-xs text-slate-400">
-          {current ? `${fmtNum(current.density, digits)} ${unit}` : t('material.default')}
+          {current ? (
+            <>
+              {density(current.density)} <UnitChip quantity={quantity} scope={scope} />
+            </>
+          ) : (
+            t('material.default')
+          )}
           {current?.custom && (
             <button onClick={deleteCurrentCustom} className="ml-2 text-red-400" aria-label={t('material.deleteCustom')}>
               ✕
@@ -111,7 +132,7 @@ export function MaterialPicker({
             {list.map((m) => (
               <option key={`${g}:${m.name}`} value={m.name}>
                 {m.custom ? '★ ' : ''}
-                {m.name} · {fmtNum(m.density, digits)} {unit}
+                {m.name} · {density(m.density)} {fu.sym}
               </option>
             ))}
           </optgroup>
@@ -135,7 +156,8 @@ export function MaterialPicker({
             type="number"
             min={0}
             step="any"
-            placeholder={t('material.densityPlaceholder')}
+            placeholder={`${t('material.densityPlaceholder')} (${fu.sym})`}
+            aria-label={`${t('material.densityPlaceholder')} (${fu.sym})`}
             className="w-full rounded bg-slate-900 px-2 py-1.5 text-sm tabular-nums ring-1 ring-white/10 placeholder:text-slate-500"
           />
           {addErr && <p className="text-xs text-red-400">{addErr}</p>}

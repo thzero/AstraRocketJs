@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
 import { useSettings } from '../../state/SettingsProvider';
+import { useUnits } from '../../prefs/useUnits';
+import { resolveUnitChoice, UNIT_CHOICES, type UnitChoice } from '../../prefs/units';
 import { DEFAULT_REPORT } from '../../services/settings';
 import { assembleReport, type ReportModel } from '../../services/reportModel';
 import type { ComponentNode } from '../../engine/openRocketEngine';
@@ -35,6 +37,10 @@ const hasType = (nodes: ComponentNode[], pred: (t: string) => boolean): boolean 
 export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation();
   const { settings, update } = useSettings();
+  const units = useUnits();
+  // One resolution for both outputs — the PDF and the CSV must never disagree
+  // about what the document is written in.
+  const exportUnits = resolveUnitChoice(settings.report.units, units.all);
   const tree = useWorkspaceStore((s) => s.tree);
   // Readiness as a BOOLEAN, never the info/rocket objects themselves: a
   // multi-stage assembleReport() rebuilds the live handle (applyBuild) and so
@@ -138,7 +144,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
         orientation: settings.report.orientation,
         templateFill: settings.report.templateFill,
         templateStroke: settings.report.templateStroke,
-      });
+      }, exportUnits);
       onClose();
     } catch (e) {
       useWorkspaceStore.getState().setErr(`Could not export PDF: ${e instanceof Error ? e.message : String(e)}`);
@@ -151,7 +157,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
     if (!model) return;
     try {
       const { downloadDesignCsv } = await import('../../services/reportCsv');
-      downloadDesignCsv(assembleReport() ?? model);
+      downloadDesignCsv(assembleReport() ?? model, exportUnits);
       onClose();
     } catch (e) {
       useWorkspaceStore.getState().setErr(`Could not export CSV: ${e instanceof Error ? e.message : String(e)}`);
@@ -226,6 +232,24 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
                   <input type="checkbox" className={check} checked={sel.showByStage} onChange={(e) => patch({ showByStage: e.target.checked })} />
                   {t('export.showByStage')}
                 </label>
+                <label className="flex items-center justify-between gap-3 pt-1 text-sm text-slate-200">
+                  <span>{t('export.units')}</span>
+                  <select
+                    aria-label={t('export.units')}
+                    value={settings.report.units}
+                    onChange={(e) =>
+                      update({ report: { ...settings.report, units: e.target.value as UnitChoice } })
+                    }
+                    className="rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+                  >
+                    {UNIT_CHOICES.map((c) => (
+                      <option key={c} value={c}>
+                        {t(`export.units_${c}`)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className="text-[11px] leading-snug text-slate-500">{t('export.unitsNote')}</p>
               </div>
             </div>
 

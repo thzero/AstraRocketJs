@@ -4,6 +4,7 @@ import { PLUGGED_DELAY, type MotorSpec, type IgnitionEvent } from '../../engine/
 import { MotorDialog } from './MotorDialog';
 import { MotorSpecDialog } from './MotorSpecDialog';
 import { fmtNum } from '../../i18n/format';
+import { useUnits } from '../../prefs/useUnits';
 
 // Only meaningful on an upper stage: the sustainer triggers fire off the stage
 // below, and "never" (skip this motor) would just strand a single/bottom stage
@@ -42,6 +43,7 @@ export function MotorRow({
   upperStage?: boolean;
 }) {
   const { t } = useTranslation();
+  const u = useUnits();
   const [open, setOpen] = useState(false);
   const [curveOpen, setCurveOpen] = useState(false);
   // An unresolved .ork motor is seated as a curve-less placeholder: show its
@@ -56,8 +58,9 @@ export function MotorRow({
             <>
               <div className="truncate text-lg font-semibold text-sky-400">{motor.designation}</div>
               <div className="text-xs text-slate-500">
-                {fmtNum(motor.diameter * 1000, 0)} mm · {fmtNum(motor.length * 1000, 0)} mm
-                {hasCurve ? ` · ${fmtNum(motor.masses[0]! * 1000, 1)} g` : ''}
+                {u.fmt('motorDimensions', motor.diameter)} × {u.fmt('motorDimensions', motor.length)}{' '}
+                {u.sym('motorDimensions')}
+                {hasCurve ? ` · ${u.fmt('mass', motor.masses[0]!)} ${u.sym('mass')}` : ''}
               </div>
               {hasCurve ? (
                 <div className="mt-0.5 text-xs text-slate-500">

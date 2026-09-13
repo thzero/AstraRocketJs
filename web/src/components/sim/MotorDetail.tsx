@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
+import { useUnits } from '../../prefs/useUnits';
 import type { CatalogMotor } from '../../services/motorDb';
 import { initialThrust } from '../../services/motorPicker';
 import { ChartAxes, chartScales, linePath, baselineArea } from './chartAxes';
@@ -23,6 +24,7 @@ export function MotorDetail({
   onCurveChange: (i: number) => void;
 }) {
   const { t } = useTranslation();
+  const u = useUnits();
   const curves = motor.curves ?? [];
   const samples = (curves[curveIndex] ?? curves[0])?.samples ?? [];
   const title = motor.code || motor.designation;
@@ -41,6 +43,10 @@ export function MotorDetail({
 
   const g = (v: number | null | undefined, unit: string, digits = 1) =>
     v == null || !Number.isFinite(v) ? '—' : `${fmtNum(v, digits)} ${unit}`;
+  // The catalog is in mm / g / N / N.s (see CatalogMotor), so `scale` lifts a
+  // field to SI before the user's unit is applied.
+  const q = (quantity: Parameters<typeof u.fmt>[0], v: number | null | undefined, scale = 1, d?: number) =>
+    v == null || !Number.isFinite(v) ? '—' : `${u.fmt(quantity, v * scale, d)} ${u.sym(quantity)}`;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-3">
@@ -100,14 +106,14 @@ export function MotorDetail({
           value={motor.type ? t(`motorDlg.${TYPE_KEY[motor.type] ?? ''}`, { defaultValue: motor.type }) : '—'}
         />
         <Stat label={t('motorDlg.delays')} value={motor.delays ?? '—'} />
-        <Stat label={t('prop.diameter')} value={g(motor.diameter, 'mm', 0)} />
-        <Stat label={t('prop.length')} value={g(motor.length, 'mm')} />
-        <Stat label={t('motorDlg.totalWeight')} value={g(motor.mass, 'g')} />
-        <Stat label={t('motorDlg.propWeight')} value={g(motor.propWeightG, 'g')} />
-        <Stat label={t('motorDlg.avgThrust')} value={g(avg, 'N')} />
-        <Stat label={t('motorDlg.initialThrust') + '*'} value={g(init, 'N')} />
-        <Stat label={t('motorDlg.maxThrust')} value={g(max, 'N')} />
-        <Stat label={t('motorDlg.totalImpulse')} value={g(motor.impulse, 'N·s')} />
+        <Stat label={t('prop.diameter')} value={q('motorDimensions', motor.diameter, 0.001)} />
+        <Stat label={t('prop.length')} value={q('motorDimensions', motor.length, 0.001)} />
+        <Stat label={t('motorDlg.totalWeight')} value={q('mass', motor.mass, 0.001)} />
+        <Stat label={t('motorDlg.propWeight')} value={q('mass', motor.propWeightG, 0.001)} />
+        <Stat label={t('motorDlg.avgThrust')} value={q('force', avg, 1, 1)} />
+        <Stat label={t('motorDlg.initialThrust') + '*'} value={q('force', init, 1, 1)} />
+        <Stat label={t('motorDlg.maxThrust')} value={q('force', max, 1, 1)} />
+        <Stat label={t('motorDlg.totalImpulse')} value={q('impulse', motor.impulse, 1, 1)} />
         <Stat label={t('motorDlg.burnTime')} value={g(motor.burn, 's', 2)} />
         <Stat label={t('motorDlg.isp') + '*'} value={g(isp, 's', 0)} />
         <Stat label={t('motorDlg.massFraction') + '*'} value={massFrac == null ? '—' : `${fmtNum(massFrac, 0)}%`} />
@@ -131,6 +137,7 @@ export function Stat({ label, value }: { label: string; value: string }) {
 /** Compact thrust-vs-time chart: filled curve, average-thrust line, burn marker. */
 export function ThrustChart({ samples, avg, burn }: { samples: [number, number][]; avg: number; burn: number }) {
   const { t } = useTranslation();
+  const u = useUnits();
   const dims = { width: 460, height: 150, padL: 34, padR: 10, padT: 10, padB: 22 };
   const { width: W, height: H, padL: PL, padR: PR, padT: PT, padB: PB } = dims;
   const tMax = samples[samples.length - 1]![0] || 1;
@@ -153,7 +160,7 @@ export function ThrustChart({ samples, avg, burn }: { samples: [number, number][
         {0.5 < tMax && (
           <rect x={X(0)} y={PT} width={X(0.5) - X(0)} height={H - PT - PB} fill="#22d3ee" opacity="0.06" />
         )}
-        <ChartAxes dims={dims} tMax={tMax} fMax={fMax} X={X} Y={Y} />
+        <ChartAxes dims={dims} tMax={tMax} fMax={fMax} X={X} Y={Y} fScale={u.factor('force')} />
         <path d={area} fill="url(#thrustFill)" />
         <line x1={PL} y1={Y(avg)} x2={W - PR} y2={Y(avg)} stroke="#2dd4bf" strokeWidth="1" strokeDasharray="4 3" />
         {burn > 0 && burn <= tMax && (
@@ -162,7 +169,7 @@ export function ThrustChart({ samples, avg, burn }: { samples: [number, number][
         <path d={line} fill="none" stroke="#f97316" strokeWidth="1.75" />
         <circle cx={X(peak[0])} cy={Y(peak[1])} r="3" fill="#f97316" />
         <text x={X(peak[0])} y={Y(peak[1]) - 6} textAnchor="middle" className="fill-slate-200 text-[9px] font-semibold">
-          {fmtNum(peak[1], 1)} N
+          {u.fmt('force', peak[1], 1)} {u.sym('force')}
         </text>
       </svg>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-400">

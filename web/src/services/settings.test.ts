@@ -42,6 +42,16 @@ describe('loadSettings', () => {
     expect(loadSettings().wipAcknowledged).toBe(true);
   });
 
+  it("keeps a report unit choice, and falls back rather than trusting an unknown one", () => {
+    expect(loadSettings().report.units).toBe('current');
+    localStorage.setItem(KEY, JSON.stringify({ report: { units: 'imperial' } }));
+    expect(loadSettings().report.units).toBe('imperial');
+    // A hand-edited or future-version value must not reach resolveUnitChoice,
+    // where anything unrecognised would silently mean "current" anyway.
+    localStorage.setItem(KEY, JSON.stringify({ report: { units: 'furlongs' } }));
+    expect(loadSettings().report.units).toBe('current');
+  });
+
   it('defaults the CG/CP marker + info-card toggles to on and round-trips a stored false', () => {
     expect(loadSettings().showMarkers).toBe(true);
     expect(loadSettings().showInfoCard).toBe(true);

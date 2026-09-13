@@ -1,11 +1,15 @@
 import type { FlightResult, DragSweep, FlightSeries } from '../engine/openRocketEngine';
 import { saveText } from './saveFile';
+import { siToUiDelta, type Quantity, type UnitSelection } from '../prefs/units';
 
 /**
- * CSV exporters for the flight time-series and the drag sweep. Metric units
- * throughout (labeled in each header cell) — a user-selectable unit system is a
- * later feature; until then everything is SI-derived (g / cm / deg for the
- * friendlier magnitudes, matching what the charts display).
+ * CSV exporters for the flight time-series and the drag sweep. Columns are
+ * written in the user's chosen units, and every header cell names the unit it
+ * carries — so a file stays self-describing whatever the preference was when it
+ * was written. Numbers use '.' as the decimal separator regardless of locale.
+ *
+ * `siToUiDelta`, not `siToUi`: a whole column is being scaled, and none of these
+ * quantities carries a temperature-style offset.
  */
 const EOL = '\r\n';
 
@@ -17,8 +21,21 @@ const mul = (v: number | null | undefined, f: number): number | null =>
   v == null || !Number.isFinite(v) ? null : v * f;
 const row = (cells: (string | number)[]): string => cells.join(',');
 
+/** A column's SI→display multiplier and the symbol its header should name. */
+const col = (units: UnitSelection, q: Quantity): { f: number; sym: string } => ({
+  f: siToUiDelta(q, units[q], 1),
+  sym: units[q],
+});
+
 /** Per-timestep flight data, prefixed with an OpenRocket-style event reference. */
-export function flightDataCsv(r: FlightResult): string {
+export function flightDataCsv(r: FlightResult, units: UnitSelection): string {
+  const dist = col(units, 'distance');
+  const vel = col(units, 'velocity');
+  const acc = col(units, 'acceleration');
+  const mass = col(units, 'mass');
+  const force = col(units, 'force');
+  const len = col(units, 'length');
+  const ang = col(units, 'angle');
   const s = r.series;
   const n = s.time?.length ?? 0;
   const at = (k: keyof FlightSeries, i: number): number | null => {
@@ -30,34 +47,34 @@ export function flightDataCsv(r: FlightResult): string {
   lines.push(
     row([
       'Time (s)',
-      'Altitude (m)',
-      'Velocity (m/s)',
-      'Acceleration (m/s^2)',
-      'Mass (g)',
-      'Thrust (N)',
-      'Drag (N)',
+      `Altitude (${dist.sym})`,
+      `Velocity (${vel.sym})`,
+      `Acceleration (${acc.sym})`,
+      `Mass (${mass.sym})`,
+      `Thrust (${force.sym})`,
+      `Drag (${force.sym})`,
       'Mach',
       'Stability (cal)',
-      'CP (cm)',
-      'CG (cm)',
-      'AoA (deg)',
+      `CP (${len.sym})`,
+      `CG (${len.sym})`,
+      `AoA (${ang.sym})`,
     ]),
   );
   for (let i = 0; i < n; i++) {
     lines.push(
       row([
         cell(at('time', i), 4),
-        cell(at('altitude', i)),
-        cell(at('velocity', i)),
-        cell(at('acceleration', i)),
-        cell(mul(at('mass', i), 1000)),
-        cell(at('thrust', i)),
-        cell(at('drag', i)),
+        cell(mul(at('altitude', i), dist.f)),
+        cell(mul(at('velocity', i), vel.f)),
+        cell(mul(at('acceleration', i), acc.f)),
+        cell(mul(at('mass', i), mass.f)),
+        cell(mul(at('thrust', i), force.f)),
+        cell(mul(at('drag', i), force.f)),
         cell(at('mach', i)),
         cell(at('stability', i)),
-        cell(mul(at('cpLocation', i), 100)),
-        cell(mul(at('cgLocation', i), 100)),
-        cell(mul(at('aoa', i), 180 / Math.PI)),
+        cell(mul(at('cpLocation', i), len.f)),
+        cell(mul(at('cgLocation', i), len.f)),
+        cell(mul(at('aoa', i), ang.f)),
       ]),
     );
   }
@@ -65,14 +82,15 @@ export function flightDataCsv(r: FlightResult): string {
 }
 
 /** Cd / CP / CNα vs Mach, with the friction/pressure/base split and per-component Cd. */
-export function dragTableCsv(d: DragSweep): string {
+export function dragTableCsv(d: DragSweep, units: UnitSelection): string {
+  const len = col(units, 'length');
   // Strip the delimiters/newlines/quotes an imported component name could carry
   // so it can't split or corrupt the comma-joined row. (No formula-injection
   // risk: the `Cd_` prefix means the cell never leads with =/+/-/@.)
   const compHeader = (name: string) => `Cd_${name.replace(/[[\]"\r\n]/g, '').replace(/,/g, ';')}`;
   const header = ['Mach', 'Cd', 'Cd_friction', 'Cd_pressure', 'Cd_base'];
   if (d.hasNozzle) header.push('Cd_powerOn');
-  header.push('CP (cm)', 'CNalpha (/rad)');
+  header.push(`CP (${len.sym})`, 'CNalpha (/rad)');
   for (const c of d.components) header.push(compHeader(c.name));
 
   const lines = [row(header)];
@@ -85,7 +103,7 @@ export function dragTableCsv(d: DragSweep): string {
       cell(d.powerOff.base[i]),
     ];
     if (d.hasNozzle) cells.push(cell(d.powerOn.total[i]));
-    cells.push(cell(mul(d.cp[i], 100)));
+    cells.push(cell(mul(d.cp[i], len.f)));
     cells.push(cell(d.cna[i]));
     for (const c of d.components) cells.push(cell(c.cd[i]));
     lines.push(row(cells));
