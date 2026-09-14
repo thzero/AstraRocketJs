@@ -41,6 +41,45 @@ export const WAYPOINT_KINDS: WaypointKind[] = [
 /** Distance units offered for the human-facing altitude/distance columns. */
 export type DistanceUnit = 'm' | 'ft' | 'km' | 'mi';
 
+/**
+ * What exported altitudes are measured from. Mirrors the desktop's
+ * `FlightPathExportOptions.AltitudeReference`.
+ *
+ * It matters because the launch altitude defaults to zero: a site actually
+ * 1200 m up then reports its flight in metres above the pad, and placing that
+ * against sea level buries the whole track under the terrain.
+ */
+export type AltitudeReference = 'automatic' | 'ground' | 'sealevel';
+
+/**
+ * Where a stage's own track begins. Mirrors the desktop's
+ * `FlightPathExportOptions.StageTrackStart`.
+ *
+ * A branch created at stage separation starts life as a verbatim copy of its
+ * parent's points, so every non-primary branch repeats the ascent the stages
+ * flew bolted together.
+ */
+export type StageTrackStart = 'separation' | 'pad';
+
+/**
+ * `automatic` resolved against a launch altitude: a launch altitude the user
+ * actually set means the flight can be placed at its true elevation; the
+ * default of zero means it cannot.
+ */
+export function resolveAltitudeReference(
+  reference: AltitudeReference,
+  launchAltitudeMeters: number,
+): Exclude<AltitudeReference, 'automatic'> {
+  if (reference !== 'automatic') return reference;
+  return launchAltitudeMeters !== 0 && Number.isFinite(launchAltitudeMeters) ? 'sealevel' : 'ground';
+}
+
+/** The KML `<altitudeMode>` a resolved reference is expressed in. */
+export const KML_ALTITUDE_MODE: Record<Exclude<AltitudeReference, 'automatic'>, string> = {
+  ground: 'relativeToGround',
+  sealevel: 'absolute',
+};
+
 export interface FlightPathExportOptions {
   /** Which waypoints to emit. */
   waypoints: Set<WaypointKind>;
@@ -54,6 +93,22 @@ export interface FlightPathExportOptions {
   altitudeUnit: DistanceUnit;
   /** Unit for the human-facing horizontal-distance column. */
   distanceUnit: DistanceUnit;
+  /** What exported altitudes are measured from. */
+  altitudeReference: AltitudeReference;
+  /** Where each stage's track begins — see {@link StageTrackStart}. */
+  stageTrackStart: StageTrackStart;
+  /**
+   * Whether waypoint names are drawn on the map. A near-vertical flight stacks
+   * its waypoints into a few hundred metres of screen, and the reader may
+   * prefer bare markers they can click.
+   */
+  showWaypointLabels: boolean;
+  /**
+   * Whether waypoint pins carry their stage's colour. That needs an icon
+   * fetched from Google's servers, so it can be turned off for a file that has
+   * to render without a network.
+   */
+  colorWaypointPins: boolean;
 }
 
 /**
@@ -66,8 +121,7 @@ export interface FlightPathExportOptions {
  * else) falls back to metres rather than writing a unit the format can't name.
  */
 export function defaultExportOptions(preferred?: string): FlightPathExportOptions {
-  const unit: DistanceUnit =
-    preferred === 'ft' || preferred === 'km' || preferred === 'mi' ? preferred : 'm';
+  const unit: DistanceUnit = preferred === 'ft' || preferred === 'km' || preferred === 'mi' ? preferred : 'm';
   return {
     waypoints: new Set(WAYPOINT_KINDS),
     includeFlightPath: true,
@@ -75,7 +129,50 @@ export function defaultExportOptions(preferred?: string): FlightPathExportOption
     pathStride: 1,
     altitudeUnit: unit,
     distanceUnit: unit,
+    altitudeReference: 'automatic',
+    stageTrackStart: 'separation',
+    showWaypointLabels: true,
+    colorWaypointPins: true,
   };
+}
+
+/**
+ * Per-branch track colours, so the stages of a staged flight can be told apart.
+ * The desktop's palette, value for value, so a stage keeps its colour between
+ * the two apps — and so a template written against one renders the same in the
+ * other.
+ */
+const BRANCH_COLORS = [
+  0x0072bd, 0xd95319, 0xedb120, 0x7e318e, 0x77ac30, 0x4dbeee, 0xa2142f, 0xc56a7a, 0xff7f50, 0x556b2f,
+];
+/** The ground track is the same hue, darkened and slightly translucent. */
+const GROUND_TRACK_DARKEN = 0.45;
+const GROUND_TRACK_ALPHA = 0xd0;
+
+const hex2 = (v: number): string => (v & 0xff).toString(16).padStart(2, '0');
+
+/** RGB → the aabbggrr literal KML wants (alpha first, then B, G, R). */
+function kmlColor(rgb: number, alpha: number): string {
+  return hex2(alpha) + hex2(rgb) + hex2(rgb >> 8) + hex2(rgb >> 16);
+}
+
+function darken(rgb: number, factor: number): number {
+  const r = Math.trunc(((rgb >> 16) & 0xff) * factor);
+  const g = Math.trunc(((rgb >> 8) & 0xff) * factor);
+  const b = Math.trunc((rgb & 0xff) * factor);
+  return (r << 16) | (g << 8) | b;
+}
+
+/**
+ * A waypoint label prefixed with the stage it belongs to, e.g. "Booster
+ * Apogee". Only when the flight actually staged — otherwise every stage
+ * contributes an identically named "Apogee", "Burnout" and "Landing" and the
+ * export is impossible to read. A label that already starts with the stage name
+ * is left alone rather than stuttering.
+ */
+function qualifyLabel(qualifier: string, label: string, qualify: boolean): string {
+  if (!qualify || !qualifier || !label) return label ?? '';
+  return label.toLowerCase().startsWith(qualifier.toLowerCase()) ? label : `${qualifier} ${label}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,19 +187,34 @@ export interface FlightPathWaypoint {
   longitude: number;
   latitudeStr: string;
   longitudeStr: string;
+  /** Altitude above sea level, in metres. GPX elevations are defined this way. */
   altitudeMslMeters: number;
+  /** Altitude above the ground, in metres. */
+  altitudeAglMeters: number;
+  /** The altitude to write into a KML coordinate, in `model.kmlAltitudeMode`. */
+  altitudeKmlMeters: number;
   time: number;
   timeStr: string;
   altitude: string; // above the pad, display unit
   altitudeMsl: string; // above sea level, display unit
   distance: string; // horizontal distance from pad, display unit
   bearing: string; // compass degrees from pad
+  /** `label` qualified with its stage, e.g. "Booster Apogee". Same as `label`
+   *  for a single-branch flight. */
+  qualifiedLabel: string;
+  /** Name of the flight branch (stage) this waypoint belongs to. */
+  branchName: string;
 }
 
 export interface FlightPathPoint {
   latitude: number;
   longitude: number;
+  /** Altitude above sea level, in metres. GPX elevations are defined this way. */
   altitudeMslMeters: number;
+  /** Altitude above the ground, in metres. */
+  altitudeAglMeters: number;
+  /** The altitude to write into a KML coordinate, in `model.kmlAltitudeMode`. */
+  altitudeKmlMeters: number;
   time: number;
   timeStr: string;
   altitude: string;
@@ -110,6 +222,14 @@ export interface FlightPathPoint {
 
 export interface FlightPathBranch {
   name: string;
+  /** Zero-based position in `model.branches`, for building unique style ids. */
+  index: number;
+  /** This branch's colour as RRGGBB, so each stage's track is distinguishable. */
+  colorRgb: string;
+  /** `colorRgb` as a KML aabbggrr literal, opaque, for the flight-path line. */
+  pathColorKml: string;
+  /** `colorRgb` as a KML aabbggrr literal, translucent, for the ground track. */
+  groundColorKml: string;
   waypoints: FlightPathWaypoint[];
   path: FlightPathPoint[];
   /** Template convenience (mirrors the desktop model's methods). */
@@ -130,6 +250,12 @@ export interface FlightPathModel {
   distanceUnit: string;
   includeFlightPath: boolean;
   includeGroundTrack: boolean;
+  /** The KML `<altitudeMode>` that every `altitudeKmlMeters` is expressed in. */
+  kmlAltitudeMode: string;
+  /** Whether waypoint names are drawn on the map. */
+  showWaypointLabels: boolean;
+  /** Whether waypoint pins carry their stage's colour. */
+  colorWaypointPins: boolean;
   maxAltitude: string;
   maxVelocity: string;
   maxAcceleration: string;
@@ -163,7 +289,46 @@ function fmtLength(meters: number, unit: DistanceUnit): string {
 // Geographic projection
 // ---------------------------------------------------------------------------
 
-const EARTH_RADIUS_M = 6_371_000; // spherical Earth (OpenRocket's default model)
+/**
+ * Coordinates written into the exported file when the design carries no launch
+ * position: the Kennedy Space Center, the same fallback desktop OpenRocket uses
+ * in `FlightPathModelBuilder.EXPORT_FALLBACK_*`. Dropping a flight on Null
+ * Island tells the reader nothing.
+ *
+ * These are used for the exported coordinates only. Nothing here writes to the
+ * design, and its launch position is left exactly as the user set it.
+ */
+export const EXPORT_FALLBACK_LATITUDE = 28.61;
+export const EXPORT_FALLBACK_LONGITUDE = -80.6;
+
+/**
+ * True when BOTH coordinates are still zero — the only combination that cannot
+ * be a real launch site anyone uses, since (0, 0) is open ocean in the Gulf of
+ * Guinea.
+ *
+ * This is deliberately narrower than desktop OpenRocket, whose
+ * `FlightPathModelBuilder` treats a zero in *either* coordinate as unset. A
+ * zero longitude is a legitimate position — Greenwich, and everywhere else on
+ * the prime meridian — and so is a zero latitude, so OpenRocket's rule would
+ * relocate a real launch site that happens to sit on one of those lines.
+ */
+function launchPositionUnset(launch: LaunchConditions): boolean {
+  return (launch.latitudeDeg ?? 0) === 0 && (launch.longitudeDeg ?? 0) === 0;
+}
+
+/**
+ * WGS84 degree lengths at a latitude, good to a few centimetres per kilometre
+ * — the same series desktop OpenRocket projects with, so a track exported from
+ * either app lands on the same spot. A spherical Earth would put a 10 km drift
+ * tens of metres off.
+ */
+function metersPerDegree(latitudeDeg: number): { lat: number; lon: number } {
+  const phi = (latitudeDeg * Math.PI) / 180;
+  return {
+    lat: 111132.92 - 559.82 * Math.cos(2 * phi) + 1.175 * Math.cos(4 * phi),
+    lon: 111412.84 * Math.cos(phi) - 93.5 * Math.cos(3 * phi),
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Model builder (mirrors FlightPathModelBuilder)
@@ -185,15 +350,26 @@ export function buildFlightPathModel(
   options: FlightPathExportOptions,
   waypointLabel: (kind: WaypointKind) => string,
 ): FlightPathModel {
-  const lat0 = launch.latitudeDeg ?? 0;
-  const lon0 = launch.longitudeDeg ?? 0;
+  // A position left at (0, 0) was never filled in, and is exported from the
+  // Kennedy Space Center rather than from Null Island. The design is untouched.
+  const unset = launchPositionUnset(launch);
+  const lat0 = unset ? EXPORT_FALLBACK_LATITUDE : (launch.latitudeDeg ?? 0);
+  const lon0 = unset ? EXPORT_FALLBACK_LONGITUDE : (launch.longitudeDeg ?? 0);
   const launchAlt = launch.launchAltitudeM ?? 0;
-  const cosLat0 = Math.cos((lat0 * Math.PI) / 180);
-  // Guard the poles (cos → 0): fall back to no east/west projection.
-  const lonScale = Math.abs(cosLat0) < 1e-9 ? 0 : 1 / (EARTH_RADIUS_M * cosLat0);
 
-  const toLat = (north: number): number => lat0 + ((north / EARTH_RADIUS_M) * 180) / Math.PI;
-  const toLon = (east: number): number => lon0 + (east * lonScale * 180) / Math.PI;
+  const perDegree = metersPerDegree(lat0);
+  // Guard the poles, where a degree of longitude is zero metres wide and every
+  // east offset would divide to infinity. Unreachable for the KSC fallback and
+  // for any launch site anyone uses, but a NaN in a coordinate is a broken file.
+  const lonPerDegree = Math.abs(perDegree.lon) < 1e-9 ? Infinity : perDegree.lon;
+
+  const toLat = (north: number): number => lat0 + north / perDegree.lat;
+  const toLon = (east: number): number => lon0 + east / lonPerDegree;
+
+  // `automatic` only means something once there is a launch altitude to judge,
+  // so it is resolved here and the model carries the answer, not the question.
+  const altitudeReference = resolveAltitudeReference(options.altitudeReference, launchAlt);
+  const kmlAltitude = (altAgl: number): number => (altitudeReference === 'sealevel' ? altAgl + launchAlt : altAgl);
 
   const model: FlightPathModel = {
     title: meta.simName,
@@ -208,6 +384,9 @@ export function buildFlightPathModel(
     distanceUnit: UNIT_SYMBOL[options.distanceUnit],
     includeFlightPath: options.includeFlightPath,
     includeGroundTrack: options.includeGroundTrack,
+    kmlAltitudeMode: KML_ALTITUDE_MODE[altitudeReference],
+    showWaypointLabels: options.showWaypointLabels,
+    colorWaypointPins: options.colorWaypointPins,
     maxAltitude: fmtLength(result.summary.maxAltitude, options.altitudeUnit),
     maxVelocity: result.summary.maxVelocity.toFixed(1),
     maxAcceleration: result.summary.maxAcceleration.toFixed(1),
@@ -221,15 +400,31 @@ export function buildFlightPathModel(
       ? result.branches
       : [{ name: meta.rocketName || meta.simName || 'Flight', events: result.events, series: result.series }];
 
-  for (const raw of rawBranches) {
+  // Only a staged flight needs its waypoints qualified — see `qualifyLabel`.
+  const qualify = rawBranches.length > 1;
+
+  for (const [i, raw] of rawBranches.entries()) {
     const branch = buildBranch(raw, options, waypointLabel, {
       toLat,
       toLon,
       launchAlt,
       altUnit: options.altitudeUnit,
       distUnit: options.distanceUnit,
+      kmlAltitude,
+      qualify,
+      primary: i === 0,
+      stageTrackStart: options.stageTrackStart,
     });
-    if (branch) model.branches.push(branch);
+    if (!branch) continue;
+    // Assigned on push, not from the loop counter: a branch that yields no
+    // usable series is skipped, and the indices must stay contiguous or two
+    // branches would share a KML style id.
+    branch.index = model.branches.length;
+    const rgb = BRANCH_COLORS[branch.index % BRANCH_COLORS.length]!;
+    branch.colorRgb = (rgb & 0xffffff).toString(16).padStart(6, '0');
+    branch.pathColorKml = kmlColor(rgb, 0xff);
+    branch.groundColorKml = kmlColor(darken(rgb, GROUND_TRACK_DARKEN), GROUND_TRACK_ALPHA);
+    model.branches.push(branch);
   }
   return model;
 }
@@ -240,6 +435,42 @@ interface BranchCtx {
   launchAlt: number;
   altUnit: DistanceUnit;
   distUnit: DistanceUnit;
+  /** Height above the ground → the altitude a KML coordinate should carry. */
+  kmlAltitude: (altAgl: number) => number;
+  /** True when the flight staged, so waypoint labels name their stage. */
+  qualify: boolean;
+  /**
+   * True for the branch the whole vehicle flew. Leaving the pad is something
+   * the stack does, not any one stage, so only this branch gets a pad
+   * waypoint — and only the others can have a shared ascent to trim.
+   */
+  primary: boolean;
+  /** Where this branch's own flight begins; see {@link StageTrackStart}. */
+  stageTrackStart: StageTrackStart;
+}
+
+/**
+ * The first data index belonging to this branch alone.
+ *
+ * A separated branch repeats its parent's points from the pad up to the moment
+ * it let go. Exporting that prefix again draws the shared ascent once per
+ * stage, and attributes the stack's flight — and its peak speed — to a stage
+ * that was not yet flying on its own.
+ *
+ * Falls back to 0 for the primary branch, when the user asked for every track
+ * to start on the pad, and for any branch with no recorded separation.
+ */
+function branchStartIndex(
+  events: FlightEvent[],
+  time: (number | null)[],
+  n: number,
+  ctx: Pick<BranchCtx, 'primary' | 'stageTrackStart'>,
+): number {
+  if (ctx.primary || ctx.stageTrackStart === 'pad') return 0;
+  const separation = events.find((e) => e.type === 'STAGE_SEPARATION');
+  if (!separation || !Number.isFinite(separation.time)) return 0;
+  const idx = indexOfTime(time, separation.time, n);
+  return idx > 0 && idx < n ? idx : 0;
 }
 
 function buildBranch(
@@ -257,6 +488,7 @@ function buildBranch(
   const vel = series(raw.series, 'velocity');
   const acc = series(raw.series, 'acceleration');
   const n = Math.min(time.length, alt.length);
+  const start = branchStartIndex(raw.events, time, n, ctx);
 
   const eastAt = (i: number) => finiteOr0(east?.[i]);
   const northAt = (i: number) => finiteOr0(north?.[i]);
@@ -281,18 +513,36 @@ function buildBranch(
       latitudeStr: latitude.toFixed(6),
       longitudeStr: longitude.toFixed(6),
       altitudeMslMeters: mslMeters,
+      altitudeAglMeters: altAgl,
+      altitudeKmlMeters: ctx.kmlAltitude(altAgl),
       time: t,
       timeStr: t.toFixed(2),
       altitude: fmtLength(altAgl, ctx.altUnit),
       altitudeMsl: fmtLength(mslMeters, ctx.altUnit),
       distance: fmtLength(distanceAt(i), ctx.distUnit),
       bearing: bearingAt(i).toFixed(0),
+      qualifiedLabel: qualifyLabel(raw.name, label, ctx.qualify),
+      branchName: raw.name,
     };
   };
 
-  const branch: FlightPathBranch = { name: raw.name, waypoints: [], path: [], hasPath: false, hasWaypoints: false };
+  // index / colours are filled in by the caller, which knows the branch's
+  // position among the ones that actually produced data.
+  const branch: FlightPathBranch = {
+    name: raw.name,
+    index: 0,
+    colorRgb: '',
+    pathColorKml: '',
+    groundColorKml: '',
+    waypoints: [],
+    path: [],
+    hasPath: false,
+    hasWaypoints: false,
+  };
 
-  if (options.waypoints.has('pad')) {
+  // Only the stack leaves the pad; a booster's copy of that moment is not its
+  // own event, and emitting it per stage litters the map with duplicate pins.
+  if (ctx.primary && options.waypoints.has('pad')) {
     branch.waypoints.push(mkWaypoint(0, 'pad', waypointLabel('pad'), null));
   }
 
@@ -309,14 +559,22 @@ function buildBranch(
     }
   }
 
+  // Scanned from the separation point so a spent booster reports its own peaks.
+  // Scanning the copied ascent instead labels the whole stack's maxima as the
+  // booster's, at speeds it reached while still bolted to the sustainer.
   if (options.waypoints.has('maxvelocity') && vel && vel.length) {
     branch.waypoints.push(
-      mkWaypoint(indexOfMax(vel, Math.min(n, vel.length)), 'maxvelocity', waypointLabel('maxvelocity'), null),
+      mkWaypoint(indexOfMax(vel, start, Math.min(n, vel.length)), 'maxvelocity', waypointLabel('maxvelocity'), null),
     );
   }
   if (options.waypoints.has('maxacceleration') && acc && acc.length) {
     branch.waypoints.push(
-      mkWaypoint(indexOfMax(acc, Math.min(n, acc.length)), 'maxacceleration', waypointLabel('maxacceleration'), null),
+      mkWaypoint(
+        indexOfMax(acc, start, Math.min(n, acc.length)),
+        'maxacceleration',
+        waypointLabel('maxacceleration'),
+        null,
+      ),
     );
   }
 
@@ -331,14 +589,18 @@ function buildBranch(
         latitude: ctx.toLat(northAt(i)),
         longitude: ctx.toLon(eastAt(i)),
         altitudeMslMeters: altAgl + ctx.launchAlt,
+        altitudeAglMeters: altAgl,
+        altitudeKmlMeters: ctx.kmlAltitude(altAgl),
         time: t,
         timeStr: t.toFixed(2),
         altitude: fmtLength(altAgl, ctx.altUnit),
       });
     };
-    for (let i = 0; i < n; i += stride) pushPoint(i);
-    // Always include the final point so the track ends at landing.
-    if (n > 0 && (n - 1) % stride !== 0) pushPoint(n - 1);
+    for (let i = start; i < n; i += stride) pushPoint(i);
+    // Always include the final point so the track ends at landing. Measured
+    // from `start`, not from 0, or a strided separated branch drops its last
+    // point whenever the trimmed length happens to land on the stride.
+    if (n > start && (n - 1 - start) % stride !== 0) pushPoint(n - 1);
   }
 
   branch.hasPath = branch.path.length > 0;
@@ -369,10 +631,10 @@ function indexOfTime(time: (number | null)[], t: number, n: number): number {
   return best;
 }
 
-function indexOfMax(values: (number | null)[], n: number): number {
-  let maxIndex = 0;
+function indexOfMax(values: (number | null)[], from: number, n: number): number {
+  let maxIndex = from;
   let max = -Infinity;
-  for (let i = 0; i < n; i++) {
+  for (let i = from; i < n; i++) {
     const v = values[i];
     if (v != null && Number.isFinite(v) && v > max) {
       max = v;
@@ -430,57 +692,71 @@ export interface ExportFormat {
 // so an edited copy re-imports and renders through renderUserTemplate.
 const KML_TEMPLATE_SOURCE = `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
-  <Document>
-    <name>{{title}}</name>
-    <open>1</open>
-    <Style id="flightPath"><LineStyle><color>ffff0000</color><width>3</width></LineStyle></Style>
-    <Style id="groundTrack"><LineStyle><color>ff000000</color><width>2</width></LineStyle></Style>
+	<Document>
+		<name>{{title}}</name>
+		<open>1</open>
 {{#branches}}
-    <Folder>
-      <name>{{name}}</name>
+		<Style id="flightPath{{index}}"><LineStyle><color>{{pathColorKml}}</color><width>3</width></LineStyle></Style>
+		<Style id="groundTrack{{index}}"><LineStyle><color>{{groundColorKml}}</color><width>2</width></LineStyle></Style>
+		<Style id="waypoint{{index}}">
+{{#colorWaypointPins}}
+			<IconStyle>
+				<color>{{pathColorKml}}</color>
+				<Icon><href>https://maps.google.com/mapfiles/kml/pushpin/wht-pushpin.png</href></Icon>
+				<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+			</IconStyle>
+{{/colorWaypointPins}}
+{{^showWaypointLabels}}
+			<LabelStyle><scale>0</scale></LabelStyle>
+{{/showWaypointLabels}}
+		</Style>
+{{/branches}}
+{{#branches}}
+		<Folder>
+			<name>{{name}}</name>
 {{#waypoints}}
-      <Placemark>
-        <name>{{label}}</name>
-        <Point>
-          <altitudeMode>absolute</altitudeMode>
-          <coordinates>{{longitude}},{{latitude}},{{altitudeMslMeters}}</coordinates>
-        </Point>
-      </Placemark>
+			<Placemark>
+				<name>{{qualifiedLabel}}</name>
+				<styleUrl>#waypoint{{index}}</styleUrl>
+				<Point>
+					<altitudeMode>{{kmlAltitudeMode}}</altitudeMode>
+					<coordinates>{{longitude}},{{latitude}},{{altitudeKmlMeters}}</coordinates>
+				</Point>
+			</Placemark>
 {{/waypoints}}
 {{#includeFlightPath}}
 {{#hasPath}}
-      <Placemark>
-        <name>{{name}} flight path</name>
-        <styleUrl>#flightPath</styleUrl>
-        <LineString>
-          <extrude>0</extrude>
-          <tessellate>1</tessellate>
-          <altitudeMode>absolute</altitudeMode>
-          <coordinates>
-{{#path}}          {{longitude}},{{latitude}},{{altitudeMslMeters}}
-{{/path}}          </coordinates>
-        </LineString>
-      </Placemark>
+			<Placemark>
+				<name>{{name}} flight path</name>
+				<styleUrl>#flightPath{{index}}</styleUrl>
+				<LineString>
+					<extrude>0</extrude>
+					<altitudeMode>{{kmlAltitudeMode}}</altitudeMode>
+					<coordinates>
+{{#path}}						{{longitude}},{{latitude}},{{altitudeKmlMeters}}
+{{/path}}					</coordinates>
+				</LineString>
+			</Placemark>
 {{/hasPath}}
 {{/includeFlightPath}}
 {{#includeGroundTrack}}
 {{#hasPath}}
-      <Placemark>
-        <name>{{name}} ground track</name>
-        <styleUrl>#groundTrack</styleUrl>
-        <LineString>
-          <tessellate>1</tessellate>
-          <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>
-{{#path}}          {{longitude}},{{latitude}},{{altitudeMslMeters}}
-{{/path}}          </coordinates>
-        </LineString>
-      </Placemark>
+			<Placemark>
+				<name>{{name}} ground track</name>
+				<styleUrl>#groundTrack{{index}}</styleUrl>
+				<LineString>
+					<tessellate>1</tessellate>
+					<altitudeMode>clampToGround</altitudeMode>
+					<coordinates>
+{{#path}}						{{longitude}},{{latitude}},{{altitudeMslMeters}}
+{{/path}}					</coordinates>
+				</LineString>
+			</Placemark>
 {{/hasPath}}
 {{/includeGroundTrack}}
-    </Folder>
+		</Folder>
 {{/branches}}
-  </Document>
+	</Document>
 </kml>
 `;
 
@@ -543,9 +819,13 @@ export const EXPORT_FORMATS: ExportFormat[] = [
   },
 ];
 
-/** True when the launch site is at (0,0) — the exported track lands on Null Island. */
+/**
+ * True when the design carries a launch position the export can use as-is.
+ * False means {@link buildFlightPathModel} substitutes the Kennedy Space
+ * Center, which the dialog warns about.
+ */
 export function hasLaunchPosition(launch: LaunchConditions): boolean {
-  return (launch.latitudeDeg ?? 0) !== 0 || (launch.longitudeDeg ?? 0) !== 0;
+  return !launchPositionUnset(launch);
 }
 
 // ---------------------------------------------------------------------------

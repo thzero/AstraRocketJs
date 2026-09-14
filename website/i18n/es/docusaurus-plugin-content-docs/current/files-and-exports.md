@@ -90,7 +90,18 @@ Tras una simulación, la vista de **Trayectoria 3D** tiene un botón **⬇ Expor
 
 En el diálogo de exportación eliges qué **puntos de paso** incluir (rampa, despegue, fin de combustión, apogeo, apertura de la recuperación, aterrizaje, velocidad máxima, aceleración máxima), si incluir la **línea de la trayectoria** y la **traza sobre el terreno**, cuánto adelgazar la trayectoria (**conservar uno de cada N puntos**) y las **unidades de altitud y distancia**.
 
-Las coordenadas se sitúan alrededor de la **latitud y longitud de lanzamiento** de la simulación (definidas en las condiciones de lanzamiento) y siguen la deriva del viento. Si no hay posición de lanzamiento definida (ambas a cero), la traza acabaría en (0, 0), frente a la costa de África: el diálogo te avisa.
+**Colocación** controla cómo se sitúa la traza en el mapa:
+
+- **Altitud medida desde** — *Automático* usa el nivel del mar cuando el campo de vuelo tiene una altitud real definida, y el suelo cuando sigue en 0. Ese valor por defecto importa: un vuelo medido desde la rampa pero colocado contra el nivel del mar queda enterrado bajo el terreno, que es lo que daría un campo a 1200 m.
+- **La traza de cada etapa empieza** (solo vuelos por etapas) — los datos de una etapa separada empiezan como una copia de los de toda la pila, así que por defecto su traza empieza **en la separación** y el ascenso compartido se dibuja una sola vez. Elige **en la rampa** para que cada etapa se lea como un vuelo completo. Esto también decide desde dónde se miden la *velocidad máxima* y la *aceleración máxima* de una etapa, para que un propulsor agotado informe de sus propios picos y no de los de la pila.
+- **Dibujar los nombres de los puntos en el mapa** — un vuelo casi vertical amontona sus puntos en unos cientos de metros de pantalla; desactiva los nombres para dejar marcadores limpios en los que puedas hacer clic.
+- **Colorear los marcadores por etapa** — los marcadores de color cargan un icono desde los servidores de Google, así que desactívalos para un archivo que deba verse sin conexión.
+
+Cada etapa recibe además su propio color de traza, de la misma paleta que usa OpenRocket de escritorio, para que una etapa se vea igual en ambos.
+
+Las coordenadas se sitúan alrededor de la **latitud y longitud de lanzamiento** de la simulación (definidas en las condiciones de lanzamiento) y siguen la deriva del viento, proyectadas con las longitudes de grado del WGS84, de modo que una traza exportada aquí cae en el mismo punto que ese mismo vuelo exportado desde OpenRocket de escritorio.
+
+Si ambas coordenadas siguen en cero, la posición nunca se rellenó y la exportación se ancla en el **Centro Espacial Kennedy**: el diálogo te avisa. Solo cuenta (0, 0), porque es mar abierto; un campo de vuelo sobre el meridiano de Greenwich o sobre el ecuador es un lugar real y se exporta donde lo pusiste. Tu diseño no se modifica nunca; esto solo decide qué coordenadas van al archivo.
 
 ### Plantillas de exportación personalizadas {#custom-export-templates}
 

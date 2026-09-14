@@ -1,16 +1,25 @@
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
 
-export type Tab = 'build' | 'sim';
+export type Tab = 'build' | 'sketch' | 'sim';
 
-/** Mobile bottom tab bar (hidden at lg+, where the panes sit side by side). */
+/**
+ * Mobile bottom tab bar (hidden at lg+, where the panes sit side by side).
+ *
+ * It is the last flex child of a fixed-height column whose main area is
+ * `overflow-hidden`, so it stays put while a pane scrolls behind it. The
+ * bottom padding is the home-indicator inset: `index.html` asks for
+ * `viewport-fit=cover`, which lets the page run under that bar, and without it
+ * the tab labels sit beneath it on an iPhone.
+ */
 export function TabBar() {
   const { t } = useTranslation();
   const tab = useWorkspaceStore((s) => s.tab);
   const onTab = useWorkspaceStore((s) => s.setTab);
   return (
-    <nav className="flex border-t border-white/10 bg-slate-900/95 backdrop-blur lg:hidden">
+    <nav className="flex shrink-0 border-t border-white/10 bg-slate-900/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
       <TabButton active={tab === 'build'} onClick={() => onTab('build')} label={t('tabs.rocket')} icon="🚀" />
+      <TabButton active={tab === 'sketch'} onClick={() => onTab('sketch')} label={t('tabs.sketch')} icon="📐" />
       <TabButton active={tab === 'sim'} onClick={() => onTab('sim')} label={t('tabs.simulate')} icon="📈" />
     </nav>
   );

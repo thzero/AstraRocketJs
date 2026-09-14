@@ -90,7 +90,27 @@ After a simulation, the **3D path** view has an **⬇ Export** button that saves
 
 In the export dialog you choose which **waypoints** to include (pad, liftoff, burnout, apogee, recovery deployment, landing, max velocity, max acceleration), whether to include the **flight-path line** and the **ground track**, how much to thin the path (**keep every Nth point**), and the **altitude / distance units**.
 
-The coordinates are placed about the simulation's **launch latitude / longitude** (set in the launch conditions) and follow the wind drift. If no launch position is set (both zero), the track would land at (0, 0) off the coast of Africa — the dialog warns you.
+**Placement** controls how the track sits on the map:
+
+- **Altitude measured from** — *Automatic* uses sea level when the launch site has a real altitude set and the ground when it is still 0. That default matters: a flight measured from the pad but placed against sea level is buried under the terrain, which is what a launch site at 1200 m would otherwise give you.
+- **Each stage's track starts** (staged flights only) — a separated stage's data begins as a copy of the whole stack's, so by default its track starts **at separation** and the shared ascent is drawn once. Choose **on the pad** to have every stage read as a complete flight instead. This also decides where a stage's *max velocity* and *max acceleration* are measured from, so a spent booster reports its own peaks rather than the stack's.
+- **Draw waypoint names on the map** — a near-vertical flight stacks its waypoints into a few hundred metres of screen; turn the names off for bare markers you can click.
+- **Colour waypoint pins per stage** — coloured pins load an icon from Google's servers, so turn them off for a file that has to render offline.
+
+Each stage also gets its own track colour, from the same palette desktop OpenRocket uses, so a stage looks the same in both.
+
+**Placement** controls how the track sits on the map:
+
+- **Altitude measured from** — *Automatic* uses sea level when the launch site has a real altitude set and the ground when it is still 0. That default matters: a flight measured from the pad but placed against sea level is buried under the terrain, which is what a launch site at 1200 m would otherwise give you.
+- **Each stage's track starts** (staged flights only) — a separated stage's data begins as a copy of the whole stack's, so by default its track starts **at separation** and the shared ascent is drawn once. Choose **on the pad** to have every stage read as a complete flight instead. This also decides where a stage's *max velocity* and *max acceleration* are measured from, so a spent booster reports its own peaks rather than the stack's.
+- **Draw waypoint names on the map** — a near-vertical flight stacks its waypoints into a few hundred metres of screen; turn the names off for bare markers you can click.
+- **Colour waypoint pins per stage** — coloured pins load an icon from Google's servers, so turn them off for a file that has to render offline.
+
+Each stage also gets its own track colour, from the same palette desktop OpenRocket uses, so a stage looks the same in both.
+
+The coordinates are placed about the simulation's **launch latitude / longitude** (set in the launch conditions) and follow the wind drift, projected with WGS84 degree lengths so a track exported here lands on the same spot as the same flight exported from desktop OpenRocket.
+
+If both coordinates are still zero the position was never filled in, and the export is anchored at the **Kennedy Space Center** instead — the dialog warns you. Only (0, 0) counts, because it is open ocean; a site on the prime meridian or the equator is a real place and is exported where you put it. Your design is never modified; this only decides what coordinates go into the file.
 
 ### Custom export templates
 

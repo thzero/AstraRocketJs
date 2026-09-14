@@ -38,7 +38,7 @@ export function DesignLibraryDialog({ open, onClose }: { open: boolean; onClose:
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="dialog-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -46,7 +46,7 @@ export function DesignLibraryDialog({ open, onClose }: { open: boolean; onClose:
     >
       <div
         ref={panelRef}
-        className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-slate-900 ring-1 ring-white/10"
+        className="dialog-panel flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-slate-900 ring-1 ring-white/10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">

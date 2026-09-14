@@ -13,7 +13,9 @@ import {
   WAYPOINT_KINDS,
   type FlightPathExportOptions,
   type WaypointKind,
+  type AltitudeReference,
   type DistanceUnit,
+  type StageTrackStart,
 } from '../../services/flightPathExport';
 import { getTemplateStore, parseTemplateFilename, type UserTemplate } from '../../services/templateStore';
 
@@ -78,7 +80,12 @@ export function FlightPathExport({ variant = 'chip' }: { variant?: 'chip' | 'ove
   );
 }
 
-function ExportDialog({
+/**
+ * Exported for `FlightPathExport.test.tsx`. The button that opens it lives only
+ * in the 3D path view, which needs WebGL — headless Chromium crashes rendering
+ * it, so the dialog's own behaviour is covered as a component instead.
+ */
+export function ExportDialog({
   onClose,
   meta,
   launch,
@@ -96,6 +103,9 @@ function ExportDialog({
   const [opts, setOpts] = useState<FlightPathExportOptions>(() => defaultExportOptions(units.sym('distance')));
   const [templates, setTemplates] = useState<UserTemplate[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // Where a stage's track begins only means something once there is more than
+  // one stage, so the control stays out of the way of a single-stage flight.
+  const staged = (result.branches?.length ?? 0) > 1;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -199,9 +209,9 @@ function ExportDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
+    <div className="dialog-overlay fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-slate-900 p-5 ring-1 ring-white/10"
+        className="dialog-panel max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-slate-900 p-5 ring-1 ring-white/10"
         role="dialog"
         aria-modal="true"
         aria-label={t('pathExport.title')}
@@ -318,6 +328,53 @@ function ExportDialog({
               </label>
             </Section>
           )}
+
+          {/* How the track is placed on the map, and how much of it is drawn. */}
+          <Section title={t('pathExport.placement')}>
+            <label className="flex items-center justify-between gap-3">
+              <span className="text-xs text-slate-400">{t('pathExport.altitudeReference')}</span>
+              <select
+                aria-label={t('pathExport.altitudeReference')}
+                value={opts.altitudeReference}
+                onChange={(e) =>
+                  setOpts((o) => ({ ...o, altitudeReference: e.target.value as AltitudeReference }))
+                }
+                className="w-40 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+              >
+                <option value="automatic">{t('pathExport.altRef.automatic')}</option>
+                <option value="ground">{t('pathExport.altRef.ground')}</option>
+                <option value="sealevel">{t('pathExport.altRef.sealevel')}</option>
+              </select>
+            </label>
+            <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.altitudeReferenceNote')}</p>
+            {staged && (
+              <label className="mt-1 flex items-center justify-between gap-3">
+                <span className="text-xs text-slate-400">{t('pathExport.stageTrackStart')}</span>
+                <select
+                  aria-label={t('pathExport.stageTrackStart')}
+                  value={opts.stageTrackStart}
+                  onChange={(e) =>
+                    setOpts((o) => ({ ...o, stageTrackStart: e.target.value as StageTrackStart }))
+                  }
+                  className="w-40 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+                >
+                  <option value="separation">{t('pathExport.trackStart.separation')}</option>
+                  <option value="pad">{t('pathExport.trackStart.pad')}</option>
+                </select>
+              </label>
+            )}
+            <Check
+              checked={opts.showWaypointLabels}
+              onChange={(v) => setOpts((o) => ({ ...o, showWaypointLabels: v }))}
+              label={t('pathExport.showWaypointLabels')}
+            />
+            <Check
+              checked={opts.colorWaypointPins}
+              onChange={(v) => setOpts((o) => ({ ...o, colorWaypointPins: v }))}
+              label={t('pathExport.colorWaypointPins')}
+            />
+            <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.pinsNote')}</p>
+          </Section>
 
           {/* Units */}
           <Section title={t('pathExport.units')}>

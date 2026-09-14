@@ -9,9 +9,98 @@ body,
 #root {
   height: 100%;
 }
+/* A mobile browser reports 100vh as the viewport with its chrome HIDDEN, so a
+   100vh-tall app shell is taller than what you can actually see and the bottom
+   tab bar is pushed off under the URL bar until you scroll the chrome away.
+   `dvh` tracks the visible area as that chrome shows and hides, which keeps the
+   tab bar on screen the whole time. Guarded so a browser without `dvh` keeps
+   the percentage height rather than losing its height entirely. */
+@supports (height: 100dvh) {
+  html,
+  body,
+  #root {
+    height: 100dvh;
+  }
+}
 body {
   margin: 0;
   overscroll-behavior: none;
+}
+
+/* The Sketch pane is a landscape workspace: a hobby airframe is 15-25x longer
+   than it is wide, so the canvas it wants is wide and short. A phone held
+   upright is the opposite shape, and fitting that drawing to the width leaves
+   the rocket a dozen pixels tall.
+
+   So on a portrait phone the whole pane is turned a quarter turn — its short
+   dimension laid along the phone's short dimension, its length running down the
+   screen, nose at the top. The TOOLBAR turns with it, which is the point: it
+   stays along the long edge, at the top of the drawing it controls, instead of
+   sitting across the short edge detached from it.
+
+   Nothing inside changes: the pane still measures and lays itself out as the
+   wide workspace it is, rulers, labels and all, and only the presentation is
+   rotated, the way you would turn a sheet of paper.
+
+   The stage is a size container so the rotated child can swap the two axes with
+   `cqh`/`cqw`; `rotate(90deg) translateY(-100%)` about the top-left corner then
+   lands it exactly back inside the stage. */
+.sketch-rotate {
+  width: 100%;
+  height: 100%;
+}
+/* `theme(--breakpoint-lg)` and not a literal: this must flip at exactly the
+   width the `lg:` classes do, and reading Tailwind's own value means there is
+   one number to change, not two that can drift apart. */
+@media (orientation: portrait) and (width < theme(--breakpoint-lg)) {
+  /* Scoped to the rotated case on purpose. `container-type: size` also turns on
+     SIZE CONTAINMENT, which makes the pane contribute nothing to intrinsic
+     sizing — on a short desktop window the flex algorithm then handed the whole
+     height to the stats strip and collapsed the drawing to zero. */
+  .sketch-stage {
+    container-type: size;
+  }
+  .sketch-rotate {
+    width: 100cqh;
+    height: 100cqw;
+    transform-origin: top left;
+    transform: rotate(90deg) translateY(-100%);
+  }
+}
+
+/* Dialogs below the desktop breakpoint take the whole screen.
+   A phone has no room for a floating card inset from the edges: the gutter and
+   the rounded corners cost width the content needs, and a panel capped at 85vh
+   leaves a strip of dimmed app top and bottom that looks tappable and is not.
+   Full bleed also lets a long dialog use the whole height instead of scrolling
+   a short window inside a dimmed one.
+
+   One rule rather than a `max-lg:` variant repeated on sixteen panels, which is
+   how they drift apart. These live OUTSIDE `@layer`, so they win over the
+   Tailwind utilities they override without needing `!important`.
+
+   A dialog opts IN by carrying these classes. Short prompts deliberately do not
+   -- the confirm, the work-in-progress notice, and the report's print-settings
+   popover are two or three lines and a button, and blowing them up to fill a
+   phone is all empty space. The popover has a second reason: it opens on top of
+   the full-screen report dialog, and full bleed would read as that dialog being
+   replaced rather than something opening over it. */
+@media (width < theme(--breakpoint-lg)) {
+  /* The inset clears the home indicator: index.html asks for viewport-fit=cover,
+     so a full-bleed panel would otherwise run under it with its last row out of
+     reach. Taking it on the OVERLAY rather than the panel leaves each panel's
+     own padding alone -- overriding padding-bottom here would silently drop the
+     bottom gutter of every `p-6` dialog. */
+  .dialog-overlay {
+    padding: 0 0 env(safe-area-inset-bottom) 0;
+  }
+  .dialog-panel {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+  }
 }
 
 /* <button> uses the arrow cursor by default — the finger/pointer is a browser

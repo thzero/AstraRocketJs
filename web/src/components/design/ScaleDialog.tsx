@@ -54,9 +54,9 @@ export function ScaleDialog({ open, onClose }: { open: boolean; onClose: () => v
   const chip = 'rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700';
 
   return (
-    <div className="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4" onClick={onClose}>
+    <div className="dialog-overlay fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-2xl bg-slate-900 p-6 ring-1 ring-white/10"
+        className="dialog-panel w-full max-w-md rounded-2xl bg-slate-900 p-6 ring-1 ring-white/10"
         role="dialog"
         aria-modal="true"
         aria-label={t('scale.title')}

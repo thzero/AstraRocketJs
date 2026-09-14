@@ -167,7 +167,12 @@ export function AppHeader() {
     'rounded-lg bg-slate-800 px-2.5 py-1.5 text-sm leading-none text-slate-200 ring-1 ring-white/10 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-slate-800';
 
   return (
-    <header className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
+    // flex-wrap, not a fixed row: the title, badges and action group together
+    // need ~530px, so on a phone the row used to run off the right edge and
+    // make the whole DOCUMENT scroll sideways — which slid the bottom tab bar
+    // out of view with it. Wrapping keeps every control reachable and the page
+    // exactly one viewport wide, at any width and in any language.
+    <header className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3">
       <span className="text-xl">🚀</span>
       <h1 className="text-base font-semibold tracking-tight">{t('app.title')}</h1>
       <button
@@ -198,7 +203,7 @@ export function AppHeader() {
         </span>
       )}
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex shrink-0 items-center gap-2">
         <div className="flex items-center gap-1">
           <button
             onClick={onUndo}

@@ -24,9 +24,14 @@ const FlightPath3D = lazy(() => import('./FlightPath3D').then((m) => ({ default:
  * The center workbench pane: an import banner, the 2D/3D/flight/path view switch,
  * the sized canvas box (with the 2D roll slider + Side/Aft/Reset presets), and the
  * stability readout. Reads the workspace store directly.
+ *
+ * On a phone this one pane backs two tabs — Rocket (banner + stats) and Sketch
+ * (the drawing) — because a phone has no room for both at once. At lg+ the tabs
+ * are gone and everything shows together, exactly as before.
  */
 export function CenterView() {
   const { t } = useTranslation();
+  const tab = useWorkspaceStore((s) => s.tab);
   const loadedMeta = useWorkspaceStore((s) => s.loadedMeta);
   const resetWorkspace = useWorkspaceStore((s) => s.resetWorkspace);
   // "Close" discards the loaded design and resets to a fresh one — confirm first.
@@ -78,7 +83,13 @@ export function CenterView() {
   // that hasn't actually changed. `result` going stale is the real trigger.
   const hasDesign = !!info;
   useEffect(() => {
-    if (settings.simulation.autoRunOutdated && (view === 'flight' || view === 'path') && !result && hasDesign && !busy) {
+    if (
+      settings.simulation.autoRunOutdated &&
+      (view === 'flight' || view === 'path') &&
+      !result &&
+      hasDesign &&
+      !busy
+    ) {
       runSim(settings.simulation);
     }
   }, [view, result, hasDesign, busy, settings.simulation, runSim]);
@@ -99,165 +110,205 @@ export function CenterView() {
   // The roll slider overlays the far-left strip; reserve a gutter that width so
   // the 2D drawing (and its left ruler) starts clear of it instead of underneath.
   const ROLL_GUTTER = 30;
+  // Which views are turned a quarter turn on a portrait phone. The 2D views are
+  // drawings on a sheet, so turning the sheet is all it takes. The others are
+  // not: three.js frames its camera from the canvas it measures, and inside a
+  // CSS-transformed box it measures the wrong thing and renders the rocket
+  // unframed; the charts would read sideways for no gain. So they stay upright,
+  // and the toolbar goes back on top with them.
+  // Which views are turned a quarter turn on a portrait phone: the design views.
+  // All three want to be wide — the 2D schematic and the 3D model because a
+  // hobby airframe is 15-25x longer than it is wide, the aero charts because
+  // they sweep Mach across the x axis. The flight views stay upright.
+  const sideways = view === '2d' || view === '3d' || view === 'drag';
   const loading = <div className="grid h-full place-items-center text-sm text-slate-500">{t('view.loading3d')}</div>;
   const prompt = <div className="grid h-full place-items-center text-sm text-slate-500">{t('sim.prompt')}</div>;
 
   return (
     <div className="flex h-full flex-col">
-      {loadedMeta && <LoadedBanner loaded={loadedMeta} onClose={onCloseLoaded} />}
-      <div className="flex shrink-0 items-center justify-between gap-2 px-3 pt-3">
-        {/* 2D view presets + the CG/CP · Info toggles, left-justified in the
-            same row as the view toggle. The toggles apply to both 2D and 3D. */}
-        <div className="flex flex-wrap gap-1">
-          {view === '2d' && (
-            <>
-              <ViewBtn onClick={onResetView}>{t('view.reset')}</ViewBtn>
-              <ViewBtn active={twoD === 'side'} onClick={() => onTwoD('side')}>
-                {t('view.side')}
-              </ViewBtn>
-              <ViewBtn active={twoD === 'aft'} onClick={() => onTwoD('aft')}>
-                {t('view.aft')}
-              </ViewBtn>
-            </>
-          )}
-          {(view === '2d' || view === '3d') && (
-            <>
-              <ViewBtn active={showMarkers} onClick={toggleMarkers} title={t('view.markersTitle')}>
-                {t('view.markers')}
-              </ViewBtn>
-              <ViewBtn active={showInfoCard} onClick={toggleInfoCard} title={t('view.infoCardTitle')}>
-                {t('view.infoCard')}
-              </ViewBtn>
-              {/* Rulers only frame the 2D side view; one toggle per side (T/B/L/R). */}
-              {view === '2d' && (
-                <div className="flex items-center gap-1">
-                  <span className="pl-1 text-xs font-medium text-slate-400">{t('view.rulers')}</span>
-                  {(['top', 'bottom', 'left', 'right'] as const).map((side) => (
-                    <ViewBtn
-                      key={side}
-                      active={rulers[side]}
-                      onClick={() => toggleRulerSide(side)}
-                      title={t(`view.ruler_${side}`)}
-                    >
-                      {t(`view.ruler_${side}_abbr`)}
-                    </ViewBtn>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
+      {loadedMeta && (
+        <div className={`${tab === 'build' ? '' : 'hidden'} shrink-0 lg:block`}>
+          <LoadedBanner loaded={loadedMeta} onClose={onCloseLoaded} />
         </div>
-        {/* Center slot: the 2D schematic portals its caliper / zoom / export buttons here. */}
-        <div ref={setCtrlSlot} className="flex items-center gap-1" />
-        <ViewToggle view={view} onChange={onView} hasResult={!!result} />
-      </div>
-      {/* The view flexes to fill the pane; the stats strip below is a pinned
+      )}
+      {/* Everything from here to the stats strip is the DRAWING half: the view
+          switch and the canvas. Mobile shows it on the Sketch tab; lg+ always.
+
+          The whole half turns as ONE piece on a portrait phone (see
+          .sketch-rotate) — toolbar included, so the toolbar always sits along
+          the long edge of the screen, at the top of the drawing it controls,
+          whichever view is open. Turning the canvas alone would leave the
+          toolbar across the short edge, detached from what it acts on, and
+          moving it whenever the view changed. */}
+      <div
+        className={`${tab === 'sketch' ? 'flex' : 'hidden'} ${sideways ? 'sketch-stage' : ''} min-h-0 w-full flex-1 flex-col overflow-hidden lg:flex`}
+      >
+        <div className={sideways ? 'sketch-rotate flex flex-col' : 'flex min-h-0 flex-1 flex-col'}>
+          {/* Wraps for the same reason the app header does: the presets, the
+          portalled canvas controls and the view toggle do not fit a phone's
+          width in one row, and an unwrapped row scrolls the whole page
+          sideways. */}
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-3 pt-3">
+            {/* 2D view presets + the CG/CP · Info toggles, left-justified in the
+            same row as the view toggle. The toggles apply to both 2D and 3D. */}
+            <div className="flex flex-wrap gap-1">
+              {view === '2d' && (
+                <>
+                  <ViewBtn onClick={onResetView}>{t('view.reset')}</ViewBtn>
+                  <ViewBtn active={twoD === 'side'} onClick={() => onTwoD('side')}>
+                    {t('view.side')}
+                  </ViewBtn>
+                  <ViewBtn active={twoD === 'aft'} onClick={() => onTwoD('aft')}>
+                    {t('view.aft')}
+                  </ViewBtn>
+                </>
+              )}
+              {(view === '2d' || view === '3d') && (
+                <>
+                  <ViewBtn active={showMarkers} onClick={toggleMarkers} title={t('view.markersTitle')}>
+                    {t('view.markers')}
+                  </ViewBtn>
+                  <ViewBtn active={showInfoCard} onClick={toggleInfoCard} title={t('view.infoCardTitle')}>
+                    {t('view.infoCard')}
+                  </ViewBtn>
+                  {/* Rulers only frame the 2D side view; one toggle per side (T/B/L/R). */}
+                  {view === '2d' && (
+                    <div className="flex items-center gap-1">
+                      <span className="pl-1 text-xs font-medium text-slate-400">{t('view.rulers')}</span>
+                      {(['top', 'bottom', 'left', 'right'] as const).map((side) => (
+                        <ViewBtn
+                          key={side}
+                          active={rulers[side]}
+                          onClick={() => toggleRulerSide(side)}
+                          title={t(`view.ruler_${side}`)}
+                        >
+                          {t(`view.ruler_${side}_abbr`)}
+                        </ViewBtn>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            {/* Center slot: the 2D schematic portals its caliper / zoom / export buttons here. */}
+            <div ref={setCtrlSlot} className="flex items-center gap-1" />
+            {/* ml-auto keeps it hard right even when it wraps onto a line of its
+            own, where justify-between has nothing to push against. */}
+            <div className="ml-auto shrink-0">
+              <ViewToggle view={view} onChange={onView} hasResult={!!result} />
+            </div>
+          </div>
+          {/* The view flexes to fill the pane; the stats strip below is a pinned
           footer, so switching views never resizes the pane and the strip is
           always visible without scrolling. */}
-      <div className="relative min-h-0 w-full flex-1 overflow-hidden px-3 pt-2">
-        {/* Canvas parts can be dragged to reposition them (a design edit), so
+          <div className="relative min-h-0 w-full flex-1 overflow-hidden px-3 pt-2">
+            {/* Canvas parts can be dragged to reposition them (a design edit), so
             lock the design views while a sim runs. Results views (flight/path)
             don't mutate the design, so they stay interactive. */}
-        {(view === '2d' || view === '3d') && <BusyLock />}
-        {view === '2d' && (
-          <>
-            <div
-              className="absolute inset-y-2 left-1 z-10 flex w-8 flex-col items-center text-[11px] font-semibold leading-none text-slate-300"
-              title={t('view.rollHint')}
-            >
-              <span className="pb-1">0°</span>
-              <input
-                type="range"
-                min={0}
-                max={360}
-                step={5}
-                value={deg}
-                onChange={(e) => onRollValue((parseFloat(e.target.value) * Math.PI) / 180)}
-                title={t('view.roll', { deg })}
-                aria-label={t('view.rollAria')}
-                className="accent-sky-500"
-                style={{ writingMode: 'vertical-lr', width: '100%', flex: '1 1 0%', minHeight: 0 }}
-              />
-              <span className="pt-1">360°</span>
-              {/* Live roll readout, centred on the slider. */}
-              <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded bg-slate-800/95 px-0.5 py-0.5 text-[9px] text-sky-300 ring-1 ring-white/10">
-                {deg}°
-              </span>
-            </div>
-          </>
-        )}
-        {/* Quick-glance stats card (mmrocket-style): sits INSIDE the ruler frame on
-            the 2D view (clear of the top + left rulers when they're on), and in the
-            upper-left corner in 3D. Toggleable via the header Info button. */}
-        {(view === '2d' || view === '3d') && showInfoCard && (
-          <div
-            className="absolute z-20"
-            style={
-              view === '2d'
-                ? { left: (rulers.left ? 60 : 44) + ROLL_GUTTER, top: rulers.top ? 44 : 12 }
-                : { left: 44, top: 12 }
-            }
-          >
-            <InfoOverlay info={info} />
-          </div>
-        )}
-        {view === '2d' ? (
-          // Left-padded so the drawing clears the roll slider's gutter.
-          <div className="h-full" style={{ paddingLeft: ROLL_GUTTER }}>
-            {twoD === 'side' ? (
-              <TreeSchematic
-                key={`side-${resetKey}`}
-                tree={tree}
-                info={info}
-                motors={motors}
-                fillHeight
-                roll={roll}
-                onRoll={onRollBy}
-                selectedId={selectedId}
-                onSelect={onSelect}
-                controlsSlot={ctrlSlot}
-                showMarkers={showMarkers}
-                rulers={rulers}
-              />
-            ) : (
-              <AftView key={`aft-${resetKey}`} tree={tree} roll={roll} motors={motors} onRoll={onRollBy} />
-            )}
-          </div>
-        ) : view === '3d' ? (
-          <Suspense fallback={loading}>
-            <Rocket3D
-              tree={tree}
-              info={info}
-              motors={motors}
-              selectedId={selectedId}
-              onSelect={onSelect}
-              showMarkers={showMarkers}
-            />
-          </Suspense>
-        ) : view === 'flight' ? (
-          <div className="h-full p-2">{result ? <FlightChart result={result} /> : prompt}</div>
-        ) : view === 'path' ? (
-          <div className="relative h-full p-2">
-            {result ? (
+            {(view === '2d' || view === '3d') && <BusyLock />}
+            {view === '2d' && (
               <>
-                <Suspense fallback={loading}>
-                  <FlightPath3D result={result} tree={tree} motors={motors} />
-                </Suspense>
-                <div className="pointer-events-none absolute inset-x-0 top-5 z-10 flex justify-center">
-                  <div className="pointer-events-auto">
-                    <FlightPathExport variant="overlay" />
-                  </div>
+                <div
+                  className="absolute inset-y-2 left-1 z-10 flex w-8 flex-col items-center text-[11px] font-semibold leading-none text-slate-300"
+                  title={t('view.rollHint')}
+                >
+                  <span className="pb-1">0°</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={360}
+                    step={5}
+                    value={deg}
+                    onChange={(e) => onRollValue((parseFloat(e.target.value) * Math.PI) / 180)}
+                    title={t('view.roll', { deg })}
+                    aria-label={t('view.rollAria')}
+                    className="accent-sky-500"
+                    style={{ writingMode: 'vertical-lr', width: '100%', flex: '1 1 0%', minHeight: 0 }}
+                  />
+                  <span className="pt-1">360°</span>
+                  {/* Live roll readout, centred on the slider. */}
+                  <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded bg-slate-800/95 px-0.5 py-0.5 text-[9px] text-sky-300 ring-1 ring-white/10">
+                    {deg}°
+                  </span>
                 </div>
               </>
+            )}
+            {/* Quick-glance stats card (mmrocket-style): sits INSIDE the ruler frame on
+            the 2D view (clear of the top + left rulers when they're on), and in the
+            upper-left corner in 3D. Toggleable via the header Info button. */}
+            {(view === '2d' || view === '3d') && showInfoCard && (
+              <div
+                className="absolute z-20"
+                style={
+                  view === '2d'
+                    ? { left: (rulers.left ? 60 : 44) + ROLL_GUTTER, top: rulers.top ? 44 : 12 }
+                    : { left: 44, top: 12 }
+                }
+              >
+                <InfoOverlay info={info} />
+              </div>
+            )}
+            {view === '2d' ? (
+              // Left-padded so the drawing clears the roll slider's gutter.
+              <div className="h-full" style={{ paddingLeft: ROLL_GUTTER }}>
+                {twoD === 'side' ? (
+                  <TreeSchematic
+                    key={`side-${resetKey}`}
+                    tree={tree}
+                    info={info}
+                    motors={motors}
+                    fillHeight
+                    roll={roll}
+                    onRoll={onRollBy}
+                    selectedId={selectedId}
+                    onSelect={onSelect}
+                    controlsSlot={ctrlSlot}
+                    showMarkers={showMarkers}
+                    rulers={rulers}
+                  />
+                ) : (
+                  <AftView key={`aft-${resetKey}`} tree={tree} roll={roll} motors={motors} onRoll={onRollBy} />
+                )}
+              </div>
+            ) : view === '3d' ? (
+              <Suspense fallback={loading}>
+                <Rocket3D
+                  tree={tree}
+                  info={info}
+                  motors={motors}
+                  selectedId={selectedId}
+                  onSelect={onSelect}
+                  showMarkers={showMarkers}
+                />
+              </Suspense>
+            ) : view === 'flight' ? (
+              <div className="h-full p-2">{result ? <FlightChart result={result} /> : prompt}</div>
+            ) : view === 'path' ? (
+              <div className="relative h-full p-2">
+                {result ? (
+                  <>
+                    <Suspense fallback={loading}>
+                      <FlightPath3D result={result} tree={tree} motors={motors} />
+                    </Suspense>
+                    <div className="pointer-events-none absolute inset-x-0 top-5 z-10 flex justify-center">
+                      <div className="pointer-events-auto">
+                        <FlightPathExport variant="overlay" />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  prompt
+                )}
+              </div>
             ) : (
-              prompt
+              <div className="h-full p-2">{info ? <DragAnalysis /> : prompt}</div>
             )}
           </div>
-        ) : (
-          <div className="h-full p-2">{info ? <DragAnalysis /> : prompt}</div>
-        )}
+        </div>
       </div>
-      <div className="shrink-0">
+      <div
+        className={`${tab === 'build' ? '' : 'hidden'} min-h-0 flex-1 overflow-y-auto lg:block lg:flex-none lg:overflow-visible`}
+      >
         <StabilityBadge
           info={info}
           recoveryWeight={recoveryWeight}
