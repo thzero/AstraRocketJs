@@ -286,6 +286,28 @@ export function ExportDialog({
             </div>
           </div>
 
+          {/* Presets sit ABOVE the three sections because they reach into all
+              three — which waypoints, whether the lines are drawn, and how it is
+              all placed. They only set the controls below, never act behind
+              them, so what the file will contain is always what the dialog
+              shows and any one of them is a starting point you can adjust. */}
+          <Section title={t('pathExport.presets')}>
+            <div className="flex flex-wrap gap-1.5">
+              {EXPORT_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => setOpts((o) => ({ ...o, ...preset.options }))}
+                  title={t(`pathExport.preset.${preset.id}Note`)}
+                  className="rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+                >
+                  {t(`pathExport.preset.${preset.id}`)}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.presetsNote')}</p>
+          </Section>
+
           {/* Waypoints */}
           <Section title={t('pathExport.waypoints')}>
             <div className="grid grid-cols-2 gap-1.5">
@@ -331,31 +353,31 @@ export function ExportDialog({
 
           {/* How the track is placed on the map, and how much of it is drawn. */}
           <Section title={t('pathExport.placement')}>
-            <label className="flex items-center justify-between gap-3">
-              <span className="text-xs text-slate-400">{t('pathExport.altitudeReference')}</span>
-              <select
-                aria-label={t('pathExport.altitudeReference')}
-                value={opts.altitudeReference}
-                onChange={(e) =>
-                  setOpts((o) => ({ ...o, altitudeReference: e.target.value as AltitudeReference }))
-                }
-                className="w-40 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
-              >
-                <option value="automatic">{t('pathExport.altRef.automatic')}</option>
-                <option value="ground">{t('pathExport.altRef.ground')}</option>
-                <option value="sealevel">{t('pathExport.altRef.sealevel')}</option>
-              </select>
-            </label>
+            <AltitudeRefSelect
+              label={t('pathExport.trackAltitude')}
+              value={opts.altitudeReference}
+              onChange={(v) => setOpts((o) => ({ ...o, altitudeReference: v }))}
+            />
+            <AltitudeRefSelect
+              label={t('pathExport.waypointAltitude')}
+              value={opts.waypointAltitudeReference}
+              onChange={(v) => setOpts((o) => ({ ...o, waypointAltitudeReference: v }))}
+            />
             <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.altitudeReferenceNote')}</p>
+            <Check
+              checked={opts.drawShadow}
+              disabled={opts.altitudeReference === 'clamped' && opts.waypointAltitudeReference === 'clamped'}
+              onChange={(v) => setOpts((o) => ({ ...o, drawShadow: v }))}
+              label={t('pathExport.drawShadow')}
+            />
+            <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.shadowNote')}</p>
             {staged && (
               <label className="mt-1 flex items-center justify-between gap-3">
                 <span className="text-xs text-slate-400">{t('pathExport.stageTrackStart')}</span>
                 <select
                   aria-label={t('pathExport.stageTrackStart')}
                   value={opts.stageTrackStart}
-                  onChange={(e) =>
-                    setOpts((o) => ({ ...o, stageTrackStart: e.target.value as StageTrackStart }))
-                  }
+                  onChange={(e) => setOpts((o) => ({ ...o, stageTrackStart: e.target.value as StageTrackStart }))}
                   className="w-40 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
                 >
                   <option value="separation">{t('pathExport.trackStart.separation')}</option>
@@ -430,19 +452,107 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Check({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+function Check({
+  checked,
+  onChange,
+  label,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  disabled?: boolean;
+}) {
   return (
-    <label className="flex items-center gap-2 text-sm text-slate-300">
+    <label className={`flex items-center gap-2 text-sm ${disabled ? 'text-slate-600' : 'text-slate-300'}`}>
       <input
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
-        className="accent-sky-500"
+        className="accent-sky-500 disabled:opacity-40"
       />
       {label}
     </label>
   );
 }
+
+/** One of the two altitude-reference dropdowns: the track's, and the pins'. */
+function AltitudeRefSelect({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: AltitudeReference;
+  onChange: (v: AltitudeReference) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <label className="flex items-center justify-between gap-3">
+      <span className="text-xs text-slate-400">{label}</span>
+      <select
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value as AltitudeReference)}
+        className="w-40 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+      >
+        <option value="automatic">{t('pathExport.altRef.automatic')}</option>
+        <option value="ground">{t('pathExport.altRef.ground')}</option>
+        <option value="sealevel">{t('pathExport.altRef.sealevel')}</option>
+        <option value="clamped">{t('pathExport.altRef.clamped')}</option>
+      </select>
+    </label>
+  );
+}
+
+/**
+ * One-click export shapes, after the three export buttons GPS DC offers. Each
+ * spans all three sections of the dialog — which waypoints, whether the lines
+ * are drawn, and how the result is placed — because those are the three things
+ * that have to agree for a file to answer one question well.
+ *
+ * They set the controls and nothing else. Nothing is inferred at render time, so
+ * the dialog always shows what the file will contain.
+ */
+const EXPORT_PRESETS: { id: string; options: Partial<FlightPathExportOptions> }[] = [
+  {
+    // What the rocket drifts OVER: everything flat on the terrain, and the 3D
+    // line dropped because clamped it would only trace the ground track again.
+    id: 'driftCast',
+    options: {
+      altitudeReference: 'clamped',
+      waypointAltitudeReference: 'clamped',
+      includeFlightPath: false,
+      includeGroundTrack: true,
+      drawShadow: false,
+    },
+  },
+  {
+    // How high it went: suspended in the air where it belongs, with shadows so
+    // you can still read where each point sits on the map.
+    id: 'flightPath',
+    options: {
+      altitudeReference: 'automatic',
+      waypointAltitudeReference: 'automatic',
+      includeFlightPath: true,
+      includeGroundTrack: true,
+      drawShadow: true,
+    },
+  },
+  {
+    // Where it comes down, and nothing else.
+    id: 'landing',
+    options: {
+      waypoints: new Set<WaypointKind>(['landing']),
+      altitudeReference: 'clamped',
+      waypointAltitudeReference: 'clamped',
+      includeFlightPath: false,
+      includeGroundTrack: false,
+      drawShadow: false,
+    },
+  },
+];
 
 function UnitRow({
   label,

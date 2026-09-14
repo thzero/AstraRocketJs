@@ -137,13 +137,13 @@ describe('desktop model parity', () => {
   it('carries the KML altitude and its mode together', () => {
     // The pair has to agree: an altitude measured from the ground written into
     // a document that says "absolute" buries the track under the terrain.
-    const sea = build(result, { altitudeReference: 'sealevel' });
+    const sea = build(result, { altitudeReference: 'sealevel', waypointAltitudeReference: 'sealevel' });
     const apogee = sea.branches[0]!.waypoints.find((w) => w.type === 'apogee')!;
     expect(sea.kmlAltitudeMode).toBe('absolute');
     expect(apogee.altitudeAglMeters).toBeCloseTo(100, 6);
     expect(apogee.altitudeKmlMeters).toBeCloseTo(1700, 6); // 100 AGL + 1600 site
 
-    const ground = build(result, { altitudeReference: 'ground' });
+    const ground = build(result, { altitudeReference: 'ground', waypointAltitudeReference: 'ground' });
     const groundApogee = ground.branches[0]!.waypoints.find((w) => w.type === 'apogee')!;
     expect(ground.kmlAltitudeMode).toBe('relativeToGround');
     expect(groundApogee.altitudeKmlMeters).toBeCloseTo(100, 6);
@@ -335,6 +335,42 @@ describe('launch position fallback', () => {
   });
 });
 
+describe('track and waypoint altitude references', () => {
+  it('resolves the two independently', () => {
+    // The case this exists for: the flight suspended in the air where it belongs,
+    // with its pins laid flat on the ground so you can read what they sit over.
+    const m = build(result, { altitudeReference: 'sealevel', waypointAltitudeReference: 'clamped' });
+    expect(m.kmlAltitudeMode).toBe('absolute');
+    expect(m.kmlWaypointAltitudeMode).toBe('clampToGround');
+    expect(m.branches[0]!.path[1]!.altitudeKmlMeters).toBeCloseTo(1700, 6); // MSL
+    expect(m.branches[0]!.waypoints.find((w) => w.type === 'apogee')!.altitudeKmlMeters).toBeCloseTo(100, 6); // AGL
+  });
+
+  it('tessellates a clamped track, and only a clamped one', () => {
+    // Without it a clamped line cuts straight through a hill rather than
+    // draping over it, which is precisely what you are looking at the map for.
+    expect(build(result, { altitudeReference: 'clamped' }).tessellatePath).toBe(true);
+    expect(build(result, { altitudeReference: 'sealevel' }).tessellatePath).toBe(false);
+  });
+
+  it('drops the shadow for whichever half is already on the ground', () => {
+    const both = build(result, { drawShadow: true, altitudeReference: 'ground', waypointAltitudeReference: 'ground' });
+    expect([both.extrudePath, both.extrudeWaypoints]).toEqual([true, true]);
+
+    // Nothing to extrude TO once a thing is lying on the terrain, and the two
+    // halves are judged separately because they have separate references.
+    const mixed = build(result, {
+      drawShadow: true,
+      altitudeReference: 'clamped',
+      waypointAltitudeReference: 'sealevel',
+    });
+    expect([mixed.extrudePath, mixed.extrudeWaypoints]).toEqual([false, true]);
+
+    const off = build(result, { drawShadow: false, altitudeReference: 'sealevel' });
+    expect([off.extrudePath, off.extrudeWaypoints]).toEqual([false, false]);
+  });
+});
+
 describe('renderKml', () => {
   const kml = renderKml(model());
   it('is well-formed KML with a document name and both track styles', () => {
@@ -372,6 +408,30 @@ describe('renderKml', () => {
     expect(new Set(colors).size).toBeGreaterThan(1);
     // A pin reading "apogee" twice is ambiguous once there is more than one stage.
     expect(k).toContain('<name>Booster apogee</name>');
+  });
+
+  it('writes the two altitude modes into the halves they belong to', () => {
+    const k = renderKml(build(result, { altitudeReference: 'sealevel', waypointAltitudeReference: 'clamped' }));
+    const point = k.slice(k.indexOf('<Point>'), k.indexOf('</Point>'));
+    const line = k.slice(k.indexOf('<LineString>'), k.indexOf('</LineString>'));
+    expect(point).toContain('<altitudeMode>clampToGround</altitudeMode>');
+    expect(line).toContain('<altitudeMode>absolute</altitudeMode>');
+  });
+
+  it('emits extrude as a section, so an older template is unaffected', () => {
+    expect(kml).not.toContain('<extrude>'); // off by default, element omitted entirely
+    const shadow = renderKml(build(result, { drawShadow: true, altitudeReference: 'sealevel' }));
+    expect(shadow).toContain('<extrude>1</extrude>');
+    // A value interpolation would have emitted `<extrude></extrude>` here, which
+    // is junk; a Mustache section renders nothing at all.
+    expect(shadow).not.toContain('<extrude></extrude>');
+  });
+
+  it('tessellates the flight-path line only when it is clamped', () => {
+    const clamped = renderKml(build(result, { altitudeReference: 'clamped' }));
+    const line = clamped.slice(clamped.indexOf('<LineString>'), clamped.indexOf('</LineString>'));
+    expect(line).toContain('<tessellate>1</tessellate>');
+    expect(line).toContain('<altitudeMode>clampToGround</altitudeMode>');
   });
 
   it('drops the pin icon when colour pins are turned off', () => {

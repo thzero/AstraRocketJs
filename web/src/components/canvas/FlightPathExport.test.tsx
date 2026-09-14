@@ -36,7 +36,9 @@ const show = (result: FlightResult) =>
     />,
   );
 
-const altRef = () => screen.getByLabelText('Altitude measured from') as HTMLSelectElement;
+const trackRef = () => screen.getByLabelText('Track altitude from') as HTMLSelectElement;
+const pinRef = () => screen.getByLabelText('Waypoint altitude from') as HTMLSelectElement;
+const shadow = () => screen.getByRole('checkbox', { name: 'Draw shadow down to the ground' }) as HTMLInputElement;
 
 /**
  * The placement options decide how the exported KML sits on the map. The button
@@ -47,18 +49,58 @@ const altRef = () => screen.getByLabelText('Altitude measured from') as HTMLSele
 describe('flight-path export dialog', () => {
   it('starts on the desktop defaults', () => {
     show(flight());
-    expect(altRef().value).toBe('automatic');
+    expect(trackRef().value).toBe('automatic');
+    expect(pinRef().value).toBe('automatic');
+    expect(shadow().checked).toBe(false);
     expect(screen.getByRole('checkbox', { name: 'Draw waypoint names on the map' })).toBeTruthy();
     expect((screen.getByRole('checkbox', { name: 'Colour waypoint pins per stage' }) as HTMLInputElement).checked).toBe(
       true,
     );
   });
 
-  it('offers all three altitude references', () => {
+  it('sets the track and the pins independently', () => {
+    // The case the split exists for: the flight in the air, the pins flat on the
+    // ground so you can read what they sit over.
     show(flight());
-    expect([...altRef().options].map((o) => o.value)).toEqual(['automatic', 'ground', 'sealevel']);
-    fireEvent.change(altRef(), { target: { value: 'sealevel' } });
-    expect(altRef().value).toBe('sealevel');
+    const options = ['automatic', 'ground', 'sealevel', 'clamped'];
+    expect([...trackRef().options].map((o) => o.value)).toEqual(options);
+    expect([...pinRef().options].map((o) => o.value)).toEqual(options);
+
+    fireEvent.change(trackRef(), { target: { value: 'sealevel' } });
+    fireEvent.change(pinRef(), { target: { value: 'clamped' } });
+    expect([trackRef().value, pinRef().value]).toEqual(['sealevel', 'clamped']);
+  });
+
+  it('disables the shadow only once BOTH halves are on the ground', () => {
+    show(flight());
+    fireEvent.change(trackRef(), { target: { value: 'clamped' } });
+    expect(shadow().disabled).toBe(false); // pins are still in the air
+
+    fireEvent.change(pinRef(), { target: { value: 'clamped' } });
+    expect(shadow().disabled).toBe(true); // nothing left to draw a shadow from
+  });
+
+  it('presets reach all three sections, and only through the visible controls', () => {
+    show(flight());
+    const check = (name: string) => screen.getByRole('checkbox', { name }) as HTMLInputElement;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Drift cast' }));
+    expect([trackRef().value, pinRef().value]).toEqual(['clamped', 'clamped']); // placement
+    expect(check('Include flight path line').checked).toBe(false); // lines
+    expect(check('Include ground track').checked).toBe(true);
+    expect(check('Landing').checked).toBe(true); // waypoints untouched by this one
+
+    // Landing plots narrows the waypoints too — the third section.
+    fireEvent.click(screen.getByRole('button', { name: 'Landing plots' }));
+    expect(check('Landing').checked).toBe(true);
+    expect(check('Apogee').checked).toBe(false);
+    expect(check('Include ground track').checked).toBe(false);
+
+    // …and a preset is a starting point, not a mode: every control still moves.
+    fireEvent.change(trackRef(), { target: { value: 'sealevel' } });
+    fireEvent.click(check('Apogee'));
+    expect(trackRef().value).toBe('sealevel');
+    expect(check('Apogee').checked).toBe(true);
   });
 
   it('hides the stage-track control for a single-stage flight', () => {

@@ -48,8 +48,13 @@ export type DistanceUnit = 'm' | 'ft' | 'km' | 'mi';
  * It matters because the launch altitude defaults to zero: a site actually
  * 1200 m up then reports its flight in metres above the pad, and placing that
  * against sea level buries the whole track under the terrain.
+ *
+ * `clamped` is ours, not the desktop's: it drapes the track and the pins flat on
+ * the terrain, which is what you want when the question is what the rocket drifts
+ * OVER rather than how high it went. The value still travels fine in a desktop
+ * template, because the model carries the resolved `<altitudeMode>` as a string.
  */
-export type AltitudeReference = 'automatic' | 'ground' | 'sealevel';
+export type AltitudeReference = 'automatic' | 'ground' | 'sealevel' | 'clamped';
 
 /**
  * Where a stage's own track begins. Mirrors the desktop's
@@ -78,6 +83,7 @@ export function resolveAltitudeReference(
 export const KML_ALTITUDE_MODE: Record<Exclude<AltitudeReference, 'automatic'>, string> = {
   ground: 'relativeToGround',
   sealevel: 'absolute',
+  clamped: 'clampToGround',
 };
 
 export interface FlightPathExportOptions {
@@ -93,8 +99,23 @@ export interface FlightPathExportOptions {
   altitudeUnit: DistanceUnit;
   /** Unit for the human-facing horizontal-distance column. */
   distanceUnit: DistanceUnit;
-  /** What exported altitudes are measured from. */
+  /**
+   * What the exported TRACK's altitudes are measured from. GPS Visualizer sets
+   * this and the waypoint reference below from two separate dropdowns, and it is
+   * right to: a flight is worth seeing suspended in the air, while the pins that
+   * label it are easier to read against the ground they sit over.
+   */
   altitudeReference: AltitudeReference;
+  /** What the exported WAYPOINTS' altitudes are measured from. */
+  waypointAltitudeReference: AltitudeReference;
+  /**
+   * Draw a line from the track and each pin straight down to the ground — KML's
+   * `<extrude>`, which Google Earth renders as a curtain under the path and a
+   * plumb line under a pin. It is how you read WHERE a point in the air sits on
+   * the map. Meaningless once the thing is already on the ground, so it is
+   * ignored for a clamped reference.
+   */
+  drawShadow: boolean;
   /** Where each stage's track begins — see {@link StageTrackStart}. */
   stageTrackStart: StageTrackStart;
   /**
@@ -130,6 +151,8 @@ export function defaultExportOptions(preferred?: string): FlightPathExportOption
     altitudeUnit: unit,
     distanceUnit: unit,
     altitudeReference: 'automatic',
+    waypointAltitudeReference: 'automatic',
+    drawShadow: false,
     stageTrackStart: 'separation',
     showWaypointLabels: true,
     colorWaypointPins: true,
@@ -191,7 +214,7 @@ export interface FlightPathWaypoint {
   altitudeMslMeters: number;
   /** Altitude above the ground, in metres. */
   altitudeAglMeters: number;
-  /** The altitude to write into a KML coordinate, in `model.kmlAltitudeMode`. */
+  /** The altitude to write into a KML coordinate, in `model.kmlWaypointAltitudeMode`. */
   altitudeKmlMeters: number;
   time: number;
   timeStr: string;
@@ -250,8 +273,24 @@ export interface FlightPathModel {
   distanceUnit: string;
   includeFlightPath: boolean;
   includeGroundTrack: boolean;
-  /** The KML `<altitudeMode>` that every `altitudeKmlMeters` is expressed in. */
+  /** The KML `<altitudeMode>` a path point's `altitudeKmlMeters` is expressed in. */
   kmlAltitudeMode: string;
+  /** The KML `<altitudeMode>` a waypoint's `altitudeKmlMeters` is expressed in. */
+  kmlWaypointAltitudeMode: string;
+  /**
+   * Draw `<extrude>` lines from the track and the pins down to the ground.
+   * A Mustache SECTION, not a value: a template that predates this field simply
+   * renders nothing for it, where `<extrude>{{extrude}}</extrude>` would emit an
+   * empty element. Already false when the thing is clamped to the ground.
+   */
+  extrudePath: boolean;
+  extrudeWaypoints: boolean;
+  /**
+   * Break the flight-path line into terrain-following pieces. KML only honours
+   * `<tessellate>` for a clamped line, and without it a clamped path cuts
+   * straight through hills instead of draping over them.
+   */
+  tessellatePath: boolean;
   /** Whether waypoint names are drawn on the map. */
   showWaypointLabels: boolean;
   /** Whether waypoint pins carry their stage's colour. */
@@ -369,7 +408,15 @@ export function buildFlightPathModel(
   // `automatic` only means something once there is a launch altitude to judge,
   // so it is resolved here and the model carries the answer, not the question.
   const altitudeReference = resolveAltitudeReference(options.altitudeReference, launchAlt);
-  const kmlAltitude = (altAgl: number): number => (altitudeReference === 'sealevel' ? altAgl + launchAlt : altAgl);
+  const waypointReference = resolveAltitudeReference(options.waypointAltitudeReference, launchAlt);
+  // A clamped coordinate's altitude is ignored by KML, but writing the AGL value
+  // rather than a bare 0 keeps the number meaningful to anything else reading it.
+  const kmlAltitudeFor =
+    (reference: Exclude<AltitudeReference, 'automatic'>) =>
+    (altAgl: number): number =>
+      reference === 'sealevel' ? altAgl + launchAlt : altAgl;
+  const kmlAltitude = kmlAltitudeFor(altitudeReference);
+  const kmlWaypointAltitude = kmlAltitudeFor(waypointReference);
 
   const model: FlightPathModel = {
     title: meta.simName,
@@ -385,6 +432,11 @@ export function buildFlightPathModel(
     includeFlightPath: options.includeFlightPath,
     includeGroundTrack: options.includeGroundTrack,
     kmlAltitudeMode: KML_ALTITUDE_MODE[altitudeReference],
+    kmlWaypointAltitudeMode: KML_ALTITUDE_MODE[waypointReference],
+    // Nothing to extrude to once a thing is already lying on the ground.
+    extrudePath: options.drawShadow && altitudeReference !== 'clamped',
+    extrudeWaypoints: options.drawShadow && waypointReference !== 'clamped',
+    tessellatePath: altitudeReference === 'clamped',
     showWaypointLabels: options.showWaypointLabels,
     colorWaypointPins: options.colorWaypointPins,
     maxAltitude: fmtLength(result.summary.maxAltitude, options.altitudeUnit),
@@ -411,6 +463,7 @@ export function buildFlightPathModel(
       altUnit: options.altitudeUnit,
       distUnit: options.distanceUnit,
       kmlAltitude,
+      kmlWaypointAltitude,
       qualify,
       primary: i === 0,
       stageTrackStart: options.stageTrackStart,
@@ -437,6 +490,7 @@ interface BranchCtx {
   distUnit: DistanceUnit;
   /** Height above the ground → the altitude a KML coordinate should carry. */
   kmlAltitude: (altAgl: number) => number;
+  kmlWaypointAltitude: (altAgl: number) => number;
   /** True when the flight staged, so waypoint labels name their stage. */
   qualify: boolean;
   /**
@@ -514,7 +568,7 @@ function buildBranch(
       longitudeStr: longitude.toFixed(6),
       altitudeMslMeters: mslMeters,
       altitudeAglMeters: altAgl,
-      altitudeKmlMeters: ctx.kmlAltitude(altAgl),
+      altitudeKmlMeters: ctx.kmlWaypointAltitude(altAgl),
       time: t,
       timeStr: t.toFixed(2),
       altitude: fmtLength(altAgl, ctx.altUnit),
@@ -719,7 +773,8 @@ const KML_TEMPLATE_SOURCE = `<?xml version="1.0" encoding="UTF-8"?>
 				<name>{{qualifiedLabel}}</name>
 				<styleUrl>#waypoint{{index}}</styleUrl>
 				<Point>
-					<altitudeMode>{{kmlAltitudeMode}}</altitudeMode>
+{{#extrudeWaypoints}}					<extrude>1</extrude>
+{{/extrudeWaypoints}}					<altitudeMode>{{kmlWaypointAltitudeMode}}</altitudeMode>
 					<coordinates>{{longitude}},{{latitude}},{{altitudeKmlMeters}}</coordinates>
 				</Point>
 			</Placemark>
@@ -730,8 +785,9 @@ const KML_TEMPLATE_SOURCE = `<?xml version="1.0" encoding="UTF-8"?>
 				<name>{{name}} flight path</name>
 				<styleUrl>#flightPath{{index}}</styleUrl>
 				<LineString>
-					<extrude>0</extrude>
-					<altitudeMode>{{kmlAltitudeMode}}</altitudeMode>
+{{#extrudePath}}					<extrude>1</extrude>
+{{/extrudePath}}{{#tessellatePath}}					<tessellate>1</tessellate>
+{{/tessellatePath}}					<altitudeMode>{{kmlAltitudeMode}}</altitudeMode>
 					<coordinates>
 {{#path}}						{{longitude}},{{latitude}},{{altitudeKmlMeters}}
 {{/path}}					</coordinates>
