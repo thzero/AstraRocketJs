@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
+import { confirm } from '../../state/confirmStore';
 import { useFocusTrap } from '../common/useFocusTrap';
 import { DesignPropertiesDialog } from './DesignPropertiesDialog';
 
@@ -23,16 +24,40 @@ export function DesignLibraryDialog({ open, onClose }: { open: boolean; onClose:
 
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
 
+  // Deleting a saved design cannot be undone, and on a phone this button sits a
+  // few millimetres from Rename in a full-screen dialog. Ask first -- the same
+  // gate the far less destructive "close loaded design" already uses.
+  const askDelete = async (id: string, name: string) => {
+    const ok = await confirm({
+      message: t('library.deleteConfirm', { name }),
+      confirmLabel: t('common.delete'),
+      danger: true,
+    });
+    if (ok) await deleteDesign(id);
+  };
+
+  // `onClose` is an inline arrow in AppHeader, so it gets a NEW identity on every
+  // AppHeader render -- and `refresh()` writes a fresh `designs` array that
+  // AppHeader subscribes to, which re-renders it. Listing onClose as a dep
+  // therefore closed a loop: refresh -> re-render -> new onClose -> refresh.
+  // Read it through a ref instead, so the keydown listener always calls the
+  // current one without the effect depending on its identity.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  // Load the list, and drop any half-finished rename, ONCE per opening. Keyed on
+  // `open` alone: re-running this on every render would re-close the rename
+  // dialog a few ms after the user opened it.
   useEffect(() => {
     if (!open) return;
     void refresh();
     setRenaming(null);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, refresh, onClose]);
+  }, [open, refresh]);
 
   if (!open) return null;
 
@@ -84,7 +109,7 @@ export function DesignLibraryDialog({ open, onClose }: { open: boolean; onClose:
                   {t('library.rename')}
                 </button>
                 <button
-                  onClick={() => void deleteDesign(d.id)}
+                  onClick={() => void askDelete(d.id, d.name)}
                   className="rounded px-2 py-1 text-xs text-slate-400 hover:text-red-300"
                 >
                   {t('common.delete')}

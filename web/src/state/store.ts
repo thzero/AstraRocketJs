@@ -68,7 +68,20 @@ export interface WorkspaceState {
   // --- design ---
   tree: RocketTree;
   info: StaticInfo | null;
+  /** Transient failure of the thing the user just did — a bad .ork, a sim that
+   *  threw. Cleared by the next successful rebuild. */
   err: string | null;
+  /**
+   * Browser storage is not keeping the user's work (quota hit, or IndexedDB
+   * blocked and we are back on the 5 MB localStorage cap).
+   *
+   * A SEPARATE slot from `err` on purpose. It used to share it, and the rebuild
+   * effect clears `err` on every successful build — which happens milliseconds
+   * after load and again on every keystroke — so the one warning telling the
+   * user their work is no longer being saved was wiped before it could be read.
+   * This one stands until storage actually succeeds again.
+   */
+  storageWarning: string | null;
   selectedId: string | null;
   extraMotors: Record<string, MountMotor>;
   loadedMeta: LoadedMeta;
@@ -80,6 +93,16 @@ export interface WorkspaceState {
   sims: Simulation[];
   activeId: string;
   simBusy: boolean;
+  /**
+   * The sim whose last run THREW, and the design it threw on.
+   *
+   * CenterView's "auto-run outdated" re-fires whenever `simBusy` goes false
+   * while a result view is open and there is no result — which is exactly the
+   * state a failed run leaves behind, so a reproducible failure (a sim that
+   * times out) retried without limit. Recording the failure lets the retry wait
+   * until something actually changed.
+   */
+  lastRunFailed: { simId: string; tree: RocketTree } | null;
   // --- view / navigation ---
   tab: Tab;
   view: ViewMode;
@@ -89,6 +112,8 @@ export interface WorkspaceState {
 
   // --- actions ---
   setErr: (err: string | null) => void;
+  /** Raise (or clear, with null) the persistent storage warning. */
+  setStorageWarning: (msg: string | null) => void;
   applyBuild: (info: StaticInfo | null, rocket: Rocket | null) => void; // from the rebuild effect
   invalidateResults: () => void; // from the tree-change effect
   hydrate: (w: {
@@ -161,6 +186,17 @@ export interface WorkspaceState {
 
 /** The active simulation (falls back to the first if the id no longer exists). */
 export const selectActive = (s: WorkspaceState): Simulation => s.sims.find((x) => x.id === s.activeId) ?? s.sims[0]!;
+
+/**
+ * True when the ACTIVE sim's last run threw on the design that is still loaded.
+ *
+ * Self-expiring by construction: it compares the recorded tree against the
+ * current one, so any edit makes it false again and a retry is allowed. That is
+ * the whole point — auto-run must not retry a configuration it already knows
+ * fails, but it must try again the moment the user changes something.
+ */
+export const selectRunFailed = (s: WorkspaceState): boolean =>
+  s.lastRunFailed !== null && s.lastRunFailed.tree === s.tree && s.lastRunFailed.simId === selectActive(s).id;
 
 /** A motor is usable only if it carries a full thrust curve (time/thrust/mass samples). */
 export const hasThrustCurve = (m: MotorSpec | undefined | null): boolean =>
@@ -310,6 +346,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     tree: specToTree(DEFAULT_SPEC).tree,
     info: null,
     err: null,
+    storageWarning: null,
+    lastRunFailed: null,
     selectedId: null,
     extraMotors: {},
     loadedMeta: null,
@@ -328,6 +366,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     activeDesignId: null,
 
     setErr: (err) => set({ err }),
+    setStorageWarning: (storageWarning) => set({ storageWarning }),
     applyBuild: (info, rocket) => set({ info, rocket }),
     invalidateResults: () =>
       set((s) => (s.sims.some((x) => x.result) ? { sims: s.sims.map((x) => ({ ...x, result: null })) } : {})),
@@ -496,9 +535,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         set({ err: i18n.t('sim.noMotor') });
         return;
       }
-      set({ simBusy: true });
+      set({ simBusy: true, lastRunFailed: null });
       const active = selectActive(s);
       const simId = active.id;
+      // What we are about to fly. The await below can outlast the design: if the
+      // user edits while the worker is busy, the answer that comes back
+      // describes a rocket that no longer exists, and installing it would show
+      // numbers for geometry that is no longer on screen.
+      const ranOn = s.tree;
       // The sim runs in a Web Worker (its own engine instance), off the main
       // thread, so a ~500 ms flight never freezes the UI. The worker rebuilds
       // the rocket from the current tree/motors — identical to the main-thread
@@ -511,6 +555,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           primaryIgnition: { event: active.ignitionEvent, delay: active.ignitionDelay },
           options: simConditions(active.launch, prefs),
         });
+        // Drop a result the design has moved past -- including the view/tab
+        // switch, which would otherwise yank a phone to a Results tab holding a
+        // flight for the previous rocket.
+        if (get().tree !== ranOn) return;
         // Show the run: the flight chart, and on a phone the Results tab it
         // lives on -- which is also the moment that tab comes into existence.
         set((st) => ({
@@ -523,7 +571,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // A timeout means the worker was killed mid-hang; show a friendly line
         // rather than the raw sentinel. The lock releases via `finally`.
         const msg = e instanceof SimTimeoutError ? i18n.t('sim.timeout') : e instanceof Error ? e.message : String(e);
-        set({ err: msg });
+        set({ err: msg, lastRunFailed: { simId, tree: ranOn } });
       } finally {
         set({ simBusy: false });
       }

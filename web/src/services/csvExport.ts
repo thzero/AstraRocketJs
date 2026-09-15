@@ -91,7 +91,16 @@ export function aeroTableCsv(d: AeroSweep, units: UnitSelection): string {
   const header = ['Mach', 'Cd', 'Cd_friction', 'Cd_pressure', 'Cd_base'];
   if (d.hasNozzle) header.push('Cd_powerOn');
   header.push(`CP (${len.sym})`, 'CNalpha (/rad)');
-  for (const c of d.components) header.push(compHeader(c.name));
+  // Components are identified by a stable key, not by name, so two unnamed body
+  // tubes now arrive as two distinct columns rather than one merged one. Number
+  // the repeats so the header still says which column is which.
+  const seen = new Map<string, number>();
+  for (const c of d.components) {
+    const base = compHeader(c.name);
+    const n = (seen.get(base) ?? 0) + 1;
+    seen.set(base, n);
+    header.push(n > 1 ? `${base} (${n})` : base);
+  }
 
   const lines = [row(header)];
   for (let i = 0; i < d.machs.length; i++) {

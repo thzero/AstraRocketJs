@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import {
   axialLength,
+  freeformRootChord,
   startFromPosition,
   offsetForStart,
   resolveAbsolutePositions,
@@ -150,5 +151,53 @@ describe('snapStart', () => {
   });
   it('picks the closest of several in-range anchors', () => {
     expect(snapStart(0.08, anchors, 0.05)).toBeCloseTo(0.1); // 0.02 to 0.1 beats 0.08 to 0
+  });
+});
+
+describe('freeformRootChord', () => {
+  // The kernel's definition: FreeformFinSet.length = last.x - first.x. Four
+  // other modules used to compute this as Math.max(...xs), which is the same
+  // number ONLY when the aftmost point is also the root trailing corner.
+  it('is the span between the first and last points, not the aftmost point', () => {
+    // A swept fin whose tip trailing corner overhangs the root: root chord
+    // 0.06, but the furthest-aft point is 0.09.
+    const overhanging: [number, number][] = [
+      [0, 0],
+      [0.04, 0.05],
+      [0.09, 0.05],
+      [0.06, 0],
+    ];
+    expect(freeformRootChord(overhanging)).toBeCloseTo(0.06, 9);
+    expect(Math.max(...overhanging.map((p) => p[0]))).toBeCloseTo(0.09, 9); // what the copies returned
+  });
+
+  it('agrees with Math.max for an ordinary fin, which is why this went unnoticed', () => {
+    const plain: [number, number][] = [
+      [0, 0],
+      [0.02, 0.04],
+      [0.05, 0.04],
+      [0.07, 0],
+    ];
+    expect(freeformRootChord(plain)).toBeCloseTo(Math.max(...plain.map((p) => p[0])), 9);
+  });
+
+  it('falls back rather than returning a zero or negative chord', () => {
+    expect(freeformRootChord(undefined)).toBe(0.05);
+    expect(freeformRootChord([])).toBe(0.05);
+    expect(freeformRootChord([[0.1, 0] as [number, number], [0, 0] as [number, number]])).toBe(0.05);
+    expect(freeformRootChord([[Number.NaN, 0] as [number, number], [0.1, 0] as [number, number]])).toBe(0.05);
+  });
+
+  it('is what axialLength uses, so the schematic and the report agree', () => {
+    const fin = {
+      type: 'freeformfinset',
+      points: [
+        [0, 0],
+        [0.04, 0.05],
+        [0.09, 0.05],
+        [0.06, 0],
+      ],
+    } as unknown as ComponentNode;
+    expect(axialLength(fin)).toBeCloseTo(freeformRootChord(fin['points'] as [number, number][]), 9);
   });
 });

@@ -386,6 +386,20 @@ export interface ComponentPosition {
   method: 'top' | 'middle' | 'bottom' | 'absolute';
   /** meters, per the method's convention */
   offset: number;
+  /**
+   * What the imported `.ork` actually said, when it said `absolute`.
+   *
+   * `absolute` is a ROCKET-origin offset, but the editor (schematic, property
+   * panel, drag handles) works purely in the parent frame, so an imported
+   * absolute position is rewritten to the equivalent `top` offset on load —
+   * otherwise the app draws the part somewhere the engine does not fly it.
+   *
+   * Rewriting it would also change what we write back out, and `.ork`
+   * round-trips are meant to be byte-stable. So the original is kept here and
+   * `orkExport` restores it, as long as `resolved` still matches the current
+   * offset (i.e. the user has not moved the part since importing).
+   */
+  ork?: { method: 'absolute'; offset: number; resolved: number };
 }
 
 /**
@@ -557,6 +571,10 @@ export interface ComponentInfo {
 /** Options for {@link OpenRocketDesign.aeroSweep}; a Mach grid at a fixed angle. */
 /** One row of the per-component mass breakdown, in SI. */
 export interface ComponentMass {
+  /** Stable identity, matching `AeroSweep.components[].key`. Empty for the
+   *  motor rows, which have no aerodynamic row to join to. */
+  key?: string;
+  /** Display label. Not unique — see `key`. */
   name: string;
   /** Mass of a single instance (kg) — one fin of a fin set. */
   eachMass: number;
@@ -639,6 +657,16 @@ export interface AeroSweep {
    * the UI shows the columns it has data for.
    */
   components: {
+    /**
+     * Stable identity for this component — the kernel's own UUID.
+     *
+     * Use this for row keys and for joining to {@link ComponentMass}, NOT
+     * `name`: nothing forces a part to be renamed, so two unnamed body tubes
+     * are both called "Body tube". Optional because a kernel built before this
+     * was added omits it; fall back to `name` then.
+     */
+    key?: string;
+    /** Display label. Not unique — see `key`. */
     name: string;
     /**
      * Total drag for this component, counting every instance of it — the

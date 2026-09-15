@@ -40,10 +40,15 @@ interface TcSample {
 // so a slow/unreachable server fails cleanly instead of hanging "Loading…".
 const FETCH_TIMEOUT_MS = 5_000;
 const MAX_RESPONSE_BYTES = 16 * 1024 * 1024; // 16 MiB — motor lists/curves are KB-scale
+/** Budget for the body once headers are in, separate from the first-byte one. */
+const BODY_TIMEOUT_MS = 20_000;
 
 async function post<T>(path: string, body: unknown): Promise<T> {
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
+  // Staged, the way remoteData.fetchJson does it. The first budget covers
+  // time-to-first-byte; once headers are in, the host is alive and the body
+  // gets its own. A single budget spanning both would cut off a slow download.
+  let timer = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
   try {
     const res = await fetch(`${API}/${path}`, {
       method: 'POST',
@@ -51,10 +56,16 @@ async function post<T>(path: string, body: unknown): Promise<T> {
       body: JSON.stringify(body),
       signal: ctl.signal,
     });
+    clearTimeout(timer);
+    timer = setTimeout(() => ctl.abort(), BODY_TIMEOUT_MS);
     if (!res.ok) throw new Error(`thrustcurve.org ${path} → HTTP ${res.status}`);
     const len = Number(res.headers.get('content-length'));
     if (Number.isFinite(len) && len > MAX_RESPONSE_BYTES) throw new Error(`thrustcurve.org ${path} response too large`);
-    return res.json() as Promise<T>;
+    // AWAITED, not returned: `finally` runs at the `return` statement, so
+    // returning the unawaited promise cleared the abort timer before the body
+    // had been read. A host that sent headers and then stalled hung the motor
+    // picker forever, with the only timeout already cancelled.
+    return await (res.json() as Promise<T>);
   } catch (e) {
     if (ctl.signal.aborted) throw new Error(`thrustcurve.org timed out — check your connection and try again.`);
     throw e;

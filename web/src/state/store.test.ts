@@ -1,5 +1,14 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { useWorkspaceStore, selectActive, hasThrustCurve } from './store';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// The sim normally runs in a Web Worker. Stub it so a test can decide when (and
+// whether) a run resolves.
+const simulateMock = vi.hoisted(() => vi.fn());
+vi.mock('../engine/simClient', async (orig) => ({
+  ...(await orig<typeof import('../engine/simClient')>()),
+  simulateInWorker: simulateMock,
+}));
+
+import { useWorkspaceStore, selectActive, hasThrustCurve, selectRunFailed } from './store';
 import { C6 } from '../engine/api';
 import { findMounts, findNode } from '../services/treeEdit';
 import type { FlightResult } from '../engine/openRocketEngine';
@@ -270,6 +279,48 @@ describe('simulation run guards', () => {
     expect(hasThrustCurve({ ...C6, thrusts: [] })).toBe(false);
   });
 
+  // A run that throws leaves exactly the state auto-run fires on: no result, not
+  // busy, a result view open. Without a record of the failure it retried the
+  // same failing design forever, spawning a full flight sim each time.
+  it('records a failed run against the design it failed on', async () => {
+    simulateMock.mockRejectedValueOnce(new Error('kernel exploded'));
+    await s().runSim({} as SimPrefs);
+
+    expect(s().err).toBe('kernel exploded');
+    expect(s().simBusy).toBe(false);
+    expect(selectRunFailed(s())).toBe(true); // auto-run must not retry this
+  });
+
+  it('lets the retry happen again once the design changes', async () => {
+    simulateMock.mockRejectedValueOnce(new Error('kernel exploded'));
+    await s().runSim({} as SimPrefs);
+    expect(selectRunFailed(s())).toBe(true);
+
+    // Any edit replaces the tree, so the record no longer matches and auto-run
+    // is free to try the new design.
+    s().setSelectedId('nose');
+    s().patchSelected({ length: 0.2 });
+    expect(selectRunFailed(s())).toBe(false);
+  });
+
+  // The await can outlast the design: edit while the worker is busy and the
+  // answer coming back describes a rocket that is no longer on screen.
+  it('drops a result the design has moved past', async () => {
+    let release!: (r: unknown) => void;
+    simulateMock.mockImplementationOnce(() => new Promise((res) => (release = res)));
+
+    const running = s().runSim({} as SimPrefs);
+    // The user edits mid-flight.
+    s().setSelectedId('nose');
+    s().patchSelected({ length: 0.3 });
+
+    release({ summary: { apogee: 123 }, branches: [] });
+    await running;
+
+    expect(active().result).toBeNull(); // not installed
+    expect(s().view).not.toBe('flight'); // and the view was not yanked over
+  });
+
   it('refuses to run with no motor mount and reports why', async () => {
     s().setSelectedId('mount');
     s().removeSelected();
@@ -354,5 +405,34 @@ describe('tab and view stay in step', () => {
     expect([s().tab, s().view]).toEqual(['build', 'drag']);
     s().setTab('sim');
     expect([s().tab, s().view]).toEqual(['sim', 'drag']);
+  });
+});
+
+describe('storage warning', () => {
+  beforeEach(() => {
+    s().resetWorkspace();
+    s().setStorageWarning(null);
+    s().setErr(null);
+  });
+
+  // These shared one slot, and the rebuild effect calls setErr(null) on every
+  // successful build — which happens milliseconds after load and again on every
+  // keystroke. The warning that the user's work is no longer being saved was
+  // therefore wiped before anyone could read it.
+  it('survives the rebuild effect clearing the transient error', () => {
+    s().setStorageWarning('storage is full');
+    s().setErr('something else went wrong');
+
+    s().setErr(null); // what the rebuild effect does after every successful build
+
+    expect(s().err).toBeNull();
+    expect(s().storageWarning).toBe('storage is full');
+  });
+
+  it('is cleared only by its own setter', () => {
+    s().setStorageWarning('storage is degraded');
+    expect(s().storageWarning).toBe('storage is degraded');
+    s().setStorageWarning(null);
+    expect(s().storageWarning).toBeNull();
   });
 });

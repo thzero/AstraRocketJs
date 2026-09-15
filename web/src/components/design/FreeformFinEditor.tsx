@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UnitChip } from '../common/UnitChip';
+import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 
@@ -159,24 +160,30 @@ export function FreeformFinEditor({
           <span className="text-slate-500">{t('freeform.point', { n: sel! + 1 })}</span>
           <label className="flex items-center gap-1">
             X
-            <input
-              type="number"
+            {/* NumberInput, not a raw <input>: the old
+                `value={+v.toFixed(3)}` + `parseFloat(...) || 0` round-trip is
+                exactly what it was written to replace. Select-all and type a
+                replacement and the field is briefly empty -- which parsed to 0
+                and snapped the vertex to the origin, deforming the outline as a
+                real tree edit. A leading `-` did the same. */}
+            <NumberInput
+              value={ptX.toUi(selPt[0])}
+              onChange={(v) => setPoint(sel!, ptX.fromUi(v ?? 0), selPt[1])}
+              onCommit={onCommit}
               step={ptX.step(0.001)}
-              value={+ptX.toUi(selPt[0]).toFixed(3)}
-              onChange={(e) => setPoint(sel!, ptX.fromUi(parseFloat(e.target.value) || 0), selPt[1])}
-              onBlur={onCommit}
+              ariaLabel="X"
               className="w-16 rounded bg-slate-800 px-1.5 py-0.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
             />
             <UnitChip quantity="length" scope={unitScope('freeform', 'x')} />
           </label>
           <label className="flex items-center gap-1">
             Y
-            <input
-              type="number"
+            <NumberInput
+              value={ptY.toUi(selPt[1])}
+              onChange={(v) => setPoint(sel!, selPt[0], ptY.fromUi(v ?? 0))}
+              onCommit={onCommit}
               step={ptY.step(0.001)}
-              value={+ptY.toUi(selPt[1]).toFixed(3)}
-              onChange={(e) => setPoint(sel!, selPt[0], ptY.fromUi(parseFloat(e.target.value) || 0))}
-              onBlur={onCommit}
+              ariaLabel="Y"
               className="w-16 rounded bg-slate-800 px-1.5 py-0.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
             />
             <UnitChip quantity="length" scope={unitScope('freeform', 'y')} />

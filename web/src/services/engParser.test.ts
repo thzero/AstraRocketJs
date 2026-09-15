@@ -43,6 +43,18 @@ describe('parseEng', () => {
     expect(m.id).toBe('custom:Test Mfr:TC10');
   });
 
+  // Windows Notepad writes a UTF-8 BOM by default, and a .eng shared by a motor
+  // maker is exactly the kind of file that has been through it. Without the
+  // strip, the BOM glues itself to the leading `;` so the comment no longer
+  // matches startsWith(';'), the comment becomes the header, and the import
+  // fails with a misleading "Malformed .eng header".
+  it('parses a file that carries a UTF-8 BOM', () => {
+    const m = parseEng('﻿' + ENG);
+    expect(m.designation).toBe('TC10');
+    expect(m.diameter).toBe(24);
+    expect(m.samples).toHaveLength(3);
+  });
+
   it('derives the NAR impulse class from total impulse (10 Ns → C)', () => {
     expect(parseEng(ENG).class).toBe('C');
   });

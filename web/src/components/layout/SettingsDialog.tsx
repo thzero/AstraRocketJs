@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../state/SettingsProvider';
 import { DEFAULT_SETTINGS, type SimulationSettings } from '../../services/settings';
 import { PART_KEYS, mergePalette } from '../../services/partColors';
+import { NumberInput } from '../common/NumberInput';
 import { useFocusTrap } from '../common/useFocusTrap';
 import { LaunchPanel } from '../sim/LaunchPanel';
 import { IMPERIAL_UNITS, METRIC_UNITS, QUANTITIES, UNITS } from '../../prefs/units';
@@ -400,6 +401,7 @@ function NumRow({
   value,
   step,
   min,
+  max,
   placeholder,
   onChange,
 }: {
@@ -408,6 +410,7 @@ function NumRow({
   value: number | null;
   step: number;
   min?: number;
+  max?: number;
   placeholder?: string;
   onChange: (v: number | null) => void;
 }) {
@@ -415,13 +418,14 @@ function NumRow({
     <label className="flex items-center justify-between gap-3">
       <span className="text-sm text-slate-300">{label}</span>
       <span className="flex items-center gap-1">
-        <input
-          type="number"
+        <NumberInput
+          value={value}
+          onChange={onChange}
           step={step}
           min={min}
+          max={max}
           placeholder={placeholder}
-          value={value === null || value === undefined || Number.isNaN(value) ? '' : value}
-          onChange={(e) => onChange(e.target.value === '' ? null : parseFloat(e.target.value) || 0)}
+          ariaLabel={label}
           className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
         />
         {unit && <span className="min-w-8 text-xs text-slate-500">{unit}</span>}

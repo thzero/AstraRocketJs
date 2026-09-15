@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useWorkspaceStore } from '../../state/store';
+import { useWorkspaceStore, selectActive } from '../../state/store';
 import { useSettings } from '../../state/SettingsProvider';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
@@ -54,6 +54,17 @@ export function AeroAnalysis() {
   const u = useUnits();
   const rocket = useWorkspaceStore((s) => s.rocket);
   const info = useWorkspaceStore((s) => s.info);
+  // Which motor the POWER-ON curve belongs to.
+  //
+  // Everything else here is geometry -- power-off Cd, the friction/pressure/base
+  // split, CP, CNa, the roll coefficients -- and does not depend on the motor at
+  // all. The one exception is the power-on curve, which the kernel builds from
+  // the stage's nozzle exit diameter applied to the seated motor's config
+  // (OpenRocketEngine.applyMotor). The panel has no motor selector of its own
+  // -- it analyses whatever the active simulation has loaded, which is our
+  // equivalent of the desktop dialog's motor-configuration dropdown -- so when
+  // that curve is on screen, say whose it is.
+  const motorName = useWorkspaceStore((s) => selectActive(s).motor?.designation);
   // M1 by default: the overwhelming majority of hobby flights never reach Mach 1,
   // and sweeping to M3 spent two thirds of the x axis on speeds the rocket will
   // not see, squeezing the subsonic rise nobody could then read.
@@ -139,6 +150,11 @@ export function AeroAnalysis() {
           onChange={setPane}
           fmt={(v) => t(v === 'charts' ? 'aero.charts' : 'aero.perComponent')}
         />
+        {sweep?.hasNozzle && motorName && (
+          <span className="text-[10px] text-slate-500" title={t('aero.powerOnMotorNote')}>
+            {t('aero.powerOnMotor', { motor: motorName })}
+          </span>
+        )}
         <span className="text-[10px] text-slate-500">{t('aero.maxMach')}</span>
         <Seg options={[1, 2, 3, 5] as const} value={machMax} onChange={setMachMax} fmt={(v) => `M${v}`} />
         <button
@@ -415,6 +431,9 @@ function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs: numbe
     () =>
       sweep.components
         .map((c) => ({
+          // The engine's stable id. Two parts can share a NAME (an unnamed
+          // pair are both "Body tube"), so the label cannot be the row key.
+          key: c.key ?? c.name,
           name: niceName(c.name),
           instances: c.instances ?? 1,
           cdInstance: c.cdInstance?.[i],
@@ -472,7 +491,7 @@ function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs: numbe
               <td className={cell}>100%</td>
             </tr>
             {rows.map((r) => (
-              <tr key={r.name} className="border-b border-white/5 last:border-0">
+              <tr key={r.key} className="border-b border-white/5 last:border-0">
                 <td className="px-2 py-1 text-left">{r.name}</td>
                 {hasSplit && (
                   <td className={cell} style={heat(r.pressure ?? 0, totalCd, heatStyle)}>
@@ -556,20 +575,33 @@ function StabilityTable({
   const i = useSampleAt(machs, mach);
   const hasCna = sweep.components.some((c) => c.cna);
   const totalCna = sweep.cna[i] ?? 0;
+  // CNa is shaded by MAGNITUDE only, whatever the palette preference says.
+  //
+  // The `openrocket` ramp is not a generic heat scale: it is the desktop's
+  // formula anchored to an ABSOLUTE Cd scale that reaches full red at 1.5. CNa
+  // is not on that scale -- a fin set runs to 15 or 20 per radian -- so every
+  // row above about 1.1 clamps to the same red and the column stops saying
+  // anything. OpenRocket colours only its drag tab for exactly this reason.
+  // The RollTable makes the same call, for the same reason.
+  const cnaShaded = heatStyle !== 'openrocket';
 
-  // Mass comes from a different engine call than the aero sweep; both key on the
-  // raw component name, which is what each side carries.
-  const massOf = useMemo(() => new Map(masses.map((m) => [m.name, m])), [masses]);
+  // Mass comes from a different engine call than the aero sweep. Keyed on the
+  // engine's stable id, not the label: joining on the name gave two same-named
+  // parts each other's mass.
+  const massOf = useMemo(() => new Map(masses.map((m) => [m.key || m.name, m])), [masses]);
   const hasMass = masses.length > 0;
 
   const rows = useMemo(
     () =>
       sweep.components
         .map((c) => ({
+          // The engine's stable id. Two parts can share a NAME (an unnamed
+          // pair are both "Body tube"), so the label cannot be the row key.
+          key: c.key ?? c.name,
           name: niceName(c.name),
           cna: c.cna?.[i] ?? 0,
           cp: c.cp?.[i] ?? 0,
-          mass: massOf.get(c.name),
+          mass: massOf.get(c.key ?? c.name),
         }))
         .filter((r) => Math.abs(r.cna) > 1e-9) // a part with no normal force has no CP to report
         .sort((a, b) => b.cna - a.cna),
@@ -604,19 +636,19 @@ function StabilityTable({
               {hasMass && <td className={cell}>&mdash;</td>}
               {hasMass && <td className={cell}>&mdash;</td>}
               <td className={cell}>{fmtNum((sweep.cp[i] ?? 0) * lengthFactor, 1)}</td>
-              <td className={cell} style={heat(totalCna, totalCna, heatStyle === 'openrocket' ? 'openrocket' : 'sky')}>
+              <td className={cell} style={cnaShaded ? heat(totalCna, totalCna, 'sky') : undefined}>
                 {fmtNum(totalCna, 2)}
               </td>
               <td className={cell}>100%</td>
             </tr>
             {rows.map((r) => (
-              <tr key={r.name} className="border-b border-white/5 last:border-0">
+              <tr key={r.key} className="border-b border-white/5 last:border-0">
                 <td className="px-2 py-1 text-left">{r.name}</td>
                 {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.eachMass * massFactor, 1) : '—'}</td>}
                 {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.mass * massFactor, 1) : '—'}</td>}
                 {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.cg * lengthFactor, 1) : '—'}</td>}
                 <td className={cell}>{fmtNum(r.cp * lengthFactor, 1)}</td>
-                <td className={cell} style={heat(r.cna, totalCna, heatStyle === 'openrocket' ? 'openrocket' : 'sky')}>
+                <td className={cell} style={cnaShaded ? heat(r.cna, totalCna, 'sky') : undefined}>
                   {fmtNum(r.cna, 2)}
                 </td>
                 <td className={`${cell} text-slate-500`}>{pct(r.cna)}</td>
@@ -651,6 +683,9 @@ function RollTable({ sweep, machs, mach }: { sweep: AeroSweep; machs: number[]; 
     () =>
       sweep.components
         .map((c) => ({
+          // The engine's stable id. Two parts can share a NAME (an unnamed
+          // pair are both "Body tube"), so the label cannot be the row key.
+          key: c.key ?? c.name,
           name: niceName(c.name),
           type: c.type ?? '',
           force: c.rollForce?.[i] ?? 0,
@@ -690,12 +725,12 @@ function RollTable({ sweep, machs, mach }: { sweep: AeroSweep; machs: number[]; 
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.name} className="border-b border-white/5 last:border-0">
+              <tr key={r.key} className="border-b border-white/5 last:border-0">
                 <td className="px-2 py-1 text-left">{r.name}</td>
-                <td className={cell} style={shaded ? heat(Math.abs(r.force), maxForce, heatStyle) : undefined}>
+                <td className={cell} style={shaded ? heat(Math.abs(r.force), maxForce, 'sky') : undefined}>
                   {fmtNum(r.force, 4)}
                 </td>
-                <td className={cell} style={shaded ? heat(Math.abs(r.damp), maxDamp, heatStyle) : undefined}>
+                <td className={cell} style={shaded ? heat(Math.abs(r.damp), maxDamp, 'sky') : undefined}>
                   {fmtNum(r.damp, 4)}
                 </td>
               </tr>
@@ -708,7 +743,7 @@ function RollTable({ sweep, machs, mach }: { sweep: AeroSweep; machs: number[]; 
           <span>{t('aero.columnShare')}</span>
           <span className="flex overflow-hidden rounded-sm ring-1 ring-white/10">
             {[0.2, 0.4, 0.6, 0.8, 1].map((f) => (
-              <span key={f} className="h-2.5 w-4" style={heat(f, 1, heatStyle)} />
+              <span key={f} className="h-2.5 w-4" style={heat(f, 1, 'sky')} />
             ))}
           </span>
         </div>

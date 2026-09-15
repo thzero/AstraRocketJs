@@ -1,12 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import type { OpenRocketDesign, RocketTree, StaticInfo } from '../engine/openRocketEngine';
-import { computeStaticInfo } from './buildRocket';
+import { computeStaticInfo, flightKey } from './buildRocket';
 
 const tree = { components: [] } as unknown as RocketTree;
 
 // A stub engine handle: staticInfo() returns a fresh object; aeroSweep()'s
 // power-off total drives the cd fill-in (or throws to exercise the fallback).
-const fakeRocket = (opts: { info?: Partial<StaticInfo>; sweepTotal?: number[]; sweepThrows?: boolean }): OpenRocketDesign =>
+const fakeRocket = (opts: {
+  info?: Partial<StaticInfo>;
+  sweepTotal?: number[];
+  sweepThrows?: boolean;
+}): OpenRocketDesign =>
   ({
     staticInfo: () => ({ mass: 1, cg: 0.5, ...opts.info }) as StaticInfo,
     aeroSweep: () => {
@@ -41,8 +45,60 @@ describe('computeStaticInfo', () => {
   });
 
   it('returns an error when staticInfo() itself throws', () => {
-    const rocket = { staticInfo: () => { throw new Error('kernel blew up'); } } as unknown as OpenRocketDesign;
+    const rocket = {
+      staticInfo: () => {
+        throw new Error('kernel blew up');
+      },
+    } as unknown as OpenRocketDesign;
     const res = computeStaticInfo(tree, undefined, {}, undefined, () => rocket);
     expect(res).toEqual({ error: 'kernel blew up' });
+  });
+});
+
+describe('flightKey', () => {
+  const design = (): RocketTree => ({
+    name: 'My Rocket',
+    designer: 'Ada',
+    comment: '',
+    components: [{ type: 'nosecone', id: 'n1', name: 'Nose cone', length: 0.1 }],
+  });
+
+  // The whole point: these are the edits that used to throw away every
+  // simulation result, because the store replaces the tree object for all of them.
+  it('ignores the design metadata that is round-tripped but never flown', () => {
+    const base = flightKey(design());
+    expect(flightKey({ ...design(), designer: 'Grace' })).toBe(base);
+    expect(flightKey({ ...design(), comment: 'a long note' })).toBe(base);
+    expect(flightKey({ ...design(), revision: 'rev 2' })).toBe(base);
+    expect(flightKey({ ...design(), designType: 'clone_kit' })).toBe(base);
+    expect(flightKey({ ...design(), name: 'Renamed' })).toBe(base);
+  });
+
+  it('ignores a part rename, which changes a label and not a flight', () => {
+    const renamed = design();
+    renamed.components[0]!.name = 'Pointy end';
+    expect(flightKey(renamed)).toBe(flightKey(design()));
+  });
+
+  it('changes for anything that can move a number', () => {
+    const base = flightKey(design());
+
+    const longer = design();
+    longer.components[0]!.length = 0.2;
+    expect(flightKey(longer)).not.toBe(base);
+
+    const denser = design();
+    denser.components[0]!.density = 900;
+    expect(flightKey(denser)).not.toBe(base);
+
+    const added = design();
+    added.components.push({ type: 'bodytube', id: 'b1', length: 0.3 });
+    expect(flightKey(added)).not.toBe(base);
+
+    // Unknown fields count too: ComponentNode has an open index signature, so
+    // anything we do not recognise is assumed to matter.
+    const odd = design();
+    (odd.components[0] as Record<string, unknown>)['someFutureParam'] = 3;
+    expect(flightKey(odd)).not.toBe(base);
   });
 });

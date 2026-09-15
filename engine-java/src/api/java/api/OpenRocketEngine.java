@@ -603,7 +603,13 @@ public final class OpenRocketEngine {
             double cg = (cm == null || cm.isNaN()) ? 0 : cm.getX();
             if (!first) sb.append(',');
             first = false;
-            sb.append("{\"name\":\"").append(escape(e.name)).append('"');
+            // Same stable key the aero sweep emits, so the mass columns join to
+            // the right row even when two parts share a name. `source` is the
+            // RocketComponent for a component entry (it is a MotorConfiguration
+            // for the motor rows, which have no aero row to join to).
+            String key = (e.source instanceof RocketComponent) ? ((RocketComponent) e.source).getID().toString() : "";
+            sb.append("{\"key\":\"").append(escape(key)).append('"');
+            sb.append(",\"name\":\"").append(escape(e.name)).append('"');
             sb.append(",\"eachMass\":").append(num(zeroIfNaN(e.eachMass)));
             sb.append(",\"mass\":").append(num(zeroIfNaN(mass)));
             sb.append(",\"cg\":").append(num(zeroIfNaN(cg)));
@@ -729,6 +735,13 @@ public final class OpenRocketEngine {
         java.util.LinkedHashMap<String, double[]> byComp = new java.util.LinkedHashMap<>();
         java.util.LinkedHashMap<String, double[]> byCompInstance = new java.util.LinkedHashMap<>();
         java.util.LinkedHashMap<String, Integer> byCompCount = new java.util.LinkedHashMap<>();
+        // Every map above is keyed on the component's UUID, not its NAME.
+        // getName() is not unique: nothing forces a user to rename a part, and
+        // an unnamed one takes its class default, so a two-tube rocket has two
+        // components both called "Body tube". Keying on the name merged them
+        // into one row -- drag summed, instance count last-wins, CP averaged
+        // into a station belonging to neither. This holds the label to show.
+        java.util.LinkedHashMap<String, String> byCompName = new java.util.LinkedHashMap<>();
         // The component's class, so the UI can tell a fin set from a body tube.
         // The roll table lists fin sets even when their coefficients are zero --
         // which is every uncanted rocket -- and there is no way to tell from the
@@ -803,7 +816,8 @@ public final class OpenRocketEngine {
                     continue;
                 }
                 AerodynamicForces f = e.getValue();
-                String name = c.getName();
+                String name = c.getID().toString();
+                byCompName.put(name, c.getName());
                 // getCD() is PER INSTANCE and getCDTotal() counts them all --
                 // the desktop's "Per instance CD" and "Total CD" columns
                 // (CAParameterSweep). `cd` has to be the total or a breakdown
@@ -852,7 +866,9 @@ public final class OpenRocketEngine {
             if (!first) sb.append(',');
             first = false;
             String name = e.getKey();
-            sb.append("{\"name\":\"").append(escape(name)).append("\",\"cd\":");
+            // `key` is the stable identity (rows, joins); `name` is only a label.
+            sb.append("{\"key\":\"").append(escape(name)).append('"');
+            sb.append(",\"name\":\"").append(escape(byCompName.getOrDefault(name, ""))).append("\",\"cd\":");
             nums(sb, e.getValue());
             sb.append(",\"cdInstance\":");
             nums(sb, byCompInstance.get(name));

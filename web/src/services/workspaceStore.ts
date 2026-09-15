@@ -92,10 +92,22 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     // A journal is newer than anything stored, but only for ITS design.
     const journal = readJournal();
     if (journal && journal.id && journal.id === this.activeId) {
-      if (await lib.write(journal.id, (await this.nameOf(journal.id)) ?? nameFor(journal.w), journal.w)) {
+      // Validate BEFORE writing. `readJournal` only checks that the blob parses
+      // and has a `w`; a journal written by a DIFFERENT app build (this is an
+      // installed PWA, so an older cached build is a live possibility) can parse
+      // cleanly and still not be a workspace this build can open. Writing it
+      // first would overwrite the real stored design with it and clear the
+      // journal, losing the design permanently — every later load would re-read
+      // the same bad blob.
+      const w = validate(journal.w);
+      if (!w) {
+        clearJournal();
+        return this.activeId ? validate(await lib.read(this.activeId)) : null;
+      }
+      if (await lib.write(journal.id, (await this.nameOf(journal.id)) ?? nameFor(w), w)) {
         clearJournal();
       }
-      return validate(journal.w);
+      return w;
     }
     // A journal from a design that no longer exists is stale; drop it rather
     // than replaying it over whatever happens to be open now.

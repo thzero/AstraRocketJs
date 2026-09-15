@@ -8,21 +8,34 @@ import { num } from './nodeProps';
  * from its parent's leading edge.
  */
 
+/**
+ * Root chord of a freeform fin: the axial span between the FIRST and LAST
+ * points, both of which sit on the body.
+ *
+ * This matches the kernel exactly — `FreeformFinSet.length = last.x - first.x`.
+ * It is deliberately NOT the furthest-aft point (`Math.max`): a fin whose tip
+ * trailing corner overhangs the root reaches further aft than its root chord
+ * does, and using that overhang puts a bottom- or middle-anchored fin forward
+ * of its true station by exactly the overhang — so the app would draw the fin
+ * somewhere the engine does not fly it.
+ *
+ * Exported because four other modules need the same number (the report
+ * geometry, the fin-station table, the solid mesh and the 3D view). They each
+ * had their own `Math.max` copy, and so disagreed with the schematic about
+ * where one fin sits.
+ */
+export function freeformRootChord(pts: [number, number][] | undefined, fallback = 0.05): number {
+  const p = pts ?? [];
+  const first = p[0];
+  const last = p[p.length - 1];
+  const root = first && last && Number.isFinite(first[0]) && Number.isFinite(last[0]) ? last[0] - first[0] : 0;
+  return root > 0 ? root : fallback;
+}
+
 /** A component's axial extent used for positioning (fins use root chord). */
 export function axialLength(n: ComponentNode): number {
   if (n.type === 'freeformfinset') {
-    const pts = (n['points'] as [number, number][] | undefined) ?? [];
-    // Root chord = the axial span between the first and last points, both of
-    // which sit on the body (matches the engine: length = last.x − first.x).
-    // NOT the furthest-aft point (Math.max): a fin whose tip trailing corner
-    // overhangs the root is longer to its aftmost point than its root chord,
-    // and using that overhang here would position a bottom/middle-anchored fin
-    // forward of its true station by exactly the overhang.
-    const first = pts[0];
-    const last = pts[pts.length - 1];
-    const root =
-      first && last && Number.isFinite(first[0]) && Number.isFinite(last[0]) ? last[0] - first[0] : 0;
-    return root > 0 ? root : 0.05;
+    return freeformRootChord(n['points'] as [number, number][] | undefined);
   }
   if (n.type === 'trapezoidfinset' || n.type === 'ellipticalfinset') {
     return num(n, 'rootChord', 0.05);
@@ -82,7 +95,16 @@ export function resolveAbsolutePositions(tree: RocketTree): RocketTree {
       const pos = (child.position ?? { method: 'top', offset: 0 }) as ComponentPosition;
       if (pos.method === 'absolute') {
         changed = true;
-        next = { ...child, position: { method: 'top', offset: pos.offset - pStart } } as ComponentNode;
+        const resolved = pos.offset - pStart;
+        // Keep what the file said so the exporter can write it back unchanged.
+        next = {
+          ...child,
+          position: {
+            method: 'top',
+            offset: resolved,
+            ork: { method: 'absolute', offset: pos.offset, resolved },
+          },
+        } as ComponentNode;
       }
       const cLen = axialLength(next);
       const nextPos = (next.position ?? { method: 'top', offset: 0 }) as ComponentPosition;

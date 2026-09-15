@@ -78,15 +78,36 @@ function markDegraded(): void {
   for (const cb of degradedListeners) cb();
 }
 
-/** Run one transaction against the kv store, resolving with the request result. */
+/**
+ * Run one transaction against the kv store, resolving with the request result.
+ *
+ * A WRITE resolves on the transaction's `complete` event, NOT on the request's
+ * `success`. Those are different moments: `success` fires once the request has
+ * been carried out inside the transaction, but the transaction can still abort
+ * before it commits (a commit-time I/O error, the quota being hit, the tab
+ * closing). Resolving on `success` therefore reported writes that never landed
+ * — and `set()`'s boolean is what `workspaceStore.save()` keys its
+ * "storage is full" warning off, and what `migrate()` takes as permission to
+ * delete the user's only other copy from localStorage.
+ *
+ * Reads keep resolving on `success`: there is nothing to commit, and the value
+ * is in hand at that point.
+ */
 async function tx<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest): Promise<T> {
   const db = await openDb();
   return await new Promise<T>((resolve, reject) => {
     const t = db.transaction(STORE, mode);
     const req = run(t.objectStore(STORE));
-    req.onsuccess = () => resolve(req.result as T);
+    let result: T;
+    req.onsuccess = () => {
+      result = req.result as T;
+      if (mode === 'readonly') resolve(result);
+    };
     req.onerror = () => reject(req.error ?? new Error('IndexedDB request failed'));
+    // Durability for writes: only a committed transaction counts.
+    t.oncomplete = () => resolve(result);
     t.onabort = () => reject(t.error ?? new Error('IndexedDB transaction aborted'));
+    t.onerror = () => reject(t.error ?? new Error('IndexedDB transaction failed'));
   });
 }
 

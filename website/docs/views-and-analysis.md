@@ -31,7 +31,7 @@ An interactive 3D model of the rocket — orbit to inspect the geometry from any
 
 Drag and stability vs Mach number, for analyzing high-speed behavior:
 
-- **Cd vs Mach** — total drag coefficient across the Mach range.
+- **Cd vs Mach** — total drag coefficient across the Mach range. A second **power-on** curve appears only when a stage declares a nozzle exit diameter (an imported `.ork` property; there is no field for it in the editor). It is the one figure in this panel that depends on the motor — everything else is geometry — so the toolbar names the motor it was computed for, which is whichever the active simulation has loaded.
 - **Drag breakdown** — friction / pressure / base contributions, stacked. For the same split *per part*, see the **Per component** pane below.
 - **CP vs Mach** — how the center of pressure moves with speed.
 
@@ -43,7 +43,7 @@ A row of **flight conditions** sets what the whole sweep is flown at:
 
 A **Charts / Per component** switch chooses what the panel shows — the three curves, or the tables below. The tables report at a single Mach: on the **Charts** pane the hover crosshair picks it, and on **Per component** a slider does, stepping only to Mach numbers the sweep actually computed. The two share one value, so switching panes lands on whatever you were just looking at.
 
-**Drag by component** tabulates each part's drag at that Mach, split into **pressure / base / friction** — the same figures desktop OpenRocket shows in *Component Analysis ▸ Drag characteristics*. Rows are ordered worst-first and sum to the whole rocket. Cells are **shaded in proportion to their value** so the parts that cost you drag stand out without reading every figure, with the scale shown beneath the table. Two styles are offered, switched from the buttons beside the legend (or from **Settings ▸ Colors** — it is one preference, so either place sets it and it sticks): *By magnitude* (the default) is one colour that strengthens with the value, scaled against the largest figure in the table; *By heat* is the desktop's green-to-red on its own fixed 0–1.5 Cd scale, with dark text on light cells, for anyone who reads that faster from having used it.
+**Drag by component** tabulates each part's drag at that Mach, split into **pressure / base / friction** — the same figures desktop OpenRocket shows in *Component Analysis ▸ Drag characteristics*. Rows are ordered worst-first and sum to the whole rocket. Cells are **shaded in proportion to their value** so the parts that cost you drag stand out without reading every figure, with the scale shown beneath the table. Two styles are offered, switched from the buttons beside the legend (or from **Settings ▸ Colors** — it is one preference, so either place sets it and it sticks): *By magnitude* (the default) is one colour that strengthens with the value, scaled against the largest figure in the table; *By heat* is the desktop's green-to-red on its own fixed 0–1.5 Cd scale, with dark text on light cells, for anyone who reads that faster from having used it. *By heat* shades this drag table only — its scale is an absolute Cd one, and CNα and the roll coefficients are not on it, so those tables stay unshaded under that choice (the desktop colours only its drag tab for the same reason).
 
 A part that exists more than once — a fin set, most often — also gets a **Per instance** column reading `0.251 × 3`: one fin's drag and how many there are. The **Cd** column is always the total for all of them.
 

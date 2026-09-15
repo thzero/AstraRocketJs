@@ -4,7 +4,7 @@ import { useWorkspaceStore, selectActive } from './store';
 import { getWorkspaceStore } from '../services/workspaceStore';
 import { onStorageDegraded } from '../services/idbKeyValueStore';
 import { requestPersistentStorage } from '../services/persistStorage';
-import { computeStaticInfo } from '../services/buildRocket';
+import { computeStaticInfo, flightKey } from '../services/buildRocket';
 import { warmSimWorker } from '../engine/simClient';
 import { appName } from '../services/appInfo';
 
@@ -62,8 +62,15 @@ export function useWorkspaceEffects() {
         .save({ version: 1, tree, sims, activeId, extraMotors, loadedMeta })
         // There is now a design worth keeping, so ask the browser not to evict
         // this origin under disk pressure. Once per session, best-effort.
-        .then(() => void requestPersistentStorage())
-        .catch(() => useWorkspaceStore.getState().setErr(t('storage.full')));
+        // A successful save clears any standing storage warning; a failed one
+        // raises it. This is the ONLY thing that clears it -- the rebuild
+        // effect's setErr(null) must not, or the warning never survives long
+        // enough to be read.
+        .then(() => {
+          useWorkspaceStore.getState().setStorageWarning(null);
+          void requestPersistentStorage();
+        })
+        .catch(() => useWorkspaceStore.getState().setStorageWarning(t('storage.full')));
     }, 500);
     return () => clearTimeout(id);
   }, [t, tree, sims, activeId, extraMotors, loadedMeta]);
@@ -71,7 +78,7 @@ export function useWorkspaceEffects() {
   // IndexedDB blocked (policy, some private modes) means we are back on the 5 MB
   // localStorage cap this move existed to escape. Say so NOW rather than letting
   // the user meet it later as an unexplained failed save mid-design.
-  useEffect(() => onStorageDegraded(() => useWorkspaceStore.getState().setErr(t('storage.degraded'))), [t]);
+  useEffect(() => onStorageDegraded(() => useWorkspaceStore.getState().setStorageWarning(t('storage.degraded'))), [t]);
 
   // Flush any change the 500ms debounce hasn't persisted yet on page unload —
   // otherwise opening a .ork and refreshing quickly would lose it.
@@ -118,10 +125,22 @@ export function useWorkspaceEffects() {
 
   // Rebuild + recompute static info whenever the design or motors change. The
   // primary mount takes the active sim's `motor`; other mounts take their imports.
+  //
+  // Keyed on `tree.components`, NOT on `tree`: every store action replaces the
+  // tree object, so keying on it rebuilt the engine and re-ran the aero sweep for
+  // a designer/comment/revision edit that cannot move a single number. Component
+  // names DO stay in this key — the engine labels its per-component rows with
+  // them, so a rename has to reach the engine.
+  const components = tree.components;
   useEffect(() => {
     if (!ready) return; // wait for hydration so we build the real design once, not the default first
     const store = useWorkspaceStore.getState();
-    const res = computeStaticInfo(tree, motor, extraMotors, { event: ignitionEvent, delay: ignitionDelay });
+    // Read the tree from the store rather than closing over it, so the effect
+    // does not have to depend on the whole object to use it.
+    const res = computeStaticInfo(store.tree, motor, extraMotors, {
+      event: ignitionEvent,
+      delay: ignitionDelay,
+    });
     if ('error' in res) {
       store.applyBuild(null, null);
       store.setErr(res.error);
@@ -129,10 +148,15 @@ export function useWorkspaceEffects() {
       store.applyBuild(res.info, res.rocket);
       store.setErr(null);
     }
-  }, [ready, tree, motor, extraMotors, ignitionEvent, ignitionDelay]);
+  }, [ready, components, motor, extraMotors, ignitionEvent, ignitionDelay]);
 
   // Editing the design invalidates every simulation's cached result.
+  //
+  // Keyed on what can change a FLIGHT, which is narrower still: a part rename
+  // has to reach the engine (above) but must not throw away results that are
+  // still perfectly valid for the geometry they were flown on.
+  const flight = flightKey(tree);
   useEffect(() => {
     useWorkspaceStore.getState().invalidateResults();
-  }, [tree]);
+  }, [flight]);
 }

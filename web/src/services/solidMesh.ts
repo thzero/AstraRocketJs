@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { ComponentNode } from '../engine/openRocketEngine';
 import { num, numOpt } from '../tree/nodeProps';
+import { freeformRootChord } from '../tree/position';
 import { outerProfile } from '../tree/shapeProfile';
 
 /**
@@ -33,8 +34,14 @@ export function countBoundaryEdges(geo: THREE.BufferGeometry): number {
   if (!idx) return 0;
   const count = new Map<string, number>();
   for (let i = 0; i < idx.count; i += 3) {
-    const a = idx.getX(i), b = idx.getX(i + 1), c = idx.getX(i + 2);
-    for (const [u, v] of [[a, b], [b, c], [c, a]] as const) {
+    const a = idx.getX(i),
+      b = idx.getX(i + 1),
+      c = idx.getX(i + 2);
+    for (const [u, v] of [
+      [a, b],
+      [b, c],
+      [c, a],
+    ] as const) {
       const k = edgeKey(u, v);
       count.set(k, (count.get(k) ?? 0) + 1);
     }
@@ -58,8 +65,14 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
   const undirected = new Map<string, number>();
   const dirList: Array<[number, number]> = [];
   for (let i = 0; i < idx.count; i += 3) {
-    const a = idx.getX(i), b = idx.getX(i + 1), c = idx.getX(i + 2);
-    for (const [u, v] of [[a, b], [b, c], [c, a]] as const) {
+    const a = idx.getX(i),
+      b = idx.getX(i + 1),
+      c = idx.getX(i + 2);
+    for (const [u, v] of [
+      [a, b],
+      [b, c],
+      [c, a],
+    ] as const) {
       const k = edgeKey(u, v);
       undirected.set(k, (undirected.get(k) ?? 0) + 1);
       dirList.push([u, v]);
@@ -116,7 +129,8 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
       const cIdx = positions.length / 3;
       positions.push(centroid.x, centroid.y, centroid.z);
       for (let i = 0; i < loop.length; i++) {
-        const v0 = loop[i]!, v1 = loop[(i + 1) % loop.length]!;
+        const v0 = loop[i]!,
+          v1 = loop[(i + 1) % loop.length]!;
         indices.push(cIdx, v1, v0);
       }
     }
@@ -139,11 +153,17 @@ function dropDegenerate(geo: THREE.BufferGeometry): THREE.BufferGeometry {
   const idx = geo.getIndex();
   const pos = geo.getAttribute('position');
   if (!idx) return geo;
-  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  const a = new THREE.Vector3(),
+    b = new THREE.Vector3(),
+    c = new THREE.Vector3();
   const keep: number[] = [];
   for (let i = 0; i < idx.count; i += 3) {
-    const ia = idx.getX(i), ib = idx.getX(i + 1), ic = idx.getX(i + 2);
-    a.fromBufferAttribute(pos, ia); b.fromBufferAttribute(pos, ib); c.fromBufferAttribute(pos, ic);
+    const ia = idx.getX(i),
+      ib = idx.getX(i + 1),
+      ic = idx.getX(i + 2);
+    a.fromBufferAttribute(pos, ia);
+    b.fromBufferAttribute(pos, ib);
+    c.fromBufferAttribute(pos, ic);
     const area = b.clone().sub(a).cross(c.clone().sub(a)).length() * 0.5;
     if (area > 1e-12) keep.push(ia, ib, ic);
   }
@@ -194,7 +214,12 @@ export function discSolid(outerR: number, innerR: number, length: number): THREE
         new THREE.Vector2(innerR, len),
         new THREE.Vector2(innerR, 0), // close the ring's cross-section
       ]
-    : [new THREE.Vector2(0, 0), new THREE.Vector2(outerR, 0), new THREE.Vector2(outerR, len), new THREE.Vector2(0, len)];
+    : [
+        new THREE.Vector2(0, 0),
+        new THREE.Vector2(outerR, 0),
+        new THREE.Vector2(outerR, len),
+        new THREE.Vector2(0, len),
+      ];
   let geo: THREE.BufferGeometry = new THREE.LatheGeometry(pts, SEGMENTS);
   geo.deleteAttribute('uv');
   geo.deleteAttribute('normal');
@@ -208,8 +233,13 @@ export function discSolid(outerR: number, innerR: number, length: number): THREE
  *  thickness centred on Z) — ready to lay on a print bed. */
 function oneFinSolid(child: ComponentNode): THREE.BufferGeometry | null {
   const ff = child.type === 'freeformfinset' ? ((child['points'] as [number, number][] | undefined) ?? []) : [];
-  const root = child.type === 'freeformfinset' && ff.length ? Math.max(...ff.map((p) => p[0])) : num(child, 'rootChord', 0.05);
-  const height = child.type === 'freeformfinset' && ff.length ? Math.max(...ff.map((p) => p[1])) : num(child, 'height', 0.03);
+  // Fallback 0, not the usual 0.05: here `root` only feeds the degeneracy guard
+  // below, and a zero-span outline must stay zero so it is skipped rather than
+  // extruded into non-manifold garbage. The freeform shape itself is built from
+  // the points, so this never affects the drawn outline.
+  const root = child.type === 'freeformfinset' && ff.length ? freeformRootChord(ff, 0) : num(child, 'rootChord', 0.05);
+  const height =
+    child.type === 'freeformfinset' && ff.length ? Math.max(...ff.map((p) => p[1])) : num(child, 'height', 0.03);
   const thickness = num(child, 'thickness', 0.003);
 
   // Degenerate planform → no printable solid: a zero-area outline (thickness,
@@ -273,10 +303,13 @@ export function solidForNode(node: ComponentNode): THREE.BufferGeometry | null {
       const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
       let surface = outerProfile(shape, numOpt(node, 'shapeParameter'), len, rf, ra, SEGMENTS, undefined, clipped);
       // Fore/aft shoulders: stubs that plug into the tubes on either side.
-      const fShR = num(node, 'foreShoulderRadius', 0), fShLen = num(node, 'foreShoulderLength', 0);
-      const aShR = num(node, 'aftShoulderRadius', 0), aShLen = num(node, 'aftShoulderLength', 0);
+      const fShR = num(node, 'foreShoulderRadius', 0),
+        fShLen = num(node, 'foreShoulderLength', 0);
+      const aShR = num(node, 'aftShoulderRadius', 0),
+        aShLen = num(node, 'aftShoulderLength', 0);
       if (fShR > 1e-6 && fShLen > 1e-6) surface = [[-fShLen, Math.min(fShR, rf)], [0, Math.min(fShR, rf)], ...surface];
-      if (aShR > 1e-6 && aShLen > 1e-6) surface = [...surface, [len, Math.min(aShR, ra)], [len + aShLen, Math.min(aShR, ra)]];
+      if (aShR > 1e-6 && aShLen > 1e-6)
+        surface = [...surface, [len, Math.min(aShR, ra)], [len + aShLen, Math.min(aShR, ra)]];
       return revolveSolidX(surface, 0);
     }
     // Tubes — hollow, with their own wall thickness. (Coupler/engine block/rings

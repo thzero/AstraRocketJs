@@ -1,3 +1,4 @@
+import { saveBlob, safeFilename } from './saveFile';
 import type { ComponentNode, RocketTree, StaticInfo } from '../engine/openRocketEngine';
 import type { ReportModel } from './reportModel';
 import { rocketSideView, finPlanformMm, profileMm, type Pt } from './reportGeometry';
@@ -37,7 +38,11 @@ export interface ReportOptions {
   templateStroke: string;
 }
 
-const safe = (name: string) => (name || 'rocket').trim().replace(/[^a-z0-9._-]+/gi, '_') || 'rocket';
+// `safeFilename` from saveFile.ts, not a local copy: this one fell to the bug
+// that helper documents -- a name of only separators ("///") collapses to "_",
+// which is truthy and so survives the `|| 'rocket'` fallback as a useless
+// filename.
+const safe = (name: string) => safeFilename(name, 'rocket');
 const hexToRgb = (hex: string): [number, number, number] => {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return [17, 24, 39];
@@ -90,7 +95,10 @@ export async function downloadReportPdf(
   const heading = (text: string) => {
     doc.setFont('helvetica', 'bold').setFontSize(15).setTextColor(20);
     doc.text(text, M, y + 5);
-    doc.setDrawColor(20).setLineWidth(0.4).line(M, y + 7, M + CW, y + 7);
+    doc
+      .setDrawColor(20)
+      .setLineWidth(0.4)
+      .line(M, y + 7, M + CW, y + 7);
     y += 12;
   };
   const sub = (text: string, size = 10) => {
@@ -100,7 +108,15 @@ export async function downloadReportPdf(
     y += 6;
   };
   /** Fill + outline a closed polygon, scaled and offset (for the side view). */
-  const fillScaled = (pts: Pt[], ox: number, oy: number, sx: number, sy: number, fill: [number, number, number] | null, stroke: [number, number, number]) => {
+  const fillScaled = (
+    pts: Pt[],
+    ox: number,
+    oy: number,
+    sx: number,
+    sy: number,
+    fill: [number, number, number] | null,
+    stroke: [number, number, number],
+  ) => {
     if (pts.length < 3) return;
     const P = pts.map(([px, py]) => [ox + px * sx, oy + py * sy] as [number, number]);
     const deltas = P.slice(1).map((p, i) => [p[0] - P[i]![0], p[1] - P[i]![1]] as [number, number]);
@@ -129,19 +145,35 @@ export async function downloadReportPdf(
     doc.setFontSize(9);
     for (let i = 0; i < rows.length; i += 2) {
       ensure(5.5);
-      for (const [j, off] of [[i, 0], [i + 1, colW]] as const) {
+      for (const [j, off] of [
+        [i, 0],
+        [i + 1, colW],
+      ] as const) {
         const r = rows[j];
         if (!r) continue;
-        doc.setFont('helvetica', 'bold').setTextColor(20).text(r[0], M + off + 1, y + 3.5);
-        doc.setFont('helvetica', 'normal').setTextColor(50).text(r[1], M + off + colW - 1, y + 3.5, { align: 'right' });
+        doc
+          .setFont('helvetica', 'bold')
+          .setTextColor(20)
+          .text(r[0], M + off + 1, y + 3.5);
+        doc
+          .setFont('helvetica', 'normal')
+          .setTextColor(50)
+          .text(r[1], M + off + colW - 1, y + 3.5, { align: 'right' });
       }
-      doc.setDrawColor(225).setLineWidth(0.1).line(M, y + 4.6, M + CW, y + 4.6);
+      doc
+        .setDrawColor(225)
+        .setLineWidth(0.1)
+        .line(M, y + 4.6, M + CW, y + 4.6);
       y += 5.2;
     }
     y += 2;
   };
 
-  interface Col { title: string; w: number; align?: 'left' | 'right' }
+  interface Col {
+    title: string;
+    w: number;
+    align?: 'left' | 'right';
+  }
   const table = (cols: Col[], rows: string[][], boldLast = false) => {
     ensure(10);
     doc.setFont('helvetica', 'bold').setFontSize(6.8).setTextColor(70);
@@ -151,7 +183,10 @@ export async function downloadReportPdf(
       cx += c.w;
     }
     y += 4;
-    doc.setDrawColor(20).setLineWidth(0.3).line(M, y, M + CW, y);
+    doc
+      .setDrawColor(20)
+      .setLineWidth(0.3)
+      .line(M, y, M + CW, y);
     y += 3.2;
     doc.setFontSize(8).setTextColor(30);
     rows.forEach((row, ri) => {
@@ -165,7 +200,11 @@ export async function downloadReportPdf(
         x2 += c.w;
       });
       y += 4.4;
-      if (!last) doc.setDrawColor(235).setLineWidth(0.1).line(M, y - 1.4, M + CW, y - 1.4);
+      if (!last)
+        doc
+          .setDrawColor(235)
+          .setLineWidth(0.1)
+          .line(M, y - 1.4, M + CW, y - 1.4);
     });
     y += 3;
   };
@@ -174,19 +213,24 @@ export async function downloadReportPdf(
   const q = (quantity: Quantity, si: number, digits = 1) =>
     Number.isFinite(si) ? `${fmtNum(siToUi(quantity, units[quantity], si), digits)} ${units[quantity]}` : '—';
   /** The number only — for a cell that already carries the unit once. */
-  const qv = (quantity: Quantity, si: number, digits = 1) =>
-    fmtNum(siToUi(quantity, units[quantity], si), digits);
+  const qv = (quantity: Quantity, si: number, digits = 1) => fmtNum(siToUi(quantity, units[quantity], si), digits);
   const len = (m: number) => q('length', m);
   const g = (kg: number) => q('mass', kg, 0);
   const summaryRows = (info: StaticInfo): [string, string][] => {
     const pct = info.length > 0 ? ((info.cp - info.cg) / info.length) * 100 : 0;
     return [
-      [t('report.length'), len(info.length)], [t('report.maxDiameter'), len(info.refDiameter)],
-      [t('report.massEmpty'), g(info.massEmpty)], [t('report.massLoaded'), g(info.mass)],
-      [t('report.fineness'), fmtNum(info.refDiameter > 0 ? info.length / info.refDiameter : 0, 2)], [t('report.cgEmpty'), len(info.cgEmpty)],
-      [t('report.cgLoaded'), len(info.cg)], [t('report.cp'), len(info.cp)],
-      [t('report.stabilityCal'), `${fmtNum(info.stabilityCalibers, 2)} cal`], [t('report.stabilityPct'), `${fmtNum(pct, 1)} %`],
-      [t('report.cd'), info.cd != null ? fmtNum(info.cd, 3) : '—'], [t('report.cna'), `${fmtNum(info.cna, 2)} /rad`],
+      [t('report.length'), len(info.length)],
+      [t('report.maxDiameter'), len(info.refDiameter)],
+      [t('report.massEmpty'), g(info.massEmpty)],
+      [t('report.massLoaded'), g(info.mass)],
+      [t('report.fineness'), fmtNum(info.refDiameter > 0 ? info.length / info.refDiameter : 0, 2)],
+      [t('report.cgEmpty'), len(info.cgEmpty)],
+      [t('report.cgLoaded'), len(info.cg)],
+      [t('report.cp'), len(info.cp)],
+      [t('report.stabilityCal'), `${fmtNum(info.stabilityCalibers, 2)} cal`],
+      [t('report.stabilityPct'), `${fmtNum(pct, 1)} %`],
+      [t('report.cd'), info.cd != null ? fmtNum(info.cd, 3) : '—'],
+      [t('report.cna'), `${fmtNum(info.cna, 2)} /rad`],
     ];
   };
 
@@ -206,12 +250,24 @@ export async function downloadReportPdf(
       fillScaled(sv.body, ox, oy, scale, -scale, [232, 232, 232], line);
       y += sv.h * scale + 6;
     }
-    doc.setFont('helvetica', 'bold').setFontSize(16).setTextColor(20).text(model.name, M, y + 4);
+    doc
+      .setFont('helvetica', 'bold')
+      .setFontSize(16)
+      .setTextColor(20)
+      .text(model.name, M, y + 4);
     y += 6;
-    doc.setFont('helvetica', 'normal').setFontSize(9).setTextColor(90).text(`${t('report.stages')}: ${model.stages.length}`, M, y + 2);
+    doc
+      .setFont('helvetica', 'normal')
+      .setFontSize(9)
+      .setTextColor(90)
+      .text(`${t('report.stages')}: ${model.stages.length}`, M, y + 2);
     y += 6;
     kvGrid(summaryRows(model.whole.info));
-    if (opts.showByStage) for (const st of model.stageSummaries) { sub(st.label); kvGrid(summaryRows(st.info)); }
+    if (opts.showByStage)
+      for (const st of model.stageSummaries) {
+        sub(st.label);
+        kvGrid(summaryRows(st.info));
+      }
   }
 
   // --- Motors ---
@@ -223,25 +279,53 @@ export async function downloadReportPdf(
       sub(c.name);
       if (c.flight) {
         kvGrid([
-          [t('report.altitude'), q('distance', c.flight.maxAltitude, 0)], [t('report.flightTime'), `${fmtNum(c.flight.flightTime, 1)} s`],
-          [t('report.timeToApogee'), `${fmtNum(c.flight.timeToApogee, 1)} s`], [t('report.velOffRod'), q('velocity', c.flight.launchRodVelocity)],
-          [t('report.maxVel'), q('velocity', c.flight.maxVelocity, 0)], [t('report.velDeploy'), c.flight.deploymentVelocity != null ? q('velocity', c.flight.deploymentVelocity) : '—'],
+          [t('report.altitude'), q('distance', c.flight.maxAltitude, 0)],
+          [t('report.flightTime'), `${fmtNum(c.flight.flightTime, 1)} s`],
+          [t('report.timeToApogee'), `${fmtNum(c.flight.timeToApogee, 1)} s`],
+          [t('report.velOffRod'), q('velocity', c.flight.launchRodVelocity)],
+          [t('report.maxVel'), q('velocity', c.flight.maxVelocity, 0)],
+          [
+            t('report.velDeploy'),
+            c.flight.deploymentVelocity != null ? q('velocity', c.flight.deploymentVelocity) : '—',
+          ],
           [t('report.landingVel'), q('velocity', c.flight.groundHitVelocity)],
         ]);
       }
       const w = CW;
       const cols: Col[] = [
-        { title: t('report.motor'), w: w * 0.22 }, { title: t('report.avgThrust'), w: w * 0.12, align: 'right' },
-        { title: t('report.burnTime'), w: w * 0.11, align: 'right' }, { title: t('report.maxThrust'), w: w * 0.11, align: 'right' },
-        { title: t('report.totalImpulse'), w: w * 0.14, align: 'right' }, { title: t('report.twRatio'), w: w * 0.1, align: 'right' },
-        { title: t('report.motorWt'), w: w * 0.1, align: 'right' }, { title: t('report.size'), w: w * 0.1, align: 'right' },
+        { title: t('report.motor'), w: w * 0.22 },
+        { title: t('report.avgThrust'), w: w * 0.12, align: 'right' },
+        { title: t('report.burnTime'), w: w * 0.11, align: 'right' },
+        { title: t('report.maxThrust'), w: w * 0.11, align: 'right' },
+        { title: t('report.totalImpulse'), w: w * 0.14, align: 'right' },
+        { title: t('report.twRatio'), w: w * 0.1, align: 'right' },
+        { title: t('report.motorWt'), w: w * 0.1, align: 'right' },
+        { title: t('report.size'), w: w * 0.1, align: 'right' },
       ];
       const rows = c.motors.map((m) => [
-        `${m.manufacturer ? m.manufacturer + ' ' : ''}${m.designation}`, q('force', m.avgThrust), `${fmtNum(m.burnTime, 2)} s`,
-        q('force', m.maxThrust, 0), q('impulse', m.totalImpulse, 0), `${fmtNum(m.avgThrust / (c.loadedMass * 9.80665), 2)}:1`,
-        g(m.weight), `${qv('motorDimensions', m.diameter, 0)}/${qv('motorDimensions', m.length, 0)} ${units.motorDimensions}`,
+        `${m.manufacturer ? m.manufacturer + ' ' : ''}${m.designation}`,
+        q('force', m.avgThrust),
+        `${fmtNum(m.burnTime, 2)} s`,
+        q('force', m.maxThrust, 0),
+        q('impulse', m.totalImpulse, 0),
+        `${fmtNum(m.avgThrust / (c.loadedMass * 9.80665), 2)}:1`,
+        g(m.weight),
+        `${qv('motorDimensions', m.diameter, 0)}/${qv('motorDimensions', m.length, 0)} ${units.motorDimensions}`,
       ]);
-      rows.push([t('report.total'), '', '', '', q('impulse', c.motors.reduce((a, m) => a + m.totalImpulse, 0), 0), '', g(c.motors.reduce((a, m) => a + m.weight, 0)), '']);
+      rows.push([
+        t('report.total'),
+        '',
+        '',
+        '',
+        q(
+          'impulse',
+          c.motors.reduce((a, m) => a + m.totalImpulse, 0),
+          0,
+        ),
+        '',
+        g(c.motors.reduce((a, m) => a + m.weight, 0)),
+        '',
+      ]);
       table(cols, rows, true);
     }
   }
@@ -252,18 +336,33 @@ export async function downloadReportPdf(
     sectionBreak();
     heading(t('report.partsDetail'));
     const cols: Col[] = [
-      { title: t('report.part'), w: CW * 0.3 }, { title: t('report.material'), w: CW * 0.25 },
-      { title: t('report.dimensions'), w: CW * 0.32 }, { title: t('report.mass'), w: CW * 0.13, align: 'right' },
+      { title: t('report.part'), w: CW * 0.3 },
+      { title: t('report.material'), w: CW * 0.25 },
+      { title: t('report.dimensions'), w: CW * 0.32 },
+      { title: t('report.mass'), w: CW * 0.13, align: 'right' },
     ];
     const toRow = (r: ReportModel['partsByStage'][number]['rows'][number]) => {
       const dims = [
-        r.outerR != null ? `Ø ${qv('length', r.outerR * 2)}${r.innerR != null ? '/' + qv('length', r.innerR * 2) : ''} ${units.length}` : '',
-        r.length > 0 ? `L ${len(r.length)}` : '', r.thickness != null ? `w ${qv('length', r.thickness, 2)} ${units.length}` : '',
-      ].filter(Boolean).join(' · ');
-      return [`${'  '.repeat(r.depth)}${r.name || t(`part.${r.type}`, { defaultValue: r.type })}`, `${r.material ?? '—'}${r.density ? ` (${fmtNum(siToUi('density', units.density, r.density), 3)} ${units.density})` : ''}`, dims, q('mass', r.mass, 2)];
+        r.outerR != null
+          ? `Ø ${qv('length', r.outerR * 2)}${r.innerR != null ? '/' + qv('length', r.innerR * 2) : ''} ${units.length}`
+          : '',
+        r.length > 0 ? `L ${len(r.length)}` : '',
+        r.thickness != null ? `w ${qv('length', r.thickness, 2)} ${units.length}` : '',
+      ]
+        .filter(Boolean)
+        .join(' · ');
+      return [
+        `${'  '.repeat(r.depth)}${r.name || t(`part.${r.type}`, { defaultValue: r.type })}`,
+        `${r.material ?? '—'}${r.density ? ` (${fmtNum(siToUi('density', units.density, r.density), 3)} ${units.density})` : ''}`,
+        dims,
+        q('mass', r.mass, 2),
+      ];
     };
     if (opts.showByStage) {
-      for (const st of partsStages) { sub(`${t('report.stage')}: ${st.stage}`, 9); table(cols, st.rows.map(toRow)); }
+      for (const st of partsStages) {
+        sub(`${t('report.stage')}: ${st.stage}`, 9);
+        table(cols, st.rows.map(toRow));
+      }
     } else {
       table(cols, partsStages.flatMap((st) => st.rows).map(toRow));
     }
@@ -273,7 +372,12 @@ export async function downloadReportPdf(
   const finStages = model.stages.filter((_, i) => opts.stages[i]?.finTemplates);
   const finSets = finStages.flatMap((st) => finSetsOf(st));
   const allNodes: ComponentNode[] = [];
-  (function walk(ns: ComponentNode[]) { for (const n of ns) { allNodes.push(n); if (n.children) walk(n.children); } })(tree.components);
+  (function walk(ns: ComponentNode[]) {
+    for (const n of ns) {
+      allNodes.push(n);
+      if (n.children) walk(n.children);
+    }
+  })(tree.components);
   const noses = opts.noseTemplates ? allNodes.filter((n) => n.type === 'nosecone') : [];
   const transitions = opts.transitionTemplates ? allNodes.filter((n) => n.type === 'transition') : [];
 
@@ -288,7 +392,10 @@ export async function downloadReportPdf(
     sub(t('report.ruler'), 9);
     ensure(16);
     const ry = y + 6;
-    doc.setDrawColor(20).setLineWidth(0.2).line(M, ry, M + 100, ry);
+    doc
+      .setDrawColor(20)
+      .setLineWidth(0.2)
+      .line(M, ry, M + 100, ry);
     for (let d = 0; d <= 100; d++) doc.line(M + d, ry, M + d, ry - (d % 10 === 0 ? 4 : d % 5 === 0 ? 2.5 : 1.5));
     doc.setFontSize(6).setTextColor(20);
     for (let cm = 0; cm <= 10; cm++) doc.text(`${cm}`, M + cm * 10, ry - 5);
@@ -299,7 +406,11 @@ export async function downloadReportPdf(
     const template = (label: string, pts: Pt[], w: number, h: number) => {
       sub(label, 9);
       if (w > CW || h > BOTTOM - M) {
-        doc.setFont('helvetica', 'italic').setFontSize(8).setTextColor(120).text(t('report.tooLarge', { w: fmtNum(w, 0), h: fmtNum(h, 0) }), M, y + 3);
+        doc
+          .setFont('helvetica', 'italic')
+          .setFontSize(8)
+          .setTextColor(120)
+          .text(t('report.tooLarge', { w: fmtNum(w, 0), h: fmtNum(h, 0) }), M, y + 3);
         y += 6;
         return;
       }
@@ -310,12 +421,27 @@ export async function downloadReportPdf(
     for (const n of finSets) {
       const f = finPlanformMm(n);
       if (!f) continue;
-      template(`${(n.name as string) || t('report.finSet')} × ${f.count}`, f.pts, Math.max(...f.pts.map((p) => p[0])), Math.max(...f.pts.map((p) => p[1])));
+      template(
+        `${(n.name as string) || t('report.finSet')} × ${f.count}`,
+        f.pts,
+        Math.max(...f.pts.map((p) => p[0])),
+        Math.max(...f.pts.map((p) => p[1])),
+      );
     }
-    for (const n of noses) { const p = profileMm(n, 0, num(n, 'aftRadius', 0.012), 'ogive'); if (p) template((n.name as string) || t('report.noseCone'), p.pts, p.w, p.h); }
-    for (const n of transitions) { const p = profileMm(n, num(n, 'foreRadius', 0.012), num(n, 'aftRadius', 0.009), 'conical'); if (p) template((n.name as string) || t('report.transition'), p.pts, p.w, p.h); }
+    for (const n of noses) {
+      const p = profileMm(n, 0, num(n, 'aftRadius', 0.012), 'ogive');
+      if (p) template((n.name as string) || t('report.noseCone'), p.pts, p.w, p.h);
+    }
+    for (const n of transitions) {
+      const p = profileMm(n, num(n, 'foreRadius', 0.012), num(n, 'aftRadius', 0.009), 'conical');
+      if (p) template((n.name as string) || t('report.transition'), p.pts, p.w, p.h);
+    }
   }
 
   if (!started) heading(t('report.title')); // nothing selected — an empty-ish page beats a corrupt file
-  doc.save(`${safe(model.name)}.pdf`);
+  // saveBlob, not jsPDF's doc.save(): that uses its own `<a download>` click,
+  // which "silently does nothing and the file simply never appears" on
+  // iOS/iPadOS installed as a PWA (saveFile.ts:5-13). Every other export in the
+  // app routes through saveBlob; the PDF report was the one that did not.
+  await saveBlob(doc.output('blob'), `${safe(model.name)}.pdf`);
 }

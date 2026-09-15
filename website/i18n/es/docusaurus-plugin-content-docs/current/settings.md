@@ -60,7 +60,7 @@ Las unidades pertenecen **al navegador donde las configuras**, no a un diseño n
 
 ### Sombreado de las tablas aerodinámicas
 
-**Colores ▸ Sombreado de las tablas aerodinámicas** elige cómo tiñen sus celdas las tablas por componente de [Aero](./views-and-analysis.md). *Por magnitud* es un solo color que se intensifica con el valor, escalado respecto al mayor de la tabla. *Por calor* reproduce exactamente el verde-rojo de OpenRocket de escritorio: su fórmula, su escala fija de 0 a 1,5 Cd y texto oscuro sobre celdas claras. Ninguno es más correcto; elige el que leas más rápido. El mismo conmutador está junto a la leyenda bajo la tabla, así que puedes cambiarlo sin salir de la vista.
+**Colores ▸ Sombreado de las tablas aerodinámicas** elige cómo tiñen sus celdas las tablas por componente de [Aero](./views-and-analysis.md). *Por magnitud* es un solo color que se intensifica con el valor, escalado respecto al mayor de la tabla. *Por calor* reproduce exactamente el verde-rojo de OpenRocket de escritorio: su fórmula, su escala fija de 0 a 1,5 Cd y texto oscuro sobre celdas claras. Ninguno es más correcto; elige el que leas más rápido. *Por calor* se aplica solo a la tabla de **resistencia**: su escala es absoluta de Cd, y ni el CNα ni los coeficientes de alabeo están en ella —un CNα de 15 en unas aletas se saturaría en el mismo rojo que el 2 de una ojiva y no diría nada—, así que esas tablas quedan sin sombrear con esta opción, igual que OpenRocket de escritorio solo colorea su pestaña de resistencia. El mismo conmutador está junto a la leyenda bajo la tabla, así que puedes cambiarlo sin salir de la vista.
 
 ### Lo que las unidades no cambian
 

@@ -16,6 +16,7 @@ export default function App() {
   const { t } = useTranslation();
   const tab = useWorkspaceStore((s) => s.tab);
   const err = useWorkspaceStore((s) => s.err);
+  const storageWarning = useWorkspaceStore((s) => s.storageWarning);
   // The right (simulations) pane collapses on desktop for more design room; on
   // mobile it's a full tab, so this only gates the lg layout.
   const [simsOpen, setSimsOpen] = useState(true);
@@ -28,6 +29,14 @@ export default function App() {
       <AppHeader />
       <UpdateToast />
 
+      {/* Two banners, not one. The storage warning outlives the transient error:
+          it says the user's work is not being kept, which stays true until a
+          save succeeds, while `err` is about the last thing they did. */}
+      {storageWarning && (
+        <p role="status" className="border-b border-amber-500/30 bg-amber-950/60 px-4 py-2 text-sm text-amber-200">
+          {storageWarning}
+        </p>
+      )}
       {err && <p className="border-b border-red-500/30 bg-red-950/60 px-4 py-2 text-sm text-red-300">{err}</p>}
 
       {/* Mobile: one full-height pane at a time via the bottom tabs — the pane

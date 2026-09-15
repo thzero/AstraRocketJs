@@ -30,7 +30,14 @@ test('opens from the menu and shows a motor detail on row selection', async ({ p
   const dialog = await openDashboard(page);
   await dialog.getByPlaceholder(/Search by code/i).fill('C6');
 
-  await dialog.locator('tbody tr').first().click();
+  // Wait for the FILTERED row, not just any row: the grid renders before the
+  // motor catalog has landed, so clicking `first()` immediately can land on a
+  // row that is replaced when the catalog arrives, losing the selection. This
+  // surfaced as an intermittent failure once the suite grew long enough to slow
+  // the catalog load past the assertion's 5 s budget.
+  const row = dialog.locator('tbody tr').first();
+  await expect(row).toContainText('C6');
+  await row.click();
   await expect(dialog.getByText('View on ThrustCurve.org')).toBeVisible();
   await expect(dialog.locator('svg').first()).toBeVisible();
 });
