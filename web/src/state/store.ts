@@ -34,7 +34,7 @@ import { defaultDesignName } from '../services/appInfo';
 import { getDesignLibrary, type DesignMeta } from '../services/designLibrary';
 import { getWorkspaceStore, type Workspace } from '../services/workspaceStore';
 import type { MotorDims } from '../components/canvas/Rocket3D';
-import type { ViewMode } from '../components/canvas/ViewToggle';
+import { isResultView, type ViewMode } from '../components/canvas/ViewToggle';
 import type { Tab } from '../components/layout/TabBar';
 
 // A clean, classic sport rocket (~55 cm, 26 mm airframe, swept 3-fin).
@@ -495,7 +495,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           primaryIgnition: { event: active.ignitionEvent, delay: active.ignitionDelay },
           options: simConditions(active.launch, prefs),
         });
-        set((st) => ({ sims: st.sims.map((x) => (x.id === simId ? { ...x, result } : x)), view: 'flight', err: null }));
+        // Show the run: the flight chart, and on a phone the Results tab it
+        // lives on -- which is also the moment that tab comes into existence.
+        set((st) => ({
+          sims: st.sims.map((x) => (x.id === simId ? { ...x, result } : x)),
+          view: 'flight',
+          tab: 'results',
+          err: null,
+        }));
       } catch (e) {
         // A timeout means the worker was killed mid-hang; show a friendly line
         // rather than the raw sentinel. The lock releases via `finally`.
@@ -506,8 +513,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
     },
 
-    setTab: (tab) => set({ tab }),
-    setView: (view) => set({ view }),
+    // The two below keep the mobile tab and the centre-pane view in step. Each
+    // tab owns a family of views -- Sketch the design ones, Results the flight
+    // ones -- so choosing either end has to move the other, or the view switch
+    // silently draws a chart on the Sketch tab. Harmless at desktop widths,
+    // where the tab bar is hidden and `tab` only decides what a later resize
+    // lands on.
+    setTab: (tab) =>
+      set((s) => {
+        if (tab === 'results') return { tab, view: isResultView(s.view) ? s.view : 'flight' };
+        if (tab === 'sketch') return { tab, view: isResultView(s.view) ? '2d' : s.view };
+        return { tab };
+      }),
+    setView: (view) => set({ view, tab: isResultView(view) ? 'results' : 'sketch' }),
     setTwoD: (twoD) => set({ twoD }),
     setRoll: (roll) => set({ roll }),
     rollBy: (d) =>

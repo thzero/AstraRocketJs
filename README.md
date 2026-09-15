@@ -4,7 +4,7 @@
 
 A **lightweight, browser-based UI for the OpenRocket engine** — not a full re-creation of OpenRocket's desktop app, but a fast, mobile-friendly interface over the same trusted physics, with **full OpenRocket (.ork) support** (open, edit, save round-trip). Design a rocket, watch its CG/CP/stability update live, and run a full flight simulation — entirely in the browser, with nothing to install and nothing uploaded.
 
-The UI is **responsive**: a three-pane workbench (editor · rocket view · motor/sim) on desktop that collapses to a single stacked, tabbed column on phones. The rocket view switches between a **2D schematic**, a **3D model**, an **aerodynamics** view, and — after a simulation — **flight charts** and a **3D flight path**.
+The UI is **responsive**: a three-pane workbench (editor · rocket view · motor/sim) on desktop that becomes three tabs on a phone (Rocket · Sketch · Simulate), with the rocket views turned a quarter turn so the airframe runs down the screen's long edge. The rocket view switches between a **2D schematic**, a **3D model**, an **aerodynamics** view, and — after a simulation — **flight charts** and a **3D flight path**.
 
 ## Highlights
 
@@ -30,7 +30,7 @@ The UI is **responsive**: a three-pane workbench (editor · rocket view · motor
 
 **Yours, on your device**
 - No server, no accounts, nothing uploaded — the physics runs entirely on your device. Your `.ork` designs are **files on your disk** (open / save); the browser just keeps a working copy (so a refresh won't lose your rocket) plus your custom motors, materials, and settings.
-- **Responsive** (desktop three-pane workbench → tabbed single column on phones), in **English and Spanish**.
+- **Responsive** (desktop three-pane workbench → three tabs on a phone, with the rocket views turned to the screen's long edge), in **English and Spanish**.
 
 ## Getting started
 

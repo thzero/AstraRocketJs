@@ -139,15 +139,25 @@ test('frames the 3D model correctly inside the quarter turn', async ({ page }) =
 
   const canvas = page.locator('main canvas').first();
   await expect(canvas).toBeVisible();
-  const d = await canvas.evaluate((c: HTMLCanvasElement) => {
-    const host = c.parentElement!;
-    return { buffer: [c.width, c.height], layout: [host.offsetWidth, host.offsetHeight] };
-  });
+  // Polled, not sampled once: r3f sizes the buffer from a ResizeObserver, so the
+  // first frame after the view switch can still carry the previous dimensions.
+  // Reading it once made this test flaky under a loaded parallel run.
+  await expect
+    .poll(
+      async () =>
+        canvas.evaluate((c: HTMLCanvasElement) => {
+          const host = c.parentElement!;
+          // The buffer has to match the host's LAYOUT box -- landscape -- and
+          // not the axis-aligned bbox the rotation gives it.
+          return Math.abs(c.width - host.offsetWidth) < 3 && Math.abs(c.height - host.offsetHeight) < 3;
+        }),
+      { timeout: 10_000 },
+    )
+    .toBe(true);
+
+  const d = await canvas.evaluate((c: HTMLCanvasElement) => [c.width, c.height]);
   console.log('3d buffer', JSON.stringify(d));
-  // The buffer matches the host's LAYOUT box, landscape, not its rotated bbox.
-  expect(d.buffer[0]).toBeGreaterThan(d.buffer[1]);
-  expect(Math.abs(d.buffer[0] - d.layout[0])).toBeLessThan(3);
-  expect(Math.abs(d.buffer[1] - d.layout[1])).toBeLessThan(3);
+  expect(d[0]).toBeGreaterThan(d[1]); // landscape, as the layout box is
 });
 
 test('turns the Aero charts with the sketch, and leaves the flight views upright', async ({ page }) => {
@@ -230,4 +240,92 @@ test('leaves short prompts as centred cards on a phone', async ({ page }) => {
   expect(card.height).toBeLessThan(844 / 2); // sized to its content, not the screen
   expect(card.y).toBeGreaterThan(0); // centred, not pinned to the top
   await expect(page.locator('.dialog-panel')).toHaveCount(0);
+});
+
+/**
+ * A finished run used to set the flight view while leaving you on Simulate --
+ * so the chart appeared on the Sketch tab, which you were not looking at, and
+ * your drawing was displaced by it. The flight views now have their own tab.
+ */
+test('a finished run lands on the Results tab', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await dismiss(page);
+
+  const resultsTab = page.getByRole('button', { name: /Results/ });
+  await expect(resultsTab).toHaveCount(0); // nothing to show before a run
+
+  await page.getByRole('button', { name: /Simulate/ }).click();
+  await page.getByRole('button', { name: /Run flight simulation/ }).click();
+  await expect(resultsTab).toBeVisible({ timeout: 30_000 });
+
+  // The run put us there, and the flight chart is what is on screen.
+  await expect(resultsTab).toHaveClass(/text-sky-400/);
+  await expect(page.getByRole('button', { name: 'Flight', exact: true })).toHaveClass(/bg-sky-600/);
+
+  // The view switch offers only this tab's family: the flight views here…
+  for (const v of ['Flight', '3D path']) {
+    await expect(page.getByRole('button', { name: v, exact: true })).toBeVisible();
+  }
+  for (const v of ['2D', '3D', 'Aero']) {
+    await expect(page.getByRole('button', { name: v, exact: true })).toBeHidden();
+  }
+
+  // Sketch still holds the drawing rather than having been taken over by it…
+  await page.getByRole('button', { name: /Sketch/ }).click();
+  await expect(page.getByRole('button', { name: '2D', exact: true })).toHaveClass(/bg-sky-600/);
+
+  // …and there it offers the design views, and only those. Switching family is
+  // the tab bar's job; a toolbar button that jumped you to another tab would be
+  // a surprise.
+  for (const v of ['2D', '3D', 'Aero']) {
+    await expect(page.getByRole('button', { name: v, exact: true })).toBeVisible();
+  }
+  for (const v of ['Flight', '3D path']) {
+    await expect(page.getByRole('button', { name: v, exact: true })).toBeHidden();
+  }
+});
+
+test('the desktop workbench still offers all five views at once', async ({ page }) => {
+  await page.setViewportSize({ width: 1500, height: 950 });
+  await page.goto('/');
+  await dismiss(page);
+  await page.getByRole('button', { name: /Run flight simulation/ }).click();
+  await expect(page.getByRole('button', { name: 'Flight', exact: true })).toBeVisible({ timeout: 30_000 });
+  // No tabs up here, so nothing to split the families across.
+  for (const v of ['2D', '3D', 'Aero', 'Flight', '3D path']) {
+    await expect(page.getByRole('button', { name: v, exact: true })).toBeVisible();
+  }
+});
+
+test('the Results tab leads with the run numbers, without starving the chart', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 }); // the smallest phone we target
+  await page.goto('/');
+  await dismiss(page);
+  await page.getByRole('button', { name: /Simulate/ }).click();
+  await page.getByRole('button', { name: /Run flight simulation/ }).click();
+  await expect(page.getByRole('button', { name: /Results/ })).toBeVisible({ timeout: 30_000 });
+
+  const m = await page.evaluate(() => {
+    const grid = document.querySelector('main .grid.grid-cols-3');
+    const half = document.querySelector('main div.min-h-0.w-full.flex-1.flex-col');
+    return {
+      summaryTop: grid ? Math.round(grid.getBoundingClientRect().top) : null,
+      chartHeight: half ? Math.round(half.getBoundingClientRect().height) : 0,
+      paneHeight: half ? Math.round(half.parentElement!.getBoundingClientRect().height) : 0,
+    };
+  });
+  console.log('results tab', JSON.stringify(m));
+
+  // Apogee and the rest are the first thing on the tab. Scoped to the first grid
+  // in DOM order — the centre pane's — because the simulations pane keeps its
+  // own copy mounted behind the Simulate tab.
+  const summary = page.locator('main .grid.grid-cols-3').first();
+  await expect(summary).toBeVisible();
+  await expect(summary.getByText('Apogee', { exact: true })).toBeVisible();
+  expect(m.summaryTop).toBeLessThan(m.chartHeight); // above the chart, not below
+  // …but the tiles are a fixed ~300px, so they are capped and scroll rather than
+  // squeezing the chart they describe down to nothing (it was 91px before).
+  expect(m.chartHeight).toBeGreaterThan(200);
+  expect(m.chartHeight).toBeGreaterThan(m.paneHeight * 0.5);
 });

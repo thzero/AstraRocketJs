@@ -280,3 +280,53 @@ describe('simulation run guards', () => {
     expect(active().result).toBeNull();
   });
 });
+
+/**
+ * On a phone the centre pane backs three tabs, and each owns a family of views:
+ * Sketch the design ones, Results the flight ones. Picking either end has to
+ * move the other, or a run finishes on a tab you are not looking at (which is
+ * exactly what it used to do) or the view switch quietly draws a flight chart
+ * on the Sketch tab.
+ */
+describe('tab and view stay in step', () => {
+  beforeEach(() => s().resetWorkspace());
+
+  it('sends a flight view to the Results tab and a design view back to Sketch', () => {
+    s().setView('flight');
+    expect(s().tab).toBe('results');
+    s().setView('path');
+    expect(s().tab).toBe('results');
+
+    s().setView('2d');
+    expect(s().tab).toBe('sketch');
+    s().setView('drag');
+    expect(s().tab).toBe('sketch');
+  });
+
+  it('pulls the view into whichever family the chosen tab shows', () => {
+    s().setView('2d');
+    s().setTab('results');
+    expect(s().view).toBe('flight'); // a design view cannot show on Results
+
+    s().setTab('sketch');
+    expect(s().view).toBe('2d'); // …nor a flight view on Sketch
+  });
+
+  it('keeps the view you already had when it suits the tab', () => {
+    s().setView('path');
+    s().setTab('results');
+    expect(s().view).toBe('path'); // not reset to 'flight'
+
+    s().setView('drag');
+    s().setTab('sketch');
+    expect(s().view).toBe('drag');
+  });
+
+  it('leaves the view alone for the tabs that do not own one', () => {
+    s().setView('drag');
+    s().setTab('build');
+    expect([s().tab, s().view]).toEqual(['build', 'drag']);
+    s().setTab('sim');
+    expect([s().tab, s().view]).toEqual(['sim', 'drag']);
+  });
+});

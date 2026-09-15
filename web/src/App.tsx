@@ -44,7 +44,7 @@ export default function App() {
             means switching tabs never remounts the canvas or re-runs the
             engine. */}
         <section
-          className={`${tab === 'build' || tab === 'sketch' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col order-1 lg:order-none lg:col-start-2 lg:row-start-1 lg:block lg:h-full lg:overflow-hidden`}
+          className={`${tab === 'build' || tab === 'sketch' || tab === 'results' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col order-1 lg:order-none lg:col-start-2 lg:row-start-1 lg:block lg:h-full lg:overflow-hidden`}
         >
           <CenterView />
         </section>

@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import { useWorkspaceStore } from '../../state/store';
+import { useWorkspaceStore, selectActive } from '../../state/store';
 
-export type Tab = 'build' | 'sketch' | 'sim';
+export type Tab = 'build' | 'sketch' | 'sim' | 'results';
 
 /**
  * Mobile bottom tab bar (hidden at lg+, where the panes sit side by side).
@@ -16,11 +16,21 @@ export function TabBar() {
   const { t } = useTranslation();
   const tab = useWorkspaceStore((s) => s.tab);
   const onTab = useWorkspaceStore((s) => s.setTab);
+  // Results only exist once a simulation has produced one, so the tab comes and
+  // goes with it rather than sitting there empty. `|| tab === 'results'` keeps it
+  // from being yanked out from under someone standing on it -- a design edit
+  // invalidates the result, and the store walks them back to Sketch (see
+  // CenterView) rather than the tab vanishing mid-look.
+  const hasResult = useWorkspaceStore((s) => !!selectActive(s).result);
+  const showResults = hasResult || tab === 'results';
   return (
     <nav className="flex shrink-0 border-t border-white/10 bg-slate-900/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
       <TabButton active={tab === 'build'} onClick={() => onTab('build')} label={t('tabs.rocket')} icon="🚀" />
       <TabButton active={tab === 'sketch'} onClick={() => onTab('sketch')} label={t('tabs.sketch')} icon="📐" />
       <TabButton active={tab === 'sim'} onClick={() => onTab('sim')} label={t('tabs.simulate')} icon="📈" />
+      {showResults && (
+        <TabButton active={tab === 'results'} onClick={() => onTab('results')} label={t('tabs.results')} icon="📊" />
+      )}
     </nav>
   );
 }

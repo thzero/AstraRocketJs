@@ -4,6 +4,8 @@ sidebar_position: 10
 ---
 La barra de herramientas del panel central cambia entre vistas. **2D**, **3D** y **Aero** están siempre disponibles; **Vuelo** y **Trayectoria 3D** aparecen en cuanto ejecutas una simulación.
 
+En un teléfono las vistas de diseño viven en la pestaña **Croquis** y las de vuelo en **Resultados**, que aparece en cuanto una ejecución ha producido uno; elegir cualquiera desde la barra de herramientas te lleva a su pestaña. La barra gira junto con el dibujo, de modo que siempre queda en el lado largo de la pantalla. Consulta [Primeros pasos](./getting-started.md#the-layout).
+
 ## Esquema 2D {#2d-schematic}
 
 Una vista lateral a escala del cohete con los marcadores de **CG** (▲) y **CP** (●) y el margen de estabilidad indicado.
@@ -19,7 +21,7 @@ Una vista lateral a escala del cohete con los marcadores de **CG** (▲) y **CP*
 Dos botones de la barra controlan lo que se superpone en las vistas **2D** y **3D**:
 
 - **CG / CP** — muestra u oculta los marcadores de **CG / CP / estabilidad** y sus etiquetas.
-- **Información** — muestra u oculta la tarjeta de vistazo rápido con **longitud · masa · CG · CP · estabilidad** en la esquina superior izquierda (el mismo resumen que la [franja de estadísticas](#reading-the-stats-strip), útil cuando la franja queda fuera de pantalla en un móvil).
+- **Información** — muestra u oculta la tarjeta de vistazo rápido con **longitud · masa · CG · CP · estabilidad** en la esquina superior izquierda (el mismo resumen que la [franja de estadísticas](#reading-the-stats-strip), útil en un teléfono, donde la franja está en la otra pestaña).
 
 ## Modelo 3D {#3d-model}
 

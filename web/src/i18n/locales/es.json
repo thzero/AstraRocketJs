@@ -238,7 +238,7 @@
     "type_modified_kit": "Kit modificado",
     "type_kit_bash": "Combinación de kits"
   },
-  "tabs": { "rocket": "Cohete", "sketch": "Croquis", "motor": "Motor", "simulate": "Simular" },
+  "tabs": { "rocket": "Cohete", "sketch": "Croquis", "motor": "Motor", "simulate": "Simular", "results": "Resultados" },
   "view": {
     "2d": "2D",
     "3d": "3D",
