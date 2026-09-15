@@ -10,7 +10,7 @@ import type { Ignition } from '../services/buildRocket';
  *
  * The transport is a generic method-dispatch RPC (`{id, method, args}` →
  * `{id, ok, …}`) rather than a bespoke "simulate" message, so later phases can
- * add operations (dragSweep, staticInfo — see docs/engine-worker-proposal.md)
+ * add operations (aeroSweep, staticInfo — see docs/engine-worker-proposal.md)
  * without touching the plumbing.
  */
 export interface SimPayload {

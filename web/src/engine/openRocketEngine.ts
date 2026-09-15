@@ -111,9 +111,7 @@ function installKernelConsole(imports: Record<string, unknown>): void {
 /** What the boot splash is waiting on. `downloading` carries byte counts when the
  *  host declares a length; `starting` is the compile/instantiate step, which has
  *  no measurable progress but is a large part of the wait on a slow device. */
-export type EngineLoadStatus =
-  | { phase: 'downloading'; loaded: number; total: number | null }
-  | { phase: 'starting' };
+export type EngineLoadStatus = { phase: 'downloading'; loaded: number; total: number | null } | { phase: 'starting' };
 
 async function tryLoadWasm(onStatus?: (s: EngineLoadStatus) => void): Promise<EngineApi | null> {
   try {
@@ -337,7 +335,7 @@ export interface StaticInfo {
   warningTexts: string[];
   /**
    * Power-off (coast) total drag coefficient at Mach 0.3 — NOT part of the
-   * engine's static JSON; the store fills it from a one-point {@link Rocket.dragSweep}
+   * engine's static JSON; the store fills it from a one-point {@link Rocket.aeroSweep}
    * so the "all stats" strip can show it. Undefined if the sweep failed.
    */
   cd?: number;
@@ -556,8 +554,19 @@ export interface ComponentInfo {
   positionX: number;
 }
 
-/** Options for {@link OpenRocketDesign.dragSweep}; a Mach grid at a fixed angle. */
-export interface DragSweepOptions {
+/** Options for {@link OpenRocketDesign.aeroSweep}; a Mach grid at a fixed angle. */
+/** One row of the per-component mass breakdown, in SI. */
+export interface ComponentMass {
+  name: string;
+  /** Mass of a single instance (kg) — one fin of a fin set. */
+  eachMass: number;
+  /** Mass of every instance together (kg). */
+  mass: number;
+  /** CG of the whole set, m from the nose tip. */
+  cg: number;
+}
+
+export interface AeroSweepOptions {
   /** First Mach (default 0.05). */
   machMin?: number;
   /** Last Mach (default 3.0). */
@@ -566,6 +575,17 @@ export interface DragSweepOptions {
   machStep?: number;
   /** Angle of attack in degrees (default 0 — the zero-alpha drag polar). */
   aoaDeg?: number;
+  /**
+   * Wind direction about the roll axis, degrees. A rocket is least stable at
+   * some angle, and for a three-fin design that angle is not zero — see
+   * {@link OpenRocketDesign.worstThetaDeg}.
+   */
+  thetaDeg?: number;
+  /**
+   * Roll rate, rad/s. The roll DAMPING coefficient is proportional to it, so it
+   * reads zero for a rocket that is not rolling.
+   */
+  rollRate?: number;
   /**
    * Optional Reynolds matching: [mach, altitude m] pairs pin the ISA
    * atmosphere (hence Re) per Mach point, linearly interpolated — the same
@@ -592,7 +612,7 @@ export interface DragCurve {
  * subsonic/transonic, approximate above ~Mach 1.5-2 (full supersonic fidelity
  * is a later feature). The UI labels the supersonic region accordingly.
  */
-export interface DragSweep {
+export interface AeroSweep {
   /** Mach grid (x-axis for every curve). */
   machs: number[];
   /** Whether any stage sets a nozzle exit diameter (so power-on differs from power-off). */
@@ -610,7 +630,47 @@ export interface DragSweep {
   /** Boost (all stages thrusting) drag — differs from powerOff only when hasNozzle. */
   powerOn: DragCurve;
   /** Per-component power-off total CD (index-aligned to `machs`). */
-  components: { name: string; cd: number[] }[];
+  /**
+   * Per-component power-off breakdown, one entry per aerodynamic component.
+   *
+   * `cd` has always been here. The rest come from the same `getForceAnalysis`
+   * call — the one OpenRocket's Component Analysis dialog tabulates — and are
+   * OPTIONAL because a kernel built before they were added simply omits them;
+   * the UI shows the columns it has data for.
+   */
+  components: {
+    name: string;
+    /**
+     * Total drag for this component, counting every instance of it — the
+     * desktop's "Total CD". This is the one that sums to the rocket's drag; a
+     * 3-fin set contributes three fins' worth.
+     */
+    cd: number[];
+    /** Drag for ONE instance — the desktop's "Per instance CD". */
+    cdInstance?: number[];
+    /** How many of this component there are (3 for a 3-fin set). */
+    instances?: number;
+    /**
+     * The kernel's class for this component, e.g. `TrapezoidFinSet`, `BodyTube`.
+     * The roll table needs it: an uncanted fin set reports exactly the numbers a
+     * body tube does, so there is no telling them apart from the values alone.
+     */
+    type?: string;
+    /** Skin-friction share of `cd`. */
+    friction?: number[];
+    /** Pressure (form) share of `cd`. */
+    pressure?: number[];
+    /** Base-drag share of `cd`. */
+    base?: number[];
+    /** This component's contribution to the rocket's normal-force slope. */
+    cna?: number[];
+    /** This component's own centre of pressure (m from the nose tip). */
+    cp?: number[];
+    /** Roll forcing coefficient — non-zero only for a canted fin set. */
+    rollForce?: number[];
+    /** Roll damping coefficient. */
+    rollDamp?: number[];
+  }[];
 }
 
 /**
@@ -705,7 +765,7 @@ export class OpenRocketDesign {
    * Enable the opt-in supersonic aerodynamics model (RASAero feature #1,
    * Phase 1): corrected supersonic fin normal force, exact NACA-1307 body-fin
    * interference, and Mach-dependent nose CNα — CP moves with Mach above M1
-   * instead of collapsing forward. Affects staticInfo, simulate and dragSweep.
+   * instead of collapsing forward. Affects staticInfo, simulate and aeroSweep.
    * Off by default; off ⇒ classic Extended Barrowman (bit-identical).
    * Validated against the wind-tunnel anchor suite in validation/.
    */
@@ -729,22 +789,42 @@ export class OpenRocketDesign {
 
   /**
    * Drag polar sweep (CD vs Mach) with power-off/power-on curves and a
-   * per-component breakdown. Static — no flight needed. See {@link DragSweep}.
+   * per-component breakdown. Static — no flight needed. See {@link AeroSweep}.
    */
-  dragSweep(options: DragSweepOptions = {}): DragSweep {
-    const raw = eng().getDragSweep(
+  aeroSweep(options: AeroSweepOptions = {}): AeroSweep {
+    const raw = eng().getAeroSweep(
       this.handle,
       JSON.stringify({
         machMin: options.machMin ?? 0.05,
         machMax: options.machMax ?? 3.0,
         machStep: options.machStep ?? 0.05,
         aoaDeg: options.aoaDeg ?? 0,
+        thetaDeg: options.thetaDeg ?? 0,
+        rollRate: options.rollRate ?? 0,
         machAlt: options.machAlt,
       }),
     );
-    const parsed = JSON.parse(raw) as DragSweep & { error?: string };
+    const parsed = JSON.parse(raw) as AeroSweep & { error?: string };
     if (parsed.error) throw new Error(`Drag sweep failed: ${parsed.error}`);
     return parsed;
+  }
+
+  /**
+   * The wind direction (degrees about the roll axis) that puts the CP furthest
+   * forward — i.e. where this rocket is least stable. The desktop's "Worst"
+   * button. Feed it back in as {@link AeroSweepOptions.thetaDeg}.
+   */
+  worstThetaDeg(mach = 0.3, aoaDeg = 0): number {
+    return eng().getWorstThetaDeg(this.handle, mach, aoaDeg);
+  }
+
+  /**
+   * Per-component mass breakdown. Static — no Mach, no flight — so it is its own
+   * call rather than a field on the aero sweep or on {@link staticInfo}, which
+   * runs on every edit. See {@link ComponentMass}.
+   */
+  componentMasses(): ComponentMass[] {
+    return JSON.parse(eng().getComponentMasses(this.handle)) as ComponentMass[];
   }
 
   simulate(options: SimulationOptions = {}): FlightResult {

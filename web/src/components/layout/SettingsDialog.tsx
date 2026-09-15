@@ -119,6 +119,25 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
                   resetTitle={t('settings.resetOne')}
                 />
               ))}
+              {/* Taste, not correctness: the default is a magnitude ramp, and
+                  OpenRocket's green-to-red is here for anyone who reads that
+                  faster because they already know it from the desktop. */}
+              <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                {t('settings.aeroHeat')}
+              </div>
+              <label className="flex items-center justify-between gap-3 text-sm text-slate-300">
+                {t('settings.aeroHeatLabel')}
+                <select
+                  value={settings.aeroHeat}
+                  onChange={(e) => update({ aeroHeat: e.target.value as 'sky' | 'openrocket' })}
+                  className="w-44 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+                >
+                  <option value="sky">{t('settings.aeroHeatSky')}</option>
+                  <option value="openrocket">{t('settings.aeroHeatOr')}</option>
+                </select>
+              </label>
+              <p className="text-[11px] leading-snug text-slate-500">{t('settings.aeroHeatNote')}</p>
+
               <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 {t('settings.phases')}
               </div>

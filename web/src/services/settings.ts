@@ -72,6 +72,15 @@ export interface Settings {
   partColors: Partial<Record<PartKey, string>>;
   /** Flight-path phase colours. */
   phaseColors: { boost: string; coast: string; descent: string };
+  /**
+   * How the Aero tables shade their cells.
+   *
+   * `sky` is one hue that strengthens with the value — a magnitude ramp, which
+   * is what the numbers are. `openrocket` is desktop OpenRocket's green-to-red
+   * heat, on its own absolute Cd scale and with dark text on light cells, for
+   * anyone who reads that faster because they already know it.
+   */
+  aeroHeat: 'sky' | 'openrocket';
   /** Default flight-path playback speed (×). */
   playbackSpeed: number;
   /** Global simulation preferences. */
@@ -125,6 +134,7 @@ export const DEFAULT_SETTINGS: Settings = {
   unitOverrides: {},
   partColors: {},
   phaseColors: { boost: '#fb923c', coast: '#38bdf8', descent: '#34d399' },
+  aeroHeat: 'sky',
   playbackSpeed: 0.5,
   simulation: {
     timeStep: 0.05,
@@ -173,6 +183,9 @@ export function loadSettings(): Settings {
       unitOverrides: normalizeUnitOverrides(s.unitOverrides),
       partColors: { ...(s.partColors ?? {}) },
       phaseColors: { ...DEFAULT_SETTINGS.phaseColors, ...(s.phaseColors ?? {}) },
+      // An older store has no value here, and an unrecognised one falls back
+      // rather than leaving the tables with a style nothing renders.
+      aeroHeat: s.aeroHeat === 'openrocket' ? 'openrocket' : DEFAULT_SETTINGS.aeroHeat,
       playbackSpeed: typeof s.playbackSpeed === 'number' ? s.playbackSpeed : DEFAULT_SETTINGS.playbackSpeed,
       simulation: (() => {
         const sim = { ...DEFAULT_SETTINGS.simulation, ...(s.simulation ?? {}) };

@@ -11,7 +11,7 @@ import { FlightPathExport } from './FlightPathExport';
 import { ViewToggle } from './ViewToggle';
 import { StabilityBadge } from './StabilityBadge';
 import { InfoOverlay } from './InfoOverlay';
-import { DragAnalysis } from './DragAnalysis';
+import { AeroAnalysis } from './AeroAnalysis';
 import { LoadedBanner } from './LoadedBanner';
 import { BusyLock } from '../common/BusyLock';
 import { SimSummary } from '../sim/SimSummary';
@@ -318,7 +318,7 @@ export function CenterView() {
                 )}
               </div>
             ) : (
-              <div className="h-full p-2">{info ? <DragAnalysis /> : prompt}</div>
+              <div className="h-full p-2">{info ? <AeroAnalysis /> : prompt}</div>
             )}
           </div>
         </div>

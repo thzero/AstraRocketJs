@@ -4,12 +4,12 @@ import { computeStaticInfo } from './buildRocket';
 
 const tree = { components: [] } as unknown as RocketTree;
 
-// A stub engine handle: staticInfo() returns a fresh object; dragSweep()'s
+// A stub engine handle: staticInfo() returns a fresh object; aeroSweep()'s
 // power-off total drives the cd fill-in (or throws to exercise the fallback).
 const fakeRocket = (opts: { info?: Partial<StaticInfo>; sweepTotal?: number[]; sweepThrows?: boolean }): OpenRocketDesign =>
   ({
     staticInfo: () => ({ mass: 1, cg: 0.5, ...opts.info }) as StaticInfo,
-    dragSweep: () => {
+    aeroSweep: () => {
       if (opts.sweepThrows) throw new Error('sweep failed');
       return { powerOff: { total: opts.sweepTotal ?? [] } };
     },

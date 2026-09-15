@@ -62,7 +62,7 @@ export function computeStaticInfo(
     const info = rocket.staticInfo();
     // Best-effort: a design the sweep can't evaluate just leaves cd undefined.
     try {
-      info.cd = rocket.dragSweep({ machMin: 0.3, machMax: 0.3, machStep: 0.05 }).powerOff.total[0];
+      info.cd = rocket.aeroSweep({ machMin: 0.3, machMax: 0.3, machStep: 0.05 }).powerOff.total[0];
     } catch {
       /* leave cd undefined */
     }

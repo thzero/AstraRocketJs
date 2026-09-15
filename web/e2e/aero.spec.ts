@@ -24,6 +24,11 @@ test.describe('aero drag sweep', () => {
     await dismiss(page);
     await page.getByRole('button', { name: 'Aero', exact: true }).click();
 
+    // Charts, not the tables: the curves are what you come to Aero to see, and
+    // the tables are the follow-up question.
+    await expect(page.getByRole('button', { name: 'Charts', exact: true })).toHaveClass(/bg-sky-600/);
+    await expect(page.locator('main table')).toHaveCount(0);
+
     await expect(page.getByRole('button', { name: 'M1', exact: true })).toHaveClass(/bg-sky-600/);
     for (const m of ['M1', 'M2', 'M3', 'M5']) {
       await expect(page.getByRole('button', { name: m, exact: true })).toBeVisible();

@@ -46,7 +46,7 @@ public final class ParityMain {
         clusterScenarios();
         stagingScenarios();
         podScenarios();
-        dragSweepScenarios();
+        aeroSweepScenarios();
         minDiameterScenarios();
         airfoilSectionScenarios();
         rogersKbfScenarios();
@@ -126,7 +126,7 @@ public final class ParityMain {
         };
         for (String[] v : variants) {
             int r = api.OpenRocketEngine.buildRocket(base.replace("%FIN%", v[1]));
-            String sweep = api.OpenRocketEngine.getDragSweep(r, "{\"machMin\":0.5,\"machMax\":3.5,\"machStep\":1.0}");
+            String sweep = api.OpenRocketEngine.getAeroSweep(r, "{\"machMin\":0.5,\"machMax\":3.5,\"machStep\":1.0}");
             java.util.Map<String, Object> parsed = api.JsonLite.parseObject(sweep);
             java.util.Map<String, Object> off = asMap(parsed.get("powerOff"));
             java.util.List<?> total = (java.util.List<?>) off.get("total");
@@ -212,18 +212,18 @@ public final class ParityMain {
     }
 
     /**
-     * Drag polar sweep bridge method (feature #5). Exercises getDragSweep over a
+     * Aero sweep bridge method (feature #5). Exercises getAeroSweep over a
      * small Mach grid on a rocket with a stage nozzle set — power-off vs power-on
      * total/base CD must match JVM↔JS, and power-on base CD must be lower.
      */
-    private static void dragSweepScenarios() {
+    private static void aeroSweepScenarios() {
         String json = "{\"components\":[{\"type\":\"stage\",\"name\":\"S\",\"nozzleExitDiameter\":0.016,\"children\":["
                 + "{\"type\":\"nosecone\",\"length\":0.07,\"aftRadius\":0.012,\"thickness\":0.002},"
                 + "{\"type\":\"bodytube\",\"length\":0.30,\"outerRadius\":0.012,\"thickness\":0.0005,\"density\":950,\"children\":["
                 + "  {\"type\":\"trapezoidfinset\",\"finCount\":3,\"rootChord\":0.05,\"tipChord\":0.03,\"sweep\":0.02,\"height\":0.03,\"thickness\":0.003}"
                 + "]}]}]}";
         int r = api.OpenRocketEngine.buildRocket(json);
-        String sweep = api.OpenRocketEngine.getDragSweep(r, "{\"machMin\":0.3,\"machMax\":1.5,\"machStep\":0.6}");
+        String sweep = api.OpenRocketEngine.getAeroSweep(r, "{\"machMin\":0.3,\"machMax\":1.5,\"machStep\":0.6}");
         java.util.Map<String, Object> parsed = api.JsonLite.parseObject(sweep);
         java.util.List<?> machs = (java.util.List<?>) parsed.get("machs");
         java.util.Map<String, Object> off = asMap(parsed.get("powerOff"));

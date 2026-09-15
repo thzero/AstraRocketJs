@@ -1,4 +1,4 @@
-import type { FlightResult, DragSweep, FlightSeries } from '../engine/openRocketEngine';
+import type { FlightResult, AeroSweep, FlightSeries } from '../engine/openRocketEngine';
 import { saveText } from './saveFile';
 import { siToUiDelta, type Quantity, type UnitSelection } from '../prefs/units';
 
@@ -82,7 +82,7 @@ export function flightDataCsv(r: FlightResult, units: UnitSelection): string {
 }
 
 /** Cd / CP / CNα vs Mach, with the friction/pressure/base split and per-component Cd. */
-export function dragTableCsv(d: DragSweep, units: UnitSelection): string {
+export function aeroTableCsv(d: AeroSweep, units: UnitSelection): string {
   const len = col(units, 'length');
   // Strip the delimiters/newlines/quotes an imported component name could carry
   // so it can't split or corrupt the comma-joined row. (No formula-injection

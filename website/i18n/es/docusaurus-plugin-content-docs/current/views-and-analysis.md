@@ -32,8 +32,24 @@ Un modelo 3D interactivo del cohete: órbita a su alrededor para inspeccionar la
 Resistencia y estabilidad frente al número de Mach, para analizar el comportamiento a alta velocidad:
 
 - **Cd frente a Mach** — coeficiente de resistencia total en todo el rango de Mach.
-- **Desglose de la resistencia** — contribuciones de fricción, presión y base.
+- **Desglose de la resistencia** — contribuciones de fricción, presión y base, apiladas. Para el mismo desglose *por pieza*, consulta la pestaña **Por componente** de abajo.
 - **CP frente a Mach** — cómo se desplaza el centro de presión con la velocidad.
+
+Una fila de **condiciones de vuelo** define con qué se calcula todo el barrido:
+
+- **AoA** — ángulo de ataque en grados. En 0 el cohete vuela recto; al subirlo, el CP se desplaza.
+- **Dir. viento** — la dirección del viento alrededor del eje de alabeo. **Peor** la fija en el ángulo donde el CP de este cohete queda más adelantado, es decir, donde es *menos* estable: la pregunta de seguridad «¿es estable en cualquier orientación?». En un cohete simétrico de tres aletas el CP no depende de este ángulo y **Peor** devuelve 0; en un diseño de dos aletas o asimétrico importa mucho.
+- **Vel. alabeo** — en rad/s. El *amortiguamiento* de alabeo se opone a un alabeo existente, así que esa columna es cero hasta que defines uno.
+
+Un conmutador **Gráficas / Por componente** elige qué muestra el panel: las tres curvas o las tablas de abajo. Las tablas informan para un único Mach: en la pestaña **Gráficas** lo elige la retícula del cursor, y en **Por componente** lo hace un deslizador que solo se detiene en los Mach que el barrido calculó de verdad. Ambos comparten el mismo valor, así que al cambiar de pestaña aterrizas en el punto que estabas mirando.
+
+**Resistencia por componente** tabula la resistencia de cada pieza para ese Mach, dividida en **presión / base / fricción**: las mismas cifras que OpenRocket de escritorio muestra en *Component Analysis ▸ Drag characteristics*. Las filas se ordenan de mayor a menor y suman el total del cohete. Las celdas se **sombrean en proporción a su valor**, de modo que las piezas que más resistencia cuestan destacan sin tener que leer todos los números, con la escala debajo de la tabla. Hay dos estilos, que se cambian con los botones junto a la leyenda (o desde **Ajustes ▸ Colores**: es una sola preferencia, así que se define desde cualquiera de los dos sitios y se conserva): *Por magnitud* (el predeterminado) es un solo color que se intensifica con el valor, escalado respecto al mayor de la tabla; *Por calor* es el verde-rojo del escritorio en su propia escala fija de 0 a 1,5 Cd, con texto oscuro sobre celdas claras, para quien lo lea más rápido por costumbre.
+
+Una pieza que existe más de una vez —normalmente un juego de aletas— tiene además una columna **Por unidad** que indica `0,251 × 3`: la resistencia de una aleta y cuántas hay. La columna **Cd** es siempre el total de todas.
+
+**Contribución a la estabilidad** es la tabla complementaria, y la que responde a *por qué el CP está donde está*: el **CNα** de cada pieza (su parte de la pendiente de fuerza normal del cohete) y su propio **CP**. El juego de aletas suele aportar la gran mayoría del CNα —eso es lo que mantiene el CP hacia atrás—, mientras que el cono aporta un par de unidades que tiran de él hacia delante. El CP del cohete es la media de las filas ponderada por CNα. Las piezas que no generan fuerza normal, como un tubo recto, se omiten en vez de aparecer como ceros. Cada fila lleva además la **masa** de la pieza —una unidad, todas las unidades y el CG del conjunto—, de modo que las dos mitades de una cuestión de estabilidad quedan juntas.
+
+**Dinámica de alabeo** lista todos los juegos de aletas con sus coeficientes de **forzamiento** y **amortiguamiento** de alabeo. Ambos son cero en un cohete que ni está calado ni gira: esa es la respuesta correcta, no una tabla que falta. Da un **ángulo de calaje** a un juego de aletas y el forzamiento sube; es el único sitio de la aplicación que confirma que ese calaje hace lo que pretendías. El amortiguamiento se opone a un alabeo existente, así que necesita el control **Vel. alabeo** de arriba.
 
 **Mach máximo** define hasta dónde llega el barrido: **M1** (el valor por defecto; la mayoría de los cohetes de afición nunca llegan a supersónico, y un barrido más amplio aplasta la parte subsónica de la curva contra el borde izquierdo) o **M2 / M3 / M5** para uno que sí lo haga.
 
