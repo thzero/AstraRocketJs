@@ -10,7 +10,7 @@ Tras esa primera visita sigue funcionando **sin conexión**, así que puedes dis
 
 Al cargar verás una breve pantalla de inicio mientras se carga el motor de física, y después un cohete de ejemplo. La cabecera muestra una pequeña insignia **`WASM`** o **`JS`** que indica qué motor se ha cargado (WebAssembly es el rápido por defecto; JavaScript es la alternativa).
 
-## La disposición
+## La disposición {#the-layout}
 
 En un ordenador la pantalla es un **banco de trabajo de tres paneles**:
 
@@ -18,9 +18,16 @@ En un ordenador la pantalla es un **banco de trabajo de tres paneles**:
 - **Centro — Vista del cohete.** Tu cohete, con una barra para cambiar de vista (2D · 3D · Aero · y, tras una simulación, Vuelo · Trayectoria 3D), interruptores para los marcadores **CG / CP** y la tarjeta de **información** rápida, y —en 2D— preajustes, calibres y zoom. Una **franja de estadísticas** en la parte inferior muestra longitud, masa, CG, CP, estabilidad y más.
 - **Derecha — Simulaciones.** Tus simulaciones, el botón **Simular**, la configuración de lanzamiento y los resultados.
 
-En un **teléfono**, las mismas áreas se apilan en una sola columna con una barra de pestañas; el panel de componentes se oculta para mantener grande la vista del cohete.
+En un **teléfono** las mismas áreas pasan a ser tres pestañas en la parte inferior, porque no hay sitio para mostrarlas una al lado de otra:
 
-La barra superior tiene el **menú de la aplicación** (Nuevo / Abrir / Guardar / Importar / Exportar / Ajustes / Acerca de) y un selector de idioma (English · Español).
+- **Cohete** — el aviso del diseño cargado y la franja de estadísticas.
+- **Croquis** — la vista del cohete y su barra de herramientas (2D · 3D · Aero). Las vistas 2D y 3D se giran un cuarto de vuelta cuando sostienes el teléfono en vertical, para que el cohete recorra el lado largo de la pantalla en vez de quedar aplastado en su anchura; gira el teléfono y vuelven a su posición. Los diálogos también ocupan toda la pantalla allí.
+- **Simular** — motor, configuración del lanzamiento, **Ejecutar** y el resumen de resultados.
+- **Resultados** — los números de la ejecución (apogeo, salida del raíl, velocidad máxima, aterrizaje, alcance …) con las gráficas de vuelo y la trayectoria 3D debajo. Aparece en cuanto una simulación ha producido un resultado, y al terminar una ejecución te lleva directamente allí.
+
+El panel de componentes es solo de escritorio, así que un teléfono sirve para leer y simular un diseño más que para construirlo.
+
+La barra superior tiene **deshacer / rehacer**, un selector de idioma (English · Español) y el **menú de la aplicación**: Nuevo, Abrir… y Guardar… / Guardar como… (la biblioteca de diseños de la app), **Importar ▸ OpenRocket** y **Exportar ▸ OpenRocket / RASAero II** para los archivos `.ork` y demás en disco, **Informe de diseño**, **Panel de motores**, **Ajustes**, **Ayuda**, **Privacidad** y **Acerca de**.
 
 ## Tu primer cohete
 

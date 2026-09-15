@@ -18,9 +18,16 @@ On a desktop the screen is a **three-pane workbench**:
 - **Center — Rocket view.** Your rocket, with a toolbar to switch views (2D · 3D · Aero · and, after a sim, Flight · 3D path), toggles for the **CG / CP** markers and the quick-glance **info** card, and — in 2D — presets, calipers, and zoom. A **stats strip** along the bottom shows length, mass, CG, CP, stability, and more.
 - **Right — Simulations.** Your simulation(s), the **Run** button, launch setup, and results.
 
-On a **phone**, the same areas stack into a single column with a tab bar; the components panel is hidden to keep the rocket view large.
+On a **phone** the same areas become three tabs along the bottom, because there is no room to show them side by side:
 
-The top bar has the **app menu** (New / Open `.ork` / Save `.ork` / Settings / About) and a language switcher (English · Español).
+- **Rocket** — the loaded-design banner and the stats strip.
+- **Sketch** — the rocket view and its toolbar (2D · 3D · Aero). The 2D and 3D views are turned a quarter turn when you hold the phone upright, so the rocket runs down the long edge of the screen instead of being squeezed into its width; turn the phone sideways and they turn back. Dialogs fill the screen there too.
+- **Simulate** — motor, launch setup, **Run**, and the result summary.
+- **Results** — the run's numbers (apogee, rod exit, max speed, landing, downrange …) with the flight charts and the 3D flight path below them. It appears once a simulation has produced a result, and a finished run takes you straight to it.
+
+The components panel is desktop-only, so a phone is for reading and simulating a design rather than building one.
+
+The top bar has **undo / redo**, a language switcher (English · Español), and the **app menu**: New, Open… and Save… / Save As… (the in-app design library), **Import ▸ OpenRocket** and **Export ▸ OpenRocket / RASAero II** for `.ork` and other files on disk, **Rocket Design Report**, **Motor Dashboard**, **Settings**, **Help**, **Privacy** and **About**.
 
 ## Your first rocket
 

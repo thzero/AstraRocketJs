@@ -30,7 +30,7 @@ sidebar_position: 2
 
 ## Plataforma {#platform}
 - **Solo en el cliente** — sin servidor, sin cuentas, sin subir nada. Tus cohetes se guardan en el navegador y puedes exportar un `.ork` a tu disco.
-- **Adaptable** — un banco de trabajo de tres paneles en escritorio que se pliega en una sola columna con pestañas en el móvil.
+- **Adaptable** — un banco de trabajo de tres paneles en escritorio que en el teléfono pasa a tres pestañas (Cohete · Croquis · Simular), donde las vistas del cohete giran un cuarto de vuelta para que el fuselaje recorra el lado largo de la pantalla y los diálogos la ocupan entera.
 - **Las unidades que prefieras** — valores métricos o imperiales, o una unidad por magnitud (dimensiones de componentes y de motor, altitud, masa, velocidad, viento, aceleración, ángulo, densidad, temperatura, presión, empuje, impulso). La unidad junto a cualquier valor también es un selector para ese campo concreto. Los diseños siguen en SI, así que cambiarlas nunca modifica un cohete. Consulta **[Ajustes](./settings.md#units)**.
 - **Navegación por teclado** — el árbol de componentes se recorre completamente con las flechas (una accesibilidad más amplia es un trabajo en curso).
 - Disponible en **inglés y español**.

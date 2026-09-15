@@ -14,6 +14,7 @@ import { InfoOverlay } from './InfoOverlay';
 import { DragAnalysis } from './DragAnalysis';
 import { LoadedBanner } from './LoadedBanner';
 import { BusyLock } from '../common/BusyLock';
+import { SimSummary } from '../sim/SimSummary';
 
 // three.js is heavy, so the 3D views are code-split — their chunks load only when
 // the user actually switches to a 3D view, keeping the default (2D) path light.
@@ -131,6 +132,17 @@ export function CenterView() {
           <LoadedBanner loaded={loadedMeta} onClose={onCloseLoaded} />
         </div>
       )}
+      {/* The run's numbers head the mobile Results tab, above the charts they
+          describe — they are what you look at first, and reading them used to
+          mean going back to the Simulate tab. `lg:hidden` because the desktop
+          workbench already has them in the simulations pane, where they stay.
+          Capped at 45% and scrolling: the tiles are a fixed ~300px, which on a
+          568-tall phone left the chart 91px of a pane it is supposed to fill. */}
+      {tab === 'results' && (
+        <div className="max-h-[45%] shrink-0 overflow-y-auto px-3 pt-3 lg:hidden">
+          <SimSummary sim={result} />
+        </div>
+      )}
       {/* Everything from here to the stats strip is the DRAWING half: the view
           switch and the canvas. Mobile shows it on the Sketch tab; lg+ always.
 
@@ -141,7 +153,7 @@ export function CenterView() {
           toolbar across the short edge, detached from what it acts on, and
           moving it whenever the view changed. */}
       <div
-        className={`${tab === 'sketch' ? 'flex' : 'hidden'} ${sideways ? 'sketch-stage' : ''} min-h-0 w-full flex-1 flex-col overflow-hidden lg:flex`}
+        className={`${tab === 'sketch' || tab === 'results' ? 'flex' : 'hidden'} ${sideways ? 'sketch-stage' : ''} min-h-0 w-full flex-1 flex-col overflow-hidden lg:flex`}
       >
         <div className={sideways ? 'sketch-rotate flex flex-col' : 'flex min-h-0 flex-1 flex-col'}>
           {/* Wraps for the same reason the app header does: the presets, the
@@ -195,7 +207,12 @@ export function CenterView() {
             {/* ml-auto keeps it hard right even when it wraps onto a line of its
             own, where justify-between has nothing to push against. */}
             <div className="ml-auto shrink-0">
-              <ViewToggle view={view} onChange={onView} hasResult={!!result} />
+              <ViewToggle
+                view={view}
+                onChange={onView}
+                hasResult={!!result}
+                mobileFamily={tab === 'results' ? 'result' : 'design'}
+              />
             </div>
           </div>
           {/* The view flexes to fill the pane; the stats strip below is a pinned

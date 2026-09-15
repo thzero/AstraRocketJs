@@ -4,6 +4,8 @@ sidebar_position: 10
 ---
 The center pane's toolbar switches between views. **2D**, **3D**, and **Aero** are always available; **Flight** and **3D path** appear once you've run a simulation.
 
+On a phone the design views live on the **Sketch** tab and the flight views on **Results**, which appears once a run has produced one; picking either from the toolbar takes you to its tab. The toolbar turns with the drawing so it always sits along the long edge of the screen. See [Getting Started](./getting-started.md#the-layout).
+
 ## 2D schematic
 
 A to-scale side view of the rocket with **CG** (▲) and **CP** (●) markers and the stability margin called out.
@@ -19,7 +21,7 @@ A to-scale side view of the rocket with **CG** (▲) and **CP** (●) markers an
 Two toolbar buttons control what's overlaid on the **2D** and **3D** views:
 
 - **CG / CP** — show or hide the **CG / CP / stability** markers and their callouts.
-- **Info** — show or hide the quick-glance **length · mass · CG · CP · stability** card in the upper-left corner (the same summary as the [stats strip](#reading-the-stats-strip), handy when the strip is scrolled off on a phone).
+- **Info** — show or hide the quick-glance **length · mass · CG · CP · stability** card in the upper-left corner (the same summary as the [stats strip](#reading-the-stats-strip), handy on a phone, where the strip is on the other tab).
 
 ## 3D model
 
