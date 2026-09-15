@@ -292,6 +292,7 @@ describe('tab and view stay in step', () => {
   beforeEach(() => s().resetWorkspace());
 
   it('sends a flight view to the Results tab and a design view back to Sketch', () => {
+    s().setTab('sketch');
     s().setView('flight');
     expect(s().tab).toBe('results');
     s().setView('path');
@@ -301,6 +302,31 @@ describe('tab and view stay in step', () => {
     expect(s().tab).toBe('sketch');
     s().setView('drag');
     expect(s().tab).toBe('sketch');
+  });
+
+  it('leaves a caller alone on a tab that shows no view at all', () => {
+    // Rocket and Simulate show stats and the run, not a view — so a view
+    // changing underneath (a result invalidated, a design opened) must not drag
+    // the reader off the tab they chose.
+    s().setTab('build');
+    s().setView('flight');
+    expect(s().tab).toBe('build');
+    s().setTab('sim');
+    s().setView('2d');
+    expect(s().tab).toBe('sim');
+  });
+
+  it('never strands you on Results with no result', () => {
+    // Opening or starting a design writes `view` directly. It used to leave the
+    // tab behind, which left a Results tab with nothing to show and a view
+    // switch with every button hidden.
+    s().setView('flight');
+    s().setTab('results');
+    expect(s().tab).toBe('results');
+
+    s().resetWorkspace();
+    expect(s().view).toBe('2d');
+    expect(s().tab).not.toBe('results');
   });
 
   it('pulls the view into whichever family the chosen tab shows', () => {

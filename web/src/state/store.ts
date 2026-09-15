@@ -213,6 +213,22 @@ function uniqueSimName(sims: Simulation[], label: (n: number) => string, start: 
   return label(n);
 }
 
+/**
+ * A `view` paired with a tab that can actually show it.
+ *
+ * On a phone the centre pane backs two tabs and each owns a family: Sketch the
+ * design views, Results the flight ones. Rocket and Simulate show no view at
+ * all, so a caller sitting on either is left where it is.
+ *
+ * Every write of `view` goes through this. Writing the two apart is how you end
+ * up on a Results tab with no result and an empty view switch, which is exactly
+ * what opening a new design from that tab used to do.
+ */
+function showing(tab: Tab, view: ViewMode): { view: ViewMode; tab: Tab } {
+  const owns = tab === 'sketch' || tab === 'results';
+  return { view, tab: owns ? (isResultView(view) ? 'results' : 'sketch') : tab };
+}
+
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   // Patch the active simulation (invalidating its cached result).
   const patchActive = (patch: Partial<Simulation>) => {
@@ -513,19 +529,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
     },
 
-    // The two below keep the mobile tab and the centre-pane view in step. Each
-    // tab owns a family of views -- Sketch the design ones, Results the flight
-    // ones -- so choosing either end has to move the other, or the view switch
-    // silently draws a chart on the Sketch tab. Harmless at desktop widths,
-    // where the tab bar is hidden and `tab` only decides what a later resize
-    // lands on.
+    // The two below keep the mobile tab and the centre-pane view in step -- see
+    // {@link showing}. Harmless at desktop widths, where the tab bar is hidden
+    // and `tab` only decides what a later resize lands on.
     setTab: (tab) =>
       set((s) => {
         if (tab === 'results') return { tab, view: isResultView(s.view) ? s.view : 'flight' };
         if (tab === 'sketch') return { tab, view: isResultView(s.view) ? '2d' : s.view };
         return { tab };
       }),
-    setView: (view) => set({ view, tab: isResultView(view) ? 'results' : 'sketch' }),
+    setView: (view) => set((s) => showing(s.tab, view)),
     setTwoD: (twoD) => set({ twoD }),
     setRoll: (roll) => set({ roll }),
     rollBy: (d) =>
@@ -583,7 +596,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       getWorkspaceStore().setActiveId?.(id);
       clearHistory(); // a different design is a different document
       get().hydrate(w);
-      set({ selectedId: null, view: '2d' });
+      set((s) => ({ selectedId: null, ...showing(s.tab, '2d') }));
       await get().refreshDesigns();
     },
 
@@ -629,15 +642,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // this blank design straight over the rocket the user just had open.
       getWorkspaceStore().setActiveId?.(null);
       set({ activeDesignId: null });
-      set({
+      set((s) => ({
         tree: specToTree(DEFAULT_SPEC).tree,
         extraMotors: {},
         loadedMeta: null,
         sims: [s0],
         activeId: s0.id,
         selectedId: null,
-        view: '2d',
-      });
+        ...showing(s.tab, '2d'),
+      }));
     },
     newWorkspace: async () => {
       const ok = await confirm({

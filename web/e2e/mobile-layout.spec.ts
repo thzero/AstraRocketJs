@@ -329,3 +329,26 @@ test('the Results tab leads with the run numbers, without starving the chart', a
   expect(m.chartHeight).toBeGreaterThan(200);
   expect(m.chartHeight).toBeGreaterThan(m.paneHeight * 0.5);
 });
+
+test('starting a new design does not strand you on an empty Results tab', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await dismiss(page);
+  await page.getByRole('button', { name: /Simulate/ }).click();
+  await page.getByRole('button', { name: /Run flight simulation/ }).click();
+  const resultsTab = page.getByRole('button', { name: /Results/ });
+  await expect(resultsTab).toBeVisible({ timeout: 30_000 });
+
+  // New design straight from the Results tab. The result is gone with it, so
+  // the tab has nothing left to show -- and every view button belongs to the
+  // other family, which used to leave the switch completely empty.
+  await page.getByRole('button', { name: /Menu/ }).click();
+  await page.getByRole('menuitem', { name: 'New' }).click();
+  await page
+    .getByRole('button', { name: /Discard/ })
+    .click()
+    .catch(() => {});
+
+  await expect(resultsTab).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '2D', exact: true })).toBeVisible();
+});
