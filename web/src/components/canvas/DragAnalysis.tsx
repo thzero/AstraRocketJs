@@ -49,7 +49,10 @@ export function DragAnalysis() {
   const u = useUnits();
   const rocket = useWorkspaceStore((s) => s.rocket);
   const info = useWorkspaceStore((s) => s.info);
-  const [machMax, setMachMax] = useState(3);
+  // M1 by default: the overwhelming majority of hobby flights never reach Mach 1,
+  // and sweeping to M3 spent two thirds of the x axis on speeds the rocket will
+  // not see, squeezing the subsonic rise nobody could then read.
+  const [machMax, setMachMax] = useState(1);
   const [mode, setMode] = useState<'type' | 'component'>('type');
   const [cpPct, setCpPct] = useState(false);
   const [hoverM, setHoverM] = useState<number | null>(null);
@@ -57,7 +60,11 @@ export function DragAnalysis() {
   const sweep = useMemo<DragSweep | null>(() => {
     if (!rocket) return null;
     try {
-      return rocket.dragSweep({ machMin: 0.05, machMax, machStep: machMax > 3 ? 0.1 : 0.05 });
+      // Finer steps over a shorter sweep: M1 at 0.02 is 48 samples, fewer than
+      // the 59 the old M3 default already asked for, and it puts the resolution
+      // where a subsonic rocket's drag actually moves — the rise from ~0.8.
+      const machStep = machMax <= 1 ? 0.02 : machMax > 3 ? 0.1 : 0.05;
+      return rocket.dragSweep({ machMin: 0.05, machMax, machStep });
     } catch {
       return null;
     }
@@ -93,9 +100,7 @@ export function DragAnalysis() {
   // As a percentage of body length CP has no unit; as a position it takes the
   // user's length unit (`factor`, since a whole series is being scaled).
   const cpValues =
-    cpPct && bodyLen > 0
-      ? sweep.cp.map((v) => (v / bodyLen) * 100)
-      : sweep.cp.map((v) => v * u.factor('length'));
+    cpPct && bodyLen > 0 ? sweep.cp.map((v) => (v / bodyLen) * 100) : sweep.cp.map((v) => v * u.factor('length'));
   const cpSeries: Series[] = [{ name: t('flight.cp'), color: POWER_OFF, values: cpValues }];
 
   return (
@@ -103,7 +108,7 @@ export function DragAnalysis() {
       <div className="flex flex-wrap items-center gap-2 px-3 pb-2 pt-3">
         <h2 className="mr-auto text-xs font-semibold uppercase tracking-wide text-slate-400">{t('drag.title')}</h2>
         <span className="text-[10px] text-slate-500">{t('drag.maxMach')}</span>
-        <Seg options={[2, 3, 5] as const} value={machMax} onChange={setMachMax} fmt={(v) => `M${v}`} />
+        <Seg options={[1, 2, 3, 5] as const} value={machMax} onChange={setMachMax} fmt={(v) => `M${v}`} />
         <button
           onClick={() => downloadCsv('drag-table.csv', dragTableCsv(sweep, u.all))}
           title={t('drag.exportCsv')}
@@ -292,9 +297,16 @@ function ChartCard({
     }
   }
 
+  // A sweep that ends at 1 is ticked in fifths, so its labels need a decimal;
+  // whole Mach numbers do not. Rounding 0.2 to "0" was the axis reading
+  // "M 0.1 0 0 1 1 1".
+  const machDecimals = machMax <= 1 ? 1 : 0;
   const xTicks = useMemo(() => {
+    // Whole Mach numbers are too sparse to label a sweep that ends at 1 — it
+    // would carry two ticks for the whole axis.
+    const step = machMax <= 1 ? 0.2 : 1;
     const ticks = [machMin];
-    for (let m = Math.ceil(machMin); m <= machMax; m++) ticks.push(m);
+    for (let m = step; m <= machMax + 1e-9; m += step) ticks.push(Number(m.toFixed(2)));
     return ticks;
   }, [machMin, machMax]);
 
@@ -379,7 +391,7 @@ function ChartCard({
               textAnchor="middle"
               className="fill-slate-500 text-[9px] tabular-nums"
             >
-              {i === 0 ? `M ${fmtNum(m, 1)}` : fmtNum(m, 0)}
+              {i === 0 ? `M ${fmtNum(m, machDecimals)}` : fmtNum(m, machDecimals)}
             </text>
           ))}
           {hoverM != null && (

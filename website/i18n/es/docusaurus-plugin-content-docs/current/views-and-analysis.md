@@ -35,6 +35,8 @@ Resistencia y estabilidad frente al número de Mach, para analizar el comportami
 - **Desglose de la resistencia** — contribuciones de fricción, presión y base.
 - **CP frente a Mach** — cómo se desplaza el centro de presión con la velocidad.
 
+**Mach máximo** define hasta dónde llega el barrido: **M1** (el valor por defecto; la mayoría de los cohetes de afición nunca llegan a supersónico, y un barrido más amplio aplasta la parte subsónica de la curva contra el borde izquierdo) o **M2 / M3 / M5** para uno que sí lo haga.
+
 Puedes exportar estos datos como **CSV** (consulta [Archivos y exportaciones](./files-and-exports.md)).
 
 ## Vuelo (tras una simulación) {#flight-after-a-simulation}

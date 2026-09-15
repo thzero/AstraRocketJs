@@ -35,6 +35,8 @@ Drag and stability vs Mach number, for analyzing high-speed behavior:
 - **Drag breakdown** — friction / pressure / base contributions.
 - **CP vs Mach** — how the center of pressure moves with speed.
 
+**Max Mach** sets how far the sweep runs: **M1** (the default — most hobby rockets never go supersonic, and a wider sweep squeezes the subsonic part of the curve into the left edge), or **M2 / M3 / M5** for one that does.
+
 You can export these as **CSV** (see [Files & Exports](./files-and-exports.md)).
 
 ## Flight (after a simulation)
