@@ -30,9 +30,6 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
   const { t } = useTranslation();
   const { settings, update, reset } = useSettings();
   const u = useUnits();
-  // The 3D part-colour section is a desktop-only concern (no 3D model on mobile);
-  // the Colors tab still shows the flight-path phase colours there.
-  const isDesktop = useIsDesktop();
   const [tab, setTab] = useState<TabKey>('general');
   const panelRef = useFocusTrap<HTMLDivElement>(open);
 
@@ -63,17 +60,16 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
     else if (tab === 'units') update({ units: DEFAULT_SETTINGS.units, unitOverrides: {} });
     else if (tab === 'colors') update({ partColors: {}, phaseColors: DEFAULT_SETTINGS.phaseColors });
     else if (tab === 'playback') update({ playbackSpeed: DEFAULT_SETTINGS.playbackSpeed });
-    else if (tab === 'sketch')
-      update({ showMarkers: DEFAULT_SETTINGS.showMarkers, rulers: DEFAULT_SETTINGS.rulers });
+    else if (tab === 'sketch') update({ showMarkers: DEFAULT_SETTINGS.showMarkers, rulers: DEFAULT_SETTINGS.rulers });
     else if (tab === 'sim') update({ simulation: DEFAULT_SETTINGS.simulation });
     else update({ launchDefaults: DEFAULT_SETTINGS.launchDefaults });
   };
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
+    <div className="dialog-overlay fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
       <div
         ref={panelRef}
-        className="flex h-[560px] max-h-[85vh] w-full max-w-lg flex-col rounded-2xl bg-slate-900 ring-1 ring-white/10"
+        className="dialog-panel flex h-[560px] max-h-[85vh] w-full max-w-lg flex-col rounded-2xl bg-slate-900 ring-1 ring-white/10"
         role="dialog"
         aria-modal="true"
         aria-label={t('settings.title')}
@@ -106,24 +102,23 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
           {tab === 'colors' && (
             <>
-              {isDesktop && (
-                <>
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                    {t('settings.parts')}
-                  </div>
-                  {PART_KEYS.map((key) => (
-                    <ColorRow
-                      key={key}
-                      label={t(`settings.part.${key}`)}
-                      value={palette[key]}
-                      overridden={key in settings.partColors}
-                      onChange={(c) => setPart(key, c)}
-                      onReset={() => resetPart(key)}
-                      resetTitle={t('settings.resetOne')}
-                    />
-                  ))}
-                </>
-              )}
+              {/* Part colours apply to the 3D model, which a phone reaches
+                  through the Sketch tab just as a desktop reaches it through the
+                  view switch — so this is not gated on width. */}
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                {t('settings.parts')}
+              </div>
+              {PART_KEYS.map((key) => (
+                <ColorRow
+                  key={key}
+                  label={t(`settings.part.${key}`)}
+                  value={palette[key]}
+                  overridden={key in settings.partColors}
+                  onChange={(c) => setPart(key, c)}
+                  onReset={() => resetPart(key)}
+                  resetTitle={t('settings.resetOne')}
+                />
+              ))}
               <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 {t('settings.phases')}
               </div>
@@ -355,20 +350,6 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
       </div>
     </div>
   );
-}
-
-/** True at the app's desktop breakpoint (Tailwind `lg`, ≥1024px). */
-function useIsDesktop(): boolean {
-  const [desktop, setDesktop] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches,
-  );
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 1024px)');
-    const on = () => setDesktop(mq.matches);
-    mq.addEventListener('change', on);
-    return () => mq.removeEventListener('change', on);
-  }, []);
-  return desktop;
 }
 
 function CheckRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {

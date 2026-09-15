@@ -44,13 +44,13 @@ export function MotorSpecDialog({ motor, open, onClose }: { motor: MotorSpec; op
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4"
+      className="dialog-overlay fixed inset-0 z-50 grid place-items-center bg-black/60 p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
       <div
-        className="w-full max-w-lg rounded-xl bg-slate-900 p-4 ring-1 ring-white/10"
+        className="dialog-panel w-full max-w-lg rounded-xl bg-slate-900 p-4 ring-1 ring-white/10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-2">

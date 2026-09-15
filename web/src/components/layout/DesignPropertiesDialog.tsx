@@ -60,10 +60,10 @@ export function DesignPropertiesDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-[70] grid place-items-center bg-black/60 p-4" onClick={onCancel}>
+    <div className="dialog-overlay fixed inset-0 z-[70] grid place-items-center bg-black/60 p-4" onClick={onCancel}>
       <div
         ref={panelRef}
-        className="w-full max-w-sm rounded-2xl bg-slate-900 p-6 ring-1 ring-white/10"
+        className="dialog-panel w-full max-w-sm rounded-2xl bg-slate-900 p-6 ring-1 ring-white/10"
         role="dialog"
         aria-modal="true"
         aria-label={title}

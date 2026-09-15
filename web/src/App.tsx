@@ -21,7 +21,10 @@ export default function App() {
   const [simsOpen, setSimsOpen] = useState(true);
 
   return (
-    <div className="flex h-screen flex-col bg-slate-950 text-slate-100">
+    // h-full, not h-screen: the shell follows #root's height, which index.css
+    // pins to the DYNAMIC viewport on mobile. `h-screen` would re-assert 100vh
+    // here and put the tab bar back under the browser chrome.
+    <div className="flex h-full flex-col bg-slate-950 text-slate-100">
       <AppHeader />
       <UpdateToast />
 
@@ -35,9 +38,13 @@ export default function App() {
       <main
         className={`flex min-h-0 flex-1 flex-col overflow-hidden lg:grid lg:auto-rows-fr ${simsOpen ? 'lg:grid-cols-[340px_minmax(0,1fr)_380px]' : 'lg:grid-cols-[340px_minmax(0,1fr)_2rem]'}`}
       >
-        {/* CENTER — canvas + stability (the sole build-tab pane on mobile) */}
+        {/* CENTER — banner + drawing + stability. On mobile this one pane backs
+            TWO tabs: Rocket shows the banner and the stats strip, Sketch shows
+            the drawing (see CenterView). Keeping them in one mounted component
+            means switching tabs never remounts the canvas or re-runs the
+            engine. */}
         <section
-          className={`${tab === 'build' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col order-1 lg:order-none lg:col-start-2 lg:row-start-1 lg:block lg:h-full lg:overflow-hidden`}
+          className={`${tab === 'build' || tab === 'sketch' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col order-1 lg:order-none lg:col-start-2 lg:row-start-1 lg:block lg:h-full lg:overflow-hidden`}
         >
           <CenterView />
         </section>

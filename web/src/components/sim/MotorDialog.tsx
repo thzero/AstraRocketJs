@@ -255,14 +255,14 @@ export function MotorDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="dialog-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
       <div
         ref={panelRef}
-        className="flex h-[720px] max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-slate-900 ring-1 ring-white/10"
+        className="dialog-panel flex h-[720px] max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-slate-900 ring-1 ring-white/10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-2 border-b border-white/10 p-3">

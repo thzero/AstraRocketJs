@@ -238,7 +238,7 @@
     "type_modified_kit": "Kit modificado",
     "type_kit_bash": "Combinación de kits"
   },
-  "tabs": { "rocket": "Cohete", "motor": "Motor", "simulate": "Simular" },
+  "tabs": { "rocket": "Cohete", "sketch": "Croquis", "motor": "Motor", "simulate": "Simular" },
   "view": {
     "2d": "2D",
     "3d": "3D",
@@ -404,6 +404,8 @@
       "gpx": "Traza GPX",
       "waypoints-csv": "CSV de puntos"
     },
+    "presets": "Ajustes rápidos",
+    "presetsNote": "Cada uno configura a la vez los puntos de paso, las líneas y la colocación: un punto de partida que luego puedes ajustar.",
     "waypoints": "Puntos de referencia",
     "wp": {
       "pad": "Plataforma",
@@ -419,10 +421,23 @@
     "includeFlightPath": "Incluir línea de trayectoria",
     "includeGroundTrack": "Incluir traza en el suelo",
     "stride": "Conservar cada N.º punto",
+    "placement": "Colocación",
+    "trackAltitude": "Altitud de la traza desde",
+    "waypointAltitude": "Altitud de los puntos desde",
+    "altitudeReferenceNote": "Automático usa el nivel del mar cuando el campo de vuelo tiene una altitud real definida, y el suelo cuando sigue en 0. Pegado apoya la traza sobre el terreno: la opción adecuada cuando lo que importa es por encima de qué deriva el cohete.",
+    "drawShadow": "Dibujar la sombra hasta el suelo",
+    "shadowNote": "Añade una cortina bajo la traza y una plomada bajo cada marcador, para leer dónde se sitúa en el mapa un punto que está en el aire. No hay nada que dibujar si ya está pegado al suelo.",
+    "preset": { "driftCast": "Deriva", "driftCastNote": "Todo apoyado en el terreno, solo la traza sobre el suelo: para leer los peligros bajo la deriva.", "flightPath": "Trayectoria", "flightPathNote": "El vuelo suspendido en el aire donde le corresponde, con sombras hasta el suelo.", "landing": "Aterrizajes", "landingNote": "Solo el punto de aterrizaje, sobre el suelo." },
+    "altRef": { "automatic": "Automático", "ground": "El suelo", "sealevel": "El nivel del mar" , "clamped": "Pegado al suelo" },
+    "stageTrackStart": "La traza de cada etapa empieza",
+    "trackStart": { "separation": "En la separación", "pad": "En la rampa" },
+    "showWaypointLabels": "Dibujar los nombres de los puntos en el mapa",
+    "colorWaypointPins": "Colorear los marcadores por etapa",
+    "pinsNote": "Los marcadores de color cargan un icono desde los servidores de Google; desactívalos para un archivo que deba verse sin conexión.",
     "units": "Unidades",
     "altitude": "Altitud",
     "distance": "Distancia",
-    "noPosition": "La latitud y longitud de lanzamiento son ambas cero, por lo que la traza exportada caerá en (0, 0) frente a la costa de África. Establece una latitud y longitud de lanzamiento para obtener una traza significativa.",
+    "noPosition": "La latitud y la longitud de lanzamiento son ambas cero, así que la traza exportada se coloca en el Centro Espacial Kennedy. Defínelas en el panel de lanzamiento para situarla donde vuelas de verdad. Tu diseño no cambia en ninguno de los dos casos.",
     "download": "Descargar",
     "cancel": "Cancelar"
   },

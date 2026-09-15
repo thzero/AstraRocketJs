@@ -67,10 +67,10 @@ export function RocketConfigDialog({ open, onClose }: { open: boolean; onClose: 
     'min-w-0 flex-1 rounded-md bg-slate-800 px-2 py-1.5 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500';
 
   return (
-    <div className="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4" onClick={onClose}>
+    <div className="dialog-overlay fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4" onClick={onClose}>
       <div
         ref={panelRef}
-        className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl bg-slate-900 ring-1 ring-white/10"
+        className="dialog-panel flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl bg-slate-900 ring-1 ring-white/10"
         role="dialog"
         aria-modal="true"
         aria-label={t('config.title')}

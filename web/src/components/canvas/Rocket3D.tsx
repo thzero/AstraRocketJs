@@ -992,6 +992,13 @@ export function Rocket3D({
         </button>
       </div>
       <Canvas
+        // Measure the LAYOUT box, not the painted one. On a portrait phone the
+        // Sketch pane is turned a quarter turn, and r3f's default measurement
+        // (getBoundingClientRect) reports a rotated element's axis-aligned
+        // screen box — so a 658x325 host came back as 325x658 and the camera was
+        // framed at aspect 0.49 instead of 2.02, drawing the rocket four times
+        // too big and clipped. offsetWidth/offsetHeight ignore transforms.
+        resize={{ offsetSize: true }}
         style={{ flex: '1 1 0%', minHeight: 0 }}
         camera={{ position: [center, 0, camDist * 1.05], fov: 40 }}
         // Snapshot export reads the drawing buffer after the frame — without
