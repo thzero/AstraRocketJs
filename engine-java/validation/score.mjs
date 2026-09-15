@@ -35,7 +35,7 @@ class OrkRocket {
   static buildTree(tree) { return new OrkRocket(engine.buildRocket(JSON.stringify(tree))); }
   setSupersonicAero(on) { engine.setSupersonicAero(this.#h, on); }
   staticInfo() { return JSON.parse(engine.getStaticInfo(this.#h)); }
-  dragSweep(opts) { return JSON.parse(engine.getDragSweep(this.#h, JSON.stringify(opts))); }
+  aeroSweep(opts) { return JSON.parse(engine.getAeroSweep(this.#h, JSON.stringify(opts))); }
 }
 
 const anchors = JSON.parse(readFileSync(join(here, 'anchors.json'), 'utf8'));
@@ -68,7 +68,7 @@ for (const [name, spec] of Object.entries(anchors)) {
   const rocket = OrkRocket.buildTree(tree);
   if (supersonic) rocket.setSupersonicAero(true);
   const info = rocket.staticInfo();
-  const sweep = rocket.dragSweep({
+  const sweep = rocket.aeroSweep({
     machMin: 0.05, machMax: spec.maxMach ?? 10, machStep: 0.025,
     aoaDeg: spec.aoaDeg ?? 0, machAlt: spec.machAlt,
   });

@@ -9,11 +9,16 @@ import { lerpAt } from '../../services/interpolate';
 import type { ComponentMass, AeroSweep } from '../../engine/openRocketEngine';
 
 /**
- * Drag analysis (RASAero-style "Aero Plots", mmrocket-style): three Mach-swept
- * charts off the static design — Cd vs Mach (power-off, + power-on when a nozzle
- * exit is set), a drag breakdown (by type friction/pressure/base, or by
- * component), and CP vs Mach (cm or % body length). A shared hover crosshair and
- * legend readout tie all three to one Mach. No flight needed — it's `aeroSweep`.
+ * Aerodynamic analysis (RASAero-style "Aero Plots", mmrocket-style). Two panes
+ * off the static design, no flight needed — it is all one `aeroSweep`.
+ *
+ * **Charts**: Cd vs Mach (power-off, + power-on when a nozzle exit is set), the
+ * drag breakdown into friction/pressure/base, and CP vs Mach (cm or % body
+ * length). A shared hover crosshair and legend readout tie all three to one Mach.
+ *
+ * **Per component**: that same Mach, tabulated per part — drag, stability
+ * contribution (CN-alpha, CP, mass) and roll dynamics — the three tabs of the
+ * desktop's Component Analysis dialog.
  *
  * Colors use the dataviz skill's validated dark categorical order; every chart
  * ≥ 2 series carries a legend (identity is never color-alone).

@@ -10,7 +10,7 @@ The fix is to move engine work to a **Web Worker** so the main thread stays resp
 
 ## Relevant current architecture
 
-- `web/src/engine/openRocketEngine.ts` — the typed wrapper. `initEngine()` loads the WASM-GC backend (JS fallback); `eng()` returns the active engine module; the `OpenRocketDesign` class holds an integer **rocket handle** and exposes **synchronous** methods: `staticInfo()`, `simulate()`, `getDragSweep()`, `getComponentInfo()`.
+- `web/src/engine/openRocketEngine.ts` — the typed wrapper. `initEngine()` loads the WASM-GC backend (JS fallback); `eng()` returns the active engine module; the `OpenRocketDesign` class holds an integer **rocket handle** and exposes **synchronous** methods: `staticInfo()`, `simulate()`, `getAeroSweep()`, `getComponentInfo()`.
 - `web/src/engine/api.ts` — `buildRocketTree(tree, motor, mountId)` → an `OpenRocketDesign`; `specToTree`, `C6`.
 - `web/src/state/store.ts` — holds the live `rocket` handle; `runSim` calls `rocket.simulate(simConditions(launch, prefs))`.
 - `web/src/state/useWorkspaceEffects.ts` — the **rebuild effect**: on any tree/motor edit, calls `buildRocketTree(...)` + `staticInfo()` **synchronously** and pushes CG/CP/stability into the store. This runs on *every keystroke* and is fast (~4 ms).
@@ -18,14 +18,14 @@ The fix is to move engine work to a **Web Worker** so the main thread stays resp
 Key properties that shape the design:
 
 - The engine is **stateful and handle-based** — `buildRocket(json)` returns an int handle kept in an in-engine registry; every other call passes that handle.
-- `simulate()` / `staticInfo()` / `getDragSweep()` already return **`JSON.parse`'d plain objects** → they are structured-cloneable and cross `postMessage` for free.
+- `simulate()` / `staticInfo()` / `getAeroSweep()` already return **`JSON.parse`'d plain objects** → they are structured-cloneable and cross `postMessage` for free.
 - Aero flags (`setSupersonicAero` / `setRogersModifiedBarrowman`) are **not** called from web code today; sims run on defaults.
 
 ---
 
 ## Option A — whole engine in the worker
 
-The engine lives **only** in the worker. The main thread holds a thin **async proxy**: every engine call (`staticInfo`, `dragSweep`, `componentInfo`, `simulate`) becomes a `postMessage` round-trip returning a `Promise`.
+The engine lives **only** in the worker. The main thread holds a thin **async proxy**: every engine call (`staticInfo`, `aeroSweep`, `componentInfo`, `simulate`) becomes a `postMessage` round-trip returning a `Promise`.
 
 ```
 Main thread                         Worker
@@ -41,7 +41,7 @@ async proxy  ── build(tree) ──▶     engine (WASM/JS), handle registry
 - One source of truth for engine state.
 
 **Cons**
-- **Large ripple:** every synchronous consumer becomes async — the rebuild effect, `InfoOverlay`, `DragAnalysis`, `getComponentInfo`, selection panels.
+- **Large ripple:** every synchronous consumer becomes async — the rebuild effect, `InfoOverlay`, `AeroAnalysis`, `getComponentInfo`, selection panels.
 - `staticInfo`-on-every-keystroke becomes an async round-trip, so the rebuild path needs debounce + out-of-order (last-write-wins) handling to keep live CG/CP feeling instant.
 - Higher risk; bigger diff; harder to verify incrementally.
 
@@ -51,12 +51,12 @@ async proxy  ── build(tree) ──▶     engine (WASM/JS), handle registry
 
 ## Option B — dedicated sim worker (recommended first step)
 
-Keep the synchronous main-thread engine for **interactive** work (live CG/CP on every edit, drag analysis). Add a **second** engine instance in a worker that does **only** the heavy flight sim.
+Keep the synchronous main-thread engine for **interactive** work (live CG/CP on every edit, aerodynamic analysis). Add a **second** engine instance in a worker that does **only** the heavy flight sim.
 
 ```
 Main thread                              Sim worker
 -----------                              ----------
-engine (WASM)  ← staticInfo/dragSweep     engine (WASM/JS)
+engine (WASM)  ← staticInfo/aeroSweep     engine (WASM/JS)
    (sync, unchanged)                      on {tree,motor,mountId,options}:
 simClient  ── simulate(payload) ──▶         buildRocketTree → simulate → post result
 ```
@@ -72,7 +72,7 @@ simClient  ── simulate(payload) ──▶         buildRocketTree → simula
 
 **Cons**
 - **Two engine instances** (main + worker): ~2× compile + a few MB memory. The `.wasm`/`.mjs` fetch is browser-cached, so it's one network download.
-- Only the sim is off-thread; `dragSweep` etc. still block (briefly) on main.
+- Only the sim is off-thread; `aeroSweep` etc. still block (briefly) on main.
 
 **Backend in the worker:** aim for **WASM-in-worker** (needs the `loadWasmRuntime` worker branch). Guaranteed fallback: **JS-in-worker** — the JS `.mjs` dynamic-imports fine in a module worker; the sim runs a little slower there but it's *off-thread*, so the UI is smooth either way.
 
@@ -101,13 +101,13 @@ The one forward-compat decision made in B: the worker protocol is a **generic me
 ### Phase 1 — B: sim off-thread *(solves the jank)* — ✅ DONE
 - `engine/simWorker.ts` + `engine/simClient.ts` + `engine/simProtocol.ts` (generic RPC transport); shared `services/buildRocket.ts` so the worker builds the identical rocket the main thread does.
 - `runSim` → `async`, routes through the worker (worker builds + simulates per call — stateless, `resetEngine()` between runs).
-- Main thread keeps its engine for `staticInfo` / `dragSweep` / `componentInfo`.
+- Main thread keeps its engine for `staticInfo` / `aeroSweep` / `componentInfo`.
 - Worker loads WASM by `fetch`ing the runtime text and importing it via a Blob URL (no `document`/`<script>` and no eval in a worker; Vite also blocks `import()` of `/public` files, and blob URLs sidestep that wall). `vite.config` needs `worker.format: 'es'` for the code-split worker bundle.
 - **Verified:** e2e green (incl. a new "UI stays responsive" test — max main-thread stall dropped ~480 ms → ~30 ms); prod build + preview sim OK.
 
-### Phase 2 — bridge: worker gains state + `dragSweep`
+### Phase 2 — bridge: worker gains state + `aeroSweep`
 - Add a **persistent handle registry** in the worker: an edit posts `build(tree,motor,mountId) → handle`; subsequent ops reuse it instead of rebuilding per call.
-- Move `getDragSweep` (the Aero view) into the worker — next-heaviest op, and on-demand, so making it async is easy and low-risk.
+- Move `getAeroSweep` (the Aero view) into the worker — next-heaviest op, and on-demand, so making it async is easy and low-risk.
 - Main thread still owns `staticInfo` for the live-edit path.
 
 ### Phase 3 — A: main thread becomes a pure async proxy
@@ -124,7 +124,7 @@ The one forward-compat decision made in B: the worker protocol is a **generic me
 | `loadWasmRuntime` worker branch | ✅ | — |
 | Worker warming | ✅ | — |
 | Worker handle registry | (Phase 2) | persistent state |
-| Async consumers | — | rebuild effect, DragAnalysis, InfoOverlay, … |
+| Async consumers | — | rebuild effect, AeroAnalysis, InfoOverlay, … |
 | Drop 2nd engine instance | — | ✅ |
 
 The async-consumer refactor is A's real cost and is **inherent to A regardless** of whether B came first — B neither adds to it nor blocks it. B just builds all the transport A needs.

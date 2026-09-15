@@ -91,7 +91,7 @@ node validation/score.mjs > validation/scorecard.md
     M10 (geometry approximated pending nose-bluntness support)
 - `anchors.json` — machine-readable anchor tables (units/conventions in its
   `_readme`; `gate: false` series are informational)
-- `score.mjs` — builds each fixture, runs `dragSweep` (which emits CD
+- `score.mjs` — builds each fixture, runs `aeroSweep` (which emits CD
   power-off/on + CP + CNα per Mach), interpolates at anchor Machs, grades
 - `baseline-classic-2026-08-04.md` — the classic Extended Barrowman scorecard
   (flag off, regenerated whenever the harness changes): **7/135 gate points**
