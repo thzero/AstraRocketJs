@@ -3,6 +3,7 @@ import type { ComponentNode, RocketTree, StaticInfo } from '../engine/openRocket
 import type { ReportModel } from './reportModel';
 import { rocketSideView, finPlanformMm, profileMm, type Pt } from './reportGeometry';
 import { num } from '../tree/nodeProps';
+import { isPlanarFinSet } from '../tree/tubefins';
 import { fmtNum } from '../i18n/format';
 import { siToUi, type Quantity, type UnitSelection } from '../prefs/units';
 
@@ -43,24 +44,92 @@ export interface ReportOptions {
 // which is truthy and so survives the `|| 'rocket'` fallback as a useless
 // filename.
 const safe = (name: string) => safeFilename(name, 'rocket');
-const hexToRgb = (hex: string): [number, number, number] => {
+/** Exported for test: a malformed colour silently becomes near-black otherwise. */
+export const hexToRgb = (hex: string): [number, number, number] => {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return [17, 24, 39];
   const n = parseInt(m[1]!, 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 };
 
-const finSetsOf = (stage: ComponentNode): ComponentNode[] => {
+/**
+ * Exported for test: this decides WHICH fin templates get printed at all.
+ *
+ * `isPlanarFinSet`, not `endsWith('finset')` — a tube fin has no planform to
+ * cut, and OpenRocket's FinSetPrintStrategy cannot reach one either
+ * (`instanceof FinSet`, and TubeFinSet extends Tube). The broad match handed
+ * finPlanformMm a tube and got back a fabricated 50 × 30 mm trapezoid, printed
+ * 1:1 and labelled with the tube fin set's own name and count.
+ */
+export const finSetsOf = (stage: ComponentNode): ComponentNode[] => {
   const out: ComponentNode[] = [];
   const walk = (nodes: ComponentNode[]) => {
     for (const n of nodes) {
-      if (String(n.type).endsWith('finset')) out.push(n);
+      if (isPlanarFinSet(String(n.type))) out.push(n);
       if (n.children) walk(n.children);
     }
   };
   walk(stage.children ?? []);
   return out;
 };
+
+/**
+ * The mm box every section lays out inside. Split out of downloadReportPdf so
+ * the arithmetic below it is reachable without driving jsPDF — none of it was,
+ * and a drift here prints a 1:1 template at the wrong size, which looks entirely
+ * plausible on paper and is only found after someone has cut to it.
+ */
+export interface PageFrame {
+  /** Page margin (mm), all four sides. */
+  margin: number;
+  /** Drawable width between the margins (mm). */
+  contentWidth: number;
+  /** y past which a block must break to a new page (mm). */
+  bottom: number;
+}
+
+export const PAGE_MARGIN_MM = 12;
+
+export function pageFrame(pageWidthMm: number, pageHeightMm: number): PageFrame {
+  const margin = PAGE_MARGIN_MM;
+  return { margin, contentWidth: pageWidthMm - 2 * margin, bottom: pageHeightMm - margin };
+}
+
+/** The side view's band height (mm) — it is fit-to-page, not 1:1. */
+export const SIDE_VIEW_BAND_MM = 34;
+
+/**
+ * Fit the rocket side view to the content width AND the band height, whichever
+ * binds first. `Math.max(h, 1)` keeps a zero-height silhouette (a design that is
+ * all zero radii) from yielding Infinity and a blank page.
+ */
+export function sideViewScale(svWidthMm: number, svHeightMm: number, frame: PageFrame): number {
+  return Math.min(frame.contentWidth / svWidthMm, SIDE_VIEW_BAND_MM / Math.max(svHeightMm, 1));
+}
+
+/** Centre the scaled side view across the content width; oy is its midline. */
+export function sideViewOrigin(
+  svWidthMm: number,
+  svHeightMm: number,
+  scale: number,
+  y: number,
+  frame: PageFrame,
+): { ox: number; oy: number } {
+  return {
+    ox: frame.margin + (frame.contentWidth - svWidthMm * scale) / 2,
+    oy: y + (svHeightMm * scale) / 2,
+  };
+}
+
+/**
+ * Does a 1:1 template fit the page? Templates are NEVER scaled down — a shrunk
+ * cutting template is worse than none — so one that does not fit is replaced by
+ * the `report.tooLarge` note telling the reader to pick a bigger paper or
+ * landscape.
+ */
+export function templateFits(widthMm: number, heightMm: number, frame: PageFrame): boolean {
+  return widthMm <= frame.contentWidth && heightMm <= frame.bottom - frame.margin;
+}
 
 export async function downloadReportPdf(
   model: ReportModel,
@@ -73,9 +142,7 @@ export async function downloadReportPdf(
   const doc = new jsPDF({ unit: 'mm', format: opts.paper, orientation: opts.orientation });
   const PW = doc.internal.pageSize.getWidth();
   const PH = doc.internal.pageSize.getHeight();
-  const M = 12;
-  const CW = PW - 2 * M;
-  const BOTTOM = PH - M;
+  const { margin: M, contentWidth: CW, bottom: BOTTOM } = pageFrame(PW, PH);
   let y = M;
   let started = false; // has anything been drawn (for page breaks between sections)
 
@@ -240,10 +307,12 @@ export async function downloadReportPdf(
     heading(t('report.title'));
     const sv = rocketSideView(tree);
     if (sv.body.length > 2) {
-      const scale = Math.min(CW / sv.w, 34 / Math.max(sv.h, 1));
+      const frame = pageFrame(PW, PH);
+      const scale = sideViewScale(sv.w, sv.h, frame);
       ensure(sv.h * scale + 6);
-      const oy = y + (sv.h * scale) / 2;
-      const ox = M + (CW - sv.w * scale) / 2;
+      // ensure() may have broken to a new page, so the origin is taken from the
+      // y that survived it, not the one the scale was computed against.
+      const { ox, oy } = sideViewOrigin(sv.w, sv.h, scale, y, frame);
       const line: [number, number, number] = [30, 30, 30];
       // +radius points up, and PDF y grows down, so y-scale is negated.
       for (const f of sv.fins) fillScaled(f, ox, oy, scale, -scale, [205, 205, 205], line);
@@ -405,7 +474,7 @@ export async function downloadReportPdf(
 
     const template = (label: string, pts: Pt[], w: number, h: number) => {
       sub(label, 9);
-      if (w > CW || h > BOTTOM - M) {
+      if (!templateFits(w, h, pageFrame(PW, PH))) {
         doc
           .setFont('helvetica', 'italic')
           .setFontSize(8)

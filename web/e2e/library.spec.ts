@@ -1,10 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
-
-const dismiss = (page: Page) =>
-  page
-    .getByRole('button', { name: 'I understand' })
-    .click({ timeout: 10_000 })
-    .catch(() => {});
+import { test, expect, type Page } from './base';
 
 const openLibrary = async (page: Page) => {
   await page.getByRole('button', { name: 'Menu' }).click();
@@ -40,7 +34,6 @@ test.describe('design library', () => {
     });
 
     await page.goto('/');
-    await dismiss(page);
 
     await openLibrary(page);
     const panel = page.getByRole('dialog', { name: 'My Rockets' });
@@ -57,7 +50,6 @@ test.describe('design library', () => {
 
   test('rename dialog stays open, and its backdrop does not close the library', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
 
     // Give the library something to list: Save As creates a named design.
     await page.getByRole('button', { name: 'Menu' }).click();
@@ -84,7 +76,6 @@ test.describe('design library', () => {
 
   test('asks before deleting a saved design', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
 
     await page.getByRole('button', { name: 'Menu' }).click();
     await page.getByRole('menuitem', { name: 'Save As…' }).click();

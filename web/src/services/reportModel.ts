@@ -3,7 +3,8 @@ import { useWorkspaceStore, selectActive } from '../state/store';
 import { buildConfiguredRocket } from './buildRocket';
 import { motorStats, type MotorStats } from './rocketReport';
 import { num } from '../tree/nodeProps';
-import { freeformPoints, freeformRootChord } from '../tree/position';
+import { isFinSet } from '../tree/tubefins';
+import { axialLength } from '../tree/position';
 import { defaultDesignName } from './appInfo';
 
 /** The full data model for the rocket report (SI). Pure data; the PDF formats it. */
@@ -195,9 +196,15 @@ export function finSetPositions(
   const out: FinSetPosition[] = [];
   const walk = (nodes: ComponentNode[]) => {
     for (const n of nodes) {
-      if (String(n.type).endsWith('finset') && typeof n.id === 'string') {
-        const ff = freeformPoints(n);
-        const root = n.type === 'freeformfinset' && ff.length ? freeformRootChord(ff) : num(n, 'rootChord', 0.05);
+      if (isFinSet(String(n.type)) && typeof n.id === 'string') {
+        // axialLength, not a per-type ternary here: it already dispatches
+        // freeform → root chord, trapezoid/elliptical → rootChord, everything
+        // else → length. That "everything else" is what tube fins need — they
+        // are marked like any other fin set (OpenRocket's FinMarkingGuide
+        // collects TubeFinSet beside FinSet) but their axial span is the TUBE'S
+        // length, and reading through rootChord gave every one of them a 50 mm
+        // root it does not have.
+        const root = axialLength(n);
         try {
           const topX = rocket.componentInfo(n.id).positionX;
           out.push({ name: (n.name as string) || 'Fin set', topX, bottomX: topX + root });

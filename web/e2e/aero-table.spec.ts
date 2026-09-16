@@ -1,10 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
-
-const dismiss = (page: Page) =>
-  page
-    .getByRole('button', { name: 'I understand' })
-    .click({ timeout: 10_000 })
-    .catch(() => {});
+import { test, expect, type Page } from './base';
 
 /** Rows of one table on the page: 0 is the drag breakdown, 1 the stability one. */
 const rows = (page: Page, table = 0) =>
@@ -25,7 +19,6 @@ const rows = (page: Page, table = 0) =>
 test.describe('aero component table', () => {
   test('adds up: the rows account for the whole rocket', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
     await page.getByRole('button', { name: 'Aero', exact: true }).click();
     await page.getByRole('button', { name: 'Per component', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Drag by component' })).toBeVisible();
@@ -52,7 +45,6 @@ test.describe('aero component table', () => {
 
   test('counts every instance of a multi-instance component', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
     await page.getByRole('button', { name: 'Aero', exact: true }).click();
     await page.getByRole('button', { name: 'Per component', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Drag by component' })).toBeVisible();
@@ -73,7 +65,6 @@ test.describe('aero component table', () => {
 
   test('the Mach slider drives the tables, and only lands on computed samples', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
     await page.getByRole('button', { name: 'Aero', exact: true }).click();
     await page.getByRole('button', { name: 'Per component', exact: true }).click();
 
@@ -108,7 +99,6 @@ test.describe('aero component table', () => {
 test.describe('aero stability table', () => {
   test('component CNa sums to the rocket, and CP is its weighted mean', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
     await page.getByRole('button', { name: 'Aero', exact: true }).click();
     await page.getByRole('button', { name: 'Per component', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Stability contribution' })).toBeVisible();
@@ -138,7 +128,6 @@ test.describe('aero stability table', () => {
 
 test('carries the mass breakdown beside the aero figures', async ({ page }) => {
   await page.goto('/');
-  await dismiss(page);
   await page.getByRole('button', { name: 'Aero', exact: true }).click();
   await page.getByRole('button', { name: 'Per component', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Stability contribution' })).toBeVisible();
@@ -162,7 +151,6 @@ test('carries the mass breakdown beside the aero figures', async ({ page }) => {
  */
 test('always shows roll dynamics, and fills it in once the fins are canted', async ({ page }) => {
   await page.goto('/');
-  await dismiss(page);
   await page.getByRole('button', { name: 'Aero', exact: true }).click();
   await page.getByRole('button', { name: 'Per component', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Stability contribution' })).toBeVisible();
@@ -198,7 +186,6 @@ test('always shows roll dynamics, and fills it in once the fins are canted', asy
  */
 test('shades the drag cells in proportion to the value', async ({ page }) => {
   await page.goto('/');
-  await dismiss(page);
   await page.getByRole('button', { name: 'Aero', exact: true }).click();
   await page.getByRole('button', { name: 'Per component', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Drag by component' })).toBeVisible();
@@ -238,7 +225,6 @@ test('shades the drag cells in proportion to the value', async ({ page }) => {
  */
 test('offers OpenRocket’s heat as an alternative shading', async ({ page }) => {
   await page.goto('/');
-  await dismiss(page);
   await page.getByRole('button', { name: 'Aero', exact: true }).click();
   await page.getByRole('button', { name: 'Per component', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Drag by component' })).toBeVisible();
@@ -282,7 +268,6 @@ test('offers OpenRocket’s heat as an alternative shading', async ({ page }) =>
  */
 test('the shading switch on the legend is the same preference as Settings', async ({ page }) => {
   await page.goto('/');
-  await dismiss(page);
   await page.getByRole('button', { name: 'Aero', exact: true }).click();
   await page.getByRole('button', { name: 'Per component', exact: true }).click();
 
@@ -314,7 +299,6 @@ test('the shading switch on the legend is the same preference as Settings', asyn
  */
 test('leaves a lone fin set unshaded in the roll table', async ({ page }) => {
   await page.goto('/');
-  await dismiss(page);
   await page.getByText(/Trapezoidal fin/).click();
   await page.getByLabel('Cant angle').fill('3');
   await page.getByLabel('Cant angle').blur();

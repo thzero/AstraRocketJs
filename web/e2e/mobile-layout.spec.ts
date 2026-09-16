@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './base';
 
 /**
  * The app shell is a fixed-height column: header, one scrolling pane, then the
@@ -12,17 +12,10 @@ import { test, expect, type Page } from '@playwright/test';
  * that did not wrap: the app header's action group and the 2D/3D/Aero toggle.
  */
 
-const dismiss = (page: Page) =>
-  page
-    .getByRole('button', { name: 'I understand' })
-    .click({ timeout: 10_000 })
-    .catch(() => {});
-
 for (const w of [320, 360, 390, 414, 600, 768]) {
   test(`no sideways scroll at ${w}px`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: 844 });
     await page.goto('/');
-    await dismiss(page);
     await expect(page.getByText('L/D', { exact: true })).toBeVisible();
     const m = await page.evaluate(() => ({
       sw: document.documentElement.scrollWidth,
@@ -44,7 +37,6 @@ for (const w of [320, 360, 390, 414, 600, 768]) {
 test('no sideways scroll in Spanish at 320px', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 844 });
   await page.goto('/');
-  await dismiss(page);
   await page.getByRole('combobox').first().selectOption('es');
   await expect(page.getByText('L/D', { exact: true })).toBeVisible();
   const m = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, w: window.innerWidth }));
@@ -76,7 +68,6 @@ test.describe('sketch tab', () => {
   test('turns the drawing a quarter turn on a portrait screen, and back in landscape', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
-    await dismiss(page);
     await expect(page.getByText('L/D', { exact: true })).toBeVisible();
 
     // Rocket tab shows the stats, not the drawing. The drawing stays MOUNTED
@@ -115,7 +106,6 @@ test.describe('sketch tab', () => {
   test('leaves the desktop workbench alone', async ({ page }) => {
     await page.setViewportSize({ width: 1500, height: 950 });
     await page.goto('/');
-    await dismiss(page);
     await expect(page.getByText('L/D', { exact: true })).toBeVisible();
     const desktop = await stage(page);
     console.log('desktop', JSON.stringify(desktop));
@@ -132,7 +122,6 @@ test('frames the 3D model correctly inside the quarter turn', async ({ page }) =
   // clipped. `resize={{ offsetSize: true }}` measures the layout box instead.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await dismiss(page);
   await expect(page.getByText('L/D', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Sketch/ }).click();
   await page.getByRole('button', { name: '3D', exact: true }).click();
@@ -163,7 +152,6 @@ test('frames the 3D model correctly inside the quarter turn', async ({ page }) =
 test('turns the Aero charts with the sketch, and leaves the flight views upright', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await dismiss(page);
   await expect(page.getByText('L/D', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Sketch/ }).click();
   await expect(page.locator('.sketch-rotate')).toHaveCount(1); // 2D
@@ -192,7 +180,6 @@ test.describe('dialogs on a phone', () => {
   test('fill the screen edge to edge', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
-    await dismiss(page);
 
     // Settings carries `h-[560px] max-h-[85vh] max-w-lg` of its own, so it also
     // proves the override beats the panel's utilities without !important.
@@ -211,7 +198,6 @@ test.describe('dialogs on a phone', () => {
   test('stay carded at the desktop breakpoint', async ({ page }) => {
     await page.setViewportSize({ width: 1500, height: 950 });
     await page.goto('/');
-    await dismiss(page);
     await page.getByRole('button', { name: /Menu/ }).click();
     await page.getByRole('menuitem', { name: 'Settings' }).click();
     const set = (await panel(page).boundingBox())!;
@@ -227,19 +213,24 @@ test.describe('dialogs on a phone', () => {
  * top of the already-full-screen report dialog, where full bleed would read as
  * that dialog being replaced rather than something opening over it.
  */
-test('leaves short prompts as centred cards on a phone', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
+test.describe('short prompts', () => {
+  // This one MEASURES the work-in-progress notice, so it is the one place that
+  // opts out of the fixture's default of having it already acknowledged.
+  test.use({ wip: 'shown' });
 
-  // The work-in-progress notice is up before anything is dismissed.
-  const wip = page.getByRole('button', { name: 'I understand' });
-  await expect(wip).toBeVisible();
-  const card = (await wip.locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]').boundingBox())!;
-  console.log('wip card', `${Math.round(card.width)}x${Math.round(card.height)} at y=${Math.round(card.y)}`);
-  expect(card.width).toBeLessThan(390); // inset from the edges
-  expect(card.height).toBeLessThan(844 / 2); // sized to its content, not the screen
-  expect(card.y).toBeGreaterThan(0); // centred, not pinned to the top
-  await expect(page.locator('.dialog-panel')).toHaveCount(0);
+  test('leaves short prompts as centred cards on a phone', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+
+    const wip = page.getByRole('button', { name: 'I understand' });
+    await expect(wip).toBeVisible();
+    const card = (await wip.locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]').boundingBox())!;
+    console.log('wip card', `${Math.round(card.width)}x${Math.round(card.height)} at y=${Math.round(card.y)}`);
+    expect(card.width).toBeLessThan(390); // inset from the edges
+    expect(card.height).toBeLessThan(844 / 2); // sized to its content, not the screen
+    expect(card.y).toBeGreaterThan(0); // centred, not pinned to the top
+    await expect(page.locator('.dialog-panel')).toHaveCount(0);
+  });
 });
 
 /**
@@ -250,7 +241,6 @@ test('leaves short prompts as centred cards on a phone', async ({ page }) => {
 test('a finished run lands on the Results tab', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await dismiss(page);
 
   const resultsTab = page.getByRole('button', { name: /Results/ });
   await expect(resultsTab).toHaveCount(0); // nothing to show before a run
@@ -289,7 +279,6 @@ test('a finished run lands on the Results tab', async ({ page }) => {
 test('the desktop workbench still offers all five views at once', async ({ page }) => {
   await page.setViewportSize({ width: 1500, height: 950 });
   await page.goto('/');
-  await dismiss(page);
   await page.getByRole('button', { name: /Run flight simulation/ }).click();
   await expect(page.getByRole('button', { name: 'Flight', exact: true })).toBeVisible({ timeout: 30_000 });
   // No tabs up here, so nothing to split the families across.
@@ -301,7 +290,6 @@ test('the desktop workbench still offers all five views at once', async ({ page 
 test('the Results tab leads with the run numbers, without starving the chart', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 }); // the smallest phone we target
   await page.goto('/');
-  await dismiss(page);
   await page.getByRole('button', { name: /Simulate/ }).click();
   await page.getByRole('button', { name: /Run flight simulation/ }).click();
   await expect(page.getByRole('button', { name: /Results/ })).toBeVisible({ timeout: 30_000 });
@@ -333,7 +321,6 @@ test('the Results tab leads with the run numbers, without starving the chart', a
 test('starting a new design does not strand you on an empty Results tab', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await dismiss(page);
   await page.getByRole('button', { name: /Simulate/ }).click();
   await page.getByRole('button', { name: /Run flight simulation/ }).click();
   const resultsTab = page.getByRole('button', { name: /Results/ });

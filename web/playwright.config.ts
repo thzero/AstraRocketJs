@@ -9,7 +9,16 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './e2e',
+  // Serial, everywhere. `fullyParallel: false` only serialises WITHIN a file —
+  // Playwright still spreads FILES across `workers`, which defaults to half the
+  // machine's cores. On a 32-core box that is 16 headless Chromiums, each
+  // software-rendering WebGL and loading the 2.9 MB WASM engine against this one
+  // dev server. Two runs at that default gave 45 and then 19 failures — every
+  // one a 30 s timeout or a click landing on the work-in-progress overlay, none
+  // a real defect. At one worker the same 90 specs pass in 3.6 min, FASTER than
+  // the 4.4 min the 16-way run took, so there is no throughput being traded away.
   fullyParallel: false,
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',

@@ -489,13 +489,24 @@ function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs: numbe
     [sweep, i],
   );
 
-  const num = (v: number | undefined, digits = 3) => (v == null ? '—' : fmtNum(v, digits));
+  // `number | null`: a null cell is the kernel saying this reading was not
+  // finite, which must read as an em dash and NOT as a fabricated 0 — a
+  // component that genuinely makes no drag reports 0 and means it. `v == null`
+  // already catches both; only the type was too narrow.
+  const num = (v: number | null | undefined, digits = 3) => (v == null ? '—' : fmtNum(v, digits));
   const cell = 'px-2 py-1 text-right tabular-nums';
   const head = 'px-2 py-1 text-right font-medium';
 
   return (
     <div className="rounded-lg bg-slate-950/40 p-2 ring-1 ring-white/10">
       <TableHead title={t('aero.dragByComponent')} mach={machs[i] ?? 0} />
+      {!!sweep.nonFinite && (
+        // The kernel met a reading it could not compute. Those cells come back
+        // null and print as an em dash, but a column SUM coerces null to 0 — so
+        // without this the breakdown would quietly stop adding up to the rocket
+        // totals above it, which is the whole failure this counter exists for.
+        <p className="px-2 pb-1 text-[11px] text-amber-400">{t('aero.nonFinite', { count: sweep.nonFinite })}</p>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full text-[11px] text-slate-300">
           <thead className="text-slate-500">

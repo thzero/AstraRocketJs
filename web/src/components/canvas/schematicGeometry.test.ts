@@ -119,3 +119,56 @@ describe('profilePath', () => {
     expect(d).not.toContain('NaN');
   });
 });
+
+/**
+ * Tube fins size themselves to the body they ring, so the frame has to measure
+ * them against THAT body — not the widest thing on the rocket.
+ */
+describe('computeSchematicLayout: tube fins on a narrow aft tube', () => {
+  // A 60 mm forward section stepping down to a 25 mm aft tube, tube fins on the
+  // aft tube carrying no explicit radius (so they auto-size to what they ring).
+  const stepped = {
+    components: [
+      node({
+        type: 'stage',
+        children: [
+          node({ type: 'nosecone', id: 'n', length: 0.1, aftRadius: 0.03 }),
+          node({ type: 'bodytube', id: 'fwd', length: 0.3, outerRadius: 0.03 }),
+          node({ type: 'transition', id: 'tr', length: 0.05, foreRadius: 0.03, aftRadius: 0.0125 }),
+          node({
+            type: 'bodytube',
+            id: 'aft',
+            length: 0.2,
+            outerRadius: 0.0125,
+            children: [node({ type: 'tubefinset', id: 'tf', finCount: 6, length: 0.08 })],
+          }),
+        ],
+      }),
+    ],
+  } as unknown as RocketTree;
+  const dims = { chPx: 480, cw: 900, maxHeight: 420 };
+
+  it('sizes them from the tube they ring, not the widest section forward of it', () => {
+    // 6 tubes just touching a 12.5 mm body: r = R·sin(π/6)/(1 − sin(π/6)) = R,
+    // so they reach 2R = 25 mm above the surface, and vHalf = 30 + 25 = 55 mm.
+    const out = computeSchematicLayout(stepped, null, dims);
+    expect(out.maxR).toBeCloseTo(0.03, 9);
+    expect(out.vHalf).toBeCloseTo(0.055, 9);
+  });
+
+  it('does not reserve the reach they would have had on the 60 mm section', () => {
+    // Measured against the whole rocket's 30 mm maxR the same set claimed
+    // 2 × 30 = 60 mm — 2.4× too much — and vHalf came out at 90 mm, shrinking
+    // every other part of the drawing to make room for nothing.
+    const out = computeSchematicLayout(stepped, null, dims);
+    expect(out.vHalf).toBeLessThan(0.09);
+  });
+
+  it('still honours an explicitly sized tube fin set', () => {
+    const explicit = JSON.parse(JSON.stringify(stepped)) as RocketTree;
+    const aft = explicit.components[0]!.children![3]!;
+    (aft.children![0] as Record<string, unknown>)['outerRadius'] = 0.008;
+    // Explicit 8 mm tubes reach 16 mm, wherever they are mounted.
+    expect(computeSchematicLayout(explicit, null, dims).vHalf).toBeCloseTo(0.03 + 0.016, 9);
+  });
+});

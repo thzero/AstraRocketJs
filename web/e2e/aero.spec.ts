@@ -1,10 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
-
-const dismiss = (page: Page) =>
-  page
-    .getByRole('button', { name: 'I understand' })
-    .click({ timeout: 10_000 })
-    .catch(() => {});
+import { test, expect, type Page } from './base';
 
 const xTicks = (page: Page) =>
   page.evaluate(() =>
@@ -21,7 +15,6 @@ const xTicks = (page: Page) =>
 test.describe('aero drag sweep', () => {
   test('defaults to M1 and labels its axis in fifths', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
     await page.getByRole('button', { name: 'Aero', exact: true }).click();
 
     // Charts, not the tables: the curves are what you come to Aero to see, and
@@ -43,7 +36,6 @@ test.describe('aero drag sweep', () => {
 
   test('keeps whole-number labels on the wider sweeps', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
     await page.getByRole('button', { name: 'Aero', exact: true }).click();
     await page.getByRole('button', { name: 'M3', exact: true }).click();
 

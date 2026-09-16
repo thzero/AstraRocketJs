@@ -853,6 +853,8 @@ public final class OpenRocketEngine {
         java.util.LinkedHashMap<String, double[]> byCompCna = new java.util.LinkedHashMap<>();
         java.util.LinkedHashMap<String, double[]> byCompCp = new java.util.LinkedHashMap<>();
 
+        int nonFinite = 0;
+
         for (int i = 0; i < n; i++) {
             double mach = machList.get(i);
 
@@ -920,28 +922,36 @@ public final class OpenRocketEngine {
                 // the desktop's "Per instance CD" and "Total CD" columns
                 // (CAParameterSweep). `cd` has to be the total or a breakdown
                 // does not add up: a 3-fin set contributed a third of its drag.
-                series(byComp, name, n)[i] += zeroIfNaN(f.getCDTotal());
-                series(byCompInstance, name, n)[i] += zeroIfNaN(f.getCD());
+                nonFinite += countNonFinite(f.getCDTotal(), f.getCD(), f.getFrictionCD(),
+                        f.getPressureCD(), f.getBaseCD(), f.getCrollForce(), f.getCrollDamp());
+                series(byComp, name, n)[i] += f.getCDTotal();
+                series(byCompInstance, name, n)[i] += f.getCD();
                 byCompCount.put(name, c.getInstanceCount());
                 byCompType.put(name, c.getClass().getSimpleName());
-                series(byCompFric, name, n)[i] += zeroIfNaN(f.getFrictionCD());
-                series(byCompPress, name, n)[i] += zeroIfNaN(f.getPressureCD());
-                series(byCompBase, name, n)[i] += zeroIfNaN(f.getBaseCD());
+                series(byCompFric, name, n)[i] += f.getFrictionCD();
+                series(byCompPress, name, n)[i] += f.getPressureCD();
+                series(byCompBase, name, n)[i] += f.getBaseCD();
                 // Roll forcing and damping: non-zero only for a canted fin set,
                 // which is exactly why they are worth showing -- it is the one
                 // way to tell a cant is doing what you meant it to.
-                series(byCompRollF, name, n)[i] += zeroIfNaN(f.getCrollForce());
-                series(byCompRollD, name, n)[i] += zeroIfNaN(f.getCrollDamp());
+                series(byCompRollF, name, n)[i] += f.getCrollForce();
+                series(byCompRollD, name, n)[i] += f.getCrollDamp();
                 // CP is a position, not a contribution: it is CNa-weighted, so
                 // summing instances means summing the moment and dividing back
                 // out. A component with no normal force has no CP to speak of.
                 CoordinateIF fcp = f.getCP();
-                double ccna = zeroIfNaN(fcp.getWeight());
+                nonFinite += countNonFinite(fcp.getWeight(), fcp.getX());
+                double ccna = fcp.getWeight();
                 series(byCompCna, name, n)[i] += ccna;
-                series(byCompCp, name, n)[i] += zeroIfNaN(fcp.getX()) * ccna;
+                series(byCompCp, name, n)[i] += fcp.getX() * ccna;
             }
         }
 
+        // Non-finite readings swallowed on the way in. Null in a series says
+        // "this cell is unusable", but a consumer summing a column coerces null
+        // back to 0 — so the count travels alongside, and the aero view can say
+        // the breakdown is incomplete rather than quietly disagreeing with the
+        // rocket totals.
         double[] machArr = new double[n];
         for (int i = 0; i < n; i++) {
             machArr[i] = machList.get(i);
@@ -950,6 +960,7 @@ public final class OpenRocketEngine {
         StringBuilder sb = new StringBuilder("{\"machs\":");
         nums(sb, machArr);
         sb.append(",\"hasNozzle\":").append(hasNozzle);
+        sb.append(",\"nonFinite\":").append(nonFinite);
         sb.append(",\"cp\":");
         nums(sb, cp);
         sb.append(",\"cna\":");
@@ -991,6 +1002,9 @@ public final class OpenRocketEngine {
             double[] cpRow = byCompCp.get(name);
             double[] cpOut = new double[n];
             for (int i = 0; i < n; i++) {
+                // A NaN weight takes this branch (NaN != 0) and divides out to
+                // NaN, which nums() writes as null — distinct from the genuine
+                // "no normal force, hence no CP" zero on the other side.
                 cpOut[i] = cnaRow[i] != 0 ? cpRow[i] / cnaRow[i] : 0;
             }
             nums(sb, cpOut);
@@ -1008,6 +1022,15 @@ public final class OpenRocketEngine {
             map.put(name, row);
         }
         return row;
+    }
+
+    /** How many of these are NaN or infinite — see getAeroSweep's `nonFinite`. */
+    private static int countNonFinite(double... vs) {
+        int k = 0;
+        for (double v : vs) {
+            if (Double.isNaN(v) || Double.isInfinite(v)) k++;
+        }
+        return k;
     }
 
     private static double zeroIfNaN(double v) {

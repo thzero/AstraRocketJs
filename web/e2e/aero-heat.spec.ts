@@ -1,10 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
-
-const dismiss = (page: Page) =>
-  page
-    .getByRole('button', { name: 'I understand' })
-    .click({ timeout: 10_000 })
-    .catch(() => {});
+import { test, expect, type Page } from './base';
 
 const openPerComponent = async (page: Page) => {
   await page.getByRole('button', { name: 'Aero', exact: true }).click();
@@ -42,7 +36,6 @@ const columnColours = (page: Page, table: number, header: string) =>
 test.describe('aero table shading', () => {
   test('Cd is shaded on the OpenRocket scale, CNalpha is not', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
     await openPerComponent(page);
 
     await page.getByRole('button', { name: 'By heat', exact: true }).click();
@@ -60,7 +53,6 @@ test.describe('aero table shading', () => {
 
   test('By magnitude shades CNalpha, and distinguishes its rows', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
     await openPerComponent(page);
 
     await page.getByRole('button', { name: 'By magnitude', exact: true }).click();

@@ -52,13 +52,52 @@ describe('clusterOffsets', () => {
     expect(out[1]!.y).toBeCloseTo(0.02);
   });
 
-  it('rotates the layout by clusterRotation', () => {
-    // double rotated 90° swings the pair onto the z axis
+  it('rotates the layout the way the kernel rotates it', () => {
+    // double rotated 90° swings the pair onto the z axis. The kernel applies
+    // R(−θ), so the point (−0.5, 0) goes to (0, +0.5) — +z, not −z. This test
+    // asserted −z, which is what let the app draw every rotated cluster mirrored
+    // against the arrangement the kernel was flying.
     const out = clusterOffsets('double', 0.01, 1, Math.PI / 2);
     expect(out[0]!.y).toBeCloseTo(0);
-    expect(out[0]!.z).toBeCloseTo(-0.01);
+    expect(out[0]!.z).toBeCloseTo(0.01);
     expect(out[1]!.y).toBeCloseTo(0);
-    expect(out[1]!.z).toBeCloseTo(0.01);
+    expect(out[1]!.z).toBeCloseTo(-0.01);
+  });
+
+  /**
+   * …and it stays that way. This transcribes ClusterConfiguration.getPoints
+   * (ClusterConfiguration.java:108-119) independently rather than re-running
+   * clusterOffsets, so a sign that drifts back fails for every pattern at once
+   * instead of only in whichever single case someone remembered to pin.
+   */
+  it('matches ClusterConfiguration.getPoints for every pattern and rotation', () => {
+    const kernelPoints = (pts: number[], rotation: number) => {
+      const cos = Math.cos(rotation);
+      const sin = Math.sin(rotation);
+      const out: { y: number; z: number }[] = [];
+      for (let i = 0; i < pts.length; i += 2) {
+        const x = pts[i]!;
+        const y = pts[i + 1]!;
+        out.push({ y: x * cos + y * sin, z: -x * sin + y * cos });
+      }
+      return out;
+    };
+
+    const r = 0.0095;
+    const scale = 1.3;
+    const separation = 2 * r * scale;
+    for (const [name, pts] of Object.entries(CLUSTER_POINTS)) {
+      for (const deg of [0, 30, 45, 90, 137, -60]) {
+        const rot = (deg * Math.PI) / 180;
+        const got = clusterOffsets(name, r, scale, rot);
+        const want = kernelPoints(pts, rot);
+        expect(got, `${name} @ ${deg}°`).toHaveLength(want.length);
+        want.forEach((w, i) => {
+          expect(got[i]!.y, `${name} @ ${deg}° [${i}].y`).toBeCloseTo(w.y * separation, 12);
+          expect(got[i]!.z, `${name} @ ${deg}° [${i}].z`).toBeCloseTo(w.z * separation, 12);
+        });
+      }
+    }
   });
 
   it('falls back to a single on-axis tube for an unknown pattern', () => {

@@ -1,13 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
-
-// The pre-1.0 "work in progress" modal overlays the canvas and swallows clicks;
-// dismiss it right after load (same helper as the other specs).
-async function dismissWip(page: Page) {
-  await page
-    .getByRole('button', { name: 'I understand' })
-    .click({ timeout: 10_000 })
-    .catch(() => {});
-}
+import { test, expect, type Page } from './base';
 
 /**
  * 2D TreeSchematic render + interaction, in a real browser (jsdom can't lay out
@@ -28,7 +19,6 @@ test.describe('2D schematic', () => {
 
   test('draws the default airframe with labeled components', async ({ page }) => {
     await page.goto('/');
-    await dismissWip(page);
 
     const svg = schematic(page);
     await expect(svg).toBeVisible();
@@ -46,7 +36,6 @@ test.describe('2D schematic', () => {
 
   test('zooming re-renders the schematic without losing the geometry', async ({ page }) => {
     await page.goto('/');
-    await dismissWip(page);
     const svg = schematic(page);
     await expect(svg).toBeVisible();
 

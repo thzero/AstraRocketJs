@@ -1,10 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
-
-const dismiss = (page: Page) =>
-  page
-    .getByRole('button', { name: 'I understand' })
-    .click({ timeout: 10_000 })
-    .catch(() => {});
+import { test, expect } from './base';
 
 /**
  * The Rocket-configuration dialog edits `name`, `designer`, `comments`,
@@ -18,7 +12,6 @@ const dismiss = (page: Page) =>
  */
 test('editing the design metadata keeps the flight results', async ({ page }) => {
   await page.goto('/');
-  await dismiss(page);
 
   await page.getByRole('button', { name: /Run flight simulation/ }).click();
   // The Flight view only exists once a result does.

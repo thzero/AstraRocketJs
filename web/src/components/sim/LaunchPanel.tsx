@@ -20,6 +20,7 @@ function Num({
   value,
   step = 1,
   min,
+  max,
   placeholder,
   onChange,
 }: {
@@ -28,6 +29,8 @@ function Num({
   value: number | null;
   step?: number;
   min?: number;
+  /** NumberInput clamps against this; without it a field is unbounded above. */
+  max?: number;
   placeholder?: string;
   onChange: (v: number | null) => void;
 }) {
@@ -41,6 +44,7 @@ function Num({
           onChange={onChange}
           step={step}
           min={min}
+          max={max}
           placeholder={placeholder}
           className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
         />
@@ -215,6 +219,11 @@ export function LaunchPanel({
           label={t('launch.latitude')}
           unit="°"
           step={1}
+          // Unbounded, these reached the kernel as launchLatitude (gravity and
+          // Coriolis) AND flightPathExport as the KML/GPX origin, where a
+          // latitude past ±90 is rejected outright by Google Earth.
+          min={-90}
+          max={90}
           value={launch.latitudeDeg}
           onChange={(v) => onChange({ latitudeDeg: v ?? 0 })}
         />
@@ -222,6 +231,8 @@ export function LaunchPanel({
           label={t('launch.longitude')}
           unit="°"
           step={1}
+          min={-180}
+          max={180}
           value={launch.longitudeDeg ?? null}
           onChange={(v) => onChange({ longitudeDeg: v ?? undefined })}
         />

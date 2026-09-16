@@ -34,7 +34,7 @@
     "e2e:ui": "playwright test --ui",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build:inc": "library-cli --updateversion --pi --silent",
+    "build:inc": "library-cli --updateversion --pi --silent && prettier --write --log-level warn package.json",
     "gen:icons": "node scripts/gen-icons.mjs",
     "sync:motors": "node scripts/sync-motors.mjs",
     "sync:components": "node scripts/sync-components.mjs",

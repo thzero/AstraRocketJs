@@ -648,6 +648,17 @@ export interface AeroSweep {
   /** Whether any stage sets a nozzle exit diameter (so power-on differs from power-off). */
   hasNozzle: boolean;
   /**
+   * How many non-finite readings the kernel met building the per-component
+   * breakdown below.
+   *
+   * Those cells come back `null` rather than 0 — a component that genuinely
+   * generates no normal force also reads 0, so a swallowed NaN used to be
+   * indistinguishable from it, and the breakdown quietly stopped adding up to
+   * the rocket totals. Any count above zero means the table is incomplete and
+   * should say so. Optional: a kernel built before this omits it.
+   */
+  nonFinite?: number;
+  /**
    * CP location per Mach (m from the nose tip), at the sweep's angle of attack.
    * Power state doesn't move CP, so one curve serves both. Feeds the
    * validation harness and CP-vs-Mach plotting.
@@ -685,9 +696,9 @@ export interface AeroSweep {
      * desktop's "Total CD". This is the one that sums to the rocket's drag; a
      * 3-fin set contributes three fins' worth.
      */
-    cd: number[];
+    cd: (number | null)[];
     /** Drag for ONE instance — the desktop's "Per instance CD". */
-    cdInstance?: number[];
+    cdInstance?: (number | null)[];
     /** How many of this component there are (3 for a 3-fin set). */
     instances?: number;
     /**
@@ -697,19 +708,19 @@ export interface AeroSweep {
      */
     type?: string;
     /** Skin-friction share of `cd`. */
-    friction?: number[];
+    friction?: (number | null)[];
     /** Pressure (form) share of `cd`. */
-    pressure?: number[];
+    pressure?: (number | null)[];
     /** Base-drag share of `cd`. */
-    base?: number[];
+    base?: (number | null)[];
     /** This component's contribution to the rocket's normal-force slope. */
-    cna?: number[];
+    cna?: (number | null)[];
     /** This component's own centre of pressure (m from the nose tip). */
-    cp?: number[];
+    cp?: (number | null)[];
     /** Roll forcing coefficient — non-zero only for a canted fin set. */
-    rollForce?: number[];
+    rollForce?: (number | null)[];
     /** Roll damping coefficient. */
-    rollDamp?: number[];
+    rollDamp?: (number | null)[];
   }[];
 }
 

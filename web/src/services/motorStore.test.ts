@@ -117,3 +117,75 @@ describe('custom motors report refused writes', () => {
     await expect(store.removeCustomMotor('m1')).rejects.toThrow(/storage-full/);
   });
 });
+
+/**
+ * Custom motors are the one store whose payload reaches `simulate()` without a
+ * second gate, so what `isCustomMotor` lets through is what the kernel gets.
+ */
+describe('isCustomMotor rejects what would reach the kernel broken', () => {
+  const good = () => ({
+    id: 'custom:Test:A1',
+    designation: 'A1',
+    manufacturer: 'Test',
+    class: 'A',
+    diameter: 18,
+    length: 70,
+    totalWeightG: 24,
+    propWeightG: 12,
+    samples: [
+      { time: 0, thrust: 0 },
+      { time: 1, thrust: 10 },
+    ],
+    source: 'eng',
+  });
+
+  const survives = async (motor: unknown) => {
+    const fresh = new FakeKv();
+    await fresh.set('astrarrocketjs:motors:custom', JSON.stringify([motor]));
+    return (await new KeyValueMotorStore(fresh).listCustomMotors()).length;
+  };
+
+  it('keeps a well-formed motor', async () => {
+    expect(await survives(good())).toBe(1);
+  });
+
+  it('drops a sample that is not a {time, thrust} pair', async () => {
+    // `samples: [{}]` became `times: [undefined]` and NaN masses in the kernel.
+    expect(await survives({ ...good(), samples: [{}] })).toBe(0);
+    expect(await survives({ ...good(), samples: [null] })).toBe(0);
+    expect(await survives({ ...good(), samples: [[0, 1]] })).toBe(0);
+  });
+
+  it('drops a sample whose time or thrust is null', async () => {
+    // Written as NaN/Infinity by whatever produced the blob; JSON.stringify
+    // turns both into null on the way to storage, so null is what the store
+    // actually reads back. `typeof null === 'object'`, so the OLD per-field
+    // checks would have caught these — what did not catch them is that the old
+    // isCustomMotor never looked inside `samples` at all.
+    expect(await survives({ ...good(), samples: [{ time: 0, thrust: null }] })).toBe(0);
+    expect(await survives({ ...good(), samples: [{ time: null, thrust: 1 }] })).toBe(0);
+    expect(await survives({ ...good(), samples: [{ time: 0 }] })).toBe(0);
+  });
+
+  it('drops a row with no class — motorDb sorts on it and would throw', async () => {
+    const { class: _drop, ...noClass } = good();
+    expect(await survives(noClass)).toBe(0);
+  });
+
+  it('drops a row with no manufacturer', async () => {
+    const { manufacturer: _drop, ...noMfr } = good();
+    expect(await survives(noMfr)).toBe(0);
+  });
+
+  it('drops a dimension or weight that is absent, null or not a number', async () => {
+    // NOT tested with NaN: JSON.stringify writes it as null, so a NaN can never
+    // be read back out of the store — the same reason engineBoundary.test.ts
+    // records that Infinity cannot reach the kernel. These three CAN arrive.
+    for (const k of ['diameter', 'length', 'totalWeightG', 'propWeightG'] as const) {
+      expect(await survives({ ...good(), [k]: null }), `${k}=null`).toBe(0);
+      expect(await survives({ ...good(), [k]: '18' }), `${k}="18"`).toBe(0);
+      const { [k]: _drop, ...missing } = good();
+      expect(await survives(missing), `${k} absent`).toBe(0);
+    }
+  });
+});

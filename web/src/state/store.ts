@@ -270,8 +270,26 @@ function uniqueSimName(sims: Simulation[], label: (n: number) => string, start: 
  * up on a Results tab with no result and an empty view switch, which is exactly
  * what opening a new design from that tab used to do.
  */
-/** Monotonic id for the most recent openDesign request — see that action. */
-let openToken = 0;
+/**
+ * One monotonic counter for "which workspace is open".
+ *
+ * It began as openDesign's own token, which defended that action against
+ * ANOTHER openDesign and nothing else. Every other way of replacing the
+ * workspace went unguarded: import a large .ork then a small one and the small
+ * one lands first, the large one overwriting it; open a library design and then
+ * import, and the import's `setActiveId(null)` lands before openDesign's
+ * continuation, which then flushes the imported rocket out under a null id
+ * (a stray entry) and hydrates the library design over the top of it.
+ *
+ * So every action that REPLACES the workspace bumps it, and every continuation
+ * past an await re-checks before it touches the store.
+ */
+let workspaceGen = 0;
+/** Claim the workspace; the returned predicate says whether someone else has. */
+const claimWorkspace = (): (() => boolean) => {
+  const mine = ++workspaceGen;
+  return () => mine !== workspaceGen;
+};
 
 function showing(tab: Tab, view: ViewMode): { view: ViewMode; tab: Tab } {
   const owns = tab === 'sketch' || tab === 'results';
@@ -613,12 +631,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     resetView: () => set((s) => ({ roll: 0, resetKey: s.resetKey + 1 })),
 
     openOrkFile: async (file) => {
+      // Three awaits before anything is written, and the file input has no busy
+      // gate — so a second import (or a library open) can land in between.
+      const stale = claimWorkspace();
       try {
         // The .ork parser (fflate + XML importer) is a lazily-imported chunk —
         // it isn't part of first paint, only of opening a file.
         const bytes = await file.arrayBuffer();
+        if (stale()) return;
         const { loadOrk } = await import('../services/loadOrk');
         const res = await loadOrk(bytes);
+        if (stale()) return;
         const { tree, extraMotors, sim0, loadedMeta } = wireLoadedOrk(res, loadSettings().launchDefaults);
         clearHistory(); // a loaded design is a fresh document — nothing to undo across the load
         // An imported rocket becomes its OWN library entry rather than
@@ -637,6 +660,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           activeDesignId: null,
         });
       } catch (e) {
+        if (stale()) return; // a superseded import must not post its error either
         set({ err: `Could not open .ork: ${e instanceof Error ? e.message : String(e)}` });
       }
     },
@@ -652,8 +676,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // id — and finished with setActive(A) + hydrate(A). The user clicked B
       // last and was looking at A. A monotonic token makes every continuation
       // check it is still the most recent request before it touches anything.
-      const token = ++openToken;
-      const stale = () => token !== openToken;
+      const stale = claimWorkspace();
 
       const lib = getDesignLibrary();
       const w = await lib.read(id);
@@ -681,8 +704,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // thing standing between the user and data loss — it is the explicit
       // "commit it now" they expect from a Save menu item, and it also names
       // a design that has never been saved (New / freshly imported).
-      if (!get().activeDesignId) return false;
+      //
+      // Ask the LIBRARY, not the cached `activeDesignId`. That field is written
+      // only by refreshDesigns(), which nothing calls on boot — it fires from
+      // the File menu and the library dialog — so on a fresh load it is null
+      // while the first autosave has already created a real entry
+      // (workspaceStore.ts:150-157 calls lib.create when it has no active id).
+      // Reading the stale null sent File→Save to Save As, whose create() made a
+      // SECOND entry with the same rocket, leaving every autosave so far in the
+      // orphan the user never named.
+      const stale = claimWorkspace();
+      if (!(await getDesignLibrary().activeId())) return false;
+      if (stale()) return false;
       await flushActive();
+      if (stale()) return false; // the design moved on; this write is not its save
       await get().refreshDesigns();
       return true;
     },
@@ -693,13 +728,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // back a fabricated meta for a design that was never stored. AppHeader
       // fires this with `void`, so surface it here or it becomes an unhandled
       // rejection and the user sees a Save As that appeared to work.
+      // `s` is snapshotted NOW; if the workspace is replaced while create() is
+      // in flight, pointing the library at the new entry would leave the user
+      // looking at one design with another one active.
+      const stale = claimWorkspace();
       let meta;
       try {
         meta = await getDesignLibrary().create(name.trim() || i18n.t('library.untitled'), snapshotOf(s));
       } catch {
+        if (stale()) return;
         get().setStorageWarning(i18n.t('storage.full'), 'full');
         return;
       }
+      if (stale()) return;
       getWorkspaceStore().setActiveId?.(meta.id);
       await get().refreshDesigns();
     },
@@ -711,10 +752,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     deleteDesign: async (id) => {
       const lib = getDesignLibrary();
+      const wasActive = get().activeDesignId === id;
       await lib.remove(id);
       // Deleting the open design leaves nothing to autosave into; start fresh so
       // the next edit creates a new library entry rather than resurrecting it.
-      if (get().activeDesignId === id) {
+      // Read BEFORE the await: opening another design during remove() would
+      // otherwise leave activeDesignId pointing at the new one and skip the
+      // reset — or, worse, reset the design the user had just switched to.
+      if (wasActive && get().activeDesignId === id) {
         getWorkspaceStore().setActiveId?.(null);
         get().resetWorkspace();
       }
@@ -722,6 +767,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     resetWorkspace: () => {
+      claimWorkspace(); // New: any import or library open still in flight is void
       const s0 = newSimulation('Simulation 1', C6, loadSettings().launchDefaults);
       clearHistory(); // starting a new design drops the previous design's undo stack
       // Detach from the open library entry, or the first autosave would write

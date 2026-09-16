@@ -7,8 +7,11 @@ datasets. Provenance, tolerances, and every caveat live in
 
 ## Run it
 
+Needs nothing built. `score.mjs` imports the committed engine directly
+(`web/src/engine/vendor/openrocket-engine.mjs`) and installs its own stdout
+sinks, so node alone is enough — no JDK, no workspace build.
+
 ```
-npm run build -w @online-openrocket/engine   # harness imports packages/engine/dist
 node validation/score.mjs                    # classic Extended Barrowman (flag off)
 node validation/score.mjs --supersonic       # the opt-in supersonic aero model
 node validation/score.mjs --strict           # exit 1 unless every gate point passes
@@ -26,14 +29,19 @@ base CD ≈ 0.09 at M1.19 vs the ±0.02 tolerance). Phase-1..4 scorecards below
 are historical (scored against the 137-gate anchors); the current state under
 revised anchors is `scorecard-audit-2026-08-04.md`.
 
+**The committed `.md` scorecards are 2026-08-04 snapshots and have not been
+regenerated since; the engine has moved under them.** The two live rows below
+are re-measured (2026-09-16) — run the commands above to check them yourself.
+`patches/LEDGER.md` records the same figures where they changed.
+
 | Model | Gate points | Scorecard |
 |---|---|---|
-| Classic Extended Barrowman | **7/135 (5.2%)** | `baseline-classic-2026-08-04.md` (regenerated post-revision) |
+| Classic Extended Barrowman | **9/135 (6.7%)** — file says 7/135 | `baseline-classic-2026-08-04.md` (stale) |
 | + Phase 1 (supersonic CP/CNα) | 52/137 historical | `scorecard-phase1-2026-08-04.md` |
 | + Phase 2 (drag fidelity) | 68/137 historical | `scorecard-phase2-2026-08-04.md` |
 | + Phase 3 (fin airfoil sections) | 65/137 historical | `scorecard-phase3-2026-08-04.md` |
 | + Phase 4 (hypersonic corrections) | 65/137 historical | `scorecard-phase4-2026-08-04.md` |
-| Current (Phase 4, revised anchors) | **64/135 (47.4%)** | `scorecard-audit-2026-08-04.md` |
+| Current (Phase 4, revised anchors) | **61/135 (45.2%)** — file says 64/135 | `scorecard-audit-2026-08-04.md` (stale) |
 
 Phase 4 (Van Driest II friction above M4; cone wave-drag coefficient fading
 2.1 → Cp_max(M) over M4–8) moved no gates but cut HB-2's high-Mach CA0 excess

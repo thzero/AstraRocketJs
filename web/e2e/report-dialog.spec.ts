@@ -1,13 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
-
-// The pre-1.0 "work in progress" modal shows on a fresh context and its overlay
-// swallows clicks, so every test dismisses it right after loading.
-async function dismissWip(page: Page) {
-  await page
-    .getByRole('button', { name: 'I understand' })
-    .click({ timeout: 10_000 })
-    .catch(() => {});
-}
+import { readFile } from 'node:fs/promises';
+import { test, expect } from './base';
 
 /**
  * The Rocket Design Report dialog. A MULTI-STAGE design is the whole point of
@@ -17,6 +9,11 @@ async function dismissWip(page: Page) {
  * assemble effect used to depend on them — so it assembled, rebuilt, re-ran,
  * assembled… until React tore the entire app down with "Maximum update depth
  * exceeded" and the dialog never appeared at all.
+ *
+ * The PDF test below is the only thing in the suite that EXECUTES
+ * services/reportPdf.ts. All 447 lines of it ran at zero coverage: the unit
+ * tests cannot reach it (ExportDialog pulls it in through a lazy `await
+ * import`), and this spec only ever checked that the button was enabled.
  */
 test.describe('Rocket Design Report dialog', () => {
   test('opens on a multi-stage design without an update loop', async ({ page }) => {
@@ -24,7 +21,6 @@ test.describe('Rocket Design Report dialog', () => {
     page.on('pageerror', (e) => errors.push(e.message));
 
     await page.goto('/');
-    await dismissWip(page);
     // "L/D" is the unique fineness-tile unit — its presence means the engine ran.
     await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
 
@@ -52,9 +48,39 @@ test.describe('Rocket Design Report dialog', () => {
     expect(errors).toEqual([]);
   });
 
+  test('Save as PDF writes a real PDF, not an empty or truncated one', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+
+    await page.goto('/');
+    await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+
+    await page
+      .getByRole('button', { name: /menu|☰/i })
+      .first()
+      .click();
+    await page.getByRole('menuitem', { name: /Rocket Design Report/i }).click();
+    await expect(page.getByRole('dialog').first()).toBeVisible();
+
+    const wait = page.waitForEvent('download');
+    await page.getByRole('button', { name: /Save as PDF/i }).click();
+    const dl = await wait;
+
+    expect(dl.suggestedFilename()).toMatch(/.pdf$/);
+    const bytes = await readFile((await dl.path())!);
+    // A WHOLE PDF: the header, and the trailer that says the cross-reference
+    // table was written. A truncated stream is invisible until someone opens it.
+    expect(bytes.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+    expect(bytes.subarray(-1024).toString('latin1')).toContain('%%EOF');
+    // Every section is on by default, so this draws the side view, the summary
+    // grid, a parts table and a template page — about 40 kB. Well under that
+    // means sections fell out silently.
+    expect(bytes.length).toBeGreaterThan(20_000);
+    expect(errors).toEqual([]);
+  });
+
   test('the report can be pinned to a unit system, and the choice is remembered', async ({ page }) => {
     await page.goto('/');
-    await dismissWip(page);
     await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
 
     await page
@@ -73,7 +99,6 @@ test.describe('Rocket Design Report dialog', () => {
 
     // It is remembered across a reload, like the other report output options.
     await page.reload();
-    await dismissWip(page);
     await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
     await page
       .getByRole('button', { name: /menu|☰/i })

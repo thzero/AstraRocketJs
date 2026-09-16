@@ -1,6 +1,6 @@
 import type { MotorSpec } from '../engine/openRocketEngine';
 import type { CatalogMotor } from './motorDb';
-import { getMotorStore } from './motorStore';
+import { getMotorStore, isThrustSampleArray } from './motorStore';
 
 /**
  * thrustcurve.org API v1 client (CORS-enabled; verified reflective
@@ -212,10 +212,9 @@ function metaKey(cat: CatalogMotor): string {
 // reports each entry's staleness (its TTL/freshness policy), and we re-fetch
 // only for a motor the user picks AGAIN once its entry has aged out. Falling
 // back to the stale value keeps a failed refresh (offline / API down) working.
-const isSampleArray = (v: unknown): boolean =>
-  Array.isArray(v) &&
-  v.length > 0 &&
-  v.every((s) => typeof (s as TcSample)?.time === 'number' && typeof (s as TcSample)?.thrust === 'number');
+// One definition, in motorStore.ts beside the store that persists these. This
+// copy accepted NaN and Infinity, which `typeof === 'number'` lets through.
+const isSampleArray = isThrustSampleArray;
 
 const isSpec = (v: unknown): boolean => {
   const s = v as MotorSpec;

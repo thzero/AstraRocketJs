@@ -170,3 +170,41 @@ describe('multiStageSummaries', () => {
     expect(restored).toEqual([whole]);
   });
 });
+
+/**
+ * Tube fins in the fin-position table.
+ *
+ * They belong here — OpenRocket's FinMarkingGuide collects TubeFinSet right
+ * beside FinSet, and where a tube sits along the airframe is exactly as useful
+ * to mark. What is NOT theirs is a root chord: the span is the tube's length.
+ */
+describe('finSetPositions — tube fins', () => {
+  const rocket = { componentInfo: () => ({ positionX: 0.42 }) };
+  const withTubes = (over: Record<string, unknown> = {}) =>
+    node({
+      type: 'stage',
+      children: [
+        node({
+          type: 'bodytube',
+          id: 'b',
+          children: [node({ type: 'tubefinset', id: 'tf', name: 'Tube fins', length: 0.08, ...over })],
+        }),
+      ],
+    });
+
+  it('spans a tube fin by its LENGTH, not a rootChord it does not have', () => {
+    const sets = finSetPositions(withTubes(), rocket);
+    expect(sets).toHaveLength(1);
+    expect(sets[0]!.name).toBe('Tube fins');
+    expect(sets[0]!.topX).toBeCloseTo(0.42, 9);
+    expect(sets[0]!.bottomX).toBeCloseTo(0.5, 9); // 0.42 + 0.08 length
+    // Reading through `rootChord` gave every tube fin set the 0.05 m default.
+    expect(sets[0]!.bottomX).not.toBeCloseTo(0.47, 6);
+  });
+
+  it('ignores a rootChord even when one is present on the node', () => {
+    // An imported .ork could carry a stray attribute; the tube's length wins.
+    const sets = finSetPositions(withTubes({ rootChord: 0.2 }), rocket);
+    expect(sets[0]!.bottomX).toBeCloseTo(0.5, 9);
+  });
+});

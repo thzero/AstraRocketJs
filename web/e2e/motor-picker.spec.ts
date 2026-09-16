@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './base';
 
 /**
  * Motor-picker behavioral suite. Every flow here runs against the default
@@ -19,15 +19,6 @@ import { test, expect, type Page } from '@playwright/test';
  * diameters.
  */
 
-// Fresh Playwright contexts start with empty storage, so the pre-1.0 "work in
-// progress" modal blocks the UI on every test until acknowledged.
-async function dismissWip(page: Page) {
-  await page
-    .getByRole('button', { name: 'I understand' })
-    .click({ timeout: 10_000 })
-    .catch(() => {});
-}
-
 async function openPicker(page: Page) {
   await page
     .getByRole('button', { name: /change/i })
@@ -40,7 +31,6 @@ async function openPicker(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
-  await dismissWip(page);
 });
 
 test('opens with the seated motor already selected', async ({ page }) => {
@@ -110,7 +100,6 @@ test('diameter range defaults to the mount fit and persists across reloads', asy
   await expect(maxThumb).toHaveValue('3');
 
   await page.reload();
-  await dismissWip(page);
   dialog = await openPicker(page);
   await expect(dialog.getByLabel('Diameter max')).toHaveValue('3');
 });
@@ -129,7 +118,6 @@ test('the manufacturer selection persists across reloads', async ({ page }) => {
   await expect(summary).toHaveText(name);
 
   await page.reload();
-  await dismissWip(page);
   dialog = await openPicker(page);
   await expect(dialog.locator('summary')).toHaveText(name);
 });
@@ -153,7 +141,6 @@ test('the motor card exposes an ignition event that persists across reloads', as
   // The setting rides on the simulation, so the workspace autosave restores it.
   await page.waitForTimeout(700);
   await page.reload();
-  await dismissWip(page);
   await expect(page.getByLabel('Ignition', { exact: true })).toHaveValue('launch');
 });
 

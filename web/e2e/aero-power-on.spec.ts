@@ -1,10 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
-
-const dismiss = (page: Page) =>
-  page
-    .getByRole('button', { name: 'I understand' })
-    .click({ timeout: 10_000 })
-    .catch(() => {});
+import { test, expect, type Page } from './base';
 
 const openAero = async (page: Page) => {
   await page.getByRole('button', { name: 'Aero', exact: true }).click();
@@ -50,7 +44,6 @@ const importOrk = async (page: Page, fixture: string) => {
 test.describe('power-on drag curve', () => {
   test('appears for an .ork with a stage nozzle exit diameter, and names its motor', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
     await importOrk(page, 'e2e/fixtures/nozzle.ork');
     await openAero(page);
 
@@ -64,7 +57,6 @@ test.describe('power-on drag curve', () => {
 
   test('is absent for the same design without the nozzle element', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
     // two-stage.ork is byte-identical to nozzle.ork but for the one element, so
     // this pins that the curve tracks the nozzle and nothing else about the file.
     await importOrk(page, 'e2e/fixtures/two-stage.ork');

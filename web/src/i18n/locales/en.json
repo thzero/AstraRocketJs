@@ -502,6 +502,8 @@
     "charts": "Charts",
     "machPicker": "Mach number for the tables",
     "dragByComponent": "Drag by component",
+    "nonFinite_one": "This breakdown is incomplete: {{count}} reading could not be computed.",
+    "nonFinite_other": "This breakdown is incomplete: {{count}} readings could not be computed.",
     "aoa": "AoA",
     "windDirection": "Wind dir",
     "rollRate": "Roll rate",

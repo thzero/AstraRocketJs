@@ -7,6 +7,7 @@ import { resolveUnitChoice, UNIT_CHOICES, type UnitChoice } from '../../prefs/un
 import { useFocusTrap } from '../common/useFocusTrap';
 import { DEFAULT_REPORT } from '../../services/settings';
 import { assembleReport, type ReportModel } from '../../services/reportModel';
+import { isPlanarFinSet } from '../../tree/tubefins';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 
 interface StageSel {
@@ -125,7 +126,10 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
           include: true,
           parts: true,
           finTemplates: true,
-          hasFins: hasType(st.children ?? [], (ty) => ty.endsWith('finset')),
+          // isPlanarFinSet: this gates the FIN TEMPLATES checkbox, and tube
+          // fins produce no template, so a stage finned only with tubes must
+          // not offer one.
+          hasFins: hasType(st.children ?? [], isPlanarFinSet),
           label: (st.name as string) || m.partsByStage[i]?.stage || `Stage ${i + 1}`,
         })),
       });

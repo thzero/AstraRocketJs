@@ -502,6 +502,8 @@
     "charts": "Gráficas",
     "machPicker": "Número de Mach para las tablas",
     "dragByComponent": "Resistencia por componente",
+    "nonFinite_one": "Este desglose está incompleto: no se pudo calcular {{count}} valor.",
+    "nonFinite_other": "Este desglose está incompleto: no se pudieron calcular {{count}} valores.",
     "aoa": "AoA",
     "windDirection": "Dir. viento",
     "rollRate": "Vel. alabeo",

@@ -1,17 +1,10 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './base';
 
 /**
  * Motor Dashboard — the standalone motor reference: a sortable grid + detail
  * pane, plus the multi-select Compare (overlay) and Combine (cluster) tools.
  * Opens from the header ☰ menu. All data is bundled → fully offline.
  */
-
-async function dismissWip(page: Page) {
-  await page
-    .getByRole('button', { name: 'I understand' })
-    .click({ timeout: 10_000 })
-    .catch(() => {});
-}
 
 async function openDashboard(page: Page) {
   await page.getByRole('button', { name: 'Menu' }).click();
@@ -23,7 +16,6 @@ async function openDashboard(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
-  await dismissWip(page);
 });
 
 test('opens from the menu and shows a motor detail on row selection', async ({ page }) => {
@@ -69,7 +61,6 @@ test('column chooser adds columns and remembers them across a reload', async ({ 
 
   // The choice is remembered across a reload (persisted to localStorage).
   await page.reload();
-  await dismissWip(page);
   dialog = await openDashboard(page);
   await expect(dialog.getByRole('button', { name: /Peak/ })).toBeVisible();
   await expect(dialog.getByRole('button', { name: /Type/ })).toBeVisible();

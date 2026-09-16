@@ -1,10 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
-
-const dismiss = (page: Page) =>
-  page
-    .getByRole('button', { name: 'I understand' })
-    .click({ timeout: 10_000 })
-    .catch(() => {});
+import { test, expect, type Page } from './base';
 
 const rows = (page: Page, table = 0) =>
   page.evaluate(
@@ -27,7 +21,6 @@ const rows = (page: Page, table = 0) =>
  */
 test('two parts sharing a name are two rows, not one merged one', async ({ page }) => {
   await page.goto('/');
-  await dismiss(page);
 
   // Both parts renamed to the SAME string. It has to be an exact collision:
   // renaming one to the other's DISPLAYED label is not enough, because an

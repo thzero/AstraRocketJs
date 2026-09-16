@@ -1,10 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
-
-const dismiss = (page: Page) =>
-  page
-    .getByRole('button', { name: 'I understand' })
-    .click({ timeout: 10_000 })
-    .catch(() => {});
+import { test, expect } from './base';
 
 /**
  * Keyboard and screen-reader reachability.
@@ -16,7 +10,6 @@ const dismiss = (page: Page) =>
 test.describe('accessibility', () => {
   test('the export dialog closes on Escape and names its close button', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
 
     await page.getByRole('button', { name: 'Menu' }).click();
     await page.getByRole('menuitem', { name: /Rocket Design Report/i }).click();
@@ -33,7 +26,6 @@ test.describe('accessibility', () => {
 
   test('the settings tabs are a real tablist, not colour alone', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
 
     await page.getByRole('button', { name: 'Menu' }).click();
     await page.getByRole('menuitem', { name: /Settings/i }).click();
@@ -47,7 +39,6 @@ test.describe('accessibility', () => {
 
   test('unit chips in the stats strip have distinct accessible names', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
 
     // Four of these are the LENGTH quantity (length, max diameter, CG, CP) and
     // two are MASS. Named by quantity alone all six announced identically;
@@ -66,7 +57,6 @@ test.describe('accessibility', () => {
 
   test('no two unit chips on one screen announce the same name', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
 
     // The whole workbench at once: the stats strip, the property panel and the
     // launch panel each mint unit chips, and they used to collide ACROSS panels
@@ -92,7 +82,6 @@ test.describe('accessibility', () => {
    */
   test('a modal keeps Tab inside it and hands focus back on close', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
 
     await page.getByRole('button', { name: 'Menu' }).click();
     const trigger = page.getByRole('menuitem', { name: /About/ });
@@ -114,7 +103,6 @@ test.describe('accessibility', () => {
 
   test('the import and export .ork menu items are told apart', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
     await page.getByRole('button', { name: 'Menu' }).click();
 
     // Both submenus can be open at once, and both entries used to read

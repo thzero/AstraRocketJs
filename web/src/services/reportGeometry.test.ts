@@ -334,3 +334,73 @@ describe('rocketSideView: fins on a transition', () => {
     expect(rootY).toBeCloseTo(10, 6);
   });
 });
+
+/**
+ * Tube fins in the whole-rocket side view.
+ *
+ * `addFins` had no tube-fin branch, so a `<tubefinset>` fell into the generic
+ * `else` and was drawn as a swept fin built from the rootChord/height defaults
+ * — a fin the rocket does not have, on the design report's own silhouette.
+ * A tube fin is a TUBE: 2·rt tall, standing on the body, running its own length.
+ */
+describe('rocketSideView: tube fins draw as tubes', () => {
+  const tubeRocket = (over: Record<string, unknown> = {}) =>
+    ({
+      components: [
+        node({ type: 'nosecone', id: 'n', length: 0.1, aftRadius: 0.012 }),
+        node({
+          type: 'bodytube',
+          id: 'b',
+          length: 0.4,
+          outerRadius: 0.012,
+          children: [
+            node({
+              type: 'tubefinset',
+              id: 'tf',
+              finCount: 6,
+              length: 0.08,
+              outerRadius: 0.01,
+              position: { method: 'bottom', offset: 0 },
+              ...over,
+            }),
+          ],
+        }),
+      ],
+    }) as unknown as RocketTree;
+
+  it('spans the tube diameter above the body, not an invented fin height', () => {
+    const sv = rocketSideView(tubeRocket());
+    expect(sv.fins).toHaveLength(2); // the shape and its mirror
+
+    const top = sv.fins[0]!;
+    const ys = top.map(([, y]) => y);
+    // Body radius 12 mm, tube radius 10 mm: the silhouette runs 12 → 32 mm.
+    expect(Math.min(...ys)).toBeCloseTo(12, 6);
+    expect(Math.max(...ys)).toBeCloseTo(32, 6);
+    // The old default-built fin reached 12 + 30 = 42 mm and was never flat-topped.
+    expect(Math.max(...ys)).not.toBeCloseTo(42, 3);
+  });
+
+  it('runs the tube’s own length, not a 50 mm root chord', () => {
+    const top = rocketSideView(tubeRocket()).fins[0]!;
+    const xs = top.map(([x]) => x);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(80, 6); // length 0.08 m
+  });
+
+  it('is a rectangle — four corners, two of them flat on the body', () => {
+    const top = rocketSideView(tubeRocket()).fins[0]!;
+    expect(top).toHaveLength(4);
+    expect(top.filter(([, y]) => Math.abs(y - 12) < 1e-6)).toHaveLength(2); // seated on the airframe
+  });
+
+  it('auto-sizes the tube when the set carries no radius, and counts it in the height', () => {
+    // No outerRadius: the kernel's touching rule, r = R·sin(π/N)/(1 − sin(π/N)).
+    const sv = rocketSideView(tubeRocket({ outerRadius: undefined }));
+    const s = Math.sin(Math.PI / 6);
+    const rt = (0.012 * s) / (1 - s);
+    const top = Math.max(...sv.fins[0]!.map(([, y]) => y));
+    expect(top).toBeCloseTo((0.012 + 2 * rt) * 1000, 6);
+    // ...and the drawing is tall enough to contain it.
+    expect(sv.h / 2).toBeGreaterThanOrEqual(top - 1e-6);
+  });
+});

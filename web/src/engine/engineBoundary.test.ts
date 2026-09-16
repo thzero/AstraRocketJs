@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { __setEngineForTests, OpenRocketDesign, type MotorSpec, type RocketTree } from './openRocketEngine';
 
 /**
@@ -15,6 +15,18 @@ import { __setEngineForTests, OpenRocketDesign, type MotorSpec, type RocketTree 
  * Loading the vendored module directly (rather than through `initEngine`, which
  * wants a browser) keeps this a plain node test.
  */
+/**
+ * The only file in the suite that runs REAL physics, so the only one the 5 s
+ * default does not fit. `beforeAll` loads the 2.9 MB TeaVM bundle, and the
+ * "accepts a well-formed motor" case flies a whole trajectory through it: about
+ * 1 s on an idle machine, but 5.5-11.7 s under `--coverage` with the suite's
+ * other 82 files running beside it — measured, three runs out of three.
+ *
+ * Scoped to this file on purpose. A global bump would slacken 854 tests that
+ * have no business taking seconds, and hide the thing a timeout is for.
+ */
+vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
+
 type Engine = typeof import('./vendor/openrocket-engine.mjs');
 let engine: Engine;
 
@@ -173,5 +185,43 @@ describe('the 7-argument simulate() overload', () => {
     const raw = engine.simulate(h, 1, 0, Number.NaN, 0, 0, 0.05);
     const parsed = JSON.parse(raw) as { error?: string };
     expect(parsed.error).toMatch(/finite/i);
+  });
+});
+
+/**
+ * Non-finite aero is reported, not rewritten as a plausible number.
+ *
+ * `getAeroSweep` ran every per-component CD, CNα and CP through `zeroIfNaN`
+ * before accumulating, so a component whose reading went NaN contributed 0 —
+ * and 0 is a LEGITIMATE answer here: a part that makes no normal force reads 0
+ * and means it. The swallowed NaN was indistinguishable from it, so the
+ * breakdown silently stopped summing to the rocket totals beside it.
+ */
+describe('the aero sweep does not fabricate zeros', () => {
+  it('counts the non-finite readings it met, and a healthy sweep meets none', () => {
+    const sweep = build().aeroSweep({ machMin: 0.1, machMax: 0.4, machStep: 0.1 }) as unknown as {
+      nonFinite?: number;
+      components: { cd: (number | null)[] }[];
+    };
+    // The field exists (an older kernel omits it) and this design is clean.
+    expect(sweep.nonFinite).toBe(0);
+    expect(sweep.components.length).toBeGreaterThan(0);
+  });
+
+  it('emits every per-component cell as a finite number for a sane design', () => {
+    const sweep = build().aeroSweep({ machMin: 0.1, machMax: 0.4, machStep: 0.1 });
+    for (const c of sweep.components) {
+      for (const v of c.cd) {
+        // Not `toBeCloseTo(0)`: the point is that a real reading arrives as a
+        // number. A null here would mean the kernel could not compute it.
+        expect(Number.isFinite(v), `${c.name} cd`).toBe(true);
+      }
+    }
+  });
+
+  it('sums the component CDs back to the rocket total — the invariant a swallowed NaN broke', () => {
+    const sweep = build().aeroSweep({ machMin: 0.2, machMax: 0.2, machStep: 0.1 });
+    const parts = sweep.components.reduce((a, c) => a + (c.cd[0] ?? 0), 0);
+    expect(parts).toBeCloseTo(sweep.powerOff.total[0]!, 6);
   });
 });

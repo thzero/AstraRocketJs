@@ -1,11 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { test, expect, type Page } from '@playwright/test';
-
-const dismiss = (page: Page) =>
-  page
-    .getByRole('button', { name: 'I understand' })
-    .click({ timeout: 10_000 })
-    .catch(() => {});
+import { test, expect } from './base';
 
 /**
  * The 2D/3D image export.
@@ -23,14 +17,12 @@ const dismiss = (page: Page) =>
 test.describe('image export', () => {
   test('the 2D view offers SVG and image export', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
     await expect(page.getByRole('button', { name: /SVG/ })).toBeVisible();
     await expect(page.getByRole('button', { name: /Image/ })).toBeVisible();
   });
 
   test('downloads a true-scale SVG of the schematic', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
 
     const wait = page.waitForEvent('download');
     await page.getByRole('button', { name: /SVG/ }).click();
@@ -48,7 +40,6 @@ test.describe('image export', () => {
 
   test('the 3D view offers a snapshot once it is open', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
     await page.getByRole('button', { name: '3D', exact: true }).click();
     await expect(page.getByRole('button', { name: /Image/ })).toBeVisible({ timeout: 20_000 });
   });

@@ -71,9 +71,25 @@ export function clusterCount(cluster: string | undefined): number {
 }
 
 /**
- * Physical tube-center offsets (m) in the cross-section plane, rotation
- * applied — matches InnerTube.getClusterPoints (radialDirection is not
- * modeled app-side).
+ * Physical tube-center offsets (m) in the cross-section plane, rotation applied.
+ *
+ * The rotation is ClusterConfiguration.getPoints(rotation) verbatim
+ * (ClusterConfiguration.java:108-119):
+ *
+ *     ret.add( x * cos + y * sin);
+ *     ret.add(-x * sin + y * cos);
+ *
+ * — R(−θ). This used to compute `x·cos − y·sin` / `x·sin + y·cos`, which is
+ * R(+θ), so every drawn cluster was turned 2θ the wrong way: a 3-ring clocked
+ * 30° on 19 mm tubes put its first tube at (−5.48, −9.50) mm where the kernel
+ * flies it at (−10.97, 0). The physics never saw it — the kernel keeps its own
+ * copy — but the 2D schematic, the 3D model and the aft view all disagreed with
+ * what was being flown, and `cluster.test.ts` pinned the wrong sign.
+ *
+ * Two things InnerTube.getClusterPoints (InnerTube.java:263-273) also does and
+ * this does NOT: it rotates by `clusterRotation − radialDirection`, and it adds
+ * the `radialPosition` offset. Neither is drawn app-side, so a cluster that is
+ * also radially offset still draws on the axis.
  */
 export function clusterOffsets(
   cluster: string | undefined,
@@ -87,11 +103,13 @@ export function clusterOffsets(
   const sin = Math.sin(clusterRotation);
   const out: { y: number; z: number }[] = [];
   for (let i = 0; i < pts.length; i += 2) {
-    const x = pts[i]!;
-    const y = pts[i + 1]!;
+    // px/py, not x/y: `y: (x * cos - y * sin)` reads as a self-reference, which
+    // is how the sign error hid here in the first place.
+    const px = pts[i]!;
+    const py = pts[i + 1]!;
     out.push({
-      y: (x * cos - y * sin) * separation,
-      z: (x * sin + y * cos) * separation,
+      y: (px * cos + py * sin) * separation,
+      z: (-px * sin + py * cos) * separation,
     });
   }
   return out;

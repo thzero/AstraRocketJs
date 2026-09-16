@@ -1,5 +1,6 @@
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import { num, numOpt } from '../tree/nodeProps';
+import { isFinSet, tubeFinRadius } from '../tree/tubefins';
 import { freeformPoints, freeformRootChord } from '../tree/position';
 import { outerProfile } from '../tree/shapeProfile';
 import { finTabFront, axialStart } from '../components/canvas/schematicGeometry';
@@ -123,7 +124,23 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
     const start = axialStart(node, root, pStart, pLen);
     const R = radiusAt(start - pStart);
     let plan: Pt[];
-    if (node.type === 'trapezoidfinset') {
+    let topR = R + height;
+    if (node.type === 'tubefinset') {
+      // A tube fin IS a tube: in side view a rectangle 2·rt tall standing on the
+      // body surface and running the tube's own length — never the trapezoid
+      // branches below, whose rootChord/height defaults would invent a fin.
+      // Same silhouette the 2D schematic draws (schematicShapes.tsx).
+      const rt = tubeFinRadius(node, R);
+      const len = num(node, 'length', 0.08);
+      const s = axialStart(node, len, pStart, pLen);
+      topR = R + 2 * rt;
+      plan = [
+        [s, R],
+        [s, topR],
+        [s + len, topR],
+        [s + len, R],
+      ];
+    } else if (node.type === 'trapezoidfinset') {
       const tip = num(node, 'tipChord', 0.03),
         sweep = num(node, 'sweep', 0.02);
       plan = [
@@ -153,7 +170,7 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
     }
     fins.push(plan.map(([px, py]) => [px * M_TO_MM, py * M_TO_MM]));
     fins.push(plan.map(([px, py]) => [px * M_TO_MM, -py * M_TO_MM])); // mirror below
-    maxUp = Math.max(maxUp, R + height);
+    maxUp = Math.max(maxUp, topR);
   };
 
   const revolveTop = (node: ComponentNode, foreR: number, aftR: number, shapeDefault: string, len: number) => {
@@ -180,13 +197,13 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
       const R = num(n, 'aftRadius', 0.012);
       revolveTop(n, 0, R, 'ogive', len);
       const noseR = radiusSampler(n, 0, R, len, 'ogive');
-      for (const c of n.children ?? []) if (String(c.type).endsWith('finset')) addFins(c, x, len, noseR);
+      for (const c of n.children ?? []) if (isFinSet(String(c.type))) addFins(c, x, len, noseR);
       x += len;
     } else if (n.type === 'bodytube') {
       const R = num(n, 'outerRadius', 0.012);
       topEdge.push([x * M_TO_MM, R * M_TO_MM], [(x + len) * M_TO_MM, R * M_TO_MM]);
       maxR = Math.max(maxR, R);
-      for (const c of n.children ?? []) if (String(c.type).endsWith('finset')) addFins(c, x, len, () => R);
+      for (const c of n.children ?? []) if (isFinSet(String(c.type))) addFins(c, x, len, () => R);
       x += len;
     } else if (n.type === 'transition') {
       const aftR = num(n, 'aftRadius', 0.009);
@@ -196,7 +213,7 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
       // never looked. A boat-tail-mounted fin set was silently absent from the
       // PDF's whole-rocket side view: a finless rocket, with no warning.
       const transR = radiusSampler(n, num(n, 'foreRadius', 0.012), aftR, len, 'conical');
-      for (const c of n.children ?? []) if (String(c.type).endsWith('finset')) addFins(c, x, len, transR);
+      for (const c of n.children ?? []) if (isFinSet(String(c.type))) addFins(c, x, len, transR);
       x += len;
     }
   }

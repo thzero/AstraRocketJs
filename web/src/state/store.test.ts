@@ -11,6 +11,7 @@ vi.mock('../engine/simClient', async (orig) => ({
 import { useWorkspaceStore, selectActive, hasThrustCurve, selectRunFailed } from './store';
 import { C6 } from '../engine/api';
 import { setDesignLibrary } from '../services/designLibrary';
+import { getWorkspaceStore } from '../services/workspaceStore';
 import { findMounts, findNode } from '../services/treeEdit';
 import type { FlightResult } from '../engine/openRocketEngine';
 import type { SimPrefs } from '../services/simulations';
@@ -487,5 +488,136 @@ describe('openDesign is race-safe', () => {
     // setActive behind it.
     expect((s().tree as unknown as { name: string }).name).toBe('B');
     expect(active).toEqual(['B']);
+  });
+});
+
+/**
+ * One workspace generation, bumped by everything that replaces the workspace.
+ *
+ * `openToken` guarded openDesign against another openDesign and nothing else,
+ * so every other pairing raced: two imports, an import against a library open,
+ * a Save As against either.
+ */
+describe('replacing the workspace is race-safe across actions, not just openDesign', () => {
+  const orkFile = (name: string, hold?: Promise<void>): File =>
+    ({
+      name: `${name}.ork`,
+      arrayBuffer: async () => {
+        if (hold) await hold;
+        return new TextEncoder().encode(name).buffer;
+      },
+    }) as unknown as File;
+
+  beforeEach(() => {
+    s().resetWorkspace();
+    vi.doUnmock('../services/loadOrk');
+  });
+
+  it('a slow import does not overwrite the fast one the user opened after it', async () => {
+    // Import a large .ork then a small one: the small one lands first, and the
+    // large one used to arrive afterwards and replace it.
+    let releaseSlow!: () => void;
+    const slow = new Promise<void>((r) => (releaseSlow = r));
+    vi.doMock('../services/loadOrk', () => ({
+      loadOrk: async (bytes: ArrayBuffer) => ({
+        name: new TextDecoder().decode(bytes),
+        notes: [],
+        tree: { name: new TextDecoder().decode(bytes), components: [] },
+        motors: {},
+        motorSpecs: {},
+      }),
+    }));
+
+    const big = s().openOrkFile(orkFile('BIG', slow));
+    await s().openOrkFile(orkFile('SMALL'));
+    releaseSlow();
+    await big;
+
+    expect((s().tree as unknown as { name: string }).name).toBe('SMALL');
+  });
+
+  it('a superseded import does not post its error over the design that replaced it', async () => {
+    let releaseSlow!: () => void;
+    const slow = new Promise<void>((r) => (releaseSlow = r));
+    vi.doMock('../services/loadOrk', () => ({
+      loadOrk: async (bytes: ArrayBuffer) => {
+        if (new TextDecoder().decode(bytes) === 'BAD') throw new Error('corrupt zip');
+        return { name: 'GOOD', notes: [], tree: { name: 'GOOD', components: [] }, motors: {}, motorSpecs: {} };
+      },
+    }));
+
+    const bad = s().openOrkFile(orkFile('BAD', slow));
+    await s().openOrkFile(orkFile('GOOD'));
+    releaseSlow();
+    await bad;
+
+    expect(s().err).toBeNull(); // the failure belonged to a file nobody is looking at
+    expect((s().tree as unknown as { name: string }).name).toBe('GOOD');
+  });
+
+  it('starting a new design voids an import still in flight', async () => {
+    let releaseSlow!: () => void;
+    const slow = new Promise<void>((r) => (releaseSlow = r));
+    vi.doMock('../services/loadOrk', () => ({
+      loadOrk: async () => ({
+        name: 'IMPORTED',
+        notes: [],
+        tree: { name: 'IMPORTED', components: [] },
+        motors: {},
+        motorSpecs: {},
+      }),
+    }));
+
+    const pending = s().openOrkFile(orkFile('IMPORTED', slow));
+    s().resetWorkspace(); // File → New while the import is still parsing
+    releaseSlow();
+    await pending;
+
+    expect((s().tree as unknown as { name?: string }).name).not.toBe('IMPORTED');
+  });
+});
+
+/**
+ * File → Save must ask the library whether this design has a name.
+ *
+ * `activeDesignId` is written only by refreshDesigns(), which nothing calls on
+ * boot — so on a fresh load it is null while the first autosave has already
+ * created a real entry. Reading it sent Save to Save As, which created a second
+ * entry holding the same rocket.
+ */
+describe('saveDesign asks the library, not the cached activeDesignId', () => {
+  const libWith = (activeId: string | null, created: string[]) =>
+    ({
+      list: async () => (activeId ? [{ id: activeId, name: 'My Rocket', updatedAt: 0 }] : []),
+      activeId: async () => activeId,
+      read: async () => null,
+      write: async () => true,
+      create: async (name: string) => {
+        created.push(name);
+        return { id: 'new', name, updatedAt: 0 };
+      },
+      rename: async () => {},
+      remove: async () => {},
+      setActive: async () => {},
+    }) as never;
+
+  beforeEach(() => s().resetWorkspace());
+
+  it('saves the design the autosave already created, with activeDesignId still null', async () => {
+    const created: string[] = [];
+    setDesignLibrary(libWith('autosaved-1', created));
+    // Exactly the fresh-boot state AFTER the first autosave: the library holds
+    // the entry and the workspace store knows its id, but the zustand field
+    // does not — nothing has called refreshDesigns().
+    getWorkspaceStore().setActiveId?.('autosaved-1');
+    expect(s().activeDesignId).toBeNull();
+
+    expect(await s().saveDesign()).toBe(true); // was false → UI opened Save As
+    expect(created).toEqual([]); // and no duplicate entry was minted
+  });
+
+  it('still reports "never named" when the library really has no active design', async () => {
+    setDesignLibrary(libWith(null, []));
+    expect(await s().saveDesign()).toBe(false); // Save As is correct here
   });
 });

@@ -64,18 +64,39 @@ interface Envelope<T> {
   v: T;
 }
 
+/**
+ * A non-empty thrust curve whose every sample is a finite `{time, thrust}`.
+ *
+ * Shared with thrustcurve.ts, which had the only copy of this check: custom
+ * motors are the one store whose payload reaches `simulate()` without a second
+ * gate, and the element shape was never looked at. `samples: [{}]` out of a
+ * corrupted IndexedDB blob became `times: [undefined]` and NaN masses inside
+ * the kernel. `Number.isFinite`, not `typeof === 'number'`: NaN and Infinity
+ * are both numbers and neither survives the TeaVM boundary.
+ */
+export const isThrustSampleArray = (v: unknown): boolean =>
+  Array.isArray(v) &&
+  v.length > 0 &&
+  v.every((s) => {
+    const p = s as { time?: unknown; thrust?: unknown } | null;
+    return !!p && Number.isFinite(p.time) && Number.isFinite(p.thrust);
+  });
+
 function isCustomMotor(v: unknown): v is CustomMotor {
   const m = v as CustomMotor;
   return (
     !!m &&
     typeof m.id === 'string' &&
     typeof m.designation === 'string' &&
-    typeof m.diameter === 'number' &&
-    typeof m.length === 'number' &&
-    typeof m.totalWeightG === 'number' &&
-    typeof m.propWeightG === 'number' &&
-    Array.isArray(m.samples) &&
-    m.samples.length > 0
+    // Both were unchecked. motorDb.ts sorts on `class` with localeCompare, so a
+    // row missing it takes down the whole motor picker, not just its own entry.
+    typeof m.manufacturer === 'string' &&
+    typeof m.class === 'string' &&
+    Number.isFinite(m.diameter) &&
+    Number.isFinite(m.length) &&
+    Number.isFinite(m.totalWeightG) &&
+    Number.isFinite(m.propWeightG) &&
+    isThrustSampleArray(m.samples)
   );
 }
 

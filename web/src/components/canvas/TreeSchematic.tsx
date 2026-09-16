@@ -147,8 +147,7 @@ export function TreeSchematic({
    * capture the pointer yet.
    *
    * This handler runs for every press that reaches the svg, which is every
-   * press on the axial chain (nose cone, body tube, transition): only
-   * draggable CHILDREN stopPropagation in beginDrag. It used to pan on the
+   * press on the axial chain (nose cone, body tube, transition). It used to pan on the
    * very first pointermove and capture the pointer immediately, so the 1-3 px
    * of jitter in an ordinary physical click dragged the whole drawing out from
    * under the pointer between press and release. The click then landed on the

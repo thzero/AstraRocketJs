@@ -1,10 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
-
-const dismiss = (page: Page) =>
-  page
-    .getByRole('button', { name: 'I understand' })
-    .click({ timeout: 10_000 })
-    .catch(() => {});
+import { test, expect, type Page } from './base';
 
 const openAero = async (page: Page) => {
   await page.getByRole('button', { name: 'Aero', exact: true }).click();
@@ -45,7 +39,6 @@ const setField = async (page: Page, label: string, value: string) => {
 test.describe('aero flight conditions', () => {
   test('angle of attack moves the CP', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
     await openAero(page);
 
     const at0 = await cp(page);
@@ -57,7 +50,6 @@ test.describe('aero flight conditions', () => {
 
   test('roll rate brings the damping coefficient to life', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
     // Damping needs fins that can roll; forcing needs them canted.
     await page.getByText(/Trapezoidal fin/).click();
     await setField(page, 'Cant angle', '3');
@@ -75,7 +67,6 @@ test.describe('aero flight conditions', () => {
 
   test('Worst finds the wind direction where the CP sits furthest forward', async ({ page }) => {
     await page.goto('/');
-    await dismiss(page);
     // Two fins, so the CP genuinely depends on roll angle. A symmetric three-fin
     // set does not, and Worst correctly reports 0 for it — which would make this
     // test pass without proving anything.
