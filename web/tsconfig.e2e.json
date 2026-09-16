@@ -1,0 +1,19 @@
+{
+  // The Playwright specs. They were invisible to `tsc --noEmit` because the main
+  // project only includes `src`, so genuine `noUncheckedIndexedAccess` errors
+  // sat in the specs while the build reported clean — the kind that throws the
+  // moment a selector misses.
+  //
+  // Specs only, not the *.config.ts files: those are Node code and need
+  // `@types/node`, which is not a dependency here. Adding it would also let
+  // this cover playwright/vite/vitest config.
+  //
+  // DOM stays in `lib` because code inside `page.evaluate()` runs in the
+  // browser; Playwright types those callbacks itself.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "noEmit": true
+  },
+  "include": ["e2e"]
+}

@@ -119,12 +119,6 @@ export function CenterView() {
   // The roll slider overlays the far-left strip; reserve a gutter that width so
   // the 2D drawing (and its left ruler) starts clear of it instead of underneath.
   const ROLL_GUTTER = 30;
-  // Which views are turned a quarter turn on a portrait phone. The 2D views are
-  // drawings on a sheet, so turning the sheet is all it takes. The others are
-  // not: three.js frames its camera from the canvas it measures, and inside a
-  // CSS-transformed box it measures the wrong thing and renders the rocket
-  // unframed; the charts would read sideways for no gain. So they stay upright,
-  // and the toolbar goes back on top with them.
   // Which views are turned a quarter turn on a portrait phone: the design views.
   // All three want to be wide — the 2D schematic and the 3D model because a
   // hobby airframe is 15-25x longer than it is wide, the aero charts because

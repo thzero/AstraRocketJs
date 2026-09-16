@@ -7,7 +7,6 @@
 //
 // Replace it on the client, independently of the material store:
 //   setMotorStore(new MyMotorStore())
-import type { CatalogMotor } from './motorDb';
 import type { KeyValueStore } from './keyValueStore';
 import { IndexedDbKeyValueStore } from './idbKeyValueStore';
 
@@ -44,10 +43,6 @@ export interface CustomMotor {
 }
 
 export interface MotorStore {
-  /** The mirrored catalog IF it still matches `signature`, else null. */
-  readCatalog(signature: string): Promise<CatalogMotor[] | null>;
-  /** Mirror the catalog with its signature (best-effort). */
-  writeCatalog(catalog: CatalogMotor[], signature: string): Promise<void>;
   /** A per-motor cache entry (metadata / curve / spec), validated by `valid`. */
   readEntry<T>(key: string, valid: (v: unknown) => boolean): Promise<CachedEntry<T> | null>;
   /** Write a per-motor cache entry, stamped now for freshness (best-effort). */
@@ -60,8 +55,6 @@ export interface MotorStore {
   removeCustomMotor(id: string): Promise<void>;
 }
 
-const CATALOG_KEY = 'astrarrocketjs:tc:catalog';
-const CATALOG_SIG_KEY = 'astrarrocketjs:tc:catalog:sig';
 const CUSTOM_MOTORS_KEY = 'astrarrocketjs:motors:custom';
 const DEFAULT_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
 
@@ -97,27 +90,6 @@ export class KeyValueMotorStore implements MotorStore {
     private readonly kv: KeyValueStore = new IndexedDbKeyValueStore(),
     private readonly ttlMs: number = DEFAULT_TTL_MS,
   ) {}
-
-  async readCatalog(signature: string): Promise<CatalogMotor[] | null> {
-    try {
-      if ((await this.kv.get(CATALOG_SIG_KEY)) !== signature) return null;
-      const raw = await this.kv.get(CATALOG_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as unknown;
-      return Array.isArray(parsed) && parsed.length > 0 ? (parsed as CatalogMotor[]) : null;
-    } catch {
-      return null; // storage unavailable / corrupt
-    }
-  }
-
-  async writeCatalog(catalog: CatalogMotor[], signature: string): Promise<void> {
-    try {
-      await this.kv.set(CATALOG_KEY, JSON.stringify(catalog));
-      await this.kv.set(CATALOG_SIG_KEY, signature);
-    } catch {
-      // best-effort mirror — the bundle is always the source of truth
-    }
-  }
 
   async readEntry<T>(key: string, valid: (v: unknown) => boolean): Promise<CachedEntry<T> | null> {
     try {

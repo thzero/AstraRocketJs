@@ -124,7 +124,6 @@ export interface WorkspaceState {
     loadedMeta: LoadedMeta;
   }) => void;
 
-  setTree: (tree: RocketTree) => void;
   scaleDesign: (factor: number) => void;
   setSelectedId: (id: string | null) => void;
   patchSelected: (patch: Partial<ComponentNode>) => void;
@@ -386,7 +385,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     // tree (drop gone mounts, seed a default for new ones) so the sim config
     // can never drift from the mounts. reconcileMounts returns the same object
     // when nothing mount-related changed, so ordinary edits stay cheap.
-    setTree: (tree) => set((s) => ({ tree, extraMotors: reconcileMounts(tree, s.extraMotors) })),
     scaleDesign: (factor) => {
       const { tree, extraMotors } = get();
       const next = scaleRocket(tree, factor);

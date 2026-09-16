@@ -51,7 +51,7 @@ test.describe('2D schematic', () => {
           /scale\(/.test(el.getAttribute('transform') || ''),
         );
         const m = g?.getAttribute('transform')?.match(/scale\(([\d.]+)\)/);
-        return m ? parseFloat(m[1]) : 1;
+        return m?.[1] ? parseFloat(m[1]) : 1;
       });
 
     expect(await scaleOf()).toBe(1);

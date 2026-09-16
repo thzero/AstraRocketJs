@@ -1,0 +1,64 @@
+name: Engine
+
+# The physics kernel ships as two committed binaries built from one Java source:
+#   web/src/engine/vendor/openrocket-engine.mjs   (TeaVM JS)
+#   web/public/engine/openrocket-engine.wasm      (TeaVM WASM-GC)
+#
+# `engine-java/test/parity/parity.mjs` exists to prove JVM ≡ TeaVM-JS ≡ WASM-GC,
+# and until now nothing ran it — so a change regenerated into one target and not
+# the other, or a hand-edited vendor file, could ship silently divergent physics.
+#
+# Only on changes that can move a number: the Java sources, the build, or the
+# vendored outputs. The web app's own gates live in ci.yml.
+on:
+  pull_request:
+    paths:
+      - 'engine-java/**'
+      - 'web/src/engine/vendor/**'
+      - 'web/public/engine/**'
+      - '.github/workflows/engine.yml'
+  push:
+    branches-ignore: [master]
+    paths:
+      - 'engine-java/**'
+      - 'web/src/engine/vendor/**'
+      - 'web/public/engine/**'
+      - '.github/workflows/engine.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: engine-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: engine-java
+    steps:
+      - uses: actions/checkout@v4
+
+      # 21 is the toolchain build.gradle pins. TeaVM compiles the bytecode
+      # rather than running it, so the level only has to satisfy both ends.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # parity.mjs is self-contained: it builds the parity engine variant
+      # (-Pparity) and the JVM reference itself, then requires bit-identical
+      # output modulo a small ULP tolerance on transcendentals.
+      - name: Parity — JVM vs TeaVM-JS
+        run: node test/parity/parity.mjs
+
+      - name: Parity — JVM vs WASM-GC
+        run: node test/parity/parity.mjs --wasm

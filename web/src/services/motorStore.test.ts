@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { KeyValueMotorStore, type CustomMotor } from './motorStore';
 import type { KeyValueStore } from './keyValueStore';
-import type { CatalogMotor } from './motorDb';
 
 class FakeKv implements KeyValueStore {
   map = new Map<string, string>();
@@ -17,13 +16,6 @@ class FakeKv implements KeyValueStore {
   }
 }
 
-// Private keys from motorStore.ts, hardcoded so we can seed raw entries.
-const CATALOG_KEY = 'astrarrocketjs:tc:catalog';
-const CATALOG_SIG_KEY = 'astrarrocketjs:tc:catalog:sig';
-
-const cat: CatalogMotor[] = [
-  { designation: 'C6', manufacturer: 'Estes', class: 'C', diameter: 18, impulse: 8.8, burn: 1.7, mass: 24 },
-];
 const custom = (id: string): CustomMotor => ({
   id,
   designation: 'X',
@@ -47,23 +39,6 @@ beforeEach(() => {
   store = new KeyValueMotorStore(kv, 1000);
 });
 afterEach(() => vi.useRealTimers());
-
-describe('catalog mirror + signature guard', () => {
-  it('reads back only when the signature matches', async () => {
-    await store.writeCatalog(cat, 'sig1');
-    expect(await store.readCatalog('sig1')).toHaveLength(1);
-    expect(await store.readCatalog('sig2')).toBeNull(); // newer bundle supersedes
-  });
-
-  it('returns null when empty or corrupt', async () => {
-    expect(await store.readCatalog('sig1')).toBeNull();
-    await kv.set(CATALOG_SIG_KEY, 'sig1');
-    await kv.set(CATALOG_KEY, 'not json');
-    expect(await store.readCatalog('sig1')).toBeNull();
-    await kv.set(CATALOG_KEY, '[]'); // empty array → treated as no mirror
-    expect(await store.readCatalog('sig1')).toBeNull();
-  });
-});
 
 describe('per-entry TTL freshness', () => {
   it('marks entries fresh within the TTL and stale past it', async () => {

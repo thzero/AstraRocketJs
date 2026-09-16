@@ -67,7 +67,7 @@ test.describe('aero flight conditions', () => {
     const rolling = await rollRow(page);
     console.log('roll [forcing, damping] still', still, '-> rolling', rolling);
     expect(rolling![1]).toBeGreaterThan(0);
-    expect(rolling![0]).toBeCloseTo(still![0], 3); // forcing is the cant, unchanged
+    expect(rolling![0]).toBeCloseTo(still![0]!, 3); // forcing is the cant, unchanged
   });
 
   test('Worst finds the wind direction where the CP sits furthest forward', async ({ page }) => {

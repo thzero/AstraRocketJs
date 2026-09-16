@@ -240,7 +240,7 @@
     "type_modified_kit": "Modified kit",
     "type_kit_bash": "Kit bash"
   },
-  "tabs": { "rocket": "Rocket", "sketch": "Sketch", "motor": "Motor", "simulate": "Simulate", "results": "Results" },
+  "tabs": { "rocket": "Rocket", "sketch": "Sketch", "simulate": "Simulate", "results": "Results" },
   "view": {
     "2d": "2D",
     "3d": "3D",
@@ -273,7 +273,6 @@
     "ruler_right_abbr": "R"
   },
   "stability": {
-    "title": "Stability",
     "onPad": "Stability (on pad)",
     "mass": "Mass",
     "cg": "CG",
@@ -281,8 +280,7 @@
     "caliber": "cal",
     "stable": "Stable",
     "marginal": "Marginal",
-    "unstable": "Unstable",
-    "overstable": "Overstable"
+    "unstable": "Unstable"
   },
   "stats": {
     "title": "Rocket static stats",
@@ -759,9 +757,7 @@
     "viewCurve": "Thrust curve",
     "delay": "Delay",
     "ignition": "Ignition",
-    "ignitionDelay": "Ignition delay (s)",
-    "run": "Run flight simulation",
-    "emptyHint": "Add a simulation to begin."
+    "ignitionDelay": "Ignition delay (s)"
   },
   "ignition": {
     "automatic": "Automatic",
@@ -822,11 +818,9 @@
   },
   "catalog": {
     "loadingMotors": "Loading motor catalog…",
-    "loadingComponents": "Loading component catalog…",
     "loadingOf": "{{done}} / {{total}} MB",
     "loadedSoFar": "{{done}} MB",
     "failedMotors": "Could not load the motor catalog.",
-    "failedComponents": "Could not load the component catalog.",
     "retry": "Retry"
   },
   "update": {

@@ -157,7 +157,7 @@ test('frames the 3D model correctly inside the quarter turn', async ({ page }) =
 
   const d = await canvas.evaluate((c: HTMLCanvasElement) => [c.width, c.height]);
   console.log('3d buffer', JSON.stringify(d));
-  expect(d[0]).toBeGreaterThan(d[1]); // landscape, as the layout box is
+  expect(d[0]!).toBeGreaterThan(d[1]!); // landscape, as the layout box is
 });
 
 test('turns the Aero charts with the sketch, and leaves the flight views upright', async ({ page }) => {

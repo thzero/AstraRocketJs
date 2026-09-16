@@ -37,3 +37,41 @@ jobs:
       - run: npm run test
 
       - run: npm run build
+
+      # Dead exports / unimported modules. Cheap, and it only stays useful if
+      # something runs it.
+      - run: npm run knip
+
+  # The integration layer: schematic, motor picker, recovery, mobile layout, the
+  # aero tables. It was previously run only when someone remembered to, which is
+  # how a shipped dialog reached master with an unbounded render loop in it.
+  # Separate job so a Playwright failure is legible on its own and the browser
+  # download does not slow the unit gate.
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+
+      # Chromium only: playwright.config.ts declares the one project, and it
+      # already starts the dev server and sets retries/reporter under CI.
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: web/playwright-report/
+          retention-days: 7
