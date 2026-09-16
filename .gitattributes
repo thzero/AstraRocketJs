@@ -1,0 +1,31 @@
+# One line ending in the repository, everywhere: LF.
+#
+# Without this, a Windows checkout with core.autocrlf=true has CRLF in the
+# working tree while prettier's default endOfLine is "lf" — so `prettier
+# --check` fails on every tracked text file for a reason that has nothing to do
+# with formatting, and the format gate can never be turned on. Normalising here
+# makes the two agree and keeps diffs free of whole-file line-ending churn.
+* text=auto eol=lf
+
+# Binaries: never touched.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.svg text eol=lf
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
+*.zip binary
+*.ork binary
+*.wasm binary
+*.jar binary
+*.class binary
+
+# Windows-only scripts genuinely need CRLF to run.
+*.bat text eol=crlf
+*.cmd text eol=crlf

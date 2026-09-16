@@ -30,7 +30,13 @@ const tree: RocketTree = {
               thickness: 0.003,
               position: { method: 'bottom', offset: 0 },
             },
-            { type: 'launchlug', id: 'lug', length: 0.0254, outerRadius: 0.002, position: { method: 'middle', offset: 0 } },
+            {
+              type: 'launchlug',
+              id: 'lug',
+              length: 0.0254,
+              outerRadius: 0.002,
+              position: { method: 'middle', offset: 0 },
+            },
           ],
         },
       ],
@@ -72,7 +78,12 @@ describe('exportCdx1', () => {
   it('rejects a design RASAero cannot represent (tube fins)', () => {
     const bad: RocketTree = {
       components: [
-        { type: 'stage', children: [{ type: 'bodytube', length: 0.2, outerRadius: 0.012, children: [{ type: 'tubefinset', finCount: 4 }] }] },
+        {
+          type: 'stage',
+          children: [
+            { type: 'bodytube', length: 0.2, outerRadius: 0.012, children: [{ type: 'tubefinset', finCount: 4 }] },
+          ],
+        },
       ],
     };
     expect(() => exportCdx1({ tree: bad, name: 'bad' })).toThrow(/RASAero/);

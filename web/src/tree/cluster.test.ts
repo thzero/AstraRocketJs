@@ -23,11 +23,12 @@ describe('CLUSTER_POINTS / CLUSTER_OPTIONS', () => {
     }
   });
 
-  it('labels single plainly and the rest with their motor counts', () => {
-    const opts = Object.fromEntries(CLUSTER_OPTIONS);
-    expect(opts.single).toBe('Single');
-    expect(opts.double).toBe('double (2 motors)');
-    expect(opts['9-grid']).toBe('9-grid (9 motors)');
+  it('offers every pattern as a dropdown option, in kernel order', () => {
+    // The property panel renders these verbatim as <option value>, so the list
+    // must be the pattern NAMES and must not drift from CLUSTER_POINTS.
+    expect(CLUSTER_OPTIONS).toEqual(Object.keys(CLUSTER_POINTS));
+    expect(CLUSTER_OPTIONS[0]).toBe('single');
+    expect(CLUSTER_OPTIONS.every((n) => clusterCount(n) >= 1)).toBe(true);
   });
 });
 

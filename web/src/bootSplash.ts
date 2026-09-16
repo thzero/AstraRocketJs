@@ -12,9 +12,7 @@
  */
 import i18n from './i18n';
 import type { EngineLoadStatus } from './engine/openRocketEngine';
-
-const MB = 1024 * 1024;
-const mb = (bytes: number) => (bytes / MB).toFixed(1);
+import { fmtMb } from './i18n/format';
 
 const cap = () => document.getElementById('boot-cap');
 const bar = () => document.getElementById('boot-bar');
@@ -40,7 +38,7 @@ export function showEngineStatus(s: EngineLoadStatus): void {
 
   if (s.total) {
     const pct = Math.max(0, Math.min(100, Math.round((s.loaded / s.total) * 100)));
-    if (c) c.textContent = i18n.t('boot.downloadingOf', { done: mb(s.loaded), total: mb(s.total) });
+    if (c) c.textContent = i18n.t('boot.downloadingOf', { done: fmtMb(s.loaded), total: fmtMb(s.total) });
     b?.classList.remove('indeterminate');
     setFill(b, `${pct}%`);
     return;
@@ -48,7 +46,8 @@ export function showEngineStatus(s: EngineLoadStatus): void {
 
   // No content-length (chunked, or the JS-engine path where the bundler owns the
   // fetch): name the step and keep sweeping rather than invent a percentage.
-  if (c) c.textContent = s.loaded > 0 ? i18n.t('boot.downloaded', { done: mb(s.loaded) }) : i18n.t('boot.downloading');
+  if (c)
+    c.textContent = s.loaded > 0 ? i18n.t('boot.downloaded', { done: fmtMb(s.loaded) }) : i18n.t('boot.downloading');
   b?.classList.add('indeterminate');
 }
 

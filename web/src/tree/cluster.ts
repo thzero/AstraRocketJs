@@ -55,11 +55,14 @@ export const CLUSTER_POINTS: Record<string, number[]> = {
   ],
 };
 
-/** Dropdown options in kernel order, labelled with their motor counts. */
-export const CLUSTER_OPTIONS: [string, string][] = Object.entries(CLUSTER_POINTS).map(([name, pts]) => [
-  name,
-  name === 'single' ? 'Single' : `${name} (${pts.length / 2} motors)`,
-]);
+/**
+ * The cluster patterns, in kernel order — the dropdown's option list.
+ *
+ * Names only: this module is geometry, and the option TEXT is the property
+ * panel's business (it localises it, and builds the motor count from
+ * `clusterCount` rather than baking English in here).
+ */
+export const CLUSTER_OPTIONS: string[] = Object.keys(CLUSTER_POINTS);
 
 /** Motors in this cluster pattern (1 for single/unknown). */
 export function clusterCount(cluster: string | undefined): number {

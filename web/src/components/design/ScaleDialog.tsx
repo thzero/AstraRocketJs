@@ -51,7 +51,8 @@ export function ScaleDialog({ open, onClose }: { open: boolean; onClose: () => v
   };
   const input =
     'w-24 rounded-md bg-slate-800 px-2 py-1.5 text-sm tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500';
-  const chip = 'rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700';
+  const chip =
+    'rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700';
 
   return (
     <div className="dialog-overlay fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4" onClick={onClose}>
@@ -124,8 +125,7 @@ export function ScaleDialog({ open, onClose }: { open: boolean; onClose: () => v
               </span>{' '}
               {t('scale.becomes')}{' '}
               <span className="font-semibold text-sky-300">
-                {fu.fmt(baseL * factor)} × {fu.fmt(baseD * factor)}{' '}
-                <UnitChip quantity="length" scope={scope} />
+                {fu.fmt(baseL * factor)} × {fu.fmt(baseD * factor)} <UnitChip quantity="length" scope={scope} />
               </span>
             </p>
             <p className="mt-2 text-xs leading-relaxed text-slate-500">

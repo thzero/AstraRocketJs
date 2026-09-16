@@ -18,3 +18,15 @@ export function fmtNum(n: number, digits = 0): string {
   }
   return f.format(n);
 }
+
+const MB = 1024 * 1024;
+
+/**
+ * Bytes as megabytes, for the two download progress readouts (the boot splash
+ * and the catalog loader). It lived in both, verbatim, with a bare `toFixed(1)`
+ * — so the one number those panels show was the only displayed number in the
+ * app not following the user's locale.
+ */
+export function fmtMb(bytes: number): string {
+  return fmtNum(bytes / MB, 1);
+}

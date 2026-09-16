@@ -10,6 +10,7 @@ vi.mock('../engine/simClient', async (orig) => ({
 
 import { useWorkspaceStore, selectActive, hasThrustCurve, selectRunFailed } from './store';
 import { C6 } from '../engine/api';
+import { setDesignLibrary } from '../services/designLibrary';
 import { findMounts, findNode } from '../services/treeEdit';
 import type { FlightResult } from '../engine/openRocketEngine';
 import type { SimPrefs } from '../services/simulations';
@@ -434,5 +435,57 @@ describe('storage warning', () => {
     expect(s().storageWarning).toBe('storage is degraded');
     s().setStorageWarning(null);
     expect(s().storageWarning).toBeNull();
+  });
+});
+
+describe('openDesign is race-safe', () => {
+  /**
+   * Four sequential awaits, and the user can click a second design during any
+   * of them. If B's read resolved first, A's continuation then ran
+   * flushActive() — writing B's tree out under the store's current active id —
+   * and finished with setActive(A) + hydrate(A). The user clicked B last and
+   * was looking at A.
+   */
+  it('ignores a slow request that the user has already superseded', async () => {
+    const wsFor = (name: string) => ({
+      version: 1 as const,
+      tree: { name, components: [] },
+      sims: [{ id: 's1', name: 'Sim 1', result: null }],
+      activeId: 's1',
+      extraMotors: {},
+      loadedMeta: null,
+    });
+
+    // A is slow, B is instant — so B lands first and A's continuation arrives
+    // afterwards, which is exactly the interleaving that used to win.
+    let releaseA!: () => void;
+    const slowA = new Promise<void>((r) => (releaseA = r));
+    const active: string[] = [];
+
+    setDesignLibrary({
+      list: async () => [],
+      activeId: async () => null,
+      read: async (id: string) => {
+        if (id === 'A') await slowA;
+        return wsFor(id) as never;
+      },
+      write: async () => true,
+      create: async () => ({ id: 'X', name: 'X', updatedAt: 0 }),
+      rename: async () => {},
+      remove: async () => {},
+      setActive: async (id: string) => {
+        active.push(id);
+      },
+    } as never);
+
+    const pA = s().openDesign('A');
+    await s().openDesign('B');
+    releaseA();
+    await pA;
+
+    // B was clicked last, so B is what is open — and A never got to call
+    // setActive behind it.
+    expect((s().tree as unknown as { name: string }).name).toBe('B');
+    expect(active).toEqual(['B']);
   });
 });

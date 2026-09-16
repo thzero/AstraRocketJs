@@ -155,3 +155,40 @@ describe('freeform fin: root positions, outline draws', () => {
     expect(Math.max(...xs) - start).toBeCloseTo(90, 3);
   });
 });
+
+describe('rocketSideView: fins on a transition', () => {
+  /**
+   * `treeEdit.ts:137` allows a fin set on a transition (a boat tail), the kernel
+   * simulates it — and this branch was the only one that never looked at its
+   * children. The PDF's whole-rocket side view showed a finless rocket, with no
+   * warning that anything was missing.
+   */
+  const withBoatTailFins = {
+    components: [
+      {
+        type: 'bodytube',
+        length: 0.2,
+        outerRadius: 0.012,
+      },
+      {
+        type: 'transition',
+        length: 0.05,
+        foreRadius: 0.012,
+        aftRadius: 0.008,
+        children: [{ type: 'trapezoidfinset', rootChord: 0.03, tipChord: 0.02, sweep: 0.01, height: 0.02 }],
+      },
+    ],
+  } as unknown as RocketTree;
+
+  it('draws them', () => {
+    expect(rocketSideView(withBoatTailFins).fins.length).toBeGreaterThan(0);
+  });
+
+  it('places them on the transition, not back on the tube', () => {
+    const view = rocketSideView(withBoatTailFins);
+    const xs = view.fins[0]!.map((p) => p[0]);
+    // The transition starts 200 mm aft (after the tube), so the fin root has to
+    // begin at or past that — not at the start of the rocket.
+    expect(Math.min(...xs)).toBeGreaterThanOrEqual(200 - 1e-6);
+  });
+});

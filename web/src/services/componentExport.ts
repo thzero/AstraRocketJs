@@ -1,7 +1,8 @@
 import type { RocketTree } from '../engine/openRocketEngine';
 import { findNode } from './treeEdit';
 import { solidForNode, discSolid } from './solidMesh';
-import { solidToStl, solidToObj, solidToGlb, safeName, downloadFile, STL_MIME, OBJ_MIME, GLB_MIME } from './meshExport';
+import { solidToStl, solidToObj, solidToGlb, STL_MIME, OBJ_MIME, GLB_MIME } from './meshExport';
+import { download, safeFilename } from './saveFile';
 import { componentToDxf, resolveDisc, DXF_MIME } from './dxfExport';
 import { DISC_TYPES, type ExportFormat } from './componentFormats';
 
@@ -17,12 +18,12 @@ import { DISC_TYPES, type ExportFormat } from './componentFormats';
 export async function exportComponent(tree: RocketTree, nodeId: string, format: ExportFormat): Promise<boolean> {
   const node = findNode(tree, nodeId);
   if (!node) return false;
-  const base = safeName(node.name || node.type);
+  const base = safeFilename(node.name || node.type, 'part');
 
   if (format === 'dxf') {
     const dxf = componentToDxf(tree, nodeId);
     if (dxf === null) return false;
-    downloadFile(dxf, `${base}.dxf`, DXF_MIME);
+    download(`${base}.dxf`, dxf, DXF_MIME);
     return true;
   }
 
@@ -36,8 +37,8 @@ export async function exportComponent(tree: RocketTree, nodeId: string, format: 
     geometry = solidForNode(node);
   }
   if (!geometry) return false;
-  if (format === 'stl') downloadFile(solidToStl(geometry), `${base}.stl`, STL_MIME);
-  else if (format === 'obj') downloadFile(solidToObj(geometry), `${base}.obj`, OBJ_MIME);
-  else downloadFile(await solidToGlb(geometry), `${base}.glb`, GLB_MIME);
+  if (format === 'stl') download(`${base}.stl`, solidToStl(geometry), STL_MIME);
+  else if (format === 'obj') download(`${base}.obj`, solidToObj(geometry), OBJ_MIME);
+  else download(`${base}.glb`, await solidToGlb(geometry), GLB_MIME);
   return true;
 }

@@ -1,6 +1,6 @@
 import type { StaticInfo } from '../engine/openRocketEngine';
 import type { ReportModel } from './reportModel';
-import { saveText } from './saveFile';
+import { safeFilename, saveText } from './saveFile';
 import { fmtSi, type UnitSelection } from '../prefs/units';
 
 /**
@@ -82,7 +82,7 @@ export function buildDesignCsv(model: ReportModel, units: UnitSelection): string
   return lines.join('\r\n') + '\r\n';
 }
 
-const safe = (name: string) => (name || 'rocket').trim().replace(/[^a-z0-9._-]+/gi, '_') || 'rocket';
+const safe = (name: string) => safeFilename(name, 'rocket');
 
 /** Build and download the design-info CSV. */
 export function downloadDesignCsv(model: ReportModel, units: UnitSelection): void {

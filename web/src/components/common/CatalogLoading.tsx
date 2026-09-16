@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { subscribeCatalogProgress, type CatalogProgress } from '../../services/remoteData';
+import { fmtMb } from '../../i18n/format';
 
 /**
  * Download feedback for the runtime catalogs (see services/remoteData.ts).
@@ -10,9 +11,6 @@ import { subscribeCatalogProgress, type CatalogProgress } from '../../services/r
  * tell a slow link from a stalled one — which is the common case on mobile,
  * where the transfer can legitimately take tens of seconds.
  */
-
-const MB = 1024 * 1024;
-const mb = (bytes: number) => (bytes / MB).toFixed(1);
 
 /** Live progress for one catalog, or null before the first byte is reported. */
 export function useCatalogProgress(name: string): CatalogProgress | null {
@@ -31,8 +29,8 @@ export function CatalogLoading({ name, label }: { name: string; label: string })
     !progress || progress.loaded === 0
       ? null
       : progress.total
-        ? t('catalog.loadingOf', { done: mb(progress.loaded), total: mb(progress.total) })
-        : t('catalog.loadedSoFar', { done: mb(progress.loaded) });
+        ? t('catalog.loadingOf', { done: fmtMb(progress.loaded), total: fmtMb(progress.total) })
+        : t('catalog.loadedSoFar', { done: fmtMb(progress.loaded) });
 
   return (
     <div className="space-y-3 px-3 py-6 text-center text-base text-slate-300">

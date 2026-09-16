@@ -4,7 +4,8 @@ import type { FlightResult, FlightSeries } from '../../engine/openRocketEngine';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import type { Quantity } from '../../prefs/units';
-import { flightDataCsv, downloadCsv } from '../../services/csvExport';
+import { flightDataCsv, CSV_MIME } from '../../services/csvExport';
+import { download } from '../../services/saveFile';
 import { lerpAt } from '../../services/interpolate';
 import { EVENT_LABEL, clusterEventLabels } from '../../services/simReport';
 
@@ -62,7 +63,16 @@ const SERIES: Meta[] = [
   { key: 'drag', label: 'flight.drag', unit: 'N', digits: 2, quantity: 'force' },
   { key: 'mass', label: 'flight.mass', unit: 'g', digits: 0, scale: 1000, level: true, quantity: 'mass' },
   { key: 'stability', label: 'flight.stability', unit: 'cal', digits: 2, level: true, aero: true },
-  { key: 'cpLocation', label: 'flight.cp', unit: 'cm', digits: 1, scale: 100, level: true, aero: true, quantity: 'length' },
+  {
+    key: 'cpLocation',
+    label: 'flight.cp',
+    unit: 'cm',
+    digits: 1,
+    scale: 100,
+    level: true,
+    aero: true,
+    quantity: 'length',
+  },
   { key: 'cgLocation', label: 'flight.cg', unit: 'cm', digits: 1, scale: 100, level: true, quantity: 'length' },
   { key: 'aoa', label: 'flight.aoa', unit: '°', digits: 1, scale: 180 / Math.PI, quantity: 'angle' },
 ];
@@ -92,6 +102,22 @@ const PANEL_H = 208;
 const EVENT_ROW_H = 12; // one row of the event-label strip
 
 type Pt = readonly [number, number];
+
+/**
+ * The x-axis extent: the longest time any branch reaches.
+ *
+ * Loop, do not spread. This used to be
+ *   Math.max(flightTime, ...branches.flatMap((b) => b.series.time))
+ * evaluated in the render body, so it re-ran on EVERY pointer move (hover sets
+ * state) and, for a fine-timestep multi-stage flight, pushed a six-figure
+ * argument list into Math.max — which throws RangeError and blanks the panel.
+ * FlightPath3D avoids the identical hazard the identical way.
+ */
+export function maxFlightTime(branches: { series: FlightSeries }[], flightTime: number | undefined): number {
+  let m = Math.max(flightTime || 1, 1);
+  for (const b of branches) for (const t of b.series.time ?? []) if (t > m) m = t;
+  return m;
+}
 
 export function FlightChart({ result }: { result: FlightResult }) {
   const { t } = useTranslation();
@@ -131,8 +157,9 @@ export function FlightChart({ result }: { result: FlightResult }) {
 
   // x-axis spans every branch, so a booster that lands after the sustainer still
   // fits (its own descent runs on the same launch clock).
-  const allTimes = useMemo(() => branches.flatMap((b) => b.series.time ?? []), [branches]);
-  const maxT = Math.max(result.summary.flightTime || 1, ...(allTimes.length ? allTimes : [1]), 1);
+  // Memoized: hovering sets state, so the render body runs on every pointer
+  // move and this must not walk every sample again each time.
+  const maxT = useMemo(() => maxFlightTime(branches, result.summary.flightTime), [branches, result.summary.flightTime]);
 
   // Visible time window (null = full flight). The x-axis zooms/pans within it.
   const [zoom, setZoom] = useState<{ t0: number; t1: number } | null>(null);
@@ -250,7 +277,8 @@ export function FlightChart({ result }: { result: FlightResult }) {
     }
   };
 
-  const zBtn = 'rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-40';
+  const zBtn =
+    'rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-40';
 
   return (
     <div className="flex h-full flex-col rounded-xl bg-slate-900 ring-1 ring-white/10">
@@ -261,18 +289,35 @@ export function FlightChart({ result }: { result: FlightResult }) {
             {t('flight.time')} {fmtNum(hoverT ?? maxT, hoverT != null ? 2 : 1)} s
           </span>
           <div className="flex items-center gap-1">
-            <button onClick={() => zoomAt(1 / 0.6, centerT())} disabled={!zoomed} title={t('flight.zoomOut')} aria-label={t('flight.zoomOut')} className={zBtn}>
+            <button
+              onClick={() => zoomAt(1 / 0.6, centerT())}
+              disabled={!zoomed}
+              title={t('flight.zoomOut')}
+              aria-label={t('flight.zoomOut')}
+              className={zBtn}
+            >
               −
             </button>
-            <button onClick={() => zoomAt(0.6, centerT())} title={t('flight.zoomIn')} aria-label={t('flight.zoomIn')} className={zBtn}>
+            <button
+              onClick={() => zoomAt(0.6, centerT())}
+              title={t('flight.zoomIn')}
+              aria-label={t('flight.zoomIn')}
+              className={zBtn}
+            >
               +
             </button>
-            <button onClick={() => setZoom(null)} disabled={!zoomed} title={t('flight.zoomReset')} aria-label={t('flight.zoomReset')} className={zBtn}>
+            <button
+              onClick={() => setZoom(null)}
+              disabled={!zoomed}
+              title={t('flight.zoomReset')}
+              aria-label={t('flight.zoomReset')}
+              className={zBtn}
+            >
               ⤢
             </button>
           </div>
           <button
-            onClick={() => downloadCsv('flight-data.csv', flightDataCsv(result, u.all))}
+            onClick={() => download('flight-data.csv', flightDataCsv(result, u.all), CSV_MIME)}
             title={t('flight.exportCsv')}
             className="rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
           >
@@ -344,8 +389,20 @@ export function FlightChart({ result }: { result: FlightResult }) {
               >
                 {eventLabels.map((l, i) => (
                   <g key={i}>
-                    <line x1={l.x} y1={l.row * EVENT_ROW_H + EVENT_ROW_H - 2} x2={l.x} y2={stripH} className="stroke-amber-400/30" vectorEffect="non-scaling-stroke" />
-                    <text x={l.x} y={l.row * EVENT_ROW_H + 9} textAnchor="middle" className="fill-amber-400/90 text-[9px]">
+                    <line
+                      x1={l.x}
+                      y1={l.row * EVENT_ROW_H + EVENT_ROW_H - 2}
+                      x2={l.x}
+                      y2={stripH}
+                      className="stroke-amber-400/30"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    <text
+                      x={l.x}
+                      y={l.row * EVENT_ROW_H + 9}
+                      textAnchor="middle"
+                      className="fill-amber-400/90 text-[9px]"
+                    >
                       {t(EVENT_LABEL[l.type] ?? l.type)}
                     </text>
                   </g>

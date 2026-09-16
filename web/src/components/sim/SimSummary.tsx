@@ -65,7 +65,7 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
       <Stat
         label={t('sim.rodExit')}
         value={rodExit.fmt(s.launchRodVelocity, 1)}
-        sub={<UnitChip quantity="velocity" scope={unitScope('sim', 'rodExit')} />}
+        sub={<UnitChip label={t('sim.rodExit')} quantity="velocity" scope={unitScope('sim', 'rodExit')} />}
         // The threshold is stored in SI, so the comparison stays in SI —
         // only the number on screen changes unit.
         tone={s.launchRodVelocity >= railExitVelocityMin ? goodTone : warnTone}
@@ -78,7 +78,7 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
             railCp != null ? (
               <>
                 {t('stability.caliber')} · CP {railCpUnit.fmt(railCp)}{' '}
-                <UnitChip quantity="length" scope={unitScope('sim', 'railCp')} />
+                <UnitChip label={t('sim.railMargin')} quantity="length" scope={unitScope('sim', 'railCp')} />
               </>
             ) : (
               t('stability.caliber')
@@ -92,14 +92,16 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
       <Stat
         label={t('sim.apogee')}
         value={apogee.fmt(s.maxAltitude)}
-        sub={<UnitChip quantity="distance" scope={unitScope('sim', 'apogee')} />}
+        sub={<UnitChip label={t('sim.apogee')} quantity="distance" scope={unitScope('sim', 'apogee')} />}
         tone="text-sky-400"
       />
       {s.deploymentVelocity != null && (
         <Stat
           label={t('sim.deployVelocity')}
           value={deployVel.fmt(s.deploymentVelocity, 1)}
-          sub={<UnitChip quantity="velocity" scope={unitScope('sim', 'deployVelocity')} />}
+          sub={
+            <UnitChip label={t('sim.deployVelocity')} quantity="velocity" scope={unitScope('sim', 'deployVelocity')} />
+          }
           tone={s.deploymentVelocity < deploymentSpeedWarn ? goodTone : warnTone}
         />
       )}
@@ -107,7 +109,7 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
         <Stat
           label={t('sim.landing')}
           value={landingVel.fmt(s.groundHitVelocity, 1)}
-          sub={<UnitChip quantity="velocity" scope={unitScope('sim', 'landing')} />}
+          sub={<UnitChip label={t('sim.landing')} quantity="velocity" scope={unitScope('sim', 'landing')} />}
         />
       )}
       <Stat label={t('sim.flightTime')} value={fmtNum(s.flightTime, 1)} sub="s" />
@@ -115,18 +117,18 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
         <Stat
           label={t('sim.downrange')}
           value={downrangeUnit.fmt(downrange)}
-          sub={<UnitChip quantity="distance" scope={unitScope('sim', 'downrange')} />}
+          sub={<UnitChip label={t('sim.downrange')} quantity="distance" scope={unitScope('sim', 'downrange')} />}
         />
       )}
       <Stat
         label={t('sim.maxAccel')}
         value={maxAccel.fmt(s.maxAcceleration, 0)}
-        sub={<UnitChip quantity="acceleration" scope={unitScope('sim', 'maxAccel')} />}
+        sub={<UnitChip label={t('sim.maxAccel')} quantity="acceleration" scope={unitScope('sim', 'maxAccel')} />}
       />
       <Stat
         label={t('sim.maxSpeed')}
         value={maxSpeed.fmt(s.maxVelocity, 0)}
-        sub={<UnitChip quantity="velocity" scope={unitScope('sim', 'maxSpeed')} />}
+        sub={<UnitChip label={t('sim.maxSpeed')} quantity="velocity" scope={unitScope('sim', 'maxSpeed')} />}
       />
       <Stat label={t('sim.maxMach')} value={fmtNum(s.maxMachNumber, 2)} sub="Mach" />
     </div>

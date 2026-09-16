@@ -158,7 +158,7 @@ const catalogP = new Map<string, Promise<unknown>>();
  * configured base in order and rejects with the LAST failure only when every
  * base is unreachable, so the caller can surface it.
  */
-export function fetchCatalog<T>(name: string): Promise<T> {
+export function fetchCatalog<T>(name: string, valid?: (v: unknown) => boolean): Promise<T> {
   let p = catalogP.get(name) as Promise<T> | undefined;
   if (!p) {
     p = (async () => {
@@ -166,12 +166,20 @@ export function fetchCatalog<T>(name: string): Promise<T> {
       for (const base of BASES) {
         try {
           const hash = (await manifest(base))[name];
-          return await fetchJson<T>(
+          const body = await fetchJson<T>(
             `${base}${name}.generated.json` + (hash ? `?v=${hash}` : ''),
             ttfbFor(base),
             undefined,
             (p) => reportProgress(name, p),
           );
+          // A host that is UP but WRONG defeated the whole point of the fallback
+          // chain: `{"error":"rebuilding"}` served with HTTP 200 parses fine, so
+          // the loop returned it and never tried the in-build copy. The caller
+          // then spread a non-array and threw "bundled is not iterable" into the
+          // picker. A shape mismatch is a failure of THIS base, so treat it as
+          // one and move on.
+          if (valid && !valid(body)) throw new Error('unexpected catalog shape');
+          return body;
         } catch (e) {
           lastErr = e; // try the next base (the in-build fallback copy)
         }

@@ -19,24 +19,115 @@ function quality(g: THREEType.BufferGeometry): { hole: number; nonManifold: numb
       m.set(kk, (m.get(kk) ?? 0) + 1);
     }
   }
-  let hole = 0, nonManifold = 0;
-  for (const c of m.values()) { if (c === 1) hole++; else if (c > 2) nonManifold++; }
+  let hole = 0,
+    nonManifold = 0;
+  for (const c of m.values()) {
+    if (c === 1) hole++;
+    else if (c > 2) nonManifold++;
+  }
   return { hole, nonManifold };
 }
 
 const cases: Array<[string, ComponentNode]> = [
-  ['ogive nose', { type: 'nosecone', shape: 'ogive', length: 0.1, aftRadius: 0.013, thickness: 0.002 } as unknown as ComponentNode],
-  ['stubby ellipsoid nose', { type: 'nosecone', shape: 'ellipsoid', length: 0.02, aftRadius: 0.02, thickness: 0.002 } as unknown as ComponentNode],
-  ['body tube (hollow)', { type: 'bodytube', length: 0.3, outerRadius: 0.013, thickness: 0.001 } as unknown as ComponentNode],
-  ['inner tube', { type: 'innertube', length: 0.07, outerRadius: 0.0095, thickness: 0.0005 } as unknown as ComponentNode],
+  [
+    'ogive nose',
+    { type: 'nosecone', shape: 'ogive', length: 0.1, aftRadius: 0.013, thickness: 0.002 } as unknown as ComponentNode,
+  ],
+  [
+    'stubby ellipsoid nose',
+    {
+      type: 'nosecone',
+      shape: 'ellipsoid',
+      length: 0.02,
+      aftRadius: 0.02,
+      thickness: 0.002,
+    } as unknown as ComponentNode,
+  ],
+  [
+    'body tube (hollow)',
+    { type: 'bodytube', length: 0.3, outerRadius: 0.013, thickness: 0.001 } as unknown as ComponentNode,
+  ],
+  [
+    'inner tube',
+    { type: 'innertube', length: 0.07, outerRadius: 0.0095, thickness: 0.0005 } as unknown as ComponentNode,
+  ],
   ['launch lug', { type: 'launchlug', length: 0.03, outerRadius: 0.004 } as unknown as ComponentNode],
-  ['tube fin set', { type: 'tubefinset', finCount: 3, length: 0.06, outerRadius: 0.02, thickness: 0.001 } as unknown as ComponentNode],
-  ['transition', { type: 'transition', shape: 'conical', length: 0.03, foreRadius: 0.013, aftRadius: 0.009, thickness: 0.001 } as unknown as ComponentNode],
-  ['nose with aft shoulder', { type: 'nosecone', shape: 'ogive', length: 0.1, aftRadius: 0.013, thickness: 0.002, shoulderRadius: 0.011, shoulderLength: 0.02 } as unknown as ComponentNode],
-  ['transition with both shoulders', { type: 'transition', shape: 'ogive', length: 0.04, foreRadius: 0.013, aftRadius: 0.02, foreShoulderRadius: 0.011, foreShoulderLength: 0.015, aftShoulderRadius: 0.018, aftShoulderLength: 0.015 } as unknown as ComponentNode],
-  ['trapezoid fin', { type: 'trapezoidfinset', finCount: 4, rootChord: 0.06, tipChord: 0.03, sweep: 0.02, height: 0.04, thickness: 0.003 } as unknown as ComponentNode],
-  ['elliptical fin', { type: 'ellipticalfinset', finCount: 3, rootChord: 0.05, height: 0.03, thickness: 0.003 } as unknown as ComponentNode],
-  ['freeform fin', { type: 'freeformfinset', finCount: 3, points: [[0, 0], [0.02, 0.03], [0.05, 0]], thickness: 0.003 } as unknown as ComponentNode],
+  [
+    'tube fin set',
+    { type: 'tubefinset', finCount: 3, length: 0.06, outerRadius: 0.02, thickness: 0.001 } as unknown as ComponentNode,
+  ],
+  [
+    'transition',
+    {
+      type: 'transition',
+      shape: 'conical',
+      length: 0.03,
+      foreRadius: 0.013,
+      aftRadius: 0.009,
+      thickness: 0.001,
+    } as unknown as ComponentNode,
+  ],
+  [
+    'nose with aft shoulder',
+    {
+      type: 'nosecone',
+      shape: 'ogive',
+      length: 0.1,
+      aftRadius: 0.013,
+      thickness: 0.002,
+      shoulderRadius: 0.011,
+      shoulderLength: 0.02,
+    } as unknown as ComponentNode,
+  ],
+  [
+    'transition with both shoulders',
+    {
+      type: 'transition',
+      shape: 'ogive',
+      length: 0.04,
+      foreRadius: 0.013,
+      aftRadius: 0.02,
+      foreShoulderRadius: 0.011,
+      foreShoulderLength: 0.015,
+      aftShoulderRadius: 0.018,
+      aftShoulderLength: 0.015,
+    } as unknown as ComponentNode,
+  ],
+  [
+    'trapezoid fin',
+    {
+      type: 'trapezoidfinset',
+      finCount: 4,
+      rootChord: 0.06,
+      tipChord: 0.03,
+      sweep: 0.02,
+      height: 0.04,
+      thickness: 0.003,
+    } as unknown as ComponentNode,
+  ],
+  [
+    'elliptical fin',
+    {
+      type: 'ellipticalfinset',
+      finCount: 3,
+      rootChord: 0.05,
+      height: 0.03,
+      thickness: 0.003,
+    } as unknown as ComponentNode,
+  ],
+  [
+    'freeform fin',
+    {
+      type: 'freeformfinset',
+      finCount: 3,
+      points: [
+        [0, 0],
+        [0.02, 0.03],
+        [0.05, 0],
+      ],
+      thickness: 0.003,
+    } as unknown as ComponentNode,
+  ],
 ];
 
 describe('solid mesher (per component)', () => {
@@ -74,23 +165,78 @@ describe('solid mesher (per component)', () => {
     expect(n({ type: 'nosecone', shape: 'ogive', length: 0, aftRadius: 0.013 })).toBeNull(); // zero length
     expect(n({ type: 'transition', shape: 'conical', length: 0, foreRadius: 0.01, aftRadius: 0.008 })).toBeNull();
     expect(n({ type: 'trapezoidfinset', rootChord: 0.06, height: 0, thickness: 0.003 })).toBeNull(); // zero-area fin
-    expect(n({ type: 'freeformfinset', points: [[0, 0], [0.05, 0.03]], thickness: 0.003 })).toBeNull(); // < 3 points
+    expect(
+      n({
+        type: 'freeformfinset',
+        points: [
+          [0, 0],
+          [0.05, 0.03],
+        ],
+        thickness: 0.003,
+      }),
+    ).toBeNull(); // < 3 points
+  });
+
+  it('folds a through-the-wall tab into the fin solid, and stays watertight', () => {
+    // The DXF and the 1:1 PDF template both include the tab; the mesh did not,
+    // so a printed fin would not seat in the airframe slot.
+    const fin = (o: object) => solidForNode(o as unknown as ComponentNode)!;
+    const plain = fin({
+      type: 'trapezoidfinset',
+      rootChord: 0.06,
+      tipChord: 0.03,
+      sweep: 0.02,
+      height: 0.04,
+      thickness: 0.003,
+    });
+    const tabbed = fin({
+      type: 'trapezoidfinset',
+      rootChord: 0.06,
+      tipChord: 0.03,
+      sweep: 0.02,
+      height: 0.04,
+      thickness: 0.003,
+      tabHeight: 0.005,
+      tabLength: 0.02,
+    });
+    // The tab adds material below the root line, so the solid gets bigger…
+    plain.computeBoundingBox();
+    tabbed.computeBoundingBox();
+    expect(tabbed.boundingBox!.min.y).toBeLessThan(plain.boundingBox!.min.y - 1e-6);
+    // …and it is still a closed, printable solid.
+    const q = quality(tabbed);
+    expect(q.hole).toBe(0);
+    expect(q.nonManifold).toBe(0);
+  });
+
+  it('refuses an inverted ring rather than exporting it as a solid disc', () => {
+    // ID >= OD is reachable from a malformed .ork or a bad catalog row. It used
+    // to fall through to the solid-cylinder branch, so a centring ring printed
+    // as a solid disc that blocks the motor tube — with nothing said.
+    expect(discSolid(0.012, 0.012, 0.003)).toBeNull();
+    expect(discSolid(0.012, 0.02, 0.003)).toBeNull();
   });
 
   it('a solid disc (bulkhead) is watertight and manifold', () => {
-    const q = quality(discSolid(0.012, 0, 0.003));
+    const g = discSolid(0.012, 0, 0.003);
+    expect(g).not.toBeNull();
+    const q = quality(g!);
     expect(q.hole).toBe(0);
     expect(q.nonManifold).toBe(0);
   });
 
   it('a bored ring (centring ring) is watertight and manifold', () => {
-    const q = quality(discSolid(0.012, 0.0095, 0.003));
+    const g = discSolid(0.012, 0.0095, 0.003);
+    expect(g).not.toBeNull();
+    const q = quality(g!);
     expect(q.hole).toBe(0);
     expect(q.nonManifold).toBe(0);
   });
 
   it('a short tube (coupler) is watertight and manifold', () => {
-    const q = quality(discSolid(0.013, 0.0125, 0.05));
+    const g = discSolid(0.013, 0.0125, 0.05);
+    expect(g).not.toBeNull();
+    const q = quality(g!);
     expect(q.hole).toBe(0);
     expect(q.nonManifold).toBe(0);
   });
@@ -106,10 +252,20 @@ describe('solid mesher (per component)', () => {
       { type: 'bodytube', length: 0.3, outerRadius: 0.013, thickness: 0.001 } as unknown as ComponentNode,
       { type: 'innertube', length: 0.07, outerRadius: 0.0095, thickness: 0.0005 } as unknown as ComponentNode,
       { type: 'launchlug', length: 0.03, outerRadius: 0.004 } as unknown as ComponentNode,
-      { type: 'tubefinset', finCount: 3, length: 0.06, outerRadius: 0.02, thickness: 0.001 } as unknown as ComponentNode,
+      {
+        type: 'tubefinset',
+        finCount: 3,
+        length: 0.06,
+        outerRadius: 0.02,
+        thickness: 0.001,
+      } as unknown as ComponentNode,
     ];
     for (const t of tubes) expect(minRadius(solidForNode(t)!)).toBeGreaterThan(0.001); // has a bore
     // A nose is a solid body — it reaches the axis.
-    expect(minRadius(solidForNode({ type: 'nosecone', shape: 'ogive', length: 0.1, aftRadius: 0.013 } as unknown as ComponentNode)!)).toBeLessThan(1e-6);
+    expect(
+      minRadius(
+        solidForNode({ type: 'nosecone', shape: 'ogive', length: 0.1, aftRadius: 0.013 } as unknown as ComponentNode)!,
+      ),
+    ).toBeLessThan(1e-6);
   });
 });

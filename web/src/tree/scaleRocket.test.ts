@@ -14,9 +14,31 @@ const tree = (): RocketTree => ({
           outerRadius: 0.012,
           thickness: 0.001,
           children: [
-            { type: 'trapezoidfinset', finCount: 3, rootChord: 0.05, tipChord: 0.03, sweep: 0.02, height: 0.03, thickness: 0.003 },
-            { type: 'freeformfinset', finCount: 4, points: [[0, 0], [0.02, 0.03], [0.05, 0]] },
-            { type: 'masscomponent', mass: 0.01, length: 0.02, radius: 0.005, position: { method: 'top', offset: 0.05 } },
+            {
+              type: 'trapezoidfinset',
+              finCount: 3,
+              rootChord: 0.05,
+              tipChord: 0.03,
+              sweep: 0.02,
+              height: 0.03,
+              thickness: 0.003,
+            },
+            {
+              type: 'freeformfinset',
+              finCount: 4,
+              points: [
+                [0, 0],
+                [0.02, 0.03],
+                [0.05, 0],
+              ],
+            },
+            {
+              type: 'masscomponent',
+              mass: 0.01,
+              length: 0.02,
+              radius: 0.005,
+              position: { method: 'top', offset: 0.05 },
+            },
             { type: 'parachute', diameter: 0.4, mass: 0.008 },
           ],
         },
@@ -38,7 +60,11 @@ describe('scaleRocket', () => {
     expect(fin!['rootChord']).toBeCloseTo(0.1);
     expect(fin!['height']).toBeCloseTo(0.06);
     // Freeform planform points both scale.
-    expect(freeform!['points']).toEqual([[0, 0], [0.04, 0.06], [0.1, 0]]);
+    expect(freeform!['points']).toEqual([
+      [0, 0],
+      [0.04, 0.06],
+      [0.1, 0],
+    ]);
     // Axial position offset scales too.
     expect(massc!.position!.offset).toBeCloseTo(0.1);
   });

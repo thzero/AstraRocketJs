@@ -51,9 +51,7 @@ export function clusterEventLabels(
   minGap = 20,
 ): { x: number; type: string }[] {
   const groups: { x: number; type: string }[] = [];
-  const sorted = [...events].sort(
-    (a, b) => a.time - b.time || Number(a.type === DEPLOY) - Number(b.type === DEPLOY),
-  );
+  const sorted = [...events].sort((a, b) => a.time - b.time || Number(a.type === DEPLOY) - Number(b.type === DEPLOY));
   for (const e of sorted) {
     const x = xOf(e.time);
     const last = groups[groups.length - 1];

@@ -71,7 +71,11 @@ function dedupe(pts: Pt[]): Pt[] {
     if (!last || Math.abs(last.x - p.x) > EPS || Math.abs(last.y - p.y) > EPS) out.push(p);
   }
   // Also drop a closing duplicate (poly is implicitly closed).
-  while (out.length > 1 && Math.abs(out[0]!.x - out[out.length - 1]!.x) <= EPS && Math.abs(out[0]!.y - out[out.length - 1]!.y) <= EPS) {
+  while (
+    out.length > 1 &&
+    Math.abs(out[0]!.x - out[out.length - 1]!.x) <= EPS &&
+    Math.abs(out[0]!.y - out[out.length - 1]!.y) <= EPS
+  ) {
     out.pop();
   }
   return out;
@@ -232,16 +236,28 @@ function nodeContext(
 // --- layout + R12 serialization --------------------------------------------
 
 function bounds(ents: Ent[]): { minX: number; minY: number; maxX: number; maxY: number } {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   const add = (x: number, y: number) => {
-    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y);
+    maxY = Math.max(maxY, y);
   };
   for (const e of ents) {
     if (e.kind === 'poly') for (const p of e.pts) add(p.x, p.y);
-    else if (e.kind === 'circle') { add(e.c.x - e.r, e.c.y - e.r); add(e.c.x + e.r, e.c.y + e.r); }
-    else if (e.kind === 'line') { add(e.a.x, e.a.y); add(e.b.x, e.b.y); }
-    else { add(e.at.x, e.at.y - e.h); add(e.at.x + e.h * 0.7 * e.s.length, e.at.y + e.h); }
+    else if (e.kind === 'circle') {
+      add(e.c.x - e.r, e.c.y - e.r);
+      add(e.c.x + e.r, e.c.y + e.r);
+    } else if (e.kind === 'line') {
+      add(e.a.x, e.a.y);
+      add(e.b.x, e.b.y);
+    } else {
+      add(e.at.x, e.at.y - e.h);
+      add(e.at.x + e.h * 0.7 * e.s.length, e.at.y + e.h);
+    }
   }
   if (!Number.isFinite(minX)) return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
   return { minX, minY, maxX, maxY };
@@ -262,9 +278,12 @@ function textBlock(geom: Ent[], lines: string[]): Ent[] {
 function translate(ents: Ent[], dx: number, dy: number): Ent[] {
   const t = (p: Pt): Pt => ({ x: p.x + dx, y: p.y + dy });
   return ents.map((e) =>
-    e.kind === 'poly' ? { ...e, pts: e.pts.map(t) }
-      : e.kind === 'circle' ? { ...e, c: t(e.c) }
-        : e.kind === 'line' ? { ...e, a: t(e.a), b: t(e.b) }
+    e.kind === 'poly'
+      ? { ...e, pts: e.pts.map(t) }
+      : e.kind === 'circle'
+        ? { ...e, c: t(e.c) }
+        : e.kind === 'line'
+          ? { ...e, a: t(e.a), b: t(e.b) }
           : { ...e, at: t(e.at) },
   );
 }
@@ -292,32 +311,72 @@ function serialize(ents: Ent[]): string {
   const p = (code: number, val: string | number) => out.push(String(code), String(val));
 
   const b = bounds(ents);
-  p(0, 'SECTION'); p(2, 'HEADER');
-  p(9, '$ACADVER'); p(1, 'AC1009');
-  p(9, '$INSUNITS'); p(70, 4); // 4 = millimetres
-  p(9, '$EXTMIN'); p(10, toMm(b.minX)); p(20, toMm(b.minY));
-  p(9, '$EXTMAX'); p(10, toMm(b.maxX)); p(20, toMm(b.maxY));
+  p(0, 'SECTION');
+  p(2, 'HEADER');
+  p(9, '$ACADVER');
+  p(1, 'AC1009');
+  p(9, '$INSUNITS');
+  p(70, 4); // 4 = millimetres
+  p(9, '$EXTMIN');
+  p(10, toMm(b.minX));
+  p(20, toMm(b.minY));
+  p(9, '$EXTMAX');
+  p(10, toMm(b.maxX));
+  p(20, toMm(b.maxY));
   p(0, 'ENDSEC');
 
-  p(0, 'SECTION'); p(2, 'TABLES');
-  p(0, 'TABLE'); p(2, 'LAYER'); p(70, 3);
+  p(0, 'SECTION');
+  p(2, 'TABLES');
+  p(0, 'TABLE');
+  p(2, 'LAYER');
+  p(70, 3);
   const layer = (name: string, aci: number) => {
-    p(0, 'LAYER'); p(2, name); p(70, 0); p(62, aci); p(6, 'CONTINUOUS');
+    p(0, 'LAYER');
+    p(2, name);
+    p(70, 0);
+    p(62, aci);
+    p(6, 'CONTINUOUS');
   };
-  layer('CUT', 7); layer('REFERENCE', 5); layer('TEXT', 3);
-  p(0, 'ENDTAB'); p(0, 'ENDSEC');
+  layer('CUT', 7);
+  layer('REFERENCE', 5);
+  layer('TEXT', 3);
+  p(0, 'ENDTAB');
+  p(0, 'ENDSEC');
 
-  p(0, 'SECTION'); p(2, 'ENTITIES');
+  p(0, 'SECTION');
+  p(2, 'ENTITIES');
   for (const e of ents) {
     if (e.kind === 'circle') {
-      p(0, 'CIRCLE'); p(8, e.layer); p(10, toMm(e.c.x)); p(20, toMm(e.c.y)); p(40, toMm(e.r));
+      p(0, 'CIRCLE');
+      p(8, e.layer);
+      p(10, toMm(e.c.x));
+      p(20, toMm(e.c.y));
+      p(40, toMm(e.r));
     } else if (e.kind === 'line') {
-      p(0, 'LINE'); p(8, e.layer); p(10, toMm(e.a.x)); p(20, toMm(e.a.y)); p(11, toMm(e.b.x)); p(21, toMm(e.b.y));
+      p(0, 'LINE');
+      p(8, e.layer);
+      p(10, toMm(e.a.x));
+      p(20, toMm(e.a.y));
+      p(11, toMm(e.b.x));
+      p(21, toMm(e.b.y));
     } else if (e.kind === 'text') {
-      p(0, 'TEXT'); p(8, e.layer); p(10, toMm(e.at.x)); p(20, toMm(e.at.y)); p(40, toMm(e.h)); p(1, ascii(e.s));
+      p(0, 'TEXT');
+      p(8, e.layer);
+      p(10, toMm(e.at.x));
+      p(20, toMm(e.at.y));
+      p(40, toMm(e.h));
+      p(1, ascii(e.s));
     } else {
-      p(0, 'POLYLINE'); p(8, e.layer); p(66, 1); p(70, 1); // 70 bit 1 = closed
-      for (const v of e.pts) { p(0, 'VERTEX'); p(8, e.layer); p(10, toMm(v.x)); p(20, toMm(v.y)); }
+      p(0, 'POLYLINE');
+      p(8, e.layer);
+      p(66, 1);
+      p(70, 1); // 70 bit 1 = closed
+      for (const v of e.pts) {
+        p(0, 'VERTEX');
+        p(8, e.layer);
+        p(10, toMm(v.x));
+        p(20, toMm(v.y));
+      }
       p(0, 'SEQEND');
     }
   }
@@ -332,7 +391,10 @@ function serialize(ents: Ent[]): string {
  * resolution the DXF uses (explicit radii, else the parent tube's bore, else the
  * mount an inner tube provides). Returns null for any other type.
  */
-export function resolveDisc(tree: RocketTree, nodeId: string): { outerR: number; innerR: number; length: number } | null {
+export function resolveDisc(
+  tree: RocketTree,
+  nodeId: string,
+): { outerR: number; innerR: number; length: number } | null {
   const ctx = nodeContext(tree, nodeId);
   if (!ctx) return null;
   const { node, enclosing, siblings } = ctx;

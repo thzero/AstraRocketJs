@@ -4,6 +4,7 @@ import type { ComponentNode } from '../engine/openRocketEngine';
 import { num, numOpt } from '../tree/nodeProps';
 import { freeformRootChord } from '../tree/position';
 import { outerProfile } from '../tree/shapeProfile';
+import { finTabFront } from '../components/canvas/schematicGeometry';
 
 /**
  * Build the rocket's external airframe as watertight solids for 3D print / CAD.
@@ -203,8 +204,14 @@ function revolveSolidX(surface: [number, number][], axialOffset: number): THREE.
  * coupler) — a closed rectangular cross-section revolved, so it stays watertight
  * without capping onto the axis.
  */
-export function discSolid(outerR: number, innerR: number, length: number): THREE.BufferGeometry {
+export function discSolid(outerR: number, innerR: number, length: number): THREE.BufferGeometry | null {
   const len = length > 1e-6 ? length : 0.002;
+  // An INVERTED ring (ID >= OD — reachable from a malformed .ork or a bad
+  // catalog row) used to fall through to the solid-cylinder branch and export a
+  // centring ring as a solid disc. Printed, that blocks the motor tube, and
+  // nothing said so. Every other degenerate case in solidForNode returns null;
+  // this one now does too.
+  if (innerR > 1e-6 && innerR >= outerR - 1e-6) return null;
   const hasBore = innerR > 1e-6 && innerR < outerR - 1e-6;
   const pts = hasBore
     ? [
@@ -264,6 +271,24 @@ function oneFinSolid(child: ComponentNode): THREE.BufferGeometry | null {
     shape.lineTo(sweep, height);
     shape.lineTo(sweep + tip, height);
     shape.lineTo(root, 0);
+  }
+  // Fold in the through-the-wall tab, the way dxfExport.ts:57-62 and
+  // reportGeometry.ts:49-58 already do. Without it a printed fin has no tab: it
+  // will not pass through the airframe slot or seat on the centring rings — and
+  // the DXF of the SAME part, from the same menu, did have one. The outline
+  // above ends at the trailing root corner, so walk back along y = 0, dip down
+  // for the tab, and return to the leading corner; closePath joins it up.
+  const tabH = num(child, 'tabHeight', 0);
+  const tabLen = num(child, 'tabLength', 0);
+  if (tabH > 0 && tabLen > 0) {
+    const x0 = Math.max(0, Math.min(root, finTabFront(child, root)));
+    const x1 = Math.max(0, Math.min(root, x0 + tabLen));
+    if (x1 - x0 > 1e-9) {
+      shape.lineTo(x1, 0);
+      shape.lineTo(x1, -tabH);
+      shape.lineTo(x0, -tabH);
+      shape.lineTo(x0, 0);
+    }
   }
   shape.closePath();
 

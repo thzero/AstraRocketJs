@@ -87,11 +87,14 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-1 px-4 pt-3">
+        {/* Tabs. A real tablist: which section is open was signalled by
+            background colour alone, which a screen reader cannot announce. */}
+        <div role="tablist" className="flex flex-wrap gap-1 px-4 pt-3">
           {TABS.map((tb) => (
             <button
               key={tb.key}
+              role="tab"
+              aria-selected={tab === tb.key}
               onClick={() => setTab(tb.key)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium ${tab === tb.key ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
             >

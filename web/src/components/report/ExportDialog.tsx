@@ -4,6 +4,7 @@ import { useWorkspaceStore } from '../../state/store';
 import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
 import { resolveUnitChoice, UNIT_CHOICES, type UnitChoice } from '../../prefs/units';
+import { useFocusTrap } from '../common/useFocusTrap';
 import { DEFAULT_REPORT } from '../../services/settings';
 import { assembleReport, type ReportModel } from '../../services/reportModel';
 import type { ComponentNode } from '../../engine/openRocketEngine';
@@ -38,6 +39,18 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const { t } = useTranslation();
   const { settings, update } = useSettings();
   const units = useUnits();
+  // Escape to dismiss, and keep Tab inside the modal. Every sibling dialog has
+  // both; this one had neither, so Tab walked straight out into the page behind
+  // an aria-modal overlay and there was no keyboard way to close it.
+  const panelRef = useFocusTrap<HTMLDivElement>(open);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
   // One resolution for both outputs — the PDF and the CSV must never disagree
   // about what the document is written in.
   const exportUnits = resolveUnitChoice(settings.report.units, units.all);
@@ -184,6 +197,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   return (
     <div className="dialog-overlay fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
       <div
+        ref={panelRef}
         className="dialog-panel flex max-h-[85vh] w-full max-w-md flex-col rounded-2xl bg-slate-900 ring-1 ring-white/10"
         role="dialog"
         aria-modal="true"
@@ -192,7 +206,11 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
       >
         <div className="flex items-center justify-between gap-3 border-b border-white/10 p-4">
           <h2 className="text-lg font-semibold text-slate-100">{t('export.title')}</h2>
-          <button onClick={onClose} className="rounded-md px-2 text-slate-400 hover:text-slate-200">
+          <button
+            onClick={onClose}
+            aria-label={t('common.close')}
+            className="rounded-md px-2 text-slate-400 hover:text-slate-200"
+          >
             ✕
           </button>
         </div>
@@ -348,7 +366,15 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
       {showSettings && (
         <div
           className="fixed inset-0 z-[60] grid place-items-center bg-black/50 p-4"
-          onClick={() => setShowSettings(false)}
+          // This popover is a CHILD of the export dialog's overlay, whose own
+          // onClick is onClose — so dismissing the popover by its backdrop used
+          // to bubble and shut the whole Export dialog. Reopening then reset
+          // `assembled.current`, rebuilding every include/exclude checkbox from
+          // defaults and throwing away the user's selection.
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowSettings(false);
+          }}
         >
           <div
             className="w-full max-w-xs rounded-2xl bg-slate-900 p-4 ring-1 ring-white/10"

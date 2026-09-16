@@ -1,6 +1,19 @@
 {
-  "app": { "title": "AstraRocketJs", "version": "{{name}} version {{version}}", "designName": "{{name}} design" },
-  "common": { "loading": "Loading…", "confirmTitle": "Are you sure?", "confirm": "Confirm", "save": "Save", "cancel": "Cancel", "delete": "Delete", "discard": "Discard", "close": "Close" },
+  "app": {
+    "title": "AstraRocketJs",
+    "version": "{{name}} version {{version}}",
+    "designName": "{{name}} design"
+  },
+  "common": {
+    "loading": "Loading…",
+    "confirmTitle": "Are you sure?",
+    "confirm": "Confirm",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "discard": "Discard",
+    "close": "Close"
+  },
   "report": {
     "title": "Rocket Design",
     "noDesign": "No valid design to export.",
@@ -75,7 +88,10 @@
     "landscape": "Landscape",
     "reset": "Reset"
   },
-  "engine": { "wasmTip": "Physics engine: WebAssembly (fast path)", "jsTip": "Physics engine: JavaScript (fallback)" },
+  "engine": {
+    "wasmTip": "Physics engine: WebAssembly (fast path)",
+    "jsTip": "Physics engine: JavaScript (fallback)"
+  },
   "about": {
     "open": "About",
     "tagline": "A lightweight web UI for the OpenRocket engine",
@@ -112,7 +128,8 @@
     "openLibrary": "Open…",
     "saveAs": "Save As…",
     "import": "Import",
-    "ork": "OpenRocket",
+    "importOrk": "Import OpenRocket (.ork)",
+    "exportOrk": "Export OpenRocket (.ork)",
     "export": "Export",
     "report": "Rocket Design Report",
     "rasaero": "RASAero II",
@@ -123,7 +140,10 @@
     "new": "New",
     "newConfirm": "Discard the current design and all simulations and start a fresh design?"
   },
-  "edit": { "undo": "Undo", "redo": "Redo" },
+  "edit": {
+    "undo": "Undo",
+    "redo": "Redo"
+  },
   "scale": {
     "title": "Scale rocket",
     "intro": "Multiply every length, diameter, wall, fin planform and axial position by one factor. Applied as a single step — Ctrl+Z undoes it.",
@@ -135,7 +155,10 @@
     "noAirframe": "This design has no body tube, nose cone or transition to measure, so there's nothing to scale from. Add an airframe first.",
     "apply": "Scale to {{pct}}%"
   },
-  "menu": { "open": "Menu", "help": "Help" },
+  "menu": {
+    "open": "Menu",
+    "help": "Help"
+  },
   "wip": {
     "title": "Work in progress",
     "body": "{{name}} is an early, pre-1.0 release under active development. Features may be incomplete, change, or break. Thanks for trying it!",
@@ -240,7 +263,12 @@
     "type_modified_kit": "Modified kit",
     "type_kit_bash": "Kit bash"
   },
-  "tabs": { "rocket": "Rocket", "sketch": "Sketch", "simulate": "Simulate", "results": "Results" },
+  "tabs": {
+    "rocket": "Rocket",
+    "sketch": "Sketch",
+    "simulate": "Simulate",
+    "results": "Results"
+  },
   "view": {
     "2d": "2D",
     "3d": "3D",
@@ -347,7 +375,10 @@
     "geodetic": "Geodetic",
     "flat": "Flat",
     "spherical": "Spherical",
-    "wgs84": "WGS84"
+    "wgs84": "WGS84",
+    "rodLengthName": "Launch rod length",
+    "rodDirectionName": "Launch rod direction",
+    "windDirectionName": "Wind direction"
   },
   "flight": {
     "title": "Flight profile",
@@ -427,10 +458,25 @@
     "altitudeReferenceNote": "Automatic uses sea level when the launch site has a real altitude set, and the ground when it is still 0. Clamped lays the track flat on the terrain — the one to pick when the question is what the rocket drifts over.",
     "drawShadow": "Draw shadow down to the ground",
     "shadowNote": "Adds a curtain under the track and a plumb line under each pin, so you can read where a point in the air sits on the map. Nothing to draw once it is clamped.",
-    "preset": { "driftCast": "Drift cast", "driftCastNote": "Everything flat on the terrain, ground track only — for reading the hazards under the drift.", "flightPath": "Flight path", "flightPathNote": "The flight suspended in the air where it belongs, with shadows to the ground.", "landing": "Landing plots", "landingNote": "The landing point alone, on the ground." },
-    "altRef": { "automatic": "Automatic", "ground": "The ground", "sealevel": "Sea level" , "clamped": "Clamped to the ground" },
+    "preset": {
+      "driftCast": "Drift cast",
+      "driftCastNote": "Everything flat on the terrain, ground track only — for reading the hazards under the drift.",
+      "flightPath": "Flight path",
+      "flightPathNote": "The flight suspended in the air where it belongs, with shadows to the ground.",
+      "landing": "Landing plots",
+      "landingNote": "The landing point alone, on the ground."
+    },
+    "altRef": {
+      "automatic": "Automatic",
+      "ground": "The ground",
+      "sealevel": "Sea level",
+      "clamped": "Clamped to the ground"
+    },
     "stageTrackStart": "Each stage's track starts",
-    "trackStart": { "separation": "At separation", "pad": "On the pad" },
+    "trackStart": {
+      "separation": "At separation",
+      "pad": "On the pad"
+    },
     "showWaypointLabels": "Draw waypoint names on the map",
     "colorWaypointPins": "Colour waypoint pins per stage",
     "pinsNote": "Coloured pins load an icon from Google's servers; turn them off for a file that must render offline.",
@@ -602,7 +648,9 @@
     "tabLength": "Fin tab length",
     "tabHeight": "Fin tab height",
     "tabOffset": "Fin tab offset",
-    "tabOffsetMethod": "Fin tab reference"
+    "tabOffsetMethod": "Fin tab reference",
+    "cluster": "Cluster",
+    "tubeFinsCollide": "These tubes overlap each other. At this tube radius at most {{max}} fit; at this count the largest that fits is {{radius}} {{unit}}."
   },
   "deployEvent": {
     "ejection": "Motor ejection charge",
@@ -808,7 +856,9 @@
     "chartBurn": "burn time",
     "calcNote": "* Initial thrust, Isp, and mass fraction are calculated from the thrust curve and weights."
   },
-  "lang": { "label": "Language" },
+  "lang": {
+    "label": "Language"
+  },
   "boot": {
     "downloading": "Downloading engine…",
     "downloadingOf": "Downloading engine… {{done}} / {{total}} MB",
@@ -830,7 +880,8 @@
   },
   "storage": {
     "full": "Could not save your work — browser storage is full. Export your design to keep it.",
-    "degraded": "Your browser is blocking its database, so the app has fallen back to a much smaller storage area (about 5 MB) and saving may fail as your design grows. Private browsing is the usual cause. Export anything you want to keep."
+    "degraded": "Your browser is blocking its database, so the app has fallen back to a much smaller storage area (about 5 MB) and saving may fail as your design grows. Private browsing is the usual cause. Export anything you want to keep.",
+    "loadFailed": "Your saved design could not be read. Starting fresh — new work will still be saved."
   },
   "library": {
     "title": "My Rockets",
@@ -842,5 +893,9 @@
     "untitled": "Untitled rocket",
     "duplicateName": "Another rocket already has this name.",
     "missing": "That rocket is no longer saved."
+  },
+  "cluster": {
+    "single": "Single",
+    "pattern": "{{name}} ({{n}} motors)"
   }
 }

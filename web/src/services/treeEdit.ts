@@ -242,6 +242,29 @@ export function siblingIndex(tree: RocketTree, id: string): { index: number; cou
   return rec(tree.components);
 }
 
+/**
+ * The node's parent component, or null for a top-level node (a stage) or an
+ * id that isn't in the tree.
+ *
+ * Tube fins need it: whether their tubes collide depends on the BODY radius
+ * they ring, which lives on the parent, not on the fin set.
+ */
+export function findParent(tree: RocketTree, id: string): ComponentNode | null {
+  // Boxed, because `null` is a legitimate ANSWER (a top-level node has no
+  // parent) as well as the "keep looking" signal.
+  const rec = (nodes: ComponentNode[], parent: ComponentNode | null): { parent: ComponentNode | null } | null => {
+    for (const n of nodes) {
+      if (n.id === id) return { parent };
+      if (n.children) {
+        const r = rec(n.children, n);
+        if (r) return r;
+      }
+    }
+    return null;
+  };
+  return rec(tree.components, null)?.parent ?? null;
+}
+
 /** Move a node one slot earlier (dir -1) or later (dir +1) among its siblings. */
 export function moveNode(tree: RocketTree, id: string, dir: -1 | 1): RocketTree {
   const next = clone(tree);

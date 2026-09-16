@@ -18,7 +18,6 @@ import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { outerProfile } from '../../tree/shapeProfile.js';
 import {
-  downloadBlob,
   IMAGE_FORMAT_EXT,
   snapshotWithHeader,
   type ExportData,
@@ -27,6 +26,8 @@ import {
 import { stabilityState, type StabilityState } from '../../services/simReport.js';
 import { colorForType, DEFAULT_PART_COLORS, mergePalette, type PartPalette } from '../../services/partColors';
 import { useSettings } from '../../state/SettingsProvider';
+import { useHoverCursor } from '../common/useHoverCursor';
+import { download, safeFilename } from '../../services/saveFile';
 import { ImageExportMenu, type ImageExportOptions } from './ImageExportMenu.js';
 import { useUnits } from '../../prefs/useUnits';
 
@@ -875,7 +876,7 @@ export function Rocket3D({
       st.gl.setSize(widthPx, outH, false);
       st.gl.render(st.scene, cam);
       const blob = await snapshotWithHeader(el, { ...exportData, spanM: 2 * maxR }, format);
-      downloadBlob(blob, `${exportData.name.replace(/[^\w-]+/g, '_')}-3d.${IMAGE_FORMAT_EXT[format]}`);
+      download(`${safeFilename(exportData.name)}-3d.${IMAGE_FORMAT_EXT[format]}`, blob);
     } finally {
       st.gl.setPixelRatio(pr);
       st.gl.setSize(cssW, cssH, false);
@@ -891,6 +892,7 @@ export function Rocket3D({
     },
     [pieces],
   );
+  const hoverCursor = useHoverCursor();
   const center = totalLen / 2;
   const camDist = Math.max(totalLen * 1.1, maxR * 6, 0.25);
   const markerR = markerRadius(totalLen, maxR);
@@ -1036,17 +1038,11 @@ export function Rocket3D({
                     p.id && onSelect
                       ? (e) => {
                           e.stopPropagation();
-                          document.body.style.cursor = 'pointer';
+                          hoverCursor(true);
                         }
                       : undefined
                   }
-                  onPointerOut={
-                    p.id && onSelect
-                      ? () => {
-                          document.body.style.cursor = '';
-                        }
-                      : undefined
-                  }
+                  onPointerOut={p.id && onSelect ? () => hoverCursor(false) : undefined}
                 >
                   {/* See-through layering (batch 08-21d — 0.88 with depth writes
                   on looked opaque in practice): opaque pieces (motor, fins)

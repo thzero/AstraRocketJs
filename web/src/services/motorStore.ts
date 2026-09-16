@@ -130,14 +130,22 @@ export class KeyValueMotorStore implements MotorStore {
   }
 
   // add/remove propagate write failures (an import must be known to have saved),
-  // unlike the best-effort cache writes above.
+  // unlike the best-effort cache writes above. `kv.set` REPORTS failure by
+  // returning false rather than throwing, so the boolean has to be checked —
+  // discarding it meant MotorDialog awaited the import, got a clean resolve, and
+  // re-rendered a catalog that simply did not contain the motor, with no error.
   async addCustomMotor(motor: CustomMotor): Promise<void> {
     const rest = (await this.readCustom()).filter((m) => m.id !== motor.id);
-    await this.kv.set(CUSTOM_MOTORS_KEY, JSON.stringify([motor, ...rest]));
+    if (!(await this.kv.set(CUSTOM_MOTORS_KEY, JSON.stringify([motor, ...rest])))) {
+      throw new Error('storage-full');
+    }
   }
 
   async removeCustomMotor(id: string): Promise<void> {
-    await this.kv.set(CUSTOM_MOTORS_KEY, JSON.stringify((await this.readCustom()).filter((m) => m.id !== id)));
+    const rest = (await this.readCustom()).filter((m) => m.id !== id);
+    if (!(await this.kv.set(CUSTOM_MOTORS_KEY, JSON.stringify(rest)))) {
+      throw new Error('storage-full');
+    }
   }
 }
 

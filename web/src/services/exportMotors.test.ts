@@ -20,7 +20,11 @@ const tree = {
 
 describe('buildExportMotorMap', () => {
   it('maps the primary mount from the active motor + ignition', () => {
-    const m = buildExportMotorMap(tree, { motor: spec('D12'), ignitionEvent: 'launch' as IgnitionEvent, ignitionDelay: 0 }, {});
+    const m = buildExportMotorMap(
+      tree,
+      { motor: spec('D12'), ignitionEvent: 'launch' as IgnitionEvent, ignitionDelay: 0 },
+      {},
+    );
     expect(Object.keys(m)).toEqual(['primary']);
     expect(m.primary).toMatchObject({
       designation: 'D12',
@@ -33,11 +37,15 @@ describe('buildExportMotorMap', () => {
   });
 
   it('maps extra mounts, skipping the primary id and mounts gone from the tree', () => {
-    const m = buildExportMotorMap(tree, { motor: spec('D12') }, {
-      pod: mount('C6', { ignitionEvent: 'burnout' as IgnitionEvent, ignitionDelay: 2 }),
-      primary: mount('SKIP'), // same id as the primary → ignored (exported from the active motor above)
-      gone: mount('GONE'), // no such node in the tree → skipped
-    });
+    const m = buildExportMotorMap(
+      tree,
+      { motor: spec('D12') },
+      {
+        pod: mount('C6', { ignitionEvent: 'burnout' as IgnitionEvent, ignitionDelay: 2 }),
+        primary: mount('SKIP'), // same id as the primary → ignored (exported from the active motor above)
+        gone: mount('GONE'), // no such node in the tree → skipped
+      },
+    );
     expect(Object.keys(m).sort()).toEqual(['pod', 'primary']);
     expect(m.primary!.designation).toBe('D12'); // the active motor, NOT the extraMotors['primary'] entry
     expect(m.pod).toMatchObject({ designation: 'C6', ignitionEvent: 'burnout', ignitionDelay: 2 });

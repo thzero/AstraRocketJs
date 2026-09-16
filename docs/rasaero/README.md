@@ -241,3 +241,13 @@ The classic-off failure is the *point*: it quantifies where stock OpenRocket is 
 | `rocketcomponent_AxialStage.java.diff` | #2 (`nozzleExitDiameter`) | — |
 | `aerodynamics_FlightConditions.java.diff` | #2 (`thrustingStages`) | — |
 | `simulation_AbstractSimulationStepper.java.diff` | #2 (populate thrusting stages) | — |
+
+### Validation
+
+The scoring harness, anchors, fixtures and scorecards live in
+[`engine-java/validation/`](../../engine-java/validation/) — one copy, next to the engine it
+scores, which is what `website/docs/contributing.md` points contributors at.
+
+A byte-identical second copy used to sit here under `docs/rasaero/validation/`. Two copies of the
+same anchors drift, and a contributor re-scoring the engine could not tell which was
+authoritative; it has been removed.

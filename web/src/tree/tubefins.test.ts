@@ -59,3 +59,23 @@ describe('tubeFinMaxCount', () => {
     expect(tubeFinMaxCount(1, 0.001)).toBe(2);
   });
 });
+
+describe('tubeFinRadius numeric guard', () => {
+  // The hand-rolled `typeof x === 'number' && x > 0` let Infinity through,
+  // which propagates to the schematic's scale and collapses the drawing to
+  // nothing. `numOpt` carries the Number.isFinite guard nodeProps documents as
+  // load-bearing, so a non-finite radius falls back to the auto rule instead.
+  it('ignores a non-finite explicit radius and falls back to the auto rule', () => {
+    const auto = tubeFinRadius({ type: 'tubefinset', finCount: 6 } as unknown as ComponentNode, 0.012);
+    for (const bad of [Number.POSITIVE_INFINITY, Number.NaN]) {
+      const r = tubeFinRadius({ type: 'tubefinset', finCount: 6, outerRadius: bad } as unknown as ComponentNode, 0.012);
+      expect(Number.isFinite(r)).toBe(true);
+      expect(r).toBeCloseTo(auto, 12);
+    }
+  });
+
+  it('still honours a real explicit radius', () => {
+    const r = tubeFinRadius({ type: 'tubefinset', finCount: 6, outerRadius: 0.005 } as unknown as ComponentNode, 0.012);
+    expect(r).toBeCloseTo(0.005, 12);
+  });
+});

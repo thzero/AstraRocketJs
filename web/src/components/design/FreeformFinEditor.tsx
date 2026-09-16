@@ -174,7 +174,7 @@ export function FreeformFinEditor({
               ariaLabel="X"
               className="w-16 rounded bg-slate-800 px-1.5 py-0.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
             />
-            <UnitChip quantity="length" scope={unitScope('freeform', 'x')} />
+            <UnitChip label="X" quantity="length" scope={unitScope('freeform', 'x')} />
           </label>
           <label className="flex items-center gap-1">
             Y
@@ -186,7 +186,7 @@ export function FreeformFinEditor({
               ariaLabel="Y"
               className="w-16 rounded bg-slate-800 px-1.5 py-0.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
             />
-            <UnitChip quantity="length" scope={unitScope('freeform', 'y')} />
+            <UnitChip label="Y" quantity="length" scope={unitScope('freeform', 'y')} />
           </label>
         </div>
       )}

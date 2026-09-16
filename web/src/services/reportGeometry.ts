@@ -166,7 +166,14 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
       for (const c of n.children ?? []) if (String(c.type).endsWith('finset')) addFins(c, x, len, R);
       x += len;
     } else if (n.type === 'transition') {
-      revolveTop(n, num(n, 'foreRadius', 0.012), num(n, 'aftRadius', 0.009), 'conical', len);
+      const aftR = num(n, 'aftRadius', 0.009);
+      revolveTop(n, num(n, 'foreRadius', 0.012), aftR, 'conical', len);
+      // Transitions host fin sets too — treeEdit.ts:137 allows trapezoid,
+      // elliptical and freeform on one — and this branch was the only one that
+      // never looked. A boat-tail-mounted fin set was silently absent from the
+      // PDF's whole-rocket side view: a finless rocket, with no warning.
+      // The aft radius is where those fins sit.
+      for (const c of n.children ?? []) if (String(c.type).endsWith('finset')) addFins(c, x, len, aftR);
       x += len;
     }
   }

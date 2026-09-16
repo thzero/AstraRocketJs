@@ -102,6 +102,23 @@ describe('design library', () => {
     expect(await lib.write(a.id, 'A', ws('a2'))).toBe(false);
   });
 
+  it('reports a refused INDEX write too, not just the design blob', async () => {
+    // The index write used to be treated as survivable on the grounds that the
+    // design itself is stored. But activeId() filters against the index, so a
+    // design missing from it is unreachable: a new one vanishes and the next
+    // session opens empty over orphaned bytes. Fail the write so
+    // workspaceStore.save() can raise "storage full" instead.
+    const a = await lib.create('A', ws('a'));
+    let calls = 0;
+    const realSet = kv.set.bind(kv);
+    kv.set = async (k: string, v: string) => {
+      // Let the design blob through, refuse only the index that follows it.
+      calls += 1;
+      return k.endsWith(':index') && calls > 1 ? false : realSet(k, v);
+    };
+    expect(await lib.write(a.id, 'A', ws('a2'))).toBe(false);
+  });
+
   it('survives a corrupt index without losing addressable designs', async () => {
     const a = await lib.create('A', ws('a'));
     kv.map.set('astrarrocketjs:designs:index', '{not json');

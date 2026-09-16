@@ -42,7 +42,7 @@ describe('loadSettings', () => {
     expect(loadSettings().wipAcknowledged).toBe(true);
   });
 
-  it("keeps a report unit choice, and falls back rather than trusting an unknown one", () => {
+  it('keeps a report unit choice, and falls back rather than trusting an unknown one', () => {
     expect(loadSettings().report.units).toBe('current');
     localStorage.setItem(KEY, JSON.stringify({ report: { units: 'imperial' } }));
     expect(loadSettings().report.units).toBe('imperial');

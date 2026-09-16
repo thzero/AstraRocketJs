@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive } from '../../state/store';
-import { downloadText } from '../../services/csvExport';
+import { download as saveDownload, safeFilename } from '../../services/saveFile';
 import { useUnits } from '../../prefs/useUnits';
 import {
   buildFlightPathModel,
@@ -44,7 +44,6 @@ const WP_LABEL_KEY: Record<WaypointKind, string> = {
 
 const UNITS: DistanceUnit[] = ['m', 'ft', 'km', 'mi'];
 const USER_PREFIX = 'user:';
-const safeName = (s: string) => (s.trim() || 'flight').replace(/[^\w.-]+/g, '_');
 
 export function FlightPathExport({ variant = 'chip' }: { variant?: 'chip' | 'overlay' }) {
   const { t } = useTranslation();
@@ -180,9 +179,9 @@ export function ExportDialog({
   const downloadTemplate = () => {
     if (resolved.kind === 'user') {
       const tp = resolved.template;
-      downloadText(`${safeName(tp.name)}.${tp.ext}.mustache`, tp.source, 'text/plain;charset=utf-8');
+      saveDownload(`${safeFilename(tp.name, 'flight')}.${tp.ext}.mustache`, tp.source);
     } else {
-      downloadText(resolved.format.templateFilename, resolved.format.source, 'text/plain;charset=utf-8');
+      saveDownload(resolved.format.templateFilename, resolved.format.source);
     }
   };
 
@@ -201,7 +200,7 @@ export function ExportDialog({
         ext = resolved.format.extension;
         mime = resolved.format.mime;
       }
-      downloadText(`${safeName(meta.simName)}.${ext}`, text, mime);
+      saveDownload(`${safeFilename(meta.simName, 'flight')}.${ext}`, text, mime);
       onClose();
     } catch {
       setError(t('pathExport.renderError'));

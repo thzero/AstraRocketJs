@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode, ComponentPosition, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
@@ -6,12 +6,13 @@ import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import { anchorStarts, axialLength, offsetForStart, snapStart, startFromPosition } from '../../tree/position.js';
 import {
-  downloadBlob,
+  SVG_MIME,
   IMAGE_FORMAT_EXT,
   schematicSvg,
   svgToImage,
   type ExportData,
 } from '../../services/schematicExport.js';
+import { download, safeFilename } from '../../services/saveFile.js';
 import { ImageExportMenu } from './ImageExportMenu.js';
 import { stabilityState, type StabilityState } from '../../services/simReport.js';
 import {
@@ -160,24 +161,30 @@ export function TreeSchematic({
   );
   const { chain, totalLen, maxR, vHalf, snapXs, radialSnaps, rTop, rBot, w, h, scale, ctx } = layout;
 
-  const beginDrag = (child: ComponentNode, parent: ComponentNode, pLen: number) => (e: React.PointerEvent) => {
-    if (!onPatchNode || !child.id) return;
-    const rect = svgRef.current?.getBoundingClientRect();
-    if (!rect || rect.width === 0) return;
-    e.stopPropagation(); // don't also start a background pan
-    dragMoved.current = false;
-    const pos = (child.position ?? { method: 'top', offset: 0 }) as ComponentPosition;
-    drag.current = {
-      childId: child.id,
-      parent,
-      child,
-      pLen,
-      relStart: startFromPosition(pos, axialLength(child), pLen),
-      pointerX: e.clientX,
-      clientScale: w / rect.width,
-    };
-    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-  };
+  // useCallback, so the scene memo below can hold its result: this is one of
+  // its inputs, and a fresh arrow every render would rebuild the whole SVG on
+  // every caliper nudge and tooltip open.
+  const beginDrag = useCallback(
+    (child: ComponentNode, parent: ComponentNode, pLen: number) => (e: React.PointerEvent) => {
+      if (!onPatchNode || !child.id) return;
+      const rect = svgRef.current?.getBoundingClientRect();
+      if (!rect || rect.width === 0) return;
+      e.stopPropagation(); // don't also start a background pan
+      dragMoved.current = false;
+      const pos = (child.position ?? { method: 'top', offset: 0 }) as ComponentPosition;
+      drag.current = {
+        childId: child.id,
+        parent,
+        child,
+        pLen,
+        relStart: startFromPosition(pos, axialLength(child), pLen),
+        pointerX: e.clientX,
+        clientScale: w / rect.width,
+      };
+      (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+    },
+    [onPatchNode, w],
+  );
 
   /**
    * Clears the "this press became a drag" latch at the START of every press.
@@ -350,30 +357,58 @@ export function TreeSchematic({
 
   // Nose-up rendering rotates the whole drawing; every text label counter-
   // rotates about its own anchor so it still reads horizontally.
-  const textUp = (x: number, y: number) => (vertical ? { transform: `rotate(-90 ${x} ${y})` } : {});
+  const textUp = useCallback(
+    (x: number, y: number) => (vertical ? { transform: `rotate(-90 ${x} ${y})` } : {}),
+    [vertical],
+  );
 
   // Namespaces this instance's clipPath ids so two schematics sharing a document
   // can't cross-clip (url(#id) resolves to the first match in the document).
   const uid = useId().replace(/:/g, '');
-  const { shapes, overlay, wires, clipDefs, hoverBox, hoverTag, hoverName } = buildSchematicShapes({
-    chain,
-    ctx,
-    scale,
-    w,
-    h,
-    roll,
-    uid,
-    motors,
-    vertical,
-    selectedId,
-    onSelect,
-    setHoverId,
-    hoverId,
-    onPatchNode,
-    beginDrag,
-    dragMoved,
-    textUp,
-  });
+  // The whole SVG scene — every part outline, wire, clip path and hover
+  // decoration. It ran unmemoized in the render body, so it was rebuilt from
+  // scratch on every unrelated state change in this component (caliper drag,
+  // ruler toggle, tooltip, pan) as well as on every parent re-render, for a
+  // design that had not moved.
+  const { shapes, overlay, wires, clipDefs, hoverBox, hoverTag, hoverName } = useMemo(
+    () =>
+      buildSchematicShapes({
+        chain,
+        ctx,
+        scale,
+        w,
+        h,
+        roll,
+        uid,
+        motors,
+        vertical,
+        selectedId,
+        onSelect,
+        setHoverId,
+        hoverId,
+        onPatchNode,
+        beginDrag,
+        dragMoved,
+        textUp,
+      }),
+    [
+      chain,
+      ctx,
+      scale,
+      w,
+      h,
+      roll,
+      uid,
+      motors,
+      vertical,
+      selectedId,
+      onSelect,
+      hoverId,
+      onPatchNode,
+      beginDrag,
+      textUp,
+    ],
+  );
 
   // When markers are toggled off, null out the stations: this disables the
   // on-axis symbols AND the leader-line callouts (all gated on cgX/cpX below).
@@ -387,12 +422,8 @@ export function TreeSchematic({
     info && stab
       ? `${STABILITY_GLYPH[stab]} ${fmtNum(info.stabilityCalibers, 2)} ${t('stability.caliber')} · ${fmtNum(marginPct!, 1)}% — ${stabWord}`
       : null;
-  const cgLabel = info
-    ? `${t('schematic.cg')} · ${u.fmt('length', info.cg)} ${u.sym('length')}`
-    : t('schematic.cg');
-  const cpLabel = info
-    ? `${t('schematic.cp')} · ${u.fmt('length', info.cp)} ${u.sym('length')}`
-    : t('schematic.cp');
+  const cgLabel = info ? `${t('schematic.cg')} · ${u.fmt('length', info.cg)} ${u.sym('length')}` : t('schematic.cg');
+  const cpLabel = info ? `${t('schematic.cp')} · ${u.fmt('length', info.cp)} ${u.sym('length')}` : t('schematic.cp');
   const callouts = calloutLayout(cgX, cpX, ctx.cy, vHalf * scale, w, h, marginText);
 
   // Dimension ruler (side view, only at the default fit): nice-round marks every
@@ -846,7 +877,10 @@ export function TreeSchematic({
             / radialRuler above). */}
         {rulersActive && rulers.bottom && lengthRuler(h - RULER_H + 4, 1, h - 3, h - 3)}
         {rulersActive && rulers.top && lengthRuler(RULER_H - 4, -1, 11, 11)}
-        {rulersActive && rulers.right && vTicks.length > 0 && radialRuler(w - RULER_W + 4, 1, w - RULER_W + 20, 'start')}
+        {rulersActive &&
+          rulers.right &&
+          vTicks.length > 0 &&
+          radialRuler(w - RULER_W + 4, 1, w - RULER_W + 20, 'start')}
         {rulersActive && rulers.left && vTicks.length > 0 && radialRuler(RULER_W - 4, -1, RULER_W - 20, 'end')}
       </svg>
       {/* Vertical is read-mostly: no zoom to fit-reset, and the SVG/image
@@ -865,9 +899,10 @@ export function TreeSchematic({
                       if (!svgRef.current) return;
                       try {
                         const data = { ...exportData, spanM: 2 * vHalf };
-                        downloadBlob(
+                        download(
+                          `${safeFilename(data.name)}-2d.svg`,
                           schematicSvg(svgRef.current, scale, w, h, data),
-                          `${data.name.replace(/[^\w-]+/g, '_')}-2d.svg`,
+                          SVG_MIME,
                         );
                       } catch (e) {
                         onError?.(`SVG export failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -884,9 +919,9 @@ export function TreeSchematic({
                       try {
                         const data = { ...exportData, spanM: 2 * vHalf };
                         const svg = schematicSvg(svgRef.current, scale, w, h, data);
-                        downloadBlob(
+                        download(
+                          `${safeFilename(data.name)}-2d.${IMAGE_FORMAT_EXT[format]}`,
                           await svgToImage(svg, widthPx, format),
-                          `${data.name.replace(/[^\w-]+/g, '_')}-2d.${IMAGE_FORMAT_EXT[format]}`,
                         );
                       } catch (e) {
                         onError?.(

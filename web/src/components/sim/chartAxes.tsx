@@ -80,7 +80,13 @@ export function ChartAxes({
         );
       })}
       {[0, tMax / 2, tMax].map((tt, i) => (
-        <text key={i} x={X(tt)} y={dims.height - 6} textAnchor="middle" className="fill-slate-500 text-[9px] tabular-nums">
+        <text
+          key={i}
+          x={X(tt)}
+          y={dims.height - 6}
+          textAnchor="middle"
+          className="fill-slate-500 text-[9px] tabular-nums"
+        >
           {fmtNum(tt, tt < 10 ? 1 : 0)}
         </text>
       ))}

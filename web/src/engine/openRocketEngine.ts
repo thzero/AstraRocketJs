@@ -37,6 +37,18 @@ function eng(): EngineApi {
   return active;
 }
 
+/**
+ * Swap in a stub engine — tests only.
+ *
+ * This module is the ONE boundary where JS numbers become physics inputs, and
+ * it had no test file because `active` is module-private with no way in. Same
+ * seam pattern as `__resetIdbForTests` / `setDesignLibrary`. Pass null to
+ * restore the uninitialised state.
+ */
+export function __setEngineForTests(stub: Partial<EngineApi> | null): void {
+  active = stub as EngineApi | null;
+}
+
 /** Dynamically import the JS engine as its own chunk — loaded only when WASM is unavailable. */
 async function loadJsEngine(): Promise<EngineApi> {
   return await import('./vendor/openrocket-engine.mjs');
@@ -708,6 +720,29 @@ export interface AeroSweep {
  * naming the motor and a design that silently blanks.
  */
 function assertFiniteCurve(motor: MotorSpec): void {
+  // The SCALARS cross into the kernel too, and were unguarded. `thrustcurve.ts`
+  // computes `length: motor.length / 1000` and
+  // `cgX: cgSamples?.[0]?.[1] ?? motor.length / 2000`, so a catalog row missing
+  // `length` makes both NaN — reproducing the exact opaque TeaVM "number NaN
+  // cannot be converted to a BigInt" this guard exists to eliminate. And
+  // `toKernelDelay` passes NaN straight through, since `NaN >= PLUGGED_DELAY`
+  // is false.
+  const scalars: [string, number][] = [
+    ['diameter', motor.diameter],
+    ['length', motor.length],
+    ['cgX', motor.cgX],
+    ['ejection delay', toKernelDelay(motor.ejectionDelay)],
+  ];
+  for (const [what, v] of scalars) {
+    // The delay may legitimately be Infinity (PLUGGED); the dimensions may not.
+    if (Number.isNaN(v) || (what !== 'ejection delay' && !Number.isFinite(v))) {
+      throw new Error(`Motor ${motor.designation}: ${what} is not a finite number (incomplete catalog data).`);
+    }
+  }
+  if (motor.diameter <= 0 || motor.length <= 0) {
+    throw new Error(`Motor ${motor.designation}: diameter and length must be positive (incomplete catalog data).`);
+  }
+
   const bad = (xs: readonly number[]) => !xs.every((n) => Number.isFinite(n));
   if (bad(motor.times) || bad(motor.thrusts) || bad(motor.masses)) {
     throw new Error(
@@ -852,7 +887,13 @@ export class OpenRocketDesign {
    * runs on every edit. See {@link ComponentMass}.
    */
   componentMasses(): ComponentMass[] {
-    return JSON.parse(eng().getComponentMasses(this.handle)) as ComponentMass[];
+    // Same error envelope its four sibling accessors check. This one cast
+    // straight to an array, so a kernel failure arrived as `{error: "..."}`
+    // pretending to be a ComponentMass[] — `.map()` on it throws somewhere far
+    // from here, with the kernel's actual message thrown away.
+    const parsed = JSON.parse(eng().getComponentMasses(this.handle)) as ComponentMass[] | { error?: string };
+    if (!Array.isArray(parsed)) throw new Error(`Component masses failed: ${parsed.error ?? 'unknown error'}`);
+    return parsed;
   }
 
   simulate(options: SimulationOptions = {}): FlightResult {

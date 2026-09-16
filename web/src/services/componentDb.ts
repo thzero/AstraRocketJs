@@ -84,7 +84,7 @@ interface ComponentCatalog {
 let catalogP: Promise<ComponentCatalog> | null = null;
 function loadCatalog(): Promise<ComponentCatalog> {
   if (!catalogP) {
-    catalogP = fetchCatalog<ComponentCatalog>('components');
+    catalogP = fetchCatalog<ComponentCatalog>('components', (v) => !!v && typeof v === 'object');
     // Don't memoize a FAILURE: a cached rejected promise would replay the same
     // error on every retry, so the picker could never recover from one bad load.
     // (remoteData clears its own cache on failure for the same reason.)

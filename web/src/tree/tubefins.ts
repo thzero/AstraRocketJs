@@ -1,5 +1,5 @@
 import type { ComponentNode } from '../engine/openRocketEngine';
-import { num } from './nodeProps';
+import { num, numOpt } from './nodeProps';
 
 /**
  * Tube-fin tube radius (m). When the set carries no explicit outerRadius the
@@ -7,8 +7,13 @@ import { num } from './nodeProps';
  * body — r = R·sin(π/N) / (1 − sin(π/N)) (TubeFinSet.getOuterRadius).
  */
 export function tubeFinRadius(node: ComponentNode, bodyRadius: number): number {
-  const explicit = node['outerRadius'];
-  if (typeof explicit === 'number' && explicit > 0) return explicit;
+  // `numOpt`, not a hand-rolled typeof check: the module already imports the
+  // shared readers, and they carry the Number.isFinite guard nodeProps.ts:14
+  // documents as load-bearing. `typeof x === 'number' && x > 0` lets Infinity
+  // through, which propagates to the schematic's scale and collapses the whole
+  // drawing to nothing, where a fallback would at least have drawn something.
+  const explicit = numOpt(node, 'outerRadius');
+  if (explicit !== undefined && explicit > 0) return explicit;
   const n = Math.max(1, Math.round(num(node, 'finCount', 6)));
   // Kernel rule (TubeFinSet.getOuterRadius): fewer than 3 fins auto-size to
   // the body radius — and n=2 would divide by zero below (sin π/2 = 1).

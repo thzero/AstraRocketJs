@@ -108,3 +108,119 @@ describe('outerProfile', () => {
     expect(clipped).not.toEqual(unclipped);
   });
 });
+
+/**
+ * The clipped profile — `calculateClip()`, the binary search that positions
+ * every clipped ellipsoid / power / haack transition.
+ *
+ * It had no test at all, and it is the one piece of this port whose output is
+ * not obvious by inspection: it solves for how far up a VIRTUAL nose cone the
+ * transition starts. The kernel states the equation it solves, in the comment
+ * over `Transition.calculateClip` (Transition.java:695-700):
+ *
+ *     r1 == type.getRadius(clipLength, r2, clipLength + length, shapeParameter)
+ *
+ * so these tests recover `clipLength` here by an INDEPENDENT solve of that same
+ * published equation and check the drawn profile against it. A drifted binary
+ * search — wrong bracket, wrong convergence, clipping something it should not —
+ * fails; a rewrite that still solves the kernel's equation passes.
+ */
+describe('calculateClip (via the clipped profile)', () => {
+  const CLIPPABLE = ['ellipsoid', 'power', 'haack'] as const;
+
+  /** Solve the kernel's equation independently: plain 200-iteration bisection. */
+  const solveClip = (shape: string, param: number, length: number, r1: number, r2: number): number => {
+    let lo = 0;
+    let hi = length;
+    while (shapeRadius(shape, hi, r2, hi + length, param) < r1) hi *= 2;
+    for (let i = 0; i < 200; i++) {
+      const mid = (lo + hi) / 2;
+      if (shapeRadius(shape, mid, r2, mid + length, param) > r1) hi = mid;
+      else lo = mid;
+    }
+    return (lo + hi) / 2;
+  };
+
+  // The second geometry is deliberately near-cylindrical: a 0.5 mm rise over
+  // 200 mm sits so far up the virtual nose that `max = length` does not even
+  // bracket the root, so it is the case that exercises the doubling loop the
+  // search opens with. Without that loop the bisection converges on the wrong
+  // side and the profile is wrong everywhere but its endpoints.
+  const GEOMS: [number, number, number][] = [
+    [0.1, 0.02, 0.04],
+    [0.2, 0.0495, 0.05],
+  ];
+
+  it.each(CLIPPABLE)('%s draws the tail of the virtual nose it was cut from', (shape) => {
+    const p = shapeParamDefault(shape);
+    for (const [len, r1, r2] of GEOMS) {
+      const clip = solveClip(shape, p, len, r1, r2);
+      for (const [x, r] of outerProfile(shape, p, len, r1, r2, 16)) {
+        if (x <= 0 || x >= len) continue; // the endpoints are returned verbatim
+        expect(r).toBeCloseTo(shapeRadius(shape, clip + x, r2, clip + len, p), 5);
+      }
+    }
+  });
+
+  it.each(CLIPPABLE)('%s meets both end radii', (shape) => {
+    const p = shapeParamDefault(shape);
+    const pts = outerProfile(shape, p, 0.1, 0.02, 0.04, 16);
+    expect(pts[0]![1]).toBeCloseTo(0.02, 12);
+    expect(pts[pts.length - 1]![1]).toBeCloseTo(0.04, 12);
+    // ...and arrives there continuously, rather than jumping at the first
+    // interior sample, which is what a clipLength solved off the curve looks
+    // like on screen.
+    expect(pts[1]![1]).toBeGreaterThan(0.02);
+    expect(pts[1]![1]).toBeLessThan(0.024);
+  });
+
+  it.each(CLIPPABLE)('%s grows monotonically from fore to aft', (shape) => {
+    const pts = outerProfile(shape, shapeParamDefault(shape), 0.1, 0.02, 0.04, 32);
+    for (let i = 1; i < pts.length; i++) expect(pts[i]![1]).toBeGreaterThanOrEqual(pts[i - 1]![1]);
+  });
+
+  it('a nose cone (foreR 0) is never clipped — clipLength is 0 by definition', () => {
+    // r1 == 0 short-circuits the search: the profile IS the shape itself.
+    for (const shape of CLIPPABLE) {
+      const p = shapeParamDefault(shape);
+      for (const [x, r] of outerProfile(shape, p, 0.1, 0, 0.04, 8)) {
+        expect(r).toBeCloseTo(shapeRadius(shape, x, 0.04, 0.1, p), 12);
+      }
+    }
+  });
+
+  it('an explicit clipped=false draws the unclipped delta shape instead', () => {
+    // The kernel's other branch: r1 + getRadius(x, r2 - r1, length).
+    const p = shapeParamDefault('ellipsoid');
+    for (const [x, r] of outerProfile('ellipsoid', p, 0.1, 0.02, 0.04, 8, undefined, false)) {
+      expect(r).toBeCloseTo(0.02 + shapeRadius('ellipsoid', x, 0.02, 0.1, p), 12);
+    }
+  });
+
+  it('a shrinking transition is the mirror of the growing one', () => {
+    // Transition.getRadius() normalises to the small end and flips back, so a
+    // boat tail must be the same curve read backwards — not a different solve.
+    const p = shapeParamDefault('haack');
+    const grow = outerProfile('haack', p, 0.1, 0.02, 0.04, 16);
+    const shrink = outerProfile('haack', p, 0.1, 0.04, 0.02, 16);
+    for (let i = 0; i < grow.length; i++) {
+      expect(shrink[i]![1]).toBeCloseTo(grow[grow.length - 1 - i]![1], 12);
+    }
+  });
+
+  it('a zero-length transition degenerates to the fore radius', () => {
+    // `length <= 0` returns clipLength 0 in the kernel; outerProfile short-
+    // circuits earlier still, and must not divide by the zero length.
+    const pts = outerProfile('haack', 0, 0, 0.02, 0.04, 4);
+    expect(pts.every(([, r]) => r === 0.02)).toBe(true);
+  });
+
+  it('a near-cylindrical clipped transition still lands on both radii', () => {
+    // A 1 mm rise over 200 mm pushes the search's opening bracket: the first
+    // guess sits far up a very shallow virtual nose.
+    const pts = outerProfile('ellipsoid', 0, 0.2, 0.0495, 0.05, 16);
+    expect(pts[0]![1]).toBeCloseTo(0.0495, 12);
+    expect(pts[pts.length - 1]![1]).toBeCloseTo(0.05, 12);
+    expect(pts.every(([, r]) => Number.isFinite(r))).toBe(true);
+  });
+});

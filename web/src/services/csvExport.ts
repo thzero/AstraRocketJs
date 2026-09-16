@@ -1,5 +1,4 @@
 import type { FlightResult, AeroSweep, FlightSeries } from '../engine/openRocketEngine';
-import { saveText } from './saveFile';
 import { siToUiDelta, type Quantity, type UnitSelection } from '../prefs/units';
 
 /**
@@ -120,12 +119,5 @@ export function aeroTableCsv(d: AeroSweep, units: UnitSelection): string {
   return lines.join(EOL) + EOL;
 }
 
-/** Trigger a browser download of arbitrary text under the given MIME type. */
-export function downloadText(filename: string, text: string, mime = 'text/plain;charset=utf-8'): void {
-  void saveText(text, filename, mime);
-}
-
-/** Trigger a browser download of CSV text. */
-export function downloadCsv(filename: string, text: string): void {
-  downloadText(filename, text, 'text/csv;charset=utf-8');
-}
+/** The MIME type the CSV exports are served under. */
+export const CSV_MIME = 'text/csv;charset=utf-8';

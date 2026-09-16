@@ -73,6 +73,23 @@ export async function saveText(text: string, filename: string, mime = 'text/plai
 }
 
 /**
+ * Hand the user a file and don't wait for it — the one entry point every
+ * export button uses.
+ *
+ * There were three of these, one per module (`downloadText(filename, text,
+ * mime)`, `downloadBlob(blob, filename)`, `downloadFile(data, filename,
+ * mime)`), all one-liners over `saveBlob` and all disagreeing about argument
+ * order. Two of the three put the filename where the other put the data, which
+ * a `string` payload type-checks straight through: an import of the wrong one
+ * silently downloads a file NAMED after its own contents.
+ *
+ * Filename first, everywhere, matching `safeFilename` beside it.
+ */
+export function download(filename: string, data: BlobPart, mime = 'text/plain;charset=utf-8'): void {
+  void saveBlob(data instanceof Blob ? data : new Blob([data], { type: mime }), filename);
+}
+
+/**
  * Strip characters a filesystem will not take, keeping a usable fallback.
  *
  * Requires something alphanumeric to survive: a name made only of separators

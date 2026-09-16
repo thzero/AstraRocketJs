@@ -32,8 +32,14 @@ test.describe('2D schematic', () => {
 
     const svg = schematic(page);
     await expect(svg).toBeVisible();
+    // The SVG is visible as soon as its container renders, but the shapes come
+    // from the engine rebuild — so counting straight away can catch a PARTIAL
+    // render and fail for a reason that has nothing to do with the schematic.
+    // `toHaveCount`-style polling waits for the real thing instead.
     // Nose + body + fins + motor + inner tube… ⇒ several drawn outline/segment paths.
-    expect(await svg.locator('path').count()).toBeGreaterThanOrEqual(5);
+    await expect(async () => {
+      expect(await svg.locator('path').count()).toBeGreaterThanOrEqual(5);
+    }).toPass({ timeout: 20_000 });
     // Each component labels itself via an SVG <title> (name ?? DISPLAY_NAME).
     expect(await svg.locator('title').count()).toBeGreaterThan(0);
   });

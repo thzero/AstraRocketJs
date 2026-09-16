@@ -34,6 +34,13 @@ jobs:
 
       - run: npm ci
 
+      # Formatting, gated at last. It could not be turned on before: with no
+      # .gitattributes, a CRLF checkout failed `--check` on every tracked file,
+      # so the signal was 100% noise. `.gitattributes` pins LF and
+      # `.prettierignore` excludes the generated artifacts (public/docs, the
+      # TeaVM output, the synced catalogs), which leaves only authored code.
+      - run: npm run format:check
+
       - run: npm run test
 
       - run: npm run build

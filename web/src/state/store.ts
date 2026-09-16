@@ -259,6 +259,9 @@ function uniqueSimName(sims: Simulation[], label: (n: number) => string, start: 
  * up on a Results tab with no result and an empty view switch, which is exactly
  * what opening a new design from that tab used to do.
  */
+/** Monotonic id for the most recent openDesign request — see that action. */
+let openToken = 0;
+
 function showing(tab: Tab, view: ViewMode): { view: ViewMode; tab: Tab } {
   const owns = tab === 'sketch' || tab === 'results';
   return { view, tab: owns ? (isResultView(view) ? 'results' : 'sketch') : tab };
@@ -628,8 +631,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     openDesign: async (id) => {
+      // Four sequential awaits, and the user can click a second design during
+      // any of them. If B's read resolved first, A's continuation then ran
+      // flushActive() — writing B's tree out under the store's current active
+      // id — and finished with setActive(A) + hydrate(A). The user clicked B
+      // last and was looking at A. A monotonic token makes every continuation
+      // check it is still the most recent request before it touches anything.
+      const token = ++openToken;
+      const stale = () => token !== openToken;
+
       const lib = getDesignLibrary();
       const w = await lib.read(id);
+      if (stale()) return;
       if (!w) {
         set({ err: i18n.t('library.missing') });
         await get().refreshDesigns();
@@ -638,7 +651,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // Persist whatever is open BEFORE switching, or the edits since the last
       // debounced autosave would be lost to the swap.
       await flushActive();
+      if (stale()) return;
       await lib.setActive(id);
+      if (stale()) return;
       getWorkspaceStore().setActiveId?.(id);
       clearHistory(); // a different design is a different document
       get().hydrate(w);

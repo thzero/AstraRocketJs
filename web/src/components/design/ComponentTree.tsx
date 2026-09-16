@@ -102,8 +102,7 @@ function detail(n: ComponentNode, t: TFunction, u: Units): string {
     return d ? `⌀ ${d}` : '';
   }
   if (ty === 'streamer') return len(u, n.stripLength) ?? '';
-  if (ty === 'masscomponent')
-    return typeof n.mass === 'number' ? `${u.fmt('mass', n.mass)} ${u.sym('mass')}` : '';
+  if (ty === 'masscomponent') return typeof n.mass === 'number' ? `${u.fmt('mass', n.mass)} ${u.sym('mass')}` : '';
   if (ty === 'centeringring' || ty === 'bulkhead') {
     const d = len(u, (n.outerRadius as number) * 2);
     return d ? `⌀ ${d}` : '';
@@ -355,7 +354,9 @@ export function ComponentTree({
   const [listOpen, setListOpen] = useState(true);
   const selectedNode = selectedId ? findNode(tree, selectedId) : null;
   const selectedName = selectedNode
-    ? (typeof selectedNode.name === 'string' && selectedNode.name ? selectedNode.name : partLabel(selectedNode.type, t))
+    ? typeof selectedNode.name === 'string' && selectedNode.name
+      ? selectedNode.name
+      : partLabel(selectedNode.type, t)
     : null;
 
   // The Add menu is contextual: it offers only the child types valid for the
@@ -452,7 +453,9 @@ export function ComponentTree({
                 e.currentTarget.value = '';
               }}
               className="rounded-md bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500 disabled:text-slate-600"
-              title={groups.length ? t('tree.canHost', { parent: parentLabel }) : t('tree.cantHost', { parent: parentLabel })}
+              title={
+                groups.length ? t('tree.canHost', { parent: parentLabel }) : t('tree.cantHost', { parent: parentLabel })
+              }
             >
               <option value="">{t('tree.add')}</option>
               {groups.map((g) => (

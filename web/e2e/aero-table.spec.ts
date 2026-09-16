@@ -297,7 +297,7 @@ test('the shading switch on the legend is the same preference as Settings', asyn
   // Settings shows what the legend just set…
   await page.getByRole('button', { name: /Menu/ }).click();
   await page.getByRole('menuitem', { name: 'Settings' }).click();
-  await page.getByRole('button', { name: 'Colors' }).click();
+  await page.getByRole('tab', { name: 'Colors' }).click();
   const select = page.getByLabel('Cell colours');
   await expect(select).toHaveValue('openrocket');
 

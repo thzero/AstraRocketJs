@@ -3,3 +3,12 @@ coverage
 playwright-report
 test-results
 package-lock.json
+
+# Generated, not authored — these are build output committed for the static
+# host, and reformatting them only makes the next regeneration a huge diff.
+public/docs
+public/engine
+public/data/*.generated.json
+public/data/manifest.json
+src/data/*.generated.json
+src/engine/vendor

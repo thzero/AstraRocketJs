@@ -1,6 +1,19 @@
 {
-  "app": { "title": "AstraRocketJs", "version": "{{name}} versión {{version}}", "designName": "Diseño de {{name}}" },
-  "common": { "loading": "Cargando…", "confirmTitle": "¿Estás seguro?", "confirm": "Confirmar", "save": "Guardar", "cancel": "Cancelar", "delete": "Eliminar", "discard": "Descartar", "close": "Cerrar" },
+  "app": {
+    "title": "AstraRocketJs",
+    "version": "{{name}} versión {{version}}",
+    "designName": "Diseño de {{name}}"
+  },
+  "common": {
+    "loading": "Cargando…",
+    "confirmTitle": "¿Estás seguro?",
+    "confirm": "Confirmar",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "discard": "Descartar",
+    "close": "Cerrar"
+  },
   "report": {
     "title": "Diseño del cohete",
     "noDesign": "No hay un diseño válido para exportar.",
@@ -115,7 +128,8 @@
     "openLibrary": "Abrir…",
     "saveAs": "Guardar como…",
     "import": "Importar",
-    "ork": "OpenRocket",
+    "importOrk": "Importar OpenRocket (.ork)",
+    "exportOrk": "Exportar OpenRocket (.ork)",
     "export": "Exportar",
     "report": "Informe del cohete (PDF)",
     "rasaero": "RASAero II",
@@ -126,7 +140,10 @@
     "new": "Nuevo",
     "newConfirm": "¿Descartar el diseño actual y todas las simulaciones y empezar un diseño nuevo?"
   },
-  "edit": { "undo": "Deshacer", "redo": "Rehacer" },
+  "edit": {
+    "undo": "Deshacer",
+    "redo": "Rehacer"
+  },
   "scale": {
     "title": "Escalar cohete",
     "intro": "Multiplica cada longitud, diámetro, pared, planta de aleta y posición axial por un factor. Se aplica en un solo paso — Ctrl+Z lo deshace.",
@@ -138,7 +155,10 @@
     "noAirframe": "Este diseño no tiene tubo, ojiva ni transición que medir, así que no hay nada que escalar. Añade un fuselaje primero.",
     "apply": "Escalar al {{pct}}%"
   },
-  "menu": { "open": "Menú", "help": "Ayuda" },
+  "menu": {
+    "open": "Menú",
+    "help": "Ayuda"
+  },
   "wip": {
     "title": "Trabajo en curso",
     "body": "{{name}} es una versión temprana (anterior a 1.0) en desarrollo activo. Las funciones pueden estar incompletas, cambiar o fallar. ¡Gracias por probarla!",
@@ -243,7 +263,12 @@
     "type_modified_kit": "Kit modificado",
     "type_kit_bash": "Combinación de kits"
   },
-  "tabs": { "rocket": "Cohete", "sketch": "Croquis", "simulate": "Simular", "results": "Resultados" },
+  "tabs": {
+    "rocket": "Cohete",
+    "sketch": "Croquis",
+    "simulate": "Simular",
+    "results": "Resultados"
+  },
   "view": {
     "2d": "2D",
     "3d": "3D",
@@ -350,7 +375,10 @@
     "geodetic": "Geodésico",
     "flat": "Plana",
     "spherical": "Esférica",
-    "wgs84": "WGS84"
+    "wgs84": "WGS84",
+    "rodLengthName": "Longitud de la guía",
+    "rodDirectionName": "Dirección de la guía",
+    "windDirectionName": "Dirección del viento"
   },
   "flight": {
     "title": "Perfil de vuelo",
@@ -430,10 +458,25 @@
     "altitudeReferenceNote": "Automático usa el nivel del mar cuando el campo de vuelo tiene una altitud real definida, y el suelo cuando sigue en 0. Pegado apoya la traza sobre el terreno: la opción adecuada cuando lo que importa es por encima de qué deriva el cohete.",
     "drawShadow": "Dibujar la sombra hasta el suelo",
     "shadowNote": "Añade una cortina bajo la traza y una plomada bajo cada marcador, para leer dónde se sitúa en el mapa un punto que está en el aire. No hay nada que dibujar si ya está pegado al suelo.",
-    "preset": { "driftCast": "Deriva", "driftCastNote": "Todo apoyado en el terreno, solo la traza sobre el suelo: para leer los peligros bajo la deriva.", "flightPath": "Trayectoria", "flightPathNote": "El vuelo suspendido en el aire donde le corresponde, con sombras hasta el suelo.", "landing": "Aterrizajes", "landingNote": "Solo el punto de aterrizaje, sobre el suelo." },
-    "altRef": { "automatic": "Automático", "ground": "El suelo", "sealevel": "El nivel del mar" , "clamped": "Pegado al suelo" },
+    "preset": {
+      "driftCast": "Deriva",
+      "driftCastNote": "Todo apoyado en el terreno, solo la traza sobre el suelo: para leer los peligros bajo la deriva.",
+      "flightPath": "Trayectoria",
+      "flightPathNote": "El vuelo suspendido en el aire donde le corresponde, con sombras hasta el suelo.",
+      "landing": "Aterrizajes",
+      "landingNote": "Solo el punto de aterrizaje, sobre el suelo."
+    },
+    "altRef": {
+      "automatic": "Automático",
+      "ground": "El suelo",
+      "sealevel": "El nivel del mar",
+      "clamped": "Pegado al suelo"
+    },
     "stageTrackStart": "La traza de cada etapa empieza",
-    "trackStart": { "separation": "En la separación", "pad": "En la rampa" },
+    "trackStart": {
+      "separation": "En la separación",
+      "pad": "En la rampa"
+    },
     "showWaypointLabels": "Dibujar los nombres de los puntos en el mapa",
     "colorWaypointPins": "Colorear los marcadores por etapa",
     "pinsNote": "Los marcadores de color cargan un icono desde los servidores de Google; desactívalos para un archivo que deba verse sin conexión.",
@@ -605,7 +648,9 @@
     "tabLength": "Longitud de la lengüeta",
     "tabHeight": "Altura de la lengüeta",
     "tabOffset": "Desplazamiento de la lengüeta",
-    "tabOffsetMethod": "Referencia de la lengüeta"
+    "tabOffsetMethod": "Referencia de la lengüeta",
+    "cluster": "Clúster",
+    "tubeFinsCollide": "Estos tubos se solapan. Con este radio de tubo caben como máximo {{max}}; con esta cantidad el mayor que cabe es {{radius}} {{unit}}."
   },
   "deployEvent": {
     "ejection": "Carga de eyección del motor",
@@ -811,7 +856,9 @@
     "chartBurn": "tiempo de comb.",
     "calcNote": "* El empuje inicial, el Isp y la fracción de masa se calculan a partir de la curva de empuje y los pesos."
   },
-  "lang": { "label": "Idioma" },
+  "lang": {
+    "label": "Idioma"
+  },
   "boot": {
     "downloading": "Descargando el motor de cálculo…",
     "downloadingOf": "Descargando el motor de cálculo… {{done}} / {{total}} MB",
@@ -833,7 +880,8 @@
   },
   "storage": {
     "full": "No se pudo guardar tu trabajo: el almacenamiento del navegador está lleno. Exporta tu diseño para conservarlo.",
-    "degraded": "Tu navegador está bloqueando su base de datos, así que la aplicación ha recurrido a un área de almacenamiento mucho más pequeña (unos 5 MB) y el guardado puede fallar a medida que crezca tu diseño. La navegación privada suele ser la causa. Exporta lo que quieras conservar."
+    "degraded": "Tu navegador está bloqueando su base de datos, así que la aplicación ha recurrido a un área de almacenamiento mucho más pequeña (unos 5 MB) y el guardado puede fallar a medida que crezca tu diseño. La navegación privada suele ser la causa. Exporta lo que quieras conservar.",
+    "loadFailed": "No se pudo leer el diseño guardado. Se empieza de cero; el trabajo nuevo sí se guardará."
   },
   "library": {
     "title": "Mis cohetes",
@@ -845,5 +893,9 @@
     "untitled": "Cohete sin título",
     "duplicateName": "Otro cohete ya tiene este nombre.",
     "missing": "Ese cohete ya no está guardado."
+  },
+  "cluster": {
+    "single": "Individual",
+    "pattern": "{{name}} ({{n}} motores)"
   }
 }

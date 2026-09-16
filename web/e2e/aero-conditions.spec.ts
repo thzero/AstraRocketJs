@@ -29,7 +29,10 @@ const rollRow = (page: Page) =>
   });
 
 const setField = async (page: Page, label: string, value: string) => {
-  await page.getByLabel(label).fill(value);
+  // By ROLE: every one of these number inputs sits beside a unit chip, and the
+  // chip's accessible name is built from the field's own ("Wind direction
+  // unit"), so a bare getByLabel('Wind dir') matches both.
+  await page.getByRole('spinbutton', { name: label }).fill(value);
   await page.waitForTimeout(500); // the sweep re-runs
 };
 
@@ -92,7 +95,12 @@ test.describe('aero flight conditions', () => {
     await page.getByRole('button', { name: 'Worst' }).click();
     await page.waitForTimeout(500);
     const worst = await cp(page);
-    console.log('worst wind dir =', await page.getByLabel('Wind dir').inputValue(), '-> CP', worst);
+    console.log(
+      'worst wind dir =',
+      await page.getByRole('spinbutton', { name: 'Wind dir' }).inputValue(),
+      '-> CP',
+      worst,
+    );
     // Furthest forward is the least stable, which is the point of the button.
     expect(worst).toBeLessThanOrEqual(Math.min(...seen) + 0.05);
   });

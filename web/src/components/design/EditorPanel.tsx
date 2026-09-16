@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { findMounts, findNode, siblingIndex, stageNodes } from '../../services/treeEdit';
+import { findMounts, findNode, findParent, siblingIndex, stageNodes } from '../../services/treeEdit';
 import { useWorkspaceStore } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
 import { ComponentTree } from './ComponentTree';
@@ -9,6 +9,7 @@ import { PropertyPanel } from './PropertyPanel';
 import { ScaleDialog } from './ScaleDialog';
 import { RocketConfigDialog } from './RocketConfigDialog';
 import { BusyLock } from '../common/BusyLock';
+import { num } from '../../tree/nodeProps';
 
 /** Left pane: the component tree plus the selected part's property editor. */
 export function EditorPanel() {
@@ -26,6 +27,13 @@ export function EditorPanel() {
   const [configOpen, setConfigOpen] = useState(false);
 
   const node = useMemo(() => (selectedId ? findNode(tree, selectedId) : null), [tree, selectedId]);
+  // Tube fins ring a body, and whether their tubes collide depends on THAT
+  // radius, which is not on the fin set itself.
+  const parentRadius = useMemo(() => {
+    if (node?.type !== 'tubefinset' || !selectedId) return 0;
+    const parent = findParent(tree, selectedId);
+    return parent ? num(parent, 'outerRadius') : 0;
+  }, [tree, selectedId, node]);
   const sib = useMemo(() => (selectedId ? siblingIndex(tree, selectedId) : null), [tree, selectedId]);
 
   // Guard the last motor mount: deleting it — or turning its motorMount off —
@@ -45,7 +53,12 @@ export function EditorPanel() {
     remove();
   };
   const onChange = async (p: Partial<ComponentNode>) => {
-    if (p.motorMount === false && isOnlyMount && !(await confirm({ message: t('warn.lastMountDisable'), danger: true }))) return;
+    if (
+      p.motorMount === false &&
+      isOnlyMount &&
+      !(await confirm({ message: t('warn.lastMountDisable'), danger: true }))
+    )
+      return;
     patch(p);
   };
 
@@ -71,6 +84,7 @@ export function EditorPanel() {
         canMoveDown={!!sib && sib.index < sib.count - 1}
         canRemove={!isOnlyStage}
         isFirstStage={isFirstStage}
+        parentRadius={parentRadius}
       />
       <ScaleDialog open={scaleOpen} onClose={() => setScaleOpen(false)} />
       <RocketConfigDialog open={configOpen} onClose={() => setConfigOpen(false)} />

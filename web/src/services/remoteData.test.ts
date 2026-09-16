@@ -134,6 +134,36 @@ describe('fetchCatalog — separate data host configured', () => {
     await expect(fetchCatalog('motors')).resolves.toEqual(['local']);
   });
 
+  it('falls back when the host is UP but serving the wrong shape', async () => {
+    // The nastiest case for a fallback chain: `{"error":"rebuilding"}` with
+    // HTTP 200 parses fine, so the loop used to return it and never try the
+    // in-build copy. The caller then spread a non-array and threw
+    // "bundled is not iterable" into the motor picker.
+    vi.stubEnv('VITE_DATA_BASE', REMOTE);
+    stubFetch({
+      [`${REMOTE}manifest.json`]: { body: { motors: 'h1' } },
+      [`${REMOTE}motors.generated.json`]: { body: { error: 'rebuilding' } },
+      '/data/manifest.json': { body: { motors: 'local1' } },
+      '/data/motors.generated.json': { body: ['local'] },
+    });
+    const fetchCatalog = await load();
+
+    await expect(fetchCatalog('motors', Array.isArray)).resolves.toEqual(['local']);
+  });
+
+  it('still rejects when EVERY base serves the wrong shape', async () => {
+    vi.stubEnv('VITE_DATA_BASE', REMOTE);
+    stubFetch({
+      [`${REMOTE}manifest.json`]: { body: {} },
+      [`${REMOTE}motors.generated.json`]: { body: { error: 'rebuilding' } },
+      '/data/manifest.json': { body: {} },
+      '/data/motors.generated.json': { body: { error: 'rebuilding' } },
+    });
+    const fetchCatalog = await load();
+
+    await expect(fetchCatalog('motors', Array.isArray)).rejects.toThrow(/Could not load the motors catalog/);
+  });
+
   it('rejects with the last error only when every base fails', async () => {
     vi.stubEnv('VITE_DATA_BASE', REMOTE);
     stubFetch({});

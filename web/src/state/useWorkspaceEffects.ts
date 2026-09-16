@@ -37,14 +37,37 @@ export function useWorkspaceEffects() {
     getWorkspaceStore()
       .load()
       .then((w) => {
-        if (live && w) useWorkspaceStore.getState().hydrate(w);
+        // Both writes belong INSIDE the guard. With them outside, StrictMode's
+        // cancelled first load still flipped `ready` while the tree was still
+        // the default, so the rebuild effect built the default rocket and the
+        // second load then built again — the exact double build the `ready`
+        // gate exists to prevent.
+        if (!live) return;
+        if (w) useWorkspaceStore.getState().hydrate(w);
         hydrated.current = true;
         setReady(true);
+      })
+      // Without this, a rejected load left `hydrated` and `ready` false FOREVER:
+      // no autosave, no unload flush, no engine rebuild, `info` null — the app
+      // sitting there with no stats and no stability badge, saving nothing, and
+      // nothing on screen to say so. Degrade to a fresh workspace that still
+      // saves, and tell the user their previous work could not be read.
+      //
+      // The STORAGE WARNING slot, not `setErr`: opening the gate immediately
+      // runs the rebuild effect below, whose success path calls `setErr(null)`
+      // — so an error written here was wiped before it could ever be read. The
+      // warning banner survives until a save succeeds, which is exactly when
+      // this message stops being true.
+      .catch(() => {
+        if (!live) return;
+        hydrated.current = true;
+        setReady(true);
+        useWorkspaceStore.getState().setStorageWarning(t('storage.loadFailed'));
       });
     return () => {
       live = false;
     };
-  }, []);
+  }, [t]);
 
   const tree = useWorkspaceStore((s) => s.tree);
   const sims = useWorkspaceStore((s) => s.sims);

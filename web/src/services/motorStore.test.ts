@@ -4,10 +4,12 @@ import type { KeyValueStore } from './keyValueStore';
 
 class FakeKv implements KeyValueStore {
   map = new Map<string, string>();
+  full = false;
   async get(k: string) {
     return this.map.has(k) ? this.map.get(k)! : null;
   }
   async set(k: string, v: string) {
+    if (this.full) return false;
     this.map.set(k, v);
     return true;
   }
@@ -93,5 +95,25 @@ describe('custom motors', () => {
     const list = await store.listCustomMotors();
     expect(list).toHaveLength(1);
     expect(list[0]!.id).toBe('ok');
+  });
+});
+
+describe('custom motors report refused writes', () => {
+  // `kv.set` REPORTS failure by returning false rather than throwing, and the
+  // boolean was discarded — so MotorDialog awaited the import, got a clean
+  // resolve, and re-rendered a catalog that simply did not contain the motor.
+  it('throws when an import cannot be stored', async () => {
+    const kv = new FakeKv();
+    const store = new KeyValueMotorStore(kv, 1000);
+    kv.full = true;
+    await expect(store.addCustomMotor(custom('m1'))).rejects.toThrow(/storage-full/);
+  });
+
+  it('throws when a removal cannot be stored', async () => {
+    const kv = new FakeKv();
+    const store = new KeyValueMotorStore(kv, 1000);
+    await store.addCustomMotor(custom('m1'));
+    kv.full = true;
+    await expect(store.removeCustomMotor('m1')).rejects.toThrow(/storage-full/);
   });
 });

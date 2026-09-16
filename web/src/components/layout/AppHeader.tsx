@@ -316,7 +316,7 @@ export function AppHeader() {
                     orkRef.current?.click();
                   }}
                 >
-                  {t('file.ork')}
+                  {t('file.importOrk')}
                 </button>
               )}
               <button
@@ -342,7 +342,7 @@ export function AppHeader() {
                     onSave();
                   }}
                 >
-                  {t('file.ork')}
+                  {t('file.exportOrk')}
                 </button>
               )}
               {exportOpen && (

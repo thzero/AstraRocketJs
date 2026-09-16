@@ -79,7 +79,9 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
       // Keep the designation as an UNRESOLVED (curve-less) motor rather than a
       // default: the mount shows what the file wanted, the run is blocked until
       // the user picks a real motor, and nothing silently flies a C6.
-      notes.push(`Motor "${ref.designation}" isn't in the catalog — pick a motor for that mount (it won't fly a default).`);
+      notes.push(
+        `Motor "${ref.designation}" isn't in the catalog — pick a motor for that mount (it won't fly a default).`,
+      );
       motorSpecs[mountId] = { spec: unresolvedMotor(ref) };
       continue;
     }

@@ -4,7 +4,8 @@ import { useWorkspaceStore, selectActive } from '../../state/store';
 import { useSettings } from '../../state/SettingsProvider';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
-import { aeroTableCsv, downloadCsv } from '../../services/csvExport';
+import { aeroTableCsv, CSV_MIME } from '../../services/csvExport';
+import { download } from '../../services/saveFile';
 import { lerpAt } from '../../services/interpolate';
 import type { ComponentMass, AeroSweep } from '../../engine/openRocketEngine';
 
@@ -158,7 +159,7 @@ export function AeroAnalysis() {
         <span className="text-[10px] text-slate-500">{t('aero.maxMach')}</span>
         <Seg options={[1, 2, 3, 5] as const} value={machMax} onChange={setMachMax} fmt={(v) => `M${v}`} />
         <button
-          onClick={() => downloadCsv('aero-table.csv', aeroTableCsv(sweep, u.all))}
+          onClick={() => download('aero-table.csv', aeroTableCsv(sweep, u.all), CSV_MIME)}
           title={t('aero.exportCsv')}
           className="rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
         >
@@ -180,7 +181,18 @@ export function AeroAnalysis() {
             unit="°"
           />
           <button
-            onClick={() => rocket && setThetaDeg(Math.round(rocket.worstThetaDeg(machPick, aoaDeg) * 10) / 10)}
+            // Wrapped like its neighbours (:77-85, :98-102): a kernel that throws
+            // here — an older build without the method, or a degenerate design —
+            // would otherwise throw out of a React event handler and take the
+            // whole pane down rather than leaving the field alone.
+            onClick={() => {
+              if (!rocket) return;
+              try {
+                setThetaDeg(Math.round(rocket.worstThetaDeg(machPick, aoaDeg) * 10) / 10);
+              } catch {
+                /* leave the wind direction as it is */
+              }
+            }}
             title={t('aero.worstNote')}
             className="rounded-md bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
           >
@@ -198,27 +210,28 @@ export function AeroAnalysis() {
         />
       </div>
 
-      {/* The tables report at ONE Mach. With the charts on screen the crosshair
-          picks it; with them hidden this slider is the only way to, so it only
-          appears on that pane. */}
-      {pane === 'components' && (
-        <div className="flex items-center gap-2 px-3 pb-2">
-          <span className="shrink-0 text-[10px] text-slate-500">{t('aero.atMach', { mach: fmtNum(machPick, 2) })}</span>
-          <input
-            type="range"
-            min={machs[0] ?? 0}
-            max={machs[machs.length - 1] ?? 1}
-            // Step by the sweep's own sampling, so the slider can only land on a
-            // Mach that was actually computed — otherwise it reads 0.30 while
-            // the tables, which snap to the nearest sample, read 0.29.
-            step={(machs[1] ?? 0.05) - (machs[0] ?? 0)}
-            value={machPick}
-            onChange={(e) => setMachPick(parseFloat(e.target.value))}
-            aria-label={t('aero.machPicker')}
-            className="w-full accent-sky-500"
-          />
-        </div>
-      )}
+      {/* The Mach both panes report at. It used to be hidden on the Charts pane,
+          on the reasoning that the hover crosshair already picks it — but that
+          made the value pointer-only there: the legend readout was the sole way
+          to read a figure at a given Mach and nothing could reach it from the
+          keyboard. It shows on both panes now, and the crosshair still drives
+          the same state when you do use a pointer. */}
+      <div className="flex items-center gap-2 px-3 pb-2">
+        <span className="shrink-0 text-[10px] text-slate-500">{t('aero.atMach', { mach: fmtNum(machPick, 2) })}</span>
+        <input
+          type="range"
+          min={machs[0] ?? 0}
+          max={machs[machs.length - 1] ?? 1}
+          // Step by the sweep's own sampling, so the slider can only land on a
+          // Mach that was actually computed — otherwise it reads 0.30 while
+          // the tables, which snap to the nearest sample, read 0.29.
+          step={(machs[1] ?? 0.05) - (machs[0] ?? 0)}
+          value={machPick}
+          onChange={(e) => setMachPick(parseFloat(e.target.value))}
+          aria-label={t('aero.machPicker')}
+          className="w-full accent-sky-500"
+        />
+      </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 pb-3">
         {pane === 'charts' && (
           <>
@@ -796,6 +809,38 @@ function Num({
   );
 }
 
+/**
+ * SVG `d` for one series, skipping non-finite samples.
+ *
+ * Tracks whether a command has actually been EMITTED rather than taking the
+ * letter from the array index. With `${i ? 'L' : 'M'}` a non-finite sample at
+ * index 0 produced a `d` starting with `L…` — invalid path data, so the browser
+ * silently drops the whole <path> and the curve renders blank with no error.
+ * A gap mid-series starts a fresh `M` too, so a hole reads as a break instead
+ * of a straight line bridging across it.
+ *
+ * Exported for its test; the chart passes its own scale functions in.
+ */
+export function buildLinePath(
+  machs: number[],
+  vals: number[],
+  X: (m: number) => number,
+  Y: (v: number) => number,
+): string {
+  const out: string[] = [];
+  let open = false;
+  machs.forEach((m, i) => {
+    const v = vals[i] ?? NaN;
+    if (!Number.isFinite(m) || !Number.isFinite(v)) {
+      open = false;
+      return;
+    }
+    out.push(`${open ? 'L' : 'M'}${X(m).toFixed(1)},${Y(v).toFixed(1)}`);
+    open = true;
+  });
+  return out.join(' ');
+}
+
 function Seg<T extends string | number | boolean>({
   options,
   value,
@@ -816,6 +861,11 @@ function Seg<T extends string | number | boolean>({
       {options.map((o) => (
         <button
           key={String(o)}
+          // `pointer-events-none` on the wrapper stops the mouse and nothing
+          // else: without this the buttons stayed tabbable and Enter still
+          // fired, so a "disabled" toggle could be flipped from the keyboard.
+          disabled={disabled}
+          aria-pressed={value === o}
           onClick={() => onChange(o)}
           className={`px-2 py-0.5 text-[11px] font-medium ${value === o ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300'}`}
         >
@@ -895,11 +945,7 @@ function ChartCard({
   yMax += (yMax - yMin) * 0.08;
   const Y = (v: number) => PAD_T + (1 - (v - yMin) / (yMax - yMin)) * ih;
 
-  const finite = (m: number, v: number) => Number.isFinite(m) && Number.isFinite(v);
-  const linePath = (vals: number[]) =>
-    machs
-      .map((m, i) => (finite(m, vals[i] ?? NaN) ? `${i ? 'L' : 'M'}${X(m).toFixed(1)},${Y(vals[i]!).toFixed(1)}` : ''))
-      .join(' ');
+  const linePath = (vals: number[]) => buildLinePath(machs, vals, X, Y);
 
   // Stacked areas: cumulative bottom→top, each band drawn as a filled polygon
   // with a thin surface stroke along its top edge (the dataviz 2px-gap rule).

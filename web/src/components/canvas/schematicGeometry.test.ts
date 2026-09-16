@@ -33,7 +33,10 @@ describe('finTabFront', () => {
   const finLen = 0.05;
   it('resolves the tab leading edge per anchor method', () => {
     expect(finTabFront(node({ tabOffset: 0.01, tabOffsetMethod: 'top' }), finLen)).toBeCloseTo(0.01, 9);
-    expect(finTabFront(node({ tabOffset: 0, tabLength: 0.02, tabOffsetMethod: 'bottom' }), finLen)).toBeCloseTo(0.03, 9);
+    expect(finTabFront(node({ tabOffset: 0, tabLength: 0.02, tabOffsetMethod: 'bottom' }), finLen)).toBeCloseTo(
+      0.03,
+      9,
+    );
     // middle is the default
     expect(finTabFront(node({ tabOffset: 0, tabLength: 0.02 }), finLen)).toBeCloseTo(0.015, 9);
   });

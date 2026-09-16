@@ -96,10 +96,14 @@ export class DesignLibrary {
     if (!(await this.kv.set(designKey(id), JSON.stringify(w)))) return false;
     const list = await this.readIndex();
     const rest = list.filter((m) => m.id !== id);
-    // Index write failing is survivable — the design itself is stored — so the
-    // caller's success hinges on the design write above, not this.
-    await this.writeIndex([{ id, name, updatedAt: Date.now() }, ...rest]);
-    return true;
+    // The index write counts too. It was treated as survivable on the grounds
+    // that the design itself is stored — but `activeId()` filters against this
+    // index, so a design missing from it is unreachable: a newly created one
+    // vanishes and the next session opens empty over orphaned bytes, and an
+    // existing one stops advancing its `updatedAt` so the library list silently
+    // goes stale. Reporting the failure lets `workspaceStore.save()` raise
+    // "storage full" instead of the user finding out later.
+    return await this.writeIndex([{ id, name, updatedAt: Date.now() }, ...rest]);
   }
 
   /** Register a new design and make it active. Returns its meta. */
