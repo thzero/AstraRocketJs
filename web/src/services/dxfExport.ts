@@ -1,5 +1,6 @@
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import { num } from '../tree/nodeProps';
+import { freeformPoints } from '../tree/position';
 import { finTabFront } from '../components/canvas/schematicGeometry';
 
 /**
@@ -84,10 +85,9 @@ function dedupe(pts: Pt[]): Pt[] {
 /** The span-up planform (root on y = 0), before any tab is folded in. */
 function finTopEdge(node: ComponentNode): Pt[] | null {
   if (node.type === 'freeformfinset') {
-    const raw = node['points'];
-    if (!Array.isArray(raw) || raw.length < 3) return null;
-    const pts = raw.map((p) => ({ x: Number((p as number[])[0]) || 0, y: Number((p as number[])[1]) || 0 }));
-    return pts;
+    const raw = freeformPoints(node);
+    if (raw.length < 3) return null;
+    return raw.map(([x, y]) => ({ x: Number(x) || 0, y: Number(y) || 0 }));
   }
   const root = num(node, 'rootChord', 0.05);
   const height = num(node, 'height', 0.03);

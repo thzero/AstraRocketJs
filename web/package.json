@@ -38,7 +38,8 @@
     "gen:icons": "node scripts/gen-icons.mjs",
     "sync:motors": "node scripts/sync-motors.mjs",
     "sync:components": "node scripts/sync-components.mjs",
-    "sync:contributors": "node scripts/sync-contributors.mjs"
+    "sync:contributors": "node scripts/sync-contributors.mjs",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",
@@ -52,20 +53,22 @@
     "react-dom": "~19.2.8",
     "react-i18next": "^17.0.13",
     "three": "^0.186.0",
+    "three-stdlib": "^2.36.1",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.63.0",
-    "@react-three/test-renderer": "^9.1.1",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/react": "^16.3.3",
     "@thzero/library_cli": "^0.18.45",
     "@types/mustache": "^4.2.6",
+    "@types/node": "^22.20.3",
     "@types/react": "~19.2.18",
     "@types/react-dom": "~19.2.7",
     "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^6.1.1",
+    "@vitest/coverage-v8": "^5.0.0",
     "eslint": "^10.10.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",

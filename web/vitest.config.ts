@@ -23,5 +23,15 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     environment: 'node',
+    // Reported, not enforced. 800-odd tests said nothing about WHICH of the
+    // ~200 source modules they touch; a threshold before anyone has read the
+    // baseline would just be a number someone games. `npm run test:coverage`.
+    coverage: {
+      provider: 'v8',
+      reporter: ['text-summary', 'lcov'],
+      include: ['src/**/*.{ts,tsx}'],
+      // Generated (the 2.9 MB TeaVM bundle), or not code under test.
+      exclude: ['src/engine/vendor/**', 'src/**/*.test.*', 'src/testing/**', 'src/**/*.d.ts'],
+    },
   },
 });

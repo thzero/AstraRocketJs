@@ -18,6 +18,7 @@ import {
   type StageTrackStart,
 } from '../../services/flightPathExport';
 import { getTemplateStore, parseTemplateFilename, type UserTemplate } from '../../services/templateStore';
+import { useFocusTrap } from '../common/useFocusTrap';
 
 /**
  * "Export flight path" — a port of OpenRocket's 3D-path export dialog. Renders a
@@ -96,6 +97,11 @@ export function ExportDialog({
   result: import('../../engine/openRocketEngine').FlightResult;
 }) {
   const { t } = useTranslation();
+  // Tab stays inside the modal, and focus returns to the trigger on close.
+  // Seven dialogs declared aria-modal and had neither, so Tab walked straight
+  // out into the page behind the overlay — the exact gap useFocusTrap exists
+  // to close, already used by seven of their siblings.
+  const panelRef = useFocusTrap<HTMLDivElement>(true);
   const store = useMemo(() => getTemplateStore(), []);
   const [selected, setSelected] = useState<string>(EXPORT_FORMATS[0]!.id);
   const units = useUnits();
@@ -210,6 +216,7 @@ export function ExportDialog({
   return (
     <div className="dialog-overlay fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
       <div
+        ref={panelRef}
         className="dialog-panel max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-slate-900 p-5 ring-1 ring-white/10"
         role="dialog"
         aria-modal="true"

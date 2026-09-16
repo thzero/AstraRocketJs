@@ -5,6 +5,7 @@ import { useUnits } from '../../prefs/useUnits';
 import { PLUGGED_DELAY, type MotorSpec } from '../../engine/openRocketEngine';
 import { ThrustChart, Stat } from './MotorDetail';
 import { initialThrust } from '../../services/motorPicker';
+import { useFocusTrap } from '../common/useFocusTrap';
 
 /**
  * Read-only popup for the simulation's current motor: its (flown) thrust curve
@@ -12,6 +13,11 @@ import { initialThrust } from '../../services/motorPicker';
  * curve the engine simulates, including whichever alternate curve was chosen.
  */
 export function MotorSpecDialog({ motor, open, onClose }: { motor: MotorSpec; open: boolean; onClose: () => void }) {
+  // Tab stays inside the modal, and focus returns to the trigger on close.
+  // Seven dialogs declared aria-modal and had neither, so Tab walked straight
+  // out into the page behind the overlay — the exact gap useFocusTrap exists
+  // to close, already used by seven of their siblings.
+  const panelRef = useFocusTrap<HTMLDivElement>(open);
   const { t } = useTranslation();
   const u = useUnits();
 
@@ -44,6 +50,7 @@ export function MotorSpecDialog({ motor, open, onClose }: { motor: MotorSpec; op
 
   return (
     <div
+      ref={panelRef}
       className="dialog-overlay fixed inset-0 z-50 grid place-items-center bg-black/60 p-4"
       onClick={onClose}
       role="dialog"

@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive, selectMotorDims, selectRunFailed } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
 import { useSettings } from '../../state/SettingsProvider';
+import { useUnits } from '../../prefs/useUnits';
+import { APP_VERSION, appName } from '../../services/appInfo';
 import { descentMass } from '../../services/recoverySizing';
 import { TreeSchematic } from './TreeSchematic';
 import { AftView } from './AftView';
@@ -34,6 +36,7 @@ export function CenterView() {
   const { t } = useTranslation();
   const tab = useWorkspaceStore((s) => s.tab);
   const loadedMeta = useWorkspaceStore((s) => s.loadedMeta);
+  const setErr = useWorkspaceStore((s) => s.setErr);
   const resetWorkspace = useWorkspaceStore((s) => s.resetWorkspace);
   // "Close" discards the loaded design and resets to a fresh one — confirm first.
   const onCloseLoaded = async () => {
@@ -58,6 +61,28 @@ export function CenterView() {
   const motor = useWorkspaceStore((s) => selectActive(s).motor);
   const extraMotors = useWorkspaceStore((s) => s.extraMotors);
   const motors = useMemo(() => selectMotorDims(tree, motor, extraMotors), [tree, motor, extraMotors]);
+
+  /**
+   * The header block the 2D/3D image exports stamp on the page — name, the
+   * static numbers, the user's units, the app version.
+   *
+   * This existed unreachable: `TreeSchematic` and `Rocket3D` gate their export
+   * buttons on `exportData` and nothing ever passed it, so `⬇ SVG`, `⬇ Image`,
+   * `📷 Image`, `ImageExportMenu`, `schematicSvg`, `svgToImage` and
+   * `snapshotWithHeader` — several hundred lines plus a whole service — were
+   * shipped and unusable. `git log -S exportData` says it was never wired.
+   */
+  const units = useUnits();
+  const exportData = useMemo(
+    () => ({
+      name: loadedMeta?.name || (typeof tree.name === 'string' && tree.name) || appName(),
+      info,
+      units: units.all,
+      withMotors: Object.keys(motors).length > 0,
+      appVersion: APP_VERSION,
+    }),
+    [loadedMeta, tree.name, info, units.all, motors],
+  );
   // Recovery weight = loaded mass − the propellant that burns off (every motor's
   // loaded-minus-burnout mass). Undefined with no motor loaded — nothing to
   // subtract — so the tile shows a "needs a motor" hint instead of a wrong number.
@@ -284,6 +309,8 @@ export function CenterView() {
                     controlsSlot={ctrlSlot}
                     showMarkers={showMarkers}
                     rulers={rulers}
+                    exportData={exportData}
+                    onError={setErr}
                   />
                 ) : (
                   <AftView key={`aft-${resetKey}`} tree={tree} roll={roll} motors={motors} onRoll={onRollBy} />
@@ -298,6 +325,7 @@ export function CenterView() {
                   selectedId={selectedId}
                   onSelect={onSelect}
                   showMarkers={showMarkers}
+                  exportData={exportData}
                 />
               </Suspense>
             ) : view === 'flight' ? (

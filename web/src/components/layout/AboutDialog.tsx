@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { appName, APP_VERSION, CONTRIBUTORS_URL, isPreRelease } from '../../services/appInfo';
 import contributorData from '../../data/contributors.generated.json';
+import { useFocusTrap } from '../common/useFocusTrap';
 
 // GitHub contributors, baked in at build time by scripts/sync-contributors.mjs
 // (avatars inlined as data URIs) so the dialog makes no runtime call to github.com.
@@ -23,6 +24,11 @@ const LINKS: [string, string][] = [
 /** "About {app}" modal — what the app is (a light web UI over the OpenRocket
  *  engine, full .ork support), version, and credits. Copy lives in i18n. */
 export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  // Tab stays inside the modal, and focus returns to the trigger on close.
+  // Seven dialogs declared aria-modal and had neither, so Tab walked straight
+  // out into the page behind the overlay — the exact gap useFocusTrap exists
+  // to close, already used by seven of their siblings.
+  const panelRef = useFocusTrap<HTMLDivElement>(open);
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -38,6 +44,7 @@ export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => v
   return (
     <div className="dialog-overlay fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
       <div
+        ref={panelRef}
         className="dialog-panel w-full max-w-lg rounded-2xl bg-slate-900 p-6 ring-1 ring-white/10"
         role="dialog"
         aria-modal="true"

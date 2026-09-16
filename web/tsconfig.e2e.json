@@ -4,15 +4,16 @@
   // sat in the specs while the build reported clean — the kind that throws the
   // moment a selector misses.
   //
-  // Specs only, not the *.config.ts files: those are Node code and need
-  // `@types/node`, which is not a dependency here. Adding it would also let
-  // this cover playwright/vite/vitest config.
+  // `@types/node` is a devDependency now: a spec that reads a downloaded file
+  // off disk (image-export.spec.ts) needs it, and it is what would let this
+  // project widen to the *.config.ts files later.
   //
   // DOM stays in `lib` because code inside `page.evaluate()` runs in the
   // browser; Playwright types those callbacks itself.
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
     "noEmit": true
   },
   "include": ["e2e"]

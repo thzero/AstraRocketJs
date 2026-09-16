@@ -82,26 +82,46 @@ describe('LibraryWorkspaceStore', () => {
     expect(await store.load()).toBeNull();
   });
 
-  it('rejects corrupt or invalid stored data', async () => {
+  /**
+   * A design that is THERE but unreadable is not the same as no design.
+   *
+   * `load()` used to return null for both, so the hydration gate opened with
+   * the default rocket and the autosave wrote it over the unreadable design AT
+   * THE SAME ID 500 ms after the first edit. It now throws — which the effects
+   * hook already handles by raising the load-failed warning — and detaches, so
+   * the next save creates a new entry instead of finishing the overwrite.
+   */
+  it.each([
+    ['unparseable', '{bad json'],
+    ['a newer schema version', JSON.stringify({ version: 2, tree: { components: [] }, sims: [{ id: 's1' }] })],
+    ['no tree', JSON.stringify({ version: 1, sims: [{ id: 'x' }] })],
+    ['a non-array tree.components', JSON.stringify({ version: 1, tree: {}, sims: [{ id: 's1' }] })],
+    ['no sims', JSON.stringify({ version: 1, tree: { components: [] }, sims: [] })],
+  ])('throws rather than silently starting fresh over a design that is %s', async (_what, blob) => {
     await store.save(workspace());
-    const key = designKey(kv);
-
-    kv.map.set(key, '{bad json');
-    expect(await store.load()).toBeNull();
-
-    kv.map.set(key, JSON.stringify({ ...workspace(), version: 2 })); // wrong version
-    expect(await store.load()).toBeNull();
-
-    kv.map.set(key, JSON.stringify({ version: 1, sims: [{ id: 'x' }] })); // no tree
-    expect(await store.load()).toBeNull();
-
-    kv.map.set(key, JSON.stringify({ version: 1, tree: { components: [] }, sims: [] })); // empty sims
-    expect(await store.load()).toBeNull();
+    kv.map.set(designKey(kv), blob);
+    await expect(store.load()).rejects.toThrow(/unreadable/);
   });
 
-  it('rejects a blob whose tree.components is not an array', async () => {
+  it('detaches from an unreadable design so the next save does not overwrite it', async () => {
     await store.save(workspace());
-    kv.map.set(designKey(kv), JSON.stringify({ version: 1, tree: {}, sims: [{ id: 's1' }] }));
+    const originalKey = designKey(kv);
+    const corrupt = '{bad json';
+    kv.map.set(originalKey, corrupt);
+
+    await expect(store.load()).rejects.toThrow(/unreadable/);
+
+    // The next save must land somewhere NEW. The unreadable bytes stay put, so
+    // whatever can be recovered by hand still can be.
+    await store.save(workspace());
+    expect(kv.map.get(originalKey)).toBe(corrupt);
+    const keys = [...kv.map.keys()].filter(
+      (k) => k.startsWith('astrarrocketjs:designs:') && !k.endsWith(':index') && !k.endsWith(':active'),
+    );
+    expect(keys).toHaveLength(2);
+  });
+
+  it('returns null, without throwing, when there is genuinely nothing saved', async () => {
     expect(await store.load()).toBeNull();
   });
 

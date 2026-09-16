@@ -97,8 +97,20 @@ export function AeroAnalysis() {
     }
   }, [rocket, machMax, aoaDeg, thetaDeg, rollRate]);
 
+  // The slider sticks at the last hovered Mach once the pointer leaves — but
+  // this used to setState on EVERY pointer move, and `tableMach` already
+  // derives the live value, so each move cost two full renders of a
+  // 1000-line component. Hold it in a ref and commit once, on the way out.
+  const lastHover = useRef<number | null>(null);
   useEffect(() => {
-    if (hoverM != null) setMachPick(hoverM);
+    if (hoverM != null) {
+      lastHover.current = hoverM;
+      return;
+    }
+    if (lastHover.current != null) {
+      setMachPick(lastHover.current);
+      lastHover.current = null;
+    }
   }, [hoverM]);
   // The crosshair wins while it exists; the slider is the resting value.
   const tableMach = hoverM ?? machPick;
@@ -114,32 +126,50 @@ export function AeroAnalysis() {
     }
   }, [rocket]);
 
+  // Above the early return so they can be memos: rebuilt in the render body,
+  // these three handed every ChartCard new array identities on every pointer
+  // move, forcing each to re-derive its y-domain and paths. `cpValues` maps the
+  // whole sweep.
+  const lengthFactor = u.factor('length');
+  const bodyLen = info?.length ?? 0;
+  const { cdSeries, breakdown, cpSeries } = useMemo((): {
+    cdSeries: Series[];
+    breakdown: Series[];
+    cpSeries: Series[];
+  } => {
+    if (!sweep) return { cdSeries: [], breakdown: [], cpSeries: [] };
+    const cd: Series[] = [{ name: t('aero.powerOff'), color: POWER_OFF, values: sweep.powerOff.total }];
+    if (sweep.hasNozzle) cd.push({ name: t('aero.powerOn'), color: POWER_ON, values: sweep.powerOn.total });
+    return {
+      cdSeries: cd,
+      // By type only. A per-component version of this chart used to sit behind
+      // a toggle here, but the Per component pane now tabulates the same
+      // figures with the pressure / base / friction split beside them -- which
+      // a stack of lines, one per part, could never show. Two ways to read one
+      // thing, the worse one taking a control.
+      breakdown: [
+        { name: t('aero.friction'), color: CAT[0]!, values: sweep.powerOff.friction },
+        { name: t('aero.pressure'), color: CAT[1]!, values: sweep.powerOff.pressure },
+        { name: t('aero.base'), color: CAT[2]!, values: sweep.powerOff.base },
+      ],
+      // As a percentage of body length CP has no unit; as a position it takes
+      // the user's length unit (a whole series is being scaled).
+      cpSeries: [
+        {
+          name: t('flight.cp'),
+          color: POWER_OFF,
+          values:
+            cpPct && bodyLen > 0 ? sweep.cp.map((v) => (v / bodyLen) * 100) : sweep.cp.map((v) => v * lengthFactor),
+        },
+      ],
+    };
+  }, [sweep, cpPct, bodyLen, lengthFactor, t]);
+
   if (!sweep)
     return <div className="grid h-full place-items-center text-sm text-slate-500">{t('aero.unavailable')}</div>;
 
   const machs = sweep.machs;
   const machMin = machs[0] ?? 0.05;
-
-  const cdSeries: Series[] = [{ name: t('aero.powerOff'), color: POWER_OFF, values: sweep.powerOff.total }];
-  if (sweep.hasNozzle) cdSeries.push({ name: t('aero.powerOn'), color: POWER_ON, values: sweep.powerOn.total });
-
-  // By type only. A per-component version of this chart used to sit behind a
-  // toggle here, but the Per component pane now tabulates the same figures with
-  // the pressure / base / friction split beside them -- which a stack of lines,
-  // one per part, could never show. Two ways to read one thing, the worse one
-  // taking a control.
-  const breakdown: Series[] = [
-    { name: t('aero.friction'), color: CAT[0]!, values: sweep.powerOff.friction },
-    { name: t('aero.pressure'), color: CAT[1]!, values: sweep.powerOff.pressure },
-    { name: t('aero.base'), color: CAT[2]!, values: sweep.powerOff.base },
-  ];
-
-  const bodyLen = info?.length ?? 0;
-  // As a percentage of body length CP has no unit; as a position it takes the
-  // user's length unit (`factor`, since a whole series is being scaled).
-  const cpValues =
-    cpPct && bodyLen > 0 ? sweep.cp.map((v) => (v / bodyLen) * 100) : sweep.cp.map((v) => v * u.factor('length'));
-  const cpSeries: Series[] = [{ name: t('flight.cp'), color: POWER_OFF, values: cpValues }];
 
   return (
     <div className="flex h-full flex-col rounded-xl bg-slate-900 ring-1 ring-white/10">

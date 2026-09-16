@@ -751,7 +751,9 @@
     "outline": "Fin outline",
     "removePoint": "Remove point",
     "point": "Point {{n}}",
-    "hint": "Drag the amber points to shape the fin; tap a blue midpoint to add one. X runs along the body, Y is height above it."
+    "hint": "Drag the amber points to shape the fin; tap a blue midpoint to add one. X runs along the body, Y is height above it.",
+    "vertex": "Outline point {{n}}",
+    "insertAfter": "Insert a point after {{n}}"
   },
   "material": {
     "title": "Material",

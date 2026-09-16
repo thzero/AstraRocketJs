@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import i18nGlobal from '../i18n';
 import { useWorkspaceStore, selectActive } from './store';
 import { getWorkspaceStore } from '../services/workspaceStore';
 import { onStorageDegraded } from '../services/idbKeyValueStore';
@@ -14,7 +15,21 @@ import { appName } from '../services/appInfo';
  * stability) whenever the design or its motors change. Mounted once, in App.
  */
 export function useWorkspaceEffects() {
-  const { t, i18n } = useTranslation();
+  // `i18n`, never `t`: `t` gets a NEW IDENTITY on every language change, and
+  // every effect below that listed it in its deps therefore re-ran on a
+  // language switch. For the hydration effect that meant re-reading and
+  // re-hydrating the workspace — and `hydrate` runs `sanitizeSims`, which nulls
+  // every sim result, so changing language silently threw away every flight the
+  // user had run (and could re-hydrate a stale design over a fresh import).
+  // The MODULE singleton (`i18nGlobal`, as store.ts already uses) rather than
+  // the hook's — react-i18next hands back a fresh binding on a language change,
+  // so depending on it reintroduces the same re-run. `i18nGlobal.t(...)` reads
+  // the current language at call time, so the message is still translated
+  // without the effect being language-sensitive at all.
+  //
+  // `useTranslation()` stays only as the re-render subscription the title
+  // effect below needs.
+  const { i18n } = useTranslation();
   useEffect(() => {
     document.title = appName();
   }, [i18n.language]);
@@ -62,12 +77,12 @@ export function useWorkspaceEffects() {
         if (!live) return;
         hydrated.current = true;
         setReady(true);
-        useWorkspaceStore.getState().setStorageWarning(t('storage.loadFailed'));
+        useWorkspaceStore.getState().setStorageWarning(i18nGlobal.t('storage.loadFailed'), 'loadFailed');
       });
     return () => {
       live = false;
     };
-  }, [t]);
+  }, []);
 
   const tree = useWorkspaceStore((s) => s.tree);
   const sims = useWorkspaceStore((s) => s.sims);
@@ -85,23 +100,28 @@ export function useWorkspaceEffects() {
         .save({ version: 1, tree, sims, activeId, extraMotors, loadedMeta })
         // There is now a design worth keeping, so ask the browser not to evict
         // this origin under disk pressure. Once per session, best-effort.
-        // A successful save clears any standing storage warning; a failed one
-        // raises it. This is the ONLY thing that clears it -- the rebuild
-        // effect's setErr(null) must not, or the warning never survives long
-        // enough to be read.
+        // A successful save retires a "storage full" warning and nothing else:
+        // the IndexedDB-degraded and load-failed messages are facts about this
+        // session that a later write does not undo (see clearSaveWarning).
         .then(() => {
-          useWorkspaceStore.getState().setStorageWarning(null);
+          useWorkspaceStore.getState().clearSaveWarning();
           void requestPersistentStorage();
         })
-        .catch(() => useWorkspaceStore.getState().setStorageWarning(t('storage.full')));
+        .catch(() => useWorkspaceStore.getState().setStorageWarning(i18nGlobal.t('storage.full'), 'full'));
     }, 500);
     return () => clearTimeout(id);
-  }, [t, tree, sims, activeId, extraMotors, loadedMeta]);
+  }, [tree, sims, activeId, extraMotors, loadedMeta]);
 
   // IndexedDB blocked (policy, some private modes) means we are back on the 5 MB
   // localStorage cap this move existed to escape. Say so NOW rather than letting
   // the user meet it later as an unexplained failed save mid-design.
-  useEffect(() => onStorageDegraded(() => useWorkspaceStore.getState().setStorageWarning(t('storage.degraded'))), [t]);
+  useEffect(
+    () =>
+      onStorageDegraded(() =>
+        useWorkspaceStore.getState().setStorageWarning(i18nGlobal.t('storage.degraded'), 'degraded'),
+      ),
+    [],
+  );
 
   // Flush any change the 500ms debounce hasn't persisted yet on page unload —
   // otherwise opening a .ork and refreshing quickly would lose it.

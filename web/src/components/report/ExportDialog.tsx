@@ -39,18 +39,37 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const { t } = useTranslation();
   const { settings, update } = useSettings();
   const units = useUnits();
+  // Declared up here because the focus traps and the Escape handler below both
+  // branch on it: the popover is a separate keyboard surface, not decoration.
+  const [showSettings, setShowSettings] = useState(false);
   // Escape to dismiss, and keep Tab inside the modal. Every sibling dialog has
   // both; this one had neither, so Tab walked straight out into the page behind
   // an aria-modal overlay and there was no keyboard way to close it.
-  const panelRef = useFocusTrap<HTMLDivElement>(open);
+  //
+  // TWO traps, and the topmost one wins: the print-settings popover below is a
+  // SIBLING of this panel (both children of the overlay), so a trap anchored
+  // here cannot reach its controls — with the popover open, Tab went on cycling
+  // the dialog behind it and the fill colour, paper size and orientation were
+  // unreachable by keyboard.
+  const panelRef = useFocusTrap<HTMLDivElement>(open && !showSettings);
+  const settingsRef = useFocusTrap<HTMLDivElement>(open && showSettings);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      // Escape dismisses the TOPMOST surface. Closing the whole dialog from
+      // here discarded the user's include/exclude selection (reopening resets
+      // the once-per-open assemble latch) — the same loss the popover's
+      // backdrop handler already guards against for the click path.
+      if (showSettings) {
+        setShowSettings(false);
+        return;
+      }
+      onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open, onClose, showSettings]);
   // One resolution for both outputs — the PDF and the CSV must never disagree
   // about what the document is written in.
   const exportUnits = resolveUnitChoice(settings.report.units, units.all);
@@ -66,7 +85,6 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const [sel, setSel] = useState<Sel | null>(null);
   /** Once-per-open latch for the assemble below (a ref, so setting it never renders). */
   const assembled = useRef(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const hasNoses = useMemo(() => hasType(tree.components, (ty) => ty === 'nosecone'), [tree]);
@@ -377,9 +395,10 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
           }}
         >
           <div
+            ref={settingsRef}
             className="w-full max-w-xs rounded-2xl bg-slate-900 p-4 ring-1 ring-white/10"
             role="dialog"
-            aria-modal="true"
+            aria-label={t('export.printSettings')}
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="mb-3 text-base font-semibold text-slate-100">{t('export.printSettings')}</h3>

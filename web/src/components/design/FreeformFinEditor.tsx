@@ -97,6 +97,44 @@ export function FreeformFinEditor({
     onCommit?.();
   };
 
+  /**
+   * Keyboard editing.
+   *
+   * The outline was pointer-only: vertices and edge midpoints had no role,
+   * tabIndex or key handler, and the X/Y inputs below render ONLY once `sel` is
+   * set — which only `startDrag`/`insertAfter` could do, both pointer-driven. So
+   * a keyboard or screen-reader user could not select a vertex, and therefore
+   * could not edit a freeform fin at all.
+   *
+   * Arrows nudge by one step (Shift for ten), Enter/Space on a midpoint inserts,
+   * Delete removes. One undo entry per key, closed immediately — a nudge is a
+   * discrete edit, unlike a drag.
+   */
+  const NUDGE = 0.001; // 1 mm in stored metres
+  const onVertexKey = (i: number) => (e: React.KeyboardEvent) => {
+    const p = pts[i]!;
+    const step = e.shiftKey ? NUDGE * 10 : NUDGE;
+    const move = (dx: number, dy: number) => {
+      e.preventDefault();
+      setSel(i);
+      setPoint(i, p[0] + dx, p[1] + dy);
+      onCommit?.();
+    };
+    if (e.key === 'ArrowLeft') return move(-step, 0);
+    if (e.key === 'ArrowRight') return move(step, 0);
+    if (e.key === 'ArrowUp') return move(0, step);
+    if (e.key === 'ArrowDown') return move(0, -step);
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      setSel(i);
+      if (pts.length > 3) {
+        onChange(pts.filter((_, j) => j !== i));
+        setSel(null);
+        onCommit?.();
+      }
+    }
+  };
+
   const poly = pts.map((p) => `${sx(p[0]).toFixed(1)},${sy(p[1]).toFixed(1)}`).join(' ');
   const selPt = sel != null ? pts[sel] : undefined;
 
@@ -117,6 +155,8 @@ export function FreeformFinEditor({
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
         width="100%"
+        role="group"
+        aria-label={t('freeform.outline')}
         className="block touch-none rounded-lg bg-slate-950 ring-1 ring-white/10"
         onPointerMove={onMove}
         onPointerUp={endDrag}
@@ -133,9 +173,17 @@ export function FreeformFinEditor({
               cx={(sx(p[0]) + sx(b[0])) / 2}
               cy={(sy(p[1]) + sy(b[1])) / 2}
               r="4"
-              className="cursor-pointer fill-sky-500/60 hover:fill-sky-400"
+              role="button"
+              tabIndex={0}
+              aria-label={t('freeform.insertAfter', { n: i + 1 })}
+              className="cursor-pointer fill-sky-500/60 hover:fill-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400"
               onPointerDown={(e) => {
                 e.stopPropagation();
+                insertAfter(i);
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
                 insertAfter(i);
               }}
             />
@@ -149,8 +197,15 @@ export function FreeformFinEditor({
             cy={sy(p[1])}
             r="5.5"
             strokeWidth="1.5"
-            className={`cursor-grab stroke-slate-900 ${sel === i ? 'fill-amber-300' : 'fill-amber-500'}`}
+            role="button"
+            tabIndex={0}
+            aria-label={t('freeform.vertex', { n: i + 1 })}
+            className={`cursor-grab stroke-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-400 ${
+              sel === i ? 'fill-amber-300' : 'fill-amber-500'
+            }`}
             onPointerDown={startDrag(i)}
+            onFocus={() => setSel(i)}
+            onKeyDown={onVertexKey(i)}
           />
         ))}
       </svg>

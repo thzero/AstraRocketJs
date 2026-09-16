@@ -64,6 +64,9 @@ type HistoryEntry = {
 /** Cap the stack so a long session can't grow memory without bound. */
 const HISTORY_LIMIT = 100;
 
+/** Which condition raised `storageWarning` — only 'full' is save-clearable. */
+export type StorageWarningKind = 'full' | 'degraded' | 'loadFailed';
+
 export interface WorkspaceState {
   // --- design ---
   tree: RocketTree;
@@ -79,9 +82,15 @@ export interface WorkspaceState {
    * effect clears `err` on every successful build — which happens milliseconds
    * after load and again on every keystroke — so the one warning telling the
    * user their work is no longer being saved was wiped before it could be read.
-   * This one stands until storage actually succeeds again.
+   * A successful save clears ONLY the transient "full" case. `degraded` and
+   * `loadFailed` are facts about this session that a later save does not undo:
+   * `idbKeyValueStore.markDegraded()` is one-way and never notifies twice, so
+   * clearing its message on the next successful write retired it permanently —
+   * one keystroke after it appeared — and the user met the 5 MB cap later with
+   * nothing on screen to explain it. Hence the `kind`.
    */
   storageWarning: string | null;
+  storageWarningKind: StorageWarningKind | null;
   selectedId: string | null;
   extraMotors: Record<string, MountMotor>;
   loadedMeta: LoadedMeta;
@@ -113,7 +122,9 @@ export interface WorkspaceState {
   // --- actions ---
   setErr: (err: string | null) => void;
   /** Raise (or clear, with null) the persistent storage warning. */
-  setStorageWarning: (msg: string | null) => void;
+  setStorageWarning: (msg: string | null, kind?: StorageWarningKind) => void;
+  /** A save succeeded: retire a "storage full" warning, leave the standing ones. */
+  clearSaveWarning: () => void;
   applyBuild: (info: StaticInfo | null, rocket: Rocket | null) => void; // from the rebuild effect
   invalidateResults: () => void; // from the tree-change effect
   hydrate: (w: {
@@ -349,6 +360,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     info: null,
     err: null,
     storageWarning: null,
+    storageWarningKind: null,
     lastRunFailed: null,
     selectedId: null,
     extraMotors: {},
@@ -368,7 +380,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     activeDesignId: null,
 
     setErr: (err) => set({ err }),
-    setStorageWarning: (storageWarning) => set({ storageWarning }),
+    setStorageWarning: (storageWarning, kind) =>
+      set({ storageWarning, storageWarningKind: storageWarning ? (kind ?? null) : null }),
+    clearSaveWarning: () =>
+      set((s) => (s.storageWarningKind === 'full' ? { storageWarning: null, storageWarningKind: null } : {})),
     applyBuild: (info, rocket) => set({ info, rocket }),
     invalidateResults: () =>
       set((s) => (s.sims.some((x) => x.result) ? { sims: s.sims.map((x) => ({ ...x, result: null })) } : {})),
@@ -674,7 +689,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     saveDesignAs: async (name) => {
       const s = get();
-      const meta = await getDesignLibrary().create(name.trim() || i18n.t('library.untitled'), snapshotOf(s));
+      // `create` now THROWS when storage refuses the write, rather than handing
+      // back a fabricated meta for a design that was never stored. AppHeader
+      // fires this with `void`, so surface it here or it becomes an unhandled
+      // rejection and the user sees a Save As that appeared to work.
+      let meta;
+      try {
+        meta = await getDesignLibrary().create(name.trim() || i18n.t('library.untitled'), snapshotOf(s));
+      } catch {
+        get().setStorageWarning(i18n.t('storage.full'), 'full');
+        return;
+      }
       getWorkspaceStore().setActiveId?.(meta.id);
       await get().refreshDesigns();
     },

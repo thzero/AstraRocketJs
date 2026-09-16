@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useConfirmStore } from '../../state/confirmStore';
+import { useFocusTrap } from './useFocusTrap';
 
 /**
  * The single app-wide confirmation modal, driven imperatively by the confirm
@@ -9,6 +10,11 @@ import { useConfirmStore } from '../../state/confirmStore';
  * button turns red for destructive actions.
  */
 export function ConfirmDialog() {
+  // Tab stays inside the modal, and focus returns to the trigger on close.
+  // Seven dialogs declared aria-modal and had neither, so Tab walked straight
+  // out into the page behind the overlay — the exact gap useFocusTrap exists
+  // to close, already used by seven of their siblings.
+  const panelRef = useFocusTrap<HTMLDivElement>(true);
   const { t } = useTranslation();
   const request = useConfirmStore((s) => s.request);
   const settle = useConfirmStore((s) => s.settle);
@@ -28,6 +34,7 @@ export function ConfirmDialog() {
   return (
     <div className="fixed inset-0 z-[70] grid place-items-center bg-black/60 p-4" onClick={() => settle(false)}>
       <div
+        ref={panelRef}
         className="w-full max-w-sm rounded-2xl bg-slate-900 p-6 ring-1 ring-white/10"
         role="alertdialog"
         aria-modal="true"

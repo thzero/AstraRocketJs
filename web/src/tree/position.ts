@@ -32,6 +32,39 @@ export function freeformRootChord(pts: [number, number][] | undefined, fallback 
   return root > 0 ? root : fallback;
 }
 
+/**
+ * A freeform fin's outline, translated so its first point is the origin.
+ *
+ * This is what the kernel actually flies. `FreeformFinSet.setPoints()` — the
+ * entry point our bridge uses (ComponentFactory.java:211) — does
+ *
+ *     final CoordinateIF delta = newPoints.get(0).multiply(-1);
+ *     if (IGNORE_SMALLER_THAN < delta.length2()) newPoints = translatePoints(newPoints, delta);
+ *
+ * translating by -p0 in BOTH axes, and it does not touch the axial offset.
+ * (`clampFirstPoint()`, which additionally folds xDelta into the offset, is the
+ * desktop GUI's per-point edit path, not ours.)
+ *
+ * The app read the raw points instead, while placing the through-the-wall TAB
+ * in root-relative coordinates via `finTabFront(node, root)` with
+ * `root = last.x - first.x`. The two agree only when `points[0].x === 0`, and
+ * `FreeformFinEditor` lets the first vertex be dragged off it — so a fin whose
+ * outline began at x = 20 mm had its tab cut 20 mm out of place on the 1:1 PDF
+ * template and in the exported STL, on a part that has to pass through a slot.
+ */
+export function normalizeFreeformPoints(pts: [number, number][] | undefined): [number, number][] {
+  const p = pts ?? [];
+  const p0 = p[0];
+  if (!p0 || !Number.isFinite(p0[0]) || !Number.isFinite(p0[1])) return p;
+  if (p0[0] === 0 && p0[1] === 0) return p; // already the kernel's invariant
+  return p.map(([x, y]) => [x - p0[0], y - p0[1]]);
+}
+
+/** A freeform node's outline in kernel coordinates. */
+export function freeformPoints(n: ComponentNode): [number, number][] {
+  return n.type === 'freeformfinset' ? normalizeFreeformPoints(n['points'] as [number, number][] | undefined) : [];
+}
+
 /** A component's axial extent used for positioning (fins use root chord). */
 export function axialLength(n: ComponentNode): number {
   if (n.type === 'freeformfinset') {

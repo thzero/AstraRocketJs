@@ -84,6 +84,34 @@ test.describe('accessibility', () => {
     expect(dupes, `duplicate unit chip names: ${[...new Set(dupes)].join(', ')}`).toEqual([]);
   });
 
+  /**
+   * Seven dialogs declared `aria-modal` with no focus trap and no focus
+   * restore, so Tab walked straight out into the page behind the overlay and
+   * the trigger lost focus on close — while seven of their siblings used
+   * `useFocusTrap` all along.
+   */
+  test('a modal keeps Tab inside it and hands focus back on close', async ({ page }) => {
+    await page.goto('/');
+    await dismiss(page);
+
+    await page.getByRole('button', { name: 'Menu' }).click();
+    const trigger = page.getByRole('menuitem', { name: /About/ });
+    await trigger.click();
+
+    const dialog = page.getByRole('dialog').first();
+    await expect(dialog).toBeVisible();
+
+    // Tab all the way round; focus must never leave the panel.
+    for (let i = 0; i < 12; i++) {
+      await page.keyboard.press('Tab');
+      const inside = await dialog.evaluate((el) => el.contains(document.activeElement));
+      expect(inside, `focus escaped the dialog after ${i + 1} tabs`).toBe(true);
+    }
+
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+  });
+
   test('the import and export .ork menu items are told apart', async ({ page }) => {
     await page.goto('/');
     await dismiss(page);

@@ -86,7 +86,16 @@ node extract/extract.mjs --src /path/to/openrocket           # regenerate src/ja
 # (or set OPENROCKET_SRC instead of --src)
 ```
 
-Guardrails: `--check` writes nothing and flags any manifest file missing upstream (version mismatch) or any extracted file that differs from `upstream(+patch)`; a `patches/` file whose path isn't in the manifest is a hard error (it would silently never apply).
+Guardrails — `--check` writes nothing and **exits non-zero** on any of:
+
+- a manifest file missing upstream (version mismatch);
+- an extracted file that differs from `upstream(+patch)`;
+- an extracted file not in the manifest (it compiles, but a regeneration would not produce it);
+- an extracted file carrying a `PATCH(astrarrocketjs)` marker with **no** `patches/` counterpart — a regeneration would silently revert it.
+
+A `patches/` file whose path isn't in the manifest is a hard error (it would silently never apply). `--check` also *reports*, without failing, how far each patch has diverged from current upstream: comparing `src/java` to the patch can never see upstream moving underneath, which is how `FinSetCalc` came to sit hundreds of lines behind while the check called it clean.
+
+`--check` is only meaningful against the exact upstream the extraction was made from — pinned in `extract/UPSTREAM` and enforced by the `reproducible` job in `.github/workflows/engine.yml`.
 
 **At build time nothing is applied** — `src/java/` is committed already in its final state, so Gradle just compiles it. Extraction is a deliberate step you run only on an OpenRocket upgrade (then re-audit each `patches/` file against the new upstream).
 

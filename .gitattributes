@@ -21,7 +21,12 @@
 *.eot binary
 *.pdf binary
 *.zip binary
-*.ork binary
+# .ork is normally a zip, but the e2e fixtures are plain uncompressed XML.
+# `binary` froze the index at LF while the worktree held CRLF — `git status`
+# only read clean because the stat cache was stale after the attribute change,
+# and the next `add` would have committed an 8 KB whole-file diff that
+# `git diff` refuses to display (binary implies -diff).
+*.ork -text -diff
 *.wasm binary
 *.jar binary
 *.class binary

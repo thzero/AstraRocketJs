@@ -62,3 +62,35 @@ jobs:
 
       - name: Parity — JVM vs WASM-GC
         run: node test/parity/parity.mjs --wasm
+
+  # Can src/java still be REGENERATED from its declared inputs? Parity above
+  # cannot answer that — it builds from src/java and compares the two TeaVM
+  # targets, so it is blind to src/java having drifted from upstream(+patches).
+  # It had: a regeneration produced a tree that did not compile, and the one
+  # tool that checks could not fail (its exit code ignored drift entirely).
+  #
+  # Needs no JDK — just node and the pinned OpenRocket source.
+  reproducible:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned in engine-java/extract/UPSTREAM. --check is only meaningful
+      # against the exact tree the extraction was made from; a floating ref
+      # would report every upstream commit as drift.
+      - name: Check out the pinned OpenRocket source
+        uses: actions/checkout@v4
+        with:
+          repository: thzero/openrocket
+          ref: c1a1a9b9fff2d629a5a64dc30dfd0603dfef62c3
+          path: .openrocket-src
+          sparse-checkout: core/src/main/java
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Extraction is reproducible
+        working-directory: engine-java
+        run: node extract/extract.mjs --check --src "$GITHUB_WORKSPACE/.openrocket-src"

@@ -1,5 +1,6 @@
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { num } from '../../tree/nodeProps';
+import { freeformPoints } from '../../tree/position.js';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { DISPLAY_NAME } from '../../tree/schema.js';
@@ -41,9 +42,6 @@ export interface SchematicShapesCfg {
   onSelect?: (id: string) => void;
   setHoverId: React.Dispatch<React.SetStateAction<string | null>>;
   hoverId: string | null;
-  onPatchNode?: (id: string, patch: Partial<ComponentNode>) => void;
-  beginDrag: (child: ComponentNode, parent: ComponentNode, pLen: number) => (e: React.PointerEvent) => void;
-  dragMoved: React.MutableRefObject<boolean>;
   textUp: (x: number, y: number) => { transform?: string };
 }
 
@@ -64,25 +62,8 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   hoverTag: { x: number; y: number; tw: number } | null;
   hoverName: string;
 } {
-  const {
-    chain,
-    ctx,
-    scale,
-    w,
-    h,
-    roll,
-    uid,
-    motors,
-    vertical,
-    selectedId,
-    onSelect,
-    setHoverId,
-    hoverId,
-    onPatchNode,
-    beginDrag,
-    dragMoved,
-    textUp,
-  } = cfg;
+  const { chain, ctx, scale, w, h, roll, uid, motors, vertical, selectedId, onSelect, setHoverId, hoverId, textUp } =
+    cfg;
 
   // Selection sync: click any drawn component to select it in the tree; the
   // selected component draws with an accent outline.
@@ -98,7 +79,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
       ? {
           onClick: (e: React.MouseEvent) => {
             e.stopPropagation();
-            if (!dragMoved.current) onSelect(n.id!);
+            onSelect(n.id!);
           },
           style: { cursor: 'pointer' } as React.CSSProperties,
         }
@@ -288,12 +269,6 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
       }
       const grab = {
         ...clickable(child),
-        ...(onPatchNode && child.id && !vertical
-          ? {
-              onPointerDown: beginDrag(child, parent, pLen),
-              style: { cursor: 'grab' } as React.CSSProperties,
-            }
-          : {}),
       };
       // Through-the-wall fin tab: dashed rect from the body surface inward,
       // foreshortened with the fin instance `p` it belongs to.
@@ -323,7 +298,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         );
       };
       if (t === 'freeformfinset') {
-        const raw = (child['points'] as [number, number][] | undefined) ?? [];
+        const raw = freeformPoints(child);
         if (raw.length >= 3) {
           const xs = raw.map((p) => p[0]);
           // Root chord (first→last point, where the outline meets the body)

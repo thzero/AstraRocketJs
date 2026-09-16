@@ -100,6 +100,56 @@ describe('ExportDialog', () => {
     expect(assembleReport).toHaveBeenCalledTimes(1);
   });
 
+  /**
+   * Escape dismisses the TOPMOST surface. Gated only on `open`, it closed the
+   * whole dialog from inside the popover — and reopening resets the
+   * once-per-open assemble latch, so every include/exclude checkbox came back
+   * from defaults. That is the same loss the popover's backdrop handler already
+   * guards against for the click path; the keyboard path was left open.
+   *
+   * The earlier version of this test pressed Escape with the popover CLOSED, so
+   * it passed either way.
+   */
+  it('Escape closes the settings popover, not the dialog behind it', () => {
+    const onClose = open();
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    expect(settingsPopover()).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(settingsPopover()).toBeNull(); // the popover went away
+    expect(onClose).not.toHaveBeenCalled(); // the dialog did not
+
+    // A second Escape, now that it is the topmost surface, does close it.
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the selection when the popover is dismissed with Escape', () => {
+    openLive();
+    const parts = screen.getByLabelText('Parts detail') as HTMLInputElement;
+    fireEvent.click(parts);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect((screen.getByLabelText('Parts detail') as HTMLInputElement).checked).toBe(false);
+    expect(assembleReport).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * The popover is a SIBLING of the trapped panel, so a trap anchored on the
+   * panel could not reach its controls: with it open, Tab went on cycling the
+   * dialog behind it and the fill colour, paper size and orientation were
+   * unreachable by keyboard.
+   */
+  it('moves the focus trap to the popover while it is open', () => {
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    const pop = settingsPopover()!;
+    // The trap focuses the topmost surface's first focusable child.
+    expect(pop.contains(document.activeElement)).toBe(true);
+  });
+
   it('closes on the overlay itself, and on Escape', () => {
     const onClose = open();
     fireEvent.click(document.querySelector('.dialog-overlay')!);

@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import {
   axialLength,
+  freeformPoints,
   freeformRootChord,
+  normalizeFreeformPoints,
   startFromPosition,
   offsetForStart,
   resolveAbsolutePositions,
@@ -199,5 +201,72 @@ describe('freeformRootChord', () => {
       ],
     } as unknown as ComponentNode;
     expect(axialLength(fin)).toBeCloseTo(freeformRootChord(fin['points'] as [number, number][]), 9);
+  });
+});
+
+/**
+ * The kernel's own invariant. `FreeformFinSet.setPoints()` — the entry point
+ * our bridge uses (ComponentFactory.java:211) — does
+ *
+ *     final CoordinateIF delta = newPoints.get(0).multiply(-1);
+ *     if (IGNORE_SMALLER_THAN < delta.length2()) newPoints = translatePoints(newPoints, delta);
+ *
+ * so the engine always flies an outline whose first point is the origin. The
+ * app read the RAW points while placing the through-the-wall tab in
+ * root-relative coordinates, and the two agree only when points[0].x === 0.
+ */
+describe('normalizeFreeformPoints', () => {
+  it('leaves an outline that already starts at the origin untouched', () => {
+    const pts: [number, number][] = [
+      [0, 0],
+      [0.02, 0.03],
+      [0.06, 0],
+    ];
+    expect(normalizeFreeformPoints(pts)).toBe(pts); // same reference: no copy, no drift
+  });
+
+  it('translates by -p0 in BOTH axes, as the kernel does', () => {
+    expect(
+      normalizeFreeformPoints([
+        [0.02, 0.01],
+        [0.04, 0.04],
+        [0.08, 0.01],
+      ]),
+    ).toEqual([
+      [0, 0],
+      [expect.closeTo(0.02, 12), expect.closeTo(0.03, 12)],
+      [expect.closeTo(0.06, 12), 0],
+    ]);
+  });
+
+  it('preserves the root chord, which is already translation-invariant', () => {
+    const moved: [number, number][] = [
+      [0.02, 0],
+      [0.04, 0.03],
+      [0.08, 0],
+    ];
+    expect(freeformRootChord(moved)).toBeCloseTo(0.06, 12);
+    expect(freeformRootChord(normalizeFreeformPoints(moved))).toBeCloseTo(0.06, 12);
+  });
+
+  it('survives an empty or malformed outline', () => {
+    expect(normalizeFreeformPoints(undefined)).toEqual([]);
+    expect(normalizeFreeformPoints([])).toEqual([]);
+    expect(normalizeFreeformPoints([[NaN, 0] as [number, number]])).toEqual([[NaN, 0]]);
+  });
+
+  it('reads only freeform nodes through the node accessor', () => {
+    const got = freeformPoints({
+      type: 'freeformfinset',
+      points: [
+        [0.02, 0],
+        [0.05, 0.02],
+        [0.08, 0],
+      ],
+    } as never);
+    // Element-wise: the subtraction is exact in decimal but not in binary.
+    expect(got.map(([x]) => x)).toEqual([expect.closeTo(0, 12), expect.closeTo(0.03, 12), expect.closeTo(0.06, 12)]);
+    expect(got.map(([, y]) => y)).toEqual([0, 0.02, 0]);
+    expect(freeformPoints({ type: 'trapezoidfinset', points: [[1, 1]] } as never)).toEqual([]);
   });
 });

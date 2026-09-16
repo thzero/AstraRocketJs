@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { ComponentNode } from '../engine/openRocketEngine';
 import { num, numOpt } from '../tree/nodeProps';
-import { freeformRootChord } from '../tree/position';
+import { freeformPoints, freeformRootChord } from '../tree/position';
 import { outerProfile } from '../tree/shapeProfile';
 import { finTabFront } from '../components/canvas/schematicGeometry';
 
@@ -239,7 +239,7 @@ export function discSolid(outerR: number, innerR: number, length: number): THREE
 /** One fin as a flat, watertight extruded solid at the origin (planform in XY,
  *  thickness centred on Z) — ready to lay on a print bed. */
 function oneFinSolid(child: ComponentNode): THREE.BufferGeometry | null {
-  const ff = child.type === 'freeformfinset' ? ((child['points'] as [number, number][] | undefined) ?? []) : [];
+  const ff = freeformPoints(child);
   // Fallback 0, not the usual 0.05: here `root` only feeds the degeneracy guard
   // below, and a zero-span outline must stay zero so it is skipped rather than
   // extruded into non-manifold garbage. The freeform shape itself is built from

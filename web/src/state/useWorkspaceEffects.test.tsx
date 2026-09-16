@@ -95,37 +95,34 @@ describe('hydration', () => {
   });
 
   /**
-   * StrictMode runs the effect twice and cancels the first. `hydrated` and
-   * `setReady(true)` used to run OUTSIDE the `if (live)` guard, so the
-   * cancelled first load flipped the gate while the tree was still the default
-   * — the rebuild effect then built the default rocket and ran a full drag
-   * sweep, and the real load built it all again. Two full engine builds on
-   * every page load, which is the exact thing the gate exists to stop.
+   * A language switch must not touch the workspace.
+   *
+   * The load effect used to depend on `t`, whose identity changes on
+   * `i18n.changeLanguage`, so switching language re-ran `load()` and re-hydrated
+   * — and `hydrate` runs `sanitizeSims`, which nulls every sim result. Changing
+   * the language silently threw away every flight the user had run. It could
+   * also re-hydrate the persisted design over a freshly imported .ork, because
+   * `openOrkFile` clears only the in-memory activeId.
+   *
+   * An earlier version of this test USED that re-run as a convenient way to
+   * cancel the first load, and asserted `load` was called twice — documenting
+   * the bug as intended behaviour.
    */
-  it('does not open the gate from a cancelled load', async () => {
-    // Re-run the load effect (it depends on `t`) so the first load is cancelled
-    // while still in flight, then let that cancelled one resolve. This is the
-    // shape StrictMode produces on every real mount, and the shape a language
-    // switch produces at any time.
-    let settleFirst!: (v: unknown) => void;
-    load.mockReturnValueOnce(new Promise((r) => (settleFirst = r))).mockReturnValueOnce(new Promise(() => {}));
+  it('does not reload or re-hydrate when the language changes', async () => {
+    load.mockResolvedValue(saved());
+    await mount();
+    expect(load).toHaveBeenCalledTimes(1);
 
-    renderWithProviders(<Host />);
+    // Give the user a flight result to lose.
+    act(() => useWorkspaceStore.setState({ sims: s().sims.map((x) => ({ ...x, result: { fake: true } })) } as never));
+
     await act(async () => {
       await i18n.changeLanguage('es');
     });
-    expect(load).toHaveBeenCalledTimes(2);
 
-    await act(async () => {
-      settleFirst(saved());
-      await Promise.resolve();
-    });
-
-    // The second load is still in flight, so the tree is still the default.
-    // Opening the gate here builds it — and then the real load builds again:
-    // two full engine builds plus two drag sweeps on every page load.
-    expect(computeStaticInfo).not.toHaveBeenCalled();
-    expect(s().tree.name).not.toBe('Restored');
+    expect(load).toHaveBeenCalledTimes(1); // no second read
+    expect(s().sims.every((x) => x.result)).toBe(true); // and the flights survive
+    await act(async () => void (await i18n.changeLanguage('en')));
   });
 
   /**
@@ -142,6 +139,7 @@ describe('hydration', () => {
     // effect, and its success path calls `setErr(null)` — a message written
     // there is wiped in the same tick and the user never sees it.
     expect(s().storageWarning).toBeTruthy();
+    expect(s().storageWarningKind).toBe('loadFailed');
     expect(computeStaticInfo).toHaveBeenCalledTimes(1); // the engine still built
 
     // ...and autosave still runs, so work done after the failure is not lost too.
@@ -187,7 +185,7 @@ describe('autosave', () => {
     });
   });
 
-  it('raises a storage warning when the write fails, and clears it when one succeeds', async () => {
+  it('raises a storage warning when the write fails, and a later save retires it', async () => {
     await mount();
 
     save.mockRejectedValueOnce(new Error('QuotaExceeded'));
@@ -205,7 +203,36 @@ describe('autosave', () => {
       await Promise.resolve();
       await Promise.resolve();
     });
+    // "Full" is transient: the write that just succeeded disproves it.
     expect(s().storageWarning).toBeNull();
+  });
+
+  /**
+   * ...but only that one. `markDegraded()` is one-way and never notifies twice
+   * (idbKeyValueStore.ts:56), so clearing its message on the next successful
+   * write retired it for the whole session — one keystroke after it appeared.
+   * The user then met the 5 MB cap with nothing on screen to explain it, which
+   * is the exact outcome the warning exists to prevent.
+   */
+  it.each([
+    ['degraded', () => degraded.fire!()],
+    ['loadFailed', null],
+  ] as const)('a successful save does not retire the %s warning', async (_kind, raise) => {
+    if (!raise) load.mockRejectedValue(new Error('idb blocked'));
+    await mount();
+    if (raise) act(() => raise());
+
+    const standing = s().storageWarning;
+    expect(standing).toBeTruthy();
+
+    act(() => s().addPartToTree('bodytube'));
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(save).toHaveBeenCalled(); // the save really did succeed
+    expect(s().storageWarning).toBe(standing); // and the warning still stands
   });
 
   it('warns when IndexedDB is unavailable at all', async () => {

@@ -3,7 +3,7 @@ import { useWorkspaceStore, selectActive } from '../state/store';
 import { buildConfiguredRocket } from './buildRocket';
 import { motorStats, type MotorStats } from './rocketReport';
 import { num } from '../tree/nodeProps';
-import { freeformRootChord } from '../tree/position';
+import { freeformPoints, freeformRootChord } from '../tree/position';
 import { defaultDesignName } from './appInfo';
 
 /** The full data model for the rocket report (SI). Pure data; the PDF formats it. */
@@ -196,7 +196,7 @@ export function finSetPositions(
   const walk = (nodes: ComponentNode[]) => {
     for (const n of nodes) {
       if (String(n.type).endsWith('finset') && typeof n.id === 'string') {
-        const ff = n.type === 'freeformfinset' ? ((n['points'] as [number, number][] | undefined) ?? []) : [];
+        const ff = freeformPoints(n);
         const root = n.type === 'freeformfinset' && ff.length ? freeformRootChord(ff) : num(n, 'rootChord', 0.05);
         try {
           const topX = rocket.componentInfo(n.id).positionX;

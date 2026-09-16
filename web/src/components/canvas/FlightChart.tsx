@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { FlightResult, FlightSeries } from '../../engine/openRocketEngine';
 import { fmtNum } from '../../i18n/format';
@@ -167,7 +167,10 @@ export function FlightChart({ result }: { result: FlightResult }) {
   const t1 = zoom ? zoom.t1 : maxT;
   const zoomed = t1 - t0 < maxT - 1e-9;
   const iw = w - PAD_L - PAD_R;
-  const X = (tt: number) => PAD_L + ((tt - t0) / (t1 - t0)) * iw;
+  // Memoized so the per-panel path memo below can key on it: a fresh arrow
+  // every render made that memo useless, and hovering re-renders this component
+  // on every pointer move.
+  const X = useCallback((tt: number) => PAD_L + ((tt - t0) / (t1 - t0)) * iw, [t0, t1, iw]);
   const invX = (px: number) => t0 + ((px - PAD_L) / iw) * (t1 - t0);
 
   // A new flight resets the view; keep it in sync when the flight time changes.
@@ -511,21 +514,47 @@ function Panel({
       })()
     : meta.digits;
 
-  const Y = (v: number) => padT + (1 - (v - lo) / (hi - lo)) * ih;
-  const mkLine = (pts: Pt[]) =>
-    pts.length >= 2 ? pts.map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(' ') : '';
-  const baseY = Y(Math.max(lo, 0));
+  const Y = useCallback((v: number) => padT + (1 - (v - lo) / (hi - lo)) * ih, [lo, hi, ih]);
+  const mkLine = useCallback(
+    (pts: Pt[]) =>
+      pts.length >= 2 ? pts.map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(' ') : '',
+    [X, Y],
+  );
+
+  /**
+   * The path strings and the peak scan — the expensive half.
+   *
+   * The memo above deliberately caches the sample EXTRACTION, but `mkLine` (a
+   * toFixed pair and a string per sample) and this reduce over every `ys` sat
+   * outside it, in the render body. `hoverT` is state here and a prop of this
+   * component, so every pixel of hover rebuilt all of it for all three default
+   * panels — at the six-figure sample counts `maxFlightTime`'s own docblock
+   * describes, that is a six-figure-segment string per panel per pointer move.
+   */
+  const { paths, areaPath, peak } = useMemo(() => {
+    const first = list[0];
+    return {
+      paths: list.map((sr) => mkLine(sr.pts)),
+      areaPath:
+        first && first.pts.length >= 2
+          ? `M${X(first.pts[0]![0]).toFixed(1)},${Y(Math.max(lo, 0)).toFixed(1)} ` +
+            first.pts.map((p) => `L${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(' ') +
+            ` L${X(first.pts[first.pts.length - 1]![0]).toFixed(1)},${Y(Math.max(lo, 0)).toFixed(1)} Z`
+          : '',
+      peak: list.reduce((acc, sr) => {
+        let m = acc;
+        for (const y of sr.ys) if (Math.abs(y) > Math.abs(m)) m = y;
+        return m;
+      }, 0),
+    };
+  }, [list, mkLine, X, Y, lo]);
+
   const zeroInRange = lo < 0 && hi > 0;
 
   // Header: the hovered value of the primary (first / sustainer) stage, else the
   // peak-magnitude sample across every shown stage.
   const primary = list[0];
   const hvPrimary = primary && hoverT != null ? lerpAt(primary.xs, primary.ys, hoverT) : null;
-  const peak = list.reduce((acc, s) => {
-    let m = acc;
-    for (const y of s.ys) if (Math.abs(y) > Math.abs(m)) m = y;
-    return m;
-  }, 0);
   const shown = hvPrimary ?? peak;
   // A stage only reports a hovered value while its own flight is under way — a
   // spent booster already on the ground must not show a flat clamped dot.
@@ -573,18 +602,19 @@ function Panel({
               vectorEffect="non-scaling-stroke"
             />
           ))}
-          {single && !meta.level && primary && primary.pts.length >= 2 && (
-            <path
-              d={`M${X(primary.pts[0]![0]).toFixed(1)},${baseY.toFixed(1)} ${primary.pts.map((p) => `L${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(' ')} L${X(primary.pts[primary.pts.length - 1]![0]).toFixed(1)},${baseY.toFixed(1)} Z`}
-              fill={`url(#fc-${meta.key})`}
-            />
+          {single && !meta.level && areaPath && <path d={areaPath} fill={`url(#fc-${meta.key})`} />}
+          {list.map((s, i) =>
+            paths[i] ? (
+              <path
+                key={i}
+                d={paths[i]}
+                fill="none"
+                stroke={s.color}
+                strokeWidth={1.75}
+                vectorEffect="non-scaling-stroke"
+              />
+            ) : null,
           )}
-          {list.map((s, i) => {
-            const d = mkLine(s.pts);
-            return d ? (
-              <path key={i} d={d} fill="none" stroke={s.color} strokeWidth={1.75} vectorEffect="non-scaling-stroke" />
-            ) : null;
-          })}
           {hoverT != null && (
             <g pointerEvents="none">
               <line

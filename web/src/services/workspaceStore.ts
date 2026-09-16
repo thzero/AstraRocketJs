@@ -9,7 +9,7 @@
 // (designLibrary.ts), which holds many designs in IndexedDB. This interface
 // stays narrow on purpose — it is only "the design being edited"; listing,
 // opening, renaming and deleting designs are the library's job.
-import { getDesignLibrary } from './designLibrary';
+import { getDesignLibrary, type DesignLibrary } from './designLibrary';
 import type { RocketTree } from '../engine/openRocketEngine';
 import type { Simulation } from './simulations';
 import type { MountMotor } from './loadOrk';
@@ -102,7 +102,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
       const w = validate(journal.w);
       if (!w) {
         clearJournal();
-        return this.activeId ? validate(await lib.read(this.activeId)) : null;
+        return await this.readActive(lib);
       }
       if (await lib.write(journal.id, (await this.nameOf(journal.id)) ?? nameFor(w), w)) {
         clearJournal();
@@ -113,7 +113,34 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     // than replaying it over whatever happens to be open now.
     if (journal && journal.id !== this.activeId) clearJournal();
 
-    return this.activeId ? validate(await lib.read(this.activeId)) : null;
+    return await this.readActive(lib);
+  }
+
+  /**
+   * The active design, or null when there is genuinely nothing saved.
+   *
+   * THROWS when a design is supposed to be there and cannot be read. Returning
+   * null for both used to mean the caller could not tell them apart: the
+   * hydration gate opened with the DEFAULT rocket and, 500 ms after the user's
+   * first edit, the autosave wrote that default over the unreadable design AT
+   * THE SAME ID. Reachable today from a truncated blob, and by construction the
+   * moment a future build stamps `version: 2` into a PWA whose older build is
+   * still cached — the same hazard the SettingsProvider first-run guard exists
+   * for, on the one thing here that cannot be recomputed.
+   *
+   * `activeId()` has already filtered against the index, so a set `activeId`
+   * means the library believes this design exists. Detach before throwing, so
+   * the next autosave CREATES a design instead of overwriting the unreadable
+   * one, and the user keeps whatever can still be recovered by hand.
+   */
+  private async readActive(lib: DesignLibrary): Promise<Workspace | null> {
+    if (!this.activeId) return null;
+    const w = validate(await lib.read(this.activeId));
+    if (!w) {
+      this.activeId = null;
+      throw new Error('unreadable-design');
+    }
+    return w;
   }
 
   private async nameOf(id: string): Promise<string | null> {

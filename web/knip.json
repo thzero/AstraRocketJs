@@ -1,7 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": ["src/engine/simWorker.ts", "scripts/**/*.mjs"],
-  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.mjs"],
-  "ignoreDependencies": ["tailwindcss", "@react-three/test-renderer", "three-stdlib"],
+  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.mjs", "src/**/*.css"],
   "ignoreExportsUsedInFile": true
 }

@@ -1,6 +1,6 @@
 import type { ComponentNode, ComponentPosition, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
 import { num, numOpt } from '../../tree/nodeProps';
-import { axialLength, startFromPosition } from '../../tree/position.js';
+import { axialLength, freeformPoints, startFromPosition } from '../../tree/position.js';
 import { outerProfile } from '../../tree/shapeProfile.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { assemblyBoundingRadius, isAssembly, resolveAssemblyRadius } from '../../tree/assembly.js';
@@ -215,10 +215,10 @@ export function computeSchematicLayout(
   const finSpan = (n: ComponentNode): number => {
     if (!n.type.endsWith('finset')) return 0;
     if (n.type === 'freeformfinset') {
-      const pts = n['points'];
-      if (Array.isArray(pts) && pts.length > 0) {
-        return Math.max(0, ...pts.map((p) => (Array.isArray(p) ? Number(p[1]) || 0 : 0)));
-      }
+      // Normalized: the kernel translates the outline by -p0 in BOTH axes, so
+      // the span above the body is measured from the first point, not from 0.
+      const pts = freeformPoints(n);
+      if (pts.length > 0) return Math.max(0, ...pts.map((p) => Number(p[1]) || 0));
     }
     // Tube fins reach one tube diameter above the body surface.
     if (n.type === 'tubefinset') return 2 * tubeFinRadius(n, maxR);

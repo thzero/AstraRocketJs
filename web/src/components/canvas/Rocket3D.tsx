@@ -6,7 +6,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Bounds, Line } from '@react-three/drei';
 import type { ComponentNode, ComponentPosition, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
 import { num, numOpt } from '../../tree/nodeProps';
-import { freeformRootChord } from '../../tree/position';
+import { freeformPoints, freeformRootChord } from '../../tree/position';
 import {
   assemblyBoundingRadius,
   assemblyChainLength,
@@ -147,7 +147,7 @@ export function buildPieces(
 
   const addFins = (child: ComponentNode, pStart: number, pLen: number, pRadius: number, xform?: THREE.Matrix4) => {
     const count = Math.max(1, Math.round(num(child, 'finCount', 3)));
-    const ffPoints = child.type === 'freeformfinset' ? ((child['points'] as [number, number][] | undefined) ?? []) : [];
+    const ffPoints = freeformPoints(child);
     const root =
       child.type === 'freeformfinset' && ffPoints.length ? freeformRootChord(ffPoints) : num(child, 'rootChord', 0.05);
     const height =

@@ -62,6 +62,9 @@ import info.openrocket.core.util.WorldCoordinate;
  */
 public final class OpenRocketEngine {
 
+    /** A sweep beyond this many Mach points is a caller error, not a request. */
+    private static final int MAX_SWEEP_POINTS = 20000;
+
     private static final Map<Integer, Object> HANDLES = new HashMap<>();
     private static int nextHandle = 1;
 
@@ -82,6 +85,28 @@ public final class OpenRocketEngine {
         return h;
     }
 
+    /**
+     * The `{"error": ...}` envelope the JS side already looks for.
+     *
+     * Only simulateJson used to produce one, so the `parsed.error` checks in
+     * web/src/engine/openRocketEngine.ts after getStaticInfo, getComponentInfo,
+     * getAeroSweep and getComponentMasses were DEAD CODE giving false
+     * confidence: those methods threw out of TeaVM instead, surfacing in JS as
+     * an opaque throw from inside a 2.9 MB bundle, and JSON.parse never ran.
+     */
+    /** Double.isFinite, spelled out — TeaVM's classlib coverage of it varies. */
+    private static boolean isFinite(double v) {
+        return !Double.isNaN(v) && !Double.isInfinite(v);
+    }
+
+    private static String errorJson(Throwable e) {
+        String msg = e.getMessage();
+        if (msg == null || msg.isEmpty()) {
+            msg = e.getClass().getSimpleName();
+        }
+        return "{\"error\":\"" + escape(msg) + "\"}";
+    }
+
     private static Object get(int handle) {
         Object o = HANDLES.get(handle);
         if (o == null) {
@@ -98,8 +123,15 @@ public final class OpenRocketEngine {
     /** Frees every handle (rockets, components, motors). */
     @JSExport
     public static void reset() {
+        // Clear, but do NOT rewind the counter. Rewinding made handle ids
+        // reusable, and web/src/engine/api.ts calls reset() before every
+        // rebuild: buildRocket registers exactly one object, so the new design
+        // got handle 1 — the same number an OpenRocketDesign held from before
+        // the rebuild still carried. That stale object's staticInfo()/simulate()
+        // then returned results for the NEW rocket with no error at all, and
+        // get()'s unknown-handle check could never fire. A freed handle now
+        // stays permanently unknown.
         HANDLES.clear();
-        nextHandle = 1;
     }
 
     // ---------- Rocket construction ----------
@@ -359,6 +391,29 @@ public final class OpenRocketEngine {
     private static void applyMotor(RocketCtx ctx, MotorMount mount, String designation,
             double diameter, double length, double[] times, double[] thrusts,
             double[] masses, double cgX, double ejectionDelay) {
+        // At the BOUNDARY, not only in the JS wrapper. cgPoints was sized from
+        // times.length and then indexed masses[i] unchecked, so a short masses
+        // array left TeaVM throwing ArrayIndexOutOfBounds with no envelope —
+        // and this class of bug already shipped once as TeaVM's opaque
+        // "The number NaN cannot be converted to a BigInt".
+        if (times == null || thrusts == null || masses == null) {
+            throw new IllegalArgumentException("motor " + designation + ": times/thrusts/masses are required");
+        }
+        if (times.length < 2 || thrusts.length != times.length || masses.length != times.length) {
+            throw new IllegalArgumentException("motor " + designation + ": times/thrusts/masses must be the same"
+                    + " length and at least 2 (got " + times.length + "/" + thrusts.length + "/" + masses.length + ")");
+        }
+        if (!(diameter > 0) || !(length > 0) || !isFinite(cgX)) {
+            throw new IllegalArgumentException("motor " + designation + ": diameter/length must be > 0 and cgX finite");
+        }
+        for (int i = 0; i < times.length; i++) {
+            if (!isFinite(times[i]) || !isFinite(thrusts[i]) || !isFinite(masses[i]) || masses[i] < 0) {
+                throw new IllegalArgumentException("motor " + designation + ": non-finite or negative sample at " + i);
+            }
+            if (i > 0 && times[i] < times[i - 1]) {
+                throw new IllegalArgumentException("motor " + designation + ": times must be non-decreasing at " + i);
+            }
+        }
         Coordinate[] cgPoints = new Coordinate[times.length];
         for (int i = 0; i < times.length; i++) {
             cgPoints[i] = new Coordinate(cgX, 0, 0, masses[i]);
@@ -495,6 +550,14 @@ public final class OpenRocketEngine {
 
     @JSExport
     public static String getStaticInfo(int rocketHandle) {
+        try {
+            return getStaticInfoImpl(rocketHandle);
+        } catch (RuntimeException e) {
+            return errorJson(e);
+        }
+    }
+
+    private static String getStaticInfoImpl(int rocketHandle) {
         RocketCtx ctx = (RocketCtx) get(rocketHandle);
         RigidBody structure = MassCalculator.calculateLaunch(ctx.rocket.getSelectedConfiguration());
         RigidBody empty = MassCalculator.calculateStructure(ctx.rocket.getSelectedConfiguration());
@@ -543,6 +606,14 @@ public final class OpenRocketEngine {
      */
     @JSExport
     public static String getComponentInfo(int rocketHandle, String componentId) {
+        try {
+            return getComponentInfoImpl(rocketHandle, componentId);
+        } catch (RuntimeException e) {
+            return errorJson(e);
+        }
+    }
+
+    private static String getComponentInfoImpl(int rocketHandle, String componentId) {
         RocketCtx ctx = (RocketCtx) get(rocketHandle);
         RocketComponent c = ctx.ids.get(componentId);
         if (c == null) {
@@ -587,6 +658,14 @@ public final class OpenRocketEngine {
      */
     @JSExport
     public static String getComponentMasses(int rocketHandle) {
+        try {
+            return getComponentMassesImpl(rocketHandle);
+        } catch (RuntimeException e) {
+            return errorJson(e);
+        }
+    }
+
+    private static String getComponentMassesImpl(int rocketHandle) {
         RocketCtx ctx = (RocketCtx) get(rocketHandle);
         java.util.Map<Integer, info.openrocket.core.masscalc.CMAnalysisEntry> analysis =
                 info.openrocket.core.masscalc.MassCalculator.getCMAnalysis(
@@ -649,6 +728,14 @@ public final class OpenRocketEngine {
 
     @JSExport
     public static String getAeroSweep(int rocketHandle, String optionsJson) {
+        try {
+            return getAeroSweepImpl(rocketHandle, optionsJson);
+        } catch (RuntimeException e) {
+            return errorJson(e);
+        }
+    }
+
+    private static String getAeroSweepImpl(int rocketHandle, String optionsJson) {
         RocketCtx ctx = (RocketCtx) get(rocketHandle);
         FlightConfiguration config = ctx.rocket.getSelectedConfiguration();
         Map<String, Object> o = JsonLite.parseObject(optionsJson);
@@ -664,6 +751,17 @@ public final class OpenRocketEngine {
         double rollRate = JsonLite.dbl(o, "rollRate", 0);
         if (machStep <= 0) {
             machStep = 0.05;
+        }
+        // Only machStep was guarded. machMin/machMax were not, so
+        // {"machMax":1e9} built a List<Double> of 2e10 entries and took the tab
+        // down with it — no error, just an exhausted heap.
+        if (!isFinite(machMin) || !isFinite(machMax) || machMax < machMin) {
+            throw new IllegalArgumentException(
+                    "aero sweep needs finite machMin <= machMax (got " + machMin + ".." + machMax + ")");
+        }
+        if ((machMax - machMin) / machStep > MAX_SWEEP_POINTS) {
+            throw new IllegalArgumentException("aero sweep of " + machMin + ".." + machMax
+                    + " step " + machStep + " exceeds " + MAX_SWEEP_POINTS + " points");
         }
 
         java.util.List<Double> machList = new java.util.ArrayList<>();
@@ -947,6 +1045,16 @@ public final class OpenRocketEngine {
     @JSExport
     public static String simulate(int rocketHandle, double launchRodLength, double launchRodAngle,
             double windAverage, double windStdDeviation, double launchAltitude, double timeStep) {
+        // These are concatenated straight into JSON, and JsonLite.number()
+        // accepts only [+-0123456789.eE] — so a NaN emitted "windAverage":NaN
+        // and blew up as IllegalArgumentException("JSON: expected number at 45"),
+        // which simulateJson's SimulationException catch did not cover.
+        double[] opts = { launchRodLength, launchRodAngle, windAverage, windStdDeviation, launchAltitude, timeStep };
+        for (double v : opts) {
+            if (!isFinite(v)) {
+                return errorJson(new IllegalArgumentException("simulate: every option must be a finite number"));
+            }
+        }
         return simulateJson(rocketHandle, "{"
                 + "\"rodLength\":" + launchRodLength + ",\"rodAngle\":" + launchRodAngle
                 + ",\"windAverage\":" + windAverage + ",\"windStdDeviation\":" + windStdDeviation
@@ -1044,7 +1152,13 @@ public final class OpenRocketEngine {
             FlightData data = engine.getFlightData();
             return flightDataToJson(data, fullSeries);
         } catch (SimulationException e) {
-            return "{\"error\":\"" + escape(String.valueOf(e.getMessage())) + "\"}";
+            return errorJson(e);
+        } catch (RuntimeException e) {
+            // Not just SimulationException: JsonLite throws IllegalArgumentException
+            // on a malformed options blob, and the handle table throws on a stale
+            // or wrong-typed handle. Those escaped to JS as an opaque TeaVM throw
+            // carrying a byte offset into a string the caller never saw.
+            return errorJson(e);
         }
     }
 

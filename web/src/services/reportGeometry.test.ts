@@ -27,6 +27,100 @@ describe('finPlanformMm', () => {
   });
 });
 
+/**
+ * The freeform outline and its through-the-wall TAB have to share one origin.
+ *
+ * The outline was drawn in raw point coordinates while the tab was placed in
+ * root-relative ones (`finTabFront(node, root)` with `root = last.x - first.x`),
+ * so they agreed only when points[0].x === 0. `FreeformFinEditor` lets the
+ * first vertex be dragged off the origin, and the kernel normalizes on
+ * `setPoints` — so the app cut the tab somewhere the engine does not.
+ */
+describe('a freeform fin whose outline does not start at the origin', () => {
+  const ff = (points: [number, number][]) =>
+    node({
+      type: 'freeformfinset',
+      points,
+      finCount: 3,
+      tabHeight: 0.005,
+      tabLength: 0.02,
+      tabOffsetMethod: 'middle',
+      tabOffset: 0,
+    });
+
+  const AT_ORIGIN: [number, number][] = [
+    [0, 0],
+    [0.02, 0.03],
+    [0.06, 0],
+  ];
+  const SHIFTED: [number, number][] = [
+    [0.02, 0],
+    [0.04, 0.03],
+    [0.08, 0],
+  ];
+
+  /** The tab is the four points appended after the outline. */
+  const tabSpan = (n: ReturnType<typeof ff>): [number, number] => {
+    const tab = finPlanformMm(n)!
+      .pts.slice(-4)
+      .map(([x]) => x);
+    return [Math.min(...tab), Math.max(...tab)];
+  };
+
+  /** The outline's own x-range — the frame the tab has to live in. */
+  const outlineSpan = (n: ReturnType<typeof ff>): [number, number] => {
+    const xs = finPlanformMm(n)!
+      .pts.slice(0, 3)
+      .map(([x]) => x);
+    return [Math.min(...xs), Math.max(...xs)];
+  };
+
+  it('centres the tab on the OUTLINE, not 20 mm forward of it', () => {
+    // Comparing tab to tab proves nothing: `finTabFront` works off
+    // `root = last.x - first.x`, which is translation-invariant, so the tab
+    // lands at 20..40 either way. What moved was the outline around it — with
+    // the raw points it spanned 20..80, putting the "centred" tab hard against
+    // the leading edge.
+    const [lo, hi] = tabSpan(ff(SHIFTED));
+    const [oLo, oHi] = outlineSpan(ff(SHIFTED));
+    expect((lo + hi) / 2).toBeCloseTo((oLo + oHi) / 2, 6);
+    expect(lo).toBeGreaterThan(oLo + 1); // genuinely inboard of the leading edge
+    expect(hi).toBeLessThan(oHi - 1);
+  });
+
+  it('cuts the tab exactly where the identical fin drawn at the origin does', () => {
+    const shifted = finPlanformMm(ff(SHIFTED))!.pts;
+    const atOrigin = finPlanformMm(ff(AT_ORIGIN))!.pts;
+    // Same fin, same 60 mm root, same 20 mm centred tab — so the same part.
+    expect(shifted.map(([x, y]) => [Math.round(x * 1e6), Math.round(y * 1e6)])).toEqual(
+      atOrigin.map(([x, y]) => [Math.round(x * 1e6), Math.round(y * 1e6)]),
+    );
+  });
+
+  it('draws the outline from the origin, so outline and tab share a frame', () => {
+    const p = finPlanformMm(ff(SHIFTED))!;
+    const outline = p.pts.slice(0, 3).map(([x]) => x);
+    expect(Math.min(...outline)).toBeCloseTo(0, 6);
+    expect(Math.max(...outline)).toBeCloseTo(60, 6);
+  });
+
+  it('places it on the body at the same station as the origin-based fin', () => {
+    const rocket = (points: [number, number][]) =>
+      ({
+        components: [
+          {
+            type: 'bodytube',
+            length: 0.3,
+            outerRadius: 0.012,
+            children: [{ type: 'freeformfinset', points, position: { method: 'top', offset: 0.1 } }],
+          },
+        ],
+      }) as unknown as RocketTree;
+    const xs = (points: [number, number][]) => rocketSideView(rocket(points)).fins[0]!.map((p) => p[0]);
+    expect(Math.min(...xs(SHIFTED))).toBeCloseTo(Math.min(...xs(AT_ORIGIN)), 6);
+  });
+});
+
 describe('profileMm', () => {
   it('returns null for a zero-length part', () => {
     expect(profileMm(node({ type: 'transition', length: 0 }), 0.01, 0.008, 'conical')).toBeNull();
@@ -190,5 +284,53 @@ describe('rocketSideView: fins on a transition', () => {
     // The transition starts 200 mm aft (after the tube), so the fin root has to
     // begin at or past that — not at the start of the rocket.
     expect(Math.min(...xs)).toBeGreaterThanOrEqual(200 - 1e-6);
+  });
+
+  /**
+   * A fin sits at the radius under ITS OWN FRONT, not at the parent's aft end:
+   * `FinSet.getBodyRadius()` is `getFinFront().getY()`, i.e.
+   * `symmetricParent.getRadius(xFinFront)` (FinSet.java:959-972).
+   *
+   * This boat tail runs 12 mm → 8 mm over 50 mm, and the fin starts at its
+   * front. Handing `addFins` the AFT radius drew the root at +8 mm while the
+   * silhouette there is +12 mm — the fin root 4 mm inside the airframe. On a
+   * 26 → 13 mm boat tail it is 13 mm inside.
+   */
+  it('seats the fin root on the body surface under the fin front, not the aft radius', () => {
+    const view = rocketSideView(withBoatTailFins);
+    const fin = view.fins[0]!;
+    const rootY = Math.min(...fin.map((p) => Math.abs(p[1]))); // the root line
+    // Conical 12 → 8 mm: at the transition's front the body is 12 mm.
+    expect(rootY).toBeCloseTo(12, 6);
+    expect(rootY).not.toBeCloseTo(8, 3);
+  });
+
+  it('follows the taper for a fin set further aft', () => {
+    const halfway = {
+      components: [
+        { type: 'bodytube', length: 0.2, outerRadius: 0.012 },
+        {
+          type: 'transition',
+          length: 0.05,
+          foreRadius: 0.012,
+          aftRadius: 0.008,
+          shape: 'conical',
+          children: [
+            {
+              type: 'trapezoidfinset',
+              rootChord: 0.02,
+              tipChord: 0.01,
+              sweep: 0.005,
+              height: 0.02,
+              position: { method: 'top', offset: 0.025 },
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    const fin = rocketSideView(halfway).fins[0]!;
+    const rootY = Math.min(...fin.map((p) => Math.abs(p[1])));
+    // Halfway down a linear 12 → 8 mm taper is 10 mm.
+    expect(rootY).toBeCloseTo(10, 6);
   });
 });

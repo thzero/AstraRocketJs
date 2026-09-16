@@ -1,6 +1,6 @@
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import { num, numOpt } from '../tree/nodeProps';
-import { freeformRootChord } from '../tree/position';
+import { freeformPoints, freeformRootChord } from '../tree/position';
 import { outerProfile } from '../tree/shapeProfile';
 import { finTabFront, axialStart } from '../components/canvas/schematicGeometry';
 
@@ -14,7 +14,7 @@ const M_TO_MM = 1000;
 
 /** A fin's planform outline (mm), root along the bottom, tab folded in below. */
 export function finPlanformMm(node: ComponentNode): { pts: Pt[]; count: number } | null {
-  const ff = node.type === 'freeformfinset' ? ((node['points'] as [number, number][] | undefined) ?? []) : [];
+  const ff = freeformPoints(node);
   const root = node.type === 'freeformfinset' && ff.length ? freeformRootChord(ff) : num(node, 'rootChord', 0.05);
   const height =
     node.type === 'freeformfinset' && ff.length ? Math.max(...ff.map((p) => p[1])) : num(node, 'height', 0.03);
@@ -94,12 +94,34 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
     maxUp = 0.001,
     x = 0;
 
-  const addFins = (node: ComponentNode, pStart: number, pLen: number, R: number) => {
-    const ff = node.type === 'freeformfinset' ? ((node['points'] as [number, number][] | undefined) ?? []) : [];
+  /**
+   * The parent's outer radius at a station `lx` along it (metres, local).
+   *
+   * A fin sits at the radius under ITS OWN FRONT, not at the parent's aft end:
+   * `FinSet.getBodyRadius()` is `getFinFront().getY()`, i.e.
+   * `symmetricParent.getRadius(xFinFront)` (FinSet.java:959-972). Passing the
+   * aft radius drew a fin on a 12→8 mm boat tail with its root at +8 mm while
+   * the silhouette there is +12 mm — the fin root 4 mm INSIDE the airframe.
+   */
+  const radiusSampler =
+    (node: ComponentNode, foreR: number, aftR: number, len: number, shapeDefault: string) => (lx: number) => {
+      if (!(len > 0)) return aftR;
+      const shape = typeof node['shape'] === 'string' ? (node['shape'] as string) : shapeDefault;
+      const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
+      const at = Math.max(0, Math.min(len, lx));
+      // `extraX` gives the profile an exact sample at the station we asked for,
+      // so this reads the true curve rather than a chord between two samples.
+      const pts = outerProfile(shape, numOpt(node, 'shapeParameter'), len, foreR, aftR, 1, [at], clipped);
+      return pts.find(([px]) => Math.abs(px - at) < 1e-9)?.[1] ?? aftR;
+    };
+
+  const addFins = (node: ComponentNode, pStart: number, pLen: number, radiusAt: (lx: number) => number) => {
+    const ff = freeformPoints(node);
     const root = node.type === 'freeformfinset' && ff.length ? freeformRootChord(ff) : num(node, 'rootChord', 0.05);
     const height =
       node.type === 'freeformfinset' && ff.length ? Math.max(...ff.map((p) => p[1])) : num(node, 'height', 0.03);
     const start = axialStart(node, root, pStart, pLen);
+    const R = radiusAt(start - pStart);
     let plan: Pt[];
     if (node.type === 'trapezoidfinset') {
       const tip = num(node, 'tipChord', 0.03),
@@ -157,13 +179,14 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
     if (n.type === 'nosecone') {
       const R = num(n, 'aftRadius', 0.012);
       revolveTop(n, 0, R, 'ogive', len);
-      for (const c of n.children ?? []) if (String(c.type).endsWith('finset')) addFins(c, x, len, R);
+      const noseR = radiusSampler(n, 0, R, len, 'ogive');
+      for (const c of n.children ?? []) if (String(c.type).endsWith('finset')) addFins(c, x, len, noseR);
       x += len;
     } else if (n.type === 'bodytube') {
       const R = num(n, 'outerRadius', 0.012);
       topEdge.push([x * M_TO_MM, R * M_TO_MM], [(x + len) * M_TO_MM, R * M_TO_MM]);
       maxR = Math.max(maxR, R);
-      for (const c of n.children ?? []) if (String(c.type).endsWith('finset')) addFins(c, x, len, R);
+      for (const c of n.children ?? []) if (String(c.type).endsWith('finset')) addFins(c, x, len, () => R);
       x += len;
     } else if (n.type === 'transition') {
       const aftR = num(n, 'aftRadius', 0.009);
@@ -172,8 +195,8 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
       // elliptical and freeform on one — and this branch was the only one that
       // never looked. A boat-tail-mounted fin set was silently absent from the
       // PDF's whole-rocket side view: a finless rocket, with no warning.
-      // The aft radius is where those fins sit.
-      for (const c of n.children ?? []) if (String(c.type).endsWith('finset')) addFins(c, x, len, aftR);
+      const transR = radiusSampler(n, num(n, 'foreRadius', 0.012), aftR, len, 'conical');
+      for (const c of n.children ?? []) if (String(c.type).endsWith('finset')) addFins(c, x, len, transR);
       x += len;
     }
   }
