@@ -141,28 +141,55 @@ byte-for-byte what it was:
 
 ### Still open — not reproducibility, but parity
 
-**`FinSetCalc` is far behind upstream, and that is a physics difference.**
-Upstream implements the full NACA Report 1307 fin-body interference model
-(`bodyFinInterference`, `rectangularPlanform`, `calculateWingIncidenceFactor`,
-blended `finCna`/`bodyCna`/`bodyCp`); ours still uses the older scalar
-`calculateBodyFinInterferenceFactor`, and `NACA1307FinBodyInterference.java` is
-not extracted at all. **Our CP, CNα, stability margin and roll damping differ
-from current OpenRocket for every finned rocket.** Treat that as the known cause
-before chasing an aero divergence anywhere else.
+**`FinSetCalc` — adopted 2026-09-16 (upstream `e6d54d8c9`).** Upstream replaced
+its own scalar fin-body interference approximation with the complete NACA Report
+1307 model. The approximation's own TODO had asked for exactly that, and we had
+deleted that TODO to put a partial version (`kWB1307`) in its place — so both
+sides had changed the same few lines.
+
+Resolved by the standing rule, **OpenRocket wins**: upstream's model owns the
+default branch; our `supersonicAero` path is opt-in and untouched beside it.
+`NACA1307FinBodyInterference.java` is extracted verbatim (it imports only
+`MathUtil`). Upstream's wing-incidence roll factor replaces the flat `(1 + tau)`,
+and the Rogers `Kbf` carryover is now suppressed while the NACA model is active
+as well as under `supersonicAero` — the new default path already carries the
+body load, so adding `Kbf` on top would double-count.
+
+Measured before and after, rebuilding both targets each time:
+
+| `validation/score.mjs` | before | after |
+| --- | --- | --- |
+| classic (flags off — what everyone runs) | 8/135 | **9/135** |
+| `--supersonic` (opt-in RASAero) | 61/135 | 61/135 |
+
+The default path moved one gate point closer to the published wind-tunnel
+anchors and the RASAero path did not move. Note the committed scorecards
+(2026-08-04) record 7/135 and 64/135; both are stale — the 8/61 above is a fresh
+measurement of the pre-merge tree.
 
 **`MassComponent.isCompatible` needs a decision.** Ours diverges from upstream
 with no `PATCH` comment and no recorded reason. It now has a patch file, so it
 survives a regeneration — but somebody has to say whether the divergence is
 deliberate.
 
-**Nothing ties the committed binaries to `src/java`.** `parity.mjs` builds fresh
-TeaVM output into `build/generated/teavm/` and compares the two targets; it never
-reads `web/src/engine/vendor/openrocket-engine.mjs` or
-`web/public/engine/openrocket-engine.wasm`. Edit `src/java`, skip
-`build-engine.mjs`, and CI is green while the app runs the old physics.
+**Both closed 2026-09-16.**
 
-**Parity is a fidelity gate, not a physics gate.** It compares TeaVM to a JVM run
-of the *same source*, with no golden file, so any physics change moves both
-sides together and stays green. `ParityMain.java:873` also catches
-`SimulationException` and prints it, so a flight that fails identically on both
-platforms still reports `parity ok`.
+*Binary provenance.* `engine.yml`'s parity job now rebuilds over the committed
+artifacts and runs `git diff --exit-code` on them. TeaVM's output here is
+byte-deterministic (verified by building each target twice), so an unchanged
+source rewrites identical bytes and the diff stays empty. It catches **both**
+directions: Java edited without running `build-engine.mjs`, and a hand-edited
+vendor file — the second verified by appending a line to the `.mjs` and watching
+the rebuild put it back. If it ever proves flaky across OS/JDK rather than
+catching real staleness, the fallback is a source+artifact SHA-256 stamp, which
+is cheaper but cannot catch a hand-edited binary.
+
+*Physics gate.* `test/parity/golden.txt` holds the 255-line JVM reference output,
+compared on every run with the same tolerances as the cross-platform check (so a
+golden recorded on one OS does not trip on another). Regenerate deliberately with
+`node test/parity/parity.mjs --golden`, and say in the commit why the numbers
+moved. Demonstrated rather than assumed: scaling fin CNα by 0.97 still printed
+`parity ok` — both sides moved together, which is the whole problem — and the
+golden check failed on 60+ values. `ParityMain`'s `EXCEPTION:` lines are now a
+hard failure too, so a flight that fails identically on both platforms no longer
+reports `parity ok`.

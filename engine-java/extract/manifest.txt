@@ -274,3 +274,9 @@ info/openrocket/core/simulation/SimulationStepperMethod.java
 info/openrocket/core/simulation/TumbleDetector.java
 info/openrocket/core/util/CoordinateIF.java
 info/openrocket/core/util/MutableCoordinate.java
+
+# Added 2026-09-16 with the FinSetCalc upgrade: upstream e6d54d8c9 replaced its
+# own scalar fin-body interference approximation (whose TODO asked for exactly
+# this) with the complete NACA Report 1307 model. Verbatim — it imports only
+# MathUtil, which is already extracted.
+info/openrocket/core/aerodynamics/barrowman/NACA1307FinBodyInterference.java

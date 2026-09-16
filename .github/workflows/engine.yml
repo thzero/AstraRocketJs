@@ -63,6 +63,28 @@ jobs:
       - name: Parity — JVM vs WASM-GC
         run: node test/parity/parity.mjs --wasm
 
+      # Were the COMMITTED binaries actually built from this source?
+      #
+      # Parity above proves JS == WASM == JVM, all built fresh from src/java —
+      # it never reads the two files the app ships, so editing the Java and
+      # forgetting `build-engine.mjs` left CI green while the app ran the old
+      # physics. Hand-editing a vendor file was equally invisible.
+      #
+      # Rebuild over the committed artifacts and let git decide: TeaVM output is
+      # byte-deterministic here (verified by building twice), so an unchanged
+      # source rewrites identical bytes and `git diff` stays empty. Stale
+      # binaries AND hand-edited binaries both show up as a diff.
+      #
+      # If this ever proves flaky across OS/JDK rather than catching a real
+      # staleness, the fallback is a source+artifact SHA-256 stamp written by
+      # build-engine.mjs and compared here instead — cheaper, but it cannot
+      # catch a hand-edited binary.
+      - name: The committed engine matches src/java
+        run: |
+          node build-engine.mjs
+          node build-engine.mjs --wasm
+          git diff --exit-code --             ../web/src/engine/vendor/openrocket-engine.mjs             ../web/public/engine/openrocket-engine.wasm             ../web/public/engine/openrocket-engine.wasm-runtime.js
+
   # Can src/java still be REGENERATED from its declared inputs? Parity above
   # cannot answer that — it builds from src/java and compares the two TeaVM
   # targets, so it is blind to src/java having drifted from upstream(+patches).
