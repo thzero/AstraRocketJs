@@ -35,11 +35,12 @@ jobs:
     # clear all of that on a cold cache with room to spare; 25 did not, and
     # cancelled a job that was working.
     #
-    # This cap is NOT the hang protection it once claimed to be. parity.mjs
-    # exiting explicitly fixed one hang (node's own event loop); the Gradle
-    # daemon then caused another, and at 60 minutes this cap would have let a
-    # passing check hold a runner for an hour. GRADLE_OPTS above is the actual
-    # fix. The cap is only a backstop against something new.
+    # This cap is NOT the hang protection it once claimed to be, and it never
+    # was: at 60 minutes it would let a passing check hold a runner for an hour.
+    # The hangs were fixed where they happened - `--no-daemon` for the Gradle
+    # daemon, and, for the one that survived that, moving the TeaVM targets out
+    # of parity.mjs into a killable child. The cap is only a backstop against
+    # something new.
     timeout-minutes: 60
     defaults:
       run:
@@ -80,44 +81,22 @@ jobs:
       # work is ~90s warm, a few minutes cold. If this step is still alive at 20
       # minutes it is stuck, not slow, and it should say so here rather than
       # being reported as a mysterious cancellation several minutes later.
-      # INSTRUMENTED. The verdicts print, then the step sits for ~3.5 minutes and
-      # the RUNNER dies ("received a shutdown signal"), which is the VM going
-      # away, not a workflow cancel or a step timeout. Three theories have now
-      # been wrong: the Gradle daemon (fixed, no orphan java, still hung), the
-      # stdout-flush await (raced against a timer, still hung), and workflow
-      # concurrency (no superseding run existed). This step answers the question
-      # instead of guessing again:
       #
-      #   "node exited rc=N"  present -> the script is fine, the hang is AFTER it
-      #                       absent  -> the script never returns
-      #   free/df before+after         -> is the VM out of memory or disk
-      #   ps -ef after                 -> what is still alive holding the step
+      # This step was instrumented for one run to settle the hang that four
+      # guesses had failed to explain. It answered the narrow question - run
+      # 35267658288 printed every verdict, never reached the `echo` placed
+      # immediately after `node`, and left one orphan: `node`, not `java` - so
+      # the instrumentation is gone again.
       #
-      # Revert this to a plain `npm run parity` once the cause is known.
+      # The cause was then MEASURED, on Ubuntu 26.04 / node 22.23.2 rather than
+      # guessed at from a log: a process that has instantiated the WASM-GC
+      # module can no longer exit, by any route, and its event loop stops
+      # turning. parity.mjs used to load the targets into itself. It no longer
+      # does; test/parity/run-target.mjs carries that in a process built to be
+      # killed. Nothing in this file had to change for it.
       - name: Parity — JVM vs TeaVM-JS and WASM-GC
         timeout-minutes: 20
-        run: |
-          echo "::group::before"
-          free -h || true
-          df -h / || true
-          echo "::endgroup::"
-
-          # npm is bypassed on purpose: it adds a shell + a child process between
-          # the runner and node, and it has to be ruled out as the thing hanging.
-          set +e
-          node test/parity/parity.mjs
-          rc=$?
-          set -e
-          echo "===== node exited rc=$rc ====="
-
-          echo "::group::after"
-          free -h || true
-          df -h / || true
-          echo "--- processes still alive ---"
-          ps -ef || true
-          echo "::endgroup::"
-
-          exit $rc
+        run: npm run parity
 
       # Were the COMMITTED binaries actually built from this source?
       #

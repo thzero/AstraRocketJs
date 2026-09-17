@@ -25,7 +25,7 @@ engine-java/
     shims/java/           our replacements for classes we don't extract (Guice, prefs, LongUUID, Geo2D, RASAero…)
     jdkstubs/             java.text.Collator stand-in — the one java.* class TeaVM's JDK lacks
     api/java/api/         the @JSExport facade the browser calls (OpenRocketEngine, …)
-  test/parity/            ParityMain.java + parity.mjs — JVM↔JS↔WASM bit-identical check
+  test/parity/            ParityMain.java + parity.mjs (run-target.mjs, stdout-sync.mjs) — JVM↔JS↔WASM bit-identical check
   validation/             wind-tunnel aero scoring (score.mjs, anchors, fixtures)
 ```
 
