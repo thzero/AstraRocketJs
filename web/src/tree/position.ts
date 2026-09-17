@@ -74,12 +74,13 @@ export function axialLength(n: ComponentNode): number {
     return num(n, 'rootChord', 0.05);
   }
   if (isAssembly(n.type)) return assemblyChainLength(n);
-  // NOTE: `packedLength` is not reachable today — orkImport reads
-  // <packedlength> straight into `length` (orkImport.ts:441,464,479,487) and
-  // nothing writes the key. Kept because TODO.md plans to wire packed
-  // dimensions properly, which needs a kernel change; until then this is the
-  // 0.025 default in practice.
-  return num(n, 'length', num(n, 'packedLength', 0.025));
+  // `length` only. A recovery device's packed length arrives in it too —
+  // orkImport reads <packedlength> straight into `length` (orkImport.ts:441,
+  // 464, 479, 487) and the Java factory reads the same key back out
+  // (ComponentFactory.java:346-349) — so the `packedLength` fallback that used
+  // to sit here could never fire. Wiring packed dimensions properly (TODO.md)
+  // needs a kernel change; when it lands it gets a real key, not a dead one.
+  return num(n, 'length', 0.025);
 }
 
 export function startFromPosition(pos: ComponentPosition, childLen: number, pLen: number): number {

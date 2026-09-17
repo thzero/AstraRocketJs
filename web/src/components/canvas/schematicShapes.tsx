@@ -589,11 +589,12 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           engineblock: { stroke: '#7d7050', tag: 'EB' },
         };
         const style = TYPE_STYLE[child.type];
-        const len = num(child, 'length', num(child, 'packedLength', 0.025));
-        const r = Math.min(
-          pRadius * 0.85,
-          num(child, 'outerRadius', num(child, 'radius', num(child, 'packedRadius', pRadius * 0.7))),
-        );
+        // `packedLength` / `packedRadius` used to sit at the end of each chain
+        // as a fallback. Neither key is ever written: orkImport reads
+        // <packedlength>/<packedradius> into `length`/`radius`
+        // (orkImport.ts:441-488), so both branches were unreachable.
+        const len = num(child, 'length', 0.025);
+        const r = Math.min(pRadius * 0.85, num(child, 'outerRadius', num(child, 'radius', pRadius * 0.7)));
         const start = axialStart(child, len, pStart, pLen);
         const offsets =
           child.type === 'innertube'
