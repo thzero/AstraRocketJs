@@ -14,7 +14,7 @@ import './i18n';
 //
 // The status callback drives the boot splash in index.html — the engine is ~2.3 MB,
 // which is a long, silent wait on a slow link without it. i18n is already
-// initialised here: the import above is static, so it evaluates before this body.
+// initialized here: the import above is static, so it evaluates before this body.
 initEngine(showEngineStatus)
   .then((backend) => console.info(`[engine] backend: ${backend}`))
   .catch(() => {

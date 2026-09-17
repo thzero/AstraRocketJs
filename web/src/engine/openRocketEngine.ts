@@ -32,7 +32,7 @@ let initPromise: Promise<'wasm' | 'js'> | null = null;
 /** The active engine; throws if initEngine() hasn't resolved yet (main.tsx awaits it before mount). */
 function eng(): EngineApi {
   if (!active) {
-    throw new Error('OpenRocket engine not initialised — await initEngine() before using it.');
+    throw new Error('OpenRocket engine not initialized — await initEngine() before using it.');
   }
   return active;
 }
@@ -43,7 +43,7 @@ function eng(): EngineApi {
  * This module is the ONE boundary where JS numbers become physics inputs, and
  * it had no test file because `active` is module-private with no way in. Same
  * seam pattern as `__resetIdbForTests` / `setDesignLibrary`. Pass null to
- * restore the uninitialised state.
+ * restore the uninitialized state.
  */
 export function __setEngineForTests(stub: Partial<EngineApi> | null): void {
   active = stub as EngineApi | null;

@@ -143,7 +143,7 @@ Make sure `npm run build` and `npm run test` pass, and that you've checked the c
 | **`.test.tsx`** (Vitest + React Testing Library, jsdom) | A rule that lives in a component and has no service to test instead. | `components/common/UnitChip.test.tsx` |
 | **`e2e/*.spec.ts`** (Playwright) | Whole journeys, and anything needing the real engine, layout or persistence across a reload. | `e2e/units.spec.ts` |
 
-Component tests render through `src/testing/renderWithProviders.tsx`, which wraps the component in the app's providers and initialises real translations — so assertions read the strings a user actually sees, and a renamed i18n key fails a test instead of showing a raw key on screen. Seed preferences with `seedSettings({ … })` before rendering and read back what a component wrote with `readSettings()`.
+Component tests render through `src/testing/renderWithProviders.tsx`, which wraps the component in the app's providers and initializes real translations — so assertions read the strings a user actually sees, and a renamed i18n key fails a test instead of showing a raw key on screen. Seed preferences with `seedSettings({ … })` before rendering and read back what a component wrote with `readSettings()`.
 
 **Prefer a `.test.ts`.** If logic is hard to reach without rendering, that is usually a sign it should move into a module of its own — as the launch-condition unit bridge did (`prefs/launchUnits.ts`), which had been unreachable inside a `.tsx` and therefore untested.
 

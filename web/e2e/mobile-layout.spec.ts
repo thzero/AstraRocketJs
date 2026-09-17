@@ -71,7 +71,7 @@ test.describe('sketch tab', () => {
     await expect(page.getByText('L/D', { exact: true })).toBeVisible();
 
     // Rocket tab shows the stats, not the drawing. The drawing stays MOUNTED
-    // behind it so switching tabs never reinitialises the canvas -- so it has to
+    // behind it so switching tabs never reinitializes the canvas -- so it has to
     // come back correctly sized, which the measurements below check.
     await expect(page.locator('main svg').first()).toBeHidden();
     await page.getByRole('button', { name: /Sketch/ }).click();

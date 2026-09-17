@@ -793,7 +793,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         const r = num(n, 'outerRadius', 0.012);
         // A zero-size "phantom" tube (length 0, radius 0) is a modeling hack
         // used only to hang an off-axis fin set at a chosen radius (e.g. a
-        // T-tail's horizontal stabiliser). Draw no rect for it — a degenerate
+        // T-tail's horizontal stabilizer). Draw no rect for it — a degenerate
         // rect leaves a stray dot/line — but still lay out its children below.
         const degenerate = r < 1e-6 || len < 1e-6;
         if (!degenerate) {

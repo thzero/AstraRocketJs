@@ -59,7 +59,7 @@ export const CLUSTER_POINTS: Record<string, number[]> = {
  * The cluster patterns, in kernel order — the dropdown's option list.
  *
  * Names only: this module is geometry, and the option TEXT is the property
- * panel's business (it localises it, and builds the motor count from
+ * panel's business (it localizes it, and builds the motor count from
  * `clusterCount` rather than baking English in here).
  */
 export const CLUSTER_OPTIONS: string[] = Object.keys(CLUSTER_POINTS);

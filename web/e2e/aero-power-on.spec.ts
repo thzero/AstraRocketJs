@@ -10,7 +10,7 @@ const openAero = async (page: Page) => {
  *
  * `setInputFiles` returns as soon as the file is handed over; the parse, the
  * tree swap and the engine rebuild are all async after that. Without a
- * synchronisation point the next click can run against the default rocket, and
+ * synchronization point the next click can run against the default rocket, and
  * the assertion then fails for a reason that has nothing to do with the feature.
  * The Booster stage is unique to these fixtures, so its appearance in the tree
  * means the import has actually been applied.

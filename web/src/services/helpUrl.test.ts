@@ -3,7 +3,7 @@ import { helpUrlFor, HELP_URL } from './appInfo';
 
 /** HELP_URL may or may not carry a trailing slash; helpUrlFor normalizes it.
  *  Building the expectation the same way keeps the test honest either way. */
-const localised = (lang: string) => `${HELP_URL.replace(/\/*$/, '/')}${lang}/`;
+const localized = (lang: string) => `${HELP_URL.replace(/\/*$/, '/')}${lang}/`;
 
 // The docs site builds a locale sub-path per language it has (/docs/es/), and an
 // untranslated page there falls back to English rather than 404ing — so sending a
@@ -16,13 +16,13 @@ describe('helpUrlFor', () => {
   });
 
   it('sends Spanish to the Spanish tree', () => {
-    expect(helpUrlFor('es')).toBe(localised('es'));
+    expect(helpUrlFor('es')).toBe(localized('es'));
   });
 
   it('matches on the base language, so regional variants still work', () => {
     // i18next hands us whatever the browser reports — es-MX, es-419, es-ES.
     for (const tag of ['es-MX', 'es-419', 'es-ES', 'ES']) {
-      expect(helpUrlFor(tag)).toBe(localised('es'));
+      expect(helpUrlFor(tag)).toBe(localized('es'));
     }
   });
 

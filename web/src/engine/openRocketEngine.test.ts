@@ -168,10 +168,10 @@ describe('error envelopes', () => {
   });
 });
 
-describe('the engine must be initialised', () => {
+describe('the engine must be initialized', () => {
   it('says so instead of throwing on null', () => {
     __setEngineForTests(null);
-    expect(() => design()).toThrow(/not initialised/);
+    expect(() => design()).toThrow(/not initialized/);
     vi.restoreAllMocks();
   });
 });

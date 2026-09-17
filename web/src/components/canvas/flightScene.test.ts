@@ -150,7 +150,7 @@ describe('callouts', () => {
 });
 
 describe('scaling', () => {
-  it('normalises peak altitude to 24 scene units', () => {
+  it('normalizes peak altitude to 24 scene units', () => {
     const s = buildFlightScene(result({ ...arc() }), phase);
     expect(s.scenePts[s.apogeeIdx]!.y).toBeCloseTo(24, 6);
     expect(s.apogeeIdx).toBe(5);

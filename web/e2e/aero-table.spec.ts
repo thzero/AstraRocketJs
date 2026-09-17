@@ -220,7 +220,7 @@ test('shades the drag cells in proportion to the value', async ({ page }) => {
 /**
  * The desktop's green-to-red heat, offered as a choice. It is a 120-degree hue
  * rotation on an absolute Cd scale with dark text on light cells — a different
- * encoding from the default magnitude ramp, not a recolour of it, so this checks
+ * encoding from the default magnitude ramp, not a recolor of it, so this checks
  * the formula reproduces rather than merely that something changed.
  */
 test('offers OpenRocket’s heat as an alternative shading', async ({ page }) => {

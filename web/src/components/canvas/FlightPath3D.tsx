@@ -518,7 +518,7 @@ function Hud({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Legend row that doubles as the phase-color editor — click the swatch to recolour. */
+/** Legend row that doubles as the phase-color editor — click the swatch to recolor. */
 function Legend({ color, label, onChange }: { color: string; label: string; onChange: (c: string) => void }) {
   return (
     <label className="flex cursor-pointer items-center gap-1.5 text-slate-300" title={label}>

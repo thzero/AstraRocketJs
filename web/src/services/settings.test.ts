@@ -47,7 +47,7 @@ describe('loadSettings', () => {
     localStorage.setItem(KEY, JSON.stringify({ report: { units: 'imperial' } }));
     expect(loadSettings().report.units).toBe('imperial');
     // A hand-edited or future-version value must not reach resolveUnitChoice,
-    // where anything unrecognised would silently mean "current" anyway.
+    // where anything unrecognized would silently mean "current" anyway.
     localStorage.setItem(KEY, JSON.stringify({ report: { units: 'furlongs' } }));
     expect(loadSettings().report.units).toBe('current');
   });

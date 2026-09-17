@@ -76,7 +76,7 @@ export function TreeSchematic({
   /** When set, ⬇ SVG / ⬇ PNG export buttons appear (issue 2026-08-11a). */
   exportData?: Omit<ExportData, 'spanM'>;
   /**
-   * Reports an export failure to the caller's note channel. Rasterising really
+   * Reports an export failure to the caller's note channel. Rasterizing really
    * can fail — svgToImage rejects from img.onerror, and a big rocket at 7680px
    * can exhaust the canvas — and the awaited rejection used to go nowhere: the
    * button just did nothing, which reads as "the export is broken" with

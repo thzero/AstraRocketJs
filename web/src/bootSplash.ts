@@ -2,7 +2,7 @@
  * Drives the boot splash in index.html while the physics engine loads.
  *
  * The splash is plain markup so it paints before any JS; this module upgrades it
- * once the app's modules are evaluating. i18n is initialised by then — main.tsx
+ * once the app's modules are evaluating. i18n is initialized by then — main.tsx
  * imports './i18n' statically, and ES module imports evaluate before the module
  * body runs — so everything here is translated. Only the initial string baked
  * into index.html is unavoidably English.

@@ -151,7 +151,7 @@ export class DesignLibrary {
         if (await this.kv.get(INDEX_KEY)) return; // library already exists
         const raw = await this.kv.get(LEGACY_KEY);
         if (!raw) {
-          await this.writeIndex([]); // mark the library as initialised
+          await this.writeIndex([]); // mark the library as initialized
           return;
         }
         const id = freshId();

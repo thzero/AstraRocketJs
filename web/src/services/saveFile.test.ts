@@ -119,7 +119,7 @@ describe('safeFilename', () => {
   });
 
   it('falls back when a name reduces to nothing', () => {
-    // "///" sanitises to "_", which is truthy but a useless filename — the
+    // "///" sanitizes to "_", which is truthy but a useless filename — the
     // trap that two of the three deleted copies fell into.
     expect(safeFilename('///')).toBe('rocket');
     expect(safeFilename('')).toBe('rocket');

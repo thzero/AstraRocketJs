@@ -8,7 +8,7 @@ import { unitScope } from '../../prefs/units';
 type Pt = [number, number];
 
 // Fallback outline (a small swept trapezoid) when a node somehow has < 3 points,
-// so the editor always has something to draw; the first edit materialises it.
+// so the editor always has something to draw; the first edit materializes it.
 const FALLBACK: Pt[] = [
   [0, 0],
   [0.02, 0.05],

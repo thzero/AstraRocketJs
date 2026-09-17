@@ -13,7 +13,7 @@ afterEach(cleanup);
  * Render a component inside the providers it needs, for `.test.tsx` component
  * tests (see vitest.config.ts for when to write one).
  *
- * Importing `../i18n` initialises real translations rather than stubbing `t`,
+ * Importing `../i18n` initializes real translations rather than stubbing `t`,
  * so a test can assert on the strings a user actually sees — and a missing or
  * renamed key shows up as a failing test rather than as a raw key on screen.
  *

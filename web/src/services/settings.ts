@@ -203,7 +203,7 @@ export function loadSettings(): Settings {
       unitOverrides: normalizeUnitOverrides(s.unitOverrides),
       partColors: { ...(s.partColors ?? {}) },
       phaseColors: { ...DEFAULT_SETTINGS.phaseColors, ...(s.phaseColors ?? {}) },
-      // An older store has no value here, and an unrecognised one falls back
+      // An older store has no value here, and an unrecognized one falls back
       // rather than leaving the tables with a style nothing renders.
       aeroHeat: s.aeroHeat === 'openrocket' ? 'openrocket' : DEFAULT_SETTINGS.aeroHeat,
       playbackSpeed: typeof s.playbackSpeed === 'number' ? s.playbackSpeed : DEFAULT_SETTINGS.playbackSpeed,

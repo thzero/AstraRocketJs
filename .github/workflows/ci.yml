@@ -41,6 +41,13 @@ jobs:
       # TeaVM output, the synced catalogs), which leaves only authored code.
       - run: npm run format:check
 
+      # US English, enforced. The tree had ~380 British spellings in comments,
+      # UI strings and docs before this ran; cspell's en-US dictionary catches a
+      # new one, and cspell.json's flagWords make the common ones (colour,
+      # centre, metre, -ise) forbidden outright, so no project-words entry can
+      # quietly let one back in.
+      - run: npm run spell
+
       # Coverage is REPORTED, not enforced. The baseline at the time it was
       # added was 46% statements / 47% lines across ~200 modules; a threshold
       # picked before anyone has read that is a number to game, not a gate.
