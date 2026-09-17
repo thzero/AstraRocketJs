@@ -10,6 +10,11 @@ name: Engine
 #
 # Only on changes that can move a number: the Java sources, the build, or the
 # vendored outputs. The web app's own gates live in ci.yml.
+#
+# Both triggers, de-duplicated by the `guard` job — see the long note in ci.yml.
+# This is the workflow where the double run hurt most: a push to a branch with
+# an open PR ran the whole TeaVM toolchain twice over, for JS and for WASM-GC,
+# on the same commit.
 on:
   pull_request:
     paths:
@@ -27,14 +32,57 @@ on:
 
 permissions:
   contents: read
+  # The guard job below reads whether an open PR covers the pushed commit.
+  pull-requests: read
 
 concurrency:
   group: engine-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  parity:
+  # Is this commit already covered by an open PR? On a `pull_request` event the
+  # answer is always "run". On a `push`, we ask the API: if an open PR contains
+  # this SHA, its own run is about to do the identical work, so skip.
+  #
+  # Cheap (one API call, no checkout) and it fails OPEN: any error, and `run`
+  # stays true, so a broken guard over-tests rather than silently gating
+  # nothing.
+  guard:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "pull_request event - running."
+            exit 0
+          fi
+          open=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" \
+                   --jq '[.[] | select(.state == "open")] | length' 2>/dev/null) || open=""
+          if [ "$open" = "0" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "push with no open PR - running."
+          elif [ -z "$open" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "could not reach the API - running anyway."
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "$open open PR(s) already cover this commit - skipping."
+          fi
+
+  parity:
+    needs: guard
+    if: needs.guard.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    # A hung step would otherwise hold a runner for the 6-hour default. The two
+    # parity runs together are ~8 min cold, so 25 fails fast and still leaves
+    # room for a slow TeaVM compile.
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: engine-java
@@ -93,6 +141,8 @@ jobs:
   #
   # Needs no JDK — just node and the pinned OpenRocket source.
   reproducible:
+    needs: guard
+    if: needs.guard.outputs.run == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

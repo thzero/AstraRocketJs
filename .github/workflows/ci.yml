@@ -1,10 +1,22 @@
 name: CI
 
-# Fast feedback on every PR and on pushes to non-deploy branches: typecheck,
-# lint, unit tests, and a production build. `npm run build` already runs
-# `tsc --noEmit && eslint . --max-warnings 0 && vite build`, so these two steps
-# are the same gates as the deploy — minus the publish (deploy-pages.yml still
-# guards the actual master deploy).
+# Fast feedback on every PR: typecheck, lint, unit tests, and a production
+# build. `npm run build` already runs `tsc --noEmit && eslint . --max-warnings 0
+# && vite build`, so these steps are the same gates as the deploy — minus the
+# publish (deploy-pages.yml still guards the actual master deploy).
+#
+# A push to a branch with an open PR fires BOTH `push` and `pull_request`, so
+# every job used to run twice on the same commit — and the two runs then
+# competed for the same runner pool, so the first one started later as well.
+# The concurrency groups below cannot collapse them: a push is keyed
+# `refs/heads/dev`, a PR `refs/pull/N/merge`, different groups, neither cancels
+# the other.
+#
+# Both triggers are kept, because both cover something the other does not: a
+# push to a branch with no PR is real work that has to be gated, and a PR run
+# tests the MERGE of head into base, which the push never sees. The `guard` job
+# below is what removes the overlap — on a push it asks whether an open PR
+# already covers this commit, and if one does, every job skips.
 on:
   pull_request:
   push:
@@ -12,13 +24,52 @@ on:
 
 permissions:
   contents: read
+  # The guard job below reads whether an open PR covers the pushed commit.
+  pull-requests: read
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # Is this commit already covered by an open PR? On a `pull_request` event the
+  # answer is always "run". On a `push`, we ask the API: if an open PR contains
+  # this SHA, its own run is about to do the identical work, so skip.
+  #
+  # Cheap (one API call, no checkout) and it fails OPEN: any error, and `run`
+  # stays true, so a broken guard over-tests rather than silently gating
+  # nothing.
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "pull_request event - running."
+            exit 0
+          fi
+          open=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" \
+                   --jq '[.[] | select(.state == "open")] | length' 2>/dev/null) || open=""
+          if [ "$open" = "0" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "push with no open PR - running."
+          elif [ -z "$open" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "could not reach the API - running anyway."
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "$open open PR(s) already cover this commit - skipping."
+          fi
+
   build-and-test:
+    needs: guard
+    if: needs.guard.outputs.run == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -66,6 +117,8 @@ jobs:
   # which is too late. website/package.json even has a `typecheck` script that
   # nothing ran.
   docs:
+    needs: guard
+    if: needs.guard.outputs.run == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -91,6 +144,8 @@ jobs:
   # Separate job so a Playwright failure is legible on its own and the browser
   # download does not slow the unit gate.
   e2e:
+    needs: guard
+    if: needs.guard.outputs.run == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -106,9 +161,31 @@ jobs:
 
       - run: npm ci
 
+      # Key the browser cache on the resolved Playwright version, not on the
+      # lockfile hash: the browser build only changes when Playwright does, so
+      # hashing the lockfile would throw away a good 130 MB download on every
+      # unrelated dependency bump.
+      - name: Resolve Playwright version
+        id: pw
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
       # Chromium only: playwright.config.ts declares the one project, and it
       # already starts the dev server and sets retries/reporter under CI.
+      #
+      # Split on the cache: the browser itself lives in ~/.cache/ms-playwright
+      # and restores, but `--with-deps` also apt-installs system libraries that
+      # do NOT, so a cache hit still needs `install-deps` on its own.
       - run: npx playwright install --with-deps chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+
+      - run: npx playwright install-deps chromium
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
 
       - run: npm run e2e
 

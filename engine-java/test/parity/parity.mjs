@@ -181,3 +181,17 @@ if (writeGolden) {
   }
   console.log(`golden ok: ${golden.length} reference value(s) unchanged`);
 }
+
+// --- exit explicitly -------------------------------------------------------
+//
+// Every FAILURE path above calls process.exit(1); success used to just fall off
+// the end and rely on Node draining its event loop. Under --wasm it does not:
+// the TeaVM WASM-GC runtime this script evals leaves a handle open, so a run
+// that had already printed "parity ok" and "golden ok" sat idle until the CI
+// runner gave up and SIGTERMed it -- surfacing a PASSING parity check as
+// "exit code 143" with every later step skipped.
+//
+// stdout is a pipe under CI, where writes are asynchronous, so flush before
+// exiting or the last lines are the ones that get truncated.
+await new Promise((resolve) => process.stdout.write('', resolve));
+process.exit(0);
