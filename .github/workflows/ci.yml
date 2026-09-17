@@ -39,20 +39,11 @@ concurrency:
 jobs:
   parity:
     runs-on: ubuntu-latest
-    # NO GRADLE DAEMON. The daemon is a long-lived `java` process that inherits
-    # this step's stderr; when parity.mjs reaches its process.exit(0) the node
-    # process dies but the daemon keeps that pipe open, so the runner never sees
-    # EOF and the STEP NEVER ENDS. Observed three times: the verdicts print,
-    # then the step sits idle for minutes until something cancels it, and
-    # cleanup logs "Terminate orphan process: pid (NNNN) (java)" — a PASSING
-    # parity check reported as a failed job.
-    #
-    # gradle.properties turns the daemon on for local work, where a warm JIT
-    # across repeated invocations is worth having. Here it buys almost nothing:
-    # this job invokes Gradle a handful of times and the runner is discarded
-    # afterwards.
-    env:
-      GRADLE_OPTS: -Dorg.gradle.daemon=false
+    # The Gradle daemon is disabled for CI inside parity.mjs / build-engine.mjs
+    # (`--no-daemon` when process.env.CI), NOT here. It has to be on the command
+    # line: GRADLE_OPTS is the LOWEST-precedence way to set org.gradle.daemon and
+    # engine-java/gradle.properties (daemon=true) overrides it. Setting it here
+    # was tried and the step still hung. See the note in those scripts.
     # A backstop, not a budget. This job still runs four TeaVM builds - parity
     # builds -Pparity for JS and for WASM-GC, then the committed-engine check
     # builds both targets again - plus a cold Gradle cache save. It no longer

@@ -41,6 +41,24 @@ const gradlew = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
 const gradleEnv = { ...process.env };
 if (process.env.JAVA_HOME && !existsSync(process.env.JAVA_HOME)) delete gradleEnv.JAVA_HOME;
 
+// CI runs with NO GRADLE DAEMON, on the command line.
+//
+// The daemon is a long-lived `java` process that inherits this process's stdio.
+// When this script exits, the daemon keeps that pipe open, the CI runner never
+// sees EOF on the step's output, and the STEP HANGS — the verdicts print, then
+// the job sits idle until something cancels it, reporting a PASSING check as a
+// failure. Cleanup logs it: "Terminate orphan process: pid (NNNN) (java)".
+//
+// It has to be the command line. Gradle's precedence for `org.gradle.daemon` is
+// (highest first) command line, GRADLE_USER_HOME/gradle.properties, the project
+// gradle.properties, then GRADLE_OPTS. Setting it via GRADLE_OPTS in the
+// workflow did NOT work: engine-java/gradle.properties says daemon=true and
+// outranks it. `--no-daemon` cannot be overridden.
+//
+// Local runs keep the daemon, where a warm JIT across invocations is worth
+// having and nothing is watching a pipe for EOF.
+const NO_DAEMON = process.env.CI ? ['--no-daemon'] : [];
+
 const gradle = (args) => execFileSync(join(engineRoot, gradlew), args, {
   cwd: engineRoot,
   env: gradleEnv,
@@ -52,12 +70,12 @@ const gradle = (args) => execFileSync(join(engineRoot, gradlew), args, {
 const GRADLE_TASK = { js: 'generateJavaScript', wasm: 'buildWasmGC' };
 for (const target of targets) {
   console.error(`parity: building parity engine (-Pparity${target === 'wasm' ? ', WASM-GC' : ''}) …`);
-  gradle([GRADLE_TASK[target], '-Pparity', '--quiet', '--console=plain']);
+  gradle([GRADLE_TASK[target], '-Pparity', '--quiet', '--console=plain', ...NO_DAEMON]);
 }
 // ONCE, however many targets are compared: the reference is the JVM running the
 // same harness, which does not depend on which TeaVM target it is checked against.
 console.error('parity: running JVM reference (parityJvm) …');
-const jvmRaw = gradle(['parityJvm', '-Pparity', '--quiet', '--console=plain']);
+const jvmRaw = gradle(['parityJvm', '-Pparity', '--quiet', '--console=plain', ...NO_DAEMON]);
 
 // --- TeaVM target output: run the parity main() and capture stdout ---
 const teavmDir = join(engineRoot, 'build', 'generated', 'teavm');
