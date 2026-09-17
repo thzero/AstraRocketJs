@@ -77,7 +77,7 @@ bit-identical to a stock `new BarrowmanCalculator()`. `Geo2D` is the awt-free
 
 `extract --check` passes: **`src/java` is exactly `upstream(+patches)`**, and a
 full `extract --src …` run rewrites all 271 files and changes nothing. CI holds
-it there (`.github/workflows/engine.yml`, job `reproducible`) against the pinned
+it there (`.github/workflows/ci.yml`, job `reproducible`) against the pinned
 upstream in `extract/UPSTREAM`.
 
 It did not pass before, and could not have: **`--check`'s exit code ignored
@@ -174,7 +174,7 @@ deliberate.
 
 **Both closed 2026-09-16.**
 
-*Binary provenance.* `engine.yml`'s parity job now rebuilds over the committed
+*Binary provenance.* `ci.yml`'s parity job now rebuilds over the committed
 artifacts and runs `git diff --exit-code` on them. TeaVM's output here is
 byte-deterministic (verified by building each target twice), so an unchanged
 source rewrites identical bytes and the diff stays empty. It catches **both**

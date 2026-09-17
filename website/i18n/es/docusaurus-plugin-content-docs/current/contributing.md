@@ -90,8 +90,7 @@ La mayoría de las contribuciones no tocan el motor. Si la tuya lo hace:
 
   ```bash
   cd engine-java
-  node build-engine.mjs           # JS   → web/src/engine/vendor/openrocket-engine.mjs
-  node build-engine.mjs --wasm    # WASM → web/public/engine/openrocket-engine.wasm (+ runtime)
+  node build-engine.mjs           # compila y copia AMBOS destinos (opción predeterminada)
   ```
 
 - **Sube el cambio de Java y *ambos* artefactos regenerados (`.mjs` + `.wasm`) juntos**: deben mantenerse sincronizados, o la aplicación ejecutará física obsoleta (y los dos motores deben coincidir).
@@ -111,7 +110,7 @@ npm run sync:contributors            # personas contribuyentes de GitHub → src
 
 ### Publicación de catálogos {#catalog-publishing}
 
-Los catálogos ya no viajan con un despliegue. `.github/workflows/sync-catalogs.yml` (semanal, más **Run workflow**) los regenera y envía el JSON a una rama huérfana **`data`**, que sirve jsDelivr. La aplicación compilada lee esa rama mediante `VITE_DATA_BASE` (definida en `deploy-pages.yml`), así que **una actualización de catálogo entra en producción sin recompilar ni redesplegar la aplicación**.
+Los catálogos ya no viajan con un despliegue. `.github/workflows/sync-catalogs.yml` (semanal, más **Run workflow**) los regenera y envía el JSON a una rama huérfana **`data`**, que sirve jsDelivr. La aplicación compilada lee esa rama mediante `VITE_DATA_BASE` (definida en `deploy.yml`), así que **una actualización de catálogo entra en producción sin recompilar ni redesplegar la aplicación**.
 
 La copia versionada bajo `web/public/data/` permanece en la compilación como alternativa, usada siempre que la CDN no esté accesible o antes de que exista la rama `data`: así la aplicación siempre funciona, en el peor caso con los catálogos congelados en el último despliegue. Actualiza ese suelo ejecutando los scripts de arriba y haciendo commit.
 
@@ -135,6 +134,19 @@ Abre un PR desde tu rama hacia **`master`**. En la descripción:
 
 Asegúrate de que `npm run build` y `npm run test` pasan, y de que has comprobado el cambio en el navegador. Añade o actualiza pruebas para cualquier lógica que toques bajo `web/src/services` o `web/src/engine`. Mantén las regeneraciones de `.mjs`/`.wasm` del motor en el mismo PR que sus cambios de Java.
 
+Lo que CI comprueba en el propio PR:
+
+| Flujo de trabajo | Ejecuta | Cuándo |
+| --- | --- | --- |
+| `ci.yml` → `build-and-test` | `format:check`, `spell`, `test:coverage`, `build`, `knip` | en cada PR |
+| `ci.yml` → `e2e` | Playwright, repartido en tres fragmentos | en cada PR |
+| `ci.yml` → `parity` | `npm run parity` y luego una recompilación comparada con los binarios versionados | en cada PR |
+| `ci.yml` → `reproducible` | `npm run extract:check` contra el OpenRocket fijado | en cada PR |
+
+El sitio Docusaurus **no** se compila en un PR. Se comprueban sus tipos y se compila en `deploy.yml` al fusionar en `master`, así que una página MDX rota o un `sidebars.ts` roto aparecen como un despliegue fallido y no como una comprobación de PR fallida.
+
+Al fusionar en `master`, `deploy.yml` vuelve a ejecutar **todo lo anterior** — `parity`, `reproducible`, `verify` (los mismos cinco pasos que `build-and-test`) y `e2e` — y solo entonces compila la documentación, compila la aplicación y publica en Pages. Los trabajos de comprobación están duplicados entre los dos archivos porque GitHub no puede ordenar un flujo de trabajo después de otro; si añades una comprobación a `ci.yml`, añádela también a `deploy.yml` o master publicará sin ella.
+
 ### Qué tipo de prueba {#which-kind-of-test}
 
 | | Para | Ejemplo |
@@ -156,9 +168,10 @@ Tareas ocasionales y avanzadas: no las necesitarás para un cambio típico.
 Dos bancos de pruebas protegen el motor (ambos necesitan Node 22+; ejecútalos desde la raíz del repositorio):
 
 ```bash
-# 1. Prueba de paridad — demuestra que el motor del navegador (TeaVM-JS) devuelve
-#    números idénticos a los de la JVM de referencia. Compila una variante de paridad
-#    del motor (-Pparity), ejecuta los mismos escenarios en ambos y los compara línea a línea.
+# 1. Prueba de paridad — demuestra que AMBOS motores del navegador (TeaVM WASM-GC y JS)
+#    devuelven números idénticos a los de la JVM de referencia. Compila una variante de
+#    paridad del motor (-Pparity), ejecuta los mismos escenarios en cada uno y los compara
+#    línea a línea. Ambos destinos de forma predeterminada; --js / --wasm limitan a uno.
 node engine-java/test/parity/parity.mjs
 
 # 2. Validación aerodinámica — puntúa el motor frente a anclajes de túnel de viento
@@ -167,6 +180,8 @@ node engine-java/validation/score.mjs               # Barrowman extendido clási
 node engine-java/validation/score.mjs --supersonic  # con el modelo aerodinámico supersónico activado
 node engine-java/validation/score.mjs --strict      # sale con 1 ante cualquier fallo en un punto de control
 ```
+
+Desde dentro de `engine-java/` tienen nombres más cortos: `npm run parity`, `npm run validate`, `npm run build`. Son los mismos scripts y no hay dependencias que instalar — ver `engine-java/README.md`.
 
 El banco de paridad compila **solo** bajo `-Pparity`, así que el motor que se distribuye no lleva código de prueba. Ejecuta la prueba de paridad después de cualquier cambio en el motor.
 

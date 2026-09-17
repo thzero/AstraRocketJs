@@ -1,31 +1,37 @@
 #!/usr/bin/env node
 /**
- * Parity test: run parity.ParityMain on the JVM and under TeaVM-JS in Node, and require
+ * Parity test: run parity.ParityMain on the JVM and under each TeaVM target in Node, and require
  * BIT-IDENTICAL output (modulo a small ULP tolerance for JS Math transcendentals). Any real
- * diff is a fidelity break — a TeaVM miscompile, a semantics divergence, or an unported dep.
+ * diff is a fidelity break: a TeaVM miscompile, a semantics divergence, or an unported dep.
+ *
+ * BOTH targets are checked by default, because both are shipped: openRocketEngine.ts loads
+ * WASM-GC where the browser supports it and falls back to JS. Checking one alone leaves the
+ * other's fidelity unproven, and the two do NOT fail together (a miscompile is per backend).
+ * They share the JVM reference, so the pair costs barely more than one: parityJvm measured 22s
+ * of a 35s run, where a TeaVM build is 6s once its outputs are cached. Checking one target
+ * alone is the special case, behind a flag.
  *
  * Self-contained: builds the parity engine variant (-Pparity) and the JVM reference itself.
  * Needs a JDK (JAVA_HOME, or whatever the Gradle wrapper already resolves) and Node 22+.
  *
- *   node test/parity/parity.mjs           # TeaVM-JS vs JVM (default)
- *   node test/parity/parity.mjs --wasm    # TeaVM WASM-GC vs JVM
- *   node test/parity/parity.mjs --both    # both targets, against ONE JVM reference
+ *   node test/parity/parity.mjs           # BOTH targets vs ONE JVM reference (default)
+ *   node test/parity/parity.mjs --js      # TeaVM-JS only
+ *   node test/parity/parity.mjs --wasm    # TeaVM WASM-GC only
+ *   node test/parity/parity.mjs --golden  # rewrite golden.txt from this run (deliberate changes only)
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-// --wasm compares the TeaVM WASM-GC build against the JVM (default is TeaVM-JS). Same JVM reference,
-// same tolerances — WASM f64 tracks the JVM's IEEE-754 at least as closely as JS Math does.
-//
-// --both compares BOTH TeaVM targets in one run, against one JVM reference. The
-// reference is the expensive half: parityJvm measured 22s of a 35s run, where
-// the TeaVM build is 6s once its outputs are cached. Running it per target
-// meant computing the identical reference twice and throwing one away.
-const useBoth = process.argv.includes('--both');
-const useWasm = process.argv.includes('--wasm');
-const targets = useBoth ? ['js', 'wasm'] : useWasm ? ['wasm'] : ['js'];
+// Neither flag (or both) means both targets, the default that has to be right (see above).
+// --js / --wasm narrow it to one, for bisecting a divergence that only one backend shows.
+// Both go against the same JVM reference and the same tolerances: WASM f64 tracks the JVM's
+// IEEE-754 at least as closely as JS Math does. `--both` is still accepted, as an explicit
+// spelling of the default.
+const wantJs = process.argv.includes('--js');
+const wantWasm = process.argv.includes('--wasm');
+const targets = wantJs === wantWasm ? ['js', 'wasm'] : wantJs ? ['js'] : ['wasm'];
 const writeGolden = process.argv.includes('--golden');
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -140,9 +146,9 @@ function linesMatch(a, b) {
   return ulp ? 'ulp' : false;
 }
 
-// Compared one target at a time against the single JVM reference. A label is
-// only added when there is more than one, so a single-target run reads exactly
-// as it did before --both existed.
+// Compared one target at a time against the single JVM reference. A label is only added when
+// there is more than one, so the default run says which target each verdict is for, while a
+// narrowed --js / --wasm run stays unlabeled (there is nothing to disambiguate).
 const label = targets.length > 1 ? (t) => ` [${t}]` : () => '';
 for (const target of targets) {
   const out = norm(await runTarget(target));

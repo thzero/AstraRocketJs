@@ -12,7 +12,7 @@ AstraRocketJs is a monorepo: a **web app** (`web/`) and the **OpenRocket engine*
 
 - **Requirements** — Node 22+ for the app; a JDK only if you rebuild the engine (Gradle is bundled).
 - **Run the app** — `cd web && npm install && npm run dev`.
-- **Rebuild the engine** (rarely needed; the build is committed) — `cd engine-java && node build-engine.mjs` (JS) and `node build-engine.mjs --wasm` (WASM).
+- **Rebuild the engine** (rarely needed; the build is committed) — `cd engine-java && node build-engine.mjs`, which builds and vendors both the WASM-GC and JS targets.
 - **Engine** — extracted OpenRocket core, minimally patched for TeaVM (`engine-java/`), exposed to the app through a typed wrapper (`web/src/engine/openRocketEngine.ts`).
 
 ## Attribution

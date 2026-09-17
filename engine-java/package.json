@@ -1,0 +1,20 @@
+{
+  "name": "astrarocketjs-engine",
+  "private": true,
+  "description": "Named entry points for the engine's Node helper scripts. The engine itself is a Gradle/TeaVM build; this file carries NO dependencies and needs no install, it exists so the scripts are discoverable via `npm run` the way web/ and website/ are.",
+  "author": "thZero.com",
+  "license": "GPL-3.0",
+  "scripts": {
+    "build": "node build-engine.mjs",
+    "build:js": "node build-engine.mjs --js",
+    "build:wasm": "node build-engine.mjs --wasm",
+    "parity": "node test/parity/parity.mjs",
+    "parity:js": "node test/parity/parity.mjs --js",
+    "parity:wasm": "node test/parity/parity.mjs --wasm",
+    "parity:golden": "node test/parity/parity.mjs --golden",
+    "validate": "node validation/score.mjs",
+    "validate:supersonic": "node validation/score.mjs --supersonic",
+    "validate:strict": "node validation/score.mjs --strict",
+    "extract:check": "node extract/extract.mjs --check"
+  }
+}

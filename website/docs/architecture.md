@@ -33,7 +33,7 @@ Extracted sources by area:
 
 ## Build → run pipeline
 
-1. `engine-java/` (extracted core + `src/shims/` JVM-only replacements + `src/jdkstubs/` a JDK `Collator` stand-in + `src/api/OpenRocketEngine` @JSExport facade) is compiled by TeaVM to **two targets**: a **WASM-GC** module and a **JavaScript** module. Both come from the same sources via `node engine-java/build-engine.mjs` (JS) / `--wasm` (WASM-GC).
+1. `engine-java/` (extracted core + `src/shims/` JVM-only replacements + `src/jdkstubs/` a JDK `Collator` stand-in + `src/api/OpenRocketEngine` @JSExport facade) is compiled by TeaVM to **two targets**: a **WASM-GC** module and a **JavaScript** module. Both come from the same sources, and `node engine-java/build-engine.mjs` builds and vendors both of them.
 2. The built artifacts are committed so the web app builds without a JDK:
    - JS → `web/src/engine/vendor/openrocket-engine.mjs`
    - WASM → `web/public/engine/openrocket-engine.wasm` (+ its `*.wasm-runtime.js`)
