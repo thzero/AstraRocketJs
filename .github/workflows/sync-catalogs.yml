@@ -42,9 +42,9 @@ jobs:
     env:
       TARGET: ${{ inputs.target || 'both' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -80,7 +80,7 @@ jobs:
       # path, so point it at this checkout via OPENROCKET_PRESETS.
       - name: Check out the OpenRocket components database
         if: env.TARGET != 'motors'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: dbcook/openrocket-database
           path: .openrocket-database

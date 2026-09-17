@@ -138,14 +138,16 @@ What CI gates on the PR itself:
 
 | Workflow | Runs | When |
 | --- | --- | --- |
-| `ci.yml` → `build-and-test` | `format:check`, `spell`, `test:coverage`, `build`, `knip` | every PR |
-| `ci.yml` → `e2e` | Playwright, sharded three ways | every PR |
-| `ci.yml` → `parity` | `npm run parity`, then a rebuild compared against the committed binaries | every PR |
-| `ci.yml` → `reproducible` | `npm run extract:check` against the pinned OpenRocket | every PR |
+| `parity` | `npm run parity`, then a rebuild compared against the committed binaries | first |
+| `reproducible` | `npm run extract:check` against the pinned OpenRocket | first |
+| `build-and-test` | `format:check`, `spell`, `test:coverage`, `build`, `knip` | after the two above |
+| `e2e` | Playwright, sharded three ways | after the two above |
 
 The Docusaurus site is **not** built on a PR. It is typechecked and built in `deploy.yml` on merge to `master`, so a broken MDX page or `sidebars.ts` shows up as a failed deploy rather than a failed PR check.
 
-On merge to `master`, `deploy.yml` re-runs **all of the above** — `parity`, `reproducible`, `verify` (the same five steps as `build-and-test`) and `e2e` — and only then builds the docs, builds the app and publishes to Pages. The gate jobs are duplicated between the two files because GitHub cannot order one workflow after another; if you add a gate to `ci.yml`, add it to `deploy.yml` too or master will publish without it.
+Those four jobs live in `.github/workflows/gates.yml`, a reusable workflow. `ci.yml` calls it on a PR and `deploy.yml` calls the same file on merge to `master`, so master is held to exactly what a PR was held to and there is only one definition to maintain. Add a gate to `gates.yml` and both get it.
+
+On merge, `deploy.yml` runs those gates and only then typechecks and builds the docs, builds the app and publishes to Pages. Nothing publishes unless every gate is green.
 
 ### Which kind of test
 
