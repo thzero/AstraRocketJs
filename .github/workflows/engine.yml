@@ -79,10 +79,17 @@ jobs:
     needs: guard
     if: needs.guard.outputs.run == 'true'
     runs-on: ubuntu-latest
-    # A hung step would otherwise hold a runner for the 6-hour default. The two
-    # parity runs together are ~8 min cold, so 25 fails fast and still leaves
-    # room for a slow TeaVM compile.
-    timeout-minutes: 25
+    # A backstop, not a budget. This job still runs four TeaVM builds - parity
+    # builds -Pparity for JS and for WASM-GC, then the committed-engine check
+    # builds both targets again - plus a cold Gradle cache save. It no longer
+    # runs the JVM reference twice (see --both below). The cap has to clear all
+    # of that on a cold cache with room to spare; 25 did not, and cancelled a
+    # job that was working.
+    #
+    # The reason for having one at all is now fixed at the source: parity.mjs
+    # exits explicitly, so it can no longer hang after passing. This just keeps
+    # a future hang from holding a runner for the 6-hour default.
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: engine-java
@@ -105,11 +112,15 @@ jobs:
       # parity.mjs is self-contained: it builds the parity engine variant
       # (-Pparity) and the JVM reference itself, then requires bit-identical
       # output modulo a small ULP tolerance on transcendentals.
-      - name: Parity — JVM vs TeaVM-JS
-        run: node test/parity/parity.mjs
-
-      - name: Parity — JVM vs WASM-GC
-        run: node test/parity/parity.mjs --wasm
+      #
+      # --both, one step, because the JVM reference is the expensive half and it
+      # does not depend on the TeaVM target. As two steps this computed the
+      # identical reference twice and threw one away: measured warm, the two
+      # separate runs were 19s + 11s against 10s for --both. Each target is
+      # still reported on its own line ("parity ok [js]" / "[wasm]"), so a
+      # divergence still says which one diverged.
+      - name: Parity — JVM vs TeaVM-JS and WASM-GC
+        run: node test/parity/parity.mjs --both
 
       # Were the COMMITTED binaries actually built from this source?
       #
