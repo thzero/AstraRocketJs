@@ -1,6 +1,7 @@
 {
   "name": "astrarocketjs-engine",
   "private": true,
+  "type": "module",
   "description": "Named entry points for the engine's Node helper scripts. The engine itself is a Gradle/TeaVM build; this file carries NO dependencies and needs no install, it exists so the scripts are discoverable via `npm run` the way web/ and website/ are.",
   "author": "thZero.com",
   "license": "GPL-3.0",

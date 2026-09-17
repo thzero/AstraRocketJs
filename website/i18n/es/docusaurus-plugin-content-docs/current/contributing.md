@@ -138,14 +138,16 @@ Lo que CI comprueba en el propio PR:
 
 | Flujo de trabajo | Ejecuta | Cuándo |
 | --- | --- | --- |
-| `ci.yml` → `build-and-test` | `format:check`, `spell`, `test:coverage`, `build`, `knip` | en cada PR |
-| `ci.yml` → `e2e` | Playwright, repartido en tres fragmentos | en cada PR |
-| `ci.yml` → `parity` | `npm run parity` y luego una recompilación comparada con los binarios versionados | en cada PR |
-| `ci.yml` → `reproducible` | `npm run extract:check` contra el OpenRocket fijado | en cada PR |
+| `parity` | `npm run parity` y luego una recompilación comparada con los binarios versionados | primero |
+| `reproducible` | `npm run extract:check` contra el OpenRocket fijado | primero |
+| `build-and-test` | `format:check`, `spell`, `test:coverage`, `build`, `knip` | después de los dos anteriores |
+| `e2e` | Playwright, repartido en tres fragmentos | después de los dos anteriores |
 
 El sitio Docusaurus **no** se compila en un PR. Se comprueban sus tipos y se compila en `deploy.yml` al fusionar en `master`, así que una página MDX rota o un `sidebars.ts` roto aparecen como un despliegue fallido y no como una comprobación de PR fallida.
 
-Al fusionar en `master`, `deploy.yml` vuelve a ejecutar **todo lo anterior** — `parity`, `reproducible`, `verify` (los mismos cinco pasos que `build-and-test`) y `e2e` — y solo entonces compila la documentación, compila la aplicación y publica en Pages. Los trabajos de comprobación están duplicados entre los dos archivos porque GitHub no puede ordenar un flujo de trabajo después de otro; si añades una comprobación a `ci.yml`, añádela también a `deploy.yml` o master publicará sin ella.
+Esos cuatro trabajos viven en `.github/workflows/gates.yml`, un flujo de trabajo reutilizable. `ci.yml` lo invoca en un PR y `deploy.yml` invoca el mismo archivo al fusionar en `master`, así que master se somete exactamente a lo mismo que el PR y solo hay una definición que mantener. Añade una comprobación a `gates.yml` y ambos la reciben.
+
+Al fusionar, `deploy.yml` ejecuta esas comprobaciones y solo entonces revisa los tipos y compila la documentación, compila la aplicación y publica en Pages. No se publica nada si alguna comprobación falla.
 
 ### Qué tipo de prueba {#which-kind-of-test}
 

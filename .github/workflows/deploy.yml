@@ -1,15 +1,15 @@
 name: Deploy
 
-# The master pipeline: every gate a PR runs, then the Pages publish.
+# The master pipeline: the full gate set, then the Pages publish.
 #
-# The gate jobs below are DUPLICATED from ci.yml on purpose. GitHub has no
-# cross-workflow ordering, so "run ci.yml first, then deploy" is not expressible
-# between two files — they would race, and the deploy would start while the
-# gates were still running. ci.yml is `pull_request`-only and this file is
-# master-push-only, so the two never fire on the same event.
+# The gates are the SAME jobs a PR runs — gates.yml, called from both here and
+# ci.yml. They are not duplicated: GitHub has no cross-workflow ordering, so
+# "run ci.yml first, then deploy" is not expressible between two files, but a
+# reusable workflow (`workflow_call`) shares the job definitions without needing
+# it. Nothing publishes until every one of them is green.
 #
-# KEEP THEM IN SYNC. A gate added to ci.yml and not here means master publishes
-# without it.
+# ci.yml is `pull_request`-only and this file is master-push-only, so the two
+# never fire on the same event.
 #
 # Publishes web/dist to GitHub Pages.
 # ONE-TIME SETUP: repo Settings → Pages → Source = "GitHub Actions".
@@ -30,272 +30,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  parity:
-    runs-on: ubuntu-latest
-    # NO GRADLE DAEMON. The daemon is a long-lived `java` process that inherits
-    # this step's stderr; when parity.mjs reaches its process.exit(0) the node
-    # process dies but the daemon keeps that pipe open, so the runner never sees
-    # EOF and the STEP NEVER ENDS. Observed three times: the verdicts print,
-    # then the step sits idle for minutes until something cancels it, and
-    # cleanup logs "Terminate orphan process: pid (NNNN) (java)" — a PASSING
-    # parity check reported as a failed job.
-    #
-    # gradle.properties turns the daemon on for local work, where a warm JIT
-    # across repeated invocations is worth having. Here it buys almost nothing:
-    # this job invokes Gradle a handful of times and the runner is discarded
-    # afterwards.
-    env:
-      GRADLE_OPTS: -Dorg.gradle.daemon=false
-    # A backstop, not a budget. This job still runs four TeaVM builds - parity
-    # builds -Pparity for JS and for WASM-GC, then the committed-engine check
-    # builds both targets again - plus a cold Gradle cache save. It no longer
-    # runs the JVM reference twice (see the parity step below). The cap has to
-    # clear all of that on a cold cache with room to spare; 25 did not, and
-    # cancelled a job that was working.
-    #
-    # This cap is NOT the hang protection it once claimed to be. parity.mjs
-    # exiting explicitly fixed one hang (node's own event loop); the Gradle
-    # daemon then caused another, and at 60 minutes this cap would have let a
-    # passing check hold a runner for an hour. GRADLE_OPTS above is the actual
-    # fix. The cap is only a backstop against something new.
-    timeout-minutes: 60
-    defaults:
-      run:
-        working-directory: engine-java
-    steps:
-      - uses: actions/checkout@v4
-
-      # 21 is the toolchain build.gradle pins. TeaVM compiles the bytecode
-      # rather than running it, so the level only has to satisfy both ends.
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - uses: gradle/actions/setup-gradle@v4
-
-      # No `npm ci` above, deliberately: engine-java/package.json declares no
-      # dependencies. It exists only to name these entry points, so `npm run`
-      # works here with nothing installed and CI says what the docs say.
-      #
-      # parity.mjs is self-contained: it builds the parity engine variant
-      # (-Pparity) and the JVM reference itself, then requires bit-identical
-      # output modulo a small ULP tolerance on transcendentals.
-      #
-      # Both targets in one step, which is now the script's default: the JVM
-      # reference is the expensive half and does not depend on the TeaVM target.
-      # As two steps this computed the identical reference twice and threw one
-      # away: measured warm, the two separate runs were 19s + 11s against 10s
-      # for the single run. Each target is still reported on its own line
-      # ("parity ok [js]" / "[wasm]"), so a divergence still says which one
-      # diverged. `npm run parity:js` / `:wasm` narrow it when bisecting one
-      # backend.
-      - name: Parity — JVM vs TeaVM-JS and WASM-GC
-        run: npm run parity
-
-      # Were the COMMITTED binaries actually built from this source?
-      #
-      # Parity above proves JS == WASM == JVM, all built fresh from src/java —
-      # it never reads the two files the app ships, so editing the Java and
-      # forgetting `build-engine.mjs` left CI green while the app ran the old
-      # physics. Hand-editing a vendor file was equally invisible.
-      #
-      # Rebuild over the committed artifacts and let git decide: TeaVM output is
-      # byte-deterministic here (verified by building twice), so an unchanged
-      # source rewrites identical bytes and `git diff` stays empty. Stale
-      # binaries AND hand-edited binaries both show up as a diff.
-      #
-      # If this ever proves flaky across OS/JDK rather than catching a real
-      # staleness, the fallback is a source+artifact SHA-256 stamp written by
-      # build-engine.mjs and compared here instead — cheaper, but it cannot
-      # catch a hand-edited binary.
-      - name: The committed engine matches src/java
-        run: |
-          npm run build
-          git diff --exit-code --             ../web/src/engine/vendor/openrocket-engine.mjs             ../web/public/engine/openrocket-engine.wasm             ../web/public/engine/openrocket-engine.wasm-runtime.js
-
-  # Can src/java still be REGENERATED from its declared inputs? Parity above
-  # cannot answer that — it builds from src/java and compares the two TeaVM
-  # targets, so it is blind to src/java having drifted from upstream(+patches).
-  # It had: a regeneration produced a tree that did not compile, and the one
-  # tool that checks could not fail (its exit code ignored drift entirely).
-  #
-  # Needs no JDK — just node and the pinned OpenRocket source.
-
-  reproducible:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # Pinned in engine-java/extract/UPSTREAM. --check is only meaningful
-      # against the exact tree the extraction was made from; a floating ref
-      # would report every upstream commit as drift.
-      - name: Check out the pinned OpenRocket source
-        uses: actions/checkout@v4
-        with:
-          repository: thzero/openrocket
-          ref: c1a1a9b9fff2d629a5a64dc30dfd0603dfef62c3
-          path: .openrocket-src
-          sparse-checkout: core/src/main/java
-          sparse-checkout-cone-mode: false
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Extraction is reproducible
-        working-directory: engine-java
-        run: npm run extract:check -- --src "$GITHUB_WORKSPACE/.openrocket-src"
-
-  # Gated on the engine jobs, same ordering as ci.yml: the app tests run against
-  # the COMMITTED engine binaries, so they only mean something once parity has
-  # shown those binaries match src/java.
-  verify:
-    needs: [parity, reproducible]
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-
-      - run: npm ci
-
-      # Formatting, gated at last. It could not be turned on before: with no
-      # .gitattributes, a CRLF checkout failed `--check` on every tracked file,
-      # so the signal was 100% noise. `.gitattributes` pins LF and
-      # `.prettierignore` excludes the generated artifacts (public/docs, the
-      # TeaVM output, the synced catalogs), which leaves only authored code.
-      - run: npm run format:check
-
-      # US English, enforced. The tree had ~380 British spellings in comments,
-      # UI strings and docs before this ran; cspell's en-US dictionary catches a
-      # new one, and cspell.json's flagWords make the common ones (colour,
-      # centre, metre, -ise) forbidden outright, so no project-words entry can
-      # quietly let one back in.
-      - run: npm run spell
-
-      # Coverage is REPORTED, not enforced. The baseline at the time it was
-      # added was 46% statements / 47% lines across ~200 modules; a threshold
-      # picked before anyone has read that is a number to game, not a gate.
-      - run: npm run test:coverage
-
-      - run: npm run build
-
-      # Dead exports / unimported modules. Cheap, and it only stays useful if
-      # something runs it.
-      - run: npm run knip
-
-  # NOTE: this `verify` job does not build the Docusaurus site either; the
-  # `build` job below does, on its way to the publish. The
-  # trade-off is deliberate and it is real: a broken docusaurus.config.ts,
-  # sidebars.ts or MDX page is no longer caught before merge, so it surfaces as
-  # a RED MASTER DEPLOY rather than a red PR check, and the fix goes forward on
-  # master. Accepted because docs breakage does not ship bad physics or a broken
-  # app, and a PR touching only web/ paid a full `npm ci` + Docusaurus build for
-  # a risk it could not introduce.
-
-  # The integration layer: schematic, motor picker, recovery, mobile layout, the
-  # aero tables. It was previously run only when someone remembered to, which is
-  # how a shipped dialog reached master with an unbounded render loop in it.
-  # Separate job so a Playwright failure is legible on its own and the browser
-  # download does not slow the unit gate.
-
-  e2e:
-    needs: [parity, reproducible]
-    runs-on: ubuntu-latest
-    # Sharded because the suite is ~3.6 min of WALL CLOCK that no amount of
-    # caching touches — the browser download the cache below removes is ~90s of
-    # a ~4.4 min job, and the tests are the rest.
-    #
-    # Sharding rather than raising `workers`: playwright.config.ts pins
-    # `workers: 1` on purpose (16 workers against ONE dev server, each
-    # software-rendering WebGL and loading the 2.9 MB WASM engine, gave 45 then
-    # 19 spurious failures and was SLOWER — 4.4 min vs 3.6). Each shard is its
-    # own runner with its own dev server and its own single worker, so that
-    # reasoning still holds and the contention never happens.
-    #
-    # Three ways: 90 tests over 21 files, so ~30 tests a shard. Each shard pays
-    # its own ~50s of npm ci + browser restore + dev-server start, so the
-    # returns flatten fast past this — four would buy ~20s more for another
-    # runner's worth of minutes.
-    strategy:
-      # One shard failing must not cancel the others, or the first red shard
-      # hides every other failure and you find them one push at a time.
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3]
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-
-      - run: npm ci
-
-      # Key the browser cache on the resolved Playwright version, not on the
-      # lockfile hash: the browser build only changes when Playwright does, so
-      # hashing the lockfile would throw away a good 130 MB download on every
-      # unrelated dependency bump.
-      - name: Resolve Playwright version
-        id: pw
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
-
-      # Chromium only: playwright.config.ts declares the one project, and it
-      # already starts the dev server and sets retries/reporter under CI.
-      #
-      # Split on the cache: the browser itself lives in ~/.cache/ms-playwright
-      # and restores, but `--with-deps` also apt-installs system libraries that
-      # do NOT, so a cache hit still needs `install-deps` on its own.
-      - run: npx playwright install --with-deps chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-
-      - run: npx playwright install-deps chromium
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-
-      - run: npm run e2e -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
-
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          # Artifact names must be unique across a matrix, or the shards
-          # collide and only one report survives.
-          name: playwright-report-shard-${{ matrix.shard }}
-          path: web/playwright-report/
-          retention-days: 7
+  gates:
+    uses: ./.github/workflows/gates.yml
 
   build:
-    needs: [parity, reproducible, verify, e2e]
+    needs: gates
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -333,8 +80,8 @@ jobs:
         working-directory: website
         run: npm ci
 
-      # The docs gate lives HERE, not in ci.yml (see the note there): the site is
-      # not built on a PR at all. This typecheck is part of that gate — without
+      # The docs gate lives HERE, not in gates.yml: the Docusaurus site is not
+      # built on a PR at all. This typecheck is part of that gate — without
       # it, website/'s `typecheck` script would be run by nothing again.
       - name: Typecheck docs
         working-directory: website
@@ -360,9 +107,9 @@ jobs:
           # sync runs this costs ~0.4s on first open and then falls back.
           VITE_DATA_BASE: https://cdn.jsdelivr.net/gh/${{ github.repository }}@data/
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: web/dist
 
@@ -374,4 +121,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

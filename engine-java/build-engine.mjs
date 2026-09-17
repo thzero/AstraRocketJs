@@ -65,13 +65,31 @@ const TARGETS = {
   },
 };
 
+// CI runs with NO GRADLE DAEMON, on the command line.
+//
+// The daemon is a long-lived `java` process that inherits this process's stdio.
+// When this script exits, the daemon keeps that pipe open, the CI runner never
+// sees EOF on the step's output, and the STEP HANGS — the verdicts print, then
+// the job sits idle until something cancels it, reporting a PASSING check as a
+// failure. Cleanup logs it: "Terminate orphan process: pid (NNNN) (java)".
+//
+// It has to be the command line. Gradle's precedence for `org.gradle.daemon` is
+// (highest first) command line, GRADLE_USER_HOME/gradle.properties, the project
+// gradle.properties, then GRADLE_OPTS. Setting it via GRADLE_OPTS in the
+// workflow did NOT work: engine-java/gradle.properties says daemon=true and
+// outranks it. `--no-daemon` cannot be overridden.
+//
+// Local runs keep the daemon, where a warm JIT across invocations is worth
+// having and nothing is watching a pipe for EOF.
+const NO_DAEMON = process.env.CI ? ['--no-daemon'] : [];
+
 // Compile every requested target BEFORE vendoring any of them. Copying as each one finished
 // would let a failing second compile leave web/ carrying a new JS engine beside a stale .wasm,
 // which is exactly the mismatch the both-by-default behavior exists to prevent.
 for (const target of targets) {
   const { gradleTask } = TARGETS[target];
   console.error(`build-engine: compiling with TeaVM (gradlew ${gradleTask}) …`);
-  execFileSync(join(engineRoot, gradlew), [gradleTask, '--console=plain'], {
+  execFileSync(join(engineRoot, gradlew), [gradleTask, '--console=plain', ...NO_DAEMON], {
     cwd: engineRoot,
     env,
     stdio: ['ignore', 'inherit', 'inherit'],

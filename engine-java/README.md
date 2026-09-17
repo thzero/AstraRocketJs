@@ -25,7 +25,7 @@ engine-java/
     shims/java/           our replacements for classes we don't extract (Guice, prefs, LongUUID, Geo2D, RASAero…)
     jdkstubs/             java.text.Collator stand-in — the one java.* class TeaVM's JDK lacks
     api/java/api/         the @JSExport facade the browser calls (OpenRocketEngine, …)
-  test/parity/            ParityMain.java + parity.mjs — JVM↔JS↔WASM bit-identical check
+  test/parity/            ParityMain.java + parity.mjs (run-target.mjs, stdout-sync.mjs) — JVM↔JS↔WASM bit-identical check
   validation/             wind-tunnel aero scoring (score.mjs, anchors, fixtures)
 ```
 
@@ -96,7 +96,7 @@ Guardrails — `--check` writes nothing and **exits non-zero** on any of:
 
 A `patches/` file whose path isn't in the manifest is a hard error (it would silently never apply). `--check` also *reports*, without failing, how far each patch has diverged from current upstream: comparing `src/java` to the patch can never see upstream moving underneath, which is how `FinSetCalc` came to sit hundreds of lines behind while the check called it clean.
 
-`--check` is only meaningful against the exact upstream the extraction was made from — pinned in `extract/UPSTREAM` and enforced by the `reproducible` job in `.github/workflows/ci.yml`.
+`--check` is only meaningful against the exact upstream the extraction was made from — pinned in `extract/UPSTREAM` and enforced by the `reproducible` job in `.github/workflows/gates.yml`.
 
 **At build time nothing is applied** — `src/java/` is committed already in its final state, so Gradle just compiles it. Extraction is a deliberate step you run only on an OpenRocket upgrade (then re-audit each `patches/` file against the new upstream).
 
