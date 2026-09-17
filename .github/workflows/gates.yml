@@ -223,7 +223,7 @@ jobs:
     # own runner with its own dev server and its own single worker, so that
     # reasoning still holds and the contention never happens.
     #
-    # Three ways: 90 tests over 21 files, so ~30 tests a shard. Each shard pays
+    # Three ways: 95 tests over 21 files, so ~32 tests a shard. Each shard pays
     # its own ~50s of npm ci + browser restore + dev-server start, so the
     # returns flatten fast past this — four would buy ~20s more for another
     # runner's worth of minutes.
