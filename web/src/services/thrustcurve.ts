@@ -1,6 +1,7 @@
 import type { MotorSpec } from '../engine/openRocketEngine';
 import type { CatalogMotor } from './motorDb';
 import { getMotorStore, isThrustSampleArray } from './motorStore';
+import { declaredLength, readStreamWithProgress } from './fetchProgress';
 
 /**
  * thrustcurve.org API v1 client (CORS-enabled; verified reflective
@@ -65,7 +66,13 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     // returning the unawaited promise cleared the abort timer before the body
     // had been read. A host that sent headers and then stalled hung the motor
     // picker forever, with the only timeout already cancelled.
-    return await (res.json() as Promise<T>);
+    //
+    // Streamed rather than res.json() so MAX_RESPONSE_BYTES is enforced on the
+    // bytes RECEIVED. The content-length check above only fires when the host
+    // declared one; a chunked response declared none and buffered unbounded.
+    if (!res.body) return await (res.json() as Promise<T>);
+    const bytes = await readStreamWithProgress(res.body, declaredLength(res), () => {}, MAX_RESPONSE_BYTES);
+    return JSON.parse(new TextDecoder().decode(bytes)) as T;
   } catch (e) {
     if (ctl.signal.aborted) throw new Error(`thrustcurve.org timed out — check your connection and try again.`);
     throw e;

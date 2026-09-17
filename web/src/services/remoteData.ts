@@ -71,11 +71,20 @@ const ttfbFor = (base: string) => (base === BASES[BASES.length - 1] ? TTFB_TIMEO
 /** Bytes transferred so far, and the total when the host declared one. */
 export type CatalogProgress = TransferProgress;
 
-/** Parse the body, streaming it when the caller wants progress. Falls back to
- *  `res.json()` when progress is not wanted or the response exposes no stream. */
+/**
+ * Parse the body, metering it against {@link MAX_CATALOG_BYTES}.
+ *
+ * ALWAYS streams when a stream is available, progress wanted or not. The
+ * `content-length` check in fetchJson only fires when the host DECLARED a
+ * length, and a chunked response declares none — so the no-progress path went
+ * to `res.json()` completely unmetered, which is the case the cap exists for.
+ * `manifest()` is exactly that path. Falls back to `res.json()` only where
+ * there is no stream to read (a stubbed Response in tests).
+ */
 async function readJson<T>(res: Response, onProgress?: (p: CatalogProgress) => void): Promise<T> {
-  if (!onProgress || !res.body) return (await res.json()) as T;
-  const bytes = await readStreamWithProgress(res.body, declaredLength(res), onProgress, MAX_CATALOG_BYTES);
+  if (!res.body) return (await res.json()) as T;
+  const report = onProgress ?? (() => {});
+  const bytes = await readStreamWithProgress(res.body, declaredLength(res), report, MAX_CATALOG_BYTES);
   return JSON.parse(new TextDecoder().decode(bytes)) as T;
 }
 

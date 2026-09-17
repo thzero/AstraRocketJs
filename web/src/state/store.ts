@@ -661,7 +661,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         });
       } catch (e) {
         if (stale()) return; // a superseded import must not post its error either
-        set({ err: `Could not open .ork: ${e instanceof Error ? e.message : String(e)}` });
+        set({ err: i18n.t('errors.openOrk', { reason: e instanceof Error ? e.message : String(e) }) });
       }
     },
     refreshDesigns: async () => {
@@ -826,7 +826,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           designInfo,
         });
       } catch (e) {
-        set({ err: `Could not save .ork: ${e instanceof Error ? e.message : String(e)}` });
+        set({ err: i18n.t('errors.saveOrk', { reason: e instanceof Error ? e.message : String(e) }) });
       }
     },
     saveRasaero: async () => {
@@ -853,16 +853,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           launchCgM: info?.cg,
         });
       } catch (e) {
-        set({ err: `Could not export RASAero: ${e instanceof Error ? e.message : String(e)}` });
+        set({ err: i18n.t('errors.exportRasaero', { reason: e instanceof Error ? e.message : String(e) }) });
       }
     },
     exportComponent: async (nodeId, format) => {
       try {
         const { exportComponent } = await import('../services/componentExport');
         const ok = await exportComponent(get().tree, nodeId, format);
-        if (!ok) set({ err: `This component can't be exported as ${format.toUpperCase()}.` });
+        if (!ok) set({ err: i18n.t('errors.exportUnsupported', { format: format.toUpperCase() }) });
       } catch (e) {
-        set({ err: `Could not export ${format.toUpperCase()}: ${e instanceof Error ? e.message : String(e)}` });
+        set({
+          err: i18n.t('errors.exportFailed', {
+            format: format.toUpperCase(),
+            reason: e instanceof Error ? e.message : String(e),
+          }),
+        });
       }
     },
   };

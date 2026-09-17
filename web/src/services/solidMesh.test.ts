@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import type * as THREEType from 'three';
 import type { ComponentNode } from '../engine/openRocketEngine';
-import { solidForNode, discSolid, makeWatertight, countBoundaryEdges } from './solidMesh';
+import { solidForNode, discSolid, makeWatertight, countBoundaryEdges, isSimplePolygon } from './solidMesh';
 
 /** Count open (hole) and non-manifold edges of one geometry, by vertex position. */
 function quality(g: THREEType.BufferGeometry): { hole: number; nonManifold: number } {
@@ -267,5 +267,121 @@ describe('solid mesher (per component)', () => {
         solidForNode({ type: 'nosecone', shape: 'ogive', length: 0.1, aftRadius: 0.013 } as unknown as ComponentNode)!,
       ),
     ).toBeLessThan(1e-6);
+  });
+});
+
+/**
+ * Two ways the exporter used to hand out a solid it should not have.
+ */
+const geom = (pos: number[], idx: number[]) => {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  return g;
+};
+
+describe('makeWatertight keeps its contract or fails', () => {
+  it('still caps an ordinary open loop', () => {
+    // One triangle: a closed three-edge boundary, capped as it always was.
+    expect(countBoundaryEdges(makeWatertight(geom([0, 0, 0, 1, 0, 0, 0, 1, 0], [0, 1, 2])))).toBe(0);
+  });
+
+  it('caps both loops of a mesh where two meet at one vertex', () => {
+    // The multimap case the file already documents. Unconditional: what comes
+    // back is watertight, full stop.
+    const bowTie = geom([0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0, 0, 0, -1, 0], [0, 1, 2, 0, 3, 4]);
+    expect(countBoundaryEdges(bowTie)).toBe(6);
+    expect(countBoundaryEdges(makeWatertight(bowTie))).toBe(0);
+  });
+
+  it('throws on a non-manifold edge rather than returning it as watertight', () => {
+    // Three triangles sharing ONE edge. Fan-capping cannot fix an edge used
+    // three times, and the walk never sees it (it is not a BOUNDARY edge, it is
+    // an over-used one) — so the old code capped what it could and returned a
+    // geometry with seven bad edges, which meshExport then labelled watertight
+    // and wrote into an STL.
+    const fan = geom([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 1], [0, 1, 2, 0, 1, 3, 0, 1, 4]);
+    expect(countBoundaryEdges(fan)).toBe(7);
+    expect(() => makeWatertight(fan)).toThrow(/open edge/i);
+  });
+
+  it('throws on a stray flap hanging off a closed strip', () => {
+    const flap = geom([0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 2, 2, 0, 3, 2, 0], [0, 1, 2, 1, 3, 2, 3, 4, 5]);
+    expect(() => makeWatertight(flap)).toThrow(/open edge/i);
+  });
+});
+
+describe('isSimplePolygon', () => {
+  it('accepts an ordinary fin outline', () => {
+    expect(
+      isSimplePolygon([
+        [0, 0],
+        [0.02, 0.03],
+        [0.05, 0.03],
+        [0.06, 0],
+      ]),
+    ).toBe(true);
+  });
+
+  it('rejects a bow tie — the shape FreeformFinEditor lets you drag into', () => {
+    expect(
+      isSimplePolygon([
+        [0, 0],
+        [1, 1],
+        [1, 0],
+        [0, 1],
+      ]),
+    ).toBe(false);
+  });
+
+  it('rejects an outline whose closing edge crosses an earlier one', () => {
+    expect(
+      isSimplePolygon([
+        [0, 0],
+        [2, 0],
+        [1, 1],
+        [1, -1],
+      ]),
+    ).toBe(false);
+  });
+
+  it('needs three points to be a polygon at all', () => {
+    expect(isSimplePolygon([])).toBe(false);
+    expect(
+      isSimplePolygon([
+        [0, 0],
+        [1, 1],
+      ]),
+    ).toBe(false);
+  });
+});
+
+describe('a self-crossing freeform fin is not exportable', () => {
+  // Root chord = last.x − first.x = 0.06, so this clears the existing
+  // degenerate-geometry gate and reaches the crossing check — the point being
+  // tested. (An earlier draft of this fixture had first.x === last.x, making
+  // the root 0, so it was rejected for being degenerate and proved nothing.)
+  const crossed = [
+    [0, 0],
+    [0.06, 0.04],
+    [0.02, 0.04],
+    [0.06, 0],
+  ];
+  const straight = [
+    [0, 0],
+    [0.02, 0.04],
+    [0.06, 0.04],
+    [0.06, 0],
+  ];
+  const fin = (points: number[][]) =>
+    ({ type: 'freeformfinset', thickness: 0.003, points }) as unknown as ComponentNode;
+
+  it('returns null rather than extruding a solid whose faces pass through each other', () => {
+    expect(isSimplePolygon(crossed as [number, number][])).toBe(false);
+    expect(solidForNode(fin(crossed))).toBeNull();
+  });
+
+  it('still exports the same outline uncrossed', () => {
+    expect(solidForNode(fin(straight))).not.toBeNull();
   });
 });

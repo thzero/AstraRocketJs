@@ -1,4 +1,4 @@
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect, type Page } from '@playwright/test';
 
 /** Mirrors `KEY` in src/services/settings.ts. */
 const SETTINGS_KEY = 'astrarrocketjs:settings:v1';
@@ -60,3 +60,64 @@ export const test = base.extend<{ wip: WipState }>({
 
 export { expect };
 export type { Page } from '@playwright/test';
+
+/**
+ * A diagnostic that does NOT print on a green run.
+ *
+ * `console.log` in a spec lands in GitHub's annotation stream every time the
+ * suite passes (playwright.config.ts uses the `github` reporter under CI), so
+ * two dozen of them turned every successful run into a wall of numbers. A
+ * Playwright annotation carries the same information into the report, where it
+ * is there when you are reading a failure and invisible when you are not.
+ */
+export const note = (...parts: unknown[]): void => {
+  test.info().annotations.push({
+    type: 'note',
+    description: parts.map((p) => (typeof p === 'string' ? p : JSON.stringify(p))).join(' '),
+  });
+};
+
+/**
+ * Wait for the DEBOUNCED autosave to reach IndexedDB, rather than guessing.
+ *
+ * Several specs slept 700 ms before `page.reload()` to cover a 500 ms debounce
+ * plus an async IndexedDB write. That is a guess at two variable delays, and on
+ * a loaded machine it loses — which is how `recovery.spec.ts` failed twice in
+ * one afternoon while passing in isolation. This polls the actual store, so it
+ * returns as soon as the write lands and fails loudly if it never does.
+ *
+ * `needle` is matched against every stored value; `atLeast` counts occurrences,
+ * so "two simulations" can be expressed as a per-simulation marker seen twice.
+ */
+export async function autosaved(page: Page, needle: string, atLeast = 1): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          (n) =>
+            new Promise<number>((resolve) => {
+              const req = indexedDB.open('astrarrocketjs');
+              req.onerror = () => resolve(-1);
+              req.onsuccess = () => {
+                let tx;
+                try {
+                  tx = req.result.transaction('kv', 'readonly');
+                } catch {
+                  return resolve(-1); // store not created yet
+                }
+                const all = tx.objectStore('kv').getAll();
+                all.onerror = () => resolve(-1);
+                all.onsuccess = () =>
+                  resolve(
+                    all.result
+                      .filter((v): v is string => typeof v === 'string')
+                      .reduce((sum, v) => sum + v.split(n).length - 1, 0),
+                  );
+              };
+            }),
+          needle,
+        ),
+      { timeout: 15_000, message: `autosave never wrote ${atLeast}x ${needle}` },
+    )
+    .toBeGreaterThanOrEqual(atLeast);
+}

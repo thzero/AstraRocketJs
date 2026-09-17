@@ -111,4 +111,66 @@ test.describe('accessibility', () => {
     await page.getByRole('menuitem', { name: /^Import$/ }).click();
     await expect(page.getByRole('menuitem', { name: 'Import OpenRocket (.ork)' })).toBeVisible();
   });
+
+  /**
+   * Both hand-rolled chart families carried their numbers only on hover:
+   * `hoverM` / `hoverT` had exactly one setter each, `onPointerMove` on a plain
+   * `<div>`. So every value in the drag curves and the flight charts was
+   * unreachable without a mouse.
+   */
+  test('the aero chart crosshair can be driven from the keyboard', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Aero', exact: true }).click();
+
+    const chart = page.getByRole('group', { name: /arrow keys to move the crosshair/i }).first();
+    await expect(chart).toBeVisible();
+
+    // Focusing alone plants the crosshair — there is something to read at once.
+    await chart.focus();
+    // Attribute match, not a class selector: the Tailwind class contains a
+    // slash, which a CSS selector would need escaped.
+    const crosshair = () => page.locator('svg line[class*="stroke-slate-300"]');
+    // Count, not visibility: a 1px SVG <line> has no meaningful bounding box,
+    // so Playwright reports it hidden even while it is drawn and positioned.
+    // One per chart card — hoverM is shared, so all three track together.
+    expect(await crosshair().count()).toBeGreaterThan(0);
+
+    // Arrowing moves it: the line's x must change.
+    const xAt = async () => crosshair().first().getAttribute('x1');
+    const start = await xAt();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    expect(await xAt()).not.toBe(start);
+
+    // Home and End reach the ends, and Escape puts it away.
+    await page.keyboard.press('Home');
+    const home = await xAt();
+    await page.keyboard.press('End');
+    expect(await xAt()).not.toBe(home);
+    await page.keyboard.press('Escape');
+    await expect(crosshair()).toHaveCount(0);
+  });
+
+  test('the flight chart crosshair can be driven from the keyboard', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: /Run flight simulation/ }).click();
+    await page.getByRole('button', { name: 'Flight', exact: true }).click({ timeout: 30_000 });
+
+    const charts = page.getByRole('group', { name: /arrow keys to move the crosshair/i }).first();
+    await expect(charts).toBeVisible();
+
+    // The time readout is a live region, so its text is what a reader hears.
+    const readout = page.locator('[aria-live="polite"]').filter({ hasText: /s$/ }).first();
+    await charts.focus();
+    const mid = await readout.textContent();
+
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowLeft');
+    expect(await readout.textContent()).not.toBe(mid);
+
+    await page.keyboard.press('Home');
+    const atStart = await readout.textContent();
+    await page.keyboard.press('End');
+    expect(await readout.textContent()).not.toBe(atStart);
+  });
 });

@@ -134,14 +134,4 @@ describe('unload journal', () => {
     const journal = JSON.parse(localStorage.getItem(UNLOAD_KEY)!) as { w: Workspace };
     expect(journal.w.sims[0]!.result).toBeNull();
   });
-
-  it('clear() removes both the journal and the stored design', async () => {
-    await store.save(ws('gone'));
-    await store.load();
-    store.saveSync(ws('gone'));
-
-    await store.clear();
-    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
-    expect(await lib.list()).toEqual([]);
-  });
 });

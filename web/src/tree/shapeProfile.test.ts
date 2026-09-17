@@ -9,6 +9,11 @@ import {
 } from './shapeProfile';
 
 describe('shape parameter metadata', () => {
+  // Transition.Shape's own defaultParameter() overrides: OGIVE 1.0 ("Tangent
+  // ogive by default", Transition.java:1039-1041), POWER 0.5 (:1104-1106),
+  // PARABOLIC 1.0 (:1150-1152); the shapes that do not use the parameter
+  // report 0. HAACK's ceiling is maxParameter() = 1.0/3.0 ("Range 0...1/3",
+  // :1187-1189) — the LV-Haack end of the series.
   it('defaults per shape (ogive/parabolic 1, power 0.5, rest 0)', () => {
     expect(shapeParamDefault('ogive')).toBe(1);
     expect(shapeParamDefault('parabolic')).toBe(1);

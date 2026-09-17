@@ -29,7 +29,6 @@ export interface Workspace {
 export interface WorkspaceStore {
   load(): Promise<Workspace | null>;
   save(w: Workspace): Promise<void>;
-  clear(): Promise<void>;
   /** Last-resort synchronous write for page unload, where an async store
    *  cannot finish. Optional: a store with no synchronous path omits it. */
   saveSync?(w: Workspace): void;
@@ -161,12 +160,6 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     // failed write (storage full) instead of silently dropping the user's work.
     const name = (await this.nameOf(this.activeId)) ?? nameFor(w);
     if (!(await lib.write(this.activeId, name, leanW))) throw new Error('storage-full');
-  }
-
-  async clear(): Promise<void> {
-    clearJournal();
-    if (this.activeId) await getDesignLibrary().remove(this.activeId);
-    this.activeId = null;
   }
 
   /** Point the store at a different design (the library owns the switch). */

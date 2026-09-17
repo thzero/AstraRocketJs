@@ -74,6 +74,11 @@ export function axialLength(n: ComponentNode): number {
     return num(n, 'rootChord', 0.05);
   }
   if (isAssembly(n.type)) return assemblyChainLength(n);
+  // NOTE: `packedLength` is not reachable today — orkImport reads
+  // <packedlength> straight into `length` (orkImport.ts:441,464,479,487) and
+  // nothing writes the key. Kept because TODO.md plans to wire packed
+  // dimensions properly, which needs a kernel change; until then this is the
+  // 0.025 default in practice.
   return num(n, 'length', num(n, 'packedLength', 0.025));
 }
 
@@ -85,6 +90,12 @@ export function startFromPosition(pos: ComponentPosition, childLen: number, pLen
       return pLen - childLen + pos.offset;
     case 'absolute':
       return pos.offset;
+    // 'after' is resolved to 'top' on load (resolveFilePositions) because it is
+    // relative to a SIBLING, which this function is not given. Reaching here
+    // means an unresolved tree; the offset is the kernel's zero, so it lands at
+    // the parent's top — the same answer as before, now deliberate rather than
+    // a silent fall-through to `default`.
+    case 'after':
     case 'top':
     default:
       return pos.offset;
@@ -92,22 +103,38 @@ export function startFromPosition(pos: ComponentPosition, childLen: number, pLen
 }
 
 /**
- * Rewrites every 'absolute' axial position (rocket-origin frame — only file
- * importers produce it) into the equivalent parent-relative 'top' offset.
+ * Rewrites every axial position the EDITOR cannot work in — 'absolute'
+ * (rocket-origin frame) and 'after' (previous-sibling frame), both of which
+ * only file importers produce — into the equivalent parent-relative 'top'
+ * offset.
  * The UI edits positions in the parent frame only: leaving 'absolute' in the
  * tree makes the schematic/property panel (parent frame) disagree with the
  * engine (rocket frame), so geometry drawn ≠ geometry simulated.
  */
-export function resolveAbsolutePositions(tree: RocketTree): RocketTree {
+export function resolveFilePositions(tree: RocketTree): RocketTree {
   let changed = false;
   const chainTypes = new Set(['nosecone', 'bodytube', 'transition']);
 
   const fixChildren = (parent: ComponentNode, pStart: number, pLen: number): ComponentNode => {
     if (!parent.children?.length) return parent;
+    // Aft end of the previous sibling, in the PARENT's frame — what 'after' means.
+    let prevEndRel = 0;
     const children = parent.children.map((child) => {
       let next = child;
       const pos = (child.position ?? { method: 'top', offset: 0 }) as ComponentPosition;
-      if (pos.method === 'absolute') {
+      if (pos.method === 'after') {
+        changed = true;
+        // AxialMethod.AFTER: the aft end of the previous sibling, or 0 for the
+        // first child, and the stored offset is ignored because the kernel
+        // forces it to zero (RocketComponent.setAfter:1467-1491). We use the
+        // previous sibling rather than the previous ACTIVE one — configuration
+        // activity is not modelled here, and an inactive sibling is rare.
+        const resolved = prevEndRel;
+        next = {
+          ...child,
+          position: { method: 'top', offset: resolved, ork: { method: 'after', offset: pos.offset, resolved } },
+        } as ComponentNode;
+      } else if (pos.method === 'absolute') {
         changed = true;
         const resolved = pos.offset - pStart;
         // Keep what the file said so the exporter can write it back unchanged.
@@ -122,8 +149,9 @@ export function resolveAbsolutePositions(tree: RocketTree): RocketTree {
       }
       const cLen = axialLength(next);
       const nextPos = (next.position ?? { method: 'top', offset: 0 }) as ComponentPosition;
-      const start = pStart + startFromPosition(nextPos, cLen, pLen);
-      return fixChildren(next, start, cLen);
+      const relStart = startFromPosition(nextPos, cLen, pLen);
+      prevEndRel = relStart + cLen;
+      return fixChildren(next, pStart + relStart, cLen);
     });
     return { ...parent, children } as ComponentNode;
   };

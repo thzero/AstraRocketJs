@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { FlightResult, FlightSeries } from '../../engine/openRocketEngine';
 import { fmtNum } from '../../i18n/format';
@@ -199,6 +199,24 @@ export function FlightChart({ result }: { result: FlightResult }) {
   };
   const centerT = () => hoverT ?? (t0 + t1) / 2;
 
+  /** Arrow-key crosshair. Time is continuous here, so it steps by span. */
+  const onCrosshairKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    const span = t1 - t0;
+    if (!(span > 0)) return;
+    const step = (e.shiftKey ? 10 : 1) * (span / 100);
+    let next: number;
+    if (e.key === 'ArrowRight') next = (hoverT ?? t0) + step;
+    else if (e.key === 'ArrowLeft') next = (hoverT ?? t1) - step;
+    else if (e.key === 'Home') next = t0;
+    else if (e.key === 'End') next = t1;
+    else if (e.key === 'Escape') {
+      setHoverT(null);
+      return;
+    } else return;
+    e.preventDefault(); // arrows would otherwise scroll the pane
+    setHoverT(Math.max(t0, Math.min(t1, next)));
+  };
+
   // Ctrl/pinch-wheel zooms about the cursor (plain wheel still scrolls the
   // panel list). Native non-passive listener so we can preventDefault.
   useEffect(() => {
@@ -288,7 +306,7 @@ export function FlightChart({ result }: { result: FlightResult }) {
       <div className="flex items-center justify-between gap-2 px-3 pt-3">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('flight.title')}</h2>
         <div className="flex items-center gap-2">
-          <span className="text-xs tabular-nums text-slate-400">
+          <span className="text-xs tabular-nums text-slate-400" aria-live="polite">
             {t('flight.time')} {fmtNum(hoverT ?? maxT, hoverT != null ? 2 : 1)} s
           </span>
           <div className="flex items-center gap-1">
@@ -367,13 +385,26 @@ export function FlightChart({ result }: { result: FlightResult }) {
           );
         })}
       </div>
+      {/*
+        The crosshair was pointer-only: hoverT's single setter was onPointerMove
+        on a plain div, so every number these charts carry was unreachable
+        without a mouse. Focusable, with the arrows stepping it — Shift for a
+        coarse step, Home/End for the ends, Escape to drop it. The readout above
+        is a live region, so the value is announced as it moves.
+      */}
       <div
         ref={hostRef}
-        className={`min-h-0 flex-1 overflow-y-auto px-3 pb-3 ${zoomed ? 'cursor-grab' : ''}`}
+        tabIndex={0}
+        role="group"
+        aria-label={t('flight.crosshairHint')}
+        className={`min-h-0 flex-1 overflow-y-auto px-3 pb-3 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-inset focus-visible:outline-none ${zoomed ? 'cursor-grab' : ''}`}
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
+        onFocus={() => setHoverT((h) => h ?? (t0 + t1) / 2)}
+        onBlur={() => setHoverT(null)}
+        onKeyDown={onCrosshairKey}
         onPointerLeave={() => {
           if (!drag.current) setHoverT(null);
         }}

@@ -1,4 +1,4 @@
-import { test, expect, type Page } from './base';
+import { test, expect, type Page, note } from './base';
 
 const openAero = async (page: Page) => {
   await page.getByRole('button', { name: 'Aero', exact: true }).click();
@@ -22,12 +22,25 @@ const rollRow = (page: Page) =>
     return r[1]?.slice(1).map(Number);
   });
 
-const setField = async (page: Page, label: string, value: string) => {
+/**
+ * Set one flight-condition field and wait for the sweep it triggers.
+ *
+ * `settled` is the reading the caller is about to assert on: this polls until
+ * it CHANGES, which is the only honest signal that the re-run finished. It
+ * used to sleep 500 ms and hope — inside this shared helper, so every
+ * assertion in the file rode on that guess.
+ */
+const setField = async (page: Page, label: string, value: string, settled?: () => Promise<unknown>) => {
   // By ROLE: every one of these number inputs sits beside a unit chip, and the
   // chip's accessible name is built from the field's own ("Wind direction
   // unit"), so a bare getByLabel('Wind dir') matches both.
+  const before = settled ? JSON.stringify(await settled()) : null;
   await page.getByRole('spinbutton', { name: label }).fill(value);
-  await page.waitForTimeout(500); // the sweep re-runs
+  if (settled) {
+    await expect
+      .poll(async () => JSON.stringify(await settled()), { timeout: 15_000, message: `${label} never re-swept` })
+      .not.toBe(before);
+  }
 };
 
 /**
@@ -42,9 +55,9 @@ test.describe('aero flight conditions', () => {
     await openAero(page);
 
     const at0 = await cp(page);
-    await setField(page, 'AoA', '5');
+    await setField(page, 'AoA', '5', () => cp(page));
     const at5 = await cp(page);
-    console.log('CP at AoA 0 =', at0, '| at AoA 5 =', at5);
+    note('CP at AoA 0 =', at0, '| at AoA 5 =', at5);
     expect(at5).not.toBeCloseTo(at0, 1);
   });
 
@@ -60,7 +73,7 @@ test.describe('aero flight conditions', () => {
 
     await setField(page, 'Roll rate', '20');
     const rolling = await rollRow(page);
-    console.log('roll [forcing, damping] still', still, '-> rolling', rolling);
+    note('roll [forcing, damping] still', still, '-> rolling', rolling);
     expect(rolling![1]).toBeGreaterThan(0);
     expect(rolling![0]).toBeCloseTo(still![0]!, 3); // forcing is the cant, unchanged
   });
@@ -80,18 +93,17 @@ test.describe('aero flight conditions', () => {
       await setField(page, 'Wind dir', theta);
       seen.push(await cp(page));
     }
-    console.log('CP across wind direction:', seen);
+    note('CP across wind direction:', seen);
     expect(Math.max(...seen) - Math.min(...seen)).toBeGreaterThan(1); // it really varies
 
+    // Worst writes the direction it found back into the field, so that is the
+    // observable — not a 500 ms guess at the sweep behind it.
+    const dir = page.getByRole('spinbutton', { name: 'Wind dir' });
+    const beforeWorst = await dir.inputValue();
     await page.getByRole('button', { name: 'Worst' }).click();
-    await page.waitForTimeout(500);
+    await expect.poll(() => dir.inputValue(), { timeout: 15_000 }).not.toBe(beforeWorst);
     const worst = await cp(page);
-    console.log(
-      'worst wind dir =',
-      await page.getByRole('spinbutton', { name: 'Wind dir' }).inputValue(),
-      '-> CP',
-      worst,
-    );
+    note('worst wind dir =', await page.getByRole('spinbutton', { name: 'Wind dir' }).inputValue(), '-> CP', worst);
     // Furthest forward is the least stable, which is the point of the button.
     expect(worst).toBeLessThanOrEqual(Math.min(...seen) + 0.05);
   });

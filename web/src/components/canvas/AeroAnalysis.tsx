@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive } from '../../state/store';
 import { useSettings } from '../../state/SettingsProvider';
@@ -942,8 +942,9 @@ function ChartCard({
   unit: string;
   digits: number;
   hoverM: number | null;
-  setHoverM: (m: number | null) => void;
+  setHoverM: (m: number | null | ((prev: number | null) => number | null)) => void;
 }) {
+  const { t } = useTranslation();
   const hostRef = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(520);
   useEffect(() => {
@@ -953,6 +954,30 @@ function ChartCard({
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  /**
+   * Arrow-key crosshair over the Mach GRID.
+   *
+   * Snaps to computed samples rather than interpolating a free position, which
+   * is the same rule the Mach slider follows — a reading between samples is not
+   * one the sweep produced.
+   */
+  const onCrosshairKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!machs.length) return;
+    const cur = hoverM ?? machs[0]!;
+    let i = machs.reduce((best, m, k) => (Math.abs(m - cur) < Math.abs(machs[best]! - cur) ? k : best), 0);
+    const jump = e.shiftKey ? 10 : 1;
+    if (e.key === 'ArrowRight') i = Math.min(machs.length - 1, i + jump);
+    else if (e.key === 'ArrowLeft') i = Math.max(0, i - jump);
+    else if (e.key === 'Home') i = 0;
+    else if (e.key === 'End') i = machs.length - 1;
+    else if (e.key === 'Escape') {
+      setHoverM(null);
+      return;
+    } else return;
+    e.preventDefault();
+    setHoverM(machs[i]!);
+  };
 
   const iw = w - PAD_L - PAD_R,
     ih = CHART_H - PAD_T - PAD_B;
@@ -1048,7 +1073,24 @@ function ChartCard({
           );
         })}
       </div>
-      <div ref={hostRef} onPointerMove={onMove} onPointerLeave={() => setHoverM(null)}>
+      {/*
+        Keyboard crosshair. setHoverM's only caller was onPointerMove on a plain
+        div, so the per-Mach values these curves carry could not be read without
+        a mouse. The arrows walk the Mach grid sample by sample (Shift for ten),
+        Home/End go to the ends, Escape drops the crosshair.
+      */}
+      <div
+        ref={hostRef}
+        tabIndex={0}
+        role="group"
+        aria-label={t('aero.crosshairHint')}
+        className="focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-inset focus-visible:outline-none"
+        onPointerMove={onMove}
+        onPointerLeave={() => setHoverM(null)}
+        onFocus={() => setHoverM((m) => m ?? machs[Math.floor(machs.length / 2)] ?? null)}
+        onBlur={() => setHoverM(null)}
+        onKeyDown={onCrosshairKey}
+      >
         <svg viewBox={`0 0 ${w} ${CHART_H}`} width="100%" height={CHART_H} className="block">
           {[0, 1, 2].map((i) => {
             const yv = yMin + (yMax - yMin) * (i / 2);

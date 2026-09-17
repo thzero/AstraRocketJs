@@ -14,7 +14,12 @@ export type Pt = [number, number];
 const M_TO_MM = 1000;
 
 /** A fin's planform outline (mm), root along the bottom, tab folded in below. */
-export function finPlanformMm(node: ComponentNode): { pts: Pt[]; count: number } | null {
+// Not `| null`: there is no input this returns null for — every branch below
+// produces an outline, falling back to the trapezoid defaults. The nullable
+// return invited dead defensive code at the call site, which is exactly what it
+// got. Tube fins, the one fin type with no planform, are filtered out before
+// this is reached (isPlanarFinSet).
+export function finPlanformMm(node: ComponentNode): { pts: Pt[]; count: number } {
   const ff = freeformPoints(node);
   const root = node.type === 'freeformfinset' && ff.length ? freeformRootChord(ff) : num(node, 'rootChord', 0.05);
   const height =

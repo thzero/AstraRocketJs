@@ -1,4 +1,4 @@
-import { test, expect } from './base';
+import { test, expect, autosaved } from './base';
 
 /**
  * Behavioral smoke suite — asserts on DOM/behaviour, not pixels, so an
@@ -87,9 +87,10 @@ test.describe('AstraRocketJs smoke', () => {
     // count once there's more than one sim.
     await expect(page.getByText('(2)')).toBeVisible();
 
-    // Give the debounced autosave a beat, then reload — the beforeunload flush
-    // should also cover this, but the wait keeps the test from racing it.
-    await page.waitForTimeout(700);
+    // Wait for the autosave to actually land, rather than guessing at the
+    // debounce plus the IndexedDB write. One "launch" block per simulation, so
+    // two of them means the duplicate is persisted.
+    await autosaved(page, '"launch":', 2);
     await page.reload();
 
     await expect(page.getByText('(2)')).toBeVisible();

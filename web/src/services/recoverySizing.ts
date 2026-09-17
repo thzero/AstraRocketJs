@@ -21,10 +21,10 @@
  */
 
 /** Standard gravity, m/s^2 (CODATA / the kernel's own g0). */
-export const G0 = 9.80665;
+const G0 = 9.80665;
 
 /** Feet per second in m/s — the bands are quoted in ft/s, the code is SI. */
-export const FT_S = 0.3048;
+const FT_S = 0.3048;
 
 /** Specific gas constant of dry air, J/(kg.K) — the kernel's own value. */
 const R_AIR = 287.053;

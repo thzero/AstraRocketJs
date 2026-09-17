@@ -76,12 +76,6 @@ describe('LibraryWorkspaceStore', () => {
     expect(w!.sims[0]!.result).toBeNull(); // recomputable → not persisted
   });
 
-  it('clear() removes the saved workspace', async () => {
-    await store.save(workspace());
-    await store.clear();
-    expect(await store.load()).toBeNull();
-  });
-
   /**
    * A design that is THERE but unreadable is not the same as no design.
    *

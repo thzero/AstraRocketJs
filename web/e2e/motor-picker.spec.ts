@@ -1,4 +1,4 @@
-import { test, expect, type Page } from './base';
+import { test, expect, type Page, autosaved } from './base';
 
 /**
  * Motor-picker behavioral suite. Every flow here runs against the default
@@ -138,8 +138,9 @@ test('the motor card exposes an ignition event that persists across reloads', as
   await ignition.selectOption('launch');
   await expect(page.getByLabel('Ignition delay (s)')).toBeVisible();
 
-  // The setting rides on the simulation, so the workspace autosave restores it.
-  await page.waitForTimeout(700);
+  // The setting rides on the simulation, so the workspace autosave restores it
+  // — once it has actually been written, which is what this waits for.
+  await autosaved(page, '"ignitionEvent":"launch"');
   await page.reload();
   await expect(page.getByLabel('Ignition', { exact: true })).toHaveValue('launch');
 });

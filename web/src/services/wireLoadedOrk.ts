@@ -1,7 +1,7 @@
 import { C6 } from '../engine/api';
 import type { RocketTree } from '../engine/openRocketEngine';
 import { findMountId } from './treeEdit';
-import { resolveAbsolutePositions } from '../tree/position';
+import { resolveFilePositions } from '../tree/position';
 import { reconcileMounts } from './mountMotors';
 import { newSimulation, type Simulation } from './simulations';
 import type { LoadedOrk, MountMotor } from './loadOrk';
@@ -34,7 +34,7 @@ export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions):
   // geometry disagreeing with simulated geometry. Resolve it to the equivalent
   // parent-relative offset; the original is preserved on the position so
   // `orkExport` still round-trips the file byte-for-byte.
-  const tree = resolveAbsolutePositions(res.tree);
+  const tree = resolveFilePositions(res.tree);
   const primary = findMountId(tree);
   const extra = { ...res.motorSpecs };
   const primaryMount = primary ? extra[primary] : undefined;

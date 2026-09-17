@@ -30,6 +30,7 @@ function stub() {
     calls,
     api: {
       buildRocket: rec('buildRocket', 1),
+      reset: rec('reset', undefined),
       setMotorById: rec('setMotorById', undefined),
       getAeroSweep: rec('getAeroSweep', empty),
       simulateJson: rec('simulateJson', JSON.stringify({ summary: {}, branches: [] })),
@@ -172,5 +173,50 @@ describe('the engine must be initialised', () => {
     __setEngineForTests(null);
     expect(() => design()).toThrow(/not initialised/);
     vi.restoreAllMocks();
+  });
+});
+
+describe('assertFiniteCurve — the curve is read in lockstep', () => {
+  it('rejects arrays of differing length before the kernel indexes off the end', () => {
+    expect(() => design().setMotorById('mount', motor({ masses: [0.024, 0.018] }))).toThrow(/C6.*length/i);
+    expect(() => design().setMotorById('mount', motor({ thrusts: [0, 6] }))).toThrow(/C6.*length/i);
+    expect(() => design().setMotorById('mount', motor({ times: [0, 1, 2, 3] }))).toThrow(/C6.*length/i);
+  });
+
+  it('rejects times that run backwards, which would subtract impulse', () => {
+    expect(() => design().setMotorById('mount', motor({ times: [0, 2, 1] }))).toThrow(/C6.*backwards/i);
+  });
+
+  it('allows a repeated time, which is a legitimate step change in thrust', () => {
+    expect(() => design().setMotorById('mount', motor({ times: [0, 1, 1] }))).not.toThrow();
+  });
+});
+
+describe('a design does not outlive the engine that built it', () => {
+  it('refuses every accessor by name once the engine has been reset', async () => {
+    const d = design();
+    expect(() => d.staticInfo()).not.toThrow(); // fine while its generation stands
+
+    const { resetEngine, StaleDesignError } = await import('./openRocketEngine');
+    resetEngine();
+
+    // Typed and named, before the call crosses into TeaVM — the kernel would
+    // also reject it, but only as an opaque message from inside the bundle.
+    expect(() => d.staticInfo()).toThrow(StaleDesignError);
+    expect(() => d.componentMasses()).toThrow(/reset/i);
+    expect(() => d.aeroSweep()).toThrow(/reset/i);
+    expect(() => d.setMotorById('mount', motor())).toThrow(/reset/i);
+  });
+
+  it('leaves a design built AFTER the reset working', async () => {
+    const { resetEngine } = await import('./openRocketEngine');
+    resetEngine();
+    expect(() => design().staticInfo()).not.toThrow();
+  });
+
+  it('treats swapping the engine as a reset, since the handles mean nothing to it', () => {
+    const d = design();
+    __setEngineForTests({ ...s.api }); // a different engine object
+    expect(() => d.staticInfo()).toThrow(/reset/i);
   });
 });

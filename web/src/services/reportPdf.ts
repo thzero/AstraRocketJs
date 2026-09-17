@@ -489,7 +489,6 @@ export async function downloadReportPdf(
     };
     for (const n of finSets) {
       const f = finPlanformMm(n);
-      if (!f) continue;
       template(
         `${(n.name as string) || t('report.finSet')} × ${f.count}`,
         f.pts,

@@ -12,7 +12,7 @@ export function builtinsForType(type: MaterialType): Material[] {
 }
 
 /** The user's custom materials from the active store. */
-export function loadCustom(): Promise<Material[]> {
+function loadCustom(): Promise<Material[]> {
   return getMaterialStore().list();
 }
 

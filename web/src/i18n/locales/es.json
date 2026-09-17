@@ -14,6 +14,13 @@
     "discard": "Descartar",
     "close": "Cerrar"
   },
+  "errors": {
+    "openOrk": "No se pudo abrir el .ork: {{reason}}",
+    "saveOrk": "No se pudo guardar el .ork: {{reason}}",
+    "exportRasaero": "No se pudo exportar a RASAero: {{reason}}",
+    "exportUnsupported": "Este componente no se puede exportar como {{format}}.",
+    "exportFailed": "No se pudo exportar {{format}}: {{reason}}"
+  },
   "report": {
     "title": "Diseño del cohete",
     "noDesign": "No hay un diseño válido para exportar.",
@@ -414,7 +421,8 @@
     "zoomOut": "Alejar",
     "zoomReset": "Restablecer zoom",
     "stages": "Etapas",
-    "stage": "Etapa"
+    "stage": "Etapa",
+    "crosshairHint": "Gráficos de vuelo. Enfoca y usa las flechas para mover la cruz; Mayús para un paso mayor, Inicio y Fin para los extremos, Escape para quitarla."
   },
   "pathExport": {
     "open": "Exportar trayectoria de vuelo (KML / GPX / CSV)",
@@ -534,7 +542,8 @@
     "other": "Otros",
     "pctBody": "% cuerpo",
     "supersonicNote": "Barrowman extendido — aproximado por encima de ~Mach 1.5.",
-    "unavailable": "Construye un cohete válido para ver su resistencia."
+    "unavailable": "Construye un cohete válido para ver su resistencia.",
+    "crosshairHint": "Curvas de resistencia. Enfoca y usa las flechas para mover la cruz; Mayús para un paso mayor, Inicio y Fin para los extremos, Escape para quitarla."
   },
   "banner": {
     "loaded": "Diseño cargado (.ork)",

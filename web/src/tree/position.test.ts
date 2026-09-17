@@ -6,7 +6,7 @@ import {
   freeformRootChord,
   normalizeFreeformPoints,
   startFromPosition,
-  resolveAbsolutePositions,
+  resolveFilePositions,
 } from './position';
 
 describe('axialLength', () => {
@@ -58,7 +58,7 @@ describe('startFromPosition', () => {
   });
 });
 
-describe('resolveAbsolutePositions', () => {
+describe('resolveFilePositions', () => {
   it('rewrites an absolute child into the equivalent parent-relative top offset', () => {
     const tree: RocketTree = {
       components: [
@@ -77,7 +77,7 @@ describe('resolveAbsolutePositions', () => {
         },
       ],
     };
-    const out = resolveAbsolutePositions(tree);
+    const out = resolveFilePositions(tree);
     const it = out.components[0]!.children![1]!.children![0]!;
     // bodytube starts at x=0.1 (after the 0.1 nose), so 0.15 absolute ⇒ 0.05 from the tube's fore edge
     expect(it.position!.method).toBe('top');
@@ -101,7 +101,7 @@ describe('resolveAbsolutePositions', () => {
         },
       ],
     };
-    expect(resolveAbsolutePositions(tree)).toBe(tree);
+    expect(resolveFilePositions(tree)).toBe(tree);
   });
 });
 
@@ -217,5 +217,81 @@ describe('normalizeFreeformPoints', () => {
     expect(got.map(([x]) => x)).toEqual([expect.closeTo(0, 12), expect.closeTo(0.03, 12), expect.closeTo(0.06, 12)]);
     expect(got.map(([, y]) => y)).toEqual([0, 0.02, 0]);
     expect(freeformPoints({ type: 'trapezoidfinset', points: [[1, 1]] } as never)).toEqual([]);
+  });
+});
+
+/**
+ * AxialMethod.AFTER — the method the importer used to throw away.
+ *
+ * `orkImport` allowed only top/middle/bottom/absolute, so `method="after"`
+ * returned undefined and the part lost its position entirely, defaulting to the
+ * parent's top. A coupler seated after an inner tube jumped to the front of the
+ * body tube.
+ *
+ * The kernel's meaning (RocketComponent.setAfter:1459-1491): start at the aft
+ * end of the previous sibling, offset forced to 0. NOT the `outerLength +
+ * offset` the AxialMethod enum's own getAsPosition suggests — setAfter returns
+ * before that code is reached.
+ */
+describe('resolveFilePositions: after', () => {
+  const tree = (): RocketTree =>
+    ({
+      components: [
+        {
+          id: 's1',
+          type: 'stage',
+          children: [
+            {
+              id: 'body',
+              type: 'bodytube',
+              length: 0.4,
+              children: [
+                { id: 'a', type: 'innertube', length: 0.07, position: { method: 'top', offset: 0.05 } },
+                { id: 'b', type: 'tubecoupler', length: 0.03, position: { method: 'after', offset: 0 } },
+                { id: 'c', type: 'engineblock', length: 0.005, position: { method: 'after', offset: 0 } },
+              ],
+            },
+          ],
+        },
+      ],
+    }) as unknown as RocketTree;
+
+  const kids = (t: RocketTree) => t.components[0]!.children![0]!.children!;
+
+  it('seats an after-positioned part at the previous sibling’s aft end', () => {
+    const out = kids(resolveFilePositions(tree()));
+    // 'a' runs 0.05 → 0.12, so 'b' starts at 0.12 — not at 0, which is where
+    // the dropped position left it.
+    const p = out[1]!.position as { method: string; offset: number };
+    expect(p.method).toBe('top');
+    expect(p.offset).toBeCloseTo(0.12, 9);
+  });
+
+  it('chains, so a second after-part follows the first', () => {
+    const out = kids(resolveFilePositions(tree()));
+    expect((out[2]!.position as { offset: number }).offset).toBeCloseTo(0.15, 9); // 0.12 + 0.03
+  });
+
+  it('starts a FIRST child at the parent’s top, as setAfter does', () => {
+    const t = tree();
+    t.components[0]!.children![0]!.children![0]!.position = { method: 'after', offset: 0 };
+    const out = kids(resolveFilePositions(t));
+    expect(out[0]!.position).toMatchObject({ method: 'top', offset: 0 });
+  });
+
+  it('keeps what the file said, so the .ork round-trip stays byte-stable', () => {
+    const p = kids(resolveFilePositions(tree()))[1]!.position as {
+      offset: number;
+      ork?: { method: string; resolved: number };
+    };
+    expect(p.ork!.method).toBe('after');
+    // Compared with === at export time, so it must be the SAME value.
+    expect(p.ork!.resolved).toBe(p.offset);
+  });
+
+  it('ignores a stored offset, because the kernel forces it to zero', () => {
+    const t = tree();
+    (t.components[0]!.children![0]!.children![1]!.position as { offset: number }).offset = 0.9;
+    expect((kids(resolveFilePositions(t))[1]!.position as { offset: number }).offset).toBeCloseTo(0.12, 9);
   });
 });

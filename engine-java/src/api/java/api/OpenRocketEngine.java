@@ -671,12 +671,40 @@ public final class OpenRocketEngine {
                 info.openrocket.core.masscalc.MassCalculator.getCMAnalysis(
                         ctx.rocket.getSelectedConfiguration());
 
-        StringBuilder sb = new StringBuilder("[");
-        boolean first = true;
+        // Row order must not depend on HashMap iteration. getCMAnalysis returns a
+        // Map keyed by component.hashCode(), and RocketComponent.hashCode() hashes
+        // a per-run random UUID — so the mass table came out in a different order
+        // on every run, and differently again JVM vs TeaVM. Emit in TREE order,
+        // the order the component tree beside it already shows, and put the
+        // entries with no component behind them (the motor rows) last, by name.
+        java.util.Map<String, info.openrocket.core.masscalc.CMAnalysisEntry> byKey =
+                new java.util.LinkedHashMap<>();
+        java.util.List<info.openrocket.core.masscalc.CMAnalysisEntry> motorRows = new java.util.ArrayList<>();
         for (info.openrocket.core.masscalc.CMAnalysisEntry e : analysis.values()) {
             if (e.name == null) {
                 continue;
             }
+            if (e.source instanceof RocketComponent) {
+                byKey.put(((RocketComponent) e.source).getID().toString(), e);
+            } else {
+                motorRows.add(e);
+            }
+        }
+        java.util.List<info.openrocket.core.masscalc.CMAnalysisEntry> ordered = new java.util.ArrayList<>();
+        java.util.Iterator<RocketComponent> walk = ctx.rocket.iterator(true);
+        while (walk.hasNext()) {
+            info.openrocket.core.masscalc.CMAnalysisEntry e = byKey.remove(walk.next().getID().toString());
+            if (e != null) {
+                ordered.add(e);
+            }
+        }
+        ordered.addAll(byKey.values()); // any component entry the walk did not reach
+        motorRows.sort(java.util.Comparator.comparing(x -> x.name));
+        ordered.addAll(motorRows);
+
+        StringBuilder sb = new StringBuilder("[");
+        boolean first = true;
+        for (info.openrocket.core.masscalc.CMAnalysisEntry e : ordered) {
             CoordinateIF cm = e.totalCM;
             double mass = (cm == null || cm.isNaN()) ? 0 : cm.getWeight();
             double cg = (cm == null || cm.isNaN()) ? 0 : cm.getX();

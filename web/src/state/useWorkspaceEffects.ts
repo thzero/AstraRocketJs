@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18nGlobal from '../i18n';
 import { useWorkspaceStore, selectActive } from './store';
@@ -46,6 +46,17 @@ export function useWorkspaceEffects() {
   // otherwise it builds the default rocket + drag sweep, then hydrate swaps in
   // the real design and it builds again (two full engine builds on every load).
   const hydrated = useRef(false);
+  /**
+   * Skip the autosave that a hydrate would otherwise trigger.
+   *
+   * `hydrate()` replaces tree/sims/extraMotors, which re-runs the autosave
+   * effect below and schedules a write of the bytes just read — and
+   * `DesignLibrary.write` stamps `updatedAt: Date.now()`. So merely OPENING the
+   * app re-stamped the design, and the library's "most recently updated" order
+   * silently meant "most recently opened": a design you only looked at jumped
+   * above one you actually edited last week.
+   */
+  const skipNextSave = useRef(false);
   const [ready, setReady] = useState(false);
   useEffect(() => {
     let live = true;
@@ -58,7 +69,10 @@ export function useWorkspaceEffects() {
         // second load then built again — the exact double build the `ready`
         // gate exists to prevent.
         if (!live) return;
-        if (w) useWorkspaceStore.getState().hydrate(w);
+        if (w) {
+          skipNextSave.current = true;
+          useWorkspaceStore.getState().hydrate(w);
+        }
         hydrated.current = true;
         setReady(true);
       })
@@ -95,6 +109,13 @@ export function useWorkspaceEffects() {
 
   useEffect(() => {
     if (!hydrated.current) return;
+    if (skipNextSave.current) {
+      // The state this effect is reacting to IS what was just loaded. Writing it
+      // back changes nothing but the timestamp. A real edit clears the flag by
+      // being the next thing to run.
+      skipNextSave.current = false;
+      return;
+    }
     const id = setTimeout(() => {
       getWorkspaceStore()
         .save({ version: 1, tree, sims, activeId, extraMotors, loadedMeta })
@@ -198,7 +219,10 @@ export function useWorkspaceEffects() {
   // Keyed on what can change a FLIGHT, which is narrower still: a part rename
   // has to reach the engine (above) but must not throw away results that are
   // still perfectly valid for the geometry they were flown on.
-  const flight = flightKey(tree);
+  // JSON.stringify of the whole component tree. In the hook body it ran on
+  // EVERY render, including ones caused by tab, err and storageWarning — none
+  // of which can change it.
+  const flight = useMemo(() => flightKey(tree), [tree]);
   useEffect(() => {
     useWorkspaceStore.getState().invalidateResults();
   }, [flight]);

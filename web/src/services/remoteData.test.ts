@@ -293,3 +293,73 @@ describe('fetchCatalog — separate data host configured', () => {
     expect(seen).not.toContain('/manifest.json');
   });
 });
+
+/**
+ * The size cap has to apply to bytes RECEIVED, not to a header the host may not
+ * send — and `manifest()` is the call that proves it.
+ *
+ * `fetchCatalog` always passes an onProgress (it publishes progress per
+ * catalog), so the catalog body was streamed and capped all along. `manifest()`
+ * passes none, and the old `readJson` sent exactly that case to `res.json()`
+ * with no meter at all. A chunked manifest — no content-length, so the declared
+ * -size check cannot fire either — buffered without bound.
+ */
+describe('the manifest body is metered, not just the catalog', () => {
+  it('stops pulling an endless chunked manifest instead of buffering it whole', async () => {
+    const CHUNK = 4 * 1024 * 1024; // 4 MiB
+    let manifestChunksPulled = 0;
+
+    const endlessManifest = () => {
+      const body = new ReadableStream<Uint8Array>({
+        pull(c) {
+          manifestChunksPulled++;
+          // Far more than the 32 MiB cap if anything reads to the end.
+          if (manifestChunksPulled > 200) return c.close();
+          c.enqueue(new Uint8Array(CHUNK));
+        },
+      });
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => null }, // no content-length: the declared check is blind here
+        // A real Response.json() DRAINS the body. Modelling that is the whole
+        // point — a stub that ignores the body cannot tell a metered read from
+        // an unmetered one, and reports success either way.
+        json: async () => {
+          const r = body.getReader();
+          for (;;) if ((await r.read()).done) break;
+          return {};
+        },
+        body,
+      } as unknown as Response;
+    };
+
+    vi.stubGlobal('fetch', (url: string) =>
+      Promise.resolve(
+        url.includes('manifest')
+          ? endlessManifest()
+          : ({
+              ok: true,
+              status: 200,
+              headers: { get: () => null },
+              json: () => Promise.resolve([{ designation: 'H128' }]),
+              body: new ReadableStream<Uint8Array>({
+                start(c) {
+                  c.enqueue(new TextEncoder().encode('[{"designation":"H128"}]'));
+                  c.close();
+                },
+              }),
+            } as unknown as Response),
+      ),
+    );
+
+    const fetchCatalog = await load();
+    // A failed manifest is not an error — it just means no cache-buster — so the
+    // catalog still loads. The point is what it cost to get there.
+    await expect(fetchCatalog('motors')).resolves.toEqual([{ designation: 'H128' }]);
+
+    // 32 MiB / 4 MiB = 8 chunks, plus the one that trips the limit. Unmetered,
+    // res.json() drained all 200.
+    expect(manifestChunksPulled).toBeLessThanOrEqual(10);
+  });
+});

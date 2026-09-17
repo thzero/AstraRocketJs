@@ -52,7 +52,7 @@ export function dataHeaderLines(d: ExportData): string[] {
  *  (--accent = the selection outline when a component is selected;
  *  --status-* = the CP/stability-margin callout inks, S2;
  *  --launch = the loaded-motor case tint, S5). */
-export const EXPORT_VARS: [string, string][] = [
+const EXPORT_VARS: [string, string][] = [
   ['var(--surface-1)', '#ffffff'],
   ['var(--text-primary)', '#20242c'],
   ['var(--accent)', '#b8511d'],

@@ -322,3 +322,50 @@ describe('what triggers a rebuild', () => {
     expect(s().err).toBe('fin tab longer than the root chord');
   });
 });
+
+describe('a hydrate does not re-stamp the design', () => {
+  /**
+   * `hydrate()` replaces tree/sims/extraMotors, which re-runs the autosave
+   * effect and schedules a write of the bytes just read — and
+   * `DesignLibrary.write` stamps `updatedAt: Date.now()`. Opening the app
+   * therefore re-stamped the design, so the library's "most recently updated"
+   * order meant "most recently opened".
+   */
+  it('writes nothing after loading a saved workspace', async () => {
+    load.mockResolvedValue(saved());
+    await mount();
+    save.mockClear();
+
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+      await Promise.resolve();
+    });
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('still saves the first REAL edit after that hydrate', async () => {
+    load.mockResolvedValue(saved());
+    await mount();
+    save.mockClear();
+
+    act(() => s().addPartToTree('bodytube'));
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+      await Promise.resolve();
+    });
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it('saves normally when there was no saved workspace to hydrate from', async () => {
+    load.mockResolvedValue(null); // nothing stored: no hydrate, so nothing to skip
+    await mount();
+    save.mockClear();
+
+    act(() => s().addPartToTree('bodytube'));
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+      await Promise.resolve();
+    });
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+});

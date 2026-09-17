@@ -1,4 +1,4 @@
-import { test, expect, type Page } from './base';
+import { test, expect, type Page, note } from './base';
 
 /**
  * The app shell is a fixed-height column: header, one scrolling pane, then the
@@ -23,12 +23,12 @@ for (const w of [320, 360, 390, 414, 600, 768]) {
       w: window.innerWidth,
       h: window.innerHeight,
     }));
-    console.log(`${w}: scrollW=${m.sw} innerW=${m.w} scrollH=${m.sh} innerH=${m.h}`);
+    note(`${w}: scrollW=${m.sw} innerW=${m.w} scrollH=${m.sh} innerH=${m.h}`);
     expect(m.sw).toBeLessThanOrEqual(m.w);
     expect(m.sh).toBeLessThanOrEqual(m.h);
     if (w < 1024) {
       const box = (await page.getByRole('navigation').last().boundingBox())!;
-      console.log(`${w}: bar bottom=${Math.round(box.y + box.height)}`);
+      note(`${w}: bar bottom=${Math.round(box.y + box.height)}`);
       expect(Math.round(box.y + box.height)).toBe(m.h);
     }
   });
@@ -40,7 +40,7 @@ test('no sideways scroll in Spanish at 320px', async ({ page }) => {
   await page.getByRole('combobox').first().selectOption('es');
   await expect(page.getByText('L/D', { exact: true })).toBeVisible();
   const m = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, w: window.innerWidth }));
-  console.log('es 320:', m.sw, 'vs', m.w);
+  note('es 320:', m.sw, 'vs', m.w);
   expect(m.sw).toBeLessThanOrEqual(m.w);
 });
 
@@ -79,12 +79,12 @@ test.describe('sketch tab', () => {
     await expect(page.getByText('L/D', { exact: true })).toBeHidden();
 
     const portrait = await stage(page);
-    console.log('portrait', JSON.stringify(portrait));
+    note('portrait', JSON.stringify(portrait));
     expect(portrait.rotated).toBe(true);
     // The toolbar turns WITH the drawing, so it sits along the screen's long
     // edge at the top of the sheet it controls, not across the short edge.
     const toolbar = (await page.getByRole('button', { name: 'Reset' }).boundingBox())!;
-    console.log('toolbar', JSON.stringify({ x: Math.round(toolbar.x), y: Math.round(toolbar.y) }));
+    note('toolbar', JSON.stringify({ x: Math.round(toolbar.x), y: Math.round(toolbar.y) }));
     expect(toolbar.x).toBeGreaterThan(390 * 0.75); // hard against the right edge
     expect(toolbar.height).toBeGreaterThan(toolbar.width); // stood on end
     // Taller than wide: the canvas took the device's LONG axis for the rocket's
@@ -93,7 +93,7 @@ test.describe('sketch tab', () => {
 
     await page.setViewportSize({ width: 844, height: 390 });
     const landscape = await stage(page);
-    console.log('landscape', JSON.stringify(landscape));
+    note('landscape', JSON.stringify(landscape));
     expect(landscape.rotated).toBe(false);
     expect(landscape.w).toBeGreaterThan(landscape.h);
     const flat = (await page.getByRole('button', { name: 'Reset' }).boundingBox())!;
@@ -108,7 +108,7 @@ test.describe('sketch tab', () => {
     await page.goto('/');
     await expect(page.getByText('L/D', { exact: true })).toBeVisible();
     const desktop = await stage(page);
-    console.log('desktop', JSON.stringify(desktop));
+    note('desktop', JSON.stringify(desktop));
     expect(desktop.rotated).toBe(false);
     expect(desktop.w).toBeGreaterThan(desktop.h);
   });
@@ -145,7 +145,7 @@ test('frames the 3D model correctly inside the quarter turn', async ({ page }) =
     .toBe(true);
 
   const d = await canvas.evaluate((c: HTMLCanvasElement) => [c.width, c.height]);
-  console.log('3d buffer', JSON.stringify(d));
+  note('3d buffer', JSON.stringify(d));
   expect(d[0]!).toBeGreaterThan(d[1]!); // landscape, as the layout box is
 });
 
@@ -161,7 +161,7 @@ test('turns the Aero charts with the sketch, and leaves the flight views upright
   await page.getByRole('button', { name: 'Aero', exact: true }).click();
   await expect(page.locator('.sketch-rotate')).toHaveCount(1);
   const chart = (await page.locator('main svg').first().boundingBox())!;
-  console.log('aero chart', `${Math.round(chart.width)}x${Math.round(chart.height)}`);
+  note('aero chart', `${Math.round(chart.width)}x${Math.round(chart.height)}`);
   expect(chart.height).toBeGreaterThan(chart.width); // on screen: stood on end
 });
 
@@ -201,7 +201,7 @@ test.describe('dialogs on a phone', () => {
     await page.getByRole('button', { name: /Menu/ }).click();
     await page.getByRole('menuitem', { name: 'Settings' }).click();
     const set = (await panel(page).boundingBox())!;
-    console.log('desktop dialog', `${Math.round(set.width)}x${Math.round(set.height)}`);
+    note('desktop dialog', `${Math.round(set.width)}x${Math.round(set.height)}`);
     expect(set.width).toBeLessThan(1500);
     expect(set.height).toBeLessThan(950);
   });
@@ -225,7 +225,7 @@ test.describe('short prompts', () => {
     const wip = page.getByRole('button', { name: 'I understand' });
     await expect(wip).toBeVisible();
     const card = (await wip.locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]').boundingBox())!;
-    console.log('wip card', `${Math.round(card.width)}x${Math.round(card.height)} at y=${Math.round(card.y)}`);
+    note('wip card', `${Math.round(card.width)}x${Math.round(card.height)} at y=${Math.round(card.y)}`);
     expect(card.width).toBeLessThan(390); // inset from the edges
     expect(card.height).toBeLessThan(844 / 2); // sized to its content, not the screen
     expect(card.y).toBeGreaterThan(0); // centred, not pinned to the top
@@ -303,7 +303,7 @@ test('the Results tab leads with the run numbers, without starving the chart', a
       paneHeight: half ? Math.round(half.parentElement!.getBoundingClientRect().height) : 0,
     };
   });
-  console.log('results tab', JSON.stringify(m));
+  note('results tab', JSON.stringify(m));
 
   // Apogee and the rest are the first thing on the tab. Scoped to the first grid
   // in DOM order — the centre pane's — because the simulations pane keeps its

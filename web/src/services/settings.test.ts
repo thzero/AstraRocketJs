@@ -70,3 +70,47 @@ describe('saveSettings', () => {
     expect(s.partColors.fins).toBe('#123456');
   });
 });
+
+/**
+ * `launchDefaults` reaches simConditions() and then simulate() for every NEW
+ * simulation, and was spread-merged unchecked — while the `simulation` block
+ * directly above it has clamped for exactly this reason since it was written.
+ */
+describe('launchDefaults is validated per field', () => {
+  const load = (launchDefaults: unknown) => {
+    localStorage.setItem(KEY, JSON.stringify({ launchDefaults }));
+    return loadSettings().launchDefaults;
+  };
+
+  it('falls back for a required number that is a string, null or NaN', () => {
+    // NaN cannot survive JSON (it writes as null), so null is what a corrupt
+    // blob actually reads back as — plus a string, which a hand-edit gives.
+    expect(load({ launchRodLengthM: null }).launchRodLengthM).toBe(DEFAULT_SETTINGS.launchDefaults.launchRodLengthM);
+    expect(load({ windAverage: '5' }).windAverage).toBe(DEFAULT_SETTINGS.launchDefaults.windAverage);
+    expect(load({ latitudeDeg: {} }).latitudeDeg).toBe(DEFAULT_SETTINGS.launchDefaults.latitudeDeg);
+  });
+
+  it('keeps a legitimate value, including zero', () => {
+    expect(load({ launchRodAngleDeg: 0 }).launchRodAngleDeg).toBe(0);
+    expect(load({ windAverage: 7.5 }).windAverage).toBe(7.5);
+  });
+
+  it('leaves an absent optional field absent rather than inventing one', () => {
+    expect(load({}).longitudeDeg).toBe(DEFAULT_SETTINGS.launchDefaults.longitudeDeg);
+    expect(load({ longitudeDeg: 12 }).longitudeDeg).toBe(12);
+    expect(load({ longitudeDeg: 'east' }).longitudeDeg).toBe(DEFAULT_SETTINGS.launchDefaults.longitudeDeg);
+  });
+
+  it('keeps null temperature and pressure, which MEAN the ISA standard atmosphere', () => {
+    // The one place null is an answer, not a missing value — so it must survive.
+    expect(load({ temperatureC: null, pressureHPa: null }).temperatureC).toBeNull();
+    expect(load({ temperatureC: null, pressureHPa: null }).pressureHPa).toBeNull();
+    expect(load({ temperatureC: 'warm' }).temperatureC).toBe(DEFAULT_SETTINGS.launchDefaults.temperatureC);
+  });
+
+  it('rejects a geodetic model and a wind profile of the wrong shape', () => {
+    expect(load({ geodetic: 'toroidal' }).geodetic).toBe(DEFAULT_SETTINGS.launchDefaults.geodetic);
+    expect(load({ geodetic: 'wgs84' }).geodetic).toBe('wgs84');
+    expect(load({ windLevels: 'lots' }).windLevels).toBe(DEFAULT_SETTINGS.launchDefaults.windLevels);
+  });
+});

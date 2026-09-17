@@ -51,7 +51,7 @@ const FINISH_TO_SURFACE: Record<string, string> = {
  * NullReferenceException when the name is missing, so we only write manufacturers
  * it documents (unmapped ones are omitted entirely, never guessed).
  */
-export const CDX1_ENGINE_EXPORT = true;
+const CDX1_ENGINE_EXPORT = true;
 
 /**
  * Our manufacturer names → RASAero's engine-file abbreviations, from the
@@ -97,7 +97,7 @@ const RASAERO_MFG_LOOKUP: Record<string, string> = Object.fromEntries(
  * RASAero doesn't document the maker — writing a name RASAero's database lacks
  * is the NRE, so unknown means OMIT, never guess.
  */
-export function rasaeroManufacturerAbbrev(mfg: string | undefined): string | null {
+function rasaeroManufacturerAbbrev(mfg: string | undefined): string | null {
   if (!mfg) return null;
   const n = mfg.trim().toUpperCase().replace(/[.,]/g, '').replace(/\s+/g, ' ');
   if (n.startsWith('AEROTECH') || n.startsWith('AT-') || n.startsWith('RCS-')) return 'AT';

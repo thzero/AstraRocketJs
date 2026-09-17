@@ -936,6 +936,9 @@ function readPosition(el: Element): ComponentPosition | undefined {
   if (!off) return undefined;
   const method = (off.getAttribute('method') ?? off.getAttribute('type') ?? 'top') as ComponentPosition['method'];
   const offset = Number(off.textContent ?? '0');
-  if (!['top', 'middle', 'bottom', 'absolute'].includes(method)) return undefined;
+  // 'after' was missing, so every part using it lost its position entirely and
+  // fell back to the parent's top — a part seated after its sibling jumped to
+  // the front of the parent.
+  if (!['top', 'middle', 'bottom', 'absolute', 'after'].includes(method)) return undefined;
   return { method, offset: Number.isFinite(offset) ? offset : 0 };
 }

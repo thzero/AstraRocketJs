@@ -14,6 +14,13 @@
     "discard": "Discard",
     "close": "Close"
   },
+  "errors": {
+    "openOrk": "Could not open .ork: {{reason}}",
+    "saveOrk": "Could not save .ork: {{reason}}",
+    "exportRasaero": "Could not export RASAero: {{reason}}",
+    "exportUnsupported": "This component can't be exported as {{format}}.",
+    "exportFailed": "Could not export {{format}}: {{reason}}"
+  },
   "report": {
     "title": "Rocket Design",
     "noDesign": "No valid design to export.",
@@ -414,7 +421,8 @@
     "zoomOut": "Zoom out",
     "zoomReset": "Reset zoom",
     "stages": "Stages",
-    "stage": "Stage"
+    "stage": "Stage",
+    "crosshairHint": "Flight charts. Focus and use the arrow keys to move the crosshair; Shift for a larger step, Home and End for the ends, Escape to clear."
   },
   "pathExport": {
     "open": "Export flight path (KML / GPX / CSV)",
@@ -534,7 +542,8 @@
     "other": "Other",
     "pctBody": "% body",
     "supersonicNote": "Extended Barrowman — approximate above ~Mach 1.5.",
-    "unavailable": "Build a valid rocket to see its drag."
+    "unavailable": "Build a valid rocket to see its drag.",
+    "crosshairHint": "Drag curves. Focus and use the arrow keys to move the crosshair; Shift for a larger step, Home and End for the ends, Escape to clear."
   },
   "banner": {
     "loaded": "Loaded design (.ork)",

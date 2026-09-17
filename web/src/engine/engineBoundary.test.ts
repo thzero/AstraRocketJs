@@ -225,3 +225,43 @@ describe('the aero sweep does not fabricate zeros', () => {
     expect(parts).toBeCloseTo(sweep.powerOff.total[0]!, 6);
   });
 });
+
+/**
+ * Mass rows come back in TREE order, deterministically.
+ *
+ * `getCMAnalysis` returns a Map keyed by `component.hashCode()`, and
+ * RocketComponent.hashCode() hashes a per-run random UUID — so iterating
+ * `analysis.values()` put the mass table in a different order on every run, and
+ * a different one again JVM vs TeaVM. Nothing about the numbers was wrong; the
+ * rows just shuffled under the reader between one build and the next.
+ */
+describe('component masses are ordered, not shuffled', () => {
+  const names = () =>
+    build()
+      .componentMasses()
+      .map((m) => m.name);
+
+  it('is stable across repeated builds in one session', () => {
+    const first = names();
+    expect(first.length).toBeGreaterThan(1);
+    // Fresh handles, fresh UUIDs, fresh hash codes — and the same order.
+    for (let i = 0; i < 5; i++) expect(names()).toEqual(first);
+  });
+
+  it('follows the component tree, nose before fins', () => {
+    // TREE is nose → tube → fins, and the table should read that way rather
+    // than in whatever order a hash map happened to yield.
+    const order = names();
+    const nose = order.findIndex((n) => /nose/i.test(n));
+    const fins = order.findIndex((n) => /fin/i.test(n));
+    expect(nose).toBeGreaterThanOrEqual(0);
+    expect(fins).toBeGreaterThanOrEqual(0);
+    expect(nose).toBeLessThan(fins);
+  });
+
+  it('survives a reset, which re-registers every component', () => {
+    const before = names();
+    engine.reset();
+    expect(names()).toEqual(before);
+  });
+});

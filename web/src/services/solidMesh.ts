@@ -106,10 +106,27 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
   // Walk the boundary into CLOSED loops and fan-cap each. Starting a fresh loop
   // from every vertex that still has an unconsumed edge handles multiple loops
   // sharing a vertex; `boundaryEdges` bounds the total work.
+  const push = (u: number, v: number) => {
+    const arr = outgoing.get(u);
+    if (arr) arr.push(v);
+    else outgoing.set(u, [v]);
+  };
+
   for (const start of outgoing.keys()) {
     while ((outgoing.get(start)?.length ?? 0) > 0) {
       const loop: number[] = [start];
-      let cur = step(start);
+      // Every edge this attempt consumes, so a failed walk can put them back.
+      // `step` POPS, and the old code just `continue`d on failure — those edges
+      // were gone for good, the boundary they belonged to was never capped, and
+      // makeWatertight still returned normally. meshExport then labelled the
+      // result watertight and handed someone an STL with a hole in it.
+      const eaten: Array<[number, number]> = [];
+      const take = (u: number): number | undefined => {
+        const v = step(u);
+        if (v !== undefined) eaten.push([u, v]);
+        return v;
+      };
+      let cur = take(start);
       let closed = false;
       let guard = 0;
       while (cur !== undefined && guard++ <= boundaryEdges) {
@@ -118,9 +135,15 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
           break;
         }
         loop.push(cur);
-        cur = step(cur);
+        cur = take(cur);
       }
-      if (!closed || loop.length < 3) continue; // only cap edges that form a real loop
+      if (!closed || loop.length < 3) {
+        for (const [u, v] of eaten) push(u, v);
+        // …and stop retrying from THIS vertex: the edges are back, so the outer
+        // condition still holds and we would walk the same dead end forever.
+        // Another start vertex may yet close a loop through them.
+        break;
+      }
 
       // Centroid vertex, then a fan. Winding (centroid, v[i+1], v[i]) opposes the
       // boundary direction so the cap's outward face agrees with the shell it closes.
@@ -141,7 +164,48 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
   out.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   out.setIndex(indices);
   out.computeVertexNormals();
+  // The function's whole contract. A boundary the walk could not resolve now
+  // fails the export (store.exportComponent catches and shows it) instead of
+  // shipping a hole to a slicer, where it surfaces as a part that prints wrong.
+  const left = countBoundaryEdges(out);
+  if (left > 0) {
+    throw new Error(`Could not close this solid: ${left} open edge(s) remain after capping.`);
+  }
   return out;
+}
+
+/**
+ * Do these two closed segments properly cross (sharing an endpoint doesn't
+ * count)? Collinear overlap is deliberately not treated as a crossing — a
+ * doubled-back edge is degenerate, not a bow tie, and `mergeVertices` folds it.
+ */
+function segmentsCross(a: [number, number], b: [number, number], c: [number, number], d: [number, number]): boolean {
+  const cross = (ox: number, oy: number, px: number, py: number) => ox * py - oy * px;
+  const d1 = cross(d[0] - c[0], d[1] - c[1], a[0] - c[0], a[1] - c[1]);
+  const d2 = cross(d[0] - c[0], d[1] - c[1], b[0] - c[0], b[1] - c[1]);
+  const d3 = cross(b[0] - a[0], b[1] - a[1], c[0] - a[0], c[1] - a[1]);
+  const d4 = cross(b[0] - a[0], b[1] - a[1], d[0] - a[0], d[1] - a[1]);
+  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+}
+
+/**
+ * Is this closed outline a SIMPLE polygon — no edge crossing any non-adjacent
+ * edge?
+ *
+ * FreeformFinEditor happily lets a vertex be dragged through the opposite edge,
+ * and a bow-tie planform extrudes into a self-intersecting solid that no slicer
+ * can make sense of. O(n²), which is nothing at fin-outline sizes.
+ */
+export function isSimplePolygon(pts: [number, number][]): boolean {
+  const n = pts.length;
+  if (n < 3) return false;
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (j === i + 1 || (i === 0 && j === n - 1)) continue; // adjacent: shares an endpoint
+      if (segmentsCross(pts[i]!, pts[(i + 1) % n]!, pts[j]!, pts[(j + 1) % n]!)) return false;
+    }
+  }
+  return true;
 }
 
 /**
@@ -254,6 +318,10 @@ function oneFinSolid(child: ComponentNode): THREE.BufferGeometry | null {
   // empty mesh. Skip it rather than emit non-manifold garbage into the export.
   if (!(thickness > 0) || !(root > 0) || !(height > 0)) return null;
   if (child.type === 'freeformfinset' && ff.length < 3) return null;
+  // …nor is a self-crossing one. Same policy as the degenerate cases above:
+  // return null so the caller reports "can't be exported" rather than emitting
+  // a solid whose faces pass through each other.
+  if (child.type === 'freeformfinset' && !isSimplePolygon(ff)) return null;
 
   const shape = new THREE.Shape();
   if (child.type === 'freeformfinset') {

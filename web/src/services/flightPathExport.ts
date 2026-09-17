@@ -80,7 +80,7 @@ export function resolveAltitudeReference(
 }
 
 /** The KML `<altitudeMode>` a resolved reference is expressed in. */
-export const KML_ALTITUDE_MODE: Record<Exclude<AltitudeReference, 'automatic'>, string> = {
+const KML_ALTITUDE_MODE: Record<Exclude<AltitudeReference, 'automatic'>, string> = {
   ground: 'relativeToGround',
   sealevel: 'absolute',
   clamped: 'clampToGround',

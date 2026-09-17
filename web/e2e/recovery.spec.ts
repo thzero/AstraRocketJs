@@ -1,4 +1,4 @@
-import { test, expect } from './base';
+import { test, expect, autosaved } from './base';
 
 /**
  * Recovery-device deployment overrides. The default rocket carries a parachute,
@@ -35,8 +35,10 @@ test('the parachute editor exposes deployment overrides, simulates, and persists
   await page.getByRole('button', { name: /run flight simulation/i }).click();
   await expect(page.getByRole('button', { name: 'Flight', exact: true })).toBeVisible({ timeout: 30_000 });
 
-  // It rides on the design, so the workspace autosave restores it after reload.
-  await page.waitForTimeout(700);
+  // It rides on the design, so the workspace autosave restores it after reload
+  // — once the write has landed. The 700 ms guess here failed twice in one
+  // afternoon on a loaded machine while passing in isolation.
+  await autosaved(page, '"deployAltitude":150');
   await page.reload();
   await page.locator('div[title="Parachute"]').click();
   await expect(page.getByLabel('Deploy at')).toHaveValue('altitude');

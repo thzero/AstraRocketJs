@@ -1,4 +1,4 @@
-import { test, expect, type Page } from './base';
+import { test, expect, type Page, note } from './base';
 
 /** Rows of one table on the page: 0 is the drag breakdown, 1 the stability one. */
 const rows = (page: Page, table = 0) =>
@@ -33,7 +33,7 @@ test.describe('aero component table', () => {
       .slice(1)
       .filter((x) => x[0] !== 'Whole rocket')
       .reduce((a, x) => a + Number(x[cd]), 0);
-    console.log('total', total, 'sum of rows', sum.toFixed(3));
+    note('total', total, 'sum of rows', sum.toFixed(3));
 
     // The component rows sum to the whole-rocket figure, with nothing left over.
     // They did not until the kernel started reporting each component's TOTAL
@@ -58,7 +58,7 @@ test.describe('aero component table', () => {
 
     // "0.251 × 3" per instance, 0.754 total — the default rocket has three fins.
     const [one, count] = fins[perInstance]!.split('×').map((x) => Number(x.trim()));
-    console.log('fins', fins[perInstance], '->', fins[cd]);
+    note('fins', fins[perInstance], '->', fins[cd]);
     expect(count).toBe(3);
     expect(Number(fins[cd])).toBeCloseTo(one! * count!, 2);
   });
@@ -81,7 +81,7 @@ test.describe('aero component table', () => {
     for (let k = 0; k < 10; k++) await page.keyboard.press('ArrowRight');
 
     const moved = await machText();
-    console.log('slider', resting, '->', moved);
+    note('slider', resting, '->', moved);
     expect(moved).not.toBe(resting);
 
     // The slider's own readout and the table's heading agree, to the digit.
@@ -111,13 +111,13 @@ test.describe('aero stability table', () => {
     const parts = r.slice(1).filter((x) => x[0] !== 'Whole rocket');
 
     const sumCna = parts.reduce((a, x) => a + Number(x[cna]), 0);
-    console.log('rocket CNa', rocket[cna], 'sum of parts', sumCna.toFixed(2));
+    note('rocket CNa', rocket[cna], 'sum of parts', sumCna.toFixed(2));
     expect(sumCna).toBeCloseTo(Number(rocket[cna]), 1);
 
     // The rocket's CP is the CNa-weighted mean of its parts' — which is the
     // arithmetic the engine does, un-weighted back out for display.
     const weighted = parts.reduce((a, x) => a + Number(x[cp]) * Number(x[cna]), 0) / sumCna;
-    console.log('rocket CP', rocket[cp], 'weighted mean', weighted.toFixed(1));
+    note('rocket CP', rocket[cp], 'weighted mean', weighted.toFixed(1));
     expect(weighted).toBeCloseTo(Number(rocket[cp]), 0);
 
     // A straight body tube carries no normal force in Barrowman, so it is left
@@ -140,7 +140,7 @@ test('carries the mass breakdown beside the aero figures', async ({ page }) => {
   for (const col of ['Each (g)', 'Total (g)', 'CG (cm)']) expect(head).toContain(col);
   const fins = r.find((x) => /Fin Set/.test(x[0]!))!;
   expect(fins.some((c) => c === '—')).toBe(false);
-  console.log('fins row', fins.join(' | '));
+  note('fins row', fins.join(' | '));
 });
 
 /**
@@ -174,7 +174,7 @@ test('always shows roll dynamics, and fills it in once the fins are canted', asy
   await expect(page.getByRole('heading', { name: 'Roll dynamics' })).toBeVisible();
   const roll = await rows(page, 2);
   const forcing = Number(roll.find((x) => /Fin Set/.test(x[0]!))![1]);
-  console.log('roll forcing at 3 deg cant', forcing);
+  note('roll forcing at 3 deg cant', forcing);
   expect(forcing).toBeGreaterThan(0);
 });
 
@@ -201,7 +201,7 @@ test('shades the drag cells in proportion to the value', async ({ page }) => {
       return { value: Number(td.textContent), alpha: parts[3] ?? 1, rgb: parts.slice(0, 3).join(',') };
     });
   });
-  console.log('cd cells', JSON.stringify(cells));
+  note('cd cells', JSON.stringify(cells));
 
   // One hue throughout — the ramp is alpha over a single colour, not a rotation.
   expect(new Set(cells.map((c) => c.rgb)).size).toBe(1);
@@ -243,7 +243,7 @@ test('offers OpenRocket’s heat as an alternative shading', async ({ page }) =>
       return { value: Number(td.textContent), bg: st.backgroundColor, fg: st.color };
     });
   });
-  console.log('OR heat', JSON.stringify(cells));
+  note('OR heat', JSON.stringify(cells));
 
   // Cd 0.468 -> r=0.312, hue=0.1253, sat=0.3184, val=1 -> rgb(255,235,174).
   // Straight from ComponentAnalysisGeneralPanel's DragCellRenderer.
@@ -312,7 +312,7 @@ test('leaves a lone fin set unshaded in the roll table', async ({ page }) => {
       .slice(1)
       .flatMap((tr) => [...tr.children].map((td) => getComputedStyle(td as HTMLElement).backgroundColor));
   });
-  console.log('roll cell backgrounds', JSON.stringify(cells));
+  note('roll cell backgrounds', JSON.stringify(cells));
   expect(cells.every((bg) => bg === 'rgba(0, 0, 0, 0)')).toBe(true);
   await expect(page.getByText('Share of the largest in each column')).toHaveCount(0);
 });
