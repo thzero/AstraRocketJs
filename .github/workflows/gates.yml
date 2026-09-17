@@ -76,7 +76,12 @@ jobs:
       # ("parity ok [js]" / "[wasm]"), so a divergence still says which one
       # diverged. `npm run parity:js` / `:wasm` narrow it when bisecting one
       # backend.
+      # STEP-level cap, deliberately much tighter than the job's. Parity's real
+      # work is ~90s warm, a few minutes cold. If this step is still alive at 20
+      # minutes it is stuck, not slow, and it should say so here rather than
+      # being reported as a mysterious cancellation several minutes later.
       - name: Parity — JVM vs TeaVM-JS and WASM-GC
+        timeout-minutes: 20
         run: npm run parity
 
       # Were the COMMITTED binaries actually built from this source?
@@ -96,6 +101,7 @@ jobs:
       # build-engine.mjs and compared here instead — cheaper, but it cannot
       # catch a hand-edited binary.
       - name: The committed engine matches src/java
+        timeout-minutes: 20
         run: |
           npm run build
           git diff --exit-code --             ../web/src/engine/vendor/openrocket-engine.mjs             ../web/public/engine/openrocket-engine.wasm             ../web/public/engine/openrocket-engine.wasm-runtime.js

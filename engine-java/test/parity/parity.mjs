@@ -236,16 +236,33 @@ if (writeGolden) {
   console.log(`golden ok: ${golden.length} reference value(s) unchanged`);
 }
 
-// --- exit explicitly -------------------------------------------------------
+// --- exit explicitly, and never block doing it ------------------------------
 //
-// Every FAILURE path above calls process.exit(1); success used to just fall off
-// the end and rely on Node draining its event loop. Under --wasm it does not:
-// the TeaVM WASM-GC runtime this script evals leaves a handle open, so a run
-// that had already printed "parity ok" and "golden ok" sat idle until the CI
-// runner gave up and SIGTERMed it -- surfacing a PASSING parity check as
-// "exit code 143" with every later step skipped.
+// Every FAILURE path above calls process.exit(1). Success used to fall off the
+// end and rely on Node draining its event loop, which under --wasm it does not:
+// the TeaVM WASM-GC runtime this script evals leaves a handle open. That is why
+// the explicit exit is here.
 //
-// stdout is a pipe under CI, where writes are asynchronous, so flush before
-// exiting or the last lines are the ones that get truncated.
-await new Promise((resolve) => process.stdout.write('', resolve));
+// The exit ITSELF then became the hang. This was:
+//
+//     await new Promise((resolve) => process.stdout.write('', resolve));
+//     process.exit(0);
+//
+// and on a GitHub runner that await did not always settle. Every verdict had
+// printed, there was nothing left to do, and the step sat there until the
+// runner gave up minutes later -- reporting a PASSING parity check as a failed
+// job. Observed three times, stalling 3m31s, 5m47s and 7m19s, so it is not a
+// fixed timeout being hit; it is a callback that never fires. It does NOT
+// reproduce locally (Windows, stdout to a file OR to a pipe, both exit in 14s),
+// so the mechanism is specific to the runner and is not worth chasing further.
+//
+// The flush is still attempted, because a truncated final line on a pipe is a
+// real failure mode. It is just no longer able to hold the process: it races a
+// timer, and the process leaves either way. Nothing below this comment may be
+// capable of blocking indefinitely.
+const FLUSH_GRACE_MS = 2000;
+await Promise.race([
+  new Promise((resolve) => process.stdout.write('', resolve)),
+  new Promise((resolve) => setTimeout(resolve, FLUSH_GRACE_MS)),
+]);
 process.exit(0);
