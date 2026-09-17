@@ -19,7 +19,7 @@ export function asStageNodes(tree: RocketTree): ComponentNode[] {
 
 /** Launch conditions parsed from a .ork's first `<simulation>` `<conditions>`. */
 export interface WindLevel {
-  /** Altitude MSL, metres. */
+  /** Altitude MSL, meters. */
   altitudeM: number;
   /** Wind speed, m/s. */
   speed: number;

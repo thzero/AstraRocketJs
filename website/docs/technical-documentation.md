@@ -13,7 +13,7 @@ OpenRocket began as the Master's thesis of **Sampo Niskanen** at Helsinki Univer
 
 Both are linked from OpenRocket's [documentation page](https://openrocket.info/documentation.html).
 
-> **Licensing.** The technical documentation is under a **Creative Commons Attribution-ShareAlike** licence; the Master's thesis is under **Attribution-NonCommercial-NoDerivs**. They are OpenRocket's documents, not ours.
+> **Licensing.** The technical documentation is under a **Creative Commons Attribution-ShareAlike** license; the Master's thesis is under **Attribution-NonCommercial-NoDerivs**. They are OpenRocket's documents, not ours.
 
 ## User documentation
 

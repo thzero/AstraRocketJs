@@ -322,7 +322,7 @@ describe('the manifest body is metered, not just the catalog', () => {
         ok: true,
         status: 200,
         headers: { get: () => null }, // no content-length: the declared check is blind here
-        // A real Response.json() DRAINS the body. Modelling that is the whole
+        // A real Response.json() DRAINS the body. Modeling that is the whole
         // point — a stub that ignores the body cannot tell a metered read from
         // an unmetered one, and reports success either way.
         json: async () => {

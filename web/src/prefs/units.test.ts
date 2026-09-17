@@ -145,7 +145,7 @@ describe('export unit choice', () => {
 
   it('follows the app preferences for "current"', () => {
     // Per-field chips deliberately do NOT reach an export: a document written
-    // half in inches and half in centimetres because of where someone happened
+    // half in inches and half in centimeters because of where someone happened
     // to click is not a document anyone wants.
     expect(resolveUnitChoice('current', current)).toBe(current);
     expect(resolveUnitChoice('current', current).length).toBe('in');

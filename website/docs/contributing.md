@@ -90,8 +90,7 @@ Most contributions don't touch the engine. If you do:
 
   ```bash
   cd engine-java
-  node build-engine.mjs           # JS   → web/src/engine/vendor/openrocket-engine.mjs
-  node build-engine.mjs --wasm    # WASM → web/public/engine/openrocket-engine.wasm (+ runtime)
+  node build-engine.mjs           # builds + vendors BOTH targets (the default)
   ```
 
 - **Commit the Java change and *both* regenerated artifacts (`.mjs` + `.wasm`) together** — they must stay in sync, or the app runs stale physics (and the two backends must match).
@@ -111,7 +110,7 @@ npm run sync:contributors            # GitHub contributors → src/data/contribu
 
 ### Catalog publishing
 
-Catalogs no longer ride along with a deploy. `.github/workflows/sync-catalogs.yml` (weekly, plus **Run workflow**) regenerates them and pushes the JSON to an orphan **`data`** branch, which jsDelivr serves. The built app reads that branch via `VITE_DATA_BASE` (set in `deploy-pages.yml`), so **a catalog refresh goes live without rebuilding or redeploying the app**.
+Catalogs no longer ride along with a deploy. `.github/workflows/sync-catalogs.yml` (weekly, plus **Run workflow**) regenerates them and pushes the JSON to an orphan **`data`** branch, which jsDelivr serves. The built app reads that branch via `VITE_DATA_BASE` (set in `deploy.yml`), so **a catalog refresh goes live without rebuilding or redeploying the app**.
 
 The copy committed under `web/public/data/` stays in the build as a fallback, used whenever the CDN is unreachable or before the `data` branch exists — so the app always works, at worst with catalogs frozen at the last deploy. Refresh that floor by running the scripts above and committing.
 
@@ -135,6 +134,19 @@ Open a PR from your branch to **`master`**. In the description:
 
 Make sure `npm run build` and `npm run test` pass, and that you've checked the change in the browser. Add or update tests for any logic you touch under `web/src/services` or `web/src/engine`. Keep engine `.mjs`/`.wasm` regenerations in the same PR as their Java changes.
 
+What CI gates on the PR itself:
+
+| Workflow | Runs | When |
+| --- | --- | --- |
+| `ci.yml` → `build-and-test` | `format:check`, `spell`, `test:coverage`, `build`, `knip` | every PR |
+| `ci.yml` → `e2e` | Playwright, sharded three ways | every PR |
+| `ci.yml` → `parity` | `npm run parity`, then a rebuild compared against the committed binaries | every PR |
+| `ci.yml` → `reproducible` | `npm run extract:check` against the pinned OpenRocket | every PR |
+
+The Docusaurus site is **not** built on a PR. It is typechecked and built in `deploy.yml` on merge to `master`, so a broken MDX page or `sidebars.ts` shows up as a failed deploy rather than a failed PR check.
+
+On merge to `master`, `deploy.yml` re-runs **all of the above** — `parity`, `reproducible`, `verify` (the same five steps as `build-and-test`) and `e2e` — and only then builds the docs, builds the app and publishes to Pages. The gate jobs are duplicated between the two files because GitHub cannot order one workflow after another; if you add a gate to `ci.yml`, add it to `deploy.yml` too or master will publish without it.
+
 ### Which kind of test
 
 | | For | Example |
@@ -143,7 +155,7 @@ Make sure `npm run build` and `npm run test` pass, and that you've checked the c
 | **`.test.tsx`** (Vitest + React Testing Library, jsdom) | A rule that lives in a component and has no service to test instead. | `components/common/UnitChip.test.tsx` |
 | **`e2e/*.spec.ts`** (Playwright) | Whole journeys, and anything needing the real engine, layout or persistence across a reload. | `e2e/units.spec.ts` |
 
-Component tests render through `src/testing/renderWithProviders.tsx`, which wraps the component in the app's providers and initialises real translations — so assertions read the strings a user actually sees, and a renamed i18n key fails a test instead of showing a raw key on screen. Seed preferences with `seedSettings({ … })` before rendering and read back what a component wrote with `readSettings()`.
+Component tests render through `src/testing/renderWithProviders.tsx`, which wraps the component in the app's providers and initializes real translations — so assertions read the strings a user actually sees, and a renamed i18n key fails a test instead of showing a raw key on screen. Seed preferences with `seedSettings({ … })` before rendering and read back what a component wrote with `readSettings()`.
 
 **Prefer a `.test.ts`.** If logic is hard to reach without rendering, that is usually a sign it should move into a module of its own — as the launch-condition unit bridge did (`prefs/launchUnits.ts`), which had been unreachable inside a `.tsx` and therefore untested.
 
@@ -156,9 +168,10 @@ Occasional, advanced tasks — you won't need them for a typical change.
 Two harnesses guard the engine (both need Node 22+; run from the repo root):
 
 ```bash
-# 1. Parity test — proves the browser (TeaVM-JS) engine returns numbers identical to
-#    the reference JVM. Builds a parity engine variant (-Pparity), runs the same
-#    scenarios on both, and diffs them line-by-line.
+# 1. Parity test — proves BOTH browser engines (TeaVM WASM-GC and JS) return numbers
+#    identical to the reference JVM. Builds a parity engine variant (-Pparity), runs the
+#    same scenarios on each, and diffs them line-by-line. Both targets by default;
+#    --js / --wasm narrow it to one.
 node engine-java/test/parity/parity.mjs
 
 # 2. Aero validation — scores the engine against wind-tunnel anchors (ARCAS /
@@ -167,6 +180,8 @@ node engine-java/validation/score.mjs               # classic Extended Barrowman
 node engine-java/validation/score.mjs --supersonic  # with the supersonic-aero model on
 node engine-java/validation/score.mjs --strict      # exit 1 on any gate-point failure
 ```
+
+From inside `engine-java/` these have shorter names: `npm run parity`, `npm run validate`, `npm run build`. Same scripts, no dependencies to install — see `engine-java/README.md`.
 
 The parity harness compiles **only** under `-Pparity`, so the shipped engine carries no test code. Run the parity test after any engine change.
 

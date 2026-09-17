@@ -33,7 +33,7 @@ Fuentes extraídas por área:
 
 ## Canalización de compilación → ejecución {#build--run-pipeline}
 
-1. `engine-java/` (núcleo extraído + los reemplazos solo-JVM de `src/shims/` + un sustituto del `Collator` del JDK en `src/jdkstubs/` + la fachada @JSExport `src/api/OpenRocketEngine`) lo compila TeaVM a **dos destinos**: un módulo **WASM-GC** y un módulo **JavaScript**. Ambos salen de las mismas fuentes con `node engine-java/build-engine.mjs` (JS) / `--wasm` (WASM-GC).
+1. `engine-java/` (núcleo extraído + los reemplazos solo-JVM de `src/shims/` + un sustituto del `Collator` del JDK en `src/jdkstubs/` + la fachada @JSExport `src/api/OpenRocketEngine`) lo compila TeaVM a **dos destinos**: un módulo **WASM-GC** y un módulo **JavaScript**. Ambos salen de las mismas fuentes, y `node engine-java/build-engine.mjs` compila y copia los dos.
 2. Los artefactos compilados están versionados para que la aplicación web compile sin un JDK:
    - JS → `web/src/engine/vendor/openrocket-engine.mjs`
    - WASM → `web/public/engine/openrocket-engine.wasm` (+ su `*.wasm-runtime.js`)

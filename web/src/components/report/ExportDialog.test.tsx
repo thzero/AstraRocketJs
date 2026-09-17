@@ -139,7 +139,7 @@ describe('ExportDialog', () => {
   /**
    * The popover is a SIBLING of the trapped panel, so a trap anchored on the
    * panel could not reach its controls: with it open, Tab went on cycling the
-   * dialog behind it and the fill colour, paper size and orientation were
+   * dialog behind it and the fill color, paper size and orientation were
    * unreachable by keyboard.
    */
   it('moves the focus trap to the popover while it is open', () => {

@@ -70,7 +70,7 @@ export function SimulationsPanel() {
 
   return (
     <>
-      {/* Run + results first, so a run's outcome is front-and-centre. */}
+      {/* Run + results first, so a run's outcome is front-and-center. */}
       <SimPanel info={info} runLabel={runLabel} sim={result} busy={busy} onRun={onRun} blockReason={blockReason} />
 
       <div className="relative space-y-4 p-3 pt-0">

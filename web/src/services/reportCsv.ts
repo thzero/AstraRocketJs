@@ -7,7 +7,7 @@ import { fmtSi, type UnitSelection } from '../prefs/units';
  * Design-info CSV export — the same Scope / Field / Value / Unit layout
  * OpenRocket writes: a Design block, the whole-Rocket summary, one block per
  * stage, then each fin set's axial position. Field names are kept as stable
- * English data identifiers (not localised); values are in the units the user
+ * English data identifiers (not localized); values are in the units the user
  * has chosen, which every row names in its own Unit column. Values use '.' as
  * the decimal separator regardless of locale.
  */

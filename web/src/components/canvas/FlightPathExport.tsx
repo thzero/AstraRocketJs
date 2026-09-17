@@ -5,8 +5,12 @@ import { download as saveDownload, safeFilename } from '../../services/saveFile'
 import { useUnits } from '../../prefs/useUnits';
 import {
   buildFlightPathModel,
+  defaultBranchColor,
   defaultExportOptions,
+  exportBranchNames,
   hasLaunchPosition,
+  hexToRgb,
+  rgbToHex,
   renderUserTemplate,
   mimeForExtension,
   EXPORT_FORMATS,
@@ -19,6 +23,7 @@ import {
 } from '../../services/flightPathExport';
 import { getTemplateStore, parseTemplateFilename, type UserTemplate } from '../../services/templateStore';
 import { useFocusTrap } from '../common/useFocusTrap';
+import { useSettings } from '../../state/SettingsProvider';
 
 /**
  * "Export flight path" — a port of OpenRocket's 3D-path export dialog. Renders a
@@ -83,7 +88,7 @@ export function FlightPathExport({ variant = 'chip' }: { variant?: 'chip' | 'ove
 /**
  * Exported for `FlightPathExport.test.tsx`. The button that opens it lives only
  * in the 3D path view, which needs WebGL — headless Chromium crashes rendering
- * it, so the dialog's own behaviour is covered as a component instead.
+ * it, so the dialog's own behavior is covered as a component instead.
  */
 export function ExportDialog({
   onClose,
@@ -105,12 +110,22 @@ export function ExportDialog({
   const store = useMemo(() => getTemplateStore(), []);
   const [selected, setSelected] = useState<string>(EXPORT_FORMATS[0]!.id);
   const units = useUnits();
-  const [opts, setOpts] = useState<FlightPathExportOptions>(() => defaultExportOptions(units.sym('distance')));
+  const { settings, update } = useSettings();
+  // Only the marker-prefix checkbox is carried in from last time — see
+  // PathExportSettings for why the mission name itself is not.
+  const [opts, setOpts] = useState<FlightPathExportOptions>(() => ({
+    ...defaultExportOptions(units.sym('distance')),
+    labelWaypointsWithMission: settings.pathExport.labelWaypointsWithMission,
+  }));
+  const [colorsOpen, setColorsOpen] = useState(false);
   const [templates, setTemplates] = useState<UserTemplate[]>([]);
   const [error, setError] = useState<string | null>(null);
   // Where a stage's track begins only means something once there is more than
   // one stage, so the control stays out of the way of a single-stage flight.
   const staged = (result.branches?.length ?? 0) > 1;
+  // The stages that will actually get a track, in the order the model numbers
+  // them — so a swatch always lines up with the branch it colors.
+  const branchNames = useMemo(() => exportBranchNames(result, meta), [result, meta]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -303,7 +318,11 @@ export function ExportDialog({
                 <button
                   key={preset.id}
                   type="button"
-                  onClick={() => setOpts((o) => ({ ...o, ...preset.options }))}
+                  // The set is cloned on the way in, so the module-level one a
+                  // preset carries is never the object the dialog then mutates.
+                  onClick={() =>
+                    setOpts((o) => ({ ...o, ...preset.options, waypoints: new Set(preset.options.waypoints) }))
+                  }
                   title={t(`pathExport.preset.${preset.id}Note`)}
                   className="rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
                 >
@@ -354,6 +373,37 @@ export function ExportDialog({
                   className="w-20 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
                 />
               </label>
+              {/* Where a stage's track begins, and what color it is drawn in,
+                  both describe the lines this box controls, so they sit with
+                  them rather than under Placement, which is about where the
+                  drawing lands on the map. Which stage a track BEGINS at only
+                  means something once there is more than one. */}
+              <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                {staged ? (
+                  <label className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">{t('pathExport.stageTrackStart')}</span>
+                    <select
+                      aria-label={t('pathExport.stageTrackStart')}
+                      value={opts.stageTrackStart}
+                      onChange={(e) => setOpts((o) => ({ ...o, stageTrackStart: e.target.value as StageTrackStart }))}
+                      className="rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+                    >
+                      <option value="separation">{t('pathExport.trackStart.separation')}</option>
+                      <option value="pad">{t('pathExport.trackStart.pad')}</option>
+                    </select>
+                  </label>
+                ) : (
+                  <span />
+                )}
+                <button
+                  type="button"
+                  onClick={() => setColorsOpen(true)}
+                  title={t('pathExport.stageColorsTitle')}
+                  className="rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+                >
+                  {t('pathExport.stageColors')}
+                </button>
+              </div>
             </Section>
           )}
 
@@ -377,20 +427,6 @@ export function ExportDialog({
               label={t('pathExport.drawShadow')}
             />
             <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.shadowNote')}</p>
-            {staged && (
-              <label className="mt-1 flex items-center justify-between gap-3">
-                <span className="text-xs text-slate-400">{t('pathExport.stageTrackStart')}</span>
-                <select
-                  aria-label={t('pathExport.stageTrackStart')}
-                  value={opts.stageTrackStart}
-                  onChange={(e) => setOpts((o) => ({ ...o, stageTrackStart: e.target.value as StageTrackStart }))}
-                  className="w-40 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
-                >
-                  <option value="separation">{t('pathExport.trackStart.separation')}</option>
-                  <option value="pad">{t('pathExport.trackStart.pad')}</option>
-                </select>
-              </label>
-            )}
             <Check
               checked={opts.showWaypointLabels}
               onChange={(v) => setOpts((o) => ({ ...o, showWaypointLabels: v }))}
@@ -418,6 +454,30 @@ export function ExportDialog({
             />
           </Section>
 
+          {/* Its own group, after Units, because it names the whole document
+              rather than any one aspect of the geometry, so it belongs in
+              neither Placement nor Flight path. */}
+          <Section title={t('pathExport.mission')}>
+            <input
+              type="text"
+              value={opts.missionName}
+              aria-label={t('pathExport.mission')}
+              placeholder={t('pathExport.missionPlaceholder')}
+              onChange={(e) => setOpts((o) => ({ ...o, missionName: e.target.value }))}
+              className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-sm text-slate-100 ring-1 ring-white/10 placeholder:text-slate-600 focus:outline-none focus:ring-sky-500"
+            />
+            <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.missionNote')}</p>
+            <Check
+              checked={opts.labelWaypointsWithMission}
+              onChange={(v) => {
+                setOpts((o) => ({ ...o, labelWaypointsWithMission: v }));
+                update({ pathExport: { ...settings.pathExport, labelWaypointsWithMission: v } });
+              }}
+              label={t('pathExport.labelWaypointsWithMission')}
+            />
+            <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.missionMarkersNote')}</p>
+          </Section>
+
           {noPosition && (
             <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-300 ring-1 ring-amber-400/30">
               {t('pathExport.noPosition')}
@@ -442,6 +502,111 @@ export function ExportDialog({
             className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
           >
             {t('pathExport.download')}
+          </button>
+        </div>
+      </div>
+      {colorsOpen && (
+        <StageColorDialog
+          names={branchNames}
+          colors={opts.branchColors}
+          onCancel={() => setColorsOpen(false)}
+          onApply={(branchColors) => {
+            setOpts((o) => ({ ...o, branchColors }));
+            setColorsOpen(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * One swatch per stage. A modal rather than a row of inline pickers because the
+ * stage count comes from the design: inline means a variable-length list in a
+ * panel that has no room to grow.
+ *
+ * Edits a DRAFT of the override map, so Cancel leaves the prior selection
+ * exactly as it was and only Apply commits. Reset clears the draft back to the
+ * palette rather than writing each palette color in as an override, so a stage
+ * nobody chose a color for keeps following the palette.
+ */
+function StageColorDialog({
+  names,
+  colors,
+  onApply,
+  onCancel,
+}: {
+  names: string[];
+  colors: Map<number, number>;
+  onApply: (colors: Map<number, number>) => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+  const panelRef = useFocusTrap<HTMLDivElement>(true);
+  const [draft, setDraft] = useState<Map<number, number>>(() => new Map(colors));
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation(); // the export dialog listens too; close only this one
+        onCancel();
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [onCancel]);
+
+  const setColor = (i: number, rgb: number) =>
+    setDraft((d) => {
+      const next = new Map(d);
+      next.set(i, rgb);
+      return next;
+    });
+
+  return (
+    <div className="dialog-overlay fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4" onClick={onCancel}>
+      <div
+        ref={panelRef}
+        className="dialog-panel max-h-[80vh] w-full max-w-xs overflow-y-auto rounded-2xl bg-slate-900 p-5 ring-1 ring-white/10"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('pathExport.stageColorsTitle')}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-base font-semibold text-slate-100">{t('pathExport.stageColorsTitle')}</h2>
+        <div className="mt-3 space-y-1.5">
+          {names.map((name, i) => (
+            <label key={`${i}-${name}`} className="flex items-center justify-between gap-3">
+              <span className="truncate text-sm text-slate-300">{name || t('pathExport.stageN', { n: i + 1 })}</span>
+              <input
+                type="color"
+                aria-label={name || t('pathExport.stageN', { n: i + 1 })}
+                value={rgbToHex(draft.get(i) ?? defaultBranchColor(i))}
+                onChange={(e) => setColor(i, hexToRgb(e.target.value))}
+                className="h-7 w-12 shrink-0 cursor-pointer rounded-md bg-slate-800 ring-1 ring-white/10"
+              />
+            </label>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setDraft(new Map())}
+            className="mr-auto rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+          >
+            {t('pathExport.resetColors')}
+          </button>
+          <button
+            onClick={onCancel}
+            className="rounded-lg bg-slate-800 px-4 py-2 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+          >
+            {t('pathExport.cancel')}
+          </button>
+          <button
+            onClick={() => onApply(draft)}
+            className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
+          >
+            {t('pathExport.apply')}
           </button>
         </div>
       </div>
@@ -520,13 +685,25 @@ function AltitudeRefSelect({
  *
  * They set the controls and nothing else. Nothing is inferred at render time, so
  * the dialog always shows what the file will contain.
+ *
+ * Each states its selection IN FULL, waypoints included, never a subset. A
+ * preset that sets only some of the controls is a one-way door: Landing plots
+ * narrows the waypoints to the landing, and if Drift cast then leaves the
+ * waypoints alone there is no way back to the other two presets as they are
+ * described. Stating all of it keeps every preset reachable from every other.
  */
-const EXPORT_PRESETS: { id: string; options: Partial<FlightPathExportOptions> }[] = [
+// `waypoints` is required rather than optional, so the rule that a preset
+// states its whole selection is enforced by the compiler and not by memory.
+const EXPORT_PRESETS: {
+  id: string;
+  options: Partial<FlightPathExportOptions> & { waypoints: Set<WaypointKind> };
+}[] = [
   {
     // What the rocket drifts OVER: everything flat on the terrain, and the 3D
     // line dropped because clamped it would only trace the ground track again.
     id: 'driftCast',
     options: {
+      waypoints: new Set<WaypointKind>(WAYPOINT_KINDS),
       altitudeReference: 'clamped',
       waypointAltitudeReference: 'clamped',
       includeFlightPath: false,
@@ -539,6 +716,7 @@ const EXPORT_PRESETS: { id: string; options: Partial<FlightPathExportOptions> }[
     // you can still read where each point sits on the map.
     id: 'flightPath',
     options: {
+      waypoints: new Set<WaypointKind>(WAYPOINT_KINDS),
       altitudeReference: 'automatic',
       waypointAltitudeReference: 'automatic',
       includeFlightPath: true,

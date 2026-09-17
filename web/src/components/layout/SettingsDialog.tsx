@@ -25,7 +25,7 @@ const TABS: { key: TabKey; label: string }[] = [
 
 const RULER_SIDES = ['top', 'bottom', 'left', 'right'] as const;
 
-/** Settings panel — tabbed: 3D part colours, flight-path phase colours, and the
+/** Settings panel — tabbed: 3D part colors, flight-path phase colors, and the
  *  default playback speed. Persisted via the SettingsProvider. */
 export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation();
@@ -88,7 +88,7 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
         </div>
 
         {/* Tabs. A real tablist: which section is open was signalled by
-            background colour alone, which a screen reader cannot announce. */}
+            background color alone, which a screen reader cannot announce. */}
         <div role="tablist" className="flex flex-wrap gap-1 px-4 pt-3">
           {TABS.map((tb) => (
             <button
@@ -106,7 +106,7 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
           {tab === 'colors' && (
             <>
-              {/* Part colours apply to the 3D model, which a phone reaches
+              {/* Part colors apply to the 3D model, which a phone reaches
                   through the Sketch tab just as a desktop reaches it through the
                   view switch — so this is not gated on width. */}
               <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">

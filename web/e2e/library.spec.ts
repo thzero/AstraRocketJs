@@ -85,7 +85,7 @@ test.describe('design library', () => {
     await openLibrary(page);
     await page.getByRole('button', { name: 'Delete' }).first().click();
 
-    // Cancelling keeps it: a mistap on a phone must not destroy saved work.
+    // Canceling keeps it: a mistap on a phone must not destroy saved work.
     const ask = page.getByRole('alertdialog');
     await expect(ask.getByText(/Delete "Doomed Rocket"\?/)).toBeVisible();
     await ask.getByRole('button', { name: 'Cancel' }).click();

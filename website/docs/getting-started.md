@@ -18,7 +18,7 @@ On a desktop the screen is a **three-pane workbench**:
 - **Center — Rocket view.** Your rocket, with a toolbar to switch views (2D · 3D · Aero · and, after a sim, Flight · 3D path), toggles for the **CG / CP** markers and the quick-glance **info** card, and — in 2D — presets, calipers, and zoom. A **stats strip** along the bottom shows length, mass, CG, CP, stability, and more.
 - **Right — Simulations.** Your simulation(s), the **Run** button, launch setup, and results.
 
-On a **phone** the same areas become three tabs along the bottom, because there is no room to show them side by side:
+On a **phone** the same areas become tabs along the bottom, because there is no room to show them side by side:
 
 - **Rocket** — the loaded-design banner and the stats strip.
 - **Sketch** — the rocket view and its toolbar (2D · 3D · Aero). The 2D and 3D views are turned a quarter turn when you hold the phone upright, so the rocket runs down the long edge of the screen instead of being squeezed into its width; turn the phone sideways and they turn back. Dialogs fill the screen there too.

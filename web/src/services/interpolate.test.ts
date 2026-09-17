@@ -28,7 +28,7 @@ describe('lerpAt', () => {
   });
 
   it('steps past a null endpoint of the bracketing span', () => {
-    // ys[1] is null → interpolating in [0,1] falls back to the non-null neighbour
+    // ys[1] is null → interpolating in [0,1] falls back to the non-null neighbor
     expect(lerpAt([0, 1, 2], [0, null, 20], 0.5)).toBe(0); // y1 null → y0
     expect(lerpAt([0, 1, 2], [null, 10, 20], 0.5)).toBe(10); // y0 null → y1
   });

@@ -31,9 +31,12 @@ describe('axialLength', () => {
     expect(axialLength({ type: 'ellipticalfinset' })).toBeCloseTo(0.05); // default
   });
 
-  it('uses length, then packedLength, then a default for other parts', () => {
+  it('uses length, then a default, for other parts', () => {
     expect(axialLength({ type: 'bodytube', length: 0.1 })).toBeCloseTo(0.1);
-    expect(axialLength({ type: 'parachute', packedLength: 0.3 })).toBeCloseTo(0.3);
+    // A recovery device's PACKED length is what `length` holds — orkImport
+    // reads <packedlength> into it. There is no separate `packedLength` key to
+    // fall back to, and the fallback that used to be here never fired.
+    expect(axialLength({ type: 'parachute', length: 0.3 })).toBeCloseTo(0.3);
     expect(axialLength({ type: 'bulkhead' })).toBeCloseTo(0.025);
   });
 

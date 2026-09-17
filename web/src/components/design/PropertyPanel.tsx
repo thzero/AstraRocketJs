@@ -26,7 +26,7 @@ import type { TFunction } from 'i18next';
  * for nested parts, and a Delete button. Emits a shallow patch on every change;
  * App merges it into the tree and rebuilds.
  *
- * The tree is always SI (metres, kilograms, radians). Every field converts to
+ * The tree is always SI (meters, kilograms, radians). Every field converts to
  * the user's chosen unit on the way out and back on the way in — the unit label
  * beside each field is a UnitChip, so it doubles as the picker.
  */
@@ -50,7 +50,7 @@ type Field =
     };
 
 // The real OpenRocket shape vocabulary — matches the engine (shapeOf), the
-// drawing (shapeProfile), and the parts catalogue. NOT 'elliptical'/'powerseries'.
+// drawing (shapeProfile), and the parts catalog. NOT 'elliptical'/'powerseries'.
 const NOSE_SHAPES = ['ogive', 'conical', 'ellipsoid', 'power', 'parabolic', 'haack'];
 
 // Recovery-device deployment triggers — the kernel DeployEvent vocabulary
@@ -646,7 +646,7 @@ export function PropertyPanel({
             />
           );
         }
-        // length: stored metres, shown in this field's length unit
+        // length: stored meters, shown in this field's length unit
         const fu = u.at(scope, 'length');
         return (
           <NumberField

@@ -3,12 +3,12 @@ import { buildFlightScene, type PhaseColors } from './flightScene';
 import type { FlightResult } from '../../engine/openRocketEngine';
 
 // Three distinct primaries, so a point's phase is readable straight off its
-// vertex colour.
+// vertex color.
 const phase: PhaseColors = { boost: '#ff0000', coast: '#00ff00', descent: '#0000ff' };
 const RED = 0,
   GREEN = 1,
   BLUE = 2;
-/** Which channel is lit — i.e. which phase this point was coloured for. */
+/** Which channel is lit — i.e. which phase this point was colored for. */
 const chan = (c: [number, number, number]) => c.indexOf(Math.max(...c));
 
 const result = (over: {
@@ -45,8 +45,8 @@ describe('apogee time fallback', () => {
 
   /**
    * The bug: with no APOGEE event the fallback was `maxA`, the peak ALTITUDE in
-   * metres, read as a TIME in seconds. For this 300 m / 10 s flight apogee
-   * landed at t = 300 — past the end of the flight — so the descent colour
+   * meters, read as a TIME in seconds. For this 300 m / 10 s flight apogee
+   * landed at t = 300 — past the end of the flight — so the descent color
    * never appeared and, because the deployment time defaults to it, the
    * recovery device never came out during playback either.
    */
@@ -61,7 +61,7 @@ describe('apogee time fallback', () => {
     expect(chan(s.colors[6]!)).toBe(BLUE);
   });
 
-  it('colours the burn red up to BURNOUT', () => {
+  it('colors the burn red up to BURNOUT', () => {
     const s = buildFlightScene(
       result({
         ...arc(),
@@ -150,7 +150,7 @@ describe('callouts', () => {
 });
 
 describe('scaling', () => {
-  it('normalises peak altitude to 24 scene units', () => {
+  it('normalizes peak altitude to 24 scene units', () => {
     const s = buildFlightScene(result({ ...arc() }), phase);
     expect(s.scenePts[s.apogeeIdx]!.y).toBeCloseTo(24, 6);
     expect(s.apogeeIdx).toBe(5);

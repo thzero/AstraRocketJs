@@ -1,39 +1,32 @@
-name: CI
+name: Deploy
 
-# Every gate for a PR, in ONE file. The engine jobs used to live in a separate
-# engine.yml, which could not work: GitHub has no cross-workflow ordering, so
-# two workflows on the same event race rather than sequence. The engine gate has
-# to come FIRST — every app test below runs against the COMMITTED engine
-# binaries, so if those are stale or divergent from src/java, a green unit suite
-# and a green e2e run are both measuring the wrong engine. Merged here, `needs:`
-# expresses that ordering and GitHub honors it.
+# The master pipeline: every gate a PR runs, then the Pages publish.
 #
-# Order: (parity, reproducible) → (build-and-test, e2e).
+# The gate jobs below are DUPLICATED from ci.yml on purpose. GitHub has no
+# cross-workflow ordering, so "run ci.yml first, then deploy" is not expressible
+# between two files — they would race, and the deploy would start while the
+# gates were still running. ci.yml is `pull_request`-only and this file is
+# master-push-only, so the two never fire on the same event.
 #
-# `npm run build` already runs `tsc --noEmit && eslint . --max-warnings 0
-# && vite build`, so these steps are the same gates as the deploy — minus the
-# publish (deploy.yml re-runs every one of these on master, then publishes).
+# KEEP THEM IN SYNC. A gate added to ci.yml and not here means master publishes
+# without it.
 #
-# Triggered by `pull_request` ONLY — opening a PR, and every push to a branch
-# that has one open. There is deliberately no `push` trigger: work on a branch
-# with no PR is not gated here, and master is handled by deploy.yml.
-#
-# This also removes the need for the `guard` job this file used to carry. With
-# both triggers, a push to a branch with an open PR fired BOTH events and every
-# job ran twice on the same commit; the concurrency groups could not collapse
-# them (a push is keyed `refs/heads/dev`, a PR `refs/pull/N/merge`), so a job
-# had to ask the API whether a PR already covered the SHA. One trigger, no
-# overlap, no guard.
-#
-# A `pull_request` run tests the MERGE of head into base, not the branch tip.
+# Publishes web/dist to GitHub Pages.
+# ONE-TIME SETUP: repo Settings → Pages → Source = "GitHub Actions".
+
 on:
-  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
 
+# Least-privilege token for the deploy; allow one concurrent Pages deploy.
 permissions:
   contents: read
+  pages: write
+  id-token: write
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: pages
   cancel-in-progress: true
 
 jobs:
@@ -132,6 +125,7 @@ jobs:
   # tool that checks could not fail (its exit code ignored drift entirely).
   #
   # Needs no JDK — just node and the pinned OpenRocket source.
+
   reproducible:
     runs-on: ubuntu-latest
     steps:
@@ -157,8 +151,10 @@ jobs:
         working-directory: engine-java
         run: npm run extract:check -- --src "$GITHUB_WORKSPACE/.openrocket-src"
 
-  # Gated on the engine jobs: see the ordering note at the top of this file.
-  build-and-test:
+  # Gated on the engine jobs, same ordering as ci.yml: the app tests run against
+  # the COMMITTED engine binaries, so they only mean something once parity has
+  # shown those binaries match src/java.
+  verify:
     needs: [parity, reproducible]
     runs-on: ubuntu-latest
     defaults:
@@ -200,8 +196,8 @@ jobs:
       # something runs it.
       - run: npm run knip
 
-  # NOTE: the Docusaurus site is NOT built here. It is gated in deploy.yml
-  # on merge to master, where it is built into web/public/docs anyway. The
+  # NOTE: this `verify` job does not build the Docusaurus site either; the
+  # `build` job below does, on its way to the publish. The
   # trade-off is deliberate and it is real: a broken docusaurus.config.ts,
   # sidebars.ts or MDX page is no longer caught before merge, so it surfaces as
   # a RED MASTER DEPLOY rather than a red PR check, and the fix goes forward on
@@ -214,6 +210,7 @@ jobs:
   # how a shipped dialog reached master with an unbounded render loop in it.
   # Separate job so a Playwright failure is legible on its own and the browser
   # download does not slow the unit gate.
+
   e2e:
     needs: [parity, reproducible]
     runs-on: ubuntu-latest
@@ -288,3 +285,93 @@ jobs:
           name: playwright-report-shard-${{ matrix.shard }}
           path: web/playwright-report/
           retention-days: 7
+
+  build:
+    needs: [parity, reproducible, verify, e2e]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            website/package-lock.json
+
+      - run: npm ci
+
+      # Refresh the About dialog's contributor list from the GitHub API so a newly
+      # merged contributor is credited on the next deploy without a manual commit.
+      # Best-effort: if the API is down or throttled the step is skipped and the
+      # build uses the committed src/data/contributors.generated.json instead.
+      - id: contributors
+        run: npm run sync:contributors
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      # continue-on-error hides the difference between "the API was throttled
+      # today" and "this has been broken for months" -- and nothing else ever
+      # runs this script, so the About dialog's contributor list would just
+      # quietly freeze. Say so, the way sync-catalogs.yml already does.
+      - if: steps.contributors.outcome == 'failure'
+        run: |
+          echo "::warning title=Contributor sync failed::Deployed with the committed contributors.generated.json. If this repeats it is broken, not throttled."
+          echo "### Contributor sync failed" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Deployed with the committed src/data/contributors.generated.json." >> "$GITHUB_STEP_SUMMARY"
+
+      # Docs are built BEFORE the app and into web/public, so the service worker
+      # precaches them: Help has to work offline, which is much of the point of
+      # the PWA. public/ is copied verbatim into dist by Vite.
+      - name: Install docs deps
+        working-directory: website
+        run: npm ci
+
+      # The docs gate lives HERE, not in ci.yml (see the note there): the site is
+      # not built on a PR at all. This typecheck is part of that gate — without
+      # it, website/'s `typecheck` script would be run by nothing again.
+      - name: Typecheck docs
+        working-directory: website
+        run: npm run typecheck
+
+      - name: Build docs into the app
+        working-directory: website
+        run: npx docusaurus build --out-dir "$GITHUB_WORKSPACE/web/public/docs"
+        env:
+          DOCS_BASE_URL: /${{ github.event.repository.name }}/docs/
+      # Serve from https://<user>.github.io/<repo>/ — base must be /<repo>/.
+      - run: npm run build
+        env:
+          PAGES_BASE: /${{ github.event.repository.name }}/
+          # Read the motor/component catalogs from the separately published `data`
+          # branch (see sync-catalogs.yml) instead of the copy inside this build, so
+          # a catalog refresh goes live without a deploy. The in-build copy stays as
+          # the fallback for when the CDN is unreachable.
+          #
+          # Safe before the `data` branch exists: jsDelivr 404s a missing branch in
+          # ~0.4s (measured — as fast as it serves a real file), and the catalogs are
+          # fetched when a picker first opens, not at page load. So until the first
+          # sync runs this costs ~0.4s on first open and then falls back.
+          VITE_DATA_BASE: https://cdn.jsdelivr.net/gh/${{ github.repository }}@data/
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

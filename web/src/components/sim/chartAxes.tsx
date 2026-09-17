@@ -4,7 +4,7 @@ import { fmtNum } from '../../i18n/format';
 // MotorDashboard's CombineChart and ComparePane): the same linear scales, axis
 // furniture, and path builders that were hand-rolled — and had drifted — in each.
 // FlightChart's Panel is deliberately NOT built on this: it has a per-panel
-// y-domain, a hover crosshair, clipping, and event overlays that don't generalise.
+// y-domain, a hover crosshair, clipping, and event overlays that don't generalize.
 
 export type XY = readonly [number, number];
 
@@ -62,7 +62,7 @@ export function ChartAxes({
   X: (t: number) => number;
   Y: (f: number) => number;
   levels?: number[];
-  /** Multiplier from newtons to the unit the axis is LABELLED in. */
+  /** Multiplier from newtons to the unit the axis is LABELED in. */
   fScale?: number;
   fDigits?: number;
 }) {

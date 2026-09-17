@@ -42,7 +42,7 @@ describe('launch-condition SI bridge', () => {
     // 5 m/s is 11.1847 mph.
     expect(shown('windspeed', 5, IMPERIAL_UNITS)).toBeCloseTo(11.1847, 3);
     // A 1 m rod is 39.3701 in… but rod length uses the `length` group, which is
-    // cm under metric — the panel is not silently metres.
+    // cm under metric — the panel is not silently meters.
     expect(shown('length', 1, METRIC_UNITS)).toBeCloseTo(100, 9);
   });
 
@@ -60,7 +60,7 @@ describe('launch-condition SI bridge', () => {
   });
 
   it('keeps the temperature offset out of the wind and angle fields', () => {
-    // The offset is the easiest thing to leak into a neighbour: a field that
+    // The offset is the easiest thing to leak into a neighbor: a field that
     // gained +273.15 would read as a plausible-looking number, not an error.
     expect(LAUNCH_SI.windspeed.toSi(0)).toBe(0);
     expect(LAUNCH_SI.deg.toSi(0)).toBe(0);

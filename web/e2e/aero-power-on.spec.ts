@@ -10,7 +10,7 @@ const openAero = async (page: Page) => {
  *
  * `setInputFiles` returns as soon as the file is handed over; the parse, the
  * tree swap and the engine rebuild are all async after that. Without a
- * synchronisation point the next click can run against the default rocket, and
+ * synchronization point the next click can run against the default rocket, and
  * the assertion then fails for a reason that has nothing to do with the feature.
  * The Booster stage is unique to these fixtures, so its appearance in the tree
  * means the import has actually been applied.
@@ -51,7 +51,7 @@ test.describe('power-on drag curve', () => {
     await expect(page.getByText('Power-on', { exact: true })).toBeVisible({ timeout: 15_000 });
 
     // …and the panel says which motor it belongs to, since there is no motor
-    // selector here — the active simulation's motor is what gets analysed.
+    // selector here — the active simulation's motor is what gets analyzed.
     await expect(page.getByText(/^Power-on: /)).toBeVisible();
   });
 

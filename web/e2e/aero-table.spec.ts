@@ -73,7 +73,7 @@ test.describe('aero component table', () => {
     const resting = await machText();
 
     // Arrow keys rather than fill(): a range input steps, and stepping is the
-    // behaviour under test. The slider's step is the sweep's own sampling, so
+    // behavior under test. The slider's step is the sweep's own sampling, so
     // every stop is a Mach that was actually computed — otherwise the slider
     // reads 0.30 while the table, which snaps to the nearest sample, reads 0.29.
     const slider = page.getByLabel('Mach number for the tables');
@@ -182,7 +182,7 @@ test('always shows roll dynamics, and fills it in once the fins are canted', asy
  * Cell shading is a magnitude ramp: ONE hue, stronger with the value. Not the
  * desktop's green-to-red, which rotates hue 120 degrees and reads as a verdict
  * the number does not carry. This pins the encoding, not merely that cells are
- * coloured: a ramp that stopped tracking the value would still "have colour".
+ * colored: a ramp that stopped tracking the value would still "have color".
  */
 test('shades the drag cells in proportion to the value', async ({ page }) => {
   await page.goto('/');
@@ -203,7 +203,7 @@ test('shades the drag cells in proportion to the value', async ({ page }) => {
   });
   note('cd cells', JSON.stringify(cells));
 
-  // One hue throughout — the ramp is alpha over a single colour, not a rotation.
+  // One hue throughout — the ramp is alpha over a single color, not a rotation.
   expect(new Set(cells.map((c) => c.rgb)).size).toBe(1);
 
   // Stronger with the value, in the same order as the values themselves.
@@ -212,7 +212,7 @@ test('shades the drag cells in proportion to the value', async ({ page }) => {
   expect(alphas).toEqual([...alphas].sort((a, b) => a - b));
   expect(alphas.at(-1)!).toBeGreaterThan(alphas[0]!);
 
-  // …and short of opaque, so the text on top stays its own colour.
+  // …and short of opaque, so the text on top stays its own color.
   expect(alphas.at(-1)!).toBeLessThan(0.6);
   await expect(page.getByText('Share of total')).toBeVisible(); // the ramp is explained
 });
@@ -220,7 +220,7 @@ test('shades the drag cells in proportion to the value', async ({ page }) => {
 /**
  * The desktop's green-to-red heat, offered as a choice. It is a 120-degree hue
  * rotation on an absolute Cd scale with dark text on light cells — a different
- * encoding from the default magnitude ramp, not a recolour of it, so this checks
+ * encoding from the default magnitude ramp, not a recolor of it, so this checks
  * the formula reproduces rather than merely that something changed.
  */
 test('offers OpenRocket’s heat as an alternative shading', async ({ page }) => {
@@ -283,7 +283,7 @@ test('the shading switch on the legend is the same preference as Settings', asyn
   await page.getByRole('button', { name: /Menu/ }).click();
   await page.getByRole('menuitem', { name: 'Settings' }).click();
   await page.getByRole('tab', { name: 'Colors' }).click();
-  const select = page.getByLabel('Cell colours');
+  const select = page.getByLabel('Cell colors');
   await expect(select).toHaveValue('openrocket');
 
   // …and setting it there moves the legend back.

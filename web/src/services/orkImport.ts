@@ -368,11 +368,11 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
           n['clusterRotation'] = (numTag(el, 'clusterrotation', 0) * Math.PI) / 180;
         }
         // Off-axis / split-cluster offset: desktop splits a cluster into single
-        // tubes, each carrying its position as <radialposition> (metres) +
+        // tubes, each carrying its position as <radialposition> (meters) +
         // <radialdirection> (DEGREES). We keep the direction in radians (like
-        // angleOffset) and only carry non-zero values so a centred tube stays
+        // angleOffset) and only carry non-zero values so a centered tube stays
         // clean. Previously neither was read and the writer hard-wrote 0.0, so
-        // every off-centre tube collapsed onto the centreline and the next save
+        // every off-center tube collapsed onto the centerline and the next save
         // made it permanent.
         const radPos = numTag(el, 'radialposition', 0);
         if (radPos !== 0) n['radialPosition'] = radPos;
@@ -491,7 +491,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         const mct = text(el, ':scope > masscomponenttype');
         if (mct && mct !== 'masscomponent') n['massComponentType'] = mct;
         // Off-axis placement: <radialposition> (m) + <radialdirection> (deg → rad),
-        // only kept when non-zero so a centred mass stays clean.
+        // only kept when non-zero so a centered mass stays clean.
         const radPos = numTag(el, 'radialposition', 0);
         if (radPos !== 0) n['radialPosition'] = radPos;
         const radDir = numTag(el, 'radialdirection', 0);
@@ -511,7 +511,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         const radEl = el.querySelector(':scope > radiusoffset');
         if (radEl) {
           const rv = Number(radEl.textContent?.trim());
-          n['radiusOffset'] = Number.isFinite(rv) ? rv : 0; // metres, no conversion
+          n['radiusOffset'] = Number.isFinite(rv) ? rv : 0; // meters, no conversion
           n['radiusMethod'] =
             (radEl.getAttribute('method') ?? 'relative').toLowerCase() === 'free' ? 'free' : 'relative';
         }
@@ -570,7 +570,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
       id: freshId(),
       name: text(stageEl, ':scope > name') ?? (i === 0 ? 'Sustainer' : `Booster ${i}`),
     };
-    // RASAero power-on base-drag input (metres) — every stage, incl. sustainer.
+    // RASAero power-on base-drag input (meters) — every stage, incl. sustainer.
     const nozzle = numTag(stageEl, 'nozzleexitdiameter', NaN);
     if (!Number.isNaN(nozzle) && nozzle > 0) stage['nozzleExitDiameter'] = nozzle;
     if (i > 0) {

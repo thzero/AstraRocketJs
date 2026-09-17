@@ -34,7 +34,7 @@ Everything follows your choice: the property fields you type into, the component
 
 The unit printed next to a value is also a picker — click it and pick another. That changes **that field and nothing else**: set a nose cone's *Length* to inches and its *Thickness*, the component tree, the rulers and the stats strip all carry on in your default unit. The change sticks across reloads.
 
-A field showing something other than your default is **tinted amber**, so one inch measurement among centimetres reads as something you chose rather than a glitch. Hovering it says what your default is.
+A field showing something other than your default is **tinted amber**, so one inch measurement among centimeters reads as something you chose rather than a glitch. Hovering it says what your default is.
 
 Pickers appear on **individual named values** — the fields you type into, the stat tiles, the launch conditions, a material's density. They deliberately don't appear on tables, chart axes, ruler scales or component-tree rows: those are many values at once, and are always shown in your defaults.
 
@@ -46,7 +46,7 @@ Because a per-field choice lives on one field, it can be easy to forget where yo
 | --- | --- |
 | **Reset N fields back to these units** (appears only when some exist) | Clears every per-field choice. Your quantity defaults are left alone. |
 | **Metric defaults** / **Imperial defaults** | Sets all the quantity defaults *and* clears every per-field choice, so a preset always takes full effect. |
-| **Reset Units** (bottom of the dialog) | Back to the metric defaults with no per-field choices — units only, leaving your colours, simulation and other settings untouched. |
+| **Reset Units** (bottom of the dialog) | Back to the metric defaults with no per-field choices — units only, leaving your colors, simulation and other settings untouched. |
 
 A per-field choice is *cleared* rather than rewritten, so the field goes back to **following** your defaults — change a default later and it moves with it.
 
@@ -60,14 +60,14 @@ Units belong to **the browser you set them in**, not to a design and not to a fi
 
 ### Aero table shading
 
-**Colors ▸ Aero table shading** picks how the [Aero](./views-and-analysis.md) per-component tables tint their cells. *By magnitude* is one colour that strengthens with the value, scaled against the largest figure in the table. *By heat* reproduces desktop OpenRocket's green-to-red exactly — its formula, its fixed 0–1.5 Cd scale, dark text on light cells. Neither is more correct; pick the one you read faster. *By heat* applies to the **drag** table only: its scale is an absolute Cd one, which CNα and the roll coefficients are not on — a fin set's CNα of 15 would clamp to the same red as a nose cone's 2 and tell you nothing — so those tables stay unshaded under it, exactly as desktop OpenRocket colours only its drag tab. The same switch sits beside the legend under the table, so you can change it without leaving the view.
+**Colors ▸ Aero table shading** picks how the [Aero](./views-and-analysis.md) per-component tables tint their cells. *By magnitude* is one color that strengthens with the value, scaled against the largest figure in the table. *By heat* reproduces desktop OpenRocket's green-to-red exactly — its formula, its fixed 0–1.5 Cd scale, dark text on light cells. Neither is more correct; pick the one you read faster. *By heat* applies to the **drag** table only: its scale is an absolute Cd one, which CNα and the roll coefficients are not on — a fin set's CNα of 15 would clamp to the same red as a nose cone's 2 and tell you nothing — so those tables stay unshaded under it, exactly as desktop OpenRocket colors only its drag tab. The same switch sits beside the legend under the table, so you can change it without leaving the view.
 
 ### What units don't change
 
 Units are a **display and entry** preference. Your design is always stored in SI, so switching units never edits a rocket or re-saves a file:
 
-- `.ork` files stay in metres and kilograms — byte-for-byte what desktop OpenRocket writes.
-- Format-defined exports keep their own units: RASAero (`.CDX1`) in inches/pounds, DXF cut sheets and 3D meshes in millimetres.
+- `.ork` files stay in meters and kilograms — byte-for-byte what desktop OpenRocket writes.
+- Format-defined exports keep their own units: RASAero (`.CDX1`) in inches/pounds, DXF cut sheets and 3D meshes in millimeters.
 - The PDF report's 1:1 templates and its printed scale bar stay in mm/cm — that bar measures the **page**, so it must match a real ruler. (The report and design CSV otherwise follow your units, or can be pinned to metric or imperial in the export dialog — see [Files & Exports](./files-and-exports.md).)
 - Unitless figures don't move either: stability in calibers or % of length, drag coefficients, Mach, CNα, times in seconds.
 - Motor mount and filter diameters stay in mm, since 18 mm / 24 mm / 29 mm are effectively motor **names**.

@@ -19,7 +19,7 @@ describe('assemblyChainLength', () => {
     const p = pod([
       { type: 'nosecone', length: 0.05 },
       { type: 'bodytube', length: 0.1 },
-      { type: 'parachute', packedLength: 0.3 }, // internal — not part of the chain
+      { type: 'parachute', length: 0.3 }, // internal — not part of the chain
     ]);
     expect(assemblyChainLength(p)).toBeCloseTo(0.15);
   });

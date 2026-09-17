@@ -38,7 +38,7 @@ Because RASAero can't represent every shape, the export **stops with a clear mes
 
 Export is **per component**, not whole-rocket: in the **Components** tree, every part that has a real shape carries a small **⬇** button that offers the formats appropriate to *that* part. Parts with no printable object — parachutes, streamers, shock cords, mass components, rail buttons — carry no button.
 
-- **3D models — STL, OBJ, GLB.** A single, **watertight solid** of the part, built for 3D printing and CAD (STL/OBJ import into any slicer or modeller; GLB also carries a color for viewers). Offered for nose cones, transitions, body tubes, inner tubes, launch lugs, tube fins, fin sets, centering rings, bulkheads, couplers and engine blocks.
+- **3D models — STL, OBJ, GLB.** A single, **watertight solid** of the part, built for 3D printing and CAD (STL/OBJ import into any slicer or modeler; GLB also carries a color for viewers). Offered for nose cones, transitions, body tubes, inner tubes, launch lugs, tube fins, fin sets, centering rings, bulkheads, couplers and engine blocks.
 - **DXF — 2D cut sheet.** The flat outline of a **plate-cut** part for a laser cutter or CNC router (AutoCAD R12, in millimeters, CUT / REFERENCE layers). Offered only for the parts you actually cut from sheet: **fins, centering rings and bulkheads**. Fin outlines fold in any through-the-wall tab; discs carry the bore and a center cross-hair.
 
 Notes on the 3D geometry:
@@ -69,7 +69,7 @@ Then choose an output:
 - **Save as PDF** — a real PDF file (vector text, tables and 1:1 templates; the schematic is drawn to scale).
 - **Save as CSV** — the design summary as a tidy `Scope, Field, Value, Unit` table (Design / Rocket / per-stage blocks, plus each fin set's root position), for a spreadsheet.
 
-**Units** (persisted, next to the other options) picks what the PDF and the CSV are written in: **My default units** follows [Settings ▸ Units](./settings.md#units), or pin the document to **Metric** or **Imperial** so it reads the same whatever you happen to be working in — useful when the report is for someone else. Note that "my default units" means the tab defaults, *not* a unit you have set on an individual field: a report written half in inches and half in centimetres because of where you happened to click is not one anyone wants. The 1:1 templates and the printed scale bar always stay in mm/cm, because they measure the page.
+**Units** (persisted, next to the other options) picks what the PDF and the CSV are written in: **My default units** follows [Settings ▸ Units](./settings.md#units), or pin the document to **Metric** or **Imperial** so it reads the same whatever you happen to be working in — useful when the report is for someone else. Note that "my default units" means the tab defaults, *not* a unit you have set on an individual field: a report written half in inches and half in centimeters because of where you happened to click is not one anyone wants. The 1:1 templates and the printed scale bar always stay in mm/cm, because they measure the page.
 
 The **Settings** button (persisted) controls the **template fill / border colors**, **paper size** (Letter / A4) and **orientation** (Portrait / Landscape).
 
@@ -84,23 +84,33 @@ The **Settings** button (persisted) controls the **template fill / border colors
 
 After a simulation, the **3D path** view has an **⬇ Export** button that saves the flight's trajectory and ground track for mapping tools:
 
-- **KML** — opens in **Google Earth**: the flight-path line, the ground track, and labelled waypoints.
+- **KML** — opens in **Google Earth**: the flight-path line, the ground track, and labeled waypoints.
 - **GPX** — a standard GPS track (waypoints + track) for GPS tools and mapping apps.
 - **Waypoint CSV** — one row per point of interest (pad, apogee, landing, …) with latitude / longitude.
 
 In the export dialog you choose which **waypoints** to include (pad, liftoff, burnout, apogee, recovery deployment, landing, max velocity, max acceleration), whether to include the **flight-path line** and the **ground track**, how much to thin the path (**keep every Nth point**), and the **altitude / distance units**.
 
-**Presets** — *Drift cast*, *Flight path* and *Landing plots* — set all three of those at once, because the waypoints, the lines and the placement have to agree for a file to answer one question well. They only move the controls, so what the file will contain is always what the dialog shows, and any one of them is a starting point you can adjust.
+**Presets** — *Drift cast*, *Flight path* and *Landing plots* — set all three of those at once, because the waypoints, the lines and the placement have to agree for a file to answer one question well. They only move the controls, so what the file will contain is always what the dialog shows, and any one of them is a starting point you can adjust. Each states its selection in full, waypoints included, so no preset is a one-way door: *Landing plots* narrows the waypoints to the landing, and going back to *Drift cast* puts them all back.
 
 **Placement** controls how the track sits on the map:
 
 - **Track altitude from** and **Waypoint altitude from** — two separate choices, because the line and the pins want different things. *Automatic* uses sea level when the launch site has a real altitude set and the ground when it is still 0. That default matters: a flight measured from the pad but placed against sea level is buried under the terrain, which is what a launch site at 1200 m would otherwise give you. *Clamped to the ground* lays the track flat on the terrain — the one to pick when the question is what the rocket drifts **over** rather than how high it went. A common pairing is the track at sea level with the pins clamped: the flight suspended in the air where it belongs, and its labels readable against the ground they sit over.
 - **Draw shadow down to the ground** — a curtain under the track and a plumb line under each pin, so you can read where a point in the air sits on the map. It switches off on its own once both halves are clamped, since there is nothing left to draw from.
-- **Each stage's track starts** (staged flights only) — a separated stage's data begins as a copy of the whole stack's, so by default its track starts **at separation** and the shared ascent is drawn once. Choose **on the pad** to have every stage read as a complete flight instead. This also decides where a stage's *max velocity* and *max acceleration* are measured from, so a spent booster reports its own peaks rather than the stack's.
-- **Draw waypoint names on the map** — a near-vertical flight stacks its waypoints into a few hundred metres of screen; turn the names off for bare markers you can click.
-- **Colour waypoint pins per stage** — coloured pins load an icon from Google's servers, so turn them off for a file that has to render offline.
+- **Draw waypoint names on the map** — a near-vertical flight stacks its waypoints into a few hundred meters of screen; turn the names off for bare markers you can click.
+- **Color waypoint pins per stage** — colored pins load an icon from Google's servers, so turn them off for a file that has to render offline.
 
-Each stage also gets its own track colour, from the same palette desktop OpenRocket uses, so a stage looks the same in both.
+The **Flight path** group carries two more controls that belong to the lines themselves:
+
+- **Each stage's track starts** (staged flights only) — a separated stage's data begins as a copy of the whole stack's, so by default its track starts **at separation** and the shared ascent is drawn once. Choose **on the pad** to have every stage read as a complete flight instead. This also decides where a stage's *max velocity* and *max acceleration* are measured from, so a spent booster reports its own peaks rather than the stack's.
+- **Stage colors…** — one swatch per stage. Each stage starts on the same palette color desktop OpenRocket and the [flight charts](./views-and-analysis.md#flight-after-a-simulation) give it, so a stage keeps its identity between the graph and the map; pick another to override it. One color drives all three of that stage's marks: the flight-path line at full strength, the ground track darkened (seen from straight above, a ground track sits directly beneath its flight path, and two lines of the same brightness read as one), and the waypoint pins. **Reset to defaults** puts every stage back on the palette, and **Cancel** leaves your previous choice alone.
+
+### Naming the export
+
+Several exports opened in one Google Earth session are otherwise indistinguishable: every two-stage design contributes a folder called *Sustainer* and a track called *Sustainer flight path*, and two designs can each own a *Simulation 1*. The **Mission** box names this one — the text is prefixed to the document name, every folder and every track, so *Sod Blaster* gives you *Sod Blaster Sustainer flight path*. A name that already starts with the mission is left alone rather than stuttering.
+
+**Prefix the waypoint names too** extends it to the markers, and is off by default: a near-vertical flight packs every marker into a few screen pixels, where the labels already overlap enough to have a switch of their own (*Draw waypoint names on the map*, above), and longer names only make that worse. Turn it on when two flights' markers genuinely sit on top of each other.
+
+The mission name is **not** remembered between exports — a stale one would quietly mislabel the next file, which is worse than retyping it. The marker checkbox is remembered, because that one is a working habit rather than a property of one flight. Neither is stored in your design, and the per-stage colors are likewise chosen per export.
 
 The coordinates are placed about the simulation's **launch latitude / longitude** (set in the launch conditions) and follow the wind drift, projected with WGS84 degree lengths so a track exported here lands on the same spot as the same flight exported from desktop OpenRocket.
 

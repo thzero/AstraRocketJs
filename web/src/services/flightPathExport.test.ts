@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildFlightPathModel,
+  defaultBranchColor,
   defaultExportOptions,
+  exportBranchNames,
   hasLaunchPosition,
   renderKml,
   renderGpx,
@@ -92,19 +94,19 @@ const build = (res: FlightResult, over: Partial<ReturnType<typeof defaultExportO
 /**
  * These fields exist so a Mustache template written for desktop OpenRocket
  * renders correctly here. Mustache resolves an unknown key to an empty string,
- * so a missing one is not an error — it is a KML with no colours and
+ * so a missing one is not an error — it is a KML with no colors and
  * coordinates that have lost their altitude. Hence the belt-and-braces checks.
  */
 describe('desktop model parity', () => {
-  it('gives each branch a palette colour and contiguous index', () => {
+  it('gives each branch a palette color and contiguous index', () => {
     const m = build(staged);
     expect(m.branches.map((b) => b.index)).toEqual([0, 1]);
     expect(m.branches[0]!.colorRgb).toBe('0072bd');
     expect(m.branches[1]!.colorRgb).toBe('d95319');
   });
 
-  it('writes KML colours as aabbggrr, not the rgb it started from', () => {
-    // KML orders the bytes backwards from hex web colours, which is exactly the
+  it('writes KML colors as aabbggrr, not the rgb it started from', () => {
+    // KML orders the bytes backwards from hex web colors, which is exactly the
     // kind of thing that silently renders blue as red.
     const b = build(staged).branches[0]!;
     expect(b.pathColorKml).toBe('ffbd7200'); // opaque, 0072bd reversed
@@ -233,6 +235,93 @@ describe('stage track start', () => {
   });
 });
 
+/**
+ * Several exports opened in one Google Earth session are otherwise
+ * indistinguishable: every two-stage design contributes a folder called
+ * "Sustainer" and a track called "Sustainer flight path", and two designs can
+ * each own a "Simulation 1".
+ */
+describe('mission name', () => {
+  it('names the document, the folders and the tracks, but not the markers', () => {
+    const m = build(staged, { missionName: 'Sod Blaster' });
+    expect(m.title).toBe('Sod Blaster Sim 1');
+    expect(m.branches.map((b) => b.name)).toEqual(['Sod Blaster Sustainer', 'Sod Blaster Booster']);
+    // The KML builds " flight path" / " ground track" off the folder name, so
+    // naming the branch names the tracks too.
+    expect(renderKml(m)).toContain('<name>Sod Blaster Sustainer flight path</name>');
+    // The markers stay short: this is the opt-in half, and it was not opted in.
+    expect(m.branches[0]!.waypoints.find((w) => w.type === 'apogee')!.qualifiedLabel).toBe('Sustainer apogee');
+  });
+
+  it('reaches the markers only when asked to', () => {
+    const m = build(staged, { missionName: 'Sod Blaster', labelWaypointsWithMission: true });
+    const apogee = m.branches[0]!.waypoints.find((w) => w.type === 'apogee')!;
+    // Qualified first, then prefixed: the stage stays next to the event.
+    expect(apogee.qualifiedLabel).toBe('Sod Blaster Sustainer apogee');
+    // The unqualified label is what the GPX and the CSV carry, and is untouched.
+    expect(apogee.label).toBe('apogee');
+  });
+
+  it('does not double a mission the name already leads with', () => {
+    // The obvious thing to type is the name of the thing you flew, which is
+    // also what the branch is called. Without the guard: "Sustainer Sustainer".
+    const m = build(staged, { missionName: 'Sustainer', labelWaypointsWithMission: true });
+    expect(m.branches[0]!.name).toBe('Sustainer');
+    expect(m.branches[0]!.waypoints.find((w) => w.type === 'apogee')!.qualifiedLabel).toBe('Sustainer apogee');
+    // Case is not part of the question a reader is asking.
+    expect(build(staged, { missionName: 'sustainer' }).branches[0]!.name).toBe('Sustainer');
+  });
+
+  it('leaves every name exactly as it was when there is no mission', () => {
+    const m = build(staged);
+    expect(m.title).toBe('Sim 1');
+    expect(m.branches.map((b) => b.name)).toEqual(['Sustainer', 'Booster']);
+    expect(m.branches[1]!.waypoints.find((w) => w.type === 'apogee')!.qualifiedLabel).toBe('Booster apogee');
+  });
+
+  it('treats a blank mission as no mission, not as a leading space', () => {
+    const m = build(staged, { missionName: '   ', labelWaypointsWithMission: true });
+    expect(m.title).toBe('Sim 1');
+    expect(m.branches[0]!.name).toBe('Sustainer');
+    expect(m.branches[0]!.waypoints.find((w) => w.type === 'apogee')!.qualifiedLabel).toBe('Sustainer apogee');
+    // And a name with slack around it still reads as the name.
+    expect(build(staged, { missionName: '  Sod Blaster  ' }).title).toBe('Sod Blaster Sim 1');
+  });
+});
+
+describe('stage colors', () => {
+  it('indexes the palette with a floor-mod, so any stage count works', () => {
+    expect(defaultBranchColor(0)).toBe(0x0072bd);
+    expect(defaultBranchColor(10)).toBe(0x0072bd); // wraps rather than running out
+    expect(defaultBranchColor(-1)).toBe(0x556b2f); // and cannot reach off the front
+  });
+
+  it('lets an override replace one stage and leaves the rest on the palette', () => {
+    const m = build(staged, { branchColors: new Map([[1, 0x112233]]) });
+    expect(m.branches[0]!.colorRgb).toBe('0072bd'); // untouched
+    expect(m.branches[1]!.colorRgb).toBe('112233');
+  });
+
+  it('derives the line, the ground track and the pin from the one color', () => {
+    // Darkened rather than merely made translucent: seen from straight above, a
+    // ground track sits directly beneath its flight path, and two lines of the
+    // same brightness read as one.
+    const b = build(staged, { branchColors: new Map([[0, 0x0072bd]]) }).branches[0]!;
+    expect(b.pathColorKml).toBe('ffbd7200');
+    expect(b.groundColorKml).toBe('d0553300');
+    const kml = renderKml(build(staged, { branchColors: new Map([[0, 0x112233]]) }));
+    expect(kml).toContain('<color>ff332211</color>'); // line and pin, aabbggrr
+  });
+
+  it('offers the color picker exactly the branches the model will number', () => {
+    // The picker keys its swatches by index, so a disagreement here would paint
+    // a stage the color of the one beside it.
+    const meta = { simName: 'Sim 1', rocketName: 'My <Rocket>', motorName: 'C6' };
+    expect(exportBranchNames(staged, meta)).toEqual(build(staged).branches.map((b) => b.name));
+    expect(exportBranchNames(result, meta)).toEqual(['My <Rocket>']);
+  });
+});
+
 describe('buildFlightPathModel', () => {
   it('projects Px/Py drift onto lat/lon about the launch site', () => {
     const m = model();
@@ -324,7 +413,7 @@ describe('launch position fallback', () => {
     const perDegreeLat = 200 / (last.latitude - 40);
     const perDegreeLon = 100 / (last.longitude + 105);
 
-    // WGS84 at 40 deg N, to the centimetre.
+    // WGS84 at 40 deg N, to the centimeter.
     expect(perDegreeLat).toBeCloseTo(111034.6, 1);
     expect(perDegreeLon).toBeCloseTo(85393.94, 1);
     // A sphere of radius 6371 km would say 111194.93 and 85180.26 -- 160 m and
@@ -397,12 +486,12 @@ describe('renderKml', () => {
     expect(kml).toContain('<altitudeMode>clampToGround</altitudeMode>');
   });
 
-  it('gives each stage its own styles, colours and qualified waypoint names', () => {
+  it('gives each stage its own styles, colors and qualified waypoint names', () => {
     const k = renderKml(build(staged));
     expect(k).toContain('id="flightPath0"');
     expect(k).toContain('id="flightPath1"');
     expect(k).toContain('<styleUrl>#waypoint1</styleUrl>');
-    // Two stages, two different line colours - one hardcoded red for both is
+    // Two stages, two different line colors - one hardcoded red for both is
     // what made a staged flight unreadable.
     const colors = [...k.matchAll(/<LineStyle><color>([0-9a-f]{8})</g)].map((m) => m[1]);
     expect(new Set(colors).size).toBeGreaterThan(1);
@@ -434,7 +523,7 @@ describe('renderKml', () => {
     expect(line).toContain('<altitudeMode>clampToGround</altitudeMode>');
   });
 
-  it('drops the pin icon when colour pins are turned off', () => {
+  it('drops the pin icon when color pins are turned off', () => {
     expect(kml).toContain('maps.google.com/mapfiles/kml/pushpin');
     expect(renderKml(build(result, { colorWaypointPins: false }))).not.toContain('maps.google.com');
   });

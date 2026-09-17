@@ -107,7 +107,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   // zero, every fin is drawn as a plain outline, over the body, nothing hidden.
   const wire = roll !== 0;
 
-  // One clip per (centreline, body radius): everything OUTSIDE the airframe
+  // One clip per (centerline, body radius): everything OUTSIDE the airframe
   // band, as two rects. Cuts a FAR fin's fill at the tube wall (a fin behind the
   // body has its root hidden). Memoised so a shared band reuses one def.
   const clipDefs: React.ReactNode[] = [];
@@ -148,7 +148,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
     return out.sort((x, y) => Math.abs(x.p) - Math.abs(y.p));
   };
 
-  // Ink for a fin drawn as a wireframe outline: the component's own colour, no fill.
+  // Ink for a fin drawn as a wireframe outline: the component's own color, no fill.
   const wireInk = (n: ComponentNode, grab: Record<string, unknown>) => ({
     ...grab,
     fill: 'none',
@@ -347,7 +347,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
             );
             // Only fins that poke past the airframe are drawn: an edge-on blade
             // (reach·|p| ≤ pRadius) is hidden behind the body, not a bar down
-            // the centreline. Near ones go in the overlay (on top); far ones
+            // the centerline. Near ones go in the overlay (on top); far ones
             // under the hull, their root cut at the wall by the clip.
             if (reach * Math.abs(p) > pRadius) {
               (near ? overlay : shapes).push(body);
@@ -427,7 +427,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
       } else if (t === 'tubefinset') {
         // Side view: every tube of the ring at its projected height. A tube runs
         // PARALLEL to the axis, so roll doesn't squash its 2·rt silhouette — only
-        // its centre moves, to (pRadius + rt)·cos θ. Tubes whose silhouette falls
+        // its center moves, to (pRadius + rt)·cos θ. Tubes whose silhouette falls
         // entirely inside the airframe are hidden behind it and dropped.
         const len = num(child, 'length', 0.1);
         const rt = tubeFinRadius(child, pRadius);
@@ -576,7 +576,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         // Internal component: dashed outline inside the parent. A clustered
         // inner tube draws once per cluster position (side-view projection).
         // Per-type stroke color + a small tag differentiate what used to be
-        // identical grey boxes (issue 2026-08-05a #21) — tubes/couplers stay
+        // identical gray boxes (issue 2026-08-05a #21) — tubes/couplers stay
         // neutral (they really are tube segments), payload-type parts get
         // muted colors from the theme-safe midrange.
         const TYPE_STYLE: Partial<Record<string, { stroke: string; tag: string }>> = {
@@ -589,11 +589,12 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           engineblock: { stroke: '#7d7050', tag: 'EB' },
         };
         const style = TYPE_STYLE[child.type];
-        const len = num(child, 'length', num(child, 'packedLength', 0.025));
-        const r = Math.min(
-          pRadius * 0.85,
-          num(child, 'outerRadius', num(child, 'radius', num(child, 'packedRadius', pRadius * 0.7))),
-        );
+        // `packedLength` / `packedRadius` used to sit at the end of each chain
+        // as a fallback. Neither key is ever written: orkImport reads
+        // <packedlength>/<packedradius> into `length`/`radius`
+        // (orkImport.ts:441-488), so both branches were unreachable.
+        const len = num(child, 'length', 0.025);
+        const r = Math.min(pRadius * 0.85, num(child, 'outerRadius', num(child, 'radius', pRadius * 0.7)));
         const start = axialStart(child, len, pStart, pLen);
         const offsets =
           child.type === 'innertube'
@@ -790,9 +791,9 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         cx += len;
       } else if (n.type === 'bodytube') {
         const r = num(n, 'outerRadius', 0.012);
-        // A zero-size "phantom" tube (length 0, radius 0) is a modelling hack
+        // A zero-size "phantom" tube (length 0, radius 0) is a modeling hack
         // used only to hang an off-axis fin set at a chosen radius (e.g. a
-        // T-tail's horizontal stabiliser). Draw no rect for it — a degenerate
+        // T-tail's horizontal stabilizer). Draw no rect for it — a degenerate
         // rect leaves a stray dot/line — but still lay out its children below.
         const degenerate = r < 1e-6 || len < 1e-6;
         if (!degenerate) {

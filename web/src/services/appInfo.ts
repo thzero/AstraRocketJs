@@ -47,7 +47,7 @@ export const CONTRIBUTORS_URL: string = __CONTRIBUTORS_URL__;
 
 /**
  * True while the app is a pre-1.0 (work-in-progress) build — i.e. the version's
- * major number is 0. Gates the "work in progress" acknowledgement popup and the
+ * major number is 0. Gates the "work in progress" acknowledgment popup and the
  * About-dialog notice; both switch off automatically once the version hits 1.0.
  */
 export const isPreRelease = (version: string = APP_VERSION): boolean => {

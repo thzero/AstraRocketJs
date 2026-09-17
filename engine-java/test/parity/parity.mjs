@@ -1,23 +1,37 @@
 #!/usr/bin/env node
 /**
- * Parity test: run parity.ParityMain on the JVM and under TeaVM-JS in Node, and require
+ * Parity test: run parity.ParityMain on the JVM and under each TeaVM target in Node, and require
  * BIT-IDENTICAL output (modulo a small ULP tolerance for JS Math transcendentals). Any real
- * diff is a fidelity break — a TeaVM miscompile, a semantics divergence, or an unported dep.
+ * diff is a fidelity break: a TeaVM miscompile, a semantics divergence, or an unported dep.
+ *
+ * BOTH targets are checked by default, because both are shipped: openRocketEngine.ts loads
+ * WASM-GC where the browser supports it and falls back to JS. Checking one alone leaves the
+ * other's fidelity unproven, and the two do NOT fail together (a miscompile is per backend).
+ * They share the JVM reference, so the pair costs barely more than one: parityJvm measured 22s
+ * of a 35s run, where a TeaVM build is 6s once its outputs are cached. Checking one target
+ * alone is the special case, behind a flag.
  *
  * Self-contained: builds the parity engine variant (-Pparity) and the JVM reference itself.
  * Needs a JDK (JAVA_HOME, or whatever the Gradle wrapper already resolves) and Node 22+.
  *
- *   node test/parity/parity.mjs           # TeaVM-JS vs JVM (default)
- *   node test/parity/parity.mjs --wasm    # TeaVM WASM-GC vs JVM
+ *   node test/parity/parity.mjs           # BOTH targets vs ONE JVM reference (default)
+ *   node test/parity/parity.mjs --js      # TeaVM-JS only
+ *   node test/parity/parity.mjs --wasm    # TeaVM WASM-GC only
+ *   node test/parity/parity.mjs --golden  # rewrite golden.txt from this run (deliberate changes only)
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-// --wasm compares the TeaVM WASM-GC build against the JVM (default is TeaVM-JS). Same JVM reference,
-// same tolerances — WASM f64 tracks the JVM's IEEE-754 at least as closely as JS Math does.
-const useWasm = process.argv.includes('--wasm');
+// Neither flag (or both) means both targets, the default that has to be right (see above).
+// --js / --wasm narrow it to one, for bisecting a divergence that only one backend shows.
+// Both go against the same JVM reference and the same tolerances: WASM f64 tracks the JVM's
+// IEEE-754 at least as closely as JS Math does. `--both` is still accepted, as an explicit
+// spelling of the default.
+const wantJs = process.argv.includes('--js');
+const wantWasm = process.argv.includes('--wasm');
+const targets = wantJs === wantWasm ? ['js', 'wasm'] : wantJs ? ['js'] : ['wasm'];
 const writeGolden = process.argv.includes('--golden');
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -35,8 +49,13 @@ const gradle = (args) => execFileSync(join(engineRoot, gradlew), args, {
 });
 
 // --- build the parity engine (harness as mainClass) + capture the JVM reference ---
-console.error(`parity: building parity engine (-Pparity${useWasm ? ', WASM-GC' : ''}) …`);
-gradle([useWasm ? 'buildWasmGC' : 'generateJavaScript', '-Pparity', '--quiet', '--console=plain']);
+const GRADLE_TASK = { js: 'generateJavaScript', wasm: 'buildWasmGC' };
+for (const target of targets) {
+  console.error(`parity: building parity engine (-Pparity${target === 'wasm' ? ', WASM-GC' : ''}) …`);
+  gradle([GRADLE_TASK[target], '-Pparity', '--quiet', '--console=plain']);
+}
+// ONCE, however many targets are compared: the reference is the JVM running the
+// same harness, which does not depend on which TeaVM target it is checked against.
 console.error('parity: running JVM reference (parityJvm) …');
 const jvmRaw = gradle(['parityJvm', '-Pparity', '--quiet', '--console=plain']);
 
@@ -45,37 +64,47 @@ const teavmDir = join(engineRoot, 'build', 'generated', 'teavm');
 const jsPath = join(teavmDir, 'js', 'astrarrocketjs-engine.js');
 const wasmPath = join(teavmDir, 'wasm-gc', 'astrarrocketjs-engine.wasm');
 const wasmRuntimePath = join(teavmDir, 'wasm-gc', 'astrarrocketjs-engine.wasm-runtime.js');
-const needed = useWasm ? [wasmPath, wasmRuntimePath] : [jsPath];
-for (const p of needed) {
-  if (!existsSync(p)) {
-    console.error(`parity: TeaVM output missing: ${p}`);
-    process.exit(1);
+
+/**
+ * Run one TeaVM target's parity main() and return everything it printed.
+ *
+ * stdout is captured rather than piped because the target writes through
+ * console.log in-process; the capture is restored in a `finally` so a throw
+ * cannot leave the harness mute for the remaining target.
+ */
+async function runTarget(target) {
+  const needed = target === 'wasm' ? [wasmPath, wasmRuntimePath] : [jsPath];
+  for (const p of needed) {
+    if (!existsSync(p)) {
+      console.error(`parity: TeaVM output missing: ${p}`);
+      process.exit(1);
+    }
   }
-}
-let jsCaptured = '';
-const origLog = console.log;
-const origWrite = process.stdout.write.bind(process.stdout);
-console.log = (msg) => { jsCaptured += String(msg) + '\n'; };
-process.stdout.write = (chunk) => { jsCaptured += String(chunk); return true; };
-try {
-  if (useWasm) {
-    // The runtime is an IIFE that installs globalThis.TeaVM.wasmGC.{load,…}.
-    (0, eval)(readFileSync(wasmRuntimePath, 'utf8'));
-    const teavm = await globalThis.TeaVM.wasmGC.load(wasmPath);
-    teavm.exports.main([]);
-  } else {
-    const mod = await import(pathToFileURL(jsPath).href);
-    mod.main();
+  let captured = '';
+  const origLog = console.log;
+  const origWrite = process.stdout.write.bind(process.stdout);
+  console.log = (msg) => { captured += String(msg) + '\n'; };
+  process.stdout.write = (chunk) => { captured += String(chunk); return true; };
+  try {
+    if (target === 'wasm') {
+      // The runtime is an IIFE that installs globalThis.TeaVM.wasmGC.{load,…}.
+      (0, eval)(readFileSync(wasmRuntimePath, 'utf8'));
+      const teavm = await globalThis.TeaVM.wasmGC.load(wasmPath);
+      teavm.exports.main([]);
+    } else {
+      const mod = await import(pathToFileURL(jsPath).href);
+      mod.main();
+    }
+  } finally {
+    console.log = origLog;
+    process.stdout.write = origWrite;
   }
-} finally {
-  console.log = origLog;
-  process.stdout.write = origWrite;
+  return captured;
 }
 
 // --- compare (bit-identical, except a small relative tolerance for JS Math ULP noise) ---
 const norm = (s) => s.split(/\r?\n/).map((l) => l.trimEnd()).filter(Boolean);
 const jvm = norm(jvmRaw);
-const js = norm(jsCaptured);
 
 const REL_TOL_DEFAULT = 1e-13;   // static/instantaneous calcs stay bit-identical (JS Math ULP only)
 // Flight (time-integrated) tolerances — full diagnosis in
@@ -117,27 +146,34 @@ function linesMatch(a, b) {
   return ulp ? 'ulp' : false;
 }
 
-let failures = 0;
-let ulpLines = 0;
-let exactLines = 0;
-const n = Math.max(jvm.length, js.length);
-for (let i = 0; i < n; i++) {
-  const m = linesMatch(jvm[i], js[i]);
-  if (m === 'exact') exactLines++;
-  else if (m === 'ulp') ulpLines++;
-  else {
-    if (failures < 10) {
-      console.error(`DIFF line ${i + 1}:\n  jvm: ${jvm[i] ?? '<missing>'}\n  js : ${js[i] ?? '<missing>'}`);
+// Compared one target at a time against the single JVM reference. A label is only added when
+// there is more than one, so the default run says which target each verdict is for, while a
+// narrowed --js / --wasm run stays unlabeled (there is nothing to disambiguate).
+const label = targets.length > 1 ? (t) => ` [${t}]` : () => '';
+for (const target of targets) {
+  const out = norm(await runTarget(target));
+  let failures = 0;
+  let ulpLines = 0;
+  let exactLines = 0;
+  const n = Math.max(jvm.length, out.length);
+  for (let i = 0; i < n; i++) {
+    const m = linesMatch(jvm[i], out[i]);
+    if (m === 'exact') exactLines++;
+    else if (m === 'ulp') ulpLines++;
+    else {
+      if (failures < 10) {
+        console.error(`DIFF${label(target)} line ${i + 1}:\n  jvm: ${jvm[i] ?? '<missing>'}\n  ${target.padEnd(3)}: ${out[i] ?? '<missing>'}`);
+      }
+      failures++;
     }
-    failures++;
   }
-}
 
-if (failures) {
-  console.error(`\nPARITY FAILURE: ${failures} mismatched line(s) of ${n}.`);
-  process.exit(1);
+  if (failures) {
+    console.error(`\nPARITY FAILURE${label(target)}: ${failures} mismatched line(s) of ${n}.`);
+    process.exit(1);
+  }
+  console.log(`parity ok${label(target)}: ${n} lines (${exactLines} bit-identical, ${ulpLines} within ULP tolerance)`);
 }
-console.log(`parity ok: ${n} lines (${exactLines} bit-identical, ${ulpLines} within ULP tolerance)`);
 
 // --- a flight that FAILED is not a flight that matched ---------------------
 // ParityMain catches SimulationException and prints "EXCEPTION: ...". Thrown
@@ -181,3 +217,17 @@ if (writeGolden) {
   }
   console.log(`golden ok: ${golden.length} reference value(s) unchanged`);
 }
+
+// --- exit explicitly -------------------------------------------------------
+//
+// Every FAILURE path above calls process.exit(1); success used to just fall off
+// the end and rely on Node draining its event loop. Under --wasm it does not:
+// the TeaVM WASM-GC runtime this script evals leaves a handle open, so a run
+// that had already printed "parity ok" and "golden ok" sat idle until the CI
+// runner gave up and SIGTERMed it -- surfacing a PASSING parity check as
+// "exit code 143" with every later step skipped.
+//
+// stdout is a pipe under CI, where writes are asynchronous, so flush before
+// exiting or the last lines are the ones that get truncated.
+await new Promise((resolve) => process.stdout.write('', resolve));
+process.exit(0);

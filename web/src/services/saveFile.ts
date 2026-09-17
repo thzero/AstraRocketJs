@@ -46,7 +46,7 @@ function anchorDownload(blob: Blob, filename: string): void {
 
 /**
  * Save `blob` as `filename`. Resolves once handed off; never rejects — a user
- * cancelling the share sheet is not an error, and a failed share falls back to
+ * canceling the share sheet is not an error, and a failed share falls back to
  * the anchor rather than leaving them with nothing.
  */
 export async function saveBlob(blob: Blob, filename: string): Promise<void> {
@@ -58,7 +58,7 @@ export async function saveBlob(blob: Blob, filename: string): Promise<void> {
         return;
       }
     } catch (e) {
-      // Cancelling raises AbortError — the user chose not to save, so stop here
+      // Canceling raises AbortError — the user chose not to save, so stop here
       // rather than surprising them with a second attempt.
       if (e instanceof DOMException && e.name === 'AbortError') return;
       // Anything else (share unsupported for files, transient failure): fall through.

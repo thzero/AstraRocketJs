@@ -203,7 +203,7 @@ describe('calculateClip (via the clipped profile)', () => {
   });
 
   it('a shrinking transition is the mirror of the growing one', () => {
-    // Transition.getRadius() normalises to the small end and flips back, so a
+    // Transition.getRadius() normalizes to the small end and flips back, so a
     // boat tail must be the same curve read backwards — not a different solve.
     const p = shapeParamDefault('haack');
     const grow = outerProfile('haack', p, 0.1, 0.02, 0.04, 16);

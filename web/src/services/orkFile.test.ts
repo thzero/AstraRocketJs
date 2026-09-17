@@ -332,7 +332,7 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
 
   it('preserves an off-axis mass component radial offset through export → import', () => {
     // Regression: the writer hard-wrote radialposition 0.0 and never emitted a
-    // radialdirection, and the reader ignored both — so an off-centreline mass
+    // radialdirection, and the reader ignored both — so an off-centerline mass
     // (ballast, altimeter) snapped back onto the axis on every save/load.
     const withMass = {
       components: [

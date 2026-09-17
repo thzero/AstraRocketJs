@@ -33,7 +33,7 @@ Extracted sources by area:
 
 ## Build → run pipeline
 
-1. `engine-java/` (extracted core + `src/shims/` JVM-only replacements + `src/jdkstubs/` a JDK `Collator` stand-in + `src/api/OpenRocketEngine` @JSExport facade) is compiled by TeaVM to **two targets**: a **WASM-GC** module and a **JavaScript** module. Both come from the same sources via `node engine-java/build-engine.mjs` (JS) / `--wasm` (WASM-GC).
+1. `engine-java/` (extracted core + `src/shims/` JVM-only replacements + `src/jdkstubs/` a JDK `Collator` stand-in + `src/api/OpenRocketEngine` @JSExport facade) is compiled by TeaVM to **two targets**: a **WASM-GC** module and a **JavaScript** module. Both come from the same sources, and `node engine-java/build-engine.mjs` builds and vendors both of them.
 2. The built artifacts are committed so the web app builds without a JDK:
    - JS → `web/src/engine/vendor/openrocket-engine.mjs`
    - WASM → `web/public/engine/openrocket-engine.wasm` (+ its `*.wasm-runtime.js`)
@@ -165,7 +165,7 @@ Swapping one does not affect the other.
 
 localStorage is synchronous — every read and write blocks the main thread — and capped near **5 MB per origin**, shared across designs, custom motors and materials, imported templates and the thrust-curve caches. `workspaceStore.save()` throwing `storage-full` is that cap showing through. IndexedDB is async and effectively uncapped.
 
-Existing data migrates **lazily, per key, on first read**: a key absent from IndexedDB but present in localStorage is copied across, and the original is deleted only once the write is confirmed — an interrupted migration retries next load rather than destroying the only copy. If IndexedDB is unavailable (blocked by policy, some private modes), every operation transparently falls back to localStorage, so the app degrades to its previous behaviour rather than losing storage.
+Existing data migrates **lazily, per key, on first read**: a key absent from IndexedDB but present in localStorage is copied across, and the original is deleted only once the write is confirmed — an interrupted migration retries next load rather than destroying the only copy. If IndexedDB is unavailable (blocked by policy, some private modes), every operation transparently falls back to localStorage, so the app degrades to its previous behavior rather than losing storage.
 
 The app held exactly ONE design before this — a single blob replaced whenever you opened another. `designLibrary.ts` makes designs addressable instead, and folds that pre-library workspace in as the first entry on first use (named after its imported `.ork` if it had one). Because switching designs is now possible, the unload journal records **which** design it belongs to: replaying it into whatever happens to be open would overwrite an unrelated rocket.
 
@@ -199,7 +199,7 @@ Three rules keep the two layers from getting stuck: picking the preference back 
 
 Orphaned keys are **not** pruned. A scope only exists while its field renders, so nothing can enumerate the live set at load time, and a renamed field key simply leaves an entry nothing reads (`unitFor` falls back for it). That is a deliberate non-feature: the map tops out in the low tens of entries at a few dozen bytes each, so a reaper would cost more code than the bytes it reclaims. `PropertyPanel.scopes.test.ts` guards the failure that would actually matter — two fields of one component type colliding on a key, which would silently make them share a unit.
 
-Exports deliberately do NOT see the per-field layer — a document half in inches and half in centimetres because of where someone clicked is not one anyone wants. The report dialog picks `current` (the preferences), `metric` or `imperial` through `resolveUnitChoice`.
+Exports deliberately do NOT see the per-field layer — a document half in inches and half in centimeters because of where someone clicked is not one anyone wants. The report dialog picks `current` (the preferences), `metric` or `imperial` through `resolveUnitChoice`.
 
 Values stored in a non-SI convention convert at their own boundary and nowhere else — `LaunchConditions` (degrees, °C, hPa) in `LaunchPanel`, and the motor catalog (mm, g) in the motor components.
 

@@ -33,7 +33,7 @@ export function ImageExportMenu({
   const [open, setOpen] = useState(false);
   // Default ON: an export that wastes 80 % of its pixels on background is
   // never what was wanted, and the unchecked path is byte-for-byte the old
-  // behaviour for anyone who disagrees.
+  // behavior for anyone who disagrees.
   const [fit, setFit] = useState(true);
   const wrap = useRef<HTMLDivElement>(null);
 

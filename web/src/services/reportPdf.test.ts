@@ -14,7 +14,7 @@ import type { ComponentNode } from '../engine/openRocketEngine';
 /**
  * The PDF report's layout arithmetic.
  *
- * `downloadReportPdf` builds a MILLIMETRE document and draws fin, nose-cone and
+ * `downloadReportPdf` builds a MILLIMETER document and draws fin, nose-cone and
  * transition outlines into it at 1:1, so a reader can print the page and cut to
  * it. Every helper in that file was a closure over `doc` and a mutable `y`,
  * which is why all 203 executable lines and all 38 functions ran at zero — and
@@ -90,7 +90,7 @@ describe('sideViewScale — the side view is fit-to-page, NOT 1:1', () => {
 });
 
 describe('sideViewOrigin', () => {
-  it('centres the scaled drawing across the content width', () => {
+  it('centers the scaled drawing across the content width', () => {
     // 100 mm at 1:1 inside 186 mm leaves 43 mm each side.
     expect(sideViewOrigin(100, 20, 1, 50, A4_PORTRAIT).ox).toBeCloseTo(55, 9); // 12 + 43
   });
@@ -114,7 +114,7 @@ describe('hexToRgb — the template stroke and fill', () => {
   });
 
   it('falls back to near-black rather than NaN for anything else', () => {
-    // NaN would reach jsPDF's setDrawColor and land an invalid colour operator
+    // NaN would reach jsPDF's setDrawColor and land an invalid color operator
     // in the content stream — a file that opens in some readers and not others.
     for (const bad of ['', 'nonsense', '#12345', '#1234567', 'rgb(1,2,3)']) {
       expect(hexToRgb(bad), `hexToRgb(${JSON.stringify(bad)})`).toEqual([17, 24, 39]);
@@ -123,7 +123,7 @@ describe('hexToRgb — the template stroke and fill', () => {
 
   it('does NOT take the three-digit shorthand', () => {
     // `#f80` is valid CSS and is silently drawn near-black here. Pinned so the
-    // next reader knows it is the regex, not a colour-space surprise.
+    // next reader knows it is the regex, not a color-space surprise.
     expect(hexToRgb('#f80')).toEqual([17, 24, 39]);
   });
 });
@@ -162,7 +162,7 @@ describe('finSetsOf — tube fins have no template', () => {
     // `<tubefinset>` ends in "finset", so the old element-name match handed it
     // to finPlanformMm, which fell through to its trapezoid branch and invented
     // a 50 x 30 mm swept fin out of the rootChord/height defaults — printed 1:1
-    // and labelled with the tube fin set's own name and count. OpenRocket
+    // and labeled with the tube fin set's own name and count. OpenRocket
     // cannot make that mistake: TubeFinSet extends Tube, so it never reaches
     // PrintableFinSet (AbstractPrintable<FinSet>).
     const stage = node({

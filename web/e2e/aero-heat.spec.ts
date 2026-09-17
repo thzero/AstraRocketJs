@@ -6,8 +6,8 @@ const openPerComponent = async (page: Page) => {
   await expect(page.getByRole('heading', { name: 'Drag by component' })).toBeVisible();
 };
 
-/** Inline background colours of one column, by its header text, in table `k`. */
-const columnColours = (page: Page, table: number, header: string) =>
+/** Inline background colors of one column, by its header text, in table `k`. */
+const columnColors = (page: Page, table: number, header: string) =>
   page.evaluate(
     ({ k, h }) => {
       const t = document.querySelectorAll('table')[k];
@@ -41,13 +41,13 @@ test.describe('aero table shading', () => {
     await page.getByRole('button', { name: 'By heat', exact: true }).click();
 
     // Drag is genuinely on that scale, so it still shades.
-    const cd = (await columnColours(page, 0, 'Cd')).filter(Boolean);
+    const cd = (await columnColors(page, 0, 'Cd')).filter(Boolean);
     expect(cd.length).toBeGreaterThan(0);
 
-    // CNalpha is not, so it carries no inline colour at all — the same call the
-    // roll table makes, and the same one the desktop makes by only colouring
+    // CNalpha is not, so it carries no inline color at all — the same call the
+    // roll table makes, and the same one the desktop makes by only coloring
     // its drag tab.
-    const cna = (await columnColours(page, 1, 'CNα')).filter(Boolean);
+    const cna = (await columnColors(page, 1, 'CNα')).filter(Boolean);
     expect(cna).toEqual([]);
   });
 
@@ -57,7 +57,7 @@ test.describe('aero table shading', () => {
 
     await page.getByRole('button', { name: 'By magnitude', exact: true }).click();
 
-    const cna = (await columnColours(page, 1, 'CNα')).filter(Boolean);
+    const cna = (await columnColors(page, 1, 'CNα')).filter(Boolean);
     expect(cna.length).toBeGreaterThan(1);
     // The point of shading: different magnitudes must look different. Under the
     // absolute-Cd ramp every one of these clamped to the same full red.

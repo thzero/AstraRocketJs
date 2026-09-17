@@ -91,9 +91,9 @@ describe('saveBlob', () => {
 
   it('does NOT re-download when the user cancels the share sheet', async () => {
     const nav = pose({ apple: true, standalone: true });
-    nav.share.mockRejectedValueOnce(new DOMException('cancelled', 'AbortError'));
+    nav.share.mockRejectedValueOnce(new DOMException('canceled', 'AbortError'));
     await saveBlob(blob(), 'rocket.ork');
-    // Cancelling is a decision, not a failure — a surprise download would ignore it.
+    // Canceling is a decision, not a failure — a surprise download would ignore it.
     expect(clicks).toHaveLength(0);
   });
 
@@ -119,7 +119,7 @@ describe('safeFilename', () => {
   });
 
   it('falls back when a name reduces to nothing', () => {
-    // "///" sanitises to "_", which is truthy but a useless filename — the
+    // "///" sanitizes to "_", which is truthy but a useless filename — the
     // trap that two of the three deleted copies fell into.
     expect(safeFilename('///')).toBe('rocket');
     expect(safeFilename('')).toBe('rocket');

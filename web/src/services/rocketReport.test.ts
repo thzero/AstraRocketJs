@@ -15,7 +15,7 @@ const motor = {
 } as unknown as MotorSpec;
 
 describe('motorStats', () => {
-  it('summarises a thrust curve', () => {
+  it('summarizes a thrust curve', () => {
     const m = motorStats(motor);
     expect(m.burnTime).toBe(2);
     // Trapezoidal impulse: (10+14)/2 + (14+0)/2 = 12 + 7 = 19 N·s.

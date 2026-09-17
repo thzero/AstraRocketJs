@@ -16,7 +16,8 @@ The app loads WASM-GC by default and falls back to JS; you only touch this modul
 ```
 engine-java/
   build.gradle            TeaVM build — JS (teavm.js) + WASM-GC (teavm.wasmGC); see "Build" below
-  build-engine.mjs        one-step build + vendor into web/  (--wasm for the WASM target)
+  package.json            no deps, nothing to install — just named `npm run` entry points
+  build-engine.mjs        one-step build + vendor into web/  (both targets; --js / --wasm for one)
   extract/                  extract.mjs + manifest.txt — regenerate src/java/ from OpenRocket
   patches/                15 full-file OVERRIDES of OpenRocket sources (why each, in the file header)
   src/
@@ -24,7 +25,7 @@ engine-java/
     shims/java/           our replacements for classes we don't extract (Guice, prefs, LongUUID, Geo2D, RASAero…)
     jdkstubs/             java.text.Collator stand-in — the one java.* class TeaVM's JDK lacks
     api/java/api/         the @JSExport facade the browser calls (OpenRocketEngine, …)
-  test/parity/            ParityMain.java + parity.mjs — JVM↔JS bit-identical check
+  test/parity/            ParityMain.java + parity.mjs — JVM↔JS↔WASM bit-identical check
   validation/             wind-tunnel aero scoring (score.mjs, anchors, fixtures)
 ```
 
@@ -95,14 +96,31 @@ Guardrails — `--check` writes nothing and **exits non-zero** on any of:
 
 A `patches/` file whose path isn't in the manifest is a hard error (it would silently never apply). `--check` also *reports*, without failing, how far each patch has diverged from current upstream: comparing `src/java` to the patch can never see upstream moving underneath, which is how `FinSetCalc` came to sit hundreds of lines behind while the check called it clean.
 
-`--check` is only meaningful against the exact upstream the extraction was made from — pinned in `extract/UPSTREAM` and enforced by the `reproducible` job in `.github/workflows/engine.yml`.
+`--check` is only meaningful against the exact upstream the extraction was made from — pinned in `extract/UPSTREAM` and enforced by the `reproducible` job in `.github/workflows/ci.yml`.
 
 **At build time nothing is applied** — `src/java/` is committed already in its final state, so Gradle just compiles it. Extraction is a deliberate step you run only on an OpenRocket upgrade (then re-audit each `patches/` file against the new upstream).
 
 ## Build
 
+There is a `package.json` here with no dependencies and nothing to install. It exists only to give
+the Node helper scripts named entry points, so `npm run parity` works the way it does in `web/`:
+
 ```bash
-node build-engine.mjs            # JS   → ../web/src/engine/vendor/openrocket-engine.mjs
+npm run build          # both targets, vendored into ../web/   (= node build-engine.mjs)
+npm run build:js       # JS only
+npm run build:wasm     # WASM-GC only
+npm run parity         # both targets vs the JVM reference
+npm run parity:js      # JS only          npm run parity:wasm   # WASM-GC only
+npm run parity:golden  # rewrite golden.txt (deliberate physics changes only)
+npm run validate       # aero scorecard   npm run validate:supersonic / :strict
+npm run extract:check -- --src <openrocket-source>   # args after -- reach the script
+```
+
+Or call them directly, which is identical:
+
+```bash
+node build-engine.mjs            # BOTH targets (default), vendored into ../web/
+node build-engine.mjs --js       # JS   → ../web/src/engine/vendor/openrocket-engine.mjs
 node build-engine.mjs --wasm     # WASM → ../web/public/engine/openrocket-engine.wasm (+ runtime)
 
 # …or the raw Gradle tasks they wrap:
@@ -123,5 +141,5 @@ Non-obvious, load-bearing settings in `build.gradle`:
 
 ## Tests
 
-- **Parity test** — `node test/parity/parity.mjs`. Compiles `ParityMain` to both the JVM and TeaVM-JS, runs the same battery of scenarios on each, and requires **bit-identical** output (sub-1e-9 ULP tolerance for JS `Math`). This proves the browser build matches the reference JVM. Self-contained: it builds the `-Pparity` variant and the JVM reference itself.
+- **Parity test** — `node test/parity/parity.mjs`. Compiles `ParityMain` to the JVM and to BOTH TeaVM targets (JS and WASM-GC), runs the same battery of scenarios on each, and requires **bit-identical** output (sub-1e-9 ULP tolerance for JS `Math`). Both targets are checked by default because both ship, and they share the one JVM reference; `--js` / `--wasm` narrow it to one. This proves the browser build matches the reference JVM. Self-contained: it builds the `-Pparity` variant and the JVM reference itself.
 - **Aero validation** — `node validation/score.mjs [--supersonic]`. Scores the drag/CP/CNα sweep against published wind-tunnel anchors (ARCAS, Basic Finner, HB-2). Classic Barrowman degrades above Mach 1 (CP frozen); the opt-in supersonic model closes much of that gap — which is the reason the extensions exist.

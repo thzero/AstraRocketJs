@@ -18,7 +18,7 @@ En un ordenador la pantalla es un **banco de trabajo de tres paneles**:
 - **Centro — Vista del cohete.** Tu cohete, con una barra para cambiar de vista (2D · 3D · Aero · y, tras una simulación, Vuelo · Trayectoria 3D), interruptores para los marcadores **CG / CP** y la tarjeta de **información** rápida, y —en 2D— preajustes, calibres y zoom. Una **franja de estadísticas** en la parte inferior muestra longitud, masa, CG, CP, estabilidad y más.
 - **Derecha — Simulaciones.** Tus simulaciones, el botón **Simular**, la configuración de lanzamiento y los resultados.
 
-En un **teléfono** las mismas áreas pasan a ser tres pestañas en la parte inferior, porque no hay sitio para mostrarlas una al lado de otra:
+En un **teléfono** las mismas áreas pasan a ser pestañas en la parte inferior, porque no hay sitio para mostrarlas una al lado de otra:
 
 - **Cohete** — el aviso del diseño cargado y la franja de estadísticas.
 - **Croquis** — la vista del cohete y su barra de herramientas (2D · 3D · Aero). Las vistas 2D y 3D se giran un cuarto de vuelta cuando sostienes el teléfono en vertical, para que el cohete recorra el lado largo de la pantalla en vez de quedar aplastado en su anchura; gira el teléfono y vuelven a su posición. Los diálogos también ocupan toda la pantalla allí.

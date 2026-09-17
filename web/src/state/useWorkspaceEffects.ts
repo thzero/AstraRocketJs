@@ -64,7 +64,7 @@ export function useWorkspaceEffects() {
       .load()
       .then((w) => {
         // Both writes belong INSIDE the guard. With them outside, StrictMode's
-        // cancelled first load still flipped `ready` while the tree was still
+        // canceled first load still flipped `ready` while the tree was still
         // the default, so the rebuild effect built the default rocket and the
         // second load then built again — the exact double build the `ready`
         // gate exists to prevent.

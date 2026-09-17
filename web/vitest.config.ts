@@ -11,7 +11,7 @@ import { defineConfig } from 'vitest/config';
 //
 // `.test.tsx` files are COMPONENT tests, rendered with React Testing Library.
 // They always need a DOM, so they declare the jsdom environment the same way.
-// Use them where behaviour lives in the component rather than in a service —
+// Use them where behavior lives in the component rather than in a service —
 // a rule the component itself enforces, say — and leave whole-app journeys and
 // anything needing a real engine or layout to Playwright.
 export default defineConfig({

@@ -335,7 +335,7 @@ describe('simulation run guards', () => {
 });
 
 /**
- * On a phone the centre pane backs three tabs, and each owns a family of views:
+ * On a phone the center pane backs three tabs, and each owns a family of views:
  * Sketch the design ones, Results the flight ones. Picking either end has to
  * move the other, or a run finishes on a tab you are not looking at (which is
  * exactly what it used to do) or the view switch quietly draws a flight chart

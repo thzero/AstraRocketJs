@@ -49,7 +49,7 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      // Which tab you are on was signalled by colour alone — nothing a screen
+      // Which tab you are on was signalled by color alone — nothing a screen
       // reader could announce, and nothing a low-vision user could rely on.
       aria-current={active ? 'page' : undefined}
       className={`flex flex-1 flex-col items-center gap-0.5 py-3 text-xs ${active ? 'text-sky-400' : 'text-slate-400'}`}

@@ -43,7 +43,7 @@ export function RocketConfigDialog({ open, onClose }: { open: boolean; onClose: 
 
   if (!open) return null;
 
-  // Keep an unrecognised imported design-type token selectable so OK can't drop it.
+  // Keep an unrecognized imported design-type token selectable so OK can't drop it.
   const typeOptions = (DESIGN_TYPES as readonly string[]).includes(designType)
     ? DESIGN_TYPES
     : [designType, ...DESIGN_TYPES];

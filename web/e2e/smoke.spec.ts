@@ -1,7 +1,7 @@
 import { test, expect, autosaved } from './base';
 
 /**
- * Behavioral smoke suite — asserts on DOM/behaviour, not pixels, so an
+ * Behavioral smoke suite — asserts on DOM/behavior, not pixels, so an
  * intentional UI tweak doesn't break it. Covers the paths that only ever fail
  * at runtime (engine → store → canvas) and the regressions we've already fixed
  * (sim run unlocking result views, workspace persistence across reload).

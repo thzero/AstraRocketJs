@@ -27,8 +27,8 @@ const DEFAULT_LAUNCH: LaunchConditions = {
 };
 
 /**
- * App-wide user preferences (not tied to a design): 3D part-colour overrides,
- * flight-path phase colours, and the default playback speed. Persisted to
+ * App-wide user preferences (not tied to a design): 3D part-color overrides,
+ * flight-path phase colors, and the default playback speed. Persisted to
  * localStorage synchronously so the very first render already has the user's
  * choices. Consumed reactively via the SettingsProvider / useSettings hook.
  */
@@ -68,9 +68,9 @@ export interface Settings {
   /** Units changed from an inline unit chip. A separate layer over `units` so a
    *  chip never rewrites the defaults chosen in the dialog; see UnitOverrides. */
   unitOverrides: UnitOverrides;
-  /** Per-group colour overrides for the 3D model (empty = built-in defaults). */
+  /** Per-group color overrides for the 3D model (empty = built-in defaults). */
   partColors: Partial<Record<PartKey, string>>;
-  /** Flight-path phase colours. */
+  /** Flight-path phase colors. */
   phaseColors: { boost: string; coast: string; descent: string };
   /**
    * How the Aero tables shade their cells.
@@ -100,6 +100,8 @@ export interface Settings {
   saveDesignInfo: boolean;
   /** PDF report / template output preferences. */
   report: ReportSettings;
+  /** Flight-path export preferences that outlive one export. */
+  pathExport: PathExportSettings;
   /** Whether the user has dismissed the pre-1.0 "work in progress" notice. */
   wipAcknowledged: boolean;
 }
@@ -111,15 +113,32 @@ export interface ReportSettings {
    *  what the app is showing, which is what you want when it is for someone
    *  else. Absent/unknown reads as `current`. */
   units: UnitChoice;
-  /** Template fill colour (hex), or '' for outline only. */
+  /** Template fill color (hex), or '' for outline only. */
   templateFill: string;
-  /** Template border colour (hex). */
+  /** Template border color (hex). */
   templateStroke: string;
   /** Page size. */
   paper: 'letter' | 'a4';
   /** Page orientation. */
   orientation: 'portrait' | 'landscape';
 }
+
+/**
+ * The flight-path export options that are a working preference rather than a
+ * property of one file. Everything else that dialog offers — the mission name,
+ * the per-stage colors, the placement — describes THIS export and starts fresh
+ * each time: a stale one silently mislabels the next file.
+ */
+export interface PathExportSettings {
+  /** Whether the mission name prefixes the waypoint markers as well as the
+   *  folder and track names. "Do I want my markers prefixed" is a habit; the
+   *  mission name itself is not. */
+  labelWaypointsWithMission: boolean;
+}
+
+export const DEFAULT_PATH_EXPORT: PathExportSettings = {
+  labelWaypointsWithMission: false,
+};
 
 export const DEFAULT_REPORT: ReportSettings = {
   units: 'current',
@@ -152,6 +171,7 @@ export const DEFAULT_SETTINGS: Settings = {
   rulers: { top: true, bottom: true, left: true, right: true },
   saveDesignInfo: false,
   report: DEFAULT_REPORT,
+  pathExport: DEFAULT_PATH_EXPORT,
   wipAcknowledged: false,
 };
 
@@ -183,7 +203,7 @@ export function loadSettings(): Settings {
       unitOverrides: normalizeUnitOverrides(s.unitOverrides),
       partColors: { ...(s.partColors ?? {}) },
       phaseColors: { ...DEFAULT_SETTINGS.phaseColors, ...(s.phaseColors ?? {}) },
-      // An older store has no value here, and an unrecognised one falls back
+      // An older store has no value here, and an unrecognized one falls back
       // rather than leaving the tables with a style nothing renders.
       aeroHeat: s.aeroHeat === 'openrocket' ? 'openrocket' : DEFAULT_SETTINGS.aeroHeat,
       playbackSpeed: typeof s.playbackSpeed === 'number' ? s.playbackSpeed : DEFAULT_SETTINGS.playbackSpeed,
@@ -250,6 +270,12 @@ export function loadSettings(): Settings {
         if (!UNIT_CHOICES.includes(r.units)) r.units = DEFAULT_REPORT.units;
         return r;
       })(),
+      pathExport: {
+        labelWaypointsWithMission:
+          typeof s.pathExport?.labelWaypointsWithMission === 'boolean'
+            ? s.pathExport.labelWaypointsWithMission
+            : DEFAULT_PATH_EXPORT.labelWaypointsWithMission,
+      },
       wipAcknowledged: typeof s.wipAcknowledged === 'boolean' ? s.wipAcknowledged : DEFAULT_SETTINGS.wipAcknowledged,
     };
   } catch {

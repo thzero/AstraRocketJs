@@ -25,9 +25,9 @@ export interface LaunchUnitBridge {
 const identity = (q: Quantity): LaunchUnitBridge => ({ q, toSi: (v) => v, fromSi: (v) => v });
 
 export const LAUNCH_SI = {
-  /** Launch-rod length: already metres. */
+  /** Launch-rod length: already meters. */
   length: identity('length'),
-  /** Site and layer altitudes: already metres. */
+  /** Site and layer altitudes: already meters. */
   distance: identity('distance'),
   /** Wind speed and gusts: already m/s. */
   windspeed: identity('windspeed'),

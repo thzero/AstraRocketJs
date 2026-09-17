@@ -211,7 +211,7 @@ describe('solid mesher (per component)', () => {
 
   it('refuses an inverted ring rather than exporting it as a solid disc', () => {
     // ID >= OD is reachable from a malformed .ork or a bad catalog row. It used
-    // to fall through to the solid-cylinder branch, so a centring ring printed
+    // to fall through to the solid-cylinder branch, so a centering ring printed
     // as a solid disc that blocks the motor tube — with nothing said.
     expect(discSolid(0.012, 0.012, 0.003)).toBeNull();
     expect(discSolid(0.012, 0.02, 0.003)).toBeNull();
@@ -225,7 +225,7 @@ describe('solid mesher (per component)', () => {
     expect(q.nonManifold).toBe(0);
   });
 
-  it('a bored ring (centring ring) is watertight and manifold', () => {
+  it('a bored ring (centering ring) is watertight and manifold', () => {
     const g = discSolid(0.012, 0.0095, 0.003);
     expect(g).not.toBeNull();
     const q = quality(g!);
@@ -298,7 +298,7 @@ describe('makeWatertight keeps its contract or fails', () => {
     // Three triangles sharing ONE edge. Fan-capping cannot fix an edge used
     // three times, and the walk never sees it (it is not a BOUNDARY edge, it is
     // an over-used one) — so the old code capped what it could and returned a
-    // geometry with seven bad edges, which meshExport then labelled watertight
+    // geometry with seven bad edges, which meshExport then labeled watertight
     // and wrote into an STL.
     const fan = geom([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 1], [0, 1, 2, 0, 1, 3, 0, 1, 4]);
     expect(countBoundaryEdges(fan)).toBe(7);

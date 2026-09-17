@@ -15,7 +15,7 @@ import { buildFlightScene } from './flightScene';
 
 /**
  * 3D flight path (adapted from Vector Celeste's Flight3D, one better). Draws the
- * REAL trajectory (Px/Py drift × altitude) as a phase-coloured arc over a ground
+ * REAL trajectory (Px/Py drift × altitude) as a phase-colored arc over a ground
  * plane, with the actual design model flying along it (buildPieces) — sitting on
  * the pad at launch, nose-along-velocity during boost/coast (with a layered motor
  * flame), then hanging under its actual recovery device (parachute sized to its
@@ -170,7 +170,7 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
   else tangent.normalize();
   const dir = descending ? UP : tangent;
   const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(-1, 0, 0), dir);
-  // Centre the model on the trajectory point so it straddles the path (its nose no
+  // Center the model on the trajectory point so it straddles the path (its nose no
   // longer shoots past the apogee marker), but lift it near the ground so it sits on
   // the pad at launch instead of sinking half-under it.
   const groupPos = markerPos.clone();
@@ -395,7 +395,7 @@ function CamRig({
 }
 
 /** Rocket-blast flame: the cone's POINT sits at the nozzle and it flares WIDE below,
- *  hottest (white) at the tip, orange out at the flared base. Vertex-coloured along the
+ *  hottest (white) at the tip, orange out at the flared base. Vertex-colored along the
  *  local +X (trailing) axis so its orientation is fixed by construction. */
 function Flame({ len, r }: { len: number; r: number }) {
   const ref = useRef<THREE.Mesh>(null);
@@ -518,7 +518,7 @@ function Hud({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Legend row that doubles as the phase-colour editor — click the swatch to recolour. */
+/** Legend row that doubles as the phase-color editor — click the swatch to recolor. */
 function Legend({ color, label, onChange }: { color: string; label: string; onChange: (c: string) => void }) {
   return (
     <label className="flex cursor-pointer items-center gap-1.5 text-slate-300" title={label}>

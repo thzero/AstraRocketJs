@@ -46,7 +46,7 @@ const sortNum = (v: number) => (Number.isFinite(v) ? v : -1);
 
 // Compare-overlay series colors — dataviz categorical dark slots 1–6, in the
 // fixed CVD-safe order (validated; the legend + direct labels are the required
-// secondary encoding for the floor-band adjacent pair). A 7th+ motor greys out.
+// secondary encoding for the floor-band adjacent pair). A 7th+ motor grays out.
 const SERIES = ['#3987e5', '#199e70', '#c98500', '#008300', '#9085e9', '#e66767'];
 const seriesColor = (i: number) => SERIES[i] ?? '#94a3b8';
 
@@ -774,7 +774,7 @@ function CombineChart({
 function ComparePane({ motors, cols }: { motors: CatalogMotor[]; cols: Col[] }) {
   const { t } = useTranslation();
   const u = useUnits();
-  // Assign a colour only to motors that actually have a curve (in order), so the
+  // Assign a color only to motors that actually have a curve (in order), so the
   // chart, legend and table dots agree — and a curveless motor gets none.
   const colorFor = new Map<string, string>();
   let ci = 0;
@@ -784,7 +784,7 @@ function ComparePane({ motors, cols }: { motors: CatalogMotor[]; cols: Col[] }) 
   const series = motors
     .filter((m) => colorFor.has(keyOf(m)))
     .map((m) => ({ m, color: colorFor.get(keyOf(m))!, pts: m.curves![0]!.samples as Sample[] }));
-  // Identity is the motor name (+ colour dot); show every other chosen column.
+  // Identity is the motor name (+ color dot); show every other chosen column.
   const specCols = cols.filter((c) => c.id !== 'designation');
 
   const dims = { width: 440, height: 190, padL: 36, padR: 12, padT: 12, padB: 24 };

@@ -25,7 +25,7 @@ export function DesignLibraryDialog({ open, onClose }: { open: boolean; onClose:
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
 
   // Deleting a saved design cannot be undone, and on a phone this button sits a
-  // few millimetres from Rename in a full-screen dialog. Ask first -- the same
+  // few millimeters from Rename in a full-screen dialog. Ask first -- the same
   // gate the far less destructive "close loaded design" already uses.
   const askDelete = async (id: string, name: string) => {
     const ok = await confirm({

@@ -2,7 +2,7 @@ import { test, expect, type Page, autosaved } from './base';
 
 /**
  * Motor-picker behavioral suite. Every flow here runs against the default
- * single-mount rocket (seated C6) and asserts on DOM/behaviour, not pixels, so
+ * single-mount rocket (seated C6) and asserts on DOM/behavior, not pixels, so
  * a styling tweak won't break it. All motor data is bundled, so these run fully
  * offline — no thrustcurve.org round-trips.
  *

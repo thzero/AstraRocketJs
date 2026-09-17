@@ -4,7 +4,7 @@ import { test, expect } from './base';
  * Keyboard and screen-reader reachability.
  *
  * Each of these was a real gap: a modal with no way out but the mouse, state
- * signalled by colour alone, several controls sharing one accessible name, and
+ * signalled by color alone, several controls sharing one accessible name, and
  * a "disabled" toggle that was only disabled to the mouse.
  */
 test.describe('accessibility', () => {
@@ -24,7 +24,7 @@ test.describe('accessibility', () => {
     await expect(dialog).toBeHidden();
   });
 
-  test('the settings tabs are a real tablist, not colour alone', async ({ page }) => {
+  test('the settings tabs are a real tablist, not color alone', async ({ page }) => {
     await page.goto('/');
 
     await page.getByRole('button', { name: 'Menu' }).click();
@@ -33,7 +33,7 @@ test.describe('accessibility', () => {
     const tabs = page.getByRole('tab');
     expect(await tabs.count()).toBeGreaterThan(1);
     // Exactly one selected, and which one is exposed rather than implied by a
-    // background colour.
+    // background color.
     await expect(page.locator('[role="tab"][aria-selected="true"]')).toHaveCount(1);
   });
 

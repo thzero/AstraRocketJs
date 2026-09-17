@@ -138,7 +138,7 @@ export function CenterView() {
   }, [view, result, busy, hasDesign, runFailed, settings.simulation.autoRunOutdated, onView]);
 
   // Header slot the 2D schematic's control buttons (calipers, zoom, export)
-  // portal into, so they sit centred in the same row as the view toggle.
+  // portal into, so they sit centered in the same row as the view toggle.
   const [ctrlSlot, setCtrlSlot] = useState<HTMLDivElement | null>(null);
   const deg = Math.round((roll * 180) / Math.PI);
   // The roll slider overlays the far-left strip; reserve a gutter that width so
@@ -270,7 +270,7 @@ export function CenterView() {
                     style={{ writingMode: 'vertical-lr', width: '100%', flex: '1 1 0%', minHeight: 0 }}
                   />
                   <span className="pt-1">360°</span>
-                  {/* Live roll readout, centred on the slider. */}
+                  {/* Live roll readout, centered on the slider. */}
                   <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded bg-slate-800/95 px-0.5 py-0.5 text-[9px] text-sky-300 ring-1 ring-white/10">
                     {deg}°
                   </span>

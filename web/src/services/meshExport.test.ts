@@ -5,7 +5,7 @@ import type { ComponentNode } from '../engine/openRocketEngine';
 import { solidForNode } from './solidMesh';
 import { solidToObj, solidToStl, solidToGlb } from './meshExport';
 
-// A single nose cone's watertight solid, in metres — the mesh exporters scale it.
+// A single nose cone's watertight solid, in meters — the mesh exporters scale it.
 const nose = solidForNode({
   type: 'nosecone',
   shape: 'ogive',
@@ -28,7 +28,7 @@ describe('component mesh export', () => {
     expect(count).toBeGreaterThan(20);
   });
 
-  it('STL is watertight (no holes) and scaled to millimetres', () => {
+  it('STL is watertight (no holes) and scaled to millimeters', () => {
     const dv = new DataView(solidToStl(nose));
     const n = dv.getUint32(80, true);
     const edges = new Map<string, number>();
@@ -55,7 +55,7 @@ describe('component mesh export', () => {
     let holes = 0;
     for (const c of edges.values()) if (c === 1) holes++;
     expect(holes).toBe(0);
-    // A 0.1 m nose lies along the X axis — must export at ~100 mm (metre-bug guard).
+    // A 0.1 m nose lies along the X axis — must export at ~100 mm (meter-bug guard).
     expect(maxX - minX).toBeGreaterThan(50);
   });
 

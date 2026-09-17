@@ -62,7 +62,7 @@ export function AeroAnalysis() {
   // all. The one exception is the power-on curve, which the kernel builds from
   // the stage's nozzle exit diameter applied to the seated motor's config
   // (OpenRocketEngine.applyMotor). The panel has no motor selector of its own
-  // -- it analyses whatever the active simulation has loaded, which is our
+  // -- it analyzes whatever the active simulation has loaded, which is our
   // equivalent of the desktop dialog's motor-configuration dropdown -- so when
   // that curve is on screen, say whose it is.
   const motorName = useWorkspaceStore((s) => selectActive(s).motor?.designation);
@@ -211,7 +211,7 @@ export function AeroAnalysis() {
             unit="°"
           />
           <button
-            // Wrapped like its neighbours (:77-85, :98-102): a kernel that throws
+            // Wrapped like its neighbors (:77-85, :98-102): a kernel that throws
             // here — an older build without the method, or a degenerate design —
             // would otherwise throw out of a React event handler and take the
             // whole pane down rather than leaving the field alone.
@@ -350,7 +350,7 @@ function hsv(h: number, sat: number, val: number): string {
  * `sky` (default) is ONE hue that strengthens with the value, scaled against the
  * row set's own largest — a magnitude ramp, which is what these numbers are, and
  * it sits on our dark table without fighting it. It is capped short of opaque so
- * the text keeps its own colour.
+ * the text keeps its own color.
  *
  * `openrocket` is the desktop's renderer, formula for formula: hue rotates green
  * to red over an ABSOLUTE Cd scale (full red at 1.5), saturation climbs with it,
@@ -598,7 +598,7 @@ function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs: numbe
 
 /**
  * Each component's share of the rocket's normal-force slope, and where its own
- * centre of pressure sits — the desktop's Component Analysis "Stability" tab.
+ * center of pressure sits — the desktop's Component Analysis "Stability" tab.
  *
  * This is the table that answers "why is my CP there": a fin set carrying most
  * of the CNa is what holds the CP aft, and a nose cone contributing a couple of
@@ -635,7 +635,7 @@ function StabilityTable({
   // formula anchored to an ABSOLUTE Cd scale that reaches full red at 1.5. CNa
   // is not on that scale -- a fin set runs to 15 or 20 per radian -- so every
   // row above about 1.1 clamps to the same red and the column stops saying
-  // anything. OpenRocket colours only its drag tab for exactly this reason.
+  // anything. OpenRocket colors only its drag tab for exactly this reason.
   // The RollTable makes the same call, for the same reason.
   const cnaShaded = heatStyle !== 'openrocket';
 
