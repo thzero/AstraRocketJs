@@ -80,9 +80,44 @@ jobs:
       # work is ~90s warm, a few minutes cold. If this step is still alive at 20
       # minutes it is stuck, not slow, and it should say so here rather than
       # being reported as a mysterious cancellation several minutes later.
+      # INSTRUMENTED. The verdicts print, then the step sits for ~3.5 minutes and
+      # the RUNNER dies ("received a shutdown signal"), which is the VM going
+      # away, not a workflow cancel or a step timeout. Three theories have now
+      # been wrong: the Gradle daemon (fixed, no orphan java, still hung), the
+      # stdout-flush await (raced against a timer, still hung), and workflow
+      # concurrency (no superseding run existed). This step answers the question
+      # instead of guessing again:
+      #
+      #   "node exited rc=N"  present -> the script is fine, the hang is AFTER it
+      #                       absent  -> the script never returns
+      #   free/df before+after         -> is the VM out of memory or disk
+      #   ps -ef after                 -> what is still alive holding the step
+      #
+      # Revert this to a plain `npm run parity` once the cause is known.
       - name: Parity — JVM vs TeaVM-JS and WASM-GC
         timeout-minutes: 20
-        run: npm run parity
+        run: |
+          echo "::group::before"
+          free -h || true
+          df -h / || true
+          echo "::endgroup::"
+
+          # npm is bypassed on purpose: it adds a shell + a child process between
+          # the runner and node, and it has to be ruled out as the thing hanging.
+          set +e
+          node test/parity/parity.mjs
+          rc=$?
+          set -e
+          echo "===== node exited rc=$rc ====="
+
+          echo "::group::after"
+          free -h || true
+          df -h / || true
+          echo "--- processes still alive ---"
+          ps -ef || true
+          echo "::endgroup::"
+
+          exit $rc
 
       # Were the COMMITTED binaries actually built from this source?
       #
