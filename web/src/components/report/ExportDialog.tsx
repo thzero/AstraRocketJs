@@ -50,7 +50,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   // TWO traps, and the topmost one wins: the print-settings popover below is a
   // SIBLING of this panel (both children of the overlay), so a trap anchored
   // here cannot reach its controls — with the popover open, Tab went on cycling
-  // the dialog behind it and the fill colour, paper size and orientation were
+  // the dialog behind it and the fill color, paper size and orientation were
   // unreachable by keyboard.
   const panelRef = useFocusTrap<HTMLDivElement>(open && !showSettings);
   const settingsRef = useFocusTrap<HTMLDivElement>(open && showSettings);

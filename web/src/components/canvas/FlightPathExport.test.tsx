@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { ExportDialog } from './FlightPathExport';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import type { FlightResult } from '../../engine/openRocketEngine';
@@ -53,7 +53,7 @@ describe('flight-path export dialog', () => {
     expect(pinRef().value).toBe('automatic');
     expect(shadow().checked).toBe(false);
     expect(screen.getByRole('checkbox', { name: 'Draw waypoint names on the map' })).toBeTruthy();
-    expect((screen.getByRole('checkbox', { name: 'Colour waypoint pins per stage' }) as HTMLInputElement).checked).toBe(
+    expect((screen.getByRole('checkbox', { name: 'Color waypoint pins per stage' }) as HTMLInputElement).checked).toBe(
       true,
     );
   });
@@ -88,9 +88,9 @@ describe('flight-path export dialog', () => {
     expect([trackRef().value, pinRef().value]).toEqual(['clamped', 'clamped']); // placement
     expect(check('Include flight path line').checked).toBe(false); // lines
     expect(check('Include ground track').checked).toBe(true);
-    expect(check('Landing').checked).toBe(true); // waypoints untouched by this one
+    expect(check('Landing').checked).toBe(true); // waypoints — the third section
 
-    // Landing plots narrows the waypoints too — the third section.
+    // Landing plots narrows the waypoints to the one it is about.
     fireEvent.click(screen.getByRole('button', { name: 'Landing plots' }));
     expect(check('Landing').checked).toBe(true);
     expect(check('Apogee').checked).toBe(false);
@@ -101,6 +101,26 @@ describe('flight-path export dialog', () => {
     fireEvent.click(check('Apogee'));
     expect(trackRef().value).toBe('sealevel');
     expect(check('Apogee').checked).toBe(true);
+  });
+
+  it('every preset is reachable from every other', () => {
+    // Each states its whole selection, waypoints included, so none of them is a
+    // one-way door. Landing plots narrows the waypoints to the landing; Drift
+    // cast has to be able to put them back, or it quietly becomes a drift cast
+    // that plots nothing but the landing.
+    show(flight());
+    const check = (name: string) => screen.getByRole('checkbox', { name }) as HTMLInputElement;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Landing plots' }));
+    expect(check('Apogee').checked).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Drift cast' }));
+    expect(check('Apogee').checked).toBe(true);
+    expect(check('Include ground track').checked).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Flight path' }));
+    expect(check('Apogee').checked).toBe(true);
+    expect(check('Include flight path line').checked).toBe(true);
   });
 
   it('hides the stage-track control for a single-stage flight', () => {
@@ -122,9 +142,53 @@ describe('flight-path export dialog', () => {
     expect([...select.options].map((o) => o.value)).toEqual(['separation', 'pad']);
   });
 
+  it('carries the mission name, and leaves the markers out of it by default', () => {
+    show(flight());
+    const mission = screen.getByLabelText('Mission') as HTMLInputElement;
+    expect(mission.value).toBe(''); // never carried over from the last export
+    fireEvent.change(mission, { target: { value: 'Sod Blaster' } });
+    expect(mission.value).toBe('Sod Blaster');
+    expect((screen.getByRole('checkbox', { name: 'Prefix the waypoint names too' }) as HTMLInputElement).checked).toBe(
+      false,
+    );
+  });
+
+  it('gives every stage a swatch, and only commits them on OK', () => {
+    show(
+      flight([
+        { name: 'Sustainer', events, series },
+        { name: 'Booster', events, series },
+      ]),
+    );
+    const openColors = () => fireEvent.click(screen.getByRole('button', { name: 'Stage colors…' }));
+    // Scoped to the sub-dialog: the export dialog behind it has a Cancel too.
+    const colors = () => within(screen.getByRole('dialog', { name: 'Stage colors' }));
+    const sustainer = () => colors().getByLabelText('Sustainer') as HTMLInputElement;
+
+    openColors();
+    expect(sustainer().value).toBe('#0072bd'); // the palette, until told otherwise
+    expect((colors().getByLabelText('Booster') as HTMLInputElement).value).toBe('#d95319');
+
+    // Cancel leaves the prior selection exactly as it was.
+    fireEvent.change(sustainer(), { target: { value: '#112233' } });
+    fireEvent.click(colors().getByRole('button', { name: 'Cancel' }));
+    openColors();
+    expect(sustainer().value).toBe('#0072bd');
+
+    // OK commits, and reopening shows what was committed.
+    fireEvent.change(sustainer(), { target: { value: '#112233' } });
+    fireEvent.click(colors().getByRole('button', { name: 'OK' }));
+    openColors();
+    expect(sustainer().value).toBe('#112233');
+
+    // Reset drops the overrides rather than freezing today's palette in as one.
+    fireEvent.click(colors().getByRole('button', { name: 'Reset to defaults' }));
+    expect(sustainer().value).toBe('#0072bd');
+  });
+
   it('toggles the waypoint display options', () => {
     show(flight());
-    const pins = screen.getByRole('checkbox', { name: 'Colour waypoint pins per stage' }) as HTMLInputElement;
+    const pins = screen.getByRole('checkbox', { name: 'Color waypoint pins per stage' }) as HTMLInputElement;
     fireEvent.click(pins);
     expect(pins.checked).toBe(false);
   });

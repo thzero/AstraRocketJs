@@ -62,7 +62,7 @@ export function ChartAxes({
   X: (t: number) => number;
   Y: (f: number) => number;
   levels?: number[];
-  /** Multiplier from newtons to the unit the axis is LABELLED in. */
+  /** Multiplier from newtons to the unit the axis is LABELED in. */
   fScale?: number;
   fDigits?: number;
 }) {

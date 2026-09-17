@@ -742,7 +742,7 @@ export interface AeroSweep {
     base?: (number | null)[];
     /** This component's contribution to the rocket's normal-force slope. */
     cna?: (number | null)[];
-    /** This component's own centre of pressure (m from the nose tip). */
+    /** This component's own center of pressure (m from the nose tip). */
     cp?: (number | null)[];
     /** Roll forcing coefficient — non-zero only for a canted fin set. */
     rollForce?: (number | null)[];

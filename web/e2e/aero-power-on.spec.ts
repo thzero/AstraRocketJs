@@ -51,7 +51,7 @@ test.describe('power-on drag curve', () => {
     await expect(page.getByText('Power-on', { exact: true })).toBeVisible({ timeout: 15_000 });
 
     // …and the panel says which motor it belongs to, since there is no motor
-    // selector here — the active simulation's motor is what gets analysed.
+    // selector here — the active simulation's motor is what gets analyzed.
     await expect(page.getByText(/^Power-on: /)).toBeVisible();
   });
 

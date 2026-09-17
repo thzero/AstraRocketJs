@@ -16,7 +16,7 @@ import { UNITS, unitFor, type Quantity } from '../../prefs/units';
  * following the preference if that preference later changes.
  *
  * A field showing something other than the default is tinted, so a card with
- * one length in inches among centimetres reads as deliberate rather than as a
+ * one length in inches among centimeters reads as deliberate rather than as a
  * bug — and so a choice made months ago is findable where it actually matters,
  * not only in the preferences dialog.
  *
@@ -51,7 +51,7 @@ export function UnitChip({
     <select
       value={current}
       title={overridden ? t('units.chipOverridden', { unit: settings.units[quantity] }) : t('units.chipTitle')}
-      // The tint is a colour-only cue, which reaches nobody using a screen
+      // The tint is a color-only cue, which reaches nobody using a screen
       // reader — so the accessible name carries the same fact in words.
       aria-label={
         overridden

@@ -129,7 +129,7 @@ export function resolveFilePositions(tree: RocketTree): RocketTree {
         // first child, and the stored offset is ignored because the kernel
         // forces it to zero (RocketComponent.setAfter:1467-1491). We use the
         // previous sibling rather than the previous ACTIVE one — configuration
-        // activity is not modelled here, and an inactive sibling is rare.
+        // activity is not modeled here, and an inactive sibling is rare.
         const resolved = prevEndRel;
         next = {
           ...child,

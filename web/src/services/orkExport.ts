@@ -454,8 +454,8 @@ export function exportOrk({
         material(depth + 1, node);
         emit(depth + 1, `<length>${num(node, 'length', 0.07)}</length>`);
         // Preserve the off-axis / split-cluster offset (see the innertube reader):
-        // <radialposition> metres, <radialdirection> DEGREES. Defaults to 0 so a
-        // centred tube is byte-identical to before.
+        // <radialposition> meters, <radialdirection> DEGREES. Defaults to 0 so a
+        // centered tube is byte-identical to before.
         emit(depth + 1, `<radialposition>${num(node, 'radialPosition', 0)}</radialposition>`);
         emit(depth + 1, `<radialdirection>${(num(node, 'radialDirection', 0) * 180) / Math.PI}</radialdirection>`);
         emit(depth + 1, `<outerradius>${num(node, 'outerRadius', 0.0095)}</outerradius>`);
@@ -649,8 +649,8 @@ export function exportOrk({
         position(depth + 1, node, 'top');
         emit(depth + 1, `<packedlength>${num(node, 'length', 0.02)}</packedlength>`);
         emit(depth + 1, `<packedradius>${num(node, 'radius', 0.005)}</packedradius>`);
-        // Off-axis placement (metres + degrees). Was hard-wired to 0, so a mass
-        // off the centreline collapsed onto the axis on save/reload.
+        // Off-axis placement (meters + degrees). Was hard-wired to 0, so a mass
+        // off the centerline collapsed onto the axis on save/reload.
         emit(depth + 1, `<radialposition>${num(node, 'radialPosition', 0)}</radialposition>`);
         emit(depth + 1, `<radialdirection>${(num(node, 'radialDirection', 0) * 180) / Math.PI}</radialdirection>`);
         emit(depth + 1, `<mass>${num(node, 'mass', 0.01)}</mass>`);
@@ -672,7 +672,7 @@ export function exportOrk({
         // desktop savers suppress all three for assemblies.
         emit(depth + 1, `<instancecount>${num(node, 'instanceCount', 2)}</instancecount>`);
         const rMethod = node['radiusMethod'] === 'free' ? 'free' : 'relative';
-        emit(depth + 1, `<radiusoffset method="${rMethod}">${num(node, 'radiusOffset', 0)}</radiusoffset>`); // metres
+        emit(depth + 1, `<radiusoffset method="${rMethod}">${num(node, 'radiusOffset', 0)}</radiusoffset>`); // meters
         const aMethod = node['angleMethod'] === 'fixed' ? 'fixed' : 'relative';
         // angleOffset is stored in radians → DEGREES on disk (same as cant).
         emit(
@@ -738,7 +738,7 @@ export function exportOrk({
     emit(3, '<stage>');
     emit(4, `<name>${escapeXml(st.name ?? (i === 0 ? 'Sustainer' : `Booster ${i}`))}</name>`);
     emit(4, `<id>${uuid()}</id>`);
-    // RASAero power-on base-drag input (metres, no conversion). Non-standard
+    // RASAero power-on base-drag input (meters, no conversion). Non-standard
     // element (OpenRocket desktop ignores it); only emitted when set > 0 so a
     // plain design round-trips exactly. Applies to every stage incl. sustainer.
     if (typeof st['nozzleExitDiameter'] === 'number' && (st['nozzleExitDiameter'] as number) > 0) {

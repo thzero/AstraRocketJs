@@ -57,7 +57,7 @@ test('a chip changes its own field only, and nothing else moves', async ({ page 
 
   // The field it sits on changed…
   await expect(lengthChip).toHaveValue('in');
-  // …its neighbour on the same card did not…
+  // …its neighbor on the same card did not…
   await expect(thicknessRow.getByLabel('Component dimensions unit')).toHaveValue('cm');
   // …nor did the tree row, the ruler, or the stats strip.
   await expect(page.locator('div[title="Body tube"]').first()).toContainText('cm');
@@ -68,7 +68,7 @@ test('a chip changes its own field only, and nothing else moves', async ({ page 
   await closeDialog(page);
 });
 
-test('a field showing a non-default unit says so, in colour and in its name', async ({ page }) => {
+test('a field showing a non-default unit says so, in color and in its name', async ({ page }) => {
   await page.goto('/');
 
   await page.locator('div[title="Nose cone"]').click();
@@ -80,7 +80,7 @@ test('a field showing a non-default unit says so, in colour and in its name', as
   await lengthChip.selectOption('in');
 
   // Overridden: tinted, AND the accessible name carries the same fact, since a
-  // colour-only cue reaches nobody using a screen reader.
+  // color-only cue reaches nobody using a screen reader.
   const overridden = card.getByLabel('Component dimensions unit, set for this field').first();
   await expect(overridden).toHaveClass(/text-amber-400/);
   await expect(overridden).toHaveValue('in');
@@ -140,7 +140,7 @@ test('a length typed in inches round-trips through the SI tree', async ({ page }
   await expect(length).toHaveValue('16.535433');
   // Typed, not `fill()`: fill blanks the field first, and a blank geometry field
   // commits a 0-length tube that the rebuild does not recover from. (Pre-existing
-  // NumberField behaviour — `onChange(v ?? 0)` — not something units introduced.)
+  // NumberField behavior — `onChange(v ?? 0)` — not something units introduced.)
   await length.click();
   await length.press('Control+a');
   await length.pressSequentially('24');

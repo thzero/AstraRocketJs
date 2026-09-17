@@ -78,13 +78,13 @@ const SERIES: Meta[] = [
 ];
 const DEFAULT_ON: Key[] = ['altitude', 'velocity', 'acceleration'];
 
-// One colour per flight branch (stage): 0 = sustainer (sky, the original single
+// One color per flight branch (stage): 0 = sustainer (sky, the original single
 // line), then boosters. Matches the component-tree palette so a stage reads the
-// same colour everywhere. Cycles if a design somehow has more branches.
+// same color everywhere. Cycles if a design somehow has more branches.
 const STAGE_COLORS = ['#38bdf8', '#fbbf24', '#34d399', '#a78bfa', '#fb7185', '#22d3ee'];
 
 // A flight branch enriched for the chart: its own trajectory + events, a stable
-// index and a colour. Single-stage flights collapse to one synthetic branch.
+// index and a color. Single-stage flights collapse to one synthetic branch.
 type Branch = {
   index: number;
   name: string;
@@ -127,7 +127,7 @@ export function FlightChart({ result }: { result: FlightResult }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(640);
 
-  // Every flight branch as a coloured, selectable stage. `result.branches` is
+  // Every flight branch as a colored, selectable stage. `result.branches` is
   // only present once a staged rocket actually separates (branch 0 mirrors the
   // top-level series); otherwise we wrap the single top-level trajectory so the
   // rest of the component is branch-agnostic.
@@ -277,7 +277,7 @@ export function FlightChart({ result }: { result: FlightResult }) {
     return host ? clientX - host.getBoundingClientRect().left - HOST_INSET : 0;
   };
   const onDown = (e: React.PointerEvent) => {
-    if (!zoomed) return; // nothing to pan at full view — keep hover behaviour
+    if (!zoomed) return; // nothing to pan at full view — keep hover behavior
     drag.current = { x: e.clientX, t0, t1 };
     hostRef.current?.setPointerCapture?.(e.pointerId);
     setHoverT(null);
@@ -535,8 +535,8 @@ function Panel({
     return { list: out, lo: l, hi: h === l ? l + 1 : h };
   }, [branches, meta.key, meta.level, meta.aero, scale, clipT]);
 
-  // A fixed decimal count belongs to a fixed unit: "0 dp" is right for metres
-  // of altitude and wrong for kilometres. For a quantity-backed series the
+  // A fixed decimal count belongs to a fixed unit: "0 dp" is right for meters
+  // of altitude and wrong for kilometers. For a quantity-backed series the
   // count comes from the span actually on screen instead.
   const digits = meta.quantity
     ? (() => {
@@ -605,7 +605,7 @@ function Panel({
       </div>
       <svg viewBox={`0 0 ${w} ${PANEL_H}`} width="100%" height={PANEL_H} preserveAspectRatio="none" className="block">
         <defs>
-          {/* Filled area only for a lone line (single stage) — coloured to match
+          {/* Filled area only for a lone line (single stage) — colored to match
               it; overlaid stages would muddy each other, so they're lines only. */}
           {single && (
             <linearGradient id={`fc-${meta.key}`} x1="0" y1="0" x2="0" y2="1">

@@ -14,7 +14,7 @@ import { finTabFront } from '../components/canvas/schematicGeometry';
  * when repaired. Instead each external part is generated as a closed solid of
  * revolution with true radius-0 poles and capped ends, welded so it is manifold
  * by construction. Fins are extruded planform solids seated on the body. The
- * result is metre-scale; {@link meshExport} scales it to millimetres.
+ * result is meter-scale; {@link meshExport} scales it to millimeters.
  *
  * Scope: nose cones, body tubes, transitions and fin sets — the printable outer
  * mould line. Internal parts (mounts, rings, mass), motors and off-axis pods are
@@ -55,7 +55,7 @@ export function countBoundaryEdges(geo: THREE.BufferGeometry): number {
 /** Weld coincident vertices and cap every open boundary loop. */
 export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry {
   // Weld first: display primitives duplicate the seam/pole vertices, so an edge
-  // that is geometrically shared is only recognised as shared after welding.
+  // that is geometrically shared is only recognized as shared after welding.
   const g = mergeVertices(geo.index ? geo : mergeVertices(geo), WELD_TOL);
   const idx = g.getIndex();
   const posAttr = g.getAttribute('position');
@@ -118,7 +118,7 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
       // Every edge this attempt consumes, so a failed walk can put them back.
       // `step` POPS, and the old code just `continue`d on failure — those edges
       // were gone for good, the boundary they belonged to was never capped, and
-      // makeWatertight still returned normally. meshExport then labelled the
+      // makeWatertight still returned normally. meshExport then labeled the
       // result watertight and handed someone an STL with a hole in it.
       const eaten: Array<[number, number]> = [];
       const take = (u: number): number | undefined => {
@@ -264,7 +264,7 @@ function revolveSolidX(surface: [number, number][], axialOffset: number): THREE.
 /**
  * A disc / ring / short-tube solid along +X: outer radius `outerR`, optional
  * concentric bore `innerR`, axial length `length`. With no bore it is a solid
- * cylinder (a bulkhead); with a bore it is a hollow annulus (a centring ring or
+ * cylinder (a bulkhead); with a bore it is a hollow annulus (a centering ring or
  * coupler) — a closed rectangular cross-section revolved, so it stays watertight
  * without capping onto the axis.
  */
@@ -272,7 +272,7 @@ export function discSolid(outerR: number, innerR: number, length: number): THREE
   const len = length > 1e-6 ? length : 0.002;
   // An INVERTED ring (ID >= OD — reachable from a malformed .ork or a bad
   // catalog row) used to fall through to the solid-cylinder branch and export a
-  // centring ring as a solid disc. Printed, that blocks the motor tube, and
+  // centering ring as a solid disc. Printed, that blocks the motor tube, and
   // nothing said so. Every other degenerate case in solidForNode returns null;
   // this one now does too.
   if (innerR > 1e-6 && innerR >= outerR - 1e-6) return null;
@@ -301,7 +301,7 @@ export function discSolid(outerR: number, innerR: number, length: number): THREE
 }
 
 /** One fin as a flat, watertight extruded solid at the origin (planform in XY,
- *  thickness centred on Z) — ready to lay on a print bed. */
+ *  thickness centered on Z) — ready to lay on a print bed. */
 function oneFinSolid(child: ComponentNode): THREE.BufferGeometry | null {
   const ff = freeformPoints(child);
   // Fallback 0, not the usual 0.05: here `root` only feeds the degeneracy guard
@@ -342,7 +342,7 @@ function oneFinSolid(child: ComponentNode): THREE.BufferGeometry | null {
   }
   // Fold in the through-the-wall tab, the way dxfExport.ts:57-62 and
   // reportGeometry.ts:49-58 already do. Without it a printed fin has no tab: it
-  // will not pass through the airframe slot or seat on the centring rings — and
+  // will not pass through the airframe slot or seat on the centering rings — and
   // the DXF of the SAME part, from the same menu, did have one. The outline
   // above ends at the trailing root corner, so walk back along y = 0, dip down
   // for the tab, and return to the leading corner; closePath joins it up.
@@ -370,7 +370,7 @@ function oneFinSolid(child: ComponentNode): THREE.BufferGeometry | null {
 }
 
 /**
- * The watertight solid (metres) for a single component, or null when the type
+ * The watertight solid (meters) for a single component, or null when the type
  * has no 3D-printable body. One part, built at the origin — this backs the
  * per-component STL/OBJ/GLB export.
  */

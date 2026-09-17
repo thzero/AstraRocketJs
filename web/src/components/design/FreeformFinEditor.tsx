@@ -17,7 +17,7 @@ const FALLBACK: Pt[] = [
 ];
 
 /**
- * Graphical editor for a freeform fin's outline. Points are [x, y] in metres:
+ * Graphical editor for a freeform fin's outline. Points are [x, y] in meters:
  * x runs along the body (root direction), y is height above the body surface;
  * the outline is closed with the root along y = 0. Drag the amber vertices to
  * reshape, tap a blue edge-midpoint to insert a vertex, select one to delete it
@@ -110,7 +110,7 @@ export function FreeformFinEditor({
    * Delete removes. One undo entry per key, closed immediately — a nudge is a
    * discrete edit, unlike a drag.
    */
-  const NUDGE = 0.001; // 1 mm in stored metres
+  const NUDGE = 0.001; // 1 mm in stored meters
   const onVertexKey = (i: number) => (e: React.KeyboardEvent) => {
     const p = pts[i]!;
     const step = e.shiftKey ? NUDGE * 10 : NUDGE;

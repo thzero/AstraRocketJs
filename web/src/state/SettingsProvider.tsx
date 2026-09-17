@@ -14,7 +14,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(loadSettings);
   // Skip the first run. Without this the provider wrote loadSettings()' own
   // output straight back on mount — and `loadSettings` normalizes, dropping keys
-  // it does not recognise. So merely OPENING an older build permanently
+  // it does not recognize. So merely OPENING an older build permanently
   // destroyed any preference a newer build had written, instead of leaving it
   // untouched for the newer build to find again. Only a real change persists.
   const mounted = useRef(false);

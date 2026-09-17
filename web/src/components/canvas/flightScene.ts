@@ -5,15 +5,15 @@ import type { FlightResult } from '../../engine/openRocketEngine';
  * The trajectory geometry behind FlightPath3D — pulled out of the component's
  * useMemo so it can be tested without a WebGL context.
  *
- * Everything here is pure: samples in, scene points / vertex colours / callout
+ * Everything here is pure: samples in, scene points / vertex colors / callout
  * anchors out. The component keeps the camera, the transport and the HUD.
  */
 
-/** Boost / coast / descent arc colours, from Settings. */
+/** Boost / coast / descent arc colors, from Settings. */
 export type PhaseColors = { boost: string; coast: string; descent: string };
 
 export interface FlightScene {
-  /** Per-point RGB for the arc's vertex colours. */
+  /** Per-point RGB for the arc's vertex colors. */
   colors: [number, number, number][];
   /** The arc itself, scaled so peak altitude is 24 scene units. */
   scenePts: THREE.Vector3[];
@@ -52,9 +52,9 @@ export function buildFlightScene(result: FlightResult, phase: PhaseColors): Flig
   const evT = (type: string) => result.events.find((e) => e.type === type)?.time;
   const bt = evT('BURNOUT') ?? 0;
   // Fall back to the last sample TIME, not `maxA` — which is the peak ALTITUDE
-  // in metres and has no business being read as seconds. A result with no
+  // in meters and has no business being read as seconds. A result with no
   // APOGEE event got apT ~ 300 for a 300 m flight, so `r.t <= apT` was true for
-  // the whole trajectory and the descent colour never appeared.
+  // the whole trajectory and the descent color never appeared.
   const lastT = rows[rows.length - 1]?.t ?? 0;
   const apT = evT('APOGEE') ?? result.summary.timeToApogee ?? lastT;
   const dpT = evT('RECOVERY_DEVICE_DEPLOYMENT') ?? evT('EJECTION_CHARGE') ?? apT;

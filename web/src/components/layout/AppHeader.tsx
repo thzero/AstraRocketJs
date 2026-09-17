@@ -271,7 +271,7 @@ export function AppHeader() {
                   setMenuOpen(false);
                   void (async () => {
                     // A design that has never been named has nowhere to save to,
-                    // so Save becomes Save As — the usual desktop behaviour.
+                    // so Save becomes Save As — the usual desktop behavior.
                     if (!(await saveDesign())) {
                       await refreshDesigns();
                       setSaveAsOpen(true);

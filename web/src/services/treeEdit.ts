@@ -195,7 +195,7 @@ export function hasMaterial(type: string): boolean {
   return MATERIAL_TYPES.has(type);
 }
 
-/** Map a chosen catalogue part onto a node patch (radii, length, material, …). */
+/** Map a chosen catalog part onto a node patch (radii, length, material, …). */
 export function catalogPatch(p: Component): Partial<ComponentNode> {
   const mat =
     'materialDensity' in p && p.materialDensity

@@ -4,7 +4,7 @@
 
 A **lightweight, browser-based UI for the OpenRocket engine** — not a full re-creation of OpenRocket's desktop app, but a fast, mobile-friendly interface over the same trusted physics, with **full OpenRocket (.ork) support** (open, edit, save round-trip). Design a rocket, watch its CG/CP/stability update live, and run a full flight simulation — entirely in the browser, with nothing to install and nothing uploaded.
 
-The UI is **responsive**: a three-pane workbench (editor · rocket view · motor/sim) on desktop that becomes three tabs on a phone (Rocket · Sketch · Simulate), with the rocket views turned a quarter turn so the airframe runs down the screen's long edge. The rocket view switches between a **2D schematic**, a **3D model**, an **aerodynamics** view, and — after a simulation — **flight charts** and a **3D flight path**.
+The UI is **responsive**: a three-pane workbench (editor · rocket view · motor/sim) on desktop that becomes tabs on a phone (Rocket · Sketch · Simulate, plus **Results** once a run has produced one), with the rocket views turned a quarter turn so the airframe runs down the screen's long edge. The rocket view switches between a **2D schematic**, a **3D model**, an **aerodynamics** view, and — after a simulation — **flight charts** and a **3D flight path**.
 
 ## Highlights
 
@@ -14,10 +14,12 @@ The UI is **responsive**: a three-pane workbench (editor · rocket view · motor
 
 **Design & analyze**
 - Component-tree editor with **live CG / CP / stability** as you edit — calibers, % of length, **on-pad *and* rail-exit** margins, and fineness ratio.
+- **Undo / redo** across the whole workspace — component edits *and* simulation changes on one timeline (`Ctrl/⌘+Z`, `Ctrl+Shift+Z`).
 - **Multi-stage rockets** — add booster stages, pods, and parallel boosters, with configurable separation and upper-stage ignition (staged flights simulate as independent branches; trajectory validation vs. OpenRocket is in progress).
 - **2D schematic** with drag-to-measure **calipers**, length + cross-section rulers, zoom/pan, spin (roll), and an aft (head-on) view.
 - **3D model** view, plus a **3D flight path** after a simulation. CG/CP markers and a length·mass·CG·CP·stability card can be toggled on either view.
-- **Aerodynamics view**: Cd vs Mach, drag breakdown (friction / pressure / base), and CP vs Mach.
+- **Scale the whole rocket** by a factor or to a target body diameter in one undoable step, and **parachute descent sizing** that reads the descent rate a canopy gives you and the diameter each target rate needs.
+- **Aerodynamic analysis**: Cd vs Mach, the drag breakdown (friction / pressure / base) and CP vs Mach, plus **per-component tables** — drag split into pressure / base / friction, each part's mass / CNα / CP, and every fin set's roll forcing and damping — flown at a chosen angle of attack, wind direction and roll rate. The same figures desktop OpenRocket shows in *Component Analysis*.
 - **Flight charts**: altitude, velocity, acceleration, Mach, thrust, mass, drag, and stability over time — with per-stage trajectory overlays for staged flights.
 
 **Data & I/O**
@@ -25,12 +27,13 @@ The UI is **responsive**: a three-pane workbench (editor · rocket view · motor
 - Keep **several rockets** in the browser and switch between them; everything autosaves, and `.ork` import/export moves designs to and from your disk.
 - Real motor **thrust curves** from thrustcurve.org (~800 motors), plus **`.eng` import** and custom motors.
 - OpenRocket **materials** (built-in + your own) and a **component-preset** catalog (~2,900 real Estes/Apogee/LOC/… parts).
-- **Exports**: the design to **RASAero II (`.CDX1`)**, flight data & drag tables to **CSV**, the **flight path** to **KML / GPX / waypoint CSV** (Google Earth / GPS, with importable custom **templates**), and the 2D schematic to **SVG / PNG / JPG**.
+- **Exports**: a full **rocket design report** (summary, parts detail, motors, and 1:1 fin/nose/transition templates) to **PDF**, or the design summary to **CSV**; the design to **RASAero II (`.CDX1`)**; individual components to **3D models (STL / OBJ / GLB)** for printing/CAD and flat parts to **DXF** cut sheets; flight data & aero tables to **CSV**; the **flight path** to **KML / GPX / waypoint CSV** (Google Earth / GPS, with a **Mission** name and per-stage track colors, and importable custom **templates**); and the 2D schematic to **SVG / PNG / JPG**.
 - Multiple named **simulations**, each with full launch setup (rod, site, atmosphere, multi-level wind, earth model).
 
 **Yours, on your device**
 - No server, no accounts, nothing uploaded — the physics runs entirely on your device. Your `.ork` designs are **files on your disk** (open / save); the browser just keeps a working copy (so a refresh won't lose your rocket) plus your custom motors, materials, and settings.
-- **Responsive** (desktop three-pane workbench → three tabs on a phone, with the rocket views turned to the screen's long edge), in **English and Spanish**.
+- **Units are yours to pick** — metric or imperial presets, or a unit per quantity (lengths, altitude, mass, velocity, wind, acceleration, angle, density, temperature, pressure, thrust, impulse), and the unit printed beside any value is a picker for that one field. Designs are always stored in SI, so switching units never edits a rocket or changes how a `.ork` is written — units live in your browser, not in the file, so a design opened in desktop OpenRocket shows in OpenRocket's units.
+- **Responsive** (desktop three-pane workbench → tabs on a phone, with the rocket views turned to the screen's long edge), in **English and Spanish**.
 
 ## Getting started
 
@@ -63,8 +66,6 @@ Contributions are very welcome — code, bug reports, translations, docs, and mo
 ## Status
 
 Engine: working, validated bit-identical against upstream OpenRocket (JVM↔JS, and WASM↔JS). UI: actively developed — component-tree editor, stability, 2D/3D views, motor picker, `.ork` import/export, and flight simulation with charts (run off the main thread in a Web Worker to keep the UI responsive).
-
-**Units are yours to pick** — metric or imperial presets, or a unit per quantity (lengths, altitude, mass, velocity, wind, acceleration, angle, density, temperature, pressure, thrust, impulse), and the unit printed beside any value is a picker for that one field. Designs are always stored in SI, so switching units never edits a rocket or changes how a `.ork` is written — units live in your browser, not in the file, so a design opened in desktop OpenRocket shows in OpenRocket's units.
 
 ## Attribution & license
 

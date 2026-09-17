@@ -96,7 +96,7 @@ describe('flightKey', () => {
     expect(flightKey(added)).not.toBe(base);
 
     // Unknown fields count too: ComponentNode has an open index signature, so
-    // anything we do not recognise is assumed to matter.
+    // anything we do not recognize is assumed to matter.
     const odd = design();
     (odd.components[0] as Record<string, unknown>)['someFutureParam'] = 3;
     expect(flightKey(odd)).not.toBe(base);

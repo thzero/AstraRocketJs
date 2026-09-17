@@ -8,8 +8,8 @@ import { makeWatertight } from './solidMesh';
  * 3D mesh export (STL / OBJ / glTF-binary) of a SINGLE component's solid.
  *
  * The geometry is a purpose-built watertight solid (see {@link makeWatertight}
- * and solidForNode), scaled from metres to MILLIMETRES — the unit every slicer
- * and CAD tool assumes (a metre-scale part would import 1000x too small). STL is
+ * and solidForNode), scaled from meters to MILLIMETERS — the unit every slicer
+ * and CAD tool assumes (a meter-scale part would import 1000x too small). STL is
  * geometry only; OBJ and GLB also carry a neutral material.
  */
 
@@ -17,10 +17,10 @@ export const STL_MIME = 'model/stl';
 export const OBJ_MIME = 'model/obj';
 export const GLB_MIME = 'model/gltf-binary';
 
-/** Metres -> millimetres: the scale every slicer/CAD importer expects. */
+/** Meters -> millimeters: the scale every slicer/CAD importer expects. */
 const M_TO_MM = 1000;
 
-/** A watertight, millimetre-scaled mesh of one solid, ready for an exporter. */
+/** A watertight, millimeter-scaled mesh of one solid, ready for an exporter. */
 function meshGroup(geometry: THREE.BufferGeometry): THREE.Group {
   const group = new THREE.Group();
   group.add(new THREE.Mesh(makeWatertight(geometry), new THREE.MeshStandardMaterial({ color: 0xcfcabf })));

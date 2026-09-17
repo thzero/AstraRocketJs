@@ -4,7 +4,7 @@ import { num } from './nodeProps';
 /**
  * Geometry helpers for off-axis assemblies (PodSet / ParallelStage) — shared
  * by the 2D schematic, the 3D view, and (later) the .ork writer so all agree
- * on where a pod sits. All SI (metres, radians). Mirrors the kernel:
+ * on where a pod sits. All SI (meters, radians). Mirrors the kernel:
  * instances ring the parent axis at y = r·cosθ, z = r·sinθ (PodSet
  * getInstanceOffsets), and the RELATIVE radius is a gap from the parent
  * surface.

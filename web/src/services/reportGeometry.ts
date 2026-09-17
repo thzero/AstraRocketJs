@@ -6,7 +6,7 @@ import { outerProfile } from '../tree/shapeProfile';
 import { finTabFront, axialStart } from '../components/canvas/schematicGeometry';
 
 /**
- * Geometry for the PDF report — all in MILLIMETRES, so the PDF (built in mm)
+ * Geometry for the PDF report — all in MILLIMETERS, so the PDF (built in mm)
  * can draw templates at true 1:1 and the side view to scale. Vector only.
  */
 
@@ -66,7 +66,7 @@ export function finPlanformMm(node: ComponentNode): { pts: Pt[]; count: number }
   return { pts, count: Math.max(1, Math.round(num(node, 'finCount', 3))) };
 }
 
-/** A revolved part's side outline (mm), centred on its own centreline. */
+/** A revolved part's side outline (mm), centered on its own centerline. */
 export function profileMm(
   node: ComponentNode,
   foreR: number,
@@ -87,7 +87,7 @@ export function profileMm(
 }
 
 /**
- * Whole-rocket side view (mm) about the centreline (y = 0, +up): one closed
+ * Whole-rocket side view (mm) about the centerline (y = 0, +up): one closed
  * airframe silhouette (nose → body → transition, top edge then mirrored bottom)
  * plus a filled fin polygon on the top and bottom of each fin set. Filled, so
  * it reads as a solid rocket rather than loose lines.
@@ -101,7 +101,7 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
     x = 0;
 
   /**
-   * The parent's outer radius at a station `lx` along it (metres, local).
+   * The parent's outer radius at a station `lx` along it (meters, local).
    *
    * A fin sits at the radius under ITS OWN FRONT, not at the parent's aft end:
    * `FinSet.getBodyRadius()` is `getFinFront().getY()`, i.e.

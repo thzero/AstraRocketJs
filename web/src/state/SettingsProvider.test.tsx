@@ -28,7 +28,7 @@ beforeEach(() => {
 describe('SettingsProvider persistence', () => {
   /**
    * The provider seeds its state from `loadSettings()`, which NORMALIZES —
-   * dropping keys it does not recognise. Writing that output straight back on
+   * dropping keys it does not recognize. Writing that output straight back on
    * mount therefore meant merely OPENING an older build permanently destroyed
    * any preference a newer build had written, instead of leaving it untouched
    * for the newer build to find again.

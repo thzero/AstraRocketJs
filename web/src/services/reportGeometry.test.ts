@@ -75,11 +75,11 @@ describe('a freeform fin whose outline does not start at the origin', () => {
     return [Math.min(...xs), Math.max(...xs)];
   };
 
-  it('centres the tab on the OUTLINE, not 20 mm forward of it', () => {
+  it('centers the tab on the OUTLINE, not 20 mm forward of it', () => {
     // Comparing tab to tab proves nothing: `finTabFront` works off
     // `root = last.x - first.x`, which is translation-invariant, so the tab
     // lands at 20..40 either way. What moved was the outline around it — with
-    // the raw points it spanned 20..80, putting the "centred" tab hard against
+    // the raw points it spanned 20..80, putting the "centered" tab hard against
     // the leading edge.
     const [lo, hi] = tabSpan(ff(SHIFTED));
     const [oLo, oHi] = outlineSpan(ff(SHIFTED));
@@ -91,7 +91,7 @@ describe('a freeform fin whose outline does not start at the origin', () => {
   it('cuts the tab exactly where the identical fin drawn at the origin does', () => {
     const shifted = finPlanformMm(ff(SHIFTED))!.pts;
     const atOrigin = finPlanformMm(ff(AT_ORIGIN))!.pts;
-    // Same fin, same 60 mm root, same 20 mm centred tab — so the same part.
+    // Same fin, same 60 mm root, same 20 mm centered tab — so the same part.
     expect(shifted.map(([x, y]) => [Math.round(x * 1e6), Math.round(y * 1e6)])).toEqual(
       atOrigin.map(([x, y]) => [Math.round(x * 1e6), Math.round(y * 1e6)]),
     );

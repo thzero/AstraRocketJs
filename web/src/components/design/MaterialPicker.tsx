@@ -9,7 +9,7 @@ import { unitScope, type Quantity } from '../../prefs/units';
 /**
  * Each material kind measures a different density, so each has its own
  * preference group: bulk stock by volume, fabric by area, cord by length.
- * The catalogue and the engine hold all three in SI (kg/m³, kg/m², kg/m).
+ * The catalog and the engine hold all three in SI (kg/m³, kg/m², kg/m).
  */
 const QUANTITY: Record<MaterialType, Quantity> = {
   bulk: 'density',
@@ -19,8 +19,8 @@ const QUANTITY: Record<MaterialType, Quantity> = {
 
 /**
  * Assigns a material (name + density) to a component, from the built-in
- * catalogue plus the user's custom materials (swappable MaterialStore). `type`
- * picks the catalogue (bulk / surface / line); `label` names the row. Emits
+ * catalog plus the user's custom materials (swappable MaterialStore). `type`
+ * picks the catalog (bulk / surface / line); `label` names the row. Emits
  * `onChange(name, density)`; density 0 / name undefined means the engine default.
  */
 export function MaterialPicker({

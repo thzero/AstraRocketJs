@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 // Elements that can receive keyboard focus. Disabled and tabindex=-1 nodes are
-// excluded so Tab cycling skips them, matching browser behaviour.
+// excluded so Tab cycling skips them, matching browser behavior.
 const FOCUSABLE = [
   'a[href]',
   'button:not([disabled])',

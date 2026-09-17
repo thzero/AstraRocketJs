@@ -16,8 +16,8 @@
  * Cd.A. Each is handled below.
  *
  * Scope note: this is deliberately the SIZE answer only — the diameter and the
- * rate — not a catalogue of real parachutes to buy. The app carries no chute
- * preset catalogue, so matching named canopies is out of scope here.
+ * rate — not a catalog of real parachutes to buy. The app carries no chute
+ * preset catalog, so matching named canopies is out of scope here.
  */
 
 /** Standard gravity, m/s^2 (CODATA / the kernel's own g0). */

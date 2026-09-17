@@ -218,7 +218,7 @@ test.describe('short prompts', () => {
   // opts out of the fixture's default of having it already acknowledged.
   test.use({ wip: 'shown' });
 
-  test('leaves short prompts as centred cards on a phone', async ({ page }) => {
+  test('leaves short prompts as centered cards on a phone', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
 
@@ -228,7 +228,7 @@ test.describe('short prompts', () => {
     note('wip card', `${Math.round(card.width)}x${Math.round(card.height)} at y=${Math.round(card.y)}`);
     expect(card.width).toBeLessThan(390); // inset from the edges
     expect(card.height).toBeLessThan(844 / 2); // sized to its content, not the screen
-    expect(card.y).toBeGreaterThan(0); // centred, not pinned to the top
+    expect(card.y).toBeGreaterThan(0); // centered, not pinned to the top
     await expect(page.locator('.dialog-panel')).toHaveCount(0);
   });
 });
@@ -306,7 +306,7 @@ test('the Results tab leads with the run numbers, without starving the chart', a
   note('results tab', JSON.stringify(m));
 
   // Apogee and the rest are the first thing on the tab. Scoped to the first grid
-  // in DOM order — the centre pane's — because the simulations pane keeps its
+  // in DOM order — the center pane's — because the simulations pane keeps its
   // own copy mounted behind the Simulate tab.
   const summary = page.locator('main .grid.grid-cols-3').first();
   await expect(summary).toBeVisible();

@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import type { RocketTree } from '../engine/openRocketEngine';
 import { exportCdx1 } from './rasaeroExport';
 
-// A 1-inch-diameter rocket with clean-inch geometry so the metre→inch (×39.37)
+// A 1-inch-diameter rocket with clean-inch geometry so the meter→inch (×39.37)
 // conversions land on round numbers the assertions can pin exactly.
 const tree: RocketTree = {
   name: 'Test Bird',

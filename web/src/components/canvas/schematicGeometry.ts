@@ -24,7 +24,7 @@ export const CALLOUT_LANES = 34;
 /** Lane-center distance from the airframe edge (or marker edge, if wider). */
 const LANE_GAP = 13;
 
-/** A "nice" ruler tick step (metres) giving ~8 marks across `totalM`. */
+/** A "nice" ruler tick step (meters) giving ~8 marks across `totalM`. */
 export function niceStep(totalM: number): number {
   const target = Math.max(totalM, 1e-6) / 8;
   const pow = Math.pow(10, Math.floor(Math.log10(target)));
@@ -310,7 +310,7 @@ export function computeSchematicLayout(
   // otherwise a height-limited short/fat rocket would fill it and clip them.
   const lanes = info ? CALLOUT_LANES : 0;
   // Side view reserves a ruler lane per requested side (length top/bottom, radial
-  // left/right); each kept out of the fit so the drawing centres inside the frame.
+  // left/right); each kept out of the fit so the drawing centers inside the frame.
   // A side that's toggled off reserves nothing, so the drawing reclaims that space.
   const R = dims.rulers ?? { top: true, bottom: true, left: true, right: true };
   const rTop = vertical || !R.top ? 0 : RULER_H;
@@ -330,13 +330,13 @@ export function computeSchematicLayout(
   // Horizontal headroom: `totalLen` covers only the axial chain (nose+body), so
   // aft-swept fins overhang past it and the CG/CP labels reach right of the aft.
   // Fit to ~12% more than the bare length so nothing sits flush to the edge, and
-  // centre the drawing between the left/right ruler lanes.
+  // center the drawing between the left/right ruler lanes.
   const scale = Math.min(
     (w - 2 * pad - rLeft - rRight) / (totalLen * 1.12),
     (h - 2 * pad - lanes - rTop - rBot) / (2 * vHalf),
   );
-  // Centre the rocket between the left/right ruler lanes, and vertically between
-  // the top/bottom ones — the centreline shifts by half the top/bottom imbalance
+  // Center the rocket between the left/right ruler lanes, and vertically between
+  // the top/bottom ones — the centerline shifts by half the top/bottom imbalance
   // so an asymmetric set of rulers still frames the drawing evenly.
   const x0 = Math.max(pad + rLeft, (w - totalLen * scale) / 2);
   const ctx: Ctx = { scale, cy: (h + rTop - rBot) / 2, x0 };

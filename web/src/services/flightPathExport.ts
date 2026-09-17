@@ -8,7 +8,7 @@ import type { LaunchConditions } from './orkTree';
  *
  * The desktop version reads latitude/longitude straight from the simulated
  * flight (OpenRocket derives them from the launch position during the run). Our
- * engine ships only the lateral drift (`Px` east, `Py` north, metres from the
+ * engine ships only the lateral drift (`Px` east, `Py` north, meters from the
  * pad) in the default flight series — the same trajectory the 3D path view
  * draws — so we project those onto geographic coordinates here, about the
  * configured launch site, using a spherical Earth (OpenRocket's default
@@ -46,7 +46,7 @@ export type DistanceUnit = 'm' | 'ft' | 'km' | 'mi';
  * `FlightPathExportOptions.AltitudeReference`.
  *
  * It matters because the launch altitude defaults to zero: a site actually
- * 1200 m up then reports its flight in metres above the pad, and placing that
+ * 1200 m up then reports its flight in meters above the pad, and placing that
  * against sea level buries the whole track under the terrain.
  *
  * `clamped` is ours, not the desktop's: it drapes the track and the pins flat on
@@ -120,16 +120,39 @@ export interface FlightPathExportOptions {
   stageTrackStart: StageTrackStart;
   /**
    * Whether waypoint names are drawn on the map. A near-vertical flight stacks
-   * its waypoints into a few hundred metres of screen, and the reader may
+   * its waypoints into a few hundred meters of screen, and the reader may
    * prefer bare markers they can click.
    */
   showWaypointLabels: boolean;
   /**
-   * Whether waypoint pins carry their stage's colour. That needs an icon
+   * Whether waypoint pins carry their stage's color. That needs an icon
    * fetched from Google's servers, so it can be turned off for a file that has
    * to render without a network.
    */
   colorWaypointPins: boolean;
+  /**
+   * A name for this flight, folded into the document name and into every folder
+   * and track name. Several exports opened in one Google Earth session are
+   * otherwise indistinguishable: every two-stage design contributes a folder
+   * called "Sustainer" and a track called "Sustainer flight path", and two
+   * designs can each own a "Simulation 1". Empty means no prefix anywhere, and
+   * every name is written exactly as it was before this option existed.
+   */
+  missionName: string;
+  /**
+   * Whether the mission name also prefixes the waypoint markers. Off by
+   * default: a near-vertical flight packs every marker into a few screen
+   * pixels, where the labels already overlap enough to have a switch of their
+   * own, and making each one longer is strictly worse. It earns its place only
+   * when two flights' markers genuinely sit on top of each other.
+   */
+  labelWaypointsWithMission: boolean;
+  /**
+   * Per-stage track-color overrides, keyed by the branch's index in the built
+   * model. Sparse on purpose: a stage left on its palette color stores
+   * nothing, so the palette can change later without stranding saved values.
+   */
+  branchColors: Map<number, number>;
 }
 
 /**
@@ -137,9 +160,9 @@ export interface FlightPathExportOptions {
  * distance units START from the user's `distance` preference, so someone who
  * works in feet doesn't have to re-pick feet on every export — but they stay
  * separate fields, because the file's unit is a property of the FILE and a
- * KML meant for someone else may want metres whatever the app is showing.
+ * KML meant for someone else may want meters whatever the app is showing.
  * A preference this dialog has no unit for (yd, km, mi is covered; anything
- * else) falls back to metres rather than writing a unit the format can't name.
+ * else) falls back to meters rather than writing a unit the format can't name.
  */
 export function defaultExportOptions(preferred?: string): FlightPathExportOptions {
   const unit: DistanceUnit = preferred === 'ft' || preferred === 'km' || preferred === 'mi' ? preferred : 'm';
@@ -156,18 +179,44 @@ export function defaultExportOptions(preferred?: string): FlightPathExportOption
     stageTrackStart: 'separation',
     showWaypointLabels: true,
     colorWaypointPins: true,
+    // Not persisted, and deliberately: a mission name left over from the last
+    // export silently mislabels this one, which is worse than retyping it.
+    missionName: '',
+    labelWaypointsWithMission: false,
+    branchColors: new Map(),
   };
 }
 
 /**
- * Per-branch track colours, so the stages of a staged flight can be told apart.
- * The desktop's palette, value for value, so a stage keeps its colour between
+ * Per-branch track colors, so the stages of a staged flight can be told apart.
+ * The desktop's palette, value for value, so a stage keeps its color between
  * the two apps — and so a template written against one renders the same in the
  * other.
  */
 const BRANCH_COLORS = [
   0x0072bd, 0xd95319, 0xedb120, 0x7e318e, 0x77ac30, 0x4dbeee, 0xa2142f, 0xc56a7a, 0xff7f50, 0x556b2f,
 ];
+
+/**
+ * The palette color a branch falls on when it has no override. Indexed with a
+ * floor-mod, so any stage count works and a negative index cannot reach off the
+ * front of the palette.
+ */
+export function defaultBranchColor(index: number): number {
+  const n = BRANCH_COLORS.length;
+  return BRANCH_COLORS[((index % n) + n) % n]!;
+}
+
+/** A branch color as the `RRGGBB` a color input wants. */
+export function rgbToHex(rgb: number): string {
+  return `#${(rgb & 0xffffff).toString(16).padStart(6, '0')}`;
+}
+
+/** `#RRGGBB` back to a number; anything unparseable reads as black. */
+export function hexToRgb(hex: string): number {
+  const v = Number.parseInt(hex.replace('#', ''), 16);
+  return Number.isFinite(v) ? v & 0xffffff : 0;
+}
 /** The ground track is the same hue, darkened and slightly translucent. */
 const GROUND_TRACK_DARKEN = 0.45;
 const GROUND_TRACK_ALPHA = 0xd0;
@@ -193,6 +242,17 @@ function darken(rgb: number, factor: number): number {
  * export is impossible to read. A label that already starts with the stage name
  * is left alone rather than stuttering.
  */
+/**
+ * A name prefixed with the mission, if there is one. The `startsWith` guard is
+ * what keeps a mission named after the rocket from yielding "Sod Blaster Sod
+ * Blaster Sustainer" — the common case, since the obvious thing to type is the
+ * name of the thing you flew.
+ */
+function withMission(mission: string, text: string | null | undefined): string {
+  if (!mission || !text) return text ?? '';
+  return text.toLowerCase().startsWith(mission.toLowerCase()) ? text : `${mission} ${text}`;
+}
+
 function qualifyLabel(qualifier: string, label: string, qualify: boolean): string {
   if (!qualify || !qualifier || !label) return label ?? '';
   return label.toLowerCase().startsWith(qualifier.toLowerCase()) ? label : `${qualifier} ${label}`;
@@ -210,9 +270,9 @@ export interface FlightPathWaypoint {
   longitude: number;
   latitudeStr: string;
   longitudeStr: string;
-  /** Altitude above sea level, in metres. GPX elevations are defined this way. */
+  /** Altitude above sea level, in meters. GPX elevations are defined this way. */
   altitudeMslMeters: number;
-  /** Altitude above the ground, in metres. */
+  /** Altitude above the ground, in meters. */
   altitudeAglMeters: number;
   /** The altitude to write into a KML coordinate, in `model.kmlWaypointAltitudeMode`. */
   altitudeKmlMeters: number;
@@ -232,9 +292,9 @@ export interface FlightPathWaypoint {
 export interface FlightPathPoint {
   latitude: number;
   longitude: number;
-  /** Altitude above sea level, in metres. GPX elevations are defined this way. */
+  /** Altitude above sea level, in meters. GPX elevations are defined this way. */
   altitudeMslMeters: number;
-  /** Altitude above the ground, in metres. */
+  /** Altitude above the ground, in meters. */
   altitudeAglMeters: number;
   /** The altitude to write into a KML coordinate, in `model.kmlAltitudeMode`. */
   altitudeKmlMeters: number;
@@ -247,7 +307,7 @@ export interface FlightPathBranch {
   name: string;
   /** Zero-based position in `model.branches`, for building unique style ids. */
   index: number;
-  /** This branch's colour as RRGGBB, so each stage's track is distinguishable. */
+  /** This branch's color as RRGGBB, so each stage's track is distinguishable. */
   colorRgb: string;
   /** `colorRgb` as a KML aabbggrr literal, opaque, for the flight-path line. */
   pathColorKml: string;
@@ -293,7 +353,7 @@ export interface FlightPathModel {
   tessellatePath: boolean;
   /** Whether waypoint names are drawn on the map. */
   showWaypointLabels: boolean;
-  /** Whether waypoint pins carry their stage's colour. */
+  /** Whether waypoint pins carry their stage's color. */
   colorWaypointPins: boolean;
   maxAltitude: string;
   maxVelocity: string;
@@ -313,12 +373,12 @@ export interface FlightPathMeta {
 // ---------------------------------------------------------------------------
 
 const UNIT_SYMBOL: Record<DistanceUnit, string> = { m: 'm', ft: 'ft', km: 'km', mi: 'mi' };
-/** Metres → unit multiplier. */
+/** Meters → unit multiplier. */
 const UNIT_FACTOR: Record<DistanceUnit, number> = { m: 1, ft: 3.280839895, km: 0.001, mi: 0.000621371192 };
 /** Decimals shown per unit (larger units get more). */
 const UNIT_DECIMALS: Record<DistanceUnit, number> = { m: 1, ft: 1, km: 3, mi: 3 };
 
-/** Render a metres value in the given unit, without the unit symbol. */
+/** Render a meters value in the given unit, without the unit symbol. */
 function fmtLength(meters: number, unit: DistanceUnit): string {
   if (!Number.isFinite(meters)) return '';
   return (meters * UNIT_FACTOR[unit]).toFixed(UNIT_DECIMALS[unit]);
@@ -356,10 +416,10 @@ function launchPositionUnset(launch: LaunchConditions): boolean {
 }
 
 /**
- * WGS84 degree lengths at a latitude, good to a few centimetres per kilometre
+ * WGS84 degree lengths at a latitude, good to a few centimeters per kilometer
  * — the same series desktop OpenRocket projects with, so a track exported from
  * either app lands on the same spot. A spherical Earth would put a 10 km drift
- * tens of metres off.
+ * tens of meters off.
  */
 function metersPerDegree(latitudeDeg: number): { lat: number; lon: number } {
   const phi = (latitudeDeg * Math.PI) / 180;
@@ -376,6 +436,41 @@ function metersPerDegree(latitudeDeg: number): { lat: number; lon: number } {
 /** Coerce a possibly-missing series value to a finite number, or 0. */
 const finiteOr0 = (v: number | null | undefined): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const series = (s: FlightSeries, key: string): (number | null)[] | undefined => s[key] as (number | null)[] | undefined;
+
+/**
+ * Staged flights carry per-branch data (branch 0 = the sustainer stack); a
+ * single flight is exported as one synthetic branch from the top-level series.
+ */
+function rawBranchesOf(
+  result: FlightResult,
+  meta: FlightPathMeta,
+): { name: string; events: FlightEvent[]; series: FlightSeries }[] {
+  if (result.branches && result.branches.length) return result.branches;
+  return [{ name: meta.rocketName || meta.simName || 'Flight', events: result.events, series: result.series }];
+}
+
+/**
+ * The two series every branch is built from, or null when the branch produced
+ * nothing usable. The one place that decides whether a branch exports at all,
+ * so the color picker and the builder cannot disagree about how many there are.
+ */
+function usableSeries(s: FlightSeries): { time: (number | null)[]; alt: (number | null)[] } | null {
+  const time = series(s, 'time');
+  const alt = series(s, 'altitude');
+  if (!time || !alt || time.length === 0) return null;
+  return { time, alt };
+}
+
+/**
+ * The raw stage names of the branches this flight will actually export, in the
+ * order their `index` will be assigned — what the stage-color picker offers a
+ * swatch for. Unprefixed: it names the stage, not the file.
+ */
+export function exportBranchNames(result: FlightResult, meta: FlightPathMeta): string[] {
+  return rawBranchesOf(result, meta)
+    .filter((b) => usableSeries(b.series) !== null)
+    .map((b) => b.name);
+}
 
 /**
  * Build the flight-path model from a simulation result and its launch site.
@@ -397,7 +492,7 @@ export function buildFlightPathModel(
   const launchAlt = launch.launchAltitudeM ?? 0;
 
   const perDegree = metersPerDegree(lat0);
-  // Guard the poles, where a degree of longitude is zero metres wide and every
+  // Guard the poles, where a degree of longitude is zero meters wide and every
   // east offset would divide to infinity. Unreachable for the KSC fallback and
   // for any launch site anyone uses, but a NaN in a coordinate is a broken file.
   const lonPerDegree = Math.abs(perDegree.lon) < 1e-9 ? Infinity : perDegree.lon;
@@ -418,8 +513,12 @@ export function buildFlightPathModel(
   const kmlAltitude = kmlAltitudeFor(altitudeReference);
   const kmlWaypointAltitude = kmlAltitudeFor(waypointReference);
 
+  // Trimmed once here, so a name that is nothing but spaces is no mission at
+  // all rather than a leading space on every name in the file.
+  const mission = (options.missionName ?? '').trim();
+
   const model: FlightPathModel = {
-    title: meta.simName,
+    title: withMission(mission, meta.simName),
     rocketName: meta.rocketName,
     simulationName: meta.simName,
     motor: meta.motorName,
@@ -445,12 +544,7 @@ export function buildFlightPathModel(
     branches: [],
   };
 
-  // Staged flights carry per-branch data (branch 0 = sustainer stack); a single
-  // flight is exported as one synthetic branch from the top-level series.
-  const rawBranches =
-    result.branches && result.branches.length
-      ? result.branches
-      : [{ name: meta.rocketName || meta.simName || 'Flight', events: result.events, series: result.series }];
+  const rawBranches = rawBranchesOf(result, meta);
 
   // Only a staged flight needs its waypoints qualified — see `qualifyLabel`.
   const qualify = rawBranches.length > 1;
@@ -465,6 +559,9 @@ export function buildFlightPathModel(
       kmlAltitude,
       kmlWaypointAltitude,
       qualify,
+      // Empty unless the markers were opted in, so the mission can be folded
+      // into the folder and track names without reaching the pins.
+      waypointMission: options.labelWaypointsWithMission ? mission : '',
       primary: i === 0,
       stageTrackStart: options.stageTrackStart,
     });
@@ -473,7 +570,12 @@ export function buildFlightPathModel(
     // usable series is skipped, and the indices must stay contiguous or two
     // branches would share a KML style id.
     branch.index = model.branches.length;
-    const rgb = BRANCH_COLORS[branch.index % BRANCH_COLORS.length]!;
+    const rgb = options.branchColors?.get(branch.index) ?? defaultBranchColor(branch.index);
+    // The folder name carries the mission; the raw stage name stays on the
+    // branch context, where the waypoint labels are qualified from it. Prefix
+    // the branch name first and qualify from that, and you can no longer have
+    // one without the other.
+    branch.name = withMission(mission, branch.name);
     branch.colorRgb = (rgb & 0xffffff).toString(16).padStart(6, '0');
     branch.pathColorKml = kmlColor(rgb, 0xff);
     branch.groundColorKml = kmlColor(darken(rgb, GROUND_TRACK_DARKEN), GROUND_TRACK_ALPHA);
@@ -493,6 +595,12 @@ interface BranchCtx {
   kmlWaypointAltitude: (altAgl: number) => number;
   /** True when the flight staged, so waypoint labels name their stage. */
   qualify: boolean;
+  /**
+   * The mission prefix for the waypoint LABELS, or '' for none. Kept apart from
+   * the branch name for the reason given where it is applied: the folder and
+   * track names can carry the mission while the markers stay short.
+   */
+  waypointMission: string;
   /**
    * True for the branch the whole vehicle flew. Leaving the pad is something
    * the stack does, not any one stage, so only this branch gets a pad
@@ -533,9 +641,9 @@ function buildBranch(
   waypointLabel: (kind: WaypointKind) => string,
   ctx: BranchCtx,
 ): FlightPathBranch | null {
-  const time = series(raw.series, 'time');
-  const alt = series(raw.series, 'altitude');
-  if (!time || !alt || time.length === 0) return null;
+  const usable = usableSeries(raw.series);
+  if (!usable) return null;
+  const { time, alt } = usable;
 
   const east = series(raw.series, 'Px'); // lateral drift east (m)
   const north = series(raw.series, 'Py'); // lateral drift north (m)
@@ -575,12 +683,12 @@ function buildBranch(
       altitudeMsl: fmtLength(mslMeters, ctx.altUnit),
       distance: fmtLength(distanceAt(i), ctx.distUnit),
       bearing: bearingAt(i).toFixed(0),
-      qualifiedLabel: qualifyLabel(raw.name, label, ctx.qualify),
+      qualifiedLabel: withMission(ctx.waypointMission, qualifyLabel(raw.name, label, ctx.qualify)),
       branchName: raw.name,
     };
   };
 
-  // index / colours are filled in by the caller, which knows the branch's
+  // index / colors are filled in by the caller, which knows the branch's
   // position among the ones that actually produced data.
   const branch: FlightPathBranch = {
     name: raw.name,

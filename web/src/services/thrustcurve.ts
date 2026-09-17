@@ -65,7 +65,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     // AWAITED, not returned: `finally` runs at the `return` statement, so
     // returning the unawaited promise cleared the abort timer before the body
     // had been read. A host that sent headers and then stalled hung the motor
-    // picker forever, with the only timeout already cancelled.
+    // picker forever, with the only timeout already canceled.
     //
     // Streamed rather than res.json() so MAX_RESPONSE_BYTES is enforced on the
     // bytes RECEIVED. The content-length check above only fires when the host
@@ -117,7 +117,7 @@ export function samplesToMotorSpec(
   }
   if (motor.propWeightG > motor.totalWeightG) {
     throw new Error(
-      `${motor.designation} is catalogued with more propellant (${motor.propWeightG} g) than ` +
+      `${motor.designation} is cataloged with more propellant (${motor.propWeightG} g) than ` +
         `loaded mass (${motor.totalWeightG} g), so its burn would end at a negative mass. ` +
         'Pick another motor.',
     );

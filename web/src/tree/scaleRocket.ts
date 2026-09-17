@@ -88,7 +88,7 @@ const LENGTH_KEYS: Record<string, readonly string[]> = {
   engineblock: ['length', 'thickness', 'outerRadius'],
   // A lug's BORE is the launch rod's diameter and does not scale; its length does.
   launchlug: ['length', 'instanceSeparation'],
-  // A rail button is a catalogue part; the SPACING between a pair is an airframe span.
+  // A rail button is a catalog part; the SPACING between a pair is an airframe span.
   railbutton: ['instanceSeparation'],
   parachute: ['diameter', 'spillHoleDiameter', 'lineLength'],
   streamer: ['stripLength', 'stripWidth'],
@@ -135,7 +135,7 @@ function scaleNode(n: ComponentNode, k: number): ComponentNode {
   }
 
   // A freeform fin's planform lives entirely in `points` — [x along the body,
-  // y off the surface], metres. Both coordinates scale.
+  // y off the surface], meters. Both coordinates scale.
   if (Array.isArray(n['points'])) {
     const pts = n['points'] as unknown[];
     out['points'] = pts.map((p) =>

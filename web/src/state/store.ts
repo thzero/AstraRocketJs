@@ -262,7 +262,7 @@ function uniqueSimName(sims: Simulation[], label: (n: number) => string, start: 
 /**
  * A `view` paired with a tab that can actually show it.
  *
- * On a phone the centre pane backs two tabs and each owns a family: Sketch the
+ * On a phone the center pane backs two tabs and each owns a family: Sketch the
  * design views, Results the flight ones. Rocket and Simulate show no view at
  * all, so a caller sitting on either is left where it is.
  *
@@ -435,7 +435,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       beginEdit();
       const next = updateNode(tree, selectedId, patch);
       // Only a change to the motor-mount flag can alter mount topology; a
-      // name/length/colour/slider patch can't, so skip reconcileMounts' full
+      // name/length/color/slider patch can't, so skip reconcileMounts' full
       // tree walk on the hot per-keystroke edit path.
       const touchesMounts = 'motorMount' in patch;
       set({ tree: next, extraMotors: touchesMounts ? reconcileMounts(next, extraMotors) : extraMotors });
@@ -611,7 +611,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
     },
 
-    // The two below keep the mobile tab and the centre-pane view in step -- see
+    // The two below keep the mobile tab and the center-pane view in step -- see
     // {@link showing}. Harmless at desktop widths, where the tab bar is hidden
     // and `tab` only decides what a later resize lands on.
     setTab: (tab) =>

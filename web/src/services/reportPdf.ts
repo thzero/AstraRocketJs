@@ -9,9 +9,9 @@ import { siToUi, type Quantity, type UnitSelection } from '../prefs/units';
 
 /**
  * Build the rocket report as a real PDF (vector) and download it. Which sections
- * appear, the paper size/orientation, and the template colours all come from
+ * appear, the paper size/orientation, and the template colors all come from
  * {@link ReportOptions} (the export dialog). Every 1:1 template is drawn in
- * millimetres, so it prints true scale — the printed scale bar stays in mm/cm
+ * millimeters, so it prints true scale — the printed scale bar stays in mm/cm
  * for the same reason, since it measures the PAGE, not the rocket. Everything
  * the report READS OUT follows the user's unit preference.
  */
@@ -34,7 +34,7 @@ export interface ReportOptions {
   stages: StageOption[];
   paper: 'letter' | 'a4';
   orientation: 'portrait' | 'landscape';
-  /** Template fill colour (hex), or '' for outline only. */
+  /** Template fill color (hex), or '' for outline only. */
   templateFill: string;
   templateStroke: string;
 }
@@ -44,7 +44,7 @@ export interface ReportOptions {
 // which is truthy and so survives the `|| 'rocket'` fallback as a useless
 // filename.
 const safe = (name: string) => safeFilename(name, 'rocket');
-/** Exported for test: a malformed colour silently becomes near-black otherwise. */
+/** Exported for test: a malformed color silently becomes near-black otherwise. */
 export const hexToRgb = (hex: string): [number, number, number] => {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return [17, 24, 39];
@@ -59,7 +59,7 @@ export const hexToRgb = (hex: string): [number, number, number] => {
  * cut, and OpenRocket's FinSetPrintStrategy cannot reach one either
  * (`instanceof FinSet`, and TubeFinSet extends Tube). The broad match handed
  * finPlanformMm a tube and got back a fabricated 50 × 30 mm trapezoid, printed
- * 1:1 and labelled with the tube fin set's own name and count.
+ * 1:1 and labeled with the tube fin set's own name and count.
  */
 export const finSetsOf = (stage: ComponentNode): ComponentNode[] => {
   const out: ComponentNode[] = [];
@@ -107,7 +107,7 @@ export function sideViewScale(svWidthMm: number, svHeightMm: number, frame: Page
   return Math.min(frame.contentWidth / svWidthMm, SIDE_VIEW_BAND_MM / Math.max(svHeightMm, 1));
 }
 
-/** Centre the scaled side view across the content width; oy is its midline. */
+/** Center the scaled side view across the content width; oy is its midline. */
 export function sideViewOrigin(
   svWidthMm: number,
   svHeightMm: number,

@@ -106,7 +106,7 @@ describe('hydration', () => {
    *
    * An earlier version of this test USED that re-run as a convenient way to
    * cancel the first load, and asserted `load` was called twice — documenting
-   * the bug as intended behaviour.
+   * the bug as intended behavior.
    */
   it('does not reload or re-hydrate when the language changes', async () => {
     load.mockResolvedValue(saved());

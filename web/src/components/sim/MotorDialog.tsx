@@ -55,7 +55,7 @@ const saveDia = (d: [number, number]) => {
 };
 
 /**
- * Modal motor picker. Filters the catalogue by engine code (text), manufacturer(s),
+ * Modal motor picker. Filters the catalog by engine code (text), manufacturer(s),
  * impulse class, and (by default) whether the motor fits the mount; imports a
  * custom .eng; resolves the chosen motor's thrust curve via `onSelect`.
  */

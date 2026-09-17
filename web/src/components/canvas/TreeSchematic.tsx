@@ -122,13 +122,13 @@ export function TreeSchematic({
   // View transform (zoom & pan) in viewBox px; identity = whole rocket fits.
   const [zoom, setZoom] = useState({ k: 1, x: 0, y: 0 });
   // Calipers (measure tool): horizontal (two vertical lines, model x) and/or
-  // vertical (two horizontal lines, radial offset from the centreline). null = off.
+  // vertical (two horizontal lines, radial offset from the centerline). null = off.
   const [caliperH, setCaliperH] = useState<{ a: number; b: number } | null>(null);
   const [caliperV, setCaliperV] = useState<{ a: number; b: number } | null>(null);
   const caliperDrag = useRef<{ axis: 'h' | 'v'; end: 'a' | 'b' } | null>(null);
   const { t } = useTranslation();
   const u = useUnits();
-  // `active` only becomes true once the pointer has travelled past PAN_SLOP —
+  // `active` only becomes true once the pointer has traveled past PAN_SLOP —
   // see beginPan for why a press must not pan until then.
   const pan = useRef<{ pointerX: number; pointerY: number; x0: number; y0: number; active: boolean } | null>(null);
 
@@ -164,14 +164,14 @@ export function TreeSchematic({
     pan.current = { pointerX: e.clientX, pointerY: e.clientY, x0: zoom.x, y0: zoom.y, active: false };
   };
 
-  /** Screen clientX → model x (metres), through the current pan/zoom. */
+  /** Screen clientX → model x (meters), through the current pan/zoom. */
   const clientToModelX = (clientX: number): number => {
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect || !rect.width) return 0;
     const viewBoxX = ((clientX - rect.left) / rect.width) * w;
     return ((viewBoxX - zoom.x) / zoom.k - ctx.x0) / scale;
   };
-  /** Screen clientY → radial offset from the centreline (metres, + up). */
+  /** Screen clientY → radial offset from the centerline (meters, + up). */
   const clientToModelY = (clientY: number): number => {
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect || !rect.height) return 0;
@@ -333,7 +333,7 @@ export function TreeSchematic({
   const callouts = calloutLayout(cgX, cpX, ctx.cy, vHalf * scale, w, h, marginText);
 
   // Dimension ruler (side view, only at the default fit): nice-round marks every
-  // `rulerStep` metres, labelled in cm. 0 sits at the nose (the datum) but the
+  // `rulerStep` meters, labeled in cm. 0 sits at the nose (the datum) but the
   // baseline + ticks run the FULL viewport width, so it reads as a workbench
   // rule spanning the canvas rather than a bar clipped to the airframe.
   // Rulers only at the default fit (a pan/zoom would slide them off scale). Each
@@ -342,7 +342,7 @@ export function TreeSchematic({
   const rulersActive = !vertical && zoom.k === 1 && zoom.x === 0 && zoom.y === 0;
   const showLen = rulersActive && (rulers.top || rulers.bottom);
   const showRad = rulersActive && (rulers.left || rulers.right);
-  // Labelled majors are DENSE: aim for one roughly every ~12 screen px (rounded
+  // Labeled majors are DENSE: aim for one roughly every ~12 screen px (rounded
   // to a nice 1/2/5 mm step), so the scale reads like a real drafting ruler
   // (a number every ~10 mm) rather than a handful of marks across the canvas.
   const rulerStepUi = niceStep(u.toUi('length', (8 * 22) / scale));
@@ -351,7 +351,7 @@ export function TreeSchematic({
   const rulerDigits = rulerStepUi >= 1 ? 0 : rulerStepUi >= 0.1 ? 1 : 2;
   // Each ruler stops a few px short of the corner where it would meet another,
   // so the frame reads as four separate rules rather than one welded box. A
-  // ruler that instead runs to the viewport edge (its neighbour is off) keeps no
+  // ruler that instead runs to the viewport edge (its neighbor is off) keeps no
   // gap there — nothing to separate from.
   const CORNER_GAP = 5;
   const rulerX0 = rulers.left ? RULER_W - 4 + CORNER_GAP : 2;
@@ -365,14 +365,14 @@ export function TreeSchematic({
     for (let m = mLo; m <= mHi + 1e-6; m += rulerStep) rulerMarks.push(m);
   }
   // Radial rulers span the drawing height between the top/bottom lanes, to the
-  // same scale, labelled in mm.
+  // same scale, labeled in mm.
   const vTop = rTop + 4;
   const vBot = h - rBot - 4;
   const vSpanM = (vBot - vTop) / scale;
   const rulerStepV = rulerStep;
   const vTicks: { y: number; label: number }[] = [];
   if (showRad) for (let m = 0; m <= vSpanM + 1e-6; m += rulerStepV) vTicks.push({ y: vTop + m * scale, label: m });
-  // Minor subdivisions: 10 per labelled major, plus a taller "medium" tick at
+  // Minor subdivisions: 10 per labeled major, plus a taller "medium" tick at
   // the half-major, for a properly graduated ruler.
   const rulerMinorMarks: number[] = [];
   const vMinorTicks: number[] = [];
@@ -386,7 +386,7 @@ export function TreeSchematic({
     const minorV = rulerStepV / 5;
     for (let m = 0; m <= vSpanM + 1e-6; m += minorV) vMinorTicks.push(m);
   }
-  // One length (horizontal) ruler: faint minor subdivisions + bold labelled
+  // One length (horizontal) ruler: faint minor subdivisions + bold labeled
   // majors. `dir` points the ticks away from the drawing (down at the bottom
   // edge, up at the top). Drawn on both edges for a full measuring frame.
   const lengthRuler = (baseY: number, dir: 1 | -1, labelY: number, unitY: number) => (
@@ -512,7 +512,7 @@ export function TreeSchematic({
           {/* Wireframe fin outlines while the view is rolled (paint topmost). */}
           {wires}
           {/* pointerEvents none on BOTH marker groups: they are decoration
-              drawn on the centreline — precisely where you click to select a
+              drawn on the centerline — precisely where you click to select a
               nose cone or body tube — and an 18px opaque disc with no handler
               of its own silently ate the click. Same rule the callout group
               below already follows. */}

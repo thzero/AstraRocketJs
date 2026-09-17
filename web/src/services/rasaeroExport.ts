@@ -9,7 +9,7 @@ import { saveBlob, safeFilename } from './saveFile';
  * `services/rasaeroFile.ts` (proven against real RASAero II 2026-08-25: the
  * exported single-stage file opened cleanly — "Motor: J350W (AT)", Loaded Wt.
  * 5.9966 lb). Format knowledge mirrors the desktop's file/rasaero package:
- * - Geometry in INCHES (× 39.37 from metres), diameters not radii; angles
+ * - Geometry in INCHES (× 39.37 from meters), diameters not radii; angles
  *   degrees; altitudes feet; weights pounds; speeds mph; pressure in-Hg.
  * - The airframe is a FLAT part list (NoseCone/BodyTube/Transition/Booster),
  *   each with an absolute <Location>; fins nest inside their parent tube. A
@@ -19,7 +19,7 @@ import { saveBlob, safeFilename } from './saveFile';
  *   mass/CG is known here, so it fills the last stage's cell; desktop parity).
  */
 
-const IN = 39.37; // inches per metre (desktop OPENROCKET_TO_RASAERO_LENGTH)
+const IN = 39.37; // inches per meter (desktop OPENROCKET_TO_RASAERO_LENGTH)
 const FT = 3.28084;
 const LB = 2.20462262;
 const MPH = 2.23694; // mph per m/s

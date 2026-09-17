@@ -45,7 +45,7 @@ describe('UnitChip', () => {
     expect(SCOPE in overrides()).toBe(false);
   });
 
-  it('marks an overridden field in its accessible name, not only in colour', () => {
+  it('marks an overridden field in its accessible name, not only in color', () => {
     seedSettings({ unitOverrides: { [SCOPE]: 'in' } });
     renderWithProviders(<UnitChip quantity="length" scope={SCOPE} />);
 

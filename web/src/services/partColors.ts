@@ -1,9 +1,9 @@
 import type { ComponentType } from '../engine/openRocketEngine';
 
 /**
- * Render colours for the 3D model, grouped so the Settings panel exposes a handful
+ * Render colors for the 3D model, grouped so the Settings panel exposes a handful
  * of meaningful swatches (nose, body, fins, …) rather than one per component type.
- * A component's own `color` prop still overrides its group colour.
+ * A component's own `color` prop still overrides its group color.
  */
 export type PartKey =
   'nose' | 'body' | 'fins' | 'inner' | 'rings' | 'lugs' | 'motor' | 'parachute' | 'streamer' | 'mass';
@@ -66,7 +66,7 @@ export const mergePalette = (overrides?: Partial<Record<PartKey, string>>): Part
   ...overrides,
 });
 
-/** The colour for a component type, given a resolved palette. */
+/** The color for a component type, given a resolved palette. */
 export const colorForType = (type: ComponentType, palette: PartPalette = DEFAULT_PART_COLORS): string => {
   const k = TYPE_TO_KEY[type];
   return k ? palette[k] : UNKNOWN_PART_COLOR;

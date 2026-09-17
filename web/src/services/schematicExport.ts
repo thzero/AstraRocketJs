@@ -6,7 +6,7 @@ import { escapeXml } from './xmlUtil.js';
  * 2D/3D image + model export with a data header (issue 2026-08-11a).
  * Modeled on RockSim's cert-packet exports (L3 / Tripoli Class 3 packets
  * include these), modernized: ONE true-scale SVG replaces RockSim's
- * "model" + "100% scale" pair — the width/height are physical millimetres,
+ * "model" + "100% scale" pair — the width/height are physical millimeters,
  * so it prints 1:1 and still scales freely on screen — and PNG replaces the
  * bmp/xbm/xpm/pnm zoo.
  */
@@ -68,7 +68,7 @@ const EXPORT_VARS: [string, string][] = [
  * on top, physical size in mm so it prints at 100 % scale.
  *
  * @param svgEl      the live schematic svg element
- * @param pxPerM     the drawing's scale (viewBox px per metre)
+ * @param pxPerM     the drawing's scale (viewBox px per meter)
  * @param viewW/viewH the drawing's viewBox size
  */
 export function schematicSvg(

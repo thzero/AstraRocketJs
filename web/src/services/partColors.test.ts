@@ -20,7 +20,7 @@ describe('part palette', () => {
 });
 
 describe('colorForType', () => {
-  it('maps grouped component types to their group colour', () => {
+  it('maps grouped component types to their group color', () => {
     expect(colorForType('nosecone')).toBe(DEFAULT_PART_COLORS.nose);
     expect(colorForType('transition')).toBe(DEFAULT_PART_COLORS.nose);
     expect(colorForType('bodytube')).toBe(DEFAULT_PART_COLORS.body);

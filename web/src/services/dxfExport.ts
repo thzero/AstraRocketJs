@@ -12,8 +12,8 @@ import { finTabFront } from '../components/canvas/schematicGeometry';
  *
  * Format is AutoCAD R12 (AC1009) ASCII, the maximum-compatibility target that
  * LightBurn, Carbide Create, Easel and Fusion 360's DXF sketch import all read.
- * Units are millimetres (`$INSUNITS = 4`); the metres→mm conversion lives only
- * in the writer. Geometry sits on a CUT layer; centre cross-hairs and root-chord
+ * Units are millimeters (`$INSUNITS = 4`); the meters→mm conversion lives only
+ * in the writer. Geometry sits on a CUT layer; center cross-hairs and root-chord
  * marks sit on a REFERENCE layer the operator does not cut. Parts are laid out
  * left-to-right so none overlap, and `$EXTMIN`/`$EXTMAX` are written so "zoom
  * extents" frames the sheet.
@@ -27,7 +27,7 @@ const M_TO_MM = 1000;
 const EPS = 1e-6;
 /** Used when a ring's outer radius can't be resolved from its parent tube. */
 const FALLBACK_RADIUS = 0.012;
-/** Centre cross-hair arm as a fraction of the outer radius. */
+/** Center cross-hair arm as a fraction of the outer radius. */
 const CROSS_FRAC = 0.6;
 const TEXT_H = 0.003;
 const LABEL_GAP = 0.004;
@@ -48,7 +48,7 @@ interface Part {
   ents: Ent[];
 }
 
-// --- geometry (all in metres; the writer alone knows millimetres) ----------
+// --- geometry (all in meters; the writer alone knows millimeters) ----------
 
 /** Fold a through-the-wall tab into a fin's root edge as one closed contour. */
 function withTab(top: Pt[], node: ComponentNode, rootChord: number, pRadius: number): Pt[] {
@@ -92,7 +92,7 @@ function finTopEdge(node: ComponentNode): Pt[] | null {
   const root = num(node, 'rootChord', 0.05);
   const height = num(node, 'height', 0.03);
   if (node.type === 'ellipticalfinset') {
-    // Half-ellipse: centre (root/2, 0), semi-axes (root/2, height), theta pi..0.
+    // Half-ellipse: center (root/2, 0), semi-axes (root/2, height), theta pi..0.
     const N = 48;
     const pts: Pt[] = [];
     for (let i = 0; i <= N; i++) {
@@ -181,7 +181,7 @@ function plateOuter(node: ComponentNode, enclosing: Tube | null): number {
   return FALLBACK_RADIUS;
 }
 
-/** The motor-mount bore a centering ring centres — an inner tube among siblings. */
+/** The motor-mount bore a centering ring centers — an inner tube among siblings. */
 function mountBore(siblings: ComponentNode[]): number | null {
   const mount = siblings.find((s) => s.type === 'innertube');
   if (!mount) return null;
@@ -316,7 +316,7 @@ function serialize(ents: Ent[]): string {
   p(9, '$ACADVER');
   p(1, 'AC1009');
   p(9, '$INSUNITS');
-  p(70, 4); // 4 = millimetres
+  p(70, 4); // 4 = millimeters
   p(9, '$EXTMIN');
   p(10, toMm(b.minX));
   p(20, toMm(b.minY));
@@ -386,7 +386,7 @@ function serialize(ents: Ent[]): string {
 }
 
 /**
- * Resolved solid dimensions of a disc / ring / tube part (centring ring,
+ * Resolved solid dimensions of a disc / ring / tube part (centering ring,
  * bulkhead, coupler, engine block), for its 3D mesh export — the same radius
  * resolution the DXF uses (explicit radii, else the parent tube's bore, else the
  * mount an inner tube provides). Returns null for any other type.
@@ -415,7 +415,7 @@ export function resolveDisc(
 
 /**
  * DXF cut sheet for ONE component (fin, ring, bulkhead, coupler or engine
- * block), normalised to the origin. Returns null when the node isn't a flat
+ * block), normalized to the origin. Returns null when the node isn't a flat
  * plate part or can't be found.
  */
 export function componentToDxf(tree: RocketTree, nodeId: string): string | null {

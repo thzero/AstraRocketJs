@@ -45,7 +45,7 @@ import { useUnits } from '../../prefs/useUnits';
 const presetStyle = (active: boolean): import('react').CSSProperties =>
   active ? { background: '#0284c7', borderColor: '#0284c7', color: '#fff' } : {};
 
-// A component's own `color` override, else its group colour from the palette.
+// A component's own `color` override, else its group color from the palette.
 const nodeColor = (n: ComponentNode, palette: PartPalette): string =>
   typeof n['color'] === 'string' ? (n['color'] as string) : colorForType(n.type, palette);
 
@@ -421,7 +421,7 @@ const markerRadius = (totalLen: number, maxR: number): number => Math.max(totalL
 
 /**
  * OpenRocket-style CG/CP symbol as a billboard texture — a quartered circle
- * (two opposite quadrants coloured, two white) with a coloured rim. Drawn to a
+ * (two opposite quadrants colored, two white) with a colored rim. Drawn to a
  * canvas so a <sprite> can always face the camera instead of a 3D ball.
  */
 function markerTexture(color: string): THREE.CanvasTexture {
@@ -539,7 +539,7 @@ export function piecesBounds(pieces: Piece[]): THREE.Box3 {
  * dimension cheerfully reports itself NON-empty and walks straight into the
  * fit. One NaN field on one component is all it takes (a nosecone `length` of
  * NaN reaches the lathe profile, the geometry's bounding box, then this union),
- * and the payoff is a NaN camera position, a NaN centre, and a blank export
+ * and the payoff is a NaN camera position, a NaN center, and a blank export
  * with nothing logged. Demand six finite components; the caller then falls back
  * to the live camera, which is precisely the un-fitted export the user got
  * before auto-fit existed.
@@ -642,7 +642,7 @@ export function fitCameraToBox(
   const rel = new THREE.Vector3();
   let raw = 0;
   for (let i = 0; i < 8; i++) {
-    // Corners as centre ± half, not box.min/max: an EMPTY Box3 carries
+    // Corners as center ± half, not box.min/max: an EMPTY Box3 carries
     // ±Infinity extremes but reports a (0,0,0) size, so going through `half`
     // keeps this loop finite and lets the degenerate guard below do its job.
     rel.set(i & 1 ? half.x : -half.x, i & 2 ? half.y : -half.y, i & 4 ? half.z : -half.z);

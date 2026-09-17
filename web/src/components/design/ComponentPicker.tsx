@@ -7,7 +7,7 @@ import { useCatalogProgress } from '../common/CatalogLoading';
 import { useFocusTrap } from '../common/useFocusTrap';
 
 /**
- * Picks a real catalogued part (from the bundled OpenRocket component DB) of a
+ * Picks a real cataloged part (from the bundled OpenRocket component DB) of a
  * given type and applies it via `onApply`. Opens a modal dialog with a live
  * search over manufacturer / part number / description; the caller maps the
  * chosen Component onto its target node (see catalogPatch).
