@@ -78,13 +78,15 @@ export function StabilityBadge({
             card
             label={t('stats.length')}
             value={lengthTile.fmt(info.length)}
-            sub={<UnitChip quantity="length" scope={unitScope('stats', 'length')} />}
+            sub={<UnitChip label={t('stats.length')} quantity="length" scope={unitScope('stats', 'length')} />}
           />
           <Stat
             card
             label={t('stats.maxDiameter')}
             value={diameterTile.fmt(info.refDiameter)}
-            sub={<UnitChip quantity="length" scope={unitScope('stats', 'maxDiameter')} />}
+            sub={
+              <UnitChip label={t('stats.maxDiameter')} quantity="length" scope={unitScope('stats', 'maxDiameter')} />
+            }
           />
           <Stat
             card
@@ -92,7 +94,8 @@ export function StabilityBadge({
             value={`${massTile.fmt(info.massEmpty)} / ${massTile.fmt(info.mass)}`}
             sub={
               <>
-                <UnitChip quantity="mass" scope={unitScope('stats', 'mass')} /> · {t('stats.emptyLoaded')}
+                <UnitChip label={t('stability.mass')} quantity="mass" scope={unitScope('stats', 'mass')} /> ·{' '}
+                {t('stats.emptyLoaded')}
               </>
             }
           />
@@ -104,7 +107,11 @@ export function StabilityBadge({
             value={recoveryWeight != null ? recoveryTile.fmt(recoveryWeight) : '—'}
             sub={
               recoveryWeight != null ? (
-                <UnitChip quantity="mass" scope={unitScope('stats', 'recoveryWeight')} />
+                <UnitChip
+                  label={t('stats.recoveryWeight')}
+                  quantity="mass"
+                  scope={unitScope('stats', 'recoveryWeight')}
+                />
               ) : (
                 t('stats.needsMotor')
               )
@@ -116,7 +123,8 @@ export function StabilityBadge({
             value={`${cgTile.fmt(info.cgEmpty)} / ${cgTile.fmt(info.cg)}`}
             sub={
               <>
-                <UnitChip quantity="length" scope={unitScope('stats', 'cg')} /> · {t('stats.emptyLoaded')}
+                <UnitChip label={t('stability.cg')} quantity="length" scope={unitScope('stats', 'cg')} /> ·{' '}
+                {t('stats.emptyLoaded')}
               </>
             }
           />
@@ -124,7 +132,7 @@ export function StabilityBadge({
             card
             label={t('stability.cp')}
             value={cpTile.fmt(info.cp)}
-            sub={<UnitChip quantity="length" scope={unitScope('stats', 'cp')} />}
+            sub={<UnitChip label={t('stability.cp')} quantity="length" scope={unitScope('stats', 'cp')} />}
           />
           <Stat
             card

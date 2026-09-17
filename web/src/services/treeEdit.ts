@@ -9,7 +9,7 @@ import type { Component } from './componentDb';
 
 let idCounter = 0;
 /** A stable-ish unique id for a new node (readable: `<type>-<n>`). */
-export function newId(type: string): string {
+function newId(type: string): string {
   idCounter += 1;
   return `${type}-${idCounter}`;
 }
@@ -105,7 +105,7 @@ export function isAxial(type: string): boolean {
  * A parent absent from this map is a leaf — nothing can be added under it, so
  * the Add menu is empty when such a part is selected.
  */
-export const ALLOWED_CHILDREN: Record<string, ComponentType[]> = {
+const ALLOWED_CHILDREN: Record<string, ComponentType[]> = {
   stage: ['nosecone', 'bodytube', 'transition'],
   nosecone: [
     'innertube',
@@ -240,6 +240,29 @@ export function siblingIndex(tree: RocketTree, id: string): { index: number; cou
     return null;
   };
   return rec(tree.components);
+}
+
+/**
+ * The node's parent component, or null for a top-level node (a stage) or an
+ * id that isn't in the tree.
+ *
+ * Tube fins need it: whether their tubes collide depends on the BODY radius
+ * they ring, which lives on the parent, not on the fin set.
+ */
+export function findParent(tree: RocketTree, id: string): ComponentNode | null {
+  // Boxed, because `null` is a legitimate ANSWER (a top-level node has no
+  // parent) as well as the "keep looking" signal.
+  const rec = (nodes: ComponentNode[], parent: ComponentNode | null): { parent: ComponentNode | null } | null => {
+    for (const n of nodes) {
+      if (n.id === id) return { parent };
+      if (n.children) {
+        const r = rec(n.children, n);
+        if (r) return r;
+      }
+    }
+    return null;
+  };
+  return rec(tree.components, null)?.parent ?? null;
 }
 
 /** Move a node one slot earlier (dir -1) or later (dir +1) among its siblings. */

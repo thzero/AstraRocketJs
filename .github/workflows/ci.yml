@@ -34,6 +34,80 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run test
+      # Formatting, gated at last. It could not be turned on before: with no
+      # .gitattributes, a CRLF checkout failed `--check` on every tracked file,
+      # so the signal was 100% noise. `.gitattributes` pins LF and
+      # `.prettierignore` excludes the generated artifacts (public/docs, the
+      # TeaVM output, the synced catalogs), which leaves only authored code.
+      - run: npm run format:check
+
+      # Coverage is REPORTED, not enforced. The baseline at the time it was
+      # added was 46% statements / 47% lines across ~200 modules; a threshold
+      # picked before anyone has read that is a number to game, not a gate.
+      - run: npm run test:coverage
 
       - run: npm run build
+
+      # Dead exports / unimported modules. Cheap, and it only stays useful if
+      # something runs it.
+      - run: npm run knip
+
+  # The Docusaurus site builds INTO web/public/docs, so a broken
+  # docusaurus.config.ts, sidebars.ts or MDX page does not just take out Help —
+  # it fails the whole Pages deploy. Nothing gated it: both jobs above set
+  # working-directory: web, and deploy-pages.yml only runs on push to master,
+  # which is too late. website/package.json even has a `typecheck` script that
+  # nothing ran.
+  docs:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm run build
+
+  # The integration layer: schematic, motor picker, recovery, mobile layout, the
+  # aero tables. It was previously run only when someone remembered to, which is
+  # how a shipped dialog reached master with an unbounded render loop in it.
+  # Separate job so a Playwright failure is legible on its own and the browser
+  # download does not slow the unit gate.
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+
+      # Chromium only: playwright.config.ts declares the one project, and it
+      # already starts the dev server and sets retries/reporter under CI.
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: web/playwright-report/
+          retention-days: 7

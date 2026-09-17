@@ -55,7 +55,11 @@ dependencies {
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        // 21: the LTS this is built with. TeaVM compiles the bytecode rather
+        // than running it, so the level only has to be one both TeaVM and the
+        // extracted OpenRocket sources accept — the parity harness
+        // (test/parity) is what proves a toolchain change did not move a number.
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 

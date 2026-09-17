@@ -4,6 +4,7 @@ import { componentsForType, filterComponents, type ComponentType, type Component
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import { useCatalogProgress } from '../common/CatalogLoading';
+import { useFocusTrap } from '../common/useFocusTrap';
 
 /**
  * Picks a real catalogued part (from the bundled OpenRocket component DB) of a
@@ -43,6 +44,11 @@ export function ComponentPicker({ type, onApply }: { type: ComponentType; onAppl
   const progress = useCatalogProgress('components');
   const pct = progress?.total ? Math.min(100, Math.round((progress.loaded / progress.total) * 100)) : null;
   const [open, setOpen] = useState(false);
+  // Tab stays inside the modal, and focus returns to the trigger on close.
+  // Seven dialogs declared aria-modal and had neither, so Tab walked straight
+  // out into the page behind the overlay — the exact gap useFocusTrap exists
+  // to close, already used by seven of their siblings.
+  const panelRef = useFocusTrap<HTMLDivElement>(open);
   const [q, setQ] = useState('');
   const matches = useMemo(() => filterComponents(all, q).slice(0, 300), [all, q]);
 
@@ -86,6 +92,7 @@ export function ComponentPicker({ type, onApply }: { type: ComponentType; onAppl
 
       {open && (
         <div
+          ref={panelRef}
           className="dialog-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
           onClick={() => setOpen(false)}
           role="dialog"

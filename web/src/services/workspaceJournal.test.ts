@@ -51,6 +51,29 @@ beforeEach(() => {
 });
 
 describe('unload journal', () => {
+  // `readJournal` only checks that the blob parses and has a `w`. A journal
+  // written by a DIFFERENT app build parses cleanly and is still not a workspace
+  // this build can open — and this is an installed PWA, so an older cached build
+  // is a live possibility, not a hypothetical. The journal must be validated
+  // BEFORE it is written into the library: writing first overwrote the real
+  // stored design with the bad blob and cleared the journal, so the design was
+  // gone for good and every later load re-read the same bad blob.
+  it('does not overwrite the stored design with a journal of the wrong shape', async () => {
+    await store.save(ws('precious'));
+    const loaded = await store.load(); // learn the active id
+    expect(nameOf(loaded)).toBe('precious');
+
+    // Valid JSON, wrong shape: a future build's version stamp.
+    const activeId = kv.map.get('astrarrocketjs:designs:active');
+    localStorage.setItem(UNLOAD_KEY, JSON.stringify({ id: activeId, w: { ...ws('from-a-newer-build'), version: 2 } }));
+
+    const again = await new LibraryWorkspaceStore().load();
+    // The stored design is untouched and still opens.
+    expect(nameOf(again)).toBe('precious');
+    // And the unusable journal is dropped rather than retried forever.
+    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
+  });
+
   it('survives an unload the debounced save never reached', async () => {
     await store.save(ws('saved'));
     await store.load(); // learn the active id
@@ -110,15 +133,5 @@ describe('unload journal', () => {
     store.saveSync(heavy);
     const journal = JSON.parse(localStorage.getItem(UNLOAD_KEY)!) as { w: Workspace };
     expect(journal.w.sims[0]!.result).toBeNull();
-  });
-
-  it('clear() removes both the journal and the stored design', async () => {
-    await store.save(ws('gone'));
-    await store.load();
-    store.saveSync(ws('gone'));
-
-    await store.clear();
-    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
-    expect(await lib.list()).toEqual([]);
   });
 });

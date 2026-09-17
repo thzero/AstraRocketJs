@@ -7,7 +7,6 @@ import { useUnits, type Units } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { LAUNCH_SI, type LaunchUnitKind } from '../../prefs/launchUnits';
 
-
 /**
  * Launch & atmosphere conditions for the flight simulation: wind (single average
  * or an altitude-layered multilevel profile), launch rod, launch site, base
@@ -21,6 +20,7 @@ function Num({
   value,
   step = 1,
   min,
+  max,
   placeholder,
   onChange,
 }: {
@@ -29,6 +29,8 @@ function Num({
   value: number | null;
   step?: number;
   min?: number;
+  /** NumberInput clamps against this; without it a field is unbounded above. */
+  max?: number;
   placeholder?: string;
   onChange: (v: number | null) => void;
 }) {
@@ -42,6 +44,7 @@ function Num({
           onChange={onChange}
           step={step}
           min={min}
+          max={max}
           placeholder={placeholder}
           className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
         />
@@ -58,6 +61,7 @@ function Num({
  */
 function QNum({
   label,
+  chipLabel,
   field,
   kind,
   u,
@@ -68,6 +72,13 @@ function QNum({
   onChange,
 }: {
   label: string;
+  /**
+   * Accessible name for the unit chip, when the visible label is ambiguous
+   * OUTSIDE this panel. "Length" and "Direction" read fine under their group
+   * headings, but a screen reader announces the chip on its own — and the stats
+   * strip has its own "Length", so two chips on one screen announced the same.
+   */
+  chipLabel?: string;
   /** Names this launch field, so its unit is its own (see `unitScope`). */
   field: string;
   kind: LaunchUnitKind;
@@ -84,7 +95,10 @@ function QNum({
   return (
     <Num
       label={label}
-      unit={<UnitChip quantity={c.q} scope={scope} />}
+      // The field's own label, not just the quantity: this panel shows three
+      // ANGLE chips (rod angle, rod direction, wind direction) and two WIND
+      // SPEED ones at once, which otherwise all announce identically.
+      unit={<UnitChip label={chipLabel ?? label} quantity={c.q} scope={scope} />}
       step={fu.step(stepSi)}
       min={minSi !== undefined ? fu.toUi(minSi) : undefined}
       placeholder={placeholder}
@@ -147,6 +161,7 @@ export function LaunchPanel({
       <Group title={t('launch.launchRod')}>
         <QNum
           label={t('launch.length')}
+          chipLabel={t('launch.rodLengthName')}
           field="length"
           kind="length"
           u={u}
@@ -179,6 +194,7 @@ export function LaunchPanel({
         {!launch.launchIntoWind && (
           <QNum
             label={t('launch.rodDirection')}
+            chipLabel={t('launch.rodDirectionName')}
             field="rodDirection"
             kind="deg"
             u={u}
@@ -203,6 +219,11 @@ export function LaunchPanel({
           label={t('launch.latitude')}
           unit="°"
           step={1}
+          // Unbounded, these reached the kernel as launchLatitude (gravity and
+          // Coriolis) AND flightPathExport as the KML/GPX origin, where a
+          // latitude past ±90 is rejected outright by Google Earth.
+          min={-90}
+          max={90}
           value={launch.latitudeDeg}
           onChange={(v) => onChange({ latitudeDeg: v ?? 0 })}
         />
@@ -210,6 +231,8 @@ export function LaunchPanel({
           label={t('launch.longitude')}
           unit="°"
           step={1}
+          min={-180}
+          max={180}
           value={launch.longitudeDeg ?? null}
           onChange={(v) => onChange({ longitudeDeg: v ?? undefined })}
         />
@@ -288,6 +311,7 @@ export function LaunchPanel({
             />
             <QNum
               label={t('launch.direction')}
+              chipLabel={t('launch.windDirectionName')}
               field="direction"
               kind="deg"
               u={u}
@@ -319,26 +343,31 @@ export function LaunchPanel({
               <div key={i} className="flex items-center gap-1">
                 <NumberInput
                   step={u.step('distance', 50)}
+                  min={0}
+                  ariaLabel={`${t('launch.altitude')} ${i + 1}`}
                   value={u.toUi('distance', l.altitudeM)}
                   onChange={(v) => patchLevel(i, { altitudeM: u.fromUi('distance', v ?? 0) })}
                   className="w-16 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10"
                 />
                 <NumberInput
                   step={u.step('windspeed', 0.5)}
+                  min={0}
+                  ariaLabel={`${t('launch.wind')} ${i + 1}`}
                   value={u.toUi('windspeed', l.speed)}
                   onChange={(v) => patchLevel(i, { speed: u.fromUi('windspeed', v ?? 0) })}
                   className="w-14 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10"
                 />
                 <NumberInput
                   step={u.step('angle', (5 * Math.PI) / 180)}
+                  ariaLabel={`${t('launch.direction')} ${i + 1}`}
                   value={u.toUi('angle', (l.directionDeg * Math.PI) / 180)}
-                  onChange={(v) =>
-                    patchLevel(i, { directionDeg: (u.fromUi('angle', v ?? 0) * 180) / Math.PI })
-                  }
+                  onChange={(v) => patchLevel(i, { directionDeg: (u.fromUi('angle', v ?? 0) * 180) / Math.PI })}
                   className="w-12 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10"
                 />
                 <NumberInput
                   step={u.step('windspeed', 0.5)}
+                  min={0}
+                  ariaLabel={`${t('launch.gusts')} ${i + 1}`}
                   value={u.toUi('windspeed', l.stddev)}
                   onChange={(v) => patchLevel(i, { stddev: u.fromUi('windspeed', v ?? 0) })}
                   className="w-12 rounded bg-slate-800 px-1 py-1 text-right text-xs text-slate-100 ring-1 ring-white/10"

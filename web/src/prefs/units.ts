@@ -325,12 +325,7 @@ export function normalizeUnitOverrides(raw: unknown): UnitOverrides {
  * to a mass readout, where `unitDef` would quietly fall back to grams and hide
  * the problem.
  */
-export function unitFor(
-  units: UnitSelection,
-  overrides: UnitOverrides,
-  quantity: Quantity,
-  scope?: string,
-): string {
+export function unitFor(units: UnitSelection, overrides: UnitOverrides, quantity: Quantity, scope?: string): string {
   const sym = scope ? overrides[scope] : undefined;
   return sym && UNITS[quantity].some((u) => u.symbol === sym) ? sym : units[quantity];
 }

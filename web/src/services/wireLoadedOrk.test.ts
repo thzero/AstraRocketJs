@@ -55,11 +55,80 @@ describe('wireLoadedOrk', () => {
   });
 
   it('merges launch defaults under the file’s launch conditions', () => {
-    const w = wireLoadedOrk(
-      loaded({ launch: { windAverage: 9 } as Partial<LaunchConditions> }),
-      launchDefaults,
-    );
+    const w = wireLoadedOrk(loaded({ launch: { windAverage: 9 } as Partial<LaunchConditions> }), launchDefaults);
     expect(w.sim0.launch.windAverage).toBe(9); // file wins
     expect((w.sim0.launch as unknown as { launchRodAngleDeg: number }).launchRodAngleDeg).toBe(5); // default fills the rest
+  });
+});
+
+describe('wireLoadedOrk — absolute positions', () => {
+  // `.ork` positions a component with method="absolute" in the ROCKET frame,
+  // but the editor works entirely in the parent frame. Leaving it meant the
+  // schematic, 3D view, drag handles and PDF drew the part at
+  // parentStart + offset while the engine flew it at offset.
+  const absoluteTree = () =>
+    ({
+      components: [
+        node({ type: 'nosecone', id: 'nose', length: 0.3, outerRadius: 0.012 }),
+        node({
+          type: 'bodytube',
+          id: 'body',
+          length: 0.4,
+          outerRadius: 0.012,
+          children: [
+            node({
+              type: 'trapezoidfinset',
+              id: 'fins',
+              rootChord: 0.05,
+              position: { method: 'absolute', offset: 0.35 },
+            }),
+          ],
+        }),
+      ],
+    }) as unknown as RocketTree;
+
+  const fins = (t: RocketTree) =>
+    (t.components[1]!.children![0]! as ComponentNode).position as {
+      method: string;
+      offset: number;
+      ork?: { method: string; offset: number; resolved: number };
+    };
+
+  it('resolves an absolute offset into the parent frame the editor works in', () => {
+    const out = wireLoadedOrk(loaded({ tree: absoluteTree() }), launchDefaults);
+    const p = fins(out.tree);
+    // The body tube starts 0.3 m back (behind the nose cone), so a part at an
+    // absolute 0.35 m is 0.05 m from the tube's own leading edge.
+    expect(p.method).toBe('top');
+    expect(p.offset).toBeCloseTo(0.05, 9);
+  });
+
+  it('keeps what the file said, so the .ork round-trip stays byte-stable', () => {
+    const out = wireLoadedOrk(loaded({ tree: absoluteTree() }), launchDefaults);
+    const p = fins(out.tree);
+    expect(p.ork!.method).toBe('absolute');
+    expect(p.ork!.offset).toBe(0.35); // verbatim, so the exporter can write it back
+    // `resolved` is the computed parent-relative value (0.35 - 0.3, float noise
+    // and all). It is compared with === at export time, so it must be the SAME
+    // value that landed in `offset`, not a rounded one.
+    expect(p.ork!.resolved).toBe(p.offset);
+  });
+
+  it('leaves an ordinary parent-relative position completely alone', () => {
+    const plain = {
+      components: [
+        node({
+          type: 'bodytube',
+          id: 'body',
+          length: 0.4,
+          children: [
+            node({ type: 'trapezoidfinset', id: 'fins', rootChord: 0.05, position: { method: 'bottom', offset: 0 } }),
+          ],
+        }),
+      ],
+    } as unknown as RocketTree;
+    const out = wireLoadedOrk(loaded({ tree: plain }), launchDefaults);
+    const p = fins({ components: [null, out.tree.components[0]] } as unknown as RocketTree);
+    expect(p).toEqual({ method: 'bottom', offset: 0 }); // no `ork` marker added
   });
 });

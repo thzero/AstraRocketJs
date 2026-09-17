@@ -78,6 +78,61 @@ describe('migration from localStorage', () => {
     expect(await kv.get('k')).toBe('fresh');
   });
 
+  // The request succeeding and the transaction committing are DIFFERENT moments.
+  // These two pin the gap: let the request report success, then abort the
+  // transaction before it commits — what a commit-time I/O error or a quota hit
+  // looks like. Resolving on `onsuccess` reported both of these as saved.
+  //
+  // `abortAfterSuccess` restores itself via try/finally: an assertion failure
+  // here used to leave the spy installed and silently corrupt the next test.
+  const abortAfterSuccess = async (body: () => Promise<void>) => {
+    const realPut = IDBObjectStore.prototype.put;
+    const spy = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (
+      this: IDBObjectStore,
+      ...args: Parameters<typeof realPut>
+    ) {
+      const req = realPut.apply(this, args);
+      req.addEventListener('success', () => req.transaction?.abort());
+      return req;
+    });
+    try {
+      await body();
+    } finally {
+      spy.mockRestore();
+    }
+  };
+
+  it('reports a write that aborts after the request succeeded as failed', async () => {
+    const local = new FakeLocal();
+    const kv = new IndexedDbKeyValueStore(local);
+    await kv.set('warm', 'up'); // open the db before we start interfering
+
+    await abortAfterSuccess(async () => {
+      // It must not claim success for a write that is not in IndexedDB. It
+      // falls back to localStorage, which is a real place the value now lives.
+      expect(await kv.set('k', 'v')).toBe(true);
+      expect(local.map.get('k')).toBe('v');
+    });
+
+    // The fallback holds it; IndexedDB genuinely does not.
+    await __resetIdbForTests();
+    const fresh = new IndexedDbKeyValueStore(new FakeLocal());
+    expect(await fresh.get('k')).toBeNull();
+  });
+
+  it('keeps the legacy copy when the migrating transaction aborts post-success', async () => {
+    const local = new FakeLocal();
+    local.map.set('k', 'precious');
+    const kv = new IndexedDbKeyValueStore(local);
+    await kv.set('warm', 'up');
+
+    await abortAfterSuccess(async () => {
+      expect(await kv.get('k')).toBe('precious');
+      // The migration never committed, so the only other copy must survive.
+      expect(local.map.get('k')).toBe('precious');
+    });
+  });
+
   it('keeps the original when the migrating write fails', async () => {
     const local = new FakeLocal();
     local.map.set('k', 'precious');

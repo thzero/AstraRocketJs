@@ -3,7 +3,7 @@ import { exportOrk, type OrkTreeExportInput } from './orkFile';
 import { saveBlob, safeFilename } from './saveFile';
 
 /** Build a .ork (zip containing rocket.ork) Blob from an export input. */
-export function orkBlob(input: OrkTreeExportInput): Blob {
+function orkBlob(input: OrkTreeExportInput): Blob {
   const xml = exportOrk(input);
   const zipped = zipSync({ 'rocket.ork': strToU8(xml) }, { level: 6 });
   return new Blob([zipped as BlobPart], { type: 'application/vnd.openrocket.ork' });

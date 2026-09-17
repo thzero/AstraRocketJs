@@ -11,13 +11,14 @@
  *   node test/parity/parity.mjs --wasm    # TeaVM WASM-GC vs JVM
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // --wasm compares the TeaVM WASM-GC build against the JVM (default is TeaVM-JS). Same JVM reference,
 // same tolerances — WASM f64 tracks the JVM's IEEE-754 at least as closely as JS Math does.
 const useWasm = process.argv.includes('--wasm');
+const writeGolden = process.argv.includes('--golden');
 
 const here = dirname(fileURLToPath(import.meta.url));
 const engineRoot = resolve(here, '..', '..');
@@ -137,3 +138,46 @@ if (failures) {
   process.exit(1);
 }
 console.log(`parity ok: ${n} lines (${exactLines} bit-identical, ${ulpLines} within ULP tolerance)`);
+
+// --- a flight that FAILED is not a flight that matched ---------------------
+// ParityMain catches SimulationException and prints "EXCEPTION: ...". Thrown
+// identically on both platforms it compared line-for-line and reported ok - so
+// a change that broke every flight outright passed this harness.
+const exceptions = jvm.filter((l) => l.includes('EXCEPTION:'));
+if (exceptions.length) {
+  console.error(`PARITY FAILURE: ${exceptions.length} scenario(s) threw instead of flying:`);
+  exceptions.slice(0, 10).forEach((l) => console.error(`  ${l}`));
+  process.exit(1);
+}
+
+// --- golden values: did the PHYSICS change? --------------------------------
+const goldenPath = join(here, 'golden.txt');
+if (writeGolden) {
+  writeFileSync(goldenPath, jvm.join('\n') + '\n');
+  console.log(`parity: wrote ${jvm.length} golden line(s) -> test/parity/golden.txt`);
+} else if (!existsSync(goldenPath)) {
+  console.warn('parity: no test/parity/golden.txt - run with --golden to create it.');
+} else {
+  const golden = norm(readFileSync(goldenPath, 'utf8'));
+  // Same tolerances as the cross-platform comparison: a golden recorded on one
+  // OS must not trip on another over ULP noise in the integrated flight.
+  let moved = 0;
+  const gn = Math.max(golden.length, jvm.length);
+  for (let i = 0; i < gn; i++) {
+    if (!linesMatch(golden[i], jvm[i])) {
+      if (moved < 10) {
+        console.error(`GOLDEN line ${i + 1}:`);
+        console.error(`  expected: ${golden[i] ?? '<missing>'}`);
+        console.error(`  actual  : ${jvm[i] ?? '<missing>'}`);
+      }
+      moved++;
+    }
+  }
+  if (moved) {
+    console.error(`GOLDEN FAILURE: ${moved} value(s) of ${gn} moved.`);
+    console.error('The physics changed. If that was deliberate, re-run with --golden and');
+    console.error('say in the commit message WHY the numbers moved.');
+    process.exit(1);
+  }
+  console.log(`golden ok: ${golden.length} reference value(s) unchanged`);
+}

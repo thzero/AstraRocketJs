@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { ComponentNode } from '../engine/openRocketEngine';
 import { num, numOpt } from '../tree/nodeProps';
+import { freeformPoints, freeformRootChord } from '../tree/position';
 import { outerProfile } from '../tree/shapeProfile';
+import { finTabFront } from '../components/canvas/schematicGeometry';
 
 /**
  * Build the rocket's external airframe as watertight solids for 3D print / CAD.
@@ -33,8 +35,14 @@ export function countBoundaryEdges(geo: THREE.BufferGeometry): number {
   if (!idx) return 0;
   const count = new Map<string, number>();
   for (let i = 0; i < idx.count; i += 3) {
-    const a = idx.getX(i), b = idx.getX(i + 1), c = idx.getX(i + 2);
-    for (const [u, v] of [[a, b], [b, c], [c, a]] as const) {
+    const a = idx.getX(i),
+      b = idx.getX(i + 1),
+      c = idx.getX(i + 2);
+    for (const [u, v] of [
+      [a, b],
+      [b, c],
+      [c, a],
+    ] as const) {
       const k = edgeKey(u, v);
       count.set(k, (count.get(k) ?? 0) + 1);
     }
@@ -58,8 +66,14 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
   const undirected = new Map<string, number>();
   const dirList: Array<[number, number]> = [];
   for (let i = 0; i < idx.count; i += 3) {
-    const a = idx.getX(i), b = idx.getX(i + 1), c = idx.getX(i + 2);
-    for (const [u, v] of [[a, b], [b, c], [c, a]] as const) {
+    const a = idx.getX(i),
+      b = idx.getX(i + 1),
+      c = idx.getX(i + 2);
+    for (const [u, v] of [
+      [a, b],
+      [b, c],
+      [c, a],
+    ] as const) {
       const k = edgeKey(u, v);
       undirected.set(k, (undirected.get(k) ?? 0) + 1);
       dirList.push([u, v]);
@@ -92,10 +106,27 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
   // Walk the boundary into CLOSED loops and fan-cap each. Starting a fresh loop
   // from every vertex that still has an unconsumed edge handles multiple loops
   // sharing a vertex; `boundaryEdges` bounds the total work.
+  const push = (u: number, v: number) => {
+    const arr = outgoing.get(u);
+    if (arr) arr.push(v);
+    else outgoing.set(u, [v]);
+  };
+
   for (const start of outgoing.keys()) {
     while ((outgoing.get(start)?.length ?? 0) > 0) {
       const loop: number[] = [start];
-      let cur = step(start);
+      // Every edge this attempt consumes, so a failed walk can put them back.
+      // `step` POPS, and the old code just `continue`d on failure — those edges
+      // were gone for good, the boundary they belonged to was never capped, and
+      // makeWatertight still returned normally. meshExport then labelled the
+      // result watertight and handed someone an STL with a hole in it.
+      const eaten: Array<[number, number]> = [];
+      const take = (u: number): number | undefined => {
+        const v = step(u);
+        if (v !== undefined) eaten.push([u, v]);
+        return v;
+      };
+      let cur = take(start);
       let closed = false;
       let guard = 0;
       while (cur !== undefined && guard++ <= boundaryEdges) {
@@ -104,9 +135,15 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
           break;
         }
         loop.push(cur);
-        cur = step(cur);
+        cur = take(cur);
       }
-      if (!closed || loop.length < 3) continue; // only cap edges that form a real loop
+      if (!closed || loop.length < 3) {
+        for (const [u, v] of eaten) push(u, v);
+        // …and stop retrying from THIS vertex: the edges are back, so the outer
+        // condition still holds and we would walk the same dead end forever.
+        // Another start vertex may yet close a loop through them.
+        break;
+      }
 
       // Centroid vertex, then a fan. Winding (centroid, v[i+1], v[i]) opposes the
       // boundary direction so the cap's outward face agrees with the shell it closes.
@@ -116,7 +153,8 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
       const cIdx = positions.length / 3;
       positions.push(centroid.x, centroid.y, centroid.z);
       for (let i = 0; i < loop.length; i++) {
-        const v0 = loop[i]!, v1 = loop[(i + 1) % loop.length]!;
+        const v0 = loop[i]!,
+          v1 = loop[(i + 1) % loop.length]!;
         indices.push(cIdx, v1, v0);
       }
     }
@@ -126,7 +164,48 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
   out.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   out.setIndex(indices);
   out.computeVertexNormals();
+  // The function's whole contract. A boundary the walk could not resolve now
+  // fails the export (store.exportComponent catches and shows it) instead of
+  // shipping a hole to a slicer, where it surfaces as a part that prints wrong.
+  const left = countBoundaryEdges(out);
+  if (left > 0) {
+    throw new Error(`Could not close this solid: ${left} open edge(s) remain after capping.`);
+  }
   return out;
+}
+
+/**
+ * Do these two closed segments properly cross (sharing an endpoint doesn't
+ * count)? Collinear overlap is deliberately not treated as a crossing — a
+ * doubled-back edge is degenerate, not a bow tie, and `mergeVertices` folds it.
+ */
+function segmentsCross(a: [number, number], b: [number, number], c: [number, number], d: [number, number]): boolean {
+  const cross = (ox: number, oy: number, px: number, py: number) => ox * py - oy * px;
+  const d1 = cross(d[0] - c[0], d[1] - c[1], a[0] - c[0], a[1] - c[1]);
+  const d2 = cross(d[0] - c[0], d[1] - c[1], b[0] - c[0], b[1] - c[1]);
+  const d3 = cross(b[0] - a[0], b[1] - a[1], c[0] - a[0], c[1] - a[1]);
+  const d4 = cross(b[0] - a[0], b[1] - a[1], d[0] - a[0], d[1] - a[1]);
+  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+}
+
+/**
+ * Is this closed outline a SIMPLE polygon — no edge crossing any non-adjacent
+ * edge?
+ *
+ * FreeformFinEditor happily lets a vertex be dragged through the opposite edge,
+ * and a bow-tie planform extrudes into a self-intersecting solid that no slicer
+ * can make sense of. O(n²), which is nothing at fin-outline sizes.
+ */
+export function isSimplePolygon(pts: [number, number][]): boolean {
+  const n = pts.length;
+  if (n < 3) return false;
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (j === i + 1 || (i === 0 && j === n - 1)) continue; // adjacent: shares an endpoint
+      if (segmentsCross(pts[i]!, pts[(i + 1) % n]!, pts[j]!, pts[(j + 1) % n]!)) return false;
+    }
+  }
+  return true;
 }
 
 /**
@@ -139,11 +218,17 @@ function dropDegenerate(geo: THREE.BufferGeometry): THREE.BufferGeometry {
   const idx = geo.getIndex();
   const pos = geo.getAttribute('position');
   if (!idx) return geo;
-  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  const a = new THREE.Vector3(),
+    b = new THREE.Vector3(),
+    c = new THREE.Vector3();
   const keep: number[] = [];
   for (let i = 0; i < idx.count; i += 3) {
-    const ia = idx.getX(i), ib = idx.getX(i + 1), ic = idx.getX(i + 2);
-    a.fromBufferAttribute(pos, ia); b.fromBufferAttribute(pos, ib); c.fromBufferAttribute(pos, ic);
+    const ia = idx.getX(i),
+      ib = idx.getX(i + 1),
+      ic = idx.getX(i + 2);
+    a.fromBufferAttribute(pos, ia);
+    b.fromBufferAttribute(pos, ib);
+    c.fromBufferAttribute(pos, ic);
     const area = b.clone().sub(a).cross(c.clone().sub(a)).length() * 0.5;
     if (area > 1e-12) keep.push(ia, ib, ic);
   }
@@ -183,8 +268,14 @@ function revolveSolidX(surface: [number, number][], axialOffset: number): THREE.
  * coupler) — a closed rectangular cross-section revolved, so it stays watertight
  * without capping onto the axis.
  */
-export function discSolid(outerR: number, innerR: number, length: number): THREE.BufferGeometry {
+export function discSolid(outerR: number, innerR: number, length: number): THREE.BufferGeometry | null {
   const len = length > 1e-6 ? length : 0.002;
+  // An INVERTED ring (ID >= OD — reachable from a malformed .ork or a bad
+  // catalog row) used to fall through to the solid-cylinder branch and export a
+  // centring ring as a solid disc. Printed, that blocks the motor tube, and
+  // nothing said so. Every other degenerate case in solidForNode returns null;
+  // this one now does too.
+  if (innerR > 1e-6 && innerR >= outerR - 1e-6) return null;
   const hasBore = innerR > 1e-6 && innerR < outerR - 1e-6;
   const pts = hasBore
     ? [
@@ -194,7 +285,12 @@ export function discSolid(outerR: number, innerR: number, length: number): THREE
         new THREE.Vector2(innerR, len),
         new THREE.Vector2(innerR, 0), // close the ring's cross-section
       ]
-    : [new THREE.Vector2(0, 0), new THREE.Vector2(outerR, 0), new THREE.Vector2(outerR, len), new THREE.Vector2(0, len)];
+    : [
+        new THREE.Vector2(0, 0),
+        new THREE.Vector2(outerR, 0),
+        new THREE.Vector2(outerR, len),
+        new THREE.Vector2(0, len),
+      ];
   let geo: THREE.BufferGeometry = new THREE.LatheGeometry(pts, SEGMENTS);
   geo.deleteAttribute('uv');
   geo.deleteAttribute('normal');
@@ -207,9 +303,14 @@ export function discSolid(outerR: number, innerR: number, length: number): THREE
 /** One fin as a flat, watertight extruded solid at the origin (planform in XY,
  *  thickness centred on Z) — ready to lay on a print bed. */
 function oneFinSolid(child: ComponentNode): THREE.BufferGeometry | null {
-  const ff = child.type === 'freeformfinset' ? ((child['points'] as [number, number][] | undefined) ?? []) : [];
-  const root = child.type === 'freeformfinset' && ff.length ? Math.max(...ff.map((p) => p[0])) : num(child, 'rootChord', 0.05);
-  const height = child.type === 'freeformfinset' && ff.length ? Math.max(...ff.map((p) => p[1])) : num(child, 'height', 0.03);
+  const ff = freeformPoints(child);
+  // Fallback 0, not the usual 0.05: here `root` only feeds the degeneracy guard
+  // below, and a zero-span outline must stay zero so it is skipped rather than
+  // extruded into non-manifold garbage. The freeform shape itself is built from
+  // the points, so this never affects the drawn outline.
+  const root = child.type === 'freeformfinset' && ff.length ? freeformRootChord(ff, 0) : num(child, 'rootChord', 0.05);
+  const height =
+    child.type === 'freeformfinset' && ff.length ? Math.max(...ff.map((p) => p[1])) : num(child, 'height', 0.03);
   const thickness = num(child, 'thickness', 0.003);
 
   // Degenerate planform → no printable solid: a zero-area outline (thickness,
@@ -217,6 +318,10 @@ function oneFinSolid(child: ComponentNode): THREE.BufferGeometry | null {
   // empty mesh. Skip it rather than emit non-manifold garbage into the export.
   if (!(thickness > 0) || !(root > 0) || !(height > 0)) return null;
   if (child.type === 'freeformfinset' && ff.length < 3) return null;
+  // …nor is a self-crossing one. Same policy as the degenerate cases above:
+  // return null so the caller reports "can't be exported" rather than emitting
+  // a solid whose faces pass through each other.
+  if (child.type === 'freeformfinset' && !isSimplePolygon(ff)) return null;
 
   const shape = new THREE.Shape();
   if (child.type === 'freeformfinset') {
@@ -234,6 +339,24 @@ function oneFinSolid(child: ComponentNode): THREE.BufferGeometry | null {
     shape.lineTo(sweep, height);
     shape.lineTo(sweep + tip, height);
     shape.lineTo(root, 0);
+  }
+  // Fold in the through-the-wall tab, the way dxfExport.ts:57-62 and
+  // reportGeometry.ts:49-58 already do. Without it a printed fin has no tab: it
+  // will not pass through the airframe slot or seat on the centring rings — and
+  // the DXF of the SAME part, from the same menu, did have one. The outline
+  // above ends at the trailing root corner, so walk back along y = 0, dip down
+  // for the tab, and return to the leading corner; closePath joins it up.
+  const tabH = num(child, 'tabHeight', 0);
+  const tabLen = num(child, 'tabLength', 0);
+  if (tabH > 0 && tabLen > 0) {
+    const x0 = Math.max(0, Math.min(root, finTabFront(child, root)));
+    const x1 = Math.max(0, Math.min(root, x0 + tabLen));
+    if (x1 - x0 > 1e-9) {
+      shape.lineTo(x1, 0);
+      shape.lineTo(x1, -tabH);
+      shape.lineTo(x0, -tabH);
+      shape.lineTo(x0, 0);
+    }
   }
   shape.closePath();
 
@@ -273,10 +396,13 @@ export function solidForNode(node: ComponentNode): THREE.BufferGeometry | null {
       const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
       let surface = outerProfile(shape, numOpt(node, 'shapeParameter'), len, rf, ra, SEGMENTS, undefined, clipped);
       // Fore/aft shoulders: stubs that plug into the tubes on either side.
-      const fShR = num(node, 'foreShoulderRadius', 0), fShLen = num(node, 'foreShoulderLength', 0);
-      const aShR = num(node, 'aftShoulderRadius', 0), aShLen = num(node, 'aftShoulderLength', 0);
+      const fShR = num(node, 'foreShoulderRadius', 0),
+        fShLen = num(node, 'foreShoulderLength', 0);
+      const aShR = num(node, 'aftShoulderRadius', 0),
+        aShLen = num(node, 'aftShoulderLength', 0);
       if (fShR > 1e-6 && fShLen > 1e-6) surface = [[-fShLen, Math.min(fShR, rf)], [0, Math.min(fShR, rf)], ...surface];
-      if (aShR > 1e-6 && aShLen > 1e-6) surface = [...surface, [len, Math.min(aShR, ra)], [len + aShLen, Math.min(aShR, ra)]];
+      if (aShR > 1e-6 && aShLen > 1e-6)
+        surface = [...surface, [len, Math.min(aShR, ra)], [len + aShLen, Math.min(aShR, ra)]];
       return revolveSolidX(surface, 0);
     }
     // Tubes — hollow, with their own wall thickness. (Coupler/engine block/rings

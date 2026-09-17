@@ -1,6 +1,17 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { useWorkspaceStore, selectActive, hasThrustCurve } from './store';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// The sim normally runs in a Web Worker. Stub it so a test can decide when (and
+// whether) a run resolves.
+const simulateMock = vi.hoisted(() => vi.fn());
+vi.mock('../engine/simClient', async (orig) => ({
+  ...(await orig<typeof import('../engine/simClient')>()),
+  simulateInWorker: simulateMock,
+}));
+
+import { useWorkspaceStore, selectActive, hasThrustCurve, selectRunFailed } from './store';
 import { C6 } from '../engine/api';
+import { setDesignLibrary } from '../services/designLibrary';
+import { getWorkspaceStore } from '../services/workspaceStore';
 import { findMounts, findNode } from '../services/treeEdit';
 import type { FlightResult } from '../engine/openRocketEngine';
 import type { SimPrefs } from '../services/simulations';
@@ -270,6 +281,48 @@ describe('simulation run guards', () => {
     expect(hasThrustCurve({ ...C6, thrusts: [] })).toBe(false);
   });
 
+  // A run that throws leaves exactly the state auto-run fires on: no result, not
+  // busy, a result view open. Without a record of the failure it retried the
+  // same failing design forever, spawning a full flight sim each time.
+  it('records a failed run against the design it failed on', async () => {
+    simulateMock.mockRejectedValueOnce(new Error('kernel exploded'));
+    await s().runSim({} as SimPrefs);
+
+    expect(s().err).toBe('kernel exploded');
+    expect(s().simBusy).toBe(false);
+    expect(selectRunFailed(s())).toBe(true); // auto-run must not retry this
+  });
+
+  it('lets the retry happen again once the design changes', async () => {
+    simulateMock.mockRejectedValueOnce(new Error('kernel exploded'));
+    await s().runSim({} as SimPrefs);
+    expect(selectRunFailed(s())).toBe(true);
+
+    // Any edit replaces the tree, so the record no longer matches and auto-run
+    // is free to try the new design.
+    s().setSelectedId('nose');
+    s().patchSelected({ length: 0.2 });
+    expect(selectRunFailed(s())).toBe(false);
+  });
+
+  // The await can outlast the design: edit while the worker is busy and the
+  // answer coming back describes a rocket that is no longer on screen.
+  it('drops a result the design has moved past', async () => {
+    let release!: (r: unknown) => void;
+    simulateMock.mockImplementationOnce(() => new Promise((res) => (release = res)));
+
+    const running = s().runSim({} as SimPrefs);
+    // The user edits mid-flight.
+    s().setSelectedId('nose');
+    s().patchSelected({ length: 0.3 });
+
+    release({ summary: { apogee: 123 }, branches: [] });
+    await running;
+
+    expect(active().result).toBeNull(); // not installed
+    expect(s().view).not.toBe('flight'); // and the view was not yanked over
+  });
+
   it('refuses to run with no motor mount and reports why', async () => {
     s().setSelectedId('mount');
     s().removeSelected();
@@ -292,6 +345,7 @@ describe('tab and view stay in step', () => {
   beforeEach(() => s().resetWorkspace());
 
   it('sends a flight view to the Results tab and a design view back to Sketch', () => {
+    s().setTab('sketch');
     s().setView('flight');
     expect(s().tab).toBe('results');
     s().setView('path');
@@ -301,6 +355,31 @@ describe('tab and view stay in step', () => {
     expect(s().tab).toBe('sketch');
     s().setView('drag');
     expect(s().tab).toBe('sketch');
+  });
+
+  it('leaves a caller alone on a tab that shows no view at all', () => {
+    // Rocket and Simulate show stats and the run, not a view — so a view
+    // changing underneath (a result invalidated, a design opened) must not drag
+    // the reader off the tab they chose.
+    s().setTab('build');
+    s().setView('flight');
+    expect(s().tab).toBe('build');
+    s().setTab('sim');
+    s().setView('2d');
+    expect(s().tab).toBe('sim');
+  });
+
+  it('never strands you on Results with no result', () => {
+    // Opening or starting a design writes `view` directly. It used to leave the
+    // tab behind, which left a Results tab with nothing to show and a view
+    // switch with every button hidden.
+    s().setView('flight');
+    s().setTab('results');
+    expect(s().tab).toBe('results');
+
+    s().resetWorkspace();
+    expect(s().view).toBe('2d');
+    expect(s().tab).not.toBe('results');
   });
 
   it('pulls the view into whichever family the chosen tab shows', () => {
@@ -328,5 +407,217 @@ describe('tab and view stay in step', () => {
     expect([s().tab, s().view]).toEqual(['build', 'drag']);
     s().setTab('sim');
     expect([s().tab, s().view]).toEqual(['sim', 'drag']);
+  });
+});
+
+describe('storage warning', () => {
+  beforeEach(() => {
+    s().resetWorkspace();
+    s().setStorageWarning(null);
+    s().setErr(null);
+  });
+
+  // These shared one slot, and the rebuild effect calls setErr(null) on every
+  // successful build — which happens milliseconds after load and again on every
+  // keystroke. The warning that the user's work is no longer being saved was
+  // therefore wiped before anyone could read it.
+  it('survives the rebuild effect clearing the transient error', () => {
+    s().setStorageWarning('storage is full');
+    s().setErr('something else went wrong');
+
+    s().setErr(null); // what the rebuild effect does after every successful build
+
+    expect(s().err).toBeNull();
+    expect(s().storageWarning).toBe('storage is full');
+  });
+
+  it('is cleared only by its own setter', () => {
+    s().setStorageWarning('storage is degraded');
+    expect(s().storageWarning).toBe('storage is degraded');
+    s().setStorageWarning(null);
+    expect(s().storageWarning).toBeNull();
+  });
+});
+
+describe('openDesign is race-safe', () => {
+  /**
+   * Four sequential awaits, and the user can click a second design during any
+   * of them. If B's read resolved first, A's continuation then ran
+   * flushActive() — writing B's tree out under the store's current active id —
+   * and finished with setActive(A) + hydrate(A). The user clicked B last and
+   * was looking at A.
+   */
+  it('ignores a slow request that the user has already superseded', async () => {
+    const wsFor = (name: string) => ({
+      version: 1 as const,
+      tree: { name, components: [] },
+      sims: [{ id: 's1', name: 'Sim 1', result: null }],
+      activeId: 's1',
+      extraMotors: {},
+      loadedMeta: null,
+    });
+
+    // A is slow, B is instant — so B lands first and A's continuation arrives
+    // afterwards, which is exactly the interleaving that used to win.
+    let releaseA!: () => void;
+    const slowA = new Promise<void>((r) => (releaseA = r));
+    const active: string[] = [];
+
+    setDesignLibrary({
+      list: async () => [],
+      activeId: async () => null,
+      read: async (id: string) => {
+        if (id === 'A') await slowA;
+        return wsFor(id) as never;
+      },
+      write: async () => true,
+      create: async () => ({ id: 'X', name: 'X', updatedAt: 0 }),
+      rename: async () => {},
+      remove: async () => {},
+      setActive: async (id: string) => {
+        active.push(id);
+      },
+    } as never);
+
+    const pA = s().openDesign('A');
+    await s().openDesign('B');
+    releaseA();
+    await pA;
+
+    // B was clicked last, so B is what is open — and A never got to call
+    // setActive behind it.
+    expect((s().tree as unknown as { name: string }).name).toBe('B');
+    expect(active).toEqual(['B']);
+  });
+});
+
+/**
+ * One workspace generation, bumped by everything that replaces the workspace.
+ *
+ * `openToken` guarded openDesign against another openDesign and nothing else,
+ * so every other pairing raced: two imports, an import against a library open,
+ * a Save As against either.
+ */
+describe('replacing the workspace is race-safe across actions, not just openDesign', () => {
+  const orkFile = (name: string, hold?: Promise<void>): File =>
+    ({
+      name: `${name}.ork`,
+      arrayBuffer: async () => {
+        if (hold) await hold;
+        return new TextEncoder().encode(name).buffer;
+      },
+    }) as unknown as File;
+
+  beforeEach(() => {
+    s().resetWorkspace();
+    vi.doUnmock('../services/loadOrk');
+  });
+
+  it('a slow import does not overwrite the fast one the user opened after it', async () => {
+    // Import a large .ork then a small one: the small one lands first, and the
+    // large one used to arrive afterwards and replace it.
+    let releaseSlow!: () => void;
+    const slow = new Promise<void>((r) => (releaseSlow = r));
+    vi.doMock('../services/loadOrk', () => ({
+      loadOrk: async (bytes: ArrayBuffer) => ({
+        name: new TextDecoder().decode(bytes),
+        notes: [],
+        tree: { name: new TextDecoder().decode(bytes), components: [] },
+        motors: {},
+        motorSpecs: {},
+      }),
+    }));
+
+    const big = s().openOrkFile(orkFile('BIG', slow));
+    await s().openOrkFile(orkFile('SMALL'));
+    releaseSlow();
+    await big;
+
+    expect((s().tree as unknown as { name: string }).name).toBe('SMALL');
+  });
+
+  it('a superseded import does not post its error over the design that replaced it', async () => {
+    let releaseSlow!: () => void;
+    const slow = new Promise<void>((r) => (releaseSlow = r));
+    vi.doMock('../services/loadOrk', () => ({
+      loadOrk: async (bytes: ArrayBuffer) => {
+        if (new TextDecoder().decode(bytes) === 'BAD') throw new Error('corrupt zip');
+        return { name: 'GOOD', notes: [], tree: { name: 'GOOD', components: [] }, motors: {}, motorSpecs: {} };
+      },
+    }));
+
+    const bad = s().openOrkFile(orkFile('BAD', slow));
+    await s().openOrkFile(orkFile('GOOD'));
+    releaseSlow();
+    await bad;
+
+    expect(s().err).toBeNull(); // the failure belonged to a file nobody is looking at
+    expect((s().tree as unknown as { name: string }).name).toBe('GOOD');
+  });
+
+  it('starting a new design voids an import still in flight', async () => {
+    let releaseSlow!: () => void;
+    const slow = new Promise<void>((r) => (releaseSlow = r));
+    vi.doMock('../services/loadOrk', () => ({
+      loadOrk: async () => ({
+        name: 'IMPORTED',
+        notes: [],
+        tree: { name: 'IMPORTED', components: [] },
+        motors: {},
+        motorSpecs: {},
+      }),
+    }));
+
+    const pending = s().openOrkFile(orkFile('IMPORTED', slow));
+    s().resetWorkspace(); // File → New while the import is still parsing
+    releaseSlow();
+    await pending;
+
+    expect((s().tree as unknown as { name?: string }).name).not.toBe('IMPORTED');
+  });
+});
+
+/**
+ * File → Save must ask the library whether this design has a name.
+ *
+ * `activeDesignId` is written only by refreshDesigns(), which nothing calls on
+ * boot — so on a fresh load it is null while the first autosave has already
+ * created a real entry. Reading it sent Save to Save As, which created a second
+ * entry holding the same rocket.
+ */
+describe('saveDesign asks the library, not the cached activeDesignId', () => {
+  const libWith = (activeId: string | null, created: string[]) =>
+    ({
+      list: async () => (activeId ? [{ id: activeId, name: 'My Rocket', updatedAt: 0 }] : []),
+      activeId: async () => activeId,
+      read: async () => null,
+      write: async () => true,
+      create: async (name: string) => {
+        created.push(name);
+        return { id: 'new', name, updatedAt: 0 };
+      },
+      rename: async () => {},
+      remove: async () => {},
+      setActive: async () => {},
+    }) as never;
+
+  beforeEach(() => s().resetWorkspace());
+
+  it('saves the design the autosave already created, with activeDesignId still null', async () => {
+    const created: string[] = [];
+    setDesignLibrary(libWith('autosaved-1', created));
+    // Exactly the fresh-boot state AFTER the first autosave: the library holds
+    // the entry and the workspace store knows its id, but the zustand field
+    // does not — nothing has called refreshDesigns().
+    getWorkspaceStore().setActiveId?.('autosaved-1');
+    expect(s().activeDesignId).toBeNull();
+
+    expect(await s().saveDesign()).toBe(true); // was false → UI opened Save As
+    expect(created).toEqual([]); // and no duplicate entry was minted
+  });
+
+  it('still reports "never named" when the library really has no active design', async () => {
+    setDesignLibrary(libWith(null, []));
+    expect(await s().saveDesign()).toBe(false); // Save As is correct here
   });
 });

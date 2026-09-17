@@ -11,7 +11,7 @@ import {
 } from '../prefs/units';
 
 // Sea-level, calm, standard-atmosphere defaults (Cape Canaveral latitude).
-export const DEFAULT_LAUNCH: LaunchConditions = {
+const DEFAULT_LAUNCH: LaunchConditions = {
   launchRodLengthM: 1,
   launchRodAngleDeg: 0,
   launchRodDirectionDeg: 90,
@@ -72,6 +72,15 @@ export interface Settings {
   partColors: Partial<Record<PartKey, string>>;
   /** Flight-path phase colours. */
   phaseColors: { boost: string; coast: string; descent: string };
+  /**
+   * How the Aero tables shade their cells.
+   *
+   * `sky` is one hue that strengthens with the value — a magnitude ramp, which
+   * is what the numbers are. `openrocket` is desktop OpenRocket's green-to-red
+   * heat, on its own absolute Cd scale and with dark text on light cells, for
+   * anyone who reads that faster because they already know it.
+   */
+  aeroHeat: 'sky' | 'openrocket';
   /** Default flight-path playback speed (×). */
   playbackSpeed: number;
   /** Global simulation preferences. */
@@ -125,6 +134,7 @@ export const DEFAULT_SETTINGS: Settings = {
   unitOverrides: {},
   partColors: {},
   phaseColors: { boost: '#fb923c', coast: '#38bdf8', descent: '#34d399' },
+  aeroHeat: 'sky',
   playbackSpeed: 0.5,
   simulation: {
     timeStep: 0.05,
@@ -173,6 +183,9 @@ export function loadSettings(): Settings {
       unitOverrides: normalizeUnitOverrides(s.unitOverrides),
       partColors: { ...(s.partColors ?? {}) },
       phaseColors: { ...DEFAULT_SETTINGS.phaseColors, ...(s.phaseColors ?? {}) },
+      // An older store has no value here, and an unrecognised one falls back
+      // rather than leaving the tables with a style nothing renders.
+      aeroHeat: s.aeroHeat === 'openrocket' ? 'openrocket' : DEFAULT_SETTINGS.aeroHeat,
       playbackSpeed: typeof s.playbackSpeed === 'number' ? s.playbackSpeed : DEFAULT_SETTINGS.playbackSpeed,
       simulation: (() => {
         const sim = { ...DEFAULT_SETTINGS.simulation, ...(s.simulation ?? {}) };
@@ -183,7 +196,48 @@ export function loadSettings(): Settings {
         sim.maxTime = pos(sim.maxTime, DEFAULT_SETTINGS.simulation.maxTime);
         return sim;
       })(),
-      launchDefaults: { ...DEFAULT_SETTINGS.launchDefaults, ...(s.launchDefaults ?? {}) },
+      launchDefaults: (() => {
+        // Same reasoning as the `simulation` block above, which has clamped for
+        // exactly this reason: every field here reaches simConditions() and then
+        // simulate() for each NEW simulation, unchecked. A hand-edited or
+        // future-version blob putting a string, null or NaN where the engine
+        // wants a number crossed straight into the kernel.
+        //
+        // The two nullable fields are left alone: `temperatureC` and
+        // `pressureHPa` are `number | null` on purpose — null means "the ISA
+        // standard atmosphere", which is a real answer, not a missing one.
+        const l = { ...DEFAULT_SETTINGS.launchDefaults, ...(s.launchDefaults ?? {}) };
+        // Split so the fallback keeps each field's own type: a required number
+        // always gets a number back, an optional one may legitimately be absent.
+        for (const k of [
+          'launchRodLengthM',
+          'launchRodAngleDeg',
+          'windAverage',
+          'windStdDev',
+          'launchAltitudeM',
+          'latitudeDeg',
+        ] as const) {
+          if (!Number.isFinite(l[k])) l[k] = DEFAULT_SETTINGS.launchDefaults[k];
+        }
+        for (const k of ['launchRodDirectionDeg', 'windDirectionDeg', 'longitudeDeg'] as const) {
+          // Absent stays absent — only a PRESENT but unusable value falls back.
+          if (l[k] !== undefined && !Number.isFinite(l[k])) l[k] = DEFAULT_SETTINGS.launchDefaults[k];
+        }
+        for (const k of ['temperatureC', 'pressureHPa'] as const) {
+          const v = l[k];
+          if (v !== null && !Number.isFinite(v)) l[k] = DEFAULT_SETTINGS.launchDefaults[k];
+        }
+        if (typeof l.launchIntoWind !== 'boolean' && l.launchIntoWind !== undefined) {
+          l.launchIntoWind = DEFAULT_SETTINGS.launchDefaults.launchIntoWind;
+        }
+        if (l.geodetic !== undefined && !['flat', 'spherical', 'wgs84'].includes(l.geodetic)) {
+          l.geodetic = DEFAULT_SETTINGS.launchDefaults.geodetic;
+        }
+        if (l.windLevels !== undefined && !Array.isArray(l.windLevels)) {
+          l.windLevels = DEFAULT_SETTINGS.launchDefaults.windLevels;
+        }
+        return l;
+      })(),
       showMarkers: typeof s.showMarkers === 'boolean' ? s.showMarkers : DEFAULT_SETTINGS.showMarkers,
       showInfoCard: typeof s.showInfoCard === 'boolean' ? s.showInfoCard : DEFAULT_SETTINGS.showInfoCard,
       showStats: typeof s.showStats === 'boolean' ? s.showStats : DEFAULT_SETTINGS.showStats,

@@ -7,7 +7,7 @@ export const MAX_IDX = STD_DIAMS.length - 1;
 
 // A motor "fits" a mount whose bore is this many mm under the motor's nominal
 // diameter (covers the nominal-vs-bore rounding gap without leaking the next size).
-export const FIT_TOLERANCE_MM = 1;
+const FIT_TOLERANCE_MM = 1;
 
 /** Slider index of the largest standard diameter fitting a mount of this bore (mm). */
 export function fitIdx(bore: number): number {

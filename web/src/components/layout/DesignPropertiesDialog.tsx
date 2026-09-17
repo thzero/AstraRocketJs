@@ -60,7 +60,15 @@ export function DesignPropertiesDialog({
   };
 
   return (
-    <div className="dialog-overlay fixed inset-0 z-[70] grid place-items-center bg-black/60 p-4" onClick={onCancel}>
+    <div
+      className="dialog-overlay fixed inset-0 z-[70] grid place-items-center bg-black/60 p-4"
+      // This dialog is rendered INSIDE another overlay (the library's), so a
+      // bare onCancel here would bubble and dismiss both at once.
+      onClick={(e) => {
+        e.stopPropagation();
+        onCancel();
+      }}
+    >
       <div
         ref={panelRef}
         className="dialog-panel w-full max-w-sm rounded-2xl bg-slate-900 p-6 ring-1 ring-white/10"

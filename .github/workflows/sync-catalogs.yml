@@ -84,7 +84,13 @@ jobs:
         with:
           repository: dbcook/openrocket-database
           path: .openrocket-database
-          ref: master
+          # PINNED. This job holds contents: write and pushes to the data branch
+          # the live app reads, so a third-party ref must not float -- master
+          # pulls whatever landed upstream since the last run. Not an RCE path
+          # (the sync scripts are data-only parsing: no eval, no child_process,
+          # no dynamic import), but the pin is free. Bump it deliberately, after
+          # looking at what changed.
+          ref: 772db251b5cb989ac1a0bca4921dcf91d3bc54de # master @ 2024-03-18
 
       - name: Regenerate motors
         if: env.TARGET != 'components'

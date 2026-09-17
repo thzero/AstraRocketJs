@@ -1,5 +1,5 @@
 import type { ComponentNode } from '../engine/openRocketEngine';
-import { num } from './nodeProps';
+import { num, numOpt } from './nodeProps';
 
 /**
  * Tube-fin tube radius (m). When the set carries no explicit outerRadius the
@@ -7,8 +7,13 @@ import { num } from './nodeProps';
  * body — r = R·sin(π/N) / (1 − sin(π/N)) (TubeFinSet.getOuterRadius).
  */
 export function tubeFinRadius(node: ComponentNode, bodyRadius: number): number {
-  const explicit = node['outerRadius'];
-  if (typeof explicit === 'number' && explicit > 0) return explicit;
+  // `numOpt`, not a hand-rolled typeof check: the module already imports the
+  // shared readers, and they carry the Number.isFinite guard nodeProps.ts:14
+  // documents as load-bearing. `typeof x === 'number' && x > 0` lets Infinity
+  // through, which propagates to the schematic's scale and collapses the whole
+  // drawing to nothing, where a fallback would at least have drawn something.
+  const explicit = numOpt(node, 'outerRadius');
+  if (explicit !== undefined && explicit > 0) return explicit;
   const n = Math.max(1, Math.round(num(node, 'finCount', 6)));
   // Kernel rule (TubeFinSet.getOuterRadius): fewer than 3 fins auto-size to
   // the body radius — and n=2 would divide by zero below (sin π/2 = 1).
@@ -38,3 +43,32 @@ export function tubeFinMaxCount(outerRadius: number, bodyRadius: number): number
   const ratio = Math.min(1, outerRadius / (bodyRadius + outerRadius));
   return Math.max(2, Math.floor(Math.PI / Math.asin(ratio) + 1e-9));
 }
+
+/**
+ * Every fin set, tube fins included — the `.ork` element names that end in
+ * "finset". Mirrors what OpenRocket's FinMarkingGuide collects:
+ *
+ *     next instanceof FinSet || next instanceof TubeFinSet || …
+ *
+ * Use this for anything a tube fin genuinely takes part in: drawing it on the
+ * airframe, counting it, marking where it goes.
+ */
+export const isFinSet = (type: string): boolean => type.endsWith('finset');
+
+/**
+ * Fin sets with a FLAT planform — everything except tube fins.
+ *
+ * This is exactly OpenRocket's `instanceof FinSet`. `TubeFinSet extends Tube`,
+ * NOT FinSet, so a tube fin cannot reach `PrintableFinSet`
+ * (`AbstractPrintable<FinSet>`) and `FinSetPrintStrategy`'s
+ * `if (rocketComponent instanceof FinSet)` skips it. OpenRocket's type system
+ * made the mistake impossible; matching on the element name alone reintroduced
+ * it, because `<tubefinset>` collides on the string where TubeFinSet never
+ * collided on the type.
+ *
+ * A tube has no planform, so every consumer that produces an OUTLINE — a
+ * cutting template, a side-view fin shape, a root chord — must use this one.
+ * The broad match fabricates a 50 × 30 mm swept trapezoid out of the
+ * `rootChord` / `height` / `sweep` defaults for a part that is a tube.
+ */
+export const isPlanarFinSet = (type: string): boolean => isFinSet(type) && type !== 'tubefinset';

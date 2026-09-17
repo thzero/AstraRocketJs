@@ -89,7 +89,7 @@ export async function loadCatalog(): Promise<CatalogMotor[]> {
     getMotorStore()
       .listCustomMotors()
       .then((ms) => ms.map(customToRow)),
-    fetchCatalog<CatalogMotor[]>('motors'),
+    fetchCatalog<CatalogMotor[]>('motors', Array.isArray),
   ]);
   return [...custom, ...bundled];
 }

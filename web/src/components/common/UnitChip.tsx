@@ -27,10 +27,20 @@ import { UNITS, unitFor, type Quantity } from '../../prefs/units';
 export function UnitChip({
   quantity,
   scope,
+  label,
   className = '',
 }: {
   quantity: Quantity;
   scope: string;
+  /**
+   * The name of the figure this chip belongs to ("Rod exit", "CG", …).
+   *
+   * The quantity alone is not enough to tell chips apart: the stats strip shows
+   * four LENGTH chips at once (length, max diameter, CG, CP) and the flight
+   * summary four VELOCITY ones, so without this they all announce identically
+   * and `getByLabel` matches every one of them.
+   */
+  label?: string;
   className?: string;
 }) {
   const { t } = useTranslation();
@@ -40,17 +50,13 @@ export function UnitChip({
   return (
     <select
       value={current}
-      title={
-        overridden
-          ? t('units.chipOverridden', { unit: settings.units[quantity] })
-          : t('units.chipTitle')
-      }
+      title={overridden ? t('units.chipOverridden', { unit: settings.units[quantity] }) : t('units.chipTitle')}
       // The tint is a colour-only cue, which reaches nobody using a screen
       // reader — so the accessible name carries the same fact in words.
       aria-label={
         overridden
-          ? t('units.ariaForOverridden', { quantity: t(`units.q.${quantity}`) })
-          : t('units.ariaFor', { quantity: t(`units.q.${quantity}`) })
+          ? t('units.ariaForOverridden', { quantity: label ?? t(`units.q.${quantity}`) })
+          : t('units.ariaFor', { quantity: label ?? t(`units.q.${quantity}`) })
       }
       onClick={(e) => e.stopPropagation()}
       onChange={(e) => {

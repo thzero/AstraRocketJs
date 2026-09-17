@@ -1,13 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
-
-// The pre-1.0 "work in progress" modal overlays the canvas and swallows clicks;
-// dismiss it right after load (same helper as the other specs).
-async function dismissWip(page: Page) {
-  await page
-    .getByRole('button', { name: 'I understand' })
-    .click({ timeout: 10_000 })
-    .catch(() => {});
-}
+import { test, expect, type Page } from './base';
 
 /**
  * 2D TreeSchematic render + interaction, in a real browser (jsdom can't lay out
@@ -28,19 +19,23 @@ test.describe('2D schematic', () => {
 
   test('draws the default airframe with labeled components', async ({ page }) => {
     await page.goto('/');
-    await dismissWip(page);
 
     const svg = schematic(page);
     await expect(svg).toBeVisible();
+    // The SVG is visible as soon as its container renders, but the shapes come
+    // from the engine rebuild — so counting straight away can catch a PARTIAL
+    // render and fail for a reason that has nothing to do with the schematic.
+    // `toHaveCount`-style polling waits for the real thing instead.
     // Nose + body + fins + motor + inner tube… ⇒ several drawn outline/segment paths.
-    expect(await svg.locator('path').count()).toBeGreaterThanOrEqual(5);
+    await expect(async () => {
+      expect(await svg.locator('path').count()).toBeGreaterThanOrEqual(5);
+    }).toPass({ timeout: 20_000 });
     // Each component labels itself via an SVG <title> (name ?? DISPLAY_NAME).
     expect(await svg.locator('title').count()).toBeGreaterThan(0);
   });
 
   test('zooming re-renders the schematic without losing the geometry', async ({ page }) => {
     await page.goto('/');
-    await dismissWip(page);
     const svg = schematic(page);
     await expect(svg).toBeVisible();
 
@@ -51,7 +46,7 @@ test.describe('2D schematic', () => {
           /scale\(/.test(el.getAttribute('transform') || ''),
         );
         const m = g?.getAttribute('transform')?.match(/scale\(([\d.]+)\)/);
-        return m ? parseFloat(m[1]) : 1;
+        return m?.[1] ? parseFloat(m[1]) : 1;
       });
 
     expect(await scaleOf()).toBe(1);

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   findNode,
+  findParent,
   updateNode,
   removeNode,
   addChild,
@@ -48,6 +49,21 @@ describe('findNode', () => {
   it('finds nested nodes and returns null when absent', () => {
     expect(findNode(makeTree(), 'm1')!.type).toBe('innertube');
     expect(findNode(makeTree(), 'nope')).toBeNull();
+  });
+});
+
+describe('findParent', () => {
+  it('returns the containing component', () => {
+    expect(findParent(makeTree(), 'f1')!.id).toBe('b1');
+    expect(findParent(makeTree(), 'n1')!.id).toBe('s1');
+  });
+
+  it('returns null for a top-level node and for an id that is not there', () => {
+    // Null is a real ANSWER here (a stage has no parent) as well as the "not
+    // found" result, so both are pinned — a search that conflated them would
+    // report the last-visited node instead.
+    expect(findParent(makeTree(), 's1')).toBeNull();
+    expect(findParent(makeTree(), 'nope')).toBeNull();
   });
 });
 

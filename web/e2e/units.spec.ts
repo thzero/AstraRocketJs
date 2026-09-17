@@ -1,18 +1,14 @@
-import { test, expect, type Page } from '@playwright/test';
-
-// The pre-1.0 "work in progress" modal swallows clicks until it's dismissed.
-async function dismissWip(page: Page) {
-  await page
-    .getByRole('button', { name: 'I understand' })
-    .click({ timeout: 10_000 })
-    .catch(() => {});
-}
+import { test, expect, type Page } from './base';
 
 async function openUnitsTab(page: Page) {
   await page.getByRole('button', { name: 'Menu' }).click();
-  await page.getByRole('menuitem', { name: 'Settings' }).or(page.getByText('Settings', { exact: true })).first().click();
+  await page
+    .getByRole('menuitem', { name: 'Settings' })
+    .or(page.getByText('Settings', { exact: true }))
+    .first()
+    .click();
   const dialog = page.getByRole('dialog', { name: 'Settings' });
-  await dialog.getByRole('button', { name: 'Units', exact: true }).click();
+  await dialog.getByRole('tab', { name: 'Units', exact: true }).click();
   return dialog;
 }
 
@@ -27,13 +23,12 @@ const closeDialog = (page: Page) => page.getByText('✕').first().click();
  */
 test('the preferences reach the fields, the tree, the rulers and the stats strip', async ({ page }) => {
   await page.goto('/');
-  await dismissWip(page);
 
   const bodyTube = page.locator('div[title="Body tube"]').first();
   const schematic = page.locator('svg').first();
   // The ruler's unit caption is its own <text>, distinct from the tick numbers.
   const rulerUnit = schematic.locator('text.fill-slate-300').first();
-  const statsUnit = page.getByLabel('Component dimensions unit').first();
+  const statsUnit = page.getByLabel('Length unit').first();
 
   await expect(bodyTube).toContainText('cm');
   await expect(rulerUnit).toHaveText('cm');
@@ -52,7 +47,6 @@ test('the preferences reach the fields, the tree, the rulers and the stats strip
 
 test('a chip changes its own field only, and nothing else moves', async ({ page }) => {
   await page.goto('/');
-  await dismissWip(page);
 
   await page.locator('div[title="Nose cone"]').click();
   const card = page.locator('section').filter({ hasText: 'Shoulder capped' });
@@ -76,7 +70,6 @@ test('a chip changes its own field only, and nothing else moves', async ({ page 
 
 test('a field showing a non-default unit says so, in colour and in its name', async ({ page }) => {
   await page.goto('/');
-  await dismissWip(page);
 
   await page.locator('div[title="Nose cone"]').click();
   const card = page.locator('section').filter({ hasText: 'Shoulder capped' });
@@ -94,21 +87,17 @@ test('a field showing a non-default unit says so, in colour and in its name', as
 
   // Picking the default back drops the override, so the tint goes with it.
   await overridden.selectOption('cm');
-  await expect(card.getByLabel('Component dimensions unit', { exact: true }).first()).toHaveClass(
-    /text-slate-500/,
-  );
+  await expect(card.getByLabel('Component dimensions unit', { exact: true }).first()).toHaveClass(/text-slate-500/);
 });
 
 test('a field keeps its unit across a reload, and Settings can reset every field', async ({ page }) => {
   await page.goto('/');
-  await dismissWip(page);
 
   await page.locator('div[title="Nose cone"]').click();
   const card = page.locator('section').filter({ hasText: 'Shoulder capped' });
   await card.getByLabel('Component dimensions unit').first().selectOption('in');
 
   await page.reload();
-  await dismissWip(page);
   await page.locator('div[title="Nose cone"]').click();
   const reloaded = page.locator('section').filter({ hasText: 'Shoulder capped' });
   await expect(reloaded.getByLabel('Component dimensions unit').first()).toHaveValue('in');
@@ -118,17 +107,12 @@ test('a field keeps its unit across a reload, and Settings can reset every field
   await dialog.getByRole('button', { name: /Reset 1 field/ }).click();
   await closeDialog(page);
   await expect(
-    page
-      .locator('section')
-      .filter({ hasText: 'Shoulder capped' })
-      .getByLabel('Component dimensions unit')
-      .first(),
+    page.locator('section').filter({ hasText: 'Shoulder capped' }).getByLabel('Component dimensions unit').first(),
   ).toHaveValue('cm');
 });
 
 test('a preset clears per-field choices so it actually takes effect', async ({ page }) => {
   await page.goto('/');
-  await dismissWip(page);
 
   await page.locator('div[title="Nose cone"]').click();
   const card = page.locator('section').filter({ hasText: 'Shoulder capped' });
@@ -144,7 +128,6 @@ test('a preset clears per-field choices so it actually takes effect', async ({ p
 
 test('a length typed in inches round-trips through the SI tree', async ({ page }) => {
   await page.goto('/');
-  await dismissWip(page);
 
   const dialog = await openUnitsTab(page);
   await dialog.getByLabel('Component dimensions').selectOption('in');
@@ -153,10 +136,7 @@ test('a length typed in inches round-trips through the SI tree', async ({ page }
   // Tree rows carry title="<part label>", so clicking one selects that part.
   await page.locator('div[title="Body tube"]').click();
   // Scoped: the launch-conditions panel has a "Length" (the rod) of its own.
-  const length = page
-    .locator('section')
-    .filter({ hasText: 'Motor mount' })
-    .getByLabel('Length', { exact: true });
+  const length = page.locator('section').filter({ hasText: 'Motor mount' }).getByLabel('Length', { exact: true });
   await expect(length).toHaveValue('16.535433');
   // Typed, not `fill()`: fill blanks the field first, and a blank geometry field
   // commits a 0-length tube that the rebuild does not recover from. (Pre-existing

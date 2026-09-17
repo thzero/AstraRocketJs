@@ -102,6 +102,23 @@ describe('design library', () => {
     expect(await lib.write(a.id, 'A', ws('a2'))).toBe(false);
   });
 
+  it('reports a refused INDEX write too, not just the design blob', async () => {
+    // The index write used to be treated as survivable on the grounds that the
+    // design itself is stored. But activeId() filters against the index, so a
+    // design missing from it is unreachable: a new one vanishes and the next
+    // session opens empty over orphaned bytes. Fail the write so
+    // workspaceStore.save() can raise "storage full" instead.
+    const a = await lib.create('A', ws('a'));
+    let calls = 0;
+    const realSet = kv.set.bind(kv);
+    kv.set = async (k: string, v: string) => {
+      // Let the design blob through, refuse only the index that follows it.
+      calls += 1;
+      return k.endsWith(':index') && calls > 1 ? false : realSet(k, v);
+    };
+    expect(await lib.write(a.id, 'A', ws('a2'))).toBe(false);
+  });
+
   it('survives a corrupt index without losing addressable designs', async () => {
     const a = await lib.create('A', ws('a'));
     kv.map.set('astrarrocketjs:designs:index', '{not json');
@@ -140,6 +157,38 @@ describe('migrating the pre-library single workspace', () => {
     kv.full = true;
     await lib.list();
     expect(kv.map.get(LEGACY)).toBeTruthy();
+  });
+
+  /**
+   * The blob write was already gated; the INDEX write was not — and the line
+   * after it deletes the user's only other copy. `activeId()` filters against
+   * that index, so a design missing from it is unreachable: the next session
+   * opened empty with the pre-library design gone for good.
+   */
+  it('keeps the legacy blob if only the index write fails', async () => {
+    kv.map.set(LEGACY, JSON.stringify(ws('precious')));
+    // Let the design blob through, refuse the index that makes it findable.
+    const realSet = kv.set.bind(kv);
+    kv.set = async (k: string, v: string) => (k.endsWith(':index') ? false : realSet(k, v));
+
+    await lib.list();
+
+    expect(kv.map.get(LEGACY)).toBeTruthy();
+    // And the next session can retry, because nothing was destroyed.
+    kv.set = realSet;
+    expect(treeName(await new DesignLibrary(kv).read((await new DesignLibrary(kv).list())[0]!.id))).toBe('precious');
+  });
+
+  /**
+   * `create()` used to discard the boolean `write()` returns and fall back to a
+   * FABRICATED meta, so the caller got a clean resolve for a design that was
+   * never stored. This is the path the first save of a session takes — exactly
+   * when there is no other copy yet.
+   */
+  it('throws instead of reporting success for a create the store refused', async () => {
+    kv.full = true;
+    await expect(lib.create('Doomed', ws('doomed'))).rejects.toThrow(/storage-full/);
+    expect(await lib.list()).toEqual([]);
   });
 
   it('does not re-seed a library the user has emptied', async () => {

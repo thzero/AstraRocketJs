@@ -1,13 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
-
-// The pre-1.0 "work in progress" modal shows on a fresh context and its overlay
-// swallows clicks, so every test dismisses it right after loading.
-async function dismissWip(page: Page) {
-  await page
-    .getByRole('button', { name: 'I understand' })
-    .click({ timeout: 10_000 })
-    .catch(() => {});
-}
+import { test, expect, autosaved } from './base';
 
 /**
  * Behavioral smoke suite — asserts on DOM/behaviour, not pixels, so an
@@ -27,7 +18,6 @@ const simsToggle = /[▸▾]\s*Simulations/;
 test.describe('AstraRocketJs smoke', () => {
   test('boots with an engine-computed design', async ({ page }) => {
     await page.goto('/');
-    await dismissWip(page);
 
     // The Simulations list toggle proves the right pane + store mounted.
     await expect(page.getByRole('button', { name: simsToggle })).toBeVisible();
@@ -46,7 +36,6 @@ test.describe('AstraRocketJs smoke', () => {
 
   test('running a sim unlocks the Flight view and clears "not run"', async ({ page }) => {
     await page.goto('/');
-    await dismissWip(page);
 
     await expect(page.getByRole('button', { name: 'Flight', exact: true })).toHaveCount(0);
 
@@ -60,7 +49,6 @@ test.describe('AstraRocketJs smoke', () => {
 
   test('the sim runs off the main thread (UI stays responsive)', async ({ page }) => {
     await page.goto('/');
-    await dismissWip(page);
     await expect(page.getByText('L/D', { exact: true })).toBeVisible();
 
     // Plant a requestAnimationFrame heartbeat; the largest gap between frames is
@@ -90,7 +78,6 @@ test.describe('AstraRocketJs smoke', () => {
 
   test('a duplicated simulation survives a page reload', async ({ page }) => {
     await page.goto('/');
-    await dismissWip(page);
 
     // Open the (collapsed) Simulations list, then duplicate the one default sim.
     await page.getByRole('button', { name: simsToggle }).click();
@@ -100,9 +87,10 @@ test.describe('AstraRocketJs smoke', () => {
     // count once there's more than one sim.
     await expect(page.getByText('(2)')).toBeVisible();
 
-    // Give the debounced autosave a beat, then reload — the beforeunload flush
-    // should also cover this, but the wait keeps the test from racing it.
-    await page.waitForTimeout(700);
+    // Wait for the autosave to actually land, rather than guessing at the
+    // debounce plus the IndexedDB write. One "launch" block per simulation, so
+    // two of them means the duplicate is persisted.
+    await autosaved(page, '"launch":', 2);
     await page.reload();
 
     await expect(page.getByText('(2)')).toBeVisible();
@@ -110,7 +98,6 @@ test.describe('AstraRocketJs smoke', () => {
 
   test('length calipers toggle on and off from the header controls', async ({ page }) => {
     await page.goto('/');
-    await dismissWip(page);
 
     const caliper = page.getByTitle(/Length calipers/i);
     await expect(caliper).toBeVisible();

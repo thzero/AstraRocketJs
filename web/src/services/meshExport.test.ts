@@ -3,10 +3,16 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode } from '../engine/openRocketEngine';
 import { solidForNode } from './solidMesh';
-import { solidToObj, solidToStl, solidToGlb, safeName } from './meshExport';
+import { solidToObj, solidToStl, solidToGlb } from './meshExport';
 
 // A single nose cone's watertight solid, in metres — the mesh exporters scale it.
-const nose = solidForNode({ type: 'nosecone', shape: 'ogive', length: 0.1, aftRadius: 0.013, thickness: 0.002 } as unknown as ComponentNode)!;
+const nose = solidForNode({
+  type: 'nosecone',
+  shape: 'ogive',
+  length: 0.1,
+  aftRadius: 0.013,
+  thickness: 0.002,
+} as unknown as ComponentNode)!;
 
 describe('component mesh export', () => {
   it('OBJ has vertices and faces', () => {
@@ -26,7 +32,8 @@ describe('component mesh export', () => {
     const dv = new DataView(solidToStl(nose));
     const n = dv.getUint32(80, true);
     const edges = new Map<string, number>();
-    let minX = Infinity, maxX = -Infinity;
+    let minX = Infinity,
+      maxX = -Infinity;
     const key = (p: number[]) => p.map((c) => c.toFixed(3)).join(',');
     for (let i = 0; i < n; i++) {
       const o = 84 + i * 50 + 12;
@@ -35,10 +42,12 @@ describe('component mesh export', () => {
         const b = o + k * 12;
         const x = dv.getFloat32(b, true);
         v.push([x, dv.getFloat32(b + 4, true), dv.getFloat32(b + 8, true)]);
-        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
       }
       for (let e = 0; e < 3; e++) {
-        const a = key(v[e]!), b = key(v[(e + 1) % 3]!);
+        const a = key(v[e]!),
+          b = key(v[(e + 1) % 3]!);
         const kk = a < b ? `${a}|${b}` : `${b}|${a}`;
         edges.set(kk, (edges.get(kk) ?? 0) + 1);
       }
@@ -53,11 +62,5 @@ describe('component mesh export', () => {
   it('GLB starts with the glTF magic', async () => {
     const buf = await solidToGlb(nose);
     expect(new DataView(buf).getUint32(0, true)).toBe(0x46546c67); // 'glTF'
-  });
-
-  it('safeName sanitises the filename', () => {
-    expect(safeName('My Fin!')).toBe('My_Fin_');
-    expect(safeName('')).toBe('part');
-    expect(safeName(undefined)).toBe('part');
   });
 });

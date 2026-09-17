@@ -16,6 +16,9 @@ import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { num } from '../../tree/nodeProps';
+import { tubeFinMaxCount, tubeFinMaxRadius } from '../../tree/tubefins';
+import { CLUSTER_OPTIONS, clusterCount } from '../../tree/cluster';
+import type { TFunction } from 'i18next';
 
 /**
  * Edits the currently-selected component's properties. Type-specific numeric
@@ -36,7 +39,15 @@ type Field =
   | { key: string; label: string; kind: 'number'; step?: number; unit?: string }
   | { key: string; label: string; kind: 'angle'; step?: number } // stored radians, shown in units.angle
   | { key: string; label: string; kind: 'bool' }
-  | { key: string; label: string; kind: 'select'; options: string[]; optI18n?: string };
+  | {
+      key: string;
+      label: string;
+      kind: 'select';
+      options: string[];
+      optI18n?: string;
+      /** Option text when it has to be computed rather than looked up. */
+      optLabel?: (option: string, t: TFunction) => string;
+    };
 
 // The real OpenRocket shape vocabulary — matches the engine (shapeOf), the
 // drawing (shapeProfile), and the parts catalogue. NOT 'elliptical'/'powerseries'.
@@ -106,7 +117,13 @@ export const FIELDS: Record<string, Field[]> = {
   // Separation only — shown for a non-first stage (see the render guard). The
   // altitude is used only by the altitude events; harmless (like deployAltitude).
   stage: [
-    { key: 'separationEvent', label: 'separationEvent', kind: 'select', options: SEPARATION_EVENTS, optI18n: 'separationEvent' },
+    {
+      key: 'separationEvent',
+      label: 'separationEvent',
+      kind: 'select',
+      options: SEPARATION_EVENTS,
+      optI18n: 'separationEvent',
+    },
     { key: 'separationDelay', label: 'separationDelay', kind: 'number', unit: 's', step: 0.5 },
     { key: 'separationAltitude', label: 'separationAltitude', kind: 'distance', step: 10 },
   ],
@@ -179,6 +196,18 @@ export const FIELDS: Record<string, Field[]> = {
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'motorMount', label: 'motorMount', kind: 'bool' },
     { key: 'motorOverhang', label: 'motorOverhang', kind: 'length' },
+    // `cluster` round-trips through .ork (orkImport:366 / orkExport:466) and
+    // the 2D, aft and 3D views all draw the tube at every cluster offset — but
+    // nothing could SET it, so the only way to get a cluster was to import a
+    // file that already had one.
+    {
+      key: 'cluster',
+      label: 'cluster',
+      kind: 'select',
+      options: CLUSTER_OPTIONS,
+      optLabel: (o, t) =>
+        o === 'single' ? t('cluster.single') : t('cluster.pattern', { name: o, n: clusterCount(o) }),
+    },
   ],
   tubecoupler: [
     { key: 'length', label: 'length', kind: 'length' },
@@ -236,7 +265,13 @@ export const FIELDS: Record<string, Field[]> = {
   // booster <stage> carries (when it lets go of the core).
   parallelstage: [
     ...ASSEMBLY_FIELDS,
-    { key: 'separationEvent', label: 'separationEvent', kind: 'select', options: SEPARATION_EVENTS, optI18n: 'separationEvent' },
+    {
+      key: 'separationEvent',
+      label: 'separationEvent',
+      kind: 'select',
+      options: SEPARATION_EVENTS,
+      optI18n: 'separationEvent',
+    },
     { key: 'separationDelay', label: 'separationDelay', kind: 'number', unit: 's', step: 0.5 },
     { key: 'separationAltitude', label: 'separationAltitude', kind: 'distance', step: 10 },
   ],
@@ -352,6 +387,19 @@ function OverrideRow({
   );
 }
 
+/**
+ * Do N tubes of radius r collide around a body of radius R?
+ *
+ * Asked through `tubeFinMaxRadius` so the panel and the drawing agree on one
+ * definition of "touching"; the 1e-9 lets an exactly-touching set through,
+ * which is a legal (if tight) build, not an error.
+ */
+function tubeFinsCollide(node: ComponentNode, parentRadius: number): boolean {
+  if (!(parentRadius > 0)) return false;
+  const max = tubeFinMaxRadius(num(node, 'finCount'), parentRadius);
+  return max !== null && num(node, 'outerRadius') > max + 1e-9;
+}
+
 export function PropertyPanel({
   node,
   onChange,
@@ -362,6 +410,7 @@ export function PropertyPanel({
   canMoveDown,
   canRemove = true,
   isFirstStage = false,
+  parentRadius = 0,
 }: {
   node: ComponentNode | null;
   onChange: (patch: Partial<ComponentNode>) => void;
@@ -376,6 +425,8 @@ export function PropertyPanel({
   canRemove?: boolean;
   /** The selected node is the top stage — has nothing above it, so no separation. */
   isFirstStage?: boolean;
+  /** Outer radius (m) of the body this part rings — tube fins only. */
+  parentRadius?: number;
 }) {
   const { t } = useTranslation();
   const { settings } = useSettings();
@@ -504,7 +555,7 @@ export function PropertyPanel({
               >
                 {f.options.map((o) => (
                   <option key={o} value={o}>
-                    {f.optI18n ? t(`${f.optI18n}.${o}`) : o}
+                    {f.optLabel ? f.optLabel(o, t) : f.optI18n ? t(`${f.optI18n}.${o}`) : o}
                   </option>
                 ))}
               </select>
@@ -609,6 +660,21 @@ export function PropertyPanel({
           />
         );
       })}
+
+      {/* Tube fins collide with each other once they are too fat, or too many,
+          for the body they ring — geometry the app could compute (tubefins.ts)
+          but never showed. Warn rather than clamp: the user may be part-way
+          through a change, and both ways out (fewer tubes, thinner tubes) are
+          theirs to pick. */}
+      {node.type === 'tubefinset' && tubeFinsCollide(node, parentRadius) && (
+        <p className="rounded-md bg-amber-500/10 px-2 py-1.5 text-[11px] leading-snug text-amber-300 ring-1 ring-amber-500/30">
+          {t('prop.tubeFinsCollide', {
+            max: tubeFinMaxCount(num(node, 'outerRadius'), parentRadius),
+            radius: u.fmt('length', tubeFinMaxRadius(num(node, 'finCount'), parentRadius) ?? 0),
+            unit: u.sym('length'),
+          })}
+        </p>
+      )}
 
       {hasMaterial(node.type) && (
         <div className="border-t border-white/5 pt-3">

@@ -1,14 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { KeyValueMotorStore, type CustomMotor } from './motorStore';
 import type { KeyValueStore } from './keyValueStore';
-import type { CatalogMotor } from './motorDb';
 
 class FakeKv implements KeyValueStore {
   map = new Map<string, string>();
+  full = false;
   async get(k: string) {
     return this.map.has(k) ? this.map.get(k)! : null;
   }
   async set(k: string, v: string) {
+    if (this.full) return false;
     this.map.set(k, v);
     return true;
   }
@@ -17,13 +18,6 @@ class FakeKv implements KeyValueStore {
   }
 }
 
-// Private keys from motorStore.ts, hardcoded so we can seed raw entries.
-const CATALOG_KEY = 'astrarrocketjs:tc:catalog';
-const CATALOG_SIG_KEY = 'astrarrocketjs:tc:catalog:sig';
-
-const cat: CatalogMotor[] = [
-  { designation: 'C6', manufacturer: 'Estes', class: 'C', diameter: 18, impulse: 8.8, burn: 1.7, mass: 24 },
-];
 const custom = (id: string): CustomMotor => ({
   id,
   designation: 'X',
@@ -47,23 +41,6 @@ beforeEach(() => {
   store = new KeyValueMotorStore(kv, 1000);
 });
 afterEach(() => vi.useRealTimers());
-
-describe('catalog mirror + signature guard', () => {
-  it('reads back only when the signature matches', async () => {
-    await store.writeCatalog(cat, 'sig1');
-    expect(await store.readCatalog('sig1')).toHaveLength(1);
-    expect(await store.readCatalog('sig2')).toBeNull(); // newer bundle supersedes
-  });
-
-  it('returns null when empty or corrupt', async () => {
-    expect(await store.readCatalog('sig1')).toBeNull();
-    await kv.set(CATALOG_SIG_KEY, 'sig1');
-    await kv.set(CATALOG_KEY, 'not json');
-    expect(await store.readCatalog('sig1')).toBeNull();
-    await kv.set(CATALOG_KEY, '[]'); // empty array → treated as no mirror
-    expect(await store.readCatalog('sig1')).toBeNull();
-  });
-});
 
 describe('per-entry TTL freshness', () => {
   it('marks entries fresh within the TTL and stale past it', async () => {
@@ -118,5 +95,97 @@ describe('custom motors', () => {
     const list = await store.listCustomMotors();
     expect(list).toHaveLength(1);
     expect(list[0]!.id).toBe('ok');
+  });
+});
+
+describe('custom motors report refused writes', () => {
+  // `kv.set` REPORTS failure by returning false rather than throwing, and the
+  // boolean was discarded — so MotorDialog awaited the import, got a clean
+  // resolve, and re-rendered a catalog that simply did not contain the motor.
+  it('throws when an import cannot be stored', async () => {
+    const kv = new FakeKv();
+    const store = new KeyValueMotorStore(kv, 1000);
+    kv.full = true;
+    await expect(store.addCustomMotor(custom('m1'))).rejects.toThrow(/storage-full/);
+  });
+
+  it('throws when a removal cannot be stored', async () => {
+    const kv = new FakeKv();
+    const store = new KeyValueMotorStore(kv, 1000);
+    await store.addCustomMotor(custom('m1'));
+    kv.full = true;
+    await expect(store.removeCustomMotor('m1')).rejects.toThrow(/storage-full/);
+  });
+});
+
+/**
+ * Custom motors are the one store whose payload reaches `simulate()` without a
+ * second gate, so what `isCustomMotor` lets through is what the kernel gets.
+ */
+describe('isCustomMotor rejects what would reach the kernel broken', () => {
+  const good = () => ({
+    id: 'custom:Test:A1',
+    designation: 'A1',
+    manufacturer: 'Test',
+    class: 'A',
+    diameter: 18,
+    length: 70,
+    totalWeightG: 24,
+    propWeightG: 12,
+    samples: [
+      { time: 0, thrust: 0 },
+      { time: 1, thrust: 10 },
+    ],
+    source: 'eng',
+  });
+
+  const survives = async (motor: unknown) => {
+    const fresh = new FakeKv();
+    await fresh.set('astrarrocketjs:motors:custom', JSON.stringify([motor]));
+    return (await new KeyValueMotorStore(fresh).listCustomMotors()).length;
+  };
+
+  it('keeps a well-formed motor', async () => {
+    expect(await survives(good())).toBe(1);
+  });
+
+  it('drops a sample that is not a {time, thrust} pair', async () => {
+    // `samples: [{}]` became `times: [undefined]` and NaN masses in the kernel.
+    expect(await survives({ ...good(), samples: [{}] })).toBe(0);
+    expect(await survives({ ...good(), samples: [null] })).toBe(0);
+    expect(await survives({ ...good(), samples: [[0, 1]] })).toBe(0);
+  });
+
+  it('drops a sample whose time or thrust is null', async () => {
+    // Written as NaN/Infinity by whatever produced the blob; JSON.stringify
+    // turns both into null on the way to storage, so null is what the store
+    // actually reads back. `typeof null === 'object'`, so the OLD per-field
+    // checks would have caught these — what did not catch them is that the old
+    // isCustomMotor never looked inside `samples` at all.
+    expect(await survives({ ...good(), samples: [{ time: 0, thrust: null }] })).toBe(0);
+    expect(await survives({ ...good(), samples: [{ time: null, thrust: 1 }] })).toBe(0);
+    expect(await survives({ ...good(), samples: [{ time: 0 }] })).toBe(0);
+  });
+
+  it('drops a row with no class — motorDb sorts on it and would throw', async () => {
+    const { class: _drop, ...noClass } = good();
+    expect(await survives(noClass)).toBe(0);
+  });
+
+  it('drops a row with no manufacturer', async () => {
+    const { manufacturer: _drop, ...noMfr } = good();
+    expect(await survives(noMfr)).toBe(0);
+  });
+
+  it('drops a dimension or weight that is absent, null or not a number', async () => {
+    // NOT tested with NaN: JSON.stringify writes it as null, so a NaN can never
+    // be read back out of the store — the same reason engineBoundary.test.ts
+    // records that Infinity cannot reach the kernel. These three CAN arrive.
+    for (const k of ['diameter', 'length', 'totalWeightG', 'propWeightG'] as const) {
+      expect(await survives({ ...good(), [k]: null }), `${k}=null`).toBe(0);
+      expect(await survives({ ...good(), [k]: '18' }), `${k}="18"`).toBe(0);
+      const { [k]: _drop, ...missing } = good();
+      expect(await survives(missing), `${k} absent`).toBe(0);
+    }
   });
 });

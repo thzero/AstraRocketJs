@@ -58,9 +58,12 @@ import info.openrocket.core.util.WorldCoordinate;
  * the kernel). All values SI (meters, kilograms, seconds, newtons), angles
  * in radians — conversions belong to the caller. Documented exceptions:
  * launchLatitude/launchLongitude are DEGREES (WorldCoordinate's own unit)
- * and getDragSweep's aoaDeg is degrees (converted here).
+ * and getAeroSweep's aoaDeg is degrees (converted here).
  */
 public final class OpenRocketEngine {
+
+    /** A sweep beyond this many Mach points is a caller error, not a request. */
+    private static final int MAX_SWEEP_POINTS = 20000;
 
     private static final Map<Integer, Object> HANDLES = new HashMap<>();
     private static int nextHandle = 1;
@@ -82,6 +85,28 @@ public final class OpenRocketEngine {
         return h;
     }
 
+    /**
+     * The `{"error": ...}` envelope the JS side already looks for.
+     *
+     * Only simulateJson used to produce one, so the `parsed.error` checks in
+     * web/src/engine/openRocketEngine.ts after getStaticInfo, getComponentInfo,
+     * getAeroSweep and getComponentMasses were DEAD CODE giving false
+     * confidence: those methods threw out of TeaVM instead, surfacing in JS as
+     * an opaque throw from inside a 2.9 MB bundle, and JSON.parse never ran.
+     */
+    /** Double.isFinite, spelled out — TeaVM's classlib coverage of it varies. */
+    private static boolean isFinite(double v) {
+        return !Double.isNaN(v) && !Double.isInfinite(v);
+    }
+
+    private static String errorJson(Throwable e) {
+        String msg = e.getMessage();
+        if (msg == null || msg.isEmpty()) {
+            msg = e.getClass().getSimpleName();
+        }
+        return "{\"error\":\"" + escape(msg) + "\"}";
+    }
+
     private static Object get(int handle) {
         Object o = HANDLES.get(handle);
         if (o == null) {
@@ -98,8 +123,15 @@ public final class OpenRocketEngine {
     /** Frees every handle (rockets, components, motors). */
     @JSExport
     public static void reset() {
+        // Clear, but do NOT rewind the counter. Rewinding made handle ids
+        // reusable, and web/src/engine/api.ts calls reset() before every
+        // rebuild: buildRocket registers exactly one object, so the new design
+        // got handle 1 — the same number an OpenRocketDesign held from before
+        // the rebuild still carried. That stale object's staticInfo()/simulate()
+        // then returned results for the NEW rocket with no error at all, and
+        // get()'s unknown-handle check could never fire. A freed handle now
+        // stays permanently unknown.
         HANDLES.clear();
-        nextHandle = 1;
     }
 
     // ---------- Rocket construction ----------
@@ -359,6 +391,29 @@ public final class OpenRocketEngine {
     private static void applyMotor(RocketCtx ctx, MotorMount mount, String designation,
             double diameter, double length, double[] times, double[] thrusts,
             double[] masses, double cgX, double ejectionDelay) {
+        // At the BOUNDARY, not only in the JS wrapper. cgPoints was sized from
+        // times.length and then indexed masses[i] unchecked, so a short masses
+        // array left TeaVM throwing ArrayIndexOutOfBounds with no envelope —
+        // and this class of bug already shipped once as TeaVM's opaque
+        // "The number NaN cannot be converted to a BigInt".
+        if (times == null || thrusts == null || masses == null) {
+            throw new IllegalArgumentException("motor " + designation + ": times/thrusts/masses are required");
+        }
+        if (times.length < 2 || thrusts.length != times.length || masses.length != times.length) {
+            throw new IllegalArgumentException("motor " + designation + ": times/thrusts/masses must be the same"
+                    + " length and at least 2 (got " + times.length + "/" + thrusts.length + "/" + masses.length + ")");
+        }
+        if (!(diameter > 0) || !(length > 0) || !isFinite(cgX)) {
+            throw new IllegalArgumentException("motor " + designation + ": diameter/length must be > 0 and cgX finite");
+        }
+        for (int i = 0; i < times.length; i++) {
+            if (!isFinite(times[i]) || !isFinite(thrusts[i]) || !isFinite(masses[i]) || masses[i] < 0) {
+                throw new IllegalArgumentException("motor " + designation + ": non-finite or negative sample at " + i);
+            }
+            if (i > 0 && times[i] < times[i - 1]) {
+                throw new IllegalArgumentException("motor " + designation + ": times must be non-decreasing at " + i);
+            }
+        }
         Coordinate[] cgPoints = new Coordinate[times.length];
         for (int i = 0; i < times.length; i++) {
             cgPoints[i] = new Coordinate(cgX, 0, 0, masses[i]);
@@ -459,7 +514,7 @@ public final class OpenRocketEngine {
      * which the classic model leaves with ~zero subsonic pressure drag. A
      * standalone correction (independent of the supersonic / Rogers models),
      * submitted upstream to OpenRocket. Off by default; off ⇒ bit-identical.
-     * Applies to staticInfo, simulate and getDragSweep.
+     * Applies to staticInfo, simulate and getAeroSweep.
      */
     @JSExport
     public static void setStubbyNoseDrag(int rocketHandle, boolean enabled) {
@@ -469,7 +524,7 @@ public final class OpenRocketEngine {
     /**
      * RASAero feature #1 (Phase 1): opt-in supersonic aerodynamics — corrected
      * supersonic fin normal force, NACA-1307 body-fin interference, and
-     * Mach-dependent nose CNa. Applies to staticInfo, simulate and getDragSweep.
+     * Mach-dependent nose CNa. Applies to staticInfo, simulate and getAeroSweep.
      */
     @JSExport
     public static void setSupersonicAero(int rocketHandle, boolean enabled) {
@@ -480,7 +535,7 @@ public final class OpenRocketEngine {
      * Build a BarrowmanCalculator wired with the design's opt-in RASAero
      * extensions (feature #1 supersonicAero, feature #3 rogersKbf). With both
      * flags off this is bit-identical to a stock {@code new BarrowmanCalculator()},
-     * so getStaticInfo / getDragSweep / simulateJson all agree.
+     * so getStaticInfo / getAeroSweep / simulateJson all agree.
      */
     private static BarrowmanCalculator rasAeroCalculator(RocketCtx ctx) {
         RASAeroStabilityCalculator stab = new RASAeroStabilityCalculator();
@@ -495,6 +550,14 @@ public final class OpenRocketEngine {
 
     @JSExport
     public static String getStaticInfo(int rocketHandle) {
+        try {
+            return getStaticInfoImpl(rocketHandle);
+        } catch (RuntimeException e) {
+            return errorJson(e);
+        }
+    }
+
+    private static String getStaticInfoImpl(int rocketHandle) {
         RocketCtx ctx = (RocketCtx) get(rocketHandle);
         RigidBody structure = MassCalculator.calculateLaunch(ctx.rocket.getSelectedConfiguration());
         RigidBody empty = MassCalculator.calculateStructure(ctx.rocket.getSelectedConfiguration());
@@ -543,6 +606,14 @@ public final class OpenRocketEngine {
      */
     @JSExport
     public static String getComponentInfo(int rocketHandle, String componentId) {
+        try {
+            return getComponentInfoImpl(rocketHandle, componentId);
+        } catch (RuntimeException e) {
+            return errorJson(e);
+        }
+    }
+
+    private static String getComponentInfoImpl(int rocketHandle, String componentId) {
         RocketCtx ctx = (RocketCtx) get(rocketHandle);
         RocketComponent c = ctx.ids.get(componentId);
         if (c == null) {
@@ -575,8 +646,124 @@ public final class OpenRocketEngine {
      * transonic, degrading above ~Mach 1.5-2 (full supersonic fidelity is
      * feature #1). The UI labels the supersonic region accordingly.
      */
+    /**
+     * Per-component mass breakdown: each instance's mass, the aggregate mass of
+     * all instances, and the aggregate CG.
+     *
+     * Its own call rather than a field on {@link #staticInfo}, which runs on
+     * every keystroke, and not part of the drag sweep, which is swept over Mach
+     * -- mass does not vary with speed. Mirrors the desktop's Component
+     * Analysis "Stability" tab, which reads the same
+     * {@code MassCalculator.getCMAnalysis}.
+     */
     @JSExport
-    public static String getDragSweep(int rocketHandle, String optionsJson) {
+    public static String getComponentMasses(int rocketHandle) {
+        try {
+            return getComponentMassesImpl(rocketHandle);
+        } catch (RuntimeException e) {
+            return errorJson(e);
+        }
+    }
+
+    private static String getComponentMassesImpl(int rocketHandle) {
+        RocketCtx ctx = (RocketCtx) get(rocketHandle);
+        java.util.Map<Integer, info.openrocket.core.masscalc.CMAnalysisEntry> analysis =
+                info.openrocket.core.masscalc.MassCalculator.getCMAnalysis(
+                        ctx.rocket.getSelectedConfiguration());
+
+        // Row order must not depend on HashMap iteration. getCMAnalysis returns a
+        // Map keyed by component.hashCode(), and RocketComponent.hashCode() hashes
+        // a per-run random UUID — so the mass table came out in a different order
+        // on every run, and differently again JVM vs TeaVM. Emit in TREE order,
+        // the order the component tree beside it already shows, and put the
+        // entries with no component behind them (the motor rows) last, by name.
+        java.util.Map<String, info.openrocket.core.masscalc.CMAnalysisEntry> byKey =
+                new java.util.LinkedHashMap<>();
+        java.util.List<info.openrocket.core.masscalc.CMAnalysisEntry> motorRows = new java.util.ArrayList<>();
+        for (info.openrocket.core.masscalc.CMAnalysisEntry e : analysis.values()) {
+            if (e.name == null) {
+                continue;
+            }
+            if (e.source instanceof RocketComponent) {
+                byKey.put(((RocketComponent) e.source).getID().toString(), e);
+            } else {
+                motorRows.add(e);
+            }
+        }
+        java.util.List<info.openrocket.core.masscalc.CMAnalysisEntry> ordered = new java.util.ArrayList<>();
+        java.util.Iterator<RocketComponent> walk = ctx.rocket.iterator(true);
+        while (walk.hasNext()) {
+            info.openrocket.core.masscalc.CMAnalysisEntry e = byKey.remove(walk.next().getID().toString());
+            if (e != null) {
+                ordered.add(e);
+            }
+        }
+        ordered.addAll(byKey.values()); // any component entry the walk did not reach
+        motorRows.sort(java.util.Comparator.comparing(x -> x.name));
+        ordered.addAll(motorRows);
+
+        StringBuilder sb = new StringBuilder("[");
+        boolean first = true;
+        for (info.openrocket.core.masscalc.CMAnalysisEntry e : ordered) {
+            CoordinateIF cm = e.totalCM;
+            double mass = (cm == null || cm.isNaN()) ? 0 : cm.getWeight();
+            double cg = (cm == null || cm.isNaN()) ? 0 : cm.getX();
+            if (!first) sb.append(',');
+            first = false;
+            // Same stable key the aero sweep emits, so the mass columns join to
+            // the right row even when two parts share a name. `source` is the
+            // RocketComponent for a component entry (it is a MotorConfiguration
+            // for the motor rows, which have no aero row to join to).
+            String key = (e.source instanceof RocketComponent) ? ((RocketComponent) e.source).getID().toString() : "";
+            sb.append("{\"key\":\"").append(escape(key)).append('"');
+            sb.append(",\"name\":\"").append(escape(e.name)).append('"');
+            sb.append(",\"eachMass\":").append(num(zeroIfNaN(e.eachMass)));
+            sb.append(",\"mass\":").append(num(zeroIfNaN(mass)));
+            sb.append(",\"cg\":").append(num(zeroIfNaN(cg)));
+            sb.append('}');
+        }
+        return sb.append(']').toString();
+    }
+
+    /** One JSON number, with non-finite values written as 0 rather than NaN. */
+    private static String num(double v) {
+        return (Double.isNaN(v) || Double.isInfinite(v)) ? "0" : Double.toString(v);
+    }
+
+    /**
+     * The wind direction that puts the CP furthest forward -- the desktop's
+     * "Worst" button.
+     *
+     * A rocket is least stable at some angle about its roll axis, and for a
+     * three-fin design that angle is not zero. `getWorstCP` sweeps theta itself
+     * and mutates the conditions it was handed, so this hands it a throwaway and
+     * reads the answer back out. Returns degrees, to match `thetaDeg` in the
+     * sweep options.
+     *
+     * @param machValue Mach to evaluate at
+     * @param aoaDeg    angle of attack, degrees
+     */
+    @JSExport
+    public static double getWorstThetaDeg(int rocketHandle, double machValue, double aoaDeg) {
+        RocketCtx ctx = (RocketCtx) get(rocketHandle);
+        FlightConfiguration config = ctx.rocket.getSelectedConfiguration();
+        FlightConditions conditions = new FlightConditions(config);
+        conditions.setMach(machValue);
+        conditions.setAOA(Math.toRadians(aoaDeg));
+        rasAeroCalculator(ctx).getWorstCP(config, conditions, new WarningSet());
+        return Math.toDegrees(conditions.getTheta());
+    }
+
+    @JSExport
+    public static String getAeroSweep(int rocketHandle, String optionsJson) {
+        try {
+            return getAeroSweepImpl(rocketHandle, optionsJson);
+        } catch (RuntimeException e) {
+            return errorJson(e);
+        }
+    }
+
+    private static String getAeroSweepImpl(int rocketHandle, String optionsJson) {
         RocketCtx ctx = (RocketCtx) get(rocketHandle);
         FlightConfiguration config = ctx.rocket.getSelectedConfiguration();
         Map<String, Object> o = JsonLite.parseObject(optionsJson);
@@ -584,8 +771,25 @@ public final class OpenRocketEngine {
         double machMax = JsonLite.dbl(o, "machMax", 3.0);
         double machStep = JsonLite.dbl(o, "machStep", 0.05);
         double aoa = Math.toRadians(JsonLite.dbl(o, "aoaDeg", 0));
+        // Wind direction about the roll axis, and the roll rate itself. Both
+        // default to zero, which is what every sweep ran at before they were
+        // exposed. Roll rate matters for the roll DAMPING coefficient, which is
+        // proportional to it and therefore reads zero without one.
+        double theta = Math.toRadians(JsonLite.dbl(o, "thetaDeg", 0));
+        double rollRate = JsonLite.dbl(o, "rollRate", 0);
         if (machStep <= 0) {
             machStep = 0.05;
+        }
+        // Only machStep was guarded. machMin/machMax were not, so
+        // {"machMax":1e9} built a List<Double> of 2e10 entries and took the tab
+        // down with it — no error, just an exhausted heap.
+        if (!isFinite(machMin) || !isFinite(machMax) || machMax < machMin) {
+            throw new IllegalArgumentException(
+                    "aero sweep needs finite machMin <= machMax (got " + machMin + ".." + machMax + ")");
+        }
+        if ((machMax - machMin) / machStep > MAX_SWEEP_POINTS) {
+            throw new IllegalArgumentException("aero sweep of " + machMin + ".." + machMax
+                    + " step " + machStep + " exceeds " + MAX_SWEEP_POINTS + " points");
         }
 
         java.util.List<Double> machList = new java.util.ArrayList<>();
@@ -649,7 +853,35 @@ public final class OpenRocketEngine {
         // Feeds the validation harness (ARCAS/HB-2/Finner anchors) and a future
         // CP-vs-Mach panel.
         double[] cp = new double[n], cna = new double[n];
+        // Per-component series. `getForceAnalysis` hands back the whole
+        // AerodynamicForces for each component -- the same object OpenRocket's
+        // Component Analysis dialog tabulates -- so the drag SPLIT and the
+        // stability contribution cost nothing beyond reading more fields off a
+        // call we already make.
         java.util.LinkedHashMap<String, double[]> byComp = new java.util.LinkedHashMap<>();
+        java.util.LinkedHashMap<String, double[]> byCompInstance = new java.util.LinkedHashMap<>();
+        java.util.LinkedHashMap<String, Integer> byCompCount = new java.util.LinkedHashMap<>();
+        // Every map above is keyed on the component's UUID, not its NAME.
+        // getName() is not unique: nothing forces a user to rename a part, and
+        // an unnamed one takes its class default, so a two-tube rocket has two
+        // components both called "Body tube". Keying on the name merged them
+        // into one row -- drag summed, instance count last-wins, CP averaged
+        // into a station belonging to neither. This holds the label to show.
+        java.util.LinkedHashMap<String, String> byCompName = new java.util.LinkedHashMap<>();
+        // The component's class, so the UI can tell a fin set from a body tube.
+        // The roll table lists fin sets even when their coefficients are zero --
+        // which is every uncanted rocket -- and there is no way to tell from the
+        // numbers alone, since an uncanted fin set reports exactly what a tube does.
+        java.util.LinkedHashMap<String, String> byCompType = new java.util.LinkedHashMap<>();
+        java.util.LinkedHashMap<String, double[]> byCompFric = new java.util.LinkedHashMap<>();
+        java.util.LinkedHashMap<String, double[]> byCompPress = new java.util.LinkedHashMap<>();
+        java.util.LinkedHashMap<String, double[]> byCompBase = new java.util.LinkedHashMap<>();
+        java.util.LinkedHashMap<String, double[]> byCompRollF = new java.util.LinkedHashMap<>();
+        java.util.LinkedHashMap<String, double[]> byCompRollD = new java.util.LinkedHashMap<>();
+        java.util.LinkedHashMap<String, double[]> byCompCna = new java.util.LinkedHashMap<>();
+        java.util.LinkedHashMap<String, double[]> byCompCp = new java.util.LinkedHashMap<>();
+
+        int nonFinite = 0;
 
         for (int i = 0; i < n; i++) {
             double mach = machList.get(i);
@@ -678,6 +910,8 @@ public final class OpenRocketEngine {
             }
             off.setMach(mach);
             off.setAOA(aoa);
+            off.setTheta(theta);
+            off.setRollRate(rollRate);
             AerodynamicForces fOff = calc.getAerodynamicForces(config, off, warnings);
             offTotal[i] = fOff.getCD();
             offFric[i] = fOff.getFrictionCD();
@@ -693,6 +927,8 @@ public final class OpenRocketEngine {
             }
             on.setMach(mach);
             on.setAOA(aoa);
+            on.setTheta(theta);
+            on.setRollRate(rollRate);
             on.setThrustingNozzleExitAreas(nozzleAreas);
             AerodynamicForces fOn = calc.getAerodynamicForces(config, on, warnings);
             onTotal[i] = fOn.getCD();
@@ -707,19 +943,43 @@ public final class OpenRocketEngine {
                 if (!c.isAerodynamic() || c instanceof ComponentAssembly) {
                     continue;
                 }
-                double cd = e.getValue().getCD();
-                if (Double.isNaN(cd)) {
-                    cd = 0;
-                }
-                double[] row = byComp.get(c.getName());
-                if (row == null) {
-                    row = new double[n];
-                    byComp.put(c.getName(), row);
-                }
-                row[i] += cd;
+                AerodynamicForces f = e.getValue();
+                String name = c.getID().toString();
+                byCompName.put(name, c.getName());
+                // getCD() is PER INSTANCE and getCDTotal() counts them all --
+                // the desktop's "Per instance CD" and "Total CD" columns
+                // (CAParameterSweep). `cd` has to be the total or a breakdown
+                // does not add up: a 3-fin set contributed a third of its drag.
+                nonFinite += countNonFinite(f.getCDTotal(), f.getCD(), f.getFrictionCD(),
+                        f.getPressureCD(), f.getBaseCD(), f.getCrollForce(), f.getCrollDamp());
+                series(byComp, name, n)[i] += f.getCDTotal();
+                series(byCompInstance, name, n)[i] += f.getCD();
+                byCompCount.put(name, c.getInstanceCount());
+                byCompType.put(name, c.getClass().getSimpleName());
+                series(byCompFric, name, n)[i] += f.getFrictionCD();
+                series(byCompPress, name, n)[i] += f.getPressureCD();
+                series(byCompBase, name, n)[i] += f.getBaseCD();
+                // Roll forcing and damping: non-zero only for a canted fin set,
+                // which is exactly why they are worth showing -- it is the one
+                // way to tell a cant is doing what you meant it to.
+                series(byCompRollF, name, n)[i] += f.getCrollForce();
+                series(byCompRollD, name, n)[i] += f.getCrollDamp();
+                // CP is a position, not a contribution: it is CNa-weighted, so
+                // summing instances means summing the moment and dividing back
+                // out. A component with no normal force has no CP to speak of.
+                CoordinateIF fcp = f.getCP();
+                nonFinite += countNonFinite(fcp.getWeight(), fcp.getX());
+                double ccna = fcp.getWeight();
+                series(byCompCna, name, n)[i] += ccna;
+                series(byCompCp, name, n)[i] += fcp.getX() * ccna;
             }
         }
 
+        // Non-finite readings swallowed on the way in. Null in a series says
+        // "this cell is unusable", but a consumer summing a column coerces null
+        // back to 0 — so the count travels alongside, and the aero view can say
+        // the breakdown is incomplete rather than quietly disagreeing with the
+        // rocket totals.
         double[] machArr = new double[n];
         for (int i = 0; i < n; i++) {
             machArr[i] = machList.get(i);
@@ -728,6 +988,7 @@ public final class OpenRocketEngine {
         StringBuilder sb = new StringBuilder("{\"machs\":");
         nums(sb, machArr);
         sb.append(",\"hasNozzle\":").append(hasNozzle);
+        sb.append(",\"nonFinite\":").append(nonFinite);
         sb.append(",\"cp\":");
         nums(sb, cp);
         sb.append(",\"cna\":");
@@ -741,12 +1002,67 @@ public final class OpenRocketEngine {
         for (Map.Entry<String, double[]> e : byComp.entrySet()) {
             if (!first) sb.append(',');
             first = false;
-            sb.append("{\"name\":\"").append(escape(e.getKey())).append("\",\"cd\":");
+            String name = e.getKey();
+            // `key` is the stable identity (rows, joins); `name` is only a label.
+            sb.append("{\"key\":\"").append(escape(name)).append('"');
+            sb.append(",\"name\":\"").append(escape(byCompName.getOrDefault(name, ""))).append("\",\"cd\":");
             nums(sb, e.getValue());
+            sb.append(",\"cdInstance\":");
+            nums(sb, byCompInstance.get(name));
+            sb.append(",\"instances\":").append(byCompCount.getOrDefault(name, 1));
+            sb.append(",\"type\":\"").append(escape(byCompType.getOrDefault(name, ""))).append('"');
+            sb.append(",\"friction\":");
+            nums(sb, byCompFric.get(name));
+            sb.append(",\"pressure\":");
+            nums(sb, byCompPress.get(name));
+            sb.append(",\"base\":");
+            nums(sb, byCompBase.get(name));
+            sb.append(",\"rollForce\":");
+            nums(sb, byCompRollF.get(name));
+            sb.append(",\"rollDamp\":");
+            nums(sb, byCompRollD.get(name));
+            sb.append(",\"cna\":");
+            nums(sb, byCompCna.get(name));
+            sb.append(",\"cp\":");
+            // Un-weight the CNa-weighted moment accumulated above; a component
+            // with no normal force reports 0 rather than a divide-by-zero.
+            double[] cnaRow = byCompCna.get(name);
+            double[] cpRow = byCompCp.get(name);
+            double[] cpOut = new double[n];
+            for (int i = 0; i < n; i++) {
+                // A NaN weight takes this branch (NaN != 0) and divides out to
+                // NaN, which nums() writes as null — distinct from the genuine
+                // "no normal force, hence no CP" zero on the other side.
+                cpOut[i] = cnaRow[i] != 0 ? cpRow[i] / cnaRow[i] : 0;
+            }
+            nums(sb, cpOut);
             sb.append('}');
         }
         sb.append("]}");
         return sb.toString();
+    }
+
+    /** The named component's series, created on first sight. */
+    private static double[] series(java.util.Map<String, double[]> map, String name, int n) {
+        double[] row = map.get(name);
+        if (row == null) {
+            row = new double[n];
+            map.put(name, row);
+        }
+        return row;
+    }
+
+    /** How many of these are NaN or infinite — see getAeroSweep's `nonFinite`. */
+    private static int countNonFinite(double... vs) {
+        int k = 0;
+        for (double v : vs) {
+            if (Double.isNaN(v) || Double.isInfinite(v)) k++;
+        }
+        return k;
+    }
+
+    private static double zeroIfNaN(double v) {
+        return (Double.isNaN(v) || Double.isInfinite(v)) ? 0 : v;
     }
 
     private static void dragBlock(StringBuilder sb, double[] total, double[] fric, double[] press, double[] base) {
@@ -780,6 +1096,16 @@ public final class OpenRocketEngine {
     @JSExport
     public static String simulate(int rocketHandle, double launchRodLength, double launchRodAngle,
             double windAverage, double windStdDeviation, double launchAltitude, double timeStep) {
+        // These are concatenated straight into JSON, and JsonLite.number()
+        // accepts only [+-0123456789.eE] — so a NaN emitted "windAverage":NaN
+        // and blew up as IllegalArgumentException("JSON: expected number at 45"),
+        // which simulateJson's SimulationException catch did not cover.
+        double[] opts = { launchRodLength, launchRodAngle, windAverage, windStdDeviation, launchAltitude, timeStep };
+        for (double v : opts) {
+            if (!isFinite(v)) {
+                return errorJson(new IllegalArgumentException("simulate: every option must be a finite number"));
+            }
+        }
         return simulateJson(rocketHandle, "{"
                 + "\"rodLength\":" + launchRodLength + ",\"rodAngle\":" + launchRodAngle
                 + ",\"windAverage\":" + windAverage + ",\"windStdDeviation\":" + windStdDeviation
@@ -877,7 +1203,13 @@ public final class OpenRocketEngine {
             FlightData data = engine.getFlightData();
             return flightDataToJson(data, fullSeries);
         } catch (SimulationException e) {
-            return "{\"error\":\"" + escape(String.valueOf(e.getMessage())) + "\"}";
+            return errorJson(e);
+        } catch (RuntimeException e) {
+            // Not just SimulationException: JsonLite throws IllegalArgumentException
+            // on a malformed options blob, and the handle table throws on a stale
+            // or wrong-typed handle. Those escaped to JS as an opaque TeaVM throw
+            // carrying a byte offset into a string the caller never saw.
+            return errorJson(e);
         }
     }
 

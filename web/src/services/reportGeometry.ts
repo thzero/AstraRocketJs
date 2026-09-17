@@ -1,5 +1,7 @@
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import { num, numOpt } from '../tree/nodeProps';
+import { isFinSet, tubeFinRadius } from '../tree/tubefins';
+import { freeformPoints, freeformRootChord } from '../tree/position';
 import { outerProfile } from '../tree/shapeProfile';
 import { finTabFront, axialStart } from '../components/canvas/schematicGeometry';
 
@@ -12,22 +14,40 @@ export type Pt = [number, number];
 const M_TO_MM = 1000;
 
 /** A fin's planform outline (mm), root along the bottom, tab folded in below. */
-export function finPlanformMm(node: ComponentNode): { pts: Pt[]; count: number } | null {
-  const ff = node.type === 'freeformfinset' ? ((node['points'] as [number, number][] | undefined) ?? []) : [];
-  const root = node.type === 'freeformfinset' && ff.length ? Math.max(...ff.map((p) => p[0])) : num(node, 'rootChord', 0.05);
-  const height = node.type === 'freeformfinset' && ff.length ? Math.max(...ff.map((p) => p[1])) : num(node, 'height', 0.03);
+// Not `| null`: there is no input this returns null for — every branch below
+// produces an outline, falling back to the trapezoid defaults. The nullable
+// return invited dead defensive code at the call site, which is exactly what it
+// got. Tube fins, the one fin type with no planform, are filtered out before
+// this is reached (isPlanarFinSet).
+export function finPlanformMm(node: ComponentNode): { pts: Pt[]; count: number } {
+  const ff = freeformPoints(node);
+  const root = node.type === 'freeformfinset' && ff.length ? freeformRootChord(ff) : num(node, 'rootChord', 0.05);
+  const height =
+    node.type === 'freeformfinset' && ff.length ? Math.max(...ff.map((p) => p[1])) : num(node, 'height', 0.03);
   let top: Pt[];
   if (node.type === 'freeformfinset') {
-    const raw = ff.length ? ff : ([[0, 0], [0.02, 0.03], [0.05, 0]] as [number, number][]);
+    const raw = ff.length
+      ? ff
+      : ([
+          [0, 0],
+          [0.02, 0.03],
+          [0.05, 0],
+        ] as [number, number][]);
     top = raw.map(([x, y]) => [x * M_TO_MM, height * M_TO_MM - y * M_TO_MM]);
   } else if (node.type === 'ellipticalfinset') {
     top = [];
     const N = 40;
-    for (let i = 0; i <= N; i++) top.push([root * (i / N) * M_TO_MM, height * M_TO_MM - height * Math.sin(Math.PI * (i / N)) * M_TO_MM]);
+    for (let i = 0; i <= N; i++)
+      top.push([root * (i / N) * M_TO_MM, height * M_TO_MM - height * Math.sin(Math.PI * (i / N)) * M_TO_MM]);
   } else {
     const tip = num(node, 'tipChord', 0.03);
     const sweep = num(node, 'sweep', 0.02);
-    top = [[0, height * M_TO_MM], [sweep * M_TO_MM, 0], [(sweep + tip) * M_TO_MM, 0], [root * M_TO_MM, height * M_TO_MM]];
+    top = [
+      [0, height * M_TO_MM],
+      [sweep * M_TO_MM, 0],
+      [(sweep + tip) * M_TO_MM, 0],
+      [root * M_TO_MM, height * M_TO_MM],
+    ];
   }
   const tabH = num(node, 'tabHeight', 0);
   const tabLen = num(node, 'tabLength', 0);
@@ -36,13 +56,23 @@ export function finPlanformMm(node: ComponentNode): { pts: Pt[]; count: number }
     const x0 = Math.max(0, Math.min(root, finTabFront(node, root)));
     const x1 = Math.max(0, Math.min(root, x0 + tabLen));
     const baseY = height * M_TO_MM;
-    pts.push([x1 * M_TO_MM, baseY], [x1 * M_TO_MM, baseY + tabH * M_TO_MM], [x0 * M_TO_MM, baseY + tabH * M_TO_MM], [x0 * M_TO_MM, baseY]);
+    pts.push(
+      [x1 * M_TO_MM, baseY],
+      [x1 * M_TO_MM, baseY + tabH * M_TO_MM],
+      [x0 * M_TO_MM, baseY + tabH * M_TO_MM],
+      [x0 * M_TO_MM, baseY],
+    );
   }
   return { pts, count: Math.max(1, Math.round(num(node, 'finCount', 3))) };
 }
 
 /** A revolved part's side outline (mm), centred on its own centreline. */
-export function profileMm(node: ComponentNode, foreR: number, aftR: number, shapeDefault: string): { w: number; h: number; pts: Pt[] } | null {
+export function profileMm(
+  node: ComponentNode,
+  foreR: number,
+  aftR: number,
+  shapeDefault: string,
+): { w: number; h: number; pts: Pt[] } | null {
   const len = num(node, 'length', 0);
   if (len <= 0) return null;
   const shape = typeof node['shape'] === 'string' ? (node['shape'] as string) : shapeDefault;
@@ -66,17 +96,64 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
   const chain = tree.components.flatMap((n) => (n.type === 'stage' ? (n.children ?? []) : [n]));
   const topEdge: Pt[] = []; // forward → aft, y = +radius (mm)
   const fins: Pt[][] = [];
-  let maxR = 0.001, maxUp = 0.001, x = 0;
+  let maxR = 0.001,
+    maxUp = 0.001,
+    x = 0;
 
-  const addFins = (node: ComponentNode, pStart: number, pLen: number, R: number) => {
-    const ff = node.type === 'freeformfinset' ? ((node['points'] as [number, number][] | undefined) ?? []) : [];
-    const root = node.type === 'freeformfinset' && ff.length ? Math.max(...ff.map((p) => p[0])) : num(node, 'rootChord', 0.05);
-    const height = node.type === 'freeformfinset' && ff.length ? Math.max(...ff.map((p) => p[1])) : num(node, 'height', 0.03);
+  /**
+   * The parent's outer radius at a station `lx` along it (metres, local).
+   *
+   * A fin sits at the radius under ITS OWN FRONT, not at the parent's aft end:
+   * `FinSet.getBodyRadius()` is `getFinFront().getY()`, i.e.
+   * `symmetricParent.getRadius(xFinFront)` (FinSet.java:959-972). Passing the
+   * aft radius drew a fin on a 12→8 mm boat tail with its root at +8 mm while
+   * the silhouette there is +12 mm — the fin root 4 mm INSIDE the airframe.
+   */
+  const radiusSampler =
+    (node: ComponentNode, foreR: number, aftR: number, len: number, shapeDefault: string) => (lx: number) => {
+      if (!(len > 0)) return aftR;
+      const shape = typeof node['shape'] === 'string' ? (node['shape'] as string) : shapeDefault;
+      const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
+      const at = Math.max(0, Math.min(len, lx));
+      // `extraX` gives the profile an exact sample at the station we asked for,
+      // so this reads the true curve rather than a chord between two samples.
+      const pts = outerProfile(shape, numOpt(node, 'shapeParameter'), len, foreR, aftR, 1, [at], clipped);
+      return pts.find(([px]) => Math.abs(px - at) < 1e-9)?.[1] ?? aftR;
+    };
+
+  const addFins = (node: ComponentNode, pStart: number, pLen: number, radiusAt: (lx: number) => number) => {
+    const ff = freeformPoints(node);
+    const root = node.type === 'freeformfinset' && ff.length ? freeformRootChord(ff) : num(node, 'rootChord', 0.05);
+    const height =
+      node.type === 'freeformfinset' && ff.length ? Math.max(...ff.map((p) => p[1])) : num(node, 'height', 0.03);
     const start = axialStart(node, root, pStart, pLen);
+    const R = radiusAt(start - pStart);
     let plan: Pt[];
-    if (node.type === 'trapezoidfinset') {
-      const tip = num(node, 'tipChord', 0.03), sweep = num(node, 'sweep', 0.02);
-      plan = [[start, R], [start + sweep, R + height], [start + sweep + tip, R + height], [start + root, R]];
+    let topR = R + height;
+    if (node.type === 'tubefinset') {
+      // A tube fin IS a tube: in side view a rectangle 2·rt tall standing on the
+      // body surface and running the tube's own length — never the trapezoid
+      // branches below, whose rootChord/height defaults would invent a fin.
+      // Same silhouette the 2D schematic draws (schematicShapes.tsx).
+      const rt = tubeFinRadius(node, R);
+      const len = num(node, 'length', 0.08);
+      const s = axialStart(node, len, pStart, pLen);
+      topR = R + 2 * rt;
+      plan = [
+        [s, R],
+        [s, topR],
+        [s + len, topR],
+        [s + len, R],
+      ];
+    } else if (node.type === 'trapezoidfinset') {
+      const tip = num(node, 'tipChord', 0.03),
+        sweep = num(node, 'sweep', 0.02);
+      plan = [
+        [start, R],
+        [start + sweep, R + height],
+        [start + sweep + tip, R + height],
+        [start + root, R],
+      ];
     } else if (node.type === 'freeformfinset' && ff.length) {
       plan = ff.map(([px, py]) => [start + px, R + py] as Pt);
     } else if (node.type === 'ellipticalfinset') {
@@ -89,17 +166,31 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
         plan.push([start + root * t, R + height * Math.sin(Math.PI * t)]);
       }
     } else {
-      plan = [[start, R], [start + root * 0.15, R + height], [start + root * 0.7, R + height], [start + root, R]];
+      plan = [
+        [start, R],
+        [start + root * 0.15, R + height],
+        [start + root * 0.7, R + height],
+        [start + root, R],
+      ];
     }
     fins.push(plan.map(([px, py]) => [px * M_TO_MM, py * M_TO_MM]));
     fins.push(plan.map(([px, py]) => [px * M_TO_MM, -py * M_TO_MM])); // mirror below
-    maxUp = Math.max(maxUp, R + height);
+    maxUp = Math.max(maxUp, topR);
   };
 
   const revolveTop = (node: ComponentNode, foreR: number, aftR: number, shapeDefault: string, len: number) => {
     const shape = typeof node['shape'] === 'string' ? (node['shape'] as string) : shapeDefault;
     const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
-    for (const [px, r] of outerProfile(shape, numOpt(node, 'shapeParameter'), len, foreR, aftR, 60, undefined, clipped)) {
+    for (const [px, r] of outerProfile(
+      shape,
+      numOpt(node, 'shapeParameter'),
+      len,
+      foreR,
+      aftR,
+      60,
+      undefined,
+      clipped,
+    )) {
       topEdge.push([(x + px) * M_TO_MM, r * M_TO_MM]);
       maxR = Math.max(maxR, r);
     }
@@ -110,16 +201,24 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
     if (n.type === 'nosecone') {
       const R = num(n, 'aftRadius', 0.012);
       revolveTop(n, 0, R, 'ogive', len);
-      for (const c of n.children ?? []) if (String(c.type).endsWith('finset')) addFins(c, x, len, R);
+      const noseR = radiusSampler(n, 0, R, len, 'ogive');
+      for (const c of n.children ?? []) if (isFinSet(String(c.type))) addFins(c, x, len, noseR);
       x += len;
     } else if (n.type === 'bodytube') {
       const R = num(n, 'outerRadius', 0.012);
       topEdge.push([x * M_TO_MM, R * M_TO_MM], [(x + len) * M_TO_MM, R * M_TO_MM]);
       maxR = Math.max(maxR, R);
-      for (const c of n.children ?? []) if (String(c.type).endsWith('finset')) addFins(c, x, len, R);
+      for (const c of n.children ?? []) if (isFinSet(String(c.type))) addFins(c, x, len, () => R);
       x += len;
     } else if (n.type === 'transition') {
-      revolveTop(n, num(n, 'foreRadius', 0.012), num(n, 'aftRadius', 0.009), 'conical', len);
+      const aftR = num(n, 'aftRadius', 0.009);
+      revolveTop(n, num(n, 'foreRadius', 0.012), aftR, 'conical', len);
+      // Transitions host fin sets too — treeEdit.ts:137 allows trapezoid,
+      // elliptical and freeform on one — and this branch was the only one that
+      // never looked. A boat-tail-mounted fin set was silently absent from the
+      // PDF's whole-rocket side view: a finless rocket, with no warning.
+      const transR = radiusSampler(n, num(n, 'foreRadius', 0.012), aftR, len, 'conical');
+      for (const c of n.children ?? []) if (isFinSet(String(c.type))) addFins(c, x, len, transR);
       x += len;
     }
   }

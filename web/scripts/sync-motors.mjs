@@ -170,7 +170,9 @@ async function main() {
   const noCurve = catalog.filter((m) => m.noCurve);
   await writeFile(OUT, JSON.stringify(catalog, null, 0) + '\n');
   writeDataManifest(DATA_DIR); // refresh the cache-bust hashes
-  console.log(`\nWrote ${catalog.length} motors (${withCurves} with bundled curves) → public/data/motors.generated.json`);
+  console.log(
+    `\nWrote ${catalog.length} motors (${withCurves} with bundled curves) → public/data/motors.generated.json`,
+  );
   if (noCurve.length) {
     console.log(`  ${noCurve.length} have NO bundled thrust curve (flagged noCurve):`);
     console.log(`    ${noCurve.map((m) => `${m.manufacturer} ${m.designation}`).join(', ')}`);

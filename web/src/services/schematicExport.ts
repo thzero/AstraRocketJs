@@ -1,7 +1,6 @@
 import type { StaticInfo } from '../engine/openRocketEngine';
 import { fmtSi, type UnitSelection } from '../prefs/units.js';
 import { escapeXml } from './xmlUtil.js';
-import { saveBlob } from './saveFile';
 
 /**
  * 2D/3D image + model export with a data header (issue 2026-08-11a).
@@ -53,7 +52,7 @@ export function dataHeaderLines(d: ExportData): string[] {
  *  (--accent = the selection outline when a component is selected;
  *  --status-* = the CP/stability-margin callout inks, S2;
  *  --launch = the loaded-motor case tint, S5). */
-export const EXPORT_VARS: [string, string][] = [
+const EXPORT_VARS: [string, string][] = [
   ['var(--surface-1)', '#ffffff'],
   ['var(--text-primary)', '#20242c'],
   ['var(--accent)', '#b8511d'],
@@ -192,8 +191,5 @@ export function snapshotWithHeader(
   return encodeCanvas(canvas, format);
 }
 
-/** Shared download-anchor dance for the export buttons. */
-export function downloadBlob(blob: Blob | string, filename: string): void {
-  const b = typeof blob === 'string' ? new Blob([blob], { type: 'image/svg+xml' }) : blob;
-  void saveBlob(b, filename);
-}
+/** The MIME type a schematic SVG string is served under. */
+export const SVG_MIME = 'image/svg+xml';

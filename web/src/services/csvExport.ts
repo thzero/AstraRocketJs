@@ -1,5 +1,4 @@
-import type { FlightResult, DragSweep, FlightSeries } from '../engine/openRocketEngine';
-import { saveText } from './saveFile';
+import type { FlightResult, AeroSweep, FlightSeries } from '../engine/openRocketEngine';
 import { siToUiDelta, type Quantity, type UnitSelection } from '../prefs/units';
 
 /**
@@ -82,7 +81,7 @@ export function flightDataCsv(r: FlightResult, units: UnitSelection): string {
 }
 
 /** Cd / CP / CNα vs Mach, with the friction/pressure/base split and per-component Cd. */
-export function dragTableCsv(d: DragSweep, units: UnitSelection): string {
+export function aeroTableCsv(d: AeroSweep, units: UnitSelection): string {
   const len = col(units, 'length');
   // Strip the delimiters/newlines/quotes an imported component name could carry
   // so it can't split or corrupt the comma-joined row. (No formula-injection
@@ -91,7 +90,16 @@ export function dragTableCsv(d: DragSweep, units: UnitSelection): string {
   const header = ['Mach', 'Cd', 'Cd_friction', 'Cd_pressure', 'Cd_base'];
   if (d.hasNozzle) header.push('Cd_powerOn');
   header.push(`CP (${len.sym})`, 'CNalpha (/rad)');
-  for (const c of d.components) header.push(compHeader(c.name));
+  // Components are identified by a stable key, not by name, so two unnamed body
+  // tubes now arrive as two distinct columns rather than one merged one. Number
+  // the repeats so the header still says which column is which.
+  const seen = new Map<string, number>();
+  for (const c of d.components) {
+    const base = compHeader(c.name);
+    const n = (seen.get(base) ?? 0) + 1;
+    seen.set(base, n);
+    header.push(n > 1 ? `${base} (${n})` : base);
+  }
 
   const lines = [row(header)];
   for (let i = 0; i < d.machs.length; i++) {
@@ -111,12 +119,5 @@ export function dragTableCsv(d: DragSweep, units: UnitSelection): string {
   return lines.join(EOL) + EOL;
 }
 
-/** Trigger a browser download of arbitrary text under the given MIME type. */
-export function downloadText(filename: string, text: string, mime = 'text/plain;charset=utf-8'): void {
-  void saveText(text, filename, mime);
-}
-
-/** Trigger a browser download of CSV text. */
-export function downloadCsv(filename: string, text: string): void {
-  downloadText(filename, text, 'text/csv;charset=utf-8');
-}
+/** The MIME type the CSV exports are served under. */
+export const CSV_MIME = 'text/csv;charset=utf-8';

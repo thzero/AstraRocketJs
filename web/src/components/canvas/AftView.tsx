@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { num } from '../../tree/nodeProps';
+import { freeformPoints } from '../../tree/position.js';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
@@ -110,10 +111,10 @@ export function AftView({
 
   const finSpan = (n: ComponentNode): number => {
     if (n.type === 'freeformfinset') {
-      const pts = n['points'];
-      if (Array.isArray(pts) && pts.length > 0) {
-        return Math.max(0, ...pts.map((p) => (Array.isArray(p) ? Number(p[1]) || 0 : 0)));
-      }
+      // Normalized: the kernel translates the outline by -p0 in BOTH axes, so
+      // the span above the body is measured from the first point, not from 0.
+      const pts = freeformPoints(n);
+      if (pts.length > 0) return Math.max(0, ...pts.map((p) => Number(p[1]) || 0));
     }
     return num(n, 'height', 0.03);
   };
@@ -433,7 +434,11 @@ export function AftView({
         <button title={t('schematic.zoomOut')} aria-label={t('schematic.zoomOut')} onClick={() => zoomBy(1 / 1.5)}>
           −
         </button>
-        <button title={t('schematic.fit')} aria-label={t('schematic.fit')} onClick={() => setZoom({ k: 1, x: 0, y: 0 })}>
+        <button
+          title={t('schematic.fit')}
+          aria-label={t('schematic.fit')}
+          onClick={() => setZoom({ k: 1, x: 0, y: 0 })}
+        >
           ⤢
         </button>
       </div>

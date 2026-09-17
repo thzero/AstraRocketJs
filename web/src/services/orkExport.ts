@@ -87,8 +87,13 @@ export function exportOrk({
 
   const position = (depth: number, node: ComponentNode, dflt: ComponentPosition['method'] = 'top') => {
     const pos = (node.position ?? { method: dflt, offset: 0 }) as ComponentPosition;
-    emit(depth, `<axialoffset method="${pos.method}">${pos.offset}</axialoffset>`);
-    emit(depth, `<position type="${pos.method}">${pos.offset}</position>`);
+    // An imported `absolute` position was rewritten to the parent frame on load
+    // (see ComponentPosition.ork). Write the original back so a round-trip is
+    // byte-stable -- but only while the user has not moved the part, in which
+    // case the current parent-relative position is the truthful one.
+    const src = pos.ork && pos.method === 'top' && pos.ork.resolved === pos.offset ? pos.ork : pos;
+    emit(depth, `<axialoffset method="${src.method}">${src.offset}</axialoffset>`);
+    emit(depth, `<position type="${src.method}">${src.offset}</position>`);
   };
 
   const header = (depth: number, node: ComponentNode, fallback: string) => {

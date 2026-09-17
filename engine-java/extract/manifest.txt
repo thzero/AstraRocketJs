@@ -242,7 +242,6 @@ info/openrocket/core/util/PinkNoise.java
 info/openrocket/core/util/PolyInterpolator.java
 info/openrocket/core/util/PrintProperties.java
 info/openrocket/core/util/Quaternion.java
-info/openrocket/core/util/QuaternionMultiply.java
 info/openrocket/core/util/Reflection.java
 info/openrocket/core/util/RocketComponentUtils.java
 info/openrocket/core/util/Rotation2D.java
@@ -257,3 +256,27 @@ info/openrocket/core/util/UncloseableInputStream.java
 info/openrocket/core/util/UnitValue.java
 info/openrocket/core/util/Utils.java
 info/openrocket/core/util/WorldCoordinate.java
+
+# Added 2026-09-16: extracted and compiled all along, but absent from this
+# manifest, so the extractor could neither refresh them from upstream nor
+# notice them drifting. Two of them (BarrowmanDragCalculator,
+# BarrowmanStabilityCalculator) carry local overrides; the rest are verbatim.
+info/openrocket/core/aerodynamics/BarrowmanDragCalculator.java
+info/openrocket/core/aerodynamics/BarrowmanStabilityCalculator.java
+info/openrocket/core/aerodynamics/DragCalculator.java
+info/openrocket/core/aerodynamics/StabilityCalculator.java
+info/openrocket/core/aerodynamics/StabilityForceBreakdown.java
+info/openrocket/core/models/gravity/ConstantGravityModel.java
+info/openrocket/core/models/gravity/GravityModelType.java
+info/openrocket/core/simulation/AbstractRKSimulationStepper.java
+info/openrocket/core/simulation/RK6SimulationStepper.java
+info/openrocket/core/simulation/SimulationStepperMethod.java
+info/openrocket/core/simulation/TumbleDetector.java
+info/openrocket/core/util/CoordinateIF.java
+info/openrocket/core/util/MutableCoordinate.java
+
+# Added 2026-09-16 with the FinSetCalc upgrade: upstream e6d54d8c9 replaced its
+# own scalar fin-body interference approximation (whose TODO asked for exactly
+# this) with the complete NACA Report 1307 model. Verbatim — it imports only
+# MathUtil, which is already extracted.
+info/openrocket/core/aerodynamics/barrowman/NACA1307FinBodyInterference.java

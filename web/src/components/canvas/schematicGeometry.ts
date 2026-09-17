@@ -1,6 +1,6 @@
 import type { ComponentNode, ComponentPosition, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
 import { num, numOpt } from '../../tree/nodeProps';
-import { axialLength, startFromPosition } from '../../tree/position.js';
+import { axialLength, freeformPoints, startFromPosition } from '../../tree/position.js';
 import { outerProfile } from '../../tree/shapeProfile.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { assemblyBoundingRadius, isAssembly, resolveAssemblyRadius } from '../../tree/assembly.js';
@@ -212,20 +212,47 @@ export function computeSchematicLayout(
   // A fin set's vertical span: freeform fins carry no 'height' key — their
   // reach is the outline's y-max (the 0.03 default clipped tall freeform fins
   // out of the adaptive-height frame).
-  const finSpan = (n: ComponentNode): number => {
+  const finSpan = (n: ComponentNode, bodyR: number): number => {
     if (!n.type.endsWith('finset')) return 0;
     if (n.type === 'freeformfinset') {
-      const pts = n['points'];
-      if (Array.isArray(pts) && pts.length > 0) {
-        return Math.max(0, ...pts.map((p) => (Array.isArray(p) ? Number(p[1]) || 0 : 0)));
-      }
+      // Normalized: the kernel translates the outline by -p0 in BOTH axes, so
+      // the span above the body is measured from the first point, not from 0.
+      const pts = freeformPoints(n);
+      if (pts.length > 0) return Math.max(0, ...pts.map((p) => Number(p[1]) || 0));
     }
     // Tube fins reach one tube diameter above the body surface.
-    if (n.type === 'tubefinset') return 2 * tubeFinRadius(n, maxR);
+    if (n.type === 'tubefinset') return 2 * tubeFinRadius(n, bodyR);
     return num(n, 'height', 0.03);
   };
+  /**
+   * Fin spans under `nodes`, each measured against the radius of the body it is
+   * actually ATTACHED to, narrowing as the walk descends.
+   *
+   * Only tube fins care, and they care a lot: carrying no explicit outerRadius
+   * they auto-size to the body they ring (tubefins.ts `tubeFinRadius`), so the
+   * radius handed in decides the answer. A plain `collect` over the tree
+   * measured every one of them against the WHOLE rocket's largest radius —
+   * tube fins on a 25 mm aft tube behind a 60 mm forward section claimed 2.4×
+   * the vertical reach they need, and the entire schematic shrank to leave room
+   * for space they never used.
+   */
+  const collectFinSpans = (nodes: ComponentNode[], bodyR: number): number[] => {
+    const out: number[] = [];
+    const walk = (ns: ComponentNode[], r: number) => {
+      for (const n of ns) {
+        out.push(finSpan(n, r));
+        if (n.children?.length) {
+          const own = Math.max(num(n, 'aftRadius', 0), num(n, 'outerRadius', 0), num(n, 'foreRadius', 0));
+          walk(n.children, own > 0 ? own : r);
+        }
+      }
+    };
+    walk(nodes, bodyR);
+    return out;
+  };
+
   const protuberanceSpan = (n: ComponentNode): number => (n.type === 'fairing' ? num(n, 'height', 0.02) : 0);
-  const finH = Math.max(0, ...collect(tree.components, finSpan), ...collect(tree.components, protuberanceSpan));
+  const finH = Math.max(0, ...collectFinSpans(tree.components, maxR), ...collect(tree.components, protuberanceSpan));
   totalLen = Math.max(totalLen, 0.05);
 
   // Vertical half-extent (m): the core body + fins, plus any off-axis pod's
@@ -234,7 +261,7 @@ export function computeSchematicLayout(
   const scanRadial = (nodes: ComponentNode[], parentR: number) => {
     for (const n of nodes) {
       if (isAssembly(n.type)) {
-        const podFin = Math.max(0, ...collect(n.children ?? [], finSpan));
+        const podFin = Math.max(0, ...collectFinSpans(n.children ?? [], assemblyBoundingRadius(n)));
         vHalf = Math.max(vHalf, resolveAssemblyRadius(n, parentR) + assemblyBoundingRadius(n) + podFin);
         scanRadial(n.children ?? [], assemblyBoundingRadius(n));
       } else {

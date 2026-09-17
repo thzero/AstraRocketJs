@@ -26,13 +26,7 @@ const MESH_TYPES = new Set([
 
 /** Flat parts that cut from sheet stock — exported as a 2D DXF outline. Bodies of
  *  revolution aren't here: they export as 3D solids (STL/OBJ/GLB) instead. */
-export const DXF_CUTTABLE = new Set([
-  'trapezoidfinset',
-  'ellipticalfinset',
-  'freeformfinset',
-  'centeringring',
-  'bulkhead',
-]);
+const DXF_CUTTABLE = new Set(['trapezoidfinset', 'ellipticalfinset', 'freeformfinset', 'centeringring', 'bulkhead']);
 
 /** The export formats a component type supports, in menu order (empty = none). */
 export function componentFormats(type: string): ExportFormat[] {

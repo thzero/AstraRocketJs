@@ -1,6 +1,26 @@
 {
-  "app": { "title": "AstraRocketJs", "version": "{{name}} version {{version}}", "designName": "{{name}} design" },
-  "common": { "loading": "Loading…", "confirmTitle": "Are you sure?", "confirm": "Confirm", "save": "Save", "cancel": "Cancel", "delete": "Delete", "discard": "Discard", "close": "Close" },
+  "app": {
+    "title": "AstraRocketJs",
+    "version": "{{name}} version {{version}}",
+    "designName": "{{name}} design"
+  },
+  "common": {
+    "loading": "Loading…",
+    "confirmTitle": "Are you sure?",
+    "confirm": "Confirm",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "discard": "Discard",
+    "close": "Close"
+  },
+  "errors": {
+    "openOrk": "Could not open .ork: {{reason}}",
+    "saveOrk": "Could not save .ork: {{reason}}",
+    "exportRasaero": "Could not export RASAero: {{reason}}",
+    "exportUnsupported": "This component can't be exported as {{format}}.",
+    "exportFailed": "Could not export {{format}}: {{reason}}"
+  },
   "report": {
     "title": "Rocket Design",
     "noDesign": "No valid design to export.",
@@ -75,7 +95,10 @@
     "landscape": "Landscape",
     "reset": "Reset"
   },
-  "engine": { "wasmTip": "Physics engine: WebAssembly (fast path)", "jsTip": "Physics engine: JavaScript (fallback)" },
+  "engine": {
+    "wasmTip": "Physics engine: WebAssembly (fast path)",
+    "jsTip": "Physics engine: JavaScript (fallback)"
+  },
   "about": {
     "open": "About",
     "tagline": "A lightweight web UI for the OpenRocket engine",
@@ -112,7 +135,8 @@
     "openLibrary": "Open…",
     "saveAs": "Save As…",
     "import": "Import",
-    "ork": "OpenRocket",
+    "importOrk": "Import OpenRocket (.ork)",
+    "exportOrk": "Export OpenRocket (.ork)",
     "export": "Export",
     "report": "Rocket Design Report",
     "rasaero": "RASAero II",
@@ -123,7 +147,10 @@
     "new": "New",
     "newConfirm": "Discard the current design and all simulations and start a fresh design?"
   },
-  "edit": { "undo": "Undo", "redo": "Redo" },
+  "edit": {
+    "undo": "Undo",
+    "redo": "Redo"
+  },
   "scale": {
     "title": "Scale rocket",
     "intro": "Multiply every length, diameter, wall, fin planform and axial position by one factor. Applied as a single step — Ctrl+Z undoes it.",
@@ -135,7 +162,10 @@
     "noAirframe": "This design has no body tube, nose cone or transition to measure, so there's nothing to scale from. Add an airframe first.",
     "apply": "Scale to {{pct}}%"
   },
-  "menu": { "open": "Menu", "help": "Help" },
+  "menu": {
+    "open": "Menu",
+    "help": "Help"
+  },
   "wip": {
     "title": "Work in progress",
     "body": "{{name}} is an early, pre-1.0 release under active development. Features may be incomplete, change, or break. Thanks for trying it!",
@@ -168,6 +198,11 @@
   "settings": {
     "title": "Settings",
     "parts": "Part colors (3D model)",
+    "aeroHeat": "Aero table shading",
+    "aeroHeatLabel": "Cell colours",
+    "aeroHeatSky": "By magnitude",
+    "aeroHeatOr": "By heat",
+    "aeroHeatNote": "By magnitude is one colour that strengthens with the value, scaled against the largest in the table. By heat is a green-to-red on its own fixed scale, with dark text on light cells.",
     "phases": "Flight-path phase colors",
     "playback": "Flight-path playback",
     "tabGeneral": "General",
@@ -235,7 +270,12 @@
     "type_modified_kit": "Modified kit",
     "type_kit_bash": "Kit bash"
   },
-  "tabs": { "rocket": "Rocket", "sketch": "Sketch", "motor": "Motor", "simulate": "Simulate", "results": "Results" },
+  "tabs": {
+    "rocket": "Rocket",
+    "sketch": "Sketch",
+    "simulate": "Simulate",
+    "results": "Results"
+  },
   "view": {
     "2d": "2D",
     "3d": "3D",
@@ -268,7 +308,6 @@
     "ruler_right_abbr": "R"
   },
   "stability": {
-    "title": "Stability",
     "onPad": "Stability (on pad)",
     "mass": "Mass",
     "cg": "CG",
@@ -276,8 +315,7 @@
     "caliber": "cal",
     "stable": "Stable",
     "marginal": "Marginal",
-    "unstable": "Unstable",
-    "overstable": "Overstable"
+    "unstable": "Unstable"
   },
   "stats": {
     "title": "Rocket static stats",
@@ -344,7 +382,10 @@
     "geodetic": "Geodetic",
     "flat": "Flat",
     "spherical": "Spherical",
-    "wgs84": "WGS84"
+    "wgs84": "WGS84",
+    "rodLengthName": "Launch rod length",
+    "rodDirectionName": "Launch rod direction",
+    "windDirectionName": "Wind direction"
   },
   "flight": {
     "title": "Flight profile",
@@ -380,7 +421,8 @@
     "zoomOut": "Zoom out",
     "zoomReset": "Reset zoom",
     "stages": "Stages",
-    "stage": "Stage"
+    "stage": "Stage",
+    "crosshairHint": "Flight charts. Focus and use the arrow keys to move the crosshair; Shift for a larger step, Home and End for the ends, Escape to clear."
   },
   "pathExport": {
     "open": "Export flight path (KML / GPX / CSV)",
@@ -424,10 +466,25 @@
     "altitudeReferenceNote": "Automatic uses sea level when the launch site has a real altitude set, and the ground when it is still 0. Clamped lays the track flat on the terrain — the one to pick when the question is what the rocket drifts over.",
     "drawShadow": "Draw shadow down to the ground",
     "shadowNote": "Adds a curtain under the track and a plumb line under each pin, so you can read where a point in the air sits on the map. Nothing to draw once it is clamped.",
-    "preset": { "driftCast": "Drift cast", "driftCastNote": "Everything flat on the terrain, ground track only — for reading the hazards under the drift.", "flightPath": "Flight path", "flightPathNote": "The flight suspended in the air where it belongs, with shadows to the ground.", "landing": "Landing plots", "landingNote": "The landing point alone, on the ground." },
-    "altRef": { "automatic": "Automatic", "ground": "The ground", "sealevel": "Sea level" , "clamped": "Clamped to the ground" },
+    "preset": {
+      "driftCast": "Drift cast",
+      "driftCastNote": "Everything flat on the terrain, ground track only — for reading the hazards under the drift.",
+      "flightPath": "Flight path",
+      "flightPathNote": "The flight suspended in the air where it belongs, with shadows to the ground.",
+      "landing": "Landing plots",
+      "landingNote": "The landing point alone, on the ground."
+    },
+    "altRef": {
+      "automatic": "Automatic",
+      "ground": "The ground",
+      "sealevel": "Sea level",
+      "clamped": "Clamped to the ground"
+    },
     "stageTrackStart": "Each stage's track starts",
-    "trackStart": { "separation": "At separation", "pad": "On the pad" },
+    "trackStart": {
+      "separation": "At separation",
+      "pad": "On the pad"
+    },
     "showWaypointLabels": "Draw waypoint names on the map",
     "colorWaypointPins": "Colour waypoint pins per stage",
     "pinsNote": "Coloured pins load an icon from Google's servers; turn them off for a file that must render offline.",
@@ -438,24 +495,55 @@
     "download": "Download",
     "cancel": "Cancel"
   },
-  "drag": {
-    "title": "Drag analysis",
-    "exportCsv": "Download drag table (.csv)",
+  "aero": {
+    "unattributed": "Not attributed to a component",
+    "unattributedNote": "Base drag and terms the kernel books against the rocket rather than a single part. The Drag breakdown chart above splits the whole rocket by type.",
+    "perInstance": "Per instance",
+    "stabilityContribution": "Stability contribution",
+    "eachMass": "Each ({{unit}})",
+    "totalMass": "Total ({{unit}})",
+    "cg": "CG ({{unit}})",
+    "rollNote": "Damping opposes an existing roll rate, so it reads zero here: the sweep is flown at zero roll. Forcing is what a fin cant contributes.",
+    "rollDynamics": "Roll dynamics",
+    "rollForcing": "Roll forcing",
+    "rollDamping": "Roll damping",
+    "charts": "Charts",
+    "machPicker": "Mach number for the tables",
+    "dragByComponent": "Drag by component",
+    "nonFinite_one": "This breakdown is incomplete: {{count}} reading could not be computed.",
+    "nonFinite_other": "This breakdown is incomplete: {{count}} readings could not be computed.",
+    "aoa": "AoA",
+    "windDirection": "Wind dir",
+    "rollRate": "Roll rate",
+    "worst": "Worst",
+    "worstNote": "Set the wind direction to the angle where this rocket is least stable",
+    "share": "Share of total",
+    "absolute": "Cd scale",
+    "columnShare": "Share of the largest in each column",
+    "perComponent": "Per component",
+    "atMach": "at Mach {{mach}}",
+    "hoverHint": "Hover a chart to change the Mach",
+    "component": "Component",
+    "wholeRocket": "Whole rocket",
+    "splitUnavailable": "Pressure / base / friction per component needs a newer physics kernel; the whole-rocket split is in the Drag breakdown chart above.",
+    "title": "Aerodynamic analysis",
+    "exportCsv": "Download aero table (.csv)",
     "maxMach": "Max Mach",
     "cdVsMach": "Cd vs Mach",
     "breakdown": "Drag breakdown",
     "cpVsMach": "CP vs Mach",
     "powerOff": "Power-off",
     "powerOn": "Power-on",
+    "powerOnMotor": "Power-on: {{motor}}",
+    "powerOnMotorNote": "The power-on curve is computed for the motor the active simulation has loaded, using the stage’s nozzle exit diameter. Every other figure here is geometry and does not depend on the motor.",
     "friction": "Friction",
     "pressure": "Pressure",
     "base": "Base",
-    "byType": "By type",
-    "byComponent": "By component",
     "other": "Other",
     "pctBody": "% body",
     "supersonicNote": "Extended Barrowman — approximate above ~Mach 1.5.",
-    "unavailable": "Build a valid rocket to see its drag."
+    "unavailable": "Build a valid rocket to see its drag.",
+    "crosshairHint": "Drag curves. Focus and use the arrow keys to move the crosshair; Shift for a larger step, Home and End for the ends, Escape to clear."
   },
   "banner": {
     "loaded": "Loaded design (.ork)",
@@ -571,7 +659,9 @@
     "tabLength": "Fin tab length",
     "tabHeight": "Fin tab height",
     "tabOffset": "Fin tab offset",
-    "tabOffsetMethod": "Fin tab reference"
+    "tabOffsetMethod": "Fin tab reference",
+    "cluster": "Cluster",
+    "tubeFinsCollide": "These tubes overlap each other. At this tube radius at most {{max}} fit; at this count the largest that fits is {{radius}} {{unit}}."
   },
   "deployEvent": {
     "ejection": "Motor ejection charge",
@@ -672,7 +762,9 @@
     "outline": "Fin outline",
     "removePoint": "Remove point",
     "point": "Point {{n}}",
-    "hint": "Drag the amber points to shape the fin; tap a blue midpoint to add one. X runs along the body, Y is height above it."
+    "hint": "Drag the amber points to shape the fin; tap a blue midpoint to add one. X runs along the body, Y is height above it.",
+    "vertex": "Outline point {{n}}",
+    "insertAfter": "Insert a point after {{n}}"
   },
   "material": {
     "title": "Material",
@@ -726,9 +818,7 @@
     "viewCurve": "Thrust curve",
     "delay": "Delay",
     "ignition": "Ignition",
-    "ignitionDelay": "Ignition delay (s)",
-    "run": "Run flight simulation",
-    "emptyHint": "Add a simulation to begin."
+    "ignitionDelay": "Ignition delay (s)"
   },
   "ignition": {
     "automatic": "Automatic",
@@ -779,7 +869,9 @@
     "chartBurn": "burn time",
     "calcNote": "* Initial thrust, Isp, and mass fraction are calculated from the thrust curve and weights."
   },
-  "lang": { "label": "Language" },
+  "lang": {
+    "label": "Language"
+  },
   "boot": {
     "downloading": "Downloading engine…",
     "downloadingOf": "Downloading engine… {{done}} / {{total}} MB",
@@ -789,11 +881,9 @@
   },
   "catalog": {
     "loadingMotors": "Loading motor catalog…",
-    "loadingComponents": "Loading component catalog…",
     "loadingOf": "{{done}} / {{total}} MB",
     "loadedSoFar": "{{done}} MB",
     "failedMotors": "Could not load the motor catalog.",
-    "failedComponents": "Could not load the component catalog.",
     "retry": "Retry"
   },
   "update": {
@@ -803,16 +893,22 @@
   },
   "storage": {
     "full": "Could not save your work — browser storage is full. Export your design to keep it.",
-    "degraded": "Your browser is blocking its database, so the app has fallen back to a much smaller storage area (about 5 MB) and saving may fail as your design grows. Private browsing is the usual cause. Export anything you want to keep."
+    "degraded": "Your browser is blocking its database, so the app has fallen back to a much smaller storage area (about 5 MB) and saving may fail as your design grows. Private browsing is the usual cause. Export anything you want to keep.",
+    "loadFailed": "Your saved design could not be read. Starting fresh — new work will still be saved."
   },
   "library": {
     "title": "My Rockets",
     "empty": "No saved rockets yet. Your design is saved automatically as you work.",
     "open": "open",
     "rename": "Rename",
+    "deleteConfirm": "Delete \"{{name}}\"? This cannot be undone.",
     "name": "Name",
     "untitled": "Untitled rocket",
     "duplicateName": "Another rocket already has this name.",
     "missing": "That rocket is no longer saved."
+  },
+  "cluster": {
+    "single": "Single",
+    "pattern": "{{name}} ({{n}} motors)"
   }
 }

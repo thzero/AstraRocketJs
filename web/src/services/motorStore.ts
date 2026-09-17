@@ -7,7 +7,6 @@
 //
 // Replace it on the client, independently of the material store:
 //   setMotorStore(new MyMotorStore())
-import type { CatalogMotor } from './motorDb';
 import type { KeyValueStore } from './keyValueStore';
 import { IndexedDbKeyValueStore } from './idbKeyValueStore';
 
@@ -44,10 +43,6 @@ export interface CustomMotor {
 }
 
 export interface MotorStore {
-  /** The mirrored catalog IF it still matches `signature`, else null. */
-  readCatalog(signature: string): Promise<CatalogMotor[] | null>;
-  /** Mirror the catalog with its signature (best-effort). */
-  writeCatalog(catalog: CatalogMotor[], signature: string): Promise<void>;
   /** A per-motor cache entry (metadata / curve / spec), validated by `valid`. */
   readEntry<T>(key: string, valid: (v: unknown) => boolean): Promise<CachedEntry<T> | null>;
   /** Write a per-motor cache entry, stamped now for freshness (best-effort). */
@@ -60,8 +55,6 @@ export interface MotorStore {
   removeCustomMotor(id: string): Promise<void>;
 }
 
-const CATALOG_KEY = 'astrarrocketjs:tc:catalog';
-const CATALOG_SIG_KEY = 'astrarrocketjs:tc:catalog:sig';
 const CUSTOM_MOTORS_KEY = 'astrarrocketjs:motors:custom';
 const DEFAULT_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
 
@@ -71,18 +64,39 @@ interface Envelope<T> {
   v: T;
 }
 
+/**
+ * A non-empty thrust curve whose every sample is a finite `{time, thrust}`.
+ *
+ * Shared with thrustcurve.ts, which had the only copy of this check: custom
+ * motors are the one store whose payload reaches `simulate()` without a second
+ * gate, and the element shape was never looked at. `samples: [{}]` out of a
+ * corrupted IndexedDB blob became `times: [undefined]` and NaN masses inside
+ * the kernel. `Number.isFinite`, not `typeof === 'number'`: NaN and Infinity
+ * are both numbers and neither survives the TeaVM boundary.
+ */
+export const isThrustSampleArray = (v: unknown): boolean =>
+  Array.isArray(v) &&
+  v.length > 0 &&
+  v.every((s) => {
+    const p = s as { time?: unknown; thrust?: unknown } | null;
+    return !!p && Number.isFinite(p.time) && Number.isFinite(p.thrust);
+  });
+
 function isCustomMotor(v: unknown): v is CustomMotor {
   const m = v as CustomMotor;
   return (
     !!m &&
     typeof m.id === 'string' &&
     typeof m.designation === 'string' &&
-    typeof m.diameter === 'number' &&
-    typeof m.length === 'number' &&
-    typeof m.totalWeightG === 'number' &&
-    typeof m.propWeightG === 'number' &&
-    Array.isArray(m.samples) &&
-    m.samples.length > 0
+    // Both were unchecked. motorDb.ts sorts on `class` with localeCompare, so a
+    // row missing it takes down the whole motor picker, not just its own entry.
+    typeof m.manufacturer === 'string' &&
+    typeof m.class === 'string' &&
+    Number.isFinite(m.diameter) &&
+    Number.isFinite(m.length) &&
+    Number.isFinite(m.totalWeightG) &&
+    Number.isFinite(m.propWeightG) &&
+    isThrustSampleArray(m.samples)
   );
 }
 
@@ -97,27 +111,6 @@ export class KeyValueMotorStore implements MotorStore {
     private readonly kv: KeyValueStore = new IndexedDbKeyValueStore(),
     private readonly ttlMs: number = DEFAULT_TTL_MS,
   ) {}
-
-  async readCatalog(signature: string): Promise<CatalogMotor[] | null> {
-    try {
-      if ((await this.kv.get(CATALOG_SIG_KEY)) !== signature) return null;
-      const raw = await this.kv.get(CATALOG_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as unknown;
-      return Array.isArray(parsed) && parsed.length > 0 ? (parsed as CatalogMotor[]) : null;
-    } catch {
-      return null; // storage unavailable / corrupt
-    }
-  }
-
-  async writeCatalog(catalog: CatalogMotor[], signature: string): Promise<void> {
-    try {
-      await this.kv.set(CATALOG_KEY, JSON.stringify(catalog));
-      await this.kv.set(CATALOG_SIG_KEY, signature);
-    } catch {
-      // best-effort mirror — the bundle is always the source of truth
-    }
-  }
 
   async readEntry<T>(key: string, valid: (v: unknown) => boolean): Promise<CachedEntry<T> | null> {
     try {
@@ -158,14 +151,22 @@ export class KeyValueMotorStore implements MotorStore {
   }
 
   // add/remove propagate write failures (an import must be known to have saved),
-  // unlike the best-effort cache writes above.
+  // unlike the best-effort cache writes above. `kv.set` REPORTS failure by
+  // returning false rather than throwing, so the boolean has to be checked —
+  // discarding it meant MotorDialog awaited the import, got a clean resolve, and
+  // re-rendered a catalog that simply did not contain the motor, with no error.
   async addCustomMotor(motor: CustomMotor): Promise<void> {
     const rest = (await this.readCustom()).filter((m) => m.id !== motor.id);
-    await this.kv.set(CUSTOM_MOTORS_KEY, JSON.stringify([motor, ...rest]));
+    if (!(await this.kv.set(CUSTOM_MOTORS_KEY, JSON.stringify([motor, ...rest])))) {
+      throw new Error('storage-full');
+    }
   }
 
   async removeCustomMotor(id: string): Promise<void> {
-    await this.kv.set(CUSTOM_MOTORS_KEY, JSON.stringify((await this.readCustom()).filter((m) => m.id !== id)));
+    const rest = (await this.readCustom()).filter((m) => m.id !== id);
+    if (!(await this.kv.set(CUSTOM_MOTORS_KEY, JSON.stringify(rest)))) {
+      throw new Error('storage-full');
+    }
   }
 }
 

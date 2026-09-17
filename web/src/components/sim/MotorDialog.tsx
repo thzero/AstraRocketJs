@@ -257,16 +257,19 @@ export function MotorDialog({
     <div
       className="dialog-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       onClick={onClose}
-      role="dialog"
-      aria-modal="true"
     >
       <div
         ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="motor-dialog-title"
         className="dialog-panel flex h-[720px] max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-slate-900 ring-1 ring-white/10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-2 border-b border-white/10 p-3">
-          <h2 className="text-sm font-semibold text-slate-200">{t('motorDlg.title')}</h2>
+          <h2 id="motor-dialog-title" className="text-sm font-semibold text-slate-200">
+            {t('motorDlg.title')}
+          </h2>
           <button
             onClick={onClose}
             aria-label={t('banner.close')}

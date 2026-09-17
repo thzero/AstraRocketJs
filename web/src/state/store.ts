@@ -64,11 +64,33 @@ type HistoryEntry = {
 /** Cap the stack so a long session can't grow memory without bound. */
 const HISTORY_LIMIT = 100;
 
+/** Which condition raised `storageWarning` — only 'full' is save-clearable. */
+export type StorageWarningKind = 'full' | 'degraded' | 'loadFailed';
+
 export interface WorkspaceState {
   // --- design ---
   tree: RocketTree;
   info: StaticInfo | null;
+  /** Transient failure of the thing the user just did — a bad .ork, a sim that
+   *  threw. Cleared by the next successful rebuild. */
   err: string | null;
+  /**
+   * Browser storage is not keeping the user's work (quota hit, or IndexedDB
+   * blocked and we are back on the 5 MB localStorage cap).
+   *
+   * A SEPARATE slot from `err` on purpose. It used to share it, and the rebuild
+   * effect clears `err` on every successful build — which happens milliseconds
+   * after load and again on every keystroke — so the one warning telling the
+   * user their work is no longer being saved was wiped before it could be read.
+   * A successful save clears ONLY the transient "full" case. `degraded` and
+   * `loadFailed` are facts about this session that a later save does not undo:
+   * `idbKeyValueStore.markDegraded()` is one-way and never notifies twice, so
+   * clearing its message on the next successful write retired it permanently —
+   * one keystroke after it appeared — and the user met the 5 MB cap later with
+   * nothing on screen to explain it. Hence the `kind`.
+   */
+  storageWarning: string | null;
+  storageWarningKind: StorageWarningKind | null;
   selectedId: string | null;
   extraMotors: Record<string, MountMotor>;
   loadedMeta: LoadedMeta;
@@ -80,6 +102,16 @@ export interface WorkspaceState {
   sims: Simulation[];
   activeId: string;
   simBusy: boolean;
+  /**
+   * The sim whose last run THREW, and the design it threw on.
+   *
+   * CenterView's "auto-run outdated" re-fires whenever `simBusy` goes false
+   * while a result view is open and there is no result — which is exactly the
+   * state a failed run leaves behind, so a reproducible failure (a sim that
+   * times out) retried without limit. Recording the failure lets the retry wait
+   * until something actually changed.
+   */
+  lastRunFailed: { simId: string; tree: RocketTree } | null;
   // --- view / navigation ---
   tab: Tab;
   view: ViewMode;
@@ -89,6 +121,10 @@ export interface WorkspaceState {
 
   // --- actions ---
   setErr: (err: string | null) => void;
+  /** Raise (or clear, with null) the persistent storage warning. */
+  setStorageWarning: (msg: string | null, kind?: StorageWarningKind) => void;
+  /** A save succeeded: retire a "storage full" warning, leave the standing ones. */
+  clearSaveWarning: () => void;
   applyBuild: (info: StaticInfo | null, rocket: Rocket | null) => void; // from the rebuild effect
   invalidateResults: () => void; // from the tree-change effect
   hydrate: (w: {
@@ -99,7 +135,6 @@ export interface WorkspaceState {
     loadedMeta: LoadedMeta;
   }) => void;
 
-  setTree: (tree: RocketTree) => void;
   scaleDesign: (factor: number) => void;
   setSelectedId: (id: string | null) => void;
   patchSelected: (patch: Partial<ComponentNode>) => void;
@@ -162,6 +197,17 @@ export interface WorkspaceState {
 /** The active simulation (falls back to the first if the id no longer exists). */
 export const selectActive = (s: WorkspaceState): Simulation => s.sims.find((x) => x.id === s.activeId) ?? s.sims[0]!;
 
+/**
+ * True when the ACTIVE sim's last run threw on the design that is still loaded.
+ *
+ * Self-expiring by construction: it compares the recorded tree against the
+ * current one, so any edit makes it false again and a retry is allowed. That is
+ * the whole point — auto-run must not retry a configuration it already knows
+ * fails, but it must try again the moment the user changes something.
+ */
+export const selectRunFailed = (s: WorkspaceState): boolean =>
+  s.lastRunFailed !== null && s.lastRunFailed.tree === s.tree && s.lastRunFailed.simId === selectActive(s).id;
+
 /** A motor is usable only if it carries a full thrust curve (time/thrust/mass samples). */
 export const hasThrustCurve = (m: MotorSpec | undefined | null): boolean =>
   !!(m && m.times?.length && m.thrusts?.length && m.masses?.length);
@@ -211,6 +257,43 @@ function uniqueSimName(sims: Simulation[], label: (n: number) => string, start: 
   let n = start;
   while (taken.has(label(n))) n++;
   return label(n);
+}
+
+/**
+ * A `view` paired with a tab that can actually show it.
+ *
+ * On a phone the centre pane backs two tabs and each owns a family: Sketch the
+ * design views, Results the flight ones. Rocket and Simulate show no view at
+ * all, so a caller sitting on either is left where it is.
+ *
+ * Every write of `view` goes through this. Writing the two apart is how you end
+ * up on a Results tab with no result and an empty view switch, which is exactly
+ * what opening a new design from that tab used to do.
+ */
+/**
+ * One monotonic counter for "which workspace is open".
+ *
+ * It began as openDesign's own token, which defended that action against
+ * ANOTHER openDesign and nothing else. Every other way of replacing the
+ * workspace went unguarded: import a large .ork then a small one and the small
+ * one lands first, the large one overwriting it; open a library design and then
+ * import, and the import's `setActiveId(null)` lands before openDesign's
+ * continuation, which then flushes the imported rocket out under a null id
+ * (a stray entry) and hydrates the library design over the top of it.
+ *
+ * So every action that REPLACES the workspace bumps it, and every continuation
+ * past an await re-checks before it touches the store.
+ */
+let workspaceGen = 0;
+/** Claim the workspace; the returned predicate says whether someone else has. */
+const claimWorkspace = (): (() => boolean) => {
+  const mine = ++workspaceGen;
+  return () => mine !== workspaceGen;
+};
+
+function showing(tab: Tab, view: ViewMode): { view: ViewMode; tab: Tab } {
+  const owns = tab === 'sketch' || tab === 'results';
+  return { view, tab: owns ? (isResultView(view) ? 'results' : 'sketch') : tab };
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
@@ -294,6 +377,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     tree: specToTree(DEFAULT_SPEC).tree,
     info: null,
     err: null,
+    storageWarning: null,
+    storageWarningKind: null,
+    lastRunFailed: null,
     selectedId: null,
     extraMotors: {},
     loadedMeta: null,
@@ -312,6 +398,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     activeDesignId: null,
 
     setErr: (err) => set({ err }),
+    setStorageWarning: (storageWarning, kind) =>
+      set({ storageWarning, storageWarningKind: storageWarning ? (kind ?? null) : null }),
+    clearSaveWarning: () =>
+      set((s) => (s.storageWarningKind === 'full' ? { storageWarning: null, storageWarningKind: null } : {})),
     applyBuild: (info, rocket) => set({ info, rocket }),
     invalidateResults: () =>
       set((s) => (s.sims.some((x) => x.result) ? { sims: s.sims.map((x) => ({ ...x, result: null })) } : {})),
@@ -331,7 +421,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     // tree (drop gone mounts, seed a default for new ones) so the sim config
     // can never drift from the mounts. reconcileMounts returns the same object
     // when nothing mount-related changed, so ordinary edits stay cheap.
-    setTree: (tree) => set((s) => ({ tree, extraMotors: reconcileMounts(tree, s.extraMotors) })),
     scaleDesign: (factor) => {
       const { tree, extraMotors } = get();
       const next = scaleRocket(tree, factor);
@@ -480,9 +569,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         set({ err: i18n.t('sim.noMotor') });
         return;
       }
-      set({ simBusy: true });
+      set({ simBusy: true, lastRunFailed: null });
       const active = selectActive(s);
       const simId = active.id;
+      // What we are about to fly. The await below can outlast the design: if the
+      // user edits while the worker is busy, the answer that comes back
+      // describes a rocket that no longer exists, and installing it would show
+      // numbers for geometry that is no longer on screen.
+      const ranOn = s.tree;
       // The sim runs in a Web Worker (its own engine instance), off the main
       // thread, so a ~500 ms flight never freezes the UI. The worker rebuilds
       // the rocket from the current tree/motors — identical to the main-thread
@@ -495,6 +589,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           primaryIgnition: { event: active.ignitionEvent, delay: active.ignitionDelay },
           options: simConditions(active.launch, prefs),
         });
+        // Drop a result the design has moved past -- including the view/tab
+        // switch, which would otherwise yank a phone to a Results tab holding a
+        // flight for the previous rocket.
+        if (get().tree !== ranOn) return;
         // Show the run: the flight chart, and on a phone the Results tab it
         // lives on -- which is also the moment that tab comes into existence.
         set((st) => ({
@@ -507,25 +605,22 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // A timeout means the worker was killed mid-hang; show a friendly line
         // rather than the raw sentinel. The lock releases via `finally`.
         const msg = e instanceof SimTimeoutError ? i18n.t('sim.timeout') : e instanceof Error ? e.message : String(e);
-        set({ err: msg });
+        set({ err: msg, lastRunFailed: { simId, tree: ranOn } });
       } finally {
         set({ simBusy: false });
       }
     },
 
-    // The two below keep the mobile tab and the centre-pane view in step. Each
-    // tab owns a family of views -- Sketch the design ones, Results the flight
-    // ones -- so choosing either end has to move the other, or the view switch
-    // silently draws a chart on the Sketch tab. Harmless at desktop widths,
-    // where the tab bar is hidden and `tab` only decides what a later resize
-    // lands on.
+    // The two below keep the mobile tab and the centre-pane view in step -- see
+    // {@link showing}. Harmless at desktop widths, where the tab bar is hidden
+    // and `tab` only decides what a later resize lands on.
     setTab: (tab) =>
       set((s) => {
         if (tab === 'results') return { tab, view: isResultView(s.view) ? s.view : 'flight' };
         if (tab === 'sketch') return { tab, view: isResultView(s.view) ? '2d' : s.view };
         return { tab };
       }),
-    setView: (view) => set({ view, tab: isResultView(view) ? 'results' : 'sketch' }),
+    setView: (view) => set((s) => showing(s.tab, view)),
     setTwoD: (twoD) => set({ twoD }),
     setRoll: (roll) => set({ roll }),
     rollBy: (d) =>
@@ -536,12 +631,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     resetView: () => set((s) => ({ roll: 0, resetKey: s.resetKey + 1 })),
 
     openOrkFile: async (file) => {
+      // Three awaits before anything is written, and the file input has no busy
+      // gate — so a second import (or a library open) can land in between.
+      const stale = claimWorkspace();
       try {
         // The .ork parser (fflate + XML importer) is a lazily-imported chunk —
         // it isn't part of first paint, only of opening a file.
         const bytes = await file.arrayBuffer();
+        if (stale()) return;
         const { loadOrk } = await import('../services/loadOrk');
         const res = await loadOrk(bytes);
+        if (stale()) return;
         const { tree, extraMotors, sim0, loadedMeta } = wireLoadedOrk(res, loadSettings().launchDefaults);
         clearHistory(); // a loaded design is a fresh document — nothing to undo across the load
         // An imported rocket becomes its OWN library entry rather than
@@ -560,7 +660,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           activeDesignId: null,
         });
       } catch (e) {
-        set({ err: `Could not open .ork: ${e instanceof Error ? e.message : String(e)}` });
+        if (stale()) return; // a superseded import must not post its error either
+        set({ err: i18n.t('errors.openOrk', { reason: e instanceof Error ? e.message : String(e) }) });
       }
     },
     refreshDesigns: async () => {
@@ -569,8 +670,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     openDesign: async (id) => {
+      // Four sequential awaits, and the user can click a second design during
+      // any of them. If B's read resolved first, A's continuation then ran
+      // flushActive() — writing B's tree out under the store's current active
+      // id — and finished with setActive(A) + hydrate(A). The user clicked B
+      // last and was looking at A. A monotonic token makes every continuation
+      // check it is still the most recent request before it touches anything.
+      const stale = claimWorkspace();
+
       const lib = getDesignLibrary();
       const w = await lib.read(id);
+      if (stale()) return;
       if (!w) {
         set({ err: i18n.t('library.missing') });
         await get().refreshDesigns();
@@ -579,11 +689,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // Persist whatever is open BEFORE switching, or the edits since the last
       // debounced autosave would be lost to the swap.
       await flushActive();
+      if (stale()) return;
       await lib.setActive(id);
+      if (stale()) return;
       getWorkspaceStore().setActiveId?.(id);
       clearHistory(); // a different design is a different document
       get().hydrate(w);
-      set({ selectedId: null, view: '2d' });
+      set((s) => ({ selectedId: null, ...showing(s.tab, '2d') }));
       await get().refreshDesigns();
     },
 
@@ -592,15 +704,43 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // thing standing between the user and data loss — it is the explicit
       // "commit it now" they expect from a Save menu item, and it also names
       // a design that has never been saved (New / freshly imported).
-      if (!get().activeDesignId) return false;
+      //
+      // Ask the LIBRARY, not the cached `activeDesignId`. That field is written
+      // only by refreshDesigns(), which nothing calls on boot — it fires from
+      // the File menu and the library dialog — so on a fresh load it is null
+      // while the first autosave has already created a real entry
+      // (workspaceStore.ts:150-157 calls lib.create when it has no active id).
+      // Reading the stale null sent File→Save to Save As, whose create() made a
+      // SECOND entry with the same rocket, leaving every autosave so far in the
+      // orphan the user never named.
+      const stale = claimWorkspace();
+      if (!(await getDesignLibrary().activeId())) return false;
+      if (stale()) return false;
       await flushActive();
+      if (stale()) return false; // the design moved on; this write is not its save
       await get().refreshDesigns();
       return true;
     },
 
     saveDesignAs: async (name) => {
       const s = get();
-      const meta = await getDesignLibrary().create(name.trim() || i18n.t('library.untitled'), snapshotOf(s));
+      // `create` now THROWS when storage refuses the write, rather than handing
+      // back a fabricated meta for a design that was never stored. AppHeader
+      // fires this with `void`, so surface it here or it becomes an unhandled
+      // rejection and the user sees a Save As that appeared to work.
+      // `s` is snapshotted NOW; if the workspace is replaced while create() is
+      // in flight, pointing the library at the new entry would leave the user
+      // looking at one design with another one active.
+      const stale = claimWorkspace();
+      let meta;
+      try {
+        meta = await getDesignLibrary().create(name.trim() || i18n.t('library.untitled'), snapshotOf(s));
+      } catch {
+        if (stale()) return;
+        get().setStorageWarning(i18n.t('storage.full'), 'full');
+        return;
+      }
+      if (stale()) return;
       getWorkspaceStore().setActiveId?.(meta.id);
       await get().refreshDesigns();
     },
@@ -612,10 +752,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     deleteDesign: async (id) => {
       const lib = getDesignLibrary();
+      const wasActive = get().activeDesignId === id;
       await lib.remove(id);
       // Deleting the open design leaves nothing to autosave into; start fresh so
       // the next edit creates a new library entry rather than resurrecting it.
-      if (get().activeDesignId === id) {
+      // Read BEFORE the await: opening another design during remove() would
+      // otherwise leave activeDesignId pointing at the new one and skip the
+      // reset — or, worse, reset the design the user had just switched to.
+      if (wasActive && get().activeDesignId === id) {
         getWorkspaceStore().setActiveId?.(null);
         get().resetWorkspace();
       }
@@ -623,21 +767,22 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     resetWorkspace: () => {
+      claimWorkspace(); // New: any import or library open still in flight is void
       const s0 = newSimulation('Simulation 1', C6, loadSettings().launchDefaults);
       clearHistory(); // starting a new design drops the previous design's undo stack
       // Detach from the open library entry, or the first autosave would write
       // this blank design straight over the rocket the user just had open.
       getWorkspaceStore().setActiveId?.(null);
       set({ activeDesignId: null });
-      set({
+      set((s) => ({
         tree: specToTree(DEFAULT_SPEC).tree,
         extraMotors: {},
         loadedMeta: null,
         sims: [s0],
         activeId: s0.id,
         selectedId: null,
-        view: '2d',
-      });
+        ...showing(s.tab, '2d'),
+      }));
     },
     newWorkspace: async () => {
       const ok = await confirm({
@@ -681,7 +826,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           designInfo,
         });
       } catch (e) {
-        set({ err: `Could not save .ork: ${e instanceof Error ? e.message : String(e)}` });
+        set({ err: i18n.t('errors.saveOrk', { reason: e instanceof Error ? e.message : String(e) }) });
       }
     },
     saveRasaero: async () => {
@@ -708,16 +853,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           launchCgM: info?.cg,
         });
       } catch (e) {
-        set({ err: `Could not export RASAero: ${e instanceof Error ? e.message : String(e)}` });
+        set({ err: i18n.t('errors.exportRasaero', { reason: e instanceof Error ? e.message : String(e) }) });
       }
     },
     exportComponent: async (nodeId, format) => {
       try {
         const { exportComponent } = await import('../services/componentExport');
         const ok = await exportComponent(get().tree, nodeId, format);
-        if (!ok) set({ err: `This component can't be exported as ${format.toUpperCase()}.` });
+        if (!ok) set({ err: i18n.t('errors.exportUnsupported', { format: format.toUpperCase() }) });
       } catch (e) {
-        set({ err: `Could not export ${format.toUpperCase()}: ${e instanceof Error ? e.message : String(e)}` });
+        set({
+          err: i18n.t('errors.exportFailed', {
+            format: format.toUpperCase(),
+            reason: e instanceof Error ? e.message : String(e),
+          }),
+        });
       }
     },
   };

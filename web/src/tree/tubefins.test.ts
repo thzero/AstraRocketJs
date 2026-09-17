@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode } from '../engine/openRocketEngine';
-import { tubeFinRadius, tubeFinMaxRadius, tubeFinMaxCount } from './tubefins';
+import { tubeFinRadius, tubeFinMaxRadius, tubeFinMaxCount, isFinSet, isPlanarFinSet } from './tubefins';
 
 const node = (props: Record<string, unknown>): ComponentNode => ({ type: 'tubefinset', ...props });
 
@@ -57,5 +57,54 @@ describe('tubeFinMaxCount', () => {
 
   it('never drops below 2 even for oversized tubes', () => {
     expect(tubeFinMaxCount(1, 0.001)).toBe(2);
+  });
+});
+
+describe('tubeFinRadius numeric guard', () => {
+  // The hand-rolled `typeof x === 'number' && x > 0` let Infinity through,
+  // which propagates to the schematic's scale and collapses the drawing to
+  // nothing. `numOpt` carries the Number.isFinite guard nodeProps documents as
+  // load-bearing, so a non-finite radius falls back to the auto rule instead.
+  it('ignores a non-finite explicit radius and falls back to the auto rule', () => {
+    const auto = tubeFinRadius({ type: 'tubefinset', finCount: 6 } as unknown as ComponentNode, 0.012);
+    for (const bad of [Number.POSITIVE_INFINITY, Number.NaN]) {
+      const r = tubeFinRadius({ type: 'tubefinset', finCount: 6, outerRadius: bad } as unknown as ComponentNode, 0.012);
+      expect(Number.isFinite(r)).toBe(true);
+      expect(r).toBeCloseTo(auto, 12);
+    }
+  });
+
+  it('still honours a real explicit radius', () => {
+    const r = tubeFinRadius({ type: 'tubefinset', finCount: 6, outerRadius: 0.005 } as unknown as ComponentNode, 0.012);
+    expect(r).toBeCloseTo(0.005, 12);
+  });
+});
+
+/**
+ * The fin-set predicates.
+ *
+ * `<tubefinset>` ends in "finset" but `TubeFinSet extends Tube`, not FinSet —
+ * so OpenRocket's `instanceof FinSet` excludes it and our string match did not.
+ * That one-word difference fabricated a 50 × 30 mm cutting template, a
+ * made-up fin in the report silhouette, and a 50 mm root span, for a part that
+ * is a tube.
+ */
+describe('isFinSet / isPlanarFinSet', () => {
+  const PLANAR = ['trapezoidfinset', 'ellipticalfinset', 'freeformfinset'];
+
+  it('counts every fin set, tube fins included — what a marking guide collects', () => {
+    for (const t of [...PLANAR, 'tubefinset']) expect(isFinSet(t), t).toBe(true);
+  });
+
+  it('excludes tube fins from the planar set — what `instanceof FinSet` does', () => {
+    for (const t of PLANAR) expect(isPlanarFinSet(t), t).toBe(true);
+    expect(isPlanarFinSet('tubefinset')).toBe(false);
+  });
+
+  it('says no to everything that is not a fin set', () => {
+    for (const t of ['bodytube', 'nosecone', 'innertube', 'transition', 'launchlug', '']) {
+      expect(isFinSet(t), t).toBe(false);
+      expect(isPlanarFinSet(t), t).toBe(false);
+    }
   });
 });

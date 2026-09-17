@@ -78,7 +78,9 @@ declare module '*openrocket-engine.mjs' {
     timeStep: number,
   ): string;
   export function simulateJson(rocket: number, optionsJson: string): string;
-  export function getDragSweep(rocket: number, optionsJson: string): string;
+  export function getAeroSweep(rocket: number, optionsJson: string): string;
+  export function getWorstThetaDeg(rocket: number, mach: number, aoaDeg: number): number;
+  export function getComponentMasses(rocket: number): string;
   export function setRogersModifiedBarrowman(rocket: number, enabled: boolean): void;
   export function setSupersonicAero(rocket: number, enabled: boolean): void;
   export function setStubbyNoseDrag(rocket: number, enabled: boolean): void;

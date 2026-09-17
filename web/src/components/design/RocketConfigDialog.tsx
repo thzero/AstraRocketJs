@@ -47,8 +47,7 @@ export function RocketConfigDialog({ open, onClose }: { open: boolean; onClose: 
   const typeOptions = (DESIGN_TYPES as readonly string[]).includes(designType)
     ? DESIGN_TYPES
     : [designType, ...DESIGN_TYPES];
-  const typeLabel = (tk: string) =>
-    (DESIGN_TYPES as readonly string[]).includes(tk) ? t(`config.type_${tk}`) : tk;
+  const typeLabel = (tk: string) => ((DESIGN_TYPES as readonly string[]).includes(tk) ? t(`config.type_${tk}`) : tk);
 
   const clean = (s: string) => (s.trim() ? s.trim() : undefined);
   const save = () => {
@@ -98,12 +97,7 @@ export function RocketConfigDialog({ open, onClose }: { open: boolean; onClose: 
             <label className={label} htmlFor="cfg-designer">
               {t('config.designer')}
             </label>
-            <input
-              id="cfg-designer"
-              value={designer}
-              onChange={(e) => setDesigner(e.target.value)}
-              className={field}
-            />
+            <input id="cfg-designer" value={designer} onChange={(e) => setDesigner(e.target.value)} className={field} />
           </div>
           <div className="flex gap-3">
             <label className={label} htmlFor="cfg-type">

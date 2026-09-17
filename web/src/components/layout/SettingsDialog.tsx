@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../state/SettingsProvider';
 import { DEFAULT_SETTINGS, type SimulationSettings } from '../../services/settings';
 import { PART_KEYS, mergePalette } from '../../services/partColors';
+import { NumberInput } from '../common/NumberInput';
 import { useFocusTrap } from '../common/useFocusTrap';
 import { LaunchPanel } from '../sim/LaunchPanel';
 import { IMPERIAL_UNITS, METRIC_UNITS, QUANTITIES, UNITS } from '../../prefs/units';
@@ -86,11 +87,14 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-1 px-4 pt-3">
+        {/* Tabs. A real tablist: which section is open was signalled by
+            background colour alone, which a screen reader cannot announce. */}
+        <div role="tablist" className="flex flex-wrap gap-1 px-4 pt-3">
           {TABS.map((tb) => (
             <button
               key={tb.key}
+              role="tab"
+              aria-selected={tab === tb.key}
               onClick={() => setTab(tb.key)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium ${tab === tb.key ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
             >
@@ -119,6 +123,25 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
                   resetTitle={t('settings.resetOne')}
                 />
               ))}
+              {/* Taste, not correctness: the default is a magnitude ramp, and
+                  OpenRocket's green-to-red is here for anyone who reads that
+                  faster because they already know it from the desktop. */}
+              <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                {t('settings.aeroHeat')}
+              </div>
+              <label className="flex items-center justify-between gap-3 text-sm text-slate-300">
+                {t('settings.aeroHeatLabel')}
+                <select
+                  value={settings.aeroHeat}
+                  onChange={(e) => update({ aeroHeat: e.target.value as 'sky' | 'openrocket' })}
+                  className="w-44 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+                >
+                  <option value="sky">{t('settings.aeroHeatSky')}</option>
+                  <option value="openrocket">{t('settings.aeroHeatOr')}</option>
+                </select>
+              </label>
+              <p className="text-[11px] leading-snug text-slate-500">{t('settings.aeroHeatNote')}</p>
+
               <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 {t('settings.phases')}
               </div>
@@ -381,6 +404,7 @@ function NumRow({
   value,
   step,
   min,
+  max,
   placeholder,
   onChange,
 }: {
@@ -389,6 +413,7 @@ function NumRow({
   value: number | null;
   step: number;
   min?: number;
+  max?: number;
   placeholder?: string;
   onChange: (v: number | null) => void;
 }) {
@@ -396,13 +421,14 @@ function NumRow({
     <label className="flex items-center justify-between gap-3">
       <span className="text-sm text-slate-300">{label}</span>
       <span className="flex items-center gap-1">
-        <input
-          type="number"
+        <NumberInput
+          value={value}
+          onChange={onChange}
           step={step}
           min={min}
+          max={max}
           placeholder={placeholder}
-          value={value === null || value === undefined || Number.isNaN(value) ? '' : value}
-          onChange={(e) => onChange(e.target.value === '' ? null : parseFloat(e.target.value) || 0)}
+          ariaLabel={label}
           className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
         />
         {unit && <span className="min-w-8 text-xs text-slate-500">{unit}</span>}

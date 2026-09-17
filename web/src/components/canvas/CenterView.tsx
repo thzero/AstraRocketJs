@@ -1,8 +1,10 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useWorkspaceStore, selectActive, selectMotorDims } from '../../state/store';
+import { useWorkspaceStore, selectActive, selectMotorDims, selectRunFailed } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
 import { useSettings } from '../../state/SettingsProvider';
+import { useUnits } from '../../prefs/useUnits';
+import { APP_VERSION, appName } from '../../services/appInfo';
 import { descentMass } from '../../services/recoverySizing';
 import { TreeSchematic } from './TreeSchematic';
 import { AftView } from './AftView';
@@ -11,7 +13,7 @@ import { FlightPathExport } from './FlightPathExport';
 import { ViewToggle } from './ViewToggle';
 import { StabilityBadge } from './StabilityBadge';
 import { InfoOverlay } from './InfoOverlay';
-import { DragAnalysis } from './DragAnalysis';
+import { AeroAnalysis } from './AeroAnalysis';
 import { LoadedBanner } from './LoadedBanner';
 import { BusyLock } from '../common/BusyLock';
 import { SimSummary } from '../sim/SimSummary';
@@ -34,6 +36,7 @@ export function CenterView() {
   const { t } = useTranslation();
   const tab = useWorkspaceStore((s) => s.tab);
   const loadedMeta = useWorkspaceStore((s) => s.loadedMeta);
+  const setErr = useWorkspaceStore((s) => s.setErr);
   const resetWorkspace = useWorkspaceStore((s) => s.resetWorkspace);
   // "Close" discards the loaded design and resets to a fresh one — confirm first.
   const onCloseLoaded = async () => {
@@ -58,6 +61,28 @@ export function CenterView() {
   const motor = useWorkspaceStore((s) => selectActive(s).motor);
   const extraMotors = useWorkspaceStore((s) => s.extraMotors);
   const motors = useMemo(() => selectMotorDims(tree, motor, extraMotors), [tree, motor, extraMotors]);
+
+  /**
+   * The header block the 2D/3D image exports stamp on the page — name, the
+   * static numbers, the user's units, the app version.
+   *
+   * This existed unreachable: `TreeSchematic` and `Rocket3D` gate their export
+   * buttons on `exportData` and nothing ever passed it, so `⬇ SVG`, `⬇ Image`,
+   * `📷 Image`, `ImageExportMenu`, `schematicSvg`, `svgToImage` and
+   * `snapshotWithHeader` — several hundred lines plus a whole service — were
+   * shipped and unusable. `git log -S exportData` says it was never wired.
+   */
+  const units = useUnits();
+  const exportData = useMemo(
+    () => ({
+      name: loadedMeta?.name || (typeof tree.name === 'string' && tree.name) || appName(),
+      info,
+      units: units.all,
+      withMotors: Object.keys(motors).length > 0,
+      appVersion: APP_VERSION,
+    }),
+    [loadedMeta, tree.name, info, units.all, motors],
+  );
   // Recovery weight = loaded mass − the propellant that burns off (every motor's
   // loaded-minus-burnout mass). Undefined with no motor loaded — nothing to
   // subtract — so the tile shows a "needs a motor" hint instead of a wrong number.
@@ -78,6 +103,10 @@ export function CenterView() {
     update({ rulers: { ...settings.rulers, [side]: !settings.rulers[side] } });
   const runSim = useWorkspaceStore((s) => s.runSim);
   const busy = useWorkspaceStore((s) => s.simBusy);
+  // A run that threw leaves exactly the state auto-run fires on (no result, not
+  // busy, result view open), so without this it retried the same failing design
+  // forever -- each iteration spawning another full flight sim.
+  const runFailed = useWorkspaceStore(selectRunFailed);
   // Both effects below only ask "is there a design?", so they gate on a BOOLEAN,
   // never the `info` object: an engine rebuild (applyBuild) hands the store a
   // fresh info identity, and depending on that re-fires the effect for a design
@@ -89,20 +118,24 @@ export function CenterView() {
       (view === 'flight' || view === 'path') &&
       !result &&
       hasDesign &&
-      !busy
+      !busy &&
+      !runFailed
     ) {
       runSim(settings.simulation);
     }
-  }, [view, result, hasDesign, busy, settings.simulation, runSim]);
+  }, [view, result, hasDesign, busy, runFailed, settings.simulation, runSim]);
 
   // Flight / 3D-path only exist while a result does. If the active result goes
   // away (a design edit invalidates it) while one of those views is open, fall
   // back to the design view — unless auto-run is about to refill it.
   useEffect(() => {
     const onResultView = view === 'flight' || view === 'path';
-    const willAutoRun = settings.simulation.autoRunOutdated && hasDesign;
+    // A failed run means auto-run is NOT about to refill the view, so the
+    // walk-back has to happen -- otherwise the user is stranded on an empty
+    // Flight pane with only a banner.
+    const willAutoRun = settings.simulation.autoRunOutdated && hasDesign && !runFailed;
     if (onResultView && !result && !busy && !willAutoRun) onView('2d');
-  }, [view, result, busy, hasDesign, settings.simulation.autoRunOutdated, onView]);
+  }, [view, result, busy, hasDesign, runFailed, settings.simulation.autoRunOutdated, onView]);
 
   // Header slot the 2D schematic's control buttons (calipers, zoom, export)
   // portal into, so they sit centred in the same row as the view toggle.
@@ -111,12 +144,6 @@ export function CenterView() {
   // The roll slider overlays the far-left strip; reserve a gutter that width so
   // the 2D drawing (and its left ruler) starts clear of it instead of underneath.
   const ROLL_GUTTER = 30;
-  // Which views are turned a quarter turn on a portrait phone. The 2D views are
-  // drawings on a sheet, so turning the sheet is all it takes. The others are
-  // not: three.js frames its camera from the canvas it measures, and inside a
-  // CSS-transformed box it measures the wrong thing and renders the rocket
-  // unframed; the charts would read sideways for no gain. So they stay upright,
-  // and the toolbar goes back on top with them.
   // Which views are turned a quarter turn on a portrait phone: the design views.
   // All three want to be wide — the 2D schematic and the 3D model because a
   // hobby airframe is 15-25x longer than it is wide, the aero charts because
@@ -282,6 +309,8 @@ export function CenterView() {
                     controlsSlot={ctrlSlot}
                     showMarkers={showMarkers}
                     rulers={rulers}
+                    exportData={exportData}
+                    onError={setErr}
                   />
                 ) : (
                   <AftView key={`aft-${resetKey}`} tree={tree} roll={roll} motors={motors} onRoll={onRollBy} />
@@ -296,6 +325,7 @@ export function CenterView() {
                   selectedId={selectedId}
                   onSelect={onSelect}
                   showMarkers={showMarkers}
+                  exportData={exportData}
                 />
               </Suspense>
             ) : view === 'flight' ? (
@@ -318,7 +348,7 @@ export function CenterView() {
                 )}
               </div>
             ) : (
-              <div className="h-full p-2">{info ? <DragAnalysis /> : prompt}</div>
+              <div className="h-full p-2">{info ? <AeroAnalysis /> : prompt}</div>
             )}
           </div>
         </div>

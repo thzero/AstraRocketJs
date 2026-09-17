@@ -23,5 +23,22 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     environment: 'node',
+    // Vitest isolates one worker per FILE, and this suite has 82 of them — on a
+    // 32-core box that is 82 workers at ~9.5 s of startup each. Under that load
+    // engineBoundary.test.ts (the one file that drives the REAL TeaVM kernel)
+    // blew the 5 s default timeout on a flight sim that takes 1.07 s unloaded:
+    // `npm run test:coverage` — a CI gate — failed while `npm test` passed.
+    // Capping the pool fixes that and is ~4× faster: 46 s → 11.8 s with coverage.
+    maxWorkers: 4,
+    // Reported, not enforced. 800-odd tests said nothing about WHICH of the
+    // ~200 source modules they touch; a threshold before anyone has read the
+    // baseline would just be a number someone games. `npm run test:coverage`.
+    coverage: {
+      provider: 'v8',
+      reporter: ['text-summary', 'lcov'],
+      include: ['src/**/*.{ts,tsx}'],
+      // Generated (the 2.9 MB TeaVM bundle), or not code under test.
+      exclude: ['src/engine/vendor/**', 'src/**/*.test.*', 'src/testing/**', 'src/**/*.d.ts'],
+    },
   },
 });

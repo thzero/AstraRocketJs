@@ -3,6 +3,8 @@ import { useWorkspaceStore, selectActive } from '../state/store';
 import { buildConfiguredRocket } from './buildRocket';
 import { motorStats, type MotorStats } from './rocketReport';
 import { num } from '../tree/nodeProps';
+import { isFinSet } from '../tree/tubefins';
+import { axialLength } from '../tree/position';
 import { defaultDesignName } from './appInfo';
 
 /** The full data model for the rocket report (SI). Pure data; the PDF formats it. */
@@ -60,7 +62,10 @@ export interface ReportModel {
   finSetsByStage: { stage: string; sets: FinSetPosition[] }[];
 }
 
-export function stageParts(stage: ComponentNode, rocket: { componentInfo: (id: string) => { mass: number } }): PartRow[] {
+export function stageParts(
+  stage: ComponentNode,
+  rocket: { componentInfo: (id: string) => { mass: number } },
+): PartRow[] {
   const rows: PartRow[] = [];
   const walk = (node: ComponentNode, depth: number) => {
     if (node.type !== 'stage') {
@@ -130,7 +135,9 @@ export function assembleReport(): ReportModel | null {
   if (!info || !rocket) return null;
   const name = s.loadedMeta?.name || tree.name || defaultDesignName();
   const stages = tree.components.filter((n) => n.type === 'stage');
-  const stageList = stages.length ? stages : [{ type: 'stage', name: '', children: tree.components } as unknown as ComponentNode];
+  const stageList = stages.length
+    ? stages
+    : [{ type: 'stage', name: '', children: tree.components } as unknown as ComponentNode];
 
   const infoRocket = rocket as unknown as { componentInfo: (id: string) => { mass: number; positionX: number } };
   const stageName = (st: ComponentNode, i: number) => (st.name as string) || `Stage ${i + 1}`;
@@ -182,13 +189,22 @@ export function assembleReport(): ReportModel | null {
 }
 
 /** Each fin set in a stage, with its root's axial span from the nose (m). */
-export function finSetPositions(stage: ComponentNode, rocket: { componentInfo: (id: string) => { positionX: number } }): FinSetPosition[] {
+export function finSetPositions(
+  stage: ComponentNode,
+  rocket: { componentInfo: (id: string) => { positionX: number } },
+): FinSetPosition[] {
   const out: FinSetPosition[] = [];
   const walk = (nodes: ComponentNode[]) => {
     for (const n of nodes) {
-      if (String(n.type).endsWith('finset') && typeof n.id === 'string') {
-        const ff = n.type === 'freeformfinset' ? ((n['points'] as [number, number][] | undefined) ?? []) : [];
-        const root = n.type === 'freeformfinset' && ff.length ? Math.max(...ff.map((p) => p[0])) : num(n, 'rootChord', 0.05);
+      if (isFinSet(String(n.type)) && typeof n.id === 'string') {
+        // axialLength, not a per-type ternary here: it already dispatches
+        // freeform → root chord, trapezoid/elliptical → rootChord, everything
+        // else → length. That "everything else" is what tube fins need — they
+        // are marked like any other fin set (OpenRocket's FinMarkingGuide
+        // collects TubeFinSet beside FinSet) but their axial span is the TUBE'S
+        // length, and reading through rootChord gave every one of them a 50 mm
+        // root it does not have.
+        const root = axialLength(n);
         try {
           const topX = rocket.componentInfo(n.id).positionX;
           out.push({ name: (n.name as string) || 'Fin set', topX, bottomX: topX + root });

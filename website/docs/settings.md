@@ -58,6 +58,10 @@ Units belong to **the browser you set them in**, not to a design and not to a fi
 - They do **not** travel in a `.ork`. Open one of your files in desktop OpenRocket and it shows it in *OpenRocket's* units, set in its own preferences; a file from OpenRocket opens here in yours. The rocket is identical either way — only the presentation differs.
 - They do **not** follow you to another computer, another browser, or a private window, and clearing your browser's site data resets them along with every other setting.
 
+### Aero table shading
+
+**Colors ▸ Aero table shading** picks how the [Aero](./views-and-analysis.md) per-component tables tint their cells. *By magnitude* is one colour that strengthens with the value, scaled against the largest figure in the table. *By heat* reproduces desktop OpenRocket's green-to-red exactly — its formula, its fixed 0–1.5 Cd scale, dark text on light cells. Neither is more correct; pick the one you read faster. *By heat* applies to the **drag** table only: its scale is an absolute Cd one, which CNα and the roll coefficients are not on — a fin set's CNα of 15 would clamp to the same red as a nose cone's 2 and tell you nothing — so those tables stay unshaded under it, exactly as desktop OpenRocket colours only its drag tab. The same switch sits beside the legend under the table, so you can change it without leaving the view.
+
 ### What units don't change
 
 Units are a **display and entry** preference. Your design is always stored in SI, so switching units never edits a rocket or re-saves a file:

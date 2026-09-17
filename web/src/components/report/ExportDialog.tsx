@@ -4,8 +4,10 @@ import { useWorkspaceStore } from '../../state/store';
 import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
 import { resolveUnitChoice, UNIT_CHOICES, type UnitChoice } from '../../prefs/units';
+import { useFocusTrap } from '../common/useFocusTrap';
 import { DEFAULT_REPORT } from '../../services/settings';
 import { assembleReport, type ReportModel } from '../../services/reportModel';
+import { isPlanarFinSet } from '../../tree/tubefins';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 
 interface StageSel {
@@ -38,6 +40,37 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const { t } = useTranslation();
   const { settings, update } = useSettings();
   const units = useUnits();
+  // Declared up here because the focus traps and the Escape handler below both
+  // branch on it: the popover is a separate keyboard surface, not decoration.
+  const [showSettings, setShowSettings] = useState(false);
+  // Escape to dismiss, and keep Tab inside the modal. Every sibling dialog has
+  // both; this one had neither, so Tab walked straight out into the page behind
+  // an aria-modal overlay and there was no keyboard way to close it.
+  //
+  // TWO traps, and the topmost one wins: the print-settings popover below is a
+  // SIBLING of this panel (both children of the overlay), so a trap anchored
+  // here cannot reach its controls — with the popover open, Tab went on cycling
+  // the dialog behind it and the fill colour, paper size and orientation were
+  // unreachable by keyboard.
+  const panelRef = useFocusTrap<HTMLDivElement>(open && !showSettings);
+  const settingsRef = useFocusTrap<HTMLDivElement>(open && showSettings);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      // Escape dismisses the TOPMOST surface. Closing the whole dialog from
+      // here discarded the user's include/exclude selection (reopening resets
+      // the once-per-open assemble latch) — the same loss the popover's
+      // backdrop handler already guards against for the click path.
+      if (showSettings) {
+        setShowSettings(false);
+        return;
+      }
+      onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose, showSettings]);
   // One resolution for both outputs — the PDF and the CSV must never disagree
   // about what the document is written in.
   const exportUnits = resolveUnitChoice(settings.report.units, units.all);
@@ -53,7 +86,6 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const [sel, setSel] = useState<Sel | null>(null);
   /** Once-per-open latch for the assemble below (a ref, so setting it never renders). */
   const assembled = useRef(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const hasNoses = useMemo(() => hasType(tree.components, (ty) => ty === 'nosecone'), [tree]);
@@ -94,7 +126,10 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
           include: true,
           parts: true,
           finTemplates: true,
-          hasFins: hasType(st.children ?? [], (ty) => ty.endsWith('finset')),
+          // isPlanarFinSet: this gates the FIN TEMPLATES checkbox, and tube
+          // fins produce no template, so a stage finned only with tubes must
+          // not offer one.
+          hasFins: hasType(st.children ?? [], isPlanarFinSet),
           label: (st.name as string) || m.partsByStage[i]?.stage || `Stage ${i + 1}`,
         })),
       });
@@ -184,6 +219,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   return (
     <div className="dialog-overlay fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
       <div
+        ref={panelRef}
         className="dialog-panel flex max-h-[85vh] w-full max-w-md flex-col rounded-2xl bg-slate-900 ring-1 ring-white/10"
         role="dialog"
         aria-modal="true"
@@ -192,7 +228,11 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
       >
         <div className="flex items-center justify-between gap-3 border-b border-white/10 p-4">
           <h2 className="text-lg font-semibold text-slate-100">{t('export.title')}</h2>
-          <button onClick={onClose} className="rounded-md px-2 text-slate-400 hover:text-slate-200">
+          <button
+            onClick={onClose}
+            aria-label={t('common.close')}
+            className="rounded-md px-2 text-slate-400 hover:text-slate-200"
+          >
             ✕
           </button>
         </div>
@@ -348,12 +388,21 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
       {showSettings && (
         <div
           className="fixed inset-0 z-[60] grid place-items-center bg-black/50 p-4"
-          onClick={() => setShowSettings(false)}
+          // This popover is a CHILD of the export dialog's overlay, whose own
+          // onClick is onClose — so dismissing the popover by its backdrop used
+          // to bubble and shut the whole Export dialog. Reopening then reset
+          // `assembled.current`, rebuilding every include/exclude checkbox from
+          // defaults and throwing away the user's selection.
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowSettings(false);
+          }}
         >
           <div
+            ref={settingsRef}
             className="w-full max-w-xs rounded-2xl bg-slate-900 p-4 ring-1 ring-white/10"
             role="dialog"
-            aria-modal="true"
+            aria-label={t('export.printSettings')}
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="mb-3 text-base font-semibold text-slate-100">{t('export.printSettings')}</h3>

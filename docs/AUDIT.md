@@ -1,177 +1,275 @@
-# Engineering Audit — `web/` (AstraRocketJs)
+# Engineering Audit — AstraRocketJs
 
-**Date:** 2026-09-09
-**Scope:** `web/` — browser re-creation of OpenRocket (React 18 + TypeScript + Vite + Vitest + three.js).
-**Method:** fan-out review, five parallel agents (parsers/export, state layer, components, tree/geometry, dead-code/tooling), each reading its files in full. Findings ranked by severity.
+**Date:** 2026-09-16
+**Scope:** `web/` (browser re-creation of OpenRocket; React 18 + TypeScript + Vite + Vitest + three.js), **plus `engine-java/` and the extraction pipeline** — which no previous audit has ever covered, because `docs/AUDIT_PROMPT.md` scopes itself to `web/` in its first line.
+**Method:** fan-out review, six parallel agents (parsers/export/persistence, state layer, components, tree/geometry, dead-code/tooling, engine-java/extraction), each reading its files in full. Findings ranked by severity.
 
-**Verification status:** the orchestrator independently re-checked against source — ✅ the zip-bomb (`orkImport.ts:22`), ✅ the XML-injection export sites + their untrusted source (`orkExport.ts` / `orkImport.ts:56`), ✅ the `num()` finiteness divergence (`nodeProps.ts:11` vs `scaleRocket.ts:29`), and ✅ every 🟢 dead-code claim by grepping all of `web/src`. Other findings are grounded in the reviewing agents' full-file reads.
+**Read this first.** The previous audit (2026-09-15, 71 findings) was closed in commit `dc20ef1` — 110 files, all 70 real findings fixed with tests. **A large share of what follows is damage from those fixes.** Both state-layer HIGHs, both ExportDialog HIGHs, the transition-fin radius, and one `.gitattributes` MED are regressions introduced by the repair work; in three cases a test was written that *locks the new bug in*. That is the most useful single fact in this document: the previous round's method — fix, write a test, verify it fails against the old code — proved the fix worked and said nothing about what the fix broke around it.
 
-Legend: 🔴 security · 🟠 architecture + tooling (incl. perf) · 🟡 correctness + tests + a11y · 🟢 dead code. Severity per finding: **HIGH / MED / LOW**.
+**The other headline is `engine-java/`.** The vendored physics kernel **cannot be regenerated from its own declared inputs** — re-running the documented extraction produces a tree that does not compile. This is provable, not theoretical, and it went unnoticed because the one tool that checks it cannot fail, is not in CI, and is structurally blind to the class of drift that matters. Details in 🟠 Reproducibility.
 
----
+**Verification status:** every HIGH and every finding marked ✅ was re-read against the source by the orchestrator before it went in — including running `extract.mjs --check`, diffing against the upstream OpenRocket tree at `D:\programming\java\openrocket\thzero\openrocket.unstable`, and `git ls-files --eol` / `git cat-file -s` for the line-ending claims. Parity claims cite the Java file:line they were checked against. Agent claims were not relayed unchecked.
 
-## 🔴 Security
-
-**HIGH** | `services/orkImport.ts:22` | `unzipSync(bytes)` inflates the user's `.ork` zip with **no decompressed-size or entry-count cap** (fflate ships none), and eagerly decompresses every entry, not just the one `.ork` it reads. | A malicious `.ork` (nested/high-ratio zip bomb, or millions of entries) shared to a user decompresses to gigabytes and **OOM-crashes their tab on open**. ✅ verified. | Before unzipping, reject archives whose declared uncompressed size / entry count exceed a sane cap; or stream the single needed entry with a running byte budget and abort past it.
-
-**MED** | `services/orkExport.ts:711` (also `:155,234,246,688,744,771`) | Flight-config ids (`c.id`, `defaultId`) are written into XML attributes **and** element text without `escapeXml` — the *only* interpolations in the whole writer that skip it. The ids come straight from `getAttribute('configid')` on import (`orkImport.ts:56`), unvalidated. | A crafted `.ork` with `configid='x"><name>evil</name><y z="'` round-trips into injected XML — corrupts the file and can attack the desktop OpenRocket parser that reopens it. ✅ verified. | Run `escapeXml` on every `c.id`/`defaultId` interpolation.
-
-**LOW** | `services/thrustcurve.ts:53-54,134` | `res.json()` has no size cap; only `totalWeightG`/`propWeightG` are finiteness-checked — `diameter`/`length` are not. | A malformed/compromised API response yields `motor.diameter/1000 = NaN` reaching kernel geometry; an oversized body exhausts memory. | Validate `diameter`/`length` finite & positive; bound the response body size.
-
-**LOW** | `services/flightPathExport.ts:557-558` | The CSV escaper only doubles quotes; it does not neutralize a leading `= + - @`, and the template emits file-sourced `{{rocketName}}`/`{{motor}}`/`{{label}}`. | A rocket named `=HYPERLINK(...)` exports a `.csv` that executes as a formula in Excel/Sheets. | Prefix values beginning with `=+-@` (tab or `'`) before quote-doubling. Same fix for `csvExport.ts:68` (also leaves `\r\n`/`"` untouched).
-
-**LOW** | `services/remoteData.ts:44-46` | Catalog `fetch(url)` has no timeout and no response-size cap (unlike `thrustcurve.ts`). | A slow/oversized `public/data/*.generated.json` hangs the picker or exhausts memory on parse. | Add a timeout + size bound.
+Legend: 🔴 security · 🟠 architecture + tooling + reproducibility · 🟡 correctness + tests + a11y · 🟢 dead code. Severity per finding: **HIGH / MED / LOW**.
 
 ---
 
-## 🟠 Architecture + Tooling (incl. perf)
+## 🟠 Reproducibility — the vendored kernel
 
-### Architecture — logic trapped in the store/effects (untestable)
-**HIGH** | `state/useWorkspaceEffects.ts:85-103` | The whole static-info pipeline (`buildConfiguredRocket → staticInfo() → dragSweep cd inject → error/applyBuild(null)`) is inline in an effect. | Core physics-orchestration only runs inside a mounted component — untestable. | Extract pure `computeStaticInfo(tree, motor, extraMotors, ignition) => {info,rocket}|{error}`.
+This section is new. Nothing here has ever been audited.
 
-**HIGH** | `state/store.ts:525-546` vs `:569-590` | `saveOrk`/`saveRasaero` contain byte-for-byte-identical export-mapping (~35 lines) inline in two actions. | Pure transformation trapped + duplicated → drifts, untestable. | Extract one `buildExportMotorMap(...)`; both call it.
+**HIGH** ✅ FIXED | `engine-java/patches/…/barrowman/SymmetricComponentCalc.java` vs `src/shims/…/RASAeroDragCalculator.java:86` | **Re-running the extractor produces a tree that does not compile.** `extract.mjs:87` writes the patch file *instead of* the pristine upstream file. The patch copy contains no `setStubbyNoseFloor` (verified: `grep -c` → 0); `src/java/…/SymmetricComponentCalc.java` has it (→ 1); two live call sites require it (`RASAeroDragCalculator.java:86`, `OpenRocketEngine.java:492`). | `node extract/extract.mjs --src <or>` → `javac: cannot find symbol: method setStubbyNoseFloor(boolean)`. The single most important question about this directory answers **no**: the kernel is not reproducible from source. The same run would also revert an upstream tangent-ogive fix (patch line 116 has the plain `sinphi`, upstream and `src/java` have the `OGIVE && param==1.0 → sinphi = 0` special case). | Regenerate every `patches/*.java` as `current-upstream + the override` — i.e. copy today's `src/java` file into `patches/` after confirming each override is still wanted — then make `--check` pass.
 
-**HIGH** | `state/store.ts:459-494` | `openOrkFile` embeds all import wiring (primary/extra split, `delete extra[primary]`, ignition lift onto `sim0`) inline. | The load-mapping — most likely to regress on odd `.ork` — is untestable. | Extract pure `wireLoadedOrk(res) => {tree, extraMotors, sim0, loadedMeta}`.
+**HIGH** ✅ FIXED | `engine-java/extract/extract.mjs:117,120` | **`--check` cannot fail on drift.** Both exits are `process.exit(missing.length ? 1 : 0)`. `drift[]` (`:91`) and `stale[]` (`:100`) are printed and then ignored. | It exits 1 today only because of one bogus manifest entry. The obvious tidy-up — deleting that line — turns `--check` green while 16 files differ and 13 are unmanaged. Wiring the current script into CI would be a gate that cannot fail. | `process.exit(missing.length || drift.length || stale.length ? 1 : 0)`, then add the step to `engine.yml` (it needs no JDK, only an OpenRocket checkout).
 
-**HIGH** | `services/reportModel.ts:125-127` | Multi-stage report rebuilds the engine per stage then restores the live handle with no `try/finally`. | Any throw between builds leaves the live 3D/stability handle on the wrong (last-stage) build. | Build into throwaway instances / restore in `finally`.
+**HIGH** ✅ FIXED | `engine-java/extract/extract.mjs:87` | **For a patched file, `--check` compares `src/java` against the patch, never the patch against upstream.** Upstream drift inside a patched file is structurally undetectable. | `patches/…/barrowman/FinSetCalc.java` is byte-identical to `src/java`, so `--check` reports it clean — while being **871 diff-lines behind upstream** (verified). Upstream now implements the full NACA Report 1307 fin-body interference model; `NACA1307FinBodyInterference.java` exists upstream and **is not extracted at all** (verified by directory listing). Our CP, CNα, stability margin and roll damping differ from current OpenRocket for every finned rocket, and no tool in this repo can say so. The same blind spot hides `patches/rocketcomponent/FinSet.java` (372 lines behind), `MotorConfigurationId.java` (8), `FlightConfigurationId.java` (24). | Have `--check` report a third list: for each patched file, the diff size of `patches/<f>` vs `upstream/<f>`, and fail when the patch's non-override hunks diverge.
 
-**MED** | `sim/MotorDetail.tsx:131`, `sim/MotorDashboard.tsx:591,686`, `canvas/FlightChart.tsx:284` | Four near-identical hand-rolled SVG chart scaffolds, already drifted. | Every fix made 4×. | Extract a shared line/area chart primitive.
+**HIGH** ✅ FIXED | `engine-java/src/java/…/BarrowmanDragCalculator.java:502-568`, `…/BarrowmanStabilityCalculator.java:379-419`, `…/simulation/SimulationOptions.java:3-6,113-115,493-496`, `…/unit/Unit.java:134-138,148-149`, `…/util/ArrayList.java:26-31` | Five files carry hand `PATCH(astrarrocketjs)` edits made directly in `src/java`, have **no** file in `patches/`, and are **not in `extract/manifest.txt`**. `extract.mjs:73-74` only guards the inverse case (a patch with no manifest entry). | These files are invisible to the extraction tool. A regeneration rewrites `SimulationOptions`/`Unit`/`ArrayList` straight from upstream, wiping three TeaVM-compat fixes the build cannot run without (`java.nio.file` and `Locale.Category` are absent from TeaVM's classlib; the `ArrayList.clone()` rewrite is the documented WASM-GC `ClassCastException` at `build.gradle:81-82`). The two Barrowman calculators survive only because nothing deletes unmanifested files — and will never pick up an upstream change either. | Add all five to the manifest with a `patches/` copy each, and add a guardrail mirroring `:73-74`: any `src/java` file containing `PATCH(` with no `patches/` counterpart is an error.
 
-**MED** | `tree/nodeProps.ts:11` vs `scaleRocket.ts:29`, `flightPathExport.ts:162`, `sim/MotorDashboard.tsx:20`, `orkImport.ts:725` | Five divergent `num` helpers; the canonical one is shadowed. | Re-learn `num` per file; finiteness divergence is an active bug (🟡 HIGH). | Rename locals, reuse `nodeProps.num`.
+**HIGH** ✅ FIXED | `.github/workflows/engine.yml` vs `engine-java/test/parity/parity.mjs:38` | **Nothing verifies the committed binaries were built from the current `src/java`.** The workflow header states parity exists so a divergent kernel "could ship silently" cannot happen — but `parity.mjs` runs `gradlew generateJavaScript -Pparity` into `build/generated/teavm/` and never reads `web/src/engine/vendor/openrocket-engine.mjs` or `web/public/engine/openrocket-engine.wasm`. `build-engine.mjs:67` copies with `copyFileSync` and stamps no provenance. | Edit `src/java`, commit, forget to run `build-engine.mjs` → CI is green and the app runs the old physics. Hand-editing the vendor `.mjs` is equally undetected. The workflow's stated purpose is not what it does. | Add a CI step that rebuilds and `cmp`s against the committed artifacts, or embed a build-time SHA-256 of `src/java`+`src/api`+`src/shims` into the bundle and compare that.
 
-### Perf — expensive work in the render body / hot paths
-**MED** | `canvas/TreeSchematic.tsx:356-374` | `buildSchematicShapes` walks the tree + builds all SVG nodes in the render body, unmemoized, while zoom/pan ride an SVG transform. | Every zoom/pan/caliper pointermove re-walks + re-creates hundreds of elements → drag jank. | `useMemo` on layout/roll/motors/selectedId/hoverId/uid/vertical; exclude zoom/pan.
+**MED** ✅ FIXED | `engine-java/test/parity/parity.mjs:74-117`, `test/parity/ParityMain.java:873-875` | Parity is a **fidelity** gate, not a physics gate: it compares TeaVM output to a JVM run of *the same source*, with no golden file anywhere. Any physics change moves both sides identically and stays green. Worse, `ParityMain.java:873` catches `SimulationException` and prints `"EXCEPTION: " + e` — an exception thrown identically on both platforms matches line-for-line and reports `parity ok`. | A change that zeroes fin CNα, or breaks every flight outright, passes CI. Parity catches TeaVM miscompiles and platform divergence, which it does well — it does not catch physics regressions, which is what the name suggests. | Keep parity as-is; add a golden-value gate (`validation/anchors.json` + `score.mjs` is the natural home) and make `flight.exception` a hard failure.
 
-**MED** | `canvas/AftView.tsx:101-300` | Cross-section rebuilt every render; roll/zoom/pan ride the `<g transform>`. | Roll/zoom/pan re-walk the tree each pointermove needlessly. | Memoized builder keyed on tree+motors.
+**LOW** ✅ FIXED | `engine-java/extract/manifest.txt:245` | `info/openrocket/core/util/QuaternionMultiply.java` exists neither upstream nor in `src/java` and is referenced nowhere. It is the sole reason `--check` currently exits 1. | Harmless alone, but it is the trap for the fix above: delete it without fixing the exit code and `--check` reports success on a tree with 16 drifted and 13 unmanaged files. | Delete the line *and* fix `extract.mjs:117` in the same change.
 
-**MED** | `state/store.ts:293` | `patchSelected` runs `reconcileMounts` (full walk) on every keystroke/slider tick, even for non-structural edits. | Per-frame walk on the hot edit path. | Only reconcile on structural edits.
+### Classification of the 16 drifted files
 
-**MED** | `state/useWorkspaceEffects.ts:85-103` | Rebuild effect has no `hydrated` guard (autosave at `:51` does). | On load: builds default rocket + drag sweep, then rebuilds real one — two full engine builds on startup. | Skip until `hydrated.current`.
+- **4 superseded patches** — `src/java` is now byte-identical to upstream: `BarrowmanCalculator`, `FlightConditions`, `AxialStage`, `AbstractSimulationStepper`.
+- **4 unpatched hand-edits in `src/java`** — `MassComponent` (an *unannotated* semantic change: `isCompatible` returns `false`/no-children where upstream returns `true`/`InternalComponent`), plus `SimulationOptions`, `Unit`, `ArrayList` (annotated, no patch file).
+- **8 stale patch snapshots** — `src/java` correctly holds current-upstream + override, but `patches/` is a snapshot of an older upstream: `SymmetricComponentCalc`, `ComponentAssembly`, `FinSet`, `FlightConfiguration`, `FreeformFinSet`, `InstanceMap`, `BasicEventSimulationEngine`, `BoundingBox`.
 
-**LOW** | perf misc | `ComponentTree.tsx:236` (`branchIds` walks tree/render); `PropertyPanel.tsx:360` (`mergePalette` unmemoized/keystroke); `TreeSchematic.tsx:405-442` (ruler ticks recomputed when off); `store.ts:135` (`selectActive` O(n) find ×7). | Wasted work on unrelated re-renders. | `useMemo`/gate; derive `activeSim`.
-
-### Tooling
-**HIGH** | `web/tsconfig.json` | `noUncheckedIndexedAccess` OFF while `strict` on. | Array-indexed geometry everywhere returns non-optional types → OOB reads are silent `undefined` (see 🟡 OOB). | Enable it; bounded pass of `!`/guards at ~30 sites.
-
-**HIGH** | `.github/workflows/deploy-pages.yml:6-9` | CI triggers only on `push` to `master` (+ manual) — no PR/branch trigger. | `build` (`tsc --noEmit && eslint .`) + `npm run test` run only at deploy; PR/dev work gets zero CI feedback. | Add a `pull_request` trigger running `npm ci && npm run test && npm run build`.
-
-**MED** | `web/tsconfig.json:20` | `exclude: ["src/**/*.test.ts"]` drops tests from `tsc`; vitest/esbuild don't typecheck. | Type errors in ~40 test files caught by nothing. | Drop exclude / add `tsconfig.test.json`.
-
-**MED** | `web/package.json:26,29` | `eslint .` runs without `--max-warnings 0`; `no-unused-vars`/`exhaustive-deps` are `warn`. | Warnings never fail CI → regressions accumulate. | Add `--max-warnings 0`; consider `exhaustive-deps: error`.
-
-**LOW** | tooling misc | No knip/ts-prune (this audit found ~13 dead/test-only exports by hand). `eslint-disable exhaustive-deps` at `MotorDialog.tsx:170`, `FlightChart.tsx:130,161` (suppress a warn-level rule). `prefs/units.ts:4` `fmtSi` is a live-imported no-op stub. Mixed default+named exports. | Latent drift. | Add knip; prefer refs/useCallback; fix `fmtSi`; standardize named exports.
+Of the 13 unmanifested files, 11 are byte-identical to upstream and need only a manifest line; two (`BarrowmanDragCalculator`, `BarrowmanStabilityCalculator`) carry substantive hand edits with no patch file at all.
 
 ---
 
-## 🟡 Correctness + Tests + A11y
+## 🟡 Correctness — data loss
 
-### Correctness — NaN / degenerate geometry
-**HIGH** | `tree/nodeProps.ts:11` | Shared `num(n,key,fb)` returns any `typeof==='number'`, so **`NaN`/`Infinity` pass**, while `scaleRocket.num` (`:29`) requires `Number.isFinite`. | A non-finite dimension flows through the shared reader into ALL geometry → NaN coords; the NaN sources in this audit (`cd=Number('xyz')`, workspace round-trip, negative `NumberInput`) all land here. ✅ verified. | Add `&& Number.isFinite(...)` to `nodeProps.num`.
+**MED** ✅ FIXED | `services/designLibrary.ts:152` | `migrateLegacy()` checks the design-blob write (`if (!(await this.kv.set(designKey(id), raw))) return;`) but discards the `writeIndex` result on the next line, then deletes the user's only legacy copy two lines later (`await this.kv.remove(LEGACY_KEY)`). | Blob lands, index write refused (quota, degraded fallback) → the index stays empty, `activeId()` filters the new id out, `load()` returns `null`, the app opens on an empty workspace — with `astrarrocketjs:workspace` already gone. The pre-library design is unreachable and unrecoverable. `designLibrary.test.ts:155` fails the *blob* write, so this split path is untested. | Check the index write before touching the legacy key.
 
-**MED** | `services/orkImport.ts:413,434` | parachute/streamer `cd = Number(cdText)` with no finiteness guard. | `<cd>xyz</cd>` → `NaN` into physics, re-exports as `<cd>NaN</cd>`. | `const v=Number(cdText); if(Number.isFinite(v)) n['cd']=v;`
+**MED** ✅ FIXED | `services/workspaceStore.ts:128-131` + `services/designLibrary.ts:112` | The first save of a session takes the `lib.create()` branch and returns unconditionally; `create()` calls `await this.write(...)` and **discards** the boolean, falling back to a fabricated meta. | `save()` throws `storage-full` on a *subsequent* save, so the "surface a failed write instead of silently dropping the user's work" guarantee has a hole exactly where there is no other copy yet. On a full or blocked store the user gets a clean resolve and a green autosave for a design that was never stored. `workspaceStore.test.ts:108` establishes a design first, so the create path is uncovered. | Propagate the boolean from `create()` and throw on the create branch too.
 
-**MED** | `common/NumberInput.tsx:51-56` | `onChange` emits `parseFloat(raw)` with no min clamp; `min` is only an HTML hint. | Negative length/radius/angle passes into geometry+sim despite `min={0}`. | Clamp in `onChange`.
-
-**MED** | `services/solidMesh.ts:141,197,230` | Nosecone `aftRadius=0`/`length=0` → zero-radius/height lathe that `dropDegenerate` empties (tubes floor len; revolves don't). | Empty non-manifold export, silent. | `solidForNode` return `null` when `radius<=0||length<=0`.
-
-**MED** | `services/solidMesh.ts:200,213` | `oneFinSolid` unguarded degenerate planform (`height=0`, freeform <3 pts) → zero-area `THREE.Shape` → broken extrude. | Non-manifold/empty fin. | Return `null`/skip.
-
-**MED** | `services/solidMesh.ts:68` | `makeWatertight` keys `directed` by start vertex; two edges sharing a start overwrite. | Dropped boundary edge → output not watertight; unnoticed (`countBoundaryEdges` never called — see 🟢). | Multimap per start / detect fan-out.
-
-**MED** | `services/recoverySizing.ts:87,94` | Guard `area`/`cd`/`rho>0` but not `massKg>0`; `descentMass` (`:83`) can be negative. | Negative mass → `sqrt(neg)` → NaN descent rate/diameter. | Add `!(massKg>0)` or clamp `descentMass>0`.
-
-**MED** | `tree/shapeProfile.ts:65` | `shapeRadius` (exported) divides by `length` with no guard (length=0 → Inf/NaN; haack `acos` → NaN; ogive → NaN at radius=0). | Direct callers get NaN/Infinity silently. | Guard `length>0` (and `radius>0` for ogive).
-
-**MED** | `services/reportGeometry.ts:82` vs `:26`/`solidMesh.ts:198` | `rocketSideView` draws elliptical fins as a 4-point trapezoid vs the true 32/40-step half-ellipse used by template + solid. | Side view ≠ printed 1:1 template ≠ 3D. | Reuse the ellipse sampler.
-
-**MED** | `services/keyValueStore.ts:24-30` (via `workspaceStore.ts:52`) | `setItem` in `try{}catch{}` silently swallows `QuotaExceededError`; whole design+sims writes through it. | Large design silently fails to persist; user reloads to reverted work. | Reject on quota so `save()` can surface it.
-
-**MED** | `canvas/FlightPath3D.tsx:93,209` | `Math.max(1, ...rows.map())` / `Math.max(...pts)` spread the full series. | Long/fine-step flight → arg-stack `RangeError` blanks the 3D view (`FlightChart` loops). | Replace spreads with `reduce`/loop.
-
-**LOW** | more validation | `orkImport.ts:508` uncapped recursion + `loadOrk.ts:69` no try/catch → deep nesting throws uncaught. `workspaceStore.ts:41` trusts parsed blob (+ NaN/Inf→null). `settings.ts:145` no `timeStep>0` clamp (hangs RK4). `position.ts:14` freeform `axialLength` 0/neg/NaN. `shapeProfile.ts:153` steps=0 → NaN. `cluster.ts:82` radius 0. `AftView.tsx:303` ref-write in render; `:316` magic-hex motor detection. `PropertyPanel.tsx:530` angle no max clamp. | Silent-wrong / crash-on-edge. | Guard/clamp each; explicit `motor` flag on Shape.
-
-### A11y
-**RESOLVED** | `design/ComponentTree.tsx:150-217` | Rows are now `role="button"` with `tabIndex`/`onKeyDown` (Enter/Space to select) **plus roving-tabindex arrow navigation** (↑/↓/Home/End between rows, ←/→ collapse/expand) — the whole tree is one tab stop and keyboard-selectable. | — | Done.
-
-**MED** | `canvas/TreeSchematic.tsx:537-542` | Editing SVG is `role="img"` with children carrying onClick/onPointerDown. | `role="img"` hides the interactive subtree from AT; 2D editor inaccessible. | Drop `role="img"` for the editable view / add keyboard path.
-
-**MED** | `sim/MotorDashboard.tsx:250-260`, `sim/MotorDialog.tsx:239-249`, `layout/SettingsDialog.tsx:62-70` | Modals set `role="dialog"` but never trap/restore focus. | Focus stays behind the overlay. | `useFocusTrap`.
-
-**MED** | `canvas/FlightPath3D.tsx:331-336` | Play/pause/cancel button is glyph-only, no `title`/`aria-label`. | Unlabeled primary transport control for SR users. | State-tracking `aria-label`.
-
-**LOW** | a11y misc | `TreeSchematic.tsx:895,904` + `AftView.tsx:426-434` icon buttons have `title` but no `aria-label` (inconsistent). `AppHeader.tsx:164-291` `role="menu"` with no arrow-key roving. | `title`≠accessible name; menu roles unfulfilled. | Add `aria-label`s; add arrow keys or drop menu roles.
-
-### Tests (untested math / seams)
-**HIGH** | `services/solidMesh.ts` | Watertight revolve/fin path (`revolveSolidX`, `oneFinSolid`, `solidForNode` nose/transition/fin) has NO coverage (`solidMesh.test.ts` only does `discSolid`). | Poles/degenerate-drop/capping/winding regressions ship untested. | Watertight/boundary-edge assertions per part.
-
-**HIGH** | `services/reportGeometry.ts` | No test — `finPlanformMm`/`profileMm`/`rocketSideView` (mm 1:1 template math) untested. | Wrong mm factor silently prints mis-scaled cut templates. | Pin known planform/profile point sets.
-
-**MED** | tests | `services/reportModel.ts` (multi-stage rebuild/restore) + `components/canvas/schematicGeometry.ts` (`niceStep`/`calloutLayout`/`finTabFront`/`axialStart`/`computeSchematicLayout`) untested — the latter is the hero-canvas layout, imported by `reportGeometry`. | Silent scale/tab drift; corrupted multi-stage handle. | Add tests.
-
-**LOW** | async | `canvas/FlightPathExport.tsx:138-156` + `sim/LaunchPanel.tsx:159-172` `setState` after await/geolocation callback, no mounted guard (other load sites guard). | React warn + wasted write on unmount. | Mounted flag / AbortController.
+**MED** ✅ FIXED | `state/useWorkspaceEffects.ts:46` | `if (w) hydrate(w)` cannot distinguish "nothing saved yet" from "a design is saved but this build cannot read it". `load()` returns `null` for both — `validate()` rejects `version !== 1` and `DesignLibrary.read` swallows a parse failure — and neither is a rejection, so the `.catch` never fires and nothing is shown. | The gate opens with the DEFAULT rocket and 500 ms after the first edit the autosave writes it over the unreadable design **at the same id**. This is the hazard the `SettingsProvider` fix was written for, left in place for the thing that actually matters. Reachable today via a truncated blob, and by construction the moment a build stamps `version: 2` into a PWA whose older build is still cached. | Make `load()` distinguish the two; on "present but unreadable" raise `storage.loadFailed` **and** detach (`setActiveId(null)`) so the next autosave creates a new design.
 
 ---
 
-## 🟢 Dead code (all grep-verified in `web/src`)
+## 🟡 Correctness — regressions from the last audit's fixes
 
-**Truly dead — delete** (exported, 0 importers, 0 tests):
-- **MED** `services/appInfo.ts:38` `appLabel`
-- **MED** `engine/kernelLogSink.ts:39,44,49` `kernelLog`/`clearKernelLog`/`setKernelLogEcho` (`import './kernelLogSink.js'` is side-effect-only)
-- **MED** `services/componentExport.ts:42` `isExportable`
-- **MED** `services/componentDb.ts:90` `componentsDate`
-- **MED** `canvas/Rocket3D.tsx:483` `calloutGadget`
-- **LOW** `services/recoverySizing.ts:120` `BANDS`
-- **MED** `services/solidMesh.ts:30` `countBoundaryEdges` (never called → watertight output validated by nobody; see 🟡)
+**HIGH** ✅ FIXED | `state/useWorkspaceEffects.ts:70` | The hydration effect depends on `t`, whose identity changes on `i18n.changeLanguage`. The effect re-runs, `load()` resolves again, and `hydrate(w)` runs. | `hydrate` → `sanitizeSims` (`store.ts:376` → `:220`) sets `result: null` on every sim: **switching language silently discards every flight the user has run.** It also replaces any edit newer than the last autosave (whose debounce the same `t` dep has just cancelled), and after File→New or a `.ork` import — which clear only the *in-memory* `activeId` — it reloads and hydrates the OLD design over the new one. The repo's own test at `useWorkspaceEffects.test.tsx:105-129` *uses* this re-run as a fixture and asserts `load` is called twice, so it documents the bug as intended behaviour. | Drop `t` from all three effect dep arrays and use the module-level `i18n.t(...)`, exactly as `store.ts` already does.
 
-**Test-only exports** (def + own `.test.ts` only — wire up or remove):
-- **MED** `services/treeEdit.ts:432` `isFirstStage` (EditorPanel uses its own local)
-- **MED** `services/materials.ts:44` `findMaterial`
-- **MED** `tree/position.ts:64` `resolveAbsolutePositions`
-- **MED** `tree/tubefins.ts:25,36` `tubeFinMaxRadius`/`tubeFinMaxCount`
-- **MED** `tree/cluster.ts:59,65` `CLUSTER_OPTIONS`/`clusterCount` (likely a pending picker UI)
-- **MED** `tree/shapeProfile.ts:44` `shapeUsesParameter`
+**HIGH** ✅ FIXED | `state/useWorkspaceEffects.ts:92-93` | A successful autosave clears `storageWarning` unconditionally. That one slot carries three conditions, and `idbKeyValueStore.ts:56` states the contract outright: *"once storage is known-degraded for this session, the warning stands"* — `markDegraded()` returns early once set and never notifies again. | Private-mode user sees "your browser is blocking its database… saving may fail as your design grows", types one character, and 500 ms later the banner is gone for the session. They meet the 5 MB cap later as an unexplained failed save — precisely what the warning exists to prevent. Same for `storage.loadFailed`. `useWorkspaceEffects.test.tsx:190` asserts `storageWarning === null` after any successful save, so **fixing this bug breaks that test**: it is a test defending a defect. | Carry a `kind` with the message and clear only `kind === 'full'`, or re-assert when `isStorageDegraded()` (already exported) is true.
 
-**Superfluous `export`** (module-internal only — drop `export`):
-- **LOW** `canvas/Rocket3D.tsx:515,546,555,575,663` `piecesBounds`/`isFittableBox`/`FIT_MARGIN`/`fitCameraToBox`/`exportCamera`
+**HIGH** ✅ FIXED | `components/report/ExportDialog.tsx:46-53` + `:366-378` | The Escape handler is gated only on `open`, not on `showSettings`. | Press Settings, then Escape — the universal way to dismiss a popover — and the whole Export dialog closes; the effect at `:75-81` resets `assembled.current`, `setModel(null)`, `setSel(null)`, so reopening rebuilds every include/exclude checkbox from defaults. This is the exact loss the last audit documented and fixed for the *click* path; the keyboard path was left open. `ExportDialog.test.tsx:103-110` presses Escape with the popover closed, so it passes either way. | `if (showSettings) { setShowSettings(false); return; }` before `onClose()`, plus a test that opens the popover first.
 
-**Unused DI seams** (keep only if the swap-seam is deliberate):
-- **LOW** `services/motorStore.ts:177`, `templateStore.ts:105`, `workspaceStore.ts:64` `setMotorStore`/`setTemplateStore`/`setWorkspaceStore`
+**HIGH** ✅ FIXED | `components/report/ExportDialog.tsx:200` vs `:366-461` | The print-settings popover is rendered **outside** the focus trap's panel (both are children of the overlay; `panelRef` is on the panel at `:200`, the popover is a sibling at `:366`). `useFocusTrap` wraps Tab within `panel.querySelectorAll(FOCUSABLE)`. | With the popover open, Tab still cycles the dialog behind it — the fill colour, paper size and orientation controls are unreachable by keyboard. It also nests a second `aria-modal="true"` (`:382`) inside the first, which is invalid. Both halves of the a11y fix shipped last round land on the wrong element. | `useFocusTrap(open && !showSettings)` on the panel plus a second trap on the popover, or portal the popover with its own trap.
+
+**MED** ✅ FIXED | `services/reportGeometry.ts:176` (and `:160`) | Fins on a transition are seated at the transition's **aft** radius; fins on a nose cone at its **aft** radius. OpenRocket seats a fin at the parent's radius **at the fin's front station**: `FinSet.getBodyRadius()` → `getFinFront()` → `symmetricParent.getRadius(xFinFront)` (`FinSet.java:959-972`, verified). The comment added last round says "The aft radius is where those fins sit" — that is wrong. | Using the repo's own fixture (`reportGeometry.test.ts:166-178`): boat tail `length 0.05, foreRadius 0.012, aftRadius 0.008`, fin at offset 0 — the silhouette is at +12 mm and the fin root is drawn at +8 mm, **4 mm inside the airframe**. A 26→13 mm boat tail puts it 13 mm inside. The child loop was added last round to fix fins being *absent*; it fixed the absence and introduced a wrong position. `reportGeometry.test.ts:187` asserts only axial placement. | Sample the parent profile at the fin's front: `outerProfile(...)` interpolated at `axialStart(node, root, 0, len)`.
+
+**MED** ✅ FIXED | `.gitattributes:25` + `web/e2e/fixtures/*.ork` | `*.ork binary` was added for a format that is normally a zip, but both fixtures are plain uncompressed XML. `binary` disables the autocrlf smudge, and the index and worktree have diverged — verified: `git ls-files --eol` → `i/lf w/crlf attr/-text`; `git cat-file -s :…/nozzle.ork` = 8252, `stat` = 8430. | Every fresh clone and CI gets the LF blob while this machine holds CRLF. The first `add` touching either fixture commits an 8 KB whole-file change that `git diff` will not display, because `binary` implies `-diff`. `git status` reads clean only because the stat cache is stale after the attribute change. | `git add --renormalize web/e2e/fixtures/`, or use `*.ork -text -diff` and accept the current bytes.
+
+---
+
+## 🟡 Correctness — geometry and parity
+
+**MED** ✅ FIXED (2026-09-16 — the earlier ✅ was premature: the sign was still R(+θ) when re-checked) | `tree/cluster.ts:85-96` | `clusterOffsets` rotates the **opposite way** to the kernel. `ClusterConfiguration.getPoints(rotation)` (`ClusterConfiguration.java:109-114`, verified) computes `x*cos + y*sin` / `-x*sin + y*cos`; this file computes `x*cos - y*sin` / `x*sin + y*cos` — `R(+θ)` where the kernel applies `R(−θ)`. | The aft, 3D and schematic views draw a rotated cluster mirrored about the vertical relative to what the kernel flies (physics unaffected — the kernel keeps its own copy). 3-ring, `clusterRotation = 30°`, tube OD 19 mm: the point `(0, 1/√3)` should land at `y = +5.49 mm`, this code puts it at `y = −5.49 mm`. `cluster.test.ts:55-62` pins the wrong sign. **Newly reachable**: before last round a cluster could only arrive via `.ork` import; the property-panel dropdown added in `dc20ef1` lets any user set it. | Swap the signs and fix the test.
+
+**MED** ✅ FIXED | `services/reportGeometry.ts:30` vs `:50-51`; `services/solidMesh.ts:260-261` vs `:284-285` | A freeform fin's **outline** is drawn in raw point coordinates while its **tab** is placed in root-relative coordinates (`finTabFront(node, root)` with `root = last.x − first.x`). They agree only when `points[0].x === 0`. OpenRocket guarantees that in `FreeformFinSet.clampFirstPoint()` (`FreeformFinSet.java:467-496`) by translating the outline and folding the shift into `axialOffset`; this app never normalizes, and `FreeformFinEditor.tsx:65-66` clamps only to `x ≥ 0`. | Points `[[0.02,0],[0.04,0.03],[0.08,0]]`, `tabOffsetMethod:'middle'`, `tabLength 0.02` → the 1:1 PDF template and the exported STL cut the tab at 20–40 mm while the outline spans 20–80 mm: **20 mm out of place on a part that must pass through the airframe slot**. Independently, `clampFirstPoint` adds `xDelta/2` to a MIDDLE offset, so the app draws the fin front 10 mm forward of where the engine flies it. Every existing freeform test starts at `[0,0]`. | Normalize once — translate by `-p0` and fold `xDelta` into the axial offset as the kernel does — so outline and tab share one origin.
+
+**MED** ✅ FIXED | `services/reportModel.ts:198-203` | `finSetPositions` matches every `*finset`, including `tubefinset`, then reads `num(n, 'rootChord', 0.05)`. A tube fin set has `length`, never `rootChord`. | The report's fin-station table gives every tube fin set a 50 mm root span regardless of its real 80 mm default (`treeEdit.ts:344`) — `bottomX` wrong by 30 mm on a stock part. `reportModel.test.ts` covers only trapezoid and freeform. | Use `axialLength(n)`, which already dispatches per type.
+
+**MED** ✅ | `services/orkImport.ts:736-741` | The multilevel-wind reader is the only numeric read in the file using bare `parseFloat(...) || 0` instead of `numTag`. | `|| 0` catches NaN but **not** Infinity — verified: `parseFloat('1e999')` → `Infinity`, `parseFloat('Infinity')` → `Infinity`, and `parseFloat('12abc')` → `12`. `<windlevel speed="1e999"/>` becomes `windLevels[i].speed = Infinity`, handed verbatim to `simulate()` at `simulations.ts:54` — a NaN trajectory instead of a clean "malformed file". Every other read here goes through `numTag`, whose `Number.isFinite` guard rejects both. | Read through a finite-guarded helper.
+
+**LOW** ✅ FIXED | `services/solidMesh.ts:109-137` | When the boundary walk dead-ends without returning to `start`, the consumed edges are `pop()`ed and never restored, so that boundary is left permanently uncapped — yet `makeWatertight` returns normally and `meshExport.ts:26` ships it as "a purpose-built watertight solid". | A leaky STL goes out with no error; the slicer rejects it or mis-fills it. | Re-push on a failed walk, or call the existing `countBoundaryEdges` and throw when non-zero.
+
+**LOW** ✅ FIXED | `services/solidMesh.ts:258-293` | `oneFinSolid` validates point count and bounding dimensions but never that the freeform outline is a **simple** polygon; `FreeformFinEditor` allows a self-crossing planform. | `THREE.ExtrudeGeometry` triangulates it into overlapping faces that `mergeVertices` cannot repair — non-manifold export, no warning. | Add a segment-intersection check and return `null`, matching the file's existing policy at `:252-256`.
+
+**LOW** ✅ FIXED | `components/canvas/schematicGeometry.ts:224` | `finSpan` auto-sizes tube fins with `tubeFinRadius(n, maxR)` where `maxR` is the **whole rocket's** largest radius, not the attaching tube's (`parentR` is available at `:241` but not threaded in). | A 60 mm forward section with tube fins on a 25 mm aft tube reserves ~2.4× too much vertical extent, shrinking the whole schematic. | Pass the attaching body's radius.
+
+**LOW** ✅ FIXED | `engine/openRocketEngine.ts:293-338` | `assertFiniteCurve` checks finiteness, positivity and non-negative masses, but not that `times.length === thrusts.length === masses.length`, nor that `times` is non-decreasing. | An `.rse`/`.eng` parse that drops a `<mass>` sample hands the kernel mismatched arrays — an implausible burn profile rather than a named parse error, which is the class of opaque failure this guard was written to eliminate. | Add the length-equality and monotonicity assertions.
+
+**LOW** ✅ FIXED | `engine/openRocketEngine.ts:369-372`; `tree/position.ts:47-59` | `ComponentPosition['method']` omits OpenRocket's `AFTER` (`AxialMethod.java:27-43`). `orkImport.ts:939` returns `undefined` for `method="after"`, dropping the offset, and `startFromPosition`'s `default:` silently treats an unknown method as `top`. | A part written with `AFTER` loads at its parent's front instead of its stored station. Impact is limited because chain members default to `AFTER` and are laid out sequentially anyway, but a non-chain child moves. | Add `'after'` to the union and the switch.
+
+---
+
+## 🟡 Correctness — the engine boundary
+
+**MED** ✅ FIXED | `engine-java/src/api/java/api/OpenRocketEngine.java:1046` vs `web/src/engine/openRocketEngine.ts:842,849,871,895` | Only `simulateJson` returns an `{"error":…}` envelope. The JS wrapper checks `parsed.error` after `getStaticInfo`, `getComponentInfo`, `getAeroSweep` and `getComponentMasses` — four methods that can never produce one. | **Those checks are dead code giving false confidence**, including the `componentMasses` envelope added last round whose comment reads "Same error envelope its four sibling accessors check." Every throw in those methods escapes TeaVM instead and surfaces as an opaque JS throw from inside a 2.9 MB bundle; `JSON.parse` never runs. All 18 non-`simulateJson` exports are in this state. | Wrap every String-returning export in a `catch (RuntimeException)` returning the envelope, and widen `simulateJson`'s catch from `SimulationException` to `Exception`.
+
+**MED** ✅ FIXED | `engine-java/src/api/java/api/OpenRocketEngine.java:100-103` | `reset()` does `HANDLES.clear(); nextHandle = 1;` — handle ids are **reused** (verified at `:66,:80,:102`). | `web/src/engine/api.ts:36` and `services/loadOrk.ts:68` call `resetEngine()` before every rebuild. `buildRocket` registers exactly one object, so the new design gets handle 1 — the same number a previously-held `OpenRocketDesign` still carries. That stale object's `staticInfo()`/`simulate()` then return results for the **new** rocket with no error at all. The `get()` null check at `:88` never fires. | Drop `nextHandle = 1` from `reset()` so a freed handle stays permanently unknown.
+
+**MED** ✅ FIXED | `engine-java/src/api/java/api/OpenRocketEngine.java:665-672` | `getAeroSweep` guards `machStep <= 0` but not `machMin`/`machMax`. | `{"machMin":0,"machMax":1e9}` runs `for (double m = 0; m <= 1e9; m += 0.05)` building a `List<Double>` of 2×10¹⁰ entries — the heap exhausts and the tab dies with no recoverable error. The author guarded one of the three loop parameters. | Reject non-finite bounds, require `machMax >= machMin`, cap the point count, return the envelope otherwise.
+
+**MED** ✅ FIXED | `engine-java/src/api/java/api/OpenRocketEngine.java:948-953` + `JsonLite.java:124-130` | The 7-arg `simulate()` builds its options JSON by raw concatenation of `double`s; `JsonLite.number()` accepts only `+-0123456789.eE`. | `simulate(h, 1.0, 0, Double.NaN, …)` emits `"windAverage":NaN` → `IllegalArgumentException("JSON: expected number at 45")`, which `simulateJson`'s `catch (SimulationException)` does not catch. It escapes to JS as an opaque throw carrying a byte offset into a string the caller never saw. | Validate with `Double.isFinite` before building, or delete the overload.
+
+**MED** ✅ FIXED | `engine-java/src/api/java/api/OpenRocketEngine.java:622-624, 835-840, 862-864` | Non-finite physics is silently rewritten as a *plausible* number, and the three conventions disagree: `num(double)` → `"0"`, `nums()`/`num(sb,key,v)` → `null`, `zeroIfNaN` → `0`. `getAeroSweep` runs every per-component CNα and CP through `zeroIfNaN` before accumulating. | A component whose CNα goes NaN contributes `0` — indistinguishable from "this part generates no normal force". The user sees a finite, wrong CP and stability margin with no warning, on exactly the opt-in supersonic/Rogers paths where divergence is most likely. (Note: no path emits a bare `NaN` token, so `JSON.parse` never throws — the escaping concern is not present.) | Pick one convention (`null`, which the TS types tolerate) and add a non-finite counter to the payload.
+
+**MED** ✅ FIXED | `engine-java/src/api/java/api/OpenRocketEngine.java:357-361` | `applyMotor` sizes `cgPoints` from `times.length` then indexes `masses[i]` with no length check, and passes `times`/`thrusts` straight to the builder. | Mismatched arrays → `ArrayIndexOutOfBoundsException` out of TeaVM with no envelope; a null `times` NPEs. The JS-side `assertFiniteCurve` does guard finiteness, but it lives in the *wrapper*, not at the exported boundary — and its own comment records that this class of bug already shipped once as TeaVM's "The number NaN cannot be converted to a BigInt". | Validate lengths, nullity and positivity at the top of `applyMotor`.
+
+**LOW** ✅ FIXED | `engine-java/src/api/java/api/OpenRocketEngine.java:592-596` | `getComponentMasses` iterates `analysis.values()` from upstream's `HashMap` keyed by `component.hashCode()` — a random-UUID hash. Row order is nondeterministic run-to-run and JVM-vs-TeaVM. | Currently unexposed (`componentMasses()` has no consumer in `web/src`, and `ParityMain` does not call it, so parity would not catch it). It becomes a visibly shuffling table the moment the UI renders it. | Sort by the emitted `key` or tree order before serialising.
+
+**LOW** ✅ FIXED | `engine/openRocketEngine.ts:48-50, :930-933` | `__setEngineForTests` is a plain export in the shipped module, and `resetEngine()` invalidates every handle while existing `OpenRocketDesign` instances keep a stale `handle` with no generation guard. | Compounds the handle-reuse finding above: any design captured across a rebuild is a use-after-free against the kernel's handle table, and the error surfaces from deep inside TeaVM. | Stamp a module-level generation counter into `OpenRocketDesign` and throw a named error when stale.
+
+---
+
+## 🟡 Correctness — validation and performance
+
+**MED** ✅ FIXED | `services/motorStore.ts:67-80` | `isCustomMotor` validates `Array.isArray(m.samples) && m.samples.length > 0` but never the **element** shape, and never `m.class` or `m.manufacturer`. Its sibling `isSampleArray` (`thrustcurve.ts:215-218`) does exactly that check. | Custom motors are the one store whose payload reaches the kernel without a second gate: `samples: [{}]` from a corrupted IndexedDB blob yields `times: [undefined]` and NaN masses into `simulate()`. A row with no `class` makes `motorDb.ts:135` call `undefined.localeCompare` and take down the motor picker. | Reuse `isSampleArray` (with `Number.isFinite`) and check the two string fields.
+
+**MED** ✅ FIXED | `components/sim/LaunchPanel.tsx:17-51`, used at `:214-227` | `Num` exposes `min` but no `max`, so latitude and longitude are unbounded; `NumberInput` clamps only against props it is given. | Typing `500` into Latitude stores `latitudeDeg: 500`, which reaches `openRocketEngine.ts:914` as `launchLatitude` (gravity/Coriolis) **and** `flightPathExport.ts:395,427` as the KML/GPX origin — waypoints beyond 90°, which Google Earth rejects outright. `SettingsDialog.tsx:406-433` already has the two-sided version of this helper. | Add `max`/`maxSi` and pass ±90 / ±180.
+
+**MED** ✅ FIXED | `state/store.ts:600` | `openOrkFile` has **no** generation guard; the `openToken` added last round defends `openDesign` against another `openDesign` only. It awaits three times and the file input has no busy gate. | Import a big `.ork` then a small one — the small lands first and the big one overwrites it. Worse: open a design from the library, then import a `.ork`; the ork lands first and sets `activeDesignId: null`, `openDesign`'s continuation is not stale so it runs `flushActive()`, writing the imported rocket out under a null id (creating a stray entry), then hydrates the library design over it. `saveDesign`/`saveDesignAs`/`deleteDesign` share the exposure. | One shared workspace-generation counter bumped by every action that replaces the workspace, re-checked after each await.
+
+**MED** ✅ FIXED | `state/store.ts:669` | `saveDesign` decides "never named" from `activeDesignId`, which only `refreshDesigns()` writes — and nothing calls that on boot. Meanwhile the first autosave goes through `lib.create()` and *does* create an entry named "My Rocket". | Fresh browser → edit → autosave creates "My Rocket" → File→Save sees `activeDesignId === null` → opens Save As → `saveDesignAs` calls `lib.create` again. Two entries with the same content, and the orphan is where the earlier autosaves went. | Consult the library (`await getDesignLibrary().activeId()`) rather than the cached field.
+
+**MED** ✅ FIXED | `components/canvas/FlightChart.tsx:515-516, :524-528` (called at `:583`) | `mkLine` (the path string) and the `peak` scan walk every sample in the render body of every panel. `hoverT` is state and `X` (`:170`) is a fresh arrow each render, so every pixel of hover re-renders all three default panels. The `useMemo` at `:464-502` caches the sample *extraction* but not the expensive part. | Same hazard class as the `maxFlightTime` fix 400 lines above, whose own docblock says a fine-timestep multi-stage flight reaches six-figure sample counts — at that size hovering builds a six-figure-segment string per panel per pointer move. | Move `mkLine` and `peak` inside the existing memo; memoize `X` on `[t0, t1, iw]`.
+
+**LOW** ✅ FIXED | `components/canvas/AeroAnalysis.tsx:123-142` | `cdSeries`, `breakdown` and `cpValues` are rebuilt in the render body, and `setHoverM` triggers the effect at `:100-102` which calls `setMachPick` — two full renders of a 1072-line component per pointer move. | Survivable at ~50 samples, but the same shape as the FlightChart finding. | `useMemo` the three series; derive `tableMach` directly instead of the `hoverM → machPick` effect.
+
+**LOW** ✅ FIXED | `state/useWorkspaceEffects.ts:99` | `hydrate()` replaces `tree`/`sims`/`extraMotors`, which re-runs the autosave effect and schedules a save of the data just read; `DesignLibrary.write` stamps `updatedAt: Date.now()`. | Merely opening the app re-stamps the design. The library's "most recently updated" ordering therefore means "most recently opened", and a design you only looked at jumps above one you edited last week. | Skip the first autosave after a hydrate.
+
+**LOW** ✅ FIXED | `state/useWorkspaceEffects.ts:181` | `flightKey(tree)` — a full `JSON.stringify` of the component tree — is computed in the hook body on every render, including renders caused by `tab`, `err` and `storageWarning`. | Correct, just wasteful on large designs. | `useMemo(() => flightKey(tree), [tree.components])`.
+
+**LOW** ✅ FIXED | `services/settings.ts:199` | `launchDefaults` is spread-merged with no per-field validation, while the block immediately above it clamps `simulation.timeStep`/`maxTime` for precisely this reason. | Every field reaches `simConditions()` → `simulate()` unchecked, so a hand-edited settings blob puts a string or `null` where the engine expects a number for every newly created simulation. `playbackSpeed` (`:189`) accepts NaN/Infinity, since `typeof NaN === 'number'`. | Apply the same `Number.isFinite` filter per numeric field.
+
+**LOW** ✅ FIXED 🔴 | `services/remoteData.ts:77`, `services/thrustcurve.ts:68` | Both size caps are enforced only when the host declares `content-length`; `readJson` returns `res.json()` unmetered whenever `onProgress` is absent — which is the `manifest()` call at `remoteData.ts:141`. | A chunked response from the configured data host or thrustcurve.org buffers without bound until the body timer fires. The doc comment at `remoteData.ts:82-83` claims a cap that the code does not enforce on this path. The catalog path itself is fine — `fetchCatalog` always passes `onProgress` and is capped on bytes received. | Route the non-progress paths through `readStreamWithProgress`, or drop the claim from the comment.
+
+**LOW** ✅ FIXED | `state/store.ts:625, :758, :785, :792` | Four user-facing error strings are hardcoded English in an otherwise fully localised store. | A Spanish user importing a bad `.ork` gets an English sentence in the red banner. | Add `errors.` keys and use `i18n.t` as the rest of the file does.
+
+---
+
+## 🟡 Accessibility
+
+**MED** ✅ FIXED | `FlightPathExport.tsx:212`, `common/ConfirmDialog.tsx:32`, `design/ComponentPicker.tsx:91`, `design/ScaleDialog.tsx:61`, `layout/AboutDialog.tsx`, `layout/PrivacyDialog.tsx`, `sim/MotorSpecDialog.tsx:49` | Seven `aria-modal="true"` dialogs have no focus trap and no focus restore, while seven others use `useFocusTrap`. | Tab walks straight out into the page behind the overlay and the trigger loses focus on close — the exact gap the hook's docblock says it exists to close. All seven have Escape, so this is the remaining half. Separately, `useFocusTrap.ts:66` binds keydown to the panel, so its `!panel.contains(current)` recovery branches can never fire. | Add the hook to each; bind to `document` if escape-recovery is wanted.
+
+**MED** ✅ FIXED | `components/design/FreeformFinEditor.tsx:128-155` | The freeform fin outline is pointer-only. Vertices and edge midpoints have no `role`, `tabIndex` or key handler, and the `<svg>` has no role or label. The X/Y inputs at `:169`/`:181` render **only** when `selPt` is set, and `sel` can only be set by `startDrag`/`insertAfter` — both pointer-only. | A keyboard or screen-reader user cannot select a vertex, so they cannot edit a freeform fin at all. | `tabIndex={0} role="button"` + `aria-label` on vertices, set `sel` on focus, arrow keys to nudge, Delete to remove.
+
+**LOW** ✅ FIXED | `AeroAnalysis.tsx:980-1008`, `FlightChart.tsx:264-290` | Value readouts on both hand-rolled chart families render only when `hoverM`/`hoverT` is non-null, and the only setter is `onPointerMove` on a plain `<div>`. | The numeric content of both charts is mouse-only. | Focusable chart host with arrow-key crosshair stepping, or a visually-hidden live region.
+
+---
+
+## 🟠 Tooling and CI
+
+**HIGH** ✅ FIXED | `components/canvas/Rocket3D.tsx:926` + `web/knip.json:5` | `import('three-stdlib').OrbitControls` is used in source but `three-stdlib` is in neither `dependencies` nor `devDependencies` (verified) — it resolves only as a hoisted transitive of `@react-three/drei`. `knip.json`'s `ignoreDependencies` is what suppresses the "Unlisted dependencies" report. | A drei minor bump that drops or renames it makes `tsc --noEmit` fail → `npm run build` fails → the Pages deploy fails, and the one check that would have warned is muted by config. Confirmed by re-running knip without that entry. | Declare it, or use drei's own re-export.
+
+**MED** ✅ FIXED | root `.gitignore:14-15` | Three build artifacts are tracked at the repo root — `node_modules/.package-lock.json`, `node_modules/.vite/vitest/…/results.json`, `test-results/.last-run.json` (verified via `git ls-tree -r HEAD`). `.gitignore` only anchors the `web/` and `website/` paths. | Vitest rewrites `results.json` on every local `npm test`, so the working tree goes dirty on every run. | Add unanchored `node_modules/` and `test-results/`, and untrack the three.
+
+**MED** ✅ FIXED | `.github/workflows/ci.yml` vs `website/package.json` | `website/` is outside every PR gate: both `ci.yml` jobs set `working-directory: web`, and only `deploy-pages.yml` (on push to master) builds the Docusaurus site. `website/package.json` has a `typecheck` script nothing runs. | A broken `docusaurus.config.ts` or MDX page passes CI, merges, then fails the **deploy** — and because the docs build *into* `web/public/docs`, that takes the whole site down, not just Help. | Add a path-filtered `docs` job.
+
+**MED** ✅ FIXED | `web/eslint.config.js:11`, `web/tsconfig.json:21` | `web/scripts/*.mjs` (547 lines) is linted by nothing and typechecked by nothing — verified with `eslint --print-config`, which returns only prettier's "off" entries. | `sync-motors.mjs` and `sync-components.mjs` are the payload of `sync-catalogs.yml`, a scheduled job holding `contents: write` that pushes to the `data` branch the live app reads. A typo there is caught by nobody until the cron fails. | Add a `files: ['scripts/**/*.mjs']` config block with `js.configs.recommended` and node globals.
+
+**MED** ✅ FIXED | no coverage tooling anywhere | `grep -rn coverage` over `package.json`, `vitest.config.ts` and the workflows returns nothing. `coverage/` appears only as an ignore entry — aspirational, never produced. | 783 passing tests and no idea what fraction of ~200 source modules they touch. The newly-added files look well covered; nothing says which have zero. | `@vitest/coverage-v8` + a `coverage` block + `--coverage` in CI. Add thresholds only after seeing the baseline.
+
+**MED** ✅ FIXED | `e2e/aero-conditions.spec.ts:36, :96`; `e2e/motor-picker.spec.ts:154`; `e2e/recovery.spec.ts:47`; `e2e/smoke.spec.ts:105` | Five `waitForTimeout` calls stand in for a real synchronisation point. `aero-conditions.spec.ts:36` is worst — inside the file-wide `setField` helper, so every assertion in that spec races a 500 ms guess at an async engine sweep. Three others guess 700 ms at the 500 ms autosave debounce *plus* an async IndexedDB write before `page.reload()`. | These go red on a loaded runner for no code reason; `retries: 1` turns that into intermittent noise rather than fixing it. | `expect.poll` on an observable condition. **Three other `waitForTimeout`s are correct and should stay**: `library.spec.ts:49,:76` assert the *absence* of activity over a window, and `smoke.spec.ts:81` is an rAF sampling window.
+
+**LOW** ✅ FIXED | `.github/workflows/deploy-pages.yml:37` | `npm run sync:contributors` runs with `continue-on-error: true`, and nothing else ever runs it. | A permanent breakage is indistinguishable from a throttled API call; the About dialog's contributor list silently freezes. | Emit a `::warning::` or write the outcome to the step summary, as `sync-catalogs.yml` already does.
+
+**LOW** ✅ FIXED | `.github/workflows/sync-catalogs.yml` | Checks out third-party `dbcook/openrocket-database@master` at a floating ref into a job holding `contents: write`. | Not an RCE path — the sync scripts were grepped for `eval`/`new Function`/`child_process`/dynamic `import()` and are data-only parsing — but pinning to a SHA is cheap insurance. | Pin the checkout.
+
+**LOW** ✅ FIXED | `e2e/aero-conditions.spec.ts:92, :98` | Two `console.log` calls left in a spec; `playwright.config.ts:12` uses the `github` reporter under CI. | They land in the annotation stream on every green run. | Delete or `testInfo.attach`.
+
+**LOW** ✅ FIXED | `tree/shapeProfile.test.ts:14-35` | Asserts `shapeParamDefault('power') === 0.5` and `shapeParamMax('haack') === 1/3` as bare constants with no OpenRocket citation, unlike the rest of that file. | The values are right, but the file's own standard is to cite the Java — a reader cannot tell these from invented expectations. | Add the `Transition.Shape` reference.
+
+---
+
+## 🟢 Dead code
+
+**MED** ✅ FIXED | `TreeSchematic.tsx:70,92,893-934`; `Rocket3D.tsx:816,829,952-960`; `canvas/ImageExportMenu.tsx`; `services/schematicExport.ts:74,140,168` | **The entire image/SVG export feature is unreachable.** Verified: `exportData` appears nowhere outside the two components that declare it, and the buttons are gated `{exportData && …}`. The only call sites — `CenterView.tsx:274` and `:294` — never pass it, and `git log -S exportData` shows they never did. | `⬇ SVG`, `⬇ Image`, `📷 Image`, `ImageExportMenu`, `schematicSvg`, `svgToImage`, `snapshotWithHeader`, `exportCamera`, `piecesBounds` and the `onError` prop are all shipped but unreachable — several hundred lines plus a whole service, inflating the two largest components. knip cannot see it: the imports are real, the *prop* is what is never supplied. Note this also means the `download()` migration in `dc20ef1` touched three call sites that no test can reach. | Wire `exportData` in `CenterView` (the buttons look like finished work), or delete the prop and its dependents.
+
+**MED** ✅ FIXED | `TreeSchematic.tsx:66,85,104,110,167-187,246-276` | `onPatchNode`, `vertical` and `maxHeight` are never passed either, so drag-to-reposition and the nose-up view are unreachable — and drag is precisely what the new `buildSchematicShapes` memo's riskiest deps guard. | With `onPatchNode` undefined, `beginDrag` early-returns, `onMove`'s drag branch is dead, and `DragState`/`dragMoved`/`resetDragLatch` plus four `tree/position` imports are dead weight. | Decide whether canvas drag-editing ships; if not, delete the path and shrink the memo's config surface.
+
+**MED** ✅ FIXED | `web/package.json:60`, `web/knip.json:5` | `@react-three/test-renderer` has **zero** references anywhere in the repo. | ~9 MB of dev dependency installed by all four workflows, with the ignore entry guaranteeing knip will never say so. (`tailwindcss` in the same list is legitimate — `src/index.css:1` imports it and knip's `project` excludes `.css`.) | Remove the dependency and the ignore entry; consider adding `src/**/*.css` to `project`.
+
+**LOW** ✅ FIXED | `services/workspaceStore.ts:139` | `WorkspaceStore.clear()` has no production caller — only two test files. knip cannot flag it because it is an interface member. | Interface surface, including a `remove()` of the active design, that no code path uses. | Delete it, or wire File→New's intent through it.
+
+**LOW** ✅ FIXED | 13 superfluous `export` keywords, hidden by `knip.json:6` | `ignoreExportsUsedInFile: true` suppresses 35 findings; re-running without it and grep-verifying each, 13 value exports are referenced only inside their own module and none is the test-only pattern: `DXF_CUTTABLE`, `KML_ALTITUDE_MODE`, `loadCustom`, `FIT_TOLERANCE_MM`, `CDX1_ENGINE_EXPORT`, `rasaeroManufacturerAbbrev`, `G0`, `FT_S`, `orkBlob`, `EXPORT_VARS`, `DEFAULT_LAUNCH`, `newId`, `ALLOWED_CHILDREN`. | API surface the codebase claims to offer and nothing consumes. The flag itself is sound — truly-dead exports are still reported. | Drop the keyword on the 13 values (the 22 exported types are defensible as public shape).
+
+**LOW** ✅ FIXED | `tree/position.ts:44`; `services/reportGeometry.ts:16` | `num(n, 'packedLength', 0.025)` is unreachable — `orkImport.ts` writes `<packedlength>` into `n['length']` and nothing ever sets `packedLength`; `position.test.ts:37` tests a node shape the app cannot produce. `finPlanformMm` is declared `| null` with no `return null` path. | Misleading on both counts: readers assume recovery parts carry a separate packed length, and the `| null` invites dead defensive code. | Drop the fallback (or make the importer store it); narrow the return type.
+
+**LOW** ✅ FIXED | `engine-java/src/java/…/InstanceMap.java:15-25` | The patch rationale is factually wrong against the code it ships with: "RocketComponent has no hashCode() override" — but `RocketComponent.java:2873-2876` does override it. | The `LinkedHashMap` substitution is still correct and still necessary (`id` is a fresh random UUID per run, so hash order varies run-to-run) — only the stated reason is stale, and the next reader may conclude the concern was imaginary and revert it. | Reword to the real reason.
+
+**LOW** ✅ FIXED | `e2e/schematic-interaction.spec.ts:11-14` | The docblock claims "select / hover / drag-reposition / caliper" coverage; no test drags a component (the only drag test is drag-to-roll), consistent with `onPatchNode` being unwired. | A comment that reads as a safety net which does not exist is worse than no comment. | Correct the docblock, or add the test once the feature is reachable.
+
+---
+
+## Verified clean — recorded so it is not re-litigated
+
+- **The `download()` consolidation is correct.** All twelve migrated call sites pass filename first with a correct or correctly-omitted MIME; the two image sites pass a pre-typed `Blob` that `download` forwards without re-wrapping; `saveFile.test.ts:143-169` pins the order. The five-sanitizer unification is also clean — the old classes were character-for-character equivalent, and the only behavioural change (`.` now preserved) cannot produce a wrong extension.
+- **The `TreeSchematic` memo actually holds.** `buildSchematicShapes` is pure in its `cfg`, all fourteen fields are in the dep array, and the two omissions are right (`setHoverId` is a `useState` setter, `dragMoved` a ref). `beginDrag`'s `[onPatchNode, w]` and `textUp`'s `[vertical]` are complete, and `rulers`/`motors`/`onSelect` arrive stable from `CenterView`.
+- **The `flightScene` extraction is faithful** — inputs match the old closure, all nine returned fields are consumed, nothing dropped. `maxFlightTime`'s deps are exactly what it reads.
+- **Parity ports are exact**: `Transition.java:665-745` and the `Shape` enum (`calculateClip` and all six radius formulas, including the `r1 == 0` and `length <= 0` short-circuits), `FreeformFinSet.java:448` (`freeformRootChord` = `last.x − first.x`, confirmed correct), `AxialMethod.java:15-90`, `TubeFinSet.java:85-117`, and all 14 `ClusterConfiguration` point sets.
+- **The `.ork` import defences are real**: per-entry, total and entry-count zip caps enforced in fflate's pre-inflate `filter`; `MAX_NESTING_DEPTH` bounds `<subcomponents>`; XML export escapes every file-sourced string; CSV formula injection neutralised; DXF group-code injection blocked. The IndexedDB tier is genuinely solid — `onerror`/`onblocked` handled, no transaction spanning an `await`, failures never memoized.
+- **No logic is trapped in store actions or effects**, no store action mutates a shared tree in place, and there is not a single `exhaustive-deps` disable in the state layer. All five disables elsewhere in `src` are live and correct (verified individually; `--max-warnings 0` with `reportUnusedDisableDirectives` exits 0).
+- **The `num()` duplication really was consolidated** into `nodeProps.ts`; the two surviving `round()` helpers have different types and purposes. `findParent` correctly distinguishes top-level from not-found.
+- **`escape()` in the facade is correct** — backslash, quote, `\n`, `\r`, `\t` and every `c < 0x20` via `\u00XX`; non-BMP passes as surrogate pairs. Handle lifetime is bounded. The Barrowman accumulation maps are `LinkedHashMap`.
+- **Gates run and pass**: `tsc` (both projects), `eslint --max-warnings 0`, `prettier --check`, `knip` (exit 0), 783 unit tests in 80 files, 86 Playwright specs. `.prettierignore` is not too broad — every excluded path holds only generated files, and the authored `materials.ts` beside `contributors.generated.json` is still formatted.
+- **Most of the new tests are honest.** `shapeProfile.test.ts:126-160` is the strongest pattern in the suite — it re-solves the kernel's published equation by independent bisection rather than re-running the implementation. `useWorkspaceEffects.test.tsx` drives the real hook and real store with only IO stubbed. `openRocketEngine.test.ts` asserts what the facade *hands* the kernel, which is the right seam. The exceptions are named above.
 
 ---
 
 ## Recommended order of attack
 
-*Front-loads small, verified, isolated fixes; defers the large refactors. Each parser/geometry fix should land with a unit test.*
+**1 — ✅ DONE. The four regressions from `dc20ef1`.** 🟡
+The `t` dependency, the `storageWarning` over-clear, and both ExportDialog keyboard holes are fixed, together with the three tests that were pinning them. Each replacement test was checked against the pre-fix code and confirmed failing. Still open from this step: `migrateLegacy`'s unchecked index write and `create()`/`save()`'s unchecked create branch — both data loss, both small.
 
-**1 — One-line/small fixes with outsized blast radius (do first)**
-1. `nodeProps.num` → reject non-finite (`tree/nodeProps.ts:11`). Kills the whole NaN-into-geometry class + back-stops cd/workspace/NumberInput. 🟡 HIGH.
-2. `escapeXml` the config ids in `orkExport.ts` (6 sites). 🔴 MED.
-3. Cap the unzip in `orkImport.ts:22` (size + entry budget). 🔴 HIGH.
-4. Clamp `NumberInput` to `min` in `onChange`. 🟡 MED (cross-cutting).
-5. Neutralize CSV formula injection (`flightPathExport.ts:557`, `csvExport.ts:68`). 🔴 LOW.
-6. Guard degenerate geometry: `solidMesh` null for `radius/length<=0`/`height<=0`; `recoverySizing` `massKg>0`; `shapeRadius` `length>0`. 🟡 MED.
-7. Surface storage-quota failure; clamp `timeStep>0` (`settings.ts:145`). 🟡 MED/LOW.
+**2 — ✅ DONE. The rest of the data loss.** 🟡
+`migrateLegacy` now gates the legacy delete on the index write; `create()` throws instead of fabricating a meta for a design that was never stored (surfaced in `saveDesignAs`, which AppHeader fires with `void`); and `load()` throws + detaches when a design is present but unreadable, so the autosave creates a new entry instead of overwriting it. Two tests that pinned the old "return null for an unreadable design" behaviour were replaced.
 
-**2 — Delete verified dead code (mechanical, safe).** 7 truly-dead exports + drop superfluous `Rocket3D` exports; decide the 6 test-only + 3 DI seams. 🟢.
+**3 — ✅ MOSTLY DONE. `engine-java/` is reproducible.** 🟠
+Decision taken: the extraction pipeline stays the source of truth. Deleting it would mean never systematically re-syncing with upstream OpenRocket, which is the point of the project — and the `FinSetCalc` gap is exactly what a working pipeline surfaces. `patches/` and the manifest were rebuilt from today's `src/java` (4 superseded patches deleted, 8 stale ones refreshed, 6 hand edits given patch files, 13 files added to the manifest, the bogus entry removed), **without touching `src/java`**, so the compiled engine is unchanged. `--check` now fails on drift, stale and unpatched files, errors on a `PATCH(` marker with no patch file, and reports how far each patch has diverged from upstream. A full `extract --src` run rewrites all 271 files and changes nothing; the `reproducible` job in `engine.yml` holds it there against the upstream pinned in `extract/UPSTREAM`.
 
-**3 — A11y quick wins.** `ComponentTree` rows → `<button>`; drop `role="img"` on editable `TreeSchematic`; `aria-label` icon/transport buttons; `useFocusTrap` in the 3 dialogs. 🟡 MED.
+Still open here, and now *visible*: the binaries are still not tied to `src/java`, parity is still a fidelity gate rather than a physics one, and **the `FinSetCalc` / NACA 1307 gap is closed** (adopted 2026-09-16 under the "OpenRocket wins" rule; classic scorecard 8/135 → 9/135, RASAero path unmoved — see `patches/LEDGER.md`). `MassComponent.isCompatible` diverges from upstream with no recorded reason and needs a decision.
 
-**4 — Perf memoization.** Memoize `buildSchematicShapes` + `AftView` cross-section (exclude zoom/pan/roll); `FlightPath3D` min/max via loop (also fixes RangeError); gate `patchSelected` reconcile; add `hydrated` guard; memoize `branchIds`/palette. 🟠 MED.
+**4 — ✅ DONE. The geometry bugs that reach a physical part.** 🟡
+The fin root is now sampled at the fin's own front station (`radiusSampler`, matching `FinSet.getFinFront()`), and every freeform consumer reads through `freeformPoints()`, which translates by `-p0` exactly as `FreeformFinSet.setPoints()` does — the path our bridge actually uses. Note `clampFirstPoint`'s extra `xDelta`-into-`axialOffset` folding is the desktop GUI's per-point edit path and must NOT be copied here; `setPoints` does not do it, so the app matches the kernel by translating alone. The `FreeformFinEditor` itself was deliberately left untouched: normalizing mid-drag would make the outline jump under the cursor, and with every consumer normalizing it does not need to.
 
-**5 — Close the tooling gates.** PR CI trigger (`npm ci && npm run test && npm run build` + knip); enable `noUncheckedIndexedAccess`; drop the test-file `tsconfig` exclude; `--max-warnings 0`; add knip. 🟠 HIGH/MED.
+**5 — ✅ DONE. The engine boundary is guarded in the Java.** 🟠🟡
+Every String-returning export is wrapped so it returns the `{"error": ...}` envelope instead of throwing out of TeaVM — which makes the four JS-side `parsed.error` checks real rather than decorative; `simulateJson`'s catch widened past `SimulationException`; `reset()` no longer rewinds `nextHandle`, so a freed handle stays permanently unknown instead of aliasing the next rocket; `getAeroSweep` rejects non-finite or inverted bounds and caps the point count; `applyMotor` validates array lengths, nullity, positivity, finiteness and monotonic times at the boundary rather than only in the JS wrapper. Both engine targets were rebuilt and re-vendored, and both parity runs pass (255 lines: 137 bit-identical + 118 ULP for JS, 155 + 100 for WASM). `engineBoundary.test.ts` drives the REAL vendored kernel — the only place in the suite that does.
 
-**6 — Backfill untested math.** `solidMesh` watertightness, `reportGeometry` 1:1, `reportModel` multi-stage, `schematicGeometry` layout. 🟡 HIGH/MED.
+**6 — ✅ DONE. Tooling.** 🟠
+`three-stdlib` declared; `@react-three/test-renderer` removed; `knip.json` now needs **no** `ignoreDependencies` at all and still exits clean. The `.ork` fixtures are `-text -diff` and renormalized (index and worktree agree). `node_modules/` and `test-results/` are ignored unanchored and the three tracked artifacts untracked. `scripts/**/*.mjs` and the root configs are linted. `website/` has its own CI job running its previously-unrun `typecheck` plus a build. Coverage reports (not enforced) — baseline **46.0% statements, 47.1% lines, 36.2% branches, 38.7% functions**.
 
-**7 — Large refactors (defer; each behind tests on the extracted pure fn).** Extract `computeStaticInfo`/`buildExportMotorMap`/`wireLoadedOrk`; fix `reportModel` handle lifecycle; shared chart primitive; consolidate the 5 `num()` helpers. 🟠 HIGH.
+**7 — ✅ DONE. The two unreachable features, decided per feature.** 🟢
+**Image/SVG export: wired up.** It is a real OpenRocket capability, the code was finished, and `CenterView` was six lines from supplying `exportData` — deleting working code that fills a parity gap would have been the waste. `e2e/image-export.spec.ts` downloads an actual SVG and checks the header block is in it, so it cannot go quiet again.
+**Canvas drag-editing: deleted.** `onPatchNode` was never passed, so `beginDrag` early-returned and the handler was never attached; `dragMoved` was therefore always false, which makes the removal behaviour-identical. It would have needed a new store action to turn on, it rewrites positions on pointer-move in the riskiest file in the tree, and the property panel already sets position numerically. `schematic-interaction.spec.ts`'s docblock claimed drag coverage that no test provided — corrected.
+Note on the same row: `vertical` and `maxHeight` are NOT dead. They are defaulted parameters the layout genuinely uses, just never overridden — different from unreachable code, and left alone.
+
+**8 — ✅ DONE. Accessibility, then performance.** 🟡
+All seven dialogs use `useFocusTrap`, with an e2e test that tabs twelve times and fails if focus ever leaves the panel. The freeform fin editor has a full keyboard path: vertices are focusable buttons that select on focus (which is what reveals the X/Y inputs), arrows nudge 1 mm and Shift-arrows 10 mm, Delete removes down to the three-point floor, Enter/Space on an edge midpoint inserts, and the drawing carries a role and label. `FlightChart`'s path strings, area path and peak scan moved into a memo behind a `useCallback`-stabilised `X`; `AeroAnalysis`'s three series arrays are memoized and its hover no longer sets state on every pointer move (a ref commits the sticky value once, on the way out).
 
 ---
 
-### Tooling recommendation (concrete)
-- **knip** — `npm i -D knip`, `web/knip.json`:
-  ```json
-  { "entry": ["src/main.tsx","src/engine/simWorker.ts","vite.config.ts","playwright.config.ts","src/**/*.test.ts"],
-    "project": ["src/**/*.{ts,tsx}"], "ignore": ["src/engine/vendor/**"] }
-  ```
-  Add `"knip": "knip"`; non-blocking first, then `--strict`. Flags every dead/test-only/superfluous export above.
-- **`noUncheckedIndexedAccess: true`** in `web/tsconfig.json`; one `tsc --noEmit` pass, guard/`!` each site.
-- **CI gate**: add a `pull_request` (+ non-master `push`) trigger running `npm ci`, `npm run build`, `npm run test`, `npm run knip`; `--max-warnings 0`; typecheck test files.
+## Closed since the last audit (2026-09-15)
+
+All 70 real findings from the 2026-09-15 audit are fixed in `dc20ef1`, each with a test verified to fail against the pre-fix code; the 71st (`engParser` BOM) was withdrawn as false. The gates that existed only on paper now run: `format:check` (unblocked by the root `.gitattributes` and the generated-artifact entries in `.prettierignore`), `knip`, the Playwright suite, and the engine parity workflow. What that round did **not** do is check what each fix broke around it — which is where a third of this report comes from.
+
+---
+
+## Closed in the 2026-09-16 sweep
+
+Every row above is now ✅. What that sweep did, beyond the fixes themselves:
+
+- **Each fix was verified by reverting it** and confirming the new test fails —
+  including the three engine-side ones, which meant reverting the Java,
+  rebuilding TeaVM, running, then restoring and rebuilding again.
+- **Four first-draft tests proved nothing and were replaced.** A freeform fin
+  fixture whose root chord was 0 (rejected by the pre-existing degenerate
+  check, not by the crossing under test); a `makeWatertight` case asserting a
+  non-event behind a conditional `if (!threw)`; a size-cap test aimed at the
+  catalog path, which was already metered — the hole was `manifest()`; and a
+  `Response` stub whose `json()` ignored `body`, so it could not tell a
+  metered read from an unmetered one. Probe first, then assert.
+- **Two audit claims did not survive contact with the source.** The
+  `zeroIfNaN` row said the user saw "a finite, wrong CP and stability margin":
+  the rocket-level `cp`/`cna` never went through `zeroIfNaN` and already
+  emitted `null`, so what was corrupted was the per-component breakdown. And
+  `null` is not something "the TS types tolerate" — every series was
+  `number[]`, and `null + 5 === 5`, so nulls would have become zeros again in
+  any column sum; hence the `nonFinite` counter alongside the type widening.
+- **`AxialMethod.AFTER` is not what its own enum suggests.** `getAsPosition`
+  returns `outerLength + offset`, but `RocketComponent.setAfter()`
+  (:1459-1491) returns before that is ever reached: the real rule is the
+  previous sibling’s aft end with the offset forced to zero.
+
+Engine rebuilt and re-vendored for the three Java changes; parity holds on
+both targets (JS 255 lines, WASM 255, golden unchanged) and the validation
+scorecards are unmoved at 9/135 classic and 61/135 supersonic — confirming no
+physics shifted.

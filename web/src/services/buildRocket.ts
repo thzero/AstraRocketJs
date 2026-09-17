@@ -10,6 +10,25 @@ export interface Ignition {
 }
 
 /**
+ * A key over everything about a design that can change a FLIGHT.
+ *
+ * Deliberately narrower than the tree object: the root carries `name`,
+ * `designer`, `comment`, `revision` and `designType`, which are round-tripped to
+ * the `.ork` and touch no physics, and every node carries a `name` that is a
+ * label. Keying result-invalidation on the tree's object identity meant typing a
+ * designer name in the Rocket-configuration dialog — or renaming a part —
+ * silently threw away every simulation result the user had.
+ *
+ * Everything else is treated as flight-bearing, including fields we may not know
+ * about (`ComponentNode` has an open index signature). That is the safe
+ * direction to be wrong in: a needless invalidation costs a re-run, a missed one
+ * shows numbers for a rocket that no longer exists.
+ */
+export function flightKey(tree: RocketTree): string {
+  return JSON.stringify(tree.components, (k, v) => (k === 'name' ? undefined : (v as unknown)));
+}
+
+/**
  * Build the rocket exactly as the live rebuild effect does: the primary mount
  * takes `motor`, every other mount takes its imported motor from `extraMotors`
  * (skipping ones that are gone or are the primary). Shared by the main-thread
@@ -62,7 +81,7 @@ export function computeStaticInfo(
     const info = rocket.staticInfo();
     // Best-effort: a design the sweep can't evaluate just leaves cd undefined.
     try {
-      info.cd = rocket.dragSweep({ machMin: 0.3, machMax: 0.3, machStep: 0.05 }).powerOff.total[0];
+      info.cd = rocket.aeroSweep({ machMin: 0.3, machMax: 0.3, machStep: 0.05 }).powerOff.total[0];
     } catch {
       /* leave cd undefined */
     }

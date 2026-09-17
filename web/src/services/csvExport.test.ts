@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { flightDataCsv, dragTableCsv } from './csvExport';
+import { flightDataCsv, aeroTableCsv } from './csvExport';
 import { METRIC_UNITS, IMPERIAL_UNITS } from '../prefs/units';
-import type { FlightResult, DragSweep } from '../engine/openRocketEngine';
+import type { FlightResult, AeroSweep } from '../engine/openRocketEngine';
 
 const result = {
   series: {
@@ -68,24 +68,24 @@ const sweep = {
   cna: [2.0],
   hasNozzle: true,
   components: [{ name: 'Nose[1],x', cd: [0.05] }],
-} as unknown as DragSweep;
+} as unknown as AeroSweep;
 
-describe('dragTableCsv', () => {
+describe('aeroTableCsv', () => {
   it('includes the Cd_powerOn column and sanitizes component header names', () => {
-    const lines = dragTableCsv(sweep, METRIC_UNITS).split('\r\n');
+    const lines = aeroTableCsv(sweep, METRIC_UNITS).split('\r\n');
     // brackets stripped, comma → semicolon
     expect(lines[0]).toBe('Mach,Cd,Cd_friction,Cd_pressure,Cd_base,Cd_powerOn,CP (cm),CNalpha (/rad),Cd_Nose1;x');
     expect(lines[1]).toBe('0.500,0.5,0.1,0.2,0.2,0.6,22.3,2,0.05');
   });
 
   it('omits the Cd_powerOn column when there is no nozzle', () => {
-    const noNozzle = { ...sweep, hasNozzle: false } as unknown as DragSweep;
-    const header = dragTableCsv(noNozzle, METRIC_UNITS).split('\r\n')[0];
+    const noNozzle = { ...sweep, hasNozzle: false } as unknown as AeroSweep;
+    const header = aeroTableCsv(noNozzle, METRIC_UNITS).split('\r\n')[0];
     expect(header!.includes('Cd_powerOn')).toBe(false);
   });
 
   it('converts the CP column and names the unit it used', () => {
-    const lines = dragTableCsv(sweep, IMPERIAL_UNITS).split('\r\n');
+    const lines = aeroTableCsv(sweep, IMPERIAL_UNITS).split('\r\n');
     expect(lines[0]!.includes('CP (in)')).toBe(true);
     // 0.223 m = 8.779527559... in
     expect(lines[1]!.split(',')[6]).toBe('8.779528');

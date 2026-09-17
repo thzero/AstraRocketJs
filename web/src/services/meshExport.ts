@@ -3,7 +3,6 @@ import { OBJExporter } from 'three/examples/jsm/exporters/OBJExporter.js';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
 import { makeWatertight } from './solidMesh';
-import { saveBlob } from './saveFile';
 
 /**
  * 3D mesh export (STL / OBJ / glTF-binary) of a SINGLE component's solid.
@@ -51,14 +50,4 @@ export function solidToGlb(geometry: THREE.BufferGeometry): Promise<ArrayBuffer>
       { binary: true },
     );
   });
-}
-
-/** File-system-safe base name (shared with the .ork/.CDX1 writers' style). */
-export function safeName(name: string | undefined): string {
-  return (name || 'part').trim().replace(/[^a-z0-9._-]+/gi, '_') || 'part';
-}
-
-/** Trigger a browser download of some bytes/text. */
-export function downloadFile(data: BlobPart, filename: string, mime: string): void {
-  void saveBlob(new Blob([data], { type: mime }), filename);
 }

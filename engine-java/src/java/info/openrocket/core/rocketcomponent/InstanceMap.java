@@ -14,8 +14,12 @@ import info.openrocket.core.util.Transformation;
  */
 // PATCH(astrarrocketjs): ConcurrentHashMap -> LinkedHashMap. Two reasons:
 // (1) TeaVM's classlib needs a plain java.util map here; (2) RocketComponent
-// has no hashCode() override, so hash-map iteration order follows identity
-// hash codes, which vary per JVM process. The Barrowman calculators iterate
+// DOES override hashCode() (RocketComponent.java:2873-2876) -- it returns
+// id.hashCode() -- but the id is a fresh random UUID per component per run, so
+// that hash, and therefore hash-map iteration order, still varies run to run.
+// (An earlier version of this note said there was no hashCode() override at
+// all. There is; the conclusion was right for the wrong reason, which is worth
+// correcting before someone checks, finds the override, and reverts the patch.) The Barrowman calculators iterate
 // this map when summing per-component aerodynamic forces every simulation
 // step; a varying summation order produces ULP-level differences that
 // chaos-amplify over a flight, making simulations nondeterministic

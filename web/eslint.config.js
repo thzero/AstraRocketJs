@@ -7,6 +7,16 @@ import prettier from 'eslint-config-prettier';
 export default tseslint.config(
   { ignores: ['dist', 'coverage', 'playwright-report', 'test-results'] },
   {
+    // The build/sync scripts and this config itself are plain ESM .js/.mjs, so
+    // the TypeScript block below (files: **/*.{ts,tsx}) never matched them —
+    // 547 lines linted by nothing, including sync-motors.mjs and
+    // sync-components.mjs, which are the payload of a scheduled workflow
+    // holding `contents: write` against the data branch the live app reads.
+    files: ['scripts/**/*.mjs', '*.js', '*.mjs'],
+    extends: [js.configs.recommended],
+    languageOptions: { ecmaVersion: 2022, sourceType: 'module', globals: { ...globals.node } },
+  },
+  {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],
     languageOptions: {

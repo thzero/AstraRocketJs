@@ -1,6 +1,26 @@
 {
-  "app": { "title": "AstraRocketJs", "version": "{{name}} versión {{version}}", "designName": "Diseño de {{name}}" },
-  "common": { "loading": "Cargando…", "confirmTitle": "¿Estás seguro?", "confirm": "Confirmar", "save": "Guardar", "cancel": "Cancelar", "delete": "Eliminar", "discard": "Descartar", "close": "Cerrar" },
+  "app": {
+    "title": "AstraRocketJs",
+    "version": "{{name}} versión {{version}}",
+    "designName": "Diseño de {{name}}"
+  },
+  "common": {
+    "loading": "Cargando…",
+    "confirmTitle": "¿Estás seguro?",
+    "confirm": "Confirmar",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "discard": "Descartar",
+    "close": "Cerrar"
+  },
+  "errors": {
+    "openOrk": "No se pudo abrir el .ork: {{reason}}",
+    "saveOrk": "No se pudo guardar el .ork: {{reason}}",
+    "exportRasaero": "No se pudo exportar a RASAero: {{reason}}",
+    "exportUnsupported": "Este componente no se puede exportar como {{format}}.",
+    "exportFailed": "No se pudo exportar {{format}}: {{reason}}"
+  },
   "report": {
     "title": "Diseño del cohete",
     "noDesign": "No hay un diseño válido para exportar.",
@@ -115,7 +135,8 @@
     "openLibrary": "Abrir…",
     "saveAs": "Guardar como…",
     "import": "Importar",
-    "ork": "OpenRocket",
+    "importOrk": "Importar OpenRocket (.ork)",
+    "exportOrk": "Exportar OpenRocket (.ork)",
     "export": "Exportar",
     "report": "Informe del cohete (PDF)",
     "rasaero": "RASAero II",
@@ -126,7 +147,10 @@
     "new": "Nuevo",
     "newConfirm": "¿Descartar el diseño actual y todas las simulaciones y empezar un diseño nuevo?"
   },
-  "edit": { "undo": "Deshacer", "redo": "Rehacer" },
+  "edit": {
+    "undo": "Deshacer",
+    "redo": "Rehacer"
+  },
   "scale": {
     "title": "Escalar cohete",
     "intro": "Multiplica cada longitud, diámetro, pared, planta de aleta y posición axial por un factor. Se aplica en un solo paso — Ctrl+Z lo deshace.",
@@ -138,7 +162,10 @@
     "noAirframe": "Este diseño no tiene tubo, ojiva ni transición que medir, así que no hay nada que escalar. Añade un fuselaje primero.",
     "apply": "Escalar al {{pct}}%"
   },
-  "menu": { "open": "Menú", "help": "Ayuda" },
+  "menu": {
+    "open": "Menú",
+    "help": "Ayuda"
+  },
   "wip": {
     "title": "Trabajo en curso",
     "body": "{{name}} es una versión temprana (anterior a 1.0) en desarrollo activo. Las funciones pueden estar incompletas, cambiar o fallar. ¡Gracias por probarla!",
@@ -171,6 +198,11 @@
   "settings": {
     "title": "Ajustes",
     "parts": "Colores de piezas (modelo 3D)",
+    "aeroHeat": "Sombreado de las tablas aerodinámicas",
+    "aeroHeatLabel": "Color de las celdas",
+    "aeroHeatSky": "Por magnitud",
+    "aeroHeatOr": "Por calor",
+    "aeroHeatNote": "Por magnitud es un solo color que se intensifica con el valor, escalado respecto al mayor de la tabla. El mapa de calor de OpenRocket es su verde-rojo de escritorio en su propia escala fija, con texto oscuro sobre celdas claras.",
     "phases": "Colores de fase de la trayectoria",
     "playback": "Reproducción de la trayectoria",
     "tabGeneral": "General",
@@ -238,7 +270,12 @@
     "type_modified_kit": "Kit modificado",
     "type_kit_bash": "Combinación de kits"
   },
-  "tabs": { "rocket": "Cohete", "sketch": "Croquis", "motor": "Motor", "simulate": "Simular", "results": "Resultados" },
+  "tabs": {
+    "rocket": "Cohete",
+    "sketch": "Croquis",
+    "simulate": "Simular",
+    "results": "Resultados"
+  },
   "view": {
     "2d": "2D",
     "3d": "3D",
@@ -271,7 +308,6 @@
     "ruler_right_abbr": "De"
   },
   "stability": {
-    "title": "Estabilidad",
     "onPad": "Estabilidad (en plataforma)",
     "mass": "Masa",
     "cg": "CG",
@@ -279,8 +315,7 @@
     "caliber": "cal",
     "stable": "Estable",
     "marginal": "Marginal",
-    "unstable": "Inestable",
-    "overstable": "Sobreestable"
+    "unstable": "Inestable"
   },
   "stats": {
     "title": "Estadísticas estáticas del cohete",
@@ -347,7 +382,10 @@
     "geodetic": "Geodésico",
     "flat": "Plana",
     "spherical": "Esférica",
-    "wgs84": "WGS84"
+    "wgs84": "WGS84",
+    "rodLengthName": "Longitud de la guía",
+    "rodDirectionName": "Dirección de la guía",
+    "windDirectionName": "Dirección del viento"
   },
   "flight": {
     "title": "Perfil de vuelo",
@@ -383,7 +421,8 @@
     "zoomOut": "Alejar",
     "zoomReset": "Restablecer zoom",
     "stages": "Etapas",
-    "stage": "Etapa"
+    "stage": "Etapa",
+    "crosshairHint": "Gráficos de vuelo. Enfoca y usa las flechas para mover la cruz; Mayús para un paso mayor, Inicio y Fin para los extremos, Escape para quitarla."
   },
   "pathExport": {
     "open": "Exportar trayectoria de vuelo (KML / GPX / CSV)",
@@ -427,10 +466,25 @@
     "altitudeReferenceNote": "Automático usa el nivel del mar cuando el campo de vuelo tiene una altitud real definida, y el suelo cuando sigue en 0. Pegado apoya la traza sobre el terreno: la opción adecuada cuando lo que importa es por encima de qué deriva el cohete.",
     "drawShadow": "Dibujar la sombra hasta el suelo",
     "shadowNote": "Añade una cortina bajo la traza y una plomada bajo cada marcador, para leer dónde se sitúa en el mapa un punto que está en el aire. No hay nada que dibujar si ya está pegado al suelo.",
-    "preset": { "driftCast": "Deriva", "driftCastNote": "Todo apoyado en el terreno, solo la traza sobre el suelo: para leer los peligros bajo la deriva.", "flightPath": "Trayectoria", "flightPathNote": "El vuelo suspendido en el aire donde le corresponde, con sombras hasta el suelo.", "landing": "Aterrizajes", "landingNote": "Solo el punto de aterrizaje, sobre el suelo." },
-    "altRef": { "automatic": "Automático", "ground": "El suelo", "sealevel": "El nivel del mar" , "clamped": "Pegado al suelo" },
+    "preset": {
+      "driftCast": "Deriva",
+      "driftCastNote": "Todo apoyado en el terreno, solo la traza sobre el suelo: para leer los peligros bajo la deriva.",
+      "flightPath": "Trayectoria",
+      "flightPathNote": "El vuelo suspendido en el aire donde le corresponde, con sombras hasta el suelo.",
+      "landing": "Aterrizajes",
+      "landingNote": "Solo el punto de aterrizaje, sobre el suelo."
+    },
+    "altRef": {
+      "automatic": "Automático",
+      "ground": "El suelo",
+      "sealevel": "El nivel del mar",
+      "clamped": "Pegado al suelo"
+    },
     "stageTrackStart": "La traza de cada etapa empieza",
-    "trackStart": { "separation": "En la separación", "pad": "En la rampa" },
+    "trackStart": {
+      "separation": "En la separación",
+      "pad": "En la rampa"
+    },
     "showWaypointLabels": "Dibujar los nombres de los puntos en el mapa",
     "colorWaypointPins": "Colorear los marcadores por etapa",
     "pinsNote": "Los marcadores de color cargan un icono desde los servidores de Google; desactívalos para un archivo que deba verse sin conexión.",
@@ -441,24 +495,55 @@
     "download": "Descargar",
     "cancel": "Cancelar"
   },
-  "drag": {
-    "title": "Análisis de resistencia",
-    "exportCsv": "Descargar tabla de resistencia (.csv)",
+  "aero": {
+    "unattributed": "No atribuido a un componente",
+    "unattributedNote": "Resistencia de base y términos que el núcleo imputa al cohete y no a una pieza concreta. La gráfica de desglose de arriba divide el cohete completo por tipo.",
+    "perInstance": "Por unidad",
+    "stabilityContribution": "Contribución a la estabilidad",
+    "eachMass": "Cada una ({{unit}})",
+    "totalMass": "Total ({{unit}})",
+    "cg": "CG ({{unit}})",
+    "rollNote": "El amortiguamiento se opone a una velocidad de alabeo existente, así que aquí es cero: el barrido se calcula con alabeo nulo. El forzamiento es lo que aporta el ángulo de las aletas.",
+    "rollDynamics": "Dinámica de alabeo",
+    "rollForcing": "Forzamiento de alabeo",
+    "rollDamping": "Amortiguamiento de alabeo",
+    "charts": "Gráficas",
+    "machPicker": "Número de Mach para las tablas",
+    "dragByComponent": "Resistencia por componente",
+    "nonFinite_one": "Este desglose está incompleto: no se pudo calcular {{count}} valor.",
+    "nonFinite_other": "Este desglose está incompleto: no se pudieron calcular {{count}} valores.",
+    "aoa": "AoA",
+    "windDirection": "Dir. viento",
+    "rollRate": "Vel. alabeo",
+    "worst": "Peor",
+    "worstNote": "Fija la dirección del viento en el ángulo donde el cohete es menos estable",
+    "share": "Proporción del total",
+    "absolute": "Escala de Cd",
+    "columnShare": "Proporción del mayor de cada columna",
+    "perComponent": "Por componente",
+    "atMach": "a Mach {{mach}}",
+    "hoverHint": "Pasa el cursor por una gráfica para cambiar el Mach",
+    "component": "Componente",
+    "wholeRocket": "Cohete completo",
+    "splitUnavailable": "La división presión / base / fricción por componente necesita un núcleo de física más reciente; la del cohete completo está en la gráfica de desglose de arriba.",
+    "title": "Análisis aerodinámico",
+    "exportCsv": "Descargar tabla aerodinámica (.csv)",
     "maxMach": "Mach máx.",
     "cdVsMach": "Cd vs Mach",
     "breakdown": "Desglose de resistencia",
     "cpVsMach": "CP vs Mach",
     "powerOff": "Sin empuje",
     "powerOn": "Con empuje",
+    "powerOnMotor": "Con motor: {{motor}}",
+    "powerOnMotorNote": "La curva con motor se calcula para el motor cargado en la simulación activa, usando el diámetro de salida de la tobera de la etapa. Las demás cifras son de geometría y no dependen del motor.",
     "friction": "Fricción",
     "pressure": "Presión",
     "base": "Base",
-    "byType": "Por tipo",
-    "byComponent": "Por componente",
     "other": "Otros",
     "pctBody": "% cuerpo",
     "supersonicNote": "Barrowman extendido — aproximado por encima de ~Mach 1.5.",
-    "unavailable": "Construye un cohete válido para ver su resistencia."
+    "unavailable": "Construye un cohete válido para ver su resistencia.",
+    "crosshairHint": "Curvas de resistencia. Enfoca y usa las flechas para mover la cruz; Mayús para un paso mayor, Inicio y Fin para los extremos, Escape para quitarla."
   },
   "banner": {
     "loaded": "Diseño cargado (.ork)",
@@ -574,7 +659,9 @@
     "tabLength": "Longitud de la lengüeta",
     "tabHeight": "Altura de la lengüeta",
     "tabOffset": "Desplazamiento de la lengüeta",
-    "tabOffsetMethod": "Referencia de la lengüeta"
+    "tabOffsetMethod": "Referencia de la lengüeta",
+    "cluster": "Clúster",
+    "tubeFinsCollide": "Estos tubos se solapan. Con este radio de tubo caben como máximo {{max}}; con esta cantidad el mayor que cabe es {{radius}} {{unit}}."
   },
   "deployEvent": {
     "ejection": "Carga de eyección del motor",
@@ -675,7 +762,9 @@
     "outline": "Perfil de la aleta",
     "removePoint": "Eliminar punto",
     "point": "Punto {{n}}",
-    "hint": "Arrastra los puntos ámbar para dar forma a la aleta; toca un punto azul intermedio para añadir uno. X recorre el cuerpo, Y es la altura sobre él."
+    "hint": "Arrastra los puntos ámbar para dar forma a la aleta; toca un punto azul intermedio para añadir uno. X recorre el cuerpo, Y es la altura sobre él.",
+    "vertex": "Punto del contorno {{n}}",
+    "insertAfter": "Insertar un punto después de {{n}}"
   },
   "material": {
     "title": "Material",
@@ -729,9 +818,7 @@
     "viewCurve": "Curva de empuje",
     "delay": "Retardo",
     "ignition": "Encendido",
-    "ignitionDelay": "Retardo de encendido (s)",
-    "run": "Simular vuelo",
-    "emptyHint": "Añade una simulación para empezar."
+    "ignitionDelay": "Retardo de encendido (s)"
   },
   "ignition": {
     "automatic": "Automático",
@@ -782,7 +869,9 @@
     "chartBurn": "tiempo de comb.",
     "calcNote": "* El empuje inicial, el Isp y la fracción de masa se calculan a partir de la curva de empuje y los pesos."
   },
-  "lang": { "label": "Idioma" },
+  "lang": {
+    "label": "Idioma"
+  },
   "boot": {
     "downloading": "Descargando el motor de cálculo…",
     "downloadingOf": "Descargando el motor de cálculo… {{done}} / {{total}} MB",
@@ -792,11 +881,9 @@
   },
   "catalog": {
     "loadingMotors": "Cargando el catálogo de motores…",
-    "loadingComponents": "Cargando el catálogo de componentes…",
     "loadingOf": "{{done}} / {{total}} MB",
     "loadedSoFar": "{{done}} MB",
     "failedMotors": "No se pudo cargar el catálogo de motores.",
-    "failedComponents": "No se pudo cargar el catálogo de componentes.",
     "retry": "Reintentar"
   },
   "update": {
@@ -806,16 +893,22 @@
   },
   "storage": {
     "full": "No se pudo guardar tu trabajo: el almacenamiento del navegador está lleno. Exporta tu diseño para conservarlo.",
-    "degraded": "Tu navegador está bloqueando su base de datos, así que la aplicación ha recurrido a un área de almacenamiento mucho más pequeña (unos 5 MB) y el guardado puede fallar a medida que crezca tu diseño. La navegación privada suele ser la causa. Exporta lo que quieras conservar."
+    "degraded": "Tu navegador está bloqueando su base de datos, así que la aplicación ha recurrido a un área de almacenamiento mucho más pequeña (unos 5 MB) y el guardado puede fallar a medida que crezca tu diseño. La navegación privada suele ser la causa. Exporta lo que quieras conservar.",
+    "loadFailed": "No se pudo leer el diseño guardado. Se empieza de cero; el trabajo nuevo sí se guardará."
   },
   "library": {
     "title": "Mis cohetes",
     "empty": "Todavía no hay cohetes guardados. Tu diseño se guarda automáticamente mientras trabajas.",
     "open": "abierto",
     "rename": "Renombrar",
+    "deleteConfirm": "¿Eliminar «{{name}}»? Esta acción no se puede deshacer.",
     "name": "Nombre",
     "untitled": "Cohete sin título",
     "duplicateName": "Otro cohete ya tiene este nombre.",
     "missing": "Ese cohete ya no está guardado."
+  },
+  "cluster": {
+    "single": "Individual",
+    "pattern": "{{name}} ({{n}} motores)"
   }
 }

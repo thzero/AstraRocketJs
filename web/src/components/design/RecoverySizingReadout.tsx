@@ -93,8 +93,7 @@ export function RecoverySizingReadout({ node }: { node: ComponentNode }) {
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-xs text-slate-400">{t('recovery.drogueTarget')}</span>
             <span className="text-sm tabular-nums text-slate-200">
-              Ø {drogueUnit.fmt(sizing.drogueD)}{' '}
-              <UnitChip quantity="length" scope={unitScope('recovery', 'drogueD')} />
+              Ø {drogueUnit.fmt(sizing.drogueD)} <UnitChip quantity="length" scope={unitScope('recovery', 'drogueD')} />
             </span>
           </div>
           <p className="text-[10px] text-slate-600">{t('recovery.atCd', { cd: fmtNum(cd, 2) })}</p>

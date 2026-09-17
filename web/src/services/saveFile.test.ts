@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { saveBlob, safeFilename } from './saveFile';
+import { download, saveBlob, safeFilename } from './saveFile';
 
 // The share sheet is used ONLY where `<a download>` is known to fail: iOS or
 // iPadOS running the app as an installed PWA. Everywhere else the anchor wins,
@@ -119,7 +119,52 @@ describe('safeFilename', () => {
   });
 
   it('falls back when a name reduces to nothing', () => {
+    // "///" sanitises to "_", which is truthy but a useless filename — the
+    // trap that two of the three deleted copies fell into.
     expect(safeFilename('///')).toBe('rocket');
     expect(safeFilename('')).toBe('rocket');
+  });
+
+  it("takes the caller's own fallback", () => {
+    // The part exporter wants "part", the flight-path exporter "flight".
+    expect(safeFilename('My Fin!', 'part')).toBe('My_Fin_');
+    expect(safeFilename('', 'part')).toBe('part');
+    expect(safeFilename('!!!', 'flight')).toBe('flight');
+  });
+
+  it('keeps dots, so an extension a caller already added survives', () => {
+    expect(safeFilename('v1.2 draft')).toBe('v1.2_draft');
+  });
+});
+
+/** `download` is fire-and-forget, so let its inner save settle. */
+const flush = () => new Promise((r) => setTimeout(r, 0));
+
+describe('download', () => {
+  /**
+   * There were three of these, one per module, disagreeing about argument
+   * order — `downloadText(filename, text, mime)`, `downloadBlob(blob,
+   * filename)`, `downloadFile(data, filename, mime)`. Two put the filename
+   * where the third put the payload, and because a text payload is also a
+   * `string` the compiler accepted either: importing the wrong one downloaded
+   * a file NAMED after its own contents. One signature now, filename first,
+   * pinned here.
+   */
+  it('takes the filename first and the payload second', async () => {
+    pose({ apple: false, standalone: false });
+    download('aero-table.csv', 'Mach,Cd\r\n0.05,0.41\r\n', 'text/csv;charset=utf-8');
+    await flush();
+    expect(clicks).toHaveLength(1);
+    expect(clicks[0]!.download).toBe('aero-table.csv');
+  });
+
+  it('passes a Blob straight through instead of re-wrapping it', async () => {
+    // The image exporters hand it an already-typed Blob; re-wrapping would
+    // replace its MIME type with the text default.
+    pose({ apple: false, standalone: false });
+    download('rocket-3d.png', new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }));
+    await flush();
+    expect(clicks).toHaveLength(1);
+    expect(clicks[0]!.download).toBe('rocket-3d.png');
   });
 });

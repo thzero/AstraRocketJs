@@ -1,6 +1,7 @@
 import type { MotorSpec } from '../engine/openRocketEngine';
 import type { CatalogMotor } from './motorDb';
-import { getMotorStore } from './motorStore';
+import { getMotorStore, isThrustSampleArray } from './motorStore';
+import { declaredLength, readStreamWithProgress } from './fetchProgress';
 
 /**
  * thrustcurve.org API v1 client (CORS-enabled; verified reflective
@@ -40,10 +41,15 @@ interface TcSample {
 // so a slow/unreachable server fails cleanly instead of hanging "Loading…".
 const FETCH_TIMEOUT_MS = 5_000;
 const MAX_RESPONSE_BYTES = 16 * 1024 * 1024; // 16 MiB — motor lists/curves are KB-scale
+/** Budget for the body once headers are in, separate from the first-byte one. */
+const BODY_TIMEOUT_MS = 20_000;
 
 async function post<T>(path: string, body: unknown): Promise<T> {
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
+  // Staged, the way remoteData.fetchJson does it. The first budget covers
+  // time-to-first-byte; once headers are in, the host is alive and the body
+  // gets its own. A single budget spanning both would cut off a slow download.
+  let timer = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
   try {
     const res = await fetch(`${API}/${path}`, {
       method: 'POST',
@@ -51,10 +57,22 @@ async function post<T>(path: string, body: unknown): Promise<T> {
       body: JSON.stringify(body),
       signal: ctl.signal,
     });
+    clearTimeout(timer);
+    timer = setTimeout(() => ctl.abort(), BODY_TIMEOUT_MS);
     if (!res.ok) throw new Error(`thrustcurve.org ${path} → HTTP ${res.status}`);
     const len = Number(res.headers.get('content-length'));
     if (Number.isFinite(len) && len > MAX_RESPONSE_BYTES) throw new Error(`thrustcurve.org ${path} response too large`);
-    return res.json() as Promise<T>;
+    // AWAITED, not returned: `finally` runs at the `return` statement, so
+    // returning the unawaited promise cleared the abort timer before the body
+    // had been read. A host that sent headers and then stalled hung the motor
+    // picker forever, with the only timeout already cancelled.
+    //
+    // Streamed rather than res.json() so MAX_RESPONSE_BYTES is enforced on the
+    // bytes RECEIVED. The content-length check above only fires when the host
+    // declared one; a chunked response declared none and buffered unbounded.
+    if (!res.body) return await (res.json() as Promise<T>);
+    const bytes = await readStreamWithProgress(res.body, declaredLength(res), () => {}, MAX_RESPONSE_BYTES);
+    return JSON.parse(new TextDecoder().decode(bytes)) as T;
   } catch (e) {
     if (ctl.signal.aborted) throw new Error(`thrustcurve.org timed out — check your connection and try again.`);
     throw e;
@@ -201,10 +219,9 @@ function metaKey(cat: CatalogMotor): string {
 // reports each entry's staleness (its TTL/freshness policy), and we re-fetch
 // only for a motor the user picks AGAIN once its entry has aged out. Falling
 // back to the stale value keeps a failed refresh (offline / API down) working.
-const isSampleArray = (v: unknown): boolean =>
-  Array.isArray(v) &&
-  v.length > 0 &&
-  v.every((s) => typeof (s as TcSample)?.time === 'number' && typeof (s as TcSample)?.thrust === 'number');
+// One definition, in motorStore.ts beside the store that persists these. This
+// copy accepted NaN and Infinity, which `typeof === 'number'` lets through.
+const isSampleArray = isThrustSampleArray;
 
 const isSpec = (v: unknown): boolean => {
   const s = v as MotorSpec;

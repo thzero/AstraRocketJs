@@ -58,6 +58,10 @@ Las unidades pertenecen **al navegador donde las configuras**, no a un diseño n
 - **No** viajan dentro de un `.ork`. Si abres uno de tus archivos en OpenRocket de escritorio, lo verás en las unidades *de OpenRocket*, definidas en sus propias preferencias; y un archivo de OpenRocket se abre aquí en las tuyas. El cohete es idéntico en ambos casos: solo cambia la presentación.
 - **No** te siguen a otro ordenador, a otro navegador ni a una ventana privada, y borrar los datos del sitio en tu navegador las restablece junto con el resto de los ajustes.
 
+### Sombreado de las tablas aerodinámicas
+
+**Colores ▸ Sombreado de las tablas aerodinámicas** elige cómo tiñen sus celdas las tablas por componente de [Aero](./views-and-analysis.md). *Por magnitud* es un solo color que se intensifica con el valor, escalado respecto al mayor de la tabla. *Por calor* reproduce exactamente el verde-rojo de OpenRocket de escritorio: su fórmula, su escala fija de 0 a 1,5 Cd y texto oscuro sobre celdas claras. Ninguno es más correcto; elige el que leas más rápido. *Por calor* se aplica solo a la tabla de **resistencia**: su escala es absoluta de Cd, y ni el CNα ni los coeficientes de alabeo están en ella —un CNα de 15 en unas aletas se saturaría en el mismo rojo que el 2 de una ojiva y no diría nada—, así que esas tablas quedan sin sombrear con esta opción, igual que OpenRocket de escritorio solo colorea su pestaña de resistencia. El mismo conmutador está junto a la leyenda bajo la tabla, así que puedes cambiarlo sin salir de la vista.
+
 ### Lo que las unidades no cambian
 
 Las unidades son una preferencia de **visualización y entrada**. Tu diseño se guarda siempre en SI, así que cambiar de unidades nunca modifica un cohete ni vuelve a guardar un archivo:

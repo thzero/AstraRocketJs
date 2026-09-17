@@ -111,10 +111,60 @@ if (stale.length) {
   console.warn(`extract: ${stale.length} extracted file(s) not in manifest (stale):`);
   stale.forEach((s) => console.warn(`  ? ${s}`));
 }
+// A src/java file that was hand-edited but has no patches/ counterpart is
+// INVISIBLE to this tool: a regeneration silently reverts it to upstream. That
+// is how three TeaVM-compat fixes the build cannot run without (java.nio.file
+// and Locale.Category are absent from TeaVM's classlib; the ArrayList.clone()
+// rewrite is the WASM-GC ClassCastException at build.gradle:81-82) came to sit
+// one `extract --src` away from being wiped.
+const unpatched = walk(extractedRoot)
+  .map((p) => relative(extractedRoot, p).replace(/\\/g, '/'))
+  .filter((p) => p.endsWith('.java') && !patchSet.has(p))
+  .filter((p) => readFileSync(join(extractedRoot, p), 'utf8').includes('PATCH(astrarrocketjs'));
+
+// For a PATCHED file the comparison above is src/java vs the patch, so it can
+// never see upstream moving underneath. Report that separately, or a patch sits
+// hundreds of lines behind upstream while --check calls it clean — which is
+// exactly what happened to FinSetCalc (871 lines, and a whole NACA Report 1307
+// fin-body interference model that was never extracted at all).
+const behind = [];
+for (const rel of manifest) {
+  if (!patchSet.has(rel)) continue;
+  const up = join(coreJavaRoot, rel);
+  if (!existsSync(up)) continue;
+  const a = norm(readFileSync(join(patchesRoot, rel), 'utf8')).split('\n');
+  const b = norm(readFileSync(up, 'utf8')).split('\n');
+  const aSet = new Set(a), bSet = new Set(b);
+  const delta = a.filter((l) => l.trim() && !bSet.has(l)).length + b.filter((l) => l.trim() && !aSet.has(l)).length;
+  if (delta) behind.push({ rel, delta });
+}
+behind.sort((x, y) => y.delta - x.delta);
+
+if (unpatched.length) {
+  console.error(`extract: ${unpatched.length} extracted file(s) carry a PATCH( marker but have NO patches/ file:`);
+  unpatched.forEach((u) => console.error(`  ! ${u}`));
+  console.error('extract:   a regeneration would silently revert these to upstream.');
+}
+if (behind.length) {
+  console.warn(`extract: ${behind.length} patch(es) differ from current upstream (the override, drift, or both):`);
+  behind.forEach(({ rel, delta }) => console.warn(`  > ${rel}  (~${delta} line(s))`));
+  console.warn('extract:   review each — a large number means upstream has moved on without us.');
+}
+
+// Every one of these is a reason the extracted tree is not reproducible, so
+// every one has to fail the check. Only `missing` used to, which is what made a
+// single bogus manifest entry load-bearing: delete it and --check went green
+// over 16 drifted and 13 unmanaged files.
+const problems = missing.length + drift.length + stale.length + unpatched.length;
 if (check) {
   console.log(`extract --check: ${drift.length} extracted file(s) differ from upstream(+patch)${drift.length ? ':' : '.'}`);
   drift.forEach((d) => console.log(`  ~ ${d}`));
-  process.exit(missing.length ? 1 : 0);
+  console.log(
+    problems
+      ? `extract --check: FAILED (${missing.length} missing, ${drift.length} drifted, ${stale.length} unmanaged, ${unpatched.length} unpatched)`
+      : 'extract --check: OK - src/java is exactly upstream(+patches).',
+  );
+  process.exit(problems ? 1 : 0);
 }
 console.log(`extract: wrote ${patched + verbatim} files (${patched} patched, ${verbatim} verbatim).`);
-process.exit(missing.length ? 1 : 0);
+process.exit(problems ? 1 : 0);

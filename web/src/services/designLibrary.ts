@@ -96,16 +96,27 @@ export class DesignLibrary {
     if (!(await this.kv.set(designKey(id), JSON.stringify(w)))) return false;
     const list = await this.readIndex();
     const rest = list.filter((m) => m.id !== id);
-    // Index write failing is survivable — the design itself is stored — so the
-    // caller's success hinges on the design write above, not this.
-    await this.writeIndex([{ id, name, updatedAt: Date.now() }, ...rest]);
-    return true;
+    // The index write counts too. It was treated as survivable on the grounds
+    // that the design itself is stored — but `activeId()` filters against this
+    // index, so a design missing from it is unreachable: a newly created one
+    // vanishes and the next session opens empty over orphaned bytes, and an
+    // existing one stops advancing its `updatedAt` so the library list silently
+    // goes stale. Reporting the failure lets `workspaceStore.save()` raise
+    // "storage full" instead of the user finding out later.
+    return await this.writeIndex([{ id, name, updatedAt: Date.now() }, ...rest]);
   }
 
-  /** Register a new design and make it active. Returns its meta. */
+  /**
+   * Register a new design and make it active. Returns its meta.
+   *
+   * Throws `storage-full` if the write is refused. It used to discard `write`'s
+   * boolean and fall back to a FABRICATED meta, so the caller got a clean
+   * resolve for a design that was never stored — and this is the path taken by
+   * the first save of a session, i.e. exactly when there is no other copy yet.
+   */
   async create(name: string, w: Workspace): Promise<DesignMeta> {
     const id = freshId();
-    await this.write(id, name, w);
+    if (!(await this.write(id, name, w))) throw new Error('storage-full');
     await this.setActive(id);
     const meta = (await this.readIndex()).find((m) => m.id === id);
     return meta ?? { id, name, updatedAt: Date.now() };
@@ -145,7 +156,13 @@ export class DesignLibrary {
         }
         const id = freshId();
         if (!(await this.kv.set(designKey(id), raw))) return; // retry next session
-        await this.writeIndex([{ id, name: legacyName(raw), updatedAt: Date.now() }]);
+        // The INDEX write gates the delete too, for the same reason the blob
+        // write does. `activeId()` filters against this index, so a design
+        // missing from it is unreachable — and the line below removes the only
+        // other copy. Blob stored + index refused (quota, degraded fallback)
+        // used to leave the user opening an empty workspace with their
+        // pre-library design gone for good.
+        if (!(await this.writeIndex([{ id, name: legacyName(raw), updatedAt: Date.now() }]))) return;
         await this.setActive(id);
         await this.kv.remove(LEGACY_KEY);
       } catch {

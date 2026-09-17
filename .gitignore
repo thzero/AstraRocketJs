@@ -35,3 +35,11 @@ web/.playwright/
 *.iml
 .DS_Store
 Thumbs.db
+
+# Unanchored: `npx` at the repo root creates a bare node_modules/ (there is no
+# root package.json), and vitest rewrites node_modules/.vite/**/results.json on
+# every local run — three build artifacts were tracked because only the web/ and
+# website/ paths were listed, so the tree went dirty after every `npm test`.
+node_modules/
+test-results/
+web/coverage/

@@ -44,10 +44,22 @@ jobs:
       # merged contributor is credited on the next deploy without a manual commit.
       # Best-effort: if the API is down or throttled the step is skipped and the
       # build uses the committed src/data/contributors.generated.json instead.
-      - run: npm run sync:contributors
+      - id: contributors
+        run: npm run sync:contributors
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
+
+      # continue-on-error hides the difference between "the API was throttled
+      # today" and "this has been broken for months" -- and nothing else ever
+      # runs this script, so the About dialog's contributor list would just
+      # quietly freeze. Say so, the way sync-catalogs.yml already does.
+      - if: steps.contributors.outcome == 'failure'
+        run: |
+          echo "::warning title=Contributor sync failed::Deployed with the committed contributors.generated.json. If this repeats it is broken, not throttled."
+          echo "### Contributor sync failed" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Deployed with the committed src/data/contributors.generated.json." >> "$GITHUB_STEP_SUMMARY"
 
       # Docs are built BEFORE the app and into web/public, so the service worker
       # precaches them: Help has to work offline, which is much of the point of

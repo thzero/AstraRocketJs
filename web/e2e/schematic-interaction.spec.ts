@@ -1,17 +1,16 @@
-import { test, expect, type Page } from '@playwright/test';
-
-async function dismissWip(page: Page) {
-  await page
-    .getByRole('button', { name: 'I understand' })
-    .click({ timeout: 10_000 })
-    .catch(() => {});
-}
+import { test, expect, type Page } from './base';
 
 /**
  * 2D schematic INTERACTION coverage in a real browser — the select / hover /
- * drag-reposition / caliper paths that jsdom can't drive and the render e2e
+ * roll-drag / caliper paths that jsdom can't drive and the render e2e
  * (schematic.spec) doesn't touch. This is the safety net for decomposing the
  * renderer, whose shapes carry the interaction handlers.
+ *
+ * It used to claim "drag-reposition" as well. No test dragged a component, and
+ * none could have: `onPatchNode` was never passed, so `beginDrag` early-returned
+ * and the handler was never attached. That whole path has been removed — the
+ * property panel sets a component's position numerically. A docblock promising
+ * a safety net that does not exist is worse than no docblock.
  */
 test.describe('2D schematic interaction', () => {
   const schematic = (page: Page) =>
@@ -22,7 +21,6 @@ test.describe('2D schematic interaction', () => {
 
   test('clicking a component on the canvas selects it (property editor opens)', async ({ page }) => {
     await page.goto('/');
-    await dismissWip(page);
     const hint = page.getByText(/Select a component in the tree or drawing/i);
     await expect(hint).toBeVisible(); // nothing selected yet
 
@@ -36,7 +34,6 @@ test.describe('2D schematic interaction', () => {
 
   test('hovering a component shows its name tag on the canvas', async ({ page }) => {
     await page.goto('/');
-    await dismissWip(page);
     const svg = schematic(page);
     const box = (await svg.boundingBox())!;
     await page.mouse.move(box.x + box.width * 0.45, box.y + box.height / 2);
@@ -45,7 +42,6 @@ test.describe('2D schematic interaction', () => {
 
   test('dragging horizontally on the drawing rolls the rocket', async ({ page }) => {
     await page.goto('/');
-    await dismissWip(page);
     // The roll slider mirrors the schematic's roll; a horizontal drag on the
     // drawing spins the fins (onMove → onRoll), so its value must change.
     const roll = page.getByRole('slider', { name: /roll/i });
@@ -64,7 +60,6 @@ test.describe('2D schematic interaction', () => {
 
   test('the length caliper shows a live measurement readout', async ({ page }) => {
     await page.goto('/');
-    await dismissWip(page);
     await page.getByTitle(/Length calipers/i).click();
     const svg = schematic(page);
     // The caliper distance is the accent-colored "<n> <unit>" label — cm by default.

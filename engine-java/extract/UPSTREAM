@@ -1,0 +1,10 @@
+# The OpenRocket source engine-java/src/java was extracted from.
+#
+# `extract --check` is only meaningful against this exact tree: a different
+# upstream reports drift that is really just a version difference. CI pins it
+# (.github/workflows/engine.yml), and adopting a newer OpenRocket means bumping
+# it here, re-running the extraction, and reviewing every line the
+# "patch(es) differ from current upstream" report names.
+repo = https://github.com/thzero/openrocket.git
+ref  = c1a1a9b9fff2d629a5a64dc30dfd0603dfef62c3
+describe = release-24.12-1908-gc1a1a9b9f

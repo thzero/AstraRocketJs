@@ -37,6 +37,36 @@ function eng(): EngineApi {
   return active;
 }
 
+/**
+ * Swap in a stub engine — tests only.
+ *
+ * This module is the ONE boundary where JS numbers become physics inputs, and
+ * it had no test file because `active` is module-private with no way in. Same
+ * seam pattern as `__resetIdbForTests` / `setDesignLibrary`. Pass null to
+ * restore the uninitialised state.
+ */
+export function __setEngineForTests(stub: Partial<EngineApi> | null): void {
+  active = stub as EngineApi | null;
+  engineGeneration++; // a different engine means every existing handle is void
+}
+
+/**
+ * How many times the kernel's handle table has been thrown away.
+ *
+ * Every {@link OpenRocketDesign} records the value it was built under, so one
+ * held across a `resetEngine()` can say so instead of addressing whatever now
+ * happens to occupy its number.
+ */
+let engineGeneration = 0;
+
+/** A design used after the engine that built it was reset. */
+export class StaleDesignError extends Error {
+  constructor() {
+    super('This design was built before the engine was reset — rebuild it before use.');
+    this.name = 'StaleDesignError';
+  }
+}
+
 /** Dynamically import the JS engine as its own chunk — loaded only when WASM is unavailable. */
 async function loadJsEngine(): Promise<EngineApi> {
   return await import('./vendor/openrocket-engine.mjs');
@@ -111,9 +141,7 @@ function installKernelConsole(imports: Record<string, unknown>): void {
 /** What the boot splash is waiting on. `downloading` carries byte counts when the
  *  host declares a length; `starting` is the compile/instantiate step, which has
  *  no measurable progress but is a large part of the wait on a slow device. */
-export type EngineLoadStatus =
-  | { phase: 'downloading'; loaded: number; total: number | null }
-  | { phase: 'starting' };
+export type EngineLoadStatus = { phase: 'downloading'; loaded: number; total: number | null } | { phase: 'starting' };
 
 async function tryLoadWasm(onStatus?: (s: EngineLoadStatus) => void): Promise<EngineApi | null> {
   try {
@@ -337,7 +365,7 @@ export interface StaticInfo {
   warningTexts: string[];
   /**
    * Power-off (coast) total drag coefficient at Mach 0.3 — NOT part of the
-   * engine's static JSON; the store fills it from a one-point {@link Rocket.dragSweep}
+   * engine's static JSON; the store fills it from a one-point {@link Rocket.aeroSweep}
    * so the "all stats" strip can show it. Undefined if the sweep failed.
    */
   cd?: number;
@@ -385,9 +413,32 @@ export type ComponentType =
 export type IgnitionEvent = 'automatic' | 'launch' | 'ejectioncharge' | 'burnout' | 'never';
 
 export interface ComponentPosition {
-  method: 'top' | 'middle' | 'bottom' | 'absolute';
+  /**
+   * `after` is OpenRocket's AxialMethod.AFTER: the part starts at the aft end
+   * of the previous sibling, with the offset forced to 0
+   * (RocketComponent.setAfter, :1459-1491) — NOT the `outerLength + offset`
+   * the enum's own getAsPosition suggests, which that path never reaches.
+   * Sibling-relative, so like `absolute` it is resolved into the parent frame
+   * on load; see resolveFilePositions.
+   */
+  method: 'top' | 'middle' | 'bottom' | 'absolute' | 'after';
   /** meters, per the method's convention */
   offset: number;
+  /**
+   * What the imported `.ork` actually said, when it said `absolute`.
+   *
+   * `absolute` is a ROCKET-origin offset, but the editor (schematic, property
+   * panel, drag handles) works purely in the parent frame, so an imported
+   * absolute position is rewritten to the equivalent `top` offset on load —
+   * otherwise the app draws the part somewhere the engine does not fly it.
+   *
+   * Rewriting it would also change what we write back out, and `.ork`
+   * round-trips are meant to be byte-stable. So the original is kept here and
+   * `orkExport` restores it, as long as `resolved` still matches the current
+   * offset (i.e. the user has not moved the part since importing).
+   */
+  /** The two file-only methods: both are resolved to 'top' on load. */
+  ork?: { method: 'absolute' | 'after'; offset: number; resolved: number };
 }
 
 /**
@@ -556,8 +607,23 @@ export interface ComponentInfo {
   positionX: number;
 }
 
-/** Options for {@link OpenRocketDesign.dragSweep}; a Mach grid at a fixed angle. */
-export interface DragSweepOptions {
+/** Options for {@link OpenRocketDesign.aeroSweep}; a Mach grid at a fixed angle. */
+/** One row of the per-component mass breakdown, in SI. */
+export interface ComponentMass {
+  /** Stable identity, matching `AeroSweep.components[].key`. Empty for the
+   *  motor rows, which have no aerodynamic row to join to. */
+  key?: string;
+  /** Display label. Not unique — see `key`. */
+  name: string;
+  /** Mass of a single instance (kg) — one fin of a fin set. */
+  eachMass: number;
+  /** Mass of every instance together (kg). */
+  mass: number;
+  /** CG of the whole set, m from the nose tip. */
+  cg: number;
+}
+
+export interface AeroSweepOptions {
   /** First Mach (default 0.05). */
   machMin?: number;
   /** Last Mach (default 3.0). */
@@ -566,6 +632,17 @@ export interface DragSweepOptions {
   machStep?: number;
   /** Angle of attack in degrees (default 0 — the zero-alpha drag polar). */
   aoaDeg?: number;
+  /**
+   * Wind direction about the roll axis, degrees. A rocket is least stable at
+   * some angle, and for a three-fin design that angle is not zero — see
+   * {@link OpenRocketDesign.worstThetaDeg}.
+   */
+  thetaDeg?: number;
+  /**
+   * Roll rate, rad/s. The roll DAMPING coefficient is proportional to it, so it
+   * reads zero for a rocket that is not rolling.
+   */
+  rollRate?: number;
   /**
    * Optional Reynolds matching: [mach, altitude m] pairs pin the ISA
    * atmosphere (hence Re) per Mach point, linearly interpolated — the same
@@ -592,11 +669,22 @@ export interface DragCurve {
  * subsonic/transonic, approximate above ~Mach 1.5-2 (full supersonic fidelity
  * is a later feature). The UI labels the supersonic region accordingly.
  */
-export interface DragSweep {
+export interface AeroSweep {
   /** Mach grid (x-axis for every curve). */
   machs: number[];
   /** Whether any stage sets a nozzle exit diameter (so power-on differs from power-off). */
   hasNozzle: boolean;
+  /**
+   * How many non-finite readings the kernel met building the per-component
+   * breakdown below.
+   *
+   * Those cells come back `null` rather than 0 — a component that genuinely
+   * generates no normal force also reads 0, so a swallowed NaN used to be
+   * indistinguishable from it, and the breakdown quietly stopped adding up to
+   * the rocket totals. Any count above zero means the table is incomplete and
+   * should say so. Optional: a kernel built before this omits it.
+   */
+  nonFinite?: number;
   /**
    * CP location per Mach (m from the nose tip), at the sweep's angle of attack.
    * Power state doesn't move CP, so one curve serves both. Feeds the
@@ -610,7 +698,57 @@ export interface DragSweep {
   /** Boost (all stages thrusting) drag — differs from powerOff only when hasNozzle. */
   powerOn: DragCurve;
   /** Per-component power-off total CD (index-aligned to `machs`). */
-  components: { name: string; cd: number[] }[];
+  /**
+   * Per-component power-off breakdown, one entry per aerodynamic component.
+   *
+   * `cd` has always been here. The rest come from the same `getForceAnalysis`
+   * call — the one OpenRocket's Component Analysis dialog tabulates — and are
+   * OPTIONAL because a kernel built before they were added simply omits them;
+   * the UI shows the columns it has data for.
+   */
+  components: {
+    /**
+     * Stable identity for this component — the kernel's own UUID.
+     *
+     * Use this for row keys and for joining to {@link ComponentMass}, NOT
+     * `name`: nothing forces a part to be renamed, so two unnamed body tubes
+     * are both called "Body tube". Optional because a kernel built before this
+     * was added omits it; fall back to `name` then.
+     */
+    key?: string;
+    /** Display label. Not unique — see `key`. */
+    name: string;
+    /**
+     * Total drag for this component, counting every instance of it — the
+     * desktop's "Total CD". This is the one that sums to the rocket's drag; a
+     * 3-fin set contributes three fins' worth.
+     */
+    cd: (number | null)[];
+    /** Drag for ONE instance — the desktop's "Per instance CD". */
+    cdInstance?: (number | null)[];
+    /** How many of this component there are (3 for a 3-fin set). */
+    instances?: number;
+    /**
+     * The kernel's class for this component, e.g. `TrapezoidFinSet`, `BodyTube`.
+     * The roll table needs it: an uncanted fin set reports exactly the numbers a
+     * body tube does, so there is no telling them apart from the values alone.
+     */
+    type?: string;
+    /** Skin-friction share of `cd`. */
+    friction?: (number | null)[];
+    /** Pressure (form) share of `cd`. */
+    pressure?: (number | null)[];
+    /** Base-drag share of `cd`. */
+    base?: (number | null)[];
+    /** This component's contribution to the rocket's normal-force slope. */
+    cna?: (number | null)[];
+    /** This component's own centre of pressure (m from the nose tip). */
+    cp?: (number | null)[];
+    /** Roll forcing coefficient — non-zero only for a canted fin set. */
+    rollForce?: (number | null)[];
+    /** Roll damping coefficient. */
+    rollDamp?: (number | null)[];
+  }[];
 }
 
 /**
@@ -620,12 +758,55 @@ export interface DragSweep {
  * naming the motor and a design that silently blanks.
  */
 function assertFiniteCurve(motor: MotorSpec): void {
+  // The SCALARS cross into the kernel too, and were unguarded. `thrustcurve.ts`
+  // computes `length: motor.length / 1000` and
+  // `cgX: cgSamples?.[0]?.[1] ?? motor.length / 2000`, so a catalog row missing
+  // `length` makes both NaN — reproducing the exact opaque TeaVM "number NaN
+  // cannot be converted to a BigInt" this guard exists to eliminate. And
+  // `toKernelDelay` passes NaN straight through, since `NaN >= PLUGGED_DELAY`
+  // is false.
+  const scalars: [string, number][] = [
+    ['diameter', motor.diameter],
+    ['length', motor.length],
+    ['cgX', motor.cgX],
+    ['ejection delay', toKernelDelay(motor.ejectionDelay)],
+  ];
+  for (const [what, v] of scalars) {
+    // The delay may legitimately be Infinity (PLUGGED); the dimensions may not.
+    if (Number.isNaN(v) || (what !== 'ejection delay' && !Number.isFinite(v))) {
+      throw new Error(`Motor ${motor.designation}: ${what} is not a finite number (incomplete catalog data).`);
+    }
+  }
+  if (motor.diameter <= 0 || motor.length <= 0) {
+    throw new Error(`Motor ${motor.designation}: diameter and length must be positive (incomplete catalog data).`);
+  }
+
   const bad = (xs: readonly number[]) => !xs.every((n) => Number.isFinite(n));
   if (bad(motor.times) || bad(motor.thrusts) || bad(motor.masses)) {
     throw new Error(
       `Motor ${motor.designation}: thrust curve contains non-finite values ` +
         '(a missing published weight or a malformed .rse/.eng file).',
     );
+  }
+  // The three arrays are read in lockstep by the kernel (times[i], thrusts[i],
+  // masses[i]), so a short one indexed undefined out the end. The Java now
+  // rejects this at the boundary too — this is the JS half of the same guard,
+  // and it names the motor before the kernel is ever entered.
+  if (motor.times.length !== motor.thrusts.length || motor.times.length !== motor.masses.length) {
+    throw new Error(
+      `Motor ${motor.designation}: thrust curve arrays differ in length ` +
+        `(times ${motor.times.length}, thrusts ${motor.thrusts.length}, masses ${motor.masses.length}).`,
+    );
+  }
+  // Times must not run backwards: the kernel integrates between consecutive
+  // samples, and a negative interval silently subtracts impulse.
+  for (let i = 1; i < motor.times.length; i++) {
+    if (motor.times[i]! < motor.times[i - 1]!) {
+      throw new Error(
+        `Motor ${motor.designation}: thrust curve times run backwards at sample ${i} ` +
+          `(${motor.times[i - 1]} then ${motor.times[i]}).`,
+      );
+    }
   }
   if (motor.masses.some((m) => m < 0)) {
     throw new Error(
@@ -645,10 +826,30 @@ function assertFiniteCurve(motor: MotorSpec): void {
 
 /** A rocket design held inside the engine, addressed by handle. */
 export class OpenRocketDesign {
-  private readonly handle: number;
+  private readonly rawHandle: number;
+  /** The engine generation this design was built under — see engineGeneration. */
+  private readonly generation: number;
 
   private constructor(handle: number) {
-    this.handle = handle;
+    this.rawHandle = handle;
+    this.generation = engineGeneration;
+  }
+
+  /**
+   * The kernel handle, refused once the engine that issued it has been reset.
+   *
+   * `resetEngine()` frees the whole handle table, and the app calls it before
+   * every rebuild — so a design object outliving one is addressing a number
+   * that now belongs to somebody else's rocket. The kernel also rejects this
+   * (its counter no longer rewinds, so a freed handle stays permanently
+   * unknown), but only after the call has crossed into TeaVM and come back as
+   * a message. Catching it here makes it a typed error, by name, before the
+   * boundary. Every `this.handle` read below goes through this getter, which
+   * is why there is no check at each of the ten call sites.
+   */
+  private get handle(): number {
+    if (this.generation !== engineGeneration) throw new StaleDesignError();
+    return this.rawHandle;
   }
 
   /**
@@ -705,7 +906,7 @@ export class OpenRocketDesign {
    * Enable the opt-in supersonic aerodynamics model (RASAero feature #1,
    * Phase 1): corrected supersonic fin normal force, exact NACA-1307 body-fin
    * interference, and Mach-dependent nose CNα — CP moves with Mach above M1
-   * instead of collapsing forward. Affects staticInfo, simulate and dragSweep.
+   * instead of collapsing forward. Affects staticInfo, simulate and aeroSweep.
    * Off by default; off ⇒ classic Extended Barrowman (bit-identical).
    * Validated against the wind-tunnel anchor suite in validation/.
    */
@@ -729,21 +930,47 @@ export class OpenRocketDesign {
 
   /**
    * Drag polar sweep (CD vs Mach) with power-off/power-on curves and a
-   * per-component breakdown. Static — no flight needed. See {@link DragSweep}.
+   * per-component breakdown. Static — no flight needed. See {@link AeroSweep}.
    */
-  dragSweep(options: DragSweepOptions = {}): DragSweep {
-    const raw = eng().getDragSweep(
+  aeroSweep(options: AeroSweepOptions = {}): AeroSweep {
+    const raw = eng().getAeroSweep(
       this.handle,
       JSON.stringify({
         machMin: options.machMin ?? 0.05,
         machMax: options.machMax ?? 3.0,
         machStep: options.machStep ?? 0.05,
         aoaDeg: options.aoaDeg ?? 0,
+        thetaDeg: options.thetaDeg ?? 0,
+        rollRate: options.rollRate ?? 0,
         machAlt: options.machAlt,
       }),
     );
-    const parsed = JSON.parse(raw) as DragSweep & { error?: string };
+    const parsed = JSON.parse(raw) as AeroSweep & { error?: string };
     if (parsed.error) throw new Error(`Drag sweep failed: ${parsed.error}`);
+    return parsed;
+  }
+
+  /**
+   * The wind direction (degrees about the roll axis) that puts the CP furthest
+   * forward — i.e. where this rocket is least stable. The desktop's "Worst"
+   * button. Feed it back in as {@link AeroSweepOptions.thetaDeg}.
+   */
+  worstThetaDeg(mach = 0.3, aoaDeg = 0): number {
+    return eng().getWorstThetaDeg(this.handle, mach, aoaDeg);
+  }
+
+  /**
+   * Per-component mass breakdown. Static — no Mach, no flight — so it is its own
+   * call rather than a field on the aero sweep or on {@link staticInfo}, which
+   * runs on every edit. See {@link ComponentMass}.
+   */
+  componentMasses(): ComponentMass[] {
+    // Same error envelope its four sibling accessors check. This one cast
+    // straight to an array, so a kernel failure arrived as `{error: "..."}`
+    // pretending to be a ComponentMass[] — `.map()` on it throws somewhere far
+    // from here, with the kernel's actual message thrown away.
+    const parsed = JSON.parse(eng().getComponentMasses(this.handle)) as ComponentMass[] | { error?: string };
+    if (!Array.isArray(parsed)) throw new Error(`Component masses failed: ${parsed.error ?? 'unknown error'}`);
     return parsed;
   }
 
@@ -781,4 +1008,5 @@ export class OpenRocketDesign {
 /** Frees all engine-side objects (all OpenRocketDesign handles become invalid). */
 export function resetEngine(): void {
   eng().reset();
+  engineGeneration++;
 }

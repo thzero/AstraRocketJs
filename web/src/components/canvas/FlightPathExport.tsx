@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive } from '../../state/store';
-import { downloadText } from '../../services/csvExport';
+import { download as saveDownload, safeFilename } from '../../services/saveFile';
 import { useUnits } from '../../prefs/useUnits';
 import {
   buildFlightPathModel,
@@ -18,6 +18,7 @@ import {
   type StageTrackStart,
 } from '../../services/flightPathExport';
 import { getTemplateStore, parseTemplateFilename, type UserTemplate } from '../../services/templateStore';
+import { useFocusTrap } from '../common/useFocusTrap';
 
 /**
  * "Export flight path" — a port of OpenRocket's 3D-path export dialog. Renders a
@@ -44,7 +45,6 @@ const WP_LABEL_KEY: Record<WaypointKind, string> = {
 
 const UNITS: DistanceUnit[] = ['m', 'ft', 'km', 'mi'];
 const USER_PREFIX = 'user:';
-const safeName = (s: string) => (s.trim() || 'flight').replace(/[^\w.-]+/g, '_');
 
 export function FlightPathExport({ variant = 'chip' }: { variant?: 'chip' | 'overlay' }) {
   const { t } = useTranslation();
@@ -97,6 +97,11 @@ export function ExportDialog({
   result: import('../../engine/openRocketEngine').FlightResult;
 }) {
   const { t } = useTranslation();
+  // Tab stays inside the modal, and focus returns to the trigger on close.
+  // Seven dialogs declared aria-modal and had neither, so Tab walked straight
+  // out into the page behind the overlay — the exact gap useFocusTrap exists
+  // to close, already used by seven of their siblings.
+  const panelRef = useFocusTrap<HTMLDivElement>(true);
   const store = useMemo(() => getTemplateStore(), []);
   const [selected, setSelected] = useState<string>(EXPORT_FORMATS[0]!.id);
   const units = useUnits();
@@ -180,9 +185,9 @@ export function ExportDialog({
   const downloadTemplate = () => {
     if (resolved.kind === 'user') {
       const tp = resolved.template;
-      downloadText(`${safeName(tp.name)}.${tp.ext}.mustache`, tp.source, 'text/plain;charset=utf-8');
+      saveDownload(`${safeFilename(tp.name, 'flight')}.${tp.ext}.mustache`, tp.source);
     } else {
-      downloadText(resolved.format.templateFilename, resolved.format.source, 'text/plain;charset=utf-8');
+      saveDownload(resolved.format.templateFilename, resolved.format.source);
     }
   };
 
@@ -201,7 +206,7 @@ export function ExportDialog({
         ext = resolved.format.extension;
         mime = resolved.format.mime;
       }
-      downloadText(`${safeName(meta.simName)}.${ext}`, text, mime);
+      saveDownload(`${safeFilename(meta.simName, 'flight')}.${ext}`, text, mime);
       onClose();
     } catch {
       setError(t('pathExport.renderError'));
@@ -211,6 +216,7 @@ export function ExportDialog({
   return (
     <div className="dialog-overlay fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
       <div
+        ref={panelRef}
         className="dialog-panel max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-slate-900 p-5 ring-1 ring-white/10"
         role="dialog"
         aria-modal="true"

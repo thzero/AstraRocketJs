@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import {
   axialLength,
+  freeformPoints,
+  freeformRootChord,
+  normalizeFreeformPoints,
   startFromPosition,
-  offsetForStart,
-  resolveAbsolutePositions,
-  anchorStarts,
-  snapStart,
+  resolveFilePositions,
 } from './position';
 
 describe('axialLength', () => {
@@ -58,18 +58,7 @@ describe('startFromPosition', () => {
   });
 });
 
-describe('offsetForStart', () => {
-  const pLen = 0.2,
-    cLen = 0.05;
-  it('inverts startFromPosition for every method', () => {
-    for (const method of ['top', 'middle', 'bottom', 'absolute'] as const) {
-      const start = startFromPosition({ method, offset: 0.013 }, cLen, pLen);
-      expect(offsetForStart(method, start, cLen, pLen)).toBeCloseTo(0.013);
-    }
-  });
-});
-
-describe('resolveAbsolutePositions', () => {
+describe('resolveFilePositions', () => {
   it('rewrites an absolute child into the equivalent parent-relative top offset', () => {
     const tree: RocketTree = {
       components: [
@@ -88,7 +77,7 @@ describe('resolveAbsolutePositions', () => {
         },
       ],
     };
-    const out = resolveAbsolutePositions(tree);
+    const out = resolveFilePositions(tree);
     const it = out.components[0]!.children![1]!.children![0]!;
     // bodytube starts at x=0.1 (after the 0.1 nose), so 0.15 absolute ⇒ 0.05 from the tube's fore edge
     expect(it.position!.method).toBe('top');
@@ -112,43 +101,197 @@ describe('resolveAbsolutePositions', () => {
         },
       ],
     };
-    expect(resolveAbsolutePositions(tree)).toBe(tree);
+    expect(resolveFilePositions(tree)).toBe(tree);
   });
 });
 
-describe('anchorStarts', () => {
-  const child: ComponentNode = { id: 'c', type: 'innertube', length: 0.05 };
-
-  it('offers the parent ends and middle with no siblings', () => {
-    const parent: ComponentNode = { type: 'bodytube', length: 0.2, children: [child] };
-    const a = anchorStarts(parent, child);
-    expect(a).toHaveLength(3);
-    expect(a[0]).toBeCloseTo(0); // leading edge
-    expect(a[1]).toBeCloseTo(0.075); // centered
-    expect(a[2]).toBeCloseTo(0.15); // trailing edge
+describe('freeformRootChord', () => {
+  // The kernel's definition: FreeformFinSet.length = last.x - first.x. Four
+  // other modules used to compute this as Math.max(...xs), which is the same
+  // number ONLY when the aftmost point is also the root trailing corner.
+  it('is the span between the first and last points, not the aftmost point', () => {
+    // A swept fin whose tip trailing corner overhangs the root: root chord
+    // 0.06, but the furthest-aft point is 0.09.
+    const overhanging: [number, number][] = [
+      [0, 0],
+      [0.04, 0.05],
+      [0.09, 0.05],
+      [0.06, 0],
+    ];
+    expect(freeformRootChord(overhanging)).toBeCloseTo(0.06, 9);
+    expect(Math.max(...overhanging.map((p) => p[0]))).toBeCloseTo(0.09, 9); // what the copies returned
   });
 
-  it('adds sibling alignment and butt anchors', () => {
-    const sib: ComponentNode = { id: 'sib', type: 'innertube', length: 0.04, position: { method: 'top', offset: 0.1 } };
-    const parent: ComponentNode = { type: 'bodytube', length: 0.2, children: [child, sib] };
-    const a = anchorStarts(parent, child);
-    const has = (v: number) => a.some((x) => Math.abs(x - v) < 1e-9);
-    expect(has(0.05)).toBe(true); // butt in front of the sibling (0.1 − 0.05)
-    expect(has(0.1)).toBe(true); // align leading edges
-    expect(has(0.14)).toBe(true); // butt behind the sibling (0.1 + 0.04)
-    expect(a).toEqual([...a].sort((p, q) => p - q)); // sorted
+  it('agrees with Math.max for an ordinary fin, which is why this went unnoticed', () => {
+    const plain: [number, number][] = [
+      [0, 0],
+      [0.02, 0.04],
+      [0.05, 0.04],
+      [0.07, 0],
+    ];
+    expect(freeformRootChord(plain)).toBeCloseTo(Math.max(...plain.map((p) => p[0])), 9);
+  });
+
+  it('falls back rather than returning a zero or negative chord', () => {
+    expect(freeformRootChord(undefined)).toBe(0.05);
+    expect(freeformRootChord([])).toBe(0.05);
+    expect(freeformRootChord([[0.1, 0] as [number, number], [0, 0] as [number, number]])).toBe(0.05);
+    expect(freeformRootChord([[Number.NaN, 0] as [number, number], [0.1, 0] as [number, number]])).toBe(0.05);
+  });
+
+  it('is what axialLength uses, so the schematic and the report agree', () => {
+    const fin = {
+      type: 'freeformfinset',
+      points: [
+        [0, 0],
+        [0.04, 0.05],
+        [0.09, 0.05],
+        [0.06, 0],
+      ],
+    } as unknown as ComponentNode;
+    expect(axialLength(fin)).toBeCloseTo(freeformRootChord(fin['points'] as [number, number][]), 9);
   });
 });
 
-describe('snapStart', () => {
-  const anchors = [0, 0.1, 0.2];
-  it('snaps to the nearest anchor within epsilon', () => {
-    expect(snapStart(0.101, anchors, 0.01)).toBeCloseTo(0.1);
+/**
+ * The kernel's own invariant. `FreeformFinSet.setPoints()` — the entry point
+ * our bridge uses (ComponentFactory.java:211) — does
+ *
+ *     final CoordinateIF delta = newPoints.get(0).multiply(-1);
+ *     if (IGNORE_SMALLER_THAN < delta.length2()) newPoints = translatePoints(newPoints, delta);
+ *
+ * so the engine always flies an outline whose first point is the origin. The
+ * app read the RAW points while placing the through-the-wall tab in
+ * root-relative coordinates, and the two agree only when points[0].x === 0.
+ */
+describe('normalizeFreeformPoints', () => {
+  it('leaves an outline that already starts at the origin untouched', () => {
+    const pts: [number, number][] = [
+      [0, 0],
+      [0.02, 0.03],
+      [0.06, 0],
+    ];
+    expect(normalizeFreeformPoints(pts)).toBe(pts); // same reference: no copy, no drift
   });
-  it('leaves the value unchanged when nothing is within epsilon', () => {
-    expect(snapStart(0.15, anchors, 0.01)).toBeCloseTo(0.15);
+
+  it('translates by -p0 in BOTH axes, as the kernel does', () => {
+    expect(
+      normalizeFreeformPoints([
+        [0.02, 0.01],
+        [0.04, 0.04],
+        [0.08, 0.01],
+      ]),
+    ).toEqual([
+      [0, 0],
+      [expect.closeTo(0.02, 12), expect.closeTo(0.03, 12)],
+      [expect.closeTo(0.06, 12), 0],
+    ]);
   });
-  it('picks the closest of several in-range anchors', () => {
-    expect(snapStart(0.08, anchors, 0.05)).toBeCloseTo(0.1); // 0.02 to 0.1 beats 0.08 to 0
+
+  it('preserves the root chord, which is already translation-invariant', () => {
+    const moved: [number, number][] = [
+      [0.02, 0],
+      [0.04, 0.03],
+      [0.08, 0],
+    ];
+    expect(freeformRootChord(moved)).toBeCloseTo(0.06, 12);
+    expect(freeformRootChord(normalizeFreeformPoints(moved))).toBeCloseTo(0.06, 12);
+  });
+
+  it('survives an empty or malformed outline', () => {
+    expect(normalizeFreeformPoints(undefined)).toEqual([]);
+    expect(normalizeFreeformPoints([])).toEqual([]);
+    expect(normalizeFreeformPoints([[NaN, 0] as [number, number]])).toEqual([[NaN, 0]]);
+  });
+
+  it('reads only freeform nodes through the node accessor', () => {
+    const got = freeformPoints({
+      type: 'freeformfinset',
+      points: [
+        [0.02, 0],
+        [0.05, 0.02],
+        [0.08, 0],
+      ],
+    } as never);
+    // Element-wise: the subtraction is exact in decimal but not in binary.
+    expect(got.map(([x]) => x)).toEqual([expect.closeTo(0, 12), expect.closeTo(0.03, 12), expect.closeTo(0.06, 12)]);
+    expect(got.map(([, y]) => y)).toEqual([0, 0.02, 0]);
+    expect(freeformPoints({ type: 'trapezoidfinset', points: [[1, 1]] } as never)).toEqual([]);
+  });
+});
+
+/**
+ * AxialMethod.AFTER — the method the importer used to throw away.
+ *
+ * `orkImport` allowed only top/middle/bottom/absolute, so `method="after"`
+ * returned undefined and the part lost its position entirely, defaulting to the
+ * parent's top. A coupler seated after an inner tube jumped to the front of the
+ * body tube.
+ *
+ * The kernel's meaning (RocketComponent.setAfter:1459-1491): start at the aft
+ * end of the previous sibling, offset forced to 0. NOT the `outerLength +
+ * offset` the AxialMethod enum's own getAsPosition suggests — setAfter returns
+ * before that code is reached.
+ */
+describe('resolveFilePositions: after', () => {
+  const tree = (): RocketTree =>
+    ({
+      components: [
+        {
+          id: 's1',
+          type: 'stage',
+          children: [
+            {
+              id: 'body',
+              type: 'bodytube',
+              length: 0.4,
+              children: [
+                { id: 'a', type: 'innertube', length: 0.07, position: { method: 'top', offset: 0.05 } },
+                { id: 'b', type: 'tubecoupler', length: 0.03, position: { method: 'after', offset: 0 } },
+                { id: 'c', type: 'engineblock', length: 0.005, position: { method: 'after', offset: 0 } },
+              ],
+            },
+          ],
+        },
+      ],
+    }) as unknown as RocketTree;
+
+  const kids = (t: RocketTree) => t.components[0]!.children![0]!.children!;
+
+  it('seats an after-positioned part at the previous sibling’s aft end', () => {
+    const out = kids(resolveFilePositions(tree()));
+    // 'a' runs 0.05 → 0.12, so 'b' starts at 0.12 — not at 0, which is where
+    // the dropped position left it.
+    const p = out[1]!.position as { method: string; offset: number };
+    expect(p.method).toBe('top');
+    expect(p.offset).toBeCloseTo(0.12, 9);
+  });
+
+  it('chains, so a second after-part follows the first', () => {
+    const out = kids(resolveFilePositions(tree()));
+    expect((out[2]!.position as { offset: number }).offset).toBeCloseTo(0.15, 9); // 0.12 + 0.03
+  });
+
+  it('starts a FIRST child at the parent’s top, as setAfter does', () => {
+    const t = tree();
+    t.components[0]!.children![0]!.children![0]!.position = { method: 'after', offset: 0 };
+    const out = kids(resolveFilePositions(t));
+    expect(out[0]!.position).toMatchObject({ method: 'top', offset: 0 });
+  });
+
+  it('keeps what the file said, so the .ork round-trip stays byte-stable', () => {
+    const p = kids(resolveFilePositions(tree()))[1]!.position as {
+      offset: number;
+      ork?: { method: string; resolved: number };
+    };
+    expect(p.ork!.method).toBe('after');
+    // Compared with === at export time, so it must be the SAME value.
+    expect(p.ork!.resolved).toBe(p.offset);
+  });
+
+  it('ignores a stored offset, because the kernel forces it to zero', () => {
+    const t = tree();
+    (t.components[0]!.children![0]!.children![1]!.position as { offset: number }).offset = 0.9;
+    expect((kids(resolveFilePositions(t))[1]!.position as { offset: number }).offset).toBeCloseTo(0.12, 9);
   });
 });
