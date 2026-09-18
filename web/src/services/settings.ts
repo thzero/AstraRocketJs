@@ -44,9 +44,24 @@ export interface SimulationSettings {
   confirmDelete: boolean;
   /** Auto-run an outdated simulation when its results view is opened. */
   autoRunOutdated: boolean;
-  /** Recovery-deployment speed (m/s) at/above which the deploy-speed tile warns
-   *  (fast deployment risks zippering / hardware damage). Below = green. */
+  /**
+   * Recovery-deployment speed (m/s) at/above which a SINGLE-deployment recovery
+   * is too fast (zippering / hardware damage). Below = green.
+   *
+   * Drives two things that used to disagree: the deploy-speed tile's color, and
+   * the kernel's own deployment warning — which ran on its own hard-coded 20 m/s
+   * until this was passed through, so moving this slider changed the tile and
+   * nothing else.
+   */
   deploymentSpeedWarn: number;
+  /**
+   * Dual-deployment (a stage carrying a drogue) uses these for the MAIN instead
+   * of `deploymentSpeedWarn`: out too fast risks the same damage, out too slow
+   * means a long descent and a long walk. OpenRocket's defaults are 100 ft/s and
+   * 50 ft/s, which is where these SI values come from.
+   */
+  mainHighSpeedWarn: number;
+  mainLowSpeedWarn: number;
   /** Minimum safe rod/rail-exit velocity (m/s): the rod-exit tile is green at or
    *  above this, and warns below it (too slow to be stable off the rail). */
   railExitVelocityMin: number;
@@ -162,6 +177,8 @@ export const DEFAULT_SETTINGS: Settings = {
     confirmDelete: true,
     autoRunOutdated: false,
     deploymentSpeedWarn: 20,
+    mainHighSpeedWarn: 30.48,
+    mainLowSpeedWarn: 15.24,
     railExitVelocityMin: 15,
   },
   launchDefaults: DEFAULT_LAUNCH,
@@ -214,6 +231,10 @@ export function loadSettings(): Settings {
         const pos = (v: number, d: number) => (Number.isFinite(v) && v > 0 ? v : d);
         sim.timeStep = pos(sim.timeStep, DEFAULT_SETTINGS.simulation.timeStep);
         sim.maxTime = pos(sim.maxTime, DEFAULT_SETTINGS.simulation.maxTime);
+        // These reach the kernel too, so the same guard applies.
+        sim.deploymentSpeedWarn = pos(sim.deploymentSpeedWarn, DEFAULT_SETTINGS.simulation.deploymentSpeedWarn);
+        sim.mainHighSpeedWarn = pos(sim.mainHighSpeedWarn, DEFAULT_SETTINGS.simulation.mainHighSpeedWarn);
+        sim.mainLowSpeedWarn = pos(sim.mainLowSpeedWarn, DEFAULT_SETTINGS.simulation.mainLowSpeedWarn);
         return sim;
       })(),
       launchDefaults: (() => {

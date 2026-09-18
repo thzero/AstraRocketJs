@@ -331,6 +331,19 @@ export interface SimulationOptions {
   maxTime?: number;
   randomSeed?: number;
   /**
+   * Recovery-deployment speed thresholds (m/s). These change no physics: they
+   * decide when a flight raises a deployment warning, which comes back in
+   * {@link FlightResult.warnings}.
+   *
+   * Which one applies depends on the stage's recovery layout. A stage with no
+   * drogue is single-deployment and uses `recoverySpeedWarn` alone; a
+   * dual-deployment stage warns on the MAIN being out too fast
+   * (`mainHighSpeedWarn`) or too slow (`mainLowSpeedWarn`) instead.
+   */
+  recoverySpeedWarn?: number;
+  mainHighSpeedWarn?: number;
+  mainLowSpeedWarn?: number;
+  /**
    * Series payload mode. 'summary' (the default) returns the 12 friendly-named
    * arrays plus only the symbol series the app's flight report reads every run
    * (Pl, θl, Px, Py, dΦ). 'full' additionally returns every series the branch
@@ -994,6 +1007,9 @@ export class OpenRocketDesign {
         timeStep: options.timeStep ?? 0.05,
         maxTime: options.maxTime,
         randomSeed: options.randomSeed,
+        recoverySpeedWarn: options.recoverySpeedWarn,
+        mainHighSpeedWarn: options.mainHighSpeedWarn,
+        mainLowSpeedWarn: options.mainLowSpeedWarn,
         series: options.series,
       }),
     );

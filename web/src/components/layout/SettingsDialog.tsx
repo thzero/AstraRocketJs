@@ -278,35 +278,6 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
               {/* 'Run outdated simulations automatically' hidden for now (setting still
                   defaults to off; the auto-run effect just never triggers). */}
               <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                {t('settings.warnings')}
-              </div>
-              <NumRow
-                label={t('settings.railExitMin')}
-                unit={u.sym('velocity')}
-                step={u.step('velocity', 1)}
-                min={0}
-                value={u.toUi('velocity', settings.simulation.railExitVelocityMin)}
-                onChange={(v) =>
-                  setSim({
-                    railExitVelocityMin:
-                      v == null ? DEFAULT_SETTINGS.simulation.railExitVelocityMin : u.fromUi('velocity', v),
-                  })
-                }
-              />
-              <NumRow
-                label={t('settings.deploySpeedWarn')}
-                unit={u.sym('velocity')}
-                step={u.step('velocity', 1)}
-                min={0}
-                value={u.toUi('velocity', settings.simulation.deploymentSpeedWarn)}
-                onChange={(v) =>
-                  setSim({
-                    deploymentSpeedWarn:
-                      v == null ? DEFAULT_SETTINGS.simulation.deploymentSpeedWarn : u.fromUi('velocity', v),
-                  })
-                }
-              />
-              <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 {t('settings.simOptions')}
               </div>
               <InfoRow label={t('settings.calcMethod')} value="Extended Barrowman" />
@@ -333,6 +304,71 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
                 placeholder={t('settings.seedAuto')}
                 value={settings.simulation.randomSeed}
                 onChange={(v) => setSim({ randomSeed: v })}
+              />
+              <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                {t('settings.warnings')}
+              </div>
+              <NumRow
+                label={t('settings.railExitMin')}
+                hint={t('settings.railExitMinHint')}
+                unit={u.sym('velocity')}
+                step={u.step('velocity', 1)}
+                min={0}
+                value={u.toUi('velocity', settings.simulation.railExitVelocityMin)}
+                onChange={(v) =>
+                  setSim({
+                    railExitVelocityMin:
+                      v == null ? DEFAULT_SETTINGS.simulation.railExitVelocityMin : u.fromUi('velocity', v),
+                  })
+                }
+              />
+              {/* The three deployment thresholds. Which one a flight uses depends
+                  on the stage's recovery layout: no drogue is single-deployment
+                  and uses the first alone; a drogue makes it dual-deployment, and
+                  the main is then judged against the other two. All three reach
+                  the kernel, which raises the warning — they are not just tile
+                  colors, which is all `deploySpeedWarn` used to be. */}
+              <NumRow
+                label={t('settings.deploySpeedWarn')}
+                hint={t('settings.deploySpeedWarnHint')}
+                unit={u.sym('velocity')}
+                step={u.step('velocity', 1)}
+                min={0}
+                value={u.toUi('velocity', settings.simulation.deploymentSpeedWarn)}
+                onChange={(v) =>
+                  setSim({
+                    deploymentSpeedWarn:
+                      v == null ? DEFAULT_SETTINGS.simulation.deploymentSpeedWarn : u.fromUi('velocity', v),
+                  })
+                }
+              />
+              <NumRow
+                label={t('settings.mainHighSpeedWarn')}
+                hint={t('settings.mainHighSpeedWarnHint')}
+                unit={u.sym('velocity')}
+                step={u.step('velocity', 1)}
+                min={0}
+                value={u.toUi('velocity', settings.simulation.mainHighSpeedWarn)}
+                onChange={(v) =>
+                  setSim({
+                    mainHighSpeedWarn:
+                      v == null ? DEFAULT_SETTINGS.simulation.mainHighSpeedWarn : u.fromUi('velocity', v),
+                  })
+                }
+              />
+              <NumRow
+                label={t('settings.mainLowSpeedWarn')}
+                hint={t('settings.mainLowSpeedWarnHint')}
+                unit={u.sym('velocity')}
+                step={u.step('velocity', 1)}
+                min={0}
+                value={u.toUi('velocity', settings.simulation.mainLowSpeedWarn)}
+                onChange={(v) =>
+                  setSim({
+                    mainLowSpeedWarn:
+                      v == null ? DEFAULT_SETTINGS.simulation.mainLowSpeedWarn : u.fromUi('velocity', v),
+                  })
+                }
               />
             </>
           )}
@@ -406,6 +442,7 @@ function NumRow({
   min,
   max,
   placeholder,
+  hint,
   onChange,
 }: {
   label: string;
@@ -415,8 +452,28 @@ function NumRow({
   min?: number;
   max?: number;
   placeholder?: string;
+  /** What the number is FOR. A threshold with no explanation is only usable by
+   *  someone who already knows what it does. */
+  hint?: string;
   onChange: (v: number | null) => void;
 }) {
+  if (hint) {
+    return (
+      <div>
+        <NumRow
+          label={label}
+          unit={unit}
+          value={value}
+          step={step}
+          min={min}
+          max={max}
+          placeholder={placeholder}
+          onChange={onChange}
+        />
+        <p className="mt-0.5 pr-28 text-[11px] leading-snug text-slate-500">{hint}</p>
+      </div>
+    );
+  }
   return (
     <label className="flex items-center justify-between gap-3">
       <span className="text-sm text-slate-300">{label}</span>

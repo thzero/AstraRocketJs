@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { simConditions } from './simulations';
+import { simConditions, type SimPrefs } from './simulations';
 import type { LaunchConditions } from './orkTree';
 
 const base: LaunchConditions = {
@@ -17,6 +17,16 @@ const base: LaunchConditions = {
 };
 
 const deg2rad = (d: number) => (d * Math.PI) / 180;
+
+/** The global run preferences, as the app would hand them over. */
+const PREFS: SimPrefs = {
+  timeStep: 0.01,
+  maxTime: 60,
+  randomSeed: null,
+  deploymentSpeedWarn: 20,
+  mainHighSpeedWarn: 30.48,
+  mainLowSpeedWarn: 15.24,
+};
 
 describe('simConditions', () => {
   it('converts angles to radians and C→K, hPa→Pa', () => {
@@ -69,13 +79,40 @@ describe('simConditions', () => {
     expect(c.windLevels![1]!.direction).toBeCloseTo(deg2rad(180), 9);
   });
 
-  it('passes sim prefs through, normalizing a null seed to undefined', () => {
-    const c = simConditions(base, { timeStep: 0.01, maxTime: 60, randomSeed: null });
+  it('passes sim prefs through, minting a fresh seed when none is pinned', () => {
+    const c = simConditions(base, PREFS);
     expect(c.timeStep).toBe(0.01);
     expect(c.maxTime).toBe(60);
-    expect(c.randomSeed).toBeUndefined();
 
-    const seeded = simConditions(base, { timeStep: 0.01, maxTime: 60, randomSeed: 42 });
+    // NOT undefined, which is what this used to assert. An omitted key does not
+    // reach the kernel as "no seed" — the bridge defaults it to the constant 42,
+    // so every run of a turbulent-wind flight came back bit-identical.
+    expect(c.randomSeed).toEqual(expect.any(Number));
+    expect(Number.isInteger(c.randomSeed)).toBe(true);
+    expect(c.randomSeed).toBeGreaterThanOrEqual(-(2 ** 31));
+    expect(c.randomSeed).toBeLessThan(2 ** 31);
+
+    // A fresh one each call, which is the whole point.
+    const seeds = new Set(Array.from({ length: 20 }, () => simConditions(base, PREFS).randomSeed));
+    expect(seeds.size).toBeGreaterThan(1);
+  });
+
+  /**
+   * The recovery-deployment thresholds reach the KERNEL, which is what raises the
+   * deployment warning. `deploymentSpeedWarn` used to be a tile color and nothing
+   * else: the engine ran on its own hard-coded 20 m/s, so moving the setting
+   * changed what the summary painted amber and not what the flight reported.
+   */
+  it('passes the deployment-warning thresholds to the engine', () => {
+    const c = simConditions(base, { ...PREFS, deploymentSpeedWarn: 25, mainHighSpeedWarn: 40, mainLowSpeedWarn: 10 });
+    expect(c.recoverySpeedWarn).toBe(25);
+    expect(c.mainHighSpeedWarn).toBe(40);
+    expect(c.mainLowSpeedWarn).toBe(10);
+  });
+
+  it('honors a pinned seed, so a run can be reproduced exactly', () => {
+    const seeded = simConditions(base, { ...PREFS, randomSeed: 42 });
     expect(seeded.randomSeed).toBe(42);
+    expect(simConditions(base, { ...PREFS, randomSeed: 42 }).randomSeed).toBe(42);
   });
 });

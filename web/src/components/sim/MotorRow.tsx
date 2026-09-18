@@ -49,11 +49,16 @@ export function MotorRow({
   // An unresolved .ork motor is seated as a curve-less placeholder: show its
   // name but flag it as not-found and hide the (empty) thrust-curve view.
   const hasCurve = !!motor?.masses?.length;
+  // Names the card as a landmark ("Motor", or "Motor - Inner tube 2" when a
+  // rocket has several mounts). A multi-mount design was a run of unlabeled
+  // sections to a screen reader, each holding a "Change…" button with nothing
+  // to say which tube it seats.
+  const cardLabel = title ?? t('sims.motor');
   return (
-    <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
+    <section aria-label={cardLabel} className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-[10px] uppercase tracking-wide text-slate-400">{title ?? t('sims.motor')}</div>
+          <div className="text-[10px] uppercase tracking-wide text-slate-400">{cardLabel}</div>
           {motor ? (
             <>
               <div className="truncate text-lg font-semibold text-sky-400">{motor.designation}</div>

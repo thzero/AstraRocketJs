@@ -1,4 +1,4 @@
-import { test, expect, type Page, note } from './base';
+import { test, expect, type Page, note, openTab, runFlight } from './base';
 
 /**
  * The app shell is a fixed-height column: header, one scrolling pane, then the
@@ -276,14 +276,28 @@ test('a finished run lands on the Results tab', async ({ page }) => {
   }
 });
 
-test('the desktop workbench still offers all five views at once', async ({ page }) => {
+test('the desktop workbench splits the view families across its tabs too', async ({ page }) => {
+  // This used to assert the opposite — all five views in one switch — because
+  // the desktop had no tabs and the families only split on a phone. Now the
+  // workbench is tabbed at every width, so the same rule applies up here: the
+  // tab picks the family, the switch moves within it.
   await page.setViewportSize({ width: 1500, height: 950 });
   await page.goto('/');
-  await page.getByRole('button', { name: /Run flight simulation/ }).click();
-  await expect(page.getByRole('button', { name: 'Flight', exact: true })).toBeVisible({ timeout: 30_000 });
-  // No tabs up here, so nothing to split the families across.
-  for (const v of ['2D', '3D', 'Aero', 'Flight', '3D path']) {
+  await runFlight(page); // lands on Results
+
+  for (const v of ['Flight', '3D path']) {
     await expect(page.getByRole('button', { name: v, exact: true })).toBeVisible();
+  }
+  for (const v of ['2D', '3D', 'Aero']) {
+    await expect(page.getByRole('button', { name: v, exact: true })).toBeHidden();
+  }
+
+  await openTab(page, 'Design');
+  for (const v of ['2D', '3D', 'Aero']) {
+    await expect(page.getByRole('button', { name: v, exact: true })).toBeVisible();
+  }
+  for (const v of ['Flight', '3D path']) {
+    await expect(page.getByRole('button', { name: v, exact: true })).toBeHidden();
   }
 });
 
@@ -295,7 +309,7 @@ test('the Results tab leads with the run numbers, without starving the chart', a
   await expect(page.getByRole('button', { name: /Results/ })).toBeVisible({ timeout: 30_000 });
 
   const m = await page.evaluate(() => {
-    const grid = document.querySelector('main .grid.grid-cols-3');
+    const grid = document.querySelector('main section[aria-label="Simulation results"]');
     const half = document.querySelector('main div.min-h-0.w-full.flex-1.flex-col');
     return {
       summaryTop: grid ? Math.round(grid.getBoundingClientRect().top) : null,
@@ -305,10 +319,10 @@ test('the Results tab leads with the run numbers, without starving the chart', a
   });
   note('results tab', JSON.stringify(m));
 
-  // Apogee and the rest are the first thing on the tab. Scoped to the first grid
-  // in DOM order — the center pane's — because the simulations pane keeps its
-  // own copy mounted behind the Simulate tab.
-  const summary = page.locator('main .grid.grid-cols-3').first();
+  // Apogee and the rest are the first thing on the tab. Scoped to the first one
+  // in DOM order — the center pane's — because the sim editor keeps its own copy
+  // mounted behind the Simulate tab.
+  const summary = page.getByRole('region', { name: 'Simulation results' }).first();
   await expect(summary).toBeVisible();
   await expect(summary.getByText('Apogee', { exact: true })).toBeVisible();
   expect(m.summaryTop).toBeLessThan(m.chartHeight); // above the chart, not below

@@ -1,30 +1,29 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { findMounts, findNode, findParent, siblingIndex, stageNodes } from '../../services/treeEdit';
 import { useWorkspaceStore } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
-import { ComponentTree } from './ComponentTree';
-import { PropertyPanel } from './PropertyPanel';
-import { ScaleDialog } from './ScaleDialog';
-import { RocketConfigDialog } from './RocketConfigDialog';
-import { BusyLock } from '../common/BusyLock';
 import { num } from '../../tree/nodeProps';
 
-/** Left pane: the component tree plus the selected part's property editor. */
-export function EditorPanel() {
+/**
+ * Everything {@link PropertyPanel} needs about the current selection: the node,
+ * the guarded edit/delete/move actions, and the few facts about its place in the
+ * tree that the node itself doesn't carry.
+ *
+ * Its own hook because the tree and the property editor now sit in OPPOSITE
+ * columns of the Design tab (see App.tsx) rather than stacked in one. The glue
+ * used to live in the component that rendered both; with them apart, neither
+ * pane should have to import the other to get it.
+ */
+export function useSelectedComponent() {
   const { t } = useTranslation();
   const tree = useWorkspaceStore((s) => s.tree);
   const selectedId = useWorkspaceStore((s) => s.selectedId);
-  const onSelect = useWorkspaceStore((s) => s.setSelectedId);
-  const onAdd = useWorkspaceStore((s) => s.addPartToTree);
-  const onAddStage = useWorkspaceStore((s) => s.addStageToTree);
   const patch = useWorkspaceStore((s) => s.patchSelected);
   const onCommit = useWorkspaceStore((s) => s.commitEdit);
   const remove = useWorkspaceStore((s) => s.removeSelected);
   const onMove = useWorkspaceStore((s) => s.moveSelected);
-  const [scaleOpen, setScaleOpen] = useState(false);
-  const [configOpen, setConfigOpen] = useState(false);
 
   const node = useMemo(() => (selectedId ? findNode(tree, selectedId) : null), [tree, selectedId]);
   // Tube fins ring a body, and whether their tubes collide depends on THAT
@@ -43,6 +42,7 @@ export function EditorPanel() {
   const stages = stageNodes(tree);
   const isOnlyStage = !!node && node.type === 'stage' && stages.length <= 1;
   const isFirstStage = !!node && node.type === 'stage' && stages[0]?.id === node.id;
+
   const onRemove = async () => {
     if (!node || isOnlyStage) return;
     // Every deletion confirms; the last motor mount carries an extra warning
@@ -62,32 +62,16 @@ export function EditorPanel() {
     patch(p);
   };
 
-  return (
-    <div className="relative space-y-4 p-3">
-      <BusyLock />
-      <ComponentTree
-        tree={tree}
-        selectedId={selectedId}
-        onSelect={onSelect}
-        onAdd={onAdd}
-        onEditDesign={() => setConfigOpen(true)}
-        onScale={() => setScaleOpen(true)}
-        onAddStage={onAddStage}
-      />
-      <PropertyPanel
-        node={node}
-        onChange={onChange}
-        onCommit={onCommit}
-        onRemove={onRemove}
-        onMove={onMove}
-        canMoveUp={!!sib && sib.index > 0}
-        canMoveDown={!!sib && sib.index < sib.count - 1}
-        canRemove={!isOnlyStage}
-        isFirstStage={isFirstStage}
-        parentRadius={parentRadius}
-      />
-      <ScaleDialog open={scaleOpen} onClose={() => setScaleOpen(false)} />
-      <RocketConfigDialog open={configOpen} onClose={() => setConfigOpen(false)} />
-    </div>
-  );
+  return {
+    node,
+    onChange,
+    onCommit,
+    onRemove,
+    onMove,
+    canMoveUp: !!sib && sib.index > 0,
+    canMoveDown: !!sib && sib.index < sib.count - 1,
+    canRemove: !isOnlyStage,
+    isFirstStage,
+    parentRadius,
+  };
 }

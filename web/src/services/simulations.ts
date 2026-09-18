@@ -2,6 +2,7 @@
 // motor (primary mount) + launch conditions + last result. The right panel is a
 // list of these; switching the active one drives the stability readout and sim.
 import type { MotorSpec, FlightResult, IgnitionEvent } from '../engine/openRocketEngine';
+import type { MountMotor } from './loadOrk';
 import type { LaunchConditions } from './orkTree';
 import { uuid } from './uuid';
 
@@ -13,9 +14,57 @@ export interface Simulation {
   ignitionEvent?: IgnitionEvent;
   /** Seconds after the ignition event (default 0). */
   ignitionDelay?: number;
+  /**
+   * Motors for every NON-primary mount, keyed by mount id — the rest of this
+   * simulation's motor loadout. Together with `motor` and the ignition fields
+   * above, this is OpenRocket's "flight configuration": the whole set of motors
+   * a given simulation flies.
+   *
+   * It used to be one workspace-level map shared by every simulation, which
+   * meant a multi-mount or staged rocket could only ever be flown one way —
+   * changing an upper-stage motor changed it for every simulation at once, and
+   * so had to age all of their results. Per simulation, "C6 sustainer vs. D12
+   * sustainer" is two rows in the table.
+   */
+  extraMotors: Record<string, MountMotor>;
   launch: LaunchConditions;
-  /** Cached last flight result (null until run, cleared when the design changes). */
+  /** Cached last flight result (null until this simulation has ever been run). */
   result: FlightResult | null;
+  /**
+   * The cached result no longer matches the inputs.
+   *
+   * An edit used to NULL every result outright, which is why the Results tab had
+   * to appear and disappear and why you could not compare a change against the
+   * run that preceded it. OpenRocket instead keeps the numbers and flags them,
+   * and so do we: the result stays readable, the status column goes amber, and
+   * re-running clears it.
+   */
+  outdated?: boolean;
+  /**
+   * Per-simulation overrides of the global run preferences (Settings ›
+   * Simulation). Unset keys fall through to the global value, so a workspace
+   * that never touches this behaves exactly as before.
+   *
+   * NOTE: these ride on the workspace autosave, not the `.ork` — that file has
+   * never carried simulation options in either direction (`orkFile.ts` neither
+   * reads nor writes them), so a round-trip through `.ork` drops them.
+   */
+  prefs?: Partial<SimPrefs>;
+}
+
+/** What the simulations table's status dot says about one row. */
+export type SimStatus = 'notRun' | 'running' | 'failed' | 'outdated' | 'upToDate';
+
+/**
+ * The status of one simulation. `runningId` / `failedId` come from the store —
+ * only ONE of each exists today (a single in-flight run), which is exactly what
+ * the worker pool is expected to generalize.
+ */
+export function simStatus(sim: Simulation, ctx: { runningId: string | null; failedId: string | null }): SimStatus {
+  if (ctx.runningId === sim.id) return 'running';
+  if (ctx.failedId === sim.id) return 'failed';
+  if (!sim.result) return 'notRun';
+  return sim.outdated ? 'outdated' : 'upToDate';
 }
 
 /** Globally-unique id for a new simulation — a UUID (like OpenRocket's own ids),
@@ -25,7 +74,7 @@ function newSimId(): string {
 }
 
 export function newSimulation(name: string, motor: MotorSpec, launch: LaunchConditions): Simulation {
-  return { id: newSimId(), name, motor, launch, result: null };
+  return { id: newSimId(), name, motor, launch, result: null, extraMotors: {} };
 }
 
 const rad = (deg: number) => (deg * Math.PI) / 180;
@@ -35,7 +84,25 @@ export interface SimPrefs {
   timeStep: number;
   maxTime: number;
   randomSeed: number | null;
+  /** Recovery-deployment warning thresholds (m/s) - see SimulationSettings. */
+  deploymentSpeedWarn: number;
+  mainHighSpeedWarn: number;
+  mainLowSpeedWarn: number;
 }
+
+/**
+ * A fresh seed for the wind turbulence, for when the user has not pinned one.
+ *
+ * This has to be minted HERE rather than left out of the payload. The engine
+ * bridge reads `JsonLite.dbl(o, "randomSeed", 42)`, and an omitted key is not an
+ * absent seed — it is the constant 42. So "auto" quietly meant "always 42": two
+ * runs of the same turbulent-wind flight came back bit-identical, which is the
+ * one thing a turbulence model exists to avoid. OpenRocket seeds from
+ * `new Random().nextInt()` when `randomSeedFixed` is false; this is that.
+ *
+ * Signed 32-bit, because the bridge casts to a Java `int`.
+ */
+const freshSeed = (): number => Math.floor(Math.random() * 2 ** 32) - 2 ** 31;
 
 /** Map UI launch conditions (+ global sim prefs) to the engine's simulate() options
  *  (radians, kelvin, Pa). */
@@ -65,7 +132,10 @@ export function simConditions(launch: LaunchConditions, prefs?: SimPrefs) {
     pressure: launch.pressureHPa != null ? launch.pressureHPa * 100 : undefined,
     timeStep: prefs?.timeStep,
     maxTime: prefs?.maxTime,
-    randomSeed: prefs?.randomSeed ?? undefined,
+    randomSeed: prefs?.randomSeed ?? freshSeed(),
+    recoverySpeedWarn: prefs?.deploymentSpeedWarn,
+    mainHighSpeedWarn: prefs?.mainHighSpeedWarn,
+    mainLowSpeedWarn: prefs?.mainLowSpeedWarn,
     series: 'summary' as const,
   };
 }

@@ -1,6 +1,12 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useWorkspaceStore, selectActive, selectMotorDims, selectRunFailed } from '../../state/store';
+import {
+  useWorkspaceStore,
+  selectActive,
+  selectExtraMotors,
+  selectMotorDims,
+  selectRunFailed,
+} from '../../state/store';
 import { confirm } from '../../state/confirmStore';
 import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
@@ -10,13 +16,16 @@ import { TreeSchematic } from './TreeSchematic';
 import { AftView } from './AftView';
 import { FlightChart } from './FlightChart';
 import { FlightPathExport } from './FlightPathExport';
-import { ViewToggle } from './ViewToggle';
+import { ViewToggle, isResultView } from './ViewToggle';
 import { StabilityBadge } from './StabilityBadge';
+import { DesignWarnings } from './DesignWarnings';
 import { InfoOverlay } from './InfoOverlay';
 import { AeroAnalysis } from './AeroAnalysis';
 import { LoadedBanner } from './LoadedBanner';
 import { BusyLock } from '../common/BusyLock';
 import { SimSummary } from '../sim/SimSummary';
+import { useIsDesktop } from '../common/useMediaQuery';
+import { FlightWarnings } from '../sim/FlightWarnings';
 
 // three.js is heavy, so the 3D views are code-split — their chunks load only when
 // the user actually switches to a 3D view, keeping the default (2D) path light.
@@ -35,6 +44,10 @@ const FlightPath3D = lazy(() => import('./FlightPath3D').then((m) => ({ default:
 export function CenterView() {
   const { t } = useTranslation();
   const tab = useWorkspaceStore((s) => s.tab);
+  const designPane = useWorkspaceStore((s) => s.designPane);
+  // The warnings block below is rendered once for the whole app - here on a
+  // phone, in the Results column at lg+ (App.tsx). See useMediaQuery.
+  const desktop = useIsDesktop();
   const loadedMeta = useWorkspaceStore((s) => s.loadedMeta);
   const setErr = useWorkspaceStore((s) => s.setErr);
   const resetWorkspace = useWorkspaceStore((s) => s.resetWorkspace);
@@ -58,8 +71,10 @@ export function CenterView() {
   const selectedId = useWorkspaceStore((s) => s.selectedId);
   const onSelect = useWorkspaceStore((s) => s.setSelectedId);
   const result = useWorkspaceStore((s) => selectActive(s).result);
+  const outdated = useWorkspaceStore((s) => selectActive(s).outdated);
+  const simName = useWorkspaceStore((s) => selectActive(s).name);
   const motor = useWorkspaceStore((s) => selectActive(s).motor);
-  const extraMotors = useWorkspaceStore((s) => s.extraMotors);
+  const extraMotors = useWorkspaceStore(selectExtraMotors);
   const motors = useMemo(() => selectMotorDims(tree, motor, extraMotors), [tree, motor, extraMotors]);
 
   /**
@@ -107,35 +122,25 @@ export function CenterView() {
   // busy, result view open), so without this it retried the same failing design
   // forever -- each iteration spawning another full flight sim.
   const runFailed = useWorkspaceStore(selectRunFailed);
-  // Both effects below only ask "is there a design?", so they gate on a BOOLEAN,
-  // never the `info` object: an engine rebuild (applyBuild) hands the store a
-  // fresh info identity, and depending on that re-fires the effect for a design
-  // that hasn't actually changed. `result` going stale is the real trigger.
+  // Asks "is there a design?" as a BOOLEAN, never the `info` object: an engine
+  // rebuild (applyBuild) hands the store a fresh info identity, and depending on
+  // that re-fires the effect for a design that hasn't actually changed.
   const hasDesign = !!info;
+  // "Run outdated simulations automatically" — which, until results were kept
+  // across an edit, could only ever mean "never run": an edit destroyed the
+  // result, so the only state this could see was a missing one. Now it covers
+  // both, which is what the setting has always said.
+  const needsRun = !result || !!outdated;
   useEffect(() => {
-    if (
-      settings.simulation.autoRunOutdated &&
-      (view === 'flight' || view === 'path') &&
-      !result &&
-      hasDesign &&
-      !busy &&
-      !runFailed
-    ) {
+    if (settings.simulation.autoRunOutdated && isResultView(view) && needsRun && hasDesign && !busy && !runFailed) {
       runSim(settings.simulation);
     }
-  }, [view, result, hasDesign, busy, runFailed, settings.simulation, runSim]);
+  }, [view, needsRun, hasDesign, busy, runFailed, settings.simulation, runSim]);
 
-  // Flight / 3D-path only exist while a result does. If the active result goes
-  // away (a design edit invalidates it) while one of those views is open, fall
-  // back to the design view — unless auto-run is about to refill it.
-  useEffect(() => {
-    const onResultView = view === 'flight' || view === 'path';
-    // A failed run means auto-run is NOT about to refill the view, so the
-    // walk-back has to happen -- otherwise the user is stranded on an empty
-    // Flight pane with only a banner.
-    const willAutoRun = settings.simulation.autoRunOutdated && hasDesign && !runFailed;
-    if (onResultView && !result && !busy && !willAutoRun) onView('2d');
-  }, [view, result, busy, hasDesign, runFailed, settings.simulation.autoRunOutdated, onView]);
+  // There used to be a second effect here that walked you off a result view when
+  // the result vanished under you. Nothing vanishes any more — an edit ages the
+  // numbers instead of deleting them — and a simulation that has never been run
+  // shows the "run one" prompt below rather than an empty pane.
 
   // Header slot the 2D schematic's control buttons (calipers, zoom, export)
   // portal into, so they sit centered in the same row as the view toggle.
@@ -149,29 +154,38 @@ export function CenterView() {
   // hobby airframe is 15-25x longer than it is wide, the aero charts because
   // they sweep Mach across the x axis. The flight views stay upright.
   const sideways = view === '2d' || view === '3d' || view === 'drag';
+  // This pane backs two tabs, and on the Design one a phone shows only half of
+  // it at a time. At lg+ `designPane` is ignored and Design shows both halves,
+  // which is what the `lg:` overrides below say. Results shows only the drawing
+  // half (the banner and the stats strip describe the DESIGN, not the run).
+  const onDesign = tab === 'design';
+  const showStats = onDesign && designPane === 'stats';
+  const showDrawing = (onDesign && designPane === 'sketch') || tab === 'results';
   const loading = <div className="grid h-full place-items-center text-sm text-slate-500">{t('view.loading3d')}</div>;
   const prompt = <div className="grid h-full place-items-center text-sm text-slate-500">{t('sim.prompt')}</div>;
 
   return (
     <div className="flex h-full flex-col">
       {loadedMeta && (
-        <div className={`${tab === 'build' ? '' : 'hidden'} shrink-0 lg:block`}>
+        <div className={`${showStats ? '' : 'hidden'} shrink-0 ${onDesign ? 'lg:block' : ''}`}>
           <LoadedBanner loaded={loadedMeta} onClose={onCloseLoaded} />
         </div>
       )}
       {/* The run's numbers head the mobile Results tab, above the charts they
           describe — they are what you look at first, and reading them used to
           mean going back to the Simulate tab. `lg:hidden` because the desktop
-          workbench already has them in the simulations pane, where they stay.
+          Results tab has them in its own right-hand column (see App.tsx).
           Capped at 45% and scrolling: the tiles are a fixed ~300px, which on a
           568-tall phone left the chart 91px of a pane it is supposed to fill. */}
       {tab === 'results' && (
-        <div className="max-h-[45%] shrink-0 overflow-y-auto px-3 pt-3 lg:hidden">
+        <div className="max-h-[45%] shrink-0 space-y-3 overflow-y-auto px-3 pt-3 lg:hidden">
+          {!desktop && <FlightWarnings sim={result} />}
           <SimSummary sim={result} />
         </div>
       )}
       {/* Everything from here to the stats strip is the DRAWING half: the view
-          switch and the canvas. Mobile shows it on the Sketch tab; lg+ always.
+          switch and the canvas. On a phone the Design tab shows it on the Sketch
+          half; at lg+ Design always shows it, and so does Results.
 
           The whole half turns as ONE piece on a portrait phone (see
           .sketch-rotate) — toolbar included, so the toolbar always sits along
@@ -180,7 +194,7 @@ export function CenterView() {
           toolbar across the short edge, detached from what it acts on, and
           moving it whenever the view changed. */}
       <div
-        className={`${tab === 'sketch' || tab === 'results' ? 'flex' : 'hidden'} ${sideways ? 'sketch-stage' : ''} min-h-0 w-full flex-1 flex-col overflow-hidden lg:flex`}
+        className={`${showDrawing ? 'flex' : 'hidden'} ${sideways ? 'sketch-stage' : ''} min-h-0 w-full flex-1 flex-col overflow-hidden lg:flex`}
       >
         <div className={sideways ? 'sketch-rotate flex flex-col' : 'flex min-h-0 flex-1 flex-col'}>
           {/* Wraps for the same reason the app header does: the presets, the
@@ -190,7 +204,25 @@ export function CenterView() {
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-3 pt-3">
             {/* 2D view presets + the CG/CP · Info toggles, left-justified in the
             same row as the view toggle. The toggles apply to both 2D and 3D. */}
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap items-center gap-1">
+              {/* Whose flight this is. The design views are about the one rocket
+              on screen and need no label, but a result belongs to a named
+              simulation, and with several of them the charts are otherwise
+              unattributed. The stale marker rides along because results now
+              survive a design edit — the numbers stay readable, so the tab has
+              to say when they no longer describe the rocket. */}
+              {tab === 'results' && (
+                <div className="flex items-center gap-2">
+                  {/* A heading, not a span: it titles the whole pane, and a
+                  screen reader should be able to jump to it. */}
+                  <h2 className="text-sm font-semibold text-slate-100">{simName}</h2>
+                  {outdated && result && (
+                    <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-300 ring-1 ring-amber-400/30">
+                      {t('sims.statusOutdated')}
+                    </span>
+                  )}
+                </div>
+              )}
               {view === '2d' && (
                 <>
                   <ViewBtn onClick={onResetView}>{t('view.reset')}</ViewBtn>
@@ -234,12 +266,7 @@ export function CenterView() {
             {/* ml-auto keeps it hard right even when it wraps onto a line of its
             own, where justify-between has nothing to push against. */}
             <div className="ml-auto shrink-0">
-              <ViewToggle
-                view={view}
-                onChange={onView}
-                hasResult={!!result}
-                mobileFamily={tab === 'results' ? 'result' : 'design'}
-              />
+              <ViewToggle view={view} onChange={onView} family={tab === 'results' ? 'result' : 'design'} />
             </div>
           </div>
           {/* The view flexes to fill the pane; the stats strip below is a pinned
@@ -354,8 +381,9 @@ export function CenterView() {
         </div>
       </div>
       <div
-        className={`${tab === 'build' ? '' : 'hidden'} min-h-0 flex-1 overflow-y-auto lg:block lg:flex-none lg:overflow-visible`}
+        className={`${showStats ? '' : 'hidden'} min-h-0 flex-1 overflow-y-auto lg:flex-none lg:overflow-visible ${onDesign ? 'lg:block' : ''}`}
       >
+        <DesignWarnings />
         <StabilityBadge
           info={info}
           recoveryWeight={recoveryWeight}

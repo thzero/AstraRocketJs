@@ -1,4 +1,4 @@
-import { test, expect } from './base';
+import { test, expect, runFlight } from './base';
 
 /**
  * Keyboard and screen-reader reachability.
@@ -153,8 +153,8 @@ test.describe('accessibility', () => {
 
   test('the flight chart crosshair can be driven from the keyboard', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: /Run flight simulation/ }).click();
-    await page.getByRole('button', { name: 'Flight', exact: true }).click({ timeout: 30_000 });
+    await runFlight(page);
+    await page.getByRole('button', { name: 'Flight', exact: true }).click();
 
     const charts = page.getByRole('group', { name: /arrow keys to move the crosshair/i }).first();
     await expect(charts).toBeVisible();

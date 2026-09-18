@@ -1,4 +1,4 @@
-import { test, expect } from './base';
+import { test, expect, runFlight } from './base';
 
 /**
  * Guards the newly-exposed component-editor options render (and the new boolean
@@ -45,6 +45,5 @@ test('a freeform fin can be added, shows the outline editor, and simulates', asy
   expect(await editor.locator('circle').count()).toBeGreaterThanOrEqual(4);
 
   // It builds + simulates end-to-end.
-  await page.getByRole('button', { name: /run flight simulation/i }).click();
-  await expect(page.getByRole('button', { name: 'Flight', exact: true })).toBeVisible({ timeout: 30_000 });
+  await runFlight(page);
 });

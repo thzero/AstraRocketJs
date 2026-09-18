@@ -121,3 +121,31 @@ export async function autosaved(page: Page, needle: string, atLeast = 1): Promis
     )
     .toBeGreaterThanOrEqual(atLeast);
 }
+
+/**
+ * Open a workbench tab (Design · Simulations · Results).
+ *
+ * The workbench is tabbed at every width now, so the design editor, the
+ * simulation controls and the flight charts are no longer all on screen at once
+ * the way the old three-pane desktop layout had them. A spec that edits a part
+ * and then runs a simulation has to say where it is going.
+ *
+ * Scoped to the desktop strip by its label: the phone's bottom bar carries
+ * overlapping names ("Simulate", "Results") and both are in the DOM at once.
+ */
+export async function openTab(page: Page, name: 'Design' | 'Simulations' | 'Results'): Promise<void> {
+  await page.getByRole('navigation', { name: 'Workbench' }).getByRole('button', { name, exact: true }).click();
+}
+
+/**
+ * Run the active simulation and wait for its result.
+ *
+ * Running lives on the Simulations tab; a finished run moves itself to Results,
+ * which is where the Flight view switch appears. Waiting on that button is
+ * waiting on the result, without a sleep.
+ */
+export async function runFlight(page: Page): Promise<void> {
+  await openTab(page, 'Simulations');
+  await page.getByRole('button', { name: /Run flight simulation/ }).click();
+  await expect(page.getByRole('button', { name: 'Flight', exact: true })).toBeVisible({ timeout: 30_000 });
+}

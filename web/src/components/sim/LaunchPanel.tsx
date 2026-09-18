@@ -6,6 +6,7 @@ import { UnitChip } from '../common/UnitChip';
 import { useUnits, type Units } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { LAUNCH_SI, type LaunchUnitKind } from '../../prefs/launchUnits';
+import { MAX_ROD_ANGLE_RAD, MAX_WIND_SPEED_MS } from '../../services/safetyLimits';
 
 /**
  * Launch & atmosphere conditions for the flight simulation: wind (single average
@@ -22,6 +23,7 @@ function Num({
   min,
   max,
   placeholder,
+  hint,
   onChange,
 }: {
   label: string;
@@ -32,8 +34,27 @@ function Num({
   /** NumberInput clamps against this; without it a field is unbounded above. */
   max?: number;
   placeholder?: string;
+  /** Why the field stops where it does. Rendered under the row. */
+  hint?: string;
   onChange: (v: number | null) => void;
 }) {
+  if (hint) {
+    return (
+      <div>
+        <Num
+          label={label}
+          unit={unit}
+          value={value}
+          step={step}
+          min={min}
+          max={max}
+          placeholder={placeholder}
+          onChange={onChange}
+        />
+        <p className="mt-0.5 pr-24 text-[11px] leading-snug text-slate-500">{hint}</p>
+      </div>
+    );
+  }
   return (
     <label className="flex items-center justify-between gap-3">
       <span className="text-xs text-slate-400">{label}</span>
@@ -68,7 +89,9 @@ function QNum({
   value,
   stepSi,
   minSi,
+  maxSi,
   placeholder,
+  hint,
   onChange,
 }: {
   label: string;
@@ -86,7 +109,10 @@ function QNum({
   value: number | null;
   stepSi: number;
   minSi?: number;
+  /** Upper bound in SI, converted like `minSi` so it holds in any unit. */
+  maxSi?: number;
   placeholder?: string;
+  hint?: string;
   onChange: (v: number | null) => void;
 }) {
   const c = LAUNCH_SI[kind];
@@ -101,7 +127,9 @@ function QNum({
       unit={<UnitChip label={chipLabel ?? label} quantity={c.q} scope={scope} />}
       step={fu.step(stepSi)}
       min={minSi !== undefined ? fu.toUi(minSi) : undefined}
+      max={maxSi !== undefined ? fu.toUi(maxSi) : undefined}
       placeholder={placeholder}
+      hint={hint}
       value={value === null ? null : fu.toUi(c.toSi(value))}
       onChange={(v) => onChange(v === null ? null : c.fromSi(fu.fromUi(v)))}
     />
@@ -132,6 +160,12 @@ export function LaunchPanel({
   const u = useUnits();
   const levels = launch.windLevels ?? [];
   const multilevel = levels.length > 0;
+  // The safety codes cap the wind AT THE PAD, so only the ground layer carries
+  // the ceiling — winds aloft are not something anyone at the field measures.
+  // Lowest altitude, not the first row: the list is not kept sorted.
+  const surfaceLevel = multilevel
+    ? levels.reduce((lowIdx, l, i) => (l.altitudeM < levels[lowIdx]!.altitudeM ? i : lowIdx), 0)
+    : -1;
 
   const setLevels = (next: WindLevel[]) => onChange({ windLevels: next.length ? next : undefined });
   const patchLevel = (i: number, p: Partial<WindLevel>) =>
@@ -157,7 +191,11 @@ export function LaunchPanel({
   return (
     // Container blur closes the undo entry for whichever number field was being
     // edited (React's onBlur bubbles from the focused input).
-    <div className="space-y-3 p-3" onBlur={onCommit}>
+    // No padding of its own: every caller already sits in a padded column (the
+    // sim editor, the Settings dialog body), and a second p-3 inset this panel's
+    // cards relative to their siblings. The gap matches the sim editor's, so one
+    // column of cards reads as one rhythm.
+    <div className="space-y-4" onBlur={onCommit}>
       <Group title={t('launch.launchRod')}>
         <QNum
           label={t('launch.length')}
@@ -176,6 +214,9 @@ export function LaunchPanel({
           kind="deg"
           u={u}
           stepSi={Math.PI / 180}
+          minSi={0}
+          maxSi={MAX_ROD_ANGLE_RAD}
+          hint={t('launch.angleLimit')}
           value={launch.launchRodAngleDeg}
           onChange={(v) => onChange({ launchRodAngleDeg: v ?? 0 })}
         />
@@ -306,6 +347,8 @@ export function LaunchPanel({
               u={u}
               stepSi={0.5}
               minSi={0}
+              maxSi={MAX_WIND_SPEED_MS}
+              hint={t('launch.windLimit')}
               value={launch.windAverage}
               onChange={(v) => onChange({ windAverage: v ?? 0 })}
             />
@@ -352,6 +395,7 @@ export function LaunchPanel({
                 <NumberInput
                   step={u.step('windspeed', 0.5)}
                   min={0}
+                  max={i === surfaceLevel ? u.toUi('windspeed', MAX_WIND_SPEED_MS) : undefined}
                   ariaLabel={`${t('launch.wind')} ${i + 1}`}
                   value={u.toUi('windspeed', l.speed)}
                   onChange={(v) => patchLevel(i, { speed: u.fromUi('windspeed', v ?? 0) })}

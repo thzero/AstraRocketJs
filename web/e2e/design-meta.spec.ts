@@ -1,4 +1,4 @@
-import { test, expect } from './base';
+import { test, expect, openTab, runFlight } from './base';
 
 /**
  * The Rocket-configuration dialog edits `name`, `designer`, `comments`,
@@ -13,10 +13,9 @@ import { test, expect } from './base';
 test('editing the design metadata keeps the flight results', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: /Run flight simulation/ }).click();
+  await runFlight(page);
   // The Flight view only exists once a result does.
   const flight = page.getByRole('button', { name: 'Flight', exact: true });
-  await expect(flight).toBeVisible({ timeout: 30_000 });
 
   // Pin the actual number, so a silently re-run simulation would still be caught
   // if it landed on a different value.
@@ -24,6 +23,8 @@ test('editing the design metadata keeps the flight results', async ({ page }) =>
   const apogee = (await apogeeTile.textContent())?.trim();
   expect(apogee).toBeTruthy();
 
+  // The metadata dialog is launched from the component tree, a tab away.
+  await openTab(page, 'Design');
   await page.getByRole('button', { name: 'Edit rocket configuration' }).click();
   const dialog = page.getByRole('dialog', { name: 'Rocket configuration' });
   await expect(dialog).toBeVisible();
@@ -33,6 +34,7 @@ test('editing the design metadata keeps the flight results', async ({ page }) =>
   await expect(dialog).toBeHidden();
 
   // The result is still there, and still the same result.
+  await openTab(page, 'Results');
   await expect(flight).toBeVisible();
   expect((await apogeeTile.textContent())?.trim()).toBe(apogee);
 });

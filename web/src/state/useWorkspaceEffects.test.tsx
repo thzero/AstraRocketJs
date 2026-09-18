@@ -275,13 +275,13 @@ describe('what triggers a rebuild', () => {
   it('editing the design metadata neither rebuilds nor invalidates', async () => {
     await mount();
     computeStaticInfo.mockClear();
-    const invalidate = vi.spyOn(useWorkspaceStore.getState(), 'invalidateResults');
+    const markOutdated = vi.spyOn(useWorkspaceStore.getState(), 'markOutdated');
 
     act(() => s().updateDesignMeta({ designer: 'Ada Lovelace' }));
 
     expect(computeStaticInfo).not.toHaveBeenCalled();
-    expect(invalidate).not.toHaveBeenCalled();
-    invalidate.mockRestore();
+    expect(markOutdated).not.toHaveBeenCalled();
+    markOutdated.mockRestore();
   });
 
   it('renaming a part rebuilds — the engine labels its rows with the name', async () => {
@@ -296,9 +296,16 @@ describe('what triggers a rebuild', () => {
     expect(computeStaticInfo).toHaveBeenCalledTimes(1);
   });
 
-  it('changing a dimension rebuilds and invalidates the results', async () => {
+  it('changing a dimension rebuilds and ages the results without destroying them', async () => {
     await mount();
     computeStaticInfo.mockClear();
+    // Seed a result, so this asserts the KEEP as well as the flag. Without one
+    // the old `every(x => !x.result)` passed vacuously — no sim had ever run.
+    act(() => {
+      useWorkspaceStore.setState((st) => ({
+        sims: st.sims.map((x) => ({ ...x, result: { summary: { maxAltitude: 271 } } as never })),
+      }));
+    });
 
     act(() => {
       s().setSelectedId(s().tree.components[0]!.id as string);
@@ -306,7 +313,8 @@ describe('what triggers a rebuild', () => {
     });
 
     expect(computeStaticInfo).toHaveBeenCalledTimes(1);
-    expect(s().sims.every((x) => !x.result)).toBe(true);
+    expect(s().sims.every((x) => !!x.result)).toBe(true); // still readable
+    expect(s().sims.every((x) => x.outdated)).toBe(true); // …but flagged
   });
 
   it('surfaces a build failure instead of leaving stale stats on screen', async () => {

@@ -569,6 +569,12 @@ public final class OpenRocketEngine {
         WarningSet warnings = new WarningSet();
         // Upstream refactor: getCP()/getCM() now return CoordinateIF (accessor-based).
         CoordinateIF cp = calc.getCP(ctx.rocket.getSelectedConfiguration(), conditions, warnings);
+        // The GEOMETRY warnings - diameter discontinuity, open airframe forward,
+        // zero-volume body, podset overlap - are raised by checkGeometry, which
+        // getCP does not call. Without this the warning set came back empty for
+        // every design, however wrong: a nose cone four times the diameter of the
+        // tube behind it reported nothing. Upstream's own UI calls both.
+        calc.checkGeometry(ctx.rocket.getSelectedConfiguration(), ctx.rocket, warnings);
 
         double refDiameter = conditions.getRefLength(); // refLength IS the reference diameter
         double cg = structure.getCM().getX();
@@ -1196,6 +1202,19 @@ public final class OpenRocketEngine {
         conditions.setTimeStep(timeStep > 0 ? timeStep : 0.05);
         conditions.setMaxSimulationTime(JsonLite.dbl(o, "maxTime", 1200));
         conditions.setRandomSeed(randomSeed);
+        // Recovery-deployment speed thresholds. These do not change the physics;
+        // they decide when the flight raises a deployment warning, and those
+        // warnings already ride out to the caller in the result's `warnings`.
+        // Defaults match SimulationConditions' own, so an options blob that omits
+        // them behaves exactly as before.
+        //
+        // drogueLowSpeed is passed for completeness even though nothing reads it
+        // yet: BasicEventSimulationEngine's only use of it is commented out
+        // upstream. Passing it here means re-enabling that needs no rebuild.
+        conditions.setRecoverySpeedWarning(JsonLite.dbl(o, "recoverySpeedWarn", 20.0));
+        conditions.setDrogueLowSpeedWarning(JsonLite.dbl(o, "drogueLowSpeedWarn", 3.048));
+        conditions.setRecoveryDrogueMainHighSpeedWarning(JsonLite.dbl(o, "mainHighSpeedWarn", 30.48));
+        conditions.setRecoveryDrogueMainLowSpeedWarning(JsonLite.dbl(o, "mainLowSpeedWarn", 15.24));
 
         try {
             BasicEventSimulationEngine engine = new BasicEventSimulationEngine();

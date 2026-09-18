@@ -251,7 +251,13 @@
       "parachute": "Paracaídas",
       "streamer": "Cinta y cordón de choque",
       "mass": "Componente de masa"
-    }
+    },
+    "mainHighSpeedWarn": "Velocidad de apertura del principal (máx)",
+    "mainLowSpeedWarn": "Velocidad de apertura del principal (mín)",
+    "railExitMinHint": "Por debajo de esto las aletas tienen muy poco flujo para dirigir, y el cohete puede orientarse al viento o volverse inestable al salir de la guía.",
+    "deploySpeedWarnHint": "Despliegue simple (sin piloto): por encima de esta velocidad, abrir el paracaídas puede dañar el fuselaje o rasgar la vela.",
+    "mainHighSpeedWarnHint": "Doble despliegue: por encima de esto el PRINCIPAL sale demasiado rápido — normalmente un piloto demasiado pequeño o un principal programado demasiado alto.",
+    "mainLowSpeedWarnHint": "Doble despliegue: por debajo de esto el principal se abre con el cohete apenas descendiendo, lo que suele significar que se desplegó cerca del apogeo — un descenso lento y con mucha deriva."
   },
   "config": {
     "title": "Configuración del cohete",
@@ -274,7 +280,10 @@
     "rocket": "Cohete",
     "sketch": "Croquis",
     "simulate": "Simular",
-    "results": "Resultados"
+    "results": "Resultados",
+    "design": "Diseño",
+    "simulations": "Simulaciones",
+    "workbench": "Banco de trabajo"
   },
   "view": {
     "2d": "2D",
@@ -318,7 +327,7 @@
     "unstable": "Inestable"
   },
   "stats": {
-    "title": "Estadísticas estáticas del cohete",
+    "title": "Estadísticas estáticas",
     "length": "Longitud",
     "maxDiameter": "Diámetro máx.",
     "fineness": "Esbeltez",
@@ -349,12 +358,47 @@
     "noMount": "Añade un soporte de motor para ejecutar una simulación.",
     "noMotor": "Carga un motor para ejecutar una simulación.",
     "lockedWhileRunning": "Bloqueado mientras se ejecuta la simulación — la edición se reanuda al terminar.",
-    "timeout": "La simulación tardó demasiado y se detuvo. Inténtalo de nuevo o simplifica el diseño."
+    "timeout": "La simulación tardó demasiado y se detuvo. Inténtalo de nuevo o simplifica el diseño.",
+    "warnings": "Advertencias de vuelo ({{count}})",
+    "runMany": "Ejecutar {{count}} simulaciones"
   },
   "warn": {
     "deletePart": "¿Eliminar {{name}}?",
     "lastMountDelete": "Este es el único soporte de motor. ¿Eliminarlo de todos modos? El cohete no podrá simularse hasta que añadas otro.",
-    "lastMountDisable": "Este es el único soporte de motor. ¿Desactivarlo de todos modos? El cohete no podrá simularse hasta que añadas otro."
+    "lastMountDisable": "Este es el único soporte de motor. ¿Desactivarlo de todos modos? El cohete no podrá simularse hasta que añadas otro.",
+    "DISCONTINUITY": "Discontinuidad en el diámetro del fuselaje",
+    "OPEN_AIRFRAME_FORWARD": "Fuselaje abierto por delante",
+    "AIRFRAME_GAP": "Hueco entre componentes del fuselaje",
+    "AIRFRAME_OVERLAP": "Los componentes del fuselaje se solapan",
+    "PODSET_FORWARD": "El pod sobresale por delante de su elemento padre",
+    "PODSET_OVERLAP": "El pod se solapa con su elemento padre",
+    "THICK_FIN": "Aletas inusualmente gruesas",
+    "JAGGED_EDGED_FIN": "Borde de aleta irregular",
+    "ZERO_AREA_FIN": "La aleta tiene área cero",
+    "ZERO_VOLUME_BODY": "Componente del fuselaje con volumen cero",
+    "PARALLEL_FINS": "Aletas paralelas al flujo de aire",
+    "NO_RECOVERY_DEVICE": "Sin sistema de recuperación",
+    "SUPERSONIC": "Vuelo supersónico: el modelo aerodinámico es aproximado aquí",
+    "RECOVERY_LAUNCH_ROD": "Sistema de recuperación abierto aún en la guía",
+    "TUMBLE_UNDER_THRUST": "El cohete volteó con el motor encendido",
+    "TUBE_ISOLATED": "Aleta tubular aislada",
+    "TUBE_SEPARATION": "Aletas tubulares separadas",
+    "TUBE_OVERLAP": "Aletas tubulares solapadas",
+    "SEPARATION_ORDER": "Las etapas se separaron fuera de orden",
+    "EARLY_SEPARATION": "Etapa separada antes de tiempo",
+    "EMPTY_BRANCH": "La rama de vuelo no tiene datos",
+    "RECOVERY_HIGH_SPEED": "Sistema de recuperación abierto a alta velocidad",
+    "RECOVERY_MAIN_HIGH_SPEED": "Principal abierto a alta velocidad",
+    "RECOVERY_MAIN_LOW_SPEED": "Principal abierto a baja velocidad",
+    "RECOVERY_DROGUE_LOW_SPEED": "Piloto abierto a baja velocidad",
+    "RECOVERY_DROGUE_NO_MAIN": "Piloto abierto sin paracaídas principal",
+    "EVENT_AFTER_LANDING": "Un evento ocurrió tras el aterrizaje",
+    "FILE_INVALID_PARAMETER": "Parámetro no válido en el archivo",
+    "LISTENERS_AFFECTED": "Los listeners de simulación alteraron el resultado",
+    "OBJ_ZERO_THICKNESS": "Geometría de espesor cero en la exportación",
+    "LargeAOA": "Ángulo de ataque grande",
+    "LargeAOA.str1": "Ángulo de ataque grande",
+    "LargeAOA.str2": "Ángulo de ataque grande"
   },
   "launch": {
     "wind": "Viento",
@@ -385,7 +429,9 @@
     "wgs84": "WGS84",
     "rodLengthName": "Longitud de la guía",
     "rodDirectionName": "Dirección de la guía",
-    "windDirectionName": "Dirección del viento"
+    "windDirectionName": "Dirección del viento",
+    "angleLimit": "Los códigos de seguridad de NAR y Tripoli piden una rampa a menos de 20° de la vertical.",
+    "windLimit": "Los códigos de seguridad de NAR y Tripoli piden no volar con viento por encima de 20 mph (32 km/h)."
   },
   "flight": {
     "title": "Perfil de vuelo",
@@ -812,8 +858,6 @@
     "new": "＋ Nueva",
     "untitled": "Simulación {{n}}",
     "name": "Nombre",
-    "hide": "Ocultar simulaciones",
-    "show": "Mostrar simulaciones",
     "rename": "Renombrar simulación",
     "duplicate": "Duplicar simulación",
     "copyName": "{{name}} copia",
@@ -828,7 +872,19 @@
     "viewCurve": "Curva de empuje",
     "delay": "Retardo",
     "ignition": "Encendido",
-    "ignitionDelay": "Retardo de encendido (s)"
+    "ignitionDelay": "Retardo de encendido (s)",
+    "status": "Estado",
+    "statusUpToDate": "Al día",
+    "statusOutdated": "Desactualizado",
+    "statusRunning": "Ejecutando",
+    "statusFailed": "Fallida",
+    "options": "Opciones de simulación",
+    "optionsHint": "Vacío sigue el ajuste global (Ajustes › Simulación).",
+    "selectAll": "Seleccionar todas las simulaciones",
+    "selectOne": "Seleccionar {{name}}",
+    "viewResults": "Ver resultados",
+    "viewResultsFor": "Ver resultados de {{name}}",
+    "summary": "Resultados de la simulación"
   },
   "ignition": {
     "automatic": "Automático",
@@ -920,5 +976,27 @@
   "cluster": {
     "single": "Individual",
     "pattern": "{{name}} ({{n}} motores)"
+  },
+  "design": {
+    "warnings": "Advertencias de diseño ({{count}})"
+  },
+  "warnHelp": {
+    "RECOVERY_HIGH_SPEED": "El sistema de recuperación se abrió con el cohete aún a gran velocidad. El tirón carga a la vez el fuselaje y la vela: puede rasgar el tubo, romper el paracaídas o arrancar las cuerdas. Ábralo más cerca del apogeo, o vuele con doble despliegue.",
+    "RECOVERY_MAIN_HIGH_SPEED": "En doble despliegue el principal debe abrirse despacio, ya bajo el piloto. Este se abrió lo bastante rápido como para dañar el fuselaje o la vela: suele ser un piloto demasiado pequeño o un principal programado demasiado alto.",
+    "RECOVERY_MAIN_LOW_SPEED": "El principal se abrió con el cohete apenas descendiendo, normalmente porque se desplegó cerca del apogeo. No se rompe nada, pero se pierde el sentido del doble despliegue: el cohete baja despacio desde toda la altura y deriva mucho.",
+    "RECOVERY_DROGUE_LOW_SPEED": "El piloto se abrió con el cohete casi parado, así que apenas estabiliza el descenso. Suele ser un piloto desplegado bastante antes del apogeo.",
+    "RECOVERY_LAUNCH_ROD": "Un sistema de recuperación se abrió con el cohete aún en la guía. Revise el retardo de eyección y los ajustes de despliegue: tal como se simula, el vuelo termina en la rampa.",
+    "RECOVERY_DROGUE_NO_MAIN": "Se abre un piloto pero no hay principal, así que el cohete desciende todo el camino solo con el piloto. Es un aterrizaje rápido salvo que el piloto esté dimensionado para ello.",
+    "NO_RECOVERY_DEVICE": "No se despliega nada, así que el cohete cae balísticamente y la velocidad de aterrizaje de abajo es la del impacto.",
+    "LargeAOA": "El cohete voló con un ángulo de ataque fuera del rango válido del método Barrowman, así que los valores aerodinámicos en ese punto son aproximados. Habitual con viento fuerte o tras una salida lenta de la guía.",
+    "LargeAOA.str1": "El cohete voló con un ángulo de ataque fuera del rango válido del método Barrowman, así que los valores aerodinámicos en ese punto son aproximados. Habitual con viento fuerte o tras una salida lenta de la guía.",
+    "LargeAOA.str2": "El cohete voló con un ángulo de ataque fuera del rango válido del método Barrowman, así que los valores aerodinámicos en ese punto son aproximados. Habitual con viento fuerte o tras una salida lenta de la guía.",
+    "SUPERSONIC": "Parte del vuelo es supersónico, donde el método Barrowman extendido es una aproximación. Tome la resistencia y la estabilidad en esa zona como orientativas."
+  },
+  "limits": {
+    "rodAngle": "El ángulo de la rampa es de {{value}}° respecto a la vertical, por encima de los {{limit}}° que permiten los códigos de seguridad de NAR y Tripoli.",
+    "wind": "La velocidad del viento es de {{value}} mph, por encima de las {{limit}} mph que permiten los códigos de seguridad de NAR y Tripoli.",
+    "refused": "\"{{name}}\" no se ejecutó: sus condiciones de lanzamiento están fuera de los códigos de seguridad.",
+    "blocked": "Las condiciones de lanzamiento están fuera de los códigos de seguridad de NAR/Tripoli."
   }
 }

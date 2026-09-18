@@ -251,7 +251,13 @@
       "parachute": "Parachute",
       "streamer": "Streamer & shock cord",
       "mass": "Mass component"
-    }
+    },
+    "mainHighSpeedWarn": "Main deploy speed (max)",
+    "mainLowSpeedWarn": "Main deploy speed (min)",
+    "railExitMinHint": "Below this the fins have too little airflow to steer, so the rocket can weathercock into the wind or go unstable as it leaves the rod.",
+    "deploySpeedWarnHint": "Single deployment (no drogue): above this speed, opening the parachute risks zippering the airframe or tearing the canopy.",
+    "mainHighSpeedWarnHint": "Dual deployment: above this the MAIN is coming out too fast — usually a drogue too small to slow the rocket, or a main set to deploy too high.",
+    "mainLowSpeedWarnHint": "Dual deployment: below this the main opens while the rocket is barely descending, which normally means it deployed near apogee — a slow, drifty descent from full altitude."
   },
   "config": {
     "title": "Rocket configuration",
@@ -274,7 +280,10 @@
     "rocket": "Rocket",
     "sketch": "Sketch",
     "simulate": "Simulate",
-    "results": "Results"
+    "results": "Results",
+    "design": "Design",
+    "simulations": "Simulations",
+    "workbench": "Workbench"
   },
   "view": {
     "2d": "2D",
@@ -318,7 +327,7 @@
     "unstable": "Unstable"
   },
   "stats": {
-    "title": "Rocket static stats",
+    "title": "Static statistics",
     "length": "Length",
     "maxDiameter": "Max diameter",
     "fineness": "Fineness",
@@ -349,12 +358,47 @@
     "noMount": "Add a motor mount to run a simulation.",
     "noMotor": "Load a motor to run a simulation.",
     "lockedWhileRunning": "Locked while the simulation runs — edits resume when it finishes.",
-    "timeout": "The simulation took too long and was stopped. Try again, or simplify the design."
+    "timeout": "The simulation took too long and was stopped. Try again, or simplify the design.",
+    "warnings": "Flight warnings ({{count}})",
+    "runMany": "Run {{count}} simulations"
   },
   "warn": {
     "deletePart": "Delete {{name}}?",
     "lastMountDelete": "This is the only motor mount. Delete it anyway? The rocket can't be simulated until you add another.",
-    "lastMountDisable": "This is the only motor mount. Turn it off anyway? The rocket can't be simulated until you add another."
+    "lastMountDisable": "This is the only motor mount. Turn it off anyway? The rocket can't be simulated until you add another.",
+    "DISCONTINUITY": "Body diameter discontinuity",
+    "OPEN_AIRFRAME_FORWARD": "Open airframe at the front",
+    "AIRFRAME_GAP": "Gap between airframe components",
+    "AIRFRAME_OVERLAP": "Airframe components overlap",
+    "PODSET_FORWARD": "Pod set reaches forward of its parent",
+    "PODSET_OVERLAP": "Pod set overlaps its parent",
+    "THICK_FIN": "Fins are unusually thick",
+    "JAGGED_EDGED_FIN": "Jagged fin edge",
+    "ZERO_AREA_FIN": "Fin has zero area",
+    "ZERO_VOLUME_BODY": "Body component has zero volume",
+    "PARALLEL_FINS": "Fins are parallel to the airflow",
+    "NO_RECOVERY_DEVICE": "No recovery device",
+    "SUPERSONIC": "Supersonic flight: the aerodynamic model is approximate here",
+    "RECOVERY_LAUNCH_ROD": "Recovery device deployed while still on the rod",
+    "TUMBLE_UNDER_THRUST": "Rocket tumbled while the motor was burning",
+    "TUBE_ISOLATED": "Tube fin is isolated",
+    "TUBE_SEPARATION": "Tube fins are separated",
+    "TUBE_OVERLAP": "Tube fins overlap",
+    "SEPARATION_ORDER": "Stages separated out of order",
+    "EARLY_SEPARATION": "Stage separated early",
+    "EMPTY_BRANCH": "Flight branch carries no data",
+    "RECOVERY_HIGH_SPEED": "Recovery device deployed at high speed",
+    "RECOVERY_MAIN_HIGH_SPEED": "Main deployed at high speed",
+    "RECOVERY_MAIN_LOW_SPEED": "Main deployed at low speed",
+    "RECOVERY_DROGUE_LOW_SPEED": "Drogue deployed at low speed",
+    "RECOVERY_DROGUE_NO_MAIN": "Drogue deployed with no main chute",
+    "EVENT_AFTER_LANDING": "An event fired after landing",
+    "FILE_INVALID_PARAMETER": "Invalid parameter in the file",
+    "LISTENERS_AFFECTED": "Simulation listeners changed the result",
+    "OBJ_ZERO_THICKNESS": "Zero-thickness geometry in the export",
+    "LargeAOA": "Large angle of attack",
+    "LargeAOA.str1": "Large angle of attack",
+    "LargeAOA.str2": "Large angle of attack"
   },
   "launch": {
     "wind": "Wind",
@@ -385,7 +429,9 @@
     "wgs84": "WGS84",
     "rodLengthName": "Launch rod length",
     "rodDirectionName": "Launch rod direction",
-    "windDirectionName": "Wind direction"
+    "windDirectionName": "Wind direction",
+    "angleLimit": "The NAR and Tripoli safety codes ask for a launcher within 20° of vertical.",
+    "windLimit": "The NAR and Tripoli safety codes ask you not to fly in winds above 20 mph (32 km/h)."
   },
   "flight": {
     "title": "Flight profile",
@@ -812,8 +858,6 @@
     "new": "＋ New",
     "untitled": "Simulation {{n}}",
     "name": "Name",
-    "hide": "Hide simulations",
-    "show": "Show simulations",
     "rename": "Rename simulation",
     "duplicate": "Duplicate simulation",
     "copyName": "{{name}} copy",
@@ -828,7 +872,19 @@
     "viewCurve": "Thrust curve",
     "delay": "Delay",
     "ignition": "Ignition",
-    "ignitionDelay": "Ignition delay (s)"
+    "ignitionDelay": "Ignition delay (s)",
+    "status": "Status",
+    "statusUpToDate": "Up to date",
+    "statusOutdated": "Outdated",
+    "statusRunning": "Running",
+    "statusFailed": "Failed",
+    "options": "Simulation options",
+    "optionsHint": "Empty follows the global setting (Settings › Simulation).",
+    "selectAll": "Select all simulations",
+    "selectOne": "Select {{name}}",
+    "viewResults": "View results",
+    "viewResultsFor": "View results for {{name}}",
+    "summary": "Simulation results"
   },
   "ignition": {
     "automatic": "Automatic",
@@ -920,5 +976,27 @@
   "cluster": {
     "single": "Single",
     "pattern": "{{name}} ({{n}} motors)"
+  },
+  "design": {
+    "warnings": "Design warnings ({{count}})"
+  },
+  "warnHelp": {
+    "RECOVERY_HIGH_SPEED": "The recovery device opened while the rocket was still moving fast. The shock loads the airframe and the canopy at once: it can zipper the body tube, tear the chute or pull the shroud lines out. Deploy nearer apogee, or fly dual-deployment with a drogue and a lower main.",
+    "RECOVERY_MAIN_HIGH_SPEED": "On a dual-deployment flight the main should open slowly, already under drogue. This one opened fast enough to risk the same zippering and canopy damage — usually a drogue that is too small to slow the rocket, or a main set to deploy too high.",
+    "RECOVERY_MAIN_LOW_SPEED": "The main opened while the rocket was barely descending, which normally means it deployed at or close to apogee. Nothing breaks, but the point of dual deployment is lost: the rocket floats down from full altitude and drifts a long way downwind.",
+    "RECOVERY_DROGUE_LOW_SPEED": "The drogue opened while the rocket was barely moving, so it does little to stabilise the descent. Usually a drogue deployed well before apogee.",
+    "RECOVERY_LAUNCH_ROD": "A recovery device deployed while the rocket was still on the rod. Check the ejection delay and the deployment settings — as simulated, the flight ends at the pad.",
+    "RECOVERY_DROGUE_NO_MAIN": "A drogue deploys but no main follows, so the rocket descends the whole way on the drogue alone. That is a fast landing unless the drogue is sized to take it.",
+    "NO_RECOVERY_DEVICE": "Nothing deploys, so the rocket falls ballistic and the landing speed below is what it hits the ground at.",
+    "LargeAOA": "The rocket flew at an angle of attack outside the range the Barrowman method is valid for, so the aerodynamic numbers around that point are approximate. Common in strong wind or just after a slow rod exit.",
+    "LargeAOA.str1": "The rocket flew at an angle of attack outside the range the Barrowman method is valid for, so the aerodynamic numbers around that point are approximate. Common in strong wind or just after a slow rod exit.",
+    "LargeAOA.str2": "The rocket flew at an angle of attack outside the range the Barrowman method is valid for, so the aerodynamic numbers around that point are approximate. Common in strong wind or just after a slow rod exit.",
+    "SUPERSONIC": "Part of the flight is supersonic, where the extended Barrowman method is an approximation. Treat the drag and stability figures through that region as indicative."
+  },
+  "limits": {
+    "rodAngle": "Launch rod angle is {{value}}° from vertical, above the {{limit}}° the NAR and Tripoli safety codes allow.",
+    "wind": "Wind speed is {{value}} mph, above the {{limit}} mph the NAR and Tripoli safety codes allow.",
+    "refused": "\"{{name}}\" was not run — its launch conditions are outside the safety codes.",
+    "blocked": "Launch conditions are outside the NAR/Tripoli safety codes."
   }
 }
