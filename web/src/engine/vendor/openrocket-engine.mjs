@@ -5382,22 +5382,24 @@ iocs_DataBranch_lambda$setValue$0 = ($this, $k) => {
 };
 function iocs_FlightDataBranch() {
     let a = this; iocs_DataBranch.call(a);
+    a.$sourceComponentId = null;
     a.$timeToOptimumAltitude = 0.0;
     a.$optimumAltitude = 0.0;
     a.$separationTime = 0.0;
     a.$events = null;
 }
-let iocs_FlightDataBranch__init_ = ($this, $name, $types) => {
+let iocs_FlightDataBranch__init_ = ($this, $name, $srcComponent, $types) => {
     iocs_DataBranch__init_($this, $name, $types);
     $this.$timeToOptimumAltitude = NaN;
     $this.$optimumAltitude = NaN;
     $this.$separationTime = NaN;
     $this.$events = iocu_ArrayList__init_();
+    $this.$sourceComponentId = $srcComponent !== null ? iocr_RocketComponent_getID($srcComponent) : null;
 },
-iocs_FlightDataBranch__init_2 = (var_0, var_1) => {
-    let var_2 = new iocs_FlightDataBranch();
-    iocs_FlightDataBranch__init_(var_2, var_0, var_1);
-    return var_2;
+iocs_FlightDataBranch__init_2 = (var_0, var_1, var_2) => {
+    let var_3 = new iocs_FlightDataBranch();
+    iocs_FlightDataBranch__init_(var_3, var_0, var_1, var_2);
+    return var_3;
 },
 iocs_FlightDataBranch__init_0 = ($this, $name, $srcComponent, $parent) => {
     iocs_DataBranch__init_0($this, $name);
@@ -5405,6 +5407,7 @@ iocs_FlightDataBranch__init_0 = ($this, $name, $srcComponent, $parent) => {
     $this.$optimumAltitude = NaN;
     $this.$separationTime = NaN;
     $this.$events = iocu_ArrayList__init_();
+    $this.$sourceComponentId = $srcComponent !== null ? iocr_RocketComponent_getID($srcComponent) : null;
     iocs_FlightDataBranch_copyValuesFromBranch($this, $parent, $srcComponent);
 },
 iocs_FlightDataBranch__init_1 = (var_0, var_1, var_2) => {
@@ -23184,7 +23187,7 @@ iocs_AbstractEulerStepper_calculateAcceleration = ($this, $status, $store) => {
     $forces.$setFrictionCD(0.0);
     $forces.$setPressureCD($cd);
     $forces.$setBaseCD(0.0);
-    $store.$forces = $forces;
+    $store.$forces = iocsl_SimulationListenerHelper_firePostAerodynamicCalculation($status, $forces);
     $atmosphericConditions = $store.$flightConditions.$getAtmosphericConditions();
     $airSpeed = iocu_MutableCoordinate_set($this.$airSpeedScratch, $status.$getRocketVelocity());
     $airSpeed.$add2($store.$windVelocity);
@@ -28648,6 +28651,9 @@ iocm_RigidBody_add = ($this, $that) => {
     $newIzz = $movedThis.$Izz + $movedThat.$Izz;
     return iocm_RigidBody__init_($newCM, $newIxx, $newIyy, $newIzz);
 },
+iocm_RigidBody_scaleMass = ($this, $factor) => {
+    return iocm_RigidBody__init_($this.$cm.$setWeight($this.$cm.$getWeight() * $factor), $this.$Ixx * $factor, $this.$Iyy * $factor, $this.$Izz * $factor);
+},
 iocm_RigidBody_getCenterOfMass = $this => {
     return $this.$cm;
 },
@@ -28664,11 +28670,7 @@ iocm_RigidBody_getRotationalInertia = $this => {
     return $this.$Ixx;
 },
 iocm_RigidBody_hashCode = $this => {
-    let var$1, var$2, var$3;
-    var$1 = Long_xor(jl_Double_doubleToLongBits($this.$Ixx), jl_Double_doubleToLongBits($this.$Iyy));
-    var$2 = $this.$Ixx;
-    var$3 = Long_lo(Long_xor(var$1, jl_Double_doubleToLongBits(var$2)));
-    return var$3;
+    return 1;
 },
 iocm_RigidBody_equals = ($this, $obj) => {
     let $other, var$3, var$4, var$5;
@@ -28678,10 +28680,10 @@ iocm_RigidBody_equals = ($this, $obj) => {
         return 0;
     a: {
         $other = $obj;
-        if (iocu_MathUtil_equals($this.$Ixx, $other.$Ixx) && iocu_MathUtil_equals($this.$Iyy, $other.$Iyy)) {
-            var$3 = $this.$Izz;
-            var$4 = $other.$Izz;
-            if (iocu_MathUtil_equals(var$3, var$4)) {
+        if ($this.$cm.$equals1($other.$cm) && iocu_MathUtil_equals($this.$Ixx, $other.$Ixx)) {
+            var$3 = $this.$Iyy;
+            var$4 = $other.$Iyy;
+            if (iocu_MathUtil_equals(var$3, var$4) && iocu_MathUtil_equals($this.$Izz, $other.$Izz)) {
                 var$5 = 1;
                 break a;
             }
@@ -44012,7 +44014,7 @@ iocs_BasicEventSimulationEngine_simulate = ($this, $simulationConditions) => {
                 var$13 = var$12.data;
                 iocs_FlightDataType_$callClinit();
                 var$13[0] = iocs_FlightDataType_TYPE_TIME;
-                iocs_FlightDataBranch__init_($initialBranch, $branchName, var$12);
+                iocs_FlightDataBranch__init_($initialBranch, $branchName, $topStage, var$12);
                 $this.$currentStatus.$setWarnings($this.$flightData.$getWarningSet());
                 $this.$currentStatus.$setFlightDataBranch($initialBranch);
                 if ($topStage === null) {
@@ -51731,6 +51733,14 @@ let iocm_MassCalculation_merge = ($this, $other) => {
 iocm_MassCalculation_addInertia = ($this, $data) => {
     $this.$bodies.$add($data);
 },
+iocm_MassCalculation_scaleInertia = ($this, $factor) => {
+    let $i;
+    $i = 0;
+    while ($i < $this.$bodies.$size()) {
+        $this.$bodies.$set3($i, ($this.$bodies.$get0($i)).$scaleMass($factor));
+        $i = $i + 1 | 0;
+    }
+},
 iocm_MassCalculation_addMass = ($this, $pointMass) => {
     if (1.0E-8 > $this.$centerOfMass.$getWeight())
         $this.$centerOfMass = $pointMass;
@@ -51742,6 +51752,9 @@ iocm_MassCalculation_copy = ($this, $_root, $_transform) => {
 },
 iocm_MassCalculation_getCM = $this => {
     return $this.$centerOfMass;
+},
+iocm_MassCalculation_getMass = $this => {
+    return $this.$centerOfMass.$getWeight();
 },
 iocm_MassCalculation_equals = ($this, $obj) => {
     let $other, var$3, var$4, var$5;
@@ -51882,7 +51895,7 @@ iocm_MassCalculation_calculateAssembly = $this => {
     return $this;
 },
 iocm_MassCalculation_calculateStructure = $this => {
-    let $component, $parentTransform, $instanceCount, $allInstanceOffsets, $allInstanceAngles, $entry, $children, $currentInstanceNumber, var$9, var$10, $currentInstanceOffset, $offsetTransform, $currentInstanceAngle, $angleTransform, var$15, $currentTransform, $child, $eachChild, var$19, var$20, $compCM, $compZero, $compIx, $compIt, $componentInertia;
+    let $component, $parentTransform, $instanceCount, $allInstanceOffsets, $allInstanceAngles, $entry, $children, $currentInstanceNumber, var$9, var$10, $currentInstanceOffset, $offsetTransform, $currentInstanceAngle, $angleTransform, var$15, $currentTransform, $child, $eachChild, var$19, var$20, $compCM, $compZero, $componentGeometricMass, $geometricMass, $scale, $compIx, $compIt, $componentInertia;
     $component = $this.$root0;
     $parentTransform = $this.$transform3;
     $instanceCount = $component.$getInstanceCount();
@@ -51920,12 +51933,20 @@ iocm_MassCalculation_calculateStructure = $this => {
         $compCM = $component.$getComponentCG();
         var$15 = $parentTransform.$transform($compCM.$add2($component.$getPosition()));
         $compZero = $parentTransform.$transform($component.$getPosition());
+        $componentGeometricMass = var$15.$getWeight();
         if (iocr_RocketComponent_isMassOverridden($component)) {
             if (!$component.$isMassive())
                 var$15 = $children.$getCM();
             var$15 = var$15.$setWeight(iocr_RocketComponent_getOverrideMass($component));
-            if ($component.$isSubcomponentsOverriddenMass())
+            if (!$component.$isSubcomponentsOverriddenMass())
+                $componentGeometricMass = iocr_RocketComponent_getOverrideMass($component);
+            else {
+                $geometricMass = $componentGeometricMass + $children.$getMass();
+                $scale = !($geometricMass > 1.0E-8) ? 0.0 : iocr_RocketComponent_getOverrideMass($component) / $geometricMass;
+                $children.$scaleInertia($scale);
                 $children.$setCM(($children.$getCM()).$setWeight(0.0));
+                $componentGeometricMass = $componentGeometricMass * $scale;
+            }
         }
         if (iocr_RocketComponent_isCGOverridden($component)) {
             var$15 = var$15.$setX($compZero.$getX() + iocr_RocketComponent_getOverrideCGX($component));
@@ -51938,9 +51959,9 @@ iocm_MassCalculation_calculateStructure = $this => {
             $entry.$updateEachMass(var$15.$getWeight());
             $entry.$updateAverageCM(var$15);
         }
-        $compIx = $component.$getRotationalUnitInertia() * var$15.$getWeight();
-        $compIt = $component.$getLongitudinalUnitInertia() * var$15.$getWeight();
-        $componentInertia = iocm_RigidBody__init_(var$15, $compIx, $compIt, $compIt);
+        $compIx = $component.$getRotationalUnitInertia() * $componentGeometricMass;
+        $compIt = $component.$getLongitudinalUnitInertia() * $componentGeometricMass;
+        $componentInertia = iocm_RigidBody__init_(var$15.$setWeight($componentGeometricMass), $compIx, $compIt, $compIt);
         $this.$addInertia($componentInertia);
     }
     $this.$merge2($children);
@@ -58201,7 +58222,7 @@ jur_FSet, "FSet", 2, jur_AbstractSet, [], 0, [0,0,0], () => jur_FSet_$callClinit
 jur_BehindFSet, "BehindFSet", 2, jur_FSet, [], 0, [0,0,0], 0, ["$_init_8", $rt_wrapFunction1(jur_BehindFSet__init_), "$matches1", $rt_wrapFunction3(jur_BehindFSet_matches), "$getName", $rt_wrapFunction0(jur_BehindFSet_getName)],
 iocs_DataBranch, "DataBranch", 36, jl_Object, [iocu_Monitorable], 1025, [0,0,0], 0, ["$_init_29", $rt_wrapFunction2(iocs_DataBranch__init_), "$_init_", $rt_wrapFunction1(iocs_DataBranch__init_0), "$addType", $rt_wrapFunction1(iocs_DataBranch_addType), "$addPoint", $rt_wrapFunction0(iocs_DataBranch_addPoint), "$setValue", $rt_wrapFunction2(iocs_DataBranch_setValue), "$get10", $rt_wrapFunction1(iocs_DataBranch_get), "$getView", $rt_wrapFunction1(iocs_DataBranch_getView), "$getByIndex", $rt_wrapFunction2(iocs_DataBranch_getByIndex),
 "$getLast", $rt_wrapFunction1(iocs_DataBranch_getLast), "$getMaximum", $rt_wrapFunction1(iocs_DataBranch_getMaximum), "$getLength0", $rt_wrapFunction0(iocs_DataBranch_getLength), "$getTypes", $rt_wrapFunction0(iocs_DataBranch_getTypes), "$getName", $rt_wrapFunction0(iocs_DataBranch_getName), "$immute", $rt_wrapFunction0(iocs_DataBranch_immute)],
-iocs_FlightDataBranch, "FlightDataBranch", 36, iocs_DataBranch, [], 1, [0,0,0], 0, ["$_init_164", $rt_wrapFunction2(iocs_FlightDataBranch__init_), "$_init_167", $rt_wrapFunction3(iocs_FlightDataBranch__init_0), "$setTimeToOptimumAltitude", $rt_wrapFunction1(iocs_FlightDataBranch_setTimeToOptimumAltitude), "$setOptimumAltitude", $rt_wrapFunction1(iocs_FlightDataBranch_setOptimumAltitude), "$getOptimumDelay", $rt_wrapFunction0(iocs_FlightDataBranch_getOptimumDelay), "$addEvent", $rt_wrapFunction1(iocs_FlightDataBranch_addEvent),
+iocs_FlightDataBranch, "FlightDataBranch", 36, iocs_DataBranch, [], 1, [0,0,0], 0, ["$_init_164", $rt_wrapFunction3(iocs_FlightDataBranch__init_), "$_init_167", $rt_wrapFunction3(iocs_FlightDataBranch__init_0), "$setTimeToOptimumAltitude", $rt_wrapFunction1(iocs_FlightDataBranch_setTimeToOptimumAltitude), "$setOptimumAltitude", $rt_wrapFunction1(iocs_FlightDataBranch_setOptimumAltitude), "$getOptimumDelay", $rt_wrapFunction0(iocs_FlightDataBranch_getOptimumDelay), "$addEvent", $rt_wrapFunction1(iocs_FlightDataBranch_addEvent),
 "$getEvents", $rt_wrapFunction0(iocs_FlightDataBranch_getEvents), "$getLastEvent", $rt_wrapFunction1(iocs_FlightDataBranch_getLastEvent)],
 juf_Supplier, 0, jl_Object, [], 1537, 0, 0, 0,
 iocu_Unit$_clinit_$lambda$_19_0, "Unit$<clinit>$lambda$_19_0", 42, jl_Object, [juf_Supplier], 1, [0,0,0], 0, ["$_init_0", $rt_wrapFunction0(iocu_Unit$_clinit_$lambda$_19_0__init_), "$get3", $rt_wrapFunction0(iocu_Unit$_clinit_$lambda$_19_0_get0), "$get2", $rt_wrapFunction0(iocu_Unit$_clinit_$lambda$_19_0_get)],
@@ -58671,8 +58692,8 @@ jur_PreviousMatch, "PreviousMatch", 2, jur_AbstractSet, [], 0, [0,0,0], 0, ["$_i
 juf_DoubleSupplier, 0, jl_Object, [], 1537, 0, 0, 0,
 jur_NonCapFSet, "NonCapFSet", 2, jur_FSet, [], 0, [0,0,0], 0, ["$_init_8", $rt_wrapFunction1(jur_NonCapFSet__init_), "$matches1", $rt_wrapFunction3(jur_NonCapFSet_matches), "$getName", $rt_wrapFunction0(jur_NonCapFSet_getName), "$hasConsumed", $rt_wrapFunction1(jur_NonCapFSet_hasConsumed)],
 iocr_FlightConfiguration$StageFlags, "FlightConfiguration$StageFlags", 46, jl_Object, [jl_Cloneable], 0, [iocr_FlightConfiguration,0,"StageFlags"], 0, ["$_init_189", $rt_wrapFunction4(iocr_FlightConfiguration$StageFlags__init_0)],
-iocm_RigidBody, "RigidBody", 45, jl_Object, [], 1, [0,0,0], () => iocm_RigidBody_$callClinit(), ["$_init_118", $rt_wrapFunction4(iocm_RigidBody__init_0), "$add5", $rt_wrapFunction1(iocm_RigidBody_add), "$getCenterOfMass", $rt_wrapFunction0(iocm_RigidBody_getCenterOfMass), "$getCM", $rt_wrapFunction0(iocm_RigidBody_getCM), "$getLongitudinalInertia", $rt_wrapFunction0(iocm_RigidBody_getLongitudinalInertia), "$getMass", $rt_wrapFunction0(iocm_RigidBody_getMass), "$getRotationalInertia", $rt_wrapFunction0(iocm_RigidBody_getRotationalInertia),
-"$hashCode", $rt_wrapFunction0(iocm_RigidBody_hashCode), "$equals1", $rt_wrapFunction1(iocm_RigidBody_equals), "$rebase", $rt_wrapFunction1(iocm_RigidBody_rebase), "$toString", $rt_wrapFunction0(iocm_RigidBody_toString), "$toCMString", $rt_wrapFunction0(iocm_RigidBody_toCMString), "$toMOIString", $rt_wrapFunction0(iocm_RigidBody_toMOIString)],
+iocm_RigidBody, "RigidBody", 45, jl_Object, [], 1, [0,0,0], () => iocm_RigidBody_$callClinit(), ["$_init_118", $rt_wrapFunction4(iocm_RigidBody__init_0), "$add5", $rt_wrapFunction1(iocm_RigidBody_add), "$scaleMass", $rt_wrapFunction1(iocm_RigidBody_scaleMass), "$getCenterOfMass", $rt_wrapFunction0(iocm_RigidBody_getCenterOfMass), "$getCM", $rt_wrapFunction0(iocm_RigidBody_getCM), "$getLongitudinalInertia", $rt_wrapFunction0(iocm_RigidBody_getLongitudinalInertia), "$getMass", $rt_wrapFunction0(iocm_RigidBody_getMass),
+"$getRotationalInertia", $rt_wrapFunction0(iocm_RigidBody_getRotationalInertia), "$hashCode", $rt_wrapFunction0(iocm_RigidBody_hashCode), "$equals1", $rt_wrapFunction1(iocm_RigidBody_equals), "$rebase", $rt_wrapFunction1(iocm_RigidBody_rebase), "$toString", $rt_wrapFunction0(iocm_RigidBody_toString), "$toCMString", $rt_wrapFunction0(iocm_RigidBody_toCMString), "$toMOIString", $rt_wrapFunction0(iocm_RigidBody_toMOIString)],
 iocsls_OptimumCoastListener, "OptimumCoastListener", 39, iocsl_AbstractSimulationListener, [], 1, [0,0,0], () => iocsls_OptimumCoastListener_$callClinit(), ["$_init_0", $rt_wrapFunction0(iocsls_OptimumCoastListener__init_), "$handleFlightEvent", $rt_wrapFunction2(iocsls_OptimumCoastListener_handleFlightEvent), "$recoveryDeviceDeployment", $rt_wrapFunction2(iocsls_OptimumCoastListener_recoveryDeviceDeployment), "$isSystemListener", $rt_wrapFunction0(iocsls_OptimumCoastListener_isSystemListener)],
 jur_UCISupplCharSet, "UCISupplCharSet", 2, jur_LeafSet, [], 0, [0,0,0], 0, ["$_init_8", $rt_wrapFunction1(jur_UCISupplCharSet__init_), "$accepts", $rt_wrapFunction2(jur_UCISupplCharSet_accepts), "$getName", $rt_wrapFunction0(jur_UCISupplCharSet_getName)],
 iocl_Warning$Other, "Warning$Other", 49, iocl_Warning, [], 1, [iocl_Warning,0,"Other"], 0, ["$_init_52", $rt_wrapFunction2(iocl_Warning$Other__init_0), "$getMessageDescription", $rt_wrapFunction0(iocl_Warning$Other_getMessageDescription), "$equals1", $rt_wrapFunction1(iocl_Warning$Other_equals), "$hashCode", $rt_wrapFunction0(iocl_Warning$Other_hashCode), "$replaceBy", $rt_wrapFunction1(iocl_Warning$Other_replaceBy), "$clone0", $rt_wrapFunction0(iocl_Warning$Other_clone)],
@@ -59051,9 +59072,9 @@ iocs_EventQueue, "EventQueue", 36, ju_PriorityQueue, [iocu_Monitorable], 1, [0,0
 $rt_wrapFunction1(iocs_EventQueue_add)],
 jm_Conversion, 0, jl_Object, [], 0, 0, () => jm_Conversion_$callClinit(), 0,
 iocr_MassComponent, "MassComponent", 46, iocr_MassObject, [], 1, [0,0,0], () => iocr_MassComponent_$callClinit(), ["$_init_0", $rt_wrapFunction0(iocr_MassComponent__init_), "$getComponentMass", $rt_wrapFunction0(iocr_MassComponent_getComponentMass), "$setComponentMass", $rt_wrapFunction1(iocr_MassComponent_setComponentMass), "$getComponentName", $rt_wrapFunction0(iocr_MassComponent_getComponentName), "$isCompatible", $rt_wrapFunction1(iocr_MassComponent_isCompatible)],
-iocm_MassCalculation, "MassCalculation", 45, jl_Object, [], 1, [0,0,0], 0, ["$merge2", $rt_wrapFunction1(iocm_MassCalculation_merge), "$addInertia", $rt_wrapFunction1(iocm_MassCalculation_addInertia), "$addMass", $rt_wrapFunction1(iocm_MassCalculation_addMass), "$copy1", $rt_wrapFunction2(iocm_MassCalculation_copy), "$getCM", $rt_wrapFunction0(iocm_MassCalculation_getCM), "$equals1", $rt_wrapFunction1(iocm_MassCalculation_equals), "$hashCode", $rt_wrapFunction0(iocm_MassCalculation_hashCode), "$_init_107", function(var_1,
-var_2, var_3, var_4, var_5, var_6, var_7) { iocm_MassCalculation__init_(this, var_1, var_2, var_3, var_4, var_5, var_6, var_7); }, "$setCM", $rt_wrapFunction1(iocm_MassCalculation_setCM), "$reset", $rt_wrapFunction0(iocm_MassCalculation_reset), "$toCMDebug", $rt_wrapFunction0(iocm_MassCalculation_toCMDebug), "$toString", $rt_wrapFunction0(iocm_MassCalculation_toString), "$calculateAssembly", $rt_wrapFunction0(iocm_MassCalculation_calculateAssembly), "$calculateStructure0", $rt_wrapFunction0(iocm_MassCalculation_calculateStructure),
-"$calculateMotors", $rt_wrapFunction0(iocm_MassCalculation_calculateMotors), "$calculateMomentOfInertia", $rt_wrapFunction0(iocm_MassCalculation_calculateMomentOfInertia)],
+iocm_MassCalculation, "MassCalculation", 45, jl_Object, [], 1, [0,0,0], 0, ["$merge2", $rt_wrapFunction1(iocm_MassCalculation_merge), "$addInertia", $rt_wrapFunction1(iocm_MassCalculation_addInertia), "$scaleInertia", $rt_wrapFunction1(iocm_MassCalculation_scaleInertia), "$addMass", $rt_wrapFunction1(iocm_MassCalculation_addMass), "$copy1", $rt_wrapFunction2(iocm_MassCalculation_copy), "$getCM", $rt_wrapFunction0(iocm_MassCalculation_getCM), "$getMass", $rt_wrapFunction0(iocm_MassCalculation_getMass), "$equals1",
+$rt_wrapFunction1(iocm_MassCalculation_equals), "$hashCode", $rt_wrapFunction0(iocm_MassCalculation_hashCode), "$_init_107", function(var_1, var_2, var_3, var_4, var_5, var_6, var_7) { iocm_MassCalculation__init_(this, var_1, var_2, var_3, var_4, var_5, var_6, var_7); }, "$setCM", $rt_wrapFunction1(iocm_MassCalculation_setCM), "$reset", $rt_wrapFunction0(iocm_MassCalculation_reset), "$toCMDebug", $rt_wrapFunction0(iocm_MassCalculation_toCMDebug), "$toString", $rt_wrapFunction0(iocm_MassCalculation_toString),
+"$calculateAssembly", $rt_wrapFunction0(iocm_MassCalculation_calculateAssembly), "$calculateStructure0", $rt_wrapFunction0(iocm_MassCalculation_calculateStructure), "$calculateMotors", $rt_wrapFunction0(iocm_MassCalculation_calculateMotors), "$calculateMomentOfInertia", $rt_wrapFunction0(iocm_MassCalculation_calculateMomentOfInertia)],
 iocr_InnerTube, "InnerTube", 46, iocr_ThicknessRingComponent, [iocrp_AxialPositionable, iocr_BoxBounded, iocr_Clusterable, iocr_RadialParent, iocr_MotorMount, iocr_InsideColorComponent], 1, [0,0,0], () => iocr_InnerTube_$callClinit(), ["$_init_0", $rt_wrapFunction0(iocr_InnerTube__init_), "$getInnerRadius0", $rt_wrapFunction1(iocr_InnerTube_getInnerRadius), "$getComponentName", $rt_wrapFunction0(iocr_InnerTube_getComponentName), "$isCompatible", $rt_wrapFunction1(iocr_InnerTube_isCompatible), "$getClusterConfiguration",
 $rt_wrapFunction0(iocr_InnerTube_getClusterConfiguration), "$setClusterConfiguration", $rt_wrapFunction1(iocr_InnerTube_setClusterConfiguration), "$getInstanceBoundingBox", $rt_wrapFunction0(iocr_InnerTube_getInstanceBoundingBox), "$getInstanceCount", $rt_wrapFunction0(iocr_InnerTube_getInstanceCount), "$setInstanceCount", $rt_wrapFunction1(iocr_InnerTube_setInstanceCount), "$isAfter", $rt_wrapFunction0(iocr_InnerTube_isAfter), "$setClusterScale", $rt_wrapFunction1(iocr_InnerTube_setClusterScale), "$setClusterRotation",
 $rt_wrapFunction1(iocr_InnerTube_setClusterRotation), "$getClusterSeparation", $rt_wrapFunction0(iocr_InnerTube_getClusterSeparation), "$getClusterPoints", $rt_wrapFunction0(iocr_InnerTube_getClusterPoints), "$getInstanceOffsets", $rt_wrapFunction0(iocr_InnerTube_getInstanceOffsets), "$getMotorConfig", $rt_wrapFunction1(iocr_InnerTube_getMotorConfig), "$setMotorConfig", $rt_wrapFunction2(iocr_InnerTube_setMotorConfig), "$setMotorMount", $rt_wrapFunction1(iocr_InnerTube_setMotorMount), "$isMotorMount", $rt_wrapFunction0(iocr_InnerTube_isMotorMount),

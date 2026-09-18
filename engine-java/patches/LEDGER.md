@@ -193,3 +193,45 @@ moved. Demonstrated rather than assumed: scaling fin CNα by 0.97 still printed
 golden check failed on 60+ values. `ParityMain`'s `EXCEPTION:` lines are now a
 hard failure too, so a flight that fails identically on both platforms no longer
 reports `parity ok`.
+
+## Upstream bumped to `6deae5079` - 2026-09-18
+
+`extract/UPSTREAM` moved from `c1a1a9b9f` (`release-24.12-1908`) to
+`6deae50796af9356c6541c9d5e6306ebebe0186f`
+(`release-22.02.beta.01-5683-g6deae5079`), and `gates.yml` was repinned to match.
+The 3dpath feature branch was deliberately **not** taken: its 12 commits touch 7
+`core/src/main/java` files, none of which is in the 280-entry manifest, and the
+web app has its own `flightPathExport.ts`.
+
+Six manifest files drifted and were re-extracted verbatim:
+
+| file | what upstream changed |
+| --- | --- |
+| `masscalc/MassCalculation.java` | A mass override that covers subcomponents now rescales the accumulated inertia to the overridden total instead of leaving the geometric MOI in place. |
+| `masscalc/RigidBody.java` | New `scaleMass(factor)`, which the above uses - MOI scales linearly with mass for fixed geometry, keeping `rebase`'s parallel-axis term consistent. |
+| `models/wind/PinkNoiseWindModel.java` | New `setAveragePreservingStandardDeviation`; `clone()` now clears listeners and calls `reset()`. |
+| `models/wind/MultiLevelPinkNoiseWindModel.java` | Matching `setSpeedPreservingStandardDeviation` on `LevelWindModel`; `loadFrom` re-attaches change listeners. |
+| `simulation/AbstractEulerStepper.java` | Fires `firePostAerodynamicCalculation`, so recovery and tumble aerodynamics are listener-adjustable as they already were in RK4/RK6. |
+| `simulation/FlightDataBranch.java` | Branches carry the `sourceComponentId` of the component they describe. |
+
+Two **patched** files also moved upstream. Patches are full-file overrides, so
+they never pick this up on their own - both changes were ported by hand:
+
+- `simulation/BasicEventSimulationEngine.java` - the initial branch is now
+  constructed with `topStage`, feeding the new `sourceComponentId` above.
+  Divergence from upstream fell ~8 → ~6 lines.
+- `simulation/SimulationOptions.java` - `clone()` resets `listeners` *before*
+  cloning the wind models and re-attaches a `fireChangeEvent` relay from each,
+  so a cloned options object hears its own wind models instead of silently
+  losing the relay. Divergence fell ~112 → ~108 lines.
+
+`extract --check` reports OK, parity is clean on both targets, and
+`golden.txt` did not move: the inertia fix changes nothing for the parity
+designs, which carry no covering mass override.
+
+*Turbulence note.* Upstream's new `setAveragePreservingStandardDeviation` is the
+opposite convention to the one the web UI adopted, where changing the average
+holds the turbulence *intensity* (`stdDev/average`) and rescales `stdDev`. The
+bridge sets `average` and `standardDeviation` explicitly on every run, so neither
+setter is on our path and behavior is unchanged - but if the bridge is ever
+simplified to one call, pick the convention deliberately.
