@@ -361,6 +361,7 @@
     "noMotor": "Carga un motor para ejecutar una simulación.",
     "noMotorNamed": "\"{{name}}\" no tiene un motor utilizable.",
     "incomplete": "A \"{{name}}\" le falta: {{fields}}.",
+    "badGeometry": "Corrige primero el diseño: una dimensión obligatoria es cero: {{parts}}.",
     "skipping_one": "Se omite {{count}} simulación:",
     "skipping_other": "Se omiten {{count}} simulaciones:",
     "lockedWhileRunning": "Bloqueado mientras se ejecuta la simulación — la edición se reanuda al terminar.",
@@ -663,7 +664,24 @@
     "streamer": "Cinta",
     "shockcord": "Cordón de choque",
     "podset": "Cápsula",
-    "parallelstage": "Propulsor"
+    "parallelstage": "Propulsor",
+    "field": {
+      "length": "longitud",
+      "aftRadius": "radio posterior",
+      "foreRadius": "radio anterior",
+      "outerRadius": "radio",
+      "outerDiameter": "diámetro",
+      "thickness": "espesor",
+      "finCount": "número de aletas",
+      "rootChord": "cuerda raíz",
+      "height": "altura",
+      "diameter": "diámetro",
+      "cd": "coeficiente de arrastre",
+      "stripLength": "longitud",
+      "stripWidth": "anchura",
+      "mass": "masa",
+      "instanceCount": "número de instancias"
+    }
   },
   "tree": {
     "components": "Componentes",

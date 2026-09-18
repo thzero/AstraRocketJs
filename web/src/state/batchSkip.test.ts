@@ -86,6 +86,28 @@ describe('a batch with an unflyable row', () => {
     expect(err).toContain('TooWindy');
   });
 
+  it('refuses the whole batch when the DESIGN has a zeroed dimension', async () => {
+    // Every row shares the tree, so there is no good row to let through. This
+    // used to fly and hand back an apogee for a zero-volume body tube.
+    const tree = st().tree;
+    const zeroed = structuredClone(tree);
+    const walk = (n: { type?: string; outerRadius?: number; children?: unknown[] }) => {
+      if (n.type === 'bodytube') n.outerRadius = 0;
+      for (const c of (n.children ?? []) as (typeof n)[]) walk(c);
+    };
+    for (const c of zeroed.components as unknown as Parameters<typeof walk>[0][]) walk(c);
+    useWorkspaceStore.setState({ tree: zeroed, err: null });
+
+    await st().runSims(
+      st().sims.map((x) => x.id),
+      PREFS,
+    );
+    expect(simulateMock).not.toHaveBeenCalled();
+    expect(st().err ?? '').toMatch(/radius|dimension|zero/i);
+
+    useWorkspaceStore.setState({ tree });
+  });
+
   it('still flies a lone good row when it is the only one selected', async () => {
     await st().runSims([byName('Good').id], PREFS);
     expect(simulateMock).toHaveBeenCalledTimes(1);

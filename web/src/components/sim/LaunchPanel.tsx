@@ -82,7 +82,14 @@ function Num({
         <NumberInput
           ariaLabel={label}
           value={value}
-          onChange={onChange}
+          /* An empty REQUIRED box writes nothing, so the field simply keeps what
+             it had. Not a focus trap -- tabbing away still works, which a trap
+             would forbid (WCAG 2.1.2) and which would fight anyone clearing a
+             field to retype it. NumberInput holds its own draft string while
+             focused, so the box still LOOKS empty as you type; only the commit
+             is withheld. An imported .ork that omits the field still arrives
+             blank, which is what the marker and the run gate are for. */
+          onChange={(v) => (v === null && required ? undefined : onChange(v))}
           step={step}
           min={min}
           max={max}

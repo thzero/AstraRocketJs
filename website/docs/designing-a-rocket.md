@@ -22,6 +22,39 @@ Supported components include:
 
 Each part exposes the dimensions and options the engine needs (lengths, radii, thickness, fin geometry, etc.). Editing is debounced — the model rebuilds and the stats refresh as you type/drag.
 
+## Required dimensions
+
+Some dimensions define what a part *is*. A body tube with no radius is not a narrow tube, it is nothing — so those fields are marked, and a design that is missing one cannot be flown.
+
+A required field carries a small red **\*** after its label, always, whether or not it is filled. That is there so you can see what a part needs *before* you have left anything blank.
+
+If a required dimension is **zero**, the field escalates: the label is boxed in red and the input gets a red outline. The tooltip says why.
+
+**You cannot leave one empty by accident.** Clearing the box shows it empty while you type, but nothing is written — tab away and the previous value is still there. (Focus is never trapped; you can always leave the field.) Typing an explicit **0** *is* stored, because that is a deliberate statement rather than a slip, and it is flagged and refused rather than silently flown.
+
+### Which dimensions are required
+
+| Component | Required |
+| --- | --- |
+| Nose cone | length, radius, thickness |
+| Body tube | length, radius, thickness |
+| Transition | length, fore radius, aft radius, thickness |
+| Trapezoidal / elliptical fin set | fin count, root chord, height, thickness |
+| Free-form fin set | fin count, thickness |
+| Tube fin set | tube count, length, tube radius, thickness |
+| Inner tube, coupler, engine block | length, radius, thickness |
+| Centering ring | thickness, outer radius |
+| Bulkhead | thickness, radius |
+| Launch lug | length, radius |
+| Rail button | outer diameter |
+| Parachute | diameter, drag coefficient |
+| Streamer | length, width, drag coefficient |
+| Mass component | mass |
+| Pod set / parallel stage | instance count |
+
+Everything else may legitimately be zero, which is why it is not marked. A **tip chord** of 0 is a delta fin; **sweep** or **cant** of 0 is a straight one; a **shoulder** or **fin tab** of 0 is simply absent; **motor overhang** 0 is flush; a centering ring's **inner radius** of 0 is a solid disc; a mass component's **length** of 0 is a point mass; and every **delay** and **angle offset** starts at 0. A stage has no required fields at all — its settings are triggers and delays.
+
+
 ## Staging (multi-stage rockets)
 
 A rocket can have more than one stage. **+ Stage** (in the Components panel header) appends a **booster** below the current bottom stage; its parts (body, fins, motor mount, recovery) are built and edited exactly like the sustainer's. Select a **stage** node to set how it leaves the stack:

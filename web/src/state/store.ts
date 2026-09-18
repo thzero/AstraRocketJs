@@ -10,16 +10,7 @@ import type {
   ComponentType as PartType,
   IgnitionEvent,
 } from '../engine/openRocketEngine';
-import {
-  findMountId,
-  findMounts,
-  findNode,
-  updateNode,
-  removeNode,
-  addPart,
-  addStage,
-  moveNode,
-} from '../services/treeEdit';
+import { findMountId, findNode, updateNode, removeNode, addPart, addStage, moveNode } from '../services/treeEdit';
 import { reconcileMounts } from '../services/mountMotors';
 import type { LaunchConditions } from '../services/orkTree';
 import type { OrkExportMotor } from '../services/orkFile';
@@ -31,7 +22,14 @@ import { newSimulation, simConditions, type Simulation, type SimPrefs } from '..
 import { simulateInWorker, SimTimeoutError } from '../engine/simClient';
 import { loadSettings } from '../services/settings';
 import { launchLimitViolations, limitText } from '../services/safetyLimits';
-import { unflyable, unflyableText, hasThrustCurve, type Unflyable } from '../services/runnability';
+import {
+  unflyable,
+  unflyableText,
+  hasThrustCurve,
+  designBlocker,
+  designBlockerText,
+  type Unflyable,
+} from '../services/runnability';
 import { isComplete } from '../services/requiredLaunch';
 import { defaultDesignName } from '../services/appInfo';
 import { getDesignLibrary, type DesignMeta } from '../services/designLibrary';
@@ -757,11 +755,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
      */
     runSims: async (ids, prefs) => {
       const s = get();
-      // Can't fly a rocket with no motor mount — nowhere to seat a motor. The
-      // Run button is disabled for this too; this is the belt-and-suspenders
-      // guard so a programmatic run can't throw deep in the engine.
-      if (findMounts(s.tree).length === 0) {
-        set({ err: i18n.t('sim.noMount') });
+      // A fault in the DESIGN stops the whole batch: no motor mount (nowhere to
+      // seat a motor) or a part whose required dimension is zero. The Run button
+      // is disabled for these too; this is the belt-and-suspenders guard so a
+      // programmatic run cannot get past it, and so a zero-volume body tube can
+      // never hand back an apogee.
+      const blocker = designBlocker(s.tree);
+      if (blocker) {
+        set({ err: designBlockerText(blocker, i18n.t) });
         return;
       }
       const targets = ids.filter((id) => s.sims.some((x) => x.id === id));

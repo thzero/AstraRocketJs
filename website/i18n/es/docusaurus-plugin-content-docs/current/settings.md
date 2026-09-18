@@ -76,17 +76,37 @@ Las unidades son una preferencia de **visualización y entrada**. Tu diseño se 
 
 Estos valores inicializan cada nueva simulación (aún puedes ajustar las condiciones de lanzamiento de cada una — consulta [Ejecutar una simulación](./running-a-simulation.md)):
 
+- **Confirmar el borrado de simulaciones** — pregunta antes de eliminar una simulación. Activado por defecto, porque una simulación borrada se lleva sus resultados con ella.
+
 - **Paso de tiempo** — el tamaño de paso del integrador. Más pequeño es más preciso pero más lento.
-- **Tiempo máximo** — un límite de seguridad sobre el tiempo de vuelo simulado.
+- **Tiempo máx. de sim.** — un límite de seguridad sobre el tiempo de vuelo simulado, que corta una ejecución que nunca aterriza.
+- **Paso angular máximo** — lo máximo que el cohete puede girar en un paso de integración. Más pequeño es más preciso en un cabeceo rápido, y más lento.
 - **Semilla aleatoria** — fija la aleatoriedad del viento y la turbulencia para que una simulación sea reproducible; déjala sin definir para obtener resultados variados.
-- **Método de cálculo** — el modelo aerodinámico (el clásico Barrowman extendido, y las correcciones supersónicas de estilo RASAero, que son opcionales).
+- **Método de cálculo** y **método de simulación** — se muestran como referencia, no se eligen: todo vuelo usa aerodinámica de Barrowman extendido con un integrador Runge-Kutta 4 de 6 grados de libertad.
+
+Cada simulación puede sobrescribir cualquiera de estos valores. Una sobrescritura **vacía** no está ausente: significa *seguir el valor global*, y el campo muestra ese valor global como marcador de posición. Por eso las opciones de ejecución nunca bloquean un vuelo: siempre hay un valor por defecto debajo. **Restablecer valores predeterminados** borra las sobrescrituras de una simulación; **Guardar como predeterminado** lleva lo que esa simulación usa ahora a estos valores globales.
+
+### Condiciones de lanzamiento obligatorias {#required-launch-conditions}
+
+Seis campos de lanzamiento no tienen un valor por defecto razonable, así que no pueden quedarse en blanco: **longitud de la guía**, **ángulo de la guía**, **velocidad del viento**, **desviación estándar del viento**, **altitud del sitio** y **latitud**. Se marcan con un **\*** rojo allá donde aparezcan, y se comportan igual que las [dimensiones obligatorias](./designing-a-rocket.md#required-dimensions) de un componente: borrar uno no guarda nada, y una simulación a la que le falte uno se nombra y se omite en lugar de volarse.
+
+Ten en cuenta que estos seis son *obligatorios*, no *distintos de cero*: aire en calma, sin ráfagas, nivel del mar, el ecuador y una guía totalmente vertical son ajustes reales, y todos ellos valen cero. Solo la longitud de la guía tiene que ser positiva en la práctica.
+
+En este diálogo esos campos nunca pueden acabar en blanco: inicializan cada nueva simulación, así que borrar uno aquí simplemente conserva el valor que tenía.
 
 ## Avisos de seguridad
 
-Umbrales que colorean las fichas de resultados para que los problemas destaquen:
+Cuatro umbrales, en las unidades que hayas elegido para la velocidad. Colorean las fichas de resultados *y* llegan al motor de vuelo, así que deciden qué avisos informa una simulación y no solo cómo se pintan los números.
 
-- **Velocidad mínima de salida de la guía** — la velocidad de salida de la varilla o el raíl por debajo de la cual el cohete puede no ir lo bastante rápido para volar recto; los resultados por debajo se marcan.
-- **Aviso de velocidad de apertura** — si la recuperación se despliega por encima de esta velocidad, la ficha se marca (una apertura rápida puede dañar el paracaídas); una velocidad de apertura segura se muestra en verde.
+- **Velocidad mínima de salida de la guía** — por debajo de esto las aletas reciben muy poco flujo de aire para gobernar el cohete, así que puede orientarse hacia el viento o volverse inestable al salir de la guía. La ficha de salida de la guía está en verde a partir de este valor y avisa por debajo.
+- **Aviso de velocidad de apertura por encima de** — despliegue simple (sin drogue): por encima de esta velocidad, abrir el paracaídas arriesga rasgar el fuselaje o desgarrar la vela.
+
+Los dos últimos solo se aplican al **despliegue dual** —una etapa que lleva un drogue—, donde se juzga el principal en lugar del umbral simple anterior:
+
+- **Velocidad de apertura del principal (máx.)** — por encima de esto el principal sale demasiado rápido, normalmente por un drogue demasiado pequeño para frenar el cohete, o por un principal configurado para abrirse demasiado alto.
+- **Velocidad de apertura del principal (mín.)** — por debajo de esto el principal se abre cuando el cohete apenas desciende, lo que normalmente significa que se desplegó cerca del apogeo: un descenso lento y con mucha deriva desde toda la altitud.
+
+Cada uno de estos también se puede sobrescribir por simulación, en las opciones de esa simulación.
 
 ## Restablecer
 

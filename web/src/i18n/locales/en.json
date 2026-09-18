@@ -361,6 +361,7 @@
     "noMotor": "Load a motor to run a simulation.",
     "noMotorNamed": "\"{{name}}\" has no usable motor.",
     "incomplete": "\"{{name}}\" is missing: {{fields}}.",
+    "badGeometry": "Fix the design first — a required dimension is zero: {{parts}}.",
     "skipping_one": "Skipping {{count}} simulation:",
     "skipping_other": "Skipping {{count}} simulations:",
     "lockedWhileRunning": "Locked while the simulation runs — edits resume when it finishes.",
@@ -663,7 +664,24 @@
     "streamer": "Streamer",
     "shockcord": "Shock cord",
     "podset": "Pod",
-    "parallelstage": "Booster"
+    "parallelstage": "Booster",
+    "field": {
+      "length": "length",
+      "aftRadius": "aft radius",
+      "foreRadius": "fore radius",
+      "outerRadius": "radius",
+      "outerDiameter": "diameter",
+      "thickness": "thickness",
+      "finCount": "fin count",
+      "rootChord": "root chord",
+      "height": "height",
+      "diameter": "diameter",
+      "cd": "drag coefficient",
+      "stripLength": "length",
+      "stripWidth": "width",
+      "mass": "mass",
+      "instanceCount": "instance count"
+    }
   },
   "tree": {
     "components": "Components",

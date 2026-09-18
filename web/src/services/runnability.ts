@@ -2,6 +2,9 @@ import type { MotorSpec } from '../engine/openRocketEngine';
 import type { Simulation } from './simulations';
 import { launchLimitViolations, limitText, type LimitViolation } from './safetyLimits';
 import { missingRequired, type RequiredLaunchKey } from './requiredLaunch';
+import { badDimensions, type BadDimension } from './requiredComponent';
+import { findMounts } from './treeEdit';
+import type { RocketTree } from '../engine/openRocketEngine';
 
 /**
  * Why a given simulation cannot be flown — asked in ONE place, so the Run
@@ -73,4 +76,46 @@ export function unflyableText(u: Unflyable, t: (key: string, vars?: Record<strin
     return t('sim.incomplete', { name: u.name, fields });
   }
   return `${t('limits.refused', { name: u.name })} ${u.reason.violations.map((v) => limitText(v, t)).join(' ')}`;
+}
+
+/**
+ * Why NO simulation of this design can fly.
+ *
+ * Separate from {@link unflyable} because these are facts about the ROCKET, not
+ * about one row: every simulation shares the tree, so there is no "skip the bad
+ * one and fly the rest" here. A design with a zero-radius body tube used to
+ * simulate happily and hand back an apogee, which is a worse answer than none.
+ */
+export type DesignBlocker = { kind: 'noMount' } | { kind: 'badGeometry'; bad: BadDimension[] };
+
+export function designBlocker(tree: RocketTree): DesignBlocker | null {
+  // No mount first: with nowhere to seat a motor there is no flight to discuss,
+  // whatever else the geometry says.
+  if (findMounts(tree).length === 0) return { kind: 'noMount' };
+  const bad = badDimensions(tree);
+  return bad.length ? { kind: 'badGeometry', bad } : null;
+}
+
+/**
+ * A design blocker as a sentence, naming each part and what it is missing.
+ *
+ * Grouped by part rather than one line per field: a tube with its radius AND
+ * thickness zeroed is one thing to go and fix, not two.
+ */
+export function designBlockerText(
+  b: DesignBlocker,
+  t: (key: string, vars?: Record<string, unknown>) => string,
+): string {
+  if (b.kind === 'noMount') return t('sim.noMount');
+  const byPart = new Map<string, string[]>();
+  for (const d of b.bad) {
+    // An unnamed part falls back to its TYPE, which is a bare token like
+    // "bodytube"; translate that rather than printing it at the user.
+    const name = d.name === d.type ? t(`part.${d.type}`) : d.name;
+    const fields = byPart.get(name) ?? [];
+    fields.push(t(`part.field.${d.field}`));
+    byPart.set(name, fields);
+  }
+  const parts = [...byPart].map(([name, fields]) => `"${name}" (${fields.join(', ')})`).join('; ');
+  return t('sim.badGeometry', { parts });
 }

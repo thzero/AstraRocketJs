@@ -76,17 +76,37 @@ Units are a **display and entry** preference. Your design is always stored in SI
 
 These seed each new simulation's run (you can still tune per-simulation launch conditions — see [Running a Simulation](./running-a-simulation.md)):
 
+- **Confirm deletion of simulations** — ask before removing a simulation. On by default, because a deleted simulation takes its results with it.
+
 - **Time step** — the integrator step size. Smaller is more accurate but slower.
-- **Max time** — a safety cap on simulated flight time.
+- **Max sim time** — a safety cap on simulated flight time, which ends a run that never lands.
+- **Max angle step** — the most the rocket may rotate in one integration step. Smaller is more accurate through a fast pitch-over, and slower.
 - **Random seed** — fixes the wind/turbulence randomness so a run is reproducible; leave it unset for varied runs.
-- **Calculation method** — the aerodynamic model (classic Extended Barrowman, and the opt-in supersonic/RASAero-style corrections).
+- **Calculation method** and **Simulation method** — shown for reference rather than chosen: every flight runs Extended Barrowman aerodynamics with a 6-DOF Runge-Kutta 4 integrator.
+
+Each simulation can override any of these. An override left **empty** is not missing — it means *follow the global*, and the field shows the global value as its placeholder. That is why run options never block a flight: there is always a default underneath. **Reset to default** clears a simulation's overrides; **Save as default** pushes what it is currently running into these globals.
+
+### Required launch conditions
+
+Six launch fields have no sensible default, so they cannot be left blank: **rod length**, **rod angle**, **wind speed**, **wind standard deviation**, **site altitude** and **latitude**. They are marked with a red **\*** wherever they appear, and behave exactly like a component's [required dimensions](./designing-a-rocket.md#required-dimensions) — clearing one writes nothing, and a simulation missing one is named and skipped rather than flown.
+
+Note these six are *required*, not *non-zero*: still air, no gusts, sea level, the equator and a rod straight up are all real settings, and all of them are zero. Only rod length has to be positive in practice.
+
+In this dialog the same fields can never end up blank at all — they seed every new simulation, so clearing one here simply keeps the value it had.
 
 ## Safety warnings
 
-Thresholds that color-code the simulation result tiles so problems stand out:
+Four thresholds, in the units you have chosen for velocity. They color the result tiles *and* reach the flight engine, so they decide which warnings a run reports rather than only how the numbers are painted.
 
-- **Rail-exit velocity minimum** — the rod/rail departure speed below which the rocket may not be going fast enough to fly straight; results under it are flagged.
-- **Deployment-speed warning** — if recovery deploys above this speed the tile is flagged (fast deployment can damage a chute); a safely low deploy speed shows green.
+- **Min rail-exit velocity** — below this the fins have too little airflow to steer, so the rocket can weathercock into the wind or go unstable as it leaves the rod. The rod-exit tile is green at or above this and warns below it.
+- **Deploy-speed warning above** — single deployment (no drogue): above this speed, opening the parachute risks zippering the airframe or tearing the canopy.
+
+The last two apply only to **dual deployment** — a stage carrying a drogue — where the main is judged instead of the single threshold above:
+
+- **Main deploy speed (max)** — above this the main is coming out too fast, usually a drogue too small to slow the rocket, or a main set to deploy too high.
+- **Main deploy speed (min)** — below this the main opens while the rocket is barely descending, which normally means it deployed near apogee: a slow, drifty descent from full altitude.
+
+Each of these can also be overridden per simulation, in the simulation's own options.
 
 ## Reset
 

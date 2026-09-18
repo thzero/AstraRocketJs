@@ -22,6 +22,39 @@ Los componentes admitidos incluyen:
 
 Cada pieza expone las dimensiones y opciones que el motor de física necesita (longitudes, radios, espesor, geometría de aletas, etc.). La edición está amortiguada: el modelo se reconstruye y las estadísticas se refrescan mientras escribes o arrastras.
 
+## Dimensiones obligatorias {#required-dimensions}
+
+Algunas dimensiones definen lo que una pieza *es*. Un tubo de fuselaje sin radio no es un tubo estrecho: no es nada. Por eso esos campos están marcados, y un diseño al que le falte uno no se puede volar.
+
+Un campo obligatorio lleva un pequeño **\*** rojo tras su etiqueta, siempre, esté relleno o no. Está ahí para que veas qué necesita una pieza *antes* de dejar algo en blanco.
+
+Si una dimensión obligatoria vale **cero**, el campo escala el aviso: la etiqueta se enmarca en rojo y el recuadro recibe un contorno rojo. La ayuda emergente explica el motivo.
+
+**No puedes dejar uno vacío por accidente.** Al borrar el recuadro se ve vacío mientras escribes, pero no se guarda nada: sal del campo y el valor anterior sigue ahí. (El foco nunca queda atrapado; siempre puedes salir del campo.) Escribir un **0** explícito *sí* se guarda, porque es una decisión y no un descuido, y se marca y se rechaza en lugar de volarse en silencio.
+
+### ¿Qué dimensiones son obligatorias? {#which-dimensions-are-required}
+
+| Componente | Obligatorio |
+| --- | --- |
+| Ojiva | longitud, radio, espesor |
+| Tubo de fuselaje | longitud, radio, espesor |
+| Transición | longitud, radio anterior, radio posterior, espesor |
+| Juego de aletas trapezoidales / elípticas | número de aletas, cuerda raíz, altura, espesor |
+| Juego de aletas de forma libre | número de aletas, espesor |
+| Juego de aletas tubulares | número de tubos, longitud, radio del tubo, espesor |
+| Tubo interior, acoplador, tope de motor | longitud, radio, espesor |
+| Anillo centrador | espesor, radio exterior |
+| Mamparo | espesor, radio |
+| Guía de lanzamiento | longitud, radio |
+| Botón de riel | diámetro exterior |
+| Paracaídas | diámetro, coeficiente de arrastre |
+| Cinta | longitud, anchura, coeficiente de arrastre |
+| Componente de masa | masa |
+| Conjunto de cápsulas / etapa paralela | número de instancias |
+
+Todo lo demás puede valer cero legítimamente, y por eso no está marcado. Una **cuerda de punta** de 0 es una aleta delta; una **flecha** o un **ángulo de calado** de 0 es una aleta recta; un **hombro** o una **lengüeta** de 0 simplemente no existe; un **voladizo del motor** de 0 está enrasado; un **radio interior** de 0 en un anillo centrador es un disco macizo; una **longitud** de 0 en un componente de masa es una masa puntual; y todos los **retardos** y **desplazamientos angulares** parten de 0. Una etapa no tiene ningún campo obligatorio: sus ajustes son disparadores y retardos.
+
+
 ## Etapas (cohetes de varias etapas) {#staging-multi-stage-rockets}
 
 Un cohete puede tener más de una etapa. **+ Etapa** (en la cabecera del panel de Componentes) añade un **propulsor** debajo de la etapa inferior actual; sus piezas (cuerpo, aletas, soporte de motor, recuperación) se construyen y editan exactamente igual que las del sustentador. Selecciona un nodo de **etapa** para definir cómo abandona el conjunto:

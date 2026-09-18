@@ -2,8 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive } from '../../state/store';
 import { useSettings } from '../../state/SettingsProvider';
-import { findMounts } from '../../services/treeEdit';
-import { unflyableSims, unflyableText } from '../../services/runnability';
+import { designBlocker, designBlockerText, unflyableSims, unflyableText } from '../../services/runnability';
 
 /**
  * Runs whatever the table has selected: the ticked rows, or the active
@@ -36,15 +35,20 @@ export function RunButton({ className = '' }: { className?: string }) {
   const refused = useMemo(() => unflyableSims(about), [about]);
   const flyable = about.length - refused.length;
 
-  // No mount at all is a DESIGN fault: there is nowhere to seat a motor, so no
-  // simulation of this rocket can fly and there is nothing to let through.
-  const noMount = findMounts(tree).length === 0;
+  // A fault in the DESIGN stops everything: every row shares the tree, so there
+  // is no "skip the bad one and fly the rest" to fall back on. Nowhere to seat a
+  // motor, or a part whose required dimension is zero.
+  const design = useMemo(() => designBlocker(tree), [tree]);
   // Otherwise the button only goes dead when NOTHING in the selection can fly.
   // Disabling a batch of twelve because one row is out of limits would refuse
   // eleven perfectly good flights; the loop already skips the bad ones, so the
   // button's job is to say which and why, not to veto the rest.
-  const blocked = noMount || flyable === 0;
-  const notice = noMount ? t('sim.noMount') : refused.length ? refused.map((u) => unflyableText(u, t)).join(' ') : null;
+  const blocked = !!design || flyable === 0;
+  const notice = design
+    ? designBlockerText(design, t)
+    : refused.length
+      ? refused.map((u) => unflyableText(u, t)).join(' ')
+      : null;
 
   const label = busy ? t('sim.running') : flyable > 1 ? t('sim.runMany', { count: flyable }) : t('sim.run');
 
