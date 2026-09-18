@@ -21,10 +21,14 @@ describe('required component fields', () => {
     expect(req('nosecone')).toEqual(['aftRadius', 'length', 'thickness']);
     expect(req('bodytube')).toEqual(['length', 'outerRadius', 'thickness']);
     expect(req('transition')).toEqual(['aftRadius', 'foreRadius', 'length', 'thickness']);
+    // An inner tube is the one piece of inner structure with no automatic
+    // radius: it is the motor mount, so its size is the thing being stated.
     expect(req('innertube')).toEqual(['length', 'outerRadius', 'thickness']);
-    expect(req('tubecoupler')).toEqual(['length', 'outerRadius', 'thickness']);
-    expect(req('engineblock')).toEqual(['length', 'outerRadius', 'thickness']);
-    expect(req('bulkhead')).toEqual(['length', 'outerRadius']);
+    // The rest take their outer radius from whatever they sit in, so a blank is
+    // "the tube I am in" rather than a hole in the design. See below.
+    expect(req('tubecoupler')).toEqual(['length', 'thickness']);
+    expect(req('engineblock')).toEqual(['length', 'thickness']);
+    expect(req('bulkhead')).toEqual(['length']);
   });
 
   it('marks fin sets by what gives a fin its area', () => {
@@ -44,7 +48,7 @@ describe('required component fields', () => {
     expect(req('launchlug')).toEqual(['length', 'outerRadius']);
     expect(req('railbutton')).toEqual(['outerDiameter']);
     expect(req('masscomponent')).toEqual(['mass']);
-    expect(req('centeringring')).toEqual(['length', 'outerRadius']);
+    expect(req('centeringring')).toEqual(['length']);
     expect(req('podset')).toEqual(['instanceCount']);
     expect(req('parallelstage')).toEqual(['instanceCount']);
   });
@@ -86,6 +90,32 @@ describe('required component fields', () => {
     for (const [type, key] of optional) {
       expect(keys(type), `${type} should still have ${key}`).toContain(key);
       expect(req(type), `${type}.${key} must NOT be required`).not.toContain(key);
+    }
+  });
+
+  /**
+   * The radii OpenRocket derives.
+   *
+   * Blank does not mean missing on these: inner structure takes its outer radius
+   * from the component it sits in, and a centering ring takes its inner radius
+   * from the motor mount through it — which is what the `.ork` spells `auto` and
+   * what `ComponentFactory` leaves the kernel to compute. Marking them would
+   * demand a number the design does not need, and would put a red box on every
+   * ring in an imported file, which is exactly what it used to do: the importer
+   * read `auto` as a missing number, so the whole design was refused with "a
+   * required dimension is zero".
+   */
+  it('never marks a radius the kernel derives', () => {
+    const derived: [string, string][] = [
+      ['centeringring', 'outerRadius'],
+      ['centeringring', 'innerRadius'],
+      ['bulkhead', 'outerRadius'],
+      ['engineblock', 'outerRadius'],
+      ['tubecoupler', 'outerRadius'],
+    ];
+    for (const [type, key] of derived) {
+      expect(keys(type), `${type} should still offer ${key}`).toContain(key);
+      expect(req(type), `${type}.${key} is automatic, not required`).not.toContain(key);
     }
   });
 

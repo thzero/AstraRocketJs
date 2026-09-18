@@ -1,6 +1,5 @@
 import { PropertyPanel } from './PropertyPanel';
 import { useSelectedComponent } from './useSelectedComponent';
-import { BusyLock } from '../common/BusyLock';
 
 /** Design tab, right column: the selected part's property editor (which renders
  *  its own "pick a part" hint when nothing is selected). Gets a whole column of
@@ -10,8 +9,7 @@ export function PropertyPane() {
   const sel = useSelectedComponent();
 
   return (
-    <div className="relative space-y-4 p-3">
-      <BusyLock />
+    <div className="space-y-4 p-3">
       <PropertyPanel
         node={sel.node}
         onChange={sel.onChange}

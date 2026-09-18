@@ -25,6 +25,7 @@ export function RunButton({ className = '' }: { className?: string }) {
   const busy = useWorkspaceStore((s) => s.simBusy);
   const info = useWorkspaceStore((s) => s.info);
   const runSims = useWorkspaceStore((s) => s.runSims);
+  const cancelRun = useWorkspaceStore((s) => s.cancelRun);
 
   // Every row about to fly, judged by the same rule the run loop applies, so
   // the button and the loop cannot disagree about what is flyable.
@@ -50,14 +51,20 @@ export function RunButton({ className = '' }: { className?: string }) {
       ? refused.map((u) => unflyableText(u, t)).join(' ')
       : null;
 
-  const label = busy ? t('sim.running') : flyable > 1 ? t('sim.runMany', { count: flyable }) : t('sim.run');
+  const label = busy ? t('sim.cancel') : flyable > 1 ? t('sim.runMany', { count: flyable }) : t('sim.run');
 
   return (
     <div className={`space-y-2 ${className}`}>
+      {/* While a batch is in flight this button becomes Cancel, rather than
+          going dead and saying "Simulating…". A run that hangs used to leave
+          nothing to press for the whole 30-second timeout, and the same button
+          is where anyone would look for the way out. */}
       <button
-        onClick={() => runSims(runIds, settings.simulation)}
-        disabled={busy || !info || blocked}
-        className="w-full rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
+        onClick={() => (busy ? cancelRun() : runSims(runIds, settings.simulation))}
+        disabled={!busy && (!info || blocked)}
+        className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 ${
+          busy ? 'bg-slate-600 hover:bg-slate-500' : 'bg-sky-600 hover:bg-sky-500'
+        }`}
       >
         {label}
       </button>

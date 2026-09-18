@@ -52,15 +52,18 @@ Si una dimensión obligatoria vale **cero**, el campo escala el aviso: la etique
 | Juego de aletas trapezoidales / elípticas | número de aletas, cuerda raíz, altura, espesor |
 | Juego de aletas de forma libre | número de aletas, espesor |
 | Juego de aletas tubulares | número de tubos, longitud, radio del tubo, espesor |
-| Tubo interior, acoplador, tope de motor | longitud, radio, espesor |
-| Anillo centrador | espesor, radio exterior |
-| Mamparo | espesor, radio |
+| Tubo interior | longitud, radio, espesor |
+| Acoplador, tope de motor | longitud, espesor |
+| Anillo centrador | espesor |
+| Mamparo | espesor |
 | Guía de lanzamiento | longitud, radio |
 | Botón de riel | diámetro exterior |
 | Paracaídas | diámetro, coeficiente de arrastre |
 | Cinta | longitud, anchura, coeficiente de arrastre |
 | Componente de masa | masa |
 | Conjunto de cápsulas / etapa paralela | número de instancias |
+
+**Los radios que se ajustan a la pieza que los contiene se dejan en blanco.** Un acoplador, un tope de motor, un anillo centrador o un mamparo toman su radio exterior de la pieza en la que van montados, y un anillo centrador toma su radio interior del soporte del motor que lo atraviesa, así que dejarlos vacíos es una respuesta real y no un hueco: es lo que los archivos `.ork` llaman *auto*, y el valor se ajusta solo cuando cambias el tubo de tamaño. Si escribes un número, se usa ese. El tubo interior es la excepción: él *es* el soporte del motor, así que su tamaño es justo lo que se está declarando.
 
 Todo lo demás puede valer cero legítimamente, y por eso no está marcado. Una **cuerda de punta** de 0 es una aleta delta; una **flecha** o un **ángulo de calado** de 0 es una aleta recta; un **hombro** o una **lengüeta** de 0 simplemente no existe; un **voladizo del motor** de 0 está enrasado; un **radio interior** de 0 en un anillo centrador es un disco macizo; una **longitud** de 0 en un componente de masa es una masa puntual; y todos los **retardos** y **desplazamientos angulares** parten de 0. Una etapa no tiene ningún campo obligatorio: sus ajustes son disparadores y retardos.
 

@@ -44,6 +44,31 @@ export const REQUIRED_COMPONENT_FIELDS: Record<string, readonly string[]> = {
   parallelstage: ['instanceCount'],
 };
 
+/**
+ * Dimensions OpenRocket DERIVES when the part does not carry one, so an absent
+ * value means automatic rather than missing.
+ *
+ * Inner structure takes its outer radius from whatever it sits in, and a
+ * centering ring takes its inner radius from the motor mount running through
+ * it; the `.ork` spells that `auto` and the kernel recomputes it as the design
+ * changes (`RadiusRingComponent.getOuterRadius`, `CenteringRing.getInnerRadius`).
+ * `ComponentFactory` leaves the automatic flag on whenever the node has no
+ * radius key, so absent here is a working part, not a broken one.
+ *
+ * A radius that IS present still has to be a real dimension: an automatic ring
+ * and a ring explicitly sized to zero are different mistakes.
+ */
+export const AUTO_COMPONENT_FIELDS: Record<string, readonly string[]> = {
+  centeringring: ['outerRadius', 'innerRadius'],
+  bulkhead: ['outerRadius'],
+  engineblock: ['outerRadius'],
+  tubecoupler: ['outerRadius'],
+};
+
+/** True when this field may legitimately be absent because the kernel derives it. */
+const isAuto = (type: string, field: string, value: unknown): boolean =>
+  value == null && (AUTO_COMPONENT_FIELDS[type]?.includes(field) ?? false);
+
 /** One dimension of one part that cannot be what it currently is. */
 export interface BadDimension {
   /** Node id, when the part has one — enough to select it in the tree. */
@@ -65,6 +90,7 @@ export function badDimensions(tree: RocketTree): BadDimension[] {
   const out: BadDimension[] = [];
   const visit = (n: ComponentNode) => {
     for (const field of REQUIRED_COMPONENT_FIELDS[n.type] ?? []) {
+      if (isAuto(n.type, field, n[field])) continue;
       if (!isDimension(n[field])) {
         out.push({ id: n.id, type: n.type, name: typeof n.name === 'string' && n.name ? n.name : n.type, field });
       }

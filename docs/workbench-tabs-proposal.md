@@ -1,6 +1,6 @@
 # Proposal: tabbed workbench, right-hand property editor, parallel simulations
 
-> Design proposal / decision record. Status: **Phases 1-2 implemented; Phases 3-4 proposed.** Companion to the [Architecture & internals](https://thzero.github.io/AstraRocketJs/docs/architecture) documentation page and to [`engine-worker-proposal.md`](./engine-worker-proposal.md), whose Phase 1 transport this builds on.
+> Design proposal / decision record. Status: **Phases 1-3 implemented; Phase 4 proposed.** Companion to the [Architecture & internals](https://thzero.github.io/AstraRocketJs/docs/architecture) documentation page and to [`engine-worker-proposal.md`](./engine-worker-proposal.md), whose Phase 1 transport this builds on.
 
 ## Problem
 
@@ -296,11 +296,22 @@ own `SimulationOptions` / `SimulationConditions` once the sim editor existed.
 
 Remaining gaps are listed in `TODO.md`.
 
-### Phase 3 - parallel runs
-- Worker pool in `simClient.ts`, per-worker kill, idle reap.
-- `runSims(ids)`, per-sim status, queue, Cancel.
-- Run selected / Run all outdated.
-- Drop `BusyLock` from the desktop design path.
+### Phase 3 - parallel runs - PARTLY DONE (2026-09-18)
+
+Done:
+- **Worker pool in `simClient.ts`.** Lazy spawn up to `min(hardwareConcurrency - 1, 4)`, a queue in front of the pool, one request per worker at a time, idle reap at 60s. No protocol change, exactly as this section predicted.
+- **Per-worker kill.** `killWorker(slot, err)` terminates one worker and rejects only the call it was serving, so a hung sim no longer takes down the three healthy flights beside it. The slot is dropped and the queue drains onto what is left. Covered by `simClient.test.ts`.
+- **The timeout starts when a call reaches a worker**, not when it is queued. Behind a full pool a request can wait several flights for its turn, and timing that wait out would punish a healthy batch for being busy.
+- **`runSims` submits the whole batch at once** (`Promise.all`) instead of awaiting each row in a `for` loop, which was the actual bottleneck once the transport could fan out.
+- **Per-sim status.** `runningId` and `lastRunFailed` are replaced by `simRuns: Record<string, SimRun>` - `queued`, `running`, or `failed` with the design it failed on. `simStatus()` takes the map, and the table gained a `queued` dot: with a pool, submitted and running stop being the same instant. The map is transient and deliberately not part of a persisted `Simulation`, so "running" cannot survive a reload.
+
+Also done:
+- **Cancel.** `SimCallOptions.signal` takes an `AbortSignal`: a run still queued is dropped, one already in a worker terminates that worker, and either rejects with `SimCanceledError`. `runSims` holds one controller per batch and `cancelRun()` aborts it. Canceling is not a fault, so a canceled row goes back to what it was rather than turning red, and no banner appears. The Run button becomes **Cancel run** while a batch is in flight, instead of going dead and saying "Simulating…" for up to the full 30-second timeout.
+- **Run all outdated.** A toolbar button counting what it will fly (`Run outdated (n)`), deliberately independent of the tick boxes: "bring this workspace up to date" is a different question from "fly these rows". It never navigates, even when exactly one row is stale, which is why `runSims` gained a `reveal` option.
+- **`BusyLock` dropped from the design path** - the component tree, the property editor and the 2D/3D canvas. An edit during a run now costs the run rather than freezing the app for it: `runSims` already discarded every answer flown against a different tree, so the lock was preventing what was already handled. With a pool a batch can be seconds long, which made the trade worse.
+
+Still open:
+- **`BusyLock` on the simulation editor.** A different hazard, and a real one: a run installs its result with `outdated: false` while editing a simulation's launch conditions sets `outdated: true`, so an edit made mid-run would be overwritten by an answer computed from the conditions it replaced, and the row would claim to be current. Closing it needs the same identity check `ranOn` does, per simulation.
 
 ### Phase 4 - results depth
 - Multi-sim overlay, plot config panel.

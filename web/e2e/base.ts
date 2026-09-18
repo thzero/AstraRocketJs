@@ -138,6 +138,16 @@ export async function openTab(page: Page, name: 'Design' | 'Simulations' | 'Resu
 }
 
 /**
+ * The primary Run control, which becomes Cancel while a batch is in flight.
+ *
+ * Matched by its exact labels rather than /^Run/: the simulations toolbar has a
+ * "Run outdated (n)" button too, and a loose prefix matches both.
+ */
+export function runButton(page: Page) {
+  return page.getByRole('button', { name: /^(Run flight simulation|Run \d+ simulations|Cancel run)$/ });
+}
+
+/**
  * Run the active simulation and wait for its result.
  *
  * Running lives on the Simulations tab; a finished run moves itself to Results,

@@ -1,4 +1,4 @@
-import { test, expect, openTab } from './base';
+import { test, expect, openTab, runButton } from './base';
 
 /**
  * The NAR / Tripoli flying limits, on the path that can get around the fields.
@@ -25,9 +25,17 @@ test('an imported .ork outside the limits is flagged and refused', async ({ page
 
   // And the run is off the table until it is fixed.
   await openTab(page, 'Simulations');
-  const run = page.getByRole('button', { name: /^Run/ });
+  const run = runButton(page);
   await expect(run).toBeDisabled();
-  await expect(page.getByText(/outside the NAR\/Tripoli safety codes/)).toBeVisible();
+  // Names the row and gives BOTH reasons with the rule behind each, rather than
+  // a bare "cannot run". The regex used to look for wording this path never
+  // produced, and the assertion was masked by a different refusal entirely:
+  // every centering ring in the file imported with no radius, so the design was
+  // rejected for a zero dimension before the launch check was ever reached.
+  const notice = page.getByText(/was not run .* launch conditions are outside the safety codes/);
+  await expect(notice).toBeVisible();
+  await expect(notice).toContainText('above the 20° the NAR and Tripoli safety codes allow');
+  await expect(notice).toContainText('above the 20 mph the NAR and Tripoli safety codes allow');
 
   // Bring both back inside and it flies. The fields clamp, so typing anything
   // over the cap lands exactly on it.

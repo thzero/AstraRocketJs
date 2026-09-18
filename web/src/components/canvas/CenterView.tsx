@@ -22,7 +22,6 @@ import { DesignWarnings } from './DesignWarnings';
 import { InfoOverlay } from './InfoOverlay';
 import { AeroAnalysis } from './AeroAnalysis';
 import { LoadedBanner } from './LoadedBanner';
-import { BusyLock } from '../common/BusyLock';
 import { SimSummary } from '../sim/SimSummary';
 import { useIsDesktop } from '../common/useMediaQuery';
 import { FlightWarnings } from '../sim/FlightWarnings';
@@ -276,7 +275,6 @@ export function CenterView() {
             {/* Canvas parts can be dragged to reposition them (a design edit), so
             lock the design views while a sim runs. Results views (flight/path)
             don't mutate the design, so they stay interactive. */}
-            {(view === '2d' || view === '3d') && <BusyLock />}
             {view === '2d' && (
               <>
                 <div

@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import type { Simulation, SimStatus } from '../../services/simulations';
+import type { Simulation, SimStatus, SimRun } from '../../services/simulations';
 import { simStatus } from '../../services/simulations';
-import type { MotorSpec } from '../../engine/openRocketEngine';
+import type { MotorSpec, RocketTree } from '../../engine/openRocketEngine';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { fmtNum } from '../../i18n/format';
@@ -16,6 +16,10 @@ function motorLabel(m: MotorSpec): string {
 const TONE: Record<SimStatus, string> = {
   upToDate: 'bg-emerald-400',
   outdated: 'bg-amber-400',
+  // Queued is the same hue as running but still: with a pool, a batch shows a
+  // few rows in the air and the rest waiting, and a waiting row that pulses
+  // claims to be doing work it is not.
+  queued: 'bg-sky-400/50',
   running: 'bg-sky-400 animate-pulse',
   failed: 'bg-red-500',
   notRun: 'bg-slate-600',
@@ -39,8 +43,8 @@ export function SimulationsTable({
   sims,
   activeId,
   selectedIds,
-  runningId,
-  failedId,
+  runs,
+  tree,
   onSelect,
   onToggle,
   onToggleAll,
@@ -50,10 +54,13 @@ export function SimulationsTable({
   activeId: string;
   /** Rows ticked for running. Empty means "just the active one" - see selectRunIds. */
   selectedIds: string[];
-  /** The sim currently in flight, if any. */
-  runningId: string | null;
-  /** The sim whose last run threw on the design that is still loaded. */
-  failedId: string | null;
+  /** Live run state per sim id: queued, running, or failed. Several rows can be
+   *  running at once, since the worker pool flies them in parallel. */
+  runs: Record<string, SimRun>;
+  /** The design on screen. A `failed` entry only counts against the design it
+   *  was recorded on; an edit since then means the run was never retried, not
+   *  that it fails. */
+  tree: RocketTree;
   onSelect: (id: string) => void;
   onToggle: (id: string) => void;
   onToggleAll: (all: boolean) => void;
@@ -78,6 +85,7 @@ export function SimulationsTable({
   const statusLabel: Record<SimStatus, string> = {
     upToDate: t('sims.statusUpToDate'),
     outdated: t('sims.statusOutdated'),
+    queued: t('sims.statusQueued'),
     running: t('sims.statusRunning'),
     failed: t('sims.statusFailed'),
     notRun: t('sims.notRun'),
@@ -130,7 +138,7 @@ export function SimulationsTable({
       </thead>
       <tbody>
         {sims.map((s) => {
-          const status = simStatus(s, { runningId, failedId });
+          const status = simStatus(s, runs, tree);
           const isActive = s.id === activeId;
           const r = s.result?.summary;
           // Every number is from the LAST run, which for an outdated row

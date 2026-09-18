@@ -17,7 +17,7 @@ import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { num } from '../../tree/nodeProps';
-import { REQUIRED_COMPONENT_FIELDS } from '../../services/requiredComponent';
+import { AUTO_COMPONENT_FIELDS, REQUIRED_COMPONENT_FIELDS } from '../../services/requiredComponent';
 import { tubeFinMaxCount, tubeFinMaxRadius } from '../../tree/tubefins';
 import { CLUSTER_OPTIONS, clusterCount } from '../../tree/cluster';
 import type { TFunction } from 'i18next';
@@ -306,11 +306,22 @@ const RAW_FIELDS: Record<string, Field[]> = {
  * The same table with `required` filled in from `services/requiredComponent`,
  * which is also what the Run button and the run loop check. One list, so the
  * editor cannot mark a field the run path ignores, or the other way round.
+ *
+ * A field the kernel DERIVES is never marked, even though it is required in the
+ * sense that the part cannot work without one: leaving a centering ring's outer
+ * radius blank means "the tube I sit in", which is a real answer and the one
+ * OpenRocket writes as `auto`. A red asterisk there would demand a number the
+ * design does not need, and the run path agrees - `badDimensions` skips the same
+ * pairs.
  */
 export const FIELDS: Record<string, Field[]> = Object.fromEntries(
   Object.entries(RAW_FIELDS).map(([type, fields]) => [
     type,
-    fields.map((f) => ((REQUIRED_COMPONENT_FIELDS[type] ?? []).includes(f.key) ? { ...f, required: true } : f)),
+    fields.map((f) =>
+      (REQUIRED_COMPONENT_FIELDS[type] ?? []).includes(f.key) && !(AUTO_COMPONENT_FIELDS[type] ?? []).includes(f.key)
+        ? { ...f, required: true }
+        : f,
+    ),
   ]),
 );
 

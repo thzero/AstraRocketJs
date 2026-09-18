@@ -52,15 +52,18 @@ If a required dimension is **zero**, the field escalates: the label is boxed in 
 | Trapezoidal / elliptical fin set | fin count, root chord, height, thickness |
 | Free-form fin set | fin count, thickness |
 | Tube fin set | tube count, length, tube radius, thickness |
-| Inner tube, coupler, engine block | length, radius, thickness |
-| Centering ring | thickness, outer radius |
-| Bulkhead | thickness, radius |
+| Inner tube | length, radius, thickness |
+| Coupler, engine block | length, thickness |
+| Centering ring | thickness |
+| Bulkhead | thickness |
 | Launch lug | length, radius |
 | Rail button | outer diameter |
 | Parachute | diameter, drag coefficient |
 | Streamer | length, width, drag coefficient |
 | Mass component | mass |
 | Pod set / parallel stage | instance count |
+
+**Radii that fill their parent are left blank.** A coupler, engine block, centering ring or bulkhead takes its outer radius from whatever it sits in, and a centering ring takes its inner radius from the motor mount running through it, so leaving those empty is a real answer rather than a gap — it is what `.ork` files call *auto*, and the value follows along when you resize the tube. Type a number and that number is used instead. An inner tube is the exception: it *is* the motor mount, so its size is the thing being stated.
 
 Everything else may legitimately be zero, which is why it is not marked. A **tip chord** of 0 is a delta fin; **sweep** or **cant** of 0 is a straight one; a **shoulder** or **fin tab** of 0 is simply absent; **motor overhang** 0 is flush; a centering ring's **inner radius** of 0 is a solid disc; a mass component's **length** of 0 is a point mass; and every **delay** and **angle offset** starts at 0. A stage has no required fields at all — its settings are triggers and delays.
 

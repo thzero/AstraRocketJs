@@ -22,8 +22,7 @@ export function SimulationsPane() {
   const sims = useWorkspaceStore((s) => s.sims);
   const activeId = useWorkspaceStore((s) => selectActive(s).id);
   const tree = useWorkspaceStore((s) => s.tree);
-  const runningId = useWorkspaceStore((s) => s.runningId);
-  const lastRunFailed = useWorkspaceStore((s) => s.lastRunFailed);
+  const simRuns = useWorkspaceStore((s) => s.simRuns);
   const selectedIds = useWorkspaceStore((s) => s.selectedSimIds);
 
   const onSelect = useWorkspaceStore((s) => s.setActiveId);
@@ -33,10 +32,12 @@ export function SimulationsPane() {
   const onAdd = useWorkspaceStore((s) => s.addSim);
   const onDuplicate = useWorkspaceStore((s) => s.duplicateSim);
   const deleteSim = useWorkspaceStore((s) => s.deleteSim);
-
-  // Only a failure on the design that is STILL loaded is worth a red dot; an
-  // edit since then means the run was never retried, not that it fails.
-  const failedId = lastRunFailed && lastRunFailed.tree === tree ? lastRunFailed.simId : null;
+  const runOutdated = useWorkspaceStore((s) => s.runOutdated);
+  const busy = useWorkspaceStore((s) => s.simBusy);
+  // How many rows are not current: never flown, or flown against a design that
+  // has since changed. Counted in the label so the button says what it will do
+  // rather than leaving you to work it out from the dots.
+  const staleCount = sims.filter((x) => !x.result || x.outdated).length;
 
   const onDelete = async () => {
     if (
@@ -60,6 +61,17 @@ export function SimulationsPane() {
         >
           {t('sims.delete')}
         </ToolBtn>
+        {/* Independent of the tick boxes on purpose: "bring this workspace up
+            to date" is a different question from "fly these rows", and making it
+            reuse the selection would mean clearing and restoring whatever the
+            user had ticked. */}
+        <ToolBtn
+          onClick={() => runOutdated(settings.simulation)}
+          disabled={busy || staleCount === 0}
+          title={staleCount === 0 ? t('sims.runOutdatedNone') : t('sims.runOutdated', { count: staleCount })}
+        >
+          {t('sims.runOutdated', { count: staleCount })}
+        </ToolBtn>
         {/* At lg+ Run heads the right column, beside the simulation it flies.
             A phone has no right column, so it keeps the button here where it is
             reachable without scrolling past the table. One instance either way
@@ -72,8 +84,8 @@ export function SimulationsPane() {
           sims={sims}
           activeId={activeId}
           selectedIds={selectedIds}
-          runningId={runningId}
-          failedId={failedId}
+          runs={simRuns}
+          tree={tree}
           onSelect={onSelect}
           onToggle={onToggle}
           onToggleAll={(all) => setSelected(all ? sims.map((x) => x.id) : [])}

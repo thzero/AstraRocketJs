@@ -1,4 +1,4 @@
-import { test, expect, autosaved, openTab, runFlight } from './base';
+import { test, expect, autosaved, openTab, runButton, runFlight } from './base';
 
 /**
  * The Simulations tab: a table of runs over the shared design, with the selected
@@ -72,7 +72,10 @@ test('a per-simulation option overrides the global one', async ({ page }) => {
 
   // Empty means "follow the global value", which is the placeholder — so the
   // field reads as the number that will actually be used.
-  const step = page.getByLabel('Time step', { exact: true });
+  //
+  // By ROLE: the editor pairs the number box with a range slider carrying the
+  // same label, so `getByLabel` alone matches two controls and fails strict mode.
+  const step = page.getByRole('spinbutton', { name: 'Time step' });
   await expect(step).toHaveValue('');
   await expect(step).toHaveAttribute('placeholder', '0.05');
 
@@ -89,7 +92,7 @@ test('the run button flies the ticked rows, and says how many', async ({ page })
   await page.getByRole('button', { name: 'Duplicate simulation' }).click();
 
   // Nothing ticked: Run means the active simulation, singular.
-  const run = page.getByRole('button', { name: /^Run/ });
+  const run = runButton(page);
   await expect(run).toHaveText('Run flight simulation');
 
   // Tick both. The label counts them, because "Run flight simulation" over a
@@ -120,7 +123,7 @@ test('ticking a row to fly it does not move the editor to it', async ({ page }) 
   // because "Select Simulation 1" is a substring of "Select Simulation 1 copy".
   await page.getByRole('checkbox', { name: 'Select Simulation 1', exact: true }).check();
   await expect(name).toHaveValue('Simulation 1 copy');
-  await expect(page.getByRole('button', { name: /^Run/ })).toHaveText('Run flight simulation');
+  await expect(runButton(page)).toHaveText('Run flight simulation');
 });
 
 test('the results header names the simulation it is showing', async ({ page }) => {
@@ -135,13 +138,13 @@ test('the results header names the simulation it is showing', async ({ page }) =
 
   // Results now survive a design edit, so the header has to say when the numbers
   // no longer describe the rocket.
-  await expect(page.getByText('Outdated')).toHaveCount(0);
+  await expect(page.getByText('Outdated', { exact: true })).toHaveCount(0);
   await openTab(page, 'Design');
   await page.locator('div[title="Body tube"]').first().click();
   await page.getByLabel('Length', { exact: true }).fill('45');
   await openTab(page, 'Results');
   await expect(header).toBeVisible();
-  await expect(page.getByText('Outdated').first()).toBeVisible();
+  await expect(page.getByText('Outdated', { exact: true }).first()).toBeVisible();
 });
 
 test('a flown row opens its own results', async ({ page }) => {
@@ -155,7 +158,7 @@ test('a flown row opens its own results', async ({ page }) => {
   // Fly both. A batch deliberately does NOT navigate, which is what makes a
   // per-row way in necessary: otherwise every row is flown and none reachable.
   await page.getByRole('checkbox', { name: 'Select all simulations' }).check();
-  await page.getByRole('button', { name: /^Run/ }).click();
+  await runButton(page).click();
   await expect(page.getByRole('button', { name: /^View results/ })).toHaveCount(2, { timeout: 30_000 });
 
   // Open the SECOND row's flight: it becomes the active simulation and the
@@ -229,4 +232,41 @@ test('launch conditions stop at the NAR/Tripoli limits', async ({ page }) => {
   await angle.fill('7');
   await angle.blur();
   expect(Number(await angle.inputValue())).toBeCloseTo(7, 6);
+});
+
+test('Run outdated flies only the rows that are not current', async ({ page }) => {
+  await runFlight(page);
+  await openTab(page, 'Simulations');
+  await expect(page.getByRole('row').filter({ hasText: 'Simulation 1' })).toContainText('Up to date');
+
+  // A second simulation that has never flown. The button counts what it will
+  // do, so it says one even though there are two rows.
+  await page.getByRole('button', { name: '＋ New' }).click();
+  const outdated = page.getByRole('button', { name: /^Run outdated/ });
+  await expect(outdated).toHaveText('Run outdated (1)');
+
+  await outdated.click();
+  await expect(outdated).toHaveText('Run outdated (0)', { timeout: 30_000 });
+  // Both current now, and the first was never re-flown to get there.
+  await expect(outdated).toBeDisabled();
+  const rows = page.getByRole('row').filter({ hasText: /Simulation/ });
+  await expect(rows.nth(0)).toContainText('Up to date');
+  await expect(rows.nth(1)).toContainText('Up to date');
+});
+
+test('editing the design is not blocked while a batch runs', async ({ page }) => {
+  await openTab(page, 'Simulations');
+  await page.getByRole('button', { name: 'Duplicate simulation' }).click();
+  await page.getByRole('checkbox', { name: 'Select all simulations' }).check();
+  await runButton(page).click();
+
+  // The design editors used to be covered by a full-pane overlay for the whole
+  // run. A batch can be seconds long, so the lock went: an edit during a run
+  // costs the run (its answers are dropped) rather than freezing the app.
+  await openTab(page, 'Design');
+  await page.locator('div[title="Body tube"]').click();
+  const length = page.getByLabel('Length', { exact: true }).first();
+  await expect(length).toBeEditable();
+  await length.fill('42');
+  await expect(length).toHaveValue('42');
 });

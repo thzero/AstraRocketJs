@@ -18,8 +18,8 @@ import type { DesignInfo } from '../services/orkTypes';
 import type { MountMotor } from '../services/loadOrk';
 import { buildExportMotorMap } from '../services/exportMotors';
 import { wireLoadedOrk } from '../services/wireLoadedOrk';
-import { newSimulation, simConditions, type Simulation, type SimPrefs } from '../services/simulations';
-import { simulateInWorker, SimTimeoutError } from '../engine/simClient';
+import { newSimulation, simConditions, type Simulation, type SimPrefs, type SimRun } from '../services/simulations';
+import { simulateInWorker, SimTimeoutError, SimCanceledError } from '../engine/simClient';
 import { loadSettings } from '../services/settings';
 import { launchLimitViolations, limitText } from '../services/safetyLimits';
 import {
@@ -30,7 +30,7 @@ import {
   designBlockerText,
   type Unflyable,
 } from '../services/runnability';
-import { isComplete } from '../services/requiredLaunch';
+import { isComplete, type CompleteLaunch } from '../services/requiredLaunch';
 import { defaultDesignName } from '../services/appInfo';
 import { getDesignLibrary, type DesignMeta } from '../services/designLibrary';
 import { getWorkspaceStore, type Workspace } from '../services/workspaceStore';
@@ -110,19 +110,25 @@ export interface WorkspaceState {
    * is how you say "these several".
    */
   selectedSimIds: string[];
+  /** True while a batch is draining. Coarse on purpose: it gates the UI as a
+   *  whole (BusyLock, the Run button), where per-row detail belongs in
+   *  {@link simRuns}. */
   simBusy: boolean;
-  /** The simulation in flight right now, if any. Batch runs move through them. */
-  runningId: string | null;
   /**
-   * The sim whose last run THREW, and the design it threw on.
+   * Transient per-simulation run state: which rows are queued, which are in the
+   * air, and which threw on the design they were flown against.
    *
-   * CenterView's "auto-run outdated" re-fires whenever `simBusy` goes false
-   * while a result view is open and there is no result — which is exactly the
-   * state a failed run leaves behind, so a reproducible failure (a sim that
-   * times out) retried without limit. Recording the failure lets the retry wait
-   * until something actually changed.
+   * Per-sim rather than a single `runningId` because the worker pool runs
+   * several flights at once. It is deliberately NOT part of a `Simulation`,
+   * which is persisted: "running" must not survive a reload.
+   *
+   * The failed entries carry their design because CenterView's "auto-run
+   * outdated" re-fires whenever `simBusy` goes false while a result view is open
+   * and there is no result — exactly the state a failed run leaves behind, so a
+   * reproducible failure (a sim that times out) retried without limit.
+   * Recording the design it failed on lets the retry wait for an actual change.
    */
-  lastRunFailed: { simId: string; tree: RocketTree } | null;
+  simRuns: Record<string, SimRun>;
   // --- view / navigation ---
   tab: Tab;
   /** Which half of the Design tab a phone shows; ignored at lg+, where both do. */
@@ -188,8 +194,13 @@ export interface WorkspaceState {
   setSimsSelected: (ids: string[]) => void;
   /** Run the active simulation. */
   runSim: (prefs: SimPrefs) => Promise<void>;
-  /** Run these simulations, in order. */
-  runSims: (ids: string[], prefs: SimPrefs) => Promise<void>;
+  /** Run these simulations. They fly concurrently over the worker pool.
+   *  `reveal` (default true) lets a single run show itself on the Results tab. */
+  runSims: (ids: string[], prefs: SimPrefs, opts?: { reveal?: boolean }) => Promise<void>;
+  /** Run every simulation whose result is missing or stale. */
+  runOutdated: (prefs: SimPrefs) => Promise<void>;
+  /** Stop the batch in flight. Rows already finished keep their results. */
+  cancelRun: () => void;
 
   setTab: (tab: Tab) => void;
   /** Open the Design tab on one of its two phone panes (see {@link DesignPane}). */
@@ -261,8 +272,10 @@ export const selectExtraMotors = (s: WorkspaceState): Record<string, MountMotor>
  * the whole point — auto-run must not retry a configuration it already knows
  * fails, but it must try again the moment the user changes something.
  */
-export const selectRunFailed = (s: WorkspaceState): boolean =>
-  s.lastRunFailed !== null && s.lastRunFailed.tree === s.tree && s.lastRunFailed.simId === selectActive(s).id;
+export const selectRunFailed = (s: WorkspaceState): boolean => {
+  const run = s.simRuns[selectActive(s).id];
+  return run?.phase === 'failed' && run.tree === s.tree;
+};
 
 /**
  * A motor is usable only if it carries a full thrust curve.
@@ -382,6 +395,15 @@ function showing(s: { tab: Tab; designPane: DesignPane }, view: ViewMode): Parti
       // phone lands on the Sketch pane rather than the stats it was never asked for.
       { view, tab: 'design', designPane: 'sketch' };
 }
+
+/**
+ * The batch in flight, if any, so `cancelRun` can stop it.
+ *
+ * Module scope rather than store state: it is a handle onto work, not something
+ * anything renders, and an AbortController in the store would be a non-plain
+ * value in a tree that is serialized and compared by identity.
+ */
+let batchAbort: AbortController | null = null;
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   /**
@@ -507,7 +529,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     err: null,
     storageWarning: null,
     storageWarningKind: null,
-    lastRunFailed: null,
+    simRuns: {},
     selectedId: null,
     loadedMeta: null,
     rocket: null,
@@ -517,7 +539,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     activeId: '',
     selectedSimIds: [],
     simBusy: false,
-    runningId: null,
     tab: 'design',
     designPane: 'stats',
     view: '2d',
@@ -745,15 +766,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     runSim: (prefs) => get().runSims([selectActive(get()).id], prefs),
 
     /**
-     * Fly each of these simulations, in order.
+     * Fly each of these simulations.
      *
-     * Sequential on purpose for now: the sim worker holds ONE engine and its
-     * simulate() call is synchronous, so firing several at once only queues them
-     * behind each other inside the worker. A pool is what makes this parallel
-     * (see docs/workbench-tabs-proposal.md, Phase 3); nothing here changes when
-     * it lands except how fast the loop drains.
+     * Runs them CONCURRENTLY: the sim worker pool holds several independent
+     * engine instances, so a batch is bounded by the pool rather than by one
+     * flight after another (`simClient.ts`). Every request is submitted at once
+     * and the pool decides how many are in the air; the rows say which of them
+     * are queued and which are running.
+     *
+     * Order is therefore not guaranteed, and nothing here depends on it. Each
+     * result installs itself by id, and the batch-level reporting waits for the
+     * whole thing to settle.
      */
-    runSims: async (ids, prefs) => {
+    runSims: async (ids, prefs, opts) => {
       const s = get();
       // A fault in the DESIGN stops the whole batch: no motor mount (nowhere to
       // seat a motor) or a part whose required dimension is zero. The Run button
@@ -768,9 +793,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const targets = ids.filter((id) => s.sims.some((x) => x.id === id));
       if (!targets.length) return;
 
-      set({ simBusy: true, lastRunFailed: null, err: null });
       // What we are about to fly. The awaits below can outlast the design: if the
-      // user edits while the worker is busy, the answers coming back describe a
+      // user edits while the pool is busy, the answers coming back describe a
       // rocket that no longer exists, and installing them would show numbers for
       // geometry that is no longer on screen.
       const ranOn = s.tree;
@@ -779,70 +803,155 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // the user was left holding whichever row failed last -- with no name on
       // it. They are reported together once the batch drains.
       const skipped: Unflyable[] = [];
-      try {
-        for (const simId of targets) {
-          const sim = get().sims.find((x) => x.id === simId);
-          if (!sim) continue; // deleted while the batch was draining
-          // Why a row cannot fly is decided in ONE place, shared with the Run
-          // button (services/runnability). A row with no usable motor, or with
-          // launch conditions outside the NAR/Tripoli codes, is skipped: those
-          // are simulation settings rather than design, so there is nothing to
-          // preserve by flying them, and a number this app will not stand
-          // behind is worse than no number. One bad row never abandons the rest.
-          const reason = unflyable(sim);
-          if (reason) {
-            skipped.push({ id: simId, name: sim.name, reason });
-            set({ lastRunFailed: { simId, tree: ranOn } });
-            continue;
-          }
-          // `unflyable` already established that every required launch field is
-          // present; this restates it for the type system, which cannot see
-          // that through the reason object. simConditions takes a CompleteLaunch
-          // precisely so a blank can never be quietly turned into a number on
-          // its way to the engine.
-          if (!isComplete(sim.launch)) continue;
-          set({ runningId: simId });
-          try {
-            // The sim runs in a Web Worker (its own engine instance), off the main
-            // thread, so a ~500 ms flight never freezes the UI. The worker rebuilds
-            // the rocket from the posted tree/motors — identical to the main-thread
-            // build (buildConfiguredRocket) — so the result matches what's on screen.
-            const result = await simulateInWorker({
-              tree: ranOn,
-              motor: sim.motor,
-              extraMotors: sim.extraMotors,
-              primaryIgnition: { event: sim.ignitionEvent, delay: sim.ignitionDelay },
-              // The sim's own overrides win over the global preferences; unset keys
-              // fall through, so a workspace that never touches them runs as before.
-              options: simConditions(sim.launch, { ...prefs, ...sim.prefs }),
-            });
-            // The design moved on mid-batch: this answer and every one still to
-            // come describes the old rocket, so stop rather than install any of it.
-            if (get().tree !== ranOn) return;
-            set((st) => ({
-              sims: st.sims.map((x) => (x.id === simId ? { ...x, result, outdated: false } : x)),
-            }));
-          } catch (e) {
-            // A timeout means the worker was killed mid-hang; show a friendly line
-            // rather than the raw sentinel.
-            const msg =
-              e instanceof SimTimeoutError ? i18n.t('sim.timeout') : e instanceof Error ? e.message : String(e);
-            set({ err: msg, lastRunFailed: { simId, tree: ranOn } });
-          }
+      /** Patch one row's transient run state, leaving every other row alone. */
+      const setRun = (simId: string, run: SimRun | null) =>
+        set((st) => {
+          const next = { ...st.simRuns };
+          if (run) next[simId] = run;
+          else delete next[simId];
+          return { simRuns: next };
+        });
+
+      // Decide what actually flies BEFORE anything is dispatched, so the queued
+      // rows all light up together rather than one at a time.
+      const flying: { sim: Simulation; launch: CompleteLaunch }[] = [];
+      for (const simId of targets) {
+        const sim = s.sims.find((x) => x.id === simId);
+        if (!sim) continue;
+        // Why a row cannot fly is decided in ONE place, shared with the Run
+        // button (services/runnability). A row with no usable motor, or with
+        // launch conditions outside the NAR/Tripoli codes, is skipped: those
+        // are simulation settings rather than design, so there is nothing to
+        // preserve by flying them, and a number this app will not stand
+        // behind is worse than no number. One bad row never abandons the rest.
+        const reason = unflyable(sim);
+        if (reason) {
+          skipped.push({ id: simId, name: sim.name, reason });
+          setRun(simId, { phase: 'failed', tree: ranOn });
+          continue;
         }
+        // `unflyable` already established that every required launch field is
+        // present; this restates it for the type system, which cannot see
+        // that through the reason object. simConditions takes a CompleteLaunch
+        // precisely so a blank can never be quietly turned into a number on
+        // its way to the engine.
+        if (!isComplete(sim.launch)) continue;
+        flying.push({ sim, launch: sim.launch });
+      }
+      if (!flying.length) {
+        if (skipped.length) set({ err: skipped.map((u) => unflyableText(u, i18n.t)).join(' ') });
+        return;
+      }
+
+      // One controller for the whole batch: Cancel is "stop what I started",
+      // not "stop this row". Replaced per batch rather than reused, since an
+      // AbortController cannot be un-aborted.
+      const abort = new AbortController();
+      batchAbort = abort;
+      set({ simBusy: true, err: null });
+      for (const { sim } of flying) setRun(sim.id, { phase: 'queued' });
+      try {
+        await Promise.all(
+          flying.map(async ({ sim, launch }) => {
+            try {
+              // The sim runs in a Web Worker (its own engine instance), off the main
+              // thread, so a ~500 ms flight never freezes the UI. The worker rebuilds
+              // the rocket from the posted tree/motors — identical to the main-thread
+              // build (buildConfiguredRocket) — so the result matches what's on screen.
+              const result = await simulateInWorker(
+                {
+                  tree: ranOn,
+                  motor: sim.motor,
+                  extraMotors: sim.extraMotors,
+                  primaryIgnition: { event: sim.ignitionEvent, delay: sim.ignitionDelay },
+                  // The sim's own overrides win over the global preferences; unset keys
+                  // fall through, so a workspace that never touches them runs as before.
+                  options: simConditions(launch, { ...prefs, ...sim.prefs }),
+                },
+                // Queued and running are different states once there is a pool:
+                // the client says when this one actually reached a worker.
+                { onStart: () => setRun(sim.id, { phase: 'running' }), signal: abort.signal },
+              );
+              // The design moved on mid-batch: this answer describes the old
+              // rocket, so drop it rather than install numbers for geometry that
+              // is no longer on screen. The others in flight do the same.
+              if (get().tree !== ranOn) return;
+              setRun(sim.id, null);
+              set((st) => ({
+                sims: st.sims.map((x) => (x.id === sim.id ? { ...x, result, outdated: false } : x)),
+              }));
+            } catch (e) {
+              // Canceling is not a fault: the row goes back to what it was
+              // (its old result, or nothing) rather than turning red, and the
+              // error banner stays empty. Anything else IS a fault.
+              if (e instanceof SimCanceledError) {
+                setRun(sim.id, null);
+                return;
+              }
+              // A timeout means the worker was killed mid-hang; show a friendly line
+              // rather than the raw sentinel.
+              const msg =
+                e instanceof SimTimeoutError ? i18n.t('sim.timeout') : e instanceof Error ? e.message : String(e);
+              setRun(sim.id, { phase: 'failed', tree: ranOn });
+              set({ err: msg });
+            }
+          }),
+        );
+        // A canceled batch says nothing further: the user stopped it, so
+        // neither the skip list nor a jump to the Results tab is wanted.
+        if (abort.signal.aborted) return;
         // One line for everything the batch refused to fly, naming each row.
         if (skipped.length) {
           set({ err: skipped.map((u) => unflyableText(u, i18n.t)).join(' ') });
         }
-        // Show the run — but only when there was ONE. A batch of twelve must not
-        // yank the reader onto the Results tab holding whichever finished last.
-        if (targets.length === 1 && get().tree === ranOn) {
+        // Show the run — but only when there was ONE, and only when the caller
+        // asked. A batch of twelve must not yank the reader onto the Results tab
+        // holding whichever finished last, and neither should a sweep that
+        // happens to have one stale row in it.
+        if (opts?.reveal !== false && targets.length === 1 && get().tree === ranOn) {
           const ran = get().sims.find((x) => x.id === targets[0]);
           if (ran?.result) set({ view: 'flight', tab: 'results' });
         }
       } finally {
-        set({ simBusy: false, runningId: null });
+        // Only if no LATER batch has started: a run kicked off while this one
+        // was unwinding owns the flag and the controller now.
+        if (batchAbort === abort) {
+          batchAbort = null;
+          set({ simBusy: false });
+        }
       }
+    },
+
+    /**
+     * Run everything whose numbers are not current: never flown, or flown
+     * against a design that has since changed.
+     *
+     * Deliberately independent of the tick boxes. "Bring this workspace up to
+     * date" is a different question from "fly these rows", and making it reuse
+     * the selection would mean clearing and restoring whatever the user had
+     * ticked.
+     */
+    runOutdated: async (prefs) => {
+      const stale = get()
+        .sims.filter((x) => !x.result || x.outdated)
+        .map((x) => x.id);
+      if (!stale.length) return;
+      // Never navigates, even when exactly one row is stale: this is "bring the
+      // workspace up to date", so it should leave you where you were standing.
+      await get().runSims(stale, prefs, { reveal: false });
+    },
+
+    /**
+     * Stop the batch in flight.
+     *
+     * Rows that already landed keep their results — canceling is "stop
+     * starting new ones and drop what is still going", not an undo. A row still
+     * waiting for a worker is simply dropped; one already inside a worker costs
+     * that worker, since a synchronous engine call cannot be interrupted any
+     * other way (the pool spawns a replacement on the next run).
+     */
+    cancelRun: () => {
+      batchAbort?.abort();
     },
 
     // The two below keep the mobile tab and the center-pane view in step -- see

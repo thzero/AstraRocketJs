@@ -3,7 +3,6 @@ import { useWorkspaceStore } from '../../state/store';
 import { ComponentTree } from './ComponentTree';
 import { ScaleDialog } from './ScaleDialog';
 import { RocketConfigDialog } from './RocketConfigDialog';
-import { BusyLock } from '../common/BusyLock';
 
 /** Design tab, left column: the component tree and the two design-wide dialogs
  *  it launches. The selected part's editor is the opposite column
@@ -18,8 +17,7 @@ export function TreePanel() {
   const [configOpen, setConfigOpen] = useState(false);
 
   return (
-    <div className="relative space-y-4 p-3">
-      <BusyLock />
+    <div className="space-y-4 p-3">
       <ComponentTree
         tree={tree}
         selectedId={selectedId}

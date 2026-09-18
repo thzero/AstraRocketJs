@@ -266,6 +266,20 @@ export function exportOrk({
     emit(depth, `<shapeparameter>${num(node, 'shapeParameter', dflt)}</shapeparameter>`);
   };
 
+  /**
+   * A radius that may be automatic: the number when the part carries one, the
+   * sentinel `auto` when it does not.
+   *
+   * Inner structure takes its outer radius from whatever it sits in, so `auto`
+   * is a real answer rather than a missing one. This used to be hard-wired to
+   * `auto`, which threw away a ring the user had sized by hand: it exported as
+   * automatic and came back the width of its body tube.
+   */
+  const autoRadius = (depth: number, node: ComponentNode, key: string, tag: string) => {
+    const v = node[key];
+    emit(depth, `<${tag}>${typeof v === 'number' && v > 0 ? v : 'auto'}</${tag}>`);
+  };
+
   const emitChildren = (node: ComponentNode, depth: number) => {
     const kids = node.children ?? [];
     if (kids.length === 0) return;
@@ -487,7 +501,7 @@ export function exportOrk({
         emit(depth + 1, `<length>${num(node, 'length', 0.05)}</length>`);
         emit(depth + 1, '<radialposition>0.0</radialposition>');
         emit(depth + 1, '<radialdirection>0.0</radialdirection>');
-        emit(depth + 1, '<outerradius>auto</outerradius>');
+        autoRadius(depth + 1, node, 'outerRadius', 'outerradius');
         emit(depth + 1, `<thickness>${num(node, 'thickness', 0.0005)}</thickness>`);
         close('tubecoupler');
         break;
@@ -503,8 +517,10 @@ export function exportOrk({
         emit(depth + 1, `<length>${num(node, 'length', 0.002)}</length>`);
         emit(depth + 1, '<radialposition>0.0</radialposition>');
         emit(depth + 1, '<radialdirection>0.0</radialdirection>');
-        emit(depth + 1, '<outerradius>auto</outerradius>');
-        if (t === 'centeringring') emit(depth + 1, '<innerradius>auto</innerradius>');
+        autoRadius(depth + 1, node, 'outerRadius', 'outerradius');
+        // Omitted for a bulkhead, which is solid - upstream's saver does the
+        // same (RadiusRingComponentSaver skips it for Bulkhead).
+        if (t === 'centeringring') autoRadius(depth + 1, node, 'innerRadius', 'innerradius');
         close(t);
         break;
       }
@@ -516,7 +532,7 @@ export function exportOrk({
         emit(depth + 1, `<length>${num(node, 'length', 0.005)}</length>`);
         emit(depth + 1, '<radialposition>0.0</radialposition>');
         emit(depth + 1, '<radialdirection>0.0</radialdirection>');
-        emit(depth + 1, '<outerradius>auto</outerradius>');
+        autoRadius(depth + 1, node, 'outerRadius', 'outerradius');
         emit(depth + 1, `<thickness>${num(node, 'thickness', 0.001)}</thickness>`);
         close('engineblock');
         break;

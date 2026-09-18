@@ -4,6 +4,7 @@ import { exportOrk, importOrk, type OrkExportMotor } from './orkFile';
 import { specToTree } from '../engine/api';
 import type { RocketSpec, ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import type { DesignInfo } from './orkTypes';
+import { badDimensions } from './requiredComponent';
 
 const spec = {
   noseCone: { length: 0.1, aftRadius: 0.013, thickness: 0.001 },
@@ -610,5 +611,83 @@ describe('newly-editable component options round-trip', () => {
     expect(pts[1]![0]).toBeCloseTo(0.03, 6);
     expect(pts[1]![1]).toBeCloseTo(0.06, 6);
     expect(pts[3]![0]).toBeCloseTo(0.08, 6);
+  });
+});
+
+/**
+ * Automatic radii.
+ *
+ * Inner structure takes its outer radius from whatever it sits in, and a
+ * centering ring takes its inner radius from the motor mount through it.
+ * OpenRocket writes that as the sentinel `auto` rather than a number, and the
+ * kernel recomputes it as the design changes.
+ *
+ * Both halves were broken and hid each other. The importer read the radii with
+ * the plain number reader, so `auto` fell through to a fallback and the ring
+ * arrived with NO radius — which `badDimensions` then called a zero dimension
+ * and refused to fly, with "a required dimension is zero: Centering Ring". The
+ * exporter hard-wrote `auto` for every ring, so a ring sized by hand exported as
+ * automatic and came back the width of its body tube.
+ */
+describe('automatic ring radii round-trip', () => {
+  const ringTree = (radii?: { outerRadius?: number; innerRadius?: number }) =>
+    ({
+      components: [
+        {
+          type: 'stage',
+          id: 's1',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'body',
+              length: 0.3,
+              outerRadius: 0.013,
+              thickness: 0.0005,
+              children: [
+                { type: 'centeringring', id: 'ring', length: 0.003, ...(radii ?? {}) },
+                { type: 'bulkhead', id: 'bh', length: 0.003, ...(radii ?? {}) },
+                { type: 'tubecoupler', id: 'tc', length: 0.05, thickness: 0.0005, ...(radii ?? {}) },
+                { type: 'engineblock', id: 'eb', length: 0.005, thickness: 0.001, ...(radii ?? {}) },
+              ],
+            },
+          ],
+        },
+      ],
+    }) as unknown as RocketTree;
+
+  it('writes auto when the part carries no radius, as the desktop saver does', () => {
+    const xml = exportOrk({ name: 'Auto', tree: ringTree() });
+    expect(xml).toContain('<outerradius>auto</outerradius>');
+    expect(xml).toContain('<innerradius>auto</innerradius>');
+  });
+
+  it('reads auto back as automatic rather than as a missing number', () => {
+    const out = importOrk(exportOrk({ name: 'Auto', tree: ringTree() }));
+    const ring = findByType(out.tree, 'centeringring') as Record<string, unknown>;
+    // Absent, not zero: absent is how the whole app spells automatic, and it is
+    // what `ComponentFactory` reads to leave the kernel's own flag on.
+    expect(ring.outerRadius).toBeUndefined();
+    expect(ring.innerRadius).toBeUndefined();
+    expect(badDimensions(out.tree)).toEqual([]);
+  });
+
+  it('keeps a radius that was set by hand instead of flattening it to auto', () => {
+    const xml = exportOrk({ name: 'Sized', tree: ringTree({ outerRadius: 0.0125, innerRadius: 0.009 }) });
+    expect(xml).toContain('<outerradius>0.0125</outerradius>');
+    expect(xml).toContain('<innerradius>0.009</innerradius>');
+
+    const out = importOrk(xml);
+    const ring = findByType(out.tree, 'centeringring') as Record<string, unknown>;
+    expect(ring.outerRadius).toBeCloseTo(0.0125, 6);
+    expect(ring.innerRadius).toBeCloseTo(0.009, 6);
+    const coupler = findByType(out.tree, 'tubecoupler') as Record<string, unknown>;
+    expect(coupler.outerRadius).toBeCloseTo(0.0125, 6);
+  });
+
+  it('a bulkhead gets no inner radius at all, being solid', () => {
+    // RadiusRingComponentSaver skips the element for a Bulkhead.
+    const xml = exportOrk({ name: 'Auto', tree: ringTree() });
+    const bulkhead = xml.slice(xml.indexOf('<bulkhead>'), xml.indexOf('</bulkhead>'));
+    expect(bulkhead).not.toContain('innerradius');
   });
 });

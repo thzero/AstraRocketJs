@@ -1,7 +1,7 @@
 // A named simulation = one flight setup over the shared rocket design: its own
 // motor (primary mount) + launch conditions + last result. The right panel is a
 // list of these; switching the active one drives the stability readout and sim.
-import type { MotorSpec, FlightResult, IgnitionEvent } from '../engine/openRocketEngine';
+import type { MotorSpec, FlightResult, IgnitionEvent, RocketTree } from '../engine/openRocketEngine';
 import type { MountMotor } from './loadOrk';
 import type { LaunchConditions } from './orkTree';
 import type { CompleteLaunch } from './requiredLaunch';
@@ -54,16 +54,34 @@ export interface Simulation {
 }
 
 /** What the simulations table's status dot says about one row. */
-export type SimStatus = 'notRun' | 'running' | 'failed' | 'outdated' | 'upToDate';
+export type SimStatus = 'notRun' | 'queued' | 'running' | 'failed' | 'outdated' | 'upToDate';
 
 /**
- * The status of one simulation. `runningId` / `failedId` come from the store —
- * only ONE of each exists today (a single in-flight run), which is exactly what
- * the worker pool is expected to generalize.
+ * Transient run state for ONE simulation, keyed by sim id in the store.
+ *
+ * It is per-sim because the worker pool runs several flights at once: a single
+ * `runningId` could only ever name one of four, and a batch of twelve is queued
+ * all at once and starts a few at a time, so "waiting its turn" and "in the air"
+ * are different things a row has to be able to say.
+ *
+ * `failed` carries the design it failed ON, which is what stops auto-run
+ * retrying a configuration already known to fail while still allowing a retry
+ * the moment the design changes (see `selectRunFailed`).
  */
-export function simStatus(sim: Simulation, ctx: { runningId: string | null; failedId: string | null }): SimStatus {
-  if (ctx.runningId === sim.id) return 'running';
-  if (ctx.failedId === sim.id) return 'failed';
+export type SimRun = { phase: 'queued' } | { phase: 'running' } | { phase: 'failed'; tree: RocketTree };
+
+/**
+ * The status of one simulation: its live run state if it has one, else what its
+ * stored result says.
+ *
+ * A `failed` entry only counts against the design it was recorded on. On any
+ * other design it is stale, and the row falls back to describing its result.
+ */
+export function simStatus(sim: Simulation, runs: Record<string, SimRun>, tree: RocketTree): SimStatus {
+  const run = runs[sim.id];
+  if (run?.phase === 'queued') return 'queued';
+  if (run?.phase === 'running') return 'running';
+  if (run?.phase === 'failed' && run.tree === tree) return 'failed';
   if (!sim.result) return 'notRun';
   return sim.outdated ? 'outdated' : 'upToDate';
 }
