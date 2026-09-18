@@ -450,6 +450,10 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         n['lineLength'] = numTag(el, 'linelength', 0.3);
         readSoftMaterial(el, n, 'surface', 'surfaceDensity', 'surfaceMaterialName');
         readSoftMaterial(el, n, 'line', 'lineDensity', 'lineMaterialName', ':scope > linematerial');
+        // Drogue or main. The desktop writes <isdrogue> only when it is true, and
+        // the kernel needs it to tell dual deployment from single: without it every
+        // flight takes the single-deployment branch.
+        if (isDrogueTag(el)) n['drogue'] = true;
         // <deploymentconfiguration> only overrides when a config was chosen —
         // with no declarations the bare tags stay the whole story (a stray
         // block in an undeclared file was never read, keep it that way).
@@ -471,6 +475,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
           if (Number.isFinite(cdv)) n['cd'] = cdv; // ignore a garbage <cd> rather than store (and re-export) NaN
         }
         readSoftMaterial(el, n, 'surface', 'surfaceDensity', 'surfaceMaterialName');
+        if (isDrogueTag(el)) n['drogue'] = true;
         readDeployment(el, n, chosenConfigId === null ? null : configScoped(el, 'deploymentconfiguration'));
         captureDeployments(el, n);
         return n;
@@ -794,6 +799,11 @@ function readLaunchConditions(doc: Document): Partial<LaunchConditions> | undefi
 /** Read a numeric child `<tag>` of an .ork element, or `fallback` when it's
  *  absent / non-finite. Not the tree-node reader (`nodeProps.num`): this parses
  *  XML text, including the "auto 0.012" flag+value form OpenRocket writes. */
+/** `<isdrogue>` as OpenRocket writes it: present and "true" or absent altogether. */
+function isDrogueTag(el: Element): boolean {
+  return (text(el, ':scope > isdrogue') ?? '').trim().toLowerCase() === 'true';
+}
+
 function numTag(el: Element, tag: string, fallback: number): number {
   const t = text(el, `:scope > ${tag}`);
   // Values like "auto 0.012" carry an automatic flag + last value.

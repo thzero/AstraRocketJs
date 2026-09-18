@@ -207,12 +207,14 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
   const mixed = (k: keyof SimPrefs) => diff?.has(k) ?? false;
   const overridden = Object.keys(prefs ?? {}).length > 0;
 
-  // The three deployment thresholds are SPEEDS, so they follow the user's
+  // The four deployment thresholds are SPEEDS, so they follow the user's
   // velocity unit both ways; the stored value stays SI. `fmt` for the
   // placeholder rather than the raw number, since the global is SI too.
   const speed = (si: number | undefined): number | null => (si == null ? null : u.toUi('velocity', si));
-  const onSpeed = (key: 'deploymentSpeedWarn' | 'mainHighSpeedWarn' | 'mainLowSpeedWarn') => (v: number | null) =>
-    setSimPref(key, v == null ? null : u.fromUi('velocity', v));
+  const onSpeed =
+    (key: 'deploymentSpeedWarn' | 'mainHighSpeedWarn' | 'mainLowSpeedWarn' | 'drogueLowSpeedWarn') =>
+    (v: number | null) =>
+      setSimPref(key, v == null ? null : u.fromUi('velocity', v));
   const vSym = u.sym('velocity');
   const vStep = u.step('velocity', 1);
 
@@ -333,8 +335,9 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
       {/* The deployment-speed thresholds, per simulation. Which one a flight uses
           depends on the stage's recovery layout: no drogue is single-deployment
           and uses the first alone; a drogue makes it dual-deployment and the MAIN
-          is judged against the other two. All three reach the kernel, which is
-          what raises the warning shown on the Results tab. */}
+          is judged against the next two, the DROGUE against the last. All of them
+          reach the kernel, which is what raises the warnings shown on the Results
+          tab. The last three apply only once a device is marked as a drogue. */}
       <div className="mt-3 border-t border-white/10 pt-2 text-[10px] uppercase tracking-wide text-slate-400">
         {t('settings.warnings')}
       </div>
@@ -373,6 +376,18 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           step={vStep}
           min={0}
           onChange={onSpeed('mainLowSpeedWarn')}
+          onCommit={onCommit}
+        />
+        <Override
+          label={t('settings.drogueLowSpeedWarn')}
+          hint={t('settings.drogueLowSpeedWarnHint')}
+          unit={vSym}
+          mixed={mixed('drogueLowSpeedWarn')}
+          value={speed(prefs?.drogueLowSpeedWarn)}
+          placeholder={u.fmt('velocity', g.drogueLowSpeedWarn)}
+          step={vStep}
+          min={0}
+          onChange={onSpeed('drogueLowSpeedWarn')}
           onCommit={onCommit}
         />
       </div>

@@ -350,11 +350,20 @@ export interface SimulationOptions {
    * Which one applies depends on the stage's recovery layout. A stage with no
    * drogue is single-deployment and uses `recoverySpeedWarn` alone; a
    * dual-deployment stage warns on the MAIN being out too fast
-   * (`mainHighSpeedWarn`) or too slow (`mainLowSpeedWarn`) instead.
+   * (`mainHighSpeedWarn`) or too slow (`mainLowSpeedWarn`) instead, and on its
+   * DROGUE being out too slow at apogee to inflate (`drogueLowSpeedWarn`).
+   *
+   * Which branch a flight takes is decided by the deploying stage's drogue flag
+   * (the `drogue` key on a parachute or streamer node). Without it the kernel
+   * sees single deployment and the three dual-deployment thresholds cannot fire.
+   *
+   * `drogueLowSpeedWarn` needs a fork patch on top: upstream ships its check
+   * commented out, and PATCH(drogue-low-speed) enables it.
    */
   recoverySpeedWarn?: number;
   mainHighSpeedWarn?: number;
   mainLowSpeedWarn?: number;
+  drogueLowSpeedWarn?: number;
   /**
    * Series payload mode. 'summary' (the default) returns the 12 friendly-named
    * arrays plus only the symbol series the app's flight report reads every run
@@ -1027,6 +1036,7 @@ export class OpenRocketDesign {
         recoverySpeedWarn: options.recoverySpeedWarn,
         mainHighSpeedWarn: options.mainHighSpeedWarn,
         mainLowSpeedWarn: options.mainLowSpeedWarn,
+        drogueLowSpeedWarn: options.drogueLowSpeedWarn,
         series: options.series,
       }),
     );

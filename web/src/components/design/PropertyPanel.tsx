@@ -262,6 +262,10 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'cd', label: 'dragCoeff', kind: 'number', step: 0.05 },
     { key: 'lineCount', label: 'lineCount', kind: 'count' },
     { key: 'lineLength', label: 'lineLength', kind: 'length' },
+    // Which half of a dual-deployment pair this is. The kernel judges the
+    // deployment speed against different thresholds depending on it, and cannot
+    // warn about dual deployment at all unless something on the stage says drogue.
+    { key: 'drogue', label: 'drogue', kind: 'bool' },
     { key: 'deployEvent', label: 'deployEvent', kind: 'select', options: DEPLOY_EVENTS, optI18n: 'deployEvent' },
     { key: 'deployAltitude', label: 'deployAltitude', kind: 'distance', step: 10 },
     { key: 'deployDelay', label: 'deployDelay', kind: 'number', unit: 's', step: 0.5 },
@@ -270,6 +274,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'stripLength', label: 'length', kind: 'length' },
     { key: 'stripWidth', label: 'width', kind: 'length' },
     { key: 'cd', label: 'dragCoeff', kind: 'number', step: 0.05 },
+    { key: 'drogue', label: 'drogue', kind: 'bool' },
     { key: 'deployEvent', label: 'deployEvent', kind: 'select', options: DEPLOY_EVENTS, optI18n: 'deployEvent' },
     { key: 'deployAltitude', label: 'deployAltitude', kind: 'distance', step: 10 },
     { key: 'deployDelay', label: 'deployDelay', kind: 'number', unit: 's', step: 0.5 },

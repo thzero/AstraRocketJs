@@ -27,6 +27,7 @@ const PREFS: SimPrefs = {
   deploymentSpeedWarn: 20,
   mainHighSpeedWarn: 30.48,
   mainLowSpeedWarn: 15.24,
+  drogueLowSpeedWarn: 3.048,
 };
 
 describe('simConditions', () => {
@@ -105,10 +106,20 @@ describe('simConditions', () => {
    * changed what the summary painted amber and not what the flight reported.
    */
   it('passes the deployment-warning thresholds to the engine', () => {
-    const c = simConditions(base, { ...PREFS, deploymentSpeedWarn: 25, mainHighSpeedWarn: 40, mainLowSpeedWarn: 10 });
+    const c = simConditions(base, {
+      ...PREFS,
+      deploymentSpeedWarn: 25,
+      mainHighSpeedWarn: 40,
+      mainLowSpeedWarn: 10,
+      drogueLowSpeedWarn: 4,
+    });
     expect(c.recoverySpeedWarn).toBe(25);
     expect(c.mainHighSpeedWarn).toBe(40);
     expect(c.mainLowSpeedWarn).toBe(10);
+    // The drogue one raises nothing today: the block reading it in
+    // BasicEventSimulationEngine is commented out upstream. It is still carried
+    // rather than dropped, so re-enabling that block is a rebuild and no more.
+    expect(c.drogueLowSpeedWarn).toBe(4);
   });
 
   it('honors a pinned seed, so a run can be reproduced exactly', () => {

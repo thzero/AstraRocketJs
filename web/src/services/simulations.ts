@@ -95,6 +95,8 @@ export interface SimPrefs {
   deploymentSpeedWarn: number;
   mainHighSpeedWarn: number;
   mainLowSpeedWarn: number;
+  /** Drogue-side minimum, dual deployment only. */
+  drogueLowSpeedWarn: number;
 }
 
 /**
@@ -159,6 +161,7 @@ export function simConditions(launch: CompleteLaunch, prefs?: SimPrefs) {
     recoverySpeedWarn: prefs?.deploymentSpeedWarn,
     mainHighSpeedWarn: prefs?.mainHighSpeedWarn,
     mainLowSpeedWarn: prefs?.mainLowSpeedWarn,
+    drogueLowSpeedWarn: prefs?.drogueLowSpeedWarn,
     series: 'summary' as const,
   };
 }

@@ -68,6 +68,17 @@ export interface SimulationSettings {
    */
   mainHighSpeedWarn: number;
   mainLowSpeedWarn: number;
+  /**
+   * Dual deployment, the DROGUE side: at apogee the rocket is barely moving, and
+   * a drogue let out below this speed may never see enough airflow to inflate.
+   * OpenRocket's default is 10 ft/s, hence 3.048.
+   *
+   * Upstream ships this check commented out; PATCH(drogue-low-speed) in
+   * `BasicEventSimulationEngine` enables it, so the value is read rather than
+   * merely carried. Like the two main thresholds it only applies when the
+   * deploying stage actually has a device marked as a drogue.
+   */
+  drogueLowSpeedWarn: number;
   /** Minimum safe rod/rail-exit velocity (m/s): the rod-exit tile is green at or
    *  above this, and warns below it (too slow to be stable off the rail). */
   railExitVelocityMin: number;
@@ -195,6 +206,7 @@ export const DEFAULT_SETTINGS: Settings = {
     deploymentSpeedWarn: 20,
     mainHighSpeedWarn: 30.48,
     mainLowSpeedWarn: 15.24,
+    drogueLowSpeedWarn: 3.048,
     railExitVelocityMin: 15,
   },
   launchDefaults: DEFAULT_LAUNCH,
@@ -253,6 +265,7 @@ export function loadSettings(): Settings {
         sim.deploymentSpeedWarn = pos(sim.deploymentSpeedWarn, DEFAULT_SETTINGS.simulation.deploymentSpeedWarn);
         sim.mainHighSpeedWarn = pos(sim.mainHighSpeedWarn, DEFAULT_SETTINGS.simulation.mainHighSpeedWarn);
         sim.mainLowSpeedWarn = pos(sim.mainLowSpeedWarn, DEFAULT_SETTINGS.simulation.mainLowSpeedWarn);
+        sim.drogueLowSpeedWarn = pos(sim.drogueLowSpeedWarn, DEFAULT_SETTINGS.simulation.drogueLowSpeedWarn);
         return sim;
       })(),
       launchDefaults: (() => {

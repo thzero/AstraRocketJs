@@ -24,6 +24,7 @@ const PREFS = {
   deploymentSpeedWarn: 20,
   mainHighSpeedWarn: 30.48,
   mainLowSpeedWarn: 15.24,
+  drogueLowSpeedWarn: 3.048,
 } as SimPrefs;
 
 const RESULT = { summary: { maxAltitude: 100 }, events: [], series: {} } as unknown as FlightResult;

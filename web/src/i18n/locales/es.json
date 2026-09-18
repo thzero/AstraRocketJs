@@ -256,10 +256,12 @@
     },
     "mainHighSpeedWarn": "Velocidad de apertura del principal (máx)",
     "mainLowSpeedWarn": "Velocidad de apertura del principal (mín)",
+    "drogueLowSpeedWarn": "Velocidad de apertura del piloto (mín)",
     "railExitMinHint": "Por debajo de esto las aletas tienen muy poco flujo para dirigir, y el cohete puede orientarse al viento o volverse inestable al salir de la guía.",
     "deploySpeedWarnHint": "Despliegue simple (sin piloto): por encima de esta velocidad, abrir el paracaídas puede dañar el fuselaje o rasgar la vela.",
     "mainHighSpeedWarnHint": "Doble despliegue: por encima de esto el PRINCIPAL sale demasiado rápido — normalmente un piloto demasiado pequeño o un principal programado demasiado alto.",
-    "mainLowSpeedWarnHint": "Doble despliegue: por debajo de esto el principal se abre con el cohete apenas descendiendo, lo que suele significar que se desplegó cerca del apogeo — un descenso lento y con mucha deriva."
+    "mainLowSpeedWarnHint": "Doble despliegue: por debajo de esto el principal se abre con el cohete apenas descendiendo, lo que suele significar que se desplegó cerca del apogeo — un descenso lento y con mucha deriva.",
+    "drogueLowSpeedWarnHint": "Doble despliegue: por debajo de esto el piloto sale demasiado lento en el apogeo para inflarse correctamente. Solo se aplica a una etapa que lleve un paracaídas o cinta marcado como piloto."
   },
   "config": {
     "title": "Configuración del cohete",
@@ -755,6 +757,7 @@
     "deployDelay": "Retardo de despliegue",
     "lineCount": "Cuerdas de suspensión",
     "lineLength": "Longitud de cuerda",
+    "drogue": "Piloto (despliegue dual)",
     "motorMount": "Soporte de motor",
     "shoulderLength": "Longitud del hombro",
     "shoulderRadius": "Radio del hombro",

@@ -147,6 +147,7 @@ Instanceable
 instancecount
 instanceseparation
 INSUNITS
+isdrogue
 isflipped
 Jambol
 jank

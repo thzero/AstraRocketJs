@@ -28,6 +28,7 @@ const prefs: SimPrefs = {
   deploymentSpeedWarn: 20,
   mainHighSpeedWarn: 30.48,
   mainLowSpeedWarn: 15.24,
+  drogueLowSpeedWarn: 3.048,
 };
 
 describe('simConditions carries the options the bridge gained', () => {

@@ -256,10 +256,12 @@
     },
     "mainHighSpeedWarn": "Main deploy speed (max)",
     "mainLowSpeedWarn": "Main deploy speed (min)",
+    "drogueLowSpeedWarn": "Drogue deploy speed (min)",
     "railExitMinHint": "Below this the fins have too little airflow to steer, so the rocket can weathercock into the wind or go unstable as it leaves the rod.",
     "deploySpeedWarnHint": "Single deployment (no drogue): above this speed, opening the parachute risks zippering the airframe or tearing the canopy.",
     "mainHighSpeedWarnHint": "Dual deployment: above this the MAIN is coming out too fast — usually a drogue too small to slow the rocket, or a main set to deploy too high.",
-    "mainLowSpeedWarnHint": "Dual deployment: below this the main opens while the rocket is barely descending, which normally means it deployed near apogee — a slow, drifty descent from full altitude."
+    "mainLowSpeedWarnHint": "Dual deployment: below this the main opens while the rocket is barely descending, which normally means it deployed near apogee — a slow, drifty descent from full altitude.",
+    "drogueLowSpeedWarnHint": "Dual deployment: below this the drogue comes out too slowly at apogee to inflate properly. Applies only to a stage carrying a chute or streamer marked as a drogue."
   },
   "config": {
     "title": "Rocket configuration",
@@ -755,6 +757,7 @@
     "deployDelay": "Deploy delay",
     "lineCount": "Shroud lines",
     "lineLength": "Line length",
+    "drogue": "Drogue (dual deployment)",
     "motorMount": "Motor mount",
     "shoulderLength": "Shoulder length",
     "shoulderRadius": "Shoulder radius",

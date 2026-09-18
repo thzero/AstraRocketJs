@@ -150,6 +150,26 @@ const ALLOWED_CHILDREN: Record<string, ComponentType[]> = {
   ],
   innertube: ['engineblock', 'masscomponent'],
   tubecoupler: ['centeringring', 'bulkhead', 'masscomponent'],
+  // A mass component hosts other INTERNAL components: an altimeter bay or a
+  // payload sled with its rings, bulkheads and hardware nested inside it.
+  //
+  // The list mirrors the kernel's own rule (`MassComponent.isCompatible` takes
+  // any `InternalComponent`) rather than a narrower one of our own. It has to:
+  // the engine builds whatever tree it is handed, and a rule tighter than the
+  // kernel's would reject a `.ork` the desktop writes happily. It was empty
+  // until now because the extracted kernel carried a stale copy of
+  // `MassComponent` that forbade children outright.
+  masscomponent: [
+    'innertube',
+    'tubecoupler',
+    'centeringring',
+    'bulkhead',
+    'engineblock',
+    'parachute',
+    'streamer',
+    'shockcord',
+    'masscomponent',
+  ],
   // A PodSet hosts its own axial chain (a mini nose→body→transition stack),
   // just like a stage; the chain members then host fins / inner tubes / etc.
   podset: ['nosecone', 'bodytube', 'transition'],
@@ -403,6 +423,7 @@ export function defaultNode(type: ComponentType): ComponentNode {
         cd: 0.8,
         lineCount: 6,
         lineLength: 0.3,
+        drogue: false,
         deployEvent: 'apogee',
         deployAltitude: 200,
         deployDelay: 0,
@@ -415,6 +436,7 @@ export function defaultNode(type: ComponentType): ComponentNode {
         stripLength: 0.4,
         stripWidth: 0.05,
         cd: 0.6,
+        drogue: false,
         deployEvent: 'apogee',
         deployAltitude: 200,
         deployDelay: 0,

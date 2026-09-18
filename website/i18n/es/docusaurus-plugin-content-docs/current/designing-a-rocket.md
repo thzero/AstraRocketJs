@@ -22,6 +22,16 @@ Los componentes admitidos incluyen:
 
 Cada pieza expone las dimensiones y opciones que el motor de física necesita (longitudes, radios, espesor, geometría de aletas, etc.). La edición está amortiguada: el modelo se reconstruye y las estadísticas se refrescan mientras escribes o arrastras.
 
+### Despliegue dual
+
+Un paracaídas o una cinta lleva una casilla **Piloto (despliegue dual)**. Márcala en el dispositivo que se abre en el apogeo y el vuelo se simula como despliegue dual: primero un piloto pequeño que baja el cohete de forma controlada y después el principal, más abajo.
+
+No es solo una etiqueta. La simulación juzga cada apertura de forma distinta según esa casilla, y avisa si el principal sale demasiado rápido o demasiado lento, y si el piloto sale demasiado lento en el apogeo para inflarse, según los umbrales de **[Ajustes ▸ Avisos de seguridad](./settings.md#avisos-de-seguridad)**. Si no marcas ninguno, toda la etapa es despliegue simple y se juzga contra un único umbral.
+
+### Qué cabe dentro de un componente de masa
+
+Un componente de masa no es solo un lastre: puede contener estructura interior propia, así que una bahía de altímetro o una bandeja de carga útil se modela como la bandeja más los anillos, mamparos, electrónica y equipo de recuperación anidados dentro. Se le añaden piezas igual que a un tubo de cuerpo.
+
 ## Dimensiones obligatorias {#required-dimensions}
 
 Algunas dimensiones definen lo que una pieza *es*. Un tubo de fuselaje sin radio no es un tubo estrecho: no es nada. Por eso esos campos están marcados, y un diseño al que le falte uno no se puede volar.

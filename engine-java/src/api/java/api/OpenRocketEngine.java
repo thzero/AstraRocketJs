@@ -1239,9 +1239,11 @@ public final class OpenRocketEngine {
         // Defaults match SimulationConditions' own, so an options blob that omits
         // them behaves exactly as before.
         //
-        // drogueLowSpeed is passed for completeness even though nothing reads it
-        // yet: BasicEventSimulationEngine's only use of it is commented out
-        // upstream. Passing it here means re-enabling that needs no rebuild.
+        // drogueLowSpeed reads live too, via PATCH(drogue-low-speed) in
+        // BasicEventSimulationEngine: upstream ships that check commented out, so
+        // the threshold was carried and never read. All four need the deploying
+        // stage's drogue flag to pick a branch, which ComponentFactory now sets
+        // from the node's `drogue` key.
         conditions.setRecoverySpeedWarning(JsonLite.dbl(o, "recoverySpeedWarn", 20.0));
         conditions.setDrogueLowSpeedWarning(JsonLite.dbl(o, "drogueLowSpeedWarn", 3.048));
         conditions.setRecoveryDrogueMainHighSpeedWarning(JsonLite.dbl(o, "mainHighSpeedWarn", 30.48));

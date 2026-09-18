@@ -74,3 +74,34 @@ describe('exportOrk — imported absolute positions', () => {
     expect(xml).not.toContain('>0.35<');
   });
 });
+
+/**
+ * `<isdrogue>` decides which recovery warnings a flight can raise at all: the
+ * kernel judges a stage with a drogue against the dual-deployment thresholds and
+ * everything else against the single one. Losing the flag on a round trip
+ * silently downgrades a dual-deployment design to single deployment, so the
+ * element has to survive both ways.
+ */
+describe('exportOrk - the drogue flag', () => {
+  const chuteTree = (drogue?: boolean) =>
+    ({
+      components: [
+        node({ type: 'nosecone', id: 'nose', length: 0.3, outerRadius: 0.012 }),
+        node({
+          type: 'bodytube',
+          id: 'body',
+          length: 0.4,
+          outerRadius: 0.012,
+          children: [node({ type: 'parachute', id: 'chute', diameter: 0.3, ...(drogue == null ? {} : { drogue }) })],
+        }),
+      ],
+    }) as unknown as RocketTree;
+
+  it('writes the element only for a drogue, as the desktop saver does', () => {
+    expect(xmlFor(chuteTree(true))).toContain('<isdrogue>true</isdrogue>');
+    // Not `<isdrogue>false</isdrogue>`: RecoveryDeviceSaver omits it entirely
+    // for a main, and a file that differs from the desktop's is a diff to explain.
+    expect(xmlFor(chuteTree(false))).not.toContain('isdrogue');
+    expect(xmlFor(chuteTree())).not.toContain('isdrogue');
+  });
+});

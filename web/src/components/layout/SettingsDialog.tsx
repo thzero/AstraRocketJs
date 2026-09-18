@@ -339,9 +339,10 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
               {/* The three deployment thresholds. Which one a flight uses depends
                   on the stage's recovery layout: no drogue is single-deployment
                   and uses the first alone; a drogue makes it dual-deployment, and
-                  the main is then judged against the other two. All three reach
-                  the kernel, which raises the warning — they are not just tile
-                  colors, which is all `deploySpeedWarn` used to be. */}
+                  the main is then judged against the next two while the drogue is
+                  judged against the last. All of them reach the kernel, not just
+                  the tiles (which is all `deploySpeedWarn` used to be). The last
+                  three need a device marked as a drogue to apply at all. */}
               <NumRow
                 label={t('settings.deploySpeedWarn')}
                 hint={t('settings.deploySpeedWarnHint')}
@@ -381,6 +382,23 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
                   setSim({
                     mainLowSpeedWarn:
                       v == null ? DEFAULT_SETTINGS.simulation.mainLowSpeedWarn : u.fromUi('velocity', v),
+                  })
+                }
+              />
+              {/* The drogue side of the same pair, live since the fork enables the
+                  check upstream leaves commented out. Like the two above it only
+                  applies to a stage carrying a device marked as a drogue. */}
+              <NumRow
+                label={t('settings.drogueLowSpeedWarn')}
+                hint={t('settings.drogueLowSpeedWarnHint')}
+                unit={u.sym('velocity')}
+                step={u.step('velocity', 1)}
+                min={0}
+                value={u.toUi('velocity', settings.simulation.drogueLowSpeedWarn)}
+                onChange={(v) =>
+                  setSim({
+                    drogueLowSpeedWarn:
+                      v == null ? DEFAULT_SETTINGS.simulation.drogueLowSpeedWarn : u.fromUi('velocity', v),
                   })
                 }
               />

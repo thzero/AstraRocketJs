@@ -398,6 +398,7 @@ describe('recovery-device features round-trip', () => {
                 surfaceDensity: 0.067,
                 lineMaterialName: 'Braided nylon (2 mm, 1/16 in)',
                 lineDensity: 0.001,
+                drogue: true,
                 deployEvent: 'apogee',
                 deployAltitude: 200,
                 deployDelay: 0,
@@ -440,6 +441,20 @@ describe('recovery-device features round-trip', () => {
     expect(s.stripWidth).toBeCloseTo(0.07, 6);
     expect(s.cd).toBeCloseTo(0.55, 6);
     expect(s.surfaceDensity).toBeCloseTo(0.021, 6);
+  });
+
+  /**
+   * Which device is the drogue is what puts a flight on the kernel's
+   * dual-deployment branch, so losing `<isdrogue>` here would quietly turn a
+   * dual-deployment design back into a single-deployment one on reload.
+   */
+  it('preserves which device is the drogue', () => {
+    const c = findByType(out.tree, 'parachute') as Record<string, unknown>;
+    const s = findByType(out.tree, 'streamer') as Record<string, unknown>;
+    expect(c.drogue).toBe(true);
+    // Absent rather than false: the desktop omits the element for a main, and
+    // the importer only sets the key when the file carries it.
+    expect(s.drogue).toBeUndefined();
   });
 });
 

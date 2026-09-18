@@ -1,5 +1,7 @@
 package info.openrocket.core.motor;
 
+// PATCH(teavm-uuid): java.util.UUID -> core.util.LongUUID, for the same TeaVM
+// classlib gap as FlightConfigurationId. See patches/LEDGER.md.
 import info.openrocket.core.util.LongUUID;
 
 import info.openrocket.core.rocketcomponent.FlightConfigurationId;

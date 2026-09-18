@@ -96,15 +96,18 @@ In this dialog the same fields can never end up blank at all — they seed every
 
 ## Safety warnings
 
-Four thresholds, in the units you have chosen for velocity. They color the result tiles *and* reach the flight engine, so they decide which warnings a run reports rather than only how the numbers are painted.
+Five thresholds, in the units you have chosen for velocity. They color the result tiles *and* reach the flight engine, so they decide which warnings a run reports rather than only how the numbers are painted.
 
 - **Min rail-exit velocity** — below this the fins have too little airflow to steer, so the rocket can weathercock into the wind or go unstable as it leaves the rod. The rod-exit tile is green at or above this and warns below it.
 - **Deploy-speed warning above** — single deployment (no drogue): above this speed, opening the parachute risks zippering the airframe or tearing the canopy.
 
-The last two apply only to **dual deployment** — a stage carrying a drogue — where the main is judged instead of the single threshold above:
+The last three apply only to **dual deployment** (a stage carrying a drogue), where the main and the drogue are judged instead of the single threshold above:
 
 - **Main deploy speed (max)** — above this the main is coming out too fast, usually a drogue too small to slow the rocket, or a main set to deploy too high.
 - **Main deploy speed (min)** — below this the main opens while the rocket is barely descending, which normally means it deployed near apogee: a slow, drifty descent from full altitude.
+- **Drogue deploy speed (min)**: below this the drogue comes out too slowly at apogee to inflate properly.
+
+All three depend on the rocket saying which chute is which. Tick **Drogue (dual deployment)** on the parachute or streamer that opens at apogee, and the flight is judged as dual deployment. Leave it clear and the whole stage is single deployment, judged against **Deploy-speed warning above** alone.
 
 Each of these can also be overridden per simulation, in the simulation's own options.
 

@@ -364,6 +364,13 @@ final class ComponentFactory {
                     p.setLineMaterial(Material.newMaterial(Material.Type.LINE,
                             str(node, "lineMaterialName", "custom"), chuteLine, true));
                 }
+                // Drogue or main. Nothing set this, so isDrogue() was false for every
+                // device the app built, stageHasDrogue never went true, and the kernel
+                // took the single-deployment branch on every flight: the dual-deployment
+                // warnings (main too fast / too slow, drogue too slow, drogue with no
+                // main) could not fire whatever the thresholds said. `<isdrogue>` is
+                // OpenRocket's own .ork element for it.
+                p.setDrogue(bool(node, "drogue", false));
                 applyDeployment(p, node);
                 c = p;
                 break;
@@ -382,6 +389,7 @@ final class ComponentFactory {
                     s.setMaterial(Material.newMaterial(Material.Type.SURFACE,
                             str(node, "surfaceMaterialName", "custom"), streamerSurf, true));
                 }
+                s.setDrogue(bool(node, "drogue", false));
                 applyDeployment(s, node);
                 c = s;
                 break;

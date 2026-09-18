@@ -586,6 +586,10 @@ export function exportOrk({
         emit(depth + 1, '<radialdirection>0.0</radialdirection>');
         emit(depth + 1, `<cd>${typeof node['cd'] === 'number' ? node['cd'] : 'auto'}</cd>`);
         material(depth + 1, node, 'surface');
+        // Only when true, and in this position: RecoveryDeviceSaver emits it right
+        // after the material and omits it for a main, so a round-tripped file stays
+        // byte-comparable with one the desktop wrote.
+        if (node['drogue'] === true) emit(depth + 1, '<isdrogue>true</isdrogue>');
         emit(depth + 1, `<deployevent>${escapeXml(String(node['deployEvent'] ?? 'ejection'))}</deployevent>`);
         emit(depth + 1, `<deployaltitude>${num(node, 'deployAltitude', 200)}</deployaltitude>`);
         emit(depth + 1, `<deploydelay>${num(node, 'deployDelay', 0)}</deploydelay>`);
@@ -622,6 +626,7 @@ export function exportOrk({
         emit(depth + 1, '<radialdirection>0.0</radialdirection>');
         emit(depth + 1, `<cd>${typeof node['cd'] === 'number' ? node['cd'] : 'auto'}</cd>`);
         material(depth + 1, node, 'surface');
+        if (node['drogue'] === true) emit(depth + 1, '<isdrogue>true</isdrogue>');
         emit(depth + 1, `<deployevent>${escapeXml(String(node['deployEvent'] ?? 'ejection'))}</deployevent>`);
         emit(depth + 1, `<deployaltitude>${num(node, 'deployAltitude', 200)}</deployaltitude>`);
         emit(depth + 1, `<deploydelay>${num(node, 'deployDelay', 0)}</deploydelay>`);

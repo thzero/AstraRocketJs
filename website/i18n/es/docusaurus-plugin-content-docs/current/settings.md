@@ -96,15 +96,18 @@ En este diálogo esos campos nunca pueden acabar en blanco: inicializan cada nue
 
 ## Avisos de seguridad
 
-Cuatro umbrales, en las unidades que hayas elegido para la velocidad. Colorean las fichas de resultados *y* llegan al motor de vuelo, así que deciden qué avisos informa una simulación y no solo cómo se pintan los números.
+Cinco umbrales, en las unidades que hayas elegido para la velocidad. Colorean las fichas de resultados *y* llegan al motor de vuelo, así que deciden qué avisos informa una simulación y no solo cómo se pintan los números.
 
 - **Velocidad mínima de salida de la guía** — por debajo de esto las aletas reciben muy poco flujo de aire para gobernar el cohete, así que puede orientarse hacia el viento o volverse inestable al salir de la guía. La ficha de salida de la guía está en verde a partir de este valor y avisa por debajo.
 - **Aviso de velocidad de apertura por encima de** — despliegue simple (sin drogue): por encima de esta velocidad, abrir el paracaídas arriesga rasgar el fuselaje o desgarrar la vela.
 
-Los dos últimos solo se aplican al **despliegue dual** —una etapa que lleva un drogue—, donde se juzga el principal en lugar del umbral simple anterior:
+Los tres últimos solo se aplican al **despliegue dual** (una etapa que lleva un drogue), donde se juzgan el principal y el drogue en lugar del umbral simple anterior:
 
 - **Velocidad de apertura del principal (máx.)** — por encima de esto el principal sale demasiado rápido, normalmente por un drogue demasiado pequeño para frenar el cohete, o por un principal configurado para abrirse demasiado alto.
 - **Velocidad de apertura del principal (mín.)** — por debajo de esto el principal se abre cuando el cohete apenas desciende, lo que normalmente significa que se desplegó cerca del apogeo: un descenso lento y con mucha deriva desde toda la altitud.
+- **Velocidad de apertura del drogue (mín.)**: por debajo de esto el drogue sale demasiado lento en el apogeo para inflarse correctamente.
+
+Los tres dependen de que el cohete diga qué paracaídas es cuál. Marca **Piloto (despliegue dual)** en el paracaídas o la cinta que se abre en el apogeo y el vuelo se juzga como despliegue dual; déjalo sin marcar y toda la etapa es despliegue simple, juzgada solo contra **Aviso de velocidad de apertura por encima de**.
 
 Cada uno de estos también se puede sobrescribir por simulación, en las opciones de esa simulación.
 

@@ -61,7 +61,7 @@ Results are shown as tiles, in roughly chronological flight order, including:
 - **Rail-exit velocity** (flagged if below your safety minimum)
 - **Optimum delay** and **time to apogee**
 - **Apogee** (max altitude) and **max velocity / acceleration / Mach**
-- **Deployment speed** (flagged if above your warning threshold; green when safely low)
+- **Deployment speed** (flagged if above your warning threshold; green when safely low). On a [dual-deployment](./designing-a-rocket.md#dual-deployment) design the flight engine judges the main and the drogue against their own thresholds instead, and reports a warning for each.
 - **Landing speed**, **flight time**, and **downrange** distance
 
 For the full time-history, open the **[Flight and 3D-path views](./views-and-analysis.md)**. To save the numbers, see **[Files & Exports](./files-and-exports.md)**.
