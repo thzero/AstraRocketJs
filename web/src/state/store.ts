@@ -31,6 +31,8 @@ import { newSimulation, simConditions, type Simulation, type SimPrefs } from '..
 import { simulateInWorker, SimTimeoutError } from '../engine/simClient';
 import { loadSettings } from '../services/settings';
 import { launchLimitViolations, limitText } from '../services/safetyLimits';
+import { unflyable, unflyableText, hasThrustCurve, type Unflyable } from '../services/runnability';
+import { isComplete } from '../services/requiredLaunch';
 import { defaultDesignName } from '../services/appInfo';
 import { getDesignLibrary, type DesignMeta } from '../services/designLibrary';
 import { getWorkspaceStore, type Workspace } from '../services/workspaceStore';
@@ -180,6 +182,8 @@ export interface WorkspaceState {
   renameSim: (id: string, name: string) => void;
   /** Override a global run preference for the active sim; null clears the override. */
   setSimPref: <K extends keyof SimPrefs>(key: K, value: SimPrefs[K] | null) => void;
+  /** Drop every override on the active simulation, so all of them follow the globals again. */
+  clearSimPrefs: () => void;
   /** Tick or untick one row for the next run. */
   toggleSimSelected: (id: string) => void;
   /** Tick every row, or none. */
@@ -234,6 +238,20 @@ export const selectActive = (s: WorkspaceState): Simulation => s.sims.find((x) =
 export const selectRunIds = (s: WorkspaceState): string[] =>
   s.selectedSimIds.length ? s.selectedSimIds : [selectActive(s).id];
 
+/**
+ * What an EDIT in the right-hand editor applies to: the ticked rows, or the
+ * active simulation when nothing is ticked.
+ *
+ * Deliberately the same rule as {@link selectRunIds}. A tick already means
+ * "these ones" for Run and for Delete; making it mean something else for Edit
+ * would be a third selection concept for the user to hold. The editor says so
+ * in a banner, so a multi-target edit is never silent.
+ *
+ * Same subscription caveat as `selectRunIds`: it builds a fresh array, so
+ * components derive it rather than subscribing to it.
+ */
+export const selectEditIds = (s: WorkspaceState): string[] => selectRunIds(s);
+
 /** The active simulation's non-primary-mount motors — its flight configuration. */
 export const selectExtraMotors = (s: WorkspaceState): Record<string, MountMotor> => selectActive(s).extraMotors;
 
@@ -248,9 +266,13 @@ export const selectExtraMotors = (s: WorkspaceState): Record<string, MountMotor>
 export const selectRunFailed = (s: WorkspaceState): boolean =>
   s.lastRunFailed !== null && s.lastRunFailed.tree === s.tree && s.lastRunFailed.simId === selectActive(s).id;
 
-/** A motor is usable only if it carries a full thrust curve (time/thrust/mass samples). */
-export const hasThrustCurve = (m: MotorSpec | undefined | null): boolean =>
-  !!(m && m.times?.length && m.thrusts?.length && m.masses?.length);
+/**
+ * A motor is usable only if it carries a full thrust curve.
+ *
+ * Re-exported from `services/runnability`, which is where the whole "can this
+ * row fly" question lives now so the Run button and the run loop share it.
+ */
+export { hasThrustCurve };
 
 /**
  * Repair a persisted workspace so a stale/partial blob can't blank the app.
@@ -364,10 +386,35 @@ function showing(s: { tab: Tab; designPane: DesignPane }, view: ViewMode): Parti
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
-  // Patch the active simulation (invalidating its cached result).
-  const patchActive = (patch: Partial<Simulation>) => {
+  /**
+   * Patch every simulation the editor is pointed at: the TICKED rows, or the
+   * active one when nothing is ticked (see {@link selectEditIds}).
+   *
+   * `patch` is built PER simulation rather than passed in whole, because a bulk
+   * edit must merge into each target's own state -- `{...sim.launch, ...p}` off
+   * the active sim would copy the active sim's entire launch block onto the
+   * others and silently flatten every field the user never touched. Built per
+   * target, only the key actually edited moves; everything else stays the
+   * simulation's own.
+   */
+  const patchTargets = (make: (sim: Simulation) => Partial<Simulation>) => {
+    const ids = new Set(selectEditIds(get()));
+    set((s) => ({ sims: s.sims.map((x) => (ids.has(x.id) ? { ...x, ...make(x) } : x)) }));
+  };
+
+  /**
+   * Patch ONLY the active simulation, whatever is ticked.
+   *
+   * For the two things a selection must not touch. A NAME pushed across three
+   * rows leaves three rows called the same thing. A MOTOR is worse: the whole
+   * reason to keep several simulations is to fly the same airframe on different
+   * motors, so a bulk motor change collapses exactly the comparison the rows
+   * exist to make -- and it is the one edit you cannot undo by eye afterwards,
+   * because every row now looks deliberately identical.
+   */
+  const patchActive = (make: (sim: Simulation) => Partial<Simulation>) => {
     const id = selectActive(get()).id;
-    set((s) => ({ sims: s.sims.map((x) => (x.id === id ? { ...x, ...patch } : x)) }));
+    set((s) => ({ sims: s.sims.map((x) => (x.id === id ? { ...x, ...make(x) } : x)) }));
   };
 
   // --- undo/redo plumbing ---
@@ -585,11 +632,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     setActiveId: (activeId) => set({ activeId }), // switching the active sim isn't an edit — no history
     setActiveMotor: (m) => {
       recordStep();
-      patchActive({ motor: m, outdated: true });
+      patchActive(() => ({ motor: m, outdated: true }));
     },
     setActiveIgnition: (event, delay) => {
       beginEdit();
-      patchActive({ ignitionEvent: event, ignitionDelay: delay, outdated: true });
+      patchActive(() => ({ ignitionEvent: event, ignitionDelay: delay, outdated: true }));
     },
     setExtraMotor: (mountId, m) => {
       recordStep();
@@ -597,20 +644,26 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // seating an upper-stage motor changed it for every simulation at once
       // and aged all of their results -- two sims could never differ below the
       // primary mount, which is exactly what comparing staged motors needs.
-      const cur = selectActive(get()).extraMotors;
-      patchActive({ extraMotors: { ...cur, [mountId]: { ...cur[mountId], spec: m } }, outdated: true });
+      // Editing a selection does not bring that back: the motor stays the one
+      // thing a tick cannot reach (see patchActive).
+      patchActive((sim) => ({
+        extraMotors: { ...sim.extraMotors, [mountId]: { ...sim.extraMotors[mountId], spec: m } },
+        outdated: true,
+      }));
     },
     setExtraIgnition: (mountId, event, delay) => {
       beginEdit();
-      const cur = selectActive(get()).extraMotors;
-      patchActive({
-        extraMotors: { ...cur, [mountId]: { ...cur[mountId]!, ignitionEvent: event, ignitionDelay: delay } },
+      patchActive((sim) => ({
+        extraMotors: {
+          ...sim.extraMotors,
+          [mountId]: { ...sim.extraMotors[mountId]!, ignitionEvent: event, ignitionDelay: delay },
+        },
         outdated: true,
-      });
+      }));
     },
     patchLaunch: (p) => {
       beginEdit();
-      patchActive({ launch: { ...selectActive(get()).launch, ...p }, outdated: true });
+      patchTargets((sim) => ({ launch: { ...sim.launch, ...p }, outdated: true }));
     },
     addSim: () => {
       // A fresh simulation starts from the app default motor + the user's global
@@ -662,14 +715,26 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
     setSimPref: (key, value) => {
       beginEdit();
-      const cur = selectActive(get()).prefs ?? {};
-      // A cleared override is REMOVED, not stored as undefined: `prefs` is spread
-      // over the globals at run time, and an explicit `timeStep: undefined` would
-      // shadow the global with nothing.
-      const next = { ...cur };
-      if (value === null) delete next[key];
-      else next[key] = value;
-      patchActive({ prefs: Object.keys(next).length ? next : undefined, outdated: true });
+      patchTargets((sim) => {
+        // A cleared override is REMOVED, not stored as undefined: `prefs` is
+        // spread over the globals at run time, and an explicit
+        // `timeStep: undefined` would shadow the global with nothing.
+        const next = { ...(sim.prefs ?? {}) };
+        if (value === null) delete next[key];
+        else next[key] = value;
+        return { prefs: Object.keys(next).length ? next : undefined, outdated: true };
+      });
+    },
+    clearSimPrefs: () => {
+      // Nothing to clear anywhere in the selection is not an edit: opening an
+      // empty history entry would make Undo do nothing visible.
+      const ids = new Set(selectEditIds(get()));
+      if (!get().sims.some((x) => ids.has(x.id) && x.prefs)) return;
+      beginEdit();
+      // `undefined`, not `{}`: `prefs` is spread over the globals at run time and
+      // the SimEditor reads "is anything overridden" from its key count, so an
+      // empty object would read as overridden-with-nothing.
+      patchTargets(() => ({ prefs: undefined, outdated: true }));
     },
     toggleSimSelected: (id) =>
       set((st) => ({
@@ -708,27 +773,33 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // rocket that no longer exists, and installing them would show numbers for
       // geometry that is no longer on screen.
       const ranOn = s.tree;
+      // Collected, not reported as they happen. Each skip used to `set({err})`
+      // on its own, so in a batch every message overwrote the one before it and
+      // the user was left holding whichever row failed last -- with no name on
+      // it. They are reported together once the batch drains.
+      const skipped: Unflyable[] = [];
       try {
         for (const simId of targets) {
           const sim = get().sims.find((x) => x.id === simId);
           if (!sim) continue; // deleted while the batch was draining
-          if (!hasThrustCurve(sim.motor)) {
-            // One unflyable simulation does not abandon the rest of the batch.
-            set({ err: i18n.t('sim.noMotor'), lastRunFailed: { simId, tree: ranOn } });
+          // Why a row cannot fly is decided in ONE place, shared with the Run
+          // button (services/runnability). A row with no usable motor, or with
+          // launch conditions outside the NAR/Tripoli codes, is skipped: those
+          // are simulation settings rather than design, so there is nothing to
+          // preserve by flying them, and a number this app will not stand
+          // behind is worse than no number. One bad row never abandons the rest.
+          const reason = unflyable(sim);
+          if (reason) {
+            skipped.push({ id: simId, name: sim.name, reason });
+            set({ lastRunFailed: { simId, tree: ranOn } });
             continue;
           }
-          // Launch conditions outside the NAR/Tripoli codes are not flown. These
-          // are simulation settings, not design, so there is nothing to preserve
-          // by flying them anyway — and a number this app will not stand behind
-          // is worse than no number.
-          const outside = launchLimitViolations(sim.launch);
-          if (outside.length) {
-            set({
-              err: `${i18n.t('limits.refused', { name: sim.name })} ${outside.map((v) => limitText(v, i18n.t)).join(' ')}`,
-              lastRunFailed: { simId, tree: ranOn },
-            });
-            continue;
-          }
+          // `unflyable` already established that every required launch field is
+          // present; this restates it for the type system, which cannot see
+          // that through the reason object. simConditions takes a CompleteLaunch
+          // precisely so a blank can never be quietly turned into a number on
+          // its way to the engine.
+          if (!isComplete(sim.launch)) continue;
           set({ runningId: simId });
           try {
             // The sim runs in a Web Worker (its own engine instance), off the main
@@ -757,6 +828,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               e instanceof SimTimeoutError ? i18n.t('sim.timeout') : e instanceof Error ? e.message : String(e);
             set({ err: msg, lastRunFailed: { simId, tree: ranOn } });
           }
+        }
+        // One line for everything the batch refused to fly, naming each row.
+        if (skipped.length) {
+          set({ err: skipped.map((u) => unflyableText(u, i18n.t)).join(' ') });
         }
         // Show the run — but only when there was ONE. A batch of twelve must not
         // yank the reader onto the Results tab holding whichever finished last.

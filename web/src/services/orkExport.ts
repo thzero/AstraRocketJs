@@ -5,6 +5,7 @@ import { num } from '../tree/nodeProps';
 import { escapeXml } from './xmlUtil';
 import { uuid } from './uuid';
 import { sig4 } from './designInfo';
+import { turbulenceIntensity } from './windTurbulence';
 import type { OrkExportMotor, OrkDeployOverride, OrkTreeExportInput } from './orkTypes';
 
 // ============================ EXPORT ============================
@@ -793,10 +794,14 @@ export function exportOrk({
     emit(4, `<launchrodangle>${launch.launchRodAngleDeg}</launchrodangle>`);
     emit(4, '<launchroddirection>90.0</launchroddirection>');
     // ≤23.09 legacy trio the desktop still writes: turbulence here is the
-    // INTENSITY ratio stddev/average (PinkNoiseWindModel maps zero wind to
-    // 0 or 1 — mirror it so old desktops recover the same stddev).
-    const turb = launch.windAverage !== 0 ? launch.windStdDev / launch.windAverage : launch.windStdDev !== 0 ? 1 : 0;
-    emit(4, `<windaverage>${launch.windAverage}</windaverage>`);
+    // INTENSITY ratio stddev/average, which is why it goes through the same
+    // helper the panel reads from (zero wind maps to 0 or 1, as the kernel's
+    // PinkNoiseWindModel does, so old desktops recover the same stddev).
+    // A design can be SAVED mid-edit, with a required field still blank, even
+    // though it cannot be flown. The file format has no way to say "blank", so
+    // a hole is written as zero here rather than blocking the save.
+    const turb = turbulenceIntensity(launch.windAverage ?? 0, launch.windStdDev ?? 0);
+    emit(4, `<windaverage>${launch.windAverage ?? 0}</windaverage>`);
     emit(4, `<windturbulence>${turb}</windturbulence>`);
     // Wind direction is RADIANS on disk (unlike the rod elements — the
     // saver writes getDirection() raw); π/2 is the desktop default.
@@ -806,13 +811,38 @@ export function exportOrk({
     emit(5, `<direction>${Math.PI / 2}</direction>`);
     emit(5, `<standarddeviation>${launch.windStdDev}</standarddeviation>`);
     emit(4, '</wind>');
-    emit(4, '<windmodeltype>Average</windmodeltype>');
+    // The multilevel profile, when there is one. The desktop writes BOTH wind
+    // elements and lets <windmodeltype> pick, which is also what our importer
+    // reads, so the average block above stays as the fallback a reader without
+    // multilevel support sees. Without this the profile imported fine and then
+    // vanished on the way back out.
+    const levels = launch.windLevels ?? [];
+    if (levels.length) {
+      emit(4, '<wind model="multilevel">');
+      for (const l of levels) {
+        // Attributes, not child elements, and direction in RADIANS like the
+        // average block's <direction>.
+        emit(
+          5,
+          `<windlevel altitude="${l.altitudeM}" speed="${l.speed}" direction="${(l.directionDeg * Math.PI) / 180}" standarddeviation="${l.stddev}"/>`,
+        );
+      }
+      emit(5, `<altitudereference>${(launch.windAltitudeReference ?? 'msl').toUpperCase()}</altitudereference>`);
+      emit(4, '</wind>');
+    }
+    emit(4, `<windmodeltype>${levels.length ? 'Multilevel' : 'Average'}</windmodeltype>`);
     emit(4, `<launchaltitude>${launch.launchAltitudeM}</launchaltitude>`);
     emit(4, `<launchlatitude>${launch.latitudeDeg}</launchlatitude>`);
     // We don't model longitude — the desktop's preference default.
     emit(4, '<launchlongitude>-80.6</launchlongitude>');
-    emit(4, '<geodeticmethod>spherical</geodeticmethod>');
-    if (launch.temperatureC === null && launch.pressureHPa === null) {
+    emit(4, `<geodeticmethod>${launch.geodetic ?? 'spherical'}</geodeticmethod>`);
+    // Gravity: only written when it is NOT the default, so a file that never
+    // touched it stays byte-comparable with what we used to produce.
+    if (launch.gravityModel === 'constant') {
+      emit(4, '<gravitymodel>Constant</gravitymodel>');
+      emit(4, `<constantgravity>${launch.constantGravity ?? 9.80665}</constantgravity>`);
+    }
+    if (launch.temperatureC === null && launch.pressureHPa === null && launch.relativeHumidity == null) {
       emit(4, '<atmosphere model="isa"/>');
     } else {
       // KELVIN / PASCAL on disk. The desktop stores both-or-ISA, so a
@@ -820,6 +850,12 @@ export function exportOrk({
       emit(4, '<atmosphere model="extendedisa">');
       emit(5, `<basetemperature>${(launch.temperatureC ?? 15) + 273.15}</basetemperature>`);
       emit(5, `<basepressure>${(launch.pressureHPa ?? 1013.25) * 100}</basepressure>`);
+      // Only when set: the desktop's atmosphere element carries temperature and
+      // pressure, so an unconditional humidity child would put something in
+      // every file for a value most of them never expressed.
+      if (launch.relativeHumidity != null) {
+        emit(5, `<relativehumidity>${launch.relativeHumidity}</relativehumidity>`);
+      }
       emit(4, '</atmosphere>');
     }
     // RK4SimulationStepper recommended defaults (the desktop's own values).

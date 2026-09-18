@@ -37,7 +37,8 @@ const LAPSE = 0.0065; // K/m (positive)
 
 /** The launch-condition fields this module reads (a structural subset). */
 export interface SizingLaunch {
-  launchAltitudeM?: number;
+  /** Null while the user has the field cleared; `airDensity` reads it as sea level. */
+  launchAltitudeM?: number | null;
   /** Site temperature override, deg C, or null to use the ISA value. */
   temperatureC?: number | null;
   /** Site pressure override, hPa, or null to use the ISA value. */

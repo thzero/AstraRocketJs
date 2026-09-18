@@ -1,7 +1,7 @@
-# Project vocabulary: rocketry and aerodynamics terms, .ork XML element
-# names, library and vendor names, and code abbreviations. Generated from the
-# tree once it was clean, then maintained by hand — add a word only when it is
 # genuinely ours, never to silence a real misspelling.
+# names, library and vendor names, and code abbreviations. Generated from the
+# Project vocabulary: rocketry and aerodynamics terms, .ork XML element
+# tree once it was clean, then maintained by hand — add a word only when it is
 AABB
 aabbggrr
 absarc
@@ -16,8 +16,11 @@ aftshoulderthickness
 airfoillediamond
 airfoilsection
 airfoiltediamond
+altitudeagl
 altitudeascending
 altitudedescending
+altitudemsl
+altitudereference
 angleoffset
 ARCAS
 astrarrocketjs
@@ -48,6 +51,7 @@ clusterscale
 CODATA
 Coeff
 configid
+constantgravity
 constructability
 cordlength
 cosθ
@@ -116,6 +120,7 @@ geodeticmethod
 GEOMS
 GLTF
 gradlew
+gravitymodel
 gridlines
 Guice
 haack
@@ -160,6 +165,7 @@ launchintowind
 launchlatitude
 launchlongitude
 launchlug
+launchrelativehumidity
 LAUNCHROD
 launchrodangle
 launchroddirection
@@ -249,12 +255,14 @@ refetched
 refetches
 refreshable
 reimplementation
+relativehumidity
 relativeto
 reselecting
 rocketcomponent
 ROCKETVISION
 rootchord
 Runge
+runnability
 Sampo
 screwheight
 sealevel
@@ -319,6 +327,7 @@ unconfigured
 underpredicts
 undoable
 unfloored
+unflyable
 unioned
 unmanifested
 unmemoized
@@ -328,6 +337,7 @@ unparseable
 Unrotated
 unrun
 unstub
+untick
 unwired
 uppercased
 upperignition

@@ -314,15 +314,27 @@ export interface SimulationOptions {
   /** Wind heading, RADIANS. Ignored when windLevels is set. */
   windDirection?: number;
   /** Altitude-layered wind (overrides windAverage/StdDev/Direction when non-empty).
-   *  altitude m (MSL), speed m/s, direction radians, stddev m/s. */
+   *  altitude m, speed m/s, direction radians, stddev m/s. Whether the altitude
+   *  is MSL or AGL is `windAltitudeReference`. */
   windLevels?: { altitude: number; speed: number; direction: number; stddev: number }[];
+  /** What a wind level's altitude is measured from (default 'msl', as the
+   *  kernel's MultiLevelPinkNoiseWindModel constructor sets). windLevels only. */
+  windAltitudeReference?: 'msl' | 'agl';
   /** Earth model for the trajectory: 'flat' | 'spherical' (default) | 'wgs84'. */
   geodetic?: 'flat' | 'spherical' | 'wgs84';
+  /** Gravity model: 'wgs' (default, varies with latitude/altitude) | 'constant'. */
+  gravityModel?: 'wgs' | 'constant';
+  /** g in m/s^2 for gravityModel 'constant' (default 9.80665). */
+  constantGravity?: number;
+  /** Max rotation per RK4 step, RADIANS. Default: the kernel's 3 degrees. */
+  maxAngleStep?: number;
   launchAltitude?: number;
   /** Launch-site temperature (K). Default: ISA standard. */
   temperature?: number;
   /** Launch-site pressure (Pa). Default: ISA standard. */
   pressure?: number;
+  /** Launch-site relative humidity as a FRACTION (0..1). Default: ISA standard. */
+  relativeHumidity?: number;
   /** DEGREES (exception to the radians rule — WorldCoordinate's own unit). */
   launchLatitude?: number;
   /** DEGREES (exception to the radians rule). */
@@ -998,10 +1010,15 @@ export class OpenRocketDesign {
         windStdDeviation: options.windStdDeviation ?? 0,
         windDirection: options.windDirection,
         windLevels: options.windLevels,
+        windAltitudeReference: options.windAltitudeReference,
         geodetic: options.geodetic,
+        gravityModel: options.gravityModel,
+        constantGravity: options.constantGravity,
+        maxAngleStep: options.maxAngleStep,
         launchAltitude: options.launchAltitude ?? 0,
         temperature: options.temperature,
         pressure: options.pressure,
+        relativeHumidity: options.relativeHumidity,
         launchLatitude: options.launchLatitude,
         launchLongitude: options.launchLongitude,
         timeStep: options.timeStep ?? 0.05,

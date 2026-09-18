@@ -49,6 +49,8 @@ export const LAUNCH_SI = {
     toSi: (v: number) => v * 100,
     fromSi: (v: number) => v / 100,
   },
+  /** Constant gravity: already m/s^2. */
+  accel: identity('acceleration'),
 } satisfies Record<string, LaunchUnitBridge>;
 
 export type LaunchUnitKind = keyof typeof LAUNCH_SI;

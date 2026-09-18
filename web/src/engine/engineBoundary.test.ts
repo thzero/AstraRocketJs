@@ -265,3 +265,73 @@ describe('component masses are ordered, not shuffled', () => {
     expect(names()).toEqual(before);
   });
 });
+
+/**
+ * The three options the bridge used to hardcode, proved against the REAL kernel
+ * rather than at the marshalling seam. An option the Java ignores looks exactly
+ * like a working one from the JS side, which is how all three sat unnoticed:
+ * the app sent nothing, so nothing looked missing. Each case therefore asserts
+ * the flight actually MOVED.
+ */
+describe('options the bridge used to hardcode reach the physics', () => {
+  const deg = (d: number) => (d * Math.PI) / 180;
+
+  const fly = (options: Record<string, unknown>) => {
+    const d = build();
+    d.setMotorById('tube', C6);
+    // Pinned seed: the default mints a fresh one per run, and two flights flown
+    // on different turbulence would compare nothing.
+    return d.simulate({ randomSeed: 7, ...options } as never).summary.maxAltitude;
+  };
+
+  const underG = (g: number) => fly({ gravityModel: 'constant', constantGravity: g });
+
+  it('coasts higher the weaker the constant gravity', () => {
+    // Monotonic rather than one threshold: any single ratio is a number someone
+    // has to re-tune, where the ORDER is the physics.
+    const [moon, mars, half, earth] = [underG(1.62), underG(3.71), underG(5), underG(9.80665)];
+    expect(moon).toBeGreaterThan(mars);
+    expect(mars).toBeGreaterThan(half);
+    expect(half).toBeGreaterThan(earth);
+  });
+
+  it('lands within a meter of WGS when the constant is sea-level g', () => {
+    // Not identical: WGS varies g with latitude and altitude and a constant does
+    // not. Close is the point, because it says the model swapped rather than broke.
+    expect(Math.abs(underG(9.80665) - fly({}))).toBeLessThan(1);
+  });
+
+  it('flies differently in humid air than in dry air', () => {
+    // Water vapor is lighter than dry air, so a humid pad is a thinner one.
+    // Small, but it has to be there: humidity was pinned to STANDARD before.
+    const at = (rh: number) => fly({ temperature: 303.15, pressure: 101325, relativeHumidity: rh });
+    expect(at(1)).not.toBe(at(0));
+  });
+
+  describe('the maximum angle step', () => {
+    // An angled rod in wind is the only case the cap binds in: straight up in
+    // still air the rocket barely rotates and the time step governs throughout.
+    const rotating = { launchRodAngle: deg(10), windAverage: 4, windStdDeviation: 0 };
+
+    it('changes the flight once it is tight enough to bind', () => {
+      const loose = fly({ ...rotating, maxAngleStep: deg(30) });
+      const tight = fly({ ...rotating, maxAngleStep: deg(0.1) });
+      expect(tight).not.toBe(loose);
+      expect(tight).toBeGreaterThan(0); // a shorter step, not a diverged run
+    });
+
+    it('tightens monotonically', () => {
+      const a = fly({ ...rotating, maxAngleStep: deg(30) });
+      const b = fly({ ...rotating, maxAngleStep: deg(0.5) });
+      const c = fly({ ...rotating, maxAngleStep: deg(0.1) });
+      expect(b).not.toBe(a);
+      expect(c).not.toBe(b);
+    });
+
+    it('defaults to the kernel RECOMMENDED_ANGLE_STEP when we send nothing', () => {
+      // Our DEFAULT_SETTINGS value is 3 degrees because that is what the kernel
+      // used while this could not be set. If upstream ever moves it, this fails.
+      expect(fly({ ...rotating, maxAngleStep: deg(3) })).toBe(fly(rotating));
+    });
+  });
+});

@@ -84,7 +84,7 @@ describe('launchLimitViolations', () => {
 
   it('leaves gusts alone', () => {
     // The codes speak about wind speed; a mean inside the limit with gusts above
-    // it is a judgement call this is not equipped to make.
+    // it is a judgment call this is not equipped to make.
     expect(launchLimitViolations({ ...base, windStdDev: 50 })).toEqual([]);
   });
 });

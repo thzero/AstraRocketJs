@@ -4,6 +4,7 @@
 import type { MotorSpec, FlightResult, IgnitionEvent } from '../engine/openRocketEngine';
 import type { MountMotor } from './loadOrk';
 import type { LaunchConditions } from './orkTree';
+import type { CompleteLaunch } from './requiredLaunch';
 import { uuid } from './uuid';
 
 export interface Simulation {
@@ -83,6 +84,12 @@ const rad = (deg: number) => (deg * Math.PI) / 180;
 export interface SimPrefs {
   timeStep: number;
   maxTime: number;
+  /**
+   * The most the rocket may rotate in one RK4 step, RADIANS. The stepper
+   * shortens its step to respect it, so a smaller value buys accuracy through a
+   * fast pitch-over without paying for it over the whole coast.
+   */
+  maxAngleStep: number;
   randomSeed: number | null;
   /** Recovery-deployment warning thresholds (m/s) - see SimulationSettings. */
   deploymentSpeedWarn: number;
@@ -104,9 +111,18 @@ export interface SimPrefs {
  */
 const freshSeed = (): number => Math.floor(Math.random() * 2 ** 32) - 2 ** 31;
 
-/** Map UI launch conditions (+ global sim prefs) to the engine's simulate() options
- *  (radians, kelvin, Pa). */
-export function simConditions(launch: LaunchConditions, prefs?: SimPrefs) {
+/**
+ * Map UI launch conditions (+ global sim prefs) to the engine's simulate()
+ * options (radians, kelvin, Pa).
+ *
+ * Takes a COMPLETE launch: the required fields are `number | null` in the
+ * editor, because a cleared field has to be distinguishable from a typed zero,
+ * and the type says that distinction is already resolved by the time anything
+ * reaches the engine. `runSims` refuses an incomplete simulation before it gets
+ * here (see services/runnability), so this cannot invent a value to paper over
+ * a blank -- which is exactly what the old `v ?? 0` coercion did.
+ */
+export function simConditions(launch: CompleteLaunch, prefs?: SimPrefs) {
   // "Launch into the wind" aims the rod at the surface wind heading, overriding
   // the manual rod direction. Multilevel wind → use the lowest (surface) level.
   const windDirDeg = launch.windLevels?.[0]?.directionDeg ?? launch.windDirectionDeg ?? 90;
@@ -124,12 +140,19 @@ export function simConditions(launch: LaunchConditions, prefs?: SimPrefs) {
       direction: rad(l.directionDeg),
       stddev: l.stddev,
     })),
+    windAltitudeReference: launch.windAltitudeReference,
     geodetic: launch.geodetic,
+    gravityModel: launch.gravityModel,
+    constantGravity: launch.constantGravity,
+    maxAngleStep: prefs?.maxAngleStep,
     launchAltitude: launch.launchAltitudeM,
     launchLatitude: launch.latitudeDeg,
     launchLongitude: launch.longitudeDeg,
     temperature: launch.temperatureC != null ? launch.temperatureC + 273.15 : undefined,
     pressure: launch.pressureHPa != null ? launch.pressureHPa * 100 : undefined,
+    // Omitted rather than sent as standard when null: the bridge reads an absent
+    // key as NaN and only leaves ISA when one of the three is actually given.
+    relativeHumidity: launch.relativeHumidity ?? undefined,
     timeStep: prefs?.timeStep,
     maxTime: prefs?.maxTime,
     randomSeed: prefs?.randomSeed ?? freshSeed(),

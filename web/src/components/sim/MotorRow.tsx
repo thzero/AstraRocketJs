@@ -26,6 +26,7 @@ export function MotorRow({
   onIgnitionChange,
   onCommit,
   upperStage,
+  soloEdit,
 }: {
   motor: MotorSpec | null;
   onChange: (m: MotorSpec) => void;
@@ -41,6 +42,15 @@ export function MotorRow({
   onCommit?: () => void;
   /** This mount is on an upper stage — offer the sustainer triggers + "never". */
   upperStage?: boolean;
+  /**
+   * A multi-row selection is being edited, and this card is NOT part of it.
+   *
+   * Not a warning about overwriting, which is what the amber marker means
+   * elsewhere: a motor change only ever touches the active simulation, so the
+   * card says which one it is about instead. Rows differing on motor is the
+   * normal state of a comparison, not something to flag.
+   */
+  soloEdit?: boolean;
 }) {
   const { t } = useTranslation();
   const u = useUnits();
@@ -55,10 +65,13 @@ export function MotorRow({
   // to say which tube it seats.
   const cardLabel = title ?? t('sims.motor');
   return (
-    <section aria-label={cardLabel} className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
+    <section aria-label={cardLabel} className={'rounded-xl bg-slate-900 p-3 ring-1 ring-white/10'}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-[10px] uppercase tracking-wide text-slate-400">{cardLabel}</div>
+          <div className="flex items-baseline gap-2 text-[10px] uppercase tracking-wide text-slate-400">
+            {cardLabel}
+            {soloEdit && <span className="normal-case text-slate-500">{t('sims.thisOneOnly')}</span>}
+          </div>
           {motor ? (
             <>
               <div className="truncate text-lg font-semibold text-sky-400">{motor.designation}</div>

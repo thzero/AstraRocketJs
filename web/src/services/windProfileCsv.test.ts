@@ -1,0 +1,74 @@
+import { describe, it, expect } from 'vitest';
+import { parseWindProfileCsv, WindProfileCsvError } from './windProfileCsv';
+
+const csv = (...rows: string[]) => rows.join('\n');
+
+describe('parseWindProfileCsv', () => {
+  it('reads the desktop convenience format', () => {
+    const levels = parseWindProfileCsv(
+      csv('altitude,speed,direction,stddev', '0,4,90,0.4', '500,8,110,1.2', '1000,12,130,2.4'),
+    );
+    expect(levels).toEqual([
+      { altitudeM: 0, speed: 4, directionDeg: 90, stddev: 0.4 },
+      { altitudeM: 500, speed: 8, directionDeg: 110, stddev: 1.2 },
+      { altitudeM: 1000, speed: 12, directionDeg: 130, stddev: 2.4 },
+    ]);
+  });
+
+  it('sorts by altitude however the file was ordered', () => {
+    const levels = parseWindProfileCsv(csv('altitude,speed,direction,stddev', '900,9,90,0', '0,3,90,0', '300,5,90,0'));
+    expect(levels.map((l) => l.altitudeM)).toEqual([0, 300, 900]);
+  });
+
+  it('treats the standard deviation as optional, column and cell alike', () => {
+    expect(parseWindProfileCsv(csv('altitude,speed,direction', '0,4,90'))[0]!.stddev).toBe(0);
+    expect(parseWindProfileCsv(csv('altitude,speed,direction,stddev', '0,4,90,'))[0]!.stddev).toBe(0);
+  });
+
+  it('accepts semicolon and tab separated files', () => {
+    expect(parseWindProfileCsv(csv('altitude;speed;direction', '0;4;90'))[0]!.speed).toBe(4);
+    expect(parseWindProfileCsv(csv('altitude\tspeed\tdirection', '0\t4\t90'))[0]!.speed).toBe(4);
+  });
+
+  it('accepts the header spellings a sounding actually ships with', () => {
+    const levels = parseWindProfileCsv(csv('Altitude MSL,Wind Speed,Heading,Std_Dev', '0,4,90,0.4'));
+    expect(levels[0]).toEqual({ altitudeM: 0, speed: 4, directionDeg: 90, stddev: 0.4 });
+  });
+
+  it('survives a spreadsheet BOM on the first header', () => {
+    expect(parseWindProfileCsv('﻿altitude,speed,direction\n0,4,90')).toHaveLength(1);
+  });
+
+  it('skips blank lines rather than failing on them', () => {
+    expect(parseWindProfileCsv(csv('altitude,speed,direction', '0,4,90', '', '500,8,90', ''))).toHaveLength(2);
+  });
+
+  it('rejects a file with no usable columns', () => {
+    expect(() => parseWindProfileCsv(csv('height,knots', '0,4'))).toThrow(WindProfileCsvError);
+    try {
+      parseWindProfileCsv(csv('height,knots', '0,4'));
+    } catch (e) {
+      expect((e as WindProfileCsvError).key).toBe('missingColumns');
+    }
+  });
+
+  it('reports the line for a short or non-numeric row', () => {
+    try {
+      parseWindProfileCsv(csv('altitude,speed,direction', '0,4,90', '500,8'));
+    } catch (e) {
+      expect((e as WindProfileCsvError).key).toBe('shortRow');
+      expect((e as WindProfileCsvError).line).toBe(3);
+    }
+    try {
+      parseWindProfileCsv(csv('altitude,speed,direction', '0,brisk,90'));
+    } catch (e) {
+      expect((e as WindProfileCsvError).key).toBe('badNumber');
+      expect((e as WindProfileCsvError).line).toBe(2);
+    }
+  });
+
+  it('rejects an empty file and a header with no rows', () => {
+    expect(() => parseWindProfileCsv('   ')).toThrow(/emptyFile/);
+    expect(() => parseWindProfileCsv('altitude,speed,direction')).toThrow(/noData/);
+  });
+});

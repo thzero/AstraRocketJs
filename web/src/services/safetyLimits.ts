@@ -53,7 +53,7 @@ function surfaceWindMs(launch: LaunchConditions): number {
  * something a launch is called on, because they are not something anyone at the
  * field measures. Gust standard deviation is left alone for a related reason:
  * the codes speak about wind speed, and a mean inside the limit with gusts above
- * it is a judgement call this is not equipped to make.
+ * it is a judgment call this is not equipped to make.
  */
 export function launchLimitViolations(launch: LaunchConditions): LimitViolation[] {
   const out: LimitViolation[] = [];

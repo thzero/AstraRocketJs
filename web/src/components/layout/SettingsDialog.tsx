@@ -6,6 +6,7 @@ import { PART_KEYS, mergePalette } from '../../services/partColors';
 import { NumberInput } from '../common/NumberInput';
 import { useFocusTrap } from '../common/useFocusTrap';
 import { LaunchPanel } from '../sim/LaunchPanel';
+import { withRequiredFrom } from '../../services/requiredLaunch';
 import { IMPERIAL_UNITS, METRIC_UNITS, QUANTITIES, UNITS } from '../../prefs/units';
 import { useUnits } from '../../prefs/useUnits';
 
@@ -299,6 +300,19 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
                 onChange={(v) => setSim({ maxTime: v ?? DEFAULT_SETTINGS.simulation.maxTime })}
               />
               <NumRow
+                label={t('settings.maxAngleStep')}
+                unit="°"
+                step={0.5}
+                min={0.05}
+                // Stored in radians like the kernel's field; shown in degrees.
+                value={+((settings.simulation.maxAngleStep * 180) / Math.PI).toFixed(3)}
+                onChange={(v) =>
+                  setSim({
+                    maxAngleStep: v == null ? DEFAULT_SETTINGS.simulation.maxAngleStep : (v * Math.PI) / 180,
+                  })
+                }
+              />
+              <NumRow
                 label={t('settings.randomSeed')}
                 step={1}
                 placeholder={t('settings.seedAuto')}
@@ -376,9 +390,21 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
           {tab === 'launch' && (
             <>
               <p className="text-[11px] leading-snug text-slate-500">{t('settings.launchNote')}</p>
+              {/* These are the values a NEW simulation is seeded from, so a
+                  blank one would hand every future simulation a hole. Clearing
+                  a required field here keeps what it had rather than storing
+                  the blank -- which is why no red marker ever shows up in this
+                  copy of the panel. */}
               <LaunchPanel
                 launch={settings.launchDefaults}
-                onChange={(patch) => update({ launchDefaults: { ...settings.launchDefaults, ...patch } })}
+                onChange={(patch) =>
+                  update({
+                    launchDefaults: withRequiredFrom(
+                      { ...settings.launchDefaults, ...patch },
+                      DEFAULT_SETTINGS.launchDefaults,
+                    ),
+                  })
+                }
               />
             </>
           )}

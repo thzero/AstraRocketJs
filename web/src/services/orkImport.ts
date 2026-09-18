@@ -8,6 +8,7 @@ import {
 import { freshId, type LaunchConditions } from './orkTree';
 import { shapeParamDefault } from '../tree/shapeProfile';
 import { xmlText as text } from './xmlUtil';
+import { stdDevForIntensity } from './windTurbulence';
 import type { OrkMotorRef, OrkFlightConfig, OrkDeployOverride, OrkImportResult } from './orkTypes';
 
 // Decompression caps for the untrusted `.ork` zip (a real design is a few
@@ -722,7 +723,7 @@ function readLaunchConditions(doc: Document): Partial<LaunchConditions> | undefi
   let sd = avgEl ? numTag(avgEl, 'standarddeviation', NaN) : NaN;
   if (Number.isNaN(sd)) {
     const turb = numTag(condEl, 'windturbulence', NaN);
-    if (!Number.isNaN(turb) && !Number.isNaN(avg)) sd = turb * avg;
+    if (!Number.isNaN(turb) && !Number.isNaN(avg)) sd = stdDevForIntensity(avg, turb);
   }
   if (!Number.isNaN(sd)) launch.windStdDev = sd;
   let dirRad = avgEl ? numTag(avgEl, 'direction', NaN) : NaN;
@@ -740,6 +741,13 @@ function readLaunchConditions(doc: Document): Partial<LaunchConditions> | undefi
       stddev: parseFloat(w.getAttribute('standarddeviation') ?? '0') || 0,
     }));
     if (levels.length) launch.windLevels = levels;
+    // MSL unless the file says AGL. Written as a child element by the desktop,
+    // but read either way: it is one token and an attribute spelling costs
+    // nothing to accept.
+    const ref = (text(mlEl, ':scope > altitudereference') ?? mlEl.getAttribute('altitudereference') ?? '')
+      .trim()
+      .toLowerCase();
+    if (ref === 'agl' || ref === 'msl') launch.windAltitudeReference = ref;
   }
 
   const alt = numTag(condEl, 'launchaltitude', NaN);
@@ -759,6 +767,20 @@ function readLaunchConditions(doc: Document): Partial<LaunchConditions> | undefi
       const pPa = numTag(atmEl, 'basepressure', NaN);
       if (!Number.isNaN(pPa)) launch.pressureHPa = pPa / 100;
     }
+    // A FRACTION on disk, as the kernel holds it. Read from either place: we
+    // write it inside <atmosphere>, and a desktop that carries it alongside the
+    // other launch fields puts it on <conditions>.
+    const rh = numTag(atmEl, 'relativehumidity', numTag(condEl, 'launchrelativehumidity', NaN));
+    if (!Number.isNaN(rh)) launch.relativeHumidity = rh;
+  }
+
+  const gravity = (text(condEl, ':scope > gravitymodel') ?? '').trim().toLowerCase();
+  if (gravity === 'constant') {
+    launch.gravityModel = 'constant';
+    const g = numTag(condEl, 'constantgravity', NaN);
+    if (!Number.isNaN(g)) launch.constantGravity = g;
+  } else if (gravity === 'wgs') {
+    launch.gravityModel = 'wgs';
   }
 
   const gm = (text(condEl, ':scope > geodeticmethod') ?? '').toLowerCase();

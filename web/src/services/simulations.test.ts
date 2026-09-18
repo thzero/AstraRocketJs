@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { simConditions, type SimPrefs } from './simulations';
-import type { LaunchConditions } from './orkTree';
+import type { CompleteLaunch } from './requiredLaunch';
 
-const base: LaunchConditions = {
+const base: CompleteLaunch = {
   launchRodLengthM: 1,
   launchRodAngleDeg: 0,
   launchRodDirectionDeg: 90,
@@ -22,6 +22,7 @@ const deg2rad = (d: number) => (d * Math.PI) / 180;
 const PREFS: SimPrefs = {
   timeStep: 0.01,
   maxTime: 60,
+  maxAngleStep: deg2rad(3),
   randomSeed: null,
   deploymentSpeedWarn: 20,
   mainHighSpeedWarn: 30.48,
@@ -62,7 +63,7 @@ describe('simConditions', () => {
 
   it('defaults a missing rod direction to 90°', () => {
     const { launchRodDirectionDeg: _omit, ...noDir } = base;
-    const c = simConditions(noDir as LaunchConditions);
+    const c = simConditions(noDir as CompleteLaunch);
     expect(c.launchRodDirection).toBeCloseTo(deg2rad(90), 9);
   });
 

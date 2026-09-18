@@ -30,26 +30,49 @@ export interface WindLevel {
 }
 
 export interface LaunchConditions {
-  launchRodLengthM: number;
-  launchRodAngleDeg: number;
+  launchRodLengthM: number | null;
+  launchRodAngleDeg: number | null;
   /** Launch-rod compass heading, degrees. Ignored when launchIntoWind is set. */
   launchRodDirectionDeg?: number;
   /** When true, aim the rod into the wind (overrides the rod direction). */
   launchIntoWind?: boolean;
-  windAverage: number;
-  windStdDev: number;
+  windAverage: number | null;
+  windStdDev: number | null;
   /** Wind heading, degrees (single-wind model). */
   windDirectionDeg?: number;
   /** Altitude-layered wind profile (24.x multilevel); overrides the single wind. */
   windLevels?: WindLevel[];
-  launchAltitudeM: number;
-  latitudeDeg: number;
+  /**
+   * What a wind level's altitude is measured FROM. OpenRocket's
+   * `MultiLevelPinkNoiseWindModel.AltitudeReference`, defaulting to MSL as the
+   * kernel's constructor does. It only means something with `windLevels` set.
+   *
+   * A sounding is published MSL, but a range briefing is given AGL, and at a
+   * 1500 m site the two are different winds entirely.
+   */
+  windAltitudeReference?: 'msl' | 'agl';
+  launchAltitudeM: number | null;
+  latitudeDeg: number | null;
   /** Launch-site longitude, degrees (WGS84 Coriolis; optional). */
   longitudeDeg?: number;
   /** Earth model for the trajectory. */
   geodetic?: 'flat' | 'spherical' | 'wgs84';
+  /**
+   * Gravity model. 'wgs' (the default) varies g with latitude and altitude;
+   * 'constant' holds it at {@link constantGravity}, which is what you want when
+   * checking against a hand calculation that assumed one number.
+   */
+  gravityModel?: 'wgs' | 'constant';
+  /** g in m/s^2, used only when `gravityModel` is 'constant'. */
+  constantGravity?: number;
   /** null when the file declares the ISA standard atmosphere. */
   temperatureC: number | null;
   /** null when the file declares the ISA standard atmosphere. */
   pressureHPa: number | null;
+  /**
+   * Relative humidity as a FRACTION (0..1), like the kernel's own field, or
+   * null for the ISA standard. Water vapor is lighter than dry air, so a humid
+   * pad is a slightly thinner one.
+   */
+  relativeHumidity?: number | null;
 }

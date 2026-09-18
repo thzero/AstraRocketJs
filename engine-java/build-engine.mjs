@@ -25,9 +25,9 @@ import { copyFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
+import { gradleArgv, javaExe } from './gradle-exec.mjs';
 
 const engineRoot = dirname(fileURLToPath(import.meta.url));
-const gradlew = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
 // Neither flag (or both) means both targets, which is the case that has to be right by default:
 // the two artifacts are a matched pair and a half-rebuilt pair is silently wrong at runtime.
 // `--both` is still accepted, as an explicit spelling of the default.
@@ -89,11 +89,10 @@ const NO_DAEMON = process.env.CI ? ['--no-daemon'] : [];
 for (const target of targets) {
   const { gradleTask } = TARGETS[target];
   console.error(`build-engine: compiling with TeaVM (gradlew ${gradleTask}) …`);
-  execFileSync(join(engineRoot, gradlew), [gradleTask, '--console=plain', ...NO_DAEMON], {
+  execFileSync(javaExe(env), gradleArgv(engineRoot, [gradleTask, '--console=plain', ...NO_DAEMON], env), {
     cwd: engineRoot,
     env,
     stdio: ['ignore', 'inherit', 'inherit'],
-    shell: process.platform === 'win32',
   });
 }
 

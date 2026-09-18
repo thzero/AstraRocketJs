@@ -1,5 +1,5 @@
 import type { PartKey } from './partColors';
-import type { LaunchConditions } from './orkTree';
+import type { CompleteLaunch } from './requiredLaunch';
 import {
   METRIC_UNITS,
   UNIT_CHOICES,
@@ -11,7 +11,7 @@ import {
 } from '../prefs/units';
 
 // Sea-level, calm, standard-atmosphere defaults (Cape Canaveral latitude).
-const DEFAULT_LAUNCH: LaunchConditions = {
+const DEFAULT_LAUNCH: CompleteLaunch = {
   launchRodLengthM: 1,
   launchRodAngleDeg: 0,
   launchRodDirectionDeg: 90,
@@ -38,6 +38,12 @@ export interface SimulationSettings {
   timeStep: number;
   /** Cap on simulated flight time (s) — ends a run that never lands. OR default 1200. */
   maxTime: number;
+  /**
+   * The most the rocket may rotate in one RK4 step, RADIANS. The stepper
+   * shortens dt to respect it, so this buys accuracy through a fast pitch-over
+   * without paying for it over the whole coast. OR default: 3 degrees.
+   */
+  maxAngleStep: number;
   /** Fixed seed for wind-turbulence reproducibility; null = random each run. */
   randomSeed: number | null;
   /** Ask for confirmation before deleting a simulation. */
@@ -101,7 +107,14 @@ export interface Settings {
   /** Global simulation preferences. */
   simulation: SimulationSettings;
   /** Default launch conditions for newly-created simulations. */
-  launchDefaults: LaunchConditions;
+  /**
+   * What a NEW simulation is seeded from, so it is always COMPLETE: the six
+   * required launch fields can be blank on a simulation (a cleared field has
+   * to be distinguishable from a typed zero) but never here, or every future
+   * simulation would start with a hole. The sanitizer below repairs a blank
+   * back to the built-in default, and the Settings panel refuses to store one.
+   */
+  launchDefaults: CompleteLaunch;
   /** Show the CG / CP / margin markers on the 2D & 3D views. */
   showMarkers: boolean;
   /** Show the length · mass · CG · CP · stability info card on the 2D & 3D views. */
@@ -173,6 +186,9 @@ export const DEFAULT_SETTINGS: Settings = {
   simulation: {
     timeStep: 0.05,
     maxTime: 1200,
+    // The kernel's own RECOMMENDED_ANGLE_STEP (AbstractRKSimulationStepper),
+    // which is what every run used before this was settable.
+    maxAngleStep: (3 * Math.PI) / 180,
     randomSeed: null,
     confirmDelete: true,
     autoRunOutdated: false,
@@ -231,6 +247,8 @@ export function loadSettings(): Settings {
         const pos = (v: number, d: number) => (Number.isFinite(v) && v > 0 ? v : d);
         sim.timeStep = pos(sim.timeStep, DEFAULT_SETTINGS.simulation.timeStep);
         sim.maxTime = pos(sim.maxTime, DEFAULT_SETTINGS.simulation.maxTime);
+        // Zero or negative would make the stepper's dt go to zero or flip sign.
+        sim.maxAngleStep = pos(sim.maxAngleStep, DEFAULT_SETTINGS.simulation.maxAngleStep);
         // These reach the kernel too, so the same guard applies.
         sim.deploymentSpeedWarn = pos(sim.deploymentSpeedWarn, DEFAULT_SETTINGS.simulation.deploymentSpeedWarn);
         sim.mainHighSpeedWarn = pos(sim.mainHighSpeedWarn, DEFAULT_SETTINGS.simulation.mainHighSpeedWarn);
