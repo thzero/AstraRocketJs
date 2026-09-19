@@ -31,7 +31,7 @@ sidebar_position: 2
 
 ## Platform
 - **Client-only** — no server, no accounts, nothing uploaded. A working copy of your design persists in the browser (so a refresh won't lose it); the design itself is a `.ork` file on your disk.
-- **Responsive** — a three-pane desktop workbench that becomes tabs on a phone (Rocket · Sketch · Simulate, plus **Results** once a run has produced one), where the rocket views turn a quarter turn so the airframe runs down the long edge of the screen and dialogs fill it.
+- **Responsive** — a desktop workbench of three tabs (Design · Simulations · Results), each laid out the way its own job needs, with draggable dividers, remembered pane widths and a button that gives the drawing the whole window. On a phone it becomes tabs along the bottom (Rocket · Sketch · Simulate, plus **Results** once a run has produced one), where the rocket views turn a quarter turn so the airframe runs down the long edge of the screen and dialogs fill it.
 - **Your choice of units** — metric or imperial presets, or a unit per quantity (component and motor dimensions, altitude, mass, velocity, wind, acceleration, angle, density, temperature, pressure, thrust, impulse). The unit beside any value is also a picker for that one field. Designs stay SI, so switching never edits a rocket. See **[Settings](./settings.md#units)**.
 - **Keyboard navigation** — the component tree is fully arrow-key navigable (broader accessibility is an ongoing effort).
 - Available in **English and Spanish**.

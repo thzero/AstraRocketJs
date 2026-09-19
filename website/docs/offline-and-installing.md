@@ -39,7 +39,11 @@ Installing gives it its own icon and its own window, without browser tabs and ad
 
 ## Updates
 
-When a new version ships, a small message appears offering to **reload**. It won't reload on its own — that could interrupt a design you're in the middle of. Dismiss it and you'll keep using the current version until you next reload, whenever suits you.
+When a new version ships, a small message appears at the bottom of the window offering to **reload**. It won't reload on its own, because that could interrupt a design you're in the middle of, and it is not a dialog for the same reason: it says its piece and lets you finish what you were typing.
+
+**Later** puts it away and brings it back in a couple of hours. The **✕** keeps the current version until you next reload, whenever suits you.
+
+The app looks for a new version about once an hour, and again whenever you come back to the tab or your connection returns, so a tab left open all day still finds out that something shipped.
 
 Motor and component catalogs refresh separately from the app itself, in the background, so new motors reach you without an app update.
 

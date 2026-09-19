@@ -12,11 +12,19 @@ When it loads you'll see a brief splash while the physics engine loads, then a s
 
 ## The layout
 
-On a desktop the screen is a **three-pane workbench**:
+On a desktop the workbench is three **tabs**, in the top bar beside the app name. Each one lays the window out the way its own job needs, rather than all three sharing one fixed grid:
 
-- **Left — Components.** The rocket's component tree. Add, select, and edit parts here.
-- **Center — Rocket view.** Your rocket, with a toolbar to switch views (2D · 3D · Aero · and, after a sim, Flight · 3D path), toggles for the **CG / CP** markers and the quick-glance **info** card, and — in 2D — presets, calipers, and zoom. A **stats strip** along the bottom shows length, mass, CG, CP, stability, and more.
-- **Right — Simulations.** Your simulation(s), the **Run** button, launch setup, and results.
+- **Design.** The component tree on the left, the rocket view in the center, the selected part's editor on the right.
+- **Simulations.** The table of runs across the full width, with the selected simulation's editor (motor, ignition, launch setup, options) on the right.
+- **Results.** The flight charts, ground track and 3D path in the center, the run's numbers on the right. It appears once a simulation has produced a result, and a finished run takes you straight to it.
+
+The **rocket view** in the center has a toolbar to switch views (2D · 3D · Aero · and, after a sim, Flight · Ground track · 3D path), toggles for the **CG / CP** markers and the quick-glance **info** card, and, in 2D, presets, calipers and zoom. A **static statistics** strip along the bottom shows length, mass, CG, CP, stability and more.
+
+### Sizing the panes {#sizing-the-panes}
+
+The side columns are yours to size. Drag the divider between a column and the rocket view, or give it keyboard focus and use the arrow keys (Shift for bigger steps, Home and End for the extremes). Double-click a divider to put it back where it started. The three right-hand columns share one width, so setting it on any tab sets it on all of them, and both widths are remembered between visits.
+
+The **⤢** button at the right end of the rocket view's toolbar gives the drawing the whole window: both side columns and the statistics strip step aside, which roughly doubles the room a drawing has. An airframe is 15-25x longer than it is wide, so that horizontal space is what it runs out of first. Press **Escape**, or the same button, to bring the panels back.
 
 On a **phone** the same areas become tabs along the bottom, because there is no room to show them side by side:
 

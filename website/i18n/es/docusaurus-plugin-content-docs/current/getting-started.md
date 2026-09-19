@@ -12,11 +12,19 @@ Al cargar verás una breve pantalla de inicio mientras se carga el motor de fís
 
 ## La disposición {#the-layout}
 
-En un ordenador la pantalla es un **banco de trabajo de tres paneles**:
+En un ordenador el banco de trabajo son tres **pestañas**, en la barra superior junto al nombre de la aplicación. Cada una organiza la ventana como su propia tarea necesita, en vez de compartir las tres una única cuadrícula fija:
 
-- **Izquierda — Componentes.** El árbol de componentes del cohete. Aquí añades, seleccionas y editas piezas.
-- **Centro — Vista del cohete.** Tu cohete, con una barra para cambiar de vista (2D · 3D · Aero · y, tras una simulación, Vuelo · Trayectoria 3D), interruptores para los marcadores **CG / CP** y la tarjeta de **información** rápida, y —en 2D— preajustes, calibres y zoom. Una **franja de estadísticas** en la parte inferior muestra longitud, masa, CG, CP, estabilidad y más.
-- **Derecha — Simulaciones.** Tus simulaciones, el botón **Simular**, la configuración de lanzamiento y los resultados.
+- **Diseño.** El árbol de componentes a la izquierda, la vista del cohete en el centro y el editor de la pieza seleccionada a la derecha.
+- **Simulaciones.** La tabla de ejecuciones a todo lo ancho, con el editor de la simulación seleccionada (motor, ignición, configuración de lanzamiento, opciones) a la derecha.
+- **Resultados.** Las gráficas de vuelo, la traza en tierra y la trayectoria 3D en el centro, y los números de la ejecución a la derecha. Aparece en cuanto una simulación ha producido un resultado, y al terminar una ejecución te lleva directamente allí.
+
+La **vista del cohete** del centro tiene una barra para cambiar de vista (2D · 3D · Aero · y, tras una simulación, Vuelo · Traza en tierra · Trayectoria 3D), interruptores para los marcadores **CG / CP** y la tarjeta de **información** rápida, y, en 2D, preajustes, calibres y zoom. Una franja de **estadísticas estáticas** en la parte inferior muestra longitud, masa, CG, CP, estabilidad y más.
+
+### Ajustar el tamaño de los paneles {#sizing-the-panes}
+
+Las columnas laterales las dimensionas tú. Arrastra el divisor entre una columna y la vista del cohete, o dale el foco del teclado y usa las flechas (Mayús para pasos mayores, Inicio y Fin para los extremos). Haz doble clic en un divisor para devolverlo a su sitio. Las tres columnas de la derecha comparten una misma anchura, así que ajustarla en cualquier pestaña la ajusta en todas, y ambas anchuras se recuerdan de una visita a otra.
+
+El botón **⤢** del extremo derecho de la barra de la vista del cohete le da a la ventana entera al dibujo: las dos columnas laterales y la franja de estadísticas se apartan, lo que casi duplica el espacio disponible. Un fuselaje es de 15 a 25 veces más largo que ancho, así que ese espacio horizontal es el primero que se agota. Pulsa **Escape**, o el mismo botón, para recuperar los paneles.
 
 En un **teléfono** las mismas áreas pasan a ser pestañas en la parte inferior, porque no hay sitio para mostrarlas una al lado de otra:
 
