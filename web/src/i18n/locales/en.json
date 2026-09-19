@@ -1111,7 +1111,10 @@
   },
   "update": {
     "available": "A new version is available.",
+    "running": "You are running v{{version}}.",
     "reload": "Reload",
+    "later": "Later",
+    "laterTitle": "Remind me again in about {{hours}} hours",
     "dismiss": "Dismiss"
   },
   "storage": {
