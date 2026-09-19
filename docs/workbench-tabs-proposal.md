@@ -1,6 +1,6 @@
 # Proposal: tabbed workbench, right-hand property editor, parallel simulations
 
-> Design proposal / decision record. Status: **Phases 1-3 implemented; Phase 4 proposed.** Companion to the [Architecture & internals](https://thzero.github.io/AstraRocketJs/docs/architecture) documentation page and to [`engine-worker-proposal.md`](./engine-worker-proposal.md), whose Phase 1 transport this builds on.
+> Design proposal / decision record. Status: **Phases 1-4 implemented.** Companion to the [Architecture & internals](https://thzero.github.io/AstraRocketJs/docs/architecture) documentation page and to [`engine-worker-proposal.md`](./engine-worker-proposal.md), whose Phase 1 transport this builds on.
 
 ## Problem
 
@@ -115,13 +115,15 @@ This is the substantive engineering. `simClient.ts` holds one worker with one en
 
 `BusyLock` locks the design editor while `simBusy` is set, because canvas drags are design edits and a run in flight would be describing a rocket that changed underneath it. Once simulations live on their own tab, the design editor is not on screen during a run, and locking the entire editor for a twelve-sim batch would be the wrong behavior regardless. The `ranOn` guard is the real correctness mechanism; `BusyLock` can be dropped from the desktop design path.
 
+**Resolved 2026-09-18: the component is gone entirely.** Dropping it from the design panes left it on the simulation editor, where the hazard was the row's OWN inputs rather than the design. `simInputs` / `sameSimInputs` now give each row the same identity check `ranOn` gives the tree, so an answer flown against a motor, ignition, launch condition or run override the user has since changed is discarded instead of installed. Nothing is locked anywhere: an edit during a run costs that run.
+
 ---
 
 ## Results tab
 
 Center keeps `FlightChart`, `FlightPath3D` and `FlightPathExport` as they are. Two additions the split makes cheap:
 
-- **Left: multi-select over simulations**, so several runs overlay on one chart. OpenRocket cannot do this in a single plot window, and once the results view is no longer bound to `selectActive(s).result` it is mostly a series-mapping change.
+- **Left: multi-select over simulations**, so several runs overlay on one chart. OpenRocket cannot do this in a single plot window, and once the results view is no longer bound to `selectActive(s).result` it is mostly a series-mapping change. *(Not taken: the Results picker that landed is single-select. The view is no longer bound to the active row, so an overlay remains a series-mapping change on top of it if it is ever wanted.)*
 - **Right: plot configuration** (series, axes) plus the `SimSummary` tiles, which on mobile already head the Results tab (`CenterView` renders them `lg:hidden` above the charts).
 
 The top-down ground track listed in `TODO.md` lands here as a sixth `ViewMode`, using the projection math already in `flightPathExport.ts`.
@@ -310,12 +312,15 @@ Also done:
 - **Run all outdated.** A toolbar button counting what it will fly (`Run outdated (n)`), deliberately independent of the tick boxes: "bring this workspace up to date" is a different question from "fly these rows". It never navigates, even when exactly one row is stale, which is why `runSims` gained a `reveal` option.
 - **`BusyLock` dropped from the design path** - the component tree, the property editor and the 2D/3D canvas. An edit during a run now costs the run rather than freezing the app for it: `runSims` already discarded every answer flown against a different tree, so the lock was preventing what was already handled. With a pool a batch can be seconds long, which made the trade worse.
 
-Still open:
-- **`BusyLock` on the simulation editor.** A different hazard, and a real one: a run installs its result with `outdated: false` while editing a simulation's launch conditions sets `outdated: true`, so an edit made mid-run would be overwritten by an answer computed from the conditions it replaced, and the row would claim to be current. Closing it needs the same identity check `ranOn` does, per simulation.
+- **`BusyLock` deleted.** The simulation editor was the last holdout, because the hazard there was the row's own inputs rather than the design: a run installs its result with `outdated: false`, while editing that simulation's launch conditions sets `outdated: true`, so the answer would overwrite the edit and the row would claim to be current. `simInputs` / `sameSimInputs` capture what a row is flown from and compare it again at install time, exactly as `ranOn` does for the tree, so the answer is dropped instead. No pane is locked during a run any more.
 
-### Phase 4 - results depth
-- Multi-sim overlay, plot config panel.
-- Ground-track view (see `TODO.md`).
+### Phase 4 - results depth - PARTLY DONE (2026-09-19)
+
+Done:
+- **Results picker.** `FlightChart` took a bare `result`; it takes a named `ChartFlight` and gets it from a picker that IS the pane heading (a title plus a dropdown showing the same name was one thing said twice). Single-select: the Results tab reads one flight at a time, and the choice governs the charts, the ground track and the 3D path alike. It is offered only when the LAST RUN flew more than one simulation, and then lists exactly those - gating on "simulations that have a result" was wrong, because results persist, so running one simulation after having run another put a dropdown on screen for a single run (`lastRunIds`). Every run also lands on Results now, batch included: `runSims` used to navigate only for a single flight. `resultFlight` resolves it, falling back to the active row whenever the choice cannot be honored, since an empty tab with a chart frame and no data reads as a bug. It is its own control rather than the Simulations table's ticks - those answer "which rows should Run fly", and sharing one meant reading a result re-armed the Run button, or ticking rows to fly them yanked the charts around. `buildTraces` came out of this as a pure, tested function: one trace per branch, keyed by simulation id as well as branch index so switching flights resets the chart's trace selection instead of carrying one flight's choice onto another's stages.
+- **Plot config.** The chip bar already chose the panels; the choice was component state and reset on every visit to the Results tab. It is `settings.flightSeries` now. `visibleSeries` narrows a saved list to the keys this build has and returns them in chart order, so a preference written by another version costs one panel rather than blanking the view or reshuffling the stack.
+
+- **Ground-track view.** A sixth `ViewMode` (`ground`) beside Flight and 3D path. `services/groundTrack.ts` is the pure half - pulling `Px`/`Py` into a polyline, the landing point, distance and bearing from the pad, a square pad-centered extent and 1/2/5-ladder range rings - and `GroundTrack.tsx` draws it. It reuses `buildTraces`, so the per-stage colors and names come along for free and the two views agree on trace identity. Meters from the pad rather than lat/lon: a plan view is read against the field you are standing on, and projecting to coordinates would add the geodesy the KML export needs while answering nothing extra. The flight CSV also gained the East/North columns `TODO.md` called for.
 
 ## Caveats
 

@@ -12,9 +12,12 @@ import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
 import { APP_VERSION, appName } from '../../services/appInfo';
 import { descentMass } from '../../services/recoverySizing';
+import { resultFlight } from '../../services/simulations';
 import { TreeSchematic } from './TreeSchematic';
 import { AftView } from './AftView';
-import { FlightChart } from './FlightChart';
+import { FlightChart, type ChartFlight } from './FlightChart';
+import { GroundTrack } from './GroundTrack';
+import { ResultPicker } from '../sim/ResultPicker';
 import { FlightPathExport } from './FlightPathExport';
 import { ViewToggle, isResultView } from './ViewToggle';
 import { StabilityBadge } from './StabilityBadge';
@@ -70,11 +73,26 @@ export function CenterView() {
   const selectedId = useWorkspaceStore((s) => s.selectedId);
   const onSelect = useWorkspaceStore((s) => s.setSelectedId);
   const result = useWorkspaceStore((s) => selectActive(s).result);
+  const sims = useWorkspaceStore((s) => s.sims);
+  const activeId = useWorkspaceStore((s) => selectActive(s).id);
+  const resultSimId = useWorkspaceStore((s) => s.resultSimId);
   const outdated = useWorkspaceStore((s) => selectActive(s).outdated);
   const simName = useWorkspaceStore((s) => selectActive(s).name);
   const motor = useWorkspaceStore((s) => selectActive(s).motor);
   const extraMotors = useWorkspaceStore(selectExtraMotors);
   const motors = useMemo(() => selectMotorDims(tree, motor, extraMotors), [tree, motor, extraMotors]);
+
+  /**
+   * The flight every results view draws, chosen in the Results picker.
+   *
+   * Built here with useMemo rather than as a store selector: a selector that
+   * builds a fresh object is compared by reference by zustand, so subscribing to
+   * one re-renders forever (see `selectRunIds`).
+   */
+  const flight = useMemo<ChartFlight | null>(
+    () => resultFlight(sims, resultSimId, activeId),
+    [sims, resultSimId, activeId],
+  );
 
   /**
    * The header block the 2D/3D image exports stamp on the page — name, the
@@ -213,8 +231,11 @@ export function CenterView() {
               {tab === 'results' && (
                 <div className="flex items-center gap-2">
                   {/* A heading, not a span: it titles the whole pane, and a
-                  screen reader should be able to jump to it. */}
-                  <h2 className="text-sm font-semibold text-slate-100">{simName}</h2>
+                  screen reader should be able to jump to it. Once a second
+                  simulation has flown the picker BECOMES the heading — the name
+                  and a dropdown showing the same name beside it said one thing
+                  twice. `ResultPicker` renders its own h2 in that case. */}
+                  <ResultPicker fallbackName={flight?.name ?? simName} />
                   {outdated && result && (
                     <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-300 ring-1 ring-amber-400/30">
                       {t('sims.statusOutdated')}
@@ -354,13 +375,16 @@ export function CenterView() {
                 />
               </Suspense>
             ) : view === 'flight' ? (
-              <div className="h-full p-2">{result ? <FlightChart result={result} /> : prompt}</div>
+              <div className="h-full p-2">{flight ? <FlightChart flight={flight} /> : prompt}</div>
             ) : view === 'path' ? (
               <div className="relative h-full p-2">
                 {result ? (
                   <>
                     <Suspense fallback={loading}>
-                      <FlightPath3D result={result} tree={tree} motors={motors} />
+                      {/* One rocket is animated, so this follows the picker's
+                          FIRST choice rather than overlaying like the charts and
+                          the ground track do. */}
+                      <FlightPath3D result={flight?.result ?? result} tree={tree} motors={motors} />
                     </Suspense>
                     <div className="pointer-events-none absolute inset-x-0 top-5 z-10 flex justify-center">
                       <div className="pointer-events-auto">
@@ -372,6 +396,8 @@ export function CenterView() {
                   prompt
                 )}
               </div>
+            ) : view === 'ground' ? (
+              <div className="h-full p-2">{flight ? <GroundTrack flight={flight} /> : prompt}</div>
             ) : (
               <div className="h-full p-2">{info ? <AeroAnalysis /> : prompt}</div>
             )}

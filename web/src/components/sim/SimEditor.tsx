@@ -10,7 +10,6 @@ import { useIsDesktop } from '../common/useMediaQuery';
 import { LaunchPanel } from './LaunchPanel';
 import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
-import { BusyLock } from '../common/BusyLock';
 import { FieldLabel, markRing } from '../common/FieldMark';
 import type { SimPrefs } from '../../services/simulations';
 
@@ -85,8 +84,6 @@ export function SimEditor() {
 
   return (
     <div className="relative p-3">
-      <BusyLock />
-
       {/* Run heads this column, above the simulation it flies, and STAYS there.
           Everything below it -- a motor card per mount, the launch conditions,
           the run options -- is far taller than the column, so the one control
@@ -95,8 +92,6 @@ export function SimEditor() {
           Full-bleed (-mx-3 -mt-3 against the container's p-3) and opaque, so
           the options pass BEHIND the band rather than beside it; `sticky`
           pins to the scrolling ancestor, which is the 380px column in App.
-          Under BusyLock's z-40 on purpose: a run in flight must not be
-          re-triggered from a button the lock cannot cover.
 
           On a phone this component is inline UNDER the table, so the button
           stays in the pane's toolbar instead - one instance either way

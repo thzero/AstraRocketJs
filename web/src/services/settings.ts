@@ -141,6 +141,19 @@ export interface Settings {
   report: ReportSettings;
   /** Flight-path export preferences that outlive one export. */
   pathExport: PathExportSettings;
+  /**
+   * Which flight-chart panels are open, by series key (`altitude`, `thrust`…).
+   *
+   * A preference rather than component state: the panels you read are a working
+   * habit, not a property of one flight, and re-ticking thrust and mass on every
+   * visit to the Results tab is the kind of friction nobody reports. The chart
+   * owns the list of legal keys and ignores any it does not know, so a value
+   * saved by a later version (or hand-edited) cannot blank the view.
+   *
+   * Empty is allowed and means every panel closed - a deliberate state, since
+   * the chips are how you get one back.
+   */
+  flightSeries: string[];
   /** Whether the user has dismissed the pre-1.0 "work in progress" notice. */
   wipAcknowledged: boolean;
 }
@@ -217,6 +230,8 @@ export const DEFAULT_SETTINGS: Settings = {
   saveDesignInfo: false,
   report: DEFAULT_REPORT,
   pathExport: DEFAULT_PATH_EXPORT,
+  // The three a flight is usually read by; the rest are one chip away.
+  flightSeries: ['altitude', 'velocity', 'acceleration'],
   wipAcknowledged: false,
 };
 
@@ -328,6 +343,11 @@ export function loadSettings(): Settings {
             ? s.pathExport.labelWaypointsWithMission
             : DEFAULT_PATH_EXPORT.labelWaypointsWithMission,
       },
+      // Strings only. The chart filters to the keys it actually has, so an
+      // unknown one is dropped there rather than being guessed at here.
+      flightSeries: Array.isArray(s.flightSeries)
+        ? s.flightSeries.filter((x): x is string => typeof x === 'string')
+        : DEFAULT_SETTINGS.flightSeries,
       wipAcknowledged: typeof s.wipAcknowledged === 'boolean' ? s.wipAcknowledged : DEFAULT_SETTINGS.wipAcknowledged,
     };
   } catch {

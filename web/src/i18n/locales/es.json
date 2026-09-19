@@ -294,6 +294,7 @@
     "3d": "3D",
     "flight": "Vuelo",
     "path": "Ruta 3D",
+    "ground": "Traza en tierra",
     "drag": "Aero",
     "reset": "⟲ Restablecer",
     "side": "Lateral",
@@ -367,7 +368,6 @@
     "badGeometry": "Corrige primero el diseño: una dimensión obligatoria es cero: {{parts}}.",
     "skipping_one": "Se omite {{count}} simulación:",
     "skipping_other": "Se omiten {{count}} simulaciones:",
-    "lockedWhileRunning": "Bloqueado mientras se ejecuta la simulación — la edición se reanuda al terminar.",
     "timeout": "La simulación tardó demasiado y se detuvo. Inténtalo de nuevo o simplifica el diseño.",
     "warnings": "Advertencias de vuelo ({{count}})",
     "runMany": "Ejecutar {{count}} simulaciones"
@@ -472,6 +472,11 @@
     }
   },
   "flight": {
+    "pickAria": "Elige qué vuelo mostrar (mostrando {{name}})",
+    "pickTitle": "Elige qué vuelo muestran estas vistas",
+    "north": "N",
+    "groundTrackLabel": "Trayectoria sobre el terreno, norte arriba, rampa en el centro",
+    "groundTrackEmpty": "Este vuelo no tiene traza horizontal que dibujar.",
     "title": "Perfil de vuelo",
     "play": "Reproducir vuelo",
     "pause": "Pausar",

@@ -1,17 +1,17 @@
 import { useTranslation } from 'react-i18next';
 
-export type ViewMode = '2d' | '3d' | 'drag' | 'flight' | 'path';
+export type ViewMode = '2d' | '3d' | 'drag' | 'flight' | 'path' | 'ground';
 /** Views that read the design itself — the Design tab's switch. */
 const DESIGN_VIEWS: readonly ViewMode[] = ['2d', '3d', 'drag'];
 /** Views that read a flight result — the Results tab's switch. */
-const RESULT_VIEWS: readonly ViewMode[] = ['flight', 'path'];
+const RESULT_VIEWS: readonly ViewMode[] = ['flight', 'path', 'ground'];
 
 /** True for a view that reads a flight result rather than the design itself. */
 export const isResultView = (view: ViewMode): boolean => RESULT_VIEWS.includes(view);
 
 /**
  * Center-pane view switch, showing one family: 2D · 3D · Aero on the Design tab,
- * Flight · 3D path on Results.
+ * Flight · 3D path · Ground track on Results.
  *
  * It used to render all five together and take a `mobileFamily` prop whose only
  * job was to hide the other family below `lg` — because on a phone the two

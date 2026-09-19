@@ -57,6 +57,13 @@ export function flightDataCsv(r: FlightResult, units: UnitSelection): string {
       `CP (${len.sym})`,
       `CG (${len.sym})`,
       `AoA (${ang.sym})`,
+      // Where the rocket was over the GROUND, which is what a drift or a walk-out
+      // is measured in. The kernel ships these on every run (`Px` east, `Py`
+      // north, meters from the pad) in the default summary set, so the columns
+      // cost nothing extra; the file carried altitude and nothing horizontal at
+      // all until now, which made a landing point unanswerable from the CSV.
+      `East (${dist.sym})`,
+      `North (${dist.sym})`,
     ]),
   );
   for (let i = 0; i < n; i++) {
@@ -74,6 +81,8 @@ export function flightDataCsv(r: FlightResult, units: UnitSelection): string {
         cell(mul(at('cpLocation', i), len.f)),
         cell(mul(at('cgLocation', i), len.f)),
         cell(mul(at('aoa', i), ang.f)),
+        cell(mul(at('Px', i), dist.f)),
+        cell(mul(at('Py', i), dist.f)),
       ]),
     );
   }

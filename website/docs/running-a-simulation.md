@@ -56,6 +56,8 @@ These are flying limits, not modeling limits. They are about whether the launch 
 
 ## Read the results
 
+Running opens the **Results** tab on the flight you just ran — one simulation or a batch, since running is asking to see the answer.
+
 Results are shown as tiles, in roughly chronological flight order, including:
 
 - **Rail-exit velocity** (flagged if below your safety minimum)

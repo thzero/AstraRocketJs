@@ -571,18 +571,53 @@ describe('running a selection', () => {
     expect(launches).toHaveLength(2);
   });
 
-  it('does not navigate away on a batch', async () => {
-    s().addSim();
-    s().setSimsSelected(s().sims.map((x) => x.id));
-    await s().runSims(selectRunIds(s()), {} as SimPrefs);
-    // A batch of twelve must not yank the reader onto whichever finished last.
-    expect(s().tab).not.toBe('results');
-  });
-
-  it('still shows the run when there was only one', async () => {
+  /**
+   * Running IS asking to see the answer, so every run lands on Results - a batch
+   * as much as a single flight. A batch used to stay put on the theory that
+   * twelve rows should not yank you onto whichever finished last; in practice
+   * that left a click with nothing behind it after every run.
+   */
+  it('shows the run, one flight or a batch', async () => {
     await s().runSims([s().activeId], {} as SimPrefs);
     expect(s().tab).toBe('results');
     expect(s().view).toBe('flight');
+
+    s().setTab('design');
+    s().addSim();
+    s().setSimsSelected(s().sims.map((x) => x.id));
+    await s().runSims(selectRunIds(s()), {} as SimPrefs);
+    expect(s().tab).toBe('results');
+  });
+
+  /**
+   * What the last run flew, which is what the Results heading reads to choose
+   * between a plain name and a picker. Counting simulations that HAVE a result
+   * is a different thing: results persist, so running one simulation after
+   * having run another put a dropdown on screen for a single run.
+   */
+  it('records the simulations THIS run flew, and points the results at them', async () => {
+    await s().runSims([s().activeId], {} as SimPrefs);
+    expect(s().lastRunIds).toEqual([s().activeId]);
+    expect(s().resultSimId).toBe(s().activeId);
+
+    s().addSim();
+    const both = s().sims.map((x) => x.id);
+    await s().runSims(both, {} as SimPrefs);
+    expect(s().lastRunIds).toEqual(both);
+
+    // Back to one: the earlier run's rows still have results, but they are not
+    // what this run flew.
+    await s().runSims([both[0]!], {} as SimPrefs);
+    expect(s().lastRunIds).toEqual([both[0]]);
+  });
+
+  it('drops a deleted simulation from the last run', async () => {
+    s().addSim();
+    const both = s().sims.map((x) => x.id);
+    await s().runSims(both, {} as SimPrefs);
+    s().deleteSim(both[1]!);
+    // Otherwise the picker would keep offering a row that no longer exists.
+    expect(s().lastRunIds).toEqual([both[0]]);
   });
 
   it('carries on past a simulation that cannot fly', async () => {

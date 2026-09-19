@@ -40,14 +40,16 @@ describe('flightDataCsv', () => {
 
   it('emits the metric column header', () => {
     expect(lines[2]).toBe(
-      'Time (s),Altitude (m),Velocity (m/s),Acceleration (m/s²),Mass (g),Thrust (N),Drag (N),Mach,Stability (cal),CP (cm),CG (cm),AoA (°)',
+      'Time (s),Altitude (m),Velocity (m/s),Acceleration (m/s²),Mass (g),Thrust (N),Drag (N),Mach,Stability (cal),CP (cm),CG (cm),AoA (°),East (m),North (m)',
     );
   });
 
   it('applies the chosen unit to every column (kg→g, m→cm, rad→°)', () => {
-    // data rows follow the 2 event lines + 1 header line
-    expect(lines[3]).toBe('0.0000,0,0,10,50,6,0,0,1.5,22.3,20,0');
-    expect(lines[4]).toBe('1.0000,100,50,20,40,0,1,0.3,2,22.5,21,1');
+    // data rows follow the 2 event lines + 1 header line. The two trailing
+    // commas are the ground-position columns: this fixture carries no Px/Py, so
+    // they are empty rather than zero (see the horizontal-position block below).
+    expect(lines[3]).toBe('0.0000,0,0,10,50,6,0,0,1.5,22.3,20,0,,');
+    expect(lines[4]).toBe('1.0000,100,50,20,40,0,1,0.3,2,22.5,21,1,,');
   });
 
   it('renders null / non-finite cells as empty', () => {
@@ -89,5 +91,48 @@ describe('aeroTableCsv', () => {
     expect(lines[0]!.includes('CP (in)')).toBe(true);
     // 0.223 m = 8.779527559... in
     expect(lines[1]!.split(',')[6]).toBe('8.779528');
+  });
+});
+
+/**
+ * Where the rocket was over the GROUND.
+ *
+ * The file carried altitude and nothing horizontal at all, so "where does it
+ * land" — the question a drift is run to answer — could not be got out of it.
+ * The kernel ships `Px` / `Py` (east / north, meters from the pad) on every run
+ * in the default series set, so these columns cost nothing to carry.
+ */
+describe('flightDataCsv horizontal position', () => {
+  const drifted = {
+    ...result,
+    series: { ...result.series, Px: [0, 30], Py: [0, -40] },
+  } as unknown as FlightResult;
+
+  it('names the two columns and the unit they carry', () => {
+    const header = flightDataCsv(drifted, METRIC_UNITS).split('\r\n')[2]!;
+    expect(header.endsWith('East (m),North (m)')).toBe(true);
+  });
+
+  it('writes the drift, including the negative half', () => {
+    // South and west are as real as north and east; a magnitude would lose the
+    // direction, which is the whole point of a ground track.
+    const rows = flightDataCsv(drifted, METRIC_UNITS).split('\r\n');
+    expect(rows[3]!.endsWith('0,0')).toBe(true);
+    expect(rows[4]!.endsWith('30,-40')).toBe(true);
+  });
+
+  it('follows the distance unit, like altitude does', () => {
+    const rows = flightDataCsv(drifted, IMPERIAL_UNITS).split('\r\n');
+    expect(rows[2]!.endsWith('East (ft),North (ft)')).toBe(true);
+    const [east, north] = rows[4]!.split(',').slice(-2).map(Number);
+    expect(east).toBeCloseTo(98.4252, 3);
+    expect(north).toBeCloseTo(-131.2336, 3);
+  });
+
+  it('leaves the cells empty for a run that carried no track', () => {
+    // Not zero: zero is the pad, and an old result with no Px/Py never claimed
+    // to have landed there.
+    const rows = flightDataCsv(result, METRIC_UNITS).split('\r\n');
+    expect(rows[4]!.endsWith(',,')).toBe(true);
   });
 });

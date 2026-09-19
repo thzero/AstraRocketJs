@@ -101,15 +101,12 @@ test('the run button flies the ticked rows, and says how many', async ({ page })
   await expect(run).toHaveText('Run 2 simulations');
 
   await run.click();
-  await expect(run).toHaveText('Run 2 simulations', { timeout: 30_000 });
-
-  // Both flew, and the batch did not yank us onto the Results tab.
+  // Running lands on Results, so come back to read the rows.
+  await expect(page.getByRole('button', { name: /Choose which flight/ })).toBeVisible({ timeout: 30_000 });
+  await openTab(page, 'Simulations');
   const rows = page.getByRole('row').filter({ hasText: /Simulation/ });
   await expect(rows.nth(0)).toContainText('Up to date');
   await expect(rows.nth(1)).toContainText('Up to date');
-  await expect(
-    page.getByRole('navigation', { name: 'Workbench' }).getByRole('button', { name: 'Design' }),
-  ).toBeVisible();
 });
 
 test('ticking a row to fly it does not move the editor to it', async ({ page }) => {
@@ -155,16 +152,19 @@ test('a flown row opens its own results', async ({ page }) => {
   // Nothing has flown, so there is nothing to open.
   await expect(page.getByRole('button', { name: /^View results/ })).toHaveCount(0);
 
-  // Fly both. A batch deliberately does NOT navigate, which is what makes a
-  // per-row way in necessary: otherwise every row is flown and none reachable.
+  // Fly both, then come back: running lands on Results, and the per-row way in
+  // is still how you open a row other than the one being shown.
   await page.getByRole('checkbox', { name: 'Select all simulations' }).check();
   await runButton(page).click();
-  await expect(page.getByRole('button', { name: /^View results/ })).toHaveCount(2, { timeout: 30_000 });
+  await expect(page.getByRole('button', { name: /Choose which flight/ })).toBeVisible({ timeout: 30_000 });
+  await openTab(page, 'Simulations');
+  await expect(page.getByRole('button', { name: /^View results/ })).toHaveCount(2);
 
-  // Open the SECOND row's flight: it becomes the active simulation and the
-  // Results header names it.
+  // Open the SECOND row's flight: it becomes the active simulation AND what the
+  // results views show. Two simulations flew, so the heading is the picker, and
+  // its visible text is the flight being shown.
   await page.getByRole('button', { name: 'View results for Second' }).click();
-  await expect(page.getByRole('heading', { name: 'Second' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Choose which flight/ })).toHaveText(/^Second/);
 });
 
 test('a flight warning reads above the numbers it qualifies', async ({ page }) => {
@@ -246,7 +246,10 @@ test('Run outdated flies only the rows that are not current', async ({ page }) =
   await expect(outdated).toHaveText('Run outdated (1)');
 
   await outdated.click();
-  await expect(outdated).toHaveText('Run outdated (0)', { timeout: 30_000 });
+  // Running lands on Results; come back to read the toolbar.
+  await expect(page.getByRole('button', { name: 'Flight', exact: true })).toBeVisible({ timeout: 30_000 });
+  await openTab(page, 'Simulations');
+  await expect(outdated).toHaveText('Run outdated (0)');
   // Both current now, and the first was never re-flown to get there.
   await expect(outdated).toBeDisabled();
   const rows = page.getByRole('row').filter({ hasText: /Simulation/ });
@@ -254,19 +257,117 @@ test('Run outdated flies only the rows that are not current', async ({ page }) =
   await expect(rows.nth(1)).toContainText('Up to date');
 });
 
-test('editing the design is not blocked while a batch runs', async ({ page }) => {
+test('a run leaves the design editor unblocked', async ({ page }) => {
   await openTab(page, 'Simulations');
   await page.getByRole('button', { name: 'Duplicate simulation' }).click();
   await page.getByRole('checkbox', { name: 'Select all simulations' }).check();
   await runButton(page).click();
+  await expect(page.getByRole('button', { name: 'Flight', exact: true })).toBeVisible({ timeout: 30_000 });
 
-  // The design editors used to be covered by a full-pane overlay for the whole
-  // run. A batch can be seconds long, so the lock went: an edit during a run
-  // costs the run (its answers are dropped) rather than freezing the app.
+  // The design editors used to be covered by a full-pane overlay while a run was
+  // in flight. That overlay is gone entirely - an edit during a run costs the
+  // run instead, since `runSims` discards any answer flown against a tree or a
+  // simulation that has since changed. That half is pinned in
+  // `state/batchParallel.test.ts`, which holds the sim call open by hand rather
+  // than racing the real engine; this checks the editor is left usable.
   await openTab(page, 'Design');
   await page.locator('div[title="Body tube"]').click();
   const length = page.getByLabel('Length', { exact: true }).first();
   await expect(length).toBeEditable();
   await length.fill('42');
   await expect(length).toHaveValue('42');
+});
+
+test('a simulation stays editable while it flies', async ({ page }) => {
+  await openTab(page, 'Simulations');
+  // A batch rather than one flight, so the pool is still busy while the edit is
+  // typed. A single sim can finish inside the same tick on a fast machine, and
+  // a test that races the engine is a test that fails for the wrong reason.
+  await page.getByRole('button', { name: 'Duplicate simulation' }).click();
+  await page.getByRole('checkbox', { name: 'Select all simulations' }).check();
+  await runButton(page).click();
+
+  // The editor used to be covered by an overlay for the whole run, so none of
+  // this was reachable until the flight finished.
+  const angle = page.getByRole('spinbutton', { name: 'Angle', exact: true });
+  await expect(angle).toBeEditable();
+  await angle.fill('12');
+  await expect(angle).toHaveValue('12');
+
+  // What happens to the ANSWER of a run whose inputs changed underneath it is
+  // pinned in `state/batchParallel.test.ts`, where the sim call is held open by
+  // hand: it is dropped rather than installed over the edit. Racing the real
+  // engine for that here would only make this flaky.
+});
+
+test('the results picker chooses which flight every results view shows', async ({ page }) => {
+  await openTab(page, 'Simulations');
+  await page.getByRole('button', { name: 'Duplicate simulation' }).click();
+  await page.getByRole('textbox', { name: 'Rename simulation' }).fill('D12');
+  await page.getByRole('checkbox', { name: 'Select all simulations' }).check();
+  await runButton(page).click();
+
+  // Running lands on Results by itself. The picker IS the pane heading — a title
+  // naming the flight plus a dropdown showing the same name beside it said one
+  // thing twice — and it appears because THIS run flew two simulations.
+  const picker = page.getByRole('button', { name: /Choose which flight/ });
+  await expect(picker).toBeVisible({ timeout: 30_000 });
+  await expect(picker).toHaveText(/^D12/); // the active row, until told otherwise
+
+  // Switching shows the other flight, and closes the menu: one at a time.
+  await picker.click();
+  await page.getByRole('menuitemradio', { name: 'Simulation 1' }).click();
+  await expect(picker).toHaveText(/^Simulation 1/);
+  await expect(page.getByRole('menu')).toHaveCount(0);
+
+  // The same choice governs the ground track, not just the charts. Scoped to the
+  // view's own wrapper: the names also appear in the table behind it.
+  await page.getByRole('button', { name: 'Ground track', exact: true }).click();
+  const track = page.getByRole('img', { name: /north up/ }).locator('..');
+  await expect(track.getByText('Stage 1', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Choose which flight/ })).toHaveText(/^Simulation 1/);
+});
+
+test('one flown simulation gets a plain heading, not a picker', async ({ page }) => {
+  await runFlight(page); // lands on Results
+  // Nothing to choose between, so the heading is just a heading.
+  await expect(page.getByRole('heading', { name: 'Simulation 1' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Choose which flight/ })).toHaveCount(0);
+});
+
+test('the chart panels you pick are still there after a reload', async ({ page }) => {
+  await runFlight(page); // lands on Results
+
+  const thrust = page.getByRole('button', { name: 'Thrust', exact: true });
+  await expect(thrust).toHaveAttribute('aria-pressed', 'false');
+  await thrust.click();
+  await expect(thrust).toHaveAttribute('aria-pressed', 'true');
+
+  // Which panels you read is a working habit, not a property of one flight, so
+  // it is a preference rather than component state.
+  //
+  // Wait for the flight to reach IndexedDB first: the Results tab only exists
+  // while there is a result to show, so reloading before the write lands leaves
+  // nowhere to check (the same reason `a flight survives a reload` waits here).
+  await autosaved(page, '"maxAltitude"');
+  await page.reload();
+  await openTab(page, 'Results');
+  await expect(page.getByRole('button', { name: 'Thrust', exact: true })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('the ground track shows where the flight lands, and how far', async ({ page }) => {
+  await openTab(page, 'Simulations');
+  // Wind, so there is a drift worth drawing: straight up in still air lands on
+  // the pad and the track is a dot.
+  await page.getByRole('spinbutton', { name: 'Speed', exact: true }).fill('4');
+  await runFlight(page); // lands on Results
+
+  await page.getByRole('button', { name: 'Ground track', exact: true }).click();
+  const plan = page.getByRole('img', { name: /north up, pad at the center/ });
+  await expect(plan).toBeVisible();
+
+  // The readout under the drawing is the pair you act on: how far to walk, and
+  // which way. Both must be real numbers rather than the empty-track message.
+  await expect(page.getByText(/\d+(\.\d+)?\s*(m|ft)\s*·\s*\d+°/)).toBeVisible();
+  await expect(page.getByText('This flight has no horizontal track to draw.')).toHaveCount(0);
 });

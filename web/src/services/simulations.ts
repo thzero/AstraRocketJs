@@ -53,6 +53,85 @@ export interface Simulation {
   prefs?: Partial<SimPrefs>;
 }
 
+/**
+ * Everything one simulation's flight is computed FROM, other than the design.
+ *
+ * A run takes a snapshot of these and posts it to a worker; by the time the
+ * answer comes back the user may have changed any of them. Installing it then
+ * would mark the row current while showing numbers from the inputs it replaced,
+ * which is worse than no numbers at all. `runSims` captures this before
+ * dispatch and compares it again at install time, the way it already does with
+ * the design tree.
+ *
+ * Reference identity is the whole test, and it is enough because every store
+ * action replaces these rather than mutating them (`patchActive` / `patchTargets`
+ * spread). An edit that happens to restore the same value is a different object
+ * and costs a run, which is the safe direction to be wrong in.
+ */
+export interface SimInputs {
+  motor: MotorSpec;
+  extraMotors: Record<string, MountMotor>;
+  launch: LaunchConditions;
+  prefs: Partial<SimPrefs> | undefined;
+  ignitionEvent: IgnitionEvent | undefined;
+  ignitionDelay: number | undefined;
+}
+
+export function simInputs(sim: Simulation): SimInputs {
+  return {
+    motor: sim.motor,
+    extraMotors: sim.extraMotors,
+    launch: sim.launch,
+    prefs: sim.prefs,
+    ignitionEvent: sim.ignitionEvent,
+    ignitionDelay: sim.ignitionDelay,
+  };
+}
+
+/** True when nothing a flight depends on has moved since `a` was captured. */
+export function sameSimInputs(a: SimInputs, b: SimInputs): boolean {
+  return (
+    a.motor === b.motor &&
+    a.extraMotors === b.extraMotors &&
+    a.launch === b.launch &&
+    a.prefs === b.prefs &&
+    a.ignitionEvent === b.ignitionEvent &&
+    a.ignitionDelay === b.ignitionDelay
+  );
+}
+
+/** The flight the Results tab is drawing. */
+export interface ResultFlight {
+  id: string;
+  name: string;
+  result: FlightResult;
+}
+
+/**
+ * The flight the Results tab shows.
+ *
+ * `chosen` is the Results picker's own selection; NULL means "whichever
+ * simulation is active", which is what the tab did before the picker existed
+ * and the right default - open Results and you are reading the row you were
+ * just working on.
+ *
+ * Falls back to the active simulation whenever the choice cannot be honored -
+ * an id that no longer names a row, or one whose run has since been cleared -
+ * because an empty Results tab with a chart frame and no data reads as a bug
+ * rather than as a choice.
+ */
+export function resultFlight(
+  sims: readonly Simulation[],
+  chosen: string | null,
+  activeId: string,
+): ResultFlight | null {
+  const pick = (id: string | null): ResultFlight | null => {
+    const sim = id == null ? undefined : sims.find((x) => x.id === id);
+    return sim?.result ? { id: sim.id, name: sim.name, result: sim.result } : null;
+  };
+  return pick(chosen) ?? pick(activeId);
+}
+
 /** What the simulations table's status dot says about one row. */
 export type SimStatus = 'notRun' | 'queued' | 'running' | 'failed' | 'outdated' | 'upToDate';
 

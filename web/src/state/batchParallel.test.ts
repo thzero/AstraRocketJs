@@ -302,3 +302,93 @@ describe('running everything outdated', () => {
     expect(st().simBusy).toBe(false);
   });
 });
+
+/**
+ * Editing a simulation while it flies.
+ *
+ * The design has always had `ranOn`: an answer flown against a tree that has
+ * since changed is discarded. A row's OWN inputs had no such guard, and were
+ * protected by locking the simulation editor for the duration of a run instead.
+ * That lock is gone, so the guard has to be real: a result installs with
+ * `outdated: false`, and without the check it would overwrite an edit made
+ * mid-run and leave the row claiming to be current against conditions it no
+ * longer has.
+ */
+describe('a simulation edited while it is in the air', () => {
+  let calls: Call[];
+
+  beforeEach(() => {
+    calls = [];
+    simulateMock.mockReset();
+    simulateMock.mockImplementation((_p: SimPayload, opts: SimCallOptions = {}) => {
+      return new Promise<FlightResult>((resolve, reject) => {
+        calls.push({ opts, resolve, reject });
+      });
+    });
+
+    st().setSimsSelected([]);
+    while (st().sims.length > 1) st().deleteSim(st().sims[st().sims.length - 1]!.id);
+    st().renameSim(st().sims[0]!.id, 'A');
+    st().addSim();
+    st().renameSim(st().sims[1]!.id, 'B');
+    st().commitEdit();
+    useWorkspaceStore.setState({
+      sims: st().sims.map((x) => ({ ...x, motor: C6, result: null, outdated: false })),
+      err: null,
+      simRuns: {},
+    });
+  });
+
+  it('drops the answer when its launch conditions changed underneath it', async () => {
+    const target = byName('A').id;
+    const run = st().runSims([target], PREFS);
+
+    // Edit the row that is flying. `patchLaunch` hits the ACTIVE simulation, so
+    // point the editor at it first.
+    st().setActiveId(target);
+    st().patchLaunch({ windAverage: 7 });
+    st().commitEdit();
+
+    calls[0]!.resolve(result(999));
+    await run;
+
+    // The numbers described the wind it no longer has, so they are not kept.
+    expect(byName('A').result).toBeNull();
+    expect(byName('A').outdated).toBe(true);
+    expect(st().simRuns).toEqual({});
+  });
+
+  it('keeps the answer when the edit landed on a DIFFERENT simulation', async () => {
+    const target = byName('A').id;
+    const run = st().runSims([target], PREFS);
+
+    st().setActiveId(byName('B').id);
+    st().patchLaunch({ windAverage: 7 });
+    st().commitEdit();
+
+    calls[0]!.resolve(result(123));
+    await run;
+    // Nothing this flight depends on moved, so it installs as normal.
+    expect(byName('A').result?.summary.maxAltitude).toBe(123);
+    expect(byName('A').outdated).toBe(false);
+  });
+
+  it('drops it for a motor swap too, not just launch conditions', async () => {
+    const target = byName('A').id;
+    const run = st().runSims([target], PREFS);
+
+    st().setActiveId(target);
+    st().setActiveMotor({ ...C6, designation: 'D12' });
+
+    calls[0]!.resolve(result(500));
+    await run;
+    expect(byName('A').result).toBeNull();
+  });
+
+  it('installs normally when nothing is touched', async () => {
+    const run = st().runSims([byName('A').id], PREFS);
+    calls[0]!.resolve(result(77));
+    await run;
+    expect(byName('A').result?.summary.maxAltitude).toBe(77);
+  });
+});

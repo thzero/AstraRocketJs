@@ -294,6 +294,7 @@
     "3d": "3D",
     "flight": "Flight",
     "path": "3D path",
+    "ground": "Ground track",
     "drag": "Aero",
     "reset": "⟲ Reset",
     "side": "Side",
@@ -367,7 +368,6 @@
     "badGeometry": "Fix the design first — a required dimension is zero: {{parts}}.",
     "skipping_one": "Skipping {{count}} simulation:",
     "skipping_other": "Skipping {{count}} simulations:",
-    "lockedWhileRunning": "Locked while the simulation runs — edits resume when it finishes.",
     "timeout": "The simulation took too long and was stopped. Try again, or simplify the design.",
     "warnings": "Flight warnings ({{count}})",
     "runMany": "Run {{count}} simulations"
@@ -472,6 +472,11 @@
     }
   },
   "flight": {
+    "pickAria": "Choose which flight to show (showing {{name}})",
+    "pickTitle": "Choose which flight these views show",
+    "north": "N",
+    "groundTrackLabel": "Flight path over the ground, north up, pad at the center",
+    "groundTrackEmpty": "This flight has no horizontal track to draw.",
     "title": "Flight profile",
     "play": "Play flight",
     "pause": "Pause",

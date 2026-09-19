@@ -18,7 +18,15 @@ import type { DesignInfo } from '../services/orkTypes';
 import type { MountMotor } from '../services/loadOrk';
 import { buildExportMotorMap } from '../services/exportMotors';
 import { wireLoadedOrk } from '../services/wireLoadedOrk';
-import { newSimulation, simConditions, type Simulation, type SimPrefs, type SimRun } from '../services/simulations';
+import {
+  newSimulation,
+  sameSimInputs,
+  simConditions,
+  simInputs,
+  type Simulation,
+  type SimPrefs,
+  type SimRun,
+} from '../services/simulations';
 import { simulateInWorker, SimTimeoutError, SimCanceledError } from '../engine/simClient';
 import { loadSettings } from '../services/settings';
 import { launchLimitViolations, limitText } from '../services/safetyLimits';
@@ -111,8 +119,8 @@ export interface WorkspaceState {
    */
   selectedSimIds: string[];
   /** True while a batch is draining. Coarse on purpose: it gates the UI as a
-   *  whole (BusyLock, the Run button), where per-row detail belongs in
-   *  {@link simRuns}. */
+   *  whole (the Run button, which becomes Cancel), where per-row detail belongs
+   *  in {@link simRuns}. */
   simBusy: boolean;
   /**
    * Transient per-simulation run state: which rows are queued, which are in the
@@ -129,6 +137,32 @@ export interface WorkspaceState {
    * Recording the design it failed on lets the retry wait for an actual change.
    */
   simRuns: Record<string, SimRun>;
+  /**
+   * Which flight the Results tab is showing, chosen from its own picker.
+   *
+   * NULL means "whichever simulation is active", which is the behavior the tab
+   * had before the picker existed and the right default: open Results and you
+   * see the row you were just working on, without having chosen anything.
+   *
+   * Separate from `selectedSimIds` on purpose. The ticks answer "which rows
+   * should Run fly"; this answers "which flight am I reading". They are
+   * different questions asked at different moments, and tying them together
+   * meant that reading one result silently re-armed the Run button, or that
+   * ticking rows to fly them yanked the charts around.
+   *
+   * An id that no longer names a simulation falls back rather than being pruned,
+   * so deleting a row cannot leave the tab empty mid-read.
+   */
+  resultSimId: string | null;
+  /**
+   * The simulations the LAST run actually flew, in the order they were asked for.
+   *
+   * This, not "every simulation that has a result", is what decides whether the
+   * Results tab shows a plain name or a picker: results persist, so counting
+   * them meant running one simulation today after running another yesterday put
+   * a dropdown on screen for a single run. One run, one name.
+   */
+  lastRunIds: string[];
   // --- view / navigation ---
   tab: Tab;
   /** Which half of the Design tab a phone shows; ignored at lg+, where both do. */
@@ -188,15 +222,16 @@ export interface WorkspaceState {
   setSimPref: <K extends keyof SimPrefs>(key: K, value: SimPrefs[K] | null) => void;
   /** Drop every override on the active simulation, so all of them follow the globals again. */
   clearSimPrefs: () => void;
+  /** Choose which flight the Results tab shows; null follows the active row. */
+  setResultSimId: (id: string | null) => void;
   /** Tick or untick one row for the next run. */
   toggleSimSelected: (id: string) => void;
   /** Tick every row, or none. */
   setSimsSelected: (ids: string[]) => void;
   /** Run the active simulation. */
   runSim: (prefs: SimPrefs) => Promise<void>;
-  /** Run these simulations. They fly concurrently over the worker pool.
-   *  `reveal` (default true) lets a single run show itself on the Results tab. */
-  runSims: (ids: string[], prefs: SimPrefs, opts?: { reveal?: boolean }) => Promise<void>;
+  /** Run these simulations. They fly concurrently over the worker pool. */
+  runSims: (ids: string[], prefs: SimPrefs) => Promise<void>;
   /** Run every simulation whose result is missing or stale. */
   runOutdated: (prefs: SimPrefs) => Promise<void>;
   /** Stop the batch in flight. Rows already finished keep their results. */
@@ -530,6 +565,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     storageWarning: null,
     storageWarningKind: null,
     simRuns: {},
+    resultSimId: null,
+    lastRunIds: [],
     selectedId: null,
     loadedMeta: null,
     rocket: null,
@@ -726,6 +763,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // A tick on a simulation that no longer exists would silently pad the
         // Run button's count and then be skipped.
         selectedSimIds: s.selectedSimIds.filter((x) => x !== id),
+        // Same for the Results picker: a deleted row must not stay in its list,
+        // and dropping to one leaves a plain name behind.
+        lastRunIds: s.lastRunIds.filter((x) => x !== id),
+        resultSimId: s.resultSimId === id ? null : s.resultSimId,
       });
     },
     renameSim: (id, name) => {
@@ -755,6 +796,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // empty object would read as overridden-with-nothing.
       patchTargets(() => ({ prefs: undefined, outdated: true }));
     },
+    setResultSimId: (id) => set({ resultSimId: id }),
     toggleSimSelected: (id) =>
       set((st) => ({
         selectedSimIds: st.selectedSimIds.includes(id)
@@ -778,7 +820,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
      * result installs itself by id, and the batch-level reporting waits for the
      * whole thing to settle.
      */
-    runSims: async (ids, prefs, opts) => {
+    runSims: async (ids, prefs) => {
       const s = get();
       // A fault in the DESIGN stops the whole batch: no motor mount (nowhere to
       // seat a motor) or a part whose required dimension is zero. The Run button
@@ -853,6 +895,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       try {
         await Promise.all(
           flying.map(async ({ sim, launch }) => {
+            // What this row is being flown FROM. The design has `ranOn`; this is
+            // the same guard per simulation, for the motor, ignition, launch
+            // conditions and run overrides that only this row carries.
+            const flownFrom = simInputs(sim);
             try {
               // The sim runs in a Web Worker (its own engine instance), off the main
               // thread, so a ~500 ms flight never freezes the UI. The worker rebuilds
@@ -876,6 +922,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               // rocket, so drop it rather than install numbers for geometry that
               // is no longer on screen. The others in flight do the same.
               if (get().tree !== ranOn) return;
+              // Same test for THIS row's own inputs. Editing a simulation's
+              // launch conditions while it flies used to be prevented by locking
+              // the editor for the duration; dropping the answer is the same
+              // answer the design already gets, and it leaves the row where the
+              // edit left it -- outdated, with its previous numbers -- instead of
+              // marking it current against conditions it no longer has.
+              const now = get().sims.find((x) => x.id === sim.id);
+              if (!now || !sameSimInputs(flownFrom, simInputs(now))) {
+                setRun(sim.id, null);
+                return;
+              }
               setRun(sim.id, null);
               set((st) => ({
                 sims: st.sims.map((x) => (x.id === sim.id ? { ...x, result, outdated: false } : x)),
@@ -904,13 +961,23 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         if (skipped.length) {
           set({ err: skipped.map((u) => unflyableText(u, i18n.t)).join(' ') });
         }
-        // Show the run — but only when there was ONE, and only when the caller
-        // asked. A batch of twelve must not yank the reader onto the Results tab
-        // holding whichever finished last, and neither should a sweep that
-        // happens to have one stale row in it.
-        if (opts?.reveal !== false && targets.length === 1 && get().tree === ranOn) {
-          const ran = get().sims.find((x) => x.id === targets[0]);
-          if (ran?.result) set({ view: 'flight', tab: 'results' });
+        // Show the run. Every run, one or twelve: running IS asking to see the
+        // answer, and having to click over to Results afterwards was a step with
+        // nothing behind it.
+        //
+        // `lastRunIds` is what the Results tab reads to decide between a name and
+        // a picker, and `resultSimId` points it at this run rather than at
+        // whatever was being read before.
+        if (get().tree !== ranOn) return;
+        const landed = flying.map((f) => f.sim.id).filter((id) => get().sims.find((x) => x.id === id)?.result);
+        if (landed.length) {
+          // Show the row you were working on when it is one of the ones that
+          // flew, else the first of the batch. Landing on some other row's
+          // flight after running is disorienting: you asked for these, and the
+          // active one is the one you were just looking at.
+          const active = selectActive(get()).id;
+          const show = landed.includes(active) ? active : landed[0]!;
+          set({ lastRunIds: landed, resultSimId: show, view: 'flight', tab: 'results' });
         }
       } finally {
         // Only if no LATER batch has started: a run kicked off while this one
@@ -936,9 +1003,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         .sims.filter((x) => !x.result || x.outdated)
         .map((x) => x.id);
       if (!stale.length) return;
-      // Never navigates, even when exactly one row is stale: this is "bring the
-      // workspace up to date", so it should leave you where you were standing.
-      await get().runSims(stale, prefs, { reveal: false });
+      await get().runSims(stale, prefs);
     },
 
     /**

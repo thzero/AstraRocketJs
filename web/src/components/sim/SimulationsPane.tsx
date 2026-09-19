@@ -27,6 +27,7 @@ export function SimulationsPane() {
 
   const onSelect = useWorkspaceStore((s) => s.setActiveId);
   const setTab = useWorkspaceStore((s) => s.setTab);
+  const setResultSimId = useWorkspaceStore((s) => s.setResultSimId);
   const onToggle = useWorkspaceStore((s) => s.toggleSimSelected);
   const setSelected = useWorkspaceStore((s) => s.setSimsSelected);
   const onAdd = useWorkspaceStore((s) => s.addSim);
@@ -90,9 +91,11 @@ export function SimulationsPane() {
           onToggle={onToggle}
           onToggleAll={(all) => setSelected(all ? sims.map((x) => x.id) : [])}
           onOpenResults={(id) => {
-            // The Results tab shows the ACTIVE simulation, so opening a row's
-            // flight means pointing the workspace at it first.
+            // Point BOTH at it: the editor follows the active simulation, and
+            // the results views follow their own picker. Setting only the first
+            // left this button opening whatever the last run was showing.
             onSelect(id);
+            setResultSimId(id);
             setTab('results');
           }}
         />

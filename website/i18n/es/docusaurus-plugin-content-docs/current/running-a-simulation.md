@@ -54,6 +54,8 @@ Son límites de vuelo, no de modelado. Tratan de si el lanzamiento debería ocur
 
 ## Interpreta los resultados
 
+Al ejecutar se abre la pestaña **Resultados** con el vuelo que acabas de ejecutar — una simulación o un lote —, porque ejecutar es pedir ver la respuesta.
+
 Los resultados se muestran como fichas, en orden aproximadamente cronológico del vuelo, e incluyen:
 
 - **Velocidad de salida del raíl** (marcada si está por debajo de tu mínimo de seguridad)
