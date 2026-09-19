@@ -1,5 +1,6 @@
 import type { PartKey } from './partColors';
 import type { CompleteLaunch } from './requiredLaunch';
+import { DEFAULT_CSV_COLUMNS } from './flightColumns';
 import {
   METRIC_UNITS,
   UNIT_CHOICES,
@@ -132,6 +133,17 @@ export interface Settings {
   showInfoCard: boolean;
   /** Expand the "All stats" strip under the canvas (collapsed = just its header). */
   showStats: boolean;
+  /**
+   * Expand the import notes on the loaded-design card (collapsed = just the
+   * warning count).
+   *
+   * Deliberately app-wide rather than per design: it is a reading habit - you
+   * either want to see what a file could not bring across or you have stopped
+   * caring - and a per-design flag would mean re-collapsing the notes on every
+   * `.ork` you open. There is nothing to key it to either, since a design that
+   * has not been saved has no stable identity.
+   */
+  showImportNotes: boolean;
   /** Which sides of the 2D side view are framed by a measurement ruler. */
   rulers: RulerSides;
   /** Write the derived <designinfo> statistics block into saved .ork files. Off
@@ -154,6 +166,25 @@ export interface Settings {
    * the chips are how you get one back.
    */
   flightSeries: string[];
+  /**
+   * How the flight CSV is written, remembered between exports the way
+   * OpenRocket's export panel remembers its own
+   * (`CsvOptionPanel.storePreferences`).
+   *
+   * Columns are stored by series key. Keys this build cannot fill are dropped at
+   * export time rather than here, so a list written by another version costs a
+   * column instead of breaking the dialog.
+   */
+  flightCsv: {
+    columns: string[];
+    separator: string;
+    decimals: number;
+    exponential: boolean;
+    simDescription: boolean;
+    fieldDescriptions: boolean;
+    flightEvents: boolean;
+    commentChar: string;
+  };
   /** Whether the user has dismissed the pre-1.0 "work in progress" notice. */
   wipAcknowledged: boolean;
 }
@@ -226,12 +257,25 @@ export const DEFAULT_SETTINGS: Settings = {
   showMarkers: true,
   showInfoCard: true,
   showStats: true,
+  showImportNotes: true,
   rulers: { top: true, bottom: true, left: true, right: true },
   saveDesignInfo: false,
   report: DEFAULT_REPORT,
   pathExport: DEFAULT_PATH_EXPORT,
   // The three a flight is usually read by; the rest are one chip away.
   flightSeries: ['altitude', 'velocity', 'acceleration'],
+  flightCsv: {
+    // The named series, which is what a reader expects to find in the file.
+    // Everything else the run records is one tick away in the dialog.
+    columns: [...DEFAULT_CSV_COLUMNS],
+    separator: ',',
+    decimals: 3,
+    exponential: false,
+    simDescription: true,
+    fieldDescriptions: true,
+    flightEvents: true,
+    commentChar: '#',
+  },
   wipAcknowledged: false,
 };
 
@@ -328,6 +372,7 @@ export function loadSettings(): Settings {
       showMarkers: typeof s.showMarkers === 'boolean' ? s.showMarkers : DEFAULT_SETTINGS.showMarkers,
       showInfoCard: typeof s.showInfoCard === 'boolean' ? s.showInfoCard : DEFAULT_SETTINGS.showInfoCard,
       showStats: typeof s.showStats === 'boolean' ? s.showStats : DEFAULT_SETTINGS.showStats,
+      showImportNotes: typeof s.showImportNotes === 'boolean' ? s.showImportNotes : DEFAULT_SETTINGS.showImportNotes,
       rulers: { ...DEFAULT_SETTINGS.rulers, ...legacyRulers, ...savedRulers },
       saveDesignInfo: typeof s.saveDesignInfo === 'boolean' ? s.saveDesignInfo : DEFAULT_SETTINGS.saveDesignInfo,
       report: (() => {
@@ -348,6 +393,18 @@ export function loadSettings(): Settings {
       flightSeries: Array.isArray(s.flightSeries)
         ? s.flightSeries.filter((x): x is string => typeof x === 'string')
         : DEFAULT_SETTINGS.flightSeries,
+      flightCsv: (() => {
+        const c = { ...DEFAULT_SETTINGS.flightCsv, ...(s.flightCsv ?? {}) };
+        c.columns = Array.isArray(c.columns)
+          ? c.columns.filter((x): x is string => typeof x === 'string')
+          : DEFAULT_SETTINGS.flightCsv.columns;
+        // A hand-edited count would otherwise reach `toFixed`, which throws
+        // outside 0..100 and would take the whole export down with it.
+        c.decimals = Number.isFinite(c.decimals) ? Math.min(Math.max(Math.round(c.decimals), 0), 12) : 3;
+        if (typeof c.separator !== 'string' || !c.separator) c.separator = ',';
+        if (typeof c.commentChar !== 'string' || !c.commentChar) c.commentChar = '#';
+        return c;
+      })(),
       wipAcknowledged: typeof s.wipAcknowledged === 'boolean' ? s.wipAcknowledged : DEFAULT_SETTINGS.wipAcknowledged,
     };
   } catch {

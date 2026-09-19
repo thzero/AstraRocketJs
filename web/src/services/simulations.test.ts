@@ -38,7 +38,10 @@ describe('simConditions', () => {
     expect(c.windDirection).toBeCloseTo(deg2rad(45), 9);
     expect(c.temperature).toBeCloseTo(288.15, 6);
     expect(c.pressure).toBeCloseTo(101300, 6);
-    expect(c.series).toBe('summary');
+    // Every series the branch records. `summary` kept 17 of the kernel's 69 and
+    // meant the app could never plot or export the rest, having never asked for
+    // them; the flight is computed identically either way.
+    expect(c.series).toBe('full');
   });
 
   it('leaves temperature/pressure undefined for the ISA standard atmosphere (null)', () => {

@@ -19,8 +19,21 @@ test.describe('2D schematic interaction', () => {
       .filter({ has: page.locator('title') })
       .first();
 
-  test('clicking a component on the canvas selects it (property editor opens)', async ({ page }) => {
+  /**
+   * Open the app and wait for the drawing to settle before measuring it.
+   *
+   * These tests click at coordinates derived from the svg's bounding box, so a
+   * box read while the pane is still laying out sends the click somewhere else
+   * entirely. The stats strip renders once the engine has built the rocket,
+   * which is also when the schematic has its final size.
+   */
+  const ready = async (page: Page) => {
     await page.goto('/');
+    await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+  };
+
+  test('clicking a component on the canvas selects it (property editor opens)', async ({ page }) => {
+    await ready(page);
     const hint = page.getByText(/Select a component in the tree or drawing/i);
     await expect(hint).toBeVisible(); // nothing selected yet
 
@@ -33,7 +46,7 @@ test.describe('2D schematic interaction', () => {
   });
 
   test('hovering a component shows its name tag on the canvas', async ({ page }) => {
-    await page.goto('/');
+    await ready(page);
     const svg = schematic(page);
     const box = (await svg.boundingBox())!;
     await page.mouse.move(box.x + box.width * 0.45, box.y + box.height / 2);
@@ -41,7 +54,7 @@ test.describe('2D schematic interaction', () => {
   });
 
   test('dragging horizontally on the drawing rolls the rocket', async ({ page }) => {
-    await page.goto('/');
+    await ready(page);
     // The roll slider mirrors the schematic's roll; a horizontal drag on the
     // drawing spins the fins (onMove → onRoll), so its value must change.
     const roll = page.getByRole('slider', { name: /roll/i });
@@ -59,7 +72,7 @@ test.describe('2D schematic interaction', () => {
   });
 
   test('the length caliper shows a live measurement readout', async ({ page }) => {
-    await page.goto('/');
+    await ready(page);
     await page.getByTitle(/Length calipers/i).click();
     const svg = schematic(page);
     // The caliper distance is the accent-colored "<n> <unit>" label — cm by default.

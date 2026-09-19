@@ -64,9 +64,15 @@ export default function App() {
         needed. Panels read the store — no prop-drilling.
       */}
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
-        {/* LEFT — component tree (Design tab; desktop only) */}
+        {/* LEFT — component tree (Design tab; desktop only).
+
+            360px, not the 300 it was: two layers of padding (this column's
+            panel, then the tree's own card) leave the content 48px less than
+            the column, and at 300 that was 252px - too narrow for + Stage,
+            + Add and Scale to share the row above the list, and tight enough
+            that a nested part's name truncated to about four characters. */}
         <section
-          className={`hidden w-[300px] shrink-0 border-r border-white/10 lg:h-full lg:overflow-y-auto ${tab === 'design' ? 'lg:block' : ''}`}
+          className={`hidden w-[360px] shrink-0 border-r border-white/10 lg:h-full lg:overflow-y-auto ${tab === 'design' ? 'lg:block' : ''}`}
         >
           <TreePanel />
         </section>

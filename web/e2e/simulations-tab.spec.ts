@@ -371,3 +371,35 @@ test('the ground track shows where the flight lands, and how far', async ({ page
   await expect(page.getByText(/\d+(\.\d+)?\s*(m|ft)\s*·\s*\d+°/)).toBeVisible();
   await expect(page.getByText('This flight has no horizontal track to draw.')).toHaveCount(0);
 });
+
+test('the CSV export asks what to write instead of just downloading', async ({ page }) => {
+  await runFlight(page); // lands on Results, Flight view
+
+  await page.getByRole('button', { name: /CSV/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Export flight data' });
+  await expect(dialog).toBeVisible();
+
+  // The variable list comes from what the run RECORDED. We ask the engine for
+  // every series it has, so this is the whole set rather than a chosen dozen.
+  const boxes = dialog.getByRole('checkbox');
+  expect(await boxes.count()).toBeGreaterThan(30);
+  await expect(dialog.getByText(/Exporting \d+ of \d+/)).toBeVisible();
+
+  // Select none disables Export: a file with no columns is not a file.
+  await dialog.getByRole('button', { name: 'Select none' }).click();
+  await expect(dialog.getByRole('button', { name: 'Export', exact: true })).toBeDisabled();
+
+  // `exact`: the list now carries real names, and 'Altitude above sea level'
+  // is a different variable that a loose match would also hit.
+  await dialog.getByRole('checkbox', { name: 'Altitude', exact: true }).check();
+  const download = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: 'Export', exact: true }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toContain('.csv');
+
+  // The choice is remembered, the way OpenRocket's export panel remembers its
+  // own: reopening shows the one column still ticked.
+  await page.getByRole('button', { name: /CSV/ }).click();
+  await expect(dialog.getByRole('checkbox', { name: 'Altitude', exact: true })).toBeChecked();
+  await expect(dialog.getByText(/Exporting 1 of \d+/)).toBeVisible();
+});

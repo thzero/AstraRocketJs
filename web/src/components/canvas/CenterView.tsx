@@ -183,11 +183,12 @@ export function CenterView() {
 
   return (
     <div className="flex h-full flex-col">
-      {loadedMeta && (
-        <div className={`${showStats ? '' : 'hidden'} shrink-0 ${onDesign ? 'lg:block' : ''}`}>
-          <LoadedBanner loaded={loadedMeta} onClose={onCloseLoaded} />
-        </div>
-      )}
+      {/* Always: it carries the design's NAME and the ✎ that edits it, which
+          used to sit in the component tree's header. The import label, the notes
+          and Close only appear when the design came from a file. */}
+      <div className={`${showStats ? '' : 'hidden'} shrink-0 ${onDesign ? 'lg:block' : ''}`}>
+        <LoadedBanner loaded={loadedMeta} onClose={onCloseLoaded} />
+      </div>
       {/* The run's numbers head the mobile Results tab, above the charts they
           describe — they are what you look at first, and reading them used to
           mean going back to the Simulate tab. `lg:hidden` because the desktop

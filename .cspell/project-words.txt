@@ -117,6 +117,7 @@ freeformfinset
 fshape
 gainmap
 geodeticmethod
+Geolocator
 GEOMS
 GLTF
 gradlew
@@ -193,6 +194,7 @@ mesher
 meshers
 metalness
 Metas
+Meteo
 MINFEATURE
 miscompiles
 misrender

@@ -4,10 +4,9 @@ import type { FlightResult, FlightSeries } from '../../engine/openRocketEngine';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import type { Quantity } from '../../prefs/units';
-import { flightDataCsv, CSV_MIME } from '../../services/csvExport';
-import { download } from '../../services/saveFile';
 import { lerpAt } from '../../services/interpolate';
 import { EVENT_LABEL, clusterEventLabels } from '../../services/simReport';
+import { FlightCsvDialog } from '../sim/FlightCsvDialog';
 import { useSettings } from '../../state/SettingsProvider';
 
 /**
@@ -177,13 +176,13 @@ export function buildTraces(flight: ChartFlight | null, stageLabel: (i: number) 
 
 export function FlightChart({ flight }: { flight: ChartFlight }) {
   const { t } = useTranslation();
-  const u = useUnits();
   // Which panels are open, remembered between visits (services/settings.ts).
   // It used to be component state seeded from a constant, so anyone who worked
   // with thrust or mass re-ticked them every time the Results tab was opened.
   const { settings, update } = useSettings();
   const on = useMemo(() => visibleSeries(settings.flightSeries), [settings.flightSeries]);
   const [hoverT, setHoverT] = useState<number | null>(null);
+  const [csvOpen, setCsvOpen] = useState(false);
   const hostRef = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(640);
 
@@ -392,7 +391,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
             </button>
           </div>
           <button
-            onClick={() => download('flight-data.csv', flightDataCsv(flight.result, u.all), CSV_MIME)}
+            onClick={() => setCsvOpen(true)}
             title={t('flight.exportCsv')}
             className="rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
           >
@@ -512,6 +511,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
           </>
         )}
       </div>
+      {csvOpen && <FlightCsvDialog result={flight.result} simName={flight.name} onClose={() => setCsvOpen(false)} />}
     </div>
   );
 }

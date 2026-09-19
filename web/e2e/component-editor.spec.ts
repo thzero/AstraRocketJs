@@ -47,3 +47,26 @@ test('a freeform fin can be added, shows the outline editor, and simulates', asy
   // It builds + simulates end-to-end.
   await runFlight(page);
 });
+
+test('the design actions share one row above the component list', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+
+  // + Stage, + Add and Scale were split across the heading row and a second row
+  // below it, which read as two unrelated groups and cost a row of height.
+  const stage = page.getByRole('button', { name: /Stage$/ });
+  // The select's accessible name is its title: "Add a part under …" when the
+  // selection can host one, or "… can't contain sub-parts" when it cannot.
+  const add = page.getByRole('combobox', { name: /Add a part under|contain sub-parts/i });
+  const scale = page.getByRole('button', { name: /Scale/ });
+  for (const el of [stage, add, scale]) await expect(el).toBeVisible();
+
+  // Same row: their vertical centers line up.
+  const boxes = await Promise.all([stage, add, scale].map(async (el) => (await el.boundingBox())!));
+  const mid = (b: { y: number; height: number }) => b.y + b.height / 2;
+  for (const b of boxes) expect(Math.abs(mid(b) - mid(boxes[0]!))).toBeLessThan(6);
+
+  // And above the list they act on.
+  const heading = (await page.getByRole('heading', { name: 'Components' }).boundingBox())!;
+  for (const b of boxes) expect(b.y).toBeLessThan(heading.y);
+});

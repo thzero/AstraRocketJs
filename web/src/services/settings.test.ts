@@ -59,6 +59,18 @@ describe('loadSettings', () => {
     expect(loadSettings().showMarkers).toBe(false);
     expect(loadSettings().showInfoCard).toBe(false);
   });
+
+  it('defaults the import notes to expanded and round-trips a stored false', () => {
+    // Open by default: a note says what a file could NOT bring across, which is
+    // worth seeing once before it is folded away for good.
+    expect(loadSettings().showImportNotes).toBe(true);
+    localStorage.setItem(KEY, JSON.stringify({ showImportNotes: false }));
+    expect(loadSettings().showImportNotes).toBe(false);
+    // A non-boolean (hand-edited, or a future version's shape) falls back to the
+    // default rather than reaching the card as a truthy string.
+    localStorage.setItem(KEY, JSON.stringify({ showImportNotes: 'no' }));
+    expect(loadSettings().showImportNotes).toBe(true);
+  });
 });
 
 describe('saveSettings', () => {

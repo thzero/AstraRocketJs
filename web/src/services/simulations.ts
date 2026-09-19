@@ -259,6 +259,18 @@ export function simConditions(launch: CompleteLaunch, prefs?: SimPrefs) {
     mainHighSpeedWarn: prefs?.mainHighSpeedWarn,
     mainLowSpeedWarn: prefs?.mainLowSpeedWarn,
     drogueLowSpeedWarn: prefs?.drogueLowSpeedWarn,
-    series: 'summary' as const,
+    // EVERY series the branch records, not the friendly dozen.
+    //
+    // `summary` was the default here since the option existed, so a run kept 17
+    // series out of the 69 the kernel had already computed - and the app could
+    // never plot or export the rest, because it had never asked for them. That
+    // is a strange thing to withhold: the work is done either way, the flight is
+    // simulated the same, and only the serialization differs.
+    //
+    // Measured on a C6 flight at a 0.01 s step, three runs each: 509 ms and
+    // 427 KB for `summary` against 596 ms and 1537 KB for `full`. 87 ms is not
+    // worth two thirds of the flight data, and IndexedDB has room for the
+    // payload. (An older comment in the bridge put the cost at ~45%; it is 17%.)
+    series: 'full' as const,
   };
 }
