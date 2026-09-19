@@ -1,10 +1,10 @@
 {
   "name": "astrarocketjs-web",
-  "version": "0.0.18",
+  "version": "0.0.19",
   "version_major": 0,
   "version_minor": 0,
-  "version_patch": 18,
-  "version_date": "09/18/2026",
+  "version_patch": 19,
+  "version_date": "09/19/2026",
   "type": "module",
   "description": "AstraRocketJs — browser UI for the OpenRocket engine",
   "author": "thZero.com",
