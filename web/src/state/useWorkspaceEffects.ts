@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18nGlobal from '../i18n';
-import { useWorkspaceStore, selectActive } from './store';
+import { useWorkspaceStore, selectActive, selectExtraMotors } from './store';
 import { getWorkspaceStore } from '../services/workspaceStore';
 import { onStorageDegraded } from '../services/idbKeyValueStore';
 import { requestPersistentStorage } from '../services/persistStorage';
@@ -101,7 +101,7 @@ export function useWorkspaceEffects() {
   const tree = useWorkspaceStore((s) => s.tree);
   const sims = useWorkspaceStore((s) => s.sims);
   const activeId = useWorkspaceStore((s) => s.activeId);
-  const extraMotors = useWorkspaceStore((s) => s.extraMotors);
+  const extraMotors = useWorkspaceStore(selectExtraMotors);
   const loadedMeta = useWorkspaceStore((s) => s.loadedMeta);
   const motor = useWorkspaceStore((s) => selectActive(s).motor);
   const ignitionEvent = useWorkspaceStore((s) => selectActive(s).ignitionEvent);
@@ -118,7 +118,7 @@ export function useWorkspaceEffects() {
     }
     const id = setTimeout(() => {
       getWorkspaceStore()
-        .save({ version: 1, tree, sims, activeId, extraMotors, loadedMeta })
+        .save({ version: 1, tree, sims, activeId, loadedMeta })
         // There is now a design worth keeping, so ask the browser not to evict
         // this origin under disk pressure. Once per session, best-effort.
         // A successful save retires a "storage full" warning and nothing else:
@@ -131,7 +131,7 @@ export function useWorkspaceEffects() {
         .catch(() => useWorkspaceStore.getState().setStorageWarning(i18nGlobal.t('storage.full'), 'full'));
     }, 500);
     return () => clearTimeout(id);
-  }, [tree, sims, activeId, extraMotors, loadedMeta]);
+  }, [tree, sims, activeId, loadedMeta]);
 
   // IndexedDB blocked (policy, some private modes) means we are back on the 5 MB
   // localStorage cap this move existed to escape. Say so NOW rather than letting
@@ -160,7 +160,6 @@ export function useWorkspaceEffects() {
         tree: s.tree,
         sims: s.sims,
         activeId: s.activeId,
-        extraMotors: s.extraMotors,
         loadedMeta: s.loadedMeta,
       };
     };
@@ -224,6 +223,6 @@ export function useWorkspaceEffects() {
   // of which can change it.
   const flight = useMemo(() => flightKey(tree), [tree]);
   useEffect(() => {
-    useWorkspaceStore.getState().invalidateResults();
+    useWorkspaceStore.getState().markOutdated();
   }, [flight]);
 }

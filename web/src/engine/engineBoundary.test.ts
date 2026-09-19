@@ -265,3 +265,230 @@ describe('component masses are ordered, not shuffled', () => {
     expect(names()).toEqual(before);
   });
 });
+
+/**
+ * The three options the bridge used to hardcode, proved against the REAL kernel
+ * rather than at the marshalling seam. An option the Java ignores looks exactly
+ * like a working one from the JS side, which is how all three sat unnoticed:
+ * the app sent nothing, so nothing looked missing. Each case therefore asserts
+ * the flight actually MOVED.
+ */
+describe('options the bridge used to hardcode reach the physics', () => {
+  const deg = (d: number) => (d * Math.PI) / 180;
+
+  const fly = (options: Record<string, unknown>) => {
+    const d = build();
+    d.setMotorById('tube', C6);
+    // Pinned seed: the default mints a fresh one per run, and two flights flown
+    // on different turbulence would compare nothing.
+    return d.simulate({ randomSeed: 7, ...options } as never).summary.maxAltitude;
+  };
+
+  const underG = (g: number) => fly({ gravityModel: 'constant', constantGravity: g });
+
+  it('coasts higher the weaker the constant gravity', () => {
+    // Monotonic rather than one threshold: any single ratio is a number someone
+    // has to re-tune, where the ORDER is the physics.
+    const [moon, mars, half, earth] = [underG(1.62), underG(3.71), underG(5), underG(9.80665)];
+    expect(moon).toBeGreaterThan(mars);
+    expect(mars).toBeGreaterThan(half);
+    expect(half).toBeGreaterThan(earth);
+  });
+
+  it('lands within a meter of WGS when the constant is sea-level g', () => {
+    // Not identical: WGS varies g with latitude and altitude and a constant does
+    // not. Close is the point, because it says the model swapped rather than broke.
+    expect(Math.abs(underG(9.80665) - fly({}))).toBeLessThan(1);
+  });
+
+  it('flies differently in humid air than in dry air', () => {
+    // Water vapor is lighter than dry air, so a humid pad is a thinner one.
+    // Small, but it has to be there: humidity was pinned to STANDARD before.
+    const at = (rh: number) => fly({ temperature: 303.15, pressure: 101325, relativeHumidity: rh });
+    expect(at(1)).not.toBe(at(0));
+  });
+
+  describe('the maximum angle step', () => {
+    // An angled rod in wind is the only case the cap binds in: straight up in
+    // still air the rocket barely rotates and the time step governs throughout.
+    const rotating = { launchRodAngle: deg(10), windAverage: 4, windStdDeviation: 0 };
+
+    it('changes the flight once it is tight enough to bind', () => {
+      const loose = fly({ ...rotating, maxAngleStep: deg(30) });
+      const tight = fly({ ...rotating, maxAngleStep: deg(0.1) });
+      expect(tight).not.toBe(loose);
+      expect(tight).toBeGreaterThan(0); // a shorter step, not a diverged run
+    });
+
+    it('tightens monotonically', () => {
+      const a = fly({ ...rotating, maxAngleStep: deg(30) });
+      const b = fly({ ...rotating, maxAngleStep: deg(0.5) });
+      const c = fly({ ...rotating, maxAngleStep: deg(0.1) });
+      expect(b).not.toBe(a);
+      expect(c).not.toBe(b);
+    });
+
+    it('defaults to the kernel RECOMMENDED_ANGLE_STEP when we send nothing', () => {
+      // Our DEFAULT_SETTINGS value is 3 degrees because that is what the kernel
+      // used while this could not be set. If upstream ever moves it, this fails.
+      expect(fly({ ...rotating, maxAngleStep: deg(3) })).toBe(fly(rotating));
+    });
+  });
+});
+
+/**
+ * Dual deployment, which the app could not express at all.
+ *
+ * `RecoveryDevice.isDrogue()` is what the kernel branches on: a stage with a
+ * drogue judges its MAIN against `mainHighSpeedWarn`/`mainLowSpeedWarn` and its
+ * drogue against `drogueLowSpeedWarn`, and a stage without one judges everything
+ * against `recoverySpeedWarn` alone. Nothing ever called `setDrogue`, so every
+ * rocket the app built was single-deployment to the kernel and the three
+ * dual-deployment thresholds were unreachable however they were set.
+ *
+ * The drogue-low-speed check on top of that was commented out upstream and is
+ * enabled by a patch here, so this file is the only thing proving either half.
+ */
+describe('dual deployment reaches the kernel', () => {
+  /** The TREE above plus a drogue at apogee and a main lower down. */
+  const dualTree = (drogue: boolean) =>
+    ({
+      components: [
+        {
+          id: 'stage1',
+          type: 'stage',
+          children: [
+            { id: 'nose', type: 'nosecone', length: 0.1, aftRadius: 0.013, thickness: 0.001, shape: 'ogive' },
+            {
+              id: 'tube',
+              type: 'bodytube',
+              length: 0.2,
+              outerRadius: 0.013,
+              thickness: 0.0005,
+              motorMount: true,
+              children: [
+                {
+                  id: 'fins',
+                  type: 'trapezoidfinset',
+                  finCount: 3,
+                  rootChord: 0.06,
+                  tipChord: 0.03,
+                  sweep: 0.03,
+                  height: 0.05,
+                  thickness: 0.003,
+                },
+                {
+                  id: 'drogue',
+                  type: 'parachute',
+                  diameter: 0.15,
+                  cd: 0.8,
+                  lineCount: 6,
+                  lineLength: 0.2,
+                  drogue,
+                  deployEvent: 'apogee',
+                  deployDelay: 0,
+                },
+                {
+                  id: 'main',
+                  type: 'parachute',
+                  diameter: 0.4,
+                  cd: 0.8,
+                  lineCount: 6,
+                  lineLength: 0.3,
+                  deployEvent: 'altitude',
+                  deployAltitude: 60,
+                  deployDelay: 0,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }) as unknown as RocketTree;
+
+  const keys = (tree: RocketTree, options: Record<string, unknown>) => {
+    const d = OpenRocketDesign.buildTree(tree);
+    d.setMotorById('tube', C6);
+    const r = d.simulate({ randomSeed: 7, ...options } as never);
+    return (r.warnings ?? []).map((w) => w.key);
+  };
+
+  it('warns about a slow drogue at apogee once the threshold is high enough', () => {
+    // At apogee the rocket is all but stationary, so a threshold above the
+    // apogee speed must fire and one at zero must not: the same flight, judged
+    // differently, which is the only way to show the VALUE is read rather than
+    // some constant.
+    expect(keys(dualTree(true), { drogueLowSpeedWarn: 50 })).toContain('RECOVERY_DROGUE_LOW_SPEED');
+    expect(keys(dualTree(true), { drogueLowSpeedWarn: 0 })).not.toContain('RECOVERY_DROGUE_LOW_SPEED');
+  });
+
+  it('stays silent when the same chute is not marked as a drogue', () => {
+    // Without the flag the stage is single-deployment, so the drogue branch is
+    // never entered at all. This is what every app-built rocket used to be.
+    expect(keys(dualTree(false), { drogueLowSpeedWarn: 50 })).not.toContain('RECOVERY_DROGUE_LOW_SPEED');
+  });
+
+  it('judges the main against the dual-deployment thresholds, not the single one', () => {
+    // A main that opens at 60 m: fast for a main, nowhere near the single
+    // threshold. Only the dual branch can call it, and only when a drogue is
+    // present to put the flight on that branch.
+    const low = { mainHighSpeedWarn: 0.1, recoverySpeedWarn: 1000 };
+    expect(keys(dualTree(true), low)).toContain('RECOVERY_MAIN_HIGH_SPEED');
+    expect(keys(dualTree(false), low)).not.toContain('RECOVERY_MAIN_HIGH_SPEED');
+  });
+});
+
+/**
+ * A component inside a mass component: an altimeter bay or a payload sled with
+ * hardware nested in it.
+ *
+ * `MassComponent.isCompatible` accepted nothing at all until now, not by our
+ * choice but because `patches/` carried a copy of the class from before upstream
+ * allowed it (86d4648a3, 2026-07-05). Anything nested there threw out of
+ * `addChild`, which meant a `.ork` the desktop writes happily would not open.
+ * The patch is gone, so this is upstream's own rule again.
+ */
+describe('a mass component can hold internal components', () => {
+  const withNested = (nested: boolean) =>
+    ({
+      components: [
+        {
+          id: 'stage1',
+          type: 'stage',
+          children: [
+            { id: 'nose', type: 'nosecone', length: 0.1, aftRadius: 0.013, thickness: 0.001, shape: 'ogive' },
+            {
+              id: 'tube',
+              type: 'bodytube',
+              length: 0.2,
+              outerRadius: 0.013,
+              thickness: 0.0005,
+              children: [
+                {
+                  id: 'bay',
+                  type: 'masscomponent',
+                  mass: 0.02,
+                  length: 0.02,
+                  radius: 0.005,
+                  ...(nested
+                    ? { children: [{ id: 'bh', type: 'bulkhead', outerRadius: 0.012, thickness: 0.003 }] }
+                    : {}),
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }) as unknown as RocketTree;
+
+  it('builds instead of throwing out of addChild', () => {
+    expect(() => OpenRocketDesign.buildTree(withNested(true))).not.toThrow();
+  });
+
+  it('counts the nested part in the rocket mass', () => {
+    // Not just "it built": a child the kernel accepts but never weighs would
+    // look identical from here.
+    const massOf = (nested: boolean) => OpenRocketDesign.buildTree(withNested(nested)).staticInfo().mass;
+    expect(massOf(true)).toBeGreaterThan(massOf(false));
+  });
+});

@@ -6,5 +6,5 @@
 # it here, re-running the extraction, and reviewing every line the
 # "patch(es) differ from current upstream" report names.
 repo = https://github.com/thzero/openrocket.git
-ref  = c1a1a9b9fff2d629a5a64dc30dfd0603dfef62c3
-describe = release-24.12-1908-gc1a1a9b9f
+ref  = 6deae50796af9356c6541c9d5e6306ebebe0186f
+describe = release-22.02.beta.01-5683-g6deae5079

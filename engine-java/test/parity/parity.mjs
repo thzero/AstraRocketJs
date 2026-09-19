@@ -24,6 +24,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TARGET_COMPLETE, writeStdoutSync } from './stdout-sync.mjs';
+import { gradleArgv, javaExe } from '../../gradle-exec.mjs';
 
 // Every VERDICT this script prints goes through a synchronous write, never
 // console.log, so that nothing is still buffered when the process.exit() at the
@@ -44,7 +45,6 @@ const writeGolden = process.argv.includes('--golden');
 
 const here = dirname(fileURLToPath(import.meta.url));
 const engineRoot = resolve(here, '..', '..');
-const gradlew = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
 // Only override JAVA_HOME if the caller set a valid one; otherwise let Gradle resolve its JVM.
 const gradleEnv = { ...process.env };
 if (process.env.JAVA_HOME && !existsSync(process.env.JAVA_HOME)) delete gradleEnv.JAVA_HOME;
@@ -71,12 +71,12 @@ if (process.env.JAVA_HOME && !existsSync(process.env.JAVA_HOME)) delete gradleEn
 // having and nothing is watching a pipe for EOF.
 const NO_DAEMON = process.env.CI ? ['--no-daemon'] : [];
 
-const gradle = (args) => execFileSync(join(engineRoot, gradlew), args, {
-  cwd: engineRoot,
-  env: gradleEnv,
-  encoding: 'utf8',
-  shell: process.platform === 'win32',
-});
+const gradle = (args) =>
+  execFileSync(javaExe(gradleEnv), gradleArgv(engineRoot, args, gradleEnv), {
+    cwd: engineRoot,
+    env: gradleEnv,
+    encoding: 'utf8',
+  });
 
 // --- build the parity engine (harness as mainClass) + capture the JVM reference ---
 const GRADLE_TASK = { js: 'generateJavaScript', wasm: 'buildWasmGC' };

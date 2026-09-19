@@ -5,6 +5,31 @@ plugins {
     id 'org.teavm' version '0.15.0'   // >= 0.15 REQUIRED: 0.10's JS backend inverts NaN comparisons
 }
 
+// "Deprecated Gradle features were used in this build, making it incompatible
+// with Gradle 10" comes from the TeaVM PLUGIN, not from anything here.
+//
+// `--warning-mode all -Dorg.gradle.deprecation.trace=true` traces every one of
+// them to TeaVMPlugin.setupSources (TeaVMPlugin.java:452), which declares the
+// `:sources` variant of each dependency with the multi-string map notation
+// Gradle 9 deprecated and Gradle 10 removes. Our own `dependencies` block has
+// used single-string notation all along.
+//
+// It cannot be switched off from here. setupSources runs unconditionally when
+// the JS and WASM-GC tasks are REGISTERED, and it feeds the task's own
+// getSourceFiles() input, so the configuration resolves on every build whatever
+// `sourceFilePolicy` or `sourceMap` are set to. Nor is there anywhere to
+// upgrade to: 0.15.0 is the newest teavm-gradle-plugin on Maven Central, and
+// TeaVM's own master still builds that dependency with Map.of("group", ...,
+// "classifier", "sources") at the same TeaVMPlugin.java:452 the trace names, so
+// no fix is merely waiting on a release.
+//
+// The consequence worth remembering: DO NOT bump the wrapper in
+// gradle/wrapper/gradle-wrapper.properties (currently 9.7.1) to Gradle 10 until
+// TeaVM ships a fix, because there this warning becomes a hard error and the
+// engine stops building. Leave the warning visible rather than setting
+// org.gradle.warning.mode=none, which would also hide deprecations that ARE
+// ours to fix.
+
 repositories {
     mavenCentral()
 }

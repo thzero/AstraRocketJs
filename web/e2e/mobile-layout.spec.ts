@@ -1,4 +1,4 @@
-import { test, expect, type Page, note } from './base';
+import { test, expect, type Page, note, openTab, runFlight } from './base';
 
 /**
  * The app shell is a fixed-height column: header, one scrolling pane, then the
@@ -276,14 +276,28 @@ test('a finished run lands on the Results tab', async ({ page }) => {
   }
 });
 
-test('the desktop workbench still offers all five views at once', async ({ page }) => {
+test('the desktop workbench splits the view families across its tabs too', async ({ page }) => {
+  // This used to assert the opposite — all five views in one switch — because
+  // the desktop had no tabs and the families only split on a phone. Now the
+  // workbench is tabbed at every width, so the same rule applies up here: the
+  // tab picks the family, the switch moves within it.
   await page.setViewportSize({ width: 1500, height: 950 });
   await page.goto('/');
-  await page.getByRole('button', { name: /Run flight simulation/ }).click();
-  await expect(page.getByRole('button', { name: 'Flight', exact: true })).toBeVisible({ timeout: 30_000 });
-  // No tabs up here, so nothing to split the families across.
-  for (const v of ['2D', '3D', 'Aero', 'Flight', '3D path']) {
+  await runFlight(page); // lands on Results
+
+  for (const v of ['Flight', '3D path']) {
     await expect(page.getByRole('button', { name: v, exact: true })).toBeVisible();
+  }
+  for (const v of ['2D', '3D', 'Aero']) {
+    await expect(page.getByRole('button', { name: v, exact: true })).toBeHidden();
+  }
+
+  await openTab(page, 'Design');
+  for (const v of ['2D', '3D', 'Aero']) {
+    await expect(page.getByRole('button', { name: v, exact: true })).toBeVisible();
+  }
+  for (const v of ['Flight', '3D path']) {
+    await expect(page.getByRole('button', { name: v, exact: true })).toBeHidden();
   }
 });
 
@@ -295,7 +309,7 @@ test('the Results tab leads with the run numbers, without starving the chart', a
   await expect(page.getByRole('button', { name: /Results/ })).toBeVisible({ timeout: 30_000 });
 
   const m = await page.evaluate(() => {
-    const grid = document.querySelector('main .grid.grid-cols-3');
+    const grid = document.querySelector('main section[aria-label="Simulation results"]');
     const half = document.querySelector('main div.min-h-0.w-full.flex-1.flex-col');
     return {
       summaryTop: grid ? Math.round(grid.getBoundingClientRect().top) : null,
@@ -305,10 +319,10 @@ test('the Results tab leads with the run numbers, without starving the chart', a
   });
   note('results tab', JSON.stringify(m));
 
-  // Apogee and the rest are the first thing on the tab. Scoped to the first grid
-  // in DOM order — the center pane's — because the simulations pane keeps its
-  // own copy mounted behind the Simulate tab.
-  const summary = page.locator('main .grid.grid-cols-3').first();
+  // Apogee and the rest are the first thing on the tab. Scoped to the first one
+  // in DOM order — the center pane's — because the sim editor keeps its own copy
+  // mounted behind the Simulate tab.
+  const summary = page.getByRole('region', { name: 'Simulation results' }).first();
   await expect(summary).toBeVisible();
   await expect(summary.getByText('Apogee', { exact: true })).toBeVisible();
   expect(m.summaryTop).toBeLessThan(m.chartHeight); // above the chart, not below
@@ -338,4 +352,300 @@ test('starting a new design does not strand you on an empty Results tab', async 
 
   await expect(resultsTab).toHaveCount(0);
   await expect(page.getByRole('button', { name: '2D', exact: true })).toBeVisible();
+});
+
+/**
+ * The desktop workbench tabs sit IN the header, not in a strip below it.
+ *
+ * They used to own a full row of their own to hold two or three words, while the
+ * header beside them ran empty from the WASM badge to the far-right controls.
+ * Asserted geometrically rather than by class name: what matters is that the
+ * tabs cost no vertical space, which is exactly "the nav is inside the header's
+ * box", and that nothing wraps the header onto a second line.
+ */
+test('the workbench tabs live in the header rather than a row of their own', async ({ page }) => {
+  // The narrowest desktop width (the lg breakpoint), in the longer of the two
+  // languages, with all three tabs showing - the tightest the header ever gets
+  // before the bottom bar takes over.
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await page.goto('/');
+  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+  await runFlight(page);
+  await page.getByRole('combobox', { name: /language|idioma/i }).selectOption('es');
+
+  const header = page.locator('header').first();
+  const nav = page.getByRole('navigation', { name: /Workbench|Banco/i });
+  await expect(nav.getByRole('button')).toHaveCount(3);
+
+  const h = (await header.boundingBox())!;
+  const n = (await nav.boundingBox())!;
+
+  // Inside the header, horizontally and vertically.
+  expect(n.x).toBeGreaterThan(h.x);
+  expect(n.y).toBeGreaterThanOrEqual(h.y);
+  expect(n.y + n.height).toBeLessThanOrEqual(h.y + h.height + 1);
+  expect(n.x + n.width).toBeLessThan(h.x + h.width);
+
+  // One row: the header is no taller than a single line of controls. It wraps by
+  // design on a phone, and a wrap here would put back the row this removed.
+  expect(h.height).toBeLessThan(70);
+
+  // And the first pane starts immediately under it, with no strip in between.
+  const main = page.locator('main');
+  expect((await main.boundingBox())!.y).toBeLessThanOrEqual(h.y + h.height + 1);
+});
+
+/**
+ * The divider between the component tree and the canvas.
+ *
+ * A fixed column is a guess about a tree nobody has built yet: a deep design
+ * truncates names at any width that does not waste space on a shallow one. So
+ * the guess is only a default, and the width is the user's, remembered.
+ */
+test('the tree column can be dragged, and keeps its width', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+
+  const pane = page.locator('main > section').first();
+  const sep = page.getByRole('separator', { name: /components panel/ });
+  const width = async () => (await pane.boundingBox())!.width;
+  const drag = async (toX: number) => {
+    const b = (await sep.boundingBox())!;
+    await page.mouse.move(b.x + b.width / 2, b.y + 200);
+    await page.mouse.down();
+    await page.mouse.move(toX, b.y + 200, { steps: 8 });
+    await page.mouse.up();
+  };
+
+  expect(await width()).toBe(360);
+  await drag(480);
+  expect(await width()).toBe(480);
+
+  // The width is a preference, so it survives the page.
+  await page.reload();
+  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+  expect(await width()).toBe(480);
+
+  // Clamped at both ends: the design actions stop fitting on one row below 300,
+  // and past 640 the column is mostly gutter.
+  await drag(5);
+  expect(await width()).toBe(300);
+  await drag(1495);
+  expect(await width()).toBe(640);
+
+  // Keyboard-reachable, because a pointer-only control is no control at all for
+  // anyone driving this from the keyboard.
+  await sep.focus();
+  await page.keyboard.press('ArrowLeft');
+  expect(await width()).toBe(624);
+  await expect(sep).toHaveAttribute('aria-valuenow', '624');
+
+  // Double-click puts it back, so a bad drag is one gesture to undo.
+  await sep.dblclick();
+  expect(await width()).toBe(360);
+});
+
+test('the divider leaves room for the other panes, and only shows where it applies', async ({ page }) => {
+  // The narrowest desktop width. A width stored on a wide monitor must not crush
+  // the canvas when the same browser profile opens here.
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await page.goto('/');
+  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+
+  const sep = page.getByRole('separator', { name: /components panel/ });
+  const b = (await sep.boundingBox())!;
+  await page.mouse.move(b.x + b.width / 2, b.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(1000, b.y + 200, { steps: 8 });
+  await page.mouse.up();
+
+  const tree = (await page.locator('main > section').first().boundingBox())!;
+  const center = (await page.locator('main > section').nth(1).boundingBox())!;
+  expect(tree.width).toBeLessThan(640); // the flat maximum gave way to the window
+  expect(center.width).toBeGreaterThan(250); // and the canvas is still a canvas
+
+  // The tree column is a Design-tab thing, so its divider is too. (The side
+  // divider is on every tab, which is its own test.)
+  await runFlight(page);
+  await expect(sep).toHaveCount(0);
+  await openTab(page, 'Simulations');
+  await expect(sep).toHaveCount(0);
+  await openTab(page, 'Design');
+  await expect(sep).toHaveCount(1);
+
+  // And there are no side columns to divide on a phone, either of them.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole('separator')).toHaveCount(0);
+});
+
+/**
+ * The divider between the canvas and the right-hand column.
+ *
+ * ONE width for all three of those columns - the part editor, the simulation
+ * editor and the run's numbers. They were a matching 380 on purpose, and that
+ * only stays true if sizing one sizes them all.
+ */
+test('the side column can be dragged, and the width is shared by every tab', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+
+  const sep = page.getByRole('separator', { name: /side panel/ });
+  const props = page.locator('main > section').nth(2);
+  const width = async () => (await props.boundingBox())!.width;
+  const drag = async (toX: number) => {
+    const b = (await sep.boundingBox())!;
+    await page.mouse.move(b.x + b.width / 2, b.y + 200);
+    await page.mouse.down();
+    await page.mouse.move(toX, b.y + 200, { steps: 8 });
+    await page.mouse.up();
+  };
+
+  expect(await width()).toBe(380);
+  await drag(1000);
+  expect(await width()).toBe(500);
+
+  await page.reload();
+  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+  expect(await width()).toBe(500);
+
+  // The pane is on the RIGHT of this divider, so the clamps are mirrored: drag
+  // toward the edge it sits against to shrink it.
+  await drag(1495);
+  expect(await width()).toBe(300);
+  await drag(100);
+  expect(await width()).toBe(640);
+
+  // And so are the arrow keys. Both read as "push the divider that way", which
+  // means ArrowRight makes a right-hand pane smaller.
+  await sep.focus();
+  await page.keyboard.press('ArrowRight');
+  expect(await width()).toBe(624);
+
+  await sep.dblclick();
+  expect(await width()).toBe(380);
+});
+
+test('every right-hand column is the same width, on whichever tab it appears', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+  await runFlight(page);
+
+  // Sized once, on Results.
+  const sep = page.getByRole('separator', { name: /side panel/ });
+  const b = (await sep.boundingBox())!;
+  await page.mouse.move(b.x + b.width / 2, b.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(1100, b.y + 200, { steps: 8 });
+  await page.mouse.up();
+
+  const visible = page.locator('main > section:visible').last();
+  expect((await visible.boundingBox())!.width).toBe(400);
+
+  // …and the simulation editor and the part editor follow, because they are the
+  // same setting rather than three that happen to match.
+  await openTab(page, 'Simulations');
+  expect((await visible.boundingBox())!.width).toBe(400);
+  await openTab(page, 'Design');
+  expect((await page.locator('main > section').nth(2).boundingBox())!.width).toBe(400);
+
+  // Design is the only tab with columns on both sides, so the only one with two
+  // dividers.
+  await expect(page.getByRole('separator')).toHaveCount(2);
+  await openTab(page, 'Simulations');
+  await expect(page.getByRole('separator')).toHaveCount(1);
+});
+
+test('clicking a divider without moving it leaves the width alone', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+
+  // The pointer lands a pixel or two off the stored split, so committing its
+  // position on a plain click nudged the pane every time it was clicked - and
+  // did it again between the two clicks of a double-click, which ate the reset.
+  for (const name of [/components panel/, /side panel/]) {
+    const sep = page.getByRole('separator', { name });
+    const before = (await sep.boundingBox())!.x;
+    await sep.click();
+    expect((await sep.boundingBox())!.x).toBe(before);
+  }
+});
+
+/**
+ * Maximize: the drawing takes the window and both side columns step aside.
+ *
+ * An airframe is 15-25x longer than it is wide, so the canvas runs out of
+ * horizontal space long before vertical. Dropping the tree and the property
+ * editor doubles what the drawing has to work with.
+ */
+test('the drawing can take the whole window, and come back', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+
+  const center = page.locator('main > section').nth(1);
+  const width = async () => (await center.boundingBox())!.width;
+  const tree = page.getByRole('heading', { name: 'Components' });
+
+  expect(await width()).toBe(750);
+  await expect(tree).toBeVisible();
+
+  const stats = page.getByText('Static statistics');
+  await expect(stats).toBeVisible();
+
+  await page.getByRole('button', { name: /whole window/ }).click();
+  expect(await width()).toBe(1500);
+  await expect(tree).toBeHidden();
+  // The statistics strip is a footer ABOUT the design, not part of the drawing,
+  // and at full width it was taking 175px off the top of the very thing the
+  // expand exists to give room to.
+  await expect(stats).toBeHidden();
+  // The dividers go with the columns they divide - there is nothing left to
+  // drag, and a divider against the window edge is a trap.
+  await expect(page.getByRole('separator')).toHaveCount(0);
+
+  // A layout preference like the two widths, so it survives the page. Waits on
+  // the toolbar rather than the usual `L/D`, which is INSIDE the strip that is
+  // now hidden.
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Side', exact: true })).toBeVisible({ timeout: 20_000 });
+  expect(await width()).toBe(1500);
+
+  // Escape gets out, so the way back does not depend on finding one glyph.
+  await page.keyboard.press('Escape');
+  expect(await width()).toBe(750);
+  await expect(tree).toBeVisible();
+  await expect(stats).toBeVisible();
+  await expect(page.getByRole('separator')).toHaveCount(2);
+});
+
+test('maximizing is a desktop mode and leaves a phone alone', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+  await page.getByRole('button', { name: /whole window/ }).click();
+
+  // The flag persists, so a narrow window can meet it switched on. A phone has
+  // no side columns to reclaim and reaches its statistics through the
+  // Rocket/Sketch split instead, so the mode must not reach down here - it would
+  // hide that half with no way back, since the toggle itself is desktop-only.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole('button', { name: /whole window/ })).toBeHidden();
+  await expect(page.getByRole('button', { name: /Rocket/ })).toBeVisible();
+  await page.getByRole('button', { name: /Rocket/ }).click();
+  await expect(page.getByText('Static statistics')).toBeVisible();
+});
+
+test('maximizing does not strand the simulation editor', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+  await page.getByRole('button', { name: /whole window/ }).click();
+  await runFlight(page);
+
+  // Results shares the center pane, so it maximizes too.
+  expect((await page.locator('main > section').nth(1).boundingBox())!.width).toBe(1500);
+
+  // Simulations does NOT: the toggle lives in the center pane's toolbar, which
+  // is not on that tab, so honoring the flag there would hide the simulation
+  // editor with no control left to bring it back.
+  await openTab(page, 'Simulations');
+  await expect(page.locator('main > section:visible')).toHaveCount(2);
+  await expect(page.getByRole('button', { name: /Run flight simulation/ })).toBeVisible();
 });

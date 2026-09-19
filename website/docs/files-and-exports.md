@@ -80,6 +80,17 @@ The **Settings** button (persisted) controls the **template fill / border colors
 - **Flight data** — the simulated time-history (from the Flight view).
 - **Drag table** — the Cd / breakdown / CP vs Mach data (from the Aero view).
 
+### Choosing what goes in the flight CSV
+
+The **CSV** button on the Flight view opens an export dialog rather than downloading straight away:
+
+- **Variables to export** — everything the run recorded, each with the unit it will be written in. A simulation records every series the engine computes, so this is the full set rather than a chosen handful; series the app has no name for are listed under their kernel symbol. **Select all** and **Select none** are there for the extremes, and the count tells you where you are.
+- **Format settings** — the field separator (comma, semicolon, TAB or SPACE), how many decimal places, and whether to use exponential notation for series that span many magnitudes.
+- **Comments** — whether to head the file with the simulation's name, a line per column describing it, and a line per flight event; plus the character that marks a comment.
+- **Stage to export** — on a staged flight, which branch to write.
+
+Your choices are remembered for the next export.
+
 ## Exporting the flight path (KML / GPX / CSV)
 
 After a simulation, the **3D path** view has an **⬇ Export** button that saves the flight's trajectory and ground track for mapping tools:

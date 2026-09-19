@@ -1,5 +1,10 @@
 package info.openrocket.core.rocketcomponent;
 
+// PATCH(teavm-uuid): java.util.UUID -> core.util.LongUUID. TeaVM's UUID is
+// string-backed and has no (long, long) constructor, no getMostSignificantBits
+// and no compareTo, all of which this class uses. The shim reproduces
+// java.util.UUID's toString/hashCode/equals/compareTo exactly, so ids that
+// reach .ork files or parity output are indistinguishable. See patches/LEDGER.md.
 import info.openrocket.core.util.LongUUID;
 
 /**

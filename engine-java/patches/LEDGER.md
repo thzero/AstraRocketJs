@@ -37,7 +37,7 @@ diffs remain in `docs/rasaero/diffs/`. `extract --check` now prints both lists
 on every run, so the distinction is visible instead of having to be
 reconstructed.
 
-## The 17 patches
+## The 16 patches
 
 | File (under `info/openrocket/core/`) | Why |
 | --- | --- |
@@ -47,20 +47,20 @@ reconstructed.
 | `rocketcomponent/FreeformFinSet.java` | `java.awt.geom` (`Line2D`/`Point2D`) → `core.util.Geo2D`. |
 | `rocketcomponent/ComponentAssembly.java` | `Collections.emptyList()` → `new ArrayList<>()`. |
 | `rocketcomponent/FlightConfiguration.java` | `ConcurrentLinkedQueue` → `LinkedList` (TeaVM classlib gap). |
-| `rocketcomponent/FlightConfigurationId.java` | (no `PATCH` marker in the file — reason must be read from the diff) |
+| `rocketcomponent/FlightConfigurationId.java` | `java.util.UUID` → `core.util.LongUUID` (TeaVM's UUID has no `(long, long)` constructor, `getMostSignificantBits` or `compareTo`). |
 | `rocketcomponent/InstanceMap.java` | `ConcurrentHashMap` → `LinkedHashMap`; also makes iteration order stable. |
-| `motor/MotorConfigurationId.java` | (no `PATCH` marker in the file) |
-| `simulation/BasicEventSimulationEngine.java` | `"%g"` → `"%s"` — TeaVM's `Formatter` lacks `%g`. |
+| `motor/MotorConfigurationId.java` | Same `LongUUID` swap, same TeaVM gap. |
+| `simulation/BasicEventSimulationEngine.java` | `"%g"` → `"%s"` — TeaVM's `Formatter` lacks `%g`. Plus `PATCH(drogue-low-speed)`: upstream's own drogue-low-speed check, uncommented (see below). |
 | `util/BoundingBox.java` | Dropped `java.awt.geom.Rectangle2D`. |
 | `aerodynamics/BarrowmanDragCalculator.java` | `Reflection.construct` → an `instanceof` chain (no reflection under TeaVM); `buildCalcMap` widened to `protected`; `effectiveBaseCD`/`turbulentCompressibility` seams for the RASAero shims. |
 | `aerodynamics/BarrowmanStabilityCalculator.java` | Same reflection replacement and `protected` widening, for the stability half. |
 | `simulation/SimulationOptions.java` | Dropped the `java.nio.file` lookup-table subsystem — absent from TeaVM's classlib. |
 | `unit/Unit.java` | Dropped `Locale.Category` — absent from TeaVM's classlib. |
 | `util/ArrayList.java` | `clone()` rewritten for WASM-GC (the `ClassCastException` documented at `build.gradle:81-82`). |
-| `rocketcomponent/MassComponent.java` | `isCompatible` returns `false`/no children where upstream returns `true`/`InternalComponent`. **No `PATCH` marker and no recorded reason — needs a decision.** |
 
-Three files carry no `PATCH(...)` comment. Worth annotating next time one is
-touched, so the reason does not have to be reverse-engineered from a diff.
+Both `LongUUID` files now carry a `PATCH(teavm-uuid)` marker, so the reason no
+longer has to be reverse-engineered from a diff. Every patch in the table now
+says why it exists.
 
 ## Shims that pair with patches
 
@@ -193,3 +193,125 @@ moved. Demonstrated rather than assumed: scaling fin CNα by 0.97 still printed
 golden check failed on 60+ values. `ParityMain`'s `EXCEPTION:` lines are now a
 hard failure too, so a flight that fails identically on both platforms no longer
 reports `parity ok`.
+
+## Upstream bumped to `6deae5079` - 2026-09-18
+
+`extract/UPSTREAM` moved from `c1a1a9b9f` (`release-24.12-1908`) to
+`6deae50796af9356c6541c9d5e6306ebebe0186f`
+(`release-22.02.beta.01-5683-g6deae5079`), and `gates.yml` was repinned to match.
+The 3dpath feature branch was deliberately **not** taken: its 12 commits touch 7
+`core/src/main/java` files, none of which is in the 280-entry manifest, and the
+web app has its own `flightPathExport.ts`.
+
+Six manifest files drifted and were re-extracted verbatim:
+
+| file | what upstream changed |
+| --- | --- |
+| `masscalc/MassCalculation.java` | A mass override that covers subcomponents now rescales the accumulated inertia to the overridden total instead of leaving the geometric MOI in place. |
+| `masscalc/RigidBody.java` | New `scaleMass(factor)`, which the above uses - MOI scales linearly with mass for fixed geometry, keeping `rebase`'s parallel-axis term consistent. |
+| `models/wind/PinkNoiseWindModel.java` | New `setAveragePreservingStandardDeviation`; `clone()` now clears listeners and calls `reset()`. |
+| `models/wind/MultiLevelPinkNoiseWindModel.java` | Matching `setSpeedPreservingStandardDeviation` on `LevelWindModel`; `loadFrom` re-attaches change listeners. |
+| `simulation/AbstractEulerStepper.java` | Fires `firePostAerodynamicCalculation`, so recovery and tumble aerodynamics are listener-adjustable as they already were in RK4/RK6. |
+| `simulation/FlightDataBranch.java` | Branches carry the `sourceComponentId` of the component they describe. |
+
+Two **patched** files also moved upstream. Patches are full-file overrides, so
+they never pick this up on their own - both changes were ported by hand:
+
+- `simulation/BasicEventSimulationEngine.java` - the initial branch is now
+  constructed with `topStage`, feeding the new `sourceComponentId` above.
+  Divergence from upstream fell ~8 → ~6 lines.
+- `simulation/SimulationOptions.java` - `clone()` resets `listeners` *before*
+  cloning the wind models and re-attaches a `fireChangeEvent` relay from each,
+  so a cloned options object hears its own wind models instead of silently
+  losing the relay. Divergence fell ~112 → ~108 lines.
+
+`extract --check` reports OK, parity is clean on both targets, and
+`golden.txt` did not move: the inertia fix changes nothing for the parity
+designs, which carry no covering mass override.
+
+*Turbulence note.* Upstream's new `setAveragePreservingStandardDeviation` is the
+opposite convention to the one the web UI adopted, where changing the average
+holds the turbulence *intensity* (`stdDev/average`) and rescales `stdDev`. The
+bridge sets `average` and `standardDeviation` explicitly on every run, so neither
+setter is on our path and behavior is unchanged - but if the bridge is ever
+simplified to one call, pick the convention deliberately.
+
+
+---
+
+## `PATCH(drogue-low-speed)` - 2026-09-18
+
+`BasicEventSimulationEngine` ships the `DrogueLowSpeedWarning` block commented
+out, so `SimulationConditions.drogueLowSpeedWarning` was a threshold the kernel
+carried and nothing read. The patch removes the comment markers and changes
+nothing else: the code inside is upstream's, verbatim.
+
+It is the second hunk in that file's patch, alongside the `%g` formatter fix, so
+the file's divergence from upstream went ~6 to ~14 lines.
+
+**This is the smaller half of the fix.** `ComponentFactory` never called
+`RecoveryDevice.setDrogue`, so `isDrogue()` was false for every device the app
+built. `stageHasDrogue` therefore never went true and the kernel took the
+single-deployment branch on every flight, which made `mainHighSpeedWarn`,
+`mainLowSpeedWarn` and the drogue threshold unreachable whatever the options
+blob said, and `RECOVERY_DROGUE_NO_MAIN` unreachable too. Parachute and streamer
+nodes now carry a `drogue` key, and the web app round-trips it through
+OpenRocket's own `<isdrogue>` element.
+
+Parity is unaffected: adding a warning changes no physics, and both targets stay
+clean with `golden.txt` unmoved. `web/src/engine/engineBoundary.test.ts` flies a
+real dual-deployment rocket for each branch, since a warning nothing can raise
+looks exactly like one that never fires.
+
+Retire this patch if upstream ever enables the block itself.
+
+
+---
+
+## Resolved - `MassComponent` was never our patch (2026-09-18)
+
+The ledger carried `rocketcomponent/MassComponent.java` as "an unannotated
+semantic change ... needs a decision". It is not a decision anyone here made.
+
+Our version returns `allowsChildren() == false` and `isCompatible() == false`,
+carrying the comment *"Allow no components to be attached to a MassComponent"*.
+That comment is **upstream's own**, and upstream deleted it in
+`86d4648a3` (2026-07-05, "Allow mass components to contain internal
+components"), which switched the class to `allowsChildren() == true` and
+`isCompatible()` accepting any `InternalComponent`.
+
+So this is not an override. It is **older upstream code**, frozen into
+`patches/` by the 2026-09-16 reconciliation: that pass snapshotted `src/java`
+into a patch file wherever a file differed from upstream, which is exactly the
+case a stale carve-out produces. The absence of a `PATCH(...)` marker was the
+tell, and it was read as "undocumented" rather than "not ours".
+
+**What it costs.** The kernel throws on any design with a component inside a
+mass component, verified against the built engine:
+
+```
+buildRocket(masscomponent > bulkhead)
+  -> IllegalStateException: Component: [Bulkhead.Bulkhead]
+     not currently compatible with component: [MassComponent.MassComponent]
+```
+
+Any `.ork` a current desktop OpenRocket saves with, say, a bulkhead inside a
+mass component fails to load with that message.
+
+**What it buys.** Nothing. `treeEdit.ts ALLOWED_CHILDREN` has no
+`masscomponent` entry, so `allowedChildren('masscomponent')` is `[]` and the
+editor never offers a child there whatever the kernel permits.
+
+**Done: the patch was deleted and the tree re-extracted**, restoring upstream's
+`allowsChildren() == true` / `isCompatible(InternalComponent)`. The count above
+is now 16. `masscomponent > bulkhead` builds and its mass is counted, covered by
+`engineBoundary.test.ts`.
+
+The editor followed: `treeEdit.ts ALLOWED_CHILDREN` had no `masscomponent` entry
+because nothing could go there, and now mirrors the kernel's own rule (any
+`InternalComponent`). A rule tighter than the kernel's is the mistake to avoid
+here - the engine builds whatever tree it is handed, so a narrower editor would
+just reject `.ork` files the desktop writes happily. `.ork` import and export
+needed nothing: both walk `<subcomponents>` generically.
+
+Parity is unaffected (this changes no physics), and `golden.txt` did not move.

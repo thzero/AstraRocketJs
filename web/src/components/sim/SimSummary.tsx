@@ -60,9 +60,14 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
   const downrange = px != null && py != null ? Math.hypot(px, py) : null;
   if (!s) return null;
   return (
-    <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
+    // A grid of CARDS, not a card of tiles: the same shape the rocket's
+    // static-stats strip uses, so a measurement reads the same wherever it is.
+    // Two columns, because this column is 380px and three squeezed
+    // "Static margin @ rail exit" onto four lines.
+    <section aria-label={t('sims.summary')} className="grid grid-cols-2 gap-2">
       {/* Chronological: liftoff → boost → apogee → recovery → landing, then peaks. */}
       <Stat
+        card
         label={t('sim.rodExit')}
         value={rodExit.fmt(s.launchRodVelocity, 1)}
         sub={<UnitChip label={t('sim.rodExit')} quantity="velocity" scope={unitScope('sim', 'rodExit')} />}
@@ -72,6 +77,7 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
       />
       {railMargin != null && (
         <Stat
+          card
           label={t('sim.railMargin')}
           value={fmtNum(railMargin, 2)}
           sub={
@@ -87,9 +93,10 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
           tone={stabilityTone(railMargin)}
         />
       )}
-      {s.optimumDelay != null && <Stat label={t('sim.optDelay')} value={fmtNum(s.optimumDelay, 1)} sub="s" />}
-      <Stat label={t('sim.toApogee')} value={fmtNum(s.timeToApogee, 1)} sub="s" />
+      {s.optimumDelay != null && <Stat card label={t('sim.optDelay')} value={fmtNum(s.optimumDelay, 1)} sub="s" />}
+      <Stat card label={t('sim.toApogee')} value={fmtNum(s.timeToApogee, 1)} sub="s" />
       <Stat
+        card
         label={t('sim.apogee')}
         value={apogee.fmt(s.maxAltitude)}
         sub={<UnitChip label={t('sim.apogee')} quantity="distance" scope={unitScope('sim', 'apogee')} />}
@@ -97,6 +104,7 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
       />
       {s.deploymentVelocity != null && (
         <Stat
+          card
           label={t('sim.deployVelocity')}
           value={deployVel.fmt(s.deploymentVelocity, 1)}
           sub={
@@ -107,30 +115,34 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
       )}
       {Number.isFinite(s.groundHitVelocity) && (
         <Stat
+          card
           label={t('sim.landing')}
           value={landingVel.fmt(s.groundHitVelocity, 1)}
           sub={<UnitChip label={t('sim.landing')} quantity="velocity" scope={unitScope('sim', 'landing')} />}
         />
       )}
-      <Stat label={t('sim.flightTime')} value={fmtNum(s.flightTime, 1)} sub="s" />
+      <Stat card label={t('sim.flightTime')} value={fmtNum(s.flightTime, 1)} sub="s" />
       {Number.isFinite(s.groundHitVelocity) && downrange != null && (
         <Stat
+          card
           label={t('sim.downrange')}
           value={downrangeUnit.fmt(downrange)}
           sub={<UnitChip label={t('sim.downrange')} quantity="distance" scope={unitScope('sim', 'downrange')} />}
         />
       )}
       <Stat
+        card
         label={t('sim.maxAccel')}
         value={maxAccel.fmt(s.maxAcceleration, 0)}
         sub={<UnitChip label={t('sim.maxAccel')} quantity="acceleration" scope={unitScope('sim', 'maxAccel')} />}
       />
       <Stat
+        card
         label={t('sim.maxSpeed')}
         value={maxSpeed.fmt(s.maxVelocity, 0)}
         sub={<UnitChip label={t('sim.maxSpeed')} quantity="velocity" scope={unitScope('sim', 'maxSpeed')} />}
       />
-      <Stat label={t('sim.maxMach')} value={fmtNum(s.maxMachNumber, 2)} sub="Mach" />
-    </div>
+      <Stat card label={t('sim.maxMach')} value={fmtNum(s.maxMachNumber, 2)} sub="Mach" />
+    </section>
   );
 }

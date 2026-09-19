@@ -8,7 +8,14 @@ vi.mock('../engine/simClient', async (orig) => ({
   simulateInWorker: simulateMock,
 }));
 
-import { useWorkspaceStore, selectActive, hasThrustCurve, selectRunFailed } from './store';
+import {
+  useWorkspaceStore,
+  selectActive,
+  selectExtraMotors,
+  selectRunIds,
+  hasThrustCurve,
+  selectRunFailed,
+} from './store';
 import { C6 } from '../engine/api';
 import { setDesignLibrary } from '../services/designLibrary';
 import { getWorkspaceStore } from '../services/workspaceStore';
@@ -241,23 +248,29 @@ describe('mount ↔ motor reconciliation', () => {
     s().resetWorkspace();
   }); // default design: one mount ('mount'), no extras
 
+  // The motors seated in the non-primary mounts belong to a SIMULATION (they are
+  // its flight configuration); the mounts themselves belong to the shared
+  // design. So adding or removing a mount has to reach every simulation's
+  // loadout, not just the selected one.
+  const extras = () => selectExtraMotors(s());
+
   it('seeds a default motor when a second mount is added', () => {
-    expect(Object.keys(s().extraMotors)).toHaveLength(0);
+    expect(Object.keys(extras())).toHaveLength(0);
     s().setSelectedId('body');
     s().addPartToTree('innertube'); // default innertube is a motor mount
-    const ids = Object.keys(s().extraMotors);
+    const ids = Object.keys(extras());
     expect(ids).toHaveLength(1);
-    expect(s().extraMotors[ids[0]!]!.spec.designation).toBe('C6'); // new mount is loaded
+    expect(extras()[ids[0]!]!.spec.designation).toBe('C6'); // new mount is loaded
   });
 
   it('drops the extra-motor entry when its mount is removed', () => {
     s().setSelectedId('body');
     s().addPartToTree('innertube');
     const addedId = s().selectedId!;
-    expect(s().extraMotors[addedId]).toBeDefined();
+    expect(extras()[addedId]).toBeDefined();
     s().removeSelected();
-    expect(s().extraMotors[addedId]).toBeUndefined(); // no stale entry left behind
-    expect(Object.keys(s().extraMotors)).toHaveLength(0);
+    expect(extras()[addedId]).toBeUndefined(); // no stale entry left behind
+    expect(Object.keys(extras())).toHaveLength(0);
   });
 
   it('undo restores the mounts and their motors together', () => {
@@ -266,7 +279,90 @@ describe('mount ↔ motor reconciliation', () => {
     const addedId = s().selectedId!;
     s().undo();
     expect(findNode(s().tree, addedId)).toBeNull(); // mount gone
-    expect(s().extraMotors[addedId]).toBeUndefined(); // and its seeded motor
+    expect(extras()[addedId]).toBeUndefined(); // and its seeded motor
+  });
+
+  it('seeds the new mount into EVERY simulation, not just the selected one', () => {
+    s().addSim();
+    s().setSelectedId('body');
+    s().addPartToTree('innertube');
+    const addedId = s().selectedId!;
+    expect(s().sims).toHaveLength(2);
+    expect(s().sims.every((x) => !!x.extraMotors[addedId])).toBe(true);
+
+    s().removeSelected();
+    expect(s().sims.every((x) => !x.extraMotors[addedId])).toBe(true);
+  });
+});
+
+/**
+ * The motor loadout is per simulation, which is OpenRocket's "flight
+ * configuration". It used to be one workspace-level map, so a staged rocket
+ * could only ever be flown one way: seating a different sustainer motor changed
+ * it for every simulation at once, and had to age all of their results.
+ */
+describe('each simulation owns its motor loadout', () => {
+  beforeEach(() => {
+    s().resetWorkspace();
+    s().setSelectedId('body');
+    s().addPartToTree('innertube'); // a second mount, seeded in both sims below
+  });
+
+  it('seats a motor on one simulation without touching the other', () => {
+    const mount = s().selectedId!;
+    const first = s().activeId;
+    s().addSim();
+    const second = s().activeId;
+    expect(second).not.toBe(first);
+
+    const d12 = { ...C6, designation: 'D12' };
+    s().setExtraMotor(mount, d12);
+
+    const byId = (id: string) => s().sims.find((x) => x.id === id)!;
+    expect(byId(second).extraMotors[mount]!.spec.designation).toBe('D12');
+    expect(byId(first).extraMotors[mount]!.spec.designation).toBe('C6');
+  });
+
+  it('ages only the simulation whose loadout changed', () => {
+    const mount = s().selectedId!;
+    const first = s().activeId;
+    s().addSim();
+    const second = s().activeId;
+    useWorkspaceStore.setState((st) => ({
+      sims: st.sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: false })),
+    }));
+
+    s().setExtraMotor(mount, { ...C6, designation: 'D12' });
+
+    const byId = (id: string) => s().sims.find((x) => x.id === id)!;
+    expect(byId(second).outdated).toBe(true);
+    expect(byId(first).outdated).toBe(false); // the other simulation is untouched
+  });
+
+  it('a duplicate carries the loadout forward', () => {
+    const mount = s().selectedId!;
+    s().setExtraMotor(mount, { ...C6, designation: 'D12' });
+    s().duplicateSim(s().activeId);
+    expect(selectExtraMotors(s())[mount]!.spec.designation).toBe('D12');
+  });
+
+  it('folds a legacy workspace-level map into every simulation', () => {
+    // Blobs written before the move carry one shared map, which applied to every
+    // sim -- so that is where it has to land.
+    const tree = s().tree;
+    const mount = s().selectedId!;
+    const legacy = { [mount]: { spec: { ...C6, designation: 'D12' } } };
+    s().hydrate({
+      tree,
+      sims: [
+        { ...selectActive(s()), id: 'a', extraMotors: undefined as never },
+        { ...selectActive(s()), id: 'b', extraMotors: undefined as never },
+      ],
+      activeId: 'a',
+      extraMotors: legacy as never,
+      loadedMeta: null,
+    });
+    expect(s().sims.every((x) => x.extraMotors[mount]!.spec.designation === 'D12')).toBe(true);
   });
 });
 
@@ -335,35 +431,255 @@ describe('simulation run guards', () => {
 });
 
 /**
- * On a phone the center pane backs three tabs, and each owns a family of views:
- * Sketch the design ones, Results the flight ones. Picking either end has to
- * move the other, or a run finishes on a tab you are not looking at (which is
- * exactly what it used to do) or the view switch quietly draws a flight chart
- * on the Sketch tab.
+ * The workbench has three tabs, and two of them own a family of views: Design
+ * the design ones, Results the flight ones. Picking either end has to move the
+ * other, or a run finishes on a tab you are not looking at (which is exactly
+ * what it used to do) or the view switch quietly draws a flight chart on the
+ * Design tab.
+ *
+ * `designPane` is the second axis — which half of the Design tab a phone shows.
+ * It is not a tab, so moving between its two values must never change what the
+ * workbench is doing.
  */
+/**
+ * A design edit used to NULL every cached result, so the numbers you were
+ * comparing a change against vanished the moment you made it, the Results tab
+ * came and went on every keystroke, and "run outdated simulations
+ * automatically" had no state it could ever mean. They are now kept and
+ * flagged, the way OpenRocket does it.
+ */
+describe('results age instead of being destroyed', () => {
+  const seed = (): void => {
+    useWorkspaceStore.setState((st) => ({
+      sims: st.sims.map((x) => ({ ...x, result: { summary: { maxAltitude: 271 } } as never, outdated: false })),
+    }));
+  };
+  beforeEach(() => {
+    s().resetWorkspace();
+    seed();
+  });
+
+  it('flags every simulation when the design changes', () => {
+    s().markOutdated();
+    expect(active().result).not.toBeNull();
+    expect(active().outdated).toBe(true);
+  });
+
+  it('flags the active simulation when its own inputs change', () => {
+    s().patchLaunch({ windAverage: 4 });
+    expect(active().result).not.toBeNull();
+    expect(active().outdated).toBe(true);
+  });
+
+  it('flags EVERY simulation when a workspace-level motor changes', () => {
+    // Extra-mount motors are not per-simulation, so one change ages them all.
+    const mount = findMounts(s().tree)[0]!.id as string;
+    s().setExtraMotor(mount, C6);
+    expect(s().sims.every((x) => x.result && x.outdated)).toBe(true);
+  });
+
+  it('a finished run is current again', async () => {
+    s().markOutdated();
+    simulateMock.mockResolvedValueOnce({ summary: { maxAltitude: 300 } } as unknown as FlightResult);
+    await s().runSim({} as SimPrefs);
+    expect(active().outdated).toBe(false);
+  });
+
+  it('carries results through an undo rather than blanking them', () => {
+    const id = s().tree.components[0]!.id as string;
+    s().setSelectedId(id);
+    s().patchSelected({ length: 0.2 });
+    s().commitEdit();
+    s().undo();
+
+    // The inputs came back; the numbers stayed, flagged, because the design just
+    // moved under them.
+    expect(active().result).not.toBeNull();
+    expect(active().outdated).toBe(true);
+  });
+});
+
+/**
+ * Per-simulation overrides of the global run preferences. Unset keys fall
+ * through, so a workspace that never touches them is unaffected.
+ */
+describe('per-simulation options', () => {
+  beforeEach(() => s().resetWorkspace());
+
+  it('overrides the global value, and clears back to it', () => {
+    s().setSimPref('timeStep', 0.01);
+    expect(active().prefs?.timeStep).toBe(0.01);
+
+    s().setSimPref('timeStep', null);
+    // The KEY is removed, not stored as undefined: `prefs` is spread over the
+    // globals, and an explicit undefined would shadow the global with nothing.
+    // The last override going away drops the whole object.
+    expect(active().prefs).toBeUndefined();
+  });
+
+  it('wins over the global preference on a run', async () => {
+    s().setSimPref('timeStep', 0.01);
+    simulateMock.mockResolvedValueOnce({ summary: {} } as unknown as FlightResult);
+    await s().runSim({ timeStep: 0.05, maxTime: 1200, randomSeed: null } as SimPrefs);
+
+    expect(simulateMock.mock.calls[0]![0].options.timeStep).toBe(0.01);
+    expect(simulateMock.mock.calls[0]![0].options.maxTime).toBe(1200); // untouched key falls through
+  });
+});
+
+/**
+ * Run flies what the TABLE has selected: the ticked rows, or the active
+ * simulation when nothing is ticked. `activeId` (what the editor points at) and
+ * the tick set are deliberately different questions - ticking a row to fly it
+ * must not drag the editor over to it.
+ */
+describe('running a selection', () => {
+  beforeEach(() => {
+    s().resetWorkspace();
+    simulateMock.mockReset();
+    simulateMock.mockResolvedValue({ summary: {} } as unknown as FlightResult);
+  });
+
+  it('defaults to the active simulation when nothing is ticked', () => {
+    s().addSim();
+    expect(s().selectedSimIds).toEqual([]);
+    expect(selectRunIds(s())).toEqual([s().activeId]);
+  });
+
+  it('flies every ticked row, in order', async () => {
+    s().addSim();
+    const ids = s().sims.map((x) => x.id);
+    s().setSimsSelected(ids);
+    expect(selectRunIds(s())).toEqual(ids);
+
+    await s().runSims(selectRunIds(s()), {} as SimPrefs);
+
+    expect(simulateMock).toHaveBeenCalledTimes(2);
+    expect(s().sims.every((x) => !!x.result)).toBe(true);
+  });
+
+  it('flies each row with ITS OWN configuration, not the active one', async () => {
+    s().addSim(); // the new sim is active
+    const [first, second] = s().sims;
+    s().renameSim(first!.id, 'First');
+    s().setSimsSelected([first!.id, second!.id]);
+
+    await s().runSims(selectRunIds(s()), {} as SimPrefs);
+
+    // Two calls, each carrying the launch conditions of the sim it was for.
+    const launches = simulateMock.mock.calls.map((c) => c[0].options.launchRodLength);
+    expect(launches).toHaveLength(2);
+  });
+
+  /**
+   * Running IS asking to see the answer, so every run lands on Results - a batch
+   * as much as a single flight. A batch used to stay put on the theory that
+   * twelve rows should not yank you onto whichever finished last; in practice
+   * that left a click with nothing behind it after every run.
+   */
+  it('shows the run, one flight or a batch', async () => {
+    await s().runSims([s().activeId], {} as SimPrefs);
+    expect(s().tab).toBe('results');
+    expect(s().view).toBe('flight');
+
+    s().setTab('design');
+    s().addSim();
+    s().setSimsSelected(s().sims.map((x) => x.id));
+    await s().runSims(selectRunIds(s()), {} as SimPrefs);
+    expect(s().tab).toBe('results');
+  });
+
+  /**
+   * What the last run flew, which is what the Results heading reads to choose
+   * between a plain name and a picker. Counting simulations that HAVE a result
+   * is a different thing: results persist, so running one simulation after
+   * having run another put a dropdown on screen for a single run.
+   */
+  it('records the simulations THIS run flew, and points the results at them', async () => {
+    await s().runSims([s().activeId], {} as SimPrefs);
+    expect(s().lastRunIds).toEqual([s().activeId]);
+    expect(s().resultSimId).toBe(s().activeId);
+
+    s().addSim();
+    const both = s().sims.map((x) => x.id);
+    await s().runSims(both, {} as SimPrefs);
+    expect(s().lastRunIds).toEqual(both);
+
+    // Back to one: the earlier run's rows still have results, but they are not
+    // what this run flew.
+    await s().runSims([both[0]!], {} as SimPrefs);
+    expect(s().lastRunIds).toEqual([both[0]]);
+  });
+
+  it('drops a deleted simulation from the last run', async () => {
+    s().addSim();
+    const both = s().sims.map((x) => x.id);
+    await s().runSims(both, {} as SimPrefs);
+    s().deleteSim(both[1]!);
+    // Otherwise the picker would keep offering a row that no longer exists.
+    expect(s().lastRunIds).toEqual([both[0]]);
+  });
+
+  it('carries on past a simulation that cannot fly', async () => {
+    s().addSim();
+    const [first, second] = s().sims;
+    // Strip the first sim's thrust curve: unflyable, but not a reason to
+    // abandon the rest of the batch.
+    useWorkspaceStore.setState((st) => ({
+      sims: st.sims.map((x) => (x.id === first!.id ? { ...x, motor: { ...C6, thrusts: [] } } : x)),
+    }));
+
+    await s().runSims([first!.id, second!.id], {} as SimPrefs);
+
+    expect(simulateMock).toHaveBeenCalledTimes(1); // only the flyable one
+    expect(s().sims.find((x) => x.id === second!.id)!.result).not.toBeNull();
+    expect(s().err).toBeTruthy(); // and the reason was surfaced
+  });
+
+  it('forgets a tick when its simulation is deleted', () => {
+    s().addSim();
+    const ids = s().sims.map((x) => x.id);
+    s().setSimsSelected(ids);
+    s().deleteSim(ids[0]!);
+    expect(s().selectedSimIds).toEqual([ids[1]]);
+  });
+
+  it('toggles one row without moving the editor', () => {
+    s().addSim();
+    const other = s().sims[0]!.id;
+    const active = s().activeId;
+    s().toggleSimSelected(other);
+    expect(s().selectedSimIds).toEqual([other]);
+    expect(s().activeId).toBe(active); // the editor stayed put
+    s().toggleSimSelected(other);
+    expect(s().selectedSimIds).toEqual([]);
+  });
+});
+
 describe('tab and view stay in step', () => {
   beforeEach(() => s().resetWorkspace());
 
-  it('sends a flight view to the Results tab and a design view back to Sketch', () => {
-    s().setTab('sketch');
+  it('sends a flight view to the Results tab and a design view back to Design', () => {
+    s().setDesignPane('sketch');
     s().setView('flight');
     expect(s().tab).toBe('results');
     s().setView('path');
     expect(s().tab).toBe('results');
 
+    // Coming back, a phone lands on the half that actually draws the view.
     s().setView('2d');
-    expect(s().tab).toBe('sketch');
+    expect([s().tab, s().designPane]).toEqual(['design', 'sketch']);
     s().setView('drag');
-    expect(s().tab).toBe('sketch');
+    expect([s().tab, s().designPane]).toEqual(['design', 'sketch']);
   });
 
-  it('leaves a caller alone on a tab that shows no view at all', () => {
-    // Rocket and Simulate show stats and the run, not a view — so a view
-    // changing underneath (a result invalidated, a design opened) must not drag
-    // the reader off the tab they chose.
-    s().setTab('build');
+  it('leaves a caller alone on a pane that shows no view at all', () => {
+    // The Simulate tab and the phone's Rocket pane show stats and the run, not a
+    // view — so a view changing underneath (a result invalidated, a design
+    // opened) must not drag the reader off what they chose.
+    s().setDesignPane('stats');
     s().setView('flight');
-    expect(s().tab).toBe('build');
+    expect([s().tab, s().designPane]).toEqual(['design', 'stats']);
     s().setTab('sim');
     s().setView('2d');
     expect(s().tab).toBe('sim');
@@ -387,8 +703,8 @@ describe('tab and view stay in step', () => {
     s().setTab('results');
     expect(s().view).toBe('flight'); // a design view cannot show on Results
 
-    s().setTab('sketch');
-    expect(s().view).toBe('2d'); // …nor a flight view on Sketch
+    s().setTab('design');
+    expect(s().view).toBe('2d'); // …nor a flight view on Design
   });
 
   it('keeps the view you already had when it suits the tab', () => {
@@ -397,16 +713,32 @@ describe('tab and view stay in step', () => {
     expect(s().view).toBe('path'); // not reset to 'flight'
 
     s().setView('drag');
-    s().setTab('sketch');
+    s().setTab('design');
     expect(s().view).toBe('drag');
   });
 
-  it('leaves the view alone for the tabs that do not own one', () => {
+  it('leaves the view alone for the places that do not own one', () => {
     s().setView('drag');
-    s().setTab('build');
-    expect([s().tab, s().view]).toEqual(['build', 'drag']);
+    s().setDesignPane('stats');
+    expect([s().tab, s().designPane, s().view]).toEqual(['design', 'stats', 'drag']);
     s().setTab('sim');
     expect([s().tab, s().view]).toEqual(['sim', 'drag']);
+  });
+
+  it('treats the design pane as a phone detail, not a tab', () => {
+    // Both halves are the Design tab. Switching between them must not change
+    // which view is open, and must not be reachable from another tab by
+    // accident — `setDesignPane` is how you GET to Design.
+    s().setView('drag');
+    s().setDesignPane('stats');
+    s().setDesignPane('sketch');
+    expect([s().tab, s().view]).toEqual(['design', 'drag']);
+
+    // From Results, picking a design pane comes back with a design view.
+    s().setTab('results');
+    expect(s().view).toBe('flight');
+    s().setDesignPane('stats');
+    expect([s().tab, s().designPane, s().view]).toEqual(['design', 'stats', '2d']);
   });
 });
 
@@ -619,5 +951,105 @@ describe('saveDesign asks the library, not the cached activeDesignId', () => {
   it('still reports "never named" when the library really has no active design', async () => {
     setDesignLibrary(libWith(null, []));
     expect(await s().saveDesign()).toBe(false); // Save As is correct here
+  });
+});
+
+/**
+ * Launch conditions outside the NAR/Tripoli safety codes are not flown.
+ *
+ * They are simulation SETTINGS, not design, so there is nothing to preserve by
+ * flying them anyway — and a number this app will not stand behind is worse than
+ * no number. The fields cap what you can type; this is the guard for everything
+ * that arrives another way, which in practice means an imported `.ork`.
+ */
+describe('the safety codes stop a run', () => {
+  beforeEach(() => {
+    s().resetWorkspace();
+    simulateMock.mockReset();
+    simulateMock.mockResolvedValue({ summary: {} } as unknown as FlightResult);
+  });
+
+  it('refuses a simulation whose rod angle is outside the code', async () => {
+    s().patchLaunch({ launchRodAngleDeg: 35 });
+    await s().runSim({} as SimPrefs);
+
+    expect(simulateMock).not.toHaveBeenCalled();
+    expect(s().err).toContain('35');
+    expect(active().result).toBeNull();
+    expect(s().simBusy).toBe(false);
+  });
+
+  it('refuses a simulation whose wind is outside the code', async () => {
+    s().patchLaunch({ windAverage: 20 }); // 20 m/s is about 45 mph
+    await s().runSim({} as SimPrefs);
+    expect(simulateMock).not.toHaveBeenCalled();
+    expect(s().err).toBeTruthy();
+  });
+
+  it('skips only the offending row of a batch', async () => {
+    s().addSim();
+    const [first, second] = s().sims;
+    useWorkspaceStore.setState((st) => ({
+      sims: st.sims.map((x) => (x.id === first!.id ? { ...x, launch: { ...x.launch, launchRodAngleDeg: 35 } } : x)),
+    }));
+
+    await s().runSims([first!.id, second!.id], {} as SimPrefs);
+
+    expect(simulateMock).toHaveBeenCalledTimes(1); // only the legal one flew
+    expect(s().sims.find((x) => x.id === second!.id)!.result).not.toBeNull();
+    expect(s().sims.find((x) => x.id === first!.id)!.result).toBeNull();
+    expect(s().err).toBeTruthy();
+  });
+
+  it('runs once the conditions are brought back inside', async () => {
+    s().patchLaunch({ launchRodAngleDeg: 35 });
+    await s().runSim({} as SimPrefs);
+    expect(simulateMock).not.toHaveBeenCalled();
+
+    s().patchLaunch({ launchRodAngleDeg: 10 });
+    await s().runSim({} as SimPrefs);
+    expect(simulateMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * The workspace the store hands to persistence CARRIES its flight results.
+ *
+ * It used to strip them, so a reload lost every run. The split now happens one
+ * level down, in `workspaceStore.save`: the design blob stays lean and the
+ * flights go to their own key, written only when a run has changed them. That
+ * keeps the per-keystroke autosave cheap without throwing the results away.
+ *
+ * Last in the file on purpose - it swaps the design-library singleton, which has
+ * no restore, so anything after it would inherit the stub.
+ */
+describe('what reaches storage', () => {
+  it('hands the flight results over rather than dropping them', async () => {
+    s().resetWorkspace();
+    useWorkspaceStore.setState((st) => ({
+      sims: st.sims.map((x) => ({ ...x, result: { summary: { maxAltitude: 271 } } as never })),
+    }));
+
+    const save = vi.spyOn(getWorkspaceStore(), 'save').mockResolvedValue(undefined);
+    setDesignLibrary({
+      list: async () => [],
+      activeId: async () => 'D',
+      read: async () => null as never,
+      write: async () => true,
+      readResults: async () => ({}),
+      writeResults: async () => true,
+      create: async () => ({ id: 'D', name: 'D', updatedAt: 0 }),
+      rename: async () => {},
+      remove: async () => {},
+      setActive: async () => {},
+    } as never);
+
+    await s().saveDesign();
+
+    expect(save).toHaveBeenCalled();
+    const written = JSON.stringify(save.mock.calls[0]![0]);
+    expect(written).toContain('maxAltitude');
+    expect(written).toContain('launch'); // …alongside the inputs
+    save.mockRestore();
   });
 });

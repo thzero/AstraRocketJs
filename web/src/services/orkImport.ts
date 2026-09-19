@@ -8,6 +8,7 @@ import {
 import { freshId, type LaunchConditions } from './orkTree';
 import { shapeParamDefault } from '../tree/shapeProfile';
 import { xmlText as text } from './xmlUtil';
+import { stdDevForIntensity } from './windTurbulence';
 import type { OrkMotorRef, OrkFlightConfig, OrkDeployOverride, OrkImportResult } from './orkTypes';
 
 // Decompression caps for the untrusted `.ork` zip (a real design is a few
@@ -388,17 +389,27 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         const n = base('tubecoupler', true);
         n['length'] = numTag(el, 'length', 0.05);
         n['thickness'] = numTag(el, 'thickness', 0.0005);
+        const or = autoRadiusTag(el, 'outerradius');
+        if (or !== undefined) n['outerRadius'] = or;
         return n;
       }
       case 'centeringring': {
         const n = base('centeringring', true);
         n['length'] = numTag(el, 'length', 0.002);
+        const cor = autoRadiusTag(el, 'outerradius');
+        if (cor !== undefined) n['outerRadius'] = cor;
+        const cir = autoRadiusTag(el, 'innerradius');
+        if (cir !== undefined) n['innerRadius'] = cir;
         readInstances(el, n);
         return n;
       }
       case 'bulkhead': {
         const n = base('bulkhead', true);
         n['length'] = numTag(el, 'length', 0.003);
+        // No inner radius: a bulkhead is solid, and upstream's saver omits the
+        // element for one entirely (RadiusRingComponentSaver).
+        const bor = autoRadiusTag(el, 'outerradius');
+        if (bor !== undefined) n['outerRadius'] = bor;
         readInstances(el, n);
         return n;
       }
@@ -406,6 +417,8 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         const n = base('engineblock', true);
         n['length'] = numTag(el, 'length', 0.005);
         n['thickness'] = numTag(el, 'thickness', 0.001);
+        const eor = autoRadiusTag(el, 'outerradius');
+        if (eor !== undefined) n['outerRadius'] = eor;
         return n;
       }
       case 'launchlug': {
@@ -449,6 +462,10 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         n['lineLength'] = numTag(el, 'linelength', 0.3);
         readSoftMaterial(el, n, 'surface', 'surfaceDensity', 'surfaceMaterialName');
         readSoftMaterial(el, n, 'line', 'lineDensity', 'lineMaterialName', ':scope > linematerial');
+        // Drogue or main. The desktop writes <isdrogue> only when it is true, and
+        // the kernel needs it to tell dual deployment from single: without it every
+        // flight takes the single-deployment branch.
+        if (isDrogueTag(el)) n['drogue'] = true;
         // <deploymentconfiguration> only overrides when a config was chosen —
         // with no declarations the bare tags stay the whole story (a stray
         // block in an undeclared file was never read, keep it that way).
@@ -470,6 +487,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
           if (Number.isFinite(cdv)) n['cd'] = cdv; // ignore a garbage <cd> rather than store (and re-export) NaN
         }
         readSoftMaterial(el, n, 'surface', 'surfaceDensity', 'surfaceMaterialName');
+        if (isDrogueTag(el)) n['drogue'] = true;
         readDeployment(el, n, chosenConfigId === null ? null : configScoped(el, 'deploymentconfiguration'));
         captureDeployments(el, n);
         return n;
@@ -722,7 +740,7 @@ function readLaunchConditions(doc: Document): Partial<LaunchConditions> | undefi
   let sd = avgEl ? numTag(avgEl, 'standarddeviation', NaN) : NaN;
   if (Number.isNaN(sd)) {
     const turb = numTag(condEl, 'windturbulence', NaN);
-    if (!Number.isNaN(turb) && !Number.isNaN(avg)) sd = turb * avg;
+    if (!Number.isNaN(turb) && !Number.isNaN(avg)) sd = stdDevForIntensity(avg, turb);
   }
   if (!Number.isNaN(sd)) launch.windStdDev = sd;
   let dirRad = avgEl ? numTag(avgEl, 'direction', NaN) : NaN;
@@ -740,6 +758,13 @@ function readLaunchConditions(doc: Document): Partial<LaunchConditions> | undefi
       stddev: parseFloat(w.getAttribute('standarddeviation') ?? '0') || 0,
     }));
     if (levels.length) launch.windLevels = levels;
+    // MSL unless the file says AGL. Written as a child element by the desktop,
+    // but read either way: it is one token and an attribute spelling costs
+    // nothing to accept.
+    const ref = (text(mlEl, ':scope > altitudereference') ?? mlEl.getAttribute('altitudereference') ?? '')
+      .trim()
+      .toLowerCase();
+    if (ref === 'agl' || ref === 'msl') launch.windAltitudeReference = ref;
   }
 
   const alt = numTag(condEl, 'launchaltitude', NaN);
@@ -759,6 +784,20 @@ function readLaunchConditions(doc: Document): Partial<LaunchConditions> | undefi
       const pPa = numTag(atmEl, 'basepressure', NaN);
       if (!Number.isNaN(pPa)) launch.pressureHPa = pPa / 100;
     }
+    // A FRACTION on disk, as the kernel holds it. Read from either place: we
+    // write it inside <atmosphere>, and a desktop that carries it alongside the
+    // other launch fields puts it on <conditions>.
+    const rh = numTag(atmEl, 'relativehumidity', numTag(condEl, 'launchrelativehumidity', NaN));
+    if (!Number.isNaN(rh)) launch.relativeHumidity = rh;
+  }
+
+  const gravity = (text(condEl, ':scope > gravitymodel') ?? '').trim().toLowerCase();
+  if (gravity === 'constant') {
+    launch.gravityModel = 'constant';
+    const g = numTag(condEl, 'constantgravity', NaN);
+    if (!Number.isNaN(g)) launch.constantGravity = g;
+  } else if (gravity === 'wgs') {
+    launch.gravityModel = 'wgs';
   }
 
   const gm = (text(condEl, ':scope > geodeticmethod') ?? '').toLowerCase();
@@ -772,6 +811,33 @@ function readLaunchConditions(doc: Document): Partial<LaunchConditions> | undefi
 /** Read a numeric child `<tag>` of an .ork element, or `fallback` when it's
  *  absent / non-finite. Not the tree-node reader (`nodeProps.num`): this parses
  *  XML text, including the "auto 0.012" flag+value form OpenRocket writes. */
+/**
+ * A radius OpenRocket may write as the sentinel `auto`.
+ *
+ * Inner structure takes its outer radius from whatever it sits in, and a
+ * centering ring takes its inner radius from the motor mount through it. The
+ * file says `auto` for those rather than a number, and the kernel recomputes
+ * them as the design changes.
+ *
+ * `undefined` means automatic, which is how the rest of the app spells it: the
+ * node simply has no radius key, `ComponentFactory` leaves the kernel's
+ * automatic flag on, and the exporter writes `auto` straight back. Reading
+ * `auto` as a NUMBER was the bug this replaces - `numTag` fell through to its
+ * fallback, and every imported ring arrived with no radius at all, which the
+ * required-dimension check then refused to fly.
+ */
+function autoRadiusTag(el: Element, tag: string): number | undefined {
+  const t = text(el, `:scope > ${tag}`)?.trim();
+  if (!t || t.toLowerCase().startsWith('auto')) return undefined;
+  const v = Number(t);
+  return Number.isFinite(v) && v > 0 ? v : undefined;
+}
+
+/** `<isdrogue>` as OpenRocket writes it: present and "true" or absent altogether. */
+function isDrogueTag(el: Element): boolean {
+  return (text(el, ':scope > isdrogue') ?? '').trim().toLowerCase() === 'true';
+}
+
 function numTag(el: Element, tag: string, fallback: number): number {
   const t = text(el, `:scope > ${tag}`);
   // Values like "auto 0.012" carry an automatic flag + last value.

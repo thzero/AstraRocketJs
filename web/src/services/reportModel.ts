@@ -164,9 +164,9 @@ export function assembleReport(): ReportModel | null {
     stageSummaries = multiStageSummaries(
       stages,
       stageName,
-      (st) => buildConfiguredRocket({ name, components: [st] } as never, active.motor, s.extraMotors).staticInfo(),
+      (st) => buildConfiguredRocket({ name, components: [st] } as never, active.motor, active.extraMotors).staticInfo(),
       () => {
-        const main = buildConfiguredRocket(tree, active.motor, s.extraMotors);
+        const main = buildConfiguredRocket(tree, active.motor, active.extraMotors);
         return { info: main.staticInfo(), handle: main };
       },
       (built) => s.applyBuild(built.info, built.handle),
@@ -176,7 +176,7 @@ export function assembleReport(): ReportModel | null {
   }
 
   const configs: MotorConfig[] = s.sims.map((sim) => {
-    const specs = [sim.motor, ...Object.values(s.extraMotors).map((m) => m.spec)].filter((m) => m && m.times?.length);
+    const specs = [sim.motor, ...Object.values(sim.extraMotors).map((m) => m.spec)].filter((m) => m && m.times?.length);
     return {
       name: sim.name,
       motors: specs.map((m) => motorStats(m!)),

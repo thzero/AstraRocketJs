@@ -6,6 +6,7 @@ import { PART_KEYS, mergePalette } from '../../services/partColors';
 import { NumberInput } from '../common/NumberInput';
 import { useFocusTrap } from '../common/useFocusTrap';
 import { LaunchPanel } from '../sim/LaunchPanel';
+import { withRequiredFrom } from '../../services/requiredLaunch';
 import { IMPERIAL_UNITS, METRIC_UNITS, QUANTITIES, UNITS } from '../../prefs/units';
 import { useUnits } from '../../prefs/useUnits';
 
@@ -278,35 +279,6 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
               {/* 'Run outdated simulations automatically' hidden for now (setting still
                   defaults to off; the auto-run effect just never triggers). */}
               <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                {t('settings.warnings')}
-              </div>
-              <NumRow
-                label={t('settings.railExitMin')}
-                unit={u.sym('velocity')}
-                step={u.step('velocity', 1)}
-                min={0}
-                value={u.toUi('velocity', settings.simulation.railExitVelocityMin)}
-                onChange={(v) =>
-                  setSim({
-                    railExitVelocityMin:
-                      v == null ? DEFAULT_SETTINGS.simulation.railExitVelocityMin : u.fromUi('velocity', v),
-                  })
-                }
-              />
-              <NumRow
-                label={t('settings.deploySpeedWarn')}
-                unit={u.sym('velocity')}
-                step={u.step('velocity', 1)}
-                min={0}
-                value={u.toUi('velocity', settings.simulation.deploymentSpeedWarn)}
-                onChange={(v) =>
-                  setSim({
-                    deploymentSpeedWarn:
-                      v == null ? DEFAULT_SETTINGS.simulation.deploymentSpeedWarn : u.fromUi('velocity', v),
-                  })
-                }
-              />
-              <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 {t('settings.simOptions')}
               </div>
               <InfoRow label={t('settings.calcMethod')} value="Extended Barrowman" />
@@ -328,11 +300,107 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
                 onChange={(v) => setSim({ maxTime: v ?? DEFAULT_SETTINGS.simulation.maxTime })}
               />
               <NumRow
+                label={t('settings.maxAngleStep')}
+                unit="°"
+                step={0.5}
+                min={0.05}
+                // Stored in radians like the kernel's field; shown in degrees.
+                value={+((settings.simulation.maxAngleStep * 180) / Math.PI).toFixed(3)}
+                onChange={(v) =>
+                  setSim({
+                    maxAngleStep: v == null ? DEFAULT_SETTINGS.simulation.maxAngleStep : (v * Math.PI) / 180,
+                  })
+                }
+              />
+              <NumRow
                 label={t('settings.randomSeed')}
                 step={1}
                 placeholder={t('settings.seedAuto')}
                 value={settings.simulation.randomSeed}
                 onChange={(v) => setSim({ randomSeed: v })}
+              />
+              <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                {t('settings.warnings')}
+              </div>
+              <NumRow
+                label={t('settings.railExitMin')}
+                hint={t('settings.railExitMinHint')}
+                unit={u.sym('velocity')}
+                step={u.step('velocity', 1)}
+                min={0}
+                value={u.toUi('velocity', settings.simulation.railExitVelocityMin)}
+                onChange={(v) =>
+                  setSim({
+                    railExitVelocityMin:
+                      v == null ? DEFAULT_SETTINGS.simulation.railExitVelocityMin : u.fromUi('velocity', v),
+                  })
+                }
+              />
+              {/* The three deployment thresholds. Which one a flight uses depends
+                  on the stage's recovery layout: no drogue is single-deployment
+                  and uses the first alone; a drogue makes it dual-deployment, and
+                  the main is then judged against the next two while the drogue is
+                  judged against the last. All of them reach the kernel, not just
+                  the tiles (which is all `deploySpeedWarn` used to be). The last
+                  three need a device marked as a drogue to apply at all. */}
+              <NumRow
+                label={t('settings.deploySpeedWarn')}
+                hint={t('settings.deploySpeedWarnHint')}
+                unit={u.sym('velocity')}
+                step={u.step('velocity', 1)}
+                min={0}
+                value={u.toUi('velocity', settings.simulation.deploymentSpeedWarn)}
+                onChange={(v) =>
+                  setSim({
+                    deploymentSpeedWarn:
+                      v == null ? DEFAULT_SETTINGS.simulation.deploymentSpeedWarn : u.fromUi('velocity', v),
+                  })
+                }
+              />
+              <NumRow
+                label={t('settings.mainHighSpeedWarn')}
+                hint={t('settings.mainHighSpeedWarnHint')}
+                unit={u.sym('velocity')}
+                step={u.step('velocity', 1)}
+                min={0}
+                value={u.toUi('velocity', settings.simulation.mainHighSpeedWarn)}
+                onChange={(v) =>
+                  setSim({
+                    mainHighSpeedWarn:
+                      v == null ? DEFAULT_SETTINGS.simulation.mainHighSpeedWarn : u.fromUi('velocity', v),
+                  })
+                }
+              />
+              <NumRow
+                label={t('settings.mainLowSpeedWarn')}
+                hint={t('settings.mainLowSpeedWarnHint')}
+                unit={u.sym('velocity')}
+                step={u.step('velocity', 1)}
+                min={0}
+                value={u.toUi('velocity', settings.simulation.mainLowSpeedWarn)}
+                onChange={(v) =>
+                  setSim({
+                    mainLowSpeedWarn:
+                      v == null ? DEFAULT_SETTINGS.simulation.mainLowSpeedWarn : u.fromUi('velocity', v),
+                  })
+                }
+              />
+              {/* The drogue side of the same pair, live since the fork enables the
+                  check upstream leaves commented out. Like the two above it only
+                  applies to a stage carrying a device marked as a drogue. */}
+              <NumRow
+                label={t('settings.drogueLowSpeedWarn')}
+                hint={t('settings.drogueLowSpeedWarnHint')}
+                unit={u.sym('velocity')}
+                step={u.step('velocity', 1)}
+                min={0}
+                value={u.toUi('velocity', settings.simulation.drogueLowSpeedWarn)}
+                onChange={(v) =>
+                  setSim({
+                    drogueLowSpeedWarn:
+                      v == null ? DEFAULT_SETTINGS.simulation.drogueLowSpeedWarn : u.fromUi('velocity', v),
+                  })
+                }
               />
             </>
           )}
@@ -340,9 +408,21 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
           {tab === 'launch' && (
             <>
               <p className="text-[11px] leading-snug text-slate-500">{t('settings.launchNote')}</p>
+              {/* These are the values a NEW simulation is seeded from, so a
+                  blank one would hand every future simulation a hole. Clearing
+                  a required field here keeps what it had rather than storing
+                  the blank -- which is why no red marker ever shows up in this
+                  copy of the panel. */}
               <LaunchPanel
                 launch={settings.launchDefaults}
-                onChange={(patch) => update({ launchDefaults: { ...settings.launchDefaults, ...patch } })}
+                onChange={(patch) =>
+                  update({
+                    launchDefaults: withRequiredFrom(
+                      { ...settings.launchDefaults, ...patch },
+                      DEFAULT_SETTINGS.launchDefaults,
+                    ),
+                  })
+                }
               />
             </>
           )}
@@ -406,6 +486,7 @@ function NumRow({
   min,
   max,
   placeholder,
+  hint,
   onChange,
 }: {
   label: string;
@@ -415,8 +496,28 @@ function NumRow({
   min?: number;
   max?: number;
   placeholder?: string;
+  /** What the number is FOR. A threshold with no explanation is only usable by
+   *  someone who already knows what it does. */
+  hint?: string;
   onChange: (v: number | null) => void;
 }) {
+  if (hint) {
+    return (
+      <div>
+        <NumRow
+          label={label}
+          unit={unit}
+          value={value}
+          step={step}
+          min={min}
+          max={max}
+          placeholder={placeholder}
+          onChange={onChange}
+        />
+        <p className="mt-0.5 pr-28 text-[11px] leading-snug text-slate-500">{hint}</p>
+      </div>
+    );
+  }
   return (
     <label className="flex items-center justify-between gap-3">
       <span className="text-sm text-slate-300">{label}</span>

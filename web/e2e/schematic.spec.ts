@@ -57,5 +57,14 @@ test.describe('2D schematic', () => {
     // i.e. the memoized layout produced correct geometry across the re-render.
     await expect.poll(scaleOf).toBeGreaterThan(1);
     expect(await svg.locator('path').count()).toBeGreaterThanOrEqual(5);
+
+    // …and the drawing keeps a margin under it. The canvas box had padding on
+    // three sides, so a zoomed-in schematic ended exactly ON the pane's bottom
+    // edge: the bottom ruler and the roll slider's 360° label sat flush against
+    // whatever came next, with nothing under them.
+    const box = svg.locator('xpath=ancestor::div[contains(@class,"overflow-hidden")][1]');
+    const inner = (await svg.boundingBox())!;
+    const outer = (await box.boundingBox())!;
+    expect(outer.y + outer.height - (inner.y + inner.height)).toBeGreaterThanOrEqual(4);
   });
 });

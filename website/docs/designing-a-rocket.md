@@ -22,6 +22,52 @@ Supported components include:
 
 Each part exposes the dimensions and options the engine needs (lengths, radii, thickness, fin geometry, etc.). Editing is debounced — the model rebuilds and the stats refresh as you type/drag.
 
+### Dual deployment
+
+A parachute or streamer carries a **Drogue (dual deployment)** tick. Tick it on the device that opens at apogee and the flight is flown as dual deployment: a small drogue first to bring the rocket down under control, then the main lower down.
+
+It is not only a label. The simulation judges a deployment differently depending on it, and warns on the main coming out too fast or too slow, and on a drogue too slow at apogee to inflate, against the thresholds in **[Settings ▸ Safety warnings](./settings.md#safety-warnings)**. Leave every device clear and the whole stage is single deployment, judged against the one threshold instead.
+
+### What goes inside a mass component
+
+A mass component is not only a lump of ballast — it can hold inner structure of its own, so an altimeter bay or a payload sled can be modeled as the sled plus the rings, bulkheads, hardware and recovery gear nested inside it. Add parts to it the same way as to a body tube.
+
+## Required dimensions
+
+Some dimensions define what a part *is*. A body tube with no radius is not a narrow tube, it is nothing — so those fields are marked, and a design that is missing one cannot be flown.
+
+A required field carries a small red **\*** after its label, always, whether or not it is filled. That is there so you can see what a part needs *before* you have left anything blank.
+
+If a required dimension is **zero**, the field escalates: the label is boxed in red and the input gets a red outline. The tooltip says why.
+
+**You cannot leave one empty by accident.** Clearing the box shows it empty while you type, but nothing is written — tab away and the previous value is still there. (Focus is never trapped; you can always leave the field.) Typing an explicit **0** *is* stored, because that is a deliberate statement rather than a slip, and it is flagged and refused rather than silently flown.
+
+### Which dimensions are required
+
+| Component | Required |
+| --- | --- |
+| Nose cone | length, radius, thickness |
+| Body tube | length, radius, thickness |
+| Transition | length, fore radius, aft radius, thickness |
+| Trapezoidal / elliptical fin set | fin count, root chord, height, thickness |
+| Free-form fin set | fin count, thickness |
+| Tube fin set | tube count, length, tube radius, thickness |
+| Inner tube | length, radius, thickness |
+| Coupler, engine block | length, thickness |
+| Centering ring | thickness |
+| Bulkhead | thickness |
+| Launch lug | length, radius |
+| Rail button | outer diameter |
+| Parachute | diameter, drag coefficient |
+| Streamer | length, width, drag coefficient |
+| Mass component | mass |
+| Pod set / parallel stage | instance count |
+
+**Radii that fill their parent are left blank.** A coupler, engine block, centering ring or bulkhead takes its outer radius from whatever it sits in, and a centering ring takes its inner radius from the motor mount running through it, so leaving those empty is a real answer rather than a gap — it is what `.ork` files call *auto*, and the value follows along when you resize the tube. Type a number and that number is used instead. An inner tube is the exception: it *is* the motor mount, so its size is the thing being stated.
+
+Everything else may legitimately be zero, which is why it is not marked. A **tip chord** of 0 is a delta fin; **sweep** or **cant** of 0 is a straight one; a **shoulder** or **fin tab** of 0 is simply absent; **motor overhang** 0 is flush; a centering ring's **inner radius** of 0 is a solid disc; a mass component's **length** of 0 is a point mass; and every **delay** and **angle offset** starts at 0. A stage has no required fields at all — its settings are triggers and delays.
+
+
 ## Staging (multi-stage rockets)
 
 A rocket can have more than one stage. **+ Stage** (in the Components panel header) appends a **booster** below the current bottom stage; its parts (body, fins, motor mount, recovery) are built and edited exactly like the sustainer's. Select a **stage** node to set how it leaves the stack:

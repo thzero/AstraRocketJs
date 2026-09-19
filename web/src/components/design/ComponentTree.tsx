@@ -177,7 +177,10 @@ function Row({
         className={`flex items-center gap-2 rounded-md py-1 pr-2 ${id && onSelect ? 'cursor-pointer' : ''} ${
           selected ? 'bg-sky-600/25 ring-1 ring-inset ring-sky-500/50' : 'hover:bg-slate-800'
         }`}
-        style={{ paddingLeft: 8 + depth * 16 }}
+        // 2px, not 8: at depth 0 that leading gap is pure inset against the
+        // spine, and every level below inherits it. The 16 per level is the
+        // indent that actually says something.
+        style={{ paddingLeft: 2 + depth * 16 }}
         title={label}
       >
         {hasKids && id ? (
@@ -234,7 +237,6 @@ export function ComponentTree({
   selectedId,
   onSelect,
   onAdd,
-  onEditDesign,
   onScale,
   onAddStage,
 }: {
@@ -242,7 +244,6 @@ export function ComponentTree({
   selectedId?: string | null;
   onSelect?: (id: string) => void;
   onAdd?: (type: ComponentType) => void;
-  onEditDesign?: () => void; // open the Rocket-configuration dialog (name, designer, …)
   onScale?: () => void; // open the whole-rocket scale dialog
   onAddStage?: () => void; // append a new (booster) stage at the bottom
 }) {
@@ -370,7 +371,69 @@ export function ComponentTree({
   );
 
   return (
-    <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
+    // p-2, not p-3. This card sits inside the pane's own padding, so every
+    // pixel here is the SECOND gutter on the same edge - and the one on the left
+    // pushes the whole tree right, where it comes straight off the part names at
+    // every depth.
+    <section className="rounded-xl bg-slate-900 p-2 ring-1 ring-white/10">
+      {/* Everything you DO to the design, on one row above the list: add a stage,
+          add a component to the selected part, scale the whole rocket.
+
+          They were split across the heading row and a second row below it,
+          which read as two unrelated groups and cost a row of height.
+
+          The three plus their gaps come to about 253px, which is what sets
+          TREE_PANE_MIN: below it Scale wraps to a line of its own. They still
+          wrap rather than squeeze, so a narrower panel degrades instead of
+          clipping. */}
+      {(onAdd || onAddStage || onScale) && (
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          {onAddStage && (
+            <button
+              onClick={onAddStage}
+              title={t('tree.addStageTitle')}
+              className="whitespace-nowrap rounded-md bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
+            >
+              {t('tree.addStage')}
+            </button>
+          )}
+          {onAdd && (
+            <select
+              value=""
+              disabled={groups.length === 0}
+              onChange={(e) => {
+                const v = e.target.value as ComponentType;
+                if (v) onAdd(v);
+                e.currentTarget.value = '';
+              }}
+              className="rounded-md bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500 disabled:text-slate-600"
+              title={
+                groups.length ? t('tree.canHost', { parent: parentLabel }) : t('tree.cantHost', { parent: parentLabel })
+              }
+            >
+              <option value="">{t('tree.add')}</option>
+              {groups.map((g) => (
+                <optgroup key={g.group} label={t(`tree.${g.group}`)}>
+                  {g.items.map((ty) => (
+                    <option key={ty} value={ty}>
+                      {partLabel(ty, t)}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          )}
+          {onScale && (
+            <button
+              onClick={onScale}
+              title={t('scale.title')}
+              className="whitespace-nowrap rounded-md bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
+            >
+              {t('tree.scale')}
+            </button>
+          )}
+        </div>
+      )}
       <div className="mb-2 flex min-w-0 items-center gap-1.5">
         {/* Fold the whole tree list — the header (and this toggle) stay put. */}
         <button
@@ -397,82 +460,11 @@ export function ComponentTree({
             {allCollapsed ? '⊞' : '⊟'}
           </button>
         )}
-        {onScale && (
-          <button
-            onClick={onScale}
-            title={t('scale.title')}
-            className="ml-auto shrink-0 whitespace-nowrap rounded-md bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
-          >
-            {t('tree.scale')}
-          </button>
-        )}
       </div>
-      {/* Design name on its own full-width row so a long name isn't squeezed by
-          the action buttons; click it to open the Rocket-configuration dialog. */}
-      <div className="mb-2 flex items-center gap-2 px-1">
-        <span className="shrink-0 text-base leading-none">🚀</span>
-        {onEditDesign ? (
-          <button
-            onClick={onEditDesign}
-            aria-label={t('config.edit')}
-            title={t('config.edit')}
-            className="group flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-sm font-semibold text-sky-400 hover:bg-slate-800/60 focus:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
-          >
-            <span className="min-w-0 flex-1 truncate">{tree.name || t('tree.rocket')}</span>
-            <span aria-hidden className="shrink-0 text-xs text-slate-500 group-hover:text-sky-300">
-              ✎
-            </span>
-          </button>
-        ) : (
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-sky-400">
-            {tree.name || t('tree.rocket')}
-          </span>
-        )}
-      </div>
-
-      {/* Actions on their own row — add a component to the selected part, add a
-          stage, or scale the whole rocket; wrap when the panel is narrow. */}
-      {(onAdd || onAddStage) && (
-        <div className="mb-2 flex flex-wrap items-center gap-2 px-1">
-          {onAddStage && (
-            <button
-              onClick={onAddStage}
-              title={t('tree.addStageTitle')}
-              className="whitespace-nowrap rounded-md bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
-            >
-              {t('tree.addStage')}
-            </button>
-          )}
-          {listOpen && onAdd && (
-            <select
-              value=""
-              disabled={groups.length === 0}
-              onChange={(e) => {
-                const v = e.target.value as ComponentType;
-                if (v) onAdd(v);
-                e.currentTarget.value = '';
-              }}
-              className="rounded-md bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500 disabled:text-slate-600"
-              title={
-                groups.length ? t('tree.canHost', { parent: parentLabel }) : t('tree.cantHost', { parent: parentLabel })
-              }
-            >
-              <option value="">{t('tree.add')}</option>
-              {groups.map((g) => (
-                <optgroup key={g.group} label={t(`tree.${g.group}`)}>
-                  {g.items.map((ty) => (
-                    <option key={ty} value={ty}>
-                      {partLabel(ty, t)}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          )}
-        </div>
-      )}
+      {/* The rule is the tree's spine, so it keeps its 1px; the inset beside it
+          was decoration the names were paying for. */}
       {listOpen && (
-        <div ref={listRef} onKeyDown={onTreeKeyDown} className="border-l border-white/5 pl-1">
+        <div ref={listRef} onKeyDown={onTreeKeyDown} className="border-l border-white/5">
           {tree.components.length ? (
             tree.components.map((c, i) => (
               <Row

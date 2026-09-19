@@ -553,15 +553,17 @@ public class SimulationOptions implements ChangeSource, Cloneable, SimulationOpt
 		try {
 			SimulationOptions copy = (SimulationOptions) super.clone();
 
+			// The copy owns its listeners, including relays from its cloned wind models.
+			copy.listeners = new ArrayList<>();
+
 			// Deep clone the wind models
 			copy.averageWindModel = this.averageWindModel.clone();
 			copy.multiLevelPinkNoiseWindModel = this.multiLevelPinkNoiseWindModel.clone();
+			copy.averageWindModel.addChangeListener(event -> copy.fireChangeEvent());
+			copy.multiLevelPinkNoiseWindModel.addChangeListener(event -> copy.fireChangeEvent());
 
 			copy.windModelType = this.windModelType;
 			// PATCH(astrarrocketjs): removed lookup-table field copies (feature stripped).
-
-			// Create a new list for listeners
-			copy.listeners = new ArrayList<>();
 
 			return copy;
 		} catch (CloneNotSupportedException e) {

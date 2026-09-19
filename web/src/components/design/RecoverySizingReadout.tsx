@@ -6,7 +6,7 @@ import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { num } from '../../tree/nodeProps';
-import { useWorkspaceStore, selectActive } from '../../state/store';
+import { useWorkspaceStore, selectActive, selectExtraMotors } from '../../state/store';
 import {
   airDensity,
   canopyDiameter,
@@ -44,7 +44,7 @@ export function RecoverySizingReadout({ node }: { node: ComponentNode }) {
   const massUnit = u.at(unitScope('recovery', 'mass'), 'mass');
   const info = useWorkspaceStore((s) => s.info);
   const motor = useWorkspaceStore((s) => selectActive(s).motor);
-  const extraMotors = useWorkspaceStore((s) => s.extraMotors);
+  const extraMotors = useWorkspaceStore(selectExtraMotors);
   const launch = useWorkspaceStore((s) => selectActive(s).launch);
 
   const cd = num(node, 'cd') || 0.8;

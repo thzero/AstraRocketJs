@@ -57,9 +57,23 @@ You can export these as **CSV** (see [Files & Exports](./files-and-exports.md)).
 
 ## Flight (after a simulation)
 
-A panel of **flight charts** over time: altitude, velocity, acceleration, Mach, thrust, mass, drag, and stability. Flight events (burnout, apogee, deployment, landing) are marked. Toggle which measures show from the chip bar, hover for a synchronized crosshair and value readout across every chart, and zoom / pan the time axis (the +/− buttons, drag, or Ctrl / pinch-scroll).
+A panel of **flight charts** over time: altitude, velocity, acceleration, Mach, thrust, mass, drag, and stability. Flight events (burnout, apogee, deployment, landing) are marked. Toggle which measures show from the chip bar, hover for a synchronized crosshair and value readout across every chart, and zoom / pan the time axis (the +/− buttons, drag, or Ctrl / pinch-scroll). **The measures you pick are remembered** — open thrust and mass once and they are still open next time, in this design and any other.
+
+**Choosing which flight** — run one simulation and the pane's title is simply its name. Run several at once and the title becomes a **picker** listing exactly those: click it and choose the flight to read. One at a time, and the choice governs all three results views — the charts, the [ground track](#ground-track-after-a-simulation) and the 3D path — so switching shows you the same flight whichever way you are looking at it.
+
+It is deliberately not the Simulations tab's tick boxes: those say what **Run** should fly, which is a different question from what you are reading.
 
 **Staged rockets** — when a flight separated into more than one stage, a **stage selector** appears above the charts. Each selected stage draws as its own colored line — a spent booster's separate climb, descent, and landing — sharing each chart's scale, with the hover readout and event markers covering every shown stage. Deselect a stage to focus on the rest.
+
+## Ground track (after a simulation)
+
+The flight seen from **directly above**: where the rocket went over the ground, with height thrown away. The 3D path answers *how did it fly*; this answers *where does it come down, and how far from the pad* — which on a breezy day is the difference between a walk and a search.
+
+North is up, the pad is at the center, and both axes share one scale, so the picture is read like a map of the field you are standing on. **Range rings** carry the measurement, labeled in your distance unit, and each track ends in a ring at its landing point. Underneath, every track reports **how far** and **which bearing** — the two numbers you actually walk on.
+
+It draws the same traces the flight charts do, so a staged flight shows each stage's own descent — a spent booster usually lands somewhere quite different from the sustainer.
+
+To take the same thing outside the app, the [flight-path export](./files-and-exports.md) writes it as KML or GPX for Google Earth, and the flight CSV now carries **East** and **North** columns beside altitude.
 
 ## 3D path (after a simulation)
 

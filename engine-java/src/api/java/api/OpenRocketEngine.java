@@ -16,9 +16,11 @@ import info.openrocket.core.logging.WarningSet;
 import info.openrocket.core.masscalc.MassCalculator;
 import info.openrocket.core.masscalc.RigidBody;
 import info.openrocket.core.models.atmosphere.ExtendedISAModel;
+import info.openrocket.core.models.gravity.ConstantGravityModel;
 import info.openrocket.core.models.gravity.WGSGravityModel;
 import info.openrocket.core.models.wind.PinkNoiseWindModel;
 import info.openrocket.core.models.wind.MultiLevelPinkNoiseWindModel;
+import info.openrocket.core.models.wind.WindModel;
 import info.openrocket.core.motor.IgnitionEvent;
 import info.openrocket.core.motor.Manufacturer;
 import info.openrocket.core.motor.Motor;
@@ -569,6 +571,12 @@ public final class OpenRocketEngine {
         WarningSet warnings = new WarningSet();
         // Upstream refactor: getCP()/getCM() now return CoordinateIF (accessor-based).
         CoordinateIF cp = calc.getCP(ctx.rocket.getSelectedConfiguration(), conditions, warnings);
+        // The GEOMETRY warnings - diameter discontinuity, open airframe forward,
+        // zero-volume body, podset overlap - are raised by checkGeometry, which
+        // getCP does not call. Without this the warning set came back empty for
+        // every design, however wrong: a nose cone four times the diameter of the
+        // tube behind it reported nothing. Upstream's own UI calls both.
+        calc.checkGeometry(ctx.rocket.getSelectedConfiguration(), ctx.rocket, warnings);
 
         double refDiameter = conditions.getRefLength(); // refLength IS the reference diameter
         double cg = structure.getCM().getX();
@@ -1130,6 +1138,11 @@ public final class OpenRocketEngine {
         double launchAltitude = JsonLite.dbl(o, "launchAltitude", 0);
         double temperature = JsonLite.dbl(o, "temperature", Double.NaN);
         double pressure = JsonLite.dbl(o, "pressure", Double.NaN);
+        // Relative humidity as a FRACTION (0..1), like the kernel's own field.
+        // It was hardcoded to STANDARD_RELATIVE_HUMIDITY, so a humid launch flew
+        // dry: humidity lowers air density (water vapor is lighter than dry
+        // air), which is small but not nothing on a marginal-stability flight.
+        double humidity = JsonLite.dbl(o, "relativeHumidity", Double.NaN);
         double timeStep = JsonLite.dbl(o, "timeStep", 0.05);
         // Series payload mode. "summary" (default) emits the friendly dozen
         // plus only the symbol series the app's flight report reads on every
@@ -1152,19 +1165,36 @@ public final class OpenRocketEngine {
                 JsonLite.dbl(o, "launchLongitude", -80.60),
                 launchAltitude));
         conditions.setGeodeticComputation(geodeticOf(JsonLite.str(o, "geodetic", "spherical")));
-        if (!Double.isNaN(temperature) || !Double.isNaN(pressure)) {
+        // Any ONE of the three is enough to leave standard ISA: humidity alone is
+        // a real case (ISA temperature and pressure, a muggy field), and keying
+        // this off temperature/pressure only would have silently dropped it.
+        if (!Double.isNaN(temperature) || !Double.isNaN(pressure) || !Double.isNaN(humidity)) {
             // Upstream changed the 3-arg ExtendedISAModel to (temp, pressure, humidity)
             // and added a 4-arg (altitude, temp, pressure, humidity). Use the 4-arg form
-            // with standard humidity so custom temp/pressure keep their altitude meaning.
+            // so custom values keep their altitude meaning.
             conditions.setAtmosphericModel(new ExtendedISAModel(
                     launchAltitude,
                     Double.isNaN(temperature) ? ExtendedISAModel.STANDARD_TEMPERATURE : temperature,
                     Double.isNaN(pressure) ? ExtendedISAModel.STANDARD_PRESSURE : pressure,
-                    ExtendedISAModel.STANDARD_RELATIVE_HUMIDITY));
+                    Double.isNaN(humidity) ? ExtendedISAModel.STANDARD_RELATIVE_HUMIDITY : humidity));
         } else {
             conditions.setAtmosphericModel(new ExtendedISAModel());
         }
-        conditions.setGravityModel(new WGSGravityModel());
+        // WGS (latitude- and altitude-dependent) unless asked for a constant g.
+        // OpenRocket offers both; we only ever built the WGS one, so a design
+        // checked against a hand calculation at 9.80665 could not be reproduced.
+        if ("constant".equalsIgnoreCase(JsonLite.str(o, "gravityModel", "wgs"))) {
+            conditions.setGravityModel(new ConstantGravityModel(JsonLite.dbl(o, "constantGravity", 9.80665)));
+        } else {
+            conditions.setGravityModel(new WGSGravityModel());
+        }
+        // The RK4 stepper shortens its step so the rocket never rotates more
+        // than this in one step. Never set, so we always ran the kernel's
+        // RECOMMENDED_ANGLE_STEP (3 degrees) whatever the simulation asked.
+        double maxAngleStep = JsonLite.dbl(o, "maxAngleStep", Double.NaN);
+        if (!Double.isNaN(maxAngleStep) && maxAngleStep > 0) {
+            conditions.setMaximumAngleStep(maxAngleStep);
+        }
         BarrowmanCalculator aeroCalc = rasAeroCalculator(ctx);
         int randomSeed = (int) JsonLite.dbl(o, "randomSeed", 42);
         List<Map<String, Object>> windLevels = JsonLite.objList(o, "windLevels");
@@ -1181,6 +1211,13 @@ public final class OpenRocketEngine {
                         JsonLite.dbl(lvl, "direction", Math.PI / 2),
                         JsonLite.dbl(lvl, "stddev", 0));
             }
+            // MSL or AGL. The constructor defaults to MSL and nothing here used
+            // to say otherwise, so an AGL profile flew as if its altitudes were
+            // above sea level -- the same numbers, a different wind, and at a
+            // mile-high site not remotely the same flight.
+            ml.setAltitudeReference("agl".equalsIgnoreCase(JsonLite.str(o, "windAltitudeReference", "msl"))
+                    ? WindModel.AltitudeReference.AGL
+                    : WindModel.AltitudeReference.MSL);
             conditions.setWindModel(ml);
         } else {
             // Seeded explicitly: the no-arg PinkNoiseWindModel constructor seeds
@@ -1196,6 +1233,21 @@ public final class OpenRocketEngine {
         conditions.setTimeStep(timeStep > 0 ? timeStep : 0.05);
         conditions.setMaxSimulationTime(JsonLite.dbl(o, "maxTime", 1200));
         conditions.setRandomSeed(randomSeed);
+        // Recovery-deployment speed thresholds. These do not change the physics;
+        // they decide when the flight raises a deployment warning, and those
+        // warnings already ride out to the caller in the result's `warnings`.
+        // Defaults match SimulationConditions' own, so an options blob that omits
+        // them behaves exactly as before.
+        //
+        // drogueLowSpeed reads live too, via PATCH(drogue-low-speed) in
+        // BasicEventSimulationEngine: upstream ships that check commented out, so
+        // the threshold was carried and never read. All four need the deploying
+        // stage's drogue flag to pick a branch, which ComponentFactory now sets
+        // from the node's `drogue` key.
+        conditions.setRecoverySpeedWarning(JsonLite.dbl(o, "recoverySpeedWarn", 20.0));
+        conditions.setDrogueLowSpeedWarning(JsonLite.dbl(o, "drogueLowSpeedWarn", 3.048));
+        conditions.setRecoveryDrogueMainHighSpeedWarning(JsonLite.dbl(o, "mainHighSpeedWarn", 30.48));
+        conditions.setRecoveryDrogueMainLowSpeedWarning(JsonLite.dbl(o, "mainLowSpeedWarn", 15.24));
 
         try {
             BasicEventSimulationEngine engine = new BasicEventSimulationEngine();

@@ -1,4 +1,4 @@
-import { test, expect, type Page, autosaved } from './base';
+import { test, expect, type Page, autosaved, openTab, runFlight } from './base';
 
 /**
  * Motor-picker behavioral suite. Every flow here runs against the default
@@ -20,6 +20,9 @@ import { test, expect, type Page, autosaved } from './base';
  */
 
 async function openPicker(page: Page) {
+  // The motor cards live on the Simulations tab (one per mount), not beside the
+  // design any more.
+  await openTab(page, 'Simulations');
   await page
     .getByRole('button', { name: /change/i })
     .first()
@@ -31,6 +34,8 @@ async function openPicker(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
+  // Every flow here drives a motor card, and those live on the Simulations tab.
+  await openTab(page, 'Simulations');
 });
 
 test('opens with the seated motor already selected', async ({ page }) => {
@@ -64,8 +69,10 @@ test('select-then-confirm applies the chosen motor and closes the dialog', async
   await select.click();
   await expect(dialog).toBeHidden();
 
-  // The motor card reflects the newly seated motor.
-  await expect(page.getByText(designation, { exact: false }).first()).toBeVisible();
+  // The motor card reflects the newly seated motor. Scoped to the card: the 2D
+  // schematic letters the same designation onto the motor it draws, and that
+  // drawing is a tab away now.
+  await expect(page.getByRole('region', { name: /Motor/ }).first().getByText(designation)).toBeVisible();
 });
 
 test('predetermined delays show as chips and any motor can be flown plugged', async ({ page }) => {
@@ -142,6 +149,7 @@ test('the motor card exposes an ignition event that persists across reloads', as
   // — once it has actually been written, which is what this waits for.
   await autosaved(page, '"ignitionEvent":"launch"');
   await page.reload();
+  await openTab(page, 'Simulations'); // a reload lands on Design
   await expect(page.getByLabel('Ignition', { exact: true })).toHaveValue('launch');
 });
 
@@ -150,8 +158,7 @@ test('a launch-delayed primary ignition still simulates end-to-end', async ({ pa
   await page.getByLabel('Ignition', { exact: true }).selectOption('launch');
   await page.getByLabel('Ignition delay (s)').fill('3');
 
-  await page.getByRole('button', { name: /run flight simulation/i }).click();
-  await expect(page.getByRole('button', { name: 'Flight', exact: true })).toBeVisible({ timeout: 30_000 });
+  await runFlight(page);
   await expect(page.getByText('not run')).toHaveCount(0);
 });
 

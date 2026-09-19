@@ -12,10 +12,12 @@ import { MaterialPicker } from './MaterialPicker';
 import { FreeformFinEditor } from './FreeformFinEditor';
 import { RecoverySizingReadout } from './RecoverySizingReadout';
 import { NumberInput } from '../common/NumberInput';
+import { FieldLabel, markRing } from '../common/FieldMark';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { num } from '../../tree/nodeProps';
+import { AUTO_COMPONENT_FIELDS, REQUIRED_COMPONENT_FIELDS } from '../../services/requiredComponent';
 import { tubeFinMaxCount, tubeFinMaxRadius } from '../../tree/tubefins';
 import { CLUSTER_OPTIONS, clusterCount } from '../../tree/cluster';
 import type { TFunction } from 'i18next';
@@ -31,23 +33,41 @@ import type { TFunction } from 'i18next';
  * beside each field is a UnitChip, so it doubles as the picker.
  */
 
-type Field =
-  | { key: string; label: string; kind: 'length' } // stored m, shown in units.length
-  | { key: string; label: string; kind: 'mass' } // stored kg, shown in units.mass
-  | { key: string; label: string; kind: 'count' }
-  | { key: string; label: string; kind: 'distance'; step?: number } // stored m, shown in units.distance
-  | { key: string; label: string; kind: 'number'; step?: number; unit?: string }
-  | { key: string; label: string; kind: 'angle'; step?: number } // stored radians, shown in units.angle
-  | { key: string; label: string; kind: 'bool' }
-  | {
-      key: string;
-      label: string;
-      kind: 'select';
-      options: string[];
-      optI18n?: string;
-      /** Option text when it has to be computed rather than looked up. */
-      optLabel?: (option: string, t: TFunction) => string;
-    };
+/**
+ * `required` means a ZERO here is degenerate, not that the box can be empty.
+ *
+ * Unlike the launch conditions -- where a cleared field had to be told apart
+ * from a typed zero, because still air and sea level are real values -- a part
+ * has no meaningful "blank length". Zero IS the invalid state, so there is no
+ * second state to model and the field keeps storing a number.
+ *
+ * Marked conservatively: only where a zero makes the part stop being that part.
+ * Plenty of dimensions here are legitimately zero and are NOT marked -- a
+ * tipChord of 0 is a delta fin, a sweep or cant of 0 is a straight one, a
+ * shoulder or fin tab of 0 is simply absent, and every delay and angle offset
+ * starts at 0.
+ */
+type FieldFlags = { required?: true };
+
+type Field = FieldFlags &
+  (
+    | { key: string; label: string; kind: 'length' } // stored m, shown in units.length
+    | { key: string; label: string; kind: 'mass' } // stored kg, shown in units.mass
+    | { key: string; label: string; kind: 'count' }
+    | { key: string; label: string; kind: 'distance'; step?: number } // stored m, shown in units.distance
+    | { key: string; label: string; kind: 'number'; step?: number; unit?: string }
+    | { key: string; label: string; kind: 'angle'; step?: number } // stored radians, shown in units.angle
+    | { key: string; label: string; kind: 'bool' }
+    | {
+        key: string;
+        label: string;
+        kind: 'select';
+        options: string[];
+        optI18n?: string;
+        /** Option text when it has to be computed rather than looked up. */
+        optLabel?: (option: string, t: TFunction) => string;
+      }
+  );
 
 // The real OpenRocket shape vocabulary — matches the engine (shapeOf), the
 // drawing (shapeProfile), and the parts catalog. NOT 'elliptical'/'powerseries'.
@@ -113,7 +133,7 @@ export const PANEL_SCOPE_KEYS = ['overrideMass', 'overrideCGX', 'offset'] as con
  * (type, key), so a duplicated key would silently make two fields share one
  * unit choice.
  */
-export const FIELDS: Record<string, Field[]> = {
+const RAW_FIELDS: Record<string, Field[]> = {
   // Separation only — shown for a non-first stage (see the render guard). The
   // altitude is used only by the altitude events; harmless (like deployAltitude).
   stage: [
@@ -242,6 +262,10 @@ export const FIELDS: Record<string, Field[]> = {
     { key: 'cd', label: 'dragCoeff', kind: 'number', step: 0.05 },
     { key: 'lineCount', label: 'lineCount', kind: 'count' },
     { key: 'lineLength', label: 'lineLength', kind: 'length' },
+    // Which half of a dual-deployment pair this is. The kernel judges the
+    // deployment speed against different thresholds depending on it, and cannot
+    // warn about dual deployment at all unless something on the stage says drogue.
+    { key: 'drogue', label: 'drogue', kind: 'bool' },
     { key: 'deployEvent', label: 'deployEvent', kind: 'select', options: DEPLOY_EVENTS, optI18n: 'deployEvent' },
     { key: 'deployAltitude', label: 'deployAltitude', kind: 'distance', step: 10 },
     { key: 'deployDelay', label: 'deployDelay', kind: 'number', unit: 's', step: 0.5 },
@@ -250,6 +274,7 @@ export const FIELDS: Record<string, Field[]> = {
     { key: 'stripLength', label: 'length', kind: 'length' },
     { key: 'stripWidth', label: 'width', kind: 'length' },
     { key: 'cd', label: 'dragCoeff', kind: 'number', step: 0.05 },
+    { key: 'drogue', label: 'drogue', kind: 'bool' },
     { key: 'deployEvent', label: 'deployEvent', kind: 'select', options: DEPLOY_EVENTS, optI18n: 'deployEvent' },
     { key: 'deployAltitude', label: 'deployAltitude', kind: 'distance', step: 10 },
     { key: 'deployDelay', label: 'deployDelay', kind: 'number', unit: 's', step: 0.5 },
@@ -277,12 +302,36 @@ export const FIELDS: Record<string, Field[]> = {
   ],
 };
 
+/**
+ * The same table with `required` filled in from `services/requiredComponent`,
+ * which is also what the Run button and the run loop check. One list, so the
+ * editor cannot mark a field the run path ignores, or the other way round.
+ *
+ * A field the kernel DERIVES is never marked, even though it is required in the
+ * sense that the part cannot work without one: leaving a centering ring's outer
+ * radius blank means "the tube I sit in", which is a real answer and the one
+ * OpenRocket writes as `auto`. A red asterisk there would demand a number the
+ * design does not need, and the run path agrees - `badDimensions` skips the same
+ * pairs.
+ */
+export const FIELDS: Record<string, Field[]> = Object.fromEntries(
+  Object.entries(RAW_FIELDS).map(([type, fields]) => [
+    type,
+    fields.map((f) =>
+      (REQUIRED_COMPONENT_FIELDS[type] ?? []).includes(f.key) && !(AUTO_COMPONENT_FIELDS[type] ?? []).includes(f.key)
+        ? { ...f, required: true }
+        : f,
+    ),
+  ]),
+);
+
 function NumberField({
   label,
   unit,
   value,
   step,
   min = 0,
+  required,
   onChange,
   onCommit,
 }: {
@@ -291,21 +340,44 @@ function NumberField({
   value: number;
   step: number;
   min?: number;
+  /** A zero here is degenerate geometry — see the `Field` type. */
+  required?: boolean;
   onChange: (v: number) => void;
   onCommit?: () => void; // fires on blur — closes the undo entry for this edit
 }) {
+  // No separate "blank" state to check for: 0 is exactly what is wrong here, so
+  // an emptied box and a typed zero collapse into one condition.
+  const missing = required && !(Number.isFinite(value) && value > 0);
+  /**
+   * An empty REQUIRED box writes nothing at all.
+   *
+   * Not a focus trap -- you can still tab away, which a trap would forbid
+   * (WCAG 2.1.2) and which would fight anyone clearing a field to retype it.
+   * The input keeps its own draft string while focused, so the box still LOOKS
+   * empty as you type; it is only the commit that is withheld. Blur then shows
+   * the value that was already there. So the accidental path to a zero is gone
+   * entirely, while a deliberately typed 0 still lands, still goes red, and is
+   * still refused by the run.
+   */
+  const write = (v: number | null) => {
+    if (v === null && required) return;
+    onChange(v ?? 0);
+  };
   return (
     <label className="flex items-center justify-between gap-3">
-      <span className="text-xs text-slate-400">{label}</span>
+      <FieldLabel text={label} required={required} missing={missing} />
       <span className="flex items-center gap-1">
         <NumberInput
           ariaLabel={label}
           value={Number.isFinite(value) ? value : 0}
-          onChange={(v) => onChange(v ?? 0)}
+          onChange={write}
           onCommit={onCommit}
           step={step}
           min={min}
-          className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+          className={markRing(
+            'w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500',
+            missing,
+          )}
         />
         {unit && <span className="min-w-10 text-xs text-slate-500">{unit}</span>}
       </span>
@@ -567,6 +639,7 @@ export function PropertyPanel({
             <NumberField
               key={f.key}
               label={flabel(f)}
+              required={f.required}
               value={num(node, f.key)}
               step={1}
               onChange={(v) => onChange({ [f.key]: Math.max(1, Math.round(v)) })}
@@ -593,6 +666,7 @@ export function PropertyPanel({
             <NumberField
               key={f.key}
               label={flabel(f)}
+              required={f.required}
               unit={<UnitChip quantity="mass" scope={scope} />}
               value={fu.toUi(num(node, f.key))}
               step={fu.step(0.0005)}
@@ -607,6 +681,7 @@ export function PropertyPanel({
             <NumberField
               key={f.key}
               label={flabel(f)}
+              required={f.required}
               unit={<UnitChip quantity="distance" scope={scope} />}
               value={fu.toUi(num(node, f.key))}
               step={fu.step(f.step ?? 10)}
@@ -620,6 +695,7 @@ export function PropertyPanel({
             <NumberField
               key={f.key}
               label={flabel(f)}
+              required={f.required}
               unit={f.unit}
               value={num(node, f.key)}
               step={f.step ?? 0.1}
@@ -635,6 +711,7 @@ export function PropertyPanel({
             <NumberField
               key={f.key}
               label={flabel(f)}
+              required={f.required}
               unit={<UnitChip quantity="angle" scope={scope} />}
               // Half a turn either way, in whatever unit is selected — a fixed
               // −180 would clamp a radian entry to well inside its legal range.
@@ -652,6 +729,7 @@ export function PropertyPanel({
           <NumberField
             key={f.key}
             label={flabel(f)}
+            required={f.required}
             unit={<UnitChip quantity="length" scope={scope} />}
             value={fu.toUi(num(node, f.key))}
             step={fu.step(0.0005)}

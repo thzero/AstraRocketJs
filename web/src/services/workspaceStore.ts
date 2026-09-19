@@ -9,8 +9,8 @@
 // (designLibrary.ts), which holds many designs in IndexedDB. This interface
 // stays narrow on purpose — it is only "the design being edited"; listing,
 // opening, renaming and deleting designs are the library's job.
-import { getDesignLibrary, type DesignLibrary } from './designLibrary';
-import type { RocketTree } from '../engine/openRocketEngine';
+import { getDesignLibrary, type DesignLibrary, type StoredResults } from './designLibrary';
+import type { FlightResult, RocketTree } from '../engine/openRocketEngine';
 import type { Simulation } from './simulations';
 import type { MountMotor } from './loadOrk';
 import type { OrkExportMotor } from './orkFile';
@@ -20,8 +20,15 @@ export interface Workspace {
   tree: RocketTree;
   sims: Simulation[];
   activeId: string;
-  /** Motors for non-primary mounts (multi-mount .ork imports). */
-  extraMotors: Record<string, MountMotor>;
+  /**
+   * LEGACY: one shared map of non-primary-mount motors for the whole workspace.
+   *
+   * Read, never written. The motor loadout now rides on each simulation
+   * (`Simulation.extraMotors`) so two simulations can fly the same airframe with
+   * different upper-stage motors. `hydrate` folds a blob written before that
+   * into every simulation, which reproduces exactly what the shared map meant.
+   */
+  extraMotors?: Record<string, MountMotor>;
   /** Imported-.ork source metadata (banner + round-trip export), or null. */
   loadedMeta: { name: string; notes: string[]; exportMotors: Record<string, OrkExportMotor> } | null;
 }
@@ -53,9 +60,30 @@ interface Journal {
   w: Workspace;
 }
 
-/** Drop cached flight results — recomputable, and the time-series can be large.
- *  The design plus each sim's motor / launch / name are what persist. */
+/**
+ * The workspace WITHOUT its flight results.
+ *
+ * Two callers, for two reasons. The design blob is rewritten on every keystroke's
+ * debounced autosave, and a result is tens of thousands of samples — they live
+ * under their own key instead (see DesignLibrary.writeResults). The unload
+ * journal goes to localStorage, whose whole-origin budget is ~5 MB, so results
+ * must never go near it; the async save that follows a run puts them in
+ * IndexedDB within the debounce, so the journal loses nothing that matters.
+ */
 const lean = (w: Workspace): Workspace => ({ ...w, sims: w.sims.map((s) => ({ ...s, result: null })) });
+
+/** Re-attach stored flights to the simulations that produced them. */
+const withResults = (w: Workspace, results: StoredResults): Workspace => ({
+  ...w,
+  sims: w.sims.map((s) => (results[s.id] ? { ...s, result: results[s.id]! } : s)),
+});
+
+/** Just the flights, by simulation id — what gets stored under the results key. */
+const resultsOf = (w: Workspace): StoredResults => {
+  const out: StoredResults = {};
+  for (const s of w.sims) if (s.result) out[s.id] = s.result;
+  return out;
+};
 
 function readJournal(): Journal | null {
   try {
@@ -83,6 +111,17 @@ const nameFor = (w: Workspace) => w.loadedMeta?.name?.trim() || 'My Rocket';
 export class LibraryWorkspaceStore implements WorkspaceStore {
   /** Cached so autosave does not re-read the active id on every keystroke. */
   private activeId: string | null = null;
+  /**
+   * The flights as last written, by simulation id, so a save can tell whether
+   * any of them actually changed.
+   *
+   * Identity, not contents: a result object is replaced wholesale when a run
+   * finishes and is never mutated, so `!==` is both correct and free — where
+   * comparing the arrays would cost as much as writing them. Without this, every
+   * keystroke's autosave would re-serialize every flight, which is the whole
+   * reason they were not being stored at all.
+   */
+  private savedResults = new Map<string, FlightResult | null>();
 
   async load(): Promise<Workspace | null> {
     const lib = getDesignLibrary();
@@ -106,7 +145,9 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
       if (await lib.write(journal.id, (await this.nameOf(journal.id)) ?? nameFor(w), w)) {
         clearJournal();
       }
-      return w;
+      // The journal carries no results (see `lean`), so they come from their own
+      // key — a reload after a run still opens on the numbers it produced.
+      return this.trackResults(withResults(w, await lib.readResults(journal.id)));
     }
     // A journal from a design that no longer exists is stale; drop it rather
     // than replaying it over whatever happens to be open now.
@@ -139,7 +180,19 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
       this.activeId = null;
       throw new Error('unreadable-design');
     }
+    return this.trackResults(withResults(w, await lib.readResults(this.activeId)));
+  }
+
+  /** Record what is on disk, so the next save knows whether to rewrite it. */
+  private trackResults(w: Workspace): Workspace {
+    this.savedResults = new Map(w.sims.map((s) => [s.id, s.result ?? null]));
     return w;
+  }
+
+  /** True when any simulation's flight differs from what was last written. */
+  private resultsChanged(w: Workspace): boolean {
+    if (w.sims.length !== this.savedResults.size) return true;
+    return w.sims.some((s) => this.savedResults.get(s.id) !== (s.result ?? null));
   }
 
   private async nameOf(id: string): Promise<string | null> {
@@ -154,17 +207,33 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     if (!this.activeId) {
       const meta = await lib.create(nameFor(w), leanW);
       this.activeId = meta.id;
+      await this.saveResults(lib, meta.id, w);
       return;
     }
     // The design is the ONE thing here that cannot be recomputed, so surface a
     // failed write (storage full) instead of silently dropping the user's work.
     const name = (await this.nameOf(this.activeId)) ?? nameFor(w);
     if (!(await lib.write(this.activeId, name, leanW))) throw new Error('storage-full');
+    await this.saveResults(lib, this.activeId, w);
+  }
+
+  /**
+   * Write the flights, but only when they have moved.
+   *
+   * Never throws: a result is recomputable by definition, so storage refusing it
+   * is not worth failing the save that just stored the design.
+   */
+  private async saveResults(lib: DesignLibrary, id: string, w: Workspace): Promise<void> {
+    if (!this.resultsChanged(w)) return;
+    if (await lib.writeResults(id, resultsOf(w))) this.trackResults(w);
   }
 
   /** Point the store at a different design (the library owns the switch). */
   setActiveId(id: string | null): void {
     this.activeId = id;
+    // A different design has different flights; what we know about the last
+    // write no longer applies to the one we are about to make.
+    this.savedResults = new Map();
   }
 
   /** Synchronous unload write. Best-effort: if it does not fit (the blob is

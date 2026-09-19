@@ -5,21 +5,33 @@
 // localStorage-era shape — with IndexedDB there is no reason a design has to be
 // the only one. Designs are now addressable:
 //
-//   astrarrocketjs:designs:index    → DesignMeta[]  (small: id, name, updatedAt)
-//   astrarrocketjs:designs:<id>     → one Workspace blob
-//   astrarrocketjs:designs:active   → the id currently open
+//   astrarrocketjs:designs:index        → DesignMeta[]  (small: id, name, updatedAt)
+//   astrarrocketjs:designs:<id>         → one Workspace blob (the INPUTS)
+//   astrarrocketjs:designs:<id>:results → that design's flight results
+//   astrarrocketjs:designs:active       → the id currently open
 //
 // The index is deliberately separate from the designs. Autosave runs on a 500 ms
 // debounce while you edit, so it must rewrite ONE design — not a single document
 // containing every design, which would grow with the library and get rewritten
 // on every keystroke.
+//
+// Flight RESULTS are separate for the same reason, one level down. A result is
+// tens of thousands of per-timestep samples; the inputs are a few kilobytes. Held
+// in the one blob, every keystroke's autosave would re-serialize every flight the
+// design has ever run. Split, the inputs stay cheap to write and the results are
+// written only when a run actually produces one (see workspaceStore.save).
 import type { KeyValueStore } from './keyValueStore';
 import { IndexedDbKeyValueStore } from './idbKeyValueStore';
 import type { Workspace } from './workspaceStore';
+import type { FlightResult } from '../engine/openRocketEngine';
+
+/** A design's cached flights, by simulation id. */
+export type StoredResults = Record<string, FlightResult>;
 
 const INDEX_KEY = 'astrarrocketjs:designs:index';
 const ACTIVE_KEY = 'astrarrocketjs:designs:active';
 const designKey = (id: string) => `astrarrocketjs:designs:${id}`;
+const resultsKey = (id: string) => `astrarrocketjs:designs:${id}:results`;
 /** The pre-library single-workspace key, migrated on first use. */
 const LEGACY_KEY = 'astrarrocketjs:workspace';
 
@@ -127,8 +139,39 @@ export class DesignLibrary {
     await this.writeIndex(list.map((m) => (m.id === id ? { ...m, name } : m)));
   }
 
+  // --- flight results ----------------------------------------------------
+
+  /** A design's cached flights. Missing or unreadable reads as "none". */
+  async readResults(id: string): Promise<StoredResults> {
+    const raw = await this.kv.get(resultsKey(id));
+    if (!raw) return {};
+    try {
+      const parsed = JSON.parse(raw) as StoredResults;
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {}; // a truncated blob costs a re-run, not the design
+    }
+  }
+
+  /**
+   * Replace a design's cached flights. An empty map REMOVES the key rather than
+   * storing `{}`, so a design whose results were all invalidated stops occupying
+   * space for them.
+   *
+   * Best-effort by design: unlike the inputs, a result that will not fit is
+   * recomputable, so a refused write is not worth failing a save over.
+   */
+  async writeResults(id: string, results: StoredResults): Promise<boolean> {
+    if (!Object.keys(results).length) {
+      await this.kv.remove(resultsKey(id));
+      return true;
+    }
+    return await this.kv.set(resultsKey(id), JSON.stringify(results));
+  }
+
   async remove(id: string): Promise<void> {
     await this.kv.remove(designKey(id));
+    await this.kv.remove(resultsKey(id)); // or the flights outlive their design
     await this.writeIndex((await this.readIndex()).filter((m) => m.id !== id));
     if ((await this.kv.get(ACTIVE_KEY)) === id) await this.kv.remove(ACTIVE_KEY);
   }

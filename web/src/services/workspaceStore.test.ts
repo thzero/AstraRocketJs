@@ -30,10 +30,16 @@ const workspace = (): Workspace =>
     loadedMeta: null,
   }) as unknown as Workspace;
 
-/** Raw key of the one design in the library, for seeding corrupt blobs. */
+/** Raw key of the one design in the library, for seeding corrupt blobs.
+ *  `:results` is excluded along with the index and active keys — the flights
+ *  live beside the design under the same prefix. */
 const designKey = (kv: FakeKv) =>
   [...kv.map.keys()].find(
-    (k) => k.startsWith('astrarrocketjs:designs:') && !k.endsWith(':index') && !k.endsWith(':active'),
+    (k) =>
+      k.startsWith('astrarrocketjs:designs:') &&
+      !k.endsWith(':index') &&
+      !k.endsWith(':active') &&
+      !k.endsWith(':results'),
   )!;
 
 let kv: FakeKv;
@@ -70,10 +76,51 @@ describe('LibraryWorkspaceStore', () => {
     expect(await new DesignLibrary(kv).list()).toHaveLength(1);
   });
 
-  it('strips cached flight results on save', async () => {
+  /**
+   * Flights persist, but NOT inside the design blob.
+   *
+   * They used to be dropped entirely, so a reload lost every run. They are stored
+   * now — under their own key, because the design blob is rewritten on every
+   * keystroke's debounced autosave and a result is tens of thousands of samples.
+   */
+  it('stores flight results, and keeps them out of the design blob', async () => {
     await store.save(workspace());
+
+    const blob = kv.map.get(designKey(kv))!;
+    expect(blob).not.toContain('series'); // the inputs, and only the inputs
+    expect([...kv.map.keys()].some((k) => k.endsWith(':results'))).toBe(true);
+
     const w = await store.load();
-    expect(w!.sims[0]!.result).toBeNull(); // recomputable → not persisted
+    expect(w!.sims[0]!.result).not.toBeNull(); // …and a reload has them back
+  });
+
+  it('rewrites the flights only when a run has changed them', async () => {
+    const w = workspace();
+    await store.save(w);
+    const key = [...kv.map.keys()].find((k) => k.endsWith(':results'))!;
+    const first = kv.map.get(key);
+
+    // Same result objects, an edit elsewhere: the flights must not be rewritten,
+    // which is what keeps typing cheap.
+    kv.map.set(key, 'SENTINEL');
+    await store.save({ ...w, tree: { components: [{ id: 'x' }] } } as unknown as Workspace);
+    expect(kv.map.get(key)).toBe('SENTINEL');
+
+    // A new result object IS a change.
+    const ran = { ...w, sims: [{ ...w.sims[0]!, result: { series: { time: [1] } } }] } as unknown as Workspace;
+    await store.save(ran);
+    expect(kv.map.get(key)).not.toBe('SENTINEL');
+    expect(kv.map.get(key)).not.toBe(first);
+  });
+
+  it('drops the flights when the last result goes away', async () => {
+    await store.save(workspace());
+    expect([...kv.map.keys()].some((k) => k.endsWith(':results'))).toBe(true);
+
+    const cleared = { ...workspace(), sims: [{ ...workspace().sims[0]!, result: null }] } as unknown as Workspace;
+    await store.save(cleared);
+    // An empty map removes the key rather than storing "{}".
+    expect([...kv.map.keys()].some((k) => k.endsWith(':results'))).toBe(false);
   });
 
   /**
@@ -109,8 +156,14 @@ describe('LibraryWorkspaceStore', () => {
     // whatever can be recovered by hand still can be.
     await store.save(workspace());
     expect(kv.map.get(originalKey)).toBe(corrupt);
+    // DESIGN blobs, so `:results` is excluded along with the index and active
+    // keys: the flights live beside each design under the same prefix.
     const keys = [...kv.map.keys()].filter(
-      (k) => k.startsWith('astrarrocketjs:designs:') && !k.endsWith(':index') && !k.endsWith(':active'),
+      (k) =>
+        k.startsWith('astrarrocketjs:designs:') &&
+        !k.endsWith(':index') &&
+        !k.endsWith(':active') &&
+        !k.endsWith(':results'),
     );
     expect(keys).toHaveLength(2);
   });

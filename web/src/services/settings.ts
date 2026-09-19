@@ -1,5 +1,6 @@
 import type { PartKey } from './partColors';
-import type { LaunchConditions } from './orkTree';
+import type { CompleteLaunch } from './requiredLaunch';
+import { DEFAULT_CSV_COLUMNS } from './flightColumns';
 import {
   METRIC_UNITS,
   UNIT_CHOICES,
@@ -10,8 +11,40 @@ import {
   type UnitSelection,
 } from '../prefs/units';
 
+/**
+ * Bounds for the component-tree column (see `Settings.treePaneWidth`).
+ *
+ * The minimum is where the design actions stop fitting on one row: they need
+ * about 253px and the column spends 32 on padding. It was 320, when that
+ * padding was 48. The maximum is judgment - past it the names have long since
+ * stopped truncating.
+ */
+export const TREE_PANE_MIN = 300;
+export const TREE_PANE_MAX = 640;
+export const TREE_PANE_DEFAULT = 360;
+
+/**
+ * Bounds for the right-hand column (see `Settings.sidePaneWidth`).
+ *
+ * The minimum is where the Results tiles stop working: they are a 3-up grid, and
+ * narrower than this "Static margin @ rail exit" wraps onto three lines.
+ */
+export const SIDE_PANE_MIN = 300;
+export const SIDE_PANE_MAX = 640;
+export const SIDE_PANE_DEFAULT = 380;
+
+/** What the center pane keeps, whichever divider is being dragged. */
+export const CENTER_PANE_MIN = 320;
+
+/** A stored column width, forced back into the usable range. */
+const clampPane = (v: unknown, min: number, max: number, fallback: number): number =>
+  typeof v === 'number' && Number.isFinite(v) ? Math.round(Math.min(max, Math.max(min, v))) : fallback;
+
+export const clampTreePane = (v: unknown): number => clampPane(v, TREE_PANE_MIN, TREE_PANE_MAX, TREE_PANE_DEFAULT);
+export const clampSidePane = (v: unknown): number => clampPane(v, SIDE_PANE_MIN, SIDE_PANE_MAX, SIDE_PANE_DEFAULT);
+
 // Sea-level, calm, standard-atmosphere defaults (Cape Canaveral latitude).
-const DEFAULT_LAUNCH: LaunchConditions = {
+const DEFAULT_LAUNCH: CompleteLaunch = {
   launchRodLengthM: 1,
   launchRodAngleDeg: 0,
   launchRodDirectionDeg: 90,
@@ -38,15 +71,47 @@ export interface SimulationSettings {
   timeStep: number;
   /** Cap on simulated flight time (s) — ends a run that never lands. OR default 1200. */
   maxTime: number;
+  /**
+   * The most the rocket may rotate in one RK4 step, RADIANS. The stepper
+   * shortens dt to respect it, so this buys accuracy through a fast pitch-over
+   * without paying for it over the whole coast. OR default: 3 degrees.
+   */
+  maxAngleStep: number;
   /** Fixed seed for wind-turbulence reproducibility; null = random each run. */
   randomSeed: number | null;
   /** Ask for confirmation before deleting a simulation. */
   confirmDelete: boolean;
   /** Auto-run an outdated simulation when its results view is opened. */
   autoRunOutdated: boolean;
-  /** Recovery-deployment speed (m/s) at/above which the deploy-speed tile warns
-   *  (fast deployment risks zippering / hardware damage). Below = green. */
+  /**
+   * Recovery-deployment speed (m/s) at/above which a SINGLE-deployment recovery
+   * is too fast (zippering / hardware damage). Below = green.
+   *
+   * Drives two things that used to disagree: the deploy-speed tile's color, and
+   * the kernel's own deployment warning — which ran on its own hard-coded 20 m/s
+   * until this was passed through, so moving this slider changed the tile and
+   * nothing else.
+   */
   deploymentSpeedWarn: number;
+  /**
+   * Dual-deployment (a stage carrying a drogue) uses these for the MAIN instead
+   * of `deploymentSpeedWarn`: out too fast risks the same damage, out too slow
+   * means a long descent and a long walk. OpenRocket's defaults are 100 ft/s and
+   * 50 ft/s, which is where these SI values come from.
+   */
+  mainHighSpeedWarn: number;
+  mainLowSpeedWarn: number;
+  /**
+   * Dual deployment, the DROGUE side: at apogee the rocket is barely moving, and
+   * a drogue let out below this speed may never see enough airflow to inflate.
+   * OpenRocket's default is 10 ft/s, hence 3.048.
+   *
+   * Upstream ships this check commented out; PATCH(drogue-low-speed) in
+   * `BasicEventSimulationEngine` enables it, so the value is read rather than
+   * merely carried. Like the two main thresholds it only applies when the
+   * deploying stage actually has a device marked as a drogue.
+   */
+  drogueLowSpeedWarn: number;
   /** Minimum safe rod/rail-exit velocity (m/s): the rod-exit tile is green at or
    *  above this, and warns below it (too slow to be stable off the rail). */
   railExitVelocityMin: number;
@@ -86,13 +151,65 @@ export interface Settings {
   /** Global simulation preferences. */
   simulation: SimulationSettings;
   /** Default launch conditions for newly-created simulations. */
-  launchDefaults: LaunchConditions;
+  /**
+   * What a NEW simulation is seeded from, so it is always COMPLETE: the six
+   * required launch fields can be blank on a simulation (a cleared field has
+   * to be distinguishable from a typed zero) but never here, or every future
+   * simulation would start with a hole. The sanitizer below repairs a blank
+   * back to the built-in default, and the Settings panel refuses to store one.
+   */
+  launchDefaults: CompleteLaunch;
   /** Show the CG / CP / margin markers on the 2D & 3D views. */
   showMarkers: boolean;
   /** Show the length · mass · CG · CP · stability info card on the 2D & 3D views. */
   showInfoCard: boolean;
   /** Expand the "All stats" strip under the canvas (collapsed = just its header). */
   showStats: boolean;
+  /**
+   * Expand the import notes on the loaded-design card (collapsed = just the
+   * warning count).
+   *
+   * Deliberately app-wide rather than per design: it is a reading habit - you
+   * either want to see what a file could not bring across or you have stopped
+   * caring - and a per-design flag would mean re-collapsing the notes on every
+   * `.ork` you open. There is nothing to key it to either, since a design that
+   * has not been saved has no stable identity.
+   */
+  showImportNotes: boolean;
+  /**
+   * Width of the Design tab's component-tree column, in CSS pixels.
+   *
+   * The column carries two layers of padding before anything is drawn, so it
+   * gives its contents 32px less than this. TREE_PANE_MIN is what the + Stage /
+   * + Add / Scale row needs to stay one row; above TREE_PANE_MAX the tree is
+   * mostly empty gutter. The splitter also caps itself against the window at
+   * drag time, so a width stored on a wide monitor cannot crush the center pane
+   * on a narrow one.
+   */
+  treePaneWidth: number;
+  /**
+   * Width of the right-hand column, in CSS pixels.
+   *
+   * ONE width for all three of them - the part editor, the simulation editor and
+   * the run's numbers. They were a matching 380 on purpose: right columns of
+   * different widths read as an accident rather than as a choice, and that stays
+   * true when the width becomes the user's. Sizing it on any tab sizes it on all
+   * of them.
+   */
+  sidePaneWidth: number;
+  /**
+   * Give the whole window to the center pane, hiding both side columns.
+   *
+   * An airframe is 15-25x longer than it is wide, so the drawing is starved of
+   * horizontal space long before it is starved of vertical: dropping the tree
+   * and the property editor is worth about 750px of a 1500px window. The static
+   * statistics strip goes too - it is a footer about the design rather than part
+   * of the drawing, and it was spending 175px of height on the expand. It
+   * applies only on the tabs the center pane is actually on - on Simulations the
+   * flag is ignored, or the simulation editor would hide with no toolbar left to
+   * bring it back from.
+   */
+  maximizeCenter: boolean;
   /** Which sides of the 2D side view are framed by a measurement ruler. */
   rulers: RulerSides;
   /** Write the derived <designinfo> statistics block into saved .ork files. Off
@@ -102,6 +219,38 @@ export interface Settings {
   report: ReportSettings;
   /** Flight-path export preferences that outlive one export. */
   pathExport: PathExportSettings;
+  /**
+   * Which flight-chart panels are open, by series key (`altitude`, `thrust`…).
+   *
+   * A preference rather than component state: the panels you read are a working
+   * habit, not a property of one flight, and re-ticking thrust and mass on every
+   * visit to the Results tab is the kind of friction nobody reports. The chart
+   * owns the list of legal keys and ignores any it does not know, so a value
+   * saved by a later version (or hand-edited) cannot blank the view.
+   *
+   * Empty is allowed and means every panel closed - a deliberate state, since
+   * the chips are how you get one back.
+   */
+  flightSeries: string[];
+  /**
+   * How the flight CSV is written, remembered between exports the way
+   * OpenRocket's export panel remembers its own
+   * (`CsvOptionPanel.storePreferences`).
+   *
+   * Columns are stored by series key. Keys this build cannot fill are dropped at
+   * export time rather than here, so a list written by another version costs a
+   * column instead of breaking the dialog.
+   */
+  flightCsv: {
+    columns: string[];
+    separator: string;
+    decimals: number;
+    exponential: boolean;
+    simDescription: boolean;
+    fieldDescriptions: boolean;
+    flightEvents: boolean;
+    commentChar: string;
+  };
   /** Whether the user has dismissed the pre-1.0 "work in progress" notice. */
   wipAcknowledged: boolean;
 }
@@ -158,20 +307,44 @@ export const DEFAULT_SETTINGS: Settings = {
   simulation: {
     timeStep: 0.05,
     maxTime: 1200,
+    // The kernel's own RECOMMENDED_ANGLE_STEP (AbstractRKSimulationStepper),
+    // which is what every run used before this was settable.
+    maxAngleStep: (3 * Math.PI) / 180,
     randomSeed: null,
     confirmDelete: true,
     autoRunOutdated: false,
     deploymentSpeedWarn: 20,
+    mainHighSpeedWarn: 30.48,
+    mainLowSpeedWarn: 15.24,
+    drogueLowSpeedWarn: 3.048,
     railExitVelocityMin: 15,
   },
   launchDefaults: DEFAULT_LAUNCH,
   showMarkers: true,
   showInfoCard: true,
   showStats: true,
+  showImportNotes: true,
+  treePaneWidth: TREE_PANE_DEFAULT,
+  sidePaneWidth: SIDE_PANE_DEFAULT,
+  maximizeCenter: false,
   rulers: { top: true, bottom: true, left: true, right: true },
   saveDesignInfo: false,
   report: DEFAULT_REPORT,
   pathExport: DEFAULT_PATH_EXPORT,
+  // The three a flight is usually read by; the rest are one chip away.
+  flightSeries: ['altitude', 'velocity', 'acceleration'],
+  flightCsv: {
+    // The named series, which is what a reader expects to find in the file.
+    // Everything else the run records is one tick away in the dialog.
+    columns: [...DEFAULT_CSV_COLUMNS],
+    separator: ',',
+    decimals: 3,
+    exponential: false,
+    simDescription: true,
+    fieldDescriptions: true,
+    flightEvents: true,
+    commentChar: '#',
+  },
   wipAcknowledged: false,
 };
 
@@ -214,6 +387,13 @@ export function loadSettings(): Settings {
         const pos = (v: number, d: number) => (Number.isFinite(v) && v > 0 ? v : d);
         sim.timeStep = pos(sim.timeStep, DEFAULT_SETTINGS.simulation.timeStep);
         sim.maxTime = pos(sim.maxTime, DEFAULT_SETTINGS.simulation.maxTime);
+        // Zero or negative would make the stepper's dt go to zero or flip sign.
+        sim.maxAngleStep = pos(sim.maxAngleStep, DEFAULT_SETTINGS.simulation.maxAngleStep);
+        // These reach the kernel too, so the same guard applies.
+        sim.deploymentSpeedWarn = pos(sim.deploymentSpeedWarn, DEFAULT_SETTINGS.simulation.deploymentSpeedWarn);
+        sim.mainHighSpeedWarn = pos(sim.mainHighSpeedWarn, DEFAULT_SETTINGS.simulation.mainHighSpeedWarn);
+        sim.mainLowSpeedWarn = pos(sim.mainLowSpeedWarn, DEFAULT_SETTINGS.simulation.mainLowSpeedWarn);
+        sim.drogueLowSpeedWarn = pos(sim.drogueLowSpeedWarn, DEFAULT_SETTINGS.simulation.drogueLowSpeedWarn);
         return sim;
       })(),
       launchDefaults: (() => {
@@ -261,6 +441,13 @@ export function loadSettings(): Settings {
       showMarkers: typeof s.showMarkers === 'boolean' ? s.showMarkers : DEFAULT_SETTINGS.showMarkers,
       showInfoCard: typeof s.showInfoCard === 'boolean' ? s.showInfoCard : DEFAULT_SETTINGS.showInfoCard,
       showStats: typeof s.showStats === 'boolean' ? s.showStats : DEFAULT_SETTINGS.showStats,
+      showImportNotes: typeof s.showImportNotes === 'boolean' ? s.showImportNotes : DEFAULT_SETTINGS.showImportNotes,
+      // Clamped rather than trusted: the value reaches a style attribute, and a
+      // hand-edited or corrupted one would otherwise render a column of 0 or of
+      // 90000 pixels with no way back but clearing storage.
+      treePaneWidth: clampTreePane(s.treePaneWidth),
+      sidePaneWidth: clampSidePane(s.sidePaneWidth),
+      maximizeCenter: typeof s.maximizeCenter === 'boolean' ? s.maximizeCenter : DEFAULT_SETTINGS.maximizeCenter,
       rulers: { ...DEFAULT_SETTINGS.rulers, ...legacyRulers, ...savedRulers },
       saveDesignInfo: typeof s.saveDesignInfo === 'boolean' ? s.saveDesignInfo : DEFAULT_SETTINGS.saveDesignInfo,
       report: (() => {
@@ -276,6 +463,23 @@ export function loadSettings(): Settings {
             ? s.pathExport.labelWaypointsWithMission
             : DEFAULT_PATH_EXPORT.labelWaypointsWithMission,
       },
+      // Strings only. The chart filters to the keys it actually has, so an
+      // unknown one is dropped there rather than being guessed at here.
+      flightSeries: Array.isArray(s.flightSeries)
+        ? s.flightSeries.filter((x): x is string => typeof x === 'string')
+        : DEFAULT_SETTINGS.flightSeries,
+      flightCsv: (() => {
+        const c = { ...DEFAULT_SETTINGS.flightCsv, ...(s.flightCsv ?? {}) };
+        c.columns = Array.isArray(c.columns)
+          ? c.columns.filter((x): x is string => typeof x === 'string')
+          : DEFAULT_SETTINGS.flightCsv.columns;
+        // A hand-edited count would otherwise reach `toFixed`, which throws
+        // outside 0..100 and would take the whole export down with it.
+        c.decimals = Number.isFinite(c.decimals) ? Math.min(Math.max(Math.round(c.decimals), 0), 12) : 3;
+        if (typeof c.separator !== 'string' || !c.separator) c.separator = ',';
+        if (typeof c.commentChar !== 'string' || !c.commentChar) c.commentChar = '#';
+        return c;
+      })(),
       wipAcknowledged: typeof s.wipAcknowledged === 'boolean' ? s.wipAcknowledged : DEFAULT_SETTINGS.wipAcknowledged,
     };
   } catch {

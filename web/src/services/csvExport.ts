@@ -1,4 +1,5 @@
-import type { FlightResult, AeroSweep, FlightSeries } from '../engine/openRocketEngine';
+import type { FlightResult, AeroSweep } from '../engine/openRocketEngine';
+import { branchSeries, DEFAULT_CSV_COLUMNS, flightColumns, usableColumns, type FlightColumn } from './flightColumns';
 import { siToUiDelta, type Quantity, type UnitSelection } from '../prefs/units';
 
 /**
@@ -26,55 +27,132 @@ const col = (units: UnitSelection, q: Quantity): { f: number; sym: string } => (
   sym: units[q],
 });
 
-/** Per-timestep flight data, prefixed with an OpenRocket-style event reference. */
-export function flightDataCsv(r: FlightResult, units: UnitSelection): string {
-  const dist = col(units, 'distance');
-  const vel = col(units, 'velocity');
-  const acc = col(units, 'acceleration');
-  const mass = col(units, 'mass');
-  const force = col(units, 'force');
-  const len = col(units, 'length');
-  const ang = col(units, 'angle');
-  const s = r.series;
-  const n = s.time?.length ?? 0;
-  const at = (k: keyof FlightSeries, i: number): number | null => {
-    const v = (s[k] as (number | null)[] | undefined)?.[i];
-    return v == null || !Number.isFinite(v) ? null : v;
-  };
+/**
+ * How a flight CSV is written: which columns, in what format, with which
+ * comments — OpenRocket's own Export data options, which it keeps in
+ * `CsvOptionPanel` and the export panel beside it.
+ *
+ * It used to be none of these: the button wrote a fixed twelve columns, comma
+ * separated, six significant digits, with the event lines always on. That is one
+ * opinion about a file somebody else has to read.
+ */
+export interface FlightCsvOptions {
+  /** Series keys to write, in `flightColumns` order. */
+  columns: readonly string[];
+  /** Between fields. A tab or a space is as legitimate as a comma. */
+  separator: string;
+  /** Decimal places for every value. */
+  decimals: number;
+  /** 1.5e-4 rather than 0.00015, for series that span many magnitudes. */
+  exponential: boolean;
+  /** A comment naming the simulation and the design it flew. */
+  simDescription: boolean;
+  /** A comment listing each column and the unit it carries. */
+  fieldDescriptions: boolean;
+  /** A comment per flight event, with its time. */
+  flightEvents: boolean;
+  /** What marks a comment line. */
+  commentChar: string;
+  /** Which branch of a staged flight to write. */
+  branchIndex: number;
+  /**
+   * The human name for a column.
+   *
+   * Passed in because the names are translated and this service has no
+   * translator: it is plain TypeScript, called from a dialog and from tests
+   * alike. A column with no name of its own falls back to its kernel symbol,
+   * which is what a symbol-only series has anyway.
+   */
+  columnName: (c: FlightColumn) => string;
+}
+
+export const DEFAULT_CSV_OPTIONS: FlightCsvOptions = {
+  columns: [...DEFAULT_CSV_COLUMNS],
+  separator: ',',
+  decimals: 3,
+  exponential: false,
+  simDescription: true,
+  fieldDescriptions: true,
+  flightEvents: true,
+  commentChar: '#',
+  branchIndex: 0,
+  columnName: (c) => c.key,
+};
+
+/** One value, formatted per the options. Blank for a gap, so a hole reads as one. */
+function value(v: number | null | undefined, o: FlightCsvOptions): string {
+  if (v == null || !Number.isFinite(v)) return '';
+  return o.exponential ? v.toExponential(o.decimals) : v.toFixed(o.decimals);
+}
+
+/**
+ * Per-timestep flight data, in the user's units, with the columns and format the
+ * caller asked for.
+ *
+ * `name` titles the simulation-description comment; it is passed in because this
+ * service has no view of the workspace.
+ */
+export function flightDataCsv(
+  r: FlightResult,
+  units: UnitSelection,
+  opts: Partial<FlightCsvOptions> = {},
+  name?: string,
+): string {
+  const o: FlightCsvOptions = { ...DEFAULT_CSV_OPTIONS, ...opts };
+  const cols = usableColumns(flightColumns(r, o.branchIndex), o.columns);
+  const series = branchSeries(r, o.branchIndex);
+  const branch = r.branches?.length ? r.branches[o.branchIndex] : undefined;
+  const sep = o.separator;
+  // A separator inside a field would split the row; the comment character
+  // leading a data line would comment it out. Neither can happen with the
+  // separators and characters the dialog offers, and a header is the only text
+  // in the file, so quoting stays out of it - but the header still gets stripped
+  // rather than trusted.
+  const clean = (text: string) =>
+    text
+      .split(sep)
+      .join(' ')
+      .replace(/[\r\n]/g, ' ');
+
+  const unitOf = (c: (typeof cols)[number]): string => (c.quantity ? units[c.quantity] : (c.unit ?? ''));
+  const factorOf = (c: (typeof cols)[number]): number =>
+    c.quantity ? siToUiDelta(c.quantity, units[c.quantity], 1) : (c.scale ?? 1);
+
   const lines: string[] = [];
-  for (const e of r.events ?? []) lines.push(`# Event ${e.type} at t=${cell(e.time, 3)} s`);
+  const comment = (text: string) => lines.push(`${o.commentChar} ${text}`);
+
+  if (o.simDescription && name) comment(`Simulation: ${clean(name)}`);
+  if (o.simDescription && branch?.name) comment(`Stage: ${clean(branch.name)}`);
+  if (o.fieldDescriptions) {
+    for (const c of cols) {
+      const u = unitOf(c);
+      comment(`${clean(o.columnName(c))}${u ? ` (${u})` : ''}`);
+    }
+  }
+  if (o.flightEvents) {
+    for (const e of branch?.events ?? r.events ?? []) {
+      comment(`Event ${e.type} at t=${e.time.toFixed(3)} s`);
+    }
+  }
+
   lines.push(
-    row([
-      'Time (s)',
-      `Altitude (${dist.sym})`,
-      `Velocity (${vel.sym})`,
-      `Acceleration (${acc.sym})`,
-      `Mass (${mass.sym})`,
-      `Thrust (${force.sym})`,
-      `Drag (${force.sym})`,
-      'Mach',
-      'Stability (cal)',
-      `CP (${len.sym})`,
-      `CG (${len.sym})`,
-      `AoA (${ang.sym})`,
-    ]),
+    cols
+      .map((c) => {
+        const u = unitOf(c);
+        return clean(o.columnName(c)) + (u ? ` (${u})` : '');
+      })
+      .join(sep),
   );
+
+  const n = (series?.['time']?.length ?? 0) as number;
   for (let i = 0; i < n; i++) {
     lines.push(
-      row([
-        cell(at('time', i), 4),
-        cell(mul(at('altitude', i), dist.f)),
-        cell(mul(at('velocity', i), vel.f)),
-        cell(mul(at('acceleration', i), acc.f)),
-        cell(mul(at('mass', i), mass.f)),
-        cell(mul(at('thrust', i), force.f)),
-        cell(mul(at('drag', i), force.f)),
-        cell(at('mach', i)),
-        cell(at('stability', i)),
-        cell(mul(at('cpLocation', i), len.f)),
-        cell(mul(at('cgLocation', i), len.f)),
-        cell(mul(at('aoa', i), ang.f)),
-      ]),
+      cols
+        .map((c) => {
+          const raw = (series as Record<string, (number | null)[] | undefined>)[c.key]?.[i];
+          return value(raw == null ? null : raw * factorOf(c), o);
+        })
+        .join(sep),
     );
   }
   return lines.join(EOL) + EOL;

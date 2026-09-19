@@ -12,10 +12,12 @@ import { ExportDialog } from '../report/ExportDialog';
 import { PrivacyDialog } from './PrivacyDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { MotorDashboard } from '../sim/MotorDashboard';
+import { WorkbenchTabs } from './WorkbenchTabs';
 
-/** Top bar: title + version, language, and a collapsible menu holding the
- *  New / Open (library) / Save / Save As / Import / Export / About actions.
- *  Owns the hidden .ork file input that Import triggers. */
+/** Top bar: title + version, the desktop workbench tabs, language, and a
+ *  collapsible menu holding the New / Open (library) / Save / Save As / Import /
+ *  Export / About actions. Owns the hidden .ork file input that Import
+ *  triggers. */
 export function AppHeader() {
   const { t, i18n } = useTranslation();
   const canSave = useWorkspaceStore((s) => !!s.info);
@@ -202,6 +204,11 @@ export function AppHeader() {
           {backend}
         </span>
       )}
+
+      {/* The desktop workbench tabs live in the header's dead middle rather than
+          in a strip of their own below it. Hidden below lg, where the bottom
+          TabBar takes over. */}
+      <WorkbenchTabs />
 
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <div className="flex items-center gap-1">

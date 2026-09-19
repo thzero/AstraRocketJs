@@ -4,10 +4,10 @@ import type { FlightResult, FlightSeries } from '../../engine/openRocketEngine';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import type { Quantity } from '../../prefs/units';
-import { flightDataCsv, CSV_MIME } from '../../services/csvExport';
-import { download } from '../../services/saveFile';
 import { lerpAt } from '../../services/interpolate';
 import { EVENT_LABEL, clusterEventLabels } from '../../services/simReport';
+import { FlightCsvDialog } from '../sim/FlightCsvDialog';
+import { useSettings } from '../../state/SettingsProvider';
 
 /**
  * Flight data as SMALL MULTIPLES (mmrocket-style): time on a shared x, and one
@@ -76,17 +76,44 @@ const SERIES: Meta[] = [
   { key: 'cgLocation', label: 'flight.cg', unit: 'cm', digits: 1, scale: 100, level: true, quantity: 'length' },
   { key: 'aoa', label: 'flight.aoa', unit: '°', digits: 1, scale: 180 / Math.PI, quantity: 'angle' },
 ];
-const DEFAULT_ON: Key[] = ['altitude', 'velocity', 'acceleration'];
+/** Every key the chart can draw, for validating what comes back from settings. */
+const KEYS = new Set<string>(SERIES.map((m) => m.key));
 
-// One color per flight branch (stage): 0 = sustainer (sky, the original single
-// line), then boosters. Matches the component-tree palette so a stage reads the
-// same color everywhere. Cycles if a design somehow has more branches.
+/**
+ * The saved panel choice, narrowed to keys this build actually has.
+ *
+ * A list saved by a later version can name a series that no longer exists (or
+ * does not exist yet); dropping those here means a stale preference costs you
+ * one panel rather than blanking the chart. The order is the SERIES order, so
+ * the panels stack the same way however the preference was written.
+ */
+export function visibleSeries(saved: readonly string[]): Key[] {
+  const want = new Set(saved.filter((k) => KEYS.has(k)));
+  return SERIES.filter((m) => want.has(m.key)).map((m) => m.key);
+}
+
+// One color per trace: sky first (the original single line), then the rest.
+// Matches the component-tree palette so a stage reads the same color everywhere.
+// Cycles if a design or a comparison somehow runs past six.
 const STAGE_COLORS = ['#38bdf8', '#fbbf24', '#34d399', '#a78bfa', '#fb7185', '#22d3ee'];
 
-// A flight branch enriched for the chart: its own trajectory + events, a stable
-// index and a color. Single-stage flights collapse to one synthetic branch.
+/** The flight to draw, named so the pane can say which simulation it is. */
+export interface ChartFlight {
+  id: string;
+  name: string;
+  result: FlightResult;
+}
+
+/**
+ * One drawn line: a single flight branch, with a stable key, a name and a color.
+ *
+ * A staged rocket separates into several, and each flies its own trajectory on
+ * the same launch clock - a spent booster's climb, descent and landing beside
+ * the sustainer's. A single-stage flight collapses to one synthetic branch, so
+ * the common case is still one trace.
+ */
 type Branch = {
-  index: number;
+  key: string;
   name: string;
   color: string;
   events: { type: string; time: number }[];
@@ -119,47 +146,69 @@ export function maxFlightTime(branches: { series: FlightSeries }[], flightTime: 
   return m;
 }
 
-export function FlightChart({ result }: { result: FlightResult }) {
+/**
+ * The lines to draw for one flight: one per branch.
+ *
+ * `stageLabel` renders "Stage 2" for a branch the engine did not name; it is
+ * passed in rather than translated here so this stays a pure function.
+ *
+ * The key carries the simulation id as well as the branch index, so switching
+ * the Results picker to another flight yields a different set of keys and the
+ * chart resets its trace selection rather than carrying one flight's choice
+ * onto another's stages.
+ */
+export function buildTraces(flight: ChartFlight | null, stageLabel: (i: number) => string): Branch[] {
+  if (!flight) return [];
+  // `branches` is only present once a staged rocket actually separates (branch 0
+  // mirrors the top-level series); otherwise wrap the single top-level
+  // trajectory so the rest of the chart is branch-agnostic.
+  const bs = flight.result.branches?.length
+    ? flight.result.branches
+    : [{ name: '', events: flight.result.events ?? [], series: flight.result.series }];
+  return bs.map((b, i) => ({
+    key: `${flight.id}:${i}`,
+    name: b.name || stageLabel(i),
+    color: STAGE_COLORS[i % STAGE_COLORS.length]!,
+    events: b.events ?? [],
+    series: b.series,
+  }));
+}
+
+export function FlightChart({ flight }: { flight: ChartFlight }) {
   const { t } = useTranslation();
-  const u = useUnits();
-  const [on, setOn] = useState<Key[]>(DEFAULT_ON);
+  // Which panels are open, remembered between visits (services/settings.ts).
+  // It used to be component state seeded from a constant, so anyone who worked
+  // with thrust or mass re-ticked them every time the Results tab was opened.
+  const { settings, update } = useSettings();
+  const on = useMemo(() => visibleSeries(settings.flightSeries), [settings.flightSeries]);
   const [hoverT, setHoverT] = useState<number | null>(null);
+  const [csvOpen, setCsvOpen] = useState(false);
   const hostRef = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(640);
 
-  // Every flight branch as a colored, selectable stage. `result.branches` is
-  // only present once a staged rocket actually separates (branch 0 mirrors the
-  // top-level series); otherwise we wrap the single top-level trajectory so the
-  // rest of the component is branch-agnostic.
-  const branches = useMemo<Branch[]>(() => {
-    const bs = result.branches?.length
-      ? result.branches
-      : [{ name: '', events: result.events ?? [], series: result.series }];
-    return bs.map((b, i) => ({
-      index: i,
-      name: b.name || `${t('flight.stage')} ${i + 1}`,
-      color: STAGE_COLORS[i % STAGE_COLORS.length]!,
-      events: b.events ?? [],
-      series: b.series,
-    }));
-  }, [result, t]);
+  // Every branch as a colored, selectable trace.
+  const branches = useMemo(() => buildTraces(flight, (i) => `${t('flight.stage')} ${i + 1}`), [flight, t]);
   const multistage = branches.length >= 2;
 
-  // Which stages are overlaid (branch indices). A new flight shows them all;
-  // the last selected stage can't be turned off (nothing to plot otherwise).
-  const [onStages, setOnStages] = useState<number[]>(() => branches.map((b) => b.index));
-  useEffect(() => setOnStages(branches.map((b) => b.index)), [result]); // eslint-disable-line react-hooks/exhaustive-deps
-  const toggleStage = (i: number) =>
-    setOnStages((cur) => (cur.includes(i) ? (cur.length > 1 ? cur.filter((x) => x !== i) : cur) : [...cur, i]));
+  // Which traces are overlaid. A new set shows them all; the last selected one
+  // cannot be turned off (nothing to plot otherwise).
+  const traceKeys = branches.map((b) => b.key).join('|');
+  const [onStages, setOnStages] = useState<string[]>(() => branches.map((b) => b.key));
+  useEffect(() => setOnStages(branches.map((b) => b.key)), [traceKeys]); // eslint-disable-line react-hooks/exhaustive-deps
+  const toggleStage = (k: string) =>
+    setOnStages((cur) => (cur.includes(k) ? (cur.length > 1 ? cur.filter((x) => x !== k) : cur) : [...cur, k]));
   // Stable across hover re-renders so the panels don't recompute their paths on
   // every pointer move (the memo below keys on this reference).
-  const selectedBranches = useMemo(() => branches.filter((b) => onStages.includes(b.index)), [branches, onStages]);
+  const selectedBranches = useMemo(() => branches.filter((b) => onStages.includes(b.key)), [branches, onStages]);
 
   // x-axis spans every branch, so a booster that lands after the sustainer still
   // fits (its own descent runs on the same launch clock).
   // Memoized: hovering sets state, so the render body runs on every pointer
   // move and this must not walk every sample again each time.
-  const maxT = useMemo(() => maxFlightTime(branches, result.summary.flightTime), [branches, result.summary.flightTime]);
+  const maxT = useMemo(
+    () => maxFlightTime(branches, flight.result.summary.flightTime),
+    [branches, flight.result.summary.flightTime],
+  );
 
   // Visible time window (null = full flight). The x-axis zooms/pans within it.
   const [zoom, setZoom] = useState<{ t0: number; t1: number } | null>(null);
@@ -174,7 +223,7 @@ export function FlightChart({ result }: { result: FlightResult }) {
   const invX = (px: number) => t0 + ((px - PAD_L) / iw) * (t1 - t0);
 
   // A new flight resets the view; keep it in sync when the flight time changes.
-  useEffect(() => setZoom(null), [result]);
+  useEffect(() => setZoom(null), [traceKeys]);
 
   useEffect(() => {
     const el = hostRef.current;
@@ -242,11 +291,15 @@ export function FlightChart({ result }: { result: FlightResult }) {
   // Boost→apogee window: aero series (CP / stability) are only meaningful until
   // the rocket stops flying forward (recovery deploy, else apogee).
   const clipT = useMemo(() => {
-    const at = (type: string) => result.events?.find((e) => e.type === type)?.time;
+    const at = (type: string) => flight.result.events?.find((e) => e.type === type)?.time;
     return (
-      at('RECOVERY_DEVICE_DEPLOYMENT') ?? at('EJECTION_CHARGE') ?? at('APOGEE') ?? result.summary.timeToApogee ?? maxT
+      at('RECOVERY_DEVICE_DEPLOYMENT') ??
+      at('EJECTION_CHARGE') ??
+      at('APOGEE') ??
+      flight.result.summary.timeToApogee ??
+      maxT
     );
-  }, [result, maxT]);
+  }, [flight, maxT]);
 
   // Cluster near-coincident event labels (a recovery deployment always keeps its
   // own marker), drop any outside the visible window, then GREEDILY row-pack so
@@ -267,7 +320,7 @@ export function FlightChart({ result }: { result: FlightResult }) {
   const eventRows = eventLabels.reduce((m, l) => Math.max(m, l.row + 1), 0);
   const stripH = eventRows ? eventRows * EVENT_ROW_H + 4 : 0;
 
-  const toggle = (k: Key) => setOn((cur) => (cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k]));
+  const toggle = (k: Key) => update({ flightSeries: on.includes(k) ? on.filter((x) => x !== k) : [...on, k] });
   const activeMetas = SERIES.filter((m) => on.includes(m.key));
 
   // Pointer: drag pans (only when zoomed in); otherwise it drives the hover crosshair.
@@ -338,7 +391,7 @@ export function FlightChart({ result }: { result: FlightResult }) {
             </button>
           </div>
           <button
-            onClick={() => download('flight-data.csv', flightDataCsv(result, u.all), CSV_MIME)}
+            onClick={() => setCsvOpen(true)}
             title={t('flight.exportCsv')}
             className="rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
           >
@@ -352,11 +405,11 @@ export function FlightChart({ result }: { result: FlightResult }) {
             {t('flight.stages')}
           </span>
           {branches.map((b) => {
-            const active = onStages.includes(b.index);
+            const active = onStages.includes(b.key);
             return (
               <button
-                key={b.index}
-                onClick={() => toggleStage(b.index)}
+                key={b.key}
+                onClick={() => toggleStage(b.key)}
                 aria-pressed={active}
                 className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${active ? 'bg-slate-700 text-slate-100 ring-white/20' : 'bg-slate-800 text-slate-400 ring-white/10'}`}
               >
@@ -458,6 +511,7 @@ export function FlightChart({ result }: { result: FlightResult }) {
           </>
         )}
       </div>
+      {csvOpen && <FlightCsvDialog result={flight.result} simName={flight.name} onClose={() => setCsvOpen(false)} />}
     </div>
   );
 }

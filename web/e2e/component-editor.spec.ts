@@ -1,4 +1,4 @@
-import { test, expect } from './base';
+import { test, expect, runFlight } from './base';
 
 /**
  * Guards the newly-exposed component-editor options render (and the new boolean
@@ -45,6 +45,41 @@ test('a freeform fin can be added, shows the outline editor, and simulates', asy
   expect(await editor.locator('circle').count()).toBeGreaterThanOrEqual(4);
 
   // It builds + simulates end-to-end.
-  await page.getByRole('button', { name: /run flight simulation/i }).click();
-  await expect(page.getByRole('button', { name: 'Flight', exact: true })).toBeVisible({ timeout: 30_000 });
+  await runFlight(page);
+});
+
+test('the design actions share one row above the component list', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+
+  // + Stage, + Add and Scale were split across the heading row and a second row
+  // below it, which read as two unrelated groups and cost a row of height.
+  const stage = page.getByRole('button', { name: /Stage$/ });
+  // The select's accessible name is its title: "Add a part under …" when the
+  // selection can host one, or "… can't contain sub-parts" when it cannot.
+  const add = page.getByRole('combobox', { name: /Add a part under|contain sub-parts/i });
+  const scale = page.getByRole('button', { name: /Scale/ });
+  for (const el of [stage, add, scale]) await expect(el).toBeVisible();
+
+  // Same row: their vertical centers line up.
+  const boxes = await Promise.all([stage, add, scale].map(async (el) => (await el.boundingBox())!));
+  const mid = (b: { y: number; height: number }) => b.y + b.height / 2;
+  for (const b of boxes) expect(Math.abs(mid(b) - mid(boxes[0]!))).toBeLessThan(6);
+
+  // And above the list they act on.
+  const heading = (await page.getByRole('heading', { name: 'Components' }).boundingBox())!;
+  for (const b of boxes) expect(b.y).toBeLessThan(heading.y);
+
+  // Still one row at the NARROWEST the column goes, which is what TREE_PANE_MIN
+  // is for. The default width was never the case at risk; the floor is, and it
+  // moved down when the panel's padding came off.
+  const sep = page.getByRole('separator', { name: /components panel/ });
+  const b0 = (await sep.boundingBox())!;
+  await page.mouse.move(b0.x + b0.width / 2, b0.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(5, b0.y + 200, { steps: 8 });
+  await page.mouse.up();
+
+  const tight = await Promise.all([stage, add, scale].map(async (el) => (await el.boundingBox())!));
+  for (const b of tight) expect(Math.abs(mid(b) - mid(tight[0]!))).toBeLessThan(6);
 });

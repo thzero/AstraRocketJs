@@ -24,39 +24,149 @@ const result = {
   ],
 } as unknown as FlightResult;
 
-describe('flightDataCsv', () => {
-  const csv = flightDataCsv(result, METRIC_UNITS);
-  const lines = csv.split('\r\n');
+/** Names the way the dialog does, so headers read as a person would write them. */
+const named = (c: { key: string }) =>
+  (
+    ({
+      time: 'Time',
+      altitude: 'Altitude',
+      velocity: 'Velocity',
+      mass: 'Mass',
+      Px: 'East',
+      Py: 'North',
+    }) as Record<string, string>
+  )[c.key] ?? c.key;
 
+const opts = { columnName: named };
+
+describe('flightDataCsv', () => {
   it('uses CRLF line endings and a trailing newline', () => {
+    const csv = flightDataCsv(result, METRIC_UNITS, opts);
     expect(csv.includes('\r\n')).toBe(true);
     expect(csv.endsWith('\r\n')).toBe(true);
   });
 
-  it('prefixes OpenRocket-style event comment rows (time to 3 dp)', () => {
-    expect(lines[0]).toBe('# Event BURNOUT at t=1.000 s');
-    expect(lines[1]).toBe('# Event APOGEE at t=5.234 s');
+  it('writes only the columns asked for, in column order', () => {
+    // Not the order they were listed in: a file whose columns shuffle depending
+    // on how the boxes were ticked is a file nobody can script against.
+    const csv = flightDataCsv(result, METRIC_UNITS, {
+      ...opts,
+      columns: ['velocity', 'time'],
+      fieldDescriptions: false,
+      simDescription: false,
+      flightEvents: false,
+    });
+    expect(csv.split('\r\n')[0]).toBe('Time (s),Velocity (m/s)');
   });
 
-  it('emits the metric column header', () => {
-    expect(lines[2]).toBe(
-      'Time (s),Altitude (m),Velocity (m/s),Acceleration (m/s²),Mass (g),Thrust (N),Drag (N),Mach,Stability (cal),CP (cm),CG (cm),AoA (°)',
+  it('applies the chosen unit to every column', () => {
+    const csv = flightDataCsv(result, METRIC_UNITS, {
+      ...opts,
+      columns: ['time', 'altitude', 'mass'],
+      fieldDescriptions: false,
+      simDescription: false,
+      flightEvents: false,
+      decimals: 1,
+    });
+    const rows = csv.split('\r\n');
+    expect(rows[0]).toBe('Time (s),Altitude (m),Mass (g)');
+    // kg -> g, so 0.05 reads as 50.
+    expect(rows[1]).toBe('0.0,0.0,50.0');
+  });
+
+  it('honors the decimal places and exponential notation', () => {
+    const body = (o: object) =>
+      flightDataCsv(result, METRIC_UNITS, {
+        ...opts,
+        columns: ['altitude'],
+        fieldDescriptions: false,
+        simDescription: false,
+        flightEvents: false,
+        ...o,
+      }).split('\r\n')[2];
+    expect(body({ decimals: 1 })).toBe('100.0');
+    expect(body({ decimals: 4 })).toBe('100.0000');
+    expect(body({ decimals: 2, exponential: true })).toBe('1.00e+2');
+  });
+
+  it('writes the separator it was given', () => {
+    const csv = flightDataCsv(result, METRIC_UNITS, {
+      ...opts,
+      columns: ['time', 'altitude'],
+      separator: '\t',
+      fieldDescriptions: false,
+      simDescription: false,
+      flightEvents: false,
+    });
+    expect(csv.split('\r\n')[0]).toBe('Time (s)	Altitude (m)');
+  });
+
+  it('comments the simulation, the fields and the events, each on request', () => {
+    const csv = flightDataCsv(result, METRIC_UNITS, { ...opts, columns: ['time'] }, 'Kept');
+    const comments = csv.split('\r\n').filter((l) => l.startsWith('#'));
+    expect(comments).toContain('# Simulation: Kept');
+    expect(comments).toContain('# Time (s)');
+    expect(comments).toContain('# Event BURNOUT at t=1.000 s');
+  });
+
+  it('writes no comments at all when none were asked for', () => {
+    const csv = flightDataCsv(result, METRIC_UNITS, {
+      ...opts,
+      columns: ['time'],
+      simDescription: false,
+      fieldDescriptions: false,
+      flightEvents: false,
+    });
+    expect(csv.split('\r\n').some((l) => l.startsWith('#'))).toBe(false);
+  });
+
+  it('uses the comment character it was given', () => {
+    const csv = flightDataCsv(
+      result,
+      METRIC_UNITS,
+      {
+        ...opts,
+        columns: ['time'],
+        commentChar: '//',
+        fieldDescriptions: false,
+        flightEvents: false,
+      },
+      'Kept',
     );
+    expect(csv.startsWith('// Simulation: Kept')).toBe(true);
   });
 
-  it('applies the chosen unit to every column (kg→g, m→cm, rad→°)', () => {
-    // data rows follow the 2 event lines + 1 header line
-    expect(lines[3]).toBe('0.0000,0,0,10,50,6,0,0,1.5,22.3,20,0');
-    expect(lines[4]).toBe('1.0000,100,50,20,40,0,1,0.3,2,22.5,21,1');
-  });
-
-  it('renders null / non-finite cells as empty', () => {
+  it('renders a null or non-finite sample as an empty cell', () => {
+    // Blank, not zero: a gap in the series is not a measurement of nothing.
     const r = {
-      series: { time: [0], altitude: [null], velocity: [NaN] },
+      series: { time: [0, 1], altitude: [null, NaN] },
       events: [],
     } as unknown as FlightResult;
-    const row = flightDataCsv(r, METRIC_UNITS).split('\r\n')[1]; // header is line 0 (no events)
-    expect(row!.startsWith('0.0000,,,')).toBe(true);
+    const csv = flightDataCsv(r, METRIC_UNITS, {
+      ...opts,
+      columns: ['time', 'altitude'],
+      simDescription: false,
+      fieldDescriptions: false,
+      flightEvents: false,
+    });
+    expect(csv.split('\r\n')[1]).toBe('0.000,');
+  });
+
+  it('offers the horizontal track, in the distance unit', () => {
+    // The file carried altitude and nothing horizontal at all until these went
+    // in, which made a landing point unanswerable from the CSV.
+    const drifted = { ...result, series: { ...result.series, Px: [0, 30], Py: [0, -40] } } as unknown as FlightResult;
+    const csv = flightDataCsv(drifted, IMPERIAL_UNITS, {
+      ...opts,
+      columns: ['Px', 'Py'],
+      decimals: 2,
+      simDescription: false,
+      fieldDescriptions: false,
+      flightEvents: false,
+    });
+    const rows = csv.split('\r\n');
+    expect(rows[0]).toBe('East (ft),North (ft)');
+    expect(rows[2]).toBe('98.43,-131.23');
   });
 });
 

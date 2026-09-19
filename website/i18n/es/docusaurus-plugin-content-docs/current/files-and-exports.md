@@ -77,6 +77,17 @@ El botón de **Ajustes** (que se recuerda) controla los **colores de relleno y b
 
 Los **datos de vuelo y de resistencia** se pueden exportar como **CSV** para usarlos en una hoja de cálculo o en tu propio análisis. Las columnas están en [las unidades que hayas elegido](./settings.md#units) y cada encabezado indica la unidad que lleva, así que el archivo se explica solo; los números usan siempre `.` como separador decimal, sea cual sea el idioma de la aplicación:
 
+### Elegir qué va en el CSV de vuelo
+
+El botón **CSV** de la vista de vuelo abre un diálogo de exportación en lugar de descargar directamente:
+
+- **Variables a exportar** — todo lo que la ejecución registró, cada una con la unidad en la que se escribirá. Una simulación registra todas las series que el motor calcula, así que este es el conjunto completo y no una selección; las series para las que la aplicación no tiene nombre aparecen con su símbolo del núcleo. **Seleccionar todo** y **No seleccionar nada** cubren los extremos, y el contador te dice dónde estás.
+- **Ajustes de formato** — el separador de campos (coma, punto y coma, TAB o ESPACIO), cuántos decimales y si usar notación exponencial para las series que abarcan muchos órdenes de magnitud.
+- **Comentarios** — si encabezar el archivo con el nombre de la simulación, una línea por columna describiéndola y una línea por evento del vuelo; además del carácter que marca un comentario.
+- **Etapa a exportar** — en un vuelo por etapas, qué rama escribir.
+
+Tus elecciones se recuerdan para la siguiente exportación.
+
 - **Datos de vuelo** — el historial temporal simulado (desde la vista de Vuelo).
 - **Tabla de resistencia** — los datos de Cd, desglose y CP frente a Mach (desde la vista Aero).
 

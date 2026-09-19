@@ -94,7 +94,7 @@ public class BasicEventSimulationEngine implements SimulationEngine {
 			} else {
 				branchName = trans.get("BasicEventSimulationEngine.nullBranchName");
 			}
-			FlightDataBranch initialBranch = new FlightDataBranch( branchName, FlightDataType.TYPE_TIME);
+			FlightDataBranch initialBranch = new FlightDataBranch(branchName, topStage, FlightDataType.TYPE_TIME);
 			currentStatus.setWarnings(flightData.getWarningSet());
 			currentStatus.setFlightDataBranch(initialBranch);
 			
@@ -672,14 +672,16 @@ public class BasicEventSimulationEngine implements SimulationEngine {
 					if (stageHasDrogue) {
 						// Dual-deployment: warn on both high and low speed for the main chute
 						if (deployingDevice.isDrogue()) {
-							// DrogueLowSpeedWarning — commented out for now
-							/*
+							// PATCH(drogue-low-speed): upstream ships this block commented out, so
+							// SimulationConditions.drogueLowSpeedWarning was a threshold nothing ever
+							// read. The bridge passes it (options key `drogueLowSpeedWarn`) and the app
+							// has a setting for it, so the check it exists to drive is enabled here.
+							// Upstream's own code, verbatim - only the comment markers are gone.
 							DeploymentConfiguration dc = deployingDevice.getDeploymentConfigurations().get(this.fcid);
 							if (dc.getDeployEvent() == DeploymentConfiguration.DeployEvent.APOGEE
 									&& deploySpeed < conds.getDrogueLowSpeedWarning()) {
 								currentStatus.addWarning(new Warning.LowSpeedDrogueDeployment(deploySpeed, c));
 							}
-							*/
 						} 
 						else {
 							if (deploySpeed > conds.getRecoveryDrogueMainHighSpeedWarning()) {

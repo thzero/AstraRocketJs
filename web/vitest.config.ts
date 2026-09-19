@@ -23,8 +23,8 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     environment: 'node',
-    // Vitest isolates one worker per FILE, and this suite has 82 of them — on a
-    // 32-core box that is 82 workers at ~9.5 s of startup each. Under that load
+    // Vitest isolates one worker per FILE, and this suite has 83 of them — on a
+    // 32-core box that is 83 workers at ~9.5 s of startup each. Under that load
     // engineBoundary.test.ts (the one file that drives the REAL TeaVM kernel)
     // blew the 5 s default timeout on a flight sim that takes 1.07 s unloaded:
     // `npm run test:coverage` — a CI gate — failed while `npm test` passed.

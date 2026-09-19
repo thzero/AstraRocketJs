@@ -18,9 +18,11 @@ test.describe('aero drag sweep', () => {
     await page.getByRole('button', { name: 'Aero', exact: true }).click();
 
     // Charts, not the tables: the curves are what you come to Aero to see, and
-    // the tables are the follow-up question.
+    // the tables are the follow-up question. `:visible` because the Simulations
+    // tab's own table is mounted (hidden) in `main` at all times — the claim
+    // here is that no table is ON SCREEN, not that the app has none.
     await expect(page.getByRole('button', { name: 'Charts', exact: true })).toHaveClass(/bg-sky-600/);
-    await expect(page.locator('main table')).toHaveCount(0);
+    await expect(page.locator('main table:visible')).toHaveCount(0);
 
     await expect(page.getByRole('button', { name: 'M1', exact: true })).toHaveClass(/bg-sky-600/);
     for (const m of ['M1', 'M2', 'M3', 'M5']) {

@@ -59,6 +59,55 @@ describe('loadSettings', () => {
     expect(loadSettings().showMarkers).toBe(false);
     expect(loadSettings().showInfoCard).toBe(false);
   });
+
+  it('clamps a stored tree-pane width into the usable range', () => {
+    expect(loadSettings().treePaneWidth).toBe(360);
+    localStorage.setItem(KEY, JSON.stringify({ treePaneWidth: 500 }));
+    expect(loadSettings().treePaneWidth).toBe(500);
+    // The value lands in a style attribute, so a hand-edited or corrupted one
+    // must not be able to render a column of 0 or of 90000 pixels - there would
+    // be no way back to the splitter to fix it.
+    localStorage.setItem(KEY, JSON.stringify({ treePaneWidth: 0 }));
+    expect(loadSettings().treePaneWidth).toBe(300);
+    localStorage.setItem(KEY, JSON.stringify({ treePaneWidth: 90_000 }));
+    expect(loadSettings().treePaneWidth).toBe(640);
+    localStorage.setItem(KEY, JSON.stringify({ treePaneWidth: 'wide' }));
+    expect(loadSettings().treePaneWidth).toBe(360);
+    localStorage.setItem(KEY, JSON.stringify({ treePaneWidth: Number.NaN }));
+    expect(loadSettings().treePaneWidth).toBe(360);
+  });
+
+  it('clamps a stored side-pane width, and shares one value across the three columns', () => {
+    expect(loadSettings().sidePaneWidth).toBe(380);
+    localStorage.setItem(KEY, JSON.stringify({ sidePaneWidth: 420 }));
+    expect(loadSettings().sidePaneWidth).toBe(420);
+    localStorage.setItem(KEY, JSON.stringify({ sidePaneWidth: 10 }));
+    expect(loadSettings().sidePaneWidth).toBe(300);
+    localStorage.setItem(KEY, JSON.stringify({ sidePaneWidth: 5000 }));
+    expect(loadSettings().sidePaneWidth).toBe(640);
+    localStorage.setItem(KEY, JSON.stringify({ sidePaneWidth: null }));
+    expect(loadSettings().sidePaneWidth).toBe(380);
+  });
+
+  it('defaults maximizeCenter to off and round-trips a stored true', () => {
+    expect(loadSettings().maximizeCenter).toBe(false);
+    localStorage.setItem(KEY, JSON.stringify({ maximizeCenter: true }));
+    expect(loadSettings().maximizeCenter).toBe(true);
+    localStorage.setItem(KEY, JSON.stringify({ maximizeCenter: 'yes' }));
+    expect(loadSettings().maximizeCenter).toBe(false);
+  });
+
+  it('defaults the import notes to expanded and round-trips a stored false', () => {
+    // Open by default: a note says what a file could NOT bring across, which is
+    // worth seeing once before it is folded away for good.
+    expect(loadSettings().showImportNotes).toBe(true);
+    localStorage.setItem(KEY, JSON.stringify({ showImportNotes: false }));
+    expect(loadSettings().showImportNotes).toBe(false);
+    // A non-boolean (hand-edited, or a future version's shape) falls back to the
+    // default rather than reaching the card as a truthy string.
+    localStorage.setItem(KEY, JSON.stringify({ showImportNotes: 'no' }));
+    expect(loadSettings().showImportNotes).toBe(true);
+  });
 });
 
 describe('saveSettings', () => {

@@ -57,9 +57,23 @@ Puedes exportar estos datos como **CSV** (consulta [Archivos y exportaciones](./
 
 ## Vuelo (tras una simulación) {#flight-after-a-simulation}
 
-Un panel de **gráficas de vuelo** a lo largo del tiempo: altitud, velocidad, aceleración, Mach, empuje, masa, resistencia y estabilidad. Los eventos del vuelo (fin de combustión, apogeo, apertura, aterrizaje) están marcados. Elige qué magnitudes se muestran desde la barra de fichas, pasa el cursor para obtener una retícula sincronizada y la lectura de valores en todas las gráficas, y amplía o desplaza el eje temporal (los botones +/−, arrastrando, o con Ctrl / pellizco).
+Un panel de **gráficas de vuelo** a lo largo del tiempo: altitud, velocidad, aceleración, Mach, empuje, masa, resistencia y estabilidad. Los eventos del vuelo (fin de combustión, apogeo, apertura, aterrizaje) están marcados. Elige qué magnitudes se muestran desde la barra de fichas, pasa el cursor para obtener una retícula sincronizada y la lectura de valores en todas las gráficas, y amplía o desplaza el eje temporal (los botones +/−, arrastrando, o con Ctrl / pellizco). **Las magnitudes que elijas se recuerdan**: abre empuje y masa una vez y seguirán abiertas la próxima vez, en este diseño y en cualquier otro.
+
+**Elegir qué vuelo** — si ejecutas una sola simulación, el título del panel es simplemente su nombre. Si ejecutas varias a la vez, el título se convierte en un **selector** con esas mismas: púlsalo y elige el vuelo que quieres leer. Uno cada vez, y la elección gobierna las tres vistas de resultados — las gráficas, la traza en tierra y la trayectoria 3D —, así que al cambiar ves el mismo vuelo lo mires como lo mires.
+
+No son las casillas de la pestaña Simulaciones a propósito: esas dicen qué debe volar **Ejecutar**, que es una pregunta distinta de qué estás leyendo.
 
 **Cohetes por etapas** — cuando un vuelo se separa en más de una etapa, aparece un **selector de etapas** sobre las gráficas. Cada etapa seleccionada se dibuja con su propia línea de color —el ascenso, descenso y aterrizaje propios de un propulsor agotado— compartiendo la escala de cada gráfica, y con la lectura al pasar el cursor y los marcadores de eventos cubriendo todas las etapas mostradas. Deselecciona una etapa para centrarte en el resto.
+
+## Traza en tierra (tras una simulación)
+
+El vuelo visto **desde arriba**: por dónde pasó el cohete sobre el terreno, descartando la altura. La trayectoria 3D responde a *cómo voló*; esta responde a *dónde cae y a qué distancia de la rampa*, que en un día con viento es la diferencia entre un paseo y una búsqueda.
+
+El norte va arriba, la rampa está en el centro y ambos ejes comparten escala, así que el dibujo se lee como un mapa del campo en el que estás. Los **anillos de distancia** aportan la medida, etiquetados en tu unidad de distancia, y cada traza termina en un anillo sobre su punto de aterrizaje. Debajo, cada traza indica **a qué distancia** y **en qué rumbo**: los dos números con los que realmente caminas.
+
+Dibuja las mismas trazas que las gráficas de vuelo, así que un vuelo por etapas muestra el descenso propio de cada una: un propulsor agotado suele caer bastante lejos del sustentador.
+
+Para llevarte lo mismo fuera de la aplicación, la [exportación de trayectoria](./files-and-exports.md) lo escribe como KML o GPX para Google Earth, y el CSV del vuelo ahora incluye columnas **Este** y **Norte** junto a la altitud.
 
 ## Trayectoria 3D (tras una simulación) {#3d-path-after-a-simulation}
 
