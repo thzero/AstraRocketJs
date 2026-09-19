@@ -1183,5 +1183,11 @@
     "wind": "Wind speed is {{value}} mph, above the {{limit}} mph the NAR and Tripoli safety codes allow.",
     "refused": "\"{{name}}\" was not run — its launch conditions are outside the safety codes.",
     "blocked": "Launch conditions are outside the NAR/Tripoli safety codes."
+  },
+  "panes": {
+    "resizeTree": "Resize the components panel",
+    "resizeSide": "Resize the side panel",
+    "maximize": "Expand the drawing to the whole window",
+    "restore": "Show the side panels again"
   }
 }

@@ -133,6 +133,24 @@ export function CenterView() {
   const toggleInfoCard = () => update({ showInfoCard: !settings.showInfoCard });
   const toggleRulerSide = (side: keyof typeof rulers) =>
     update({ rulers: { ...settings.rulers, [side]: !settings.rulers[side] } });
+
+  // Give the drawing the whole window: both side columns step aside (App.tsx
+  // reads the same flag). An airframe is far longer than it is wide, so the
+  // horizontal space is what it is short of.
+  const maxed = settings.maximizeCenter;
+  const toggleMaxed = () => update({ maximizeCenter: !maxed });
+  // Escape gets out, because a mode that hides two panels needs a way back that
+  // does not depend on finding one small button. Ignored while a dialog is open:
+  // dialogs take Escape for themselves, and this would close both at once.
+  useEffect(() => {
+    if (!maxed) return;
+    const esc = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'Escape' || document.querySelector('[role="dialog"]')) return;
+      update({ maximizeCenter: false });
+    };
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [maxed, update]);
   const runSim = useWorkspaceStore((s) => s.runSim);
   const busy = useWorkspaceStore((s) => s.simBusy);
   // A run that threw leaves exactly the state auto-run fires on (no result, not
@@ -286,14 +304,31 @@ export function CenterView() {
             <div ref={setCtrlSlot} className="flex items-center gap-1" />
             {/* ml-auto keeps it hard right even when it wraps onto a line of its
             own, where justify-between has nothing to push against. */}
-            <div className="ml-auto shrink-0">
+            <div className="ml-auto flex shrink-0 items-center gap-1">
               <ViewToggle view={view} onChange={onView} family={tab === 'results' ? 'result' : 'design'} />
+              {/* Desktop only: there are no side columns below lg for it to
+                  reclaim, so the button would be a no-op there. */}
+              <span className="hidden lg:block">
+                <ViewBtn
+                  active={maxed}
+                  onClick={toggleMaxed}
+                  title={maxed ? t('panes.restore') : t('panes.maximize')}
+                  label={maxed ? t('panes.restore') : t('panes.maximize')}
+                >
+                  <span aria-hidden>{maxed ? '⤡' : '⤢'}</span>
+                </ViewBtn>
+              </span>
             </div>
           </div>
           {/* The view flexes to fill the pane; the stats strip below is a pinned
           footer, so switching views never resizes the pane and the strip is
-          always visible without scrolling. */}
-          <div className="relative min-h-0 w-full flex-1 overflow-hidden px-3 pt-2">
+          always visible without scrolling.
+
+          `pb-2` to match the `pt-2`: this box had padding on three sides, so a
+          zoomed-in drawing ended exactly ON the pane's bottom edge - the bottom
+          ruler and the roll slider's 360° label sat flush against the window
+          with nothing under them. */}
+          <div className="relative min-h-0 w-full flex-1 overflow-hidden px-3 pb-2 pt-2">
             {/* Canvas parts can be dragged to reposition them (a design edit), so
             lock the design views while a sim runs. Results views (flight/path)
             don't mutate the design, so they stay interactive. */}
@@ -405,8 +440,15 @@ export function CenterView() {
           </div>
         </div>
       </div>
+      {/* Static statistics + design warnings. Out of the way when maximized: they
+          are a footer about the design, not part of the drawing, and at full
+          width they took 175px off the top of the very thing the expand was
+          meant to give room to. The `lg:` gate alone, so a phone (where the
+          Sketch/Stats split decides this instead) is untouched. */}
       <div
-        className={`${showStats ? '' : 'hidden'} min-h-0 flex-1 overflow-y-auto lg:flex-none lg:overflow-visible ${onDesign ? 'lg:block' : ''}`}
+        className={`${showStats ? '' : 'hidden'} min-h-0 flex-1 overflow-y-auto lg:flex-none lg:overflow-visible ${
+          onDesign && !maxed ? 'lg:block' : ''
+        } ${maxed ? 'lg:hidden' : ''}`}
       >
         <DesignWarnings />
         <StabilityBadge
@@ -426,17 +468,21 @@ function ViewBtn({
   active,
   onClick,
   title,
+  label,
   children,
 }: {
   active?: boolean;
   onClick: () => void;
   title?: string;
+  /** Accessible name, for a button whose content is a bare glyph. */
+  label?: string;
   children: React.ReactNode;
 }) {
   return (
     <button
       onClick={onClick}
       title={title}
+      aria-label={label}
       aria-pressed={active}
       className={`rounded-md px-2 py-1 text-xs font-medium ring-1 ring-white/10 ${active ? 'bg-sky-600 text-white' : 'bg-slate-800/90 text-slate-200'}`}
     >

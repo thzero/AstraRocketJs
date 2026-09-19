@@ -1183,5 +1183,11 @@
     "wind": "La velocidad del viento es de {{value}} mph, por encima de las {{limit}} mph que permiten los códigos de seguridad de NAR y Tripoli.",
     "refused": "\"{{name}}\" no se ejecutó: sus condiciones de lanzamiento están fuera de los códigos de seguridad.",
     "blocked": "Las condiciones de lanzamiento están fuera de los códigos de seguridad de NAR/Tripoli."
+  },
+  "panes": {
+    "resizeTree": "Redimensionar el panel de componentes",
+    "resizeSide": "Redimensionar el panel lateral",
+    "maximize": "Ampliar el dibujo a toda la ventana",
+    "restore": "Mostrar de nuevo los paneles laterales"
   }
 }

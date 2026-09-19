@@ -69,4 +69,17 @@ test('the design actions share one row above the component list', async ({ page 
   // And above the list they act on.
   const heading = (await page.getByRole('heading', { name: 'Components' }).boundingBox())!;
   for (const b of boxes) expect(b.y).toBeLessThan(heading.y);
+
+  // Still one row at the NARROWEST the column goes, which is what TREE_PANE_MIN
+  // is for. The default width was never the case at risk; the floor is, and it
+  // moved down when the panel's padding came off.
+  const sep = page.getByRole('separator', { name: /components panel/ });
+  const b0 = (await sep.boundingBox())!;
+  await page.mouse.move(b0.x + b0.width / 2, b0.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(5, b0.y + 200, { steps: 8 });
+  await page.mouse.up();
+
+  const tight = await Promise.all([stage, add, scale].map(async (el) => (await el.boundingBox())!));
+  for (const b of tight) expect(Math.abs(mid(b) - mid(tight[0]!))).toBeLessThan(6);
 });

@@ -134,6 +134,7 @@ hexbluntbase
 Hoerner
 hoverable
 HYPERTEK
+idioma
 ignitionconfiguration
 ignitiondelay
 ignitionevent

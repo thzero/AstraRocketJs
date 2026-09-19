@@ -177,7 +177,10 @@ function Row({
         className={`flex items-center gap-2 rounded-md py-1 pr-2 ${id && onSelect ? 'cursor-pointer' : ''} ${
           selected ? 'bg-sky-600/25 ring-1 ring-inset ring-sky-500/50' : 'hover:bg-slate-800'
         }`}
-        style={{ paddingLeft: 8 + depth * 16 }}
+        // 2px, not 8: at depth 0 that leading gap is pure inset against the
+        // spine, and every level below inherits it. The 16 per level is the
+        // indent that actually says something.
+        style={{ paddingLeft: 2 + depth * 16 }}
         title={label}
       >
         {hasKids && id ? (
@@ -368,17 +371,21 @@ export function ComponentTree({
   );
 
   return (
-    <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
+    // p-2, not p-3. This card sits inside the pane's own padding, so every
+    // pixel here is the SECOND gutter on the same edge - and the one on the left
+    // pushes the whole tree right, where it comes straight off the part names at
+    // every depth.
+    <section className="rounded-xl bg-slate-900 p-2 ring-1 ring-white/10">
       {/* Everything you DO to the design, on one row above the list: add a stage,
           add a component to the selected part, scale the whole rocket.
 
           They were split across the heading row and a second row below it,
           which read as two unrelated groups and cost a row of height.
 
-          The three plus their gaps come to about 253px, which is why the left
-          column is 360 rather than 300: at 300 the content box was 252 and
-          Scale wrapped to a line of its own. Still wraps rather than squeezes
-          if the panel is ever narrower. */}
+          The three plus their gaps come to about 253px, which is what sets
+          TREE_PANE_MIN: below it Scale wraps to a line of its own. They still
+          wrap rather than squeeze, so a narrower panel degrades instead of
+          clipping. */}
       {(onAdd || onAddStage || onScale) && (
         <div className="mb-2 flex flex-wrap items-center gap-2">
           {onAddStage && (
@@ -454,8 +461,10 @@ export function ComponentTree({
           </button>
         )}
       </div>
+      {/* The rule is the tree's spine, so it keeps its 1px; the inset beside it
+          was decoration the names were paying for. */}
       {listOpen && (
-        <div ref={listRef} onKeyDown={onTreeKeyDown} className="border-l border-white/5 pl-1">
+        <div ref={listRef} onKeyDown={onTreeKeyDown} className="border-l border-white/5">
           {tree.components.length ? (
             tree.components.map((c, i) => (
               <Row

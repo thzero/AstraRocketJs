@@ -16,7 +16,7 @@ export function TreePanel() {
   const [scaleOpen, setScaleOpen] = useState(false);
 
   return (
-    <div className="space-y-4 p-3">
+    <div className="space-y-4 p-2">
       <ComponentTree
         tree={tree}
         selectedId={selectedId}

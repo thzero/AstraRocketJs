@@ -11,6 +11,38 @@ import {
   type UnitSelection,
 } from '../prefs/units';
 
+/**
+ * Bounds for the component-tree column (see `Settings.treePaneWidth`).
+ *
+ * The minimum is where the design actions stop fitting on one row: they need
+ * about 253px and the column spends 32 on padding. It was 320, when that
+ * padding was 48. The maximum is judgment - past it the names have long since
+ * stopped truncating.
+ */
+export const TREE_PANE_MIN = 300;
+export const TREE_PANE_MAX = 640;
+export const TREE_PANE_DEFAULT = 360;
+
+/**
+ * Bounds for the right-hand column (see `Settings.sidePaneWidth`).
+ *
+ * The minimum is where the Results tiles stop working: they are a 3-up grid, and
+ * narrower than this "Static margin @ rail exit" wraps onto three lines.
+ */
+export const SIDE_PANE_MIN = 300;
+export const SIDE_PANE_MAX = 640;
+export const SIDE_PANE_DEFAULT = 380;
+
+/** What the center pane keeps, whichever divider is being dragged. */
+export const CENTER_PANE_MIN = 320;
+
+/** A stored column width, forced back into the usable range. */
+const clampPane = (v: unknown, min: number, max: number, fallback: number): number =>
+  typeof v === 'number' && Number.isFinite(v) ? Math.round(Math.min(max, Math.max(min, v))) : fallback;
+
+export const clampTreePane = (v: unknown): number => clampPane(v, TREE_PANE_MIN, TREE_PANE_MAX, TREE_PANE_DEFAULT);
+export const clampSidePane = (v: unknown): number => clampPane(v, SIDE_PANE_MIN, SIDE_PANE_MAX, SIDE_PANE_DEFAULT);
+
 // Sea-level, calm, standard-atmosphere defaults (Cape Canaveral latitude).
 const DEFAULT_LAUNCH: CompleteLaunch = {
   launchRodLengthM: 1,
@@ -144,6 +176,40 @@ export interface Settings {
    * has not been saved has no stable identity.
    */
   showImportNotes: boolean;
+  /**
+   * Width of the Design tab's component-tree column, in CSS pixels.
+   *
+   * The column carries two layers of padding before anything is drawn, so it
+   * gives its contents 32px less than this. TREE_PANE_MIN is what the + Stage /
+   * + Add / Scale row needs to stay one row; above TREE_PANE_MAX the tree is
+   * mostly empty gutter. The splitter also caps itself against the window at
+   * drag time, so a width stored on a wide monitor cannot crush the center pane
+   * on a narrow one.
+   */
+  treePaneWidth: number;
+  /**
+   * Width of the right-hand column, in CSS pixels.
+   *
+   * ONE width for all three of them - the part editor, the simulation editor and
+   * the run's numbers. They were a matching 380 on purpose: right columns of
+   * different widths read as an accident rather than as a choice, and that stays
+   * true when the width becomes the user's. Sizing it on any tab sizes it on all
+   * of them.
+   */
+  sidePaneWidth: number;
+  /**
+   * Give the whole window to the center pane, hiding both side columns.
+   *
+   * An airframe is 15-25x longer than it is wide, so the drawing is starved of
+   * horizontal space long before it is starved of vertical: dropping the tree
+   * and the property editor is worth about 750px of a 1500px window. The static
+   * statistics strip goes too - it is a footer about the design rather than part
+   * of the drawing, and it was spending 175px of height on the expand. It
+   * applies only on the tabs the center pane is actually on - on Simulations the
+   * flag is ignored, or the simulation editor would hide with no toolbar left to
+   * bring it back from.
+   */
+  maximizeCenter: boolean;
   /** Which sides of the 2D side view are framed by a measurement ruler. */
   rulers: RulerSides;
   /** Write the derived <designinfo> statistics block into saved .ork files. Off
@@ -258,6 +324,9 @@ export const DEFAULT_SETTINGS: Settings = {
   showInfoCard: true,
   showStats: true,
   showImportNotes: true,
+  treePaneWidth: TREE_PANE_DEFAULT,
+  sidePaneWidth: SIDE_PANE_DEFAULT,
+  maximizeCenter: false,
   rulers: { top: true, bottom: true, left: true, right: true },
   saveDesignInfo: false,
   report: DEFAULT_REPORT,
@@ -373,6 +442,12 @@ export function loadSettings(): Settings {
       showInfoCard: typeof s.showInfoCard === 'boolean' ? s.showInfoCard : DEFAULT_SETTINGS.showInfoCard,
       showStats: typeof s.showStats === 'boolean' ? s.showStats : DEFAULT_SETTINGS.showStats,
       showImportNotes: typeof s.showImportNotes === 'boolean' ? s.showImportNotes : DEFAULT_SETTINGS.showImportNotes,
+      // Clamped rather than trusted: the value reaches a style attribute, and a
+      // hand-edited or corrupted one would otherwise render a column of 0 or of
+      // 90000 pixels with no way back but clearing storage.
+      treePaneWidth: clampTreePane(s.treePaneWidth),
+      sidePaneWidth: clampSidePane(s.sidePaneWidth),
+      maximizeCenter: typeof s.maximizeCenter === 'boolean' ? s.maximizeCenter : DEFAULT_SETTINGS.maximizeCenter,
       rulers: { ...DEFAULT_SETTINGS.rulers, ...legacyRulers, ...savedRulers },
       saveDesignInfo: typeof s.saveDesignInfo === 'boolean' ? s.saveDesignInfo : DEFAULT_SETTINGS.saveDesignInfo,
       report: (() => {
