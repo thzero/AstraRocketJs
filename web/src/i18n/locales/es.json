@@ -684,7 +684,10 @@
     "noPosition": "La latitud y la longitud de lanzamiento son ambas cero, así que la traza exportada se coloca en el Centro Espacial Kennedy. Defínelas en el panel de lanzamiento para situarla donde vuelas de verdad. Tu diseño no cambia en ninguno de los dos casos.",
     "download": "Descargar",
     "apply": "Aceptar",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "colorRolePath": "Trayecto",
+    "colorRoleGround": "Suelo",
+    "colorRolePin": "Marcador"
   },
   "aero": {
     "unattributed": "No atribuido a un componente",

@@ -684,7 +684,10 @@
     "noPosition": "The launch latitude and longitude are both zero, so the exported track is placed at the Kennedy Space Center instead. Set them on the Launch panel to put it where you actually fly. Your design is unchanged either way.",
     "download": "Download",
     "apply": "OK",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "colorRolePath": "Path",
+    "colorRoleGround": "Ground",
+    "colorRolePin": "Pin"
   },
   "aero": {
     "unattributed": "Not attributed to a component",

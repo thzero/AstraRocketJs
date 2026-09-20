@@ -273,21 +273,97 @@ export interface ReportSettings {
 }
 
 /**
- * The flight-path export options that are a working preference rather than a
- * property of one file. Everything else that dialog offers — the mission name,
- * the per-stage colors, the placement — describes THIS export and starts fresh
- * each time: a stale one silently mislabels the next file.
+ * The flight-path export options that outlive one export.
+ *
+ * This used to be one boolean, on the reasoning that everything else in that
+ * dialog describes THIS export and a stale value silently mislabels the next
+ * file. That reasoning still holds for exactly one field - the MISSION NAME,
+ * which is still deliberately not persisted - and it was over-applied to the
+ * rest: which waypoints you want, what units you export in and what colors
+ * your stages are is a working habit, and re-picking them on every export is
+ * the kind of friction nobody reports.
+ *
+ * The per-stage colors carry a known consequence, accepted deliberately. They
+ * are keyed by the stage's INDEX in the flight data, not by name, because two
+ * stages of one rocket can share a name and name-keying would silently make
+ * them share a color. So colors restored from here land on whatever stage now
+ * occupies index 0, which may be a different rocket entirely. That is the
+ * point: the reason to remember colors is a consistent look across exports.
+ *
+ * Every field is optional-by-validation on load: an older store, a newer one,
+ * or a hand-edited one costs at most the field it broke.
  */
 export interface PathExportSettings {
   /** Whether the mission name prefixes the waypoint markers as well as the
    *  folder and track names. "Do I want my markers prefixed" is a habit; the
-   *  mission name itself is not. */
+   *  mission name itself is not, and is not stored. */
   labelWaypointsWithMission: boolean;
+  /** Which waypoint kinds to emit, by key. Unknown keys are dropped at export
+   *  time rather than here, so a list from another build costs a marker. */
+  waypoints?: string[];
+  includeFlightPath?: boolean;
+  includeGroundTrack?: boolean;
+  /** Keep every Nth path point. A positive integer. */
+  pathStride?: number;
+  /**
+   * Export units. ABSENT means "follow the app's distance preference", which
+   * is what a fresh install does; a stored value is an explicit choice made in
+   * the dialog and outranks the app units, because the whole point of the
+   * control is exporting in something other than what you are looking at.
+   */
+  altitudeUnit?: string;
+  distanceUnit?: string;
+  altitudeReference?: string;
+  waypointAltitudeReference?: string;
+  drawShadow?: boolean;
+  stageTrackStart?: string;
+  showWaypointLabels?: boolean;
+  colorWaypointPins?: boolean;
+  /**
+   * Per-stage color overrides, one map per role, each keyed by stage index and
+   * valued `rrggbb`. SPARSE: only stages the user actually changed appear, so
+   * an untouched install stores three empty objects, the stored form never has
+   * to know how many stages exist, and a palette change later does not strand
+   * saved values. A dense form would need a placeholder for "default", which
+   * is the sentinel problem that absence already solves.
+   */
+  branchColors?: Record<string, string>;
+  branchGroundColors?: Record<string, string>;
+  branchPinColors?: Record<string, string>;
 }
 
 const DEFAULT_PATH_EXPORT: PathExportSettings = {
   labelWaypointsWithMission: false,
 };
+
+/** A sparse index-keyed color map as `{ "0": "112233" }`. */
+export function encodeStageColors(colors: Map<number, number>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [index, rgb] of colors) {
+    out[String(index)] = (rgb & 0xffffff).toString(16).padStart(6, '0');
+  }
+  return out;
+}
+
+/**
+ * Back to a Map, skipping anything malformed.
+ *
+ * Tolerant on purpose: this store is hand-editable and readable by older and
+ * newer builds, and a bad pair should cost one stage's color rather than the
+ * whole settings object. Sparseness makes that cheap - a dropped entry just
+ * means that stage falls back to its palette, which is always a valid state.
+ */
+export function decodeStageColors(value: unknown): Map<number, number> {
+  const out = new Map<number, number>();
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return out;
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    const index = Number.parseInt(key, 10);
+    if (!Number.isInteger(index) || index < 0) continue;
+    if (typeof raw !== 'string' || !/^[0-9a-fA-F]{6}$/.test(raw)) continue;
+    out.set(index, Number.parseInt(raw, 16) & 0xffffff);
+  }
+  return out;
+}
 
 export const DEFAULT_REPORT: ReportSettings = {
   units: 'current',
@@ -355,6 +431,52 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 const KEY = 'astrarrocketjs:settings:v1';
+
+/**
+ * Validate the stored flight-path export block field by field.
+ *
+ * Every field is checked independently and a bad one falls back on its own, so
+ * a store written by another build (or edited by hand) costs that field rather
+ * than the dialog. The enum-ish fields are kept as strings here and checked
+ * against the real union at the call site, which owns the legal values.
+ */
+function loadPathExport(raw: unknown): PathExportSettings {
+  const p = (raw && typeof raw === 'object' ? raw : {}) as Partial<PathExportSettings>;
+  const bool = (v: unknown): boolean | undefined => (typeof v === 'boolean' ? v : undefined);
+  const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
+  const colors = (v: unknown): Record<string, string> | undefined => {
+    const m = decodeStageColors(v);
+    return m.size ? encodeStageColors(m) : undefined;
+  };
+  const out: PathExportSettings = {
+    labelWaypointsWithMission:
+      bool(p.labelWaypointsWithMission) ?? DEFAULT_PATH_EXPORT.labelWaypointsWithMission,
+  };
+  if (Array.isArray(p.waypoints)) {
+    out.waypoints = p.waypoints.filter((w): w is string => typeof w === 'string');
+  }
+  const assign = <K extends keyof PathExportSettings>(k: K, v: PathExportSettings[K]) => {
+    if (v !== undefined) out[k] = v;
+  };
+  assign('includeFlightPath', bool(p.includeFlightPath));
+  assign('includeGroundTrack', bool(p.includeGroundTrack));
+  // A stride of 0 or a fraction would silently drop the path or never advance.
+  if (typeof p.pathStride === 'number' && Number.isInteger(p.pathStride) && p.pathStride >= 1) {
+    out.pathStride = p.pathStride;
+  }
+  assign('altitudeUnit', str(p.altitudeUnit));
+  assign('distanceUnit', str(p.distanceUnit));
+  assign('altitudeReference', str(p.altitudeReference));
+  assign('waypointAltitudeReference', str(p.waypointAltitudeReference));
+  assign('drawShadow', bool(p.drawShadow));
+  assign('stageTrackStart', str(p.stageTrackStart));
+  assign('showWaypointLabels', bool(p.showWaypointLabels));
+  assign('colorWaypointPins', bool(p.colorWaypointPins));
+  assign('branchColors', colors(p.branchColors));
+  assign('branchGroundColors', colors(p.branchGroundColors));
+  assign('branchPinColors', colors(p.branchPinColors));
+  return out;
+}
 
 export function loadSettings(): Settings {
   try {
@@ -488,12 +610,7 @@ export function loadSettings(): Settings {
         if (!UNIT_CHOICES.includes(r.units)) r.units = DEFAULT_REPORT.units;
         return r;
       })(),
-      pathExport: {
-        labelWaypointsWithMission:
-          typeof s.pathExport?.labelWaypointsWithMission === 'boolean'
-            ? s.pathExport.labelWaypointsWithMission
-            : DEFAULT_PATH_EXPORT.labelWaypointsWithMission,
-      },
+      pathExport: loadPathExport(s.pathExport),
       // Strings only. The chart filters to the keys it actually has, so an
       // unknown one is dropped there rather than being guessed at here.
       flightSeries: Array.isArray(s.flightSeries)

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { fireEvent, screen, within } from '@testing-library/react';
 import { ExportDialog } from './FlightPathExport';
 import { renderWithProviders } from '../../testing/renderWithProviders';
@@ -47,6 +47,12 @@ const shadow = () => screen.getByRole('checkbox', { name: 'Draw shadow down to t
  * end-to-end test.
  */
 describe('flight-path export dialog', () => {
+  // The dialog persists its options now, so cases would otherwise inherit
+  // each other's choices through localStorage - which is exactly the
+  // cross-export carry-over the feature is FOR, and exactly what a test
+  // must not have.
+  beforeEach(() => localStorage.clear());
+
   it('starts on the desktop defaults', () => {
     show(flight());
     expect(trackRef().value).toBe('automatic');
@@ -153,37 +159,106 @@ describe('flight-path export dialog', () => {
     );
   });
 
-  it('gives every stage a swatch, and only commits them on OK', () => {
+  it('carries the options, including every stage color, into the next export', () => {
+    const { unmount } = show(
+      flight([
+        { name: 'Sustainer', events, series },
+        { name: 'Booster', events, series },
+      ]),
+    );
+    const openColors = () => fireEvent.click(screen.getByRole('button', { name: 'Stage colors\u2026' }));
+    const colors = () => within(screen.getByRole('dialog', { name: 'Stage colors' }));
+    const swatch = (stage: string, role: string) =>
+      colors().getByLabelText(`${stage} ${role}`) as HTMLInputElement;
+
+    openColors();
+    fireEvent.change(swatch('Sustainer', 'Path'), { target: { value: '#112233' } });
+    fireEvent.change(swatch('Sustainer', 'Ground'), { target: { value: '#445566' } });
+    fireEvent.change(swatch('Booster', 'Pin'), { target: { value: '#778899' } });
+    fireEvent.click(colors().getByRole('button', { name: 'OK' }));
+
+    // Close the dialog entirely and open a fresh one, which is the real
+    // question: does the NEXT export start where the last one left off.
+    unmount();
     show(
       flight([
         { name: 'Sustainer', events, series },
         { name: 'Booster', events, series },
       ]),
     );
-    const openColors = () => fireEvent.click(screen.getByRole('button', { name: 'Stage colors…' }));
+    openColors();
+    expect(swatch('Sustainer', 'Path').value).toBe('#112233');
+    expect(swatch('Sustainer', 'Ground').value).toBe('#445566');
+    expect(swatch('Booster', 'Pin').value).toBe('#778899');
+    // Sparse: a stage nobody touched still follows its palette rather than
+    // having today's palette frozen in as an override.
+    expect(swatch('Booster', 'Path').value).toBe('#d95319');
+    expect(swatch('Sustainer', 'Pin').value).toBe('#0072bd');
+  });
+
+  it('does not carry the mission name over', () => {
+    // The one field that deliberately still starts fresh: a name left from the
+    // last flight silently mislabels this one, which is worse than retyping it.
+    const { unmount } = show(flight());
+    const mission = () => screen.getByLabelText('Mission') as HTMLInputElement;
+    fireEvent.change(mission(), { target: { value: 'Ship of Theseus' } });
+    expect(mission().value).toBe('Ship of Theseus');
+
+    unmount();
+    show(flight());
+    expect(mission().value).toBe('');
+  });
+
+  it('gives every stage a swatch per role, and only commits them on OK', () => {
+    show(
+      flight([
+        { name: 'Sustainer', events, series },
+        { name: 'Booster', events, series },
+      ]),
+    );
+    const openColors = () => fireEvent.click(screen.getByRole('button', { name: 'Stage colors\u2026' }));
     // Scoped to the sub-dialog: the export dialog behind it has a Cancel too.
     const colors = () => within(screen.getByRole('dialog', { name: 'Stage colors' }));
-    const sustainer = () => colors().getByLabelText('Sustainer') as HTMLInputElement;
+    const swatch = (stage: string, role: string) =>
+      colors().getByLabelText(`${stage} ${role}`) as HTMLInputElement;
 
     openColors();
-    expect(sustainer().value).toBe('#0072bd'); // the palette, until told otherwise
-    expect((colors().getByLabelText('Booster') as HTMLInputElement).value).toBe('#d95319');
+    // Each role starts on its OWN palette, not on a shade of the path's.
+    expect(swatch('Sustainer', 'Path').value).toBe('#0072bd');
+    expect(swatch('Sustainer', 'Ground').value).toBe('#ff2d55');
+    expect(swatch('Sustainer', 'Pin').value).toBe('#0072bd');
+    expect(swatch('Booster', 'Path').value).toBe('#d95319');
+    expect(swatch('Booster', 'Ground').value).toBe('#00b3a4');
 
     // Cancel leaves the prior selection exactly as it was.
-    fireEvent.change(sustainer(), { target: { value: '#112233' } });
+    fireEvent.change(swatch('Sustainer', 'Path'), { target: { value: '#112233' } });
     fireEvent.click(colors().getByRole('button', { name: 'Cancel' }));
     openColors();
-    expect(sustainer().value).toBe('#0072bd');
+    expect(swatch('Sustainer', 'Path').value).toBe('#0072bd');
 
-    // OK commits, and reopening shows what was committed.
-    fireEvent.change(sustainer(), { target: { value: '#112233' } });
+    // Moving one column must NOT drag the others. An earlier design had ground
+    // and pin follow the path swatch while they were still on their derived
+    // value, which made two identical-looking swatches behave differently
+    // depending on history.
+    fireEvent.change(swatch('Sustainer', 'Path'), { target: { value: '#112233' } });
+    expect(swatch('Sustainer', 'Ground').value).toBe('#ff2d55');
+    expect(swatch('Sustainer', 'Pin').value).toBe('#0072bd');
+
+    // OK commits every column, and reopening shows what was committed.
+    fireEvent.change(swatch('Sustainer', 'Ground'), { target: { value: '#445566' } });
+    fireEvent.change(swatch('Sustainer', 'Pin'), { target: { value: '#778899' } });
     fireEvent.click(colors().getByRole('button', { name: 'OK' }));
     openColors();
-    expect(sustainer().value).toBe('#112233');
+    expect(swatch('Sustainer', 'Path').value).toBe('#112233');
+    expect(swatch('Sustainer', 'Ground').value).toBe('#445566');
+    expect(swatch('Sustainer', 'Pin').value).toBe('#778899');
+    expect(swatch('Booster', 'Path').value).toBe('#d95319'); // untouched stage
 
-    // Reset drops the overrides rather than freezing today's palette in as one.
+    // Reset drops every override rather than freezing today's palettes in.
     fireEvent.click(colors().getByRole('button', { name: 'Reset to defaults' }));
-    expect(sustainer().value).toBe('#0072bd');
+    expect(swatch('Sustainer', 'Path').value).toBe('#0072bd');
+    expect(swatch('Sustainer', 'Ground').value).toBe('#ff2d55');
+    expect(swatch('Sustainer', 'Pin').value).toBe('#0072bd');
   });
 
   it('toggles the waypoint display options', () => {

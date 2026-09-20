@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   buildFlightPathModel,
   defaultBranchColor,
+  defaultGroundColor,
+  defaultPinColor,
   defaultExportOptions,
   exportBranchNames,
   hasLaunchPosition,
@@ -148,8 +150,24 @@ describe('desktop model parity', () => {
     // KML orders the bytes backwards from hex web colors, which is exactly the
     // kind of thing that silently renders blue as red.
     const b = build(staged).branches[0]!;
-    expect(b.pathColorKml).toBe('ffbd7200'); // opaque, 0072bd reversed
-    expect(b.groundColorKml).toBe('d0553300'); // darkened, translucent
+    expect(b.pathColorKml).toBe('ffbd7200'); // 0072bd reversed
+    expect(b.groundColorKml).toBe('ff552dff'); // ff2d55 reversed
+    expect(b.pinColorKml).toBe('ffbd7200'); // pin defaults to the path color
+  });
+
+  it('renders every color opaque, whether defaulted or picked', () => {
+    // Alpha used to depend on HOW the color was obtained: the derived ground
+    // shade was drawn at 0xd0 and a picked one at 0xff, so choosing exactly the
+    // default gave a different result from leaving it alone. A color is a
+    // value, not a value plus a provenance flag.
+    const defaulted = build(staged).branches[0]!;
+    const picked = build(staged, {
+      branchGroundColors: new Map([[0, 0xff2d55]]), // the default, chosen explicitly
+    }).branches[0]!;
+    expect(picked.groundColorKml).toBe(defaulted.groundColorKml);
+    for (const c of [defaulted.pathColorKml, defaulted.groundColorKml, defaulted.pinColorKml]) {
+      expect(c.slice(0, 2)).toBe('ff');
+    }
   });
 
   it('qualifies waypoint labels only when the flight actually staged', () => {
@@ -341,15 +359,75 @@ describe('stage colors', () => {
     expect(m.branches[1]!.colorRgb).toBe('112233');
   });
 
-  it('derives the line, the ground track and the pin from the one color', () => {
-    // Darkened rather than merely made translucent: seen from straight above, a
-    // ground track sits directly beneath its flight path, and two lines of the
-    // same brightness read as one.
-    const b = build(staged, { branchColors: new Map([[0, 0x0072bd]]) }).branches[0]!;
-    expect(b.pathColorKml).toBe('ffbd7200');
-    expect(b.groundColorKml).toBe('d0553300');
-    const kml = renderKml(build(staged, { branchColors: new Map([[0, 0x112233]]) }));
-    expect(kml).toContain('<color>ff332211</color>'); // line and pin, aabbggrr
+  it('a stage path color can be set on its own', () => {
+    // The point of the whole design: setting one role leaves the others on
+    // THEIR defaults rather than dragging them along.
+    const b = build(staged, { branchColors: new Map([[0, 0x112233]]) }).branches[0]!;
+    expect(b.pathColorKml).toBe('ff332211'); // KML is aabbggrr, so 112233 -> ff332211
+    expect(b.groundColorKml).toBe('ff552dff'); // still the ground palette
+    expect(b.pinColorKml).toBe('ffbd7200'); // still the pin default
+  });
+
+  it('a stage ground-track color can be set on its own', () => {
+    const b = build(staged, { branchGroundColors: new Map([[0, 0x112233]]) }).branches[0]!;
+    expect(b.groundColorKml).toBe('ff332211');
+    expect(b.pathColorKml).toBe('ffbd7200'); // untouched
+    expect(b.pinColorKml).toBe('ffbd7200');
+  });
+
+  it('a stage pin color can be set on its own', () => {
+    const b = build(staged, { branchPinColors: new Map([[0, 0x112233]]) }).branches[0]!;
+    expect(b.pinColorKml).toBe('ff332211');
+    expect(b.pathColorKml).toBe('ffbd7200'); // neither track moves
+    expect(b.groundColorKml).toBe('ff552dff');
+  });
+
+  it('a stage can carry three independent colors at once', () => {
+    const b = build(staged, {
+      branchColors: new Map([[0, 0x112233]]),
+      branchGroundColors: new Map([[0, 0x445566]]),
+      branchPinColors: new Map([[0, 0x778899]]),
+    }).branches[0]!;
+    expect(b.colorRgb).toBe('112233');
+    expect(b.groundColorRgb).toBe('445566');
+    expect(b.pinColorRgb).toBe('778899');
+    expect(b.pathColorKml).toBe('ff332211');
+    expect(b.groundColorKml).toBe('ff665544');
+    expect(b.pinColorKml).toBe('ff998877');
+  });
+
+  it('each color lands on its own KML element', () => {
+    // Assert on the RENDERED bytes, with the surrounding <Style id> included.
+    // The model can be right while the template wires the wrong field into the
+    // wrong element - and the pin used to share the path's token, so a careless
+    // find-and-replace repaints the flight path.
+    const kml = renderKml(
+      build(staged, {
+        branchColors: new Map([[0, 0x112233]]),
+        branchGroundColors: new Map([[0, 0x445566]]),
+        branchPinColors: new Map([[0, 0x778899]]),
+      }),
+    );
+    expect(kml).toContain('<Style id="flightPath0"><LineStyle><color>ff332211</color>');
+    expect(kml).toContain('<Style id="groundTrack0"><LineStyle><color>ff665544</color>');
+    // The pin, structurally: the color inside the waypoint style's
+    // IconStyle, which is the element that used to carry the path's token.
+    const iconStyle = /<Style id="waypoint0">[\s\S]*?<IconStyle>\s*<color>([0-9a-f]{8})<\/color>/.exec(kml);
+    expect(iconStyle?.[1]).toBe('ff998877');
+    // ...and the flight-path line still has its own, unchanged by the pin.
+    expect(kml).toContain('<Style id="flightPath0"><LineStyle><color>ff332211</color>');
+  });
+
+  it('the ground palette contrasts with the path palette per stage', () => {
+    // A ground track sits under its flight path from overhead, so entry i of
+    // one palette must not look like entry i of the other.
+    for (let i = 0; i < 10; i++) {
+      expect(defaultGroundColor(i)).not.toBe(defaultBranchColor(i));
+    }
+    expect(defaultGroundColor(0)).toBe(0xff2d55);
+    expect(defaultGroundColor(10)).toBe(0xff2d55); // wraps
+    expect(defaultGroundColor(-1)).toBe(0xe74c3c); // and cannot reach off the front
+    expect(defaultPinColor(3)).toBe(defaultBranchColor(3)); // pins follow the path DEFAULT
   });
 
   it('offers the color picker exactly the branches the model will number', () => {

@@ -5,7 +5,13 @@ import { download as saveDownload, safeFilename } from '../../services/saveFile'
 import { useUnits } from '../../prefs/useUnits';
 import {
   buildFlightPathModel,
+  asAltitudeReference,
+  asDistanceUnit,
+  asStageTrackStart,
+  asWaypointKinds,
   defaultBranchColor,
+  defaultGroundColor,
+  defaultPinColor,
   defaultExportOptions,
   exportBranchNames,
   hasLaunchPosition,
@@ -23,6 +29,7 @@ import {
 } from '../../services/flightPathExport';
 import { getTemplateStore, parseTemplateFilename, type UserTemplate } from '../../services/templateStore';
 import { useFocusTrap } from '../common/useFocusTrap';
+import { decodeStageColors, encodeStageColors } from '../../services/settings';
 import { useSettings } from '../../state/SettingsProvider';
 
 /**
@@ -111,13 +118,68 @@ export function ExportDialog({
   const [selected, setSelected] = useState<string>(EXPORT_FORMATS[0]!.id);
   const units = useUnits();
   const { settings, update } = useSettings();
-  // Only the marker-prefix checkbox is carried in from last time — see
-  // PathExportSettings for why the mission name itself is not.
-  const [opts, setOpts] = useState<FlightPathExportOptions>(() => ({
-    ...defaultExportOptions(units.sym('distance')),
-    labelWaypointsWithMission: settings.pathExport.labelWaypointsWithMission,
-  }));
+  // Carried in from last time, except the mission name - see
+  // PathExportSettings for why that one still starts fresh every export.
+  //
+  // Each field falls back independently: a stored value that this build does
+  // not recognise (an older store, a newer one, a hand edit) costs that field
+  // and nothing else. The units are the interesting case - ABSENT means follow
+  // the app's distance preference, which is what a fresh install does, while a
+  // stored value is an explicit dialog choice and outranks it.
+  const [opts, setOpts] = useState<FlightPathExportOptions>(() => {
+    const base = defaultExportOptions(units.sym('distance'));
+    const p = settings.pathExport;
+    const waypoints = asWaypointKinds(p.waypoints);
+    return {
+      ...base,
+      waypoints: waypoints && waypoints.size ? waypoints : base.waypoints,
+      includeFlightPath: p.includeFlightPath ?? base.includeFlightPath,
+      includeGroundTrack: p.includeGroundTrack ?? base.includeGroundTrack,
+      pathStride: p.pathStride ?? base.pathStride,
+      altitudeUnit: asDistanceUnit(p.altitudeUnit) ?? base.altitudeUnit,
+      distanceUnit: asDistanceUnit(p.distanceUnit) ?? base.distanceUnit,
+      altitudeReference: asAltitudeReference(p.altitudeReference) ?? base.altitudeReference,
+      waypointAltitudeReference:
+        asAltitudeReference(p.waypointAltitudeReference) ?? base.waypointAltitudeReference,
+      drawShadow: p.drawShadow ?? base.drawShadow,
+      stageTrackStart: asStageTrackStart(p.stageTrackStart) ?? base.stageTrackStart,
+      showWaypointLabels: p.showWaypointLabels ?? base.showWaypointLabels,
+      colorWaypointPins: p.colorWaypointPins ?? base.colorWaypointPins,
+      labelWaypointsWithMission: p.labelWaypointsWithMission,
+      branchColors: decodeStageColors(p.branchColors),
+      branchGroundColors: decodeStageColors(p.branchGroundColors),
+      branchPinColors: decodeStageColors(p.branchPinColors),
+    };
+  });
   const [colorsOpen, setColorsOpen] = useState(false);
+  // Write the preference-shaped fields back whenever they move. The mission
+  // name is excluded at the source (it is not in PathExportSettings), so it
+  // cannot leak into the store by being part of `opts`.
+  useEffect(() => {
+    update({
+      pathExport: {
+        labelWaypointsWithMission: opts.labelWaypointsWithMission,
+        waypoints: [...opts.waypoints],
+        includeFlightPath: opts.includeFlightPath,
+        includeGroundTrack: opts.includeGroundTrack,
+        pathStride: opts.pathStride,
+        altitudeUnit: opts.altitudeUnit,
+        distanceUnit: opts.distanceUnit,
+        altitudeReference: opts.altitudeReference,
+        waypointAltitudeReference: opts.waypointAltitudeReference,
+        drawShadow: opts.drawShadow,
+        stageTrackStart: opts.stageTrackStart,
+        showWaypointLabels: opts.showWaypointLabels,
+        colorWaypointPins: opts.colorWaypointPins,
+        branchColors: encodeStageColors(opts.branchColors),
+        branchGroundColors: encodeStageColors(opts.branchGroundColors),
+        branchPinColors: encodeStageColors(opts.branchPinColors),
+      },
+    });
+    // `update` is stable and `settings` must NOT be a dependency: reading the
+    // value we just wrote would re-run this on every store change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opts]);
   const [templates, setTemplates] = useState<UserTemplate[]>([]);
   const [error, setError] = useState<string | null>(null);
   // Where a stage's track begins only means something once there is more than
@@ -406,7 +468,10 @@ export function ExportDialog({
                   type="button"
                   onClick={() => setColorsOpen(true)}
                   title={t('pathExport.stageColorsTitle')}
-                  className="rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+                  // Sized to the stage-track-start select beside it. It used to
+                  // be text-[11px] next to that control's text-sm, which read
+                  // as an afterthought rather than the other half of the row.
+                  className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
                 >
                   {t('pathExport.stageColors')}
                 </button>
@@ -478,7 +543,7 @@ export function ExportDialog({
               checked={opts.labelWaypointsWithMission}
               onChange={(v) => {
                 setOpts((o) => ({ ...o, labelWaypointsWithMission: v }));
-                update({ pathExport: { ...settings.pathExport, labelWaypointsWithMission: v } });
+                // Persisted by the effect above, with the rest.
               }}
               label={t('pathExport.labelWaypointsWithMission')}
             />
@@ -516,9 +581,11 @@ export function ExportDialog({
         <StageColorDialog
           names={branchNames}
           colors={opts.branchColors}
+          groundColors={opts.branchGroundColors}
+          pinColors={opts.branchPinColors}
           onCancel={() => setColorsOpen(false)}
-          onApply={(branchColors) => {
-            setOpts((o) => ({ ...o, branchColors }));
+          onApply={(branchColors, branchGroundColors, branchPinColors) => {
+            setOpts((o) => ({ ...o, branchColors, branchGroundColors, branchPinColors }));
             setColorsOpen(false);
           }}
         />
@@ -527,30 +594,67 @@ export function ExportDialog({
   );
 }
 
+/** The three independently colorable things the exporter draws per stage. */
+const COLOR_ROLES = ['path', 'ground', 'pin'] as const;
+type ColorRole = (typeof COLOR_ROLES)[number];
+
+const ROLE_DEFAULT: Record<ColorRole, (index: number) => number> = {
+  path: defaultBranchColor,
+  ground: defaultGroundColor,
+  pin: defaultPinColor,
+};
+
+const ROLE_LABEL: Record<ColorRole, string> = {
+  path: 'pathExport.colorRolePath',
+  ground: 'pathExport.colorRoleGround',
+  pin: 'pathExport.colorRolePin',
+};
+
 /**
- * One swatch per stage. A modal rather than a row of inline pickers because the
- * stage count comes from the design: inline means a variable-length list in a
- * panel that has no room to grow.
+ * A grid of swatches: one row per stage, one column per role.
  *
- * Edits a DRAFT of the override map, so Cancel leaves the prior selection
- * exactly as it was and only Apply commits. Reset clears the draft back to the
- * palette rather than writing each palette color in as an override, so a stage
- * nobody chose a color for keeps following the palette.
+ * A modal rather than inline pickers because the stage count comes from the
+ * design, and a variable-length list needs room the panel does not have.
+ *
+ * Edits a DRAFT per role, so Cancel leaves the prior selection exactly as it
+ * was and only Apply commits. Reset clears the drafts back to the palettes
+ * rather than writing each palette color in as an override, so a stage nobody
+ * chose a color for keeps following its palette.
+ *
+ * The three columns are deliberately INDEPENDENT. An earlier design had ground
+ * and pin follow the path swatch while they were still on their derived value
+ * and stop once moved. It demos well and is bad: two swatches showing the same
+ * color behave differently depending on history, nothing on screen says which
+ * are still following, and setting a color to exactly the derived value gets
+ * you a swatch that silently keeps moving. Changing one column here never
+ * moves another.
  */
 function StageColorDialog({
   names,
   colors,
+  groundColors,
+  pinColors,
   onApply,
   onCancel,
 }: {
   names: string[];
   colors: Map<number, number>;
-  onApply: (colors: Map<number, number>) => void;
+  groundColors: Map<number, number>;
+  pinColors: Map<number, number>;
+  onApply: (
+    colors: Map<number, number>,
+    groundColors: Map<number, number>,
+    pinColors: Map<number, number>,
+  ) => void;
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
   const panelRef = useFocusTrap<HTMLDivElement>(true);
-  const [draft, setDraft] = useState<Map<number, number>>(() => new Map(colors));
+  const [drafts, setDrafts] = useState<Record<ColorRole, Map<number, number>>>(() => ({
+    path: new Map(colors),
+    ground: new Map(groundColors),
+    pin: new Map(pinColors),
+  }));
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -563,18 +667,18 @@ function StageColorDialog({
     return () => window.removeEventListener('keydown', onKey, true);
   }, [onCancel]);
 
-  const setColor = (i: number, rgb: number) =>
-    setDraft((d) => {
-      const next = new Map(d);
+  const setColor = (role: ColorRole, i: number, rgb: number) =>
+    setDrafts((d) => {
+      const next = new Map(d[role]);
       next.set(i, rgb);
-      return next;
+      return { ...d, [role]: next };
     });
 
   return (
     <div className="dialog-overlay fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4" onClick={onCancel}>
       <div
         ref={panelRef}
-        className="dialog-panel max-h-[80vh] w-full max-w-xs overflow-y-auto rounded-2xl bg-slate-900 p-5 ring-1 ring-white/10"
+        className="dialog-panel max-h-[80vh] w-full max-w-sm overflow-y-auto rounded-2xl bg-slate-900 p-5 ring-1 ring-white/10"
         role="dialog"
         aria-modal="true"
         aria-label={t('pathExport.stageColorsTitle')}
@@ -582,23 +686,39 @@ function StageColorDialog({
       >
         <h2 className="text-base font-semibold text-slate-100">{t('pathExport.stageColorsTitle')}</h2>
         <div className="mt-3 space-y-1.5">
-          {names.map((name, i) => (
-            <label key={`${i}-${name}`} className="flex items-center justify-between gap-3">
-              <span className="truncate text-sm text-slate-300">{name || t('pathExport.stageN', { n: i + 1 })}</span>
-              <input
-                type="color"
-                aria-label={name || t('pathExport.stageN', { n: i + 1 })}
-                value={rgbToHex(draft.get(i) ?? defaultBranchColor(i))}
-                onChange={(e) => setColor(i, hexToRgbInt(e.target.value))}
-                className="h-7 w-12 shrink-0 cursor-pointer rounded-md bg-slate-800 ring-1 ring-white/10"
-              />
-            </label>
-          ))}
+          {/* Header row: three columns is past the point where a bare swatch
+              says what it paints. */}
+          <div className="flex items-center justify-between gap-2 pb-1">
+            <span className="flex-1" />
+            {COLOR_ROLES.map((role) => (
+              <span key={role} className="w-12 shrink-0 text-center text-[10px] uppercase tracking-wide text-slate-400">
+                {t(ROLE_LABEL[role])}
+              </span>
+            ))}
+          </div>
+          {names.map((name, i) => {
+            const stage = name || t('pathExport.stageN', { n: i + 1 });
+            return (
+              <div key={`${i}-${name}`} className="flex items-center justify-between gap-2">
+                <span className="flex-1 truncate text-sm text-slate-300">{stage}</span>
+                {COLOR_ROLES.map((role) => (
+                  <input
+                    key={role}
+                    type="color"
+                    aria-label={`${stage} ${t(ROLE_LABEL[role])}`}
+                    value={rgbToHex(drafts[role].get(i) ?? ROLE_DEFAULT[role](i))}
+                    onChange={(e) => setColor(role, i, hexToRgbInt(e.target.value))}
+                    className="h-7 w-12 shrink-0 cursor-pointer rounded-md bg-slate-800 ring-1 ring-white/10"
+                  />
+                ))}
+              </div>
+            );
+          })}
         </div>
         <div className="mt-4 flex flex-wrap justify-end gap-2">
           <button
             type="button"
-            onClick={() => setDraft(new Map())}
+            onClick={() => setDrafts({ path: new Map(), ground: new Map(), pin: new Map() })}
             className="mr-auto rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
           >
             {t('pathExport.resetColors')}
@@ -610,7 +730,7 @@ function StageColorDialog({
             {t('pathExport.cancel')}
           </button>
           <button
-            onClick={() => onApply(draft)}
+            onClick={() => onApply(drafts.path, drafts.ground, drafts.pin)}
             className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
           >
             {t('pathExport.apply')}

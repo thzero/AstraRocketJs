@@ -153,11 +153,31 @@ export interface FlightPathExportOptions {
    */
   labelWaypointsWithMission: boolean;
   /**
-   * Per-stage track-color overrides, keyed by the branch's index in the built
-   * model. Sparse on purpose: a stage left on its palette color stores
+   * Per-stage FLIGHT-PATH color overrides, keyed by the branch's index in the
+   * built model. Sparse on purpose: a stage left on its palette color stores
    * nothing, so the palette can change later without stranding saved values.
+   *
+   * Kept under the old name rather than renamed to `branchPathColors`, so
+   * existing callers and tests still read correctly.
    */
   branchColors: Map<number, number>;
+  /**
+   * Per-stage GROUND-TRACK color overrides. Same shape, same sparseness.
+   *
+   * This used to be derived: the ground track was the path color darkened 45%
+   * and drawn at 82% alpha. The derivation existed for a good reason - from
+   * directly overhead the ground track sits under the flight path, and one
+   * color reads as one line - but it washed out against satellite imagery and
+   * the user had nothing to fix it with, because the color was never a value
+   * they owned. It is its own color now, with its own palette.
+   */
+  branchGroundColors: Map<number, number>;
+  /**
+   * Per-stage WAYPOINT-PIN color overrides. Same shape again.
+   *
+   * Pins had no color of their own; the template reused the flight path's.
+   */
+  branchPinColors: Map<number, number>;
 }
 
 /**
@@ -169,6 +189,33 @@ export interface FlightPathExportOptions {
  * A preference this dialog has no unit for (yd, km, mi is covered; anything
  * else) falls back to meters rather than writing a unit the format can't name.
  */
+/**
+ * Narrow a stored string to a union member, or undefined.
+ *
+ * The settings store keeps these as plain strings because it must survive a
+ * value written by another build; the legal set lives HERE, next to the union,
+ * so there is one place to update when a member is added.
+ */
+export function asWaypointKinds(values: readonly string[] | undefined): Set<WaypointKind> | undefined {
+  if (!values) return undefined;
+  const legal = new Set<string>(WAYPOINT_KINDS);
+  return new Set(values.filter((v): v is WaypointKind => legal.has(v)));
+}
+
+export function asDistanceUnit(value: string | undefined): DistanceUnit | undefined {
+  return value === 'm' || value === 'ft' || value === 'km' || value === 'mi' ? value : undefined;
+}
+
+export function asAltitudeReference(value: string | undefined): AltitudeReference | undefined {
+  return value === 'automatic' || value === 'ground' || value === 'sealevel' || value === 'clamped'
+    ? value
+    : undefined;
+}
+
+export function asStageTrackStart(value: string | undefined): StageTrackStart | undefined {
+  return value === 'separation' || value === 'pad' ? value : undefined;
+}
+
 export function defaultExportOptions(preferred?: string): FlightPathExportOptions {
   const unit: DistanceUnit = preferred === 'ft' || preferred === 'km' || preferred === 'mi' ? preferred : 'm';
   return {
@@ -189,6 +236,8 @@ export function defaultExportOptions(preferred?: string): FlightPathExportOption
     missionName: '',
     labelWaypointsWithMission: false,
     branchColors: new Map(),
+    branchGroundColors: new Map(),
+    branchPinColors: new Map(),
   };
 }
 
@@ -203,13 +252,51 @@ const BRANCH_COLORS = [
 ];
 
 /**
- * The palette color a branch falls on when it has no override. Indexed with a
- * floor-mod, so any stage count works and a negative index cannot reach off the
- * front of the palette.
+ * Ground-track palette. Entry *i* is chosen to CONTRAST with entry *i* of
+ * `BRANCH_COLORS`, because a ground track sits directly beneath its flight path
+ * when the map is viewed from overhead: blue path / red ground, orange / teal,
+ * yellow / purple, and so on.
+ *
+ * More saturated than a darkened shade would be, because a ground track is read
+ * against satellite imagery rather than a white plot background. That is the
+ * whole reason this palette exists instead of `darken(pathColor)`.
+ */
+const GROUND_COLORS = [
+  0xff2d55, 0x00b3a4, 0x8e44ad, 0x2ecc40, 0xe01b84, 0xd35400, 0x1abc9c, 0x2e86c1, 0x27ae60, 0xe74c3c,
+];
+
+/** Wrap an index into a palette. Floor-mod, so a negative index cannot reach
+ *  off the front - the index comes from data, not from a loop counter. */
+function paletteAt(palette: readonly number[], index: number): number {
+  const n = palette.length;
+  return palette[((index % n) + n) % n]!;
+}
+
+/**
+ * The FLIGHT-PATH color a branch falls on when it has no override.
  */
 export function defaultBranchColor(index: number): number {
-  const n = BRANCH_COLORS.length;
-  return BRANCH_COLORS[((index % n) + n) % n]!;
+  return paletteAt(BRANCH_COLORS, index);
+}
+
+/**
+ * The GROUND-TRACK color a branch falls on when it has no override.
+ */
+export function defaultGroundColor(index: number): number {
+  return paletteAt(GROUND_COLORS, index);
+}
+
+/**
+ * The WAYPOINT-PIN color a branch falls on when it has no override.
+ *
+ * Pins want to match the flight path today, so this delegates. That is NOT the
+ * old derivation: this is a default that happens to equal another default,
+ * resolved once at build time, and an override replaces it without touching
+ * anything else. Keeping it as its own named function means giving pins their
+ * own palette later is a one-line change.
+ */
+export function defaultPinColor(index: number): number {
+  return defaultBranchColor(index);
 }
 
 /** A branch color as the `RRGGBB` a color input wants. */
@@ -229,22 +316,14 @@ export function hexToRgbInt(hex: string): number {
   const v = Number.parseInt(hex.replace('#', ''), 16);
   return Number.isFinite(v) ? v & 0xffffff : 0;
 }
-/** The ground track is the same hue, darkened and slightly translucent. */
-const GROUND_TRACK_DARKEN = 0.45;
-const GROUND_TRACK_ALPHA = 0xd0;
-
 const hex2 = (v: number): string => (v & 0xff).toString(16).padStart(2, '0');
+
+/** A packed 0xRRGGBB as the plain `rrggbb` a web color notation wants. */
+const rgbHex = (rgb: number): string => (rgb & 0xffffff).toString(16).padStart(6, '0');
 
 /** RGB → the aabbggrr literal KML wants (alpha first, then B, G, R). */
 function kmlColor(rgb: number, alpha: number): string {
   return hex2(alpha) + hex2(rgb) + hex2(rgb >> 8) + hex2(rgb >> 16);
-}
-
-function darken(rgb: number, factor: number): number {
-  const r = Math.trunc(((rgb >> 16) & 0xff) * factor);
-  const g = Math.trunc(((rgb >> 8) & 0xff) * factor);
-  const b = Math.trunc((rgb & 0xff) * factor);
-  return (r << 16) | (g << 8) | b;
 }
 
 /**
@@ -319,12 +398,22 @@ export interface FlightPathBranch {
   name: string;
   /** Zero-based position in `model.branches`, for building unique style ids. */
   index: number;
-  /** This branch's color as RRGGBB, so each stage's track is distinguishable. */
+  /**
+   * This branch's FLIGHT-PATH color as RRGGBB. Kept under the old name (rather
+   * than `pathColorRgb`) so a template written before ground and pin got their
+   * own colors still renders.
+   */
   colorRgb: string;
-  /** `colorRgb` as a KML aabbggrr literal, opaque, for the flight-path line. */
+  /** This branch's GROUND-TRACK color as RRGGBB. */
+  groundColorRgb: string;
+  /** This branch's WAYPOINT-PIN color as RRGGBB. */
+  pinColorRgb: string;
+  /** The flight-path color as an opaque KML aabbggrr literal. */
   pathColorKml: string;
-  /** `colorRgb` as a KML aabbggrr literal, translucent, for the ground track. */
+  /** The ground-track color as an opaque KML aabbggrr literal. */
   groundColorKml: string;
+  /** The waypoint-pin color as an opaque KML aabbggrr literal. */
+  pinColorKml: string;
   waypoints: FlightPathWaypoint[];
   path: FlightPathPoint[];
   /** Template convenience (mirrors the desktop model's methods). */
@@ -587,15 +676,28 @@ export function buildFlightPathModel(
     // usable series is skipped, and the indices must stay contiguous or two
     // branches would share a KML style id.
     branch.index = model.branches.length;
+    // Three colors, each one either the user's pick or this stage's own
+    // default. Nothing is computed from anything else, so changing one never
+    // moves another and a picked color reaches the output byte for byte.
     const rgb = options.branchColors?.get(branch.index) ?? defaultBranchColor(branch.index);
+    const groundRgb = options.branchGroundColors?.get(branch.index) ?? defaultGroundColor(branch.index);
+    const pinRgb = options.branchPinColors?.get(branch.index) ?? defaultPinColor(branch.index);
     // The folder name carries the mission; the raw stage name stays on the
     // branch context, where the waypoint labels are qualified from it. Prefix
     // the branch name first and qualify from that, and you can no longer have
     // one without the other.
     branch.name = withMission(mission, branch.name);
-    branch.colorRgb = (rgb & 0xffffff).toString(16).padStart(6, '0');
+    branch.colorRgb = rgbHex(rgb);
+    branch.groundColorRgb = rgbHex(groundRgb);
+    branch.pinColorRgb = rgbHex(pinRgb);
+    // All three opaque. Alpha used to depend on whether the color was derived,
+    // which meant the same color rendered differently depending on how it got
+    // there - picking exactly the default gave a different result from leaving
+    // it alone. If translucency is wanted it becomes its own control, with its
+    // own default, by the same rule as the colors.
     branch.pathColorKml = kmlColor(rgb, 0xff);
-    branch.groundColorKml = kmlColor(darken(rgb, GROUND_TRACK_DARKEN), GROUND_TRACK_ALPHA);
+    branch.groundColorKml = kmlColor(groundRgb, 0xff);
+    branch.pinColorKml = kmlColor(pinRgb, 0xff);
     model.branches.push(branch);
   }
   return model;
@@ -711,8 +813,11 @@ function buildBranch(
     name: raw.name,
     index: 0,
     colorRgb: '',
+    groundColorRgb: '',
+    pinColorRgb: '',
     pathColorKml: '',
     groundColorKml: '',
+    pinColorKml: '',
     waypoints: [],
     path: [],
     hasPath: false,
@@ -880,7 +985,7 @@ const KML_TEMPLATE_SOURCE = `<?xml version="1.0" encoding="UTF-8"?>
 		<Style id="waypoint{{index}}">
 {{#colorWaypointPins}}
 			<IconStyle>
-				<color>{{pathColorKml}}</color>
+				<color>{{pinColorKml}}</color>
 				<Icon><href>https://maps.google.com/mapfiles/kml/pushpin/wht-pushpin.png</href></Icon>
 				<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
 			</IconStyle>
