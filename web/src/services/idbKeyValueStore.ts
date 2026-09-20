@@ -136,6 +136,17 @@ async function tx<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => I
  * same transaction with no `await` between them: awaiting anything that is not
  * an IndexedDB request lets the transaction auto-commit first.
  */
+/**
+ * The caller's reducer threw inside the transaction. That is the caller's
+ * bug, not a storage failure: `update()` must rethrow it as-is rather than
+ * flip the storage-degraded flag and retry the same reducer on localStorage.
+ */
+class ReducerError extends Error {
+  constructor(readonly inner: unknown) {
+    super('update reducer threw');
+  }
+}
+
 async function txUpdate(key: string, fn: (raw: string | null) => string | null): Promise<void> {
   const db = await openDb();
   return await new Promise<void>((resolve, reject) => {
@@ -147,8 +158,10 @@ async function txUpdate(key: string, fn: (raw: string | null) => string | null):
       try {
         next = fn((read.result as string | undefined) ?? null);
       } catch (e) {
+        // Settled BEFORE the abort event fires, so the storage-flavored
+        // `onabort` rejection below cannot win the race.
+        reject(new ReducerError(e));
         t.abort();
-        reject(e instanceof Error ? e : new Error(String(e)));
         return;
       }
       if (next === null) store.delete(key);
@@ -236,12 +249,44 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
     if (this.fellBack.has(key)) return await this.fallback.update(key, fn);
     try {
       await txUpdate(key, fn);
+      this.fellBack.delete(key);
       return true;
-    } catch {
+    } catch (e) {
+      // A reducer that throws is not a storage failure: rethrow it untouched
+      // and leave the degraded flag alone (retrying it on localStorage would
+      // only throw again, after warning the user about the wrong thing).
+      if (e instanceof ReducerError) throw e.inner;
       markDegraded();
-      const ok = await this.fallback.update(key, fn);
-      if (ok) this.fellBack.add(key);
+      // The fallback usually does NOT hold this key: once migrated, the value
+      // lives only in IndexedDB, and a quota failure leaves reads working. A
+      // reducer handed `null` would rebuild the design-library index from
+      // nothing and drop every other entry, so seed it with the IndexedDB copy
+      // whenever the fallback has none of its own (a fallback copy, if present,
+      // is the newer one: see `get`).
+      const current = await this.readIdb(key);
+      const ok = await this.fallback.update(key, (raw) => fn(raw ?? current));
+      if (ok) {
+        this.fellBack.add(key);
+        // Same as `set`: without this the stale IndexedDB entry shadowed the
+        // fallback in the NEXT session, where `fellBack` no longer exists. The
+        // design library index is mutated only through `update`, so this was
+        // the key that mattered most.
+        try {
+          await tx('readwrite', (s) => s.delete(key));
+        } catch {
+          /* best-effort */
+        }
+      }
       return ok;
+    }
+  }
+
+  /** The IndexedDB copy of `key`, or null if there is none or it cannot be read. */
+  private async readIdb(key: string): Promise<string | null> {
+    try {
+      return (await tx<string | undefined>('readonly', (s) => s.get(key))) ?? null;
+    } catch {
+      return null;
     }
   }
 

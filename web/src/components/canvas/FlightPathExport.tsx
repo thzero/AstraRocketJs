@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive } from '../../state/store';
 import { download as saveDownload, safeFilename } from '../../services/saveFile';
@@ -122,25 +122,26 @@ export function ExportDialog({
   // PathExportSettings for why that one still starts fresh every export.
   //
   // Each field falls back independently: a stored value that this build does
-  // not recognise (an older store, a newer one, a hand edit) costs that field
+  // not recognize (an older store, a newer one, a hand edit) costs that field
   // and nothing else. The units are the interesting case - ABSENT means follow
   // the app's distance preference, which is what a fresh install does, while a
   // stored value is an explicit dialog choice and outranks it.
   const [opts, setOpts] = useState<FlightPathExportOptions>(() => {
     const base = defaultExportOptions(units.sym('distance'));
     const p = settings.pathExport;
+    // A saved EMPTY selection is a selection (the user unchecked every marker),
+    // not an absence; only a missing or unreadable list falls back.
     const waypoints = asWaypointKinds(p.waypoints);
     return {
       ...base,
-      waypoints: waypoints && waypoints.size ? waypoints : base.waypoints,
+      waypoints: waypoints ?? base.waypoints,
       includeFlightPath: p.includeFlightPath ?? base.includeFlightPath,
       includeGroundTrack: p.includeGroundTrack ?? base.includeGroundTrack,
       pathStride: p.pathStride ?? base.pathStride,
       altitudeUnit: asDistanceUnit(p.altitudeUnit) ?? base.altitudeUnit,
       distanceUnit: asDistanceUnit(p.distanceUnit) ?? base.distanceUnit,
       altitudeReference: asAltitudeReference(p.altitudeReference) ?? base.altitudeReference,
-      waypointAltitudeReference:
-        asAltitudeReference(p.waypointAltitudeReference) ?? base.waypointAltitudeReference,
+      waypointAltitudeReference: asAltitudeReference(p.waypointAltitudeReference) ?? base.waypointAltitudeReference,
       drawShadow: p.drawShadow ?? base.drawShadow,
       stageTrackStart: asStageTrackStart(p.stageTrackStart) ?? base.stageTrackStart,
       showWaypointLabels: p.showWaypointLabels ?? base.showWaypointLabels,
@@ -152,34 +153,52 @@ export function ExportDialog({
     };
   });
   const [colorsOpen, setColorsOpen] = useState(false);
-  // Write the preference-shaped fields back whenever they move. The mission
-  // name is excluded at the source (it is not in PathExportSettings), so it
-  // cannot leak into the store by being part of `opts`.
-  useEffect(() => {
+  // Which of the two unit fields is an explicit dialog choice. A stored unit
+  // is one; so is any pick made here. Anything else stays ABSENT in the store,
+  // so the next open still follows the app's distance preference rather than
+  // whatever unit the app happened to show the first time this dialog opened.
+  const explicitUnits = useRef({
+    altitude: asDistanceUnit(settings.pathExport.altitudeUnit) !== undefined,
+    distance: asDistanceUnit(settings.pathExport.distanceUnit) !== undefined,
+  });
+  // Write the preference-shaped fields back from the handlers that change
+  // them, and nowhere else. An effect keyed on `opts` used to do this, and it
+  // ran on mount (opening the dialog rewrote the settings) and on every
+  // keystroke in the mission field (the one field that is deliberately NOT
+  // persisted, but it lives in `opts` too). Each write recreates the settings
+  // context and hits localStorage, so that was a settings save per keystroke.
+  // The mission name is excluded at the source (it is not in
+  // PathExportSettings), so it cannot leak into the store.
+  const persist = (next: FlightPathExportOptions) => {
+    const explicit = explicitUnits.current;
     update({
       pathExport: {
-        labelWaypointsWithMission: opts.labelWaypointsWithMission,
-        waypoints: [...opts.waypoints],
-        includeFlightPath: opts.includeFlightPath,
-        includeGroundTrack: opts.includeGroundTrack,
-        pathStride: opts.pathStride,
-        altitudeUnit: opts.altitudeUnit,
-        distanceUnit: opts.distanceUnit,
-        altitudeReference: opts.altitudeReference,
-        waypointAltitudeReference: opts.waypointAltitudeReference,
-        drawShadow: opts.drawShadow,
-        stageTrackStart: opts.stageTrackStart,
-        showWaypointLabels: opts.showWaypointLabels,
-        colorWaypointPins: opts.colorWaypointPins,
-        branchColors: encodeStageColors(opts.branchColors),
-        branchGroundColors: encodeStageColors(opts.branchGroundColors),
-        branchPinColors: encodeStageColors(opts.branchPinColors),
+        labelWaypointsWithMission: next.labelWaypointsWithMission,
+        waypoints: [...next.waypoints],
+        includeFlightPath: next.includeFlightPath,
+        includeGroundTrack: next.includeGroundTrack,
+        pathStride: next.pathStride,
+        ...(explicit.altitude ? { altitudeUnit: next.altitudeUnit } : {}),
+        ...(explicit.distance ? { distanceUnit: next.distanceUnit } : {}),
+        altitudeReference: next.altitudeReference,
+        waypointAltitudeReference: next.waypointAltitudeReference,
+        drawShadow: next.drawShadow,
+        stageTrackStart: next.stageTrackStart,
+        showWaypointLabels: next.showWaypointLabels,
+        colorWaypointPins: next.colorWaypointPins,
+        branchColors: encodeStageColors(next.branchColors),
+        branchGroundColors: encodeStageColors(next.branchGroundColors),
+        branchPinColors: encodeStageColors(next.branchPinColors),
       },
     });
-    // `update` is stable and `settings` must NOT be a dependency: reading the
-    // value we just wrote would re-run this on every store change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opts]);
+  };
+  /** Change persisted option(s): the dialog AND the store. Every handler
+   *  below except the mission field's goes through this. */
+  const change = (patch: Partial<FlightPathExportOptions>) => {
+    const next = { ...opts, ...patch };
+    setOpts(next);
+    persist(next);
+  };
   const [templates, setTemplates] = useState<UserTemplate[]>([]);
   const [error, setError] = useState<string | null>(null);
   // Where a stage's track begins only means something once there is more than
@@ -221,13 +240,12 @@ export function ExportDialog({
   const noPosition = !hasLaunchPosition(launch);
   const selectedUser = resolved.kind === 'user' ? resolved.template : null;
 
-  const toggleWaypoint = (k: WaypointKind) =>
-    setOpts((o) => {
-      const waypoints = new Set(o.waypoints);
-      if (waypoints.has(k)) waypoints.delete(k);
-      else waypoints.add(k);
-      return { ...o, waypoints };
-    });
+  const toggleWaypoint = (k: WaypointKind) => {
+    const waypoints = new Set(opts.waypoints);
+    if (waypoints.has(k)) waypoints.delete(k);
+    else waypoints.add(k);
+    change({ waypoints });
+  };
 
   const onImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -389,9 +407,7 @@ export function ExportDialog({
                   type="button"
                   // The set is cloned on the way in, so the module-level one a
                   // preset carries is never the object the dialog then mutates.
-                  onClick={() =>
-                    setOpts((o) => ({ ...o, ...preset.options, waypoints: new Set(preset.options.waypoints) }))
-                  }
+                  onClick={() => change({ ...preset.options, waypoints: new Set(preset.options.waypoints) })}
                   title={t(`pathExport.preset.${preset.id}Note`)}
                   className="rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
                 >
@@ -421,12 +437,12 @@ export function ExportDialog({
             <Section title={t('pathExport.path')}>
               <Check
                 checked={opts.includeFlightPath}
-                onChange={(v) => setOpts((o) => ({ ...o, includeFlightPath: v }))}
+                onChange={(v) => change({ includeFlightPath: v })}
                 label={t('pathExport.includeFlightPath')}
               />
               <Check
                 checked={opts.includeGroundTrack}
-                onChange={(v) => setOpts((o) => ({ ...o, includeGroundTrack: v }))}
+                onChange={(v) => change({ includeGroundTrack: v })}
                 label={t('pathExport.includeGroundTrack')}
               />
               <label className="mt-1 flex items-center justify-between gap-3">
@@ -436,9 +452,7 @@ export function ExportDialog({
                   min={1}
                   step={1}
                   value={opts.pathStride}
-                  onChange={(e) =>
-                    setOpts((o) => ({ ...o, pathStride: Math.max(1, Math.floor(Number(e.target.value) || 1)) }))
-                  }
+                  onChange={(e) => change({ pathStride: Math.max(1, Math.floor(Number(e.target.value) || 1)) })}
                   className="w-20 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
                 />
               </label>
@@ -454,7 +468,7 @@ export function ExportDialog({
                     <select
                       aria-label={t('pathExport.stageTrackStart')}
                       value={opts.stageTrackStart}
-                      onChange={(e) => setOpts((o) => ({ ...o, stageTrackStart: e.target.value as StageTrackStart }))}
+                      onChange={(e) => change({ stageTrackStart: e.target.value as StageTrackStart })}
                       className="rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
                     >
                       <option value="separation">{t('pathExport.trackStart.separation')}</option>
@@ -484,29 +498,29 @@ export function ExportDialog({
             <AltitudeRefSelect
               label={t('pathExport.trackAltitude')}
               value={opts.altitudeReference}
-              onChange={(v) => setOpts((o) => ({ ...o, altitudeReference: v }))}
+              onChange={(v) => change({ altitudeReference: v })}
             />
             <AltitudeRefSelect
               label={t('pathExport.waypointAltitude')}
               value={opts.waypointAltitudeReference}
-              onChange={(v) => setOpts((o) => ({ ...o, waypointAltitudeReference: v }))}
+              onChange={(v) => change({ waypointAltitudeReference: v })}
             />
             <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.altitudeReferenceNote')}</p>
             <Check
               checked={opts.drawShadow}
               disabled={opts.altitudeReference === 'clamped' && opts.waypointAltitudeReference === 'clamped'}
-              onChange={(v) => setOpts((o) => ({ ...o, drawShadow: v }))}
+              onChange={(v) => change({ drawShadow: v })}
               label={t('pathExport.drawShadow')}
             />
             <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.shadowNote')}</p>
             <Check
               checked={opts.showWaypointLabels}
-              onChange={(v) => setOpts((o) => ({ ...o, showWaypointLabels: v }))}
+              onChange={(v) => change({ showWaypointLabels: v })}
               label={t('pathExport.showWaypointLabels')}
             />
             <Check
               checked={opts.colorWaypointPins}
-              onChange={(v) => setOpts((o) => ({ ...o, colorWaypointPins: v }))}
+              onChange={(v) => change({ colorWaypointPins: v })}
               label={t('pathExport.colorWaypointPins')}
             />
             <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.pinsNote')}</p>
@@ -517,12 +531,18 @@ export function ExportDialog({
             <UnitRow
               label={t('pathExport.altitude')}
               value={opts.altitudeUnit}
-              onChange={(u) => setOpts((o) => ({ ...o, altitudeUnit: u }))}
+              onChange={(u) => {
+                explicitUnits.current.altitude = true; // a dialog choice: stored from now on
+                change({ altitudeUnit: u });
+              }}
             />
             <UnitRow
               label={t('pathExport.distance')}
               value={opts.distanceUnit}
-              onChange={(u) => setOpts((o) => ({ ...o, distanceUnit: u }))}
+              onChange={(u) => {
+                explicitUnits.current.distance = true;
+                change({ distanceUnit: u });
+              }}
             />
           </Section>
 
@@ -535,16 +555,15 @@ export function ExportDialog({
               value={opts.missionName}
               aria-label={t('pathExport.mission')}
               placeholder={t('pathExport.missionPlaceholder')}
+              // Dialog state only: the mission name is never persisted, and
+              // typing it must not write the settings (see `persist`).
               onChange={(e) => setOpts((o) => ({ ...o, missionName: e.target.value }))}
               className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-sm text-slate-100 ring-1 ring-white/10 placeholder:text-slate-600 focus:outline-none focus:ring-sky-500"
             />
             <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.missionNote')}</p>
             <Check
               checked={opts.labelWaypointsWithMission}
-              onChange={(v) => {
-                setOpts((o) => ({ ...o, labelWaypointsWithMission: v }));
-                // Persisted by the effect above, with the rest.
-              }}
+              onChange={(v) => change({ labelWaypointsWithMission: v })}
               label={t('pathExport.labelWaypointsWithMission')}
             />
             <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.missionMarkersNote')}</p>
@@ -585,7 +604,7 @@ export function ExportDialog({
           pinColors={opts.branchPinColors}
           onCancel={() => setColorsOpen(false)}
           onApply={(branchColors, branchGroundColors, branchPinColors) => {
-            setOpts((o) => ({ ...o, branchColors, branchGroundColors, branchPinColors }));
+            change({ branchColors, branchGroundColors, branchPinColors });
             setColorsOpen(false);
           }}
         />
@@ -641,11 +660,7 @@ function StageColorDialog({
   colors: Map<number, number>;
   groundColors: Map<number, number>;
   pinColors: Map<number, number>;
-  onApply: (
-    colors: Map<number, number>,
-    groundColors: Map<number, number>,
-    pinColors: Map<number, number>,
-  ) => void;
+  onApply: (colors: Map<number, number>, groundColors: Map<number, number>, pinColors: Map<number, number>) => void;
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
@@ -878,6 +893,7 @@ function UnitRow({
     <label className="flex items-center justify-between gap-3">
       <span className="text-xs text-slate-400">{label}</span>
       <select
+        aria-label={label}
         value={value}
         onChange={(e) => onChange(e.target.value as DistanceUnit)}
         className="w-24 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"

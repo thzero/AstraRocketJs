@@ -121,8 +121,18 @@ describe('the shipped WASM-GC build enforces the same input bounds as JS', () =>
     ],
     [
       'an uncapped instance count is refused',
-      (e) => e.buildRocket(tree([{ type: 'bodytube', id: 'h', length: 0.2, outerRadius: 0.013,
-        children: [{ type: 'podset', id: 'p', instanceCount: 100000 }] }])),
+      (e) =>
+        e.buildRocket(
+          tree([
+            {
+              type: 'bodytube',
+              id: 'h',
+              length: 0.2,
+              outerRadius: 0.013,
+              children: [{ type: 'podset', id: 'p', instanceCount: 100000 }],
+            },
+          ]),
+        ),
       /instanceCount/,
     ],
     [
@@ -132,6 +142,27 @@ describe('the shipped WASM-GC build enforces the same input bounds as JS', () =>
         return e.getAeroSweep(h, JSON.stringify({ machMin: 0, machMax: 1e9, machStep: 0.05 }));
       },
       /exceeds|over the/,
+    ],
+    [
+      'a sweep whose point count overflows a long is refused, not returned empty',
+      (e) => {
+        const h = e.buildRocket(tree());
+        // (1 - 0) / 5e-324 is Infinity. `(long) Infinity` is Long.MAX_VALUE,
+        // `+ 1` wrapped it negative, and the `points > MAX` guard passed: WASM
+        // handed back an EMPTY sweep with no error at all, and the JS build
+        // threw a RangeError from inside the bundle. Both inputs are finite.
+        return e.getAeroSweep(h, JSON.stringify({ machMin: 0, machMax: 1, machStep: 5e-324 }));
+      },
+      /infinite|over the/,
+    ],
+    [
+      'a sweep whose span overflows a double is refused, not returned empty',
+      (e) => {
+        const h = e.buildRocket(tree());
+        // machMax - machMin is already Infinity before the division.
+        return e.getAeroSweep(h, JSON.stringify({ machMin: -1.7e308, machMax: 1.7e308, machStep: 0.05 }));
+      },
+      /infinite|over the/,
     ],
   ];
 
@@ -151,6 +182,22 @@ describe('the shipped WASM-GC build enforces the same input bounds as JS', () =>
     // returns at all.
     const out = JSON.parse(wasm.getAeroSweep(h, JSON.stringify({ machMin: 0.05, machMax: 0.05, machStep: 1e-300 })));
     expect(out.machs).toEqual([0.05]);
+  });
+
+  it('a non-finite ignition delay is refused by the kernel itself, not only by the wrapper', () => {
+    wasm.reset();
+    const MOUNT = { type: 'bodytube', id: 'm', length: 0.1, outerRadius: 0.013, thickness: 0.0005, motorMount: true };
+    const h = wasm.buildRocket(tree([MOUNT]));
+    wasm.setMotorById(h, 'm', 'C6', 0.018, 0.07, [0, 1, 2], [0, 6, 0], [0.024, 0.018, 0.012], 0.035, 5);
+    // `setMotorIgnitionById` returns void, so there is no envelope to carry a
+    // refusal: it has to throw. Before the guard it wrote Infinity straight into
+    // the motor config and the sim's result JSON came out as `"time":Infinity`.
+    for (const bad of [Infinity, -Infinity, NaN]) {
+      const got = outcome(() => wasm.setMotorIgnitionById(h, 'm', 'launch', bad));
+      expect(got.kind, `delay ${bad}: expected a throw, got ${got.kind}: ${got.message}`).toBe('threw');
+      expect(got.message).toMatch(/ignitionDelay|finite/);
+    }
+    expect(outcome(() => wasm.setMotorIgnitionById(h, 'm', 'launch', 1)).kind).toBe('ok');
   });
 });
 

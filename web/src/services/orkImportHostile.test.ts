@@ -81,9 +81,14 @@ describe('the hostile-input caps actually fire', () => {
    * size truncates to a clean parse error rather than exhausting memory.
    */
   it('refuses an entry that declares more than the cap', () => {
-    // 60 MB of XML: comfortably over any sane .ork and over the cap.
-    const huge = '<!--' + 'x'.repeat(60 * 1024 * 1024) + '-->';
-    expect(() => importOrk(ork(huge + '<openrocket><rocket/></openrocket>'))).toThrow();
+    // 65 MiB of XML: over MAX_ARCHIVE_ENTRY_BYTES (64 MiB). The old 60 MiB was
+    // UNDER the cap, and the bare `.toThrow()` was satisfied by the parse
+    // failing on the comment-then-document, not by the guard. Naming the
+    // message is what makes this a test of the cap.
+    const huge = '<!--' + 'x'.repeat(65 * 1024 * 1024) + '-->';
+    expect(() => importOrk(ork(huge + '<openrocket><rocket/></openrocket>'))).toThrow(
+      '.ork archive is too large (possible zip bomb)',
+    );
   });
 
   /**
@@ -130,6 +135,8 @@ describe('the hostile-input caps actually fire', () => {
     for (let i = 0; i < 300; i++) entries[`f${i}.txt`] = strToU8('x'); // cap is 256
     const zipped = zipSync(entries);
     const buf = zipped.buffer.slice(zipped.byteOffset, zipped.byteOffset + zipped.byteLength) as ArrayBuffer;
-    expect(() => importOrk(buf as ArrayBuffer)).toThrow();
+    // The archive holds no rocket document, so a bare `.toThrow()` passed with
+    // the cap removed too ("Empty .ork archive"). It has to be the cap's error.
+    expect(() => importOrk(buf as ArrayBuffer)).toThrow('.ork archive has too many entries');
   });
 });

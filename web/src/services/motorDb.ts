@@ -103,8 +103,16 @@ const isCatalogMotor = (v: unknown): v is CatalogMotor => {
   );
 };
 
-/** A usable catalog: an array with at least one usable row. */
-const isCatalog = (v: unknown): boolean => Array.isArray(v) && v.every(isCatalogMotor);
+/**
+ * A usable catalog: an array with at least one usable row.
+ *
+ * `every` here made one malformed row reject the WHOLE catalog (and fall
+ * through to the in-build copy, or to an empty picker), which is the outcome
+ * row-by-row validation exists to avoid. The gate only decides whether this
+ * host's copy is worth anything at all; the bad rows are dropped in
+ * `loadCatalog` and the rest are kept.
+ */
+const isCatalog = (v: unknown): boolean => Array.isArray(v) && v.some(isCatalogMotor);
 
 export async function loadCatalog(): Promise<CatalogMotor[]> {
   // The 700 kB+ catalog is a runtime file under public/data (see remoteData.ts),
@@ -115,7 +123,9 @@ export async function loadCatalog(): Promise<CatalogMotor[]> {
     getMotorStore()
       .listCustomMotors()
       .then((ms) => ms.map(customToRow)),
-    fetchCatalog<CatalogMotor[]>('motors', isCatalog),
+    // Row by row: keep every usable row, drop the rest. `isCatalog` has
+    // already refused a body that is not an array or has no usable row.
+    fetchCatalog<unknown[]>('motors', isCatalog).then((rows) => rows.filter(isCatalogMotor)),
   ]);
   return [...custom, ...bundled];
 }

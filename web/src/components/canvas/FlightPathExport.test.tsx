@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fireEvent, screen, within } from '@testing-library/react';
 import { ExportDialog } from './FlightPathExport';
-import { renderWithProviders } from '../../testing/renderWithProviders';
+import { readSettings, renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import type { FlightResult } from '../../engine/openRocketEngine';
 import type { LaunchConditions } from '../../services/orkTree';
 
@@ -168,8 +168,7 @@ describe('flight-path export dialog', () => {
     );
     const openColors = () => fireEvent.click(screen.getByRole('button', { name: 'Stage colors\u2026' }));
     const colors = () => within(screen.getByRole('dialog', { name: 'Stage colors' }));
-    const swatch = (stage: string, role: string) =>
-      colors().getByLabelText(`${stage} ${role}`) as HTMLInputElement;
+    const swatch = (stage: string, role: string) => colors().getByLabelText(`${stage} ${role}`) as HTMLInputElement;
 
     openColors();
     fireEvent.change(swatch('Sustainer', 'Path'), { target: { value: '#112233' } });
@@ -219,8 +218,7 @@ describe('flight-path export dialog', () => {
     const openColors = () => fireEvent.click(screen.getByRole('button', { name: 'Stage colors\u2026' }));
     // Scoped to the sub-dialog: the export dialog behind it has a Cancel too.
     const colors = () => within(screen.getByRole('dialog', { name: 'Stage colors' }));
-    const swatch = (stage: string, role: string) =>
-      colors().getByLabelText(`${stage} ${role}`) as HTMLInputElement;
+    const swatch = (stage: string, role: string) => colors().getByLabelText(`${stage} ${role}`) as HTMLInputElement;
 
     openColors();
     // Each role starts on its OWN palette, not on a shade of the path's.
@@ -266,5 +264,74 @@ describe('flight-path export dialog', () => {
     const pins = screen.getByRole('checkbox', { name: 'Color waypoint pins per stage' }) as HTMLInputElement;
     fireEvent.click(pins);
     expect(pins.checked).toBe(false);
+  });
+
+  /**
+   * What the dialog writes to the app settings, and when. It used to persist
+   * from an effect keyed on the whole option object: that ran on mount (so
+   * merely opening the dialog rewrote the settings) and on every keystroke in
+   * the mission field (which is the one field deliberately NOT persisted), and
+   * it stored the units unconditionally, which froze them to whatever the app
+   * showed on the first open instead of following the app's distance unit.
+   */
+  describe('persistence', () => {
+    const altUnit = () => screen.getByLabelText('Altitude') as HTMLSelectElement;
+    const distUnit = () => screen.getByLabelText('Distance') as HTMLSelectElement;
+    const stored = () => localStorage.getItem('astrarrocketjs:settings:v1');
+    /** The app's Settings > Units distance preference, changed outside the dialog. */
+    const setAppDistance = (unit: string) => {
+      const s = readSettings();
+      seedSettings({ ...s, units: { ...(s.units as Record<string, string>), distance: unit } });
+    };
+
+    it('does not persist anything just for being opened', () => {
+      show(flight());
+      expect(stored()).toBeNull();
+    });
+
+    it('does not write the settings while the mission name is typed', () => {
+      show(flight());
+      const mission = screen.getByLabelText('Mission') as HTMLInputElement;
+      fireEvent.change(mission, { target: { value: 'S' } });
+      fireEvent.change(mission, { target: { value: 'Sod' } });
+      expect(mission.value).toBe('Sod');
+      expect(stored()).toBeNull();
+    });
+
+    it('writes the settings when a persisted option changes', () => {
+      show(flight());
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Apogee' }));
+      const p = readSettings().pathExport as Record<string, unknown>;
+      expect(p.waypoints).not.toContain('apogee');
+      // The mission name is not part of what was written.
+      expect(p).not.toHaveProperty('missionName');
+    });
+
+    it('follows the app distance unit until a unit is chosen in the dialog', () => {
+      const { unmount } = show(flight());
+      expect([altUnit().value, distUnit().value]).toEqual(['m', 'm']);
+      // A persisted change, so the store IS written after this open...
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Apogee' }));
+      unmount();
+      // ...and neither unit was frozen into it.
+      const p = readSettings().pathExport as Record<string, unknown>;
+      expect(p).not.toHaveProperty('altitudeUnit');
+      expect(p).not.toHaveProperty('distanceUnit');
+
+      setAppDistance('ft');
+      show(flight());
+      expect([altUnit().value, distUnit().value]).toEqual(['ft', 'ft']);
+    });
+
+    it('keeps a unit chosen in the dialog, and only that one', () => {
+      const { unmount } = show(flight());
+      fireEvent.change(altUnit(), { target: { value: 'km' } });
+      unmount();
+
+      setAppDistance('ft');
+      show(flight());
+      expect(altUnit().value).toBe('km'); // the explicit choice outranks the app
+      expect(distUnit().value).toBe('ft'); // the untouched one still follows it
+    });
   });
 });

@@ -1,13 +1,19 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   filterMotors,
   allClasses,
   allManufacturers,
   findCatalogMotor,
   hasCurve,
+  loadCatalog,
   type CatalogMotor,
   type MotorFilter,
 } from './motorDb';
+import { fetchCatalog } from './remoteData';
+
+// `loadCatalog` is the only thing here that touches the network or storage.
+vi.mock('./remoteData', () => ({ fetchCatalog: vi.fn() }));
+vi.mock('./motorStore', () => ({ getMotorStore: () => ({ listCustomMotors: async () => [] }) }));
 
 describe('hasCurve', () => {
   const m = (curves?: unknown): CatalogMotor =>
@@ -208,5 +214,57 @@ describe('findCatalogMotor — full .ork designations vs short catalog names', (
 
   it('still returns undefined when the motor genuinely is not present', () => {
     expect(findCatalogMotor(cat, 'K1100T', 'AeroTech')).toBeUndefined();
+  });
+});
+
+/**
+ * One malformed row must cost that row, not the catalog.
+ *
+ * `isCatalog` was `every(isCatalogMotor)`, and remoteData rejects a body its
+ * predicate refuses, so a single bad row on the data host threw the whole
+ * ~1500-motor catalog away (and, once the in-build copy carried the same row,
+ * left the picker empty). The intent all along (docs/AUDIT.md, seventh pass)
+ * was row-by-row: drop the bad rows, keep the rest.
+ */
+describe('loadCatalog with a malformed row', () => {
+  const good = (designation: string): CatalogMotor => ({
+    designation,
+    manufacturer: 'Estes',
+    class: 'C',
+    diameter: 18,
+    impulse: 8.8,
+    burn: 1.7,
+    mass: 24,
+  });
+
+  beforeEach(() => {
+    // The real fetchCatalog rejects a body its `valid` predicate refuses; the
+    // stub keeps that contract so the gate is exercised, not bypassed.
+    vi.mocked(fetchCatalog).mockReset();
+  });
+
+  const serve = (body: unknown) =>
+    vi
+      .mocked(fetchCatalog)
+      .mockImplementation((name, valid) =>
+        valid && !valid(body)
+          ? Promise.reject(new Error(`Could not load the ${name} catalog (unexpected catalog shape)`))
+          : Promise.resolve(body as never),
+      );
+
+  it('drops the bad row and keeps the rest', async () => {
+    serve([good('C6'), { designation: 42, manufacturer: 'x' }, null, good('D12')]);
+    const rows = await loadCatalog();
+    expect(rows.map((m) => m.designation)).toEqual(['C6', 'D12']);
+  });
+
+  it('still rejects a catalog that is not an array', async () => {
+    serve({ error: 'rebuilding' });
+    await expect(loadCatalog()).rejects.toThrow(/Could not load the motors catalog/);
+  });
+
+  it('still rejects a catalog with no usable row at all', async () => {
+    serve([{ designation: 42 }, 'nope']);
+    await expect(loadCatalog()).rejects.toThrow(/Could not load the motors catalog/);
   });
 });

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { samplesToMotorSpec, fetchMotorSpec } from './thrustcurve';
 import type { CatalogMotor } from './motorDb';
+import { getMotorStore } from './motorStore';
 
 // samplesToMotorSpec's TcMotor param is module-internal; build a shaped literal.
 const motor = (over: Record<string, unknown> = {}) =>
@@ -270,5 +271,90 @@ describe('fetchMotorSpec - malformed thrustcurve.org response', () => {
     expect(spec.designation).toBe('K550');
     expect(spec.times.every(Number.isFinite)).toBe(true);
     expect(spec.thrusts.every(Number.isFinite)).toBe(true);
+  });
+});
+
+/**
+ * The search.json hit is validated BEFORE it is picked, cached or requested.
+ *
+ * The network `TcMotor[]` was used with no shape check at all; only the cache
+ * READ looked for `.motorId`. A hit without one was therefore written to the
+ * cache as the motor's metadata and then requested from download.json as
+ * `motorIds: [undefined]`, and whatever came back was built into a spec.
+ */
+describe('fetchMotorSpec - search.json hit without a motorId', () => {
+  // A motor nothing else in this file resolves, so no cached entry from an
+  // earlier case can satisfy the lookup.
+  const online = {
+    designation: 'H999',
+    manufacturer: 'Nobody',
+    class: 'H',
+    diameter: 29,
+    impulse: 300,
+    burn: 2,
+    mass: 200,
+  } as unknown as CatalogMotor;
+
+  const hit = {
+    designation: 'H999',
+    commonName: 'H999',
+    manufacturerAbbrev: 'Nobody',
+    diameter: 29,
+    length: 200,
+    totalWeightG: 200,
+    propWeightG: 100,
+    availability: 'regular',
+  };
+
+  const stubApi = (results: unknown) => {
+    const seen: string[] = [];
+    const json = (body: unknown) =>
+      Promise.resolve({ ok: true, headers: { get: () => null }, json: () => Promise.resolve(body) });
+    vi.stubGlobal('fetch', (url: string) => {
+      seen.push(String(url));
+      return String(url).includes('search.json')
+        ? json({ results })
+        : json({
+            results: [
+              {
+                format: 'RASP',
+                samples: [
+                  { time: 0, thrust: 0 },
+                  { time: 1, thrust: 300 },
+                  { time: 2, thrust: 0 },
+                ],
+              },
+            ],
+          });
+    });
+    return seen;
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('is neither cached nor requested from download.json', async () => {
+    const seen = stubApi([hit]); // no motorId
+    const write = vi.spyOn(getMotorStore(), 'writeEntry');
+
+    await expect(fetchMotorSpec(online, 0)).rejects.toThrow(/could not find/i);
+    expect(seen.some((u) => u.includes('download.json'))).toBe(false);
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('skips the bad hit and uses a well-formed one beside it', async () => {
+    stubApi([
+      { ...hit, motorId: 7 },
+      { ...hit, motorId: 'h999-ok' },
+      { ...hit, diameter: 'wide', motorId: 'x' },
+    ]);
+    const write = vi.spyOn(getMotorStore(), 'writeEntry');
+
+    const spec = await fetchMotorSpec(online, 0);
+    expect(spec.designation).toBe('H999');
+    const meta = write.mock.calls.find(([key]) => key.includes(':meta:'));
+    expect((meta?.[1] as { motorId?: unknown })?.motorId).toBe('h999-ok');
   });
 });

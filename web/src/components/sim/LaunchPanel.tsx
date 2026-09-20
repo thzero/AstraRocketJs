@@ -326,6 +326,11 @@ export function LaunchPanel({
           kind="distance"
           u={u}
           stepSi={10}
+          // Dead Sea shore to above any launch site: the kernel's atmosphere
+          // model takes this straight, and it was one of two site fields left
+          // unbounded after every sibling was given a range.
+          minSi={-500}
+          maxSi={10000}
           mixed={mixed('launchAltitudeM')}
           {...req('launchAltitudeM')}
           value={launch.launchAltitudeM}
@@ -386,11 +391,13 @@ export function LaunchPanel({
             📍 {locating ? t('launch.locating') : t('launch.useLocation')}
           </button>
         )}
-        {locateErr && (
-          <p role="status" className="mt-1 text-[11px] leading-snug text-amber-400">
-            {locateErr}
-          </p>
-        )}
+        {/* Always mounted, empty until there is something to say: a live
+            region created together with its text is not announced by most
+            screen readers (see UpdateToast), so the refusal was silent to the
+            people who cannot see the amber line. */}
+        <p role="status" aria-live="polite" className="mt-1 text-[11px] leading-snug text-amber-400">
+          {locateErr}
+        </p>
       </Group>
 
       <Group title={t('launch.atmosphere')}>
@@ -416,6 +423,10 @@ export function LaunchPanel({
           kind="hPa"
           u={u}
           stepSi={100}
+          // Stored in hPa; bounds are SI (Pa), as for every QNum. 300 hPa is
+          // the top of Everest, 1100 hPa is past any recorded surface high.
+          minSi={30_000}
+          maxSi={110_000}
           placeholder={t('launch.isa')}
           mixed={mixed('pressureHPa')}
           value={launch.pressureHPa}

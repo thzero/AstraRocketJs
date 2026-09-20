@@ -179,34 +179,74 @@ describe('a curve with a step at a duplicated timestamp', () => {
 /**
  * The whole bundled catalog, as the ultimate check on the two fixes above.
  *
- * Reading a combined total is the panel's entire job, and 9 of the 781 motors
- * it can show reported one that was wrong, the worst by 63.5%. A synthetic
- * case proves the code path; this proves the shipped data.
+ * The previous version of this compared `combineCurves([s]).totalImpulse` to
+ * `impulse(s)`, which is a tautology: `totalImpulse` IS `impulse(s)`, summed
+ * over the (one) curve. It exercised nothing about resampling. What the panel
+ * plots and peaks is the RESAMPLED curve, so that is what is integrated here.
+ *
+ * For a curve without a duplicated timestamp the resampled curve must
+ * integrate to the same total as the source: the breakpoints are the source's
+ * own times, so the only permitted difference is the microsecond terminator a
+ * non-zero ending gets. For the 74 curves that encode a step as two samples
+ * at one time, the union of breakpoints has one point where the source has
+ * two, so the resampled curve cannot carry the step's leading value; that is
+ * why `totalImpulse` is summed from the curves and not from the samples. The
+ * check on those is the one that matters for them: `thrustAt` reads the value
+ * AFTER the step, so the resampled point is the later sample, not the earlier
+ * one (K543 was summed at 0 N from its [0, 0], [0, 2117] start).
  */
 describe('every curve in the bundled catalog', () => {
-  it('combines to exactly its own trapezoidal impulse', async () => {
+  const load = async () => {
     const { readFileSync } = await import('node:fs');
     const raw = JSON.parse(readFileSync('public/data/motors.generated.json', 'utf8')) as Record<string, unknown>;
     const motors = (Array.isArray(raw) ? raw : (Object.values(raw).find(Array.isArray) as unknown[])) as {
       designation?: string;
       curves?: { samples?: Sample[] }[];
     }[];
-
-    const wrong: string[] = [];
-    let checked = 0;
+    const curves: { name: string; s: Sample[] }[] = [];
     for (const m of motors) {
       for (const c of m.curves ?? []) {
         const s = (c.samples ?? []) as Sample[];
-        if (s.length < 2) continue;
-        checked++;
-        const truth = impulse(s);
-        const shown = combineCurves([s]).totalImpulse;
-        if (Math.abs(truth - shown) / Math.max(truth, 1e-9) > 1e-9) {
-          wrong.push(`${m.designation ?? '?'}: ${truth.toFixed(1)} vs ${shown.toFixed(1)}`);
+        if (s.length >= 2) curves.push({ name: m.designation ?? '?', s });
+      }
+    }
+    return curves;
+  };
+  const hasStep = (s: Sample[]) => new Set(s.map(([t]) => t)).size !== s.length;
+
+  it('resamples to a curve whose own trapezoid matches the source impulse', async () => {
+    const curves = (await load()).filter(({ s }) => !hasStep(s));
+    const wrong: string[] = [];
+    for (const { name, s } of curves) {
+      const truth = impulse(s);
+      // The resampled curve itself, not the pre-summed total.
+      const shown = impulse(combineCurves([s]).samples);
+      // The terminator ramps a non-zero ending to 0 over 1e-6 s: at most
+      // F_end * 5e-7 N-s, which is 2.4e-5 relative on the worst shipped curve.
+      if (Math.abs(truth - shown) / Math.max(truth, 1e-9) > 1e-4) {
+        wrong.push(`${name}: ${truth.toFixed(3)} vs ${shown.toFixed(3)}`);
+      }
+    }
+    expect(curves.length).toBeGreaterThan(1000); // the catalog really was loaded
+    expect(wrong).toEqual([]);
+  });
+
+  it('reads the later sample at every duplicated timestamp', async () => {
+    const curves = (await load()).filter(({ s }) => hasStep(s));
+    const wrong: string[] = [];
+    for (const { name, s } of curves) {
+      const resampled = new Map(combineCurves([s]).samples);
+      for (let i = 1; i < s.length; i++) {
+        const [t, f] = s[i]!;
+        if (s[i - 1]![0] !== t) continue;
+        // The last sample at `t` wins, both directly and in the resampled curve.
+        const last = s.filter(([tt]) => tt === t).at(-1)![1];
+        if (thrustAt(s, t) !== last || resampled.get(t) !== last) {
+          wrong.push(`${name} @ ${t}s: got ${thrustAt(s, t)} / ${resampled.get(t)}, want ${last} (not ${f})`);
         }
       }
     }
-    expect(checked).toBeGreaterThan(1000); // the catalog really was loaded
+    expect(curves.length).toBeGreaterThan(50); // 74 in the shipped catalog
     expect(wrong).toEqual([]);
   });
 });

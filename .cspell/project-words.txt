@@ -6,6 +6,7 @@ AABB
 aabbggrr
 absarc
 ACADVER
+ADOPTIUM
 Aero's
 AEROTECH
 aftradius
@@ -16,6 +17,7 @@ aftshoulderthickness
 airfoillediamond
 airfoilsection
 airfoiltediamond
+Alphanum
 altitudeagl
 altitudeascending
 altitudedescending
@@ -31,6 +33,7 @@ Barrowman's
 baseheight
 basepressure
 basetemperature
+blindnesses
 boattail
 boattails
 bodytube
@@ -38,10 +41,13 @@ Bonney
 boosterset
 browsable
 Busemann
+bypassable
 cands
 caseairframe
+catchable
 centeringring
 Cesaroni
+checkcast
 classgraph
 clen
 Clippable
@@ -49,12 +55,14 @@ clusterconfiguration
 clusterrotation
 clusterscale
 CODATA
+codegen
 Coeff
 configid
 constantgravity
 constructability
 cordlength
 cosθ
+Croll
 crossflow
 crossrange
 crosssection
@@ -63,6 +71,7 @@ curveless
 dataviz
 DATCOM
 dbcook
+deae
 Dedup
 Delrin
 deployaltitude
@@ -97,6 +106,8 @@ EXTMIN
 fairingshape
 façade
 fcid
+FDLIBM
+FFFFL
 fflate
 fflate's
 filletmaterial
@@ -210,6 +221,7 @@ monogrid
 motorconfiguration
 motormount
 msvc
+multiset
 Niskanen
 nnum
 Nonaxial
@@ -222,6 +234,7 @@ Ork's
 orkengine
 outerdiameter
 outerradius
+overclaims
 overridecd
 overridecg
 overridemass
@@ -273,6 +286,7 @@ runnability
 Sampo
 screwheight
 sealevel
+Semispan
 separationaltitude
 separationconfiguration
 separationdelay
@@ -296,6 +310,7 @@ SKYRIPPER
 smoot
 spillholediameter
 ssaero
+sscale
 stagenumber
 standarddeviation
 strided
@@ -304,6 +319,7 @@ stripwidth
 strmr
 subclassing
 subcomponents
+Substitutor
 sustainers
 sweeplength
 tabheight
@@ -342,16 +358,19 @@ unmemoized
 unmetered
 unmodeled
 unparseable
+unreviewed
 Unrotated
 unrun
 unstub
 untick
+unvalidated
 unwired
 uppercased
 upperignition
 upstreaming
 vels
 Vuelo
+weathercocking
 windaverage
 winddirection
 windlevel

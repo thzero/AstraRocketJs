@@ -559,15 +559,31 @@ function Hud({ label, value }: { label: string; value: string }) {
 
 /** Legend row that doubles as the phase-color editor — click the swatch to recolor. */
 function Legend({ color, label, onChange }: { color: string; label: string; onChange: (c: string) => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  // The NATIVE `change` event: a color input fires it once, when the OS picker
+  // closes with a new value, whereas React's `onChange` maps to `input` and
+  // fires on every drag tick. Closing the picker with its own OK does not
+  // always move focus, so blur alone left the swatch showing the old color
+  // until something else took focus.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const commit = () => {
+      if (el.value !== color) onChange(el.value);
+    };
+    el.addEventListener('change', commit);
+    return () => el.removeEventListener('change', commit);
+  }, [color, onChange]);
   return (
     <label className="flex cursor-pointer items-center gap-1.5 text-slate-300" title={label}>
       <input
+        ref={ref}
         type="color"
-        // `defaultValue` + commit on blur/change, not a controlled per-`input`
-        // write. `onChange` on a color input fires continuously while the OS
-        // picker is dragged, and each tick wrote the whole settings object
-        // through the provider to persistent storage - dozens of writes per
-        // gesture. PropertyPanel's color field already defers the same way.
+        // `defaultValue` + commit on blur or native change, not a controlled
+        // per-`input` write. `onChange` on a color input fires continuously
+        // while the OS picker is dragged, and each tick wrote the whole
+        // settings object through the provider to persistent storage - dozens
+        // of writes per gesture. PropertyPanel's color field defers the same way.
         defaultValue={color}
         key={color}
         onBlur={(e) => {

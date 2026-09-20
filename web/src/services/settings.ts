@@ -449,8 +449,7 @@ function loadPathExport(raw: unknown): PathExportSettings {
     return m.size ? encodeStageColors(m) : undefined;
   };
   const out: PathExportSettings = {
-    labelWaypointsWithMission:
-      bool(p.labelWaypointsWithMission) ?? DEFAULT_PATH_EXPORT.labelWaypointsWithMission,
+    labelWaypointsWithMission: bool(p.labelWaypointsWithMission) ?? DEFAULT_PATH_EXPORT.labelWaypointsWithMission,
   };
   if (Array.isArray(p.waypoints)) {
     out.waypoints = p.waypoints.filter((w): w is string => typeof w === 'string');

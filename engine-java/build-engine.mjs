@@ -126,7 +126,10 @@ for (const target of targets) {
 const EXPECTED_JS_EXPORTS = [
   'buildRocket', 'reset', 'getStaticInfo', 'getComponentInfo', 'getComponentMasses',
   'getAeroSweep', 'simulateJson', 'setMotorById', 'setMotorIgnitionById',
-  'setSupersonicAero', 'setRogersKbf', 'setStubbyNoseFloor',
+  // The FACADE names. `setRogersKbf` / `setStubbyNoseFloor` are the drag
+  // calculator's own setters and appear in any build, so listing them checked
+  // nothing about the export surface.
+  'setSupersonicAero', 'setRogersModifiedBarrowman', 'setStubbyNoseDrag',
 ];
 {
   const jsArtifact = TARGETS.js && TARGETS.js.copies[0] && TARGETS.js.copies[0][0];
@@ -140,7 +143,11 @@ const EXPECTED_JS_EXPORTS = [
       console.error('build-engine:   artifact wearing the production filename. Do NOT vendor it.');
       process.exit(1);
     }
-    if (/\bParityMain\b/.test(text)) {
+    // No word boundaries: TeaVM emits the class as identifiers such as
+    // `p_ParityMain_asMap`, and `_` is a word character, so `\bParityMain\b`
+    // matched nothing in a real parity artifact. A bare substring match is
+    // what actually fires (verified against build/generated/teavm/js).
+    if (/ParityMain/.test(text)) {
       console.error('build-engine: the production JS build contains ParityMain - this is the');
       console.error('build-engine:   -Pparity variant. Run a clean `npm run build`.');
       process.exit(1);

@@ -72,6 +72,15 @@ Just `java.text.Collator` now — the one `java.*` class the extracted physics n
 
 `OpenRocketEngine.java` exposes handle-based static methods annotated `@JSExport` (`newRocket`, `buildRocket`, `addNoseCone`, `getStaticInfo`, `simulateJson`, …). TeaVM compiles this class as the entry point and turns those methods into the **exported functions of the engine modules** (JS and WASM). Params are primitives/arrays; results are JSON strings (the kernel ships no JSON lib). The web app never calls extracted physics directly — only this facade (through the typed `../web/src/engine/openRocketEngine.ts` wrapper). `ComponentFactory` builds rockets from a JSON tree; `JsonLite` is a tiny hand-rolled JSON parser.
 
+#### What the void and primitive exports do on failure
+
+The facade has two failure contracts, decided by the return type:
+
+- **JSON-returning methods** (`getStaticInfo`, `getComponentInfo`, `getComponentMasses`, `getAeroSweep`, `simulate`, `simulateJson`) never throw for a bad input or a failed computation. They return an `{"error": "<message>"}` envelope and the wrapper reads it.
+- **Void and primitive-returning methods** cannot carry an envelope (there is nowhere in an `int`, a `double` or a `void` to put a message), so they **throw** instead: `buildRocket`, `newRocket`, `setMotor`, `setMotorById`, `setMotorIgnitionById`, `getWorstThetaDeg`, the flag setters (`setRogersModifiedBarrowman`, `setStubbyNoseDrag`, `setSupersonicAero`) and the `addX` builders (`addNoseCone`, `addBodyTube`, `addTrapezoidFins`, `addInnerTube`, `addParachute`). A rejected input is an `IllegalArgumentException` with a message that names the field (an unknown handle, a non-mount component id, a non-finite ignition delay, a malformed thrust curve); anything else is whatever `RuntimeException` the kernel raised. On both targets the exception crosses into JavaScript as a throw carrying the Java message. Callers must not inspect the return value of these methods for an `error` key; there is none.
+
+The TypeScript wrapper (`../web/src/engine/openRocketEngine.ts`) runs every one of these through `callEngine`, which rethrows the failure as an `EngineCallError` whose `operation` names the facade method and whose message keeps the kernel text. A design used after `resetEngine()` throws `StaleDesignError` ahead of the call, and `callEngine` lets that one through untouched. The wrapper also validates the motor curve and the ignition delay itself before calling in, so the kernel guards are the second line of defense, not the only one.
+
 ## Extraction / upgrading OpenRocket
 
 `extract/extract.mjs` regenerates `src/java/` from an OpenRocket source tree. It is manifest-driven and idempotent; for each path in `extract/manifest.txt` it writes the `patches/` file if one exists there, else the verbatim upstream file:

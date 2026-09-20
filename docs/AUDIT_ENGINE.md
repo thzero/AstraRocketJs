@@ -239,8 +239,9 @@ the file that computes it, `FinSetCalc`, is the most heavily patched and most
 upstream-divergent file in the tree. **The highest-risk code in the kernel sits
 in the one place neither gate looks.**
 
-*Fix.* About 15 lines: a canted-fin scenario in `ParityMain` printing roll across
-Mach and roll rate, plus roll added to the `aero.forces` field list.
+*Fix (as done).* A canted-fin scenario in `ParityMain` (`rollScenarios()`) printing
+roll across Mach and roll rate as separate `roll.cant`, `roll.forces` and
+`roll.lateral` golden lines. The `aero.forces` field list was left unchanged.
 
 ### G5 · HIGH · ✅ FIXED 2026-09-19 · `score.mjs --strict` passes on an empty anchor set
 
@@ -428,11 +429,13 @@ Not executed (no build was run). What was verified: none of the three artifacts
 contains an embedded absolute path, build date or `sourceMappingURL`, so the
 obvious nondeterminism sources are absent.
 
-*Fix.* Pin the exact JDK and vendor, and make the failure legible: print
+*Fix (as done).* `build.gradle` pins the vendor (`JvmVendorSpec.ADOPTIUM`) and the
+language level (21); the exact `21.0.12` is pinned in `gates.yml`
+(`java-version`), where the byte-diff gate runs. And make the failure legible: print
 `java -version`, `git diff --stat` and a one-line hint separating "you edited Java
 and forgot `build-engine.mjs`" from "the rebuild was not reproducible".
 
-### G14 · MED · `score.mjs` trusts `anchors.json` and the fixtures
+### G14 · MED · ✅ FIXED 2026-09-20 · `score.mjs` trusts `anchors.json` and the fixtures
 
 `engine-java/validation/score.mjs:41,64,67,102,109`
 
@@ -986,8 +989,10 @@ lines. Details in `patches/LEDGER.md`.
 Still open from this step: **G6**, wiring `validate` into CI. The flags it needs
 now exist (`--min`, `--expect-gates`, added with the G5 fix) and it runs in under
 a second with no JDK, so it is two steps in `gates.yml`. **G14**'s fixture
-`_expect` assertions are also still open; `--expect-gates` covers the anchor-set
-half of that finding but not the corrupt-fixture half.
+`_expect` assertions closed on 2026-09-20: every fixture carries
+`_expect {length, refDiameter}`, `score.mjs` refuses a fixture without one and
+fails when the kernel builds a different length or diameter (demonstrated with a
+null and a doubled nose length; a string length now throws in the kernel).
 
 **4. Give the API boundary an input discipline. ✅ DONE 2026-09-19.** A1, A2,
 A3, A5, A6 and A7 are closed, plus the `\u` escape, duplicate-key and
@@ -1000,9 +1005,10 @@ caught. Details in `patches/LEDGER.md`.
 
 Still open on this boundary: **A8** (untyped handles, and the checkcast is
 elided at `optimization = NONE`, so a wrong handle reads the wrong object),
-**A10** (void and primitive
-exports structurally cannot use the envelope), **A12** (`LongUUID.randomUUID`
-entropy), and **A14**, the defaults table below.
+**A12** (`LongUUID.randomUUID` entropy), and **A14**, the defaults table below.
+**A10** is closed on both halves: the wrapper rethrows the void and primitive
+exports' failures as `EngineCallError`, and `engine-java/README.md` documents the
+throws contract for them.
 
 **5. Reconcile the defaults (A14). ✅ DONE 2026-09-19.** Probing the engine
 corrected this finding: `podset.instanceCount` is NOT live (`defaultNode` sets it
@@ -1027,13 +1033,14 @@ recorded as incorporated under GPL-3.0, and the four heavily modified aero
 files carry section 5(a) notices) and D6 (`stubbyNoseFloor` documented, and
 its javadoc no longer names a gate it does not use).
 
-**8. Build hardening (G12, G13, G18). ✅ DONE 2026-09-19.** The toolchain
-is pinned by vendor and exact version, the byte-diff step says which of its two
+**8. Build hardening (G12, G13, G18). ✅ DONE 2026-09-19.** `build.gradle`
+pins the toolchain vendor and language level 21 and `gates.yml` pins the exact
+`21.0.12` the byte-diff gate builds with, the byte-diff step says which of its two
 causes fired, `build-engine.mjs` refuses to vendor a build missing a facade
 export or containing `ParityMain`, and the wrapper retries a cold-cache blip.
 
-**Remaining open:** **G14** (fixture `_expect` assertions), left at the owner's
-direction.
+**Remaining open:** nothing. **G14** (fixture `_expect` assertions) closed
+2026-09-20.
 
 **A4** is closed as far as it can be. It is not fixable in Java - you cannot
 catch a wasm trap - so it is contained by bounding the inputs, and that
@@ -1084,7 +1091,7 @@ this app itself wrote. The renderers draw it and import/export round-trip it,
 which is what made it look like a live feature.
 
 The kernel now accepts it as a mass-carrying component instead of throwing, so
-such a file loads. Drag is still not modelled, and that is deliberate: finishing
+such a file loads. Drag is still not modeled, and that is deliberate: finishing
 it means deciding whether camera shrouds are a feature at all before deciding
 which OpenRocket primitive supplies the frontal-area drag. Provenance is marked
 in `ComponentFactory`, `openRocketEngine.ts`, `schema.ts`, `orkImport`,

@@ -49,13 +49,18 @@ export function MaterialPicker({
   // Both store round-trips below finish after an await, and selecting a
   // different component unmounts this picker in between - the effect above
   // already guards its own load with a `live` flag; these two did not.
+  //
+  // Re-armed in the effect body, not only cleared in its cleanup: the app
+  // mounts under React.StrictMode, whose development double-invoke runs the
+  // cleanup once and then the effect again. A cleanup-only guard was false for
+  // the picker's whole life, so a custom material was saved and never applied.
   const mounted = useRef(true);
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
       mounted.current = false;
-    },
-    [],
-  );
+    };
+  }, []);
   const u = useUnits();
   const quantity = QUANTITY[type];
   // One scope per material kind — fabric and cord densities are read in quite

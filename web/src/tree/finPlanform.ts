@@ -49,6 +49,9 @@ export const KERNEL_ELLIPSE_POINTS = 31;
  * the STL and a 60 mm tip in the DXF. These match what `treeEdit.ts` and
  * `orkImport.ts` actually write.
  */
+/** Kernel body-tube outer radius when the key is absent (ComponentFactory). */
+export const KERNEL_BODYTUBE_OUTER_RADIUS = 0.012;
+
 export const FIN_DEFAULTS = {
   rootChord: 0.05,
   height: 0.03,
@@ -281,7 +284,10 @@ export function parentRadiusOf(tree: RocketTree, nodeId: string): number | null 
 
 /** The mounting radius of a symmetric body component, or `null` if it is not one. */
 function symmetricRadius(node: ComponentNode): number | null {
-  if (node.type === 'bodytube') return num(node, 'outerRadius', FIN_DEFAULTS.rootChord) || null;
+  // 0.012 is the kernel's body-tube default (ComponentFactory bodytube
+  // outerRadius), so a radius-less tube clamps the tab the way it is flown.
+  // It used to fall back to FIN_DEFAULTS.rootChord, a chord, not a radius.
+  if (node.type === 'bodytube') return num(node, 'outerRadius', KERNEL_BODYTUBE_OUTER_RADIUS) || null;
   if (node.type === 'nosecone') return num(node, 'aftRadius', 0) || null;
   if (node.type === 'transition') {
     // The kernel's min(front, trailing): the narrow end bounds the tab.

@@ -36,6 +36,8 @@ const setField = async (page: Page, label: string, value: string, settled?: () =
   // unit"), so a bare getByLabel('Wind dir') matches both.
   const before = settled ? JSON.stringify(await settled()) : null;
   await page.getByRole('spinbutton', { name: label }).fill(value);
+  // The condition inputs commit on blur or Enter, not per keystroke.
+  await page.getByRole('spinbutton', { name: label }).press('Enter');
   if (settled) {
     await expect
       .poll(async () => JSON.stringify(await settled()), { timeout: 15_000, message: `${label} never re-swept` })

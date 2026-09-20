@@ -1,5 +1,5 @@
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { FIN_DEFAULTS } from '../../tree/finPlanform';
+import { FIN_DEFAULTS, finRootChord, finSpan } from '../../tree/finPlanform';
 import { countOf, num } from '../../tree/nodeProps';
 import { KERNEL_MASSCOMPONENT_RADIUS, KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
 import { freeformPoints } from '../../tree/position.js';
@@ -304,15 +304,16 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         if (raw.length >= 3) {
           const xs = raw.map((p) => p[0]);
           // Root chord (first→last point, where the outline meets the body)
-          // positions the fin and its tab — the same measure the engine uses.
-          // The furthest-aft outline point (aftX) can sit behind the root when
-          // the tip trailing corner overhangs; it only widens the drawn shape
-          // and its hover/hit box, and must NOT move the fin forward.
-          const root = xs[xs.length - 1]! - xs[0]!;
-          const chord = root > 0 ? root : Math.max(...xs);
+          // positions the fin and its tab — the same measure the engine uses,
+          // from the one module that owns it (tree/finPlanform), so this view
+          // cannot drift from the mesh, the PDF and the DXF the way a local
+          // copy did. The furthest-aft outline point (aftX) can sit behind the
+          // root when the tip trailing corner overhangs; it only widens the
+          // drawn shape and its hover/hit box, and must NOT move the fin forward.
+          const chord = finRootChord(child);
           const aftX = Math.max(...xs);
           const start = axialStart(child, chord, pStart, pLen);
-          const ymax = Math.max(0, ...raw.map((p) => p[1]));
+          const ymax = finSpan(child);
           const reach = pRadius + ymax;
           const projections = finFactors(child);
           noteHoverFins(
@@ -605,13 +606,20 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         // <packedlength>/<packedradius> into `length`/`radius`
         // (orkImport.ts:441-488), so both branches were unreachable.
         const len = num(child, 'length', 0.025);
-        // The last fallback is the KERNEL's default (ComponentFactory
-        // masscomponent radius = 0.005), not a fraction of the parent. It used
-        // to be `pRadius * 0.7`, so a mass component with no `radius` key - which
-        // is every one the editor creates - was drawn at ~9 mm on a 13 mm tube
-        // and flown at 5 mm. A drawing that disagrees with the simulation is
-        // worse than an ugly one.
-        const r = Math.min(pRadius * 0.85, num(child, 'outerRadius', num(child, 'radius', KERNEL_MASSCOMPONENT_RADIUS)));
+        // For a MASS COMPONENT the last fallback is the KERNEL's default
+        // (ComponentFactory masscomponent radius = 0.005), not a fraction of
+        // the parent. It used to be `pRadius * 0.7`, so a mass component with no
+        // `radius` key - which is every one the editor creates - was drawn at
+        // ~9 mm on a 13 mm tube and flown at 5 mm. A drawing that disagrees with
+        // the simulation is worse than an ugly one.
+        //
+        // Every other internal type keeps the fraction: the kernel does not read
+        // `radius` for a parachute, streamer, shock cord or ring (packed sizes
+        // are not wired through, see TODO.md), so there is no simulated size to
+        // agree with, and applying the 5 mm mass default to a parachute shrank
+        // the default design's chute box until its glyph no longer fit.
+        const dfltRadius = child.type === 'masscomponent' ? KERNEL_MASSCOMPONENT_RADIUS : pRadius * 0.7;
+        const r = Math.min(pRadius * 0.85, num(child, 'outerRadius', num(child, 'radius', dfltRadius)));
         const start = axialStart(child, len, pStart, pLen);
         const offsets =
           child.type === 'innertube'

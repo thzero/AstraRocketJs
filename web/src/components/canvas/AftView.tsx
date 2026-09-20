@@ -200,9 +200,10 @@ export function AftView({
         } else if (t === 'launchlug' || t === 'railbutton') {
           // Kernel default (RailButton.java:61), so the aft view shows the
           // button that is actually simulated. Was 0.004.
-          const r = t === 'railbutton'
-            ? num(child, 'outerDiameter', KERNEL_RAILBUTTON_OUTER_DIAMETER) / 2
-            : num(child, 'outerRadius', 0.002);
+          const r =
+            t === 'railbutton'
+              ? num(child, 'outerDiameter', KERNEL_RAILBUTTON_OUTER_DIAMETER) / 2
+              : num(child, 'outerRadius', 0.002);
           // Radial mount angle (kernel default 180°). The +π/2 is the aft view's
           // "up = 0°" convention — the same offset the fin sets carry here — so a
           // lug clocks consistently with the fins and with the 3D view.

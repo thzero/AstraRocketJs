@@ -322,6 +322,12 @@ public final class OpenRocketEngine {
         if (event == null && Double.isNaN(delay) && Double.isNaN(altitude)) {
             return;
         }
+        // NaN is the "absent" sentinel above; an infinity is a real value that
+        // would land in the event time. JsonLite already refuses a non-finite
+        // literal, so this guards the callers that bypass it.
+        if (!Double.isNaN(delay) && !isFinite(delay)) {
+            throw new IllegalArgumentException("separationDelay must be finite (got " + delay + ")");
+        }
         StageSeparationConfiguration sep = new StageSeparationConfiguration();
         if (event != null) {
             sep.setSeparationEvent(separationEventOf(event));
@@ -533,6 +539,13 @@ public final class OpenRocketEngine {
         if (mc == null || mc.getMotor() == null) {
             throw new IllegalArgumentException(
                     "No motor loaded on mount '" + componentId + "' — call setMotorById first");
+        }
+        // At the boundary, like the motor curve in applyMotor. This method is
+        // void, so a bad delay cannot come back as an envelope: it went straight
+        // into the ignition time and the sim's result JSON as `"time":Infinity`,
+        // which is not JSON, and the whole flight was discarded at JSON.parse.
+        if (!isFinite(ignitionDelay)) {
+            throw new IllegalArgumentException("ignitionDelay must be finite (got " + ignitionDelay + ")");
         }
         mc.setIgnitionEvent(ignitionEventOf(ignitionEvent));
         mc.setIgnitionDelay(ignitionDelay);
@@ -862,10 +875,23 @@ public final class OpenRocketEngine {
         // passed - and a step below ulp(machMin) then made `m += machStep` a
         // no-op, growing the list until the tab died. machMin == machMax is a
         // real call pattern (services/buildRocket.ts asks for a single Mach).
-        if (!isFinite(machStep)) {
-            throw new IllegalArgumentException("aero sweep needs a finite machStep (got " + machStep + ")");
+        if (!isFinite(machStep) || machStep <= 0) {
+            throw new IllegalArgumentException("aero sweep needs a finite machStep > 0 (got " + machStep + ")");
         }
-        final long points = (long) Math.floor((machMax - machMin) / machStep) + 1;
+        // Judge the quotient as a DOUBLE before casting it. Finite inputs can
+        // still make it infinite (machStep 5e-324, or a span wider than a
+        // double), and `(long) Infinity` is Long.MAX_VALUE: the `+ 1` below
+        // wrapped it negative, the `points > MAX` guard passed, and WASM-GC
+        // returned an empty sweep with no error while the JS target threw a
+        // RangeError. A finite quotient past the cap saturates the same way.
+        final double quotient = (machMax - machMin) / machStep;
+        if (!isFinite(quotient) || quotient > MAX_SWEEP_POINTS) {
+            throw new IllegalArgumentException("aero sweep of " + machMin + ".." + machMax
+                    + " step " + machStep + " needs "
+                    + (isFinite(quotient) ? "about " + quotient : "an infinite number of")
+                    + " points, over the " + MAX_SWEEP_POINTS + " limit");
+        }
+        final long points = (long) Math.floor(quotient) + 1;
         if (points > MAX_SWEEP_POINTS) {
             throw new IllegalArgumentException("aero sweep of " + machMin + ".." + machMax
                     + " step " + machStep + " needs " + points + " points, over the "

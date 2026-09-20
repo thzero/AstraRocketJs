@@ -554,7 +554,7 @@ The three defects, all fixed and all proven:
    (1e-6 m, 1e-12 m^2) while the scale tool accepts any positive factor, so a
    heavily scaled-down part had every triangle dropped, and an empty mesh has no
    open edges, so it "succeeded". `meshTolerances` derives both from the
-   bounding-box diagonal, floored at 1 m so a normal rocket keeps exactly the
+   bounding-box diagonal, capped at 1 m so a normal rocket keeps exactly the
    tolerances it always had. The 0.2 mm nose cone that used to export empty now
    exports 18432 triangles.
 3. **`segmentsCross` counts touching.** Strict inequalities meant a vertex

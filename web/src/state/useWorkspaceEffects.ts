@@ -236,15 +236,25 @@ export function useWorkspaceEffects() {
   // `simulation.autoRunOutdated` on and a result view open, CenterView then
   // immediately re-flew them. The rebuild effect above already waits for
   // `ready`; this one did not.
+  //
+  // And not only on boot. File > Open (`openDesign`) hydrates AGAIN, with a
+  // library design whose saved results are current, and its key differs from
+  // the design it replaces - so a baseline seeded once, at boot, read that as
+  // an edit and aged every restored flight. `hydrationGen` moves with every
+  // hydrate; a change in it re-seeds the baseline instead of marking outdated.
+  // Both land in the same store write, so this runs once per hydrate.
+  const hydrationGen = useWorkspaceStore((s) => s.hydrationGen);
   const lastFlight = useRef<string | null>(null);
+  const lastHydration = useRef<number | null>(null);
   useEffect(() => {
     if (!ready) return; // pre-hydration keys describe the default rocket
-    if (lastFlight.current === null) {
-      lastFlight.current = flight; // first post-hydration run sets the baseline
+    if (lastFlight.current === null || lastHydration.current !== hydrationGen) {
+      lastFlight.current = flight; // a hydrate sets the baseline; it is not an edit
+      lastHydration.current = hydrationGen;
       return;
     }
     if (lastFlight.current === flight) return;
     lastFlight.current = flight;
     useWorkspaceStore.getState().markOutdated();
-  }, [ready, flight]);
+  }, [ready, flight, hydrationGen]);
 }

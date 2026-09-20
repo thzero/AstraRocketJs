@@ -5,8 +5,9 @@ import type { KeyValueStore } from './keyValueStore';
 
 /** Stand-in for the pre-IndexedDB localStorage store. */
 class FakeLocal implements KeyValueStore {
-  readonly map = new Map<string, string>();
   full = false;
+  /** Pass another instance's map to model localStorage outliving a reload. */
+  constructor(readonly map = new Map<string, string>()) {}
   async get(k: string) {
     return this.map.get(k) ?? null;
   }
@@ -35,6 +36,30 @@ beforeEach(async () => {
     req.onsuccess = req.onerror = req.onblocked = () => res();
   });
 });
+
+// The request succeeding and the transaction committing are DIFFERENT moments.
+// The tests using this pin the gap: let the request report success, then abort
+// the transaction before it commits, which is what a commit-time I/O error or a quota
+// hit looks like. Resolving on `onsuccess` reported those as saved.
+//
+// `abortAfterSuccess` restores itself via try/finally: an assertion failure
+// here used to leave the spy installed and silently corrupt the next test.
+const abortAfterSuccess = async (body: () => Promise<void>) => {
+  const realPut = IDBObjectStore.prototype.put;
+  const spy = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (
+    this: IDBObjectStore,
+    ...args: Parameters<typeof realPut>
+  ) {
+    const req = realPut.apply(this, args);
+    req.addEventListener('success', () => req.transaction?.abort());
+    return req;
+  });
+  try {
+    await body();
+  } finally {
+    spy.mockRestore();
+  }
+};
 
 describe('IndexedDbKeyValueStore', () => {
   it('round-trips a value', async () => {
@@ -85,30 +110,6 @@ describe('migration from localStorage', () => {
     await kv.set('k', 'fresh');
     expect(await kv.get('k')).toBe('fresh');
   });
-
-  // The request succeeding and the transaction committing are DIFFERENT moments.
-  // These two pin the gap: let the request report success, then abort the
-  // transaction before it commits — what a commit-time I/O error or a quota hit
-  // looks like. Resolving on `onsuccess` reported both of these as saved.
-  //
-  // `abortAfterSuccess` restores itself via try/finally: an assertion failure
-  // here used to leave the spy installed and silently corrupt the next test.
-  const abortAfterSuccess = async (body: () => Promise<void>) => {
-    const realPut = IDBObjectStore.prototype.put;
-    const spy = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (
-      this: IDBObjectStore,
-      ...args: Parameters<typeof realPut>
-    ) {
-      const req = realPut.apply(this, args);
-      req.addEventListener('success', () => req.transaction?.abort());
-      return req;
-    });
-    try {
-      await body();
-    } finally {
-      spy.mockRestore();
-    }
-  };
 
   it('reports a write that aborts after the request succeeded as failed', async () => {
     const local = new FakeLocal();
@@ -323,5 +324,65 @@ describe('storage-degraded signal', () => {
     onStorageDegraded(late);
     expect(late).toHaveBeenCalledOnce();
     boom.mockRestore();
+  });
+});
+
+/**
+ * `update()` falling back to localStorage, which `set()` had already been
+ * taught about and `update()` had not.
+ *
+ * On a failed IndexedDB write `set` deletes the now-stale IndexedDB entry so
+ * that in the NEXT session, where `fellBack` is empty again, `get` cannot read
+ * IndexedDB first and serve the old value. `update` recorded the key in
+ * `fellBack` and stopped there. The design library index is mutated only
+ * through `update`, so a library edit that hit the quota looked saved for the
+ * rest of the session and was gone on the next launch.
+ */
+describe('update() falling back to localStorage', () => {
+  it('is served by a fresh session instead of the stale IndexedDB entry', async () => {
+    const local = new FakeLocal();
+    const kv = new IndexedDbKeyValueStore(local);
+    expect(await kv.set('lib', 'old')).toBe(true); // lands in IndexedDB
+
+    await abortAfterSuccess(async () => {
+      expect(await kv.update('lib', () => 'new')).toBe(true);
+    });
+    expect(local.map.get('lib')).toBe('new');
+    expect(await kv.get('lib')).toBe('new'); // this session: `fellBack`
+
+    // Next session: a new store, `fellBack` gone, localStorage still there.
+    await __resetIdbForTests();
+    const next = new IndexedDbKeyValueStore(new FakeLocal(local.map));
+    expect(await next.get('lib')).toBe('new');
+  });
+
+  it('hands the reducer the IndexedDB value when the fallback holds none', async () => {
+    // Once migrated the value lives ONLY in IndexedDB. A reducer given `null`
+    // would rebuild the library index from nothing and drop every other entry.
+    const local = new FakeLocal();
+    const kv = new IndexedDbKeyValueStore(local);
+    await kv.set('lib', '["a","b"]');
+    const seen: (string | null)[] = [];
+    await abortAfterSuccess(async () => {
+      await kv.update('lib', (raw) => {
+        seen.push(raw);
+        return raw;
+      });
+    });
+    expect(seen).toContain('["a","b"]');
+    expect(seen).not.toContain(null);
+  });
+
+  it('rethrows a reducer that throws and does not report storage as degraded', async () => {
+    const kv = new IndexedDbKeyValueStore(new FakeLocal());
+    await kv.set('k', 'v');
+    const boom = new Error('bad reducer');
+    await expect(
+      kv.update('k', () => {
+        throw boom;
+      }),
+    ).rejects.toBe(boom);
+    expect(isStorageDegraded()).toBe(false);
+    expect(await kv.get('k')).toBe('v'); // the transaction was aborted, nothing changed
   });
 });

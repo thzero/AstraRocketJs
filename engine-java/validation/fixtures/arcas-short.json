@@ -1,5 +1,6 @@
 {
   "name": "ARCAS Short (NASA TN D-4013/D-4014 half-scale tunnel model, Config 1)",
+  "_expect": { "length": 1.0401, "refDiameter": 0.0571 },
   "_notes": [
     "Geometry from docs/research/validation-anchors-2026-08-03.md section 1.2. d = 2.250 in = 0.05715 m.",
     "Fins physically sit over the boattail station; modeled flush with the body tube aft end (the RASAero equal-volume convention region). Kernel cannot place fins on a transition.",

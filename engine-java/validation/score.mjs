@@ -84,6 +84,25 @@ for (const [name, spec] of Object.entries(anchors)) {
   const rocket = OrkRocket.buildTree(tree);
   if (supersonic) rocket.setSupersonicAero(true);
   const info = rocket.staticInfo();
+  // The fixture says what it is, and the kernel has to agree before a single
+  // anchor is scored. Without this a corrupt fixture (a nose length of "abc",
+  // null, or 1e999) built a DIFFERENT rocket through the kernel's defaults and
+  // scored it as the published model: indistinguishable from a one-gate
+  // physics regression. 5e-4 m absorbs the 4-decimal rounding of the recorded
+  // values and nothing else.
+  const expect = tree._expect;
+  if (!expect || !Number.isFinite(expect.length) || !Number.isFinite(expect.refDiameter)) {
+    console.error(`score: fixture ${spec.fixture} carries no _expect {length, refDiameter}.`);
+    console.error('score:   every fixture must say what the kernel should build from it.');
+    process.exit(1);
+  }
+  for (const key of ['length', 'refDiameter']) {
+    if (!(Math.abs(info[key] - expect[key]) <= 5e-4)) {
+      console.error(`score: fixture ${spec.fixture} built ${key} = ${info[key]}, expected ${expect[key]}.`);
+      console.error('score:   the fixture is corrupt, or the kernel no longer reads it the same way.');
+      process.exit(1);
+    }
+  }
   const sweep = rocket.aeroSweep({
     machMin: 0.05, machMax: spec.maxMach ?? 10, machStep: 0.025,
     aoaDeg: spec.aoaDeg ?? 0, machAlt: spec.machAlt,

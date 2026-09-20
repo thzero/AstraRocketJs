@@ -819,13 +819,16 @@ export function Rocket3D({
   // the export width (updateStyle=false keeps the on-screen CSS size), grab
   // the buffer, then restore — preserveDrawingBuffer makes the read reliable.
   // Live while this component is mounted; read by the export's restore step.
+  // Set in the effect body as well as cleared in its cleanup: under
+  // React.StrictMode's development double-invoke the cleanup runs once before
+  // the effect re-runs, and a cleanup-only guard stayed false for good.
   const alive = useRef(true);
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    alive.current = true;
+    return () => {
       alive.current = false;
-    },
-    [],
-  );
+    };
+  }, []);
 
   const snapshot = async (format: ImageFormat, widthPx: number, opts?: ImageExportOptions) => {
     const st = r3f.current;

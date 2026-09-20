@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from '../services/settings';
 
 interface SettingsCtx {
@@ -26,10 +26,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     saveSettings(settings);
   }, [settings]);
 
-  const update = (patch: Partial<Settings>) => setSettings((s) => ({ ...s, ...patch }));
-  const reset = () => setSettings(DEFAULT_SETTINGS);
+  // Stable identities, so a consumer can list `update` in an effect's deps
+  // (or leave it out) without the effect re-running on every settings change.
+  const update = useCallback((patch: Partial<Settings>) => setSettings((s) => ({ ...s, ...patch })), []);
+  const reset = useCallback(() => setSettings(DEFAULT_SETTINGS), []);
+  const value = useMemo(() => ({ settings, update, reset }), [settings, update, reset]);
 
-  return <Ctx.Provider value={{ settings, update, reset }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 export function useSettings(): SettingsCtx {

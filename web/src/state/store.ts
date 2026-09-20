@@ -191,6 +191,14 @@ export interface WorkspaceState {
   clearSaveWarning: () => void;
   applyBuild: (info: StaticInfo | null, rocket: Rocket | null) => void; // from the rebuild effect
   markOutdated: () => void; // from the tree-change effect
+  /**
+   * Bumped by every `hydrate`. Restoring a design is not editing it: the
+   * flight-invalidation effect (useWorkspaceEffects) re-seeds its baseline on
+   * a change here instead of flagging the restored results stale. Boot is one
+   * hydrate; File > Open is another, and that one carried results the effect
+   * used to age (and `autoRunOutdated` then re-flew) for nothing.
+   */
+  hydrationGen: number;
   hydrate: (w: {
     tree: RocketTree;
     sims: Simulation[];
@@ -629,6 +637,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     resetKey: 0,
     designs: [],
     activeDesignId: null,
+    hydrationGen: 0,
 
     setErr: (err) => set({ err }),
     setStorageWarning: (storageWarning, kind) =>
@@ -656,7 +665,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           : w.sims;
       const sims = reconcileAll(w.tree, sanitizeSims(migrated));
       const activeId = sims.some((s) => s.id === w.activeId) ? w.activeId : sims[0]!.id;
-      set({ tree: w.tree, sims, activeId, selectedSimIds: [], loadedMeta: w.loadedMeta ?? null });
+      set((s) => ({
+        tree: w.tree,
+        sims,
+        activeId,
+        selectedSimIds: [],
+        loadedMeta: w.loadedMeta ?? null,
+        hydrationGen: s.hydrationGen + 1,
+      }));
     },
 
     // Each structural/field edit reconciles the extra-mount motors to the new

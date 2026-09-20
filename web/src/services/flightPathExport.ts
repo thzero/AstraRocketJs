@@ -207,9 +207,7 @@ export function asDistanceUnit(value: string | undefined): DistanceUnit | undefi
 }
 
 export function asAltitudeReference(value: string | undefined): AltitudeReference | undefined {
-  return value === 'automatic' || value === 'ground' || value === 'sealevel' || value === 'clamped'
-    ? value
-    : undefined;
+  return value === 'automatic' || value === 'ground' || value === 'sealevel' || value === 'clamped' ? value : undefined;
 }
 
 export function asStageTrackStart(value: string | undefined): StageTrackStart | undefined {

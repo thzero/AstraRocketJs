@@ -172,6 +172,27 @@ export function samplesToMotorSpec(
  * first (the catalog stores commonName||designation), then designation, and
  * disambiguates by diameter and in-production status.
  */
+/**
+ * A search.json hit this module can act on: a string `motorId` (the key the
+ * curve is fetched and cached by) and a finite `diameter` (what `pick` sorts
+ * on). The network result was used and cached with NO shape check while only
+ * the cache READ checked `.motorId`: a hit without one was written to the
+ * cache, then requested from download.json as `motorIds: [undefined]`.
+ * Weights and length are checked later, in samplesToMotorSpec, with errors
+ * that name the motor.
+ */
+const isTcMotor = (v: unknown): v is TcMotor => {
+  const m = v as TcMotor | null;
+  return (
+    !!m &&
+    typeof m === 'object' &&
+    typeof m.motorId === 'string' &&
+    m.motorId.length > 0 &&
+    typeof m.designation === 'string' &&
+    Number.isFinite(m.diameter)
+  );
+};
+
 async function resolveTcMotor(cat: CatalogMotor): Promise<TcMotor> {
   const pick = (list: TcMotor[]): TcMotor | undefined => {
     if (list.length === 0) return undefined;
@@ -183,12 +204,12 @@ async function resolveTcMotor(cat: CatalogMotor): Promise<TcMotor> {
   };
 
   for (const query of [{ commonName: cat.designation }, { designation: cat.designation }]) {
-    const { results = [] } = await post<{ results?: TcMotor[] }>('search.json', {
+    const { results } = await post<{ results?: unknown }>('search.json', {
       manufacturer: cat.manufacturer,
       ...query,
       maxResults: 25,
     });
-    const hit = pick(results);
+    const hit = pick(Array.isArray(results) ? results.filter(isTcMotor) : []);
     if (hit) return hit;
   }
   throw new Error(`Could not find ${cat.manufacturer} ${cat.designation} on thrustcurve.org`);
@@ -235,7 +256,7 @@ const isSpec = (v: unknown): boolean => {
  */
 async function resolveTcMotorCached(cat: CatalogMotor): Promise<TcMotor> {
   const key = metaKey(cat);
-  const cached = await getMotorStore().readEntry<TcMotor>(key, (m) => !!(m as TcMotor)?.motorId);
+  const cached = await getMotorStore().readEntry<TcMotor>(key, isTcMotor);
   if (cached && !cached.stale) return cached.value;
   try {
     const motor = await resolveTcMotor(cat);

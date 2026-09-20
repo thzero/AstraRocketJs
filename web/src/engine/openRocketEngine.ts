@@ -85,7 +85,10 @@ export class StaleDesignError extends Error {
 export class EngineCallError extends Error {
   readonly engineCause: unknown;
 
-  constructor(readonly operation: string, engineCause: unknown) {
+  constructor(
+    readonly operation: string,
+    engineCause: unknown,
+  ) {
     const detail = engineCause instanceof Error ? engineCause.message : String(engineCause);
     super(`engine ${operation} failed: ${detail || '(no message)'}`);
     this.name = 'EngineCallError';
@@ -475,7 +478,7 @@ export type ComponentType =
   // engineTree ANYWHERE IN web/src — the lowering was never written, so the
   // kernel used to reject the type outright and any design carrying one failed
   // to build at all. `ComponentFactory` now accepts it as a mass-carrying
-  // component so such a file loads; its drag is still not modelled.
+  // component so such a file loads; its drag is still not modeled.
   //
   // Scope: RASAero. See engine-java/ATTRIBUTION.md and docs/AUDIT_ENGINE.md
   // Appendix R.
@@ -955,18 +958,20 @@ export class OpenRocketDesign {
     // BigInt", which told the user nothing and blanked their design; catalog
     // data with missing weights is the real-world source (see thrustcurve.ts).
     assertFiniteCurve(motor);
-    callEngine('setMotorById', () => eng().setMotorById(
-      this.handle,
-      componentId,
-      motor.designation,
-      motor.diameter,
-      motor.length,
-      motor.times,
-      motor.thrusts,
-      motor.masses,
-      motor.cgX,
-      toKernelDelay(motor.ejectionDelay),
-    ));
+    callEngine('setMotorById', () =>
+      eng().setMotorById(
+        this.handle,
+        componentId,
+        motor.designation,
+        motor.diameter,
+        motor.length,
+        motor.times,
+        motor.thrusts,
+        motor.masses,
+        motor.cgX,
+        toKernelDelay(motor.ejectionDelay),
+      ),
+    );
   }
 
   /**

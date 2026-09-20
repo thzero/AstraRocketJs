@@ -51,6 +51,14 @@ describe('the announced range is the range it can reach', () => {
     expect(sep().getAttribute('aria-valuemax')).toBe('2000');
   });
 
+  it('re-announces the maximum after the window is resized', () => {
+    render(<PaneSplitter {...props()} />);
+    expect(sep().getAttribute('aria-valuemax')).toBe('224');
+    setWidth(1400); // 1400 - 800 = 600
+    fireEvent(window, new Event('resize'));
+    expect(sep().getAttribute('aria-valuemax')).toBe('600');
+  });
+
   it('never announces a maximum below the minimum', () => {
     setWidth(400); // 400 - 800 is negative
     render(<PaneSplitter {...props()} />);

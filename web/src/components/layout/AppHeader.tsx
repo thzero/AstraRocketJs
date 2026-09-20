@@ -332,6 +332,7 @@ export function AppHeader() {
                 <button
                   role="menuitem"
                   className={subItem}
+                  aria-label={t('file.importOrkLabel')}
                   onClick={() => {
                     setMenuOpen(false);
                     orkRef.current?.click();
@@ -357,6 +358,7 @@ export function AppHeader() {
                 <button
                   role="menuitem"
                   className={subItem}
+                  aria-label={t('file.exportOrkLabel')}
                   disabled={!canSave}
                   onClick={() => {
                     setMenuOpen(false);

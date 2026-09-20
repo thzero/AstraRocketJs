@@ -42,6 +42,7 @@ vi.mock('../services/idbKeyValueStore', async (orig) => ({
 
 import { useWorkspaceEffects } from './useWorkspaceEffects';
 import { useWorkspaceStore } from './store';
+import { getDesignLibrary, setDesignLibrary, type DesignLibrary } from '../services/designLibrary';
 import { renderWithProviders } from '../testing/renderWithProviders';
 import i18n from '../i18n';
 
@@ -437,6 +438,45 @@ describe('restoring a saved design does not invalidate its flights', () => {
       await Promise.resolve();
     });
 
+    expect(s().sims[0]!.outdated).toBe(true);
+  });
+
+  /**
+   * File > Open is a SECOND hydrate, after the boot one seeded the baseline.
+   * The library design carries its own results with `outdated: false`; its key
+   * differs from the design it replaces, and the effect used to read that as an
+   * edit and flag every restored flight stale (which `autoRunOutdated` then
+   * re-flew). Any hydrate must re-seed the baseline instead.
+   */
+  it('keeps the results current when a library design is opened over the boot design', async () => {
+    await mount(); // boot on the default design; the baseline is now its key
+    const original = getDesignLibrary();
+    const w = savedWithFlight();
+    setDesignLibrary({
+      read: async () => w,
+      setActive: async () => true,
+      list: async () => [],
+      activeId: async () => 'lib-1',
+    } as unknown as DesignLibrary);
+    try {
+      await act(async () => {
+        await s().openDesign('lib-1');
+      });
+    } finally {
+      setDesignLibrary(original);
+    }
+
+    // The opened design is structurally different AND has a current result.
+    expect(s().sims[0]!.result).not.toBeNull();
+    expect(s().sims[0]!.outdated).toBe(false);
+
+    // A real edit after the open still ages it.
+    const tube = s().tree.components[0]!.children?.find((c) => c.type === 'bodytube') ?? s().tree.components[0]!;
+    await act(async () => {
+      s().setSelectedId(tube.id ?? null);
+      s().patchSelected({ length: 0.42 });
+      await Promise.resolve();
+    });
     expect(s().sims[0]!.outdated).toBe(true);
   });
 });
