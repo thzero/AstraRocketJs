@@ -154,12 +154,24 @@ const readFreeformFinset: NodeReader = (_ctx, el) => {
   readFinRotation(el, n);
   // Capped: every renderer walks the outline per fin, so a crafted file
   // with a million <point>s is a frozen tab. A real freeform fin has tens.
-  const ptEls = Array.from(el.querySelectorAll(':scope > finpoints > point')).slice(0, MAX_FIN_POINTS);
-  // A missing x/y attribute must SKIP the point (Number(null) is 0,
-  // which would silently drop a vertex onto the origin).
-  const pts = ptEls
-    .map((pt) => [finiteNum(pt.getAttribute('x')), finiteNum(pt.getAttribute('y'))])
-    .filter((p): p is [number, number] => p[0] !== undefined && p[1] !== undefined);
+  // Walked by sibling links and stopped at the cap, rather than selecting the
+  // whole list first. Indexing a live `children` collection is O(n) per
+  // access in jsdom (so O(n^2) over the list), and a selector materializes
+  // every point before the cap can slice; the sibling walk is O(cap) in
+  // every DOM. A missing x/y attribute must SKIP the point (Number(null) is
+  // 0, which would silently drop a vertex onto the origin).
+  const pts: [number, number][] = [];
+  const finpoints = el.querySelector(':scope > finpoints');
+  if (finpoints) {
+    let seen = 0;
+    for (let pt = finpoints.firstElementChild; pt && seen < MAX_FIN_POINTS; pt = pt.nextElementSibling) {
+      if (pt.tagName !== 'point') continue;
+      seen++;
+      const x = finiteNum(pt.getAttribute('x'));
+      const y = finiteNum(pt.getAttribute('y'));
+      if (x !== undefined && y !== undefined) pts.push([x, y]);
+    }
+  }
   if (pts.length >= 3) n['points'] = pts;
   return n;
 };

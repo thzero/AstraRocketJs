@@ -20,6 +20,22 @@ const ork = (xml: string): ArrayBuffer => {
   return zipped.buffer.slice(zipped.byteOffset, zipped.byteOffset + zipped.byteLength) as ArrayBuffer;
 };
 
+/**
+ * The same archive, with its central-directory entry claiming to inflate to
+ * `bytes`. That field (offset 24 of the `PK` record) is what fflate
+ * reports as `originalSize` and what the zip-bomb guard checks.
+ */
+const declaringSize = (zip: ArrayBuffer, bytes: number): ArrayBuffer => {
+  const out = new Uint8Array(zip.slice(0));
+  for (let i = 0; i + 28 <= out.length; i++) {
+    if (out[i] === 0x50 && out[i + 1] === 0x4b && out[i + 2] === 0x01 && out[i + 3] === 0x02) {
+      new DataView(out.buffer).setUint32(i + 24, bytes, true);
+      return out.buffer;
+    }
+  }
+  throw new Error('no central directory entry in the test archive');
+};
+
 const wrap = (inner: string) =>
   `<?xml version="1.0"?><openrocket version="1.8"><rocket><name>T</name><subcomponents><stage><name>S</name><subcomponents>${inner}</subcomponents></stage></subcomponents></rocket></openrocket>`;
 
@@ -81,12 +97,17 @@ describe('the hostile-input caps actually fire', () => {
    * size truncates to a clean parse error rather than exhausting memory.
    */
   it('refuses an entry that declares more than the cap', () => {
-    // 65 MiB of XML: over MAX_ARCHIVE_ENTRY_BYTES (64 MiB). The old 60 MiB was
-    // UNDER the cap, and the bare `.toThrow()` was satisfied by the parse
-    // failing on the comment-then-document, not by the guard. Naming the
-    // message is what makes this a test of the cap.
-    const huge = '<!--' + 'x'.repeat(65 * 1024 * 1024) + '-->';
-    expect(() => importOrk(ork(huge + '<openrocket><rocket/></openrocket>'))).toThrow(
+    // Over MAX_ARCHIVE_ENTRY_BYTES (64 MiB). The guard reads the size the
+    // central directory DECLARES, before inflating anything, so the test
+    // forges that field on a tiny archive rather than deflating 65 MiB of
+    // filler: the old version did the latter and took eight seconds on the CI
+    // runner, past vitest's five-second ceiling. An earlier 60 MiB was UNDER
+    // the cap, and a bare `.toThrow()` was satisfied by the parse failing on
+    // the filler, not by the guard. Naming the message is what makes this a
+    // test of the cap; forging the size is what makes it a test of THIS zip
+    // bomb, the one that lies about how big it will inflate to.
+    const small = ork('<openrocket><rocket/></openrocket>');
+    expect(() => importOrk(declaringSize(small, 65 * 1024 * 1024))).toThrow(
       '.ork archive is too large (possible zip bomb)',
     );
   });
