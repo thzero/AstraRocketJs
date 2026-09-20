@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LaunchConditions, WindLevel } from '../../services/orkTree';
 import { NumberInput } from '../common/NumberInput';
@@ -18,6 +18,9 @@ import { parseWindProfileCsv, WindProfileCsvError } from '../../services/windPro
  * could not hold the columns. That was the reason turbulence was missing here
  * while the single-wind panel had it, which is exactly backwards: a profile is
  * where per-layer gustiness has something to say.
+ *
+ * Mounted only while open (`{open && <WindProfileDialog />}`), so the error
+ * line and the row keys start fresh per opening.
  */
 
 /** A default level, matching the kernel's `addInitialLevel` (still air at the pad). */
@@ -102,13 +105,11 @@ function ProfileChart({ levels, u, showVectors }: { levels: WindLevel[]; u: Unit
 }
 
 export function WindProfileDialog({
-  open,
   launch,
   onChange,
   onCommit,
   onClose,
 }: {
-  open: boolean;
   launch: LaunchConditions;
   onChange: (patch: Partial<LaunchConditions>) => void;
   onCommit?: () => void;
@@ -116,24 +117,20 @@ export function WindProfileDialog({
 }) {
   const { t } = useTranslation();
   const u = useUnits();
-  const panelRef = useFocusTrap<HTMLDivElement>(open);
+  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
   const fileRef = useRef<HTMLInputElement>(null);
   const [showVectors, setShowVectors] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    setError(null);
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
-
   const levels = launch.windLevels ?? [];
+  // A stable key per row. WindLevel carries no id, and keying on the index
+  // meant deleting row 1 re-labeled row 2's inputs as row 1 in place: the
+  // field being typed into suddenly held the next level's numbers. Rows are
+  // added, removed and replaced only through the handlers below, which keep
+  // this list aligned with `levels`; an outside change (undo, a fresh
+  // profile) shows as a length mismatch and falls back to index keys.
+  const [rowIds, setRowIds] = useState<number[]>(() => levels.map((_, i) => i));
+  const nextId = () => rowIds.reduce((m, id) => Math.max(m, id), -1) + 1;
   const reference = launch.windAltitudeReference ?? 'msl';
   // The safety codes judge the wind at the pad, so only the ground layer carries
   // the ceiling. Lowest altitude, not the first row: the list is not sorted.
@@ -142,8 +139,31 @@ export function WindProfileDialog({
     : -1;
 
   const setLevels = (next: WindLevel[]) => onChange({ windLevels: next.length ? next : undefined });
+  /** Replace the whole profile (import, reset): every row is new. */
+  const replaceLevels = (next: WindLevel[]) => {
+    const base = nextId();
+    setRowIds(next.map((_, i) => base + i));
+    setLevels(next);
+  };
   const patchLevel = (i: number, p: Partial<WindLevel>) =>
     setLevels(levels.map((l, j) => (j === i ? { ...l, ...p } : l)));
+  const removeLevel = (i: number) => {
+    setRowIds(rowIds.filter((_, j) => j !== i));
+    setLevels(levels.filter((_, j) => j !== i));
+  };
+  const addLevel = () => {
+    const last = levels[levels.length - 1];
+    setRowIds([...rowIds, nextId()]);
+    setLevels([
+      ...levels,
+      {
+        altitudeM: (last?.altitudeM ?? 0) + 300,
+        speed: last?.speed ?? 0,
+        directionDeg: last?.directionDeg ?? 90,
+        stddev: last?.stddev ?? 0,
+      },
+    ]);
+  };
 
   const setSpeed = (i: number, speed: number) => {
     const l = levels[i]!;
@@ -155,7 +175,7 @@ export function WindProfileDialog({
 
   const importCsv = async (file: File) => {
     try {
-      setLevels(parseWindProfileCsv(await file.text()));
+      replaceLevels(parseWindProfileCsv(await file.text()));
       setError(null);
       onCommit?.();
     } catch (e) {
@@ -214,8 +234,9 @@ export function WindProfileDialog({
             <div className="max-h-[320px] space-y-1 overflow-y-auto">
               {levels.map((l, i) => {
                 const intensity = turbulenceIntensity(l.speed, l.stddev);
+                const key = rowIds.length === levels.length ? `id-${rowIds[i]}` : `i-${i}`;
                 return (
-                  <div key={i} className="flex items-center gap-1">
+                  <div key={key} className="flex items-center gap-1">
                     <NumberInput
                       step={u.step('distance', 50)}
                       min={0}
@@ -261,7 +282,7 @@ export function WindProfileDialog({
                     </span>
                     <button
                       onClick={() => {
-                        setLevels(levels.filter((_, j) => j !== i));
+                        removeLevel(i);
                         onCommit?.();
                       }}
                       title={t('launch.removeLevel')}
@@ -279,16 +300,7 @@ export function WindProfileDialog({
               <button
                 className={btn}
                 onClick={() => {
-                  const last = levels[levels.length - 1];
-                  setLevels([
-                    ...levels,
-                    {
-                      altitudeM: (last?.altitudeM ?? 0) + 300,
-                      speed: last?.speed ?? 0,
-                      directionDeg: last?.directionDeg ?? 90,
-                      stddev: last?.stddev ?? 0,
-                    },
-                  ]);
+                  addLevel();
                   onCommit?.();
                 }}
               >
@@ -297,7 +309,7 @@ export function WindProfileDialog({
               <button
                 className={btn}
                 onClick={() => {
-                  setLevels([initialLevel()]);
+                  replaceLevels([initialLevel()]);
                   setError(null);
                   onCommit?.();
                 }}

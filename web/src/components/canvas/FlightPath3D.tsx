@@ -1,17 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ComponentRef, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Line, Html } from '@react-three/drei';
 import type { ComponentNode, FlightResult, RocketTree } from '../../engine/openRocketEngine';
 import { num } from '../../tree/nodeProps';
-import { buildPieces, type MotorDims } from './Rocket3D';
+import { buildPieces, type Piece } from './Rocket3D';
 import { colorForType, mergePalette, type PartPalette } from '../../services/partColors';
 import { useSettings } from '../../state/SettingsProvider';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import { EVENT_LABEL } from '../../services/simReport';
-import { buildFlightScene } from './flightScene';
+import { buildFlightScene, indexForProgress, modelPoseAt, newModelPose, type FlightScene } from './flightScene';
+import { colorOf, type MotorDims } from './schematicGeometry';
 
 /**
  * 3D flight path (adapted from Vector Celeste's Flight3D, one better). Draws the
@@ -21,29 +22,41 @@ import { buildFlightScene } from './flightScene';
  * flame), then hanging under its actual recovery device (parachute sized to its
  * real diameter, or a streamer, or nothing) on descent. Event callouts, a live
  * HUD, and play · scrub · speed transport.
+ *
+ * Two clocks. The ANIMATION runs inside the canvas (`Playback`, a `useFrame`
+ * subscriber) and drives the model, flame, recovery device, trail and follow
+ * camera by mutating them from `progressRef`, so a frame costs a binary search
+ * and a few vector copies. REACT only hears about it at HUD_INTERVAL_MS: the
+ * slider, the readouts, the markers and the callouts re-render from the
+ * throttled `progress` state. The previous shape called setState from a rAF
+ * loop and re-rendered this whole tree - every piece mesh, every callout, a
+ * fresh Vector3/Quaternion pair, three new legend callbacks - sixty times a
+ * second, and needed a render-time ref cache just to keep the trail geometry
+ * from being re-uploaded per frame.
  */
 const MODEL_LEN = 1.6; // scene units the rocket model is scaled to — kept small vs the ~24u arc; the follow-cam makes it readable
 const PLAY_SECONDS = 8; // wall-clock length of a full 1× playback (time-based, so boost isn't slow)
-const UP = new THREE.Vector3(0, 1, 0);
+/** How often the frame loop hands React a progress sample for the HUD/slider. */
+const HUD_INTERVAL_MS = 100;
+const SPEEDS = [0.25, 0.5, 1, 2, 4];
 
 type Recovery =
   | { kind: 'parachute'; diameter: number; color: string }
   | { kind: 'streamer'; length: number; width: number; color: string }
   | null;
-const recColor = (n: ComponentNode, palette: PartPalette): string =>
-  typeof n.color === 'string' ? n.color : colorForType(n.type, palette);
 function findRecovery(tree: RocketTree, palette: PartPalette): Recovery {
   let found: Recovery = null;
+  const recColor = (n: ComponentNode) => colorOf(n, colorForType(n.type, palette));
   const walk = (nodes: ComponentNode[]) => {
     for (const n of nodes) {
       if (!found && n.type === 'parachute')
-        found = { kind: 'parachute', diameter: num(n, 'diameter', 0.3), color: recColor(n, palette) };
+        found = { kind: 'parachute', diameter: num(n, 'diameter', 0.3), color: recColor(n) };
       else if (!found && n.type === 'streamer')
         found = {
           kind: 'streamer',
           length: num(n, 'stripLength', 0.4),
           width: num(n, 'stripWidth', 0.05),
-          color: recColor(n, palette),
+          color: recColor(n),
         };
       if (n.children) walk(n.children);
     }
@@ -58,33 +71,27 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
   const { settings, update } = useSettings();
   const palette = useMemo(() => mergePalette(settings.partColors), [settings.partColors]);
   const phase = settings.phaseColors; // boost/coast/descent colors, from Settings
+  // The HUD/slider copy of playback progress. The frame loop owns the live
+  // value (progressRef) and refreshes this one at HUD_INTERVAL_MS; a scrub
+  // writes both at once.
   const [progress, setProgress] = useState(0);
   const [playing, setPlaying] = useState(false); // start on the pad; play → countdown → launch
   const [speed, setSpeed] = useState(settings.playbackSpeed); // seeded from the Settings default
   const [follow, setFollow] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [loop, setLoop] = useState(false);
-  /**
-   * Cache of the revealed path, keyed on the SAMPLE INDEX.
-   *
-   * The playback loop calls `setProgress` every frame, and slicing the points
-   * inline handed drei a brand-new array on each of them: `Line` rebuilds its
-   * LineGeometry whenever `points` changes, so a 60 fps playback of a
-   * multi-thousand-sample flight allocated, uploaded and disposed a full
-   * trajectory buffer sixty times a second - stuttering on exactly the long
-   * flights the view exists to show. The model still moves smoothly on the
-   * fractional progress; only the geometry is pinned to the index, which is
-   * the only thing that can actually change it.
-   *
-   * A ref rather than a useMemo because `idx` is computed after this
-   * component's early return, and a hook cannot live there.
-   */
-  const shownRef = useRef<{ key: unknown[]; pts: typeof scenePts; cols: typeof colors }>({
-    key: [],
-    pts: [],
-    cols: [],
-  });
   const progressRef = useRef(0);
+  // Scene objects the frame loop mutates directly.
+  const modelRef = useRef<THREE.Group>(null);
+  const flameRef = useRef<THREE.Group>(null);
+  const recoveryRef = useRef<THREE.Group>(null);
+  const trailRef = useRef<ComponentRef<typeof Line>>(null);
+  // Stable, so React attaches it once rather than re-running it (and hiding
+  // the trail again) on every HUD tick. The loop reveals the trail from here.
+  const attachTrail = useCallback((line: ComponentRef<typeof Line> | null) => {
+    trailRef.current = line;
+    if (line) line.visible = false;
+  }, []);
 
   const { pieces, totalLen, maxR } = useMemo(() => buildPieces(tree, motors, palette), [tree, motors, palette]);
   useEffect(
@@ -96,50 +103,59 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
   const modelScale = MODEL_LEN / Math.max(totalLen, 0.05);
   const recovery = useMemo(() => findRecovery(tree, palette), [tree, palette]);
 
-  const { colors, scenePts, apogeeIdx, deployT, burnoutT, times, alts, vels, callouts } = useMemo(
-    () => buildFlightScene(result, phase),
-    [result, phase],
-  );
+  const scene = useMemo(() => buildFlightScene(result, phase), [result, phase]);
+  const { colors, scenePts, apogeeIdx, times, alts, vels, callouts } = scene;
+  const n = scenePts.length;
 
-  useEffect(() => {
-    if (!playing || scenePts.length < 2) return;
-    let raf = 0,
-      last = performance.now();
-    const frame = (now: number) => {
-      const dt = (now - last) / 1000;
-      last = now;
-      let np = progressRef.current + (dt * speed) / PLAY_SECONDS;
-      if (np >= 1) {
-        if (loop)
-          np -= 1; // wrap → keep flying
-        else {
-          progressRef.current = 1;
-          setProgress(1);
-          setPlaying(false);
-          return;
-        } // stop at landing
-      }
-      progressRef.current = np;
-      setProgress(np);
-      raf = requestAnimationFrame(frame);
-    };
-    raf = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(raf);
-  }, [playing, speed, loop, scenePts.length]);
+  // Camera framing derives from the trajectory's peak. A loop, not
+  // Math.max(...spread), to survive long flights; memoized on the points so it
+  // is not re-walked on every HUD tick.
+  const maxY = useMemo(() => {
+    let m = 0;
+    for (const p of scenePts) if (p.y > m) m = p.y;
+    return m;
+  }, [scenePts]);
+  const home = useMemo(() => new THREE.Vector3(maxY * 1.15, maxY * 0.62, maxY * 1.4), [maxY]);
+  const midY = maxY / 2;
+  const followDist = MODEL_LEN * 3.4;
 
-  // T-minus countdown before the initial launch: 5→4→3→2→1, then play from t=0.
+  // The HUD's sample, from the throttled progress copy. Every hook sits above
+  // the empty-state return below so the hook count never changes.
+  const idx = useMemo(() => indexForProgress(times, progress), [times, progress]);
+  const nowT = times[idx] ?? 0;
+  const shownCallouts = useMemo(() => callouts.filter((c) => nowT >= c.time), [callouts, nowT]);
+
+  // T-minus countdown before the initial launch: 5→4→3→2→1, then play from
+  // t=0. The launch happens INSIDE the timer callback rather than in a
+  // follow-up effect keyed on `countdown <= 0`, so it is one state commit and
+  // there is no intermediate render showing "0".
   useEffect(() => {
     if (countdown === null) return;
-    if (countdown <= 0) {
+    const id = setTimeout(() => {
+      if (countdown > 1) {
+        setCountdown(countdown - 1);
+        return;
+      }
       setCountdown(null);
       progressRef.current = 0;
       setProgress(0);
       setPlaying(true);
-      return;
-    }
-    const id = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 900);
+    }, 900);
     return () => clearTimeout(id);
   }, [countdown]);
+
+  /** Scrub: the live value and the HUD copy move together. */
+  const seek = useCallback((v: number) => {
+    progressRef.current = v;
+    setProgress(v);
+  }, []);
+  // Stable callbacks for the frame loop and the legend, so neither re-subscribes
+  // per render.
+  const onTick = useCallback((p: number) => setProgress(p), []);
+  const onEnd = useCallback(() => setPlaying(false), []);
+  const setBoost = useCallback((c: string) => update({ phaseColors: { ...phase, boost: c } }), [update, phase]);
+  const setCoast = useCallback((c: string) => update({ phaseColors: { ...phase, coast: c } }), [update, phase]);
+  const setDescent = useCallback((c: string) => update({ phaseColors: { ...phase, descent: c } }), [update, phase]);
 
   const handlePlay = () => {
     if (countdown !== null) {
@@ -150,58 +166,22 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
       setPlaying(false);
       return;
     }
-    if (progress <= 0.001 || progress >= 0.999)
+    // The live value, not the throttled copy: the copy can lag by a tick.
+    const p = progressRef.current;
+    if (p <= 0.001 || p >= 0.999)
       setCountdown(5); // fresh launch (from pad or after landing)
     else setPlaying(true); // resume from a paused mid-flight
   };
   const handleReset = () => {
     setPlaying(false);
     setCountdown(null);
-    progressRef.current = 0;
-    setProgress(0);
+    seek(0);
   };
 
-  // Camera framing derives from the trajectory's peak. Computed BEFORE the early
-  // return so the useMemo below is never skipped — hook count must stay constant.
-  let maxY = 0; // loop, not Math.max(...spread), to survive long flights
-  for (const p of scenePts) if (p.y > maxY) maxY = p.y;
-  const home = useMemo(() => new THREE.Vector3(maxY * 1.15, maxY * 0.62, maxY * 1.4), [maxY]);
-
-  if (scenePts.length < 2) {
+  if (n < 2) {
     return <div className="grid h-full place-items-center text-sm text-slate-500">{t('sim.prompt')}</div>;
   }
 
-  const n = scenePts.length;
-  // progress is a fraction of *time* (not sample index): the sim packs most of its
-  // samples into the fast boost/coast, so index-based playback crawls. Map by time.
-  const totalT = times[n - 1] || 1;
-  let idx = 0;
-  while (idx < n - 1 && times[idx + 1]! <= progress * totalT) idx++;
-  const markerPos = scenePts[idx]!;
-  const nowT = times[idx] ?? 0;
-  const shownKey = [scenePts, colors, idx];
-  if (shownKey.some((v, i) => v !== shownRef.current.key[i])) {
-    shownRef.current = { key: shownKey, pts: scenePts.slice(0, idx + 1), cols: colors.slice(0, idx + 1) };
-  }
-  const shown = shownRef.current;
-
-  const descending = nowT >= deployT;
-  const boosting = nowT < burnoutT;
-  const midY = maxY / 2;
-  const followDist = MODEL_LEN * 3.4;
-
-  // Orient nose (local -X) along velocity, or hang nose-up once the chute is out.
-  const tangent = new THREE.Vector3().subVectors(scenePts[Math.min(n - 1, idx + 1)]!, scenePts[Math.max(0, idx - 1)]!);
-  if (tangent.lengthSq() < 1e-8) tangent.set(0, 1, 0);
-  else tangent.normalize();
-  const dir = descending ? UP : tangent;
-  const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(-1, 0, 0), dir);
-  // Center the model on the trajectory point so it straddles the path (its nose no
-  // longer shoots past the apogee marker), but lift it near the ground so it sits on
-  // the pad at launch instead of sinking half-under it.
-  const groupPos = markerPos.clone();
-  groupPos.y += Math.max(0, (MODEL_LEN / 2) * Math.abs(dir.y) - markerPos.y);
-  const noseWorld = groupPos.clone().addScaledVector(dir, MODEL_LEN / 2);
   const chuteR = recovery?.kind === 'parachute' ? Math.max(0.5, (recovery.diameter / 2) * modelScale) : 0;
 
   return (
@@ -214,58 +194,63 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
           <meshStandardMaterial color="#0b1724" roughness={1} metalness={0.05} />
         </mesh>
         <gridHelper args={[120, 60, '#33506a', '#18293a']} position={[0, 0.02, 0]} />
-        {/* Reveal the path only where the rocket has already flown; the rest stays hidden. */}
-        {idx >= 1 && <Line points={shown.pts} vertexColors={shown.cols} lineWidth={3} />}
+        {/* The whole path is uploaded ONCE; the frame loop reveals it segment by
+            segment through the geometry's instanceCount (a Line2 is instanced,
+            one instance per segment), so no buffer is rebuilt during playback.
+            Hidden on mount through the ref, NOT a `visible` prop: drei's Line
+            spreads its rest props onto the material as well, and a material
+            with visible=false is never drawn, whatever the loop later sets on
+            the object. */}
+        <Line ref={attachTrail} points={scenePts} vertexColors={colors} lineWidth={3} />
         <Marker pos={scenePts[0]!} color="#e2e8f0" />
         {idx >= apogeeIdx && <Marker pos={scenePts[apogeeIdx]!} color={phase.coast} />}
         {idx >= n - 1 && <Marker pos={scenePts[n - 1]!} color={phase.descent} />}
 
-        {callouts
-          .filter((c) => nowT >= c.time)
+        {shownCallouts.map((c) => (
           // Keyed by identity, not array index: the filtered list grows as the
           // flight plays, so index keys remounted every existing callout each
           // time a new one appeared.
-          .map((c) => (
-            <Html
-              key={`${c.type}@${c.time}`}
-              position={[c.pos.x, c.pos.y, c.pos.z]}
-              center
-              style={{ pointerEvents: 'none' }}
+          <Html
+            key={`${c.type}@${c.time}`}
+            position={[c.pos.x, c.pos.y, c.pos.z]}
+            center
+            // drei's default range starts at 16,777,271, which put every callout
+            // above every dialog in the app (they sit at z-50 to z-70): a
+            // "Burnout" tag drew through the Design Report. Keep the labels
+            // above the canvas and below anything modal.
+            zIndexRange={[10, 0]}
+            style={{ pointerEvents: 'none' }}
+          >
+            <div
+              data-flight-callout
+              className="whitespace-nowrap rounded bg-slate-900/85 px-1.5 py-0.5 text-[10px] font-medium text-amber-300 ring-1 ring-white/10"
             >
-              <div className="whitespace-nowrap rounded bg-slate-900/85 px-1.5 py-0.5 text-[10px] font-medium text-amber-300 ring-1 ring-white/10">
-                {t(EVENT_LABEL[c.type] ?? c.type)}
-              </div>
-            </Html>
-          ))}
+              {t(EVENT_LABEL[c.type] ?? c.type)}
+            </div>
+          </Html>
+        ))}
 
-        {/* The actual design model, flying along the path */}
-        <group position={groupPos} quaternion={quat} scale={modelScale}>
-          <group position={[-totalLen / 2, 0, 0]}>
-            {pieces.map((p) => (
-              <mesh
-                key={p.key}
-                geometry={p.geometry}
-                position={p.position ?? [0, 0, 0]}
-                rotation={p.rotation ?? [0, 0, 0]}
-              >
-                <meshStandardMaterial color={p.color} roughness={0.55} metalness={0.1} />
-              </mesh>
-            ))}
-            {boosting && <Flame len={totalLen} r={maxR} />}
-          </group>
+        <FlyingModel
+          groupRef={modelRef}
+          flameRef={flameRef}
+          pieces={pieces}
+          totalLen={totalLen}
+          maxR={maxR}
+          modelScale={modelScale}
+        />
+
+        {/* The recovery device hangs from the nose; the loop places this group
+            there and shows it once the flight is descending. */}
+        <group ref={recoveryRef} visible={false}>
+          {recovery?.kind === 'parachute' && <Parachute radius={chuteR} color={recovery.color} />}
+          {recovery?.kind === 'streamer' && (
+            <Streamer
+              length={recovery.length * modelScale}
+              width={recovery.width * modelScale}
+              color={recovery.color}
+            />
+          )}
         </group>
-
-        {descending && recovery?.kind === 'parachute' && (
-          <Parachute attach={noseWorld} radius={chuteR} color={recovery.color} />
-        )}
-        {descending && recovery?.kind === 'streamer' && (
-          <Streamer
-            attach={noseWorld}
-            length={recovery.length * modelScale}
-            width={recovery.width * modelScale}
-            color={recovery.color}
-          />
-        )}
 
         <OrbitControls
           makeDefault
@@ -274,7 +259,23 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
           minDistance={3}
           maxDistance={160}
         />
-        <CamRig follow={follow} point={markerPos} dist={followDist} midY={midY} home={home} />
+        <Playback
+          scene={scene}
+          playing={playing}
+          speed={speed}
+          loop={loop}
+          progressRef={progressRef}
+          modelRef={modelRef}
+          flameRef={flameRef}
+          recoveryRef={recoveryRef}
+          trailRef={trailRef}
+          follow={follow}
+          home={home}
+          midY={midY}
+          followDist={followDist}
+          onTick={onTick}
+          onEnd={onEnd}
+        />
       </Canvas>
 
       <div className="pointer-events-none absolute left-3 top-3 flex gap-3 rounded-lg bg-slate-900/80 px-3 py-2 text-xs ring-1 ring-white/10">
@@ -283,21 +284,9 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
         <Hud label={t('flight.time')} value={`${fmtNum(nowT, 1)} s`} />
       </div>
       <div className="pointer-events-none absolute right-3 top-3 flex flex-col gap-1 rounded-lg bg-slate-900/80 px-2 py-1.5 text-[10px] ring-1 ring-white/10">
-        <Legend
-          color={phase.boost}
-          label={t('flight.boost')}
-          onChange={(c) => update({ phaseColors: { ...phase, boost: c } })}
-        />
-        <Legend
-          color={phase.coast}
-          label={t('flight.coast')}
-          onChange={(c) => update({ phaseColors: { ...phase, coast: c } })}
-        />
-        <Legend
-          color={phase.descent}
-          label={t('flight.descent')}
-          onChange={(c) => update({ phaseColors: { ...phase, descent: c } })}
-        />
+        <Legend color={phase.boost} label={t('flight.boost')} onChange={setBoost} />
+        <Legend color={phase.coast} label={t('flight.coast')} onChange={setCoast} />
+        <Legend color={phase.descent} label={t('flight.descent')} onChange={setDescent} />
       </div>
       <div className="absolute inset-x-3 bottom-3 flex items-center gap-2 rounded-lg bg-slate-900/85 px-3 py-2 ring-1 ring-white/10">
         <button
@@ -336,9 +325,7 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
           value={progress}
           onChange={(e) => {
             setPlaying(false);
-            const v = parseFloat(e.target.value);
-            progressRef.current = v;
-            setProgress(v);
+            seek(parseFloat(e.target.value));
           }}
           className="min-w-0 flex-1 accent-sky-500"
         />
@@ -347,7 +334,7 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
           onChange={(e) => setSpeed(parseFloat(e.target.value))}
           className="shrink-0 rounded-md bg-slate-800 px-1.5 py-1 text-xs text-slate-200 ring-1 ring-white/10"
         >
-          {[0.25, 0.5, 1, 2, 4].map((s) => (
+          {SPEEDS.map((s) => (
             <option key={s} value={s}>
               {s === 0.25 ? '¼×' : s === 0.5 ? '½×' : `${s}×`}
             </option>
@@ -373,60 +360,178 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
   );
 }
 
+type OrbitLike = { target: THREE.Vector3; object: THREE.Object3D; update: () => void } | null;
+
 /**
- * Follow-cam. When `follow` is on, frames the flying model and tracks it by
+ * The frame loop. Advances `progressRef` while playing (time-based, so a
+ * fast boost is not slow), poses the model for that instant, reveals the
+ * trail, drives the follow camera, and hands React a throttled progress sample
+ * for the HUD. Everything it touches is a ref: a frame never renders React.
+ *
+ * Follow-cam: when `follow` is on, frames the flying model and tracks it by
  * translating the camera + orbit target by the model's per-frame delta (so the
  * user can still orbit/zoom relative to the rocket). When off, snaps back to a
  * whole-arc overview. Re-frames whenever the mode flips.
  */
-function CamRig({
+function Playback({
+  scene,
+  playing,
+  speed,
+  loop,
+  progressRef,
+  modelRef,
+  flameRef,
+  recoveryRef,
+  trailRef,
   follow,
-  point,
-  dist,
-  midY,
   home,
+  midY,
+  followDist,
+  onTick,
+  onEnd,
 }: {
+  scene: FlightScene;
+  playing: boolean;
+  speed: number;
+  loop: boolean;
+  progressRef: RefObject<number>;
+  modelRef: RefObject<THREE.Group | null>;
+  flameRef: RefObject<THREE.Group | null>;
+  recoveryRef: RefObject<THREE.Group | null>;
+  trailRef: RefObject<ComponentRef<typeof Line> | null>;
   follow: boolean;
-  point: THREE.Vector3;
-  dist: number;
-  midY: number;
   home: THREE.Vector3;
+  midY: number;
+  followDist: number;
+  onTick: (progress: number) => void;
+  onEnd: () => void;
 }) {
-  const controls = useThree((s) => s.controls) as {
-    target: THREE.Vector3;
-    object: THREE.Object3D;
-    update: () => void;
-  } | null;
-  const prev = useRef<THREE.Vector3 | null>(null);
-  const mode = useRef<boolean | null>(null);
-  useFrame(() => {
-    if (!controls) return;
-    if (mode.current !== follow) {
-      mode.current = follow;
-      if (follow) {
-        controls.target.copy(point);
-        controls.object.position.set(point.x + dist * 0.55, point.y + dist * 0.32, point.z + dist);
-        prev.current = point.clone();
-      } else {
-        controls.target.set(0, midY, 0);
-        controls.object.position.copy(home);
-        prev.current = null;
+  const controls = useThree((s) => s.controls) as OrbitLike;
+  const pose = useMemo(() => newModelPose(), []);
+  const camPrev = useRef<THREE.Vector3 | null>(null);
+  const camMode = useRef<boolean | null>(null);
+  const hud = useRef({ at: 0, idx: -1 });
+  const camDelta = useMemo(() => new THREE.Vector3(), []);
+
+  useFrame((_, dt) => {
+    const { scenePts, times, deployT, burnoutT } = scene;
+    const n = scenePts.length;
+    let p = progressRef.current;
+    let ended = false;
+    if (playing && n >= 2) {
+      p += (dt * speed) / PLAY_SECONDS;
+      if (p >= 1) {
+        if (loop)
+          p -= 1; // wrap → keep flying
+        else {
+          p = 1;
+          ended = true; // stop at landing
+        }
       }
-      controls.update();
-      return;
+      progressRef.current = p;
     }
-    if (follow && prev.current) {
-      const d = new THREE.Vector3().subVectors(point, prev.current);
-      if (d.lengthSq() > 1e-9) {
-        controls.object.position.add(d);
-        controls.target.add(d);
+
+    const idx = indexForProgress(times, p);
+    const nowT = times[idx] ?? 0;
+    const descending = nowT >= deployT;
+    modelPoseAt(scenePts, idx, descending, MODEL_LEN, pose);
+    const model = modelRef.current;
+    if (model) {
+      model.position.copy(pose.position);
+      model.quaternion.copy(pose.quaternion);
+    }
+    if (flameRef.current) flameRef.current.visible = nowT < burnoutT;
+    const rec = recoveryRef.current;
+    if (rec) {
+      rec.visible = descending;
+      rec.position.copy(pose.nose);
+    }
+    const trail = trailRef.current;
+    if (trail) {
+      // Reveal the path only where the rocket has already flown: `idx`
+      // segments out of the n-1 the geometry holds.
+      trail.visible = idx >= 1;
+      (trail.geometry as THREE.InstancedBufferGeometry).instanceCount = Math.max(0, Math.min(idx, n - 1));
+    }
+
+    // Camera.
+    const point = scenePts[idx];
+    if (controls && point) {
+      if (camMode.current !== follow) {
+        camMode.current = follow;
+        if (follow) {
+          controls.target.copy(point);
+          controls.object.position.set(point.x + followDist * 0.55, point.y + followDist * 0.32, point.z + followDist);
+          camPrev.current = point.clone();
+        } else {
+          controls.target.set(0, midY, 0);
+          controls.object.position.copy(home);
+          camPrev.current = null;
+        }
         controls.update();
+      } else if (follow && camPrev.current) {
+        camDelta.subVectors(point, camPrev.current);
+        if (camDelta.lengthSq() > 1e-9) {
+          controls.object.position.add(camDelta);
+          controls.target.add(camDelta);
+          controls.update();
+        }
+        camPrev.current.copy(point);
       }
-      prev.current.copy(point);
+    }
+
+    // Throttled HUD sample: on a timer while playing, plus the landing frame.
+    if (ended) {
+      hud.current = { at: performance.now(), idx };
+      onTick(p);
+      onEnd();
+    } else if (playing) {
+      const now = performance.now();
+      if (now - hud.current.at >= HUD_INTERVAL_MS || (idx === n - 1 && hud.current.idx !== idx)) {
+        hud.current = { at: now, idx };
+        onTick(p);
+      }
     }
   });
   return null;
 }
+
+/**
+ * The actual design model, flying along the path. Memoized: its parent
+ * re-renders on every HUD tick, and this is the one subtree with a mesh per
+ * piece. The frame loop moves it through `groupRef` and lights the flame
+ * through `flameRef`.
+ */
+const FlyingModel = memo(function FlyingModel({
+  groupRef,
+  flameRef,
+  pieces,
+  totalLen,
+  maxR,
+  modelScale,
+}: {
+  groupRef: RefObject<THREE.Group | null>;
+  flameRef: RefObject<THREE.Group | null>;
+  pieces: Piece[];
+  totalLen: number;
+  maxR: number;
+  modelScale: number;
+}) {
+  return (
+    <group ref={groupRef} scale={modelScale}>
+      <group position={[-totalLen / 2, 0, 0]}>
+        {pieces.map((p) => (
+          <mesh key={p.key} geometry={p.geometry} position={p.position ?? [0, 0, 0]} rotation={p.rotation ?? [0, 0, 0]}>
+            <meshStandardMaterial color={p.color} roughness={0.55} metalness={0.1} />
+          </mesh>
+        ))}
+        <group ref={flameRef} visible={false}>
+          <Flame len={totalLen} r={maxR} />
+        </group>
+      </group>
+    </group>
+  );
+});
 
 /** Rocket-blast flame: the cone's POINT sits at the nozzle and it flares WIDE below,
  *  hottest (white) at the tip, orange out at the flared base. Vertex-colored along the
@@ -474,8 +579,9 @@ function Flame({ len, r }: { len: number; r: number }) {
   );
 }
 
-/** Canopy (hemisphere) + shroud lines, sized to the real chute diameter. */
-function Parachute({ attach, radius, color }: { attach: THREE.Vector3; radius: number; color: string }) {
+/** Canopy (hemisphere) + shroud lines, sized to the real chute diameter.
+ *  Local origin = the attachment point (the nose); the canopy sits `drop` above. */
+function Parachute({ radius, color }: { radius: number; color: string }) {
   const drop = radius * 1.4;
   const strings = useMemo(
     () =>
@@ -489,7 +595,7 @@ function Parachute({ attach, radius, color }: { attach: THREE.Vector3; radius: n
     [radius, drop],
   );
   return (
-    <group position={[attach.x, attach.y + drop, attach.z]}>
+    <group position={[0, drop, 0]}>
       <mesh>
         <sphereGeometry args={[radius, 22, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
         <meshStandardMaterial color={color} side={THREE.DoubleSide} transparent opacity={0.92} roughness={0.85} />
@@ -501,18 +607,8 @@ function Parachute({ attach, radius, color }: { attach: THREE.Vector3; radius: n
   );
 }
 
-/** A fluttering ribbon streamer trailing above the rocket. */
-function Streamer({
-  attach,
-  length,
-  width,
-  color,
-}: {
-  attach: THREE.Vector3;
-  length: number;
-  width: number;
-  color: string;
-}) {
+/** A fluttering ribbon streamer trailing above the rocket (local origin = the nose). */
+function Streamer({ length, width, color }: { length: number; width: number; color: string }) {
   const w = Math.max(0.15, width),
     L = Math.max(1.5, length);
   const geo = useMemo(() => {
@@ -531,7 +627,7 @@ function Streamer({
   // buildPieces all dispose; this was the omission.
   useEffect(() => () => geo.dispose(), [geo]);
   return (
-    <group position={[attach.x, attach.y + L / 2, attach.z]}>
+    <group position={[0, L / 2, 0]}>
       <mesh geometry={geo} rotation={[0, 0.5, 0]}>
         <meshStandardMaterial color={color} side={THREE.DoubleSide} roughness={0.8} metalness={0} />
       </mesh>
@@ -564,7 +660,8 @@ function Legend({ color, label, onChange }: { color: string; label: string; onCh
   // closes with a new value, whereas React's `onChange` maps to `input` and
   // fires on every drag tick. Closing the picker with its own OK does not
   // always move focus, so blur alone left the swatch showing the old color
-  // until something else took focus.
+  // until something else took focus. `onChange` is a stable useCallback from
+  // the parent, so this subscribes once per color rather than once per render.
   useEffect(() => {
     const el = ref.current;
     if (!el) return;

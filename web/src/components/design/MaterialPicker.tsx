@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { builtinsForType, materialsForType, addCustom, removeCustom } from '../../services/materials';
 import type { Material, MaterialType } from '../../data/materials';
 import { UnitChip } from '../common/UnitChip';
+import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope, type Quantity } from '../../prefs/units';
 
@@ -40,7 +41,8 @@ export function MaterialPicker({
   const [mats, setMats] = useState<Material[]>(() => builtinsForType(type));
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
-  const [dens, setDens] = useState('');
+  // In the field's unit; converted to SI on save. null while empty.
+  const [dens, setDens] = useState<number | null>(null);
   const [addErr, setAddErr] = useState<string | null>(null);
   // Deleting can fail too, now that the material store reports a refused write
   // instead of swallowing it. `addErr` renders only inside the add form, so a
@@ -101,7 +103,7 @@ export function MaterialPicker({
 
   const submitCustom = async () => {
     try {
-      const next = await addCustom(name, type, fu.fromUi(parseFloat(dens)));
+      const next = await addCustom(name, type, dens == null ? NaN : fu.fromUi(dens));
       const list = await materialsForType(type);
       if (!mounted.current) return; // see deleteCurrentCustom
       setMats(list);
@@ -109,7 +111,7 @@ export function MaterialPicker({
       if (added) onChange(added.name, added.density);
       setAdding(false);
       setName('');
-      setDens('');
+      setDens(null);
       setAddErr(null);
     } catch (e) {
       setAddErr(e instanceof Error ? e.message : String(e));
@@ -120,8 +122,11 @@ export function MaterialPicker({
     if (!current?.custom) return;
     try {
       await removeCustom(current.name, type);
-    } catch {
-      setDelErr(t('storage.full'));
+    } catch (e) {
+      // The store's own message: a refused write is not always "storage
+      // full", and saying so for every failure sent people deleting designs
+      // to make room that was never short.
+      setDelErr(e instanceof Error ? e.message : String(e));
       return; // the material is still there; do not tell the user otherwise
     }
     setDelErr(null);
@@ -180,14 +185,16 @@ export function MaterialPicker({
             placeholder={t('material.namePlaceholder')}
             className="w-full rounded bg-slate-900 px-2 py-1.5 text-sm ring-1 ring-white/10 placeholder:text-slate-500"
           />
-          <input
+          {/* NumberInput, not a raw <input> + parseFloat: the same draft
+              handling every other numeric field has, and the value arrives
+              as a number in the field's unit. */}
+          <NumberInput
             value={dens}
-            onChange={(e) => setDens(e.target.value)}
-            type="number"
+            onChange={setDens}
             min={0}
-            step="any"
+            step={fu.step(10)}
             placeholder={`${t('material.densityPlaceholder')} (${fu.sym})`}
-            aria-label={`${t('material.densityPlaceholder')} (${fu.sym})`}
+            ariaLabel={`${t('material.densityPlaceholder')} (${fu.sym})`}
             className="w-full rounded bg-slate-900 px-2 py-1.5 text-sm tabular-nums ring-1 ring-white/10 placeholder:text-slate-500"
           />
           {addErr && <p className="text-xs text-red-400">{addErr}</p>}

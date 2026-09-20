@@ -2,6 +2,7 @@
 title: "Contributing"
 sidebar_position: 13
 ---
+
 Hi, and thanks for your interest in AstraRocketJs! 😊 Whether you want to write code, hunt bugs, translate, or help in any other way, this guide will get you started.
 
 AstraRocketJs is a **lightweight web UI over the real OpenRocket engine** — the physics is OpenRocket's, compiled to WebAssembly + JavaScript; the app around it is ours. Most contributions live in the web app. (To save keystrokes, we'll abbreviate the project as **ARJ**.)
@@ -9,6 +10,7 @@ AstraRocketJs is a **lightweight web UI over the real OpenRocket engine** — th
 By participating you agree to our **[Code of Conduct](https://github.com/thzero/AstraRocketJs/blob/HEAD/CODE_OF_CONDUCT.md)** — be kind and constructive.
 
 #### Contents
+
 - [Testing](#testing) — [Reporting bugs](#reporting-bugs) · [Suggesting features](#suggesting-new-features)
 - [Development](#development) — [Project layout](#project-layout) · [Getting started](#getting-started) · [Working on the engine](#working-on-the-engine) · [Catalog tools](#catalog-tools) · [Commit etiquette](#commit-etiquette) · [Pull requests](#pull-requests)
 - [Maintainer tasks](#maintainer-tasks)
@@ -32,7 +34,7 @@ A screenshot or screen recording helps a lot.
 
 ### Suggesting new features
 
-Open an issue prefixed with **[Feature Request]**. Explain the behavior you'd like and why it matters. Keep in mind ARJ is intentionally a *focused* interface, not a full re-creation of OpenRocket's desktop app — features that fit that scope are the easiest sell.
+Open an issue prefixed with **[Feature Request]**. Explain the behavior you'd like and why it matters. Keep in mind ARJ is intentionally a _focused_ interface, not a full re-creation of OpenRocket's desktop app — features that fit that scope are the easiest sell.
 
 ## Development
 
@@ -70,6 +72,7 @@ npm run preview      # serve the production build locally
 npm run test         # Vitest: unit tests (.test.ts) and component tests (.test.tsx)
 npm run test:watch   # Vitest in watch mode while developing
 npm run e2e          # Playwright end-to-end smoke tests (downloads Chromium the first time)
+npm run verify       # every gate CI runs on the web app: format, spell, typecheck, lint, knip, test
 ```
 
 Please **verify UI changes in a real browser**, not just that it compiles.
@@ -93,7 +96,7 @@ Most contributions don't touch the engine. If you do:
   node build-engine.mjs           # builds + vendors BOTH targets (the default)
   ```
 
-- **Commit the Java change and *both* regenerated artifacts (`.mjs` + `.wasm`) together** — they must stay in sync, or the app runs stale physics (and the two backends must match).
+- **Commit the Java change and _both_ regenerated artifacts (`.mjs` + `.wasm`) together** — they must stay in sync, or the app runs stale physics (and the two backends must match).
 
 ### Catalog tools
 
@@ -120,9 +123,9 @@ The contributor list is the exception: the Pages deploy re-runs `sync-contributo
 
 ### Commit etiquette
 
-- Use **atomic commits**: one logical change per commit. Fixing a bug *and* spotting a typo elsewhere? Two commits.
+- Use **atomic commits**: one logical change per commit. Fixing a bug _and_ spotting a typo elsewhere? Two commits.
 - Give commits **useful names**. If there's an issue, prefix with it: `[#123] Fix stability when fins are swept aft`. The `#123` auto-links the issue.
-- A short subject plus a body explaining *why/how* is ideal.
+- A short subject plus a body explaining _why/how_ is ideal.
 
 ### Pull requests
 
@@ -132,16 +135,18 @@ Open a PR from your branch to **`master`**. In the description:
 2. The underlying cause.
 3. How you fixed it.
 
-Make sure `npm run build` and `npm run test` pass, and that you've checked the change in the browser. Add or update tests for any logic you touch under `web/src/services` or `web/src/engine`. Keep engine `.mjs`/`.wasm` regenerations in the same PR as their Java changes.
+Make sure `npm run verify` passes (it runs the same gates CI does, in the same order), and that you've checked the change in the browser. Add or update tests for any logic you touch under `web/src/services` or `web/src/engine`. Keep engine `.mjs`/`.wasm` regenerations in the same PR as their Java changes.
 
 What CI gates on the PR itself:
 
-| Workflow | Runs | When |
-| --- | --- | --- |
-| `parity` | `npm run parity`, then a rebuild compared against the committed binaries | first |
-| `reproducible` | `npm run extract:check` against the pinned OpenRocket | first |
-| `build-and-test` | `format:check`, `spell`, `test:coverage`, `build`, `knip` | after the two above |
-| `e2e` | Playwright, sharded three ways | after the two above |
+| Workflow         | Runs                                                                     | When                      |
+| ---------------- | ------------------------------------------------------------------------ | ------------------------- |
+| `parity`         | `npm run parity`, then a rebuild compared against the committed binaries | first                     |
+| `reproducible`   | `npm run extract:check` against the pinned OpenRocket                    | first                     |
+| `build-and-test` | `npm run verify` with coverage, then `vite build`                        | in parallel with `parity` |
+| `e2e`            | Playwright, sharded three ways                                           | in parallel with `parity` |
+
+Pushes to `dev` run only the web gates (`dev.yml`, about two minutes), so a broken test shows up on the push that broke it rather than when the PR to `master` is opened.
 
 The Docusaurus site is **not** built on a PR. It is typechecked and built in `deploy.yml` on merge to `master`, so a broken MDX page or `sidebars.ts` shows up as a failed deploy rather than a failed PR check.
 
@@ -151,11 +156,11 @@ On merge, `deploy.yml` runs those gates and only then typechecks and builds the 
 
 ### Which kind of test
 
-| | For | Example |
-| --- | --- | --- |
-| **`.test.ts`** (Vitest, node) | Pure logic: parsers, transforms, conversions, stores. Most tests are these. | `prefs/units.test.ts` |
-| **`.test.tsx`** (Vitest + React Testing Library, jsdom) | A rule that lives in a component and has no service to test instead. | `components/common/UnitChip.test.tsx` |
-| **`e2e/*.spec.ts`** (Playwright) | Whole journeys, and anything needing the real engine, layout or persistence across a reload. | `e2e/units.spec.ts` |
+|                                                         | For                                                                                          | Example                               |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------- |
+| **`.test.ts`** (Vitest, node)                           | Pure logic: parsers, transforms, conversions, stores. Most tests are these.                  | `prefs/units.test.ts`                 |
+| **`.test.tsx`** (Vitest + React Testing Library, jsdom) | A rule that lives in a component and has no service to test instead.                         | `components/common/UnitChip.test.tsx` |
+| **`e2e/*.spec.ts`** (Playwright)                        | Whole journeys, and anything needing the real engine, layout or persistence across a reload. | `e2e/units.spec.ts`                   |
 
 Component tests render through `src/testing/renderWithProviders.tsx`, which wraps the component in the app's providers and initializes real translations — so assertions read the strings a user actually sees, and a renamed i18n key fails a test instead of showing a raw key on screen. Seed preferences with `seedSettings({ … })` before rendering and read back what a component wrote with `readSettings()`.
 
@@ -228,4 +233,4 @@ If your change affects behavior — or the architecture — that contributors or
 
 ---
 
-*Got a knack for tutorials, design, or spreading the word? Go for it — help in any shape or form is appreciated. 🙃 Not sure where to start? Open a discussion or ask on an issue.*
+_Got a knack for tutorials, design, or spreading the word? Go for it — help in any shape or form is appreciated. 🙃 Not sure where to start? Open a discussion or ask on an issue._

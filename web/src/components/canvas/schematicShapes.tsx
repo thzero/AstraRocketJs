@@ -7,10 +7,11 @@ import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { DISPLAY_NAME } from '../../tree/schema.js';
 import { assemblyChainLength, isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
-import { axialStart, finTabFront, profilePath, type Ctx } from './schematicGeometry';
+import { axialStart, colorOf, finTabFront, profilePath, unionBox, type Ctx, type HoverBox } from './schematicGeometry';
 
-const fillOf = (n: ComponentNode, dflt: string): string =>
-  typeof n['color'] === 'string' ? (n['color'] as string) : dflt;
+// The one shared override rule (schematicGeometry.colorOf), under the name this
+// file has always used it by.
+const fillOf = colorOf;
 
 /**
  * One drawn instance of a fin set in the side view. `p` is the foreshortening
@@ -43,9 +44,17 @@ export interface SchematicShapesCfg {
   selectedId?: string | null;
   onSelect?: (id: string) => void;
   setHoverId: React.Dispatch<React.SetStateAction<string | null>>;
-  hoverId: string | null;
+  /** Display name for an unnamed part (the tree panel's translated type name).
+   *  Absent = the untranslated schema label. */
+  partName?: (n: ComponentNode) => string;
   textUp: (x: number, y: number) => { transform?: string };
 }
+
+/** What the scene knows about one component's drawn footprint, keyed by node
+ *  id: its extent (unioned across cluster copies and pod rings) and the name
+ *  its hover tag prints. Built once per scene; the hovered id is resolved
+ *  against it OUTSIDE the scene memo, so hover never rebuilds the drawing. */
+export type HoverExtents = Map<string, { box: HoverBox; name: string }>;
 
 /**
  * Builds the airframe shapes for the 2D schematic — the axial nose→tail chain
@@ -60,12 +69,11 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   wires: React.ReactNode[];
   /** clipPath defs for the airframe-band cuts (paint inside the svg's <defs>). */
   clipDefs: React.ReactNode[];
-  hoverBox: { x0: number; y0: number; x1: number; y1: number } | null;
-  hoverTag: { x: number; y: number; tw: number } | null;
-  hoverName: string;
+  /** Every drawn component's extent and display name, for the hover overlay. */
+  extents: HoverExtents;
 } {
-  const { chain, ctx, scale, w, h, roll, uid, motors, vertical, selectedId, onSelect, setHoverId, hoverId, textUp } =
-    cfg;
+  const { chain, ctx, scale, roll, uid, motors, vertical, selectedId, onSelect, setHoverId, textUp } = cfg;
+  const nameOf = (n: ComponentNode): string => n.name ?? cfg.partName?.(n) ?? DISPLAY_NAME[n.type];
 
   // Selection sync: click any drawn component to select it in the tree; the
   // selected component draws with an accent outline.
@@ -191,19 +199,23 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
     noteHover(n, x0, Math.min(...ys), x1, Math.max(...ys));
   };
 
-  // Hovered component's drawn extent (layout px), unioned across instances
-  // (cluster copies, pod rings) as the shapes render.
-  const hoverBoxes: { x0: number; y0: number; x1: number; y1: number }[] = [];
-  let hoverName = '';
+  // Every component's drawn extent (layout px), unioned across instances
+  // (cluster copies, pod rings) as the shapes render. Recorded for ALL parts,
+  // not just the hovered one: this used to filter on the hovered id, which
+  // made the id an input of the whole scene build, so every hover enter and
+  // leave rebuilt every shape. A few dozen boxes per scene is nothing next to
+  // that.
+  const extents: HoverExtents = new Map();
   const noteHover = (n: ComponentNode, x0: number, y0: number, x1: number, y1: number) => {
-    if (!hoverId || n.id !== hoverId) return;
-    hoverName = n.name ?? DISPLAY_NAME[n.type];
-    hoverBoxes.push({
+    if (!n.id) return;
+    const box: HoverBox = {
       x0: Math.min(x0, x1),
       y0: Math.min(y0, y1),
       x1: Math.max(x0, x1),
       y1: Math.max(y0, y1),
-    });
+    };
+    const prev = extents.get(n.id);
+    extents.set(n.id, { box: prev ? unionBox(prev.box, box) : box, name: nameOf(n) });
   };
 
   // Loaded motor case (S5): launch-orange tint at the real case size, with
@@ -655,7 +667,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
               strokeDasharray="3 2"
               {...grab}
             >
-              <title>{child.name ?? DISPLAY_NAME[child.type]}</title>
+              <title>{nameOf(child)}</title>
             </rect>,
           );
           // Miniature glyphs (Eric's pick, 2026-08-05b #21): a picture inside
@@ -876,27 +888,5 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
 
   renderChain(chain, 0, ctx.cy);
 
-  // Hover overlay (S5): a light accent wash over the hovered component's
-  // extent plus a name tag — deliberately fainter than the solid width-2
-  // selection outline so the two stay distinguishable.
-  const hoverBox = hoverBoxes.length
-    ? hoverBoxes.reduce((a, b) => ({
-        x0: Math.min(a.x0, b.x0),
-        y0: Math.min(a.y0, b.y0),
-        x1: Math.max(a.x1, b.x1),
-        y1: Math.max(a.y1, b.y1),
-      }))
-    : null;
-  let hoverTag: { x: number; y: number; tw: number } | null = null;
-  if (hoverBox) {
-    const tw = hoverName.length * 6.2 + 14;
-    hoverTag = {
-      x: Math.min(w - tw / 2 - 2, Math.max(tw / 2 + 2, (hoverBox.x0 + hoverBox.x1) / 2)),
-      // Above the component unless that leaves the viewBox; then below.
-      y: hoverBox.y0 - 22 >= 2 ? hoverBox.y0 - 13 : Math.min(h - 11, hoverBox.y1 + 13),
-      tw,
-    };
-  }
-
-  return { shapes, overlay, wires, clipDefs, hoverBox, hoverTag, hoverName };
+  return { shapes, overlay, wires, clipDefs, extents };
 }

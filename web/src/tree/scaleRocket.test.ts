@@ -170,3 +170,29 @@ describe('scaleRocket', () => {
     expect(rocketLength(t)).toBeCloseTo(0.4); // 0.1 nose + 0.3 body
   });
 });
+
+describe('scaleRocket reads positions through positionOf', () => {
+  it('normalizes a string offset to the kernel default instead of carrying it through', () => {
+    const t = {
+      components: [
+        {
+          type: 'stage',
+          id: 's',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'b',
+              length: 0.2,
+              children: [{ type: 'bulkhead', id: 'k', length: 0.002, position: { method: 'sideways', offset: '0.1' } }],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    const out = scaleRocket(t, 2);
+    const k = out.components[0]!.children![0]!.children![0]!;
+    // Unknown method and string offset both fall back to the kernel's top / 0
+    // (nodeProps.positionOf), so the scaled tree is one the layout can read.
+    expect(k.position).toEqual({ method: 'top', offset: 0 });
+  });
+});

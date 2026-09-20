@@ -1,6 +1,9 @@
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import { num } from '../tree/nodeProps';
 import { finCutContour, finRootChord } from '../tree/finPlanform';
+// Shared with the .ork reader and writer, so a part that lost a tag is cut at
+// the size it was read and saved as (the engine-block wall used to differ).
+import { COMPONENT_DEFAULTS } from './componentDefaults';
 
 /**
  * DXF export — the 2D CNC/laser boundary for a rocket's FLAT, plate-cut parts:
@@ -94,8 +97,8 @@ function finPart(node: ComponentNode, pRadius: number): Part | null {
   // count, and spreading a >100k-point freeform fin into Math.max dies with an
   // opaque "Maximum call stack size exceeded" instead of exporting.
   const span = outline.reduce((m, p) => (p.y > m ? p.y : m), -Infinity);
-  const count = Math.round(num(node, 'finCount', 3));
-  const thickness = num(node, 'thickness', 0.003);
+  const count = Math.round(num(node, 'finCount', COMPONENT_DEFAULTS.finset.finCount));
+  const thickness = num(node, 'thickness', COMPONENT_DEFAULTS.finset.thickness);
   const labels = [
     `${node.name || label}${count ? ` (cut ${count})` : ''}`,
     `root ${dim(root)} mm | span ${dim(span)} mm | stock ${dim(thickness)} mm`,
@@ -128,13 +131,18 @@ function tubeRadii(node: ComponentNode): Tube | null {
   const t = node.type;
   if (t === 'bodytube' || t === 'innertube' || t === 'tubecoupler') {
     const or = num(node, 'outerRadius', NaN);
-    if (!Number.isNaN(or)) return { outerR: or, innerR: Math.max(0, or - num(node, 'thickness', 0.001)) };
+    if (!Number.isNaN(or))
+      return { outerR: or, innerR: Math.max(0, or - num(node, 'thickness', COMPONENT_DEFAULTS.bodytube.thickness)) };
   } else if (t === 'nosecone') {
     const ar = num(node, 'aftRadius', NaN);
-    if (!Number.isNaN(ar)) return { outerR: ar, innerR: Math.max(0, ar - num(node, 'thickness', 0.002)) };
+    if (!Number.isNaN(ar)) {
+      return { outerR: ar, innerR: Math.max(0, ar - num(node, 'thickness', COMPONENT_DEFAULTS.nosecone.thickness)) };
+    }
   } else if (t === 'transition') {
     const or = Math.max(num(node, 'aftRadius', 0), num(node, 'foreRadius', 0));
-    if (or > 0) return { outerR: or, innerR: Math.max(0, or - num(node, 'thickness', 0.002)) };
+    if (or > 0) {
+      return { outerR: or, innerR: Math.max(0, or - num(node, 'thickness', COMPONENT_DEFAULTS.transition.thickness)) };
+    }
   }
   return null;
 }
@@ -366,16 +374,22 @@ export function resolveDisc(
   const ctx = nodeContext(tree, nodeId);
   if (!ctx) return null;
   const { node, enclosing, siblings } = ctx;
-  const length = num(node, 'length', 0.003);
   const outerR = plateOuter(node, enclosing);
-  if (node.type === 'bulkhead') return { outerR, innerR: 0, length };
+  if (node.type === 'bulkhead') {
+    return { outerR, innerR: 0, length: num(node, 'length', COMPONENT_DEFAULTS.bulkhead.length) };
+  }
   if (node.type === 'centeringring') {
     const bore = num(node, 'innerRadius', NaN);
     const innerR = Number.isNaN(bore) ? (mountBore(siblings) ?? 0) : bore;
-    return { outerR, innerR, length };
+    return { outerR, innerR, length: num(node, 'length', COMPONENT_DEFAULTS.centeringring.length) };
   }
   if (node.type === 'tubecoupler' || node.type === 'engineblock') {
-    const wall = num(node, 'thickness', node.type === 'engineblock' ? 0.00095 : 0.0005);
+    const wall = num(
+      node,
+      'thickness',
+      node.type === 'engineblock' ? COMPONENT_DEFAULTS.engineblock.thickness : COMPONENT_DEFAULTS.tubecoupler.thickness,
+    );
+    const length = num(node, 'length', node.type === 'engineblock' ? COMPONENT_DEFAULTS.engineblock.length : 0.003);
     return { outerR, innerR: Math.max(0, outerR - wall), length };
   }
   return null;

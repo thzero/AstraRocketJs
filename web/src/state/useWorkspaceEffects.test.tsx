@@ -16,7 +16,8 @@ import { act, cleanup } from '@testing-library/react';
 const load = vi.hoisted(() => vi.fn());
 const save = vi.hoisted(() => vi.fn());
 const saveSync = vi.hoisted(() => vi.fn());
-vi.mock('../services/workspaceStore', () => ({
+vi.mock('../services/workspaceStore', async (orig) => ({
+  ...(await orig<typeof import('../services/workspaceStore')>()),
   getWorkspaceStore: () => ({ load, save, saveSync }),
 }));
 

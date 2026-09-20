@@ -1,13 +1,4 @@
-import { test, expect, type Page } from './base';
-
-const rows = (page: Page, table = 0) =>
-  page.evaluate(
-    (k) =>
-      [...(document.querySelectorAll('table')[k]?.querySelectorAll('tr') ?? [])].map((tr) =>
-        [...tr.children].map((c) => (c.textContent || '').trim()),
-      ),
-    table,
-  );
+import { test, expect, tableRows, defined } from './base';
 
 /**
  * Two components can share a name, and by default they do: nothing forces a
@@ -38,7 +29,7 @@ test('two parts sharing a name are two rows, not one merged one', async ({ page 
   await page.getByRole('button', { name: 'Per component', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Drag by component' })).toBeVisible();
 
-  const r = await rows(page);
+  const r = await tableRows(page, 'Drag by component');
   // Two rows, not one merged one. Before the fix these summed into a single row
   // whose Cd covered both parts and whose CP belonged to neither.
   const named = r.filter((x) => x[0] === 'Twin');
@@ -46,8 +37,13 @@ test('two parts sharing a name are two rows, not one merged one', async ({ page 
 
   // And the rows still account for the whole rocket — the split must not have
   // double-counted or dropped anything.
-  const cd = r[0]!.indexOf('Cd');
-  const total = Number(r.find((x) => x[0] === 'Whole rocket')![cd]);
+  const cd = defined(r[0], 'the drag table header row').indexOf('Cd');
+  const total = Number(
+    defined(
+      r.find((x) => x[0] === 'Whole rocket'),
+      'the Whole rocket row',
+    )[cd],
+  );
   const sum = r
     .slice(1)
     .filter((x) => x[0] !== 'Whole rocket')

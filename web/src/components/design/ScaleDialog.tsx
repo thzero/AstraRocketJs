@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFocusTrap } from '../common/useFocusTrap';
 import { useWorkspaceStore } from '../../state/store';
@@ -9,18 +9,17 @@ import { unitScope } from '../../prefs/units';
 import { maxBodyDiameter, rocketLength } from '../../tree/scaleRocket';
 
 /**
- * Scale the whole rocket by one factor — every length, diameter, wall, fin
+ * Scale the whole rocket by one factor: every length, diameter, wall, fin
  * planform and axial position multiplied together, applied as a single undoable
  * step (see the store's {@link scaleDesign}). Two linked entry points, the way
  * builders think about it: a bare FACTOR ("make it half size"), or a TARGET
- * body diameter ("I have 4-inch tube — what does this 2.6-inch plan become?").
+ * body diameter ("I have 4-inch tube; what does this 2.6-inch plan become?").
+ *
+ * Mounted only while open (`{open && <ScaleDialog />}`), so the factor starts
+ * fresh at 2x each time by construction.
  */
-export function ScaleDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  // Tab stays inside the modal, and focus returns to the trigger on close.
-  // Seven dialogs declared aria-modal and had neither, so Tab walked straight
-  // out into the page behind the overlay — the exact gap useFocusTrap exists
-  // to close, already used by seven of their siblings.
-  const panelRef = useFocusTrap<HTMLDivElement>(open);
+export function ScaleDialog({ onClose }: { onClose: () => void }) {
+  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
   const { t } = useTranslation();
   const u = useUnits();
   // The typed target diameter and the before/after summary read the same unit;
@@ -34,20 +33,6 @@ export function ScaleDialog({ open, onClose }: { open: boolean; onClose: () => v
   const baseD = maxBodyDiameter(tree); // m
   const baseL = rocketLength(tree); // m
 
-  // Start fresh at 2× each time it opens; Escape closes.
-  useEffect(() => {
-    if (open) setFactor(2);
-  }, [open]);
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
   const pct = (factor * 100).toFixed(0);
   const usable = Number.isFinite(factor) && factor > 0 && factor !== 1 && baseD > 0;
   const apply = () => {
@@ -113,11 +98,15 @@ export function ScaleDialog({ open, onClose }: { open: boolean; onClose: () => v
                 <label className="w-28 shrink-0 text-xs font-medium uppercase tracking-wide text-slate-400">
                   {t('scale.newDiameter')}
                 </label>
+                {/* In the field's own unit: a fixed step of 1 and floor of 0.1
+                    were millimeter-sized numbers beside a value that may be
+                    in inches, and the toFixed(2) pre-rounded what NumberInput
+                    already formats. 1 mm of step and floor, converted. */}
                 <NumberInput
-                  value={Number(fu.toUi(baseD * factor).toFixed(2))}
+                  value={fu.toUi(baseD * factor)}
                   onChange={(v) => v !== null && v > 0 && baseD > 0 && setFactor(fu.fromUi(v) / baseD)}
-                  step={1}
-                  min={0.1}
+                  step={fu.step(0.001)}
+                  min={fu.toUi(0.001)}
                   className={input}
                 />
                 <span className="text-xs text-slate-500">

@@ -1,11 +1,14 @@
-// The motor CATALOG (specs only) — brought in by the VC-style build-time sync
-// utility (scripts/sync-motors.mjs), which sweeps thrustcurve.org for every
-// available, license-clean motor and ships the factual specs. Thrust CURVES are
-// NOT in here — they download on demand at pick time (see thrustcurve.ts).
+// The motor CATALOG — brought in by the VC-style build-time sync utility
+// (scripts/sync-motors.mjs), which sweeps thrustcurve.org for every available,
+// license-clean motor and ships the factual specs plus, where one is
+// published, the bundled thrust curve (`curves`). A motor without one has its
+// curve fetched on demand at pick time (see thrustcurve.ts).
 //
-// The bundled JSON is the seed; on first load we mirror it into localStorage so
-// the catalog itself lives in local alongside the fetched curves.
+// The catalog is a runtime file fetched through remoteData.ts and memoized for
+// the session. There is NO localStorage mirror of it: a catalog-with-curves is
+// too large for that budget, and the bundle is always available offline.
 import { getMotorStore, type CustomMotor } from './motorStore';
+import { MIN_CURVE_SAMPLES } from './motorCurve';
 import { parseEng, totalImpulse } from './engParser';
 import { fetchCatalog } from './remoteData';
 
@@ -52,10 +55,11 @@ export interface CatalogMotor {
   cg?: [number, number][];
 }
 
-/** Whether a catalog motor has a usable bundled thrust curve (≥ 2 samples).
- *  The single source of truth for "can we plot / compare / combine this offline". */
+/** Whether a catalog motor has a usable bundled thrust curve: the same sample
+ *  threshold the builder seats a motor by (motorCurve.ts), applied to the
+ *  catalog's `[t, F]` pairs. "Can we plot / compare / combine this offline". */
 export function hasCurve(m: CatalogMotor): boolean {
-  return (m.curves?.[0]?.samples?.length ?? 0) >= 2;
+  return (m.curves?.[0]?.samples?.length ?? 0) >= MIN_CURVE_SAMPLES;
 }
 
 /** Project a stored custom motor down to a catalog row for the picker. */
@@ -74,12 +78,6 @@ function customToRow(cm: CustomMotor): CatalogMotor {
   };
 }
 
-/**
- * The catalog: the bundled motors (now shipping their thrust curves) plus the
- * user's imported motors first, so they're easy to find in the picker. The
- * bundle is the source of truth — no localStorage mirror (a catalog-with-curves
- * is too large to cache there, and the bundle is always available offline).
- */
 /**
  * A catalog row this app can actually use.
  *

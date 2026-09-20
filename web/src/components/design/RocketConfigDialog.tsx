@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DESIGN_TYPES } from '../../engine/openRocketEngine';
 import { useWorkspaceStore } from '../../state/store';
@@ -9,39 +9,22 @@ import { useFocusTrap } from '../common/useFocusTrap';
  * same name): design name, designer, design type, comments and revision history.
  * These live on the RocketTree and round-trip through .ork import/export. Applied
  * as one undoable step via {@link useWorkspaceStore.updateDesignMeta}.
+ *
+ * Mounted only while open (`{open && <RocketConfigDialog />}`): the fields are
+ * seeded from the live design once, in their initializers, so there is no
+ * "reseed on open" effect and nothing to disable exhaustive-deps for.
  */
-export function RocketConfigDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function RocketConfigDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const tree = useWorkspaceStore((s) => s.tree);
   const updateDesignMeta = useWorkspaceStore((s) => s.updateDesignMeta);
-  const panelRef = useFocusTrap<HTMLDivElement>(open);
+  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
 
-  const [name, setName] = useState('');
-  const [designer, setDesigner] = useState('');
-  const [designType, setDesignType] = useState<string>('original');
-  const [comment, setComment] = useState('');
-  const [revision, setRevision] = useState('');
-
-  // Seed the fields from the live design each time the dialog opens.
-  useEffect(() => {
-    if (!open) return;
-    setName(tree.name ?? '');
-    setDesigner(tree.designer ?? '');
-    setDesignType(tree.designType ?? 'original');
-    setComment(tree.comment ?? '');
-    setRevision(tree.revision ?? '');
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
+  const [name, setName] = useState(() => tree.name ?? '');
+  const [designer, setDesigner] = useState(() => tree.designer ?? '');
+  const [designType, setDesignType] = useState<string>(() => tree.designType ?? 'original');
+  const [comment, setComment] = useState(() => tree.comment ?? '');
+  const [revision, setRevision] = useState(() => tree.revision ?? '');
 
   // Keep an unrecognized imported design-type token selectable so OK can't drop it.
   const typeOptions = (DESIGN_TYPES as readonly string[]).includes(designType)

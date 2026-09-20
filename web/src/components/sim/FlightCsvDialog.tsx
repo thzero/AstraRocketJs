@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
@@ -32,14 +32,8 @@ export function FlightCsvDialog({
   const { t } = useTranslation();
   const u = useUnits();
   const { settings, update } = useSettings();
-  const ref = useFocusTrap<HTMLDivElement>(true);
+  const ref = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
   const saved = settings.flightCsv;
-
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', esc);
-    return () => window.removeEventListener('keydown', esc);
-  }, [onClose]);
 
   const branches = result.branches ?? [];
   const [branchIndex, setBranchIndex] = useState(0);

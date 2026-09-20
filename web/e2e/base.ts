@@ -1,4 +1,4 @@
-import { test as base, expect, type Page } from '@playwright/test';
+import { test as base, expect, type Locator, type Page } from '@playwright/test';
 
 /** Mirrors `KEY` in src/services/settings.ts. */
 const SETTINGS_KEY = 'astrarrocketjs:settings:v1';
@@ -59,7 +59,7 @@ export const test = base.extend<{ wip: WipState }>({
 });
 
 export { expect };
-export type { Page } from '@playwright/test';
+export type { Locator, Page } from '@playwright/test';
 
 /**
  * A diagnostic that does NOT print on a green run.
@@ -158,4 +158,101 @@ export async function runFlight(page: Page): Promise<void> {
   await openTab(page, 'Simulations');
   await page.getByRole('button', { name: /Run flight simulation/ }).click();
   await expect(page.getByRole('button', { name: 'Flight', exact: true })).toBeVisible({ timeout: 30_000 });
+}
+
+/**
+ * Open the app and wait for the engine to have run on the default design.
+ *
+ * "L/D" is the unique fineness-tile unit in the statistics strip, so its
+ * presence means the WASM kernel loaded, built the rocket and reported real
+ * numbers. Every spec that clicks into the design needs that first, and the
+ * goto-plus-wait pair was copied 18 times in mobile-layout.spec.ts alone, with
+ * the timeout sometimes stated and sometimes left at the 5 s default.
+ *
+ * 20 s: the kernel is a 2.9 MB WASM module that is compiled on first load, and
+ * a cold CI runner software-rendering WebGL beside it has been seen to take
+ * more than the default.
+ */
+export async function ready(page: Page): Promise<void> {
+  await page.goto('/');
+  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+}
+
+/**
+ * Import a fixture `.ork` and WAIT for the design to land.
+ *
+ * `setInputFiles` returns as soon as the file is handed over; the parse, the
+ * tree swap and the engine rebuild are all async after that. Without a
+ * synchronization point the next click can run against the default rocket, and
+ * the assertion then fails for a reason that has nothing to do with the feature.
+ * The Booster stage is unique to these fixtures, so its appearance in the tree
+ * means the import has actually been applied.
+ *
+ * Waits for the engine to have run on the DEFAULT design first, so this works
+ * straight after `page.goto` and after `page.reload` alike.
+ */
+export async function importOrk(page: Page, fixture: string): Promise<void> {
+  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+  await page.locator('input[type=file]').setInputFiles(fixture);
+  await expect(page.getByText('Booster').first()).toBeVisible({ timeout: 20_000 });
+}
+
+/**
+ * A value that the spec REQUIRES to exist, named.
+ *
+ * `noUncheckedIndexedAccess` makes every `rows[0]` and `find()` result
+ * possibly-undefined, and the specs answered with `!`. A `!` that misses throws
+ * "Cannot read properties of undefined (reading 'indexOf')" from somewhere in
+ * the arithmetic below it; this fails on the line that looked, and says what it
+ * was looking for.
+ */
+export function defined<T>(value: T | undefined | null, what: string): T {
+  expect(value, `${what} was not found`).toBeDefined();
+  expect(value, `${what} was not found`).not.toBeNull();
+  return value as T;
+}
+
+/**
+ * `boundingBox()` that fails on the element, not later.
+ *
+ * Playwright returns null for an element that is not rendered, and the specs
+ * followed every call with `!`; a hidden pane then failed as "Cannot read
+ * properties of null (reading 'width')" a few lines down. The locator's own
+ * description goes in the message, so the failure says which box was missing.
+ */
+export async function box(target: Locator): Promise<{ x: number; y: number; width: number; height: number }> {
+  const b = await target.boundingBox();
+  if (!b) throw new Error(`${String(target)} has no bounding box: not rendered, or detached`);
+  return b;
+}
+
+/**
+ * The table that a heading introduces.
+ *
+ * The aero tables carry no accessible name of their own (they are a `<table>`
+ * under a `TableHead` `<h3>`, see AeroAnalysis.tsx), so the specs reached them
+ * by document index: `querySelectorAll('table')[1]`. That index moved every
+ * time a table was added or a pane was mounted hidden. The heading IS named,
+ * and the app renders each table as the first one after its heading, so this
+ * selects by that relationship instead. It is an XPath axis, not a class name,
+ * so it survives restyling.
+ */
+export function tableUnder(page: Page, heading: string | RegExp): Locator {
+  return page.getByRole('heading', { name: heading }).locator('xpath=following::table[1]');
+}
+
+/**
+ * The rows of the table under `heading`, as trimmed cell text. Row 0 is the
+ * header row.
+ */
+export async function tableRows(page: Page, heading: string | RegExp): Promise<string[][]> {
+  const table = tableUnder(page, heading);
+  await expect(table, `no table under the "${heading}" heading`).toBeVisible();
+  // The Aero pane recomputes its sweep off the render path and marks itself
+  // aria-busy while it does; a read inside that window sees the previous
+  // sweep's numbers. Wait for the pane to settle before snapshotting.
+  await expect(page.locator('[aria-busy="true"]'), 'a pane was still computing').toHaveCount(0, { timeout: 20_000 });
+  return table.evaluate((t) =>
+    [...t.querySelectorAll('tr')].map((tr) => [...tr.children].map((c) => (c.textContent || '').trim())),
+  );
 }

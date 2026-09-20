@@ -1,5 +1,6 @@
 import type { PartKey } from './partColors';
 import type { CompleteLaunch } from './requiredLaunch';
+import { DEFAULT_HEADING_DEG } from './simulations';
 import { DEFAULT_CSV_COLUMNS } from './flightColumns';
 import {
   METRIC_UNITS,
@@ -47,11 +48,11 @@ const clampSidePane = (v: unknown): number => clampPane(v, SIDE_PANE_MIN, SIDE_P
 const DEFAULT_LAUNCH: CompleteLaunch = {
   launchRodLengthM: 1,
   launchRodAngleDeg: 0,
-  launchRodDirectionDeg: 90,
+  launchRodDirectionDeg: DEFAULT_HEADING_DEG,
   launchIntoWind: false,
   windAverage: 0,
   windStdDev: 0,
-  windDirectionDeg: 90,
+  windDirectionDeg: DEFAULT_HEADING_DEG,
   launchAltitudeM: 0,
   latitudeDeg: 28.61,
   temperatureC: null,
@@ -477,10 +478,17 @@ function loadPathExport(raw: unknown): PathExportSettings {
   return out;
 }
 
+/** A CSS hex color: #rgb, #rgba, #rrggbb or #rrggbbaa. */
+const HEX_COLOR = /^#[0-9a-f]{3,8}$/i;
+
 export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return DEFAULT_SETTINGS;
+    // A COPY, not the constant: callers spread and patch nested blocks of what
+    // this returns (`{ ...s.simulation, timeStep }`), and handing out the
+    // shared DEFAULT_SETTINGS object let one such edit rewrite the defaults
+    // every later fresh load was built from.
+    if (!raw) return structuredClone(DEFAULT_SETTINGS);
     const s = JSON.parse(raw) as Partial<Settings> & { showRulers?: boolean };
     // Migrate the legacy single on/off flag → every side follows it; a saved
     // per-side object (if present) then wins over the migration.
@@ -507,10 +515,19 @@ export function loadSettings(): Settings {
       // a CSS payload) rode straight through to the renderer.
       partColors: Object.fromEntries(
         Object.entries((s.partColors ?? {}) as Record<string, unknown>).filter(
-          ([, v]) => typeof v === 'string' && /^#[0-9a-f]{3,8}$/i.test(v),
+          ([, v]) => typeof v === 'string' && HEX_COLOR.test(v),
         ),
       ) as Partial<Record<PartKey, string>>,
-      phaseColors: { ...DEFAULT_SETTINGS.phaseColors, ...(s.phaseColors ?? {}) },
+      // The same hex filter partColors gets: these reach a style attribute
+      // and the KML/GPX exports, and the merge let any value type through.
+      phaseColors: (() => {
+        const c = { ...DEFAULT_SETTINGS.phaseColors };
+        for (const k of ['boost', 'coast', 'descent'] as const) {
+          const v = (s.phaseColors as Record<string, unknown> | undefined)?.[k];
+          if (typeof v === 'string' && HEX_COLOR.test(v)) c[k] = v;
+        }
+        return c;
+      })(),
       // An older store has no value here, and an unrecognized one falls back
       // rather than leaving the tables with a style nothing renders.
       aeroHeat: s.aeroHeat === 'openrocket' ? 'openrocket' : DEFAULT_SETTINGS.aeroHeat,
@@ -533,6 +550,9 @@ export function loadSettings(): Settings {
         sim.mainHighSpeedWarn = pos(sim.mainHighSpeedWarn, DEFAULT_SETTINGS.simulation.mainHighSpeedWarn);
         sim.mainLowSpeedWarn = pos(sim.mainLowSpeedWarn, DEFAULT_SETTINGS.simulation.mainLowSpeedWarn);
         sim.drogueLowSpeedWarn = pos(sim.drogueLowSpeedWarn, DEFAULT_SETTINGS.simulation.drogueLowSpeedWarn);
+        // The rod-exit tile compares against it; a stored string or NaN made
+        // the tile's color undecidable.
+        sim.railExitVelocityMin = pos(sim.railExitVelocityMin, DEFAULT_SETTINGS.simulation.railExitVelocityMin);
         return sim;
       })(),
       launchDefaults: (() => {
@@ -607,6 +627,11 @@ export function loadSettings(): Settings {
         // A hand-edited or future-version choice falls back rather than being
         // handed to resolveUnitChoice, where it would silently mean `current`.
         if (!UNIT_CHOICES.includes(r.units)) r.units = DEFAULT_REPORT.units;
+        // Same treatment for the two other enums: jsPDF takes these as page
+        // format / orientation, and an unknown value is a thrown error inside
+        // the report build rather than a fallback.
+        if (r.paper !== 'letter' && r.paper !== 'a4') r.paper = DEFAULT_REPORT.paper;
+        if (r.orientation !== 'portrait' && r.orientation !== 'landscape') r.orientation = DEFAULT_REPORT.orientation;
         return r;
       })(),
       pathExport: loadPathExport(s.pathExport),
@@ -625,12 +650,17 @@ export function loadSettings(): Settings {
         c.decimals = Number.isFinite(c.decimals) ? Math.min(Math.max(Math.round(c.decimals), 0), 12) : 3;
         if (typeof c.separator !== 'string' || !c.separator) c.separator = ',';
         if (typeof c.commentChar !== 'string' || !c.commentChar) c.commentChar = '#';
+        // The flags drive `if (opts.flightEvents)` branches in the writer; a
+        // stored "false" string is truthy there.
+        for (const k of ['exponential', 'simDescription', 'fieldDescriptions', 'flightEvents'] as const) {
+          if (typeof c[k] !== 'boolean') c[k] = DEFAULT_SETTINGS.flightCsv[k];
+        }
         return c;
       })(),
       wipAcknowledged: typeof s.wipAcknowledged === 'boolean' ? s.wipAcknowledged : DEFAULT_SETTINGS.wipAcknowledged,
     };
   } catch {
-    return DEFAULT_SETTINGS;
+    return structuredClone(DEFAULT_SETTINGS);
   }
 }
 

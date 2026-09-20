@@ -111,3 +111,82 @@ export function buildFlightScene(result: FlightResult, phase: PhaseColors): Flig
     callouts: cos,
   };
 }
+
+/**
+ * The sample index a playback fraction lands on.
+ *
+ * `progress` is a fraction of flight TIME, not of sample count: the sim packs
+ * most of its samples into the fast boost/coast, so index-based playback
+ * crawled. This is the largest index whose time is at or before
+ * `progress * totalT` (index 0 when none is), found by binary search because
+ * the frame loop asks every frame.
+ */
+export function indexForProgress(times: readonly number[], progress: number): number {
+  const n = times.length;
+  if (n === 0) return 0;
+  const totalT = times[n - 1] || 1;
+  const target = progress * totalT;
+  let lo = 0;
+  let hi = n - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (times[mid]! <= target) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo;
+}
+
+/** Where the flying model sits and points for one sample, written in place. */
+export interface ModelPose {
+  position: THREE.Vector3;
+  quaternion: THREE.Quaternion;
+  /** World point of the nose tip: where a recovery device hangs from. */
+  nose: THREE.Vector3;
+}
+
+export const newModelPose = (): ModelPose => ({
+  position: new THREE.Vector3(),
+  quaternion: new THREE.Quaternion(),
+  nose: new THREE.Vector3(),
+});
+
+const UP = new THREE.Vector3(0, 1, 0);
+const NOSE_AXIS = new THREE.Vector3(-1, 0, 0);
+const tangent = new THREE.Vector3();
+
+/**
+ * Pose the model at sample `idx`: nose (local -X) along the path tangent, or
+ * hanging nose-up once the chute is out. The model is centered on the
+ * trajectory point so it straddles the path (its nose does not shoot past the
+ * apogee marker), but lifted near the ground so it sits on the pad at launch
+ * instead of sinking half-under it.
+ *
+ * Writes into `out` rather than allocating: the playback loop calls this on
+ * every animation frame, and the render-body version of this math allocated a
+ * Vector3, a Quaternion and two clones per frame.
+ */
+export function modelPoseAt(
+  scenePts: readonly THREE.Vector3[],
+  idx: number,
+  descending: boolean,
+  modelLen: number,
+  out: ModelPose,
+): ModelPose {
+  const n = scenePts.length;
+  const at = scenePts[Math.min(n - 1, Math.max(0, idx))];
+  if (!at) {
+    out.position.set(0, 0, 0);
+    out.quaternion.identity();
+    out.nose.set(-modelLen / 2, 0, 0);
+    return out;
+  }
+  tangent.subVectors(scenePts[Math.min(n - 1, idx + 1)]!, scenePts[Math.max(0, idx - 1)]!);
+  if (tangent.lengthSq() < 1e-8) tangent.set(0, 1, 0);
+  else tangent.normalize();
+  const dir = descending ? UP : tangent;
+  out.quaternion.setFromUnitVectors(NOSE_AXIS, dir);
+  out.position.copy(at);
+  out.position.y += Math.max(0, (modelLen / 2) * Math.abs(dir.y) - at.y);
+  out.nose.copy(out.position).addScaledVector(dir, modelLen / 2);
+  return out;
+}

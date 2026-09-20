@@ -8,7 +8,7 @@
 // Run manually or in CI (never inside `vite build`):  node scripts/sync-motors.mjs
 // Data © thrustcurve.org contributors and the certifying bodies (NAR/TRA/CAR).
 
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeDataManifest } from './lib/dataManifest.mjs';
@@ -89,10 +89,41 @@ function rockSimCg(b64) {
   return pts.length ? pts : null;
 }
 
+// The search API pages at this many results. Hitting it exactly means the list
+// was cut off, not that the catalog happens to be this size.
+const MAX_RESULTS = 5000;
+
+/**
+ * Refuse to publish a catalog that is much smaller than the last one.
+ *
+ * This script runs on a schedule with write access to the branch the live app
+ * reads, and the publish step only checks that the file changed. An API glitch
+ * that returned 200 with an empty list, or a schema change that made every
+ * row fail the `totImpulseNs > 0` filter, would have gone live to every user
+ * on their next open and emptied the motor picker. The app validates row
+ * SHAPE, not catalog SIZE, so the floor has to be here.
+ */
+async function assertSane(catalog, withCurves) {
+  const problems = [];
+  if (catalog.length === 0) problems.push('catalog is empty');
+  if (catalog.length && withCurves / catalog.length < 0.8)
+    problems.push(`only ${withCurves}/${catalog.length} motors have a bundled curve`);
+  try {
+    const prev = JSON.parse(await readFile(OUT, 'utf8'));
+    if (Array.isArray(prev) && prev.length && catalog.length < 0.9 * prev.length)
+      problems.push(`catalog shrank from ${prev.length} to ${catalog.length} motors`);
+  } catch {
+    // No previous catalog to compare against (first run, or unreadable).
+  }
+  if (problems.length) throw new Error(`Refusing to write motors.generated.json: ${problems.join('; ')}`);
+}
+
 async function main() {
   console.log('Fetching available motors…');
-  const { results: motors = [] } = await post('search.json', { availability: 'available', maxResults: 5000 });
+  const { results: motors = [] } = await post('search.json', { availability: 'available', maxResults: MAX_RESULTS });
   console.log(`  ${motors.length} available motors`);
+  if (motors.length >= MAX_RESULTS)
+    throw new Error(`search.json returned ${motors.length} motors, the page cap; raise MAX_RESULTS or page the query`);
 
   console.log('Fetching thrust curves…');
   const sampleMap = new Map();
@@ -168,6 +199,7 @@ async function main() {
 
   const withCurves = catalog.filter((m) => m.curves).length;
   const noCurve = catalog.filter((m) => m.noCurve);
+  await assertSane(catalog, withCurves);
   await writeFile(OUT, JSON.stringify(catalog, null, 0) + '\n');
   writeDataManifest(DATA_DIR); // refresh the cache-bust hashes
   console.log(

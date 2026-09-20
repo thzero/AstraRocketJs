@@ -88,3 +88,19 @@ describe('launch site bounds', () => {
     expect(onChange).toHaveBeenLastCalledWith({ launchAltitudeM: 10000 });
   });
 });
+
+/**
+ * The two direction fields display 90 when unset, so clearing one wrote 0:
+ * a real heading (north), silently replacing the east the blank stood for.
+ * Like `longitudeDeg`, an emptied box goes back to unset.
+ */
+describe('direction fields', () => {
+  it('clear to unset rather than to 0', () => {
+    const onChange = vi.fn();
+    renderWithProviders(<LaunchPanel launch={{ ...LAUNCH, windDirectionDeg: 45 }} onChange={onChange} />);
+    // Rod direction and wind direction share the visible label; wind is last.
+    fireEvent.change(screen.getAllByRole('spinbutton', { name: 'Direction' }).at(-1)!, { target: { value: '' } });
+    expect(onChange).toHaveBeenCalledWith({ windDirectionDeg: undefined });
+    expect(onChange).not.toHaveBeenCalledWith({ windDirectionDeg: 0 });
+  });
+});

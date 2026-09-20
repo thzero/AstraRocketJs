@@ -5,9 +5,12 @@ import { useFocusTrap } from './useFocusTrap';
 
 /**
  * The single app-wide confirmation modal, driven imperatively by the confirm
- * store (see {@link confirm}). Mounted once at the app root. Enter confirms,
- * Escape / backdrop cancels. Styled to match the other dialogs; the confirm
- * button turns red for destructive actions.
+ * store (see {@link confirm}). Mounted once at the app root. Escape / backdrop
+ * cancels; Enter activates whichever button has focus (Confirm, by autoFocus),
+ * which is native button behavior and needs no listener. A window-level Enter
+ * handler used to call `settle(true)` for every target, so with focus resting
+ * on Cancel the destructive action still went ahead. Styled to match the other
+ * dialogs; the confirm button turns red for destructive actions.
  */
 export function ConfirmDialog() {
   // Tab stays inside the modal, and focus returns to the trigger on close.
@@ -30,7 +33,6 @@ export function ConfirmDialog() {
     if (!request) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') settle(false);
-      else if (e.key === 'Enter') settle(true);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

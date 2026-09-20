@@ -33,7 +33,6 @@ const build = (children: ComponentNode[]) => {
     roll: 0,
     uid: 't',
     setHoverId: () => {},
-    hoverId: null,
     textUp: () => ({}),
   });
 };

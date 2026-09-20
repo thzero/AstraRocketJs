@@ -57,7 +57,7 @@ test('column chooser adds columns and remembers them across a reload', async ({ 
   await expect(dialog.getByRole('button', { name: /Peak/ })).toBeVisible();
 
   // The grid's scroll container never crushes columns — cells don't wrap.
-  await expect(dialog.locator('table').first()).toHaveClass(/whitespace-nowrap/);
+  await expect(dialog.locator('table').first()).toHaveCSS('white-space', 'nowrap');
 
   // The choice is remembered across a reload (persisted to localStorage).
   await page.reload();

@@ -9,6 +9,7 @@ import { useUnits, type Units } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { LAUNCH_SI, type LaunchUnitKind } from '../../prefs/launchUnits';
 import { MAX_ROD_ANGLE_RAD, MAX_WIND_SPEED_MS } from '../../services/safetyLimits';
+import { G0 } from '../../services/motorMath';
 import { hasIntensity, stdDevForIntensity, turbulenceIntensity, turbulenceLevel } from '../../services/windTurbulence';
 import { WindProfileDialog } from './WindProfileDialog';
 
@@ -314,7 +315,10 @@ export function LaunchPanel({
             stepSi={(5 * Math.PI) / 180}
             mixed={mixed('launchRodDirectionDeg')}
             value={launch.launchRodDirectionDeg ?? 90}
-            onChange={(v) => onChange({ launchRodDirectionDeg: v ?? 0 })}
+            // Cleared is CLEARED, as `longitudeDeg` below: the box shows 90
+            // when unset, so writing 0 for an emptied field silently turned
+            // the default east into north.
+            onChange={(v) => onChange({ launchRodDirectionDeg: v ?? undefined })}
           />
         )}
       </Group>
@@ -542,7 +546,8 @@ export function LaunchPanel({
               stepSi={(5 * Math.PI) / 180}
               mixed={mixed('windDirectionDeg')}
               value={launch.windDirectionDeg ?? 90}
-              onChange={(v) => onChange({ windDirectionDeg: v ?? 0 })}
+              // See the rod direction: an emptied box goes back to unset.
+              onChange={(v) => onChange({ windDirectionDeg: v ?? undefined })}
             />
           </>
         ) : (
@@ -602,19 +607,21 @@ export function LaunchPanel({
             stepSi={0.01}
             minSi={0}
             mixed={mixed('constantGravity')}
-            value={launch.constantGravity ?? 9.80665}
-            onChange={(v) => onChange({ constantGravity: v ?? 9.80665 })}
+            value={launch.constantGravity ?? G0}
+            onChange={(v) => onChange({ constantGravity: v ?? G0 })}
           />
         )}
       </Group>
 
-      <WindProfileDialog
-        open={profileOpen}
-        launch={launch}
-        onChange={onChange}
-        onCommit={onCommit}
-        onClose={() => setProfileOpen(false)}
-      />
+      {/* Mounted only while open: its error line and row keys reset by unmount. */}
+      {profileOpen && (
+        <WindProfileDialog
+          launch={launch}
+          onChange={onChange}
+          onCommit={onCommit}
+          onClose={() => setProfileOpen(false)}
+        />
+      )}
     </div>
   );
 }

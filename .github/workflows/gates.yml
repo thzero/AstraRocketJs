@@ -5,11 +5,21 @@ name: Gates
 # is how GitHub shares jobs, and it is the only way to avoid keeping two copies
 # of this in sync by hand.
 #
-# Order: (parity, reproducible) → (build-and-test, e2e). The engine gate comes
-# FIRST because every app test runs against the COMMITTED engine binaries in
-# web/src/engine/vendor/ and web/public/engine/. If those are stale or divergent
-# from src/java, a green unit suite and a green e2e run are both measuring the
-# wrong engine.
+# Order: the engine jobs (parity, reproducible, validate) and the web jobs
+# (build-and-test, e2e) run IN PARALLEL, and the PR is gated on all of them.
+#
+# The web jobs used to wait for parity. The reasoning was that every app test
+# runs against the COMMITTED engine binaries in web/src/engine/vendor/ and
+# web/public/engine/, so if those are stale, a green unit suite is measuring
+# the wrong engine. That is still true, and it is still caught: parity's
+# second step rebuilds the committed binaries and fails on a diff. What the
+# ordering bought was only that the web verdict was never SHOWN before the
+# engine verdict, and it cost 20-60 minutes of parity in front of a 2-minute
+# job, so a PR touching one .tsx file waited on four TeaVM builds to learn it
+# had a type error. Both verdicts are required either way; a red parity beside
+# a green build-and-test is the same "do not merge" as before, one hour
+# sooner. The web jobs still wait on `reproducible` and `validate`, which need
+# no JDK and are seconds, not minutes.
 #
 # Callers decide WHEN this runs; this file only says WHAT runs. It has no
 # trigger of its own and cannot be run directly.
@@ -33,7 +43,7 @@ jobs:
     # builds both targets again - plus a cold Gradle cache save. It no longer
     # runs the JVM reference twice (see the parity step below). The cap has to
     # clear all of that on a cold cache with room to spare; 25 did not, and
-    # cancelled a job that was working.
+    # canceled a job that was working.
     #
     # This cap is NOT the hang protection it once claimed to be, and it never
     # was: at 60 minutes it would let a passing check hold a runner for an hour.
@@ -211,9 +221,9 @@ jobs:
         working-directory: engine-java
         run: node validation/score.mjs --supersonic --expect-gates 135 --min 61
 
-  # Gated on the engine jobs: see the ordering note at the top of this file.
+  # Not gated on parity: see the ordering note at the top of this file.
   build-and-test:
-    needs: [parity, reproducible, validate]
+    needs: [reproducible, validate]
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -229,30 +239,77 @@ jobs:
 
       - run: npm ci
 
-      # Formatting, gated at last. It could not be turned on before: with no
-      # .gitattributes, a CRLF checkout failed `--check` on every tracked file,
-      # so the signal was 100% noise. `.gitattributes` pins LF and
-      # `.prettierignore` excludes the generated artifacts (public/docs, the
-      # TeaVM output, the synced catalogs), which leaves only authored code.
-      - run: npm run format:check
+      # ONE list, `verify` in web/package.json, run here and locally and by
+      # dev.yml, so the gates cannot drift between them. This job used to spell
+      # the steps out, and it is what was run by hand that drifted: typecheck
+      # and lint were only reached through `npm run build`, and knip was easy
+      # to forget. What the list holds, and why each is there:
+      #
+      #   format:check  Formatting, gated at last. It could not be turned on
+      #                 before: with no .gitattributes, a CRLF checkout failed
+      #                 `--check` on every tracked file, so the signal was 100%
+      #                 noise. `.gitattributes` pins LF and `.prettierignore`
+      #                 excludes the generated artifacts (public/docs, the TeaVM
+      #                 output, the synced catalogs), leaving only authored code.
+      #   spell         US English, enforced. The tree had ~380 British spellings
+      #                 before this ran; cspell's en-US dictionary catches a new
+      #                 one, and cspell.json's flagWords make the common ones
+      #                 (the -our, -re and -ise forms) forbidden outright, so no
+      #                 project-words entry can quietly let one back in.
+      #   typecheck     All three tsconfig projects: src, e2e and the config files.
+      #   lint          ESLint, warnings included.
+      #   knip          Dead exports / unimported modules. Cheap, and it only
+      #                 stays useful if something runs it.
+      #   vitest run    The unit suite.
+      #
+      # The ONE difference from a local `npm run verify`: `-- --coverage` lands
+      # on the final `vitest run`, so here the suite also collects coverage and
+      # enforces the floor in vitest.config.ts. Locally the same is
+      # `npm run test:coverage`.
+      - run: npm run verify -- --coverage
 
-      # US English, enforced. The tree had ~380 British spellings in comments,
-      # UI strings and docs before this ran; cspell's en-US dictionary catches a
-      # new one, and cspell.json's flagWords make the common ones (colour,
-      # centre, metre, -ise) forbidden outright, so no project-words entry can
-      # quietly let one back in.
-      - run: npm run spell
+      # Coverage used to be emitted and seen by nobody: `text-summary` scrolled
+      # past in the log and `lcov` was written to a disk that was thrown away
+      # with the runner. The totals go on the run's summary page, where they
+      # are read without opening a log, and the per-line lcov is kept a week
+      # for whoever wants to look at a specific file.
+      - name: Coverage totals to the job summary
+        if: always()
+        run: |
+          if [ ! -f coverage/coverage-summary.json ]; then
+            echo "### Coverage" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "No coverage-summary.json: the suite did not finish (vitest writes nothing on failure)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          {
+            echo "### Coverage"
+            echo ""
+            echo "| | Covered | Total | % |"
+            echo "| --- | ---: | ---: | ---: |"
+            node -e '
+              const t = require("./coverage/coverage-summary.json").total;
+              for (const k of ["lines", "statements", "functions", "branches"]) {
+                const v = t[k];
+                console.log(`| ${k} | ${v.covered} | ${v.total} | ${v.pct}% |`);
+              }
+            '
+            echo ""
+            echo "Floor: lines >= 55% (vitest.config.ts). lcov.info is in the run artifacts."
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      # Coverage is REPORTED, not enforced. The baseline at the time it was
-      # added was 46% statements / 47% lines across ~200 modules; a threshold
-      # picked before anyone has read that is a number to game, not a gate.
-      - run: npm run test:coverage
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage-lcov
+          path: web/coverage/lcov.info
+          retention-days: 7
+          if-no-files-found: ignore
 
-      - run: npm run build
-
-      # Dead exports / unimported modules. Cheap, and it only stays useful if
-      # something runs it.
-      - run: npm run knip
+      # `vite build` directly, not `npm run build`: that script is
+      # `typecheck && lint && vite build`, and verify above has just run both.
+      # Running them again cost ~40 s for no new information.
+      - run: npx vite build
 
   # NOTE: the Docusaurus site is NOT built here. It is gated in deploy.yml
   # on merge to master, where it is built into web/public/docs anyway. The
@@ -269,7 +326,8 @@ jobs:
   # Separate job so a Playwright failure is legible on its own and the browser
   # download does not slow the unit gate.
   e2e:
-    needs: [parity, reproducible]
+    # Not gated on parity either: the ordering note at the top of this file.
+    needs: [reproducible]
     runs-on: ubuntu-latest
     # Sharded because the suite is ~3.6 min of WALL CLOCK that no amount of
     # caching touches — the browser download the cache below removes is ~90s of
@@ -282,10 +340,11 @@ jobs:
     # own runner with its own dev server and its own single worker, so that
     # reasoning still holds and the contention never happens.
     #
-    # Three ways: 95 tests over 21 files, so ~32 tests a shard. Each shard pays
-    # its own ~50s of npm ci + browser restore + dev-server start, so the
-    # returns flatten fast past this — four would buy ~20s more for another
-    # runner's worth of minutes.
+    # Three ways: 146 tests over 29 files (the desktop project runs every
+    # spec, the Pixel 7 project re-runs the three phone-layout ones), so ~50
+    # tests a shard. Each shard pays its own ~50s of npm ci + browser restore +
+    # dev-server start, so the returns flatten fast past this — four would buy
+    # ~20s more for another runner's worth of minutes.
     strategy:
       # One shard failing must not cancel the others, or the first red shard
       # hides every other failure and you find them one push at a time.
@@ -320,8 +379,9 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
 
-      # Chromium only: playwright.config.ts declares the one project, and it
-      # already starts the dev server and sets retries/reporter under CI.
+      # Chromium only: both projects in playwright.config.ts (desktop and the
+      # Pixel 7 emulation) are Chromium, and the config already starts the dev
+      # server and sets retries/reporter under CI.
       #
       # Split on the cache: the browser itself lives in ~/.cache/ms-playwright
       # and restores, but `--with-deps` also apt-installs system libraries that
@@ -334,6 +394,12 @@ jobs:
 
       - run: npm run e2e -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
 
+      # The HTML report, with the trace of any retried spec in it. It is only
+      # written because playwright.config.ts adds the `html` reporter under CI
+      # beside `github`; with `github` alone this directory did not exist and
+      # the upload silently had nothing to upload. A spec that failed and then
+      # passed on its retry is a flake, and the report is the only place that
+      # says so: the job is green.
       - uses: actions/upload-artifact@v7
         if: failure()
         with:

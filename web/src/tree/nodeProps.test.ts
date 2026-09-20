@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode } from '../engine/openRocketEngine';
-import { num, numOpt, str, bool, countOf, MAX_INSTANCE_COUNT } from './nodeProps';
+import { num, numOpt, str, bool, countOf, positionOf, MAX_INSTANCE_COUNT } from './nodeProps';
 
 const node = (props: Record<string, unknown>): ComponentNode => ({ type: 'bodytube', ...props });
 
@@ -84,5 +84,41 @@ describe('countOf', () => {
     expect(countOf(n(NaN), 'finCount', 3)).toBe(3);
     expect(countOf(n(Infinity), 'finCount', 3)).toBe(3); // non-finite reads as absent
     expect(countOf({ id: 'x' } as never, 'finCount', 1e9)).toBe(MAX_INSTANCE_COUNT);
+  });
+});
+
+describe('positionOf', () => {
+  it('returns the position as-is when it is well formed', () => {
+    expect(positionOf(node({ position: { method: 'bottom', offset: -0.01 } }))).toEqual({
+      method: 'bottom',
+      offset: -0.01,
+    });
+  });
+  it('falls back to the kernel default (top, 0) when there is no position', () => {
+    expect(positionOf(node({}))).toEqual({ method: 'top', offset: 0 });
+    expect(positionOf(node({ position: null }))).toEqual({ method: 'top', offset: 0 });
+  });
+  it('reads a string offset as 0 rather than letting it into arithmetic', () => {
+    // `pLen - childLen + "0.1"` is a string; it used to reach the layout as one.
+    expect(positionOf(node({ position: { method: 'middle', offset: '0.1' } }))).toEqual({
+      method: 'middle',
+      offset: 0,
+    });
+    expect(positionOf(node({ position: { method: 'middle', offset: NaN } }))).toEqual({ method: 'middle', offset: 0 });
+  });
+  it('falls back to top for a method the union does not name', () => {
+    expect(positionOf(node({ position: { method: 'sideways', offset: 0.02 } }))).toEqual({
+      method: 'top',
+      offset: 0.02,
+    });
+    expect(positionOf(node({ position: { method: 7, offset: 0.02 } }))).toEqual({ method: 'top', offset: 0.02 });
+  });
+  it('keeps the imported .ork record so the exporter can restore it', () => {
+    const ork = { method: 'absolute' as const, offset: 0.3, resolved: 0.1 };
+    expect(positionOf(node({ position: { method: 'top', offset: 0.1, ork } }))).toEqual({
+      method: 'top',
+      offset: 0.1,
+      ork,
+    });
   });
 });

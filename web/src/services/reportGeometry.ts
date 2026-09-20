@@ -3,7 +3,9 @@ import { countOf, num, numOpt } from '../tree/nodeProps';
 import { isFinSet, tubeFinRadius } from '../tree/tubefins';
 import { FREEFORM_FALLBACK, finPlanformPoints, finRootChord, finSpan, finTabSpan } from '../tree/finPlanform';
 import { outerProfile } from '../tree/shapeProfile';
-import { axialStart } from '../components/canvas/schematicGeometry';
+// From the tree module: a service must not reach into a canvas component for
+// half its geometry. `schematicGeometry.axialStart` is the same formula.
+import { axialStart } from '../tree/position';
 import { assemblyChainLength, isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../tree/assembly';
 
 /**

@@ -103,7 +103,9 @@ export function LoadedBanner({
           ))}
         </ul>
       )}
-      <RocketConfigDialog open={configOpen} onClose={() => setConfigOpen(false)} />
+      {/* Mounted only while open, so its fields seed from the live design on
+          each opening by construction rather than by a reseed effect. */}
+      {configOpen && <RocketConfigDialog onClose={() => setConfigOpen(false)} />}
     </div>
   );
 }

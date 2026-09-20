@@ -411,7 +411,12 @@ export function CenterView() {
                 />
               </Suspense>
             ) : view === 'flight' ? (
-              <div className="h-full p-2">{flight ? <FlightChart flight={flight} /> : prompt}</div>
+              // Keyed on the simulation: a different flight gets a fresh chart
+              // (trace selection and zoom start over), while a re-run of the
+              // SAME simulation keeps its id and so keeps the view. FlightChart
+              // used to reset both through effects keyed on the trace list,
+              // which blanked the first frame and left a stale zoom on re-run.
+              <div className="h-full p-2">{flight ? <FlightChart key={flight.id} flight={flight} /> : prompt}</div>
             ) : view === 'path' ? (
               <div className="relative h-full p-2">
                 {result ? (

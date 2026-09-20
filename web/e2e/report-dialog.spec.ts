@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { test, expect } from './base';
+import { test, expect, type Page, ready, importOrk, defined } from './base';
 
 /**
  * The Rocket Design Report dialog. A MULTI-STAGE design is the whole point of
@@ -15,23 +15,25 @@ import { test, expect } from './base';
  * tests cannot reach it (ExportDialog pulls it in through a lazy `await
  * import`), and this spec only ever checked that the button was enabled.
  */
+
+/**
+ * Menu > Rocket Design Report. By the button's accessible name: the glyph in it
+ * is `aria-hidden` (AppHeader.tsx), so "Menu" is the whole name and the
+ * `/menu|☰/i` this used to match on could never see the ☰ anyway.
+ */
+const openReport = async (page: Page) => {
+  await page.getByRole('button', { name: 'Menu' }).click();
+  await page.getByRole('menuitem', { name: /Rocket Design Report/i }).click();
+};
+
 test.describe('Rocket Design Report dialog', () => {
   test('opens on a multi-stage design without an update loop', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
 
     await page.goto('/');
-    // "L/D" is the unique fineness-tile unit — its presence means the engine ran.
-    await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
-
-    await page.setInputFiles('input[type=file]', 'e2e/fixtures/two-stage.ork');
-    await expect(page.getByText('Booster').first()).toBeVisible({ timeout: 20_000 });
-
-    await page
-      .getByRole('button', { name: /menu|☰/i })
-      .first()
-      .click();
-    await page.getByRole('menuitem', { name: /Rocket Design Report/i }).click();
+    await importOrk(page, 'e2e/fixtures/two-stage.ork');
+    await openReport(page);
 
     // The dialog must reach its populated state (not the "no design" fallback):
     // both stages listed and the export actions live.
@@ -52,14 +54,8 @@ test.describe('Rocket Design Report dialog', () => {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
 
-    await page.goto('/');
-    await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
-
-    await page
-      .getByRole('button', { name: /menu|☰/i })
-      .first()
-      .click();
-    await page.getByRole('menuitem', { name: /Rocket Design Report/i }).click();
+    await ready(page);
+    await openReport(page);
     await expect(page.getByRole('dialog').first()).toBeVisible();
 
     const wait = page.waitForEvent('download');
@@ -67,7 +63,7 @@ test.describe('Rocket Design Report dialog', () => {
     const dl = await wait;
 
     expect(dl.suggestedFilename()).toMatch(/.pdf$/);
-    const bytes = await readFile((await dl.path())!);
+    const bytes = await readFile(defined(await dl.path(), 'the downloaded PDF path'));
     // A WHOLE PDF: the header, and the trailer that says the cross-reference
     // table was written. A truncated stream is invisible until someone opens it.
     expect(bytes.subarray(0, 5).toString('latin1')).toBe('%PDF-');
@@ -80,14 +76,8 @@ test.describe('Rocket Design Report dialog', () => {
   });
 
   test('the report can be pinned to a unit system, and the choice is remembered', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
-
-    await page
-      .getByRole('button', { name: /menu|☰/i })
-      .first()
-      .click();
-    await page.getByRole('menuitem', { name: /Rocket Design Report/i }).click();
+    await ready(page);
+    await openReport(page);
     let dialog = page.getByRole('dialog').first();
     await expect(dialog.getByLabel('Units')).toHaveValue('current');
 
@@ -100,11 +90,7 @@ test.describe('Rocket Design Report dialog', () => {
     // It is remembered across a reload, like the other report output options.
     await page.reload();
     await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
-    await page
-      .getByRole('button', { name: /menu|☰/i })
-      .first()
-      .click();
-    await page.getByRole('menuitem', { name: /Rocket Design Report/i }).click();
+    await openReport(page);
     dialog = page.getByRole('dialog').first();
     await expect(dialog.getByLabel('Units')).toHaveValue('imperial');
   });

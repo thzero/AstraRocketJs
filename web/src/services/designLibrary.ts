@@ -60,9 +60,12 @@ const isNullableNumber = (v: unknown): boolean => v === null || isFiniteNumber(v
  * throws in the middle of an export the user asked for.
  */
 function isFlightResult(v: unknown): v is FlightResult {
-  const r = v as FlightResult | null;
-  if (!r || typeof r !== 'object') return false;
-  const s = r.summary as unknown as Record<string, unknown> | undefined;
+  // One narrowing to an open record, then plain property reads: the previous
+  // `r.summary as unknown as Record<...>` double cast asserted a FlightResult
+  // it had not yet checked and then un-asserted it field by field.
+  if (!v || typeof v !== 'object') return false;
+  const r = v as Record<string, unknown>;
+  const s = r.summary as Record<string, unknown> | undefined;
   if (!s || typeof s !== 'object') return false;
   // FINITE is required only of the three the exporters format directly with
   // `.toFixed()`, which is the crash this guard exists to stop. The rest need
@@ -82,7 +85,7 @@ function isFlightResult(v: unknown): v is FlightResult {
   ]) {
     if (!isNullableNumber(s[k])) return false;
   }
-  const series = r.series as unknown as Record<string, unknown> | undefined;
+  const series = r.series as Record<string, unknown> | undefined;
   if (!series || typeof series !== 'object') return false;
   for (const k of ['time', 'altitude', 'velocity', 'acceleration']) {
     if (!Array.isArray(series[k])) return false;
@@ -201,7 +204,10 @@ export class DesignLibrary {
   async create(name: string, w: Workspace): Promise<DesignMeta> {
     const id = freshId();
     if (!(await this.write(id, name, w))) throw new Error('storage-full');
-    await this.setActive(id);
+    // Same rule for the pointer: a design that is written and indexed but not
+    // active works for this session and then the next launch opens the
+    // previous one, with the user's new rocket sitting in the library list.
+    if (!(await this.setActive(id))) throw new Error('storage-full');
     const meta = (await this.readIndex()).find((m) => m.id === id);
     return meta ?? { id, name, updatedAt: Date.now() };
   }

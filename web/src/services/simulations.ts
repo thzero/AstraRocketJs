@@ -5,7 +5,16 @@ import type { MotorSpec, FlightResult, IgnitionEvent, RocketTree } from '../engi
 import type { MountMotor } from './loadOrk';
 import type { LaunchConditions } from './orkTree';
 import type { CompleteLaunch } from './requiredLaunch';
+import { surfaceLevel } from './safetyLimits';
 import { uuid } from './uuid';
+
+/**
+ * The default compass heading (degrees) for the launch rod and the wind: due
+ * east, the kernel's own (`SimulationOptions` defaults `launchRodDirection`
+ * and `windDirection` to PI/2). One constant, where `settings.ts` and this
+ * file each carried the literal 90 in several places.
+ */
+export const DEFAULT_HEADING_DEG = 90;
 
 export interface Simulation {
   id: string;
@@ -223,16 +232,18 @@ const freshSeed = (): number => Math.floor(Math.random() * 2 ** 32) - 2 ** 31;
  */
 export function simConditions(launch: CompleteLaunch, prefs?: SimPrefs) {
   // "Launch into the wind" aims the rod at the surface wind heading, overriding
-  // the manual rod direction. Multilevel wind → use the lowest (surface) level.
-  const windDirDeg = launch.windLevels?.[0]?.directionDeg ?? launch.windDirectionDeg ?? 90;
-  const rodDirDeg = launch.launchIntoWind ? windDirDeg : (launch.launchRodDirectionDeg ?? 90);
+  // the manual rod direction. Multilevel wind: the SURFACE level is the lowest
+  // altitude (safetyLimits.surfaceLevel), not `windLevels[0]`; levels are not
+  // kept sorted, and a top-down profile used to aim the rod at the wind aloft.
+  const windDirDeg = surfaceLevel(launch)?.directionDeg ?? launch.windDirectionDeg ?? DEFAULT_HEADING_DEG;
+  const rodDirDeg = launch.launchIntoWind ? windDirDeg : (launch.launchRodDirectionDeg ?? DEFAULT_HEADING_DEG);
   return {
     launchRodLength: launch.launchRodLengthM,
     launchRodAngle: rad(launch.launchRodAngleDeg),
     launchRodDirection: rad(rodDirDeg),
     windAverage: launch.windAverage,
     windStdDeviation: launch.windStdDev,
-    windDirection: rad(launch.windDirectionDeg ?? 90),
+    windDirection: rad(launch.windDirectionDeg ?? DEFAULT_HEADING_DEG),
     windLevels: launch.windLevels?.map((l) => ({
       altitude: l.altitudeM,
       speed: l.speed,

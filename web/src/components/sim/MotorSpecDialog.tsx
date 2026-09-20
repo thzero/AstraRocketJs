@@ -1,62 +1,44 @@
-import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import { PLUGGED_DELAY, type MotorSpec } from '../../engine/openRocketEngine';
 import { ThrustChart, Stat } from './MotorDetail';
 import { initialThrust } from '../../services/motorPicker';
+import { curveStats } from '../../services/motorMath';
 import { useFocusTrap } from '../common/useFocusTrap';
+import { inUserUnit, withUnit } from './motorFormat';
 
 /**
  * Read-only popup for the simulation's current motor: its (flown) thrust curve
- * and the specs derived from it. Works from the resolved MotorSpec — exactly the
+ * and the specs derived from it. Works from the resolved MotorSpec, exactly the
  * curve the engine simulates, including whichever alternate curve was chosen.
+ *
+ * Mounted only while open (`{open && <MotorSpecDialog />}`), so there is no
+ * `open` prop and nothing to reset on close.
  */
-export function MotorSpecDialog({ motor, open, onClose }: { motor: MotorSpec; open: boolean; onClose: () => void }) {
-  // Tab stays inside the modal, and focus returns to the trigger on close.
-  // Seven dialogs declared aria-modal and had neither, so Tab walked straight
-  // out into the page behind the overlay — the exact gap useFocusTrap exists
-  // to close, already used by seven of their siblings.
-  const panelRef = useFocusTrap<HTMLDivElement>(open);
+export function MotorSpecDialog({ motor, onClose }: { motor: MotorSpec; onClose: () => void }) {
+  // The trap goes on the PANEL, not the backdrop: anchored on the overlay it
+  // treated the whole viewport as the dialog, and the role/aria-modal sat on
+  // an element with no accessible name.
+  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
   const { t } = useTranslation();
   const u = useUnits();
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
-
   const samples: [number, number][] = motor.times.map((tt, i) => [tt, motor.thrusts[i] ?? 0]);
-  let impulse = 0;
-  for (let i = 1; i < samples.length; i++) {
-    impulse += ((samples[i]![0] - samples[i - 1]![0]) * (samples[i]![1] + samples[i - 1]![1])) / 2;
-  }
-  const burn = samples.length ? samples[samples.length - 1]![0] : 0;
-  const avg = burn > 0 ? impulse / burn : 0;
-  const max = samples.length ? Math.max(...samples.map((s) => s[1])) : 0;
+  const { impulse, burn, avg, max } = curveStats(samples);
   const init = initialThrust(samples);
-  const g = (v: number | null, unit: string, d = 1) =>
-    v == null || !Number.isFinite(v) ? '—' : `${fmtNum(v, d)} ${unit}`;
+  const g = withUnit;
   // MotorSpec is SI; `q` converts to the user's unit and appends its symbol.
-  const q = (quantity: Parameters<typeof u.fmt>[0], si: number | null, d?: number) =>
-    si == null || !Number.isFinite(si) ? '—' : `${u.fmt(quantity, si, d)} ${u.sym(quantity)}`;
+  const q = (quantity: Parameters<typeof u.fmt>[0], si: number | null, d?: number) => inUserUnit(u, quantity, si, 1, d);
   const delay = motor.ejectionDelay >= PLUGGED_DELAY ? t('motor.plugged') : `${fmtNum(motor.ejectionDelay, 1)} s`;
 
   return (
-    <div
-      ref={panelRef}
-      className="dialog-overlay fixed inset-0 z-50 grid place-items-center bg-black/60 p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-    >
+    <div className="dialog-overlay fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="motor-spec-title"
         className="dialog-panel w-full max-w-lg rounded-xl bg-slate-900 p-4 ring-1 ring-white/10"
         onClick={(e) => e.stopPropagation()}
       >
@@ -67,7 +49,9 @@ export function MotorSpecDialog({ motor, open, onClose }: { motor: MotorSpec; op
                 {motor.manufacturer}
               </div>
             )}
-            <h3 className="truncate text-xl font-bold text-slate-100">{motor.designation}</h3>
+            <h3 id="motor-spec-title" className="truncate text-xl font-bold text-slate-100">
+              {motor.designation}
+            </h3>
           </div>
           <button
             onClick={onClose}

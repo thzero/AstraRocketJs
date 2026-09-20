@@ -10,8 +10,8 @@ import type {
   ComponentType as PartType,
   IgnitionEvent,
 } from '../engine/openRocketEngine';
-import { findMountId, findNode, updateNode, removeNode, addPart, addStage, moveNode } from '../services/treeEdit';
-import { reconcileMounts } from '../services/mountMotors';
+import { findMountId, updateNode, removeNode, addPart, addStage, moveNode } from '../services/treeEdit';
+import { activeExtraMounts, reconcileMounts } from '../services/mountMotors';
 import type { LaunchConditions } from '../services/orkTree';
 import type { OrkExportMotor } from '../services/orkFile';
 import type { DesignInfo } from '../services/orkTypes';
@@ -41,10 +41,9 @@ import {
 import { isComplete, type CompleteLaunch } from '../services/requiredLaunch';
 import { defaultDesignName } from '../services/appInfo';
 import { getDesignLibrary, type DesignMeta } from '../services/designLibrary';
-import { getWorkspaceStore, type Workspace } from '../services/workspaceStore';
+import { getWorkspaceStore, validateWorkspace, type Workspace } from '../services/workspaceStore';
 import type { MotorDims } from '../components/canvas/Rocket3D';
-import { isResultView, type ViewMode } from '../components/canvas/ViewToggle';
-import type { Tab, DesignPane } from './tabs';
+import { isResultView, type Tab, type DesignPane, type ViewMode } from './tabs';
 
 // A clean, classic sport rocket (~55 cm, 26 mm airframe, swept 3-fin).
 const DEFAULT_SPEC: RocketSpec = {
@@ -275,7 +274,9 @@ export interface WorkspaceState {
   openDesign: (id: string) => Promise<void>;
   /** Commit the open design now. Resolves false when there is nothing to save
    *  into yet (never named) — the caller should offer Save As instead. */
-  saveDesign: () => Promise<boolean>;
+  /** `true` saved; `'unnamed'` the design has no library entry yet (Save As);
+   *  `false` the write was refused and the storage banner is already up. */
+  saveDesign: () => Promise<boolean | 'unnamed'>;
   saveDesignAs: (name: string) => Promise<void>;
   renameDesign: (id: string, name: string) => Promise<void>;
   deleteDesign: (id: string) => Promise<void>;
@@ -375,10 +376,10 @@ export function selectMotorDims(
   const m: MotorDims = {};
   const mountId = findMountId(tree);
   if (mountId) m[mountId] = { length: motor.length, diameter: motor.diameter, label: motor.designation };
-  for (const [id, mm] of Object.entries(extraMotors)) {
-    // The primary mount is drawn from `motor` above; skip any lingering extra
-    // entry for it (and for mounts no longer in the tree) so nothing misrenders.
-    if (id === mountId || !findNode(tree, id)) continue;
+  // The primary mount is drawn from `motor` above; the shared filter skips any
+  // lingering extra entry for it (and for mounts no longer in the tree) so
+  // nothing misrenders, and so this cannot drift from what the builder seats.
+  for (const [id, mm] of activeExtraMounts(tree, extraMotors, mountId)) {
     m[id] = { length: mm.spec.length, diameter: mm.spec.diameter, label: mm.spec.designation };
   }
   return m;
@@ -597,12 +598,23 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     loadedMeta: s.loadedMeta,
   });
 
-  /** Write the open design out now, ahead of switching away from it. */
-  const flushActive = async () => {
+  /**
+   * Write the open design out now, ahead of switching away from it. False if
+   * storage refused the write.
+   *
+   * The refusal used to be swallowed here on the theory that "the banner
+   * already says so". It did not: only the debounced autosave's catch raises
+   * the banner, and File > Save calls this directly, so a Save within the
+   * 500 ms debounce on a full store reported success with nothing written.
+   * Callers decide what a refusal means for them (a switch still proceeds; a
+   * Save must say it failed).
+   */
+  const flushActive = async (): Promise<boolean> => {
     try {
       await getWorkspaceStore().save(snapshotOf(useWorkspaceStore.getState()));
+      return true;
     } catch {
-      // Storage full: the switch still proceeds, and the banner already says so.
+      return false;
     }
   };
 
@@ -610,6 +622,32 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     txn = null;
     set({ past: [], future: [] });
   }; // on load / new design
+
+  /**
+   * Swap the whole workspace in ONE `set`, always resetting the transient block.
+   *
+   * `hydrate`, `openOrkFile` and `resetWorkspace` each replaced the design and
+   * each reset a different subset of what goes with it: none cleared `simRuns`,
+   * `lastRunIds` or `resultSimId`, so the Results tab could point at a run id
+   * from the previous design, and a batch still in flight kept `simBusy` on the
+   * new one; `resetWorkspace` left `err` standing and wrote in two `set` calls,
+   * so a subscriber saw the blank design with the old design's error under it.
+   * A batch still running belongs to the old design, so it is canceled here
+   * (its answers would be dropped by the `ranOn` guard anyway).
+   */
+  const replaceWorkspace = (patch: Partial<WorkspaceState> | ((s: WorkspaceState) => Partial<WorkspaceState>)) => {
+    batchAbort?.abort();
+    batchAbort = null;
+    set((s) => ({
+      simRuns: {},
+      lastRunIds: [],
+      resultSimId: null,
+      selectedSimIds: [],
+      simBusy: false,
+      err: null,
+      ...(typeof patch === 'function' ? patch(s) : patch),
+    }));
+  };
 
   return {
     tree: specToTree(DEFAULT_SPEC).tree,
@@ -665,11 +703,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           : w.sims;
       const sims = reconcileAll(w.tree, sanitizeSims(migrated));
       const activeId = sims.some((s) => s.id === w.activeId) ? w.activeId : sims[0]!.id;
-      set((s) => ({
+      replaceWorkspace((s) => ({
         tree: w.tree,
         sims,
         activeId,
-        selectedSimIds: [],
         loadedMeta: w.loadedMeta ?? null,
         hydrationGen: s.hydrationGen + 1,
       }));
@@ -1133,15 +1170,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const notes = outside.length
           ? [...loadedMeta.notes, ...outside.map((v) => limitText(v, i18n.t))]
           : loadedMeta.notes;
-        set({
+        replaceWorkspace({
           tree,
           loadedMeta: { ...loadedMeta, notes },
           // The import's non-primary-mount motors ARE this simulation's loadout.
           sims: [{ ...sim0, extraMotors }],
-          selectedSimIds: [],
           activeId: sim0.id,
           selectedId: null,
-          err: null,
           tab: 'design',
           designPane: 'stats',
           view: '2d',
@@ -1175,7 +1210,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const stale = claimWorkspace();
 
       const lib = getDesignLibrary();
-      const w = await lib.read(id);
+      // The boot path runs every stored design through the same shape check
+      // before it hydrates; this path read the raw blob and handed it straight
+      // to hydrate(), where a non-array `tree.components` reaches reconcileAll
+      // and then the kernel. Same check, same `library.missing` outcome.
+      const w = validateWorkspace(await lib.read(id));
       if (stale()) return;
       if (!w) {
         set({ err: i18n.t('library.missing') });
@@ -1183,10 +1222,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
       // Persist whatever is open BEFORE switching, or the edits since the last
-      // debounced autosave would be lost to the swap.
-      await flushActive();
+      // debounced autosave would be lost to the swap. A refused write does not
+      // block the switch (the user asked to open something else), but it is
+      // not silent either.
+      if (!(await flushActive()) && !stale()) get().setStorageWarning(i18n.t('storage.full'), 'full');
       if (stale()) return;
-      await lib.setActive(id);
+      // A refused pointer write means this session would edit B while the
+      // library still names A, and the next launch reopens A. Stop before the
+      // store is touched, so what the user sees and what is active agree.
+      if (!(await lib.setActive(id))) {
+        if (!stale()) get().setStorageWarning(i18n.t('storage.full'), 'full');
+        return;
+      }
       if (stale()) return;
       getWorkspaceStore().setActiveId?.(id);
       clearHistory(); // a different design is a different document
@@ -1209,11 +1256,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // Reading the stale null sent File→Save to Save As, whose create() made a
       // SECOND entry with the same rocket, leaving every autosave so far in the
       // orphan the user never named.
+      //
+      // Three outcomes, not two: `true` saved, `'unnamed'` needs Save As, and
+      // `false` the write was refused (the banner is raised here; the caller
+      // must NOT fall through to Save As, whose create() would be refused too).
       const stale = observeWorkspace();
-      if (!(await getDesignLibrary().activeId())) return false;
+      if (!(await getDesignLibrary().activeId())) return 'unnamed';
       if (stale()) return false;
-      await flushActive();
+      const ok = await flushActive();
       if (stale()) return false; // the design moved on; this write is not its save
+      if (!ok) {
+        get().setStorageWarning(i18n.t('storage.full'), 'full');
+        return false;
+      }
       await get().refreshDesigns();
       return true;
     },
@@ -1242,14 +1297,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     renameDesign: async (id, name) => {
-      await getDesignLibrary().rename(id, name.trim() || i18n.t('library.untitled'));
+      // `rename` reports a refused index write; ignoring it showed the new name
+      // from memory and the old one next session.
+      if (!(await getDesignLibrary().rename(id, name.trim() || i18n.t('library.untitled')))) {
+        get().setStorageWarning(i18n.t('storage.full'), 'full');
+      }
       await get().refreshDesigns();
     },
 
     deleteDesign: async (id) => {
       const lib = getDesignLibrary();
       const wasActive = get().activeDesignId === id;
-      await lib.remove(id);
+      // A refused index write means the design is still in the library; resetting
+      // the open workspace anyway would leave it listed and unopenable-looking.
+      if (!(await lib.remove(id))) {
+        get().setStorageWarning(i18n.t('storage.full'), 'full');
+        await get().refreshDesigns();
+        return;
+      }
       // Deleting the open design leaves nothing to autosave into; start fresh so
       // the next edit creates a new library entry rather than resurrecting it.
       // Read BEFORE the await: opening another design during remove() would
@@ -1269,12 +1334,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // Detach from the open library entry, or the first autosave would write
       // this blank design straight over the rocket the user just had open.
       getWorkspaceStore().setActiveId?.(null);
-      set({ activeDesignId: null });
-      set((s) => ({
+      replaceWorkspace((s) => ({
+        activeDesignId: null,
         tree: specToTree(DEFAULT_SPEC).tree,
         loadedMeta: null,
         sims: [s0],
-        selectedSimIds: [],
         activeId: s0.id,
         selectedId: null,
         ...showing(s, '2d'),

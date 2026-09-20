@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { StrictMode } from 'react';
 import { act, render } from '@testing-library/react';
 
 const saveSettings = vi.hoisted(() => vi.fn());
@@ -53,8 +54,28 @@ describe('SettingsProvider persistence', () => {
     );
     expect(saveSettings).not.toHaveBeenCalled();
 
-    // act(): the state change has to commit before the effect that persists it runs.
     act(() => update({ units: { ...DEFAULT_SETTINGS.units, length: 'in' } }));
     expect(saveSettings).toHaveBeenCalledTimes(1);
+    expect(saveSettings.mock.calls[0]![0].units.length).toBe('in');
+  });
+
+  /**
+   * The first guard against the mount write was a "skip the first effect run"
+   * ref. StrictMode runs every effect's setup twice on mount and refs persist
+   * across the pair, so the second run saw the flag set and wrote anyway: the
+   * bug was back in exactly the environment developers test in (main.tsx
+   * renders under StrictMode). Persisting from the update event has no first
+   * run to skip.
+   */
+  it('does not write on mount under StrictMode either', () => {
+    loadSettings.mockReturnValue({ ...DEFAULT_SETTINGS });
+    render(
+      <StrictMode>
+        <SettingsProvider>
+          <Harness onReady={() => {}} />
+        </SettingsProvider>
+      </StrictMode>,
+    );
+    expect(saveSettings).not.toHaveBeenCalled();
   });
 });

@@ -38,7 +38,25 @@ function openDb(): Promise<IDBDatabase> {
     req.onupgradeneeded = () => {
       if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE);
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      const db = req.result;
+      // A newer build in another tab is asking to upgrade the schema. Yield:
+      // close this connection and forget the cached promise, so this tab
+      // reconnects (at the new version) on its next operation. Without this an
+      // older tab held its connection open forever, the upgrading tab hit
+      // `onblocked` below, and THAT tab was pinned to the localStorage fallback
+      // for its whole session; the `onblocked` handler only covers the
+      // upgrading side of the same handshake.
+      db.onversionchange = () => {
+        try {
+          db.close();
+        } catch {
+          /* already gone */
+        }
+        if (dbPromise === p) dbPromise = null;
+      };
+      resolve(db);
+    };
     req.onerror = () => reject(req.error ?? new Error('indexedDB.open failed'));
     // Another tab holds an older version open; don't hang waiting for it.
     //
@@ -93,6 +111,21 @@ function markDegraded(): void {
   if (degraded) return;
   degraded = true;
   for (const cb of degradedListeners) cb();
+}
+
+/**
+ * Whether a failed write hit the storage QUOTA rather than IndexedDB itself
+ * being unusable.
+ *
+ * The two used to be treated alike: any failed `set`/`update` flipped the
+ * one-way `degraded` flag and warned that storage had fallen back to
+ * localStorage for the session. A full disk is a different fact from a
+ * blocked database. IndexedDB keeps working for reads and for smaller writes
+ * after a QuotaExceededError, and the honest signal for it is `set`'s false,
+ * which `workspaceStore.save` already turns into "storage is full".
+ */
+function isQuotaError(e: unknown): boolean {
+  return !!e && typeof e === 'object' && (e as { name?: unknown }).name === 'QuotaExceededError';
 }
 
 /**
@@ -164,8 +197,17 @@ async function txUpdate(key: string, fn: (raw: string | null) => string | null):
         t.abort();
         return;
       }
-      if (next === null) store.delete(key);
-      else store.put(next, key);
+      // A write that throws synchronously (a DataCloneError, or a quota
+      // refusal raised at the call) keeps ITS error: settled before the abort
+      // event, so the generic "transaction aborted" below cannot replace it
+      // and the caller can still tell a quota hit from a broken database.
+      try {
+        if (next === null) store.delete(key);
+        else store.put(next, key);
+      } catch (e) {
+        reject(e);
+        t.abort();
+      }
     };
     read.onerror = () => reject(read.error ?? new Error('IndexedDB read failed'));
     t.oncomplete = () => resolve();
@@ -226,8 +268,10 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
       await tx('readwrite', (s) => s.put(value, key));
       this.fellBack.delete(key);
       return true;
-    } catch {
-      markDegraded();
+    } catch (e) {
+      // Only an UNUSABLE IndexedDB degrades the session; a full one reports
+      // through the boolean below.
+      if (!isQuotaError(e)) markDegraded();
       const ok = await this.fallback.set(key, value); // quota, or IndexedDB unavailable
       if (ok) {
         this.fellBack.add(key);
@@ -256,7 +300,7 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
       // and leave the degraded flag alone (retrying it on localStorage would
       // only throw again, after warning the user about the wrong thing).
       if (e instanceof ReducerError) throw e.inner;
-      markDegraded();
+      if (!isQuotaError(e)) markDegraded();
       // The fallback usually does NOT hold this key: once migrated, the value
       // lives only in IndexedDB, and a quota failure leaves reads working. A
       // reducer handed `null` would rebuild the design-library index from

@@ -1,21 +1,20 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent as ReactKeyboardEvent,
-  useId,
-} from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { FlightResult, FlightSeries } from '../../engine/openRocketEngine';
 import { fmtNum } from '../../i18n/format';
-import { useUnits } from '../../prefs/useUnits';
-import type { Quantity } from '../../prefs/units';
-import { lerpAt } from '../../services/interpolate';
 import { EVENT_LABEL, clusterEventLabels } from '../../services/simReport';
 import { FlightCsvDialog } from '../sim/FlightCsvDialog';
 import { useSettings } from '../../state/SettingsProvider';
+import { PAD_L, PAD_R, maxFlightTime } from './flightChartAxis';
+import { SERIES, buildTraces, visibleSeries, type ChartFlight, type Key } from './flightChartTraces';
+import { useChartZoom } from './useChartZoom';
+import { useChartCrosshair } from './useChartCrosshair';
+import { EventLabelStrip, eventStripHeight, packEventLabels } from './FlightChartEvents';
+import { FlightChartPanel } from './FlightChartPanel';
+
+// The series catalog and the axis math moved to their own modules; CenterView,
+// GroundTrack and the chart tests import them from here.
+export { buildTraces, visibleSeries, type ChartFlight } from './flightChartTraces';
+export { maxFlightTime } from './flightChartAxis';
 
 /**
  * Flight data as SMALL MULTIPLES (mmrocket-style): time on a shared x, and one
@@ -25,163 +24,13 @@ import { useSettings } from '../../state/SettingsProvider';
  * across every visible panel. All eleven series already ride in on every sim run.
  * The x (time) axis zooms/pans (buttons, drag, ctrl/pinch-wheel); a sticky strip
  * up top row-packs the event labels so they never overlap.
- */
-type Key =
-  | 'altitude'
-  | 'velocity'
-  | 'acceleration'
-  | 'mach'
-  | 'thrust'
-  | 'drag'
-  | 'mass'
-  | 'stability'
-  | 'cpLocation'
-  | 'cgLocation'
-  | 'aoa';
-
-interface Meta {
-  key: Key;
-  label: string;
-  /** Fixed unit label, for series that have no user-selectable unit (Mach, cal). */
-  unit: string;
-  digits: number;
-  /**
-   * The preference group this series belongs to. When set it supplies both the
-   * scale and the label, and `unit`/`scale`/`digits` below are unused — they
-   * stay for the handful of series (Mach, calibers) that are unitless.
-   */
-  quantity?: Quantity;
-  /** Multiply the raw SI series into display units (kg→g, m→cm, rad→deg). */
-  scale?: number;
-  /** Level bands (CG/CP/mass/stability) get a tight y-domain + no area fill;
-   *  flow series (altitude/velocity/…) get a zero baseline + filled area. */
-  level?: boolean;
-  /** Aero-derived (CP / stability): only meaningful while flying forward — after
-   *  recovery deploys the rocket tumbles (AoA≈90°) and these collapse to junk, so
-   *  the series is clipped to the boost→apogee window. */
-  aero?: boolean;
-}
-
-const SERIES: Meta[] = [
-  { key: 'altitude', label: 'flight.altitude', unit: 'm', digits: 0, quantity: 'distance' },
-  { key: 'velocity', label: 'flight.velocity', unit: 'm/s', digits: 0, quantity: 'velocity' },
-  { key: 'acceleration', label: 'flight.acceleration', unit: 'm/s²', digits: 0, quantity: 'acceleration' },
-  { key: 'mach', label: 'flight.mach', unit: '', digits: 2 },
-  { key: 'thrust', label: 'flight.thrust', unit: 'N', digits: 1, quantity: 'force' },
-  { key: 'drag', label: 'flight.drag', unit: 'N', digits: 2, quantity: 'force' },
-  { key: 'mass', label: 'flight.mass', unit: 'g', digits: 0, scale: 1000, level: true, quantity: 'mass' },
-  { key: 'stability', label: 'flight.stability', unit: 'cal', digits: 2, level: true, aero: true },
-  {
-    key: 'cpLocation',
-    label: 'flight.cp',
-    unit: 'cm',
-    digits: 1,
-    scale: 100,
-    level: true,
-    aero: true,
-    quantity: 'length',
-  },
-  { key: 'cgLocation', label: 'flight.cg', unit: 'cm', digits: 1, scale: 100, level: true, quantity: 'length' },
-  { key: 'aoa', label: 'flight.aoa', unit: '°', digits: 1, scale: 180 / Math.PI, quantity: 'angle' },
-];
-/** Every key the chart can draw, for validating what comes back from settings. */
-const KEYS = new Set<string>(SERIES.map((m) => m.key));
-
-/**
- * The saved panel choice, narrowed to keys this build actually has.
  *
- * A list saved by a later version can name a series that no longer exists (or
- * does not exist yet); dropping those here means a stale preference costs you
- * one panel rather than blanking the chart. The order is the SERIES order, so
- * the panels stack the same way however the preference was written.
+ * This file is the composition: the series catalog (flightChartTraces.ts),
+ * the axis and window math (flightChartAxis.ts), the zoom/pan interaction
+ * (useChartZoom.ts), the crosshair (useChartCrosshair.ts), the event strip
+ * (FlightChartEvents.tsx) and the panel (FlightChartPanel.tsx) each live in
+ * their own module.
  */
-export function visibleSeries(saved: readonly string[]): Key[] {
-  const want = new Set(saved.filter((k) => KEYS.has(k)));
-  return SERIES.filter((m) => want.has(m.key)).map((m) => m.key);
-}
-
-// One color per trace: sky first (the original single line), then the rest.
-// Matches the component-tree palette so a stage reads the same color everywhere.
-// Cycles if a design or a comparison somehow runs past six.
-const STAGE_COLORS = ['#38bdf8', '#fbbf24', '#34d399', '#a78bfa', '#fb7185', '#22d3ee'];
-
-/** The flight to draw, named so the pane can say which simulation it is. */
-export interface ChartFlight {
-  id: string;
-  name: string;
-  result: FlightResult;
-}
-
-/**
- * One drawn line: a single flight branch, with a stable key, a name and a color.
- *
- * A staged rocket separates into several, and each flies its own trajectory on
- * the same launch clock - a spent booster's climb, descent and landing beside
- * the sustainer's. A single-stage flight collapses to one synthetic branch, so
- * the common case is still one trace.
- */
-type Branch = {
-  key: string;
-  name: string;
-  color: string;
-  events: { type: string; time: number }[];
-  series: FlightSeries;
-};
-
-// Shared horizontal geometry so the crosshair lines up across panels; the
-// scroll host's px-3 (12px) left inset is added back when mapping pointer x.
-const PAD_L = 44;
-const PAD_R = 12;
-const HOST_INSET = 12;
-const PANEL_H = 208;
-const EVENT_ROW_H = 12; // one row of the event-label strip
-
-type Pt = readonly [number, number];
-
-/**
- * The x-axis extent: the longest time any branch reaches.
- *
- * Loop, do not spread. This used to be
- *   Math.max(flightTime, ...branches.flatMap((b) => b.series.time))
- * evaluated in the render body, so it re-ran on EVERY pointer move (hover sets
- * state) and, for a fine-timestep multi-stage flight, pushed a six-figure
- * argument list into Math.max — which throws RangeError and blanks the panel.
- * FlightPath3D avoids the identical hazard the identical way.
- */
-export function maxFlightTime(branches: { series: FlightSeries }[], flightTime: number | undefined): number {
-  let m = Math.max(flightTime || 1, 1);
-  for (const b of branches) for (const t of b.series.time ?? []) if (t > m) m = t;
-  return m;
-}
-
-/**
- * The lines to draw for one flight: one per branch.
- *
- * `stageLabel` renders "Stage 2" for a branch the engine did not name; it is
- * passed in rather than translated here so this stays a pure function.
- *
- * The key carries the simulation id as well as the branch index, so switching
- * the Results picker to another flight yields a different set of keys and the
- * chart resets its trace selection rather than carrying one flight's choice
- * onto another's stages.
- */
-export function buildTraces(flight: ChartFlight | null, stageLabel: (i: number) => string): Branch[] {
-  if (!flight) return [];
-  // `branches` is only present once a staged rocket actually separates (branch 0
-  // mirrors the top-level series); otherwise wrap the single top-level
-  // trajectory so the rest of the chart is branch-agnostic.
-  const bs = flight.result.branches?.length
-    ? flight.result.branches
-    : [{ name: '', events: flight.result.events ?? [], series: flight.result.series }];
-  return bs.map((b, i) => ({
-    key: `${flight.id}:${i}`,
-    name: b.name || stageLabel(i),
-    color: STAGE_COLORS[i % STAGE_COLORS.length]!,
-    events: b.events ?? [],
-    series: b.series,
-  }));
-}
-
 export function FlightChart({ flight }: { flight: ChartFlight }) {
   const { t } = useTranslation();
   // Which panels are open, remembered between visits (services/settings.ts).
@@ -189,7 +38,6 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
   // with thrust or mass re-ticked them every time the Results tab was opened.
   const { settings, update } = useSettings();
   const on = useMemo(() => visibleSeries(settings.flightSeries), [settings.flightSeries]);
-  const [hoverT, setHoverT] = useState<number | null>(null);
   const [csvOpen, setCsvOpen] = useState(false);
   const hostRef = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(640);
@@ -198,16 +46,23 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
   const branches = useMemo(() => buildTraces(flight, (i) => `${t('flight.stage')} ${i + 1}`), [flight, t]);
   const multistage = branches.length >= 2;
 
-  // Which traces are overlaid. A new set shows them all; the last selected one
-  // cannot be turned off (nothing to plot otherwise).
-  const traceKeys = branches.map((b) => b.key).join('|');
-  const [onStages, setOnStages] = useState<string[]>(() => branches.map((b) => b.key));
-  useEffect(() => setOnStages(branches.map((b) => b.key)), [traceKeys]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Which traces are HIDDEN. Exclusions rather than inclusions: a new set of
+  // stages is all shown by construction (none of its keys is in the set), so
+  // no effect has to reset the selection when the flight changes, and there is
+  // no first frame drawn with a stale list. The last shown stage cannot be
+  // hidden (nothing to plot otherwise).
+  const [offStages, setOffStages] = useState<ReadonlySet<string>>(() => new Set());
+  const isOn = (k: string) => !offStages.has(k);
   const toggleStage = (k: string) =>
-    setOnStages((cur) => (cur.includes(k) ? (cur.length > 1 ? cur.filter((x) => x !== k) : cur) : [...cur, k]));
+    setOffStages((cur) => {
+      const next = new Set(cur);
+      if (next.has(k)) next.delete(k);
+      else if (branches.filter((b) => !next.has(b.key)).length > 1) next.add(k);
+      return next;
+    });
   // Stable across hover re-renders so the panels don't recompute their paths on
   // every pointer move (the memo below keys on this reference).
-  const selectedBranches = useMemo(() => branches.filter((b) => onStages.includes(b.key)), [branches, onStages]);
+  const selectedBranches = useMemo(() => branches.filter((b) => !offStages.has(b.key)), [branches, offStages]);
 
   // x-axis spans every branch, so a booster that lands after the sustainer still
   // fits (its own descent runs on the same launch clock).
@@ -218,20 +73,11 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
     [branches, flight.result.summary.flightTime],
   );
 
-  // Visible time window (null = full flight). The x-axis zooms/pans within it.
-  const [zoom, setZoom] = useState<{ t0: number; t1: number } | null>(null);
-  const t0 = zoom ? zoom.t0 : 0;
-  const t1 = zoom ? zoom.t1 : maxT;
-  const zoomed = t1 - t0 < maxT - 1e-9;
   const iw = w - PAD_L - PAD_R;
-  // Memoized so the per-panel path memo below can key on it: a fresh arrow
-  // every render made that memo useless, and hovering re-renders this component
-  // on every pointer move.
-  const X = useCallback((tt: number) => PAD_L + ((tt - t0) / (t1 - t0)) * iw, [t0, t1, iw]);
-  const invX = (px: number) => t0 + ((px - PAD_L) / iw) * (t1 - t0);
-
-  // A new flight resets the view; keep it in sync when the flight time changes.
-  useEffect(() => setZoom(null), [traceKeys]);
+  const zoomCtl = useChartZoom(hostRef, maxT, iw);
+  const { t0, t1, zoomed, X, invX, localX, zoomAt } = zoomCtl;
+  const crosshair = useChartCrosshair(t0, t1);
+  const { hoverT, setHoverT } = crosshair;
 
   useEffect(() => {
     const el = hostRef.current;
@@ -241,53 +87,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
     return () => ro.disconnect();
   }, []);
 
-  const clampWin = (a: number, b: number): { t0: number; t1: number } | null => {
-    const minW = Math.max(maxT / 500, 0.05);
-    const width = Math.min(Math.max(b - a, minW), maxT);
-    if (width >= maxT - 1e-9) return null; // fully zoomed out → no window
-    const lo = Math.min(Math.max(a, 0), maxT - width);
-    return { t0: lo, t1: lo + width };
-  };
-  // Zoom by `factor` (<1 = in), keeping `anchorT` under the same screen x.
-  const zoomAt = (factor: number, anchorT: number) => {
-    const nw = (t1 - t0) * factor;
-    const na0 = anchorT - (anchorT - t0) * factor;
-    setZoom(clampWin(na0, na0 + nw));
-  };
   const centerT = () => hoverT ?? (t0 + t1) / 2;
-
-  /** Arrow-key crosshair. Time is continuous here, so it steps by span. */
-  const onCrosshairKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    const span = t1 - t0;
-    if (!(span > 0)) return;
-    const step = (e.shiftKey ? 10 : 1) * (span / 100);
-    let next: number;
-    if (e.key === 'ArrowRight') next = (hoverT ?? t0) + step;
-    else if (e.key === 'ArrowLeft') next = (hoverT ?? t1) - step;
-    else if (e.key === 'Home') next = t0;
-    else if (e.key === 'End') next = t1;
-    else if (e.key === 'Escape') {
-      setHoverT(null);
-      return;
-    } else return;
-    e.preventDefault(); // arrows would otherwise scroll the pane
-    setHoverT(Math.max(t0, Math.min(t1, next)));
-  };
-
-  // Ctrl/pinch-wheel zooms about the cursor (plain wheel still scrolls the
-  // panel list). Native non-passive listener so we can preventDefault.
-  useEffect(() => {
-    const el = hostRef.current;
-    if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      if (!(e.ctrlKey || e.metaKey)) return;
-      e.preventDefault();
-      const px = e.clientX - el.getBoundingClientRect().left - HOST_INSET;
-      zoomAt(e.deltaY > 0 ? 1.2 : 1 / 1.2, invX(px));
-    };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, [t0, t1, maxT, iw]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Events of every shown stage (a spent booster carries its own apogee, deploy
   // and ground-hit). De-selecting a stage drops its markers too.
@@ -310,53 +110,25 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
   }, [flight, maxT]);
 
   // Cluster near-coincident event labels (a recovery deployment always keeps its
-  // own marker), drop any outside the visible window, then GREEDILY row-pack so
-  // labels never overlap: each takes the lowest row whose last label has cleared.
+  // own marker), drop any outside the visible window, then row-pack them.
   const eventLabels = useMemo(() => {
     const labelW = (type: string) => t(EVENT_LABEL[type] ?? type).length * 5.2 + 10;
-    const rowRight: number[] = [];
-    return clusterEventLabels(events, X)
-      .filter((g) => g.x >= PAD_L - 2 && g.x <= w - PAD_R + 2)
-      .map((g) => {
-        const half = labelW(g.type) / 2;
-        let row = 0;
-        while (row < rowRight.length && rowRight[row]! > g.x - half) row++;
-        rowRight[row] = g.x + half;
-        return { x: g.x, type: g.type, row };
-      });
-  }, [events, w, t0, t1, t]); // eslint-disable-line react-hooks/exhaustive-deps
-  const eventRows = eventLabels.reduce((m, l) => Math.max(m, l.row + 1), 0);
-  const stripH = eventRows ? eventRows * EVENT_ROW_H + 4 : 0;
+    return packEventLabels(clusterEventLabels(events, X), w, labelW);
+    // `X` is the memoized time-to-px map and already changes with the window
+    // (t0, t1) and the width, so listing it is both honest and sufficient.
+  }, [events, X, w, t]);
+  const stripH = eventStripHeight(eventLabels);
 
   const toggle = (k: Key) => update({ flightSeries: on.includes(k) ? on.filter((x) => x !== k) : [...on, k] });
   const activeMetas = SERIES.filter((m) => on.includes(m.key));
 
   // Pointer: drag pans (only when zoomed in); otherwise it drives the hover crosshair.
-  const drag = useRef<{ x: number; t0: number; t1: number } | null>(null);
-  const localX = (clientX: number) => {
-    const host = hostRef.current;
-    return host ? clientX - host.getBoundingClientRect().left - HOST_INSET : 0;
-  };
   const onDown = (e: React.PointerEvent) => {
-    if (!zoomed) return; // nothing to pan at full view — keep hover behavior
-    drag.current = { x: e.clientX, t0, t1 };
-    hostRef.current?.setPointerCapture?.(e.pointerId);
-    setHoverT(null);
+    if (zoomCtl.startPan(e)) setHoverT(null);
   };
   const onMove = (e: React.PointerEvent) => {
-    if (drag.current) {
-      const span = drag.current.t1 - drag.current.t0;
-      const dt = ((e.clientX - drag.current.x) / iw) * span;
-      setZoom(clampWin(drag.current.t0 - dt, drag.current.t1 - dt));
-      return;
-    }
-    setHoverT(Math.max(t0, Math.min(t1, invX(localX(e.clientX)))));
-  };
-  const endDrag = (e: React.PointerEvent) => {
-    if (drag.current) {
-      drag.current = null;
-      hostRef.current?.releasePointerCapture?.(e.pointerId);
-    }
+    if (zoomCtl.pan(e)) return;
+    setHoverT(crosshair.clampT(invX(localX(e.clientX))));
   };
 
   const zBtn =
@@ -389,7 +161,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
               +
             </button>
             <button
-              onClick={() => setZoom(null)}
+              onClick={zoomCtl.reset}
               disabled={!zoomed}
               title={t('flight.zoomReset')}
               aria-label={t('flight.zoomReset')}
@@ -413,7 +185,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
             {t('flight.stages')}
           </span>
           {branches.map((b) => {
-            const active = onStages.includes(b.key);
+            const active = isOn(b.key);
             return (
               <button
                 key={b.key}
@@ -461,51 +233,22 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
         className={`min-h-0 flex-1 overflow-y-auto px-3 pb-3 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-inset focus-visible:outline-none ${zoomed ? 'cursor-grab' : ''}`}
         onPointerDown={onDown}
         onPointerMove={onMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-        onFocus={() => setHoverT((h) => h ?? (t0 + t1) / 2)}
-        onBlur={() => setHoverT(null)}
-        onKeyDown={onCrosshairKey}
+        onPointerUp={zoomCtl.endPan}
+        onPointerCancel={zoomCtl.endPan}
+        onFocus={crosshair.onFocus}
+        onBlur={crosshair.onBlur}
+        onKeyDown={crosshair.onKeyDown}
         onPointerLeave={() => {
-          if (!drag.current) setHoverT(null);
+          if (!zoomCtl.isPanning()) setHoverT(null);
         }}
       >
         {activeMetas.length === 0 ? (
           <p className="grid h-full place-items-center text-sm text-slate-500">{t('flight.pickSeries')}</p>
         ) : (
           <>
-            {stripH > 0 && (
-              <svg
-                viewBox={`0 0 ${w} ${stripH}`}
-                width="100%"
-                height={stripH}
-                preserveAspectRatio="none"
-                className="sticky top-0 z-10 block bg-slate-900"
-              >
-                {eventLabels.map((l, i) => (
-                  <g key={i}>
-                    <line
-                      x1={l.x}
-                      y1={l.row * EVENT_ROW_H + EVENT_ROW_H - 2}
-                      x2={l.x}
-                      y2={stripH}
-                      className="stroke-amber-400/30"
-                      vectorEffect="non-scaling-stroke"
-                    />
-                    <text
-                      x={l.x}
-                      y={l.row * EVENT_ROW_H + 9}
-                      textAnchor="middle"
-                      className="fill-amber-400/90 text-[9px]"
-                    >
-                      {t(EVENT_LABEL[l.type] ?? l.type)}
-                    </text>
-                  </g>
-                ))}
-              </svg>
-            )}
+            {stripH > 0 && <EventLabelStrip labels={eventLabels} w={w} stripH={stripH} t={t} />}
             {activeMetas.map((m) => (
-              <Panel
+              <FlightChartPanel
                 key={m.key}
                 meta={m}
                 branches={selectedBranches}
@@ -520,234 +263,6 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
         )}
       </div>
       {csvOpen && <FlightCsvDialog result={flight.result} simName={flight.name} onClose={() => setCsvOpen(false)} />}
-    </div>
-  );
-}
-
-function Panel({
-  meta,
-  branches,
-  w,
-  X,
-  hoverT,
-  clipT,
-  events,
-}: {
-  meta: Meta;
-  branches: Branch[];
-  w: number;
-  X: (t: number) => number;
-  hoverT: number | null;
-  clipT: number;
-  events: { type: string; time: number }[];
-}) {
-  const { t } = useTranslation();
-  const u = useUnits();
-  const padT = 8;
-  const padB = 8;
-  const ih = PANEL_H - padT - padB;
-  // A quantity-backed series scales and labels itself from the preference; the
-  // rest keep their fixed unit. `factor`, not `toUi`, because this scales a
-  // whole series — none of these carry a temperature-style offset.
-  const scale = meta.quantity ? u.factor(meta.quantity) : (meta.scale ?? 1);
-  const unit = meta.quantity ? u.sym(meta.quantity) : meta.unit;
-  // Namespaced ids. These were document-global (`fc-clip-altitude`), so two
-  // charts in one document - a comparison view, or the mobile and desktop
-  // copies during a breakpoint transition - made `url(#fc-clip-altitude)`
-  // resolve to whichever rendered first, clipping one chart's panels to the
-  // other's width. TreeSchematic already uses useId() for exactly this hazard.
-  const uid = useId();
-  const clipId = `${uid}-clip-${meta.key}`;
-  const single = branches.length === 1;
-
-  // One line per selected stage; the y-domain spans them all so they share a
-  // scale and read against each other. Keyed on the (stable) branch list so a
-  // hover doesn't rebuild every stage's path.
-  const { list, lo, hi } = useMemo(() => {
-    let dMin = Infinity;
-    let dMax = -Infinity;
-    const out = branches.map((b) => {
-      const time = b.series.time ?? [];
-      const raw = (b.series[meta.key] ?? []) as (number | null)[];
-      const p: Pt[] = [];
-      const xa: number[] = [];
-      const ya: number[] = [];
-      for (let i = 0; i < time.length; i++) {
-        const ti = time[i];
-        const v = raw[i];
-        if (ti == null || v == null || !Number.isFinite(ti) || !Number.isFinite(v)) continue;
-        if (meta.aero && ti > clipT) continue;
-        const y = v * scale;
-        p.push([ti, y] as const);
-        xa.push(ti);
-        ya.push(y);
-        if (y < dMin) dMin = y;
-        if (y > dMax) dMax = y;
-      }
-      return { color: b.color, name: b.name, pts: p, xs: xa, ys: ya, t0: xa[0], t1: xa[xa.length - 1] };
-    });
-    if (!(dMin < Infinity)) {
-      dMin = 0;
-      dMax = 1;
-    }
-    let l: number;
-    let h: number;
-    if (meta.level) {
-      const r = dMax - dMin || Math.abs(dMax) || 1;
-      l = dMin - r * 0.1;
-      h = dMax + r * 0.1;
-    } else {
-      l = Math.min(0, dMin);
-      h = dMax + (dMax - l || 1) * 0.08;
-    }
-    return { list: out, lo: l, hi: h === l ? l + 1 : h };
-  }, [branches, meta.key, meta.level, meta.aero, scale, clipT]);
-
-  // A fixed decimal count belongs to a fixed unit: "0 dp" is right for meters
-  // of altitude and wrong for kilometers. For a quantity-backed series the
-  // count comes from the span actually on screen instead.
-  const digits = meta.quantity
-    ? (() => {
-        const span = Math.abs(hi - lo);
-        return span >= 100 ? 0 : span >= 10 ? 1 : span >= 1 ? 2 : 3;
-      })()
-    : meta.digits;
-
-  const Y = useCallback((v: number) => padT + (1 - (v - lo) / (hi - lo)) * ih, [lo, hi, ih]);
-  const mkLine = useCallback(
-    (pts: Pt[]) =>
-      pts.length >= 2 ? pts.map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(' ') : '',
-    [X, Y],
-  );
-
-  /**
-   * The path strings and the peak scan — the expensive half.
-   *
-   * The memo above deliberately caches the sample EXTRACTION, but `mkLine` (a
-   * toFixed pair and a string per sample) and this reduce over every `ys` sat
-   * outside it, in the render body. `hoverT` is state here and a prop of this
-   * component, so every pixel of hover rebuilt all of it for all three default
-   * panels — at the six-figure sample counts `maxFlightTime`'s own docblock
-   * describes, that is a six-figure-segment string per panel per pointer move.
-   */
-  const { paths, areaPath, peak } = useMemo(() => {
-    const first = list[0];
-    return {
-      paths: list.map((sr) => mkLine(sr.pts)),
-      areaPath:
-        first && first.pts.length >= 2
-          ? `M${X(first.pts[0]![0]).toFixed(1)},${Y(Math.max(lo, 0)).toFixed(1)} ` +
-            first.pts.map((p) => `L${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(' ') +
-            ` L${X(first.pts[first.pts.length - 1]![0]).toFixed(1)},${Y(Math.max(lo, 0)).toFixed(1)} Z`
-          : '',
-      peak: list.reduce((acc, sr) => {
-        let m = acc;
-        for (const y of sr.ys) if (Math.abs(y) > Math.abs(m)) m = y;
-        return m;
-      }, 0),
-    };
-  }, [list, mkLine, X, Y, lo]);
-
-  const zeroInRange = lo < 0 && hi > 0;
-
-  // Header: the hovered value of the primary (first / sustainer) stage, else the
-  // peak-magnitude sample across every shown stage.
-  const primary = list[0];
-  const hvPrimary = primary && hoverT != null ? lerpAt(primary.xs, primary.ys, hoverT) : null;
-  const shown = hvPrimary ?? peak;
-  // A stage only reports a hovered value while its own flight is under way — a
-  // spent booster already on the ground must not show a flat clamped dot.
-  const hoverVal = (s: (typeof list)[number]) =>
-    hoverT != null && s.t0 != null && s.t1 != null && hoverT >= s.t0 && hoverT <= s.t1
-      ? lerpAt(s.xs, s.ys, hoverT)
-      : null;
-
-  return (
-    <div className="mb-2 rounded-lg bg-slate-800/40 ring-1 ring-white/10">
-      <div className="flex items-baseline justify-between px-2 pt-1.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t(meta.label)}</span>
-        <span className="text-xs font-semibold tabular-nums text-slate-100">
-          {fmtNum(shown, digits)}
-          {unit && <span className="ml-0.5 text-[10px] text-slate-500">{unit}</span>}
-        </span>
-      </div>
-      <svg viewBox={`0 0 ${w} ${PANEL_H}`} width="100%" height={PANEL_H} preserveAspectRatio="none" className="block">
-        <defs>
-          {/* Filled area only for a lone line (single stage) — colored to match
-              it; overlaid stages would muddy each other, so they're lines only. */}
-          {single && (
-            <linearGradient id={`${uid}-${meta.key}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={primary?.color ?? '#38bdf8'} stopOpacity="0.25" />
-              <stop offset="100%" stopColor={primary?.color ?? '#38bdf8'} stopOpacity="0" />
-            </linearGradient>
-          )}
-          {/* Clip everything time-mapped to the plot area, so zoomed-out-of-window
-              points don't spill over the y-axis labels / panel edges. */}
-          <clipPath id={clipId}>
-            <rect x={PAD_L} y={0} width={Math.max(0, w - PAD_L - PAD_R)} height={PANEL_H} />
-          </clipPath>
-        </defs>
-        {zeroInRange && <line x1={PAD_L} y1={Y(0)} x2={w - PAD_R} y2={Y(0)} className="stroke-white/15" />}
-        <g clipPath={`url(#${clipId})`}>
-          {events.map((e, i) => (
-            <line
-              key={i}
-              x1={X(e.time)}
-              y1={padT}
-              x2={X(e.time)}
-              y2={PANEL_H - padB}
-              className="stroke-amber-400/25"
-              strokeDasharray="3 2"
-              vectorEffect="non-scaling-stroke"
-            />
-          ))}
-          {single && !meta.level && areaPath && <path d={areaPath} fill={`url(#${uid}-${meta.key})`} />}
-          {list.map((s, i) =>
-            paths[i] ? (
-              <path
-                key={i}
-                d={paths[i]}
-                fill="none"
-                stroke={s.color}
-                strokeWidth={1.75}
-                vectorEffect="non-scaling-stroke"
-              />
-            ) : null,
-          )}
-          {hoverT != null && (
-            <g pointerEvents="none">
-              <line
-                x1={X(hoverT)}
-                y1={padT}
-                x2={X(hoverT)}
-                y2={PANEL_H - padB}
-                className="stroke-slate-300/40"
-                vectorEffect="non-scaling-stroke"
-              />
-              {list.map((s, i) => {
-                const hv = hoverVal(s);
-                if (hv == null) return null;
-                return (
-                  <g key={i}>
-                    <circle cx={X(hoverT)} cy={Y(hv)} r={3} fill={s.color} />
-                    {!single && (
-                      <text x={X(hoverT) + 5} y={Y(hv) - 3} className="text-[9px] tabular-nums" fill={s.color}>
-                        {fmtNum(hv, digits)}
-                      </text>
-                    )}
-                  </g>
-                );
-              })}
-            </g>
-          )}
-        </g>
-        <text x={PAD_L - 4} y={padT + 7} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
-          {fmtNum(hi, digits)}
-        </text>
-        <text x={PAD_L - 4} y={PANEL_H - padB} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
-          {fmtNum(lo, digits)}
-        </text>
-      </svg>
     </div>
   );
 }

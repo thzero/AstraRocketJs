@@ -7,13 +7,18 @@ import { renderWithProviders } from '../../testing/renderWithProviders';
  * it say in their own comments that it is fetched lazily: "fetched only when
  * something first needs it", "the first open pays a fetch".
  *
- * Neither was. Both components are mounted unconditionally (`AppHeader` mounts
- * MotorDashboard, every `MotorRow` mounts a MotorDialog) and only `return
- * null` when closed, which does not stop an effect from running. The load
- * effect was keyed on `[attempt]` with no `open` guard, so the catalog was
- * fetched on app start. `fetchCatalog` memoizes, so it was one download rather
- * than many, but it was an unconditional 1.6 MB on first paint - on a phone at
- * a launch site, exactly what the deferral exists to avoid.
+ * Neither was. Both components were mounted unconditionally (`AppHeader`
+ * mounted MotorDashboard, every `MotorRow` mounted a MotorDialog) and only
+ * `return null` when closed, which does not stop an effect from running, so
+ * the catalog was fetched on app start. `fetchCatalog` memoizes, so it was one
+ * download rather than many, but it was an unconditional 1.6 MB on first
+ * paint - on a phone at a launch site, exactly what the deferral exists to
+ * avoid.
+ *
+ * The deferral is now the mounting convention itself: a dialog is mounted
+ * only while open (`{open && <Dialog />}`) and loads on mount. These tests
+ * pin both halves: nothing is fetched while a dialog is closed, and one
+ * opening pays exactly one fetch.
  */
 
 const loadCatalog = vi.fn(() => Promise.resolve([]));
@@ -29,26 +34,27 @@ describe('the 1.6 MB motor catalog is only fetched when a dialog opens', () => {
   beforeEach(() => loadCatalog.mockClear());
 
   it('MotorDashboard does not fetch while closed', () => {
-    renderWithProviders(<MotorDashboard open={false} onClose={() => {}} />);
+    const open = false;
+    renderWithProviders(<>{open && <MotorDashboard onClose={() => {}} />}</>);
     expect(loadCatalog).not.toHaveBeenCalled();
   });
 
   it('MotorDashboard fetches once it is opened', () => {
-    renderWithProviders(<MotorDashboard open onClose={() => {}} />);
-    expect(loadCatalog).toHaveBeenCalled();
+    renderWithProviders(<MotorDashboard onClose={() => {}} />);
+    expect(loadCatalog).toHaveBeenCalledTimes(1);
   });
 
   it('MotorDialog does not fetch while closed', () => {
+    const open = false;
     renderWithProviders(
-      <MotorDialog open={false} onClose={() => {}} onSelect={() => {}} onError={() => {}} mountDiameter={0.018} />,
+      <>{open && <MotorDialog onClose={() => {}} onSelect={() => {}} onError={() => {}} mountDiameter={18} />}</>,
     );
     expect(loadCatalog).not.toHaveBeenCalled();
   });
 
   it('MotorDialog fetches once it is opened', () => {
-    renderWithProviders(
-      <MotorDialog open onClose={() => {}} onSelect={() => {}} onError={() => {}} mountDiameter={0.018} />,
-    );
-    expect(loadCatalog).toHaveBeenCalled();
+    // 18 mm: the prop is the mount bore in millimeters, as MotorRow passes it.
+    renderWithProviders(<MotorDialog onClose={() => {}} onSelect={() => {}} onError={() => {}} mountDiameter={18} />);
+    expect(loadCatalog).toHaveBeenCalledTimes(1);
   });
 });

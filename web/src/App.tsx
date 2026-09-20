@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive } from './state/store';
 import { useWorkspaceEffects } from './state/useWorkspaceEffects';
@@ -76,23 +76,10 @@ export default function App() {
   // the simulation editor would be stranded.
   const maxed = settings.maximizeCenter && onCenter;
   const sideStyle = { width: sideW, maxWidth: `calc(100vw - ${sideReserve}px)` };
-  const sideSplitter = (paneRef: typeof propsRef) => (
-    <PaneSplitter
-      side="right"
-      paneRef={paneRef}
-      width={sideW}
-      min={SIDE_PANE_MIN}
-      max={SIDE_PANE_MAX}
-      reserve={sideReserve}
-      fallback={SIDE_PANE_DEFAULT}
-      label={t('panes.resizeSide')}
-      onDrag={setDragSide}
-      onCommit={(w) => {
-        setDragSide(null);
-        update({ sidePaneWidth: w });
-      }}
-    />
-  );
+  const commitSide = (w: number) => {
+    setDragSide(null);
+    update({ sidePaneWidth: w });
+  };
 
   return (
     // h-full, not h-screen: the shell follows #root's height, which index.css
@@ -174,7 +161,15 @@ export default function App() {
         {/* RIGHT — the selected part's properties (Design tab; desktop only).
             This column is what the tab split bought: the editor used to be
             stacked under the tree in the left one. */}
-        {tab === 'design' && !maxed && sideSplitter(propsRef)}
+        {tab === 'design' && !maxed && (
+          <SideSplitter
+            paneRef={propsRef}
+            width={sideW}
+            reserve={sideReserve}
+            onDrag={setDragSide}
+            onCommit={commitSide}
+          />
+        )}
         <section
           ref={propsRef}
           style={sideStyle}
@@ -197,7 +192,13 @@ export default function App() {
             can still change a motor. */}
         {desktop && tab === 'sim' && (
           <>
-            {sideSplitter(simEditRef)}
+            <SideSplitter
+              paneRef={simEditRef}
+              width={sideW}
+              reserve={sideReserve}
+              onDrag={setDragSide}
+              onCommit={commitSide}
+            />
             <section ref={simEditRef} style={sideStyle} className="shrink-0 overflow-y-auto lg:h-full">
               <SimEditor />
             </section>
@@ -210,7 +211,15 @@ export default function App() {
             one setting: right columns of different widths read as an accident.
             The tiles are a 3-up grid, which is what SIDE_PANE_MIN protects -
             narrower and "Static margin @ rail exit" wraps onto three lines. */}
-        {tab === 'results' && !maxed && sideSplitter(summaryRef)}
+        {tab === 'results' && !maxed && (
+          <SideSplitter
+            paneRef={summaryRef}
+            width={sideW}
+            reserve={sideReserve}
+            onDrag={setDragSide}
+            onCommit={commitSide}
+          />
+        )}
         <section
           ref={summaryRef}
           style={sideStyle}
@@ -233,5 +242,45 @@ export default function App() {
       <WorkInProgressDialog />
       <ConfirmDialog />
     </div>
+  );
+}
+
+/**
+ * The divider on the left edge of a right column. The three right columns
+ * (properties, sim editor, run summary) share ONE width, so this is the same
+ * control wherever it appears; only which pane it measures differs.
+ *
+ * A component rather than a render helper called with the ref: a function
+ * that receives a ref object during render reads as a render-time ref access
+ * to the compiler lint, while a ref handed to a component as a prop is the
+ * pattern it expects. PaneSplitter only reads it inside its pointer handlers.
+ */
+function SideSplitter({
+  paneRef,
+  width,
+  reserve,
+  onDrag,
+  onCommit,
+}: {
+  paneRef: RefObject<HTMLElement | null>;
+  width: number;
+  reserve: number;
+  onDrag: (w: number | null) => void;
+  onCommit: (w: number) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <PaneSplitter
+      side="right"
+      paneRef={paneRef}
+      width={width}
+      min={SIDE_PANE_MIN}
+      max={SIDE_PANE_MAX}
+      reserve={reserve}
+      fallback={SIDE_PANE_DEFAULT}
+      label={t('panes.resizeSide')}
+      onDrag={onDrag}
+      onCommit={onCommit}
+    />
   );
 }

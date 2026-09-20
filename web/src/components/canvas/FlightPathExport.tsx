@@ -192,13 +192,21 @@ export function ExportDialog({
       },
     });
   };
+  // The latest options, for handlers. `change` used to spread the render's
+  // closed-over `opts`, so two changes committed in one tick (or a change
+  // landing before a re-render) built the second patch on a stale copy and
+  // dropped the first. A ref that every writer updates gives the handlers the
+  // current value without a side effect inside a state updater.
+  const optsRef = useRef(opts);
+  const patchOpts = (patch: Partial<FlightPathExportOptions>): FlightPathExportOptions => {
+    const next = { ...optsRef.current, ...patch };
+    optsRef.current = next;
+    setOpts(next);
+    return next;
+  };
   /** Change persisted option(s): the dialog AND the store. Every handler
    *  below except the mission field's goes through this. */
-  const change = (patch: Partial<FlightPathExportOptions>) => {
-    const next = { ...opts, ...patch };
-    setOpts(next);
-    persist(next);
-  };
+  const change = (patch: Partial<FlightPathExportOptions>) => persist(patchOpts(patch));
   const [templates, setTemplates] = useState<UserTemplate[]>([]);
   const [error, setError] = useState<string | null>(null);
   // Where a stage's track begins only means something once there is more than
@@ -271,13 +279,16 @@ export function ExportDialog({
     if (!selectedUser) return;
     try {
       await store.remove(selectedUser.id);
+      // Inside the try as well: a listing that fails after the delete used to
+      // reject out of the handler, so the row vanished from the store but the
+      // dialog kept showing it and no error was reported.
+      setTemplates(await store.list());
     } catch {
       // The template store now reports a refused write rather than resolving
       // cleanly on one, so this can throw where it never used to.
       setError(t('storage.full'));
       return;
     }
-    setTemplates(await store.list());
     setSelected(EXPORT_FORMATS[0]!.id);
     setError(null);
   };
@@ -294,8 +305,11 @@ export function ExportDialog({
   };
 
   const download = () => {
-    const model = buildFlightPathModel(result, launch, meta, opts, (k) => t(WP_LABEL_KEY[k]));
     try {
+      // Building the model is part of the render that can fail (a result with
+      // no usable samples, a waypoint the branch never reached), so it belongs
+      // under the same catch as the template render rather than in front of it.
+      const model = buildFlightPathModel(result, launch, meta, opts, (k) => t(WP_LABEL_KEY[k]));
       let text: string;
       let ext: string;
       let mime: string;
@@ -557,7 +571,7 @@ export function ExportDialog({
               placeholder={t('pathExport.missionPlaceholder')}
               // Dialog state only: the mission name is never persisted, and
               // typing it must not write the settings (see `persist`).
-              onChange={(e) => setOpts((o) => ({ ...o, missionName: e.target.value }))}
+              onChange={(e) => patchOpts({ missionName: e.target.value })}
               className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-sm text-slate-100 ring-1 ring-white/10 placeholder:text-slate-600 focus:outline-none focus:ring-sky-500"
             />
             <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.missionNote')}</p>

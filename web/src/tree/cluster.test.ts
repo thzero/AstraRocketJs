@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CLUSTER_POINTS, CLUSTER_OPTIONS, clusterCount, clusterOffsets } from './cluster';
+import { CLUSTER_POINTS, CLUSTER_OPTIONS, clusterCount, clusterOffsets, isClusterPattern } from './cluster';
 
 describe('clusterCount', () => {
   it('defaults an absent cluster to a single motor', () => {
@@ -102,5 +102,18 @@ describe('clusterOffsets', () => {
 
   it('falls back to a single on-axis tube for an unknown pattern', () => {
     expect(clusterOffsets('nonsense', 0.01)).toEqual([{ y: 0, z: 0 }]);
+  });
+});
+
+describe('isClusterPattern', () => {
+  it('accepts every option and rejects anything else', () => {
+    for (const o of CLUSTER_OPTIONS) expect(isClusterPattern(o), o).toBe(true);
+    expect(isClusterPattern('7-ring')).toBe(false);
+    expect(isClusterPattern('toString')).toBe(false); // not via the prototype chain
+    expect(isClusterPattern(undefined)).toBe(false);
+  });
+  it('an unknown pattern lays out as a single tube everywhere it is read', () => {
+    expect(clusterCount('7-ring')).toBe(1);
+    expect(clusterOffsets('7-ring', 0.01)).toEqual([{ y: 0, z: 0 }]);
   });
 });

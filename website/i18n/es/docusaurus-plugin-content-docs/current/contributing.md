@@ -2,6 +2,7 @@
 title: "Contribuir"
 sidebar_position: 13
 ---
+
 ¡Hola, y gracias por tu interés en AstraRocketJs! 😊 Tanto si quieres escribir código, cazar fallos, traducir o ayudar de cualquier otra forma, esta guía te pondrá en marcha.
 
 AstraRocketJs es una **interfaz web ligera sobre el motor real de OpenRocket**: la física es de OpenRocket, compilada a WebAssembly y JavaScript; la aplicación que la rodea es nuestra. La mayoría de las contribuciones están en la aplicación web. (Para ahorrar pulsaciones, abreviaremos el proyecto como **ARJ**.)
@@ -9,6 +10,7 @@ AstraRocketJs es una **interfaz web ligera sobre el motor real de OpenRocket**: 
 Al participar aceptas nuestro **[Código de conducta](https://github.com/thzero/AstraRocketJs/blob/HEAD/CODE_OF_CONDUCT.md)**: sé amable y constructivo.
 
 #### Contenido
+
 - [Pruebas](#testing) — [Informar de fallos](#reporting-bugs) · [Sugerir funciones](#suggesting-new-features)
 - [Desarrollo](#development) — [Estructura del proyecto](#project-layout) · [Primeros pasos](#getting-started) · [Trabajar en el motor](#working-on-the-engine) · [Herramientas de catálogo](#catalog-tools) · [Etiqueta de commits](#commit-etiquette) · [Pull requests](#pull-requests)
 - [Tareas de mantenimiento](#maintainer-tasks)
@@ -32,7 +34,7 @@ Una captura o una grabación de pantalla ayudan mucho.
 
 ### Sugerir funciones nuevas {#suggesting-new-features}
 
-Abre una incidencia con el prefijo **[Feature Request]**. Explica el comportamiento que te gustaría y por qué importa. Ten en cuenta que ARJ es intencionadamente una interfaz *centrada*, no una recreación completa de la aplicación de escritorio de OpenRocket: las funciones que encajan en ese alcance son las más fáciles de defender.
+Abre una incidencia con el prefijo **[Feature Request]**. Explica el comportamiento que te gustaría y por qué importa. Ten en cuenta que ARJ es intencionadamente una interfaz _centrada_, no una recreación completa de la aplicación de escritorio de OpenRocket: las funciones que encajan en ese alcance son las más fáciles de defender.
 
 ## Desarrollo {#development}
 
@@ -70,6 +72,7 @@ npm run preview      # sirve la compilación de producción en local
 npm run test         # Vitest: pruebas unitarias (.test.ts) y de componentes (.test.tsx)
 npm run test:watch   # Vitest en modo observación mientras desarrollas
 npm run e2e          # pruebas de humo de extremo a extremo con Playwright (descarga Chromium la primera vez)
+npm run verify       # todas las comprobaciones que CI ejecuta sobre la app web: formato, ortografía, tipos, lint, knip, pruebas
 ```
 
 Por favor, **verifica los cambios de interfaz en un navegador real**, no solo que compilen.
@@ -93,7 +96,7 @@ La mayoría de las contribuciones no tocan el motor. Si la tuya lo hace:
   node build-engine.mjs           # compila y copia AMBOS destinos (opción predeterminada)
   ```
 
-- **Sube el cambio de Java y *ambos* artefactos regenerados (`.mjs` + `.wasm`) juntos**: deben mantenerse sincronizados, o la aplicación ejecutará física obsoleta (y los dos motores deben coincidir).
+- **Sube el cambio de Java y _ambos_ artefactos regenerados (`.mjs` + `.wasm`) juntos**: deben mantenerse sincronizados, o la aplicación ejecutará física obsoleta (y los dos motores deben coincidir).
 
 ### Herramientas de catálogo {#catalog-tools}
 
@@ -120,9 +123,9 @@ La lista de personas contribuyentes es la excepción: el despliegue de Pages vue
 
 ### Etiqueta de commits {#commit-etiquette}
 
-- Usa **commits atómicos**: un cambio lógico por commit. ¿Arreglas un fallo *y* detectas una errata en otro sitio? Dos commits.
+- Usa **commits atómicos**: un cambio lógico por commit. ¿Arreglas un fallo _y_ detectas una errata en otro sitio? Dos commits.
 - Dales **nombres útiles**. Si hay una incidencia, ponla de prefijo: `[#123] Fix stability when fins are swept aft`. El `#123` enlaza automáticamente con la incidencia.
-- Un asunto breve más un cuerpo que explique el *porqué y el cómo* es lo ideal.
+- Un asunto breve más un cuerpo que explique el _porqué y el cómo_ es lo ideal.
 
 ### Pull requests {#pull-requests}
 
@@ -136,12 +139,12 @@ Asegúrate de que `npm run build` y `npm run test` pasan, y de que has comprobad
 
 Lo que CI comprueba en el propio PR:
 
-| Flujo de trabajo | Ejecuta | Cuándo |
-| --- | --- | --- |
-| `parity` | `npm run parity` y luego una recompilación comparada con los binarios versionados | primero |
-| `reproducible` | `npm run extract:check` contra el OpenRocket fijado | primero |
-| `build-and-test` | `format:check`, `spell`, `test:coverage`, `build`, `knip` | después de los dos anteriores |
-| `e2e` | Playwright, repartido en tres fragmentos | después de los dos anteriores |
+| Flujo de trabajo | Ejecuta                                                                           | Cuándo                   |
+| ---------------- | --------------------------------------------------------------------------------- | ------------------------ |
+| `parity`         | `npm run parity` y luego una recompilación comparada con los binarios versionados | primero                  |
+| `reproducible`   | `npm run extract:check` contra el OpenRocket fijado                               | primero                  |
+| `build-and-test` | `npm run verify` con cobertura, luego `vite build`                                | en paralelo con `parity` |
+| `e2e`            | Playwright, repartido en tres fragmentos                                          | en paralelo con `parity` |
 
 El sitio Docusaurus **no** se compila en un PR. Se comprueban sus tipos y se compila en `deploy.yml` al fusionar en `master`, así que una página MDX rota o un `sidebars.ts` roto aparecen como un despliegue fallido y no como una comprobación de PR fallida.
 
@@ -151,11 +154,11 @@ Al fusionar, `deploy.yml` ejecuta esas comprobaciones y solo entonces revisa los
 
 ### Qué tipo de prueba {#which-kind-of-test}
 
-| | Para | Ejemplo |
-| --- | --- | --- |
-| **`.test.ts`** (Vitest, node) | Lógica pura: analizadores, transformaciones, conversiones, almacenes. La mayoría son de este tipo. | `prefs/units.test.ts` |
-| **`.test.tsx`** (Vitest + React Testing Library, jsdom) | Una regla que vive en un componente y no tiene un servicio donde probarse. | `components/common/UnitChip.test.tsx` |
-| **`e2e/*.spec.ts`** (Playwright) | Recorridos completos, y todo lo que necesite el motor real, el diseño en pantalla o persistencia entre recargas. | `e2e/units.spec.ts` |
+|                                                         | Para                                                                                                             | Ejemplo                               |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| **`.test.ts`** (Vitest, node)                           | Lógica pura: analizadores, transformaciones, conversiones, almacenes. La mayoría son de este tipo.               | `prefs/units.test.ts`                 |
+| **`.test.tsx`** (Vitest + React Testing Library, jsdom) | Una regla que vive en un componente y no tiene un servicio donde probarse.                                       | `components/common/UnitChip.test.tsx` |
+| **`e2e/*.spec.ts`** (Playwright)                        | Recorridos completos, y todo lo que necesite el motor real, el diseño en pantalla o persistencia entre recargas. | `e2e/units.spec.ts`                   |
 
 Las pruebas de componentes se renderizan con `src/testing/renderWithProviders.tsx`, que envuelve el componente en los proveedores de la aplicación e inicializa las traducciones reales: así las comprobaciones usan los textos que ve una persona usuaria, y una clave i18n renombrada hace fallar una prueba en vez de mostrar la clave en crudo. Prepara las preferencias con `seedSettings({ … })` antes de renderizar y lee lo que el componente escribió con `readSettings()`.
 
@@ -228,4 +231,4 @@ Si tu cambio afecta a un comportamiento —o a la arquitectura— que quienes co
 
 ---
 
-*¿Se te dan bien los tutoriales, el diseño o la difusión? Adelante: se agradece la ayuda en cualquier forma. 🙃 ¿No sabes por dónde empezar? Abre una discusión o pregunta en una incidencia.*
+_¿Se te dan bien los tutoriales, el diseño o la difusión? Adelante: se agradece la ayuda en cualquier forma. 🙃 ¿No sabes por dónde empezar? Abre una discusión o pregunta en una incidencia._

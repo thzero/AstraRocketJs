@@ -75,12 +75,21 @@ export function FreeformFinEditor({
     e.stopPropagation();
     dragging.current = i;
     setSel(i);
-    svgRef.current?.setPointerCapture(e.pointerId);
+    svgRef.current?.setPointerCapture?.(e.pointerId);
   };
+  // Also the pointercancel / lostpointercapture end: a touch drag that the
+  // browser takes over for scrolling, or a pen lifted out of range, never sends
+  // pointerup, so the vertex stayed "held" and the next move anywhere on the
+  // outline dragged it, with the undo entry left open. PaneSplitter ends its
+  // drag the same way.
   const endDrag = (e: React.PointerEvent) => {
     if (dragging.current != null) onCommit?.(); // a drag is one undo entry, closed on release
     dragging.current = null;
-    svgRef.current?.releasePointerCapture?.(e.pointerId);
+    try {
+      svgRef.current?.releasePointerCapture?.(e.pointerId);
+    } catch {
+      /* the pointer is already gone (touch lifted); nothing to release */
+    }
   };
 
   const insertAfter = (i: number) => {
@@ -160,6 +169,8 @@ export function FreeformFinEditor({
         className="block touch-none rounded-lg bg-slate-950 ring-1 ring-white/10"
         onPointerMove={onMove}
         onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onLostPointerCapture={endDrag}
       >
         {/* body surface (root line) */}
         <line x1={PAD / 2} y1={sy(0)} x2={W - PAD / 2} y2={sy(0)} className="stroke-white/15" strokeDasharray="4 3" />

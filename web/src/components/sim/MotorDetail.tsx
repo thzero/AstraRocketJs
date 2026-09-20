@@ -4,9 +4,9 @@ import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import type { CatalogMotor } from '../../services/motorDb';
 import { initialThrust } from '../../services/motorPicker';
-import { ChartAxes, chartScales, linePath, baselineArea } from './chartAxes';
-
-const G = 9.80665;
+import { avgThrustOf, ispOf, massFracOf } from '../../services/motorMath';
+import { ChartAxes, CHART_HEADROOM, chartScales, linePath, baselineArea } from './chartAxes';
+import { inUserUnit, withUnit } from './motorFormat';
 
 const TYPE_KEY: Record<string, string> = { SU: 'typeSU', reload: 'typeReload', hybrid: 'typeHybrid' };
 
@@ -32,21 +32,21 @@ export function MotorDetail({
 
   // Avg thrust and total impulse are motor-level (certified); peak and initial
   // thrust reflect the specific curve on screen.
-  const avg = motor.avgThrust ?? (motor.burn > 0 ? motor.impulse / motor.burn : 0);
+  const avg = avgThrustOf(motor);
   const max = samples.length ? Math.max(...samples.map((s) => s[1])) : (motor.maxThrust ?? 0);
   const init = samples.length ? initialThrust(samples) : null;
-  const isp = motor.propWeightG ? motor.impulse / ((motor.propWeightG / 1000) * G) : null;
-  const massFrac = motor.propWeightG && motor.mass ? (motor.propWeightG / motor.mass) * 100 : null;
+  // NaN when the catalog lacks the weights; the formatters render a dash.
+  const isp = ispOf(motor);
+  const massFrac = massFracOf(motor);
   // ThrustCurve's URL keys on the full designation (e.g. "E26W"), not the common
   // name ("E26") — `code` holds it when they differ.
   const tcUrl = `https://www.thrustcurve.org/motors/${encodeURIComponent(motor.manufacturer)}/${encodeURIComponent(motor.code || motor.designation)}/`;
 
-  const g = (v: number | null | undefined, unit: string, digits = 1) =>
-    v == null || !Number.isFinite(v) ? '—' : `${fmtNum(v, digits)} ${unit}`;
+  const g = withUnit;
   // The catalog is in mm / g / N / N.s (see CatalogMotor), so `scale` lifts a
   // field to SI before the user's unit is applied.
   const q = (quantity: Parameters<typeof u.fmt>[0], v: number | null | undefined, scale = 1, d?: number) =>
-    v == null || !Number.isFinite(v) ? '—' : `${u.fmt(quantity, v * scale, d)} ${u.sym(quantity)}`;
+    inUserUnit(u, quantity, v, scale, d);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-3">
@@ -116,7 +116,10 @@ export function MotorDetail({
         <Stat label={t('motorDlg.totalImpulse')} value={q('impulse', motor.impulse, 1, 1)} />
         <Stat label={t('motorDlg.burnTime')} value={g(motor.burn, 's', 2)} />
         <Stat label={t('motorDlg.isp') + '*'} value={g(isp, 's', 0)} />
-        <Stat label={t('motorDlg.massFraction') + '*'} value={massFrac == null ? '—' : `${fmtNum(massFrac, 0)}%`} />
+        <Stat
+          label={t('motorDlg.massFraction') + '*'}
+          value={Number.isFinite(massFrac) ? `${fmtNum(massFrac, 0)}%` : '—'}
+        />
         <Stat label={t('motorDlg.propType')} value={motor.propInfo ?? '—'} />
         <Stat label={t('motorDlg.sparky')} value={t(motor.sparky ? 'motorDlg.yes' : 'motorDlg.no')} />
       </dl>
@@ -141,7 +144,7 @@ export function ThrustChart({ samples, avg, burn }: { samples: [number, number][
   const dims = { width: 460, height: 150, padL: 34, padR: 10, padT: 10, padB: 22 };
   const { width: W, height: H, padL: PL, padR: PR, padT: PT, padB: PB } = dims;
   const tMax = samples[samples.length - 1]![0] || 1;
-  const fMax = Math.max(...samples.map((s) => s[1]), avg) * 1.08 || 1;
+  const fMax = Math.max(...samples.map((s) => s[1]), avg) * CHART_HEADROOM || 1;
   const { X, Y } = chartScales(dims, tMax, fMax);
   const line = linePath(samples, X, Y);
   const area = baselineArea(samples, X, Y, tMax);

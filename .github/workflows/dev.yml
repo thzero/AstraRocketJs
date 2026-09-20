@@ -1,0 +1,52 @@
+name: Dev
+
+# The push gate for day-to-day work on `dev`.
+#
+# ci.yml is `pull_request`-only and deploy.yml is master-push-only, so a push
+# to dev with no PR open was checked by NOTHING: a broken typecheck or a red
+# unit test sat on the branch until someone opened the PR. The code-quality
+# audit (docs/AUDIT_CODE_QUALITY.md) called for a workflow on every push.
+#
+# Only the web gates, and only the fast ones: `npm run verify`, the same list
+# a developer runs locally, so the two cannot drift. No Java toolchain, no
+# parity (20-60 min), no e2e (~4 min sharded), no coverage floor. Those stay
+# in gates.yml, which the PR still has to pass; this exists to say within a
+# few minutes of the push that it broke formatting, spelling, types, lint, a
+# unit test or knip.
+#
+# Cancels the previous run on the same ref: a second push while the first is
+# still installing makes the first run's verdict about a commit nobody will
+# look at.
+
+on:
+  push:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dev-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    # The list runs in ~2 min warm. A backstop only; if it is still going at
+    # ten minutes something is hung, not slow.
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run verify

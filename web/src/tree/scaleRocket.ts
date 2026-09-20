@@ -1,5 +1,7 @@
-import type { ComponentNode, ComponentPosition, RocketTree } from '../engine/openRocketEngine';
-import { numOpt } from './nodeProps';
+import type { ComponentNode, ComponentType, RocketTree } from '../engine/openRocketEngine';
+import { isAssembly } from './assembly';
+import { isChainType } from './componentKinds';
+import { numOpt, positionOf } from './nodeProps';
 
 /**
  * Scale a whole rocket by one factor — the "upscale/downscale a plan" workflow.
@@ -27,8 +29,14 @@ import { numOpt } from './nodeProps';
  * design carrying recovery gear is therefore not exactly similar after scaling.
  */
 
-/** Length-valued keys per component type. Present-only, multiplied by k. */
-const LENGTH_KEYS: Record<string, readonly string[]> = {
+/**
+ * Length-valued keys per component type. Present-only, multiplied by k.
+ *
+ * Keyed by `ComponentType`, not `string`: a type added to the union without a
+ * row here is a compile error, where the open record silently scaled nothing
+ * on it.
+ */
+const LENGTH_KEYS: Record<ComponentType, readonly string[]> = {
   nosecone: ['length', 'aftRadius', 'thickness', 'shoulderRadius', 'shoulderLength', 'shoulderThickness'],
   transition: [
     'length',
@@ -106,7 +114,7 @@ const LENGTH_KEYS: Record<string, readonly string[]> = {
 };
 
 /** Types whose own geometry is fixed hardware — they move, they do not grow. */
-const FIXED_SIZE = new Set(['fairing', 'railbutton']);
+const FIXED_SIZE: ReadonlySet<ComponentType> = new Set<ComponentType>(['fairing', 'railbutton']);
 
 /** Mass keys — scaled only on parts whose geometry actually scaled. */
 const MASS_KEYS = ['mass', 'overrideMass'] as const;
@@ -115,8 +123,36 @@ const MASS_KEYS = ['mass', 'overrideMass'] as const;
  * The exponent a PINNED mass scales by, per type — matching how the same part's
  * COMPUTED mass scales (densities are untouched): a solid is a volume (k³), a
  * canopy/streamer a surface (k²), a cord a line (k).
+ *
+ * Every type is listed. The table used to hold only the exceptions over an
+ * open `Record<string, number>` with `?? 3` at the read, so the k³ cases were
+ * implicit and a new type fell into them unreviewed; the launch-lug error
+ * below is exactly what that produced.
  */
-const MASS_EXPONENT: Record<string, number> = {
+const MASS_EXPONENT: Record<ComponentType, number> = {
+  // A stage or assembly has no mass of its own, but an `overrideMass` pinned on
+  // one covers its whole subtree, which is a volume.
+  stage: 3,
+  podset: 3,
+  parallelstage: 3,
+  // Solid bodies: every dimension scales, so a volume.
+  nosecone: 3,
+  transition: 3,
+  bodytube: 3,
+  // Fins: a planform area (k²) times a thickness (k).
+  trapezoidfinset: 3,
+  ellipticalfinset: 3,
+  freeformfinset: 3,
+  // A tube: length, radius and wall all scale.
+  tubefinset: 3,
+  innertube: 3,
+  tubecoupler: 3,
+  centeringring: 3,
+  bulkhead: 3,
+  engineblock: 3,
+  // A mass component's length and radius scale (LENGTH_KEYS.masscomponent), so
+  // its pinned mass follows the volume it now occupies.
+  masscomponent: 3,
   parachute: 2,
   streamer: 2,
   shockcord: 1,
@@ -126,6 +162,10 @@ const MASS_EXPONENT: Record<string, number> = {
   // on a part that merely got twice as long, and that error lands straight in
   // the scaled design's total mass and CG.
   launchlug: 1,
+  // Fixed-size hardware (FIXED_SIZE): the same physical part after scaling,
+  // so its mass is never touched. k^0 = 1 says so even if the guard is lost.
+  railbutton: 0,
+  fairing: 0,
 };
 
 const round = (x: number, places = 12): number => {
@@ -135,10 +175,12 @@ const round = (x: number, places = 12): number => {
 
 /** Scales one node's own fields. Children are handled by the caller. */
 function scaleNode(n: ComponentNode, k: number): ComponentNode {
-  const type = n.type as string;
+  const type = n.type;
   const fixed = FIXED_SIZE.has(type);
   const out: ComponentNode = { ...n };
 
+  // `?? []` survives for a persisted node whose `type` the union does not
+  // know: the table is complete for the union, not for arbitrary input.
   for (const key of LENGTH_KEYS[type] ?? []) {
     const v = numOpt(n, key);
     if (v !== undefined) out[key] = round(v * k);
@@ -158,6 +200,8 @@ function scaleNode(n: ComponentNode, k: number): ComponentNode {
   // Pinned masses go as k^exp — but only where the geometry moved (a fixed-size
   // part is the same physical part after scaling and weighs the same).
   if (!fixed) {
+    // Same `?? 3` reasoning as LENGTH_KEYS above: complete for the union, and
+    // a solid is the safe reading of a type it has never seen.
     const exp = MASS_EXPONENT[type] ?? 3;
     for (const key of MASS_KEYS) {
       const v = numOpt(n, key);
@@ -172,8 +216,11 @@ function scaleNode(n: ComponentNode, k: number): ComponentNode {
   // (parentLength, childLength, offset), so scaling the offset alongside the
   // lengths keeps every part at the same relative station — fixed-size parts
   // included (they move to their new station, same as desktop's rule).
-  const pos = n.position as ComponentPosition | undefined;
-  if (pos && typeof pos.offset === 'number') {
+  // `positionOf` validates the method and the offset the way position.ts now
+  // reads them, so a string offset scales to the kernel's 0 rather than being
+  // carried through untouched to disagree with the layout.
+  if (n.position) {
+    const pos = positionOf(n);
     out.position = { ...pos, offset: round(pos.offset * k) };
   }
 
@@ -200,7 +247,7 @@ export function maxBodyDiameter(tree: RocketTree): number {
   let r = 0;
   const walk = (nodes: ComponentNode[]) => {
     for (const n of nodes) {
-      const t = n.type as string;
+      const t = n.type;
       if (t === 'bodytube') r = Math.max(r, numOpt(n, 'outerRadius') ?? 0);
       else if (t === 'nosecone') r = Math.max(r, numOpt(n, 'aftRadius') ?? 0);
       else if (t === 'transition') r = Math.max(r, numOpt(n, 'foreRadius') ?? 0, numOpt(n, 'aftRadius') ?? 0);
@@ -214,14 +261,13 @@ export function maxBodyDiameter(tree: RocketTree): number {
 /** Total nose-to-tail length (m) of the core axial chain, stages summed. Off-axis
  *  pods/parallel boosters are not part of the rocket's length. */
 export function rocketLength(tree: RocketTree): number {
-  const CHAIN = new Set(['nosecone', 'bodytube', 'transition']);
-  const OFF_AXIS = new Set(['podset', 'parallelstage']);
+  // The shared chain / assembly tables (componentKinds.ts), not a third local
+  // copy of "nosecone, bodytube, transition".
   let total = 0;
   const walk = (nodes: ComponentNode[]) => {
     for (const n of nodes) {
-      const t = n.type as string;
-      if (OFF_AXIS.has(t)) continue;
-      if (CHAIN.has(t)) total += numOpt(n, 'length') ?? 0;
+      if (isAssembly(n.type)) continue;
+      if (isChainType(n.type)) total += numOpt(n, 'length') ?? 0;
       walk(n.children ?? []);
     }
   };

@@ -3,14 +3,17 @@ import { useTranslation } from 'react-i18next';
 import { useFocusTrap } from '../common/useFocusTrap';
 
 /**
- * Name/rename a saved design. Used by File → Save As… and by Rename in the
+ * Name/rename a saved design. Used by File > Save As... and by Rename in the
  * library, which differ only in title and button label.
  *
  * Replaces a `window.prompt`, which could not be styled, translated reliably,
- * or validated — and which some browsers suppress entirely.
+ * or validated, and which some browsers suppress entirely.
+ *
+ * Mounted only while open (`{open && <DesignPropertiesDialog />}`), so the
+ * name field is seeded once from `initialName` in its initializer; there is no
+ * "reseed on open" effect, and every rename gets a fresh instance.
  */
 export function DesignPropertiesDialog({
-  open,
   title,
   confirmLabel,
   initialName,
@@ -18,7 +21,6 @@ export function DesignPropertiesDialog({
   onCancel,
   onConfirm,
 }: {
-  open: boolean;
   title: string;
   confirmLabel: string;
   initialName: string;
@@ -30,27 +32,15 @@ export function DesignPropertiesDialog({
   const { t } = useTranslation();
   const [name, setName] = useState(initialName);
   const inputRef = useRef<HTMLInputElement>(null);
-  const panelRef = useFocusTrap<HTMLDivElement>(open);
+  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onCancel });
 
-  // Reseed each time it opens — the same dialog instance serves Save As and
-  // every rename, so a stale value from last time would be wrong.
+  // Select the seeded name so typing replaces it. A frame later: the focus
+  // trap has just moved focus into the panel, and a select() before that
+  // would be undone by it.
   useEffect(() => {
-    if (!open) return;
-    setName(initialName);
     const id = requestAnimationFrame(() => inputRef.current?.select());
     return () => cancelAnimationFrame(id);
-  }, [open, initialName]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onCancel]);
-
-  if (!open) return null;
+  }, []);
 
   const trimmed = name.trim();
   const duplicate = trimmed !== '' && takenNames.some((n) => n.toLowerCase() === trimmed.toLowerCase());
@@ -94,7 +84,7 @@ export function DesignPropertiesDialog({
           className="mt-1 w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-100 ring-1 ring-white/10 focus:ring-sky-500"
         />
 
-        {/* A duplicate name is allowed — designs are keyed by id, not name — but
+        {/* A duplicate name is allowed (designs are keyed by id, not name) but
             two identical rows in the library are confusing, so say so. */}
         {duplicate && <p className="mt-2 text-xs text-amber-300">{t('library.duplicateName')}</p>}
 

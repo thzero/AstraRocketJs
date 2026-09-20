@@ -1,4 +1,4 @@
-import type { ComponentNode } from '../engine/openRocketEngine';
+import type { ComponentNode, ComponentPosition } from '../engine/openRocketEngine';
 
 /**
  * Typed accessors for a ComponentNode's open-ended parameter bag
@@ -49,3 +49,36 @@ export const str = (n: ComponentNode, key: string, fb = ''): string =>
 /** Boolean parameter, or `fb` (default false) when absent / non-boolean. */
 export const bool = (n: ComponentNode, key: string, fb = false): boolean =>
   typeof n[key] === 'boolean' ? (n[key] as boolean) : fb;
+
+const AXIAL_METHODS: ReadonlySet<string> = new Set<ComponentPosition['method']>([
+  'top',
+  'middle',
+  'bottom',
+  'absolute',
+  'after',
+]);
+
+/**
+ * A node's axial position, VALIDATED: the method is one the union names and
+ * the offset is a finite number, each falling back to the kernel's own
+ * default (`top`, 0: ComponentFactory.java:606-607) otherwise.
+ *
+ * `position.ts` used to `as ComponentPosition` the raw field in three places
+ * and put `pos.offset` straight into arithmetic, while `scaleRocket.ts`
+ * guarded `typeof pos.offset === 'number'` in a fourth. A hand-edited design
+ * or a hostile `.ork` with `offset: "0.1"` reached `pLen - childLen + "0.1"`
+ * and produced a string station. One reader, the same guard the numeric
+ * accessors above already apply.
+ *
+ * `ork` (what an imported file actually said) rides along untouched, since the
+ * exporter writes it back verbatim.
+ */
+export const positionOf = (n: ComponentNode): ComponentPosition => {
+  const raw = n.position as Partial<ComponentPosition> | null | undefined;
+  const method =
+    raw && typeof raw.method === 'string' && AXIAL_METHODS.has(raw.method)
+      ? (raw.method as ComponentPosition['method'])
+      : 'top';
+  const offset = raw && typeof raw.offset === 'number' && Number.isFinite(raw.offset) ? raw.offset : 0;
+  return raw?.ork ? { method, offset, ork: raw.ork } : { method, offset };
+};

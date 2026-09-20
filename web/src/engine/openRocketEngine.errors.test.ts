@@ -133,3 +133,82 @@ describe('a stale handle is reported as StaleDesignError, never re-wrapped', () 
     expect(() => design.setMotorIgnitionById('mount', 'launch', 0)).toThrow(StaleDesignError);
   });
 });
+
+describe('the envelope readers name their operation too', () => {
+  const design = () => OpenRocketDesign.buildTree(TREE);
+
+  it('a kernel {error} envelope surfaces as EngineCallError carrying the operation', () => {
+    __setEngineForTests(stubApi({ getStaticInfo: () => JSON.stringify({ error: 'no components' }) }));
+    let caught: unknown;
+    try {
+      design().staticInfo();
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(EngineCallError);
+    expect((caught as EngineCallError).operation).toBe('staticInfo');
+    expect((caught as Error).message).toContain('no components');
+  });
+
+  it('a reply that is not JSON at all names the operation instead of a bare SyntaxError', () => {
+    __setEngineForTests(stubApi({ getStaticInfo: () => 'Exception in thread "main"' }));
+    expect(() => design().staticInfo()).toThrow(EngineCallError);
+    expect(() => design().staticInfo()).toThrow(/staticInfo/);
+    expect(() => design().staticInfo()).toThrow(/not JSON/);
+  });
+
+  it('a trap out of the call itself (not an envelope) is wrapped the same way', () => {
+    __setEngineForTests(
+      stubApi({
+        getComponentMasses: () => {
+          throw new Error('unreachable executed');
+        },
+      }),
+    );
+    let caught: unknown;
+    try {
+      design().componentMasses();
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(EngineCallError);
+    expect((caught as EngineCallError).operation).toBe('componentMasses');
+    expect((caught as EngineCallError).message).toContain('unreachable executed');
+  });
+
+  it('componentMasses still rejects an {error} envelope pretending to be an array', () => {
+    __setEngineForTests(stubApi({ getComponentMasses: () => JSON.stringify({ error: 'kaput' }) }));
+    expect(() => design().componentMasses()).toThrow(/componentMasses.*kaput/);
+  });
+
+  it('sets the standard Error.cause as well as engineCause', () => {
+    const inner = new Error('deep');
+    __setEngineForTests(
+      stubApi({
+        getWorstThetaDeg: () => {
+          throw inner;
+        },
+      }),
+    );
+    let caught: unknown;
+    try {
+      design().worstThetaDeg();
+    } catch (e) {
+      caught = e;
+    }
+    expect((caught as EngineCallError).cause).toBe(inner);
+    expect((caught as EngineCallError).engineCause).toBe(inner);
+  });
+
+  it('resetEngine goes through callEngine', () => {
+    __setEngineForTests(
+      stubApi({
+        reset: () => {
+          throw new Error('trap');
+        },
+      }),
+    );
+    expect(() => resetEngine()).toThrow(EngineCallError);
+    expect(() => resetEngine()).toThrow(/reset/);
+  });
+});

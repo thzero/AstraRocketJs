@@ -1,7 +1,6 @@
 {
   "app": {
     "title": "AstraRocketJs",
-    "version": "{{name}} versión {{version}}",
     "designName": "Diseño de {{name}}"
   },
   "common": {
@@ -95,9 +94,13 @@
     "landscape": "Horizontal",
     "reset": "Restablecer",
     "svgTitle": "Dibujo 2D a escala real (SVG) con datos del diseño: tamaño físico en mm, se imprime al 100%",
+    "image": "Imagen",
+    "imageTitle2d": "Imagen 2D en alta resolución con datos del diseño: elige PNG o JPG y un ancho",
+    "imageTitle3d": "Captura la vista 3D actual con datos del diseño: gira hasta el ángulo que quieras y elige PNG o JPG y un ancho (se vuelve a renderizar a esa resolución)",
     "imageFailed": "Error al exportar la imagen: {{message}}. Prueba con un ancho menor o descarga el SVG.",
     "fitFrame": "Ajustar el cohete al encuadre",
     "fitFrameHint": "Acerca la cámara para que el cohete llene la imagen exportada: se mantiene el ángulo de visión, solo cambia el encuadre",
+    "simFailed": "La simulación falló, así que no se generó el PDF: {{message}}",
     "pdfFailed": "No se pudo exportar el PDF: {{message}}",
     "csvFailed": "No se pudo exportar el CSV: {{message}}",
     "reportFailed": "No se pudo generar el informe del diseño: {{message}}"
@@ -137,7 +140,6 @@
     "cpNote": "El CP se calcula a partir de la forma y no se puede anular directamente — OpenRocket anula masa, CG y resistencia."
   },
   "file": {
-    "open": "Abrir .ork",
     "save": "Guardar",
     "openLibrary": "Abrir…",
     "saveAs": "Guardar como…",
@@ -213,7 +215,6 @@
     "aeroHeatOr": "Por calor",
     "aeroHeatNote": "Por magnitud es un solo color que se intensifica con el valor, escalado respecto al mayor de la tabla. El mapa de calor de OpenRocket es su verde-rojo de escritorio en su propia escala fija, con texto oscuro sobre celdas claras.",
     "phases": "Colores de fase de la trayectoria",
-    "playback": "Reproducción de la trayectoria",
     "tabGeneral": "General",
     "tabUnits": "Unidades",
     "tabColors": "Colores",
@@ -227,7 +228,6 @@
     "launchNote": "Condiciones de lanzamiento predeterminadas para las simulaciones nuevas. Edita las condiciones de una simulación existente en su panel de Lanzamiento.",
     "defaultSpeed": "Velocidad predeterminada",
     "confirmDelete": "Confirmar la eliminación de simulaciones",
-    "autoRun": "Ejecutar simulaciones desactualizadas automáticamente",
     "warnings": "Avisos de seguridad",
     "railExitMin": "Vel. mínima de salida del riel",
     "deploySpeedWarn": "Aviso de vel. de despliegue sobre",
@@ -355,7 +355,6 @@
   },
   "sim": {
     "run": "Simular vuelo",
-    "running": "Simulando…",
     "cancel": "Cancelar ejecución",
     "prompt": "Ejecuta una simulación para ver el perfil de vuelo.",
     "apogee": "Apogeo",
@@ -371,7 +370,6 @@
     "deployVelocity": "Vel. despliegue",
     "optDelay": "Retardo óptimo",
     "noMount": "Añade un soporte de motor para ejecutar una simulación.",
-    "noMotor": "Carga un motor para ejecutar una simulación.",
     "failedNamed": "\"{{name}}\" falló: {{message}}",
     "noMotorNamed": "\"{{name}}\" no tiene un motor utilizable.",
     "incomplete": "A \"{{name}}\" le falta: {{fields}}.",
@@ -718,7 +716,6 @@
     "columnShare": "Proporción del mayor de cada columna",
     "perComponent": "Por componente",
     "atMach": "a Mach {{mach}}",
-    "hoverHint": "Pasa el cursor por una gráfica para cambiar el Mach",
     "component": "Componente",
     "wholeRocket": "Cohete completo",
     "splitUnavailable": "La división presión / base / fricción por componente necesita un núcleo de física más reciente; la del cohete completo está en la gráfica de desglose de arriba.",
@@ -735,11 +732,11 @@
     "friction": "Fricción",
     "pressure": "Presión",
     "base": "Base",
-    "other": "Otros",
     "pctBody": "% cuerpo",
     "supersonicNote": "Barrowman extendido — aproximado por encima de ~Mach 1.5.",
     "unavailable": "Construye un cohete válido para ver su resistencia.",
-    "crosshairHint": "Curvas de resistencia. Enfoca y usa las flechas para mover la cruz; Mayús para un paso mayor, Inicio y Fin para los extremos, Escape para quitarla."
+    "crosshairHint": "Curvas de resistencia. Enfoca y usa las flechas para mover la cruz; Mayús para un paso mayor, Inicio y Fin para los extremos, Escape para quitarla.",
+    "computing": "Calculando..."
   },
   "banner": {
     "notes": "{{count}} nota de importación",
@@ -772,6 +769,7 @@
     "shockcord": "Cordón de choque",
     "podset": "Cápsula",
     "parallelstage": "Propulsor",
+    "motor": "Motor",
     "field": {
       "length": "longitud",
       "aftRadius": "radio posterior",
@@ -903,10 +901,7 @@
     "free": "Desde el centro"
   },
   "motor": {
-    "selected": "Motor seleccionado",
-    "search": "Buscar motores (p. ej. C6, Estes)…",
     "importEng": "Importar .eng",
-    "ejectionDelay": "Retardo de eyección",
     "plugged": "taponado",
     "all": "Todos",
     "count": "{{total}} motores",
@@ -925,6 +920,8 @@
     "zoomOut": "Alejar",
     "fit": "Ajustar a la vista",
     "aftAria": "Vista trasera — el cohete visto desde atrás; arrastra para rotar, rueda para zoom",
+    "sideAria": "Vista lateral del cohete con marcadores de CG y CP; rueda para zoom, arrastra el fondo para mover",
+    "sideAriaVertical": "Vista lateral del cohete, ojiva arriba, con marcadores de CG y CP",
     "caliperH": "Manija del calibrador horizontal {{end}}",
     "caliperV": "Manija del calibrador vertical {{end}}"
   },
@@ -1017,7 +1014,6 @@
     }
   },
   "sims": {
-    "title": "Simulaciones",
     "new": "＋ Nueva",
     "untitled": "Simulación {{n}}",
     "name": "Nombre",
@@ -1202,8 +1198,7 @@
   "limits": {
     "rodAngle": "El ángulo de la rampa es de {{value}}° respecto a la vertical, por encima de los {{limit}}° que permiten los códigos de seguridad de NAR y Tripoli.",
     "wind": "La velocidad del viento es de {{value}} mph, por encima de las {{limit}} mph que permiten los códigos de seguridad de NAR y Tripoli.",
-    "refused": "\"{{name}}\" no se ejecutó: sus condiciones de lanzamiento están fuera de los códigos de seguridad.",
-    "blocked": "Las condiciones de lanzamiento están fuera de los códigos de seguridad de NAR/Tripoli."
+    "refused": "\"{{name}}\" no se ejecutó: sus condiciones de lanzamiento están fuera de los códigos de seguridad."
   },
   "panes": {
     "resizeTree": "Redimensionar el panel de componentes",

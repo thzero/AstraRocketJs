@@ -140,3 +140,66 @@ describe('the hostile-input caps actually fire', () => {
     expect(() => importOrk(buf as ArrayBuffer)).toThrow('.ork archive has too many entries');
   });
 });
+
+/**
+ * File-sourced COUNTS are bounded to what the domain can mean. Every consumer
+ * loops on these (a mesh per fin, a shape per instance, a vertex per point,
+ * a line's mass per line), so an unbounded count out of a crafted file is a
+ * frozen tab rather than a large rocket. Nothing clamped them on the way in.
+ */
+describe('file-sourced counts are clamped to domain ceilings', () => {
+  const inTube = (inner: string) =>
+    wrap(
+      `<bodytube><name>Body</name><length>0.3</length><radius>0.012</radius><subcomponents>${inner}</subcomponents></bodytube>`,
+    );
+  const first = (xml: string, type: string) => {
+    const walk = (ns: { type: string; children?: unknown[] }[]): Record<string, unknown> | undefined => {
+      for (const n of ns) {
+        if (n.type === type) return n as Record<string, unknown>;
+        const hit = walk((n.children ?? []) as { type: string; children?: unknown[] }[]);
+        if (hit) return hit;
+      }
+      return undefined;
+    };
+    return walk(importOrk(ork(xml)).tree.components as never)!;
+  };
+
+  it('caps a fin count at 64 and floors it at 1', () => {
+    const fins = (n: string) =>
+      `<trapezoidfinset><name>F</name><fincount>${n}</fincount><rootchord>0.05</rootchord><height>0.03</height></trapezoidfinset>`;
+    expect(first(inTube(fins('100000')), 'trapezoidfinset').finCount).toBe(64);
+    expect(first(inTube(fins('0')), 'trapezoidfinset').finCount).toBe(1);
+    expect(first(inTube(fins('-7')), 'trapezoidfinset').finCount).toBe(1);
+    expect(first(inTube(fins('Infinity')), 'trapezoidfinset').finCount).toBe(3); // non-finite: the default
+    expect(first(inTube(fins('4')), 'trapezoidfinset').finCount).toBe(4);
+    const tubes = `<tubefinset><name>T</name><fincount>9999</fincount><length>0.1</length></tubefinset>`;
+    expect(first(inTube(tubes), 'tubefinset').finCount).toBe(64);
+  });
+
+  it('caps an instance count at 1000 on rings, lugs and assemblies', () => {
+    const ring = `<centeringring><name>R</name><instancecount>1000000</instancecount><length>0.002</length></centeringring>`;
+    expect(first(inTube(ring), 'centeringring').instanceCount).toBe(1000);
+    const lug = `<launchlug><name>L</name><instancecount>5000</instancecount><length>0.03</length></launchlug>`;
+    expect(first(inTube(lug), 'launchlug').instanceCount).toBe(1000);
+    const pod =
+      `<podset><name>P</name><instancecount>1e12</instancecount><subcomponents>` +
+      `<bodytube><length>0.1</length><radius>0.005</radius></bodytube></subcomponents></podset>`;
+    expect(first(inTube(pod), 'podset').instanceCount).toBe(1000);
+  });
+
+  it('caps a freeform outline at 10000 points', () => {
+    const n = 20_000;
+    const pts = Array.from({ length: n }, (_, i) => `<point x="${(i / n) * 0.06}" y="${i % 2 ? 0.03 : 0.0}"/>`).join(
+      '',
+    );
+    const fin = `<freeformfinset><name>F</name><fincount>3</fincount><finpoints>${pts}</finpoints></freeformfinset>`;
+    expect((first(inTube(fin), 'freeformfinset').points as unknown[]).length).toBe(10_000);
+  });
+
+  it('caps a parachute line count at 100', () => {
+    const chute = `<parachute><name>C</name><diameter>0.3</diameter><linecount>100000</linecount></parachute>`;
+    expect(first(inTube(chute), 'parachute').lineCount).toBe(100);
+    const none = `<parachute><name>C</name><diameter>0.3</diameter><linecount>0</linecount></parachute>`;
+    expect(first(inTube(none), 'parachute').lineCount).toBe(1);
+  });
+});

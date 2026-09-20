@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { C6 } from '../engine/api';
 import type { ComponentNode, MotorSpec, RocketTree } from '../engine/openRocketEngine';
 import type { LaunchConditions } from './orkTree';
 import type { LoadedOrk, MountMotor } from './loadOrk';
+import { hasThrustCurve, unflyable } from './runnability';
 import { wireLoadedOrk } from './wireLoadedOrk';
 
 const node = (o: object) => o as unknown as ComponentNode;
@@ -41,17 +41,31 @@ describe('wireLoadedOrk', () => {
     expect(w.loadedMeta).toEqual({ name: 'Rocket', notes: ['note'], exportMotors: {} });
   });
 
-  it('falls back to a default C6 when the primary mount has no motor, seeding the other mount', () => {
+  /**
+   * A mount the FILE left empty flies nothing, not a default. This used to
+   * seat a C6 on an empty primary and let reconcileMounts seed a C6 into every
+   * other empty mount, so a design saved without motors opened as a flyable
+   * rocket on motors the file never named, the very thing loadOrk refuses to
+   * do for a motor it cannot resolve.
+   */
+  it('seats a curve-less placeholder, never a C6, in a mount the file left empty', () => {
     const w = wireLoadedOrk(loaded({ motorSpecs: {} }), launchDefaults);
-    expect(w.sim0.motor).toBe(C6);
+    expect(hasThrustCurve(w.sim0.motor)).toBe(false);
+    expect(w.sim0.motor.designation).toBe('');
     expect(w.sim0.ignitionEvent).toBeUndefined();
-    expect(w.extraMotors.pod!.spec).toBe(C6); // reconcileMounts seeds an empty non-primary mount
+    expect(w.extraMotors.pod).toBeDefined(); // present, so reconcileMounts has no hole to fill
+    expect(hasThrustCurve(w.extraMotors.pod!.spec)).toBe(false);
+  });
+
+  it('is blocked by the run gate until a motor is picked', () => {
+    const w = wireLoadedOrk(loaded({ motorSpecs: {} }), launchDefaults);
+    expect(unflyable(w.sim0)).toEqual({ kind: 'noMotor' });
   });
 
   it('drops a motor whose mount no longer exists in the tree', () => {
     const w = wireLoadedOrk(loaded({ motorSpecs: { ghost: { spec: spec('G') } as MountMotor } }), launchDefaults);
     expect(w.extraMotors.ghost).toBeUndefined(); // 'ghost' isn't a mount in the tree
-    expect(Object.keys(w.extraMotors)).toEqual(['pod']); // only the real non-primary mount remains (seeded C6)
+    expect(Object.keys(w.extraMotors)).toEqual(['pod']); // only the real non-primary mount remains (placeholder)
   });
 
   it('merges launch defaults under the file’s launch conditions', () => {

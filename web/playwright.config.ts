@@ -7,6 +7,14 @@ import { defineConfig, devices } from '@playwright/test';
  * SwiftShader flags software-render WebGL so the 3D views don't come up blank
  * on a headless/CI box with no GPU.
  */
+
+// The specs that exercise the phone layout. They set their own viewport, so
+// under the desktop project they already ran at phone widths; what the Pixel
+// project adds is the rest of a phone: touch events, a 2.6x device pixel
+// ratio, `isMobile` viewport handling and a mobile user agent. The pane
+// dividers and maximize specs are desktop-only by design and are not here.
+const MOBILE_SPECS = ['**/layout-overflow.spec.ts', '**/sketch-rotation.spec.ts', '**/mobile-layout.spec.ts'];
+
 export default defineConfig({
   testDir: './e2e',
   // Serial, everywhere. `fullyParallel: false` only serialises WITHIN a file —
@@ -21,7 +29,12 @@ export default defineConfig({
   workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? 'github' : 'list',
+  // Under CI the `github` reporter annotates the PR, and the HTML report is
+  // written beside it (never auto-opened: there is no browser to open it in)
+  // so that a retry which passed on the second go is still visible as a flake
+  // in the uploaded report. The `github` reporter alone shows only the final
+  // verdict, which is how flaky specs went unnoticed.
+  reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: 'http://localhost:5180',
     trace: 'on-first-retry',
@@ -33,6 +46,11 @@ export default defineConfig({
       // Desktop width so the split-pane layout (stats footer + Simulations
       // panel) renders — the mobile layout hides both behind tabs.
       use: { ...devices['Desktop Chrome'], viewport: { width: 1500, height: 950 } },
+    },
+    {
+      name: 'mobile-chromium',
+      testMatch: MOBILE_SPECS,
+      use: { ...devices['Pixel 7'] },
     },
   ],
   webServer: {

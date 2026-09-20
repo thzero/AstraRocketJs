@@ -11,6 +11,7 @@ import {
   type ComponentNode,
 } from './openRocketEngine';
 import { defaultDesignName } from '../services/appInfo';
+import { hasUsableCurve } from '../services/motorCurve';
 
 export type { RocketSpec, StaticInfo, FlightResult } from './openRocketEngine';
 
@@ -35,11 +36,12 @@ export const C6: MotorSpec = {
 export function buildRocketTree(tree: RocketTree, motor?: MotorSpec, mountId?: string): OpenRocketDesign {
   resetEngine();
   const rocket = OpenRocketDesign.buildTree(tree);
-  // Only seat a motor that actually carries a thrust curve (≥ 2 samples). An
-  // unresolved .ork motor is a curve-less placeholder; setMotorById on it would
-  // throw "Too short thrust-curve". Skipping it leaves the mount empty so the
-  // design still builds (and the run stays blocked until a real motor is picked).
-  if (motor && mountId && (motor.times?.length ?? 0) >= 2) rocket.setMotorById(mountId, motor);
+  // Only seat a motor that actually carries a thrust curve (motorCurve.ts, the
+  // one predicate the Run button and the other mounts use too). An unresolved
+  // .ork motor is a curve-less placeholder; setMotorById on it would throw
+  // "Too short thrust-curve". Skipping it leaves the mount empty so the design
+  // still builds (and the run stays blocked until a real motor is picked).
+  if (motor && mountId && hasUsableCurve(motor)) rocket.setMotorById(mountId, motor);
   return rocket;
 }
 

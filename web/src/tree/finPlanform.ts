@@ -1,6 +1,15 @@
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import { num } from './nodeProps';
 import { freeformPoints, freeformRootChord } from './position';
+import { FIN_DEFAULTS, KERNEL_BODYTUBE_OUTER_RADIUS } from './kernelDefaults';
+
+/**
+ * Re-exported so existing importers keep working. The values themselves live
+ * in `kernelDefaults.ts`, the one table verified against the real engine: they
+ * used to be declared here as "what treeEdit and orkImport write", which was
+ * never what they were (they are ComponentFactory's fin defaults).
+ */
+export { FIN_DEFAULTS, KERNEL_BODYTUBE_OUTER_RADIUS };
 
 /**
  * THE fin planform. One source of truth for every consumer that draws, prints,
@@ -40,24 +49,17 @@ import { freeformPoints, freeformRootChord } from './position';
 export const KERNEL_ELLIPSE_POINTS = 31;
 
 /**
- * Field fallbacks for a node missing a dimension.
+ * Field fallbacks for a node missing a dimension: `FIN_DEFAULTS`, from
+ * `kernelDefaults.ts`.
  *
- * Every creation path sets these (`treeEdit.newNode` and `orkImport`), so they
- * only bite on a hand-edited or truncated node — but they were the SECOND
+ * Every creation path sets these (`treeEdit.defaultNode` and `orkImport`), so
+ * they only bite on a hand-edited or truncated node — but they were the SECOND
  * drift: `tipChord` fell back to `0.03` in the mesh and PDF paths and to
  * `root * 0.6` in the DXF and schematic ones, so one fin was a 30 mm tip in
- * the STL and a 60 mm tip in the DXF. These match what `treeEdit.ts` and
- * `orkImport.ts` actually write.
+ * the STL and a 60 mm tip in the DXF. They are the kernel's own trapezoid
+ * defaults (ComponentFactory.java:205-208), which is what the engine flies for
+ * such a node, and the kernel test pins them.
  */
-/** Kernel body-tube outer radius when the key is absent (ComponentFactory). */
-export const KERNEL_BODYTUBE_OUTER_RADIUS = 0.012;
-
-export const FIN_DEFAULTS = {
-  rootChord: 0.05,
-  height: 0.03,
-  tipChord: 0.03,
-  sweep: 0.02,
-} as const;
 
 /**
  * Outline for a freeform fin with too few points to form a polygon: a token
@@ -186,7 +188,14 @@ export function finRootChord(node: ComponentNode, fallback: number = FIN_DEFAULT
 export function finSpan(node: ComponentNode): number {
   if (node.type === 'freeformfinset') {
     const ff = freeformPoints(node);
-    if (ff.length) return Math.max(0, ...ff.map((p) => (Number.isFinite(p[1]) ? p[1] : 0)));
+    if (ff.length) {
+      // A loop, not `Math.max(...ff.map())`: spreading a hostile 200k-point
+      // outline into a call overflows the stack before any consumer's own
+      // guard is reached, and this is the first thing the PDF report asks.
+      let max = 0;
+      for (const p of ff) if (Number.isFinite(p[1]) && p[1] > max) max = p[1];
+      return max;
+    }
   }
   return num(node, 'height', FIN_DEFAULTS.height);
 }

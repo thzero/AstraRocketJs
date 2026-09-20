@@ -88,6 +88,15 @@ async function readJson<T>(res: Response, onProgress?: (p: CatalogProgress) => v
   return JSON.parse(new TextDecoder().decode(bytes)) as T;
 }
 
+/** A non-2xx reply, with its status, so a caller can tell "not there" (404,
+ *  a fact about the host) from a transient failure worth retrying. */
+export class HttpError extends Error {
+  constructor(readonly status: number) {
+    super(`HTTP ${status}`);
+    this.name = 'HttpError';
+  }
+}
+
 /** fetch + JSON with staged abort timeouts and a declared-size cap, so a hung or
  *  oversized host response can't stall the picker or exhaust memory on parse. */
 async function fetchJson<T>(
@@ -105,7 +114,12 @@ async function fetchJson<T>(
     // whole download, and a slow link would be cut off mid-transfer.
     clearTimeout(timer);
     timer = setTimeout(() => ctrl.abort(), BODY_TIMEOUT_MS);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      // Abort the body too: a 5xx with a large error page (or a CDN's HTML)
+      // would otherwise keep streaming into nowhere until the host closed it.
+      ctrl.abort();
+      throw new HttpError(res.status);
+    }
     const len = Number(res.headers.get('content-length'));
     if (Number.isFinite(len) && len > MAX_CATALOG_BYTES) throw new Error('response too large');
     return await readJson<T>(res, onProgress);
@@ -146,9 +160,16 @@ function manifest(base: string): Promise<Record<string, string>> {
   if (!p) {
     // `no-cache` → the browser revalidates the (small) manifest with the server,
     // so a replaced catalog is picked up on the next load even behind a CDN.
-    // A missing manifest is not an error: `{}` just means no cache-buster.
+    // A MISSING manifest (404) is not an error: `{}` just means no cache-buster,
+    // and that answer is a fact about the host worth keeping. A TRANSIENT
+    // failure (network down, timeout, 5xx) is not: caching `{}` from one of
+    // those pinned every later catalog fetch this session to "no buster", so a
+    // catalog replaced on the host kept being served from the browser cache.
     p = fetchJson<Record<string, string>>(`${base}manifest.json`, ttfbFor(base), { cache: 'no-cache' }).catch(
-      () => ({}),
+      (e: unknown) => {
+        if (!(e instanceof HttpError && e.status === 404)) manifestP.delete(base);
+        return {};
+      },
     );
     manifestP.set(base, p);
   }

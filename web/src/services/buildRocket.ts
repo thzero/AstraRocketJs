@@ -1,6 +1,8 @@
 import { buildRocketTree } from '../engine/api';
 import type { IgnitionEvent, MotorSpec, OpenRocketDesign, RocketTree, StaticInfo } from '../engine/openRocketEngine';
-import { findMountId, findNode } from './treeEdit';
+import { findMountId } from './treeEdit';
+import { activeExtraMounts } from './mountMotors';
+import { hasUsableCurve } from './motorCurve';
 import type { MountMotor } from './loadOrk';
 
 /** A mount's ignition override (undefined event = engine default, "automatic"). */
@@ -48,9 +50,11 @@ export function buildConfiguredRocket(
   // the engine default and needs no call).
   if (mountId && primaryIgnition?.event)
     r.setMotorIgnitionById(mountId, primaryIgnition.event, primaryIgnition.delay ?? 0);
-  for (const [id, m] of Object.entries(extraMotors)) {
-    if (id === mountId || !findNode(tree, id)) continue; // gone or already the primary
-    if ((m.spec.times?.length ?? 0) < 2) continue; // unresolved/curve-less motor — leave the mount empty
+  // The one "skip the primary or a vanished mount" filter (mountMotors.ts),
+  // shared with the store's motor-dimension selector, and the one
+  // "usable curve" predicate the builder itself seats by (motorCurve.ts).
+  for (const [id, m] of activeExtraMounts(tree, extraMotors, mountId)) {
+    if (!hasUsableCurve(m.spec)) continue; // unresolved/curve-less motor — leave the mount empty
     r.setMotorById(id, m.spec);
     if (m.ignitionEvent) r.setMotorIgnitionById(id, m.ignitionEvent, m.ignitionDelay ?? 0);
   }

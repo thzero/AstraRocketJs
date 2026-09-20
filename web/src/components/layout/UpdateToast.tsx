@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useTranslation } from 'react-i18next';
 import { APP_VERSION } from '../../services/appInfo';
-import { UPDATE_POLL_MS, dueForCheck, promptDue, snoozeUntil, UPDATE_SNOOZE_MS } from '../../services/updateCheck';
+import { UPDATE_POLL_MS, dueForCheck, snoozeUntil, UPDATE_SNOOZE_MS } from '../../services/updateCheck';
 
 /**
  * "A new version is available — reload?" for the service worker.
@@ -29,7 +29,6 @@ import { UPDATE_POLL_MS, dueForCheck, promptDue, snoozeUntil, UPDATE_SNOOZE_MS }
  * sentence you were typing.
  */
 export function UpdateToast() {
-  const { t } = useTranslation();
   const lastCheck = useRef<number | null>(null);
   const [snoozed, setSnoozed] = useState<number | null>(null);
 
@@ -80,7 +79,9 @@ export function UpdateToast() {
 
   const later = useCallback(() => setSnoozed(snoozeUntil(Date.now())), []);
 
-  const show = needRefresh && promptDue(snoozed, Date.now());
+  // No clock read in render: the snooze effect above nulls `snoozed` the
+  // moment it expires, so "not snoozed" is the whole condition.
+  const show = needRefresh && snoozed === null;
 
   // The live region is ALWAYS mounted; only its contents come and go.
   //
@@ -93,7 +94,6 @@ export function UpdateToast() {
     <div role="status" aria-live="polite">
       {show && (
         <UpdateToastBody
-          t={t}
           onRefresh={() => void updateServiceWorker(true)}
           onLater={later}
           onDismiss={() => setNeedRefresh(false)}
@@ -104,16 +104,15 @@ export function UpdateToast() {
 }
 
 function UpdateToastBody({
-  t,
   onRefresh,
   onLater,
   onDismiss,
 }: {
-  t: (key: string, vars?: Record<string, unknown>) => string;
   onRefresh: () => void;
   onLater: () => void;
   onDismiss: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="fixed inset-x-0 bottom-4 z-50 mx-auto flex w-[min(30rem,92vw)] items-center gap-3 rounded-xl bg-slate-800 px-4 py-3 text-sm text-slate-100 shadow-lg ring-1 ring-white/10">
       <div className="min-w-0 flex-1">

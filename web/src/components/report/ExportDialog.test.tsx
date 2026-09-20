@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useState } from 'react';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 
 // The real one drives the engine. This dialog's job is the SELECTION UI on top
 // of it, so hand it a fixed model and assert on what the user can do with it.
@@ -10,6 +10,9 @@ vi.mock('../../services/reportModel', async (orig) => ({
   ...(await orig<typeof import('../../services/reportModel')>()),
   assembleReport,
 }));
+
+const downloadReportPdf = vi.hoisted(() => vi.fn());
+vi.mock('../../services/reportPdf', () => ({ downloadReportPdf }));
 
 import { ExportDialog } from './ExportDialog';
 import { renderWithProviders } from '../../testing/renderWithProviders';
@@ -29,6 +32,7 @@ const model = (): ReportModel =>
 
 beforeEach(() => {
   assembleReport.mockReset().mockReturnValue(model());
+  downloadReportPdf.mockReset();
   useWorkspaceStore.getState().resetWorkspace();
   // `ready` is `!!info && !!rocket`; the dialog only assembles once both land.
   useWorkspaceStore.setState({ info: {}, rocket: {} } as never);
@@ -36,18 +40,18 @@ beforeEach(() => {
 
 const open = () => {
   const onClose = vi.fn();
-  renderWithProviders(<ExportDialog open onClose={onClose} />);
+  renderWithProviders(<ExportDialog onClose={onClose} />);
   return onClose;
 };
 
 /**
- * The dialog wired the way the app wires it: `onClose` actually closes it.
- * Needed for the selection test — the loss only shows once `open` goes false
- * and the once-per-open assemble latch resets.
+ * The dialog wired the way the app wires it: mounted only while open, and
+ * `onClose` actually closes it. Needed for the selection test: the loss only
+ * shows once the dialog really closes and reopens as a fresh instance.
  */
 function Live() {
   const [isOpen, setOpen] = useState(true);
-  return <ExportDialog open={isOpen} onClose={() => setOpen(false)} />;
+  return <>{isOpen && <ExportDialog onClose={() => setOpen(false)} />}</>;
 }
 const openLive = () => renderWithProviders(<Live />);
 
@@ -157,5 +161,31 @@ describe('ExportDialog', () => {
 
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  /**
+   * "Update simulation data" ran the simulation with `.catch(() => {})`, so a
+   * failed run went unmentioned and the PDF was written from the PREVIOUS
+   * run's numbers with nothing on the page to say so. The user asked for
+   * fresh data: say why there is none, and write nothing.
+   */
+  it('reports a failed simulation and writes no PDF', async () => {
+    useWorkspaceStore.setState({ runSim: async () => Promise.reject(new Error('kernel choked')) } as never);
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Save as PDF' }));
+    await waitFor(() => expect(useWorkspaceStore.getState().err).toContain('kernel choked'));
+    expect(downloadReportPdf).not.toHaveBeenCalled();
+  });
+
+  it('does not close on the overlay or Escape while the export is running', async () => {
+    // A run that never finishes keeps the dialog busy for the whole test.
+    useWorkspaceStore.setState({ runSim: () => new Promise<void>(() => {}) } as never);
+    const onClose = open();
+    fireEvent.click(screen.getByRole('button', { name: 'Save as PDF' }));
+    await screen.findByRole('button', { name: 'Loading…' });
+
+    fireEvent.click(document.querySelector('.dialog-overlay')!);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

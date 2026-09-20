@@ -86,7 +86,12 @@ export function NumberInput({
       className={className}
       aria-label={ariaLabel}
       value={draft ?? (blank ? '' : fmt(value as number))}
-      onFocus={() => setDraft(blank ? '' : String(value))}
+      // `fmt`, not `String`: the prop is usually a unit conversion, so a
+      // stored 0.3 m arrives here as 0.30000000000000004 in cm, and String()
+      // put that whole tail into the box the moment it was focused. The
+      // blurred display already trims it; the draft must start from the same
+      // text the user was looking at.
+      onFocus={() => setDraft(blank ? '' : fmt(value as number))}
       onChange={(e) => {
         const raw = e.target.value;
         setDraft(raw);

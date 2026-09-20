@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { RocketTree } from '../engine/openRocketEngine';
-import { componentToDxf } from './dxfExport';
+import { componentToDxf, resolveDisc } from './dxfExport';
+import { COMPONENT_DEFAULTS } from './componentDefaults';
 
 const tree = {
   name: 'Cutter',
@@ -129,5 +130,47 @@ describe('per-component DXF export', () => {
     expect(componentToDxf(tree, 'coupler')).toBeNull(); // a tube, exports as a 3D solid
     expect(componentToDxf(tree, 'eb')).toBeNull(); // an engine block is a tube too
     expect(componentToDxf(tree, 'missing')).toBeNull();
+  });
+});
+
+/**
+ * The engine-block wall fallback lived in three files with two values: the
+ * .ork reader and writer said 0.001 while this cutter said 0.00095 (the
+ * kernel's). A block that lost its <thickness> tag was therefore read at one
+ * bore and cut at another. All three now read the one shared table.
+ */
+describe('resolveDisc uses the shared component defaults', () => {
+  const bare = {
+    components: [
+      {
+        type: 'stage',
+        name: 'S',
+        children: [
+          {
+            type: 'bodytube',
+            id: 'body',
+            length: 0.3,
+            outerRadius: 0.013,
+            thickness: 0.001,
+            children: [
+              { type: 'engineblock', id: 'eb', outerRadius: 0.012 },
+              { type: 'bulkhead', id: 'bh', outerRadius: 0.012 },
+              { type: 'centeringring', id: 'cr', outerRadius: 0.012, innerRadius: 0.009 },
+            ],
+          },
+        ],
+      },
+    ],
+  } as unknown as RocketTree;
+
+  it('cuts an engine block with no wall at the kernel default', () => {
+    const d = resolveDisc(bare, 'eb')!;
+    expect(d.outerR - d.innerR).toBeCloseTo(COMPONENT_DEFAULTS.engineblock.thickness, 12);
+    expect(d.length).toBe(COMPONENT_DEFAULTS.engineblock.length);
+  });
+
+  it('gives a bulkhead and a ring with no length the kernel default, same as the .ork reader', () => {
+    expect(resolveDisc(bare, 'bh')!.length).toBe(COMPONENT_DEFAULTS.bulkhead.length);
+    expect(resolveDisc(bare, 'cr')!.length).toBe(COMPONENT_DEFAULTS.centeringring.length);
   });
 });

@@ -185,3 +185,42 @@ describe('unload journal written before the first save', () => {
     expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
   });
 });
+
+describe('a journal older than the stored design', () => {
+  // The unload write is a last resort and can lose the race: the debounced
+  // async save in flight at pagehide commits after it, or another tab of the
+  // PWA saves the same design later. Replaying such a journal rolled the
+  // design back to the older text.
+  it('is dropped, not replayed over the newer save', async () => {
+    await store.save(ws('newer'));
+    const loaded = await store.load();
+    expect(nameOf(loaded)).toBe('newer');
+    const activeId = kv.map.get('astrarrocketjs:designs:active');
+
+    // A journal stamped a minute BEFORE that save landed.
+    localStorage.setItem(UNLOAD_KEY, JSON.stringify({ id: activeId, w: ws('stale-unload'), t: Date.now() - 60_000 }));
+
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('newer');
+    expect(nameOf(await lib.read(activeId!))).toBe('newer');
+    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
+  });
+
+  it('is replayed when it is newer, and when it carries no stamp (older build)', async () => {
+    await store.save(ws('saved'));
+    await store.load();
+    const activeId = kv.map.get('astrarrocketjs:designs:active');
+
+    localStorage.setItem(UNLOAD_KEY, JSON.stringify({ id: activeId, w: ws('newer-unload'), t: Date.now() + 1000 }));
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('newer-unload');
+
+    localStorage.setItem(UNLOAD_KEY, JSON.stringify({ id: activeId, w: ws('unstamped') }));
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('unstamped');
+  });
+
+  it('saveSync stamps the journal', () => {
+    const before = Date.now();
+    store.saveSync(ws('x'));
+    const j = JSON.parse(localStorage.getItem(UNLOAD_KEY)!) as { t?: number };
+    expect(j.t).toBeGreaterThanOrEqual(before);
+  });
+});

@@ -84,6 +84,8 @@ export class StaleDesignError extends Error {
  */
 export class EngineCallError extends Error {
   readonly engineCause: unknown;
+  /** The standard `Error.cause`, so devtools and error reporters chain it. */
+  readonly cause: unknown;
 
   constructor(
     readonly operation: string,
@@ -93,6 +95,9 @@ export class EngineCallError extends Error {
     super(`engine ${operation} failed: ${detail || '(no message)'}`);
     this.name = 'EngineCallError';
     this.engineCause = engineCause;
+    // Assigned rather than passed as `{ cause }`: the build targets ES2020,
+    // whose `Error` constructor has no options bag in the type library.
+    this.cause = engineCause;
   }
 }
 
@@ -105,6 +110,41 @@ function callEngine<T>(operation: string, fn: () => T): T {
     if (e instanceof StaleDesignError) throw e;
     throw new EngineCallError(operation, e);
   }
+}
+
+/**
+ * Parse a JSON-string reply from the kernel and unwrap its `{error}` envelope.
+ *
+ * The envelope methods (`getStaticInfo`, `getComponentInfo`, `getAeroSweep`,
+ * `getComponentMasses`, `simulateJson`) each did their own `JSON.parse` and
+ * `if (parsed.error) throw new Error('<Label> failed: ...')`. Two things fell
+ * through the gaps: a WASM-GC trap or a JS RuntimeException out of the call
+ * itself (not an envelope) surfaced raw, with no operation name, and a reply
+ * that was not JSON at all threw `SyntaxError: Unexpected token` from
+ * `JSON.parse` with nothing to say which call produced it. Every failure now
+ * carries the operation, as {@link EngineCallError}.
+ *
+ * `expectArray` is for `getComponentMasses`, whose success shape is a bare
+ * array with no room for an `error` key.
+ */
+function parseEnvelope<T>(operation: string, raw: string, expectArray = false): T {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new EngineCallError(operation, new Error(`reply is not JSON: ${String(raw).slice(0, 120)}`));
+  }
+  if (expectArray) {
+    if (Array.isArray(parsed)) return parsed as T;
+    const err = (parsed as { error?: unknown } | null)?.error;
+    throw new EngineCallError(operation, new Error(err ? String(err) : 'unexpected reply shape'));
+  }
+  if (!parsed || typeof parsed !== 'object') {
+    throw new EngineCallError(operation, new Error(`unexpected reply shape: ${String(raw).slice(0, 120)}`));
+  }
+  const err = (parsed as { error?: unknown }).error;
+  if (err) throw new EngineCallError(operation, new Error(String(err)));
+  return parsed as T;
 }
 
 /** Dynamically import the JS engine as its own chunk — loaded only when WASM is unavailable. */
@@ -224,6 +264,13 @@ async function tryLoadWasm(onStatus?: (s: EngineLoadStatus) => void): Promise<En
   }
 }
 
+export type BackendPref = 'wasm' | 'js' | 'auto';
+
+/** The app-namespaced localStorage key for the backend override. */
+export const ENGINE_PREF_KEY = 'astrarocketjs:engine';
+/** The pre-namespacing key, still honored so an existing override keeps working. */
+const LEGACY_ENGINE_PREF_KEY = 'engine';
+
 /**
  * Backend preference. Default is 'auto' → try WASM-GC first, fall back to JS
  * (the requested "WASM with JS fallback"). WASM-GC runs our OpenRocket 24.12
@@ -231,17 +278,23 @@ async function tryLoadWasm(onStatus?: (s: EngineLoadStatus) => void): Promise<En
  * `info.openrocket.core.util.ArrayList.clone()` is patched (it did
  * `(ArrayList) super.clone()`, which throws ClassCastException under WASM-GC's
  * strict typing — see the PATCH in engine-java). Overrides for debugging /
- * unsupported browsers: `?engine=js` (or `localStorage.setItem('engine','js')`)
- * forces JS; `?engine=wasm` forces the WASM attempt.
+ * unsupported browsers: `?engine=js` (or
+ * `localStorage.setItem('astrarocketjs:engine','js')`) forces JS;
+ * `?engine=wasm` forces the WASM attempt.
+ *
+ * MAIN THREAD ONLY. A worker has no page `location` (its `location` is the
+ * script URL) and no `localStorage`, so this always answered `auto` there and
+ * a `?engine=js` page ran its sims on WASM anyway. The sim client reads this
+ * and hands the answer to the worker on every request (simProtocol.ts).
  */
-function backendPref(): 'wasm' | 'js' | 'auto' {
+export function backendPref(): BackendPref {
   try {
     const q = new URLSearchParams(location.search).get('engine');
     if (q === 'wasm' || q === 'js') return q;
-    const ls = localStorage.getItem('engine');
+    const ls = localStorage.getItem(ENGINE_PREF_KEY) ?? localStorage.getItem(LEGACY_ENGINE_PREF_KEY);
     if (ls === 'wasm' || ls === 'js') return ls;
   } catch {
-    /* no location/localStorage (SSR/tests) → auto */
+    /* no location/localStorage (SSR/tests/workers) → auto */
   }
   return 'auto';
 }
@@ -252,11 +305,14 @@ function backendPref(): 'wasm' | 'js' | 'auto' {
  * awaited before any engine use (main.tsx awaits it before mounting) — engine
  * calls before it resolves throw, since neither backend is loaded until now.
  * Resolves to which backend is active.
+ *
+ * @param pref the backend preference, when the caller has already resolved it
+ *   (the sim worker gets it from the main thread); else read here.
  */
-export function initEngine(onStatus?: (s: EngineLoadStatus) => void): Promise<'wasm' | 'js'> {
+export function initEngine(onStatus?: (s: EngineLoadStatus) => void, pref?: BackendPref): Promise<'wasm' | 'js'> {
   if (!initPromise) {
     initPromise = (async () => {
-      const wasm = backendPref() === 'js' ? null : await tryLoadWasm(onStatus);
+      const wasm = (pref ?? backendPref()) === 'js' ? null : await tryLoadWasm(onStatus);
       if (wasm) {
         active = wasm;
         return 'wasm';
@@ -1016,16 +1072,16 @@ export class OpenRocketDesign {
 
   /** Length, mass, CG/CP, stability margin — computed at Mach 0.3, AoA 0. */
   staticInfo(): StaticInfo {
-    const parsed = JSON.parse(eng().getStaticInfo(this.handle)) as StaticInfo & { error?: string };
-    if (parsed.error) throw new Error(`Static analysis failed: ${parsed.error}`);
-    return parsed;
+    // Through callEngine + parseEnvelope like every other reader: a trap out
+    // of the call or a non-JSON reply now names the operation too.
+    const raw = callEngine('staticInfo', () => eng().getStaticInfo(this.handle));
+    return parseEnvelope<StaticInfo>('staticInfo', raw);
   }
 
   /** Static info for one component, addressed by its tree-node id. */
   componentInfo(componentId: string): ComponentInfo {
-    const parsed = JSON.parse(eng().getComponentInfo(this.handle, componentId)) as ComponentInfo & { error?: string };
-    if (parsed.error) throw new Error(`Component info failed: ${parsed.error}`);
-    return parsed;
+    const raw = callEngine('componentInfo', () => eng().getComponentInfo(this.handle, componentId));
+    return parseEnvelope<ComponentInfo>('componentInfo', raw);
   }
 
   /**
@@ -1033,21 +1089,21 @@ export class OpenRocketDesign {
    * per-component breakdown. Static — no flight needed. See {@link AeroSweep}.
    */
   aeroSweep(options: AeroSweepOptions = {}): AeroSweep {
-    const raw = eng().getAeroSweep(
-      this.handle,
-      JSON.stringify({
-        machMin: options.machMin ?? 0.05,
-        machMax: options.machMax ?? 3.0,
-        machStep: options.machStep ?? 0.05,
-        aoaDeg: options.aoaDeg ?? 0,
-        thetaDeg: options.thetaDeg ?? 0,
-        rollRate: options.rollRate ?? 0,
-        machAlt: options.machAlt,
-      }),
+    const raw = callEngine('aeroSweep', () =>
+      eng().getAeroSweep(
+        this.handle,
+        JSON.stringify({
+          machMin: options.machMin ?? 0.05,
+          machMax: options.machMax ?? 3.0,
+          machStep: options.machStep ?? 0.05,
+          aoaDeg: options.aoaDeg ?? 0,
+          thetaDeg: options.thetaDeg ?? 0,
+          rollRate: options.rollRate ?? 0,
+          machAlt: options.machAlt,
+        }),
+      ),
     );
-    const parsed = JSON.parse(raw) as AeroSweep & { error?: string };
-    if (parsed.error) throw new Error(`Drag sweep failed: ${parsed.error}`);
-    return parsed;
+    return parseEnvelope<AeroSweep>('aeroSweep', raw);
   }
 
   /**
@@ -1069,53 +1125,103 @@ export class OpenRocketDesign {
     // straight to an array, so a kernel failure arrived as `{error: "..."}`
     // pretending to be a ComponentMass[] — `.map()` on it throws somewhere far
     // from here, with the kernel's actual message thrown away.
-    const parsed = JSON.parse(eng().getComponentMasses(this.handle)) as ComponentMass[] | { error?: string };
-    if (!Array.isArray(parsed)) throw new Error(`Component masses failed: ${parsed.error ?? 'unknown error'}`);
-    return parsed;
+    const raw = callEngine('componentMasses', () => eng().getComponentMasses(this.handle));
+    return parseEnvelope<ComponentMass[]>('componentMasses', raw, true);
   }
 
   simulate(options: SimulationOptions = {}): FlightResult {
-    const raw = eng().simulateJson(
-      this.handle,
-      JSON.stringify({
-        rodLength: options.launchRodLength ?? 1.0,
-        rodAngle: options.launchRodAngle ?? 0,
-        rodDirection: options.launchRodDirection,
-        windAverage: options.windAverage ?? 0,
-        windStdDeviation: options.windStdDeviation ?? 0,
-        windDirection: options.windDirection,
-        windLevels: options.windLevels,
-        windAltitudeReference: options.windAltitudeReference,
-        geodetic: options.geodetic,
-        gravityModel: options.gravityModel,
-        constantGravity: options.constantGravity,
-        maxAngleStep: options.maxAngleStep,
-        launchAltitude: options.launchAltitude ?? 0,
-        temperature: options.temperature,
-        pressure: options.pressure,
-        relativeHumidity: options.relativeHumidity,
-        launchLatitude: options.launchLatitude,
-        launchLongitude: options.launchLongitude,
-        timeStep: options.timeStep ?? 0.05,
-        maxTime: options.maxTime,
-        randomSeed: options.randomSeed,
-        recoverySpeedWarn: options.recoverySpeedWarn,
-        mainHighSpeedWarn: options.mainHighSpeedWarn,
-        mainLowSpeedWarn: options.mainLowSpeedWarn,
-        drogueLowSpeedWarn: options.drogueLowSpeedWarn,
-        series: options.series,
-      }),
+    const raw = callEngine('simulate', () =>
+      eng().simulateJson(
+        this.handle,
+        JSON.stringify({
+          rodLength: options.launchRodLength ?? 1.0,
+          rodAngle: options.launchRodAngle ?? 0,
+          rodDirection: options.launchRodDirection,
+          windAverage: options.windAverage ?? 0,
+          windStdDeviation: options.windStdDeviation ?? 0,
+          windDirection: options.windDirection,
+          windLevels: options.windLevels,
+          windAltitudeReference: options.windAltitudeReference,
+          geodetic: options.geodetic,
+          gravityModel: options.gravityModel,
+          constantGravity: options.constantGravity,
+          maxAngleStep: options.maxAngleStep,
+          launchAltitude: options.launchAltitude ?? 0,
+          temperature: options.temperature,
+          pressure: options.pressure,
+          relativeHumidity: options.relativeHumidity,
+          launchLatitude: options.launchLatitude,
+          launchLongitude: options.launchLongitude,
+          timeStep: options.timeStep ?? 0.05,
+          maxTime: options.maxTime,
+          randomSeed: options.randomSeed,
+          recoverySpeedWarn: options.recoverySpeedWarn,
+          mainHighSpeedWarn: options.mainHighSpeedWarn,
+          mainLowSpeedWarn: options.mainLowSpeedWarn,
+          drogueLowSpeedWarn: options.drogueLowSpeedWarn,
+          series: options.series,
+        }),
+      ),
     );
-    const parsed = JSON.parse(raw) as FlightResult & { error?: string };
-    if (parsed.error) {
-      throw new Error(`Simulation failed: ${parsed.error}`);
+    const parsed = parseEnvelope<FlightResult>('simulate', raw);
+    // The boundary is where the wire's nulls become the `number[]` the named
+    // series declare; see sanitizeSeries.
+    parsed.series = sanitizeSeries(parsed.series);
+    if (parsed.branches) {
+      for (const b of parsed.branches) b.series = sanitizeSeries(b.series);
     }
     return parsed;
   }
 }
 
+/**
+ * The friendly-named series, which {@link FlightSeries} declares as `number[]`.
+ */
+const NAMED_SERIES = [
+  'time',
+  'altitude',
+  'velocity',
+  'acceleration',
+  'mass',
+  'thrust',
+  'drag',
+  'mach',
+  'stability',
+  'cpLocation',
+  'cgLocation',
+  'aoa',
+] as const;
+
+/**
+ * Make the named series honest `number[]`s.
+ *
+ * The kernel writes NaN and Infinity as JSON `null` (there is no other way),
+ * so `altitude: number[]` could carry nulls that only the index-signature
+ * comment admitted to. A null in `number[]` is the worst of both: `.toFixed`
+ * on it throws, while `Math.max(...)` and arithmetic quietly read it as 0.
+ * Here each becomes `NaN`, which IS a number: no consumer typed against
+ * `number[]` can throw on it, `Number.isFinite` (which the chart and the 3D
+ * scene already apply) filters it, and a stat that reads it shows "NaN" rather
+ * than a fabricated zero. The symbol-keyed extras keep their declared
+ * `(number | null)[]`. A series the kernel did not send is left absent.
+ *
+ * Done at the boundary rather than by changing the declared type, because the
+ * consumers of the named dozen are components this module cannot reach into.
+ */
+export function sanitizeSeries(series: FlightSeries): FlightSeries {
+  for (const key of NAMED_SERIES) {
+    const arr = series[key] as unknown[] | undefined;
+    if (!Array.isArray(arr)) continue;
+    for (let i = 0; i < arr.length; i++) {
+      const v = arr[i];
+      if (typeof v !== 'number') arr[i] = NaN;
+    }
+  }
+  return series;
+}
+
 /** Frees all engine-side objects (all OpenRocketDesign handles become invalid). */
 export function resetEngine(): void {
-  eng().reset();
+  callEngine('reset', () => eng().reset());
   engineGeneration++;
 }

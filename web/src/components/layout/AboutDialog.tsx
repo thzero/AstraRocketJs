@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { appName, APP_VERSION, CONTRIBUTORS_URL, isPreRelease } from '../../services/appInfo';
 import contributorData from '../../data/contributors.generated.json';
@@ -21,26 +20,12 @@ const LINKS: [string, string][] = [
   ['Vite', 'https://vite.dev'],
 ];
 
-/** "About {app}" modal — what the app is (a light web UI over the OpenRocket
- *  engine, full .ork support), version, and credits. Copy lives in i18n. */
-export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  // Tab stays inside the modal, and focus returns to the trigger on close.
-  // Seven dialogs declared aria-modal and had neither, so Tab walked straight
-  // out into the page behind the overlay — the exact gap useFocusTrap exists
-  // to close, already used by seven of their siblings.
-  const panelRef = useFocusTrap<HTMLDivElement>(open);
+/** "About {app}" modal: what the app is (a light web UI over the OpenRocket
+ *  engine, full .ork support), version, and credits. Copy lives in i18n.
+ *  Mounted only while open (`{open && <AboutDialog />}`). */
+export function AboutDialog({ onClose }: { onClose: () => void }) {
+  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
   const { t } = useTranslation();
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
   return (
     <div className="dialog-overlay fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
       <div

@@ -8,9 +8,10 @@ import type { SimPayload } from './simProtocol';
 class FakeWorker {
   onmessage: ((e: MessageEvent) => void) | null = null;
   onerror: ((e: unknown) => void) | null = null;
+  onmessageerror: ((e: unknown) => void) | null = null;
   terminate = vi.fn();
   /** Every request this worker has been handed, in order. */
-  posts: { id: number }[] = [];
+  posts: { id: number; engine?: string; method?: string }[] = [];
   // Set per-test: how this worker answers a postMessage (default: never).
   static onPost: (self: FakeWorker, msg: { id: number }) => void = () => {};
   postMessage(msg: { id: number }) {
@@ -20,6 +21,10 @@ class FakeWorker {
   /** Answer a request this worker is holding, as the real worker would. */
   reply(id: number, result: unknown = { ok: true }) {
     this.onmessage?.({ data: { id, ok: true, result } } as MessageEvent);
+  }
+  /** Refuse a request: `fatal` means "this worker's engine never loaded". */
+  fail(id: number, error: string, fatal?: true) {
+    this.onmessage?.({ data: { id, ok: false, error, fatal } } as MessageEvent);
   }
 }
 
@@ -290,5 +295,44 @@ describe('simClient cancel', () => {
     ac.abort();
     await expect(simulateInWorker(payload, { signal: ac.signal })).rejects.toBeInstanceOf(SimCanceledError);
     expect(created).toHaveLength(0); // never even spawned a worker
+  });
+});
+
+describe('simClient worker retirement', () => {
+  it('kills a worker that reports a FATAL engine failure and spawns a fresh one for the next call', async () => {
+    FakeWorker.onPost = (self, msg) => self.fail(msg.id, 'engine failed to load', true);
+    const { simulateInWorker } = await import('./simClient');
+    await expect(simulateInWorker(payload)).rejects.toThrow('engine failed to load');
+    // Retired, not left in the pool answering every call with the same error.
+    expect(created[0]!.terminate).toHaveBeenCalledOnce();
+
+    // The next call gets a NEW worker (which, here, is healthy).
+    FakeWorker.onPost = (self, msg) => self.reply(msg.id, { apogee: 1 });
+    await expect(simulateInWorker(payload)).resolves.toEqual({ apogee: 1 });
+    expect(created).toHaveLength(2);
+  });
+
+  it('a plain (non-fatal) error rejects the call but keeps the worker', async () => {
+    FakeWorker.onPost = (self, msg) => self.fail(msg.id, 'bad geometry');
+    const { simulateInWorker } = await import('./simClient');
+    await expect(simulateInWorker(payload)).rejects.toThrow('bad geometry');
+    expect(created[0]!.terminate).not.toHaveBeenCalled();
+  });
+
+  it('kills the slot on a reply that cannot be deserialized (onmessageerror)', async () => {
+    const { simulateInWorker } = await import('./simClient');
+    const p = simulateInWorker(payload); // never answered normally
+    const rejects = expect(p).rejects.toThrow(/deserialized/);
+    created[0]!.onmessageerror?.({});
+    await rejects;
+    expect(created[0]!.terminate).toHaveBeenCalledOnce();
+  });
+
+  it('carries the backend preference on every request, since a worker cannot read it', async () => {
+    const { simulateInWorker, warmSimWorker } = await import('./simClient');
+    warmSimWorker();
+    fire(() => simulateInWorker(payload));
+    // In this process there is no `?engine=` and no localStorage override: auto.
+    expect(created[0]!.posts.map((p) => [p.method, p.engine])).toEqual([['ping', 'auto']]);
   });
 });

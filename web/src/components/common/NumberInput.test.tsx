@@ -56,6 +56,20 @@ describe('NumberInput', () => {
     expect(parseFieldValue('')).toBeNull();
   });
 
+  /**
+   * The blurred box shows the noise-trimmed value, but focusing it seeded the
+   * draft with `String(value)`, so a unit-converted 0.1 + 0.2 turned into
+   * "0.30000000000000004" the moment the user clicked in to edit it.
+   */
+  it('seeds the editing draft with the same trimmed text the box showed', () => {
+    cleanup();
+    renderWithProviders(<NumberInput value={0.1 + 0.2} onChange={() => {}} ariaLabel="len" />);
+    const input = screen.getByLabelText('len') as HTMLInputElement;
+    expect(input.value).toBe('0.3');
+    fireEvent.focus(input);
+    expect(input.value).toBe('0.3');
+  });
+
   it('still clamps a typed value to the declared bounds', () => {
     // HTML min/max are only spinner hints; a typed-in value ignores them.
     expect(type('-5', { min: 0 })).toHaveBeenCalledWith(0);

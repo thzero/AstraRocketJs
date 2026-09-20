@@ -386,3 +386,41 @@ describe('update() falling back to localStorage', () => {
     expect(await kv.get('k')).toBe('v'); // the transaction was aborted, nothing changed
   });
 });
+
+describe('a QuotaExceededError is not a degraded IndexedDB', () => {
+  it('reports through set()/update() without flipping the session to degraded', async () => {
+    const local = new FakeLocal();
+    const kv = new IndexedDbKeyValueStore(local);
+    await kv.set('warm', 'up');
+    expect(isStorageDegraded()).toBe(false);
+
+    // The database is fine; this one write does not fit.
+    const full = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError');
+    });
+    try {
+      // The fallback takes it (a real place the value now lives), as before.
+      expect(await kv.set('k', 'v')).toBe(true);
+      expect(local.map.get('k')).toBe('v');
+      expect(await kv.update('k2', () => 'v2')).toBe(true);
+      // ...but IndexedDB itself is not written off for the session.
+      expect(isStorageDegraded()).toBe(false);
+    } finally {
+      full.mockRestore();
+    }
+    // And a write that fits still lands in IndexedDB, with reads working.
+    expect(await kv.set('after', 'fits')).toBe(true);
+    expect(await kv.get('after')).toBe('fits');
+  });
+
+  it('an OPEN failure still degrades (the warning the flag exists for)', async () => {
+    const kv = new IndexedDbKeyValueStore(new FakeLocal());
+    const boom = vi.spyOn(indexedDB, 'open').mockImplementation(() => {
+      throw new Error('IndexedDB disabled');
+    });
+    await __resetIdbForTests();
+    await kv.set('a', '1');
+    expect(isStorageDegraded()).toBe(true);
+    boom.mockRestore();
+  });
+});

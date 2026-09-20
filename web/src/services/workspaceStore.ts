@@ -9,7 +9,7 @@
 // (designLibrary.ts), which holds many designs in IndexedDB. This interface
 // stays narrow on purpose — it is only "the design being edited"; listing,
 // opening, renaming and deleting designs are the library's job.
-import { getDesignLibrary, type DesignLibrary, type StoredResults } from './designLibrary';
+import { getDesignLibrary, type DesignLibrary, type DesignMeta, type StoredResults } from './designLibrary';
 import type { FlightResult, RocketTree } from '../engine/openRocketEngine';
 import type { Simulation } from './simulations';
 import type { MountMotor } from './loadOrk';
@@ -58,6 +58,19 @@ const UNLOAD_KEY = 'astrarrocketjs:designs:unload';
 interface Journal {
   id: string | null;
   w: Workspace;
+  /**
+   * When `saveSync` wrote it (epoch ms). Absent on a journal from an older
+   * build, which is replayed as before.
+   *
+   * The unload write is a last resort, and it can LOSE the race with the
+   * store: the debounced async save that was already in flight at pagehide
+   * can commit after the journal was written, or the same design can be saved
+   * from another tab of this PWA after this one closed. Replaying the journal
+   * over that newer save rolled the design back. The next `load()` compares
+   * this stamp with the index entry's `updatedAt` and skips a journal the
+   * library has already moved past.
+   */
+  t?: number;
 }
 
 /**
@@ -130,6 +143,14 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     // A journal is newer than anything stored, but only for ITS design.
     const journal = readJournal();
     if (journal && journal.id && journal.id === this.activeId) {
+      // A journal the library has already moved past (see `Journal.t`) is
+      // dropped rather than replayed over the newer save. Strictly newer: a
+      // tie within the same millisecond keeps the journal, the safe direction.
+      const meta = await this.metaOf(journal.id);
+      if (typeof journal.t === 'number' && meta && meta.updatedAt > journal.t) {
+        clearJournal();
+        return await this.readActive(lib);
+      }
       // Validate BEFORE writing. `readJournal` only checks that the blob parses
       // and has a `w`; a journal written by a DIFFERENT app build (this is an
       // installed PWA, so an older cached build is a live possibility) can parse
@@ -217,8 +238,12 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     return w.sims.some((s) => this.savedResults.get(s.id) !== (s.result ?? null));
   }
 
+  private async metaOf(id: string): Promise<DesignMeta | null> {
+    return (await getDesignLibrary().list()).find((m) => m.id === id) ?? null;
+  }
+
   private async nameOf(id: string): Promise<string | null> {
-    return (await getDesignLibrary().list()).find((m) => m.id === id)?.name ?? null;
+    return (await this.metaOf(id))?.name ?? null;
   }
 
   async save(w: Workspace): Promise<void> {
@@ -262,7 +287,10 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
    *  bigger than localStorage allows) the debounced async save is all there is. */
   saveSync(w: Workspace): void {
     try {
-      localStorage.setItem(UNLOAD_KEY, JSON.stringify({ id: this.activeId, w: lean(w) } satisfies Journal));
+      localStorage.setItem(
+        UNLOAD_KEY,
+        JSON.stringify({ id: this.activeId, w: lean(w), t: Date.now() } satisfies Journal),
+      );
     } catch {
       /* quota or storage blocked — nothing further we can do while unloading */
     }
@@ -271,7 +299,12 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
 
 /** Reject a truncated or hand-edited blob before the tree reaches the engine:
  *  a `tree.components` that isn't an array would crash buildTree deep in the
- *  kernel rather than fail cleanly here. */
+ *  kernel rather than fail cleanly here. Exported so the store's openDesign
+ *  applies the same check the boot path does. */
+export function validateWorkspace(w: Workspace | null): Workspace | null {
+  return validate(w);
+}
+
 function validate(w: Workspace | null): Workspace | null {
   return w &&
     w.version === 1 &&

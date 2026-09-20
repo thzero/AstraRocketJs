@@ -41,8 +41,8 @@ export class KeyValueMaterialStore implements MaterialStore {
     private readonly kv: KeyValueStore = new IndexedDbKeyValueStore(),
   ) {}
 
-  private async read(): Promise<Material[]> {
-    const raw = await this.kv.get(this.key);
+  /** The stored list, tolerating an absent, corrupt or partly invalid blob. */
+  private static parse(raw: string | null): Material[] {
     if (!raw) return [];
     try {
       const parsed = JSON.parse(raw) as unknown;
@@ -54,29 +54,38 @@ export class KeyValueMaterialStore implements MaterialStore {
   }
 
   /**
-   * Propagates a refused write, the way `motorStore.addCustomMotor` does.
+   * Read, transform and write in ONE store transaction, and propagate a
+   * refused write the way `motorStore.addCustomMotor` does.
    *
-   * `kv.set` reports failure by RETURNING false rather than throwing, so
+   * `kv.update` reports failure by RETURNING false rather than throwing, so
    * discarding it meant the dialog awaited the save, got a clean resolve, and
    * re-rendered a list that simply did not contain the thing the user had just
    * added - with no error anywhere. "Best-effort (re-addable)" was the excuse,
    * but re-adding is only possible if you are told it did not stick.
+   *
+   * `update`, not read-then-set: this is an installable PWA whose IndexedDB is
+   * shared across tabs, and a get/set with an await between them let two tabs
+   * each drop the other's material (the race `DesignLibrary.mutateIndex`
+   * closes for the design index).
    */
-  private async write(list: Material[]): Promise<void> {
-    if (!(await this.kv.set(this.key, JSON.stringify(list)))) throw new Error('storage-full');
+  private async mutate(fn: (list: Material[]) => Material[]): Promise<void> {
+    const ok = await this.kv.update(this.key, (raw) => JSON.stringify(fn(KeyValueMaterialStore.parse(raw))));
+    if (!ok) throw new Error('storage-full');
   }
 
   async list(): Promise<Material[]> {
-    return this.read();
+    return KeyValueMaterialStore.parse(await this.kv.get(this.key));
   }
 
   async add(material: Material): Promise<void> {
-    const rest = (await this.read()).filter((m) => !(m.name === material.name && m.type === material.type));
-    await this.write([{ ...material, custom: true }, ...rest]);
+    await this.mutate((list) => [
+      { ...material, custom: true },
+      ...list.filter((m) => !(m.name === material.name && m.type === material.type)),
+    ]);
   }
 
   async remove(name: string, type: MaterialType): Promise<void> {
-    await this.write((await this.read()).filter((m) => !(m.name === name && m.type === type)));
+    await this.mutate((list) => list.filter((m) => !(m.name === name && m.type === type)));
   }
 }
 

@@ -18,6 +18,7 @@ export interface MountMotor {
 }
 import { loadCatalog, findCatalogMotor } from './motorDb';
 import { fetchMotorSpec } from './thrustcurve';
+import { findMounts } from './treeEdit';
 
 export interface LoadedOrk {
   name: string;
@@ -64,6 +65,32 @@ function unresolvedMotor(ref: {
   };
 }
 
+/**
+ * The placeholder for a mount the FILE left empty: no designation, no curve.
+ *
+ * The policy for a `.ork` is that a mount flies only what the file put in it.
+ * `unresolvedMotor` already covers a motor the file named that could not be
+ * produced; this covers a mount the file named no motor for at all. Both are
+ * curve-less, so `hasThrustCurve` is false and the run gate reports "no motor"
+ * until the user picks one. Without it, `wireLoadedOrk` seeded a default C6
+ * into an empty primary mount and `reconcileMounts` into every other empty
+ * mount, so a design saved with its mounts empty opened as a runnable rocket
+ * flying motors the file never specified, which is exactly what the two
+ * branches above go out of their way to prevent.
+ */
+export function emptyMountMotor(): MotorSpec {
+  return {
+    designation: '',
+    diameter: 0,
+    length: 0,
+    times: [],
+    thrusts: [],
+    masses: [],
+    cgX: 0,
+    ejectionDelay: 0,
+  };
+}
+
 export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   resetEngine(); // free the previous design's handles
   const res = importOrk(buffer);
@@ -107,6 +134,17 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
       );
       motorSpecs[mountId] = { spec: unresolvedMotor(ref) };
     }
+  }
+
+  // Every mount the file gave no motor for gets the empty placeholder (see
+  // emptyMountMotor), named in one note so the user knows which to fill.
+  const emptyMounts = findMounts(res.tree).filter((m) => !motorSpecs[m.id as string]);
+  for (const m of emptyMounts) motorSpecs[m.id as string] = { spec: emptyMountMotor() };
+  if (emptyMounts.length) {
+    const names = emptyMounts.map((m) => `"${m.name ?? m.type}"`).join(', ');
+    notes.push(
+      `No motor in this file for ${emptyMounts.length === 1 ? 'mount' : 'mounts'} ${names} - pick one before flying (it won't fly a default).`,
+    );
   }
 
   // The app imports ONE configuration as a single simulation, but a .ork can

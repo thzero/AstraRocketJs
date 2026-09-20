@@ -8,6 +8,7 @@ import {
   startFromPosition,
   resolveFilePositions,
 } from './position';
+import { KERNEL_DEFAULTS } from './kernelDefaults';
 
 describe('axialLength', () => {
   it('uses the furthest point x for a freeform fin set', () => {
@@ -37,7 +38,24 @@ describe('axialLength', () => {
     // reads <packedlength> into it. There is no separate `packedLength` key to
     // fall back to, and the fallback that used to be here never fired.
     expect(axialLength({ type: 'parachute', length: 0.3 })).toBeCloseTo(0.3);
-    expect(axialLength({ type: 'bulkhead' })).toBeCloseTo(0.025);
+    // The fallback is the KERNEL's per-type length, not 0.025 for every type
+    // (that is the parachute / streamer / shock-cord value; a bulkhead flies
+    // at 2 mm). Each value is what ComponentFactory reads, pinned by
+    // kernelDefaults.kernel.test.ts against the real engine.
+    expect(axialLength({ type: 'bulkhead' })).toBeCloseTo(KERNEL_DEFAULTS.bulkhead.length);
+    expect(axialLength({ type: 'bulkhead' })).toBeCloseTo(0.002);
+    expect(axialLength({ type: 'centeringring' })).toBeCloseTo(0.002);
+    expect(axialLength({ type: 'engineblock' })).toBeCloseTo(0.005);
+    expect(axialLength({ type: 'innertube' })).toBeCloseTo(0.07);
+    expect(axialLength({ type: 'tubecoupler' })).toBeCloseTo(0.05);
+    expect(axialLength({ type: 'launchlug' })).toBeCloseTo(0.05);
+    expect(axialLength({ type: 'masscomponent' })).toBeCloseTo(0.02);
+    expect(axialLength({ type: 'tubefinset' })).toBeCloseTo(0.1);
+    expect(axialLength({ type: 'parachute' })).toBeCloseTo(0.025);
+    expect(axialLength({ type: 'streamer' })).toBeCloseTo(0.025);
+    expect(axialLength({ type: 'shockcord' })).toBeCloseTo(0.025);
+    // No factory default at all: the kernel's RocketComponent.length is 0.
+    expect(axialLength({ type: 'railbutton' })).toBe(0);
   });
 
   it('uses the chain length for an assembly', () => {

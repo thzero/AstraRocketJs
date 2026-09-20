@@ -1,28 +1,13 @@
-import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { appName } from '../../services/appInfo';
 import { useFocusTrap } from '../common/useFocusTrap';
 
-/** Privacy policy modal — the app is client-only; nothing leaves the device
- *  except the optional public motor-data fetch. Copy lives in i18n. */
-export function PrivacyDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  // Tab stays inside the modal, and focus returns to the trigger on close.
-  // Seven dialogs declared aria-modal and had neither, so Tab walked straight
-  // out into the page behind the overlay — the exact gap useFocusTrap exists
-  // to close, already used by seven of their siblings.
-  const panelRef = useFocusTrap<HTMLDivElement>(open);
+/** Privacy policy modal: the app is client-only; nothing leaves the device
+ *  except the optional public motor-data fetch. Copy lives in i18n.
+ *  Mounted only while open (`{open && <PrivacyDialog />}`). */
+export function PrivacyDialog({ onClose }: { onClose: () => void }) {
+  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
   const { t } = useTranslation();
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
   return (
     <div className="dialog-overlay fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4" onClick={onClose}>
       <div

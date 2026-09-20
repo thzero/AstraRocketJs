@@ -74,7 +74,15 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     const bytes = await readStreamWithProgress(res.body, declaredLength(res), () => {}, MAX_RESPONSE_BYTES);
     return JSON.parse(new TextDecoder().decode(bytes)) as T;
   } catch (e) {
-    if (ctl.signal.aborted) throw new Error(`thrustcurve.org timed out — check your connection and try again.`);
+    if (ctl.signal.aborted) {
+      // Keep the abort as the cause: without it the original DOMException is
+      // gone and a bug report shows only the friendly text. Assigned after
+      // construction because the ErrorOptions form is ES2022 and the tsconfig
+      // lib is ES2020.
+      const err = new Error('thrustcurve.org timed out - check your connection and try again.');
+      (err as { cause?: unknown }).cause = e;
+      throw err;
+    }
     throw e;
   } finally {
     clearTimeout(timer);
@@ -244,10 +252,27 @@ function metaKey(cat: CatalogMotor): string {
 // copy accepted NaN and Infinity, which `typeof === 'number'` lets through.
 const isSampleArray = isThrustSampleArray;
 
-const isSpec = (v: unknown): boolean => {
-  const s = v as MotorSpec;
-  return !!(s?.times?.length && s?.thrusts?.length && s?.masses?.length);
+// A cached spec is checked the way a cached curve is: every sample of all three
+// arrays finite, not just non-empty. Length alone let a spec whose arrays had
+// been serialized with nulls (a NaN mass, an Infinity time) straight back into
+// the kernel, the same BigInt crash the sample guard exists to stop.
+const isFiniteArray = (xs: unknown): xs is number[] =>
+  Array.isArray(xs) && xs.length > 0 && xs.every((x) => Number.isFinite(x));
+
+/** Exported for test: the cache-read validator for a stored MotorSpec. */
+export const isCachedMotorSpec = (v: unknown): boolean => {
+  const s = v as MotorSpec | null;
+  return (
+    !!s &&
+    typeof s === 'object' &&
+    isFiniteArray(s.times) &&
+    isFiniteArray(s.thrusts) &&
+    isFiniteArray(s.masses) &&
+    s.times.length === s.thrusts.length &&
+    s.times.length === s.masses.length
+  );
 };
+const isSpec = isCachedMotorSpec;
 
 /**
  * The resolved thrustcurve record (motorId, dimensions, weights) for a catalog

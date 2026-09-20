@@ -1,4 +1,5 @@
 import type { ComponentNode } from '../engine/openRocketEngine';
+import { ASSEMBLY_TYPES, isChainType, type AssemblyType } from './componentKinds';
 import { num } from './nodeProps';
 
 /**
@@ -10,12 +11,13 @@ import { num } from './nodeProps';
  * surface.
  */
 
-/** The assembly's own axial chain members (a mini nose→body→transition stack). */
-const CHAIN_TYPES = new Set(['nosecone', 'bodytube', 'transition']);
-
-/** Total axial length of the assembly's own body chain (m). */
+/**
+ * Total axial length of the assembly's own body chain (m): its chain members
+ * (a mini nose→body→transition stack), per the one `CHAIN_TYPES` table in
+ * componentKinds.ts rather than a local copy of it.
+ */
 export function assemblyChainLength(pod: ComponentNode): number {
-  return (pod.children ?? []).filter((c) => CHAIN_TYPES.has(c.type)).reduce((s, c) => s + num(c, 'length', 0), 0);
+  return (pod.children ?? []).filter((c) => isChainType(c.type)).reduce((s, c) => s + num(c, 'length', 0), 0);
 }
 
 /** Largest outer radius among the assembly's own body chain (m). */
@@ -64,6 +66,12 @@ export function ringInstanceOffsets(count: number, radius: number, angleOffset =
   return out;
 }
 
-export function isAssembly(type: string): boolean {
-  return type === 'podset' || type === 'parallelstage';
+/**
+ * Whether a type is an off-axis assembly. A type guard over the
+ * `ASSEMBLY_TYPES` table (componentKinds.ts), so a caller holding a
+ * `ComponentType` gets `AssemblyType` back instead of a bare boolean over a
+ * string comparison that nothing tied to the union.
+ */
+export function isAssembly(type: string): type is AssemblyType {
+  return (ASSEMBLY_TYPES as ReadonlySet<string>).has(type);
 }

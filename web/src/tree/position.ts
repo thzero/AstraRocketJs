@@ -1,6 +1,8 @@
 import type { ComponentNode, ComponentPosition, RocketTree } from '../engine/openRocketEngine';
 import { assemblyChainLength, isAssembly } from './assembly.js';
-import { num } from './nodeProps';
+import { isChainType } from './componentKinds';
+import { FIN_DEFAULTS, kernelLength } from './kernelDefaults';
+import { num, positionOf } from './nodeProps';
 
 /**
  * Axial-position math shared by the 2D schematic (drag) and the property
@@ -24,7 +26,10 @@ import { num } from './nodeProps';
  * had their own `Math.max` copy, and so disagreed with the schematic about
  * where one fin sits.
  */
-export function freeformRootChord(pts: [number, number][] | undefined, fallback = 0.05): number {
+export function freeformRootChord(
+  pts: [number, number][] | undefined,
+  fallback: number = FIN_DEFAULTS.rootChord,
+): number {
   const p = pts ?? [];
   const first = p[0];
   const last = p[p.length - 1];
@@ -71,7 +76,7 @@ export function axialLength(n: ComponentNode): number {
     return freeformRootChord(n['points'] as [number, number][] | undefined);
   }
   if (n.type === 'trapezoidfinset' || n.type === 'ellipticalfinset') {
-    return num(n, 'rootChord', 0.05);
+    return num(n, 'rootChord', FIN_DEFAULTS.rootChord);
   }
   if (isAssembly(n.type)) return assemblyChainLength(n);
   // `length` only. A recovery device's packed length arrives in it too —
@@ -80,7 +85,24 @@ export function axialLength(n: ComponentNode): number {
   // (ComponentFactory.java:346-349) — so the `packedLength` fallback that used
   // to sit here could never fire. Wiring packed dimensions properly (TODO.md)
   // needs a kernel change; when it lands it gets a real key, not a dead one.
-  return num(n, 'length', 0.025);
+  //
+  // The fallback is the KERNEL's per-type default, not one number for every
+  // type. It was 0.025 across the board, which is the parachute / streamer /
+  // shock-cord value: a bulkhead or centering ring that had lost its `length`
+  // was laid out at 25 mm where the engine flies 2 mm, and a tube fin set at
+  // 25 mm where it flies 100 mm. Types the factory reads no length for (a
+  // rail button, a stage) resolve to 0, which is the kernel's own
+  // RocketComponent.length initial value.
+  return num(n, 'length', kernelLength(n.type) ?? 0);
+}
+
+/**
+ * A child's leading edge in the ROCKET frame: the parent's start plus the
+ * child's parent-relative start. The one reader the report geometry and the
+ * schematic share, so the PDF cannot place a part where the drawing does not.
+ */
+export function axialStart(child: ComponentNode, childLen: number, pStart: number, pLen: number): number {
+  return pStart + startFromPosition(positionOf(child), childLen, pLen);
 }
 
 export function startFromPosition(pos: ComponentPosition, childLen: number, pLen: number): number {
@@ -114,7 +136,6 @@ export function startFromPosition(pos: ComponentPosition, childLen: number, pLen
  */
 export function resolveFilePositions(tree: RocketTree): RocketTree {
   let changed = false;
-  const chainTypes = new Set(['nosecone', 'bodytube', 'transition']);
 
   const fixChildren = (parent: ComponentNode, pStart: number, pLen: number): ComponentNode => {
     if (!parent.children?.length) return parent;
@@ -122,7 +143,9 @@ export function resolveFilePositions(tree: RocketTree): RocketTree {
     let prevEndRel = 0;
     const children = parent.children.map((child) => {
       let next = child;
-      const pos = (child.position ?? { method: 'top', offset: 0 }) as ComponentPosition;
+      // Validated, not cast: a file can carry a string offset or a method the
+      // union does not know, and both used to reach the arithmetic below as-is.
+      const pos = positionOf(child);
       if (pos.method === 'after') {
         changed = true;
         // AxialMethod.AFTER: the aft end of the previous sibling, or 0 for the
@@ -149,8 +172,7 @@ export function resolveFilePositions(tree: RocketTree): RocketTree {
         } as ComponentNode;
       }
       const cLen = axialLength(next);
-      const nextPos = (next.position ?? { method: 'top', offset: 0 }) as ComponentPosition;
-      const relStart = startFromPosition(nextPos, cLen, pLen);
+      const relStart = startFromPosition(positionOf(next), cLen, pLen);
       prevEndRel = relStart + cLen;
       return fixChildren(next, pStart + relStart, cLen);
     });
@@ -176,17 +198,16 @@ export function resolveFilePositions(tree: RocketTree): RocketTree {
     const stageStart = x;
     // The stage's axial extent is its chain members; that is what an off-axis
     // child's own `middle`/`bottom` position is measured against.
-    const stageLen = kids.reduce((sum, n) => sum + (chainTypes.has(n.type) ? num(n, 'length', 0) : 0), 0);
+    const stageLen = kids.reduce((sum, n) => sum + (isChainType(n.type) ? num(n, 'length', 0) : 0), 0);
     const fixedKids = kids.map((n) => {
-      if (chainTypes.has(n.type)) {
+      if (isChainType(n.type)) {
         const len = num(n, 'length', 0);
         const fixed = fixChildren(n, x, len);
         x += len;
         return fixed;
       }
       const own = axialLength(n);
-      const pos = (n.position ?? { method: 'top', offset: 0 }) as ComponentPosition;
-      return fixChildren(n, stageStart + startFromPosition(pos, own, stageLen), own);
+      return fixChildren(n, stageStart + startFromPosition(positionOf(n), own, stageLen), own);
     });
     return stage.type === 'stage' ? ({ ...stage, children: fixedKids } as ComponentNode) : fixedKids[0]!;
   });

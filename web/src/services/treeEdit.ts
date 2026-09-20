@@ -7,12 +7,20 @@
 import type { ComponentNode, ComponentType, RocketTree } from '../engine/openRocketEngine';
 import type { Component } from './componentDb';
 import { KERNEL_DEFAULTS } from '../tree/kernelDefaults.js';
+import { isChainType } from '../tree/componentKinds';
+import { uuid } from './uuid';
 
-let idCounter = 0;
-/** A stable-ish unique id for a new node (readable: `<type>-<n>`). */
-function newId(type: string): string {
-  idCounter += 1;
-  return `${type}-${idCounter}`;
+/**
+ * A unique id for a new node.
+ *
+ * This was a module-scope counter minting `<type>-<n>`, which restarted at
+ * zero on every page load while the persisted tree kept its ids. The second
+ * session's first body tube got `bodytube-1` again, and every walker in this
+ * file stops at the first match, so editing or deleting the new part edited
+ * or deleted the old one. A UUID cannot collide across sessions.
+ */
+function newId(): string {
+  return uuid();
 }
 
 const clone = (tree: RocketTree): RocketTree => structuredClone(tree);
@@ -29,15 +37,40 @@ export function findNode(tree: RocketTree, id: string): ComponentNode | null {
   return null;
 }
 
+/**
+ * Patch one node, returning a new tree.
+ *
+ * Path-copies only the SPINE from the root to the patched node; every sibling
+ * and untouched subtree is shared with the input. This runs on every keystroke
+ * in the property panel, and it used to `structuredClone` the whole design
+ * first, so typing a length into a hundred-part rocket serialized a hundred
+ * parts per character. The contract is unchanged: the input tree is never
+ * mutated, and the result is a distinct object even when `id` is not found.
+ */
 export function updateNode(tree: RocketTree, id: string, patch: Partial<ComponentNode>): RocketTree {
-  const next = clone(tree);
-  for (const n of walk(next.components)) {
-    if (n.id === id) {
-      Object.assign(n, patch);
-      break;
+  let found = false;
+  const rec = (nodes: ComponentNode[]): ComponentNode[] => {
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i]!;
+      if (n.id === id) {
+        found = true;
+        const out = nodes.slice();
+        out[i] = { ...n, ...patch };
+        return out;
+      }
+      if (n.children) {
+        const kids = rec(n.children);
+        if (found) {
+          const out = nodes.slice();
+          out[i] = { ...n, children: kids };
+          return out;
+        }
+      }
     }
-  }
-  return next;
+    return nodes;
+  };
+  const components = rec(tree.components);
+  return { ...tree, components };
 }
 
 export function removeNode(tree: RocketTree, id: string): RocketTree {
@@ -95,10 +128,13 @@ export function isUpperStageMount(tree: RocketTree, mountId: string): boolean {
   return true;
 }
 
-const AXIAL: ReadonlySet<string> = new Set(['nosecone', 'bodytube', 'transition']);
-/** Axial components stack nose→tail in the stage; everything else nests inside a tube. */
+/**
+ * Axial components stack nose→tail in the stage; everything else nests inside
+ * a tube. The one `CHAIN_TYPES` table (tree/componentKinds.ts), not a fourth
+ * local copy of it.
+ */
 export function isAxial(type: string): boolean {
-  return AXIAL.has(type);
+  return isChainType(type);
 }
 
 /**
@@ -308,7 +344,7 @@ export function moveNode(tree: RocketTree, id: string, dir: -1 | 1): RocketTree 
 
 /** A new node of `type` with reasonable default dimensions (SI units, m). */
 export function defaultNode(type: ComponentType): ComponentNode {
-  const id = newId(type);
+  const id = newId();
   switch (type) {
     // A bare stage: no parts yet (the user adds them). Seeded with the desktop-
     // default separation (used only when it sits below another stage).
@@ -518,10 +554,18 @@ export function addStage(tree: RocketTree): { tree: RocketTree; id: string } {
 }
 
 /**
- * Add a new part of `type` as a child of the selected node (its parent), or of
- * the stage when nothing is selected. The Add menu only offers types valid for
- * that parent (see {@link allowedChildren}), so no re-parenting is needed.
- * Returns the new tree and the new node's id.
+ * Add a new part of `type` under the selected node, or under the stage when
+ * nothing is selected. Returns the new tree and the new node's id.
+ *
+ * {@link allowedChildren} is ENFORCED here, not only by the Add menu. The menu
+ * offers valid types for the selected part, but this is the function every
+ * caller goes through, and it used to trust `selectedId` outright: a part
+ * added while a fin was selected went under the fin, a bulkhead added with the
+ * stage selected went straight into the stage, and the kernel then built a
+ * tree the desktop would never write. Now a selection that cannot host `type`
+ * yields to its nearest ancestor that can (the fin's body tube), then to the
+ * stage; a type not even the stage may host is a caller bug, and throws rather
+ * than silently producing an invalid design.
  */
 export function addPart(
   tree: RocketTree,
@@ -531,11 +575,18 @@ export function addPart(
   const node = defaultNode(type);
   const id = node.id!;
   const stageId = tree.components.find((n) => n.type === 'stage')?.id;
-  const parentId = selectedId && findNode(tree, selectedId) ? selectedId : stageId;
-  if (!parentId) {
+  let host = selectedId ? findNode(tree, selectedId) : null;
+  while (host && !allowedChildren(host.type).includes(type)) {
+    host = host.id ? findParent(tree, host.id) : null;
+  }
+  if (host?.id) return { tree: addChild(tree, host.id, node), id };
+  if (!stageId) {
     const next = clone(tree);
     next.components.push(node);
     return { tree: next, id };
   }
-  return { tree: addChild(tree, parentId, node), id };
+  if (!allowedChildren('stage').includes(type)) {
+    throw new Error(`A ${type} cannot be added here: neither the selected part nor the stage may host it.`);
+  }
+  return { tree: addChild(tree, stageId, node), id };
 }

@@ -1,7 +1,7 @@
 // Materials available to the editor = built-ins (data/materials.ts) + the
 // user's CUSTOM materials. Custom materials persist through a swappable store
-// (materialStore.ts) — localStorage today, a backend service tomorrow — so this
-// layer only owns the domain rules (validation, merging built-ins with custom)
+// (materialStore.ts) — IndexedDB by default, a backend service tomorrow — so
+// this layer only owns the domain rules (validation, merging built-ins with custom)
 // and never talks to a storage mechanism directly.
 import { BUILTIN_MATERIALS, type Material, type MaterialType } from '../data/materials';
 import { getMaterialStore } from './materialStore';

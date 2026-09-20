@@ -1134,7 +1134,12 @@ function escaperFor(extension: string): (raw: string) => string {
       // rocket named `=HYPERLINK(...)`) must not execute when the CSV is opened
       // in Excel/Sheets. Prefix a `'` when it leads with a formula trigger, then
       // double quotes for RFC-4180 (the template wraps values in quotes).
-      return (raw) => (/^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw).replace(/"/g, '""');
+      //
+      // A leading `-` is a trigger only when what follows is not a number: the
+      // pre-formatted numeric fields (longitude, altitude, distance) go through
+      // this same escaper, and quoting `-80.600000` turned every
+      // western-hemisphere longitude and every below-pad altitude into text.
+      return (raw) => (/^[=+@\t\r]|^-(?![\d.])/.test(raw) ? `'${raw}` : raw).replace(/"/g, '""');
     default:
       return (raw) => raw;
   }

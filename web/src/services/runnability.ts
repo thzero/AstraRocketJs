@@ -4,6 +4,7 @@ import { launchLimitViolations, limitText, type LimitViolation } from './safetyL
 import { missingRequired, type RequiredLaunchKey } from './requiredLaunch';
 import { badDimensions, type BadDimension } from './requiredComponent';
 import { findMounts } from './treeEdit';
+import { hasUsableCurve } from './motorCurve';
 import type { RocketTree } from '../engine/openRocketEngine';
 
 /**
@@ -18,9 +19,14 @@ import type { RocketTree } from '../engine/openRocketEngine';
  * could be started with the button showing nothing wrong.
  */
 
-/** A motor is usable only if it carries a full thrust curve (time/thrust/mass samples). */
-export const hasThrustCurve = (m: MotorSpec | undefined | null): boolean =>
-  !!(m && m.times?.length && m.thrusts?.length && m.masses?.length);
+/**
+ * A motor is usable only if it carries a full thrust curve.
+ *
+ * The one predicate in `motorCurve.ts`, which is also what the builder seats
+ * a motor by. This used to accept any non-empty arrays, so a one-sample motor
+ * passed the Run button and then left the mount empty at build time.
+ */
+export const hasThrustCurve = (m: MotorSpec | undefined | null): boolean => hasUsableCurve(m);
 
 export type UnflyableReason =
   | { kind: 'noMotor' }

@@ -211,3 +211,57 @@ describe('launchDefaults is validated per field', () => {
     expect(load({ windLevels: 'lots' }).windLevels).toBe(DEFAULT_SETTINGS.launchDefaults.windLevels);
   });
 });
+
+describe('loadSettings validates what reaches styles, jsPDF and the CSV writer', () => {
+  it('returns a COPY of the defaults, so a caller patching it cannot rewrite them', () => {
+    const a = loadSettings();
+    expect(a).not.toBe(DEFAULT_SETTINGS);
+    expect(a.simulation).not.toBe(DEFAULT_SETTINGS.simulation);
+    a.simulation.timeStep = 99;
+    expect(loadSettings().simulation.timeStep).toBe(DEFAULT_SETTINGS.simulation.timeStep);
+    localStorage.setItem(KEY, '{not json');
+    const b = loadSettings();
+    expect(b).toEqual(DEFAULT_SETTINGS);
+    expect(b).not.toBe(DEFAULT_SETTINGS);
+  });
+
+  it('applies the hex filter to phaseColors', () => {
+    localStorage.setItem(KEY, JSON.stringify({ phaseColors: { boost: 'url(evil)', coast: '#abc', descent: 7 } }));
+    const s = loadSettings();
+    expect(s.phaseColors.boost).toBe(DEFAULT_SETTINGS.phaseColors.boost);
+    expect(s.phaseColors.coast).toBe('#abc');
+    expect(s.phaseColors.descent).toBe(DEFAULT_SETTINGS.phaseColors.descent);
+  });
+
+  it('falls back on an unknown paper size or orientation', () => {
+    localStorage.setItem(KEY, JSON.stringify({ report: { paper: 'legal', orientation: 'sideways' } }));
+    expect(loadSettings().report.paper).toBe('letter');
+    expect(loadSettings().report.orientation).toBe('portrait');
+    localStorage.setItem(KEY, JSON.stringify({ report: { paper: 'a4', orientation: 'landscape' } }));
+    expect(loadSettings().report.paper).toBe('a4');
+    expect(loadSettings().report.orientation).toBe('landscape');
+  });
+
+  it('forces the flight CSV flags to booleans', () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        flightCsv: { exponential: 'false', simDescription: 1, fieldDescriptions: null, flightEvents: false },
+      }),
+    );
+    const c = loadSettings().flightCsv;
+    expect(c.exponential).toBe(DEFAULT_SETTINGS.flightCsv.exponential);
+    expect(c.simDescription).toBe(DEFAULT_SETTINGS.flightCsv.simDescription);
+    expect(c.fieldDescriptions).toBe(DEFAULT_SETTINGS.flightCsv.fieldDescriptions);
+    expect(c.flightEvents).toBe(false);
+  });
+
+  it('clamps railExitVelocityMin like the other simulation thresholds', () => {
+    for (const raw of ['"fast"', '0', '-3', 'null']) {
+      localStorage.setItem(KEY, `{"simulation":{"railExitVelocityMin":${raw}}}`);
+      expect(loadSettings().simulation.railExitVelocityMin, raw).toBe(DEFAULT_SETTINGS.simulation.railExitVelocityMin);
+    }
+    localStorage.setItem(KEY, '{"simulation":{"railExitVelocityMin":12}}');
+    expect(loadSettings().simulation.railExitVelocityMin).toBe(12);
+  });
+});

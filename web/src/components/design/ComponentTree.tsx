@@ -18,8 +18,8 @@ const ADD_GROUPS: { group: string; items: ComponentType[] }[] = [
 ];
 
 /**
- * Read-only component tree for the left panel — an OpenRocket-style indented
- * hierarchy of the rocket's parts (stage → components → sub-components). Renders
+ * Read-only component tree for the left panel: an OpenRocket-style indented
+ * hierarchy of the rocket's parts (stage > components > sub-components). Renders
  * the same `RocketTree` the 2D/3D views draw, so it works for a loaded `.ork`
  * design as well as the built-in editor design. Each row shows a category dot,
  * the part name, a "motor" tag on motor mounts, and a key dimension.
@@ -27,7 +27,46 @@ const ADD_GROUPS: { group: string; items: ComponentType[] }[] = [
  * Selection is two-way with the 2D schematic: clicking a row selects the part
  * (and the schematic outlines it); selecting in the schematic highlights the
  * row here and scrolls it into view.
+ *
+ * A real `tree` of `treeitem`s. Rows used to be `role="button"` with the
+ * expand toggle and the export button nested inside, which is invalid (a
+ * button may not contain interactive content) and told a screen reader
+ * nothing about depth, folding or which row is selected. The rows are still a
+ * flat list; `aria-level` carries the depth, as ARIA allows for a flattened
+ * tree.
  */
+
+/**
+ * The two tree walks the memos below run, at module scope. Each was a recursive
+ * arrow inside its useMemo, and the compiler lint reads a closure that calls
+ * itself as a missing dependency; a plain function that takes what it needs
+ * has no closure to be wrong about.
+ */
+/** Every id-bearing node that has children (the collapsible ones), in tree order. */
+function collectBranchIds(nodes: ComponentNode[], out: string[]): string[] {
+  for (const n of nodes) {
+    if (typeof n.id === 'string' && (n.children?.length ?? 0) > 0) out.push(n.id);
+    collectBranchIds(n.children ?? [], out);
+  }
+  return out;
+}
+/** The visible, selectable rows in the order they are drawn: children of a
+ *  collapsed branch are skipped, and nothing is selectable without `onSelect`. */
+function collectVisibleIds(
+  nodes: ComponentNode[],
+  collapsed: ReadonlySet<string>,
+  selectable: boolean,
+  out: string[],
+): string[] {
+  for (const n of nodes) {
+    const nid = typeof n.id === 'string' ? n.id : undefined;
+    if (nid && selectable) out.push(nid);
+    const hasKids = (n.children?.length ?? 0) > 0;
+    const isCollapsed = hasKids && !!nid && collapsed.has(nid);
+    if (!isCollapsed) collectVisibleIds(n.children ?? [], collapsed, selectable, out);
+  }
+  return out;
+}
 
 /** A tree row's key dimension, in the user's length unit. */
 const len = (u: Units, v: unknown): string | null =>
@@ -118,8 +157,6 @@ function Row({
   onSelect,
   collapsed,
   onToggleCollapse,
-  t,
-  u,
 }: {
   node: ComponentNode;
   depth: number;
@@ -131,9 +168,9 @@ function Row({
   onSelect?: (id: string) => void;
   collapsed: ReadonlySet<string>;
   onToggleCollapse: (id: string) => void;
-  t: TFunction;
-  u: Units;
 }) {
+  const { t } = useTranslation();
+  const u = useUnits();
   const color = TYPE_COLOR[node.type] ?? '#94a3b8';
   const symbol = TYPE_SYMBOL[node.type] ?? '□';
   const label = partLabel(node.type, t);
@@ -146,6 +183,7 @@ function Row({
   // Only id-bearing nodes can be remembered as collapsed; a childless or id-less
   // node just shows a spacer so every row's label lines up.
   const isCollapsed = hasKids && !!id && collapsed.has(id);
+  const selectable = !!id && !!onSelect;
   const rowRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (selected) rowRef.current?.scrollIntoView({ block: 'nearest' });
@@ -154,15 +192,18 @@ function Row({
     <>
       <div
         ref={rowRef}
-        role={id && onSelect ? 'button' : undefined}
-        tabIndex={id && onSelect ? (id === tabbableId ? 0 : -1) : undefined}
-        data-tree-row={id && onSelect ? '1' : undefined}
-        data-id={id && onSelect ? id : undefined}
+        role="treeitem"
+        aria-level={depth + 1}
+        aria-selected={selectable ? selected : undefined}
+        aria-expanded={hasKids && id ? !isCollapsed : undefined}
+        tabIndex={selectable ? (id === tabbableId ? 0 : -1) : undefined}
+        data-tree-row={selectable ? '1' : undefined}
+        data-id={selectable ? id : undefined}
         data-haskids={hasKids && id ? '1' : undefined}
         data-collapsed={isCollapsed ? '1' : undefined}
-        onClick={id && onSelect ? () => onSelect(id) : undefined}
+        onClick={selectable ? () => onSelect(id) : undefined}
         onKeyDown={
-          id && onSelect
+          selectable
             ? (e) => {
                 // Keyboard selection: this was the ONLY way to select a part
                 // (the 2D/3D canvases are pointer-only too), so a keyboard user
@@ -174,7 +215,7 @@ function Row({
               }
             : undefined
         }
-        className={`flex items-center gap-2 rounded-md py-1 pr-2 ${id && onSelect ? 'cursor-pointer' : ''} ${
+        className={`flex items-center gap-2 rounded-md py-1 pr-2 ${selectable ? 'cursor-pointer' : ''} ${
           selected ? 'bg-sky-600/25 ring-1 ring-inset ring-sky-500/50' : 'hover:bg-slate-800'
         }`}
         // 2px, not 8: at depth 0 that leading gap is pure inset against the
@@ -190,7 +231,6 @@ function Row({
               onToggleCollapse(id);
             }}
             aria-label={isCollapsed ? t('tree.expand') : t('tree.collapse')}
-            aria-expanded={!isCollapsed}
             tabIndex={-1}
             className="w-6 shrink-0 text-center text-xl leading-none text-slate-500 hover:text-slate-200"
           >
@@ -224,8 +264,6 @@ function Row({
             onSelect={onSelect}
             collapsed={collapsed}
             onToggleCollapse={onToggleCollapse}
-            t={t}
-            u={u}
           />
         ))}
     </>
@@ -248,8 +286,7 @@ export function ComponentTree({
   onAddStage?: () => void; // append a new (booster) stage at the bottom
 }) {
   const { t } = useTranslation();
-  const u = useUnits();
-  // Ids of collapsed (folded) branches — ephemeral view state per node id.
+  // Ids of collapsed (folded) branches: ephemeral view state per node id.
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
   const toggleCollapse = (id: string) =>
     setCollapsed((prev) => {
@@ -260,19 +297,9 @@ export function ComponentTree({
     });
   // Every id-bearing node that has children (the collapsible ones), so the
   // header toggle can fold or unfold the whole tree at once. Memoized: it walks
-  // the whole tree and only changes when the components do — not on every
+  // the whole tree and only changes when the components do, not on every
   // selection/hover re-render.
-  const branchIds = useMemo(() => {
-    const ids: string[] = [];
-    const walk = (nodes: ComponentNode[]) => {
-      for (const n of nodes) {
-        if (typeof n.id === 'string' && (n.children?.length ?? 0) > 0) ids.push(n.id);
-        walk(n.children ?? []);
-      }
-    };
-    walk(tree.components);
-    return ids;
-  }, [tree.components]);
+  const branchIds = useMemo(() => collectBranchIds(tree.components, []), [tree.components]);
   const allCollapsed = branchIds.length > 0 && branchIds.every((id) => collapsed.has(id));
   const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(branchIds));
 
@@ -282,22 +309,12 @@ export function ComponentTree({
   // focus between them, so the whole tree is one tab stop, not one per part.
   const listRef = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const orderedIds = useMemo(() => {
-    const out: string[] = [];
-    const walk = (nodes: ComponentNode[]) => {
-      for (const n of nodes) {
-        const nid = typeof n.id === 'string' ? n.id : undefined;
-        if (nid && onSelect) out.push(nid);
-        const hasKids = (n.children?.length ?? 0) > 0;
-        const isCollapsed = hasKids && !!nid && collapsed.has(nid);
-        if (!isCollapsed) walk(n.children ?? []);
-      }
-    };
-    walk(tree.components);
-    return out;
-  }, [tree.components, collapsed, onSelect]);
+  const orderedIds = useMemo(
+    () => collectVisibleIds(tree.components, collapsed, !!onSelect, []),
+    [tree.components, collapsed, onSelect],
+  );
   // The single tabbable row: the last arrow-focused row if still visible, else
-  // the selected row, else the first — so Tab always lands somewhere sensible.
+  // the selected row, else the first, so Tab always lands somewhere sensible.
   const tabbableId =
     (activeId && orderedIds.includes(activeId) && activeId) ||
     (selectedId && orderedIds.includes(selectedId) && selectedId) ||
@@ -334,14 +351,14 @@ export function ComponentTree({
         move(rows[rows.length - 1]);
         break;
       case 'ArrowRight':
-        // Collapsed branch → expand; otherwise step to the next row.
+        // Collapsed branch: expand; otherwise step to the next row.
         if (rid && hasKids && isCollapsed) {
           e.preventDefault();
           toggleCollapse(rid);
         } else move(rows[idx + 1]);
         break;
       case 'ArrowLeft':
-        // Expanded branch → collapse; otherwise step to the previous row.
+        // Expanded branch: collapse; otherwise step to the previous row.
         if (rid && hasKids && !isCollapsed) {
           e.preventDefault();
           toggleCollapse(rid);
@@ -353,6 +370,8 @@ export function ComponentTree({
   // Fold the whole list away (header stays) so the property editor gets the room
   // once a part is picked. Collapsed, the header names the selected part.
   const [listOpen, setListOpen] = useState(true);
+  // One lookup serves both the collapsed header's name and the Add menu's
+  // parent type; it used to be done twice per render.
   const selectedNode = selectedId ? findNode(tree, selectedId) : null;
   const selectedName = selectedNode
     ? typeof selectedNode.name === 'string' && selectedNode.name
@@ -361,9 +380,8 @@ export function ComponentTree({
     : null;
 
   // The Add menu is contextual: it offers only the child types valid for the
-  // selected part (the stage when nothing is selected). A leaf part → no menu.
-  const parent = selectedId ? findNode(tree, selectedId) : null;
-  const parentType = parent?.type ?? 'stage';
+  // selected part (the stage when nothing is selected). A leaf part: no menu.
+  const parentType = selectedNode?.type ?? 'stage';
   const parentLabel = partLabel(parentType, t);
   const allowed = new Set<ComponentType>(allowedChildren(parentType));
   const groups = ADD_GROUPS.map((g) => ({ group: g.group, items: g.items.filter((ty) => allowed.has(ty)) })).filter(
@@ -435,7 +453,7 @@ export function ComponentTree({
         </div>
       )}
       <div className="mb-2 flex min-w-0 items-center gap-1.5">
-        {/* Fold the whole tree list — the header (and this toggle) stay put. */}
+        {/* Fold the whole tree list; the header (and this toggle) stay put. */}
         <button
           onClick={() => setListOpen((o) => !o)}
           aria-expanded={listOpen}
@@ -464,7 +482,13 @@ export function ComponentTree({
       {/* The rule is the tree's spine, so it keeps its 1px; the inset beside it
           was decoration the names were paying for. */}
       {listOpen && (
-        <div ref={listRef} onKeyDown={onTreeKeyDown} className="border-l border-white/5">
+        <div
+          ref={listRef}
+          role="tree"
+          aria-label={t('tree.components')}
+          onKeyDown={onTreeKeyDown}
+          className="border-l border-white/5"
+        >
           {tree.components.length ? (
             tree.components.map((c, i) => (
               <Row
@@ -476,8 +500,6 @@ export function ComponentTree({
                 onSelect={onSelect}
                 collapsed={collapsed}
                 onToggleCollapse={toggleCollapse}
-                t={t}
-                u={u}
               />
             ))
           ) : (

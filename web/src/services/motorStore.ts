@@ -1,7 +1,7 @@
-// Swappable client-side store for MOTOR data — the catalog mirror (motorDb.ts)
-// and the per-motor thrustcurve caches (thrustcurve.ts). Like MaterialStore this
-// is a typed DOMAIN store: it owns the persistence POLICY (catalog signature
-// check, per-entry TTL / freshness), so an implementer of `MotorStore` can use a
+// Swappable client-side store for MOTOR data — the user's imported (custom)
+// motors and the per-motor thrustcurve caches (thrustcurve.ts). Like
+// MaterialStore this is a typed DOMAIN store: it owns the persistence POLICY
+// (per-entry TTL / freshness), so an implementer of `MotorStore` can use a
 // completely different caching strategy — a backend that does its own
 // expiry, IndexedDB, etc. The default persists through a KeyValueStore.
 //
@@ -9,6 +9,7 @@
 //   setMotorStore(new MyMotorStore())
 import type { KeyValueStore } from './keyValueStore';
 import { IndexedDbKeyValueStore } from './idbKeyValueStore';
+import { MIN_CURVE_SAMPLES } from './motorCurve';
 
 /** A cached value plus whether it is past its freshness window. */
 export interface CachedEntry<T> {
@@ -65,18 +66,21 @@ interface Envelope<T> {
 }
 
 /**
- * A non-empty thrust curve whose every sample is a finite `{time, thrust}`.
+ * A thrust curve of at least {@link MIN_CURVE_SAMPLES} samples, every one a
+ * finite `{time, thrust}`.
  *
  * Shared with thrustcurve.ts, which had the only copy of this check: custom
  * motors are the one store whose payload reaches `simulate()` without a second
  * gate, and the element shape was never looked at. `samples: [{}]` out of a
  * corrupted IndexedDB blob became `times: [undefined]` and NaN masses inside
  * the kernel. `Number.isFinite`, not `typeof === 'number'`: NaN and Infinity
- * are both numbers and neither survives the TeaVM boundary.
+ * are both numbers and neither survives the TeaVM boundary. The sample count
+ * is the builder's threshold (motorCurve.ts): this accepted a single sample,
+ * which the kernel then refused as "too short".
  */
 export const isThrustSampleArray = (v: unknown): boolean =>
   Array.isArray(v) &&
-  v.length > 0 &&
+  v.length >= MIN_CURVE_SAMPLES &&
   v.every((s) => {
     const p = s as { time?: unknown; thrust?: unknown } | null;
     return !!p && Number.isFinite(p.time) && Number.isFinite(p.thrust);
@@ -135,12 +139,20 @@ export class KeyValueMotorStore implements MotorStore {
     }
   }
 
-  private async readCustom(): Promise<CustomMotor[]> {
+  /** The stored list, tolerating an absent, corrupt or partly invalid blob. */
+  private static parseCustom(raw: string | null): CustomMotor[] {
+    if (!raw) return [];
     try {
-      const raw = await this.kv.get(CUSTOM_MOTORS_KEY);
-      if (!raw) return [];
       const parsed = JSON.parse(raw) as unknown;
       return Array.isArray(parsed) ? parsed.filter(isCustomMotor) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private async readCustom(): Promise<CustomMotor[]> {
+    try {
+      return KeyValueMotorStore.parseCustom(await this.kv.get(CUSTOM_MOTORS_KEY));
     } catch {
       return [];
     }
@@ -151,27 +163,38 @@ export class KeyValueMotorStore implements MotorStore {
   }
 
   // add/remove propagate write failures (an import must be known to have saved),
-  // unlike the best-effort cache writes above. `kv.set` REPORTS failure by
+  // unlike the best-effort cache writes above. `kv.update` REPORTS failure by
   // returning false rather than throwing, so the boolean has to be checked —
   // discarding it meant MotorDialog awaited the import, got a clean resolve, and
   // re-rendered a catalog that simply did not contain the motor, with no error.
+  //
+  // `kv.update`, not read-then-set: this is an installable PWA whose IndexedDB
+  // is shared across tabs, and a get/set with an await between them let two
+  // tabs importing at once each drop the other's motor (the same race
+  // DesignLibrary.mutateIndex closes for the design index).
   async addCustomMotor(motor: CustomMotor): Promise<void> {
-    const rest = (await this.readCustom()).filter((m) => m.id !== motor.id);
-    if (!(await this.kv.set(CUSTOM_MOTORS_KEY, JSON.stringify([motor, ...rest])))) {
-      throw new Error('storage-full');
-    }
+    const ok = await this.kv.update(CUSTOM_MOTORS_KEY, (raw) =>
+      JSON.stringify([motor, ...KeyValueMotorStore.parseCustom(raw).filter((m) => m.id !== motor.id)]),
+    );
+    if (!ok) throw new Error('storage-full');
   }
 
   async removeCustomMotor(id: string): Promise<void> {
-    const rest = (await this.readCustom()).filter((m) => m.id !== id);
-    if (!(await this.kv.set(CUSTOM_MOTORS_KEY, JSON.stringify(rest)))) {
-      throw new Error('storage-full');
-    }
+    const ok = await this.kv.update(CUSTOM_MOTORS_KEY, (raw) =>
+      JSON.stringify(KeyValueMotorStore.parseCustom(raw).filter((m) => m.id !== id)),
+    );
+    if (!ok) throw new Error('storage-full');
   }
 }
 
-const store: MotorStore = new KeyValueMotorStore();
+// The active motor store. The header promised `setMotorStore` for years and
+// it did not exist; the seam is the same one the material store has.
+let store: MotorStore = new KeyValueMotorStore();
 
 export function getMotorStore(): MotorStore {
   return store;
+}
+
+export function setMotorStore(next: MotorStore): void {
+  store = next;
 }

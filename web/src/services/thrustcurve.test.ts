@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { samplesToMotorSpec, fetchMotorSpec } from './thrustcurve';
+import { samplesToMotorSpec, fetchMotorSpec, isCachedMotorSpec } from './thrustcurve';
 import type { CatalogMotor } from './motorDb';
 import { getMotorStore } from './motorStore';
 
@@ -356,5 +356,88 @@ describe('fetchMotorSpec - search.json hit without a motorId', () => {
     expect(spec.designation).toBe('H999');
     const meta = write.mock.calls.find(([key]) => key.includes(':meta:'));
     expect((meta?.[1] as { motorId?: unknown })?.motorId).toBe('h999-ok');
+  });
+});
+
+/**
+ * The cache-read validator for a stored MotorSpec checked only that the three
+ * arrays were non-empty, while the curve validator beside it checked every
+ * sample was finite. A spec whose arrays had been serialized with a null (JSON
+ * has no NaN or Infinity) passed the length check and went straight back into
+ * the kernel, the BigInt crash the sample guard exists to prevent.
+ */
+describe('isCachedMotorSpec', () => {
+  const good = {
+    designation: 'C6',
+    diameter: 0.018,
+    length: 0.07,
+    times: [0, 1, 2],
+    thrusts: [0, 10, 0],
+    masses: [0.02, 0.015, 0.01],
+    cgX: 0.035,
+    ejectionDelay: 5,
+  };
+
+  it('accepts a spec with three finite, equal-length arrays', () => {
+    expect(isCachedMotorSpec(good)).toBe(true);
+  });
+
+  it('rejects a null, NaN or Infinity in ANY of the three arrays', () => {
+    expect(isCachedMotorSpec({ ...good, times: [0, null, 2] })).toBe(false);
+    expect(isCachedMotorSpec({ ...good, thrusts: [0, Number.NaN, 0] })).toBe(false);
+    expect(isCachedMotorSpec({ ...good, masses: [0.02, Number.POSITIVE_INFINITY, 0.01] })).toBe(false);
+  });
+
+  it('rejects arrays of different lengths, an empty array, and non-objects', () => {
+    expect(isCachedMotorSpec({ ...good, masses: [0.02, 0.01] })).toBe(false);
+    expect(isCachedMotorSpec({ ...good, times: [] })).toBe(false);
+    expect(isCachedMotorSpec(null)).toBe(false);
+    expect(isCachedMotorSpec('C6')).toBe(false);
+  });
+});
+
+/**
+ * The timeout error used to be constructed bare, so the abort that caused it
+ * was gone: a bug report showed only the friendly text.
+ */
+describe('post timeout keeps its cause', () => {
+  const online = {
+    designation: 'J350',
+    manufacturer: 'AeroTech',
+    class: 'J',
+    diameter: 54,
+    impulse: 700,
+    burn: 2,
+    mass: 700,
+    length: 300,
+    propWeightG: 350,
+  } as unknown as CatalogMotor;
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it('attaches the abort as the error cause', async () => {
+    vi.useFakeTimers();
+    // A host that never answers: the promise settles only when the signal fires.
+    vi.stubGlobal(
+      'fetch',
+      (_url: string, init: { signal: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          init.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+        }),
+    );
+    const pending = fetchMotorSpec(online, 0);
+    const outcome = pending.then(
+      () => 'resolved',
+      (e: unknown) => e,
+    );
+    await vi.advanceTimersByTimeAsync(6_000);
+    const err = (await outcome) as Error & { cause?: unknown };
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).toMatch(/timed out/);
+    expect(err.cause).toBeInstanceOf(DOMException);
+    expect((err.cause as DOMException).name).toBe('AbortError');
   });
 });
