@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildFlightScene, type PhaseColors } from './flightScene';
+import * as THREE from 'three';
+import { buildFlightScene, indexForProgress, modelPoseAt, newModelPose, type PhaseColors } from './flightScene';
 import type { FlightResult } from '../../engine/openRocketEngine';
 
 // Three distinct primaries, so a point's phase is readable straight off its
@@ -161,5 +162,92 @@ describe('scaling', () => {
     const time = Array.from({ length: 200_000 }, (_, i) => i * 0.001);
     const altitude = time.map((t) => t * 10);
     expect(() => buildFlightScene(result({ time, altitude }), phase)).not.toThrow();
+  });
+});
+
+describe('indexForProgress', () => {
+  /** The loop the binary search replaced, verbatim. */
+  const linear = (times: number[], progress: number) => {
+    const n = times.length;
+    const totalT = times[n - 1] || 1;
+    let idx = 0;
+    while (idx < n - 1 && times[idx + 1]! <= progress * totalT) idx++;
+    return idx;
+  };
+
+  it('is 0 on the pad and the last sample at the end', () => {
+    const times = [0, 0.1, 0.3, 0.7, 1.5, 4, 9];
+    expect(indexForProgress(times, 0)).toBe(0);
+    expect(indexForProgress(times, 1)).toBe(6);
+    expect(indexForProgress(times, 2)).toBe(6);
+  });
+
+  it('maps by time, not by sample count', () => {
+    // Half the flight in time is t = 4.5: index 5 (t = 4), not index 3.
+    const times = [0, 0.1, 0.3, 0.7, 1.5, 4, 9];
+    expect(indexForProgress(times, 0.5)).toBe(5);
+  });
+
+  it('agrees with the linear scan on random monotone sample times', () => {
+    let seed = 42;
+    const rnd = () => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed / 0x7fffffff;
+    };
+    for (let trial = 0; trial < 200; trial++) {
+      const n = 1 + Math.floor(rnd() * 50);
+      const times: number[] = [];
+      let t = 0;
+      for (let i = 0; i < n; i++) {
+        t += rnd() < 0.1 ? 0 : rnd();
+        times.push(t);
+      }
+      for (const p of [0, 0.001, 0.25, 0.5, 0.999, 1, rnd(), rnd()]) {
+        expect(indexForProgress(times, p)).toBe(linear(times, p));
+      }
+    }
+  });
+
+  it('handles an empty or single-sample series', () => {
+    expect(indexForProgress([], 0.5)).toBe(0);
+    expect(indexForProgress([3], 0.5)).toBe(0);
+  });
+});
+
+describe('modelPoseAt', () => {
+  const pts = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 3, 0), new THREE.Vector3(2, 5, 0)];
+
+  it('sits on the pad at launch: lifted by half the model length along its up component', () => {
+    const out = modelPoseAt(pts, 0, false, 2, newModelPose());
+    // Tangent from pts[0] to pts[1] is (1,3)/|..|; dir.y = 3/sqrt(10).
+    const dirY = 3 / Math.sqrt(10);
+    expect(out.position.x).toBe(0);
+    expect(out.position.y).toBeCloseTo(1 * dirY, 9);
+    // The nose is half a model length along the flight direction.
+    expect(out.nose.x).toBeCloseTo(1 / Math.sqrt(10), 9);
+  });
+
+  it('points the nose (local -X) along the path tangent', () => {
+    const out = modelPoseAt(pts, 1, false, 2, newModelPose());
+    const nose = new THREE.Vector3(-1, 0, 0).applyQuaternion(out.quaternion);
+    const expected = new THREE.Vector3(2, 5, 0).normalize();
+    expect(nose.x).toBeCloseTo(expected.x, 6);
+    expect(nose.y).toBeCloseTo(expected.y, 6);
+  });
+
+  it('hangs nose-up once descending', () => {
+    const out = modelPoseAt(pts, 2, true, 2, newModelPose());
+    const nose = new THREE.Vector3(-1, 0, 0).applyQuaternion(out.quaternion);
+    expect(nose.y).toBeCloseTo(1, 6);
+    expect(out.nose.y).toBeCloseTo(out.position.y + 1, 9);
+  });
+
+  it('does not lift a point already above the ground', () => {
+    const out = modelPoseAt(pts, 2, true, 2, newModelPose());
+    expect(out.position.y).toBe(5);
+  });
+
+  it('survives an empty path', () => {
+    expect(() => modelPoseAt([], 0, false, 2, newModelPose())).not.toThrow();
   });
 });

@@ -181,10 +181,23 @@ const byType = components.reduce((m, p) => ((m[p.type] = (m[p.type] ?? 0) + 1), 
 // every client's cached copy of a ~1 MB catalog that did not actually change,
 // and making a no-op refresh show up as a repo diff.
 let generated = new Date().toISOString();
+if (components.length === 0) {
+  // Same floor as sync-motors: this runs on a schedule with write access to
+  // the branch the live app reads, and an empty source tree (a bad --src, a
+  // renamed upstream directory) must not publish an empty picker.
+  console.error(`Refusing to write components.generated.json: no components parsed from ${SRC}`);
+  process.exit(1);
+}
 if (existsSync(OUT)) {
   try {
     const prev = JSON.parse(readFileSync(OUT, 'utf8'));
     if (JSON.stringify(prev.components) === JSON.stringify(components)) generated = prev.generated;
+    else if (Array.isArray(prev.components) && components.length < 0.9 * prev.components.length) {
+      console.error(
+        `Refusing to write components.generated.json: catalog shrank from ${prev.components.length} to ${components.length}`,
+      );
+      process.exit(1);
+    }
   } catch {
     // Unreadable/corrupt previous catalog — fall through and stamp it now.
   }

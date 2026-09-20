@@ -22,6 +22,9 @@
 
 const MINFEATURE = 0.001;
 const CLIP_PRECISION = 0.0001;
+// Hard ceiling on the bisection in calculateClip(). 60 halvings take any
+// double-precision interval below CLIP_PRECISION; see the guard there.
+const CLIP_MAX_HALVINGS = 60;
 
 const safeSqrt = (v: number): number => Math.sqrt(Math.max(0, v));
 const pow2 = (x: number): number => x * x;
@@ -117,7 +120,11 @@ export function shapeRadius(shape: string, x: number, radius: number, length: nu
 function calculateClip(shape: string, param: number, length: number, r1: number, r2: number): number {
   let min = 0;
   let max = length;
-  if (r1 === 0 || length <= 0) return 0;
+  // Non-finite input makes `max - min` NaN below, and NaN compares false
+  // against everything, so the bisection's only exit could never fire and a
+  // hostile transition length hung the tab. The Java has the same loop but its
+  // callers can never hand it NaN; ours read a file.
+  if (r1 === 0 || !Number.isFinite(length) || length <= 0 || !Number.isFinite(r1) || !Number.isFinite(r2)) return 0;
   let n = 0;
   while (shapeRadius(shape, max, r2, max + length, param) - r1 < 0) {
     min = max;
@@ -125,7 +132,9 @@ function calculateClip(shape: string, param: number, length: number, r1: number,
     n++;
     if (n > 10) break;
   }
-  for (;;) {
+  // Halving a finite interval reaches any precision within a few dozen steps;
+  // the cap only matters when the doubling above overflowed to Infinity.
+  for (let i = 0; i < CLIP_MAX_HALVINGS; i++) {
     const clip = (min + max) / 2;
     if (max - min < CLIP_PRECISION) return clip;
     const val = shapeRadius(shape, clip, r2, clip + length, param);
@@ -135,6 +144,7 @@ function calculateClip(shape: string, param: number, length: number, r1: number,
       min = clip;
     }
   }
+  return Number.isFinite(max) ? (min + max) / 2 : min;
 }
 
 /**

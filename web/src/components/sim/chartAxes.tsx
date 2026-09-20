@@ -8,6 +8,13 @@ import { fmtNum } from '../../i18n/format';
 
 export type XY = readonly [number, number];
 
+/**
+ * Vertical headroom above the tallest sample: the peak label and the dot need
+ * room under the top edge. One number, so every thrust chart leaves the same
+ * gap; it used to be a bare `* 1.08` in four places.
+ */
+export const CHART_HEADROOM = 1.08;
+
 export interface ChartDims {
   width: number;
   height: number;

@@ -1,23 +1,66 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import {
-  niceStep,
+  niceRulerStep,
+  rulerGraduations,
   snapNear,
   calloutLayout,
   finTabFront,
   axialStart,
   computeSchematicLayout,
   profilePath,
+  colorOf,
+  hoverTagFor,
+  unionBox,
+  zoomAbout,
 } from './schematicGeometry';
 
 const node = (o: object): ComponentNode => o as unknown as ComponentNode;
 
-describe('niceStep', () => {
+describe('rulerGraduations', () => {
+  // A 1000 px baseline at 1000 px/m with the datum at x=100: majors every
+  // 0.1 m from the first one at or after the baseline's start.
+  const base = { rulerStep: 0.1, rulerX0: 50, rulerX1: 1050, x0: 100, scale: 1000, vSpanM: 0.25, vTop: 40 };
+
+  it('places length majors at the datum-relative step across the baseline', () => {
+    const g = rulerGraduations({ ...base, showLen: true, showRad: false });
+    // (50 - 100) / 1000 = -0.05 m rounds up to the 0 m major; the last is at 0.9 m.
+    expect(g.rulerMarks[0]).toBeCloseTo(0, 9);
+    expect(g.rulerMarks[g.rulerMarks.length - 1]).toBeCloseTo(0.9, 9);
+    expect(g.rulerMarks).toHaveLength(10);
+    // Five minors per major: -0.04 m (the first at or after the baseline's
+    // start) through 0.94 m at 0.02 m, which is 50.
+    expect(g.rulerMinorMarks).toHaveLength(50);
+    expect(g.rulerMinorMarks[0]).toBeCloseTo(-0.04, 9);
+    expect(g.vTicks).toEqual([]);
+    expect(g.vMinorTicks).toEqual([]);
+  });
+
+  it('places radial majors from vTop over the span, in viewBox px', () => {
+    const g = rulerGraduations({ ...base, showLen: false, showRad: true });
+    expect(g.vTicks.map((t) => t.label)).toEqual([0, 0.1, 0.2]);
+    expect(g.vTicks.map((t) => t.y)).toEqual([40, 140, 240]);
+    expect(g.vMinorTicks).toHaveLength(13);
+    expect(g.rulerMarks).toEqual([]);
+    expect(g.rulerMinorMarks).toEqual([]);
+  });
+
+  it('returns four empty arrays when both rulers are off', () => {
+    expect(rulerGraduations({ ...base, showLen: false, showRad: false })).toEqual({
+      rulerMarks: [],
+      vTicks: [],
+      rulerMinorMarks: [],
+      vMinorTicks: [],
+    });
+  });
+});
+
+describe('niceRulerStep', () => {
   it('picks a 1/2/2.5/5/10-times-power-of-ten step giving ~8 marks', () => {
-    expect(niceStep(1)).toBeCloseTo(0.2, 9); // 1/8 = 0.125 → 0.2
-    expect(niceStep(0.4)).toBeCloseTo(0.05, 9); // 0.05 → 0.05
-    expect(niceStep(8)).toBeCloseTo(1, 9);
-    expect(niceStep(0)).toBeGreaterThan(0); // guarded, never 0/NaN
+    expect(niceRulerStep(1)).toBeCloseTo(0.2, 9); // 1/8 = 0.125 → 0.2
+    expect(niceRulerStep(0.4)).toBeCloseTo(0.05, 9); // 0.05 → 0.05
+    expect(niceRulerStep(8)).toBeCloseTo(1, 9);
+    expect(niceRulerStep(0)).toBeGreaterThan(0); // guarded, never 0/NaN
   });
 });
 
@@ -170,5 +213,64 @@ describe('computeSchematicLayout: tube fins on a narrow aft tube', () => {
     (aft.children![0] as Record<string, unknown>)['outerRadius'] = 0.008;
     // Explicit 8 mm tubes reach 16 mm, wherever they are mounted.
     expect(computeSchematicLayout(explicit, null, dims).vHalf).toBeCloseTo(0.03 + 0.016, 9);
+  });
+});
+
+describe('zoomAbout', () => {
+  it('keeps the drawing point under the pointer fixed', () => {
+    const z = { k: 2, x: 10, y: 20 };
+    // Drawing point under (px, py) before: ((px - x) / k, (py - y) / k).
+    const px = 100,
+      py = 60;
+    const mx = (px - z.x) / z.k,
+      my = (py - z.y) / z.k;
+    const out = zoomAbout(z, px, py, 3);
+    expect(out.k).toBe(3);
+    expect(out.x + mx * out.k).toBeCloseTo(px);
+    expect(out.y + my * out.k).toBeCloseTo(py);
+  });
+  it('snaps to identity at k = 1 so a fully zoomed-out view is un-panned', () => {
+    expect(zoomAbout({ k: 2, x: 50, y: 50 }, 0, 0, 1)).toEqual({ k: 1, x: 0, y: 0 });
+  });
+  it('returns the same object when the scale does not change', () => {
+    const z = { k: 2, x: 10, y: 20 };
+    expect(zoomAbout(z, 5, 5, 2)).toBe(z);
+  });
+});
+
+describe('hoverTagFor', () => {
+  it('sits above the box, centered, when there is room', () => {
+    const tag = hoverTagFor({ x0: 100, y0: 100, x1: 200, y1: 140 }, 'Body tube', 800, 400);
+    expect(tag.x).toBe(150);
+    expect(tag.y).toBe(87);
+  });
+  it('drops below the box when the top would leave the viewBox', () => {
+    const tag = hoverTagFor({ x0: 100, y0: 10, x1: 200, y1: 40 }, 'Nose', 800, 400);
+    expect(tag.y).toBe(53);
+  });
+  it('clamps a wide tag inside the viewBox width', () => {
+    const tag = hoverTagFor({ x0: 0, y0: 100, x1: 10, y1: 140 }, 'A very long component name', 800, 400);
+    expect(tag.x - tag.tw / 2).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('unionBox', () => {
+  it('takes the outer extent of both', () => {
+    expect(unionBox({ x0: 0, y0: 5, x1: 10, y1: 15 }, { x0: -2, y0: 8, x1: 8, y1: 20 })).toEqual({
+      x0: -2,
+      y0: 5,
+      x1: 10,
+      y1: 20,
+    });
+  });
+});
+
+describe('colorOf', () => {
+  it('prefers the node color override', () => {
+    expect(colorOf({ type: 'bodytube', color: '#123456' } as ComponentNode, '#000')).toBe('#123456');
+  });
+  it('falls back when the override is absent or not a string', () => {
+    expect(colorOf({ type: 'bodytube' } as ComponentNode, '#000')).toBe('#000');
+    expect(colorOf({ type: 'bodytube', color: 5 } as unknown as ComponentNode, '#000')).toBe('#000');
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../state/SettingsProvider';
 import { DEFAULT_SETTINGS, type SimulationSettings } from '../../services/settings';
@@ -7,7 +7,7 @@ import { NumberInput } from '../common/NumberInput';
 import { useFocusTrap } from '../common/useFocusTrap';
 import { LaunchPanel } from '../sim/LaunchPanel';
 import { withRequiredFrom } from '../../services/requiredLaunch';
-import { IMPERIAL_UNITS, METRIC_UNITS, QUANTITIES, UNITS } from '../../prefs/units';
+import { IMPERIAL_UNITS, METRIC_UNITS, QUANTITIES, UNITS, unitScope } from '../../prefs/units';
 import { useUnits } from '../../prefs/useUnits';
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4];
@@ -26,25 +26,19 @@ const TABS: { key: TabKey; label: string }[] = [
 
 const RULER_SIDES = ['top', 'bottom', 'left', 'right'] as const;
 
-/** Settings panel — tabbed: 3D part colors, flight-path phase colors, and the
- *  default playback speed. Persisted via the SettingsProvider. */
-export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+/** Settings panel, tabbed: 3D part colors, flight-path phase colors, and the
+ *  default playback speed. Persisted via the SettingsProvider.
+ *  Mounted only while open (`{open && <SettingsDialog />}`). */
+export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const { settings, update, reset } = useSettings();
   const u = useUnits();
   const [tab, setTab] = useState<TabKey>('general');
-  const panelRef = useFocusTrap<HTMLDivElement>(open);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
+  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
+  // Stored in radians like the kernel's field; edited in the user's angle
+  // unit through the same FieldUnit the property panel's angle fields use,
+  // rather than an inline `* 180 / Math.PI`.
+  const angle = u.at(unitScope('settings', 'maxAngleStep'), 'angle');
   const palette = mergePalette(settings.partColors);
   const setPart = (key: string, color: string) => update({ partColors: { ...settings.partColors, [key]: color } });
   const resetPart = (key: string) => {
@@ -288,6 +282,11 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
                 unit="s"
                 step={0.01}
                 min={0.001}
+                // maxTime / timeStep IS the solver's iteration count, and both
+                // ends were open. 1000000 s (a plausible slip for 1000) at the
+                // default 0.01 s step asks for 100 M integration steps, with
+                // no way to interrupt the run.
+                max={10}
                 value={settings.simulation.timeStep}
                 onChange={(v) => setSim({ timeStep: v ?? DEFAULT_SETTINGS.simulation.timeStep })}
               />
@@ -296,19 +295,19 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
                 unit="s"
                 step={60}
                 min={1}
+                max={10000}
                 value={settings.simulation.maxTime}
                 onChange={(v) => setSim({ maxTime: v ?? DEFAULT_SETTINGS.simulation.maxTime })}
               />
               <NumRow
                 label={t('settings.maxAngleStep')}
-                unit="°"
-                step={0.5}
-                min={0.05}
-                // Stored in radians like the kernel's field; shown in degrees.
-                value={+((settings.simulation.maxAngleStep * 180) / Math.PI).toFixed(3)}
+                unit={angle.sym}
+                step={angle.step((0.5 * Math.PI) / 180)}
+                min={angle.toUi((0.05 * Math.PI) / 180)}
+                value={angle.toUi(settings.simulation.maxAngleStep)}
                 onChange={(v) =>
                   setSim({
-                    maxAngleStep: v == null ? DEFAULT_SETTINGS.simulation.maxAngleStep : (v * Math.PI) / 180,
+                    maxAngleStep: v == null ? DEFAULT_SETTINGS.simulation.maxAngleStep : angle.fromUi(v),
                   })
                 }
               />
@@ -478,17 +477,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function NumRow({
-  label,
-  unit,
-  value,
-  step,
-  min,
-  max,
-  placeholder,
-  hint,
-  onChange,
-}: {
+interface NumRowProps {
   label: string;
   unit?: string;
   value: number | null;
@@ -499,32 +488,42 @@ function NumRow({
   /** What the number is FOR. A threshold with no explanation is only usable by
    *  someone who already knows what it does. */
   hint?: string;
+  /** Fires on blur with the typed value, or null for an emptied field. */
   onChange: (v: number | null) => void;
-}) {
-  if (hint) {
-    return (
-      <div>
-        <NumRow
-          label={label}
-          unit={unit}
-          value={value}
-          step={step}
-          min={min}
-          max={max}
-          placeholder={placeholder}
-          onChange={onChange}
-        />
-        <p className="mt-0.5 pr-28 text-[11px] leading-snug text-slate-500">{hint}</p>
-      </div>
-    );
-  }
+}
+
+/** The field with its hint underneath, when it has one. */
+function NumRow(props: NumRowProps) {
+  if (!props.hint) return <NumField {...props} />;
+  return (
+    <div>
+      <NumField {...props} />
+      <p className="mt-0.5 pr-28 text-[11px] leading-snug text-slate-500">{props.hint}</p>
+    </div>
+  );
+}
+
+/**
+ * One numeric setting. The value is held as a draft while the field has focus
+ * and written on blur. It used to persist on every keystroke, and every caller
+ * substitutes its default for an empty field, so backspacing "0.01" to retype
+ * it wrote the default to the settings store mid-edit and the box refilled
+ * itself under the cursor.
+ */
+function NumField({ label, unit, value, step, min, max, placeholder, onChange }: NumRowProps) {
+  // undefined: not editing, show the stored value. Otherwise the draft.
+  const [draft, setDraft] = useState<number | null | undefined>(undefined);
   return (
     <label className="flex items-center justify-between gap-3">
       <span className="text-sm text-slate-300">{label}</span>
       <span className="flex items-center gap-1">
         <NumberInput
-          value={value}
-          onChange={onChange}
+          value={draft === undefined ? value : draft}
+          onChange={setDraft}
+          onCommit={() => {
+            if (draft !== undefined) onChange(draft);
+            setDraft(undefined);
+          }}
           step={step}
           min={min}
           max={max}

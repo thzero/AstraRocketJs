@@ -27,14 +27,42 @@ public final class LongUUID implements Comparable<LongUUID> {
         this.leastSigBits = leastSigBits;
     }
 
-    /** Deterministic (counter-based) unique id — see class javadoc. */
+    /**
+     * Deterministic (counter-based) unique id - see class javadoc.
+     * <p>
+     * The counter is run through a SplitMix64 finalizer before the version and
+     * variant bits are applied. It used to be used raw, which cost two things:
+     * the masked-out nibble at bits 12-15 meant the most-significant half
+     * REPEATED every 2048 calls (measured), and since
+     * {@code MotorConfigurationId} keys only on the mount hash and
+     * {@code getMostSignificantBits()}, two flight configurations created 2048
+     * apart on one mount produced the same id and silently aliased in the motor
+     * map; and because only the low bits of the counter ever moved, every id's
+     * first eight hex digits were the constant "01234567", so
+     * {@code FlightConfigurationId.toShortKey()} - the one field in a log line
+     * meant to tell configurations apart - told you nothing.
+     * <p>
+     * Still fully deterministic, which matters: the parity harness requires
+     * bit-identical output across three targets, so this cannot become random.
+     */
     public static LongUUID randomUUID() {
-        long a = counter++;
-        long b = counter++;
+        long a = mix(counter++);
+        long b = mix(counter++);
         // Set version 4 / IETF variant bits like a real random UUID.
         long msb = (a & ~0xF000L) | 0x4000L;
         long lsb = (b & 0x3FFFFFFFFFFFFFFFL) | 0x8000000000000000L;
         return new LongUUID(msb, lsb);
+    }
+
+    /**
+     * SplitMix64's finalizer: a bijection, so distinct counter values stay
+     * distinct, and it spreads every input bit across all 64 output bits.
+     */
+    private static long mix(long z) {
+        z += 0x9E3779B97F4A7C15L;
+        z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;
+        z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL;
+        return z ^ (z >>> 31);
     }
 
     /** JDK-compatible parse of the 8-4-4-4-12 form. */

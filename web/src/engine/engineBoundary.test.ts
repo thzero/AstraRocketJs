@@ -125,6 +125,30 @@ describe('error envelopes, from the Java side', () => {
     expect(JSON.stringify({ machMax: Infinity })).toBe('{"machMax":null}');
   });
 
+  it('refuses a sweep whose point count overflows, instead of returning an empty one', () => {
+    // Finite inputs whose quotient is not: (1 - 0) / 5e-324 is Infinity, and
+    // `(long) Infinity + 1` wrapped negative past the point cap. The JS build
+    // threw a RangeError out of the bundle; the WASM build returned an empty
+    // sweep with no error at all. Now both refuse it by name. The regex is
+    // deliberately NOT /sweep/: the wrapper prefixes every envelope with
+    // "Drag sweep failed", so that would have matched the old RangeError too.
+    expect(() => build().aeroSweep({ machMin: 0, machMax: 1, machStep: 5e-324 })).toThrow(/infinite number|over the/);
+    expect(() => build().aeroSweep({ machMin: -1.7e308, machMax: 1.7e308, machStep: 0.05 })).toThrow(
+      /infinite number|over the/,
+    );
+  });
+
+  it('the kernel itself refuses a non-finite ignition delay, not only the wrapper', () => {
+    // Straight at the facade: through OpenRocketDesign the wrapper's own
+    // delayS check fires first and the kernel's guard would go untested.
+    const h = engine.buildRocket(JSON.stringify(TREE));
+    engine.setMotorById(h, 'tube', C6.designation, C6.diameter, C6.length, C6.times, C6.thrusts, C6.masses, C6.cgX, 5);
+    for (const bad of [Infinity, -Infinity, NaN]) {
+      expect(() => engine.setMotorIgnitionById(h, 'tube', 'launch', bad)).toThrow(/ignitionDelay|finite/);
+    }
+    expect(() => engine.setMotorIgnitionById(h, 'tube', 'launch', 1)).not.toThrow();
+  });
+
   it('still runs a sane sweep', () => {
     const sweep = build().aeroSweep({ machMin: 0.1, machMax: 0.3, machStep: 0.1 });
     expect(sweep.machs.length).toBeGreaterThan(1);

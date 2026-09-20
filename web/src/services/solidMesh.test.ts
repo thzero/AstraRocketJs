@@ -177,6 +177,21 @@ describe('solid mesher (per component)', () => {
     ).toBeNull(); // < 3 points
   });
 
+  it('returns null for a wall at least as thick as the radius, rather than a solid rod', () => {
+    // Reachable from a units slip in a hand-edited .ork (thickness 0.02 against
+    // radius 0.012). `discSolid` falls through to its no-bore branch, so the
+    // part exported as a 24 mm SOLID ROD with nothing able to fit inside it -
+    // a watertight, plausible-looking, completely wrong mesh. The sibling
+    // degenerate cases above are all zero-valued; this one is not, which is why
+    // it slipped past them.
+    const n = (o: object) => solidForNode(o as unknown as ComponentNode);
+    expect(n({ type: 'bodytube', length: 0.3, outerRadius: 0.012, thickness: 0.02 })).toBeNull();
+    expect(n({ type: 'bodytube', length: 0.3, outerRadius: 0.012, thickness: 0.012 })).toBeNull(); // exactly equal
+    expect(n({ type: 'innertube', length: 0.07, outerRadius: 0.0095, thickness: 0.05 })).toBeNull();
+    // A wall thinner than the radius is still a tube and still exports.
+    expect(n({ type: 'bodytube', length: 0.3, outerRadius: 0.012, thickness: 0.0119 })).not.toBeNull();
+  });
+
   it('folds a through-the-wall tab into the fin solid, and stays watertight', () => {
     // The DXF and the 1:1 PDF template both include the tab; the mesh did not,
     // so a printed fin would not seat in the airframe slot.

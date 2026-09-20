@@ -1,6 +1,6 @@
-import { lazy, Suspense, useMemo, type ReactNode } from 'react';
+import { lazy, Suspense, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ComponentNode, ComponentPosition } from '../../engine/openRocketEngine';
+import type { ComponentNode } from '../../engine/openRocketEngine';
 import { isAxial, hasCatalog, hasMaterial, catalogPatch } from '../../services/treeEdit';
 import { colorForType, mergePalette } from '../../services/partColors';
 import { useSettings } from '../../state/SettingsProvider';
@@ -8,456 +8,33 @@ import type { ComponentType as CatalogType } from '../../services/componentDb';
 // Lazily loaded: it pulls in the ~740 kB component catalog (services/componentDb),
 // so it splits into its own chunk fetched only when a catalog part is selected.
 const ComponentPicker = lazy(() => import('./ComponentPicker').then((m) => ({ default: m.ComponentPicker })));
-import { MaterialPicker } from './MaterialPicker';
 import { FreeformFinEditor } from './FreeformFinEditor';
 import { RecoverySizingReadout } from './RecoverySizingReadout';
-import { NumberInput } from '../common/NumberInput';
-import { FieldLabel, markRing } from '../common/FieldMark';
-import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
-import { unitScope } from '../../prefs/units';
 import { num } from '../../tree/nodeProps';
-import { AUTO_COMPONENT_FIELDS, REQUIRED_COMPONENT_FIELDS } from '../../services/requiredComponent';
 import { tubeFinMaxCount, tubeFinMaxRadius } from '../../tree/tubefins';
-import { CLUSTER_OPTIONS, clusterCount } from '../../tree/cluster';
-import type { TFunction } from 'i18next';
+import { FieldRow, visibleFields } from './DimensionFields';
+import { MaterialSection, RecoveryMaterialSection } from './MaterialSection';
+import { OverridesSection } from './OverridesSection';
+import { PlacementSection } from './PlacementSection';
+
+/**
+ * The property panel shell: the header (move / delete), the name and color
+ * rows, the catalog picker, and the order in which the sections appear. The
+ * dimension fields, materials, overrides and placement each live in their own
+ * module.
+ */
 
 /**
  * Edits the currently-selected component's properties. Type-specific numeric
  * fields, a shape/select where relevant, the part name, an axial-position editor
  * for nested parts, and a Delete button. Emits a shallow patch on every change;
- * App merges it into the tree and rebuilds.
+ * the workspace store (`patchSelected`) merges it into the tree and rebuilds.
  *
  * The tree is always SI (meters, kilograms, radians). Every field converts to
- * the user's chosen unit on the way out and back on the way in — the unit label
+ * the user's chosen unit on the way out and back on the way in; the unit label
  * beside each field is a UnitChip, so it doubles as the picker.
  */
-
-/**
- * `required` means a ZERO here is degenerate, not that the box can be empty.
- *
- * Unlike the launch conditions -- where a cleared field had to be told apart
- * from a typed zero, because still air and sea level are real values -- a part
- * has no meaningful "blank length". Zero IS the invalid state, so there is no
- * second state to model and the field keeps storing a number.
- *
- * Marked conservatively: only where a zero makes the part stop being that part.
- * Plenty of dimensions here are legitimately zero and are NOT marked -- a
- * tipChord of 0 is a delta fin, a sweep or cant of 0 is a straight one, a
- * shoulder or fin tab of 0 is simply absent, and every delay and angle offset
- * starts at 0.
- */
-type FieldFlags = { required?: true };
-
-type Field = FieldFlags &
-  (
-    | { key: string; label: string; kind: 'length' } // stored m, shown in units.length
-    | { key: string; label: string; kind: 'mass' } // stored kg, shown in units.mass
-    | { key: string; label: string; kind: 'count' }
-    | { key: string; label: string; kind: 'distance'; step?: number } // stored m, shown in units.distance
-    | { key: string; label: string; kind: 'number'; step?: number; unit?: string }
-    | { key: string; label: string; kind: 'angle'; step?: number } // stored radians, shown in units.angle
-    | { key: string; label: string; kind: 'bool' }
-    | {
-        key: string;
-        label: string;
-        kind: 'select';
-        options: string[];
-        optI18n?: string;
-        /** Option text when it has to be computed rather than looked up. */
-        optLabel?: (option: string, t: TFunction) => string;
-      }
-  );
-
-// The real OpenRocket shape vocabulary — matches the engine (shapeOf), the
-// drawing (shapeProfile), and the parts catalog. NOT 'elliptical'/'powerseries'.
-const NOSE_SHAPES = ['ogive', 'conical', 'ellipsoid', 'power', 'parabolic', 'haack'];
-
-// Recovery-device deployment triggers — the kernel DeployEvent vocabulary
-// (ComponentFactory.deployEventOf); the same strings .ork import/export use.
-// Apogee first: it's the default and the most common single-deploy trigger.
-const DEPLOY_EVENTS = ['apogee', 'ejection', 'altitude', 'launch', 'never'];
-
-// Stage-separation triggers (SeparationEvent, ComponentFactory.separationEventOf)
-// — when a stage lets go of the one above it. Ejection first: the desktop default
-// and the low/mid-power norm (drop off on the upper stage's ejection charge).
-const SEPARATION_EVENTS = [
-  'ejection',
-  'burnout',
-  'launch',
-  'ignition',
-  'upperignition',
-  'apogee',
-  'altitudeascending',
-  'altitudedescending',
-  'never',
-];
-
-// Optional through-the-wall fin tab (0 length/height = no tab). Shared by the
-// trapezoidal and elliptical fin editors; keys match the engine + .ork.
-const FIN_TABS: Field[] = [
-  { key: 'tabLength', label: 'tabLength', kind: 'length' },
-  { key: 'tabHeight', label: 'tabHeight', kind: 'length' },
-  { key: 'tabOffset', label: 'tabOffset', kind: 'length' },
-  { key: 'tabOffsetMethod', label: 'tabOffsetMethod', kind: 'select', options: ['top', 'middle', 'bottom'] },
-];
-
-// Off-axis assembly placement (PodSet / ParallelStage) — how many instances
-// ring the parent axis, how far off it, and where they start. radiusMethod:
-// 'relative' measures the offset as a gap from the parent surface, 'free' from
-// the parent centerline (see tree/assembly.resolveAssemblyRadius). Shared by
-// pods (non-separating) and parallel boosters (which add separation below).
-const ASSEMBLY_FIELDS: Field[] = [
-  { key: 'instanceCount', label: 'instanceCount', kind: 'count' },
-  { key: 'radiusOffset', label: 'radialDistance', kind: 'length' },
-  {
-    key: 'radiusMethod',
-    label: 'radialReference',
-    kind: 'select',
-    options: ['relative', 'free'],
-    optI18n: 'radiusMethod',
-  },
-  { key: 'angleOffset', label: 'angleAroundBody', kind: 'angle' },
-];
-
-// `label` is an i18n key suffix under `prop.*` (resolved at render).
-/**
- * Unit-scope keys the panel uses for its own rows, beyond the type-specific
- * fields. Named here so the scope test can check no FIELDS entry reuses one.
- */
-export const PANEL_SCOPE_KEYS = ['overrideMass', 'overrideCGX', 'offset'] as const;
-
-/**
- * Exported for `PropertyPanel.scopes.test.ts`, which checks that no two fields
- * of a type collide on a unit scope. The scopes are strings assembled from
- * (type, key), so a duplicated key would silently make two fields share one
- * unit choice.
- */
-const RAW_FIELDS: Record<string, Field[]> = {
-  // Separation only — shown for a non-first stage (see the render guard). The
-  // altitude is used only by the altitude events; harmless (like deployAltitude).
-  stage: [
-    {
-      key: 'separationEvent',
-      label: 'separationEvent',
-      kind: 'select',
-      options: SEPARATION_EVENTS,
-      optI18n: 'separationEvent',
-    },
-    { key: 'separationDelay', label: 'separationDelay', kind: 'number', unit: 's', step: 0.5 },
-    { key: 'separationAltitude', label: 'separationAltitude', kind: 'distance', step: 10 },
-  ],
-  nosecone: [
-    { key: 'shape', label: 'shape', kind: 'select', options: NOSE_SHAPES },
-    { key: 'length', label: 'length', kind: 'length' },
-    { key: 'aftRadius', label: 'radius', kind: 'length' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'shoulderLength', label: 'shoulderLength', kind: 'length' },
-    { key: 'shoulderRadius', label: 'shoulderRadius', kind: 'length' },
-    { key: 'shoulderThickness', label: 'shoulderThickness', kind: 'length' },
-    { key: 'shoulderCapped', label: 'shoulderCapped', kind: 'bool' },
-  ],
-  bodytube: [
-    { key: 'length', label: 'length', kind: 'length' },
-    { key: 'outerRadius', label: 'radius', kind: 'length' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'motorMount', label: 'motorMount', kind: 'bool' },
-    { key: 'motorOverhang', label: 'motorOverhang', kind: 'length' },
-  ],
-  transition: [
-    {
-      key: 'shape',
-      label: 'shape',
-      kind: 'select',
-      options: ['conical', 'ogive', 'ellipsoid', 'power', 'parabolic', 'haack'],
-    },
-    { key: 'length', label: 'length', kind: 'length' },
-    { key: 'foreRadius', label: 'foreRadius', kind: 'length' },
-    { key: 'aftRadius', label: 'aftRadius', kind: 'length' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'foreShoulderLength', label: 'foreShoulderLength', kind: 'length' },
-    { key: 'foreShoulderRadius', label: 'foreShoulderRadius', kind: 'length' },
-    { key: 'aftShoulderLength', label: 'aftShoulderLength', kind: 'length' },
-    { key: 'aftShoulderRadius', label: 'aftShoulderRadius', kind: 'length' },
-  ],
-  trapezoidfinset: [
-    { key: 'finCount', label: 'finCount', kind: 'count' },
-    { key: 'rootChord', label: 'rootChord', kind: 'length' },
-    { key: 'tipChord', label: 'tipChord', kind: 'length' },
-    { key: 'sweep', label: 'sweep', kind: 'length' },
-    { key: 'height', label: 'height', kind: 'length' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
-    ...FIN_TABS,
-  ],
-  ellipticalfinset: [
-    { key: 'finCount', label: 'finCount', kind: 'count' },
-    { key: 'rootChord', label: 'rootChord', kind: 'length' },
-    { key: 'height', label: 'height', kind: 'length' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
-    ...FIN_TABS,
-  ],
-  freeformfinset: [
-    { key: 'finCount', label: 'finCount', kind: 'count' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
-    ...FIN_TABS,
-  ],
-  tubefinset: [
-    { key: 'finCount', label: 'tubeCount', kind: 'count' },
-    { key: 'length', label: 'length', kind: 'length' },
-    { key: 'outerRadius', label: 'tubeRadius', kind: 'length' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-  ],
-  innertube: [
-    { key: 'length', label: 'length', kind: 'length' },
-    { key: 'outerRadius', label: 'radius', kind: 'length' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'motorMount', label: 'motorMount', kind: 'bool' },
-    { key: 'motorOverhang', label: 'motorOverhang', kind: 'length' },
-    // `cluster` round-trips through .ork (orkImport:366 / orkExport:466) and
-    // the 2D, aft and 3D views all draw the tube at every cluster offset — but
-    // nothing could SET it, so the only way to get a cluster was to import a
-    // file that already had one.
-    {
-      key: 'cluster',
-      label: 'cluster',
-      kind: 'select',
-      options: CLUSTER_OPTIONS,
-      optLabel: (o, t) =>
-        o === 'single' ? t('cluster.single') : t('cluster.pattern', { name: o, n: clusterCount(o) }),
-    },
-  ],
-  tubecoupler: [
-    { key: 'length', label: 'length', kind: 'length' },
-    { key: 'outerRadius', label: 'radius', kind: 'length' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-  ],
-  centeringring: [
-    { key: 'length', label: 'thickness', kind: 'length' },
-    { key: 'outerRadius', label: 'outerRadius', kind: 'length' },
-    { key: 'innerRadius', label: 'innerRadius', kind: 'length' },
-  ],
-  bulkhead: [
-    { key: 'length', label: 'thickness', kind: 'length' },
-    { key: 'outerRadius', label: 'radius', kind: 'length' },
-  ],
-  engineblock: [
-    { key: 'length', label: 'length', kind: 'length' },
-    { key: 'outerRadius', label: 'radius', kind: 'length' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-  ],
-  launchlug: [
-    { key: 'length', label: 'length', kind: 'length' },
-    { key: 'outerRadius', label: 'radius', kind: 'length' },
-    { key: 'angleOffset', label: 'angleAroundBody', kind: 'angle' },
-  ],
-  railbutton: [
-    { key: 'outerDiameter', label: 'outerDiameter', kind: 'length' },
-    { key: 'angleOffset', label: 'angleAroundBody', kind: 'angle' },
-  ],
-  parachute: [
-    { key: 'diameter', label: 'diameter', kind: 'length' },
-    { key: 'cd', label: 'dragCoeff', kind: 'number', step: 0.05 },
-    { key: 'lineCount', label: 'lineCount', kind: 'count' },
-    { key: 'lineLength', label: 'lineLength', kind: 'length' },
-    // Which half of a dual-deployment pair this is. The kernel judges the
-    // deployment speed against different thresholds depending on it, and cannot
-    // warn about dual deployment at all unless something on the stage says drogue.
-    { key: 'drogue', label: 'drogue', kind: 'bool' },
-    { key: 'deployEvent', label: 'deployEvent', kind: 'select', options: DEPLOY_EVENTS, optI18n: 'deployEvent' },
-    { key: 'deployAltitude', label: 'deployAltitude', kind: 'distance', step: 10 },
-    { key: 'deployDelay', label: 'deployDelay', kind: 'number', unit: 's', step: 0.5 },
-  ],
-  streamer: [
-    { key: 'stripLength', label: 'length', kind: 'length' },
-    { key: 'stripWidth', label: 'width', kind: 'length' },
-    { key: 'cd', label: 'dragCoeff', kind: 'number', step: 0.05 },
-    { key: 'drogue', label: 'drogue', kind: 'bool' },
-    { key: 'deployEvent', label: 'deployEvent', kind: 'select', options: DEPLOY_EVENTS, optI18n: 'deployEvent' },
-    { key: 'deployAltitude', label: 'deployAltitude', kind: 'distance', step: 10 },
-    { key: 'deployDelay', label: 'deployDelay', kind: 'number', unit: 's', step: 0.5 },
-  ],
-  masscomponent: [
-    { key: 'mass', label: 'mass', kind: 'mass' },
-    { key: 'length', label: 'length', kind: 'length' },
-  ],
-  // External pods: assembly placement only (their own chain is edited as
-  // children).
-  podset: ASSEMBLY_FIELDS,
-  // Parallel booster: assembly placement + the same separation trigger a
-  // booster <stage> carries (when it lets go of the core).
-  parallelstage: [
-    ...ASSEMBLY_FIELDS,
-    {
-      key: 'separationEvent',
-      label: 'separationEvent',
-      kind: 'select',
-      options: SEPARATION_EVENTS,
-      optI18n: 'separationEvent',
-    },
-    { key: 'separationDelay', label: 'separationDelay', kind: 'number', unit: 's', step: 0.5 },
-    { key: 'separationAltitude', label: 'separationAltitude', kind: 'distance', step: 10 },
-  ],
-};
-
-/**
- * The same table with `required` filled in from `services/requiredComponent`,
- * which is also what the Run button and the run loop check. One list, so the
- * editor cannot mark a field the run path ignores, or the other way round.
- *
- * A field the kernel DERIVES is never marked, even though it is required in the
- * sense that the part cannot work without one: leaving a centering ring's outer
- * radius blank means "the tube I sit in", which is a real answer and the one
- * OpenRocket writes as `auto`. A red asterisk there would demand a number the
- * design does not need, and the run path agrees - `badDimensions` skips the same
- * pairs.
- */
-export const FIELDS: Record<string, Field[]> = Object.fromEntries(
-  Object.entries(RAW_FIELDS).map(([type, fields]) => [
-    type,
-    fields.map((f) =>
-      (REQUIRED_COMPONENT_FIELDS[type] ?? []).includes(f.key) && !(AUTO_COMPONENT_FIELDS[type] ?? []).includes(f.key)
-        ? { ...f, required: true }
-        : f,
-    ),
-  ]),
-);
-
-function NumberField({
-  label,
-  unit,
-  value,
-  step,
-  min = 0,
-  required,
-  onChange,
-  onCommit,
-}: {
-  label: string;
-  unit?: ReactNode;
-  value: number;
-  step: number;
-  min?: number;
-  /** A zero here is degenerate geometry — see the `Field` type. */
-  required?: boolean;
-  onChange: (v: number) => void;
-  onCommit?: () => void; // fires on blur — closes the undo entry for this edit
-}) {
-  // No separate "blank" state to check for: 0 is exactly what is wrong here, so
-  // an emptied box and a typed zero collapse into one condition.
-  const missing = required && !(Number.isFinite(value) && value > 0);
-  /**
-   * An empty REQUIRED box writes nothing at all.
-   *
-   * Not a focus trap -- you can still tab away, which a trap would forbid
-   * (WCAG 2.1.2) and which would fight anyone clearing a field to retype it.
-   * The input keeps its own draft string while focused, so the box still LOOKS
-   * empty as you type; it is only the commit that is withheld. Blur then shows
-   * the value that was already there. So the accidental path to a zero is gone
-   * entirely, while a deliberately typed 0 still lands, still goes red, and is
-   * still refused by the run.
-   */
-  const write = (v: number | null) => {
-    if (v === null && required) return;
-    onChange(v ?? 0);
-  };
-  return (
-    <label className="flex items-center justify-between gap-3">
-      <FieldLabel text={label} required={required} missing={missing} />
-      <span className="flex items-center gap-1">
-        <NumberInput
-          ariaLabel={label}
-          value={Number.isFinite(value) ? value : 0}
-          onChange={write}
-          onCommit={onCommit}
-          step={step}
-          min={min}
-          className={markRing(
-            'w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500',
-            missing,
-          )}
-        />
-        {unit && <span className="min-w-10 text-xs text-slate-500">{unit}</span>}
-      </span>
-    </label>
-  );
-}
-
-/** One override (mass / CG / CD): an enable checkbox + value, and — once enabled —
- *  an "apply to all subcomponents" toggle (OpenRocket's override-subtree flag). */
-function OverrideRow({
-  label,
-  unit,
-  enabled,
-  value,
-  step,
-  onToggle,
-  onValue,
-  onCommit,
-  subLabel,
-  sub,
-  onSub,
-}: {
-  label: string;
-  unit?: ReactNode;
-  enabled: boolean;
-  value: number;
-  step: number;
-  onToggle: (on: boolean) => void;
-  onValue: (v: number) => void;
-  onCommit?: () => void;
-  subLabel: string;
-  sub: boolean;
-  onSub: (on: boolean) => void;
-}) {
-  return (
-    <div className="space-y-1">
-      <label className="flex items-center justify-between gap-3">
-        <span className="flex items-center gap-2 text-xs text-slate-400">
-          <input
-            type="checkbox"
-            checked={enabled}
-            onChange={(e) => {
-              onToggle(e.target.checked);
-              onCommit?.();
-            }}
-            className="accent-sky-500"
-          />
-          {label}
-        </span>
-        <span className="flex items-center gap-1">
-          <NumberInput
-            ariaLabel={label}
-            value={Number.isFinite(value) ? value : 0}
-            onChange={(v) => onValue(v ?? 0)}
-            onCommit={onCommit}
-            disabled={!enabled}
-            step={step}
-            min={0}
-            className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500 disabled:opacity-40"
-          />
-          {unit && <span className="min-w-10 text-xs text-slate-500">{unit}</span>}
-        </span>
-      </label>
-      {enabled && (
-        <label className="flex items-center gap-2 pl-6 text-[11px] text-slate-500">
-          <input
-            type="checkbox"
-            checked={sub}
-            onChange={(e) => {
-              onSub(e.target.checked);
-              onCommit?.();
-            }}
-            className="accent-sky-500"
-          />
-          {subLabel}
-        </label>
-      )}
-    </div>
-  );
-}
 
 /**
  * Do N tubes of radius r collide around a body of radius R?
@@ -512,19 +89,8 @@ export function PropertyPanel({
     );
   }
 
-  // The three rows below the type-specific fields carry their own units too.
-  const massOverrideScope = unitScope('prop', node.type, PANEL_SCOPE_KEYS[0]);
-  const cgOverrideScope = unitScope('prop', node.type, PANEL_SCOPE_KEYS[1]);
-  const offsetScope = unitScope('prop', node.type, PANEL_SCOPE_KEYS[2]);
-  const overrideMassUnit = u.at(massOverrideScope, 'mass');
-  const overrideCgUnit = u.at(cgOverrideScope, 'length');
-  const offsetUnit = u.at(offsetScope, 'length');
-
-  // The top stage separates from nothing above it — hide its separation fields.
-  const fields = node.type === 'stage' && isFirstStage ? [] : (FIELDS[node.type] ?? []);
+  const fields = visibleFields(node, isFirstStage);
   const label = t(`part.${node.type}`, { defaultValue: node.type });
-  const flabel = (f: Field) => t(`prop.${f.label}`);
-  const pos = (node.position as ComponentPosition | undefined) ?? { method: 'top', offset: 0 };
   // Discrete controls (select / checkbox / pickers) finish the moment they
   // change, so patch and close the undo entry in one shot.
   const commitChange = (patch: Partial<ComponentNode>) => {
@@ -610,134 +176,9 @@ export function PropertyPanel({
         </Suspense>
       )}
 
-      {fields.map((f) => {
-        // One scope per field of this component TYPE: every body tube is the
-        // same Length field on the same card, so selecting another must not
-        // forget the unit just set on it — but a nose cone's Length is its own.
-        const scope = unitScope('prop', node.type, f.key);
-        if (f.kind === 'select') {
-          const cur = typeof node[f.key] === 'string' ? (node[f.key] as string) : f.options[0];
-          return (
-            <label key={f.key} className="flex items-center justify-between gap-3">
-              <span className="text-xs text-slate-400">{flabel(f)}</span>
-              <select
-                value={cur}
-                onChange={(e) => commitChange({ [f.key]: e.target.value })}
-                className="w-32 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
-              >
-                {f.options.map((o) => (
-                  <option key={o} value={o}>
-                    {f.optLabel ? f.optLabel(o, t) : f.optI18n ? t(`${f.optI18n}.${o}`) : o}
-                  </option>
-                ))}
-              </select>
-            </label>
-          );
-        }
-        if (f.kind === 'count') {
-          return (
-            <NumberField
-              key={f.key}
-              label={flabel(f)}
-              required={f.required}
-              value={num(node, f.key)}
-              step={1}
-              onChange={(v) => onChange({ [f.key]: Math.max(1, Math.round(v)) })}
-              onCommit={onCommit}
-            />
-          );
-        }
-        if (f.kind === 'bool') {
-          return (
-            <label key={f.key} className="flex items-center justify-between gap-3">
-              <span className="text-xs text-slate-400">{flabel(f)}</span>
-              <input
-                type="checkbox"
-                checked={node[f.key] === true}
-                onChange={(e) => commitChange({ [f.key]: e.target.checked })}
-                className="accent-sky-500"
-              />
-            </label>
-          );
-        }
-        if (f.kind === 'mass') {
-          const fu = u.at(scope, 'mass');
-          return (
-            <NumberField
-              key={f.key}
-              label={flabel(f)}
-              required={f.required}
-              unit={<UnitChip quantity="mass" scope={scope} />}
-              value={fu.toUi(num(node, f.key))}
-              step={fu.step(0.0005)}
-              onChange={(v) => onChange({ [f.key]: fu.fromUi(v) })}
-              onCommit={onCommit}
-            />
-          );
-        }
-        if (f.kind === 'distance') {
-          const fu = u.at(scope, 'distance');
-          return (
-            <NumberField
-              key={f.key}
-              label={flabel(f)}
-              required={f.required}
-              unit={<UnitChip quantity="distance" scope={scope} />}
-              value={fu.toUi(num(node, f.key))}
-              step={fu.step(f.step ?? 10)}
-              onChange={(v) => onChange({ [f.key]: fu.fromUi(v) })}
-              onCommit={onCommit}
-            />
-          );
-        }
-        if (f.kind === 'number') {
-          return (
-            <NumberField
-              key={f.key}
-              label={flabel(f)}
-              required={f.required}
-              unit={f.unit}
-              value={num(node, f.key)}
-              step={f.step ?? 0.1}
-              onChange={(v) => onChange({ [f.key]: v })}
-              onCommit={onCommit}
-            />
-          );
-        }
-        if (f.kind === 'angle') {
-          // Stored in radians (kernel/.ork convention), edited in the user's unit.
-          const fu = u.at(scope, 'angle');
-          return (
-            <NumberField
-              key={f.key}
-              label={flabel(f)}
-              required={f.required}
-              unit={<UnitChip quantity="angle" scope={scope} />}
-              // Half a turn either way, in whatever unit is selected — a fixed
-              // −180 would clamp a radian entry to well inside its legal range.
-              min={-fu.toUi(Math.PI)}
-              step={fu.step(((f.step ?? 5) * Math.PI) / 180)}
-              value={fu.toUi(num(node, f.key))}
-              onChange={(v) => onChange({ [f.key]: fu.fromUi(v) })}
-              onCommit={onCommit}
-            />
-          );
-        }
-        // length: stored meters, shown in this field's length unit
-        const fu = u.at(scope, 'length');
-        return (
-          <NumberField
-            key={f.key}
-            label={flabel(f)}
-            required={f.required}
-            unit={<UnitChip quantity="length" scope={scope} />}
-            value={fu.toUi(num(node, f.key))}
-            step={fu.step(0.0005)}
-            onChange={(v) => onChange({ [f.key]: fu.fromUi(v) })}
-            onCommit={onCommit}
-          />
-        );
-      })}
+      {fields.map((f) => (
+        <FieldRow key={f.key} node={node} field={f} onChange={onChange} onCommit={onCommit} />
+      ))}
 
       {/* Tube fins collide with each other once they are too fat, or too many,
           for the body they ring — geometry the app could compute (tubefins.ts)
@@ -754,14 +195,7 @@ export function PropertyPanel({
         </p>
       )}
 
-      {hasMaterial(node.type) && (
-        <div className="border-t border-white/5 pt-3">
-          <MaterialPicker
-            value={typeof node.materialName === 'string' ? node.materialName : undefined}
-            onChange={(name, d) => commitChange({ materialName: name, density: d || undefined })}
-          />
-        </div>
-      )}
+      {hasMaterial(node.type) && <MaterialSection node={node} onCommitChange={commitChange} />}
 
       {/* Freeform fin: its defining feature is the outline polygon, edited
           graphically rather than as scalar fields. */}
@@ -775,25 +209,8 @@ export function PropertyPanel({
         </div>
       )}
 
-      {/* Recovery devices use surface (fabric) + line (cord) materials, not the
-          bulk material above — each feeds the device's mass. */}
       {(node.type === 'parachute' || node.type === 'streamer') && (
-        <div className="space-y-3 border-t border-white/5 pt-3">
-          <MaterialPicker
-            type="surface"
-            label={t(node.type === 'streamer' ? 'material.strip' : 'material.canopy')}
-            value={typeof node.surfaceMaterialName === 'string' ? node.surfaceMaterialName : undefined}
-            onChange={(name, d) => commitChange({ surfaceMaterialName: name, surfaceDensity: d || undefined })}
-          />
-          {node.type === 'parachute' && (
-            <MaterialPicker
-              type="line"
-              label={t('material.lines')}
-              value={typeof node.lineMaterialName === 'string' ? node.lineMaterialName : undefined}
-              onChange={(name, d) => commitChange({ lineMaterialName: name, lineDensity: d || undefined })}
-            />
-          )}
-        </div>
+        <RecoveryMaterialSection node={node} onCommitChange={commitChange} />
       )}
 
       {/* Descent sizing — canopy diameter for the descent bands + this chute's
@@ -801,97 +218,11 @@ export function PropertyPanel({
           sqrt-law is diameter-based; streamers size differently). */}
       {node.type === 'parachute' && <RecoverySizingReadout node={node} />}
 
-      {/* Mass / CG / CD overrides (OpenRocket semantics). A stage-level override
-          with "all subcomponents" on is the usual way to pin a measured mass/CG. */}
-      <div className="space-y-3 border-t border-white/5 pt-3">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{t('override.title')}</div>
-        <OverrideRow
-          label={t('override.mass')}
-          unit={<UnitChip quantity="mass" scope={massOverrideScope} />}
-          step={overrideMassUnit.step(0.0005)}
-          enabled={typeof node.overrideMass === 'number'}
-          value={overrideMassUnit.toUi(num(node, 'overrideMass'))}
-          onToggle={(on) =>
-            onChange({
-              overrideMass: on ? Math.max(num(node, 'overrideMass'), 0.01) : undefined,
-              overrideSubcomponentsMass: on ? (node.overrideSubcomponentsMass as boolean | undefined) : undefined,
-            })
-          }
-          onValue={(v) => onChange({ overrideMass: overrideMassUnit.fromUi(v) })}
-          onCommit={onCommit}
-          subLabel={t('override.applyAll')}
-          sub={node.overrideSubcomponentsMass === true}
-          onSub={(on) => onChange({ overrideSubcomponentsMass: on || undefined })}
-        />
-        <OverrideRow
-          label={t(node.type === 'stage' ? 'override.cgStage' : 'override.cg')}
-          unit={<UnitChip quantity="length" scope={cgOverrideScope} />}
-          step={overrideCgUnit.step(0.001)}
-          enabled={typeof node.overrideCGX === 'number'}
-          value={overrideCgUnit.toUi(num(node, 'overrideCGX'))}
-          onToggle={(on) =>
-            onChange({
-              overrideCGX: on ? num(node, 'overrideCGX') : undefined,
-              overrideSubcomponentsCG: on ? (node.overrideSubcomponentsCG as boolean | undefined) : undefined,
-            })
-          }
-          onValue={(v) => onChange({ overrideCGX: overrideCgUnit.fromUi(v) })}
-          onCommit={onCommit}
-          subLabel={t('override.applyAll')}
-          sub={node.overrideSubcomponentsCG === true}
-          onSub={(on) => onChange({ overrideSubcomponentsCG: on || undefined })}
-        />
-        <OverrideRow
-          label={t('override.cd')}
-          step={0.05}
-          enabled={typeof node.overrideCD === 'number'}
-          value={num(node, 'overrideCD')}
-          onToggle={(on) =>
-            onChange({
-              overrideCD: on ? num(node, 'overrideCD') || 0.5 : undefined,
-              overrideSubcomponentsCD: on ? (node.overrideSubcomponentsCD as boolean | undefined) : undefined,
-            })
-          }
-          onValue={(v) => onChange({ overrideCD: v })}
-          onCommit={onCommit}
-          subLabel={t('override.applyAll')}
-          sub={node.overrideSubcomponentsCD === true}
-          onSub={(on) => onChange({ overrideSubcomponentsCD: on || undefined })}
-        />
-        <p className="text-[11px] leading-snug text-slate-500">{t('override.cpNote')}</p>
-      </div>
+      <OverridesSection node={node} onChange={onChange} onCommit={onCommit} />
 
       {/* Placement — only meaningful for parts nested inside a tube. */}
       {node.type !== 'stage' && !isAxial(node.type) && (
-        <div className="space-y-3 border-t border-white/5 pt-3">
-          <label className="flex items-center justify-between gap-3">
-            <span className="text-xs text-slate-400">{t('prop.positionFrom')}</span>
-            <select
-              value={pos.method}
-              onChange={(e) =>
-                commitChange({ position: { ...pos, method: e.target.value as ComponentPosition['method'] } })
-              }
-              className="w-32 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
-            >
-              {(['top', 'middle', 'bottom', 'absolute'] as const).map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </label>
-          <NumberField
-            label={t('prop.offset')}
-            unit={<UnitChip quantity="length" scope={offsetScope} />}
-            value={offsetUnit.toUi(pos.offset)}
-            step={offsetUnit.step(0.001)}
-            // A negative offset is legal (a part sitting proud of its parent);
-            // the bound is in the field's unit so it doesn't shrink in inches.
-            min={-offsetUnit.toUi(100)}
-            onChange={(v) => onChange({ position: { ...pos, offset: offsetUnit.fromUi(v) } })}
-            onCommit={onCommit}
-          />
-        </div>
+        <PlacementSection node={node} onChange={onChange} onCommit={onCommit} />
       )}
     </section>
   );

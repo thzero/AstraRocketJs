@@ -74,7 +74,15 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     const bytes = await readStreamWithProgress(res.body, declaredLength(res), () => {}, MAX_RESPONSE_BYTES);
     return JSON.parse(new TextDecoder().decode(bytes)) as T;
   } catch (e) {
-    if (ctl.signal.aborted) throw new Error(`thrustcurve.org timed out — check your connection and try again.`);
+    if (ctl.signal.aborted) {
+      // Keep the abort as the cause: without it the original DOMException is
+      // gone and a bug report shows only the friendly text. Assigned after
+      // construction because the ErrorOptions form is ES2022 and the tsconfig
+      // lib is ES2020.
+      const err = new Error('thrustcurve.org timed out - check your connection and try again.');
+      (err as { cause?: unknown }).cause = e;
+      throw err;
+    }
     throw e;
   } finally {
     clearTimeout(timer);
@@ -172,6 +180,27 @@ export function samplesToMotorSpec(
  * first (the catalog stores commonName||designation), then designation, and
  * disambiguates by diameter and in-production status.
  */
+/**
+ * A search.json hit this module can act on: a string `motorId` (the key the
+ * curve is fetched and cached by) and a finite `diameter` (what `pick` sorts
+ * on). The network result was used and cached with NO shape check while only
+ * the cache READ checked `.motorId`: a hit without one was written to the
+ * cache, then requested from download.json as `motorIds: [undefined]`.
+ * Weights and length are checked later, in samplesToMotorSpec, with errors
+ * that name the motor.
+ */
+const isTcMotor = (v: unknown): v is TcMotor => {
+  const m = v as TcMotor | null;
+  return (
+    !!m &&
+    typeof m === 'object' &&
+    typeof m.motorId === 'string' &&
+    m.motorId.length > 0 &&
+    typeof m.designation === 'string' &&
+    Number.isFinite(m.diameter)
+  );
+};
+
 async function resolveTcMotor(cat: CatalogMotor): Promise<TcMotor> {
   const pick = (list: TcMotor[]): TcMotor | undefined => {
     if (list.length === 0) return undefined;
@@ -183,12 +212,12 @@ async function resolveTcMotor(cat: CatalogMotor): Promise<TcMotor> {
   };
 
   for (const query of [{ commonName: cat.designation }, { designation: cat.designation }]) {
-    const { results = [] } = await post<{ results?: TcMotor[] }>('search.json', {
+    const { results } = await post<{ results?: unknown }>('search.json', {
       manufacturer: cat.manufacturer,
       ...query,
       maxResults: 25,
     });
-    const hit = pick(results);
+    const hit = pick(Array.isArray(results) ? results.filter(isTcMotor) : []);
     if (hit) return hit;
   }
   throw new Error(`Could not find ${cat.manufacturer} ${cat.designation} on thrustcurve.org`);
@@ -223,10 +252,27 @@ function metaKey(cat: CatalogMotor): string {
 // copy accepted NaN and Infinity, which `typeof === 'number'` lets through.
 const isSampleArray = isThrustSampleArray;
 
-const isSpec = (v: unknown): boolean => {
-  const s = v as MotorSpec;
-  return !!(s?.times?.length && s?.thrusts?.length && s?.masses?.length);
+// A cached spec is checked the way a cached curve is: every sample of all three
+// arrays finite, not just non-empty. Length alone let a spec whose arrays had
+// been serialized with nulls (a NaN mass, an Infinity time) straight back into
+// the kernel, the same BigInt crash the sample guard exists to stop.
+const isFiniteArray = (xs: unknown): xs is number[] =>
+  Array.isArray(xs) && xs.length > 0 && xs.every((x) => Number.isFinite(x));
+
+/** Exported for test: the cache-read validator for a stored MotorSpec. */
+export const isCachedMotorSpec = (v: unknown): boolean => {
+  const s = v as MotorSpec | null;
+  return (
+    !!s &&
+    typeof s === 'object' &&
+    isFiniteArray(s.times) &&
+    isFiniteArray(s.thrusts) &&
+    isFiniteArray(s.masses) &&
+    s.times.length === s.thrusts.length &&
+    s.times.length === s.masses.length
+  );
 };
+const isSpec = isCachedMotorSpec;
 
 /**
  * The resolved thrustcurve record (motorId, dimensions, weights) for a catalog
@@ -235,7 +281,7 @@ const isSpec = (v: unknown): boolean => {
  */
 async function resolveTcMotorCached(cat: CatalogMotor): Promise<TcMotor> {
   const key = metaKey(cat);
-  const cached = await getMotorStore().readEntry<TcMotor>(key, (m) => !!(m as TcMotor)?.motorId);
+  const cached = await getMotorStore().readEntry<TcMotor>(key, isTcMotor);
   if (cached && !cached.stale) return cached.value;
   try {
     const motor = await resolveTcMotor(cat);
@@ -267,6 +313,17 @@ async function fetchSamplesCached(motor: TcMotor, cat: CatalogMotor): Promise<Tc
     if (!file?.samples) {
       if (cached) return cached.value;
       throw new Error(`No thrust-curve data available for ${cat.designation}`);
+    }
+    // Validate the NETWORK path with the same guard the cache read uses
+    // (line ~257). Only the cached branch was checked, so a garbled or hostile
+    // download.json carrying `samples: [{time: null, thrust: 5}]` went straight
+    // into samplesToMotorSpec: cumImpulse NaN, nulls through times/masses, and
+    // the whole array across the TeaVM boundary, where it surfaces as the
+    // opaque "cannot be converted to a BigInt" blank design this file already
+    // documents.
+    if (!isSampleArray(file.samples)) {
+      if (cached) return cached.value;
+      throw new Error(`Thrust-curve data for ${cat.designation} is malformed`);
     }
     await getMotorStore().writeEntry(key, file.samples);
     return file.samples;

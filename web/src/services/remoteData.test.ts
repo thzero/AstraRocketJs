@@ -363,3 +363,76 @@ describe('the manifest body is metered, not just the catalog', () => {
     expect(manifestChunksPulled).toBeLessThanOrEqual(10);
   });
 });
+
+describe('manifest failures', () => {
+  it('does not cache a {} manifest from a TRANSIENT failure: the next catalog re-reads it', async () => {
+    let manifestUp = false;
+    const seen: string[] = [];
+    vi.stubGlobal('fetch', (url: string) => {
+      seen.push(url);
+      const path = url.split('?')[0]!;
+      if (path === '/data/manifest.json') {
+        if (!manifestUp) return Promise.reject(new Error('network down'));
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          headers: { get: () => null },
+          json: () => Promise.resolve({ components: 'h2' }),
+        } as unknown as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: () => Promise.resolve([1]),
+      } as unknown as Response);
+    });
+    const fetchCatalog = await load();
+
+    await fetchCatalog('motors'); // manifest down: no buster, but not remembered as "none"
+    expect(seen).toEqual(['/data/manifest.json', '/data/motors.generated.json']);
+
+    manifestUp = true;
+    await fetchCatalog('components');
+    // Re-read, and this time the hash is applied.
+    expect(seen.slice(2)).toEqual(['/data/manifest.json', '/data/components.generated.json?v=h2']);
+  });
+
+  it('DOES remember a 404 manifest (a fact about the host), fetching it once', async () => {
+    const seen = stubFetch({
+      '/data/manifest.json': { status: 404 },
+      '/data/motors.generated.json': { body: [] },
+      '/data/components.generated.json': { body: { count: 0, components: [] } },
+    });
+    const fetchCatalog = await load();
+    await fetchCatalog('motors');
+    await fetchCatalog('components');
+    expect(seen.filter((u) => u === '/data/manifest.json')).toHaveLength(1);
+  });
+
+  it('aborts the body of a non-2xx reply rather than leaving it streaming', async () => {
+    const signals: AbortSignal[] = [];
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => {
+      signals.push(init!.signal!);
+      const path = url.split('?')[0]!;
+      if (path === '/data/manifest.json')
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          headers: { get: () => null },
+          json: () => Promise.resolve({}),
+        } as unknown as Response);
+      return Promise.resolve({
+        ok: false,
+        status: 503,
+        headers: { get: () => null },
+        json: () => Promise.resolve({}),
+      } as unknown as Response);
+    });
+    const fetchCatalog = await load();
+    await expect(fetchCatalog('motors')).rejects.toThrow(/HTTP 503/);
+    // The catalog request's controller was aborted on the 503.
+    expect(signals[1]!.aborted).toBe(true);
+    expect(signals[0]!.aborted).toBe(false);
+  });
+});

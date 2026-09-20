@@ -1,3 +1,6 @@
+/** Meters to millimeters. The unit constant for every dimensional export. */
+export const M_TO_MM = 1000;
+
 /**
  * User-selectable units of measure, mirroring the desktop's UnitGroup
  * (info.openrocket.core.unit). Quantities are the desktop's unit groups; the
@@ -261,6 +264,14 @@ export function siToUiDelta(quantity: Quantity, symbol: string, si: number): num
 }
 
 /** Rounds a converted step to a "nice" 1–2–5 value so spinners stay usable. */
+/**
+ * A 1-2-5 step for a SPINNER increment, in the user's unit.
+ *
+ * Not the same function as `schematicGeometry.niceRulerStep`, which divides by
+ * 8 first and has a 2.5 rung: normalized 2.2 gives 2 here and 2.5 there. They
+ * shared the name `niceStep`, so importing the wrong one gave tick spacing
+ * off by ~8x with no type error and nothing cross-referencing them.
+ */
 export function niceStep(x: number): number {
   if (!(x > 0) || !Number.isFinite(x)) return 1;
   const mag = Math.pow(10, Math.floor(Math.log10(x)));

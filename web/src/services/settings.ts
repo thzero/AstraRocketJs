@@ -1,5 +1,6 @@
 import type { PartKey } from './partColors';
 import type { CompleteLaunch } from './requiredLaunch';
+import { DEFAULT_HEADING_DEG } from './simulations';
 import { DEFAULT_CSV_COLUMNS } from './flightColumns';
 import {
   METRIC_UNITS,
@@ -40,18 +41,18 @@ export const CENTER_PANE_MIN = 320;
 const clampPane = (v: unknown, min: number, max: number, fallback: number): number =>
   typeof v === 'number' && Number.isFinite(v) ? Math.round(Math.min(max, Math.max(min, v))) : fallback;
 
-export const clampTreePane = (v: unknown): number => clampPane(v, TREE_PANE_MIN, TREE_PANE_MAX, TREE_PANE_DEFAULT);
-export const clampSidePane = (v: unknown): number => clampPane(v, SIDE_PANE_MIN, SIDE_PANE_MAX, SIDE_PANE_DEFAULT);
+const clampTreePane = (v: unknown): number => clampPane(v, TREE_PANE_MIN, TREE_PANE_MAX, TREE_PANE_DEFAULT);
+const clampSidePane = (v: unknown): number => clampPane(v, SIDE_PANE_MIN, SIDE_PANE_MAX, SIDE_PANE_DEFAULT);
 
 // Sea-level, calm, standard-atmosphere defaults (Cape Canaveral latitude).
 const DEFAULT_LAUNCH: CompleteLaunch = {
   launchRodLengthM: 1,
   launchRodAngleDeg: 0,
-  launchRodDirectionDeg: 90,
+  launchRodDirectionDeg: DEFAULT_HEADING_DEG,
   launchIntoWind: false,
   windAverage: 0,
   windStdDev: 0,
-  windDirectionDeg: 90,
+  windDirectionDeg: DEFAULT_HEADING_DEG,
   launchAltitudeM: 0,
   latitudeDeg: 28.61,
   temperatureC: null,
@@ -273,21 +274,97 @@ export interface ReportSettings {
 }
 
 /**
- * The flight-path export options that are a working preference rather than a
- * property of one file. Everything else that dialog offers — the mission name,
- * the per-stage colors, the placement — describes THIS export and starts fresh
- * each time: a stale one silently mislabels the next file.
+ * The flight-path export options that outlive one export.
+ *
+ * This used to be one boolean, on the reasoning that everything else in that
+ * dialog describes THIS export and a stale value silently mislabels the next
+ * file. That reasoning still holds for exactly one field - the MISSION NAME,
+ * which is still deliberately not persisted - and it was over-applied to the
+ * rest: which waypoints you want, what units you export in and what colors
+ * your stages are is a working habit, and re-picking them on every export is
+ * the kind of friction nobody reports.
+ *
+ * The per-stage colors carry a known consequence, accepted deliberately. They
+ * are keyed by the stage's INDEX in the flight data, not by name, because two
+ * stages of one rocket can share a name and name-keying would silently make
+ * them share a color. So colors restored from here land on whatever stage now
+ * occupies index 0, which may be a different rocket entirely. That is the
+ * point: the reason to remember colors is a consistent look across exports.
+ *
+ * Every field is optional-by-validation on load: an older store, a newer one,
+ * or a hand-edited one costs at most the field it broke.
  */
 export interface PathExportSettings {
   /** Whether the mission name prefixes the waypoint markers as well as the
    *  folder and track names. "Do I want my markers prefixed" is a habit; the
-   *  mission name itself is not. */
+   *  mission name itself is not, and is not stored. */
   labelWaypointsWithMission: boolean;
+  /** Which waypoint kinds to emit, by key. Unknown keys are dropped at export
+   *  time rather than here, so a list from another build costs a marker. */
+  waypoints?: string[];
+  includeFlightPath?: boolean;
+  includeGroundTrack?: boolean;
+  /** Keep every Nth path point. A positive integer. */
+  pathStride?: number;
+  /**
+   * Export units. ABSENT means "follow the app's distance preference", which
+   * is what a fresh install does; a stored value is an explicit choice made in
+   * the dialog and outranks the app units, because the whole point of the
+   * control is exporting in something other than what you are looking at.
+   */
+  altitudeUnit?: string;
+  distanceUnit?: string;
+  altitudeReference?: string;
+  waypointAltitudeReference?: string;
+  drawShadow?: boolean;
+  stageTrackStart?: string;
+  showWaypointLabels?: boolean;
+  colorWaypointPins?: boolean;
+  /**
+   * Per-stage color overrides, one map per role, each keyed by stage index and
+   * valued `rrggbb`. SPARSE: only stages the user actually changed appear, so
+   * an untouched install stores three empty objects, the stored form never has
+   * to know how many stages exist, and a palette change later does not strand
+   * saved values. A dense form would need a placeholder for "default", which
+   * is the sentinel problem that absence already solves.
+   */
+  branchColors?: Record<string, string>;
+  branchGroundColors?: Record<string, string>;
+  branchPinColors?: Record<string, string>;
 }
 
-export const DEFAULT_PATH_EXPORT: PathExportSettings = {
+const DEFAULT_PATH_EXPORT: PathExportSettings = {
   labelWaypointsWithMission: false,
 };
+
+/** A sparse index-keyed color map as `{ "0": "112233" }`. */
+export function encodeStageColors(colors: Map<number, number>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [index, rgb] of colors) {
+    out[String(index)] = (rgb & 0xffffff).toString(16).padStart(6, '0');
+  }
+  return out;
+}
+
+/**
+ * Back to a Map, skipping anything malformed.
+ *
+ * Tolerant on purpose: this store is hand-editable and readable by older and
+ * newer builds, and a bad pair should cost one stage's color rather than the
+ * whole settings object. Sparseness makes that cheap - a dropped entry just
+ * means that stage falls back to its palette, which is always a valid state.
+ */
+export function decodeStageColors(value: unknown): Map<number, number> {
+  const out = new Map<number, number>();
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return out;
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    const index = Number.parseInt(key, 10);
+    if (!Number.isInteger(index) || index < 0) continue;
+    if (typeof raw !== 'string' || !/^[0-9a-fA-F]{6}$/.test(raw)) continue;
+    out.set(index, Number.parseInt(raw, 16) & 0xffffff);
+  }
+  return out;
+}
 
 export const DEFAULT_REPORT: ReportSettings = {
   units: 'current',
@@ -296,6 +373,12 @@ export const DEFAULT_REPORT: ReportSettings = {
   paper: 'letter',
   orientation: 'portrait',
 };
+
+/** Playback rate: a real, positive multiplier within a usable range. */
+const clampPlayback = (v: unknown): number =>
+  typeof v === 'number' && Number.isFinite(v) && v > 0
+    ? Math.min(10, Math.max(0.05, v))
+    : DEFAULT_SETTINGS.playbackSpeed;
 
 export const DEFAULT_SETTINGS: Settings = {
   units: METRIC_UNITS,
@@ -350,10 +433,62 @@ export const DEFAULT_SETTINGS: Settings = {
 
 const KEY = 'astrarrocketjs:settings:v1';
 
+/**
+ * Validate the stored flight-path export block field by field.
+ *
+ * Every field is checked independently and a bad one falls back on its own, so
+ * a store written by another build (or edited by hand) costs that field rather
+ * than the dialog. The enum-ish fields are kept as strings here and checked
+ * against the real union at the call site, which owns the legal values.
+ */
+function loadPathExport(raw: unknown): PathExportSettings {
+  const p = (raw && typeof raw === 'object' ? raw : {}) as Partial<PathExportSettings>;
+  const bool = (v: unknown): boolean | undefined => (typeof v === 'boolean' ? v : undefined);
+  const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
+  const colors = (v: unknown): Record<string, string> | undefined => {
+    const m = decodeStageColors(v);
+    return m.size ? encodeStageColors(m) : undefined;
+  };
+  const out: PathExportSettings = {
+    labelWaypointsWithMission: bool(p.labelWaypointsWithMission) ?? DEFAULT_PATH_EXPORT.labelWaypointsWithMission,
+  };
+  if (Array.isArray(p.waypoints)) {
+    out.waypoints = p.waypoints.filter((w): w is string => typeof w === 'string');
+  }
+  const assign = <K extends keyof PathExportSettings>(k: K, v: PathExportSettings[K]) => {
+    if (v !== undefined) out[k] = v;
+  };
+  assign('includeFlightPath', bool(p.includeFlightPath));
+  assign('includeGroundTrack', bool(p.includeGroundTrack));
+  // A stride of 0 or a fraction would silently drop the path or never advance.
+  if (typeof p.pathStride === 'number' && Number.isInteger(p.pathStride) && p.pathStride >= 1) {
+    out.pathStride = p.pathStride;
+  }
+  assign('altitudeUnit', str(p.altitudeUnit));
+  assign('distanceUnit', str(p.distanceUnit));
+  assign('altitudeReference', str(p.altitudeReference));
+  assign('waypointAltitudeReference', str(p.waypointAltitudeReference));
+  assign('drawShadow', bool(p.drawShadow));
+  assign('stageTrackStart', str(p.stageTrackStart));
+  assign('showWaypointLabels', bool(p.showWaypointLabels));
+  assign('colorWaypointPins', bool(p.colorWaypointPins));
+  assign('branchColors', colors(p.branchColors));
+  assign('branchGroundColors', colors(p.branchGroundColors));
+  assign('branchPinColors', colors(p.branchPinColors));
+  return out;
+}
+
+/** A CSS hex color: #rgb, #rgba, #rrggbb or #rrggbbaa. */
+const HEX_COLOR = /^#[0-9a-f]{3,8}$/i;
+
 export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return DEFAULT_SETTINGS;
+    // A COPY, not the constant: callers spread and patch nested blocks of what
+    // this returns (`{ ...s.simulation, timeStep }`), and handing out the
+    // shared DEFAULT_SETTINGS object let one such edit rewrite the defaults
+    // every later fresh load was built from.
+    if (!raw) return structuredClone(DEFAULT_SETTINGS);
     const s = JSON.parse(raw) as Partial<Settings> & { showRulers?: boolean };
     // Migrate the legacy single on/off flag → every side follows it; a saved
     // per-side object (if present) then wins over the migration.
@@ -374,12 +509,33 @@ export function loadSettings(): Settings {
       // has no `units` at all) keeps exactly the units it was displaying.
       units: normalizeUnits(s.units),
       unitOverrides: normalizeUnitOverrides(s.unitOverrides),
-      partColors: { ...(s.partColors ?? {}) },
-      phaseColors: { ...DEFAULT_SETTINGS.phaseColors, ...(s.phaseColors ?? {}) },
+      // Filtered, not spread. These values reach a style attribute, which is
+      // exactly the reasoning the treePaneWidth clamp below already states -
+      // it just was not applied here, so any value type (an object, an array,
+      // a CSS payload) rode straight through to the renderer.
+      partColors: Object.fromEntries(
+        Object.entries((s.partColors ?? {}) as Record<string, unknown>).filter(
+          ([, v]) => typeof v === 'string' && HEX_COLOR.test(v),
+        ),
+      ) as Partial<Record<PartKey, string>>,
+      // The same hex filter partColors gets: these reach a style attribute
+      // and the KML/GPX exports, and the merge let any value type through.
+      phaseColors: (() => {
+        const c = { ...DEFAULT_SETTINGS.phaseColors };
+        for (const k of ['boost', 'coast', 'descent'] as const) {
+          const v = (s.phaseColors as Record<string, unknown> | undefined)?.[k];
+          if (typeof v === 'string' && HEX_COLOR.test(v)) c[k] = v;
+        }
+        return c;
+      })(),
       // An older store has no value here, and an unrecognized one falls back
       // rather than leaving the tables with a style nothing renders.
       aeroHeat: s.aeroHeat === 'openrocket' ? 'openrocket' : DEFAULT_SETTINGS.aeroHeat,
-      playbackSpeed: typeof s.playbackSpeed === 'number' ? s.playbackSpeed : DEFAULT_SETTINGS.playbackSpeed,
+      // Clamped like every adjacent field. `typeof === 'number'` let
+      // NaN, 0, Infinity and negatives through, and a stored NaN makes the
+      // flight-playback clock never advance with no way back but clearing
+      // storage - the same failure the treePaneWidth clamp was added for.
+      playbackSpeed: clampPlayback(s.playbackSpeed),
       simulation: (() => {
         const sim = { ...DEFAULT_SETTINGS.simulation, ...(s.simulation ?? {}) };
         // A corrupt/hand-edited timeStep or maxTime ≤ 0 makes the RK4 loop
@@ -394,6 +550,9 @@ export function loadSettings(): Settings {
         sim.mainHighSpeedWarn = pos(sim.mainHighSpeedWarn, DEFAULT_SETTINGS.simulation.mainHighSpeedWarn);
         sim.mainLowSpeedWarn = pos(sim.mainLowSpeedWarn, DEFAULT_SETTINGS.simulation.mainLowSpeedWarn);
         sim.drogueLowSpeedWarn = pos(sim.drogueLowSpeedWarn, DEFAULT_SETTINGS.simulation.drogueLowSpeedWarn);
+        // The rod-exit tile compares against it; a stored string or NaN made
+        // the tile's color undecidable.
+        sim.railExitVelocityMin = pos(sim.railExitVelocityMin, DEFAULT_SETTINGS.simulation.railExitVelocityMin);
         return sim;
       })(),
       launchDefaults: (() => {
@@ -433,8 +592,21 @@ export function loadSettings(): Settings {
         if (l.geodetic !== undefined && !['flat', 'spherical', 'wgs84'].includes(l.geodetic)) {
           l.geodetic = DEFAULT_SETTINGS.launchDefaults.geodetic;
         }
-        if (l.windLevels !== undefined && !Array.isArray(l.windLevels)) {
-          l.windLevels = DEFAULT_SETTINGS.launchDefaults.windLevels;
+        // Elements too, not just the array. Everything in this block
+        // reaches simConditions() and then simulate() for each new simulation,
+        // and `Array.isArray` let a stored [{altitudeM: "x", speed: null}]
+        // walk straight into the kernel.
+        if (l.windLevels !== undefined) {
+          l.windLevels = Array.isArray(l.windLevels)
+            ? l.windLevels.filter(
+                (w: unknown) =>
+                  !!w &&
+                  typeof w === 'object' &&
+                  ['altitudeM', 'speed', 'directionDeg', 'stddev'].every((k) =>
+                    Number.isFinite((w as Record<string, unknown>)[k]),
+                  ),
+              )
+            : DEFAULT_SETTINGS.launchDefaults.windLevels;
         }
         return l;
       })(),
@@ -455,14 +627,14 @@ export function loadSettings(): Settings {
         // A hand-edited or future-version choice falls back rather than being
         // handed to resolveUnitChoice, where it would silently mean `current`.
         if (!UNIT_CHOICES.includes(r.units)) r.units = DEFAULT_REPORT.units;
+        // Same treatment for the two other enums: jsPDF takes these as page
+        // format / orientation, and an unknown value is a thrown error inside
+        // the report build rather than a fallback.
+        if (r.paper !== 'letter' && r.paper !== 'a4') r.paper = DEFAULT_REPORT.paper;
+        if (r.orientation !== 'portrait' && r.orientation !== 'landscape') r.orientation = DEFAULT_REPORT.orientation;
         return r;
       })(),
-      pathExport: {
-        labelWaypointsWithMission:
-          typeof s.pathExport?.labelWaypointsWithMission === 'boolean'
-            ? s.pathExport.labelWaypointsWithMission
-            : DEFAULT_PATH_EXPORT.labelWaypointsWithMission,
-      },
+      pathExport: loadPathExport(s.pathExport),
       // Strings only. The chart filters to the keys it actually has, so an
       // unknown one is dropped there rather than being guessed at here.
       flightSeries: Array.isArray(s.flightSeries)
@@ -478,12 +650,17 @@ export function loadSettings(): Settings {
         c.decimals = Number.isFinite(c.decimals) ? Math.min(Math.max(Math.round(c.decimals), 0), 12) : 3;
         if (typeof c.separator !== 'string' || !c.separator) c.separator = ',';
         if (typeof c.commentChar !== 'string' || !c.commentChar) c.commentChar = '#';
+        // The flags drive `if (opts.flightEvents)` branches in the writer; a
+        // stored "false" string is truthy there.
+        for (const k of ['exponential', 'simDescription', 'fieldDescriptions', 'flightEvents'] as const) {
+          if (typeof c[k] !== 'boolean') c[k] = DEFAULT_SETTINGS.flightCsv[k];
+        }
         return c;
       })(),
       wipAcknowledged: typeof s.wipAcknowledged === 'boolean' ? s.wipAcknowledged : DEFAULT_SETTINGS.wipAcknowledged,
     };
   } catch {
-    return DEFAULT_SETTINGS;
+    return structuredClone(DEFAULT_SETTINGS);
   }
 }
 

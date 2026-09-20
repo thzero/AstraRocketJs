@@ -22,6 +22,14 @@ class FakeKv implements KeyValueStore {
   async remove(k: string) {
     this.map.delete(k);
   }
+  async update(k: string, fn: (raw: string | null) => string | null) {
+    const next = fn(await this.get(k));
+    if (next === null) {
+      await this.remove(k);
+      return true;
+    }
+    return await this.set(k, next);
+  }
 }
 
 const UNLOAD_KEY = 'astrarrocketjs:designs:unload';
@@ -133,5 +141,86 @@ describe('unload journal', () => {
     store.saveSync(heavy);
     const journal = JSON.parse(localStorage.getItem(UNLOAD_KEY)!) as { w: Workspace };
     expect(journal.w.sims[0]!.result).toBeNull();
+  });
+});
+
+/**
+ * A journal written BEFORE the first save carries a null id, because that is
+ * all `saveSync` has to record at that point.
+ *
+ * Both the replay check and the staleness check compared it to the active id,
+ * and `null !== null` is false, so such a journal was never replayed AND never
+ * cleared. Work done before the first debounced autosave was lost on reload
+ * even though `saveSync` had written it, and the dead blob (a whole lean
+ * workspace) squatted in the ~5 MB localStorage budget forever.
+ */
+describe('unload journal written before the first save', () => {
+  it('replays it into a NEW design instead of discarding the work', async () => {
+    const kv = new FakeKv();
+    setDesignLibrary(new DesignLibrary(kv));
+    const store = new LibraryWorkspaceStore();
+
+    // Nothing saved yet: the page is torn down mid-edit.
+    store.saveSync(ws('typed-before-first-autosave'));
+    expect(localStorage.getItem(UNLOAD_KEY)).not.toBeNull();
+
+    const loaded = await new LibraryWorkspaceStore().load();
+    expect(loaded).not.toBeNull();
+    expect(loaded!.tree.components[0]!.name).toBe('typed-before-first-autosave');
+
+    // It is now a real design, and the journal is spent.
+    expect(await new DesignLibrary(kv).list()).toHaveLength(1);
+    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
+  });
+
+  it('clears the journal even when it cannot be replayed', async () => {
+    const kv = new FakeKv();
+    setDesignLibrary(new DesignLibrary(kv));
+    // A blob that parses but is not a workspace this build can open.
+    localStorage.setItem(UNLOAD_KEY, JSON.stringify({ id: null, w: { version: 99 } }));
+
+    await new LibraryWorkspaceStore().load();
+
+    // Previously it sat there forever, holding a slice of a 5 MB budget.
+    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
+  });
+});
+
+describe('a journal older than the stored design', () => {
+  // The unload write is a last resort and can lose the race: the debounced
+  // async save in flight at pagehide commits after it, or another tab of the
+  // PWA saves the same design later. Replaying such a journal rolled the
+  // design back to the older text.
+  it('is dropped, not replayed over the newer save', async () => {
+    await store.save(ws('newer'));
+    const loaded = await store.load();
+    expect(nameOf(loaded)).toBe('newer');
+    const activeId = kv.map.get('astrarrocketjs:designs:active');
+
+    // A journal stamped a minute BEFORE that save landed.
+    localStorage.setItem(UNLOAD_KEY, JSON.stringify({ id: activeId, w: ws('stale-unload'), t: Date.now() - 60_000 }));
+
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('newer');
+    expect(nameOf(await lib.read(activeId!))).toBe('newer');
+    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
+  });
+
+  it('is replayed when it is newer, and when it carries no stamp (older build)', async () => {
+    await store.save(ws('saved'));
+    await store.load();
+    const activeId = kv.map.get('astrarrocketjs:designs:active');
+
+    localStorage.setItem(UNLOAD_KEY, JSON.stringify({ id: activeId, w: ws('newer-unload'), t: Date.now() + 1000 }));
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('newer-unload');
+
+    localStorage.setItem(UNLOAD_KEY, JSON.stringify({ id: activeId, w: ws('unstamped') }));
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('unstamped');
+  });
+
+  it('saveSync stamps the journal', () => {
+    const before = Date.now();
+    store.saveSync(ws('x'));
+    const j = JSON.parse(localStorage.getItem(UNLOAD_KEY)!) as { t?: number };
+    expect(j.t).toBeGreaterThanOrEqual(before);
   });
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode, StaticInfo } from '../engine/openRocketEngine';
-import { stageParts, finSetPositions, multiStageSummaries } from './reportModel';
+import { stageParts, finSetPositions, multiStageSummaries, stageMotor } from './reportModel';
 
 const node = (o: object): ComponentNode => o as unknown as ComponentNode;
 
@@ -206,5 +206,47 @@ describe('finSetPositions — tube fins', () => {
     // An imported .ork could carry a stray attribute; the tube's length wins.
     const sets = finSetPositions(withTubes({ rootChord: 0.2 }), rocket);
     expect(sets[0]!.bottomX).toBeCloseTo(0.5, 9);
+  });
+});
+
+/**
+ * Each stage's summary must be built with the motor in THAT stage's mount.
+ *
+ * `buildConfiguredRocket` seats whatever motor it is handed into whatever
+ * mount it finds in the tree it is given, and each per-stage summary is built
+ * from a one-stage tree. Passing the active simulation's `motor` regardless
+ * therefore put the SUSTAINER's motor in the booster, and the extra-motors
+ * loop then skipped the booster's own motor because its id matched the mount
+ * that had just been filled. The booster's mass and CG went into the PDF and
+ * the `.ork` `<designinfo>` block describing a rocket that does not exist.
+ */
+describe('stageMotor', () => {
+  const tree = (id: string) =>
+    ({
+      name: 'R',
+      components: [node({ type: 'stage', children: [node({ type: 'bodytube', id, motorMount: true })] })],
+    }) as never;
+
+  const spec = (designation: string) => ({ designation }) as never;
+  const active = {
+    motor: spec('SUSTAINER-K550'),
+    extraMotors: { boosterMount: { spec: spec('BOOSTER-M1350') } } as never,
+  };
+
+  it('gives the primary mount the active simulation motor', () => {
+    expect(stageMotor(tree('sustainerMount'), 'sustainerMount', active)?.designation).toBe('SUSTAINER-K550');
+  });
+
+  it("gives a booster ITS OWN motor, not the sustainer's", () => {
+    expect(stageMotor(tree('boosterMount'), 'sustainerMount', active)?.designation).toBe('BOOSTER-M1350');
+  });
+
+  it('seats nothing in a stage whose mount has no motor of its own', () => {
+    expect(stageMotor(tree('emptyMount'), 'sustainerMount', active)).toBeUndefined();
+  });
+
+  it('seats nothing in a stage with no mount at all', () => {
+    const noMount = { name: 'R', components: [node({ type: 'stage', children: [node({ type: 'bodytube' })] })] };
+    expect(stageMotor(noMount as never, 'sustainerMount', active)).toBeUndefined();
   });
 });

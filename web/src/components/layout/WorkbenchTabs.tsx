@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
+import { useShowResultsTab } from './useShowResultsTab';
 
 /**
  * Desktop tab strip, rendered INSIDE the header (hidden below lg, where
@@ -26,10 +27,7 @@ export function WorkbenchTabs() {
   const { t } = useTranslation();
   const tab = useWorkspaceStore((s) => s.tab);
   const onTab = useWorkspaceStore((s) => s.setTab);
-  // Same rule as the mobile bar: Results appears with the first result and stays
-  // while you are standing on it.
-  const hasResult = useWorkspaceStore((s) => s.sims.some((x) => !!x.result));
-  const showResults = hasResult || tab === 'results';
+  const showResults = useShowResultsTab();
 
   return (
     <nav aria-label={t('tabs.workbench')} className="-my-3 ml-4 hidden self-stretch items-stretch gap-1 lg:flex">

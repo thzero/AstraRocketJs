@@ -1,11 +1,22 @@
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
 import type { StaticInfo } from '../../engine/api';
-import { stabilityTone } from '../../services/simReport';
+import { stabilityState, type StabilityState } from '../../services/simReport';
 import { useUnits } from '../../prefs/useUnits';
+import { STABILITY_GLYPH } from './schematicGeometry';
 
-/** Margin-sign glyph, matching stabilityTone's tiers (shared with the stat tiles). */
-const stabilityGlyph = (cal: number) => (cal >= 1 ? '✓' : cal >= 0 ? '⚠' : '✕');
+/**
+ * Tone per stability band. The SAME classifier as the 2D callout and the 3D
+ * gadget beside this card (`stabilityState`: under < 1 cal, over > 6 cal, ok
+ * between), so the three readouts on one screen never disagree about a design.
+ * This card used to carry a third tier set (>= 1 ok, >= 0 warn, else) that
+ * called a 7-caliber rocket fine while the drawing next to it said over-stable.
+ */
+const STABILITY_TONE: Record<StabilityState, string> = {
+  ok: 'text-emerald-400',
+  over: 'text-amber-400',
+  under: 'text-red-400',
+};
 
 /**
  * Quick-glance readout box for the 2D/3D view (mmrocket-style): length, loaded
@@ -17,6 +28,7 @@ export function InfoOverlay({ info }: { info: StaticInfo | null }) {
   const u = useUnits();
   if (!info) return null;
   const cal = info.stabilityCalibers;
+  const state = stabilityState(cal) ?? 'under';
   // Margin as a fraction of overall length — the same figure the stat tiles and
   // the CP callout carry, so the quick-glance card isn't missing a data item.
   const pct = info.length > 0 ? ((info.cp - info.cg) / info.length) * 100 : 0;
@@ -27,8 +39,8 @@ export function InfoOverlay({ info }: { info: StaticInfo | null }) {
     [t('stability.cp'), `${u.fmt('length', info.cp)} ${u.sym('length')}`],
     [
       t('stability.onPad'),
-      <span className={stabilityTone(cal)}>
-        {stabilityGlyph(cal)} {fmtNum(cal, 2)} {t('stability.caliber')} · {fmtNum(pct, 1)}%
+      <span className={STABILITY_TONE[state]}>
+        {STABILITY_GLYPH[state]} {fmtNum(cal, 2)} {t('stability.caliber')} · {fmtNum(pct, 1)}%
       </span>,
     ],
   ];

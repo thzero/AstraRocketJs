@@ -2,7 +2,16 @@
   "$schema": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json",
   "version": "0.2",
   "language": "en-US",
-  "dictionaries": ["typescript", "node", "html", "css", "softwareTerms", "filetypes", "npm", "project-words"],
+  "dictionaries": [
+    "typescript",
+    "node",
+    "html",
+    "css",
+    "softwareTerms",
+    "filetypes",
+    "npm",
+    "project-words"
+  ],
   "dictionaryDefinitions": [
     {
       "name": "project-words",
@@ -14,9 +23,13 @@
     "web/src/**/*.{ts,tsx}",
     "web/e2e/**/*.ts",
     "web/scripts/**/*.mjs",
+    "web/index.html",
+    ".github/workflows/*.yml",
+    "website/src/**",
     "*.md",
     "docs/**/*.md",
-    "website/docs/**/*.md"
+    "website/docs/**/*.md",
+    "web/src/i18n/locales/en.json"
   ],
   "ignorePaths": [
     "node_modules/**",
@@ -26,7 +39,10 @@
     "engine-java/**",
     "web/public/**",
     "website/i18n/**",
-    "**/*.json",
+    "**/*.generated.json",
+    "package-lock.json",
+    "**/tsconfig*.json",
+    ".cspell/**",
     "LICENSE"
   ],
   "flagWords": [

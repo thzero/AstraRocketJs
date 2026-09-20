@@ -2,4 +2,4 @@
 
 cd web
 npm run build:inc
-cd..
+cd ..

@@ -1,4 +1,4 @@
-import type { LaunchConditions } from './orkTree';
+import type { LaunchConditions, WindLevel } from './orkTree';
 
 /**
  * Flying limits from the NAR / Tripoli safety codes, in SI.
@@ -32,18 +32,31 @@ export interface LimitViolation {
 }
 
 /**
+ * The GROUND layer of a multilevel wind profile, or `undefined` when the
+ * launch has no profile.
+ *
+ * Levels are not kept sorted (a CSV or a `.ork` can list them top-down), so
+ * the surface is the LOWEST altitude, not the first entry. `simulations.ts`
+ * used to take `windLevels[0]` for the "launch into the wind" heading while
+ * this file took the lowest, so a top-down profile aimed the rod at the wind
+ * aloft and judged the safety code on the wind at the pad. One reader.
+ */
+export function surfaceLevel(launch: LaunchConditions): WindLevel | undefined {
+  const levels = launch.windLevels ?? [];
+  if (!levels.length) return undefined;
+  return levels.reduce((low, l) => (l.altitudeM < low.altitudeM ? l : low), levels[0]!);
+}
+
+/**
  * The wind at the pad, in m/s.
  *
  * A multilevel profile REPLACES the single wind at the engine (see
  * `simConditions`), and its GROUND layer is the one the limit is about: the
  * codes are a go/no-go call made from what you can measure at the pad, and
- * nobody is metering the wind at 500 m. Levels are not kept sorted, so the
- * ground layer is the lowest altitude rather than the first entry.
+ * nobody is metering the wind at 500 m.
  */
 function surfaceWindMs(launch: LaunchConditions): number {
-  const levels = launch.windLevels ?? [];
-  if (!levels.length) return launch.windAverage ?? 0;
-  return levels.reduce((low, l) => (l.altitudeM < low.altitudeM ? l : low), levels[0]!).speed;
+  return surfaceLevel(launch)?.speed ?? launch.windAverage ?? 0;
 }
 
 /**

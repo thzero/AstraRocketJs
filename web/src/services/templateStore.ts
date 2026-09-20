@@ -67,8 +67,8 @@ export class KeyValueTemplateStore implements TemplateStore {
     private readonly kv: KeyValueStore = new IndexedDbKeyValueStore(),
   ) {}
 
-  private async read(): Promise<UserTemplate[]> {
-    const raw = await this.kv.get(this.key);
+  /** The stored list, tolerating an absent, corrupt or partly invalid blob. */
+  private static parse(raw: string | null): UserTemplate[] {
     if (!raw) return [];
     try {
       const parsed = JSON.parse(raw) as unknown;
@@ -79,26 +79,46 @@ export class KeyValueTemplateStore implements TemplateStore {
     }
   }
 
-  private async write(list: UserTemplate[]): Promise<void> {
-    await this.kv.set(this.key, JSON.stringify(list)); // best-effort (re-addable)
+  /**
+   * Read, transform and write in ONE store transaction, and propagate a
+   * refused write the way `motorStore.addCustomMotor` does.
+   *
+   * `kv.update` reports failure by RETURNING false rather than throwing, so
+   * discarding it meant the dialog awaited the save, got a clean resolve, and
+   * re-rendered a list that simply did not contain the thing the user had just
+   * added - with no error anywhere. "Best-effort (re-addable)" was the excuse,
+   * but re-adding is only possible if you are told it did not stick.
+   *
+   * `update`, not read-then-set: IndexedDB is shared across the tabs of this
+   * installable PWA, and a get/set with an await between them let two tabs
+   * each drop the other's template (see `DesignLibrary.mutateIndex`).
+   */
+  private async mutate(fn: (list: UserTemplate[]) => UserTemplate[]): Promise<void> {
+    const ok = await this.kv.update(this.key, (raw) => JSON.stringify(fn(KeyValueTemplateStore.parse(raw))));
+    if (!ok) throw new Error('storage-full');
   }
 
   async list(): Promise<UserTemplate[]> {
-    return this.read();
+    return KeyValueTemplateStore.parse(await this.kv.get(this.key));
   }
 
   async add(template: UserTemplate): Promise<void> {
-    const rest = (await this.read()).filter((t) => t.id !== template.id);
-    await this.write([template, ...rest]);
+    await this.mutate((list) => [template, ...list.filter((t) => t.id !== template.id)]);
   }
 
   async remove(id: string): Promise<void> {
-    await this.write((await this.read()).filter((t) => t.id !== id));
+    await this.mutate((list) => list.filter((t) => t.id !== id));
   }
 }
 
-const store: TemplateStore = new KeyValueTemplateStore();
+// The active template store. The header promised `setTemplateStore` and it
+// did not exist; the seam is the same one the material store has.
+let store: TemplateStore = new KeyValueTemplateStore();
 
 export function getTemplateStore(): TemplateStore {
   return store;
+}
+
+export function setTemplateStore(next: TemplateStore): void {
+  store = next;
 }

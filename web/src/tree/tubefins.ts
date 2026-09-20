@@ -1,5 +1,7 @@
 import type { ComponentNode } from '../engine/openRocketEngine';
-import { num, numOpt } from './nodeProps';
+import { FIN_SET_TYPES, PLANAR_FIN_TYPES, type FinSetType, type PlanarFinSetType } from './componentKinds';
+import { KERNEL_DEFAULTS } from './kernelDefaults';
+import { countOf, numOpt } from './nodeProps';
 
 /**
  * Tube-fin tube radius (m). When the set carries no explicit outerRadius the
@@ -14,7 +16,9 @@ export function tubeFinRadius(node: ComponentNode, bodyRadius: number): number {
   // drawing to nothing, where a fallback would at least have drawn something.
   const explicit = numOpt(node, 'outerRadius');
   if (explicit !== undefined && explicit > 0) return explicit;
-  const n = Math.max(1, Math.round(num(node, 'finCount', 6)));
+  // The kernel's tube-fin count (ComponentFactory.java:259), from the verified
+  // table rather than a literal that had to agree with it by luck.
+  const n = countOf(node, 'finCount', KERNEL_DEFAULTS.tubefinset.finCount);
   // Kernel rule (TubeFinSet.getOuterRadius): fewer than 3 fins auto-size to
   // the body radius — and n=2 would divide by zero below (sin π/2 = 1).
   if (n < 3) return bodyRadius;
@@ -45,15 +49,17 @@ export function tubeFinMaxCount(outerRadius: number, bodyRadius: number): number
 }
 
 /**
- * Every fin set, tube fins included — the `.ork` element names that end in
- * "finset". Mirrors what OpenRocket's FinMarkingGuide collects:
+ * Every fin set, tube fins included — the `FIN_SET_TYPES` table in
+ * componentKinds.ts (it used to be `type.endsWith('finset')`, a string test
+ * nothing tied to the `ComponentType` union). Mirrors what OpenRocket's
+ * FinMarkingGuide collects:
  *
  *     next instanceof FinSet || next instanceof TubeFinSet || …
  *
  * Use this for anything a tube fin genuinely takes part in: drawing it on the
  * airframe, counting it, marking where it goes.
  */
-export const isFinSet = (type: string): boolean => type.endsWith('finset');
+export const isFinSet = (type: string): type is FinSetType => (FIN_SET_TYPES as ReadonlySet<string>).has(type);
 
 /**
  * Fin sets with a FLAT planform — everything except tube fins.
@@ -71,4 +77,5 @@ export const isFinSet = (type: string): boolean => type.endsWith('finset');
  * The broad match fabricates a 50 × 30 mm swept trapezoid out of the
  * `rootChord` / `height` / `sweep` defaults for a part that is a tube.
  */
-export const isPlanarFinSet = (type: string): boolean => isFinSet(type) && type !== 'tubefinset';
+export const isPlanarFinSet = (type: string): type is PlanarFinSetType =>
+  (PLANAR_FIN_TYPES as ReadonlySet<string>).has(type);

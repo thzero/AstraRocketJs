@@ -68,6 +68,11 @@ test.describe('AstraRocketJs smoke', () => {
       };
       requestAnimationFrame(tick);
     });
+    // A real sleep, on purpose: the heartbeat needs wall-clock time to collect
+    // a baseline of idle frames BEFORE the run, so that the stall measured
+    // below is the run's and not the first frame's. There is no event to wait
+    // on for "some frames have passed"; time is the thing being sampled.
+    // eslint-disable-next-line playwright/no-wait-for-timeout
     await page.waitForTimeout(300);
     await page.getByRole('button', { name: /run flight simulation/i }).click();
     await expect(page.getByRole('button', { name: 'Flight', exact: true })).toBeVisible({ timeout: 30_000 });

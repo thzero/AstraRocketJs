@@ -79,12 +79,76 @@ interface ComponentCatalog {
   components: Component[];
 }
 
+const isFiniteNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const isStr = (v: unknown): v is string => typeof v === 'string';
+/** `innerDiameter` / `cd` are `number | null` in the sync's schema. */
+const isNullableFinite = (v: unknown): boolean => v === null || isFiniteNum(v);
+
+/**
+ * One catalog row this build can hand to the editor, checked PER TYPE.
+ *
+ * The rows go straight into `treeEdit.catalogPatch`, which divides
+ * `outerDiameter` by two and subtracts `innerDiameter` from it; a row missing
+ * either produced a NaN radius in the design and nothing said so. Each type
+ * requires exactly the fields its `catalogPatch` case reads.
+ */
+export function isComponentRow(v: unknown): v is Component {
+  if (!v || typeof v !== 'object') return false;
+  const r = v as Record<string, unknown>;
+  if (!isStr(r.mfr) || !isStr(r.partNo) || !isStr(r.desc)) return false;
+  switch (r.type) {
+    case 'bodytube':
+    case 'tubecoupler':
+    case 'centeringring':
+      return (
+        isFiniteNum(r.materialDensity) &&
+        isFiniteNum(r.outerDiameter) &&
+        isNullableFinite(r.innerDiameter) &&
+        isFiniteNum(r.length)
+      );
+    case 'nosecone':
+      return (
+        isFiniteNum(r.materialDensity) &&
+        isStr(r.shape) &&
+        typeof r.filled === 'boolean' &&
+        isFiniteNum(r.outerDiameter) &&
+        isFiniteNum(r.length)
+      );
+    case 'bulkhead':
+      return (
+        isFiniteNum(r.materialDensity) &&
+        isFiniteNum(r.outerDiameter) &&
+        isFiniteNum(r.length) &&
+        typeof r.filled === 'boolean'
+      );
+    case 'parachute':
+      return isFiniteNum(r.diameter) && isNullableFinite(r.cd);
+    default:
+      return false;
+  }
+}
+
+/**
+ * The shape gate handed to `fetchCatalog`: an object carrying a `components`
+ * ARRAY. "Any object" was the whole check before, and the data host can serve
+ * `{"error":"rebuilding"}` with HTTP 200: that parsed, passed, was memoized
+ * for the session, and `projectByType` then threw on `.filter` of undefined
+ * at every picker open until a reload. A wrong shape is a failure of THAT
+ * base (remoteData falls through to the in-build copy) and is never cached.
+ */
+export const isComponentCatalog = (v: unknown): v is { components: unknown[] } =>
+  !!v && typeof v === 'object' && Array.isArray((v as { components?: unknown }).components);
+
 // The catalog is a runtime file under public/data (see remoteData.ts), fetched
 // once and memoized, so it can be refreshed without rebuilding the app.
 let catalogP: Promise<ComponentCatalog> | null = null;
 function loadCatalog(): Promise<ComponentCatalog> {
   if (!catalogP) {
-    catalogP = fetchCatalog<ComponentCatalog>('components', (v) => !!v && typeof v === 'object');
+    // Row by row: keep every usable row, drop the rest (motorDb does the same
+    // for motors). A single malformed part costs that part, not the picker.
+    catalogP = fetchCatalog<ComponentCatalog & { components: unknown[] }>('components', isComponentCatalog).then(
+      (cat) => ({ ...cat, components: cat.components.filter(isComponentRow) }),
+    );
     // Don't memoize a FAILURE: a cached rejected promise would replay the same
     // error on every retry, so the picker could never recover from one bad load.
     // (remoteData clears its own cache on failure for the same reason.)

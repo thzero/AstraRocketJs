@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FIELDS } from './PropertyPanel';
+import { FIELDS } from '../../services/componentFields';
 
 const req = (type: string) =>
   (FIELDS[type] ?? [])
@@ -36,7 +36,11 @@ describe('required component fields', () => {
     expect(req('ellipticalfinset')).toEqual(['finCount', 'height', 'rootChord', 'thickness']);
     // A freeform fin's outline comes from its points, not from chord/height.
     expect(req('freeformfinset')).toEqual(['finCount', 'thickness']);
-    expect(req('tubefinset')).toEqual(['finCount', 'length', 'outerRadius', 'thickness']);
+    // A tube fin's radius is NOT required: left blank, the kernel auto-sizes
+    // the tubes to touch around the body (TubeFinSet.getOuterRadius), which is
+    // what desktop OpenRocket writes for an auto set. Marking it required made
+    // the Run button refuse a valid imported design.
+    expect(req('tubefinset')).toEqual(['finCount', 'length', 'thickness']);
   });
 
   it('marks recovery devices by what makes them slow the rocket', () => {

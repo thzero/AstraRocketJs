@@ -107,3 +107,22 @@ describe('keyboard editing', () => {
     expect(screen.getByRole('group', { name: 'Fin outline' })).toBeTruthy();
   });
 });
+
+/**
+ * A drag ended only on pointerup. A touch drag the browser takes over for
+ * scrolling, or a pen lifted out of range, sends pointercancel instead, so
+ * the vertex stayed "held": the next move anywhere on the outline dragged it
+ * and the drag's undo entry was never closed.
+ */
+describe('drag cancellation', () => {
+  it('ends the drag and closes its undo entry on pointercancel', () => {
+    const { onCommit } = show();
+    fireEvent.pointerDown(vertex(2), { pointerId: 1 });
+    expect(onCommit).not.toHaveBeenCalled();
+    fireEvent.pointerCancel(screen.getByRole('group', { name: 'Fin outline' }), { pointerId: 1 });
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    // Nothing is held any more: a later release commits nothing further.
+    fireEvent.pointerUp(screen.getByRole('group', { name: 'Fin outline' }), { pointerId: 1 });
+    expect(onCommit).toHaveBeenCalledTimes(1);
+  });
+});

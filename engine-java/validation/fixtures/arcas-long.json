@@ -1,5 +1,6 @@
 {
   "name": "ARCAS Long (NASA TN D-4013/D-4014 half-scale tunnel model, Config 2)",
+  "_expect": { "length": 1.3589, "refDiameter": 0.0571 },
   "_notes": [
     "Identical to arcas-short.json except the body tube (41.09 in vs 28.54 in). See that fixture's notes."
   ],

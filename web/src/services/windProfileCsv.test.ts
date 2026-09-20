@@ -72,3 +72,63 @@ describe('parseWindProfileCsv', () => {
     expect(() => parseWindProfileCsv('altitude,speed,direction')).toThrow(/noData/);
   });
 });
+
+/**
+ * A blank required cell is not a zero.
+ *
+ * `Number('')` is 0 and 0 passes `Number.isFinite`, so an empty altitude or
+ * speed imported as a genuine 0 m/s reading at that level. The module's own
+ * contract is that every failure throws rather than returning a short list,
+ * and `stddev` is the only column where blank legitimately means "none".
+ */
+describe('a blank cell in a required column', () => {
+  it('fails the row rather than reading as 0 m/s', () => {
+    expect(() => parseWindProfileCsv('altitude,speed,direction\n100,,90\n')).toThrow();
+    expect(() => parseWindProfileCsv('altitude,speed,direction\n,5,90\n')).toThrow();
+    expect(() => parseWindProfileCsv('altitude,speed,direction\n100,5,\n')).toThrow();
+  });
+
+  it('still treats a blank stddev as no scatter', () => {
+    const levels = parseWindProfileCsv('altitude,speed,direction,stddev\n100,5,90,\n');
+    expect(levels[0]!.stddev).toBe(0);
+    expect(levels[0]!.speed).toBe(5);
+  });
+});
+
+/**
+ * `altitudeagl` was accepted as a plain alias for the altitude column and its
+ * meaning dropped: the levels imported as MSL, which at a 1500 m site is a
+ * different wind. The result now says what the header said, as a property on
+ * the array so the callers that only iterate it are untouched.
+ */
+describe('the altitude reference the header names', () => {
+  it('is agl for an AGL header and msl for an MSL one', () => {
+    expect(parseWindProfileCsv(csv('altitude AGL,speed,direction', '0,4,90')).reference).toBe('agl');
+    expect(parseWindProfileCsv(csv('altitude_agl (m),speed,direction', '0,4,90')).reference).toBe('agl');
+    expect(parseWindProfileCsv(csv('Altitude MSL,Wind Speed,Heading', '0,4,90')).reference).toBe('msl');
+  });
+
+  it('is absent, not msl, for a header that says nothing', () => {
+    const levels = parseWindProfileCsv(csv('altitude,speed,direction', '0,4,90'));
+    expect(levels.reference).toBeUndefined();
+    expect('reference' in levels).toBe(false); // no key at all, so toEqual on the array still holds
+  });
+});
+
+/**
+ * A spreadsheet quotes any header carrying a comma, space or parenthesis, so
+ * `"altitude (m)"` arrived with its quotes on and matched no alias at all.
+ */
+describe('quoted headers and cells', () => {
+  it('reads a header a spreadsheet quoted', () => {
+    const levels = parseWindProfileCsv(
+      csv('"altitude (m)","speed (m/s)","direction (deg)","stddev (m/s)"', '0,4,90,0.4'),
+    );
+    expect(levels).toEqual([{ altitudeM: 0, speed: 4, directionDeg: 90, stddev: 0.4 }]);
+  });
+
+  it('reads quoted numeric cells too', () => {
+    const levels = parseWindProfileCsv(csv('altitude,speed,direction,stddev', '"100","5","90",""'));
+    expect(levels).toEqual([{ altitudeM: 100, speed: 5, directionDeg: 90, stddev: 0 }]);
+  });
+});

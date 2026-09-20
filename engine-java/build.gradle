@@ -85,6 +85,17 @@ java {
         // extracted OpenRocket sources accept — the parity harness
         // (test/parity) is what proves a toolchain change did not move a number.
         languageVersion = JavaLanguageVersion.of(21)
+        // Pin the VENDOR too, not just the language level.
+        //
+        // The parity job rebuilds over the committed artifacts and runs
+        // `git diff --exit-code` on them, so the whole toolchain has to
+        // reproduce bytes. With only a language level, CI's `java-version: 21`
+        // resolves to whatever the newest Temurin 21.x happens to be that day,
+        // and the first PR after a javac codegen change fails with a 2.9 MB
+        // unreadable binary diff and no hint that a JDK bump is the cause.
+        // That is the failure mode that teaches people to re-run a job and
+        // then ignore it. Now the toolchain moves only when someone moves it.
+        vendor = JvmVendorSpec.ADOPTIUM
     }
 }
 

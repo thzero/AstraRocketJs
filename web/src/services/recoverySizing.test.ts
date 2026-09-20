@@ -7,7 +7,6 @@ import {
   descentRate,
   DROGUE_BAND,
   MAIN_BAND,
-  msToFtS,
   propellantMass,
 } from './recoverySizing';
 
@@ -99,9 +98,5 @@ describe('rate classification', () => {
     expect(classifyRate(35 * 0.3048)).toBe('between');
     expect(classifyRate(DROGUE_BAND.target)).toBe('drogue');
     expect(classifyRate(100 * 0.3048)).toBe('fast');
-  });
-
-  it('msToFtS converts', () => {
-    expect(msToFtS(0.3048)).toBeCloseTo(1, 9);
   });
 });

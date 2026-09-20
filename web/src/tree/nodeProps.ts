@@ -1,4 +1,4 @@
-import type { ComponentNode } from '../engine/openRocketEngine';
+import type { ComponentNode, ComponentPosition } from '../engine/openRocketEngine';
 
 /**
  * Typed accessors for a ComponentNode's open-ended parameter bag
@@ -19,6 +19,29 @@ export const num = (n: ComponentNode, key: string, fb = 0): number =>
 export const numOpt = (n: ComponentNode, key: string): number | undefined =>
   typeof n[key] === 'number' && Number.isFinite(n[key] as number) ? (n[key] as number) : undefined;
 
+/**
+ * A SAFETY ceiling on any instance count, not a design opinion.
+ *
+ * Every consumer read counts as `Math.max(1, Math.round(...))`: a floor and no
+ * ceiling. Each one then loops that many times allocating as it goes - a
+ * cloned ExtrudeGeometry per fin in the 3D view, an SVG shape per fin in the
+ * schematic, a tube per instance in the aft view. Typing 100000 into Fin count
+ * (a plausible slip on a 3-fin design) locked the tab, and a hostile `.ork`
+ * could carry the same value. 64 is far above anything buildable and far below
+ * anything that hurts.
+ */
+export const MAX_INSTANCE_COUNT = 64;
+
+/**
+ * An instance count (fins, tubes, pod instances): a whole number in
+ * [1, {@link MAX_INSTANCE_COUNT}].
+ *
+ * One reader so the cap cannot be applied in some of the eleven places that
+ * loop on a count and forgotten in the rest.
+ */
+export const countOf = (n: ComponentNode, key: string, fb: number): number =>
+  Math.min(MAX_INSTANCE_COUNT, Math.max(1, Math.round(num(n, key, fb))));
+
 /** String parameter, or `fb` (default '') when absent / non-string. */
 export const str = (n: ComponentNode, key: string, fb = ''): string =>
   typeof n[key] === 'string' ? (n[key] as string) : fb;
@@ -26,3 +49,36 @@ export const str = (n: ComponentNode, key: string, fb = ''): string =>
 /** Boolean parameter, or `fb` (default false) when absent / non-boolean. */
 export const bool = (n: ComponentNode, key: string, fb = false): boolean =>
   typeof n[key] === 'boolean' ? (n[key] as boolean) : fb;
+
+const AXIAL_METHODS: ReadonlySet<string> = new Set<ComponentPosition['method']>([
+  'top',
+  'middle',
+  'bottom',
+  'absolute',
+  'after',
+]);
+
+/**
+ * A node's axial position, VALIDATED: the method is one the union names and
+ * the offset is a finite number, each falling back to the kernel's own
+ * default (`top`, 0: ComponentFactory.java:606-607) otherwise.
+ *
+ * `position.ts` used to `as ComponentPosition` the raw field in three places
+ * and put `pos.offset` straight into arithmetic, while `scaleRocket.ts`
+ * guarded `typeof pos.offset === 'number'` in a fourth. A hand-edited design
+ * or a hostile `.ork` with `offset: "0.1"` reached `pLen - childLen + "0.1"`
+ * and produced a string station. One reader, the same guard the numeric
+ * accessors above already apply.
+ *
+ * `ork` (what an imported file actually said) rides along untouched, since the
+ * exporter writes it back verbatim.
+ */
+export const positionOf = (n: ComponentNode): ComponentPosition => {
+  const raw = n.position as Partial<ComponentPosition> | null | undefined;
+  const method =
+    raw && typeof raw.method === 'string' && AXIAL_METHODS.has(raw.method)
+      ? (raw.method as ComponentPosition['method'])
+      : 'top';
+  const offset = raw && typeof raw.offset === 'number' && Number.isFinite(raw.offset) ? raw.offset : 0;
+  return raw?.ork ? { method, offset, ork: raw.ork } : { method, offset };
+};

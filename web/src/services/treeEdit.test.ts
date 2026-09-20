@@ -324,3 +324,51 @@ describe('stage helpers', () => {
     expect(isFirstStage(tree, id)).toBe(false);
   });
 });
+
+describe('addPart enforces allowedChildren', () => {
+  it('adds under the nearest ancestor that may host the type when the selection cannot', () => {
+    // A fin set is a leaf; a bulkhead added with it selected belongs in the
+    // fin's body tube, which is where the desktop would put it.
+    const { tree, id } = addPart(makeTree(), 'bulkhead', 'f1');
+    expect(findNode(tree, 'b1')!.children!.some((c) => c.id === id)).toBe(true);
+    expect(findNode(tree, 'f1')!.children ?? []).toHaveLength(0);
+  });
+
+  it('falls back to the stage for an axial part added with an internal part selected', () => {
+    const { tree, id } = addPart(makeTree(), 'transition', 'm1');
+    expect(findNode(tree, 's1')!.children!.some((c) => c.id === id)).toBe(true);
+  });
+
+  it('throws rather than building a tree the kernel would never see from the desktop', () => {
+    // Nothing above a bare stage can host a bulkhead: a caller bug, not a
+    // design to silently produce.
+    const bare = { components: [{ id: 's1', type: 'stage', children: [] }] } as unknown as RocketTree;
+    expect(() => addPart(bare, 'bulkhead', 's1')).toThrow(/cannot be added/);
+    expect(() => addPart(bare, 'bulkhead', null)).toThrow(/cannot be added/);
+  });
+});
+
+describe('updateNode path-copies the spine only', () => {
+  it('shares every untouched node with the input and copies the patched path', () => {
+    const t = makeTree();
+    const next = updateNode(t, 'f1', { rootChord: 0.1 } as never);
+    // Spine: root -> s1 -> b1 -> f1 are new objects...
+    expect(next).not.toBe(t);
+    expect(findNode(next, 's1')).not.toBe(findNode(t, 's1'));
+    expect(findNode(next, 'b1')).not.toBe(findNode(t, 'b1'));
+    expect(findNode(next, 'f1')).not.toBe(findNode(t, 'f1'));
+    // ...and everything off it is the same object (no per-keystroke deep clone).
+    expect(findNode(next, 'n1')).toBe(findNode(t, 'n1'));
+    expect(findNode(next, 'm1')).toBe(findNode(t, 'm1'));
+    // The input is untouched.
+    expect((findNode(t, 'f1') as { rootChord?: number }).rootChord).toBeUndefined();
+    expect((findNode(next, 'f1') as { rootChord?: number }).rootChord).toBe(0.1);
+  });
+
+  it('still returns a distinct tree when the id is not found', () => {
+    const t = makeTree();
+    const next = updateNode(t, 'nope', { length: 1 } as never);
+    expect(next).not.toBe(t);
+    expect(next.components).toBe(t.components); // nothing to copy
+  });
+});

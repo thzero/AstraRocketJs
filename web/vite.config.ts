@@ -60,6 +60,19 @@ export default defineConfig({
       },
       workbox: {
         // .wasm and the public/data catalogs are not in the default glob.
+        //
+        // The catalogs (public/data/*.generated.json, ~2.6 MB) are precached
+        // ON PURPOSE, and it is a real double: the deployed app reads them from
+        // the CDN copy on the `data` branch first (VITE_DATA_BASE in deploy.yml)
+        // and the runtimeCaching rule below stores that copy too. But the CDN
+        // is tried first and the in-build copy is the FALLBACK
+        // (services/remoteData.ts), so a runtime rule for /data/ would only
+        // ever fill on a session where the CDN had already failed. Someone who
+        // installs the app online and first opens the motor picker at a launch
+        // site with no signal gets an empty picker unless the in-build copy was
+        // precached at install. Offline at first open is the stated goal of the
+        // PWA (the comment on VitePWA above), so the 2.6 MB stays in the
+        // precache and the CDN copy is the one that refreshes.
         globPatterns: ['**/*.{js,css,html,svg,png,wasm,json}'],
         // The JS engine is a ~970 kB FALLBACK backend, emitted twice (main thread
         // + sim worker). WASM-GC is the path essentially every current browser
@@ -109,8 +122,13 @@ export default defineConfig({
     __HELP_URL__: JSON.stringify(helpUrl),
     __CONTRIBUTORS_URL__: JSON.stringify(contributorsUrl),
   },
-  // The vendored TeaVM engine is a large ES module; don't let esbuild choke pre-bundling it.
-  optimizeDeps: { exclude: ['./src/engine/vendor/orkengine.mjs'] },
+  // The vendored TeaVM engine (src/engine/vendor/openrocket-engine.mjs) is a
+  // large ES module, and it used to be listed under `optimizeDeps.exclude` so
+  // esbuild would not pre-bundle it. That entry was a no-op: `exclude` takes
+  // bare package specifiers (`three`, `@react-three/fiber`), and a relative
+  // source path never matches. It did not need to: the dependency optimizer
+  // only pre-bundles node_modules, and a file under src/ is served as-is by
+  // Vite's transform pipeline, so the engine was never being pre-bundled.
   // The sim worker (engine/simWorker.ts) is a module worker that dynamic-imports
   // the engine, so its bundle is code-split — which needs the ES worker format
   // (the default 'iife' can't code-split).

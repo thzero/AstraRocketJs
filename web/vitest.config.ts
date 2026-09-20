@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
 // Unit tests run under Vitest (Vite-native, so it reuses vite.config's `define`
@@ -20,25 +21,47 @@ export default defineConfig({
     __HELP_URL__: JSON.stringify('https://example.test/docs'),
     __CONTRIBUTORS_URL__: JSON.stringify('https://example.test/graphs/contributors'),
   },
+  resolve: {
+    alias: {
+      // `vite-plugin-pwa` synthesizes this specifier during the app build and
+      // is not in the Vitest pipeline, so the import fails at RESOLUTION time -
+      // before `vi.mock` gets a chance - and `UpdateToast` could not be
+      // rendered in a test at all. The stub is the quiet default; a test that
+      // cares mocks the specifier as usual.
+      'virtual:pwa-register/react': fileURLToPath(new URL('./src/testing/pwaRegisterStub.ts', import.meta.url)),
+    },
+  },
   test: {
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     environment: 'node',
-    // Vitest isolates one worker per FILE, and this suite has 83 of them — on a
-    // 32-core box that is 83 workers at ~9.5 s of startup each. Under that load
+    // Vitest isolates one worker per FILE, and this suite is over a hundred of
+    // them (measured 2026-09; the count only grows) — on a 32-core box that is
+    // one worker per file at ~9.5 s of startup each. Under that load
     // engineBoundary.test.ts (the one file that drives the REAL TeaVM kernel)
     // blew the 5 s default timeout on a flight sim that takes 1.07 s unloaded:
     // `npm run test:coverage` — a CI gate — failed while `npm test` passed.
-    // Capping the pool fixes that and is ~4× faster: 46 s → 11.8 s with coverage.
+    // Capping the pool fixes that and is ~4× faster: 46 s → 11.8 s with
+    // coverage.
     maxWorkers: 4,
-    // Reported, not enforced. 800-odd tests said nothing about WHICH of the
-    // ~200 source modules they touch; a threshold before anyone has read the
-    // baseline would just be a number someone games. `npm run test:coverage`.
+    // Reported AND floored. `npm run test:coverage` (what CI runs) fails below
+    // the floor; `npm test` does not collect coverage and is unaffected. The
+    // floor is deliberately well under the measurement, not at it: it exists
+    // to catch a change that deletes a test file or a whole tested module,
+    // which drops lines by whole points, not to make every PR raise the
+    // number. Raise it when the measurement moves up and stays there.
     coverage: {
       provider: 'v8',
-      reporter: ['text-summary', 'lcov'],
+      // `json-summary` is what gates.yml reads to put the totals in the job
+      // summary; `text-summary` is the same numbers in the log, `lcov` the
+      // per-line file it uploads.
+      reporter: ['text-summary', 'json-summary', 'lcov'],
       include: ['src/**/*.{ts,tsx}'],
       // Generated (the 2.9 MB TeaVM bundle), or not code under test.
       exclude: ['src/engine/vendor/**', 'src/**/*.test.*', 'src/testing/**', 'src/**/*.d.ts'],
+      // 62.03% lines measured 2026-09-20 (`npm run test:coverage`, 1655 tests
+      // in 142 files); the audit a few days earlier read 58%. The floor is
+      // under both so an ordinary refactor does not trip it.
+      thresholds: { lines: 55 },
     },
   },
 });

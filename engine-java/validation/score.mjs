@@ -40,6 +40,22 @@ class OrkRocket {
 
 const anchors = JSON.parse(readFileSync(join(here, 'anchors.json'), 'utf8'));
 const strict = process.argv.includes('--strict');
+// A ratchet, so this can be wired into CI while the absolute score is still low.
+// --min <n> fails if the gate score drops BELOW a recorded floor; --expect-gates
+// <n> fails if the number of gated points is not exactly n, which is what
+// catches a silently shrunken anchors.json (see the gateTotal check below).
+const numArg = (flag) => {
+  const i = process.argv.indexOf(flag);
+  if (i < 0) return null;
+  const v = Number(process.argv[i + 1]);
+  if (!Number.isInteger(v) || v < 0) {
+    console.error(`score: ${flag} needs a non-negative integer`);
+    process.exit(2);
+  }
+  return v;
+};
+const minPass = numArg('--min');
+const expectGates = numArg('--expect-gates');
 const supersonic = process.argv.includes('--supersonic');
 
 /** Linear interpolation of series y over grid xs at x (clamped to range). */
@@ -68,6 +84,25 @@ for (const [name, spec] of Object.entries(anchors)) {
   const rocket = OrkRocket.buildTree(tree);
   if (supersonic) rocket.setSupersonicAero(true);
   const info = rocket.staticInfo();
+  // The fixture says what it is, and the kernel has to agree before a single
+  // anchor is scored. Without this a corrupt fixture (a nose length of "abc",
+  // null, or 1e999) built a DIFFERENT rocket through the kernel's defaults and
+  // scored it as the published model: indistinguishable from a one-gate
+  // physics regression. 5e-4 m absorbs the 4-decimal rounding of the recorded
+  // values and nothing else.
+  const expect = tree._expect;
+  if (!expect || !Number.isFinite(expect.length) || !Number.isFinite(expect.refDiameter)) {
+    console.error(`score: fixture ${spec.fixture} carries no _expect {length, refDiameter}.`);
+    console.error('score:   every fixture must say what the kernel should build from it.');
+    process.exit(1);
+  }
+  for (const key of ['length', 'refDiameter']) {
+    if (!(Math.abs(info[key] - expect[key]) <= 5e-4)) {
+      console.error(`score: fixture ${spec.fixture} built ${key} = ${info[key]}, expected ${expect[key]}.`);
+      console.error('score:   the fixture is corrupt, or the kernel no longer reads it the same way.');
+      process.exit(1);
+    }
+  }
   const sweep = rocket.aeroSweep({
     machMin: 0.05, machMax: spec.maxMach ?? 10, machStep: 0.025,
     aoaDeg: spec.aoaDeg ?? 0, machAlt: spec.machAlt,
@@ -127,8 +162,34 @@ for (const [name, spec] of Object.entries(anchors)) {
 
 out.push('## Summary');
 out.push('');
-out.push(`**Gate points: ${gatePass}/${gateTotal} within tolerance** (${((100 * gatePass) / gateTotal).toFixed(1)}%). Informational rows excluded.`);
+const pct = gateTotal ? `${((100 * gatePass) / gateTotal).toFixed(1)}%` : 'n/a';
+out.push(`**Gate points: ${gatePass}/${gateTotal} within tolerance** (${pct}). Informational rows excluded.`);
 out.push('');
 console.log(out.join('\n'));
 
-if (strict && gatePass < gateTotal) process.exit(1);
+// An empty gate set is a BROKEN HARNESS, not a perfect score. `--strict` used to
+// pass on it, because `gatePass < gateTotal` is `0 < 0`: a truncated or
+// half-written anchors.json scored `0/0 (NaN%)` and exited 0. This runs
+// unconditionally, not only under --strict, because a scorecard reporting
+// success over nothing is wrong however it was invoked.
+if (gateTotal === 0) {
+  console.error('score: NO gated points were scored. anchors.json is empty, truncated, or');
+  console.error('score:   has every `gate` flag off. That is a broken harness, not a pass.');
+  process.exit(1);
+}
+
+let failed = false;
+// Silent shrinkage of the anchor set is the other way this fails open: the
+// denominator just gets smaller and the scorecard reads normally. Pin it.
+if (expectGates != null && gateTotal !== expectGates) {
+  console.error(`score: expected ${expectGates} gated point(s), scored ${gateTotal}.`);
+  console.error('score:   anchors.json changed shape. If deliberate, update --expect-gates.');
+  failed = true;
+}
+if (minPass != null && gatePass < minPass) {
+  console.error(`score: gate score ${gatePass}/${gateTotal} is below the recorded floor of ${minPass}.`);
+  console.error('score:   the aero model regressed against the published anchors.');
+  failed = true;
+}
+if (strict && gatePass < gateTotal) failed = true;
+if (failed) process.exit(1);

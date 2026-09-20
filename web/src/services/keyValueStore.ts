@@ -15,6 +15,21 @@ export interface KeyValueStore {
    *  the only copy of something (the workspace) check it to surface a warning. */
   set(key: string, value: string): Promise<boolean>;
   remove(key: string): Promise<void>;
+  /**
+   * Read, transform and write one key ATOMICALLY.
+   *
+   * A plain `get` then `set` is a read-modify-write with an await in the
+   * middle, and this app is an installable PWA whose IndexedDB is shared
+   * across tabs. Two tabs saving a design both read index `[X]`, one writes
+   * `[A,X]`, the other writes `[B,X]`, and the first entry is gone: since
+   * `activeId()` filters against the index, that design becomes unreachable
+   * and its bytes are orphaned.
+   *
+   * `fn` receives the raw stored string (or null) and returns the raw string
+   * to store. Returning `null` removes the key. Resolves false if the write
+   * was refused, exactly like {@link set}.
+   */
+  update(key: string, fn: (raw: string | null) => string | null): Promise<boolean>;
 }
 
 /** Default implementation: the browser's localStorage (per-browser, per-origin). */
@@ -42,5 +57,26 @@ export class LocalStorageKeyValueStore implements KeyValueStore {
     } catch {
       // best-effort
     }
+  }
+
+  /**
+   * localStorage is synchronous, so the read and the write here cannot be
+   * interleaved by another task IN THIS TAB. Across tabs it is not atomic, but
+   * this implementation is only the degraded fallback for browsers where
+   * IndexedDB is blocked; the real store does it in one transaction.
+   */
+  async update(key: string, fn: (raw: string | null) => string | null): Promise<boolean> {
+    let current: string | null;
+    try {
+      current = localStorage.getItem(key);
+    } catch {
+      return false; // storage unavailable (private mode etc.)
+    }
+    const next = fn(current);
+    if (next === null) {
+      await this.remove(key);
+      return true;
+    }
+    return await this.set(key, next);
   }
 }

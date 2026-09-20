@@ -1,8 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
+  ENGINE_PREF_KEY,
   OpenRocketDesign,
   PLUGGED_DELAY,
   __setEngineForTests,
+  backendPref,
+  sanitizeSeries,
+  type FlightSeries,
   type MotorSpec,
   type RocketTree,
 } from './openRocketEngine';
@@ -218,5 +222,58 @@ describe('a design does not outlive the engine that built it', () => {
     const d = design();
     __setEngineForTests({ ...s.api }); // a different engine object
     expect(() => d.staticInfo()).toThrow(/reset/i);
+  });
+});
+
+describe('simulate() sanitizes the named series at the boundary', () => {
+  it("turns the wire's nulls (NaN / Infinity on the Java side) into NaN in the number[] series", () => {
+    const s = stub();
+    const simulateJson = () =>
+      JSON.stringify({
+        summary: {},
+        events: [],
+        series: { time: [0, 1, 2], altitude: [0, null, 5], stability: [null, 1.2, 1.3], Pl: [null, 2] },
+        branches: [{ name: 'Booster', events: [], series: { time: [0], velocity: [null] } }],
+      });
+    __setEngineForTests({ ...s.api, simulateJson } as never);
+    const r = OpenRocketDesign.buildTree({ components: [] } as unknown as RocketTree).simulate();
+    // Numbers, so no consumer typed against number[] can throw on them, and
+    // `Number.isFinite` (which the chart and the 3D scene apply) filters them.
+    expect(r.series.altitude).toEqual([0, NaN, 5]);
+    expect(r.series.stability).toEqual([NaN, 1.2, 1.3]);
+    expect(r.series.time).toEqual([0, 1, 2]);
+    // The symbol-keyed extras keep their declared (number | null)[].
+    expect(r.series['Pl']).toEqual([null, 2]);
+    expect(r.branches![0]!.series.velocity).toEqual([NaN]);
+  });
+
+  it('leaves a series the kernel did not send absent', () => {
+    const out = sanitizeSeries({ time: [1] } as unknown as FlightSeries);
+    expect(out.altitude).toBeUndefined();
+    expect(out.time).toEqual([1]);
+  });
+});
+
+describe('backendPref', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('is auto with no page location or storage (a worker, SSR, tests)', () => {
+    expect(backendPref()).toBe('auto');
+  });
+
+  it('reads ?engine= first, then the namespaced key, then the legacy key', () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', { getItem: (k: string) => store.get(k) ?? null });
+    vi.stubGlobal('location', { search: '' });
+    expect(backendPref()).toBe('auto');
+    store.set('engine', 'wasm'); // an override set before the key was namespaced
+    expect(backendPref()).toBe('wasm');
+    store.set(ENGINE_PREF_KEY, 'js');
+    expect(backendPref()).toBe('js');
+    expect(ENGINE_PREF_KEY).toBe('astrarocketjs:engine');
+    vi.stubGlobal('location', { search: '?engine=wasm' });
+    expect(backendPref()).toBe('wasm');
+    vi.stubGlobal('location', { search: '?engine=bogus' });
+    expect(backendPref()).toBe('js'); // unknown query value: fall through to storage
   });
 });

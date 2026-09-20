@@ -163,7 +163,10 @@ export function svgToImage(svgString: string, widthPx = 3840, format: ImageForma
 
 /**
  * Compose a 3D-view snapshot with the data header band above it.
- * The WebGL canvas must have preserveDrawingBuffer for toDataURL/drawImage.
+ * `glCanvas` is any canvas holding the rendered frame at export size: the
+ * offscreen 2D canvas the render-target capture produces, or, on the
+ * fallback path, the live WebGL canvas (which then needs
+ * preserveDrawingBuffer for drawImage to see the frame).
  */
 export function snapshotWithHeader(
   glCanvas: HTMLCanvasElement,

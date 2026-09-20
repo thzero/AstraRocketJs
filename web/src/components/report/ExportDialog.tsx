@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import i18n from '../../i18n';
 import { useWorkspaceStore } from '../../state/store';
 import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
@@ -35,108 +36,90 @@ const hasType = (nodes: ComponentNode[], pred: (t: string) => boolean): boolean 
   return false;
 };
 
-/** The "Print or export" dialog: pick what to include, tweak output settings, Save as PDF. */
-export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+/**
+ * The "Print or export" dialog: pick what to include, tweak output settings,
+ * Save as PDF.
+ *
+ * Mounted only while open (`{open && <ExportDialog />}`). The report model is
+ * assembled ONCE, in a state initializer, and the include/exclude selection is
+ * derived from it there too; both then hold still for the dialog's life. This
+ * used to be an effect behind a ref latch that reset whenever `open` went
+ * false, which is how dismissing the print-settings popover used to throw the
+ * selection away.
+ */
+export function ExportDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const { settings, update } = useSettings();
   const units = useUnits();
-  // Declared up here because the focus traps and the Escape handler below both
-  // branch on it: the popover is a separate keyboard surface, not decoration.
+  // Declared up here because the focus traps below branch on it: the popover
+  // is a separate keyboard surface, not decoration.
   const [showSettings, setShowSettings] = useState(false);
-  // Escape to dismiss, and keep Tab inside the modal. Every sibling dialog has
-  // both; this one had neither, so Tab walked straight out into the page behind
-  // an aria-modal overlay and there was no keyboard way to close it.
-  //
+  const [busy, setBusy] = useState(false);
   // TWO traps, and the topmost one wins: the print-settings popover below is a
   // SIBLING of this panel (both children of the overlay), so a trap anchored
-  // here cannot reach its controls — with the popover open, Tab went on cycling
+  // here cannot reach its controls. With the popover open, Tab went on cycling
   // the dialog behind it and the fill color, paper size and orientation were
-  // unreachable by keyboard.
-  const panelRef = useFocusTrap<HTMLDivElement>(open && !showSettings);
-  const settingsRef = useFocusTrap<HTMLDivElement>(open && showSettings);
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      // Escape dismisses the TOPMOST surface. Closing the whole dialog from
-      // here discarded the user's include/exclude selection (reopening resets
-      // the once-per-open assemble latch) — the same loss the popover's
-      // backdrop handler already guards against for the click path.
-      if (showSettings) {
-        setShowSettings(false);
-        return;
-      }
-      onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose, showSettings]);
-  // One resolution for both outputs — the PDF and the CSV must never disagree
+  // unreachable by keyboard. Each surface owns its own Escape: the popover's
+  // closes the popover, the panel's closes the dialog, and neither fires while
+  // the PDF is being written, so a stray Escape cannot unmount the dialog
+  // under a running export.
+  const panelRef = useFocusTrap<HTMLDivElement>(!showSettings, { onEscape: busy ? undefined : onClose });
+  const settingsRef = useFocusTrap<HTMLDivElement>(showSettings, { onEscape: () => setShowSettings(false) });
+  // One resolution for both outputs: the PDF and the CSV must never disagree
   // about what the document is written in.
   const exportUnits = resolveUnitChoice(settings.report.units, units.all);
   const tree = useWorkspaceStore((s) => s.tree);
-  // Readiness as a BOOLEAN, never the info/rocket objects themselves: a
-  // multi-stage assembleReport() rebuilds the live handle (applyBuild) and so
-  // hands the store fresh info/rocket identities. Depending on those objects
-  // re-triggered the effect below, which assembled again, which rebuilt
-  // again — an update loop React kills the whole app over.
-  const ready = useWorkspaceStore((s) => !!s.info && !!s.rocket);
   const runSim = useWorkspaceStore((s) => s.runSim);
-  const [model, setModel] = useState<ReportModel | null>(null);
-  const [sel, setSel] = useState<Sel | null>(null);
-  /** Once-per-open latch for the assemble below (a ref, so setting it never renders). */
-  const assembled = useRef(false);
-  const [busy, setBusy] = useState(false);
 
   const hasNoses = useMemo(() => hasType(tree.components, (ty) => ty === 'nosecone'), [tree]);
   const hasTransitions = useMemo(() => hasType(tree.components, (ty) => ty === 'transition'), [tree]);
 
-  useEffect(() => {
-    if (!open) {
-      assembled.current = false;
-      setModel(null);
-      setSel(null);
-      return;
-    }
-    // Wait until the live design is ready, then assemble once (keep the user's
-    // selections stable for the rest of the dialog's life). `assembled` — not
-    // `model` — is the once-guard, so a null result doesn't re-enter here.
-    if (assembled.current || !ready) return;
-    assembled.current = true;
-    // Per-stage builds run the real engine; a design it chokes on must leave
-    // the dialog standing with its "no design" message, not take the app down.
-    let m: ReportModel | null = null;
+  // Per-stage builds run the real engine; a design it chokes on must leave the
+  // dialog standing with its "no design" message, not take the app down. The
+  // failure is remembered here and reported below, so the initializer stays a
+  // pure computation.
+  const [initial] = useState<{ model: ReportModel | null; error: string | null }>(() => {
+    const { info, rocket } = useWorkspaceStore.getState();
+    if (!info || !rocket) return { model: null, error: null };
     try {
-      m = assembleReport();
+      return { model: assembleReport(), error: null };
     } catch (e) {
-      useWorkspaceStore
-        .getState()
-        .setErr(`Could not assemble the design report: ${e instanceof Error ? e.message : String(e)}`);
+      return { model: null, error: errorText(e) };
     }
-    setModel(m);
-    if (m) {
-      setSel({
-        designReport: true,
-        includeMotors: true,
-        updateSimData: true,
-        showByStage: m.stages.length > 1,
-        noseTemplates: hasNoses,
-        transitionTemplates: hasTransitions,
-        stages: m.stages.map((st, i) => ({
-          include: true,
-          parts: true,
-          finTemplates: true,
-          // isPlanarFinSet: this gates the FIN TEMPLATES checkbox, and tube
-          // fins produce no template, so a stage finned only with tubes must
-          // not offer one.
-          hasFins: hasType(st.children ?? [], isPlanarFinSet),
-          label: (st.name as string) || m.partsByStage[i]?.stage || `Stage ${i + 1}`,
-        })),
-      });
-    }
-  }, [open, ready, hasNoses, hasTransitions]);
+  });
+  const model = initial.model;
+  useEffect(() => {
+    if (!initial.error) return;
+    // `i18n.t`, not the hook's `t`: this must not depend on a value that
+    // changes identity on every language switch. Same reason store.ts uses
+    // the singleton.
+    useWorkspaceStore.getState().setErr(i18n.t('export.reportFailed', { message: initial.error }));
+  }, [initial.error]);
 
-  if (!open) return null;
+  const [sel, setSel] = useState<Sel | null>(() =>
+    model
+      ? {
+          designReport: true,
+          includeMotors: true,
+          updateSimData: true,
+          showByStage: model.stages.length > 1,
+          noseTemplates: hasNoses,
+          transitionTemplates: hasTransitions,
+          stages: model.stages.map((st, i) => ({
+            include: true,
+            parts: true,
+            finTemplates: true,
+            // isPlanarFinSet: this gates the FIN TEMPLATES checkbox, and tube
+            // fins produce no template, so a stage finned only with tubes must
+            // not offer one.
+            hasFins: hasType(st.children ?? [], isPlanarFinSet),
+            label: (st.name as string) || model.partsByStage[i]?.stage || `Stage ${i + 1}`,
+          })),
+        }
+      : null,
+  );
 
   const patch = (p: Partial<Sel>) => setSel((s) => (s ? { ...s, ...p } : s));
   const patchStage = (i: number, p: Partial<StageSel>) =>
@@ -171,8 +154,17 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
         // runSim flips the view to Flight on completion; the report is a
         // background refresh, so put the view back where the user had it.
         const prevView = useWorkspaceStore.getState().view;
-        await runSim(settings.simulation).catch(() => {});
-        useWorkspaceStore.getState().setView(prevView);
+        try {
+          await runSim(settings.simulation);
+        } catch (e) {
+          // The rejection used to be swallowed and the PDF written with the
+          // PREVIOUS run's numbers, unmarked. The user asked for fresh data;
+          // say why there is none and write nothing.
+          useWorkspaceStore.getState().setErr(t('export.simFailed', { message: errorText(e) }));
+          return;
+        } finally {
+          useWorkspaceStore.getState().setView(prevView);
+        }
       }
       const fresh = assembleReport() ?? model;
       const { downloadReportPdf } = await import('../../services/reportPdf');
@@ -196,7 +188,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
       );
       onClose();
     } catch (e) {
-      useWorkspaceStore.getState().setErr(`Could not export PDF: ${e instanceof Error ? e.message : String(e)}`);
+      useWorkspaceStore.getState().setErr(t('export.pdfFailed', { message: errorText(e) }));
     } finally {
       setBusy(false);
     }
@@ -209,7 +201,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
       downloadDesignCsv(assembleReport() ?? model, exportUnits);
       onClose();
     } catch (e) {
-      useWorkspaceStore.getState().setErr(`Could not export CSV: ${e instanceof Error ? e.message : String(e)}`);
+      useWorkspaceStore.getState().setErr(t('export.csvFailed', { message: errorText(e) }));
     }
   };
 
@@ -217,7 +209,12 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const row = 'flex items-center gap-2 py-0.5 text-sm text-slate-200';
 
   return (
-    <div className="dialog-overlay fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
+    <div
+      className="dialog-overlay fixed inset-0 z-50 grid place-items-center bg-black/60 p-4"
+      // Not while busy: unmounting mid-export would drop the run's result
+      // and the "Loading" state with it.
+      onClick={busy ? undefined : onClose}
+    >
       <div
         ref={panelRef}
         className="dialog-panel flex max-h-[85vh] w-full max-w-md flex-col rounded-2xl bg-slate-900 ring-1 ring-white/10"
@@ -389,10 +386,9 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
         <div
           className="fixed inset-0 z-[60] grid place-items-center bg-black/50 p-4"
           // This popover is a CHILD of the export dialog's overlay, whose own
-          // onClick is onClose — so dismissing the popover by its backdrop used
-          // to bubble and shut the whole Export dialog. Reopening then reset
-          // `assembled.current`, rebuilding every include/exclude checkbox from
-          // defaults and throwing away the user's selection.
+          // onClick is onClose, so dismissing the popover by its backdrop used
+          // to bubble and shut the whole Export dialog, throwing away the
+          // user's include/exclude selection with it.
           onClick={(e) => {
             e.stopPropagation();
             setShowSettings(false);

@@ -1,10 +1,21 @@
 # The OpenRocket source engine-java/src/java was extracted from.
 #
 # `extract --check` is only meaningful against this exact tree: a different
-# upstream reports drift that is really just a version difference. CI pins it
-# (.github/workflows/engine.yml), and adopting a newer OpenRocket means bumping
-# it here, re-running the extraction, and reviewing every line the
-# "patch(es) differ from current upstream" report names.
+# upstream reports drift that is really just a version difference. CI pins the
+# same ref in the `reproducible` job of .github/workflows/gates.yml (there is
+# no engine.yml; this file used to say there was). NOTHING ENFORCES THAT THE
+# TWO AGREE - they are two hand-maintained copies of one SHA. See
+# docs/AUDIT_ENGINE.md G11.
+#
+# Adopting a newer OpenRocket means bumping it here AND in gates.yml, re-running
+# the extraction, and reviewing every line the "patch(es) differ from current
+# upstream" report names. `extract/DIVERGENCE.txt` now makes that review a gate
+# rather than a ritual: re-bless it and explain each number that moved.
+#
+# `describe` below reads release-22.02.beta.01-... because that is the nearest
+# reachable tag in this fork, not because the tree predates 24.12: the commit is
+# dated 2026-09-17. The repo is a fork, but the SHA is content-bound and the
+# same commit fetches from canonical openrocket/openrocket.
 repo = https://github.com/thzero/openrocket.git
 ref  = 6deae50796af9356c6541c9d5e6306ebebe0186f
 describe = release-22.02.beta.01-5683-g6deae5079

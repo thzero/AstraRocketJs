@@ -1,23 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  loadCatalog,
-  filterMotors,
-  allClasses,
-  allManufacturers,
-  hasCurve,
-  importCustomMotorFromEng,
-  deleteCustomMotor,
-  type CatalogMotor,
-} from '../../services/motorDb';
+import { hasCurve, importCustomMotorFromEng, deleteCustomMotor, type CatalogMotor } from '../../services/motorDb';
 import { fetchMotorSpec } from '../../services/thrustcurve';
-import { STD_DIAMS, MAX_IDX, fitIdx, parseDelays } from '../../services/motorPicker';
+import { MAX_IDX, fitIdx, parseDelays } from '../../services/motorPicker';
 import { PLUGGED_DELAY, type MotorSpec } from '../../engine/openRocketEngine';
 import { useUnits } from '../../prefs/useUnits';
 import { useFocusTrap } from '../common/useFocusTrap';
 import { CatalogLoading, CatalogError } from '../common/CatalogLoading';
 import { MotorDetail } from './MotorDetail';
-import { RangeSlider } from './RangeSlider';
+import { keyOf } from './motorKey';
+import { useCatalog } from './useCatalog';
+import { ClassChips, DiameterRange, ManufacturerMenu, useMotorFilter } from './MotorFilterBar';
 
 // Selected manufacturers persist across sessions (the user's usual set).
 const MFRS_KEY = 'astrarrocketjs:motorPicker:mfrs';
@@ -54,106 +47,104 @@ const saveDia = (d: [number, number]) => {
   }
 };
 
+/** The delay a motor with no delay data starts at (a common mid-range charge). */
+const DEFAULT_DELAY = 3;
+
+/**
+ * The catalog row a seated motor came from, for pre-selecting it.
+ *
+ * A MotorSpec carries no `code`, so a spec built from the bundled catalog says
+ * "AeroTech F67" for both the F67W and the F67C, which are one common name
+ * in one bore. Match on the common name OR the full code (a spec resolved from
+ * thrustcurve.org carries the full designation), then narrow same-name pairs
+ * by bore and by the curve source the spec was built from. Two motors sharing
+ * all of manufacturer, name, bore and curve label remain indistinguishable
+ * from the spec alone, and the first catalog match wins.
+ */
+function findSeated(catalog: CatalogMotor[], cur: MotorSpec): CatalogMotor | undefined {
+  const named = catalog.filter(
+    (m) => m.manufacturer === cur.manufacturer && (m.designation === cur.designation || m.code === cur.designation),
+  );
+  if (named.length <= 1) return named[0];
+  const mm = Math.round(cur.diameter * 1000);
+  const byBore = named.filter((m) => m.diameter === mm);
+  const pool = byBore.length ? byBore : named;
+  return (cur.curveSrc && pool.find((m) => m.curves?.some((c) => c.src === cur.curveSrc))) || pool[0];
+}
+
 /**
  * Modal motor picker. Filters the catalog by engine code (text), manufacturer(s),
  * impulse class, and (by default) whether the motor fits the mount; imports a
  * custom .eng; resolves the chosen motor's thrust curve via `onSelect`.
+ *
+ * Mounted only while open (`{open && <MotorDialog />}`), so every piece of
+ * state here starts fresh per opening and nothing has to be reset on close.
+ * The previous "reseed on open" effects left the last motor's ejection delay
+ * on the next pick after a reopen.
  */
 export function MotorDialog({
-  open,
   onClose,
   onSelect,
   onError,
   mountDiameter,
   current,
 }: {
-  open: boolean;
   onClose: () => void;
   onSelect: (m: MotorSpec) => void;
   onError: (msg: string | null) => void;
-  /** Motor-mount bore (mm) — enables the "only motors that fit" filter. */
+  /** Motor-mount bore (mm), enables the "only motors that fit" filter. */
   mountDiameter?: number | null;
-  /** The motor already seated on this mount — pre-selected when the dialog opens. */
+  /** The motor already seated on this mount, pre-selected when the dialog opens. */
   current?: MotorSpec | null;
 }) {
   const { t } = useTranslation();
   const u = useUnits();
-  const [catalog, setCatalog] = useState<CatalogMotor[]>([]);
-  // The catalog is a dynamically-imported chunk (see motorDb.loadCatalog), so
-  // the first open pays a fetch — show a loading state until it lands.
-  const [catalogLoading, setCatalogLoading] = useState(true);
-  const [catalogError, setCatalogError] = useState<string | null>(null);
-  // Bumped by the retry button to re-run the load effect.
-  const [attempt, setAttempt] = useState(0);
-  const [text, setText] = useState('');
-  const [cls, setCls] = useState<string | null>(null);
-  const [mfrs, setMfrs] = useState<Set<string>>(loadMfrs);
-  // Diameter range as [low, high] slider indices. Remembered across sessions;
-  // first use defaults the top to the mount's fitting size, the bottom to lowest.
-  const [dia, setDia] = useState<[number, number]>(
-    () => loadDia() ?? [0, mountDiameter != null && mountDiameter > 0 ? fitIdx(mountDiameter) : MAX_IDX],
-  );
-  const [delay, setDelay] = useState(3);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
-  // The highlighted (but not yet applied) row. Applying happens via the Select
-  // button, so a click just previews the choice.
-  const [selected, setSelected] = useState<{ m: CatalogMotor; rowId: string } | null>(null);
+  const [delay, setDelay] = useState(DEFAULT_DELAY);
+  // The highlighted (but not yet applied) motor. Applying happens via the
+  // Select button, so a click just previews the choice. Identified by keyOf,
+  // so the highlight survives a filter change that reorders the list.
+  const [selected, setSelected] = useState<CatalogMotor | null>(null);
   // Which of the motor's thrust curves to use (some motors have several).
   const [curveIdx, setCurveIdx] = useState(0);
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  // Pre-selecting the seated motor sets its own delay/curve; this tells the
-  // "reset on selection change" effect below to leave those alone that once.
-  const seedRef = useRef(false);
-  // Seed at most once per opening (cleared when the dialog closes).
-  const seededOpenRef = useRef(false);
-  const panelRef = useFocusTrap<HTMLDivElement>(open);
+  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
+  // Generation of the pick in flight. fetchMotorSpec can take seconds over the
+  // network; a result that lands after the user canceled (this dialog is
+  // unmounted on close) used to be applied to the mount anyway.
+  const pickGen = useRef(0);
+  useEffect(
+    () => () => {
+      pickGen.current++;
+    },
+    [],
+  );
 
-  useEffect(() => {
-    let live = true;
-    setCatalogLoading(true);
-    setCatalogError(null);
-    loadCatalog()
-      .then((c) => {
-        if (live) {
-          setCatalog(c);
-          setCatalogLoading(false);
-        }
-      })
-      .catch((e: unknown) => {
-        // Without this the rejection was unhandled and the list sat empty and
-        // silent forever; fetchCatalog rejects once every base is unreachable.
-        if (!live) return;
-        setCatalogError(e instanceof Error ? e.message : String(e));
-        setCatalogLoading(false);
-      });
-    return () => {
-      live = false;
-    };
-  }, [attempt]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
-  const classes = useMemo(() => allClasses(catalog), [catalog]);
-  const manufacturers = useMemo(() => allManufacturers(catalog), [catalog]);
-  const [lowIdx, highIdx] = dia;
-  const matches = useMemo(
-    () =>
-      filterMotors(catalog, {
-        text,
-        classes: cls ? new Set([cls]) : new Set(),
-        manufacturers: mfrs,
-        // The extreme stops mean "open end" (no floor / no ceiling).
-        minDiameter: lowIdx > 0 ? STD_DIAMS[lowIdx] : undefined,
-        maxDiameter: highIdx < MAX_IDX ? STD_DIAMS[highIdx] : undefined,
-      }),
-    [catalog, text, cls, mfrs, lowIdx, highIdx],
+  // Opening from a card with a motor already on it pre-selects that motor,
+  // highlighted in the list with its curve and delay restored, so "Change..."
+  // resumes from the current choice instead of a blank detail pane. Done when
+  // the catalog lands: the one moment the list exists and nothing has been
+  // clicked yet, so no later click has to know about it.
+  const { catalog, setCatalog, loading, error, retry } = useCatalog({
+    onLoaded: (c) => {
+      const m = current && findSeated(c, current);
+      if (!m) return;
+      setSelected(m);
+      setDelay(current.ejectionDelay);
+      const ci = m.curves?.findIndex((cv) => cv.src === current.curveSrc) ?? -1;
+      setCurveIdx(ci >= 0 ? ci : 0);
+    },
+  });
+  // First use defaults the diameter ceiling to the mount's fitting size.
+  const [filterInit] = useState(() => ({
+    mfrs: loadMfrs(),
+    dia:
+      loadDia() ??
+      ([0, mountDiameter != null && mountDiameter > 0 ? fitIdx(mountDiameter) : MAX_IDX] as [number, number]),
+  }));
+  const { text, setText, cls, setCls, mfrs, setMfrs, dia, setDia, classes, manufacturers, matches } = useMotorFilter(
+    catalog,
+    filterInit,
   );
 
   // Persist the manufacturer selection and diameter range across sessions.
@@ -163,71 +154,35 @@ export function MotorDialog({
   useEffect(() => {
     saveDia(dia);
   }, [dia]);
-  // A filter change rebuilds the list (and row ids), so drop any highlight.
-  useEffect(() => {
-    setSelected(null);
-  }, [text, cls, mfrs, lowIdx, highIdx]);
-  // Selecting a different motor resets the curve choice to the best (first).
-  useEffect(() => {
-    // A pre-seeded selection carries the seated motor's own delay/curve — don't
-    // stomp them with the defaults on this first run.
-    if (seedRef.current) {
-      seedRef.current = false;
-      return;
-    }
+
+  // Clicking a DIFFERENT motor starts from its own defaults: the best (first)
+  // curve, and a mid value of its own delay charges, or plugged for a
+  // plugged-only motor. In the handler, not an effect keyed on the selection,
+  // so the seeded values above are never stomped and never leak forward.
+  const choose = (m: CatalogMotor) => {
+    setSelected(m);
     setCurveIdx(0);
-    if (!selected) return;
-    // Default the delay to one of the motor's own charges (a mid value), or
-    // plugged for a plugged-only motor.
-    const { delays, plugged } = parseDelays(selected.m.delays);
+    const { delays, plugged } = parseDelays(m.delays);
     if (delays.length) setDelay(delays[Math.floor(delays.length / 2)]!);
     else if (plugged) setDelay(PLUGGED_DELAY);
-    // Intentionally keyed on rowId only: reset the curve/delay when a DIFFERENT
-    // motor is picked, not on every `selected` identity change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected?.rowId]);
+    else setDelay(DEFAULT_DELAY);
+  };
 
-  // Opening from a card with a motor already on it pre-selects that motor —
-  // highlighted in the list, its curve + delay restored — so "Change…" resumes
-  // from the current choice instead of a blank detail pane.
-  useEffect(() => {
-    if (!open) {
-      seededOpenRef.current = false;
-      return;
-    }
-    if (seededOpenRef.current || catalog.length === 0) return;
-    seededOpenRef.current = true;
-    if (!current) return;
-    const i = matches.findIndex(
-      (m) => m.manufacturer === current.manufacturer && m.designation === current.designation,
-    );
-    const m =
-      i >= 0
-        ? matches[i]!
-        : catalog.find((mm) => mm.manufacturer === current.manufacturer && mm.designation === current.designation);
-    if (!m) return;
-    // Highlight the real row when it's in view; otherwise (filtered out) still
-    // show it in the detail pane via a non-colliding id.
-    const rowId = i >= 0 ? `${m.manufacturer}:${m.designation}:${i}` : `seed:${m.manufacturer}:${m.designation}`;
-    seedRef.current = true;
-    setSelected({ m, rowId });
-    setDelay(current.ejectionDelay);
-    const ci = m.curves?.findIndex((c) => c.src === current.curveSrc) ?? -1;
-    setCurveIdx(ci >= 0 ? ci : 0);
-  }, [open, catalog, matches, current]);
-
-  if (!open) return null;
-
-  const pick = async (m: CatalogMotor, rowId: string, curveIndex = 0) => {
-    setLoadingId(rowId);
+  const pick = async (m: CatalogMotor, curveIndex = 0) => {
+    const gen = ++pickGen.current;
+    setLoadingKey(keyOf(m));
     onError(null);
     try {
-      onSelect(await fetchMotorSpec(m, delay, curveIndex));
+      const spec = await fetchMotorSpec(m, delay, curveIndex);
+      // Canceled, or superseded by another pick, while the fetch was out.
+      if (gen !== pickGen.current) return;
+      onSelect(spec);
       onClose();
     } catch (e) {
+      if (gen !== pickGen.current) return;
       onError(e instanceof Error ? e.message : String(e));
     } finally {
-      setLoadingId(null);
+      if (gen === pickGen.current) setLoadingKey(null);
     }
   };
 
@@ -252,6 +207,15 @@ export function MotorDialog({
       onError(err instanceof Error ? err.message : String(err));
     }
   };
+
+  // What the dialog acts on is the highlight the user can SEE. `selected` is
+  // kept across filter changes so clearing a filter brings the highlight back,
+  // but while the filter hides that row there is no visible highlight, and a
+  // Select button applying a motor that is not on screen (the seated C6 while
+  // the list shows A8s) was the surprise the picker used to hand out. Derived,
+  // not cleared, so nothing has to be reset when the filter changes back.
+  const selectedKey = selected ? keyOf(selected) : null;
+  const shown = selected && matches.some((m) => keyOf(m) === selectedKey) ? selected : null;
 
   return (
     <div
@@ -282,7 +246,7 @@ export function MotorDialog({
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           {/* LEFT: filters + list + count */}
           <div
-            className={`flex min-h-0 flex-col md:w-[360px] md:shrink-0 md:border-r md:border-white/10 ${selected ? 'hidden md:flex' : 'flex'}`}
+            className={`flex min-h-0 flex-col md:w-[360px] md:shrink-0 md:border-r md:border-white/10 ${shown ? 'hidden md:flex' : 'flex'}`}
           >
             <div className="space-y-2 p-3">
               <div className="flex gap-2">
@@ -303,100 +267,43 @@ export function MotorDialog({
               </div>
 
               <div className="flex gap-2">
-                <details className="relative min-w-0 flex-1">
-                  <summary className="cursor-pointer list-none rounded-lg bg-slate-950 px-3 py-2 text-sm text-slate-100 ring-1 ring-white/10">
-                    {mfrs.size === 0
-                      ? t('motorDlg.allManufacturers')
-                      : mfrs.size === 1
-                        ? [...mfrs][0]
-                        : t('motorDlg.mfrCount', { n: mfrs.size })}
-                  </summary>
-                  <div className="absolute left-0 top-full z-20 mt-1 max-h-64 w-64 overflow-y-auto rounded-lg bg-slate-950 p-1 shadow-xl ring-1 ring-white/10">
-                    <button
-                      onClick={() => setMfrs(new Set())}
-                      className="w-full rounded px-2 py-1 text-left text-xs font-medium text-sky-400 hover:bg-slate-800"
-                    >
-                      {t('motorDlg.allManufacturers')}
-                    </button>
-                    {manufacturers.map((m) => (
-                      <label
-                        key={m}
-                        className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-200 hover:bg-slate-800"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={mfrs.has(m)}
-                          className="accent-sky-500"
-                          onChange={() =>
-                            setMfrs((prev) => {
-                              const n = new Set(prev);
-                              if (n.has(m)) n.delete(m);
-                              else n.add(m);
-                              return n;
-                            })
-                          }
-                        />
-                        {m}
-                      </label>
-                    ))}
-                  </div>
-                </details>
+                <ManufacturerMenu
+                  manufacturers={manufacturers}
+                  mfrs={mfrs}
+                  onChange={setMfrs}
+                  className="min-w-0 flex-1"
+                />
               </div>
 
               <div className="flex flex-wrap gap-1">
-                <Chip label={t('motor.all')} active={cls === null} onClick={() => setCls(null)} />
-                {classes.map((c) => (
-                  <Chip key={c} label={c} active={cls === c} onClick={() => setCls(cls === c ? null : c)} />
-                ))}
+                <ClassChips classes={classes} cls={cls} onChange={setCls} />
               </div>
 
-              <div className="flex items-center gap-3 text-xs text-slate-300">
-                <span className="shrink-0 text-slate-500">{t('motorDlg.diameter')}</span>
-                <RangeSlider
-                  count={STD_DIAMS.length}
-                  low={lowIdx}
-                  high={highIdx}
-                  onChange={(lo, hi) => setDia([lo, hi])}
-                  label={t('motorDlg.diameter')}
-                />
-                {/* The stops are the standard motor sizes, held in mm because
-                    that is what the catalog and the fit query speak; only the
-                    readout moves to the user's unit. */}
-                <span className="w-20 shrink-0 text-right tabular-nums text-slate-400">
-                  {lowIdx > 0 ? u.fmt('motorDimensions', STD_DIAMS[lowIdx]! / 1000) : t('motorDlg.any')}–
-                  {highIdx < MAX_IDX ? u.fmt('motorDimensions', STD_DIAMS[highIdx]! / 1000) : t('motorDlg.any')}{' '}
-                  {u.sym('motorDimensions')}
-                </span>
-              </div>
+              <DiameterRange dia={dia} onChange={setDia} />
             </div>
 
-            {catalogError ? (
+            {error ? (
               <div className="grid min-h-0 flex-1 place-items-center p-6">
-                <CatalogError
-                  message={`${t('catalog.failedMotors')} ${catalogError}`}
-                  onRetry={() => setAttempt((n) => n + 1)}
-                />
+                <CatalogError message={`${t('catalog.failedMotors')} ${error}`} onRetry={retry} />
               </div>
-            ) : catalogLoading ? (
+            ) : loading ? (
               <div className="grid min-h-0 flex-1 place-items-center p-6">
                 <CatalogLoading name="motors" label={t('motorDlg.loadingCatalog')} />
               </div>
             ) : (
               <ul className="min-h-0 flex-1 divide-y divide-white/5 overflow-y-auto">
-                {matches.map((m, i) => {
-                  const rowId = `${m.manufacturer}:${m.designation}:${i}`;
-                  const loading = loadingId === rowId;
+                {matches.map((m) => {
+                  const k = keyOf(m);
+                  const isLoading = loadingKey === k;
                   return (
-                    <li key={rowId} className="flex items-stretch">
+                    <li key={k} className="flex items-stretch">
                       <button
-                        onClick={() => setSelected({ m, rowId })}
-                        onDoubleClick={() => pick(m, rowId)}
-                        disabled={loadingId !== null}
-                        aria-pressed={selected?.rowId === rowId}
+                        onClick={() => choose(m)}
+                        onDoubleClick={() => pick(m)}
+                        disabled={loadingKey !== null}
+                        aria-pressed={selectedKey === k}
                         className={`flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-2 text-left text-sm disabled:opacity-50 ${
-                          selected?.rowId === rowId
-                            ? 'bg-sky-600/25 ring-1 ring-inset ring-sky-500/50'
-                            : 'hover:bg-slate-800'
+                          selectedKey === k ? 'bg-sky-600/25 ring-1 ring-inset ring-sky-500/50' : 'hover:bg-slate-800'
                         }`}
                       >
                         <span className="min-w-0">
@@ -417,7 +324,7 @@ export function MotorDialog({
                           )}
                         </span>
                         <span className="shrink-0 text-xs tabular-nums text-slate-400">
-                          {loading
+                          {isLoading
                             ? t('motorDlg.loading')
                             : `${u.fmt('impulse', m.impulse, m.impulse < 10 ? 1 : 0)} ${u.sym(
                                 'impulse',
@@ -440,29 +347,29 @@ export function MotorDialog({
             )}
 
             <div className="border-t border-white/10 p-2 text-center text-[11px] uppercase tracking-wide text-slate-500">
-              {catalogLoading ? '' : t('motor.count', { total: matches.length })}
+              {loading ? '' : t('motor.count', { total: matches.length })}
             </div>
           </div>
           {/* end LEFT */}
 
           {/* RIGHT: detail + apply */}
-          <div className={`min-h-0 min-w-0 flex-1 flex-col ${selected ? 'flex' : 'hidden md:flex'}`}>
-            {selected ? (
+          <div className={`min-h-0 min-w-0 flex-1 flex-col ${shown ? 'flex' : 'hidden md:flex'}`}>
+            {shown ? (
               <>
                 <MotorDetail
-                  motor={selected.m}
+                  motor={shown}
                   onBack={() => setSelected(null)}
                   curveIndex={curveIdx}
                   onCurveChange={setCurveIdx}
                 />
                 <div className="flex shrink-0 items-center justify-between gap-2 border-t border-white/10 p-2">
-                  <DelayControl motor={selected.m} delay={delay} onDelay={setDelay} />
+                  <DelayControl motor={shown} delay={delay} onDelay={setDelay} />
                   <button
-                    onClick={() => pick(selected.m, selected.rowId, curveIdx)}
-                    disabled={loadingId !== null}
+                    onClick={() => pick(shown, curveIdx)}
+                    disabled={loadingKey !== null}
                     className="shrink-0 rounded-lg bg-sky-600 px-5 py-1.5 text-sm font-medium text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
                   >
-                    {loadingId !== null ? t('motorDlg.loading') : t('motorDlg.select')}
+                    {loadingKey !== null ? t('motorDlg.loading') : t('motorDlg.select')}
                   </button>
                 </div>
               </>
@@ -479,17 +386,6 @@ export function MotorDialog({
   );
 }
 
-function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded-full px-2.5 py-1 text-xs font-medium ${active ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300'}`}
-    >
-      {label}
-    </button>
-  );
-}
-
 /** Delay picker for the selected motor: its own charges as quick chips (default
  *  a mid value), an optional Plugged chip, and a manual override. Plugged-only
  *  motors have no ejection charge, so nothing is shown. */
@@ -503,13 +399,17 @@ function DelayControl({ motor, delay, onDelay }: { motor: CatalogMotor; delay: n
     <div className="flex min-w-0 flex-wrap items-center gap-1 text-xs text-slate-400">
       <span className="text-slate-500">{t('sims.delay')}</span>
       {delays.map((d) => (
-        <button key={d} onClick={() => onDelay(d)} className={chip(delay === d)}>
+        <button key={d} onClick={() => onDelay(d)} aria-pressed={delay === d} className={chip(delay === d)}>
           {d}
         </button>
       ))}
       {/* Any motor can be flown plugged (no ejection charge), not just ones whose
-          spec lists it — useful for staging / alternate recovery triggers. */}
-      <button onClick={() => onDelay(PLUGGED_DELAY)} className={chip(delay >= PLUGGED_DELAY)}>
+          spec lists it: useful for staging / alternate recovery triggers. */}
+      <button
+        onClick={() => onDelay(PLUGGED_DELAY)}
+        aria-pressed={delay >= PLUGGED_DELAY}
+        className={chip(delay >= PLUGGED_DELAY)}
+      >
         {t('motor.plugged')}
       </button>
       <input
@@ -520,6 +420,7 @@ function DelayControl({ motor, delay, onDelay }: { motor: CatalogMotor; delay: n
         onChange={(e) => onDelay(Math.max(0, parseFloat(e.target.value) || 0))}
         placeholder={t('motorDlg.custom')}
         title={t('motorDlg.custom')}
+        aria-label={t('sims.delay')}
         className="w-14 rounded bg-slate-950 px-1.5 py-0.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
       />
     </div>

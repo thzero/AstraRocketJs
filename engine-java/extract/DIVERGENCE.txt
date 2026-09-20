@@ -1,0 +1,30 @@
+# How far each patch has diverged from upstream, in changed lines (LCS diff).
+#
+# This file is the REVIEWED baseline. `extract --check` recomputes these
+# numbers and fails on any difference, because the invariant it checks
+# ("src/java == upstream + patches") treats the patches as an input and so
+# can never question them. A coordinated patches/ + src/java edit passes
+# that invariant by construction; it does not pass this file.
+#
+# Regenerate deliberately with `npm run extract:bless -- --src <openrocket>`
+# and say in review WHY a number moved. A delta of 0 means the patch is
+# byte-identical to upstream: that is a leftover, and patches/LEDGER.md says
+# to delete it rather than bless it.
+#
+
+info/openrocket/core/aerodynamics/barrowman/FinSetCalc.java 727
+info/openrocket/core/aerodynamics/barrowman/SymmetricComponentCalc.java 411
+info/openrocket/core/simulation/SimulationOptions.java 155
+info/openrocket/core/aerodynamics/BarrowmanDragCalculator.java 83
+info/openrocket/core/rocketcomponent/FinSet.java 78
+info/openrocket/core/aerodynamics/BarrowmanStabilityCalculator.java 56
+info/openrocket/core/rocketcomponent/FreeformFinSet.java 39
+info/openrocket/core/rocketcomponent/FlightConfigurationId.java 29
+info/openrocket/core/util/BoundingBox.java 19
+info/openrocket/core/rocketcomponent/InstanceMap.java 18
+info/openrocket/core/simulation/BasicEventSimulationEngine.java 14
+info/openrocket/core/motor/MotorConfigurationId.java 10
+info/openrocket/core/unit/Unit.java 9
+info/openrocket/core/util/ArrayList.java 8
+info/openrocket/core/rocketcomponent/ComponentAssembly.java 7
+info/openrocket/core/rocketcomponent/FlightConfiguration.java 7

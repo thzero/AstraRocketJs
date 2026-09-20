@@ -1,13 +1,9 @@
 import { useTranslation } from 'react-i18next';
 
-export type ViewMode = '2d' | '3d' | 'drag' | 'flight' | 'path' | 'ground';
-/** Views that read the design itself — the Design tab's switch. */
-const DESIGN_VIEWS: readonly ViewMode[] = ['2d', '3d', 'drag'];
-/** Views that read a flight result — the Results tab's switch. */
-const RESULT_VIEWS: readonly ViewMode[] = ['flight', 'path', 'ground'];
-
-/** True for a view that reads a flight result rather than the design itself. */
-export const isResultView = (view: ViewMode): boolean => RESULT_VIEWS.includes(view);
+import { DESIGN_VIEWS, RESULT_VIEWS, isResultView, type ViewMode } from '../../state/tabs';
+// Declared in state/tabs.ts (the store keeps view and tab in step); re-exported
+// here so this component's importers are unchanged.
+export { isResultView, type ViewMode };
 
 /**
  * Center-pane view switch, showing one family: 2D · 3D · Aero on the Design tab,
@@ -36,6 +32,12 @@ export function ViewToggle({
         <button
           key={v}
           onClick={() => onChange(v)}
+          // Which view is open was conveyed by `bg-sky-600` and nothing else:
+          // a screen reader could not tell, and neither could anyone who
+          // cannot separate the two greys. Every sibling toggle in the app
+          // already does this (AeroAnalysis, CenterView, TabBar,
+          // SettingsDialog); this was the one that was missed.
+          aria-pressed={view === v}
           className={`px-3 py-1 text-xs font-semibold ${view === v ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300'}`}
         >
           {t(`view.${v}`)}

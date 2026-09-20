@@ -1,26 +1,22 @@
-import { test, expect, type Page, note } from './base';
+import { test, expect, type Page, note, tableRows } from './base';
 
 const openAero = async (page: Page) => {
   await page.getByRole('button', { name: 'Aero', exact: true }).click();
   await page.getByRole('button', { name: 'Per component', exact: true }).click();
 };
 
-/** The whole rocket's CP, from the stability table. */
-const cp = (page: Page) =>
-  page.evaluate(() => {
-    const t = [...document.querySelectorAll('table')].find((x) => /CN/.test(x.textContent || ''));
-    const rows = [...(t?.querySelectorAll('tr') ?? [])].map((tr) => [...tr.children].map((c) => c.textContent!.trim()));
-    const i = rows[0]!.findIndex((h) => h.startsWith('CP'));
-    return Number(rows.find((r) => r[0] === 'Whole rocket')?.[i]);
-  });
+/** The whole rocket's CP, from the stability table. NaN when a row is missing. */
+const cp = async (page: Page) => {
+  const rows = await tableRows(page, 'Stability contribution');
+  const i = rows[0]?.findIndex((h) => h.startsWith('CP')) ?? -1;
+  return Number(rows.find((r) => r[0] === 'Whole rocket')?.[i]);
+};
 
-/** The fin set's [forcing, damping]. */
-const rollRow = (page: Page) =>
-  page.evaluate(() => {
-    const t = [...document.querySelectorAll('table')].find((x) => /Roll forcing/.test(x.textContent || ''));
-    const r = [...(t?.querySelectorAll('tr') ?? [])].map((tr) => [...tr.children].map((c) => c.textContent!.trim()));
-    return r[1]?.slice(1).map(Number);
-  });
+/** The fin set's [forcing, damping], or undefined before the table has a row. */
+const rollRow = async (page: Page) => {
+  const rows = await tableRows(page, 'Roll dynamics');
+  return rows[1]?.slice(1).map(Number);
+};
 
 /**
  * Set one flight-condition field and wait for the sweep it triggers.
@@ -36,6 +32,8 @@ const setField = async (page: Page, label: string, value: string, settled?: () =
   // unit"), so a bare getByLabel('Wind dir') matches both.
   const before = settled ? JSON.stringify(await settled()) : null;
   await page.getByRole('spinbutton', { name: label }).fill(value);
+  // The condition inputs commit on blur or Enter, not per keystroke.
+  await page.getByRole('spinbutton', { name: label }).press('Enter');
   if (settled) {
     await expect
       .poll(async () => JSON.stringify(await settled()), { timeout: 15_000, message: `${label} never re-swept` })
@@ -69,13 +67,17 @@ test.describe('aero flight conditions', () => {
     await openAero(page);
 
     const still = await rollRow(page);
-    expect(still![1]).toBe(0); // damping opposes a roll rate; there is none yet
+    expect(still, 'the fin set row of the roll table').toBeDefined();
+    expect(still?.[1]).toBe(0); // damping opposes a roll rate; there is none yet
 
-    await setField(page, 'Roll rate', '20');
+    // The sweep now runs off the render path, so poll the row until it moves
+    // rather than reading straight after the commit.
+    await setField(page, 'Roll rate', '20', () => rollRow(page));
     const rolling = await rollRow(page);
     note('roll [forcing, damping] still', still, '-> rolling', rolling);
-    expect(rolling![1]).toBeGreaterThan(0);
-    expect(rolling![0]).toBeCloseTo(still![0]!, 3); // forcing is the cant, unchanged
+    expect(rolling, 'the fin set row of the roll table after the roll rate').toBeDefined();
+    expect(rolling?.[1]).toBeGreaterThan(0);
+    expect(rolling?.[0]).toBeCloseTo(still?.[0] ?? NaN, 3); // forcing is the cant, unchanged
   });
 
   test('Worst finds the wind direction where the CP sits furthest forward', async ({ page }) => {
@@ -102,9 +104,15 @@ test.describe('aero flight conditions', () => {
     const beforeWorst = await dir.inputValue();
     await page.getByRole('button', { name: 'Worst' }).click();
     await expect.poll(() => dir.inputValue(), { timeout: 15_000 }).not.toBe(beforeWorst);
-    const worst = await cp(page);
-    note('worst wind dir =', await page.getByRole('spinbutton', { name: 'Wind dir' }).inputValue(), '-> CP', worst);
     // Furthest forward is the least stable, which is the point of the button.
-    expect(worst).toBeLessThanOrEqual(Math.min(...seen) + 0.05);
+    // Polled: the direction lands in the field one render before the deferred
+    // sweep it triggers lands in the table.
+    await expect.poll(() => cp(page), { timeout: 15_000 }).toBeLessThanOrEqual(Math.min(...seen) + 0.05);
+    note(
+      'worst wind dir =',
+      await page.getByRole('spinbutton', { name: 'Wind dir' }).inputValue(),
+      '-> CP',
+      await cp(page),
+    );
   });
 });

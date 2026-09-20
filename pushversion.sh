@@ -2,5 +2,5 @@
 
 cd web
 npm run build:inc
-cd..
-source ./push.sh "%1"
+cd ..
+source ./push.sh "$1"

@@ -47,7 +47,13 @@ export function RecoverySizingReadout({ node }: { node: ComponentNode }) {
   const extraMotors = useWorkspaceStore(selectExtraMotors);
   const launch = useWorkspaceStore((s) => selectActive(s).launch);
 
-  const cd = num(node, 'cd') || 0.8;
+  // `num(..., 0.8)`, not `|| 0.8`: `nodeProps.num` already returns 0 for an
+  // absent or non-finite value, so the truthiness fallback also swallowed a
+  // deliberately stored `cd: 0` and reported a finite descent rate for a
+  // canopy with no drag - instead of the infinite rate `descentRate`'s own
+  // guard exists to render as a dash. requiredComponent lists `cd` as required
+  // precisely because 0 is invalid.
+  const cd = num(node, 'cd', 0.8);
   const diameter = num(node, 'diameter');
 
   const sizing = useMemo(() => {

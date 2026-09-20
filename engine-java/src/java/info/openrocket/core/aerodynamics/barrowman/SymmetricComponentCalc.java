@@ -1,3 +1,10 @@
+/*
+ * MODIFIED for AstraRocketJs, 2026. This file differs from upstream OpenRocket
+ * by ~400 lines: the opt-in RASAero supersonic nose and body aerodynamics, and
+ * the stubbyNoseFloor subsonic pressure-drag floor. Both are the ORIGINAL WORK
+ * of the mmrocket-sim project and are NOT part of OpenRocket, and both are
+ * default-off. See engine-java/ATTRIBUTION.md.
+ */
 package info.openrocket.core.aerodynamics.barrowman;
 
 import static info.openrocket.core.models.atmosphere.AtmosphericConditions.GAMMA;
@@ -707,8 +714,13 @@ public class SymmetricComponentCalc extends RocketComponentCalc {
 	 * three times this floor (max() would ignore it), and stubby ogives want
 	 * their own evidence.
 	 *
-	 * Opt-in: gated on rogersKbf || supersonicAero exactly like FinSetCalc's
-	 * extensions, so the classic model stays bit-identical to desktop 24.12.
+	 * Opt-in: gated on its OWN flag, stubbyNoseFloor - see the field above and
+	 * api.OpenRocketEngine.setStubbyNoseFloor. This used to say
+	 * "rogersKbf || supersonicAero exactly like FinSetCalc's extensions", which
+	 * is a DIFFERENT gate and made this a third physics flag that no comment and
+	 * no markdown file in the repo mentioned: anyone auditing "flags off means
+	 * bit-identical" checked the two documented flags and never learned this one
+	 * existed. The classic model stays bit-identical to desktop with it off.
 	 */
 	private void applyStubbyNoseFloor(LinearInterpolator interpolator, double min, boolean tableShape) {
 		if (!tableShape || !isNoseShape) {

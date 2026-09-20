@@ -103,9 +103,6 @@ export function canopyDiameter(massKg: number, rateMs: number, cd: number, rho: 
   return Math.sqrt((4 * area) / Math.PI);
 }
 
-/** m/s -> ft/s, for display alongside the SI value. */
-export const msToFtS = (v: number): number => v / FT_S;
-
 /** An accepted descent-rate window, plus the rate the SIZE line targets. */
 export interface Band {
   key: 'main' | 'drogue';

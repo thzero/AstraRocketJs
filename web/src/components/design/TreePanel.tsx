@@ -25,7 +25,8 @@ export function TreePanel() {
         onScale={() => setScaleOpen(true)}
         onAddStage={onAddStage}
       />
-      <ScaleDialog open={scaleOpen} onClose={() => setScaleOpen(false)} />
+      {/* Mounted only while open: the factor resets by unmount. */}
+      {scaleOpen && <ScaleDialog onClose={() => setScaleOpen(false)} />}
     </div>
   );
 }

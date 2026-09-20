@@ -15,6 +15,14 @@ class FakeKv implements KeyValueStore {
   async remove(k: string) {
     this.map.delete(k);
   }
+  async update(k: string, fn: (raw: string | null) => string | null) {
+    const next = fn(await this.get(k));
+    if (next === null) {
+      await this.remove(k);
+      return true;
+    }
+    return await this.set(k, next);
+  }
 }
 
 // Fresh in-memory material store per test (avoids cross-test bleed via the singleton).

@@ -18,13 +18,56 @@ class FakeKv implements KeyValueStore {
   async remove(k: string) {
     this.map.delete(k);
   }
+  async update(k: string, fn: (raw: string | null) => string | null) {
+    const next = fn(await this.get(k));
+    if (next === null) {
+      await this.remove(k);
+      return true;
+    }
+    return await this.set(k, next);
+  }
 }
+
+/**
+ * A plausible flight result.
+ *
+ * It used to be the stub `{ series: {} }`, which was enough while nothing
+ * validated stored results. `DesignLibrary.readResults` now shape-checks every
+ * entry (a stored `NaN` comes back as `null` and threw in the exporters), so a
+ * fixture has to look like a flight the app could actually have produced.
+ */
+const flight = (time: number[] = [0, 1]) =>
+  ({
+    summary: {
+      maxAltitude: 120,
+      maxVelocity: 60,
+      maxAcceleration: 90,
+      maxMachNumber: 0.18,
+      timeToApogee: 4.5,
+      flightTime: 30,
+      groundHitVelocity: 5,
+      launchRodVelocity: 18,
+      deploymentVelocity: null,
+      optimumDelay: null,
+    },
+    events: [],
+    series: {
+      time,
+      altitude: time.map(() => 1),
+      velocity: time.map(() => 1),
+      acceleration: time.map(() => 1),
+      mass: time.map(() => 1),
+      thrust: time.map(() => 1),
+      drag: time.map(() => 1),
+      mach: time.map(() => 1),
+    },
+  }) as unknown as NonNullable<Workspace['sims'][number]['result']>;
 
 const workspace = (): Workspace =>
   ({
     version: 1,
     tree: { components: [] },
-    sims: [{ id: 's1', name: 'Flight', motor: {}, launch: {}, result: { series: {} } }],
+    sims: [{ id: 's1', name: 'Flight', motor: {}, launch: {}, result: flight() }],
     activeId: 's1',
     extraMotors: {},
     loadedMeta: null,
@@ -107,7 +150,7 @@ describe('LibraryWorkspaceStore', () => {
     expect(kv.map.get(key)).toBe('SENTINEL');
 
     // A new result object IS a change.
-    const ran = { ...w, sims: [{ ...w.sims[0]!, result: { series: { time: [1] } } }] } as unknown as Workspace;
+    const ran = { ...w, sims: [{ ...w.sims[0]!, result: flight([1, 2]) }] } as unknown as Workspace;
     await store.save(ran);
     expect(kv.map.get(key)).not.toBe('SENTINEL');
     expect(kv.map.get(key)).not.toBe(first);

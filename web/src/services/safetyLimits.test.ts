@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   launchLimitViolations,
   limitText,
+  surfaceLevel,
   MAX_ROD_ANGLE_DEG,
   MAX_WIND_SPEED_MPH,
   MAX_WIND_SPEED_MS,
@@ -100,5 +101,28 @@ describe('limitText', () => {
 
   it('reports the wind plainly - it is always the wind at the pad', () => {
     expect(limitText({ field: 'windSpeed', value: 25, limit: 20 }, t)).toBe('limits.wind {"value":25,"limit":20}');
+  });
+});
+
+describe('surfaceLevel', () => {
+  // A profile listed top-down (a CSV, a .ork) has the wind aloft FIRST.
+  const topDown = [
+    { altitudeM: 3000, speed: 15, directionDeg: 270, stddev: 0 },
+    { altitudeM: 500, speed: 6, directionDeg: 200, stddev: 0 },
+    { altitudeM: 0, speed: 2, directionDeg: 90, stddev: 0 },
+  ];
+
+  it('is the lowest altitude, not the first entry', () => {
+    expect(surfaceLevel({ ...base, windLevels: topDown })).toEqual(topDown[2]);
+  });
+
+  it('is undefined without a profile', () => {
+    expect(surfaceLevel(base)).toBeUndefined();
+    expect(surfaceLevel({ ...base, windLevels: [] })).toBeUndefined();
+  });
+
+  it('is what the safety code judges the wind on', () => {
+    // 15 m/s aloft is over the limit; 2 m/s at the pad is not.
+    expect(launchLimitViolations({ ...base, windLevels: topDown })).toEqual([]);
   });
 });

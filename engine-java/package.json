@@ -16,6 +16,7 @@
     "validate": "node validation/score.mjs",
     "validate:supersonic": "node validation/score.mjs --supersonic",
     "validate:strict": "node validation/score.mjs --strict",
-    "extract:check": "node extract/extract.mjs --check"
+    "extract:check": "node extract/extract.mjs --check",
+    "extract:bless": "node extract/extract.mjs --bless"
   }
 }

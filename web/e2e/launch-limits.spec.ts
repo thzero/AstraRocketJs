@@ -1,4 +1,4 @@
-import { test, expect, openTab, runButton } from './base';
+import { test, expect, openTab, runButton, importOrk } from './base';
 
 /**
  * The NAR / Tripoli flying limits, on the path that can get around the fields.
@@ -14,9 +14,7 @@ import { test, expect, openTab, runButton } from './base';
  */
 test('an imported .ork outside the limits is flagged and refused', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
-  await page.setInputFiles('input[type=file]', 'e2e/fixtures/out-of-limits.ork');
-  await expect(page.getByText('Booster').first()).toBeVisible({ timeout: 20_000 });
+  await importOrk(page, 'e2e/fixtures/out-of-limits.ork');
 
   // The loaded banner lists what is wrong, with the numbers and the rule.
   const banner = page.getByText(/Launch rod angle is 35/);
@@ -48,9 +46,7 @@ test('an imported .ork outside the limits is flagged and refused', async ({ page
 
 test('the import notes fold away, and the name is not repeated', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
-  await page.setInputFiles('input[type=file]', 'e2e/fixtures/out-of-limits.ork');
-  await expect(page.getByText('Booster').first()).toBeVisible({ timeout: 20_000 });
+  await importOrk(page, 'e2e/fixtures/out-of-limits.ork');
 
   // The notes are open on the import that raised them.
   const note = page.getByText(/Launch rod angle is 35/);
@@ -76,9 +72,7 @@ test('the import notes fold away, and the name is not repeated', async ({ page }
 
 test('folded notes are remembered, across a reload and across designs', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
-  await page.setInputFiles('input[type=file]', 'e2e/fixtures/out-of-limits.ork');
-  await expect(page.getByText('Booster').first()).toBeVisible({ timeout: 20_000 });
+  await importOrk(page, 'e2e/fixtures/out-of-limits.ork');
 
   const note = page.getByText(/Launch rod angle is 35/);
   const toggle = page.getByRole('button', { name: /import note/ });
@@ -95,9 +89,7 @@ test('folded notes are remembered, across a reload and across designs', async ({
   // the next file either, which is what "not per rocket" means), and it does not
   // depend on the autosave debounce having beaten the reload.
   await page.reload();
-  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
-  await page.setInputFiles('input[type=file]', 'e2e/fixtures/out-of-limits.ork');
-  await expect(page.getByText('Booster').first()).toBeVisible({ timeout: 20_000 });
+  await importOrk(page, 'e2e/fixtures/out-of-limits.ork');
 
   await expect(toggle).toBeVisible();
   await expect(note).toHaveCount(0);

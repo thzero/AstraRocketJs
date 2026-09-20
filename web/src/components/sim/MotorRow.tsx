@@ -122,15 +122,20 @@ export function MotorRow({
           upperStage={upperStage}
         />
       )}
-      <MotorDialog
-        open={open}
-        onClose={() => setOpen(false)}
-        onSelect={onChange}
-        onError={onError}
-        mountDiameter={mountDiameter}
-        current={motor}
-      />
-      {hasCurve && motor && <MotorSpecDialog motor={motor} open={curveOpen} onClose={() => setCurveOpen(false)} />}
+      {/* Mounted only while OPEN, so each opening starts from fresh state:
+          mounted permanently and returning null when closed, the picker kept
+          the previous motor's ejection delay across a reopen and fetched the
+          catalog on app start. */}
+      {open && (
+        <MotorDialog
+          onClose={() => setOpen(false)}
+          onSelect={onChange}
+          onError={onError}
+          mountDiameter={mountDiameter}
+          current={motor}
+        />
+      )}
+      {curveOpen && hasCurve && motor && <MotorSpecDialog motor={motor} onClose={() => setCurveOpen(false)} />}
     </section>
   );
 }

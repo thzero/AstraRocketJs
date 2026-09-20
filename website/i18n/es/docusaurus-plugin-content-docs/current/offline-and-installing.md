@@ -39,7 +39,11 @@ Instalarla le da su propio icono y su propia ventana, sin pestañas ni barra de 
 
 ## Actualizaciones {#updates}
 
-Cuando se publica una versión nueva, aparece un pequeño mensaje que ofrece **recargar**. No se recargará por su cuenta, porque eso podría interrumpir un diseño a medias. Ciérralo y seguirás usando la versión actual hasta que recargues, cuando te venga bien.
+Cuando se publica una versión nueva, aparece un pequeño mensaje en la parte inferior de la ventana que ofrece **recargar**. No se recargará por su cuenta, porque eso podría interrumpir un diseño a medias, y por la misma razón no es un diálogo: dice lo suyo y te deja terminar lo que estabas escribiendo.
+
+**Más tarde** lo guarda y lo vuelve a mostrar al cabo de un par de horas. La **✕** mantiene la versión actual hasta que recargues, cuando te venga bien.
+
+La aplicación busca versiones nuevas más o menos una vez por hora, y de nuevo cada vez que vuelves a la pestaña o se restablece la conexión, así que una pestaña abierta todo el día también se entera de que se ha publicado algo.
 
 Los catálogos de motores y componentes se actualizan aparte de la propia aplicación, en segundo plano, así que los motores nuevos te llegan sin necesidad de actualizarla.
 

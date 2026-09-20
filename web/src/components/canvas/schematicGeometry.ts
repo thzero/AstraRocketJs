@@ -1,9 +1,11 @@
-import type { ComponentNode, ComponentPosition, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
+import type { ComponentNode, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
 import { num, numOpt } from '../../tree/nodeProps';
-import { axialLength, freeformPoints, startFromPosition } from '../../tree/position.js';
+import { axialLength, axialStart } from '../../tree/position.js';
+import { finSpan } from '../../tree/finPlanform.js';
 import { outerProfile } from '../../tree/shapeProfile.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { assemblyBoundingRadius, isAssembly, resolveAssemblyRadius } from '../../tree/assembly.js';
+import type { StabilityState } from '../../services/simReport.js';
 
 export interface Ctx {
   scale: number;
@@ -25,7 +27,15 @@ export const CALLOUT_LANES = 34;
 const LANE_GAP = 13;
 
 /** A "nice" ruler tick step (meters) giving ~8 marks across `totalM`. */
-export function niceStep(totalM: number): number {
+/**
+ * A nice RULER graduation for a drawing that spans `totalM`.
+ *
+ * Divides by 8 before rounding and has a 2.5 rung, unlike
+ * `prefs/units.niceStep`, which rounds its argument directly on a 1-2-5
+ * ladder. Renamed from `niceStep` because the two were indistinguishable at
+ * an import site and are not interchangeable.
+ */
+export function niceRulerStep(totalM: number): number {
   const target = Math.max(totalM, 1e-6) / 8;
   const pow = Math.pow(10, Math.floor(Math.log10(target)));
   for (const c of [1, 2, 2.5, 5, 10]) if (c * pow >= target) return c * pow;
@@ -109,10 +119,10 @@ export function finTabFront(n: ComponentNode, finLen: number): number {
   return offset + (finLen - tabLen) / 2;
 }
 
-export function axialStart(child: ComponentNode, childLen: number, pStart: number, pLen: number): number {
-  const pos = (child.position ?? { method: 'top', offset: 0 }) as ComponentPosition;
-  return pStart + startFromPosition(pos, childLen, pLen);
-}
+// One implementation, in the tree layer. This file carried its own copy
+// (and Rocket3D a third, which disagreed on `absolute`); the canvas re-exports
+// so its importers keep working.
+export { axialStart };
 
 export function collect<T>(nodes: ComponentNode[], f: (n: ComponentNode) => T): T[] {
   const out: T[] = [];
@@ -212,17 +222,13 @@ export function computeSchematicLayout(
   // A fin set's vertical span: freeform fins carry no 'height' key — their
   // reach is the outline's y-max (the 0.03 default clipped tall freeform fins
   // out of the adaptive-height frame).
-  const finSpan = (n: ComponentNode, bodyR: number): number => {
+  const spanOf = (n: ComponentNode, bodyR: number): number => {
     if (!n.type.endsWith('finset')) return 0;
-    if (n.type === 'freeformfinset') {
-      // Normalized: the kernel translates the outline by -p0 in BOTH axes, so
-      // the span above the body is measured from the first point, not from 0.
-      const pts = freeformPoints(n);
-      if (pts.length > 0) return Math.max(0, ...pts.map((p) => Number(p[1]) || 0));
-    }
-    // Tube fins reach one tube diameter above the body surface.
+    // Tube fins reach one tube diameter above the body surface; every planar
+    // fin defers to the shared span (tree/finPlanform.ts) so this view cannot
+    // drift from the exports about how tall a fin is.
     if (n.type === 'tubefinset') return 2 * tubeFinRadius(n, bodyR);
-    return num(n, 'height', 0.03);
+    return finSpan(n);
   };
   /**
    * Fin spans under `nodes`, each measured against the radius of the body it is
@@ -240,7 +246,7 @@ export function computeSchematicLayout(
     const out: number[] = [];
     const walk = (ns: ComponentNode[], r: number) => {
       for (const n of ns) {
-        out.push(finSpan(n, r));
+        out.push(spanOf(n, r));
         if (n.children?.length) {
           const own = Math.max(num(n, 'aftRadius', 0), num(n, 'outerRadius', 0), num(n, 'foreRadius', 0));
           walk(n.children, own > 0 ? own : r);
@@ -341,4 +347,142 @@ export function computeSchematicLayout(
   const x0 = Math.max(pad + rLeft, (w - totalLen * scale) / 2);
   const ctx: Ctx = { scale, cy: (h + rTop - rBot) / 2, x0 };
   return { chain, totalLen, maxR, vHalf, snapXs, radialSnaps, rTop, rBot, rLeft, rRight, w, h, scale, ctx };
+}
+
+/**
+ * A component's own `color` override, else the caller's default. The 2D side
+ * view, the aft view and the 3D builder each carried a private copy of this
+ * one-liner; one definition means one place for the override rule to change.
+ */
+export const colorOf = (n: ComponentNode, dflt: string): string =>
+  typeof n['color'] === 'string' ? (n['color'] as string) : dflt;
+
+/** Loaded motor case dimensions (m) keyed by mount node id. The one shape every
+ *  view takes; Rocket3D re-exports it for the store's import site. */
+export type MotorDims = Record<string, { length: number; diameter: number; label?: string }>;
+
+/** Same tiered glyphs for the stability verdict wherever a view prints one:
+ *  warning sign (under), triangle (over), check mark (ok). */
+export const STABILITY_GLYPH: Record<StabilityState, string> = {
+  under: '⚠',
+  over: '△',
+  ok: '✓',
+};
+
+/** View transform of a zoomable SVG drawing: scale `k` about the origin, then
+ *  translate by (x, y), all in viewBox units. Identity = whole drawing fits. */
+export interface ZoomState {
+  k: number;
+  x: number;
+  y: number;
+}
+
+export const ZOOM_IDENTITY: ZoomState = { k: 1, x: 0, y: 0 };
+
+/**
+ * Rescale a view to `k` keeping the drawing point under (px, py) fixed on
+ * screen; snaps back to identity at k = 1 so a fully zoomed-out view is also
+ * un-panned. Returns the same object when nothing changes so a state setter
+ * can bail out.
+ */
+export function zoomAbout(z: ZoomState, px: number, py: number, k: number): ZoomState {
+  if (k === z.k) return z;
+  if (k === 1) return ZOOM_IDENTITY;
+  const mx = (px - z.x) / z.k;
+  const my = (py - z.y) / z.k;
+  return { k, x: px - mx * k, y: py - my * k };
+}
+
+/** Drawn extent (layout px) of one component, unioned across its instances. */
+export interface HoverBox {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+export const unionBox = (a: HoverBox, b: HoverBox): HoverBox => ({
+  x0: Math.min(a.x0, b.x0),
+  y0: Math.min(a.y0, b.y0),
+  x1: Math.max(a.x1, b.x1),
+  y1: Math.max(a.y1, b.y1),
+});
+
+/**
+ * Where the hover name tag sits for a hovered box: centered over it, clamped
+ * inside the viewBox, above the component unless that leaves the viewBox and
+ * then below. Pure so the hover decoration can be derived per render from a
+ * memoized extent map instead of rebuilding the whole scene per hover.
+ */
+export function hoverTagFor(box: HoverBox, name: string, w: number, h: number): { x: number; y: number; tw: number } {
+  const tw = name.length * 6.2 + 14;
+  return {
+    x: Math.min(w - tw / 2 - 2, Math.max(tw / 2 + 2, (box.x0 + box.x1) / 2)),
+    y: box.y0 - 22 >= 2 ? box.y0 - 13 : Math.min(h - 11, box.y1 + 13),
+    tw,
+  };
+}
+
+/** The four graduation arrays a TreeSchematic ruler frame draws. */
+export interface RulerGraduations {
+  /** Labeled majors along the length rulers, model meters from the nose. */
+  rulerMarks: number[];
+  /** Labeled majors along the radial rulers: viewBox y plus the label (meters). */
+  vTicks: { y: number; label: number }[];
+  /** Minor subdivisions of the above (5 per major), model meters. */
+  rulerMinorMarks: number[];
+  vMinorTicks: number[];
+}
+
+/**
+ * The ruler graduations: labeled majors every `rulerStep` meters across the
+ * viewport, plus minor subdivisions at a fifth of that. Pure so the schematic
+ * can memoize it on primitives; `x0` is the datum (model 0) in viewBox px,
+ * `rulerX0..rulerX1` the length baseline's extent, `vTop` and `vSpanM` the
+ * radial ruler's start (viewBox px) and length (meters).
+ */
+export function rulerGraduations({
+  showLen,
+  showRad,
+  rulerStep,
+  rulerX0,
+  rulerX1,
+  x0,
+  scale,
+  vSpanM,
+  vTop,
+}: {
+  showLen: boolean;
+  showRad: boolean;
+  rulerStep: number;
+  rulerX0: number;
+  rulerX1: number;
+  x0: number;
+  scale: number;
+  vSpanM: number;
+  vTop: number;
+}): RulerGraduations {
+  const marks: number[] = [];
+  if (showLen) {
+    const mLo = Math.ceil((rulerX0 - x0) / scale / rulerStep - 1e-6) * rulerStep;
+    const mHi = (rulerX1 - x0) / scale;
+    for (let m = mLo; m <= mHi + 1e-6; m += rulerStep) marks.push(m);
+  }
+  const ticks: { y: number; label: number }[] = [];
+  if (showRad) for (let m = 0; m <= vSpanM + 1e-6; m += rulerStep) ticks.push({ y: vTop + m * scale, label: m });
+  // Minor subdivisions: 10 per labeled major, plus a taller "medium" tick at
+  // the half-major, for a properly graduated ruler.
+  const minorMarks: number[] = [];
+  const minorTicks: number[] = [];
+  if (showLen) {
+    const minorX = rulerStep / 5;
+    const mLo = Math.ceil((rulerX0 - x0) / scale / minorX - 1e-6) * minorX;
+    const mHi = (rulerX1 - x0) / scale;
+    for (let m = mLo; m <= mHi + 1e-6; m += minorX) minorMarks.push(m);
+  }
+  if (showRad) {
+    const minorV = rulerStep / 5;
+    for (let m = 0; m <= vSpanM + 1e-6; m += minorV) minorTicks.push(m);
+  }
+  return { rulerMarks: marks, vTicks: ticks, rulerMinorMarks: minorMarks, vMinorTicks: minorTicks };
 }

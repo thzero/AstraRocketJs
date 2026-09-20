@@ -9,6 +9,7 @@ import { useUnits, type Units } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { LAUNCH_SI, type LaunchUnitKind } from '../../prefs/launchUnits';
 import { MAX_ROD_ANGLE_RAD, MAX_WIND_SPEED_MS } from '../../services/safetyLimits';
+import { G0 } from '../../services/motorMath';
 import { hasIntensity, stdDevForIntensity, turbulenceIntensity, turbulenceLevel } from '../../services/windTurbulence';
 import { WindProfileDialog } from './WindProfileDialog';
 
@@ -209,6 +210,12 @@ export function LaunchPanel({
   const { t } = useTranslation();
   const u = useUnits();
   const [profileOpen, setProfileOpen] = useState(false);
+  // Geolocation is a 10 s round trip that can simply be refused, and both
+  // outcomes used to be invisible: the error callback was an empty block and
+  // there was no pending state, so pressing the button appeared to do nothing
+  // and users pressed it again.
+  const [locating, setLocating] = useState(false);
+  const [locateErr, setLocateErr] = useState<string | null>(null);
   const mixed = (k: keyof LaunchConditions) => diff?.has(k) ?? false;
   // Empty required fields on the simulation being shown. The SETTINGS copy of
   // this panel never has any: it fills blanks from the previous default,
@@ -308,7 +315,10 @@ export function LaunchPanel({
             stepSi={(5 * Math.PI) / 180}
             mixed={mixed('launchRodDirectionDeg')}
             value={launch.launchRodDirectionDeg ?? 90}
-            onChange={(v) => onChange({ launchRodDirectionDeg: v ?? 0 })}
+            // Cleared is CLEARED, as `longitudeDeg` below: the box shows 90
+            // when unset, so writing 0 for an emptied field silently turned
+            // the default east into north.
+            onChange={(v) => onChange({ launchRodDirectionDeg: v ?? undefined })}
           />
         )}
       </Group>
@@ -320,6 +330,11 @@ export function LaunchPanel({
           kind="distance"
           u={u}
           stepSi={10}
+          // Dead Sea shore to above any launch site: the kernel's atmosphere
+          // model takes this straight, and it was one of two site fields left
+          // unbounded after every sibling was given a range.
+          minSi={-500}
+          maxSi={10000}
           mixed={mixed('launchAltitudeM')}
           {...req('launchAltitudeM')}
           value={launch.launchAltitudeM}
@@ -351,9 +366,13 @@ export function LaunchPanel({
         />
         {'geolocation' in navigator && (
           <button
-            onClick={() =>
+            onClick={() => {
+              setLocateErr(null);
+              setLocating(true);
               navigator.geolocation.getCurrentPosition(
                 (pos) => {
+                  setLocating(false);
+                  setLocateErr(null);
                   onChange({
                     latitudeDeg: +pos.coords.latitude.toFixed(4),
                     longitudeDeg: +pos.coords.longitude.toFixed(4),
@@ -361,16 +380,28 @@ export function LaunchPanel({
                   onCommit?.();
                 },
                 () => {
-                  /* denied or unavailable — leave the fields as they are */
+                  // Denial used to produce no visible change whatsoever, so
+                  // the user pressed the button again. There is a 10 s
+                  // timeout behind it too, with nothing on screen either way.
+                  setLocating(false);
+                  setLocateErr(t('launch.locationDenied'));
                 },
                 { timeout: 10000 },
-              )
-            }
-            className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+              );
+            }}
+            disabled={locating}
+            className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-60"
           >
-            📍 {t('launch.useLocation')}
+            📍 {locating ? t('launch.locating') : t('launch.useLocation')}
           </button>
         )}
+        {/* Always mounted, empty until there is something to say: a live
+            region created together with its text is not announced by most
+            screen readers (see UpdateToast), so the refusal was silent to the
+            people who cannot see the amber line. */}
+        <p role="status" aria-live="polite" className="mt-1 text-[11px] leading-snug text-amber-400">
+          {locateErr}
+        </p>
       </Group>
 
       <Group title={t('launch.atmosphere')}>
@@ -378,6 +409,11 @@ export function LaunchPanel({
           label={t('launch.temperature')}
           field="temperature"
           kind="degC"
+          // Below absolute zero is not a launch condition. These three were
+          // the only QNums with neither bound while every sibling is bounded,
+          // and they go straight to the kernel's atmosphere model.
+          minSi={-90}
+          maxSi={70}
           u={u}
           stepSi={1}
           placeholder={t('launch.isa')}
@@ -391,6 +427,10 @@ export function LaunchPanel({
           kind="hPa"
           u={u}
           stepSi={100}
+          // Stored in hPa; bounds are SI (Pa), as for every QNum. 300 hPa is
+          // the top of Everest, 1100 hPa is past any recorded surface high.
+          minSi={30_000}
+          maxSi={110_000}
           placeholder={t('launch.isa')}
           mixed={mixed('pressureHPa')}
           value={launch.pressureHPa}
@@ -506,7 +546,8 @@ export function LaunchPanel({
               stepSi={(5 * Math.PI) / 180}
               mixed={mixed('windDirectionDeg')}
               value={launch.windDirectionDeg ?? 90}
-              onChange={(v) => onChange({ windDirectionDeg: v ?? 0 })}
+              // See the rod direction: an emptied box goes back to unset.
+              onChange={(v) => onChange({ windDirectionDeg: v ?? undefined })}
             />
           </>
         ) : (
@@ -566,19 +607,21 @@ export function LaunchPanel({
             stepSi={0.01}
             minSi={0}
             mixed={mixed('constantGravity')}
-            value={launch.constantGravity ?? 9.80665}
-            onChange={(v) => onChange({ constantGravity: v ?? 9.80665 })}
+            value={launch.constantGravity ?? G0}
+            onChange={(v) => onChange({ constantGravity: v ?? G0 })}
           />
         )}
       </Group>
 
-      <WindProfileDialog
-        open={profileOpen}
-        launch={launch}
-        onChange={onChange}
-        onCommit={onCommit}
-        onClose={() => setProfileOpen(false)}
-      />
+      {/* Mounted only while open: its error line and row keys reset by unmount. */}
+      {profileOpen && (
+        <WindProfileDialog
+          launch={launch}
+          onChange={onChange}
+          onCommit={onCommit}
+          onClose={() => setProfileOpen(false)}
+        />
+      )}
     </div>
   );
 }

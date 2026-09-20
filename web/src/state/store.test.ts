@@ -29,6 +29,12 @@ const s = () => useWorkspaceStore.getState();
 const len = (id: string): number | undefined => findNode(s().tree, id)?.length as number | undefined;
 const active = () => selectActive(s());
 
+// Several describes queue `mockRejectedValueOnce` / `mockImplementationOnce`
+// on the shared sim stub. If an assertion throws before the run consumes the
+// queued value, it leaks into the next test as an unrelated "kernel exploded".
+// Reset the queue for every test, not only in the describes that remembered to.
+beforeEach(() => simulateMock.mockReset());
+
 describe('workspace undo/redo', () => {
   beforeEach(() => {
     // Reset to the default design; this also clears the history stacks.
@@ -384,7 +390,9 @@ describe('simulation run guards', () => {
     simulateMock.mockRejectedValueOnce(new Error('kernel exploded'));
     await s().runSim({} as SimPrefs);
 
-    expect(s().err).toBe('kernel exploded');
+    // Named, like the skip messages already were: a failure is reported once
+    // per row so a batch cannot collapse into one anonymous line.
+    expect(s().err).toBe('"Simulation 1" failed: kernel exploded');
     expect(s().simBusy).toBe(false);
     expect(selectRunFailed(s())).toBe(true); // auto-run must not retry this
   });
@@ -804,10 +812,11 @@ describe('openDesign is race-safe', () => {
       },
       write: async () => true,
       create: async () => ({ id: 'X', name: 'X', updatedAt: 0 }),
-      rename: async () => {},
-      remove: async () => {},
+      rename: async () => true,
+      remove: async () => true,
       setActive: async (id: string) => {
         active.push(id);
+        return true;
       },
     } as never);
 
@@ -924,13 +933,14 @@ describe('saveDesign asks the library, not the cached activeDesignId', () => {
       activeId: async () => activeId,
       read: async () => null,
       write: async () => true,
+      writeResults: async () => true,
       create: async (name: string) => {
         created.push(name);
         return { id: 'new', name, updatedAt: 0 };
       },
-      rename: async () => {},
-      remove: async () => {},
-      setActive: async () => {},
+      rename: async () => true,
+      remove: async () => true,
+      setActive: async () => true,
     }) as never;
 
   beforeEach(() => s().resetWorkspace());
@@ -950,7 +960,72 @@ describe('saveDesign asks the library, not the cached activeDesignId', () => {
 
   it('still reports "never named" when the library really has no active design', async () => {
     setDesignLibrary(libWith(null, []));
-    expect(await s().saveDesign()).toBe(false); // Save As is correct here
+    expect(await s().saveDesign()).toBe('unnamed'); // Save As is correct here
+  });
+
+  /**
+   * A refused write used to be swallowed inside flushActive() and Save returned
+   * `true`: the user hit Save within the autosave debounce on a full store and
+   * saw it succeed with nothing written. Now it is a distinct outcome from
+   * "never named", and the banner goes up here rather than in a Save As the
+   * store would refuse the same way.
+   */
+  it('reports a refused write as false and raises the storage banner', async () => {
+    setDesignLibrary(Object.assign(libWith('autosaved-1', []) as object, { write: async () => false }) as never);
+    getWorkspaceStore().setActiveId?.('autosaved-1');
+    expect(await s().saveDesign()).toBe(false);
+    expect(s().storageWarning).toBeTruthy();
+    expect(s().storageWarningKind).toBe('full');
+  });
+});
+
+/**
+ * Every library call that reports a refused write returns a boolean, and the
+ * store used to discard all of them. For openDesign the consequence was the
+ * one designLibrary.setActive documents: this session edits B while the
+ * library still names A, and the next launch reopens A.
+ */
+describe('openDesign honors a refused setActive', () => {
+  beforeEach(() => s().resetWorkspace());
+
+  it('does not switch the workspace, and raises the banner', async () => {
+    const before = s().tree;
+    setDesignLibrary({
+      list: async () => [{ id: 'b', name: 'B', updatedAt: 0 }],
+      activeId: async () => 'a',
+      read: async () => ({
+        version: 1,
+        tree: { name: 'B-TREE', components: [] },
+        sims: [{ ...s().sims[0]!, name: 'B sim' }],
+        activeId: 'x',
+        loadedMeta: null,
+      }),
+      write: async () => true,
+      create: async () => ({ id: 'n', name: 'n', updatedAt: 0 }),
+      rename: async () => true,
+      remove: async () => true,
+      setActive: async () => false,
+    } as never);
+    await s().openDesign('b');
+    expect(s().tree).toBe(before);
+    expect(s().storageWarningKind).toBe('full');
+  });
+
+  it('rejects a blob whose tree.components is not an array, like the boot path does', async () => {
+    const before = s().tree;
+    setDesignLibrary({
+      list: async () => [],
+      activeId: async () => null,
+      read: async () => ({ version: 1, tree: { components: 'nope' }, sims: [], activeId: 'x', loadedMeta: null }),
+      write: async () => true,
+      create: async () => ({ id: 'n', name: 'n', updatedAt: 0 }),
+      rename: async () => true,
+      remove: async () => true,
+      setActive: async () => true,
+    } as never);
+    await s().openDesign('corrupt');
+    expect(s().tree).toBe(before);
+    expect(s().err).toBeTruthy();
   });
 });
 
@@ -1039,9 +1114,9 @@ describe('what reaches storage', () => {
       readResults: async () => ({}),
       writeResults: async () => true,
       create: async () => ({ id: 'D', name: 'D', updatedAt: 0 }),
-      rename: async () => {},
-      remove: async () => {},
-      setActive: async () => {},
+      rename: async () => true,
+      remove: async () => true,
+      setActive: async () => true,
     } as never);
 
     await s().saveDesign();
@@ -1051,5 +1126,53 @@ describe('what reaches storage', () => {
     expect(written).toContain('maxAltitude');
     expect(written).toContain('launch'); // …alongside the inputs
     save.mockRestore();
+  });
+});
+
+describe('replacing the workspace resets the transient run state', () => {
+  const dirty = () =>
+    useWorkspaceStore.setState({
+      simRuns: { ghost: { phase: 'queued' } as never },
+      lastRunIds: ['ghost'],
+      resultSimId: 'ghost',
+      selectedSimIds: ['ghost'],
+      simBusy: true,
+      err: 'left over from the previous design',
+    });
+  const clean = () => {
+    expect(s().simRuns).toEqual({});
+    expect(s().lastRunIds).toEqual([]);
+    expect(s().resultSimId).toBeNull();
+    expect(s().selectedSimIds).toEqual([]);
+    expect(s().simBusy).toBe(false);
+    expect(s().err).toBeNull();
+  };
+
+  it('resetWorkspace clears all of it, including err', () => {
+    dirty();
+    s().resetWorkspace();
+    clean();
+    expect(s().activeDesignId).toBeNull();
+  });
+
+  it('hydrate clears all of it', () => {
+    s().resetWorkspace();
+    const snapshot = { tree: s().tree, sims: s().sims, activeId: s().activeId, loadedMeta: null };
+    dirty();
+    s().hydrate(snapshot as never);
+    clean();
+    expect(s().hydrationGen).toBeGreaterThan(0);
+  });
+
+  it('happens in ONE set: no subscriber sees the new design with the old run state', () => {
+    dirty();
+    const seen: { tree: unknown; err: string | null; simBusy: boolean }[] = [];
+    const before = s().tree;
+    const unsub = useWorkspaceStore.subscribe((st) => seen.push({ tree: st.tree, err: st.err, simBusy: st.simBusy }));
+    s().resetWorkspace();
+    unsub();
+    // Every notification that carries the new tree carries the reset too.
+    for (const st of seen) if (st.tree !== before) expect([st.err, st.simBusy]).toEqual([null, false]);
+    expect(seen.some((st) => st.tree !== before)).toBe(true);
   });
 });

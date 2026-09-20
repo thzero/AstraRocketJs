@@ -21,6 +21,7 @@
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TARGET_COMPLETE, writeStdoutSync } from './stdout-sync.mjs';
@@ -164,6 +165,16 @@ function runTarget(target) {
 const norm = (s) => s.split(/\r?\n/).map((l) => l.trimEnd()).filter(Boolean);
 const jvm = norm(jvmRaw);
 
+// A reference that printed NOTHING used to compare equal to a target that
+// printed nothing: Math.max(0, 0) is 0, the loop below never runs, and the
+// script said `parity ok: 0 lines`. Only golden.txt caught it, which made the
+// physics gate load-bearing for a fidelity failure it was never meant to cover.
+if (!jvm.length) {
+  console.error('PARITY FAILURE: the JVM reference produced no output at all.');
+  console.error('  Nothing was compared. This is a harness or build failure, not a pass.');
+  process.exit(1);
+}
+
 const REL_TOL_DEFAULT = 1e-13;   // static/instantaneous calcs stay bit-identical (JS Math ULP only)
 // Flight (time-integrated) tolerances — full diagnosis in
 // ../../../docs/flight-parity-determinism.md (summary in engine-java/README.md
@@ -179,7 +190,22 @@ const ABS_TOL_FLIGHT = 1e-4;     // near-zero flight quantities (small velocitie
 const REL_TOL_TURBULENT = 5e-2;  // chaotic gusty wind: platforms take different valid trajectories (worst ~3.2e-2)
 const ABS_SLACK_SERIESLENS = 25; // chaotic wind flights differ in sample count (worst 517 vs 534)
 
-function linesMatch(a, b) {
+// The golden comparison does NOT need the cross-platform headroom.
+//
+// Those tolerances exist so a golden recorded on one OS does not trip on
+// another over ULP noise in the integrated flight, and the worst drift ever
+// observed is 1.9e-3. But golden is a same-machine comparison of the JVM run
+// against a committed file, and reusing 5e-3 for it left a measured blind band:
+// apogee could move 1.65 m, flight time 0.51 s and every event time 0.5%, all
+// silently. Measured, not estimated - perturbing a golden copy by +0.49%
+// passed and +0.6% failed.
+//
+// 3e-3 is still above the worst observed cross-platform drift, so a golden
+// recorded elsewhere is not going to start failing; it just halves the band a
+// real regression can hide in. Same reasoning for the turbulent lines.
+const GOLDEN_TOL_SCALE = 0.6; // 5e-3 -> 3e-3, 5e-2 -> 3e-2
+
+function linesMatch(a, b, forGolden = false) {
   if (a === b) return 'exact';
   if (a === undefined || b === undefined) return false;
   const fa = a.split('|');
@@ -188,8 +214,13 @@ function linesMatch(a, b) {
   const isFlight = fa[0].startsWith('flight.');
   const isTurbulent = fa[0].startsWith('flight.conditions');
   const isSeriesLens = fa[0] === 'flight.conditions.serieslens';
-  const relTol = isTurbulent ? REL_TOL_TURBULENT : isFlight ? REL_TOL_FLIGHT : REL_TOL_DEFAULT;
-  const absTol = isSeriesLens ? ABS_SLACK_SERIESLENS : isFlight ? ABS_TOL_FLIGHT : 0;
+  const scale = forGolden ? GOLDEN_TOL_SCALE : 1;
+  const relTol = (isTurbulent ? REL_TOL_TURBULENT : isFlight ? REL_TOL_FLIGHT : REL_TOL_DEFAULT) * scale;
+  // The absolute escape is NOT scaled away for series lengths (a chaotic wind
+  // flight genuinely differs in sample count) but IS for ordinary flight
+  // fields, where 1e-4 absolute on a descent acceleration of ~5.9e-4 was a 17%
+  // free change and `flight.sample.0` - all zeros - was unconstrained entirely.
+  const absTol = isSeriesLens ? ABS_SLACK_SERIESLENS : isFlight ? ABS_TOL_FLIGHT * scale : 0;
   let ulp = false;
   for (let i = 1; i < fa.length; i++) {
     if (fa[i] === fb[i]) continue;
@@ -214,6 +245,10 @@ for (const target of targets) {
   let ulpLines = 0;
   let exactLines = 0;
   const n = Math.max(jvm.length, out.length);
+  if (n === 0) {
+    console.error(`PARITY FAILURE${label(target)}: no output from either side.`);
+    process.exit(1);
+  }
   for (let i = 0; i < n; i++) {
     const m = linesMatch(jvm[i], out[i]);
     if (m === 'exact') exactLines++;
@@ -245,35 +280,106 @@ if (exceptions.length) {
 }
 
 // --- golden values: did the PHYSICS change? --------------------------------
+//
+// This is the ONLY check here that looks at the source rather than the compile.
+// Parity proves TeaVM translated our Java faithfully; three targets agreeing on
+// a wrong coefficient is still three targets agreeing. So this file is what
+// stands between a changed number and a green build, and it is protected
+// accordingly:
+//
+//   - a MISSING golden.txt fails (it used to warn and exit 0, so `git rm`ing it
+//     switched the physics gate off with CI still green);
+//   - the header carries a sha256 of the data lines, re-verified on every run,
+//     so hand-editing one value to make a regression pass fails instead;
+//   - --golden compares BEFORE it overwrites and prints what it is about to
+//     change, so the regeneration transcript names the movement.
 const goldenPath = join(here, 'golden.txt');
-if (writeGolden) {
-  writeFileSync(goldenPath, jvm.join('\n') + '\n');
-  say(`parity: wrote ${jvm.length} golden line(s) -> test/parity/golden.txt`);
-} else if (!existsSync(goldenPath)) {
-  console.warn('parity: no test/parity/golden.txt - run with --golden to create it.');
-} else {
-  const golden = norm(readFileSync(goldenPath, 'utf8'));
-  // Same tolerances as the cross-platform comparison: a golden recorded on one
-  // OS must not trip on another over ULP noise in the integrated flight.
+const GOLDEN_MAGIC = '# golden v1';
+
+const goldenDigest = (lines) => createHash('sha256').update(lines.join('\n') + '\n').digest('hex');
+
+const readGolden = () => {
+  const all = readFileSync(goldenPath, 'utf8').split(/\r?\n/).map((l) => l.trimEnd());
+  return {
+    header: all.find((l) => l.startsWith(GOLDEN_MAGIC)) ?? null,
+    data: all.filter((l) => l && !l.startsWith('#')),
+  };
+};
+
+// Returns the number of moved values, printing the first 10.
+const compareGolden = (golden, what) => {
   let moved = 0;
   const gn = Math.max(golden.length, jvm.length);
   for (let i = 0; i < gn; i++) {
-    if (!linesMatch(golden[i], jvm[i])) {
+    if (!linesMatch(golden[i], jvm[i], true)) {
       if (moved < 10) {
-        console.error(`GOLDEN line ${i + 1}:`);
+        console.error(`${what} line ${i + 1}:`);
         console.error(`  expected: ${golden[i] ?? '<missing>'}`);
         console.error(`  actual  : ${jvm[i] ?? '<missing>'}`);
       }
       moved++;
     }
   }
+  return { moved, gn };
+};
+
+if (writeGolden) {
+  // Say what is being overwritten before overwriting it.
+  if (existsSync(goldenPath)) {
+    const { data } = readGolden();
+    const { moved, gn } = compareGolden(data, 'GOLDEN MOVED');
+    say(moved
+      ? `parity: --golden is overwriting ${moved} moved value(s) of ${gn}. Say WHY in the commit message.`
+      : 'parity: --golden rewrote an unchanged golden (no values moved).');
+  }
+  let commit = 'unknown';
+  try {
+    commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: engineRoot, encoding: 'utf8' }).trim();
+  } catch { /* not a checkout, or no git: provenance degrades, the sha256 does not */ }
+  const header = [
+    `${GOLDEN_MAGIC} sha256=${goldenDigest(jvm)} lines=${jvm.length} generated=${new Date().toISOString()} commit=${commit}`,
+    '# The JVM reference output, recorded deliberately with `npm run parity:golden`.',
+    '# parity.mjs re-verifies the sha256 above on every run, so a hand-edited value',
+    '# here fails the gate instead of quietly becoming the new truth.',
+    '',
+  ].join('\n');
+  writeFileSync(goldenPath, `${header}${jvm.join('\n')}\n`);
+  say(`parity: wrote ${jvm.length} golden line(s) -> test/parity/golden.txt`);
+} else if (!existsSync(goldenPath)) {
+  console.error('PARITY FAILURE: test/parity/golden.txt is missing.');
+  console.error('  The physics gate cannot run. If this is a first-time setup, create it');
+  console.error('  with `npm run parity:golden`; otherwise restore it, because deleting it');
+  console.error('  is indistinguishable from switching the gate off.');
+  process.exit(1);
+} else {
+  const { header, data } = readGolden();
+  if (!header) {
+    console.error('PARITY FAILURE: golden.txt has no provenance header.');
+    console.error('  Re-record it with `npm run parity:golden`.');
+    process.exit(1);
+  }
+  const claimed = /sha256=([0-9a-f]{64})/.exec(header);
+  if (!claimed) {
+    console.error(`PARITY FAILURE: golden.txt header carries no sha256:\n  ${header}`);
+    process.exit(1);
+  }
+  const actual = goldenDigest(data);
+  if (actual !== claimed[1]) {
+    console.error('PARITY FAILURE: golden.txt does not match its own sha256.');
+    console.error(`  header: ${claimed[1]}`);
+    console.error(`  actual: ${actual}`);
+    console.error('  The file was edited by hand. Re-record it with `npm run parity:golden`');
+    console.error('  so the change is a deliberate, reviewable regeneration.');
+    process.exit(1);
+  }
+  const { moved, gn } = compareGolden(data, 'GOLDEN');
   if (moved) {
     console.error(`GOLDEN FAILURE: ${moved} value(s) of ${gn} moved.`);
     console.error('The physics changed. If that was deliberate, re-run with --golden and');
     console.error('say in the commit message WHY the numbers moved.');
     process.exit(1);
   }
-  say(`golden ok: ${golden.length} reference value(s) unchanged`);
+  say(`golden ok: ${data.length} reference value(s) unchanged`);
 }
 
 // --- exit: nothing from here up may need the event loop ---------------------

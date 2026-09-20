@@ -1,5 +1,6 @@
 import type { RocketTree } from '../engine/openRocketEngine';
 import { findNode } from './treeEdit';
+import { parentRadiusOf } from '../tree/finPlanform';
 import { solidForNode, discSolid } from './solidMesh';
 import { solidToStl, solidToObj, solidToGlb, STL_MIME, OBJ_MIME, GLB_MIME } from './meshExport';
 import { download, safeFilename } from './saveFile';
@@ -34,7 +35,10 @@ export async function exportComponent(tree: RocketTree, nodeId: string, format: 
     const d = resolveDisc(tree, nodeId);
     if (d) geometry = discSolid(d.outerR, d.innerR, d.length);
   } else {
-    geometry = solidForNode(node);
+    // The body radius the part is mounted on. A tube fin set needs it to size
+    // itself (the kernel auto-radius), and any fin needs it to clamp a
+    // through-the-wall tab to the depth the kernel allows.
+    geometry = solidForNode(node, parentRadiusOf(tree, nodeId));
   }
   if (!geometry) return false;
   if (format === 'stl') download(`${base}.stl`, solidToStl(geometry), STL_MIME);

@@ -1,3 +1,11 @@
+/*
+ * MODIFIED for AstraRocketJs, 2026. This file differs from upstream OpenRocket
+ * by ~700 lines. The bulk is the opt-in RASAero supersonic fin aerodynamics and
+ * the Rogers Kbf body-fin carryover, which are the ORIGINAL WORK of the
+ * mmrocket-sim project and are NOT part of OpenRocket. Every such change is
+ * default-off, so with the flags clear this file behaves as upstream does.
+ * See engine-java/ATTRIBUTION.md and engine-java/patches/LEDGER.md.
+ */
 package info.openrocket.core.aerodynamics.barrowman;
 
 import static java.lang.Math.pow;

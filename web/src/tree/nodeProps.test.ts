@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode } from '../engine/openRocketEngine';
-import { num, numOpt, str, bool } from './nodeProps';
+import { num, numOpt, str, bool, countOf, positionOf, MAX_INSTANCE_COUNT } from './nodeProps';
 
 const node = (props: Record<string, unknown>): ComponentNode => ({ type: 'bodytube', ...props });
 
@@ -52,5 +52,73 @@ describe('bool', () => {
     expect(bool(node({ motorMount: true }), 'motorMount')).toBe(true);
     expect(bool(node({}), 'motorMount')).toBe(false);
     expect(bool(node({ motorMount: 'true' }), 'motorMount', true)).toBe(true); // string is not a boolean
+  });
+});
+
+/**
+ * A count has a ceiling, not just a floor.
+ *
+ * Every consumer read counts as `Math.max(1, Math.round(...))` and then looped
+ * that many times allocating as it went: a cloned ExtrudeGeometry per fin in
+ * the 3D view, an SVG shape per fin in the schematic, a tube per instance in
+ * the aft view. Typing 100000 into Fin count locked the tab, and a hostile
+ * `.ork` could carry the same value. One reader now caps all eleven sites.
+ */
+describe('countOf', () => {
+  const n = (v: unknown) => ({ id: 'x', finCount: v }) as never;
+
+  it('rounds to a whole number and floors at 1', () => {
+    expect(countOf(n(3), 'finCount', 3)).toBe(3);
+    expect(countOf(n(3.6), 'finCount', 3)).toBe(4);
+    expect(countOf(n(0), 'finCount', 3)).toBe(1);
+    expect(countOf(n(-5), 'finCount', 3)).toBe(1);
+  });
+
+  it('caps an absurd count instead of looping on it', () => {
+    expect(countOf(n(100000), 'finCount', 3)).toBe(MAX_INSTANCE_COUNT);
+    expect(countOf(n(Number.MAX_SAFE_INTEGER), 'finCount', 3)).toBe(MAX_INSTANCE_COUNT);
+  });
+
+  it('falls back for a missing or non-finite value, and caps the fallback too', () => {
+    expect(countOf({ id: 'x' } as never, 'finCount', 6)).toBe(6);
+    expect(countOf(n(NaN), 'finCount', 3)).toBe(3);
+    expect(countOf(n(Infinity), 'finCount', 3)).toBe(3); // non-finite reads as absent
+    expect(countOf({ id: 'x' } as never, 'finCount', 1e9)).toBe(MAX_INSTANCE_COUNT);
+  });
+});
+
+describe('positionOf', () => {
+  it('returns the position as-is when it is well formed', () => {
+    expect(positionOf(node({ position: { method: 'bottom', offset: -0.01 } }))).toEqual({
+      method: 'bottom',
+      offset: -0.01,
+    });
+  });
+  it('falls back to the kernel default (top, 0) when there is no position', () => {
+    expect(positionOf(node({}))).toEqual({ method: 'top', offset: 0 });
+    expect(positionOf(node({ position: null }))).toEqual({ method: 'top', offset: 0 });
+  });
+  it('reads a string offset as 0 rather than letting it into arithmetic', () => {
+    // `pLen - childLen + "0.1"` is a string; it used to reach the layout as one.
+    expect(positionOf(node({ position: { method: 'middle', offset: '0.1' } }))).toEqual({
+      method: 'middle',
+      offset: 0,
+    });
+    expect(positionOf(node({ position: { method: 'middle', offset: NaN } }))).toEqual({ method: 'middle', offset: 0 });
+  });
+  it('falls back to top for a method the union does not name', () => {
+    expect(positionOf(node({ position: { method: 'sideways', offset: 0.02 } }))).toEqual({
+      method: 'top',
+      offset: 0.02,
+    });
+    expect(positionOf(node({ position: { method: 7, offset: 0.02 } }))).toEqual({ method: 'top', offset: 0.02 });
+  });
+  it('keeps the imported .ork record so the exporter can restore it', () => {
+    const ork = { method: 'absolute' as const, offset: 0.3, resolved: 0.1 };
+    expect(positionOf(node({ position: { method: 'top', offset: 0.1, ork } }))).toEqual({
+      method: 'top',
+      offset: 0.1,
+      ork,
+    });
   });
 });

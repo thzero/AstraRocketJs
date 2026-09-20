@@ -10,8 +10,8 @@ import type {
   ComponentType as PartType,
   IgnitionEvent,
 } from '../engine/openRocketEngine';
-import { findMountId, findNode, updateNode, removeNode, addPart, addStage, moveNode } from '../services/treeEdit';
-import { reconcileMounts } from '../services/mountMotors';
+import { findMountId, updateNode, removeNode, addPart, addStage, moveNode } from '../services/treeEdit';
+import { activeExtraMounts, reconcileMounts } from '../services/mountMotors';
 import type { LaunchConditions } from '../services/orkTree';
 import type { OrkExportMotor } from '../services/orkFile';
 import type { DesignInfo } from '../services/orkTypes';
@@ -41,10 +41,9 @@ import {
 import { isComplete, type CompleteLaunch } from '../services/requiredLaunch';
 import { defaultDesignName } from '../services/appInfo';
 import { getDesignLibrary, type DesignMeta } from '../services/designLibrary';
-import { getWorkspaceStore, type Workspace } from '../services/workspaceStore';
+import { getWorkspaceStore, validateWorkspace, type Workspace } from '../services/workspaceStore';
 import type { MotorDims } from '../components/canvas/Rocket3D';
-import { isResultView, type ViewMode } from '../components/canvas/ViewToggle';
-import type { Tab, DesignPane } from './tabs';
+import { isResultView, type Tab, type DesignPane, type ViewMode } from './tabs';
 
 // A clean, classic sport rocket (~55 cm, 26 mm airframe, swept 3-fin).
 const DEFAULT_SPEC: RocketSpec = {
@@ -68,6 +67,17 @@ type HistoryEntry = {
   selectedId: string | null;
   sims: Simulation[];
   activeId: string;
+  /**
+   * The three fields `deleteSim` prunes alongside `sims`.
+   *
+   * Without them, undoing a delete brought the row back but not its tick (so
+   * the Run button's count was wrong) and not its place in `lastRunIds` (so
+   * the Results picker collapsed to a single name even though the run really
+   * had flown it).
+   */
+  selectedSimIds: string[];
+  lastRunIds: string[];
+  resultSimId: string | null;
 };
 /** Cap the stack so a long session can't grow memory without bound. */
 const HISTORY_LIMIT = 100;
@@ -180,6 +190,14 @@ export interface WorkspaceState {
   clearSaveWarning: () => void;
   applyBuild: (info: StaticInfo | null, rocket: Rocket | null) => void; // from the rebuild effect
   markOutdated: () => void; // from the tree-change effect
+  /**
+   * Bumped by every `hydrate`. Restoring a design is not editing it: the
+   * flight-invalidation effect (useWorkspaceEffects) re-seeds its baseline on
+   * a change here instead of flagging the restored results stale. Boot is one
+   * hydrate; File > Open is another, and that one carried results the effect
+   * used to age (and `autoRunOutdated` then re-flew) for nothing.
+   */
+  hydrationGen: number;
   hydrate: (w: {
     tree: RocketTree;
     sims: Simulation[];
@@ -256,15 +274,21 @@ export interface WorkspaceState {
   openDesign: (id: string) => Promise<void>;
   /** Commit the open design now. Resolves false when there is nothing to save
    *  into yet (never named) — the caller should offer Save As instead. */
-  saveDesign: () => Promise<boolean>;
+  /** `true` saved; `'unnamed'` the design has no library entry yet (Save As);
+   *  `false` the write was refused and the storage banner is already up. */
+  saveDesign: () => Promise<boolean | 'unnamed'>;
   saveDesignAs: (name: string) => Promise<void>;
   renameDesign: (id: string, name: string) => Promise<void>;
   deleteDesign: (id: string) => Promise<void>;
-  newWorkspace: () => void;
-  saveOrk: () => void;
-  saveRasaero: () => void;
+  // These four are implemented `async`. Declaring them `() => void` was a
+  // lie the type system then enforced: no caller and no test could await
+  // them, which is part of why none of the four had a test. The `void`-calling
+  // sites in AppHeader keep their `void`.
+  newWorkspace: () => Promise<void>;
+  saveOrk: () => Promise<void>;
+  saveRasaero: () => Promise<void>;
   /** Export a single component as a 3D mesh (stl/obj/glb) or a 2D cut sheet (dxf). */
-  exportComponent: (nodeId: string, format: 'stl' | 'obj' | 'glb' | 'dxf') => void;
+  exportComponent: (nodeId: string, format: 'stl' | 'obj' | 'glb' | 'dxf') => Promise<void>;
 }
 
 /** The active simulation (falls back to the first if the id no longer exists). */
@@ -294,7 +318,7 @@ export const selectRunIds = (s: WorkspaceState): string[] =>
  * Same subscription caveat as `selectRunIds`: it builds a fresh array, so
  * components derive it rather than subscribing to it.
  */
-export const selectEditIds = (s: WorkspaceState): string[] => selectRunIds(s);
+const selectEditIds = (s: WorkspaceState): string[] => selectRunIds(s);
 
 /** The active simulation's non-primary-mount motors — its flight configuration. */
 export const selectExtraMotors = (s: WorkspaceState): Record<string, MountMotor> => selectActive(s).extraMotors;
@@ -352,10 +376,10 @@ export function selectMotorDims(
   const m: MotorDims = {};
   const mountId = findMountId(tree);
   if (mountId) m[mountId] = { length: motor.length, diameter: motor.diameter, label: motor.designation };
-  for (const [id, mm] of Object.entries(extraMotors)) {
-    // The primary mount is drawn from `motor` above; skip any lingering extra
-    // entry for it (and for mounts no longer in the tree) so nothing misrenders.
-    if (id === mountId || !findNode(tree, id)) continue;
+  // The primary mount is drawn from `motor` above; the shared filter skips any
+  // lingering extra entry for it (and for mounts no longer in the tree) so
+  // nothing misrenders, and so this cannot drift from what the builder seats.
+  for (const [id, mm] of activeExtraMounts(tree, extraMotors, mountId)) {
     m[id] = { length: mm.spec.length, diameter: mm.spec.diameter, label: mm.spec.designation };
   }
   return m;
@@ -414,9 +438,27 @@ function uniqueSimName(sims: Simulation[], label: (n: number) => string, start: 
  * past an await re-checks before it touches the store.
  */
 let workspaceGen = 0;
+/** Sequence for design-list refreshes; see refreshDesigns. */
+let designsGen = 0;
 /** Claim the workspace; the returned predicate says whether someone else has. */
 const claimWorkspace = (): (() => boolean) => {
   const mine = ++workspaceGen;
+  return () => mine !== workspaceGen;
+};
+/**
+ * OBSERVE the workspace without claiming it: the predicate reports whether
+ * someone replaced it, but taking this token does not itself count as a
+ * replacement.
+ *
+ * `saveDesign` and `saveDesignAs` do not replace the workspace - they only
+ * need to notice if something else did - but they used `claimWorkspace`, which
+ * bumps the generation and so invalidated every other continuation. Dropping a
+ * large `.ork` on the app and hitting File > Save while it parsed made
+ * `openOrkFile`'s `stale()` true, and BOTH its success and its error paths are
+ * gated on that, so nothing loaded and nothing was reported.
+ */
+const observeWorkspace = (): (() => boolean) => {
+  const mine = workspaceGen;
   return () => mine !== workspaceGen;
 };
 
@@ -454,7 +496,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
    */
   const patchTargets = (make: (sim: Simulation) => Partial<Simulation>) => {
     const ids = new Set(selectEditIds(get()));
-    set((s) => ({ sims: s.sims.map((x) => (ids.has(x.id) ? { ...x, ...make(x) } : x)) }));
+    // `outdated` is set HERE, once, rather than by each caller. Every edit that
+    // reaches this helper changes a simulation's INPUTS, so every one of them
+    // invalidates its cached flight - and having each of the seven call sites
+    // remember to say so meant the next one to be added would not. A caller
+    // can still override it in its patch if it ever genuinely must.
+    set((s) => ({ sims: s.sims.map((x) => (ids.has(x.id) ? { ...x, outdated: true, ...make(x) } : x)) }));
   };
 
   /**
@@ -469,7 +516,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
    */
   const patchActive = (make: (sim: Simulation) => Partial<Simulation>) => {
     const id = selectActive(get()).id;
-    set((s) => ({ sims: s.sims.map((x) => (x.id === id ? { ...x, ...make(x) } : x)) }));
+    // Same as patchTargets: an input edit, so the flight is stale by definition.
+    set((s) => ({ sims: s.sims.map((x) => (x.id === id ? { ...x, outdated: true, ...make(x) } : x)) }));
   };
 
   // --- undo/redo plumbing ---
@@ -487,6 +535,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       selectedId: s.selectedId,
       sims: s.sims.map((x) => ({ ...x, result: null })),
       activeId: s.activeId,
+      selectedSimIds: s.selectedSimIds,
+      lastRunIds: s.lastRunIds,
+      resultSimId: s.resultSimId,
     });
   };
   /**
@@ -507,6 +558,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return held ? { ...x, result: held, outdated: true } : x;
       }),
       activeId: e.activeId,
+      selectedSimIds: e.selectedSimIds,
+      lastRunIds: e.lastRunIds,
+      resultSimId: e.resultSimId,
     };
   };
   const pushPast = (entry: HistoryEntry) =>
@@ -544,12 +598,23 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     loadedMeta: s.loadedMeta,
   });
 
-  /** Write the open design out now, ahead of switching away from it. */
-  const flushActive = async () => {
+  /**
+   * Write the open design out now, ahead of switching away from it. False if
+   * storage refused the write.
+   *
+   * The refusal used to be swallowed here on the theory that "the banner
+   * already says so". It did not: only the debounced autosave's catch raises
+   * the banner, and File > Save calls this directly, so a Save within the
+   * 500 ms debounce on a full store reported success with nothing written.
+   * Callers decide what a refusal means for them (a switch still proceeds; a
+   * Save must say it failed).
+   */
+  const flushActive = async (): Promise<boolean> => {
     try {
       await getWorkspaceStore().save(snapshotOf(useWorkspaceStore.getState()));
+      return true;
     } catch {
-      // Storage full: the switch still proceeds, and the banner already says so.
+      return false;
     }
   };
 
@@ -557,6 +622,32 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     txn = null;
     set({ past: [], future: [] });
   }; // on load / new design
+
+  /**
+   * Swap the whole workspace in ONE `set`, always resetting the transient block.
+   *
+   * `hydrate`, `openOrkFile` and `resetWorkspace` each replaced the design and
+   * each reset a different subset of what goes with it: none cleared `simRuns`,
+   * `lastRunIds` or `resultSimId`, so the Results tab could point at a run id
+   * from the previous design, and a batch still in flight kept `simBusy` on the
+   * new one; `resetWorkspace` left `err` standing and wrote in two `set` calls,
+   * so a subscriber saw the blank design with the old design's error under it.
+   * A batch still running belongs to the old design, so it is canceled here
+   * (its answers would be dropped by the `ranOn` guard anyway).
+   */
+  const replaceWorkspace = (patch: Partial<WorkspaceState> | ((s: WorkspaceState) => Partial<WorkspaceState>)) => {
+    batchAbort?.abort();
+    batchAbort = null;
+    set((s) => ({
+      simRuns: {},
+      lastRunIds: [],
+      resultSimId: null,
+      selectedSimIds: [],
+      simBusy: false,
+      err: null,
+      ...(typeof patch === 'function' ? patch(s) : patch),
+    }));
+  };
 
   return {
     tree: specToTree(DEFAULT_SPEC).tree,
@@ -584,6 +675,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     resetKey: 0,
     designs: [],
     activeDesignId: null,
+    hydrationGen: 0,
 
     setErr: (err) => set({ err }),
     setStorageWarning: (storageWarning, kind) =>
@@ -611,7 +703,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           : w.sims;
       const sims = reconcileAll(w.tree, sanitizeSims(migrated));
       const activeId = sims.some((s) => s.id === w.activeId) ? w.activeId : sims[0]!.id;
-      set({ tree: w.tree, sims, activeId, selectedSimIds: [], loadedMeta: w.loadedMeta ?? null });
+      replaceWorkspace((s) => ({
+        tree: w.tree,
+        sims,
+        activeId,
+        loadedMeta: w.loadedMeta ?? null,
+        hydrationGen: s.hydrationGen + 1,
+      }));
     },
 
     // Each structural/field edit reconciles the extra-mount motors to the new
@@ -688,11 +786,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     setActiveId: (activeId) => set({ activeId }), // switching the active sim isn't an edit — no history
     setActiveMotor: (m) => {
       recordStep();
-      patchActive(() => ({ motor: m, outdated: true }));
+      patchActive(() => ({ motor: m }));
     },
     setActiveIgnition: (event, delay) => {
       beginEdit();
-      patchActive(() => ({ ignitionEvent: event, ignitionDelay: delay, outdated: true }));
+      patchActive(() => ({ ignitionEvent: event, ignitionDelay: delay }));
     },
     setExtraMotor: (mountId, m) => {
       recordStep();
@@ -704,7 +802,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // thing a tick cannot reach (see patchActive).
       patchActive((sim) => ({
         extraMotors: { ...sim.extraMotors, [mountId]: { ...sim.extraMotors[mountId], spec: m } },
-        outdated: true,
       }));
     },
     setExtraIgnition: (mountId, event, delay) => {
@@ -714,12 +811,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           ...sim.extraMotors,
           [mountId]: { ...sim.extraMotors[mountId]!, ignitionEvent: event, ignitionDelay: delay },
         },
-        outdated: true,
       }));
     },
     patchLaunch: (p) => {
       beginEdit();
-      patchTargets((sim) => ({ launch: { ...sim.launch, ...p }, outdated: true }));
+      patchTargets((sim) => ({ launch: { ...sim.launch, ...p } }));
     },
     addSim: () => {
       // A fresh simulation starts from the app default motor + the user's global
@@ -782,7 +878,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const next = { ...(sim.prefs ?? {}) };
         if (value === null) delete next[key];
         else next[key] = value;
-        return { prefs: Object.keys(next).length ? next : undefined, outdated: true };
+        return { prefs: Object.keys(next).length ? next : undefined };
       });
     },
     clearSimPrefs: () => {
@@ -794,7 +890,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // `undefined`, not `{}`: `prefs` is spread over the globals at run time and
       // the SimEditor reads "is anything overridden" from its key count, so an
       // empty object would read as overridden-with-nothing.
-      patchTargets(() => ({ prefs: undefined, outdated: true }));
+      patchTargets(() => ({ prefs: undefined }));
     },
     setResultSimId: (id) => set({ resultSimId: id }),
     toggleSimSelected: (id) =>
@@ -845,6 +941,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // the user was left holding whichever row failed last -- with no name on
       // it. They are reported together once the batch drains.
       const skipped: Unflyable[] = [];
+      // Failures are collected for the same reason skips are, and it is the
+      // same bug one step later: each row's catch did `set({ err })`, so in a
+      // batch every message overwrote the one before it and carried no row
+      // name -- and then the skip line below overwrote whatever survived. Six
+      // rows with two timeouts and one missing motor reported only the missing
+      // motor, with no sign that two flights had failed at all.
+      const failed: { name: string; msg: string }[] = [];
       /** Patch one row's transient run state, leaving every other row alone. */
       const setRun = (simId: string, run: SimRun | null) =>
         set((st) => {
@@ -950,17 +1053,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               const msg =
                 e instanceof SimTimeoutError ? i18n.t('sim.timeout') : e instanceof Error ? e.message : String(e);
               setRun(sim.id, { phase: 'failed', tree: ranOn });
-              set({ err: msg });
+              failed.push({ name: sim.name, msg });
             }
           }),
         );
         // A canceled batch says nothing further: the user stopped it, so
         // neither the skip list nor a jump to the Results tab is wanted.
         if (abort.signal.aborted) return;
-        // One line for everything the batch refused to fly, naming each row.
-        if (skipped.length) {
-          set({ err: skipped.map((u) => unflyableText(u, i18n.t)).join(' ') });
-        }
+        // ONE line for everything that did not produce a flight, refusals and
+        // failures together, each naming its row.
+        const problems = [
+          ...skipped.map((u) => unflyableText(u, i18n.t)),
+          ...failed.map((f) => i18n.t('sim.failedNamed', { name: f.name, message: f.msg })),
+        ];
+        if (problems.length) set({ err: problems.join(' ') });
         // Show the run. Every run, one or twelve: running IS asking to see the
         // answer, and having to click over to Results afterwards was a step with
         // nothing behind it.
@@ -1064,15 +1170,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const notes = outside.length
           ? [...loadedMeta.notes, ...outside.map((v) => limitText(v, i18n.t))]
           : loadedMeta.notes;
-        set({
+        replaceWorkspace({
           tree,
           loadedMeta: { ...loadedMeta, notes },
           // The import's non-primary-mount motors ARE this simulation's loadout.
           sims: [{ ...sim0, extraMotors }],
-          selectedSimIds: [],
           activeId: sim0.id,
           selectedId: null,
-          err: null,
           tab: 'design',
           designPane: 'stats',
           view: '2d',
@@ -1084,8 +1188,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
     },
     refreshDesigns: async () => {
+      // The only async action without a guard. It is called from four places
+      // that can overlap (openDesign's tail, deleteDesign's tail, saveDesignAs
+      // and the library dialog), so a slower earlier call landing last put a
+      // just-deleted design back in the list, where clicking it takes the
+      // `library.missing` path.
+      const mine = ++designsGen;
       const lib = getDesignLibrary();
-      set({ designs: await lib.list(), activeDesignId: await lib.activeId() });
+      const [designs, activeDesignId] = [await lib.list(), await lib.activeId()];
+      if (mine !== designsGen) return;
+      set({ designs, activeDesignId });
     },
 
     openDesign: async (id) => {
@@ -1098,7 +1210,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const stale = claimWorkspace();
 
       const lib = getDesignLibrary();
-      const w = await lib.read(id);
+      // The boot path runs every stored design through the same shape check
+      // before it hydrates; this path read the raw blob and handed it straight
+      // to hydrate(), where a non-array `tree.components` reaches reconcileAll
+      // and then the kernel. Same check, same `library.missing` outcome.
+      const w = validateWorkspace(await lib.read(id));
       if (stale()) return;
       if (!w) {
         set({ err: i18n.t('library.missing') });
@@ -1106,10 +1222,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
       // Persist whatever is open BEFORE switching, or the edits since the last
-      // debounced autosave would be lost to the swap.
-      await flushActive();
+      // debounced autosave would be lost to the swap. A refused write does not
+      // block the switch (the user asked to open something else), but it is
+      // not silent either.
+      if (!(await flushActive()) && !stale()) get().setStorageWarning(i18n.t('storage.full'), 'full');
       if (stale()) return;
-      await lib.setActive(id);
+      // A refused pointer write means this session would edit B while the
+      // library still names A, and the next launch reopens A. Stop before the
+      // store is touched, so what the user sees and what is active agree.
+      if (!(await lib.setActive(id))) {
+        if (!stale()) get().setStorageWarning(i18n.t('storage.full'), 'full');
+        return;
+      }
       if (stale()) return;
       getWorkspaceStore().setActiveId?.(id);
       clearHistory(); // a different design is a different document
@@ -1132,11 +1256,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // Reading the stale null sent File→Save to Save As, whose create() made a
       // SECOND entry with the same rocket, leaving every autosave so far in the
       // orphan the user never named.
-      const stale = claimWorkspace();
-      if (!(await getDesignLibrary().activeId())) return false;
+      //
+      // Three outcomes, not two: `true` saved, `'unnamed'` needs Save As, and
+      // `false` the write was refused (the banner is raised here; the caller
+      // must NOT fall through to Save As, whose create() would be refused too).
+      const stale = observeWorkspace();
+      if (!(await getDesignLibrary().activeId())) return 'unnamed';
       if (stale()) return false;
-      await flushActive();
+      const ok = await flushActive();
       if (stale()) return false; // the design moved on; this write is not its save
+      if (!ok) {
+        get().setStorageWarning(i18n.t('storage.full'), 'full');
+        return false;
+      }
       await get().refreshDesigns();
       return true;
     },
@@ -1150,7 +1282,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // `s` is snapshotted NOW; if the workspace is replaced while create() is
       // in flight, pointing the library at the new entry would leave the user
       // looking at one design with another one active.
-      const stale = claimWorkspace();
+      const stale = observeWorkspace();
       let meta;
       try {
         meta = await getDesignLibrary().create(name.trim() || i18n.t('library.untitled'), snapshotOf(s));
@@ -1165,14 +1297,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     renameDesign: async (id, name) => {
-      await getDesignLibrary().rename(id, name.trim() || i18n.t('library.untitled'));
+      // `rename` reports a refused index write; ignoring it showed the new name
+      // from memory and the old one next session.
+      if (!(await getDesignLibrary().rename(id, name.trim() || i18n.t('library.untitled')))) {
+        get().setStorageWarning(i18n.t('storage.full'), 'full');
+      }
       await get().refreshDesigns();
     },
 
     deleteDesign: async (id) => {
       const lib = getDesignLibrary();
       const wasActive = get().activeDesignId === id;
-      await lib.remove(id);
+      // A refused index write means the design is still in the library; resetting
+      // the open workspace anyway would leave it listed and unopenable-looking.
+      if (!(await lib.remove(id))) {
+        get().setStorageWarning(i18n.t('storage.full'), 'full');
+        await get().refreshDesigns();
+        return;
+      }
       // Deleting the open design leaves nothing to autosave into; start fresh so
       // the next edit creates a new library entry rather than resurrecting it.
       // Read BEFORE the await: opening another design during remove() would
@@ -1192,12 +1334,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // Detach from the open library entry, or the first autosave would write
       // this blank design straight over the rocket the user just had open.
       getWorkspaceStore().setActiveId?.(null);
-      set({ activeDesignId: null });
-      set((s) => ({
+      replaceWorkspace((s) => ({
+        activeDesignId: null,
         tree: specToTree(DEFAULT_SPEC).tree,
         loadedMeta: null,
         sims: [s0],
-        selectedSimIds: [],
         activeId: s0.id,
         selectedId: null,
         ...showing(s, '2d'),

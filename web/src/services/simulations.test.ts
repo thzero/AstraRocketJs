@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { simConditions, type SimPrefs } from './simulations';
+import { simConditions, DEFAULT_HEADING_DEG, type SimPrefs } from './simulations';
 import type { CompleteLaunch } from './requiredLaunch';
 
 const base: CompleteLaunch = {
@@ -129,5 +129,26 @@ describe('simConditions', () => {
     const seeded = simConditions(base, { ...PREFS, randomSeed: 42 });
     expect(seeded.randomSeed).toBe(42);
     expect(simConditions(base, { ...PREFS, randomSeed: 42 }).randomSeed).toBe(42);
+  });
+});
+
+describe('launch into the wind with a multilevel profile', () => {
+  const topDown = [
+    { altitudeM: 3000, speed: 15, directionDeg: 270, stddev: 0 },
+    { altitudeM: 0, speed: 2, directionDeg: 135, stddev: 0 },
+  ];
+
+  it('aims the rod at the SURFACE level (lowest altitude), not windLevels[0]', () => {
+    // Listed top-down, the first entry is the wind aloft; the rod used to be
+    // aimed at it while the safety code judged the wind at the pad.
+    const c = simConditions({ ...base, launchIntoWind: true, windLevels: topDown });
+    expect(c.launchRodDirection).toBeCloseTo(deg2rad(135), 9);
+  });
+
+  it('falls back to the single wind heading, then the default, with no profile', () => {
+    expect(simConditions({ ...base, launchIntoWind: true }).launchRodDirection).toBeCloseTo(deg2rad(45), 9);
+    const c = simConditions({ ...base, launchIntoWind: true, windDirectionDeg: undefined });
+    expect(c.launchRodDirection).toBeCloseTo(deg2rad(DEFAULT_HEADING_DEG), 9);
+    expect(DEFAULT_HEADING_DEG).toBe(90);
   });
 });

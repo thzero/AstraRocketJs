@@ -30,7 +30,7 @@ on:
 permissions:
   contents: write
 
-# Never cancel a half-finished publish — a cancelled run could leave the data
+# Never cancel a half-finished publish — a canceled run could leave the data
 # branch holding a manifest that disagrees with its catalogs.
 concurrency:
   group: sync-catalogs

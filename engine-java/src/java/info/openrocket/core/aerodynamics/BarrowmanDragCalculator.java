@@ -1,3 +1,9 @@
+/*
+ * MODIFIED for AstraRocketJs, 2026: reflection-free calculator dispatch (TeaVM
+ * has no reflection), plus the effectiveBaseCD and turbulentCompressibility
+ * seams that the opt-in RASAero drag model overrides. With the flags clear the
+ * seams return upstream's expressions verbatim. See engine-java/ATTRIBUTION.md.
+ */
 package info.openrocket.core.aerodynamics;
 
 import static info.openrocket.core.util.MathUtil.pow2;

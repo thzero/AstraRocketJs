@@ -16,6 +16,33 @@ const fmt = (v: number) => String(Number(v.toFixed(6)));
  * fires on blur to close the undo entry. When blurred it shows the canonical,
  * noise-trimmed value from the prop.
  */
+/**
+ * What a typed field value means: a finite number clamped to the declared
+ * bounds, or `null` for "no value".
+ *
+ * Pure and exported because the DOM cannot be trusted to exercise it. jsdom
+ * refuses to deliver "1e999" to a `type="number"` input at all, so a rendered
+ * test of the overflow case passes for the wrong reason; the browser does
+ * deliver it, and `parseFloat` returns `Infinity`.
+ *
+ * `Number.isFinite`, not just `!isNaN`: Infinity slipped through both the NaN
+ * check and the clamp (`Infinity < min` is false, and most callers pass no
+ * `max`). It reached the node, was persisted, exported to `.ork`, and read
+ * back as `0` by `num()` - so the field showed Infinity while the geometry
+ * behaved as if the dimension were simply absent.
+ *
+ * The clamp is here because the HTML `min`/`max` are only spinner hints: a
+ * typed-in out-of-range value would otherwise reach the live engine rebuild.
+ */
+export function parseFieldValue(raw: string, min?: number, max?: number): number | null {
+  const n = parseFloat(raw);
+  if (raw === '' || !Number.isFinite(n)) return null;
+  let v = n;
+  if (min != null && v < min) v = min;
+  if (max != null && v > max) v = max;
+  return v;
+}
+
 export function NumberInput({
   value,
   onChange,
@@ -59,24 +86,16 @@ export function NumberInput({
       className={className}
       aria-label={ariaLabel}
       value={draft ?? (blank ? '' : fmt(value as number))}
-      onFocus={() => setDraft(blank ? '' : String(value))}
+      // `fmt`, not `String`: the prop is usually a unit conversion, so a
+      // stored 0.3 m arrives here as 0.30000000000000004 in cm, and String()
+      // put that whole tail into the box the moment it was focused. The
+      // blurred display already trims it; the draft must start from the same
+      // text the user was looking at.
+      onFocus={() => setDraft(blank ? '' : fmt(value as number))}
       onChange={(e) => {
         const raw = e.target.value;
         setDraft(raw);
-        const n = parseFloat(raw);
-        if (raw === '' || Number.isNaN(n)) {
-          onChange(null);
-          return;
-        }
-        // Clamp to the declared bounds: the HTML min/max are only spinner hints,
-        // so a typed-in negative (or out-of-range) value would otherwise reach
-        // the live engine rebuild and produce degenerate geometry. The raw
-        // keystrokes still show in `draft`; blur snaps the field to the stored
-        // (clamped) value.
-        let v = n;
-        if (min != null && v < min) v = min;
-        if (max != null && v > max) v = max;
-        onChange(v);
+        onChange(parseFieldValue(raw, min, max));
       }}
       onBlur={() => {
         setDraft(null);

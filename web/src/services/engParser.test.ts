@@ -103,3 +103,33 @@ TD20 24 90 4-6 0.02 0.05 Test
     expect(() => parseEng('C6 18 70 0-3 0.01 0.02 Estes\n0 0')).toThrow(/thrust-curve/i);
   });
 });
+
+/**
+ * Header values that are finite but physically impossible.
+ *
+ * `samplesToMotorSpec` rejects a non-positive diameter or length and a prop
+ * mass above the total, but NOT a negative prop mass: `masses = total -
+ * prop * (impulse / totalImpulse)` then makes the rocket GAIN mass as the
+ * motor burns. Only `Number.isFinite` stood in the way.
+ */
+describe('a .eng header that is finite but impossible', () => {
+  const eng = (prop: string, total = '1.0', dia = '54', len = '400') =>
+    `M1500 ${dia} ${len} 0 ${prop} ${total} Maker\n0.05 1500\n1.0 1500\n1.2 0\n`;
+
+  it('accepts a sane header', () => {
+    expect(() => parseEng(eng('0.5'))).not.toThrow();
+  });
+
+  it('rejects negative propellant mass', () => {
+    expect(() => parseEng(eng('-0.5'))).toThrow(/propellant/i);
+  });
+
+  it('rejects propellant heavier than the loaded motor', () => {
+    expect(() => parseEng(eng('2.0', '1.0'))).toThrow(/propellant/i);
+  });
+
+  it('rejects a non-positive diameter or length', () => {
+    expect(() => parseEng(eng('0.5', '1.0', '0'))).toThrow(/diameter|length/i);
+    expect(() => parseEng(eng('0.5', '1.0', '54', '-10'))).toThrow(/diameter|length/i);
+  });
+});

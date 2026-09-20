@@ -15,6 +15,14 @@ class FakeKv implements KeyValueStore {
   async remove(k: string) {
     this.map.delete(k);
   }
+  async update(k: string, fn: (raw: string | null) => string | null) {
+    const next = fn(await this.get(k));
+    if (next === null) {
+      await this.remove(k);
+      return true;
+    }
+    return await this.set(k, next);
+  }
 }
 
 const KEY = 'astrarrocketjs:materials:custom';
@@ -73,5 +81,28 @@ describe('KeyValueMaterialStore', () => {
     const list = await store.list();
     expect(list).toHaveLength(1);
     expect(list[0]!.name).toBe('Balsa');
+  });
+});
+
+describe('writes go through kv.update', () => {
+  it('adds and removes in one store transaction each, and propagates a refusal', async () => {
+    const updates: string[] = [];
+    kv.update = async (k, fn) => {
+      updates.push(k);
+      const next = fn(kv.map.get(k) ?? null);
+      if (next === null) kv.map.delete(k);
+      else kv.map.set(k, next);
+      return true;
+    };
+    kv.set = async () => {
+      throw new Error('set() must not be used for a read-modify-write');
+    };
+    await store.add(mat('Balsa', 160));
+    await store.remove('Balsa', 'bulk');
+    expect(updates).toEqual([KEY, KEY]);
+    expect(await store.list()).toEqual([]);
+
+    kv.update = async () => false; // storage refused it
+    await expect(store.add(mat('Birch'))).rejects.toThrow('storage-full');
   });
 });

@@ -8,17 +8,22 @@ afterEach(() => {
   document.body.style.cursor = '';
 });
 
-/** Exposes the hook's setter, so a test can drive it like a mesh would. */
-let set!: (on: boolean) => void;
-function Mesh() {
-  set = useHoverCursor();
+/** Exposes the hook's setter, so a test can drive it like a mesh would.
+ *  Handed out through a prop callback rather than assigned to a module
+ *  variable from inside render (the compiler lint forbids that). */
+function Mesh({ expose }: { expose: (set: (on: boolean) => void) => void }) {
+  expose(useHoverCursor());
   return null;
 }
+let set!: (on: boolean) => void;
+const grab = (s: (on: boolean) => void) => {
+  set = s;
+};
 const cursor = () => document.body.style.cursor;
 
 describe('useHoverCursor', () => {
   it('paints the pointer on hover and clears it on leave', () => {
-    render(<Mesh />);
+    render(<Mesh expose={grab} />);
     set(true);
     expect(cursor()).toBe('pointer');
     set(false);
@@ -32,7 +37,7 @@ describe('useHoverCursor', () => {
    * to hover and leave something else.
    */
   it('clears the cursor when the canvas unmounts mid-hover', () => {
-    const { unmount } = render(<Mesh />);
+    const { unmount } = render(<Mesh expose={grab} />);
     set(true);
     expect(cursor()).toBe('pointer');
     unmount();
@@ -41,16 +46,16 @@ describe('useHoverCursor', () => {
 
   it('clears unconditionally on unmount, even a cursor it did not set', () => {
     document.body.style.cursor = 'wait'; // something else owns it
-    const { unmount } = render(<Mesh />);
+    const { unmount } = render(<Mesh expose={grab} />);
     unmount();
     // The canvas only ever clears; it does not restore a cursor it never saw.
     expect(cursor()).toBe('');
   });
 
   it('returns the same setter across re-renders', () => {
-    const { rerender } = render(<Mesh />);
+    const { rerender } = render(<Mesh expose={grab} />);
     const first = set;
-    rerender(<Mesh />);
+    rerender(<Mesh expose={grab} />);
     // Stable, so the mesh handlers using it are not re-created every frame.
     expect(set).toBe(first);
   });

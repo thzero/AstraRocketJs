@@ -3,7 +3,7 @@ import {
   PAGE_MARGIN_MM,
   SIDE_VIEW_BAND_MM,
   finSetsOf,
-  hexToRgb,
+  hexToRgbTuple,
   pageFrame,
   sideViewOrigin,
   sideViewScale,
@@ -106,25 +106,25 @@ describe('sideViewOrigin', () => {
   });
 });
 
-describe('hexToRgb — the template stroke and fill', () => {
+describe('hexToRgbTuple — the template stroke and fill', () => {
   it('reads six-digit hex, with or without the hash, in either case', () => {
-    expect(hexToRgb('#ff8800')).toEqual([255, 136, 0]);
-    expect(hexToRgb('ff8800')).toEqual([255, 136, 0]);
-    expect(hexToRgb('  #FF8800  ')).toEqual([255, 136, 0]);
+    expect(hexToRgbTuple('#ff8800')).toEqual([255, 136, 0]);
+    expect(hexToRgbTuple('ff8800')).toEqual([255, 136, 0]);
+    expect(hexToRgbTuple('  #FF8800  ')).toEqual([255, 136, 0]);
   });
 
   it('falls back to near-black rather than NaN for anything else', () => {
     // NaN would reach jsPDF's setDrawColor and land an invalid color operator
     // in the content stream — a file that opens in some readers and not others.
     for (const bad of ['', 'nonsense', '#12345', '#1234567', 'rgb(1,2,3)']) {
-      expect(hexToRgb(bad), `hexToRgb(${JSON.stringify(bad)})`).toEqual([17, 24, 39]);
+      expect(hexToRgbTuple(bad), `hexToRgbTuple(${JSON.stringify(bad)})`).toEqual([17, 24, 39]);
     }
   });
 
   it('does NOT take the three-digit shorthand', () => {
     // `#f80` is valid CSS and is silently drawn near-black here. Pinned so the
     // next reader knows it is the regex, not a color-space surprise.
-    expect(hexToRgb('#f80')).toEqual([17, 24, 39]);
+    expect(hexToRgbTuple('#f80')).toEqual([17, 24, 39]);
   });
 });
 

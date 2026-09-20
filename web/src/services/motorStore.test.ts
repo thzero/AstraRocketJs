@@ -16,6 +16,14 @@ class FakeKv implements KeyValueStore {
   async remove(k: string) {
     this.map.delete(k);
   }
+  async update(k: string, fn: (raw: string | null) => string | null) {
+    const next = fn(await this.get(k));
+    if (next === null) {
+      await this.remove(k);
+      return true;
+    }
+    return await this.set(k, next);
+  }
 }
 
 const custom = (id: string): CustomMotor => ({
@@ -186,6 +194,53 @@ describe('isCustomMotor rejects what would reach the kernel broken', () => {
       expect(await survives({ ...good(), [k]: '18' }), `${k}="18"`).toBe(0);
       const { [k]: _drop, ...missing } = good();
       expect(await survives(missing), `${k} absent`).toBe(0);
+    }
+  });
+});
+
+describe('custom motors are written through kv.update (one transaction)', () => {
+  it('adds and removes via update, never a read-then-set', async () => {
+    const kv = new FakeKv();
+    const store = new KeyValueMotorStore(kv);
+    const updates: string[] = [];
+    const sets: string[] = [];
+    kv.update = async (k, fn) => {
+      updates.push(k);
+      const next = fn(kv.map.get(k) ?? null);
+      if (next === null) kv.map.delete(k);
+      else kv.map.set(k, next);
+      return true;
+    };
+    kv.set = async (k, v) => {
+      sets.push(k);
+      kv.map.set(k, v);
+      return true;
+    };
+    await store.addCustomMotor(custom('a'));
+    await store.removeCustomMotor('a');
+    expect(updates).toHaveLength(2);
+    expect(sets).toEqual([]);
+  });
+
+  it('rejects a one-sample motor on read, the same threshold the builder uses', async () => {
+    const kv = new FakeKv();
+    kv.map.set(
+      'astrarrocketjs:motors:custom',
+      JSON.stringify([{ ...custom('one'), samples: [{ time: 0, thrust: 5 }] }]),
+    );
+    expect(await new KeyValueMotorStore(kv).listCustomMotors()).toEqual([]);
+  });
+
+  it('setMotorStore swaps the active store', async () => {
+    const { getMotorStore, setMotorStore } = await import('./motorStore');
+    const before = getMotorStore();
+    const mine = { listCustomMotors: async () => [custom('mine')] } as unknown as typeof before;
+    setMotorStore(mine);
+    try {
+      expect(getMotorStore()).toBe(mine);
+      expect((await getMotorStore().listCustomMotors()).map((m) => m.id)).toEqual(['mine']);
+    } finally {
+      setMotorStore(before);
     }
   });
 });

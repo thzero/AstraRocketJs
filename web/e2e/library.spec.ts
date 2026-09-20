@@ -6,6 +6,32 @@ const openLibrary = async (page: Page) => {
   await expect(page.getByRole('dialog', { name: 'My Rockets' })).toBeVisible();
 };
 
+/** The page's running count of IndexedDB reads; see the init script below. */
+const idbGets = (page: Page) => page.evaluate(() => (window as unknown as { __idbGets: number }).__idbGets);
+
+/**
+ * Wait for the store to go QUIET: two consecutive samples of the read counter
+ * agree. A settled dialog issues no reads at all, so the first pair of samples
+ * satisfies this; a refresh loop issues one per render and the samples never
+ * agree, so this times out and says so, rather than a fixed sleep guessing at
+ * how long "long enough to notice" is (it was 1.5 s and 1 s, and both were
+ * guesses about the machine under CI).
+ */
+const idbSettled = async (page: Page) => {
+  let prev = await idbGets(page);
+  await expect
+    .poll(
+      async () => {
+        const now = await idbGets(page);
+        const stable = now === prev;
+        prev = now;
+        return stable;
+      },
+      { timeout: 10_000, message: 'IndexedDB reads never went quiet: the dialog is refreshing itself' },
+    )
+    .toBe(true);
+};
+
 /**
  * The saved-designs library.
  *
@@ -17,12 +43,12 @@ const openLibrary = async (page: Page) => {
  * again, for as long as the dialog stayed open.
  */
 test.describe('design library', () => {
-  test('opens and settles instead of refreshing forever', async ({ page }) => {
-    // Count IndexedDB reads, not DOM mutations: each loop iteration calls
-    // refresh() -> designLibrary.list() -> a store read. A MutationObserver
-    // cannot see this bug at all, because re-rendering identical output mutates
-    // no DOM — a version of this test built on one passed against the broken
-    // code.
+  // Count IndexedDB reads, not DOM mutations: each loop iteration calls
+  // refresh() -> designLibrary.list() -> a store read. A MutationObserver
+  // cannot see this bug at all, because re-rendering identical output mutates
+  // no DOM — a version of this test built on one passed against the broken
+  // code.
+  test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       const w = window as unknown as { __idbGets: number };
       w.__idbGets = 0;
@@ -32,19 +58,21 @@ test.describe('design library', () => {
         return orig.apply(this, args);
       };
     });
+  });
 
+  test('opens and settles instead of refreshing forever', async ({ page }) => {
     await page.goto('/');
 
     await openLibrary(page);
     const panel = page.getByRole('dialog', { name: 'My Rockets' });
 
-    const before = await page.evaluate(() => (window as unknown as { __idbGets: number }).__idbGets);
-    await page.waitForTimeout(1500);
-    const after = await page.evaluate(() => (window as unknown as { __idbGets: number }).__idbGets);
-
     // An open, settled dialog reads nothing further. The loop issued a read per
-    // iteration, without limit, for as long as it stayed open.
-    expect(after - before).toBeLessThan(10);
+    // iteration, without limit, for as long as it stayed open. Sampled AFTER
+    // the open, so the one list read that opening legitimately does is not
+    // counted against it.
+    const before = await idbGets(page);
+    await idbSettled(page);
+    expect((await idbGets(page)) - before).toBeLessThan(10);
     await expect(panel).toBeVisible();
   });
 
@@ -61,11 +89,12 @@ test.describe('design library', () => {
     await expect(page.getByText('Test Rocket')).toBeVisible();
 
     // The loop re-ran `setRenaming(null)` on every iteration, so this dialog
-    // used to be torn down a few ms after opening.
+    // used to be torn down a few ms after opening. The loop was a refresh loop,
+    // so "the store went quiet and the dialog is still here" is the assertion.
     await page.getByRole('button', { name: 'Rename' }).first().click();
     const rename = page.getByRole('dialog', { name: 'Rename' });
     await expect(rename).toBeVisible();
-    await page.waitForTimeout(1000);
+    await idbSettled(page);
     await expect(rename).toBeVisible();
 
     // Dismissing the nested dialog must not also dismiss the library behind it.

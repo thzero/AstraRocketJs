@@ -132,7 +132,7 @@ Slopes bracketed by exact Taylor–Maccoll cone/ogive theory (Sims NASA SP-3004 
 
 - **Skin friction** — the `(1+0.15M²)^−0.58` compressibility fit tracks Van Driest II only to
   M≈4; flag-on fades to the VD-II adiabatic-wall fit `(1+0.144M²)^−0.65` (Hopkins & Inouye, NASA
-  TN D-6945) over M3.5–4.5. *(`BarrowmanCalculator.calculateFrictionCD`)*
+  TN D-6945) over M3.5–4.5. *(`BarrowmanDragCalculator`’s `effectiveBaseCD` / `turbulentCompressibility` seams, overridden in `RASAeroDragCalculator` — the `BarrowmanCalculator` patch was deleted on 2026-09-16)*
 - **Nose Cp coefficient** — the `2.1·sin²φ` asymptote fades to the Rayleigh-pitot stagnation
   `Cp_max(M)` (NACA Report 1135 Eq. 100, → 1.839 as M→∞) over M4–8.
   *(`SymmetricComponentCalc.stagnationCpMax`)*

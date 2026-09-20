@@ -1,4 +1,15 @@
-import { useRef, type KeyboardEvent, type PointerEvent, type RefObject } from 'react';
+import { useRef, useSyncExternalStore, type KeyboardEvent, type PointerEvent, type RefObject } from 'react';
+
+// The window width as a subscription, for the one thing that must RE-RENDER
+// when it changes: the announced maximum. `clamp` below reads the live value
+// at gesture time and needs no subscription; the aria attribute is rendered
+// markup, so without one it went stale after a resize until the next prop
+// change, announcing a maximum the separator could no longer reach.
+const subscribeResize = (cb: () => void) => {
+  window.addEventListener('resize', cb);
+  return () => window.removeEventListener('resize', cb);
+};
+const readInnerWidth = () => window.innerWidth;
 
 /** How far one arrow press moves the split, and one Shift+arrow press. */
 const STEP = 16;
@@ -63,6 +74,7 @@ export function PaneSplitter({
 
   // The cap depends on the window, so it is read at the moment of the gesture
   // rather than tracked: no resize listener, and it cannot go stale.
+  const innerWidth = useSyncExternalStore(subscribeResize, readInnerWidth, readInnerWidth);
   const clamp = (w: number) => {
     const room = Math.max(min, Math.min(max, window.innerWidth - reserve));
     return Math.round(Math.min(room, Math.max(min, w)));
@@ -127,7 +139,12 @@ export function PaneSplitter({
       aria-label={label}
       aria-valuenow={width}
       aria-valuemin={min}
-      aria-valuemax={max}
+      // The EFFECTIVE maximum, which is what `clamp` enforces. Announcing
+      // the static prop meant a narrow window advertised a range the
+      // separator could not reach, and End landed somewhere other than the
+      // announced maximum. Derived from the SUBSCRIBED width so a resize
+      // re-renders it; `clamp` reads the same number live.
+      aria-valuemax={Math.round(Math.max(min, Math.min(max, innerWidth - reserve)))}
       tabIndex={0}
       title={label}
       onPointerDown={onPointerDown}

@@ -1,14 +1,17 @@
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { num } from '../../tree/nodeProps';
+import { FIN_DEFAULTS, finRootChord, finSpan } from '../../tree/finPlanform';
+import { countOf, num } from '../../tree/nodeProps';
+import { KERNEL_MASSCOMPONENT_RADIUS, KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
 import { freeformPoints } from '../../tree/position.js';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { DISPLAY_NAME } from '../../tree/schema.js';
 import { assemblyChainLength, isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
-import { axialStart, finTabFront, profilePath, type Ctx } from './schematicGeometry';
+import { axialStart, colorOf, finTabFront, profilePath, unionBox, type Ctx, type HoverBox } from './schematicGeometry';
 
-const fillOf = (n: ComponentNode, dflt: string): string =>
-  typeof n['color'] === 'string' ? (n['color'] as string) : dflt;
+// The one shared override rule (schematicGeometry.colorOf), under the name this
+// file has always used it by.
+const fillOf = colorOf;
 
 /**
  * One drawn instance of a fin set in the side view. `p` is the foreshortening
@@ -41,9 +44,17 @@ export interface SchematicShapesCfg {
   selectedId?: string | null;
   onSelect?: (id: string) => void;
   setHoverId: React.Dispatch<React.SetStateAction<string | null>>;
-  hoverId: string | null;
+  /** Display name for an unnamed part (the tree panel's translated type name).
+   *  Absent = the untranslated schema label. */
+  partName?: (n: ComponentNode) => string;
   textUp: (x: number, y: number) => { transform?: string };
 }
+
+/** What the scene knows about one component's drawn footprint, keyed by node
+ *  id: its extent (unioned across cluster copies and pod rings) and the name
+ *  its hover tag prints. Built once per scene; the hovered id is resolved
+ *  against it OUTSIDE the scene memo, so hover never rebuilds the drawing. */
+export type HoverExtents = Map<string, { box: HoverBox; name: string }>;
 
 /**
  * Builds the airframe shapes for the 2D schematic — the axial nose→tail chain
@@ -58,12 +69,11 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   wires: React.ReactNode[];
   /** clipPath defs for the airframe-band cuts (paint inside the svg's <defs>). */
   clipDefs: React.ReactNode[];
-  hoverBox: { x0: number; y0: number; x1: number; y1: number } | null;
-  hoverTag: { x: number; y: number; tw: number } | null;
-  hoverName: string;
+  /** Every drawn component's extent and display name, for the hover overlay. */
+  extents: HoverExtents;
 } {
-  const { chain, ctx, scale, w, h, roll, uid, motors, vertical, selectedId, onSelect, setHoverId, hoverId, textUp } =
-    cfg;
+  const { chain, ctx, scale, roll, uid, motors, vertical, selectedId, onSelect, setHoverId, textUp } = cfg;
+  const nameOf = (n: ComponentNode): string => n.name ?? cfg.partName?.(n) ?? DISPLAY_NAME[n.type];
 
   // Selection sync: click any drawn component to select it in the tree; the
   // selected component draws with an accent outline.
@@ -138,7 +148,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
    * furthest-out last so the reaching fin reads on top when a rolled set overlaps.
    */
   const finFactors = (n: ComponentNode, dfltCount = 3): FinInstance[] => {
-    const count = Math.max(1, Math.round(num(n, 'finCount', dfltCount)));
+    const count = countOf(n, 'finCount', dfltCount);
     const base = num(n, 'rotation', 0) + roll;
     const out: FinInstance[] = [];
     for (let i = 0; i < count; i++) {
@@ -189,19 +199,23 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
     noteHover(n, x0, Math.min(...ys), x1, Math.max(...ys));
   };
 
-  // Hovered component's drawn extent (layout px), unioned across instances
-  // (cluster copies, pod rings) as the shapes render.
-  const hoverBoxes: { x0: number; y0: number; x1: number; y1: number }[] = [];
-  let hoverName = '';
+  // Every component's drawn extent (layout px), unioned across instances
+  // (cluster copies, pod rings) as the shapes render. Recorded for ALL parts,
+  // not just the hovered one: this used to filter on the hovered id, which
+  // made the id an input of the whole scene build, so every hover enter and
+  // leave rebuilt every shape. A few dozen boxes per scene is nothing next to
+  // that.
+  const extents: HoverExtents = new Map();
   const noteHover = (n: ComponentNode, x0: number, y0: number, x1: number, y1: number) => {
-    if (!hoverId || n.id !== hoverId) return;
-    hoverName = n.name ?? DISPLAY_NAME[n.type];
-    hoverBoxes.push({
+    if (!n.id) return;
+    const box: HoverBox = {
       x0: Math.min(x0, x1),
       y0: Math.min(y0, y1),
       x1: Math.max(x0, x1),
       y1: Math.max(y0, y1),
-    });
+    };
+    const prev = extents.get(n.id);
+    extents.set(n.id, { box: prev ? unionBox(prev.box, box) : box, name: nameOf(n) });
   };
 
   // Loaded motor case (S5): launch-orange tint at the real case size, with
@@ -261,7 +275,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         const podLen = assemblyChainLength(child);
         const podRadius = resolveAssemblyRadius(child, pRadius);
         const podStart = axialStart(child, podLen, pStart, pLen);
-        const count = Math.max(1, Math.round(num(child, 'instanceCount', 2)));
+        const count = countOf(child, 'instanceCount', 2);
         for (const off of ringInstanceOffsets(count, podRadius, num(child, 'angleOffset', 0) + roll)) {
           renderChain(podChain, podStart, baseY - off.y * ctx.scale);
         }
@@ -302,15 +316,16 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         if (raw.length >= 3) {
           const xs = raw.map((p) => p[0]);
           // Root chord (first→last point, where the outline meets the body)
-          // positions the fin and its tab — the same measure the engine uses.
-          // The furthest-aft outline point (aftX) can sit behind the root when
-          // the tip trailing corner overhangs; it only widens the drawn shape
-          // and its hover/hit box, and must NOT move the fin forward.
-          const root = xs[xs.length - 1]! - xs[0]!;
-          const chord = root > 0 ? root : Math.max(...xs);
+          // positions the fin and its tab — the same measure the engine uses,
+          // from the one module that owns it (tree/finPlanform), so this view
+          // cannot drift from the mesh, the PDF and the DXF the way a local
+          // copy did. The furthest-aft outline point (aftX) can sit behind the
+          // root when the tip trailing corner overhangs; it only widens the
+          // drawn shape and its hover/hit box, and must NOT move the fin forward.
+          const chord = finRootChord(child);
           const aftX = Math.max(...xs);
           const start = axialStart(child, chord, pStart, pLen);
-          const ymax = Math.max(0, ...raw.map((p) => p[1]));
+          const ymax = finSpan(child);
           const reach = pRadius + ymax;
           const projections = finFactors(child);
           noteHoverFins(
@@ -356,10 +371,15 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           }
         }
       } else if (t === 'trapezoidfinset' || t === 'ellipticalfinset') {
-        const root = num(child, 'rootChord', 0.05);
-        const tip = t === 'trapezoidfinset' ? num(child, 'tipChord', root * 0.6) : 0;
-        const sweep = t === 'trapezoidfinset' ? num(child, 'sweep', 0.02) : root / 2;
-        const height = num(child, 'height', 0.03);
+        // Fallbacks from tree/finPlanform, not local literals: this file used
+        // `root * 0.6` for a missing tipChord while the mesh and PDF paths used
+        // 0.03, so the same fin was a different part on screen and in the STL.
+        // (The elliptical arc below is drawn with an SVG `A` command, which is a
+        // true half-ellipse, so only the trapezoid dimensions come from here.)
+        const root = num(child, 'rootChord', FIN_DEFAULTS.rootChord);
+        const tip = t === 'trapezoidfinset' ? num(child, 'tipChord', FIN_DEFAULTS.tipChord) : 0;
+        const sweep = t === 'trapezoidfinset' ? num(child, 'sweep', FIN_DEFAULTS.sweep) : root / 2;
+        const height = num(child, 'height', FIN_DEFAULTS.height);
         const start = axialStart(child, root, pStart, pLen);
         const reach = pRadius + height;
         const projections = finFactors(child);
@@ -544,9 +564,13 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           ),
         );
       } else if (t === 'launchlug' || t === 'railbutton') {
+        // 0.0097 is RailButton's own default (RailButton.java:61), which is
+        // also what orkImport writes and what the kernel flies when the key is
+        // absent. The old 0.004 drew a button less than half the size of the
+        // one being simulated.
         // Rail buttons are edited via 'outerDiameter' (their only size field)
         // and have no axial 'length' — a button is about as long as it is wide.
-        const btnDia = t === 'railbutton' ? num(child, 'outerDiameter', 0.004) : 0;
+        const btnDia = t === 'railbutton' ? num(child, 'outerDiameter', KERNEL_RAILBUTTON_OUTER_DIAMETER) : 0;
         const len = t === 'railbutton' ? btnDia : num(child, 'length', 0.01);
         const r = t === 'railbutton' ? btnDia / 2 : num(child, 'outerRadius', 0.002);
         const start = axialStart(child, len, pStart, pLen);
@@ -594,7 +618,20 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         // <packedlength>/<packedradius> into `length`/`radius`
         // (orkImport.ts:441-488), so both branches were unreachable.
         const len = num(child, 'length', 0.025);
-        const r = Math.min(pRadius * 0.85, num(child, 'outerRadius', num(child, 'radius', pRadius * 0.7)));
+        // For a MASS COMPONENT the last fallback is the KERNEL's default
+        // (ComponentFactory masscomponent radius = 0.005), not a fraction of
+        // the parent. It used to be `pRadius * 0.7`, so a mass component with no
+        // `radius` key - which is every one the editor creates - was drawn at
+        // ~9 mm on a 13 mm tube and flown at 5 mm. A drawing that disagrees with
+        // the simulation is worse than an ugly one.
+        //
+        // Every other internal type keeps the fraction: the kernel does not read
+        // `radius` for a parachute, streamer, shock cord or ring (packed sizes
+        // are not wired through, see TODO.md), so there is no simulated size to
+        // agree with, and applying the 5 mm mass default to a parachute shrank
+        // the default design's chute box until its glyph no longer fit.
+        const dfltRadius = child.type === 'masscomponent' ? KERNEL_MASSCOMPONENT_RADIUS : pRadius * 0.7;
+        const r = Math.min(pRadius * 0.85, num(child, 'outerRadius', num(child, 'radius', dfltRadius)));
         const start = axialStart(child, len, pStart, pLen);
         const offsets =
           child.type === 'innertube'
@@ -630,7 +667,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
               strokeDasharray="3 2"
               {...grab}
             >
-              <title>{child.name ?? DISPLAY_NAME[child.type]}</title>
+              <title>{nameOf(child)}</title>
             </rect>,
           );
           // Miniature glyphs (Eric's pick, 2026-08-05b #21): a picture inside
@@ -851,27 +888,5 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
 
   renderChain(chain, 0, ctx.cy);
 
-  // Hover overlay (S5): a light accent wash over the hovered component's
-  // extent plus a name tag — deliberately fainter than the solid width-2
-  // selection outline so the two stay distinguishable.
-  const hoverBox = hoverBoxes.length
-    ? hoverBoxes.reduce((a, b) => ({
-        x0: Math.min(a.x0, b.x0),
-        y0: Math.min(a.y0, b.y0),
-        x1: Math.max(a.x1, b.x1),
-        y1: Math.max(a.y1, b.y1),
-      }))
-    : null;
-  let hoverTag: { x: number; y: number; tw: number } | null = null;
-  if (hoverBox) {
-    const tw = hoverName.length * 6.2 + 14;
-    hoverTag = {
-      x: Math.min(w - tw / 2 - 2, Math.max(tw / 2 + 2, (hoverBox.x0 + hoverBox.x1) / 2)),
-      // Above the component unless that leaves the viewBox; then below.
-      y: hoverBox.y0 - 22 >= 2 ? hoverBox.y0 - 13 : Math.min(h - 11, hoverBox.y1 + 13),
-      tw,
-    };
-  }
-
-  return { shapes, overlay, wires, clipDefs, hoverBox, hoverTag, hoverName };
+  return { shapes, overlay, wires, clipDefs, extents };
 }

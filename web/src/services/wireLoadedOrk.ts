@@ -1,10 +1,9 @@
-import { C6 } from '../engine/api';
 import type { RocketTree } from '../engine/openRocketEngine';
-import { findMountId } from './treeEdit';
+import { findMounts } from './treeEdit';
 import { resolveFilePositions } from '../tree/position';
 import { reconcileMounts } from './mountMotors';
 import { newSimulation, type Simulation } from './simulations';
-import type { LoadedOrk, MountMotor } from './loadOrk';
+import { emptyMountMotor, type LoadedOrk, type MountMotor } from './loadOrk';
 import type { LaunchConditions } from './orkTree';
 import type { OrkExportMotor } from './orkFile';
 
@@ -21,9 +20,14 @@ export interface WiredOrk {
  * Map a freshly parsed .ork onto the workspace. The primary mount (first in tree
  * order) drives the Motor panel: its motor rides on the initial simulation and
  * its ignition override lives on that sim, NOT in extraMotors like every other
- * mount. A primary mount with no motor falls back to a default C6. `reconcileMounts`
- * then drops motors whose mounts are gone and seeds C6 into any empty non-primary
- * mount. Pure (no I/O): the caller supplies `launchDefaults` so this stays
+ * mount. A mount the file gave no motor for, primary or not, is seated with the
+ * curve-less placeholder from `loadOrk.emptyMountMotor`, never a default: the
+ * run gate then blocks with "no motor" until the user picks one. (This used to
+ * put a C6 on an empty primary and let `reconcileMounts` seed a C6 into every
+ * other empty mount, so a file saved without motors opened as a flyable rocket
+ * on motors it never named, the very thing `loadOrk` refuses to do for a motor
+ * it cannot resolve.) `reconcileMounts` then only drops motors whose mounts are
+ * gone. Pure (no I/O): the caller supplies `launchDefaults` so this stays
  * testable — it's the .ork-import mapping most likely to regress on odd files.
  */
 export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions): WiredOrk {
@@ -35,10 +39,15 @@ export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions):
   // parent-relative offset; the original is preserved on the position so
   // `orkExport` still round-trips the file byte-for-byte.
   const tree = resolveFilePositions(res.tree);
-  const primary = findMountId(tree);
+  const mounts = findMounts(tree).map((m) => m.id as string);
+  const primary = mounts[0];
   const extra = { ...res.motorSpecs };
+  // Same policy as loadOrk, applied here too so a LoadedOrk built any other
+  // way (tests, older persisted loads) cannot reach reconcileMounts with a
+  // hole for it to fill with a default.
+  for (const id of mounts) if (!extra[id]) extra[id] = { spec: emptyMountMotor() };
   const primaryMount = primary ? extra[primary] : undefined;
-  const primaryMotor = primaryMount ? primaryMount.spec : C6;
+  const primaryMotor = primaryMount ? primaryMount.spec : emptyMountMotor();
   if (primary && extra[primary]) delete extra[primary]; // primary's motor rides on the sim, not extraMotors
   const sim0: Simulation = {
     ...newSimulation(res.name, primaryMotor, { ...launchDefaults, ...res.launch }),

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { reconcileMounts } from './mountMotors';
+import { activeExtraMounts, reconcileMounts } from './mountMotors';
 import { C6 } from '../engine/api';
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import type { MountMotor } from './loadOrk';
@@ -36,5 +36,23 @@ describe('reconcileMounts', () => {
 
   it('prunes everything when the last mount is removed', () => {
     expect(reconcileMounts(tree([]), { m1: other() })).toEqual({});
+  });
+});
+
+describe('activeExtraMounts', () => {
+  it('skips the primary mount and mounts no longer in the tree, keeps the rest', () => {
+    const extra = { m1: other(), m2: other(), gone: other() };
+    expect(activeExtraMounts(tree(['m1', 'm2']), extra).map(([id]) => id)).toEqual(['m2']);
+  });
+
+  it('accepts the primary id from a caller that already has it', () => {
+    const extra = { m1: other(), m2: other() };
+    // A caller asserting a different primary is believed: the filter is about
+    // the id it is given, not a re-derivation.
+    expect(activeExtraMounts(tree(['m1', 'm2']), extra, 'm2').map(([id]) => id)).toEqual(['m1']);
+  });
+
+  it('is empty when nothing but the primary is loaded', () => {
+    expect(activeExtraMounts(tree(['m1']), { m1: other() })).toEqual([]);
   });
 });

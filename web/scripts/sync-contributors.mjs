@@ -14,7 +14,7 @@
 //   node scripts/sync-contributors.mjs
 //   node scripts/sync-contributors.mjs --repo owner/name   # override the repo
 //
-// The Pages deploy (.github/workflows/deploy-pages.yml) runs this before the
+// The Pages deploy (.github/workflows/deploy.yml) runs this before the
 // build, as a best-effort step: the output file is only written once every
 // fetch has succeeded, so a failure here leaves the committed JSON in place.
 //

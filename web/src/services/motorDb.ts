@@ -1,11 +1,14 @@
-// The motor CATALOG (specs only) — brought in by the VC-style build-time sync
-// utility (scripts/sync-motors.mjs), which sweeps thrustcurve.org for every
-// available, license-clean motor and ships the factual specs. Thrust CURVES are
-// NOT in here — they download on demand at pick time (see thrustcurve.ts).
+// The motor CATALOG — brought in by the VC-style build-time sync utility
+// (scripts/sync-motors.mjs), which sweeps thrustcurve.org for every available,
+// license-clean motor and ships the factual specs plus, where one is
+// published, the bundled thrust curve (`curves`). A motor without one has its
+// curve fetched on demand at pick time (see thrustcurve.ts).
 //
-// The bundled JSON is the seed; on first load we mirror it into localStorage so
-// the catalog itself lives in local alongside the fetched curves.
+// The catalog is a runtime file fetched through remoteData.ts and memoized for
+// the session. There is NO localStorage mirror of it: a catalog-with-curves is
+// too large for that budget, and the bundle is always available offline.
 import { getMotorStore, type CustomMotor } from './motorStore';
+import { MIN_CURVE_SAMPLES } from './motorCurve';
 import { parseEng, totalImpulse } from './engParser';
 import { fetchCatalog } from './remoteData';
 
@@ -52,10 +55,11 @@ export interface CatalogMotor {
   cg?: [number, number][];
 }
 
-/** Whether a catalog motor has a usable bundled thrust curve (≥ 2 samples).
- *  The single source of truth for "can we plot / compare / combine this offline". */
+/** Whether a catalog motor has a usable bundled thrust curve: the same sample
+ *  threshold the builder seats a motor by (motorCurve.ts), applied to the
+ *  catalog's `[t, F]` pairs. "Can we plot / compare / combine this offline". */
 export function hasCurve(m: CatalogMotor): boolean {
-  return (m.curves?.[0]?.samples?.length ?? 0) >= 2;
+  return (m.curves?.[0]?.samples?.length ?? 0) >= MIN_CURVE_SAMPLES;
 }
 
 /** Project a stored custom motor down to a catalog row for the picker. */
@@ -75,11 +79,39 @@ function customToRow(cm: CustomMotor): CatalogMotor {
 }
 
 /**
- * The catalog: the bundled motors (now shipping their thrust curves) plus the
- * user's imported motors first, so they're easy to find in the picker. The
- * bundle is the source of truth — no localStorage mirror (a catalog-with-curves
- * is too large to cache there, and the bundle is always available offline).
+ * A catalog row this app can actually use.
+ *
+ * `Array.isArray` alone was the whole check, and the catalog can come from a
+ * separately deployed host (VITE_DATA_BASE / the jsDelivr data branch). One
+ * row missing `class` then threw inside `allClasses`' `localeCompare`, and one
+ * missing `designation` threw in `filterMotors`' `toLowerCase` - taking down
+ * the entire motor picker rather than that one entry. `motorStore` already
+ * guards custom motors exactly this way.
  */
+const isCatalogMotor = (v: unknown): v is CatalogMotor => {
+  const m = v as CatalogMotor | null;
+  return (
+    !!m &&
+    typeof m === 'object' &&
+    typeof m.designation === 'string' &&
+    typeof m.manufacturer === 'string' &&
+    typeof m.class === 'string' &&
+    Number.isFinite(m.diameter) &&
+    Number.isFinite(m.impulse)
+  );
+};
+
+/**
+ * A usable catalog: an array with at least one usable row.
+ *
+ * `every` here made one malformed row reject the WHOLE catalog (and fall
+ * through to the in-build copy, or to an empty picker), which is the outcome
+ * row-by-row validation exists to avoid. The gate only decides whether this
+ * host's copy is worth anything at all; the bad rows are dropped in
+ * `loadCatalog` and the rest are kept.
+ */
+const isCatalog = (v: unknown): boolean => Array.isArray(v) && v.some(isCatalogMotor);
+
 export async function loadCatalog(): Promise<CatalogMotor[]> {
   // The 700 kB+ catalog is a runtime file under public/data (see remoteData.ts),
   // fetched only when something first needs it (e.g. the motor picker opens)
@@ -89,7 +121,9 @@ export async function loadCatalog(): Promise<CatalogMotor[]> {
     getMotorStore()
       .listCustomMotors()
       .then((ms) => ms.map(customToRow)),
-    fetchCatalog<CatalogMotor[]>('motors', Array.isArray),
+    // Row by row: keep every usable row, drop the rest. `isCatalog` has
+    // already refused a body that is not an array or has no usable row.
+    fetchCatalog<unknown[]>('motors', isCatalog).then((rows) => rows.filter(isCatalogMotor)),
   ]);
   return [...custom, ...bundled];
 }

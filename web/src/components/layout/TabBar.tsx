@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
+import { useShowResultsTab } from './useShowResultsTab';
 
 /**
  * Mobile bottom tab bar (hidden at lg+, where {@link WorkbenchTabs} sits under
@@ -21,16 +22,7 @@ export function TabBar() {
   const pane = useWorkspaceStore((s) => s.designPane);
   const onTab = useWorkspaceStore((s) => s.setTab);
   const onPane = useWorkspaceStore((s) => s.setDesignPane);
-  // Results only exist once SOME simulation has produced one, so the tab comes
-  // and goes with that rather than sitting there empty. Any sim, not the active
-  // one: switching to a never-run simulation should not take the tab away, and
-  // the pane says "not run yet" for that row on its own.
-  //
-  // A design edit no longer takes it away either -- results are flagged
-  // outdated, not destroyed -- so this now only fires on New / Open, where
-  // `|| tab === 'results'` keeps the tab under anyone standing on it.
-  const hasResult = useWorkspaceStore((s) => s.sims.some((x) => !!x.result));
-  const showResults = hasResult || tab === 'results';
+  const showResults = useShowResultsTab();
   return (
     <nav className="flex shrink-0 border-t border-white/10 bg-slate-900/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
       <TabButton

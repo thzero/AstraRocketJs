@@ -14,6 +14,14 @@ class FakeKv implements KeyValueStore {
   async remove(k: string) {
     this.map.delete(k);
   }
+  async update(k: string, fn: (raw: string | null) => string | null) {
+    const next = fn(await this.get(k));
+    if (next === null) {
+      await this.remove(k);
+      return true;
+    }
+    return await this.set(k, next);
+  }
 }
 
 const KEY = 'astrarrocketjs:templates:custom';
@@ -71,5 +79,42 @@ describe('KeyValueTemplateStore', () => {
     await kv.set(KEY, '{not json');
     const store = new KeyValueTemplateStore(KEY, kv);
     expect(await store.list()).toEqual([]);
+  });
+});
+
+describe('writes go through kv.update', () => {
+  it('adds and removes in one store transaction each, and propagates a refusal', async () => {
+    const kv = new FakeKv();
+    const store = new KeyValueTemplateStore(KEY, kv);
+    const updates: string[] = [];
+    kv.update = async (k, fn) => {
+      updates.push(k);
+      const next = fn(kv.map.get(k) ?? null);
+      if (next === null) kv.map.delete(k);
+      else kv.map.set(k, next);
+      return true;
+    };
+    kv.set = async () => {
+      throw new Error('set() must not be used for a read-modify-write');
+    };
+    await store.add(tpl('a.kml.mustache'));
+    await store.remove('a.kml.mustache');
+    expect(updates).toEqual([KEY, KEY]);
+    expect(await store.list()).toEqual([]);
+
+    kv.update = async () => false;
+    await expect(store.add(tpl('b.kml.mustache'))).rejects.toThrow('storage-full');
+  });
+
+  it('setTemplateStore swaps the active store', async () => {
+    const { getTemplateStore, setTemplateStore } = await import('./templateStore');
+    const before = getTemplateStore();
+    const mine = { list: async () => [tpl('mine.kml.mustache')] } as unknown as typeof before;
+    setTemplateStore(mine);
+    try {
+      expect(getTemplateStore()).toBe(mine);
+    } finally {
+      setTemplateStore(before);
+    }
   });
 });

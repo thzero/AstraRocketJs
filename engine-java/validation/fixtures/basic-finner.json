@@ -1,5 +1,6 @@
 {
   "name": "Army-Navy Basic Finner (DRDC 30 mm free-flight model)",
+  "_expect": { "length": 0.3000, "refDiameter": 0.0300 },
   "_notes": [
     "Geometry from docs/research/validation-anchors-2026-08-03.md section 4.2. d = 30.00 mm, total 10.0 cal.",
     "Nose: 10 deg half-angle sharp cone, length 2.836 cal (meplat 0.004 cal ignored).",

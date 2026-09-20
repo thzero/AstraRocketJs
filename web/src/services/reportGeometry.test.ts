@@ -404,3 +404,154 @@ describe('rocketSideView: tube fins draw as tubes', () => {
     expect(sv.h / 2).toBeGreaterThanOrEqual(top - 1e-6);
   });
 });
+
+/**
+ * Kernel-exactness of the elliptical planform, asserted at an INTERIOR station.
+ *
+ * The pre-existing test above ("a true sampled half-ellipse") asserted only
+ * point count and that the apex reaches full height — properties a sine arch
+ * shares with a half-ellipse, which is how a wrong curve survived three audits.
+ * A parameterized curve has to be pinned between its endpoints.
+ */
+describe('elliptical planform matches the kernel at interior stations', () => {
+  it('is a half-ellipse, not a sine arch', () => {
+    const root = 0.05,
+      height = 0.03;
+    const p = finPlanformMm(node({ type: 'ellipticalfinset', rootChord: root, height, finCount: 3 }));
+    // finPlanformMm flips y: the root sits at height*1000 and the span rises toward 0.
+    const span = p.pts.map(([x, y]) => [x / 1000, height - y / 1000] as const);
+    for (const [x, y] of span) {
+      // Closed form of the kernel's ellipse: y = height * sqrt(1 - (2x/root - 1)^2).
+      const exact = height * Math.sqrt(Math.max(0, 1 - Math.pow((2 * x) / root - 1, 2)));
+      expect(y).toBeCloseTo(exact, 9);
+    }
+    // And is measurably NOT the sine arch that shipped for twelve days: near
+    // the leading edge the two differ by most of the span.
+    const near = span.reduce((a, b) => (Math.abs(b[0] - 0.005) < Math.abs(a[0] - 0.005) ? b : a));
+    const arch = height * Math.sin((Math.PI * near[0]) / root);
+    expect(Math.abs(near[1] - arch)).toBeGreaterThan(0.005);
+  });
+});
+
+/**
+ * The PDF side view has to show what the 2D schematic shows.
+ *
+ * It used to walk only the core chain, so a strap-on booster cluster printed
+ * as a single plain tube while the screen drew the boosters. The report figure
+ * is the one you hand someone to check the design, and it was lying by
+ * omission. Both now use the same `resolveAssemblyRadius` + `ringInstanceOffsets`
+ * from tree/assembly.ts, so the expected offsets below are derived from the
+ * kernel's ring convention rather than copied from the implementation.
+ */
+describe('rocketSideView: off-axis assemblies', () => {
+  const CORE_R = 0.012;
+  const POD_R = 0.008;
+  const boosters = (extra: Record<string, unknown> = {}): RocketTree =>
+    ({
+      name: 'boosters',
+      components: [
+        node({
+          type: 'stage',
+          children: [
+            node({ type: 'nosecone', shape: 'ogive', length: 0.1, aftRadius: CORE_R }),
+            node({
+              type: 'bodytube',
+              length: 0.4,
+              outerRadius: CORE_R,
+              children: [
+                node({
+                  type: 'parallelstage',
+                  instanceCount: 2,
+                  radiusOffset: 0,
+                  children: [node({ type: 'bodytube', length: 0.2, outerRadius: POD_R })],
+                  ...extra,
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }) as unknown as RocketTree;
+
+  // RELATIVE radius: gap + parent outer radius + the pod's own bounding radius,
+  // so offset 0 means the booster just touches the airframe.
+  const expectedOffsetMm = (0 + CORE_R + POD_R) * 1000;
+
+  it('draws one silhouette per booster instance', () => {
+    const sv = rocketSideView(boosters());
+    expect(sv.pods).toHaveLength(2);
+  });
+
+  it('puts each booster on its own centerline, both sides of the airframe', () => {
+    const sv = rocketSideView(boosters());
+    // Each pod polygon spans center +/- its own radius.
+    const centers = sv.pods.map((p) => {
+      const ys = p.map(([, y]) => y);
+      return (Math.max(...ys) + Math.min(...ys)) / 2;
+    });
+    centers.sort((a, b) => a - b);
+    expect(centers[0]).toBeCloseTo(-expectedOffsetMm, 6);
+    expect(centers[1]).toBeCloseTo(expectedOffsetMm, 6);
+    // ...and each is as thick as the booster, not the core.
+    for (const p of sv.pods) {
+      const ys = p.map(([, y]) => y);
+      expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(POD_R * 2 * 1000, 6);
+    }
+  });
+
+  it('grows the drawing height to fit the boosters', () => {
+    const withPods = rocketSideView(boosters());
+    const bare = rocketSideView({
+      name: 'bare',
+      components: [
+        node({
+          type: 'stage',
+          children: [node({ type: 'bodytube', length: 0.4, outerRadius: CORE_R })],
+        }),
+      ],
+    } as unknown as RocketTree);
+    // The frame must reach the far edge of the outermost booster, or the PDF
+    // clips it off the page.
+    expect(withPods.h).toBeGreaterThan(bare.h);
+    expect(withPods.h / 2).toBeGreaterThanOrEqual(expectedOffsetMm + POD_R * 1000 - 1e-6);
+  });
+
+  it('honors the ring angle, so three boosters are not all drawn on top of each other', () => {
+    const sv = rocketSideView(boosters({ instanceCount: 3 }));
+    expect(sv.pods).toHaveLength(3);
+    const centers = sv.pods.map((p) => {
+      const ys = p.map(([, y]) => y);
+      return (Math.max(...ys) + Math.min(...ys)) / 2;
+    });
+    // y = r*cos(theta) for theta = 0, 120, 240 degrees: one up, two half-down.
+    centers.sort((a, b) => a - b);
+    expect(centers[0]).toBeCloseTo(-expectedOffsetMm / 2, 6);
+    expect(centers[1]).toBeCloseTo(-expectedOffsetMm / 2, 6);
+    expect(centers[2]).toBeCloseTo(expectedOffsetMm, 6);
+  });
+
+  it('mirrors a fin on a booster about the BOOSTER, not the rocket axis', () => {
+    const sv = rocketSideView(
+      boosters({
+        children: [
+          node({
+            type: 'bodytube',
+            length: 0.2,
+            outerRadius: POD_R,
+            children: [node({ type: 'trapezoidfinset', rootChord: 0.04, tipChord: 0.02, sweep: 0.01, height: 0.02 })],
+          }),
+        ],
+      }),
+    );
+    expect(sv.fins.length).toBe(4); // 2 instances x (top + mirror)
+    // A fin's top and its mirror straddle the booster's centerline, so their
+    // midpoint is the booster offset rather than 0.
+    const mids = sv.fins.map((f) => {
+      const ys = f.map(([, y]) => y);
+      return (Math.max(...ys) + Math.min(...ys)) / 2;
+    });
+    expect(mids.every((m) => Math.abs(Math.abs(m) - expectedOffsetMm) < expectedOffsetMm)).toBe(true);
+    expect(mids.some((m) => m > 0)).toBe(true);
+    expect(mids.some((m) => m < 0)).toBe(true);
+  });
+});

@@ -31,6 +31,54 @@ describe('loadSettings', () => {
     expect(loadSettings().playbackSpeed).toBe(DEFAULT_SETTINGS.playbackSpeed);
   });
 
+  it('guards playbackSpeed against the non-numbers that ARE numbers', () => {
+    // A stored NaN is the one that hurts: it types as `number`, so only the
+    // finiteness check catches it, and it makes the playback clock never
+    // advance with no way back but clearing storage. JSON has no NaN literal,
+    // which is why each of these has to be written as something JSON can hold.
+    for (const raw of ['{"playbackSpeed":null}', '{"playbackSpeed":0}', '{"playbackSpeed":-2}']) {
+      localStorage.setItem(KEY, raw);
+      expect(loadSettings().playbackSpeed, raw).toBe(DEFAULT_SETTINGS.playbackSpeed);
+    }
+    // Infinity round-trips through JSON.stringify as null, so reach it directly.
+    localStorage.setItem(KEY, JSON.stringify({ playbackSpeed: Number.MAX_VALUE }));
+    expect(loadSettings().playbackSpeed).toBe(10); // clamped, not rejected
+  });
+
+  it('clamps playbackSpeed into the range the player can actually run', () => {
+    localStorage.setItem(KEY, JSON.stringify({ playbackSpeed: 1000 }));
+    expect(loadSettings().playbackSpeed).toBe(10);
+    localStorage.setItem(KEY, JSON.stringify({ playbackSpeed: 0.0001 }));
+    expect(loadSettings().playbackSpeed).toBe(0.05);
+    localStorage.setItem(KEY, JSON.stringify({ playbackSpeed: 2 }));
+    expect(loadSettings().playbackSpeed).toBe(2); // in range, untouched
+  });
+
+  it('drops a partColors value that is not a hex string', () => {
+    // These reach a `style` attribute. The round-trip case below stores a valid
+    // '#123456' and so cannot see the filter at all - every rejected shape has
+    // to be passed in deliberately. A stored object, array or CSS payload used
+    // to ride straight through the spread and into the renderer.
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        partColors: {
+          fins: '#123456',
+          nose: 'red; background: url(http://evil/x)',
+          body: { toString: 'nope' },
+          tubes: ['#fff'],
+          rings: 42,
+          lugs: null,
+          chutes: '#abc',
+        },
+      }),
+    );
+    const c = loadSettings().partColors as Record<string, unknown>;
+    expect(c.fins).toBe('#123456');
+    expect(c.chutes).toBe('#abc'); // 3-digit hex is legitimate
+    for (const k of ['nose', 'body', 'tubes', 'rings', 'lugs']) expect(c[k]).toBeUndefined();
+  });
+
   it('falls back to defaults on corrupt JSON', () => {
     localStorage.setItem(KEY, '{not valid');
     expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
@@ -161,5 +209,59 @@ describe('launchDefaults is validated per field', () => {
     expect(load({ geodetic: 'toroidal' }).geodetic).toBe(DEFAULT_SETTINGS.launchDefaults.geodetic);
     expect(load({ geodetic: 'wgs84' }).geodetic).toBe('wgs84');
     expect(load({ windLevels: 'lots' }).windLevels).toBe(DEFAULT_SETTINGS.launchDefaults.windLevels);
+  });
+});
+
+describe('loadSettings validates what reaches styles, jsPDF and the CSV writer', () => {
+  it('returns a COPY of the defaults, so a caller patching it cannot rewrite them', () => {
+    const a = loadSettings();
+    expect(a).not.toBe(DEFAULT_SETTINGS);
+    expect(a.simulation).not.toBe(DEFAULT_SETTINGS.simulation);
+    a.simulation.timeStep = 99;
+    expect(loadSettings().simulation.timeStep).toBe(DEFAULT_SETTINGS.simulation.timeStep);
+    localStorage.setItem(KEY, '{not json');
+    const b = loadSettings();
+    expect(b).toEqual(DEFAULT_SETTINGS);
+    expect(b).not.toBe(DEFAULT_SETTINGS);
+  });
+
+  it('applies the hex filter to phaseColors', () => {
+    localStorage.setItem(KEY, JSON.stringify({ phaseColors: { boost: 'url(evil)', coast: '#abc', descent: 7 } }));
+    const s = loadSettings();
+    expect(s.phaseColors.boost).toBe(DEFAULT_SETTINGS.phaseColors.boost);
+    expect(s.phaseColors.coast).toBe('#abc');
+    expect(s.phaseColors.descent).toBe(DEFAULT_SETTINGS.phaseColors.descent);
+  });
+
+  it('falls back on an unknown paper size or orientation', () => {
+    localStorage.setItem(KEY, JSON.stringify({ report: { paper: 'legal', orientation: 'sideways' } }));
+    expect(loadSettings().report.paper).toBe('letter');
+    expect(loadSettings().report.orientation).toBe('portrait');
+    localStorage.setItem(KEY, JSON.stringify({ report: { paper: 'a4', orientation: 'landscape' } }));
+    expect(loadSettings().report.paper).toBe('a4');
+    expect(loadSettings().report.orientation).toBe('landscape');
+  });
+
+  it('forces the flight CSV flags to booleans', () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        flightCsv: { exponential: 'false', simDescription: 1, fieldDescriptions: null, flightEvents: false },
+      }),
+    );
+    const c = loadSettings().flightCsv;
+    expect(c.exponential).toBe(DEFAULT_SETTINGS.flightCsv.exponential);
+    expect(c.simDescription).toBe(DEFAULT_SETTINGS.flightCsv.simDescription);
+    expect(c.fieldDescriptions).toBe(DEFAULT_SETTINGS.flightCsv.fieldDescriptions);
+    expect(c.flightEvents).toBe(false);
+  });
+
+  it('clamps railExitVelocityMin like the other simulation thresholds', () => {
+    for (const raw of ['"fast"', '0', '-3', 'null']) {
+      localStorage.setItem(KEY, `{"simulation":{"railExitVelocityMin":${raw}}}`);
+      expect(loadSettings().simulation.railExitVelocityMin, raw).toBe(DEFAULT_SETTINGS.simulation.railExitVelocityMin);
+    }
+    localStorage.setItem(KEY, '{"simulation":{"railExitVelocityMin":12}}');
+    expect(loadSettings().simulation.railExitVelocityMin).toBe(12);
   });
 });

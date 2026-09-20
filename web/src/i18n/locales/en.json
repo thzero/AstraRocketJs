@@ -1,7 +1,6 @@
 {
   "app": {
     "title": "AstraRocketJs",
-    "version": "{{name}} version {{version}}",
     "designName": "{{name}} design"
   },
   "common": {
@@ -93,7 +92,18 @@
     "orientation": "Paper orientation",
     "portrait": "Portrait",
     "landscape": "Landscape",
-    "reset": "Reset"
+    "reset": "Reset",
+    "svgTitle": "True-scale 2D drawing (SVG) with design data - physical mm size, prints at 100% scale",
+    "image": "Image",
+    "imageTitle2d": "High-resolution 2D image with design data - pick PNG or JPG and a width",
+    "imageTitle3d": "Snapshot the current 3D view with design data - rotate to the angle you want, then pick PNG or JPG and a width (re-rendered at that resolution)",
+    "imageFailed": "Image export failed: {{message}} - try a smaller width, or use the SVG download.",
+    "fitFrame": "Fit rocket to frame",
+    "fitFrameHint": "Move the camera in so the rocket fills the exported image - your viewing angle is kept, only the framing changes",
+    "simFailed": "Simulation failed, so no PDF was written: {{message}}",
+    "pdfFailed": "Could not export PDF: {{message}}",
+    "csvFailed": "Could not export CSV: {{message}}",
+    "reportFailed": "Could not assemble the design report: {{message}}"
   },
   "engine": {
     "wasmTip": "Physics engine: WebAssembly (fast path)",
@@ -130,13 +140,14 @@
     "cpNote": "CP is computed from the shape and isn't directly overridable — OpenRocket overrides mass, CG and drag."
   },
   "file": {
-    "open": "Open Rocket",
     "save": "Save…",
     "openLibrary": "Open…",
     "saveAs": "Save As…",
     "import": "Import",
-    "importOrk": "Import OpenRocket (.ork)",
-    "exportOrk": "Export OpenRocket (.ork)",
+    "importOrk": "OpenRocket",
+    "importOrkLabel": "Import OpenRocket (.ork)",
+    "exportOrk": "OpenRocket",
+    "exportOrkLabel": "Export OpenRocket (.ork)",
     "export": "Export",
     "report": "Rocket Design Report",
     "rasaero": "RASAero II",
@@ -204,7 +215,6 @@
     "aeroHeatOr": "By heat",
     "aeroHeatNote": "By magnitude is one color that strengthens with the value, scaled against the largest in the table. By heat is a green-to-red on its own fixed scale, with dark text on light cells.",
     "phases": "Flight-path phase colors",
-    "playback": "Flight-path playback",
     "tabGeneral": "General",
     "tabUnits": "Units",
     "tabColors": "Colors",
@@ -218,7 +228,6 @@
     "launchNote": "Default launch conditions for newly-created simulations. Edit an existing simulation's conditions in its Launch panel.",
     "defaultSpeed": "Default speed",
     "confirmDelete": "Confirm deletion of simulations",
-    "autoRun": "Run outdated simulations automatically",
     "warnings": "Safety warnings",
     "railExitMin": "Min rail-exit velocity",
     "deploySpeedWarn": "Deploy-speed warning above",
@@ -346,7 +355,6 @@
   },
   "sim": {
     "run": "Run flight simulation",
-    "running": "Simulating…",
     "cancel": "Cancel run",
     "prompt": "Run a simulation to see the flight profile.",
     "apogee": "Apogee",
@@ -362,7 +370,7 @@
     "deployVelocity": "Deploy speed",
     "optDelay": "Optimum delay",
     "noMount": "Add a motor mount to run a simulation.",
-    "noMotor": "Load a motor to run a simulation.",
+    "failedNamed": "\"{{name}}\" failed: {{message}}",
     "noMotorNamed": "\"{{name}}\" has no usable motor.",
     "incomplete": "\"{{name}}\" is missing: {{fields}}.",
     "badGeometry": "Fix the design first — a required dimension is zero: {{parts}}.",
@@ -469,7 +477,9 @@
       "windStdDev": "wind standard deviation",
       "launchAltitudeM": "site altitude",
       "latitudeDeg": "latitude"
-    }
+    },
+    "locationDenied": "Could not get your location. Check the browser permission and try again.",
+    "locating": "Locating…"
   },
   "csv": {
     "title": "Export flight data",
@@ -674,7 +684,10 @@
     "noPosition": "The launch latitude and longitude are both zero, so the exported track is placed at the Kennedy Space Center instead. Set them on the Launch panel to put it where you actually fly. Your design is unchanged either way.",
     "download": "Download",
     "apply": "OK",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "colorRolePath": "Path",
+    "colorRoleGround": "Ground",
+    "colorRolePin": "Pin"
   },
   "aero": {
     "unattributed": "Not attributed to a component",
@@ -703,7 +716,6 @@
     "columnShare": "Share of the largest in each column",
     "perComponent": "Per component",
     "atMach": "at Mach {{mach}}",
-    "hoverHint": "Hover a chart to change the Mach",
     "component": "Component",
     "wholeRocket": "Whole rocket",
     "splitUnavailable": "Pressure / base / friction per component needs a newer physics kernel; the whole-rocket split is in the Drag breakdown chart above.",
@@ -720,11 +732,11 @@
     "friction": "Friction",
     "pressure": "Pressure",
     "base": "Base",
-    "other": "Other",
     "pctBody": "% body",
     "supersonicNote": "Extended Barrowman — approximate above ~Mach 1.5.",
     "unavailable": "Build a valid rocket to see its drag.",
-    "crosshairHint": "Drag curves. Focus and use the arrow keys to move the crosshair; Shift for a larger step, Home and End for the ends, Escape to clear."
+    "crosshairHint": "Drag curves. Focus and use the arrow keys to move the crosshair; Shift for a larger step, Home and End for the ends, Escape to clear.",
+    "computing": "Computing..."
   },
   "banner": {
     "notes": "{{count}} import note",
@@ -757,6 +769,7 @@
     "shockcord": "Shock cord",
     "podset": "Pod",
     "parallelstage": "Booster",
+    "motor": "Motor",
     "field": {
       "length": "length",
       "aftRadius": "aft radius",
@@ -862,7 +875,8 @@
     "tabOffset": "Fin tab offset",
     "tabOffsetMethod": "Fin tab reference",
     "cluster": "Cluster",
-    "tubeFinsCollide": "These tubes overlap each other. At this tube radius at most {{max}} fit; at this count the largest that fits is {{radius}} {{unit}}."
+    "tubeFinsCollide": "These tubes overlap each other. At this tube radius at most {{max}} fit; at this count the largest that fits is {{radius}} {{unit}}.",
+    "shapeParameter": "Shape parameter"
   },
   "deployEvent": {
     "ejection": "Motor ejection charge",
@@ -887,10 +901,7 @@
     "free": "From centerline"
   },
   "motor": {
-    "selected": "Selected motor",
-    "search": "Search motors (e.g. C6, Estes)…",
     "importEng": "Import .eng",
-    "ejectionDelay": "Ejection delay",
     "plugged": "plugged",
     "all": "All",
     "count": "{{total}} motors",
@@ -908,7 +919,11 @@
     "zoomIn": "Zoom in — or scroll on the drawing; drag to pan",
     "zoomOut": "Zoom out",
     "fit": "Fit to view",
-    "aftAria": "Aft end view — looking at the rocket from behind; drag to rotate, wheel to zoom"
+    "aftAria": "Aft end view — looking at the rocket from behind; drag to rotate, wheel to zoom",
+    "sideAria": "Rocket side view with CG and CP markers; wheel to zoom, drag background to pan",
+    "sideAriaVertical": "Rocket side view, nose up, with CG and CP markers",
+    "caliperH": "Horizontal caliper handle {{end}}",
+    "caliperV": "Vertical caliper handle {{end}}"
   },
   "picker": {
     "pick": "Pick a real part… ({{count}})",
@@ -999,7 +1014,6 @@
     }
   },
   "sims": {
-    "title": "Simulations",
     "new": "＋ New",
     "untitled": "Simulation {{n}}",
     "name": "Name",
@@ -1111,7 +1125,10 @@
   },
   "update": {
     "available": "A new version is available.",
+    "running": "You are running v{{version}}.",
     "reload": "Reload",
+    "later": "Later",
+    "laterTitle": "Remind me again in about {{hours}} hours",
     "dismiss": "Dismiss"
   },
   "storage": {
@@ -1141,7 +1158,7 @@
     "RECOVERY_HIGH_SPEED": "The recovery device opened while the rocket was still moving fast. The shock loads the airframe and the canopy at once: it can zipper the body tube, tear the chute or pull the shroud lines out. Deploy nearer apogee, or fly dual-deployment with a drogue and a lower main.",
     "RECOVERY_MAIN_HIGH_SPEED": "On a dual-deployment flight the main should open slowly, already under drogue. This one opened fast enough to risk the same zippering and canopy damage — usually a drogue that is too small to slow the rocket, or a main set to deploy too high.",
     "RECOVERY_MAIN_LOW_SPEED": "The main opened while the rocket was barely descending, which normally means it deployed at or close to apogee. Nothing breaks, but the point of dual deployment is lost: the rocket floats down from full altitude and drifts a long way downwind.",
-    "RECOVERY_DROGUE_LOW_SPEED": "The drogue opened while the rocket was barely moving, so it does little to stabilise the descent. Usually a drogue deployed well before apogee.",
+    "RECOVERY_DROGUE_LOW_SPEED": "The drogue opened while the rocket was barely moving, so it does little to stabilize the descent. Usually a drogue deployed well before apogee.",
     "RECOVERY_LAUNCH_ROD": "A recovery device deployed while the rocket was still on the rod. Check the ejection delay and the deployment settings — as simulated, the flight ends at the pad.",
     "RECOVERY_DROGUE_NO_MAIN": "A drogue deploys but no main follows, so the rocket descends the whole way on the drogue alone. That is a fast landing unless the drogue is sized to take it.",
     "NO_RECOVERY_DEVICE": "Nothing deploys, so the rocket falls ballistic and the landing speed below is what it hits the ground at.",
@@ -1181,8 +1198,7 @@
   "limits": {
     "rodAngle": "Launch rod angle is {{value}}° from vertical, above the {{limit}}° the NAR and Tripoli safety codes allow.",
     "wind": "Wind speed is {{value}} mph, above the {{limit}} mph the NAR and Tripoli safety codes allow.",
-    "refused": "\"{{name}}\" was not run — its launch conditions are outside the safety codes.",
-    "blocked": "Launch conditions are outside the NAR/Tripoli safety codes."
+    "refused": "\"{{name}}\" was not run — its launch conditions are outside the safety codes."
   },
   "panes": {
     "resizeTree": "Resize the components panel",

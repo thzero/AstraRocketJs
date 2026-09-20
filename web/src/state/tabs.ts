@@ -15,3 +15,19 @@
 export type Tab = 'design' | 'sim' | 'results';
 
 export type DesignPane = 'stats' | 'sketch';
+
+/**
+ * What the center pane shows. Lives here, beside `Tab`, because the store
+ * keeps the two in step (`showing`, `setTab`): it used to be declared in
+ * `components/canvas/ViewToggle.tsx`, so the state layer imported a React
+ * component module for a type and a one-line predicate. The toggle re-exports
+ * both, so its importers are unchanged.
+ */
+export type ViewMode = '2d' | '3d' | 'drag' | 'flight' | 'path' | 'ground';
+/** Views that read the design itself — the Design tab's switch. */
+export const DESIGN_VIEWS: readonly ViewMode[] = ['2d', '3d', 'drag'];
+/** Views that read a flight result — the Results tab's switch. */
+export const RESULT_VIEWS: readonly ViewMode[] = ['flight', 'path', 'ground'];
+
+/** True for a view that reads a flight result rather than the design itself. */
+export const isResultView = (view: ViewMode): boolean => RESULT_VIEWS.includes(view);

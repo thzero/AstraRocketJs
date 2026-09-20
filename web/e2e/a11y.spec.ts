@@ -1,4 +1,4 @@
-import { test, expect, runFlight } from './base';
+import { test, expect, runFlight, defined } from './base';
 
 /**
  * Keyboard and screen-reader reachability.
@@ -127,9 +127,9 @@ test.describe('accessibility', () => {
 
     // Focusing alone plants the crosshair — there is something to read at once.
     await chart.focus();
-    // Attribute match, not a class selector: the Tailwind class contains a
-    // slash, which a CSS selector would need escaped.
-    const crosshair = () => page.locator('svg line[class*="stroke-slate-300"]');
+    // The crosshair line carries a data hook so the test does not depend on
+    // its color class.
+    const crosshair = () => page.locator('svg line[data-crosshair]');
     // Count, not visibility: a 1px SVG <line> has no meaningful bounding box,
     // so Playwright reports it hidden even while it is drawn and positioned.
     // One per chart card — hoverM is shared, so all three track together.
@@ -162,15 +162,18 @@ test.describe('accessibility', () => {
     // The time readout is a live region, so its text is what a reader hears.
     const readout = page.locator('[aria-live="polite"]').filter({ hasText: /s$/ }).first();
     await charts.focus();
-    const mid = await readout.textContent();
+    const mid = defined(await readout.textContent(), 'the time readout text');
 
+    // Web-first (`toHaveText` retries) rather than a one-shot `textContent()`
+    // compare: the readout is a live region that updates after the keypress,
+    // and a read taken before it did compared the text with itself.
     await page.keyboard.press('ArrowLeft');
     await page.keyboard.press('ArrowLeft');
-    expect(await readout.textContent()).not.toBe(mid);
+    await expect(readout).not.toHaveText(mid);
 
     await page.keyboard.press('Home');
-    const atStart = await readout.textContent();
+    const atStart = defined(await readout.textContent(), 'the time readout text at Home');
     await page.keyboard.press('End');
-    expect(await readout.textContent()).not.toBe(atStart);
+    await expect(readout).not.toHaveText(atStart);
   });
 });

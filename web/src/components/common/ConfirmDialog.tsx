@@ -5,25 +5,34 @@ import { useFocusTrap } from './useFocusTrap';
 
 /**
  * The single app-wide confirmation modal, driven imperatively by the confirm
- * store (see {@link confirm}). Mounted once at the app root. Enter confirms,
- * Escape / backdrop cancels. Styled to match the other dialogs; the confirm
- * button turns red for destructive actions.
+ * store (see {@link confirm}). Mounted once at the app root. Escape / backdrop
+ * cancels; Enter activates whichever button has focus (Confirm, by autoFocus),
+ * which is native button behavior and needs no listener. A window-level Enter
+ * handler used to call `settle(true)` for every target, so with focus resting
+ * on Cancel the destructive action still went ahead. Styled to match the other
+ * dialogs; the confirm button turns red for destructive actions.
  */
 export function ConfirmDialog() {
   // Tab stays inside the modal, and focus returns to the trigger on close.
   // Seven dialogs declared aria-modal and had neither, so Tab walked straight
   // out into the page behind the overlay — the exact gap useFocusTrap exists
   // to close, already used by seven of their siblings.
-  const panelRef = useFocusTrap<HTMLDivElement>(true);
-  const { t } = useTranslation();
+  // `!!request`, NOT a constant `true`. The panel is not rendered until a
+  // request exists, and useFocusTrap's effect deps are `[active]`: with a
+  // constant it ran once on mount, found `ref.current` null, returned early,
+  // and never ran again. So the one modal mounted permanently at the app root
+  // - Delete component, Close design, Delete simulation - declared
+  // `aria-modal` and had no trap and no focus restore at all, while every
+  // conditionally-mounted dialog was fine.
   const request = useConfirmStore((s) => s.request);
+  const panelRef = useFocusTrap<HTMLDivElement>(!!request);
+  const { t } = useTranslation();
   const settle = useConfirmStore((s) => s.settle);
 
   useEffect(() => {
     if (!request) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') settle(false);
-      else if (e.key === 'Enter') settle(true);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

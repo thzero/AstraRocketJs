@@ -30,21 +30,47 @@ export class WindProfileCsvError extends Error {
 }
 
 const ALIASES: Record<keyof Omit<WindLevel, 'altitudeM' | 'directionDeg'> | 'altitude' | 'direction', string[]> = {
-  altitude: ['altitude', 'alt', 'altitudemsl', 'altitudeagl', 'height'],
-  speed: ['speed', 'windspeed', 'velocity'],
-  direction: ['direction', 'dir', 'heading', 'winddirection'],
-  stddev: ['stddev', 'standarddeviation', 'deviation', 'sd', 'sigma'],
+  altitude: ['altitude', 'alt', 'altitudemsl', 'altitudeagl', 'altitudem', 'altitudemslm', 'altitudeaglm', 'height'],
+  speed: ['speed', 'windspeed', 'velocity', 'speedms', 'windspeedms'],
+  direction: ['direction', 'dir', 'heading', 'winddirection', 'directiondeg', 'headingdeg'],
+  stddev: ['stddev', 'standarddeviation', 'deviation', 'sd', 'sigma', 'stddevms'],
 };
 
+/**
+ * Strip one pair of surrounding double quotes (and a doubled inner quote): a
+ * spreadsheet quotes any header carrying a comma, space or parenthesis, so
+ * `"altitude (m)"` arrived with its quotes still on and matched nothing.
+ */
+const unquote = (s: string) => {
+  const t = s.trim();
+  return t.length >= 2 && t.startsWith('"') && t.endsWith('"') ? t.slice(1, -1).replace(/""/g, '"') : t;
+};
+
+// Letters and digits only, so `speed (m/s)` and `wind-speed_m/s` both read as
+// `speedms`; a unit suffix in the header is what a spreadsheet export carries.
 const norm = (h: string) =>
-  h
-    .trim()
+  unquote(h)
     .toLowerCase()
-    .replace(/[\s_()-]/g, '');
+    .replace(/[^a-z0-9]/g, '');
 
 function columnIndex(headers: string[], key: keyof typeof ALIASES): number {
   const names = ALIASES[key];
   return headers.findIndex((h) => names.includes(norm(h)));
+}
+
+/**
+ * The levels, plus what the altitude column said it was measured from when
+ * the header named it (`altitude AGL`, `altitude MSL`). An array, not a new
+ * shape: existing callers iterate it as before and can ignore `reference`.
+ */
+export type WindProfileCsvResult = WindLevel[] & { reference?: 'msl' | 'agl' };
+
+/** The reference an altitude header carries, or undefined when it says nothing. */
+function altitudeReference(header: string): 'msl' | 'agl' | undefined {
+  const n = norm(header);
+  if (n.includes('agl')) return 'agl';
+  if (n.includes('msl')) return 'msl';
+  return undefined;
 }
 
 /** The separator the file uses: whichever of `,` `;` or tab the header has most of. */
@@ -54,7 +80,7 @@ function detectSeparator(headerLine: string): string {
   return best[1] > 0 ? best[0] : ',';
 }
 
-export function parseWindProfileCsv(text: string): WindLevel[] {
+export function parseWindProfileCsv(text: string): WindProfileCsvResult {
   // Strip a UTF-8 BOM: a spreadsheet export carries one and it would otherwise
   // ride on the first header name and stop it matching `altitude`.
   const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
@@ -70,7 +96,12 @@ export function parseWindProfileCsv(text: string): WindLevel[] {
   if (altIdx < 0 || speedIdx < 0 || dirIdx < 0) throw new WindProfileCsvError('missingColumns');
 
   const need = Math.max(altIdx, speedIdx, dirIdx, sdIdx);
-  const levels: WindLevel[] = [];
+  const levels: WindProfileCsvResult = [];
+  // `altitudeagl` used to be accepted as a plain alias and its meaning dropped:
+  // the levels imported as MSL, which at a 1500 m site is a different wind.
+  // The caller applies it; a header that says nothing leaves it unset.
+  const reference = altitudeReference(headers[altIdx]!);
+  if (reference) levels.reference = reference;
 
   for (let i = headerIdx + 1; i < lines.length; i++) {
     const raw = lines[i]!;
@@ -79,13 +110,18 @@ export function parseWindProfileCsv(text: string): WindLevel[] {
     if (need >= cells.length) throw new WindProfileCsvError('shortRow', i + 1);
 
     const cell = (idx: number): number => {
-      const v = Number(cells[idx]!.trim());
+      const text = unquote(cells[idx]!);
+      // `Number('')` is 0, and 0 passes `Number.isFinite`, so a blank altitude
+      // or speed imported as a real 0 m/s reading at that level instead of
+      // failing the row. Blank is only meaningful for `stddev`, handled below.
+      if (text === '') throw new WindProfileCsvError('badNumber', i + 1);
+      const v = Number(text);
       if (!Number.isFinite(v)) throw new WindProfileCsvError('badNumber', i + 1);
       return v;
     };
 
     // Optional in the desktop too: a blank cell is no scatter, not a bad row.
-    const sdCell = sdIdx >= 0 ? cells[sdIdx]!.trim() : '';
+    const sdCell = sdIdx >= 0 ? unquote(cells[sdIdx]!) : '';
     levels.push({
       altitudeM: cell(altIdx),
       speed: cell(speedIdx),

@@ -18,8 +18,29 @@ const ring = (n: number, r: number, centered: boolean): number[] => {
   return pts;
 };
 
+/**
+ * The cluster patterns, by kernel XML name (ClusterConfiguration.java). A
+ * closed union rather than `string`: the table below must hold every one, and
+ * a node's `cluster` field is checked against it before it is looked up.
+ */
+export type ClusterPattern =
+  | 'single'
+  | 'double'
+  | '3-row'
+  | '4-row'
+  | '3-ring'
+  | '4-ring'
+  | '5-ring'
+  | '6-ring'
+  | '3-star'
+  | '4-star'
+  | '5-star'
+  | '6-star'
+  | '9-grid'
+  | '9-star';
+
 /** Flat [x0,y0, x1,y1, …] unit points per pattern (kernel XML names). */
-export const CLUSTER_POINTS: Record<string, number[]> = {
+export const CLUSTER_POINTS: Record<ClusterPattern, number[]> = {
   single: [0, 0],
   double: [-0.5, 0, 0.5, 0],
   '3-row': [-1, 0, 0, 0, 1, 0],
@@ -62,12 +83,25 @@ export const CLUSTER_POINTS: Record<string, number[]> = {
  * panel's business (it localizes it, and builds the motor count from
  * `clusterCount` rather than baking English in here).
  */
-export const CLUSTER_OPTIONS: string[] = Object.keys(CLUSTER_POINTS);
+export const CLUSTER_OPTIONS: ClusterPattern[] = Object.keys(CLUSTER_POINTS) as ClusterPattern[];
+
+/**
+ * Whether a node's `cluster` field names a pattern the table knows. A design
+ * can carry anything here (a `.ork` from a newer desktop, a hand edit), and an
+ * unknown name used to index the open record and read `undefined` at every
+ * call site; now the call sites ask once and fall back to `single` deliberately.
+ */
+export const isClusterPattern = (v: unknown): v is ClusterPattern =>
+  typeof v === 'string' && Object.prototype.hasOwnProperty.call(CLUSTER_POINTS, v);
+
+/** The pattern's unit points, or the single-tube layout for an unknown name. */
+function pointsOf(cluster: string | undefined): number[] {
+  return isClusterPattern(cluster) ? CLUSTER_POINTS[cluster] : CLUSTER_POINTS.single;
+}
 
 /** Motors in this cluster pattern (1 for single/unknown). */
 export function clusterCount(cluster: string | undefined): number {
-  const pts = CLUSTER_POINTS[cluster ?? 'single'];
-  return pts ? pts.length / 2 : 1;
+  return pointsOf(cluster).length / 2;
 }
 
 /**
@@ -97,7 +131,7 @@ export function clusterOffsets(
   clusterScale = 1,
   clusterRotation = 0,
 ): { y: number; z: number }[] {
-  const pts = CLUSTER_POINTS[cluster ?? 'single'] ?? [0, 0];
+  const pts = pointsOf(cluster);
   const separation = 2 * tubeOuterRadius * clusterScale;
   const cos = Math.cos(clusterRotation);
   const sin = Math.sin(clusterRotation);

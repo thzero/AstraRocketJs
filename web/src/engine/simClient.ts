@@ -15,8 +15,8 @@
  * timeout can terminate exactly the worker that hung, rejecting one call rather
  * than every call in flight (see {@link killWorker}).
  */
-import type { FlightResult } from './openRocketEngine';
-import type { SimPayload, WorkerRequest, WorkerResponse } from './simProtocol';
+import { backendPref } from './openRocketEngine';
+import type { SimPayload, WorkerCall, WorkerMethod, WorkerRequest, WorkerResponse, WorkerResults } from './simProtocol';
 
 /** Hard ceiling for a single worker call. A flight sim is normally well under a
  *  second; if the engine hangs (degenerate geometry, an integrator that never
@@ -88,8 +88,8 @@ interface Slot {
 
 /** A request waiting for a free worker. */
 interface Queued {
-  method: WorkerRequest['method'];
-  args: WorkerRequest['args'];
+  /** The method and its typed arguments, as one discriminated pair. */
+  call: WorkerCall;
   timeoutMs: number | undefined;
   /** Called the moment this task is handed to a worker — see {@link SimCallOptions.onStart}. */
   onStart: (() => void) | undefined;
@@ -133,6 +133,13 @@ function spawn(): Slot {
     // there is nothing to settle; dropping it must not free the slot, which may
     // already be serving the next task.
     if (!p || p.id !== msg.id) return;
+    // The worker's engine never loaded: it cannot serve this call or any
+    // later one. Retire it (which rejects this call) rather than leave it in
+    // the pool; the queue drains onto a fresh spawn.
+    if (!msg.ok && msg.fatal) {
+      killWorker(slot, new Error(msg.error));
+      return;
+    }
     clearTimeout(p.timer);
     slot.busy = null;
     if (msg.ok) p.resolve(msg.result);
@@ -143,6 +150,13 @@ function spawn(): Slot {
   };
   worker.onerror = (e) => {
     killWorker(slot, new Error(e.message || 'sim worker crashed'));
+  };
+  // A reply that could not be deserialized on this side (a structured-clone
+  // failure) is a reply that will never settle its call: without this the slot
+  // stayed `busy` until the sim timeout fired, and a call with no timeout
+  // hung forever.
+  worker.onmessageerror = () => {
+    killWorker(slot, new Error('sim worker reply could not be deserialized'));
   };
   pool.push(slot);
   return slot;
@@ -207,7 +221,10 @@ function dispatch(slot: Slot, task: Queued): void {
   slot.busy = pending;
   task.slot = slot;
   task.onStart?.();
-  slot.worker.postMessage({ id, method: task.method, args: task.args } satisfies WorkerRequest);
+  // The backend preference rides on every request (a worker cannot read the
+  // page's `?engine=` or localStorage); the worker's first request starts its
+  // engine with it.
+  slot.worker.postMessage({ id, engine: backendPref(), ...task.call } satisfies WorkerRequest);
 }
 
 /**
@@ -270,19 +287,29 @@ function settle(task: Queued): void {
   task.detach = undefined;
 }
 
-function call<T>(method: WorkerRequest['method'], args: WorkerRequest['args'], opts: SimCallOptions = {}): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
+/**
+ * Typed per method: `call({ method: 'simulate', args })` resolves with a
+ * `FlightResult`, `ping` with `'ok'`, from the protocol's own tables rather
+ * than a `call<FlightResult>` cast at the public wrappers below.
+ */
+function call<M extends WorkerMethod>(
+  c: Extract<WorkerCall, { method: M }>,
+  opts: SimCallOptions = {},
+): Promise<WorkerResults[M]> {
+  return new Promise<WorkerResults[M]>((resolve, reject) => {
     const task: Queued = {
-      method,
-      args,
+      call: c,
       timeoutMs: opts.timeoutMs,
       onStart: opts.onStart,
       // Wrapped so the task leaves the live set however it ends — a settled
       // task that stayed in it would let a later cancel kill a worker that has
       // moved on to somebody else's flight.
+      // The transport carries `unknown`; the method's result type is what
+      // the protocol promises for it, and the worker is the other half of
+      // that contract.
       resolve: (v: unknown) => {
         settle(task);
-        (resolve as (x: unknown) => void)(v);
+        resolve(v as WorkerResults[M]);
       },
       reject: (e: Error) => {
         settle(task);
@@ -307,10 +334,21 @@ function call<T>(method: WorkerRequest['method'], args: WorkerRequest['args'], o
   });
 }
 
+/**
+ * Ceiling on the warm-up ping. The worker answers only once its engine has
+ * loaded (a WASM fetch + compile), so a stalled fetch behind a captive portal
+ * or a wedged service worker would otherwise hold the slot `busy` forever: on
+ * a two-core machine the pool is one slot, and every later sim sat in "queued"
+ * with nothing to time it out. Generous, because a cold WASM load on a slow
+ * phone is legitimately tens of seconds.
+ */
+const WARM_TIMEOUT_MS = 120_000;
+
 /** Spawn + warm a worker (loads its engine) so the first sim isn't delayed. */
 export function warmSimWorker(): void {
-  void call('ping', null).catch(() => {
-    /* warming is best-effort */
+  void call({ method: 'ping', args: null }, { timeoutMs: WARM_TIMEOUT_MS }).catch(() => {
+    /* warming is best-effort: a timed-out warm-up kills that worker and the
+       first real sim spawns a fresh one */
   });
 }
 
@@ -318,8 +356,8 @@ export function warmSimWorker(): void {
  *  message, or {@link SimTimeoutError} if the worker doesn't answer in time.
  *
  *  Several calls run CONCURRENTLY, up to the pool limit; the rest queue. */
-export function simulateInWorker(payload: SimPayload, opts: SimCallOptions = {}): Promise<FlightResult> {
-  return call<FlightResult>('simulate', payload, { timeoutMs: SIM_TIMEOUT_MS, ...opts });
+export function simulateInWorker(payload: SimPayload, opts: SimCallOptions = {}): Promise<WorkerResults['simulate']> {
+  return call({ method: 'simulate', args: payload }, { timeoutMs: SIM_TIMEOUT_MS, ...opts });
 }
 
 /** How many flights can be in the air at once on this machine.

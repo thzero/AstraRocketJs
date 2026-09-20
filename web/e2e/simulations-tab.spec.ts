@@ -1,4 +1,4 @@
-import { test, expect, autosaved, openTab, runButton, runFlight } from './base';
+import { test, expect, autosaved, openTab, runButton, runFlight, defined } from './base';
 
 /**
  * The Simulations tab: a table of runs over the shared design, with the selected
@@ -20,7 +20,7 @@ test('an edited design ages the results instead of destroying them', async ({ pa
 
   const row = page.getByRole('row').filter({ hasText: 'Simulation 1' });
   await expect(row).toContainText('Up to date');
-  const apogee = (await row.textContent())!;
+  const apogee = defined(await row.textContent(), 'the simulation row text');
 
   // Change the airframe. The result now describes a rocket that no longer
   // exists — but it is still the last thing this design flew, so it stays.
@@ -30,7 +30,7 @@ test('an edited design ages the results instead of destroying them', async ({ pa
   await openTab(page, 'Simulations');
 
   await expect(row).toContainText('Outdated');
-  expect(await row.textContent()).toBe(apogee.replace('Up to date', 'Outdated'));
+  await expect(row).toHaveText(apogee.replace('Up to date', 'Outdated'));
 
   // And the Results tab is still there, still holding the flight. It used to
   // disappear the moment the edit landed.
@@ -194,7 +194,7 @@ test('a flight survives a reload', async ({ page }) => {
 
   const row = page.getByRole('row').filter({ hasText: 'Kept' });
   await openTab(page, 'Simulations');
-  const before = (await row.textContent())!;
+  const before = defined(await row.textContent(), 'the Kept row text before the reload');
   expect(before).toContain('Up to date');
 
   // The flights live under their own IndexedDB key, written once the run lands.
@@ -205,7 +205,7 @@ test('a flight survives a reload', async ({ page }) => {
   // Same numbers, still current — not "not run", which is what a reload used to
   // give you because the results were never written at all.
   await expect(row).toContainText('Up to date');
-  expect(await row.textContent()).toBe(before);
+  await expect(row).toHaveText(before);
 
   // And the charts are there to open, without re-running.
   await page.getByRole('button', { name: 'View results for Kept' }).click();

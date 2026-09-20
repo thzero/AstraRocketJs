@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
@@ -11,18 +11,35 @@ import { DesignPropertiesDialog } from './DesignPropertiesDialog';
  * Designs live in IndexedDB (designLibrary.ts) and the open one autosaves, so
  * there is no explicit save here and nothing to lose by switching: opening
  * another design flushes the current one first.
+ *
+ * Mounted only while open (`{open && <DesignLibraryDialog />}`): the list is
+ * refreshed once on mount, and a half-finished rename is dropped by unmount.
  */
-export function DesignLibraryDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { t } = useTranslation();
+export function DesignLibraryDialog({ onClose }: { onClose: () => void }) {
+  const { t, i18n } = useTranslation();
   const designs = useWorkspaceStore((s) => s.designs);
   const activeId = useWorkspaceStore((s) => s.activeDesignId);
   const refresh = useWorkspaceStore((s) => s.refreshDesigns);
   const openDesign = useWorkspaceStore((s) => s.openDesign);
   const renameDesign = useWorkspaceStore((s) => s.renameDesign);
   const deleteDesign = useWorkspaceStore((s) => s.deleteDesign);
-  const panelRef = useFocusTrap<HTMLDivElement>(open);
+  // `onClose` is an inline arrow in AppHeader, so it gets a NEW identity on
+  // every AppHeader render, and `refresh()` writes a fresh `designs` array
+  // that AppHeader subscribes to. One effect that both refreshed and listened
+  // for Escape, keyed on onClose, therefore looped: refresh -> re-render ->
+  // new onClose -> refresh. The refresh runs once on mount (below); the Escape
+  // listener is the focus trap's own effect, which re-subscribes harmlessly.
+  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
 
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  // The saved-at stamp in the app's language, not the browser's: a Spanish UI
+  // over an en-US browser showed "9/20/2026, 3:04 PM" beside Spanish labels.
+  const when = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' });
 
   // Deleting a saved design cannot be undone, and on a phone this button sits a
   // few millimeters from Rename in a full-screen dialog. Ask first -- the same
@@ -35,31 +52,6 @@ export function DesignLibraryDialog({ open, onClose }: { open: boolean; onClose:
     });
     if (ok) await deleteDesign(id);
   };
-
-  // `onClose` is an inline arrow in AppHeader, so it gets a NEW identity on every
-  // AppHeader render -- and `refresh()` writes a fresh `designs` array that
-  // AppHeader subscribes to, which re-renders it. Listing onClose as a dep
-  // therefore closed a loop: refresh -> re-render -> new onClose -> refresh.
-  // Read it through a ref instead, so the keydown listener always calls the
-  // current one without the effect depending on its identity.
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-
-  // Load the list, and drop any half-finished rename, ONCE per opening. Keyed on
-  // `open` alone: re-running this on every render would re-close the rename
-  // dialog a few ms after the user opened it.
-  useEffect(() => {
-    if (!open) return;
-    void refresh();
-    setRenaming(null);
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCloseRef.current();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, refresh]);
-
-  if (!open) return null;
 
   return (
     <div
@@ -98,7 +90,7 @@ export function DesignLibraryDialog({ open, onClose }: { open: boolean; onClose:
                     {d.name}
                   </span>
                   <span className="ml-2 text-xs text-slate-500">
-                    {new Date(d.updatedAt).toLocaleString()}
+                    {when.format(new Date(d.updatedAt))}
                     {d.id === activeId && ` · ${t('library.open')}`}
                   </span>
                 </button>
@@ -120,18 +112,19 @@ export function DesignLibraryDialog({ open, onClose }: { open: boolean; onClose:
         )}
       </div>
 
-      <DesignPropertiesDialog
-        open={renaming !== null}
-        title={t('library.rename')}
-        confirmLabel={t('library.rename')}
-        initialName={renaming?.name ?? ''}
-        takenNames={designs.filter((d) => d.id !== renaming?.id).map((d) => d.name)}
-        onCancel={() => setRenaming(null)}
-        onConfirm={(name) => {
-          if (renaming) void renameDesign(renaming.id, name);
-          setRenaming(null);
-        }}
-      />
+      {renaming && (
+        <DesignPropertiesDialog
+          title={t('library.rename')}
+          confirmLabel={t('library.rename')}
+          initialName={renaming.name}
+          takenNames={designs.filter((d) => d.id !== renaming.id).map((d) => d.name)}
+          onCancel={() => setRenaming(null)}
+          onConfirm={(name) => {
+            void renameDesign(renaming.id, name);
+            setRenaming(null);
+          }}
+        />
+      )}
     </div>
   );
 }
