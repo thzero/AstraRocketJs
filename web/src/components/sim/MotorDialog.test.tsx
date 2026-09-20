@@ -146,4 +146,22 @@ describe('MotorDialog', () => {
     fireEvent.change(search, { target: { value: '' } });
     expect((await row('X')).getAttribute('aria-pressed')).toBe('true');
   });
+
+  /**
+   * The flip side. While a filter hides the highlighted row there is nothing
+   * on screen to confirm, so the detail pane and its Select button go with it:
+   * the picker must not apply a motor the user cannot see (the seated C6 while
+   * the list shows A8s). Clearing the filter brings both back.
+   */
+  it('offers no Select while the filter hides the highlighted motor', async () => {
+    renderWithProviders(<Host current={null} onSelect={() => {}} />);
+    openPicker();
+    fireEvent.click(await row('X'));
+    expect(screen.getByRole('button', { name: /^Select$/ })).toBeTruthy();
+    const search = screen.getByPlaceholderText(/Search by code/);
+    fireEvent.change(search, { target: { value: 'Y' } });
+    expect(screen.queryByRole('button', { name: /^Select$/ })).toBeNull();
+    fireEvent.change(search, { target: { value: '' } });
+    expect(screen.getByRole('button', { name: /^Select$/ })).toBeTruthy();
+  });
 });

@@ -208,7 +208,14 @@ export function MotorDialog({
     }
   };
 
+  // What the dialog acts on is the highlight the user can SEE. `selected` is
+  // kept across filter changes so clearing a filter brings the highlight back,
+  // but while the filter hides that row there is no visible highlight, and a
+  // Select button applying a motor that is not on screen (the seated C6 while
+  // the list shows A8s) was the surprise the picker used to hand out. Derived,
+  // not cleared, so nothing has to be reset when the filter changes back.
   const selectedKey = selected ? keyOf(selected) : null;
+  const shown = selected && matches.some((m) => keyOf(m) === selectedKey) ? selected : null;
 
   return (
     <div
@@ -239,7 +246,7 @@ export function MotorDialog({
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           {/* LEFT: filters + list + count */}
           <div
-            className={`flex min-h-0 flex-col md:w-[360px] md:shrink-0 md:border-r md:border-white/10 ${selected ? 'hidden md:flex' : 'flex'}`}
+            className={`flex min-h-0 flex-col md:w-[360px] md:shrink-0 md:border-r md:border-white/10 ${shown ? 'hidden md:flex' : 'flex'}`}
           >
             <div className="space-y-2 p-3">
               <div className="flex gap-2">
@@ -346,19 +353,19 @@ export function MotorDialog({
           {/* end LEFT */}
 
           {/* RIGHT: detail + apply */}
-          <div className={`min-h-0 min-w-0 flex-1 flex-col ${selected ? 'flex' : 'hidden md:flex'}`}>
-            {selected ? (
+          <div className={`min-h-0 min-w-0 flex-1 flex-col ${shown ? 'flex' : 'hidden md:flex'}`}>
+            {shown ? (
               <>
                 <MotorDetail
-                  motor={selected}
+                  motor={shown}
                   onBack={() => setSelected(null)}
                   curveIndex={curveIdx}
                   onCurveChange={setCurveIdx}
                 />
                 <div className="flex shrink-0 items-center justify-between gap-2 border-t border-white/10 p-2">
-                  <DelayControl motor={selected} delay={delay} onDelay={setDelay} />
+                  <DelayControl motor={shown} delay={delay} onDelay={setDelay} />
                   <button
-                    onClick={() => pick(selected, curveIdx)}
+                    onClick={() => pick(shown, curveIdx)}
                     disabled={loadingKey !== null}
                     className="shrink-0 rounded-lg bg-sky-600 px-5 py-1.5 text-sm font-medium text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
                   >

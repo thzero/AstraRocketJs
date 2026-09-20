@@ -54,8 +54,11 @@ test('select-then-confirm applies the chosen motor and closes the dialog', async
   const dialog = await openPicker(page);
   const select = dialog.getByRole('button', { name: 'Select', exact: true });
 
-  // Changing the filter drops the pre-selection, so nothing is applied yet and
-  // the Select button is gone until a new row is highlighted.
+  // The filter hides the pre-selected C6 (no A8 row is it), and a motor that
+  // is not on screen cannot be confirmed: the Select button goes with the row
+  // until a visible one is highlighted. Deterministic whether or not the
+  // catalog had seeded the C6 before the filter was typed, which is the race
+  // that made this flaky under CI.
   await dialog.getByPlaceholder(/Search by code/i).fill('A8');
   await expect(select).toHaveCount(0);
 
