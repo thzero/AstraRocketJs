@@ -1,7 +1,12 @@
 package info.openrocket.core.util;
 
 /**
- * Minimal 2D geometry helpers used by the headless core.
+ * SHIM (not OpenRocket): minimal 2D geometry helpers used by the headless core.
+ * <p>
+ * Upstream defines no `Geo2D`. The marker matters because every other shim in
+ * an `info.openrocket.core.*` package carries one, and without it a reader
+ * diffing this tree against upstream finds a class that looks like something
+ * upstream deleted, and may "restore" `java.awt.geom`.
  * <p>
  * These replace the handful of {@code java.awt.geom.Line2D}/{@code java.awt.geom.Point2D}
  * calls that previously tied {@code core} to the {@code java.desktop} module even though
@@ -17,9 +22,20 @@ public final class Geo2D {
 
 	/**
 	 * Euclidean distance between two points.
+	 * <p>
+	 * This must stay {@code sqrt(dx*dx + dy*dy)} and not {@code Math.hypot}.
+	 * The method it stands in for, {@code java.awt.geom.Point2D.distance}, is
+	 * literally that expression, and the two are not the same function: the
+	 * JVM's {@code hypot} is the FDLIBM scaled algorithm while TeaVM's is the
+	 * naive form, so they disagree by 1 ULP on roughly 12% of fin-scale inputs.
+	 * That split the JVM parity reference from both browser targets, and left
+	 * the JVM as the side that did not match OpenRocket. IEEE-754 {@code sqrt}
+	 * is correctly rounded, so this form is identical everywhere.
 	 */
 	public static double distance(double x1, double y1, double x2, double y2) {
-		return Math.hypot(x2 - x1, y2 - y1);
+		double dx = x2 - x1;
+		double dy = y2 - y1;
+		return Math.sqrt(dx * dx + dy * dy);
 	}
 
 	/**

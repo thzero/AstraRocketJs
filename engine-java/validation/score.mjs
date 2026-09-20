@@ -40,6 +40,22 @@ class OrkRocket {
 
 const anchors = JSON.parse(readFileSync(join(here, 'anchors.json'), 'utf8'));
 const strict = process.argv.includes('--strict');
+// A ratchet, so this can be wired into CI while the absolute score is still low.
+// --min <n> fails if the gate score drops BELOW a recorded floor; --expect-gates
+// <n> fails if the number of gated points is not exactly n, which is what
+// catches a silently shrunken anchors.json (see the gateTotal check below).
+const numArg = (flag) => {
+  const i = process.argv.indexOf(flag);
+  if (i < 0) return null;
+  const v = Number(process.argv[i + 1]);
+  if (!Number.isInteger(v) || v < 0) {
+    console.error(`score: ${flag} needs a non-negative integer`);
+    process.exit(2);
+  }
+  return v;
+};
+const minPass = numArg('--min');
+const expectGates = numArg('--expect-gates');
 const supersonic = process.argv.includes('--supersonic');
 
 /** Linear interpolation of series y over grid xs at x (clamped to range). */
@@ -127,8 +143,34 @@ for (const [name, spec] of Object.entries(anchors)) {
 
 out.push('## Summary');
 out.push('');
-out.push(`**Gate points: ${gatePass}/${gateTotal} within tolerance** (${((100 * gatePass) / gateTotal).toFixed(1)}%). Informational rows excluded.`);
+const pct = gateTotal ? `${((100 * gatePass) / gateTotal).toFixed(1)}%` : 'n/a';
+out.push(`**Gate points: ${gatePass}/${gateTotal} within tolerance** (${pct}). Informational rows excluded.`);
 out.push('');
 console.log(out.join('\n'));
 
-if (strict && gatePass < gateTotal) process.exit(1);
+// An empty gate set is a BROKEN HARNESS, not a perfect score. `--strict` used to
+// pass on it, because `gatePass < gateTotal` is `0 < 0`: a truncated or
+// half-written anchors.json scored `0/0 (NaN%)` and exited 0. This runs
+// unconditionally, not only under --strict, because a scorecard reporting
+// success over nothing is wrong however it was invoked.
+if (gateTotal === 0) {
+  console.error('score: NO gated points were scored. anchors.json is empty, truncated, or');
+  console.error('score:   has every `gate` flag off. That is a broken harness, not a pass.');
+  process.exit(1);
+}
+
+let failed = false;
+// Silent shrinkage of the anchor set is the other way this fails open: the
+// denominator just gets smaller and the scorecard reads normally. Pin it.
+if (expectGates != null && gateTotal !== expectGates) {
+  console.error(`score: expected ${expectGates} gated point(s), scored ${gateTotal}.`);
+  console.error('score:   anchors.json changed shape. If deliberate, update --expect-gates.');
+  failed = true;
+}
+if (minPass != null && gatePass < minPass) {
+  console.error(`score: gate score ${gatePass}/${gateTotal} is below the recorded floor of ${minPass}.`);
+  console.error('score:   the aero model regressed against the published anchors.');
+  failed = true;
+}
+if (strict && gatePass < gateTotal) failed = true;
+if (failed) process.exit(1);

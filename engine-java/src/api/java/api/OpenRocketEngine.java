@@ -96,6 +96,35 @@ public final class OpenRocketEngine {
      * confidence: those methods threw out of TeaVM instead, surfacing in JS as
      * an opaque throw from inside a 2.9 MB bundle, and JSON.parse never ran.
      */
+    /**
+     * READ THIS BEFORE ADDING AN ENTRY POINT.
+     *
+     * `catch (RuntimeException e) { return errorJson(e); }` is NOT a safety net
+     * on the target that ships.
+     *
+     * The engine compiles twice. TeaVM's JS backend converts a native
+     * JavaScript error caught inside a Java `try` into a
+     * `java.lang.RuntimeException`, so a stack overflow there really is caught
+     * and really does come back as an `{"error": ...}` envelope. WASM-GC has no
+     * equivalent: a wasm trap is not a `WebAssembly.Exception` carrying the
+     * `teavm.javaException` tag, so no Java catch clause ever sees it and it
+     * unwinds straight out of the module. The app loads WASM-GC by default and
+     * falls back to JS, so the backend WITHOUT the net is the one users run.
+     *
+     * Measured on the shipped artifacts with one 6000-deep options blob:
+     * JS returned `{"error":"(JavaScript) RangeError: Maximum call stack size
+     * exceeded"}`; WASM-GC threw a bare RangeError out of the module.
+     *
+     * There is no Java fix - you cannot catch a trap. So the rule for anything
+     * that can recurse, loop or allocate on caller-supplied input is: BOUND IT
+     * AT THE BOUNDARY. That is what `JsonLite.MAX_DEPTH` and
+     * `MAX_INPUT_CHARS`, the `MAX_SWEEP_POINTS` integer point count, and
+     * `ComponentFactory.count()` exist for. The envelope is for reporting
+     * ordinary bad input, not for surviving exhaustion.
+     *
+     * `web/src/engine/engineBoundary.wasm.test.ts` runs those bounds against
+     * the WASM build so this stays checked rather than remembered.
+     */
     /** Double.isFinite, spelled out — TeaVM's classlib coverage of it varies. */
     private static boolean isFinite(double v) {
         return !Double.isNaN(v) && !Double.isInfinite(v);
@@ -117,9 +146,31 @@ public final class OpenRocketEngine {
         return o;
     }
 
+    /**
+     * A handle of a KNOWN kind.
+     * <p>
+     * Every call site used to blind-cast the {@code Object} above, and the
+     * wrapper's generation counter catches a handle from a RESET engine but
+     * never a handle of the wrong TYPE. Worse, the engine compiles at
+     * {@code optimization = NONE}, where TeaVM elides the checkcast: passing a
+     * rocket handle to {@code addTrapezoidFins} did not throw a
+     * ClassCastException, it used the wrong object and failed further in with
+     * {@code $this.$checkState is not a function} on the JS target and a
+     * null-message JavaError on WASM-GC. Checking the type here makes the
+     * mistake say what it is, on both targets, at the boundary.
+     */
+    private static <T> T get(int handle, Class<T> kind, String what) {
+        Object o = get(handle);
+        if (!kind.isInstance(o)) {
+            throw new IllegalArgumentException("Handle " + handle + " is not " + what
+                    + " (it is a " + o.getClass().getSimpleName() + ")");
+        }
+        return kind.cast(o);
+    }
+
     /** Testing hook: the underlying Rocket for a rocket handle (harness use). */
     public static Rocket getRocketForTesting(int rocketHandle) {
-        return ((RocketCtx) get(rocketHandle)).rocket;
+        return get(rocketHandle, RocketCtx.class, "a rocket").rocket;
     }
 
     /** Frees every handle (rockets, components, motors). */
@@ -180,6 +231,13 @@ public final class OpenRocketEngine {
         }
 
         Object comps = tree.get("components");
+        // PRESENT but not a list used to be coerced to empty, so
+        // buildRocket('{"components":"nope"}') returned a handle and reported a
+        // perfectly healthy all-zero rocket. Absent still means an empty tree.
+        if (comps != null && !(comps instanceof List)) {
+            throw new IllegalArgumentException("'components' must be a list, got "
+                    + comps.getClass().getSimpleName());
+        }
         List<?> topLevel = comps instanceof List ? (List<?>) comps : java.util.Collections.emptyList();
         boolean staged = false;
         for (Object o : topLevel) {
@@ -300,7 +358,7 @@ public final class OpenRocketEngine {
     public static void setMotorById(int rocketHandle, String componentId, String designation,
             double diameter, double length, double[] times, double[] thrusts,
             double[] masses, double cgX, double ejectionDelay) {
-        RocketCtx ctx = (RocketCtx) get(rocketHandle);
+        RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
         RocketComponent comp = ctx.ids.get(componentId);
         // Inner tube OR a body tube flagged as a mount (min-diameter rockets) —
         // the kernel treats both through the MotorMount interface.
@@ -316,7 +374,7 @@ public final class OpenRocketEngine {
     @JSExport
     public static int addNoseCone(int rocketHandle, double length, double aftRadius,
             double thickness, String shape, double materialDensity) {
-        RocketCtx ctx = (RocketCtx) get(rocketHandle);
+        RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
         NoseCone nose = new NoseCone(shapeOf(shape), length, aftRadius);
         nose.setThickness(thickness);
         setBulkMaterial(nose, materialDensity);
@@ -328,7 +386,7 @@ public final class OpenRocketEngine {
     @JSExport
     public static int addBodyTube(int rocketHandle, double length, double outerRadius,
             double thickness, double materialDensity) {
-        RocketCtx ctx = (RocketCtx) get(rocketHandle);
+        RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
         BodyTube tube = new BodyTube(length, outerRadius, thickness);
         setBulkMaterial(tube, materialDensity);
         ctx.stage.addChild(tube);
@@ -338,7 +396,7 @@ public final class OpenRocketEngine {
     @JSExport
     public static int addTrapezoidFins(int parentHandle, int finCount, double rootChord,
             double tipChord, double sweep, double height, double thickness, double materialDensity) {
-        RocketComponent parent = (RocketComponent) get(parentHandle);
+        RocketComponent parent = get(parentHandle, RocketComponent.class, "a component");
         TrapezoidFinSet fins = new TrapezoidFinSet(finCount, rootChord, tipChord, sweep, height);
         fins.setThickness(thickness);
         setBulkMaterial(fins, materialDensity);
@@ -350,7 +408,7 @@ public final class OpenRocketEngine {
     @JSExport
     public static int addInnerTube(int parentHandle, double length, double outerRadius,
             double thickness, double materialDensity) {
-        RocketComponent parent = (RocketComponent) get(parentHandle);
+        RocketComponent parent = get(parentHandle, RocketComponent.class, "a component");
         InnerTube tube = new InnerTube();
         tube.setLength(length);
         tube.setOuterRadius(outerRadius);
@@ -363,7 +421,7 @@ public final class OpenRocketEngine {
 
     @JSExport
     public static int addParachute(int parentHandle, double diameter, double dragCoefficient) {
-        RocketComponent parent = (RocketComponent) get(parentHandle);
+        RocketComponent parent = get(parentHandle, RocketComponent.class, "a component");
         Parachute chute = new Parachute();
         chute.setDiameter(diameter);
         if (dragCoefficient > 0) {
@@ -384,8 +442,8 @@ public final class OpenRocketEngine {
     public static void setMotor(int rocketHandle, int mountHandle, String designation,
             double diameter, double length, double[] times, double[] thrusts,
             double[] masses, double cgX, double ejectionDelay) {
-        RocketCtx ctx = (RocketCtx) get(rocketHandle);
-        MotorMount mount = (MotorMount) get(mountHandle);
+        RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
+        MotorMount mount = get(mountHandle, MotorMount.class, "a motor mount");
         applyMotor(ctx, mount, designation, diameter, length,
                 times, thrusts, masses, cgX, ejectionDelay);
     }
@@ -465,7 +523,7 @@ public final class OpenRocketEngine {
     @JSExport
     public static void setMotorIgnitionById(int rocketHandle, String componentId,
             String ignitionEvent, double ignitionDelay) {
-        RocketCtx ctx = (RocketCtx) get(rocketHandle);
+        RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
         RocketComponent comp = ctx.ids.get(componentId);
         if (!(comp instanceof MotorMount)) {
             throw new IllegalArgumentException(
@@ -507,7 +565,7 @@ public final class OpenRocketEngine {
      */
     @JSExport
     public static void setRogersModifiedBarrowman(int rocketHandle, boolean enabled) {
-        ((RocketCtx) get(rocketHandle)).rogersKbf = enabled;
+        get(rocketHandle, RocketCtx.class, "a rocket").rogersKbf = enabled;
     }
 
     /**
@@ -520,7 +578,7 @@ public final class OpenRocketEngine {
      */
     @JSExport
     public static void setStubbyNoseDrag(int rocketHandle, boolean enabled) {
-        ((RocketCtx) get(rocketHandle)).stubbyNoseFloor = enabled;
+        get(rocketHandle, RocketCtx.class, "a rocket").stubbyNoseFloor = enabled;
     }
 
     /**
@@ -530,7 +588,7 @@ public final class OpenRocketEngine {
      */
     @JSExport
     public static void setSupersonicAero(int rocketHandle, boolean enabled) {
-        ((RocketCtx) get(rocketHandle)).supersonicAero = enabled;
+        get(rocketHandle, RocketCtx.class, "a rocket").supersonicAero = enabled;
     }
 
     /**
@@ -560,7 +618,7 @@ public final class OpenRocketEngine {
     }
 
     private static String getStaticInfoImpl(int rocketHandle) {
-        RocketCtx ctx = (RocketCtx) get(rocketHandle);
+        RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
         RigidBody structure = MassCalculator.calculateLaunch(ctx.rocket.getSelectedConfiguration());
         RigidBody empty = MassCalculator.calculateStructure(ctx.rocket.getSelectedConfiguration());
 
@@ -622,7 +680,7 @@ public final class OpenRocketEngine {
     }
 
     private static String getComponentInfoImpl(int rocketHandle, String componentId) {
-        RocketCtx ctx = (RocketCtx) get(rocketHandle);
+        RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
         RocketComponent c = ctx.ids.get(componentId);
         if (c == null) {
             throw new IllegalArgumentException("Unknown component id: '" + componentId + "'");
@@ -674,7 +732,7 @@ public final class OpenRocketEngine {
     }
 
     private static String getComponentMassesImpl(int rocketHandle) {
-        RocketCtx ctx = (RocketCtx) get(rocketHandle);
+        RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
         java.util.Map<Integer, info.openrocket.core.masscalc.CMAnalysisEntry> analysis =
                 info.openrocket.core.masscalc.MassCalculator.getCMAnalysis(
                         ctx.rocket.getSelectedConfiguration());
@@ -753,7 +811,7 @@ public final class OpenRocketEngine {
      */
     @JSExport
     public static double getWorstThetaDeg(int rocketHandle, double machValue, double aoaDeg) {
-        RocketCtx ctx = (RocketCtx) get(rocketHandle);
+        RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
         FlightConfiguration config = ctx.rocket.getSelectedConfiguration();
         FlightConditions conditions = new FlightConditions(config);
         conditions.setMach(machValue);
@@ -772,7 +830,7 @@ public final class OpenRocketEngine {
     }
 
     private static String getAeroSweepImpl(int rocketHandle, String optionsJson) {
-        RocketCtx ctx = (RocketCtx) get(rocketHandle);
+        RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
         FlightConfiguration config = ctx.rocket.getSelectedConfiguration();
         Map<String, Object> o = JsonLite.parseObject(optionsJson);
         double machMin = JsonLite.dbl(o, "machMin", 0.05);
@@ -785,7 +843,11 @@ public final class OpenRocketEngine {
         // proportional to it and therefore reads zero without one.
         double theta = Math.toRadians(JsonLite.dbl(o, "thetaDeg", 0));
         double rollRate = JsonLite.dbl(o, "rollRate", 0);
-        if (machStep <= 0) {
+        // Absent or non-positive means "use the default" - long-standing
+        // behavior the JS side relies on. NaN cannot reach here any more
+        // (JsonLite rejects non-finite literals) but is folded in for callers
+        // that bypass it.
+        if (Double.isNaN(machStep) || machStep <= 0) {
             machStep = 0.05;
         }
         // Only machStep was guarded. machMin/machMax were not, so
@@ -795,16 +857,28 @@ public final class OpenRocketEngine {
             throw new IllegalArgumentException(
                     "aero sweep needs finite machMin <= machMax (got " + machMin + ".." + machMax + ")");
         }
-        if ((machMax - machMin) / machStep > MAX_SWEEP_POINTS) {
+        // Count the points as an INTEGER before believing the guard. Dividing
+        // first meant machMin == machMax made the numerator 0, so ANY step
+        // passed - and a step below ulp(machMin) then made `m += machStep` a
+        // no-op, growing the list until the tab died. machMin == machMax is a
+        // real call pattern (services/buildRocket.ts asks for a single Mach).
+        if (!isFinite(machStep)) {
+            throw new IllegalArgumentException("aero sweep needs a finite machStep (got " + machStep + ")");
+        }
+        final long points = (long) Math.floor((machMax - machMin) / machStep) + 1;
+        if (points > MAX_SWEEP_POINTS) {
             throw new IllegalArgumentException("aero sweep of " + machMin + ".." + machMax
-                    + " step " + machStep + " exceeds " + MAX_SWEEP_POINTS + " points");
+                    + " step " + machStep + " needs " + points + " points, over the "
+                    + MAX_SWEEP_POINTS + " limit");
         }
 
-        java.util.List<Double> machList = new java.util.ArrayList<>();
-        for (double m = machMin; m <= machMax + 1e-9; m += machStep) {
-            machList.add(m);
+        // Indexed, not accumulated: `m += machStep` also drifts by summing
+        // rounding error across the sweep, where machMin + i*machStep does not.
+        int n = (int) points;
+        java.util.List<Double> machList = new java.util.ArrayList<>(n);
+        for (int i = 0; i < n; i++) {
+            machList.add(machMin + i * machStep);
         }
-        int n = machList.size();
 
         // Optional Reynolds matching: "machAlt": [[mach, altitude_m], ...] pins
         // the atmosphere (hence Re) per Mach point, linearly interpolated — the
@@ -1132,7 +1206,20 @@ public final class OpenRocketEngine {
      */
     @JSExport
     public static String simulateJson(int rocketHandle, String optionsJson) {
-        RocketCtx ctx = (RocketCtx) get(rocketHandle);
+        // The whole body, not just the simulate() call. The handle lookup and
+        // the options parse used to sit ~117 lines ABOVE the try below, so the
+        // catch that claims to cover them never saw either: a stale handle or a
+        // malformed options blob escaped as an opaque TeaVM throw out of a
+        // 2.9 MB bundle, and openRocketEngine.ts only inspects `error`.
+        try {
+            return simulateJsonImpl(rocketHandle, optionsJson);
+        } catch (RuntimeException e) {
+            return errorJson(e);
+        }
+    }
+
+    private static String simulateJsonImpl(int rocketHandle, String optionsJson) {
+        RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
         Map<String, Object> o = JsonLite.parseObject(optionsJson);
 
         double launchAltitude = JsonLite.dbl(o, "launchAltitude", 0);
@@ -1257,10 +1344,9 @@ public final class OpenRocketEngine {
         } catch (SimulationException e) {
             return errorJson(e);
         } catch (RuntimeException e) {
-            // Not just SimulationException: JsonLite throws IllegalArgumentException
-            // on a malformed options blob, and the handle table throws on a stale
-            // or wrong-typed handle. Those escaped to JS as an opaque TeaVM throw
-            // carrying a byte offset into a string the caller never saw.
+            // Kept alongside the outer wrapper: this one is close to the
+            // simulate() call and keeps its stack shallow, the outer one covers
+            // the handle lookup and the options parse above.
             return errorJson(e);
         }
     }
@@ -1447,8 +1533,12 @@ public final class OpenRocketEngine {
         for (FlightEvent ev : branch.getEvents()) {
             if (!first) sb.append(',');
             first = false;
-            sb.append("{\"type\":\"").append(ev.getType().name()).append("\",\"time\":")
-                    .append(ev.getTime());
+            // The ONE numeric emission that skipped num()'s non-finite guard.
+            // An Infinity ignition delay (the facade forwards delayS unvalidated)
+            // wrote `"time":Infinity`, which is not JSON, so JSON.parse threw on
+            // the browser side and discarded an entire 1200 s flight.
+            sb.append("{\"type\":\"").append(ev.getType().name()).append('"').append(',');
+            num(sb, "time", ev.getTime());
             // Source component name — tells dual-deployment rockets apart
             // (WHICH recovery device deployed: drogue vs main).
             RocketComponent src = ev.getSource();

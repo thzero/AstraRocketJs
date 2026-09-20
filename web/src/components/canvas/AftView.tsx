@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { countOf, num } from '../../tree/nodeProps';
+import { KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
 import { finSpan } from '../../tree/finPlanform.js';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
@@ -197,7 +198,11 @@ export function AftView({
           });
           reach(cy, cz, pRadius + hgt);
         } else if (t === 'launchlug' || t === 'railbutton') {
-          const r = t === 'railbutton' ? num(child, 'outerDiameter', 0.004) / 2 : num(child, 'outerRadius', 0.002);
+          // Kernel default (RailButton.java:61), so the aft view shows the
+          // button that is actually simulated. Was 0.004.
+          const r = t === 'railbutton'
+            ? num(child, 'outerDiameter', KERNEL_RAILBUTTON_OUTER_DIAMETER) / 2
+            : num(child, 'outerRadius', 0.002);
           // Radial mount angle (kernel default 180°). The +π/2 is the aft view's
           // "up = 0°" convention — the same offset the fin sets carry here — so a
           // lug clocks consistently with the fins and with the 3D view.

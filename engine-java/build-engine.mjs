@@ -21,7 +21,7 @@
  *   node build-engine.mjs [--js|--wasm] --no-copy   # build only, don't touch the web vendor copy
  */
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
@@ -100,6 +100,49 @@ for (const target of targets) {
   for (const [src] of TARGETS[target].copies) {
     if (!existsSync(src)) {
       console.error(`build-engine: expected output not found: ${src}`);
+      process.exit(1);
+    }
+  }
+}
+
+// The parity harness validates a SIBLING of the shipped binary, not the
+// shipped binary.
+//
+// `-Pparity` does not change any numerics setting (optimization and
+// fastGlobalAnalysis are unconditional), so the usual worry does not apply.
+// What it changes is the PROGRAM: mainClass becomes parity.ParityMain and the
+// whole test tree joins the compile. fastGlobalAnalysis is class-hierarchy
+// analysis over the REACHABLE set, and README.md records the concrete
+// under-linking bug it exists to work around - so the parity variant, whose
+// reachable set is strictly larger, is the one where under-linking is LEAST
+// likely to bite, while the production variant's set was never checked
+// against anything.
+//
+// The two variants also write to the SAME Gradle output paths, so a stale
+// -Pparity artifact could in principle be vendored into web/ as production.
+//
+// Checking the export list catches both: a facade method pruned from the
+// production build, and a parity artifact wearing production's filename.
+const EXPECTED_JS_EXPORTS = [
+  'buildRocket', 'reset', 'getStaticInfo', 'getComponentInfo', 'getComponentMasses',
+  'getAeroSweep', 'simulateJson', 'setMotorById', 'setMotorIgnitionById',
+  'setSupersonicAero', 'setRogersKbf', 'setStubbyNoseFloor',
+];
+{
+  const jsArtifact = TARGETS.js && TARGETS.js.copies[0] && TARGETS.js.copies[0][0];
+  if (targets.includes('js') && jsArtifact && existsSync(jsArtifact)) {
+    const text = readFileSync(jsArtifact, 'utf8');
+    const missing = EXPECTED_JS_EXPORTS.filter((name) => !new RegExp(`\\b${name}\\b`).test(text));
+    if (missing.length) {
+      console.error(`build-engine: the production JS build is missing ${missing.length} expected export(s):`);
+      missing.forEach((m) => console.error(`  ! ${m}`));
+      console.error('build-engine:   either TeaVM pruned a facade method, or this is a -Pparity');
+      console.error('build-engine:   artifact wearing the production filename. Do NOT vendor it.');
+      process.exit(1);
+    }
+    if (/\bParityMain\b/.test(text)) {
+      console.error('build-engine: the production JS build contains ParityMain - this is the');
+      console.error('build-engine:   -Pparity variant. Run a clean `npm run build`.');
       process.exit(1);
     }
   }

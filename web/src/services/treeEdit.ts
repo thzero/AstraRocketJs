@@ -6,6 +6,7 @@
  */
 import type { ComponentNode, ComponentType, RocketTree } from '../engine/openRocketEngine';
 import type { Component } from './componentDb';
+import { KERNEL_DEFAULTS } from '../tree/kernelDefaults.js';
 
 let idCounter = 0;
 /** A stable-ish unique id for a new node (readable: `<type>-<n>`). */
@@ -442,8 +443,29 @@ export function defaultNode(type: ComponentType): ComponentNode {
         deployDelay: 0,
         position: { method: 'top', offset: 0.02 },
       };
+    // `radius` is set EXPLICITLY rather than left to each side's own default.
+    // Omitting it meant the kernel flew KERNEL_DEFAULTS.masscomponent.radius
+    // while the schematic drew 70% of the parent radius.
     case 'masscomponent':
-      return { type, id, mass: 0.01, length: 0.02, position: { method: 'top', offset: 0 } };
+      return {
+        type,
+        id,
+        mass: 0.01,
+        length: 0.02,
+        radius: KERNEL_DEFAULTS.masscomponent.radius,
+        position: { method: 'top', offset: 0 },
+      };
+    // Rail buttons had no case at all, so the editor produced a bare
+    // `{ type, id }`: flown at the kernel's 9.7 mm, drawn at 4 mm, and saved
+    // as 9.7 mm by orkExport. Only the drawing was wrong, but nothing said so.
+    case 'railbutton':
+      return {
+        type,
+        id,
+        outerDiameter: KERNEL_DEFAULTS.railbutton.outerDiameter,
+        angleOffset: Math.PI,
+        position: { method: 'middle', offset: 0 },
+      };
     // An external pod: a mini body chain riding alongside the airframe. Seeded
     // with one slim body tube so it's visible and immediately editable.
     // radiusOffset 0 (relative) means the pod just touches the parent surface;

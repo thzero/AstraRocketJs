@@ -1,3 +1,8 @@
+/*
+ * MODIFIED for AstraRocketJs, 2026: reflection-free calculator dispatch (TeaVM
+ * has no reflection), plus protected access for the opt-in RASAero stability
+ * subclass. See engine-java/ATTRIBUTION.md.
+ */
 package info.openrocket.core.aerodynamics;
 
 import static info.openrocket.core.util.MathUtil.pow2;

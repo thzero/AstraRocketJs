@@ -53,6 +53,47 @@ import static api.JsonLite.str;
  */
 final class ComponentFactory {
 
+    /**
+     * Instance-count ceiling, mirroring {@code web/src/tree/nodeProps.ts}
+     * MAX_INSTANCE_COUNT.
+     * <p>
+     * It used to exist ONLY on the JS side, and only in the property panel and
+     * the renderers: {@code orkImport.ts} writes the raw file value into the
+     * tree and nothing clamped it before {@code buildRocket}. Uncapped,
+     * {@code PodSet.getInstanceOffsets} allocates an array per instance on
+     * every mass, aero and integration step, so a pod set of 100000 took 4.2 s
+     * for a SINGLE getStaticInfo - which the app calls per keystroke - and
+     * {@code 1e999} reached {@code (int) Infinity} = 2147483647 and simply
+     * exhausted the heap. The boundary owns this rule now, not the UI.
+     */
+    static final int MAX_INSTANCE_COUNT = 64;
+
+    /** Fin-count ceiling. {@code FinSet.setFinCount} clamps to 1..8 itself; this
+     *  makes the boundary say so rather than relying on the kernel to absorb a
+     *  nonsense value silently. */
+    static final int MAX_FIN_COUNT = 8;
+
+    /** Shroud-line ceiling. A parachute with 1e9 lines built happily and
+     *  reported a 300000 kg rocket with zero warnings. */
+    static final int MAX_LINE_COUNT = 1024;
+
+    /**
+     * Read a count that reaches an allocation or a per-step loop.
+     * <p>
+     * Every one of these used to be a bare {@code (int) dbl(...)}, which turns
+     * NaN into 0 and Infinity into Integer.MAX_VALUE. Out-of-range is rejected
+     * rather than clamped: silently building a different rocket than the file
+     * describes is the bug class this whole boundary keeps producing.
+     */
+    private static int count(Map<String, Object> node, String key, int fallback, int max) {
+        double v = dbl(node, key, fallback);
+        if (Double.isNaN(v) || v != Math.floor(v) || v < 1 || v > max) {
+            throw new IllegalArgumentException(
+                    "'" + key + "' must be a whole number in 1.." + max + " (got " + v + ")");
+        }
+        return (int) v;
+    }
+
     private ComponentFactory() {}
 
     static RocketComponent create(Map<String, Object> node) {
@@ -173,7 +214,7 @@ final class ComponentFactory {
             }
             case "ellipticalfinset": {
                 EllipticalFinSet fins = new EllipticalFinSet();
-                fins.setFinCount((int) dbl(node, "finCount", 3));
+                fins.setFinCount(count(node, "finCount", 3, MAX_FIN_COUNT));
                 fins.setLength(dbl(node, "rootChord", 0.05));
                 fins.setHeight(dbl(node, "height", 0.03));
                 fins.setThickness(dbl(node, "thickness", 0.003));
@@ -184,7 +225,7 @@ final class ComponentFactory {
             }
             case "freeformfinset": {
                 FreeformFinSet fins = new FreeformFinSet();
-                fins.setFinCount((int) dbl(node, "finCount", 3));
+                fins.setFinCount(count(node, "finCount", 3, MAX_FIN_COUNT));
                 fins.setThickness(dbl(node, "thickness", 0.003));
                 fins.setCantAngle(dbl(node, "cant", 0));
                 fins.setCrossSection(crossSectionOf(str(node, "crossSection", "square")));
@@ -215,7 +256,7 @@ final class ComponentFactory {
             }
             case "tubefinset": {
                 TubeFinSet fins = new TubeFinSet();
-                fins.setFinCount((int) dbl(node, "finCount", 6));
+                fins.setFinCount(count(node, "finCount", 6, MAX_FIN_COUNT));
                 fins.setLength(dbl(node, "length", 0.1));
                 double or = dbl(node, "outerRadius", Double.NaN);
                 if (!Double.isNaN(or)) {
@@ -352,7 +393,7 @@ final class ComponentFactory {
                 if (!Double.isNaN(cd)) {
                     p.setCD(cd);
                 }
-                p.setLineCount((int) dbl(node, "lineCount", 6));
+                p.setLineCount(count(node, "lineCount", 6, MAX_LINE_COUNT));
                 p.setLineLength(dbl(node, "lineLength", 0.3));
                 double chuteSurf = dbl(node, "surfaceDensity", Double.NaN);
                 if (!Double.isNaN(chuteSurf)) {
@@ -429,6 +470,47 @@ final class ComponentFactory {
                 // Strap-on booster: a ParallelStage IS an AxialStage, so it
                 // separates and flies its own branch. Config applied post-attach.
                 c = new ParallelStage();
+                break;
+            }
+            // RASAERO-ORIGIN app extension, not an OpenRocket type: a camera
+            // shroud, written to `.ork` as our own <fairing> element (the
+            // desktop warns and skips it). Added for the RASAero supersonic
+            // work and never finished - nothing in the editor can create one
+            // (no ALLOWED_CHILDREN entry, no defaultNode case, no property
+            // panel), so it appears only in a design loaded from a `.ork` this
+            // app itself wrote.
+            //
+            // It used to hit the `default:` below and throw, so such a design
+            // round-tripped through OUR OWN file format and then could not be
+            // built at all - no static info, no simulation - while both
+            // renderers drew it happily. The `engineTree()` lowering that
+            // openRocketEngine.ts promised was never written.
+            //
+            // Modelled as a MassComponent: mass and length are carried, so the
+            // design loads and its mass and CG are right.
+            //
+            // HONEST LIMITATION: the shroud's DRAG is not modelled. A fairing
+            // is an external body with frontal area, and MassComponent
+            // contributes none, so a design with one flies slightly further
+            // than it should. That is strictly better than not flying at all,
+            // but it is half a fix.
+            //
+            // Deliberately left there: fairings are RASAero-scope work, and
+            // that scope is not currently being carried. Finishing this means
+            // deciding which OpenRocket primitive supplies the frontal-area
+            // drag - and, before that, whether camera shrouds are a feature at
+            // all, given nothing can create one. See docs/AUDIT_ENGINE.md
+            // Appendix R.
+            case "fairing": {
+                MassComponent f = new MassComponent();
+                f.setComponentMass(dbl(node, "mass", 0.03));
+                f.setLength(dbl(node, "length", 0.08));
+                // Radius from the shroud's cross-section, so the mass occupies
+                // roughly the right volume rather than a point.
+                double w = dbl(node, "width", 0.025);
+                double hgt = dbl(node, "height", 0.02);
+                f.setRadius(Math.max(w, hgt) / 2);
+                c = f;
                 break;
             }
             default:
@@ -654,7 +736,7 @@ final class ComponentFactory {
     private static void applyAssembly(RocketComponent child, Map<String, Object> node,
             Map<AxialStage, Double> nozzleDia) {
         RingInstanceable ring = (RingInstanceable) child;
-        ring.setInstanceCount((int) dbl(node, "instanceCount", 2));
+        ring.setInstanceCount(count(node, "instanceCount", 2, MAX_INSTANCE_COUNT));
         ring.setRadiusMethod(radiusMethodOf(str(node, "radiusMethod", "relative")));
         ring.setRadiusOffset(dbl(node, "radiusOffset", 0)); // gap in metres, stored raw for RELATIVE/FREE
         ring.setAngleOffset(dbl(node, "angleOffset", 0));    // radians

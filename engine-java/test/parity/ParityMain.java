@@ -54,6 +54,193 @@ public final class ParityMain {
         // nozzleBaseDragScenarios(): RASAero feature #2 is now upstream-native
         // (per-motor MotorConfiguration.nozzleExitDiameter). A native-model parity
         // scenario is deferred with the web nozzle-bridge migration.
+        rollScenarios();
+        collatorScenarios();
+        uuidScenarios();
+        preferencesScenarios();
+    }
+
+    /**
+     * Fin cant and the roll coefficients it drives, across Mach and roll rate.
+     * <p>
+     * This existed nowhere before. No parity design set a cant angle, so
+     * {@code FinSetCalc} multiplied the roll forcing by {@code cantAngle == 0}
+     * and every roll quantity was identically zero in all 255 golden lines; and
+     * the {@code aero.forces} field list did not print a roll term anyway. Both
+     * gates were therefore blind to it: halving the roll forcing in
+     * {@code FinSetCalc} gave `parity ok` on both targets AND `golden ok` on
+     * every line, and {@code validation/score.mjs} only knows cd/cp/cna so it
+     * could not have seen it either.
+     * <p>
+     * Not obscure physics: {@code ComponentFactory} reads a `cant` key for all
+     * three fin-set types, the web app round-trips it, and
+     * {@code OpenRocketEngine} ships CrollForce and CrollDamp to the aero view
+     * precisely so a user can check that a cant is doing what they meant. It is
+     * computed in the most heavily patched file in the tree.
+     * <p>
+     * Roll damping needs a non-zero roll rate to be non-zero, so the sweep
+     * crosses both: at rate 0 the damping term vanishes and Croll is pure
+     * forcing; at high rate the two oppose and Croll changes sign, which is the
+     * equilibrium roll rate the user actually cares about.
+     */
+    private static void rollScenarios() {
+        double[] cantsDeg = { 0.0, 0.5, 2.0, -2.0 };
+        double[] machs = { 0.3, 0.8, 1.5 };
+        double[] rollRates = { 0.0, 5.0, 20.0 };
+
+        for (double cantDeg : cantsDeg) {
+            Rocket rocket = buildReferenceRocket();
+            TrapezoidFinSet fins = null;
+            for (info.openrocket.core.rocketcomponent.RocketComponent c : rocket) {
+                if (c instanceof TrapezoidFinSet) {
+                    fins = (TrapezoidFinSet) c;
+                    break;
+                }
+            }
+            if (fins == null) {
+                line("roll.missingFinSet", cantDeg);
+                continue;
+            }
+            fins.setCantAngle(Math.toRadians(cantDeg));
+            line("roll.cant", cantDeg, fins.getCantAngle());
+
+            FlightConfiguration config = rocket.getSelectedConfiguration();
+            info.openrocket.core.aerodynamics.BarrowmanCalculator calc =
+                    new info.openrocket.core.aerodynamics.BarrowmanCalculator();
+            info.openrocket.core.logging.WarningSet warnings =
+                    new info.openrocket.core.logging.WarningSet();
+
+            for (double mach : machs) {
+                for (double rollRate : rollRates) {
+                    info.openrocket.core.aerodynamics.FlightConditions conditions =
+                            new info.openrocket.core.aerodynamics.FlightConditions(config);
+                    conditions.setMach(mach);
+                    conditions.setAOA(0.0);
+                    conditions.setRollRate(rollRate);
+
+                    warnings.clear();
+                    info.openrocket.core.aerodynamics.AerodynamicForces forces =
+                            calc.getAerodynamicForces(config, conditions, warnings);
+
+                    line("roll.forces", cantDeg, mach, rollRate,
+                            forces.getCrollForce(), forces.getCrollDamp(), forces.getCroll());
+                    line("roll.lateral", cantDeg, mach, rollRate,
+                            forces.getCside(), forces.getCyaw());
+                }
+            }
+        }
+    }
+
+    /**
+     * Motor-designation sort order, which is the ONE place the two platforms
+     * run genuinely different code.
+     * <p>
+     * {@code java.text.Collator} is a jdkstub: on the JVM the real JDK class
+     * wins by parent delegation, under TeaVM the stub runs. So this scenario
+     * is not testing that TeaVM compiled our source faithfully, it is testing
+     * that our stub agrees with the JDK it stands in for - the one comparison
+     * in this harness where a mismatch means the stub is wrong rather than the
+     * compiler. Nothing printed a sorted list before, so the stub could
+     * disagree with the JDK indefinitely and no gate would notice.
+     * <p>
+     * {@code DesignationComparator} is the live consumer and it sorts at
+     * PRIMARY, where "H128W" and "H128-W" must compare EQUAL and "AeroTech"
+     * must sort before "A-P". The old stub got that second one backwards.
+     */
+    private static void collatorScenarios() {
+        String[] names = {
+                "H128W", "H128-W", "AeroTech", "A-P", "K550W", "k550w",
+                "A10-3T", "A10 3T", "Pro38", "Pro-38", "1/2A3", "-5",
+                "C11-3", "C11 3", "Estes", "Cesaroni", "Loki", "LOKI", "loki",
+        };
+        int[] strengths = {
+                java.text.Collator.PRIMARY, java.text.Collator.SECONDARY,
+                java.text.Collator.TERTIARY, java.text.Collator.IDENTICAL,
+        };
+        for (int s = 0; s < strengths.length; s++) {
+            java.text.Collator coll = java.text.Collator.getInstance(java.util.Locale.US);
+            coll.setStrength(strengths[s]);
+            // The full sign matrix, not just a sorted order: a sorted list hides
+            // the ties, and PRIMARY equality is exactly what the consumer needs.
+            StringBuilder row = new StringBuilder();
+            for (String a : names) {
+                for (String b : names) {
+                    int sign = coll.compare(a, b);
+                    row.append(sign < 0 ? '<' : sign > 0 ? '>' : '=');
+                }
+            }
+            System.out.println("collator.matrix|" + strengths[s] + "|" + row);
+        }
+        // Strength must be per-instance: getInstance() used to hand back one
+        // shared singleton with a no-op setStrength, so two callers asking for
+        // different strengths silently got whichever was set last.
+        java.text.Collator primary = java.text.Collator.getInstance(java.util.Locale.US);
+        primary.setStrength(java.text.Collator.PRIMARY);
+        java.text.Collator identical = java.text.Collator.getInstance(java.util.Locale.US);
+        identical.setStrength(java.text.Collator.IDENTICAL);
+        line("collator.independent",
+                primary.compare("H128W", "H128-W"),
+                identical.compare("H128W", "H128-W"),
+                primary.getStrength(), identical.getStrength());
+    }
+
+    /**
+     * {@code LongUUID.randomUUID} determinism and spread.
+     * <p>
+     * The ids never reach the facade's output, so nothing here was pinned and
+     * two defects lived in it undisturbed: the counter's nibble at bits 12-15
+     * was masked away, so the most-significant half repeated every 2048 calls
+     * (and {@code MotorConfigurationId} keys on exactly that, so two
+     * configurations on one mount could alias); and only the low bits moved, so
+     * every {@code toShortKey()} was the constant "01234567".
+     * <p>
+     * Pinning it also asserts something parity is uniquely able to check: that
+     * the JVM and both TeaVM targets generate the SAME ids. If they ever
+     * diverge, every id-keyed map iterates differently on the two platforms.
+     */
+    private static void uuidScenarios() {
+        java.util.Set<Long> msbs = new java.util.HashSet<>();
+        java.util.Set<String> prefixes = new java.util.HashSet<>();
+        String first = null;
+        for (int i = 0; i < 4096; i++) {
+            info.openrocket.core.util.LongUUID u = info.openrocket.core.util.LongUUID.randomUUID();
+            msbs.add(u.getMostSignificantBits());
+            String s8 = u.toString().substring(0, 8);
+            prefixes.add(s8);
+            if (i == 0) first = u.toString();
+        }
+        // 4096 distinct most-significant halves: the old counter managed 2048.
+        // Many distinct short keys: the old one managed exactly 1.
+        line("uuid.spread", msbs.size(), prefixes.size());
+        // Exact value, so the two platforms must agree bit for bit.
+        System.out.println("uuid.first|" + first);
+    }
+
+    /**
+     * The shim {@code ApplicationPreferences} defaults, pinned against upstream's.
+     * <p>
+     * A shim is the only provider of a fully-qualified name that upstream also
+     * defines, so a default that silently stops matching the desktop is invisible
+     * at compile time and wrong at runtime. Nothing in {@code extract --check}
+     * compares a shim to the class it shadows, and the wind model is the case that
+     * proved it: {@code getAverageWindModel()} returned a dead-calm model where
+     * upstream seeds 2 m/s at 10% turbulence from due east. It reached nothing
+     * only because {@code OpenRocketEngine} clears the wind levels before every
+     * run, which is one line away from not being true.
+     */
+    private static void preferencesScenarios() {
+        info.openrocket.core.preferences.ApplicationPreferences prefs =
+                info.openrocket.core.startup.Application.getPreferences();
+        info.openrocket.core.models.wind.PinkNoiseWindModel wind = prefs.getAverageWindModel();
+        line("prefs.wind", wind.getAverage(), wind.getTurbulenceIntensity(),
+                wind.getDirection(), wind.getStandardDeviation());
+        line("prefs.launch", prefs.getLaunchRodLength(), prefs.getLaunchRodAngle(),
+                prefs.getLaunchRodDirection(), prefs.getLaunchAltitude(),
+                prefs.getLaunchLatitude(), prefs.getLaunchLongitude());
+        line("prefs.atmos", prefs.getLaunchTemperature(), prefs.getLaunchPressure(),
+                prefs.getLaunchRelativeHumidity(), prefs.getConstantGravityValue());
+        line("prefs.sim", prefs.getTimeStep(), prefs.getMaxSimulationTime(),
+                prefs.getDefaultMach());
     }
 
     /**

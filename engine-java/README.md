@@ -35,14 +35,14 @@ OpenRocket's full `core` is ~700 files and pulls in Guice, JAXB, GraalVM-JS, cla
 
 ### 1. `src/java/` — the OpenRocket physics, extracted to a subset
 
-**Extraction** = copying only the ~270 files the physics + simulation actually need, leaving the reflection/IO-heavy machinery (file loaders, plugin system, scripting, Swing hooks) behind. These files are **real OpenRocket source** — ~255 are byte-for-byte upstream; 15 carry overrides (see `patches/`). By package:
+**Extraction** = copying only the ~270 files the physics + simulation actually need, leaving the reflection/IO-heavy machinery (file loaders, plugin system, scripting, Swing hooks) behind. These files are **real OpenRocket source** — ~256 are byte-for-byte upstream; 16 carry overrides (see `patches/`). By package:
 
 | files | package | what it is |
 |------:|---------|------------|
 | 73 | `rocketcomponent` | rocket model: nose, body, fins, stages, mounts, flight configs |
 | 60 | `util` | math/geometry (Coordinate, quaternions, interpolation) |
-| 41 | `simulation` | flight simulator: RK4/RK6 integrators, steppers, tumble detection, flight data |
-| 18 | `aerodynamics` | Extended Barrowman + RASAero CP / drag / stability (force breakdown) |
+| 42 | `simulation` | flight simulator: RK4/RK6 integrators, steppers, tumble detection, flight data |
+| 19 | `aerodynamics` | Extended Barrowman + RASAero CP / drag / stability (force breakdown) |
 | 16 | `unit` | unit system (internals are pure SI) |
 | 12 | `models` | atmosphere (ISA), gravity models, wind |
 | 10 | `motor` | thrust-curve motor model |
@@ -92,9 +92,16 @@ Guardrails — `--check` writes nothing and **exits non-zero** on any of:
 - a manifest file missing upstream (version mismatch);
 - an extracted file that differs from `upstream(+patch)`;
 - an extracted file not in the manifest (it compiles, but a regeneration would not produce it);
-- an extracted file carrying a `PATCH(astrarrocketjs)` marker with **no** `patches/` counterpart — a regeneration would silently revert it.
+- an extracted file carrying a `PATCH(astrarrocketjs)` marker with **no** `patches/` counterpart — a regeneration would silently revert it;
+- a patch whose divergence from upstream does not match the blessed baseline in `extract/DIVERGENCE.txt`, or that baseline being absent.
 
-A `patches/` file whose path isn't in the manifest is a hard error (it would silently never apply). `--check` also *reports*, without failing, how far each patch has diverged from current upstream: comparing `src/java` to the patch can never see upstream moving underneath, which is how `FinSetCalc` came to sit hundreds of lines behind while the check called it clean.
+A `patches/` file whose path isn't in the manifest is a hard error (it would silently never apply).
+
+**`extract/DIVERGENCE.txt` is the load-bearing guardrail**, and it is worth being precise about why. The first four bullets all rest on one invariant, `src/java == upstream + patches`. The patches are an **input** to that equation, so the invariant can never question them: edit a `patches/` file and `src/java` together and the check is green by construction, whatever you put there. `DIVERGENCE.txt` records, per patch, how many lines it differs from upstream by (a real LCS diff), and `--check` recomputes those numbers and fails on any difference. Changing a patch therefore means running `--bless` and explaining the new number in review.
+
+Two notes on reading it. A delta of **0** means the patch is byte-identical to upstream: that is the *leftover* `patches/LEDGER.md` describes, and the answer is to delete the patch, not to bless the zero. And every patch is listed unconditionally, including zeros — the old report used a line-multiset count that silently dropped any change made purely of deletions or reorderings, which is how deleting a single `count++;` from `MathUtil.average()` could score 0 and vanish from the report while `average()` divided by zero.
+
+Comparing `src/java` to the patch also can never see upstream moving underneath, which is how `FinSetCalc` came to sit hundreds of lines behind while the check called it clean; the same per-patch numbers are what surface that on an upgrade.
 
 `--check` is only meaningful against the exact upstream the extraction was made from — pinned in `extract/UPSTREAM` and enforced by the `reproducible` job in `.github/workflows/gates.yml`.
 
@@ -113,8 +120,25 @@ npm run parity         # both targets vs the JVM reference
 npm run parity:js      # JS only          npm run parity:wasm   # WASM-GC only
 npm run parity:golden  # rewrite golden.txt (deliberate physics changes only)
 npm run validate       # aero scorecard   npm run validate:supersonic / :strict
-npm run extract:check -- --src <openrocket-source>   # args after -- reach the script
+npm run extract:check    # no arguments: fetches the pinned upstream itself
+npm run extract:bless    # re-record extract/DIVERGENCE.txt + SHIMS.txt
 ```
+
+**You do not need to clone OpenRocket by hand.** With no `--src` and no
+`OPENROCKET_SRC`, the extractor clones the exact repo and ref from
+`extract/UPSTREAM` into `engine-java/.openrocket-src` (gitignored, sparse to
+`core/src/main/java`, blobless: about 2 s and 7 MB) and reuses it afterwards -
+a warm `extract:check` is under half a second. The cache is keyed to the ref,
+so bumping the pin re-fetches instead of silently checking against the old
+commit. `--refresh` forces it; `--src <path>` still points at your own checkout,
+which is what CI does and what you want offline.
+
+Requiring a hand-made clone is why this gate used to run only in CI, which is
+backwards for a check whose job is catching a local edit before it lands.
+
+`--bless` and `--check` both write nothing to `src/java`. Only a bare
+`extract --src …` regenerates the tree, and on a CRLF checkout that rewrites all
+272 files to LF, so do not run it casually.
 
 Or call them directly, which is identical:
 

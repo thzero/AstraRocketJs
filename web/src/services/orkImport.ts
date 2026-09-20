@@ -445,8 +445,10 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
         readInstances(el, n);
         return n;
       }
-      // Our extension component (2026-08-05b #18) — the desktop warns about
-      // the unknown element and skips it.
+      // Our extension element (2026-08-05b #18), added for the RASAERO work —
+      // the desktop warns about the unknown element and skips it. Nothing in
+      // the editor can create a fairing, so this only ever reads one back out
+      // of a file this app wrote. See openRocketEngine.ts ComponentType.
       case 'fairing': {
         const n = base('fairing', true);
         n['length'] = numTag(el, 'length', 0.08);

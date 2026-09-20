@@ -53,7 +53,10 @@ jobs:
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: '21'
+          # Exact, not floating. The byte-diff step below requires the whole
+          # toolchain to reproduce; a silent Temurin 21.x bump would fail an
+          # unrelated PR with an unreadable binary diff.
+          java-version: '21.0.12'
 
       - uses: actions/setup-node@v7
         with:
@@ -118,7 +121,18 @@ jobs:
         timeout-minutes: 20
         run: |
           npm run build
-          git diff --exit-code --             ../web/src/engine/vendor/openrocket-engine.mjs             ../web/public/engine/openrocket-engine.wasm             ../web/public/engine/openrocket-engine.wasm-runtime.js
+          # Say WHICH failure this is before failing. The two causes look
+          # identical in a binary diff and need opposite fixes: either someone
+          # edited Java and did not re-run build-engine.mjs, or the rebuild was
+          # genuinely not reproducible on this toolchain.
+          java -version
+          git diff --stat --             ../web/src/engine/vendor/openrocket-engine.mjs             ../web/public/engine/openrocket-engine.wasm             ../web/public/engine/openrocket-engine.wasm-runtime.js
+          git diff --exit-code --             ../web/src/engine/vendor/openrocket-engine.mjs             ../web/public/engine/openrocket-engine.wasm             ../web/public/engine/openrocket-engine.wasm-runtime.js || {
+            echo "::error::Vendored engine artifacts differ from a fresh build."
+            echo "::error::If you edited engine-java/src, run 'npm run build' in engine-java/ and commit the result."
+            echo "::error::If you did not, the build is not reproducible on this toolchain (see java -version above)."
+            exit 1
+          }
 
   # Can src/java still be REGENERATED from its declared inputs? Parity above
   # cannot answer that — it builds from src/java and compares the two TeaVM
@@ -132,14 +146,27 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Pinned in engine-java/extract/UPSTREAM. --check is only meaningful
-      # against the exact tree the extraction was made from; a floating ref
-      # would report every upstream commit as drift.
+      # The ref lives in engine-java/extract/UPSTREAM and is READ from there,
+      # not copied here. It used to be written out in both places with nothing
+      # comparing them: bump one and forget the other, and either CI checks the
+      # wrong tree and blames ~200 files of "drift", or CI goes green while
+      # UPSTREAM lies and every local `extract:check` reports phantom drift.
+      # They agreed only because someone repinned both by hand.
+      - name: Read the pinned OpenRocket ref
+        id: upstream
+        run: |
+          sed -n 's/^repo[[:space:]]*=[[:space:]]*//p' engine-java/extract/UPSTREAM \
+            | sed 's#https://github.com/##; s#\.git$##' \
+            | xargs -I{} echo "repo={}" >> "$GITHUB_OUTPUT"
+          sed -n 's/^ref[[:space:]]*=[[:space:]]*//p' engine-java/extract/UPSTREAM \
+            | xargs -I{} echo "ref={}" >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+
       - name: Check out the pinned OpenRocket source
         uses: actions/checkout@v7
         with:
-          repository: thzero/openrocket
-          ref: 6deae50796af9356c6541c9d5e6306ebebe0186f
+          repository: ${{ steps.upstream.outputs.repo }}
+          ref: ${{ steps.upstream.outputs.ref }}
           path: .openrocket-src
           sparse-checkout: core/src/main/java
           sparse-checkout-cone-mode: false
@@ -152,9 +179,41 @@ jobs:
         working-directory: engine-java
         run: npm run extract:check -- --src "$GITHUB_WORKSPACE/.openrocket-src"
 
+  # The aero scorecard, as a RATCHET.
+  #
+  # This harness existed and scored the engine against published wind-tunnel
+  # anchors, and nothing ever ran it: a gate that has already failed open. It
+  # cannot be a pass/fail gate, because the honest current score is 9/135 on the
+  # classic model - so it gates on two things that ARE meaningful:
+  #
+  #   --min           the score must not drop below the recorded floor
+  #   --expect-gates  the anchor SET must not silently shrink, which is the
+  #                   other way this fails open (the denominator just gets
+  #                   smaller and the scorecard still reads normally)
+  #
+  # Raise the floors when the model improves; that is the point of a ratchet.
+  # Needs no JDK and no build - it imports the committed vendored engine - so
+  # the whole job is a few seconds.
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Aero scorecard, classic Extended Barrowman (flags off)
+        working-directory: engine-java
+        run: node validation/score.mjs --expect-gates 135 --min 9
+
+      - name: Aero scorecard, opt-in supersonic path
+        working-directory: engine-java
+        run: node validation/score.mjs --supersonic --expect-gates 135 --min 61
+
   # Gated on the engine jobs: see the ordering note at the top of this file.
   build-and-test:
-    needs: [parity, reproducible]
+    needs: [parity, reproducible, validate]
     runs-on: ubuntu-latest
     defaults:
       run:

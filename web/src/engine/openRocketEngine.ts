@@ -67,6 +67,43 @@ export class StaleDesignError extends Error {
   }
 }
 
+/**
+ * A call into the kernel that threw instead of returning an `{error}` envelope.
+ *
+ * The facade returns `{"error": ...}` from the methods that return a JSON
+ * string, and the readers below check `parsed.error`. But the `void` and
+ * primitive-returning exports — `buildRocket`, `setMotorById`,
+ * `setMotorIgnitionById`, the flag setters, `getWorstThetaDeg` — are
+ * STRUCTURALLY incapable of carrying one: there is nowhere in an `int` or a
+ * `void` to put a message. Those threw raw out of a 2.9 MB TeaVM bundle, and
+ * the two targets do not even agree on the shape (the JS build wraps a native
+ * error into a Java RuntimeException, WASM-GC traps straight out).
+ *
+ * `callEngine` gives them the same contract the envelope methods have: one
+ * typed, named error with the failing operation in the message.
+ */
+export class EngineCallError extends Error {
+  readonly engineCause: unknown;
+
+  constructor(readonly operation: string, engineCause: unknown) {
+    const detail = engineCause instanceof Error ? engineCause.message : String(engineCause);
+    super(`engine ${operation} failed: ${detail || '(no message)'}`);
+    this.name = 'EngineCallError';
+    this.engineCause = engineCause;
+  }
+}
+
+/** Run a kernel call that cannot return an `{error}` envelope. */
+function callEngine<T>(operation: string, fn: () => T): T {
+  try {
+    return fn();
+  } catch (e) {
+    // A stale handle is already a typed, meaningful error; do not bury it.
+    if (e instanceof StaleDesignError) throw e;
+    throw new EngineCallError(operation, e);
+  }
+}
+
 /** Dynamically import the JS engine as its own chunk — loaded only when WASM is unavailable. */
 async function loadJsEngine(): Promise<EngineApi> {
   return await import('./vendor/openrocket-engine.mjs');
@@ -423,9 +460,25 @@ export type ComponentType =
   | 'engineblock'
   | 'launchlug'
   | 'railbutton'
-  // App-level component: the editor's engineTree() lowers a fairing to a
-  // kernel strake-fin + CD/mass overrides before buildTree — the kernel
-  // itself never sees this type.
+  // RASAERO-ORIGIN, and not reachable from the editor. A "camera shroud": an
+  // external faired pod for an onboard camera, added for the RASAero
+  // supersonic work (ork extension element, 2026-08-05b #18), never finished.
+  //
+  // There is no way to create one: `ALLOWED_CHILDREN` has no fairing entry so
+  // the add menu never offers it, `defaultNode` has no case, and
+  // `componentFields` gives it no property panel. It only exists in a design
+  // that was loaded from a `.ork` this app itself wrote. The renderers do draw
+  // it, and import/export round-trip it.
+  //
+  // This comment used to claim "the editor's engineTree() lowers a fairing to
+  // a kernel strake-fin + CD/mass overrides before buildTree". THERE IS NO
+  // engineTree ANYWHERE IN web/src — the lowering was never written, so the
+  // kernel used to reject the type outright and any design carrying one failed
+  // to build at all. `ComponentFactory` now accepts it as a mass-carrying
+  // component so such a file loads; its drag is still not modelled.
+  //
+  // Scope: RASAero. See engine-java/ATTRIBUTION.md and docs/AUDIT_ENGINE.md
+  // Appendix R.
   | 'fairing'
   | 'parachute'
   | 'streamer'
@@ -891,7 +944,7 @@ export class OpenRocketDesign {
    * Give the motor-mount inner tube an `id` and pass it to setMotorById.
    */
   static buildTree(tree: RocketTree): OpenRocketDesign {
-    const handle = eng().buildRocket(JSON.stringify(tree));
+    const handle = callEngine('buildRocket', () => eng().buildRocket(JSON.stringify(tree)));
     return new OpenRocketDesign(handle);
   }
 
@@ -902,7 +955,7 @@ export class OpenRocketDesign {
     // BigInt", which told the user nothing and blanked their design; catalog
     // data with missing weights is the real-world source (see thrustcurve.ts).
     assertFiniteCurve(motor);
-    eng().setMotorById(
+    callEngine('setMotorById', () => eng().setMotorById(
       this.handle,
       componentId,
       motor.designation,
@@ -913,7 +966,7 @@ export class OpenRocketDesign {
       motor.masses,
       motor.cgX,
       toKernelDelay(motor.ejectionDelay),
-    );
+    ));
   }
 
   /**
@@ -923,7 +976,15 @@ export class OpenRocketDesign {
    * burnout + 1 s.
    */
   setMotorIgnitionById(componentId: string, event: IgnitionEvent, delayS = 0): void {
-    eng().setMotorIgnitionById(this.handle, componentId, event, delayS);
+    // Validated here, not just wrapped. The kernel writes the event time
+    // straight into its result JSON, and an Infinity delay produced
+    // `"time":Infinity` — not valid JSON — so JSON.parse threw and discarded
+    // the whole flight. The kernel guards it now too; this keeps the bad value
+    // from crossing the boundary at all, and names the field when it does.
+    if (!Number.isFinite(delayS)) {
+      throw new EngineCallError('setMotorIgnitionById', new Error(`delayS must be finite, got ${delayS}`));
+    }
+    callEngine('setMotorIgnitionById', () => eng().setMotorIgnitionById(this.handle, componentId, event, delayS));
   }
 
   /**
@@ -933,7 +994,7 @@ export class OpenRocketDesign {
    * off ⇒ classic Barrowman (bit-identical to before).
    */
   setRogersModifiedBarrowman(enabled: boolean): void {
-    eng().setRogersModifiedBarrowman(this.handle, enabled);
+    callEngine('setRogersModifiedBarrowman', () => eng().setRogersModifiedBarrowman(this.handle, enabled));
   }
 
   /**
@@ -945,7 +1006,7 @@ export class OpenRocketDesign {
    * Validated against the wind-tunnel anchor suite in validation/.
    */
   setSupersonicAero(enabled: boolean): void {
-    eng().setSupersonicAero(this.handle, enabled);
+    callEngine('setSupersonicAero', () => eng().setSupersonicAero(this.handle, enabled));
   }
 
   /** Length, mass, CG/CP, stability margin — computed at Mach 0.3, AoA 0. */
@@ -990,7 +1051,7 @@ export class OpenRocketDesign {
    * button. Feed it back in as {@link AeroSweepOptions.thetaDeg}.
    */
   worstThetaDeg(mach = 0.3, aoaDeg = 0): number {
-    return eng().getWorstThetaDeg(this.handle, mach, aoaDeg);
+    return callEngine('getWorstThetaDeg', () => eng().getWorstThetaDeg(this.handle, mach, aoaDeg));
   }
 
   /**

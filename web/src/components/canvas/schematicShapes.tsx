@@ -1,6 +1,7 @@
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { FIN_DEFAULTS } from '../../tree/finPlanform';
 import { countOf, num } from '../../tree/nodeProps';
+import { KERNEL_MASSCOMPONENT_RADIUS, KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
 import { freeformPoints } from '../../tree/position.js';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
@@ -550,9 +551,13 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           ),
         );
       } else if (t === 'launchlug' || t === 'railbutton') {
+        // 0.0097 is RailButton's own default (RailButton.java:61), which is
+        // also what orkImport writes and what the kernel flies when the key is
+        // absent. The old 0.004 drew a button less than half the size of the
+        // one being simulated.
         // Rail buttons are edited via 'outerDiameter' (their only size field)
         // and have no axial 'length' — a button is about as long as it is wide.
-        const btnDia = t === 'railbutton' ? num(child, 'outerDiameter', 0.004) : 0;
+        const btnDia = t === 'railbutton' ? num(child, 'outerDiameter', KERNEL_RAILBUTTON_OUTER_DIAMETER) : 0;
         const len = t === 'railbutton' ? btnDia : num(child, 'length', 0.01);
         const r = t === 'railbutton' ? btnDia / 2 : num(child, 'outerRadius', 0.002);
         const start = axialStart(child, len, pStart, pLen);
@@ -600,7 +605,13 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         // <packedlength>/<packedradius> into `length`/`radius`
         // (orkImport.ts:441-488), so both branches were unreachable.
         const len = num(child, 'length', 0.025);
-        const r = Math.min(pRadius * 0.85, num(child, 'outerRadius', num(child, 'radius', pRadius * 0.7)));
+        // The last fallback is the KERNEL's default (ComponentFactory
+        // masscomponent radius = 0.005), not a fraction of the parent. It used
+        // to be `pRadius * 0.7`, so a mass component with no `radius` key - which
+        // is every one the editor creates - was drawn at ~9 mm on a 13 mm tube
+        // and flown at 5 mm. A drawing that disagrees with the simulation is
+        // worse than an ugly one.
+        const r = Math.min(pRadius * 0.85, num(child, 'outerRadius', num(child, 'radius', KERNEL_MASSCOMPONENT_RADIUS)));
         const start = axialStart(child, len, pStart, pLen);
         const offsets =
           child.type === 'innertube'

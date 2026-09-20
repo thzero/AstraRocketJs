@@ -538,8 +538,10 @@ export function exportOrk({
         break;
       }
       case 'fairing': {
-        // Extension element: our own reader round-trips it; the desktop
-        // warns-and-skips (same contract as the airfoil-section tags).
+        // Extension element from the RASAero work: our own reader round-trips
+        // it; the desktop warns-and-skips (same contract as the
+        // airfoil-section tags, which are also RASAero). Unreachable from the
+        // editor - see openRocketEngine.ts ComponentType.
         open('fairing');
         header(depth + 1, node, 'Camera shroud');
         position(depth + 1, node, 'middle');

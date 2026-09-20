@@ -57,6 +57,8 @@ public class ApplicationPreferences {
     public static final String LAUNCH_ROD_ANGLE = "LaunchRodAngle";
     public static final String LAUNCH_ROD_DIRECTION = "LaunchRodDirection";
     public static final String WIND_DIRECTION = "WindDirection";
+    public static final String WIND_AVERAGE = "WindAverage";
+    public static final String WIND_TURBULENCE = "WindTurbulence";
 
     // ---- Launch / simulation defaults (values copied from upstream) ----
 
@@ -134,11 +136,33 @@ public class ApplicationPreferences {
         return RK4SimulationStepper.RECOMMENDED_MAX_TIME;
     }
 
+    /**
+     * Upstream lazily creates the model and then seeds it from the stored wind
+     * preferences ({@code loadWindModelState}), so a fresh desktop install gets
+     * 2 m/s at 10% turbulence blowing from due east, NOT a dead-calm model.
+     * Returning a bare {@code new PinkNoiseWindModel()} here (average 0,
+     * standard deviation 0) was a silent divergence from the desktop: anything
+     * that reaches this model without overriding it, such as
+     * {@code MultiLevelPinkNoiseWindModel.addInitialLevel()} seeding level 0,
+     * would fly a calm day where OpenRocket flies a breezy one.
+     */
     public PinkNoiseWindModel getAverageWindModel() {
         if (averageWindModel == null) {
             averageWindModel = new PinkNoiseWindModel();
+            loadWindModelState();
         }
         return averageWindModel;
+    }
+
+    /**
+     * Upstream's seeding step, reproduced. There is no persisted store here, so
+     * every {@code getDouble} returns the default - which is the point: these
+     * three defaults ARE upstream's.
+     */
+    protected void loadWindModelState() {
+        averageWindModel.setAverage(getDouble(WIND_AVERAGE, 2.0));
+        averageWindModel.setTurbulenceIntensity(getDouble(WIND_TURBULENCE, 0.1));
+        averageWindModel.setDirection(getDouble(WIND_DIRECTION, Math.PI / 2));
     }
 
     /**

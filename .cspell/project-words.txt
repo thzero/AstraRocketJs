@@ -155,6 +155,7 @@ Jambol
 jank
 javac
 JAXB
+jdkstub
 jdkstubs
 Jorgensen
 Karman
@@ -196,8 +197,10 @@ meshers
 metalness
 Metas
 Meteo
+MicroMaxx
 MINFEATURE
 miscompiles
+misordered
 misrender
 misrenders
 mistap
@@ -299,6 +302,7 @@ strided
 striplength
 stripwidth
 strmr
+subclassing
 subcomponents
 sustainers
 sweeplength
@@ -358,4 +362,3 @@ worktree
 xform
 xunits
 yunits
-MicroMaxx
