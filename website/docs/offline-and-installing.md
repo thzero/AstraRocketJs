@@ -43,7 +43,7 @@ When a new version ships, a small message appears at the bottom of the window of
 
 **Later** puts it away and brings it back in a couple of hours. The **✕** keeps the current version until you next reload, whenever suits you.
 
-The app looks for a new version about once an hour, and again whenever you come back to the tab or your connection returns, so a tab left open all day still finds out that something shipped.
+The app looks for a new version about every ten minutes, and again whenever you come back to the tab or your connection returns, so a tab left open all day still finds out that something shipped. A plain reload also picks up a new version directly, so you never need a hard reload; the site is served through a CDN that holds files for up to ten minutes, which is the longest a fresh deploy takes to reach you.
 
 Motor and component catalogs refresh separately from the app itself, in the background, so new motors reach you without an app update.
 

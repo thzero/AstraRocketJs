@@ -47,7 +47,7 @@ TeaVM requires `optimization = NONE` + `fastGlobalAnalysis = true` (see `engine-
 
 ## Offline & installability (PWA)
 
-Everything the app needs is static — the WASM kernel runs the physics in-browser and there is no backend — so it can work with no connection at all. `vite-plugin-pwa` (configured in `web/vite.config.ts`) emits a service worker that precaches the app shell, the WASM engine and both catalogs (~7.8 MB), plus a web app manifest that makes it installable.
+Everything the app needs is static — the WASM kernel runs the physics in-browser and there is no backend — so it can work with no connection at all. `vite-plugin-pwa` (configured in `web/vite.config.ts`) emits a service worker that precaches the app shell, the WASM engine and both catalogs (~7.8 MB), plus a web app manifest that makes it installable. Page loads themselves go network-first with the precached shell as the offline fallback, so a plain reload picks up a new deploy as soon as the CDN serves it, without waiting for the update prompt; the GitHub Pages CDN caches every file for ten minutes, so that is the floor on how fast a deploy can reach anyone.
 
 Two deliberate exclusions and additions:
 

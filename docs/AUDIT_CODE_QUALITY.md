@@ -405,3 +405,12 @@ Note on the golden tests: the audit praised the absence of snapshot tests, and t
 ### Still open
 
 Nothing from this audit. Two things are worth a manual look because no headless run can judge them: the exported 3D image should match the on-screen look at 1920 and 7680 wide (tone mapping and sRGB are applied by hand in the offscreen pass), and 3D playback smoothness on a long flight.
+
+### Third pass: the deploy update path
+
+Reported after the second pass shipped: a tab kept showing version 17 with 23 deployed, and only a hard reload helped. Two findings, one wrong turn.
+
+- **The wrong turn.** The built worker has no `clientsClaim`, and the first diagnosis blamed that for the toast's Reload doing nothing. A new end-to-end check (`npm run e2e:update`: two real builds, a headless Chromium, a real worker) passed with the change and passed without it. Existing controlled tabs switch to a skip-waiting worker on their own. The change was removed.
+- **The real cause, two layers.** First, the worker answered every page load from its precache, so a plain reload could never show a deploy; only the toast could, and the toast only fires once the browser sees a new worker script. Second, the GitHub Pages CDN caches that script for 600 seconds and ignores both the no-cache request a worker update check sends and a cache-busting query (verified against the live site), so a deploy is invisible for up to ten minutes whatever the browser does. Stacked on an hourly poll, a focused tab could sit on a stale build for over an hour.
+- **What changed.** Page loads are network-first (`NetworkFirst`, 3 s timeout, the precached `index.html` as the offline fallback) with `navigateFallback` off and the precache route's `directoryIndex` mapping disabled, because that mapping answered the site root from the precache before any runtime route was consulted; the check caught exactly that. The idle poll is ten minutes. The check itself is a CI job (`update-flow`) and asserts, in order: a plain reload shows the new build, the toast appears on an update check, its Reload keeps the new build, and an offline reload still boots from the worker.
+- **What cannot be fixed from the app.** The ten-minute CDN window. Nobody needs a hard reload any more, but nobody sees a deploy in under ten minutes either.

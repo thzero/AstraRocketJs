@@ -43,7 +43,7 @@ Cuando se publica una versión nueva, aparece un pequeño mensaje en la parte in
 
 **Más tarde** lo guarda y lo vuelve a mostrar al cabo de un par de horas. La **✕** mantiene la versión actual hasta que recargues, cuando te venga bien.
 
-La aplicación busca versiones nuevas más o menos una vez por hora, y de nuevo cada vez que vuelves a la pestaña o se restablece la conexión, así que una pestaña abierta todo el día también se entera de que se ha publicado algo.
+La aplicación busca versiones nuevas más o menos cada diez minutos, y de nuevo cada vez que vuelves a la pestaña o se restablece la conexión, así que una pestaña abierta todo el día también se entera de que se ha publicado algo. Una recarga normal también trae la versión nueva directamente, así que nunca hace falta una recarga forzada; el sitio se sirve a través de una CDN que conserva los archivos hasta diez minutos, que es lo máximo que tarda una publicación en llegarte.
 
 Los catálogos de motores y componentes se actualizan aparte de la propia aplicación, en segundo plano, así que los motores nuevos te llegan sin necesidad de actualizarla.
 
