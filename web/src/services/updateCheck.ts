@@ -13,8 +13,19 @@
  * module.
  */
 
-/** How often a tab that is simply sitting there asks again. */
-export const UPDATE_POLL_MS = 60 * 60_000;
+/**
+ * How often a tab that is simply sitting there asks again.
+ *
+ * Ten minutes, not an hour. The site is served through the GitHub Pages CDN,
+ * which caches `sw.js` for 600 s and ignores the no-cache request a worker
+ * update check sends (and a cache-busting query, which it strips), so a
+ * deploy is invisible to every browser for up to ten minutes whatever they
+ * do. An hourly poll stacked on that meant a focused tab could sit on a stale
+ * build for over an hour with no toast, and the natural reaction was a hard
+ * reload, which is exactly the thing the toast exists to spare people. Each
+ * check is one conditional GET of a 12 kB script; ten minutes is cheap.
+ */
+export const UPDATE_POLL_MS = 10 * 60_000;
 
 /**
  * The shortest gap between two checks.

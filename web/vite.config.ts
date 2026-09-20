@@ -5,7 +5,10 @@ import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
-const { version } = pkg;
+// The version the app reports. Overridable so scripts/check-update-flow.mjs can
+// build two distinguishable versions from one checkout and watch the service
+// worker hand one over to the other; nothing else sets it.
+const version: string = process.env.APP_VERSION_OVERRIDE || pkg.version;
 
 // The Help/docs link. Prefer the explicit `wiki.url` in package.json; fall back to
 // the repository URL + "/wiki" (normalized: strip the "git+" prefix / ".git" suffix).
@@ -83,12 +86,41 @@ export default defineConfig({
         // The WASM kernel alone is ~2.5 MB, over Workbox's 2 MiB default.
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         cleanupOutdatedCaches: true,
-        // The docs site is copied into dist/docs at deploy time, so it is NOT
-        // part of the precache — but the SW's navigation fallback would still
-        // answer every /docs/ navigation with the app shell, replacing the docs
-        // with the app for anyone who has visited before. Exclude them.
-        navigateFallbackDenylist: [/\/docs\//],
+        // No precache-first navigation route. With it, every page load was
+        // answered from the worker's precache, so a plain reload could NEVER
+        // show a new deploy: the page stayed on the old build until the toast
+        // fired (after the CDN's ten-minute cache let the new worker through),
+        // and people learned to hard-reload instead, which is the one thing a
+        // PWA is supposed to spare them. Page loads go network-first below.
+        navigateFallback: null,
+        // And no directory-index mapping in the precache route. Workbox
+        // registers that route before every runtime route, and with the
+        // default it answers a navigation to the site root with the precached
+        // index.html itself, so the network-first rule below was never
+        // reached (the check in scripts/check-update-flow.mjs caught exactly
+        // that). The fallback below names index.html explicitly, so offline
+        // still gets the shell.
+        directoryIndex: '',
         runtimeCaching: [
+          {
+            // Page loads: the network copy of index.html when it answers within
+            // a few seconds, else the precached shell (offline, or a dead link
+            // at a launch site). Online, a reload therefore shows whatever the
+            // CDN is serving, exactly what a hard reload would, and the hashed
+            // assets it references are fetched or precached as usual. The
+            // toast still handles a tab that stays open across a deploy.
+            //
+            // /docs/ is the Docusaurus site copied into dist at deploy time;
+            // a docs page must never fall back to the app shell.
+            urlPattern: ({ request, url }) => request.mode === 'navigate' && !url.pathname.includes('/docs/'),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'astra-shell',
+              networkTimeoutSeconds: 3,
+              precacheFallback: { fallbackURL: 'index.html' },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
           {
             // Catalogs published to the `data` branch (see sync-catalogs.yml).
             // Stale-while-revalidate: render instantly from cache, refresh in the

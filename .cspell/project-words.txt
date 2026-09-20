@@ -301,6 +301,7 @@ plottable
 podset
 podsets
 powerseries
+precached
 precaches
 precaching
 prefs
@@ -323,6 +324,7 @@ refreshable
 reimplementation
 relativehumidity
 relativeto
+requestfailed
 reselecting
 rocketcomponent
 rootchord
