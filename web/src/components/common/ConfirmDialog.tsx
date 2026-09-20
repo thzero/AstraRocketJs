@@ -14,9 +14,16 @@ export function ConfirmDialog() {
   // Seven dialogs declared aria-modal and had neither, so Tab walked straight
   // out into the page behind the overlay — the exact gap useFocusTrap exists
   // to close, already used by seven of their siblings.
-  const panelRef = useFocusTrap<HTMLDivElement>(true);
-  const { t } = useTranslation();
+  // `!!request`, NOT a constant `true`. The panel is not rendered until a
+  // request exists, and useFocusTrap's effect deps are `[active]`: with a
+  // constant it ran once on mount, found `ref.current` null, returned early,
+  // and never ran again. So the one modal mounted permanently at the app root
+  // - Delete component, Close design, Delete simulation - declared
+  // `aria-modal` and had no trap and no focus restore at all, while every
+  // conditionally-mounted dialog was fine.
   const request = useConfirmStore((s) => s.request);
+  const panelRef = useFocusTrap<HTMLDivElement>(!!request);
+  const { t } = useTranslation();
   const settle = useConfirmStore((s) => s.settle);
 
   useEffect(() => {

@@ -90,12 +90,16 @@ const LENGTH_KEYS: Record<string, readonly string[]> = {
   launchlug: ['length', 'instanceSeparation'],
   // A rail button is a catalog part; the SPACING between a pair is an airframe span.
   railbutton: ['instanceSeparation'],
-  parachute: ['diameter', 'spillHoleDiameter', 'lineLength'],
-  streamer: ['stripLength', 'stripWidth'],
-  shockcord: ['cordLength'],
+  // `length` is the PACKED length (orkImport reads <packedlength> into it) and
+  // position.axialLength uses it for layout, so leaving it unscaled left a
+  // 25 mm packed chute occupying 25 mm in a doubled airframe - and anything
+  // positioned `middle` or `bottom` against it, plus the caliper snap targets
+  // built from axialLength, landed at the wrong stations.
+  parachute: ['length', 'diameter', 'spillHoleDiameter', 'lineLength'],
+  streamer: ['length', 'stripLength', 'stripWidth'],
+  shockcord: ['length', 'cordLength'],
   masscomponent: ['length', 'radius', 'radialPosition'],
   fairing: [],
-  protuberance: ['width', 'height', 'length'],
   podset: ['radiusOffset'],
   parallelstage: ['radiusOffset'],
   stage: [],
@@ -116,6 +120,12 @@ const MASS_EXPONENT: Record<string, number> = {
   parachute: 2,
   streamer: 2,
   shockcord: 1,
+  // A lug only grows in ONE dimension: its bore is the launch rod's diameter
+  // and its wall goes with it, so LENGTH_KEYS.launchlug scales `length` alone.
+  // The k^3 default therefore made a pinned 1 g lug weigh 8 g after a 2x scale
+  // on a part that merely got twice as long, and that error lands straight in
+  // the scaled design's total mass and CG.
+  launchlug: 1,
 };
 
 const round = (x: number, places = 12): number => {

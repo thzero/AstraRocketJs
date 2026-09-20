@@ -1,6 +1,9 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": ["src/engine/simWorker.ts", "scripts/**/*.mjs"],
-  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.mjs", "src/**/*.css"],
-  "ignoreExportsUsedInFile": true
+  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.mjs", "src/**/*.css", "e2e/**/*.ts"],
+  "ignoreExportsUsedInFile": {
+    "interface": true,
+    "type": true
+  }
 }

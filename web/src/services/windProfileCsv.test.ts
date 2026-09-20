@@ -72,3 +72,25 @@ describe('parseWindProfileCsv', () => {
     expect(() => parseWindProfileCsv('altitude,speed,direction')).toThrow(/noData/);
   });
 });
+
+/**
+ * A blank required cell is not a zero.
+ *
+ * `Number('')` is 0 and 0 passes `Number.isFinite`, so an empty altitude or
+ * speed imported as a genuine 0 m/s reading at that level. The module's own
+ * contract is that every failure throws rather than returning a short list,
+ * and `stddev` is the only column where blank legitimately means "none".
+ */
+describe('a blank cell in a required column', () => {
+  it('fails the row rather than reading as 0 m/s', () => {
+    expect(() => parseWindProfileCsv('altitude,speed,direction\n100,,90\n')).toThrow();
+    expect(() => parseWindProfileCsv('altitude,speed,direction\n,5,90\n')).toThrow();
+    expect(() => parseWindProfileCsv('altitude,speed,direction\n100,5,\n')).toThrow();
+  });
+
+  it('still treats a blank stddev as no scatter', () => {
+    const levels = parseWindProfileCsv('altitude,speed,direction,stddev\n100,5,90,\n');
+    expect(levels[0]!.stddev).toBe(0);
+    expect(levels[0]!.speed).toBe(5);
+  });
+});

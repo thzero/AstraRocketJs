@@ -64,6 +64,26 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
   const [follow, setFollow] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [loop, setLoop] = useState(false);
+  /**
+   * Cache of the revealed path, keyed on the SAMPLE INDEX.
+   *
+   * The playback loop calls `setProgress` every frame, and slicing the points
+   * inline handed drei a brand-new array on each of them: `Line` rebuilds its
+   * LineGeometry whenever `points` changes, so a 60 fps playback of a
+   * multi-thousand-sample flight allocated, uploaded and disposed a full
+   * trajectory buffer sixty times a second - stuttering on exactly the long
+   * flights the view exists to show. The model still moves smoothly on the
+   * fractional progress; only the geometry is pinned to the index, which is
+   * the only thing that can actually change it.
+   *
+   * A ref rather than a useMemo because `idx` is computed after this
+   * component's early return, and a hook cannot live there.
+   */
+  const shownRef = useRef<{ key: unknown[]; pts: typeof scenePts; cols: typeof colors }>({
+    key: [],
+    pts: [],
+    cols: [],
+  });
   const progressRef = useRef(0);
 
   const { pieces, totalLen, maxR } = useMemo(() => buildPieces(tree, motors, palette), [tree, motors, palette]);
@@ -159,6 +179,12 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
   while (idx < n - 1 && times[idx + 1]! <= progress * totalT) idx++;
   const markerPos = scenePts[idx]!;
   const nowT = times[idx] ?? 0;
+  const shownKey = [scenePts, colors, idx];
+  if (shownKey.some((v, i) => v !== shownRef.current.key[i])) {
+    shownRef.current = { key: shownKey, pts: scenePts.slice(0, idx + 1), cols: colors.slice(0, idx + 1) };
+  }
+  const shown = shownRef.current;
+
   const descending = nowT >= deployT;
   const boosting = nowT < burnoutT;
   const midY = maxY / 2;
@@ -189,15 +215,23 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
         </mesh>
         <gridHelper args={[120, 60, '#33506a', '#18293a']} position={[0, 0.02, 0]} />
         {/* Reveal the path only where the rocket has already flown; the rest stays hidden. */}
-        {idx >= 1 && <Line points={scenePts.slice(0, idx + 1)} vertexColors={colors.slice(0, idx + 1)} lineWidth={3} />}
+        {idx >= 1 && <Line points={shown.pts} vertexColors={shown.cols} lineWidth={3} />}
         <Marker pos={scenePts[0]!} color="#e2e8f0" />
         {idx >= apogeeIdx && <Marker pos={scenePts[apogeeIdx]!} color={phase.coast} />}
         {idx >= n - 1 && <Marker pos={scenePts[n - 1]!} color={phase.descent} />}
 
         {callouts
           .filter((c) => nowT >= c.time)
-          .map((c, i) => (
-            <Html key={i} position={[c.pos.x, c.pos.y, c.pos.z]} center style={{ pointerEvents: 'none' }}>
+          // Keyed by identity, not array index: the filtered list grows as the
+          // flight plays, so index keys remounted every existing callout each
+          // time a new one appeared.
+          .map((c) => (
+            <Html
+              key={`${c.type}@${c.time}`}
+              position={[c.pos.x, c.pos.y, c.pos.z]}
+              center
+              style={{ pointerEvents: 'none' }}
+            >
               <div className="whitespace-nowrap rounded bg-slate-900/85 px-1.5 py-0.5 text-[10px] font-medium text-amber-300 ring-1 ring-white/10">
                 {t(EVENT_LABEL[c.type] ?? c.type)}
               </div>
@@ -491,6 +525,11 @@ function Streamer({
     g.computeVertexNormals();
     return g;
   }, [w, L]);
+  // R3F does not dispose geometry it did not construct, and this one is passed
+  // in via the `geometry` prop. Every streamer-equipped design therefore leaked
+  // one GPU buffer per unmount and per w/L change. Flame, CalloutLabel and
+  // buildPieces all dispose; this was the omission.
+  useEffect(() => () => geo.dispose(), [geo]);
   return (
     <group position={[attach.x, attach.y + L / 2, attach.z]}>
       <mesh geometry={geo} rotation={[0, 0.5, 0]}>
@@ -524,8 +563,16 @@ function Legend({ color, label, onChange }: { color: string; label: string; onCh
     <label className="flex cursor-pointer items-center gap-1.5 text-slate-300" title={label}>
       <input
         type="color"
-        value={color}
-        onChange={(e) => onChange(e.target.value)}
+        // `defaultValue` + commit on blur/change, not a controlled per-`input`
+        // write. `onChange` on a color input fires continuously while the OS
+        // picker is dragged, and each tick wrote the whole settings object
+        // through the provider to persistent storage - dozens of writes per
+        // gesture. PropertyPanel's color field already defers the same way.
+        defaultValue={color}
+        key={color}
+        onBlur={(e) => {
+          if (e.target.value !== color) onChange(e.target.value);
+        }}
         className="h-3 w-3 cursor-pointer appearance-none rounded-sm border border-white/20 bg-transparent p-0"
         style={{ background: color }}
       />

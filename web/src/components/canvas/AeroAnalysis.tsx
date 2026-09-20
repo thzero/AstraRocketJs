@@ -42,7 +42,7 @@ interface Series {
 
 /** Engine aero-component keys arrive as "[Class.Instance]"; show the user's name
  *  when set, else the CamelCase class split into words (BodyTube → "Body Tube"). */
-function niceName(raw: string): string {
+export function niceName(raw: string): string {
   const m = raw.match(/^\[?([^.\]]+)\.([^.\]]+)\]?$/);
   const cls = m?.[1] ?? raw.replace(/[[\]]/g, '');
   const inst = m?.[2];
@@ -112,6 +112,14 @@ export function AeroAnalysis() {
       lastHover.current = null;
     }
   }, [hoverM]);
+  // Shrinking the sweep has to bring the picked Mach back with it. It did
+  // not, so the strip header printed `machPick` raw while `useSampleAt`
+  // snapped the tables to the nearest sample that EXISTS: set Max Mach to 5,
+  // scrub to 3.0, switch back to M1, and the header read "at Mach 3.00" above
+  // three tables reading Mach 1.00.
+  useEffect(() => {
+    setMachPick((m) => Math.min(m, machMax));
+  }, [machMax]);
   // The crosshair wins while it exists; the slider is the resting value.
   const tableMach = hoverM ?? machPick;
 
@@ -335,7 +343,12 @@ export function AeroAnalysis() {
 export type HeatStyle = 'sky' | 'openrocket';
 
 /** HSV to CSS rgb, matching java.awt.Color.getHSBColor. */
-function hsv(h: number, sat: number, val: number): string {
+// Exported for test. The OpenRocket style is a formula-for-formula port of
+// java.awt.Color.getHSBColor plus the desktop's absolute 1.5 Cd anchor, and
+// nothing could reach it: the e2e spec can see that shading exists but cannot
+// check the port against the thing it claims to reproduce. The file already
+// uses the export-for-test pattern one function below (buildLinePath).
+export function hsv(h: number, sat: number, val: number): string {
   const f = (n: number) => {
     const k = (n + h * 6) % 6;
     return Math.round(255 * (val - val * sat * Math.max(0, Math.min(k, 4 - k, 1))));
@@ -357,7 +370,7 @@ function hsv(h: number, sat: number, val: number): string {
  * value pinned at 1. That means light cells, so the text goes dark with them —
  * the same trade the desktop makes.
  */
-function heat(value: number, max: number, style: HeatStyle): React.CSSProperties | undefined {
+export function heat(value: number, max: number, style: HeatStyle): React.CSSProperties | undefined {
   if (!Number.isFinite(value) || value <= 0) return undefined;
 
   if (style === 'openrocket') {
@@ -829,19 +842,36 @@ function Num({
   step: number;
   unit: string;
 }) {
+  // Committed on blur or Enter, not per keystroke.
+  //
+  // These three drive `sweep`, which is a 48-to-50 sample `rocket.aeroSweep()`
+  // with a full per-component force analysis, run SYNCHRONOUSLY in the render
+  // body. Firing on every keystroke meant typing "12" ran two complete kernel
+  // sweeps back to back on the main thread, with no busy state and no
+  // debounce, so the panel visibly stalled on a multi-stage design. The draft
+  // keeps the box responsive while you type; the same commit-on-blur shape
+  // `NumberInput.onCommit` uses elsewhere.
+  const [draft, setDraft] = useState<string | null>(null);
+  const commit = () => {
+    if (draft === null) return;
+    const v = parseFloat(draft);
+    setDraft(null);
+    if (Number.isFinite(v)) onChange(Math.min(max, Math.max(min, v)));
+  };
   return (
     <label className="flex items-center gap-1.5">
       <span className="text-[10px] text-slate-500">{label}</span>
       <input
         type="number"
-        value={value}
+        value={draft ?? value}
         min={min}
         max={max}
         step={step}
         aria-label={label}
-        onChange={(e) => {
-          const v = parseFloat(e.target.value);
-          if (Number.isFinite(v)) onChange(Math.min(max, Math.max(min, v)));
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit();
         }}
         className="w-16 rounded-md bg-slate-800 px-1.5 py-0.5 text-right text-[11px] tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
       />

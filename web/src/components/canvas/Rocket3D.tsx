@@ -5,8 +5,8 @@ import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Bounds, Line } from '@react-three/drei';
 import type { ComponentNode, ComponentPosition, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
-import { num, numOpt } from '../../tree/nodeProps';
-import { freeformPoints, freeformRootChord } from '../../tree/position';
+import { countOf, num, numOpt } from '../../tree/nodeProps';
+import { FREEFORM_FALLBACK, finPlanformPoints, finRootChord, finSpan } from '../../tree/finPlanform';
 import {
   assemblyBoundingRadius,
   assemblyChainLength,
@@ -146,46 +146,23 @@ export function buildPieces(
   };
 
   const addFins = (child: ComponentNode, pStart: number, pLen: number, pRadius: number, xform?: THREE.Matrix4) => {
-    const count = Math.max(1, Math.round(num(child, 'finCount', 3)));
-    const ffPoints = freeformPoints(child);
-    const root =
-      child.type === 'freeformfinset' && ffPoints.length ? freeformRootChord(ffPoints) : num(child, 'rootChord', 0.05);
-    const height =
-      child.type === 'freeformfinset' && ffPoints.length
-        ? Math.max(...ffPoints.map((p) => p[1]))
-        : num(child, 'height', 0.03);
+    const count = countOf(child, 'finCount', 3);
+    const root = finRootChord(child);
+    const height = finSpan(child);
     const thickness = num(child, 'thickness', 0.003);
     const start = axialStart(child, root, pStart, pLen);
     maxR = Math.max(maxR, pRadius + height);
 
+    // The outline comes from the ONE fin-geometry module (tree/finPlanform.ts).
+    // Two bugs lived here: the elliptical branch sampled a sine arch rather than
+    // the kernel's half-ellipse, and the freeform branch measured root/height
+    // from the NORMALIZED points while drawing the RAW ones, so a fin whose
+    // outline began at x = 20 mm was rendered 20 mm aft of where it is mounted.
+    const outline = finPlanformPoints(child) ?? FREEFORM_FALLBACK;
+
     const shape = new THREE.Shape();
-    if (child.type === 'freeformfinset') {
-      const raw = (child['points'] as [number, number][] | undefined) ?? [
-        [0, 0],
-        [0.02, 0.03],
-        [0.05, 0],
-      ];
-      shape.moveTo(raw[0]![0], raw[0]![1]);
-      for (let i = 1; i < raw.length; i++) {
-        shape.lineTo(raw[i]![0], raw[i]![1]);
-      }
-    } else if (child.type === 'ellipticalfinset') {
-      // Half-ellipse fin profile.
-      shape.moveTo(0, 0);
-      const steps = 24;
-      for (let i = 1; i <= steps; i++) {
-        const t = i / steps;
-        shape.lineTo(root * t, height * Math.sin(Math.PI * t));
-      }
-      shape.lineTo(root, 0);
-    } else {
-      const tip = num(child, 'tipChord', 0.03);
-      const sweep = num(child, 'sweep', 0.02);
-      shape.moveTo(0, 0);
-      shape.lineTo(sweep, height);
-      shape.lineTo(sweep + tip, height);
-      shape.lineTo(root, 0);
-    }
+    shape.moveTo(outline[0]![0], outline[0]![1]);
+    for (let i = 1; i < outline.length; i++) shape.lineTo(outline[i]![0], outline[i]![1]);
     shape.closePath();
 
     const geo = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: false });
@@ -210,7 +187,7 @@ export function buildPieces(
         addFins(child, pStart, pLen, pRadius, xform);
       } else if (child.type === 'tubefinset') {
         // Ring of open tubes around the body, each tangent to the surface.
-        const count = Math.max(1, Math.round(num(child, 'finCount', 6)));
+        const count = countOf(child, 'finCount', 6);
         const len = num(child, 'length', 0.1);
         const rt = tubeFinRadius(child, pRadius);
         const wall = Math.min(num(child, 'thickness', 0.0005), rt * 0.45);
@@ -310,7 +287,7 @@ export function buildPieces(
         const podLen = assemblyChainLength(child);
         const podRadius = resolveAssemblyRadius(child, pRadius);
         const podStart = axialStart(child, podLen, pStart, pLen);
-        const count = Math.max(1, Math.round(num(child, 'instanceCount', 2)));
+        const count = countOf(child, 'instanceCount', 2);
         const angleOffset = num(child, 'angleOffset', 0);
         maxR = Math.max(maxR, podRadius + assemblyBoundingRadius(child));
         for (const off of ringInstanceOffsets(count, podRadius, angleOffset)) {
@@ -841,6 +818,15 @@ export function Rocket3D({
   // Hi-res snapshot (issue 2026-08-11b): re-render the SAME scene/camera at
   // the export width (updateStyle=false keeps the on-screen CSS size), grab
   // the buffer, then restore — preserveDrawingBuffer makes the read reliable.
+  // Live while this component is mounted; read by the export's restore step.
+  const alive = useRef(true);
+  useEffect(
+    () => () => {
+      alive.current = false;
+    },
+    [],
+  );
+
   const snapshot = async (format: ImageFormat, widthPx: number, opts?: ImageExportOptions) => {
     const st = r3f.current;
     if (!st || !exportData) return;
@@ -878,9 +864,17 @@ export function Rocket3D({
       const blob = await snapshotWithHeader(el, { ...exportData, spanM: 2 * maxR }, format);
       download(`${safeFilename(exportData.name)}-3d.${IMAGE_FORMAT_EXT[format]}`, blob);
     } finally {
-      st.gl.setPixelRatio(pr);
-      st.gl.setSize(cssW, cssH, false);
-      st.gl.render(st.scene, st.camera);
+      // An 8K encode takes seconds. Switching away from the 3D view, or an
+      // edit remounting the canvas, disposes the renderer underneath it - and
+      // restoring a disposed WebGLRenderer threw out of the `finally`, which
+      // surfaced as an unhandled rejection and lost the "export failed"
+      // signal entirely. TreeSchematic routes its export errors to `onError`;
+      // this had no such channel, so at minimum it must not make things worse.
+      if (alive.current && r3f.current === st) {
+        st.gl.setPixelRatio(pr);
+        st.gl.setSize(cssW, cssH, false);
+        st.gl.render(st.scene, st.camera);
+      }
     }
   };
   // Mesh keys are stable across rebuilds, so R3F never unmounts/auto-disposes

@@ -122,10 +122,18 @@ export function trackExtent(lines: readonly GroundTrackLine[]): number {
 export function rangeRings(extent: number, count = 4): number[] {
   if (!(extent > 0)) return [];
   const rough = extent / count;
-  const mag = 10 ** Math.floor(Math.log10(rough));
+  const exp = Math.floor(Math.log10(rough));
+  const mag = 10 ** exp;
   const norm = rough / mag;
   const step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10) * mag;
+  // Rounded to the step's own decade, because neither `i * step` nor a running
+  // `r += step` is exact: both give 0.1, 0.2, 0.30000000000000004 for a 0.1 m
+  // step. Every radius is an integer multiple of `mag = 10**exp`, so it has at
+  // most `-exp` real decimals and anything past that is float noise. Rounding
+  // it off here means a caller that prints the radius unformatted still gets a
+  // readable label, rather than depending on its own formatter to hide this.
+  const dp = Math.max(0, -exp);
   const out: number[] = [];
-  for (let r = step; r <= extent + 1e-9; r += step) out.push(r);
+  for (let i = 1; i * step <= extent + 1e-9; i++) out.push(Number((i * step).toFixed(dp)));
   return out;
 }

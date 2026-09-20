@@ -9,15 +9,11 @@
 // We parse the FIRST motor definition in the file (single-motor imports are the
 // norm); data parsing stops at the first non-numeric line.
 import type { CustomMotor } from './motorStore';
-
-const CLASS_LETTERS = 'ABCDEFGHIJKLMNO';
-
-/** NAR/TRA impulse class letter from total impulse (Ns): A ≤ 2.5, doubling. */
-function impulseClass(ns: number): string {
-  if (ns <= 0) return '?';
-  const i = Math.min(CLASS_LETTERS.length - 1, Math.max(0, Math.ceil(Math.log2(ns / 2.5))));
-  return CLASS_LETTERS[i]!;
-}
+// ONE classifier, shared with the Motor Dashboard. The private copy that used
+// to live here clamped every sub-A impulse to index 0 and so labeled a 0.75
+// N-s MicroMaxx an "A", while the shared one called the same motor "below A".
+// Same motor, two different classes depending on which screen you were on.
+import { impulseClass } from './motorCombine';
 
 /** Total impulse (Ns) of a thrust curve by the trapezoid rule. */
 export function totalImpulse(samples: { time: number; thrust: number }[]): number {
@@ -49,6 +45,16 @@ export function parseEng(text: string): CustomMotor {
   const totalKg = Number(totalS);
   if (![diameter, length, propKg, totalKg].every(Number.isFinite)) {
     throw new Error('Malformed .eng header — non-numeric diameter/length/weight.');
+  }
+  // Finite is not enough. `samplesToMotorSpec` rejects a non-positive diameter
+  // or length and a prop mass above the total, but NOT a negative prop mass:
+  // `masses = total - prop*(impulse/totalImpulse)` then makes the rocket GAIN
+  // mass as the motor burns.
+  if (!(diameter > 0) || !(length > 0)) {
+    throw new Error('Malformed .eng header — diameter and length must be positive.');
+  }
+  if (!(propKg >= 0) || !(totalKg > 0) || propKg > totalKg) {
+    throw new Error('Malformed .eng header — propellant mass must be between 0 and the total mass.');
   }
 
   const delays = delaysS!.split('-').map(Number).filter(Number.isFinite);

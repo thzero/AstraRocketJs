@@ -127,7 +127,11 @@ export function PaneSplitter({
       aria-label={label}
       aria-valuenow={width}
       aria-valuemin={min}
-      aria-valuemax={max}
+      // The EFFECTIVE maximum, which is what `clamp` enforces. Announcing
+      // the static prop meant a narrow window advertised a range the
+      // separator could not reach, and End landed somewhere other than the
+      // announced maximum.
+      aria-valuemax={clamp(max)}
       tabIndex={0}
       title={label}
       onPointerDown={onPointerDown}

@@ -20,6 +20,9 @@ const MAX_ARCHIVE_TOTAL_BYTES = 128 * 1024 * 1024; // 128 MiB uncompressed total
 // <subcomponents> chain so the recursive walk throws a clear error instead of
 // overflowing the JS stack with an opaque RangeError.
 const MAX_NESTING_DEPTH = 100;
+// Flight configurations declared in one file. The desktop tops out in the
+// low tens; this bounds the per-config re-scanning below.
+const MAX_MOTOR_CONFIGS = 256;
 
 // ============================ IMPORT ============================
 
@@ -82,7 +85,12 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
   // Flight-configuration table: rocket-level <motorconfiguration> blocks
   // (optional <name>, optional default="true" — desktop 24.12
   // MotorConfigurationHandler).
-  const configEls = Array.from(rocketEl.querySelectorAll(':scope > motorconfiguration'));
+  // Capped like the archive itself. `captureDeployments` and `configScoped`
+  // both scan a component's children once PER CONFIG, so a ~500 KB file
+  // declaring 20 000 configurations against a few thousand components makes
+  // the import O(configs x children) on the main thread and freezes the tab.
+  // A real design has a handful.
+  const configEls = Array.from(rocketEl.querySelectorAll(':scope > motorconfiguration')).slice(0, MAX_MOTOR_CONFIGS);
   const configs: OrkFlightConfig[] = configEls
     .map((c) => ({
       id: c.getAttribute('configid') ?? '',

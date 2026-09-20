@@ -105,3 +105,46 @@ describe('exportOrk - the drogue flag', () => {
     expect(xmlFor(chuteTree())).not.toContain('isdrogue');
   });
 });
+
+/**
+ * A design can be SAVED mid-edit with a required launch field still blank,
+ * even though it cannot be FLOWN. `LaunchConditions` models those holes as
+ * `null`, and six of them were interpolated raw, so the file got the literal
+ * string "null" where a number belongs. The legacy `<windaverage>` pair two
+ * lines away already handled this, with a comment explaining that a hole is
+ * written as zero rather than blocking the save; these were missed.
+ *
+ * Re-importing drops the field silently (numTag -> NaN -> fallback), and
+ * desktop OpenRocket 24.12 logs a parse warning on every one.
+ */
+describe('exportOrk - a blank launch field', () => {
+  const blank = (): LaunchConditions =>
+    ({
+      launchRodLengthM: null,
+      launchRodAngleDeg: null,
+      windAverage: null,
+      windStdDev: null,
+      launchAltitudeM: null,
+      latitudeDeg: null,
+    }) as unknown as LaunchConditions;
+
+  const xml = () => exportOrk({ name: 'Rocket', tree: absoluteTree(), launch: blank() } as never);
+
+  it('never writes the literal string "null" into the file', () => {
+    expect(xml()).not.toContain('>null<');
+  });
+
+  it('writes zero for each of the six nullable conditions', () => {
+    const out = xml();
+    for (const tag of [
+      'launchrodlength',
+      'launchrodangle',
+      'launchaltitude',
+      'launchlatitude',
+      'speed',
+      'standarddeviation',
+    ]) {
+      expect(out).toContain(`<${tag}>0</${tag}>`);
+    }
+  });
+});

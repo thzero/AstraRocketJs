@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
-import { num } from '../../tree/nodeProps';
-import { freeformPoints } from '../../tree/position.js';
+import { countOf, num } from '../../tree/nodeProps';
+import { finSpan } from '../../tree/finPlanform.js';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
@@ -99,206 +99,218 @@ export function AftView({
       const k = Math.min(12, Math.max(1, z.k * f));
       return k === 1 ? { k: 1, x: 0, y: 0 } : { k, x: z.x * (k / z.k), y: z.y * (k / z.k) };
     });
-  // Painter's layers: hulls (opaque, big→small), then internals, then externals.
-  const hulls: Shape[] = [];
-  const inner: Shape[] = [];
-  const outer: Shape[] = [];
-  let extent = 0.02;
+  /**
+   * The whole aft scene, rebuilt only when the DESIGN changes.
+   *
+   * All of this - the hulls, the recursive walk, every cluster and fin
+   * instance - ran in the render body, while `onPointerMove` drives `onRoll`
+   * (a store write) on every pointer sample. Dragging to roll or wheel-zooming
+   * therefore re-walked the entire component tree and rebuilt every Shape per
+   * pointer event. `TreeSchematic` hit this exact problem and fixed it by
+   * memoizing `buildSchematicShapes`, with a docblock explaining why; this
+   * view never got the same treatment.
+   *
+   * Roll and zoom are applied by the SVG transform below, so neither is an
+   * input here: the geometry is the same drawing turned around.
+   */
+  const { hulls, inner, outer, extent } = useMemo((): {
+    hulls: Shape[];
+    inner: Shape[];
+    outer: Shape[];
+    extent: number;
+  } => {
+    // Painter's layers: hulls (opaque, big→small), then internals, then externals.
+    const hulls: Shape[] = [];
+    const inner: Shape[] = [];
+    const outer: Shape[] = [];
+    let extent = 0.02;
 
-  const reach = (y: number, z: number, r: number) => {
-    extent = Math.max(extent, Math.hypot(y, z) + r);
-  };
+    const reach = (y: number, z: number, r: number) => {
+      extent = Math.max(extent, Math.hypot(y, z) + r);
+    };
 
-  const finSpan = (n: ComponentNode): number => {
-    if (n.type === 'freeformfinset') {
-      // Normalized: the kernel translates the outline by -p0 in BOTH axes, so
-      // the span above the body is measured from the first point, not from 0.
-      const pts = freeformPoints(n);
-      if (pts.length > 0) return Math.max(0, ...pts.map((p) => Number(p[1]) || 0));
-    }
-    return num(n, 'height', 0.03);
-  };
-
-  const walkChildren = (parent: ComponentNode, pRadius: number, cy: number, cz: number) => {
-    for (const child of parent.children ?? []) {
-      const t = child.type;
-      if (isAssembly(t)) {
-        const podRadius = resolveAssemblyRadius(child, pRadius);
-        const count = Math.max(1, Math.round(num(child, 'instanceCount', 2)));
-        // +π/2 so the ring's 0° reference is "straight up" — the same reference
-        // the fin sets use here — matching the 3D view (see the lug note below).
-        for (const off of ringInstanceOffsets(count, podRadius, Math.PI / 2 + num(child, 'angleOffset', 0))) {
-          walkChain(child.children ?? [], cy + off.y, cz + off.z);
-        }
-      } else if (t === 'trapezoidfinset' || t === 'ellipticalfinset' || t === 'freeformfinset') {
-        const count = Math.max(1, Math.round(num(child, 'finCount', 3)));
-        const span = finSpan(child);
-        const thick = num(child, 'thickness', 0.003);
-        for (let i = 0; i < count; i++) {
-          // First fin straight up (desktop rear-view convention) plus the
-          // set's own rotation about the body axis.
-          const angle = Math.PI / 2 + num(child, 'rotation', 0) + (2 * Math.PI * i) / count;
+    const walkChildren = (parent: ComponentNode, pRadius: number, cy: number, cz: number) => {
+      for (const child of parent.children ?? []) {
+        const t = child.type;
+        if (isAssembly(t)) {
+          const podRadius = resolveAssemblyRadius(child, pRadius);
+          const count = countOf(child, 'instanceCount', 2);
+          // +π/2 so the ring's 0° reference is "straight up" — the same reference
+          // the fin sets use here — matching the 3D view (see the lug note below).
+          for (const off of ringInstanceOffsets(count, podRadius, Math.PI / 2 + num(child, 'angleOffset', 0))) {
+            walkChain(child.children ?? [], cy + off.y, cz + off.z);
+          }
+        } else if (t === 'trapezoidfinset' || t === 'ellipticalfinset' || t === 'freeformfinset') {
+          const count = countOf(child, 'finCount', 3);
+          const span = finSpan(child);
+          const thick = num(child, 'thickness', 0.003);
+          for (let i = 0; i < count; i++) {
+            // First fin straight up (desktop rear-view convention) plus the
+            // set's own rotation about the body axis.
+            const angle = Math.PI / 2 + num(child, 'rotation', 0) + (2 * Math.PI * i) / count;
+            outer.push({
+              kind: 'fin',
+              y: cy,
+              z: cz,
+              angle,
+              from: pRadius,
+              to: pRadius + span,
+              thick,
+              fill: colorOf(child, '#b9b7b0'),
+              stroke: '#7a786f',
+              title: `${child.name ?? 'Fins'} ×${count}`,
+            });
+          }
+          reach(cy, cz, pRadius + span);
+        } else if (t === 'tubefinset') {
+          const count = countOf(child, 'finCount', 6);
+          const rt = tubeFinRadius(child, pRadius);
+          for (let i = 0; i < count; i++) {
+            const angle = Math.PI / 2 + num(child, 'rotation', 0) + (2 * Math.PI * i) / count;
+            const d = pRadius + rt;
+            outer.push({
+              kind: 'circle',
+              y: cy + d * Math.cos(angle),
+              z: cz + d * Math.sin(angle),
+              r: rt,
+              fill: 'none',
+              stroke: '#7a786f',
+              title: `${child.name ?? 'Tube fins'} ×${count}`,
+            });
+          }
+          reach(cy, cz, pRadius + 2 * rt);
+        } else if (t === 'fairing') {
+          // Shroud cross-section at the top (radial angle not modeled).
+          const wid = num(child, 'width', 0.025);
+          const hgt = num(child, 'height', 0.02);
           outer.push({
             kind: 'fin',
             y: cy,
             z: cz,
-            angle,
+            angle: Math.PI / 2,
             from: pRadius,
-            to: pRadius + span,
-            thick,
-            fill: colorOf(child, '#b9b7b0'),
+            to: pRadius + hgt,
+            thick: wid,
+            fill: colorOf(child, '#c8c5be'),
             stroke: '#7a786f',
-            title: `${child.name ?? 'Fins'} ×${count}`,
+            title: child.name ?? 'Camera shroud',
           });
-        }
-        reach(cy, cz, pRadius + span);
-      } else if (t === 'tubefinset') {
-        const count = Math.max(1, Math.round(num(child, 'finCount', 6)));
-        const rt = tubeFinRadius(child, pRadius);
-        for (let i = 0; i < count; i++) {
-          const angle = Math.PI / 2 + num(child, 'rotation', 0) + (2 * Math.PI * i) / count;
-          const d = pRadius + rt;
+          reach(cy, cz, pRadius + hgt);
+        } else if (t === 'launchlug' || t === 'railbutton') {
+          const r = t === 'railbutton' ? num(child, 'outerDiameter', 0.004) / 2 : num(child, 'outerRadius', 0.002);
+          // Radial mount angle (kernel default 180°). The +π/2 is the aft view's
+          // "up = 0°" convention — the same offset the fin sets carry here — so a
+          // lug clocks consistently with the fins and with the 3D view.
+          const ang = Math.PI / 2 + num(child, 'angleOffset', Math.PI);
+          const rad = pRadius + r;
           outer.push({
             kind: 'circle',
-            y: cy + d * Math.cos(angle),
-            z: cz + d * Math.sin(angle),
-            r: rt,
-            fill: 'none',
-            stroke: '#7a786f',
-            title: `${child.name ?? 'Tube fins'} ×${count}`,
-          });
-        }
-        reach(cy, cz, pRadius + 2 * rt);
-      } else if (t === 'fairing') {
-        // Shroud cross-section at the top (radial angle not modeled).
-        const wid = num(child, 'width', 0.025);
-        const hgt = num(child, 'height', 0.02);
-        outer.push({
-          kind: 'fin',
-          y: cy,
-          z: cz,
-          angle: Math.PI / 2,
-          from: pRadius,
-          to: pRadius + hgt,
-          thick: wid,
-          fill: colorOf(child, '#c8c5be'),
-          stroke: '#7a786f',
-          title: child.name ?? 'Camera shroud',
-        });
-        reach(cy, cz, pRadius + hgt);
-      } else if (t === 'launchlug' || t === 'railbutton') {
-        const r = t === 'railbutton' ? num(child, 'outerDiameter', 0.004) / 2 : num(child, 'outerRadius', 0.002);
-        // Radial mount angle (kernel default 180°). The +π/2 is the aft view's
-        // "up = 0°" convention — the same offset the fin sets carry here — so a
-        // lug clocks consistently with the fins and with the 3D view.
-        const ang = Math.PI / 2 + num(child, 'angleOffset', Math.PI);
-        const rad = pRadius + r;
-        outer.push({
-          kind: 'circle',
-          y: cy + rad * Math.cos(ang),
-          z: cz + rad * Math.sin(ang),
-          r,
-          fill: colorOf(child, '#c8c5be'),
-          stroke: '#7a786f',
-          title: child.name ?? t,
-        });
-        reach(cy, cz, pRadius + 2 * r);
-      } else if (t === 'innertube') {
-        const r = num(child, 'outerRadius', 0.0095);
-        const offs = clusterOffsets(
-          child['cluster'] as string | undefined,
-          r,
-          num(child, 'clusterScale', 1),
-          num(child, 'clusterRotation', 0),
-        );
-        const motor = child.id ? motors?.[child.id] : undefined;
-        for (const raw of offs) {
-          // Rotate the cluster +π/2 into the aft view's "up = 0°" frame (the fins'
-          // reference), so a split cluster clocks like the fins and the 3D view.
-          const off = { y: -raw.z, z: raw.y };
-          inner.push({
-            kind: 'circle',
-            y: cy + off.y,
-            z: cz + off.z,
+            y: cy + rad * Math.cos(ang),
+            z: cz + rad * Math.sin(ang),
             r,
-            fill: 'none',
-            stroke: colorOf(child, '#9a978f'),
-            dash: '3 2',
-            title: child.name ?? 'Inner tube',
+            fill: colorOf(child, '#c8c5be'),
+            stroke: '#7a786f',
+            title: child.name ?? t,
           });
-          if (motor) {
+          reach(cy, cz, pRadius + 2 * r);
+        } else if (t === 'innertube') {
+          const r = num(child, 'outerRadius', 0.0095);
+          const offs = clusterOffsets(
+            child['cluster'] as string | undefined,
+            r,
+            num(child, 'clusterScale', 1),
+            num(child, 'clusterRotation', 0),
+          );
+          const motor = child.id ? motors?.[child.id] : undefined;
+          for (const raw of offs) {
+            // Rotate the cluster +π/2 into the aft view's "up = 0°" frame (the fins'
+            // reference), so a split cluster clocks like the fins and the 3D view.
+            const off = { y: -raw.z, z: raw.y };
             inner.push({
               kind: 'circle',
               y: cy + off.y,
               z: cz + off.z,
+              r,
+              fill: 'none',
+              stroke: colorOf(child, '#9a978f'),
+              dash: '3 2',
+              title: child.name ?? 'Inner tube',
+            });
+            if (motor) {
+              inner.push({
+                kind: 'circle',
+                y: cy + off.y,
+                z: cz + off.z,
+                r: motor.diameter / 2,
+                fill: '#8b5a2b',
+                stroke: '#6b4520',
+                title: 'Motor',
+              });
+            }
+            reach(cy + off.y, cz + off.z, r);
+          }
+          walkChildren(child, r, cy, cz);
+        } else if (t === 'tubecoupler' || t === 'centeringring' || t === 'engineblock' || t === 'bulkhead') {
+          const r = Math.min(pRadius * 0.98, num(child, 'outerRadius', pRadius * 0.95));
+          inner.push({
+            kind: 'circle',
+            y: cy,
+            z: cz,
+            r,
+            fill: 'none',
+            stroke: colorOf(child, '#9a978f'),
+            dash: '2 3',
+            title: child.name ?? t,
+          });
+        }
+        // parachute/streamer/shockcord/mass: no meaningful cross-section here.
+      }
+    };
+
+    const walkChain = (nodes: ComponentNode[], cy: number, cz: number) => {
+      for (const n of nodes) {
+        if (n.type === 'stage') {
+          walkChain(n.children ?? [], cy, cz);
+          continue;
+        }
+        const r = Math.max(num(n, 'outerRadius', 0), num(n, 'aftRadius', 0), num(n, 'foreRadius', 0));
+        if (r <= 0) continue;
+        hulls.push({
+          kind: 'circle',
+          y: cy,
+          z: cz,
+          r,
+          fill: colorOf(n, '#e7e5e0'),
+          stroke: '#7a786f',
+          title: n.name ?? n.type,
+        });
+        reach(cy, cz, r);
+        // Body-tube mounts (minimum/sub-minimum builds) draw their motor too —
+        // previously only inner tubes did.
+        if (n.type === 'bodytube' && n['motorMount'] === true) {
+          const motor = n.id ? motors?.[n.id] : undefined;
+          if (motor) {
+            inner.push({
+              kind: 'circle',
+              y: cy,
+              z: cz,
               r: motor.diameter / 2,
               fill: '#8b5a2b',
               stroke: '#6b4520',
               title: 'Motor',
             });
           }
-          reach(cy + off.y, cz + off.z, r);
         }
-        walkChildren(child, r, cy, cz);
-      } else if (t === 'tubecoupler' || t === 'centeringring' || t === 'engineblock' || t === 'bulkhead') {
-        const r = Math.min(pRadius * 0.98, num(child, 'outerRadius', pRadius * 0.95));
-        inner.push({
-          kind: 'circle',
-          y: cy,
-          z: cz,
-          r,
-          fill: 'none',
-          stroke: colorOf(child, '#9a978f'),
-          dash: '2 3',
-          title: child.name ?? t,
-        });
+        walkChildren(n, r, cy, cz);
       }
-      // parachute/streamer/shockcord/mass: no meaningful cross-section here.
-    }
-  };
+    };
 
-  const walkChain = (nodes: ComponentNode[], cy: number, cz: number) => {
-    for (const n of nodes) {
-      if (n.type === 'stage') {
-        walkChain(n.children ?? [], cy, cz);
-        continue;
-      }
-      const r = Math.max(num(n, 'outerRadius', 0), num(n, 'aftRadius', 0), num(n, 'foreRadius', 0));
-      if (r <= 0) continue;
-      hulls.push({
-        kind: 'circle',
-        y: cy,
-        z: cz,
-        r,
-        fill: colorOf(n, '#e7e5e0'),
-        stroke: '#7a786f',
-        title: n.name ?? n.type,
-      });
-      reach(cy, cz, r);
-      // Body-tube mounts (minimum/sub-minimum builds) draw their motor too —
-      // previously only inner tubes did.
-      if (n.type === 'bodytube' && n['motorMount'] === true) {
-        const motor = n.id ? motors?.[n.id] : undefined;
-        if (motor) {
-          inner.push({
-            kind: 'circle',
-            y: cy,
-            z: cz,
-            r: motor.diameter / 2,
-            fill: '#8b5a2b',
-            stroke: '#6b4520',
-            title: 'Motor',
-          });
-        }
-      }
-      walkChildren(n, r, cy, cz);
-    }
-  };
+    walkChain(tree.components, 0, 0);
 
-  walkChain(tree.components, 0, 0);
-
-  // Big circles first so nested ones stay visible.
-  hulls.sort((a, b) => (b.kind === 'circle' ? b.r : 0) - (a.kind === 'circle' ? a.r : 0));
+    // Big circles first so nested ones stay visible.
+    hulls.sort((a, b) => (b.kind === 'circle' ? b.r : 0) - (a.kind === 'circle' ? a.r : 0));
+    return { hulls, inner, outer, extent };
+  }, [tree, motors]);
 
   const E = extent * 1.12;
   eRef.current = E;

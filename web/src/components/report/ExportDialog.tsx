@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import i18n from '../../i18n';
 import { useWorkspaceStore } from '../../state/store';
 import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
@@ -111,7 +112,11 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
     } catch (e) {
       useWorkspaceStore
         .getState()
-        .setErr(`Could not assemble the design report: ${e instanceof Error ? e.message : String(e)}`);
+        // `i18n.t`, not the hook's `t`: this runs inside an effect whose deps
+        // must not include a value that changes identity on every language
+        // switch, or switching language would reset the export selections.
+        // Same reason store.ts uses the singleton.
+        .setErr(i18n.t('export.reportFailed', { message: e instanceof Error ? e.message : String(e) }));
     }
     setModel(m);
     if (m) {
@@ -196,7 +201,9 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
       );
       onClose();
     } catch (e) {
-      useWorkspaceStore.getState().setErr(`Could not export PDF: ${e instanceof Error ? e.message : String(e)}`);
+      useWorkspaceStore
+        .getState()
+        .setErr(t('export.pdfFailed', { message: e instanceof Error ? e.message : String(e) }));
     } finally {
       setBusy(false);
     }
@@ -209,7 +216,9 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
       downloadDesignCsv(assembleReport() ?? model, exportUnits);
       onClose();
     } catch (e) {
-      useWorkspaceStore.getState().setErr(`Could not export CSV: ${e instanceof Error ? e.message : String(e)}`);
+      useWorkspaceStore
+        .getState()
+        .setErr(t('export.csvFailed', { message: e instanceof Error ? e.message : String(e) }));
     }
   };
 

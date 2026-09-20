@@ -22,6 +22,14 @@ class FakeKv implements KeyValueStore {
   async remove(k: string) {
     this.map.delete(k);
   }
+  async update(k: string, fn: (raw: string | null) => string | null) {
+    const next = fn(await this.get(k));
+    if (next === null) {
+      await this.remove(k);
+      return true;
+    }
+    return await this.set(k, next);
+  }
 }
 
 const UNLOAD_KEY = 'astrarrocketjs:designs:unload';
@@ -133,5 +141,47 @@ describe('unload journal', () => {
     store.saveSync(heavy);
     const journal = JSON.parse(localStorage.getItem(UNLOAD_KEY)!) as { w: Workspace };
     expect(journal.w.sims[0]!.result).toBeNull();
+  });
+});
+
+/**
+ * A journal written BEFORE the first save carries a null id, because that is
+ * all `saveSync` has to record at that point.
+ *
+ * Both the replay check and the staleness check compared it to the active id,
+ * and `null !== null` is false, so such a journal was never replayed AND never
+ * cleared. Work done before the first debounced autosave was lost on reload
+ * even though `saveSync` had written it, and the dead blob (a whole lean
+ * workspace) squatted in the ~5 MB localStorage budget forever.
+ */
+describe('unload journal written before the first save', () => {
+  it('replays it into a NEW design instead of discarding the work', async () => {
+    const kv = new FakeKv();
+    setDesignLibrary(new DesignLibrary(kv));
+    const store = new LibraryWorkspaceStore();
+
+    // Nothing saved yet: the page is torn down mid-edit.
+    store.saveSync(ws('typed-before-first-autosave'));
+    expect(localStorage.getItem(UNLOAD_KEY)).not.toBeNull();
+
+    const loaded = await new LibraryWorkspaceStore().load();
+    expect(loaded).not.toBeNull();
+    expect(loaded!.tree.components[0]!.name).toBe('typed-before-first-autosave');
+
+    // It is now a real design, and the journal is spent.
+    expect(await new DesignLibrary(kv).list()).toHaveLength(1);
+    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
+  });
+
+  it('clears the journal even when it cannot be replayed', async () => {
+    const kv = new FakeKv();
+    setDesignLibrary(new DesignLibrary(kv));
+    // A blob that parses but is not a workspace this build can open.
+    localStorage.setItem(UNLOAD_KEY, JSON.stringify({ id: null, w: { version: 99 } }));
+
+    await new LibraryWorkspaceStore().load();
+
+    // Previously it sat there forever, holding a slice of a 5 MB budget.
+    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
   });
 });

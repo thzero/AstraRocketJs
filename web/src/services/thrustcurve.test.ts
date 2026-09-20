@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { samplesToMotorSpec, fetchMotorSpec } from './thrustcurve';
 import type { CatalogMotor } from './motorDb';
 
@@ -187,5 +187,88 @@ describe('fetchMotorSpec — bundled catalog motor (offline path)', () => {
     const second = await fetchMotorSpec(multi, 0, 1);
     expect(second.curveSrc).toBe('User · RockSim');
     expect(second.thrusts).toContain(40);
+  });
+});
+
+/**
+ * The FRESH network path must run the same validator the cache read does.
+ *
+ * `fetchSamplesCached` checked the cached branch with `isSampleArray` and
+ * returned the downloaded array unchecked. A garbled or hostile
+ * `download.json` carrying a null time therefore went straight into
+ * `samplesToMotorSpec`: cumulative impulse NaN, nulls through times and
+ * masses, and the whole array across the TeaVM boundary, where it surfaces as
+ * the opaque "cannot be converted to a BigInt" blank design this module
+ * already documents.
+ */
+describe('fetchMotorSpec - malformed thrustcurve.org response', () => {
+  // No `curves`, so the bundled offline path is skipped and the motor resolves
+  // over the network.
+  const online = {
+    designation: 'K550',
+    manufacturer: 'AeroTech',
+    class: 'K',
+    diameter: 54,
+    impulse: 1600,
+    burn: 3,
+    mass: 1200,
+    length: 410,
+    propWeightG: 700,
+  } as unknown as CatalogMotor;
+
+  const stubApi = (samples: unknown) => {
+    const json = (body: unknown) =>
+      Promise.resolve({ ok: true, headers: { get: () => null }, json: () => Promise.resolve(body) });
+    vi.stubGlobal('fetch', (url: string) =>
+      String(url).includes('search.json')
+        ? json({
+            results: [
+              {
+                motorId: 'k550',
+                designation: 'K550',
+                commonName: 'K550',
+                manufacturerAbbrev: 'AeroTech',
+                diameter: 54,
+                length: 410,
+                totalWeightG: 1200,
+                propWeightG: 700,
+                availability: 'regular',
+              },
+            ],
+          })
+        : json({ results: [{ format: 'RASP', samples }] }),
+    );
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('rejects a curve with a non-numeric time instead of feeding it to the kernel', async () => {
+    stubApi([
+      { time: null, thrust: 5 },
+      { time: 1, thrust: 10 },
+    ]);
+    await expect(fetchMotorSpec(online, 0)).rejects.toThrow(/malformed/i);
+  });
+
+  it('rejects a curve carrying NaN or Infinity', async () => {
+    stubApi([
+      { time: 0, thrust: 0 },
+      { time: Number.POSITIVE_INFINITY, thrust: 10 },
+    ]);
+    await expect(fetchMotorSpec(online, 0)).rejects.toThrow(/malformed/i);
+  });
+
+  it('still accepts a well-formed curve', async () => {
+    stubApi([
+      { time: 0, thrust: 0 },
+      { time: 1, thrust: 600 },
+      { time: 3, thrust: 0 },
+    ]);
+    const spec = await fetchMotorSpec(online, 0);
+    expect(spec.designation).toBe('K550');
+    expect(spec.times.every(Number.isFinite)).toBe(true);
+    expect(spec.thrusts.every(Number.isFinite)).toBe(true);
   });
 });

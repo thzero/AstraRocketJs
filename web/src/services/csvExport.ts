@@ -66,7 +66,7 @@ export interface FlightCsvOptions {
   columnName: (c: FlightColumn) => string;
 }
 
-export const DEFAULT_CSV_OPTIONS: FlightCsvOptions = {
+const DEFAULT_CSV_OPTIONS: FlightCsvOptions = {
   columns: [...DEFAULT_CSV_COLUMNS],
   separator: ',',
   decimals: 3,

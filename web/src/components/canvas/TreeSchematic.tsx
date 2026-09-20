@@ -18,7 +18,7 @@ import {
   calloutLayout,
   computeSchematicLayout,
   MARKER_R,
-  niceStep,
+  niceRulerStep,
   RULER_H,
   RULER_W,
   snapNear,
@@ -185,6 +185,39 @@ export function TreeSchematic({
     (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
   };
 
+  /**
+   * Keyboard nudging for a caliper handle.
+   *
+   * The handles were bare `<rect onPointerDown>` with no tabIndex, role or key
+   * handler, and the measurement is only rendered inside the SVG - so the
+   * app's one way to read a distance off the drawing was unusable without a
+   * pointer. Siblings in this very directory were given keyboard paths for
+   * exactly this reason (AeroAnalysis, FlightChart, FreeformFinEditor).
+   *
+   * Arrows nudge by 1 mm, Shift by 10 mm, Home/End jump to the ends. Values
+   * are clamped the same way the drag path clamps them.
+   */
+  const caliperKeys = (axis: 'h' | 'v', end: 'a' | 'b') => (e: React.KeyboardEvent) => {
+    const step = (e.shiftKey ? 0.01 : 0.001) * (e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 1);
+    const isArrow = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key);
+    if (!isArrow && e.key !== 'Home' && e.key !== 'End') return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (axis === 'h') {
+      setCaliperH((c) => {
+        if (!c) return c;
+        const next = e.key === 'Home' ? 0 : e.key === 'End' ? totalLen : c[end] + step;
+        return { ...c, [end]: Math.max(0, Math.min(totalLen, next)) };
+      });
+    } else {
+      setCaliperV((c) => {
+        if (!c) return c;
+        const next = e.key === 'Home' ? -vHalf : e.key === 'End' ? vHalf : c[end] + step;
+        return { ...c, [end]: Math.max(-vHalf, Math.min(vHalf, next)) };
+      });
+    }
+  };
+
   const onMove = (e: React.PointerEvent) => {
     if (caliperDrag.current) {
       const { axis, end } = caliperDrag.current;
@@ -345,7 +378,7 @@ export function TreeSchematic({
   // Labeled majors are DENSE: aim for one roughly every ~12 screen px (rounded
   // to a nice 1/2/5 mm step), so the scale reads like a real drafting ruler
   // (a number every ~10 mm) rather than a handful of marks across the canvas.
-  const rulerStepUi = niceStep(u.toUi('length', (8 * 22) / scale));
+  const rulerStepUi = niceRulerStep(u.toUi('length', (8 * 22) / scale));
   const rulerStep = u.fromUi('length', rulerStepUi);
   // Enough decimals to tell one graduation from the next, and no more.
   const rulerDigits = rulerStepUi >= 1 ? 0 : rulerStepUi >= 0.1 ? 1 : 2;
@@ -358,34 +391,47 @@ export function TreeSchematic({
   const rulerX1 = rulers.right ? w - RULER_W + 4 - CORNER_GAP : w - 2;
   const frameTopY = rulers.top ? RULER_H - 4 + CORNER_GAP : 2;
   const frameBotY = rulers.bottom ? h - RULER_H + 4 - CORNER_GAP : h - 2;
-  const rulerMarks: number[] = [];
-  if (showLen) {
-    const mLo = Math.ceil((rulerX0 - ctx.x0) / scale / rulerStep - 1e-6) * rulerStep;
-    const mHi = (rulerX1 - ctx.x0) / scale;
-    for (let m = mLo; m <= mHi + 1e-6; m += rulerStep) rulerMarks.push(m);
-  }
   // Radial rulers span the drawing height between the top/bottom lanes, to the
   // same scale, labeled in mm.
   const vTop = rTop + 4;
   const vBot = h - rBot - 4;
   const vSpanM = (vBot - vTop) / scale;
   const rulerStepV = rulerStep;
-  const vTicks: { y: number; label: number }[] = [];
-  if (showRad) for (let m = 0; m <= vSpanM + 1e-6; m += rulerStepV) vTicks.push({ y: vTop + m * scale, label: m });
-  // Minor subdivisions: 10 per labeled major, plus a taller "medium" tick at
-  // the half-major, for a properly graduated ruler.
-  const rulerMinorMarks: number[] = [];
-  const vMinorTicks: number[] = [];
-  if (showLen) {
-    const minorX = rulerStep / 5;
-    const mLo = Math.ceil((rulerX0 - ctx.x0) / scale / minorX - 1e-6) * minorX;
-    const mHi = (rulerX1 - ctx.x0) / scale;
-    for (let m = mLo; m <= mHi + 1e-6; m += minorX) rulerMinorMarks.push(m);
-  }
-  if (showRad) {
-    const minorV = rulerStepV / 5;
-    for (let m = 0; m <= vSpanM + 1e-6; m += minorV) vMinorTicks.push(m);
-  }
+  /**
+   * The graduations, memoized.
+   *
+   * Minor ticks run every `rulerStep / 5` across the whole viewport - 150 to
+   * 300 entries typically - and all four arrays were rebuilt in the render
+   * body, so every hover and every selection change regenerated them and
+   * re-rendered that many SVG nodes. This file already memoizes the far more
+   * expensive `buildSchematicShapes` for exactly this reason; the rulers were
+   * the remaining unmemoized derivation, and they are on by default.
+   */
+  const { rulerMarks, vTicks, rulerMinorMarks, vMinorTicks } = useMemo(() => {
+    const marks: number[] = [];
+    if (showLen) {
+      const mLo = Math.ceil((rulerX0 - ctx.x0) / scale / rulerStep - 1e-6) * rulerStep;
+      const mHi = (rulerX1 - ctx.x0) / scale;
+      for (let m = mLo; m <= mHi + 1e-6; m += rulerStep) marks.push(m);
+    }
+    const ticks: { y: number; label: number }[] = [];
+    if (showRad) for (let m = 0; m <= vSpanM + 1e-6; m += rulerStepV) ticks.push({ y: vTop + m * scale, label: m });
+    // Minor subdivisions: 10 per labeled major, plus a taller "medium" tick at
+    // the half-major, for a properly graduated ruler.
+    const minorMarks: number[] = [];
+    const minorTicks: number[] = [];
+    if (showLen) {
+      const minorX = rulerStep / 5;
+      const mLo = Math.ceil((rulerX0 - ctx.x0) / scale / minorX - 1e-6) * minorX;
+      const mHi = (rulerX1 - ctx.x0) / scale;
+      for (let m = mLo; m <= mHi + 1e-6; m += minorX) minorMarks.push(m);
+    }
+    if (showRad) {
+      const minorV = rulerStepV / 5;
+      for (let m = 0; m <= vSpanM + 1e-6; m += minorV) minorTicks.push(m);
+    }
+    return { rulerMarks: marks, vTicks: ticks, rulerMinorMarks: minorMarks, vMinorTicks: minorTicks };
+  }, [showLen, showRad, rulerStep, rulerStepV, rulerX0, rulerX1, ctx.x0, scale, vSpanM, vTop]);
   // One length (horizontal) ruler: faint minor subdivisions + bold labeled
   // majors. `dir` points the ticks away from the drawing (down at the bottom
   // edge, up at the top). Drawn on both edges for a full measuring frame.
@@ -680,6 +726,15 @@ export function TreeSchematic({
                           fill="transparent"
                           style={{ cursor: 'ew-resize', pointerEvents: 'all' }}
                           onPointerDown={beginCaliperDrag('h', k)}
+                          tabIndex={0}
+                          role="slider"
+                          aria-label={t('schematic.caliperH', { end: k === 'a' ? 1 : 2 })}
+                          aria-orientation="horizontal"
+                          aria-valuemin={0}
+                          aria-valuemax={totalLen}
+                          aria-valuenow={caliperH[k]}
+                          aria-valuetext={`${u.fmt('length', caliperH[k])} ${u.sym('length')}`}
+                          onKeyDown={caliperKeys('h', k)}
                         />
                         <circle cx={x} cy={top + 2} r={3.5} fill="var(--accent)" pointerEvents="none" />
                       </g>
@@ -744,6 +799,15 @@ export function TreeSchematic({
                           fill="transparent"
                           style={{ cursor: 'ns-resize', pointerEvents: 'all' }}
                           onPointerDown={beginCaliperDrag('v', k)}
+                          tabIndex={0}
+                          role="slider"
+                          aria-label={t('schematic.caliperV', { end: k === 'a' ? 1 : 2 })}
+                          aria-orientation="vertical"
+                          aria-valuemin={-vHalf}
+                          aria-valuemax={vHalf}
+                          aria-valuenow={caliperV[k]}
+                          aria-valuetext={`${u.fmt('length', caliperV[k])} ${u.sym('length')}`}
+                          onKeyDown={caliperKeys('v', k)}
                         />
                         <circle cx={left + 4} cy={y} r={3.5} fill="var(--accent)" pointerEvents="none" />
                       </g>
@@ -799,7 +863,7 @@ export function TreeSchematic({
                 <>
                   <button
                     className="file-btn"
-                    title="True-scale 2D drawing (SVG) with design data — physical mm size, prints at 100% scale"
+                    title={t('export.svgTitle')}
                     onClick={() => {
                       if (!svgRef.current) return;
                       try {
@@ -829,10 +893,7 @@ export function TreeSchematic({
                           await svgToImage(svg, widthPx, format),
                         );
                       } catch (e) {
-                        onError?.(
-                          `Image export failed: ${e instanceof Error ? e.message : String(e)}` +
-                            ' — try a smaller width, or use ⬇ SVG.',
-                        );
+                        onError?.(t('export.imageFailed', { message: e instanceof Error ? e.message : String(e) }));
                       }
                     }}
                   />

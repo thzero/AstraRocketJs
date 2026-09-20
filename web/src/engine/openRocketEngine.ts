@@ -616,7 +616,7 @@ export interface FlightResult {
   branches?: FlightBranch[];
   /**
    * Simulation warnings (whole flight, not per-branch). Optional: the
-   * committed vendor orkengine.mjs predates the export — arrives after the
+   * committed vendor openrocket-engine.mjs predates the export — arrives after the
    * next engine rebuild.
    */
   warnings?: EngineWarning[];

@@ -79,7 +79,12 @@ export function parseWindProfileCsv(text: string): WindLevel[] {
     if (need >= cells.length) throw new WindProfileCsvError('shortRow', i + 1);
 
     const cell = (idx: number): number => {
-      const v = Number(cells[idx]!.trim());
+      const text = cells[idx]!.trim();
+      // `Number('')` is 0, and 0 passes `Number.isFinite`, so a blank altitude
+      // or speed imported as a real 0 m/s reading at that level instead of
+      // failing the row. Blank is only meaningful for `stddev`, handled below.
+      if (text === '') throw new WindProfileCsvError('badNumber', i + 1);
+      const v = Number(text);
       if (!Number.isFinite(v)) throw new WindProfileCsvError('badNumber', i + 1);
       return v;
     };

@@ -84,6 +84,46 @@ describe('per-component DXF export', () => {
     expect(dxf).toContain('\nCIRCLE\n');
   });
 
+  it('exports a freeform fin with more points than a spread could carry', () => {
+    // `orkImport` puts no cap on <finpoints><point>, and the span used to be
+    // `Math.max(...outline.map(p => p.y))`. A spread becomes one argument per
+    // element, so past the engine's argument limit it dies with an opaque
+    // "Maximum call stack size exceeded" - not a rejection, a crash, on a file
+    // that parsed fine. Nothing else in the suite passes a large outline, so
+    // the `reduce` that replaced it had nothing holding it.
+    // 200 000 points over a 60 mm chord, zig-zagged by 20 µm so that `dedupe`
+    // (which drops consecutive points within EPS) keeps every one of them -
+    // otherwise the outline collapses and never reaches the size in question.
+    const n = 200_000;
+    const points = Array.from({ length: n }, (_, i) => {
+      const f = i / (n - 1);
+      return [f * 0.06, Math.sin(f * Math.PI) * 0.04 + (i % 2) * 2e-5];
+    });
+    const big = {
+      ...tree,
+      components: [
+        {
+          type: 'stage',
+          name: 'S',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'body',
+              length: 0.3,
+              outerRadius: 0.013,
+              thickness: 0.001,
+              children: [{ type: 'freeformfinset', id: 'huge', finCount: 3, thickness: 0.003, points }],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+
+    const dxf = componentToDxf(big, 'huge');
+    expect(dxf).not.toBeNull();
+    expect(dxf!.trimEnd().endsWith('EOF')).toBe(true);
+  });
+
   it('returns null for parts that are not flat plate cuts', () => {
     expect(componentToDxf(tree, 'nose')).toBeNull(); // a nose is not plate-cut
     expect(componentToDxf(tree, 'coupler')).toBeNull(); // a tube, exports as a 3D solid

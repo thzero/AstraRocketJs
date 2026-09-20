@@ -14,6 +14,7 @@ import {
   EXPORT_FALLBACK_LATITUDE,
   EXPORT_FALLBACK_LONGITUDE,
   EXPORT_FORMATS,
+  hexToRgbInt,
   type WaypointKind,
 } from './flightPathExport';
 import type { FlightResult } from '../engine/openRocketEngine';
@@ -97,6 +98,44 @@ const build = (res: FlightResult, over: Partial<ReturnType<typeof defaultExportO
  * so a missing one is not an error — it is a KML with no colors and
  * coordinates that have lost their altitude. Hence the belt-and-braces checks.
  */
+/**
+ * `hexToRgbInt` is what turns the branch color picker into an exported KML
+ * color, and it had no test at all - its renamed twin `hexToRgbTuple` in
+ * `reportPdf` has a full block covering bad input, and this one had nothing.
+ * They used to share the name `hexToRgb`.
+ */
+describe('hexToRgbInt', () => {
+  it('packs #rrggbb into one 0xRRGGBB integer', () => {
+    expect(hexToRgbInt('#ff8800')).toBe(0xff8800);
+    expect(hexToRgbInt('ff8800')).toBe(0xff8800); // the hash is optional
+    expect(hexToRgbInt('#000000')).toBe(0);
+    expect(hexToRgbInt('#FFFFFF')).toBe(0xffffff);
+  });
+
+  it('reads unparseable input as black rather than NaN', () => {
+    // A NaN here would reach `hex2` and render `NaN` into the KML color
+    // literal, which Google Earth rejects for the whole placemark.
+    for (const bad of ['', '#', 'rebeccapurple', '#zzzzzz', '  ']) {
+      expect(hexToRgbInt(bad), `hexToRgbInt(${JSON.stringify(bad)})`).toBe(0);
+    }
+  });
+
+  it('masks off anything above the low 24 bits', () => {
+    // An 8-digit value (a #rrggbbaa from some other picker) must not leak its
+    // alpha into the packed RGB - KML carries alpha as a separate leading byte.
+    expect(hexToRgbInt('#ff8800cc')).toBe(0x8800cc);
+  });
+
+  it('does NOT expand 3-digit shorthand', () => {
+    // Recorded rather than endorsed: unlike `hexToRgbTuple`, which rejects a
+    // 3-digit value outright, this parses `#f80` as 0x000f80. The only caller
+    // is an `<input type="color">`, which always hands over six digits, so
+    // nothing reaches it - but the two functions differ here and a future
+    // caller should know it.
+    expect(hexToRgbInt('#f80')).toBe(0xf80);
+  });
+});
+
 describe('desktop model parity', () => {
   it('gives each branch a palette color and contiguous index', () => {
     const m = build(staged);

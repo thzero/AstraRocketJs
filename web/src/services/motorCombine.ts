@@ -6,13 +6,32 @@
 
 export type Sample = [number, number]; // [time s, thrust N]
 
-/** Thrust (N) at time `t` by linear interpolation; 0 before the first sample
- *  and after the last (a burnt-out motor contributes nothing). */
+/**
+ * Thrust (N) at time `t` by linear interpolation; 0 before the first sample and
+ * after the last (a burnt-out motor contributes nothing).
+ *
+ * AT the final sample the curve still has whatever thrust that sample states.
+ * Returning 0 there dropped the last trapezoid for any curve that ends
+ * non-zero, because `combineCurves` evaluates at the union of all breakpoints
+ * and that union includes each curve's own last time. Most published curves
+ * end at zero and were unaffected; of the 1477 in the bundled catalog, 6 do
+ * not, and the largest error among them is 0.4% (a D9, 0.09 N-s). Small, but
+ * it is the combined total this panel exists to report.
+ */
 export function thrustAt(samples: Sample[], t: number): number {
   const n = samples.length;
   if (n === 0) return 0;
-  if (t <= samples[0]![0]) return t < samples[0]![0] ? 0 : samples[0]![1];
-  if (t >= samples[n - 1]![0]) return 0; // past burnout
+  if (t < samples[0]![0]) return 0;
+  if (t > samples[n - 1]![0]) return 0; // past burnout
+  // A thrust curve can hold TWO samples at the same time to encode a vertical
+  // step - an instant ignition spike, or a cut-off. Going forward from `t` the
+  // curve's value is the LAST sample at that time, not the first. Returning
+  // the first read a step-up as the value before it: K543 in the bundled
+  // catalog starts [0, 0] then [0, 2117] and was summed as if it made no
+  // thrust at ignition.
+  let last: number | undefined;
+  for (let i = 0; i < n; i++) if (samples[i]![0] === t) last = samples[i]![1];
+  if (last !== undefined) return last;
   for (let i = 1; i < n; i++) {
     const [t1, f1] = samples[i]!;
     if (t <= t1) {
@@ -32,6 +51,9 @@ export function impulse(samples: Sample[]): number {
   }
   return a;
 }
+
+/** How long an abruptly-ending motor takes to stop, for the terminator point. */
+const END_DROP_S = 1e-6;
 
 export interface Combined {
   samples: Sample[];
@@ -53,23 +75,61 @@ export function combineCurves(curves: Sample[][]): Combined {
     return { samples: [], totalImpulse: 0, peakThrust: 0, avgThrust: 0, burnTime: 0, motorCount: 0 };
   }
   // Union of all time points (each curve starts at 0), sorted + de-duped.
-  const times = [...new Set(usable.flatMap((c) => c.map((s) => s[0])))].sort((a, b) => a - b);
-  const samples: Sample[] = times.map((t) => [t, usable.reduce((sum, c) => sum + thrustAt(c, t), 0)]);
+  //
+  // Plus a TERMINATOR just after any curve that ends non-zero. Summing at the
+  // breakpoints alone cannot represent a motor that stops abruptly: between
+  // its last sample and the next breakpoint the interpolation ramps its thrust
+  // down instead of cutting it, so the cluster keeps being credited with a
+  // motor that has already stopped. (Before `thrustAt` was fixed the same gap
+  // showed up as the opposite error, the curve's own last trapezoid being
+  // dropped.) One extra point a microsecond later, where that curve reads 0,
+  // makes the drop vertical and the integral exact.
+  const times = new Set<number>();
+  for (const c of usable) {
+    for (const [t] of c) times.add(t);
+    const last = c[c.length - 1]!;
+    if (last[1] !== 0) times.add(last[0] + END_DROP_S);
+  }
+  const sorted = [...times].sort((a, b) => a - b);
+  const samples: Sample[] = sorted.map((t) => [t, usable.reduce((sum, c) => sum + thrustAt(c, t), 0)]);
   const burnTime = Math.max(...usable.map((c) => c[c.length - 1]![0]));
-  const totalImpulse = impulse(samples);
+  // Summed from the CURVES, not integrated from the resampled points above.
+  // Simultaneous ignition means the cluster's impulse is the sum of the
+  // motors' impulses, exactly, by linearity of the integral - no resampling,
+  // no de-duplication, nothing to lose at a step or a breakpoint. Integrating
+  // the resampled curve understated K543 by 63% and overstated a cluster whose
+  // shorter motor ended abruptly.
+  const totalImpulse = usable.reduce((sum, c) => sum + impulse(c), 0);
   const peakThrust = samples.reduce((m, s) => Math.max(m, s[1]), 0);
   const avgThrust = burnTime > 0 ? totalImpulse / burnTime : 0;
   return { samples, totalImpulse, peakThrust, avgThrust, burnTime, motorCount: usable.length };
 }
 
 /**
- * NAR/TRA total-impulse class letter for an impulse in N·s. Class n (A = 1) tops
- * out at 2.5·2^(n-1) N·s (A ≤ 2.5, B ≤ 5, C ≤ 10 …). Below A → "—"; clamped at O.
+ * Classes below A, by their index `n`: 1/8A is n = -2, 1/4A is -1, 1/2A is 0.
+ *
+ * These are real NAR designations for motors people actually fly (MicroMaxx is
+ * 1/4A territory), not a rounding artifact. Reporting a dash for all of them
+ * threw away information the impulse plainly gives.
+ */
+const SUB_A_CLASSES = ['1/8A', '1/4A', '1/2A'];
+
+/**
+ * NAR/TRA total-impulse class for an impulse in N-s.
+ *
+ * Class n (A = 1) tops out at 2.5*2^(n-1) N-s: A <= 2.5, B <= 5, C <= 10, and
+ * downward through 1/2A <= 1.25, 1/4A <= 0.625, 1/8A <= 0.3125. Clamped at O
+ * above, and a dash below 1/8A where there is no standard class left.
+ *
+ * THE one classifier. `engParser` had a second copy whose
+ * `Math.max(0, ...)` clamped every sub-A motor to index 0, so it filed a
+ * 0.75 N-s MicroMaxx as an "A" - a motor with a third of A-class impulse,
+ * labeled A in the picker and the dashboard.
  */
 export function impulseClass(ns: number): string {
-  if (!Number.isFinite(ns) || ns <= 1.25) return '—';
+  if (!Number.isFinite(ns) || ns <= 0) return '—';
   const n = Math.ceil(Math.log2(ns / 2.5)) + 1;
-  if (n < 1) return 'A';
   if (n > 15) return 'O';
-  return String.fromCharCode(64 + n);
+  if (n >= 1) return String.fromCharCode(64 + n);
+  return SUB_A_CLASSES[n + 2] ?? '—';
 }

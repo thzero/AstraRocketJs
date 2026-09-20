@@ -9,7 +9,7 @@ import {
   defaultExportOptions,
   exportBranchNames,
   hasLaunchPosition,
-  hexToRgb,
+  hexToRgbInt,
   rgbToHex,
   renderUserTemplate,
   mimeForExtension,
@@ -189,7 +189,14 @@ export function ExportDialog({
 
   const deleteSelected = async () => {
     if (!selectedUser) return;
-    await store.remove(selectedUser.id);
+    try {
+      await store.remove(selectedUser.id);
+    } catch {
+      // The template store now reports a refused write rather than resolving
+      // cleanly on one, so this can throw where it never used to.
+      setError(t('storage.full'));
+      return;
+    }
     setTemplates(await store.list());
     setSelected(EXPORT_FORMATS[0]!.id);
     setError(null);
@@ -582,7 +589,7 @@ function StageColorDialog({
                 type="color"
                 aria-label={name || t('pathExport.stageN', { n: i + 1 })}
                 value={rgbToHex(draft.get(i) ?? defaultBranchColor(i))}
-                onChange={(e) => setColor(i, hexToRgb(e.target.value))}
+                onChange={(e) => setColor(i, hexToRgbInt(e.target.value))}
                 className="h-7 w-12 shrink-0 cursor-pointer rounded-md bg-slate-800 ring-1 ring-white/10"
               />
             </label>

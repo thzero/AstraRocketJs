@@ -80,13 +80,42 @@ export function UpdateToast() {
 
   const later = useCallback(() => setSnoozed(snoozeUntil(Date.now())), []);
 
-  if (!needRefresh || !promptDue(snoozed, Date.now())) return null;
+  const show = needRefresh && promptDue(snoozed, Date.now());
 
+  // The live region is ALWAYS mounted; only its contents come and go.
+  //
+  // A `role="status"` created at the same moment as its text is not announced
+  // by most screen readers - the region has to exist in the DOM before
+  // content is inserted into it. Rendering `null` until there was something
+  // to say meant the toast announced nothing, which is the entire purpose of
+  // the toast.
   return (
-    <div
-      className="fixed inset-x-0 bottom-4 z-50 mx-auto flex w-[min(30rem,92vw)] items-center gap-3 rounded-xl bg-slate-800 px-4 py-3 text-sm text-slate-100 shadow-lg ring-1 ring-white/10"
-      role="status"
-    >
+    <div role="status" aria-live="polite">
+      {show && (
+        <UpdateToastBody
+          t={t}
+          onRefresh={() => void updateServiceWorker(true)}
+          onLater={later}
+          onDismiss={() => setNeedRefresh(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function UpdateToastBody({
+  t,
+  onRefresh,
+  onLater,
+  onDismiss,
+}: {
+  t: (key: string, vars?: Record<string, unknown>) => string;
+  onRefresh: () => void;
+  onLater: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <div className="fixed inset-x-0 bottom-4 z-50 mx-auto flex w-[min(30rem,92vw)] items-center gap-3 rounded-xl bg-slate-800 px-4 py-3 text-sm text-slate-100 shadow-lg ring-1 ring-white/10">
       <div className="min-w-0 flex-1">
         <p>{t('update.available')}</p>
         {/* Which build you are ON. The waiting worker does not tell us its own
@@ -95,20 +124,20 @@ export function UpdateToast() {
         <p className="text-xs text-slate-400">{t('update.running', { version: APP_VERSION })}</p>
       </div>
       <button
-        onClick={() => void updateServiceWorker(true)}
+        onClick={onRefresh}
         className="shrink-0 rounded-lg bg-sky-600 px-3 py-1.5 font-medium text-white hover:bg-sky-500"
       >
         {t('update.reload')}
       </button>
       <button
-        onClick={later}
+        onClick={onLater}
         title={t('update.laterTitle', { hours: Math.round(UPDATE_SNOOZE_MS / 3_600_000) })}
         className="shrink-0 rounded-lg px-2 py-1.5 text-xs text-slate-400 hover:text-slate-200"
       >
         {t('update.later')}
       </button>
       <button
-        onClick={() => setNeedRefresh(false)}
+        onClick={onDismiss}
         className="shrink-0 rounded-lg px-1 py-1.5 text-slate-500 hover:text-slate-200"
         aria-label={t('update.dismiss')}
       >

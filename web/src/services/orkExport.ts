@@ -807,12 +807,12 @@ export function exportOrk({
     emit(3, '<calculator>BarrowmanCalculator</calculator>');
     emit(3, '<conditions>');
     emit(4, `<configid>${escapeXml(defaultId)}</configid>`);
-    emit(4, `<launchrodlength>${launch.launchRodLengthM}</launchrodlength>`);
+    emit(4, `<launchrodlength>${launch.launchRodLengthM ?? 0}</launchrodlength>`);
     // Desktop defaults for options we don't model: launch into wind, and
     // rod/wind direction (rod direction is DEGREES on disk, 90 = π/2 rad).
     emit(4, '<launchintowind>true</launchintowind>');
     // Rod angle is DEGREES on disk (the saver multiplies by 180/π).
-    emit(4, `<launchrodangle>${launch.launchRodAngleDeg}</launchrodangle>`);
+    emit(4, `<launchrodangle>${launch.launchRodAngleDeg ?? 0}</launchrodangle>`);
     emit(4, '<launchroddirection>90.0</launchroddirection>');
     // ≤23.09 legacy trio the desktop still writes: turbulence here is the
     // INTENSITY ratio stddev/average, which is why it goes through the same
@@ -828,9 +828,9 @@ export function exportOrk({
     // saver writes getDirection() raw); π/2 is the desktop default.
     emit(4, `<winddirection>${Math.PI / 2}</winddirection>`);
     emit(4, '<wind model="average">');
-    emit(5, `<speed>${launch.windAverage}</speed>`);
+    emit(5, `<speed>${launch.windAverage ?? 0}</speed>`);
     emit(5, `<direction>${Math.PI / 2}</direction>`);
-    emit(5, `<standarddeviation>${launch.windStdDev}</standarddeviation>`);
+    emit(5, `<standarddeviation>${launch.windStdDev ?? 0}</standarddeviation>`);
     emit(4, '</wind>');
     // The multilevel profile, when there is one. The desktop writes BOTH wind
     // elements and lets <windmodeltype> pick, which is also what our importer
@@ -852,8 +852,8 @@ export function exportOrk({
       emit(4, '</wind>');
     }
     emit(4, `<windmodeltype>${levels.length ? 'Multilevel' : 'Average'}</windmodeltype>`);
-    emit(4, `<launchaltitude>${launch.launchAltitudeM}</launchaltitude>`);
-    emit(4, `<launchlatitude>${launch.latitudeDeg}</launchlatitude>`);
+    emit(4, `<launchaltitude>${launch.launchAltitudeM ?? 0}</launchaltitude>`);
+    emit(4, `<launchlatitude>${launch.latitudeDeg ?? 0}</launchlatitude>`);
     // We don't model longitude — the desktop's preference default.
     emit(4, '<launchlongitude>-80.6</launchlongitude>');
     emit(4, `<geodeticmethod>${launch.geodetic ?? 'spherical'}</geodeticmethod>`);

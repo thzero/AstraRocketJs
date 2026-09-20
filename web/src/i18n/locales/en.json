@@ -93,7 +93,14 @@
     "orientation": "Paper orientation",
     "portrait": "Portrait",
     "landscape": "Landscape",
-    "reset": "Reset"
+    "reset": "Reset",
+    "svgTitle": "True-scale 2D drawing (SVG) with design data - physical mm size, prints at 100% scale",
+    "imageFailed": "Image export failed: {{message}} - try a smaller width, or use the SVG download.",
+    "fitFrame": "Fit rocket to frame",
+    "fitFrameHint": "Move the camera in so the rocket fills the exported image - your viewing angle is kept, only the framing changes",
+    "pdfFailed": "Could not export PDF: {{message}}",
+    "csvFailed": "Could not export CSV: {{message}}",
+    "reportFailed": "Could not assemble the design report: {{message}}"
   },
   "engine": {
     "wasmTip": "Physics engine: WebAssembly (fast path)",
@@ -135,8 +142,8 @@
     "openLibrary": "Open…",
     "saveAs": "Save As…",
     "import": "Import",
-    "importOrk": "Import OpenRocket (.ork)",
-    "exportOrk": "Export OpenRocket (.ork)",
+    "importOrk": "OpenRocket",
+    "exportOrk": "OpenRocket",
     "export": "Export",
     "report": "Rocket Design Report",
     "rasaero": "RASAero II",
@@ -363,6 +370,7 @@
     "optDelay": "Optimum delay",
     "noMount": "Add a motor mount to run a simulation.",
     "noMotor": "Load a motor to run a simulation.",
+    "failedNamed": "\"{{name}}\" failed: {{message}}",
     "noMotorNamed": "\"{{name}}\" has no usable motor.",
     "incomplete": "\"{{name}}\" is missing: {{fields}}.",
     "badGeometry": "Fix the design first — a required dimension is zero: {{parts}}.",
@@ -469,7 +477,9 @@
       "windStdDev": "wind standard deviation",
       "launchAltitudeM": "site altitude",
       "latitudeDeg": "latitude"
-    }
+    },
+    "locationDenied": "Could not get your location. Check the browser permission and try again.",
+    "locating": "Locating…"
   },
   "csv": {
     "title": "Export flight data",
@@ -862,7 +872,8 @@
     "tabOffset": "Fin tab offset",
     "tabOffsetMethod": "Fin tab reference",
     "cluster": "Cluster",
-    "tubeFinsCollide": "These tubes overlap each other. At this tube radius at most {{max}} fit; at this count the largest that fits is {{radius}} {{unit}}."
+    "tubeFinsCollide": "These tubes overlap each other. At this tube radius at most {{max}} fit; at this count the largest that fits is {{radius}} {{unit}}.",
+    "shapeParameter": "Shape parameter"
   },
   "deployEvent": {
     "ejection": "Motor ejection charge",
@@ -908,7 +919,9 @@
     "zoomIn": "Zoom in — or scroll on the drawing; drag to pan",
     "zoomOut": "Zoom out",
     "fit": "Fit to view",
-    "aftAria": "Aft end view — looking at the rocket from behind; drag to rotate, wheel to zoom"
+    "aftAria": "Aft end view — looking at the rocket from behind; drag to rotate, wheel to zoom",
+    "caliperH": "Horizontal caliper handle {{end}}",
+    "caliperV": "Vertical caliper handle {{end}}"
   },
   "picker": {
     "pick": "Pick a real part… ({{count}})",
@@ -1144,7 +1157,7 @@
     "RECOVERY_HIGH_SPEED": "The recovery device opened while the rocket was still moving fast. The shock loads the airframe and the canopy at once: it can zipper the body tube, tear the chute or pull the shroud lines out. Deploy nearer apogee, or fly dual-deployment with a drogue and a lower main.",
     "RECOVERY_MAIN_HIGH_SPEED": "On a dual-deployment flight the main should open slowly, already under drogue. This one opened fast enough to risk the same zippering and canopy damage — usually a drogue that is too small to slow the rocket, or a main set to deploy too high.",
     "RECOVERY_MAIN_LOW_SPEED": "The main opened while the rocket was barely descending, which normally means it deployed at or close to apogee. Nothing breaks, but the point of dual deployment is lost: the rocket floats down from full altitude and drifts a long way downwind.",
-    "RECOVERY_DROGUE_LOW_SPEED": "The drogue opened while the rocket was barely moving, so it does little to stabilise the descent. Usually a drogue deployed well before apogee.",
+    "RECOVERY_DROGUE_LOW_SPEED": "The drogue opened while the rocket was barely moving, so it does little to stabilize the descent. Usually a drogue deployed well before apogee.",
     "RECOVERY_LAUNCH_ROD": "A recovery device deployed while the rocket was still on the rod. Check the ejection delay and the deployment settings — as simulated, the flight ends at the pad.",
     "RECOVERY_DROGUE_NO_MAIN": "A drogue deploys but no main follows, so the rocket descends the whole way on the drogue alone. That is a fast landing unless the drogue is sized to take it.",
     "NO_RECOVERY_DEVICE": "Nothing deploys, so the rocket falls ballistic and the landing speed below is what it hits the ground at.",

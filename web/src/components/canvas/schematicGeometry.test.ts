@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import {
-  niceStep,
+  niceRulerStep,
   snapNear,
   calloutLayout,
   finTabFront,
@@ -12,12 +12,12 @@ import {
 
 const node = (o: object): ComponentNode => o as unknown as ComponentNode;
 
-describe('niceStep', () => {
+describe('niceRulerStep', () => {
   it('picks a 1/2/2.5/5/10-times-power-of-ten step giving ~8 marks', () => {
-    expect(niceStep(1)).toBeCloseTo(0.2, 9); // 1/8 = 0.125 → 0.2
-    expect(niceStep(0.4)).toBeCloseTo(0.05, 9); // 0.05 → 0.05
-    expect(niceStep(8)).toBeCloseTo(1, 9);
-    expect(niceStep(0)).toBeGreaterThan(0); // guarded, never 0/NaN
+    expect(niceRulerStep(1)).toBeCloseTo(0.2, 9); // 1/8 = 0.125 → 0.2
+    expect(niceRulerStep(0.4)).toBeCloseTo(0.05, 9); // 0.05 → 0.05
+    expect(niceRulerStep(8)).toBeCloseTo(1, 9);
+    expect(niceRulerStep(0)).toBeGreaterThan(0); // guarded, never 0/NaN
   });
 });
 

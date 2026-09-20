@@ -384,7 +384,9 @@ describe('simulation run guards', () => {
     simulateMock.mockRejectedValueOnce(new Error('kernel exploded'));
     await s().runSim({} as SimPrefs);
 
-    expect(s().err).toBe('kernel exploded');
+    // Named, like the skip messages already were: a failure is reported once
+    // per row so a batch cannot collapse into one anonymous line.
+    expect(s().err).toBe('"Simulation 1" failed: kernel exploded');
     expect(s().simBusy).toBe(false);
     expect(selectRunFailed(s())).toBe(true); // auto-run must not retry this
   });

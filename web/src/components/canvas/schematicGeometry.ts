@@ -1,6 +1,7 @@
 import type { ComponentNode, ComponentPosition, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
 import { num, numOpt } from '../../tree/nodeProps';
-import { axialLength, freeformPoints, startFromPosition } from '../../tree/position.js';
+import { axialLength, startFromPosition } from '../../tree/position.js';
+import { finSpan } from '../../tree/finPlanform.js';
 import { outerProfile } from '../../tree/shapeProfile.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { assemblyBoundingRadius, isAssembly, resolveAssemblyRadius } from '../../tree/assembly.js';
@@ -25,7 +26,15 @@ export const CALLOUT_LANES = 34;
 const LANE_GAP = 13;
 
 /** A "nice" ruler tick step (meters) giving ~8 marks across `totalM`. */
-export function niceStep(totalM: number): number {
+/**
+ * A nice RULER graduation for a drawing that spans `totalM`.
+ *
+ * Divides by 8 before rounding and has a 2.5 rung, unlike
+ * `prefs/units.niceStep`, which rounds its argument directly on a 1-2-5
+ * ladder. Renamed from `niceStep` because the two were indistinguishable at
+ * an import site and are not interchangeable.
+ */
+export function niceRulerStep(totalM: number): number {
   const target = Math.max(totalM, 1e-6) / 8;
   const pow = Math.pow(10, Math.floor(Math.log10(target)));
   for (const c of [1, 2, 2.5, 5, 10]) if (c * pow >= target) return c * pow;
@@ -212,17 +221,13 @@ export function computeSchematicLayout(
   // A fin set's vertical span: freeform fins carry no 'height' key — their
   // reach is the outline's y-max (the 0.03 default clipped tall freeform fins
   // out of the adaptive-height frame).
-  const finSpan = (n: ComponentNode, bodyR: number): number => {
+  const spanOf = (n: ComponentNode, bodyR: number): number => {
     if (!n.type.endsWith('finset')) return 0;
-    if (n.type === 'freeformfinset') {
-      // Normalized: the kernel translates the outline by -p0 in BOTH axes, so
-      // the span above the body is measured from the first point, not from 0.
-      const pts = freeformPoints(n);
-      if (pts.length > 0) return Math.max(0, ...pts.map((p) => Number(p[1]) || 0));
-    }
-    // Tube fins reach one tube diameter above the body surface.
+    // Tube fins reach one tube diameter above the body surface; every planar
+    // fin defers to the shared span (tree/finPlanform.ts) so this view cannot
+    // drift from the exports about how tall a fin is.
     if (n.type === 'tubefinset') return 2 * tubeFinRadius(n, bodyR);
-    return num(n, 'height', 0.03);
+    return finSpan(n);
   };
   /**
    * Fin spans under `nodes`, each measured against the radius of the body it is
@@ -240,7 +245,7 @@ export function computeSchematicLayout(
     const out: number[] = [];
     const walk = (ns: ComponentNode[], r: number) => {
       for (const n of ns) {
-        out.push(finSpan(n, r));
+        out.push(spanOf(n, r));
         if (n.children?.length) {
           const own = Math.max(num(n, 'aftRadius', 0), num(n, 'outerRadius', 0), num(n, 'foreRadius', 0));
           walk(n.children, own > 0 ? own : r);

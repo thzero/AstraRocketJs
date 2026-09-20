@@ -147,6 +147,20 @@ export function AppHeader() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      // Not while a text field has focus. The argument for firing anyway was
+      // that edits commit on blur - but Ctrl+Z mid-edit in the Save As name
+      // box, a component Name, the motor search or a custom material's name
+      // then discarded the last ROCKET GEOMETRY edit instead of the characters
+      // just typed, and preventDefault stopped the browser's own field undo
+      // from ever running. MotorDashboard's arrow-key handler already makes
+      // exactly this check.
+      const el = document.activeElement as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)
+      ) {
+        return;
+      }
       const key = e.key.toLowerCase();
       if (key === 'z' && !e.shiftKey) {
         e.preventDefault();
@@ -445,12 +459,18 @@ export function AppHeader() {
           if (f) onOpenFile(f);
         }}
       />
-      <MotorDashboard open={motorsOpen} onClose={() => setMotorsOpen(false)} />
-      <ExportDialog open={reportOpen} onClose={() => setReportOpen(false)} />
-      <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
-      <PrivacyDialog open={privacyOpen} onClose={() => setPrivacyOpen(false)} />
-      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      <DesignLibraryDialog open={libraryOpen} onClose={() => setLibraryOpen(false)} />
+      {/* Mounted only while OPEN.
+          Every one of these used to be mounted on every render of the header
+          and merely `return null` when closed - which does not stop effects.
+          That is what let MotorDashboard fetch the 1.6 MB motor catalog on app
+          start despite its own comment saying the load was deferred, and it
+          made every dialog's state outlive its own closing. */}
+      {motorsOpen && <MotorDashboard open onClose={() => setMotorsOpen(false)} />}
+      {reportOpen && <ExportDialog open onClose={() => setReportOpen(false)} />}
+      {aboutOpen && <AboutDialog open onClose={() => setAboutOpen(false)} />}
+      {privacyOpen && <PrivacyDialog open onClose={() => setPrivacyOpen(false)} />}
+      {settingsOpen && <SettingsDialog open onClose={() => setSettingsOpen(false)} />}
+      {libraryOpen && <DesignLibraryDialog open onClose={() => setLibraryOpen(false)} />}
       <DesignPropertiesDialog
         open={saveAsOpen}
         title={t('file.saveAs')}

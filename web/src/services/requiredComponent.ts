@@ -59,6 +59,12 @@ export const REQUIRED_COMPONENT_FIELDS: Record<string, readonly string[]> = {
  * and a ring explicitly sized to zero are different mistakes.
  */
 export const AUTO_COMPONENT_FIELDS: Record<string, readonly string[]> = {
+  // A tube fin set with no radius is AUTO-sized by the kernel from the body
+  // radius and the fin count (TubeFinSet.getOuterRadius; ported in
+  // tree/tubefins.ts). Marking it required made the Run button refuse to fly a
+  // perfectly valid .ork that desktop OpenRocket had written, while the
+  // schematic drew the tubes at their correct size.
+  tubefinset: ['outerRadius'],
   centeringring: ['outerRadius', 'innerRadius'],
   bulkhead: ['outerRadius'],
   engineblock: ['outerRadius'],

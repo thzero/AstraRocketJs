@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
 // Unit tests run under Vitest (Vite-native, so it reuses vite.config's `define`
@@ -19,6 +20,16 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify('0.0.0-test'),
     __HELP_URL__: JSON.stringify('https://example.test/docs'),
     __CONTRIBUTORS_URL__: JSON.stringify('https://example.test/graphs/contributors'),
+  },
+  resolve: {
+    alias: {
+      // `vite-plugin-pwa` synthesizes this specifier during the app build and
+      // is not in the Vitest pipeline, so the import fails at RESOLUTION time -
+      // before `vi.mock` gets a chance - and `UpdateToast` could not be
+      // rendered in a test at all. The stub is the quiet default; a test that
+      // cares mocks the specifier as usual.
+      'virtual:pwa-register/react': fileURLToPath(new URL('./src/testing/pwaRegisterStub.ts', import.meta.url)),
+    },
   },
   test: {
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],

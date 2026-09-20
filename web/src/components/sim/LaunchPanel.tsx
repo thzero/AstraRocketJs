@@ -209,6 +209,12 @@ export function LaunchPanel({
   const { t } = useTranslation();
   const u = useUnits();
   const [profileOpen, setProfileOpen] = useState(false);
+  // Geolocation is a 10 s round trip that can simply be refused, and both
+  // outcomes used to be invisible: the error callback was an empty block and
+  // there was no pending state, so pressing the button appeared to do nothing
+  // and users pressed it again.
+  const [locating, setLocating] = useState(false);
+  const [locateErr, setLocateErr] = useState<string | null>(null);
   const mixed = (k: keyof LaunchConditions) => diff?.has(k) ?? false;
   // Empty required fields on the simulation being shown. The SETTINGS copy of
   // this panel never has any: it fills blanks from the previous default,
@@ -351,9 +357,13 @@ export function LaunchPanel({
         />
         {'geolocation' in navigator && (
           <button
-            onClick={() =>
+            onClick={() => {
+              setLocateErr(null);
+              setLocating(true);
               navigator.geolocation.getCurrentPosition(
                 (pos) => {
+                  setLocating(false);
+                  setLocateErr(null);
                   onChange({
                     latitudeDeg: +pos.coords.latitude.toFixed(4),
                     longitudeDeg: +pos.coords.longitude.toFixed(4),
@@ -361,15 +371,25 @@ export function LaunchPanel({
                   onCommit?.();
                 },
                 () => {
-                  /* denied or unavailable — leave the fields as they are */
+                  // Denial used to produce no visible change whatsoever, so
+                  // the user pressed the button again. There is a 10 s
+                  // timeout behind it too, with nothing on screen either way.
+                  setLocating(false);
+                  setLocateErr(t('launch.locationDenied'));
                 },
                 { timeout: 10000 },
-              )
-            }
-            className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+              );
+            }}
+            disabled={locating}
+            className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-60"
           >
-            📍 {t('launch.useLocation')}
+            📍 {locating ? t('launch.locating') : t('launch.useLocation')}
           </button>
+        )}
+        {locateErr && (
+          <p role="status" className="mt-1 text-[11px] leading-snug text-amber-400">
+            {locateErr}
+          </p>
         )}
       </Group>
 
@@ -378,6 +398,11 @@ export function LaunchPanel({
           label={t('launch.temperature')}
           field="temperature"
           kind="degC"
+          // Below absolute zero is not a launch condition. These three were
+          // the only QNums with neither bound while every sibling is bounded,
+          // and they go straight to the kernel's atmosphere model.
+          minSi={-90}
+          maxSi={70}
           u={u}
           stepSi={1}
           placeholder={t('launch.isa')}

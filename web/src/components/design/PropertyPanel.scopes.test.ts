@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FIELDS, PANEL_SCOPE_KEYS } from './PropertyPanel';
+import { FIELDS, PANEL_SCOPE_KEYS } from '../../services/componentFields';
 import { unitScope } from '../../prefs/units';
 
 /**

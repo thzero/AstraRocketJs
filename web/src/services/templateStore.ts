@@ -79,8 +79,17 @@ export class KeyValueTemplateStore implements TemplateStore {
     }
   }
 
+  /**
+   * Propagates a refused write, the way `motorStore.addCustomMotor` does.
+   *
+   * `kv.set` reports failure by RETURNING false rather than throwing, so
+   * discarding it meant the dialog awaited the save, got a clean resolve, and
+   * re-rendered a list that simply did not contain the thing the user had just
+   * added - with no error anywhere. "Best-effort (re-addable)" was the excuse,
+   * but re-adding is only possible if you are told it did not stick.
+   */
   private async write(list: UserTemplate[]): Promise<void> {
-    await this.kv.set(this.key, JSON.stringify(list)); // best-effort (re-addable)
+    if (!(await this.kv.set(this.key, JSON.stringify(list)))) throw new Error('storage-full');
   }
 
   async list(): Promise<UserTemplate[]> {

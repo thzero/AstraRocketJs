@@ -68,6 +68,17 @@ type HistoryEntry = {
   selectedId: string | null;
   sims: Simulation[];
   activeId: string;
+  /**
+   * The three fields `deleteSim` prunes alongside `sims`.
+   *
+   * Without them, undoing a delete brought the row back but not its tick (so
+   * the Run button's count was wrong) and not its place in `lastRunIds` (so
+   * the Results picker collapsed to a single name even though the run really
+   * had flown it).
+   */
+  selectedSimIds: string[];
+  lastRunIds: string[];
+  resultSimId: string | null;
 };
 /** Cap the stack so a long session can't grow memory without bound. */
 const HISTORY_LIMIT = 100;
@@ -260,11 +271,15 @@ export interface WorkspaceState {
   saveDesignAs: (name: string) => Promise<void>;
   renameDesign: (id: string, name: string) => Promise<void>;
   deleteDesign: (id: string) => Promise<void>;
-  newWorkspace: () => void;
-  saveOrk: () => void;
-  saveRasaero: () => void;
+  // These four are implemented `async`. Declaring them `() => void` was a
+  // lie the type system then enforced: no caller and no test could await
+  // them, which is part of why none of the four had a test. The `void`-calling
+  // sites in AppHeader keep their `void`.
+  newWorkspace: () => Promise<void>;
+  saveOrk: () => Promise<void>;
+  saveRasaero: () => Promise<void>;
   /** Export a single component as a 3D mesh (stl/obj/glb) or a 2D cut sheet (dxf). */
-  exportComponent: (nodeId: string, format: 'stl' | 'obj' | 'glb' | 'dxf') => void;
+  exportComponent: (nodeId: string, format: 'stl' | 'obj' | 'glb' | 'dxf') => Promise<void>;
 }
 
 /** The active simulation (falls back to the first if the id no longer exists). */
@@ -294,7 +309,7 @@ export const selectRunIds = (s: WorkspaceState): string[] =>
  * Same subscription caveat as `selectRunIds`: it builds a fresh array, so
  * components derive it rather than subscribing to it.
  */
-export const selectEditIds = (s: WorkspaceState): string[] => selectRunIds(s);
+const selectEditIds = (s: WorkspaceState): string[] => selectRunIds(s);
 
 /** The active simulation's non-primary-mount motors — its flight configuration. */
 export const selectExtraMotors = (s: WorkspaceState): Record<string, MountMotor> => selectActive(s).extraMotors;
@@ -414,9 +429,27 @@ function uniqueSimName(sims: Simulation[], label: (n: number) => string, start: 
  * past an await re-checks before it touches the store.
  */
 let workspaceGen = 0;
+/** Sequence for design-list refreshes; see refreshDesigns. */
+let designsGen = 0;
 /** Claim the workspace; the returned predicate says whether someone else has. */
 const claimWorkspace = (): (() => boolean) => {
   const mine = ++workspaceGen;
+  return () => mine !== workspaceGen;
+};
+/**
+ * OBSERVE the workspace without claiming it: the predicate reports whether
+ * someone replaced it, but taking this token does not itself count as a
+ * replacement.
+ *
+ * `saveDesign` and `saveDesignAs` do not replace the workspace - they only
+ * need to notice if something else did - but they used `claimWorkspace`, which
+ * bumps the generation and so invalidated every other continuation. Dropping a
+ * large `.ork` on the app and hitting File > Save while it parsed made
+ * `openOrkFile`'s `stale()` true, and BOTH its success and its error paths are
+ * gated on that, so nothing loaded and nothing was reported.
+ */
+const observeWorkspace = (): (() => boolean) => {
+  const mine = workspaceGen;
   return () => mine !== workspaceGen;
 };
 
@@ -454,7 +487,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
    */
   const patchTargets = (make: (sim: Simulation) => Partial<Simulation>) => {
     const ids = new Set(selectEditIds(get()));
-    set((s) => ({ sims: s.sims.map((x) => (ids.has(x.id) ? { ...x, ...make(x) } : x)) }));
+    // `outdated` is set HERE, once, rather than by each caller. Every edit that
+    // reaches this helper changes a simulation's INPUTS, so every one of them
+    // invalidates its cached flight - and having each of the seven call sites
+    // remember to say so meant the next one to be added would not. A caller
+    // can still override it in its patch if it ever genuinely must.
+    set((s) => ({ sims: s.sims.map((x) => (ids.has(x.id) ? { ...x, outdated: true, ...make(x) } : x)) }));
   };
 
   /**
@@ -469,7 +507,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
    */
   const patchActive = (make: (sim: Simulation) => Partial<Simulation>) => {
     const id = selectActive(get()).id;
-    set((s) => ({ sims: s.sims.map((x) => (x.id === id ? { ...x, ...make(x) } : x)) }));
+    // Same as patchTargets: an input edit, so the flight is stale by definition.
+    set((s) => ({ sims: s.sims.map((x) => (x.id === id ? { ...x, outdated: true, ...make(x) } : x)) }));
   };
 
   // --- undo/redo plumbing ---
@@ -487,6 +526,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       selectedId: s.selectedId,
       sims: s.sims.map((x) => ({ ...x, result: null })),
       activeId: s.activeId,
+      selectedSimIds: s.selectedSimIds,
+      lastRunIds: s.lastRunIds,
+      resultSimId: s.resultSimId,
     });
   };
   /**
@@ -507,6 +549,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return held ? { ...x, result: held, outdated: true } : x;
       }),
       activeId: e.activeId,
+      selectedSimIds: e.selectedSimIds,
+      lastRunIds: e.lastRunIds,
+      resultSimId: e.resultSimId,
     };
   };
   const pushPast = (entry: HistoryEntry) =>
@@ -688,11 +733,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     setActiveId: (activeId) => set({ activeId }), // switching the active sim isn't an edit — no history
     setActiveMotor: (m) => {
       recordStep();
-      patchActive(() => ({ motor: m, outdated: true }));
+      patchActive(() => ({ motor: m }));
     },
     setActiveIgnition: (event, delay) => {
       beginEdit();
-      patchActive(() => ({ ignitionEvent: event, ignitionDelay: delay, outdated: true }));
+      patchActive(() => ({ ignitionEvent: event, ignitionDelay: delay }));
     },
     setExtraMotor: (mountId, m) => {
       recordStep();
@@ -704,7 +749,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // thing a tick cannot reach (see patchActive).
       patchActive((sim) => ({
         extraMotors: { ...sim.extraMotors, [mountId]: { ...sim.extraMotors[mountId], spec: m } },
-        outdated: true,
       }));
     },
     setExtraIgnition: (mountId, event, delay) => {
@@ -714,12 +758,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           ...sim.extraMotors,
           [mountId]: { ...sim.extraMotors[mountId]!, ignitionEvent: event, ignitionDelay: delay },
         },
-        outdated: true,
       }));
     },
     patchLaunch: (p) => {
       beginEdit();
-      patchTargets((sim) => ({ launch: { ...sim.launch, ...p }, outdated: true }));
+      patchTargets((sim) => ({ launch: { ...sim.launch, ...p } }));
     },
     addSim: () => {
       // A fresh simulation starts from the app default motor + the user's global
@@ -782,7 +825,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const next = { ...(sim.prefs ?? {}) };
         if (value === null) delete next[key];
         else next[key] = value;
-        return { prefs: Object.keys(next).length ? next : undefined, outdated: true };
+        return { prefs: Object.keys(next).length ? next : undefined };
       });
     },
     clearSimPrefs: () => {
@@ -794,7 +837,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // `undefined`, not `{}`: `prefs` is spread over the globals at run time and
       // the SimEditor reads "is anything overridden" from its key count, so an
       // empty object would read as overridden-with-nothing.
-      patchTargets(() => ({ prefs: undefined, outdated: true }));
+      patchTargets(() => ({ prefs: undefined }));
     },
     setResultSimId: (id) => set({ resultSimId: id }),
     toggleSimSelected: (id) =>
@@ -845,6 +888,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // the user was left holding whichever row failed last -- with no name on
       // it. They are reported together once the batch drains.
       const skipped: Unflyable[] = [];
+      // Failures are collected for the same reason skips are, and it is the
+      // same bug one step later: each row's catch did `set({ err })`, so in a
+      // batch every message overwrote the one before it and carried no row
+      // name -- and then the skip line below overwrote whatever survived. Six
+      // rows with two timeouts and one missing motor reported only the missing
+      // motor, with no sign that two flights had failed at all.
+      const failed: { name: string; msg: string }[] = [];
       /** Patch one row's transient run state, leaving every other row alone. */
       const setRun = (simId: string, run: SimRun | null) =>
         set((st) => {
@@ -950,17 +1000,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               const msg =
                 e instanceof SimTimeoutError ? i18n.t('sim.timeout') : e instanceof Error ? e.message : String(e);
               setRun(sim.id, { phase: 'failed', tree: ranOn });
-              set({ err: msg });
+              failed.push({ name: sim.name, msg });
             }
           }),
         );
         // A canceled batch says nothing further: the user stopped it, so
         // neither the skip list nor a jump to the Results tab is wanted.
         if (abort.signal.aborted) return;
-        // One line for everything the batch refused to fly, naming each row.
-        if (skipped.length) {
-          set({ err: skipped.map((u) => unflyableText(u, i18n.t)).join(' ') });
-        }
+        // ONE line for everything that did not produce a flight, refusals and
+        // failures together, each naming its row.
+        const problems = [
+          ...skipped.map((u) => unflyableText(u, i18n.t)),
+          ...failed.map((f) => i18n.t('sim.failedNamed', { name: f.name, message: f.msg })),
+        ];
+        if (problems.length) set({ err: problems.join(' ') });
         // Show the run. Every run, one or twelve: running IS asking to see the
         // answer, and having to click over to Results afterwards was a step with
         // nothing behind it.
@@ -1084,8 +1137,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
     },
     refreshDesigns: async () => {
+      // The only async action without a guard. It is called from four places
+      // that can overlap (openDesign's tail, deleteDesign's tail, saveDesignAs
+      // and the library dialog), so a slower earlier call landing last put a
+      // just-deleted design back in the list, where clicking it takes the
+      // `library.missing` path.
+      const mine = ++designsGen;
       const lib = getDesignLibrary();
-      set({ designs: await lib.list(), activeDesignId: await lib.activeId() });
+      const [designs, activeDesignId] = [await lib.list(), await lib.activeId()];
+      if (mine !== designsGen) return;
+      set({ designs, activeDesignId });
     },
 
     openDesign: async (id) => {
@@ -1132,7 +1193,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // Reading the stale null sent File→Save to Save As, whose create() made a
       // SECOND entry with the same rocket, leaving every autosave so far in the
       // orphan the user never named.
-      const stale = claimWorkspace();
+      const stale = observeWorkspace();
       if (!(await getDesignLibrary().activeId())) return false;
       if (stale()) return false;
       await flushActive();
@@ -1150,7 +1211,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // `s` is snapshotted NOW; if the workspace is replaced while create() is
       // in flight, pointing the library at the new entry would leave the user
       // looking at one design with another one active.
-      const stale = claimWorkspace();
+      const stale = observeWorkspace();
       let meta;
       try {
         meta = await getDesignLibrary().create(name.trim() || i18n.t('library.untitled'), snapshotOf(s));

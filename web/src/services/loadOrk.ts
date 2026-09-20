@@ -96,7 +96,16 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
       }
       motorSpecs[mountId] = entry;
     } catch (e) {
-      notes.push(`Motor "${ref.designation}": ${e instanceof Error ? e.message : String(e)}`);
+      // Seat the UNRESOLVED motor, exactly as the `!cat` branch above does.
+      // Leaving the mount empty was not neutral: mountMotors seeds a default
+      // C6 for any mount without one, so a single transient thrustcurve.org
+      // failure while opening an L-motor design produced a runnable simulation
+      // flying a 10 N-s C6, with the only warning buried in the import notes
+      // that settings.showImportNotes can hide.
+      notes.push(
+        `Motor "${ref.designation}": ${e instanceof Error ? e.message : String(e)} - pick a motor for that mount (it won't fly a default).`,
+      );
+      motorSpecs[mountId] = { spec: unresolvedMotor(ref) };
     }
   }
 

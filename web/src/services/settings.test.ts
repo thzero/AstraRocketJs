@@ -31,6 +31,54 @@ describe('loadSettings', () => {
     expect(loadSettings().playbackSpeed).toBe(DEFAULT_SETTINGS.playbackSpeed);
   });
 
+  it('guards playbackSpeed against the non-numbers that ARE numbers', () => {
+    // A stored NaN is the one that hurts: it types as `number`, so only the
+    // finiteness check catches it, and it makes the playback clock never
+    // advance with no way back but clearing storage. JSON has no NaN literal,
+    // which is why each of these has to be written as something JSON can hold.
+    for (const raw of ['{"playbackSpeed":null}', '{"playbackSpeed":0}', '{"playbackSpeed":-2}']) {
+      localStorage.setItem(KEY, raw);
+      expect(loadSettings().playbackSpeed, raw).toBe(DEFAULT_SETTINGS.playbackSpeed);
+    }
+    // Infinity round-trips through JSON.stringify as null, so reach it directly.
+    localStorage.setItem(KEY, JSON.stringify({ playbackSpeed: Number.MAX_VALUE }));
+    expect(loadSettings().playbackSpeed).toBe(10); // clamped, not rejected
+  });
+
+  it('clamps playbackSpeed into the range the player can actually run', () => {
+    localStorage.setItem(KEY, JSON.stringify({ playbackSpeed: 1000 }));
+    expect(loadSettings().playbackSpeed).toBe(10);
+    localStorage.setItem(KEY, JSON.stringify({ playbackSpeed: 0.0001 }));
+    expect(loadSettings().playbackSpeed).toBe(0.05);
+    localStorage.setItem(KEY, JSON.stringify({ playbackSpeed: 2 }));
+    expect(loadSettings().playbackSpeed).toBe(2); // in range, untouched
+  });
+
+  it('drops a partColors value that is not a hex string', () => {
+    // These reach a `style` attribute. The round-trip case below stores a valid
+    // '#123456' and so cannot see the filter at all - every rejected shape has
+    // to be passed in deliberately. A stored object, array or CSS payload used
+    // to ride straight through the spread and into the renderer.
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        partColors: {
+          fins: '#123456',
+          nose: 'red; background: url(http://evil/x)',
+          body: { toString: 'nope' },
+          tubes: ['#fff'],
+          rings: 42,
+          lugs: null,
+          chutes: '#abc',
+        },
+      }),
+    );
+    const c = loadSettings().partColors as Record<string, unknown>;
+    expect(c.fins).toBe('#123456');
+    expect(c.chutes).toBe('#abc'); // 3-digit hex is legitimate
+    for (const k of ['nose', 'body', 'tubes', 'rings', 'lugs']) expect(c[k]).toBeUndefined();
+  });
+
   it('falls back to defaults on corrupt JSON', () => {
     localStorage.setItem(KEY, '{not valid');
     expect(loadSettings()).toEqual(DEFAULT_SETTINGS);

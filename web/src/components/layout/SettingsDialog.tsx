@@ -288,6 +288,11 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
                 unit="s"
                 step={0.01}
                 min={0.001}
+                // maxTime / timeStep IS the solver's iteration count, and both
+                // ends were open. 1000000 s (a plausible slip for 1000) at the
+                // default 0.01 s step asks for 100 M integration steps, with
+                // no way to interrupt the run.
+                max={10}
                 value={settings.simulation.timeStep}
                 onChange={(v) => setSim({ timeStep: v ?? DEFAULT_SETTINGS.simulation.timeStep })}
               />
@@ -296,6 +301,7 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
                 unit="s"
                 step={60}
                 min={1}
+                max={10000}
                 value={settings.simulation.maxTime}
                 onChange={(v) => setSim({ maxTime: v ?? DEFAULT_SETTINGS.simulation.maxTime })}
               />

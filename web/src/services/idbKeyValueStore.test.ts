@@ -18,6 +18,14 @@ class FakeLocal implements KeyValueStore {
   async remove(k: string) {
     this.map.delete(k);
   }
+  async update(k: string, fn: (raw: string | null) => string | null) {
+    const next = fn(await this.get(k));
+    if (next === null) {
+      await this.remove(k);
+      return true;
+    }
+    return await this.set(k, next);
+  }
 }
 
 beforeEach(async () => {
@@ -197,6 +205,82 @@ describe('when IndexedDB is unavailable', () => {
     boom.mockRestore();
     expect(await kv.set('k', 'v')).toBe(true);
     expect(await kv.get('k')).toBe('v');
+  });
+});
+
+/**
+ * The blocked-open path, which nothing had ever taken.
+ *
+ * `onblocked` fires when another tab still holds an older version of the
+ * database open. Rejecting alone left the `open` request PENDING: when the
+ * blocking tab finally closed, `onsuccess` fired on an already-settled promise
+ * and the connection was leaked with nobody holding it to `close()` - which
+ * then blocks the NEXT version upgrade in turn, in a tab that has no idea why.
+ * It cannot be provoked through fake-indexeddb at a fixed DB_VERSION, so the
+ * request object is stood in for directly.
+ */
+describe('an open blocked by another tab', () => {
+  /** A stand-in IDBOpenDBRequest whose events this test fires by hand. */
+  const blockingRequest = () => {
+    const close = vi.fn();
+    const req = {
+      onupgradeneeded: null,
+      onsuccess: null,
+      onerror: null,
+      onblocked: null,
+      result: { close },
+    } as unknown as IDBOpenDBRequest & { result: { close: typeof close } };
+    return { req, close };
+  };
+
+  it('falls back to localStorage rather than hanging on the other tab', async () => {
+    const { req } = blockingRequest();
+    const local = new FakeLocal();
+    const kv = new IndexedDbKeyValueStore(local);
+    const spy = vi.spyOn(indexedDB, 'open').mockImplementation(() => {
+      queueMicrotask(() => req.onblocked?.(new Event('blocked') as IDBVersionChangeEvent));
+      return req;
+    });
+    await __resetIdbForTests();
+
+    expect(await kv.set('k', 'v')).toBe(true);
+    expect(local.map.get('k')).toBe('v');
+    expect(isStorageDegraded()).toBe(true); // the UI gets to warn up front
+    spy.mockRestore();
+  });
+
+  it('closes the connection that arrives after the block is settled', async () => {
+    const { req, close } = blockingRequest();
+    const kv = new IndexedDbKeyValueStore(new FakeLocal());
+    const spy = vi.spyOn(indexedDB, 'open').mockImplementation(() => {
+      queueMicrotask(() => req.onblocked?.(new Event('blocked') as IDBVersionChangeEvent));
+      return req;
+    });
+    await __resetIdbForTests();
+    await kv.get('k'); // takes the fallback
+
+    expect(close).not.toHaveBeenCalled();
+    // The blocking tab now goes away and the original open finally succeeds.
+    req.onsuccess?.(new Event('success'));
+    expect(close).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
+  });
+
+  it('does not memoize the block, so a later call reaches IndexedDB', async () => {
+    // Otherwise one unlucky moment latches the whole session to the 5 MB cap
+    // it just escaped - the same "never memoize a failure" rule as above.
+    const { req } = blockingRequest();
+    const kv = new IndexedDbKeyValueStore(new FakeLocal());
+    const spy = vi.spyOn(indexedDB, 'open').mockImplementationOnce(() => {
+      queueMicrotask(() => req.onblocked?.(new Event('blocked') as IDBVersionChangeEvent));
+      return req;
+    });
+    await __resetIdbForTests();
+
+    await kv.get('k');
+    spy.mockRestore();
+    expect(await kv.set('k', 'v')).toBe(true);
+    expect(await kv.get('k')).toBe('v'); // really in IndexedDB now
   });
 });
 

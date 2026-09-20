@@ -268,6 +268,17 @@ async function fetchSamplesCached(motor: TcMotor, cat: CatalogMotor): Promise<Tc
       if (cached) return cached.value;
       throw new Error(`No thrust-curve data available for ${cat.designation}`);
     }
+    // Validate the NETWORK path with the same guard the cache read uses
+    // (line ~257). Only the cached branch was checked, so a garbled or hostile
+    // download.json carrying `samples: [{time: null, thrust: 5}]` went straight
+    // into samplesToMotorSpec: cumImpulse NaN, nulls through times/masses, and
+    // the whole array across the TeaVM boundary, where it surfaces as the
+    // opaque "cannot be converted to a BigInt" blank design this file already
+    // documents.
+    if (!isSampleArray(file.samples)) {
+      if (cached) return cached.value;
+      throw new Error(`Thrust-curve data for ${cat.designation} is malformed`);
+    }
     await getMotorStore().writeEntry(key, file.samples);
     return file.samples;
   } catch (e) {

@@ -2,9 +2,11 @@ import * as THREE from 'three';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { ComponentNode } from '../engine/openRocketEngine';
 import { num, numOpt } from '../tree/nodeProps';
-import { freeformPoints, freeformRootChord } from '../tree/position';
+import { finCutContour, finRootChord, finSpan } from '../tree/finPlanform';
+import { freeformPoints } from '../tree/position';
 import { outerProfile } from '../tree/shapeProfile';
-import { finTabFront } from '../components/canvas/schematicGeometry';
+import { tubeFinRadius } from '../tree/tubefins';
+import { meshTolerances, validateSolid } from './meshValidate';
 
 /**
  * Build the rocket's external airframe as watertight solids for 3D print / CAD.
@@ -21,7 +23,9 @@ import { finTabFront } from '../components/canvas/schematicGeometry';
  * not part of the printed shell and are skipped.
  */
 
-const WELD_TOL = 1e-6;
+// Weld and degeneracy tolerances are derived per-geometry from its own
+// bounding box (see meshTolerances): a fixed absolute cut erased every
+// triangle of a heavily scaled-down design and still reported success.
 const SEGMENTS = 96;
 
 function edgeKey(a: number, b: number): string {
@@ -56,7 +60,7 @@ export function countBoundaryEdges(geo: THREE.BufferGeometry): number {
 export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry {
   // Weld first: display primitives duplicate the seam/pole vertices, so an edge
   // that is geometrically shared is only recognized as shared after welding.
-  const g = mergeVertices(geo.index ? geo : mergeVertices(geo), WELD_TOL);
+  const g = mergeVertices(geo.index ? geo : mergeVertices(geo), meshTolerances(geo).weld);
   const idx = g.getIndex();
   const posAttr = g.getAttribute('position');
   if (!idx || !posAttr) return g;
@@ -99,6 +103,53 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
   const positions: number[] = Array.from(posAttr.array as ArrayLike<number>);
   const indices: number[] = Array.from({ length: idx.count }, (_, i) => idx.getX(i));
   const vec = (i: number) => new THREE.Vector3(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+
+  /**
+   * Close one boundary loop with a proper triangulation of its own plane.
+   *
+   * Returns false when the loop is degenerate (collinear, or nothing the ear
+   * clipper can resolve). The caller does not need to react: the final
+   * countBoundaryEdges check below still fails the export, which is the honest
+   * outcome for a shell that cannot be closed.
+   */
+  const capLoop = (loop: number[]): boolean => {
+    const pts = loop.map(vec);
+    // Newell normal: correct for a loop that is neither planar nor convex.
+    const n = new THREE.Vector3();
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i]!,
+        q = pts[(i + 1) % pts.length]!;
+      n.x += (p.y - q.y) * (p.z + q.z);
+      n.y += (p.z - q.z) * (p.x + q.x);
+      n.z += (p.x - q.x) * (p.y + q.y);
+    }
+    if (n.lengthSq() === 0) return false;
+    n.normalize();
+    // An orthonormal basis on that plane, so the loop can be ear-clipped in 2D.
+    const u = new THREE.Vector3(1, 0, 0);
+    if (Math.abs(n.dot(u)) > 0.9) u.set(0, 1, 0);
+    u.crossVectors(u, n).normalize();
+    const v = new THREE.Vector3().crossVectors(n, u);
+    const flat = pts.map((p) => new THREE.Vector2(p.dot(u), p.dot(v)));
+    const fanned = THREE.ShapeUtils.triangulateShape(flat, []);
+    if (!fanned.length) return false;
+    const e1 = new THREE.Vector3(),
+      e2 = new THREE.Vector3(),
+      tn = new THREE.Vector3();
+    for (const t of fanned) {
+      const i0 = loop[t[0]!]!,
+        i1 = loop[t[1]!]!,
+        i2 = loop[t[2]!]!;
+      // The shell traverses each boundary edge one way, so the cap has to
+      // traverse it the other: every cap triangle faces -n, against the loop's
+      // own direction. Checked per triangle rather than assumed, so the cap
+      // does not depend on which orientation the ear clipper hands back.
+      tn.crossVectors(e1.subVectors(vec(i1), vec(i0)), e2.subVectors(vec(i2), vec(i0)));
+      if (tn.dot(n) > 0) indices.push(i0, i2, i1);
+      else indices.push(i0, i1, i2);
+    }
+    return true;
+  };
 
   // Consume one outgoing boundary edge from `u` (undefined when none remain).
   const step = (u: number): number | undefined => outgoing.get(u)?.pop();
@@ -145,18 +196,15 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
         break;
       }
 
-      // Centroid vertex, then a fan. Winding (centroid, v[i+1], v[i]) opposes the
-      // boundary direction so the cap's outward face agrees with the shell it closes.
-      const centroid = new THREE.Vector3();
-      for (const v of loop) centroid.add(vec(v));
-      centroid.multiplyScalar(1 / loop.length);
-      const cIdx = positions.length / 3;
-      positions.push(centroid.x, centroid.y, centroid.z);
-      for (let i = 0; i < loop.length; i++) {
-        const v0 = loop[i]!,
-          v1 = loop[(i + 1) % loop.length]!;
-        indices.push(cIdx, v1, v0);
-      }
+      // Ear-clip the loop rather than fanning it from a new apex vertex.
+      //
+      // The fan used the arithmetic MEAN of the loop's vertices, which is not
+      // the polygon's centroid: for a non-convex loop it can fall outside the
+      // loop entirely, and the fan then emits overlapping triangles facing
+      // opposite ways. Nothing noticed, because a fan uses every edge exactly
+      // twice and that is the only question countBoundaryEdges asks. The
+      // winding check in validateSolid is what catches it now.
+      capLoop(loop);
     }
   }
 
@@ -185,7 +233,23 @@ function segmentsCross(a: [number, number], b: [number, number], c: [number, num
   const d2 = cross(d[0] - c[0], d[1] - c[1], b[0] - c[0], b[1] - c[1]);
   const d3 = cross(b[0] - a[0], b[1] - a[1], c[0] - a[0], c[1] - a[1]);
   const d4 = cross(b[0] - a[0], b[1] - a[1], d[0] - a[0], d[1] - a[1]);
-  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return true;
+  // TOUCHING counts too. With strict inequalities alone, a vertex sitting
+  // exactly ON a non-adjacent edge - or two non-adjacent vertices dragged onto
+  // each other in FreeformFinEditor - was not a crossing, so a figure-8
+  // outline passed isSimplePolygon and extruded into a pinch point where four
+  // shell faces meet at one vertex. Non-manifold, and no slicer's problem to
+  // guess at.
+  const within = (p: [number, number], q: [number, number], r: [number, number]) =>
+    Math.min(p[0], r[0]) <= q[0] &&
+    q[0] <= Math.max(p[0], r[0]) &&
+    Math.min(p[1], r[1]) <= q[1] &&
+    q[1] <= Math.max(p[1], r[1]);
+  if (d1 === 0 && within(c, a, d)) return true;
+  if (d2 === 0 && within(c, b, d)) return true;
+  if (d3 === 0 && within(a, c, b)) return true;
+  if (d4 === 0 && within(a, d, b)) return true;
+  return false;
 }
 
 /**
@@ -199,6 +263,14 @@ function segmentsCross(a: [number, number], b: [number, number], c: [number, num
 export function isSimplePolygon(pts: [number, number][]): boolean {
   const n = pts.length;
   if (n < 3) return false;
+  // Two vertices at the same point pinch the outline even when no pair of
+  // EDGES crosses. Caught explicitly rather than left to the collinear cases
+  // below, which depend on exact floating-point zeros.
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (pts[i]![0] === pts[j]![0] && pts[i]![1] === pts[j]![1]) return false;
+    }
+  }
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
       if (j === i + 1 || (i === 0 && j === n - 1)) continue; // adjacent: shares an endpoint
@@ -214,7 +286,7 @@ export function isSimplePolygon(pts: [number, number][]): boolean {
  * once welded those triangles have no area and, left in, read as non-manifold.
  * Removing them turns the pole into a clean triangle fan.
  */
-function dropDegenerate(geo: THREE.BufferGeometry): THREE.BufferGeometry {
+function dropDegenerate(geo: THREE.BufferGeometry, areaTol = 1e-12): THREE.BufferGeometry {
   const idx = geo.getIndex();
   const pos = geo.getAttribute('position');
   if (!idx) return geo;
@@ -230,7 +302,7 @@ function dropDegenerate(geo: THREE.BufferGeometry): THREE.BufferGeometry {
     b.fromBufferAttribute(pos, ib);
     c.fromBufferAttribute(pos, ic);
     const area = b.clone().sub(a).cross(c.clone().sub(a)).length() * 0.5;
-    if (area > 1e-12) keep.push(ia, ib, ic);
+    if (area > areaTol) keep.push(ia, ib, ic);
   }
   geo.setIndex(keep);
   return geo;
@@ -254,7 +326,8 @@ function revolveSolidX(surface: [number, number][], axialOffset: number): THREE.
   // weld once uv/normal are dropped, leaving a manifold solid welded by position.
   geo.deleteAttribute('uv');
   geo.deleteAttribute('normal');
-  geo = dropDegenerate(mergeVertices(geo, WELD_TOL));
+  const tol = meshTolerances(geo);
+  geo = dropDegenerate(mergeVertices(geo, tol.weld), tol.area);
   geo.rotateZ(-Math.PI / 2); // lathe axial (Y) -> world X
   geo.translate(axialOffset, 0, 0);
   geo.computeVertexNormals();
@@ -294,7 +367,8 @@ export function discSolid(outerR: number, innerR: number, length: number): THREE
   let geo: THREE.BufferGeometry = new THREE.LatheGeometry(pts, SEGMENTS);
   geo.deleteAttribute('uv');
   geo.deleteAttribute('normal');
-  geo = dropDegenerate(mergeVertices(geo, WELD_TOL));
+  const discTol = meshTolerances(geo);
+  geo = dropDegenerate(mergeVertices(geo, discTol.weld), discTol.area);
   geo.rotateZ(-Math.PI / 2); // lathe axial (Y) -> world X
   geo.computeVertexNormals();
   return geo;
@@ -302,69 +376,38 @@ export function discSolid(outerR: number, innerR: number, length: number): THREE
 
 /** One fin as a flat, watertight extruded solid at the origin (planform in XY,
  *  thickness centered on Z) — ready to lay on a print bed. */
-function oneFinSolid(child: ComponentNode): THREE.BufferGeometry | null {
-  const ff = freeformPoints(child);
-  // Fallback 0, not the usual 0.05: here `root` only feeds the degeneracy guard
-  // below, and a zero-span outline must stay zero so it is skipped rather than
-  // extruded into non-manifold garbage. The freeform shape itself is built from
-  // the points, so this never affects the drawn outline.
-  const root = child.type === 'freeformfinset' && ff.length ? freeformRootChord(ff, 0) : num(child, 'rootChord', 0.05);
-  const height =
-    child.type === 'freeformfinset' && ff.length ? Math.max(...ff.map((p) => p[1])) : num(child, 'height', 0.03);
+function oneFinSolid(child: ComponentNode, parentRadius: number | null): THREE.BufferGeometry | null {
+  const root = finRootChord(child, 0);
+  const height = finSpan(child);
   const thickness = num(child, 'thickness', 0.003);
 
-  // Degenerate planform → no printable solid: a zero-area outline (thickness,
-  // root or height ≤ 0) or a freeform with < 3 points extrudes to a broken /
+  // Degenerate planform -> no printable solid: a zero-area outline (thickness,
+  // root or height <= 0) or a freeform with < 3 points extrudes to a broken /
   // empty mesh. Skip it rather than emit non-manifold garbage into the export.
   if (!(thickness > 0) || !(root > 0) || !(height > 0)) return null;
-  if (child.type === 'freeformfinset' && ff.length < 3) return null;
-  // …nor is a self-crossing one. Same policy as the degenerate cases above:
+  // ...nor is a self-crossing one. Same policy as the degenerate cases above:
   // return null so the caller reports "can't be exported" rather than emitting
   // a solid whose faces pass through each other.
-  if (child.type === 'freeformfinset' && !isSimplePolygon(ff)) return null;
+  if (child.type === 'freeformfinset' && !isSimplePolygon(freeformPoints(child))) return null;
+
+  // The outline, tab folded in, from the ONE fin-geometry module. This used to
+  // sample its own elliptical curve here and got a sine arch instead of the
+  // kernel's half-ellipse, so the printed fin was a different shape from the
+  // one that flew. See tree/finPlanform.ts.
+  const contour = finCutContour(child, parentRadius);
+  if (!contour || contour.length < 3) return null;
 
   const shape = new THREE.Shape();
-  if (child.type === 'freeformfinset') {
-    shape.moveTo(ff[0]![0], ff[0]![1]);
-    for (let i = 1; i < ff.length; i++) shape.lineTo(ff[i]![0], ff[i]![1]);
-  } else if (child.type === 'ellipticalfinset') {
-    shape.moveTo(0, 0);
-    const steps = 32;
-    for (let i = 1; i <= steps; i++) shape.lineTo(root * (i / steps), height * Math.sin(Math.PI * (i / steps)));
-    shape.lineTo(root, 0);
-  } else {
-    const tip = num(child, 'tipChord', 0.03);
-    const sweep = num(child, 'sweep', 0.02);
-    shape.moveTo(0, 0);
-    shape.lineTo(sweep, height);
-    shape.lineTo(sweep + tip, height);
-    shape.lineTo(root, 0);
-  }
-  // Fold in the through-the-wall tab, the way dxfExport.ts:57-62 and
-  // reportGeometry.ts:49-58 already do. Without it a printed fin has no tab: it
-  // will not pass through the airframe slot or seat on the centering rings — and
-  // the DXF of the SAME part, from the same menu, did have one. The outline
-  // above ends at the trailing root corner, so walk back along y = 0, dip down
-  // for the tab, and return to the leading corner; closePath joins it up.
-  const tabH = num(child, 'tabHeight', 0);
-  const tabLen = num(child, 'tabLength', 0);
-  if (tabH > 0 && tabLen > 0) {
-    const x0 = Math.max(0, Math.min(root, finTabFront(child, root)));
-    const x1 = Math.max(0, Math.min(root, x0 + tabLen));
-    if (x1 - x0 > 1e-9) {
-      shape.lineTo(x1, 0);
-      shape.lineTo(x1, -tabH);
-      shape.lineTo(x0, -tabH);
-      shape.lineTo(x0, 0);
-    }
-  }
+  shape.moveTo(contour[0]![0], contour[0]![1]);
+  for (let i = 1; i < contour.length; i++) shape.lineTo(contour[i]![0], contour[i]![1]);
   shape.closePath();
 
   const g = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: false });
   g.translate(0, 0, -thickness / 2);
   g.deleteAttribute('uv');
   g.deleteAttribute('normal');
-  const welded = dropDegenerate(mergeVertices(g, WELD_TOL));
+  const finTol = meshTolerances(g);
+  const welded = dropDegenerate(mergeVertices(g, finTol.weld), finTol.area);
   welded.computeVertexNormals();
   return welded;
 }
@@ -374,7 +417,20 @@ function oneFinSolid(child: ComponentNode): THREE.BufferGeometry | null {
  * has no 3D-printable body. One part, built at the origin — this backs the
  * per-component STL/OBJ/GLB export.
  */
-export function solidForNode(node: ComponentNode): THREE.BufferGeometry | null {
+export function solidForNode(node: ComponentNode, parentRadius: number | null = null): THREE.BufferGeometry | null {
+  const geo = buildSolid(node, parentRadius);
+  if (!geo) return null;
+  // The choke point. Every printable solid leaves through here, so it is the
+  // one place worth asking whether it is really a solid. `countBoundaryEdges`
+  // (used inside makeWatertight) only asks "is every edge used twice", which
+  // is satisfied by an EMPTY mesh and by a cap whose triangles overlap facing
+  // opposite ways. Both shipped. Returning null makes the caller report "this
+  // part can't be exported" instead of writing a file that no slicer can use.
+  if (validateSolid(geo, meshTolerances(geo).area).length) return null;
+  return geo;
+}
+
+function buildSolid(node: ComponentNode, parentRadius: number | null): THREE.BufferGeometry | null {
   const len = num(node, 'length', 0);
   switch (node.type) {
     case 'nosecone': {
@@ -411,18 +467,35 @@ export function solidForNode(node: ComponentNode): THREE.BufferGeometry | null {
     case 'innertube':
     case 'launchlug':
     case 'tubefinset': {
-      const R = num(node, 'outerRadius', 0.012);
+      // A tube fin set legitimately carries NO outerRadius: the kernel
+      // auto-sizes it from the body radius and the fin count
+      // (TubeFinSet.getOuterRadius). This used to substitute a hard 12 mm, so a
+      // 6-tube set on a 25 mm body exported at less than half its real
+      // diameter with no warning. Without a parent radius the size is simply
+      // unknowable, so skip the part rather than invent one.
+      const R =
+        node.type === 'tubefinset'
+          ? (numOpt(node, 'outerRadius') ?? (parentRadius != null ? tubeFinRadius(node, parentRadius) : NaN))
+          : num(node, 'outerRadius', 0.012);
       const wall = num(node, 'thickness', node.type === 'launchlug' ? 0.0003 : 0.0005);
       // A zero/negative outer radius (or length) revolves to an empty mesh that
       // still reads as "watertight"; return null so it's skipped from export
       // rather than handed over as a hollow non-solid (matches nose/transition/fin).
       if (!(R > 0) || !(len > 0)) return null;
-      return discSolid(R, Math.max(0, R - wall), len);
+      // A wall at least as thick as the radius has no bore left, and
+      // `discSolid` would silently fall through to its no-bore branch and
+      // export a SOLID ROD. That is the opposite of the policy two functions
+      // up, where an inverted ring returns null precisely so a blocked bore is
+      // not shipped without saying so. Reachable from a units slip in a
+      // hand-edited .ork (thickness 0.02 against radius 0.012): printed, the
+      // part is a 24 mm rod and nothing fits inside it.
+      if (!(wall < R)) return null;
+      return discSolid(R, R - wall, len);
     }
     case 'trapezoidfinset':
     case 'ellipticalfinset':
     case 'freeformfinset':
-      return oneFinSolid(node);
+      return oneFinSolid(node, parentRadius);
     default:
       return null;
   }

@@ -40,8 +40,8 @@ export const CENTER_PANE_MIN = 320;
 const clampPane = (v: unknown, min: number, max: number, fallback: number): number =>
   typeof v === 'number' && Number.isFinite(v) ? Math.round(Math.min(max, Math.max(min, v))) : fallback;
 
-export const clampTreePane = (v: unknown): number => clampPane(v, TREE_PANE_MIN, TREE_PANE_MAX, TREE_PANE_DEFAULT);
-export const clampSidePane = (v: unknown): number => clampPane(v, SIDE_PANE_MIN, SIDE_PANE_MAX, SIDE_PANE_DEFAULT);
+const clampTreePane = (v: unknown): number => clampPane(v, TREE_PANE_MIN, TREE_PANE_MAX, TREE_PANE_DEFAULT);
+const clampSidePane = (v: unknown): number => clampPane(v, SIDE_PANE_MIN, SIDE_PANE_MAX, SIDE_PANE_DEFAULT);
 
 // Sea-level, calm, standard-atmosphere defaults (Cape Canaveral latitude).
 const DEFAULT_LAUNCH: CompleteLaunch = {
@@ -285,7 +285,7 @@ export interface PathExportSettings {
   labelWaypointsWithMission: boolean;
 }
 
-export const DEFAULT_PATH_EXPORT: PathExportSettings = {
+const DEFAULT_PATH_EXPORT: PathExportSettings = {
   labelWaypointsWithMission: false,
 };
 
@@ -296,6 +296,12 @@ export const DEFAULT_REPORT: ReportSettings = {
   paper: 'letter',
   orientation: 'portrait',
 };
+
+/** Playback rate: a real, positive multiplier within a usable range. */
+const clampPlayback = (v: unknown): number =>
+  typeof v === 'number' && Number.isFinite(v) && v > 0
+    ? Math.min(10, Math.max(0.05, v))
+    : DEFAULT_SETTINGS.playbackSpeed;
 
 export const DEFAULT_SETTINGS: Settings = {
   units: METRIC_UNITS,
@@ -374,12 +380,24 @@ export function loadSettings(): Settings {
       // has no `units` at all) keeps exactly the units it was displaying.
       units: normalizeUnits(s.units),
       unitOverrides: normalizeUnitOverrides(s.unitOverrides),
-      partColors: { ...(s.partColors ?? {}) },
+      // Filtered, not spread. These values reach a style attribute, which is
+      // exactly the reasoning the treePaneWidth clamp below already states -
+      // it just was not applied here, so any value type (an object, an array,
+      // a CSS payload) rode straight through to the renderer.
+      partColors: Object.fromEntries(
+        Object.entries((s.partColors ?? {}) as Record<string, unknown>).filter(
+          ([, v]) => typeof v === 'string' && /^#[0-9a-f]{3,8}$/i.test(v),
+        ),
+      ) as Partial<Record<PartKey, string>>,
       phaseColors: { ...DEFAULT_SETTINGS.phaseColors, ...(s.phaseColors ?? {}) },
       // An older store has no value here, and an unrecognized one falls back
       // rather than leaving the tables with a style nothing renders.
       aeroHeat: s.aeroHeat === 'openrocket' ? 'openrocket' : DEFAULT_SETTINGS.aeroHeat,
-      playbackSpeed: typeof s.playbackSpeed === 'number' ? s.playbackSpeed : DEFAULT_SETTINGS.playbackSpeed,
+      // Clamped like every adjacent field. `typeof === 'number'` let
+      // NaN, 0, Infinity and negatives through, and a stored NaN makes the
+      // flight-playback clock never advance with no way back but clearing
+      // storage - the same failure the treePaneWidth clamp was added for.
+      playbackSpeed: clampPlayback(s.playbackSpeed),
       simulation: (() => {
         const sim = { ...DEFAULT_SETTINGS.simulation, ...(s.simulation ?? {}) };
         // A corrupt/hand-edited timeStep or maxTime ≤ 0 makes the RK4 loop
@@ -433,8 +451,21 @@ export function loadSettings(): Settings {
         if (l.geodetic !== undefined && !['flat', 'spherical', 'wgs84'].includes(l.geodetic)) {
           l.geodetic = DEFAULT_SETTINGS.launchDefaults.geodetic;
         }
-        if (l.windLevels !== undefined && !Array.isArray(l.windLevels)) {
-          l.windLevels = DEFAULT_SETTINGS.launchDefaults.windLevels;
+        // Elements too, not just the array. Everything in this block
+        // reaches simConditions() and then simulate() for each new simulation,
+        // and `Array.isArray` let a stored [{altitudeM: "x", speed: null}]
+        // walk straight into the kernel.
+        if (l.windLevels !== undefined) {
+          l.windLevels = Array.isArray(l.windLevels)
+            ? l.windLevels.filter(
+                (w: unknown) =>
+                  !!w &&
+                  typeof w === 'object' &&
+                  ['altitudeM', 'speed', 'directionDeg', 'stddev'].every((k) =>
+                    Number.isFinite((w as Record<string, unknown>)[k]),
+                  ),
+              )
+            : DEFAULT_SETTINGS.launchDefaults.windLevels;
         }
         return l;
       })(),

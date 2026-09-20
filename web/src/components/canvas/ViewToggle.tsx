@@ -36,6 +36,12 @@ export function ViewToggle({
         <button
           key={v}
           onClick={() => onChange(v)}
+          // Which view is open was conveyed by `bg-sky-600` and nothing else:
+          // a screen reader could not tell, and neither could anyone who
+          // cannot separate the two greys. Every sibling toggle in the app
+          // already does this (AeroAnalysis, CenterView, TabBar,
+          // SettingsDialog); this was the one that was missed.
+          aria-pressed={view === v}
           className={`px-3 py-1 text-xs font-semibold ${view === v ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300'}`}
         >
           {t(`view.${v}`)}

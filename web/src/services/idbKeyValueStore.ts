@@ -41,7 +41,24 @@ function openDb(): Promise<IDBDatabase> {
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error ?? new Error('indexedDB.open failed'));
     // Another tab holds an older version open; don't hang waiting for it.
-    req.onblocked = () => reject(new Error('IndexedDB blocked by another tab'));
+    //
+    // Rejecting alone left the `open` request PENDING: when the blocking tab
+    // finally closed, `onsuccess` fired on an already-settled promise and the
+    // resulting connection was leaked with nobody holding it to `close()` -
+    // which then blocks the NEXT version upgrade in turn. Close it late, and
+    // drop the cached promise so a retry can succeed rather than leaving the
+    // session latched to the localStorage fallback (the "never memoize a
+    // failure" intent just below).
+    req.onblocked = () => {
+      req.onsuccess = () => {
+        try {
+          req.result.close();
+        } catch {
+          /* already gone */
+        }
+      };
+      reject(new Error('IndexedDB blocked by another tab'));
+    };
   });
   // Never memoize a failure: a transient open error would otherwise pin the app
   // to the fallback for the rest of the session.
@@ -111,6 +128,39 @@ async function tx<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => I
   });
 }
 
+/**
+ * Read, transform and write one key inside a SINGLE readwrite transaction.
+ *
+ * IndexedDB transactions are atomic across connections, so this is what makes
+ * a cross-tab read-modify-write safe. The get and the put are issued on the
+ * same transaction with no `await` between them: awaiting anything that is not
+ * an IndexedDB request lets the transaction auto-commit first.
+ */
+async function txUpdate(key: string, fn: (raw: string | null) => string | null): Promise<void> {
+  const db = await openDb();
+  return await new Promise<void>((resolve, reject) => {
+    const t = db.transaction(STORE, 'readwrite');
+    const store = t.objectStore(STORE);
+    const read = store.get(key);
+    read.onsuccess = () => {
+      let next: string | null;
+      try {
+        next = fn((read.result as string | undefined) ?? null);
+      } catch (e) {
+        t.abort();
+        reject(e instanceof Error ? e : new Error(String(e)));
+        return;
+      }
+      if (next === null) store.delete(key);
+      else store.put(next, key);
+    };
+    read.onerror = () => reject(read.error ?? new Error('IndexedDB read failed'));
+    t.oncomplete = () => resolve();
+    t.onabort = () => reject(t.error ?? new Error('IndexedDB transaction aborted'));
+    t.onerror = () => reject(t.error ?? new Error('IndexedDB transaction failed'));
+  });
+}
+
 /** Close and forget the cached connection — tests only. An open connection
  *  blocks deleteDatabase(), so this must be awaited before wiping between tests. */
 export async function __resetIdbForTests(): Promise<void> {
@@ -127,7 +177,27 @@ export async function __resetIdbForTests(): Promise<void> {
 export class IndexedDbKeyValueStore implements KeyValueStore {
   constructor(private readonly fallback: KeyValueStore = new LocalStorageKeyValueStore()) {}
 
+  /**
+   * Keys whose newest value had to go to the fallback because IndexedDB
+   * refused the write.
+   *
+   * Without this the two tiers silently disagreed. A QuotaExceededError aborts
+   * a write transaction but leaves READS working, so `set` fell back to
+   * localStorage and returned true, every layer above reported success, and
+   * the next `get` read IndexedDB first and served the STALE copy. The user's
+   * save was lost with no "storage full" signal anywhere — which is the exact
+   * signal `set`'s boolean exists to carry.
+   */
+  private readonly fellBack = new Set<string>();
+
   async get(key: string): Promise<string | null> {
+    // A key we had to write to the fallback is NEWER there; the IndexedDB
+    // entry, if any, is the stale one that used to shadow it.
+    if (this.fellBack.has(key)) {
+      const v = await this.fallback.get(key);
+      if (v != null) return v;
+      this.fellBack.delete(key);
+    }
     try {
       const found = await tx<string | undefined>('readonly', (s) => s.get(key));
       if (found != null) return found;
@@ -141,14 +211,42 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
   async set(key: string, value: string): Promise<boolean> {
     try {
       await tx('readwrite', (s) => s.put(value, key));
+      this.fellBack.delete(key);
       return true;
     } catch {
       markDegraded();
-      return await this.fallback.set(key, value); // quota, or IndexedDB unavailable
+      const ok = await this.fallback.set(key, value); // quota, or IndexedDB unavailable
+      if (ok) {
+        this.fellBack.add(key);
+        // Drop the now-stale IndexedDB entry so it cannot shadow the fallback
+        // in a LATER session, where `fellBack` no longer exists. A delete
+        // frees space, so it can succeed where the write that just failed did
+        // not; if it also fails, `fellBack` still covers this session.
+        try {
+          await tx('readwrite', (s) => s.delete(key));
+        } catch {
+          /* best-effort */
+        }
+      }
+      return ok;
+    }
+  }
+
+  async update(key: string, fn: (raw: string | null) => string | null): Promise<boolean> {
+    if (this.fellBack.has(key)) return await this.fallback.update(key, fn);
+    try {
+      await txUpdate(key, fn);
+      return true;
+    } catch {
+      markDegraded();
+      const ok = await this.fallback.update(key, fn);
+      if (ok) this.fellBack.add(key);
+      return ok;
     }
   }
 
   async remove(key: string): Promise<void> {
+    this.fellBack.delete(key);
     try {
       await tx('readwrite', (s) => s.delete(key));
     } catch {

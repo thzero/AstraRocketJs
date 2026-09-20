@@ -1,7 +1,6 @@
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import { num } from '../tree/nodeProps';
-import { freeformPoints } from '../tree/position';
-import { finTabFront } from '../components/canvas/schematicGeometry';
+import { finCutContour, finRootChord } from '../tree/finPlanform';
 
 /**
  * DXF export — the 2D CNC/laser boundary for a rocket's FLAT, plate-cut parts:
@@ -23,7 +22,9 @@ import { finTabFront } from '../components/canvas/schematicGeometry';
 
 export const DXF_MIME = 'image/vnd.dxf';
 
-const M_TO_MM = 1000;
+// Imported, not redeclared: this is the unit constant for every dimensional
+// export, and it was written out in three separate files.
+import { M_TO_MM } from '../prefs/units';
 const EPS = 1e-6;
 /** Used when a ring's outer radius can't be resolved from its parent tube. */
 const FALLBACK_RADIUS = 0.012;
@@ -50,20 +51,6 @@ interface Part {
 
 // --- geometry (all in meters; the writer alone knows millimeters) ----------
 
-/** Fold a through-the-wall tab into a fin's root edge as one closed contour. */
-function withTab(top: Pt[], node: ComponentNode, rootChord: number, pRadius: number): Pt[] {
-  const tabH = Math.min(num(node, 'tabHeight', 0), pRadius > 0 ? pRadius : Infinity);
-  const tabLen = num(node, 'tabLength', 0);
-  if (!(tabH > 0) || !(tabLen > 0)) return top;
-  const x0 = Math.max(0, Math.min(rootChord, finTabFront(node, rootChord)));
-  const x1 = Math.max(0, Math.min(rootChord, x0 + tabLen));
-  if (x1 - x0 <= EPS) return top;
-  // top ends at the trailing root corner (rootChord, 0); walk back along y = 0,
-  // dip down for the tab, and return to the leading corner (0, 0).
-  const loop = [...top, { x: x1, y: 0 }, { x: x1, y: -tabH }, { x: x0, y: -tabH }, { x: x0, y: 0 }];
-  return dedupe(loop);
-}
-
 /** Drop consecutive duplicate points (degenerate zero-length edges break cutters). */
 function dedupe(pts: Pt[]): Pt[] {
   const out: Pt[] = [];
@@ -82,41 +69,17 @@ function dedupe(pts: Pt[]): Pt[] {
   return out;
 }
 
-/** The span-up planform (root on y = 0), before any tab is folded in. */
-function finTopEdge(node: ComponentNode): Pt[] | null {
-  if (node.type === 'freeformfinset') {
-    const raw = freeformPoints(node);
-    if (raw.length < 3) return null;
-    return raw.map(([x, y]) => ({ x: Number(x) || 0, y: Number(y) || 0 }));
-  }
-  const root = num(node, 'rootChord', 0.05);
-  const height = num(node, 'height', 0.03);
-  if (node.type === 'ellipticalfinset') {
-    // Half-ellipse: center (root/2, 0), semi-axes (root/2, height), theta pi..0.
-    const N = 48;
-    const pts: Pt[] = [];
-    for (let i = 0; i <= N; i++) {
-      const th = Math.PI * (1 - i / N);
-      pts.push({ x: root / 2 + (root / 2) * Math.cos(th), y: height * Math.sin(th) });
-    }
-    return pts;
-  }
-  // Trapezoidal: sweep is a LENGTH offset of the leading tip corner.
-  const tip = num(node, 'tipChord', root * 0.6);
-  const sweep = num(node, 'sweep', 0.02);
-  return [
-    { x: 0, y: 0 },
-    { x: sweep, y: height },
-    { x: sweep + tip, y: height },
-    { x: root, y: 0 },
-  ];
-}
-
 function finPart(node: ComponentNode, pRadius: number): Part | null {
-  const top = finTopEdge(node);
-  if (!top) return null;
-  const root = node.type === 'freeformfinset' ? Math.max(...top.map((p) => p.x)) : num(node, 'rootChord', 0.05);
-  const outline = withTab(top, node, root, pRadius);
+  // Outline and tab both come from the ONE fin-geometry module
+  // (tree/finPlanform.ts), so the DXF, the STL and the 1:1 PDF template are
+  // guaranteed to be the same part. `root` in particular is the KERNEL's root
+  // chord (last.x - first.x for a freeform), not the furthest-aft point: this
+  // writer was the last holdout still using Math.max, which put the tab of an
+  // overhanging freeform fin up to 20 mm out of place against the airframe slot.
+  const contour = finCutContour(node, pRadius > 0 ? pRadius : null);
+  if (!contour) return null;
+  const root = finRootChord(node);
+  const outline = dedupe(contour.map(([x, y]) => ({ x, y })));
   if (outline.length < 3) return null;
   const ents: Ent[] = [{ kind: 'poly', layer: 'CUT', pts: outline }];
   // Root-chord reference mark on y = 0.
@@ -127,7 +90,10 @@ function finPart(node: ComponentNode, pRadius: number): Part | null {
       : node.type === 'ellipticalfinset'
         ? 'Elliptical fin'
         : 'Freeform fin';
-  const span = Math.max(...outline.map((p) => p.y));
+  // `reduce`, not a spread: `orkImport` puts no cap on <finpoints><point>
+  // count, and spreading a >100k-point freeform fin into Math.max dies with an
+  // opaque "Maximum call stack size exceeded" instead of exporting.
+  const span = outline.reduce((m, p) => (p.y > m ? p.y : m), -Infinity);
   const count = Math.round(num(node, 'finCount', 3));
   const thickness = num(node, 'thickness', 0.003);
   const labels = [
@@ -195,7 +161,9 @@ function partForNode(node: ComponentNode, enclosing: Tube | null, siblings: Comp
     case 'trapezoidfinset':
     case 'ellipticalfinset':
     case 'freeformfinset':
-      return finPart(node, enclosing ? enclosing.innerR : 0);
+      // The kernel clamps tab height to the parent's OUTER radius
+      // (FinSet.getMaxTabHeight); the bore is not the limit a tab breaks through.
+      return finPart(node, enclosing ? enclosing.outerR : 0);
     case 'bulkhead':
       return discPart(node, plateOuter(node, enclosing), null, 'Bulkhead');
     case 'centeringring': {

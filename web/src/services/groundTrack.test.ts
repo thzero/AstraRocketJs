@@ -107,6 +107,17 @@ describe('rangeRings', () => {
     }
   });
 
+  it('gives exact radii on a fractional step, not float noise', () => {
+    // The cases above are all integer steps, where float error cannot appear -
+    // so they could not see this either way. On a sub-meter step both the
+    // multiplying and the accumulating forms drift: 0.1 * 3 is
+    // 0.30000000000000004 in IEEE754, and so is 0.1 + 0.1 + 0.1.
+    expect(rangeRings(0.4)).toEqual([0.1, 0.2, 0.3, 0.4]);
+    expect(rangeRings(0.7)).toEqual([0.2, 0.4, 0.6]);
+    expect(rangeRings(0.3, 6)).toEqual([0.05, 0.1, 0.15, 0.2, 0.25, 0.3]);
+    expect(rangeRings(0.04)).toEqual([0.01, 0.02, 0.03, 0.04]);
+  });
+
   it('honors a different ring count', () => {
     expect(rangeRings(1000, 2).length).toBeLessThanOrEqual(2);
   });

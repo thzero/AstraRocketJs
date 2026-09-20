@@ -47,6 +47,49 @@ const isMeta = (v: unknown): v is DesignMeta => {
   return !!m && typeof m.id === 'string' && typeof m.name === 'string' && typeof m.updatedAt === 'number';
 };
 
+const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+/** A summary field the kernel may legitimately leave unset. */
+const isNullableNumber = (v: unknown): boolean => v === null || isFiniteNumber(v);
+
+/**
+ * Is this stored value really a flight result this build can render?
+ *
+ * Deliberately strict about FINITENESS, not just types: `JSON.stringify` turns
+ * `NaN` and `Infinity` into `null`, so a summary that went through storage can
+ * come back with nulls where numbers belong, and the first `.toFixed()` on one
+ * throws in the middle of an export the user asked for.
+ */
+function isFlightResult(v: unknown): v is FlightResult {
+  const r = v as FlightResult | null;
+  if (!r || typeof r !== 'object') return false;
+  const s = r.summary as unknown as Record<string, unknown> | undefined;
+  if (!s || typeof s !== 'object') return false;
+  // FINITE is required only of the three the exporters format directly with
+  // `.toFixed()`, which is the crash this guard exists to stop. The rest need
+  // only be a number or null: throwing away an otherwise-usable flight because
+  // one peripheral field came back odd would be a worse trade than the bug.
+  for (const k of ['maxAltitude', 'maxVelocity', 'maxAcceleration']) {
+    if (!isFiniteNumber(s[k])) return false;
+  }
+  for (const k of [
+    'maxMachNumber',
+    'timeToApogee',
+    'flightTime',
+    'groundHitVelocity',
+    'launchRodVelocity',
+    'deploymentVelocity',
+    'optimumDelay',
+  ]) {
+    if (!isNullableNumber(s[k])) return false;
+  }
+  const series = r.series as unknown as Record<string, unknown> | undefined;
+  if (!series || typeof series !== 'object') return false;
+  for (const k of ['time', 'altitude', 'velocity', 'acceleration']) {
+    if (!Array.isArray(series[k])) return false;
+  }
+  return Array.isArray(r.events);
+}
+
 /** Short, collision-free enough for a per-browser library. */
 const freshId = () => `d${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
@@ -76,6 +119,32 @@ export class DesignLibrary {
     return await this.kv.set(INDEX_KEY, JSON.stringify(list));
   }
 
+  /**
+   * Mutate the index ATOMICALLY: read, transform and write in one store
+   * transaction.
+   *
+   * Every mutation here used to be `readIndex()` then `writeIndex()`, with
+   * several awaited round trips in between. This is an installable PWA and
+   * IndexedDB is shared across tabs, so two tabs saving at once both read
+   * `[X]`, one writes `[A,X]`, the other writes `[B,X]`, and one entry is
+   * gone. Since `activeId()` filters against the index, that design becomes
+   * unreachable and its bytes are orphaned.
+   */
+  private async mutateIndex(fn: (list: DesignMeta[]) => DesignMeta[]): Promise<boolean> {
+    return await this.kv.update(INDEX_KEY, (raw) => {
+      let list: DesignMeta[] = [];
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw) as unknown;
+          if (Array.isArray(parsed)) list = parsed.filter(isMeta);
+        } catch {
+          /* corrupt index: rebuild from this mutation alone */
+        }
+      }
+      return JSON.stringify(fn(list));
+    });
+  }
+
   // --- active design -----------------------------------------------------
 
   async activeId(): Promise<string | null> {
@@ -87,8 +156,13 @@ export class DesignLibrary {
     return (await this.readIndex()).some((m) => m.id === id) ? id : null;
   }
 
-  async setActive(id: string): Promise<void> {
-    await this.kv.set(ACTIVE_KEY, id);
+  /** Point the library at a design. False if storage refused the write. */
+  async setActive(id: string): Promise<boolean> {
+    // The boolean was discarded. `KeyValueStore.set` reports refusal by
+    // returning false rather than throwing, so switching designs resolved
+    // cleanly on a quota failure: this session edited the new design and the
+    // next load reopened the previous one.
+    return await this.kv.set(ACTIVE_KEY, id);
   }
 
   // --- designs -----------------------------------------------------------
@@ -106,8 +180,6 @@ export class DesignLibrary {
   /** Write a design and stamp its index entry. Returns false if storage refused. */
   async write(id: string, name: string, w: Workspace): Promise<boolean> {
     if (!(await this.kv.set(designKey(id), JSON.stringify(w)))) return false;
-    const list = await this.readIndex();
-    const rest = list.filter((m) => m.id !== id);
     // The index write counts too. It was treated as survivable on the grounds
     // that the design itself is stored — but `activeId()` filters against this
     // index, so a design missing from it is unreachable: a newly created one
@@ -115,7 +187,7 @@ export class DesignLibrary {
     // existing one stops advancing its `updatedAt` so the library list silently
     // goes stale. Reporting the failure lets `workspaceStore.save()` raise
     // "storage full" instead of the user finding out later.
-    return await this.writeIndex([{ id, name, updatedAt: Date.now() }, ...rest]);
+    return await this.mutateIndex((list) => [{ id, name, updatedAt: Date.now() }, ...list.filter((m) => m.id !== id)]);
   }
 
   /**
@@ -134,20 +206,38 @@ export class DesignLibrary {
     return meta ?? { id, name, updatedAt: Date.now() };
   }
 
-  async rename(id: string, name: string): Promise<void> {
-    const list = await this.readIndex();
-    await this.writeIndex(list.map((m) => (m.id === id ? { ...m, name } : m)));
+  /** Rename a design. False if storage refused the write. */
+  async rename(id: string, name: string): Promise<boolean> {
+    // Also had its boolean discarded: the UI showed the new name from memory
+    // and the next session showed the old one.
+    return await this.mutateIndex((list) => list.map((m) => (m.id === id ? { ...m, name } : m)));
   }
 
   // --- flight results ----------------------------------------------------
 
-  /** A design's cached flights. Missing or unreadable reads as "none". */
+  /**
+   * A design's cached flights. Missing, unreadable or malformed reads as
+   * "none" for the entries that fail, keeping the ones that do not.
+   *
+   * Every entry is shape-checked. The inputs go through `workspaceStore`'s
+   * `validate`, but this path had only `typeof parsed === 'object'` and the
+   * values are re-attached to simulations and rendered straight into charts,
+   * CSV and the KML/GPX export. Two things get through otherwise: a blob from
+   * a different build shape, and - more insidiously - `NaN`/`Infinity`, which
+   * `JSON.stringify` writes as `null`, so a summary number comes back null and
+   * the first `.toFixed()` on it throws mid-export.
+   */
   async readResults(id: string): Promise<StoredResults> {
     const raw = await this.kv.get(resultsKey(id));
     if (!raw) return {};
     try {
-      const parsed = JSON.parse(raw) as StoredResults;
-      return parsed && typeof parsed === 'object' ? parsed : {};
+      const parsed = JSON.parse(raw) as unknown;
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+      const out: StoredResults = {};
+      for (const [simId, value] of Object.entries(parsed as Record<string, unknown>)) {
+        if (isFlightResult(value)) out[simId] = value;
+      }
+      return out;
     } catch {
       return {}; // a truncated blob costs a re-run, not the design
     }
@@ -169,11 +259,25 @@ export class DesignLibrary {
     return await this.kv.set(resultsKey(id), JSON.stringify(results));
   }
 
-  async remove(id: string): Promise<void> {
+  /**
+   * Delete a design. False if the index write was refused, in which case
+   * nothing is deleted.
+   *
+   * The INDEX GOES FIRST, and the blobs only if it lands. The other order left
+   * the library listing a design whose bytes were gone whenever the index
+   * write was refused (quota, or the degraded localStorage fallback):
+   * `activeId()` returned it, `read()` returned null, and
+   * `workspaceStore.readActive` threw `unreadable-design`, so the app opened
+   * broken. Every other path in this file was hardened to gate on the index
+   * write; this one was not. Orphaned bytes are the better failure: they cost
+   * space, not a working app.
+   */
+  async remove(id: string): Promise<boolean> {
+    if (!(await this.mutateIndex((list) => list.filter((m) => m.id !== id)))) return false;
     await this.kv.remove(designKey(id));
     await this.kv.remove(resultsKey(id)); // or the flights outlive their design
-    await this.writeIndex((await this.readIndex()).filter((m) => m.id !== id));
     if ((await this.kv.get(ACTIVE_KEY)) === id) await this.kv.remove(ACTIVE_KEY);
+    return true;
   }
 
   // --- migration ---------------------------------------------------------

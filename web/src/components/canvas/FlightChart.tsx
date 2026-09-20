@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  useId,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import type { FlightResult, FlightSeries } from '../../engine/openRocketEngine';
 import { fmtNum } from '../../i18n/format';
@@ -543,7 +551,13 @@ function Panel({
   // whole series — none of these carry a temperature-style offset.
   const scale = meta.quantity ? u.factor(meta.quantity) : (meta.scale ?? 1);
   const unit = meta.quantity ? u.sym(meta.quantity) : meta.unit;
-  const clipId = `fc-clip-${meta.key}`;
+  // Namespaced ids. These were document-global (`fc-clip-altitude`), so two
+  // charts in one document - a comparison view, or the mobile and desktop
+  // copies during a breakpoint transition - made `url(#fc-clip-altitude)`
+  // resolve to whichever rendered first, clipping one chart's panels to the
+  // other's width. TreeSchematic already uses useId() for exactly this hazard.
+  const uid = useId();
+  const clipId = `${uid}-clip-${meta.key}`;
   const single = branches.length === 1;
 
   // One line per selected stage; the y-domain spans them all so they share a
@@ -662,7 +676,7 @@ function Panel({
           {/* Filled area only for a lone line (single stage) — colored to match
               it; overlaid stages would muddy each other, so they're lines only. */}
           {single && (
-            <linearGradient id={`fc-${meta.key}`} x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={`${uid}-${meta.key}`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={primary?.color ?? '#38bdf8'} stopOpacity="0.25" />
               <stop offset="100%" stopColor={primary?.color ?? '#38bdf8'} stopOpacity="0" />
             </linearGradient>
@@ -687,7 +701,7 @@ function Panel({
               vectorEffect="non-scaling-stroke"
             />
           ))}
-          {single && !meta.level && areaPath && <path d={areaPath} fill={`url(#fc-${meta.key})`} />}
+          {single && !meta.level && areaPath && <path d={areaPath} fill={`url(#${uid}-${meta.key})`} />}
           {list.map((s, i) =>
             paths[i] ? (
               <path

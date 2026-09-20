@@ -2,6 +2,7 @@ import { saveBlob, safeFilename } from './saveFile';
 import type { ComponentNode, RocketTree, StaticInfo } from '../engine/openRocketEngine';
 import type { ReportModel } from './reportModel';
 import { rocketSideView, finPlanformMm, profileMm, type Pt } from './reportGeometry';
+import { parentRadiusOf } from '../tree/finPlanform';
 import { num } from '../tree/nodeProps';
 import { isPlanarFinSet } from '../tree/tubefins';
 import { fmtNum } from '../i18n/format';
@@ -45,7 +46,8 @@ export interface ReportOptions {
 // filename.
 const safe = (name: string) => safeFilename(name, 'rocket');
 /** Exported for test: a malformed color silently becomes near-black otherwise. */
-export const hexToRgb = (hex: string): [number, number, number] => {
+/** `#rrggbb` to an [r,g,b] triple for jsPDF. See `flightPathExport.hexToRgbInt`. */
+export const hexToRgbTuple = (hex: string): [number, number, number] => {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return [17, 24, 39];
   const n = parseInt(m[1]!, 16);
@@ -198,9 +200,9 @@ export async function downloadReportPdf(
   const fillPolygon = (pts: Pt[], ox: number, oy: number) => {
     if (pts.length < 3) return;
     const deltas = pts.slice(1).map((p, i) => [p[0] - pts[i]![0], p[1] - pts[i]![1]] as [number, number]);
-    doc.setDrawColor(...hexToRgb(opts.templateStroke)).setLineWidth(0.3);
+    doc.setDrawColor(...hexToRgbTuple(opts.templateStroke)).setLineWidth(0.3);
     if (opts.templateFill) {
-      doc.setFillColor(...hexToRgb(opts.templateFill));
+      doc.setFillColor(...hexToRgbTuple(opts.templateFill));
       doc.lines(deltas, ox + pts[0]![0], oy + pts[0]![1], [1, 1], 'FD', true);
     } else {
       doc.lines(deltas, ox + pts[0]![0], oy + pts[0]![1], [1, 1], 'S', true);
@@ -316,6 +318,9 @@ export async function downloadReportPdf(
       const line: [number, number, number] = [30, 30, 30];
       // +radius points up, and PDF y grows down, so y-scale is negated.
       for (const f of sv.fins) fillScaled(f, ox, oy, scale, -scale, [205, 205, 205], line);
+      // Strap-on boosters and pods, drawn beside the airframe exactly as the 2D
+      // schematic draws them. Before the body, so the core reads as in front.
+      for (const p of sv.pods) fillScaled(p, ox, oy, scale, -scale, [218, 218, 218], line);
       fillScaled(sv.body, ox, oy, scale, -scale, [232, 232, 232], line);
       y += sv.h * scale + 6;
     }
@@ -488,7 +493,10 @@ export async function downloadReportPdf(
       y += h + 6;
     };
     for (const n of finSets) {
-      const f = finPlanformMm(n);
+      // Pass the mounting radius so the printed template's tab is clamped to
+      // the depth the kernel allows, matching the DXF and the STL of the same
+      // fin. Without it a 20 mm tab on a 12 mm body printed at full depth.
+      const f = finPlanformMm(n, parentRadiusOf(tree, String(n.id)));
       template(
         `${(n.name as string) || t('report.finSet')} × ${f.count}`,
         f.pts,

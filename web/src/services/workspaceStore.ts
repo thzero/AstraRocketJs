@@ -149,6 +149,28 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
       // key — a reload after a run still opens on the numbers it produced.
       return this.trackResults(withResults(w, await lib.readResults(journal.id)));
     }
+    // A journal written BEFORE the first save carries a null id, because that
+    // is what `saveSync` had to record. Both the replay test above and the
+    // staleness test below compared it to `this.activeId`, and `null !== null`
+    // is false, so such a journal was never replayed and never cleared: the
+    // work done before the first debounced autosave was lost on reload even
+    // though `saveSync` had successfully written it, and the dead blob (a
+    // whole lean workspace) squatted in the ~5 MB localStorage budget forever.
+    //
+    // It belongs to "no design yet", so replay it by CREATING one.
+    if (journal && journal.id === null && this.activeId === null) {
+      const w = validate(journal.w);
+      clearJournal();
+      if (w) {
+        try {
+          const meta = await lib.create(nameFor(w), w);
+          this.activeId = meta.id;
+          return this.trackResults(w);
+        } catch {
+          // Storage refused it; fall through to whatever is stored.
+        }
+      }
+    }
     // A journal from a design that no longer exists is stale; drop it rather
     // than replaying it over whatever happens to be open now.
     if (journal && journal.id !== this.activeId) clearJournal();

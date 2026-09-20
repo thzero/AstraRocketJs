@@ -377,3 +377,66 @@ describe('a hydrate does not re-stamp the design', () => {
     expect(save).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * RESTORING a design is not EDITING it.
+ *
+ * On mount the flight key describes the DEFAULT rocket; `hydrate()` then swaps
+ * in the saved design and the key changes. The effect that watches it had no
+ * `ready` gate (unlike the rebuild effect beside it), so it fired on that
+ * change and marked every result the user had already run as stale. With
+ * `simulation.autoRunOutdated` on and a result view open, CenterView then
+ * immediately re-flew flights that were already current.
+ *
+ * The pre-existing fixture could not catch this: it builds the saved workspace
+ * as `{...s().tree, name: 'Restored'}`, and `flightKey` strips `name`, so its
+ * hydrate never changed the key. These use a structurally different tree.
+ */
+describe('restoring a saved design does not invalidate its flights', () => {
+  /** A saved workspace whose GEOMETRY differs from the default, with a flight. */
+  const savedWithFlight = () => {
+    const tree = structuredClone(s().tree) as typeof s extends never ? never : ReturnType<typeof s>['tree'];
+    const bumpLength = (n: { type?: string; length?: number; children?: unknown[] }) => {
+      if (n.type === 'bodytube') n.length = (n.length ?? 0.2) + 0.123;
+      for (const c of (n.children ?? []) as (typeof n)[]) bumpLength(c);
+    };
+    for (const c of tree.components as unknown as Parameters<typeof bumpLength>[0][]) bumpLength(c);
+    return {
+      version: 1 as const,
+      tree,
+      sims: s().sims.map((x) => ({
+        ...x,
+        result: { summary: { maxAltitude: 100 }, events: [], series: {} },
+        outdated: false,
+      })),
+      activeId: s().activeId,
+      extraMotors: {},
+      loadedMeta: null,
+    };
+  };
+
+  it('keeps a restored result current', async () => {
+    load.mockResolvedValue(savedWithFlight());
+    await mount();
+
+    // The geometry really did change on hydrate, so this is the case that used
+    // to trip the effect.
+    expect(s().sims[0]!.result).not.toBeNull();
+    expect(s().sims[0]!.outdated).toBe(false);
+  });
+
+  it('still invalidates when the user actually edits the geometry', async () => {
+    load.mockResolvedValue(savedWithFlight());
+    await mount();
+    expect(s().sims[0]!.outdated).toBe(false);
+
+    const tube = s().tree.components[0]!.children?.find((c) => c.type === 'bodytube') ?? s().tree.components[0]!;
+    await act(async () => {
+      s().setSelectedId(tube.id ?? null);
+      s().patchSelected({ length: 0.42 });
+      await Promise.resolve();
+    });
+
+    expect(s().sims[0]!.outdated).toBe(true);
+  });
+});

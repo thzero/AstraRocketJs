@@ -106,6 +106,83 @@ describe('resolveFilePositions', () => {
     };
     expect(resolveFilePositions(tree)).toBe(tree);
   });
+
+  it('walks an off-axis assembly with its OWN length and start, not zero and the chain total', () => {
+    // A podset hangs beside the airframe: it consumes no chain length, but it
+    // has its own 0.2 m body and sits 0.1 m down the stage. Its children must
+    // be resolved against THAT, not against a parent length of 0 (which put a
+    // `middle` child forward of the pod's own nose) and not against the core
+    // chain's running total.
+    const tree: RocketTree = {
+      components: [
+        {
+          type: 'stage',
+          id: 's',
+          children: [
+            { type: 'nosecone', id: 'n', length: 0.1, aftRadius: 0.012 },
+            { type: 'bodytube', id: 'b', length: 0.4, outerRadius: 0.012 },
+            {
+              type: 'podset',
+              id: 'p',
+              radiusOffset: 0.03,
+              position: { method: 'top', offset: 0.1 },
+              children: [
+                { type: 'bodytube', id: 'pb', length: 0.2, outerRadius: 0.008 },
+                {
+                  type: 'masscomponent',
+                  id: 'pm',
+                  length: 0.02,
+                  position: { method: 'absolute', offset: 0.22 },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+
+    const pod = resolveFilePositions(tree).components[0]!.children![2]!;
+    const mass = pod.children![1]!;
+    // The pod's own start is 0.1 (its position against the stage), so an
+    // absolute station of 0.22 is 0.12 from the pod's fore edge. Under the old
+    // walk pStart was the chain total (0.5 by the time the pod was reached),
+    // which rebased it to -0.28: ahead of the rocket's own nose.
+    expect(mass.position!.method).toBe('top');
+    expect(mass.position!.offset).toBeCloseTo(0.12);
+  });
+
+  it('gives a middle-positioned child inside a pod a station inside the pod', () => {
+    // The symptom that started this: parent length 0 made `middle` resolve to
+    // -childLen/2, so an `after` sibling then chained off a negative station.
+    const tree: RocketTree = {
+      components: [
+        {
+          type: 'stage',
+          id: 's',
+          children: [
+            { type: 'bodytube', id: 'b', length: 0.5, outerRadius: 0.012 },
+            {
+              type: 'parallelstage',
+              id: 'ps',
+              radiusOffset: 0.03,
+              children: [
+                { type: 'bodytube', id: 'pb', length: 0.3, outerRadius: 0.01 },
+                { type: 'masscomponent', id: 'm1', length: 0.02, position: { method: 'middle', offset: 0 } },
+                { type: 'masscomponent', id: 'm2', length: 0.02, position: { method: 'after', offset: 0 } },
+              ],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+
+    const ps = resolveFilePositions(tree).components[0]!.children![1]!;
+    // `after` follows the aft end of the middle-positioned sibling. The pod's
+    // own chain is 0.3 long, so middle puts m1 at (0.3 - 0.02)/2 = 0.14 and m2
+    // lands at 0.16. With the old parent length of 0, m1 resolved to -0.01 and
+    // m2 chained to +0.01 — both forward of where the part actually sits.
+    expect(ps.children![2]!.position!.offset).toBeCloseTo(0.16);
+  });
 });
 
 describe('freeformRootChord', () => {

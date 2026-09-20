@@ -86,6 +86,70 @@ describe('scaleRocket', () => {
     expect(chute['mass']).toBeCloseTo(0.008 * 4); // k² (fabric)
   });
 
+  it('scales a recovery device’s packed length, not just its canopy', () => {
+    // `length` on a parachute/streamer is the PACKED length - orkImport reads
+    // <packedlength> straight into it - so it is the space the device needs in
+    // the airframe. The shared fixture above declares no `length` on its chute,
+    // which is why the whole suite could not see whether it scaled: a 2x design
+    // kept a 25 mm packed length inside a 24 mm-bore tube.
+    const t: RocketTree = {
+      name: 'recovery',
+      components: [
+        {
+          type: 'stage',
+          children: [
+            {
+              type: 'bodytube',
+              length: 0.3,
+              outerRadius: 0.012,
+              thickness: 0.001,
+              children: [
+                { type: 'parachute', diameter: 0.4, length: 0.025, lineLength: 0.5 },
+                { type: 'streamer', stripLength: 0.4, stripWidth: 0.05, length: 0.02 },
+              ],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    const kids = scaleRocket(t, 2).components[0]!.children![0]!.children!;
+    const chute = kids.find((c) => c.type === 'parachute')!;
+    const streamer = kids.find((c) => c.type === 'streamer')!;
+    expect(chute['length']).toBeCloseTo(0.05);
+    expect(chute['diameter']).toBeCloseTo(0.8);
+    expect(chute['lineLength']).toBeCloseTo(1.0);
+    expect(streamer['length']).toBeCloseTo(0.04);
+    expect(streamer['stripLength']).toBeCloseTo(0.8);
+  });
+
+  it('scales a launch lug by the one dimension that actually grows', () => {
+    // A lug's bore is the launch rod's diameter, so only its LENGTH scales.
+    // Under the k^3 default a pinned 1 g lug came out at 8 g after a 2x scale,
+    // and that error goes straight into the scaled design's mass and CG.
+    const t: RocketTree = {
+      name: 'lug',
+      components: [
+        {
+          type: 'stage',
+          id: 's',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'b',
+              length: 0.3,
+              outerRadius: 0.012,
+              children: [{ type: 'launchlug', id: 'l', length: 0.04, outerRadius: 0.0022, overrideMass: 0.001 }],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    const lug = scaleRocket(t, 2).components[0]!.children![0]!.children![0]!;
+    expect(lug['length']).toBeCloseTo(0.08); // the one dimension that grows
+    expect(lug['outerRadius']).toBeCloseTo(0.0022); // bore is the rod, unchanged
+    expect(lug['overrideMass']).toBeCloseTo(0.002); // k^1, not k^3 (0.008)
+  });
+
   it('is a no-op at 1× and for invalid factors (same tree object)', () => {
     const t = tree();
     expect(scaleRocket(t, 1)).toBe(t);

@@ -1,5 +1,6 @@
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { num } from '../../tree/nodeProps';
+import { FIN_DEFAULTS } from '../../tree/finPlanform';
+import { countOf, num } from '../../tree/nodeProps';
 import { freeformPoints } from '../../tree/position.js';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
@@ -138,7 +139,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
    * furthest-out last so the reaching fin reads on top when a rolled set overlaps.
    */
   const finFactors = (n: ComponentNode, dfltCount = 3): FinInstance[] => {
-    const count = Math.max(1, Math.round(num(n, 'finCount', dfltCount)));
+    const count = countOf(n, 'finCount', dfltCount);
     const base = num(n, 'rotation', 0) + roll;
     const out: FinInstance[] = [];
     for (let i = 0; i < count; i++) {
@@ -261,7 +262,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         const podLen = assemblyChainLength(child);
         const podRadius = resolveAssemblyRadius(child, pRadius);
         const podStart = axialStart(child, podLen, pStart, pLen);
-        const count = Math.max(1, Math.round(num(child, 'instanceCount', 2)));
+        const count = countOf(child, 'instanceCount', 2);
         for (const off of ringInstanceOffsets(count, podRadius, num(child, 'angleOffset', 0) + roll)) {
           renderChain(podChain, podStart, baseY - off.y * ctx.scale);
         }
@@ -356,10 +357,15 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           }
         }
       } else if (t === 'trapezoidfinset' || t === 'ellipticalfinset') {
-        const root = num(child, 'rootChord', 0.05);
-        const tip = t === 'trapezoidfinset' ? num(child, 'tipChord', root * 0.6) : 0;
-        const sweep = t === 'trapezoidfinset' ? num(child, 'sweep', 0.02) : root / 2;
-        const height = num(child, 'height', 0.03);
+        // Fallbacks from tree/finPlanform, not local literals: this file used
+        // `root * 0.6` for a missing tipChord while the mesh and PDF paths used
+        // 0.03, so the same fin was a different part on screen and in the STL.
+        // (The elliptical arc below is drawn with an SVG `A` command, which is a
+        // true half-ellipse, so only the trapezoid dimensions come from here.)
+        const root = num(child, 'rootChord', FIN_DEFAULTS.rootChord);
+        const tip = t === 'trapezoidfinset' ? num(child, 'tipChord', FIN_DEFAULTS.tipChord) : 0;
+        const sweep = t === 'trapezoidfinset' ? num(child, 'sweep', FIN_DEFAULTS.sweep) : root / 2;
+        const height = num(child, 'height', FIN_DEFAULTS.height);
         const start = axialStart(child, root, pStart, pLen);
         const reach = pRadius + height;
         const projections = finFactors(child);

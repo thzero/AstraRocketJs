@@ -17,7 +17,7 @@ import { useSyncExternalStore } from 'react';
  * `useSyncExternalStore` rather than an effect + state, so the first render
  * already has the right answer and there is no flash of the wrong layout.
  */
-export function useMediaQuery(query: string): boolean {
+function useMediaQuery(query: string): boolean {
   return useSyncExternalStore(
     (onChange) => {
       const mql = window.matchMedia(query);

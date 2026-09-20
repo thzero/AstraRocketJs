@@ -80,6 +80,32 @@ function customToRow(cm: CustomMotor): CatalogMotor {
  * bundle is the source of truth — no localStorage mirror (a catalog-with-curves
  * is too large to cache there, and the bundle is always available offline).
  */
+/**
+ * A catalog row this app can actually use.
+ *
+ * `Array.isArray` alone was the whole check, and the catalog can come from a
+ * separately deployed host (VITE_DATA_BASE / the jsDelivr data branch). One
+ * row missing `class` then threw inside `allClasses`' `localeCompare`, and one
+ * missing `designation` threw in `filterMotors`' `toLowerCase` - taking down
+ * the entire motor picker rather than that one entry. `motorStore` already
+ * guards custom motors exactly this way.
+ */
+const isCatalogMotor = (v: unknown): v is CatalogMotor => {
+  const m = v as CatalogMotor | null;
+  return (
+    !!m &&
+    typeof m === 'object' &&
+    typeof m.designation === 'string' &&
+    typeof m.manufacturer === 'string' &&
+    typeof m.class === 'string' &&
+    Number.isFinite(m.diameter) &&
+    Number.isFinite(m.impulse)
+  );
+};
+
+/** A usable catalog: an array with at least one usable row. */
+const isCatalog = (v: unknown): boolean => Array.isArray(v) && v.every(isCatalogMotor);
+
 export async function loadCatalog(): Promise<CatalogMotor[]> {
   // The 700 kB+ catalog is a runtime file under public/data (see remoteData.ts),
   // fetched only when something first needs it (e.g. the motor picker opens)
@@ -89,7 +115,7 @@ export async function loadCatalog(): Promise<CatalogMotor[]> {
     getMotorStore()
       .listCustomMotors()
       .then((ms) => ms.map(customToRow)),
-    fetchCatalog<CatalogMotor[]>('motors', Array.isArray),
+    fetchCatalog<CatalogMotor[]>('motors', isCatalog),
   ]);
   return [...custom, ...bundled];
 }

@@ -109,6 +109,13 @@ export function MotorDialog({
   const panelRef = useFocusTrap<HTMLDivElement>(open);
 
   useEffect(() => {
+    // Without this the ~1.6 MB catalog was fetched on APP START: both this
+    // component and MotorRow's dialog are mounted unconditionally and only
+    // `return null` when closed, which does not stop an effect. fetchCatalog
+    // memoizes, so it was one download rather than many, but it was an
+    // unconditional 1.6 MB on first paint - on a phone at a launch site, the
+    // whole reason the load is deferred.
+    if (!open) return;
     let live = true;
     setCatalogLoading(true);
     setCatalogError(null);
@@ -129,7 +136,9 @@ export function MotorDialog({
     return () => {
       live = false;
     };
-  }, [attempt]);
+    // `open` belongs in the deps: the effect now reads it, and the load has to
+    // fire on the transition to open, not only on a retry.
+  }, [attempt, open]);
 
   useEffect(() => {
     if (!open) return;

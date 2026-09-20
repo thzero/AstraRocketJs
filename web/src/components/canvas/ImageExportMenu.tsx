@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { IMAGE_WIDTHS, type ImageFormat } from '../../services/schematicExport.js';
 
 /** Per-export toggles carried alongside the format/width choice. Nothing here
@@ -30,6 +31,8 @@ export function ImageExportMenu({
    *  opts in, and its `opts.fit` is forced false everywhere else. */
   fitOption?: boolean;
 }) {
+  const { t } = useTranslation();
+  const btnRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   // Default ON: an export that wastes 80 % of its pixels on background is
   // never what was wanted, and the unchecked path is byte-for-byte the old
@@ -55,12 +58,24 @@ export function ImageExportMenu({
         title={title}
         aria-haspopup="menu"
         aria-expanded={open}
+        ref={btnRef}
         onClick={() => setOpen((v) => !v)}
       >
         {label}
       </button>
       {open && (
         <div
+          // A `role="menu"` whose children are plain buttons is an invalid
+          // structure: screen readers announce "menu, 0 items". Escape and
+          // focus-return complete the menu-button contract that AppHeader
+          // already implements; only outside-pointerdown used to close this.
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.stopPropagation();
+              setOpen(false);
+              btnRef.current?.focus();
+            }
+          }}
           role="menu"
           style={{
             position: 'absolute',
@@ -90,6 +105,7 @@ export function ImageExportMenu({
             ...IMAGE_WIDTHS.map((w) => (
               <button
                 key={`${fmt}-${w}`}
+                role="menuitem"
                 className="file-btn"
                 title={`${w} px wide`}
                 onClick={() => {
@@ -116,10 +132,10 @@ export function ImageExportMenu({
                 color: 'var(--text-muted, #999)',
                 cursor: 'pointer',
               }}
-              title="Move the camera in so the rocket fills the exported image — your viewing angle is kept, only the framing changes"
+              title={t('export.fitFrameHint')}
             >
               <input type="checkbox" checked={fit} onChange={(e) => setFit(e.target.checked)} />
-              Fit rocket to frame
+              {t('export.fitFrame')}
             </label>
           )}
         </div>

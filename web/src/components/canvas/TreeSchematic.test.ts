@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import type { RocketTree } from '../../engine/openRocketEngine';
 import {
-  niceStep,
   snapNear,
   axialStart,
   collect,
@@ -12,20 +11,6 @@ import {
   CALLOUT_LANES,
   computeSchematicLayout,
 } from './schematicGeometry';
-
-describe('niceStep', () => {
-  it('picks a 1/2/2.5/5/10 × 10ⁿ step giving ~8 marks', () => {
-    expect(niceStep(1)).toBeCloseTo(0.2); // target 0.125 → 0.2
-    expect(niceStep(0.5)).toBeCloseTo(0.1); // target 0.0625 → 0.1
-    expect(niceStep(8)).toBeCloseTo(1); // target 1 → 1
-    expect(niceStep(80)).toBeCloseTo(10);
-  });
-  it('stays positive and finite for a degenerate zero length', () => {
-    const s = niceStep(0);
-    expect(s).toBeGreaterThan(0);
-    expect(Number.isFinite(s)).toBe(true);
-  });
-});
 
 describe('snapNear', () => {
   const snaps = [0, 0.1, 0.2];

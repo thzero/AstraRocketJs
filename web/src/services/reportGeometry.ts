@@ -1,9 +1,10 @@
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
-import { num, numOpt } from '../tree/nodeProps';
+import { countOf, num, numOpt } from '../tree/nodeProps';
 import { isFinSet, tubeFinRadius } from '../tree/tubefins';
-import { freeformPoints, freeformRootChord } from '../tree/position';
+import { FREEFORM_FALLBACK, finPlanformPoints, finRootChord, finSpan, finTabSpan } from '../tree/finPlanform';
 import { outerProfile } from '../tree/shapeProfile';
-import { finTabFront, axialStart } from '../components/canvas/schematicGeometry';
+import { axialStart } from '../components/canvas/schematicGeometry';
+import { assemblyChainLength, isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../tree/assembly';
 
 /**
  * Geometry for the PDF report — all in MILLIMETERS, so the PDF (built in mm)
@@ -11,7 +12,9 @@ import { finTabFront, axialStart } from '../components/canvas/schematicGeometry'
  */
 
 export type Pt = [number, number];
-const M_TO_MM = 1000;
+// Imported, not redeclared: this is the unit constant for every dimensional
+// export, and it was written out in three separate files.
+import { M_TO_MM } from '../prefs/units';
 
 /** A fin's planform outline (mm), root along the bottom, tab folded in below. */
 // Not `| null`: there is no input this returns null for — every branch below
@@ -19,51 +22,28 @@ const M_TO_MM = 1000;
 // return invited dead defensive code at the call site, which is exactly what it
 // got. Tube fins, the one fin type with no planform, are filtered out before
 // this is reached (isPlanarFinSet).
-export function finPlanformMm(node: ComponentNode): { pts: Pt[]; count: number } {
-  const ff = freeformPoints(node);
-  const root = node.type === 'freeformfinset' && ff.length ? freeformRootChord(ff) : num(node, 'rootChord', 0.05);
-  const height =
-    node.type === 'freeformfinset' && ff.length ? Math.max(...ff.map((p) => p[1])) : num(node, 'height', 0.03);
-  let top: Pt[];
-  if (node.type === 'freeformfinset') {
-    const raw = ff.length
-      ? ff
-      : ([
-          [0, 0],
-          [0.02, 0.03],
-          [0.05, 0],
-        ] as [number, number][]);
-    top = raw.map(([x, y]) => [x * M_TO_MM, height * M_TO_MM - y * M_TO_MM]);
-  } else if (node.type === 'ellipticalfinset') {
-    top = [];
-    const N = 40;
-    for (let i = 0; i <= N; i++)
-      top.push([root * (i / N) * M_TO_MM, height * M_TO_MM - height * Math.sin(Math.PI * (i / N)) * M_TO_MM]);
-  } else {
-    const tip = num(node, 'tipChord', 0.03);
-    const sweep = num(node, 'sweep', 0.02);
-    top = [
-      [0, height * M_TO_MM],
-      [sweep * M_TO_MM, 0],
-      [(sweep + tip) * M_TO_MM, 0],
-      [root * M_TO_MM, height * M_TO_MM],
-    ];
-  }
-  const tabH = num(node, 'tabHeight', 0);
-  const tabLen = num(node, 'tabLength', 0);
-  const pts = [...top];
-  if (tabH > 0 && tabLen > 0) {
-    const x0 = Math.max(0, Math.min(root, finTabFront(node, root)));
-    const x1 = Math.max(0, Math.min(root, x0 + tabLen));
+export function finPlanformMm(node: ComponentNode, parentRadius: number | null = null): { pts: Pt[]; count: number } {
+  const root = finRootChord(node);
+  const height = finSpan(node);
+  // The outline comes from the ONE fin-geometry module (tree/finPlanform.ts).
+  // This function used to sample its own elliptical curve and produced a sine
+  // arch, so the 1:1 cutting template was a different shape from the fin the
+  // kernel flew and from the DXF of the same part.
+  const top = finPlanformPoints(node) ?? FREEFORM_FALLBACK;
+  // Flip to the PDF's frame: the root sits at y = height and the span rises
+  // toward 0, so the template prints tip-up.
+  const pts: Pt[] = top.map(([x, y]) => [x * M_TO_MM, (height - y) * M_TO_MM]);
+  const tab = finTabSpan(node, root, parentRadius);
+  if (tab) {
     const baseY = height * M_TO_MM;
     pts.push(
-      [x1 * M_TO_MM, baseY],
-      [x1 * M_TO_MM, baseY + tabH * M_TO_MM],
-      [x0 * M_TO_MM, baseY + tabH * M_TO_MM],
-      [x0 * M_TO_MM, baseY],
+      [tab.x1 * M_TO_MM, baseY],
+      [tab.x1 * M_TO_MM, baseY + tab.height * M_TO_MM],
+      [tab.x0 * M_TO_MM, baseY + tab.height * M_TO_MM],
+      [tab.x0 * M_TO_MM, baseY],
     );
   }
-  return { pts, count: Math.max(1, Math.round(num(node, 'finCount', 3))) };
+  return { pts, count: countOf(node, 'finCount', 3) };
 }
 
 /** A revolved part's side outline (mm), centered on its own centerline. */
@@ -92,13 +72,13 @@ export function profileMm(
  * plus a filled fin polygon on the top and bottom of each fin set. Filled, so
  * it reads as a solid rocket rather than loose lines.
  */
-export function rocketSideView(tree: RocketTree): { w: number; h: number; body: Pt[]; fins: Pt[][] } {
+export function rocketSideView(tree: RocketTree): { w: number; h: number; body: Pt[]; fins: Pt[][]; pods: Pt[][] } {
   const chain = tree.components.flatMap((n) => (n.type === 'stage' ? (n.children ?? []) : [n]));
-  const topEdge: Pt[] = []; // forward → aft, y = +radius (mm)
   const fins: Pt[][] = [];
-  let maxR = 0.001,
-    maxUp = 0.001,
-    x = 0;
+  /** One closed silhouette per off-axis assembly INSTANCE, beside the airframe. */
+  const pods: Pt[][] = [];
+  let maxUp = 0.001;
+  let maxX = 0;
 
   /**
    * The parent's outer radius at a station `lx` along it (meters, local).
@@ -106,8 +86,8 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
    * A fin sits at the radius under ITS OWN FRONT, not at the parent's aft end:
    * `FinSet.getBodyRadius()` is `getFinFront().getY()`, i.e.
    * `symmetricParent.getRadius(xFinFront)` (FinSet.java:959-972). Passing the
-   * aft radius drew a fin on a 12→8 mm boat tail with its root at +8 mm while
-   * the silhouette there is +12 mm — the fin root 4 mm INSIDE the airframe.
+   * aft radius drew a fin on a 12 to 8 mm boat tail with its root at +8 mm
+   * while the silhouette there is +12 mm: the fin root 4 mm INSIDE the airframe.
    */
   const radiusSampler =
     (node: ComponentNode, foreR: number, aftR: number, len: number, shapeDefault: string) => (lx: number) => {
@@ -121,109 +101,180 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
       return pts.find(([px]) => Math.abs(px - at) < 1e-9)?.[1] ?? aftR;
     };
 
-  const addFins = (node: ComponentNode, pStart: number, pLen: number, radiusAt: (lx: number) => number) => {
-    const ff = freeformPoints(node);
-    const root = node.type === 'freeformfinset' && ff.length ? freeformRootChord(ff) : num(node, 'rootChord', 0.05);
-    const height =
-      node.type === 'freeformfinset' && ff.length ? Math.max(...ff.map((p) => p[1])) : num(node, 'height', 0.03);
+  /**
+   * A fin set's silhouette, mirrored about the centerline it is mounted on.
+   *
+   * `cy` is that centerline: 0 for the airframe, and the instance offset for a
+   * fin on a pod, so a booster's fins straddle the booster rather than the
+   * rocket's own axis.
+   */
+  const addFins = (node: ComponentNode, pStart: number, pLen: number, radiusAt: (lx: number) => number, cy: number) => {
+    const push = (plan: Pt[], topR: number) => {
+      fins.push(plan.map(([px, py]) => [px * M_TO_MM, (cy + py) * M_TO_MM]));
+      fins.push(plan.map(([px, py]) => [px * M_TO_MM, (cy - py) * M_TO_MM])); // mirror below
+      maxUp = Math.max(maxUp, Math.abs(cy) + topR);
+    };
+
+    if (node.type === 'tubefinset') {
+      // A tube fin IS a tube: in side view a rectangle 2*rt tall standing on the
+      // body surface and running the tube's own length. Same silhouette the 2D
+      // schematic draws (schematicShapes.tsx).
+      //
+      // Its span is its LENGTH. Reading a rootChord here fell back to a phantom
+      // 50 mm, which then picked the station at which the body radius was
+      // sampled, so on a boat tail the tubes were drawn floating off, or buried
+      // in, the taper.
+      const len = num(node, 'length', 0.08);
+      const s0 = axialStart(node, len, pStart, pLen);
+      const R = radiusAt(s0 - pStart);
+      const rt = tubeFinRadius(node, R);
+      const topR = R + 2 * rt;
+      push(
+        [
+          [s0, R],
+          [s0, topR],
+          [s0 + len, topR],
+          [s0 + len, R],
+        ],
+        topR,
+      );
+      return;
+    }
+
+    const root = finRootChord(node);
+    const height = finSpan(node);
     const start = axialStart(node, root, pStart, pLen);
     const R = radiusAt(start - pStart);
-    let plan: Pt[];
-    let topR = R + height;
-    if (node.type === 'tubefinset') {
-      // A tube fin IS a tube: in side view a rectangle 2·rt tall standing on the
-      // body surface and running the tube's own length — never the trapezoid
-      // branches below, whose rootChord/height defaults would invent a fin.
-      // Same silhouette the 2D schematic draws (schematicShapes.tsx).
-      const rt = tubeFinRadius(node, R);
-      const len = num(node, 'length', 0.08);
-      const s = axialStart(node, len, pStart, pLen);
-      topR = R + 2 * rt;
-      plan = [
-        [s, R],
-        [s, topR],
-        [s + len, topR],
-        [s + len, R],
-      ];
-    } else if (node.type === 'trapezoidfinset') {
-      const tip = num(node, 'tipChord', 0.03),
-        sweep = num(node, 'sweep', 0.02);
-      plan = [
-        [start, R],
-        [start + sweep, R + height],
-        [start + sweep + tip, R + height],
-        [start + root, R],
-      ];
-    } else if (node.type === 'freeformfinset' && ff.length) {
-      plan = ff.map(([px, py]) => [start + px, R + py] as Pt);
-    } else if (node.type === 'ellipticalfinset') {
-      // A true half-ellipse (height·sin(π·t)), matching finPlanformMm's template
-      // and oneFinSolid's 3D — not the old crude 4-point trapezoid.
-      plan = [];
-      const N = 40;
-      for (let i = 0; i <= N; i++) {
-        const t = i / N;
-        plan.push([start + root * t, R + height * Math.sin(Math.PI * t)]);
+    // One outline for every planar fin type, from tree/finPlanform.ts. The
+    // elliptical branch here used to sample its own sine arch and carried a
+    // comment claiming it was "a true half-ellipse"; it was not.
+    const outline = finPlanformPoints(node) ?? FREEFORM_FALLBACK;
+    push(
+      outline.map(([px, py]) => [start + px, R + py] as Pt),
+      R + height,
+    );
+  };
+
+  // `walkChain` and `emitAssembly` are mutually recursive (a pod has its own
+  // chain, and that chain can carry pods of its own), so they are function
+  // declarations rather than consts.
+
+  /**
+   * Walk one nose-to-tail chain and return its top profile as `(x, radius)` in
+   * METERS, plus where it ends. Fin sets and off-axis assemblies hanging off it
+   * are emitted into the shared collectors as we go.
+   *
+   * `cy` is the centerline this chain is drawn about: 0 for the airframe, the
+   * instance offset for a pod.
+   */
+  function walkChain(nodes: ComponentNode[], xStart: number, cy: number): { profile: Pt[]; endX: number } {
+    const profile: Pt[] = [];
+    let x = xStart;
+    let chainMaxR = 0.001;
+    // Assemblies are drawn after the chain is measured: a stage-level pod has
+    // no symmetric parent to hang off, so it needs the chain's final extent.
+    const deferred: ComponentNode[] = [];
+
+    const revolve = (node: ComponentNode, foreR: number, aftR: number, shapeDefault: string, len: number) => {
+      const shape = typeof node['shape'] === 'string' ? (node['shape'] as string) : shapeDefault;
+      const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
+      for (const [px, r] of outerProfile(
+        shape,
+        numOpt(node, 'shapeParameter'),
+        len,
+        foreR,
+        aftR,
+        60,
+        undefined,
+        clipped,
+      )) {
+        profile.push([x + px, r]);
+        chainMaxR = Math.max(chainMaxR, r);
       }
-    } else {
-      plan = [
-        [start, R],
-        [start + root * 0.15, R + height],
-        [start + root * 0.7, R + height],
-        [start + root, R],
-      ];
-    }
-    fins.push(plan.map(([px, py]) => [px * M_TO_MM, py * M_TO_MM]));
-    fins.push(plan.map(([px, py]) => [px * M_TO_MM, -py * M_TO_MM])); // mirror below
-    maxUp = Math.max(maxUp, topR);
-  };
+    };
 
-  const revolveTop = (node: ComponentNode, foreR: number, aftR: number, shapeDefault: string, len: number) => {
-    const shape = typeof node['shape'] === 'string' ? (node['shape'] as string) : shapeDefault;
-    const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
-    for (const [px, r] of outerProfile(
-      shape,
-      numOpt(node, 'shapeParameter'),
-      len,
-      foreR,
-      aftR,
-      60,
-      undefined,
-      clipped,
-    )) {
-      topEdge.push([(x + px) * M_TO_MM, r * M_TO_MM]);
-      maxR = Math.max(maxR, r);
-    }
-  };
+    const emitChildren = (n: ComponentNode, hostLen: number, radiusAt: (lx: number) => number) => {
+      const hostStart = x;
+      for (const c of n.children ?? []) {
+        const t = String(c.type);
+        if (isFinSet(t)) addFins(c, hostStart, hostLen, radiusAt, cy);
+        else if (isAssembly(t)) emitAssembly(c, hostStart, hostLen, radiusAt, cy);
+      }
+    };
 
-  for (const n of chain) {
-    const len = num(n, 'length', 0);
-    if (n.type === 'nosecone') {
-      const R = num(n, 'aftRadius', 0.012);
-      revolveTop(n, 0, R, 'ogive', len);
-      const noseR = radiusSampler(n, 0, R, len, 'ogive');
-      for (const c of n.children ?? []) if (isFinSet(String(c.type))) addFins(c, x, len, noseR);
-      x += len;
-    } else if (n.type === 'bodytube') {
-      const R = num(n, 'outerRadius', 0.012);
-      topEdge.push([x * M_TO_MM, R * M_TO_MM], [(x + len) * M_TO_MM, R * M_TO_MM]);
-      maxR = Math.max(maxR, R);
-      for (const c of n.children ?? []) if (isFinSet(String(c.type))) addFins(c, x, len, () => R);
-      x += len;
-    } else if (n.type === 'transition') {
-      const aftR = num(n, 'aftRadius', 0.009);
-      revolveTop(n, num(n, 'foreRadius', 0.012), aftR, 'conical', len);
-      // Transitions host fin sets too — treeEdit.ts:137 allows trapezoid,
-      // elliptical and freeform on one — and this branch was the only one that
-      // never looked. A boat-tail-mounted fin set was silently absent from the
-      // PDF's whole-rocket side view: a finless rocket, with no warning.
-      const transR = radiusSampler(n, num(n, 'foreRadius', 0.012), aftR, len, 'conical');
-      for (const c of n.children ?? []) if (isFinSet(String(c.type))) addFins(c, x, len, transR);
-      x += len;
+    for (const n of nodes) {
+      const len = num(n, 'length', 0);
+      if (n.type === 'nosecone') {
+        const R = num(n, 'aftRadius', 0.012);
+        revolve(n, 0, R, 'ogive', len);
+        emitChildren(n, len, radiusSampler(n, 0, R, len, 'ogive'));
+        x += len;
+      } else if (n.type === 'bodytube') {
+        const R = num(n, 'outerRadius', 0.012);
+        profile.push([x, R], [x + len, R]);
+        chainMaxR = Math.max(chainMaxR, R);
+        emitChildren(n, len, () => R);
+        x += len;
+      } else if (n.type === 'transition') {
+        const foreR = num(n, 'foreRadius', 0.012);
+        const aftR = num(n, 'aftRadius', 0.009);
+        revolve(n, foreR, aftR, 'conical', len);
+        // Transitions host fin sets too (treeEdit.ts:137 allows trapezoid,
+        // elliptical and freeform on one) and this branch was the only one that
+        // never looked. A boat-tail-mounted fin set was silently absent from the
+        // PDF's whole-rocket side view: a finless rocket, with no warning.
+        emitChildren(n, len, radiusSampler(n, foreR, aftR, len, 'conical'));
+        x += len;
+      } else if (isAssembly(n.type)) {
+        deferred.push(n);
+      }
+    }
+
+    // A pod attached directly to the stage hangs off the widest body radius on
+    // the chain, since there is no single symmetric parent to sample.
+    for (const pod of deferred) emitAssembly(pod, xStart, x - xStart, () => chainMaxR, cy);
+
+    maxUp = Math.max(maxUp, Math.abs(cy) + chainMaxR);
+    maxX = Math.max(maxX, x);
+    return { profile, endX: x };
+  }
+
+  /**
+   * One off-axis assembly: its own chain, drawn once per ring instance beside
+   * the airframe, exactly as the 2D schematic draws it (schematicShapes.tsx,
+   * the `isAssembly` branch). The side view projects `y` and ignores depth `z`.
+   *
+   * Without this the PDF's whole-rocket figure showed a strap-on booster
+   * cluster as a single plain tube, silently disagreeing with the screen.
+   */
+  function emitAssembly(
+    pod: ComponentNode,
+    hostStart: number,
+    hostLen: number,
+    radiusAt: (lx: number) => number,
+    cy: number,
+  ) {
+    const podLen = assemblyChainLength(pod);
+    const podStart = axialStart(pod, podLen, hostStart, hostLen);
+    const hostR = radiusAt(Math.max(0, podStart - hostStart));
+    const podRadius = resolveAssemblyRadius(pod, hostR);
+    const count = countOf(pod, 'instanceCount', 2);
+    for (const off of ringInstanceOffsets(count, podRadius, num(pod, 'angleOffset', 0))) {
+      const center = cy + off.y;
+      const { profile } = walkChain(pod.children ?? [], podStart, center);
+      if (profile.length < 2) continue;
+      pods.push([
+        ...profile.map(([px, r]) => [px * M_TO_MM, (center + r) * M_TO_MM] as Pt),
+        ...[...profile].reverse().map(([px, r]) => [px * M_TO_MM, (center - r) * M_TO_MM] as Pt),
+      ]);
     }
   }
-  // Close the silhouette: top edge forward→aft, then the mirrored bottom aft→forward.
-  const body: Pt[] = [...topEdge, ...[...topEdge].reverse().map(([px, py]) => [px, -py] as Pt)];
-  maxUp = Math.max(maxUp, maxR);
-  return { w: x * M_TO_MM, h: 2 * maxUp * M_TO_MM, body, fins };
+
+  const main = walkChain(chain, 0, 0);
+  // Close the silhouette: top edge forward to aft, then the mirrored bottom back.
+  const body: Pt[] = [
+    ...main.profile.map(([px, r]) => [px * M_TO_MM, r * M_TO_MM] as Pt),
+    ...[...main.profile].reverse().map(([px, r]) => [px * M_TO_MM, -r * M_TO_MM] as Pt),
+  ];
+  return { w: maxX * M_TO_MM, h: 2 * maxUp * M_TO_MM, body, fins, pods };
 }

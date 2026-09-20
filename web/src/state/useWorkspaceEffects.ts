@@ -104,8 +104,6 @@ export function useWorkspaceEffects() {
   const extraMotors = useWorkspaceStore(selectExtraMotors);
   const loadedMeta = useWorkspaceStore((s) => s.loadedMeta);
   const motor = useWorkspaceStore((s) => selectActive(s).motor);
-  const ignitionEvent = useWorkspaceStore((s) => selectActive(s).ignitionEvent);
-  const ignitionDelay = useWorkspaceStore((s) => selectActive(s).ignitionDelay);
 
   useEffect(() => {
     if (!hydrated.current) return;
@@ -200,9 +198,18 @@ export function useWorkspaceEffects() {
     const store = useWorkspaceStore.getState();
     // Read the tree from the store rather than closing over it, so the effect
     // does not have to depend on the whole object to use it.
+    // Ignition read from the STORE, not closed over, so it need not be a
+    // dependency. Ignition timing cannot move mass, CG, CP, static margin or
+    // Cd - staticInfo() and aeroSweep() are geometry plus loaded-motor
+    // properties - but it was in the deps, and the delay field is a raw number
+    // input with a per-keystroke onChange. Typing "1.25" ran four complete
+    // buildConfiguredRocket + staticInfo + aeroSweep cycles on the main thread
+    // for four identical results. The handle still carries the current
+    // override because it is read here at build time.
+    const active = selectActive(store);
     const res = computeStaticInfo(store.tree, motor, extraMotors, {
-      event: ignitionEvent,
-      delay: ignitionDelay,
+      event: active.ignitionEvent,
+      delay: active.ignitionDelay,
     });
     if ('error' in res) {
       store.applyBuild(null, null);
@@ -211,7 +218,7 @@ export function useWorkspaceEffects() {
       store.applyBuild(res.info, res.rocket);
       store.setErr(null);
     }
-  }, [ready, components, motor, extraMotors, ignitionEvent, ignitionDelay]);
+  }, [ready, components, motor, extraMotors]);
 
   // Editing the design invalidates every simulation's cached result.
   //
@@ -222,7 +229,22 @@ export function useWorkspaceEffects() {
   // EVERY render, including ones caused by tab, err and storageWarning — none
   // of which can change it.
   const flight = useMemo(() => flightKey(tree), [tree]);
+  // The key this effect last acted on. Needed because RESTORING a design is
+  // not editing it: on mount `flight` is the DEFAULT rocket's key, `hydrate()`
+  // then swaps in the saved design, the key changes, and this fired - marking
+  // every result the user had already run as stale. With
+  // `simulation.autoRunOutdated` on and a result view open, CenterView then
+  // immediately re-flew them. The rebuild effect above already waits for
+  // `ready`; this one did not.
+  const lastFlight = useRef<string | null>(null);
   useEffect(() => {
+    if (!ready) return; // pre-hydration keys describe the default rocket
+    if (lastFlight.current === null) {
+      lastFlight.current = flight; // first post-hydration run sets the baseline
+      return;
+    }
+    if (lastFlight.current === flight) return;
+    lastFlight.current = flight;
     useWorkspaceStore.getState().markOutdated();
-  }, [flight]);
+  }, [ready, flight]);
 }

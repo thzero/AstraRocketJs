@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { builtinsForType, materialsForType, addCustom, removeCustom } from '../../services/materials';
 import type { Material, MaterialType } from '../../data/materials';
@@ -42,6 +42,20 @@ export function MaterialPicker({
   const [name, setName] = useState('');
   const [dens, setDens] = useState('');
   const [addErr, setAddErr] = useState<string | null>(null);
+  // Deleting can fail too, now that the material store reports a refused write
+  // instead of swallowing it. `addErr` renders only inside the add form, so a
+  // delete needs its own line or the failure would be invisible.
+  const [delErr, setDelErr] = useState<string | null>(null);
+  // Both store round-trips below finish after an await, and selecting a
+  // different component unmounts this picker in between - the effect above
+  // already guards its own load with a `live` flag; these two did not.
+  const mounted = useRef(true);
+  useEffect(
+    () => () => {
+      mounted.current = false;
+    },
+    [],
+  );
   const u = useUnits();
   const quantity = QUANTITY[type];
   // One scope per material kind — fabric and cord densities are read in quite
@@ -83,7 +97,9 @@ export function MaterialPicker({
   const submitCustom = async () => {
     try {
       const next = await addCustom(name, type, fu.fromUi(parseFloat(dens)));
-      setMats(await materialsForType(type));
+      const list = await materialsForType(type);
+      if (!mounted.current) return; // see deleteCurrentCustom
+      setMats(list);
       const added = next[0];
       if (added) onChange(added.name, added.density);
       setAdding(false);
@@ -97,8 +113,16 @@ export function MaterialPicker({
 
   const deleteCurrentCustom = async () => {
     if (!current?.custom) return;
-    await removeCustom(current.name, type);
-    setMats(await materialsForType(type));
+    try {
+      await removeCustom(current.name, type);
+    } catch {
+      setDelErr(t('storage.full'));
+      return; // the material is still there; do not tell the user otherwise
+    }
+    setDelErr(null);
+    const next = await materialsForType(type);
+    if (!mounted.current) return; // selecting another component unmounts this
+    setMats(next);
     onChange(undefined, 0);
   };
 
@@ -141,6 +165,7 @@ export function MaterialPicker({
       </select>
 
       {!current && <p className="mt-1 text-[11px] leading-snug text-slate-500">{t('material.defaultHint')}</p>}
+      {delErr && <p className="mt-1 text-xs text-red-400">{delErr}</p>}
 
       {adding && (
         <div className="mt-2 space-y-2 rounded-lg bg-slate-950 p-2 ring-1 ring-white/10">

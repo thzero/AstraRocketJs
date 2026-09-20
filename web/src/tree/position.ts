@@ -159,14 +159,34 @@ export function resolveFilePositions(tree: RocketTree): RocketTree {
 
   // Stages flatten into one nose-to-tail chain; chain members stack
   // sequentially (their own position field is not used for layout).
+  //
+  // A stage child that is NOT a chain member — a podset, a parallel stage, a
+  // stage-level mass component — is a different animal. It does not consume
+  // axial space in the chain, but it does have its OWN length and its own
+  // position against the stage, and both were being thrown away: the walk
+  // passed `0` as the parent length and the core chain's running total as the
+  // parent start. With a parent length of 0, `startFromPosition` resolves a
+  // `middle` child to -childLen/2 — forward of the assembly's own nose — so an
+  // `after` sibling chained off a wrong station and an `absolute` child was
+  // rebased against the wrong origin. Now each one is walked with its own
+  // extent, anchored where its position actually puts it in the stage.
   let x = 0;
   const components = tree.components.map((stage) => {
     const kids = stage.type === 'stage' ? (stage.children ?? []) : [stage];
+    const stageStart = x;
+    // The stage's axial extent is its chain members; that is what an off-axis
+    // child's own `middle`/`bottom` position is measured against.
+    const stageLen = kids.reduce((sum, n) => sum + (chainTypes.has(n.type) ? num(n, 'length', 0) : 0), 0);
     const fixedKids = kids.map((n) => {
-      const len = chainTypes.has(n.type) ? num(n, 'length', 0) : 0;
-      const fixed = fixChildren(n, x, len);
-      x += len;
-      return fixed;
+      if (chainTypes.has(n.type)) {
+        const len = num(n, 'length', 0);
+        const fixed = fixChildren(n, x, len);
+        x += len;
+        return fixed;
+      }
+      const own = axialLength(n);
+      const pos = (n.position ?? { method: 'top', offset: 0 }) as ComponentPosition;
+      return fixChildren(n, stageStart + startFromPosition(pos, own, stageLen), own);
     });
     return stage.type === 'stage' ? ({ ...stage, children: fixedKids } as ComponentNode) : fixedKids[0]!;
   });

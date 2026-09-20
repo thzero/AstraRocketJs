@@ -71,6 +71,11 @@ export type StageTrackStart = 'separation' | 'pad';
  * actually set means the flight can be placed at its true elevation; the
  * default of zero means it cannot.
  */
+/** `toFixed`, but a non-finite or absent value reads as a dash, not a throw. */
+function fixed(v: number | null | undefined, digits: number): string {
+  return typeof v === 'number' && Number.isFinite(v) ? v.toFixed(digits) : '-';
+}
+
 export function resolveAltitudeReference(
   reference: AltitudeReference,
   launchAltitudeMeters: number,
@@ -213,7 +218,14 @@ export function rgbToHex(rgb: number): string {
 }
 
 /** `#RRGGBB` back to a number; anything unparseable reads as black. */
-export function hexToRgb(hex: string): number {
+/**
+ * `#rrggbb` to a PACKED 0xRRGGBB integer, which is what KML colors want.
+ *
+ * Distinct from `reportPdf.hexToRgbTuple`, which returns an [r,g,b] triple for
+ * jsPDF. They had the same name and different return types; TypeScript caught
+ * a swap at the call site, but the names gave no hint which was which.
+ */
+export function hexToRgbInt(hex: string): number {
   const v = Number.parseInt(hex.replace('#', ''), 16);
   return Number.isFinite(v) ? v & 0xffffff : 0;
 }
@@ -539,8 +551,13 @@ export function buildFlightPathModel(
     showWaypointLabels: options.showWaypointLabels,
     colorWaypointPins: options.colorWaypointPins,
     maxAltitude: fmtLength(result.summary.maxAltitude, options.altitudeUnit),
-    maxVelocity: result.summary.maxVelocity.toFixed(1),
-    maxAcceleration: result.summary.maxAcceleration.toFixed(1),
+    // `toFixed` on a non-number throws. A stored result that went through
+    // JSON has `null` wherever a NaN/Infinity was, and this ran unguarded
+    // while `maxAltitude` above went through `fmtLength`. readResults now
+    // rejects such a result outright; this is the second line of defense, on
+    // the path a user reaches by exporting after a reload.
+    maxVelocity: fixed(result.summary.maxVelocity, 1),
+    maxAcceleration: fixed(result.summary.maxAcceleration, 1),
     branches: [],
   };
 

@@ -13,8 +13,14 @@ export function lerpAt(xs: readonly number[], ys: readonly (number | null)[], x:
         y1 = ys[i];
       if (y0 == null || y1 == null) return y1 ?? y0 ?? null;
       const span = xs[i]! - xs[i - 1]!;
-      return span === 0 ? y1 : y0 + ((x - xs[i - 1]!) / span) * (y1 - y0);
+      // No `span === 0` branch: reaching index `i` means `x > xs[i-1]`, and
+      // `xs` is required sorted-ascending, so `xs[i] === xs[i-1]` cannot hold
+      // here. The guard that used to sit here read as a real divide-by-zero
+      // check while being unreachable; the genuine empty-input guard is above.
+      return y0 + ((x - xs[i - 1]!) / span) * (y1 - y0);
     }
   }
-  return ys[ys.length - 1] ?? null;
+  // Indexed off `xs`, not `ys`: a `ys` longer than `xs` was returning a value
+  // from OUTSIDE the x-domain. `lerpAt([0,1],[0,10,999],5)` gave 999, not 10.
+  return ys[xs.length - 1] ?? null;
 }

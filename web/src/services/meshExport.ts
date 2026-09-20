@@ -18,7 +18,9 @@ export const OBJ_MIME = 'model/obj';
 export const GLB_MIME = 'model/gltf-binary';
 
 /** Meters -> millimeters: the scale every slicer/CAD importer expects. */
-const M_TO_MM = 1000;
+// Imported, not redeclared: this is the unit constant for every dimensional
+// export, and it was written out in three separate files.
+import { M_TO_MM } from '../prefs/units';
 
 /** A watertight, millimeter-scaled mesh of one solid, ready for an exporter. */
 function meshGroup(geometry: THREE.BufferGeometry): THREE.Group {

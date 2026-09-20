@@ -41,6 +41,17 @@ describe('lerpAt', () => {
     expect(lerpAt([0, 1], [null, 10], -1)).toBeNull();
   });
 
+  it('extrapolates off the END OF THE X-DOMAIN when ys is longer than xs', () => {
+    // The regression the other cases cannot see: every one of them passes an
+    // equal-length pair, where `ys[ys.length-1]` and `ys[xs.length-1]` are the
+    // same element. The clamp used to index off `ys`, so a longer `ys` returned
+    // a value from outside the x-domain entirely.
+    expect(lerpAt([0, 1], [0, 10, 999], 5)).toBe(10);
+    expect(lerpAt([0, 1, 2], [0, 10, 20, 30, 40], 99)).toBe(20);
+    // A null at the true last knot still reads as no data, not as the surplus.
+    expect(lerpAt([0, 1], [0, null, 999], 5)).toBeNull();
+  });
+
   it('does not divide by zero on a zero-width span', () => {
     expect(lerpAt([1, 1], [5, 9], 1)).toBe(5); // x <= xs[0] → ys[0]
     expect(lerpAt([0, 1, 1, 2], [0, 5, 9, 12], 1)).toBe(5); // first knot with x<=xs[i] wins

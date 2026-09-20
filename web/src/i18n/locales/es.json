@@ -93,7 +93,14 @@
     "orientation": "Orientación del papel",
     "portrait": "Vertical",
     "landscape": "Horizontal",
-    "reset": "Restablecer"
+    "reset": "Restablecer",
+    "svgTitle": "Dibujo 2D a escala real (SVG) con datos del diseño: tamaño físico en mm, se imprime al 100%",
+    "imageFailed": "Error al exportar la imagen: {{message}}. Prueba con un ancho menor o descarga el SVG.",
+    "fitFrame": "Ajustar el cohete al encuadre",
+    "fitFrameHint": "Acerca la cámara para que el cohete llene la imagen exportada: se mantiene el ángulo de visión, solo cambia el encuadre",
+    "pdfFailed": "No se pudo exportar el PDF: {{message}}",
+    "csvFailed": "No se pudo exportar el CSV: {{message}}",
+    "reportFailed": "No se pudo generar el informe del diseño: {{message}}"
   },
   "engine": {
     "wasmTip": "Motor de física: WebAssembly (ruta rápida)",
@@ -135,8 +142,8 @@
     "openLibrary": "Abrir…",
     "saveAs": "Guardar como…",
     "import": "Importar",
-    "importOrk": "Importar OpenRocket (.ork)",
-    "exportOrk": "Exportar OpenRocket (.ork)",
+    "importOrk": "OpenRocket",
+    "exportOrk": "OpenRocket",
     "export": "Exportar",
     "report": "Informe del cohete (PDF)",
     "rasaero": "RASAero II",
@@ -363,6 +370,7 @@
     "optDelay": "Retardo óptimo",
     "noMount": "Añade un soporte de motor para ejecutar una simulación.",
     "noMotor": "Carga un motor para ejecutar una simulación.",
+    "failedNamed": "\"{{name}}\" falló: {{message}}",
     "noMotorNamed": "\"{{name}}\" no tiene un motor utilizable.",
     "incomplete": "A \"{{name}}\" le falta: {{fields}}.",
     "badGeometry": "Corrige primero el diseño: una dimensión obligatoria es cero: {{parts}}.",
@@ -469,7 +477,9 @@
       "windStdDev": "desviación estándar del viento",
       "launchAltitudeM": "altitud del sitio",
       "latitudeDeg": "latitud"
-    }
+    },
+    "locationDenied": "No se pudo obtener tu ubicación. Revisa el permiso del navegador e inténtalo de nuevo.",
+    "locating": "Localizando…"
   },
   "csv": {
     "title": "Exportar datos de vuelo",
@@ -862,7 +872,8 @@
     "tabOffset": "Desplazamiento de la lengüeta",
     "tabOffsetMethod": "Referencia de la lengüeta",
     "cluster": "Clúster",
-    "tubeFinsCollide": "Estos tubos se solapan. Con este radio de tubo caben como máximo {{max}}; con esta cantidad el mayor que cabe es {{radius}} {{unit}}."
+    "tubeFinsCollide": "Estos tubos se solapan. Con este radio de tubo caben como máximo {{max}}; con esta cantidad el mayor que cabe es {{radius}} {{unit}}.",
+    "shapeParameter": "Parámetro de forma"
   },
   "deployEvent": {
     "ejection": "Carga de eyección del motor",
@@ -908,7 +919,9 @@
     "zoomIn": "Acercar — o desplaza sobre el dibujo; arrastra para mover",
     "zoomOut": "Alejar",
     "fit": "Ajustar a la vista",
-    "aftAria": "Vista trasera — el cohete visto desde atrás; arrastra para rotar, rueda para zoom"
+    "aftAria": "Vista trasera — el cohete visto desde atrás; arrastra para rotar, rueda para zoom",
+    "caliperH": "Manija del calibrador horizontal {{end}}",
+    "caliperV": "Manija del calibrador vertical {{end}}"
   },
   "picker": {
     "pick": "Elegir pieza real… ({{count}})",

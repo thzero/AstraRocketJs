@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { appName, isPreRelease } from '../../services/appInfo';
 import { useSettings } from '../../state/SettingsProvider';
+import { useFocusTrap } from '../common/useFocusTrap';
 
 /**
  * A one-time "this is a work in progress" gate, shown on load while the app is
@@ -12,12 +13,19 @@ import { useSettings } from '../../state/SettingsProvider';
 export function WorkInProgressDialog() {
   const { t } = useTranslation();
   const { settings, update } = useSettings();
+  const show = isPreRelease() && !settings.wipAcknowledged;
+  // The only dialog of eighteen with no focus trap. It is `aria-modal` and
+  // blocks the whole app on first load, yet Tab walked straight out to the
+  // page behind it - so the very first keyboard interaction with the app
+  // escaped a modal that claims to be modal, and focus was never restored.
+  const panelRef = useFocusTrap<HTMLDivElement>(show);
 
-  if (!isPreRelease() || settings.wipAcknowledged) return null;
+  if (!show) return null;
 
   return (
     <div className="fixed inset-0 z-[60] grid place-items-center bg-black/70 p-4">
       <div
+        ref={panelRef}
         className="w-full max-w-md rounded-2xl bg-slate-900 p-6 ring-1 ring-white/10"
         role="alertdialog"
         aria-modal="true"
