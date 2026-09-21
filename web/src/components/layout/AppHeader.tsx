@@ -12,7 +12,7 @@ import { useUndoShortcuts } from './useUndoShortcuts';
 
 /** Top bar: title + version, the desktop workbench tabs, language, and a
  *  collapsible menu holding the New / Open (library) / Save / Save As / Import /
- *  Export / About actions. Owns the hidden .ork file input that Import
+ *  Export / About actions. Owns the hidden .ork / .rkt file inputs that Import
  *  triggers; the badge, the undo pair and the dialogs are their own modules. */
 export function AppHeader() {
   const { t, i18n } = useTranslation();
@@ -23,7 +23,13 @@ export function AppHeader() {
   const saveDesign = useWorkspaceStore((s) => s.saveDesign);
   const refreshDesigns = useWorkspaceStore((s) => s.refreshDesigns);
   const onSaveRasaero = useWorkspaceStore((s) => s.saveRasaero);
+  const onSaveRkt = useWorkspaceStore((s) => s.saveRkt);
   const orkRef = useRef<HTMLInputElement>(null);
+  // A second input for the same handler, differing only in its `accept`. One
+  // input filtered to both would show `.ork` files to somebody who picked
+  // RockSim from the menu; the reader sniffs the bytes either way
+  // (services/designFile.ts), so a mislabeled file still opens.
+  const rktRef = useRef<HTMLInputElement>(null);
   const { open, dialogs } = useHeaderDialogs();
 
   useUndoShortcuts();
@@ -86,8 +92,10 @@ export function AppHeader() {
               open('saveAs');
             },
             onImportOrk: () => orkRef.current?.click(),
+            onImportRkt: () => rktRef.current?.click(),
             onImportExamples: () => open('examples'),
             onExportOrk: onSave,
+            onExportRkt: onSaveRkt,
             onExportRasaero: onSaveRasaero,
             onReport: () => open('report'),
             onMotors: () => open('motors'),
@@ -98,17 +106,25 @@ export function AppHeader() {
         />
       </div>
 
-      <input
-        ref={orkRef}
-        type="file"
-        accept=".ork"
-        className="hidden"
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          e.target.value = '';
-          if (f) onOpenFile(f);
-        }}
-      />
+      {(
+        [
+          [orkRef, '.ork'],
+          [rktRef, '.rkt'],
+        ] as const
+      ).map(([ref, accept]) => (
+        <input
+          key={accept}
+          ref={ref}
+          type="file"
+          accept={accept}
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = '';
+            if (f) onOpenFile(f);
+          }}
+        />
+      ))}
       {dialogs}
     </header>
   );

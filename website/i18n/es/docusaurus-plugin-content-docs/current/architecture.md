@@ -111,6 +111,16 @@ Piezas reales de fabricante (Estes/Apogee/LOC/BlueTube/…), extraídas de la **
 
 Igual que el catálogo de motores, es un archivo generado bajo `public/data/` que se descarga al primer uso (véase más arriba) en lugar de compilarse en el paquete, así que no cuesta nada hasta que se abre un selector, y se publica en la rama `data` con la misma periodicidad semanal.
 
+## Entrada/salida de RockSim (`.rkt`) {#rocksim-rkt-io}
+
+Lo lee `services/rktImport.ts` y lo escribe `services/rktExport.ts`: un PORT a TypeScript del paquete `file/rocksim/` de OpenRocket, no una extracción. Ese paquete está basado en SAX y arrastra la maquinaria de documentos, apariencias y avisos del escritorio; el esquema que codifica es lo bastante pequeño como para leerlo directamente, y hacerlo aquí mantiene ambas direcciones del mismo lado de la frontera del motor que el par de `.ork`: DOM puro, comprobable con pruebas unitarias y sin pasar por el núcleo. El vocabulario de elementos, los factores de unidades y los cuatro enums están transcritos de `RockSimCommonConstants.java` y sus hermanos, así que una actualización de upstream se puede contrastar con esos archivos.
+
+Hay tres conversiones presentes en todo, y equivocarse en una produce un diseño que se desvía por un factor de 2 o de 1000 en silencio, en lugar de uno que falla al cargar: RockSim usa **milímetros** y **gramos**, y toda dimensión circular del archivo es un **diámetro**. Las excepciones están documentadas donde se usan: el `Dia` de un paracaídas sí es un diámetro en ambos lados, y `ShroudLineMassPerMM` está en kg/m pese a su nombre.
+
+`services/designFile.ts` elige el lector a partir de los BYTES del archivo (un zip es un `.ork`; si no, decide el elemento raíz), así que `loadOrk` tiene un único camino para ambos formatos y todo lo que viene después —el aviso de notas, la comprobación de límites de seguridad, la semántica de copia sin guardar— se comparte en lugar de duplicarse por formato. La cabecera lleva un campo de archivo oculto por formato, que solo se diferencian en su `accept`.
+
+Ninguno de los dos lados es lossless en general, y ambos lo dicen: RockSim tiene colas anulares, pods desmontables y subconjuntos que aquí no existen, y nosotros tenemos botones de raíl y etapas en paralelo que él no tiene. El importador reúne todo eso en las notas del diseño cargado; el exportador devuelve los tipos omitidos a quien lo llama, que los muestra en lugar de dejar que el usuario descubra la carencia cuando otra persona abra el archivo.
+
 ## Cohetes de ejemplo {#example-rockets}
 
 Los diecisiete diseños que OpenRocket incluye y abre desde *Archivo → Abrir ejemplo*, empaquetados con la aplicación bajo `web/public/examples/` y listados por un `examples.generated.json` generado.

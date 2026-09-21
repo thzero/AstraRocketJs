@@ -12,6 +12,21 @@ AstraRocketJs reads and writes standard **OpenRocket `.ork`** files, so designs 
 
 A round-trip through export and import is verified to preserve the physics (mass, CG, CP, stability), and the files re-open in desktop OpenRocket.
 
+## RockSim (`.rkt`)
+
+RockSim designs open and save too, from **menu → Import → RockSim** and **menu → Export → RockSim**. The reader also works off the file's contents rather than its name, so a `.rkt` picked in the OpenRocket dialog still opens.
+
+What comes across: nose cones, body tubes and transitions; inner tubes and motor mounts; centering rings, bulkheads, engine blocks and couplers; trapezoidal, elliptical and freeform fin sets with their cant, rotation and through-the-wall tabs; tube fins; launch lugs; parachutes and streamers; mass objects and shock cords; external pods; and up to three stages. Dimensions, materials, finishes, placement and measured mass/CG come with them.
+
+What does not:
+
+- **Motors and launch conditions.** RockSim keeps those with its *simulations*, which are a separate object from the design, so an imported rocket arrives with no motor loaded and an exported one leaves without yours. Pick a motor after importing.
+- **Ring tails**, which have no equivalent here.
+- **Detachable pods**, which import as fixed — the design still flies, with the pod attached the whole way.
+- **Subassemblies**, whose contents are merged into the design rather than kept as a group.
+
+Going the other way, RockSim has no element for **rail buttons** or **parallel (strap-on) stages**. Those are left out of the file, and the app tells you which parts were dropped rather than letting you find out when somebody else opens it.
+
 > **Menu → Open and Save work on designs saved inside the app** (see [Saved designs](#saved-designs) below); `.ork` files move to and from your disk through **Import** and **Export**.
 
 ## Saved designs

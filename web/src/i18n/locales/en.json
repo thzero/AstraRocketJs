@@ -19,7 +19,9 @@
     "saveOrk": "Could not save .ork: {{reason}}",
     "exportRasaero": "Could not export RASAero: {{reason}}",
     "exportUnsupported": "This component can't be exported as {{format}}.",
-    "exportFailed": "Could not export {{format}}: {{reason}}"
+    "exportFailed": "Could not export {{format}}: {{reason}}",
+    "exportRkt": "Could not write the .rkt: {{reason}}",
+    "exportRktPartial": "The .rkt was saved, but RockSim has no equivalent for these parts, so they were left out: {{parts}}."
   },
   "report": {
     "title": "Rocket Design",
@@ -159,7 +161,11 @@
     "glb": "3D scene (.glb)",
     "dxf": "Cut sheet (.dxf)",
     "new": "New",
-    "newConfirm": "Discard the current design and all simulations and start a fresh design?"
+    "newConfirm": "Discard the current design and all simulations and start a fresh design?",
+    "importRkt": "RockSim",
+    "importRktLabel": "Import RockSim (.rkt)",
+    "exportRkt": "RockSim",
+    "exportRktLabel": "Export RockSim (.rkt)"
   },
   "edit": {
     "undo": "Undo",

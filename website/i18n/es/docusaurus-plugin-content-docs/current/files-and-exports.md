@@ -12,6 +12,21 @@ AstraRocketJs lee y escribe archivos **`.ork` de OpenRocket** estándar, así qu
 
 Se ha verificado que un viaje de ida y vuelta por exportación e importación conserva la física (masa, CG, CP, estabilidad), y los archivos se vuelven a abrir en OpenRocket de escritorio.
 
+## RockSim (`.rkt`) {#rocksim-rkt}
+
+Los diseños de RockSim también se abren y se guardan, desde **menú → Importar → RockSim** y **menú → Exportar → RockSim**. El lector se guía por el contenido del archivo y no por su nombre, así que un `.rkt` elegido en el diálogo de OpenRocket también se abre.
+
+Lo que sí viaja: ojivas, tubos y transiciones; tubos interiores y soportes de motor; anillos de centrado, mamparos, topes de motor y acopladores; juegos de aletas trapezoidales, elípticas y de forma libre con su inclinación, su giro y sus lengüetas pasantes; aletas tubulares; guías de lanzamiento; paracaídas y cintas; objetos de masa y cuerdas de choque; pods externos; y hasta tres etapas. Con ellos van las dimensiones, los materiales, los acabados, la colocación y la masa y el CG medidos.
+
+Lo que no:
+
+- **Los motores y las condiciones de lanzamiento.** RockSim los guarda con sus *simulaciones*, que son un objeto distinto del diseño, así que un cohete importado llega sin motor y uno exportado sale sin el tuyo. Elige un motor después de importar.
+- **Las colas anulares (ring tails)**, que aquí no tienen equivalente.
+- **Los pods desmontables**, que se importan como fijos: el diseño vuela igual, con el pod puesto todo el trayecto.
+- **Los subconjuntos**, cuyo contenido se fusiona en el diseño en lugar de mantenerse como grupo.
+
+En el otro sentido, RockSim no tiene elemento para los **botones de raíl** ni para las **etapas en paralelo**. Esas piezas se quedan fuera del archivo, y la aplicación te dice cuáles se han omitido en lugar de dejar que lo descubra quien lo abra.
+
 > **Menú → Abrir y Guardar trabajan sobre los diseños guardados dentro de la aplicación** (consulta [Diseños guardados](#saved-designs) más abajo); los archivos `.ork` van y vienen de tu disco mediante **Importar** y **Exportar**.
 
 ## Diseños guardados {#saved-designs}

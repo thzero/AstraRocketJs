@@ -21,8 +21,13 @@ vi.mock('../engine/openRocketEngine', () => ({
   resetEngine: () => {},
 }));
 
-vi.mock('./orkFile', () => ({
-  importOrk: () => ({
+// The PARSER is stubbed, not the file format: these cover what loadOrk does
+// with an import RESULT (resolving motors, seating placeholders), and the two
+// readers behind `parseDesignFile` have tests of their own. Mocking the
+// dispatcher rather than `./orkFile` keeps that true now that loadOrk reads
+// both `.ork` and `.rkt`.
+vi.mock('./designFile', () => ({
+  parseDesignFile: () => ({
     tree: {
       name: 'Empty',
       components: [

@@ -111,6 +111,16 @@ Real manufacturer parts (Estes/Apogee/LOC/BlueTube/…), extracted from the **Op
 
 Like the motor catalog, it is a generated file under `public/data/` fetched on first use (see above) rather than compiled into the bundle, so it costs nothing until a picker is opened — and it is published to the `data` branch on the same weekly schedule.
 
+## RockSim (`.rkt`) I/O
+
+Read by `services/rktImport.ts` and written by `services/rktExport.ts` — a TypeScript PORT of OpenRocket's `file/rocksim/` package, not an extraction of it. That package is SAX-based and pulls in the desktop's document, appearance and warning machinery; the schema it encodes is small enough to read directly, and reading it here keeps both directions on the same side of the engine boundary as the `.ork` pair: plain DOM, unit-testable, no kernel round trip. The element vocabulary, the unit factors and the four enums are transcribed from `RockSimCommonConstants.java` and its siblings, so an upstream bump can be diffed against those files.
+
+Three conversions run through everything, and getting one wrong yields a design that is silently 2x or 1000x off rather than one that fails to load: RockSim is **millimeters** and **grams**, and every circular dimension in the file is a **diameter**. The exceptions are documented at their call sites — a parachute's `Dia` really is a diameter on both sides, and `ShroudLineMassPerMM` is kg/m despite its name.
+
+`services/designFile.ts` picks the reader from the file's BYTES (a zip is a `.ork`; otherwise the root element decides), so `loadOrk` has one path for both formats and everything downstream — the notes banner, the safety-limit check, the unsaved-copy semantics — is shared rather than duplicated per format. The header carries one hidden file input per format, differing only in `accept`.
+
+Neither side is lossless in general, and both say so: RockSim has ring tails, detachable pods and subassemblies we do not, and we have rail buttons and parallel stages it does not. The importer collects those into the loaded-design notes; the exporter returns the skipped types to the caller, which surfaces them rather than letting a user discover the gap when somebody else opens the file.
+
 ## Example rockets
 
 The seventeen designs OpenRocket ships and opens from *File → Open Example*, bundled with the app under `web/public/examples/` and listed by a generated `examples.generated.json`.

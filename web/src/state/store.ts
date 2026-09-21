@@ -296,6 +296,8 @@ export interface WorkspaceState {
   // sites in AppHeader keep their `void`.
   newWorkspace: () => Promise<void>;
   saveOrk: () => Promise<void>;
+  /** Write the design as a RockSim `.rkt`. */
+  saveRkt: () => Promise<void>;
   saveRasaero: () => Promise<void>;
   /** Export a single component as a 3D mesh (stl/obj/glb) or a 2D cut sheet (dxf). */
   exportComponent: (nodeId: string, format: 'stl' | 'obj' | 'glb' | 'dxf') => Promise<void>;
@@ -1410,6 +1412,23 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         });
       } catch (e) {
         set({ err: i18n.t('errors.saveOrk', { reason: e instanceof Error ? e.message : String(e) }) });
+      }
+    },
+    saveRkt: async () => {
+      try {
+        const { tree, loadedMeta } = get();
+        const { downloadRkt } = await import('../services/saveOrk');
+        const name = tree.name || loadedMeta?.name || defaultDesignName();
+        const skipped = await downloadRkt(name, tree);
+        // RockSim has no element for some of what this app can build (rail
+        // buttons, parallel stages, the fairing extension). The file is still
+        // worth having, but the user is about to hand it to somebody who will
+        // not see those parts, so say so rather than let them find out.
+        if (skipped.length) {
+          set({ err: i18n.t('errors.exportRktPartial', { parts: skipped.join(', ') }) });
+        }
+      } catch (e) {
+        set({ err: i18n.t('errors.exportRkt', { reason: e instanceof Error ? e.message : String(e) }) });
       }
     },
     saveRasaero: async () => {

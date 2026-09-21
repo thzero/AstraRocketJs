@@ -19,7 +19,9 @@
     "saveOrk": "No se pudo guardar el .ork: {{reason}}",
     "exportRasaero": "No se pudo exportar a RASAero: {{reason}}",
     "exportUnsupported": "Este componente no se puede exportar como {{format}}.",
-    "exportFailed": "No se pudo exportar {{format}}: {{reason}}"
+    "exportFailed": "No se pudo exportar {{format}}: {{reason}}",
+    "exportRkt": "No se pudo escribir el .rkt: {{reason}}",
+    "exportRktPartial": "El .rkt se guardó, pero RockSim no tiene equivalente para estas piezas, así que se omitieron: {{parts}}."
   },
   "report": {
     "title": "Diseño del cohete",
@@ -159,7 +161,11 @@
     "glb": "Escena 3D (.glb)",
     "dxf": "Plantilla de corte (.dxf)",
     "new": "Nuevo",
-    "newConfirm": "¿Descartar el diseño actual y todas las simulaciones y empezar un diseño nuevo?"
+    "newConfirm": "¿Descartar el diseño actual y todas las simulaciones y empezar un diseño nuevo?",
+    "importRkt": "RockSim",
+    "importRktLabel": "Importar RockSim (.rkt)",
+    "exportRkt": "RockSim",
+    "exportRktLabel": "Exportar RockSim (.rkt)"
   },
   "edit": {
     "undo": "Deshacer",

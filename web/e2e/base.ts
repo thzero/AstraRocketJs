@@ -193,8 +193,25 @@ export async function ready(page: Page): Promise<void> {
  */
 export async function importOrk(page: Page, fixture: string): Promise<void> {
   await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
-  await page.locator('input[type=file]').setInputFiles(fixture);
+  // Scoped by `accept`: the header carries one hidden input per readable
+  // format (.ork and .rkt), so a bare `input[type=file]` is now ambiguous.
+  await page.locator('input[accept=".ork"]').setInputFiles(fixture);
   await expect(page.getByText('Booster').first()).toBeVisible({ timeout: 20_000 });
+}
+
+/**
+ * Import a fixture `.rkt` and wait for the design to land.
+ *
+ * Waits on the design's NAME rather than a "Booster" row: the RockSim fixture
+ * is single-stage, and the tree shows a Sustainer whether or not an import
+ * happened, so that is not a synchronization point.
+ */
+export async function importRkt(page: Page, fixture: string, designName: string): Promise<void> {
+  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+  await page.locator('input[accept=".rkt"]').setInputFiles(fixture);
+  await expect(page.getByRole('button', { name: 'Edit rocket configuration' })).toContainText(designName, {
+    timeout: 20_000,
+  });
 }
 
 /**

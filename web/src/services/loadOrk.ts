@@ -6,7 +6,7 @@ import {
   type RocketTree,
   type MotorSpec,
 } from '../engine/openRocketEngine';
-import { importOrk } from './orkFile';
+import { parseDesignFile } from './designFile';
 import type { OrkExportMotor } from './orkFile';
 import type { LaunchConditions } from './orkTree';
 
@@ -93,7 +93,10 @@ export function emptyMountMotor(): MotorSpec {
 
 export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   resetEngine(); // free the previous design's handles
-  const res = importOrk(buffer);
+  // Either format, chosen from the bytes (designFile.ts). Everything below is
+  // format-agnostic: it works off the import RESULT, and a `.rkt` simply
+  // arrives with no motors and no flight configurations to resolve.
+  const res = parseDesignFile(buffer);
   const design = OpenRocketDesign.buildTree(res.tree);
 
   const notes = [...(res.notes ?? []), ...(res.ignored ?? []).map((i) => `Skipped unsupported: ${i}`)];

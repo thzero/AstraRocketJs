@@ -24,6 +24,7 @@ sidebar_position: 2
 
 ## Data & I/O
 - **Full `.ork` support** — open and save round-trip at full fidelity (files re-open in desktop OpenRocket).
+- **RockSim `.rkt` import and export** — designs move both ways with RockSim too: bodies, fins (including freeform and tube fins), inner structure, recovery, mass objects and pods, across up to three stages. Motors and launch conditions stay behind, because RockSim keeps those with its simulations rather than its designs. See **[Files & Exports](./files-and-exports.md#rocksim-rkt)**.
 - **Motor picker** with real **thrust curves** from [thrustcurve.org](https://www.thrustcurve.org) (~800 motors), downloaded once and cached for offline use. Filter by engine code, impulse class, manufacturer(s), and a **diameter range** that defaults to the motor-mount bore; selections are remembered.
 - Pick from a motor's **multiple thrust curves** (the chosen one is what the engine simulates), set the **ejection delay** from the motor's own charges or a manual value, or **plug** any motor. A per-motor card shows the curve and delay, with a **thrust-curve popup**; multi-mount rockets get **one card per motor tube**. Plus **`.eng` import** and custom motors.
 - OpenRocket **materials** (built-in + your own) and a **component-preset** catalog (~2,900 real Estes / Apogee / LOC / … parts).
