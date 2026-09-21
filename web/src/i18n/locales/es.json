@@ -21,7 +21,9 @@
     "exportUnsupported": "Este componente no se puede exportar como {{format}}.",
     "exportFailed": "No se pudo exportar {{format}}: {{reason}}",
     "exportRkt": "No se pudo escribir el .rkt: {{reason}}",
-    "exportRktPartial": "El .rkt se guardó, pero RockSim no tiene equivalente para estas piezas, así que se omitieron: {{parts}}."
+    "exportRktPartial": "El .rkt se guardó, pero RockSim no tiene equivalente para estas piezas, así que se omitieron: {{parts}}.",
+    "exportPrint": "No se pudo escribir el 3MF: {{reason}}",
+    "exportPrintPartial": "El 3MF se guardó, pero estas piezas no tienen un sólido imprimible y se omitieron: {{parts}}."
   },
   "report": {
     "title": "Diseño del cohete",
@@ -165,7 +167,10 @@
     "importRkt": "RockSim",
     "importRktLabel": "Importar RockSim (.rkt)",
     "exportRkt": "RockSim",
-    "exportRktLabel": "Exportar RockSim (.rkt)"
+    "exportRktLabel": "Exportar RockSim (.rkt)",
+    "exportPrint": "Impresión 3D (.3mf)",
+    "exportPrintLabel": "Exportar las piezas imprimibles como 3MF",
+    "3mf": "Impresión 3D (.3mf)"
   },
   "edit": {
     "undo": "Deshacer",
@@ -1227,5 +1232,16 @@
     "resizeSide": "Redimensionar el panel lateral",
     "maximize": "Ampliar el dibujo a toda la ventana",
     "restore": "Mostrar de nuevo los paneles laterales"
+  },
+  "print": {
+    "title": "Exportar para impresión 3D",
+    "intro": "Todas las piezas de este diseño que tienen un sólido imprimible. Los paracaídas, los cordones de choque, los componentes de masa y los botones de raíl no tienen cuerpo que imprimir, así que no aparecen.",
+    "nothing": "Nada en este diseño tiene un sólido imprimible.",
+    "separateFiles": "Un archivo por pieza (un .zip)",
+    "placeOnPlate": "Colocar cada pieza sobre la base de impresión",
+    "orientationNote": "Las piezas conservan la orientación que tienen en el cohete: el eje va a lo largo de X, así que los cuerpos llegan tumbados. Usa la función de apoyar o rotar de tu laminador para ponerlos de pie.",
+    "count": "{{count}} pieza seleccionada",
+    "count_other": "{{count}} piezas seleccionadas",
+    "save": "Guardar 3MF"
   }
 }

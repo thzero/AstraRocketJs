@@ -24,6 +24,7 @@ export interface FileMenuActions {
   onImportExamples: () => void;
   onExportOrk: () => void;
   onExportRkt: () => void;
+  onExportPrint: () => void;
   onExportRasaero: () => void;
   onReport: () => void;
   onMotors: () => void;
@@ -222,6 +223,18 @@ function FileMenu({
           onClick={run(actions.onExportRkt)}
         >
           {t('file.exportRkt')}
+        </button>
+      )}
+      {exportOpen && (
+        <button
+          role="menuitem"
+          tabIndex={-1}
+          className={subItem}
+          aria-label={t('file.exportPrintLabel')}
+          disabled={!canSave}
+          onClick={run(actions.onExportPrint)}
+        >
+          {t('file.exportPrint')}
         </button>
       )}
       {exportOpen && (

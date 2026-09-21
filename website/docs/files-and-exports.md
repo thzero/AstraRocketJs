@@ -50,11 +50,26 @@ RASAero models only the **external aerodynamic shape**, so the export carries th
 
 Because RASAero can't represent every shape, the export **stops with a clear message** rather than write a file RASAero would reject — for example tube or elliptical fins, a non-conical transition, more than one fin set on a tube, or a freeform fin that isn't a simple trapezoid. In those cases, use `.ork` instead.
 
+## Exporting the whole rocket for 3D printing (`.3mf`)
+
+**Menu → Export → 3D print (.3mf)** writes every printable part of the design in one go. The dialog lists what the design can actually print, all ticked; untick anything you do not want. Parachutes, shock cords, mass components and rail buttons are not listed at all, because they have no solid body to print.
+
+Two options:
+
+- **One file per part (a .zip)** — off by default. Left off, you get a single `.3mf` holding one **named object per part**, which is the point of the format: the slicer's object list reads *Nose cone*, *Body tube*, *Centering ring*, not `part1`, `part2`, `part3`. Turned on, you get a zip of one file per part for a workflow that wants them separate.
+- **Place each part on the build plate** — on by default; each part is moved so it is centered and resting at Z = 0 rather than sitting where it was in the rocket.
+
+Parts keep the **orientation they have in the design** — the rocket's axis runs along X, so bodies arrive lying down. That is deliberate: standing them up would be right for tubes and wrong for every fin and ring, and it would make the 3MF differ from the STL of the same part. Your slicer's lay-flat or rotate is one click.
+
+3MF is also offered per component, beside STL/OBJ/GLB, on the **⬇** button in the tree.
+
+> **Why 3MF rather than STL.** STL is naked triangles: no name, no color, no declared unit, one object per file. 3MF carries all four, so a whole rocket arrives in the slicer already identified.
+
 ## Exporting a component as a 3D model or cut file
 
 Export is **per component**, not whole-rocket: in the **Components** tree, every part that has a real shape carries a small **⬇** button that offers the formats appropriate to *that* part. Parts with no printable object — parachutes, streamers, shock cords, mass components, rail buttons — carry no button.
 
-- **3D models — STL, OBJ, GLB.** A single, **watertight solid** of the part, built for 3D printing and CAD (STL/OBJ import into any slicer or modeler; GLB also carries a color for viewers). Offered for nose cones, transitions, body tubes, inner tubes, launch lugs, tube fins, fin sets, centering rings, bulkheads, couplers and engine blocks.
+- **3D models — STL, OBJ, GLB, 3MF.** A single, **watertight solid** of the part, built for 3D printing and CAD (STL/OBJ import into any slicer or modeler; GLB also carries a color for viewers; **3MF** carries the part's name, its color and the unit, and is the one to pick if your slicer takes it). Offered for nose cones, transitions, body tubes, inner tubes, launch lugs, tube fins, fin sets, centering rings, bulkheads, couplers and engine blocks. To get the whole rocket at once, see [3D printing the whole rocket](#exporting-the-whole-rocket-for-3d-printing-3mf) above.
 - **DXF — 2D cut sheet.** The flat outline of a **plate-cut** part for a laser cutter or CNC router (AutoCAD R12, in millimeters, CUT / REFERENCE layers). Offered only for the parts you actually cut from sheet: **fins, centering rings and bulkheads**. Fin outlines fold in any through-the-wall tab; discs carry the bore and a center cross-hair.
 
 Notes on the 3D geometry:

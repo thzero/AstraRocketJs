@@ -96,6 +96,7 @@ export function AppHeader() {
             onImportExamples: () => open('examples'),
             onExportOrk: onSave,
             onExportRkt: onSaveRkt,
+            onExportPrint: () => open('print'),
             onExportRasaero: onSaveRasaero,
             onReport: () => open('report'),
             onMotors: () => open('motors'),

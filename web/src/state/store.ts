@@ -298,9 +298,11 @@ export interface WorkspaceState {
   saveOrk: () => Promise<void>;
   /** Write the design as a RockSim `.rkt`. */
   saveRkt: () => Promise<void>;
+  /** Write the design's printable parts as 3MF (one file, or a zip of files). */
+  exportPrint: (opts: import('../services/rocketPrintExport').PrintExportOptions) => Promise<void>;
   saveRasaero: () => Promise<void>;
   /** Export a single component as a 3D mesh (stl/obj/glb) or a 2D cut sheet (dxf). */
-  exportComponent: (nodeId: string, format: 'stl' | 'obj' | 'glb' | 'dxf') => Promise<void>;
+  exportComponent: (nodeId: string, format: import('../services/componentFormats').ExportFormat) => Promise<void>;
 }
 
 /** The active simulation (falls back to the first if the id no longer exists). */
@@ -1429,6 +1431,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
       } catch (e) {
         set({ err: i18n.t('errors.exportRkt', { reason: e instanceof Error ? e.message : String(e) }) });
+      }
+    },
+    exportPrint: async (opts) => {
+      try {
+        const { tree, loadedMeta } = get();
+        const { downloadRocket3mf } = await import('../services/rocketPrintExport');
+        const name = tree.name || loadedMeta?.name || defaultDesignName();
+        const { skipped } = await downloadRocket3mf(name, tree, opts);
+        // A part whose geometry fails the manifold check is left out rather
+        // than written as a file no slicer would accept — but silently leaving
+        // it out is how somebody discovers a missing fin at the printer.
+        if (skipped.length) set({ err: i18n.t('errors.exportPrintPartial', { parts: skipped.join(', ') }) });
+      } catch (e) {
+        set({ err: i18n.t('errors.exportPrint', { reason: e instanceof Error ? e.message : String(e) }) });
       }
     },
     saveRasaero: async () => {

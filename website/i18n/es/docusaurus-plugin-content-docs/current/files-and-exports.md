@@ -50,11 +50,26 @@ RASAero modela únicamente la **forma aerodinámica exterior**, así que la expo
 
 Como RASAero no puede representar todas las formas, la exportación **se detiene con un mensaje claro** en lugar de escribir un archivo que RASAero rechazaría: por ejemplo, aletas tubulares o elípticas, una transición no cónica, más de un juego de aletas en un tubo, o una aleta de forma libre que no sea un trapecio simple. En esos casos, usa `.ork`.
 
+## Exportar el cohete entero para impresión 3D (`.3mf`) {#exporting-the-whole-rocket-for-3d-printing-3mf}
+
+**Menú → Exportar → Impresión 3D (.3mf)** escribe de una vez todas las piezas imprimibles del diseño. El diálogo lista lo que el diseño realmente puede imprimir, todo marcado; desmarca lo que no quieras. Los paracaídas, los cordones de choque, los componentes de masa y los botones de raíl ni siquiera aparecen, porque no tienen un cuerpo sólido que imprimir.
+
+Dos opciones:
+
+- **Un archivo por pieza (un .zip)** — desactivado por defecto. Desactivado obtienes un único `.3mf` con **un objeto con nombre por pieza**, que es la gracia del formato: la lista de objetos del laminador dice *Ojiva*, *Tubo*, *Anillo de centrado*, y no `part1`, `part2`, `part3`. Activado obtienes un zip con un archivo por pieza, para un flujo de trabajo que las quiera separadas.
+- **Colocar cada pieza sobre la base de impresión** — activado por defecto; cada pieza se mueve para quedar centrada y apoyada en Z = 0 en lugar de donde estaba dentro del cohete.
+
+Las piezas conservan la **orientación que tienen en el diseño**: el eje del cohete va a lo largo de X, así que los cuerpos llegan tumbados. Es deliberado: ponerlos de pie sería correcto para los tubos y equivocado para cada aleta y cada anillo, y haría que el 3MF difiriera del STL de la misma pieza. La función de apoyar o rotar de tu laminador está a un clic.
+
+El 3MF también se ofrece por componente, junto a STL/OBJ/GLB, en el botón **⬇** del árbol.
+
+> **Por qué 3MF y no STL.** El STL son triángulos desnudos: sin nombre, sin color, sin unidad declarada y con un solo objeto por archivo. El 3MF lleva las cuatro cosas, así que un cohete entero llega al laminador ya identificado.
+
 ## Exportar un componente como modelo 3D o archivo de corte {#exporting-a-component-as-a-3d-model-or-cut-file}
 
 La exportación es **por componente**, no del cohete entero: en el árbol de **Componentes**, cada pieza con una forma real lleva un pequeño botón **⬇** que ofrece los formatos adecuados a *esa* pieza. Las piezas sin objeto imprimible —paracaídas, cintas, cordones de choque, componentes de masa, botones de raíl— no llevan botón.
 
-- **Modelos 3D — STL, OBJ, GLB.** Un **sólido estanco** único de la pieza, pensado para impresión 3D y CAD (STL/OBJ se importan en cualquier laminador o modelador; GLB además lleva color para los visores). Disponible para ojivas, transiciones, tubos, tubos interiores, guías de lanzamiento, aletas tubulares, juegos de aletas, anillos de centrado, mamparos, acopladores y topes de motor.
+- **Modelos 3D — STL, OBJ, GLB, 3MF.** Un **sólido estanco** único de la pieza, pensado para impresión 3D y CAD (STL/OBJ se importan en cualquier laminador o modelador; GLB además lleva color para los visores; el **3MF** lleva el nombre de la pieza, su color y la unidad, y es el que conviene elegir si tu laminador lo admite). Disponible para ojivas, transiciones, tubos, tubos interiores, guías de lanzamiento, aletas tubulares, juegos de aletas, anillos de centrado, mamparos, acopladores y topes de motor. Para obtener el cohete entero de una vez, consulta [imprimir el cohete entero en 3D](#exporting-the-whole-rocket-for-3d-printing-3mf) más arriba.
 - **DXF — hoja de corte 2D.** El contorno plano de una pieza **cortada en plancha**, para cortadora láser o fresadora CNC (AutoCAD R12, en milímetros, capas CUT / REFERENCE). Disponible solo para las piezas que realmente se cortan de plancha: **aletas, anillos de centrado y mamparos**. Los contornos de aleta incluyen cualquier pestaña pasante; los discos llevan el taladro y una cruz de centrado.
 
 Notas sobre la geometría 3D:

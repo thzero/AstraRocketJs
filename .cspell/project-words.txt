@@ -115,6 +115,7 @@ authorable
 axialoffset
 barrowman
 baseheight
+basematerials
 basepressure
 basetemperature
 bbody
@@ -162,6 +163,9 @@ desync
 desynced
 dflt
 directiondeg
+displaycolor
+dmanufacturing
+dmodel
 docblocks
 doublewedge
 drei
@@ -287,6 +291,7 @@ notsimulated
 nozzleexitdiameter
 nudgeable
 openrocket
+openxmlformats
 orkengine
 outerdiameter
 outerradius
@@ -303,6 +308,7 @@ packedradius
 parallelstage
 parsererror
 persistable
+pindex
 pipefail
 pitot
 placemark
@@ -335,6 +341,7 @@ refreshable
 reimplementation
 relativehumidity
 relativeto
+rels
 requestfailed
 reselecting
 rocketcomponent
@@ -393,6 +400,7 @@ tipchord
 transcendentals
 trapezoidfinset
 tras
+tris
 trkpt
 trkseg
 tubecoupler
@@ -428,6 +436,7 @@ uppercased
 upperignition
 upstreaming
 vels
+verts
 weathercocking
 windaverage
 winddirection

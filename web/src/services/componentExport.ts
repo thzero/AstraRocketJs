@@ -4,6 +4,9 @@ import { parentRadiusOf } from '../tree/finPlanform';
 import { solidForNode, discSolid } from './solidMesh';
 import { solidToStl, solidToObj, solidToGlb, STL_MIME, OBJ_MIME, GLB_MIME } from './meshExport';
 import { download, safeFilename } from './saveFile';
+import { buildThreeMf, THREE_MF_MIME } from './threeMf';
+import { colorForType } from './partColors';
+import { makeWatertight } from './solidMesh';
 import { componentToDxf, resolveDisc, DXF_MIME } from './dxfExport';
 import { DISC_TYPES, type ExportFormat } from './componentFormats';
 
@@ -43,6 +46,13 @@ export async function exportComponent(tree: RocketTree, nodeId: string, format: 
   if (!geometry) return false;
   if (format === 'stl') download(`${base}.stl`, solidToStl(geometry), STL_MIME);
   else if (format === 'obj') download(`${base}.obj`, solidToObj(geometry), OBJ_MIME);
-  else download(`${base}.glb`, await solidToGlb(geometry), GLB_MIME);
+  else if (format === '3mf') {
+    // The 3MF writer reads vertices and indices directly, so it needs the
+    // welded/capped geometry the three.js exporters get from `meshGroup`.
+    const parts = [
+      { name: node.name || node.type, geometry: makeWatertight(geometry), color: colorForType(node.type) },
+    ];
+    download(`${base}.3mf`, buildThreeMf(parts) as BlobPart, THREE_MF_MIME);
+  } else download(`${base}.glb`, await solidToGlb(geometry), GLB_MIME);
   return true;
 }

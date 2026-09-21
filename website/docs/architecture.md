@@ -133,6 +133,18 @@ Deliberately **`public/examples/`, not `public/data/`**. The catalogs under `pub
 
 `src/services/exampleLibrary.test.ts` imports and builds **every** example through the real kernel and resolves its motors against the committed catalog, so neither the strip nor an upstream bump can quietly ship a broken one.
 
+## Geometry export (3D print / CAD / cut files)
+
+Every printable output starts at `services/solidMesh.ts`, which builds a **watertight solid** per component and is the choke point that refuses one it cannot make manifold (`solidForNode` returns null rather than writing a file no slicer accepts). From there:
+
+- `services/meshExport.ts` wraps three.js's STL / OBJ / glTF exporters, scaling meters → **millimeters** (`M_TO_MM`) because that is the unit every slicer and CAD tool assumes.
+- `services/threeMf.ts` writes **3MF** directly — it is a zip of three XML members (OPC content types, a relationship, and the model), not a three.js exporter, so it reads the geometry's vertex and index buffers itself. 3MF is the only one of the four that carries the part's **name**, a **color** and the **declared unit**, which is what makes a whole-rocket export useful rather than a pile of anonymous solids.
+- `services/dxfExport.ts` writes the flat outline of a plate-cut part.
+- `services/componentFormats.ts` says which formats a component type offers (the tree's ⬇ button asks it, and it is deliberately free of heavy imports); `services/componentExport.ts` is the on-demand chunk that actually builds and downloads one part.
+- `services/rocketPrintExport.ts` is the whole-rocket path: it walks the design for printable parts, builds each solid by the same two routes `componentExport` uses (a disc/ring needs its parent tube's bore resolved), and writes either one 3MF of named objects or a zip of one file per part.
+
+**Orientation is never changed.** Solids are lathed about Y and rotated into X (`solidMesh.ts`), so the rocket's axis runs along X and bodies export lying down. The print export's "place on the build plate" is a pure TRANSLATION for that reason: standing parts up would be right for tubes and wrong for every fin and ring, and it would make the 3MF differ from the STL of the same part.
+
 ## Opening `.ork` files
 
 **Open .ork** loads an existing OpenRocket design at **full fidelity** — any design the engine's component-tree API supports (stages, transitions, couplers, rings, bulkheads…), not just the fixed editor layout:

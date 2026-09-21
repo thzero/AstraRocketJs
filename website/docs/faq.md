@@ -14,6 +14,12 @@ No. Everything runs on your device. Your design is a `.ork` file on your disk; t
 ### Will my `.ork` files work in desktop OpenRocket?
 Yes — open and save are full-fidelity round-trips, and a saved file re-opens in desktop OpenRocket.
 
+### Can I open a RockSim file?
+Yes — **menu → Import → RockSim** reads a `.rkt`, and **Export → RockSim** writes one. The design comes across; the **motors and launch conditions do not**, because RockSim keeps those with its simulations rather than its designs, so pick a motor after importing. [Files & Exports](./files-and-exports.md#rocksim-rkt) lists exactly what each direction carries and what it leaves behind.
+
+### Can I 3D print the parts?
+Yes. Any part with a real solid body carries a **⬇** button in the component tree offering STL, OBJ, GLB and 3MF, and **menu → Export → 3D print (.3mf)** writes the whole rocket at once as a single file with one named object per part. See [Files & Exports](./files-and-exports.md#exporting-the-whole-rocket-for-3d-printing-3mf).
+
 ### Do my unit choices show up in desktop OpenRocket?
 No. Units live in your browser's settings, not in the `.ork` — the file has nowhere to record them, and desktop OpenRocket keeps its own in its preferences. Your file opens there in OpenRocket's units and back here in yours; the rocket is the same either way. For the same reason your units don't follow you to another computer or browser. See **[Settings](./settings.md#units)**.
 

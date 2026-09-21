@@ -5,7 +5,7 @@
 // dispatch that actually builds + downloads a file lives in componentExport.ts
 // and is loaded on demand (store.exportComponent).
 
-export type ExportFormat = 'stl' | 'obj' | 'glb' | 'dxf';
+export type ExportFormat = 'stl' | 'obj' | 'glb' | '3mf' | 'dxf';
 
 /** Disc / ring / tube parts — solids of revolution needing parent-tube context. */
 export const DISC_TYPES = new Set(['centeringring', 'bulkhead', 'tubecoupler', 'engineblock']);
@@ -28,10 +28,17 @@ const MESH_TYPES = new Set([
  *  revolution aren't here: they export as 3D solids (STL/OBJ/GLB) instead. */
 const DXF_CUTTABLE = new Set(['trapezoidfinset', 'ellipticalfinset', 'freeformfinset', 'centeringring', 'bulkhead']);
 
+/** Does this type have a printable solid? The whole-rocket 3MF export asks,
+ *  and it must be the SAME set the per-part menu offers a mesh for. */
+export const isPrintable = (type: string): boolean => MESH_TYPES.has(type);
+
 /** The export formats a component type supports, in menu order (empty = none). */
 export function componentFormats(type: string): ExportFormat[] {
   const formats: ExportFormat[] = [];
-  if (MESH_TYPES.has(type)) formats.push('stl', 'obj', 'glb');
+  // 3MF last of the solid formats but first in usefulness: it is the only one
+  // that carries the part's NAME and color into the slicer. Listed after the
+  // three that were here first so an existing muscle-memory click does not move.
+  if (MESH_TYPES.has(type)) formats.push('stl', 'obj', 'glb', '3mf');
   if (DXF_CUTTABLE.has(type)) formats.push('dxf');
   return formats;
 }

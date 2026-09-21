@@ -21,7 +21,9 @@
     "exportUnsupported": "This component can't be exported as {{format}}.",
     "exportFailed": "Could not export {{format}}: {{reason}}",
     "exportRkt": "Could not write the .rkt: {{reason}}",
-    "exportRktPartial": "The .rkt was saved, but RockSim has no equivalent for these parts, so they were left out: {{parts}}."
+    "exportRktPartial": "The .rkt was saved, but RockSim has no equivalent for these parts, so they were left out: {{parts}}.",
+    "exportPrint": "Could not write the 3MF: {{reason}}",
+    "exportPrintPartial": "The 3MF was saved, but these parts have no printable solid and were left out: {{parts}}."
   },
   "report": {
     "title": "Rocket Design",
@@ -165,7 +167,10 @@
     "importRkt": "RockSim",
     "importRktLabel": "Import RockSim (.rkt)",
     "exportRkt": "RockSim",
-    "exportRktLabel": "Export RockSim (.rkt)"
+    "exportRktLabel": "Export RockSim (.rkt)",
+    "exportPrint": "3D print (.3mf)",
+    "exportPrintLabel": "Export printable parts as 3MF",
+    "3mf": "3D print (.3mf)"
   },
   "edit": {
     "undo": "Undo",
@@ -1227,5 +1232,16 @@
     "resizeSide": "Resize the side panel",
     "maximize": "Expand the drawing to the whole window",
     "restore": "Show the side panels again"
+  },
+  "print": {
+    "title": "3D print export",
+    "intro": "Every part of this design that has a printable solid. Parachutes, shock cords, mass components and rail buttons have no body to print, so they are not listed.",
+    "nothing": "Nothing in this design has a printable solid.",
+    "separateFiles": "One file per part (a .zip)",
+    "placeOnPlate": "Place each part on the build plate",
+    "orientationNote": "Parts keep the orientation they have in the rocket — the axis runs along X, so bodies arrive lying down. Use your slicer’s lay-flat or rotate to stand them up.",
+    "count": "{{count}} part selected",
+    "count_other": "{{count}} parts selected",
+    "save": "Save 3MF"
   }
 }

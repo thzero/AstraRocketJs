@@ -133,6 +133,18 @@ Deliberadamente en **`public/examples/`, no en `public/data/`**. Los catálogos 
 
 `src/services/exampleLibrary.test.ts` importa y construye **todos** los ejemplos con el núcleo real y resuelve sus motores contra el catálogo incluido, así que ni la depuración ni una actualización de upstream pueden colar uno roto sin que se note.
 
+## Exportación de geometría (impresión 3D / CAD / archivos de corte) {#geometry-export-3d-print-cad-cut-files}
+
+Toda salida imprimible empieza en `services/solidMesh.ts`, que construye un **sólido estanco** por componente y es el punto de control que rechaza el que no puede hacer variedad cerrada (`solidForNode` devuelve null en lugar de escribir un archivo que ningún laminador aceptaría). A partir de ahí:
+
+- `services/meshExport.ts` envuelve los exportadores STL / OBJ / glTF de three.js y escala de metros a **milímetros** (`M_TO_MM`), porque esa es la unidad que asumen todos los laminadores y programas de CAD.
+- `services/threeMf.ts` escribe **3MF** directamente: es un zip con tres miembros XML (los tipos de contenido OPC, una relación y el modelo), no un exportador de three.js, así que lee él mismo los búferes de vértices e índices de la geometría. El 3MF es el único de los cuatro que lleva el **nombre** de la pieza, un **color** y la **unidad declarada**, que es lo que hace útil exportar el cohete entero en vez de un montón de sólidos anónimos.
+- `services/dxfExport.ts` escribe el contorno plano de una pieza cortada en plancha.
+- `services/componentFormats.ts` dice qué formatos ofrece cada tipo de componente (el botón ⬇ del árbol se lo pregunta, y está deliberadamente libre de importaciones pesadas); `services/componentExport.ts` es el fragmento cargado bajo demanda que construye y descarga una pieza.
+- `services/rocketPrintExport.ts` es el camino del cohete entero: recorre el diseño buscando piezas imprimibles, construye cada sólido por las dos mismas rutas que usa `componentExport` (un disco o anillo necesita resolver el diámetro interior de su tubo padre) y escribe o bien un 3MF con objetos con nombre, o bien un zip con un archivo por pieza.
+
+**La orientación nunca se cambia.** Los sólidos se tornean alrededor de Y y se rotan hacia X (`solidMesh.ts`), así que el eje del cohete va a lo largo de X y los cuerpos se exportan tumbados. Por eso la opción de «colocar sobre la base de impresión» es una TRASLACIÓN pura: poner las piezas de pie sería correcto para los tubos y equivocado para cada aleta y cada anillo, y haría que el 3MF difiriera del STL de la misma pieza.
+
 ## Abrir archivos `.ork` {#opening-ork-files}
 
 **Importar .ork** carga un diseño existente de OpenRocket con **total fidelidad**: cualquier diseño que soporte la API del árbol de componentes del motor (etapas, transiciones, acopladores, anillos, mamparos…), no solo la disposición fija del editor:
