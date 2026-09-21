@@ -6,6 +6,19 @@ module extracted to source and minimally patched to compile to JavaScript and We
 TeaVM. OpenRocket is **GPL-3.0**, and this engine (and AstraRocketJs as a whole) inherits
 that license.
 
+## Example rockets — OpenRocket
+
+`web/public/examples/` holds the seventeen example `.ork` designs OpenRocket ships and opens
+from *File → Open Example*. They are **OpenRocket's own work, GPL-3.0**, taken verbatim from
+`core/src/main/resources/datafiles/examples/` at the same commit `extract/UPSTREAM` pins for the
+engine, by `web/scripts/sync-examples.mjs`.
+
+The only change made to them is removal: each file's stored `<flightdata>` (the saved results of
+simulations run in desktop OpenRocket) is stripped, because this app runs its own simulations and
+never reads it. That is 96% of the bytes — 3.5 MB of 3.6 MB across the set. Designs, appearances,
+decals and embedded thrust curves are untouched, and `web/src/services/exampleLibrary.test.ts`
+builds every one through the real kernel to prove the strip changed no physics.
+
 ## RASAero-style aerodynamics extensions — mmrocket-sim
 
 **License of the incorporated work.** The mmrocket-sim extensions are

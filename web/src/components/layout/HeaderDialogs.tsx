@@ -4,6 +4,7 @@ import { defaultDesignName } from '../../services/appInfo';
 import { useWorkspaceStore } from '../../state/store';
 import { DesignLibraryDialog } from './DesignLibraryDialog';
 import { DesignPropertiesDialog } from './DesignPropertiesDialog';
+import { ExamplesDialog } from './ExamplesDialog';
 import { AboutDialog } from './AboutDialog';
 import { ExportDialog } from '../report/ExportDialog';
 import { PrivacyDialog } from './PrivacyDialog';
@@ -16,7 +17,7 @@ import { MotorDashboard } from '../sim/MotorDashboard';
  * `useHeaderDialogs()` returns the opener plus the element to render.
  */
 
-export type HeaderDialog = 'motors' | 'report' | 'about' | 'privacy' | 'settings' | 'library' | 'saveAs';
+export type HeaderDialog = 'motors' | 'report' | 'about' | 'privacy' | 'settings' | 'library' | 'examples' | 'saveAs';
 
 type OpenFlags = Record<HeaderDialog, boolean>;
 
@@ -27,6 +28,7 @@ const NONE_OPEN: OpenFlags = {
   privacy: false,
   settings: false,
   library: false,
+  examples: false,
   saveAs: false,
 };
 
@@ -58,6 +60,7 @@ function HeaderDialogs({ flags, onClose }: { flags: OpenFlags; onClose: (id: Hea
       {flags.privacy && <PrivacyDialog onClose={() => onClose('privacy')} />}
       {flags.settings && <SettingsDialog onClose={() => onClose('settings')} />}
       {flags.library && <DesignLibraryDialog onClose={() => onClose('library')} />}
+      {flags.examples && <ExamplesDialog onClose={() => onClose('examples')} />}
       {flags.saveAs && (
         <DesignPropertiesDialog
           title={t('file.saveAs')}

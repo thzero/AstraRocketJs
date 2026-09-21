@@ -40,6 +40,7 @@
     "gen:icons": "node scripts/gen-icons.mjs",
     "sync:motors": "node scripts/sync-motors.mjs",
     "sync:components": "node scripts/sync-components.mjs",
+    "sync:examples": "node scripts/sync-examples.mjs",
     "sync:contributors": "node scripts/sync-contributors.mjs",
     "test:coverage": "vitest run --coverage",
     "verify": "npm run format:check && npm run spell && npm run typecheck && npm run lint && npm run knip && vitest run"

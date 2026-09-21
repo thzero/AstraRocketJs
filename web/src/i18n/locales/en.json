@@ -15,6 +15,7 @@
   },
   "errors": {
     "openOrk": "Could not open .ork: {{reason}}",
+    "openExample": "Could not open that example: {{reason}}",
     "saveOrk": "Could not save .ork: {{reason}}",
     "exportRasaero": "Could not export RASAero: {{reason}}",
     "exportUnsupported": "This component can't be exported as {{format}}.",
@@ -146,6 +147,8 @@
     "import": "Import",
     "importOrk": "OpenRocket",
     "importOrkLabel": "Import OpenRocket (.ork)",
+    "importExamples": "Examples",
+    "importExamplesLabel": "Import an example rocket",
     "exportOrk": "OpenRocket",
     "exportOrkLabel": "Export OpenRocket (.ork)",
     "export": "Export",
@@ -1153,7 +1156,12 @@
     "name": "Name",
     "untitled": "Untitled rocket",
     "duplicateName": "Another rocket already has this name.",
-    "missing": "That rocket is no longer saved."
+    "missing": "That rocket is no longer saved.",
+    "mine": "My rockets",
+    "examples": "Examples",
+    "examplesFailed": "The bundled examples could not be loaded.",
+    "examplesTitle": "Example rockets",
+    "examplesIntro": "The example designs that ship with OpenRocket. Opening one gives you your own unsaved copy, so you can take it apart freely."
   },
   "cluster": {
     "single": "Single",

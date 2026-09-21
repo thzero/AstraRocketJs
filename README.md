@@ -24,6 +24,7 @@ The UI is **responsive**: a three-pane workbench (editor · rocket view · motor
 
 **Data & I/O**
 - **Full `.ork` support** — open and save round-trip at full fidelity (files re-open in desktop OpenRocket).
+- **The seventeen example rockets that ship with OpenRocket**, built in under **Import → Examples** — clusters, pods, tube fins, parallel and serial staging, dual deployment, a separating payload section. Pulled from the same OpenRocket commit the engine is built from, and opened as your own unsaved copy.
 - Keep **several rockets** in the browser and switch between them; everything autosaves, and `.ork` import/export moves designs to and from your disk.
 - Real motor **thrust curves** from thrustcurve.org (~800 motors), plus **`.eng` import** and custom motors.
 - OpenRocket **materials** (built-in + your own) and a **component-preset** catalog (~2,900 real Estes/Apogee/LOC/… parts).
@@ -34,6 +35,7 @@ The UI is **responsive**: a three-pane workbench (editor · rocket view · motor
 - No server, no accounts, nothing uploaded — the physics runs entirely on your device. Your `.ork` designs are **files on your disk** (open / save); the browser just keeps a working copy (so a refresh won't lose your rocket) plus your custom motors, materials, and settings.
 - **Units are yours to pick** — metric or imperial presets, or a unit per quantity (lengths, altitude, mass, velocity, wind, acceleration, angle, density, temperature, pressure, thrust, impulse), and the unit printed beside any value is a picker for that one field. Designs are always stored in SI, so switching units never edits a rocket or changes how a `.ork` is written — units live in your browser, not in the file, so a design opened in desktop OpenRocket shows in OpenRocket's units.
 - **Responsive** (desktop three-pane workbench → tabs on a phone, with the rocket views turned to the screen's long edge), in **English and Spanish**.
+- **Says what its numbers are worth** — launch conditions are held to the NAR / Tripoli flying limits (rod within 20° of vertical, surface wind at or below 20 mph) and a run outside them is refused. Every set of results carries a **Before you fly** card naming what the model does not have (fin flutter, structural loads, parachute inflation and opening shock, your motor on the day), linking to a **[Safety](https://thzero.github.io/AstraRocketJs/docs/safety)** page.
 
 ## Getting started
 
@@ -54,7 +56,8 @@ Full setup — dev server, build, engine rebuild, catalog tools, and tests — i
 
 ## Documentation
 
-- **[Documentation](https://thzero.github.io/AstraRocketJs/docs/)** — the user guide: getting started, designing a rocket, motors, the views, running simulations, and files/exports.
+- **[Documentation](https://thzero.github.io/AstraRocketJs/docs/)** — the user guide: getting started, designing a rocket, motors, the views, running simulations, files/exports, and safety.
+- **[Safety](https://thzero.github.io/AstraRocketJs/docs/safety)** — what a simulation result is worth, what the model does not know, and what to check on the rocket you actually built before you fly it.
 - **[Architecture & internals](https://thzero.github.io/AstraRocketJs/docs/architecture)** — how the extracted engine, motor/material/component data, `.ork` I/O, and swappable stores work (the developer reference).
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** — how to report bugs, develop, translate, and submit changes (full guide in the [documentation](https://thzero.github.io/AstraRocketJs/docs/contributing)).
 - **[Code of Conduct](CODE_OF_CONDUCT.md)**

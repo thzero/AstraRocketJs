@@ -111,6 +111,18 @@ Piezas reales de fabricante (Estes/Apogee/LOC/BlueTube/…), extraídas de la **
 
 Igual que el catálogo de motores, es un archivo generado bajo `public/data/` que se descarga al primer uso (véase más arriba) en lugar de compilarse en el paquete, así que no cuesta nada hasta que se abre un selector, y se publica en la rama `data` con la misma periodicidad semanal.
 
+## Cohetes de ejemplo {#example-rockets}
+
+Los diecisiete diseños que OpenRocket incluye y abre desde *Archivo → Abrir ejemplo*, empaquetados con la aplicación bajo `web/public/examples/` y listados por un `examples.generated.json` generado.
+
+`web/scripts/sync-examples.mjs` (`npm run sync:examples`) los descarga del **mismo commit que `engine-java/extract/UPSTREAM` fija para el motor**, así que un ejemplo nunca puede demostrar una función que el núcleo incluido no tenga. Además **elimina el `<flightdata>` almacenado de cada archivo**: el 96% de los bytes — 3,5 MB de los 3,6 MB del conjunto — y peso muerto aquí, porque `orkImport` nunca lo lee (la aplicación ejecuta sus propias simulaciones). Ya depurado, el conjunto ocupa unos 340 kB. Los diseños, las apariencias, las calcomanías y las curvas de empuje incrustadas quedan intactos.
+
+Deliberadamente en **`public/examples/`, no en `public/data/`**. Los catálogos de `public/data` se refrescan semanalmente mediante `sync-catalogs.yml` y se sirven desde la rama `data`, porque cambian sin la aplicación; los ejemplos solo cambian cuando la aplicación se recompila contra una versión más nueva de OpenRocket. En su lugar se precachean (`ork` está en los `globPatterns` de la PWA), así que un ejemplo se abre en una primera carga sin conexión.
+
+`services/exampleLibrary.ts` descarga el índice y los bytes de un archivo; `store.openExample` entrega esos bytes a **`openOrkFile`**, de modo que un ejemplo recorre exactamente el mismo camino que un archivo elegido a mano: el mismo aviso de notas, la misma comprobación de límites de seguridad, la misma semántica de copia sin guardar y ningún segundo camino de código. Se llega desde **Importar → Ejemplos** y desde la segunda pestaña de la biblioteca de diseños.
+
+`src/services/exampleLibrary.test.ts` importa y construye **todos** los ejemplos con el núcleo real y resuelve sus motores contra el catálogo incluido, así que ni la depuración ni una actualización de upstream pueden colar uno roto sin que se note.
+
 ## Abrir archivos `.ork` {#opening-ork-files}
 
 **Importar .ork** carga un diseño existente de OpenRocket con **total fidelidad**: cualquier diseño que soporte la API del árbol de componentes del motor (etapas, transiciones, acopladores, anillos, mamparos…), no solo la disposición fija del editor:

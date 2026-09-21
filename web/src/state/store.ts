@@ -18,6 +18,11 @@ import type { DesignInfo } from '../services/orkTypes';
 import type { MountMotor } from '../services/loadOrk';
 import { buildExportMotorMap } from '../services/exportMotors';
 import { wireLoadedOrk } from '../services/wireLoadedOrk';
+// Static, not the lazy import the neighboring .ork paths use: this is a fetch
+// wrapper with no heavy dependencies, and the library dialog imports it
+// statically anyway, so a dynamic import here only produces rolldown's
+// INEFFECTIVE_DYNAMIC_IMPORT warning without moving a byte.
+import { fetchExample } from '../services/exampleLibrary';
 import {
   newSimulation,
   sameSimInputs,
@@ -264,7 +269,12 @@ export interface WorkspaceState {
   rollBy: (d: number) => void;
   resetView: () => void;
 
-  openOrkFile: (file: File) => Promise<void>;
+  /** Open a `.ork`. A `Blob` rather than a `File` so a bundled example, which
+   *  arrives as bytes from a fetch, takes the identical path a picked file does
+   *  — `.arrayBuffer()` is the only thing this ever wanted from a File. */
+  openOrkFile: (file: Blob) => Promise<void>;
+  /** Open one of the bundled OpenRocket examples by its file name. */
+  openExample: (file: string) => Promise<void>;
   resetWorkspace: () => void;
   /** Saved designs, newest first (designLibrary.ts). Refreshed on demand. */
   designs: DesignMeta[];
@@ -1185,6 +1195,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       } catch (e) {
         if (stale()) return; // a superseded import must not post its error either
         set({ err: i18n.t('errors.openOrk', { reason: e instanceof Error ? e.message : String(e) }) });
+      }
+    },
+    openExample: async (file) => {
+      // Fetched, then handed to the ordinary import path — an example is an
+      // import that happens to ship with the app, so it gets the same notes
+      // banner, the same safety-limit check and the same unsaved-copy
+      // semantics, with no second code path to keep in step.
+      try {
+        const bytes = await fetchExample(file);
+        await get().openOrkFile(new Blob([bytes]));
+      } catch (e) {
+        set({ err: i18n.t('errors.openExample', { reason: e instanceof Error ? e.message : String(e) }) });
       }
     },
     refreshDesigns: async () => {

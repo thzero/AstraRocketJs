@@ -14,7 +14,8 @@ En tu primera visita, el navegador almacena discretamente, en segundo plano:
 
 - la propia aplicación,
 - el **motor de física** (~2,3 MB),
-- el **catálogo de motores** (~800 motores con curvas de empuje) y el **catálogo de componentes** (~2.900 piezas).
+- el **catálogo de motores** (~800 motores con curvas de empuje) y el **catálogo de componentes** (~2.900 piezas),
+- los **[cohetes de ejemplo](./getting-started.md#example-rockets)** (~340 kB los diecisiete), para que uno se abra en una primera carga sin conexión y no solo si estabas conectado cuando fuiste a buscarlo.
 
 Unos 8 MB en total. No tienes que hacer nada para activarlo: basta con dejar que termine la primera carga.
 

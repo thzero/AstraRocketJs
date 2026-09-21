@@ -98,6 +98,7 @@ aftshoulderthickness
 airfoillediamond
 airfoilsection
 airfoiltediamond
+airstart
 altitudeagl
 altitudeaglm
 altitudeascending
@@ -189,6 +190,7 @@ finsets
 flabel
 flangeheight
 flightcomputer
+flightdata
 foreradius
 frameloop
 freeformfinset

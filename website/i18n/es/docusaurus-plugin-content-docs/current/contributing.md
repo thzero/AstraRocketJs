@@ -107,9 +107,15 @@ cd web
 npm run sync:motors                  # barre thrustcurve.org → public/data/motors.generated.json (~800 motores)
 npm run sync:components              # analiza la BD de OpenRocket-Components → public/data/components.generated.json (~2.900 piezas)
 #   sync:components lee OPENROCKET_PRESETS (o --src <ruta-a>/openrocket-database/orc) si la BD no está en la ruta local por defecto
+npm run sync:examples                # cohetes de ejemplo de OpenRocket → public/examples/ (17 diseños, ~340 kB)
+#   descarga del commit que fija engine-java/extract/UPSTREAM y elimina los datos de vuelo guardados de cada
+#   archivo (el 96% de los bytes). Usa --src <checkout-completo-de-openrocket> para trabajar sin conexión; el
+#   .openrocket-src disperso del extractor NO los tiene (se limita a core/src/main/java).
 npm run sync:contributors            # personas contribuyentes de GitHub → src/data/contributors.generated.json (diálogo Acerca de)
 #   los avatares se incrustan como URI de datos; define GITHUB_TOKEN para evitar el límite de 60 peticiones/hora sin autenticar
 ```
+
+Los ejemplos son el único artefacto de esta lista que **no** se publica en la rama `data`: están anclados a la referencia de upstream del motor, así que cambian con una recompilación y no según un calendario, y se precachean para que un ejemplo se abra sin conexión. Vuelve a ejecutar `sync:examples` al actualizar `extract/UPSTREAM`; `exampleLibrary.test.ts` falla si la referencia del índice y la de `UPSTREAM` no coinciden.
 
 ### Publicación de catálogos {#catalog-publishing}
 

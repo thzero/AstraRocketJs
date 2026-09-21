@@ -7,6 +7,7 @@ sidebar_position: 12
 AstraRocketJs lee y escribe archivos **`.ork` de OpenRocket** estándar, así que los diseños viajan en ambos sentidos entre esta aplicación y OpenRocket de escritorio.
 
 - **Importar** (menú → Importar → OpenRocket) carga un `.ork` existente con total fidelidad: etapas, transiciones, acopladores, anillos, mamparos y más, no solo la disposición sencilla del editor. Un aviso señala lo que no se haya podido resolver del todo (por ejemplo, un motor desconocido). El cohete importado pasa a ser su propia entrada en tus diseños guardados.
+- **Ejemplos** (menú → Importar → Ejemplos) abre uno de los [cohetes de ejemplo](./getting-started.md#example-rockets) que acompañan a la aplicación. Es una importación como cualquier otra, así que lo que obtienes es tu propia copia sin guardar.
 - **Exportar** (menú → Exportar → OpenRocket) escribe el diseño actual en un archivo `.ork` de tu dispositivo.
 
 Se ha verificado que un viaje de ida y vuelta por exportación e importación conserva la física (masa, CG, CP, estabilidad), y los archivos se vuelven a abrir en OpenRocket de escritorio.

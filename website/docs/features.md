@@ -18,6 +18,7 @@ sidebar_position: 2
 - **Flight charts**: altitude, velocity, acceleration, Mach, thrust, mass, drag, and stability over time. For a staged flight, each stage's trajectory overlays as its own line, with a stage selector to choose which to show.
 - **Undo / redo** across the whole workspace — components *and* simulation changes on one timeline (`Ctrl/⌘+Z`, `Ctrl+Shift+Z`).
 
+- **Example rockets** — the seventeen example designs that ship with desktop OpenRocket, built in and ready to open from **Import → Examples**: clusters, pods and winglets, tube fins, parallel and serial staging, dual deployment, a separating payload section, 3D-printable parts. They come from the same OpenRocket version this app's engine is built from, and each opens as your own unsaved copy. See **[Getting Started](./getting-started.md#example-rockets)**.
 - **Several rockets at once** — the app keeps a library of your designs in the browser; switch between them from **Open…**, rename or delete, and **Save As…** to branch a copy. Everything autosaves as you work. See **[Files & Exports](./files-and-exports.md)**.
 - **Works offline and installs** — the app, engine and catalogs are kept on your device after the first visit, so you can design and simulate with no connection; your browser will also offer to add it to your home screen or desktop. See **[Offline & Installing](./offline-and-installing.md)**.
 
@@ -33,6 +34,7 @@ sidebar_position: 2
 - **Client-only** — no server, no accounts, nothing uploaded. A working copy of your design persists in the browser (so a refresh won't lose it); the design itself is a `.ork` file on your disk.
 - **Responsive** — a desktop workbench of three tabs (Design · Simulations · Results), each laid out the way its own job needs, with draggable dividers, remembered pane widths and a button that gives the drawing the whole window. On a phone it becomes tabs along the bottom (Rocket · Sketch · Simulate, plus **Results** once a run has produced one), where the rocket views turn a quarter turn so the airframe runs down the long edge of the screen and dialogs fill it.
 - **Your choice of units** — metric or imperial presets, or a unit per quantity (component and motor dimensions, altitude, mass, velocity, wind, acceleration, angle, density, temperature, pressure, thrust, impulse). The unit beside any value is also a picker for that one field. Designs stay SI, so switching never edits a rocket. See **[Settings](./settings.md#units)**.
+- **Says what it is worth** — launch conditions are held to the **NAR / Tripoli** flying limits (rod within 20° of vertical, surface wind at or below 20 mph) and a run outside them is refused rather than flown. Every set of results carries a **Before you fly** card naming what the model does not have — fin flutter, structural loads, parachute inflation and opening shock, your motor on the day — and the **[Safety](./safety.md)** page says the rest.
 - **Keyboard navigation** — the component tree is fully arrow-key navigable (broader accessibility is an ongoing effort).
 - Available in **English and Spanish**.
 

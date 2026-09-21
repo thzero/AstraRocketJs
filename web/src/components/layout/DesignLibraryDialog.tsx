@@ -4,9 +4,10 @@ import { useWorkspaceStore } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
 import { useFocusTrap } from '../common/useFocusTrap';
 import { DesignPropertiesDialog } from './DesignPropertiesDialog';
+import { ExampleList } from './ExamplesDialog';
 
 /**
- * The saved-designs library ("My Rockets").
+ * The saved-designs library ("My Rockets"), and the bundled examples beside it.
  *
  * Designs live in IndexedDB (designLibrary.ts) and the open one autosaves, so
  * there is no explicit save here and nothing to lose by switching: opening
@@ -32,6 +33,7 @@ export function DesignLibraryDialog({ onClose }: { onClose: () => void }) {
   const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
 
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
+  const [tab, setTab] = useState<'mine' | 'examples'>('mine');
 
   useEffect(() => {
     void refresh();
@@ -73,7 +75,27 @@ export function DesignLibraryDialog({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        {designs.length === 0 ? (
+        {/* A real tablist, not two buttons that look like one: the settings
+            dialog sets the precedent and screen readers get the relationship. */}
+        <div role="tablist" aria-label={t('library.title')} className="flex gap-1 border-b border-white/10 px-2 pt-2">
+          {(['mine', 'examples'] as const).map((key) => (
+            <button
+              key={key}
+              role="tab"
+              aria-selected={tab === key}
+              onClick={() => setTab(key)}
+              className={`rounded-t-md px-3 py-1.5 text-xs font-medium ${
+                tab === key ? 'bg-white/10 text-slate-100' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {key === 'mine' ? t('library.mine') : t('library.examples')}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'examples' ? (
+          <ExampleList onClose={onClose} />
+        ) : designs.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-slate-400">{t('library.empty')}</p>
         ) : (
           <ul className="min-h-0 flex-1 divide-y divide-white/5 overflow-y-auto">

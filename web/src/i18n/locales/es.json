@@ -15,6 +15,7 @@
   },
   "errors": {
     "openOrk": "No se pudo abrir el .ork: {{reason}}",
+    "openExample": "No se pudo abrir ese ejemplo: {{reason}}",
     "saveOrk": "No se pudo guardar el .ork: {{reason}}",
     "exportRasaero": "No se pudo exportar a RASAero: {{reason}}",
     "exportUnsupported": "Este componente no se puede exportar como {{format}}.",
@@ -146,6 +147,8 @@
     "import": "Importar",
     "importOrk": "OpenRocket",
     "importOrkLabel": "Importar OpenRocket (.ork)",
+    "importExamples": "Ejemplos",
+    "importExamplesLabel": "Importar un cohete de ejemplo",
     "exportOrk": "OpenRocket",
     "exportOrkLabel": "Exportar OpenRocket (.ork)",
     "export": "Exportar",
@@ -1153,7 +1156,12 @@
     "name": "Nombre",
     "untitled": "Cohete sin título",
     "duplicateName": "Otro cohete ya tiene este nombre.",
-    "missing": "Ese cohete ya no está guardado."
+    "missing": "Ese cohete ya no está guardado.",
+    "mine": "Mis cohetes",
+    "examples": "Ejemplos",
+    "examplesFailed": "No se pudieron cargar los ejemplos incluidos.",
+    "examplesTitle": "Cohetes de ejemplo",
+    "examplesIntro": "Los diseños de ejemplo que acompañan a OpenRocket. Al abrir uno obtienes tu propia copia sin guardar, así que puedes desmontarlo sin miedo."
   },
   "cluster": {
     "single": "Individual",

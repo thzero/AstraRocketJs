@@ -39,12 +39,20 @@ La barra superior tiene **deshacer / rehacer**, un selector de idioma (English �
 
 ## Tu primer cohete
 
-1. **Empieza con el cohete por defecto**, o usa **Nuevo** (menú) para uno en blanco, o **Importa** un archivo `.ork` existente.
+1. **Empieza con el cohete por defecto**, o usa **Nuevo** (menú) para uno en blanco, o **Importa** un archivo `.ork` existente. También hay **[cohetes de ejemplo](#example-rockets)** incluidos, que son la forma más rápida de ver lo que puede hacer la aplicación.
 2. **Edita los componentes** en el panel izquierdo: selecciona una pieza y ajusta sus dimensiones; la vista 2D y las estadísticas de estabilidad se actualizan en vivo. Consulta [Diseñar un cohete](./designing-a-rocket.md).
 3. **Elige un motor** en el panel derecho. Consulta [Motores](./motors.md).
 4. **Define las condiciones de lanzamiento** y pulsa **Simular vuelo**. Consulta [Ejecutar una simulación](./running-a-simulation.md).
 5. **Explora los resultados** — el apogeo y las demás fichas, además de las vistas de Vuelo y Trayectoria 3D. Consulta [Vistas y análisis](./views-and-analysis.md).
 6. Tu cohete **se guarda solo mientras trabajas**, y menú → **Abrir…** cambia entre cohetes guardados. Para conservar una copia en tu disco o abrirlo en OpenRocket de escritorio, usa menú → **Exportar → OpenRocket**. Consulta [Archivos y exportaciones](./files-and-exports.md).
+
+## Cohetes de ejemplo {#example-rockets}
+
+Menú → **Importar → Ejemplos** abre un selector con los diecisiete diseños de ejemplo que acompañan a OpenRocket de escritorio, traídos de la misma versión de OpenRocket con la que está construido el motor de esta aplicación. Entre todos cubren casi todo lo que la aplicación sabe hacer: clústeres de motores, pods y aletas auxiliares, aletas tubulares, etapas en paralelo y en serie, doble apertura, una sección de carga útil que se separa y baja con su propio paracaídas, y un par de piezas imprimibles en 3D.
+
+La misma lista es también la segunda pestaña de menú → **Abrir…**, junto a **Mis cohetes**, para cuando estás echando un vistazo en lugar de empezar algo.
+
+Abrir uno se comporta igual que importar un `.ork`: obtienes tu propia copia sin guardar, así que puedes desmontar un ejemplo sin tocar el original, y volver a abrirlo te da uno nuevo. Los ejemplos forman parte de la aplicación, así que funcionan sin conexión como todo lo demás.
 
 ## Dónde viven tus datos
 

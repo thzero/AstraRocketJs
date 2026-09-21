@@ -20,6 +20,7 @@ export interface FileMenuActions {
   onSave: () => void;
   onSaveAs: () => void;
   onImportOrk: () => void;
+  onImportExamples: () => void;
   onExportOrk: () => void;
   onExportRasaero: () => void;
   onReport: () => void;
@@ -156,6 +157,20 @@ function FileMenu({
           onClick={run(actions.onImportOrk)}
         >
           {t('file.importOrk')}
+        </button>
+      )}
+      {/* Under Import and not beside New, because that is what opening one is:
+          it reads a `.ork` and lands an unsaved copy, exactly as the entry above
+          does — the file just happens to ship with the app. */}
+      {importOpen && (
+        <button
+          role="menuitem"
+          tabIndex={-1}
+          className={subItem}
+          aria-label={t('file.importExamplesLabel')}
+          onClick={run(actions.onImportExamples)}
+        >
+          {t('file.importExamples')}
         </button>
       )}
       <button

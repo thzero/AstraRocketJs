@@ -66,6 +66,8 @@ Los resultados se muestran como fichas, en orden aproximadamente cronológico de
 - **Velocidad de apertura** (marcada si supera tu umbral de aviso; en verde cuando es suficientemente baja). En un diseño de [despliegue dual](./designing-a-rocket.md#despliegue-dual) el motor de vuelo juzga el principal y el piloto contra sus propios umbrales, y devuelve un aviso por cada uno.
 - **Velocidad de aterrizaje**, **tiempo de vuelo** y **distancia recorrida**
 
+Debajo de las fichas hay una tarjeta **Antes de volar**: qué son estos números (estimaciones de un modelo, no una hoja de vuelo), qué cosas el modelo nunca tuvo (el flutter de las aletas, las cargas estructurales, el inflado del paracaídas y su golpe de apertura, el comportamiento de tu motor ese día) y el recordatorio de pesar y equilibrar el cohete que realmente construiste e introducir esas medidas como invalidaciones antes de fiarte del margen. Enlaza con **[Seguridad](./safety.md)**, y aparece en cada ejecución porque se aplica a todas.
+
 Para el historial temporal completo, abre las **[vistas de Vuelo y Trayectoria 3D](./views-and-analysis.md)**. Para guardar los números, consulta **[Archivos y exportaciones](./files-and-exports.md)**.
 
 ## Editar invalida los resultados

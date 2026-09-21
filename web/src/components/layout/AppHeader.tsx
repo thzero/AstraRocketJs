@@ -86,6 +86,7 @@ export function AppHeader() {
               open('saveAs');
             },
             onImportOrk: () => orkRef.current?.click(),
+            onImportExamples: () => open('examples'),
             onExportOrk: onSave,
             onExportRasaero: onSaveRasaero,
             onReport: () => open('report'),

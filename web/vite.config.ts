@@ -76,7 +76,13 @@ export default defineConfig({
         // precached at install. Offline at first open is the stated goal of the
         // PWA (the comment on VitePWA above), so the 2.6 MB stays in the
         // precache and the CDN copy is the one that refreshes.
-        globPatterns: ['**/*.{js,css,html,svg,png,wasm,json}'],
+        // `ork` is in here for the bundled OpenRocket examples
+        // (public/examples/, see services/exampleLibrary.ts). All seventeen come
+        // to ~340 kB with their stored flight data stripped, which is cheap
+        // enough to buy the same promise the rest of the app makes: an example
+        // opens on a first offline load, not only if you happened to be online
+        // when you went looking for one.
+        globPatterns: ['**/*.{js,css,html,svg,png,wasm,json,ork}'],
         // The JS engine is a ~970 kB FALLBACK backend, emitted twice (main thread
         // + sim worker). WASM-GC is the path essentially every current browser
         // takes, so precaching ~1.9 MB of unused fallback on every install is a

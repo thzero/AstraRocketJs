@@ -1,0 +1,128 @@
+{
+  "generated": "2026-09-21T13:21:12.012Z",
+  "source": {
+    "repo": "thzero/openrocket",
+    "ref": "6deae50796af9356c6541c9d5e6306ebebe0186f"
+  },
+  "examples": [
+    {
+      "id": "3d-printable-nose-cone-and-fins",
+      "file": "3d-printable-nose-cone-and-fins.ork",
+      "name": "3D printable nose cone and fins",
+      "description": "This rocket has two 3D-printable parts: a fin can, and a nose cone. Export the fin can and its children as one .OBJ file. Export the nose cone without its child (a screw eye) as an .OBJ file. You'll add a BT-50 body tube, parachute or streamer, screw eye and shock cord. The motor is retained by friction fit: a couple wraps of masking tape around the motor should secure it. Print the fin can out of filament with a higher melting point than PLA. Some good options are PETG and ABS. The motor mount should withstand the heat of paper-cased motors, but not aluminum-cased reloads. The fin can can prints well on its forward end, with 20% infill, concentric support and a 30mm 3-layer brim to ensure stability. The nose cone is an easy print on its base, with 20% infill and a 12mm 3-layer brim for stability.",
+      "bytes": 58565
+    },
+    {
+      "id": "a-simple-model-rocket",
+      "file": "a-simple-model-rocket.ork",
+      "name": "A simple model rocket",
+      "description": "A three-fin, one-motor beginner design. The smallest complete rocket in the set.",
+      "bytes": 4189
+    },
+    {
+      "id": "airstart-timing",
+      "file": "airstart-timing.ork",
+      "name": "Airstart timing",
+      "description": "This file demonstrates the effect of different airstart timings on overall altitude.",
+      "bytes": 4774
+    },
+    {
+      "id": "arc-payload-rocket",
+      "file": "arc-payload-rocket.ork",
+      "name": "ARC payload rocket",
+      "description": "Example rocket demonstrating payload and booster sections with individual recovery systems deployed by motor ejection.",
+      "bytes": 5525
+    },
+    {
+      "id": "base-drag-hack-short-wide",
+      "file": "base-drag-hack-short-wide.ork",
+      "name": "Base drag hack (short-wide)",
+      "description": "Created in OpenRocket for educational purposes. This example adapts the work of Bruce S. Levison, published by Apogee Rockets in Peak of Flight Issue 154 - December 30, 2005, and Issue 158 - March 14, 2006. This example demonstrates the application of the \"base drag\" hack to adjust the center of pressure for a short-wide rocket, one with a length to diameter ratio of less than 10:1. To implement the hack, a conical transition is affixed to the bottom of the rocket, with a fore-diameter of .001 and an aft-diameter equal to the airframe base, with a length of pi times that diameter. The conical transition mass, center of pressure, and coefficient of drag overrides are set to zero. Note: This version of the hack specifically applies to rockets without a tapered bottom.",
+      "bytes": 5082
+    },
+    {
+      "id": "chute-release",
+      "file": "chute-release.ork",
+      "name": "Chute release",
+      "description": "A simple model rocket example adapted to use an electronic chute release. A Chute Release is a small electronic device that holds a parachute closed until it drops to a pre-selected altitude, intended for use on windy days and small fields when descent drift under a parachute needs to be limited. This example assumes a 30 inch parachute. The chute release is modelled by using a drogue chute with the same CD as the main, sized to give a reasonable descent rate, and adjusting the size of the main chute so the total area of the drogue and main is the area of the main parachute.",
+      "bytes": 5033
+    },
+    {
+      "id": "clustered-motors",
+      "file": "clustered-motors.ork",
+      "name": "Clustered motors",
+      "description": "Edit the \"Clustered Inner Tube\" and see the \"Cluster\" tab for clustering options.",
+      "bytes": 4312
+    },
+    {
+      "id": "deployable-payload",
+      "file": "deployable-payload.ork",
+      "name": "Deployable payload",
+      "description": "A modification of the Simple Model Rocket example to include a payload section that separates from the booster when the ejection charge fires and descends on a separate parachute. Note that it's a bit overstable with the payload (the fins are modified to reduce this somewhat); also, the A8-3 motor doesn't give adequate speed off the rod.",
+      "bytes": 5120
+    },
+    {
+      "id": "dual-parachute-deployment",
+      "file": "dual-parachute-deployment.ork",
+      "name": "Dual parachute deployment",
+      "description": "A standard fiberglass zipperless dual deploy rocket. While it is overstable, it's fast enough off the rail on anything bigger than the G motor that weathercocking isn't a problem.",
+      "bytes": 4400
+    },
+    {
+      "id": "parallel-booster-staging",
+      "file": "parallel-booster-staging.ork",
+      "name": "Parallel booster staging",
+      "description": "Strap-on boosters that separate in flight, built as parallel stages.",
+      "bytes": 132355
+    },
+    {
+      "id": "pods-airframes-and-winglets",
+      "file": "pods-airframes-and-winglets.ork",
+      "name": "Pods--airframes and winglets",
+      "description": "This design demonstrates two uses of pods, both for the traditional \"wing pods\", and also using a phantom body tube to implement \"fins on fins\" for the horizontal stabilizer. Pods can also have motor mounts, but that is not shown here.",
+      "bytes": 4985
+    },
+    {
+      "id": "pods-powered-with-recovery-deployment",
+      "file": "pods-powered-with-recovery-deployment.ork",
+      "name": "Pods--powered with recovery deployment",
+      "description": "This shows a simple rocket with a center motor and two powered pods, with streamers in the pods. While it is intended to fly with a booster motor such as an A8-0 in the center, it's necessary to call it a plugged motor in the simulation to keep the streamers from ejecting when it burns out.",
+      "bytes": 31476
+    },
+    {
+      "id": "simulation-extensions",
+      "file": "simulation-extensions.ork",
+      "name": "Simulation extensions",
+      "description": "A roll-control airframe from OpenRocket, with canards and an airstart. Upstream flies it with a desktop simulation extension that steers the canards; that extension does not run here, so it flies as the plain airframe.",
+      "bytes": 20338
+    },
+    {
+      "id": "simulation-scripting",
+      "file": "simulation-scripting.ork",
+      "name": "Simulation scripting",
+      "description": "The roll-control airframe again, scripted in JavaScript upstream. As above, the script does not run here and it flies as the plain airframe.",
+      "bytes": 20945
+    },
+    {
+      "id": "three-stage-low-power-rocket",
+      "file": "three-stage-low-power-rocket.ork",
+      "name": "Three stage low power rocket",
+      "description": "This example demonstrates a staged rocket design. Most operations, such as motor ignition, work correctly with the \"Automatic\" ignition setting, whereby the lowest stage ignites on launch and later stages at the deployment charge of the previous stage. There can be any number of stages. Copy-pasting lower stages eases their creation. The different stages can be viewed by clicking the \"Stage\" buttons above the figure. Make sure that all stage combinations are stable with the selected motors! This design may be freely used as a basis of further designs and rockets.",
+      "bytes": 4844
+    },
+    {
+      "id": "tube-fin-rocket",
+      "file": "tube-fin-rocket.ork",
+      "name": "Tube fin rocket",
+      "description": "Tube fins instead of flat ones: six body tubes around the airframe in place of a fin set.",
+      "bytes": 3427
+    },
+    {
+      "id": "two-stage-high-power-rocket",
+      "file": "two-stage-high-power-rocket.ork",
+      "name": "Two stage high power rocket",
+      "description": "A two stage rocket with 38mm motor mounts. The intent is the interstage would contain a flight computer capable of a single ejection, and ignition of the second stage motor. A second flight computer in the sustainer handles a dual deploy recovery for the sustainer.",
+      "bytes": 30725
+    }
+  ]
+}

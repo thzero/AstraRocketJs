@@ -14,7 +14,8 @@ On your first visit the browser quietly stores, in the background:
 
 - the app itself,
 - the **physics engine** (~2.3 MB),
-- the **motor catalog** (~800 motors with thrust curves) and the **component catalog** (~2,900 parts).
+- the **motor catalog** (~800 motors with thrust curves) and the **component catalog** (~2,900 parts),
+- the **[example rockets](./getting-started.md#example-rockets)** (~340 kB for all seventeen), so one opens on a first offline load rather than only if you were online when you went looking.
 
 About 8 MB in total. You don't need to do anything to trigger it — just let the first load finish.
 
