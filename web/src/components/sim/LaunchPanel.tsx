@@ -12,6 +12,8 @@ import { MAX_ROD_ANGLE_RAD, MAX_WIND_SPEED_MS } from '../../services/safetyLimit
 import { G0 } from '../../services/motorMath';
 import { hasIntensity, stdDevForIntensity, turbulenceIntensity, turbulenceLevel } from '../../services/windTurbulence';
 import { WindProfileDialog } from './WindProfileDialog';
+import { LocationPicker } from './LocationPicker';
+import { SiteMapDialog } from './SiteMapDialog';
 
 /**
  * Launch & atmosphere conditions for the flight simulation: wind (single average
@@ -216,6 +218,7 @@ export function LaunchPanel({
   // and users pressed it again.
   const [locating, setLocating] = useState(false);
   const [locateErr, setLocateErr] = useState<string | null>(null);
+  const [mapOpen, setMapOpen] = useState(false);
   const mixed = (k: keyof LaunchConditions) => diff?.has(k) ?? false;
   // Empty required fields on the simulation being shown. The SETTINGS copy of
   // this panel never has any: it fills blanks from the previous default,
@@ -315,7 +318,7 @@ export function LaunchPanel({
             stepSi={(5 * Math.PI) / 180}
             mixed={mixed('launchRodDirectionDeg')}
             value={launch.launchRodDirectionDeg ?? 90}
-            // Cleared is CLEARED, as `longitudeDeg` below: the box shows 90
+            // Cleared is CLEARED: the box shows 90
             // when unset, so writing 0 for an emptied field silently turned
             // the default east into north.
             onChange={(v) => onChange({ launchRodDirectionDeg: v ?? undefined })}
@@ -324,6 +327,9 @@ export function LaunchPanel({
       </Group>
 
       <Group title={t('launch.site')}>
+        {/* Above the three fields it fills, because picking a saved location is the
+            alternative to typing them rather than something you do after. */}
+        <LocationPicker launch={launch} onChange={onChange} onCommit={onCommit} />
         <QNum
           label={t('launch.altitude')}
           field="altitude"
@@ -361,8 +367,9 @@ export function LaunchPanel({
           min={-180}
           max={180}
           mixed={mixed('longitudeDeg')}
-          value={launch.longitudeDeg ?? null}
-          onChange={(v) => onChange({ longitudeDeg: v ?? undefined })}
+          {...req('longitudeDeg')}
+          value={launch.longitudeDeg}
+          onChange={(v) => onChange({ longitudeDeg: v })}
         />
         {'geolocation' in navigator && (
           <button
@@ -395,6 +402,12 @@ export function LaunchPanel({
             📍 {locating ? t('launch.locating') : t('launch.useLocation')}
           </button>
         )}
+        <button
+          onClick={() => setMapOpen(true)}
+          className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+        >
+          🗺 {t('map.show')}
+        </button>
         {/* Always mounted, empty until there is something to say: a live
             region created together with its text is not announced by most
             screen readers (see UpdateToast), so the refusal was silent to the
@@ -402,6 +415,17 @@ export function LaunchPanel({
         <p role="status" aria-live="polite" className="mt-1 text-[11px] leading-snug text-amber-400">
           {locateErr}
         </p>
+        {mapOpen && (
+          <SiteMapDialog
+            latitudeDeg={launch.latitudeDeg}
+            longitudeDeg={launch.longitudeDeg}
+            onPick={(la, lo) => {
+              onChange({ latitudeDeg: la, longitudeDeg: lo });
+              onCommit?.();
+            }}
+            onClose={() => setMapOpen(false)}
+          />
+        )}
       </Group>
 
       <Group title={t('launch.atmosphere')}>

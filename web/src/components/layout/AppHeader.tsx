@@ -100,6 +100,7 @@ export function AppHeader() {
             onExportRasaero: onSaveRasaero,
             onReport: () => open('report'),
             onMotors: () => open('motors'),
+            onLaunchLocations: () => open('locations'),
             onSettings: () => open('settings'),
             onPrivacy: () => open('privacy'),
             onAbout: () => open('about'),

@@ -28,6 +28,7 @@ export interface FileMenuActions {
   onExportRasaero: () => void;
   onReport: () => void;
   onMotors: () => void;
+  onLaunchLocations: () => void;
   onSettings: () => void;
   onPrivacy: () => void;
   onAbout: () => void;
@@ -35,7 +36,8 @@ export interface FileMenuActions {
 
 /**
  * The header's dropdown menu (WAI-ARIA menu-button pattern): New / Open /
- * Save / Save As / Import / Export / Report / Motors / Settings / Help /
+ * Save / Save As / Import / Export / Report / Motors / Launch locations / Settings /
+ * Help /
  * Safety / Privacy / About.
  *
  * Mounted only while open (`{menuOpen && <FileMenu />}`), and it owns the two
@@ -254,6 +256,12 @@ function FileMenu({
       <div className="my-1 border-t border-white/10" />
       <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onMotors)}>
         {t('dash.menu')}
+      </button>
+      {/* Beside the motor dashboard, which is the same kind of entry: a place
+          to see and manage a library of your own that is otherwise only
+          reachable from the one panel that happens to use it. */}
+      <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onLaunchLocations)}>
+        {t('location.menu')}
       </button>
       <div className="my-1 border-t border-white/10" />
       <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onSettings)}>

@@ -150,6 +150,27 @@ export default defineConfig({
               cacheableResponse: { statuses: [200] },
             },
           },
+          {
+            // Launch-site map tiles (components/sim/SiteMap.tsx).
+            //
+            // Cache-first, and this is the point of the map rather than a
+            // nicety: a pad you checked at home has to draw at the field, and
+            // the field is where there is no signal. A tile is a picture of
+            // the ground, so a stale one is still right - Esri and OSM change
+            // imagery on the order of years - which is why nothing revalidates.
+            //
+            // Capped at 600 tiles, a little over a screenful at each zoom for
+            // a handful of pads, so browsing the world does not grow without
+            // limit; Workbox evicts the least recently used past that.
+            urlPattern:
+              /^https:\/\/server\.arcgisonline\.com\/ArcGIS\/rest\/services\/(World_Imagery|World_Street_Map)\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'astra-map-tiles',
+              expiration: { maxEntries: 600, maxAgeSeconds: 60 * 60 * 24 * 180 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
     }),

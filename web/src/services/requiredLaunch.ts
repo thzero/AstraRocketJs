@@ -22,6 +22,7 @@ export const REQUIRED_LAUNCH_KEYS = [
   'windStdDev',
   'launchAltitudeM',
   'latitudeDeg',
+  'longitudeDeg',
 ] as const satisfies readonly (keyof LaunchConditions)[];
 
 export type RequiredLaunchKey = (typeof REQUIRED_LAUNCH_KEYS)[number];

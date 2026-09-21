@@ -9,12 +9,34 @@ Las simulaciones están en el panel de la derecha. Puedes mantener **varias simu
 Cada simulación tiene su propia configuración de lanzamiento, agrupada en tarjetas:
 
 - **Varilla / raíl de lanzamiento** — longitud, ángulo respecto a la vertical y dirección (o «lanzar contra el viento»).
-- **Campo de vuelo** — altitud, latitud y longitud.
+- **Campo de vuelo** — altitud, latitud y longitud, además de las [ubicaciones guardadas](#saved-locations) y un [mapa](#the-map).
 - **Atmósfera** — estándar ISA, o temperatura y presión personalizadas.
 - **Viento** — velocidad media, rachas (desviación estándar) y dirección; o un perfil de viento **multinivel** que varía con la altitud.
 - **Modelo terrestre** — plano, esférico o WGS84 (afecta a los vuelos largos o muy altos).
 
 Las simulaciones nuevas parten de los valores por defecto de tus [Ajustes](./settings.md) globales.
+
+### Ubicaciones guardadas {#saved-locations}
+
+El lugar de lanzamiento es una propiedad del **campo**, no de un vuelo, así que no hace falta volver a teclearlo cada vez. La fila superior de la tarjeta de lugar de lanzamiento los guarda y los recupera:
+
+- **💾 Guardar esta ubicación** almacena los tres campos del lugar con un nombre. Guardar con un nombre que ya usaste actualiza esa ubicación en lugar de añadir una segunda que no podrías distinguir en la lista.
+- El **desplegable** aplica la latitud, la longitud y la altitud de una ubicación guardada. Es una edición normal, así que se deshace como cualquier otra. Muestra **Ubicación personalizada** siempre que los campos no coincidan con ninguna ubicación guardada, reconocido a partir de los propios números, así que sigue siendo correcto tanto si los escribiste, como si los importaste de un `.ork` o usaste 📍 **Usar mi ubicación**. Si eliges tú **Ubicación personalizada**, se borran los tres campos del lugar, para cuando estás en un sitio nuevo y prefieres empezar en blanco a ir corrigiendo los números de una ubicación uno a uno. También es una edición normal, así que deshacer recupera el lugar anterior.
+- **⚙ Gestionar ubicaciones guardadas** las lista con sus coordenadas, para poder distinguir dos campos de nombre parecido. **Editar** abre la ubicación entera —nombre, latitud, longitud y altitud—, porque una coordenada mal escrita es lo que más veces hay que corregir, y **Nueva ubicación** crea una escribiendo los números. La misma lista está en **menú → Ubicaciones de lanzamiento**, junto al panel de motores, así que puedes consultar tus ubicaciones sin abrir antes una simulación; al elegir una allí se aplica a la simulación que tengas abierta, y **Nueva ubicación** es la forma de añadir una desde ahí, donde no hay campos de lanzamiento en pantalla que capturar.
+
+La altitud se muestra y se edita en la unidad que uses en la tarjeta de lugar de lanzamiento, así que un campo a 6.004 ft se lee igual en los dos sitios. La latitud y la longitud van siempre en grados, y las dos son obligatorias: 0°, 0° es un punto del golfo de Guinea, no «sin definir».
+
+### El mapa {#the-map}
+
+Cuatro dígitos de latitud y cuatro de longitud no son algo que puedas comprobar leyéndolos. Un signo menos que se pierde lleva un campo de Colorado al oeste de China y nada en pantalla se ve distinto, así que el lugar tiene un mapa: **🗺 Ver en el mapa**, en la tarjeta de lugar de lanzamiento, lo abre, y el editor de ubicaciones lleva uno junto a sus campos.
+
+- **Satélite o callejero.** Las imágenes vienen por defecto y suelen ser las que responden a la pregunta, porque un campo de club es una franja segada en un henar: invisible en un callejero, inconfundible desde el aire. La capa de calles sirve para leer los caminos de acceso y el pueblo más cercano. Las dos vienen de los servicios de mapas de Esri; la capa de calles está construida sobre datos de OpenStreetMap y los acredita, pero la aplicación no usa a propósito los servidores de teselas de OpenStreetMap, que se sostienen con donaciones y no están ahí para que las aplicaciones se apoyen en ellos.
+- **Al hacer clic en el mapa se fijan las coordenadas**, con cuatro decimales (unos 10 m, la misma precisión que escribe 📍 Usar mi ubicación). Es la única forma de introducir un campo sin coordenadas publicadas, y es una edición normal, así que se deshace como cualquier otra. Arrastra para desplazarte, y usa la rueda o **+** / **−** para acercar; un arrastre nunca cuenta como un clic.
+- **Al escribir se mueve el marcador**, así que el mapa y los campos son dos vistas de una misma cosa y no dos sitios donde equivocarse.
+
+Las teselas que ya has mirado quedan guardadas en la aplicación, así que una ubicación que consultaste en casa se dibuja igual en el campo sin cobertura. Un sitio que nunca has visto no se puede dibujar sin conexión: el mapa lo dice y pasa a una cuadrícula de coordenadas, que sigue situando el punto por hemisferios. Las teselas vienen de Esri, y solo se piden las de lo que estás mirando — consulta **[Sin conexión e instalación](./offline-and-installing.md)**.
+
+Una ubicación guarda **solo el lugar**. La guía, el viento y la atmósfera son condiciones del día, y una ubicación que restaurara el viento del mes pasado sería peor que una que no restaurara nada: parecería fiable. Las ubicaciones viven en este navegador y en este dispositivo, como tus motores y materiales personalizados; no se sube nada.
 
 ## Ejecútala
 

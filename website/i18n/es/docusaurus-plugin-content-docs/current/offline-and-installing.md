@@ -21,6 +21,8 @@ Unos 8 MB en total. No tienes que hacer nada para activarlo: basta con dejar que
 
 El catálogo de motores lleva consigo la **curva de empuje** de cada motor, así que simular sin conexión funciona incluso con motores que nunca has abierto: 781 de los 815. Los 34 restantes no tienen curva publicada que incluir; el selector los señala y necesitan conexión para descargarla de thrustcurve.org (y queda en caché una vez lo hagas).
 
+**Las teselas del mapa se guardan según las miras.** El [mapa del lugar de lanzamiento](./running-a-simulation.md#the-map) es la única parte de la aplicación que descarga algo mientras la usas, y solo del trozo de terreno que hay en pantalla. Esas teselas se conservan, así que una ubicación que consultaste en casa se dibuja en el campo sin cobertura. Un sitio que nunca has visto no se puede dibujar sin conexión: el mapa lo dice y pasa a una cuadrícula de coordenadas en lugar de a un recuadro vacío. Nada sobre lo que miras sale a ningún sitio que no sea el propio servidor de teselas (Esri, tanto para el satélite como para el callejero), y el mapa solo se descarga cuando lo abres.
+
 **Tus diseños siempre fueron locales.** Tu biblioteca de cohetes guardados, tus motores y materiales personalizados y tus ajustes viven en el almacenamiento de tu navegador, en tu dispositivo: eso no ha cambiado y nunca dependió de una conexión.
 
 ## Cómo instalarla {#installing-it}

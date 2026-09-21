@@ -38,6 +38,7 @@ Finner
 Fleeman
 GEOMS
 GLTF
+Geographics
 Geolocator
 Golay
 Guice
@@ -60,6 +61,7 @@ Lexan
 Lngs
 MINFEATURE
 Maccoll
+Maxar
 Metas
 Meteo
 Metrum
@@ -85,7 +87,9 @@ TTFB
 Temurin
 Timeto
 Toggleable
+USGS
 Unrotated
+Vantor
 Vuelo
 aabbggrr
 absarc
@@ -109,6 +113,7 @@ altitudemslm
 altituderef
 altitudereference
 angleoffset
+arcgisonline
 astrarocketjs
 astrarrocketjs
 authorable
@@ -291,6 +296,7 @@ notsimulated
 nozzleexitdiameter
 nudgeable
 openrocket
+openstreetmap
 openxmlformats
 orkengine
 outerdiameter
@@ -349,6 +355,7 @@ rocksim
 rootchord
 roughunfinished
 runnability
+screenful
 screwheight
 sealevel
 separationaltitude
@@ -425,6 +432,7 @@ unmetered
 unmodeled
 unopenable
 unparseable
+unproject
 unreviewed
 unrun
 unstub

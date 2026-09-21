@@ -15,6 +15,7 @@ const full: CompleteLaunch = {
   windStdDev: 0.4,
   launchAltitudeM: 0,
   latitudeDeg: 28.61,
+  longitudeDeg: -80.6,
   temperatureC: null,
   pressureHPa: null,
 };
@@ -51,7 +52,7 @@ describe('missingRequired', () => {
     expect(missingRequired(l)).toEqual(['launchRodAngleDeg', 'latitudeDeg']);
   });
 
-  it('covers exactly the six non-optional keys', () => {
+  it('covers exactly the seven non-optional keys', () => {
     expect([...REQUIRED_LAUNCH_KEYS]).toEqual([
       'launchRodLengthM',
       'launchRodAngleDeg',
@@ -59,6 +60,10 @@ describe('missingRequired', () => {
       'windStdDev',
       'launchAltitudeM',
       'latitudeDeg',
+      // Longitude joined the list once the site map made a wrong one visible:
+      // it is a hole in the same place the latitude is, and 0° is the Gulf of
+      // Guinea rather than "unset".
+      'longitudeDeg',
     ]);
   });
 });

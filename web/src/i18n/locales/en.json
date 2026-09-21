@@ -498,7 +498,8 @@
       "windAverage": "wind speed",
       "windStdDev": "wind standard deviation",
       "launchAltitudeM": "site altitude",
-      "latitudeDeg": "latitude"
+      "latitudeDeg": "latitude",
+      "longitudeDeg": "longitude"
     },
     "locationDenied": "Could not get your location. Check the browser permission and try again.",
     "locating": "Locating…"
@@ -1243,5 +1244,34 @@
     "count": "{{count}} part selected",
     "count_other": "{{count}} parts selected",
     "save": "Save 3MF"
+  },
+  "location": {
+    "label": "Saved location",
+    "custom": "Custom location",
+    "save": "Save this location",
+    "manage": "Manage saved locations",
+    "deleteConfirm": "Delete the saved location “{{name}}”? This cannot be undone.",
+    "saveFailed": "That location could not be saved — your browser storage may be full or blocked.",
+    "menu": "Launch locations",
+    "apply": "Use this location for the current simulation",
+    "empty": "No saved locations yet. Save one from the Launch site card on the Simulations tab, so you do not have to retype a field’s coordinates.",
+    "edit": "Edit",
+    "new": "New location",
+    "name": "Name",
+    "duplicateName": "Another location already has this name.",
+    "needsSite": "Enter a latitude and longitude first — a launch location is a place, and half of one would save as 0°, 0°."
+  },
+  "map": {
+    "label": "Launch site map",
+    "title": "Launch site",
+    "show": "Show on map",
+    "satellite": "Satellite",
+    "street": "Street",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "recenter": "Center on the location",
+    "pick": "Click the map to move the location.",
+    "noCoords": "Enter a latitude and longitude to place the location.",
+    "offline": "No imagery offline"
   }
 }

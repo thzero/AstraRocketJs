@@ -55,6 +55,7 @@ const DEFAULT_LAUNCH: CompleteLaunch = {
   windDirectionDeg: DEFAULT_HEADING_DEG,
   launchAltitudeM: 0,
   latitudeDeg: 28.61,
+  longitudeDeg: -80.6,
   temperatureC: null,
   pressureHPa: null,
   geodetic: 'spherical',
@@ -575,10 +576,11 @@ export function loadSettings(): Settings {
           'windStdDev',
           'launchAltitudeM',
           'latitudeDeg',
+          'longitudeDeg',
         ] as const) {
           if (!Number.isFinite(l[k])) l[k] = DEFAULT_SETTINGS.launchDefaults[k];
         }
-        for (const k of ['launchRodDirectionDeg', 'windDirectionDeg', 'longitudeDeg'] as const) {
+        for (const k of ['launchRodDirectionDeg', 'windDirectionDeg'] as const) {
           // Absent stays absent — only a PRESENT but unusable value falls back.
           if (l[k] !== undefined && !Number.isFinite(l[k])) l[k] = DEFAULT_SETTINGS.launchDefaults[k];
         }

@@ -21,6 +21,8 @@ About 8 MB in total. You don't need to do anything to trigger it — just let th
 
 The motor catalog carries each motor's **thrust curve** with it, so simulating offline works for motors you've never opened before — 781 of the 815 motors. The remaining 34 have no published curve to bundle; the picker marks them, and they need a connection to fetch one from thrustcurve.org (cached once you do).
 
+**Map tiles are cached as you look at them.** The [launch-site map](./running-a-simulation.md#the-map) is the one part of the app that fetches something while you use it, and only for the patch of ground on screen. Those tiles are then kept, so a location you checked at home draws at the field with no signal. A place you have never viewed cannot be drawn offline: the map says so and falls back to a coordinate grid rather than a blank box. Nothing about where you look is sent anywhere but the tile server itself (Esri, for both the satellite and the street layer), and the map is only fetched when you open it.
+
 **Your designs were always local.** Your library of saved rockets, custom motors and materials, and your settings live in your browser's storage on your device — that hasn't changed and never depended on a connection.
 
 ## Installing it

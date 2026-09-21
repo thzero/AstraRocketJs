@@ -498,7 +498,8 @@
       "windAverage": "velocidad del viento",
       "windStdDev": "desviación estándar del viento",
       "launchAltitudeM": "altitud del sitio",
-      "latitudeDeg": "latitud"
+      "latitudeDeg": "latitud",
+      "longitudeDeg": "longitud geográfica"
     },
     "locationDenied": "No se pudo obtener tu ubicación. Revisa el permiso del navegador e inténtalo de nuevo.",
     "locating": "Localizando…"
@@ -1243,5 +1244,34 @@
     "count": "{{count}} pieza seleccionada",
     "count_other": "{{count}} piezas seleccionadas",
     "save": "Guardar 3MF"
+  },
+  "location": {
+    "label": "Ubicación guardada",
+    "custom": "Ubicación personalizada",
+    "save": "Guardar esta ubicación",
+    "manage": "Gestionar ubicaciones guardadas",
+    "deleteConfirm": "¿Eliminar la ubicación guardada «{{name}}»? Esto no se puede deshacer.",
+    "saveFailed": "No se pudo guardar esa ubicación: puede que el almacenamiento de tu navegador esté lleno o bloqueado.",
+    "menu": "Ubicaciones de lanzamiento",
+    "apply": "Usar esta ubicación en la simulación actual",
+    "empty": "Aún no hay ubicaciones guardadas. Guarda una desde la tarjeta de lugar de lanzamiento, en la pestaña Simulaciones, para no tener que reescribir las coordenadas de un campo.",
+    "edit": "Editar",
+    "new": "Nueva ubicación",
+    "name": "Nombre",
+    "duplicateName": "Otra ubicación ya tiene este nombre.",
+    "needsSite": "Introduce antes una latitud y una longitud: una ubicación de lanzamiento es un lugar, y media se guardaría como 0°, 0°."
+  },
+  "map": {
+    "label": "Mapa del lugar de lanzamiento",
+    "title": "Lugar de lanzamiento",
+    "show": "Ver en el mapa",
+    "satellite": "Satélite",
+    "street": "Callejero",
+    "zoomIn": "Acercar",
+    "zoomOut": "Alejar",
+    "recenter": "Centrar en la ubicación",
+    "pick": "Haz clic en el mapa para mover la ubicación.",
+    "noCoords": "Introduce una latitud y una longitud para situar la ubicación.",
+    "offline": "Sin imágenes sin conexión"
   }
 }

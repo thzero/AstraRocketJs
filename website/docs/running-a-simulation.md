@@ -9,12 +9,34 @@ Simulations live in the right-hand panel. You can keep **several named simulatio
 Each simulation has its own launch configuration, grouped into cards:
 
 - **Launch rod / rail** — length, angle from vertical, and direction (or "launch into the wind").
-- **Launch site** — altitude, latitude, and longitude.
+- **Launch site** — altitude, latitude, and longitude, plus [saved locations](#saved-locations) and a [map](#the-map).
 - **Atmosphere** — ISA standard, or override temperature and pressure.
 - **Wind** — average speed, gusts (standard deviation), and direction; or a **multi-level** wind profile that varies with altitude.
 - **Earth model** — flat, spherical, or WGS84 (affects long/high flights).
 
 New simulations start from your global [Settings](./settings.md) defaults.
+
+### Saved locations
+
+The launch site is a property of the **field**, not of a flight, so it does not have to be retyped every time. The row at the top of the Launch site card saves and recalls them:
+
+- **💾 Save this location** stores the three site fields under a name. Saving under a name you already used updates that location instead of adding a second one you could not tell apart in the list.
+- The **dropdown** applies a saved location's latitude, longitude and elevation. It is one ordinary edit, so it undoes like any other. It reads **Custom location** whenever the fields match no saved location, recognized from the numbers themselves, so it stays right whether you typed them, imported them from a `.ork` or used 📍 **Use my location**. Picking **Custom location** yourself clears the three site fields, for when you are somewhere new and would rather start from blank than edit a location's numbers one at a time. That is an ordinary edit too, so undo brings the old site back.
+- **⚙ Manage saved locations** lists them with their coordinates, so two fields with similar names can be told apart. **Edit** opens the whole location — name, latitude, longitude and elevation — because a mistyped coordinate is the thing you most often want to fix, and **New location** creates one by typing the numbers in. The same list is in the **menu → Launch locations**, beside the Motor Dashboard, so you can look at your locations without first opening a simulation; picking one there applies it to the simulation you have open, and **New location** is the way to add one from there, where no launch fields are on screen to capture.
+
+Elevation is shown and edited in whatever unit your launch site card uses, so a field at 6,004 ft reads that way in both places. Latitude and longitude are always degrees, and both are required — 0°, 0° is a point in the Gulf of Guinea, not "unset".
+
+### The map
+
+Four digits of latitude and four of longitude are not something you can check by reading them. A dropped minus sign moves a Colorado field to western China and nothing on screen looks any different, so the site has a map: **🗺 Show on map** on the Launch site card opens it, and the location editor carries one beside its fields.
+
+- **Satellite or street.** Imagery is the default and is usually the one that answers the question, because a club field is a mown strip in a hayfield: invisible on a street map, unmistakable from above. The street layer is for reading the roads in and the town you are near. Both come from Esri's map services; the street layer is built on OpenStreetMap data and credits it, but the app deliberately does not draw from OpenStreetMap's own tile servers, which are volunteer-funded and not there for applications to build on.
+- **Clicking the map sets the coordinates**, to four decimal places (about 10 m, the same precision 📍 Use my location writes). This is the only way to enter a field that has no published numbers, and it is one ordinary edit, so it undoes like any other. Drag to pan, scroll or use **+** / **−** to zoom; a drag never counts as a click.
+- **Typing moves the pin**, so the map and the fields are two views of one thing rather than two places to be wrong.
+
+Tiles you have already looked at are stored by the app, so a location you checked at home still draws at the field with no signal. Somewhere you have never viewed cannot be drawn offline: the map says so and falls back to a coordinate grid, which still places the point by hemisphere. Tiles come from Esri, and only the ones for what you are looking at are ever requested — see **[Offline & Installing](./offline-and-installing.md)**.
+
+A location holds **only the site**. The rod, the wind and the atmosphere are conditions on the day, and a location that restored last month's wind would be worse than one that restored nothing — it would look authoritative. Locations live in this browser on this device, like your custom motors and materials; nothing is uploaded.
 
 ## Run it
 

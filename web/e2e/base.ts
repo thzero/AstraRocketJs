@@ -54,9 +54,26 @@ export const test = base.extend<{ wip: WipState }>({
         }
       }, SETTINGS_KEY);
     }
+    // Map tiles never leave the test runner.
+    //
+    // `components/sim/SiteMap.tsx` requests real tiles from Esri. A suite that
+    // actually fetched them would be slow, would fail on a machine with no
+    // network, and would put a CI job's worth of load on someone else's tile
+    // servers for pictures nothing asserts against. Every tile is answered
+    // locally with a 1x1 PNG, which is all the component needs to see to
+    // report that imagery loaded.
+    await page.route(/arcgisonline\.com/, (route) =>
+      route.fulfill({ status: 200, contentType: 'image/png', body: PIXEL_PNG }),
+    );
     await run(page);
   },
 });
+
+/** A 1x1 transparent PNG, standing in for every map tile. */
+const PIXEL_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64',
+);
 
 export { expect };
 export type { Locator, Page } from '@playwright/test';

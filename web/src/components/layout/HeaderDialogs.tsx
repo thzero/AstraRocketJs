@@ -11,6 +11,7 @@ import { PrintExportDialog } from '../report/PrintExportDialog';
 import { PrivacyDialog } from './PrivacyDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { MotorDashboard } from '../sim/MotorDashboard';
+import { LocationsDialog } from '../sim/LocationsDialog';
 
 /**
  * The header's dialog host: the open flag of every dialog the bar and its
@@ -19,7 +20,7 @@ import { MotorDashboard } from '../sim/MotorDashboard';
  */
 
 export type HeaderDialog =
-  'motors' | 'report' | 'about' | 'privacy' | 'settings' | 'library' | 'examples' | 'print' | 'saveAs';
+  'motors' | 'report' | 'about' | 'privacy' | 'settings' | 'library' | 'examples' | 'print' | 'locations' | 'saveAs';
 
 type OpenFlags = Record<HeaderDialog, boolean>;
 
@@ -32,6 +33,7 @@ const NONE_OPEN: OpenFlags = {
   library: false,
   examples: false,
   print: false,
+  locations: false,
   saveAs: false,
 };
 
@@ -65,6 +67,7 @@ function HeaderDialogs({ flags, onClose }: { flags: OpenFlags; onClose: (id: Hea
       {flags.library && <DesignLibraryDialog onClose={() => onClose('library')} />}
       {flags.examples && <ExamplesDialog onClose={() => onClose('examples')} />}
       {flags.print && <PrintExportDialog onClose={() => onClose('print')} />}
+      {flags.locations && <LocationsDialog onClose={() => onClose('locations')} />}
       {flags.saveAs && (
         <DesignPropertiesDialog
           title={t('file.saveAs')}
