@@ -38,6 +38,21 @@ export function helpUrlFor(language: string): string {
 }
 
 /**
+ * One docs PAGE, built on a base from {@link helpUrlFor}. The docs site serves
+ * its pages at the root (`routeBasePath: '/'`), so a page is the base plus its
+ * slug — with the trailing slash normalized, since `HELP_URL` may or may not
+ * carry one and a base without it would glue the slug onto the last path
+ * segment instead of adding one.
+ *
+ * An empty base (the docs link was built out) stays empty rather than becoming
+ * a bare slug pointing at the app's own origin.
+ */
+export function docPageUrl(base: string, page: string): string {
+  if (!base) return base;
+  return `${base.replace(/\/*$/, '/')}${page}`;
+}
+
+/**
  * Where the About dialog's contributors heading links — by default the
  * repository's GitHub contributor graph, overridable at build time (see
  * vite.config.ts) via `contributorsPage.url` in package.json or the

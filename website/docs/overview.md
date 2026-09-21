@@ -28,5 +28,9 @@ For the underlying physics models, the [OpenRocket documentation](https://openro
 
 - **Introduction** — this page, [Features](./features.md), and the [FAQ](./faq.md).
 - **Getting Started** — [open the app and make your first rocket](./getting-started.md), and the [Settings](./settings.md).
-- **User Guide** — designing, motors, the views, simulating, and files/exports.
+- **User Guide** — designing, motors, the views, simulating, files/exports, and [Safety](./safety.md).
 - **Developing** — the [Developer Guide](./developer-guide.md) for building and contributing.
+
+## Before you fly
+
+A simulation is an estimate, not a flight card. Before you fly anything you designed here, read **[Safety](./safety.md)**: what a result is actually worth, what the model does not know (fin flutter, structural loads, parachute inflation, your motor on the day), and what to measure on the real rocket before trusting the margin.

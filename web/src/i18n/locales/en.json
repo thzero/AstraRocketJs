@@ -175,7 +175,8 @@
   },
   "menu": {
     "open": "Menu",
-    "help": "Help"
+    "help": "Help",
+    "safety": "Safety"
   },
   "wip": {
     "title": "Work in progress",
@@ -378,7 +379,14 @@
     "skipping_other": "Skipping {{count}} simulations:",
     "timeout": "The simulation took too long and was stopped. Try again, or simplify the design.",
     "warnings": "Flight warnings ({{count}})",
-    "runMany": "Run {{count}} simulations"
+    "runMany": "Run {{count}} simulations",
+    "safetyTitle": "Before you fly",
+    "safetyLead": "These are modeled estimates, not a flight card.",
+    "safetyVerify": "Weigh and balance the rocket you actually built, enter those as overrides, then re-read the margin and the rail-exit speed.",
+    "safetyGaps": "Not modeled at all",
+    "safetyGapsDetail": "Fin flutter, structural loads, parachute inflation and opening shock, and how your motor performs on the day. Nothing above can warn you about any of them.",
+    "safetyCode": "Fly under your safety code, inside your field and its waiver. The RSO's call outranks anything on this screen.",
+    "safetyLink": "Read the safety notes"
   },
   "warn": {
     "deletePart": "Delete {{name}}?",

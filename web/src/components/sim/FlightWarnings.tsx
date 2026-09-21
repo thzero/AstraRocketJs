@@ -1,14 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { FlightResult } from '../../engine/api';
 import { warningText, warningHelp } from '../../services/warningText';
-
-/** HIGH reads as a problem, the rest as a note. Never color alone: every row
- *  carries the warning glyph and its own text. */
-const TONE: Record<string, string> = {
-  HIGH: 'bg-red-500/10 text-red-300 ring-red-400/30',
-  NORMAL: 'bg-amber-500/10 text-amber-200 ring-amber-400/30',
-  LOW: 'bg-slate-800 text-slate-300 ring-white/10',
-};
+import { WARNING_ROW, WARNING_TONE } from './warningTone';
 
 /**
  * What the kernel flagged about this flight: a recovery device out too fast, a
@@ -38,7 +31,7 @@ export function FlightWarnings({ sim }: { sim: FlightResult | null }) {
           return (
             <li
               key={`${w.key}-${i}`}
-              className={`flex gap-2 rounded-lg px-2.5 py-1.5 text-xs ring-1 ${TONE[w.priority ?? 'NORMAL'] ?? TONE.NORMAL}`}
+              className={`${WARNING_ROW} ${WARNING_TONE[w.priority ?? 'NORMAL'] ?? WARNING_TONE.NORMAL}`}
             >
               <span aria-hidden>⚠</span>
               <span className="min-w-0">

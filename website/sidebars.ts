@@ -13,7 +13,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'User Guide',
-      items: ['designing-a-rocket', 'motors', 'views-and-analysis', 'running-a-simulation', 'files-and-exports'],
+      items: ['designing-a-rocket', 'motors', 'views-and-analysis', 'running-a-simulation', 'files-and-exports', 'safety'],
     },
     {
       type: 'category',

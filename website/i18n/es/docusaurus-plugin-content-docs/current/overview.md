@@ -28,5 +28,9 @@ Para los modelos físicos subyacentes, la referencia es la [documentación de Op
 
 - **Introducción** — esta página, [Características](./features.md) y las [Preguntas frecuentes](./faq.md).
 - **Primeros pasos** — [abre la aplicación y crea tu primer cohete](./getting-started.md), y los [Ajustes](./settings.md).
-- **Guía de uso** — diseño, motores, las vistas, simulación y archivos/exportaciones.
+- **Guía de uso** — diseño, motores, las vistas, simulación, archivos/exportaciones y [Seguridad](./safety.md).
 - **Desarrollo** — la [Guía del desarrollador](./developer-guide.md) para compilar y contribuir.
+
+## Antes de volar {#before-you-fly}
+
+Una simulación es una estimación, no una hoja de vuelo. Antes de volar cualquier cosa que hayas diseñado aquí, lee **[Seguridad](./safety.md)**: cuánto vale realmente un resultado, qué cosas el modelo no sabe (el flutter de las aletas, las cargas estructurales, el inflado del paracaídas, tu motor el día del lanzamiento) y qué medir en el cohete real antes de fiarte del margen.

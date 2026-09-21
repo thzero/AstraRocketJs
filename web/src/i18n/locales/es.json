@@ -175,7 +175,8 @@
   },
   "menu": {
     "open": "Menú",
-    "help": "Ayuda"
+    "help": "Ayuda",
+    "safety": "Seguridad"
   },
   "wip": {
     "title": "Trabajo en curso",
@@ -378,7 +379,14 @@
     "skipping_other": "Se omiten {{count}} simulaciones:",
     "timeout": "La simulación tardó demasiado y se detuvo. Inténtalo de nuevo o simplifica el diseño.",
     "warnings": "Advertencias de vuelo ({{count}})",
-    "runMany": "Ejecutar {{count}} simulaciones"
+    "runMany": "Ejecutar {{count}} simulaciones",
+    "safetyTitle": "Antes de volar",
+    "safetyLead": "Son estimaciones del modelo, no una hoja de vuelo.",
+    "safetyVerify": "Pesa y equilibra el cohete que realmente construiste, introduce esas medidas como invalidaciones y vuelve a leer el margen y la velocidad de salida de la guía.",
+    "safetyGaps": "No se modela en absoluto",
+    "safetyGapsDetail": "El flutter de las aletas, las cargas estructurales, el inflado del paracaídas y su golpe de apertura, y cómo rinde tu motor ese día. Nada de lo de arriba puede avisarte de ninguno de ellos.",
+    "safetyCode": "Vuela según tu código de seguridad, dentro de tu campo y su autorización. Lo que decida el RSO está por encima de cualquier cosa en esta pantalla.",
+    "safetyLink": "Leer las notas de seguridad"
   },
   "warn": {
     "deletePart": "¿Eliminar {{name}}?",

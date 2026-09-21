@@ -1,6 +1,6 @@
 ---
 title: "Contributing"
-sidebar_position: 13
+sidebar_position: 14
 ---
 
 Hi, and thanks for your interest in AstraRocketJs! 😊 Whether you want to write code, hunt bugs, translate, or help in any other way, this guide will get you started.

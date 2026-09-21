@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { helpUrlFor, HELP_URL } from './appInfo';
+import { docPageUrl, helpUrlFor, HELP_URL } from './appInfo';
 
 /** HELP_URL may or may not carry a trailing slash; helpUrlFor normalizes it.
  *  Building the expectation the same way keeps the test honest either way. */
@@ -41,5 +41,33 @@ describe('helpUrlFor', () => {
 
   it('never produces a double slash', () => {
     expect(helpUrlFor('es')).not.toMatch(/[^:]\/\//);
+  });
+});
+
+// The docs serve their pages at the root (routeBasePath: '/'), so a page is the
+// localized base plus a slug. The base may arrive with or without a trailing
+// slash, and both must produce the same URL: without one, the slug would be
+// glued onto the last path segment rather than added as its own.
+describe('docPageUrl', () => {
+  it('appends the page to a base that ends in a slash', () => {
+    expect(docPageUrl('https://example.test/docs/', 'safety')).toBe('https://example.test/docs/safety');
+  });
+
+  it('appends the page to a base that does not', () => {
+    expect(docPageUrl('https://example.test/docs', 'safety')).toBe('https://example.test/docs/safety');
+  });
+
+  it('stays inside the localized tree', () => {
+    expect(docPageUrl(helpUrlFor('es'), 'safety')).toBe(`${HELP_URL.replace(/\/*$/, '/')}es/safety`);
+  });
+
+  it('leaves an empty base empty, rather than linking at the app itself', () => {
+    // HELP_URL can be built out (vite.config.ts), and a bare "safety" href
+    // would resolve against the app's own origin.
+    expect(docPageUrl('', 'safety')).toBe('');
+  });
+
+  it('never produces a double slash', () => {
+    expect(docPageUrl('https://example.test/docs//', 'safety')).toBe('https://example.test/docs/safety');
   });
 });

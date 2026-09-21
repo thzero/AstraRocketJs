@@ -52,6 +52,8 @@ Only the wind **at the pad** is judged. On a multi-level profile that is the gro
 
 These are flying limits, not modeling limits. They are about whether the launch should happen, so unlike your rocket's geometry they are not preserved as authored: a file's out-of-limits conditions are flagged, and the run is refused until they are brought inside.
 
+These two checks are also the *only* safety rules the app enforces. What the simulation does and does not model, and what to verify on the real rocket before you fly it, is in [Safety](./safety.md).
+
 
 
 ## Read the results

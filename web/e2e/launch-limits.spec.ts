@@ -1,4 +1,4 @@
-import { test, expect, openTab, runButton, importOrk } from './base';
+import { test, expect, openTab, ready, runButton, runFlight, importOrk } from './base';
 
 /**
  * The NAR / Tripoli flying limits, on the path that can get around the fields.
@@ -97,4 +97,51 @@ test('folded notes are remembered, across a reload and across designs', async ({
   // Still a toggle, not a one-way door.
   await toggle.click();
   await expect(note).toBeVisible();
+});
+
+/**
+ * The "Before you fly" card under the run's numbers.
+ *
+ * Every other safety behavior in this file is a REFUSAL: conditions outside the
+ * codes, and no flight. This is the other half, and the one that applies to
+ * every flight that does happen - the numbers are real and the launch is legal,
+ * and they are still a model's answer rather than a flight card. It has to sit
+ * with the measurements, because the moment it matters is the moment they are
+ * being read.
+ */
+test('the run summary carries a safety card linking to the docs', async ({ page }) => {
+  await ready(page);
+  await runFlight(page);
+
+  // The desktop right column and the phone's Results tab each mount a copy of
+  // the summary, so one of the two is always in the document but hidden.
+  const card = page.getByRole('region', { name: 'Before you fly' }).filter({ visible: true });
+  await expect(card).toBeVisible();
+  await expect(card).toContainText('not a flight card');
+
+  // The gaps are NAMED. "Results are approximate" tells a reader nothing they
+  // can act on; "fin flutter" sends them to look at their fin attachment.
+  await expect(card).toContainText("RSO's call");
+
+  await expect(card.getByRole('listitem').filter({ hasText: 'Not modeled at all' })).toContainText('Fin flutter');
+
+  // The whole card is a WARNING, not a note: it carries the shared amber tone
+  // and the ⚠ glyph, because the failures it lists are the ones no number above
+  // will ever mention. Pinned on both, since the glyph is the half that still
+  // works for a reader who cannot use the color.
+  await expect(card).toHaveClass(/amber/);
+  await expect(card).toContainText('⚠');
+
+  // Opens the docs' Safety page, in a tab of its own so a run in progress is
+  // not navigated away from.
+  const link = card.getByRole('link', { name: /Read the safety notes/ });
+  await expect(link).toHaveAttribute('href', /\/safety$/);
+  await expect(link).toHaveAttribute('target', '_blank');
+
+  // BELOW the tiles, not above them: a caveat read before the numbers exist is
+  // a caveat about nothing.
+  const tiles = page.locator('section[aria-label="Simulation results"]').filter({ visible: true });
+  const cardBox = (await card.boundingBox())!;
+  const tileBox = (await tiles.boundingBox())!;
+  expect(cardBox.y).toBeGreaterThanOrEqual(tileBox.y + tileBox.height);
 });

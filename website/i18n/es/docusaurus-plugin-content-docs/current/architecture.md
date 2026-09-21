@@ -1,6 +1,6 @@
 ---
 title: "Arquitectura e interioridades"
-sidebar_position: 15
+sidebar_position: 16
 ---
 > Referencia de arquitectura para desarrolladores: la inmersión profunda tras la [Guía del desarrollador](./developer-guide.md). El [README](https://github.com/thzero/AstraRocketJs/blob/HEAD/README.md) del repositorio es el resumen breve; [Contribuir](./contributing.md) cubre cómo trabajar en el proyecto.
 

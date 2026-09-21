@@ -1,6 +1,6 @@
 ---
 title: "Architecture & internals"
-sidebar_position: 15
+sidebar_position: 16
 ---
 > Developer/architecture reference — the deep dive behind the [Developer Guide](./developer-guide.md). The repo's [README](https://github.com/thzero/AstraRocketJs/blob/HEAD/README.md) is the short overview; [Contributing](./contributing.md) covers how to work on the project.
 

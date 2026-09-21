@@ -1,6 +1,6 @@
 ---
 title: "Dependencies"
-sidebar_position: 16
+sidebar_position: 17
 ---
 Only `web/` has npm dependencies (`engine-java/` uses the bundled Gradle wrapper). This page records the **version policy** and, more importantly, **why a package is deliberately not on its latest version** — so the next person to run `npm outdated` doesn't re-litigate a decision, or "fix" a pin that exists for a reason.
 

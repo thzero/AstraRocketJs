@@ -9,6 +9,7 @@ AEROTECH
 ARCAS
 Aero's
 Alphanum
+Altus
 Barrowman's
 Bonney
 Busemann
@@ -29,6 +30,7 @@ ENDTAB
 ERESOLVE
 EXTMAX
 EXTMIN
+Eggtimer
 Español
 FDLIBM
 FFFFL
@@ -37,6 +39,7 @@ Fleeman
 GEOMS
 GLTF
 Geolocator
+Golay
 Guice
 HYPERTEK
 Hoerner
@@ -48,6 +51,7 @@ JAXB
 Jambol
 Jorgensen
 KOSDON
+Kalman
 Karman
 Kevlars
 Kutta
@@ -58,6 +62,7 @@ MINFEATURE
 Maccoll
 Metas
 Meteo
+Metrum
 MicroMaxx
 Niskanen
 Nonaxial
@@ -72,6 +77,7 @@ SEQEND
 SKYR
 SKYRIPPER
 Sampo
+Savitzky
 Semispan
 Stringly
 Substitutor
@@ -83,6 +89,7 @@ Unrotated
 Vuelo
 aabbggrr
 absarc
+aeroelastic
 aftradius
 aftshouldercapped
 aftshoulderlength
@@ -239,6 +246,7 @@ linecount
 linelength
 linematerial
 linestyle
+loadouts
 macrotask
 mapfiles
 massc
@@ -247,6 +255,7 @@ masscomponent
 masscomponenttype
 maxacceleration
 maxmotorlength
+maxq
 maxtime
 maxvelocity
 mbar
@@ -327,6 +336,7 @@ relativeto
 requestfailed
 reselecting
 rocketcomponent
+rocksim
 rootchord
 roughunfinished
 runnability
@@ -428,4 +438,5 @@ worktree
 xform
 xunits
 yunits
+zenrockets
 zoomable

@@ -52,6 +52,8 @@ Solo se juzga el viento **en la rampa**. En un perfil multinivel es la capa del 
 
 Son límites de vuelo, no de modelado. Tratan de si el lanzamiento debería ocurrir, así que, a diferencia de la geometría de tu cohete, no se conservan tal como se escribieron: las condiciones de un archivo fuera de límites se señalan, y la ejecución se rechaza hasta que vuelvan a estar dentro.
 
+Estas dos comprobaciones son además las *únicas* reglas de seguridad que la aplicación impone. Qué modela y qué no modela la simulación, y qué verificar en el cohete real antes de volarlo, está en [Seguridad](./safety.md).
+
 ## Interpreta los resultados
 
 Al ejecutar se abre la pestaña **Resultados** con el vuelo que acabas de ejecutar — una simulación o un lote —, porque ejecutar es pedir ver la respuesta.

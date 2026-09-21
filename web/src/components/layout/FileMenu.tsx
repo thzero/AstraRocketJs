@@ -1,5 +1,6 @@
 import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { docPageUrl } from '../../services/appInfo';
 
 /**
  * The header's file menu: the trigger button that owns the open flag and
@@ -31,7 +32,7 @@ export interface FileMenuActions {
 /**
  * The header's dropdown menu (WAI-ARIA menu-button pattern): New / Open /
  * Save / Save As / Import / Export / Report / Motors / Settings / Help /
- * Privacy / About.
+ * Safety / Privacy / About.
  *
  * Mounted only while open (`{menuOpen && <FileMenu />}`), and it owns the two
  * inline "Import" / "Export" submenus: they reveal their format sub-items in
@@ -215,6 +216,20 @@ function FileMenu({
         onClick={onClose}
       >
         {t('menu.help')}
+      </a>
+      {/* Its own entry rather than a page buried in Help: what a simulation is
+          worth, and what to check on the real rocket, is the one doc a user
+          should not have to go looking for. */}
+      <a
+        role="menuitem"
+        tabIndex={-1}
+        className={item}
+        href={docPageUrl(helpHref, 'safety')}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={onClose}
+      >
+        {t('menu.safety')}
       </a>
       <div className="my-1 border-t border-white/10" />
       <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onPrivacy)}>
