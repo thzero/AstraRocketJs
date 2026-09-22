@@ -36,6 +36,8 @@ web/.playwright/
 .DS_Store
 Thumbs.db
 
+.claude
+
 # Unanchored: `npx` at the repo root creates a bare node_modules/ (there is no
 # root package.json), and vitest rewrites node_modules/.vite/**/results.json on
 # every local run — three build artifacts were tracked because only the web/ and
@@ -47,3 +49,5 @@ web/coverage/
 # Pinned OpenRocket checkout that `extract --check` fetches for itself
 # (sparse + blobless; keyed to the ref in engine-java/extract/UPSTREAM).
 engine-java/.openrocket-src/
+
+docs/rasaero/diffs/

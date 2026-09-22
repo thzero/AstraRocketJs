@@ -124,6 +124,12 @@ test('the contents rail lists every page, and the headings of the one you are on
   await expect(contents.getByText('User Guide', { exact: true })).toBeVisible();
   await expect(contents.getByRole('button', { name: 'User Guide', exact: true })).toHaveCount(0);
 
+  // A page from the LAST group, opened from the FIRST page. Docusaurus renders
+  // a collapsed category's children into no page at all, so this is what fails
+  // if a category in sidebars.ts loses its `collapsed: false` and takes a whole
+  // group out of the rail.
+  await expect(contents.getByRole('button', { name: 'Dependencies', exact: true })).toBeVisible();
+
   await contents.getByRole('button', { name: 'Designing a Rocket', exact: true }).click();
   await expect(dialog.getByRole('heading', { name: 'Designing a Rocket' })).toBeVisible();
 

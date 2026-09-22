@@ -139,8 +139,8 @@ export interface HelpContents {
 /**
  * The contents of the docs, read out of a rendered page.
  *
- * Docusaurus puts the WHOLE sidebar into every page it builds, and the current
- * page's heading list beside it, so both are already in the frame's DOM. The
+ * Docusaurus puts the sidebar into every page it builds, and the current page's
+ * heading list beside it, so both are already in the frame's DOM. The
  * embed stylesheet hides them and the dialog draws its own rail from this
  * instead, for two reasons: the site's sidebar is `display:none` below 997px,
  * which is exactly the phone at a launch site where being able to find a topic
@@ -150,6 +150,11 @@ export interface HelpContents {
  * Reading it from the page rather than generating a list at build time keeps
  * the one-source rule: the order, the grouping and the labels are whatever
  * `sidebars.ts` says, already translated into the locale the frame is showing.
+ *
+ * WITH ONE CONDITION, which `sidebars.ts` carries a note about: a COLLAPSED
+ * category's children are rendered into no page at all, so the rail would be
+ * missing that whole group. Every category is `collapsed: false` there for this
+ * reason, and an e2e spec reaches into the last one to keep it that way.
  */
 export function readContents(doc: Document): HelpContents {
   const pages: HelpEntry[] = [];
