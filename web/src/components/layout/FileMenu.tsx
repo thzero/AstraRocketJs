@@ -1,6 +1,5 @@
 import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { docPageUrl } from '../../services/appInfo';
 
 /**
  * The header's file menu: the trigger button that owns the open flag and
@@ -29,6 +28,10 @@ export interface FileMenuActions {
   onMotors: () => void;
   onLaunchLocations: () => void;
   onSettings: () => void;
+  /** Open in-app Help at the docs index. */
+  onHelp: () => void;
+  /** Open in-app Help ON the Safety page. */
+  onSafety: () => void;
   onPrivacy: () => void;
   onAbout: () => void;
 }
@@ -59,13 +62,11 @@ export interface FileMenuActions {
  */
 function FileMenu({
   canSave,
-  helpHref,
   onClose,
   onEscape,
   actions,
 }: {
   canSave: boolean;
-  helpHref: string;
   /** Close the menu (an item was chosen, or Tab moved on). */
   onClose: () => void;
   /** Escape: close and return focus to the trigger. */
@@ -270,31 +271,19 @@ function FileMenu({
       <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onSettings)}>
         {t('settings.title')}
       </button>
-      <a
-        role="menuitem"
-        tabIndex={-1}
-        className={item}
-        href={helpHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={onClose}
-      >
+      {/* Buttons, not links: these open the in-app Help dialog over the design
+          you are holding rather than sending you to another tab, which is what
+          makes help readable at a field with no signal. The dialog carries its
+          own "open on the docs site" link for when you want the shareable URL. */}
+      <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onHelp)}>
         {t('menu.help')}
-      </a>
+      </button>
       {/* Its own entry rather than a page buried in Help: what a simulation is
           worth, and what to check on the real rocket, is the one doc a user
           should not have to go looking for. */}
-      <a
-        role="menuitem"
-        tabIndex={-1}
-        className={item}
-        href={docPageUrl(helpHref, 'safety')}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={onClose}
-      >
+      <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onSafety)}>
         {t('menu.safety')}
-      </a>
+      </button>
       <div className="my-1 border-t border-white/10" />
       <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onPrivacy)}>
         {t('about.privacy')}
@@ -307,15 +296,7 @@ function FileMenu({
 }
 
 /** The menu-button: the trigger plus the menu it opens, closed on outside click. */
-export function FileMenuButton({
-  canSave,
-  helpHref,
-  actions,
-}: {
-  canSave: boolean;
-  helpHref: string;
-  actions: FileMenuActions;
-}) {
+export function FileMenuButton({ canSave, actions }: { canSave: boolean; actions: FileMenuActions }) {
   const { t } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
@@ -353,7 +334,6 @@ export function FileMenuButton({
       {menuOpen && (
         <FileMenu
           canSave={canSave}
-          helpHref={helpHref}
           onClose={() => setMenuOpen(false)}
           onEscape={() => {
             setMenuOpen(false);

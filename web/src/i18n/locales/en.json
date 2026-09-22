@@ -135,6 +135,15 @@
     "hosting": "Whoever hosts the app may keep standard web-server access logs (such as IP address and timestamp), as any website does. The app itself collects nothing.",
     "close": "Close"
   },
+  "help": {
+    "title": "Help",
+    "contents": "Contents",
+    "back": "Back",
+    "close": "Close",
+    "openOnSite": "Open on the docs site",
+    "loading": "Loading…",
+    "missing": "The documentation is not part of this copy of {{name}}, or it could not be read. You can still open it online."
+  },
   "override": {
     "title": "Overrides",
     "mass": "Mass",
@@ -404,6 +413,7 @@
     "safetyGaps": "Not modeled at all",
     "safetyGapsDetail": "Fin flutter, structural loads, parachute inflation and opening shock, and how your motor performs on the day. Nothing above can warn you about any of them.",
     "safetyCode": "Fly under your safety code, inside your field and its waiver. The RSO's call outranks anything on this screen.",
+    "safetyDisclaimer": "You, and you alone, are responsible for what you build and fly. This software is provided as is, without warranty of any kind, and its authors and contributors accept no liability for any loss arising from its use.",
     "safetyLink": "Read the safety notes"
   },
   "warn": {

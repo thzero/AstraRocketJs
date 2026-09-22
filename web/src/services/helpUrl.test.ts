@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { docPageUrl, helpUrlFor, HELP_URL } from './appInfo';
+import { docPageFileUrl, docPageUrl, helpUrlFor, localDocsUrlFor, HELP_URL } from './appInfo';
 
 /** HELP_URL may or may not carry a trailing slash; helpUrlFor normalizes it.
  *  Building the expectation the same way keeps the test honest either way. */
@@ -69,5 +69,64 @@ describe('docPageUrl', () => {
 
   it('never produces a double slash', () => {
     expect(docPageUrl('https://example.test/docs//', 'safety')).toBe('https://example.test/docs/safety');
+  });
+});
+
+// The docs are ALSO shipped inside the app (the deploy builds Docusaurus into
+// web/public/docs before the app build), so the same slug has a second address
+// on the app's own origin. That copy is the one the Help dialog reads, and the
+// one that works with no network.
+const appBase = import.meta.env.BASE_URL.replace(/\/*$/, '/');
+
+describe('localDocsUrlFor', () => {
+  it('points at the docs inside the app, not the docs site', () => {
+    expect(localDocsUrlFor('en')).toBe(`${appBase}docs/`);
+  });
+
+  it('uses the same locale rule as the external link', () => {
+    expect(localDocsUrlFor('es')).toBe(`${appBase}docs/es/`);
+    expect(localDocsUrlFor('es-MX')).toBe(`${appBase}docs/es/`);
+  });
+
+  it('falls back to English for a language the docs do not build', () => {
+    for (const tag of ['fr', 'ja', '', '-']) {
+      expect(localDocsUrlFor(tag)).toBe(`${appBase}docs/`);
+    }
+  });
+
+  it('is never empty, unlike the external base', () => {
+    // helpUrlFor can be built out to ''; the app always has an origin, so Help
+    // must not lose its own copy along with the outbound link.
+    expect(localDocsUrlFor('en')).not.toBe('');
+  });
+});
+
+// The file, not the directory. Docusaurus emits every page as <slug>/index.html
+// and the service worker precaches it under exactly that name, so asking for the
+// file is a cache hit and asking for the directory is not (directoryIndex is off
+// in vite.config.ts). This is the whole reason Help opens offline.
+describe('docPageFileUrl', () => {
+  it('addresses the index.html inside the page directory', () => {
+    expect(docPageFileUrl('/docs/', 'safety')).toBe('/docs/safety/index.html');
+  });
+
+  it('addresses the docs index for the empty page', () => {
+    expect(docPageFileUrl('/docs/', '')).toBe('/docs/index.html');
+  });
+
+  it('adds the separator when the base lacks one', () => {
+    expect(docPageFileUrl('/docs', 'safety')).toBe('/docs/safety/index.html');
+  });
+
+  it('never produces a double slash', () => {
+    expect(docPageFileUrl('/docs//', 'safety')).toBe('/docs/safety/index.html');
+  });
+
+  it('stays inside the localized tree', () => {
+    expect(docPageFileUrl(localDocsUrlFor('es'), 'safety')).toBe(`${appBase}docs/es/safety/index.html`);
+  });
+
+  it('leaves an empty base empty rather than pointing at the app root', () => {
+    expect(docPageFileUrl('', 'safety')).toBe('');
   });
 });

@@ -1,7 +1,8 @@
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { APP_VERSION, helpUrlFor, isPreRelease } from '../../services/appInfo';
+import { APP_VERSION, isPreRelease } from '../../services/appInfo';
 import { useWorkspaceStore } from '../../state/store';
+import { useHelpStore } from '../../state/helpStore';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { WorkbenchTabs } from './WorkbenchTabs';
 import { EngineBadge } from './EngineBadge';
@@ -17,7 +18,7 @@ import { useUndoShortcuts } from './useUndoShortcuts';
  *  Import triggers; the badge, the undo pair and the dialogs are their own
  *  modules. */
 export function AppHeader() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const canSave = useWorkspaceStore((s) => !!s.info);
   const onNew = useWorkspaceStore((s) => s.newWorkspace);
   const onOpenFile = useWorkspaceStore((s) => s.openOrkFile);
@@ -32,6 +33,7 @@ export function AppHeader() {
   // (services/designFile.ts), so a mislabeled file still opens.
   const rktRef = useRef<HTMLInputElement>(null);
   const { open, dialogs } = useHeaderDialogs();
+  const openHelp = useHelpStore((s) => s.openHelp);
 
   useUndoShortcuts();
 
@@ -72,7 +74,6 @@ export function AppHeader() {
         <LanguageSwitcher />
         <FileMenuButton
           canSave={canSave}
-          helpHref={helpUrlFor(i18n.language)}
           actions={{
             onNew,
             onOpenLibrary: () => open('library'),
@@ -92,6 +93,10 @@ export function AppHeader() {
             onMotors: () => open('motors'),
             onLaunchLocations: () => open('locations'),
             onSettings: () => open('settings'),
+            // No argument is the docs index; Safety opens Help already ON its
+            // own page, which is the whole point of addressing help by slug.
+            onHelp: () => openHelp(),
+            onSafety: () => openHelp('safety'),
             onPrivacy: () => open('privacy'),
             onAbout: () => open('about'),
           }}

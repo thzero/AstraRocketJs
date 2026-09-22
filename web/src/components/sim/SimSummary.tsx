@@ -1,5 +1,4 @@
 import { useTranslation } from 'react-i18next';
-import { docPageUrl, helpUrlFor } from '../../services/appInfo';
 import { fmtNum } from '../../i18n/format';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
@@ -8,6 +7,7 @@ import type { FlightResult } from '../../engine/api';
 import { lerpAt } from '../../services/interpolate';
 import { stabilityTone } from '../../services/simReport';
 import { useSettings } from '../../state/SettingsProvider';
+import { useHelpStore } from '../../state/helpStore';
 import { Stat } from '../common/Stat';
 import { WARNING_TONE } from './warningTone';
 
@@ -47,16 +47,21 @@ function lastFinite(arr?: (number | null)[]): number | null {
  * The one line that is a bare list of gaps is set bold + italic inside the
  * bullet, the way FlightWarnings pairs a warning's text with its explanation.
  *
- * The link is the docs' Safety page, localized the same way the Help menu item
- * is, and omitted entirely when the build has no docs URL (see docPageUrl).
+ * The link opens the docs' Safety page in the in-app Help dialog rather than a
+ * new tab. Somebody reading this card is looking at a flight they are about to
+ * fly, quite possibly at the field, and the one thing that must not be required
+ * to read the safety page is a network. The dialog serves it from the app's own
+ * precache, and carries its own link to the published page for anyone who wants
+ * the shareable URL.
+ *
  * Underlined amber rather than the app's usual sky blue, which on this
  * background reads as a foreign element rather than this card's own way out.
  */
 const BULLET = 'flex gap-2';
 
 function SafetyCard() {
-  const { t, i18n } = useTranslation();
-  const href = docPageUrl(helpUrlFor(i18n.language), 'safety');
+  const { t } = useTranslation();
+  const openHelp = useHelpStore((s) => s.openHelp);
   return (
     <section aria-label={t('sim.safetyTitle')} className={`rounded-xl p-3 ring-1 ${WARNING_TONE.NORMAL}`}>
       <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide">
@@ -91,17 +96,18 @@ function SafetyCard() {
           <span className="min-w-0">{t('sim.safetyCode')}</span>
         </li>
       </ul>
-      {href && (
-        // nowrap so the arrow cannot be orphaned onto a line of its own.
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-2 inline-block whitespace-nowrap text-xs font-medium underline underline-offset-2 hover:no-underline"
-        >
-          {t('sim.safetyLink')} →
-        </a>
-      )}
+      {/* The liability line. Plain-language restatement of the license's
+          no-warranty and no-liability clauses, kept short so it reads as part
+          of the card rather than a wall of legal text; the full version is on
+          the Safety page the link below opens. */}
+      <p className="mt-2 text-[11px] leading-snug opacity-80">{t('sim.safetyDisclaimer')}</p>
+      {/* nowrap so the arrow cannot be orphaned onto a line of its own. */}
+      <button
+        onClick={() => openHelp('safety')}
+        className="mt-2 inline-block whitespace-nowrap text-xs font-medium underline underline-offset-2 hover:no-underline"
+      >
+        {t('sim.safetyLink')} →
+      </button>
     </section>
   );
 }

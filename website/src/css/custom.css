@@ -28,3 +28,61 @@
   --ifm-color-primary-lightest: #4fddbf;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
+
+/**
+ * Embedded mode.
+ *
+ * The app's in-app Help dialog loads these very pages in a same-origin iframe
+ * and sets `data-astra-embed` on <html> once they load
+ * (web/src/components/layout/HelpDialog.tsx). It is the same build, the same
+ * one source; only the chrome differs, because the dialog already supplies a
+ * title, a close button, a back button and an "open on the docs site" link.
+ * Leaving the site's navbar and sidebar in place would put a second set of the
+ * same controls inside a box that already has them.
+ *
+ * These selectors live HERE rather than being injected from the app on purpose:
+ * they name Docusaurus theme internals, so they belong beside the Docusaurus
+ * version that emits them. A theme upgrade that renames a wrapper gets fixed in
+ * the same commit that does the upgrade, instead of silently un-stripping the
+ * chrome in an app nobody rebuilt.
+ */
+html[data-astra-embed] .navbar,
+html[data-astra-embed] .navbar-sidebar,
+html[data-astra-embed] .navbar-sidebar__backdrop,
+html[data-astra-embed] .theme-doc-sidebar-container,
+html[data-astra-embed] .theme-doc-toc-desktop,
+html[data-astra-embed] .theme-doc-toc-mobile,
+html[data-astra-embed] .theme-doc-breadcrumbs,
+html[data-astra-embed] .theme-doc-footer-edit-meta-row,
+html[data-astra-embed] .theme-back-to-top-button,
+html[data-astra-embed] footer.footer {
+  display: none !important;
+}
+
+/* With the sidebar and the table of contents gone, the article should fill the
+   dialog rather than stay in a column measured for a 1200px page. */
+html[data-astra-embed] .container {
+  max-width: none !important;
+  padding: 0 1rem !important;
+}
+
+html[data-astra-embed] .row > .col {
+  flex: 1 0 100% !important;
+  max-width: 100% !important;
+}
+
+html[data-astra-embed] main {
+  padding-top: 0.5rem;
+}
+
+/* The previous/next pagination pair STAYS. It is how you read straight through
+   the guide, and the dialog intercepts those links like any other, so they open
+   in the dialog instead of navigating the iframe out of it. */
+
+/* Match the dialog's own panel (Tailwind slate-900) instead of Infima's near
+   black, so the page reads as part of the app rather than as a website pasted
+   into it. Dark only: the app has no light mode, and the dialog forces the docs
+   to dark to match. */
+html[data-astra-embed][data-theme='dark'] {
+  --ifm-background-color: #0f172a;
+}

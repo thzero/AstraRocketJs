@@ -117,13 +117,47 @@ export default defineConfig({
             // toast still handles a tab that stays open across a deploy.
             //
             // /docs/ is the Docusaurus site copied into dist at deploy time;
-            // a docs page must never fall back to the app shell.
+            // a docs page must never fall back to the app shell, so it is
+            // excluded here and handled by the rule below instead.
             urlPattern: ({ request, url }) => request.mode === 'navigate' && !url.pathname.includes('/docs/'),
             handler: 'NetworkFirst',
             options: {
               cacheName: 'astra-shell',
               networkTimeoutSeconds: 3,
               precacheFallback: { fallbackURL: 'index.html' },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
+            // Docs pages reached by NAVIGATION: the Help menu's "open on the
+            // docs site" link, or a docs URL someone bookmarked or was sent.
+            //
+            // Every docs page is already precached, but under its FILE key,
+            // `docs/<slug>/index.html`. A navigation asks for
+            // `docs/<slug>/`, and `directoryIndex` is disabled above, so
+            // Workbox never tries the index.html form of it and the request
+            // went to the network and failed offline. Turning directoryIndex
+            // back on is not the fix: it is one setting for the whole precache
+            // route, and the reason it is off is that it ALSO answered the
+            // app's own root from the precache, which is what stopped a plain
+            // reload from ever showing a new deploy.
+            //
+            // So a rule of its own: network-first, and offline it serves back
+            // any docs page already visited. The in-app Help dialog does not
+            // rely on this at all, because it requests
+            // `docs/<slug>/index.html` directly and that IS the precache key
+            // (services/helpDocs.ts). This is the fallback for reading the
+            // docs outside the dialog.
+            //
+            // It does mean a visited page is stored twice, once precached and
+            // once here. Capped at 40 entries, which is more pages than the
+            // site has.
+            urlPattern: ({ request, url }) => request.mode === 'navigate' && url.pathname.includes('/docs/'),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'astra-docs',
+              networkTimeoutSeconds: 3,
+              expiration: { maxEntries: 40, maxAgeSeconds: 60 * 60 * 24 * 90 },
               cacheableResponse: { statuses: [200] },
             },
           },

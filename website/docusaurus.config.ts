@@ -29,9 +29,18 @@ const config: Config = {
 
   // A broken internal link should fail the build, not ship — the old wiki had no
   // such check, which is how stale page references survived.
-  // Emit /faq/ rather than /faq. The service worker precaches the built files,
-  // and Workbox resolves a trailing slash to that directory's index.html — a
-  // bare /faq would miss the precache and break Help when offline.
+  // Emit /faq/ rather than /faq, so every page is a directory with its own
+  // index.html. That file name is what makes Help work offline: the app's Help
+  // dialog asks for `docs/faq/index.html`, which is exactly the key the service
+  // worker precaches the page under, so a page opens at a launch site with no
+  // signal even if nobody read it first.
+  //
+  // NAVIGATING to /faq/ is a different request and does not hit the precache:
+  // `directoryIndex` is switched off in web/vite.config.ts (it was also
+  // answering the app's own root from the precache, which kept a reload from
+  // ever showing a new deploy), so Workbox never maps the trailing slash onto
+  // index.html. A runtimeCaching rule there covers that path for pages already
+  // visited.
   trailingSlash: true,
   onBrokenLinks: 'throw',
   markdown: { hooks: { onBrokenMarkdownLinks: 'throw' } },

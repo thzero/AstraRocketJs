@@ -67,6 +67,12 @@ The app knows nothing about where you are or what you are allowed to do there. Y
 - **Permission to launch** on the land you are using.
 - The **range rules** and the **Range Safety Officer**. The RSO's call outranks anything on your screen.
 
+### Disclaimer
+
+This software is provided "as is", without warranty of any kind, express or implied, including any warranty of accuracy, merchantability, or fitness for a particular purpose. Simulation results are estimates. They are not a substitute for the applicable safety code, a range safety officer, an airspace waiver, or your own judgment.
+
+**You, and you alone, are responsible for any rocket you build, any motor you use, and any flight you make.** Neither AstraRocketJs, its contributors, nor the authors of the software it derives from accept any liability for injury, death, property damage, regulatory violations, or any other loss arising from use of this software or reliance on its output, to the fullest extent permitted by law. By using the software you accept this.
+
 ## Experimental and research motors
 
 The app models motors from published thrust curves, and can import a curve you measured yourself. It is not a guide to designing, manufacturing, or firing a motor, and nothing in it evaluates whether a motor is safe to build or light. Experimental motor work is hazardous and, in most places, tightly regulated. It belongs with a research organization and the people qualified to supervise it.

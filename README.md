@@ -71,6 +71,14 @@ Contributions are very welcome — code, bug reports, translations, docs, and mo
 
 Engine: working, validated bit-identical against upstream OpenRocket (JVM↔JS, and WASM↔JS). UI: actively developed — component-tree editor, stability, 2D/3D views, motor picker, `.ork` import/export, and flight simulation with charts (run off the main thread in a Web Worker to keep the UI responsive).
 
+## Safety and disclaimer
+
+A simulation is a model, and a model is only as good as what it knows. Before you fly a rocket you designed here, read the **[Safety](https://thzero.github.io/AstraRocketJs/docs/safety)** page and check the rocket you actually built against it.
+
+This software is provided "as is", without warranty of any kind, express or implied, including any warranty of accuracy, merchantability, or fitness for a particular purpose. Simulation results are estimates. They are not a substitute for the applicable safety code, a range safety officer, an airspace waiver, or your own judgment.
+
+**You, and you alone, are responsible for any rocket you build, any motor you use, and any flight you make.** Neither AstraRocketJs, its contributors, nor the authors of the software it derives from accept any liability for injury, death, property damage, regulatory violations, or any other loss arising from use of this software or reliance on its output, to the fullest extent permitted by law. By using the software you accept this.
+
 ## Attribution & license
 
 The engine derives from the OpenRocket core (a post-24.12 development build; GPL-3.0); the opt-in supersonic-aero (RASAero) extensions are the original work of the mmrocket-sim project. Full credits and license lineage: **[`engine-java/ATTRIBUTION.md`](engine-java/ATTRIBUTION.md)** (and `docs/rasaero/` for the extensions' physics + diffs).
