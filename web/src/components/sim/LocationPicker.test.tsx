@@ -10,6 +10,10 @@ import {
   type LaunchLocationStore,
 } from '../../services/launchLocationStore';
 import type { LaunchConditions } from '../../services/orkTree';
+import { loadSettings } from '../../services/settings';
+
+/** What the picker writes for "Custom location": the shipped default is KSC. */
+const DEFAULT_SITE = loadSettings().launchDefaults;
 
 /**
  * The picker, with an in-memory store so nothing touches IndexedDB.
@@ -92,10 +96,14 @@ describe('LocationPicker', () => {
     expect(onCommit).toHaveBeenCalled();
   });
 
-  it('clears the site when Custom location is picked from a saved location', async () => {
-    // The complaint this covers: the option was inert. The select's value is
-    // derived from the fields, so choosing it changed nothing and React put the
-    // matching location straight back — you could highlight it but never pick it.
+  it('returns the site to the launch defaults when Custom location is picked', async () => {
+    // The complaint this started from: the option was inert. The select's value
+    // is derived from the fields, so choosing it changed nothing and React put
+    // the matching location straight back.
+    //
+    // It then cleared the fields, which left all three required inputs blank,
+    // the map with nothing to draw and the Run button refusing. Your defaults
+    // are a real place instead - the Kennedy Space Center as shipped.
     const { onChange, onCommit } = render({
       launch: launch({ latitudeDeg: 39.05, longitudeDeg: -104.8, launchAltitudeM: 1830 }),
     });
@@ -103,17 +111,25 @@ describe('LocationPicker', () => {
     await waitFor(() => expect(select().value).toBe('home'));
 
     fireEvent.change(select(), { target: { value: '' } });
-    // Cleared, not defaulted: the three fields go blank the way "use my
-    // location" or typing over them would leave them, and the Run button names
-    // a blank required launch field, so the state is explained rather than hidden.
-    // Null, not undefined: `JSON.stringify` drops an undefined property, so a
-    // cleared longitude would come back from the defaults on the next reload.
     expect(onChange).toHaveBeenCalledWith({
-      latitudeDeg: null,
-      longitudeDeg: null,
-      launchAltitudeM: null,
+      latitudeDeg: DEFAULT_SITE.latitudeDeg,
+      longitudeDeg: DEFAULT_SITE.longitudeDeg,
+      launchAltitudeM: DEFAULT_SITE.launchAltitudeM,
     });
+    // Still flyable: none of the three required site fields is left blank.
+    for (const v of Object.values(onChange.mock.calls[0]![0] as Record<string, unknown>)) {
+      expect(typeof v).toBe('number');
+    }
     expect(onCommit).toHaveBeenCalled();
+  });
+
+  it('ships the Kennedy Space Center as that default', () => {
+    // Asserted against the NUMBERS, not against `loadSettings()` again: the
+    // test above reads the same source the component does, so on its own it
+    // would keep passing if the shipped default drifted somewhere else.
+    expect(DEFAULT_SITE.latitudeDeg).toBeCloseTo(28.61, 6);
+    expect(DEFAULT_SITE.longitudeDeg).toBeCloseTo(-80.6, 6);
+    expect(DEFAULT_SITE.launchAltitudeM).toBeCloseTo(0, 6);
   });
 
   it('shows Custom when the fields match no saved location, and the location when they do', async () => {

@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { warningText, warningHelp, warningKeyOf } from './warningText';
+import { COMPONENT_PART_KEYS, componentName, warningText, warningHelp, warningKeyOf } from './warningText';
+import { localeTranslator } from '../testing/localeTranslator';
+import en from '../i18n/locales/en.json';
+import es from '../i18n/locales/es.json';
 
 // Stands in for i18n: knows one key, returns the key itself for anything else
 // (which is what i18next does without a `defaultValue`).
@@ -68,5 +71,48 @@ describe('warningKeyOf', () => {
     // warnings to names of its own, and design warnings carry no key field.
     expect(warningKeyOf('[Warning.RECOVERY_MAIN_LOW_SPEED] (2 m/s)')).toBe('RECOVERY_MAIN_LOW_SPEED');
     expect(warningKeyOf('no key here')).toBeNull();
+  });
+});
+
+describe('componentName', () => {
+  const inEnglish = localeTranslator(en);
+  const inSpanish = localeTranslator(es);
+
+  it('names a never-renamed part in the language it is asked for', () => {
+    // The kernel has no resource bundles, so its default name arrives as the
+    // key it would have been looked up under. This app has its own string for
+    // the same part, and the export's language can differ from the app's.
+    expect(componentName('[Parachute.Parachute]', inEnglish)).toBe('Parachute');
+    expect(componentName('[Parachute.Parachute]', inSpanish)).toBe(es.part.parachute);
+    expect(componentName('[BodyTube.BodyTube]', inEnglish)).toBe(en.part.bodytube);
+    expect(componentName('[BodyTube.BodyTube]', inSpanish)).toBe(es.part.bodytube);
+    // The two halves of a kernel key do not always agree, which is why the
+    // table is keyed by the whole thing.
+    expect(componentName('[EllipticalFinSet.Ellipticalfinset]', inEnglish)).toBe('Elliptical fin set');
+  });
+
+  it('degrades to the readable half for a key nothing here names', () => {
+    // The design root and a couple of internals have no part of their own in
+    // this app. Better a humanized key than a bracketed one.
+    expect(componentName('[Sleeve.Sleeve]', inEnglish)).toBe('Sleeve');
+    expect(componentName('[RecoveryDevice.RecoveryDevice]', inEnglish)).toBe('Recovery Device');
+  });
+
+  it('returns a name the user typed unchanged', () => {
+    // Only the bracket form is a key. Rewriting somebody's own name for their
+    // own part would be the worse bug, in any language.
+    for (const name of ['Main chute', 'Drogue', '18" nylon', 'Chute [spare]']) {
+      expect(componentName(name, inSpanish)).toBe(name);
+    }
+  });
+
+  it('points every kernel name at a string that actually exists', () => {
+    // The table is transcribed from the kernel's `getComponentName()` overrides
+    // by hand, and `part.*` keys are built dynamically elsewhere, so nothing
+    // else would notice one of them being renamed out from under it: the
+    // component would quietly start reading as a humanized key again. This is
+    // the check that fails instead.
+    const missing = Object.entries(COMPONENT_PART_KEYS).filter(([, key]) => inEnglish(key) === key);
+    expect(missing).toEqual([]);
   });
 });

@@ -130,14 +130,16 @@ After a simulation, the **3D path** view has an **⬇ Export** button that saves
 - **GPX** — a standard GPS track (waypoints + track) for GPS tools and mapping apps.
 - **Waypoint CSV** — one row per point of interest (pad, apogee, landing, …) with latitude / longitude.
 
-In the export dialog you choose which **waypoints** to include (pad, liftoff, burnout, apogee, recovery deployment, landing, max velocity, max acceleration), whether to include the **flight-path line** and the **ground track**, how much to thin the path (**keep every Nth point**), and the **altitude / distance units**.
+In the export dialog you choose which **waypoints** to include (pad, liftoff, burnout, apogee, ejection, landing, max velocity, max acceleration), whether to include the **flight-path line** and the **ground track**, how much to thin the path (**keep every Nth point**), and the **altitude / distance units**.
 
 **Presets** — *Drift cast*, *Flight path* and *Landing plots* — set all three of those at once, because the waypoints, the lines and the placement have to agree for a file to answer one question well. They only move the controls, so what the file will contain is always what the dialog shows, and any one of them is a starting point you can adjust. Each states its selection in full, waypoints included, so no preset is a one-way door: *Landing plots* narrows the waypoints to the landing, and going back to *Drift cast* puts them all back.
+
+The one that matches the controls is highlighted, and a fresh dialog opens on *Flight path*. Because a preset only moves the controls, the highlight clears the moment you change one of the things it covers, and comes back when the controls spell that preset out again — it never claims a shape the dialog has since been adjusted out of.
 
 **Placement** controls how the track sits on the map:
 
 - **Track altitude from** and **Waypoint altitude from** — two separate choices, because the line and the pins want different things. *Automatic* uses sea level when the launch site has a real altitude set and the ground when it is still 0. That default matters: a flight measured from the pad but placed against sea level is buried under the terrain, which is what a launch site at 1200 m would otherwise give you. *Clamped to the ground* lays the track flat on the terrain — the one to pick when the question is what the rocket drifts **over** rather than how high it went. A common pairing is the track at sea level with the pins clamped: the flight suspended in the air where it belongs, and its labels readable against the ground they sit over.
-- **Draw shadow down to the ground** — a curtain under the track and a plumb line under each pin, so you can read where a point in the air sits on the map. It switches off on its own once both halves are clamped, since there is nothing left to draw from.
+- **Draw shadow down to the ground** — a curtain under the track and a plumb line under each pin, so you can read where a point in the air sits on the map. It switches off on its own once both halves are clamped, since there is nothing left to draw from. No preset turns it on: under a single pin it reads as a position, but under the whole length of an arcing flight path it is a solid wall that buries the flight it is meant to explain. Turn it on for the case it is good at, which is placing one particular point on the map.
 - **Draw waypoint names on the map** — a near-vertical flight stacks its waypoints into a few hundred meters of screen; turn the names off for bare markers you can click.
 - **Color waypoint pins per stage** — colored pins load an icon from Google's servers, so turn them off for a file that has to render offline.
 
@@ -145,6 +147,36 @@ The **Flight path** group carries two more controls that belong to the lines the
 
 - **Each stage's track starts** (staged flights only) — a separated stage's data begins as a copy of the whole stack's, so by default its track starts **at separation** and the shared ascent is drawn once. Choose **on the pad** to have every stage read as a complete flight instead. This also decides where a stage's *max velocity* and *max acceleration* are measured from, so a spent booster reports its own peaks rather than the stack's.
 - **Stage colors…** — one swatch per stage. Each stage starts on the same palette color desktop OpenRocket and the [flight charts](./views-and-analysis.md#flight-after-a-simulation) give it, so a stage keeps its identity between the graph and the map; pick another to override it. One color drives all three of that stage's marks: the flight-path line at full strength, the ground track darkened (seen from straight above, a ground track sits directly beneath its flight path, and two lines of the same brightness read as one), and the waypoint pins. **Reset to defaults** puts every stage back on the palette, and **Cancel** leaves your previous choice alone.
+
+### Summary balloons
+
+Google Earth shows a feature's **description** in a balloon when you click it, and the KML fills three of them:
+
+- **The document** carries the flight summary: the rocket, the motor configuration, the launch site's coordinates and elevation, the peak altitude, velocity and acceleration, the maximum range from the pad, the time to apogee, the flight time, and one line per stage giving that stage's landing coordinates, distance, bearing and time.
+- **Each stage folder** carries that stage's own maximum range, and its landing on one line in the same shape the summary uses: coordinates first, then distance and bearing from the pad, then the time.
+- **Each waypoint** carries the time since liftoff, the altitude above the pad and above sea level on one line, the position as a distance and bearing from the pad, its own coordinates, and — for an ejection — the recovery device that deployed.
+
+**Every coordinate is written `latitude, longitude`, and says so.** A bare pair is ambiguous, and in a KML file it is ambiguous in a way that has a wrong answer waiting: KML's own coordinate triples are written *longitude* first, so a reader who knows the format has an active reason to read the pair backwards, and at a real launch site both readings are plausible places. Each pair is therefore tagged `(lat, lon)` and written to six decimals — about 10 cm, and signed decimal degrees, which is exactly what the app's own latitude and longitude fields take, so a coordinate read out of a balloon can be pasted straight back in.
+
+The landing coordinates are the ones you will actually use. A distance and a bearing from the pad are for reading the map; the pair is what you type into a handheld to go and find the rocket, so every landing line leads with it:
+
+```
+Sod Blaster landing: 30.615051, -97.496600 (lat, lon); 50.0 m at 0° from the pad; T+3.0 s
+```
+
+The clauses are separated by semicolons because the coordinate carries a comma of its own, and every time in the file is written `T+` and to one decimal, so one quantity has one notation.
+
+**Maximum range is not the landing distance.** A rocket can drift downrange under the chute and then partway back, so the farthest point from the pad is often not where it lands. The range is the figure that matters for range safety; where it came down is a separate fact, and both are exported. A stage's range is measured over its whole flight, including the ascent the stages flew bolted together, because the stack's excursion counts against every stage that was part of it.
+
+A line with nothing to say disappears rather than rendering empty: there is no configuration line for a rocket with no named configuration, no "above sea level" altitude when the launch site is still at 0 (that height would really be the height above the pad), no recovery device on a pin that is not an ejection, and no landing at all for a run that ended while the rocket was still in the air.
+
+**Summary balloons** switches the whole lot off, for a file going somewhere the descriptions would only get in the way. The geometry, the names and the colors are unaffected.
+
+An ejection pin is named for the event, qualified by the device when you gave that device a name: *Drogue Ejection* and *Main Ejection*. That tells the two apart on a dual-deployment flight while keeping the event vocabulary every other pin uses, and on a staged flight it stacks with the stage into *Booster Drogue Ejection* — long, and exactly what that pin is. A device left on its default name adds nothing the balloon's **Device** line does not, so its pin is just **Ejection**.
+
+Every line carries a bold label, so a balloon reads as a list of facts rather than a paragraph. Google Earth adds the feature's name as a heading above it, and a **Directions: To here / From here** pair below it, from its own default balloon template rather than from the file.
+
+Where a balloon opens differs by viewer. Google Earth Pro opens a waypoint balloon when you click the pin in the 3D view, but opens the document and folder balloons only from their names in the **Places** panel. Google Earth for web opens all three from the project panel.
 
 ### Naming the export
 
@@ -158,6 +190,14 @@ The coordinates are placed about the simulation's **launch latitude / longitude*
 
 If both coordinates are still zero the position was never filled in, and the export is anchored at the **Kennedy Space Center** instead — the dialog warns you. Only (0, 0) counts, because it is open ocean; a site on the prime meridian or the equator is a real place and is exported where you put it. Your design is never modified; this only decides what coordinates go into the file.
 
+### The language of the file
+
+The **Language** box, next to the units, writes the export in a language other than the one you are reading the app in. It defaults to *Same as the app*.
+
+It belongs to the file for the same reason the units do: a KML going to somebody else may want their language whatever you happen to have the app set to. The choice is remembered between exports, and *Same as the app* is remembered too — picking Spanish once and then going back does not quietly leave the next file in Spanish.
+
+It covers everything the export writes: the waypoint names, the *flight path* and *ground track* track names, every line of the balloons, and the default name of a recovery device you never renamed — a parachute you left alone is labeled in the export's language, not in English. What it cannot cover is text you wrote yourself — the mission name, the names you gave your own components, and any prose hardcoded in an imported template, which stays in whatever language its author typed.
+
 ### Custom export templates
 
 The three built-in formats are **[Mustache](https://mustache.github.io/) templates**, and you can supply your own:
@@ -166,6 +206,12 @@ The three built-in formats are **[Mustache](https://mustache.github.io/) templat
 - **Import template…** — add a `.mustache` file named `<name>.<ext>.mustache` (e.g. `my-track.kml.mustache`, `waypoints.csv.mustache`). The extension becomes the output file type. Your template appears in the format list, renders against the same flight data, and can be deleted. Imported templates are stored in your browser (nothing is uploaded).
 
 Templates see the flight as a model with the same field names as OpenRocket's desktop export (e.g. `{{title}}`, `{{#branches}}`, `{{#waypoints}}`, `{{latitude}}`, `{{longitude}}`, `{{altitudeMslMeters}}`, `{{#path}}`), so templates written for desktop OpenRocket work here too.
+
+`{{labels.*}}` holds the built-in templates' own strings in the export language — `{{labels.peakAltitude}}`, `{{labels.landing}}`, `{{labels.flightPath}}` and the rest — which is how those templates follow the **Language** box. A phrase whose word order changes between languages is not in there: `{{rangeText}}` on a waypoint, and `{{landingText}}` and `{{landingHeading}}` on a stage, arrive as finished strings, because a template gluing translated fragments together in English order produces English word order in every language. The values behind them are all still on the model, so a template that wants to build its own sentence still can.
+
+The summary values are on the model too. At the top level: `{{maxRange}}` (the farthest any stage got from the pad, in the distance unit), `{{timeToApogee}}` and `{{flightTime}}` (seconds, one decimal), `{{velocityUnit}}` and `{{accelerationUnit}}` (labels for `{{maxVelocity}}` and `{{maxAcceleration}}`, which are always SI), `{{launchLatitudeStr}}`, `{{launchLongitudeStr}}` and `{{launchAltitude}}`, and `{{#includeDescriptions}}` for the balloon switch. Per stage: `{{maxRangeMeters}}` and `{{maxRange}}`, and `{{#hasLanding}}` gating `{{landingDistance}}`, `{{landingBearing}}`, `{{landingTime}}`, `{{landingLatitudeStr}}` and `{{landingLongitudeStr}}`. Each waypoint already carried `{{latitudeStr}}` and `{{longitudeStr}}`, the same six-decimal strings.
+
+Two things to know when writing balloons of your own. **Write the HTML pre-escaped** — `&lt;b&gt;`, not `<b>` — and do not wrap it in `CDATA`. Every value a template substitutes is escaped, because a rocket's name could otherwise break the XML, and inside a `CDATA` block those escapes are not decoded: a rocket named `Bill & Ted` would reach the balloon as the literal text `Bill &amp; Ted`. Pre-escaped, the markup and the value are each escaped exactly once and the parser decodes them together. (A name containing `]]>` would also close a `CDATA` block early and produce an invalid file.) Second, **an empty value and a zero are false**, so `{{#launchAltitudeMeters}}…{{/launchAltitudeMeters}}` makes the line around it disappear when there is nothing to say, rather than printing a label with a blank after it.
 
 ## Exporting images
 

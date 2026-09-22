@@ -21,7 +21,9 @@ import {
   mimeForExtension,
   EXPORT_FORMATS,
   WAYPOINT_KINDS,
+  WAYPOINT_LABEL_KEY,
   type FlightPathExportOptions,
+  type Translate,
   type WaypointKind,
   type AltitudeReference,
   type DistanceUnit,
@@ -31,6 +33,7 @@ import { getTemplateStore, parseTemplateFilename, type UserTemplate } from '../.
 import { useFocusTrap } from '../common/useFocusTrap';
 import { decodeStageColors, encodeStageColors } from '../../services/settings';
 import { useSettings } from '../../state/SettingsProvider';
+import { LANGUAGES } from '../../i18n';
 
 /**
  * "Export flight path" — a port of OpenRocket's 3D-path export dialog. Renders a
@@ -43,17 +46,6 @@ import { useSettings } from '../../state/SettingsProvider';
  * User templates are imported `.mustache` files persisted in the template store
  * — the browser equivalent of OpenRocket's desktop `ExportTemplates` folder.
  */
-
-const WP_LABEL_KEY: Record<WaypointKind, string> = {
-  pad: 'pathExport.wp.pad',
-  liftoff: 'pathExport.wp.liftoff',
-  burnout: 'pathExport.wp.burnout',
-  apogee: 'pathExport.wp.apogee',
-  recovery: 'pathExport.wp.recovery',
-  landing: 'pathExport.wp.landing',
-  maxvelocity: 'pathExport.wp.maxVelocity',
-  maxacceleration: 'pathExport.wp.maxAcceleration',
-};
 
 const UNITS: DistanceUnit[] = ['m', 'ft', 'km', 'mi'];
 const USER_PREFIX = 'user:';
@@ -108,7 +100,7 @@ export function ExportDialog({
   launch: import('../../services/orkTree').LaunchConditions;
   result: import('../../engine/openRocketEngine').FlightResult;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   // Tab stays inside the modal, and focus returns to the trigger on close.
   // Seven dialogs declared aria-modal and had neither, so Tab walked straight
   // out into the page behind the overlay — the exact gap useFocusTrap exists
@@ -146,6 +138,10 @@ export function ExportDialog({
       stageTrackStart: asStageTrackStart(p.stageTrackStart) ?? base.stageTrackStart,
       showWaypointLabels: p.showWaypointLabels ?? base.showWaypointLabels,
       colorWaypointPins: p.colorWaypointPins ?? base.colorWaypointPins,
+      includeDescriptions: p.includeDescriptions ?? base.includeDescriptions,
+      // '' is a real choice ("follow the app"), so unlike the units there is no
+      // absent-means-something rule here: whatever is stored is what was picked.
+      language: p.exportLanguage ?? base.language,
       labelWaypointsWithMission: p.labelWaypointsWithMission,
       branchColors: decodeStageColors(p.branchColors),
       branchGroundColors: decodeStageColors(p.branchGroundColors),
@@ -186,6 +182,8 @@ export function ExportDialog({
         stageTrackStart: next.stageTrackStart,
         showWaypointLabels: next.showWaypointLabels,
         colorWaypointPins: next.colorWaypointPins,
+        includeDescriptions: next.includeDescriptions,
+        exportLanguage: next.language,
         branchColors: encodeStageColors(next.branchColors),
         branchGroundColors: encodeStageColors(next.branchGroundColors),
         branchPinColors: encodeStageColors(next.branchPinColors),
@@ -215,6 +213,18 @@ export function ExportDialog({
   // The stages that will actually get a track, in the order the model numbers
   // them — so a swatch always lines up with the branch it colors.
   const branchNames = useMemo(() => exportBranchNames(result, meta), [result, meta]);
+  // Which preset the controls currently spell out, or none. Derived every
+  // render rather than remembered from the last click: a preset only SETS the
+  // controls, so a remembered selection would go on claiming a shape the
+  // dialog had since been adjusted out of.
+  const activePreset = useMemo(() => matchingPreset(opts), [opts]);
+  // The `t` the FILE is written with. Every locale is bundled at startup, so
+  // `getFixedT` resolves without loading anything; falling back to the app's
+  // own `t` is what makes '' mean "follow the app" with no second code path.
+  const exportT: Translate = useMemo(
+    () => (opts.language ? (i18n.getFixedT(opts.language) as unknown as Translate) : (t as Translate)),
+    [opts.language, i18n, t],
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -309,7 +319,7 @@ export function ExportDialog({
       // Building the model is part of the render that can fail (a result with
       // no usable samples, a waypoint the branch never reached), so it belongs
       // under the same catch as the template render rather than in front of it.
-      const model = buildFlightPathModel(result, launch, meta, opts, (k) => t(WP_LABEL_KEY[k]));
+      const model = buildFlightPathModel(result, launch, meta, opts, exportT);
       let text: string;
       let ext: string;
       let mime: string;
@@ -414,20 +424,31 @@ export function ExportDialog({
               them, so what the file will contain is always what the dialog
               shows and any one of them is a starting point you can adjust. */}
           <Section title={t('pathExport.presets')}>
-            <div className="flex flex-wrap gap-1.5">
-              {EXPORT_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  // The set is cloned on the way in, so the module-level one a
-                  // preset carries is never the object the dialog then mutates.
-                  onClick={() => change({ ...preset.options, waypoints: new Set(preset.options.waypoints) })}
-                  title={t(`pathExport.preset.${preset.id}Note`)}
-                  className="rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
-                >
-                  {t(`pathExport.preset.${preset.id}`)}
-                </button>
-              ))}
+            <div role="group" aria-label={t('pathExport.presets')} className="flex flex-wrap gap-1.5">
+              {EXPORT_PRESETS.map((preset) => {
+                const active = activePreset === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    // A toggle, not a plain button: before this nothing on
+                    // screen said which shape the dialog was in, and the
+                    // answer is knowable — see `matchingPreset`.
+                    aria-pressed={active}
+                    // The set is cloned on the way in, so the module-level one a
+                    // preset carries is never the object the dialog then mutates.
+                    onClick={() => change({ ...preset.options, waypoints: new Set(preset.options.waypoints) })}
+                    title={t(`pathExport.preset.${preset.id}Note`)}
+                    className={`rounded-md px-2 py-1 text-xs font-medium ring-1 ${
+                      active
+                        ? 'bg-sky-600 text-white ring-sky-400/40'
+                        : 'bg-slate-800 text-slate-200 ring-white/10 hover:bg-slate-700'
+                    }`}
+                  >
+                    {t(`pathExport.preset.${preset.id}`)}
+                  </button>
+                );
+              })}
             </div>
             <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.presetsNote')}</p>
           </Section>
@@ -440,7 +461,7 @@ export function ExportDialog({
                   key={k}
                   checked={opts.waypoints.has(k)}
                   onChange={() => toggleWaypoint(k)}
-                  label={t(WP_LABEL_KEY[k])}
+                  label={t(WAYPOINT_LABEL_KEY[k])}
                 />
               ))}
             </div>
@@ -540,6 +561,17 @@ export function ExportDialog({
             <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.pinsNote')}</p>
           </Section>
 
+          {/* What the file SAYS, rather than where it sits — so it is neither
+              Placement nor Flight path, and no preset touches it. */}
+          <Section title={t('pathExport.balloons')}>
+            <Check
+              checked={opts.includeDescriptions}
+              onChange={(v) => change({ includeDescriptions: v })}
+              label={t('pathExport.includeDescriptions')}
+            />
+            <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.descriptionsNote')}</p>
+          </Section>
+
           {/* Units */}
           <Section title={t('pathExport.units')}>
             <UnitRow
@@ -558,6 +590,23 @@ export function ExportDialog({
                 change({ distanceUnit: u });
               }}
             />
+            <label className="flex items-center justify-between gap-3">
+              <span className="text-xs text-slate-400">{t('pathExport.language')}</span>
+              <select
+                aria-label={t('pathExport.language')}
+                value={opts.language}
+                onChange={(e) => change({ language: e.target.value })}
+                className="w-40 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+              >
+                <option value="">{t('pathExport.languageSameAsApp')}</option>
+                {LANGUAGES.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.languageNote')}</p>
           </Section>
 
           {/* Its own group, after Units, because it names the whole document
@@ -868,8 +917,16 @@ const EXPORT_PRESETS: {
     },
   },
   {
-    // How high it went: suspended in the air where it belongs, with shadows so
-    // you can still read where each point sits on the map.
+    // How high it went: suspended in the air where it belongs.
+    //
+    // No shadow. A plumb line under ONE pin reads as a position; a curtain
+    // under the whole length of an arcing flight path is a solid wall that
+    // buries the flight it is meant to explain. The checkbox stays, for the
+    // case it is good at.
+    //
+    // This preset must state exactly what `defaultExportOptions` gives a fresh
+    // dialog, or the panel opens in a shape no button claims. It is the
+    // default state AND a selected one.
     id: 'flightPath',
     options: {
       waypoints: new Set<WaypointKind>(WAYPOINT_KINDS),
@@ -877,7 +934,7 @@ const EXPORT_PRESETS: {
       waypointAltitudeReference: 'automatic',
       includeFlightPath: true,
       includeGroundTrack: true,
-      drawShadow: true,
+      drawShadow: false,
     },
   },
   {
@@ -893,6 +950,33 @@ const EXPORT_PRESETS: {
     },
   },
 ];
+
+/**
+ * The preset whose stated options the dialog currently matches, or null.
+ *
+ * The highlight has to be able to show NOTHING. A preset only sets the
+ * controls, so the moment one of them is adjusted by hand the state is no
+ * preset's, and a button still claiming it would be lying about what the file
+ * will contain. Clearing it — and reselecting when the controls match again —
+ * is what keeps the highlight honest.
+ *
+ * Compared over whatever each preset STATES, read off the object rather than
+ * listed here, so a preset that grows a key joins the comparison with it.
+ */
+function matchingPreset(opts: FlightPathExportOptions): string | null {
+  const same = (a: unknown, b: unknown): boolean => {
+    if (a instanceof Set) {
+      const other = b as Set<unknown>;
+      return other instanceof Set && other.size === a.size && [...a].every((v) => other.has(v));
+    }
+    return a === b;
+  };
+  const current = opts as unknown as Record<string, unknown>;
+  const match = EXPORT_PRESETS.find((preset) =>
+    Object.entries(preset.options).every(([key, value]) => same(value, current[key])),
+  );
+  return match?.id ?? null;
+}
 
 function UnitRow({
   label,

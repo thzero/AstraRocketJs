@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LaunchConditions } from '../../services/orkTree';
 import { getLaunchLocationStore, locationFrom, type LaunchLocation } from '../../services/launchLocationStore';
+import { loadSettings } from '../../services/settings';
 import { useLocationList } from './useLocationList';
 import { DesignPropertiesDialog } from '../layout/DesignPropertiesDialog';
 import { LocationsDialog } from './LocationsDialog';
@@ -51,20 +52,32 @@ export function LocationPicker({
   };
 
   /**
-   * "Custom location" CLEARS the three site fields.
+   * "Custom location" puts the site back to your LAUNCH DEFAULTS.
    *
-   * It used to be inert: the select's value is derived from the fields, so
+   * It was inert at first: the select's value is derived from the fields, so
    * choosing it did nothing and React snapped the dropdown straight back to the
    * matching location. An option you can highlight but not pick reads as broken
-   * however good the reason, and clearing is the only thing the choice can
-   * sensibly mean — "I am somewhere else, and I have not said where yet".
+   * however good the reason for it.
    *
-   * One undoable edit like any other, and the Run button already names a blank
-   * required launch field, so the half-filled state it leaves is a state the
-   * app explains rather than one it hides.
+   * It then cleared the three fields, which was worse in practice than it
+   * sounded: all three are required, so picking it left the map with nothing to
+   * draw, the Run button refused, and you had to type a coordinate from nothing
+   * before you could even pan to the right part of the world.
+   *
+   * Your defaults are a real place - the Kennedy Space Center as shipped, since
+   * that is what `settings.launchDefaults` holds - so the map has somewhere to
+   * open and the fields stay flyable. Read from Settings rather than hardcoded,
+   * so somebody who set their own home field gets that instead of Florida.
+   *
+   * One undoable edit like any other.
    */
-  const clear = () => {
-    onChange({ latitudeDeg: null, longitudeDeg: null, launchAltitudeM: null });
+  const toDefaultSite = () => {
+    const site = loadSettings().launchDefaults;
+    onChange({
+      latitudeDeg: site.latitudeDeg,
+      longitudeDeg: site.longitudeDeg,
+      launchAltitudeM: site.launchAltitudeM,
+    });
     onCommit?.();
   };
 
@@ -117,12 +130,13 @@ export function LocationPicker({
           onChange={(e) => {
             const location = locations.find((p) => p.id === e.target.value);
             if (location) apply(location);
-            else clear();
+            else toDefaultSite();
           }}
           className="min-w-0 flex-1 rounded-md bg-slate-800 px-2 py-1.5 text-xs text-slate-200 ring-1 ring-white/10"
         >
           {/* Both a STATE and a CHOICE: it is what the dropdown shows whenever
-              the fields match no saved location, and picking it clears them. */}
+              the fields match no saved location, and picking it returns them to
+              your launch defaults. */}
           <option value="">{t('location.custom')}</option>
           {locations.map((p) => (
             <option key={p.id} value={p.id}>

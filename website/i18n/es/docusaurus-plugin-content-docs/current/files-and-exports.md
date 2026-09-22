@@ -134,10 +134,12 @@ En el diálogo de exportación eliges qué **puntos de paso** incluir (rampa, de
 
 Los **ajustes rápidos** —*Deriva*, *Trayectoria* y *Aterrizajes*— configuran las tres cosas a la vez, porque los puntos de paso, las líneas y la colocación tienen que concordar para que un archivo responda bien a una pregunta. Solo mueven los controles, así que lo que contendrá el archivo es siempre lo que muestra el diálogo, y cualquiera de ellos es un punto de partida que puedes ajustar. Cada uno declara su selección completa, puntos de paso incluidos, de modo que ninguno es un camino sin retorno: *Aterrizajes* reduce los puntos de paso al aterrizaje, y volver a *Deriva* los restituye todos.
 
+El que coincide con los controles aparece resaltado, y un diálogo recién abierto parte de *Trayectoria*. Como un ajuste rápido solo mueve los controles, el resaltado se borra en cuanto cambias algo que ese ajuste abarca, y vuelve cuando los controles lo declaran de nuevo: nunca afirma una forma de la que el diálogo ya se ha apartado.
+
 **Colocación** controla cómo se sitúa la traza en el mapa:
 
 - **Altitud de la traza desde** y **Altitud de los puntos desde** — dos elecciones separadas, porque la línea y los marcadores quieren cosas distintas. *Automático* usa el nivel del mar cuando el campo de vuelo tiene una altitud real definida, y el suelo cuando sigue en 0. Ese valor por defecto importa: un vuelo medido desde la rampa pero colocado contra el nivel del mar queda enterrado bajo el terreno, que es lo que daría un campo a 1200 m. *Pegado al suelo* apoya la traza sobre el terreno: la opción adecuada cuando lo que importa es por encima de **qué** deriva el cohete y no a qué altura llegó. Una combinación habitual es la traza al nivel del mar con los marcadores pegados al suelo: el vuelo suspendido en el aire donde le corresponde, y sus etiquetas legibles sobre el terreno que sobrevuelan.
-- **Dibujar la sombra hasta el suelo** — una cortina bajo la traza y una plomada bajo cada marcador, para leer dónde se sitúa en el mapa un punto que está en el aire. Se desactiva solo cuando ambas mitades están pegadas al suelo, porque ya no hay nada desde donde dibujarla.
+- **Dibujar la sombra hasta el suelo** — una cortina bajo la traza y una plomada bajo cada marcador, para leer dónde se sitúa en el mapa un punto que está en el aire. Se desactiva solo cuando ambas mitades están pegadas al suelo, porque ya no hay nada desde donde dibujarla. Ningún ajuste rápido la activa: bajo un solo marcador se lee como una posición, pero bajo toda la longitud de una trayectoria en arco es un muro macizo que entierra el vuelo que pretende explicar. Actívala para aquello en lo que es buena: situar un punto concreto en el mapa.
 - **Dibujar los nombres de los puntos en el mapa** — un vuelo casi vertical amontona sus puntos en unos cientos de metros de pantalla; desactiva los nombres para dejar marcadores limpios en los que puedas hacer clic.
 - **Colorear los marcadores por etapa** — los marcadores de color cargan un icono desde los servidores de Google, así que desactívalos para un archivo que deba verse sin conexión.
 
@@ -145,6 +147,36 @@ El grupo **Trayectoria de vuelo** incluye dos controles más, que pertenecen a l
 
 - **La traza de cada etapa empieza** (solo vuelos por etapas) — los datos de una etapa separada empiezan como una copia de los de toda la pila, así que por defecto su traza empieza **en la separación** y el ascenso compartido se dibuja una sola vez. Elige **en la rampa** para que cada etapa se lea como un vuelo completo. Esto también decide desde dónde se miden la *velocidad máxima* y la *aceleración máxima* de una etapa, para que un propulsor agotado informe de sus propios picos y no de los de la pila.
 - **Colores por etapa…** — una muestra de color por etapa. Cada etapa parte del mismo color de paleta que le dan OpenRocket de escritorio y las [gráficas de vuelo](./views-and-analysis.md#flight-after-a-simulation), para que conserve su identidad entre la gráfica y el mapa; elige otro para sustituirlo. Un solo color rige las tres marcas de esa etapa: la línea de la trayectoria a plena intensidad, la traza sobre el terreno oscurecida (vista desde arriba, una traza sobre el terreno queda justo debajo de su trayectoria, y dos líneas del mismo brillo se leen como una sola) y los marcadores. **Restablecer** devuelve todas las etapas a la paleta, y **Cancelar** deja intacta tu elección anterior.
+
+### Globos de resumen {#summary-balloons}
+
+Google Earth muestra la **descripción** de un elemento en un globo al hacer clic en él, y el KML rellena tres:
+
+- **El documento** lleva el resumen del vuelo: el cohete, la configuración de motores, las coordenadas y la elevación del campo de vuelo, la altitud, la velocidad y la aceleración máximas, el alcance máximo desde la rampa, el tiempo hasta el apogeo, la duración del vuelo y una línea por etapa con las coordenadas, la distancia, el rumbo y la hora de aterrizaje de esa etapa.
+- **La carpeta de cada etapa** lleva el alcance máximo de esa etapa y su aterrizaje en una sola línea, con la misma forma que usa el resumen: primero las coordenadas, luego la distancia y el rumbo desde la rampa, y luego la hora.
+- **Cada punto de paso** lleva el tiempo desde el despegue, la altitud sobre la rampa y sobre el nivel del mar en una sola línea, la posición como distancia y rumbo desde la rampa, sus propias coordenadas y, en una eyección, el dispositivo de recuperación que se desplegó.
+
+**Todas las coordenadas se escriben `latitud, longitud`, y lo indican.** Un par sin etiqueta es ambiguo, y en un archivo KML lo es de una forma que tiene una respuesta equivocada esperando: las ternas de coordenadas del propio KML se escriben con la *longitud* primero, así que quien conoce el formato tiene un motivo real para leer el par al revés, y en un campo de vuelo real ambas lecturas son lugares plausibles. Por eso cada par lleva la etiqueta `(lat, lon)` y se escribe con seis decimales (unos 10 cm) en grados decimales con signo, que es justo lo que aceptan los campos de latitud y longitud de la aplicación: una coordenada leída en un globo se puede pegar tal cual de vuelta.
+
+Las coordenadas de aterrizaje son las que de verdad vas a usar. Una distancia y un rumbo desde la rampa sirven para leer el mapa; el par es lo que tecleas en un GPS de mano para ir a buscar el cohete, así que toda línea de aterrizaje empieza por él:
+
+```
+Aterrizaje de Sod Blaster: 30.615051, -97.496600 (lat, lon); 50,0 m a 0° desde la rampa; T+3.0 s
+```
+
+Las cláusulas se separan con punto y coma porque la coordenada lleva su propia coma, y todos los tiempos del archivo se escriben con `T+` y un decimal, para que una magnitud tenga una sola notación.
+
+**El alcance máximo no es la distancia de aterrizaje.** Un cohete puede derivar a favor del viento bajo el paracaídas y volver luego parte del camino, así que el punto más lejano de la rampa a menudo no es donde aterriza. El alcance es la cifra que importa para la seguridad del campo; dónde cayó es un dato aparte, y se exportan los dos. El alcance de una etapa se mide sobre todo su vuelo, incluido el ascenso que las etapas volaron unidas, porque la excursión de la pila cuenta para todas las etapas que formaban parte de ella.
+
+Una línea que no tiene nada que decir desaparece en lugar de quedar vacía: no hay línea de configuración si el cohete no tiene una con nombre, ni altitud «sobre el nivel del mar» cuando el campo de vuelo sigue a 0 (esa altura sería en realidad la altura sobre la rampa), ni dispositivo de recuperación en un marcador que no es una eyección, ni aterrizaje alguno en una simulación que terminó con el cohete todavía en el aire.
+
+**Globos de resumen** desactiva todo el conjunto, para un archivo en el que las descripciones solo estorben. La geometría, los nombres y los colores no se ven afectados.
+
+Un marcador de eyección lleva el nombre del evento, matizado con el del dispositivo cuando se lo pusiste: *Drogue Eyección* y *Main Eyección*. Así se distinguen los dos en un vuelo de doble despliegue sin perder el vocabulario de eventos que usan los demás marcadores, y en un vuelo por etapas se acumula con la etapa hasta *Booster Drogue Eyección*: largo, y exactamente lo que es ese marcador. Un dispositivo que dejaste con su nombre por defecto no añade nada que no diga ya la línea **Dispositivo** del globo, así que su marcador es solo **Eyección**.
+
+Cada línea lleva una etiqueta en negrita, para que el globo se lea como una lista de datos y no como un párrafo. Google Earth añade encima el nombre del elemento como título, y debajo un par **Cómo llegar: Hasta aquí / Desde aquí**, a partir de su propia plantilla de globo y no del archivo.
+
+Dónde se abre un globo depende del visor. Google Earth Pro abre el globo de un punto de paso al hacer clic en el marcador en la vista 3D, pero los del documento y las carpetas solo desde sus nombres en el panel **Lugares**. Google Earth para web abre los tres desde el panel del proyecto.
 
 ### Dar nombre a la exportación {#naming-the-export}
 
@@ -158,6 +190,14 @@ Las coordenadas se sitúan alrededor de la **latitud y longitud de lanzamiento**
 
 Si ambas coordenadas siguen en cero, la posición nunca se rellenó y la exportación se ancla en el **Centro Espacial Kennedy**: el diálogo te avisa. Solo cuenta (0, 0), porque es mar abierto; un campo de vuelo sobre el meridiano de Greenwich o sobre el ecuador es un lugar real y se exporta donde lo pusiste. Tu diseño no se modifica nunca; esto solo decide qué coordenadas van al archivo.
 
+### El idioma del archivo {#the-language-of-the-file}
+
+La casilla **Idioma**, junto a las unidades, escribe la exportación en un idioma distinto de aquel en el que estás leyendo la aplicación. Por defecto es *El mismo que la app*.
+
+Pertenece al archivo por la misma razón que las unidades: un KML destinado a otra persona puede querer su idioma, sea cual sea el que tú tengas puesto. La elección se recuerda entre exportaciones, y *El mismo que la app* también se recuerda: elegir español una vez y volver atrás no deja en español el archivo siguiente sin avisar.
+
+Abarca todo lo que escribe la exportación: los nombres de los puntos de paso, los nombres de traza *trayectoria de vuelo* y *traza en el suelo*, todas las líneas de los globos y el nombre por defecto de un dispositivo de recuperación al que no cambiaste el nombre: un paracaídas que dejaste tal cual aparece en el idioma de la exportación, no en inglés. Lo que no puede abarcar es el texto que escribiste tú: el nombre de la misión, los nombres que les diste a tus propios componentes y cualquier texto fijo de una plantilla importada, que se queda en el idioma en que lo tecleó su autor.
+
 ### Plantillas de exportación personalizadas {#custom-export-templates}
 
 Los tres formatos incorporados son **plantillas [Mustache](https://mustache.github.io/)**, y puedes aportar las tuyas:
@@ -166,6 +206,12 @@ Los tres formatos incorporados son **plantillas [Mustache](https://mustache.gith
 - **Importar plantilla…** — añade un archivo `.mustache` llamado `<nombre>.<ext>.mustache` (por ejemplo, `mi-traza.kml.mustache`, `puntos.csv.mustache`). La extensión determina el tipo de archivo de salida. Tu plantilla aparece en la lista de formatos, se procesa con los mismos datos de vuelo y se puede eliminar. Las plantillas importadas se guardan en tu navegador (no se sube nada).
 
 Las plantillas ven el vuelo como un modelo con los mismos nombres de campo que la exportación de escritorio de OpenRocket (por ejemplo `{{title}}`, `{{#branches}}`, `{{#waypoints}}`, `{{latitude}}`, `{{longitude}}`, `{{altitudeMslMeters}}`, `{{#path}}`), así que las plantillas escritas para OpenRocket de escritorio funcionan también aquí.
+
+`{{labels.*}}` contiene las cadenas propias de las plantillas integradas en el idioma de exportación (`{{labels.peakAltitude}}`, `{{labels.landing}}`, `{{labels.flightPath}}` y las demás), que es como esas plantillas siguen la casilla **Idioma**. Una frase cuyo orden de palabras cambia entre idiomas no está ahí: `{{rangeText}}` en un punto de paso, y `{{landingText}}` y `{{landingHeading}}` en una etapa, llegan ya compuestas, porque una plantilla que pega fragmentos traducidos en orden inglés produce orden inglés en todos los idiomas. Los valores que hay detrás siguen todos en el modelo, así que una plantilla que quiera componer su propia frase puede hacerlo.
+
+Los valores del resumen también están en el modelo. En el nivel superior: `{{maxRange}}` (lo más lejos que llegó cualquier etapa desde la rampa, en la unidad de distancia), `{{timeToApogee}}` y `{{flightTime}}` (segundos, un decimal), `{{velocityUnit}}` y `{{accelerationUnit}}` (etiquetas de `{{maxVelocity}}` y `{{maxAcceleration}}`, que siempre van en SI), `{{launchLatitudeStr}}`, `{{launchLongitudeStr}}` y `{{launchAltitude}}`, y `{{#includeDescriptions}}` para el interruptor de los globos. Por etapa: `{{maxRangeMeters}}` y `{{maxRange}}`, y `{{#hasLanding}}` que condiciona `{{landingDistance}}`, `{{landingBearing}}`, `{{landingTime}}`, `{{landingLatitudeStr}}` y `{{landingLongitudeStr}}`. Cada punto de paso ya llevaba `{{latitudeStr}}` y `{{longitudeStr}}`, las mismas cadenas de seis decimales.
+
+Dos cosas que conviene saber si escribes tus propios globos. **Escribe el HTML ya escapado** —`&lt;b&gt;`, no `<b>`— y no lo envuelvas en `CDATA`. Todo valor que una plantilla sustituye se escapa, porque el nombre de un cohete podría romper el XML, y dentro de un bloque `CDATA` esos escapes no se decodifican: un cohete llamado `Bill & Ted` llegaría al globo como el texto literal `Bill &amp; Ted`. Ya escapado, el marcado y el valor se escapan exactamente una vez cada uno y el analizador los decodifica juntos. (Un nombre que contenga `]]>` cerraría además el bloque `CDATA` antes de tiempo y produciría un archivo inválido.) Segundo, **una cadena vacía y un cero son falsos**, así que `{{#launchAltitudeMeters}}…{{/launchAltitudeMeters}}` hace desaparecer la línea que lo rodea cuando no hay nada que decir, en lugar de imprimir una etiqueta seguida de un hueco.
 
 ## Exportar imágenes {#exporting-images}
 

@@ -69,7 +69,7 @@ test('the picker says Custom once the fields no longer match', async ({ page }) 
   await expect(padSelect(page)).toHaveValue('');
 });
 
-test('picking Custom location clears the site fields', async ({ page }) => {
+test('picking Custom location returns the site to the launch defaults', async ({ page }) => {
   await ready(page);
   await openTab(page, 'Simulations');
   await page.getByLabel('Latitude', { exact: true }).fill('39.05');
@@ -77,25 +77,24 @@ test('picking Custom location clears the site fields', async ({ page }) => {
   await savePad(page, 'Home field');
   await expect(padSelect(page)).toHaveValue(/.+/);
 
-  // The option used to be inert: the select's value is derived from the fields,
-  // so picking it changed nothing and the location sprang straight back.
+  // The option was inert at first: the select's value is derived from the
+  // fields, so picking it changed nothing and the location sprang back. It then
+  // CLEARED the fields, which left all three required site inputs blank, the
+  // map with nothing to draw and the Run button refusing.
   await blurFields(page);
   await padSelect(page).selectOption('');
   await expect(padSelect(page)).toHaveValue('');
-  await expect(page.getByLabel('Latitude', { exact: true })).toHaveValue('');
-  await expect(page.getByLabel('Longitude', { exact: true })).toHaveValue('');
 
-  // All three are required launch fields, so a cleared site refuses the run and
-  // NAMES what to fill. Longitude is in that list now: it was the one site
-  // field a flight would fly without, and 0 is the Gulf of Guinea, not "unset".
-  await expect(runButton(page)).toBeDisabled();
-  await expect(page.getByText(/is missing:.*longitude/)).toBeVisible();
-  await expect(page.getByText(/is missing:.*latitude/)).toBeVisible();
+  // The Kennedy Space Center, which is what the shipped launch defaults hold.
+  await expect(page.getByLabel('Latitude', { exact: true })).toHaveValue('28.61');
+  await expect(page.getByLabel('Longitude', { exact: true })).toHaveValue('-80.6');
+  // A real place, so the run is still flyable rather than refused for a blank.
+  await expect(runButton(page)).toBeEnabled();
 
-  // Cleared, not lost: it is one ordinary edit, so undo brings the site back.
+  // One ordinary edit, so undo brings the previous site back.
   await page.keyboard.press('Control+z');
   await expect(page.getByLabel('Latitude', { exact: true })).toHaveValue('39.05');
-  await expect(runButton(page)).toBeEnabled();
+  await expect(page.getByLabel('Longitude', { exact: true })).toHaveValue('-104.8');
 });
 
 test('a location can be edited and deleted', async ({ page }) => {

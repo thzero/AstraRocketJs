@@ -39,6 +39,11 @@ const show = (result: FlightResult) =>
 const trackRef = () => screen.getByLabelText('Track altitude from') as HTMLSelectElement;
 const pinRef = () => screen.getByLabelText('Waypoint altitude from') as HTMLSelectElement;
 const shadow = () => screen.getByRole('checkbox', { name: 'Draw shadow down to the ground' }) as HTMLInputElement;
+const balloons = () => screen.getByRole('checkbox', { name: 'Summary balloons' }) as HTMLInputElement;
+const preset = (name: string) => screen.getByRole('button', { name }) as HTMLButtonElement;
+/** The preset the toggle group currently claims, or null for none. */
+const pressed = () =>
+  ['Drift cast', 'Flight path', 'Landing plots'].find((n) => preset(n).getAttribute('aria-pressed') === 'true') ?? null;
 
 /**
  * The placement options decide how the exported KML sits on the map. The button
@@ -52,6 +57,54 @@ describe('flight-path export dialog', () => {
   // cross-export carry-over the feature is FOR, and exactly what a test
   // must not have.
   beforeEach(() => localStorage.clear());
+
+  it('opens on the flight-path placement, selected', () => {
+    // The preset definitions and the dialog defaults have to agree, or the
+    // panel opens in a shape no button claims. This is the assertion that
+    // keeps them agreeing.
+    show(flight());
+    expect(pressed()).toBe('Flight path');
+  });
+
+  it('turns the shadow on from no placement at all', () => {
+    // A plumb line under one pin reads as a position; a curtain under the whole
+    // length of an arcing flight path is a wall that buries the flight it is
+    // meant to explain. The checkbox stays, for the case it is good at.
+    show(flight());
+    for (const name of ['Drift cast', 'Flight path', 'Landing plots']) {
+      fireEvent.click(preset(name));
+      expect(shadow().checked).toBe(false);
+    }
+  });
+
+  it('clears the placement highlight the moment a control it covers is moved', () => {
+    // A preset only SETS the controls, so a selection that survived an edit
+    // would be claiming a shape the dialog had since been adjusted out of.
+    show(flight());
+    fireEvent.click(preset('Drift cast'));
+    expect(pressed()).toBe('Drift cast');
+
+    fireEvent.change(trackRef(), { target: { value: 'sealevel' } });
+    expect(pressed()).toBeNull();
+
+    // ...and it comes back when the controls spell that preset out again.
+    fireEvent.change(trackRef(), { target: { value: 'clamped' } });
+    expect(pressed()).toBe('Drift cast');
+  });
+
+  it('writes the summary balloons out of the box, and no placement changes that', () => {
+    show(flight());
+    expect(balloons().checked).toBe(true);
+    for (const name of ['Drift cast', 'Flight path', 'Landing plots']) {
+      fireEvent.click(preset(name));
+      expect(balloons().checked).toBe(true); // not a placement, so not a preset's business
+    }
+    // It is still a control, and turning it off does not cost the placement.
+    fireEvent.click(preset('Drift cast'));
+    fireEvent.click(balloons());
+    expect(balloons().checked).toBe(false);
+    expect(pressed()).toBe('Drift cast');
+  });
 
   it('starts on the desktop defaults', () => {
     show(flight());
@@ -146,6 +199,33 @@ describe('flight-path export dialog', () => {
     const select = screen.getByLabelText("Each stage's track starts") as HTMLSelectElement;
     expect(select.value).toBe('separation');
     expect([...select.options].map((o) => o.value)).toEqual(['separation', 'pad']);
+  });
+
+  it('offers an export language, following the app until you pick one', () => {
+    // Same argument as the two unit dropdowns beside it: the language belongs
+    // to the FILE, because a KML going to somebody else may want their language
+    // whatever you are reading the app in.
+    show(flight());
+    const select = screen.getByLabelText('Language') as HTMLSelectElement;
+    expect(select.value).toBe(''); // follow the app
+    expect([...select.options].map((o) => o.value)).toEqual(['', 'en', 'es']);
+    expect(select.options[0]!.textContent).toBe('Same as the app');
+  });
+
+  it('remembers the export language, including a deliberate "follow the app"', () => {
+    // '' is a choice here, not an absence, so it has to survive a reload -
+    // picking Spanish and then going back has to stick rather than silently
+    // leaving the file in Spanish next time.
+    const stored = () => (readSettings().pathExport as Record<string, unknown>).exportLanguage;
+    const { unmount } = show(flight());
+    fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'es' } });
+    expect(stored()).toBe('es');
+
+    unmount();
+    show(flight());
+    expect((screen.getByLabelText('Language') as HTMLSelectElement).value).toBe('es');
+    fireEvent.change(screen.getByLabelText('Language'), { target: { value: '' } });
+    expect(stored()).toBe('');
   });
 
   it('carries the mission name, and leaves the markers out of it by default', () => {
