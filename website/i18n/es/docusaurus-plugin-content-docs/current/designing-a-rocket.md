@@ -68,6 +68,18 @@ Si una dimensión obligatoria vale **cero**, el campo escala el aviso: la etique
 Todo lo demás puede valer cero legítimamente, y por eso no está marcado. Una **cuerda de punta** de 0 es una aleta delta; una **flecha** o un **ángulo de calado** de 0 es una aleta recta; un **hombro** o una **lengüeta** de 0 simplemente no existe; un **voladizo del motor** de 0 está enrasado; un **radio interior** de 0 en un anillo centrador es un disco macizo; una **longitud** de 0 en un componente de masa es una masa puntual; y todos los **retardos** y **desplazamientos angulares** parten de 0. Una etapa no tiene ningún campo obligatorio: sus ajustes son disparadores y retardos.
 
 
+## Aletas de forma libre {#freeform-fins}
+
+Un juego de aletas **de forma libre** se modela punto por punto en lugar de a partir de las dimensiones de un trapecio. Selecciona una y el panel de propiedades muestra un editor de **Perfil de la aleta**.
+
+- **Arrastra un punto ámbar** para moverlo.
+- **Toca un punto azul intermedio** de una arista para insertar un punto ahí.
+- **Selecciona un punto** para borrarlo o para escribir sus coordenadas exactas.
+
+Los ejes son los de la propia aleta: **X recorre el cuerpo**, del frente de la raíz a la parte trasera, e **Y es la altura sobre la superficie del cuerpo**. La arista de la raíz cierra el perfil en Y = 0, así que das forma al borde de ataque, a la punta y al borde de salida, no a la raíz.
+
+El perfil gobierna la pieza real y no solo el dibujo: la masa, el CG y la aerodinámica lo siguen, y [escalar todo el cohete](#scaling-the-whole-rocket) mueve los puntos con todo lo demás. Viaja de ida y vuelta en los archivos `.ork` y de RockSim.
+
 ## Etapas (cohetes de varias etapas) {#staging-multi-stage-rockets}
 
 Un cohete puede tener más de una etapa. **+ Etapa** (en la cabecera del panel de Componentes) añade un **propulsor** debajo de la etapa inferior actual; sus piezas (cuerpo, aletas, soporte de motor, recuperación) se construyen y editan exactamente igual que las del sustentador. Selecciona un nodo de **etapa** para definir cómo abandona el conjunto:

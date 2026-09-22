@@ -65,7 +65,7 @@ No son las casillas de la pestaña Simulaciones a propósito: esas dicen qué de
 
 **Cohetes por etapas** — cuando un vuelo se separa en más de una etapa, aparece un **selector de etapas** sobre las gráficas. Cada etapa seleccionada se dibuja con su propia línea de color —el ascenso, descenso y aterrizaje propios de un propulsor agotado— compartiendo la escala de cada gráfica, y con la lectura al pasar el cursor y los marcadores de eventos cubriendo todas las etapas mostradas. Deselecciona una etapa para centrarte en el resto.
 
-## Traza en tierra (tras una simulación)
+## Traza en tierra (tras una simulación) {#ground-track-after-a-simulation}
 
 El vuelo visto **desde arriba**: por dónde pasó el cohete sobre el terreno, descartando la altura. La trayectoria 3D responde a *cómo voló*; esta responde a *dónde cae y a qué distancia de la rampa*, que en un día con viento es la diferencia entre un paseo y una búsqueda.
 
@@ -80,6 +80,12 @@ Para llevarte lo mismo fuera de la aplicación, la [exportación de trayectoria]
 La **trayectoria del vuelo en 3D**: el recorrido del cohete por el espacio, incluida la deriva por el viento.
 
 Un botón **⬇ Exportar** guarda la trayectoria para herramientas cartográficas —**KML** (Google Earth), **GPX** o un **CSV de puntos de paso**— con opciones sobre qué puntos y líneas incluir, y soporte para tus propias plantillas. Consulta [Archivos y exportaciones](./files-and-exports.md#exporting-the-flight-path-kml--gpx--csv).
+
+### Reproducir el vuelo {#playing-the-flight-back}
+
+La trayectoria 3D reproduce el vuelo en lugar de solo dibujarlo. **▶ Reproducir vuelo** inicia una cuenta atrás (5, 4, 3, 2, 1) y despega; volver a pulsar durante la cuenta atrás la cancela, y durante el vuelo lo pausa. Arrastra la **línea de tiempo** para ir a cualquier instante y elige una **velocidad** de 0,25× a 4×. La velocidad se refiere al tiempo real, no al simulado, así que el impulso no termina antes de que lo veas.
+
+La velocidad con la que arranca una reproducción viene de **[Ajustes ▸ Reproducción](./settings.md#playback)**.
 
 ## Leer la franja de estadísticas {#reading-the-stats-strip}
 

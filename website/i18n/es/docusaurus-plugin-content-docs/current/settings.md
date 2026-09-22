@@ -94,6 +94,10 @@ Ten en cuenta que estos seis son *obligatorios*, no *distintos de cero*: aire en
 
 En este diálogo esos campos nunca pueden acabar en blanco: inicializan cada nueva simulación, así que borrar uno aquí simplemente conserva el valor que tenía.
 
+## Reproducción {#playback}
+
+- **Velocidad predeterminada** — la velocidad a la que empieza a reproducirse la trayectoria de vuelo 3D, de 0,25× a 4×. Es un punto de partida, no un bloqueo: el control de velocidad de la vista cambia la reproducción actual sin tocar este ajuste.
+
 ## Avisos de seguridad
 
 Cinco umbrales, en las unidades que hayas elegido para la velocidad. Colorean las fichas de resultados *y* llegan al motor de vuelo, así que deciden qué avisos informa una simulación y no solo cómo se pintan los números.

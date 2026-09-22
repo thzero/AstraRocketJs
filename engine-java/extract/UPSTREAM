@@ -38,7 +38,8 @@
 # content-bound and the same commit fetches from canonical
 # openrocket/openrocket - verified on 2026-09-22, when this SHA was the head of
 # canonical `unstable` itself, so the fork is not carrying anything of its own
-# at this point.
+# at this point. Re-confirm that on every bump: a fork drifting ahead of - or
+# behind - canonical is invisible from inside the fork.
 #
 # 2026-09-22: bumped from 6deae5079 (2026-09-17). Five commits, and NOTHING
 # under core/src/main/java: two swing spinner step sizes (PR #3332) and the
