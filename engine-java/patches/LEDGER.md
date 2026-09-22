@@ -18,6 +18,15 @@ Every `PATCH(...)` comment in `src/java/` points here. This is that file.
 Rule of thumb from the README: JDK gap → *jdkstub*; provide a class instead of
 OpenRocket's → *shim*; edit OpenRocket's class in place → *patch*.
 
+- **Two upstreams, two pins.** `extract/UPSTREAM` names the OpenRocket commit
+  `src/java/` is extracted from, and it gates: `extract --check` and CI both
+  read it. The RASAero-style extensions in several of these patches come from a
+  SECOND upstream, mmrocket-sim (see `../ATTRIBUTION.md`), which is not
+  extracted from and gates nothing — so `extract/MMROCKET-SIM` records the
+  commit those were last *reviewed* against, and what that review took and
+  skipped. Without it, "what have they changed since?" has nothing to diff
+  against.
+
 ## Is a patch load-bearing, or a leftover?
 
 The patch **always wins** during extraction — that is the whole mechanism. So a

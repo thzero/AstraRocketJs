@@ -123,9 +123,9 @@ Neither side is lossless in general, and both say so: RockSim has ring tails, de
 
 ## Example rockets
 
-The seventeen designs OpenRocket ships and opens from *File → Open Example*, bundled with the app under `web/public/examples/` and listed by a generated `examples.generated.json`.
+The sixteen designs OpenRocket ships and opens from *File → Open Example*, bundled with the app under `web/public/examples/` and listed by a generated `examples.generated.json`.
 
-`web/scripts/sync-examples.mjs` (`npm run sync:examples`) pulls them from the **same commit `engine-java/extract/UPSTREAM` pins for the engine**, so an example can never demonstrate a feature the bundled kernel does not have. It also **strips each file's stored `<flightdata>`**: 96% of the bytes — 3.5 MB of the 3.6 MB across the set — and dead weight here, because `orkImport` never reads it (the app runs its own simulations). Stripped, the set is ~340 kB. Designs, appearances, decals and embedded thrust curves are untouched.
+`web/scripts/sync-examples.mjs` (`npm run sync:examples`) pulls them from the **same commit `engine-java/extract/UPSTREAM` pins for the engine**, so an example can never demonstrate a feature the bundled kernel does not have. It also **strips each file's stored `<flightdata>`**: 90% of the bytes — 2.9 MB of the 3.3 MB across the set — and dead weight here, because `orkImport` never reads it (the app runs its own simulations). Stripped, the set is ~330 kB. Designs, appearances, decals and embedded thrust curves are untouched.
 
 Deliberately **`public/examples/`, not `public/data/`**. The catalogs under `public/data` are refreshed weekly by `sync-catalogs.yml` and served from the `data` branch, because they change without the app; examples change only when the app is rebuilt against a newer OpenRocket. They are precached instead (`ork` is in the PWA's `globPatterns`), so an example opens on a first offline load.
 

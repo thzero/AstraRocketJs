@@ -1,0 +1,40 @@
+# The mmrocket-sim commit the RASAero-style extensions were last REVIEWED against.
+#
+# NOT an extraction source. Nothing reads this file, no tool clones it, and
+# `extract --check` neither knows nor cares about it - `extract/UPSTREAM` is the
+# only pin that gates anything. This one exists because "what have they changed
+# since we last looked?" had no answer to compute against: the extensions in
+# engine-java (see ATTRIBUTION.md and patches/LEDGER.md) are the original work
+# of mmrocket-sim, they keep developing them, and until 2026-09-22 the only way
+# to find the diff was to hope an old checkout was still lying around on
+# somebody's disk. It was, once. Record the ref instead.
+#
+# Reviewing means: clone or fetch the repo, diff `ref` below against their
+# current head, and look at engine-java/ only. Their packages/app and
+# packages/engine are a separate application that shares none of our code, and
+# the bulk of any delta will be there. What reaches us is
+# engine-java/patches/, engine-java/src/, and patches/LEDGER.md as the
+# explanation of them. Then move the ref here and say in review what was taken
+# and what was skipped.
+#
+# The CARVE-IN commit is not recorded and cannot be recovered: the extensions
+# were brought over around 2026-08-22 (the timestamps in docs/rasaero/diffs/)
+# from a checkout nobody wrote down. This file starts the record from the first
+# review that did.
+#
+# 2026-09-22 (this entry): reviewed 4a9b8f7 (v0.137, 2026-09-21), diffing from
+# c830486 (2026-09-17), which is the oldest state that happened to be on disk
+# rather than a previously reviewed point. 16 commits, 88 files. Five files of
+# shared Java changed and every edit was COMMENT-ONLY. Taken: their correction
+# to the Rogers Kbf note, which called an aft CP shift "a more conservative
+# static margin" when aft RAISES the displayed margin (see the FinSetCalc patch
+# and CHANGELOG). Skipped, as not applicable: their RK4SimulationStepper
+# parallel-stage nozzle correction - we do not carry that patch, have no
+# pressure-thrust half for our drag half to disagree with, and expose
+# nozzleExitDiameter in no UI; and their turbulence-seed documentation fix,
+# whose analogue here ("auto" quietly meaning the constant 42) was already
+# found and fixed in web/src/services/simulations.ts.
+repo    = https://github.com/mtnmanak/mmrocket-sim.git
+ref     = 4a9b8f7699cc592e95be8c3938bd9ec9ac2015fb
+version = 0.137
+dated   = 2026-09-21

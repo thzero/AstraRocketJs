@@ -48,7 +48,7 @@ The top bar has **undo / redo**, a language switcher (English · Español), a no
 
 ## Example rockets
 
-Menu → **Import → Examples** opens a picker holding the seventeen example designs that ship with desktop OpenRocket, brought over from the same version of OpenRocket this app's engine is built from. Between them they cover most of what the app can do: motor clusters, pods and winglets, tube fins, parallel and serial staging, dual deployment, a payload section that separates and comes down on its own chute, and a couple of 3D-printable parts.
+Menu → **Import → Examples** opens a picker holding the sixteen example designs that ship with desktop OpenRocket, brought over from the same version of OpenRocket this app's engine is built from. Between them they cover most of what the app can do: motor clusters, pods and winglets, tube fins, parallel and serial staging, dual deployment, a payload section that separates and comes down on its own chute, and a couple of 3D-printable parts.
 
 The same list is also the second tab of menu → **Open…**, beside **My rockets**, for when you are browsing rather than starting something.
 

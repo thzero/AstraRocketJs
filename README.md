@@ -25,7 +25,7 @@ The UI is **responsive**: a three-pane workbench (editor · rocket view · motor
 **Data & I/O**
 - **Full `.ork` support** — open and save round-trip at full fidelity (files re-open in desktop OpenRocket).
 - **RockSim `.rkt` import and export** — designs move both ways with RockSim as well, across up to three stages. Motors and launch conditions stay behind, since RockSim keeps those with its simulations rather than its designs.
-- **The seventeen example rockets that ship with OpenRocket**, built in under **Import → Examples** — clusters, pods, tube fins, parallel and serial staging, dual deployment, a separating payload section. Pulled from the same OpenRocket commit the engine is built from, and opened as your own unsaved copy.
+- **The sixteen example rockets that ship with OpenRocket**, built in under **Import → Examples** — clusters, pods, tube fins, parallel and serial staging, dual deployment, a separating payload section. Pulled from the same OpenRocket commit the engine is built from, and opened as your own unsaved copy.
 - Keep **several rockets** in the browser and switch between them; everything autosaves (the top bar says when the last save landed), and `.ork` import/export moves designs to and from your disk. Importing a rocket whose name you have already saved asks whether to overwrite it or keep both, so the library does not fill up with copies.
 - Real motor **thrust curves** from thrustcurve.org (~800 motors), plus **`.eng` import** and custom motors.
 - OpenRocket **materials** (built-in + your own) and a **component-preset** catalog (~2,900 real Estes/Apogee/LOC/… parts).

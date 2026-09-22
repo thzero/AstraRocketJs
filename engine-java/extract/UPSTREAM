@@ -1,21 +1,33 @@
 # The OpenRocket source engine-java/src/java was extracted from.
 #
 # `extract --check` is only meaningful against this exact tree: a different
-# upstream reports drift that is really just a version difference. CI pins the
-# same ref in the `reproducible` job of .github/workflows/gates.yml (there is
-# no engine.yml; this file used to say there was). NOTHING ENFORCES THAT THE
-# TWO AGREE - they are two hand-maintained copies of one SHA. See
-# docs/AUDIT_ENGINE.md G11.
+# upstream reports drift that is really just a version difference.
 #
-# Adopting a newer OpenRocket means bumping it here AND in gates.yml, re-running
-# the extraction, and reviewing every line the "patch(es) differ from current
-# upstream" report names. `extract/DIVERGENCE.txt` now makes that review a gate
+# THIS FILE IS THE ONLY COPY OF THE REF. The `reproducible` job in
+# .github/workflows/gates.yml reads it (its "Read the pinned OpenRocket ref"
+# step seds `repo` and `ref` out of here and checks that out), so a bump lands
+# in one place. It was written out in both for a while, with nothing comparing
+# them - the hazard docs/AUDIT_ENGINE.md G11 named, and the reason this header
+# used to say "bump it here AND in gates.yml". It does not any more; do not
+# reintroduce a second copy.
+#
+# Adopting a newer OpenRocket means bumping the ref below, re-running the
+# extraction, and reviewing every line the "patch(es) differ from current
+# upstream" report names. `extract/DIVERGENCE.txt` makes that review a gate
 # rather than a ritual: re-bless it and explain each number that moved.
 #
 # `describe` below reads release-22.02.beta.01-... because that is the nearest
 # reachable tag in this fork, not because the tree predates 24.12: the commit is
-# dated 2026-09-17. The repo is a fork, but the SHA is content-bound and the
-# same commit fetches from canonical openrocket/openrocket.
+# dated 2026-09-21. The repo is a fork, but the SHA is content-bound and the
+# same commit fetches from canonical openrocket/openrocket - verified on
+# 2026-09-22, when this SHA was the head of canonical `unstable` itself, so the
+# fork is not carrying anything of its own at this point.
+#
+# 2026-09-22: bumped from 6deae5079 (2026-09-17). Five commits, and NOTHING
+# under core/src/main/java: two swing spinner step sizes (PR #3332) and the
+# deletion of the "Base drag hack (short-wide)" example design (PR #3331), which
+# is why the bundled example set went from seventeen to sixteen. No extracted
+# file moved, so no patch drifted and parity could not move.
 repo = https://github.com/thzero/openrocket.git
-ref  = 6deae50796af9356c6541c9d5e6306ebebe0186f
-describe = release-22.02.beta.01-5683-g6deae5079
+ref  = 98f05af97bfbcd570bf2098307c23e0075beef4b
+describe = release-22.02.beta.01-5688-g98f05af97

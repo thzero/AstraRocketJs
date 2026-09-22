@@ -1,6 +1,6 @@
 # engine-java — OpenRocket physics kernel → browser WebAssembly + JavaScript
 
-This module turns the **OpenRocket** simulation core (`info.openrocket.core`, a post-24.12 development build) into engine modules the web app runs entirely in the browser. It does that by **extraction** — carving the physics subset out of OpenRocket, applying a few compatibility overrides, and compiling the result with **TeaVM** to **two targets**: a **WebAssembly (WASM-GC)** module and a **JavaScript** module.
+This module turns the **OpenRocket** simulation core (`info.openrocket.core`, at the commit `extract/UPSTREAM` pins) into engine modules the web app runs entirely in the browser. It does that by **extraction** — carving the physics subset out of OpenRocket, applying a few compatibility overrides, and compiling the result with **TeaVM** to **two targets**: a **WebAssembly (WASM-GC)** module and a **JavaScript** module.
 
 The committed outputs let the web app build without a JDK:
 
@@ -60,7 +60,7 @@ To change a patch, edit the whole file under `patches/…` (it *is* the patch). 
 
 ### 3. `src/shims/` — whole classes we provide instead of OpenRocket's
 
-Where an extracted file is impractical, the upstream class is **not extracted at all** and a lean replacement lives here (it is the only provider of that fully-qualified name). Twelve files: the Guice replacement (`com.google.inject.Inject`/`Injector` — an inert annotation + a one-method interface), a Guice-free `Application`, lean `Simulation`/`OpenRocketDocument`, in-memory `ApplicationPreferences`, `Databases`, `ShimRocketDescriptor`, `LongUUID`, `Geo2D` (a small awt-free 2D-geometry helper — `distance`/`segmentsIntersect`; the patched `FinSet`/`FreeformFinSet`/`BoundingBox` use it instead of `java.awt.geom`), and the two RASAero calculators (`RASAeroDragCalculator`/`RASAeroStabilityCalculator`, subclasses of the Barrowman drag/stability calculators that add the opt-in supersonic model).
+Where an extracted file is impractical, the upstream class is **not extracted at all** and a lean replacement lives here (it is the only provider of that fully-qualified name). Twelve files: the Guice replacement (`com.google.inject.Inject`/`Injector` — an inert annotation + a one-method interface), a Guice-free `Application`, lean `Simulation`/`OpenRocketDocument`, in-memory `ApplicationPreferences`, `Databases`, `ShimRocketDescriptor`, `LongUUID`, `Geo2D` (a small awt-free 2D-geometry helper — `distance`/`segmentsIntersect`; the patched `FinSet`/`FreeformFinSet`/`BoundingBox` use it instead of `java.awt.geom`), and the two RASAero calculators (`RASAeroDragCalculator`/`RASAeroStabilityCalculator`, subclasses of the Barrowman drag/stability calculators that add the opt-in supersonic model). Five of the twelve SHADOW an upstream class of the same name rather than replacing one we never extract; `extract/SHIMS.txt` records what upstream looked like when each was last reviewed.
 
 ### 4. `src/jdkstubs/` — JDK classes TeaVM's class library lacks
 

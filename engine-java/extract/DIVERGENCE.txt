@@ -12,7 +12,7 @@
 # to delete it rather than bless it.
 #
 
-info/openrocket/core/aerodynamics/barrowman/FinSetCalc.java 727
+info/openrocket/core/aerodynamics/barrowman/FinSetCalc.java 733
 info/openrocket/core/aerodynamics/barrowman/SymmetricComponentCalc.java 411
 info/openrocket/core/simulation/SimulationOptions.java 155
 info/openrocket/core/aerodynamics/BarrowmanDragCalculator.java 83

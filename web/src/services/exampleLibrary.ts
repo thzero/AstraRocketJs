@@ -1,7 +1,7 @@
 /**
  * OpenRocket's own example rockets, bundled with the app.
  *
- * Seventeen curated `.ork` files from the SAME upstream commit the engine was
+ * Sixteen curated `.ork` files from the SAME upstream commit the engine was
  * extracted from (see scripts/sync-examples.mjs, which pulls and strips them).
  * They are a third way in beside "new" and "import": a first-time user has
  * something real to open, and every one of them exercises a feature worth

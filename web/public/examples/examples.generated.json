@@ -1,8 +1,8 @@
 {
-  "generated": "2026-09-21T13:21:12.012Z",
+  "generated": "2026-09-22T14:41:27.977Z",
   "source": {
     "repo": "thzero/openrocket",
-    "ref": "6deae50796af9356c6541c9d5e6306ebebe0186f"
+    "ref": "98f05af97bfbcd570bf2098307c23e0075beef4b"
   },
   "examples": [
     {
@@ -32,13 +32,6 @@
       "name": "ARC payload rocket",
       "description": "Example rocket demonstrating payload and booster sections with individual recovery systems deployed by motor ejection.",
       "bytes": 5525
-    },
-    {
-      "id": "base-drag-hack-short-wide",
-      "file": "base-drag-hack-short-wide.ork",
-      "name": "Base drag hack (short-wide)",
-      "description": "Created in OpenRocket for educational purposes. This example adapts the work of Bruce S. Levison, published by Apogee Rockets in Peak of Flight Issue 154 - December 30, 2005, and Issue 158 - March 14, 2006. This example demonstrates the application of the \"base drag\" hack to adjust the center of pressure for a short-wide rocket, one with a length to diameter ratio of less than 10:1. To implement the hack, a conical transition is affixed to the bottom of the rocket, with a fore-diameter of .001 and an aft-diameter equal to the airframe base, with a length of pi times that diameter. The conical transition mass, center of pressure, and coefficient of drag overrides are set to zero. Note: This version of the hack specifically applies to rockets without a tapered bottom.",
-      "bytes": 5082
     },
     {
       "id": "chute-release",

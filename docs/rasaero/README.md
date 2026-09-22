@@ -146,7 +146,12 @@ already contains the full carryover). Slender-body theory says the total fin+car
 `(1+τ)²·(fin-alone)`; OpenRocket already credits `(1+τ)` to the fins, so the body carryover that
 completes it is `τ(1+τ)·(fin-alone) = τ·cna`, placed at the fin **root quarter-chord** (NACA 1307
 puts carryover near the root, forward of the swept-fin MAC) and averaged into the fin CP. Net: CP
-moves slightly **aft** → a more conservative static margin. *Code: `FinSetCalc.calculateNonaxialForces`.*
+moves slightly **aft**, which **raises the static margin the app shows** - margin is `(xCP - xCG)/d`
+with x measured aft, so "aft" is not "conservative". This line said it was until 2026-09-22. It is
+the closer answer for the geometries the term was validated against, not automatically the safer
+one: on an erroneously aft CP it overstates the margin the rocket has. *(Correction taken from
+mmrocket-sim, which credits Ken Karbon, Apogee Peak of Flight 687.)* *Code:
+`FinSetCalc.calculateNonaxialForces`.*
 
 ## Feature #2 — Power-on base drag (`nozzleExitDiameter`)
 

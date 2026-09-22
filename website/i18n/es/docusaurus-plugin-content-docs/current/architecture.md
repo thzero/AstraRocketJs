@@ -123,9 +123,9 @@ Ninguno de los dos lados es lossless en general, y ambos lo dicen: RockSim tiene
 
 ## Cohetes de ejemplo {#example-rockets}
 
-Los diecisiete diseños que OpenRocket incluye y abre desde *Archivo → Abrir ejemplo*, empaquetados con la aplicación bajo `web/public/examples/` y listados por un `examples.generated.json` generado.
+Los dieciséis diseños que OpenRocket incluye y abre desde *Archivo → Abrir ejemplo*, empaquetados con la aplicación bajo `web/public/examples/` y listados por un `examples.generated.json` generado.
 
-`web/scripts/sync-examples.mjs` (`npm run sync:examples`) los descarga del **mismo commit que `engine-java/extract/UPSTREAM` fija para el motor**, así que un ejemplo nunca puede demostrar una función que el núcleo incluido no tenga. Además **elimina el `<flightdata>` almacenado de cada archivo**: el 96% de los bytes — 3,5 MB de los 3,6 MB del conjunto — y peso muerto aquí, porque `orkImport` nunca lo lee (la aplicación ejecuta sus propias simulaciones). Ya depurado, el conjunto ocupa unos 340 kB. Los diseños, las apariencias, las calcomanías y las curvas de empuje incrustadas quedan intactos.
+`web/scripts/sync-examples.mjs` (`npm run sync:examples`) los descarga del **mismo commit que `engine-java/extract/UPSTREAM` fija para el motor**, así que un ejemplo nunca puede demostrar una función que el núcleo incluido no tenga. Además **elimina el `<flightdata>` almacenado de cada archivo**: el 90% de los bytes — 2,9 MB de los 3,3 MB del conjunto — y peso muerto aquí, porque `orkImport` nunca lo lee (la aplicación ejecuta sus propias simulaciones). Ya depurado, el conjunto ocupa unos 330 kB. Los diseños, las apariencias, las calcomanías y las curvas de empuje incrustadas quedan intactos.
 
 Deliberadamente en **`public/examples/`, no en `public/data/`**. Los catálogos de `public/data` se refrescan semanalmente mediante `sync-catalogs.yml` y se sirven desde la rama `data`, porque cambian sin la aplicación; los ejemplos solo cambian cuando la aplicación se recompila contra una versión más nueva de OpenRocket. En su lugar se precachean (`ork` está en los `globPatterns` de la PWA), así que un ejemplo se abre en una primera carga sin conexión.
 

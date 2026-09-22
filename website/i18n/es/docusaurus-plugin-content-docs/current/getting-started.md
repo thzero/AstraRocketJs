@@ -48,7 +48,7 @@ La barra superior tiene **deshacer / rehacer**, un selector de idioma (English �
 
 ## Cohetes de ejemplo {#example-rockets}
 
-Menú → **Importar → Ejemplos** abre un selector con los diecisiete diseños de ejemplo que acompañan a OpenRocket de escritorio, traídos de la misma versión de OpenRocket con la que está construido el motor de esta aplicación. Entre todos cubren casi todo lo que la aplicación sabe hacer: clústeres de motores, pods y aletas auxiliares, aletas tubulares, etapas en paralelo y en serie, doble apertura, una sección de carga útil que se separa y baja con su propio paracaídas, y un par de piezas imprimibles en 3D.
+Menú → **Importar → Ejemplos** abre un selector con los dieciséis diseños de ejemplo que acompañan a OpenRocket de escritorio, traídos de la misma versión de OpenRocket con la que está construido el motor de esta aplicación. Entre todos cubren casi todo lo que la aplicación sabe hacer: clústeres de motores, pods y aletas auxiliares, aletas tubulares, etapas en paralelo y en serie, doble apertura, una sección de carga útil que se separa y baja con su propio paracaídas, y un par de piezas imprimibles en 3D.
 
 La misma lista es también la segunda pestaña de menú → **Abrir…**, junto a **Mis cohetes**, para cuando estás echando un vistazo en lugar de empezar algo.
 

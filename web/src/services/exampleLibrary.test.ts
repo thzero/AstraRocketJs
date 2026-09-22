@@ -21,7 +21,7 @@ import { __setEngineForTests, OpenRocketDesign } from '../engine/openRocketEngin
  * worse example than no example.
  *
  * The real engine makes this one of the slower files in the suite (~2 s for all
- * seventeen), which is the cost of checking the real thing rather than a stub.
+ * sixteen), which is the cost of checking the real thing rather than a stub.
  */
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 

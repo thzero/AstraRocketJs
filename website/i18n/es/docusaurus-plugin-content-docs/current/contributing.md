@@ -107,7 +107,7 @@ cd web
 npm run sync:motors                  # barre thrustcurve.org → public/data/motors.generated.json (~800 motores)
 npm run sync:components              # analiza la BD de OpenRocket-Components → public/data/components.generated.json (~2.900 piezas)
 #   sync:components lee OPENROCKET_PRESETS (o --src <ruta-a>/openrocket-database/orc) si la BD no está en la ruta local por defecto
-npm run sync:examples                # cohetes de ejemplo de OpenRocket → public/examples/ (17 diseños, ~340 kB)
+npm run sync:examples                # cohetes de ejemplo de OpenRocket → public/examples/ (16 diseños, ~330 kB)
 #   descarga del commit que fija engine-java/extract/UPSTREAM y elimina los datos de vuelo guardados de cada
 #   archivo (el 96% de los bytes). Usa --src <checkout-completo-de-openrocket> para trabajar sin conexión; el
 #   .openrocket-src disperso del extractor NO los tiene (se limita a core/src/main/java).
