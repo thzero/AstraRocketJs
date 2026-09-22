@@ -145,7 +145,6 @@
     "cpNote": "El CP se calcula a partir de la forma y no se puede anular directamente — OpenRocket anula masa, CG y resistencia."
   },
   "file": {
-    "save": "Guardar",
     "openLibrary": "Abrir…",
     "saveAs": "Guardar como…",
     "import": "Importar",
@@ -171,6 +170,11 @@
     "exportPrint": "Impresión 3D (.3mf)",
     "exportPrintLabel": "Exportar las piezas imprimibles como 3MF",
     "3mf": "Impresión 3D (.3mf)"
+  },
+  "save": {
+    "saved": "Guardado {{when}}",
+    "justNow": "ahora mismo",
+    "tip": "Guardado por última vez a las {{time}}. Tu cohete se guarda automáticamente mientras lo editas."
   },
   "edit": {
     "undo": "Deshacer",
@@ -1204,7 +1208,12 @@
     "examples": "Ejemplos",
     "examplesFailed": "No se pudieron cargar los ejemplos incluidos.",
     "examplesTitle": "Cohetes de ejemplo",
-    "examplesIntro": "Los diseños de ejemplo que acompañan a OpenRocket. Al abrir uno obtienes tu propia copia sin guardar, así que puedes desmontarlo sin miedo."
+    "examplesIntro": "Los diseños de ejemplo que acompañan a OpenRocket. Al abrir uno obtienes tu propia copia sin guardar, así que puedes desmontarlo sin miedo.",
+    "importClashTitle": "Ya hay un cohete guardado con este nombre",
+    "importClash": "«{{name}}» ya está en tus cohetes guardados. ¿Quieres sobrescribirlo con el que acabas de abrir o conservar ambos con un nombre distinto?",
+    "overwrite": "Sobrescribir",
+    "renameInstead": "Conservar ambos",
+    "importNameTitle": "Nombra este cohete"
   },
   "cluster": {
     "single": "Individual",

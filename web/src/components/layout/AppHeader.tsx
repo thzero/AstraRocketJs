@@ -5,22 +5,23 @@ import { useWorkspaceStore } from '../../state/store';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { WorkbenchTabs } from './WorkbenchTabs';
 import { EngineBadge } from './EngineBadge';
+import { SaveStatus } from './SaveStatus';
 import { UndoRedoButtons } from './UndoRedoButtons';
 import { FileMenuButton } from './FileMenu';
 import { useHeaderDialogs } from './HeaderDialogs';
 import { useUndoShortcuts } from './useUndoShortcuts';
 
-/** Top bar: title + version, the desktop workbench tabs, language, and a
- *  collapsible menu holding the New / Open (library) / Save / Save As / Import /
- *  Export / About actions. Owns the hidden .ork / .rkt file inputs that Import
- *  triggers; the badge, the undo pair and the dialogs are their own modules. */
+/** Top bar: title + version, the desktop workbench tabs, the save status,
+ *  language, and a collapsible menu holding the New / Open (library) / Save As /
+ *  Import / Export / About actions. Owns the hidden .ork / .rkt file inputs that
+ *  Import triggers; the badge, the undo pair and the dialogs are their own
+ *  modules. */
 export function AppHeader() {
   const { t, i18n } = useTranslation();
   const canSave = useWorkspaceStore((s) => !!s.info);
   const onNew = useWorkspaceStore((s) => s.newWorkspace);
   const onOpenFile = useWorkspaceStore((s) => s.openOrkFile);
   const onSave = useWorkspaceStore((s) => s.saveOrk);
-  const saveDesign = useWorkspaceStore((s) => s.saveDesign);
   const refreshDesigns = useWorkspaceStore((s) => s.refreshDesigns);
   const onSaveRasaero = useWorkspaceStore((s) => s.saveRasaero);
   const onSaveRkt = useWorkspaceStore((s) => s.saveRkt);
@@ -59,6 +60,7 @@ export function AppHeader() {
         </span>
       )}
       <EngineBadge />
+      <SaveStatus />
 
       {/* The desktop workbench tabs live in the header's dead middle rather than
           in a strip of their own below it. Hidden below lg, where the bottom
@@ -74,18 +76,6 @@ export function AppHeader() {
           actions={{
             onNew,
             onOpenLibrary: () => open('library'),
-            onSave: () => {
-              void (async () => {
-                // A design that has never been named has nowhere to save to,
-                // so Save becomes Save As, the usual desktop behavior. A
-                // refused write (`false`) is not that case: the banner is
-                // up, and a Save As would be refused the same way.
-                if ((await saveDesign()) === 'unnamed') {
-                  await refreshDesigns();
-                  open('saveAs');
-                }
-              })();
-            },
             onSaveAs: () => {
               // Names of existing designs drive the duplicate warning.
               void refreshDesigns();

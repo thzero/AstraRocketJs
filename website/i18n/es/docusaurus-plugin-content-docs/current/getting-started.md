@@ -35,7 +35,7 @@ En un **teléfono** las mismas áreas pasan a ser pestañas en la parte inferior
 
 El panel de componentes es solo de escritorio, así que un teléfono sirve para leer y simular un diseño más que para construirlo.
 
-La barra superior tiene **deshacer / rehacer**, un selector de idioma (English · Español) y el **menú de la aplicación**: Nuevo, Abrir… y Guardar… / Guardar como… (la biblioteca de diseños de la app), **Importar ▸ OpenRocket** y **Exportar ▸ OpenRocket / RASAero II** para los archivos `.ork` y demás en disco, **Informe de diseño**, **Panel de motores**, **Ajustes**, **Ayuda**, **Privacidad** y **Acerca de**.
+La barra superior tiene **deshacer / rehacer**, un selector de idioma (English · Español), una nota de cuándo se guardó tu cohete por última vez y el **menú de la aplicación**: Nuevo, Abrir… y Guardar como… (la biblioteca de diseños de la app), **Importar ▸ OpenRocket** y **Exportar ▸ OpenRocket / RASAero II** para los archivos `.ork` y demás en disco, **Informe de diseño**, **Panel de motores**, **Ajustes**, **Ayuda**, **Privacidad** y **Acerca de**.
 
 ## Tu primer cohete
 
@@ -52,7 +52,7 @@ Menú → **Importar → Ejemplos** abre un selector con los diecisiete diseños
 
 La misma lista es también la segunda pestaña de menú → **Abrir…**, junto a **Mis cohetes**, para cuando estás echando un vistazo en lugar de empezar algo.
 
-Abrir uno se comporta igual que importar un `.ork`: obtienes tu propia copia sin guardar, así que puedes desmontar un ejemplo sin tocar el original, y volver a abrirlo te da uno nuevo. Los ejemplos forman parte de la aplicación, así que funcionan sin conexión como todo lo demás.
+Abrir uno se comporta igual que importar un `.ork`: obtienes tu propia copia sin guardar, así que puedes desmontar un ejemplo sin tocar el original. Si abres el mismo ejemplo una segunda vez, la aplicación pregunta si quieres sobrescribir la copia que ya tienes o conservar ambas, de modo que la biblioteca no se llena de cohetes con el mismo nombre. Los ejemplos forman parte de la aplicación, así que funcionan sin conexión como todo lo demás.
 
 ## Dónde viven tus datos
 

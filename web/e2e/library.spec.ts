@@ -1,4 +1,4 @@
-import { test, expect, type Page } from './base';
+import { test, expect, importOrk, type NameClash, type Page } from './base';
 
 const openLibrary = async (page: Page) => {
   await page.getByRole('button', { name: 'Menu' }).click();
@@ -189,4 +189,55 @@ test('an example opens from Import, as its own unsaved design', async ({ page })
 
   await expect(page.getByRole('button', { name: 'Edit rocket configuration' })).toContainText('Tube fin rocket');
   await expect(page.getByRole('tree', { name: 'Components' }).getByText('Tube fin set')).toBeVisible();
+});
+
+/**
+ * Re-importing a rocket does not silently stack up copies of it.
+ *
+ * An import gets its own library entry, which is right - it is a new design,
+ * not an edit to whatever was open - but nothing looked at the NAME, so the
+ * edit-in-OpenRocket-and-import-again loop filled File > Open with rows called
+ * the same thing, each a real design with its own id and nothing to tell them
+ * apart by.
+ */
+test.describe('re-importing a rocket the library already holds', () => {
+  /** The rocket names File > Open lists, opening and closing the dialog. */
+  const savedNames = async (page: Page): Promise<string[]> => {
+    await openLibrary(page);
+    const dlg = page.getByRole('dialog', { name: 'My Rockets' });
+    const rows = await dlg
+      .getByRole('listitem')
+      .evaluateAll((els) => els.map((el) => el.querySelector('span')?.textContent ?? ''));
+    await page.keyboard.press('Escape');
+    await expect(dlg).toBeHidden();
+    return rows;
+  };
+
+  const importTwice = async (page: Page, clash: NameClash) => {
+    await importOrk(page, 'e2e/fixtures/two-stage.ork');
+    // The entry is created by the DEBOUNCED autosave, so wait for it to exist
+    // rather than racing the second import against the write it clashes with.
+    await expect.poll(() => savedNames(page), { timeout: 20_000 }).toHaveLength(1);
+    await importOrk(page, 'e2e/fixtures/two-stage.ork', clash);
+  };
+
+  test('overwriting leaves the library holding one rocket', async ({ page }) => {
+    await page.goto('/');
+    await importTwice(page, 'overwrite');
+
+    // Round-tripped twice: the second read is after the import's own autosave
+    // has had its chance to add a row, which is the thing being ruled out.
+    expect(await savedNames(page)).toHaveLength(1);
+    expect(await savedNames(page)).toHaveLength(1);
+  });
+
+  test('keeping both gives the second rocket a name of its own', async ({ page }) => {
+    await page.goto('/');
+    await importTwice(page, 'keepBoth');
+
+    await expect.poll(() => savedNames(page), { timeout: 20_000 }).toHaveLength(2);
+    const names = await savedNames(page);
+    expect(new Set(names).size).toBe(2);
+    expect(names.some((n) => n.endsWith('(2)'))).toBe(true);
+  });
 });

@@ -42,6 +42,17 @@ export interface WorkspaceStore {
   /** Point the store at a different design. Optional: a single-design store
    *  has nothing to switch. */
   setActiveId?(id: string | null): void;
+  /**
+   * The name to create under while DETACHED (`setActiveId(null)`), instead of
+   * the one the workspace implies.
+   *
+   * Import resolves a name clash with the library before it hands the rocket
+   * over (see store.ts `adoptImport`), and the answer has to survive until the
+   * debounced autosave actually creates the entry. Passing it through here
+   * keeps that single create in the store, rather than having the caller race
+   * the autosave with a `create` of its own. Cleared by `setActiveId`.
+   */
+  setPendingName?(name: string | null): void;
 }
 
 /**
@@ -135,6 +146,32 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
    * reason they were not being stored at all.
    */
   private savedResults = new Map<string, FlightResult | null>();
+  /**
+   * The `lib.create()` of a first save that is still in flight.
+   *
+   * Two saves can overlap while the store is detached, and both used to see a
+   * null `activeId` and create an entry of their own: the library ended up
+   * with several identical designs from one rocket, and every one but the last
+   * was orphaned - nothing was active in it, so nothing ever wrote to it again.
+   *
+   * It is not a narrow window. The autosave debounce is 500 ms and the first
+   * IndexedDB create is the slowest write the app makes (open the database,
+   * write the blob, mutate the index, set the pointer), so a second keystroke
+   * can easily land inside it - and the `visibilitychange` flush saves outside
+   * the debounce entirely, so tabbing away right after an import hits it every
+   * time.
+   */
+  private creating: Promise<DesignMeta> | null = null;
+  /** See `setPendingName`. */
+  private pendingName: string | null = null;
+  /**
+   * Bumped by every `setActiveId`. A create that resolves after the workspace
+   * has moved on (New, or a second import, during that first slow write) must
+   * NOT adopt its id: the entry it made belongs to the design that has just
+   * been replaced, and claiming it would send the new design's autosaves
+   * straight over the old one.
+   */
+  private gen = 0;
 
   async load(): Promise<Workspace | null> {
     const lib = getDesignLibrary();
@@ -249,10 +286,24 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
   async save(w: Workspace): Promise<void> {
     const lib = getDesignLibrary();
     const leanW = lean(w);
+    // Wait out a create already in flight instead of starting a second one
+    // (see `creating`). A failed one is swallowed here so this save can retry
+    // it below; the retry reports the failure in its own right.
+    if (!this.activeId && this.creating) await this.creating.catch(() => {});
     // First save of a session that started with no library entry (a fresh
     // browser, or everything deleted) creates the design rather than dropping it.
     if (!this.activeId) {
-      const meta = await lib.create(nameFor(w), leanW);
+      const gen = this.gen;
+      const p = lib.create(this.pendingName || nameFor(w), leanW);
+      this.creating = p;
+      let meta: DesignMeta;
+      try {
+        meta = await p;
+      } finally {
+        if (this.creating === p) this.creating = null;
+      }
+      if (gen !== this.gen) return; // the workspace moved on; that entry is the old one's
+      this.pendingName = null;
       this.activeId = meta.id;
       await this.saveResults(lib, meta.id, w);
       return;
@@ -277,10 +328,18 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
 
   /** Point the store at a different design (the library owns the switch). */
   setActiveId(id: string | null): void {
+    this.gen++; // void any create still in flight for the workspace being replaced
     this.activeId = id;
+    this.pendingName = null; // it named the design being switched away from
     // A different design has different flights; what we know about the last
     // write no longer applies to the one we are about to make.
     this.savedResults = new Map();
+  }
+
+  /** Name the next created design (see the interface). Call AFTER
+   *  `setActiveId(null)`, which clears it. */
+  setPendingName(name: string | null): void {
+    this.pendingName = name?.trim() || null;
   }
 
   /** Synchronous unload write. Best-effort: if it does not fit (the blob is

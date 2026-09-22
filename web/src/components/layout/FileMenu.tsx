@@ -17,7 +17,6 @@ const subItem =
 export interface FileMenuActions {
   onNew: () => void;
   onOpenLibrary: () => void;
-  onSave: () => void;
   onSaveAs: () => void;
   onImportOrk: () => void;
   onImportRkt: () => void;
@@ -36,9 +35,16 @@ export interface FileMenuActions {
 
 /**
  * The header's dropdown menu (WAI-ARIA menu-button pattern): New / Open /
- * Save / Save As / Import / Export / Report / Motors / Launch locations / Settings /
+ * Save As / Import / Export / Report / Motors / Launch locations / Settings /
  * Help /
  * Safety / Privacy / About.
+ *
+ * There is no **Save**. Editing autosaves on a 500 ms debounce, with a
+ * synchronous journal on unload, so the item never stood between the user and
+ * their work: it flushed a write that was already coming, and sent a
+ * never-named design to Save As. The header says when the last save landed
+ * instead (SaveStatus), which is the reassurance the item was really there for
+ * - and naming a design is Save As, which is what it delegated to anyway.
  *
  * Mounted only while open (`{menuOpen && <FileMenu />}`), and it owns the two
  * inline "Import" / "Export" submenus: they reveal their format sub-items in
@@ -132,9 +138,6 @@ function FileMenu({
       </button>
       <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onOpenLibrary)}>
         {t('file.openLibrary')}
-      </button>
-      <button role="menuitem" tabIndex={-1} className={item} disabled={!canSave} onClick={run(actions.onSave)}>
-        {t('file.save')}
       </button>
       <button role="menuitem" tabIndex={-1} className={item} disabled={!canSave} onClick={run(actions.onSaveAs)}>
         {t('file.saveAs')}

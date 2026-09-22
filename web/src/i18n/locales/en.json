@@ -145,7 +145,6 @@
     "cpNote": "CP is computed from the shape and isn't directly overridable — OpenRocket overrides mass, CG and drag."
   },
   "file": {
-    "save": "Save…",
     "openLibrary": "Open…",
     "saveAs": "Save As…",
     "import": "Import",
@@ -171,6 +170,11 @@
     "exportPrint": "3D print (.3mf)",
     "exportPrintLabel": "Export printable parts as 3MF",
     "3mf": "3D print (.3mf)"
+  },
+  "save": {
+    "saved": "Saved {{when}}",
+    "justNow": "just now",
+    "tip": "Last saved at {{time}}. Your rocket is saved automatically as you edit it."
   },
   "edit": {
     "undo": "Undo",
@@ -1204,7 +1208,12 @@
     "examples": "Examples",
     "examplesFailed": "The bundled examples could not be loaded.",
     "examplesTitle": "Example rockets",
-    "examplesIntro": "The example designs that ship with OpenRocket. Opening one gives you your own unsaved copy, so you can take it apart freely."
+    "examplesIntro": "The example designs that ship with OpenRocket. Opening one gives you your own unsaved copy, so you can take it apart freely.",
+    "importClashTitle": "A rocket with this name is already saved",
+    "importClash": "“{{name}}” is already in your saved rockets. Overwrite it with the one you just opened, or keep both under a different name?",
+    "overwrite": "Overwrite",
+    "renameInstead": "Keep both",
+    "importNameTitle": "Name this rocket"
   },
   "cluster": {
     "single": "Single",

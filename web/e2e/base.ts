@@ -207,13 +207,39 @@ export async function ready(page: Page): Promise<void> {
  *
  * Waits for the engine to have run on the DEFAULT design first, so this works
  * straight after `page.goto` and after `page.reload` alike.
+ *
+ * `clash` is for the case where the library ALREADY holds a design of this
+ * file's name - importing the same fixture twice in one test, typically across
+ * a reload. The app asks what to do with it then (see resolveNameClash), and a
+ * helper that did not answer would simply time out behind the dialog.
  */
-export async function importOrk(page: Page, fixture: string): Promise<void> {
+export async function importOrk(page: Page, fixture: string, clash?: NameClash): Promise<void> {
   await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
   // Scoped by `accept`: the header carries one hidden input per readable
   // format (.ork and .rkt), so a bare `input[type=file]` is now ambiguous.
   await page.locator('input[accept=".ork"]').setInputFiles(fixture);
+  if (clash) await resolveNameClash(page, clash);
   await expect(page.getByText('Booster').first()).toBeVisible({ timeout: 20_000 });
+}
+
+/** What to do about an imported rocket whose name is already in the library. */
+export type NameClash = 'overwrite' | 'keepBoth';
+
+/**
+ * Answer the "a rocket with this name is already saved" dialog.
+ *
+ * Import gives a rocket its own library entry, so re-importing the same file
+ * used to add an identical row to File > Open every time. It asks now, and
+ * "Keep both" leads straight on to the name dialog, whose suggested "… (2)"
+ * this accepts.
+ */
+async function resolveNameClash(page: Page, choice: NameClash): Promise<void> {
+  const ask = page.getByRole('alertdialog', { name: 'A rocket with this name is already saved' });
+  await expect(ask).toBeVisible({ timeout: 20_000 });
+  await ask.getByRole('button', { name: choice === 'overwrite' ? 'Overwrite' : 'Keep both' }).click();
+  if (choice === 'keepBoth') {
+    await page.getByRole('dialog', { name: 'Name this rocket' }).getByRole('button', { name: 'Save' }).click();
+  }
 }
 
 /**
@@ -223,9 +249,10 @@ export async function importOrk(page: Page, fixture: string): Promise<void> {
  * is single-stage, and the tree shows a Sustainer whether or not an import
  * happened, so that is not a synchronization point.
  */
-export async function importRkt(page: Page, fixture: string, designName: string): Promise<void> {
+export async function importRkt(page: Page, fixture: string, designName: string, clash?: NameClash): Promise<void> {
   await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
   await page.locator('input[accept=".rkt"]').setInputFiles(fixture);
+  if (clash) await resolveNameClash(page, clash);
   await expect(page.getByRole('button', { name: 'Edit rocket configuration' })).toContainText(designName, {
     timeout: 20_000,
   });

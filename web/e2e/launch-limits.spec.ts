@@ -89,7 +89,9 @@ test('folded notes are remembered, across a reload and across designs', async ({
   // the next file either, which is what "not per rocket" means), and it does not
   // depend on the autosave debounce having beaten the reload.
   await page.reload();
-  await importOrk(page, 'e2e/fixtures/out-of-limits.ork');
+  // The first import is saved by now (debounce or unload journal), so the same
+  // file's name clashes with it; overwrite, which keeps this about the notes.
+  await importOrk(page, 'e2e/fixtures/out-of-limits.ork', 'overwrite');
 
   await expect(toggle).toBeVisible();
   await expect(note).toHaveCount(0);

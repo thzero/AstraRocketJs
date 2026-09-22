@@ -6,8 +6,8 @@ sidebar_position: 12
 
 AstraRocketJs reads and writes standard **OpenRocket `.ork`** files, so designs move both ways between it and desktop OpenRocket.
 
-- **Import** (menu → Import → OpenRocket) loads an existing `.ork` at full fidelity — stages, transitions, couplers, rings, bulkheads, and more, not just the simple editor layout. A banner notes anything that couldn't be fully resolved (e.g. an unknown motor). The imported rocket becomes its own entry in your saved designs.
-- **Examples** (menu → Import → Examples) opens one of the [example rockets](./getting-started.md#example-rockets) that ship with the app. It is an import like any other, so what you get is your own unsaved copy.
+- **Import** (menu → Import → OpenRocket) loads an existing `.ork` at full fidelity — stages, transitions, couplers, rings, bulkheads, and more, not just the simple editor layout. A banner notes anything that couldn't be fully resolved (e.g. an unknown motor). The imported rocket becomes its own entry in your saved designs. If one of your saved rockets already has that name — which is what happens when you tweak a design in OpenRocket and import it again — the app asks whether to **overwrite** it or **keep both**, and offers a free name for the new one.
+- **Examples** (menu → Import → Examples) opens one of the [example rockets](./getting-started.md#example-rockets) that ship with the app. It is an import like any other, so what you get is your own unsaved copy — including the question above if you have opened that example before.
 - **Export** (menu → Export → OpenRocket) writes the current design back to a `.ork` file on your device.
 
 A round-trip through export and import is verified to preserve the physics (mass, CG, CP, stability), and the files re-open in desktop OpenRocket.
@@ -27,15 +27,14 @@ What does not:
 
 Going the other way, RockSim has no element for **rail buttons** or **parallel (strap-on) stages**. Those are left out of the file, and the app tells you which parts were dropped rather than letting you find out when somebody else opens it.
 
-> **Menu → Open and Save work on designs saved inside the app** (see [Saved designs](#saved-designs) below); `.ork` files move to and from your disk through **Import** and **Export**.
+> **Menu → Open and Save As work on designs saved inside the app** (see [Saved designs](#saved-designs) below); `.ork` files move to and from your disk through **Import** and **Export**.
 
 ## Saved designs
 
 The app keeps a library of your rockets in the browser, so you can work on several and switch between them without exporting a file each time.
 
 - **Open…** lists your saved rockets ("My Rockets"), newest first. Pick one to switch to it; you can rename or delete from the same list.
-- **Save** commits the open design now. Editing already autosaves every half-second, so this is reassurance rather than a requirement — and if the rocket has never been named, it asks for a name first.
-- **Save As…** stores a copy under a new name, leaving the original as it was.
+- **Save As…** stores a copy under a new name, leaving the original as it was. There is no plain **Save**: editing autosaves every half-second, and the header says when the last save landed, so the only thing left to ask for is a name.
 - **New** starts a fresh rocket as a separate entry, without touching the one you had open.
 
 > **Saved designs are per-browser and per-device.** The library lives in this browser on this machine — it does not sync, and clearing your browser data removes it (see [Offline & Installing](./offline-and-installing.md)).

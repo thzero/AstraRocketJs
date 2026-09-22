@@ -104,6 +104,21 @@ describe('design library', () => {
     expect(await lib.activeId()).toBeNull();
   });
 
+  /**
+   * A create whose POINTER write is refused must leave nothing behind.
+   *
+   * The caller (workspaceStore.save) still has no active id after the throw,
+   * so its next autosave creates again - and a half-done create that kept its
+   * indexed design added one identical row to the library per retry, i.e. one
+   * every 500 ms for as long as the pointer write kept failing.
+   */
+  it('rolls back a create whose active-pointer write is refused', async () => {
+    const realSet = kv.set.bind(kv);
+    kv.set = async (k: string, v: string) => (k.endsWith(':active') ? false : realSet(k, v));
+    await expect(lib.create('A', ws('a'))).rejects.toThrow(/storage-full/);
+    expect(await lib.list()).toEqual([]);
+  });
+
   it('reports a refused write rather than pretending it saved', async () => {
     const a = await lib.create('A', ws('a'));
     kv.full = true;

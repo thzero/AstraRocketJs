@@ -113,9 +113,10 @@ persisted settings.
 
 `store.test.ts` covers undo/redo across component edits and simulation changes
 on one timeline, mount to motor reconciliation, run guards, tab and view staying
-in step, and three separate race-safety properties (`openDesign`, workspace
-replacement across actions, and `saveDesign` asking the library rather than a
-cached id). `useWorkspaceEffects.test.tsx` covers what `store.test.ts`
+in step, two separate race-safety properties (`openDesign` and workspace
+replacement across actions), and what an import does when its name is already in
+the library (overwrite, keep both, the canceled-name fallback, and a refused
+active-pointer write abandoning the import rather than half-applying it). `useWorkspaceEffects.test.tsx` covers what `store.test.ts`
 structurally cannot: the **order and the guards** around the async edges, that is
 the hydration gate, the debounced autosave, the unload journal, what triggers an
 engine rebuild, and result invalidation.

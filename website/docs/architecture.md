@@ -129,7 +129,7 @@ The seventeen designs OpenRocket ships and opens from *File → Open Example*, b
 
 Deliberately **`public/examples/`, not `public/data/`**. The catalogs under `public/data` are refreshed weekly by `sync-catalogs.yml` and served from the `data` branch, because they change without the app; examples change only when the app is rebuilt against a newer OpenRocket. They are precached instead (`ork` is in the PWA's `globPatterns`), so an example opens on a first offline load.
 
-`services/exampleLibrary.ts` fetches the index and one file's bytes; `store.openExample` hands those bytes to **`openOrkFile`**, so an example takes the identical path a picked file does — the same notes banner, the same safety-limit check, the same unsaved-copy semantics, and no second code path. Reached from **Import → Examples**, and from the second tab of the design library.
+`services/exampleLibrary.ts` fetches the index and one file's bytes; `store.openExample` hands those bytes to **`openOrkFile`**, so an example takes the identical path a picked file does — the same notes banner, the same safety-limit check, the same unsaved-copy semantics, the same question when its name is already in the library, and no second code path. Reached from **Import → Examples**, and from the second tab of the design library.
 
 `src/services/exampleLibrary.test.ts` imports and builds **every** example through the real kernel and resolves its motors against the committed catalog, so neither the strip nor an upstream bump can quietly ship a broken one.
 
@@ -214,6 +214,16 @@ localStorage is synchronous — every read and write blocks the main thread — 
 Existing data migrates **lazily, per key, on first read**: a key absent from IndexedDB but present in localStorage is copied across, and the original is deleted only once the write is confirmed — an interrupted migration retries next load rather than destroying the only copy. If IndexedDB is unavailable (blocked by policy, some private modes), every operation transparently falls back to localStorage, so the app degrades to its previous behavior rather than losing storage.
 
 The app held exactly ONE design before this — a single blob replaced whenever you opened another. `designLibrary.ts` makes designs addressable instead, and folds that pre-library workspace in as the first entry on first use (named after its imported `.ork` if it had one). Because switching designs is now possible, the unload journal records **which** design it belongs to: replaying it into whatever happens to be open would overwrite an unrelated rocket.
+
+### One design in, one entry out
+
+Two rules keep the library from filling up with copies of the same rocket, because both failures look identical from the File > Open list and neither is recoverable by the user.
+
+**An import is detached, and named before it lands.** `openOrkFile` calls `setActiveId(null)`, so the next autosave CREATES an entry: an imported rocket is its own design, not an edit to whatever was on screen. What that missed is the name. Re-importing a `.ork` you have been editing in OpenRocket, or reopening an example, produced another entry called the same thing every time. `store.ts`'s `homeForImport` now resolves the clash **before** `replaceWorkspace` — overwrite the existing entry, or name this one (the next free `… (2)` is suggested). It has to happen before the swap, or the 500 ms debounce fires while the dialog is open and creates the entry being asked about. The answer reaches the autosave through `WorkspaceStore.setPendingName`, so there is still exactly one `create`, made by the autosave, rather than the caller racing it with a second one. The dialog is `state/promptStore.ts` + `components/common/PromptDialog.tsx`, the promise-based sibling of `confirmStore` — the store needs an answer mid-action and cannot render.
+
+**Only one create can be in flight.** `LibraryWorkspaceStore.save` checked `!this.activeId` and then awaited `lib.create()` before assigning the id, so two saves that overlapped in that window each made an entry and all but the last were orphaned — nothing was ever active in them. It is not a narrow window: the debounce is 500 ms and the first IndexedDB create is the slowest write the app makes, and the `visibilitychange` flush saves outside the debounce entirely. Overlapping saves now share one create, and a create that resolves after the workspace has been replaced does not adopt its id. `DesignLibrary.create` also rolls back when its active-pointer write is refused, since a half-done create left its design indexed while the caller still had no active id — one identical row every 500 ms for as long as storage kept refusing.
+
+There is no **File > Save**. Editing autosaves on the debounce, unload writes the journal, and the item only ever flushed a write that was already coming or sent a never-named design to Save As. `components/layout/SaveStatus.tsx` reports the last write instead, from `lastSavedAt`, which `useWorkspaceEffects` sets on the save's own success path — not where one was requested, so a refused write cannot claim a save.
 
 Two things stay on localStorage deliberately:
 

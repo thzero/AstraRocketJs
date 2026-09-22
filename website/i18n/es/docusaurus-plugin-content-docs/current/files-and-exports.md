@@ -6,8 +6,8 @@ sidebar_position: 12
 
 AstraRocketJs lee y escribe archivos **`.ork` de OpenRocket** estándar, así que los diseños viajan en ambos sentidos entre esta aplicación y OpenRocket de escritorio.
 
-- **Importar** (menú → Importar → OpenRocket) carga un `.ork` existente con total fidelidad: etapas, transiciones, acopladores, anillos, mamparos y más, no solo la disposición sencilla del editor. Un aviso señala lo que no se haya podido resolver del todo (por ejemplo, un motor desconocido). El cohete importado pasa a ser su propia entrada en tus diseños guardados.
-- **Ejemplos** (menú → Importar → Ejemplos) abre uno de los [cohetes de ejemplo](./getting-started.md#example-rockets) que acompañan a la aplicación. Es una importación como cualquier otra, así que lo que obtienes es tu propia copia sin guardar.
+- **Importar** (menú → Importar → OpenRocket) carga un `.ork` existente con total fidelidad: etapas, transiciones, acopladores, anillos, mamparos y más, no solo la disposición sencilla del editor. Un aviso señala lo que no se haya podido resolver del todo (por ejemplo, un motor desconocido). El cohete importado pasa a ser su propia entrada en tus diseños guardados. Si uno de tus cohetes guardados ya tiene ese nombre — que es lo que ocurre cuando retocas un diseño en OpenRocket y vuelves a importarlo — la aplicación pregunta si quieres **sobrescribirlo** o **conservar ambos**, y propone un nombre libre para el nuevo.
+- **Ejemplos** (menú → Importar → Ejemplos) abre uno de los [cohetes de ejemplo](./getting-started.md#example-rockets) que acompañan a la aplicación. Es una importación como cualquier otra, así que lo que obtienes es tu propia copia sin guardar, incluida la pregunta anterior si ya habías abierto ese ejemplo antes.
 - **Exportar** (menú → Exportar → OpenRocket) escribe el diseño actual en un archivo `.ork` de tu dispositivo.
 
 Se ha verificado que un viaje de ida y vuelta por exportación e importación conserva la física (masa, CG, CP, estabilidad), y los archivos se vuelven a abrir en OpenRocket de escritorio.
@@ -27,15 +27,14 @@ Lo que no:
 
 En el otro sentido, RockSim no tiene elemento para los **botones de raíl** ni para las **etapas en paralelo**. Esas piezas se quedan fuera del archivo, y la aplicación te dice cuáles se han omitido en lugar de dejar que lo descubra quien lo abra.
 
-> **Menú → Abrir y Guardar trabajan sobre los diseños guardados dentro de la aplicación** (consulta [Diseños guardados](#saved-designs) más abajo); los archivos `.ork` van y vienen de tu disco mediante **Importar** y **Exportar**.
+> **Menú → Abrir y Guardar como trabajan sobre los diseños guardados dentro de la aplicación** (consulta [Diseños guardados](#saved-designs) más abajo); los archivos `.ork` van y vienen de tu disco mediante **Importar** y **Exportar**.
 
 ## Diseños guardados {#saved-designs}
 
 La aplicación mantiene una biblioteca de tus cohetes en el navegador, así que puedes trabajar en varios y cambiar entre ellos sin exportar un archivo cada vez.
 
 - **Abrir…** lista tus cohetes guardados («Mis cohetes»), el más reciente primero. Elige uno para cambiar a él; desde la misma lista puedes renombrarlos o eliminarlos.
-- **Guardar** confirma el diseño abierto en ese momento. Editar ya guarda automáticamente cada medio segundo, así que esto es más una tranquilidad que un requisito — y si el cohete nunca ha recibido un nombre, te lo pide primero.
-- **Guardar como…** almacena una copia con un nombre nuevo y deja el original tal cual.
+- **Guardar como…** almacena una copia con un nombre nuevo y deja el original tal cual. No hay un **Guardar** a secas: editar guarda automáticamente cada medio segundo y la barra superior indica cuándo se guardó por última vez, así que lo único que queda por pedir es un nombre.
 - **Nuevo** empieza un cohete en blanco como entrada aparte, sin tocar el que tenías abierto.
 
 > **Los diseños guardados son por navegador y por dispositivo.** La biblioteca vive en este navegador en esta máquina: no se sincroniza, y borrar los datos del navegador la elimina (consulta [Sin conexión e instalación](./offline-and-installing.md)).

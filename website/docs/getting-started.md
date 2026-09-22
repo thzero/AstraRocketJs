@@ -35,7 +35,7 @@ On a **phone** the same areas become tabs along the bottom, because there is no 
 
 The components panel is desktop-only, so a phone is for reading and simulating a design rather than building one.
 
-The top bar has **undo / redo**, a language switcher (English · Español), and the **app menu**: New, Open… and Save… / Save As… (the in-app design library), **Import ▸ OpenRocket** and **Export ▸ OpenRocket / RASAero II** for `.ork` and other files on disk, **Rocket Design Report**, **Motor Dashboard**, **Settings**, **Help**, **Privacy** and **About**.
+The top bar has **undo / redo**, a language switcher (English · Español), a note of when your rocket was last saved, and the **app menu**: New, Open… and Save As… (the in-app design library), **Import ▸ OpenRocket** and **Export ▸ OpenRocket / RASAero II** for `.ork` and other files on disk, **Rocket Design Report**, **Motor Dashboard**, **Settings**, **Help**, **Privacy** and **About**.
 
 ## Your first rocket
 
@@ -52,7 +52,7 @@ Menu → **Import → Examples** opens a picker holding the seventeen example de
 
 The same list is also the second tab of menu → **Open…**, beside **My rockets**, for when you are browsing rather than starting something.
 
-Opening one behaves exactly like importing a `.ork`: you get your own unsaved copy, so you can take an example apart without touching the original, and opening it again gives you a fresh one. The examples are part of the app, so they work offline like everything else.
+Opening one behaves exactly like importing a `.ork`: you get your own unsaved copy, so you can take an example apart without touching the original. Open the same example a second time and the app asks whether to overwrite the copy you already have or keep both, so the library does not fill up with rockets of the same name. The examples are part of the app, so they work offline like everything else.
 
 ## Where your data lives
 
