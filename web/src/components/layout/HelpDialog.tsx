@@ -1,13 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { appName, docPageUrl, helpUrlFor } from '../../services/appInfo';
-import {
-  type HelpContents,
-  helpPageExists,
-  helpTarget,
-  helpTargetFromUrl,
-  readContents,
-} from '../../services/helpDocs';
+import { type HelpEntry, type HelpPage, helpTarget, helpTargetFromUrl, loadHelpPage } from '../../services/helpDocs';
 import { useFocusTrap } from '../common/useFocusTrap';
 
 /**
@@ -44,6 +38,16 @@ import { useFocusTrap } from '../common/useFocusTrap';
  */
 const isWide = () => window.matchMedia('(min-width: 768px)').matches;
 
+/**
+ * How far down the frame a heading has to have moved before the rail calls
+ * it the one you are reading.
+ *
+ * Not zero: a heading sitting a few pixels below the top is the one you are
+ * about to read, not the one you are in, and at zero the highlight flickered
+ * between two rows on any slow scroll across a boundary.
+ */
+const SPY_OFFSET_PX = 96;
+
 /** A rail row: the page list and the heading list share their look. */
 const railRow =
   'block w-full truncate rounded px-2 py-1 text-left text-xs text-slate-300 hover:bg-slate-800 hover:text-slate-100';
@@ -62,20 +66,33 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
 
   const target = useMemo(() => helpTarget(current, i18n.language), [current, i18n.language]);
 
-  // Both of these are TAGGED with the src they describe rather than being reset
-  // when the page changes. A stale tag simply stops matching, so the derived
-  // status below falls back to 'probing' on its own, and nothing has to set
-  // state from inside an effect to clear it.
-  const [probe, setProbe] = useState<{ src: string; ok: boolean } | null>(null);
-  // Heading read off the loaded page, so the dialog says which doc this is
-  // rather than repeating "Help" over a page about fins.
-  const [frame, setFrame] = useState<{ src: string; title: string } | null>(null);
-  // The contents rail. STICKY across a page change, unlike the two above: the
-  // page list is identical on every page, so clearing it would make the rail
-  // blink out and back on every click inside it. Only the headings belong to
-  // one page, which is what the src tag is for.
-  const [contents, setContents] = useState<{ src: string; value: HelpContents } | null>(null);
+  // Both are TAGGED with the src they describe rather than being reset when the
+  // page changes. A stale tag simply stops matching, so the derived status
+  // below falls back to 'probing' on its own, and nothing has to set state from
+  // inside an effect to clear it.
+  //
+  // `probe` is the page read out of the SERVED HTML: whether it is there at
+  // all, its heading, and the contents rail. `frame` is only the iframe
+  // reporting that it has finished loading that same page.
+  const [probe, setProbe] = useState<{ src: string; page: HelpPage | null } | null>(null);
+  const [frame, setFrame] = useState<string | null>(null);
+  // The page list, kept across a page change unlike everything else here: it is
+  // identical on every page, so clearing it would blink the rail out and back
+  // on every click inside it.
+  const [pages, setPages] = useState<HelpEntry[]>([]);
   const [contentsOpen, setContentsOpen] = useState(isWide);
+  // The heading the frame is scrolled to, so the rail follows you down a page
+  // instead of only saying what is on it. '' above the first heading, which is
+  // honest: you are not in a section yet.
+  const [activeHash, setActiveHash] = useState('');
+  const activeRow = useRef<HTMLButtonElement>(null);
+
+  // Keep the current heading in view in the rail itself. On a long page the row
+  // the frame has reached can easily be scrolled out of a 17-page list, and a
+  // highlight you cannot see is not one that follows you.
+  useEffect(() => {
+    activeRow.current?.scrollIntoView({ block: 'nearest' });
+  }, [activeHash]);
 
   // Ask whether the page is there BEFORE mounting the frame. On a deployed
   // build this is a service-worker cache hit, so it costs milliseconds; on a
@@ -85,8 +102,10 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
   // missing path with the app's shell and a 200.
   useEffect(() => {
     let canceled = false;
-    void helpPageExists(target).then((ok) => {
-      if (!canceled) setProbe({ src: target.src, ok });
+    void loadHelpPage(target).then((page) => {
+      if (canceled) return;
+      setProbe({ src: target.src, page });
+      if (page && page.contents.pages.length) setPages(page.contents.pages);
     });
     return () => {
       canceled = true;
@@ -94,8 +113,8 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
   }, [target]);
 
   const probed = probe?.src === target.src ? probe : null;
-  const loaded = frame?.src === target.src ? frame : null;
-  const status = probed === null ? 'probing' : !probed.ok ? 'missing' : loaded ? 'ready' : 'rendering';
+  const ready = frame === target.src;
+  const status = probed === null ? 'probing' : !probed.page ? 'missing' : ready ? 'ready' : 'rendering';
 
   const navigate = useCallback(
     (next: string) => {
@@ -176,15 +195,48 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
     html.setAttribute('data-theme', 'dark');
     html.setAttribute('data-theme-choice', 'dark');
     doc.addEventListener('click', onFrameClick, true);
-    // The page's own <h1>, NOT document.title. The title is managed by
-    // react-helmet, and on a warm load its hydration can run before this
-    // handler does, during which the title is briefly the bare site name: the
-    // dialog then headed a page about safety with "AstraRocketJs". The heading
-    // in the article is static content and reads the same either side of
-    // hydration.
-    const h1 = doc.querySelector('article h1')?.textContent?.trim();
-    setFrame({ src: target.src, title: h1 ?? '' });
-    setContents({ src: target.src, value: readContents(doc) });
+
+    /*
+     * Scroll-spy.
+     *
+     * Same-origin, so the frame's own scrolling is readable from here; there is
+     * no message passing and nothing injected into the docs. The last heading
+     * to have passed the offset is the section you are in, which is the plain
+     * reading of "where am I", and it is recomputed from live geometry rather
+     * than tracked, so it stays right through an image loading late or a
+     * details block opening.
+     *
+     * The listener is on the frame's window and a navigation replaces its
+     * document, so it goes with the page it was set up for.
+     */
+    const win = doc.defaultView;
+    if (win) {
+      const marks = [...doc.querySelectorAll<HTMLElement>('.theme-doc-markdown h2[id], .theme-doc-markdown h3[id]')];
+      let queued = false;
+      const spy = () => {
+        if (queued) return;
+        queued = true;
+        win.requestAnimationFrame(() => {
+          queued = false;
+          let active = '';
+          for (const mark of marks) {
+            if (mark.getBoundingClientRect().top > SPY_OFFSET_PX) break;
+            active = `#${mark.id}`;
+          }
+          setActiveHash(active);
+        });
+      };
+      win.addEventListener('scroll', spy, { passive: true });
+      // Once now, so a page opened ON an anchor is highlighted before it is
+      // touched.
+      spy();
+    }
+
+    // Nothing is READ out of the frame. The heading and the rail come from the
+    // served HTML instead (loadHelpPage), because what this document holds
+    // depends on whether hydration has run yet, which a warm cache decides. All
+    // this reports is that the page is on screen and can be revealed.
+    setFrame(target.src);
   }, [onFrameClick, target.src]);
 
   /** Open a page from the rail, and on a phone get the rail out of the way. */
@@ -200,9 +252,9 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
   // of the dialog for anything it renders badly. Empty when the build has no
   // docs URL at all (see docPageUrl).
   const siteHref = docPageUrl(helpUrlFor(i18n.language), target.slug);
-  const heading = loaded?.title || t('help.title');
+  const heading = probed?.page?.title || t('help.title');
   // Headings belong to the page they were read from; the page list does not.
-  const headings = contents?.src === target.src ? contents.value.headings : [];
+  const headings = probed?.page?.contents.headings ?? [];
 
   return (
     <div className="dialog-overlay fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4" onClick={onClose}>
@@ -218,7 +270,7 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
           {/* Rendered only once a page has loaded and brought its contents with
               it: with nothing to list, this would be a control that looks
               clickable and does nothing. */}
-          {contents && (
+          {pages.length > 0 && (
             <button
               onClick={() => setContentsOpen((o) => !o)}
               aria-expanded={contentsOpen}
@@ -244,9 +296,17 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
               href={siteHref}
               target="_blank"
               rel="noopener noreferrer"
+              aria-label={t('help.openOnSite')}
+              title={t('help.openOnSite')}
               className="shrink-0 rounded-lg bg-slate-800 px-2 py-1 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
             >
-              {t('help.openOnSite')}
+              {/* The label costs about 130px, and at phone width the header
+                  already carries four controls; below `sm` the glyph stands in
+                  for it, with the same accessible name either way. */}
+              <span className="hidden sm:inline">{t('help.openOnSite')}</span>
+              <span className="sm:hidden" aria-hidden>
+                ↗
+              </span>
             </a>
           )}
           <button
@@ -264,12 +324,12 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
               for both and the phone is where finding a topic matters most.
               (The docs site's own sidebar is display:none below 997px, which is
               the reason the dialog draws its own instead of revealing that one.) */}
-          {contents && contentsOpen && (
+          {pages.length > 0 && contentsOpen && (
             <nav
               aria-label={t('help.contents')}
               className="absolute inset-y-0 left-0 z-10 w-56 shrink-0 overflow-y-auto border-r border-white/10 bg-slate-900 p-2 md:static md:z-auto"
             >
-              {contents.value.pages.map((entry, i) =>
+              {pages.map((entry, i) =>
                 entry.page === null ? (
                   <p
                     key={`group-${i}`}
@@ -295,8 +355,12 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
                       headings.map((h) => (
                         <button
                           key={h.hash}
+                          ref={h.hash === activeHash ? activeRow : undefined}
                           onClick={() => pick(`${target.slug}${h.hash}`)}
-                          className={`${railRow} ${h.level > 1 ? 'pl-8' : 'pl-5'} text-slate-400`}
+                          aria-current={h.hash === activeHash ? 'location' : undefined}
+                          className={`${railRow} ${h.level > 1 ? 'pl-8' : 'pl-5'} ${
+                            h.hash === activeHash ? 'bg-slate-800 text-sky-300' : 'text-slate-400'
+                          }`}
                         >
                           {h.label}
                         </button>

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { helpPageExists, helpTarget, helpTargetFromUrl, readContents } from './helpDocs';
+import { helpTarget, helpTargetFromUrl, loadHelpPage, readContents } from './helpDocs';
 
 // jsdom, because the link parser resolves against window.location: an in-frame
 // link is only "still in the docs" relative to the origin the app is served from.
@@ -87,46 +87,55 @@ describe('helpTargetFromUrl', () => {
   });
 });
 
-describe('helpPageExists', () => {
+describe('loadHelpPage', () => {
   const target = helpTarget('safety', 'en');
+  /** A served page, minimal but with the two markers that matter. */
+  const served = (body: string) => `<!doctype html><html><body><div id="__docusaurus">${body}</div></body></html>`;
+  const answers = (html: string) =>
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve(html) }));
 
-  it('accepts a real docs page', () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve('<div id="__docusaurus">hi</div>') }),
-    );
-    return expect(helpPageExists(target)).resolves.toBe(true);
+  it('reads the heading and the contents out of the served page', async () => {
+    answers(served(`<article><h1>Safety</h1></article>${SIDEBAR}`));
+    const page = await loadHelpPage(target);
+    expect(page?.title).toBe('Safety');
+    expect(page?.contents.pages.map((p) => p.label)).toContain('FAQ');
   });
 
   it('rejects the app shell answering for a missing page', async () => {
     // This is the dev-build case: web/public/docs is gitignored, and Vite
     // answers the missing path with the APP's index.html and a 200. Without the
     // marker check the dialog would render the app inside its own Help dialog.
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve('<div id="root"></div>') }),
-    );
-    await expect(helpPageExists(target)).resolves.toBe(false);
+    answers('<div id="root"></div>');
+    await expect(loadHelpPage(target)).resolves.toBeNull();
   });
 
   it('rejects a 404', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, text: () => Promise.resolve('') }));
-    await expect(helpPageExists(target)).resolves.toBe(false);
+    await expect(loadHelpPage(target)).resolves.toBeNull();
   });
 
   it('rejects a failed fetch rather than throwing', async () => {
     // Offline with nothing cached throws; the dialog must fall back to offering
     // the docs site, not blow up over the design being edited.
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
-    await expect(helpPageExists(target)).resolves.toBe(false);
+    await expect(loadHelpPage(target)).resolves.toBeNull();
   });
 
   it('asks for the file URL, which is the precache key', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve('id="__docusaurus"') });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve(served('')) });
     vi.stubGlobal('fetch', fetchMock);
-    await helpPageExists(helpTarget('safety#storage', 'en'));
+    await loadHelpPage(helpTarget('safety#storage', 'en'));
     // The anchor must not reach the request: it is not part of the cached name.
     expect(fetchMock).toHaveBeenCalledWith(`${appBase}docs/safety/index.html`);
+  });
+
+  it('resolves sidebar links although a parsed document has no base URL', async () => {
+    // DOMParser gives a document whose `a.href` is empty, so the reader takes
+    // the href attribute instead. If that regresses, every rail row goes
+    // missing.
+    answers(served(SIDEBAR));
+    const page = await loadHelpPage(target);
+    expect(page?.contents.pages.filter((p) => p.page !== null)).not.toEqual([]);
   });
 });
 
@@ -155,23 +164,23 @@ const SIDEBAR = `
   </ul>
 </nav>`;
 
-const TOC = `
-<div class="theme-doc-toc-desktop">
-  <ul class="table-of-contents table-of-contents__left-border">
-    <li><a href="#the-component-tree" class="table-of-contents__link">The component tree</a>
-      <ul><li><a href="#dual-deployment" class="table-of-contents__link">Dual deployment</a></li></ul>
-    </li>
-    <li><a href="#undo--redo" class="table-of-contents__link">Undo / redo</a></li>
-  </ul>
-</div>`;
+const ARTICLE = `
+<article>
+  <div class="theme-doc-markdown markdown">
+    <h1>Designing a Rocket</h1>
+    <h2 class="anchor" id="the-component-tree">The component tree<a href="#the-component-tree" class="hash-link" title="Direct link to The component tree"></a></h2>
+    <h3 class="anchor" id="dual-deployment">Dual deployment<a href="#dual-deployment" class="hash-link"></a></h3>
+    <h2 class="anchor" id="undo--redo">Undo / redo<a href="#undo--redo" class="hash-link"></a></h2>
+  </div>
+</article>`;
 
 describe('readContents', () => {
   afterEach(() => {
     document.body.innerHTML = '';
   });
 
-  /** Render a fixture into the real document, so hrefs resolve against a base
-   *  the way they do in the frame. */
+  /** Render a fixture into the real document, so its links resolve against a
+   *  base the way they do in the frame. */
   const read = (html: string) => {
     document.body.innerHTML = html;
     return readContents(document);
@@ -197,7 +206,10 @@ describe('readContents', () => {
   });
 
   it('reads the current page headings, with their nesting', () => {
-    expect(read(TOC).headings).toEqual([
+    // The ARTICLE's headings, not the site's table-of-contents widget: that
+    // widget is rendered on window size and is absent at the width the dialog's
+    // frame runs at.
+    expect(read(ARTICLE).headings).toEqual([
       { hash: '#the-component-tree', label: 'The component tree', level: 1 },
       { hash: '#dual-deployment', label: 'Dual deployment', level: 2 },
       { hash: '#undo--redo', label: 'Undo / redo', level: 1 },

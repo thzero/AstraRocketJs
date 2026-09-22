@@ -29,6 +29,11 @@ const helpDialog = 'Help';
 const docsBuilt = existsSync('public/docs/index.html');
 
 test.beforeEach(() => {
+  // Not a disabled test but an environment precondition. The rule exists to
+  // stop a failing spec being quietly switched off, and this one runs in full
+  // wherever the docs exist. The way to delete the suppression is to build the
+  // docs in the e2e job (see above), not to widen the rule.
+  // eslint-disable-next-line playwright/no-skipped-test
   test.skip(!docsBuilt, 'web/public/docs is not built; run `npm run docs:build`');
 });
 
@@ -137,13 +142,54 @@ test('the contents rail lists every page, and the headings of the one you are on
   // "what else is there" and "where in this page".
   const heading = contents.getByRole('button', { name: 'The component tree' });
   await expect(heading).toBeVisible();
+  // Nothing is current yet: the frame is above the first heading.
+  await expect(contents.locator('[aria-current="location"]')).toHaveCount(0);
+
   await heading.click();
   // Same page, so this scrolls the frame rather than reloading it.
   await expect(dialog.getByRole('heading', { name: 'Designing a Rocket' })).toBeVisible();
+  // And the rail follows the frame down the page rather than only listing it.
+  await expect(heading).toHaveAttribute('aria-current', 'location');
+
+  const later = contents.getByRole('button', { name: 'Undo / redo' });
+  await later.click();
+  await expect(later).toHaveAttribute('aria-current', 'location');
+  await expect(heading).not.toHaveAttribute('aria-current', 'location');
 
   // And it folds away, for the width it costs.
   await dialog.getByRole('button', { name: 'Contents' }).click();
   await expect(contents).toBeHidden();
+});
+
+test.describe('at phone width', () => {
+  // The desktop project runs at 1500px, where the rail is simply beside the
+  // page. This is the layout that matters at a launch site.
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test('the contents rail overlays the page, and folds away once you pick one', async ({ page }) => {
+    await page.goto('/');
+
+    await page.getByRole('button', { name: 'Menu' }).click();
+    await page.getByRole('menuitem', { name: 'Help' }).click();
+
+    const dialog = page.getByRole('dialog', { name: helpDialog });
+    const contents = dialog.getByRole('navigation', { name: 'Contents' });
+    const toggle = dialog.getByRole('button', { name: 'Contents' });
+
+    // Shut by default here: a 224px rail inside a 358px dialog would leave the
+    // page about a hundred pixels to render in.
+    await expect(toggle).toBeVisible();
+    await expect(contents).toBeHidden();
+
+    await toggle.click();
+    await expect(contents).toBeVisible();
+
+    await contents.getByRole('button', { name: 'Motors', exact: true }).click();
+    // And gets out of the way, or it would be covering the page it just sent
+    // you to.
+    await expect(contents).toBeHidden();
+    await expect(dialog.getByRole('heading', { name: 'Motors' })).toBeVisible();
+  });
 });
 
 test('the Safety card opens Help without leaving the results', async ({ page }) => {

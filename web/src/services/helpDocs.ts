@@ -49,11 +49,20 @@ export function helpTarget(page: string, language: string): HelpTarget {
   return { page, slug, hash, fileUrl, src: `${fileUrl}${hash}` };
 }
 
+/** A page that is in this build, read before the frame is pointed at it. */
+export interface HelpPage {
+  /** The article's own heading, which titles the dialog. */
+  title: string;
+  /** The page list and this page's headings, for the contents rail. */
+  contents: HelpContents;
+}
+
 /**
- * Whether a page is actually in this build, and can be shown.
+ * Fetch a page and read what the dialog needs out of it, or null when it is not
+ * in this build.
  *
- * Resolves to null for the two ways it can be absent, which the dialog treats
- * the same way (fall back to the docs site):
+ * Null covers the two ways it can be absent, which the dialog answers the same
+ * way (offer the docs site):
  *
  *  - a DEV build. `web/public/docs` is gitignored and only written by the
  *    deploy job, so `npm run dev` has no docs unless `npm run docs:build` has
@@ -62,17 +71,32 @@ export function helpTarget(page: string, language: string): HelpTarget {
  *  - offline with nothing cached, which throws rather than returning a status.
  *
  * On a deployed build this is a service-worker cache hit, because `fileUrl` is
- * the key the page is precached under (see {@link docPageFileUrl}). That is why
- * the probe is affordable on every open.
+ * the key the page is precached under (see {@link docPageFileUrl}), which is
+ * what makes it affordable on every open.
+ *
+ * THE BUILT HTML, NOT THE LIVE FRAME, and that is the point of doing it here.
+ * Docusaurus decides what to render from the window size, and the frame inside
+ * the dialog is narrower than its 997px desktop breakpoint on every screen: on
+ * hydration it takes the sidebar and the table of contents back OUT of the
+ * document. Reading the live frame therefore worked or not depending on whether
+ * hydration beat the load event, which a warm cache decides. The served HTML
+ * has both, always, and it is already in hand.
  */
-export async function helpPageExists(target: HelpTarget): Promise<boolean> {
+export async function loadHelpPage(target: HelpTarget): Promise<HelpPage | null> {
+  let html: string;
   try {
     const res = await fetch(target.fileUrl);
-    if (!res.ok) return false;
-    return (await res.text()).includes(DOCUSAURUS_MARKER);
+    if (!res.ok) return null;
+    html = await res.text();
   } catch {
-    return false;
+    return null;
   }
+  if (!html.includes(DOCUSAURUS_MARKER)) return null;
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  return {
+    title: doc.querySelector('article h1')?.textContent?.trim() ?? '',
+    contents: readContents(doc),
+  };
 }
 
 /**
@@ -139,13 +163,14 @@ export interface HelpContents {
 /**
  * The contents of the docs, read out of a rendered page.
  *
- * Docusaurus puts the sidebar into every page it builds, and the current page's
- * heading list beside it, so both are already in the frame's DOM. The
- * embed stylesheet hides them and the dialog draws its own rail from this
- * instead, for two reasons: the site's sidebar is `display:none` below 997px,
- * which is exactly the phone at a launch site where being able to find a topic
- * matters most, and a rail the app draws is a rail the app can style and can
- * put the current page's headings inside.
+ * Docusaurus builds the sidebar into every page, so one page carries the whole
+ * list. The embed stylesheet hides the site's own copy and the dialog draws its
+ * rail from this instead, because the site's sidebar is gone below 997px and
+ * the frame is always narrower than that, and because a rail the app draws is
+ * one the app can style and can nest the current page's headings inside.
+ *
+ * Fed the document {@link loadHelpPage} parses from the served HTML, never the
+ * live frame: see the note there.
  *
  * Reading it from the page rather than generating a list at build time keeps
  * the one-source rule: the order, the grouping and the labels are whatever
@@ -168,24 +193,32 @@ export function readContents(doc: Document): HelpContents {
     // A category links to its own first child, so treating it as a page would
     // put the same page in the rail twice. It is a label.
     const isCategory = li.classList.contains('theme-doc-sidebar-item-category');
-    const page = isCategory ? null : helpTargetFromUrl((anchor as HTMLAnchorElement).href);
+    // getAttribute, not .href: a document from DOMParser has no base URL, so
+    // the resolved property would be empty. The sidebar links are absolute
+    // paths, and helpTargetFromUrl resolves them against the app's location.
+    const page = isCategory ? null : helpTargetFromUrl(anchor.getAttribute('href') ?? '');
     if (!isCategory && page === null) continue;
     pages.push({ page, label, level });
   }
 
+  // The ARTICLE's own headings, not the site's table-of-contents widget.
+  //
+  // Docusaurus renders that widget on window size: the desktop one unmounts
+  // below 997px, and the frame inside this dialog is narrower than that on
+  // every screen, so reading it gave an empty list on a page full of headings.
+  // The headings themselves are content. They carry the same ids the widget
+  // linked to, and they are there at any width and either side of hydration.
   const headings: HelpHeading[] = [];
-  for (const anchor of doc.querySelectorAll('.table-of-contents a[href^="#"]')) {
-    const label = anchor.textContent?.trim();
-    const hash = (anchor as HTMLAnchorElement).hash;
-    if (!label || !hash) continue;
-    // Depth by nesting: the root list carries `table-of-contents`, and a
-    // sub-heading sits in a plain <ul> inside it.
-    let level = 0;
-    for (let el = anchor.parentElement; el; el = el.parentElement) {
-      if (el.tagName === 'UL') level++;
-      if (el.classList.contains('table-of-contents')) break;
-    }
-    headings.push({ hash, label, level });
+  for (const h of doc.querySelectorAll('.theme-doc-markdown h2[id], .theme-doc-markdown h3[id]')) {
+    // Each heading ends with Docusaurus's own anchor link, which contributes a
+    // stray glyph to textContent.
+    const label = [...h.childNodes]
+      .filter((n) => !(n instanceof Element && n.classList.contains('hash-link')))
+      .map((n) => n.textContent ?? '')
+      .join('')
+      .trim();
+    if (!label) continue;
+    headings.push({ hash: `#${h.id}`, label, level: h.tagName === 'H2' ? 1 : 2 });
   }
 
   return { pages, headings };
