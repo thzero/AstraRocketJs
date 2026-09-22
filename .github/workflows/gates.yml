@@ -181,6 +181,29 @@ jobs:
           sparse-checkout: core/src/main/java
           sparse-checkout-cone-mode: false
 
+      # `date` in UPSTREAM is what the app's About dialog and the docs Overview
+      # page tell a reader the engine was built from, so it has to BE the
+      # commit's date and not whatever was true the last time someone typed it.
+      # The pinned tree is already checked out here, so asking git costs
+      # nothing. Author and committer date both count: a rebased or
+      # cherry-picked upstream commit carries two, and either is a fair answer
+      # to "when is this from".
+      - name: The pinned date is the pinned commit's date
+        run: |
+          want=$(sed -n 's/^date[[:space:]]*=[[:space:]]*//p' engine-java/extract/UPSTREAM)
+          if [ -z "$want" ]; then
+            echo '::error::engine-java/extract/UPSTREAM has no date line.'
+            exit 1
+          fi
+          cd .openrocket-src
+          authored=$(TZ=UTC git log -1 --format=%ad --date=format-local:%Y-%m-%d)
+          committed=$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%d)
+          if [ "$want" != "$authored" ] && [ "$want" != "$committed" ]; then
+            echo "::error::UPSTREAM says date = $want, but the pinned commit is authored $authored / committed $committed. Bump date with ref."
+            exit 1
+          fi
+          echo "date = $want matches the pinned commit."
+
       - uses: actions/setup-node@v7
         with:
           node-version: 22

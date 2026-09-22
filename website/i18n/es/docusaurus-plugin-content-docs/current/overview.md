@@ -3,6 +3,9 @@ title: "Descripción general"
 sidebar_position: 1
 slug: /
 ---
+
+import UpstreamPin from '@site/src/components/UpstreamPin';
+
 ## ¿Qué es AstraRocketJs?
 
 **AstraRocketJs** es una aplicación web para diseñar cohetes de modelismo y simular sus vuelos. Es una interfaz ligera y adaptada a móviles construida sobre el **motor de física real de OpenRocket**: el mismo núcleo de simulación de confianza que usa el programa de escritorio OpenRocket, compilado para ejecutarse directamente en tu navegador.
@@ -21,6 +24,7 @@ AstraRocketJs **no** es una recreación de la aplicación de escritorio de OpenR
 - La aerodinámica (Barrowman extendido), la masa y el CG, y la integración del vuelo (RK4/RK6) son el propio código de OpenRocket, compilado a WebAssembly (con JavaScript como alternativa).
 - Abre y guarda archivos **`.ork`** estándar, así que los diseños viajan en ambos sentidos entre AstraRocketJs y OpenRocket de escritorio.
 - Cubre deliberadamente **lo esencial** — estabilidad en vivo, vistas 2D/3D, motores, materiales, piezas y simulación de vuelo — en lugar de todas las funciones del escritorio.
+- El motor se compila a partir de **un único commit fijado de OpenRocket**, no de una versión numerada: <UpstreamPin />. Ese es el build con el que comparar resultados, y una función de una versión concreta solo está aquí si está en ese commit. El diálogo **Acerca de** de la aplicación indica el mismo commit, y el anclaje vive en [`engine-java/extract/UPSTREAM`](https://github.com/thzero/AstraRocketJs/blob/master/engine-java/extract/UPSTREAM).
 
 Para los modelos físicos subyacentes, la referencia es la [documentación de OpenRocket](https://openrocket.readthedocs.io). AstraRocketJs es un proyecto independiente y no está afiliado a OpenRocket.
 
@@ -30,6 +34,7 @@ Para los modelos físicos subyacentes, la referencia es la [documentación de Op
 - **Primeros pasos** — [abre la aplicación y crea tu primer cohete](./getting-started.md), y los [Ajustes](./settings.md).
 - **Guía de uso** — diseño, motores, las vistas, simulación, archivos/exportaciones y [Seguridad](./safety.md).
 - **Desarrollo** — la [Guía del desarrollador](./developer-guide.md) para compilar y contribuir.
+- **Apéndice** — mapas de funciones fechados frente a [OpenRocket](./comparison-openrocket.md), [ZenRockets](./comparison-zenrockets.md) y [mmrocket-sim](./comparison-mmrocket-sim.md), incluido lo que cada uno hace y esta aplicación no.
 
 ## Antes de volar {#before-you-fly}
 

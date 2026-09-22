@@ -81,4 +81,4 @@ This software is provided "as is", without warranty of any kind, express or impl
 
 ## Attribution & license
 
-The engine derives from the OpenRocket core (a post-24.12 development build; GPL-3.0); the opt-in supersonic-aero (RASAero) extensions are the original work of the mmrocket-sim project. Full credits and license lineage: **[`engine-java/ATTRIBUTION.md`](engine-java/ATTRIBUTION.md)** (and `docs/rasaero/` for the extensions' physics + diffs).
+The engine derives from the OpenRocket core (GPL-3.0) at one pinned commit, named in [`engine-java/extract/UPSTREAM`](engine-java/extract/UPSTREAM) and shown, with its date, in the app's About dialog and on the docs' [Overview](https://thzero.github.io/AstraRocketJs/docs/) page; the opt-in supersonic-aero (RASAero) extensions are the original work of the mmrocket-sim project. Full credits and license lineage: **[`engine-java/ATTRIBUTION.md`](engine-java/ATTRIBUTION.md)** (and `docs/rasaero/` for the extensions' physics + diffs).

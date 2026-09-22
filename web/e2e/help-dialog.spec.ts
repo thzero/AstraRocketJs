@@ -133,7 +133,7 @@ test('the contents rail lists every page, and the headings of the one you are on
   // a collapsed category's children into no page at all, so this is what fails
   // if a category in sidebars.ts loses its `collapsed: false` and takes a whole
   // group out of the rail.
-  await expect(contents.getByRole('button', { name: 'Dependencies', exact: true })).toBeVisible();
+  await expect(contents.getByRole('button', { name: 'Compared with mmrocket-sim', exact: true })).toBeVisible();
 
   await contents.getByRole('button', { name: 'Designing a Rocket', exact: true }).click();
   await expect(dialog.getByRole('heading', { name: 'Designing a Rocket' })).toBeVisible();

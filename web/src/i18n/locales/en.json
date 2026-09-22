@@ -124,6 +124,7 @@
     "contributors": "Built by these contributors:",
     "contributorsAll": "See all contributors on GitHub",
     "credits": "Physics by OpenRocket (GPL-3.0), compiled to WASM and JavaScript with TeaVM.",
+    "enginePin": "Engine extracted from OpenRocket commit <commitLink>{{ref}}</commitLink>, dated {{date}}.",
     "privacy": "Privacy",
     "close": "Close"
   },

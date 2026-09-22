@@ -20,6 +20,16 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify('0.0.0-test'),
     __HELP_URL__: JSON.stringify('https://example.test/docs'),
     __CONTRIBUTORS_URL__: JSON.stringify('https://example.test/graphs/contributors'),
+    // A stand-in pin, like the version above. The REAL one is checked straight
+    // out of engine-java/extract/UPSTREAM by appInfo.test.ts, which is where it
+    // means something; baking it in here would only assert that two copies of
+    // the same parse agree.
+    __UPSTREAM__: JSON.stringify({
+      ref: '0'.repeat(40),
+      shortRef: '0'.repeat(9),
+      date: '2000-01-01',
+      commitUrl: `https://example.test/openrocket/commit/${'0'.repeat(40)}`,
+    }),
   },
   resolve: {
     alias: {

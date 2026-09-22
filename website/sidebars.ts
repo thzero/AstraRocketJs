@@ -3,7 +3,7 @@ import type { SidebarsConfig } from '@docusaurus/plugin-content-docs';
 // Mirrors the old wiki Home.md index, which had to be maintained by hand.
 //
 // EVERY category is `collapsed: false`, and that is load-bearing twice over.
-// On the site it is a taste call for a set this small: seventeen pages in four
+// On the site it is a taste call for a set this small: twenty pages in five
 // groups fit without scrolling, and half-open / half-shut was arbitrary. In the
 // APP it is a requirement. The in-app Help dialog draws its contents rail by
 // reading this sidebar out of a built page (web/src/services/helpDocs.ts), and
@@ -30,6 +30,15 @@ const sidebars: SidebarsConfig = {
       label: 'Developing',
       collapsed: false,
       items: ['contributing', 'developer-guide', 'architecture', 'dependencies'],
+    },
+    // Feature maps against the other tools, each one a dated snapshot that says
+    // so at the top. Last, because they answer "should I use this?" rather than
+    // "how do I use this?".
+    {
+      type: 'category',
+      label: 'Appendix',
+      collapsed: false,
+      items: ['comparison-openrocket', 'comparison-zenrockets', 'comparison-mmrocket-sim'],
     },
   ],
 };

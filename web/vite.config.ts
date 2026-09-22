@@ -26,6 +26,40 @@ const helpUrl: string = process.env.HELP_URL || pkg.wiki?.url || (repoUrl ? `${r
 const contributorsUrl: string =
   process.env.CONTRIBUTORS_URL ?? pkg.contributorsPage?.url ?? (repoUrl ? `${repoUrl}/graphs/contributors` : '');
 
+// WHICH OpenRocket this build is, read from engine-java/extract/UPSTREAM - the
+// one file that names the pinned commit and the one a bump touches. The About
+// dialog shows it so "the same physics core" has an answer a reader can check:
+// a short SHA, its date, and a link to the commit itself.
+//
+// Read, never copied. A version string typed into the dialog (or into a doc, or
+// into a README) is a second copy of a SHA, and the copy is what goes stale -
+// silently, since nothing compares it to anything.
+const upstreamText = readFileSync(new URL('../engine-java/extract/UPSTREAM', import.meta.url), 'utf-8');
+// `key = value` lines, ignoring the long header (every comment line is `#`).
+const upstreamFields = new Map(
+  upstreamText
+    .split('\n')
+    .map((line) => /^(\w+)\s*=\s*(\S+)/.exec(line))
+    .filter((m) => m !== null)
+    .map((m) => [m[1]!, m[2]!] as const),
+);
+const upstreamField = (key: string): string => {
+  const value = upstreamFields.get(key);
+  if (!value) throw new Error(`engine-java/extract/UPSTREAM has no \`${key}\` line`);
+  return value;
+};
+const upstreamRef = upstreamField('ref');
+// https://github.com/owner/name.git -> https://github.com/owner/name
+const upstreamRepo = upstreamField('repo').replace(/\.git$/, '');
+const upstream = {
+  ref: upstreamRef,
+  // Nine hex, which is how this repo writes a short OpenRocket SHA everywhere
+  // else (UPSTREAM's own `describe`, the patch ledger).
+  shortRef: upstreamRef.slice(0, 9),
+  date: upstreamField('date'),
+  commitUrl: `${upstreamRepo}/commit/${upstreamRef}`,
+};
+
 export default defineConfig({
   // On GitHub Pages the app is served from https://<user>.github.io/<repo>/, so the
   // CI build sets PAGES_BASE=/<repo>/ and every asset + engine URL resolves under it.
@@ -214,6 +248,7 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(version),
     __HELP_URL__: JSON.stringify(helpUrl),
     __CONTRIBUTORS_URL__: JSON.stringify(contributorsUrl),
+    __UPSTREAM__: JSON.stringify(upstream),
   },
   // The vendored TeaVM engine (src/engine/vendor/openrocket-engine.mjs) is a
   // large ES module, and it used to be listed under `optimizeDeps.exclude` so

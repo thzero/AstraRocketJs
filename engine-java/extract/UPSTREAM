@@ -11,17 +11,34 @@
 # used to say "bump it here AND in gates.yml". It does not any more; do not
 # reintroduce a second copy.
 #
+# Everything that NAMES the pinned build reads it from here too, so none of them
+# can drift from the tree that was actually extracted:
+#
+#   engine-java/extract/extract.mjs   clones repo@ref to extract from
+#   web/scripts/sync-examples.mjs     pulls the bundled examples from repo@ref
+#   web/vite.config.ts                bakes ref+date into the app's About dialog
+#   website/docusaurus.config.ts      bakes ref+date into the docs Overview page
+#
+# The last two are why `date` exists as a FIELD and not just as prose in this
+# header: "which OpenRocket is this?" is a question a reader of the docs asks,
+# and answering it from a hand-typed string somewhere else would be one more
+# copy of a SHA that should only ever have one. Bump `date` with `ref`; the
+# `reproducible` job checks it against the commit it checked out, so a bump that
+# updates one and forgets the other fails there rather than quietly shipping a
+# wrong date to every reader.
+#
 # Adopting a newer OpenRocket means bumping the ref below, re-running the
 # extraction, and reviewing every line the "patch(es) differ from current
 # upstream" report names. `extract/DIVERGENCE.txt` makes that review a gate
 # rather than a ritual: re-bless it and explain each number that moved.
 #
 # `describe` below reads release-22.02.beta.01-... because that is the nearest
-# reachable tag in this fork, not because the tree predates 24.12: the commit is
-# dated 2026-09-21. The repo is a fork, but the SHA is content-bound and the
-# same commit fetches from canonical openrocket/openrocket - verified on
-# 2026-09-22, when this SHA was the head of canonical `unstable` itself, so the
-# fork is not carrying anything of its own at this point.
+# reachable tag in this fork, not because the tree predates 24.12: see `date`,
+# which is the commit's own date (UTC). The repo is a fork, but the SHA is
+# content-bound and the same commit fetches from canonical
+# openrocket/openrocket - verified on 2026-09-22, when this SHA was the head of
+# canonical `unstable` itself, so the fork is not carrying anything of its own
+# at this point.
 #
 # 2026-09-22: bumped from 6deae5079 (2026-09-17). Five commits, and NOTHING
 # under core/src/main/java: two swing spinner step sizes (PR #3332) and the
@@ -30,4 +47,5 @@
 # file moved, so no patch drifted and parity could not move.
 repo = https://github.com/thzero/openrocket.git
 ref  = 98f05af97bfbcd570bf2098307c23e0075beef4b
+date = 2026-09-21
 describe = release-22.02.beta.01-5688-g98f05af97

@@ -124,6 +124,7 @@
     "contributors": "Creado por estas personas colaboradoras:",
     "contributorsAll": "Ver todas las personas colaboradoras en GitHub",
     "credits": "Física por OpenRocket (GPL-3.0), compilada a JavaScript con TeaVM.",
+    "enginePin": "Motor extraído del commit <commitLink>{{ref}}</commitLink> de OpenRocket, con fecha {{date}}.",
     "privacy": "Privacidad",
     "close": "Cerrar"
   },

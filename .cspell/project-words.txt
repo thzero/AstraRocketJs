@@ -82,6 +82,7 @@ crossrange
 crosssection
 Crêpe
 curveless
+customexpression
 dataviz
 DATCOM
 dbcook
@@ -256,10 +257,12 @@ misrenders
 mistap
 mktemp
 mmrocket
+mmrsim
 monkeypatching
 monogrid
 motorconfiguration
 motormount
+mountainmanrockets
 msvc
 multisampled
 multiset

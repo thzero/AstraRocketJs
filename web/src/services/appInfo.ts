@@ -91,6 +91,20 @@ export function docPageFileUrl(base: string, page: string): string {
 }
 
 /**
+ * WHICH OpenRocket the bundled engine is - the pinned commit, its date, and a
+ * link to it, injected at build time from `engine-java/extract/UPSTREAM` (see
+ * vite.config.ts). That file is the only place the ref is written down; this is
+ * derived from it at every build, so the About dialog cannot come to name a
+ * commit the engine was not built from.
+ *
+ * "The same physics core as OpenRocket" is not an answerable claim on its own:
+ * a reader comparing their numbers against the desktop app's, or asking whether
+ * a feature from some release is in here, needs the commit. `date` is the
+ * commit's own date (UTC), not the build's.
+ */
+export const UPSTREAM: { ref: string; shortRef: string; date: string; commitUrl: string } = __UPSTREAM__;
+
+/**
  * Where the About dialog's contributors heading links — by default the
  * repository's GitHub contributor graph, overridable at build time (see
  * vite.config.ts) via `contributorsPage.url` in package.json or the
