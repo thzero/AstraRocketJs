@@ -415,7 +415,8 @@
     "safetyGapsDetail": "Fin flutter, structural loads, parachute inflation and opening shock, and how your motor performs on the day. Nothing above can warn you about any of them.",
     "safetyCode": "Fly under your safety code, inside your field and its waiver. The RSO's call outranks anything on this screen.",
     "safetyDisclaimer": "You, and you alone, are responsible for what you build and fly. This software is provided as is, without warranty of any kind, and its authors and contributors accept no liability for any loss arising from its use.",
-    "safetyLink": "Read the safety notes"
+    "safetyLink": "Read the safety notes",
+    "maxQ": "Max-Q"
   },
   "warn": {
     "deletePart": "Delete {{name}}?",
@@ -601,6 +602,21 @@
     "dt": "Simulation time step",
     "tc": "Computation time"
   },
+  "flightEvent": {
+    "launch": "Launch",
+    "ignition": "Ignition",
+    "liftoff": "Liftoff",
+    "railDeparture": "Rail departure",
+    "maxQ": "Max-Q",
+    "burnout": "Burnout",
+    "ejection": "Ejection charge",
+    "separation": "Stage separation",
+    "apogee": "Apogee",
+    "deploy": "Recovery deployment",
+    "tumble": "Tumble",
+    "landing": "Landing",
+    "simEnd": "Simulation end"
+  },
   "flight": {
     "pickAria": "Choose which flight to show (showing {{name}})",
     "pickTitle": "Choose which flight these views show",
@@ -642,7 +658,10 @@
     "zoomReset": "Reset zoom",
     "stages": "Stages",
     "stage": "Stage",
-    "crosshairHint": "Flight charts. Focus and use the arrow keys to move the crosshair; Shift for a larger step, Home and End for the ends, Escape to clear."
+    "crosshairHint": "Flight charts. Focus and use the arrow keys to move the crosshair; Shift for a larger step, Home and End for the ends, Escape to clear.",
+    "events": "Flight events",
+    "event": "Event",
+    "twr": "TWR"
   },
   "pathExport": {
     "open": "Export flight path (KML / GPX / CSV)",

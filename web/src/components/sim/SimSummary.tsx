@@ -4,6 +4,7 @@ import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import type { FlightResult } from '../../engine/api';
+import { maxQ } from '../../services/flightEvents';
 import { lerpAt } from '../../services/interpolate';
 import { stabilityTone } from '../../services/simReport';
 import { useSettings } from '../../state/SettingsProvider';
@@ -133,6 +134,7 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
   const landingVel = u.at(unitScope('sim', 'landing'), 'velocity');
   const downrangeUnit = u.at(unitScope('sim', 'downrange'), 'distance');
   const maxAccel = u.at(unitScope('sim', 'maxAccel'), 'acceleration');
+  const maxQUnit = u.at(unitScope('sim', 'maxQ'), 'pressure');
   const maxSpeed = u.at(unitScope('sim', 'maxSpeed'), 'velocity');
   const { settings } = useSettings();
   const { deploymentSpeedWarn, railExitVelocityMin } = settings.simulation;
@@ -151,6 +153,11 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
   const px = sim ? lastFinite(sim.series.Px) : null;
   const py = sim ? lastFinite(sim.series.Py) : null;
   const downrange = px != null && py != null ? Math.hypot(px, py) : null;
+  // Max-Q: the kernel never recorded it, but it records both halves of it, so
+  // it is derived here rather than in the engine. Null on a result saved back
+  // when the app asked for the `summary` series set, which carries neither air
+  // density nor the speed of sound — see services/flightEvents.
+  const peakQ = sim ? maxQ(sim.series) : null;
   if (!s) return null;
   return (
     // The tiles and the safety card are ONE block, so the card travels with the
@@ -245,6 +252,18 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
           sub={<UnitChip label={t('sim.maxSpeed')} quantity="velocity" scope={unitScope('sim', 'maxSpeed')} />}
         />
         <Stat card label={t('sim.maxMach')} value={fmtNum(s.maxMachNumber, 2)} sub="Mach" />
+        {/* The number that decides whether the airframe holds together, which
+            is why it sits with the other peaks rather than only in the events
+            table. Both read the same figure and share the one unit scope, so
+            changing it here changes it there. */}
+        {peakQ && (
+          <Stat
+            card
+            label={t('sim.maxQ')}
+            value={maxQUnit.fmt(peakQ.q)}
+            sub={<UnitChip label={t('sim.maxQ')} quantity="pressure" scope={unitScope('sim', 'maxQ')} />}
+          />
+        )}
       </section>
       <SafetyCard />
     </div>

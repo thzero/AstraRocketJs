@@ -415,7 +415,8 @@
     "safetyGapsDetail": "El flutter de las aletas, las cargas estructurales, el inflado del paracaídas y su golpe de apertura, y cómo rinde tu motor ese día. Nada de lo de arriba puede avisarte de ninguno de ellos.",
     "safetyCode": "Vuela según tu código de seguridad, dentro de tu campo y su autorización. Lo que decida el RSO está por encima de cualquier cosa en esta pantalla.",
     "safetyDisclaimer": "Tú, y solo tú, eres responsable de lo que construyes y vuelas. Este software se ofrece tal cual, sin garantía de ningún tipo, y sus autores y colaboradores no aceptan responsabilidad por ninguna pérdida derivada de su uso.",
-    "safetyLink": "Leer las notas de seguridad"
+    "safetyLink": "Leer las notas de seguridad",
+    "maxQ": "Max-Q"
   },
   "warn": {
     "deletePart": "¿Eliminar {{name}}?",
@@ -601,6 +602,21 @@
     "dt": "Intervalos de tiempo en la SimulaciÃ³n",
     "tc": "CÃ¡lculo del tiempo"
   },
+  "flightEvent": {
+    "launch": "Lanzamiento",
+    "ignition": "Ignición",
+    "liftoff": "Despegue",
+    "railDeparture": "Salida del riel",
+    "maxQ": "Max-Q",
+    "burnout": "Fin de empuje",
+    "ejection": "Carga de eyección",
+    "separation": "Separación de etapa",
+    "apogee": "Apogeo",
+    "deploy": "Despliegue de recuperación",
+    "tumble": "Volteo",
+    "landing": "Aterrizaje",
+    "simEnd": "Fin de la simulación"
+  },
   "flight": {
     "pickAria": "Elige qué vuelo mostrar (mostrando {{name}})",
     "pickTitle": "Elige qué vuelo muestran estas vistas",
@@ -642,7 +658,10 @@
     "zoomReset": "Restablecer zoom",
     "stages": "Etapas",
     "stage": "Etapa",
-    "crosshairHint": "Gráficos de vuelo. Enfoca y usa las flechas para mover la cruz; Mayús para un paso mayor, Inicio y Fin para los extremos, Escape para quitarla."
+    "crosshairHint": "Gráficos de vuelo. Enfoca y usa las flechas para mover la cruz; Mayús para un paso mayor, Inicio y Fin para los extremos, Escape para quitarla.",
+    "events": "Eventos de vuelo",
+    "event": "Evento",
+    "twr": "TWR"
   },
   "pathExport": {
     "open": "Exportar trayectoria de vuelo (KML / GPX / CSV)",

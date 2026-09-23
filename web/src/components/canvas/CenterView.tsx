@@ -25,6 +25,7 @@ import { DesignWarnings } from './DesignWarnings';
 import { InfoOverlay } from './InfoOverlay';
 import { AeroAnalysis } from './AeroAnalysis';
 import { LoadedBanner } from './LoadedBanner';
+import { FlightEventsTable } from '../sim/FlightEventsTable';
 import { SimSummary } from '../sim/SimSummary';
 import { useIsDesktop } from '../common/useMediaQuery';
 import { FlightWarnings } from '../sim/FlightWarnings';
@@ -229,6 +230,7 @@ export function CenterView() {
         <div className="max-h-[45%] shrink-0 space-y-3 overflow-y-auto px-3 pt-3 lg:hidden">
           {!desktop && <FlightWarnings sim={result} />}
           <SimSummary sim={result} />
+          <FlightEventsTable sim={result} />
         </div>
       )}
       {/* Everything from here to the stats strip is the DRAWING half: the view

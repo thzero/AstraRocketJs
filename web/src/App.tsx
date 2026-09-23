@@ -8,6 +8,7 @@ import { TreePanel } from './components/design/TreePanel';
 import { PropertyPane } from './components/design/PropertyPane';
 import { SimulationsPane } from './components/sim/SimulationsPane';
 import { SimEditor } from './components/sim/SimEditor';
+import { FlightEventsTable } from './components/sim/FlightEventsTable';
 import { SimSummary } from './components/sim/SimSummary';
 import { FlightWarnings } from './components/sim/FlightWarnings';
 import { TabBar } from './components/layout/TabBar';
@@ -235,6 +236,10 @@ export default function App() {
                 useMediaQuery. */}
             {desktop && <FlightWarnings sim={result} />}
             <SimSummary sim={result} />
+            {/* Under the tiles, not above: the tiles are the verdict on the
+                flight and the timeline is how it got there. The column
+                scrolls, which is what a table of a dozen-odd rows needs. */}
+            <FlightEventsTable sim={result} />
           </div>
         </section>
       </main>
