@@ -321,9 +321,9 @@ test('the results picker chooses which flight every results view shows', async (
   await expect(page.getByRole('menu')).toHaveCount(0);
 
   // The same choice governs the ground track, not just the charts. Scoped to the
-  // view's own wrapper: the names also appear in the table behind it.
+  // drift readout: the names also appear in the table behind it.
   await page.getByRole('button', { name: 'Ground track', exact: true }).click();
-  const track = page.getByRole('img', { name: /north up/ }).locator('..');
+  const track = page.getByRole('group', { name: /Where each stage landed/ });
   await expect(track.getByText('Stage 1', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /Choose which flight/ })).toHaveText(/^Simulation 1/);
 });
@@ -353,6 +353,25 @@ test('the chart panels you pick are still there after a reload', async ({ page }
   await page.reload();
   await openTab(page, 'Results');
   await expect(page.getByRole('button', { name: 'Thrust', exact: true })).toHaveAttribute('aria-pressed', 'true');
+});
+
+/**
+ * The 3D path used to key off the ACTIVE simulation's own result while the
+ * view under it drew the PICKED flight, so adding a row after a run - the row
+ * is new, so it has no result - blanked the one results view that could still
+ * have drawn the flight, beside charts that were drawing it.
+ */
+test('the 3D path draws the flight being shown, not only the active row', async ({ page }) => {
+  await runFlight(page); // lands on Results
+
+  await openTab(page, 'Simulations');
+  await page.getByRole('button', { name: 'Duplicate simulation' }).click();
+  await openTab(page, 'Results');
+
+  await page.getByRole('button', { name: '3D path', exact: true }).click();
+  // A canvas at all is the claim: the scene mounted rather than the pane
+  // falling back to "run a simulation".
+  await expect(page.locator('canvas').first()).toBeVisible();
 });
 
 test('the ground track shows where the flight lands, and how far', async ({ page }) => {

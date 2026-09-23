@@ -13,6 +13,10 @@ import { useUnits } from '../../prefs/useUnits';
 import { EVENT_LABEL } from '../../services/simReport';
 import { buildFlightScene, indexForProgress, modelPoseAt, newModelPose, type FlightScene } from './flightScene';
 import { colorOf, type MotorDims } from './schematicGeometry';
+import { FlightGroundMap } from './FlightGroundMap';
+import { TILE_SOURCES, type TileSourceId } from '../../services/slippyMap';
+import { groundImagery, rememberGroundImagery, rememberTileLayer, tileLayer } from '../../services/tileLayer';
+import { MIN_EXTENT_M } from '../../services/groundTrack';
 
 /**
  * 3D flight path (adapted from Vector Celeste's Flight3D, one better). Draws the
@@ -65,7 +69,42 @@ function findRecovery(tree: RocketTree, palette: PartPalette): Recovery {
   return found;
 }
 
-export function FlightPath3D({ result, tree, motors }: { result: FlightResult; tree: RocketTree; motors?: MotorDims }) {
+/**
+ * The three layer buttons, spelled out rather than built from a variable, which
+ * is invisible to the i18n key-coverage test. Same set and same session memory
+ * as the ground track's.
+ */
+const LAYERS = [
+  { id: 'off', labelKey: 'map.none' },
+  { id: 'satellite', labelKey: 'map.satellite' },
+  { id: 'street', labelKey: 'map.street' },
+] as const satisfies readonly { id: 'off' | TileSourceId; labelKey: string }[];
+
+/**
+ * How far past the flight's own reach the ground map extends.
+ *
+ * A margin rather than the whole ground plane: the plane and its grid are a
+ * fixed 60 units however far the rocket went, so covering them meant fetching
+ * imagery for a kilometer of ground either side of a three-hundred-meter
+ * flight. Enough that the arc never runs off the edge of the map, and the tile
+ * grid's own rounding to whole tiles usually adds most of another one anyway.
+ */
+const GROUND_MARGIN = 1.2;
+
+export function FlightPath3D({
+  result,
+  tree,
+  motors,
+  latitudeDeg,
+  longitudeDeg,
+}: {
+  result: FlightResult;
+  tree: RocketTree;
+  motors?: MotorDims;
+  /** The site this flight was flown from; null only if it was never filled in. */
+  latitudeDeg?: number | null;
+  longitudeDeg?: number | null;
+}) {
   const { t } = useTranslation();
   const u = useUnits();
   const { settings, update } = useSettings();
@@ -81,6 +120,22 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
   const [countdown, setCountdown] = useState<number | null>(null);
   const [loop, setLoop] = useState(false);
   const progressRef = useRef(0);
+  /**
+   * Which imagery lies on the ground, shared with the site map and the ground
+   * track for the session (services/tileLayer.ts) so "satellite or street" is
+   * one answer across the app.
+   */
+  const [layer, setLayer] = useState<'off' | TileSourceId>(() => (groundImagery() ? tileLayer() : 'off'));
+  const [unreachable, setUnreachable] = useState(false);
+  const onUnavailable = useCallback(() => setUnreachable(true), []);
+  const pickLayer = (next: 'off' | TileSourceId) => {
+    rememberGroundImagery(next !== 'off');
+    if (next !== 'off') rememberTileLayer(next);
+    // A failed verdict is dropped, so pressing the layer you are already on is
+    // a retry rather than a button that does nothing.
+    setUnreachable(false);
+    setLayer(next);
+  };
   // Scene objects the frame loop mutates directly.
   const modelRef = useRef<THREE.Group>(null);
   const flameRef = useRef<THREE.Group>(null);
@@ -178,6 +233,26 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
     seek(0);
   };
 
+  /**
+   * How much ground the map has to cover: the furthest the rocket got from the
+   * pad on either horizontal axis, plus a margin.
+   *
+   * Floored at the same {@link MIN_EXTENT_M} the ground track uses, because it
+   * is the same question - a still-air flight lands on the pad, and a map of
+   * ten centimeters of grass is no map at all.
+   */
+  const groundRadiusM = useMemo(() => {
+    let far = 0;
+    for (const p of scenePts) {
+      const d = Math.max(Math.abs(p.x), Math.abs(p.z));
+      if (d > far) far = d;
+    }
+    return Math.max(MIN_EXTENT_M, (far / scene.unitsPerMeter) * GROUND_MARGIN);
+  }, [scenePts, scene.unitsPerMeter]);
+
+  const site = latitudeDeg != null && longitudeDeg != null ? { lat: latitudeDeg, lon: longitudeDeg } : null;
+  const mapSource: TileSourceId | null = site && layer !== 'off' && !unreachable ? layer : null;
+
   if (n < 2) {
     return <div className="grid h-full place-items-center text-sm text-slate-500">{t('sim.prompt')}</div>;
   }
@@ -193,6 +268,18 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
           <circleGeometry args={[60, 72]} />
           <meshStandardMaterial color="#0b1724" roughness={1} metalness={0.05} />
         </mesh>
+        {/* Real ground under a real trajectory. Drawn between the plain ground
+            plane and the grid, so the grid stays readable as the scale it is. */}
+        {mapSource && site && (
+          <FlightGroundMap
+            latitudeDeg={site.lat}
+            longitudeDeg={site.lon}
+            radiusM={groundRadiusM}
+            unitsPerMeter={scene.unitsPerMeter}
+            source={mapSource}
+            onUnavailable={onUnavailable}
+          />
+        )}
         <gridHelper args={[120, 60, '#33506a', '#18293a']} position={[0, 0.02, 0]} />
         {/* The whole path is uploaded ONCE; the frame loop reveals it segment by
             segment through the geometry's instanceCount (a Line2 is instanced,
@@ -288,6 +375,35 @@ export function FlightPath3D({ result, tree, motors }: { result: FlightResult; t
         <Legend color={phase.coast} label={t('flight.coast')} onChange={setCoast} />
         <Legend color={phase.descent} label={t('flight.descent')} onChange={setDescent} />
       </div>
+      {/* Offered only where there is a coordinate to center the ground on. */}
+      {site && (
+        <div className="absolute left-3 top-16 flex overflow-hidden rounded-md ring-1 ring-black/40">
+          {LAYERS.map((l) => (
+            <button
+              key={l.id}
+              onClick={() => pickLayer(l.id)}
+              aria-pressed={layer === l.id}
+              className={`px-2 py-1 text-[11px] font-medium ${
+                layer === l.id ? 'bg-sky-600 text-white' : 'bg-slate-900/80 text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              {t(l.labelKey)}
+            </button>
+          ))}
+        </div>
+      )}
+      {/* A condition of using the tiles at all, so it goes wherever they do. */}
+      {mapSource && (
+        <p className="pointer-events-none absolute bottom-16 right-3 bg-slate-900/70 px-1 text-[9px] leading-tight text-slate-400">
+          {TILE_SOURCES[mapSource].attribution}
+        </p>
+      )}
+      {site && layer !== 'off' && unreachable && (
+        <p className="pointer-events-none absolute bottom-16 right-3 bg-slate-900/70 px-1 text-[9px] leading-tight text-amber-400">
+          {t('map.offline')}
+        </p>
+      )}
+
       <div className="absolute inset-x-3 bottom-3 flex items-center gap-2 rounded-lg bg-slate-900/85 px-3 py-2 ring-1 ring-white/10">
         <button
           onClick={handlePlay}

@@ -606,6 +606,7 @@
     "pickTitle": "Elige qué vuelo muestran estas vistas",
     "north": "N",
     "groundTrackLabel": "Trayectoria sobre el terreno, norte arriba, rampa en el centro",
+    "groundTrackReadout": "Dónde aterrizó cada etapa: distancia y rumbo desde la rampa",
     "groundTrackEmpty": "Este vuelo no tiene traza horizontal que dibujar.",
     "title": "Perfil de vuelo",
     "play": "Reproducir vuelo",
@@ -1316,6 +1317,7 @@
     "label": "Mapa del lugar de lanzamiento",
     "title": "Lugar de lanzamiento",
     "show": "Ver en el mapa",
+    "none": "Ninguno",
     "satellite": "Satélite",
     "street": "Callejero",
     "zoomIn": "Acercar",
@@ -1323,6 +1325,7 @@
     "recenter": "Centrar en la ubicación",
     "pick": "Haz clic en el mapa para mover la ubicación.",
     "noCoords": "Introduce una latitud y una longitud para situar la ubicación.",
+    "tooClose": "Sin imágenes a esta escala",
     "offline": "Sin imágenes sin conexión"
   }
 }

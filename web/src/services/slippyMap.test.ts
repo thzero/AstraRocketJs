@@ -14,6 +14,7 @@ import {
   unproject,
   visibleTiles,
   wrapTileX,
+  zoomForMetersPerPixel,
 } from './slippyMap';
 
 /**
@@ -190,5 +191,49 @@ describe('formatCoord', () => {
     expect(formatCoord(39.05, -104.8)).toBe('39.0500° N, 104.8000° W');
     expect(formatCoord(-33.87, 151.21)).toBe('33.8700° S, 151.2100° E');
     expect(formatCoord(0, 0)).toBe('0.0000° N, 0.0000° E');
+  });
+});
+
+describe('zoomForMetersPerPixel', () => {
+  /**
+   * The ground track sizes itself to the flight, so its zoom is derived rather
+   * than fixed the way SITE_ZOOM is. Checked against metersPerPixel itself: the
+   * chosen zoom is the NEAREST on a ladder that doubles, so neither neighbor
+   * can be closer to what is being drawn.
+   */
+  it('lands on the zoom nearest the drawing, in either direction', () => {
+    for (const target of [0.4, 1.2, 7.5, 60, 400]) {
+      const z = zoomForMetersPerPixel(39.05, target, 19);
+      const off = (zz: number) => Math.abs(Math.log2(metersPerPixel(39.05, zz) / target));
+      expect(off(z)).toBeLessThanOrEqual(off(z - 1));
+      expect(off(z)).toBeLessThanOrEqual(off(z + 1));
+    }
+  });
+
+  /**
+   * The leftover fraction is what the caller scales the tile layer by to put it
+   * at the drawing's scale, and it decides how many tiles get fetched: the
+   * layer is laid out at `size / k`, so a k of 0.5 would be four times the
+   * tiles of a k of 1. Bounded to one half-step either way.
+   */
+  it('leaves a scale factor within a half step of exact', () => {
+    for (const target of [0.3, 2, 33, 250]) {
+      const k = metersPerPixel(39.05, zoomForMetersPerPixel(39.05, target, 19)) / target;
+      expect(k).toBeGreaterThanOrEqual(Math.SQRT1_2);
+      expect(k).toBeLessThanOrEqual(Math.SQRT2);
+    }
+  });
+
+  it('stops where the provider runs out of imagery, and where the world does', () => {
+    // A flight that barely left the pad would ask for a zoom no server has.
+    expect(zoomForMetersPerPixel(39.05, 0.0001, 19)).toBe(19);
+    // And one drawn at continental scale cannot zoom out past the whole world.
+    expect(zoomForMetersPerPixel(39.05, 1e9, 19)).toBe(1);
+  });
+
+  it('refuses to divide by a resolution of zero', () => {
+    // A degenerate extent must not hand back NaN, which would render a tile URL
+    // reading `tile/NaN/NaN/NaN`.
+    expect(Number.isFinite(zoomForMetersPerPixel(39.05, 0, 19))).toBe(true);
   });
 });

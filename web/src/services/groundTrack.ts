@@ -88,6 +88,23 @@ export function groundTrackLine(
 }
 
 /**
+ * The closest this view ever zooms in: half a side, so a hundred meters across.
+ *
+ * Sizing purely to the flight is right for a breezy day and absurd for a calm
+ * one. Still air lands a rocket about a tenth of a meter from the pad, and a
+ * plan view scaled to THAT is a picture of ten centimeters of grass: range
+ * rings labeled 0.05 m, a track that is a straight line whatever it did, and no
+ * aerial imagery at all, because nobody photographs the ground that closely.
+ *
+ * A hundred meters across is the frame the question is actually asked in. It is
+ * the pad, the flight line and the near treeline; a landing on the pad reads as
+ * a dot ON the pad, which is the truth, and a fifty-meter walk still reads as
+ * half the radius. It also sits inside the best aerial imagery's resolution, so
+ * the map under the track is a map rather than four blown-up pixels.
+ */
+export const MIN_EXTENT_M = 50;
+
+/**
  * The square half-extent, in meters, that contains every track and the pad.
  *
  * SQUARE, and centered on the pad, on purpose: a plan view whose axes are scaled
@@ -96,7 +113,8 @@ export function groundTrackLine(
  * the launch point where the reader expects it rather than drifting with the
  * wind.
  *
- * Never returns zero, so a flight that never left the pad still gets an axis.
+ * Floored at {@link MIN_EXTENT_M}, so a flight that never left the pad gets a
+ * field around it rather than an axis measured in centimeters.
  */
 export function trackExtent(lines: readonly GroundTrackLine[]): number {
   let m = 0;
@@ -108,7 +126,7 @@ export function trackExtent(lines: readonly GroundTrackLine[]): number {
   }
   // A little air around the furthest point so a landing marker is not clipped
   // by the frame it sits on.
-  return m > 0 ? m * 1.1 : 1;
+  return Math.max(MIN_EXTENT_M, m * 1.1);
 }
 
 /**

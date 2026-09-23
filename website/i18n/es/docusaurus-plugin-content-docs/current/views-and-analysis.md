@@ -73,11 +73,23 @@ El norte va arriba, la rampa está en el centro y ambos ejes comparten escala, a
 
 Dibuja las mismas trazas que las gráficas de vuelo, así que un vuelo por etapas muestra el descenso propio de cada una: un propulsor agotado suele caer bastante lejos del sustentador.
 
+### El terreno bajo la traza {#the-ground-under-the-track}
+
+La traza puede dibujarse sobre **imágenes aéreas del campo desde el que volaste**, en las coordenadas con las que se simuló ese vuelo. Esa es la diferencia entre leer «364 m con rumbo 270» y ver que el propulsor cayó en la arboleda.
+
+**Ninguna · Satélite · Callejero** en la esquina elige la capa. Empieza en **Ninguna**, y no se descarga nada hasta que pides el terreno: los anillos y los números son la medida y no dependen de una foto, así que abrir Resultados no es motivo para ir a buscarla. Qué capa eliges se comparte con el [mapa del campo de lanzamiento](./running-a-simulation.md#the-map), y encender o apagar el terreno se mantiene entre esta vista y la trayectoria 3D durante la sesión, porque es una sola pregunta sobre cómo quieres leer el terreno y no un ajuste por vista.
+
+El zoom sigue al vuelo: una deriva de 200 m se dibuja más cerca que una de 5 km. La vista nunca se acerca más de unos **100 m de lado**, por corto que sea el vuelo: con aire en calma el cohete aterriza a unos centímetros de la rampa, y una imagen de esa cantidad de hierba no es ninguna imagen. Así, un aterrizaje sobre la rampa se lee como un punto sobre la rampa, que es la verdad.
+
+Las teselas son las mismas que usa el mapa del campo de lanzamiento y se guardan igual, así que un campo que consultaste en casa se sigue dibujando sin cobertura. Un lugar que nunca has visto se dibuja sin ellas, es decir, el gráfico limpio y una medida igual de correcta: los anillos de distancia no dependen de la imagen. El crédito del proveedor aparece en la esquina siempre que se muestran imágenes, como exigen sus condiciones.
+
 Para llevarte lo mismo fuera de la aplicación, la [exportación de trayectoria](./files-and-exports.md) lo escribe como KML o GPX para Google Earth, y el CSV del vuelo ahora incluye columnas **Este** y **Norte** junto a la altitud.
 
 ## Trayectoria 3D (tras una simulación) {#3d-path-after-a-simulation}
 
 La **trayectoria del vuelo en 3D**: el recorrido del cohete por el espacio, incluida la deriva por el viento.
+
+El **plano del suelo puede llevar las mismas imágenes aéreas**, colocadas en las coordenadas del campo de lanzamiento, de modo que la trayectoria se arquea sobre el campo real y no sobre una rejilla vacía. Los mismos botones **Ninguna · Satélite · Callejero** están arriba a la izquierda, empiezan en **Ninguna** y comparten su elección con la traza en tierra y con el mapa del campo de lanzamiento. La imagen cubre algo más allá de lo más lejos que llegó el cohete desde la rampa, no el plano entero, para que un vuelo de trescientos metros no descargue un kilómetro de paisaje a cada lado; la rejilla de referencia continúa más allá de su borde.
 
 Un botón **⬇ Exportar** guarda la trayectoria para herramientas cartográficas —**KML** (Google Earth), **GPX** o un **CSV de puntos de paso**— con opciones sobre qué puntos y líneas incluir, y soporte para tus propias plantillas. Consulta [Archivos y exportaciones](./files-and-exports.md#exporting-the-flight-path-kml--gpx--csv).
 

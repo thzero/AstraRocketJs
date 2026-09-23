@@ -73,11 +73,23 @@ North is up, the pad is at the center, and both axes share one scale, so the pic
 
 It draws the same traces the flight charts do, so a staged flight shows each stage's own descent — a spent booster usually lands somewhere quite different from the sustainer.
 
+### The ground under the track
+
+The track can be drawn over **aerial imagery of the field you flew from**, at the coordinates that simulation was flown at. That is the difference between reading "364 m on a bearing of 270" and seeing that the booster came down in the treeline.
+
+**None · Satellite · Street** in the corner chooses the layer. It starts on **None**, and nothing is fetched until you ask for the ground: the rings and the numbers are the measurement and they do not depend on a picture, so opening Results is not a reason to go and get one. Which layer you pick is shared with the [launch-site map](./running-a-simulation.md#the-map), and turning the ground on or off carries between this view and the 3D path for the session, because it is one question about how you want to read the ground rather than a setting per view.
+
+The zoom follows the flight: a 200 m drift draws closer in than a 5 km one. The view never zooms closer than about **100 m across**, however short the flight — still air lands a rocket a few centimeters from the pad, and a picture of that much grass is no picture at all. So a landing on the pad reads as a dot on the pad, which is the truth about it.
+
+Tiles are the same ones the launch-site map uses and are cached the same way, so a field you checked at home still draws with no signal. Somewhere you have never viewed draws without them, which is the plain plot and still a correct measurement — the range rings do not depend on the picture. The provider's credit sits in the corner whenever imagery is showing, as its terms require.
+
 To take the same thing outside the app, the [flight-path export](./files-and-exports.md) writes it as KML or GPX for Google Earth, and the flight CSV now carries **East** and **North** columns beside altitude.
 
 ## 3D path (after a simulation)
 
 The flight **trajectory in 3D** — the rocket's path through space, including drift from wind.
+
+The **ground plane can carry the same aerial imagery**, laid at the launch site's coordinates so the trajectory arcs over the real field rather than over an empty grid. The same **None · Satellite · Street** buttons sit at the top left, starting on **None** and sharing their choice with the ground track and the launch-site map. The imagery covers a little past the furthest the rocket got from the pad rather than the whole plane, so a three-hundred-meter flight does not fetch a kilometer of scenery either side; the reference grid carries on beyond its edge.
 
 An **⬇ Export** button saves the flight path for mapping tools — **KML** (Google Earth), **GPX**, or a **waypoint CSV** — with options for which waypoints and lines to include, and support for your own templates. See [Files & Exports](./files-and-exports.md#exporting-the-flight-path-kml--gpx--csv).
 

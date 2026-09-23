@@ -12,10 +12,10 @@ import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
 import { APP_VERSION, appName } from '../../services/appInfo';
 import { descentMass } from '../../services/recoverySizing';
-import { resultFlight } from '../../services/simulations';
+import { resultFlight, type ResultFlight } from '../../services/simulations';
 import { TreeSchematic } from './TreeSchematic';
 import { AftView } from './AftView';
-import { FlightChart, type ChartFlight } from './FlightChart';
+import { FlightChart } from './FlightChart';
 import { GroundTrack } from './GroundTrack';
 import { ResultPicker } from '../sim/ResultPicker';
 import { FlightPathExport } from './FlightPathExport';
@@ -89,10 +89,22 @@ export function CenterView() {
    * builds a fresh object is compared by reference by zustand, so subscribing to
    * one re-renders forever (see `selectRunIds`).
    */
-  const flight = useMemo<ChartFlight | null>(
+  const flight = useMemo<ResultFlight | null>(
     () => resultFlight(sims, resultSimId, activeId),
     [sims, resultSimId, activeId],
   );
+
+  /**
+   * The flight the 3D path animates: the one being SHOWN, falling back to the
+   * active row's own result.
+   *
+   * Bound once so the guard and the view cannot disagree. They did: the guard
+   * asked the active simulation for a result while the view below it drew this
+   * expression, so adding a second row after a run - or picking another row in
+   * the Results picker - left the 3D path saying "run a simulation" while the
+   * charts beside it drew the flight.
+   */
+  const pathResult = flight?.result ?? result;
 
   /**
    * The header block the 2D/3D image exports stamp on the page — name, the
@@ -419,13 +431,19 @@ export function CenterView() {
               <div className="h-full p-2">{flight ? <FlightChart key={flight.id} flight={flight} /> : prompt}</div>
             ) : view === 'path' ? (
               <div className="relative h-full p-2">
-                {result ? (
+                {pathResult ? (
                   <>
                     <Suspense fallback={loading}>
                       {/* One rocket is animated, so this follows the picker's
                           FIRST choice rather than overlaying like the charts and
                           the ground track do. */}
-                      <FlightPath3D result={flight?.result ?? result} tree={tree} motors={motors} />
+                      <FlightPath3D
+                        result={pathResult}
+                        tree={tree}
+                        motors={motors}
+                        latitudeDeg={flight?.launch.latitudeDeg}
+                        longitudeDeg={flight?.launch.longitudeDeg}
+                      />
                     </Suspense>
                     <div className="pointer-events-none absolute inset-x-0 top-5 z-10 flex justify-center">
                       <div className="pointer-events-auto">
@@ -438,7 +456,20 @@ export function CenterView() {
                 )}
               </div>
             ) : view === 'ground' ? (
-              <div className="h-full p-2">{flight ? <GroundTrack flight={flight} /> : prompt}</div>
+              <div className="h-full p-2">
+                {flight ? (
+                  // The coordinates come off the flight's OWN simulation, not
+                  // the active one: the Results picker can be showing a row
+                  // other than the one being edited.
+                  <GroundTrack
+                    flight={flight}
+                    latitudeDeg={flight.launch.latitudeDeg}
+                    longitudeDeg={flight.launch.longitudeDeg}
+                  />
+                ) : (
+                  prompt
+                )}
+              </div>
             ) : (
               <div className="h-full p-2">{info ? <AeroAnalysis /> : prompt}</div>
             )}

@@ -606,6 +606,7 @@
     "pickTitle": "Choose which flight these views show",
     "north": "N",
     "groundTrackLabel": "Flight path over the ground, north up, pad at the center",
+    "groundTrackReadout": "Where each stage landed: distance and bearing from the pad",
     "groundTrackEmpty": "This flight has no horizontal track to draw.",
     "title": "Flight profile",
     "play": "Play flight",
@@ -1316,6 +1317,7 @@
     "label": "Launch site map",
     "title": "Launch site",
     "show": "Show on map",
+    "none": "None",
     "satellite": "Satellite",
     "street": "Street",
     "zoomIn": "Zoom in",
@@ -1323,6 +1325,7 @@
     "recenter": "Center on the location",
     "pick": "Click the map to move the location.",
     "noCoords": "Enter a latitude and longitude to place the location.",
+    "tooClose": "No imagery this close in",
     "offline": "No imagery offline"
   }
 }

@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { bearingFromPad, distanceFromPad, groundTrackLine, rangeRings, trackExtent, trackPoints } from './groundTrack';
+import {
+  MIN_EXTENT_M,
+  bearingFromPad,
+  distanceFromPad,
+  groundTrackLine,
+  rangeRings,
+  trackExtent,
+  trackPoints,
+} from './groundTrack';
 import type { FlightSeries } from '../engine/openRocketEngine';
 
 const series = (Px: (number | null)[], Py: (number | null)[]) => ({ Px, Py }) as unknown as FlightSeries;
@@ -84,9 +92,20 @@ describe('trackExtent', () => {
     expect(trackExtent([a])).toBeCloseTo(440, 6);
   });
 
-  it('never returns zero, so a rocket that never left the pad still has an axis', () => {
-    expect(trackExtent([])).toBe(1);
-    expect(trackExtent([groundTrackLine('a', 'A', '#fff', series([0, 0], [0, 0]))])).toBe(1);
+  /**
+   * Still air lands a rocket a tenth of a meter from the pad, and a view scaled
+   * to that is a picture of the grass under it: rings labeled in centimeters
+   * and no aerial imagery, because nobody photographs the ground that closely.
+   * The floor makes the frame a field, where a landing on the pad reads as a
+   * dot on the pad.
+   */
+  it('never zooms closer than a hundred meters across, however short the flight', () => {
+    expect(trackExtent([])).toBe(MIN_EXTENT_M);
+    expect(trackExtent([groundTrackLine('a', 'A', '#fff', series([0, 0], [0, 0]))])).toBe(MIN_EXTENT_M);
+    // A still-air landing, which is what a plain run of the default design gives.
+    expect(trackExtent([groundTrackLine('a', 'A', '#fff', series([0, 0.11], [0, 0.02]))])).toBe(MIN_EXTENT_M);
+    // A real drift is still sized to itself.
+    expect(trackExtent([groundTrackLine('a', 'A', '#fff', series([0, 400], [0, 0]))])).toBeCloseTo(440, 6);
   });
 });
 

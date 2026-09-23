@@ -114,6 +114,16 @@ export interface ResultFlight {
   id: string;
   name: string;
   result: FlightResult;
+  /**
+   * The conditions this flight was flown under, carried along rather than read
+   * off the ACTIVE simulation by whoever draws it.
+   *
+   * The Results picker can be showing a flight from a different row than the
+   * one being edited, so `selectActive(s).launch` is not reliably this flight's
+   * launch site. The ground track draws map imagery at these coordinates, and
+   * imagery centered on someone else's pad is worse than none.
+   */
+  launch: LaunchConditions;
 }
 
 /**
@@ -136,7 +146,7 @@ export function resultFlight(
 ): ResultFlight | null {
   const pick = (id: string | null): ResultFlight | null => {
     const sim = id == null ? undefined : sims.find((x) => x.id === id);
-    return sim?.result ? { id: sim.id, name: sim.name, result: sim.result } : null;
+    return sim?.result ? { id: sim.id, name: sim.name, result: sim.result, launch: sim.launch } : null;
   };
   return pick(chosen) ?? pick(activeId);
 }

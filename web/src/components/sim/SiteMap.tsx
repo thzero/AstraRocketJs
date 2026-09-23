@@ -17,6 +17,7 @@ import {
   visibleTiles,
   type TileSourceId,
 } from '../../services/slippyMap';
+import { rememberTileLayer, tileLayer } from '../../services/tileLayer';
 
 /**
  * The launch site, seen from above.
@@ -40,19 +41,6 @@ import {
  * no signal. Somewhere you have NEVER viewed cannot draw offline, and the map
  * says so rather than showing an empty gray box.
  */
-
-/**
- * The chosen layer, remembered for the session.
- *
- * Not a stored preference: it is a way of looking at one question ("is this the
- * right field?"), switched freely while the dialog is open, and a setting for
- * it would be a settings row nobody goes looking for. Module-level so opening a
- * second map does not put it back to imagery.
- */
-const layerMemory = { current: 'satellite' as TileSourceId };
-const rememberLayer = (id: TileSourceId) => {
-  layerMemory.current = id;
-};
 
 /**
  * The two layers, with their labels spelled out.
@@ -89,7 +77,7 @@ export function SiteMap({
   const { t } = useTranslation();
   const hostRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 320, h: 256 });
-  const [source, setSource] = useState<TileSourceId>(layerMemory.current);
+  const [source, setSource] = useState<TileSourceId>(tileLayer());
   const [view, setView] = useState<View>({
     lat: latitudeDeg ?? 0,
     lon: longitudeDeg ?? 0,
@@ -110,7 +98,7 @@ export function SiteMap({
 
   /** Switching layers re-asks the network, so the failure count starts over. */
   const pickSource = (id: TileSourceId) => {
-    rememberLayer(id);
+    rememberTileLayer(id);
     errors.current = 0;
     setSource(id);
   };
@@ -265,6 +253,12 @@ export function SiteMap({
               src={tiles.url(tile.z, tile.x, tile.y)}
               alt=""
               draggable={false}
+              // CORS, to match the 3D ground map (FlightGroundMap.tsx), which loads
+              // these same tiles as WebGL textures and cannot use an opaque
+              // response. Without it the service worker caches this request's
+              // opaque copy and then hands it to the texture loader, which fails.
+              // Esri answers `Access-Control-Allow-Origin: *`.
+              crossOrigin="anonymous"
               // No `referrerPolicy="no-referrer"`. Stripping the Referer hides
               // WHO is asking, which is the one thing every tile provider's
               // usage policy wants to be able to see - and the signature they
@@ -272,8 +266,13 @@ export function SiteMap({
               // someone else's tiles.
               width={TILE_SIZE}
               height={TILE_SIZE}
-              className="pointer-events-none absolute select-none"
-              style={{ left: tile.left, top: tile.top }}
+              // `max-w-none` and an explicit CSS size: the reset's
+              // `img { max-width: 100% }` is relative to this box, so a map
+              // narrower than one tile would draw its tiles shrunk to the box
+              // while still spacing them a full tile apart. See the longer note
+              // in components/canvas/GroundTrack.tsx, where it actually bit.
+              className="pointer-events-none absolute max-w-none select-none"
+              style={{ left: tile.left, top: tile.top, width: TILE_SIZE, height: TILE_SIZE }}
               onLoad={() => {
                 errors.current = 0;
                 setReached({ src: source, state: 'ok' });

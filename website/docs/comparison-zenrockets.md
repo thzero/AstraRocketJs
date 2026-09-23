@@ -38,7 +38,7 @@ This is the useful table. Each row says where we stand and, where there is one, 
 | **Max-Q** | Not available. Dynamic pressure peaks somewhere in the boost and is the number that decides whether an airframe holds together, and nothing in the app reports it. |
 | **Resolved atmosphere profiles**: what the simulation actually flew, as wind, pressure and temperature against altitude, plus the conditions at the pad | Not available. |
 | **Live weather forecasts from multiple models, and real launch sites with elevation lookup** | Partly. Saved launch locations with a satellite map and click-to-set coordinates are here; a **forecast** is not. |
-| **Map imagery under the trajectory** | Not available. The launch-site map draws satellite and street tiles. |
+| **Map imagery under the trajectory** | Yes, on request. The ground track can be drawn over satellite or street imagery of the launch site, and the 3D path's ground plane takes the same imagery under the trajectory. Both start bare and fetch nothing until you ask for the ground. |
 | **Mass rollup and stage isolation in the parts tree**: a toggle flipping each row between its own mass and its whole subtree's, and recomputing mass, CG, CP and stability for one stage alone | Not available. |
 | **Share links, cloning and dashboards** | Not available, by design. There is no account and no server to host a link. Designs are files on your disk, so sharing one means sending the `.ork`. |
 | **Pricing plan** | Free, and source is free and GPL! |
