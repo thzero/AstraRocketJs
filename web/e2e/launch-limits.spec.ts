@@ -134,16 +134,30 @@ test('the run summary carries a safety card linking to the docs', async ({ page 
   await expect(card).toHaveClass(/amber/);
   await expect(card).toContainText('⚠');
 
-  // Opens the docs' Safety page, in a tab of its own so a run in progress is
-  // not navigated away from.
-  const link = card.getByRole('link', { name: /Read the safety notes/ });
-  await expect(link).toHaveAttribute('href', /\/safety$/);
-  await expect(link).toHaveAttribute('target', '_blank');
-
   // BELOW the tiles, not above them: a caveat read before the numbers exist is
   // a caveat about nothing.
   const tiles = page.locator('section[aria-label="Simulation results"]').filter({ visible: true });
   const cardBox = (await card.boundingBox())!;
   const tileBox = (await tiles.boundingBox())!;
   expect(cardBox.y).toBeGreaterThanOrEqual(tileBox.y + tileBox.height);
+
+  /**
+   * And it still takes you to the safety notes - now in the in-app Help rather
+   * than a new tab.
+   *
+   * This asserted an `<a href>` with `target="_blank"` until Help moved inside
+   * the app (SimSummary.tsx calls `openHelp('safety')` and the control is a
+   * button, which has no link role and no href), so it could not pass on any
+   * machine. What the card has to do is still the same; only the way it does it
+   * changed.
+   *
+   * The destination is checked wherever the dialog puts it, because the docs
+   * are NOT built on a PR (see e2e/help-dialog.spec.ts): with them the frame is
+   * pointed at the page, and without them the dialog offers the very same page
+   * on the docs site. Either one names the slug, and neither needs the build.
+   */
+  await card.getByRole('button', { name: /Read the safety notes/ }).click();
+  const help = page.getByRole('dialog', { name: 'Help' });
+  await expect(help).toBeVisible();
+  await expect(help.locator('iframe[src*="/safety/"], a[href*="/safety"]').first()).toBeAttached();
 });

@@ -208,6 +208,19 @@ describe('file-sourced counts are clamped to domain ceilings', () => {
     expect(first(inTube(pod), 'podset').instanceCount).toBe(1000);
   });
 
+  /**
+   * Twice the cap, which is about a megabyte of XML, and the 5 s default does
+   * not fit it on a loaded machine.
+   *
+   * The time is jsdom's DOMParser, not the cap: measured idle, the import runs
+   * 133 / 279 / 430 / 698 / 1508 ms at 5k / 10k / 20k / 40k / 80k points -
+   * linear, so the sibling walk in `ork/importReaders.ts` is stopping at
+   * MAX_FIN_POINTS exactly as its comment claims. 430 ms idle has still been
+   * seen past 5 s with the rest of the suite running beside it.
+   *
+   * Scoped to this ONE case rather than the file or the config: the other
+   * fourteen here are milliseconds and have no business taking seconds.
+   */
   it('caps a freeform outline at 10000 points', () => {
     const n = 20_000;
     const pts = Array.from({ length: n }, (_, i) => `<point x="${(i / n) * 0.06}" y="${i % 2 ? 0.03 : 0.0}"/>`).join(
@@ -215,7 +228,7 @@ describe('file-sourced counts are clamped to domain ceilings', () => {
     );
     const fin = `<freeformfinset><name>F</name><fincount>3</fincount><finpoints>${pts}</finpoints></freeformfinset>`;
     expect((first(inTube(fin), 'freeformfinset').points as unknown[]).length).toBe(10_000);
-  });
+  }, 30_000);
 
   it('caps a parachute line count at 100', () => {
     const chute = `<parachute><name>C</name><diameter>0.3</diameter><linecount>100000</linecount></parachute>`;
