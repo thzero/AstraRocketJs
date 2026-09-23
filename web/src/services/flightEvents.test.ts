@@ -144,6 +144,22 @@ describe('eventRows', () => {
     expect(rows[0]!.q).toBeCloseTo(0.5 * 0.6 * 68 * 68, 6);
   });
 
+  it('keeps two same-instant burnouts apart, as a cluster of separate mounts gives', () => {
+    // The kernel queues one BURNOUT per motor at the same time when a stage's
+    // motors are in separate mounts, so branch, type and time do not identify
+    // a row and a key built from those alone would collide.
+    const rows = eventRows(
+      result({
+        events: [
+          { type: 'BURNOUT', time: 1.6, source: 'Outboard 1' },
+          { type: 'BURNOUT', time: 1.6, source: 'Outboard 2' },
+        ],
+      }),
+    );
+    expect(new Set(rows.map((r) => r.key)).size).toBe(2);
+    expect(rows.map((r) => r.source)).toEqual(['Outboard 1', 'Outboard 2']);
+  });
+
   it('has no Max-Q row when the result predates the full series set', () => {
     const rows = eventRows(result({ events: [{ type: 'APOGEE', time: 2 }] }));
     expect(rows.some((r) => r.type === MAX_Q)).toBe(false);

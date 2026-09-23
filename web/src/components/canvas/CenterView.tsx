@@ -230,7 +230,7 @@ export function CenterView() {
         <div className="max-h-[45%] shrink-0 space-y-3 overflow-y-auto px-3 pt-3 lg:hidden">
           {!desktop && <FlightWarnings sim={result} />}
           <SimSummary sim={result} />
-          <FlightEventsTable sim={result} />
+          <FlightEventsTable sim={result} simName={flight?.name ?? simName} />
         </div>
       )}
       {/* Everything from here to the stats strip is the DRAWING half: the view

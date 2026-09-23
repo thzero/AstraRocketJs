@@ -36,6 +36,9 @@ export default function App() {
   const err = useWorkspaceStore((s) => s.err);
   const storageWarning = useWorkspaceStore((s) => s.storageWarning);
   const result = useWorkspaceStore((s) => selectActive(s).result);
+  // Titles the CSV the events table writes, so a file on disk says which run it
+  // came from rather than only "flight-events.csv".
+  const activeSimName = useWorkspaceStore((s) => selectActive(s).name);
 
   // The center pane backs BOTH the Design and Results tabs, and stays mounted
   // across the switch: the 2D/3D canvases are expensive to build, and remounting
@@ -239,7 +242,7 @@ export default function App() {
             {/* Under the tiles, not above: the tiles are the verdict on the
                 flight and the timeline is how it got there. The column
                 scrolls, which is what a table of a dozen-odd rows needs. */}
-            <FlightEventsTable sim={result} />
+            <FlightEventsTable sim={result} simName={activeSimName} />
           </div>
         </section>
       </main>

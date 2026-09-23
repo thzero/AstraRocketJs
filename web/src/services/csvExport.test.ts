@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { flightDataCsv, aeroTableCsv } from './csvExport';
+import { flightDataCsv, aeroTableCsv, flightEventsCsv } from './csvExport';
 import { METRIC_UNITS, IMPERIAL_UNITS } from '../prefs/units';
 import type { FlightResult, AeroSweep } from '../engine/openRocketEngine';
 
@@ -199,5 +199,105 @@ describe('aeroTableCsv', () => {
     expect(lines[0]!.includes('CP (in)')).toBe(true);
     // 0.223 m = 8.779527559... in
     expect(lines[1]!.split(',')[6]).toBe('8.779528');
+  });
+});
+
+/**
+ * The events export. Where `flightDataCsv` can carry events as COMMENT lines
+ * for a reader, this answers the other question: give me the events as data.
+ */
+/** Split one CSV line into fields, respecting quotes — what a reader does. */
+function fields(line: string): string[] {
+  const out: string[] = [];
+  let cur = '';
+  let quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i]!;
+    if (quoted) {
+      if (c !== '"') cur += c;
+      else if (line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else quoted = false;
+    } else if (c === '"') quoted = true;
+    else if (c === ',') {
+      out.push(cur);
+      cur = '';
+    } else cur += c;
+  }
+  out.push(cur);
+  return out;
+}
+
+describe('flightEventsCsv', () => {
+  const rows = [
+    {
+      key: '0:LAUNCHROD:0.3:0',
+      type: 'LAUNCHROD',
+      time: 0.3,
+      branch: 0,
+      branchName: 'Sustainer',
+      altitude: 1.5,
+      velocity: 20,
+      stability: 1.8,
+      twr: 12,
+      aoa: Math.PI / 180, // rad → deg
+      mach: 0.06,
+      q: null,
+    },
+    {
+      key: '1:GROUND_HIT:40:1',
+      type: 'GROUND_HIT',
+      time: 40,
+      branch: 1,
+      branchName: '',
+      source: 'Main',
+      altitude: 0,
+      velocity: 4.5,
+      stability: null,
+      twr: null,
+      aoa: null,
+      mach: null,
+      q: null,
+    },
+  ];
+  const name = (r: { type: string }) => (r.type === 'LAUNCHROD' ? 'Rail departure' : 'Landing');
+  const stage = (r: { branchName: string; branch: number }) => r.branchName || `Stage ${r.branch + 1}`;
+  const csv = () => flightEventsCsv(rows, METRIC_UNITS, name, stage, 'C6 flight');
+
+  it('writes every extra as its own column, blank where an event has none', () => {
+    const lines = csv().trim().split('\r\n');
+    expect(lines[0]).toBe('# Simulation: C6 flight');
+    expect(lines[1]).toBe(
+      'Time (s),Event,Source,Stage,Altitude (m),Velocity (m/s),Stability (cal),Thrust/weight,Angle of attack (°),Mach,Dynamic pressure (hPa)',
+    );
+    expect(lines[2]).toBe('0.300,"Rail departure",,"Sustainer",1.5,20,1.8,12,1,0.06,');
+    // Landing has no stability, TWR, AoA, Mach or q - those cells are empty
+    // rather than zero, because it does not have them rather than having 0.
+    expect(lines[3]).toBe('40.000,"Landing","Main","Stage 2",0,4.5,,,,,');
+  });
+
+  it('converts to the given units, so an imperial file reads in feet', () => {
+    const lines = flightEventsCsv(rows, IMPERIAL_UNITS, name, stage).trim().split('\r\n');
+    expect(lines[0]).toContain('Altitude (ft)');
+    expect(lines[1]!.split(',')[4]).toBe(String(Math.round((1.5 / 0.3048) * 1e6) / 1e6));
+  });
+
+  it('omits the title comment when there is no simulation name', () => {
+    expect(flightEventsCsv(rows, METRIC_UNITS, name, stage).startsWith('Time (s),')).toBe(true);
+  });
+
+  it('quotes a name carrying a comma, so it cannot split the row', () => {
+    const csvText = flightEventsCsv(
+      [{ ...rows[0]!, branchName: 'Booster, lower' }],
+      METRIC_UNITS,
+      name,
+      (r) => r.branchName,
+    );
+    const body = csvText.trim().split('\r\n')[1]!;
+    expect(body).toContain('"Booster, lower"');
+    // Eleven columns still, not twelve: the comma inside the quotes is data.
+    expect(fields(body).length).toBe(11);
+    expect(fields(body)[3]).toBe('Booster, lower');
   });
 });

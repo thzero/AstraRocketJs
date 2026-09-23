@@ -179,6 +179,21 @@ export interface Settings {
    */
   showImportNotes: boolean;
   /**
+   * Whether the results "Before you fly" card is unfolded.
+   *
+   * It FOLDS rather than dismisses, and what folds away is the body, never the
+   * heading: the card is a standing caution on every run, not a one-time
+   * notice, so an acknowledgment that made it disappear for good would remove
+   * the one thing it exists to do - be present at the moment a reading is
+   * being acted on. Folded, the ⚠ and the words "Before you fly" still head
+   * the numbers and the body is one click away.
+   *
+   * A setting rather than component state for the same reason as
+   * `showImportNotes`: the summary unmounts on every tab change, so a local
+   * fold would have to be repeated forever.
+   */
+  showSafetyCard: boolean;
+  /**
    * Width of the Design tab's component-tree column, in CSS pixels.
    *
    * The column carries two layers of padding before anything is drawn, so it
@@ -418,6 +433,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showInfoCard: true,
   showStats: true,
   showImportNotes: true,
+  showSafetyCard: true,
   treePaneWidth: TREE_PANE_DEFAULT,
   sidePaneWidth: SIDE_PANE_DEFAULT,
   maximizeCenter: false,
@@ -630,6 +646,7 @@ export function loadSettings(): Settings {
       showInfoCard: typeof s.showInfoCard === 'boolean' ? s.showInfoCard : DEFAULT_SETTINGS.showInfoCard,
       showStats: typeof s.showStats === 'boolean' ? s.showStats : DEFAULT_SETTINGS.showStats,
       showImportNotes: typeof s.showImportNotes === 'boolean' ? s.showImportNotes : DEFAULT_SETTINGS.showImportNotes,
+      showSafetyCard: typeof s.showSafetyCard === 'boolean' ? s.showSafetyCard : DEFAULT_SETTINGS.showSafetyCard,
       // Clamped rather than trusted: the value reaches a style attribute, and a
       // hand-edited or corrupted one would otherwise render a column of 0 or of
       // 90000 pixels with no way back but clearing storage.

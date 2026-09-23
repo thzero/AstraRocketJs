@@ -2,7 +2,9 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
 import type { FlightResult } from '../../engine/api';
+import { CSV_MIME, flightEventsCsv } from '../../services/csvExport';
 import { EVENT_EXTRAS, EVENT_NAME, eventRows, type EventRow, type ExtraKey } from '../../services/flightEvents';
+import { download } from '../../services/saveFile';
 import { unitScope } from '../../prefs/units';
 import { useUnits } from '../../prefs/useUnits';
 import { UnitChip } from '../common/UnitChip';
@@ -66,7 +68,7 @@ function Extras({ row }: { row: EventRow }) {
   return <div className="pb-1 pl-2 text-[10px] leading-snug text-slate-500">{parts.join(' · ')}</div>;
 }
 
-export function FlightEventsTable({ sim }: { sim: FlightResult | null }) {
+export function FlightEventsTable({ sim, simName }: { sim: FlightResult | null; simName?: string }) {
   const { t } = useTranslation();
   const u = useUnits();
   const alt = u.at(unitScope('events', 'altitude'), 'distance');
@@ -75,11 +77,33 @@ export function FlightEventsTable({ sim }: { sim: FlightResult | null }) {
   // Only worth naming a stage when there is more than one; a single-stage
   // flight would otherwise wear a "Stage 1" chip on every row saying nothing.
   const staged = (sim?.branches?.length ?? 0) > 1;
+  const stageName = (r: EventRow) => (staged ? r.branchName || `${t('flight.stage')} ${r.branch + 1}` : '');
   if (!sim || !rows.length) return null;
 
   return (
     <section aria-label={t('flight.events')} className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
-      <div className="mb-2 text-[10px] uppercase tracking-wide text-slate-400">{t('flight.events')}</div>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="text-[10px] uppercase tracking-wide text-slate-400">{t('flight.events')}</span>
+        {/* The file carries EVERY extra as its own column, where the table puts
+            them on a sub-line - a spreadsheet wants a rectangle it can sort,
+            and it has no 380px to respect. It writes the settings-level units
+            rather than this table's own chips, the way every other export in
+            the app does: a file outlives the session and often goes to
+            somebody else. */}
+        <button
+          onClick={() =>
+            download(
+              'flight-events.csv',
+              flightEventsCsv(rows, u.all, (r) => t(EVENT_NAME[r.type]!), stageName, simName),
+              CSV_MIME,
+            )
+          }
+          title={t('flight.eventsCsv')}
+          className="shrink-0 rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+        >
+          ⬇ CSV
+        </button>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
@@ -130,7 +154,7 @@ export function FlightEventsTable({ sim }: { sim: FlightResult | null }) {
                   {r.source && <span className="ml-1 font-normal text-slate-500">{r.source}</span>}{' '}
                   {staged && (
                     <span className="ml-1 whitespace-nowrap rounded bg-slate-800 px-1 text-[10px] font-normal text-slate-400">
-                      {r.branchName || `${t('flight.stage')} ${r.branch + 1}`}
+                      {stageName(r)}
                     </span>
                   )}
                 </th>

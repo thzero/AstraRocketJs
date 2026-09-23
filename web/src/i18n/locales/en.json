@@ -412,11 +412,14 @@
     "safetyLead": "These are modeled estimates, not a flight card.",
     "safetyVerify": "Weigh and balance the rocket you actually built, enter those as overrides, then re-read the margin and the rail-exit speed.",
     "safetyGaps": "Not modeled at all",
-    "safetyGapsDetail": "Fin flutter, structural loads, parachute inflation and opening shock, and how your motor performs on the day. Nothing above can warn you about any of them.",
+    "safetyGapsDetail": "Fin flutter, structural loads, parachute inflation and opening shock, and how your motor performs on the day. No number on this screen can warn you about any of them.",
     "safetyCode": "Fly under your safety code, inside your field and its waiver. The RSO's call outranks anything on this screen.",
     "safetyDisclaimer": "You, and you alone, are responsible for what you build and fly. This software is provided as is, without warranty of any kind, and its authors and contributors accept no liability for any loss arising from its use.",
     "safetyLink": "Read the safety notes",
-    "maxQ": "Max-Q"
+    "maxQ": "Max-Q",
+    "safetyAckTitle": "Acknowledge the safety notes",
+    "safetyAckBody": "Folding these away does not change what the simulation cannot tell you: fin flutter, structural loads, parachute inflation and opening shock, and how your motor performs on the day. You are still responsible for verifying the rocket on the bench and for flying under your safety code. The heading stays above the numbers, and the notes are one click away.",
+    "safetyAckConfirm": "I understand"
   },
   "warn": {
     "deletePart": "Delete {{name}}?",
@@ -661,7 +664,8 @@
     "crosshairHint": "Flight charts. Focus and use the arrow keys to move the crosshair; Shift for a larger step, Home and End for the ends, Escape to clear.",
     "events": "Flight events",
     "event": "Event",
-    "twr": "TWR"
+    "twr": "TWR",
+    "eventsCsv": "Download flight events (.csv)"
   },
   "pathExport": {
     "open": "Export flight path (KML / GPX / CSV)",

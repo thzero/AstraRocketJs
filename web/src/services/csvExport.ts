@@ -1,5 +1,6 @@
 import type { FlightResult, AeroSweep } from '../engine/openRocketEngine';
 import { branchSeries, DEFAULT_CSV_COLUMNS, flightColumns, usableColumns, type FlightColumn } from './flightColumns';
+import type { EventRow } from './flightEvents';
 import { siToUiDelta, type Quantity, type UnitSelection } from '../prefs/units';
 
 /**
@@ -193,6 +194,79 @@ export function aeroTableCsv(d: AeroSweep, units: UnitSelection): string {
     cells.push(cell(d.cna[i]));
     for (const c of d.components) cells.push(cell(c.cd[i]));
     lines.push(row(cells));
+  }
+  return lines.join(EOL) + EOL;
+}
+
+/**
+ * The flight's EVENTS, one row each, with the state of the rocket at that
+ * instant — the timeline the Results tab shows, as a file.
+ *
+ * Every extra gets a column of its own here, where the table on screen puts
+ * them on a sub-line: a table has 380px and a file has none, and a spreadsheet
+ * wants a rectangle it can sort and chart rather than prose in a cell. Most
+ * rows leave most of those columns blank, which is the honest shape - only the
+ * rail-departure row has a thrust-to-weight, and a blank cell says so.
+ *
+ * `eventName` and `stageName` are passed in for the reason `columnName` is
+ * above: both are translated, and this service has no translator. `stageName`
+ * also owns the "Stage 2" fallback for a branch the engine did not name, which
+ * is the same split `buildTraces` and the table itself make.
+ *
+ * Separate from {@link flightDataCsv}, which writes the per-timestep series and
+ * can already carry the events as COMMENT lines. A comment is for a reader; the
+ * question this answers is "give me the events as data".
+ */
+export function flightEventsCsv(
+  rows: readonly EventRow[],
+  units: UnitSelection,
+  eventName: (row: EventRow) => string,
+  stageName: (row: EventRow) => string,
+  name?: string,
+): string {
+  const dist = col(units, 'distance');
+  const vel = col(units, 'velocity');
+  const ang = col(units, 'angle');
+  const pres = col(units, 'pressure');
+  // Names come from the design and from a translation, so they can hold a comma
+  // or a newline; neither may split the row. Quoting rather than stripping,
+  // because unlike a column header these are the user's own words.
+  const text = (v: string | undefined): string =>
+    v == null || v === '' ? '' : `"${v.replace(/[\r\n]+/g, ' ').replace(/"/g, '""')}"`;
+
+  const lines: string[] = [];
+  if (name) lines.push(`# Simulation: ${name.replace(/[\r\n]+/g, ' ')}`);
+  lines.push(
+    row([
+      'Time (s)',
+      'Event',
+      'Source',
+      'Stage',
+      `Altitude (${dist.sym})`,
+      `Velocity (${vel.sym})`,
+      'Stability (cal)',
+      'Thrust/weight',
+      `Angle of attack (${ang.sym})`,
+      'Mach',
+      `Dynamic pressure (${pres.sym})`,
+    ]),
+  );
+  for (const r of rows) {
+    lines.push(
+      row([
+        cell(r.time, 3),
+        text(eventName(r)),
+        text(r.source),
+        text(stageName(r)),
+        cell(mul(r.altitude, dist.f)),
+        cell(mul(r.velocity, vel.f)),
+        cell(r.stability),
+        cell(r.twr),
+        cell(mul(r.aoa, ang.f)),
+        cell(r.mach),
+        cell(mul(r.q, pres.f)),
+      ]),
+    );
   }
   return lines.join(EOL) + EOL;
 }

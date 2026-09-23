@@ -8,6 +8,7 @@ import { maxQ } from '../../services/flightEvents';
 import { lerpAt } from '../../services/interpolate';
 import { stabilityTone } from '../../services/simReport';
 import { useSettings } from '../../state/SettingsProvider';
+import { confirm } from '../../state/confirmStore';
 import { useHelpStore } from '../../state/helpStore';
 import { Stat } from '../common/Stat';
 import { WARNING_TONE } from './warningTone';
@@ -23,11 +24,13 @@ function lastFinite(arr?: (number | null)[]): number | null {
 }
 
 /**
- * What the numbers above are and are not, as a card of its own under them.
+ * What the numbers below are and are not, as a card of its own above them.
  *
  * It rides with the MEASUREMENTS rather than living in a dialog or a first-run
  * gate, because the moment a reading can mislead somebody is the moment it is
- * being read. It says three things, in the order they are acted on: verify the
+ * being read. It leads them rather than following them: what a number is worth
+ * is a thing to know BEFORE reading it, and a caution under a grid of tiles is
+ * one the eye reaches only after it has already drawn its conclusion. It says three things, in the order they are acted on: verify the
  * model against the rocket on the bench, know what the model never had (the
  * gaps are specific on purpose — "results are approximate" tells nobody which
  * failure to go and think about), and remember who actually calls the flight.
@@ -63,52 +66,99 @@ const BULLET = 'flex gap-2';
 function SafetyCard() {
   const { t } = useTranslation();
   const openHelp = useHelpStore((s) => s.openHelp);
+  const { settings, update } = useSettings();
+  const open = settings.showSafetyCard;
+  /**
+   * Folding it away is GATED; unfolding it is not.
+   *
+   * The card is the one thing on this pane that is not a result, and the fold
+   * is remembered, so the click that hides it is the last time it gets asked
+   * for on this browser. Asking once, there, is the point: an acknowledgment
+   * is a thing you do deliberately, and a notice that folds silently is a
+   * notice nobody read. Canceling leaves it open.
+   *
+   * There is no matching gate on the way back OPEN, because reading the
+   * warning again needs no permission.
+   */
+  const toggle = async () => {
+    if (!open) {
+      update({ showSafetyCard: true });
+      return;
+    }
+    const ok = await confirm({
+      title: t('sim.safetyAckTitle'),
+      message: t('sim.safetyAckBody'),
+      confirmLabel: t('sim.safetyAckConfirm'),
+    });
+    // Not `danger`: nothing is being destroyed, and the red button is the
+    // app's mark for that. This is an acknowledgment.
+    if (ok) update({ showSafetyCard: false });
+  };
   return (
     <section aria-label={t('sim.safetyTitle')} className={`rounded-xl p-3 ring-1 ${WARNING_TONE.NORMAL}`}>
-      <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide">
+      {/* The heading is the fold control, and it is ALL that folds away to.
+          The ⚠ and the title stay on screen at every state: what is being
+          hidden is the explanation, not the fact that there is something to
+          read before flying. A control that could remove the last trace of it
+          would be a different feature from this one. */}
+      <button
+        type="button"
+        onClick={() => void toggle()}
+        aria-expanded={open}
+        className={`flex w-full items-center gap-1.5 text-left text-[10px] font-semibold uppercase tracking-wide ${open ? 'mb-2' : ''}`}
+      >
         <span aria-hidden>⚠</span>
         {t('sim.safetyTitle')}
-      </div>
-      <p className="text-xs font-semibold leading-snug">{t('sim.safetyLead')}</p>
-      {/* Hanging bullets: the glyph is its own column so a wrapped line lines up
+        {/* Rotates rather than swapping glyph, so the control does not change
+            width as it turns. */}
+        <span aria-hidden className={`ml-auto transition-transform ${open ? 'rotate-90' : ''}`}>
+          ›
+        </span>
+      </button>
+      {!open ? null : (
+        <>
+          <p className="text-xs font-semibold leading-snug">{t('sim.safetyLead')}</p>
+          {/* Hanging bullets: the glyph is its own column so a wrapped line lines up
           under the text, not under the dot.
           Spelled out one <li> at a time rather than mapped over a key array —
           `t(\`sim.${key}\`)` would hide all three from keys.test.ts, whose whole
           job is to notice a string nothing references any more. The dynamic
           allowlist there is for sets the kernel or the catalog produces, not for
           three sentences written by hand. */}
-      <ul className="mt-2 space-y-1.5 text-xs leading-snug opacity-90">
-        <li className={BULLET}>
-          <span aria-hidden>·</span>
-          <span className="min-w-0">{t('sim.safetyVerify')}</span>
-        </li>
-        <li className={BULLET}>
-          <span aria-hidden>·</span>
-          {/* The gaps get the emphasis of the three: the other two are things
+          <ul className="mt-2 space-y-1.5 text-xs leading-snug opacity-90">
+            <li className={BULLET}>
+              <span aria-hidden>·</span>
+              <span className="min-w-0">{t('sim.safetyVerify')}</span>
+            </li>
+            <li className={BULLET}>
+              <span aria-hidden>·</span>
+              {/* The gaps get the emphasis of the three: the other two are things
               you can go and do, and this one is the list of failures no number
               above will ever mention. */}
-          <span className="min-w-0">
-            <span className="font-semibold italic">{t('sim.safetyGaps')}</span>
-            <span className="block italic">{t('sim.safetyGapsDetail')}</span>
-          </span>
-        </li>
-        <li className={BULLET}>
-          <span aria-hidden>·</span>
-          <span className="min-w-0">{t('sim.safetyCode')}</span>
-        </li>
-      </ul>
-      {/* The liability line. Plain-language restatement of the license's
+              <span className="min-w-0">
+                <span className="font-semibold italic">{t('sim.safetyGaps')}</span>
+                <span className="block italic">{t('sim.safetyGapsDetail')}</span>
+              </span>
+            </li>
+            <li className={BULLET}>
+              <span aria-hidden>·</span>
+              <span className="min-w-0">{t('sim.safetyCode')}</span>
+            </li>
+          </ul>
+          {/* The liability line. Plain-language restatement of the license's
           no-warranty and no-liability clauses, kept short so it reads as part
           of the card rather than a wall of legal text; the full version is on
           the Safety page the link below opens. */}
-      <p className="mt-2 text-[11px] leading-snug opacity-80">{t('sim.safetyDisclaimer')}</p>
-      {/* nowrap so the arrow cannot be orphaned onto a line of its own. */}
-      <button
-        onClick={() => openHelp('safety')}
-        className="mt-2 inline-block whitespace-nowrap text-xs font-medium underline underline-offset-2 hover:no-underline"
-      >
-        {t('sim.safetyLink')} →
-      </button>
+          <p className="mt-2 text-[11px] leading-snug opacity-80">{t('sim.safetyDisclaimer')}</p>
+          {/* nowrap so the arrow cannot be orphaned onto a line of its own. */}
+          <button
+            onClick={() => openHelp('safety')}
+            className="mt-2 inline-block whitespace-nowrap text-xs font-medium underline underline-offset-2 hover:no-underline"
+          >
+            {t('sim.safetyLink')} →
+          </button>
+        </>
+      )}
     </section>
   );
 }
@@ -160,11 +210,12 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
   const peakQ = sim ? maxQ(sim.series) : null;
   if (!s) return null;
   return (
-    // The tiles and the safety card are ONE block, so the card travels with the
+    // The safety card and the tiles are ONE block, so the card travels with the
     // numbers to every place the summary is mounted. The gap is the wrapper's,
     // matching FlightWarnings' spacing above rather than inheriting whatever
     // rhythm each parent happens to use.
     <div className="space-y-3">
+      <SafetyCard />
       {/* A grid of CARDS, not a card of tiles: the same shape the rocket's
           static-stats strip uses, so a measurement reads the same wherever it
           is. Two columns, because this column is 380px and three squeezed
@@ -265,7 +316,6 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
           />
         )}
       </section>
-      <SafetyCard />
     </div>
   );
 }

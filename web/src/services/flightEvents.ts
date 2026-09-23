@@ -84,7 +84,15 @@ export const EVENT_EXTRAS: Record<string, readonly ExtraKey[]> = {
 
 /** One row of the timeline: an event, and the flight state at its instant. */
 export interface EventRow {
-  /** Stable React key — branch, type and time, which cannot collide. */
+  /**
+   * Stable React key.
+   *
+   * It carries the row's POSITION as well as its branch, type and time,
+   * because those three do not identify a row: a clustered stage built from
+   * separate mounts burns out once per motor, and the kernel queues each of
+   * those at the same instant (BasicEventSimulationEngine:510), so two rows of
+   * one table can agree on all three.
+   */
   key: string;
   /** Kernel `FlightEvent.Type` name, or {@link MAX_Q}. */
   type: string;
@@ -223,7 +231,7 @@ export function eventRows(result: FlightResult | null | undefined): EventRow[] {
     const series = b.series;
     const push = (type: string, time: number, source: string | undefined, q: number | null) => {
       rows.push({
-        key: `${i}:${type}:${time}`,
+        key: `${i}:${type}:${time}:${rows.length}`,
         type,
         time,
         branch: i,

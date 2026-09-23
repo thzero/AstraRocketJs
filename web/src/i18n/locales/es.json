@@ -412,11 +412,14 @@
     "safetyLead": "Son estimaciones del modelo, no una hoja de vuelo.",
     "safetyVerify": "Pesa y equilibra el cohete que realmente construiste, introduce esas medidas como invalidaciones y vuelve a leer el margen y la velocidad de salida de la guía.",
     "safetyGaps": "No se modela en absoluto",
-    "safetyGapsDetail": "El flutter de las aletas, las cargas estructurales, el inflado del paracaídas y su golpe de apertura, y cómo rinde tu motor ese día. Nada de lo de arriba puede avisarte de ninguno de ellos.",
+    "safetyGapsDetail": "El flutter de las aletas, las cargas estructurales, el inflado del paracaídas y su golpe de apertura, y cómo rinde tu motor ese día. Ningún número de esta pantalla puede avisarte de ninguno de ellos.",
     "safetyCode": "Vuela según tu código de seguridad, dentro de tu campo y su autorización. Lo que decida el RSO está por encima de cualquier cosa en esta pantalla.",
     "safetyDisclaimer": "Tú, y solo tú, eres responsable de lo que construyes y vuelas. Este software se ofrece tal cual, sin garantía de ningún tipo, y sus autores y colaboradores no aceptan responsabilidad por ninguna pérdida derivada de su uso.",
     "safetyLink": "Leer las notas de seguridad",
-    "maxQ": "Max-Q"
+    "maxQ": "Max-Q",
+    "safetyAckTitle": "Confirma que has leído las notas de seguridad",
+    "safetyAckBody": "Plegarlas no cambia lo que la simulación no puede decirte: el flutter de las aletas, las cargas estructurales, el inflado del paracaídas y su golpe de apertura, y cómo rinde tu motor ese día. Sigues siendo responsable de verificar el cohete en el banco y de volar según tu código de seguridad. El encabezado permanece sobre los números y las notas están a un clic.",
+    "safetyAckConfirm": "Entendido"
   },
   "warn": {
     "deletePart": "¿Eliminar {{name}}?",
@@ -661,7 +664,8 @@
     "crosshairHint": "Gráficos de vuelo. Enfoca y usa las flechas para mover la cruz; Mayús para un paso mayor, Inicio y Fin para los extremos, Escape para quitarla.",
     "events": "Eventos de vuelo",
     "event": "Evento",
-    "twr": "TWR"
+    "twr": "TWR",
+    "eventsCsv": "Descargar eventos de vuelo (.csv)"
   },
   "pathExport": {
     "open": "Exportar trayectoria de vuelo (KML / GPX / CSV)",

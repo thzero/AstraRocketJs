@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
-import { screen, within } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { FlightEventsTable } from './FlightEventsTable';
 import { renderWithProviders } from '../../testing/renderWithProviders';
+import * as saveFile from '../../services/saveFile';
 import type { FlightResult, FlightSeries } from '../../engine/openRocketEngine';
 
 /**
@@ -135,6 +136,23 @@ describe('FlightEventsTable', () => {
   it('leaves a single-stage flight unlabeled, having no stage worth naming', () => {
     renderWithProviders(<FlightEventsTable sim={result({ events: [{ type: 'APOGEE', time: 2 }] })} />);
     expect(screen.getByRole('rowheader').textContent?.trim()).toBe('Apogee');
+  });
+
+  it('writes the rows out as a CSV, titled with the run it came from', () => {
+    const spy = vi.spyOn(saveFile, 'download').mockImplementation(() => {});
+    renderWithProviders(
+      <FlightEventsTable sim={result({ events: [{ type: 'LAUNCHROD', time: 1 }] })} simName="C6 flight" />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /CSV/ }));
+    expect(spy).toHaveBeenCalledOnce();
+    const [file, body] = spy.mock.calls[0]!;
+    expect(file).toBe('flight-events.csv');
+    const text = body as string;
+    expect(text).toContain('# Simulation: C6 flight');
+    // The extras the table hides on a sub-line are real columns in the file.
+    expect(text).toContain('Stability (cal),Thrust/weight');
+    expect(text).toContain('"Rail departure"');
+    spy.mockRestore();
   });
 
   it('offers the unit once per column rather than once per cell', () => {
