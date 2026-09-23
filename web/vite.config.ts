@@ -26,6 +26,40 @@ const helpUrl: string = process.env.HELP_URL || pkg.wiki?.url || (repoUrl ? `${r
 const contributorsUrl: string =
   process.env.CONTRIBUTORS_URL ?? pkg.contributorsPage?.url ?? (repoUrl ? `${repoUrl}/graphs/contributors` : '');
 
+// WHICH OpenRocket this build is, read from engine-java/extract/UPSTREAM - the
+// one file that names the pinned commit and the one a bump touches. The About
+// dialog shows it so "the same physics core" has an answer a reader can check:
+// a short SHA, its date, and a link to the commit itself.
+//
+// Read, never copied. A version string typed into the dialog (or into a doc, or
+// into a README) is a second copy of a SHA, and the copy is what goes stale -
+// silently, since nothing compares it to anything.
+const upstreamText = readFileSync(new URL('../engine-java/extract/UPSTREAM', import.meta.url), 'utf-8');
+// `key = value` lines, ignoring the long header (every comment line is `#`).
+const upstreamFields = new Map(
+  upstreamText
+    .split('\n')
+    .map((line) => /^(\w+)\s*=\s*(\S+)/.exec(line))
+    .filter((m) => m !== null)
+    .map((m) => [m[1]!, m[2]!] as const),
+);
+const upstreamField = (key: string): string => {
+  const value = upstreamFields.get(key);
+  if (!value) throw new Error(`engine-java/extract/UPSTREAM has no \`${key}\` line`);
+  return value;
+};
+const upstreamRef = upstreamField('ref');
+// https://github.com/owner/name.git -> https://github.com/owner/name
+const upstreamRepo = upstreamField('repo').replace(/\.git$/, '');
+const upstream = {
+  ref: upstreamRef,
+  // Nine hex, which is how this repo writes a short OpenRocket SHA everywhere
+  // else (UPSTREAM's own `describe`, the patch ledger).
+  shortRef: upstreamRef.slice(0, 9),
+  date: upstreamField('date'),
+  commitUrl: `${upstreamRepo}/commit/${upstreamRef}`,
+};
+
 export default defineConfig({
   // On GitHub Pages the app is served from https://<user>.github.io/<repo>/, so the
   // CI build sets PAGES_BASE=/<repo>/ and every asset + engine URL resolves under it.
@@ -76,7 +110,13 @@ export default defineConfig({
         // precached at install. Offline at first open is the stated goal of the
         // PWA (the comment on VitePWA above), so the 2.6 MB stays in the
         // precache and the CDN copy is the one that refreshes.
-        globPatterns: ['**/*.{js,css,html,svg,png,wasm,json}'],
+        // `ork` is in here for the bundled OpenRocket examples
+        // (public/examples/, see services/exampleLibrary.ts). All seventeen come
+        // to ~340 kB with their stored flight data stripped, which is cheap
+        // enough to buy the same promise the rest of the app makes: an example
+        // opens on a first offline load, not only if you happened to be online
+        // when you went looking for one.
+        globPatterns: ['**/*.{js,css,html,svg,png,wasm,json,ork}'],
         // The JS engine is a ~970 kB FALLBACK backend, emitted twice (main thread
         // + sim worker). WASM-GC is the path essentially every current browser
         // takes, so precaching ~1.9 MB of unused fallback on every install is a
@@ -111,13 +151,47 @@ export default defineConfig({
             // toast still handles a tab that stays open across a deploy.
             //
             // /docs/ is the Docusaurus site copied into dist at deploy time;
-            // a docs page must never fall back to the app shell.
+            // a docs page must never fall back to the app shell, so it is
+            // excluded here and handled by the rule below instead.
             urlPattern: ({ request, url }) => request.mode === 'navigate' && !url.pathname.includes('/docs/'),
             handler: 'NetworkFirst',
             options: {
               cacheName: 'astra-shell',
               networkTimeoutSeconds: 3,
               precacheFallback: { fallbackURL: 'index.html' },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
+            // Docs pages reached by NAVIGATION: the Help menu's "open on the
+            // docs site" link, or a docs URL someone bookmarked or was sent.
+            //
+            // Every docs page is already precached, but under its FILE key,
+            // `docs/<slug>/index.html`. A navigation asks for
+            // `docs/<slug>/`, and `directoryIndex` is disabled above, so
+            // Workbox never tries the index.html form of it and the request
+            // went to the network and failed offline. Turning directoryIndex
+            // back on is not the fix: it is one setting for the whole precache
+            // route, and the reason it is off is that it ALSO answered the
+            // app's own root from the precache, which is what stopped a plain
+            // reload from ever showing a new deploy.
+            //
+            // So a rule of its own: network-first, and offline it serves back
+            // any docs page already visited. The in-app Help dialog does not
+            // rely on this at all, because it requests
+            // `docs/<slug>/index.html` directly and that IS the precache key
+            // (services/helpDocs.ts). This is the fallback for reading the
+            // docs outside the dialog.
+            //
+            // It does mean a visited page is stored twice, once precached and
+            // once here. Capped at 40 entries, which is more pages than the
+            // site has.
+            urlPattern: ({ request, url }) => request.mode === 'navigate' && url.pathname.includes('/docs/'),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'astra-docs',
+              networkTimeoutSeconds: 3,
+              expiration: { maxEntries: 40, maxAgeSeconds: 60 * 60 * 24 * 90 },
               cacheableResponse: { statuses: [200] },
             },
           },
@@ -144,6 +218,27 @@ export default defineConfig({
               cacheableResponse: { statuses: [200] },
             },
           },
+          {
+            // Launch-site map tiles (components/sim/SiteMap.tsx).
+            //
+            // Cache-first, and this is the point of the map rather than a
+            // nicety: a pad you checked at home has to draw at the field, and
+            // the field is where there is no signal. A tile is a picture of
+            // the ground, so a stale one is still right - Esri and OSM change
+            // imagery on the order of years - which is why nothing revalidates.
+            //
+            // Capped at 600 tiles, a little over a screenful at each zoom for
+            // a handful of pads, so browsing the world does not grow without
+            // limit; Workbox evicts the least recently used past that.
+            urlPattern:
+              /^https:\/\/server\.arcgisonline\.com\/ArcGIS\/rest\/services\/(World_Imagery|World_Street_Map)\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'astra-map-tiles',
+              expiration: { maxEntries: 600, maxAgeSeconds: 60 * 60 * 24 * 180 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
     }),
@@ -153,6 +248,7 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(version),
     __HELP_URL__: JSON.stringify(helpUrl),
     __CONTRIBUTORS_URL__: JSON.stringify(contributorsUrl),
+    __UPSTREAM__: JSON.stringify(upstream),
   },
   // The vendored TeaVM engine (src/engine/vendor/openrocket-engine.mjs) is a
   // large ES module, and it used to be listed under `optimizeDeps.exclude` so

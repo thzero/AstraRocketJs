@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import i18n from '../i18n';
 import { confirm } from './confirmStore';
+import { prompt } from './promptStore';
 import { scaleRocket } from '../tree/scaleRocket';
 import { buildRocketTree, specToTree, C6, type RocketSpec, type StaticInfo } from '../engine/api';
 import type {
@@ -18,6 +19,11 @@ import type { DesignInfo } from '../services/orkTypes';
 import type { MountMotor } from '../services/loadOrk';
 import { buildExportMotorMap } from '../services/exportMotors';
 import { wireLoadedOrk } from '../services/wireLoadedOrk';
+// Static, not the lazy import the neighboring .ork paths use: this is a fetch
+// wrapper with no heavy dependencies, and the library dialog imports it
+// statically anyway, so a dynamic import here only produces rolldown's
+// INEFFECTIVE_DYNAMIC_IMPORT warning without moving a byte.
+import { fetchExample } from '../services/exampleLibrary';
 import {
   newSimulation,
   sameSimInputs,
@@ -188,6 +194,18 @@ export interface WorkspaceState {
   setStorageWarning: (msg: string | null, kind?: StorageWarningKind) => void;
   /** A save succeeded: retire a "storage full" warning, leave the standing ones. */
   clearSaveWarning: () => void;
+  /**
+   * When the autosave last landed (epoch ms), or null before the first one.
+   *
+   * The File menu used to carry a **Save** item. It never stood between the
+   * user and their work - editing autosaves on a 500 ms debounce and unload
+   * writes a synchronous journal - so all it really offered was the
+   * reassurance that saving was happening at all. This is that reassurance,
+   * said by the thing that actually knows (see SaveStatus).
+   */
+  lastSavedAt: number | null;
+  /** The autosave landed. From useWorkspaceEffects, on a successful write. */
+  markSaved: () => void;
   applyBuild: (info: StaticInfo | null, rocket: Rocket | null) => void; // from the rebuild effect
   markOutdated: () => void; // from the tree-change effect
   /**
@@ -264,7 +282,12 @@ export interface WorkspaceState {
   rollBy: (d: number) => void;
   resetView: () => void;
 
-  openOrkFile: (file: File) => Promise<void>;
+  /** Open a `.ork`. A `Blob` rather than a `File` so a bundled example, which
+   *  arrives as bytes from a fetch, takes the identical path a picked file does
+   *  — `.arrayBuffer()` is the only thing this ever wanted from a File. */
+  openOrkFile: (file: Blob) => Promise<void>;
+  /** Open one of the bundled OpenRocket examples by its file name. */
+  openExample: (file: string) => Promise<void>;
   resetWorkspace: () => void;
   /** Saved designs, newest first (designLibrary.ts). Refreshed on demand. */
   designs: DesignMeta[];
@@ -272,11 +295,6 @@ export interface WorkspaceState {
   activeDesignId: string | null;
   refreshDesigns: () => Promise<void>;
   openDesign: (id: string) => Promise<void>;
-  /** Commit the open design now. Resolves false when there is nothing to save
-   *  into yet (never named) — the caller should offer Save As instead. */
-  /** `true` saved; `'unnamed'` the design has no library entry yet (Save As);
-   *  `false` the write was refused and the storage banner is already up. */
-  saveDesign: () => Promise<boolean | 'unnamed'>;
   saveDesignAs: (name: string) => Promise<void>;
   renameDesign: (id: string, name: string) => Promise<void>;
   deleteDesign: (id: string) => Promise<void>;
@@ -286,9 +304,13 @@ export interface WorkspaceState {
   // sites in AppHeader keep their `void`.
   newWorkspace: () => Promise<void>;
   saveOrk: () => Promise<void>;
+  /** Write the design as a RockSim `.rkt`. */
+  saveRkt: () => Promise<void>;
+  /** Write the design's printable parts as 3MF (one file, or a zip of files). */
+  exportPrint: (opts: import('../services/rocketPrintExport').PrintExportOptions) => Promise<void>;
   saveRasaero: () => Promise<void>;
   /** Export a single component as a 3D mesh (stl/obj/glb) or a 2D cut sheet (dxf). */
-  exportComponent: (nodeId: string, format: 'stl' | 'obj' | 'glb' | 'dxf') => Promise<void>;
+  exportComponent: (nodeId: string, format: import('../services/componentFormats').ExportFormat) => Promise<void>;
 }
 
 /** The active simulation (falls back to the first if the id no longer exists). */
@@ -450,12 +472,12 @@ const claimWorkspace = (): (() => boolean) => {
  * someone replaced it, but taking this token does not itself count as a
  * replacement.
  *
- * `saveDesign` and `saveDesignAs` do not replace the workspace - they only
- * need to notice if something else did - but they used `claimWorkspace`, which
- * bumps the generation and so invalidated every other continuation. Dropping a
- * large `.ork` on the app and hitting File > Save while it parsed made
- * `openOrkFile`'s `stale()` true, and BOTH its success and its error paths are
- * gated on that, so nothing loaded and nothing was reported.
+ * `saveDesignAs` does not replace the workspace - it only needs to notice if
+ * something else did - but it used `claimWorkspace`, which bumps the
+ * generation and so invalidated every other continuation. Dropping a large
+ * `.ork` on the app and hitting Save As while it parsed made `openOrkFile`'s
+ * `stale()` true, and BOTH its success and its error paths are gated on that,
+ * so nothing loaded and nothing was reported.
  */
 const observeWorkspace = (): (() => boolean) => {
   const mine = workspaceGen;
@@ -623,6 +645,80 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     set({ past: [], future: [] });
   }; // on load / new design
 
+  /** "Rocket" → "Rocket (2)", "Rocket (3)", … against the names already taken. */
+  const uniqueName = (base: string, taken: string[]): string => {
+    const used = new Set(taken.map((n) => n.trim().toLowerCase()));
+    if (!used.has(base.toLowerCase())) return base;
+    for (let n = 2; n < 1000; n++) {
+      const candidate = `${base} (${n})`;
+      if (!used.has(candidate.toLowerCase())) return candidate;
+    }
+    return `${base} (${Date.now()})`;
+  };
+
+  /**
+   * Decide which library entry an imported rocket belongs in, and do it BEFORE
+   * the rocket replaces what is open.
+   *
+   * An import detaches the workspace store, so the next debounced autosave
+   * CREATES an entry. That is deliberate — an imported rocket is its own design,
+   * not an edit to whatever was on screen — but nothing checked the name, so
+   * re-importing the same .ork (edit in OpenRocket, import, edit, import…) or
+   * reopening the same example stacked up identical rows in File > Open, each
+   * one a real design the user then had to tell apart by nothing at all.
+   *
+   * So on a name clash, ask: overwrite that design, or name this one something
+   * else. The answer has to be settled here, ahead of `replaceWorkspace`,
+   * because the 500 ms autosave debounce would otherwise fire while the dialog
+   * is still open and create the very entry being asked about.
+   *
+   * Returns the entry to write into (`id`, or null to create one under `name`),
+   * or null to abandon the import.
+   */
+  const homeForImport = async (
+    importedName: string,
+    stale: () => boolean,
+  ): Promise<{ id: string | null; name: string } | null> => {
+    const lib = getDesignLibrary();
+    const wanted = importedName.trim() || defaultDesignName();
+    const list = await lib.list();
+    if (stale()) return null;
+    const clash = list.find((m) => m.name.trim().toLowerCase() === wanted.toLowerCase());
+    if (!clash) return { id: null, name: wanted };
+
+    const overwrite = await confirm({
+      title: i18n.t('library.importClashTitle'),
+      message: i18n.t('library.importClash', { name: clash.name }),
+      confirmLabel: i18n.t('library.overwrite'),
+      cancelLabel: i18n.t('library.renameInstead'),
+    });
+    if (stale()) return null;
+    if (overwrite) {
+      // Same rule as openDesign: a refused pointer write would leave this
+      // session editing one design while the library names another, so stop
+      // before anything is replaced and the user keeps what they had.
+      if (!(await lib.setActive(clash.id))) {
+        if (!stale()) get().setStorageWarning(i18n.t('storage.full'), 'full');
+        return null;
+      }
+      return stale() ? null : { id: clash.id, name: clash.name };
+    }
+
+    const taken = list.map((m) => m.name);
+    const suggested = uniqueName(wanted, taken);
+    const chosen = await prompt({
+      title: i18n.t('library.importNameTitle'),
+      confirmLabel: i18n.t('common.save'),
+      initialName: suggested,
+      takenNames: taken,
+    });
+    if (stale()) return null;
+    // Canceling the NAME dialog does not cancel the import: the file is parsed
+    // and about to be on screen, and the one outcome this flow exists to rule
+    // out is a second row with the same name. Fall back to the suggestion.
+    return { id: null, name: chosen?.trim() || suggested };
+  };
+
   /**
    * Swap the whole workspace in ONE `set`, always resetting the transient block.
    *
@@ -655,6 +751,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     err: null,
     storageWarning: null,
     storageWarningKind: null,
+    lastSavedAt: null,
     simRuns: {},
     resultSimId: null,
     lastRunIds: [],
@@ -682,6 +779,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set({ storageWarning, storageWarningKind: storageWarning ? (kind ?? null) : null }),
     clearSaveWarning: () =>
       set((s) => (s.storageWarningKind === 'full' ? { storageWarning: null, storageWarningKind: null } : {})),
+    markSaved: () => set({ lastSavedAt: Date.now() }),
     applyBuild: (info, rocket) => set({ info, rocket }),
     // A design edit does not destroy the numbers, it ages them. See
     // `Simulation.outdated`.
@@ -1159,10 +1257,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const res = await loadOrk(bytes);
         if (stale()) return;
         const { tree, extraMotors, sim0, loadedMeta } = wireLoadedOrk(res, loadSettings().launchDefaults);
+        // Where this rocket is going to live, settled while the previous design
+        // is still the open one (see homeForImport).
+        const home = await homeForImport(loadedMeta.name, stale);
+        if (!home || stale()) return;
         clearHistory(); // a loaded design is a fresh document — nothing to undo across the load
         // An imported rocket becomes its OWN library entry rather than
-        // replacing whatever was open.
-        getWorkspaceStore().setActiveId?.(null);
+        // replacing whatever was open — unless the user chose to overwrite a
+        // design of the same name, in which case that entry IS its home.
+        getWorkspaceStore().setActiveId?.(home.id);
+        if (!home.id) getWorkspaceStore().setPendingName?.(home.name);
         // Launch conditions are simulation settings, so a file carrying them
         // outside the safety codes is flagged on the way in rather than
         // silently flown. The run refuses too (see runSims).
@@ -1180,11 +1284,25 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           tab: 'design',
           designPane: 'stats',
           view: '2d',
-          activeDesignId: null,
+          // Null while the entry is still to be created; the overwrite path
+          // already has one, and the library marks it as the open design.
+          activeDesignId: home.id,
         });
       } catch (e) {
         if (stale()) return; // a superseded import must not post its error either
         set({ err: i18n.t('errors.openOrk', { reason: e instanceof Error ? e.message : String(e) }) });
+      }
+    },
+    openExample: async (file) => {
+      // Fetched, then handed to the ordinary import path — an example is an
+      // import that happens to ship with the app, so it gets the same notes
+      // banner, the same safety-limit check and the same unsaved-copy
+      // semantics, with no second code path to keep in step.
+      try {
+        const bytes = await fetchExample(file);
+        await get().openOrkFile(new Blob([bytes]));
+      } catch (e) {
+        set({ err: i18n.t('errors.openExample', { reason: e instanceof Error ? e.message : String(e) }) });
       }
     },
     refreshDesigns: async () => {
@@ -1240,37 +1358,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       get().hydrate(w);
       set((s) => ({ selectedId: null, ...showing(s, '2d') }));
       await get().refreshDesigns();
-    },
-
-    saveDesign: async () => {
-      // Autosave already runs on a 500 ms debounce, so this is not the only
-      // thing standing between the user and data loss — it is the explicit
-      // "commit it now" they expect from a Save menu item, and it also names
-      // a design that has never been saved (New / freshly imported).
-      //
-      // Ask the LIBRARY, not the cached `activeDesignId`. That field is written
-      // only by refreshDesigns(), which nothing calls on boot — it fires from
-      // the File menu and the library dialog — so on a fresh load it is null
-      // while the first autosave has already created a real entry
-      // (workspaceStore.ts:150-157 calls lib.create when it has no active id).
-      // Reading the stale null sent File→Save to Save As, whose create() made a
-      // SECOND entry with the same rocket, leaving every autosave so far in the
-      // orphan the user never named.
-      //
-      // Three outcomes, not two: `true` saved, `'unnamed'` needs Save As, and
-      // `false` the write was refused (the banner is raised here; the caller
-      // must NOT fall through to Save As, whose create() would be refused too).
-      const stale = observeWorkspace();
-      if (!(await getDesignLibrary().activeId())) return 'unnamed';
-      if (stale()) return false;
-      const ok = await flushActive();
-      if (stale()) return false; // the design moved on; this write is not its save
-      if (!ok) {
-        get().setStorageWarning(i18n.t('storage.full'), 'full');
-        return false;
-      }
-      await get().refreshDesigns();
-      return true;
     },
 
     saveDesignAs: async (name) => {
@@ -1388,6 +1475,37 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         });
       } catch (e) {
         set({ err: i18n.t('errors.saveOrk', { reason: e instanceof Error ? e.message : String(e) }) });
+      }
+    },
+    saveRkt: async () => {
+      try {
+        const { tree, loadedMeta } = get();
+        const { downloadRkt } = await import('../services/saveOrk');
+        const name = tree.name || loadedMeta?.name || defaultDesignName();
+        const skipped = await downloadRkt(name, tree);
+        // RockSim has no element for some of what this app can build (rail
+        // buttons, parallel stages, the fairing extension). The file is still
+        // worth having, but the user is about to hand it to somebody who will
+        // not see those parts, so say so rather than let them find out.
+        if (skipped.length) {
+          set({ err: i18n.t('errors.exportRktPartial', { parts: skipped.join(', ') }) });
+        }
+      } catch (e) {
+        set({ err: i18n.t('errors.exportRkt', { reason: e instanceof Error ? e.message : String(e) }) });
+      }
+    },
+    exportPrint: async (opts) => {
+      try {
+        const { tree, loadedMeta } = get();
+        const { downloadRocket3mf } = await import('../services/rocketPrintExport');
+        const name = tree.name || loadedMeta?.name || defaultDesignName();
+        const { skipped } = await downloadRocket3mf(name, tree, opts);
+        // A part whose geometry fails the manifold check is left out rather
+        // than written as a file no slicer would accept — but silently leaving
+        // it out is how somebody discovers a missing fin at the printer.
+        if (skipped.length) set({ err: i18n.t('errors.exportPrintPartial', { parts: skipped.join(', ') }) });
+      } catch (e) {
+        set({ err: i18n.t('errors.exportPrint', { reason: e instanceof Error ? e.message : String(e) }) });
       }
     },
     saveRasaero: async () => {

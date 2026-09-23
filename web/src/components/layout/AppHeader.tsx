@@ -1,30 +1,39 @@
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { APP_VERSION, helpUrlFor, isPreRelease } from '../../services/appInfo';
+import { APP_VERSION, isPreRelease } from '../../services/appInfo';
 import { useWorkspaceStore } from '../../state/store';
+import { useHelpStore } from '../../state/helpStore';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { WorkbenchTabs } from './WorkbenchTabs';
 import { EngineBadge } from './EngineBadge';
+import { SaveStatus } from './SaveStatus';
 import { UndoRedoButtons } from './UndoRedoButtons';
 import { FileMenuButton } from './FileMenu';
 import { useHeaderDialogs } from './HeaderDialogs';
 import { useUndoShortcuts } from './useUndoShortcuts';
 
-/** Top bar: title + version, the desktop workbench tabs, language, and a
- *  collapsible menu holding the New / Open (library) / Save / Save As / Import /
- *  Export / About actions. Owns the hidden .ork file input that Import
- *  triggers; the badge, the undo pair and the dialogs are their own modules. */
+/** Top bar: title + version, the desktop workbench tabs, the save status,
+ *  language, and a collapsible menu holding the New / Open (library) / Save As /
+ *  Import / Export / About actions. Owns the hidden .ork / .rkt file inputs that
+ *  Import triggers; the badge, the undo pair and the dialogs are their own
+ *  modules. */
 export function AppHeader() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const canSave = useWorkspaceStore((s) => !!s.info);
   const onNew = useWorkspaceStore((s) => s.newWorkspace);
   const onOpenFile = useWorkspaceStore((s) => s.openOrkFile);
   const onSave = useWorkspaceStore((s) => s.saveOrk);
-  const saveDesign = useWorkspaceStore((s) => s.saveDesign);
   const refreshDesigns = useWorkspaceStore((s) => s.refreshDesigns);
   const onSaveRasaero = useWorkspaceStore((s) => s.saveRasaero);
+  const onSaveRkt = useWorkspaceStore((s) => s.saveRkt);
   const orkRef = useRef<HTMLInputElement>(null);
+  // A second input for the same handler, differing only in its `accept`. One
+  // input filtered to both would show `.ork` files to somebody who picked
+  // RockSim from the menu; the reader sniffs the bytes either way
+  // (services/designFile.ts), so a mislabeled file still opens.
+  const rktRef = useRef<HTMLInputElement>(null);
   const { open, dialogs } = useHeaderDialogs();
+  const openHelp = useHelpStore((s) => s.openHelp);
 
   useUndoShortcuts();
 
@@ -53,6 +62,7 @@ export function AppHeader() {
         </span>
       )}
       <EngineBadge />
+      <SaveStatus />
 
       {/* The desktop workbench tabs live in the header's dead middle rather than
           in a strip of their own below it. Hidden below lg, where the bottom
@@ -64,50 +74,54 @@ export function AppHeader() {
         <LanguageSwitcher />
         <FileMenuButton
           canSave={canSave}
-          helpHref={helpUrlFor(i18n.language)}
           actions={{
             onNew,
             onOpenLibrary: () => open('library'),
-            onSave: () => {
-              void (async () => {
-                // A design that has never been named has nowhere to save to,
-                // so Save becomes Save As, the usual desktop behavior. A
-                // refused write (`false`) is not that case: the banner is
-                // up, and a Save As would be refused the same way.
-                if ((await saveDesign()) === 'unnamed') {
-                  await refreshDesigns();
-                  open('saveAs');
-                }
-              })();
-            },
             onSaveAs: () => {
               // Names of existing designs drive the duplicate warning.
               void refreshDesigns();
               open('saveAs');
             },
             onImportOrk: () => orkRef.current?.click(),
+            onImportRkt: () => rktRef.current?.click(),
+            onImportExamples: () => open('examples'),
             onExportOrk: onSave,
+            onExportRkt: onSaveRkt,
+            onExportPrint: () => open('print'),
             onExportRasaero: onSaveRasaero,
             onReport: () => open('report'),
             onMotors: () => open('motors'),
+            onLaunchLocations: () => open('locations'),
             onSettings: () => open('settings'),
+            // No argument is the docs index; Safety opens Help already ON its
+            // own page, which is the whole point of addressing help by slug.
+            onHelp: () => openHelp(),
+            onSafety: () => openHelp('safety'),
             onPrivacy: () => open('privacy'),
             onAbout: () => open('about'),
           }}
         />
       </div>
 
-      <input
-        ref={orkRef}
-        type="file"
-        accept=".ork"
-        className="hidden"
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          e.target.value = '';
-          if (f) onOpenFile(f);
-        }}
-      />
+      {(
+        [
+          [orkRef, '.ork'],
+          [rktRef, '.rkt'],
+        ] as const
+      ).map(([ref, accept]) => (
+        <input
+          key={accept}
+          ref={ref}
+          type="file"
+          accept={accept}
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = '';
+            if (f) onOpenFile(f);
+          }}
+        />
+      ))}
       {dialogs}
     </header>
   );

@@ -35,16 +35,24 @@ On a **phone** the same areas become tabs along the bottom, because there is no 
 
 The components panel is desktop-only, so a phone is for reading and simulating a design rather than building one.
 
-The top bar has **undo / redo**, a language switcher (English · Español), and the **app menu**: New, Open… and Save… / Save As… (the in-app design library), **Import ▸ OpenRocket** and **Export ▸ OpenRocket / RASAero II** for `.ork` and other files on disk, **Rocket Design Report**, **Motor Dashboard**, **Settings**, **Help**, **Privacy** and **About**.
+The top bar has **undo / redo**, a language switcher (English · Español), a note of when your rocket was last saved, and the **app menu**: New, Open… and Save As… (the in-app design library), **Import ▸ OpenRocket** and **Export ▸ OpenRocket / RASAero II** for `.ork` and other files on disk, **Rocket Design Report**, **Motor Dashboard**, **Settings**, **Help**, **Privacy** and **About**.
 
 ## Your first rocket
 
-1. **Start from the default rocket**, or **New** (menu) for a fresh one, or **Open** an existing `.ork` file.
+1. **Start from the default rocket**, or **New** (menu) for a fresh one, or **Open** an existing `.ork` file. There are also **[example rockets](#example-rockets)** built in, which is the quickest way to see what the app can do.
 2. **Edit components** in the left panel — select a part and adjust its dimensions; the 2D view and the stability stats update live. See [Designing a Rocket](./designing-a-rocket.md).
 3. **Pick a motor** in the right panel. See [Motors](./motors.md).
 4. **Set your launch conditions** and press **Run flight simulation**. See [Running a Simulation](./running-a-simulation.md).
 5. **Explore the results** — apogee and other tiles, plus the Flight and 3D-path views. See [Views & Analysis](./views-and-analysis.md).
 6. Your rocket **saves itself as you work**, and menu → **Open…** switches between saved rockets. To keep a copy on your disk or open it in desktop OpenRocket, use menu → **Export → OpenRocket**. See [Files & Exports](./files-and-exports.md).
+
+## Example rockets
+
+Menu → **Import → Examples** opens a picker holding the sixteen example designs that ship with desktop OpenRocket, brought over from the same version of OpenRocket this app's engine is built from. Between them they cover most of what the app can do: motor clusters, pods and winglets, tube fins, parallel and serial staging, dual deployment, a payload section that separates and comes down on its own chute, and a couple of 3D-printable parts.
+
+The same list is also the second tab of menu → **Open…**, beside **My rockets**, for when you are browsing rather than starting something.
+
+Opening one behaves exactly like importing a `.ork`: you get your own unsaved copy, so you can take an example apart without touching the original. Open the same example a second time and the app asks whether to overwrite the copy you already have or keep both, so the library does not fill up with rockets of the same name. The examples are part of the app, so they work offline like everything else.
 
 ## Where your data lives
 

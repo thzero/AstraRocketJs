@@ -1,4 +1,4 @@
-import { test, expect, openTab, runButton, importOrk } from './base';
+import { test, expect, openTab, ready, runButton, runFlight, importOrk } from './base';
 
 /**
  * The NAR / Tripoli flying limits, on the path that can get around the fields.
@@ -89,7 +89,9 @@ test('folded notes are remembered, across a reload and across designs', async ({
   // the next file either, which is what "not per rocket" means), and it does not
   // depend on the autosave debounce having beaten the reload.
   await page.reload();
-  await importOrk(page, 'e2e/fixtures/out-of-limits.ork');
+  // The first import is saved by now (debounce or unload journal), so the same
+  // file's name clashes with it; overwrite, which keeps this about the notes.
+  await importOrk(page, 'e2e/fixtures/out-of-limits.ork', 'overwrite');
 
   await expect(toggle).toBeVisible();
   await expect(note).toHaveCount(0);
@@ -97,4 +99,65 @@ test('folded notes are remembered, across a reload and across designs', async ({
   // Still a toggle, not a one-way door.
   await toggle.click();
   await expect(note).toBeVisible();
+});
+
+/**
+ * The "Before you fly" card under the run's numbers.
+ *
+ * Every other safety behavior in this file is a REFUSAL: conditions outside the
+ * codes, and no flight. This is the other half, and the one that applies to
+ * every flight that does happen - the numbers are real and the launch is legal,
+ * and they are still a model's answer rather than a flight card. It has to sit
+ * with the measurements, because the moment it matters is the moment they are
+ * being read.
+ */
+test('the run summary carries a safety card linking to the docs', async ({ page }) => {
+  await ready(page);
+  await runFlight(page);
+
+  // The desktop right column and the phone's Results tab each mount a copy of
+  // the summary, so one of the two is always in the document but hidden.
+  const card = page.getByRole('region', { name: 'Before you fly' }).filter({ visible: true });
+  await expect(card).toBeVisible();
+  await expect(card).toContainText('not a flight card');
+
+  // The gaps are NAMED. "Results are approximate" tells a reader nothing they
+  // can act on; "fin flutter" sends them to look at their fin attachment.
+  await expect(card).toContainText("RSO's call");
+
+  await expect(card.getByRole('listitem').filter({ hasText: 'Not modeled at all' })).toContainText('Fin flutter');
+
+  // The whole card is a WARNING, not a note: it carries the shared amber tone
+  // and the ⚠ glyph, because the failures it lists are the ones no number above
+  // will ever mention. Pinned on both, since the glyph is the half that still
+  // works for a reader who cannot use the color.
+  await expect(card).toHaveClass(/amber/);
+  await expect(card).toContainText('⚠');
+
+  // BELOW the tiles, not above them: a caveat read before the numbers exist is
+  // a caveat about nothing.
+  const tiles = page.locator('section[aria-label="Simulation results"]').filter({ visible: true });
+  const cardBox = (await card.boundingBox())!;
+  const tileBox = (await tiles.boundingBox())!;
+  expect(cardBox.y).toBeGreaterThanOrEqual(tileBox.y + tileBox.height);
+
+  /**
+   * And it still takes you to the safety notes - now in the in-app Help rather
+   * than a new tab.
+   *
+   * This asserted an `<a href>` with `target="_blank"` until Help moved inside
+   * the app (SimSummary.tsx calls `openHelp('safety')` and the control is a
+   * button, which has no link role and no href), so it could not pass on any
+   * machine. What the card has to do is still the same; only the way it does it
+   * changed.
+   *
+   * The destination is checked wherever the dialog puts it, because the docs
+   * are NOT built on a PR (see e2e/help-dialog.spec.ts): with them the frame is
+   * pointed at the page, and without them the dialog offers the very same page
+   * on the docs site. Either one names the slug, and neither needs the build.
+   */
+  await card.getByRole('button', { name: /Read the safety notes/ }).click();
+  const help = page.getByRole('dialog', { name: 'Help' });
+  await expect(help).toBeVisible();
+  await expect(help.locator('iframe[src*="/safety/"], a[href*="/safety"]').first()).toBeAttached();
 });

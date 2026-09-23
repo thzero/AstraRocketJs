@@ -13,6 +13,7 @@ import { FlightWarnings } from './components/sim/FlightWarnings';
 import { TabBar } from './components/layout/TabBar';
 import { WorkInProgressDialog } from './components/layout/WorkInProgressDialog';
 import { ConfirmDialog } from './components/common/ConfirmDialog';
+import { PromptDialog } from './components/common/PromptDialog';
 import { UpdateToast } from './components/layout/UpdateToast';
 import { useIsDesktop } from './components/common/useMediaQuery';
 import { PaneSplitter } from './components/layout/PaneSplitter';
@@ -241,6 +242,7 @@ export default function App() {
       <TabBar />
       <WorkInProgressDialog />
       <ConfirmDialog />
+      <PromptDialog />
     </div>
   );
 }

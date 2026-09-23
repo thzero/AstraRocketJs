@@ -55,6 +55,7 @@ const DEFAULT_LAUNCH: CompleteLaunch = {
   windDirectionDeg: DEFAULT_HEADING_DEG,
   launchAltitudeM: 0,
   latitudeDeg: 28.61,
+  longitudeDeg: -80.6,
   temperatureC: null,
   pressureHPa: null,
   geodetic: 'spherical',
@@ -320,6 +321,16 @@ export interface PathExportSettings {
   stageTrackStart?: string;
   showWaypointLabels?: boolean;
   colorWaypointPins?: boolean;
+  /** Whether the KML carries the summary balloons. */
+  includeDescriptions?: boolean;
+  /**
+   * The language the exported FILE is written in, or '' to follow the app.
+   *
+   * Unlike the two units above, absent and '' mean the same thing here, because
+   * "follow the app" is an option the dropdown actually offers rather than a
+   * fallback for never having chosen.
+   */
+  exportLanguage?: string;
   /**
    * Per-stage color overrides, one map per role, each keyed by stage index and
    * valued `rrggbb`. SPARSE: only stages the user actually changed appear, so
@@ -472,6 +483,10 @@ function loadPathExport(raw: unknown): PathExportSettings {
   assign('stageTrackStart', str(p.stageTrackStart));
   assign('showWaypointLabels', bool(p.showWaypointLabels));
   assign('colorWaypointPins', bool(p.colorWaypointPins));
+  assign('includeDescriptions', bool(p.includeDescriptions));
+  // Not `str()`, which drops the empty string: '' is the "follow the app"
+  // choice and has to survive a reload like any other.
+  if (typeof p.exportLanguage === 'string') out.exportLanguage = p.exportLanguage;
   assign('branchColors', colors(p.branchColors));
   assign('branchGroundColors', colors(p.branchGroundColors));
   assign('branchPinColors', colors(p.branchPinColors));
@@ -575,10 +590,11 @@ export function loadSettings(): Settings {
           'windStdDev',
           'launchAltitudeM',
           'latitudeDeg',
+          'longitudeDeg',
         ] as const) {
           if (!Number.isFinite(l[k])) l[k] = DEFAULT_SETTINGS.launchDefaults[k];
         }
-        for (const k of ['launchRodDirectionDeg', 'windDirectionDeg', 'longitudeDeg'] as const) {
+        for (const k of ['launchRodDirectionDeg', 'windDirectionDeg'] as const) {
           // Absent stays absent — only a PRESENT but unusable value falls back.
           if (l[k] !== undefined && !Number.isFinite(l[k])) l[k] = DEFAULT_SETTINGS.launchDefaults[k];
         }

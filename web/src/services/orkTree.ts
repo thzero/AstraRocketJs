@@ -54,7 +54,16 @@ export interface LaunchConditions {
   launchAltitudeM: number | null;
   latitudeDeg: number | null;
   /** Launch-site longitude, degrees (WGS84 Coriolis; optional). */
-  longitudeDeg?: number;
+  /**
+   * Required like the latitude, and `null` when cleared rather than absent.
+   *
+   * It was optional while nothing on screen could show what it meant; the
+   * launch-site map made a wrong one visible, and a blank one is a hole in the
+   * same place the latitude is. Null rather than undefined so that clearing it
+   * SURVIVES a reload: `JSON.stringify` drops an undefined property, so the
+   * persisted workspace merge would quietly hand the field its default back.
+   */
+  longitudeDeg: number | null;
   /** Earth model for the trajectory. */
   geodetic?: 'flat' | 'spherical' | 'wgs84';
   /**

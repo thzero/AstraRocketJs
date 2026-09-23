@@ -3,6 +3,9 @@ title: "Overview"
 sidebar_position: 1
 slug: /
 ---
+
+import UpstreamPin from '@site/src/components/UpstreamPin';
+
 ## What is AstraRocketJs?
 
 **AstraRocketJs** is a browser-based app for designing model rockets and simulating their flights. It's a lightweight, mobile-friendly interface built on top of the **real OpenRocket physics engine** — the same trusted simulation core used by the OpenRocket desktop program, compiled to run directly in your web browser.
@@ -21,6 +24,7 @@ AstraRocketJs is **not** a re-creation of OpenRocket's desktop app. It's a strea
 - The aerodynamics (Extended Barrowman), mass/CG, and flight integration (RK4/RK6) are OpenRocket's own code, compiled to WebAssembly (with a JavaScript fallback).
 - It opens and saves standard **`.ork`** files, so designs move both ways between AstraRocketJs and desktop OpenRocket.
 - It deliberately covers **the essentials** — live stability, 2D/3D views, motors, materials, parts, and flight simulation — rather than every desktop feature.
+- The engine is built from **one pinned OpenRocket commit**, not from a numbered release: <UpstreamPin />. That is the build to compare results against, and a feature from a given release is in here only if it is in that commit. The app's **About** dialog names the same commit, and the pin itself lives in [`engine-java/extract/UPSTREAM`](https://github.com/thzero/AstraRocketJs/blob/master/engine-java/extract/UPSTREAM).
 
 For the underlying physics models, the [OpenRocket documentation](https://openrocket.readthedocs.io) is the reference. AstraRocketJs is an independent project and is not affiliated with OpenRocket.
 
@@ -28,5 +32,10 @@ For the underlying physics models, the [OpenRocket documentation](https://openro
 
 - **Introduction** — this page, [Features](./features.md), and the [FAQ](./faq.md).
 - **Getting Started** — [open the app and make your first rocket](./getting-started.md), and the [Settings](./settings.md).
-- **User Guide** — designing, motors, the views, simulating, and files/exports.
+- **User Guide** — designing, motors, the views, simulating, files/exports, and [Safety](./safety.md).
 - **Developing** — the [Developer Guide](./developer-guide.md) for building and contributing.
+- **Appendix** — dated feature maps against [OpenRocket](./comparison-openrocket.md), [ZenRockets](./comparison-zenrockets.md) and [mmrocket-sim](./comparison-mmrocket-sim.md), including what each of them does that this does not.
+
+## Before you fly
+
+A simulation is an estimate, not a flight card. Before you fly anything you designed here, read **[Safety](./safety.md)**: what a result is actually worth, what the model does not know (fin flutter, structural loads, parachute inflation, your motor on the day), and what to measure on the real rocket before trusting the margin.

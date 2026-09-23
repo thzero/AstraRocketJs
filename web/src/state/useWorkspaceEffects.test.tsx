@@ -171,6 +171,36 @@ describe('autosave', () => {
     expect(save).toHaveBeenCalledTimes(1);
   });
 
+  /**
+   * The header's save status reads `lastSavedAt`, and it is the only thing
+   * that reports a save now that the File menu has no Save item. So it has to
+   * be set where a write LANDED, not where one was asked for: a failed save
+   * that still said "Saved" would be worse than saying nothing.
+   */
+  it('records when the write landed, and not when it failed', async () => {
+    await mount();
+    // The store is a module singleton shared with the tests above, so start
+    // from a known "nothing has been saved yet".
+    act(() => useWorkspaceStore.setState({ lastSavedAt: null }));
+
+    act(() => s().addPartToTree('bodytube'));
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+      await Promise.resolve();
+    });
+    const saved = s().lastSavedAt;
+    expect(saved).not.toBeNull();
+
+    save.mockRejectedValueOnce(new Error('QuotaExceeded'));
+    act(() => s().addPartToTree('bodytube'));
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(s().lastSavedAt).toBe(saved); // still the last one that worked
+  });
+
   it('does not save before hydration has finished', async () => {
     let settle!: (v: unknown) => void;
     load.mockReturnValue(new Promise((r) => (settle = r)));

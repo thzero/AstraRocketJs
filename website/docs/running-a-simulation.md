@@ -9,12 +9,34 @@ Simulations live in the right-hand panel. You can keep **several named simulatio
 Each simulation has its own launch configuration, grouped into cards:
 
 - **Launch rod / rail** — length, angle from vertical, and direction (or "launch into the wind").
-- **Launch site** — altitude, latitude, and longitude.
+- **Launch site** — altitude, latitude, and longitude, plus [saved locations](#saved-locations) and a [map](#the-map).
 - **Atmosphere** — ISA standard, or override temperature and pressure.
 - **Wind** — average speed, gusts (standard deviation), and direction; or a **multi-level** wind profile that varies with altitude.
 - **Earth model** — flat, spherical, or WGS84 (affects long/high flights).
 
 New simulations start from your global [Settings](./settings.md) defaults.
+
+### Saved locations
+
+The launch site is a property of the **field**, not of a flight, so it does not have to be retyped every time. The row at the top of the Launch site card saves and recalls them:
+
+- **💾 Save this location** stores the three site fields under a name. Saving under a name you already used updates that location instead of adding a second one you could not tell apart in the list.
+- The **dropdown** applies a saved location's latitude, longitude and elevation. It is one ordinary edit, so it undoes like any other. It reads **Custom location** whenever the fields match no saved location, recognized from the numbers themselves, so it stays right whether you typed them, imported them from a `.ork` or used 📍 **Use my location**. Picking **Custom location** yourself returns the three site fields to your [Settings](./settings.md) launch defaults — the **Kennedy Space Center** unless you have changed them. That is for when you are somewhere new and would rather start from a known place than edit a saved location's numbers one at a time: the map has somewhere to open, and all three fields stay filled, so the run is never refused for a blank. It is an ordinary edit too, so undo brings the old site back.
+- **⚙ Manage saved locations** lists them with their coordinates, so two fields with similar names can be told apart. **Edit** opens the whole location — name, latitude, longitude and elevation — because a mistyped coordinate is the thing you most often want to fix, and **New location** creates one by typing the numbers in. The same list is in the **menu → Launch locations**, beside the Motor Dashboard, so you can look at your locations without first opening a simulation; picking one there applies it to the simulation you have open, and **New location** is the way to add one from there, where no launch fields are on screen to capture.
+
+Elevation is shown and edited in whatever unit your launch site card uses, so a field at 6,004 ft reads that way in both places. Latitude and longitude are always degrees, and both are required — 0°, 0° is a point in the Gulf of Guinea, not "unset".
+
+### The map
+
+Four digits of latitude and four of longitude are not something you can check by reading them. A dropped minus sign moves a Colorado field to western China and nothing on screen looks any different, so the site has a map: **🗺 Show on map** on the Launch site card opens it, and the location editor carries one beside its fields.
+
+- **Satellite or street.** Imagery is the default and is usually the one that answers the question, because a club field is a mown strip in a hayfield: invisible on a street map, unmistakable from above. The street layer is for reading the roads in and the town you are near. Both come from Esri's map services; the street layer is built on OpenStreetMap data and credits it, but the app deliberately does not draw from OpenStreetMap's own tile servers, which are volunteer-funded and not there for applications to build on.
+- **Clicking the map sets the coordinates**, to four decimal places (about 10 m, the same precision 📍 Use my location writes). This is the only way to enter a field that has no published numbers, and it is one ordinary edit, so it undoes like any other. Drag to pan, scroll or use **+** / **−** to zoom; a drag never counts as a click.
+- **Typing moves the pin**, so the map and the fields are two views of one thing rather than two places to be wrong.
+
+Tiles you have already looked at are stored by the app, so a location you checked at home still draws at the field with no signal. Somewhere you have never viewed cannot be drawn offline: the map says so and falls back to a coordinate grid, which still places the point by hemisphere. Tiles come from Esri, and only the ones for what you are looking at are ever requested — see **[Offline & Installing](./offline-and-installing.md)**.
+
+A location holds **only the site**. The rod, the wind and the atmosphere are conditions on the day, and a location that restored last month's wind would be worse than one that restored nothing — it would look authoritative. Locations live in this browser on this device, like your custom motors and materials; nothing is uploaded.
 
 ## Run it
 
@@ -52,6 +74,8 @@ Only the wind **at the pad** is judged. On a multi-level profile that is the gro
 
 These are flying limits, not modeling limits. They are about whether the launch should happen, so unlike your rocket's geometry they are not preserved as authored: a file's out-of-limits conditions are flagged, and the run is refused until they are brought inside.
 
+These two checks are also the *only* safety rules the app enforces. What the simulation does and does not model, and what to verify on the real rocket before you fly it, is in [Safety](./safety.md).
+
 
 
 ## Read the results
@@ -65,6 +89,8 @@ Results are shown as tiles, in roughly chronological flight order, including:
 - **Apogee** (max altitude) and **max velocity / acceleration / Mach**
 - **Deployment speed** (flagged if above your warning threshold; green when safely low). On a [dual-deployment](./designing-a-rocket.md#dual-deployment) design the flight engine judges the main and the drogue against their own thresholds instead, and reports a warning for each.
 - **Landing speed**, **flight time**, and **downrange** distance
+
+Underneath the tiles is a **Before you fly** card: what these numbers are (estimates from a model, not a flight card), what the model never had (fin flutter, structural loads, parachute inflation and opening shock, your motor's behavior on the day), and the reminder to weigh and balance the rocket you actually built and enter those as overrides before trusting the margin. It links to **[Safety](./safety.md)**, and it is there on every run because it applies to every run.
 
 For the full time-history, open the **[Flight and 3D-path views](./views-and-analysis.md)**. To save the numbers, see **[Files & Exports](./files-and-exports.md)**.
 

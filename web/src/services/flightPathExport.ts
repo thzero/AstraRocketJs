@@ -1,6 +1,7 @@
 import Mustache from 'mustache';
 import type { FlightResult, FlightEvent, FlightSeries } from '../engine/openRocketEngine';
 import type { LaunchConditions } from './orkTree';
+import { componentName, isDefaultComponentName } from './warningText';
 
 /**
  * Templated flight-path export — a TypeScript port of OpenRocket's
@@ -42,6 +43,75 @@ export const WAYPOINT_KINDS: WaypointKind[] = [
 export type DistanceUnit = 'm' | 'ft' | 'km' | 'mi';
 
 /**
+ * A translator, in the shape `i18next` already hands out.
+ *
+ * The export takes ONE of these rather than a per-waypoint label callback,
+ * because the file's language is a property of the file: the caller binds this
+ * to the export language and every string in the output follows, from the
+ * waypoint names to the balloon labels. A caller that wants the app's language
+ * passes the app's `t`.
+ */
+export type Translate = (key: string, vars?: Record<string, unknown>) => string;
+
+/**
+ * The i18n key for each waypoint kind.
+ *
+ * Lives here rather than in the dialog because the export's vocabulary is the
+ * export's business: the dialog reads it for its checkboxes, and the builder
+ * reads it for the names it writes into the file, and a rename has one place
+ * to happen.
+ */
+export const WAYPOINT_LABEL_KEY: Record<WaypointKind, string> = {
+  pad: 'pathExport.wp.pad',
+  liftoff: 'pathExport.wp.liftoff',
+  burnout: 'pathExport.wp.burnout',
+  apogee: 'pathExport.wp.apogee',
+  recovery: 'pathExport.wp.recovery',
+  landing: 'pathExport.wp.landing',
+  maxvelocity: 'pathExport.wp.maxVelocity',
+  maxacceleration: 'pathExport.wp.maxAcceleration',
+};
+
+/**
+ * The strings the built-in templates write into the file, by the name a
+ * template refers to them by: `{{labels.peakAltitude}}`.
+ *
+ * They are on the MODEL rather than inline in the template so that the export
+ * language can differ from the app's. A phrase whose word order changes between
+ * languages is not in here - it is composed through `t()` with its values and
+ * arrives as one finished string (see `distanceBearing` and `stageLanding`),
+ * because a template that glues translated fragments together in English order
+ * produces English word order in every language.
+ */
+const LABEL_KEYS = [
+  'rocket',
+  'time',
+  'configuration',
+  'launchSite',
+  'latLon',
+  'aboveSeaLevel',
+  'abovePad',
+  'fromThePad',
+  'maxAltitude',
+  'maxVelocity',
+  'maxAcceleration',
+  'maxRange',
+  'timeToApogee',
+  'flightTime',
+  'altitude',
+  'position',
+  'coordinates',
+  'landing',
+  'device',
+  'flightPath',
+  'groundTrack',
+] as const;
+
+function buildLabels(t: Translate): Record<string, string> {
+  return Object.fromEntries(LABEL_KEYS.map((k) => [k, t(`pathExport.doc.${k}`)]));
+}
+
+/**
  * What exported altitudes are measured from. Mirrors the desktop's
  * `FlightPathExportOptions.AltitudeReference`.
  *
@@ -74,6 +144,16 @@ export type StageTrackStart = 'separation' | 'pad';
 /** `toFixed`, but a non-finite or absent value reads as a dash, not a throw. */
 function fixed(v: number | null | undefined, digits: number): string {
   return typeof v === 'number' && Number.isFinite(v) ? v.toFixed(digits) : '-';
+}
+
+/**
+ * A time in seconds to one decimal, or EMPTY for a moment the flight never
+ * reached. Empty rather than a dash because the balloons use these as Mustache
+ * sections, and an empty string is false there — the line disappears instead of
+ * reporting a flight time the run does not have.
+ */
+function seconds(v: number | null | undefined): string {
+  return typeof v === 'number' && Number.isFinite(v) ? v.toFixed(1) : '';
 }
 
 export function resolveAltitudeReference(
@@ -135,6 +215,22 @@ export interface FlightPathExportOptions {
    * to render without a network.
    */
   colorWaypointPins: boolean;
+  /**
+   * Whether the KML carries the summary balloons — the flight's numbers on the
+   * document, the stage's on its folder, and each waypoint's on its own pin.
+   * On by default; off for a file going somewhere the descriptions would only
+   * get in the way.
+   */
+  includeDescriptions: boolean;
+  /**
+   * The language the FILE is written in, or '' to follow the app.
+   *
+   * Same argument as the two unit fields beside it: a KML going to someone else
+   * may want their language whatever the app happens to be showing, and the
+   * choice belongs to the file. Empty is a real, selectable value rather than
+   * an absence, so it is stored like any other.
+   */
+  language: string;
   /**
    * A name for this flight, folded into the document name and into every folder
    * and track name. Several exports opened in one Google Earth session are
@@ -229,6 +325,8 @@ export function defaultExportOptions(preferred?: string): FlightPathExportOption
     stageTrackStart: 'separation',
     showWaypointLabels: true,
     colorWaypointPins: true,
+    includeDescriptions: true,
+    language: '',
     // Not persisted, and deliberately: a mission name left over from the last
     // export silently mislabels this one, which is worse than retyping it.
     missionName: '',
@@ -366,11 +464,32 @@ export interface FlightPathWaypoint {
   /** The altitude to write into a KML coordinate, in `model.kmlWaypointAltitudeMode`. */
   altitudeKmlMeters: number;
   time: number;
+  /** The precise event time, to hundredths. What a template should read. */
   timeStr: string;
+  /**
+   * The same moment to one decimal, which is what the balloons print.
+   *
+   * A balloon saying `T+1.00 s` beside a landing saying `T+2.0 s` gives one
+   * quantity two notations in one file. One decimal is the one that matches the
+   * time to apogee and the flight time already in the document balloon, and it
+   * is as much as a balloon has any use for; `timeStr` keeps the precision for
+   * anything that wants it.
+   */
+  timeText: string;
   altitude: string; // above the pad, display unit
   altitudeMsl: string; // above sea level, display unit
   distance: string; // horizontal distance from pad, display unit
   bearing: string; // compass degrees from pad
+  /**
+   * "111.8 m at 27°" in the export language, distance unit included.
+   *
+   * Composed here rather than glued together in the template: the preposition
+   * and the word order differ by language, and a template writing
+   * `{{distance}} {{unit}} {{labels.at}} {{bearing}}` would hold every language
+   * to English word order. The parts are all still on the model for a template
+   * that wants to build its own.
+   */
+  rangeText: string;
   /** `label` qualified with its stage, e.g. "Booster Apogee". Same as `label`
    *  for a single-branch flight. */
   qualifiedLabel: string;
@@ -417,6 +536,51 @@ export interface FlightPathBranch {
   /** Template convenience (mirrors the desktop model's methods). */
   hasPath: boolean;
   hasWaypoints: boolean;
+  /**
+   * The farthest this stage got from the pad, horizontally, in meters.
+   *
+   * Scanned over the WHOLE branch — including the ascent the stages flew bolted
+   * together before separation — because the stack's excursion counts against
+   * every stage that was part of it. That is deliberately unlike the peak
+   * velocity and peak acceleration waypoints, which are scanned from the
+   * separation point so a spent booster reports its own peaks: a peak velocity
+   * is a claim about what that stage DID, while a range is a claim about where
+   * that airframe WENT.
+   */
+  maxRangeMeters: number;
+  /** {@link maxRangeMeters} in the distance unit. */
+  maxRange: string;
+  /**
+   * Whether this stage recorded a ground hit.
+   *
+   * A normal flight always lands, so this looks like a case that cannot arise.
+   * It can: a run that hits the simulation time limit ends without a
+   * `GROUND_HIT`, and an aborted one (no motor fired) produces no events at
+   * all. The three landing values below are gated behind this rather than
+   * falling back to the last sample, so a flight that was still climbing when
+   * the run ended does not report a touchdown at the altitude it was flying at.
+   */
+  hasLanding: boolean;
+  /** Horizontal distance from the pad to the landing, in the distance unit. */
+  landingDistance: string;
+  /** Compass bearing from the pad to the landing, in whole degrees. */
+  landingBearing: string;
+  /** Seconds after liftoff that this stage came down. */
+  landingTime: string;
+  /**
+   * Where it came down, to six decimals.
+   *
+   * A distance and a bearing from the pad read the map; they do not walk you to
+   * the rocket. This is the pair you type into a handheld, so it is the fact the
+   * landing lines lead with.
+   */
+  landingLatitudeStr: string;
+  landingLongitudeStr: string;
+  /** This stage's landing as "223.6 m at 27°", like {@link FlightPathWaypoint.rangeText}. */
+  landingText: string;
+  /** "Sustainer landing" in the export language, with the stage name in the
+   *  position that language puts it. */
+  landingHeading: string;
 }
 
 export interface FlightPathModel {
@@ -428,8 +592,21 @@ export interface FlightPathModel {
   launchLatitude: number;
   launchLongitude: number;
   launchAltitudeMeters: number;
+  /** The launch coordinates fixed to six decimals, for a human-facing line. */
+  launchLatitudeStr: string;
+  launchLongitudeStr: string;
+  /** {@link launchAltitudeMeters} in the altitude unit. */
+  launchAltitude: string;
   altitudeUnit: string;
   distanceUnit: string;
+  /**
+   * Unit labels for the peak velocity and acceleration. Neither has a unit
+   * option of its own — both are exported in SI whatever the distance unit is —
+   * so until the balloons wanted to name them they reached a template as bare
+   * numbers with nothing saying what they were.
+   */
+  velocityUnit: string;
+  accelerationUnit: string;
   includeFlightPath: boolean;
   includeGroundTrack: boolean;
   /** The KML `<altitudeMode>` a path point's `altitudeKmlMeters` is expressed in. */
@@ -457,6 +634,28 @@ export interface FlightPathModel {
   maxAltitude: string;
   maxVelocity: string;
   maxAcceleration: string;
+  /**
+   * The farthest ANY stage got from the pad, horizontally, in the distance
+   * unit. Not the landing distance: a rocket can drift downrange under the
+   * chute and then partway back, so the range-safety figure is the maximum and
+   * where it came down is a separate fact. Both are exported.
+   */
+  maxRange: string;
+  /** Seconds from liftoff to the highest point, to one decimal. */
+  timeToApogee: string;
+  /** Seconds from liftoff to the end of the flight, to one decimal. */
+  flightTime: string;
+  /**
+   * Whether the summary balloons are written at all. A Mustache SECTION, so a
+   * template that predates it renders exactly as it did before.
+   */
+  includeDescriptions: boolean;
+  /**
+   * The built-in templates' own strings, in the export language:
+   * `{{labels.peakAltitude}}`. See `LABEL_KEYS` for what is in here and what is
+   * deliberately not.
+   */
+  labels: Record<string, string>;
   branches: FlightPathBranch[];
 }
 
@@ -574,14 +773,16 @@ export function exportBranchNames(result: FlightResult, meta: FlightPathMeta): s
 /**
  * Build the flight-path model from a simulation result and its launch site.
  *
- * @param waypointLabel resolves a localized label for a waypoint kind
+ * @param t resolves the export's strings. Bind it to `options.language` and
+ *          every string in the file follows; the app's own `t` writes the file
+ *          in whatever the app is showing.
  */
 export function buildFlightPathModel(
   result: FlightResult,
   launch: LaunchConditions,
   meta: FlightPathMeta,
   options: FlightPathExportOptions,
-  waypointLabel: (kind: WaypointKind) => string,
+  t: Translate,
 ): FlightPathModel {
   // A position left at (0, 0) was never filled in, and is exported from the
   // Kennedy Space Center rather than from Null Island. The design is untouched.
@@ -625,8 +826,15 @@ export function buildFlightPathModel(
     launchLatitude: lat0,
     launchLongitude: lon0,
     launchAltitudeMeters: launchAlt,
+    launchLatitudeStr: lat0.toFixed(6),
+    launchLongitudeStr: lon0.toFixed(6),
+    launchAltitude: fmtLength(launchAlt, options.altitudeUnit),
     altitudeUnit: UNIT_SYMBOL[options.altitudeUnit],
     distanceUnit: UNIT_SYMBOL[options.distanceUnit],
+    // The two peaks are SI whatever the distance unit is, so these are
+    // constants rather than a lookup — see the field docs.
+    velocityUnit: 'm/s',
+    accelerationUnit: 'm/s²',
     includeFlightPath: options.includeFlightPath,
     includeGroundTrack: options.includeGroundTrack,
     kmlAltitudeMode: KML_ALTITUDE_MODE[altitudeReference],
@@ -645,6 +853,12 @@ export function buildFlightPathModel(
     // the path a user reaches by exporting after a reload.
     maxVelocity: fixed(result.summary.maxVelocity, 1),
     maxAcceleration: fixed(result.summary.maxAcceleration, 1),
+    // Filled in below, once the branches it is the maximum over exist.
+    maxRange: '',
+    timeToApogee: seconds(result.summary.timeToApogee),
+    flightTime: seconds(result.summary.flightTime),
+    includeDescriptions: options.includeDescriptions,
+    labels: buildLabels(t),
     branches: [],
   };
 
@@ -654,7 +868,7 @@ export function buildFlightPathModel(
   const qualify = rawBranches.length > 1;
 
   for (const [i, raw] of rawBranches.entries()) {
-    const branch = buildBranch(raw, options, waypointLabel, {
+    const branch = buildBranch(raw, options, t, {
       toLat,
       toLon,
       launchAlt,
@@ -698,6 +912,15 @@ export function buildFlightPathModel(
     branch.pinColorKml = kmlColor(pinRgb, 0xff);
     model.branches.push(branch);
   }
+
+  // The flight's range is the farthest any one stage reached. A pass over the
+  // finished branches rather than a second scan of the series: the per-branch
+  // maxima are already the answer, and computing it twice is how the two drift.
+  let maxRangeMeters = 0;
+  for (const branch of model.branches) {
+    if (branch.maxRangeMeters > maxRangeMeters) maxRangeMeters = branch.maxRangeMeters;
+  }
+  model.maxRange = fmtLength(maxRangeMeters, options.distanceUnit);
   return model;
 }
 
@@ -755,7 +978,7 @@ function branchStartIndex(
 function buildBranch(
   raw: { name: string; events: FlightEvent[]; series: FlightSeries },
   options: FlightPathExportOptions,
-  waypointLabel: (kind: WaypointKind) => string,
+  t: Translate,
   ctx: BranchCtx,
 ): FlightPathBranch | null {
   const usable = usableSeries(raw.series);
@@ -777,6 +1000,14 @@ function buildBranch(
     return (deg + 360) % 360;
   };
 
+  /** "223.6 m at 27°", in the export language. */
+  const distanceBearing = (i: number): string =>
+    t('pathExport.doc.distanceBearing', {
+      distance: fmtLength(distanceAt(i), ctx.distUnit),
+      unit: UNIT_SYMBOL[ctx.distUnit],
+      bearing: bearingAt(i).toFixed(0),
+    });
+
   const mkWaypoint = (i: number, type: WaypointKind, label: string, device: string | null): FlightPathWaypoint => {
     const altAgl = finiteOr0(alt[i]);
     const latitude = ctx.toLat(northAt(i));
@@ -796,10 +1027,12 @@ function buildBranch(
       altitudeKmlMeters: ctx.kmlWaypointAltitude(altAgl),
       time: t,
       timeStr: t.toFixed(2),
+      timeText: seconds(t),
       altitude: fmtLength(altAgl, ctx.altUnit),
       altitudeMsl: fmtLength(mslMeters, ctx.altUnit),
       distance: fmtLength(distanceAt(i), ctx.distUnit),
       bearing: bearingAt(i).toFixed(0),
+      rangeText: distanceBearing(i),
       qualifiedLabel: withMission(ctx.waypointMission, qualifyLabel(raw.name, label, ctx.qualify)),
       branchName: raw.name,
     };
@@ -820,12 +1053,45 @@ function buildBranch(
     path: [],
     hasPath: false,
     hasWaypoints: false,
+    maxRangeMeters: 0,
+    maxRange: '',
+    hasLanding: false,
+    landingDistance: '',
+    landingBearing: '',
+    landingTime: '',
+    landingLatitudeStr: '',
+    landingLongitudeStr: '',
+    landingText: '',
+    landingHeading: t('pathExport.doc.stageLanding', { stage: raw.name }),
   };
+
+  // From 0, not from `start`: see `maxRangeMeters` on FlightPathBranch for why
+  // a separated stage owns the whole stack's excursion.
+  for (let i = 0; i < n; i++) {
+    const d = distanceAt(i);
+    if (d > branch.maxRangeMeters) branch.maxRangeMeters = d;
+  }
+  branch.maxRange = fmtLength(branch.maxRangeMeters, ctx.distUnit);
+
+  // Scanned from the branch's own events, NOT read back out of the waypoints
+  // built below: the user can switch the landing marker off, and the summary
+  // still has to know where the stage came down.
+  const groundHit = raw.events.find((e) => e.type === 'GROUND_HIT' && Number.isFinite(e.time));
+  if (groundHit) {
+    const i = indexOfTime(time, groundHit.time, n);
+    branch.hasLanding = true;
+    branch.landingDistance = fmtLength(distanceAt(i), ctx.distUnit);
+    branch.landingBearing = bearingAt(i).toFixed(0);
+    branch.landingTime = seconds(groundHit.time);
+    branch.landingLatitudeStr = ctx.toLat(northAt(i)).toFixed(6);
+    branch.landingLongitudeStr = ctx.toLon(eastAt(i)).toFixed(6);
+    branch.landingText = distanceBearing(i);
+  }
 
   // Only the stack leaves the pad; a booster's copy of that moment is not its
   // own event, and emitting it per stage litters the map with duplicate pins.
   if (ctx.primary && options.waypoints.has('pad')) {
-    branch.waypoints.push(mkWaypoint(0, 'pad', waypointLabel('pad'), null));
+    branch.waypoints.push(mkWaypoint(0, 'pad', t(WAYPOINT_LABEL_KEY.pad), null));
   }
 
   for (const event of raw.events) {
@@ -833,11 +1099,28 @@ function buildBranch(
     if (!kind || !options.waypoints.has(kind)) continue;
     const i = indexOfTime(time, event.time, n);
     if (kind === 'recovery') {
-      const device = event.source ?? '';
-      const label = device || waypointLabel('recovery');
+      // A device the user never renamed reaches us as the bundle key its
+      // default name is looked up under - `[Parachute.Parachute]` - because the
+      // TeaVM kernel carries no resource bundles. Translated with the EXPORT's
+      // translator, so it follows the language box like every other word in
+      // the file rather than being the one English one among them.
+      const raw = event.source ?? '';
+      const device = componentName(raw, t);
+      // The event word, QUALIFIED by the device: "Drogue Ejection", not
+      // "Drogue" and not a bare "Ejection". Naming the pin for the device
+      // alone loses the event vocabulary that every other pin uses; naming it
+      // for the event alone makes a dual-deployment flight two identical pins.
+      // Only a name the user chose qualifies - a default one says nothing the
+      // balloon's device line does not. Same qualifier helper the stage names
+      // use, so it inherits the guard against doubling a name that already
+      // starts with the qualifier, and a staged flight stacks the two into
+      // "Booster Drogue Ejection", which is long and is exactly what that pin
+      // is.
+      const named = raw !== '' && !isDefaultComponentName(raw);
+      const label = qualifyLabel(device, t(WAYPOINT_LABEL_KEY.recovery), named);
       branch.waypoints.push(mkWaypoint(i, 'recovery', label, device));
     } else {
-      branch.waypoints.push(mkWaypoint(i, kind, waypointLabel(kind), null));
+      branch.waypoints.push(mkWaypoint(i, kind, t(WAYPOINT_LABEL_KEY[kind]), null));
     }
   }
 
@@ -846,7 +1129,12 @@ function buildBranch(
   // booster's, at speeds it reached while still bolted to the sustainer.
   if (options.waypoints.has('maxvelocity') && vel && vel.length) {
     branch.waypoints.push(
-      mkWaypoint(indexOfMax(vel, start, Math.min(n, vel.length)), 'maxvelocity', waypointLabel('maxvelocity'), null),
+      mkWaypoint(
+        indexOfMax(vel, start, Math.min(n, vel.length)),
+        'maxvelocity',
+        t(WAYPOINT_LABEL_KEY.maxvelocity),
+        null,
+      ),
     );
   }
   if (options.waypoints.has('maxacceleration') && acc && acc.length) {
@@ -854,7 +1142,7 @@ function buildBranch(
       mkWaypoint(
         indexOfMax(acc, start, Math.min(n, acc.length)),
         'maxacceleration',
-        waypointLabel('maxacceleration'),
+        t(WAYPOINT_LABEL_KEY.maxacceleration),
         null,
       ),
     );
@@ -972,11 +1260,38 @@ export interface ExportFormat {
 // The built-in Mustache templates, mirroring OpenRocket's bundled templates.
 // They are the "download to modify" starting points; the model field names match
 // so an edited copy re-imports and renders through renderUserTemplate.
+//
+// The KML balloons' HTML is written PRE-ESCAPED (`&lt;b&gt;`, not `<b>`), and
+// deliberately not wrapped in CDATA. `escaperFor('kml')` escapes every value
+// this template substitutes, because they are user-supplied names that would
+// otherwise break the XML — and inside a CDATA block the XML parser does not
+// decode those escapes, so a rocket named `Bill & Ted` would reach the balloon
+// as the literal text `Bill &amp; Ted`. A CDATA block is breakable too: a name
+// containing `]]>` would close it early and produce an invalid document.
+// Pre-escaping makes the two consistent — the template's own markup and the
+// values are each escaped exactly once, the parser decodes them together, and
+// the balloon gets the HTML the template meant and the name the user typed.
+// The degree sign is a literal UTF-8 character rather than `&deg;` for the same
+// reason: one layer of entity decoding, not two.
 const KML_TEMPLATE_SOURCE = `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
 	<Document>
 		<name>{{title}}</name>
 		<open>1</open>
+{{#includeDescriptions}}
+		<Snippet></Snippet>
+		<description>&lt;b&gt;{{labels.rocket}}:&lt;/b&gt; {{rocketName}}&lt;br/&gt;
+{{#configuration}}&lt;b&gt;{{labels.configuration}}:&lt;/b&gt; {{configuration}}&lt;br/&gt;
+{{/configuration}}&lt;b&gt;{{labels.launchSite}}:&lt;/b&gt; {{launchLatitudeStr}}, {{launchLongitudeStr}} {{labels.latLon}}{{#launchAltitudeMeters}}, {{launchAltitude}} {{altitudeUnit}} {{labels.aboveSeaLevel}}{{/launchAltitudeMeters}}&lt;br/&gt;
+&lt;b&gt;{{labels.maxAltitude}}:&lt;/b&gt; {{maxAltitude}} {{altitudeUnit}}&lt;br/&gt;
+&lt;b&gt;{{labels.maxVelocity}}:&lt;/b&gt; {{maxVelocity}} {{velocityUnit}}&lt;br/&gt;
+&lt;b&gt;{{labels.maxAcceleration}}:&lt;/b&gt; {{maxAcceleration}} {{accelerationUnit}}&lt;br/&gt;
+&lt;b&gt;{{labels.maxRange}}:&lt;/b&gt; {{maxRange}} {{distanceUnit}} {{labels.fromThePad}}&lt;br/&gt;
+{{#timeToApogee}}&lt;b&gt;{{labels.timeToApogee}}:&lt;/b&gt; {{timeToApogee}} s&lt;br/&gt;
+{{/timeToApogee}}{{#flightTime}}&lt;b&gt;{{labels.flightTime}}:&lt;/b&gt; {{flightTime}} s&lt;br/&gt;
+{{/flightTime}}{{#branches}}{{#hasLanding}}&lt;b&gt;{{landingHeading}}:&lt;/b&gt; {{landingLatitudeStr}}, {{landingLongitudeStr}} {{labels.latLon}}; {{landingText}} {{labels.fromThePad}}; T+{{landingTime}} s&lt;br/&gt;
+{{/hasLanding}}{{/branches}}</description>
+{{/includeDescriptions}}
 {{#branches}}
 		<Style id="flightPath{{index}}"><LineStyle><color>{{pathColorKml}}</color><width>3</width></LineStyle></Style>
 		<Style id="groundTrack{{index}}"><LineStyle><color>{{groundColorKml}}</color><width>2</width></LineStyle></Style>
@@ -996,9 +1311,23 @@ const KML_TEMPLATE_SOURCE = `<?xml version="1.0" encoding="UTF-8"?>
 {{#branches}}
 		<Folder>
 			<name>{{name}}</name>
+{{#includeDescriptions}}
+			<Snippet></Snippet>
+			<description>&lt;b&gt;{{labels.maxRange}}:&lt;/b&gt; {{maxRange}} {{distanceUnit}} {{labels.fromThePad}}&lt;br/&gt;
+{{#hasLanding}}&lt;b&gt;{{labels.landing}}:&lt;/b&gt; {{landingLatitudeStr}}, {{landingLongitudeStr}} {{labels.latLon}}; {{landingText}} {{labels.fromThePad}}; T+{{landingTime}} s&lt;br/&gt;
+{{/hasLanding}}</description>
+{{/includeDescriptions}}
 {{#waypoints}}
 			<Placemark>
 				<name>{{qualifiedLabel}}</name>
+{{#includeDescriptions}}
+				<Snippet></Snippet>
+				<description>&lt;b&gt;{{labels.time}}:&lt;/b&gt; T+{{timeText}} s&lt;br/&gt;
+&lt;b&gt;{{labels.altitude}}:&lt;/b&gt; {{altitude}} {{altitudeUnit}} {{labels.abovePad}}{{#launchAltitudeMeters}}, {{altitudeMsl}} {{altitudeUnit}} {{labels.aboveSeaLevel}}{{/launchAltitudeMeters}}&lt;br/&gt;
+&lt;b&gt;{{labels.position}}:&lt;/b&gt; {{rangeText}} {{labels.fromThePad}}&lt;br/&gt;
+&lt;b&gt;{{labels.coordinates}}:&lt;/b&gt; {{latitudeStr}}, {{longitudeStr}} {{labels.latLon}}{{#device}}&lt;br/&gt;
+&lt;b&gt;{{labels.device}}:&lt;/b&gt; {{device}}{{/device}}</description>
+{{/includeDescriptions}}
 				<styleUrl>#waypoint{{index}}</styleUrl>
 				<Point>
 {{#extrudeWaypoints}}					<extrude>1</extrude>
@@ -1010,7 +1339,7 @@ const KML_TEMPLATE_SOURCE = `<?xml version="1.0" encoding="UTF-8"?>
 {{#includeFlightPath}}
 {{#hasPath}}
 			<Placemark>
-				<name>{{name}} flight path</name>
+				<name>{{name}} {{labels.flightPath}}</name>
 				<styleUrl>#flightPath{{index}}</styleUrl>
 				<LineString>
 {{#extrudePath}}					<extrude>1</extrude>
@@ -1026,7 +1355,7 @@ const KML_TEMPLATE_SOURCE = `<?xml version="1.0" encoding="UTF-8"?>
 {{#includeGroundTrack}}
 {{#hasPath}}
 			<Placemark>
-				<name>{{name}} ground track</name>
+				<name>{{name}} {{labels.groundTrack}}</name>
 				<styleUrl>#groundTrack{{index}}</styleUrl>
 				<LineString>
 					<tessellate>1</tessellate>

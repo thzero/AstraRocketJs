@@ -4,7 +4,13 @@ import type { ComponentNode } from '../../engine/openRocketEngine';
 import { useWorkspaceStore } from '../../state/store';
 import { componentFormats, type ExportFormat } from '../../services/componentFormats';
 
-const LABEL: Record<ExportFormat, string> = { stl: 'file.stl', obj: 'file.obj', glb: 'file.glb', dxf: 'file.dxf' };
+const LABEL: Record<ExportFormat, string> = {
+  stl: 'file.stl',
+  obj: 'file.obj',
+  glb: 'file.glb',
+  '3mf': 'file.3mf',
+  dxf: 'file.dxf',
+};
 
 /**
  * Per-component export affordance for a tree row: a small ⬇ button that drops

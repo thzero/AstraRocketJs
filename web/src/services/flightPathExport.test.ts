@@ -21,11 +21,14 @@ import {
 } from './flightPathExport';
 import type { FlightResult } from '../engine/openRocketEngine';
 import type { LaunchConditions } from './orkTree';
+import en from '../i18n/locales/en.json';
+import es from '../i18n/locales/es.json';
+import { localeTranslator } from '../testing/localeTranslator';
 
 // A tiny two-branch-free flight: launch → drift 100 m east / 200 m north,
 // climbing to 100 m AGL, with a couple of events.
 const result = {
-  summary: { maxAltitude: 100, maxVelocity: 50, maxAcceleration: 20 },
+  summary: { maxAltitude: 100, maxVelocity: 50, maxAcceleration: 20, timeToApogee: 1, flightTime: 2 },
   series: {
     time: [0, 1, 2],
     altitude: [0, 100, 0],
@@ -48,7 +51,7 @@ const launch: LaunchConditions = {
   launchAltitudeM: 1600,
 } as LaunchConditions;
 
-const label = (k: WaypointKind) => k; // identity labels for assertions
+const label = localeTranslator(en);
 
 const model = () =>
   buildFlightPathModel(
@@ -84,6 +87,51 @@ const separated = {
     },
   ],
 } as unknown as FlightResult;
+
+/**
+ * Out to 300 m and back to 50 m, so the farthest point and the landing point
+ * are different numbers. A rocket that drifts downrange under the chute and
+ * then partway back is the ordinary case, and reporting the landing distance
+ * as the range understates the ground the flight actually covered.
+ */
+const driftBack = {
+  summary: { maxAltitude: 100, maxVelocity: 50, maxAcceleration: 20, timeToApogee: 1, flightTime: 3 },
+  series: {
+    time: [0, 1, 2, 3],
+    altitude: [0, 100, 50, 0],
+    velocity: [0, 50, 10, 5],
+    acceleration: [20, 5, -2, -9.8],
+    Px: [0, 0, 0, 0],
+    Py: [0, 150, 300, 50],
+  },
+  events: [
+    { type: 'LIFTOFF', time: 0 },
+    { type: 'APOGEE', time: 1 },
+    { type: 'GROUND_HIT', time: 3 },
+  ],
+} as unknown as FlightResult;
+
+/**
+ * A run that ended while the rocket was still in the air — what OpenRocket's
+ * `BasicEventSimulationEngine` produces when it reaches the maximum simulation
+ * time, and (with no events at all) when a run is aborted before a motor fires.
+ */
+const neverLanded = {
+  ...result,
+  events: [
+    { type: 'LIFTOFF', time: 0.0 },
+    { type: 'APOGEE', time: 1.0 },
+  ],
+} as unknown as FlightResult;
+
+/**
+ * A rendered KML with its balloon markup taken back out, so an assertion reads
+ * like the balloon Google Earth draws rather than like the escaped source.
+ *
+ * The markup itself is checked once, on its own, rather than repeated into
+ * every assertion that happens to sit near a label.
+ */
+const asBalloonText = (kml: string): string => kml.replace(/&lt;\/?b&gt;/g, '').replace(/&lt;br\/&gt;/g, '\n');
 
 const build = (res: FlightResult, over: Partial<ReturnType<typeof defaultExportOptions>> = {}, site = launch) =>
   buildFlightPathModel(
@@ -176,8 +224,8 @@ describe('desktop model parity', () => {
     expect(apogee.qualifiedLabel).toBe(apogee.label);
 
     const both = build(staged);
-    expect(both.branches[0]!.waypoints.find((w) => w.type === 'apogee')!.qualifiedLabel).toBe('Sustainer apogee');
-    expect(both.branches[1]!.waypoints.find((w) => w.type === 'apogee')!.qualifiedLabel).toBe('Booster apogee');
+    expect(both.branches[0]!.waypoints.find((w) => w.type === 'apogee')!.qualifiedLabel).toBe('Sustainer Apogee');
+    expect(both.branches[1]!.waypoints.find((w) => w.type === 'apogee')!.qualifiedLabel).toBe('Booster Apogee');
   });
 
   it('names the branch on every waypoint', () => {
@@ -307,16 +355,16 @@ describe('mission name', () => {
     // naming the branch names the tracks too.
     expect(renderKml(m)).toContain('<name>Sod Blaster Sustainer flight path</name>');
     // The markers stay short: this is the opt-in half, and it was not opted in.
-    expect(m.branches[0]!.waypoints.find((w) => w.type === 'apogee')!.qualifiedLabel).toBe('Sustainer apogee');
+    expect(m.branches[0]!.waypoints.find((w) => w.type === 'apogee')!.qualifiedLabel).toBe('Sustainer Apogee');
   });
 
   it('reaches the markers only when asked to', () => {
     const m = build(staged, { missionName: 'Sod Blaster', labelWaypointsWithMission: true });
     const apogee = m.branches[0]!.waypoints.find((w) => w.type === 'apogee')!;
     // Qualified first, then prefixed: the stage stays next to the event.
-    expect(apogee.qualifiedLabel).toBe('Sod Blaster Sustainer apogee');
+    expect(apogee.qualifiedLabel).toBe('Sod Blaster Sustainer Apogee');
     // The unqualified label is what the GPX and the CSV carry, and is untouched.
-    expect(apogee.label).toBe('apogee');
+    expect(apogee.label).toBe('Apogee');
   });
 
   it('does not double a mission the name already leads with', () => {
@@ -324,7 +372,7 @@ describe('mission name', () => {
     // also what the branch is called. Without the guard: "Sustainer Sustainer".
     const m = build(staged, { missionName: 'Sustainer', labelWaypointsWithMission: true });
     expect(m.branches[0]!.name).toBe('Sustainer');
-    expect(m.branches[0]!.waypoints.find((w) => w.type === 'apogee')!.qualifiedLabel).toBe('Sustainer apogee');
+    expect(m.branches[0]!.waypoints.find((w) => w.type === 'apogee')!.qualifiedLabel).toBe('Sustainer Apogee');
     // Case is not part of the question a reader is asking.
     expect(build(staged, { missionName: 'sustainer' }).branches[0]!.name).toBe('Sustainer');
   });
@@ -333,14 +381,14 @@ describe('mission name', () => {
     const m = build(staged);
     expect(m.title).toBe('Sim 1');
     expect(m.branches.map((b) => b.name)).toEqual(['Sustainer', 'Booster']);
-    expect(m.branches[1]!.waypoints.find((w) => w.type === 'apogee')!.qualifiedLabel).toBe('Booster apogee');
+    expect(m.branches[1]!.waypoints.find((w) => w.type === 'apogee')!.qualifiedLabel).toBe('Booster Apogee');
   });
 
   it('treats a blank mission as no mission, not as a leading space', () => {
     const m = build(staged, { missionName: '   ', labelWaypointsWithMission: true });
     expect(m.title).toBe('Sim 1');
     expect(m.branches[0]!.name).toBe('Sustainer');
-    expect(m.branches[0]!.waypoints.find((w) => w.type === 'apogee')!.qualifiedLabel).toBe('Sustainer apogee');
+    expect(m.branches[0]!.waypoints.find((w) => w.type === 'apogee')!.qualifiedLabel).toBe('Sustainer Apogee');
     // And a name with slack around it still reads as the name.
     expect(build(staged, { missionName: '  Sod Blaster  ' }).title).toBe('Sod Blaster Sim 1');
   });
@@ -471,8 +519,8 @@ describe('buildFlightPathModel', () => {
     // sorted by time
     const times = w.map((x) => x.time);
     expect([...times].sort((a, b) => a - b)).toEqual(times);
-    // recovery label falls back to the device name
-    expect(w.find((x) => x.type === 'recovery')!.label).toBe('Main chute');
+    // the recovery label is the event word, qualified by the device
+    expect(w.find((x) => x.type === 'recovery')!.label).toBe('Main chute Ejection');
     // max velocity is at index 1 (v=50)
     expect(w.find((x) => x.type === 'maxvelocity')!.timeStr).toBe('1.00');
   });
@@ -612,8 +660,8 @@ describe('renderKml', () => {
     // what made a staged flight unreadable.
     const colors = [...k.matchAll(/<LineStyle><color>([0-9a-f]{8})</g)].map((m) => m[1]);
     expect(new Set(colors).size).toBeGreaterThan(1);
-    // A pin reading "apogee" twice is ambiguous once there is more than one stage.
-    expect(k).toContain('<name>Booster apogee</name>');
+    // A pin reading "Apogee" twice is ambiguous once there is more than one stage.
+    expect(k).toContain('<name>Booster Apogee</name>');
   });
 
   it('writes the two altitude modes into the halves they belong to', () => {
@@ -649,7 +697,7 @@ describe('renderKml', () => {
     expect(kml).not.toContain('<LabelStyle>');
     const quiet = renderKml(build(result, { showWaypointLabels: false }));
     expect(quiet).toContain('<LabelStyle><scale>0</scale></LabelStyle>');
-    expect(quiet).toContain('<name>apogee</name>'); // still there to click
+    expect(quiet).toContain('<name>Apogee</name>'); // still there to click
   });
 
   it('writes coordinates as lon,lat,alt', () => {
@@ -665,6 +713,394 @@ describe('renderKml', () => {
     );
     expect(k).not.toContain('#flightPath');
     expect(k).not.toContain('#groundTrack');
+  });
+});
+
+describe('flight summary', () => {
+  it('carries the whole-flight numbers the balloons report', () => {
+    const m = model();
+    expect(m.maxAltitude).toBe('100.0');
+    expect(m.maxRange).toBe('223.6'); // hypot(100, 200) at the last sample
+    expect(m.timeToApogee).toBe('1.0');
+    expect(m.flightTime).toBe('2.0');
+    // The two peaks are SI whatever the distance unit is, and until now nothing
+    // in the model said so.
+    expect([m.velocityUnit, m.accelerationUnit]).toEqual(['m/s', 'm/s²']);
+    expect([m.launchLatitudeStr, m.launchLongitudeStr]).toEqual(['40.000000', '-105.000000']);
+    expect(m.launchAltitude).toBe('1600.0');
+  });
+
+  it('reports where and when each stage came down', () => {
+    const branch = build(driftBack).branches[0]!;
+    expect(branch.hasLanding).toBe(true);
+    expect(branch.landingDistance).toBe('50.0');
+    expect(branch.landingBearing).toBe('0'); // due north
+    expect(branch.landingTime).toBe('3.0');
+    // Six decimals, like every other coordinate in the file - about 10 cm, and
+    // the same string whatever the magnitude of the number.
+    expect(branch.landingLatitudeStr).toBe('40.000450');
+    expect(branch.landingLongitudeStr).toBe('-105.000000');
+  });
+
+  it('reports the FARTHEST point as the range, not the landing point', () => {
+    // The whole reason both numbers are exported: a chute drifts the rocket out
+    // and partway back, and the range-safety figure is the excursion.
+    const m = build(driftBack);
+    expect(m.branches[0]!.maxRangeMeters).toBeCloseTo(300, 6);
+    expect(m.maxRange).toBe('300.0');
+    expect(m.branches[0]!.landingDistance).toBe('50.0');
+  });
+
+  it('scans a separated stage range over the WHOLE branch', () => {
+    // Unlike the peak-velocity waypoint, which starts at separation so a spent
+    // booster reports its own peak. A range is a claim about where that
+    // airframe WENT, and it went wherever the stack took it.
+    const m = build(separated);
+    expect(m.branches[1]!.maxRangeMeters).toBeCloseTo(m.branches[0]!.maxRangeMeters, 6);
+  });
+
+  it('reports no landing for a flight that never hit the ground', () => {
+    const branch = build(neverLanded).branches[0]!;
+    expect(branch.hasLanding).toBe(false);
+    expect([branch.landingDistance, branch.landingBearing, branch.landingTime]).toEqual(['', '', '']);
+    expect([branch.landingLatitudeStr, branch.landingLongitudeStr]).toEqual(['', '']);
+    // ...and the balloons lose those lines rather than inventing a touchdown at
+    // the altitude the rocket was still flying at.
+    const kml = renderKml(build(neverLanded));
+    expect(kml).not.toContain('Landing:');
+    expect(kml).not.toContain('Landing coordinates:');
+    expect(kml).not.toContain(' landing: ');
+    expect(kml).toContain('Max range:'); // the rest of the balloon survives
+  });
+
+  it('finds the landing even when the landing waypoint is switched off', () => {
+    // The summary is scanned from the branch events, not read back out of the
+    // generated waypoints, so turning the marker off cannot blind it.
+    const m = build(driftBack, { waypoints: new Set<WaypointKind>(['apogee']) });
+    expect(m.branches[0]!.hasLanding).toBe(true);
+    expect(m.branches[0]!.landingDistance).toBe('50.0');
+  });
+});
+
+describe('kernel component names', () => {
+  /**
+   * A parachute the user never renamed. The TeaVM kernel carries no resource
+   * bundles, so `getName()` falls through to `getComponentName()`, which is
+   * itself a bundle lookup - and the bare `DebugTranslator` the engine wires in
+   * returns the key in brackets. The name reaches us as `[Parachute.Parachute]`.
+   */
+  const unnamed = {
+    ...result,
+    events: [
+      { type: 'LIFTOFF', time: 0.0 },
+      { type: 'APOGEE', time: 1.0 },
+      { type: 'RECOVERY_DEVICE_DEPLOYMENT', time: 1.0, source: '[Parachute.Parachute]' },
+      { type: 'GROUND_HIT', time: 2.0 },
+    ],
+  } as unknown as FlightResult;
+
+  it('never writes a bundle key where a component name belongs', () => {
+    const m = build(unnamed);
+    const recovery = m.branches[0]!.waypoints.find((w) => w.type === 'recovery')!;
+    expect(recovery.device).toBe('Parachute');
+
+    const kml = renderKml(m);
+    expect(kml).not.toContain('[Parachute.Parachute]');
+    expect(asBalloonText(kml)).toContain('Device: Parachute');
+  });
+
+  it('names an unnamed device pin for the EVENT alone', () => {
+    // A default name says nothing the balloon's device line does not, so it
+    // earns no room in the pin's name.
+    const m = build(unnamed);
+    expect(m.branches[0]!.waypoints.find((w) => w.type === 'recovery')!.label).toBe('Ejection');
+    expect(renderKml(m)).toContain('<name>Ejection</name>');
+  });
+
+  it('qualifies the event word with a device the user named', () => {
+    // Not the device alone, which drops the event vocabulary every other pin
+    // uses, and not the event alone, which makes a dual-deployment flight two
+    // identical pins.
+    const dual = {
+      ...result,
+      events: [
+        { type: 'RECOVERY_DEVICE_DEPLOYMENT', time: 1.0, source: 'Drogue' },
+        { type: 'RECOVERY_DEVICE_DEPLOYMENT', time: 2.0, source: 'Main' },
+      ],
+    } as unknown as FlightResult;
+    const m = build(dual);
+    // In time order, which is the order they happened and the order the pins
+    // are written in.
+    expect(m.branches[0]!.waypoints.filter((w) => w.type === 'recovery').map((w) => w.label)).toEqual([
+      'Drogue Ejection',
+      'Main Ejection',
+    ]);
+    const kml = renderKml(m);
+    expect(kml).toContain('<name>Drogue Ejection</name>');
+    expect(kml).toContain('<name>Main Ejection</name>');
+    // The device never names a pin on its own - the event word always carries.
+    expect(kml).not.toContain('<name>Drogue</name>');
+    expect(kml).not.toContain('<name>Main</name>');
+  });
+
+  it('yields a plain Ejection when no component raised the deployment', () => {
+    // An event with no source at all, which is not the same as one carrying the
+    // kernel's default name: there is nothing to qualify with and nothing for
+    // the balloon's Device line, so that line goes too.
+    const m = build({
+      ...result,
+      events: [{ type: 'RECOVERY_DEVICE_DEPLOYMENT', time: 1.0 }],
+    } as unknown as FlightResult);
+    const recovery = m.branches[0]!.waypoints.find((w) => w.type === 'recovery')!;
+    expect(recovery.label).toBe('Ejection');
+    expect(recovery.device).toBe('');
+    expect(asBalloonText(renderKml(m))).not.toContain('Device:');
+  });
+
+  it('does not double a device already named for the event', () => {
+    // The stage qualifier's own guard, inherited: it drops the qualifier when
+    // the LABEL already starts with it, so a device called "Ejection" gives one
+    // word rather than two. It is that direction only - a device called
+    // "Ejection charge" still qualifies to "Ejection charge Ejection", which is
+    // silly but is not a name anybody gives a parachute, and widening the guard
+    // would change how stage names qualify too.
+    const named = (source: string) =>
+      build({
+        ...result,
+        events: [{ type: 'RECOVERY_DEVICE_DEPLOYMENT', time: 1.0, source }],
+      } as unknown as FlightResult).branches[0]!.waypoints.find((w) => w.type === 'recovery')!.label;
+    expect(named('Ejection')).toBe('Ejection');
+    expect(named('Drogue')).toBe('Drogue Ejection');
+  });
+
+  it('stacks the stage and the device on a staged flight', () => {
+    const staged2 = (source: string) =>
+      build({
+        ...result,
+        branches: [
+          { name: 'Sustainer', events: [], series: result.series },
+          {
+            name: 'Booster',
+            events: [{ type: 'RECOVERY_DEVICE_DEPLOYMENT', time: 1.0, source }],
+            series: result.series,
+          },
+        ],
+      } as unknown as FlightResult).branches[1]!.waypoints.find((w) => w.type === 'recovery')!.qualifiedLabel;
+
+    // Long, and exactly what that pin is.
+    expect(staged2('Drogue')).toBe('Booster Drogue Ejection');
+    // ...and the guard survives the stacking: a chute the user actually called
+    // "Booster Chute" must not come out "Booster Booster Chute Ejection". The
+    // stage prefix is dropped because the name it would prefix already leads
+    // with it.
+    expect(staged2('Booster Chute')).toBe('Booster Chute Ejection');
+  });
+
+  it('names the device in the EXPORT language, not the app language', () => {
+    // It used to be the one English word among translated pin names, because
+    // the de-bracketing produced a humanized key rather than a translation.
+    const kml = renderKml(
+      buildFlightPathModel(
+        unnamed,
+        launch,
+        { simName: 'Sim 1', rocketName: 'R', motorName: 'C6' },
+        defaultExportOptions(),
+        localeTranslator(es),
+      ),
+    );
+    expect(kml).toContain(`<name>${es.pathExport.wp.recovery}</name>`); // the event, translated
+    expect(asBalloonText(kml)).toContain(`${es.pathExport.doc.device}: ${es.part.parachute}`);
+    expect(kml).not.toContain('Parachute');
+  });
+
+  it('leaves a name the user actually typed alone', () => {
+    // Only the bracket form is a key. Everything else is somebody's name for
+    // their own part, and rewriting it would be the worse bug.
+    const m = build(result);
+    const recovery = m.branches[0]!.waypoints.find((w) => w.type === 'recovery')!;
+    expect(recovery.device).toBe('Main chute');
+  });
+});
+
+describe('export language', () => {
+  /**
+   * Expectations are read OUT of the Spanish bundle rather than written into
+   * this file. It keeps the test about the wiring - did the export take its
+   * strings from the language it was handed, and compose them in that
+   * language's word order - rather than about the wording, which a translator
+   * should be free to improve without breaking a test.
+   */
+  const esDoc = es.pathExport.doc;
+  const fill = (template: string, vars: Record<string, string>): string =>
+    template.replace(/{{(\w+)}}/g, (_m, name: string) => vars[name] ?? '');
+
+  const spanish = () =>
+    renderKml(
+      buildFlightPathModel(
+        result,
+        launch,
+        { simName: 'Sim 1', rocketName: 'My <Rocket>', motorName: 'C6' },
+        defaultExportOptions(),
+        localeTranslator(es),
+      ),
+    );
+
+  it('writes every string in the file, not just the waypoint names', () => {
+    // The point of the override. Translating the eight pin names and leaving
+    // the balloons and the track names in English is not a language choice.
+    const k = asBalloonText(spanish());
+    expect(k).toContain(`<name>${es.pathExport.wp.apogee}</name>`); // waypoint
+    expect(k).toContain(`${esDoc.flightPath}</name>`); // track names
+    expect(k).toContain(`${esDoc.groundTrack}</name>`);
+    expect(k).toContain(`${esDoc.maxAltitude}: 100.0 m`); // document balloon
+    expect(k).toContain(`${esDoc.maxRange}: 223.6 m ${esDoc.fromThePad}`); // folder balloon
+    expect(k).toContain(`${esDoc.coordinates}: 40.000901, -104.999414`); // waypoint balloon
+    expect(k).toContain(`${esDoc.device}: Main chute`);
+    // ...and nothing of the English is left behind.
+    expect(k).not.toContain('Max altitude');
+    expect(k).not.toContain('flight path</name>');
+  });
+
+  it('puts the stage name where the language puts it', () => {
+    // English hangs it in front ("Sustainer landing"); Spanish puts it after
+    // the noun. A template gluing `{{name}}` onto a translated word could only
+    // ever produce English word order, which is why this one is composed
+    // through `t()` instead.
+    expect(asBalloonText(spanish())).toContain(`${fill(esDoc.stageLanding, { stage: 'My &lt;Rocket&gt;' })}:`);
+    expect(asBalloonText(renderKml(model()))).toContain('My &lt;Rocket&gt; landing:');
+  });
+
+  it('orders a distance and a bearing the way the language does', () => {
+    const expected = fill(esDoc.distanceBearing, { distance: '223.6', unit: 'm', bearing: '27' });
+    expect(spanish()).toContain(expected);
+    expect(renderKml(model())).toContain('223.6 m at 27\u00b0');
+  });
+
+  it('leaves the numbers and the geometry alone', () => {
+    // Only the words are translated. A coordinate is not a word, and a reader
+    // in either language opens the same flight.
+    const k = spanish();
+    expect(k).toContain('<coordinates>-105,40,1600</coordinates>');
+    expect(k).toContain('<altitudeMode>absolute</altitudeMode>');
+    expect(k).toContain('id="flightPath0"');
+  });
+});
+
+describe('KML summary balloons', () => {
+  const kml = renderKml(model());
+
+  it('bolds every label, and leaves no line without one', () => {
+    // A balloon is a list of one-line facts, and a wall of same-weight text is
+    // not scannable. The label is bold and the value is not, including on the
+    // time line - which was the one line with no label at all.
+    expect(kml).toContain('&lt;b&gt;Max altitude:&lt;/b&gt; 100.0');
+    expect(kml).toContain('&lt;b&gt;Time:&lt;/b&gt; T+');
+    // Every line of every balloon: as many bold runs as there are lines.
+    for (const [, body] of kml.matchAll(/<description>([\s\S]*?)<\/description>/g)) {
+      const lines = body!.split('&lt;br/&gt;').filter((l) => l.trim());
+      expect(lines.length).toBe(body!.split('&lt;b&gt;').length - 1);
+    }
+  });
+
+  it('puts the flight summary on the document', () => {
+    const doc = asBalloonText(kml.slice(0, kml.indexOf('<Style')));
+    expect(doc).toContain('Configuration: C6');
+    // A labeled pair. Nothing in a bare `40.000000, -105.000000` says which is
+    // which, and KML's own coordinate triples are lon,lat,alt - so a reader who
+    // knows the format has an active reason to read it backwards, and at a real
+    // launch site both readings are plausible.
+    expect(doc).toContain('Launch site: 40.000000, -105.000000 (lat, lon), 1600.0 m above sea level');
+    expect(doc).toContain('Max altitude: 100.0 m');
+    expect(doc).toContain('Max velocity: 50.0 m/s');
+    expect(doc).toContain('Max acceleration: 20.0 m/s²');
+    // The range keeps its origin, like the bearings do.
+    expect(doc).toContain('Max range: 223.6 m from the pad');
+    expect(doc).toContain('Time to apogee: 1.0 s');
+    expect(doc).toContain('Flight time: 2.0 s');
+    expect(doc).toContain('Rocket: My &lt;Rocket&gt;'); // labeled, like every other line
+    // The landing leads with the coordinate: a distance and a bearing read the
+    // map, but they do not walk you to the rocket. Semicolons between the
+    // clauses, because the coordinate carries a comma of its own and an
+    // all-comma line reads as one run-on group. The bearing keeps its origin:
+    // a bare angle beside a coordinate can be read as a heading of travel.
+    expect(doc).toContain('landing: 40.001801, -104.998829 (lat, lon); 223.6 m at 27° from the pad; T+2.0 s');
+  });
+
+  it('puts the range and the landing on the stage folder', () => {
+    const folder = asBalloonText(kml.slice(kml.indexOf('<Folder>'), kml.indexOf('<Placemark>')));
+    // No line repeating the folder's own name back at the reader: Google Earth
+    // prints it above the balloon already.
+    expect(folder).not.toContain('Stage:');
+    expect(folder).toContain('Max range: 223.6 m from the pad');
+    // The same fact presented the same way as in the document summary: leading
+    // with the coordinate, on one line. A separate "Landing coordinates" line
+    // demoted the very thing the document leads on, and gave one file two
+    // presentations of one fact.
+    expect(folder).toContain('Landing: 40.001801, -104.998829 (lat, lon); 223.6 m at 27° from the pad; T+2.0 s');
+  });
+
+  it('puts the point own numbers on each waypoint', () => {
+    const at = kml.indexOf('<name>Apogee</name>');
+    const apogee = asBalloonText(kml.slice(at, kml.indexOf('</Placemark>', at)));
+    // One notation AND one precision for one quantity: the landing lines say
+    // T+2.0 s, so a waypoint must not say T+1.00 s.
+    expect(apogee).toContain('Time: T+1.0 s');
+    expect(apogee).not.toContain('T+1.00 s');
+    // One label, two references: the same word twice down two lines was the
+    // duplication a bold label makes obvious.
+    expect(apogee).toContain('Altitude: 100.0 m above the pad, 1700.0 m above sea level');
+    expect(apogee).toContain('Position: 111.8 m at 27° from the pad');
+    expect(apogee).toContain('Coordinates: 40.000901, -104.999414 (lat, lon)');
+    // Only an ejection names a device; every other pin loses the line.
+    expect(apogee).not.toContain('Device:');
+    expect(asBalloonText(kml)).toContain('Device: Main chute');
+  });
+
+  it('gives every described feature an empty Snippet, before the description', () => {
+    // Without it Google Earth prints the first lines of the description under
+    // the feature name in the Places tree, turning the waypoint list into a
+    // wall of text. KML fixes the order: name, Snippet, description, styleUrl.
+    expect(kml.split('<Snippet></Snippet>').length).toBe(kml.split('<description>').length);
+    for (const [, between] of kml.matchAll(/<Snippet><\/Snippet>([\s\S]*?)<description>/g)) {
+      expect(between!.trim()).toBe('');
+    }
+  });
+
+  it('shows the range and the landing as the different numbers they are', () => {
+    // The default fixture flies straight out, so its range and its landing
+    // distance are the same 223.6 m and the balloon states one number twice.
+    // Correct, but it does not exercise the distinction the two figures exist
+    // for. This one drifts out to 300 m and comes back to 50 m.
+    const k = renderKml(build(driftBack));
+    const doc = asBalloonText(k.slice(0, k.indexOf('<Style')));
+    expect(doc).toContain('Max range: 300.0 m from the pad');
+    expect(doc).toContain('(lat, lon); 50.0 m at 0° from the pad; T+3.0 s');
+  });
+
+  it('leaves the sea-level lines out when the site has no altitude', () => {
+    // OpenRocket's launch altitude defaults to 0. Reporting a height "above sea
+    // level" that is really a height above the pad is the exact error the
+    // automatic altitude reference already exists to prevent.
+    const k = asBalloonText(renderKml(build(result, {}, { ...launch, launchAltitudeM: 0 } as LaunchConditions)));
+    expect(k).not.toContain('above sea level');
+    expect(k).toContain('Launch site: 40.000000, -105.000000 (lat, lon)\n'); // no elevation clause
+    expect(k).toContain('above the pad'); // the height that IS known survives
+  });
+
+  it('leaves the configuration line out when there is no named configuration', () => {
+    const m = model();
+    m.configuration = '';
+    expect(renderKml(m)).not.toContain('Configuration:');
+  });
+
+  it('writes no descriptions at all when they are switched off', () => {
+    const k = renderKml(build(result, { includeDescriptions: false }));
+    expect(k).not.toContain('<description>');
+    expect(k).not.toContain('<Snippet>');
+    // ...and it is otherwise the same file.
+    expect(k).toContain('<coordinates>-105,40,1600</coordinates>');
+    expect(k).toContain('<name>Apogee</name>');
+    expect(k).toContain('id="flightPath0"');
   });
 });
 
@@ -711,7 +1147,7 @@ describe('renderUserTemplate (Mustache)', () => {
       'Rocket: {{rocketName}} / Motor: {{motor}}\n{{#branches}}{{name}}: {{#waypoints}}[{{label}}]{{/waypoints}}{{/branches}}';
     const out = renderUserTemplate(src, 'txt', model());
     expect(out).toContain('Rocket: My <Rocket> / Motor: C6'); // txt → no escaping
-    expect(out).toContain('[apogee]');
+    expect(out).toContain('[Apogee]');
   });
 
   it('reproduces the reference KML coordinate loop with hasPath/section gating', () => {

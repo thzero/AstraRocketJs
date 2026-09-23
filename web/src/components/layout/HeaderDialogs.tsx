@@ -4,19 +4,31 @@ import { defaultDesignName } from '../../services/appInfo';
 import { useWorkspaceStore } from '../../state/store';
 import { DesignLibraryDialog } from './DesignLibraryDialog';
 import { DesignPropertiesDialog } from './DesignPropertiesDialog';
+import { ExamplesDialog } from './ExamplesDialog';
 import { AboutDialog } from './AboutDialog';
 import { ExportDialog } from '../report/ExportDialog';
+import { PrintExportDialog } from '../report/PrintExportDialog';
+import { HelpDialog } from './HelpDialog';
 import { PrivacyDialog } from './PrivacyDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { MotorDashboard } from '../sim/MotorDashboard';
+import { LocationsDialog } from '../sim/LocationsDialog';
+import { useHelpStore } from '../../state/helpStore';
 
 /**
  * The header's dialog host: the open flag of every dialog the bar and its
  * menu can raise, and the block that mounts each one only while it is open.
  * `useHeaderDialogs()` returns the opener plus the element to render.
+ *
+ * Help is the one exception to the flag list. It is raised from all over the
+ * app (the Safety card in the results panel, and anything else that wants to
+ * open help ON its own topic), so which page it is showing lives in
+ * {@link useHelpStore} instead, and it is mounted here only because the header
+ * is where the app-wide dialogs already are.
  */
 
-export type HeaderDialog = 'motors' | 'report' | 'about' | 'privacy' | 'settings' | 'library' | 'saveAs';
+export type HeaderDialog =
+  'motors' | 'report' | 'about' | 'privacy' | 'settings' | 'library' | 'examples' | 'print' | 'locations' | 'saveAs';
 
 type OpenFlags = Record<HeaderDialog, boolean>;
 
@@ -27,6 +39,9 @@ const NONE_OPEN: OpenFlags = {
   privacy: false,
   settings: false,
   library: false,
+  examples: false,
+  print: false,
+  locations: false,
   saveAs: false,
 };
 
@@ -45,6 +60,8 @@ export function useHeaderDialogs() {
    made every dialog's state outlive its own closing. */
 function HeaderDialogs({ flags, onClose }: { flags: OpenFlags; onClose: (id: HeaderDialog) => void }) {
   const { t } = useTranslation();
+  const helpPage = useHelpStore((s) => s.page);
+  const closeHelp = useHelpStore((s) => s.closeHelp);
   const saveDesignAs = useWorkspaceStore((s) => s.saveDesignAs);
   const designs = useWorkspaceStore((s) => s.designs);
   // Pre-fill Save As with the imported .ork's name when there is one.
@@ -56,8 +73,16 @@ function HeaderDialogs({ flags, onClose }: { flags: OpenFlags; onClose: (id: Hea
       {flags.report && <ExportDialog onClose={() => onClose('report')} />}
       {flags.about && <AboutDialog onClose={() => onClose('about')} />}
       {flags.privacy && <PrivacyDialog onClose={() => onClose('privacy')} />}
+      {/* '' is the docs index, so the null check is not a truthiness check.
+          Keyed on the page so that opening Help again ON A DIFFERENT topic
+          starts it over rather than leaving the previous page's back stack
+          behind it. */}
+      {helpPage !== null && <HelpDialog key={helpPage} page={helpPage} onClose={closeHelp} />}
       {flags.settings && <SettingsDialog onClose={() => onClose('settings')} />}
       {flags.library && <DesignLibraryDialog onClose={() => onClose('library')} />}
+      {flags.examples && <ExamplesDialog onClose={() => onClose('examples')} />}
+      {flags.print && <PrintExportDialog onClose={() => onClose('print')} />}
+      {flags.locations && <LocationsDialog onClose={() => onClose('locations')} />}
       {flags.saveAs && (
         <DesignPropertiesDialog
           title={t('file.saveAs')}

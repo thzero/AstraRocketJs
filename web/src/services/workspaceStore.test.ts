@@ -18,13 +18,31 @@ class FakeKv implements KeyValueStore {
   async remove(k: string) {
     this.map.delete(k);
   }
+  /**
+   * ATOMIC, like the real IndexedDB transaction behind it.
+   *
+   * It used to be a plain `get` then `set` with an await in between, so two
+   * overlapping index mutations each read the same list and the second
+   * clobbered the first. That is not what the store does - and it hid the
+   * duplicate-entry bug below, because three concurrent creates left one
+   * surviving index row and the test read that as "one design".
+   */
+  private lock: Promise<unknown> = Promise.resolve();
   async update(k: string, fn: (raw: string | null) => string | null) {
-    const next = fn(await this.get(k));
-    if (next === null) {
-      await this.remove(k);
-      return true;
+    const prev = this.lock;
+    let release!: () => void;
+    this.lock = new Promise<void>((r) => (release = r));
+    await prev;
+    try {
+      const next = fn(this.map.get(k) ?? null);
+      if (next === null) {
+        this.map.delete(k);
+        return true;
+      }
+      return await this.set(k, next);
+    } finally {
+      release();
     }
-    return await this.set(k, next);
   }
 }
 
@@ -117,6 +135,57 @@ describe('LibraryWorkspaceStore', () => {
     await store.save(workspace());
     await store.save(workspace());
     expect(await new DesignLibrary(kv).list()).toHaveLength(1);
+  });
+
+  /**
+   * Overlapping FIRST saves are one design, not one each.
+   *
+   * Every save that finds no active id used to call `lib.create()`, and the
+   * first create is the slowest write the app makes. The 500 ms autosave
+   * debounce can fire again inside it, and the `visibilitychange` flush saves
+   * outside the debounce entirely - so tabbing away just after an import left
+   * the library holding several identical rockets, all but one of them
+   * orphaned, which is what File > Open was full of.
+   */
+  it('creates ONE design when first saves overlap', async () => {
+    await Promise.all([store.save(workspace()), store.save(workspace()), store.save(workspace())]);
+    expect(await new DesignLibrary(kv).list()).toHaveLength(1);
+  });
+
+  it('writes the later of two overlapping first saves into the created design', async () => {
+    const second = { ...workspace(), activeId: 'later' } as unknown as Workspace;
+    await Promise.all([store.save(workspace()), store.save(second)]);
+    const lib = new DesignLibrary(kv);
+    const [meta] = await lib.list();
+    expect((await lib.read(meta!.id))!.activeId).toBe('later');
+  });
+
+  /**
+   * A create that lands after the workspace has been replaced must not adopt
+   * its id: the entry it made belongs to the design that just went away, and
+   * claiming it would send the NEW design's autosaves over the old one.
+   */
+  it('does not adopt a create that finished after a detach', async () => {
+    const saving = store.save(workspace());
+    store.setActiveId(null); // New / a second import, mid-create
+    await saving;
+    await store.save(workspace());
+    expect(await new DesignLibrary(kv).list()).toHaveLength(2);
+  });
+
+  it('creates under the pending name when one was set', async () => {
+    store.setActiveId(null);
+    store.setPendingName('Big Bertha (2)');
+    await store.save(workspace());
+    expect((await new DesignLibrary(kv).list())[0]!.name).toBe('Big Bertha (2)');
+  });
+
+  it('forgets the pending name once it has been used', async () => {
+    store.setPendingName('Once');
+    await store.save(workspace());
+    store.setActiveId(null);
+    await store.save(workspace());
+    expect((await new DesignLibrary(kv).list()).map((m) => m.name)).toEqual(['My Rocket', 'Once']);
   });
 
   /**

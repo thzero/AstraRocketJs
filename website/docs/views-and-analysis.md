@@ -81,6 +81,12 @@ The flight **trajectory in 3D** — the rocket's path through space, including d
 
 An **⬇ Export** button saves the flight path for mapping tools — **KML** (Google Earth), **GPX**, or a **waypoint CSV** — with options for which waypoints and lines to include, and support for your own templates. See [Files & Exports](./files-and-exports.md#exporting-the-flight-path-kml--gpx--csv).
 
+### Playing the flight back
+
+The 3D path replays the flight rather than only drawing it. **▶ Play flight** starts a T-minus countdown (5, 4, 3, 2, 1) and then launches; clicking again during the countdown cancels it, and during the flight pauses. Drag the **timeline** to scrub to any moment, and pick a **speed** from 0.25× to 4×. Speed is about wall-clock time, not simulated time, so the boost is not over before you have seen it.
+
+The speed a run starts at comes from **[Settings ▸ Playback](./settings.md#playback)**.
+
 ## Reading the stats strip
 
 The bottom strip summarizes the current design as a grid of tiles (collapse it with the chevron on its header):

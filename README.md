@@ -24,16 +24,19 @@ The UI is **responsive**: a three-pane workbench (editor · rocket view · motor
 
 **Data & I/O**
 - **Full `.ork` support** — open and save round-trip at full fidelity (files re-open in desktop OpenRocket).
-- Keep **several rockets** in the browser and switch between them; everything autosaves, and `.ork` import/export moves designs to and from your disk.
+- **RockSim `.rkt` import and export** — designs move both ways with RockSim as well, across up to three stages. Motors and launch conditions stay behind, since RockSim keeps those with its simulations rather than its designs.
+- **The sixteen example rockets that ship with OpenRocket**, built in under **Import → Examples** — clusters, pods, tube fins, parallel and serial staging, dual deployment, a separating payload section. Pulled from the same OpenRocket commit the engine is built from, and opened as your own unsaved copy.
+- Keep **several rockets** in the browser and switch between them; everything autosaves (the top bar says when the last save landed), and `.ork` import/export moves designs to and from your disk. Importing a rocket whose name you have already saved asks whether to overwrite it or keep both, so the library does not fill up with copies.
 - Real motor **thrust curves** from thrustcurve.org (~800 motors), plus **`.eng` import** and custom motors.
 - OpenRocket **materials** (built-in + your own) and a **component-preset** catalog (~2,900 real Estes/Apogee/LOC/… parts).
-- **Exports**: a full **rocket design report** (summary, parts detail, motors, and 1:1 fin/nose/transition templates) to **PDF**, or the design summary to **CSV**; the design to **RASAero II (`.CDX1`)**; individual components to **3D models (STL / OBJ / GLB)** for printing/CAD and flat parts to **DXF** cut sheets; flight data & aero tables to **CSV**; the **flight path** to **KML / GPX / waypoint CSV** (Google Earth / GPS, with a **Mission** name and per-stage track colors, and importable custom **templates**); and the 2D schematic to **SVG / PNG / JPG**.
+- **Exports**: a full **rocket design report** (summary, parts detail, motors, and 1:1 fin/nose/transition templates) to **PDF**, or the design summary to **CSV**; the design to **RASAero II (`.CDX1`)**; the whole design's printable parts to **3MF** (one file, a named object per part) and individual components to **3D models (STL / OBJ / GLB / 3MF)** for printing/CAD, with flat parts to **DXF** cut sheets; flight data & aero tables to **CSV**; the **flight path** to **KML / GPX / waypoint CSV** (Google Earth / GPS, with a **Mission** name and per-stage track colors, and importable custom **templates**); and the 2D schematic to **SVG / PNG / JPG**.
 - Multiple named **simulations**, each with full launch setup (rod, site, atmosphere, multi-level wind, earth model).
 
 **Yours, on your device**
 - No server, no accounts, nothing uploaded — the physics runs entirely on your device. Your `.ork` designs are **files on your disk** (open / save); the browser just keeps a working copy (so a refresh won't lose your rocket) plus your custom motors, materials, and settings.
 - **Units are yours to pick** — metric or imperial presets, or a unit per quantity (lengths, altitude, mass, velocity, wind, acceleration, angle, density, temperature, pressure, thrust, impulse), and the unit printed beside any value is a picker for that one field. Designs are always stored in SI, so switching units never edits a rocket or changes how a `.ork` is written — units live in your browser, not in the file, so a design opened in desktop OpenRocket shows in OpenRocket's units.
 - **Responsive** (desktop three-pane workbench → tabs on a phone, with the rocket views turned to the screen's long edge), in **English and Spanish**.
+- **Says what its numbers are worth** — launch conditions are held to the NAR / Tripoli flying limits (rod within 20° of vertical, surface wind at or below 20 mph) and a run outside them is refused. Every set of results carries a **Before you fly** card naming what the model does not have (fin flutter, structural loads, parachute inflation and opening shock, your motor on the day), linking to a **[Safety](https://thzero.github.io/AstraRocketJs/docs/safety)** page.
 
 ## Getting started
 
@@ -54,7 +57,8 @@ Full setup — dev server, build, engine rebuild, catalog tools, and tests — i
 
 ## Documentation
 
-- **[Documentation](https://thzero.github.io/AstraRocketJs/docs/)** — the user guide: getting started, designing a rocket, motors, the views, running simulations, and files/exports.
+- **[Documentation](https://thzero.github.io/AstraRocketJs/docs/)** — the user guide: getting started, designing a rocket, motors, the views, running simulations, files/exports, and safety.
+- **[Safety](https://thzero.github.io/AstraRocketJs/docs/safety)** — what a simulation result is worth, what the model does not know, and what to check on the rocket you actually built before you fly it.
 - **[Architecture & internals](https://thzero.github.io/AstraRocketJs/docs/architecture)** — how the extracted engine, motor/material/component data, `.ork` I/O, and swappable stores work (the developer reference).
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** — how to report bugs, develop, translate, and submit changes (full guide in the [documentation](https://thzero.github.io/AstraRocketJs/docs/contributing)).
 - **[Code of Conduct](CODE_OF_CONDUCT.md)**
@@ -67,6 +71,14 @@ Contributions are very welcome — code, bug reports, translations, docs, and mo
 
 Engine: working, validated bit-identical against upstream OpenRocket (JVM↔JS, and WASM↔JS). UI: actively developed — component-tree editor, stability, 2D/3D views, motor picker, `.ork` import/export, and flight simulation with charts (run off the main thread in a Web Worker to keep the UI responsive).
 
+## Safety and disclaimer
+
+A simulation is a model, and a model is only as good as what it knows. Before you fly a rocket you designed here, read the **[Safety](https://thzero.github.io/AstraRocketJs/docs/safety)** page and check the rocket you actually built against it.
+
+This software is provided "as is", without warranty of any kind, express or implied, including any warranty of accuracy, merchantability, or fitness for a particular purpose. Simulation results are estimates. They are not a substitute for the applicable safety code, a range safety officer, an airspace waiver, or your own judgment.
+
+**You, and you alone, are responsible for any rocket you build, any motor you use, and any flight you make.** Neither AstraRocketJs, its contributors, nor the authors of the software it derives from accept any liability for injury, death, property damage, regulatory violations, or any other loss arising from use of this software or reliance on its output, to the fullest extent permitted by law. By using the software you accept this.
+
 ## Attribution & license
 
-The engine derives from the OpenRocket core (a post-24.12 development build; GPL-3.0); the opt-in supersonic-aero (RASAero) extensions are the original work of the mmrocket-sim project. Full credits and license lineage: **[`engine-java/ATTRIBUTION.md`](engine-java/ATTRIBUTION.md)** (and `docs/rasaero/` for the extensions' physics + diffs).
+The engine derives from the OpenRocket core (GPL-3.0) at one pinned commit, named in [`engine-java/extract/UPSTREAM`](engine-java/extract/UPSTREAM) and shown, with its date, in the app's About dialog and on the docs' [Overview](https://thzero.github.io/AstraRocketJs/docs/) page; the opt-in supersonic-aero (RASAero) extensions are the original work of the mmrocket-sim project. Full credits and license lineage: **[`engine-java/ATTRIBUTION.md`](engine-java/ATTRIBUTION.md)** (and `docs/rasaero/` for the extensions' physics + diffs).

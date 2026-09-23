@@ -1,6 +1,6 @@
 ---
 title: "Architecture & internals"
-sidebar_position: 15
+sidebar_position: 16
 ---
 > Developer/architecture reference — the deep dive behind the [Developer Guide](./developer-guide.md). The repo's [README](https://github.com/thzero/AstraRocketJs/blob/HEAD/README.md) is the short overview; [Contributing](./contributing.md) covers how to work on the project.
 
@@ -111,6 +111,40 @@ Real manufacturer parts (Estes/Apogee/LOC/BlueTube/…), extracted from the **Op
 
 Like the motor catalog, it is a generated file under `public/data/` fetched on first use (see above) rather than compiled into the bundle, so it costs nothing until a picker is opened — and it is published to the `data` branch on the same weekly schedule.
 
+## RockSim (`.rkt`) I/O
+
+Read by `services/rktImport.ts` and written by `services/rktExport.ts` — a TypeScript PORT of OpenRocket's `file/rocksim/` package, not an extraction of it. That package is SAX-based and pulls in the desktop's document, appearance and warning machinery; the schema it encodes is small enough to read directly, and reading it here keeps both directions on the same side of the engine boundary as the `.ork` pair: plain DOM, unit-testable, no kernel round trip. The element vocabulary, the unit factors and the four enums are transcribed from `RockSimCommonConstants.java` and its siblings, so an upstream bump can be diffed against those files.
+
+Three conversions run through everything, and getting one wrong yields a design that is silently 2x or 1000x off rather than one that fails to load: RockSim is **millimeters** and **grams**, and every circular dimension in the file is a **diameter**. The exceptions are documented at their call sites — a parachute's `Dia` really is a diameter on both sides, and `ShroudLineMassPerMM` is kg/m despite its name.
+
+`services/designFile.ts` picks the reader from the file's BYTES (a zip is a `.ork`; otherwise the root element decides), so `loadOrk` has one path for both formats and everything downstream — the notes banner, the safety-limit check, the unsaved-copy semantics — is shared rather than duplicated per format. The header carries one hidden file input per format, differing only in `accept`.
+
+Neither side is lossless in general, and both say so: RockSim has ring tails, detachable pods and subassemblies we do not, and we have rail buttons and parallel stages it does not. The importer collects those into the loaded-design notes; the exporter returns the skipped types to the caller, which surfaces them rather than letting a user discover the gap when somebody else opens the file.
+
+## Example rockets
+
+The sixteen designs OpenRocket ships and opens from *File → Open Example*, bundled with the app under `web/public/examples/` and listed by a generated `examples.generated.json`.
+
+`web/scripts/sync-examples.mjs` (`npm run sync:examples`) pulls them from the **same commit `engine-java/extract/UPSTREAM` pins for the engine**, so an example can never demonstrate a feature the bundled kernel does not have. It also **strips each file's stored `<flightdata>`**: 90% of the bytes — 2.9 MB of the 3.3 MB across the set — and dead weight here, because `orkImport` never reads it (the app runs its own simulations). Stripped, the set is ~330 kB. Designs, appearances, decals and embedded thrust curves are untouched.
+
+Deliberately **`public/examples/`, not `public/data/`**. The catalogs under `public/data` are refreshed weekly by `sync-catalogs.yml` and served from the `data` branch, because they change without the app; examples change only when the app is rebuilt against a newer OpenRocket. They are precached instead (`ork` is in the PWA's `globPatterns`), so an example opens on a first offline load.
+
+`services/exampleLibrary.ts` fetches the index and one file's bytes; `store.openExample` hands those bytes to **`openOrkFile`**, so an example takes the identical path a picked file does — the same notes banner, the same safety-limit check, the same unsaved-copy semantics, the same question when its name is already in the library, and no second code path. Reached from **Import → Examples**, and from the second tab of the design library.
+
+`src/services/exampleLibrary.test.ts` imports and builds **every** example through the real kernel and resolves its motors against the committed catalog, so neither the strip nor an upstream bump can quietly ship a broken one.
+
+## Geometry export (3D print / CAD / cut files)
+
+Every printable output starts at `services/solidMesh.ts`, which builds a **watertight solid** per component and is the choke point that refuses one it cannot make manifold (`solidForNode` returns null rather than writing a file no slicer accepts). From there:
+
+- `services/meshExport.ts` wraps three.js's STL / OBJ / glTF exporters, scaling meters → **millimeters** (`M_TO_MM`) because that is the unit every slicer and CAD tool assumes.
+- `services/threeMf.ts` writes **3MF** directly — it is a zip of three XML members (OPC content types, a relationship, and the model), not a three.js exporter, so it reads the geometry's vertex and index buffers itself. 3MF is the only one of the four that carries the part's **name**, a **color** and the **declared unit**, which is what makes a whole-rocket export useful rather than a pile of anonymous solids.
+- `services/dxfExport.ts` writes the flat outline of a plate-cut part.
+- `services/componentFormats.ts` says which formats a component type offers (the tree's ⬇ button asks it, and it is deliberately free of heavy imports); `services/componentExport.ts` is the on-demand chunk that actually builds and downloads one part.
+- `services/rocketPrintExport.ts` is the whole-rocket path: it walks the design for printable parts, builds each solid by the same two routes `componentExport` uses (a disc/ring needs its parent tube's bore resolved), and writes either one 3MF of named objects or a zip of one file per part.
+
+**Orientation is never changed.** Solids are lathed about Y and rotated into X (`solidMesh.ts`), so the rocket's axis runs along X and bodies export lying down. The print export's "place on the build plate" is a pure TRANSLATION for that reason: standing parts up would be right for tubes and wrong for every fin and ring, and it would make the 3MF differ from the STL of the same part.
+
 ## Opening `.ork` files
 
 **Open .ork** loads an existing OpenRocket design at **full fidelity** — any design the engine's component-tree API supports (stages, transitions, couplers, rings, bulkheads…), not just the fixed editor layout:
@@ -123,6 +157,18 @@ Like the motor catalog, it is a generated file under `public/data/` fetched on f
 - **`web/src/services/loadOrk.ts`** orchestrates: `importOrk` → `buildTree` → resolve each mount's motor against our catalog (`findCatalogMotor` → `fetchMotorSpec`) → `staticInfo`. Unresolved motors / unsupported components surface as notes on the loaded-design banner.
 
 **Save .ork** exports the current design (`orkFile.exportOrk` → zipped with `fflate` → downloaded via `web/src/services/saveOrk.ts`). Export → re-import is verified **bit-identical** (same mass/CG/CP/stability), and the files re-open in desktop OpenRocket.
+
+## Saved launch locations
+
+`services/launchLocationStore.ts` is the fourth store in the family (motors, materials, export templates, locations): a typed `LaunchLocationStore` over a `KeyValueStore` under `pads:custom` — the stored key keeps the feature's old name on purpose, because it is what somebody's browser already has their fields saved under and renaming it would strand that entry with nothing reading it — swappable via `setLaunchLocationStore`. A `LaunchLocation` is a name plus the three site fields — `latitudeDeg`, `longitudeDeg`, `launchAltitudeM` — stored in SI like everything else, and validated on save against the same ranges `LaunchPanel` clamps its fields to, so a hand-edited blob cannot put a latitude past ±90 into the kernel's gravity and Coriolis terms or into a KML origin.
+
+It deliberately holds NOTHING else. The rod, the wind and the atmosphere are conditions on the day rather than properties of a field.
+
+`components/sim/LocationEditDialog.tsx` edits a location in full — name, latitude, longitude and elevation — and creates one from nothing, which is the only way to add a location from the menu. Its `min`/`max` are the store's own ranges, so `NumberInput`'s clamp makes a value `launchLocationStore.isLocation` would reject unreachable rather than refused after the fact, and its elevation field binds to the launch panel's own unit scope so both read in the same unit.
+
+`components/sim/LocationsDialog.tsx` is the list, and is self-contained — it loads from the store and applies a location through `patchLaunch` — so the same component serves both the launch panel's ⚙ and **menu → Launch locations**, where no site field is on screen to write into. `components/sim/LocationPicker.tsx` mounts at the top of the launch panel's Site group and writes through the panel's own `onChange` / `onCommit`, so applying a location is an ordinary undoable edit subject to the same multi-selection rules as typing the numbers. Which location is "current" is derived by COMPARING THE NUMBERS rather than remembering a selected id: the fields can be changed by an import, by geolocation or by hand, and a remembered id would keep claiming a location that is no longer what is on screen. Both read the list through `components/sim/useLocationList.ts`, which numbers its reads and drops a superseded answer: IndexedDB's initial open makes the FIRST `list()` of a session the slowest, so a location saved in the meantime would refresh, resolve first, and then be overwritten by the empty list that first read took before the save — leaving a dropdown with no locations over a database that has them, with nothing to retry because nothing knows it is wrong.
+
+`components/sim/SiteMap.tsx` draws the launch site, with `services/slippyMap.ts` holding the Web Mercator projection, the two tile sources and the viewport math. There is no mapping library: showing one point, dragging it, panning and zooming is the entire requirement, and Leaflet or MapLibre would bring a layer system, a plugin surface and a stylesheet for the parts we do not use, so tiles are `<img>` tags at computed offsets. Keeping the projection pure is what lets it be tested against hand-computed Mercator figures rather than by eye. Both layers come from Esri (`World_Imagery` and `World_Street_Map`, whose paths are `{z}/{y}/{x}` rather than the usual `{z}/{x}/{y}`), and a Workbox `CacheFirst` rule in `vite.config.ts` keeps up to 600 of them: a tile is a picture of the ground, so a stale one is still right, and a location checked at home has to draw at a field with no signal. Three consecutive tile errors with none loaded swaps in a coordinate graticule rather than an empty gray box — deliberately not a drawn coastline, since inventing a rough one would put the pin in a shape that is nearly a country, which is worse than no shape when the job is telling you whether the numbers are where you meant. The street layer was `tile.openstreetmap.org` at first, which was wrong on two counts: those servers are donated, volunteer-funded infrastructure that the OSM Tile Usage Policy reserves for OpenStreetMap's own use, and they enforce it, so the layer 403'd in the browser as soon as it shipped. The app also asked for tiles with `referrerPolicy="no-referrer"`, which strips the one header a provider has to identify who is calling - the polite half of using someone else's tiles, and the signature they block on. Esri's street map carries OSM data and credits it in the attribution, so the surveyors are still credited over a CDN that is provisioned for being used. A unit test asserts no tile URL points at `openstreetmap.org` and an end-to-end test asserts nothing reaches it on the wire, because the easy way to "fix" a blocked tile layer is to point it back. `components/sim/SiteMapDialog.tsx` is the same map opened over the launch panel, whose own column is too narrow to show a field and its surroundings; `LocationEditDialog` has the room to keep one inline. Both write coordinates through the caller's change path, so a click on the map is one undoable edit. The pan and click-to-place handlers live on the box that also holds the layer, zoom and recenter buttons, so they ignore any pointer event that starts on a control: without that, clicking one bubbled through and read as a click on the ground, and switching layers silently moved the site to the map's top-left corner where those buttons sit. The drag capture is taken on the box rather than on `e.target`, which is usually a tile and unmounts as soon as a pan scrolls past it.
 
 ## Where user data lives (swappable stores)
 
@@ -168,6 +214,16 @@ localStorage is synchronous — every read and write blocks the main thread — 
 Existing data migrates **lazily, per key, on first read**: a key absent from IndexedDB but present in localStorage is copied across, and the original is deleted only once the write is confirmed — an interrupted migration retries next load rather than destroying the only copy. If IndexedDB is unavailable (blocked by policy, some private modes), every operation transparently falls back to localStorage, so the app degrades to its previous behavior rather than losing storage.
 
 The app held exactly ONE design before this — a single blob replaced whenever you opened another. `designLibrary.ts` makes designs addressable instead, and folds that pre-library workspace in as the first entry on first use (named after its imported `.ork` if it had one). Because switching designs is now possible, the unload journal records **which** design it belongs to: replaying it into whatever happens to be open would overwrite an unrelated rocket.
+
+### One design in, one entry out
+
+Two rules keep the library from filling up with copies of the same rocket, because both failures look identical from the File > Open list and neither is recoverable by the user.
+
+**An import is detached, and named before it lands.** `openOrkFile` calls `setActiveId(null)`, so the next autosave CREATES an entry: an imported rocket is its own design, not an edit to whatever was on screen. What that missed is the name. Re-importing a `.ork` you have been editing in OpenRocket, or reopening an example, produced another entry called the same thing every time. `store.ts`'s `homeForImport` now resolves the clash **before** `replaceWorkspace` — overwrite the existing entry, or name this one (the next free `… (2)` is suggested). It has to happen before the swap, or the 500 ms debounce fires while the dialog is open and creates the entry being asked about. The answer reaches the autosave through `WorkspaceStore.setPendingName`, so there is still exactly one `create`, made by the autosave, rather than the caller racing it with a second one. The dialog is `state/promptStore.ts` + `components/common/PromptDialog.tsx`, the promise-based sibling of `confirmStore` — the store needs an answer mid-action and cannot render.
+
+**Only one create can be in flight.** `LibraryWorkspaceStore.save` checked `!this.activeId` and then awaited `lib.create()` before assigning the id, so two saves that overlapped in that window each made an entry and all but the last were orphaned — nothing was ever active in them. It is not a narrow window: the debounce is 500 ms and the first IndexedDB create is the slowest write the app makes, and the `visibilitychange` flush saves outside the debounce entirely. Overlapping saves now share one create, and a create that resolves after the workspace has been replaced does not adopt its id. `DesignLibrary.create` also rolls back when its active-pointer write is refused, since a half-done create left its design indexed while the caller still had no active id — one identical row every 500 ms for as long as storage kept refusing.
+
+There is no **File > Save**. Editing autosaves on the debounce, unload writes the journal, and the item only ever flushed a write that was already coming or sent a never-named design to Save As. `components/layout/SaveStatus.tsx` reports the last write instead, from `lastSavedAt`, which `useWorkspaceEffects` sets on the save's own success path — not where one was requested, so a refused write cannot claim a save.
 
 Two things stay on localStorage deliberately:
 

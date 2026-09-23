@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // The sim normally runs in a Web Worker. Stub it so a test can decide when (and
 // whether) a run resolves.
@@ -18,6 +18,8 @@ import {
 } from './store';
 import { C6 } from '../engine/api';
 import { setDesignLibrary } from '../services/designLibrary';
+import { useConfirmStore } from './confirmStore';
+import { usePromptStore } from './promptStore';
 import { getWorkspaceStore } from '../services/workspaceStore';
 import { findMounts, findNode } from '../services/treeEdit';
 import type { FlightResult } from '../engine/openRocketEngine';
@@ -919,67 +921,6 @@ describe('replacing the workspace is race-safe across actions, not just openDesi
 });
 
 /**
- * File → Save must ask the library whether this design has a name.
- *
- * `activeDesignId` is written only by refreshDesigns(), which nothing calls on
- * boot — so on a fresh load it is null while the first autosave has already
- * created a real entry. Reading it sent Save to Save As, which created a second
- * entry holding the same rocket.
- */
-describe('saveDesign asks the library, not the cached activeDesignId', () => {
-  const libWith = (activeId: string | null, created: string[]) =>
-    ({
-      list: async () => (activeId ? [{ id: activeId, name: 'My Rocket', updatedAt: 0 }] : []),
-      activeId: async () => activeId,
-      read: async () => null,
-      write: async () => true,
-      writeResults: async () => true,
-      create: async (name: string) => {
-        created.push(name);
-        return { id: 'new', name, updatedAt: 0 };
-      },
-      rename: async () => true,
-      remove: async () => true,
-      setActive: async () => true,
-    }) as never;
-
-  beforeEach(() => s().resetWorkspace());
-
-  it('saves the design the autosave already created, with activeDesignId still null', async () => {
-    const created: string[] = [];
-    setDesignLibrary(libWith('autosaved-1', created));
-    // Exactly the fresh-boot state AFTER the first autosave: the library holds
-    // the entry and the workspace store knows its id, but the zustand field
-    // does not — nothing has called refreshDesigns().
-    getWorkspaceStore().setActiveId?.('autosaved-1');
-    expect(s().activeDesignId).toBeNull();
-
-    expect(await s().saveDesign()).toBe(true); // was false → UI opened Save As
-    expect(created).toEqual([]); // and no duplicate entry was minted
-  });
-
-  it('still reports "never named" when the library really has no active design', async () => {
-    setDesignLibrary(libWith(null, []));
-    expect(await s().saveDesign()).toBe('unnamed'); // Save As is correct here
-  });
-
-  /**
-   * A refused write used to be swallowed inside flushActive() and Save returned
-   * `true`: the user hit Save within the autosave debounce on a full store and
-   * saw it succeed with nothing written. Now it is a distinct outcome from
-   * "never named", and the banner goes up here rather than in a Save As the
-   * store would refuse the same way.
-   */
-  it('reports a refused write as false and raises the storage banner', async () => {
-    setDesignLibrary(Object.assign(libWith('autosaved-1', []) as object, { write: async () => false }) as never);
-    getWorkspaceStore().setActiveId?.('autosaved-1');
-    expect(await s().saveDesign()).toBe(false);
-    expect(s().storageWarning).toBeTruthy();
-    expect(s().storageWarningKind).toBe('full');
-  });
-});
-
-/**
  * Every library call that reports a refused write returns a boolean, and the
  * store used to discard all of them. For openDesign the consequence was the
  * one designLibrary.setActive documents: this session edits B while the
@@ -1109,7 +1050,14 @@ describe('what reaches storage', () => {
     setDesignLibrary({
       list: async () => [],
       activeId: async () => 'D',
-      read: async () => null as never,
+      read: async () =>
+        ({
+          version: 1,
+          tree: { components: [] },
+          sims: [{ id: 's1', name: 'Sim 1', result: null }],
+          activeId: 's1',
+          loadedMeta: null,
+        }) as never,
       write: async () => true,
       readResults: async () => ({}),
       writeResults: async () => true,
@@ -1119,7 +1067,9 @@ describe('what reaches storage', () => {
       setActive: async () => true,
     } as never);
 
-    await s().saveDesign();
+    // openDesign flushes the open design before it switches away, which is
+    // the remaining path that writes on demand now that File > Save is gone.
+    await s().openDesign('D');
 
     expect(save).toHaveBeenCalled();
     const written = JSON.stringify(save.mock.calls[0]![0]);
@@ -1174,5 +1124,150 @@ describe('replacing the workspace resets the transient run state', () => {
     // Every notification that carries the new tree carries the reset too.
     for (const st of seen) if (st.tree !== before) expect([st.err, st.simBusy]).toEqual([null, false]);
     expect(seen.some((st) => st.tree !== before)).toBe(true);
+  });
+});
+
+/**
+ * Re-importing the same .ork added an identical row to File > Open every time.
+ *
+ * An import detaches the workspace store on purpose — an imported rocket is
+ * its own design, not an edit to whatever was on screen — but nothing looked
+ * at the NAME, so the edit-in-OpenRocket-and-reimport loop (and reopening the
+ * same example) left the library holding a stack of rockets called the same
+ * thing, each a real design with its own id.
+ */
+describe('importing a rocket whose name is already saved', () => {
+  const orkFile = (name: string): File =>
+    ({
+      name: `${name}.ork`,
+      arrayBuffer: async () => new TextEncoder().encode(name).buffer,
+    }) as unknown as File;
+
+  const mockLoadOrk = () =>
+    vi.doMock('../services/loadOrk', () => ({
+      loadOrk: async (bytes: ArrayBuffer) => {
+        const name = new TextDecoder().decode(bytes);
+        return { name, notes: [], tree: { name, components: [] }, motors: {}, motorSpecs: {} };
+      },
+    }));
+
+  /** Settle every confirm / prompt the flow raises, as soon as it is raised. */
+  const autoConfirm = (value: boolean) =>
+    useConfirmStore.subscribe((st) => {
+      if (st.request) useConfirmStore.getState().settle(value);
+    });
+  const autoPrompt = (value: string | null) =>
+    usePromptStore.subscribe((st) => {
+      if (st.request) usePromptStore.getState().settle(value);
+    });
+
+  const libWith = (names: string[], calls: { active: string[]; created: string[] }) =>
+    ({
+      list: async () => names.map((name, i) => ({ id: `d${i}`, name, updatedAt: i })),
+      activeId: async () => null,
+      read: async () => null,
+      write: async () => true,
+      writeResults: async () => true,
+      readResults: async () => ({}),
+      create: async (name: string) => {
+        calls.created.push(name);
+        return { id: 'fresh', name, updatedAt: 0 };
+      },
+      rename: async () => true,
+      remove: async () => true,
+      setActive: async (id: string) => {
+        calls.active.push(id);
+        return true;
+      },
+    }) as never;
+
+  /** What the debounced autosave would write, once the import has landed. */
+  const autosave = () =>
+    getWorkspaceStore().save({
+      version: 1,
+      tree: s().tree,
+      sims: s().sims,
+      activeId: s().activeId,
+      loadedMeta: s().loadedMeta,
+    });
+
+  let stop: (() => void)[] = [];
+  beforeEach(() => {
+    s().resetWorkspace();
+    getWorkspaceStore().setActiveId?.(null);
+    mockLoadOrk();
+  });
+  afterEach(() => {
+    stop.forEach((fn) => fn());
+    stop = [];
+    vi.doUnmock('../services/loadOrk');
+  });
+
+  it('imports straight through when the name is free', async () => {
+    const calls = { active: [], created: [] as string[] };
+    setDesignLibrary(libWith(['Something else'], calls));
+    stop.push(
+      autoConfirm(true),
+      autoPrompt('NOT ASKED'), // neither dialog should be raised at all
+    );
+
+    await s().openOrkFile(orkFile('Big Bertha'));
+    await autosave();
+
+    expect(calls.created).toEqual(['Big Bertha']);
+  });
+
+  it('overwrites the saved rocket when the user says so', async () => {
+    const calls = { active: [] as string[], created: [] as string[] };
+    setDesignLibrary(libWith(['Big Bertha'], calls));
+    stop.push(autoConfirm(true));
+
+    await s().openOrkFile(orkFile('Big Bertha'));
+    await autosave();
+
+    // The existing entry IS its home: pointed at, written into, not duplicated.
+    expect(calls.active).toEqual(['d0']);
+    expect(s().activeDesignId).toBe('d0');
+    expect(calls.created).toEqual([]);
+  });
+
+  it('creates it under the name the user typed instead', async () => {
+    const calls = { active: [] as string[], created: [] as string[] };
+    setDesignLibrary(libWith(['Big Bertha'], calls));
+    stop.push(autoConfirm(false), autoPrompt('Big Bertha mk2'));
+
+    await s().openOrkFile(orkFile('Big Bertha'));
+    expect(s().activeDesignId).toBeNull(); // nothing created yet; the autosave does it
+    await autosave();
+
+    expect(calls.created).toEqual(['Big Bertha mk2']);
+    expect(calls.active).toEqual([]);
+  });
+
+  it('falls back to a suffixed name when the user cancels the name dialog', async () => {
+    // Canceling the NAME dialog cannot cancel the import: the file is parsed
+    // and already on screen. The one outcome ruled out is a second row called
+    // exactly the same thing.
+    const calls = { active: [] as string[], created: [] as string[] };
+    setDesignLibrary(libWith(['Big Bertha', 'Big Bertha (2)'], calls));
+    stop.push(autoConfirm(false), autoPrompt(null));
+
+    await s().openOrkFile(orkFile('Big Bertha'));
+    await autosave();
+
+    expect(calls.created).toEqual(['Big Bertha (3)']);
+  });
+
+  it('abandons the import rather than switching on a refused active-pointer write', async () => {
+    const calls = { active: [] as string[], created: [] as string[] };
+    const lib = Object.assign(libWith(['Big Bertha'], calls) as object, { setActive: async () => false });
+    setDesignLibrary(lib as never);
+    stop.push(autoConfirm(true));
+    const before = s().tree;
+
+    await s().openOrkFile(orkFile('Big Bertha'));
+
+    expect(s().tree).toBe(before); // what the user had is still what they have
+    expect(s().storageWarningKind).toBe('full');
   });
 });

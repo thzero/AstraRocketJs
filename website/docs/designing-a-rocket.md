@@ -68,6 +68,18 @@ If a required dimension is **zero**, the field escalates: the label is boxed in 
 Everything else may legitimately be zero, which is why it is not marked. A **tip chord** of 0 is a delta fin; **sweep** or **cant** of 0 is a straight one; a **shoulder** or **fin tab** of 0 is simply absent; **motor overhang** 0 is flush; a centering ring's **inner radius** of 0 is a solid disc; a mass component's **length** of 0 is a point mass; and every **delay** and **angle offset** starts at 0. A stage has no required fields at all — its settings are triggers and delays.
 
 
+## Freeform fins {#freeform-fins}
+
+A **freeform** fin set is shaped point by point instead of from a trapezoid's dimensions. Select one and the property panel shows a **Fin outline** editor.
+
+- **Drag an amber point** to move it.
+- **Tap a blue midpoint** on an edge to insert a point there.
+- **Select a point** to delete it, or to type its exact coordinates.
+
+The axes are the fin's own: **X runs along the body**, from the front of the root to the back, and **Y is height above the body surface**. The root edge closes the outline along Y = 0, so you shape the leading edge, the tip and the trailing edge, not the root.
+
+The outline drives the real thing, not just the drawing: mass, CG and the aerodynamics all follow it, and [scaling the whole rocket](#scaling-the-whole-rocket) moves the points with everything else. It round-trips through `.ork` and RockSim files.
+
 ## Staging (multi-stage rockets)
 
 A rocket can have more than one stage. **+ Stage** (in the Components panel header) appends a **booster** below the current bottom stage; its parts (body, fins, motor mount, recovery) are built and edited exactly like the sustainer's. Select a **stage** node to set how it leaves the stack:

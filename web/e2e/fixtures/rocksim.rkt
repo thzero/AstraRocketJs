@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RockSimDocument>
+  <FileVersion>4</FileVersion>
+  <DesignInformation>
+    <RocketDesign>
+      <Name>RockSim Bird</Name>
+      <StageCount>1</StageCount>
+      <Stage3Parts>
+        <NoseCone>
+          <Name>Nose</Name>
+          <KnownMass>9.5</KnownMass>
+          <Density>1050</Density>
+          <DensityType>0</DensityType>
+          <Material>Polystyrene</Material>
+          <KnownCG>40</KnownCG>
+          <UseKnownCG>1</UseKnownCG>
+          <Len>100</Len>
+          <BaseDia>24.8</BaseDia>
+          <WallThickness>1.5</WallThickness>
+          <ConstructionType>1</ConstructionType>
+          <ShapeCode>1</ShapeCode>
+          <ShapeParameter>0.75</ShapeParameter>
+          <ShoulderOD>23.6</ShoulderOD>
+          <ShoulderLen>20</ShoulderLen>
+          <FinishCode>1</FinishCode>
+          <AttachedParts/>
+        </NoseCone>
+        <BodyTube>
+          <Name>Airframe</Name>
+          <Len>300</Len>
+          <OD>24.8</OD>
+          <ID>24.0</ID>
+          <IsInsideTube>0</IsInsideTube>
+          <IsMotorMount>0</IsMotorMount>
+          <FinishCode>2</FinishCode>
+          <Material>Kraft phenolic</Material>
+          <AttachedParts>
+            <FinSet>
+              <Name>Fins</Name>
+              <ShapeCode>0</ShapeCode>
+              <FinCount>3</FinCount>
+              <RootChord>60</RootChord>
+              <TipChord>30</TipChord>
+              <SemiSpan>45</SemiSpan>
+              <SweepDistance>25</SweepDistance>
+              <Thickness>3.2</Thickness>
+              <CantAngle>1.5</CantAngle>
+              <RadialAngle>30</RadialAngle>
+              <TabLength>40</TabLength>
+              <TabDepth>5</TabDepth>
+              <TabOffset>10</TabOffset>
+              <Xb>-60</Xb>
+              <LocationMode>2</LocationMode>
+              <Material>Basswood</Material>
+            </FinSet>
+            <LaunchLug>
+              <Name>Lug</Name>
+              <Len>35</Len>
+              <OD>4.8</OD>
+              <ID>4.0</ID>
+              <RadialAngle>90</RadialAngle>
+              <Xb>100</Xb>
+              <LocationMode>0</LocationMode>
+            </LaunchLug>
+            <BodyTube>
+              <Name>Motor mount</Name>
+              <IsInsideTube>1</IsInsideTube>
+              <IsMotorMount>1</IsMotorMount>
+              <EngineOverhang>3</EngineOverhang>
+              <Len>70</Len>
+              <OD>18.7</OD>
+              <ID>18.0</ID>
+              <Xb>-70</Xb>
+              <LocationMode>2</LocationMode>
+              <AttachedParts>
+                <Ring>
+                  <Name>Aft ring</Name>
+                  <UsageCode>0</UsageCode>
+                  <Len>3</Len>
+                  <OD>24.0</OD>
+                  <ID>18.7</ID>
+                  <Xb>0</Xb>
+                  <LocationMode>2</LocationMode>
+                </Ring>
+                <Ring>
+                  <Name>Thrust ring</Name>
+                  <UsageCode>2</UsageCode>
+                  <Len>3</Len>
+                  <OD>18.0</OD>
+                  <ID>14.0</ID>
+                </Ring>
+              </AttachedParts>
+            </BodyTube>
+            <Parachute>
+              <Name>Chute</Name>
+              <Dia>400</Dia>
+              <DragCoefficient>0.8</DragCoefficient>
+              <ShroudLineCount>6</ShroudLineCount>
+              <ShroudLineLen>350</ShroudLineLen>
+              <SpillHoleDia>40</SpillHoleDia>
+              <ShroudLineMassPerMM>0.0001</ShroudLineMassPerMM>
+              <ShroudLineMaterial>Braided nylon</ShroudLineMaterial>
+              <Density>0.67</Density>
+              <DensityType>1</DensityType>
+              <Material>Ripstop nylon</Material>
+            </Parachute>
+            <MassObject>
+              <Name>Shock cord</Name>
+              <TypeCode>1</TypeCode>
+              <Len>1000</Len>
+              <KnownMass>6</KnownMass>
+            </MassObject>
+            <MassObject>
+              <Name>Altimeter</Name>
+              <TypeCode>0</TypeCode>
+              <Len>50</Len>
+              <Dia>20</Dia>
+              <KnownMass>22</KnownMass>
+            </MassObject>
+            <RingTail>
+              <Name>Not supported</Name>
+            </RingTail>
+          </AttachedParts>
+        </BodyTube>
+      </Stage3Parts>
+      <Stage2Parts/>
+      <Stage1Parts/>
+    </RocketDesign>
+  </DesignInformation>
+</RockSimDocument>

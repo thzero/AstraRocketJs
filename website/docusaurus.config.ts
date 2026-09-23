@@ -6,6 +6,60 @@ import { readFileSync } from 'node:fs';
 // stamp this into Markdown; here the config can just read it.
 const { version } = JSON.parse(readFileSync(new URL('../web/package.json', import.meta.url), 'utf-8'));
 
+// WHICH OpenRocket the engine is, read the same way from the one file that
+// names it: engine-java/extract/UPSTREAM. "The same physics core" is not a
+// checkable claim on its own - a reader comparing their numbers against the
+// desktop app's, or asking whether a feature from some release is in here,
+// needs the commit - so Overview states it, through <UpstreamPin /> (see
+// src/components/UpstreamPin.tsx), which reads what this puts in customFields.
+//
+// Read at build time, in every locale, rather than written into the Markdown:
+// a version string typed into a page is a copy of a SHA, and a copy of a SHA is
+// the thing that goes stale without anyone noticing. Bumping UPSTREAM moves
+// this page, the Spanish one, and the app's About dialog together.
+//
+// `extract/MMROCKET-SIM` is read the same way and for the same reason: the
+// comparison appendix says which mmrocket-sim the RASAero-style extensions were
+// last reviewed against, and that fact already has a home.
+//
+// `key = value` lines, below a header in which every line is a `#` comment.
+const pinFile = (path: string) => {
+  const fields = new Map(
+    readFileSync(new URL(path, import.meta.url), 'utf-8')
+      .split('\n')
+      .map((line) => /^(\w+)\s*=\s*(\S+)/.exec(line))
+      .filter((m) => m !== null)
+      .map((m) => [m[1]!, m[2]!] as const),
+  );
+  return (key: string): string => {
+    const value = fields.get(key);
+    if (!value) throw new Error(`${path} has no \`${key}\` line`);
+    return value;
+  };
+};
+
+const upstreamField = pinFile('../engine-java/extract/UPSTREAM');
+const upstreamRef = upstreamField('ref');
+const upstream = {
+  ref: upstreamRef,
+  // Nine hex - how this repo writes a short OpenRocket SHA everywhere else.
+  shortRef: upstreamRef.slice(0, 9),
+  date: upstreamField('date'),
+  commitUrl: `${upstreamField('repo').replace(/\.git$/, '')}/commit/${upstreamRef}`,
+};
+
+const mmrocketField = pinFile('../engine-java/extract/MMROCKET-SIM');
+const mmrocketRef = mmrocketField('ref');
+const mmrocket = {
+  ref: mmrocketRef,
+  shortRef: mmrocketRef.slice(0, 7),
+  version: mmrocketField('version'),
+  // Their release's own date, not the date of our review of it.
+  date: mmrocketField('dated'),
+  repoUrl: mmrocketField('repo').replace(/\.git$/, ''),
+  commitUrl: `${mmrocketField('repo').replace(/\.git$/, '')}/commit/${mmrocketRef}`,
+};
+
 // The docs site. Built separately from the app and copied into web/dist/docs by
 // the Pages deploy, so both live on the one GitHub Pages site:
 //   /AstraRocketJs/        the app
@@ -27,11 +81,24 @@ const config: Config = {
   organizationName: 'thzero',
   projectName: 'AstraRocketJs',
 
+  // Read by <UpstreamPin />, <MmrocketPin /> and <AppVersion />, which Overview
+  // and the comparison appendix render in both locales.
+  customFields: { upstream, mmrocket, appVersion: version },
+
   // A broken internal link should fail the build, not ship — the old wiki had no
   // such check, which is how stale page references survived.
-  // Emit /faq/ rather than /faq. The service worker precaches the built files,
-  // and Workbox resolves a trailing slash to that directory's index.html — a
-  // bare /faq would miss the precache and break Help when offline.
+  // Emit /faq/ rather than /faq, so every page is a directory with its own
+  // index.html. That file name is what makes Help work offline: the app's Help
+  // dialog asks for `docs/faq/index.html`, which is exactly the key the service
+  // worker precaches the page under, so a page opens at a launch site with no
+  // signal even if nobody read it first.
+  //
+  // NAVIGATING to /faq/ is a different request and does not hit the precache:
+  // `directoryIndex` is switched off in web/vite.config.ts (it was also
+  // answering the app's own root from the precache, which kept a reload from
+  // ever showing a new deploy), so Workbox never maps the trailing slash onto
+  // index.html. A runtimeCaching rule there covers that path for pages already
+  // visited.
   trailingSlash: true,
   onBrokenLinks: 'throw',
   markdown: { hooks: { onBrokenMarkdownLinks: 'throw' } },

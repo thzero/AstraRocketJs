@@ -1,5 +1,5 @@
 import { useTranslation, Trans } from 'react-i18next';
-import { appName, APP_VERSION, CONTRIBUTORS_URL, isPreRelease } from '../../services/appInfo';
+import { appName, APP_VERSION, CONTRIBUTORS_URL, isPreRelease, UPSTREAM } from '../../services/appInfo';
 import contributorData from '../../data/contributors.generated.json';
 import { useFocusTrap } from '../common/useFocusTrap';
 
@@ -128,6 +128,26 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
 
         <div className="mt-4 border-t border-white/10 pt-3 text-xs leading-relaxed text-slate-500">
           <p>{t('about.credits')}</p>
+          {/* WHICH OpenRocket. "The same physics core" is not checkable on its
+              own: comparing a number against the desktop app, or asking whether
+              a feature from some release is in here, needs the commit. Read from
+              engine-java/extract/UPSTREAM at build time, never typed here. */}
+          <p className="mt-1">
+            <Trans
+              i18nKey="about.enginePin"
+              values={{ ref: UPSTREAM.shortRef, date: UPSTREAM.date }}
+              components={{
+                commitLink: (
+                  <a
+                    href={UPSTREAM.commitUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sky-400 hover:underline"
+                  />
+                ),
+              }}
+            />
+          </p>
           <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1">
             {LINKS.map(([name, href], i) => (
               <span key={name}>

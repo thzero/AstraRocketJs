@@ -14,6 +14,12 @@ No. Todo se ejecuta en tu dispositivo. Tus cohetes, tus motores y materiales per
 ### ¿Mis archivos `.ork` funcionarán en OpenRocket de escritorio?
 Sí: la importación y la exportación son de ida y vuelta con total fidelidad, y un archivo exportado se vuelve a abrir en OpenRocket de escritorio.
 
+### ¿Puedo abrir un archivo de RockSim? {#can-i-open-a-rocksim-file}
+Sí: **menú → Importar → RockSim** lee un `.rkt`, y **Exportar → RockSim** escribe uno. El diseño viaja; los **motores y las condiciones de lanzamiento no**, porque RockSim los guarda con sus simulaciones y no con sus diseños, así que elige un motor después de importar. En [Archivos y exportaciones](./files-and-exports.md#rocksim-rkt) está exactamente qué lleva cada sentido y qué deja atrás.
+
+### ¿Puedo imprimir las piezas en 3D? {#can-i-3d-print-the-parts}
+Sí. Cualquier pieza con un cuerpo sólido real lleva un botón **⬇** en el árbol de componentes que ofrece STL, OBJ, GLB y 3MF, y **menú → Exportar → Impresión 3D (.3mf)** escribe el cohete entero de una vez en un único archivo con un objeto con nombre por pieza. Consulta [Archivos y exportaciones](./files-and-exports.md#exporting-the-whole-rocket-for-3d-printing-3mf).
+
 ### ¿Mis unidades aparecen en OpenRocket de escritorio?
 No. Las unidades viven en los ajustes de tu navegador, no en el `.ork`: el archivo no tiene dónde guardarlas, y OpenRocket de escritorio mantiene las suyas en sus preferencias. Tu archivo se abre allí con las unidades de OpenRocket y aquí con las tuyas; el cohete es el mismo en ambos casos. Por la misma razón, tus unidades no te siguen a otro ordenador ni a otro navegador. Consulta **[Ajustes](./settings.md#units)**.
 

@@ -54,9 +54,26 @@ export const test = base.extend<{ wip: WipState }>({
         }
       }, SETTINGS_KEY);
     }
+    // Map tiles never leave the test runner.
+    //
+    // `components/sim/SiteMap.tsx` requests real tiles from Esri. A suite that
+    // actually fetched them would be slow, would fail on a machine with no
+    // network, and would put a CI job's worth of load on someone else's tile
+    // servers for pictures nothing asserts against. Every tile is answered
+    // locally with a 1x1 PNG, which is all the component needs to see to
+    // report that imagery loaded.
+    await page.route(/arcgisonline\.com/, (route) =>
+      route.fulfill({ status: 200, contentType: 'image/png', body: PIXEL_PNG }),
+    );
     await run(page);
   },
 });
+
+/** A 1x1 transparent PNG, standing in for every map tile. */
+const PIXEL_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64',
+);
 
 export { expect };
 export type { Locator, Page } from '@playwright/test';
@@ -190,11 +207,55 @@ export async function ready(page: Page): Promise<void> {
  *
  * Waits for the engine to have run on the DEFAULT design first, so this works
  * straight after `page.goto` and after `page.reload` alike.
+ *
+ * `clash` is for the case where the library ALREADY holds a design of this
+ * file's name - importing the same fixture twice in one test, typically across
+ * a reload. The app asks what to do with it then (see resolveNameClash), and a
+ * helper that did not answer would simply time out behind the dialog.
  */
-export async function importOrk(page: Page, fixture: string): Promise<void> {
+export async function importOrk(page: Page, fixture: string, clash?: NameClash): Promise<void> {
   await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
-  await page.locator('input[type=file]').setInputFiles(fixture);
+  // Scoped by `accept`: the header carries one hidden input per readable
+  // format (.ork and .rkt), so a bare `input[type=file]` is now ambiguous.
+  await page.locator('input[accept=".ork"]').setInputFiles(fixture);
+  if (clash) await resolveNameClash(page, clash);
   await expect(page.getByText('Booster').first()).toBeVisible({ timeout: 20_000 });
+}
+
+/** What to do about an imported rocket whose name is already in the library. */
+export type NameClash = 'overwrite' | 'keepBoth';
+
+/**
+ * Answer the "a rocket with this name is already saved" dialog.
+ *
+ * Import gives a rocket its own library entry, so re-importing the same file
+ * used to add an identical row to File > Open every time. It asks now, and
+ * "Keep both" leads straight on to the name dialog, whose suggested "… (2)"
+ * this accepts.
+ */
+async function resolveNameClash(page: Page, choice: NameClash): Promise<void> {
+  const ask = page.getByRole('alertdialog', { name: 'A rocket with this name is already saved' });
+  await expect(ask).toBeVisible({ timeout: 20_000 });
+  await ask.getByRole('button', { name: choice === 'overwrite' ? 'Overwrite' : 'Keep both' }).click();
+  if (choice === 'keepBoth') {
+    await page.getByRole('dialog', { name: 'Name this rocket' }).getByRole('button', { name: 'Save' }).click();
+  }
+}
+
+/**
+ * Import a fixture `.rkt` and wait for the design to land.
+ *
+ * Waits on the design's NAME rather than a "Booster" row: the RockSim fixture
+ * is single-stage, and the tree shows a Sustainer whether or not an import
+ * happened, so that is not a synchronization point.
+ */
+export async function importRkt(page: Page, fixture: string, designName: string, clash?: NameClash): Promise<void> {
+  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+  await page.locator('input[accept=".rkt"]').setInputFiles(fixture);
+  if (clash) await resolveNameClash(page, clash);
+  await expect(page.getByRole('button', { name: 'Edit rocket configuration' })).toContainText(designName, {
+    timeout: 20_000,
+  });
 }
 
 /**

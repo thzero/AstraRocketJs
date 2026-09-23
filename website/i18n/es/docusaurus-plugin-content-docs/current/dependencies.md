@@ -1,6 +1,6 @@
 ---
 title: "Dependencias"
-sidebar_position: 16
+sidebar_position: 17
 ---
 Solo `web/` tiene dependencias de npm (`engine-java/` usa el envoltorio de Gradle incluido). Esta página registra la **política de versiones** y, más importante, **por qué un paquete no está deliberadamente en su última versión**, para que la siguiente persona que ejecute `npm outdated` no vuelva a discutir una decisión ya tomada ni «arregle» una fijación que existe por un motivo.
 

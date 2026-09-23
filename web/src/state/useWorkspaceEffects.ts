@@ -124,6 +124,11 @@ export function useWorkspaceEffects() {
         // session that a later write does not undo (see clearSaveWarning).
         .then(() => {
           useWorkspaceStore.getState().clearSaveWarning();
+          // The header's save status reads this. It is the only thing that
+          // reports a save now that the File menu has no Save item, so it is
+          // set HERE, where a write actually landed, rather than anywhere that
+          // merely asked for one.
+          useWorkspaceStore.getState().markSaved();
           void requestPersistentStorage();
         })
         .catch(() => useWorkspaceStore.getState().setStorageWarning(i18nGlobal.t('storage.full'), 'full'));

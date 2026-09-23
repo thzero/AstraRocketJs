@@ -15,10 +15,15 @@
   },
   "errors": {
     "openOrk": "Could not open .ork: {{reason}}",
+    "openExample": "Could not open that example: {{reason}}",
     "saveOrk": "Could not save .ork: {{reason}}",
     "exportRasaero": "Could not export RASAero: {{reason}}",
     "exportUnsupported": "This component can't be exported as {{format}}.",
-    "exportFailed": "Could not export {{format}}: {{reason}}"
+    "exportFailed": "Could not export {{format}}: {{reason}}",
+    "exportRkt": "Could not write the .rkt: {{reason}}",
+    "exportRktPartial": "The .rkt was saved, but RockSim has no equivalent for these parts, so they were left out: {{parts}}.",
+    "exportPrint": "Could not write the 3MF: {{reason}}",
+    "exportPrintPartial": "The 3MF was saved, but these parts have no printable solid and were left out: {{parts}}."
   },
   "report": {
     "title": "Rocket Design",
@@ -119,6 +124,7 @@
     "contributors": "Built by these contributors:",
     "contributorsAll": "See all contributors on GitHub",
     "credits": "Physics by OpenRocket (GPL-3.0), compiled to WASM and JavaScript with TeaVM.",
+    "enginePin": "Engine extracted from OpenRocket commit <commitLink>{{ref}}</commitLink>, dated {{date}}.",
     "privacy": "Privacy",
     "close": "Close"
   },
@@ -130,6 +136,15 @@
     "hosting": "Whoever hosts the app may keep standard web-server access logs (such as IP address and timestamp), as any website does. The app itself collects nothing.",
     "close": "Close"
   },
+  "help": {
+    "title": "Help",
+    "contents": "Contents",
+    "back": "Back",
+    "close": "Close",
+    "openOnSite": "Open on the docs site",
+    "loading": "Loading…",
+    "missing": "The documentation is not part of this copy of {{name}}, or it could not be read. You can still open it online."
+  },
   "override": {
     "title": "Overrides",
     "mass": "Mass",
@@ -140,12 +155,13 @@
     "cpNote": "CP is computed from the shape and isn't directly overridable — OpenRocket overrides mass, CG and drag."
   },
   "file": {
-    "save": "Save…",
     "openLibrary": "Open…",
     "saveAs": "Save As…",
     "import": "Import",
     "importOrk": "OpenRocket",
     "importOrkLabel": "Import OpenRocket (.ork)",
+    "importExamples": "Examples",
+    "importExamplesLabel": "Import an example rocket",
     "exportOrk": "OpenRocket",
     "exportOrkLabel": "Export OpenRocket (.ork)",
     "export": "Export",
@@ -156,7 +172,19 @@
     "glb": "3D scene (.glb)",
     "dxf": "Cut sheet (.dxf)",
     "new": "New",
-    "newConfirm": "Discard the current design and all simulations and start a fresh design?"
+    "newConfirm": "Discard the current design and all simulations and start a fresh design?",
+    "importRkt": "RockSim",
+    "importRktLabel": "Import RockSim (.rkt)",
+    "exportRkt": "RockSim",
+    "exportRktLabel": "Export RockSim (.rkt)",
+    "exportPrint": "3D print (.3mf)",
+    "exportPrintLabel": "Export printable parts as 3MF",
+    "3mf": "3D print (.3mf)"
+  },
+  "save": {
+    "saved": "Saved {{when}}",
+    "justNow": "just now",
+    "tip": "Last saved at {{time}}. Your rocket is saved automatically as you edit it."
   },
   "edit": {
     "undo": "Undo",
@@ -175,7 +203,8 @@
   },
   "menu": {
     "open": "Menu",
-    "help": "Help"
+    "help": "Help",
+    "safety": "Safety"
   },
   "wip": {
     "title": "Work in progress",
@@ -378,7 +407,15 @@
     "skipping_other": "Skipping {{count}} simulations:",
     "timeout": "The simulation took too long and was stopped. Try again, or simplify the design.",
     "warnings": "Flight warnings ({{count}})",
-    "runMany": "Run {{count}} simulations"
+    "runMany": "Run {{count}} simulations",
+    "safetyTitle": "Before you fly",
+    "safetyLead": "These are modeled estimates, not a flight card.",
+    "safetyVerify": "Weigh and balance the rocket you actually built, enter those as overrides, then re-read the margin and the rail-exit speed.",
+    "safetyGaps": "Not modeled at all",
+    "safetyGapsDetail": "Fin flutter, structural loads, parachute inflation and opening shock, and how your motor performs on the day. Nothing above can warn you about any of them.",
+    "safetyCode": "Fly under your safety code, inside your field and its waiver. The RSO's call outranks anything on this screen.",
+    "safetyDisclaimer": "You, and you alone, are responsible for what you build and fly. This software is provided as is, without warranty of any kind, and its authors and contributors accept no liability for any loss arising from its use.",
+    "safetyLink": "Read the safety notes"
   },
   "warn": {
     "deletePart": "Delete {{name}}?",
@@ -476,7 +513,8 @@
       "windAverage": "wind speed",
       "windStdDev": "wind standard deviation",
       "launchAltitudeM": "site altitude",
-      "latitudeDeg": "latitude"
+      "latitudeDeg": "latitude",
+      "longitudeDeg": "longitude"
     },
     "locationDenied": "Could not get your location. Check the browser permission and try again.",
     "locating": "Locating…"
@@ -632,7 +670,7 @@
       "liftoff": "Liftoff",
       "burnout": "Burnout",
       "apogee": "Apogee",
-      "recovery": "Recovery deployment",
+      "recovery": "Ejection",
       "landing": "Landing",
       "maxVelocity": "Max velocity",
       "maxAcceleration": "Max acceleration"
@@ -651,7 +689,7 @@
       "driftCast": "Drift cast",
       "driftCastNote": "Everything flat on the terrain, ground track only — for reading the hazards under the drift.",
       "flightPath": "Flight path",
-      "flightPathNote": "The flight suspended in the air where it belongs, with shadows to the ground.",
+      "flightPathNote": "The flight suspended in the air where it belongs, with the ground track under it.",
       "landing": "Landing plots",
       "landingNote": "The landing point alone, on the ground."
     },
@@ -673,9 +711,40 @@
     "showWaypointLabels": "Draw waypoint names on the map",
     "colorWaypointPins": "Color waypoint pins per stage",
     "pinsNote": "Colored pins load an icon from Google's servers; turn them off for a file that must render offline.",
-    "units": "Units",
+    "balloons": "Balloons",
+    "includeDescriptions": "Summary balloons",
+    "descriptionsNote": "Google Earth shows a balloon when you click a feature: the flight's numbers on the document, the stage's range and landing on its folder, and the time, altitude, range and bearing on each waypoint. Turn them off for a file the descriptions would only get in the way of.",
+    "language": "Language",
+    "languageSameAsApp": "Same as the app",
+    "languageNote": "The language the FILE is written in — the waypoint names, the track names and the balloons. Like the units beside it, it belongs to the file rather than to the app: a KML going to somebody else may want their language whatever you are reading the app in. Text in an imported template is whatever its author wrote.",
+    "units": "Units and language",
     "altitude": "Altitude",
     "distance": "Distance",
+    "doc": {
+      "rocket": "Rocket",
+      "time": "Time",
+      "configuration": "Configuration",
+      "launchSite": "Launch site",
+      "latLon": "(lat, lon)",
+      "aboveSeaLevel": "above sea level",
+      "abovePad": "above the pad",
+      "fromThePad": "from the pad",
+      "maxAltitude": "Max altitude",
+      "maxVelocity": "Max velocity",
+      "maxAcceleration": "Max acceleration",
+      "maxRange": "Max range",
+      "timeToApogee": "Time to apogee",
+      "flightTime": "Flight time",
+      "altitude": "Altitude",
+      "position": "Position",
+      "coordinates": "Coordinates",
+      "landing": "Landing",
+      "device": "Device",
+      "flightPath": "flight path",
+      "groundTrack": "ground track",
+      "distanceBearing": "{{distance}} {{unit}} at {{bearing}}°",
+      "stageLanding": "{{stage}} landing"
+    },
     "mission": "Mission",
     "missionPlaceholder": "e.g. Sod Blaster L1",
     "missionNote": "Prefixed to the document, folder and track names, so several exports opened together in Google Earth can be told apart. It is not saved between exports — a stale one would quietly mislabel the next file.",
@@ -1145,7 +1214,17 @@
     "name": "Name",
     "untitled": "Untitled rocket",
     "duplicateName": "Another rocket already has this name.",
-    "missing": "That rocket is no longer saved."
+    "missing": "That rocket is no longer saved.",
+    "mine": "My rockets",
+    "examples": "Examples",
+    "examplesFailed": "The bundled examples could not be loaded.",
+    "examplesTitle": "Example rockets",
+    "examplesIntro": "The example designs that ship with OpenRocket. Opening one gives you your own unsaved copy, so you can take it apart freely.",
+    "importClashTitle": "A rocket with this name is already saved",
+    "importClash": "“{{name}}” is already in your saved rockets. Overwrite it with the one you just opened, or keep both under a different name?",
+    "overwrite": "Overwrite",
+    "renameInstead": "Keep both",
+    "importNameTitle": "Name this rocket"
   },
   "cluster": {
     "single": "Single",
@@ -1205,5 +1284,45 @@
     "resizeSide": "Resize the side panel",
     "maximize": "Expand the drawing to the whole window",
     "restore": "Show the side panels again"
+  },
+  "print": {
+    "title": "3D print export",
+    "intro": "Every part of this design that has a printable solid. Parachutes, shock cords, mass components and rail buttons have no body to print, so they are not listed.",
+    "nothing": "Nothing in this design has a printable solid.",
+    "separateFiles": "One file per part (a .zip)",
+    "placeOnPlate": "Place each part on the build plate",
+    "orientationNote": "Parts keep the orientation they have in the rocket — the axis runs along X, so bodies arrive lying down. Use your slicer’s lay-flat or rotate to stand them up.",
+    "count": "{{count}} part selected",
+    "count_other": "{{count}} parts selected",
+    "save": "Save 3MF"
+  },
+  "location": {
+    "label": "Saved location",
+    "custom": "Custom location",
+    "save": "Save this location",
+    "manage": "Manage saved locations",
+    "deleteConfirm": "Delete the saved location “{{name}}”? This cannot be undone.",
+    "saveFailed": "That location could not be saved — your browser storage may be full or blocked.",
+    "menu": "Launch locations",
+    "apply": "Use this location for the current simulation",
+    "empty": "No saved locations yet. Save one from the Launch site card on the Simulations tab, so you do not have to retype a field’s coordinates.",
+    "edit": "Edit",
+    "new": "New location",
+    "name": "Name",
+    "duplicateName": "Another location already has this name.",
+    "needsSite": "Enter a latitude and longitude first — a launch location is a place, and half of one would save as 0°, 0°."
+  },
+  "map": {
+    "label": "Launch site map",
+    "title": "Launch site",
+    "show": "Show on map",
+    "satellite": "Satellite",
+    "street": "Street",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "recenter": "Center on the location",
+    "pick": "Click the map to move the location.",
+    "noCoords": "Enter a latitude and longitude to place the location.",
+    "offline": "No imagery offline"
   }
 }

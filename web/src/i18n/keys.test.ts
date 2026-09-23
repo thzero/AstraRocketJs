@@ -57,6 +57,7 @@ const DYNAMIC_PREFIXES: string[] = [
   'view.', // t(`view.${v}`), t(`view.ruler_${side}`) - ViewToggle, rulers
   'pathExport.fmt.', // t(`pathExport.fmt.${f.id}`) - flight-path export formats
   'pathExport.preset.', // t(`pathExport.preset.${preset.id}`) and `${id}Note`
+  'pathExport.doc.', // buildLabels() - the strings the built-in export templates write INTO the file
   'deployEvent.', // `${f.optI18n}.${o}` - componentFields option labels
   'separationEvent.', // same
   'radiusMethod.', // same

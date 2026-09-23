@@ -46,6 +46,7 @@ const base: LaunchConditions = {
   windStdDev: 0.4,
   launchAltitudeM: 100,
   latitudeDeg: 28.61,
+  longitudeDeg: -80.6,
   temperatureC: null,
   pressureHPa: null,
 };

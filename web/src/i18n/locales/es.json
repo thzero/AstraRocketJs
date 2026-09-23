@@ -15,10 +15,15 @@
   },
   "errors": {
     "openOrk": "No se pudo abrir el .ork: {{reason}}",
+    "openExample": "No se pudo abrir ese ejemplo: {{reason}}",
     "saveOrk": "No se pudo guardar el .ork: {{reason}}",
     "exportRasaero": "No se pudo exportar a RASAero: {{reason}}",
     "exportUnsupported": "Este componente no se puede exportar como {{format}}.",
-    "exportFailed": "No se pudo exportar {{format}}: {{reason}}"
+    "exportFailed": "No se pudo exportar {{format}}: {{reason}}",
+    "exportRkt": "No se pudo escribir el .rkt: {{reason}}",
+    "exportRktPartial": "El .rkt se guardó, pero RockSim no tiene equivalente para estas piezas, así que se omitieron: {{parts}}.",
+    "exportPrint": "No se pudo escribir el 3MF: {{reason}}",
+    "exportPrintPartial": "El 3MF se guardó, pero estas piezas no tienen un sólido imprimible y se omitieron: {{parts}}."
   },
   "report": {
     "title": "Diseño del cohete",
@@ -119,6 +124,7 @@
     "contributors": "Creado por estas personas colaboradoras:",
     "contributorsAll": "Ver todas las personas colaboradoras en GitHub",
     "credits": "Física por OpenRocket (GPL-3.0), compilada a JavaScript con TeaVM.",
+    "enginePin": "Motor extraído del commit <commitLink>{{ref}}</commitLink> de OpenRocket, con fecha {{date}}.",
     "privacy": "Privacidad",
     "close": "Cerrar"
   },
@@ -130,6 +136,15 @@
     "hosting": "Quien aloje la aplicación puede conservar registros de acceso del servidor web estándar (como la dirección IP y la marca de tiempo), como cualquier sitio web. La aplicación en sí no recopila nada.",
     "close": "Cerrar"
   },
+  "help": {
+    "title": "Ayuda",
+    "contents": "Contenido",
+    "back": "Atrás",
+    "close": "Cerrar",
+    "openOnSite": "Abrir en el sitio de documentación",
+    "loading": "Cargando…",
+    "missing": "La documentación no forma parte de esta copia de {{name}}, o no se pudo leer. Aún puedes abrirla en línea."
+  },
   "override": {
     "title": "Anulaciones",
     "mass": "Masa",
@@ -140,12 +155,13 @@
     "cpNote": "El CP se calcula a partir de la forma y no se puede anular directamente — OpenRocket anula masa, CG y resistencia."
   },
   "file": {
-    "save": "Guardar",
     "openLibrary": "Abrir…",
     "saveAs": "Guardar como…",
     "import": "Importar",
     "importOrk": "OpenRocket",
     "importOrkLabel": "Importar OpenRocket (.ork)",
+    "importExamples": "Ejemplos",
+    "importExamplesLabel": "Importar un cohete de ejemplo",
     "exportOrk": "OpenRocket",
     "exportOrkLabel": "Exportar OpenRocket (.ork)",
     "export": "Exportar",
@@ -156,7 +172,19 @@
     "glb": "Escena 3D (.glb)",
     "dxf": "Plantilla de corte (.dxf)",
     "new": "Nuevo",
-    "newConfirm": "¿Descartar el diseño actual y todas las simulaciones y empezar un diseño nuevo?"
+    "newConfirm": "¿Descartar el diseño actual y todas las simulaciones y empezar un diseño nuevo?",
+    "importRkt": "RockSim",
+    "importRktLabel": "Importar RockSim (.rkt)",
+    "exportRkt": "RockSim",
+    "exportRktLabel": "Exportar RockSim (.rkt)",
+    "exportPrint": "Impresión 3D (.3mf)",
+    "exportPrintLabel": "Exportar las piezas imprimibles como 3MF",
+    "3mf": "Impresión 3D (.3mf)"
+  },
+  "save": {
+    "saved": "Guardado {{when}}",
+    "justNow": "ahora mismo",
+    "tip": "Guardado por última vez a las {{time}}. Tu cohete se guarda automáticamente mientras lo editas."
   },
   "edit": {
     "undo": "Deshacer",
@@ -175,7 +203,8 @@
   },
   "menu": {
     "open": "Menú",
-    "help": "Ayuda"
+    "help": "Ayuda",
+    "safety": "Seguridad"
   },
   "wip": {
     "title": "Trabajo en curso",
@@ -378,7 +407,15 @@
     "skipping_other": "Se omiten {{count}} simulaciones:",
     "timeout": "La simulación tardó demasiado y se detuvo. Inténtalo de nuevo o simplifica el diseño.",
     "warnings": "Advertencias de vuelo ({{count}})",
-    "runMany": "Ejecutar {{count}} simulaciones"
+    "runMany": "Ejecutar {{count}} simulaciones",
+    "safetyTitle": "Antes de volar",
+    "safetyLead": "Son estimaciones del modelo, no una hoja de vuelo.",
+    "safetyVerify": "Pesa y equilibra el cohete que realmente construiste, introduce esas medidas como invalidaciones y vuelve a leer el margen y la velocidad de salida de la guía.",
+    "safetyGaps": "No se modela en absoluto",
+    "safetyGapsDetail": "El flutter de las aletas, las cargas estructurales, el inflado del paracaídas y su golpe de apertura, y cómo rinde tu motor ese día. Nada de lo de arriba puede avisarte de ninguno de ellos.",
+    "safetyCode": "Vuela según tu código de seguridad, dentro de tu campo y su autorización. Lo que decida el RSO está por encima de cualquier cosa en esta pantalla.",
+    "safetyDisclaimer": "Tú, y solo tú, eres responsable de lo que construyes y vuelas. Este software se ofrece tal cual, sin garantía de ningún tipo, y sus autores y colaboradores no aceptan responsabilidad por ninguna pérdida derivada de su uso.",
+    "safetyLink": "Leer las notas de seguridad"
   },
   "warn": {
     "deletePart": "¿Eliminar {{name}}?",
@@ -476,7 +513,8 @@
       "windAverage": "velocidad del viento",
       "windStdDev": "desviación estándar del viento",
       "launchAltitudeM": "altitud del sitio",
-      "latitudeDeg": "latitud"
+      "latitudeDeg": "latitud",
+      "longitudeDeg": "longitud geográfica"
     },
     "locationDenied": "No se pudo obtener tu ubicación. Revisa el permiso del navegador e inténtalo de nuevo.",
     "locating": "Localizando…"
@@ -632,7 +670,7 @@
       "liftoff": "Despegue",
       "burnout": "Fin de combustión",
       "apogee": "Apogeo",
-      "recovery": "Despliegue de recuperación",
+      "recovery": "Eyección",
       "landing": "Aterrizaje",
       "maxVelocity": "Velocidad máxima",
       "maxAcceleration": "Aceleración máxima"
@@ -651,7 +689,7 @@
       "driftCast": "Deriva",
       "driftCastNote": "Todo apoyado en el terreno, solo la traza sobre el suelo: para leer los peligros bajo la deriva.",
       "flightPath": "Trayectoria",
-      "flightPathNote": "El vuelo suspendido en el aire donde le corresponde, con sombras hasta el suelo.",
+      "flightPathNote": "El vuelo suspendido en el aire, donde le corresponde, con la traza en el suelo debajo.",
       "landing": "Aterrizajes",
       "landingNote": "Solo el punto de aterrizaje, sobre el suelo."
     },
@@ -673,9 +711,40 @@
     "showWaypointLabels": "Dibujar los nombres de los puntos en el mapa",
     "colorWaypointPins": "Colorear los marcadores por etapa",
     "pinsNote": "Los marcadores de color cargan un icono desde los servidores de Google; desactívalos para un archivo que deba verse sin conexión.",
-    "units": "Unidades",
+    "balloons": "Globos",
+    "includeDescriptions": "Globos de resumen",
+    "descriptionsNote": "Google Earth muestra un globo al hacer clic en un elemento: los datos del vuelo en el documento, el alcance y el aterrizaje de la etapa en su carpeta, y el tiempo, la altitud, la distancia y el rumbo en cada punto. Desactívalos para un archivo en el que las descripciones solo estorben.",
+    "language": "Idioma",
+    "languageSameAsApp": "El mismo que la app",
+    "languageNote": "El idioma en que se escribe el ARCHIVO: los nombres de los puntos, los de las trazas y los globos. Igual que las unidades que tiene al lado, pertenece al archivo y no a la aplicación: un KML destinado a otra persona puede querer su idioma, sea cual sea el que tú uses. El texto de una plantilla importada es el que escribiera su autor.",
+    "units": "Unidades e idioma",
     "altitude": "Altitud",
     "distance": "Distancia",
+    "doc": {
+      "rocket": "Cohete",
+      "time": "Tiempo",
+      "configuration": "Configuración",
+      "launchSite": "Campo de vuelo",
+      "latLon": "(lat, lon)",
+      "aboveSeaLevel": "sobre el nivel del mar",
+      "abovePad": "sobre la rampa",
+      "fromThePad": "desde la rampa",
+      "maxAltitude": "Altitud máxima",
+      "maxVelocity": "Velocidad máxima",
+      "maxAcceleration": "Aceleración máxima",
+      "maxRange": "Alcance máximo",
+      "timeToApogee": "Tiempo hasta el apogeo",
+      "flightTime": "Duración del vuelo",
+      "altitude": "Altitud",
+      "position": "Posición",
+      "coordinates": "Coordenadas",
+      "landing": "Aterrizaje",
+      "device": "Dispositivo",
+      "flightPath": "trayectoria de vuelo",
+      "groundTrack": "traza en el suelo",
+      "distanceBearing": "{{distance}} {{unit}} a {{bearing}}°",
+      "stageLanding": "Aterrizaje de {{stage}}"
+    },
     "mission": "Misión",
     "missionPlaceholder": "p. ej. Sod Blaster N1",
     "missionNote": "Se antepone al nombre del documento, de las carpetas y de las trazas, para distinguir varias exportaciones abiertas a la vez en Google Earth. No se guarda entre exportaciones: uno caducado etiquetaría mal el siguiente archivo sin avisar.",
@@ -1145,7 +1214,17 @@
     "name": "Nombre",
     "untitled": "Cohete sin título",
     "duplicateName": "Otro cohete ya tiene este nombre.",
-    "missing": "Ese cohete ya no está guardado."
+    "missing": "Ese cohete ya no está guardado.",
+    "mine": "Mis cohetes",
+    "examples": "Ejemplos",
+    "examplesFailed": "No se pudieron cargar los ejemplos incluidos.",
+    "examplesTitle": "Cohetes de ejemplo",
+    "examplesIntro": "Los diseños de ejemplo que acompañan a OpenRocket. Al abrir uno obtienes tu propia copia sin guardar, así que puedes desmontarlo sin miedo.",
+    "importClashTitle": "Ya hay un cohete guardado con este nombre",
+    "importClash": "«{{name}}» ya está en tus cohetes guardados. ¿Quieres sobrescribirlo con el que acabas de abrir o conservar ambos con un nombre distinto?",
+    "overwrite": "Sobrescribir",
+    "renameInstead": "Conservar ambos",
+    "importNameTitle": "Nombra este cohete"
   },
   "cluster": {
     "single": "Individual",
@@ -1205,5 +1284,45 @@
     "resizeSide": "Redimensionar el panel lateral",
     "maximize": "Ampliar el dibujo a toda la ventana",
     "restore": "Mostrar de nuevo los paneles laterales"
+  },
+  "print": {
+    "title": "Exportar para impresión 3D",
+    "intro": "Todas las piezas de este diseño que tienen un sólido imprimible. Los paracaídas, los cordones de choque, los componentes de masa y los botones de raíl no tienen cuerpo que imprimir, así que no aparecen.",
+    "nothing": "Nada en este diseño tiene un sólido imprimible.",
+    "separateFiles": "Un archivo por pieza (un .zip)",
+    "placeOnPlate": "Colocar cada pieza sobre la base de impresión",
+    "orientationNote": "Las piezas conservan la orientación que tienen en el cohete: el eje va a lo largo de X, así que los cuerpos llegan tumbados. Usa la función de apoyar o rotar de tu laminador para ponerlos de pie.",
+    "count": "{{count}} pieza seleccionada",
+    "count_other": "{{count}} piezas seleccionadas",
+    "save": "Guardar 3MF"
+  },
+  "location": {
+    "label": "Ubicación guardada",
+    "custom": "Ubicación personalizada",
+    "save": "Guardar esta ubicación",
+    "manage": "Gestionar ubicaciones guardadas",
+    "deleteConfirm": "¿Eliminar la ubicación guardada «{{name}}»? Esto no se puede deshacer.",
+    "saveFailed": "No se pudo guardar esa ubicación: puede que el almacenamiento de tu navegador esté lleno o bloqueado.",
+    "menu": "Ubicaciones de lanzamiento",
+    "apply": "Usar esta ubicación en la simulación actual",
+    "empty": "Aún no hay ubicaciones guardadas. Guarda una desde la tarjeta de lugar de lanzamiento, en la pestaña Simulaciones, para no tener que reescribir las coordenadas de un campo.",
+    "edit": "Editar",
+    "new": "Nueva ubicación",
+    "name": "Nombre",
+    "duplicateName": "Otra ubicación ya tiene este nombre.",
+    "needsSite": "Introduce antes una latitud y una longitud: una ubicación de lanzamiento es un lugar, y media se guardaría como 0°, 0°."
+  },
+  "map": {
+    "label": "Mapa del lugar de lanzamiento",
+    "title": "Lugar de lanzamiento",
+    "show": "Ver en el mapa",
+    "satellite": "Satélite",
+    "street": "Callejero",
+    "zoomIn": "Acercar",
+    "zoomOut": "Alejar",
+    "recenter": "Centrar en la ubicación",
+    "pick": "Haz clic en el mapa para mover la ubicación.",
+    "noCoords": "Introduce una latitud y una longitud para situar la ubicación.",
+    "offline": "Sin imágenes sin conexión"
   }
 }

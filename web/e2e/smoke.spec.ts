@@ -32,6 +32,33 @@ test.describe('AstraRocketJs smoke', () => {
     await expect(page.getByRole('button', { name: 'Flight', exact: true })).toHaveCount(0);
   });
 
+  /**
+   * The header's save status, end to end: the autosave actually landing is
+   * what puts it on screen. It replaced the File menu's Save item, so this is
+   * now the only thing in the app that tells anyone their work is being kept -
+   * and it is wired through three places (the write's success path, the store,
+   * the header) that no unit test crosses.
+   */
+  test('says when the rocket was last saved, once a save has landed', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+    // Nothing has been written yet, and a "Saved" over a design that has never
+    // reached storage is the one thing this must not say.
+    await expect(page.getByText(/^Saved/)).toHaveCount(0);
+
+    // Any edit starts the debounced autosave; this is the cheapest one.
+    await openTab(page, 'Simulations');
+    await page.getByRole('button', { name: 'Duplicate simulation' }).click();
+    await autosaved(page, '"launch":', 2);
+
+    await expect(page.getByText(/^Saved/)).toHaveText('Saved just now');
+
+    // And the File menu no longer offers a Save of its own.
+    await page.getByRole('button', { name: 'Menu' }).click();
+    await expect(page.getByRole('menuitem', { name: 'Save As…' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Save', exact: true })).toHaveCount(0);
+  });
+
   test('running a sim unlocks the Flight view and clears "not run"', async ({ page }) => {
     await page.goto('/');
 

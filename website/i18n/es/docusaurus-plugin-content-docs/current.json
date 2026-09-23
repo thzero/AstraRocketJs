@@ -18,5 +18,9 @@
   "sidebar.docs.category.Developing": {
     "message": "Desarrollo",
     "description": "The label for category 'Developing' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Appendix": {
+    "message": "Apéndice",
+    "description": "The label for category 'Appendix' in sidebar 'docs'"
   }
 }

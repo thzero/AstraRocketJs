@@ -207,7 +207,16 @@ export class DesignLibrary {
     // Same rule for the pointer: a design that is written and indexed but not
     // active works for this session and then the next launch opens the
     // previous one, with the user's new rocket sitting in the library list.
-    if (!(await this.setActive(id))) throw new Error('storage-full');
+    //
+    // ROLL BACK before throwing. The caller (workspaceStore.save) still has no
+    // active id, so its next autosave creates again — and a half-done create
+    // that left an indexed design behind added one identical row to the
+    // library per retry, i.e. one every 500 ms for as long as the pointer
+    // write kept failing.
+    if (!(await this.setActive(id))) {
+      await this.remove(id);
+      throw new Error('storage-full');
+    }
     const meta = (await this.readIndex()).find((m) => m.id === id);
     return meta ?? { id, name, updatedAt: Date.now() };
   }

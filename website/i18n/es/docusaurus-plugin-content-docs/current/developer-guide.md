@@ -1,6 +1,6 @@
 ---
 title: "Guía del desarrollador"
-sidebar_position: 14
+sidebar_position: 15
 ---
 AstraRocketJs es un monorepo: una **aplicación web** (`web/`) y el **motor de OpenRocket** (`engine-java/`) compilado a WebAssembly y JavaScript por TeaVM. La documentación completa para desarrolladores está en el repositorio:
 

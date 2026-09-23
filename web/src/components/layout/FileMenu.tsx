@@ -16,22 +16,38 @@ const subItem =
 export interface FileMenuActions {
   onNew: () => void;
   onOpenLibrary: () => void;
-  onSave: () => void;
   onSaveAs: () => void;
   onImportOrk: () => void;
+  onImportRkt: () => void;
+  onImportExamples: () => void;
   onExportOrk: () => void;
+  onExportRkt: () => void;
+  onExportPrint: () => void;
   onExportRasaero: () => void;
   onReport: () => void;
   onMotors: () => void;
+  onLaunchLocations: () => void;
   onSettings: () => void;
+  /** Open in-app Help at the docs index. */
+  onHelp: () => void;
+  /** Open in-app Help ON the Safety page. */
+  onSafety: () => void;
   onPrivacy: () => void;
   onAbout: () => void;
 }
 
 /**
  * The header's dropdown menu (WAI-ARIA menu-button pattern): New / Open /
- * Save / Save As / Import / Export / Report / Motors / Settings / Help /
- * Privacy / About.
+ * Save As / Import / Export / Report / Motors / Launch locations / Settings /
+ * Help /
+ * Safety / Privacy / About.
+ *
+ * There is no **Save**. Editing autosaves on a 500 ms debounce, with a
+ * synchronous journal on unload, so the item never stood between the user and
+ * their work: it flushed a write that was already coming, and sent a
+ * never-named design to Save As. The header says when the last save landed
+ * instead (SaveStatus), which is the reassurance the item was really there for
+ * - and naming a design is Save As, which is what it delegated to anyway.
  *
  * Mounted only while open (`{menuOpen && <FileMenu />}`), and it owns the two
  * inline "Import" / "Export" submenus: they reveal their format sub-items in
@@ -46,13 +62,11 @@ export interface FileMenuActions {
  */
 function FileMenu({
   canSave,
-  helpHref,
   onClose,
   onEscape,
   actions,
 }: {
   canSave: boolean;
-  helpHref: string;
   /** Close the menu (an item was chosen, or Tab moved on). */
   onClose: () => void;
   /** Escape: close and return focus to the trigger. */
@@ -126,9 +140,6 @@ function FileMenu({
       <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onOpenLibrary)}>
         {t('file.openLibrary')}
       </button>
-      <button role="menuitem" tabIndex={-1} className={item} disabled={!canSave} onClick={run(actions.onSave)}>
-        {t('file.save')}
-      </button>
       <button role="menuitem" tabIndex={-1} className={item} disabled={!canSave} onClick={run(actions.onSaveAs)}>
         {t('file.saveAs')}
       </button>
@@ -155,6 +166,31 @@ function FileMenu({
           onClick={run(actions.onImportOrk)}
         >
           {t('file.importOrk')}
+        </button>
+      )}
+      {importOpen && (
+        <button
+          role="menuitem"
+          tabIndex={-1}
+          className={subItem}
+          aria-label={t('file.importRktLabel')}
+          onClick={run(actions.onImportRkt)}
+        >
+          {t('file.importRkt')}
+        </button>
+      )}
+      {/* Under Import and not beside New, because that is what opening one is:
+          it reads a `.ork` and lands an unsaved copy, exactly as the entry above
+          does — the file just happens to ship with the app. */}
+      {importOpen && (
+        <button
+          role="menuitem"
+          tabIndex={-1}
+          className={subItem}
+          aria-label={t('file.importExamplesLabel')}
+          onClick={run(actions.onImportExamples)}
+        >
+          {t('file.importExamples')}
         </button>
       )}
       <button
@@ -188,6 +224,30 @@ function FileMenu({
           role="menuitem"
           tabIndex={-1}
           className={subItem}
+          aria-label={t('file.exportRktLabel')}
+          disabled={!canSave}
+          onClick={run(actions.onExportRkt)}
+        >
+          {t('file.exportRkt')}
+        </button>
+      )}
+      {exportOpen && (
+        <button
+          role="menuitem"
+          tabIndex={-1}
+          className={subItem}
+          aria-label={t('file.exportPrintLabel')}
+          disabled={!canSave}
+          onClick={run(actions.onExportPrint)}
+        >
+          {t('file.exportPrint')}
+        </button>
+      )}
+      {exportOpen && (
+        <button
+          role="menuitem"
+          tabIndex={-1}
+          className={subItem}
           disabled={!canSave}
           onClick={run(actions.onExportRasaero)}
         >
@@ -201,21 +261,29 @@ function FileMenu({
       <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onMotors)}>
         {t('dash.menu')}
       </button>
+      {/* Beside the motor dashboard, which is the same kind of entry: a place
+          to see and manage a library of your own that is otherwise only
+          reachable from the one panel that happens to use it. */}
+      <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onLaunchLocations)}>
+        {t('location.menu')}
+      </button>
       <div className="my-1 border-t border-white/10" />
       <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onSettings)}>
         {t('settings.title')}
       </button>
-      <a
-        role="menuitem"
-        tabIndex={-1}
-        className={item}
-        href={helpHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={onClose}
-      >
+      {/* Buttons, not links: these open the in-app Help dialog over the design
+          you are holding rather than sending you to another tab, which is what
+          makes help readable at a field with no signal. The dialog carries its
+          own "open on the docs site" link for when you want the shareable URL. */}
+      <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onHelp)}>
         {t('menu.help')}
-      </a>
+      </button>
+      {/* Its own entry rather than a page buried in Help: what a simulation is
+          worth, and what to check on the real rocket, is the one doc a user
+          should not have to go looking for. */}
+      <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onSafety)}>
+        {t('menu.safety')}
+      </button>
       <div className="my-1 border-t border-white/10" />
       <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onPrivacy)}>
         {t('about.privacy')}
@@ -228,15 +296,7 @@ function FileMenu({
 }
 
 /** The menu-button: the trigger plus the menu it opens, closed on outside click. */
-export function FileMenuButton({
-  canSave,
-  helpHref,
-  actions,
-}: {
-  canSave: boolean;
-  helpHref: string;
-  actions: FileMenuActions;
-}) {
+export function FileMenuButton({ canSave, actions }: { canSave: boolean; actions: FileMenuActions }) {
   const { t } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
@@ -274,7 +334,6 @@ export function FileMenuButton({
       {menuOpen && (
         <FileMenu
           canSave={canSave}
-          helpHref={helpHref}
           onClose={() => setMenuOpen(false)}
           onEscape={() => {
             setMenuOpen(false);
