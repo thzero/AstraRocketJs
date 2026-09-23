@@ -13,9 +13,9 @@ import type { UnitSelection } from '../prefs/units';
  */
 
 const saveBlob = vi.fn((_blob: Blob, _name: string) => Promise.resolve());
-vi.mock('./saveFile', () => ({
+vi.mock('./saveFile', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./saveFile')>()),
   saveBlob: (blob: Blob, name: string) => saveBlob(blob, name),
-  safeFilename: (s: string) => s,
 }));
 
 const { downloadReportPdf } = await import('./reportPdf');

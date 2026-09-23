@@ -48,12 +48,12 @@ for (const m of [
 vi.mock('jspdf', () => ({ jsPDF: FakeDoc }));
 
 const saved: string[] = [];
-vi.mock('./saveFile', () => ({
+vi.mock('./saveFile', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./saveFile')>()),
   saveBlob: (_blob: Blob, name: string) => {
     saved.push(name);
     return Promise.resolve();
   },
-  safeFilename: (s: string, fb: string) => s.replace(/[^a-z0-9]+/gi, '_') || fb,
 }));
 
 const { downloadReportPdf } = await import('./reportPdf');
@@ -300,7 +300,9 @@ describe('golden PDF report', () => {
     calls.length = 0;
     await downloadReportPdf(model, tree, t, everything, units);
     expect(calls.join('\n')).toMatchSnapshot();
-    expect(saved).toEqual(['Golden_Report_1_.pdf']);
+    // "-report", the way the design CSV beside it is "-design": a name says
+    // which rocket AND which document, not only which rocket.
+    expect(saved).toEqual(['Golden_Report_1_-report.pdf']);
   });
 
   it('draws the flat (not by stage) report with outline templates on letter landscape', async () => {

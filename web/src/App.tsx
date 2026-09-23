@@ -1,6 +1,6 @@
 import { useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useWorkspaceStore, selectActive } from './state/store';
+import { useWorkspaceStore, selectActive, selectDesignName } from './state/store';
 import { useWorkspaceEffects } from './state/useWorkspaceEffects';
 import { AppHeader } from './components/layout/AppHeader';
 import { CenterView } from './components/canvas/CenterView';
@@ -39,6 +39,7 @@ export default function App() {
   // Titles the CSV the events table writes, so a file on disk says which run it
   // came from rather than only "flight-events.csv".
   const activeSimName = useWorkspaceStore((s) => selectActive(s).name);
+  const designName = useWorkspaceStore(selectDesignName);
 
   // The center pane backs BOTH the Design and Results tabs, and stays mounted
   // across the switch: the 2D/3D canvases are expensive to build, and remounting
@@ -242,7 +243,7 @@ export default function App() {
             {/* Under the tiles, not above: the tiles are the verdict on the
                 flight and the timeline is how it got there. The column
                 scrolls, which is what a table of a dozen-odd rows needs. */}
-            <FlightEventsTable sim={result} simName={activeSimName} />
+            <FlightEventsTable sim={result} simName={activeSimName} designName={designName} />
           </div>
         </section>
       </main>

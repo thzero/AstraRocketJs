@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useWorkspaceStore, selectActive } from '../../state/store';
+import { useWorkspaceStore, selectActive, selectDesignName } from '../../state/store';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import { aeroTableCsv, CSV_MIME } from '../../services/csvExport';
+import { exportFilename } from '../../services/saveFile';
 import { download } from '../../services/saveFile';
 import type { ComponentMass } from '../../engine/openRocketEngine';
 import type { ChartSeries } from './aeroTables';
@@ -46,6 +47,7 @@ export function AeroAnalysis() {
   const { t } = useTranslation();
   const u = useUnits();
   const rocket = useWorkspaceStore((s) => s.rocket);
+  const designName = useWorkspaceStore(selectDesignName);
   const info = useWorkspaceStore((s) => s.info);
   // Which motor the POWER-ON curve belongs to.
   //
@@ -186,7 +188,9 @@ export function AeroAnalysis() {
         <span className="text-[10px] text-slate-500">{t('aero.maxMach')}</span>
         <Seg options={[1, 2, 3, 5] as const} value={machMax} onChange={setMachMax} fmt={(v) => `M${v}`} />
         <button
-          onClick={() => download('aero-table.csv', aeroTableCsv(sweep, u.all), CSV_MIME)}
+          onClick={() =>
+            download(exportFilename([designName, 'aero-table'], 'csv'), aeroTableCsv(sweep, u.all), CSV_MIME)
+          }
           title={t('aero.exportCsv')}
           className="rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
         >

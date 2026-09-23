@@ -145,13 +145,13 @@ export async function downloadRocket3mf(
 
   if (built.length === 0) throw new Error('No printable parts were selected.');
 
-  const base = safeFilename(name, 'rocket');
+  const rocket = safeFilename(name, 'rocket');
   if (!separateFiles) {
     const bytes = buildThreeMf(
       built.map((b) => b.part),
       { placeOnPlate },
     );
-    await saveBlob(new Blob([bytes as BlobPart], { type: THREE_MF_MIME }), `${base}.3mf`);
+    await saveBlob(new Blob([bytes as BlobPart], { type: THREE_MF_MIME }), `${rocket}.3mf`);
     return { written: built.length, skipped };
   }
 
@@ -169,6 +169,9 @@ export async function downloadRocket3mf(
     used.add(entry);
     files[`${entry}.3mf`] = buildThreeMf([b.part], { placeOnPlate });
   }
-  await saveBlob(new Blob([zipSync(files, { level: 6 }) as BlobPart], { type: 'application/zip' }), `${base}-3mf.zip`);
+  await saveBlob(
+    new Blob([zipSync(files, { level: 6 }) as BlobPart], { type: 'application/zip' }),
+    `${rocket}-3mf.zip`,
+  );
   return { written: built.length, skipped };
 }

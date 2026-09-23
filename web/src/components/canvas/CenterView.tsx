@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   useWorkspaceStore,
   selectActive,
+  selectDesignName,
   selectExtraMotors,
   selectMotorDims,
   selectRunFailed,
@@ -74,6 +75,7 @@ export function CenterView() {
   const selectedId = useWorkspaceStore((s) => s.selectedId);
   const onSelect = useWorkspaceStore((s) => s.setSelectedId);
   const result = useWorkspaceStore((s) => selectActive(s).result);
+  const designName = useWorkspaceStore(selectDesignName);
   const sims = useWorkspaceStore((s) => s.sims);
   const activeId = useWorkspaceStore((s) => selectActive(s).id);
   const resultSimId = useWorkspaceStore((s) => s.resultSimId);
@@ -230,7 +232,7 @@ export function CenterView() {
         <div className="max-h-[45%] shrink-0 space-y-3 overflow-y-auto px-3 pt-3 lg:hidden">
           {!desktop && <FlightWarnings sim={result} />}
           <SimSummary sim={result} />
-          <FlightEventsTable sim={result} simName={flight?.name ?? simName} />
+          <FlightEventsTable sim={result} simName={flight?.name ?? simName} designName={designName} />
         </div>
       )}
       {/* Everything from here to the stats strip is the DRAWING half: the view

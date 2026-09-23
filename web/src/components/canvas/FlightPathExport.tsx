@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive } from '../../state/store';
-import { download as saveDownload, safeFilename } from '../../services/saveFile';
+import { download as saveDownload, exportFilename, safeFilename } from '../../services/saveFile';
 import { useUnits } from '../../prefs/useUnits';
 import {
   buildFlightPathModel,
@@ -332,7 +332,7 @@ export function ExportDialog({
         ext = resolved.format.extension;
         mime = resolved.format.mime;
       }
-      saveDownload(`${safeFilename(meta.simName, 'flight')}.${ext}`, text, mime);
+      saveDownload(exportFilename([meta.rocketName, meta.simName, 'flight-path'], ext, 'flight'), text, mime);
       onClose();
     } catch {
       setError(t('pathExport.renderError'));

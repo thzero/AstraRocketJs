@@ -317,6 +317,17 @@ export interface WorkspaceState {
 export const selectActive = (s: WorkspaceState): Simulation => s.sims.find((x) => x.id === s.activeId) ?? s.sims[0]!;
 
 /**
+ * What to CALL this rocket: its own name, else the name of the file it was
+ * imported from, else the app's default.
+ *
+ * The same three-step fallback the .ork, .rkt, 3MF and RASAero exports each
+ * spelled out inline; it is here so every download that carries the rocket's
+ * name carries the same one (see `exportFilename`).
+ */
+export const selectDesignName = (s: WorkspaceState): string =>
+  (typeof s.tree.name === 'string' && s.tree.name) || s.loadedMeta?.name || defaultDesignName();
+
+/**
  * What the Run button will fly: the ticked rows, or the active simulation when
  * nothing is ticked. One place decides it, so the button's label, its enabled
  * state and the action itself can never disagree.

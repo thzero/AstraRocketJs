@@ -141,12 +141,18 @@ describe('FlightEventsTable', () => {
   it('writes the rows out as a CSV, titled with the run it came from', () => {
     const spy = vi.spyOn(saveFile, 'download').mockImplementation(() => {});
     renderWithProviders(
-      <FlightEventsTable sim={result({ events: [{ type: 'LAUNCHROD', time: 1 }] })} simName="C6 flight" />,
+      <FlightEventsTable
+        sim={result({ events: [{ type: 'LAUNCHROD', time: 1 }] })}
+        simName="C6 flight"
+        designName="Big Bertha"
+      />,
     );
     fireEvent.click(screen.getByRole('button', { name: /CSV/ }));
     expect(spy).toHaveBeenCalledOnce();
     const [file, body] = spy.mock.calls[0]!;
-    expect(file).toBe('flight-events.csv');
+    // Rocket, then run, then what it is - so a downloads folder stays sortable
+    // and a second design cannot overwrite the first.
+    expect(file).toBe('Big_Bertha-C6_flight-flight-events.csv');
     const text = body as string;
     expect(text).toContain('# Simulation: C6 flight');
     // The extras the table hides on a sub-line are real columns in the file.

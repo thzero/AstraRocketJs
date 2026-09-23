@@ -4,7 +4,7 @@ import { fmtNum } from '../../i18n/format';
 import type { FlightResult } from '../../engine/api';
 import { CSV_MIME, flightEventsCsv } from '../../services/csvExport';
 import { EVENT_EXTRAS, EVENT_NAME, eventRows, type EventRow, type ExtraKey } from '../../services/flightEvents';
-import { download } from '../../services/saveFile';
+import { download, exportFilename } from '../../services/saveFile';
 import { unitScope } from '../../prefs/units';
 import { useUnits } from '../../prefs/useUnits';
 import { UnitChip } from '../common/UnitChip';
@@ -68,7 +68,15 @@ function Extras({ row }: { row: EventRow }) {
   return <div className="pb-1 pl-2 text-[10px] leading-snug text-slate-500">{parts.join(' · ')}</div>;
 }
 
-export function FlightEventsTable({ sim, simName }: { sim: FlightResult | null; simName?: string }) {
+export function FlightEventsTable({
+  sim,
+  simName,
+  designName,
+}: {
+  sim: FlightResult | null;
+  simName?: string;
+  designName?: string;
+}) {
   const { t } = useTranslation();
   const u = useUnits();
   const alt = u.at(unitScope('events', 'altitude'), 'distance');
@@ -93,7 +101,7 @@ export function FlightEventsTable({ sim, simName }: { sim: FlightResult | null; 
         <button
           onClick={() =>
             download(
-              'flight-events.csv',
+              exportFilename([designName, simName, 'flight-events'], 'csv'),
               flightEventsCsv(rows, u.all, (r) => t(EVENT_NAME[r.type]!), stageName, simName),
               CSV_MIME,
             )

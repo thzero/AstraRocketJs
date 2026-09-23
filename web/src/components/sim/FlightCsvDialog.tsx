@@ -4,7 +4,9 @@ import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
 import { useFocusTrap } from '../common/useFocusTrap';
 import { flightColumns, type FlightColumn } from '../../services/flightColumns';
+import { useWorkspaceStore, selectDesignName } from '../../state/store';
 import { flightDataCsv, CSV_MIME } from '../../services/csvExport';
+import { exportFilename } from '../../services/saveFile';
 import { download } from '../../services/saveFile';
 import type { FlightResult } from '../../engine/openRocketEngine';
 
@@ -31,6 +33,7 @@ export function FlightCsvDialog({
 }) {
   const { t } = useTranslation();
   const u = useUnits();
+  const designName = useWorkspaceStore(selectDesignName);
   const { settings, update } = useSettings();
   const ref = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
   const saved = settings.flightCsv;
@@ -54,7 +57,7 @@ export function FlightCsvDialog({
 
   const onExport = () => {
     const csv = flightDataCsv(result, u.all, { ...saved, columns: chosen, branchIndex, columnName: name }, simName);
-    download(`${simName || 'flight'}.csv`, csv, CSV_MIME);
+    download(exportFilename([designName, simName, 'flight-data'], 'csv'), csv, CSV_MIME);
     onClose();
   };
 

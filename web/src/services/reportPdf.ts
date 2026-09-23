@@ -1,4 +1,4 @@
-import { saveBlob, safeFilename } from './saveFile';
+import { saveBlob, exportFilename } from './saveFile';
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import type { ReportModel } from './reportModel';
 import type { UnitSelection } from '../prefs/units';
@@ -24,12 +24,6 @@ export * from './report/layout';
  * This module decides WHICH sections appear and in what order; each section
  * draws itself under `report/` against the shared page cursor (`PdfPage`).
  */
-
-// `safeFilename` from saveFile.ts, not a local copy: this one fell to the bug
-// that helper documents -- a name of only separators ("///") collapses to "_",
-// which is truthy and so survives the `|| 'rocket'` fallback as a useless
-// filename.
-const safe = (name: string) => safeFilename(name, 'rocket');
 
 export async function downloadReportPdf(
   model: ReportModel,
@@ -73,5 +67,5 @@ export async function downloadReportPdf(
   // which "silently does nothing and the file simply never appears" on
   // iOS/iPadOS installed as a PWA (saveFile.ts:5-13). Every other export in the
   // app routes through saveBlob; the PDF report was the one that did not.
-  await saveBlob(doc.output('blob'), `${safe(model.name)}.pdf`);
+  await saveBlob(doc.output('blob'), exportFilename([model.name, 'report'], 'pdf'));
 }

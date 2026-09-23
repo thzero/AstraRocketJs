@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { download, saveBlob, safeFilename } from './saveFile';
+import { download, exportFilename, saveBlob, safeFilename } from './saveFile';
 
 // The share sheet is used ONLY where `<a download>` is known to fail: iOS or
 // iPadOS running the app as an installed PWA. Everywhere else the anchor wins,
@@ -166,5 +166,45 @@ describe('download', () => {
     await flush();
     expect(clicks).toHaveLength(1);
     expect(clicks[0]!.download).toBe('rocket-3d.png');
+  });
+});
+
+/**
+ * The one naming rule every export follows. It exists because a downloads
+ * folder is flat and shared: a file has to say which rocket it came from, and
+ * a second design must not overwrite the first.
+ */
+describe('exportFilename', () => {
+  it('adds what the file IS for a rocket-level export, design documents included', () => {
+    expect(exportFilename(['Big Bertha', 'design'], 'ork')).toBe('Big_Bertha-design.ork');
+    expect(exportFilename(['Big Bertha', 'aero-table'], 'csv')).toBe('Big_Bertha-aero-table.csv');
+    expect(exportFilename(['Big Bertha', 'report'], 'pdf')).toBe('Big_Bertha-report.pdf');
+  });
+
+  it('puts rocket, then run, then kind for a simulation export', () => {
+    expect(exportFilename(['Big Bertha', 'C6 flight', 'flight-events'], 'csv')).toBe(
+      'Big_Bertha-C6_flight-flight-events.csv',
+    );
+  });
+
+  it('puts rocket then component for a printable part', () => {
+    expect(exportFilename(['Big Bertha', 'Nose cone'], 'stl')).toBe('Big_Bertha-Nose_cone.stl');
+  });
+
+  it('drops empty parts rather than leaving a double separator', () => {
+    // A caller can pass an optional part without guarding it - an unnamed
+    // stage, a sim with no name yet.
+    expect(exportFilename(['Bertha', '', undefined, 'flight-data'], 'csv')).toBe('Bertha-flight-data.csv');
+    expect(exportFilename([null, 'Bertha', 'design'], 'ork')).toBe('Bertha-design.ork');
+  });
+
+  it('drops a part that survives cleaning as separators only', () => {
+    // safeFilename turns "///" into "_", which is truthy but says nothing.
+    expect(exportFilename(['///', 'report'], 'pdf')).toBe('report.pdf');
+  });
+
+  it('falls back when nothing usable is left, rather than naming a file ".csv"', () => {
+    expect(exportFilename(['', '///'], 'csv')).toBe('rocket.csv');
+    expect(exportFilename([], 'kml', 'flight')).toBe('flight.kml');
   });
 });

@@ -99,3 +99,36 @@ export function safeFilename(name: string, fallback = 'rocket'): string {
   const cleaned = (name ?? '').trim().replace(/[^a-z0-9._-]+/gi, '_');
   return /[a-z0-9]/i.test(cleaned) ? cleaned : fallback;
 }
+
+/**
+ * A download's name, built from the parts that identify it.
+ *
+ * Every export in the app names its file the same way, because a downloads
+ * folder is a flat list shared with everything else the browser saves there:
+ * "aero-table.csv" and "flight-events.csv" say nothing about WHICH rocket, and
+ * a second design overwrites the first. The parts, in reading order:
+ *
+ *   about the rocket    rocket + what it is             Bertha-design.ork
+ *                                                       Bertha-aero-table.csv
+ *   about a simulation  rocket + sim + what it is       Bertha-C6 flight-flight-events.csv
+ *   a printable part    rocket + component              Bertha-Nose cone.stl
+ *
+ * A design document is not an exception to the first line: `.ork`, `.rkt` and
+ * `.CDX1` are "-design", the way the report is "-report". A name says which
+ * rocket AND which document, and a bare `Bertha.ork` only says which rocket.
+ * Round-tripping is stable because the rocket's name comes from INSIDE the
+ * file rather than from the filename, so re-saving an opened
+ * `Bertha-design.ork` gives that same name back rather than stacking suffixes.
+ *
+ * Empty and blank parts drop out rather than leaving a double separator, so a
+ * design that has never been named still gets a usable filename, and a caller
+ * can pass an optional part without guarding it.
+ */
+export function exportFilename(
+  parts: readonly (string | null | undefined)[],
+  ext: string,
+  fallback = 'rocket',
+): string {
+  const kept = parts.map((p) => safeFilename(p ?? '', '')).filter(Boolean);
+  return `${kept.length ? kept.join('-') : fallback}.${ext}`;
+}
