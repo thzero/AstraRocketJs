@@ -76,7 +76,7 @@ Notes on the 3D geometry:
 - Everything is scaled to **millimeters** (the unit slicers and CAD assume) and each part is a **watertight, manifold solid** — a slicer won't reject it.
 - **Tubes are hollow** (real wall thickness), not solid rods; nose cones and transitions include their **shoulders**; a nose/transition/bulkhead is a solid body.
 - A **fin set** exports one fin; a **tube fin set** exports one tube — you print/cut as many as the design has.
-- Filenames come from the component's name (or its type).
+- Filenames are the rocket's name and then the component's (or its type), so the nose cones of two designs do not collide in your downloads folder. See [What a download is called](#what-a-download-is-called).
 
 ## Rocket design report (PDF / CSV)
 
@@ -103,12 +103,27 @@ Then choose an output:
 
 The **Settings** button (persisted) controls the **template fill / border colors**, **paper size** (Letter / A4) and **orientation** (Portrait / Landscape).
 
+### What a download is called
+
+Every export names its file the same way, because a downloads folder is a flat list shared with everything else your browser saves there. The parts, in reading order:
+
+| The file is | Named | For example |
+| --- | --- | --- |
+| about the rocket | rocket, then what the file is | `Bertha-design.ork`, `Bertha-report.pdf`, `Bertha-aero-table.csv`, `Bertha-2d.svg` |
+| about a simulation | rocket, then the run, then what the file is | `Bertha-C6 flight-flight-data.csv`, `Bertha-C6 flight-flight-events.csv`, `Bertha-C6 flight-flight-path.kml` |
+| a printable part | rocket, then the component | `Bertha-Nose cone.stl` |
+
+A simulation export carries the run's name as well as the rocket's, because a rocket has several simulations and they are the thing being compared. Characters a filesystem will not take are replaced, and a part with nothing in it drops out, so an unnamed design still produces a usable filename.
+
+The rocket's name is its own name if you set one, otherwise the name of the file it was imported from. Re-saving a design you opened gives the same filename back rather than stacking suffixes, because that name is read from inside the file and never from the filename.
+
 ## Exporting data
 
 **Flight and drag data** can be exported as **CSV** for use in a spreadsheet or your own analysis. Columns are in [your chosen units](./settings.md#units) and each header names the unit it carries, so a file stays self-describing; numbers always use `.` as the decimal separator whatever your app language:
 
 - **Flight data** — the simulated time-history (from the Flight view).
 - **Drag table** — the Cd / breakdown / CP vs Mach data (from the Aero view).
+- **Flight events** — the event timeline, one row per event, from the **CSV** button on the [Flight events](./running-a-simulation.md#flight-events) table. Where the table on screen keeps each event's extras on a line under it, the file gives every one of them its own column: stability, thrust-to-weight, angle of attack, Mach and dynamic pressure, plus the source component and the stage. Most rows leave most of those columns blank, which is the honest shape — only the rail-departure row has a thrust-to-weight, and an empty cell says it does not have one rather than that it is zero. This is separate from the flight data above, which can already carry the events as comment lines: a comment is for a reader, and this is the events as data.
 
 ### Choosing what goes in the flight CSV
 

@@ -80,15 +80,32 @@ Estas dos comprobaciones son además las *únicas* reglas de seguridad que la ap
 
 Al ejecutar se abre la pestaña **Resultados** con el vuelo que acabas de ejecutar — una simulación o un lote —, porque ejecutar es pedir ver la respuesta.
 
-Los resultados se muestran como fichas, en orden aproximadamente cronológico del vuelo, e incluyen:
+Una tarjeta **Antes de volar** encabeza los resultados: qué son estos números (estimaciones de un modelo, no una hoja de vuelo), qué cosas el modelo nunca tuvo (el flutter de las aletas, las cargas estructurales, el inflado del paracaídas y su golpe de apertura, el comportamiento de tu motor ese día) y el recordatorio de pesar y equilibrar el cohete que realmente construiste e introducir esas medidas como invalidaciones antes de fiarte del margen. Enlaza con **[Seguridad](./safety.md)**, y va delante de los números en vez de detrás, porque lo que vale una lectura es algo que conviene saber antes de leerla.
+
+Pulsa su encabezado para plegar la explicación. Plegarla te pide confirmar que has leído las notas, porque el pliegue se recuerda y ese clic es la última vez que se ofrecen en este navegador; cancelar deja la tarjeta abierta, y volver a abrirla no pregunta nada. Lo que nunca se pliega es el propio encabezado, así que el símbolo de aviso y las palabras siguen sobre los números en ambos casos.
+
+Debajo, los resultados se muestran como fichas, en orden aproximadamente cronológico del vuelo, e incluyen:
 
 - **Velocidad de salida del raíl** (marcada si está por debajo de tu mínimo de seguridad)
 - **Retardo óptimo** y **tiempo hasta el apogeo**
 - **Apogeo** (altitud máxima) y **velocidad / aceleración / Mach máximos**
 - **Velocidad de apertura** (marcada si supera tu umbral de aviso; en verde cuando es suficientemente baja). En un diseño de [despliegue dual](./designing-a-rocket.md#despliegue-dual) el motor de vuelo juzga el principal y el piloto contra sus propios umbrales, y devuelve un aviso por cada uno.
 - **Velocidad de aterrizaje**, **tiempo de vuelo** y **distancia recorrida**
+- **Max-Q**, el pico de presión dinámica del impulso. El motor no lo registra, así que se deriva de la densidad del aire y la velocidad del sonido que la simulación ya lleva; es el número que decide si el fuselaje aguanta. Un resultado guardado antes de que las simulaciones conservaran el conjunto completo de series no tiene densidad del aire almacenada, y no informa Max-Q en vez de un cero que parecería una respuesta.
 
-Debajo de las fichas hay una tarjeta **Antes de volar**: qué son estos números (estimaciones de un modelo, no una hoja de vuelo), qué cosas el modelo nunca tuvo (el flutter de las aletas, las cargas estructurales, el inflado del paracaídas y su golpe de apertura, el comportamiento de tu motor ese día) y el recordatorio de pesar y equilibrar el cohete que realmente construiste e introducir esas medidas como invalidaciones antes de fiarte del margen. Enlaza con **[Seguridad](./safety.md)**, y aparece en cada ejecución porque se aplica a todas.
+### Eventos de vuelo {#flight-events}
+
+Bajo las fichas, la tabla **Eventos de vuelo** es el vuelo como una lista que se lee de arriba abajo: una fila por evento, con el momento en que ocurrió y el estado del cohete en ese instante. Las gráficas marcan los mismos eventos como etiquetas, lo que responde *cuándo* y nada más.
+
+Se nombra cada evento que levanta el motor, no solo los cinco que etiquetan las gráficas, así que la salida de rampa, la ignición, la separación de etapa y el volteo aparecen aquí por primera vez. Cada fila lleva la **altitud** y la **velocidad** de su instante, en las unidades que elijas desde los encabezados de columna, y las filas por las que se lee algo más lo llevan en una línea propia:
+
+- La **salida de rampa** da el margen estático, la relación empuje-peso y el ángulo de ataque con los que dejó el raíl.
+- El **fin de empuje** da su Mach.
+- **Max-Q** da la presión dinámica y el Mach en el pico.
+
+Una **apertura de recuperación** nombra el paracaídas que se disparó, así que un drogue de doble apertura se distingue del principal, y una etapa con racimo obtiene una fila por motor en vez de una por etapa. En un vuelo por etapas todas están en la misma tabla, etiquetadas e intercaladas en el mismo reloj de lanzamiento, porque ese es el orden en que ocurrió el vuelo: un propulsor gastado baja mientras el sustentador sigue en ascenso libre.
+
+El botón **CSV** escribe la tabla como archivo. Consulta **[Archivos y exportaciones](./files-and-exports.md)**.
 
 Para el historial temporal completo, abre las **[vistas de Vuelo y Trayectoria 3D](./views-and-analysis.md)**. Para guardar los números, consulta **[Archivos y exportaciones](./files-and-exports.md)**.
 

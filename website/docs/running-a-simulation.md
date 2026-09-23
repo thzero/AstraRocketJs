@@ -82,15 +82,32 @@ These two checks are also the *only* safety rules the app enforces. What the sim
 
 Running opens the **Results** tab on the flight you just ran — one simulation or a batch, since running is asking to see the answer.
 
-Results are shown as tiles, in roughly chronological flight order, including:
+A **Before you fly** card heads the results: what these numbers are (estimates from a model, not a flight card), what the model never had (fin flutter, structural loads, parachute inflation and opening shock, your motor's behavior on the day), and the reminder to weigh and balance the rocket you actually built and enter those as overrides before trusting the margin. It links to **[Safety](./safety.md)**, and it leads the numbers rather than following them, because what a reading is worth is a thing to know before reading it.
+
+Click its heading to fold the explanation away. Folding asks you to acknowledge the notes first, because the fold is remembered and that click is the last time they get offered on this browser; canceling leaves the card open, and opening it back up asks nothing. What never folds is the heading itself, so the warning glyph and the words stay above the numbers either way.
+
+Under it, results are shown as tiles, in roughly chronological flight order, including:
 
 - **Rail-exit velocity** (flagged if below your safety minimum)
 - **Optimum delay** and **time to apogee**
 - **Apogee** (max altitude) and **max velocity / acceleration / Mach**
 - **Deployment speed** (flagged if above your warning threshold; green when safely low). On a [dual-deployment](./designing-a-rocket.md#dual-deployment) design the flight engine judges the main and the drogue against their own thresholds instead, and reports a warning for each.
 - **Landing speed**, **flight time**, and **downrange** distance
+- **Max-Q**, the peak dynamic pressure of the boost. The engine does not record it, so it is derived from the air density and speed of sound the run already carries; it is the number that decides whether the airframe holds together. A result saved before simulations kept the full series set has no air density stored, and reports no Max-Q rather than a zero that would look like an answer.
 
-Underneath the tiles is a **Before you fly** card: what these numbers are (estimates from a model, not a flight card), what the model never had (fin flutter, structural loads, parachute inflation and opening shock, your motor's behavior on the day), and the reminder to weigh and balance the rocket you actually built and enter those as overrides before trusting the margin. It links to **[Safety](./safety.md)**, and it is there on every run because it applies to every run.
+### Flight events
+
+Under the tiles, the **Flight events** table is the flight as a list you can read down: one row per event, with the time it happened and the state of the rocket at that instant. The charts mark the same events as labels, which answers *when* and nothing else.
+
+Every event the engine raises is named, not just the five the charts label, so rail departure, ignition, stage separation and tumble appear here for the first time. Each row carries the **altitude** and **speed** at its instant, in units you set from the column headers, and the rows that are read for more carry it on a line of their own:
+
+- **Rail departure** gives the static margin, thrust-to-weight and angle of attack it left the rail with.
+- **Burnout** gives its Mach.
+- **Max-Q** gives the dynamic pressure and the Mach at the peak.
+
+A **recovery deployment** names the parachute that fired, so a dual-deploy drogue is told from the main, and a clustered stage gets one row per motor rather than one for the stage. On a staged flight every stage is in the one table, tagged and interleaved on the single launch clock, because that is the order the flight happened in: a spent booster comes down while the sustainer is still coasting.
+
+The **CSV** button writes the table as a file. See **[Files & Exports](./files-and-exports.md#exporting-data)**.
 
 For the full time-history, open the **[Flight and 3D-path views](./views-and-analysis.md)**. To save the numbers, see **[Files & Exports](./files-and-exports.md)**.
 

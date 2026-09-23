@@ -76,7 +76,7 @@ Notas sobre la geometría 3D:
 - Todo se escala a **milímetros** (la unidad que asumen los laminadores y el CAD) y cada pieza es un **sólido estanco y variedad cerrada**: un laminador no lo rechazará.
 - Los **tubos son huecos** (con espesor de pared real), no varillas macizas; las ojivas y transiciones incluyen sus **hombros**; una ojiva, transición o mamparo es un cuerpo macizo.
 - Un **juego de aletas** exporta una aleta; un **juego de aletas tubulares** exporta un tubo: imprimes o cortas tantos como tenga el diseño.
-- Los nombres de archivo salen del nombre del componente (o de su tipo).
+- Los nombres de archivo son el del cohete y luego el del componente (o su tipo), para que las ojivas de dos diseños no choquen en tu carpeta de descargas. Consulta [Cómo se llama una descarga](#what-a-download-is-called).
 
 ## Informe de diseño del cohete (PDF / CSV) {#rocket-design-report-pdf--csv}
 
@@ -103,6 +103,20 @@ Después elige una salida:
 
 El botón de **Ajustes** (que se recuerda) controla los **colores de relleno y borde de las plantillas**, el **tamaño de papel** (Carta / A4) y la **orientación** (Vertical / Horizontal).
 
+### Cómo se llama una descarga {#what-a-download-is-called}
+
+Todas las exportaciones nombran su archivo igual, porque la carpeta de descargas es una lista plana compartida con todo lo demás que guarda el navegador. Las partes, en orden de lectura:
+
+| El archivo trata de | Se llama | Por ejemplo |
+| --- | --- | --- |
+| el cohete | el cohete y luego qué es el archivo | `Bertha-design.ork`, `Bertha-report.pdf`, `Bertha-aero-table.csv`, `Bertha-2d.svg` |
+| una simulación | el cohete, la simulación y qué es el archivo | `Bertha-C6 flight-flight-data.csv`, `Bertha-C6 flight-flight-events.csv`, `Bertha-C6 flight-flight-path.kml` |
+| una pieza imprimible | el cohete y luego el componente | `Bertha-Nose cone.stl` |
+
+Una exportación de simulación lleva el nombre de la ejecución además del cohete, porque un cohete tiene varias simulaciones y son justo lo que se compara. Los caracteres que un sistema de archivos no admite se sustituyen, y una parte vacía desaparece, así que un diseño sin nombre sigue dando un nombre de archivo utilizable.
+
+El nombre del cohete es el suyo propio si se lo has puesto y, si no, el del archivo del que se importó. Volver a guardar un diseño que abriste devuelve el mismo nombre en vez de acumular sufijos, porque ese nombre se lee de dentro del archivo y nunca del nombre de archivo.
+
 ## Exportar datos {#exporting-data}
 
 Los **datos de vuelo y de resistencia** se pueden exportar como **CSV** para usarlos en una hoja de cálculo o en tu propio análisis. Las columnas están en [las unidades que hayas elegido](./settings.md#units) y cada encabezado indica la unidad que lleva, así que el archivo se explica solo; los números usan siempre `.` como separador decimal, sea cual sea el idioma de la aplicación:
@@ -120,6 +134,7 @@ Tus elecciones se recuerdan para la siguiente exportación.
 
 - **Datos de vuelo** — el historial temporal simulado (desde la vista de Vuelo).
 - **Tabla de resistencia** — los datos de Cd, desglose y CP frente a Mach (desde la vista Aero).
+- **Eventos de vuelo** — la tabla de eventos, una fila por evento, desde el botón **CSV** de la tabla [Eventos de vuelo](./running-a-simulation.md#flight-events). Donde la tabla en pantalla guarda los extras de cada evento en una línea debajo, el archivo da a cada uno su propia columna: estabilidad, relación empuje-peso, ángulo de ataque, Mach y presión dinámica, más el componente de origen y la etapa. La mayoría de las filas deja la mayoría de esas columnas en blanco, que es la forma honesta: solo la fila de salida de rampa tiene relación empuje-peso, y una celda vacía dice que no la tiene, no que valga cero. Es distinto de los datos de vuelo de arriba, que ya pueden llevar los eventos como líneas de comentario: un comentario es para quien lee, y esto son los eventos como datos.
 
 ## Exportar la trayectoria de vuelo (KML / GPX / CSV) {#exporting-the-flight-path-kml--gpx--csv}
 

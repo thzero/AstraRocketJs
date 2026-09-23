@@ -35,6 +35,8 @@ Ser explícito sobre las carencias es más útil que una advertencia genérica:
 
 ## Antes de volar {#before-you-fly}
 
+El panel de resultados encabeza sus números con una tarjeta **Antes de volar** que lleva la versión corta de esta página. Se pliega: pulsa su encabezado y la explicación se recoge, aunque antes te pide confirmar que has leído las notas, porque el pliegue se recuerda y ese clic es la última vez que se ofrecen en este navegador. El encabezado nunca se pliega, así que el aviso sigue sobre los números elijas lo que elijas.
+
 Lo más valioso que puedes hacer es dejar de simular un plano y empezar a simular el cohete que tienes sobre la mesa:
 
 1. **Pesa el cohete terminado**, listo para volar pero sin el motor. Selecciona su etapa en el editor de componentes (en un cohete de una sola etapa esa es la totalidad), activa la **invalidación de masa** e introduce la cifra medida con "aplicar a todos los subcomponentes" activado.

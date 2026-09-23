@@ -8,7 +8,7 @@ import UpstreamPin from '@site/src/components/UpstreamPin';
 
 :::info Snapshot, and how to read it
 
-Written **2026-09-22**, comparing **AstraRocketJs <AppVersion />** (engine built from OpenRocket <UpstreamPin />) against **[ZenRockets](https://zenrockets.com)** at **v0.2.0**, the latest entry in [their changelog](https://zenrockets.com/docs/changelog) on that date (dated 2026-09-15).
+Written **2026-09-23**, comparing **AstraRocketJs <AppVersion />** (engine built from OpenRocket <UpstreamPin />) against **[ZenRockets](https://zenrockets.com)** at **v0.2.0**, the latest entry in [their changelog](https://zenrockets.com/docs/changelog) on that date (dated 2026-09-15).
 
 :::
 
@@ -34,8 +34,8 @@ This is the useful table. Each row says where we stand and, where there is one, 
 | **Comparing up to five flights with tenth-of-a-second time alignment** | Partly. Several simulations already overlay in the charts, the ground track and the 3D view, with per-series colors. |
 | **Linked dimensions**: a field can reference another part's dimension rather than being typed, so a coupler's outside diameter follows the tube's inside diameter | Not available. |
 | **Section cutaway view**: a cut through the 3D model so the internals show (motor mount, rings, bulkheads, couplers, the chute bay) | Not available. There is a 2D schematic, a solid 3D model, an aero view and the flight views, but no way to look inside the 3D one. |
-| **An event timeline you can read down**, each event carrying the state at that instant (rail departure with velocity, stability, angle of attack and thrust-to-weight; per-motor burnout; separations; deployments with the velocity they fired at; touchdown velocity) | Partly, and this is presentation rather than physics. |
-| **Max-Q** | Not available. Dynamic pressure peaks somewhere in the boost and is the number that decides whether an airframe holds together, and nothing in the app reports it. |
+| **An event timeline you can read down**, each event carrying the state at that instant (rail departure with velocity, stability, angle of attack and thrust-to-weight; per-motor burnout; separations; deployments with the velocity they fired at; touchdown velocity) | Yes. The **Flight events** table beside the charts gives every event its time, altitude and speed, with the numbers each moment is read for on the rows that have them: static margin, thrust-to-weight and angle of attack at rail departure, Mach at burnout. A deployment names the parachute that fired, so a dual-deploy drogue is told from the main, and a clustered stage gets one row per motor. Every stage is in the one table, interleaved on the single launch clock. It exports to CSV, where each of those extras becomes its own column. |
+| **Max-Q** | Yes, as a summary tile and a row in the events table. The engine does not record dynamic pressure, but it records both halves of it, so q = ½ρv² is derived in the app from the air density and speed of sound every run already carries. The speed used is the **airspeed**, not the speed over the ground: the two differ on a windy launch, and q is a property of the air the rocket is flying through. |
 | **Resolved atmosphere profiles**: what the simulation actually flew, as wind, pressure and temperature against altitude, plus the conditions at the pad | Not available. |
 | **Live weather forecasts from multiple models, and real launch sites with elevation lookup** | Partly. Saved launch locations with a satellite map and click-to-set coordinates are here; a **forecast** is not. |
 | **Map imagery under the trajectory** | Yes, on request. The ground track can be drawn over satellite or street imagery of the launch site, and the 3D path's ground plane takes the same imagery under the trajectory. Both start bare and fetch nothing until you ask for the ground. |

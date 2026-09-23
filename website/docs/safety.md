@@ -35,6 +35,8 @@ Being explicit about the gaps is more useful than a blanket disclaimer:
 
 ## Before you fly
 
+The results pane heads its numbers with a **Before you fly** card carrying the short version of this page. It folds: click its heading and the explanation collapses, though it asks you to acknowledge the notes first, because the fold is remembered and that click is the last time they get offered on this browser. The heading itself never folds, so the warning stays above the numbers whatever you choose.
+
 The single most valuable thing you can do is stop simulating a drawing and start simulating the rocket on the bench:
 
 1. **Weigh the finished rocket**, ready to fly but without the motor. Select its stage in the component editor (on a single-stage rocket that is the whole thing), enable the **mass override**, and enter the measured figure with "apply to all subcomponents" on.

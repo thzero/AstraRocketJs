@@ -57,7 +57,7 @@ You can export these as **CSV** (see [Files & Exports](./files-and-exports.md)).
 
 ## Flight (after a simulation)
 
-A panel of **flight charts** over time: altitude, velocity, acceleration, Mach, thrust, mass, drag, and stability. Flight events (burnout, apogee, deployment, landing) are marked. Toggle which measures show from the chip bar, hover for a synchronized crosshair and value readout across every chart, and zoom / pan the time axis (the +/− buttons, drag, or Ctrl / pinch-scroll). **The measures you pick are remembered** — open thrust and mass once and they are still open next time, in this design and any other.
+A panel of **flight charts** over time: altitude, velocity, acceleration, Mach, thrust, mass, drag, and stability. Flight events (burnout, apogee, deployment, landing) are marked, which answers *when*; the **[Flight events](./running-a-simulation.md#flight-events)** table on the Results pane reads the same events down a list, each with the state of the rocket at that instant. Toggle which measures show from the chip bar, hover for a synchronized crosshair and value readout across every chart, and zoom / pan the time axis (the +/− buttons, drag, or Ctrl / pinch-scroll). **The measures you pick are remembered** — open thrust and mass once and they are still open next time, in this design and any other.
 
 **Choosing which flight** — run one simulation and the pane's title is simply its name. Run several at once and the title becomes a **picker** listing exactly those: click it and choose the flight to read. One at a time, and the choice governs all three results views — the charts, the [ground track](#ground-track-after-a-simulation) and the 3D path — so switching shows you the same flight whichever way you are looking at it.
 
