@@ -87,6 +87,7 @@ Tick the elements to include:
 - **Design report** — a schematic of the rocket plus the summary numbers (length, max diameter, empty/loaded mass and CG, CP, fineness, stability in calibers and %, Mach-0.3 drag coefficient, normal-force slope, and pitch/roll inertia), for the whole rocket and each stage.
 - **Parts detail** — per stage, every component with its material, dimensions and mass.
 - **Fin templates**, **Nose cone templates**, **Transition templates** — **1:1** cut/trace outlines (fins fold in any through-the-wall tab), with a cm/inch ruler to verify the print scale. Print at **100% / actual size** (no page scaling).
+- **Fin marking guide**: **1:1** wrap-around strips that say *where around the tube* each part goes, one per body tube that carries a fin set. See [Fin marking guide](#fin-marking-guide) below.
 
 Plus a few options:
 
@@ -102,6 +103,24 @@ Then choose an output:
 **Units** (persisted, next to the other options) picks what the PDF and the CSV are written in: **My default units** follows [Settings ▸ Units](./settings.md#units), or pin the document to **Metric** or **Imperial** so it reads the same whatever you happen to be working in — useful when the report is for someone else. Note that "my default units" means the tab defaults, *not* a unit you have set on an individual field: a report written half in inches and half in centimeters because of where you happened to click is not one anyone wants. The 1:1 templates and the printed scale bar always stay in mm/cm, because they measure the page.
 
 The **Settings** button (persisted) controls the **template fill / border colors**, **paper size** (Letter / A4) and **orientation** (Portrait / Landscape).
+
+### Fin marking guide
+
+The cutting templates give a fin's shape. This gives its **position**: a paper strip you wrap around the body tube to mark where each fin, tube fin, launch lug and rail button goes. It is the only printed aid **tube fins** get at all, since a tube has no outline to cut a template from.
+
+One strip per body tube that carries a fin set, printed 1:1. Everything angular on that tube shares the strip, each an arrow across it under its own name, so the guide answers *where does the lug sit relative to the fins*.
+
+To use one: print at **100% / actual size**, check the ruler, cut the strip out, wrap it around the tube with the **Fore** arrow pointing at the nose and the two ends **butted together, not overlapped**, then mark through each arrow. Rule a line along the tube through each pair of marks; that line is where the part goes.
+
+Some details worth knowing:
+
+- The strip is cut to the circumference **plus one paper thickness** (0.1 mm), because the marks sit on the outside of the wrapped paper rather than on the tube. Without it the ends fall short, and the smaller the tube the more it shows.
+- The **seam** is placed in the widest gap between marks, so nothing you have to mark ends up under the tape.
+- **Canted fins** are marked on the slant, with dashed lines at the root's fore and aft ends and a cross at its center.
+- A strip too long for the page is **cut into pieces** that butt together and are taped in order, with the joins kept off the marks. Nothing is ever scaled down: a shrunk marking guide is worse than none. A 4 in tube wraps 320 mm, so it always takes two pieces.
+- A part no strip can carry is **named in a footnote** rather than dropped, so nothing disappears silently: a lug on a nose cone or transition, whose circumference changes along its length, or a lug on a tube with no fin set.
+
+Where the first fin sits around the body is the fin set's **Base rotation** field, beside Cant.
 
 ### What a download is called
 

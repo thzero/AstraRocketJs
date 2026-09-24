@@ -84,6 +84,16 @@ const FIN_TABS: Field[] = [
   { key: 'tabOffsetMethod', label: 'tabOffsetMethod', kind: 'select', options: ['top', 'middle', 'bottom'] },
 ];
 
+// `rotation` is a fin set's BASE ROTATION: where its first fin sits around the
+// body, with the rest spaced evenly from it. It round-trips through .ork
+// (importTags.ts:182 / exportParts.ts:179) and the 3D view places every fin and
+// tube fin at it (rocketPieces.ts:141, :166), but nothing could SET it, so the
+// only way to have a fin set anywhere but 0 was to import a file that already
+// did - the same gap `cluster` had. The fin marking guide is what made it
+// matter: the guide prints where each fin goes RELATIVE to the launch lug, and
+// that relationship IS this field.
+const FIN_ROTATION: Field = { key: 'rotation', label: 'baseRotation', kind: 'angle', step: 5 };
+
 // Off-axis assembly placement (PodSet / ParallelStage) — how many instances
 // ring the parent axis, how far off it, and where they start. radiusMethod:
 // 'relative' measures the offset as a gap from the parent surface, 'free' from
@@ -179,6 +189,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'height', label: 'height', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
+    FIN_ROTATION,
     ...FIN_TABS,
   ],
   ellipticalfinset: [
@@ -187,12 +198,14 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'height', label: 'height', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
+    FIN_ROTATION,
     ...FIN_TABS,
   ],
   freeformfinset: [
     { key: 'finCount', label: 'finCount', kind: 'count' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
+    FIN_ROTATION,
     ...FIN_TABS,
   ],
   tubefinset: [
@@ -200,6 +213,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'length', label: 'length', kind: 'length' },
     { key: 'outerRadius', label: 'tubeRadius', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
+    FIN_ROTATION,
   ],
   innertube: [
     { key: 'length', label: 'length', kind: 'length' },

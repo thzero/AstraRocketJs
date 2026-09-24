@@ -70,7 +70,15 @@
     "finSet": "Fin set",
     "noseCone": "Nose cone",
     "transition": "Transition",
-    "tooLarge": "{{w}}×{{h}} mm — too large to print 1:1 on one page."
+    "tooLarge": "{{w}}×{{h}} mm — too large to print 1:1 on one page.",
+    "bodyTube": "Body tube",
+    "markingGuide": "Fin marking guide (1:1)",
+    "markingGuideHint": "Print at 100% / actual size (no page scaling), check the ruler, then cut out each strip, wrap it around its body tube with the ends butted together (not overlapped) and mark through the arrows. Rule a line along the tube through each pair of marks: that is where the part goes.",
+    "markingStrip": "{{name}} — wrap {{c}} mm",
+    "markingPart": "Piece {{k}} of {{n}} — tape end to end, in order",
+    "markingFore": "Fore",
+    "markingOmitted_noWrap": "Not marked ({{names}}): mounted on a nose cone or transition, whose circumference changes along its length, so there is no single wrap to mark.",
+    "markingOmitted_noFins": "Not marked ({{names}}): the tube carries no fin set, so there is nothing on it to square the mark against."
   },
   "export": {
     "title": "Design Report",
@@ -108,7 +116,8 @@
     "simFailed": "Simulation failed, so no PDF was written: {{message}}",
     "pdfFailed": "Could not export PDF: {{message}}",
     "csvFailed": "Could not export CSV: {{message}}",
-    "reportFailed": "Could not assemble the design report: {{message}}"
+    "reportFailed": "Could not assemble the design report: {{message}}",
+    "finMarkingGuide": "Fin marking guide"
   },
   "engine": {
     "wasmTip": "Physics engine: WebAssembly (fast path)",
@@ -939,6 +948,7 @@
     "radialDistance": "Radial distance",
     "radialReference": "Radial reference",
     "cant": "Cant angle",
+    "baseRotation": "Base rotation",
     "diameter": "Diameter",
     "dragCoeff": "Drag coeff",
     "mass": "Mass",

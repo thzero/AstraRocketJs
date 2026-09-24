@@ -9,6 +9,7 @@ import { useFocusTrap } from '../common/useFocusTrap';
 import { DEFAULT_REPORT } from '../../services/settings';
 import { assembleReport, type ReportModel } from '../../services/reportModel';
 import { isPlanarFinSet } from '../../tree/tubefins';
+import { markingGuides } from '../../services/report/markingGuide';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 
 interface StageSel {
@@ -25,6 +26,7 @@ interface Sel {
   showByStage: boolean;
   noseTemplates: boolean;
   transitionTemplates: boolean;
+  finMarkingGuide: boolean;
   stages: StageSel[];
 }
 
@@ -75,6 +77,10 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
 
   const hasNoses = useMemo(() => hasType(tree.components, (ty) => ty === 'nosecone'), [tree]);
   const hasTransitions = useMemo(() => hasType(tree.components, (ty) => ty === 'transition'), [tree]);
+  // The real rule, not a re-derived one: a marking guide needs a BODY TUBE
+  // carrying at least one fin set, which is exactly what markingGuides finds.
+  // Asking it means the checkbox cannot offer a guide the report would not draw.
+  const hasMarkingGuides = useMemo(() => markingGuides(tree).guides.length > 0, [tree]);
 
   // Per-stage builds run the real engine; a design it chokes on must leave the
   // dialog standing with its "no design" message, not take the app down. The
@@ -107,6 +113,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           showByStage: model.stages.length > 1,
           noseTemplates: hasNoses,
           transitionTemplates: hasTransitions,
+          finMarkingGuide: hasMarkingGuides,
           stages: model.stages.map((st, i) => ({
             include: true,
             parts: true,
@@ -131,6 +138,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
     sel.includeMotors &&
     sel.noseTemplates === hasNoses &&
     sel.transitionTemplates === hasTransitions &&
+    sel.finMarkingGuide === hasMarkingGuides &&
     sel.stages.every((st) => st.parts && (!st.hasFins || st.finTemplates));
   const setAll = (on: boolean) =>
     setSel((s) =>
@@ -141,6 +149,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
             includeMotors: on,
             noseTemplates: on && hasNoses,
             transitionTemplates: on && hasTransitions,
+            finMarkingGuide: on && hasMarkingGuides,
             stages: s.stages.map((st) => ({ ...st, include: on, parts: on, finTemplates: on && st.hasFins })),
           }
         : s,
@@ -178,6 +187,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           showByStage: sel.showByStage,
           noseTemplates: sel.noseTemplates,
           transitionTemplates: sel.transitionTemplates,
+          finMarkingGuide: sel.finMarkingGuide,
           stages: sel.stages.map((st) => ({ include: st.include, parts: st.parts, finTemplates: st.finTemplates })),
           paper: settings.report.paper,
           orientation: settings.report.orientation,
@@ -296,6 +306,16 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
                     onChange={(e) => patch({ transitionTemplates: e.target.checked })}
                   />
                   {t('export.transitionTemplates')}
+                </label>
+                <label className={`${row} pl-4 ${hasMarkingGuides ? '' : 'opacity-40'}`}>
+                  <input
+                    type="checkbox"
+                    className={check}
+                    disabled={!hasMarkingGuides}
+                    checked={sel.finMarkingGuide}
+                    onChange={(e) => patch({ finMarkingGuide: e.target.checked })}
+                  />
+                  {t('export.finMarkingGuide')}
                 </label>
               </div>
 

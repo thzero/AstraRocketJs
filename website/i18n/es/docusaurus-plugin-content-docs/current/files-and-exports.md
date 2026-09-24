@@ -87,6 +87,7 @@ Marca los elementos que quieras incluir:
 - **Informe de diseño** — un esquema del cohete más los números de resumen (longitud, diámetro máximo, masa y CG vacío/cargado, CP, finura, estabilidad en calibres y %, coeficiente de resistencia a Mach 0,3, pendiente de fuerza normal e inercias de cabeceo y balanceo), para el cohete entero y para cada etapa.
 - **Detalle de piezas** — por etapa, cada componente con su material, dimensiones y masa.
 - **Plantillas de aletas**, **de ojivas** y **de transiciones** — contornos **1:1** para cortar o calcar (las aletas incluyen cualquier pestaña pasante), con una regla en cm/pulgadas para verificar la escala de impresión. Imprime al **100 % / tamaño real** (sin ajuste de página).
+- **Guía de marcado de aletas**: tiras **1:1** que se enrollan alrededor del tubo y dicen *en qué punto de su contorno* va cada pieza, una por cada tubo del cuerpo que lleve un juego de aletas. Ver [Guía de marcado de aletas](#fin-marking-guide) más abajo.
 
 Además de algunas opciones:
 
@@ -102,6 +103,24 @@ Después elige una salida:
 **Unidades** (se recuerda, junto a las demás opciones) elige en qué se escriben el PDF y el CSV: **Mis unidades por defecto** sigue a [Ajustes ▸ Unidades](./settings.md#units), o fija el documento en **Métricas** o **Imperiales** para que se lea igual sea cual sea la unidad en la que estés trabajando, útil cuando el informe es para otra persona. Ten en cuenta que «mis unidades por defecto» se refiere a los valores de esa pestaña y *no* a la unidad que hayas puesto en un campo concreto: un informe mitad en pulgadas y mitad en centímetros según dónde hayas hecho clic no le sirve a nadie. Las plantillas 1:1 y la regla impresa siguen siempre en mm/cm, porque miden la página.
 
 El botón de **Ajustes** (que se recuerda) controla los **colores de relleno y borde de las plantillas**, el **tamaño de papel** (Carta / A4) y la **orientación** (Vertical / Horizontal).
+
+### Guía de marcado de aletas {#fin-marking-guide}
+
+Las plantillas de corte dan la forma de una aleta. Esto da su **posición**: una tira de papel que se enrolla alrededor del tubo del cuerpo para marcar dónde va cada aleta, tubo, guía de lanzamiento y botón de riel. Es la única ayuda impresa que reciben los **tubos como aletas**, ya que un tubo no tiene contorno del que cortar una plantilla.
+
+Una tira por cada tubo del cuerpo que lleve un juego de aletas, impresa a escala 1:1. Todo lo que va a un ángulo en ese tubo comparte la tira, cada cosa como una flecha que la cruza bajo su propio nombre, así que la guía responde a *dónde va la guía de lanzamiento respecto a las aletas*.
+
+Para usarla: imprime al **100 % / tamaño real**, verifica la regla, recorta la tira, enróllala alrededor del tubo con la flecha **Proa** apuntando a la ojiva y los dos extremos **a tope, sin superponer**, y marca a través de cada flecha. Traza una línea a lo largo del tubo por cada par de marcas; esa línea es donde va la pieza.
+
+Algunos detalles que conviene saber:
+
+- La tira se corta a la circunferencia **más un espesor de papel** (0,1 mm), porque las marcas quedan por fuera del papel enrollado y no sobre el tubo. Sin eso los extremos no llegan a juntarse, y cuanto más pequeño es el tubo más se nota.
+- La **costura** se sitúa en el hueco más ancho entre marcas, para que nada de lo que hay que marcar acabe debajo de la cinta.
+- Las **aletas inclinadas** se marcan en diagonal, con líneas discontinuas en los extremos de proa y popa de la raíz y una cruz en su centro.
+- Una tira demasiado larga para la página se **corta en piezas** que se unen a tope y se pegan en orden, con las uniones apartadas de las marcas. Nada se reduce de escala nunca: una guía de marcado encogida es peor que ninguna. Un tubo de 4 pulgadas da una vuelta de 320 mm, así que siempre lleva dos piezas.
+- Una pieza que ninguna tira puede llevar se **nombra en una nota al pie** en vez de desaparecer sin más: una guía de lanzamiento en una ojiva o transición, cuya circunferencia cambia a lo largo, o una guía en un tubo sin juego de aletas.
+
+Dónde se sitúa la primera aleta alrededor del cuerpo es el campo **Rotación base** del juego de aletas, junto a Inclinación.
 
 ### Cómo se llama una descarga {#what-a-download-is-called}
 

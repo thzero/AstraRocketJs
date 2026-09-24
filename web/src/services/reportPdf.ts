@@ -9,6 +9,8 @@ import { writeDesignSection } from './report/designSection';
 import { writeMotorsSection } from './report/motorsSection';
 import { writePartsSection } from './report/partsSection';
 import { writeTemplatesSection } from './report/templatesSection';
+import { markingGuides } from './report/markingGuide';
+import { writeMarkingGuideSection } from './report/markingSection';
 
 export type * from './report/options';
 export * from './report/layout';
@@ -60,6 +62,14 @@ export async function downloadReportPdf(
   const transitions = opts.transitionTemplates ? allNodes.filter((n) => n.type === 'transition') : [];
   if (finSets.length || noses.length || transitions.length) {
     writeTemplatesSection(page, tree, finSets, noses, transitions);
+  }
+
+  // --- Fin marking guides (1:1) ---
+  // Not per-stage like the cutting templates: a marking guide belongs to a
+  // BODY TUBE, and the tube is what the reader wraps it around.
+  if (opts.finMarkingGuide) {
+    const guides = markingGuides(tree);
+    if (guides.guides.length) writeMarkingGuideSection(page, guides);
   }
 
   if (!page.started) heading(page, t('report.title')); // nothing selected — an empty-ish page beats a corrupt file

@@ -16,6 +16,8 @@ export interface ReportOptions {
   showByStage: boolean;
   noseTemplates: boolean;
   transitionTemplates: boolean;
+  /** The wrap-around fin marking guides (one strip per finned body tube). */
+  finMarkingGuide: boolean;
   stages: StageOption[];
   paper: 'letter' | 'a4';
   orientation: 'portrait' | 'landscape';

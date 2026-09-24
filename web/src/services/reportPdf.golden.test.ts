@@ -37,6 +37,7 @@ for (const m of [
   'lines',
   'text',
   'addPage',
+  'setLineDashPattern',
 ]) {
   Object.defineProperty(FakeDoc.prototype, m, {
     value: function (this: FakeDoc, ...args: unknown[]) {
@@ -285,6 +286,7 @@ const everything = {
   showByStage: true,
   noseTemplates: true,
   transitionTemplates: true,
+  finMarkingGuide: true,
   stages: [
     { include: true, parts: true, finTemplates: true },
     { include: true, parts: true, finTemplates: true },
@@ -294,6 +296,77 @@ const everything = {
   templateFill: '#ffcc00',
   templateStroke: '#123456',
 };
+
+/**
+ * The marking guide's own tree, kept apart from the report-wide one so its
+ * awkward cases do not perturb every other snapshot in this file:
+ *
+ * - a 98 mm tube, whose 308 mm wrap no page here can hold in one piece
+ * - canted fins, which mark on a slant with their own dashed fore/aft lines
+ * - a lug and a rail button consolidated onto the same strip as the fins
+ * - a tube with a lug but no fins, which gets no strip and a footnote instead
+ */
+const markingTree = {
+  name: 'Marked',
+  components: [
+    node({
+      type: 'stage',
+      id: 'guide-stage',
+      name: 'Sustainer',
+      children: [
+        node({
+          type: 'nosecone',
+          id: 'guide-nose',
+          name: 'Nose',
+          length: 0.2,
+          aftRadius: 0.049,
+          children: [node({ type: 'railbutton', id: 'guide-nose-button', name: 'Nose button' })],
+        }),
+        node({
+          type: 'bodytube',
+          id: 'guide-payload',
+          name: 'Payload',
+          length: 0.4,
+          outerRadius: 0.049,
+          children: [node({ type: 'launchlug', id: 'guide-payload-lug', name: 'Upper lug' })],
+        }),
+        node({
+          type: 'bodytube',
+          id: 'guide-body',
+          name: 'Booster tube',
+          length: 0.6,
+          outerRadius: 0.049,
+          children: [
+            node({
+              type: 'trapezoidfinset',
+              id: 'guide-fins',
+              name: 'Canted fins',
+              finCount: 3,
+              rootChord: 0.06,
+              tipChord: 0.03,
+              sweep: 0.02,
+              height: 0.07,
+              cant: (3 * Math.PI) / 180,
+              rotation: Math.PI / 6,
+            }),
+            node({ type: 'launchlug', id: 'guide-lug', name: 'Lug', angleOffset: Math.PI / 2 }),
+            node({ type: 'railbutton', id: 'guide-button', name: 'Button', angleOffset: (2 * Math.PI) / 3 }),
+          ],
+        }),
+      ],
+    }),
+  ],
+} as unknown as RocketTree;
+
+const markingModel = {
+  name: 'Marked',
+  stages: [],
+  whole: { label: 'Rocket', info: info(1) },
+  stageSummaries: [],
+  configs: [],
+  partsByStage: [],
+  finSetsByStage: [],
+} as unknown as ReportModel;
 
 describe('golden PDF report', () => {
   it('draws every section, by stage, with filled templates exactly as before', async () => {
@@ -328,6 +401,25 @@ describe('golden PDF report', () => {
     expect(calls.join('\n')).toMatchSnapshot();
   });
 
+  it('draws marking guides: an oversize tube in pieces, canted fins, and a footnote', async () => {
+    calls.length = 0;
+    await downloadReportPdf(
+      markingModel,
+      markingTree,
+      t,
+      {
+        ...everything,
+        designReport: false,
+        includeMotors: false,
+        noseTemplates: false,
+        transitionTemplates: false,
+        stages: [],
+      },
+      units,
+    );
+    expect(calls.join('\n')).toMatchSnapshot();
+  });
+
   it('draws only the fallback heading when nothing is selected', async () => {
     calls.length = 0;
     await downloadReportPdf(
@@ -340,6 +432,7 @@ describe('golden PDF report', () => {
         includeMotors: false,
         noseTemplates: false,
         transitionTemplates: false,
+        finMarkingGuide: false,
         stages: [],
       },
       units,

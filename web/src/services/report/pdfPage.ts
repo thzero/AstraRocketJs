@@ -218,3 +218,27 @@ export function summaryRows(p: PdfPage, info: StaticInfo): [string, string][] {
     [t('report.cna'), `${fmtNum(info.cna, 2)} /rad`],
   ];
 }
+
+/**
+ * A 10 cm / 3 in scale bar, so a print can be checked for true scale.
+ *
+ * Shared by every 1:1 section (the cutting templates and the fin marking
+ * guide): each of them is only worth printing if the page came out of the
+ * printer unscaled, and this is how the reader checks.
+ */
+export function writeRuler(p: PdfPage): void {
+  const { doc, t, M } = p;
+  sub(p, t('report.ruler'), 9);
+  ensure(p, 16);
+  const ry = p.y + 6;
+  doc
+    .setDrawColor(20)
+    .setLineWidth(0.2)
+    .line(M, ry, M + 100, ry);
+  for (let d = 0; d <= 100; d++) doc.line(M + d, ry, M + d, ry - (d % 10 === 0 ? 4 : d % 5 === 0 ? 2.5 : 1.5));
+  doc.setFontSize(6).setTextColor(20);
+  for (let cm = 0; cm <= 10; cm++) doc.text(`${cm}`, M + cm * 10, ry - 5);
+  for (let inch = 0; inch <= 3; inch++) doc.text(`${inch} in`, M + inch * 25.4, ry + 4);
+  doc.text('cm', M + 103, ry - 4);
+  p.y = ry + 8;
+}

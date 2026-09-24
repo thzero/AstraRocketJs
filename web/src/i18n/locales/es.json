@@ -70,7 +70,15 @@
     "finSet": "Juego de aletas",
     "noseCone": "Ojiva",
     "transition": "Transición",
-    "tooLarge": "{{w}}×{{h}} mm — demasiado grande para imprimir 1:1 en una página."
+    "tooLarge": "{{w}}×{{h}} mm — demasiado grande para imprimir 1:1 en una página.",
+    "bodyTube": "Tubo del cuerpo",
+    "markingGuide": "Guía de marcado de aletas (1:1)",
+    "markingGuideHint": "Imprime al 100% / tamaño real (sin escalado), verifica la regla, luego recorta cada tira, envuélvela alrededor de su tubo con los extremos a tope (sin superponer) y marca a través de las flechas. Traza una línea a lo largo del tubo por cada par de marcas: ahí va la pieza.",
+    "markingStrip": "{{name}} — envoltura {{c}} mm",
+    "markingPart": "Pieza {{k}} de {{n}} — une con cinta, en orden",
+    "markingFore": "Proa",
+    "markingOmitted_noWrap": "Sin marcar ({{names}}): montado en una ojiva o transición, cuya circunferencia cambia a lo largo, así que no hay una envoltura única que marcar.",
+    "markingOmitted_noFins": "Sin marcar ({{names}}): el tubo no lleva ningún juego de aletas, así que no hay nada con lo que escuadrar la marca."
   },
   "export": {
     "title": "Imprimir o exportar",
@@ -108,7 +116,8 @@
     "simFailed": "La simulación falló, así que no se generó el PDF: {{message}}",
     "pdfFailed": "No se pudo exportar el PDF: {{message}}",
     "csvFailed": "No se pudo exportar el CSV: {{message}}",
-    "reportFailed": "No se pudo generar el informe del diseño: {{message}}"
+    "reportFailed": "No se pudo generar el informe del diseño: {{message}}",
+    "finMarkingGuide": "Guía de marcado de aletas"
   },
   "engine": {
     "wasmTip": "Motor de física: WebAssembly (ruta rápida)",
@@ -939,6 +948,7 @@
     "radialDistance": "Distancia radial",
     "radialReference": "Referencia radial",
     "cant": "Ángulo de inclinación",
+    "baseRotation": "Rotación base",
     "diameter": "Diámetro",
     "dragCoeff": "Coef. de resistencia",
     "mass": "Masa",
