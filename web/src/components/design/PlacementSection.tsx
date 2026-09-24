@@ -58,7 +58,7 @@ export function PlacementSection({
         >
           {(['top', 'middle', 'bottom', 'absolute'] as const).map((m) => (
             <option key={m} value={m}>
-              {m}
+              {t(`positionFrom.${m}`)}
             </option>
           ))}
         </select>

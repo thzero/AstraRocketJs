@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeAll, describe, it, expect, vi } from 'vitest';
-import { fireEvent, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { PropertyPanel } from './PropertyPanel';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import { serveData } from '../../testing/serveData';
@@ -213,24 +213,59 @@ describe('motor section', () => {
 });
 
 /**
- * Name, color and the catalog picker are one section: they answer what the
- * part IS, as against its dimensions. They are also the only rows the panel
- * builds itself rather than declaring in FIELDS, which is why they used to
- * float loose above everything else.
+ * The name and the catalog picker are one section: they answer what the part
+ * IS, as against its dimensions. They are also the only rows the panel builds
+ * itself rather than declaring in FIELDS, which is why they used to float
+ * loose above everything else.
+ *
+ * Color is NOT one of them. It sits in Appearance, below, because it says how
+ * the part is drawn rather than what it is, and nothing about it reaches the
+ * simulation.
  */
 describe('part section', () => {
-  it('groups the name and color rows', () => {
+  it('holds the name row', () => {
     show({ id: 'b1', type: 'bodytube' } as unknown as ComponentNode);
     const box = within(screen.getByText('Part').parentElement!);
     expect(box.getByLabelText('Name')).toBeTruthy();
-    expect(box.getByLabelText('Color')).toBeTruthy();
+    expect(box.queryByLabelText('Color')).toBeNull();
   });
 
-  it('still shows the name on a stage, which has no color of its own', () => {
+  it('still shows the name on a stage', () => {
     show({ id: 's1', type: 'stage' } as unknown as ComponentNode);
-    const box = within(screen.getByText('Part').parentElement!);
-    expect(box.getByLabelText('Name')).toBeTruthy();
-    expect(box.queryByLabelText('Color')).toBeNull();
+    expect(within(screen.getByText('Part').parentElement!).getByLabelText('Name')).toBeTruthy();
+  });
+});
+
+/**
+ * Appearance: how the part is DRAWN. Second to last on every part, directly
+ * above Overrides, for the same reason Overrides is last - it is read far less
+ * often than anything describing the part.
+ */
+describe('appearance section', () => {
+  const headings = () => [...document.querySelectorAll('h3')].map((h) => (h.textContent ?? '').trim()).filter(Boolean);
+
+  it('holds the color row', () => {
+    show({ id: 'b1', type: 'bodytube' } as unknown as ComponentNode);
+    expect(within(screen.getByText('Appearance').parentElement!).getByLabelText('Color')).toBeTruthy();
+  });
+
+  it('sits directly above Overrides, on every part type that has one', () => {
+    for (const type of ['nosecone', 'bodytube', 'trapezoidfinset', 'parachute', 'launchlug', 'bulkhead']) {
+      cleanup();
+      show({ id: 'x', type } as unknown as ComponentNode);
+      const h = headings();
+      const appearance = h.indexOf('Appearance');
+      const overrides = h.indexOf('Overrides');
+      expect(appearance, `${type} has no Appearance section`).toBeGreaterThanOrEqual(0);
+      expect(overrides, `${type} has no Overrides section`).toBeGreaterThanOrEqual(0);
+      expect(overrides - appearance, `${type} order: ${h.join(' | ')}`).toBe(1);
+    }
+  });
+
+  it('is absent on a stage, which has no color of its own', () => {
+    show({ id: 's1', type: 'stage' } as unknown as ComponentNode);
+    expect(screen.queryByText('Appearance')).toBeNull();
+    expect(screen.queryByLabelText('Color')).toBeNull();
   });
 });
 
@@ -273,5 +308,56 @@ describe('fin fillet', () => {
   it('gives a tube fin set none: a TubeFinSet is a Tube, so the kernel has no fillet for it', () => {
     show({ id: 't1', type: 'tubefinset' } as unknown as ComponentNode);
     expect(screen.queryByText('Fillet')).toBeNull();
+  });
+});
+
+/**
+ * No dropdown in the panel shows a raw enum value.
+ *
+ * `DimensionFields` falls back to the option's own value when a select field
+ * declares neither `optI18n` nor `optLabel`, and a hand-built select can simply
+ * render `{m}`. Both shipped: the nose cone's Shape read `ogive / conical /
+ * ellipsoid / ...` and Placement's "Position from" read `top / middle /
+ * bottom / absolute`, in lower case, under capitalized and translated labels.
+ *
+ * `componentFields.options.test.ts` fences off the FIELDS half. It could not
+ * see the second one, because that select is written out in PlacementSection
+ * rather than declared anywhere. This looks at what is actually RENDERED, so it
+ * covers both and anything added later.
+ *
+ * The rule is narrow on purpose: an option whose text is exactly its own value,
+ * where that value is a lower case identifier. A material reads
+ * `Plywood (birch) · 630 kg/m³` and a custom one is starred, so neither trips
+ * it; `ogive` and `bottom` do.
+ */
+describe('dropdown options', () => {
+  /** The unit choosers, whose options are unit SYMBOLS (`in`, `ft`, `cm`) and
+   *  are lower case because that is what those units are called. It is the only
+   *  titled select in the panel, and the assertion below re-checks that rather
+   *  than trusting it. */
+  const isUnitChip = (s: HTMLSelectElement) => /^(Change the unit for this field|This field only)/.test(s.title);
+
+  const rawOptions = () =>
+    [...document.querySelectorAll('select')]
+      .filter((s) => !isUnitChip(s))
+      .flatMap((s) => [...s.querySelectorAll('option')])
+      .filter((o) => /^[a-z][a-z0-9_]*$/.test(o.value) && (o.textContent ?? '').trim() === o.value)
+      .map((o) => o.value);
+
+  it.each(Object.keys(FIELDS))('are all labeled on a %s', (type) => {
+    // parentRadius so the nested parts render their Placement section, which is
+    // where the one this test was written for lives.
+    show({ id: 'x', type } as unknown as ComponentNode, { parentRadius: 0.013 });
+    expect(rawOptions()).toEqual([]);
+  });
+
+  it('excludes nothing but the unit choosers', () => {
+    // The filter above is the only way this test can be wrong in the quiet
+    // direction, so it is checked: a titled select that is NOT a unit chip
+    // would be skipped without anyone knowing.
+    show({ id: 'n1', type: 'nosecone' } as unknown as ComponentNode, { parentRadius: 0.013 });
+    const titled = [...document.querySelectorAll('select')].filter((s) => s.title);
+    expect(titled.length).toBeGreaterThan(0);
+    for (const s of titled) expect(isUnitChip(s), `titled select: ${s.title}`).toBe(true);
   });
 });

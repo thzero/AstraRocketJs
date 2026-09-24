@@ -65,6 +65,9 @@ const DYNAMIC_PREFIXES: string[] = [
   'deployEvent.', // `${f.optI18n}.${o}` - componentFields option labels
   'separationEvent.', // same
   'radiusMethod.', // same
+  'noseShape.', // same - the nose cone and transition shape lists
+  'tabOffsetMethod.', // same - what a fin tab's offset is measured from
+  'positionFrom.', // t(`positionFrom.${m}`) - PlacementSection's own select
   'units.q.', // t(`units.q.${q}`) - unit quantity names
   'dash.', // t(`dash.${c.label}`) - motor dashboard columns
   'prop.', // t(`prop.${f.label}`) - property panel field labels

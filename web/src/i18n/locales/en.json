@@ -971,6 +971,7 @@
     "width": "Width",
     "shape": "Shape",
     "color": "Color",
+    "appearance": "Appearance",
     "resetColor": "Reset to default color",
     "deployEvent": "Deploy at",
     "deployAltitude": "Deploy altitude (AGL)",
@@ -1017,6 +1018,25 @@
     "relative": "Relative to surface",
     "free": "From centerline"
   },
+  "noseShape": {
+    "conical": "Conical",
+    "ogive": "Ogive",
+    "ellipsoid": "Ellipsoid",
+    "power": "Power",
+    "parabolic": "Parabolic",
+    "haack": "Haack"
+  },
+  "tabOffsetMethod": {
+    "top": "Top",
+    "middle": "Middle",
+    "bottom": "Bottom"
+  },
+  "positionFrom": {
+    "top": "Top",
+    "middle": "Middle",
+    "bottom": "Bottom",
+    "absolute": "Absolute"
+  },
   "motor": {
     "importEng": "Import .eng",
     "plugged": "plugged",
@@ -1043,7 +1063,7 @@
     "caliperV": "Vertical caliper handle {{end}}"
   },
   "picker": {
-    "pick": "Pick a real part… ({{count}})",
+    "pick": "Select part… ({{count}})",
     "close": "Close parts",
     "search": "Search parts (mfr, part #, description)…",
     "dialogTitle": "Select a part",

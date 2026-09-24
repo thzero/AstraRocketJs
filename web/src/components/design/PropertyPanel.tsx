@@ -1,13 +1,12 @@
-import { lazy, Suspense, useMemo } from 'react';
+import { lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { isAxial, hasCatalog, hasMaterial, catalogPatch } from '../../services/treeEdit';
-import { colorForType, mergePalette } from '../../services/partColors';
-import { useSettings } from '../../state/SettingsProvider';
 import type { ComponentType as CatalogType } from '../../services/componentDb';
 // Lazily loaded: it pulls in the ~740 kB component catalog (services/componentDb),
 // so it splits into its own chunk fetched only when a catalog part is selected.
 const ComponentPicker = lazy(() => import('./ComponentPicker').then((m) => ({ default: m.ComponentPicker })));
+import { AppearanceSection } from './AppearanceSection';
 import { FreeformFinEditor } from './FreeformFinEditor';
 import { RecoverySizingReadout } from './RecoverySizingReadout';
 import { useUnits } from '../../prefs/useUnits';
@@ -20,9 +19,9 @@ import { OverridesSection } from './OverridesSection';
 import { PlacementSection } from './PlacementSection';
 
 /**
- * The property panel shell: the header (move / delete), the name and color
- * rows, the catalog picker, and the order in which the sections appear. The
- * dimension fields, materials, overrides and placement each live in their own
+ * The property panel shell: the header (move / delete), the name row, the
+ * catalog picker, and the order in which the sections appear. The dimension
+ * fields, materials, appearance, overrides and placement each live in their own
  * module.
  */
 
@@ -79,9 +78,7 @@ export function PropertyPanel({
   parentRadius?: number;
 }) {
   const { t } = useTranslation();
-  const { settings } = useSettings();
   const u = useUnits();
-  const palette = useMemo(() => mergePalette(settings.partColors), [settings.partColors]);
   if (!node) {
     return (
       <section className="rounded-xl bg-slate-900 p-3 text-sm text-slate-500 ring-1 ring-white/10">
@@ -135,9 +132,9 @@ export function PropertyPanel({
         </div>
       </div>
 
-      {/* What this part IS: what it is called, how it draws, and which catalog
-          part it came from. Three rows that answer the same question, and the
-          only ones the panel builds itself rather than declaring in FIELDS. */}
+      {/* What this part IS: what it is called, and which catalog part it came
+          from. Color used to be here too and is its own section now, below:
+          these two say what the part is, and that one says how it is drawn. */}
       <div className="space-y-3 border-t border-white/5 pt-3">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('prop.part')}</h3>
         <label className="flex items-center justify-between gap-3">
@@ -151,30 +148,6 @@ export function PropertyPanel({
             className="w-40 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
           />
         </label>
-
-        {node.type !== 'stage' && (
-          <label className="flex items-center justify-between gap-3">
-            <span className="text-xs text-slate-400">{t('prop.color')}</span>
-            <span className="flex items-center gap-2">
-              <input
-                type="color"
-                value={typeof node.color === 'string' ? node.color : colorForType(node.type, palette)}
-                onChange={(e) => onChange({ color: e.target.value })}
-                onBlur={onCommit}
-                className="h-7 w-10 cursor-pointer rounded-md border border-white/10 bg-slate-800 p-0.5"
-              />
-              {typeof node.color === 'string' && (
-                <button
-                  onClick={() => commitChange({ color: undefined })}
-                  title={t('prop.resetColor')}
-                  className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-400 ring-1 ring-white/10 hover:bg-slate-700"
-                >
-                  ↺
-                </button>
-              )}
-            </span>
-          </label>
-        )}
 
         {hasCatalog(node.type) && (
           <Suspense fallback={<div className="text-xs text-slate-500">{t('common.loading')}</div>}>
@@ -286,6 +259,12 @@ export function PropertyPanel({
       {/* Placement — only meaningful for parts nested inside a tube. */}
       {node.type !== 'stage' && !isAxial(node.type) && (
         <PlacementSection node={node} onChange={onChange} onCommit={onCommit} />
+      )}
+
+      {/* Appearance is second to last on every part, directly above Overrides.
+          A stage has no color of its own, so it has no Appearance section. */}
+      {node.type !== 'stage' && (
+        <AppearanceSection node={node} onChange={onChange} onCommit={onCommit} onCommitChange={commitChange} />
       )}
 
       {/* Overrides are LAST on every part, without exception. They are not a

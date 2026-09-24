@@ -104,6 +104,7 @@ const FIN_TABS: Field[] = [
     label: 'tabOffsetMethod',
     kind: 'select',
     options: ['top', 'middle', 'bottom'],
+    optI18n: 'tabOffsetMethod',
     section: 'finTab',
   },
 ];
@@ -171,7 +172,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'separationAltitude', label: 'separationAltitude', kind: 'distance', step: 10 },
   ],
   nosecone: [
-    { key: 'shape', label: 'shape', kind: 'select', options: NOSE_SHAPES },
+    { key: 'shape', label: 'shape', kind: 'select', options: NOSE_SHAPES, optI18n: 'noseShape' },
     // Only meaningful for the shapes whose profile it actually controls
     // (ogive/power/parabolic/haack) - filtered at render by shapeUsesParameter.
     { key: 'shapeParameter', label: 'shapeParameter', kind: 'number', step: 0.05 },
@@ -196,6 +197,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
       label: 'shape',
       kind: 'select',
       options: ['conical', 'ogive', 'ellipsoid', 'power', 'parabolic', 'haack'],
+      optI18n: 'noseShape',
     },
     // Same as the nose cone: a transition offers the same four parametric
     // shapes, `orkImport` reads <shapeparameter> into it, `orkExport` writes it
