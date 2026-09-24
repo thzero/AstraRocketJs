@@ -1350,5 +1350,26 @@
     "noCoords": "Enter a latitude and longitude to place the location.",
     "tooClose": "No imagery this close in",
     "offline": "No imagery offline"
+  },
+  "sweep": {
+    "button": "Drift",
+    "title": "Drift sweep",
+    "experimental": "Experimental",
+    "experimentalNote": "A planning aid, not a range clearance: the region has not been checked against a real recovery.",
+    "speedFrom": "Wind from",
+    "speedTo": "Wind to",
+    "speedSteps": "Speeds",
+    "headingSteps": "Headings",
+    "headingSpan": "Spread",
+    "spanAll": "All round",
+    "flights_one": "{{count}} flight",
+    "flights_other": "{{count}} flights",
+    "run": "Run sweep",
+    "clear": "Clear",
+    "progress": "{{done}} / {{total}}",
+    "landed": "{{flown}} of {{asked}} flights landed.",
+    "stale": "The design has changed since this sweep was flown.",
+    "noLandings": "The wind sweep produced no landings.",
+    "spread": "{{from}}–{{to}}"
   }
 }

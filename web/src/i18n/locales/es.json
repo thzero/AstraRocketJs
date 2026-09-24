@@ -1350,5 +1350,26 @@
     "noCoords": "Introduce una latitud y una longitud para situar la ubicación.",
     "tooClose": "Sin imágenes a esta escala",
     "offline": "Sin imágenes sin conexión"
+  },
+  "sweep": {
+    "button": "Deriva",
+    "title": "Barrido de deriva",
+    "experimental": "Experimental",
+    "experimentalNote": "Una ayuda para planificar, no una autorización de campo: la región no se ha contrastado con una recuperación real.",
+    "speedFrom": "Viento desde",
+    "speedTo": "Viento hasta",
+    "speedSteps": "Velocidades",
+    "headingSteps": "Rumbos",
+    "headingSpan": "Abanico",
+    "spanAll": "Todo el compás",
+    "flights_one": "{{count}} vuelo",
+    "flights_other": "{{count}} vuelos",
+    "run": "Ejecutar barrido",
+    "clear": "Borrar",
+    "progress": "{{done}} / {{total}}",
+    "landed": "Aterrizaron {{flown}} de {{asked}} vuelos.",
+    "stale": "El diseño ha cambiado desde que se ejecutó este barrido.",
+    "noLandings": "El barrido de viento no produjo ningún aterrizaje.",
+    "spread": "{{from}}–{{to}}"
   }
 }

@@ -25,6 +25,7 @@ import { wireLoadedOrk } from '../services/wireLoadedOrk';
 // INEFFECTIVE_DYNAMIC_IMPORT warning without moving a byte.
 import { fetchExample } from '../services/exampleLibrary';
 import {
+  freshSeed,
   newSimulation,
   sameSimInputs,
   simConditions,
@@ -34,6 +35,16 @@ import {
   type SimRun,
 } from '../services/simulations';
 import { simulateInWorker, SimTimeoutError, SimCanceledError } from '../engine/simClient';
+import { landingPoint } from '../services/groundTrack';
+import {
+  normalizeSweepSpec,
+  sweepLaunch,
+  sweepPoints,
+  surfaceWind,
+  type DriftSweep,
+  type SweepLanding,
+  type WindSweepSpec,
+} from '../services/windSweep';
 import { loadSettings } from '../services/settings';
 import { launchLimitViolations, limitText } from '../services/safetyLimits';
 import {
@@ -171,6 +182,29 @@ export interface WorkspaceState {
    */
   resultSimId: string | null;
   /**
+   * The last finished wind sweep, or null.
+   *
+   * ONE at a time, workspace-wide, rather than one per simulation. A sweep is a
+   * few dozen flights and answers a question you ask about the row you are
+   * reading right now ("where could THIS come down today"); keeping a stale one
+   * per row would hold megabytes of landings for rows nobody is looking at, and
+   * would put the reader in front of a picture they did not just ask for. It
+   * carries the simulation and the design it was flown from, so the ground
+   * track can tell "not this flight" from "this flight, but the rocket has
+   * changed since".
+   *
+   * Transient by design: never persisted, and dropped with the workspace.
+   */
+  driftSweep: DriftSweep | null;
+  /**
+   * The sweep in flight: which row, and how far through. Null when none is.
+   *
+   * Progress is counted rather than shown per flight, because the flights are
+   * not rows anybody can see — there is no table of thirty-two swept cells, and
+   * there should not be. "18 of 32" is the whole of what a reader needs.
+   */
+  driftSweepRun: { simId: string; done: number; total: number } | null;
+  /**
    * The simulations the LAST run actually flew, in the order they were asked for.
    *
    * This, not "every simulation that has a result", is what decides whether the
@@ -272,6 +306,15 @@ export interface WorkspaceState {
   runOutdated: (prefs: SimPrefs) => Promise<void>;
   /** Stop the batch in flight. Rows already finished keep their results. */
   cancelRun: () => void;
+  /**
+   * Fly a grid of wind conditions around one simulation's own, and keep where
+   * each flight came down. Replaces whatever sweep was held before.
+   */
+  runDriftSweep: (simId: string, spec: WindSweepSpec, prefs: SimPrefs) => Promise<void>;
+  /** Stop the sweep in flight. Nothing is kept: a part-flown grid is not a region. */
+  cancelDriftSweep: () => void;
+  /** Throw the held sweep away. */
+  clearDriftSweep: () => void;
 
   setTab: (tab: Tab) => void;
   /** Open the Design tab on one of its two phone panes (see {@link DesignPane}). */
@@ -515,6 +558,16 @@ function showing(s: { tab: Tab; designPane: DesignPane }, view: ViewMode): Parti
  */
 let batchAbort: AbortController | null = null;
 
+/**
+ * The wind sweep in flight, if any.
+ *
+ * Its own handle rather than `batchAbort`. A sweep and a normal run are
+ * separate pieces of work with separate Cancel buttons, and sharing one
+ * controller would mean canceling a sweep also killed a batch of simulations
+ * somebody started beside it.
+ */
+let sweepAbort: AbortController | null = null;
+
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   /**
    * Patch every simulation the editor is pointed at: the TICKED rows, or the
@@ -745,12 +798,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   const replaceWorkspace = (patch: Partial<WorkspaceState> | ((s: WorkspaceState) => Partial<WorkspaceState>)) => {
     batchAbort?.abort();
     batchAbort = null;
+    // A sweep belongs to a simulation of the design being replaced, so it goes
+    // with it rather than being left pointing at an id in the outgoing
+    // workspace.
+    sweepAbort?.abort();
+    sweepAbort = null;
     set((s) => ({
       simRuns: {},
       lastRunIds: [],
       resultSimId: null,
       selectedSimIds: [],
       simBusy: false,
+      driftSweep: null,
+      driftSweepRun: null,
       err: null,
       ...(typeof patch === 'function' ? patch(s) : patch),
     }));
@@ -766,6 +826,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     simRuns: {},
     resultSimId: null,
     lastRunIds: [],
+    driftSweep: null,
+    driftSweepRun: null,
     selectedId: null,
     loadedMeta: null,
     rocket: null,
@@ -1233,6 +1295,168 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     cancelRun: () => {
       batchAbort?.abort();
     },
+
+    /**
+     * Fly one simulation over a GRID of wind conditions and keep where each
+     * flight came down.
+     *
+     * Everything but the wind is the row's own: the same design, motor loadout,
+     * ignition, rod, site and run preferences. That is what makes the resulting
+     * spread attributable — the landings differ because the wind did, not
+     * because a dozen things did at once.
+     *
+     * Three deliberate departures from {@link WorkspaceState.runSims}:
+     *
+     * - The results are NOT installed on the row. A swept flight is not the
+     *   simulation's flight; it was flown under conditions the user did not
+     *   type, and writing one back would replace the numbers on their flight
+     *   card with a hypothetical.
+     * - `series: 'summary'`, against `simConditions`'s 'full'. The only thing
+     *   read from a swept flight is where its track ends, and a full series set
+     *   is about a megabyte and a half each — thirty-two of those is fifty
+     *   megabytes serialized out of a worker and dropped on the floor.
+     * - ONE random seed for the whole grid, minted here when the preferences do
+     *   not pin one. Letting each flight draw its own turbulence would mix the
+     *   scatter the sweep exists to measure with scatter from the dice, and the
+     *   same sweep run twice would draw a different region for no reason the
+     *   reader could see.
+     *
+     * A failed cell is skipped rather than failing the sweep: thirty-one
+     * landings still describe a region, and the count says how many of the
+     * flights asked for actually produced one.
+     */
+    runDriftSweep: async (simId, spec, prefs) => {
+      const s = get();
+      const blocker = designBlocker(s.tree);
+      if (blocker) {
+        set({ err: designBlockerText(blocker, i18n.t) });
+        return;
+      }
+      const sim = s.sims.find((x) => x.id === simId);
+      if (!sim) return;
+      // The same one refusal the Run button and the run loop share. A sweep
+      // around conditions this app will not fly is a region it will not stand
+      // behind, and every cell of the grid would be refused individually
+      // anyway.
+      const reason = unflyable(sim);
+      if (reason) {
+        set({ err: unflyableText({ id: sim.id, name: sim.name, reason }, i18n.t) });
+        return;
+      }
+      // Captured, because the narrowing `isComplete` gives is lost the moment
+      // it has to survive into the per-flight closures below.
+      const launch = sim.launch;
+      if (!isComplete(launch)) return;
+
+      const normalized = normalizeSweepSpec(spec);
+      const points = sweepPoints(normalized, surfaceWind(launch).headingDeg);
+      if (!points.length) return;
+
+      // What this sweep is OF. The awaits below can outlast any of it, exactly
+      // as a normal batch can, and a region drawn from a rocket that has since
+      // changed is worse than no region.
+      const ranOn = s.tree;
+      const flownFrom = simInputs(sim);
+      // The row's own overrides win over the globals, exactly as a normal run
+      // resolves them; only then is a missing seed filled in.
+      const runPrefs: SimPrefs = { ...prefs, ...sim.prefs };
+      const seed = runPrefs.randomSeed ?? freshSeed();
+
+      // A sweep supersedes whatever was held: two regions on one plan view
+      // would be unreadable, and the old one answers a question that has just
+      // been asked again.
+      sweepAbort?.abort();
+      const abort = new AbortController();
+      sweepAbort = abort;
+      set({ driftSweep: null, driftSweepRun: { simId, done: 0, total: points.length }, err: null });
+
+      const landings: SweepLanding[] = [];
+      let flown = 0;
+      try {
+        await Promise.all(
+          points.map(async (point) => {
+            try {
+              const result = await simulateInWorker(
+                {
+                  tree: ranOn,
+                  motor: sim.motor,
+                  extraMotors: sim.extraMotors,
+                  primaryIgnition: { event: sim.ignitionEvent, delay: sim.ignitionDelay },
+                  options: {
+                    ...simConditions(sweepLaunch(launch, point), { ...runPrefs, randomSeed: seed }),
+                    series: 'summary',
+                  },
+                },
+                { signal: abort.signal },
+              );
+              // `branches` is only present once a staged rocket separates; the
+              // unstaged case is the top-level series, as branch 0. Same
+              // unwrapping the flight charts and the ground track do, so a
+              // swept landing lands on the trace it belongs to.
+              const branches = result.branches?.length ? result.branches : [{ series: result.series }];
+              let landed = false;
+              branches.forEach((b, i) => {
+                const p = landingPoint(b.series);
+                if (!p) return;
+                landed = true;
+                landings.push({ branch: i, east: p.east, north: p.north, ...point });
+              });
+              if (landed) flown++;
+            } catch {
+              // One refused cell is not a refused sweep. Cancellation lands
+              // here too and is handled by the aborted check below, which
+              // discards the whole part-flown grid.
+            } finally {
+              // Only while THIS sweep still owns the counter. A second sweep
+              // replaces the first mid-flight (the run button is not gated on
+              // the old one draining), and the first's stragglers would
+              // otherwise tick the new one's progress past its own total --
+              // including when it is the same row being re-swept, which is the
+              // common case.
+              if (sweepAbort === abort) {
+                set((st) =>
+                  st.driftSweepRun ? { driftSweepRun: { ...st.driftSweepRun, done: st.driftSweepRun.done + 1 } } : {},
+                );
+              }
+            }
+          }),
+        );
+        // A canceled sweep keeps nothing. Half a grid is not half a region: the
+        // cells arrive in whatever order the pool frees up, so what survives is
+        // an arbitrary subset of the conditions, and a hull drawn round it
+        // would understate the drift by an amount nobody could estimate.
+        if (abort.signal.aborted) return;
+        if (get().tree !== ranOn) return;
+        const now = get().sims.find((x) => x.id === simId);
+        if (!now || !sameSimInputs(flownFrom, simInputs(now))) return;
+        if (!landings.length) {
+          set({ err: i18n.t('sweep.noLandings') });
+          return;
+        }
+        set({
+          driftSweep: {
+            simId,
+            tree: ranOn,
+            inputs: flownFrom,
+            spec: normalized,
+            asked: points.length,
+            flown,
+            landings,
+          },
+        });
+      } finally {
+        if (sweepAbort === abort) {
+          sweepAbort = null;
+          set({ driftSweepRun: null });
+        }
+      }
+    },
+
+    cancelDriftSweep: () => {
+      sweepAbort?.abort();
+    },
+
+    clearDriftSweep: () => set({ driftSweep: null }),
 
     // The two below keep the mobile tab and the center-pane view in step -- see
     // {@link showing}. Harmless at desktop widths, where the tab bar is hidden

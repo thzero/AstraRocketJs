@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
 import { GroundTrack } from './GroundTrack';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import type { ChartFlight } from './FlightChart';
+import type { LaunchConditions } from '../../services/orkTree';
+import { useWorkspaceStore } from '../../state/store';
+import { defaultSweepSpec, type DriftSweep } from '../../services/windSweep';
+import { simInputs } from '../../services/simulations';
+
+const st = () => useWorkspaceStore.getState();
 
 /**
  * The ground track's map layer, without a network.
@@ -18,7 +24,21 @@ import type { ChartFlight } from './FlightChart';
  * keeping its 420 px default.
  */
 
-const HOME = { latitudeDeg: 39.05, longitudeDeg: -104.8 };
+/** A complete, in-limits set of conditions — what the drift-sweep panel reads. */
+const LAUNCH = {
+  launchRodLengthM: 1,
+  launchRodAngleDeg: 0,
+  windAverage: 4,
+  windStdDev: 0.4,
+  windDirectionDeg: 90,
+  launchAltitudeM: 1800,
+  latitudeDeg: 39.05,
+  longitudeDeg: -104.8,
+  temperatureC: null,
+  pressureHPa: null,
+} satisfies LaunchConditions;
+
+const HOME = { latitudeDeg: 39.05, longitudeDeg: -104.8, launch: LAUNCH };
 
 /** A flight that drifts to 500 m east and 500 m north over four samples. */
 const flight = (): ChartFlight =>
@@ -135,7 +155,7 @@ describe('GroundTrack imagery', () => {
    * export does - would draw somebody else's field under a real measurement.
    */
   it('draws the bare plan view, with no layer buttons, when the site is blank', () => {
-    renderWithProviders(<GroundTrack flight={flight()} latitudeDeg={null} longitudeDeg={null} />);
+    renderWithProviders(<GroundTrack flight={flight()} latitudeDeg={null} longitudeDeg={null} launch={LAUNCH} />);
     expect(tiles()).toHaveLength(0);
     expect(screen.queryByRole('button', { name: 'Satellite' })).toBeNull();
     expect(screen.getByRole('img', { name: /over the ground/i })).toBeTruthy();
@@ -187,5 +207,138 @@ describe('GroundTrack imagery', () => {
     showImagery();
     expect(tiles().length).toBeGreaterThan(0);
     hideImagery();
+  });
+});
+
+/**
+ * The drift region a wind sweep leaves behind.
+ *
+ * The store is written directly rather than a sweep being flown: what is under
+ * test here is the DRAWING — that the region belongs to the right flight, is
+ * framed rather than clipped, and says which ground it covers.
+ */
+describe('GroundTrack drift region', () => {
+  // The flight the fixture draws is `sim-1`, and the sweep panel looks its row
+  // up in the store to decide whether the sweep has aged. Without a row of that
+  // id every sweep would read as stale, and the staleness test below would pass
+  // for the wrong reason.
+  beforeEach(() => {
+    useWorkspaceStore.setState({ sims: st().sims.map((x, i) => (i === 0 ? { ...x, id: 'sim-1' } : x)) });
+  });
+
+  /** Four landings in a square 800 m across, well outside the 500 m track. */
+  const sweep = (simId: string, tree = st().tree): DriftSweep => ({
+    simId,
+    tree,
+    inputs: simInputs(st().sims[0]!),
+    spec: defaultSweepSpec(4),
+    asked: 4,
+    flown: 4,
+    landings: [
+      { branch: 0, east: 400, north: 400, speedMs: 2, headingDeg: 0 },
+      { branch: 0, east: -400, north: 400, speedMs: 2, headingDeg: 90 },
+      { branch: 0, east: -400, north: -400, speedMs: 6, headingDeg: 180 },
+      { branch: 0, east: 400, north: -400, speedMs: 6, headingDeg: 270 },
+    ],
+  });
+
+  afterEach(() => useWorkspaceStore.setState({ driftSweep: null, driftSweepRun: null }));
+
+  const shapes = () => Array.from(document.querySelectorAll('svg[role="img"] polygon'));
+
+  it('draws the envelope, the ellipse and every swept landing', () => {
+    useWorkspaceStore.setState({ driftSweep: sweep('sim-1') });
+    renderWithProviders(<GroundTrack flight={flight()} {...HOME} />);
+    // The filled hull and the dashed ellipse.
+    expect(shapes()).toHaveLength(2);
+    expect(shapes()[0]!.getAttribute('fill-opacity')).toBe('0.14');
+    expect(shapes()[1]!.getAttribute('stroke-dasharray')).toBeTruthy();
+    // One dot per landing, plus the pad. The landing markers are rings (no
+    // fill), so filled circles are the samples.
+    const dots = Array.from(document.querySelectorAll('svg[role="img"] circle')).filter(
+      (c) => c.getAttribute('r') === '1.6',
+    );
+    expect(dots).toHaveLength(4);
+  });
+
+  /**
+   * A sweep is held one at a time, workspace-wide. Drawing another row's
+   * landings over this one's track would be a picture of two different flights.
+   */
+  it('ignores a sweep flown for another simulation', () => {
+    useWorkspaceStore.setState({ driftSweep: sweep('some-other-sim') });
+    renderWithProviders(<GroundTrack flight={flight()} {...HOME} />);
+    expect(shapes()).toHaveLength(0);
+  });
+
+  /**
+   * The region routinely reaches further than the single track drawn through
+   * it, so the frame has to be sized to hold it — otherwise the view clips
+   * exactly the thing it was opened for.
+   */
+  it('widens the frame to hold a region bigger than the track', () => {
+    const labels = () =>
+      Array.from(document.querySelectorAll('svg[role="img"] text')).map((el) => el.textContent ?? '');
+    const { unmount } = renderWithProviders(<GroundTrack flight={flight()} {...HOME} />);
+    const withoutSweep = labels();
+    unmount();
+
+    useWorkspaceStore.setState({ driftSweep: sweep('sim-1') });
+    renderWithProviders(<GroundTrack flight={flight()} {...HOME} />);
+    const biggest = (xs: string[]) => Math.max(...xs.flatMap((x) => (/^(\d+) m$/.exec(x) ? [Number(RegExp.$1)] : [])));
+    expect(biggest(labels())).toBeGreaterThan(biggest(withoutSweep));
+  });
+
+  it('reads out the swept range band beside the flown one', () => {
+    useWorkspaceStore.setState({ driftSweep: sweep('sim-1') });
+    renderWithProviders(<GroundTrack flight={flight()} {...HOME} />);
+    // Every landing of this sweep is the same distance out: 400√2 ≈ 566 m.
+    expect(screen.getByText('(566–566 m)')).toBeTruthy();
+  });
+
+  /**
+   * The design or the row's own motor and conditions can move after a sweep
+   * flew. The region is still the honest answer for the rocket that flew it, so
+   * it stays up and says so rather than vanishing or redrawing as current.
+   */
+  it('flags a region older than what is on screen, without dropping it', () => {
+    // Same sweep twice: once against the design it flew, once against a design
+    // that has moved since.
+    useWorkspaceStore.setState({ driftSweep: sweep('sim-1') });
+    const { unmount } = renderWithProviders(<GroundTrack flight={flight()} {...HOME} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Drift' }));
+    expect(screen.queryByText(/design has changed/i)).toBeNull();
+    unmount();
+
+    useWorkspaceStore.setState({ driftSweep: { ...sweep('sim-1'), tree: { ...st().tree } } });
+    renderWithProviders(<GroundTrack flight={flight()} {...HOME} />);
+    // Still drawn: the landings are the honest answer for the rocket that flew
+    // them, and re-flying a few dozen sims to get the picture back is not a
+    // price to pay for a fin tweak.
+    expect(shapes()).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Drift' }));
+    expect(screen.getByText(/design has changed/i)).toBeTruthy();
+  });
+
+  /**
+   * The region is what somebody reads when deciding how big a field they need,
+   * so how settled it is belongs beside it rather than only in the docs.
+   */
+  it('says on the panel that the region is experimental', () => {
+    renderWithProviders(<GroundTrack flight={flight()} {...HOME} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Drift' }));
+    expect(screen.getByText('Experimental')).toBeTruthy();
+    expect(screen.getByText(/not a range clearance/i)).toBeTruthy();
+  });
+
+  it('opens the sweep controls from the Drift button', () => {
+    renderWithProviders(<GroundTrack flight={flight()} {...HOME} />);
+    expect(screen.queryByRole('button', { name: 'Run sweep' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Drift' }));
+    expect(screen.getByRole('button', { name: 'Run sweep' })).toBeTruthy();
+    // Seeded from the flight's own 4 m/s wind, over the whole compass.
+    expect((screen.getByLabelText('Speeds') as HTMLInputElement).value).toBe('4');
+    expect((screen.getByLabelText('Headings') as HTMLInputElement).value).toBe('8');
+    expect(screen.getByText('32 flights')).toBeTruthy();
   });
 });

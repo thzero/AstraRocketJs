@@ -85,6 +85,32 @@ Tiles are the same ones the launch-site map uses and are cached the same way, so
 
 To take the same thing outside the app, the [flight-path export](./files-and-exports.md) writes it as KML or GPX for Google Earth, and the flight CSV now carries **East** and **North** columns beside altitude.
 
+### The drift region (a wind sweep) {#the-drift-region-a-wind-sweep}
+
+:::warning Experimental
+
+New, and less settled than the rest of this page. Each flight in a sweep goes through the same validated kernel as any other simulation, so the individual landings are as good as the app's flight results generally are — but the **region drawn around them has not been checked against a real recovery**, and the shape of the controls, the default grid and the two-sigma choice are all likely to change.
+
+Read it as a planning aid: how big a field this wants, and roughly which way the walk goes. It is not a range-safety clearance, and it is not a substitute for the [safety checks](./safety.md) or for looking at the actual field.
+
+:::
+
+The track above is where the rocket comes down under the **one** set of conditions you typed. Nobody knows the wind to a tenth of a meter per second on the morning of a launch, so the more useful question is which ground it could come down on across everything the day might do. **Drift**, at the top right, answers that by flying a **grid** of winds and keeping where each flight landed.
+
+You set the grid: a wind speed **from** and **to**, how many **speeds** to step through, how many **headings**, and how wide a **spread** of headings to cover (all round the compass, or an arc centered on the wind you typed). The two step counts multiply, so the panel says how many flights that is before you run it. They fly over the same worker pool a batch of simulations uses, several at once, and the count ticks down as they land; **Cancel** stops them.
+
+The result draws three things on the plan view, in each stage's own color:
+
+- The **shaded envelope** — the exact region of the conditions flown. Nothing in the sweep landed outside it, and this is the shape to walk out and look at.
+- The **dashed ellipse** — the same landings as a center, two axes and a bearing, at two standard deviations. This is the familiar recovery ellipse, the version that fits on a flight card and compares between designs, motors and days. Over an all-round sweep it correctly sits *inside* the ring of landings rather than around it.
+- A **dot per flight**, and a cross at the mean landing. Where the dots crowd is where the rocket lands on most of the days the sweep covers.
+
+The readout under the plot gains the **range band** for each stage — the nearest and furthest of its swept landings — beside the distance and bearing of the flight you were already reading.
+
+Everything but the wind is held exactly as the simulation has it: the same design, motor, ignition, rod, site and run settings, and one turbulence seed across the whole grid. That is what makes the spread attributable to the wind rather than to a dozen things moving at once, and it is why the same sweep run twice draws the same region. The speed band is capped by the same [safety-code limit](./safety.md) the Run button enforces, so a sweep never draws ground the app will not fly to.
+
+A sweep belongs to the flight it was built around, and only one is held at a time: pick a different flight and the region is not drawn. Edit the design, the motor or the launch conditions afterwards and the region stays up with a note saying it is older than what is on screen — the landings are still the honest answer for the rocket that flew them. **Clear** removes it. Nothing about a sweep is saved with the design.
+
 ## 3D path (after a simulation)
 
 The flight **trajectory in 3D** — the rocket's path through space, including drift from wind.

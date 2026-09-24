@@ -67,6 +67,22 @@ export const distanceFromPad = (p: GroundPoint): number => Math.hypot(p.east, p.
 /** Compass bearing from the pad, degrees clockwise from north (0 = due north). */
 export const bearingFromPad = (p: GroundPoint): number => ((Math.atan2(p.east, p.north) * 180) / Math.PI + 360) % 360;
 
+/** The end of a track, or null when there is none. */
+const lastPoint = (points: readonly GroundPoint[]): GroundPoint | null =>
+  points.length ? points[points.length - 1]! : null;
+
+/**
+ * Where one branch came down: the last usable sample, or null for an empty
+ * track.
+ *
+ * Its own function because a wind sweep wants ONLY this from each of a few
+ * dozen flights (`windSweep.ts`) and has no use for the track, the color or the
+ * name that {@link groundTrackLine} builds around it.
+ */
+export function landingPoint(series: FlightSeries | undefined): GroundPoint | null {
+  return lastPoint(trackPoints(series));
+}
+
 /** Build one drawable line from a branch's series. */
 export function groundTrackLine(
   key: string,
@@ -75,7 +91,7 @@ export function groundTrackLine(
   series: FlightSeries | undefined,
 ): GroundTrackLine {
   const points = trackPoints(series);
-  const landing = points.length ? points[points.length - 1]! : null;
+  const landing = lastPoint(points);
   return {
     key,
     name,
@@ -105,7 +121,8 @@ export function groundTrackLine(
 export const MIN_EXTENT_M = 50;
 
 /**
- * The square half-extent, in meters, that contains every track and the pad.
+ * The square half-extent, in meters, that contains the pad, every track, and
+ * any `extra` points the caller wants kept in frame.
  *
  * SQUARE, and centered on the pad, on purpose: a plan view whose axes are scaled
  * differently is not a map — it would bend a straight drift into a curve and
@@ -116,14 +133,18 @@ export const MIN_EXTENT_M = 50;
  * Floored at {@link MIN_EXTENT_M}, so a flight that never left the pad gets a
  * field around it rather than an axis measured in centimeters.
  */
-export function trackExtent(lines: readonly GroundTrackLine[]): number {
+export function trackExtent(lines: readonly GroundTrackLine[], extra: readonly GroundPoint[] = []): number {
   let m = 0;
-  for (const l of lines) {
-    for (const p of l.points) {
-      const d = Math.max(Math.abs(p.east), Math.abs(p.north));
-      if (d > m) m = d;
-    }
-  }
+  const reach = (p: GroundPoint) => {
+    const d = Math.max(Math.abs(p.east), Math.abs(p.north));
+    if (d > m) m = d;
+  };
+  for (const l of lines) for (const p of l.points) reach(p);
+  // A drift sweep's landings, when one has been flown. They are the reason the
+  // frame has to be asked about anything but the tracks: the swept envelope
+  // routinely reaches further than the one flight drawn through it, and a view
+  // sized to the track alone would clip the very region it was opened for.
+  for (const p of extra) reach(p);
   // A little air around the furthest point so a landing marker is not clipped
   // by the frame it sits on.
   return Math.max(MIN_EXTENT_M, m * 1.1);

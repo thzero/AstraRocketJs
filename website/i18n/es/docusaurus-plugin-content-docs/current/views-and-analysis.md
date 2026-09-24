@@ -85,6 +85,32 @@ Las teselas son las mismas que usa el mapa del campo de lanzamiento y se guardan
 
 Para llevarte lo mismo fuera de la aplicación, la [exportación de trayectoria](./files-and-exports.md) lo escribe como KML o GPX para Google Earth, y el CSV del vuelo ahora incluye columnas **Este** y **Norte** junto a la altitud.
 
+### La región de deriva (un barrido de viento) {#the-drift-region-a-wind-sweep}
+
+:::warning Experimental
+
+Es nuevo y está menos asentado que el resto de esta página. Cada vuelo de un barrido pasa por el mismo núcleo validado que cualquier otra simulación, así que los aterrizajes individuales son tan buenos como lo son en general los resultados de vuelo de la aplicación, pero la **región dibujada a su alrededor no se ha contrastado con una recuperación real**, y es probable que cambien tanto la forma de los controles como la rejilla por defecto y la elección de dos desviaciones típicas.
+
+Léelo como una ayuda para planificar: qué tamaño de campo pide esto y hacia dónde va el paseo, más o menos. No es una autorización de seguridad de campo, ni sustituye a las [comprobaciones de seguridad](./safety.md) ni a mirar el campo real.
+
+:::
+
+La traza anterior es dónde cae el cohete con el **único** conjunto de condiciones que escribiste. La mañana de un lanzamiento nadie conoce el viento con una décima de metro por segundo de precisión, así que la pregunta útil es sobre qué terreno podría caer con todo lo que el día pueda hacer. **Deriva**, arriba a la derecha, responde a eso volando una **rejilla** de vientos y guardando dónde aterrizó cada vuelo.
+
+Tú defines la rejilla: una velocidad de viento **desde** y **hasta**, cuántas **velocidades** recorrer, cuántos **rumbos** y qué **abanico** de rumbos cubrir (todo el compás, o un arco centrado en el viento que escribiste). Los dos recuentos se multiplican, así que el panel indica cuántos vuelos son antes de ejecutarlos. Vuelan sobre el mismo grupo de workers que usa un lote de simulaciones, varios a la vez, y la cuenta avanza según aterrizan; **Cancelar** los detiene.
+
+El resultado dibuja tres cosas en la vista en planta, con el color propio de cada etapa:
+
+- La **envolvente sombreada**: la región exacta de las condiciones voladas. Nada del barrido aterrizó fuera de ella, y esta es la forma que hay que salir a mirar.
+- La **elipse discontinua**: los mismos aterrizajes como un centro, dos ejes y un rumbo, a dos desviaciones típicas. Es la elipse de recuperación de siempre, la versión que cabe en una ficha de vuelo y que se compara entre diseños, motores y días. Con un barrido de todo el compás queda correctamente *dentro* del anillo de aterrizajes y no alrededor.
+- Un **punto por vuelo**, y una cruz en el aterrizaje medio. Donde se agolpan los puntos es donde cae el cohete la mayoría de los días que cubre el barrido.
+
+La lectura bajo el gráfico añade la **banda de distancias** de cada etapa (el más cercano y el más lejano de sus aterrizajes barridos) junto a la distancia y el rumbo del vuelo que ya estabas leyendo.
+
+Todo salvo el viento se mantiene tal y como lo tiene la simulación: el mismo diseño, motor, ignición, rampa, emplazamiento y ajustes de ejecución, y una sola semilla de turbulencia para toda la rejilla. Eso es lo que hace que la dispersión sea atribuible al viento y no a una docena de cosas moviéndose a la vez, y por eso el mismo barrido ejecutado dos veces dibuja la misma región. La banda de velocidad está limitada por el mismo [límite del código de seguridad](./safety.md) que aplica el botón Ejecutar, así que un barrido nunca dibuja terreno al que la aplicación no volará.
+
+Un barrido pertenece al vuelo sobre el que se construyó, y solo se guarda uno a la vez: elige otro vuelo y la región no se dibuja. Si después editas el diseño, el motor o las condiciones de lanzamiento, la región sigue en pantalla con un aviso de que es anterior a lo que se muestra: los aterrizajes siguen siendo la respuesta honesta para el cohete que los voló. **Borrar** la elimina. Nada de un barrido se guarda con el diseño.
+
 ## Trayectoria 3D (tras una simulación) {#3d-path-after-a-simulation}
 
 La **trayectoria del vuelo en 3D**: el recorrido del cohete por el espacio, incluida la deriva por el viento.

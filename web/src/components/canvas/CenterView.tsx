@@ -469,6 +469,7 @@ export function CenterView() {
                     flight={flight}
                     latitudeDeg={flight.launch.latitudeDeg}
                     longitudeDeg={flight.launch.longitudeDeg}
+                    launch={flight.launch}
                   />
                 ) : (
                   prompt

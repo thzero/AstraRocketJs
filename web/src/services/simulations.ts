@@ -227,7 +227,7 @@ export interface SimPrefs {
  *
  * Signed 32-bit, because the bridge casts to a Java `int`.
  */
-const freshSeed = (): number => Math.floor(Math.random() * 2 ** 32) - 2 ** 31;
+export const freshSeed = (): number => Math.floor(Math.random() * 2 ** 32) - 2 ** 31;
 
 /**
  * Map UI launch conditions (+ global sim prefs) to the engine's simulate()
