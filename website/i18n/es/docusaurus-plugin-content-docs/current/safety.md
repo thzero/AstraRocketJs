@@ -30,7 +30,7 @@ Ser explícito sobre las carencias es más útil que una advertencia genérica:
 - **La resistencia estructural.** El cohete es un cuerpo rígido. Nada comprueba si el fuselaje sobrevive al max-Q, a una apertura brusca o a un desgarro del tubo.
 - **El inflado del paracaídas.** La resistencia de un dispositivo de recuperación se activa en su evento de apertura, tras el retardo que hayas fijado. Ni el transitorio de inflado del velamen ni la carga de choque de apertura se calculan. La aplicación te avisa de una apertura rápida en lugar de decirte qué le hace al tubo.
 - **La variación del motor.** La curva de empuje es una curva de certificación, no tu motor el día del lanzamiento. La dispersión entre lotes, la temperatura del propelente, la edad y el almacenamiento mueven el número real.
-- **La diferencia entre el modelo y lo que construiste.** Los filetes de cola, la pintura, una ojiva más pesada de lo que supone la tabla de materiales, un juego de aletas dos grados torcido, un paracaídas plegado más apretado de lo que admite la bahía. La simulación vuela el plano.
+- **La diferencia entre el modelo y lo que construiste.** La pintura, un filete de cola que no introdujiste, una ojiva más pesada de lo que supone la tabla de materiales, un juego de aletas dos grados torcido, un paracaídas plegado más apretado de lo que admite la bahía. La simulación vuela el plano.
 - **El suelo.** Sin terreno, sin obstáculos, sin árboles, sin térmicas, sin efecto suelo, y sin la fricción del lanzador ni un cohete que se atasque en la guía.
 
 ## Antes de volar {#before-you-fly}

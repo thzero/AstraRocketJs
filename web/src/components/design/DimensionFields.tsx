@@ -8,7 +8,7 @@ import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { MAX_INSTANCE_COUNT, num, str } from '../../tree/nodeProps';
 import { shapeParamMax, shapeUsesParameter } from '../../tree/shapeProfile';
-import { FIELDS, type Field } from '../../services/componentFields';
+import { FIELDS, type Field, type PanelSection } from '../../services/componentFields';
 
 /**
  * The property panel's per-type shape and dimension fields: the numeric row
@@ -40,7 +40,58 @@ export function visibleFields(node: ComponentNode, isFirstStage: boolean): Field
    * whatever the file said. `shapeUsesParameter` was the exported, tested
    * helper that would have gated it, with zero production callers.
    */
-  return allFields.filter((f) => f.key !== 'shapeParameter' || shapeUsesParameter(defaultShape(node)));
+  return (
+    allFields
+      .filter((f) => f.key !== 'shapeParameter' || shapeUsesParameter(defaultShape(node)))
+      // Sectioned fields are rendered by their own section instead, so the
+      // dimension list stays dimensions.
+      .filter((f) => f.section === undefined)
+  );
+}
+
+/**
+ * The declared fields of this part that belong to one named section.
+ *
+ * Kept next to `visibleFields` because the two PARTITION the type's fields,
+ * and a field that fell out of both would simply stop being editable.
+ */
+export function sectionFields(node: ComponentNode, section: PanelSection): Field[] {
+  return (FIELDS[node.type] ?? []).filter((f) => f.section === section);
+}
+
+/**
+ * A titled block of fields, separated from what is above it. Renders nothing
+ * when the part has no field in that section, so the panel can ask for one
+ * unconditionally rather than repeating the type test at the call site.
+ *
+ * `children` render under the declared rows, for a section that also needs a
+ * control the FIELDS table cannot describe — the fillet's material picker.
+ */
+export function FieldSection({
+  node,
+  title,
+  fields,
+  onChange,
+  onCommit,
+  children,
+}: {
+  node: ComponentNode;
+  title: string;
+  fields: Field[];
+  onChange: (patch: Partial<ComponentNode>) => void;
+  onCommit?: () => void;
+  children?: ReactNode;
+}) {
+  if (!fields.length) return null;
+  return (
+    <div className="space-y-3 border-t border-white/5 pt-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{title}</h3>
+      {fields.map((f) => (
+        <FieldRow key={f.key} node={node} field={f} onChange={onChange} onCommit={onCommit} />
+      ))}
+      {children}
+    </div>
+  );
 }
 
 export function NumberField({

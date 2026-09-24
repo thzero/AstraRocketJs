@@ -4,11 +4,19 @@ import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { PANEL_SCOPE_KEYS } from '../../services/componentFields';
-import { NumberField } from './DimensionFields';
+import { FieldRow, NumberField, sectionFields } from './DimensionFields';
 
 /**
- * The property panel's placement section: where a nested part sits along its
- * parent tube (the reference method and the offset from it).
+ * The property panel's placement section: WHERE a nested part sits, as
+ * against what shape it is. Along the parent tube (the reference method and
+ * the offset from it), and around it (the rotation, for the parts that have
+ * one).
+ *
+ * The rotation used to render in the dimension list, so a launch lug's angle
+ * sat between its radius and its length, and the two names for one idea (a
+ * lug's "Angle around body", a fin set's "Base rotation") were rows apart in
+ * different sections. They are one kernel property: `FinSet.getBaseRotation()`
+ * returns `getAngleOffset()`.
  */
 
 /** Placement — only meaningful for parts nested inside a tube. */
@@ -34,8 +42,11 @@ export function PlacementSection({
     onCommit?.();
   };
 
+  const rotations = sectionFields(node, 'placement');
+
   return (
     <div className="space-y-3 border-t border-white/5 pt-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('prop.placement')}</h3>
       <label className="flex items-center justify-between gap-3">
         <span className="text-xs text-slate-400">{t('prop.positionFrom')}</span>
         <select
@@ -63,6 +74,9 @@ export function PlacementSection({
         onChange={(v) => onChange({ position: { ...pos, offset: offsetUnit.fromUi(v) } })}
         onCommit={onCommit}
       />
+      {rotations.map((f) => (
+        <FieldRow key={f.key} node={node} field={f} onChange={onChange} onCommit={onCommit} />
+      ))}
     </div>
   );
 }

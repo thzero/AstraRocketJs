@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS, type SimulationSettings } from '../../services/settin
 import { PART_KEYS, mergePalette } from '../../services/partColors';
 import { NumberInput } from '../common/NumberInput';
 import { useFocusTrap } from '../common/useFocusTrap';
+import { DefaultMaterials } from './DefaultMaterials';
 import { LaunchPanel } from '../sim/LaunchPanel';
 import { withRequiredFrom } from '../../services/requiredLaunch';
 import { IMPERIAL_UNITS, METRIC_UNITS, QUANTITIES, UNITS, unitScope } from '../../prefs/units';
@@ -13,11 +14,12 @@ import { useUnits } from '../../prefs/useUnits';
 const SPEEDS = [0.25, 0.5, 1, 2, 4];
 const speedLabel = (s: number) => (s === 0.25 ? '¼×' : s === 0.5 ? '½×' : `${s}×`);
 
-type TabKey = 'general' | 'units' | 'colors' | 'playback' | 'sketch' | 'sim' | 'launch';
+type TabKey = 'general' | 'units' | 'colors' | 'materials' | 'playback' | 'sketch' | 'sim' | 'launch';
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'general', label: 'settings.tabGeneral' },
   { key: 'units', label: 'settings.tabUnits' },
   { key: 'colors', label: 'settings.tabColors' },
+  { key: 'materials', label: 'settings.tabMaterials' },
   { key: 'playback', label: 'settings.tabPlayback' },
   { key: 'sketch', label: 'settings.tabSketch' },
   { key: 'sim', label: 'settings.tabSim' },
@@ -55,6 +57,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
     if (tab === 'general') update({ saveDesignInfo: DEFAULT_SETTINGS.saveDesignInfo });
     else if (tab === 'units') update({ units: DEFAULT_SETTINGS.units, unitOverrides: {} });
     else if (tab === 'colors') update({ partColors: {}, phaseColors: DEFAULT_SETTINGS.phaseColors });
+    else if (tab === 'materials') update({ defaultMaterials: DEFAULT_SETTINGS.defaultMaterials });
     else if (tab === 'playback') update({ playbackSpeed: DEFAULT_SETTINGS.playbackSpeed });
     else if (tab === 'sketch') update({ showMarkers: DEFAULT_SETTINGS.showMarkers, rulers: DEFAULT_SETTINGS.rulers });
     else if (tab === 'sim') update({ simulation: DEFAULT_SETTINGS.simulation });
@@ -99,6 +102,13 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
+          {tab === 'materials' && (
+            <DefaultMaterials
+              defaults={settings.defaultMaterials}
+              onChange={(defaultMaterials) => update({ defaultMaterials })}
+            />
+          )}
+
           {tab === 'colors' && (
             <>
               {/* Part colors apply to the 3D model, which a phone reaches

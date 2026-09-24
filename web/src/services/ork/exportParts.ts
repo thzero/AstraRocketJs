@@ -149,22 +149,36 @@ export function deploymentConfigs(w: OrkWriter, depth: number, node: ComponentNo
 }
 
 /**
- * Writes back whatever fillet the file came in with (see readFillet). The old
+ * The fin fillet: the glue bead along the root (see readFillet). The old
  * hard-coded 0.0 + Cardboard silently deleted a designer's epoxy fillets from
- * their own .ork on every save; these defaults are the same literals, used
- * only when the design genuinely has no fillet.
+ * their own .ork on every save; the Cardboard fallback below is the same
+ * literal, used only when the design names no fillet material of its own.
+ *
+ * That fallback is not arbitrary: Cardboard at 680 kg/m3 is what the KERNEL
+ * uses for a fillet with no material (ApplicationPreferences
+ * .getDefaultComponentMaterial for BULK), so the mass this app flies and the
+ * mass desktop OpenRocket computes from the file it writes agree either way.
+ *
+ * The group is written only when the design carries one, the way `material`
+ * above does. It used to default to PaperProducts alongside whatever material
+ * name the node had, so a Fiberglass fillet was filed under paper.
  */
 export function filletXml(w: OrkWriter, depth: number, node: ComponentNode): void {
   w.emit(depth, `<filletradius>${num(node, 'filletRadius', 0)}</filletradius>`);
-  const density = typeof node['filletDensity'] === 'number' ? (node['filletDensity'] as number) : 680;
+  const density = typeof node['filletDensity'] === 'number' ? (node['filletDensity'] as number) : null;
+  if (density === null || !(density > 0)) {
+    w.emit(
+      depth,
+      `<filletmaterial type="bulk" density="${CARDBOARD.density}" group="${CARDBOARD.group}">${CARDBOARD.name}</filletmaterial>`,
+    );
+    return;
+  }
+  const matName = typeof node['filletMaterialName'] === 'string' ? (node['filletMaterialName'] as string) : 'custom';
   const group =
-    typeof node['filletMaterialGroup'] === 'string' ? (node['filletMaterialGroup'] as string) : 'PaperProducts';
-  const matName = typeof node['filletMaterialName'] === 'string' ? (node['filletMaterialName'] as string) : 'Cardboard';
-  w.emit(
-    depth,
-    `<filletmaterial type="bulk" density="${density}" group="${escapeXml(group)}">` +
-      `${escapeXml(matName)}</filletmaterial>`,
-  );
+    typeof node['filletMaterialGroup'] === 'string'
+      ? ` group="${escapeXml(node['filletMaterialGroup'] as string)}"`
+      : '';
+  w.emit(depth, `<filletmaterial type="bulk" density="${density}"${group}>` + `${escapeXml(matName)}</filletmaterial>`);
 }
 
 /**

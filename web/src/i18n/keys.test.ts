@@ -54,6 +54,10 @@ function sourceText(): string {
 const DYNAMIC_PREFIXES: string[] = [
   'part.', // t(`part.${node.type}`) - component type names (schematic, tree, runnability)
   'part.field.', // t(`part.field.${d.field}`) - runnability.designBlockerText
+  // t(`settings.materialSlot.${part}` / `${part}_${material}`) - the Materials
+  // tab's row labels. Only the slots whose part name is not label enough have
+  // a key; the rest fall back to `part.<type>` through defaultValue.
+  'settings.materialSlot.',
   'view.', // t(`view.${v}`), t(`view.ruler_${side}`) - ViewToggle, rulers
   'pathExport.fmt.', // t(`pathExport.fmt.${f.id}`) - flight-path export formats
   'pathExport.preset.', // t(`pathExport.preset.${preset.id}`) and `${id}Note`

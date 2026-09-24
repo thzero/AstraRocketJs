@@ -22,12 +22,6 @@ export function modelingNotes(components: ComponentNode[]): string[] {
     }
   };
   collect(components);
-  if (allNodes.some((nd) => typeof nd['filletRadius'] === 'number' && (nd['filletRadius'] as number) > 0)) {
-    notes.push(
-      'Fin fillets are kept in the file but are not yet counted in mass or CG, ' +
-        'so masses read slightly light against desktop OpenRocket.',
-    );
-  }
   const instanced = allNodes.filter(
     (nd) =>
       typeof nd['instanceCount'] === 'number' &&

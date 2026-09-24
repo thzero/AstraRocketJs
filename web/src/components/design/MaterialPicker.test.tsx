@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { StrictMode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { MaterialPicker } from './MaterialPicker';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import { setMaterialStore, type MaterialStore } from '../../services/materialStore';
-import type { Material } from '../../data/materials';
+import { serveData } from '../../testing/serveData';
+import type { Material } from '../../services/materialTypes';
 
 /**
  * The picker's two store round-trips finish after an await and are guarded by
@@ -30,6 +31,7 @@ function memoryStore(): MaterialStore {
 }
 
 describe('MaterialPicker under StrictMode', () => {
+  beforeAll(serveData);
   beforeEach(() => setMaterialStore(memoryStore()));
 
   it('still applies a custom material added after the store round-trip', async () => {
@@ -48,8 +50,9 @@ describe('MaterialPicker under StrictMode', () => {
 
     // The `submitCustom` path: two awaits, then setMats + onChange. The
     // density is typed in the user's unit (g/cm³ by default) and handed on in
-    // SI, so only the name is pinned here.
-    await waitFor(() => expect(onChange).toHaveBeenCalledWith('Moon Cheese', expect.any(Number)));
+    // SI, so only the name is pinned here; the third argument is the group the
+    // material was filed under, which the .ork writer wants.
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith('Moon Cheese', expect.any(Number), expect.any(String)));
     expect(onChange.mock.calls[0]![1]).toBeGreaterThan(0);
     expect(screen.getByRole('option', { name: /Moon Cheese/ })).toBeTruthy();
   });

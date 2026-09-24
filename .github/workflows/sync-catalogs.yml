@@ -11,6 +11,13 @@ name: Sync Catalogs
 # (`npm run sync:motors && npm run sync:components`, then commit) when you want
 # the offline floor moved up — it is deliberately not touched by this workflow.
 #
+# The materials and contributors files are published alongside them but are NOT
+# regenerated here: materials is held to the pinned OpenRocket source by the
+# extraction gate, so it changes with a commit or not at all, and contributors
+# is written by the Pages deploy. They ride along so the data branch is a whole
+# copy of public/data — a partial one would 404 for a file the manifest names,
+# costing every session a wasted round trip before it fell back to the build.
+#
 # deploy.yml already points the built app at this branch via VITE_DATA_BASE,
 # so no setup is needed: until the first run creates it, the app falls back to the
 # catalogs inside the build.
@@ -69,7 +76,13 @@ jobs:
           # the (possibly stale) committed copy and republish it.
           url="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           if git clone --depth 1 --branch data "$url" "$tmp" 2>/dev/null; then
-            cp "$tmp"/*.json "$GITHUB_WORKSPACE/web/public/data/"
+            # Only the two catalogs this job regenerates. Seeding the others
+            # would republish whatever the branch already had, which for a file
+            # that changes by commit (materials) means reverting the repo's
+            # copy to an older one.
+            for f in motors.generated.json components.generated.json; do
+              [ -f "$tmp/$f" ] && cp "$tmp/$f" "$GITHUB_WORKSPACE/web/public/data/$f"
+            done
             echo "Seeded from the data branch."
           else
             echo "No data branch yet — seeding from the committed copy (first run)."
@@ -124,7 +137,9 @@ jobs:
             git -C "$tmp" remote add origin "$url"
           fi
 
-          cp "$src"/motors.generated.json "$src"/components.generated.json "$src"/manifest.json "$tmp"/
+          # Everything, so the branch is a complete public/data: the manifest
+          # is regenerated from the whole directory and names all four files.
+          cp "$src"/*.json "$tmp"/
 
           git -C "$tmp" add -A
           if git -C "$tmp" diff --cached --quiet; then

@@ -72,6 +72,16 @@ Units are a **display and entry** preference. Your design is always stored in SI
 - Unitless figures don't move either: stability in calibers or % of length, drag coefficients, Mach, CNα, times in seconds.
 - Motor mount and filter diameters stay in mm, since 18 mm / 24 mm / 29 mm are effectively motor **names**.
 
+## Materials {#materials}
+
+What a **newly added part** is made of. A row per material slot — the fourteen structural part types, plus a parachute's canopy and shroud lines, a streamer and a shock cord, because a part can carry more than one kind of material at once.
+
+The choice is spent when you add the part: the material is written onto it there and then, so it shows in the property panel and travels with the design in the `.ork`. Parts already in the rocket are not touched, and neither is a design you open.
+
+That is deliberately not how desktop OpenRocket's equivalent preference works. Desktop leaves the part unset and applies your preference when it computes mass, which means the same file weighs one thing on the machine that made it and another on the machine you sent it to. Here what you chose is in the file.
+
+Custom materials can be defaults too, and so can the adhesives. Leave a row on **Automatic** and that part type keeps getting the built-in density (cardboard for solid parts, ripstop nylon for canopies, elastic cord for lines).
+
 ## Simulation defaults
 
 These seed each new simulation's run (you can still tune per-simulation launch conditions — see [Running a Simulation](./running-a-simulation.md)):

@@ -29,7 +29,25 @@ import { CLUSTER_OPTIONS, clusterCount } from '../tree/cluster';
  * shoulder or fin tab of 0 is simply absent, and every delay and angle offset
  * starts at 0.
  */
-type FieldFlags = { required?: true };
+/**
+ * The panel sections a field can be pulled OUT of the dimension list into.
+ *
+ * - `placement` is where the part goes: the angle around the body, rendered
+ *   beside "Position from" and "Offset". It used to sit in the middle of the
+ *   dimensions, between a radius and a thickness.
+ * - `finTab` is the optional through-the-wall tab, four fields that describe a
+ *   separate piece of the fin and read as a run-on of the planform without a
+ *   break.
+ * - `motor` is what a tube does for a motor rather than what it is: whether it
+ *   mounts one, how far the motor hangs out, and how many tubes the cluster is.
+ * - `fillet` is the glue bead along a fin's root: a radius, and the material it
+ *   is made of, which is rarely the fin's own (epoxy on plywood).
+ *
+ * A field with no `section` is a dimension and renders in the main list.
+ */
+export type PanelSection = 'placement' | 'finTab' | 'motor' | 'fillet';
+
+type FieldFlags = { required?: true; section?: PanelSection };
 
 export type Field = FieldFlags &
   (
@@ -78,10 +96,16 @@ const SEPARATION_EVENTS = [
 // Optional through-the-wall fin tab (0 length/height = no tab). Shared by the
 // trapezoidal and elliptical fin editors; keys match the engine + .ork.
 const FIN_TABS: Field[] = [
-  { key: 'tabLength', label: 'tabLength', kind: 'length' },
-  { key: 'tabHeight', label: 'tabHeight', kind: 'length' },
-  { key: 'tabOffset', label: 'tabOffset', kind: 'length' },
-  { key: 'tabOffsetMethod', label: 'tabOffsetMethod', kind: 'select', options: ['top', 'middle', 'bottom'] },
+  { key: 'tabLength', label: 'tabLength', kind: 'length', section: 'finTab' },
+  { key: 'tabHeight', label: 'tabHeight', kind: 'length', section: 'finTab' },
+  { key: 'tabOffset', label: 'tabOffset', kind: 'length', section: 'finTab' },
+  {
+    key: 'tabOffsetMethod',
+    label: 'tabOffsetMethod',
+    kind: 'select',
+    options: ['top', 'middle', 'bottom'],
+    section: 'finTab',
+  },
 ];
 
 // `rotation` is a fin set's BASE ROTATION: where its first fin sits around the
@@ -92,7 +116,14 @@ const FIN_TABS: Field[] = [
 // did - the same gap `cluster` had. The fin marking guide is what made it
 // matter: the guide prints where each fin goes RELATIVE to the launch lug, and
 // that relationship IS this field.
-const FIN_ROTATION: Field = { key: 'rotation', label: 'baseRotation', kind: 'angle', step: 5 };
+// The glue bead along the fin root. The kernel computes its volume, mass and
+// CM (FinSet.calculateFilletVolumeCentroid) and always has; what was missing
+// was the engine bridge ever setting the radius, so a fillet the .ork carried
+// was preserved on disk and flew as nothing. TUBE fins have none: a TubeFinSet
+// is a Tube, not a FinSet, so the kernel has no fillet to give it.
+const FIN_FILLET: Field = { key: 'filletRadius', label: 'filletRadius', kind: 'length', section: 'fillet' };
+
+const FIN_ROTATION: Field = { key: 'rotation', label: 'rotation', kind: 'angle', step: 5, section: 'placement' };
 
 // Off-axis assembly placement (PodSet / ParallelStage) — how many instances
 // ring the parent axis, how far off it, and where they start. radiusMethod:
@@ -109,7 +140,7 @@ const ASSEMBLY_FIELDS: Field[] = [
     options: ['relative', 'free'],
     optI18n: 'radiusMethod',
   },
-  { key: 'angleOffset', label: 'angleAroundBody', kind: 'angle' },
+  { key: 'angleOffset', label: 'rotation', kind: 'angle', section: 'placement' },
 ];
 
 // `label` is an i18n key suffix under `prop.*` (resolved at render).
@@ -156,8 +187,8 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'length', label: 'length', kind: 'length' },
     { key: 'outerRadius', label: 'radius', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'motorMount', label: 'motorMount', kind: 'bool' },
-    { key: 'motorOverhang', label: 'motorOverhang', kind: 'length' },
+    { key: 'motorMount', label: 'motorMount', kind: 'bool', section: 'motor' },
+    { key: 'motorOverhang', label: 'motorOverhang', kind: 'length', section: 'motor' },
   ],
   transition: [
     {
@@ -190,6 +221,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
     FIN_ROTATION,
+    FIN_FILLET,
     ...FIN_TABS,
   ],
   ellipticalfinset: [
@@ -199,6 +231,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
     FIN_ROTATION,
+    FIN_FILLET,
     ...FIN_TABS,
   ],
   freeformfinset: [
@@ -206,6 +239,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
     FIN_ROTATION,
+    FIN_FILLET,
     ...FIN_TABS,
   ],
   tubefinset: [
@@ -219,8 +253,8 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'length', label: 'length', kind: 'length' },
     { key: 'outerRadius', label: 'radius', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'motorMount', label: 'motorMount', kind: 'bool' },
-    { key: 'motorOverhang', label: 'motorOverhang', kind: 'length' },
+    { key: 'motorMount', label: 'motorMount', kind: 'bool', section: 'motor' },
+    { key: 'motorOverhang', label: 'motorOverhang', kind: 'length', section: 'motor' },
     // `cluster` round-trips through .ork (orkImport:366 / orkExport:466) and
     // the 2D, aft and 3D views all draw the tube at every cluster offset — but
     // nothing could SET it, so the only way to get a cluster was to import a
@@ -232,6 +266,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
       options: CLUSTER_OPTIONS,
       optLabel: (o, t) =>
         o === 'single' ? t('cluster.single') : t('cluster.pattern', { name: o, n: clusterCount(o) }),
+      section: 'motor',
     },
   ],
   tubecoupler: [
@@ -256,11 +291,11 @@ const RAW_FIELDS: Record<string, Field[]> = {
   launchlug: [
     { key: 'length', label: 'length', kind: 'length' },
     { key: 'outerRadius', label: 'radius', kind: 'length' },
-    { key: 'angleOffset', label: 'angleAroundBody', kind: 'angle' },
+    { key: 'angleOffset', label: 'rotation', kind: 'angle', section: 'placement' },
   ],
   railbutton: [
     { key: 'outerDiameter', label: 'outerDiameter', kind: 'length' },
-    { key: 'angleOffset', label: 'angleAroundBody', kind: 'angle' },
+    { key: 'angleOffset', label: 'rotation', kind: 'angle', section: 'placement' },
   ],
   parachute: [
     { key: 'diameter', label: 'diameter', kind: 'length' },

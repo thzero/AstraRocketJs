@@ -2181,7 +2181,6 @@ exports[`golden .ork import > reads the kitchen-sink export back into the same r
   "name": "Kitchen sink",
   "notes": [
     "Motor G80: plugged (no ejection charge) — make sure recovery deploys on apogee/altitude, not the ejection charge.",
-    "Fin fillets are kept in the file but are not yet counted in mass or CG, so masses read slightly light against desktop OpenRocket.",
     "2 components in this design (Centering Ring, Launch Lug) repeat as multiple instances. The file keeps every instance, but the drawing and the simulation currently show one.",
   ],
   "tree": {
@@ -2909,7 +2908,6 @@ exports[`golden .ork import > reads the kitchen-sink export back into the same r
   },
   "name": "Kitchen sink",
   "notes": [
-    "Fin fillets are kept in the file but are not yet counted in mass or CG, so masses read slightly light against desktop OpenRocket.",
     "2 components in this design (Centering Ring, Launch Lug) repeat as multiple instances. The file keeps every instance, but the drawing and the simulation currently show one.",
   ],
   "tree": {

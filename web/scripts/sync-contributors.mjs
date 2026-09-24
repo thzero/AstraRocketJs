@@ -1,10 +1,10 @@
 // Build-time contributor list from the GitHub REST API.
 //
-// Writes src/data/contributors.generated.json — the people credited in the
-// About dialog. Like the motor/component catalogs this is a BUILD ARTIFACT:
-// generated, committed, and bundled, so the app makes no runtime call to
-// github.com (see the privacy copy in src/i18n/locales/*.json — the only
-// network call at runtime is the motor database).
+// Writes public/data/contributors.generated.json — the people credited in the
+// About dialog. Like the motor, component and material catalogs this is a
+// BUILD ARTIFACT: generated, committed, and served from the app's own origin,
+// so the app makes no runtime call to github.com (see the privacy copy in
+// src/i18n/locales/*.json — every network call at runtime is to us).
 //
 // Avatars are inlined as data URIs for the same reason: an <img> pointing at
 // avatars.githubusercontent.com would be a third-party request from every
@@ -22,9 +22,12 @@
 // GITHUB_TOKEN (CI: `${{ github.token }}`) to lift that to 5,000.
 
 import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeDataManifest } from './lib/dataManifest.mjs';
 
-const OUT = fileURLToPath(new URL('../src/data/contributors.generated.json', import.meta.url));
+const DATA_DIR = fileURLToPath(new URL('../public/data', import.meta.url));
+const OUT = join(DATA_DIR, 'contributors.generated.json');
 const PKG = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 /** owner/name from --repo, else parsed out of package.json's repository URL. */
@@ -95,7 +98,8 @@ for (const c of people) {
 }
 
 writeFileSync(OUT, JSON.stringify({ generated: new Date().toISOString(), repo: REPO, contributors }, null, 2) + '\n');
+writeDataManifest(DATA_DIR);
 console.log(
-  `Wrote ${contributors.length} contributors → src/data/contributors.generated.json`,
+  `Wrote ${contributors.length} contributors → public/data/contributors.generated.json`,
   contributors.map((c) => c.login).join(', '),
 );

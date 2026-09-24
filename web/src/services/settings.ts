@@ -137,6 +137,22 @@ export interface Settings {
   unitOverrides: UnitOverrides;
   /** Per-group color overrides for the 3D model (empty = built-in defaults). */
   partColors: Partial<Record<PartKey, string>>;
+  /**
+   * What a NEWLY ADDED part is made of, keyed `<partType>:<materialType>`
+   * (`bodytube:bulk`, `parachute:line`). Empty means no preference.
+   *
+   * The name AND the density are stored, so adding a part is synchronous and
+   * needs no lookup — and a custom material that is later edited or deleted
+   * cannot change or break what a preference means. That matches what a custom
+   * material actually is in this app: a density with a name.
+   *
+   * The preference is spent at CREATION: the new part carries the material
+   * outright, shows it in the panel and writes it to the `.ork`. It is
+   * deliberately not resolved at simulation time the way desktop OpenRocket's
+   * equivalent preference is, because that would make the same file weigh one
+   * thing here and another on the machine you sent it to.
+   */
+  defaultMaterials: Record<string, { name: string; density: number }>;
   /** Flight-path phase colors. */
   phaseColors: { boost: string; coast: string; descent: string };
   /**
@@ -410,6 +426,7 @@ export const DEFAULT_SETTINGS: Settings = {
   units: METRIC_UNITS,
   unitOverrides: {},
   partColors: {},
+  defaultMaterials: {},
   phaseColors: { boost: '#fb923c', coast: '#38bdf8', descent: '#34d399' },
   aeroHeat: 'sky',
   playbackSpeed: 0.5,
@@ -549,6 +566,23 @@ export function loadSettings(): Settings {
           ([, v]) => typeof v === 'string' && HEX_COLOR.test(v),
         ),
       ) as Partial<Record<PartKey, string>>,
+      // Filtered the same way, and for a sharper reason: a density out of this
+      // map is stamped onto a new part and flown. A stored string, NaN or a
+      // negative would reach the kernel as the mass of somebody's airframe.
+      defaultMaterials: Object.fromEntries(
+        Object.entries((s.defaultMaterials ?? {}) as Record<string, unknown>).filter(([key, v]) => {
+          if (!/^[a-z]+:(bulk|surface|line)$/.test(key)) return false;
+          const m = v as { name?: unknown; density?: unknown } | null;
+          return (
+            !!m &&
+            typeof m.name === 'string' &&
+            m.name.trim() !== '' &&
+            typeof m.density === 'number' &&
+            Number.isFinite(m.density) &&
+            m.density > 0
+          );
+        }),
+      ) as Settings['defaultMaterials'],
       // The same hex filter partColors gets: these reach a style attribute
       // and the KML/GPX exports, and the merge let any value type through.
       phaseColors: (() => {

@@ -1,11 +1,41 @@
+import { useEffect, useState } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { appName, APP_VERSION, CONTRIBUTORS_URL, isPreRelease, UPSTREAM } from '../../services/appInfo';
-import contributorData from '../../data/contributors.generated.json';
+import { fetchCatalog } from '../../services/remoteData';
 import { useFocusTrap } from '../common/useFocusTrap';
 
-// GitHub contributors, baked in at build time by scripts/sync-contributors.mjs
-// (avatars inlined as data URIs) so the dialog makes no runtime call to github.com.
-const CONTRIBUTORS: { login: string; url: string; avatar?: string }[] = contributorData.contributors;
+interface Contributor {
+  login: string;
+  url: string;
+  avatar?: string;
+}
+
+// GitHub contributors, written at build time by scripts/sync-contributors.mjs
+// (avatars inlined as data URIs) and served from our own origin like the other
+// catalogs, so opening this dialog makes no call to github.com.
+const isContributors = (v: unknown): v is { contributors: Contributor[] } =>
+  !!v &&
+  Array.isArray((v as { contributors?: unknown }).contributors) &&
+  (v as { contributors: unknown[] }).contributors.every(
+    (c) => !!c && typeof (c as Contributor).login === 'string' && typeof (c as Contributor).url === 'string',
+  );
+
+/** The credits list, fetched on mount. The dialog is only mounted while open
+ *  (`{open && <AboutDialog />}`), so nothing is fetched until it is asked for,
+ *  and an unreachable file just means the section is not drawn. */
+function useContributors(): Contributor[] {
+  const [list, setList] = useState<Contributor[]>([]);
+  useEffect(() => {
+    let live = true;
+    fetchCatalog<{ contributors: Contributor[] }>('contributors', isContributors)
+      .then((d) => live && setList(d.contributors))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
+  return list;
+}
 
 // Credited open-source projects → homepage.
 const LINKS: [string, string][] = [
@@ -26,6 +56,7 @@ const LINKS: [string, string][] = [
 export function AboutDialog({ onClose }: { onClose: () => void }) {
   const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
   const { t } = useTranslation();
+  const CONTRIBUTORS = useContributors();
   return (
     <div className="dialog-overlay fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
       <div
@@ -84,7 +115,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
           <div className="mt-4 border-t border-white/10 pt-3 text-xs leading-relaxed text-slate-500">
             <p>
               {/* The heading links to the full contributor graph when one is
-                  configured — the bundled list is a build-time snapshot. */}
+                  configured — the list here is a build-time snapshot. */}
               {CONTRIBUTORS_URL ? (
                 <a
                   href={CONTRIBUTORS_URL}

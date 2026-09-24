@@ -55,7 +55,7 @@ jobs:
       # Refresh the About dialog's contributor list from the GitHub API so a newly
       # merged contributor is credited on the next deploy without a manual commit.
       # Best-effort: if the API is down or throttled the step is skipped and the
-      # build uses the committed src/data/contributors.generated.json instead.
+      # build uses the committed public/data/contributors.generated.json instead.
       - id: contributors
         run: npm run sync:contributors
         continue-on-error: true
@@ -71,7 +71,7 @@ jobs:
           echo "::warning title=Contributor sync failed::Deployed with the committed contributors.generated.json. If this repeats it is broken, not throttled."
           echo "### Contributor sync failed" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Deployed with the committed src/data/contributors.generated.json." >> "$GITHUB_STEP_SUMMARY"
+          echo "Deployed with the committed public/data/contributors.generated.json." >> "$GITHUB_STEP_SUMMARY"
 
       # Docs are built BEFORE the app and into web/public, so the service worker
       # precaches them: Help has to work offline, which is much of the point of

@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
+import { beforeAll, describe, it, expect, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
 import { renderWithProviders } from '../../testing/renderWithProviders';
+import { serveData } from '../../testing/serveData';
 import { PropertyPanel } from './PropertyPanel';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 
@@ -29,6 +30,9 @@ function panel(node: Partial<ComponentNode>, onChange = vi.fn()) {
 
 /** The spinbutton itself, so the `max` attribute can be read off it. */
 const field = () => screen.getByRole('spinbutton', { name: LABEL }) as HTMLInputElement;
+
+// The panel renders a MaterialPicker, which fetches the material catalog.
+beforeAll(serveData);
 
 describe('the field appears only for shapes that use a parameter', () => {
   it.each(['ogive', 'power', 'parabolic', 'haack'])('shows it for a %s nose cone', (shape) => {

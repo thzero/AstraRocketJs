@@ -433,13 +433,19 @@ jobs:
           retention-days: 7
 
   update-flow:
-    # The service-worker update path, against two real production builds.
+    # The service worker, against real production builds: the update path, and
+    # the runtime catalogs with the network off.
     #
-    # Nothing else here can see it: the dev server the Playwright suite runs
-    # against registers no worker, and vitest has no browser. What this proves
-    # is the thing a deploy depends on: a tab open on the old build is offered
-    # the new one and, on Reload, comes back on it, with no hard reload. Two
-    # `vite build`s plus a headless Chromium, about two minutes.
+    # Nothing else here can see either: the dev server the Playwright suite
+    # runs against registers no worker, and vitest has no browser. The update
+    # check proves the thing a deploy depends on - a tab open on the old build
+    # is offered the new one and, on Reload, comes back on it, with no hard
+    # reload. The offline check proves the thing a LAUNCH SITE depends on, and
+    # it was added because that one was broken and silent: the catalogs are
+    # requested with a `?v=<hash>` cache-buster, which Workbox does not strip
+    # when matching the precache, so motors, components and materials were all
+    # unreachable with no signal. Three `vite build`s plus a headless Chromium,
+    # about three minutes.
     needs: [reproducible]
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -474,3 +480,5 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
 
       - run: npm run e2e:update
+
+      - run: npm run e2e:offline-data

@@ -1,10 +1,16 @@
 /**
- * Runtime loader for the reference catalogs (motors, components).
+ * Runtime loader for the reference data (motors, components, materials,
+ * contributors).
  *
  * The data files live in `public/data/` — copied verbatim into the build like
  * the WASM engine, NOT compiled into the JS bundle — and are fetched at runtime.
  * That decouples the data from the app: refreshing a catalog is a matter of
  * overwriting the JSON on the host, no rebuild/redeploy of the app.
+ *
+ * Every dataset the app ships goes through here, whatever its size. The point
+ * is not only the 1.6 MB motor file: `src/` holding a table of materials made
+ * that table look like source, and it drifted from the database it is a copy
+ * of for exactly as long as nobody read it as data.
  *
  * `VITE_DATA_BASE` takes that a step further. Point it at a separately deployed
  * catalog host — the orphan `data` branch served over jsDelivr, published by

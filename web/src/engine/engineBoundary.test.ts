@@ -516,3 +516,74 @@ describe('a mass component can hold internal components', () => {
     expect(massOf(true)).toBeGreaterThan(massOf(false));
   });
 });
+
+/**
+ * Fin fillets reach the kernel.
+ *
+ * The kernel has always computed a fillet's volume, mass and CM
+ * (FinSet.calculateFilletVolumeCentroid, and calculateCM adds filletMass to
+ * every fin unconditionally) — but `ComponentFactory` never called
+ * `setFilletRadius`, so the field stayed at its initial 0 and every fillet
+ * flew as if it were not there. The .ork reader, writer and the rocket scaler
+ * all carried `filletRadius` faithfully, which is what made it invisible: the
+ * number was in the tree, on disk and in the panel's reach, and only the
+ * engine never saw it.
+ *
+ * These assert the EFFECT, not the plumbing. A bridge that set the radius on a
+ * component the kernel then ignored would pass any "it built" check.
+ */
+describe('fin fillets are flown, not just stored', () => {
+  const filleted = (radius: number, density?: number) =>
+    ({
+      components: [
+        {
+          id: 'stage1',
+          type: 'stage',
+          children: [
+            { id: 'nose', type: 'nosecone', length: 0.1, aftRadius: 0.013, thickness: 0.001, shape: 'ogive' },
+            {
+              id: 'tube',
+              type: 'bodytube',
+              length: 0.2,
+              outerRadius: 0.013,
+              thickness: 0.0005,
+              children: [
+                {
+                  id: 'fins',
+                  type: 'trapezoidfinset',
+                  finCount: 3,
+                  rootChord: 0.06,
+                  tipChord: 0.03,
+                  sweep: 0.03,
+                  height: 0.05,
+                  thickness: 0.003,
+                  filletRadius: radius,
+                  ...(density === undefined ? {} : { filletDensity: density, filletMaterialName: 'Epoxy' }),
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }) as unknown as RocketTree;
+
+  const massOf = (radius: number, density?: number) =>
+    OpenRocketDesign.buildTree(filleted(radius, density)).staticInfo().massEmpty;
+
+  it('adds the fillet to the rocket mass, and more of it for a bigger bead', () => {
+    const none = massOf(0);
+    expect(massOf(0.003)).toBeGreaterThan(none);
+    expect(massOf(0.006)).toBeGreaterThan(massOf(0.003));
+  });
+
+  it("weighs the bead in ITS OWN material, not the fin's", () => {
+    // The fin is cardboard by default and the bead is epoxy; a bridge that set
+    // the radius but not the material would weigh both the same.
+    expect(massOf(0.006, 1250)).toBeGreaterThan(massOf(0.006));
+  });
+
+  it('moves the CG, since the bead sits along the root at the aft end', () => {
+    const cg = (r: number) => OpenRocketDesign.buildTree(filleted(r)).staticInfo().cgEmpty;
+    expect(cg(0.006)).toBeGreaterThan(cg(0));
+  });
+});

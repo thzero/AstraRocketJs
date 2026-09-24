@@ -120,7 +120,7 @@ Algunos detalles que conviene saber:
 - Una tira demasiado larga para la página se **corta en piezas** que se unen a tope y se pegan en orden, con las uniones apartadas de las marcas. Nada se reduce de escala nunca: una guía de marcado encogida es peor que ninguna. Un tubo de 4 pulgadas da una vuelta de 320 mm, así que siempre lleva dos piezas.
 - Una pieza que ninguna tira puede llevar se **nombra en una nota al pie** en vez de desaparecer sin más: una guía de lanzamiento en una ojiva o transición, cuya circunferencia cambia a lo largo, o una guía en un tubo sin juego de aletas.
 
-Dónde se sitúa la primera aleta alrededor del cuerpo es el campo **Rotación base** del juego de aletas, junto a Inclinación.
+Dónde se sitúa la primera aleta alrededor del cuerpo es el campo **Rotación** del juego de aletas, en la sección **Colocación** del panel de componentes. La guía de lanzamiento y el botón de riel llevan el mismo campo: es una sola propiedad, así que tiene un solo nombre.
 
 ### Cómo se llama una descarga {#what-a-download-is-called}
 

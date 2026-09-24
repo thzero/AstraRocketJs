@@ -1,0 +1,166 @@
+{
+  "$comment": [
+    "The app's OWN materials. NOT upstream OpenRocket's, which are read straight",
+    "out of its Databases.java. This file is the hand-edited one: a tool or a",
+    "person adds to it, and nothing regenerates over it.",
+    "",
+    "scripts/sync-materials.mjs merges both into public/data/materials.generated.json,",
+    "the catalog the app fetches at run time. Nothing in src/ holds a material.",
+    "",
+    "`kind` says why an entry is here, and the app itself does not care:",
+    "  adhesive  - upstream has no adhesive at all, and a fin fillet is made of",
+    "              nothing else, so the fillet picker had nothing to offer.",
+    "  corrected - upstream carries the material but with a wrong number; both",
+    "              are kept, because a design that names the upstream one has to",
+    "              keep reading back the density it was saved with. A correction",
+    "              takes its OWN name for that reason; one that reused upstream's",
+    "              is refused by the sync script and by the extraction gate.",
+    "",
+    "`density` is SI: kg/m^3 for bulk, kg/m^2 for surface, kg/m for line.",
+    "`source` and `note` are for whoever maintains this file. They are NOT",
+    "shipped to the app, and they are the whole reason an entry is trustworthy:",
+    "a density with no document behind it is a guess that weighs someone's",
+    "rocket. The sync script refuses an entry without a source. The same table,",
+    "with the links and the reasoning, is in",
+    "website/docs/designing-a-rocket.md#adhesives."
+  ],
+  "materials": [
+    {
+      "name": "Epoxy - West System 105/205 Fast",
+      "type": "bulk",
+      "density": 1180,
+      "group": "Adhesives",
+      "kind": "adhesive",
+      "source": "https://www.westsystem.com/app/uploads/2022/09/105_205-207-Combined.pdf",
+      "note": "Cured specific gravity 1.18, printed under Physical Properties of Cured Epoxy."
+    },
+    {
+      "name": "Epoxy - West System 105/206 Slow",
+      "type": "bulk",
+      "density": 1180,
+      "group": "Adhesives",
+      "kind": "adhesive",
+      "source": "https://www.westsystem.com/app/uploads/2022/09/105_205-207-Combined.pdf",
+      "note": "Cured specific gravity 1.18."
+    },
+    {
+      "name": "Epoxy - West System 105/207 Clear",
+      "type": "bulk",
+      "density": 1150,
+      "group": "Adhesives",
+      "kind": "adhesive",
+      "source": "https://www.westsystem.com/app/uploads/2022/09/105_205-207-Combined.pdf",
+      "note": "Cured specific gravity 1.15."
+    },
+    {
+      "name": "Epoxy - West System 105/209 Extra Slow",
+      "type": "bulk",
+      "density": 1160,
+      "group": "Adhesives",
+      "kind": "adhesive",
+      "source": "https://www.westsystem.com/app/uploads/2022/09/105_205-207-Combined.pdf",
+      "note": "Cured specific gravity 1.16."
+    },
+    {
+      "name": "Epoxy - West System Six10",
+      "type": "bulk",
+      "density": 1180,
+      "group": "Adhesives",
+      "kind": "adhesive",
+      "source": "https://www.westsystem.com/app/uploads/2022/12/Six10-Technical-Data-Sheet.pdf",
+      "note": "Cured specific gravity 1.18; components 1.17 resin and 1.04 hardener, 2:1 by volume."
+    },
+    {
+      "name": "Epoxy - West System G/5 Five-Minute",
+      "type": "bulk",
+      "density": 1210,
+      "group": "Adhesives",
+      "kind": "adhesive",
+      "source": "https://eu.westsystem.com/app/uploads/2022/12/G5-Five-Minute-Epoxy-Adhesive-2024.pdf",
+      "note": "Cured specific gravity 1.21, 1:1 by volume."
+    },
+    {
+      "name": "Epoxy - AeroPoxy PR2032/PH3660",
+      "type": "bulk",
+      "density": 1110,
+      "group": "Adhesives",
+      "kind": "adhesive",
+      "source": "https://web.archive.org/web/20220626225252/https://www.ptm-w.com/aeropoxy/AEROPOXY%20Product%20Bulletins/AEROPOXY%20PR2032%20Bulletin%20w-4%20Hardeners%2024Jun08.pdf",
+      "note": "Cured 1.11. The bulletin tabulates PR2032 against four hardeners (PH3630 1.16, PH3660 1.11, PH3663 1.109, PH3665 1.12); PH3660 at 100:27 by weight is the one rocketry uses. PTM&W pulled the bulletins off the live site, hence the archive link."
+    },
+    {
+      "name": "Epoxy - AeroPoxy ES6209",
+      "type": "bulk",
+      "density": 1090,
+      "group": "Adhesives",
+      "kind": "adhesive",
+      "source": "https://web.archive.org/web/20240712145738/https://www.ptm-w.com/aeropoxy/AEROPOXY%20Product%20Bulletins/AEROPOXY%20ES6209%20Bulletin.pdf",
+      "note": "Cured 1.09; components 1.10 resin and 0.98 hardener, 1:1 by weight or volume."
+    },
+    {
+      "name": "Epoxy - RocketPoxy G5000",
+      "type": "bulk",
+      "density": 1500,
+      "group": "Adhesives",
+      "kind": "adhesive",
+      "source": "https://www.glenmarc.com/datasheets/EPOXY/RP_G5000_DATASHEET.pdf",
+      "note": "The datasheet prints \"Specific gravity mixed 1.50\" outright (resin 1.52, hardener 1.48). Filled, hence the weight."
+    },
+    {
+      "name": "Epoxy - TotalBoat High Performance",
+      "type": "bulk",
+      "density": 1080,
+      "group": "Adhesives",
+      "kind": "adhesive",
+      "source": "https://portal.sdsguru.com/SDS/Download/26223",
+      "note": "MIXED LIQUID, not cured: resin 1.11 from the SDS, hardener ~1.00, 2:1 by volume. TotalBoat's published 100A:45B by weight against 2:1 by volume implies the same hardener density independently."
+    },
+    {
+      "name": "Epoxy - BSI Quik/Mid/Slow-Cure",
+      "type": "bulk",
+      "density": 1060,
+      "group": "Adhesives",
+      "kind": "adhesive",
+      "source": "https://bsi-inc.com/sds_pdf/sds_slow_cure.pdf",
+      "note": "MIXED LIQUID: the SDS gives the pair as \"Specific gravity 0.97 / 1.15\", identical across all three cure speeds, and they mix 1:1 by volume."
+    },
+    {
+      "name": "Epoxy - J-B Weld Original",
+      "type": "bulk",
+      "density": 1840,
+      "group": "Adhesives",
+      "kind": "adhesive",
+      "source": "https://cecas.clemson.edu/cedar/wp-content/uploads/2016/10/J-B-Weld.pdf",
+      "note": "MIXED LIQUID: Part A resin 1.78 (this SDS), Part B hardener 1.902 (https://media.napaonline.com/is/content/GenuinePartsCompany/2118182pdf), 1:1 by volume. Steel-filled, which is why it is 56% denser than West System and a poor fin fillet."
+    },
+    {
+      "name": "Carpenter's glue (PVA, dried)",
+      "type": "bulk",
+      "density": 1190,
+      "group": "Adhesives",
+      "kind": "adhesive",
+      "source": "https://ardec.ca/media/catalog/specs/tds-titebond-III-ultimate-wood-glue.pdf",
+      "note": "DRIED film. Titebond III is 9.22 lb/gal (1105 kg/m3) wet at 52% solids, so the bead loses about half its volume drying and what is left is polyvinyl acetate at ~1.19. Model the bead you have after it dries."
+    },
+    {
+      "name": "Elastic cord, corrected (flat 19 mm, 3/4 in)",
+      "type": "line",
+      "density": 0.0123,
+      "group": "Elastics",
+      "kind": "corrected",
+      "corrects": "Elastic cord (flat 19 mm, 3/4 in)",
+      "source": "https://github.com/mtnmanak/mmrocket-sim",
+      "note": "Upstream reads 0.0012 for this width, lighter than its own 0.0043 for a 6 mm cord: a dropped digit. mmrocket-sim found it and published 0.0123; interpolating upstream's own 6 mm and 12 mm entries gives 0.0127. Credited in engine-java/ATTRIBUTION.md."
+    },
+    {
+      "name": "Elastic cord, corrected (flat 25 mm, 1 in)",
+      "type": "line",
+      "density": 0.016,
+      "group": "Elastics",
+      "kind": "corrected",
+      "corrects": "Elastic cord (flat 25 mm, 1 in)",
+      "source": "https://github.com/mtnmanak/mmrocket-sim",
+      "note": "Upstream reads 0.0016, a dropped digit like the 19 mm above. mmrocket-sim publishes 0.016; interpolation of upstream's 6 mm and 12 mm gives 0.0167."
+    }
+  ]
+}

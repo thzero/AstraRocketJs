@@ -10,5 +10,4 @@ public/docs
 public/engine
 public/data/*.generated.json
 public/data/manifest.json
-src/data/*.generated.json
 src/engine/vendor

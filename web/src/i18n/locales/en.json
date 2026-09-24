@@ -161,7 +161,7 @@
     "cgStage": "CG (from nose tip)",
     "cd": "Drag coeff (Cd)",
     "applyAll": "Apply to all subcomponents",
-    "cpNote": "CP is computed from the shape and isn't directly overridable — OpenRocket overrides mass, CG and drag."
+    "cpNote": "CP is computed from the shape and isn't directly overridable — mass, CG and drag are."
   },
   "file": {
     "openLibrary": "Open…",
@@ -256,6 +256,7 @@
     "tabGeneral": "General",
     "tabUnits": "Units",
     "tabColors": "Colors",
+    "tabMaterials": "Materials",
     "tabPlayback": "Playback",
     "tabSim": "Simulation",
     "tabLaunch": "Launch",
@@ -308,7 +309,15 @@
     "deploySpeedWarnHint": "Single deployment (no drogue): above this speed, opening the parachute risks zippering the airframe or tearing the canopy.",
     "mainHighSpeedWarnHint": "Dual deployment: above this the MAIN is coming out too fast — usually a drogue too small to slow the rocket, or a main set to deploy too high.",
     "mainLowSpeedWarnHint": "Dual deployment: below this the main opens while the rocket is barely descending, which normally means it deployed near apogee — a slow, drifty descent from full altitude.",
-    "drogueLowSpeedWarnHint": "Dual deployment: below this the drogue comes out too slowly at apogee to inflate properly. Applies only to a stage carrying a chute or streamer marked as a drogue."
+    "drogueLowSpeedWarnHint": "Dual deployment: below this the drogue comes out too slowly at apogee to inflate properly. Applies only to a stage carrying a chute or streamer marked as a drogue.",
+    "materialsNote": "What a newly added part is made of. The material is written onto the part when you add it, so it shows in the panel and travels with the design. Parts already in the rocket are not changed.",
+    "materialSlot": {
+      "parachute_surface": "Parachute canopy",
+      "parachute_line": "Parachute shroud lines",
+      "streamer_surface": "Streamer",
+      "shockcord_line": "Shock cord"
+    },
+    "materialNoDefault": "No default — leave the part unset"
   },
   "config": {
     "title": "Rocket configuration",
@@ -943,12 +952,17 @@
     "outerRadius": "Outer radius",
     "innerRadius": "Inner radius",
     "outerDiameter": "Outer diameter",
-    "angleAroundBody": "Angle around body",
+    "rotation": "Rotation",
+    "placement": "Placement",
+    "finTab": "Fin tab",
+    "part": "Part",
+    "motor": "Motor",
+    "fillet": "Fillet",
+    "filletRadius": "Fillet radius",
     "instanceCount": "Instance count",
     "radialDistance": "Radial distance",
     "radialReference": "Radial reference",
     "cant": "Cant angle",
-    "baseRotation": "Base rotation",
     "diameter": "Diameter",
     "dragCoeff": "Drag coeff",
     "mass": "Mass",
@@ -1090,15 +1104,18 @@
     "canopy": "Canopy material",
     "strip": "Strip material",
     "lines": "Shroud line material",
-    "default": "default",
-    "defaultOption": "OpenRocket default (per part type)",
-    "defaultHint": "No material assigned — OpenRocket uses its built-in default material and density for this component type (e.g. cardboard tubes, balsa fins).",
+    "default": "automatic",
+    "defaultOption": "Not specified",
+    "loadFailed": "The material list could not be loaded. Check your connection and reopen this panel.",
+    "defaultHint": "No material assigned — the part is weighed with a built-in density: cardboard for solid parts, ripstop nylon for canopies, elastic cord for lines.",
     "addCustom": "＋ Add custom…",
     "namePlaceholder": "Name (e.g. G10 fiberglass)",
+    "group": "Group",
     "densityPlaceholder": "Bulk density (kg/m³)",
     "save": "Save",
     "cancel": "Cancel",
-    "deleteCustom": "Delete custom material"
+    "deleteCustom": "Delete custom material",
+    "fillet": "Fillet material"
   },
   "recovery": {
     "title": "Descent sizing",

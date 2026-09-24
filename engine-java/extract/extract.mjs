@@ -444,18 +444,114 @@ if (!hasBaseline) {
 // coordinated edit to BOTH sides satisfies by construction. This counter is the
 // only one that interrogates the patches themselves. A missing baseline counts
 // too, so deleting the file is not a way to switch the check off.
+// ---- the app's material table ----
+//
+// `web/public/data/materials.generated.json` is the app's material catalog, and
+// the rows marked `upstream` in it are a COPY of upstream's material database.
+// It is the one port in this repo that no Java file mirrors: upstream loads its
+// materials from a resource at startup, so the extraction replaces
+// `database/Databases.java` with a shim that synthesizes the handful of
+// materials the carved kernel asks for BY NAME. The rest of the list exists
+// only on the app side, where nothing was comparing it to anything.
+//
+// It had silently drifted. Upstream carries 42 LINE materials and the app
+// carried 20, missing every Kevlar 12-strand above 5/16 in, all five nylon flat
+// webbings, both rubber bands, all seven braided elastics and the Paraline -
+// which is most of what a shock cord or a set of shroud lines is made of. Each
+// absence is invisible from inside the app: the picker simply does not offer
+// it, and a design that names one arrives from a `.ork` as a custom material.
+//
+// So --check reads them both. `web/scripts/sync-materials.mjs` is what writes
+// the JSON; this only ever says whether it still matches. The app's own
+// materials (adhesives, and corrections to upstream values that are wrong) come
+// from `web/scripts/data/materials.app.json` and are marked with a different
+// `kind`, so they are none of this check's business — except that one of them
+// must never take an upstream material's name, which WOULD be this check's
+// business: it would shadow that material in the picker and silently re-weigh
+// every design that names it.
+//
+// The Java side is parsed with escapes allowed, and every `newMaterial` call is
+// counted before the lists are compared. An earlier version read a name as
+// `"([^"]*)"`, which stopped at the escaped quote in
+// `Styrofoam \"Blue foam\" (XPS)` and dropped it from BOTH sides at once, so
+// the two lists balanced and the check reported clean. A parser that skips a
+// row is worse than no parser, because it is a check that passes.
+const MATERIALS_JSON = join(engineRoot, '..', 'web', 'public', 'data', 'materials.generated.json');
+const JAVA_MATERIAL = /newMaterial\(Type\.(BULK|SURFACE|LINE),\s*"((?:[^"\\]|\\.)*)",\s*([0-9.eE+-]+)/g;
+// Java escapes non-ASCII in a literal ("Cr\u00eape paper") and escapes an inner
+// quote; the JSON carries the characters themselves.
+const unescapeJava = (t) => t
+  .replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+  .replace(/\\(["'\\])/g, '$1');
+const materialKey = (type, name) => JSON.stringify([type.toLowerCase(), name]);
+
+const materialDrift = (() => {
+  const javaPath = join(coreJavaRoot, 'info', 'openrocket', 'core', 'database', 'Databases.java');
+  if (!existsSync(javaPath)) return [`cannot compare: ${javaPath} is missing`];
+  if (!existsSync(MATERIALS_JSON)) {
+    return [`cannot compare: ${MATERIALS_JSON} is missing - run web/scripts/sync-materials.mjs`];
+  }
+  const out = [];
+
+  const java = readFileSync(javaPath, 'utf8');
+  const upstream = new Map();
+  for (const m of java.matchAll(JAVA_MATERIAL)) {
+    upstream.set(materialKey(m[1], unescapeJava(m[2])), Number(m[3]));
+  }
+  const javaCalls = java.split('newMaterial(Type.').length - 1;
+  if (javaCalls !== upstream.size) {
+    out.push(`parser bug: ${javaCalls} newMaterial calls upstream, ${upstream.size} parsed`);
+  }
+
+  let all;
+  try {
+    all = JSON.parse(readFileSync(MATERIALS_JSON, 'utf8'));
+  } catch (e) {
+    return [`cannot read ${MATERIALS_JSON}: ${e.message}`];
+  }
+  // A row with no `kind` is one nobody generated - a hand-edit, which is the
+  // thing this check exists to catch. Count it as upstream's so it has to
+  // justify itself against the Java.
+  const rows = all.filter((r) => (r.kind ?? 'upstream') === 'upstream');
+  const ours = new Map(rows.map((r) => [materialKey(r.type, r.name), r.density]));
+  if (ours.size !== rows.length) out.push(`the app's list has ${rows.length - ours.size} duplicate material(s)`);
+
+  // The app's own rows may add to the list; they may not REPLACE an upstream
+  // one. A correction is carried under its own name ("Elastic cord, corrected
+  // (flat 19 mm, 3/4 in)") for exactly this reason: both densities stay
+  // readable, so a design saved against the wrong one still loads as it was.
+  for (const r of all) {
+    if ((r.kind ?? 'upstream') === 'upstream') continue;
+    if (ours.has(materialKey(r.type, r.name))) out.push(`the app's ${r.name} (${r.type}) shadows an upstream material`);
+  }
+
+  const say = (k) => JSON.parse(k).join(' ');
+  for (const [k, d] of upstream) {
+    if (!ours.has(k)) out.push(`missing from the app: ${say(k)} (${d})`);
+    else if (ours.get(k) !== d) out.push(`density differs: ${say(k)} - upstream ${d}, app ${ours.get(k)}`);
+  }
+  for (const k of ours.keys()) if (!upstream.has(k)) out.push(`not in upstream: ${say(k)}`);
+  return out;
+})();
+if (materialDrift.length) {
+  console.error(`extract: web/public/data/materials.generated.json differs from upstream in ${materialDrift.length} place(s):`);
+  materialDrift.forEach((d) => console.error(`  ! ${d}`));
+  console.error('extract:   regenerate it with `node web/scripts/sync-materials.mjs`.');
+  console.error("extract:   the app's own materials belong in web/scripts/data/materials.app.json, with their source.");
+}
+
 const baselineMissing = hasBaseline ? 0 : 1;
 const shimBaselineMissing = hasShimBaseline ? 0 : 1;
 const problems = missing.length + drift.length + stale.length + unpatched.length
   + unblessed.length + baselineMissing
-  + shimMoved.length + shimBaselineMissing;
+  + shimMoved.length + shimBaselineMissing + materialDrift.length;
 if (check) {
   console.log(`extract --check: ${drift.length} extracted file(s) differ from upstream(+patch)${drift.length ? ':' : '.'}`);
   drift.forEach((d) => console.log(`  ~ ${d}`));
   console.log(
     problems
-      ? `extract --check: FAILED (${missing.length} missing, ${drift.length} drifted, ${stale.length} unmanaged, ${unpatched.length} unpatched, ${unblessed.length} unblessed, ${shimMoved.length} shim(s) to review${baselineMissing ? ', no patch baseline' : ''}${shimBaselineMissing ? ', no shim baseline' : ''})`
-      : 'extract --check: OK - src/java is exactly upstream(+patches).',
+      ? `extract --check: FAILED (${missing.length} missing, ${drift.length} drifted, ${stale.length} unmanaged, ${unpatched.length} unpatched, ${unblessed.length} unblessed, ${shimMoved.length} shim(s) to review, ${materialDrift.length} material(s)${baselineMissing ? ', no patch baseline' : ''}${shimBaselineMissing ? ', no shim baseline' : ''})`
+      : 'extract --check: OK - src/java is exactly upstream(+patches), and the material table is upstream\'s.',
   );
   process.exit(problems ? 1 : 0);
 }

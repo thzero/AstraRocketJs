@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { KeyValueMaterialStore } from './materialStore';
 import type { KeyValueStore } from './keyValueStore';
-import type { Material } from '../data/materials';
+import type { Material } from './materialTypes';
 
 class FakeKv implements KeyValueStore {
   map = new Map<string, string>();

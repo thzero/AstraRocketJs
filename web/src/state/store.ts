@@ -46,6 +46,7 @@ import {
   type WindSweepSpec,
 } from '../services/windSweep';
 import { loadSettings } from '../services/settings';
+import { defaultMaterialPatch } from '../services/materials';
 import { launchLimitViolations, limitText } from '../services/safetyLimits';
 import {
   unflyable,
@@ -917,7 +918,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     addPartToTree: (type) => {
       recordStep();
       const { tree, selectedId, sims } = get();
-      const { tree: next, id } = addPart(tree, type, selectedId);
+      // Settings ▸ Materials: a new part carries the material the user set for
+      // its type, outright, so it shows in the panel and lands in the .ork.
+      const seed = defaultMaterialPatch(type, loadSettings().defaultMaterials) as Partial<ComponentNode>;
+      const { tree: next, id } = addPart(tree, type, selectedId, seed);
       set({ tree: next, selectedId: id, sims: reconcileAll(next, sims) });
     },
     addStageToTree: () => {

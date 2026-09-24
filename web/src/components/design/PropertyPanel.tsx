@@ -13,8 +13,9 @@ import { RecoverySizingReadout } from './RecoverySizingReadout';
 import { useUnits } from '../../prefs/useUnits';
 import { num } from '../../tree/nodeProps';
 import { tubeFinMaxCount, tubeFinMaxRadius } from '../../tree/tubefins';
-import { FieldRow, visibleFields } from './DimensionFields';
+import { FieldRow, FieldSection, sectionFields, visibleFields } from './DimensionFields';
 import { MaterialSection, RecoveryMaterialSection } from './MaterialSection';
+import { MaterialPicker } from './MaterialPicker';
 import { OverridesSection } from './OverridesSection';
 import { PlacementSection } from './PlacementSection';
 
@@ -134,51 +135,115 @@ export function PropertyPanel({
         </div>
       </div>
 
-      <label className="flex items-center justify-between gap-3">
-        <span className="text-xs text-slate-400">{t('prop.name')}</span>
-        <input
-          type="text"
-          value={typeof node.name === 'string' ? node.name : ''}
-          placeholder={label}
-          onChange={(e) => onChange({ name: e.target.value })}
-          onBlur={onCommit}
-          className="w-40 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
-        />
-      </label>
-
-      {node.type !== 'stage' && (
+      {/* What this part IS: what it is called, how it draws, and which catalog
+          part it came from. Three rows that answer the same question, and the
+          only ones the panel builds itself rather than declaring in FIELDS. */}
+      <div className="space-y-3 border-t border-white/5 pt-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('prop.part')}</h3>
         <label className="flex items-center justify-between gap-3">
-          <span className="text-xs text-slate-400">{t('prop.color')}</span>
-          <span className="flex items-center gap-2">
-            <input
-              type="color"
-              value={typeof node.color === 'string' ? node.color : colorForType(node.type, palette)}
-              onChange={(e) => onChange({ color: e.target.value })}
-              onBlur={onCommit}
-              className="h-7 w-10 cursor-pointer rounded-md border border-white/10 bg-slate-800 p-0.5"
-            />
-            {typeof node.color === 'string' && (
-              <button
-                onClick={() => commitChange({ color: undefined })}
-                title={t('prop.resetColor')}
-                className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-400 ring-1 ring-white/10 hover:bg-slate-700"
-              >
-                ↺
-              </button>
-            )}
-          </span>
+          <span className="text-xs text-slate-400">{t('prop.name')}</span>
+          <input
+            type="text"
+            value={typeof node.name === 'string' ? node.name : ''}
+            placeholder={label}
+            onChange={(e) => onChange({ name: e.target.value })}
+            onBlur={onCommit}
+            className="w-40 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+          />
         </label>
-      )}
 
-      {hasCatalog(node.type) && (
-        <Suspense fallback={<div className="text-xs text-slate-500">{t('common.loading')}</div>}>
-          <ComponentPicker type={node.type as CatalogType} onApply={(p) => commitChange(catalogPatch(p))} />
-        </Suspense>
-      )}
+        {node.type !== 'stage' && (
+          <label className="flex items-center justify-between gap-3">
+            <span className="text-xs text-slate-400">{t('prop.color')}</span>
+            <span className="flex items-center gap-2">
+              <input
+                type="color"
+                value={typeof node.color === 'string' ? node.color : colorForType(node.type, palette)}
+                onChange={(e) => onChange({ color: e.target.value })}
+                onBlur={onCommit}
+                className="h-7 w-10 cursor-pointer rounded-md border border-white/10 bg-slate-800 p-0.5"
+              />
+              {typeof node.color === 'string' && (
+                <button
+                  onClick={() => commitChange({ color: undefined })}
+                  title={t('prop.resetColor')}
+                  className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-400 ring-1 ring-white/10 hover:bg-slate-700"
+                >
+                  ↺
+                </button>
+              )}
+            </span>
+          </label>
+        )}
+
+        {hasCatalog(node.type) && (
+          <Suspense fallback={<div className="text-xs text-slate-500">{t('common.loading')}</div>}>
+            <ComponentPicker type={node.type as CatalogType} onApply={(p) => commitChange(catalogPatch(p))} />
+          </Suspense>
+        )}
+      </div>
 
       {fields.map((f) => (
         <FieldRow key={f.key} node={node} field={f} onChange={onChange} onCommit={onCommit} />
       ))}
+
+      {/* The through-the-wall tab is a separate piece of the fin — four fields
+          that describe the part of it buried in the airframe, not its
+          planform. Run on under the planform they read as four more
+          dimensions of the same shape. */}
+      <FieldSection
+        node={node}
+        title={t('prop.finTab')}
+        fields={sectionFields(node, 'finTab')}
+        onChange={onChange}
+        onCommit={onCommit}
+      />
+
+      {/* What the tube does for a MOTOR, as against what the tube is. A body
+          tube gets two of these rows and an inner tube three; both used to run
+          on under the radius and thickness. */}
+      <FieldSection
+        node={node}
+        title={t('prop.motor')}
+        fields={sectionFields(node, 'motor')}
+        onChange={onChange}
+        onCommit={onCommit}
+      />
+
+      {/* The glue bead along the fin root. Its material is rarely the fin's own
+          — epoxy on plywood — so it carries its own, beside the radius.
+          The picker used to appear only once the radius was non-zero, on the
+          theory that a material with no bead is meaningless. What that
+          actually did was hide it: you cannot find a control that is not
+          there, and the order you fill a section in is yours, not the
+          panel's. It stores fine at radius 0 and goes live the moment there
+          is a bead. */}
+      <FieldSection
+        node={node}
+        title={t('prop.fillet')}
+        fields={sectionFields(node, 'fillet')}
+        onChange={onChange}
+        onCommit={onCommit}
+      >
+        <MaterialPicker
+          use="fillet"
+          label={t('material.fillet')}
+          value={typeof node['filletMaterialName'] === 'string' ? (node['filletMaterialName'] as string) : undefined}
+          onChange={(name, d, group) =>
+            commitChange({
+              filletMaterialName: name,
+              filletDensity: d || undefined,
+              // The catalog group rides along so the .ork writer can put the
+              // material back in its own category rather than the
+              // PaperProducts its Cardboard fallback belongs to. It comes from
+              // the picker because only the picker has the catalog in hand; a
+              // custom adhesive carries its group this way too, which the old
+              // built-ins-only lookup could not see.
+              filletMaterialGroup: (name && group) || undefined,
+            } as Partial<ComponentNode>)
+          }
+        />
+      </FieldSection>
 
       {/* Tube fins collide with each other once they are too fat, or too many,
           for the body they ring — geometry the app could compute (tubefins.ts)
@@ -218,12 +283,18 @@ export function PropertyPanel({
           sqrt-law is diameter-based; streamers size differently). */}
       {node.type === 'parachute' && <RecoverySizingReadout node={node} />}
 
-      <OverridesSection node={node} onChange={onChange} onCommit={onCommit} />
-
       {/* Placement — only meaningful for parts nested inside a tube. */}
       {node.type !== 'stage' && !isAxial(node.type) && (
         <PlacementSection node={node} onChange={onChange} onCommit={onCommit} />
       )}
+
+      {/* Overrides are LAST on every part, without exception. They are not a
+          property of the part the way its dimensions, material and placement
+          are: they are a deliberate override of what those add up to, reached
+          for rarely and after the part is described. Sitting in the middle,
+          between the material and the placement, they pushed the placement
+          rows below three rows nobody was looking for. */}
+      <OverridesSection node={node} onChange={onChange} onCommit={onCommit} />
     </section>
   );
 }

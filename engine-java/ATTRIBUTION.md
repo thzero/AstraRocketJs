@@ -44,3 +44,17 @@ independent reimplementation of RASAero-*style* corrections built from published
 Reports 1307/1135, NASA TN D-4013/D-4014/D-6945, Hoerner, DATCOM) and calibrated against public
 wind-tunnel and free-flight data. The physics writeup and the diffs against stock OpenRocket are
 in `../docs/rasaero/`.
+
+## Two corrected elastic cord densities — mmrocket-sim
+
+`web/scripts/data/materials.app.json` carries two line materials that are not upstream OpenRocket's:
+`Elastic cord, corrected (flat 19 mm, 3/4 in)` at 0.0123 kg/m and
+`Elastic cord, corrected (flat 25 mm, 1 in)` at 0.016 kg/m.
+
+Upstream's own figures for those two widths are 0.0012 and 0.0016, which are lighter than its
+0.0043 for a 6 mm cord — a dropped digit rather than a measurement. mmrocket-sim spotted it and
+published the corrected values; both were adopted here, verified against interpolation of
+upstream's adjacent 6 mm and 12 mm entries. The wrong upstream entries are kept as well, so a
+design that names one still reads back the density it was saved with.
+
+`extract/MMROCKET-SIM` records the commit these were last reviewed against.

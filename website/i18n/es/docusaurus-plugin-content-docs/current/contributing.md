@@ -107,11 +107,16 @@ cd web
 npm run sync:motors                  # barre thrustcurve.org → public/data/motors.generated.json (~800 motores)
 npm run sync:components              # analiza la BD de OpenRocket-Components → public/data/components.generated.json (~2.900 piezas)
 #   sync:components lee OPENROCKET_PRESETS (o --src <ruta-a>/openrocket-database/orc) si la BD no está en la ruta local por defecto
+npm run sync:materials               # los materiales de OpenRocket y los nuestros → public/data/materials.generated.json (97 materiales)
+#   lee el propio .openrocket-src del extractor, o --src <copia de openrocket>. Los materiales PROPIOS de la
+#   aplicación (adhesivos y correcciones de valores erróneos) están en scripts/data/materials.app.json, se
+#   mantienen a mano; esto los fusiona pero nunca escribe en ese archivo. Cada fila guarda un `kind` que dice
+#   de qué fuente vino, y `extract --check` mantiene las filas de OpenRocket iguales a las suyas.
 npm run sync:examples                # cohetes de ejemplo de OpenRocket → public/examples/ (16 diseños, ~330 kB)
 #   descarga del commit que fija engine-java/extract/UPSTREAM y elimina los datos de vuelo guardados de cada
 #   archivo (el 96% de los bytes). Usa --src <checkout-completo-de-openrocket> para trabajar sin conexión; el
 #   .openrocket-src disperso del extractor NO los tiene (se limita a core/src/main/java).
-npm run sync:contributors            # personas contribuyentes de GitHub → src/data/contributors.generated.json (diálogo Acerca de)
+npm run sync:contributors            # personas contribuyentes de GitHub → public/data/contributors.generated.json (diálogo Acerca de)
 #   los avatares se incrustan como URI de datos; define GITHUB_TOKEN para evitar el límite de 60 peticiones/hora sin autenticar
 ```
 

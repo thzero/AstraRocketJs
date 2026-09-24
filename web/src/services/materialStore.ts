@@ -3,7 +3,7 @@
 // implementation persists through a KeyValueStore, but you can replace the whole
 // thing with any MaterialStore on the client (setMaterialStore(...)),
 // independently of the motor store.
-import type { Material, MaterialType } from '../data/materials';
+import type { Material, MaterialType } from './materialTypes';
 import type { KeyValueStore } from './keyValueStore';
 import { IndexedDbKeyValueStore } from './idbKeyValueStore';
 

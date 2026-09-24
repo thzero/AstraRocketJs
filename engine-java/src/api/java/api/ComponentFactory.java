@@ -569,6 +569,30 @@ final class ComponentFactory {
             fs.setAirfoilLeDiamond(dbl(node, "airfoilLeDiamond", 0));
             fs.setAirfoilTeDiamond(dbl(node, "airfoilTeDiamond", 0));
             fs.setFinLeRadius(dbl(node, "finLeRadius", 0));
+            // Fin fillets: the glue bead along the root where the fin meets the
+            // body. The kernel has always computed their volume, mass and CM
+            // (FinSet.calculateFilletVolumeCentroid, and calculateCM adds
+            // filletMass to every fin unconditionally) -- but nothing here ever
+            // set the radius, so it stayed at the field's initial 0 and every
+            // fillet flew as if it were not there. The .ork reader, writer and
+            // the rocket scaler all carried filletRadius across faithfully, so
+            // the value was in the tree the whole time; only the engine never
+            // saw it, and a design with 6 mm epoxy fillets simulated light
+            // against desktop OpenRocket with nothing on screen to say why.
+            double filletRadius = dbl(node, "filletRadius", 0);
+            if (filletRadius > 0) {
+                fs.setFilletRadius(filletRadius);
+                // The bead is rarely the fin's own material (epoxy on plywood),
+                // so it carries its own density. Absent, the kernel keeps its
+                // default bulk material, which is Cardboard at 680 kg/m3 -- the
+                // same material and density orkExport writes for a fillet the
+                // file did not name, so the two sides agree either way.
+                double filletDensity = dbl(node, "filletDensity", Double.NaN);
+                if (!Double.isNaN(filletDensity) && filletDensity > 0) {
+                    fs.setFilletMaterial(Material.newMaterial(Material.Type.BULK,
+                            str(node, "filletMaterialName", "custom"), filletDensity, true));
+                }
+            }
         }
         // Mass / CG / CD overrides — absent key means "not overridden".
         double overrideMass = dbl(node, "overrideMass", Double.NaN);

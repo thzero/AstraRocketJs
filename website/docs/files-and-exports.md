@@ -120,7 +120,7 @@ Some details worth knowing:
 - A strip too long for the page is **cut into pieces** that butt together and are taped in order, with the joins kept off the marks. Nothing is ever scaled down: a shrunk marking guide is worse than none. A 4 in tube wraps 320 mm, so it always takes two pieces.
 - A part no strip can carry is **named in a footnote** rather than dropped, so nothing disappears silently: a lug on a nose cone or transition, whose circumference changes along its length, or a lug on a tube with no fin set.
 
-Where the first fin sits around the body is the fin set's **Base rotation** field, beside Cant.
+Where the first fin sits around the body is the fin set's **Rotation** field, in the component panel's **Placement** section. A launch lug and a rail button carry the same field: it is one property, so it has one name.
 
 ### What a download is called
 

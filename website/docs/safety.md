@@ -30,7 +30,7 @@ Being explicit about the gaps is more useful than a blanket disclaimer:
 - **Structural strength.** The rocket is a rigid body. Nothing checks whether the airframe survives max-Q, a hard deployment, or a zipper.
 - **Parachute inflation.** A recovery device's drag switches on at its deployment event, after the delay you set. The canopy's inflation transient and the opening shock load are not computed. The app warns you about a fast deployment instead of telling you what it does to the tube.
 - **Motor variation.** The thrust curve is one certification curve, not your motor on the day. Lot-to-lot spread, propellant temperature, age and storage all move the real number.
-- **The difference between the model and what you built.** Glue fillets, paint, a heavier nose cone than the material table assumes, a fin set two degrees out of true, a chute packed tighter than the bay allows. The simulation flies the drawing.
+- **The difference between the model and what you built.** Paint, a glue fillet you did not enter, a heavier nose cone than the material table assumes, a fin set two degrees out of true, a chute packed tighter than the bay allows. The simulation flies the drawing.
 - **The ground.** No terrain, no obstacles, no trees, no thermals, no ground effect, and no launcher friction or a rocket that hangs on the rod.
 
 ## Before you fly

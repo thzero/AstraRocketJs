@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
+import { beforeAll, describe, it, expect, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
 import { PropertyPanel } from './PropertyPanel';
 import { renderWithProviders } from '../../testing/renderWithProviders';
+import { serveData } from '../../testing/serveData';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 
 const tube = (): ComponentNode =>
@@ -28,6 +29,9 @@ const render = (onChange: (p: Partial<ComponentNode>) => void) =>
  * to retype it. Withholding the write gets the same guarantee -- no accidental
  * zero can reach the tree -- without taking the keyboard hostage.
  */
+// The panel renders a MaterialPicker, which fetches the material catalog.
+beforeAll(serveData);
+
 describe('an emptied required dimension', () => {
   it('writes nothing when the box is cleared', () => {
     const onChange = vi.fn();

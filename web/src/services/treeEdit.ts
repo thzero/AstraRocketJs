@@ -235,7 +235,13 @@ const MATERIAL_TYPES: ReadonlySet<string> = new Set([
   'nosecone',
   'bodytube',
   'transition',
-  'fairing',
+  // NOT 'fairing'. It is modeled as a MassComponent whose mass is set outright
+  // (ComponentFactory's fairing case calls setComponentMass), so a material
+  // changes nothing the kernel flies; `writeFairing` has no <material> element
+  // to put one in either, so the choice was dropped on the next save. It was
+  // the one type for which picking a material did nothing and then forgot
+  // itself. See `ork/materialRoundTrip.test.ts`, which holds every type in this
+  // set to the opposite.
   'trapezoidfinset',
   'ellipticalfinset',
   'freeformfinset',
@@ -571,8 +577,13 @@ export function addPart(
   tree: RocketTree,
   type: ComponentType,
   selectedId: string | null,
+  /** Merged onto the new node — the caller's per-part-type material defaults
+   *  (`services/materials.defaultMaterialPatch`). Kept as a parameter rather
+   *  than read here so this module stays a pure tree editor with no settings
+   *  of its own. */
+  seed: Partial<ComponentNode> = {},
 ): { tree: RocketTree; id: string } {
-  const node = defaultNode(type);
+  const node = { ...defaultNode(type), ...seed };
   const id = node.id!;
   const stageId = tree.components.find((n) => n.type === 'stage')?.id;
   let host = selectedId ? findNode(tree, selectedId) : null;

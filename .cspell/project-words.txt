@@ -83,6 +83,7 @@ crosssection
 Crêpe
 curveless
 customexpression
+datasheet
 dataviz
 DATCOM
 dbcook
@@ -127,6 +128,7 @@ EXTMAX
 EXTMIN
 fairingshape
 façade
+fbclid
 fcid
 FDLIBM
 FFFFL
@@ -156,6 +158,7 @@ geodeticmethod
 Geographics
 Geolocator
 GEOMS
+glenmarc
 GLTF
 Golay
 goldens
@@ -180,6 +183,7 @@ idioma
 ignitionconfiguration
 ignitiondelay
 ignitionevent
+iiia
 imperialish
 importt
 indexeddb
@@ -248,6 +252,7 @@ metalness
 Metas
 Meteo
 Metrum
+microballoons
 MicroMaxx
 MINFEATURE
 miscompiles
@@ -293,6 +298,7 @@ overridesubcomponentscg
 overridesubcomponentsmass
 packedlength
 packedradius
+paraline
 parallelstage
 parsererror
 persistable
@@ -307,6 +313,7 @@ plottable
 podset
 podsets
 powerseries
+poxy
 Pparity
 precached
 precaches
@@ -315,6 +322,7 @@ prefs
 premultiplies
 pushversion
 putchar
+quik
 radialdirection
 radialposition
 radiusoffset
@@ -402,6 +410,7 @@ thrustcurve's
 thzero
 Timeto
 tipchord
+titebond
 Toggleable
 transcendentals
 trapezoidfinset

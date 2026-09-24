@@ -125,6 +125,28 @@ export default defineConfig({
         globIgnores: ['**/openrocket-engine-*.js'],
         // The WASM kernel alone is ~2.5 MB, over Workbox's 2 MiB default.
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        // `?v=<hash>` has to be ignored when matching the precache, or the
+        // runtime catalogs are unreachable offline.
+        //
+        // remoteData.ts appends the manifest's content hash to every catalog
+        // URL so a CDN cannot serve a stale copy. manifest.json is itself
+        // precached, so with the network off the app still READS a hash and
+        // still asks for `data/motors.generated.json?v=429fee4cf0b3` - and
+        // Workbox keys the precache on `data/motors.generated.json`, so the
+        // query made every one of those a miss. Offline, the request fell
+        // through every runtime rule (they cover page loads, the jsDelivr
+        // host and the engine fallback) and failed at the network: no motors,
+        // no components, no materials, on the one device that is at a launch
+        // site with no signal. Workbox's default ignores only `utm_*` and
+        // `fbclid`.
+        //
+        // Ignoring it costs nothing. The in-build copy changes only when the
+        // app is rebuilt, and a rebuild changes the precache revision, which
+        // is what actually busts this cache. The separately deployed catalog
+        // host - the copy the hash exists for - is a different origin and is
+        // answered by its own StaleWhileRevalidate rule below, which this does
+        // not touch.
+        ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^v$/],
         cleanupOutdatedCaches: true,
         // No precache-first navigation route. With it, every page load was
         // answered from the worker's precache, so a plain reload could NEVER

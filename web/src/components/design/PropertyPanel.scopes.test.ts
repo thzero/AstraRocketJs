@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { FIELDS, PANEL_SCOPE_KEYS } from '../../services/componentFields';
 import { unitScope } from '../../prefs/units';
+import { isAxial } from '../../services/treeEdit';
 
 /**
  * Unit scopes are strings assembled at the call site — `unitScope('prop',
@@ -28,6 +29,22 @@ describe('property-panel unit scopes', () => {
           `FIELDS.${type} reuses the reserved scope key '${reserved}'`,
         ).toBe(false);
       }
+    }
+  });
+
+  it('only puts a field in `placement` on a type whose panel shows that section', () => {
+    // PropertyPanel renders PlacementSection for nested parts only
+    // (`type !== 'stage' && !isAxial(type)`), and `visibleFields` drops every
+    // sectioned field from the dimension list. Mark one on a body tube and it
+    // falls out of both: not editable anywhere, with nothing to say so.
+    //
+    // The other sections need no such test: FieldSection is rendered
+    // unconditionally and draws nothing when the part has no field in it.
+    for (const [type, fields] of Object.entries(FIELDS)) {
+      if (!fields.some((f) => f.section === 'placement')) continue;
+      expect(type === 'stage' || isAxial(type), `FIELDS.${type} has a placement field but no placement section`).toBe(
+        false,
+      );
     }
   });
 

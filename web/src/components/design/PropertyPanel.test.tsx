@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
-import { fireEvent, screen } from '@testing-library/react';
+import { beforeAll, describe, it, expect, vi } from 'vitest';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { PropertyPanel } from './PropertyPanel';
 import { renderWithProviders } from '../../testing/renderWithProviders';
+import { serveData } from '../../testing/serveData';
 import type { ComponentNode } from '../../engine/openRocketEngine';
+import { FIELDS } from '../../services/componentFields';
 
 const show = (node: ComponentNode, extra: { parentRadius?: number } = {}) => {
   const onChange = vi.fn();
@@ -21,6 +23,9 @@ const show = (node: ComponentNode, extra: { parentRadius?: number } = {}) => {
  * collision limits. Each is wired into this panel now, and these tests are what
  * stop them going quiet again.
  */
+// The panel renders a MaterialPicker, which fetches the material catalog.
+beforeAll(serveData);
+
 describe('cluster selection', () => {
   /**
    * `cluster` round-trips through .ork and every view (2D, aft, 3D) already
@@ -96,5 +101,177 @@ describe('tube fin collision warning', () => {
   it('does not warn on other part types', () => {
     show({ id: 'f1', type: 'trapezoidfinset', finCount: 12 } as unknown as ComponentNode, { parentRadius: 0.05 });
     expect(warning()).toBeNull();
+  });
+});
+
+/**
+ * One name, one place. A part's angle around the body is the same kernel
+ * property whatever the part is (`FinSet.getBaseRotation()` returns
+ * `getAngleOffset()`), but the panel used to call it "Angle around body" on a
+ * lug and "Base rotation" on a fin set, and render both in the middle of the
+ * dimension list between a radius and a thickness. It is one label now, in the
+ * section that already answers WHERE the part goes.
+ */
+describe('placement section', () => {
+  const placement = () => screen.getByText('Placement').parentElement!;
+
+  it.each(['launchlug', 'railbutton', 'trapezoidfinset', 'ellipticalfinset', 'freeformfinset', 'tubefinset', 'podset'])(
+    'puts %s rotation beside its position, under one name',
+    (type) => {
+      show({ id: 'p1', type } as unknown as ComponentNode);
+      const box = within(placement());
+      expect(box.getByLabelText('Position from')).toBeTruthy();
+      expect(box.getByLabelText('Offset')).toBeTruthy();
+      expect(box.getByLabelText('Rotation')).toBeTruthy();
+      // The old names are gone from the panel entirely.
+      expect(screen.queryByLabelText('Angle around body')).toBeNull();
+      expect(screen.queryByLabelText('Base rotation')).toBeNull();
+    },
+  );
+
+  it('leaves a part with no angle its position rows alone', () => {
+    show({ id: 'c1', type: 'centeringring' } as unknown as ComponentNode);
+    const box = within(placement());
+    expect(box.getByLabelText('Offset')).toBeTruthy();
+    expect(box.queryByLabelText('Rotation')).toBeNull();
+  });
+});
+
+/**
+ * Overrides sit at the bottom of every part, without exception.
+ *
+ * They are not a property of the part the way its dimensions, material and
+ * placement are; they override what those add up to. Rendered in the middle,
+ * they pushed a lug's placement rows below three rows nobody was looking for,
+ * and where they fell varied by type, since a parachute has two sections
+ * between them and a body tube has none.
+ */
+describe('override section placement', () => {
+  it.each(Object.keys(FIELDS))('puts the overrides last on a %s', (type) => {
+    show({ id: 'o1', type } as unknown as ComponentNode);
+    const panel = document.querySelector('section')!;
+    const overrides = screen.getByText('Overrides').parentElement!;
+    expect(panel.lastElementChild).toBe(overrides);
+  });
+});
+
+/**
+ * The through-the-wall tab is its own section.
+ *
+ * Its four fields describe a separate piece of the fin, the part buried in the
+ * airframe, and they used to run on under the planform where they read as four
+ * more dimensions of the same shape: root chord, tip chord, sweep, height,
+ * thickness, cant, then fin tab length.
+ */
+describe('fin tab section', () => {
+  const finTab = () => screen.getByText('Fin tab').parentElement!;
+
+  it.each(['trapezoidfinset', 'ellipticalfinset', 'freeformfinset'])('groups the %s tab fields', (type) => {
+    show({ id: 'f1', type } as unknown as ComponentNode);
+    const box = within(finTab());
+    expect(box.getByLabelText('Fin tab length')).toBeTruthy();
+    expect(box.getByLabelText('Fin tab height')).toBeTruthy();
+    expect(box.getByLabelText('Fin tab offset')).toBeTruthy();
+    expect(box.getByLabelText('Fin tab reference')).toBeTruthy();
+  });
+
+  it('gives a tube fin set no tab section, since a tube has no tab', () => {
+    show({ id: 't1', type: 'tubefinset' } as unknown as ComponentNode);
+    expect(screen.queryByText('Fin tab')).toBeNull();
+  });
+});
+
+/**
+ * What a tube does for a MOTOR, as against what the tube is.
+ *
+ * A body tube's "Motor mount" and "Motor overhang", and an inner tube's
+ * cluster with them, used to run on under the radius and thickness as though
+ * they were three more dimensions of the tube.
+ */
+describe('motor section', () => {
+  const motor = () => screen.getByText('Motor').parentElement!;
+
+  it("groups an inner tube's mount, overhang and cluster", () => {
+    show({ id: 'm1', type: 'innertube' } as unknown as ComponentNode);
+    const box = within(motor());
+    expect(box.getByLabelText('Motor mount')).toBeTruthy();
+    expect(box.getByLabelText('Motor overhang')).toBeTruthy();
+    expect(box.getByLabelText('Cluster')).toBeTruthy();
+  });
+
+  it('gives a body tube the same section, without a cluster', () => {
+    show({ id: 'b1', type: 'bodytube' } as unknown as ComponentNode);
+    const box = within(motor());
+    expect(box.getByLabelText('Motor mount')).toBeTruthy();
+    expect(box.queryByLabelText('Cluster')).toBeNull();
+  });
+
+  it('gives a tube that never holds a motor no section at all', () => {
+    show({ id: 'c1', type: 'tubecoupler' } as unknown as ComponentNode);
+    expect(screen.queryByText('Motor')).toBeNull();
+  });
+});
+
+/**
+ * Name, color and the catalog picker are one section: they answer what the
+ * part IS, as against its dimensions. They are also the only rows the panel
+ * builds itself rather than declaring in FIELDS, which is why they used to
+ * float loose above everything else.
+ */
+describe('part section', () => {
+  it('groups the name and color rows', () => {
+    show({ id: 'b1', type: 'bodytube' } as unknown as ComponentNode);
+    const box = within(screen.getByText('Part').parentElement!);
+    expect(box.getByLabelText('Name')).toBeTruthy();
+    expect(box.getByLabelText('Color')).toBeTruthy();
+  });
+
+  it('still shows the name on a stage, which has no color of its own', () => {
+    show({ id: 's1', type: 'stage' } as unknown as ComponentNode);
+    const box = within(screen.getByText('Part').parentElement!);
+    expect(box.getByLabelText('Name')).toBeTruthy();
+    expect(box.queryByLabelText('Color')).toBeNull();
+  });
+});
+
+/**
+ * Fin fillets are editable, and only offer a material once there is a bead.
+ *
+ * Before, nothing in the app could set one: the value round-tripped through
+ * `.ork` and was scaled with the rocket, but there was no field, and the
+ * engine bridge never handed it to the kernel either. See the fillet cases in
+ * `engine/engineBoundary.test.ts` for the half that makes this one worth
+ * having — a field that changed the file and nothing else would pass here.
+ */
+describe('fin fillet', () => {
+  const fillet = () => screen.getByText('Fillet').parentElement!;
+
+  it.each(['trapezoidfinset', 'ellipticalfinset', 'freeformfinset'])('offers %s a fillet radius', (type) => {
+    show({ id: 'f1', type } as unknown as ComponentNode);
+    expect(within(fillet()).getByLabelText('Fillet radius')).toBeTruthy();
+  });
+
+  it("writes the radius in meters from the field's unit", () => {
+    const onChange = show({ id: 'f1', type: 'trapezoidfinset' } as unknown as ComponentNode);
+    const box = screen.getByLabelText('Fillet radius');
+    fireEvent.change(box, { target: { value: '6' } });
+    // The default length unit is cm (prefs/units.ts:187) and the tree is
+    // always SI, so a typed 6 has to land as 0.06 m and not as 6.
+    expect(onChange).toHaveBeenCalledWith({ filletRadius: 0.06 });
+  });
+
+  it('shows the material whether or not a radius has been typed yet', () => {
+    // It used to appear only once the radius was non-zero, which hid it: you
+    // cannot find a control that is not on the screen, and which of the two
+    // rows you fill first is the builder's choice, not the panel's.
+    show({ id: 'f1', type: 'trapezoidfinset' } as unknown as ComponentNode);
+    expect(within(fillet()).getByText('Fillet material')).toBeTruthy();
+    show({ id: 'f2', type: 'trapezoidfinset', filletRadius: 0.006 } as unknown as ComponentNode);
+    expect(screen.getAllByText('Fillet material').length).toBe(2);
+  });
+
+  it('gives a tube fin set none: a TubeFinSet is a Tube, so the kernel has no fillet for it', () => {
+    show({ id: 't1', type: 'tubefinset' } as unknown as ComponentNode);
+    expect(screen.queryByText('Fillet')).toBeNull();
   });
 });

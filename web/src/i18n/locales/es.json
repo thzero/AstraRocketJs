@@ -161,7 +161,7 @@
     "cgStage": "CG (desde la punta)",
     "cd": "Coef. de resistencia (Cd)",
     "applyAll": "Aplicar a todos los subcomponentes",
-    "cpNote": "El CP se calcula a partir de la forma y no se puede anular directamente — OpenRocket anula masa, CG y resistencia."
+    "cpNote": "El CP se calcula a partir de la forma y no se puede anular directamente — la masa, el CG y la resistencia sí."
   },
   "file": {
     "openLibrary": "Abrir…",
@@ -256,6 +256,7 @@
     "tabGeneral": "General",
     "tabUnits": "Unidades",
     "tabColors": "Colores",
+    "tabMaterials": "Materiales",
     "tabPlayback": "Reproducción",
     "tabSim": "Simulación",
     "tabLaunch": "Lanzamiento",
@@ -308,7 +309,15 @@
     "deploySpeedWarnHint": "Despliegue simple (sin piloto): por encima de esta velocidad, abrir el paracaídas puede dañar el fuselaje o rasgar la vela.",
     "mainHighSpeedWarnHint": "Doble despliegue: por encima de esto el PRINCIPAL sale demasiado rápido — normalmente un piloto demasiado pequeño o un principal programado demasiado alto.",
     "mainLowSpeedWarnHint": "Doble despliegue: por debajo de esto el principal se abre con el cohete apenas descendiendo, lo que suele significar que se desplegó cerca del apogeo — un descenso lento y con mucha deriva.",
-    "drogueLowSpeedWarnHint": "Doble despliegue: por debajo de esto el piloto sale demasiado lento en el apogeo para inflarse correctamente. Solo se aplica a una etapa que lleve un paracaídas o cinta marcado como piloto."
+    "drogueLowSpeedWarnHint": "Doble despliegue: por debajo de esto el piloto sale demasiado lento en el apogeo para inflarse correctamente. Solo se aplica a una etapa que lleve un paracaídas o cinta marcado como piloto.",
+    "materialsNote": "De qué está hecha una pieza recién añadida. El material se escribe en la pieza al añadirla, así que aparece en el panel y viaja con el diseño. Las piezas que ya están en el cohete no cambian.",
+    "materialSlot": {
+      "parachute_surface": "Tela del paracaídas",
+      "parachute_line": "Cuerdas del paracaídas",
+      "streamer_surface": "Cinta",
+      "shockcord_line": "Cordón de choque"
+    },
+    "materialNoDefault": "Sin predeterminado — dejar la pieza sin asignar"
   },
   "config": {
     "title": "Configuración del cohete",
@@ -943,12 +952,17 @@
     "outerRadius": "Radio exterior",
     "innerRadius": "Radio interior",
     "outerDiameter": "Diámetro exterior",
-    "angleAroundBody": "Ángulo alrededor del cuerpo",
+    "rotation": "Rotación",
+    "placement": "Colocación",
+    "finTab": "Lengüeta de la aleta",
+    "part": "Pieza",
+    "motor": "Motor",
+    "fillet": "Filete",
+    "filletRadius": "Radio del filete",
     "instanceCount": "Número de instancias",
     "radialDistance": "Distancia radial",
     "radialReference": "Referencia radial",
     "cant": "Ángulo de inclinación",
-    "baseRotation": "Rotación base",
     "diameter": "Diámetro",
     "dragCoeff": "Coef. de resistencia",
     "mass": "Masa",
@@ -1090,15 +1104,18 @@
     "canopy": "Material del velamen",
     "strip": "Material de la cinta",
     "lines": "Material de las cuerdas",
-    "default": "por defecto",
-    "defaultOption": "Predeterminado de OpenRocket (por tipo de pieza)",
-    "defaultHint": "Sin material asignado — OpenRocket usa su material y densidad predeterminados para este tipo de componente (p. ej. tubos de cartón, aletas de balsa).",
+    "default": "automático",
+    "defaultOption": "Sin especificar",
+    "loadFailed": "No se pudo cargar la lista de materiales. Revisa la conexión y vuelve a abrir este panel.",
+    "defaultHint": "Sin material asignado — la pieza se pesa con una densidad incorporada: cartón para piezas sólidas, nailon ripstop para las telas y cordón elástico para las cuerdas.",
     "addCustom": "＋ Añadir personalizado…",
     "namePlaceholder": "Nombre (p. ej. fibra de vidrio G10)",
+    "group": "Grupo",
     "densityPlaceholder": "Densidad (kg/m³)",
     "save": "Guardar",
     "cancel": "Cancelar",
-    "deleteCustom": "Eliminar material personalizado"
+    "deleteCustom": "Eliminar material personalizado",
+    "fillet": "Material del filete"
   },
   "recovery": {
     "title": "Dimensionado de descenso",
