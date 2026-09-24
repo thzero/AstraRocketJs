@@ -19,11 +19,11 @@ import { FIELDS, type Field } from './componentFields';
  * renderer for a field mid-edit, and a field that reaches FIELDS without a
  * label for each of its options fails.
  *
- * Both locales are read off disk. A key present in English and missing in
- * Spanish renders the English word inside a Spanish panel, which is the same
- * defect one language further along.
+ * Every locale is read off disk. A key present in English and missing in
+ * another language renders the English word inside a translated panel, which is
+ * the same defect one language further along.
  */
-const LOCALES = ['en', 'es'] as const;
+const LOCALES = ['en', 'de', 'es', 'fr'] as const;
 
 /** The locale files, read the way the app ships them. `DATA_DIR` resolves from
  *  the repo rather than from `import.meta.url`, which a jsdom-flavored run

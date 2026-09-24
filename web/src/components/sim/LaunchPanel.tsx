@@ -7,6 +7,7 @@ import { isFilled, missingRequired, type RequiredLaunchKey } from '../../service
 import { UnitChip } from '../common/UnitChip';
 import { useUnits, type Units } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
+import { fmtUpTo, ladderDigits, withUnit } from '../../i18n/format';
 import { LAUNCH_SI, type LaunchUnitKind } from '../../prefs/launchUnits';
 import { MAX_ROD_ANGLE_RAD, MAX_WIND_SPEED_MS } from '../../services/safetyLimits';
 import { G0 } from '../../services/motorMath';
@@ -211,6 +212,16 @@ export function LaunchPanel({
 }) {
   const { t } = useTranslation();
   const u = useUnits();
+  /**
+   * A safety-code cap in the unit ITS OWN FIELD is shown in — resolved the way
+   * QNum resolves it, chip override included. A hint that quotes the rule in a
+   * different unit than the box under it is worse than no hint.
+   */
+  const capFor = (kind: LaunchUnitKind, field: string, si: number) => {
+    const fu = u.at(unitScope('launch', field), LAUNCH_SI[kind].q);
+    const ui = fu.toUi(si);
+    return withUnit(fmtUpTo(ui, ladderDigits(ui)), fu.sym);
+  };
   const [profileOpen, setProfileOpen] = useState(false);
   // Geolocation is a 10 s round trip that can simply be refused, and both
   // outcomes used to be invisible: the error callback was an empty block and
@@ -290,7 +301,7 @@ export function LaunchPanel({
           stepSi={Math.PI / 180}
           minSi={0}
           maxSi={MAX_ROD_ANGLE_RAD}
-          hint={t('launch.angleLimit')}
+          hint={t('launch.angleLimit', { limit: capFor('deg', 'angle', MAX_ROD_ANGLE_RAD) })}
           mixed={mixed('launchRodAngleDeg')}
           {...req('launchRodAngleDeg')}
           value={launch.launchRodAngleDeg}
@@ -512,7 +523,7 @@ export function LaunchPanel({
               stepSi={0.5}
               minSi={0}
               maxSi={MAX_WIND_SPEED_MS}
-              hint={t('launch.windLimit')}
+              hint={t('launch.windLimit', { limit: capFor('windspeed', 'speed', MAX_WIND_SPEED_MS) })}
               mixed={mixed('windAverage')}
               {...req('windAverage')}
               value={launch.windAverage}

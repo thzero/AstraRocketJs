@@ -4,10 +4,11 @@ import {
   limitText,
   surfaceLevel,
   MAX_ROD_ANGLE_DEG,
-  MAX_WIND_SPEED_MPH,
+  MAX_ROD_ANGLE_RAD,
   MAX_WIND_SPEED_MS,
 } from './safetyLimits';
 import type { LaunchConditions } from './orkTree';
+import { METRIC_UNITS, unitSymbols } from '../prefs/units';
 
 const base = {
   launchRodLengthM: 1,
@@ -31,18 +32,20 @@ describe('launchLimitViolations', () => {
   it('flags a rod angle past 20 degrees, either side of vertical', () => {
     expect(launchLimitViolations({ ...base, launchRodAngleDeg: 30 })[0]).toMatchObject({
       field: 'rodAngle',
-      value: 30,
-      limit: 20,
+      value: (30 * Math.PI) / 180,
+      limit: MAX_ROD_ANGLE_RAD,
     });
     // Tilting the other way is the same deviation from vertical.
     expect(launchLimitViolations({ ...base, launchRodAngleDeg: -30 })[0]).toMatchObject({ field: 'rodAngle' });
   });
 
-  it('flags wind past 20 mph, and reports it in mph', () => {
-    const v = launchLimitViolations({ ...base, windAverage: 20 })[0]!; // 20 m/s ≈ 44.7 mph
+  it('flags wind past the cap, and reports it in SI', () => {
+    // A violation carries SI, so `limitText` can put it in whatever unit the
+    // reader has selected. The codes' own 20 mph lives in MAX_WIND_SPEED_MS.
+    const v = launchLimitViolations({ ...base, windAverage: 20 })[0]!;
     expect(v.field).toBe('windSpeed');
-    expect(v.value).toBeCloseTo(44.7, 1);
-    expect(v.limit).toBe(MAX_WIND_SPEED_MPH);
+    expect(v.value).toBe(20);
+    expect(v.limit).toBe(MAX_WIND_SPEED_MS);
   });
 
   /**
@@ -92,15 +95,22 @@ describe('launchLimitViolations', () => {
 
 describe('limitText', () => {
   const t = (key: string, vars: Record<string, unknown>) => `${key} ${JSON.stringify(vars)}`;
+  const metric = unitSymbols(METRIC_UNITS, {});
 
-  it('quotes the rule in the code own units, rounded to one place', () => {
-    expect(limitText({ field: 'rodAngle', value: 30.44, limit: 20 }, t)).toBe(
-      'limits.rodAngle {"value":30.4,"limit":20}',
+  it('states the rule in the reader units, symbol included', () => {
+    // Default settings are metric, so the angle stays in degrees and the wind
+    // arrives as m/s rather than the codes' own mph.
+    expect(limitText({ field: 'rodAngle', value: (30.44 * Math.PI) / 180, limit: MAX_ROD_ANGLE_RAD }, t, metric)).toBe(
+      'limits.rodAngle {"value":"30.4°","limit":"20°"}',
     );
   });
 
-  it('reports the wind plainly - it is always the wind at the pad', () => {
-    expect(limitText({ field: 'windSpeed', value: 25, limit: 20 }, t)).toBe('limits.wind {"value":25,"limit":20}');
+  it('gives both numbers one precision, so the cap does not read as approximate', () => {
+    // 20 mph is 8.9408 m/s; shown beside an 11.2 the sentence would otherwise
+    // carry two decimal counts for two figures of the same kind.
+    expect(limitText({ field: 'windSpeed', value: 11.2, limit: MAX_WIND_SPEED_MS }, t, metric)).toBe(
+      'limits.wind {"value":"11.2 m/s","limit":"8.9 m/s"}',
+    );
   });
 });
 

@@ -62,6 +62,17 @@ import { getDesignLibrary, type DesignMeta } from '../services/designLibrary';
 import { getWorkspaceStore, validateWorkspace, type Workspace } from '../services/workspaceStore';
 import type { MotorDims } from '../components/canvas/Rocket3D';
 import { isResultView, type Tab, type DesignPane, type ViewMode } from './tabs';
+import { unitSymbols } from '../prefs/units';
+
+/**
+ * Display units for a message the store builds outside React. Read per call,
+ * not once: the store outlives any one settings value, and a message quoting
+ * the unit the reader had when the app booted is worse than one quoting none.
+ */
+const displayUnits = () => {
+  const s = loadSettings();
+  return unitSymbols(s.units, s.unitOverrides);
+};
 
 // A clean, classic sport rocket (~55 cm, 26 mm airframe, swept 3-fin).
 const DEFAULT_SPEC: RocketSpec = {
@@ -1159,7 +1170,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         flying.push({ sim, launch: sim.launch });
       }
       if (!flying.length) {
-        if (skipped.length) set({ err: skipped.map((u) => unflyableText(u, i18n.t)).join(' ') });
+        if (skipped.length) set({ err: skipped.map((u) => unflyableText(u, i18n.t, displayUnits())).join(' ') });
         return;
       }
 
@@ -1238,7 +1249,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // ONE line for everything that did not produce a flight, refusals and
         // failures together, each naming its row.
         const problems = [
-          ...skipped.map((u) => unflyableText(u, i18n.t)),
+          ...skipped.map((u) => unflyableText(u, i18n.t, displayUnits())),
           ...failed.map((f) => i18n.t('sim.failedNamed', { name: f.name, message: f.msg })),
         ];
         if (problems.length) set({ err: problems.join(' ') });
@@ -1344,7 +1355,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // anyway.
       const reason = unflyable(sim);
       if (reason) {
-        set({ err: unflyableText({ id: sim.id, name: sim.name, reason }, i18n.t) });
+        set({ err: unflyableText({ id: sim.id, name: sim.name, reason }, i18n.t, displayUnits()) });
         return;
       }
       // Captured, because the narrowing `isComplete` gives is lost the moment
@@ -1511,7 +1522,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // silently flown. The run refuses too (see runSims).
         const outside = launchLimitViolations(sim0.launch);
         const notes = outside.length
-          ? [...loadedMeta.notes, ...outside.map((v) => limitText(v, i18n.t))]
+          ? [...loadedMeta.notes, ...outside.map((v) => limitText(v, i18n.t, displayUnits()))]
           : loadedMeta.notes;
         replaceWorkspace({
           tree,

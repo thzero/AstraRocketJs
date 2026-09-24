@@ -9,8 +9,9 @@ import { test, expect, openTab, ready, runButton, runFlight, importOrk } from '.
  * entry fields cap what you can type (see simulations-tab.spec.ts); this is the
  * case they cannot cover.
  *
- * `out-of-limits.ork` is `two-stage.ork` with a 35° rod angle and 15 m/s
- * (~34 mph) of wind.
+ * `out-of-limits.ork` is `two-stage.ork` with a 35° rod angle and 15 m/s of
+ * wind. The messages quote the reader units (metric by default), not the
+ * codes own mph.
  */
 test('an imported .ork outside the limits is flagged and refused', async ({ page }) => {
   await page.goto('/');
@@ -19,7 +20,7 @@ test('an imported .ork outside the limits is flagged and refused', async ({ page
   // The loaded banner lists what is wrong, with the numbers and the rule.
   const banner = page.getByText(/Launch rod angle is 35/);
   await expect(banner).toBeVisible();
-  await expect(page.getByText(/Wind speed is 33.6 mph/)).toBeVisible();
+  await expect(page.getByText('Wind speed is 15 m/s')).toBeVisible();
 
   // And the run is off the table until it is fixed.
   await openTab(page, 'Simulations');
@@ -33,7 +34,7 @@ test('an imported .ork outside the limits is flagged and refused', async ({ page
   const notice = page.getByText(/was not run .* launch conditions are outside the safety codes/);
   await expect(notice).toBeVisible();
   await expect(notice).toContainText('above the 20° the NAR and Tripoli safety codes allow');
-  await expect(notice).toContainText('above the 20 mph the NAR and Tripoli safety codes allow');
+  await expect(notice).toContainText('above the 8.9 m/s the NAR and Tripoli safety codes allow');
 
   // Bring both back inside and it flies. The fields clamp, so typing anything
   // over the cap lands exactly on it.

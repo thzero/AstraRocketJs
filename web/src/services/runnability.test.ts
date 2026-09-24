@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { hasThrustCurve, unflyable, unflyableSims, unflyableText } from './runnability';
 import { MAX_ROD_ANGLE_DEG, MAX_WIND_SPEED_MS } from './safetyLimits';
+import { METRIC_UNITS, unitSymbols } from '../prefs/units';
+
+/** The reader's units, which every limit sentence is now rendered in. */
+const units = unitSymbols(METRIC_UNITS, {});
 import type { Simulation } from './simulations';
 import type { LaunchConditions } from './orkTree';
 
@@ -106,14 +110,14 @@ describe('unflyableSims', () => {
 describe('unflyableText', () => {
   it('names the simulation, so a batch message says which row it means', () => {
     const [bad] = unflyableSims([sim('Sustainer', { motor: { designation: 'M' } as never })]);
-    expect(unflyableText(bad!, t)).toContain('name=Sustainer');
+    expect(unflyableText(bad!, t, units)).toContain('name=Sustainer');
   });
 
   it('names the blank fields so the message points at what to fill', () => {
     const [bad] = unflyableSims([
       sim('Half done', { launch: { ...launch, launchRodLengthM: null, latitudeDeg: null } }),
     ]);
-    const msg = unflyableText(bad!, t);
+    const msg = unflyableText(bad!, t, units);
     expect(msg).toContain('sim.incomplete');
     expect(msg).toContain('Half done');
     expect(msg).toContain('launch.field.launchRodLengthM');
@@ -122,7 +126,7 @@ describe('unflyableText', () => {
 
   it('spells out each limit that was broken', () => {
     const [bad] = unflyableSims([sim('Windy', { launch: { ...launch, windAverage: MAX_WIND_SPEED_MS + 5 } })]);
-    const msg = unflyableText(bad!, t);
+    const msg = unflyableText(bad!, t, units);
     expect(msg).toContain('limits.refused');
     expect(msg).toContain('limits.wind');
   });

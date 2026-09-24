@@ -340,3 +340,22 @@ export function unitFor(units: UnitSelection, overrides: UnitOverrides, quantity
   const sym = scope ? overrides[scope] : undefined;
   return sym && UNITS[quantity].some((u) => u.symbol === sym) ? sym : units[quantity];
 }
+
+/**
+ * Just the symbol lookup, so a SERVICE can render a figure in the reader's unit
+ * without importing the settings module.
+ *
+ * Services under `services/` sit in an import cycle with `settings.ts` (settings
+ * → simulations → safetyLimits/runnability), so one of them reaching for
+ * `loadSettings()` is a module-init crash rather than a layering opinion. The
+ * caller resolves the units and passes them down instead. `Units` from
+ * `useUnits` satisfies this, so a component passes itself.
+ */
+export interface UnitSymbols {
+  sym: (q: Quantity) => string;
+}
+
+/** {@link UnitSymbols} from a stored preference blob, for code outside React. */
+export function unitSymbols(units: UnitSelection, overrides: UnitOverrides): UnitSymbols {
+  return { sym: (q) => unitFor(units, overrides, q) };
+}

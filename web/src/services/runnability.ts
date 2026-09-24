@@ -1,6 +1,7 @@
 import type { MotorSpec } from '../engine/openRocketEngine';
 import type { Simulation } from './simulations';
 import { launchLimitViolations, limitText, type LimitViolation } from './safetyLimits';
+import type { UnitSymbols } from '../prefs/units';
 import { missingRequired, type RequiredLaunchKey } from './requiredLaunch';
 import { badDimensions, type BadDimension } from './requiredComponent';
 import { findMounts } from './treeEdit';
@@ -73,7 +74,11 @@ export function unflyableSims(sims: Simulation[]): Unflyable[] {
  * finished batch reports, where "no motor" on its own leaves the reader to
  * guess which of six rows it meant.
  */
-export function unflyableText(u: Unflyable, t: (key: string, vars?: Record<string, unknown>) => string): string {
+export function unflyableText(
+  u: Unflyable,
+  t: (key: string, vars?: Record<string, unknown>) => string,
+  units: UnitSymbols,
+): string {
   if (u.reason.kind === 'noMotor') return t('sim.noMotorNamed', { name: u.name });
   if (u.reason.kind === 'incomplete') {
     // Named, so the message points at the fields to go and fill rather than
@@ -81,7 +86,7 @@ export function unflyableText(u: Unflyable, t: (key: string, vars?: Record<strin
     const fields = u.reason.missing.map((k) => t(`launch.field.${k}`)).join(', ');
     return t('sim.incomplete', { name: u.name, fields });
   }
-  return `${t('limits.refused', { name: u.name })} ${u.reason.violations.map((v) => limitText(v, t)).join(' ')}`;
+  return `${t('limits.refused', { name: u.name })} ${u.reason.violations.map((v) => limitText(v, t, units)).join(' ')}`;
 }
 
 /**

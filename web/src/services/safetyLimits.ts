@@ -1,4 +1,6 @@
 import type { LaunchConditions, WindLevel } from './orkTree';
+import { fmtUpTo, ladderDigits, withUnit } from '../i18n/format';
+import { siToUi, type Quantity, type UnitSymbols } from '../prefs/units';
 
 /**
  * Flying limits from the NAR / Tripoli safety codes, in SI.
@@ -15,8 +17,9 @@ import type { LaunchConditions, WindLevel } from './orkTree';
 /** Launcher pointed within 20 degrees of vertical. */
 export const MAX_ROD_ANGLE_DEG = 20;
 
-/** No launch in winds above 20 mph. */
-export const MAX_WIND_SPEED_MPH = 20;
+/** No launch in winds above 20 mph. Not exported: the cap leaves this file in
+ *  SI, because nothing outside it now speaks the codes' own unit. */
+const MAX_WIND_SPEED_MPH = 20;
 
 const MPH_TO_MS = 0.44704;
 
@@ -25,7 +28,7 @@ export const MAX_WIND_SPEED_MS = MAX_WIND_SPEED_MPH * MPH_TO_MS;
 
 export interface LimitViolation {
   field: 'rodAngle' | 'windSpeed';
-  /** The offending value, in the unit the safety code states: degrees, or mph. */
+  /** The offending value, in SI: radians, or m/s. */
   value: number;
   /** The cap, same unit. */
   limit: number;
@@ -73,25 +76,44 @@ export function launchLimitViolations(launch: LaunchConditions): LimitViolation[
 
   const angle = Math.abs(launch.launchRodAngleDeg ?? 0);
   if (angle > MAX_ROD_ANGLE_DEG) {
-    out.push({ field: 'rodAngle', value: angle, limit: MAX_ROD_ANGLE_DEG });
+    out.push({ field: 'rodAngle', value: (angle * Math.PI) / 180, limit: MAX_ROD_ANGLE_RAD });
   }
 
   const wind = surfaceWindMs(launch);
   if (wind > MAX_WIND_SPEED_MS) {
-    out.push({ field: 'windSpeed', value: wind / MPH_TO_MS, limit: MAX_WIND_SPEED_MPH });
+    out.push({ field: 'windSpeed', value: wind, limit: MAX_WIND_SPEED_MS });
   }
 
   return out;
 }
 
 /**
- * One violation as a sentence.
+ * One violation as a sentence, in the units the reader has selected.
  *
- * Reported in the code's OWN units (degrees, mph) rather than the user's
- * display units: the limit is a quoted rule, and quoting it in whatever unit the
- * reader happens to have selected makes the number stop matching the source.
+ * Both codes state their numbers in imperial, and this used to quote them that
+ * way so the figure matched the source. That put "20 mph" in front of a reader
+ * whose every other readout is m/s, which is a rule they then have to convert
+ * before they can act on it — so both the offending value and the cap are
+ * converted, and the symbol travels with each number rather than sitting in the
+ * translated sentence.
+ *
+ * `u` is passed in rather than read here: see {@link UnitSymbols}.
  */
-export function limitText(v: LimitViolation, t: (key: string, vars: Record<string, unknown>) => string): string {
-  const vars = { value: Math.round(v.value * 10) / 10, limit: v.limit };
-  return t(v.field === 'rodAngle' ? 'limits.rodAngle' : 'limits.wind', vars);
+export function limitText(
+  v: LimitViolation,
+  t: (key: string, vars: Record<string, unknown>) => string,
+  u: UnitSymbols,
+): string {
+  const quantity: Quantity = v.field === 'rodAngle' ? 'angle' : 'windspeed';
+  const sym = u.sym(quantity);
+  const ui = (si: number) => siToUi(quantity, sym, si);
+  // One precision for both numbers, taken from the larger: "30.4°" beside
+  // "20.0°" in the same sentence reads as two rules stated to different
+  // accuracies, when the second is exact.
+  const digits = ladderDigits(Math.max(Math.abs(ui(v.value)), Math.abs(ui(v.limit))));
+  const show = (si: number) => withUnit(fmtUpTo(ui(si), digits), sym);
+  return t(v.field === 'rodAngle' ? 'limits.rodAngle' : 'limits.wind', {
+    value: show(v.value),
+    limit: show(v.limit),
+  });
 }

@@ -5,7 +5,9 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import en from './locales/en.json';
+import de from './locales/de.json';
 import es from './locales/es.json';
+import fr from './locales/fr.json';
 
 /**
  * Every locale, once: its code, its native name for the switcher, and its
@@ -15,7 +17,9 @@ import es from './locales/es.json';
  */
 const LOCALES = [
   { code: 'en', name: 'English', translation: en },
+  { code: 'de', name: 'Deutsch', translation: de },
   { code: 'es', name: 'Español', translation: es },
+  { code: 'fr', name: 'Français', translation: fr },
 ] as const;
 
 /** Selectable languages (code → native name), for the switcher. */

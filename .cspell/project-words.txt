@@ -102,6 +102,7 @@ designinfo
 designtype
 desync
 desynced
+Deutsch
 dflt
 directiondeg
 displaycolor
@@ -151,6 +152,7 @@ flightcomputer
 flightdata
 foreradius
 frameloop
+Français
 freeformfinset
 fshape
 gainmap
