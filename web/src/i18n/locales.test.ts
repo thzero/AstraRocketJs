@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import en from './locales/en.json';
+import de from './locales/de.json';
 import es from './locales/es.json';
+import fr from './locales/fr.json';
 
 // English is the source-of-truth locale and every other locale falls back to it
 // for a missing key (see i18n/index.ts). That fallback is silent: a key dropped
@@ -23,7 +25,11 @@ function flatten(node: Tree, prefix = '', out: Record<string, string> = {}) {
 const placeholders = (s: string) => [...s.matchAll(/{{\s*([^}]+?)\s*}}/g)].map((m) => m[1]!).sort();
 
 const EN = flatten(en as Tree);
-const LOCALES: [string, Record<string, string>][] = [['es', flatten(es as Tree)]];
+const LOCALES: [string, Record<string, string>][] = [
+  ['de', flatten(de as Tree)],
+  ['es', flatten(es as Tree)],
+  ['fr', flatten(fr as Tree)],
+];
 
 describe.each(LOCALES)('%s locale', (_name, L) => {
   it('translates every English key (a gap silently renders as English)', () => {

@@ -527,8 +527,8 @@
     "rodLengthName": "Longitud de la guía",
     "rodDirectionName": "Dirección de la guía",
     "windDirectionName": "Dirección del viento",
-    "angleLimit": "Los códigos de seguridad de NAR y Tripoli piden una rampa a menos de 20° de la vertical.",
-    "windLimit": "Los códigos de seguridad de NAR y Tripoli piden no volar con viento por encima de 20 mph (32 km/h).",
+    "angleLimit": "Los códigos de seguridad de NAR y Tripoli piden una rampa a menos de {{limit}} de la vertical.",
+    "windLimit": "Los códigos de seguridad de NAR y Tripoli piden no volar con viento por encima de {{limit}}.",
     "field": {
       "launchRodLengthM": "longitud de la guía",
       "launchRodAngleDeg": "ángulo de la guía",
@@ -1142,8 +1142,8 @@
     "needsMotor": "Carga un motor para dimensionar según la masa de descenso (masa cargada menos propelente).",
     "forMass": "Para una masa de descenso de {{mass}} g:",
     "thisChute": "Este paracaídas",
-    "mainTarget": "Principal (15–20 ft/s)",
-    "drogueTarget": "Piloto (50–75 ft/s)",
+    "mainTarget": "Principal ({{range}})",
+    "drogueTarget": "Piloto ({{range}})",
     "atCd": "Diámetros con Cd {{cd}}, a la densidad del aire del sitio de lanzamiento.",
     "verdict": {
       "slow": "muy lento",
@@ -1346,8 +1346,8 @@
     }
   },
   "limits": {
-    "rodAngle": "El ángulo de la rampa es de {{value}}° respecto a la vertical, por encima de los {{limit}}° que permiten los códigos de seguridad de NAR y Tripoli.",
-    "wind": "La velocidad del viento es de {{value}} mph, por encima de las {{limit}} mph que permiten los códigos de seguridad de NAR y Tripoli.",
+    "rodAngle": "El ángulo de la rampa es de {{value}} respecto a la vertical, por encima de los {{limit}} que permiten los códigos de seguridad de NAR y Tripoli.",
+    "wind": "La velocidad del viento es de {{value}}, por encima de los {{limit}} que permiten los códigos de seguridad de NAR y Tripoli.",
     "refused": "\"{{name}}\" no se ejecutó: sus condiciones de lanzamiento están fuera de los códigos de seguridad."
   },
   "panes": {
