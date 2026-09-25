@@ -13,13 +13,42 @@ const FOCUSABLE = [
 
 export interface FocusTrapOptions {
   /**
-   * Called on a window-level Escape while the trap is active. Every modal in
-   * the app closes on Escape, and each one used to carry its own copy of the
-   * same five-line window listener; this is the one copy. Omit it for a
-   * surface that must not be dismissible (WorkInProgressDialog).
+   * Called on a window-level Escape while the trap is active, and only if this
+   * is the TOPMOST open surface. Every modal in the app closes on Escape, and
+   * each one used to carry its own copy of the same five-line window listener;
+   * this is the one copy. Omit it for a surface that must not be dismissible
+   * (WorkInProgressDialog) -- which then swallows Escape while it is on top,
+   * rather than letting it through to whatever is underneath.
    */
   onEscape?: () => void;
 }
+
+/**
+ * Marks a panel as an OPEN modal surface, for as long as its trap is active.
+ *
+ * The Escape listener has to be on the window (a dialog is not always focused
+ * when it is pressed), so every open surface hears every Escape. With two of
+ * them open, both closed: dismissing the rename prompt inside the design
+ * library shut the library too, and one dialog (the flight path's stage colors)
+ * had noticed and written its own capture-phase listener with a
+ * `stopPropagation` to stop it. That guard only works between two surfaces that
+ * know about each other, which is why it existed in exactly one place.
+ */
+const SURFACE = 'data-modal-surface';
+
+/**
+ * The surface an Escape belongs to: the last one in document order.
+ *
+ * Document order rather than z-index, because that is what decides which of two
+ * overlays is actually on top here -- a nested dialog is rendered after the one
+ * it opens from, and the app's own ConfirmDialog is the last thing in App. It
+ * is also the only one of the two a test can see, since jsdom computes no
+ * styles from the Tailwind classes that carry the z-index.
+ */
+const topmostSurface = (): Element | null => {
+  const open = document.querySelectorAll(`[${SURFACE}]`);
+  return open.length ? open[open.length - 1]! : null;
+};
 
 /**
  * Trap keyboard focus inside a dialog while `active`, then restore focus to
@@ -46,6 +75,7 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean, { onEscape 
     const panel = ref.current;
     if (!active || !panel) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
+    panel.setAttribute(SURFACE, '');
 
     const focusable = () =>
       Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
@@ -92,6 +122,7 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean, { onEscape 
     panel.addEventListener('keydown', onKeyDown);
     return () => {
       panel.removeEventListener('keydown', onKeyDown);
+      panel.removeAttribute(SURFACE);
       previouslyFocused?.focus?.();
     };
   }, [active]);
@@ -102,7 +133,12 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean, { onEscape 
   useEffect(() => {
     if (!active || !onEscape) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onEscape();
+      if (e.key !== 'Escape') return;
+      // Not mine to answer: something is open on top of me. A panel that never
+      // received the ref cannot be placed in the stack, so it still answers.
+      const panel = ref.current;
+      if (panel && topmostSurface() !== panel) return;
+      onEscape();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

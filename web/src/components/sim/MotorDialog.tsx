@@ -2,15 +2,23 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { hasCurve, importCustomMotorFromEng, deleteCustomMotor, type CatalogMotor } from '../../services/motorDb';
 import { fetchMotorSpec } from '../../services/thrustcurve';
-import { MAX_IDX, fitIdx, parseDelays } from '../../services/motorPicker';
+import { MAX_IDX, parseDelays, type MountFit } from '../../services/motorPicker';
 import { PLUGGED_DELAY, type MotorSpec } from '../../engine/openRocketEngine';
 import { useUnits } from '../../prefs/useUnits';
-import { useFocusTrap } from '../common/useFocusTrap';
+import { Dialog } from '../common/Dialog';
 import { CatalogLoading, CatalogError } from '../common/CatalogLoading';
 import { MotorDetail } from './MotorDetail';
 import { keyOf } from './motorKey';
 import { useCatalog } from './useCatalog';
-import { ClassChips, DiameterRange, ManufacturerMenu, useMotorFilter } from './MotorFilterBar';
+import {
+  ClassChips,
+  DiameterRange,
+  FitsMount,
+  ImpulseRange,
+  ManufacturerMenu,
+  PluggedFilter,
+  useMotorFilter,
+} from './MotorFilterBar';
 
 // Selected manufacturers persist across sessions (the user's usual set).
 const MFRS_KEY = 'astrarrocketjs:motorPicker:mfrs';
@@ -29,8 +37,17 @@ const saveMfrs = (s: Set<string>) => {
     /* storage off */
   }
 };
-// The diameter range [lowIdx, highIdx] is remembered across sessions.
-const DIA_KEY = 'astrarrocketjs:motorPicker:dia';
+/**
+ * The diameter range [lowIdx, highIdx], remembered across sessions.
+ *
+ * A NEW key, because whatever is under the old one was very likely never chosen
+ * by anyone: the picker used to seed the ceiling from the mount on first open
+ * and then save it as though it were a preference, so a range picked for an
+ * 18 mm mount followed the user to every other mount they ever loaded. The
+ * mount's cap belongs to the fit checkbox now, and starting this over costs at
+ * most one drag of a slider.
+ */
+const DIA_KEY = 'astrarrocketjs:motorPicker:dia2';
 const loadDia = (): [number, number] | null => {
   try {
     const v = JSON.parse(localStorage.getItem(DIA_KEY) ?? 'null');
@@ -74,8 +91,9 @@ function findSeated(catalog: CatalogMotor[], cur: MotorSpec): CatalogMotor | und
 
 /**
  * Modal motor picker. Filters the catalog by engine code (text), manufacturer(s),
- * impulse class, and (by default) whether the motor fits the mount; imports a
- * custom .eng; resolves the chosen motor's thrust curve via `onSelect`.
+ * impulse class, total impulse, diameter, whether the motor comes plugged, and
+ * (by default) whether it fits the mount; imports a custom .eng; resolves the
+ * chosen motor's thrust curve via `onSelect`.
  *
  * Mounted only while open (`{open && <MotorDialog />}`), so every piece of
  * state here starts fresh per opening and nothing has to be reset on close.
@@ -86,14 +104,18 @@ export function MotorDialog({
   onClose,
   onSelect,
   onError,
-  mountDiameter,
+  mount,
   current,
 }: {
   onClose: () => void;
   onSelect: (m: MotorSpec) => void;
   onError: (msg: string | null) => void;
-  /** Motor-mount bore (mm), enables the "only motors that fit" filter. */
-  mountDiameter?: number | null;
+  /**
+   * The mount being loaded: its bore and the length it has room for, in mm. What
+   * the "fits the mount" filter measures against. Null when the geometry cannot
+   * be read, and the filter is then not offered rather than guessing at it.
+   */
+  mount?: MountFit | null;
   /** The motor already seated on this mount, pre-selected when the dialog opens. */
   current?: MotorSpec | null;
 }) {
@@ -108,7 +130,6 @@ export function MotorDialog({
   const [curveIdx, setCurveIdx] = useState(0);
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
   // Generation of the pick in flight. fetchMotorSpec can take seconds over the
   // network; a result that lands after the user canceled (this dialog is
   // unmounted on close) used to be applied to the mount anyway.
@@ -135,25 +156,53 @@ export function MotorDialog({
       setCurveIdx(ci >= 0 ? ci : 0);
     },
   });
-  // First use defaults the diameter ceiling to the mount's fitting size.
+  /**
+   * The remembered diameter range is now a plain PREFERENCE.
+   *
+   * It used to default its top stop to whatever fitted this mount, and from then
+   * on that read as the user's own setting: pick for a 29 mm mount once, and the
+   * stored range followed you to a 54 mm mount and hid every motor that mount
+   * exists to fly. Capping by the mount belongs to the fit checkbox, which is
+   * per-mount, visible, and can be turned off.
+   */
   const [filterInit] = useState(() => ({
     mfrs: loadMfrs(),
-    dia:
-      loadDia() ??
-      ([0, mountDiameter != null && mountDiameter > 0 ? fitIdx(mountDiameter) : MAX_IDX] as [number, number]),
+    dia: loadDia() ?? ([0, MAX_IDX] as [number, number]),
+    mount: mount && mount.bore > 0 ? mount : null,
   }));
-  const { text, setText, cls, setCls, mfrs, setMfrs, dia, setDia, classes, manufacturers, matches } = useMotorFilter(
-    catalog,
-    filterInit,
-  );
+  const {
+    text,
+    setText,
+    cls,
+    setCls,
+    mfrs,
+    setMfrs,
+    dia,
+    setDia,
+    diaSaved,
+    imp,
+    setImp,
+    plugged,
+    setPlugged,
+    fits,
+    setFits,
+    mount: fitMount,
+    classes,
+    manufacturers,
+    matches,
+  } = useMotorFilter(catalog, filterInit);
 
   // Persist the manufacturer selection and diameter range across sessions.
   useEffect(() => {
     saveMfrs(mfrs);
   }, [mfrs]);
+  // `diaSaved`, not the displayed range: while the fit box is ticked the slider
+  // is showing the MOUNT's ceiling, and saving that would write a machine's
+  // choice into the user's preference, which is the bug this whole control
+  // replaced.
   useEffect(() => {
-    saveDia(dia);
-  }, [dia]);
+    saveDia(diaSaved);
+  }, [diaSaved]);
 
   // Clicking a DIFFERENT motor starts from its own defaults: the best (first)
   // curve, and a mid value of its own delay charges, or plugged for a
@@ -218,171 +267,176 @@ export function MotorDialog({
   const shown = selected && matches.some((m) => keyOf(m) === selectedKey) ? selected : null;
 
   return (
-    <div
-      className="dialog-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
+    <Dialog
+      id="motorPicker"
+      title={t('motorDlg.title')}
+      onClose={onClose}
+      size="4xl"
+      // List beside detail, each scrolling itself and reaching the panel's
+      // edges: the body takes the height and does its own padding.
+      layout="fill"
+      // Fixed rather than the viewport's height: the list is the working surface
+      // and it should not become a screen-tall column on a large monitor.
+      height={720}
     >
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="motor-dialog-title"
-        className="dialog-panel flex h-[720px] max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-slate-900 ring-1 ring-white/10"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between gap-2 border-b border-white/10 p-3">
-          <h2 id="motor-dialog-title" className="text-sm font-semibold text-slate-200">
-            {t('motorDlg.title')}
-          </h2>
-          <button
-            onClick={onClose}
-            aria-label={t('banner.close')}
-            className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 hover:bg-slate-700"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          {/* LEFT: filters + list + count */}
-          <div
-            className={`flex min-h-0 flex-col md:w-[360px] md:shrink-0 md:border-r md:border-white/10 ${shown ? 'hidden md:flex' : 'flex'}`}
-          >
-            <div className="space-y-2 p-3">
-              <div className="flex gap-2">
-                <input
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  autoFocus
-                  placeholder={t('motorDlg.searchCode')}
-                  className="min-w-0 flex-1 rounded-lg bg-slate-950 px-3 py-2 text-sm text-slate-100 ring-1 ring-white/10 placeholder:text-slate-500 focus:outline-none focus:ring-sky-500"
-                />
-                <button
-                  onClick={() => fileRef.current?.click()}
-                  className="shrink-0 rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-200 hover:bg-slate-700"
-                >
-                  {t('motor.importEng')}
-                </button>
-                <input ref={fileRef} type="file" accept=".eng,.ENG" className="hidden" onChange={onImport} />
-              </div>
-
-              <div className="flex gap-2">
-                <ManufacturerMenu
-                  manufacturers={manufacturers}
-                  mfrs={mfrs}
-                  onChange={setMfrs}
-                  className="min-w-0 flex-1"
-                />
-              </div>
-
-              <div className="flex flex-wrap gap-1">
-                <ClassChips classes={classes} cls={cls} onChange={setCls} />
-              </div>
-
-              <DiameterRange dia={dia} onChange={setDia} />
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        {/* LEFT: filters + list + count */}
+        <div
+          className={`flex min-h-0 flex-col md:w-[360px] md:shrink-0 md:border-r md:border-white/10 ${shown ? 'hidden md:flex' : 'flex'}`}
+        >
+          <div className="space-y-2 p-3">
+            <div className="flex gap-2">
+              <input
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                autoFocus
+                placeholder={t('motorDlg.searchCode')}
+                className="min-w-0 flex-1 rounded-lg bg-slate-950 px-3 py-2 text-sm text-slate-100 ring-1 ring-white/10 placeholder:text-slate-500 focus:outline-none focus:ring-sky-500"
+              />
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="shrink-0 rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-200 hover:bg-slate-700"
+              >
+                {t('motor.importEng')}
+              </button>
+              <input ref={fileRef} type="file" accept=".eng,.ENG" className="hidden" onChange={onImport} />
             </div>
 
-            {error ? (
-              <div className="grid min-h-0 flex-1 place-items-center p-6">
-                <CatalogError message={`${t('catalog.failedMotors')} ${error}`} onRetry={retry} />
-              </div>
-            ) : loading ? (
-              <div className="grid min-h-0 flex-1 place-items-center p-6">
-                <CatalogLoading name="motors" label={t('motorDlg.loadingCatalog')} />
-              </div>
-            ) : (
-              <ul className="min-h-0 flex-1 divide-y divide-white/5 overflow-y-auto">
-                {matches.map((m) => {
-                  const k = keyOf(m);
-                  const isLoading = loadingKey === k;
-                  return (
-                    <li key={k} className="flex items-stretch">
+            <div className="flex gap-2">
+              <ManufacturerMenu
+                manufacturers={manufacturers}
+                mfrs={mfrs}
+                onChange={setMfrs}
+                className="min-w-0 flex-1"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-1">
+              <ClassChips classes={classes} cls={cls} onChange={setCls} />
+            </div>
+
+            {/* Impulse sits with the class chips it refines and above the
+                diameter, which is a property of the mount rather than of how
+                much motor this is. */}
+            <ImpulseRange imp={imp} onChange={setImp} />
+            <DiameterRange dia={dia} onChange={setDia} />
+            {/* Both boxes on one row: two short labels, and stacked they pushed
+                the list itself another line down a 360px column. */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              {fitMount && <FitsMount mount={fitMount} fits={fits} onChange={setFits} />}
+              <PluggedFilter plugged={plugged} onChange={setPlugged} />
+            </div>
+          </div>
+
+          {error ? (
+            <div className="grid min-h-0 flex-1 place-items-center p-6">
+              <CatalogError message={`${t('catalog.failedMotors')} ${error}`} onRetry={retry} />
+            </div>
+          ) : loading ? (
+            <div className="grid min-h-0 flex-1 place-items-center p-6">
+              <CatalogLoading name="motors" label={t('motorDlg.loadingCatalog')} />
+            </div>
+          ) : (
+            <ul className="min-h-0 flex-1 divide-y divide-white/5 overflow-y-auto">
+              {matches.map((m) => {
+                const k = keyOf(m);
+                const isLoading = loadingKey === k;
+                return (
+                  <li key={k} className="flex items-stretch">
+                    <button
+                      onClick={() => choose(m)}
+                      onDoubleClick={() => pick(m)}
+                      disabled={loadingKey !== null}
+                      aria-pressed={selectedKey === k}
+                      className={`flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-2 text-left text-sm disabled:opacity-50 ${
+                        selectedKey === k ? 'bg-sky-600/25 ring-1 ring-inset ring-sky-500/50' : 'hover:bg-slate-800'
+                      }`}
+                    >
+                      <span className="min-w-0">
+                        {m.custom && (
+                          <span className="mr-1 text-amber-400" title={t('motor.importedTitle')}>
+                            ★
+                          </span>
+                        )}
+                        <span className="font-medium text-slate-100">{m.designation}</span>
+                        <span className="ml-2 text-xs text-slate-500">{m.manufacturer}</span>
+                        {!m.custom && !hasCurve(m) && (
+                          <span
+                            className="ml-2 rounded bg-slate-700 px-1 py-0.5 text-[9px] uppercase tracking-wide text-slate-400"
+                            title={t('motorDlg.noBundledCurve')}
+                          >
+                            {t('dash.noCurve')}
+                          </span>
+                        )}
+                      </span>
+                      <span className="shrink-0 text-xs tabular-nums text-slate-400">
+                        {isLoading
+                          ? t('motorDlg.loading')
+                          : `${u.fmt('impulse', m.impulse, m.impulse < 10 ? 1 : 0)} ${u.sym(
+                              'impulse',
+                            )} · ${u.fmt('motorDimensions', m.diameter / 1000, 0)} ${u.sym('motorDimensions')}`}
+                      </span>
+                    </button>
+                    {m.custom && (
                       <button
-                        onClick={() => choose(m)}
-                        onDoubleClick={() => pick(m)}
-                        disabled={loadingKey !== null}
-                        aria-pressed={selectedKey === k}
-                        className={`flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-2 text-left text-sm disabled:opacity-50 ${
-                          selectedKey === k ? 'bg-sky-600/25 ring-1 ring-inset ring-sky-500/50' : 'hover:bg-slate-800'
-                        }`}
+                        onClick={() => onDelete(m)}
+                        aria-label={t('motor.deleteTitle', { name: m.designation })}
+                        className="shrink-0 px-3 text-red-400 hover:bg-slate-800"
                       >
-                        <span className="min-w-0">
-                          {m.custom && (
-                            <span className="mr-1 text-amber-400" title={t('motor.importedTitle')}>
-                              ★
-                            </span>
-                          )}
-                          <span className="font-medium text-slate-100">{m.designation}</span>
-                          <span className="ml-2 text-xs text-slate-500">{m.manufacturer}</span>
-                          {!m.custom && !hasCurve(m) && (
-                            <span
-                              className="ml-2 rounded bg-slate-700 px-1 py-0.5 text-[9px] uppercase tracking-wide text-slate-400"
-                              title={t('motorDlg.noBundledCurve')}
-                            >
-                              {t('dash.noCurve')}
-                            </span>
-                          )}
-                        </span>
-                        <span className="shrink-0 text-xs tabular-nums text-slate-400">
-                          {isLoading
-                            ? t('motorDlg.loading')
-                            : `${u.fmt('impulse', m.impulse, m.impulse < 10 ? 1 : 0)} ${u.sym(
-                                'impulse',
-                              )} · ${u.fmt('motorDimensions', m.diameter / 1000, 0)} ${u.sym('motorDimensions')}`}
-                        </span>
+                        ✕
                       </button>
-                      {m.custom && (
-                        <button
-                          onClick={() => onDelete(m)}
-                          aria-label={t('motor.deleteTitle', { name: m.designation })}
-                          className="shrink-0 px-3 text-red-400 hover:bg-slate-800"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+                    )}
+                  </li>
+                );
+              })}
+              {matches.length === 0 && (
+                <li className="px-3 py-8 text-center text-sm text-slate-500">
+                  {t('motorDlg.noResults')}
+                  {/* The likeliest reason for an empty list is the fit filter,
+                      which is on by default whenever there is a mount to judge
+                      against. Name it, rather than leaving a blank panel. */}
+                  {fits && <div className="mt-1 text-xs text-slate-600">{t('motorDlg.fitsMountHint')}</div>}
+                </li>
+              )}
+            </ul>
+          )}
 
-            <div className="border-t border-white/10 p-2 text-center text-[11px] uppercase tracking-wide text-slate-500">
-              {loading ? '' : t('motor.count', { total: matches.length })}
-            </div>
-          </div>
-          {/* end LEFT */}
-
-          {/* RIGHT: detail + apply */}
-          <div className={`min-h-0 min-w-0 flex-1 flex-col ${shown ? 'flex' : 'hidden md:flex'}`}>
-            {shown ? (
-              <>
-                <MotorDetail
-                  motor={shown}
-                  onBack={() => setSelected(null)}
-                  curveIndex={curveIdx}
-                  onCurveChange={setCurveIdx}
-                />
-                <div className="flex shrink-0 items-center justify-between gap-2 border-t border-white/10 p-2">
-                  <DelayControl motor={shown} delay={delay} onDelay={setDelay} />
-                  <button
-                    onClick={() => pick(shown, curveIdx)}
-                    disabled={loadingKey !== null}
-                    className="shrink-0 rounded-lg bg-sky-600 px-5 py-1.5 text-sm font-medium text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
-                  >
-                    {loadingKey !== null ? t('motorDlg.loading') : t('motorDlg.select')}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="grid flex-1 place-items-center p-6 text-center text-sm text-slate-500">
-                {t('motorDlg.pickHint')}
-              </div>
-            )}
+          <div className="border-t border-white/10 p-2 text-center text-[11px] uppercase tracking-wide text-slate-500">
+            {loading ? '' : t('motor.count', { total: matches.length })}
           </div>
         </div>
-        {/* end two-pane */}
+        {/* end LEFT */}
+
+        {/* RIGHT: detail + apply */}
+        <div className={`min-h-0 min-w-0 flex-1 flex-col ${shown ? 'flex' : 'hidden md:flex'}`}>
+          {shown ? (
+            <>
+              <MotorDetail
+                motor={shown}
+                onBack={() => setSelected(null)}
+                curveIndex={curveIdx}
+                onCurveChange={setCurveIdx}
+              />
+              <div className="flex shrink-0 items-center justify-between gap-2 border-t border-white/10 p-2">
+                <DelayControl motor={shown} delay={delay} onDelay={setDelay} />
+                <button
+                  onClick={() => pick(shown, curveIdx)}
+                  disabled={loadingKey !== null}
+                  className="shrink-0 rounded-lg bg-sky-600 px-5 py-1.5 text-sm font-medium text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
+                >
+                  {loadingKey !== null ? t('motorDlg.loading') : t('motorDlg.select')}
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="grid flex-1 place-items-center p-6 text-center text-sm text-slate-500">
+              {t('motorDlg.pickHint')}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+      {/* end two-pane */}
+    </Dialog>
   );
 }
 

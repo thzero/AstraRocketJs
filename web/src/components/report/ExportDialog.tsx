@@ -5,7 +5,7 @@ import { useWorkspaceStore } from '../../state/store';
 import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
 import { resolveUnitChoice, UNIT_CHOICES, type UnitChoice } from '../../prefs/units';
-import { useFocusTrap } from '../common/useFocusTrap';
+import { Dialog } from '../common/Dialog';
 import { DEFAULT_REPORT } from '../../services/settings';
 import { assembleReport, type ReportModel } from '../../services/reportModel';
 import { isPlanarFinSet } from '../../tree/tubefins';
@@ -59,16 +59,6 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   // is a separate keyboard surface, not decoration.
   const [showSettings, setShowSettings] = useState(false);
   const [busy, setBusy] = useState(false);
-  // TWO traps, and the topmost one wins: the print-settings popover below is a
-  // SIBLING of this panel (both children of the overlay), so a trap anchored
-  // here cannot reach its controls. With the popover open, Tab went on cycling
-  // the dialog behind it and the fill color, paper size and orientation were
-  // unreachable by keyboard. Each surface owns its own Escape: the popover's
-  // closes the popover, the panel's closes the dialog, and neither fires while
-  // the PDF is being written, so a stray Escape cannot unmount the dialog
-  // under a running export.
-  const panelRef = useFocusTrap<HTMLDivElement>(!showSettings, { onEscape: busy ? undefined : onClose });
-  const settingsRef = useFocusTrap<HTMLDivElement>(showSettings, { onEscape: () => setShowSettings(false) });
   // One resolution for both outputs: the PDF and the CSV must never disagree
   // about what the document is written in.
   const exportUnits = resolveUnitChoice(settings.report.units, units.all);
@@ -215,213 +205,205 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
     }
   };
 
+  // The pinned row of actions, declared here because it is the shell's `footer`
+  // and so has to be named before the body that used to follow it.
+  const actionRow = (
+    <div className="flex items-center justify-between gap-2 border-t border-white/10 p-4">
+      <button
+        onClick={() => setShowSettings(true)}
+        className="rounded-md bg-slate-800 px-3 py-2 text-sm text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+      >
+        {t('export.settings')}
+      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={onClose}
+          className="rounded-md bg-slate-800 px-3 py-2 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+        >
+          {t('common.cancel')}
+        </button>
+        <button
+          onClick={saveCsv}
+          disabled={busy}
+          className="rounded-md bg-slate-800 px-3 py-2 text-sm text-slate-200 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-50"
+        >
+          {t('export.saveCsv')}
+        </button>
+        <button
+          onClick={save}
+          disabled={busy}
+          className="rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-400 disabled:opacity-50"
+        >
+          {busy ? t('common.loading') : t('export.savePdf')}
+        </button>
+      </div>
+    </div>
+  );
+
   const check = 'accent-sky-500';
   const row = 'flex items-center gap-2 py-0.5 text-sm text-slate-200';
 
   return (
-    <div
-      className="dialog-overlay fixed inset-0 z-50 grid place-items-center bg-black/60 p-4"
-      // Not while busy: unmounting mid-export would drop the run's result
-      // and the "Loading" state with it.
-      onClick={busy ? undefined : onClose}
-    >
-      <div
-        ref={panelRef}
-        className="dialog-panel flex max-h-[85vh] w-full max-w-md flex-col rounded-2xl bg-slate-900 ring-1 ring-white/10"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('export.title')}
-        onClick={(e) => e.stopPropagation()}
+    <>
+      <Dialog
+        id="reportExport"
+        title={t('export.title')}
+        onClose={onClose}
+        size="md"
+        // Nothing dismisses this while the PDF is being written: unmounting
+        // mid-export drops the run's result and the "Loading" state with it. The
+        // ✕ still works, because a close button that stops responding is worse
+        // than an interrupted export.
+        dismissible={!busy}
+        footer={sel && model ? actionRow : undefined}
       >
-        <div className="flex items-center justify-between gap-3 border-b border-white/10 p-4">
-          <h2 className="text-lg font-semibold text-slate-100">{t('export.title')}</h2>
-          <button
-            onClick={onClose}
-            aria-label={t('common.close')}
-            className="rounded-md px-2 text-slate-400 hover:text-slate-200"
-          >
-            ✕
-          </button>
-        </div>
-
         {sel && model ? (
-          <>
-            <div className="min-h-0 flex-1 overflow-auto p-4">
-              <p className="mb-2 text-xs uppercase tracking-wide text-slate-400">{t('export.select')}</p>
-              <div className="rounded-lg bg-slate-800/50 p-2 ring-1 ring-white/5">
-                <label className={`${row} font-semibold text-sky-300`}>
-                  <input type="checkbox" className={check} checked={allOn} onChange={(e) => setAll(e.target.checked)} />
-                  {model.name}
-                </label>
-                {sel.stages.map((st, i) => (
-                  <div key={i} className="pl-4">
-                    <div className={`${row} text-slate-300`}>{st.label}</div>
+          <div className="p-4">
+            <p className="mb-2 text-xs uppercase tracking-wide text-slate-400">{t('export.select')}</p>
+            <div className="rounded-lg bg-slate-800/50 p-2 ring-1 ring-white/5">
+              <label className={`${row} font-semibold text-sky-300`}>
+                <input type="checkbox" className={check} checked={allOn} onChange={(e) => setAll(e.target.checked)} />
+                {model.name}
+              </label>
+              {sel.stages.map((st, i) => (
+                <div key={i} className="pl-4">
+                  <div className={`${row} text-slate-300`}>{st.label}</div>
+                  <label className={`${row} pl-4`}>
+                    <input
+                      type="checkbox"
+                      className={check}
+                      checked={st.parts}
+                      onChange={(e) => patchStage(i, { parts: e.target.checked })}
+                    />
+                    {t('report.partsDetail')}
+                  </label>
+                  {st.hasFins && (
                     <label className={`${row} pl-4`}>
                       <input
                         type="checkbox"
                         className={check}
-                        checked={st.parts}
-                        onChange={(e) => patchStage(i, { parts: e.target.checked })}
+                        checked={st.finTemplates}
+                        onChange={(e) => patchStage(i, { finTemplates: e.target.checked })}
                       />
-                      {t('report.partsDetail')}
+                      {t('export.finTemplates')}
                     </label>
-                    {st.hasFins && (
-                      <label className={`${row} pl-4`}>
-                        <input
-                          type="checkbox"
-                          className={check}
-                          checked={st.finTemplates}
-                          onChange={(e) => patchStage(i, { finTemplates: e.target.checked })}
-                        />
-                        {t('export.finTemplates')}
-                      </label>
-                    )}
-                  </div>
-                ))}
-                <label className={`${row} pl-4`}>
-                  <input
-                    type="checkbox"
-                    className={check}
-                    checked={sel.designReport}
-                    onChange={(e) => patch({ designReport: e.target.checked })}
-                  />
-                  {t('export.designReport')}
-                </label>
-                <label className={`${row} pl-4 ${hasNoses ? '' : 'opacity-40'}`}>
-                  <input
-                    type="checkbox"
-                    className={check}
-                    disabled={!hasNoses}
-                    checked={sel.noseTemplates}
-                    onChange={(e) => patch({ noseTemplates: e.target.checked })}
-                  />
-                  {t('export.noseTemplates')}
-                </label>
-                <label className={`${row} pl-4 ${hasTransitions ? '' : 'opacity-40'}`}>
-                  <input
-                    type="checkbox"
-                    className={check}
-                    disabled={!hasTransitions}
-                    checked={sel.transitionTemplates}
-                    onChange={(e) => patch({ transitionTemplates: e.target.checked })}
-                  />
-                  {t('export.transitionTemplates')}
-                </label>
-                <label className={`${row} pl-4 ${hasMarkingGuides ? '' : 'opacity-40'}`}>
-                  <input
-                    type="checkbox"
-                    className={check}
-                    disabled={!hasMarkingGuides}
-                    checked={sel.finMarkingGuide}
-                    onChange={(e) => patch({ finMarkingGuide: e.target.checked })}
-                  />
-                  {t('export.finMarkingGuide')}
-                </label>
-              </div>
-
-              <div className="mt-3 space-y-1">
-                <label className={row}>
-                  <input
-                    type="checkbox"
-                    className={check}
-                    checked={sel.includeMotors}
-                    onChange={(e) => patch({ includeMotors: e.target.checked })}
-                  />
-                  {t('export.includeMotors')}
-                </label>
-                <label className={row}>
-                  <input
-                    type="checkbox"
-                    className={check}
-                    checked={sel.updateSimData}
-                    onChange={(e) => patch({ updateSimData: e.target.checked })}
-                  />
-                  {t('export.updateSim')}
-                </label>
-                <label className={row}>
-                  <input
-                    type="checkbox"
-                    className={check}
-                    checked={sel.showByStage}
-                    onChange={(e) => patch({ showByStage: e.target.checked })}
-                  />
-                  {t('export.showByStage')}
-                </label>
-                <label className="flex items-center justify-between gap-3 pt-1 text-sm text-slate-200">
-                  <span>{t('export.units')}</span>
-                  <select
-                    aria-label={t('export.units')}
-                    value={settings.report.units}
-                    onChange={(e) => update({ report: { ...settings.report, units: e.target.value as UnitChoice } })}
-                    className="rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
-                  >
-                    {UNIT_CHOICES.map((c) => (
-                      <option key={c} value={c}>
-                        {t(`export.units_${c}`)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <p className="text-[11px] leading-snug text-slate-500">{t('export.unitsNote')}</p>
-              </div>
+                  )}
+                </div>
+              ))}
+              <label className={`${row} pl-4`}>
+                <input
+                  type="checkbox"
+                  className={check}
+                  checked={sel.designReport}
+                  onChange={(e) => patch({ designReport: e.target.checked })}
+                />
+                {t('export.designReport')}
+              </label>
+              <label className={`${row} pl-4 ${hasNoses ? '' : 'opacity-40'}`}>
+                <input
+                  type="checkbox"
+                  className={check}
+                  disabled={!hasNoses}
+                  checked={sel.noseTemplates}
+                  onChange={(e) => patch({ noseTemplates: e.target.checked })}
+                />
+                {t('export.noseTemplates')}
+              </label>
+              <label className={`${row} pl-4 ${hasTransitions ? '' : 'opacity-40'}`}>
+                <input
+                  type="checkbox"
+                  className={check}
+                  disabled={!hasTransitions}
+                  checked={sel.transitionTemplates}
+                  onChange={(e) => patch({ transitionTemplates: e.target.checked })}
+                />
+                {t('export.transitionTemplates')}
+              </label>
+              <label className={`${row} pl-4 ${hasMarkingGuides ? '' : 'opacity-40'}`}>
+                <input
+                  type="checkbox"
+                  className={check}
+                  disabled={!hasMarkingGuides}
+                  checked={sel.finMarkingGuide}
+                  onChange={(e) => patch({ finMarkingGuide: e.target.checked })}
+                />
+                {t('export.finMarkingGuide')}
+              </label>
             </div>
 
-            <div className="flex items-center justify-between gap-2 border-t border-white/10 p-4">
-              <button
-                onClick={() => setShowSettings(true)}
-                className="rounded-md bg-slate-800 px-3 py-2 text-sm text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
-              >
-                {t('export.settings')}
-              </button>
-              <div className="flex gap-2">
-                <button
-                  onClick={onClose}
-                  className="rounded-md bg-slate-800 px-3 py-2 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+            <div className="mt-3 space-y-1">
+              <label className={row}>
+                <input
+                  type="checkbox"
+                  className={check}
+                  checked={sel.includeMotors}
+                  onChange={(e) => patch({ includeMotors: e.target.checked })}
+                />
+                {t('export.includeMotors')}
+              </label>
+              <label className={row}>
+                <input
+                  type="checkbox"
+                  className={check}
+                  checked={sel.updateSimData}
+                  onChange={(e) => patch({ updateSimData: e.target.checked })}
+                />
+                {t('export.updateSim')}
+              </label>
+              <label className={row}>
+                <input
+                  type="checkbox"
+                  className={check}
+                  checked={sel.showByStage}
+                  onChange={(e) => patch({ showByStage: e.target.checked })}
+                />
+                {t('export.showByStage')}
+              </label>
+              <label className="flex items-center justify-between gap-3 pt-1 text-sm text-slate-200">
+                <span>{t('export.units')}</span>
+                <select
+                  aria-label={t('export.units')}
+                  value={settings.report.units}
+                  onChange={(e) => update({ report: { ...settings.report, units: e.target.value as UnitChoice } })}
+                  className="rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
                 >
-                  {t('common.cancel')}
-                </button>
-                <button
-                  onClick={saveCsv}
-                  disabled={busy}
-                  className="rounded-md bg-slate-800 px-3 py-2 text-sm text-slate-200 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-50"
-                >
-                  {t('export.saveCsv')}
-                </button>
-                <button
-                  onClick={save}
-                  disabled={busy}
-                  className="rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-400 disabled:opacity-50"
-                >
-                  {busy ? t('common.loading') : t('export.savePdf')}
-                </button>
-              </div>
+                  {UNIT_CHOICES.map((c) => (
+                    <option key={c} value={c}>
+                      {t(`export.units_${c}`)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="text-[11px] leading-snug text-slate-500">{t('export.unitsNote')}</p>
             </div>
-          </>
+          </div>
         ) : (
           <p className="p-6 text-sm text-slate-500">{t('report.noDesign')}</p>
         )}
-      </div>
+      </Dialog>
 
+      {/* Its own surface on its own layer, outside the dialog rather than a
+          sibling of its panel inside the shared overlay. That arrangement is
+          what used to need two focus traps here, with this one switching the
+          dialog's OFF: anchored on the panel, the trap could not reach controls
+          that were not inside it, so the fill color, paper size and orientation
+          were unreachable by keyboard. Two dialogs each own their own. */}
       {showSettings && (
-        <div
-          className="fixed inset-0 z-[60] grid place-items-center bg-black/50 p-4"
-          // This popover is a CHILD of the export dialog's overlay, whose own
-          // onClick is onClose, so dismissing the popover by its backdrop used
-          // to bubble and shut the whole Export dialog, throwing away the
-          // user's include/exclude selection with it.
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowSettings(false);
-          }}
+        <Dialog
+          id="reportPrintSettings"
+          title={t('export.printSettings')}
+          onClose={() => setShowSettings(false)}
+          layer="over"
+          size="sm"
+          layout="pad"
+          expandable={false}
+          // Two or three lines and a button, opening on top of a report dialog
+          // that is itself already full-screen on a phone: filling the screen
+          // here would read as that dialog being replaced rather than as
+          // something opening over it.
+          fullBleed={false}
         >
-          <div
-            ref={settingsRef}
-            className="w-full max-w-xs rounded-2xl bg-slate-900 p-4 ring-1 ring-white/10"
-            role="dialog"
-            aria-label={t('export.printSettings')}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="mb-3 text-base font-semibold text-slate-100">{t('export.printSettings')}</h3>
+          <>
             <div className="space-y-3">
               <label className="flex items-center justify-between gap-3 text-sm text-slate-300">
                 {t('export.fill')}
@@ -496,9 +478,9 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
                 {t('common.close')}
               </button>
             </div>
-          </div>
-        </div>
+          </>
+        </Dialog>
       )}
-    </div>
+    </>
   );
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
-import { useFocusTrap } from '../common/useFocusTrap';
+import { Dialog } from '../common/Dialog';
 import { DesignPropertiesDialog } from './DesignPropertiesDialog';
 import { ExampleList } from './ExamplesDialog';
 
@@ -30,7 +30,6 @@ export function DesignLibraryDialog({ onClose }: { onClose: () => void }) {
   // for Escape, keyed on onClose, therefore looped: refresh -> re-render ->
   // new onClose -> refresh. The refresh runs once on mount (below); the Escape
   // listener is the focus trap's own effect, which re-subscribes harmlessly.
-  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
 
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
   const [tab, setTab] = useState<'mine' | 'examples'>('mine');
@@ -56,43 +55,33 @@ export function DesignLibraryDialog({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div
-      className="dialog-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('library.title')}
-    >
-      <div
-        ref={panelRef}
-        className="dialog-panel flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-slate-900 ring-1 ring-white/10"
-        onClick={(e) => e.stopPropagation()}
+    <>
+      <Dialog
+        id="designLibrary"
+        title={t('library.title')}
+        onClose={onClose}
+        size="lg"
+        toolbar={
+          // A real tablist, not two buttons that look like one: the settings
+          // dialog sets the precedent and screen readers get the relationship.
+          // It sits in the toolbar band so it stays put while the list scrolls.
+          <div role="tablist" aria-label={t('library.title')} className="flex gap-1 px-2 pt-2">
+            {(['mine', 'examples'] as const).map((key) => (
+              <button
+                key={key}
+                role="tab"
+                aria-selected={tab === key}
+                onClick={() => setTab(key)}
+                className={`rounded-t-md px-3 py-1.5 text-xs font-medium ${
+                  tab === key ? 'bg-white/10 text-slate-100' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {key === 'mine' ? t('library.mine') : t('library.examples')}
+              </button>
+            ))}
+          </div>
+        }
       >
-        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-          <h2 className="font-semibold text-slate-100">{t('library.title')}</h2>
-          <button onClick={onClose} className="px-2 text-slate-400 hover:text-slate-200" aria-label={t('common.close')}>
-            ✕
-          </button>
-        </div>
-
-        {/* A real tablist, not two buttons that look like one: the settings
-            dialog sets the precedent and screen readers get the relationship. */}
-        <div role="tablist" aria-label={t('library.title')} className="flex gap-1 border-b border-white/10 px-2 pt-2">
-          {(['mine', 'examples'] as const).map((key) => (
-            <button
-              key={key}
-              role="tab"
-              aria-selected={tab === key}
-              onClick={() => setTab(key)}
-              className={`rounded-t-md px-3 py-1.5 text-xs font-medium ${
-                tab === key ? 'bg-white/10 text-slate-100' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {key === 'mine' ? t('library.mine') : t('library.examples')}
-            </button>
-          ))}
-        </div>
-
         {tab === 'examples' ? (
           <ExampleList onClose={onClose} />
         ) : designs.length === 0 ? (
@@ -132,7 +121,7 @@ export function DesignLibraryDialog({ onClose }: { onClose: () => void }) {
             ))}
           </ul>
         )}
-      </div>
+      </Dialog>
 
       {renaming && (
         <DesignPropertiesDialog
@@ -147,6 +136,6 @@ export function DesignLibraryDialog({ onClose }: { onClose: () => void }) {
           }}
         />
       )}
-    </div>
+    </>
   );
 }

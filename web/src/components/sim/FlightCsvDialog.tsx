@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
-import { useFocusTrap } from '../common/useFocusTrap';
+import { Dialog } from '../common/Dialog';
 import { flightColumns, type FlightColumn } from '../../services/flightColumns';
 import { useWorkspaceStore, selectDesignName } from '../../state/store';
 import { flightDataCsv, CSV_MIME } from '../../services/csvExport';
@@ -35,7 +35,6 @@ export function FlightCsvDialog({
   const u = useUnits();
   const designName = useWorkspaceStore(selectDesignName);
   const { settings, update } = useSettings();
-  const ref = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
   const saved = settings.flightCsv;
 
   const branches = result.branches ?? [];
@@ -66,151 +65,17 @@ export function FlightCsvDialog({
   const field = 'rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-100 ring-1 ring-white/10';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
-      <div
-        ref={ref}
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('csv.title')}
-        className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl bg-slate-900 p-4 shadow-2xl ring-1 ring-white/15"
-      >
-        <h2 className="mb-3 text-sm font-semibold text-slate-100">{t('csv.title')}</h2>
-
-        <div className="grid min-h-0 flex-1 gap-3 md:grid-cols-[1fr_260px]">
-          {/* Variables */}
-          <div className={`${box} flex min-h-0 flex-col`}>
-            <div className={label}>{t('csv.variables')}</div>
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              <table className="w-full text-xs">
-                <tbody>
-                  {columns.map((c) => (
-                    <tr key={c.key} className="border-b border-white/5">
-                      <td className="w-8 py-1">
-                        <input
-                          type="checkbox"
-                          checked={chosen.includes(c.key)}
-                          onChange={() => toggle(c.key)}
-                          aria-label={name(c)}
-                          className="accent-sky-500"
-                        />
-                      </td>
-                      <td className="py-1 text-slate-200">{name(c)}</td>
-                      <td className="w-16 py-1 text-right text-slate-500">{unit(c)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="mt-2 flex items-center gap-2 border-t border-white/10 pt-2">
-              <button className={field} onClick={() => patch({ columns: columns.map((c) => c.key) })}>
-                {t('csv.selectAll')}
-              </button>
-              <button className={field} onClick={() => patch({ columns: [] })}>
-                {t('csv.selectNone')}
-              </button>
-              <span className="text-[11px] text-slate-400">
-                {t('csv.count', { count: chosen.length, total: columns.length })}
-              </span>
-            </div>
-          </div>
-
-          {/* Format, comments, stage */}
-          <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
-            <div className={box}>
-              <div className={label}>{t('csv.format')}</div>
-              <div className="space-y-2 text-xs text-slate-300">
-                <div className="flex items-center justify-between gap-2">
-                  <span>{t('csv.separator')}</span>
-                  <select
-                    className={field}
-                    aria-label={t('csv.separator')}
-                    value={saved.separator}
-                    onChange={(e) => patch({ separator: e.target.value })}
-                  >
-                    <option value=",">,</option>
-                    <option value=";">;</option>
-                    <option value="\t">{t('csv.tab')}</option>
-                    <option value=" ">{t('csv.space')}</option>
-                  </select>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span>{t('csv.decimals')}</span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={12}
-                    className={`${field} w-16 text-right`}
-                    aria-label={t('csv.decimals')}
-                    value={saved.decimals}
-                    onChange={(e) => patch({ decimals: Math.min(Math.max(Number(e.target.value) || 0, 0), 12) })}
-                  />
-                </div>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={saved.exponential}
-                    onChange={(e) => patch({ exponential: e.target.checked })}
-                    className="accent-sky-500"
-                  />
-                  {t('csv.exponential')}
-                </label>
-              </div>
-            </div>
-
-            <div className={box}>
-              <div className={label}>{t('csv.comments')}</div>
-              <div className="space-y-2 text-xs text-slate-300">
-                {(
-                  [
-                    ['simDescription', 'csv.simDescription'],
-                    ['fieldDescriptions', 'csv.fieldDescriptions'],
-                    ['flightEvents', 'csv.flightEvents'],
-                  ] as const
-                ).map(([key, labelKey]) => (
-                  <label key={key} className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={saved[key]}
-                      onChange={(e) => patch({ [key]: e.target.checked })}
-                      className="accent-sky-500"
-                    />
-                    {t(labelKey)}
-                  </label>
-                ))}
-                <div className="flex items-center justify-between gap-2">
-                  <span>{t('csv.commentChar')}</span>
-                  <input
-                    className={`${field} w-16`}
-                    aria-label={t('csv.commentChar')}
-                    value={saved.commentChar}
-                    onChange={(e) => patch({ commentChar: e.target.value || '#' })}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Only a staged flight has a stage to choose. */}
-            {branches.length > 1 && (
-              <div className={box}>
-                <div className={label}>{t('csv.stage')}</div>
-                <select
-                  className={`${field} w-full`}
-                  aria-label={t('csv.stage')}
-                  value={branchIndex}
-                  onChange={(e) => setBranchIndex(Number(e.target.value))}
-                >
-                  {branches.map((b, i) => (
-                    <option key={i} value={i}>
-                      {b.name || `${t('flight.stage')} ${i + 1}`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-3 flex justify-end gap-2">
+    <Dialog
+      id="flightCsv"
+      title={t('csv.title')}
+      onClose={onClose}
+      size="3xl"
+      // The variable list is the point of the dialog and there are a dozen-odd
+      // of them, so the body takes the height and the two columns scroll
+      // themselves rather than the whole dialog scrolling.
+      layout="fill"
+      footer={
+        <div className="flex justify-end gap-2 p-3">
           <button
             onClick={onClose}
             className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
@@ -225,7 +90,141 @@ export function FlightCsvDialog({
             {t('csv.export')}
           </button>
         </div>
+      }
+    >
+      <div className="grid min-h-0 flex-1 gap-3 p-4 md:grid-cols-[1fr_260px]">
+        {/* Variables */}
+        <div className={`${box} flex min-h-0 flex-col`}>
+          <div className={label}>{t('csv.variables')}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <table className="w-full text-xs">
+              <tbody>
+                {columns.map((c) => (
+                  <tr key={c.key} className="border-b border-white/5">
+                    <td className="w-8 py-1">
+                      <input
+                        type="checkbox"
+                        checked={chosen.includes(c.key)}
+                        onChange={() => toggle(c.key)}
+                        aria-label={name(c)}
+                        className="accent-sky-500"
+                      />
+                    </td>
+                    <td className="py-1 text-slate-200">{name(c)}</td>
+                    <td className="w-16 py-1 text-right text-slate-500">{unit(c)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-2 flex items-center gap-2 border-t border-white/10 pt-2">
+            <button className={field} onClick={() => patch({ columns: columns.map((c) => c.key) })}>
+              {t('csv.selectAll')}
+            </button>
+            <button className={field} onClick={() => patch({ columns: [] })}>
+              {t('csv.selectNone')}
+            </button>
+            <span className="text-[11px] text-slate-400">
+              {t('csv.count', { count: chosen.length, total: columns.length })}
+            </span>
+          </div>
+        </div>
+
+        {/* Format, comments, stage */}
+        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
+          <div className={box}>
+            <div className={label}>{t('csv.format')}</div>
+            <div className="space-y-2 text-xs text-slate-300">
+              <div className="flex items-center justify-between gap-2">
+                <span>{t('csv.separator')}</span>
+                <select
+                  className={field}
+                  aria-label={t('csv.separator')}
+                  value={saved.separator}
+                  onChange={(e) => patch({ separator: e.target.value })}
+                >
+                  <option value=",">,</option>
+                  <option value=";">;</option>
+                  <option value="\t">{t('csv.tab')}</option>
+                  <option value=" ">{t('csv.space')}</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span>{t('csv.decimals')}</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={12}
+                  className={`${field} w-16 text-right`}
+                  aria-label={t('csv.decimals')}
+                  value={saved.decimals}
+                  onChange={(e) => patch({ decimals: Math.min(Math.max(Number(e.target.value) || 0, 0), 12) })}
+                />
+              </div>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={saved.exponential}
+                  onChange={(e) => patch({ exponential: e.target.checked })}
+                  className="accent-sky-500"
+                />
+                {t('csv.exponential')}
+              </label>
+            </div>
+          </div>
+
+          <div className={box}>
+            <div className={label}>{t('csv.comments')}</div>
+            <div className="space-y-2 text-xs text-slate-300">
+              {(
+                [
+                  ['simDescription', 'csv.simDescription'],
+                  ['fieldDescriptions', 'csv.fieldDescriptions'],
+                  ['flightEvents', 'csv.flightEvents'],
+                ] as const
+              ).map(([key, labelKey]) => (
+                <label key={key} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={saved[key]}
+                    onChange={(e) => patch({ [key]: e.target.checked })}
+                    className="accent-sky-500"
+                  />
+                  {t(labelKey)}
+                </label>
+              ))}
+              <div className="flex items-center justify-between gap-2">
+                <span>{t('csv.commentChar')}</span>
+                <input
+                  className={`${field} w-16`}
+                  aria-label={t('csv.commentChar')}
+                  value={saved.commentChar}
+                  onChange={(e) => patch({ commentChar: e.target.value || '#' })}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Only a staged flight has a stage to choose. */}
+          {branches.length > 1 && (
+            <div className={box}>
+              <div className={label}>{t('csv.stage')}</div>
+              <select
+                className={`${field} w-full`}
+                aria-label={t('csv.stage')}
+                value={branchIndex}
+                onChange={(e) => setBranchIndex(Number(e.target.value))}
+              >
+                {branches.map((b, i) => (
+                  <option key={i} value={i}>
+                    {b.name || `${t('flight.stage')} ${i + 1}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

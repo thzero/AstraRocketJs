@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { findMounts, findNode, findParent, siblingIndex, stageNodes } from '../../services/treeEdit';
+import { findMounts, findNode, findParent, hasCatalog, siblingIndex, stageNodes } from '../../services/treeEdit';
+import { fitContextFor } from '../../services/componentFit';
 import { useWorkspaceStore } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
 import { num } from '../../tree/nodeProps';
@@ -34,6 +35,13 @@ export function useSelectedComponent() {
     return parent ? num(parent, 'outerRadius') : 0;
   }, [tree, selectedId, node]);
   const sib = useMemo(() => (selectedId ? siblingIndex(tree, selectedId) : null), [tree, selectedId]);
+  // What the part being edited has to fit, for the catalog picker's ranking.
+  // Only for the types that HAVE a catalog: for everything else it would be a
+  // tree walk per selection with nothing reading the result.
+  const fit = useMemo(
+    () => (node && hasCatalog(node.type) ? fitContextFor(tree, selectedId) : undefined),
+    [tree, selectedId, node],
+  );
 
   // Guard the last motor mount: deleting it — or turning its motorMount off —
   // leaves nowhere to seat a motor, so the rocket can no longer be simulated.
@@ -73,5 +81,6 @@ export function useSelectedComponent() {
     canRemove: !isOnlyStage,
     isFirstStage,
     parentRadius,
+    fit,
   };
 }

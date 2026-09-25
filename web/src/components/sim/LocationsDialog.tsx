@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
-import { useFocusTrap } from '../common/useFocusTrap';
+import { Dialog } from '../common/Dialog';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { LAUNCH_SI } from '../../prefs/launchUnits';
@@ -26,7 +26,6 @@ import { useLocationList } from './useLocationList';
 export function LocationsDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const patchLaunch = useWorkspaceStore((s) => s.patchLaunch);
-  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
   // The launch panel's own altitude unit and scope, so this list reads in feet
   // for somebody who works in feet rather than always in meters.
   const altUnit = useUnits().at(unitScope('launch', 'altitude'), LAUNCH_SI.distance.q);
@@ -57,40 +56,31 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div
-      className="dialog-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('location.manage')}
-    >
-      <div
-        ref={panelRef}
-        className="dialog-panel flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-slate-900 ring-1 ring-white/10"
-        onClick={(e) => e.stopPropagation()}
+    <>
+      <Dialog
+        id="locations"
+        title={t('location.manage')}
+        onClose={onClose}
+        size="md"
+        actions={
+          // The only way to add a location from the MENU, where no launch field is
+          // on screen to capture. From the launch panel the 💾 button is still the
+          // quicker route, since the numbers are already there.
+          <button
+            onClick={() => setEditing(null)}
+            className="rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+          >
+            {t('location.new')}
+          </button>
+        }
+        footer={
+          err ? (
+            <p role="status" aria-live="polite" className="px-4 py-2 text-xs text-amber-400">
+              {err}
+            </p>
+          ) : undefined
+        }
       >
-        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-          <h2 className="font-semibold text-slate-100">{t('location.manage')}</h2>
-          <div className="flex items-center gap-2">
-            {/* The only way to add a location from the MENU, where no launch field is
-                on screen to capture. From the launch panel the 💾 button is
-                still the quicker route, since the numbers are already there. */}
-            <button
-              onClick={() => setEditing(null)}
-              className="rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
-            >
-              {t('location.new')}
-            </button>
-            <button
-              onClick={onClose}
-              className="px-2 text-slate-400 hover:text-slate-200"
-              aria-label={t('common.close')}
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-
         {locations === null ? (
           <p className="px-4 py-8 text-center text-sm text-slate-400">{t('common.loading')}</p>
         ) : locations.length === 0 ? (
@@ -137,13 +127,7 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
             ))}
           </ul>
         )}
-
-        {err && (
-          <p role="status" aria-live="polite" className="border-t border-white/10 px-4 py-2 text-xs text-amber-400">
-            {err}
-          </p>
-        )}
-      </div>
+      </Dialog>
 
       {editing !== undefined && (
         <LocationEditDialog
@@ -158,6 +142,6 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
           }}
         />
       )}
-    </div>
+    </>
   );
 }

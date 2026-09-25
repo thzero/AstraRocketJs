@@ -13,6 +13,10 @@
     "discard": "Abandonner",
     "close": "Fermer"
   },
+  "dialog": {
+    "expand": "Élargir cette boîte de dialogue",
+    "shrink": "Rendre à cette boîte de dialogue sa taille normale"
+  },
   "errors": {
     "openOrk": "Impossible d'ouvrir le .ork : {{reason}}",
     "openExample": "Impossible d'ouvrir cet exemple : {{reason}}",
@@ -149,7 +153,6 @@
     "title": "Aide",
     "contents": "Sommaire",
     "back": "Retour",
-    "close": "Fermer",
     "openOnSite": "Ouvrir sur le site de documentation",
     "loading": "Chargement…",
     "missing": "La documentation ne fait pas partie de cette copie de {{name}}, ou elle n'a pas pu être lue. Vous pouvez toujours l'ouvrir en ligne."
@@ -1069,11 +1072,29 @@
   },
   "picker": {
     "pick": "Sélectionner une pièce… ({{count}})",
-    "close": "Fermer les pièces",
     "search": "Rechercher des pièces (fabricant, réf., description)…",
     "dialogTitle": "Sélectionner une pièce",
     "noResults": "Aucune pièce correspondante.",
-    "results": "{{count}} pièces"
+    "results_one": "{{count}} pièce",
+    "results_many": "{{count}} pièces",
+    "results_other": "{{count}} pièces",
+    "colMfr": "Fabr.",
+    "colPartNo": "Réf.",
+    "colOd": "Ø ext.",
+    "colId": "Ø int.",
+    "colLen": "Longueur",
+    "colFit": "Ajust.",
+    "colNotes": "Notes",
+    "allMfrs": "Tous les fabricants",
+    "allMaterials": "Tous les matériaux",
+    "allShapes": "Toutes les formes",
+    "odFrom": "min",
+    "odTo": "max",
+    "fitsOnly": "S'ajuste ici",
+    "fitsHint": "Uniquement les pièces qui s'ajustent à celle que celle-ci rejoint. Décochez pour voir tout le catalogue.",
+    "clear": "Effacer les filtres",
+    "showing": "{{shown}} sur {{total}} affichés",
+    "cdDefault": "Le catalogue ne publie pas de coefficient de traînée pour ce parachute : voici donc la valeur par défaut de l'application."
   },
   "dash": {
     "menu": "Tableau des moteurs",
@@ -1216,6 +1237,13 @@
     "allManufacturers": "Tous les fabricants",
     "mfrCount": "{{n}} fabricants",
     "diameter": "Diamètre",
+    "min": "min",
+    "max": "max",
+    "fitsMount": "Tient dans le support ({{bore}})",
+    "fitsMountHint": "Seuls les moteurs qui tiennent dans ce support : son diamètre intérieur et la longueur disponible, débord du moteur compris. Décochez pour voir tout le catalogue.",
+    "noResults": "Aucun moteur correspondant.",
+    "plugged": "Bouché",
+    "pluggedHint": "Uniquement les moteurs proposés sans charge d'éjection par le fabricant, pour l'étagement ou une récupération électronique. N'importe quel moteur peut être utilisé bouché depuis le réglage du retard.",
     "any": "Indifférent",
     "custom": "personnalisé",
     "searchCode": "Rechercher par code (p. ex. C6)…",

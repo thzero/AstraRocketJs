@@ -13,6 +13,10 @@
     "discard": "Odrzuć",
     "close": "Zamknij"
   },
+  "dialog": {
+    "expand": "Poszerz to okno",
+    "shrink": "Przywróć to okno do normalnego rozmiaru"
+  },
   "errors": {
     "openOrk": "Nie udało się otworzyć pliku .ork: {{reason}}",
     "openExample": "Nie udało się otworzyć tego przykładu: {{reason}}",
@@ -149,7 +153,6 @@
     "title": "Pomoc",
     "contents": "Spis treści",
     "back": "Wróć",
-    "close": "Zamknij",
     "openOnSite": "Otwórz w witrynie dokumentacji",
     "loading": "Wczytywanie…",
     "missing": "Dokumentacja nie wchodzi w skład tej kopii {{name}} albo nie da się jej odczytać. Nadal można ją otworzyć w internecie."
@@ -1074,11 +1077,30 @@
   },
   "picker": {
     "pick": "Wybierz część… ({{count}})",
-    "close": "Zamknij części",
     "search": "Szukaj części (producent, numer, opis)…",
     "dialogTitle": "Wybór części",
     "noResults": "Brak pasujących części.",
-    "results": "Części: {{count}}"
+    "results_one": "{{count}} część",
+    "results_few": "{{count}} części",
+    "results_many": "{{count}} części",
+    "results_other": "{{count}} części",
+    "colMfr": "Producent",
+    "colPartNo": "Nr kat.",
+    "colOd": "Ø zewn.",
+    "colId": "Ø wewn.",
+    "colLen": "Długość",
+    "colFit": "Dopasowanie",
+    "colNotes": "Uwagi",
+    "allMfrs": "Wszyscy producenci",
+    "allMaterials": "Wszystkie materiały",
+    "allShapes": "Wszystkie kształty",
+    "odFrom": "min",
+    "odTo": "maks",
+    "fitsOnly": "Pasuje tutaj",
+    "fitsHint": "Tylko części, które pasują do tego, z czym ta się łączy. Wyłącz, aby zobaczyć cały katalog.",
+    "clear": "Wyczyść filtry",
+    "showing": "Pokazano {{shown}} z {{total}}",
+    "cdDefault": "Katalog nie podaje współczynnika oporu dla tego spadochronu, więc to wartość domyślna aplikacji."
   },
   "dash": {
     "menu": "Przegląd silników",
@@ -1222,6 +1244,13 @@
     "allManufacturers": "Wszyscy producenci",
     "mfrCount": "Producentów: {{n}}",
     "diameter": "Średnica",
+    "min": "min",
+    "max": "maks",
+    "fitsMount": "Pasuje do komory ({{bore}})",
+    "fitsMountHint": "Tylko silniki, które mieszczą się w tej komorze: jej średnica wewnętrzna i dostępna długość wraz z wysunięciem silnika. Wyłącz, aby zobaczyć cały katalog.",
+    "noResults": "Brak pasujących silników.",
+    "plugged": "Zaślepiony",
+    "pluggedHint": "Tylko silniki oferowane przez producenta bez ładunku wyrzutowego, do stopniowania lub odzysku elektronicznego. Każdy silnik nadal można polecieć zaślepiony z ustawienia opóźnienia.",
     "any": "Dowolna",
     "custom": "własny",
     "searchCode": "Szukaj po oznaczeniu (np. C6)…",

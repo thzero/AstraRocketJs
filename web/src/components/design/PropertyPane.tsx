@@ -21,6 +21,7 @@ export function PropertyPane() {
         canRemove={sel.canRemove}
         isFirstStage={sel.isFirstStage}
         parentRadius={sel.parentRadius}
+        fit={sel.fit}
       />
     </div>
   );

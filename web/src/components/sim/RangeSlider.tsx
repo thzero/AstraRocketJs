@@ -12,12 +12,26 @@ export function RangeSlider({
   high,
   onChange,
   label,
+  stops,
 }: {
   count: number;
   low: number;
   high: number;
   onChange: (lo: number, hi: number) => void;
   label: string;
+  /**
+   * What each stop IS, one label per stop, drawn as a tick under the track and
+   * readable on hover.
+   *
+   * The stops are the standard motor diameters, not a continuous scale, and
+   * without marks the slider looked like one: nothing said that the ten
+   * positions were 6, 13, 18, 24, 29, 38, 54, 75, 98 and 150 mm, so there was no
+   * way to aim at a size except to drag and read the number back.
+   *
+   * Decorative for assistive tech, which gets the value from the inputs
+   * themselves, so the ticks are hidden from it rather than read out ten times.
+   */
+  stops?: string[];
 }) {
   const pct = (i: number) => (i / (count - 1)) * 100;
   return (
@@ -27,6 +41,20 @@ export function RangeSlider({
         className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-sky-500"
         style={{ left: `${pct(low)}%`, right: `${100 - pct(high)}%` }}
       />
+      {/* Under the track rather than on it, so the selected-range fill never
+          hides them, and lit within the range so the marks say which sizes are
+          in as well as where they are. */}
+      {stops?.map((stop, i) => (
+        <span
+          key={i}
+          aria-hidden
+          title={stop}
+          className={`absolute bottom-0 h-1.5 w-px -translate-x-1/2 ${
+            i >= low && i <= high ? 'bg-sky-400/80' : 'bg-slate-600'
+          }`}
+          style={{ left: `${pct(i)}%` }}
+        />
+      ))}
       <input
         type="range"
         min={0}

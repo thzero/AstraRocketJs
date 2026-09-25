@@ -97,21 +97,83 @@ test('predetermined delays show as chips and any motor can be flown plugged', as
   await expect(page.getByText('plugged', { exact: false }).first()).toBeVisible();
 });
 
-test('diameter range defaults to the mount fit and persists across reloads', async ({ page }) => {
-  let dialog = await openPicker(page);
+test('"fits the mount" pulls the diameter ceiling down to the mount, and gives it back', async ({ page }) => {
+  const dialog = await openPicker(page);
   const maxThumb = dialog.getByLabel('Diameter max');
+  const fits = dialog.getByRole('checkbox', { name: /Fits the mount/ });
 
-  // Default rocket's 18 mm mount → the top thumb sits on the 18 mm stop (index 2).
+  // On by default, and naming the bore it measures against. A measurement, not
+  // a hardcoded 18: the default mount's BORE is its 18 mm outer size less two
+  // walls, and what matters is that the filter names what it judges against.
+  await expect(fits).toBeChecked();
+  await expect(dialog.getByText(/Fits the mount \(\d+(\.\d+)? mm\)/)).toBeVisible();
+
+  /*
+   * The restriction is VISIBLE on the slider. Two earlier designs hid it: one
+   * seeded the ceiling from the mount on first open and then saved it as though
+   * the user had chosen it, so a range picked for an 18 mm mount followed them
+   * to a 54 mm one; the other capped the slider's TRACK while the box was
+   * ticked, and since the readout calls a thumb at the end of its track "Any",
+   * that made the box read "Any-Any" ticked and "Any-18 mm" clear - the exact
+   * opposite of what it says.
+   */
+  await expect(maxThumb).toHaveValue('2'); // STD_DIAMS [6, 13, 18, …] → 18 mm
+  await expect(dialog.getByText(/Any–18\.0 mm/)).toBeVisible();
+  // The whole track is still there to drag along.
+  await expect(maxThumb).toHaveAttribute('max', '9');
+
+  await fits.uncheck();
+  await expect(maxThumb).toHaveValue('9');
+  await expect(dialog.getByText(/Any–Any/)).toBeVisible();
+
+  await fits.check();
   await expect(maxThumb).toHaveValue('2');
+  await expect(dialog.getByText(/Any–18\.0 mm/)).toBeVisible();
 
-  // Widen the ceiling one stop (→ 24 mm, index 3) via the keyboard.
+  // Dragging the ceiling past what the mount takes is asking to see past the
+  // mount, so the box lets go rather than sitting there ticked and ignored.
   await maxThumb.focus();
   await maxThumb.press('ArrowRight');
   await expect(maxThumb).toHaveValue('3');
+  await expect(fits).not.toBeChecked();
+});
+
+test('the diameter range persists across reloads', async ({ page }) => {
+  let dialog = await openPicker(page);
+  // The fit box starts ticked, so the ceiling starts on the mount's stop (2).
+  // Narrow it one more, to 13 mm, which is the user's own choice and so the one
+  // that gets remembered - the mount's cap never is.
+  const maxThumb = dialog.getByLabel('Diameter max');
+  await maxThumb.focus();
+  await maxThumb.press('ArrowLeft');
+  await expect(maxThumb).toHaveValue('1');
 
   await page.reload();
   dialog = await openPicker(page);
-  await expect(dialog.getByLabel('Diameter max')).toHaveValue('3');
+  await expect(dialog.getByLabel('Diameter max')).toHaveValue('1');
+});
+
+test('the picker filters by total impulse', async ({ page }) => {
+  const dialog = await openPicker(page);
+  // The default rocket's 18 mm mount, so the list is 18 mm motors: A through D.
+  // Waited for, not just counted: the catalog is a ~1.6 MB fetch and `count()`
+  // does not retry, so an immediate count is only ever the empty loading list.
+  const rows = dialog.locator('ul li button[aria-pressed]');
+  await expect(rows.first()).toBeVisible();
+  const before = await rows.count();
+  expect(before).toBeGreaterThan(1);
+
+  // A floor no small motor clears. It is the question a class chip cannot ask:
+  // a class is a doubling bucket, so this lands between two letters.
+  await dialog.getByLabel('Total impulse min').fill('15');
+  await expect(rows).not.toHaveCount(before);
+  expect(await rows.count()).toBeGreaterThan(0);
+
+  // Past every 18 mm motor in the catalog: the list says so, and names the fit
+  // filter as the other reason a list can come up short.
+  await dialog.getByLabel('Total impulse min').fill('100000');
+  await expect(dialog.getByText('No matching motors.')).toBeVisible();
+  await expect(dialog.getByText(/Only motors that go in this mount/)).toBeVisible();
 });
 
 test('the manufacturer selection persists across reloads', async ({ page }) => {

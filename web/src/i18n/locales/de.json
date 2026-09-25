@@ -13,6 +13,10 @@
     "discard": "Verwerfen",
     "close": "Schließen"
   },
+  "dialog": {
+    "expand": "Dieses Fenster verbreitern",
+    "shrink": "Dieses Fenster auf die normale Größe zurücksetzen"
+  },
   "errors": {
     "openOrk": ".ork konnte nicht geöffnet werden: {{reason}}",
     "openExample": "Dieses Beispiel konnte nicht geöffnet werden: {{reason}}",
@@ -149,7 +153,6 @@
     "title": "Hilfe",
     "contents": "Inhalt",
     "back": "Zurück",
-    "close": "Schließen",
     "openOnSite": "Auf der Doku-Website öffnen",
     "loading": "Wird geladen…",
     "missing": "Die Dokumentation gehört nicht zu dieser Kopie von {{name}} oder konnte nicht gelesen werden. Sie können sie weiterhin online öffnen."
@@ -1064,11 +1067,28 @@
   },
   "picker": {
     "pick": "Bauteil auswählen… ({{count}})",
-    "close": "Bauteile schließen",
     "search": "Bauteile suchen (Hersteller, Art.-Nr., Beschreibung)…",
     "dialogTitle": "Ein Bauteil auswählen",
     "noResults": "Keine passenden Bauteile.",
-    "results": "{{count}} Bauteile"
+    "results_one": "{{count}} Teil",
+    "results_other": "{{count}} Teile",
+    "colMfr": "Herst.",
+    "colPartNo": "Art.-Nr.",
+    "colOd": "AD",
+    "colId": "ID",
+    "colLen": "Länge",
+    "colFit": "Passung",
+    "colNotes": "Hinweise",
+    "allMfrs": "Alle Hersteller",
+    "allMaterials": "Alle Materialien",
+    "allShapes": "Alle Formen",
+    "odFrom": "min",
+    "odTo": "max",
+    "fitsOnly": "Passt hier",
+    "fitsHint": "Nur Teile, die zu dem passen, woran dieses Teil ansetzt. Ausschalten, um den ganzen Katalog zu sehen.",
+    "clear": "Filter löschen",
+    "showing": "{{shown}} von {{total}} werden angezeigt",
+    "cdDefault": "Der Katalog nennt für diesen Fallschirm keinen Luftwiderstandsbeiwert; dies ist der Standardwert der App."
   },
   "dash": {
     "menu": "Motorübersicht",
@@ -1210,6 +1230,13 @@
     "allManufacturers": "Alle Hersteller",
     "mfrCount": "{{n}} Hersteller",
     "diameter": "Durchmesser",
+    "min": "min",
+    "max": "max",
+    "fitsMount": "Passt in die Halterung ({{bore}})",
+    "fitsMountHint": "Nur Motoren, die in diese Halterung passen: ihr Innendurchmesser und die verfügbare Länge einschließlich Motorüberhang. Zum Anzeigen des gesamten Katalogs deaktivieren.",
+    "noResults": "Keine passenden Motoren.",
+    "plugged": "Verschlossen",
+    "pluggedHint": "Nur Motoren, die der Hersteller ohne Ausstoßladung anbietet, für Stufung oder elektronische Bergung. Über die Verzögerungsauswahl kann weiterhin jeder Motor verschlossen geflogen werden.",
     "any": "Beliebig",
     "custom": "eigener",
     "searchCode": "Nach Code suchen (z. B. C6)…",

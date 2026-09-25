@@ -19,7 +19,7 @@ test.describe('work-in-progress gate', () => {
     const accept = page.getByRole('button', { name: 'I understand' });
     await expect(accept).toBeVisible();
 
-    // "Blocked" is not "hidden": the app renders behind a 70%-black backdrop, so
+    // "Blocked" is not "hidden": the app renders behind a dimmed backdrop, so
     // the Menu button is perfectly visible to `toBeVisible` and completely
     // unclickable. What matters is which element is actually on top at its
     // center — that backdrop absorbing a click is the whole reason a failed

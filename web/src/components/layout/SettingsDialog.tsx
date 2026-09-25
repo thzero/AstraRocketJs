@@ -4,7 +4,7 @@ import { useSettings } from '../../state/SettingsProvider';
 import { DEFAULT_SETTINGS, type SimulationSettings } from '../../services/settings';
 import { PART_KEYS, mergePalette } from '../../services/partColors';
 import { NumberInput } from '../common/NumberInput';
-import { useFocusTrap } from '../common/useFocusTrap';
+import { Dialog } from '../common/Dialog';
 import { DefaultMaterials } from './DefaultMaterials';
 import { LaunchPanel } from '../sim/LaunchPanel';
 import { withRequiredFrom } from '../../services/requiredLaunch';
@@ -36,7 +36,6 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const { settings, update, reset } = useSettings();
   const u = useUnits();
   const [tab, setTab] = useState<TabKey>('general');
-  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
   // Stored in radians like the kernel's field; edited in the user's angle
   // unit through the same FieldUnit the property panel's angle fields use,
   // rather than an inline `* 180 / Math.PI`.
@@ -65,29 +64,20 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="dialog-overlay fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
-      <div
-        ref={panelRef}
-        className="dialog-panel flex h-[560px] max-h-[85vh] w-full max-w-lg flex-col rounded-2xl bg-slate-900 ring-1 ring-white/10"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('settings.title')}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between gap-3 border-b border-white/10 p-4">
-          <h2 className="text-lg font-semibold text-slate-100">{t('settings.title')}</h2>
-          <button
-            onClick={onClose}
-            aria-label={t('settings.close')}
-            className="shrink-0 rounded-lg bg-slate-800 px-2 py-1 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Tabs. A real tablist: which section is open was signalled by
-            background color alone, which a screen reader cannot announce. */}
-        <div role="tablist" className="flex flex-wrap gap-1 px-4 pt-3">
+    <Dialog
+      id="settings"
+      title={t('settings.title')}
+      onClose={onClose}
+      size="lg"
+      // A fixed height, because eight tabs holding between two rows and thirty
+      // would otherwise resize and re-center the dialog every time you moved
+      // between them.
+      height={560}
+      toolbar={
+        // Tabs. A real tablist: which section is open was signalled by
+        // background color alone, which a screen reader cannot announce. In the
+        // toolbar band so it stays put while a long tab scrolls.
+        <div role="tablist" aria-label={t('settings.title')} className="flex flex-wrap gap-1 p-3">
           {TABS.map((tb) => (
             <button
               key={tb.key}
@@ -100,344 +90,9 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             </button>
           ))}
         </div>
-
-        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
-          {tab === 'materials' && (
-            <DefaultMaterials
-              defaults={settings.defaultMaterials}
-              onChange={(defaultMaterials) => update({ defaultMaterials })}
-            />
-          )}
-
-          {tab === 'colors' && (
-            <>
-              {/* Part colors apply to the 3D model, which a phone reaches
-                  through the Sketch tab just as a desktop reaches it through the
-                  view switch — so this is not gated on width. */}
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                {t('settings.parts')}
-              </div>
-              {PART_KEYS.map((key) => (
-                <ColorRow
-                  key={key}
-                  label={t(`settings.part.${key}`)}
-                  value={palette[key]}
-                  overridden={key in settings.partColors}
-                  onChange={(c) => setPart(key, c)}
-                  onReset={() => resetPart(key)}
-                  resetTitle={t('settings.resetOne')}
-                />
-              ))}
-              {/* Taste, not correctness: the default is a magnitude ramp, and
-                  OpenRocket's green-to-red is here for anyone who reads that
-                  faster because they already know it from the desktop. */}
-              <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                {t('settings.aeroHeat')}
-              </div>
-              <label className="flex items-center justify-between gap-3 text-sm text-slate-300">
-                {t('settings.aeroHeatLabel')}
-                <select
-                  value={settings.aeroHeat}
-                  onChange={(e) => update({ aeroHeat: e.target.value as 'sky' | 'openrocket' })}
-                  className="w-44 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
-                >
-                  <option value="sky">{t('settings.aeroHeatSky')}</option>
-                  <option value="openrocket">{t('settings.aeroHeatOr')}</option>
-                </select>
-              </label>
-              <p className="text-[11px] leading-snug text-slate-500">{t('settings.aeroHeatNote')}</p>
-
-              <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                {t('settings.phases')}
-              </div>
-              <ColorRow
-                label={t('flight.boost')}
-                value={settings.phaseColors.boost}
-                onChange={(c) => setPhase('boost', c)}
-              />
-              <ColorRow
-                label={t('flight.coast')}
-                value={settings.phaseColors.coast}
-                onChange={(c) => setPhase('coast', c)}
-              />
-              <ColorRow
-                label={t('flight.descent')}
-                value={settings.phaseColors.descent}
-                onChange={(c) => setPhase('descent', c)}
-              />
-            </>
-          )}
-
-          {tab === 'general' && (
-            <>
-              <p className="text-[11px] leading-snug text-slate-500">{t('settings.generalNote')}</p>
-              <CheckRow
-                label={t('settings.saveDesignInfo')}
-                checked={settings.saveDesignInfo}
-                onChange={(v) => update({ saveDesignInfo: v })}
-              />
-            </>
-          )}
-
-          {tab === 'units' && (
-            <>
-              <p className="text-[11px] leading-snug text-slate-500">{t('settings.unitsNote')}</p>
-              {/* Whole-system presets first: most people want "imperial" and are
-                  done, and only then reach in to change one quantity. A preset
-                  is a clean slate, so it also drops every per-field override —
-                  otherwise "Imperial defaults" would leave a field a chip had
-                  touched still showing its old unit. */}
-              <div className="flex gap-2 pb-1">
-                <button
-                  onClick={() => update({ units: METRIC_UNITS, unitOverrides: {} })}
-                  className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
-                >
-                  {t('settings.unitsMetric')}
-                </button>
-                <button
-                  onClick={() => update({ units: IMPERIAL_UNITS, unitOverrides: {} })}
-                  className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
-                >
-                  {t('settings.unitsImperial')}
-                </button>
-              </div>
-              {QUANTITIES.map((q) => (
-                <label key={q} className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-slate-300">{t(`units.q.${q}`)}</span>
-                  <select
-                    aria-label={t(`units.q.${q}`)}
-                    value={settings.units[q]}
-                    onChange={(e) => update({ units: { ...settings.units, [q]: e.target.value } })}
-                    className="w-28 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
-                  >
-                    {UNITS[q].map((u) => (
-                      <option key={u.symbol} value={u.symbol}>
-                        {u.symbol}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ))}
-              {/* A unit set from a chip lives on one field, which makes it easy
-                  to forget where it was: a field showing inches while this tab
-                  says cm looks like a bug unless you remember changing it. This
-                  is the one place that can say how many there are and undo them
-                  all — hidden when there are none, so it is never noise. */}
-              {overriddenFields > 0 && (
-                <button
-                  onClick={() => update({ unitOverrides: {} })}
-                  className="mt-1 w-full rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-amber-300 ring-1 ring-white/10 hover:bg-slate-700"
-                >
-                  {t('settings.unitsClearFields', { count: overriddenFields })}
-                </button>
-              )}
-            </>
-          )}
-
-          {tab === 'playback' && (
-            <label className="flex items-center justify-between gap-3">
-              <span className="text-sm text-slate-300">{t('settings.defaultSpeed')}</span>
-              <select
-                value={settings.playbackSpeed}
-                onChange={(e) => update({ playbackSpeed: parseFloat(e.target.value) })}
-                className="rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
-              >
-                {SPEEDS.map((s) => (
-                  <option key={s} value={s}>
-                    {speedLabel(s)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-
-          {tab === 'sketch' && (
-            <>
-              <p className="text-[11px] leading-snug text-slate-500">{t('settings.sketchNote')}</p>
-              <CheckRow
-                label={t('settings.sketchMarkers')}
-                checked={settings.showMarkers}
-                onChange={(v) => update({ showMarkers: v })}
-              />
-              <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                {t('settings.sketchRulers')}
-              </div>
-              {RULER_SIDES.map((side) => (
-                <CheckRow
-                  key={side}
-                  label={t(`view.ruler_${side}`)}
-                  checked={settings.rulers[side]}
-                  onChange={(v) => update({ rulers: { ...settings.rulers, [side]: v } })}
-                />
-              ))}
-            </>
-          )}
-
-          {tab === 'sim' && (
-            <>
-              <CheckRow
-                label={t('settings.confirmDelete')}
-                checked={settings.simulation.confirmDelete}
-                onChange={(v) => setSim({ confirmDelete: v })}
-              />
-              {/* 'Run outdated simulations automatically' hidden for now (setting still
-                  defaults to off; the auto-run effect just never triggers). */}
-              <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                {t('settings.simOptions')}
-              </div>
-              <InfoRow label={t('settings.calcMethod')} value="Extended Barrowman" />
-              <InfoRow label={t('settings.simMethod')} value="6-DOF Runge-Kutta 4" />
-              <NumRow
-                label={t('settings.timeStep')}
-                unit="s"
-                step={0.01}
-                min={0.001}
-                // maxTime / timeStep IS the solver's iteration count, and both
-                // ends were open. 1000000 s (a plausible slip for 1000) at the
-                // default 0.01 s step asks for 100 M integration steps, with
-                // no way to interrupt the run.
-                max={10}
-                value={settings.simulation.timeStep}
-                onChange={(v) => setSim({ timeStep: v ?? DEFAULT_SETTINGS.simulation.timeStep })}
-              />
-              <NumRow
-                label={t('settings.maxTime')}
-                unit="s"
-                step={60}
-                min={1}
-                max={10000}
-                value={settings.simulation.maxTime}
-                onChange={(v) => setSim({ maxTime: v ?? DEFAULT_SETTINGS.simulation.maxTime })}
-              />
-              <NumRow
-                label={t('settings.maxAngleStep')}
-                unit={angle.sym}
-                step={angle.step((0.5 * Math.PI) / 180)}
-                min={angle.toUi((0.05 * Math.PI) / 180)}
-                value={angle.toUi(settings.simulation.maxAngleStep)}
-                onChange={(v) =>
-                  setSim({
-                    maxAngleStep: v == null ? DEFAULT_SETTINGS.simulation.maxAngleStep : angle.fromUi(v),
-                  })
-                }
-              />
-              <NumRow
-                label={t('settings.randomSeed')}
-                step={1}
-                placeholder={t('settings.seedAuto')}
-                value={settings.simulation.randomSeed}
-                onChange={(v) => setSim({ randomSeed: v })}
-              />
-              <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                {t('settings.warnings')}
-              </div>
-              <NumRow
-                label={t('settings.railExitMin')}
-                hint={t('settings.railExitMinHint')}
-                unit={u.sym('velocity')}
-                step={u.step('velocity', 1)}
-                min={0}
-                value={u.toUi('velocity', settings.simulation.railExitVelocityMin)}
-                onChange={(v) =>
-                  setSim({
-                    railExitVelocityMin:
-                      v == null ? DEFAULT_SETTINGS.simulation.railExitVelocityMin : u.fromUi('velocity', v),
-                  })
-                }
-              />
-              {/* The three deployment thresholds. Which one a flight uses depends
-                  on the stage's recovery layout: no drogue is single-deployment
-                  and uses the first alone; a drogue makes it dual-deployment, and
-                  the main is then judged against the next two while the drogue is
-                  judged against the last. All of them reach the kernel, not just
-                  the tiles (which is all `deploySpeedWarn` used to be). The last
-                  three need a device marked as a drogue to apply at all. */}
-              <NumRow
-                label={t('settings.deploySpeedWarn')}
-                hint={t('settings.deploySpeedWarnHint')}
-                unit={u.sym('velocity')}
-                step={u.step('velocity', 1)}
-                min={0}
-                value={u.toUi('velocity', settings.simulation.deploymentSpeedWarn)}
-                onChange={(v) =>
-                  setSim({
-                    deploymentSpeedWarn:
-                      v == null ? DEFAULT_SETTINGS.simulation.deploymentSpeedWarn : u.fromUi('velocity', v),
-                  })
-                }
-              />
-              <NumRow
-                label={t('settings.mainHighSpeedWarn')}
-                hint={t('settings.mainHighSpeedWarnHint')}
-                unit={u.sym('velocity')}
-                step={u.step('velocity', 1)}
-                min={0}
-                value={u.toUi('velocity', settings.simulation.mainHighSpeedWarn)}
-                onChange={(v) =>
-                  setSim({
-                    mainHighSpeedWarn:
-                      v == null ? DEFAULT_SETTINGS.simulation.mainHighSpeedWarn : u.fromUi('velocity', v),
-                  })
-                }
-              />
-              <NumRow
-                label={t('settings.mainLowSpeedWarn')}
-                hint={t('settings.mainLowSpeedWarnHint')}
-                unit={u.sym('velocity')}
-                step={u.step('velocity', 1)}
-                min={0}
-                value={u.toUi('velocity', settings.simulation.mainLowSpeedWarn)}
-                onChange={(v) =>
-                  setSim({
-                    mainLowSpeedWarn:
-                      v == null ? DEFAULT_SETTINGS.simulation.mainLowSpeedWarn : u.fromUi('velocity', v),
-                  })
-                }
-              />
-              {/* The drogue side of the same pair, live since the fork enables the
-                  check upstream leaves commented out. Like the two above it only
-                  applies to a stage carrying a device marked as a drogue. */}
-              <NumRow
-                label={t('settings.drogueLowSpeedWarn')}
-                hint={t('settings.drogueLowSpeedWarnHint')}
-                unit={u.sym('velocity')}
-                step={u.step('velocity', 1)}
-                min={0}
-                value={u.toUi('velocity', settings.simulation.drogueLowSpeedWarn)}
-                onChange={(v) =>
-                  setSim({
-                    drogueLowSpeedWarn:
-                      v == null ? DEFAULT_SETTINGS.simulation.drogueLowSpeedWarn : u.fromUi('velocity', v),
-                  })
-                }
-              />
-            </>
-          )}
-
-          {tab === 'launch' && (
-            <>
-              <p className="text-[11px] leading-snug text-slate-500">{t('settings.launchNote')}</p>
-              {/* These are the values a NEW simulation is seeded from, so a
-                  blank one would hand every future simulation a hole. Clearing
-                  a required field here keeps what it had rather than storing
-                  the blank -- which is why no red marker ever shows up in this
-                  copy of the panel. */}
-              <LaunchPanel
-                launch={settings.launchDefaults}
-                onChange={(patch) =>
-                  update({
-                    launchDefaults: withRequiredFrom(
-                      { ...settings.launchDefaults, ...patch },
-                      DEFAULT_SETTINGS.launchDefaults,
-                    ),
-                  })
-                }
-              />
-            </>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between gap-2 border-t border-white/10 p-4">
+      }
+      footer={
+        <div className="flex items-center justify-between gap-2 p-4">
           <div className="flex gap-2">
             <button
               onClick={resetSection}
@@ -459,8 +114,343 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             {t('settings.close')}
           </button>
         </div>
+      }
+    >
+      <div className="space-y-2 p-4">
+        {tab === 'materials' && (
+          <DefaultMaterials
+            defaults={settings.defaultMaterials}
+            onChange={(defaultMaterials) => update({ defaultMaterials })}
+          />
+        )}
+
+        {tab === 'colors' && (
+          <>
+            {/* Part colors apply to the 3D model, which a phone reaches
+                  through the Sketch tab just as a desktop reaches it through the
+                  view switch — so this is not gated on width. */}
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              {t('settings.parts')}
+            </div>
+            {PART_KEYS.map((key) => (
+              <ColorRow
+                key={key}
+                label={t(`settings.part.${key}`)}
+                value={palette[key]}
+                overridden={key in settings.partColors}
+                onChange={(c) => setPart(key, c)}
+                onReset={() => resetPart(key)}
+                resetTitle={t('settings.resetOne')}
+              />
+            ))}
+            {/* Taste, not correctness: the default is a magnitude ramp, and
+                  OpenRocket's green-to-red is here for anyone who reads that
+                  faster because they already know it from the desktop. */}
+            <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              {t('settings.aeroHeat')}
+            </div>
+            <label className="flex items-center justify-between gap-3 text-sm text-slate-300">
+              {t('settings.aeroHeatLabel')}
+              <select
+                value={settings.aeroHeat}
+                onChange={(e) => update({ aeroHeat: e.target.value as 'sky' | 'openrocket' })}
+                className="w-44 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+              >
+                <option value="sky">{t('settings.aeroHeatSky')}</option>
+                <option value="openrocket">{t('settings.aeroHeatOr')}</option>
+              </select>
+            </label>
+            <p className="text-[11px] leading-snug text-slate-500">{t('settings.aeroHeatNote')}</p>
+
+            <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              {t('settings.phases')}
+            </div>
+            <ColorRow
+              label={t('flight.boost')}
+              value={settings.phaseColors.boost}
+              onChange={(c) => setPhase('boost', c)}
+            />
+            <ColorRow
+              label={t('flight.coast')}
+              value={settings.phaseColors.coast}
+              onChange={(c) => setPhase('coast', c)}
+            />
+            <ColorRow
+              label={t('flight.descent')}
+              value={settings.phaseColors.descent}
+              onChange={(c) => setPhase('descent', c)}
+            />
+          </>
+        )}
+
+        {tab === 'general' && (
+          <>
+            <p className="text-[11px] leading-snug text-slate-500">{t('settings.generalNote')}</p>
+            <CheckRow
+              label={t('settings.saveDesignInfo')}
+              checked={settings.saveDesignInfo}
+              onChange={(v) => update({ saveDesignInfo: v })}
+            />
+          </>
+        )}
+
+        {tab === 'units' && (
+          <>
+            <p className="text-[11px] leading-snug text-slate-500">{t('settings.unitsNote')}</p>
+            {/* Whole-system presets first: most people want "imperial" and are
+                  done, and only then reach in to change one quantity. A preset
+                  is a clean slate, so it also drops every per-field override —
+                  otherwise "Imperial defaults" would leave a field a chip had
+                  touched still showing its old unit. */}
+            <div className="flex gap-2 pb-1">
+              <button
+                onClick={() => update({ units: METRIC_UNITS, unitOverrides: {} })}
+                className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+              >
+                {t('settings.unitsMetric')}
+              </button>
+              <button
+                onClick={() => update({ units: IMPERIAL_UNITS, unitOverrides: {} })}
+                className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+              >
+                {t('settings.unitsImperial')}
+              </button>
+            </div>
+            {QUANTITIES.map((q) => (
+              <label key={q} className="flex items-center justify-between gap-3">
+                <span className="text-sm text-slate-300">{t(`units.q.${q}`)}</span>
+                <select
+                  aria-label={t(`units.q.${q}`)}
+                  value={settings.units[q]}
+                  onChange={(e) => update({ units: { ...settings.units, [q]: e.target.value } })}
+                  className="w-28 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+                >
+                  {UNITS[q].map((u) => (
+                    <option key={u.symbol} value={u.symbol}>
+                      {u.symbol}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+            {/* A unit set from a chip lives on one field, which makes it easy
+                  to forget where it was: a field showing inches while this tab
+                  says cm looks like a bug unless you remember changing it. This
+                  is the one place that can say how many there are and undo them
+                  all — hidden when there are none, so it is never noise. */}
+            {overriddenFields > 0 && (
+              <button
+                onClick={() => update({ unitOverrides: {} })}
+                className="mt-1 w-full rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-amber-300 ring-1 ring-white/10 hover:bg-slate-700"
+              >
+                {t('settings.unitsClearFields', { count: overriddenFields })}
+              </button>
+            )}
+          </>
+        )}
+
+        {tab === 'playback' && (
+          <label className="flex items-center justify-between gap-3">
+            <span className="text-sm text-slate-300">{t('settings.defaultSpeed')}</span>
+            <select
+              value={settings.playbackSpeed}
+              onChange={(e) => update({ playbackSpeed: parseFloat(e.target.value) })}
+              className="rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+            >
+              {SPEEDS.map((s) => (
+                <option key={s} value={s}>
+                  {speedLabel(s)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {tab === 'sketch' && (
+          <>
+            <p className="text-[11px] leading-snug text-slate-500">{t('settings.sketchNote')}</p>
+            <CheckRow
+              label={t('settings.sketchMarkers')}
+              checked={settings.showMarkers}
+              onChange={(v) => update({ showMarkers: v })}
+            />
+            <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              {t('settings.sketchRulers')}
+            </div>
+            {RULER_SIDES.map((side) => (
+              <CheckRow
+                key={side}
+                label={t(`view.ruler_${side}`)}
+                checked={settings.rulers[side]}
+                onChange={(v) => update({ rulers: { ...settings.rulers, [side]: v } })}
+              />
+            ))}
+          </>
+        )}
+
+        {tab === 'sim' && (
+          <>
+            <CheckRow
+              label={t('settings.confirmDelete')}
+              checked={settings.simulation.confirmDelete}
+              onChange={(v) => setSim({ confirmDelete: v })}
+            />
+            {/* 'Run outdated simulations automatically' hidden for now (setting still
+                  defaults to off; the auto-run effect just never triggers). */}
+            <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              {t('settings.simOptions')}
+            </div>
+            <InfoRow label={t('settings.calcMethod')} value="Extended Barrowman" />
+            <InfoRow label={t('settings.simMethod')} value="6-DOF Runge-Kutta 4" />
+            <NumRow
+              label={t('settings.timeStep')}
+              unit="s"
+              step={0.01}
+              min={0.001}
+              // maxTime / timeStep IS the solver's iteration count, and both
+              // ends were open. 1000000 s (a plausible slip for 1000) at the
+              // default 0.01 s step asks for 100 M integration steps, with
+              // no way to interrupt the run.
+              max={10}
+              value={settings.simulation.timeStep}
+              onChange={(v) => setSim({ timeStep: v ?? DEFAULT_SETTINGS.simulation.timeStep })}
+            />
+            <NumRow
+              label={t('settings.maxTime')}
+              unit="s"
+              step={60}
+              min={1}
+              max={10000}
+              value={settings.simulation.maxTime}
+              onChange={(v) => setSim({ maxTime: v ?? DEFAULT_SETTINGS.simulation.maxTime })}
+            />
+            <NumRow
+              label={t('settings.maxAngleStep')}
+              unit={angle.sym}
+              step={angle.step((0.5 * Math.PI) / 180)}
+              min={angle.toUi((0.05 * Math.PI) / 180)}
+              value={angle.toUi(settings.simulation.maxAngleStep)}
+              onChange={(v) =>
+                setSim({
+                  maxAngleStep: v == null ? DEFAULT_SETTINGS.simulation.maxAngleStep : angle.fromUi(v),
+                })
+              }
+            />
+            <NumRow
+              label={t('settings.randomSeed')}
+              step={1}
+              placeholder={t('settings.seedAuto')}
+              value={settings.simulation.randomSeed}
+              onChange={(v) => setSim({ randomSeed: v })}
+            />
+            <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              {t('settings.warnings')}
+            </div>
+            <NumRow
+              label={t('settings.railExitMin')}
+              hint={t('settings.railExitMinHint')}
+              unit={u.sym('velocity')}
+              step={u.step('velocity', 1)}
+              min={0}
+              value={u.toUi('velocity', settings.simulation.railExitVelocityMin)}
+              onChange={(v) =>
+                setSim({
+                  railExitVelocityMin:
+                    v == null ? DEFAULT_SETTINGS.simulation.railExitVelocityMin : u.fromUi('velocity', v),
+                })
+              }
+            />
+            {/* The three deployment thresholds. Which one a flight uses depends
+                  on the stage's recovery layout: no drogue is single-deployment
+                  and uses the first alone; a drogue makes it dual-deployment, and
+                  the main is then judged against the next two while the drogue is
+                  judged against the last. All of them reach the kernel, not just
+                  the tiles (which is all `deploySpeedWarn` used to be). The last
+                  three need a device marked as a drogue to apply at all. */}
+            <NumRow
+              label={t('settings.deploySpeedWarn')}
+              hint={t('settings.deploySpeedWarnHint')}
+              unit={u.sym('velocity')}
+              step={u.step('velocity', 1)}
+              min={0}
+              value={u.toUi('velocity', settings.simulation.deploymentSpeedWarn)}
+              onChange={(v) =>
+                setSim({
+                  deploymentSpeedWarn:
+                    v == null ? DEFAULT_SETTINGS.simulation.deploymentSpeedWarn : u.fromUi('velocity', v),
+                })
+              }
+            />
+            <NumRow
+              label={t('settings.mainHighSpeedWarn')}
+              hint={t('settings.mainHighSpeedWarnHint')}
+              unit={u.sym('velocity')}
+              step={u.step('velocity', 1)}
+              min={0}
+              value={u.toUi('velocity', settings.simulation.mainHighSpeedWarn)}
+              onChange={(v) =>
+                setSim({
+                  mainHighSpeedWarn:
+                    v == null ? DEFAULT_SETTINGS.simulation.mainHighSpeedWarn : u.fromUi('velocity', v),
+                })
+              }
+            />
+            <NumRow
+              label={t('settings.mainLowSpeedWarn')}
+              hint={t('settings.mainLowSpeedWarnHint')}
+              unit={u.sym('velocity')}
+              step={u.step('velocity', 1)}
+              min={0}
+              value={u.toUi('velocity', settings.simulation.mainLowSpeedWarn)}
+              onChange={(v) =>
+                setSim({
+                  mainLowSpeedWarn: v == null ? DEFAULT_SETTINGS.simulation.mainLowSpeedWarn : u.fromUi('velocity', v),
+                })
+              }
+            />
+            {/* The drogue side of the same pair, live since the fork enables the
+                  check upstream leaves commented out. Like the two above it only
+                  applies to a stage carrying a device marked as a drogue. */}
+            <NumRow
+              label={t('settings.drogueLowSpeedWarn')}
+              hint={t('settings.drogueLowSpeedWarnHint')}
+              unit={u.sym('velocity')}
+              step={u.step('velocity', 1)}
+              min={0}
+              value={u.toUi('velocity', settings.simulation.drogueLowSpeedWarn)}
+              onChange={(v) =>
+                setSim({
+                  drogueLowSpeedWarn:
+                    v == null ? DEFAULT_SETTINGS.simulation.drogueLowSpeedWarn : u.fromUi('velocity', v),
+                })
+              }
+            />
+          </>
+        )}
+
+        {tab === 'launch' && (
+          <>
+            <p className="text-[11px] leading-snug text-slate-500">{t('settings.launchNote')}</p>
+            {/* These are the values a NEW simulation is seeded from, so a
+                  blank one would hand every future simulation a hole. Clearing
+                  a required field here keeps what it had rather than storing
+                  the blank -- which is why no red marker ever shows up in this
+                  copy of the panel. */}
+            <LaunchPanel
+              launch={settings.launchDefaults}
+              onChange={(patch) =>
+                update({
+                  launchDefaults: withRequiredFrom(
+                    { ...settings.launchDefaults, ...patch },
+                    DEFAULT_SETTINGS.launchDefaults,
+                  ),
+                })
+              }
+            />
+          </>
+        )}
       </div>
-    </div>
+    </Dialog>
   );
 }
 

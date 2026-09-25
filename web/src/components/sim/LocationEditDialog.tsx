@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NumberInput } from '../common/NumberInput';
 import { UnitChip } from '../common/UnitChip';
-import { useFocusTrap } from '../common/useFocusTrap';
+import { Dialog } from '../common/Dialog';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { LAUNCH_SI } from '../../prefs/launchUnits';
@@ -69,7 +69,6 @@ export function LocationEditDialog({
 }) {
   const { t } = useTranslation();
   const u = useUnits();
-  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onCancel });
   const nameRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(location?.name ?? '');
@@ -117,22 +116,21 @@ export function LocationEditDialog({
   };
 
   return (
-    <div
-      className="dialog-overlay fixed inset-0 z-[70] grid place-items-center bg-black/60 p-4"
-      // Rendered INSIDE the locations dialog's overlay, so a bare onCancel here
-      // would bubble and dismiss both at once.
-      onClick={(e) => {
-        e.stopPropagation();
-        onCancel();
-      }}
-      role="dialog"
-      aria-modal="true"
-      aria-label={location ? t('location.edit') : t('location.new')}
+    <Dialog
+      id="locationEdit"
+      title={location ? t('location.edit') : t('location.new')}
+      onClose={onCancel}
+      // It opens from the locations dialog, which is itself opened over the
+      // launch panel: the third layer up.
+      layer="top"
+      size="3xl"
+      layout="pad"
     >
       <div
-        ref={panelRef}
-        className="dialog-panel w-full max-w-3xl space-y-3 rounded-2xl bg-slate-900 p-6 ring-1 ring-white/10"
-        onClick={(e) => e.stopPropagation()}
+        className="space-y-3"
+        // On the wrapper rather than the panel, which the shell owns. Keydown
+        // bubbles from whichever field is being typed into, so this still
+        // catches Enter anywhere in the form.
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault();
@@ -140,8 +138,6 @@ export function LocationEditDialog({
           }
         }}
       >
-        <h2 className="text-base font-semibold text-slate-100">{location ? t('location.edit') : t('location.new')}</h2>
-
         <div className="grid gap-4 sm:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
           <div className="space-y-2">
             <label className="block text-xs text-slate-400">
@@ -230,6 +226,6 @@ export function LocationEditDialog({
           </button>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

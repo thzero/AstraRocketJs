@@ -72,4 +72,72 @@ describe('useFocusTrap', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onEscape).not.toHaveBeenCalled();
   });
+
+  /**
+   * The listener has to be on the window, because a dialog is not always the
+   * thing focused when Escape is pressed. That meant every open surface heard
+   * every Escape, and two of them both closed: dismissing the rename prompt
+   * inside the design library shut the library behind it too.
+   */
+  describe('with more than one surface open', () => {
+    it('gives Escape to the one on top, and only that one', () => {
+      const under = vi.fn();
+      const over = vi.fn();
+      render(
+        <>
+          <Panel active onEscape={under} />
+          <Panel active onEscape={over} />
+        </>,
+      );
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(over).toHaveBeenCalledTimes(1);
+      expect(under).not.toHaveBeenCalled();
+    });
+
+    it('hands it back once the top one closes', () => {
+      const under = vi.fn();
+      const over = vi.fn();
+      const { rerender } = render(
+        <>
+          <Panel active onEscape={under} />
+          <Panel active onEscape={over} />
+        </>,
+      );
+      rerender(
+        <>
+          <Panel active onEscape={under} />
+        </>,
+      );
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(under).toHaveBeenCalledTimes(1);
+      expect(over).not.toHaveBeenCalled();
+    });
+
+    it('swallows it under a surface that cannot be dismissed', () => {
+      // A modal with no onEscape is one that must not close on it
+      // (WorkInProgressDialog). While it is on top, Escape does nothing at all
+      // rather than closing whatever sits underneath.
+      const under = vi.fn();
+      render(
+        <>
+          <Panel active onEscape={under} />
+          <Panel active />
+        </>,
+      );
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(under).not.toHaveBeenCalled();
+    });
+
+    it('does not count a surface whose trap is off', () => {
+      const under = vi.fn();
+      render(
+        <>
+          <Panel active onEscape={under} />
+          <Panel active={false} onEscape={vi.fn()} />
+        </>,
+      );
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(under).toHaveBeenCalledTimes(1);
+    });
+  });
 });

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
-import { useFocusTrap } from '../common/useFocusTrap';
+import { Dialog } from '../common/Dialog';
 import { loadExampleIndex, type ExampleMeta } from '../../services/exampleLibrary';
 
 /**
@@ -82,32 +82,16 @@ export function ExampleList({ onClose }: { onClose: () => void }) {
 /** The standalone picker, raised by Menu → Import → Examples. */
 export function ExamplesDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
-  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
 
   return (
-    <div
-      className="dialog-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('library.examplesTitle')}
+    <Dialog
+      id="examples"
+      title={t('library.examplesTitle')}
+      onClose={onClose}
+      size="lg"
+      toolbar={<p className="px-4 py-2 text-xs leading-snug text-slate-400">{t('library.examplesIntro')}</p>}
     >
-      <div
-        ref={panelRef}
-        className="dialog-panel flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-slate-900 ring-1 ring-white/10"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-          <h2 className="font-semibold text-slate-100">{t('library.examplesTitle')}</h2>
-          <button onClick={onClose} className="px-2 text-slate-400 hover:text-slate-200" aria-label={t('common.close')}>
-            ✕
-          </button>
-        </div>
-        <p className="border-b border-white/10 px-4 py-2 text-xs leading-snug text-slate-400">
-          {t('library.examplesIntro')}
-        </p>
-        <ExampleList onClose={onClose} />
-      </div>
-    </div>
+      <ExampleList onClose={onClose} />
+    </Dialog>
   );
 }

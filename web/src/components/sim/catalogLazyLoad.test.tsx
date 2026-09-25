@@ -47,14 +47,15 @@ describe('the 1.6 MB motor catalog is only fetched when a dialog opens', () => {
   it('MotorDialog does not fetch while closed', () => {
     const open = false;
     renderWithProviders(
-      <>{open && <MotorDialog onClose={() => {}} onSelect={() => {}} onError={() => {}} mountDiameter={18} />}</>,
+      <>{open && <MotorDialog onClose={() => {}} onSelect={() => {}} onError={() => {}} mount={{ bore: 18 }} />}</>,
     );
     expect(loadCatalog).not.toHaveBeenCalled();
   });
 
   it('MotorDialog fetches once it is opened', () => {
-    // 18 mm: the prop is the mount bore in millimeters, as MotorRow passes it.
-    renderWithProviders(<MotorDialog onClose={() => {}} onSelect={() => {}} onError={() => {}} mountDiameter={18} />);
+    // 18 mm bore, as MotorRow passes it. No length, which is the shape a mount
+    // whose tube cannot be measured arrives in.
+    renderWithProviders(<MotorDialog onClose={() => {}} onSelect={() => {}} onError={() => {}} mount={{ bore: 18 }} />);
     expect(loadCatalog).toHaveBeenCalledTimes(1);
   });
 });

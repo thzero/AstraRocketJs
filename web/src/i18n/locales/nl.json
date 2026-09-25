@@ -13,6 +13,10 @@
     "discard": "Weggooien",
     "close": "Sluiten"
   },
+  "dialog": {
+    "expand": "Dit venster breder maken",
+    "shrink": "Dit venster weer op normale grootte zetten"
+  },
   "errors": {
     "openOrk": "Kon het .ork-bestand niet openen: {{reason}}",
     "openExample": "Kon dat voorbeeld niet openen: {{reason}}",
@@ -149,7 +153,6 @@
     "title": "Help",
     "contents": "Inhoud",
     "back": "Terug",
-    "close": "Sluiten",
     "openOnSite": "Openen op de documentatiesite",
     "loading": "Laden…",
     "missing": "De documentatie zit niet in deze kopie van {{name}}, of kon niet worden gelezen. Je kunt die nog wel online openen."
@@ -1064,11 +1067,28 @@
   },
   "picker": {
     "pick": "Onderdeel kiezen… ({{count}})",
-    "close": "Onderdelen sluiten",
     "search": "Onderdelen zoeken (fabrikant, artikelnr., beschrijving)…",
     "dialogTitle": "Een onderdeel kiezen",
     "noResults": "Geen passende onderdelen.",
-    "results": "{{count}} onderdelen"
+    "results_one": "{{count}} onderdeel",
+    "results_other": "{{count}} onderdelen",
+    "colMfr": "Fabr.",
+    "colPartNo": "Artikelnr.",
+    "colOd": "Buiten-Ø",
+    "colId": "Binnen-Ø",
+    "colLen": "Lengte",
+    "colFit": "Passing",
+    "colNotes": "Notities",
+    "allMfrs": "Alle fabrikanten",
+    "allMaterials": "Alle materialen",
+    "allShapes": "Alle vormen",
+    "odFrom": "min",
+    "odTo": "max",
+    "fitsOnly": "Past hier",
+    "fitsHint": "Alleen onderdelen die passen op wat dit onderdeel raakt. Zet het uit om de hele catalogus te zien.",
+    "clear": "Filters wissen",
+    "showing": "{{shown}} van {{total}} weergegeven",
+    "cdDefault": "De catalogus geeft voor deze parachute geen weerstandscoëfficiënt, dus dit is de standaardwaarde van de app."
   },
   "dash": {
     "menu": "Motoroverzicht",
@@ -1210,6 +1230,13 @@
     "allManufacturers": "Alle fabrikanten",
     "mfrCount": "{{n}} fabrikanten",
     "diameter": "Diameter",
+    "min": "min",
+    "max": "max",
+    "fitsMount": "Past in de houder ({{bore}})",
+    "fitsMountHint": "Alleen motoren die in deze houder passen: de binnendiameter en de beschikbare lengte, inclusief de uitsteek van de motor. Zet uit om de hele catalogus te zien.",
+    "noResults": "Geen overeenkomende motoren.",
+    "plugged": "Afgesloten",
+    "pluggedHint": "Alleen motoren die de fabrikant zonder uitstootlading levert, voor trapscheiding of elektronische berging. Elke motor kan nog steeds afgesloten worden gevlogen via de vertragingsinstelling.",
     "any": "Alle",
     "custom": "eigen",
     "searchCode": "Zoeken op code (bv. C6)…",

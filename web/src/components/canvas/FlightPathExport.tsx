@@ -30,7 +30,7 @@ import {
   type StageTrackStart,
 } from '../../services/flightPathExport';
 import { getTemplateStore, parseTemplateFilename, type UserTemplate } from '../../services/templateStore';
-import { useFocusTrap } from '../common/useFocusTrap';
+import { Dialog } from '../common/Dialog';
 import { decodeStageColors, encodeStageColors } from '../../services/settings';
 import { useSettings } from '../../state/SettingsProvider';
 import { LANGUAGES } from '../../i18n';
@@ -101,11 +101,6 @@ export function ExportDialog({
   result: import('../../engine/openRocketEngine').FlightResult;
 }) {
   const { t, i18n } = useTranslation();
-  // Tab stays inside the modal, and focus returns to the trigger on close.
-  // Seven dialogs declared aria-modal and had neither, so Tab walked straight
-  // out into the page behind the overlay — the exact gap useFocusTrap exists
-  // to close, already used by seven of their siblings.
-  const panelRef = useFocusTrap<HTMLDivElement>(true);
   const store = useMemo(() => getTemplateStore(), []);
   const [selected, setSelected] = useState<string>(EXPORT_FORMATS[0]!.id);
   const units = useUnits();
@@ -340,27 +335,20 @@ export function ExportDialog({
   };
 
   return (
-    <div className="dialog-overlay fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
-      <div
-        ref={panelRef}
-        className="dialog-panel max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-slate-900 p-5 ring-1 ring-white/10"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('pathExport.title')}
-        onClick={(e) => e.stopPropagation()}
+    <>
+      <Dialog
+        id="pathExport"
+        title={t('pathExport.title')}
+        onClose={onClose}
+        size="md"
+        // A form of sections, read top to bottom. A rule under the heading would
+        // be one more line in something that already has plenty.
+        layout="pad"
+        // A column of labeled fields at a readable measure. Widening it would
+        // stretch the rows, not show more of anything.
+        expandable={false}
       >
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-base font-semibold text-slate-100">{t('pathExport.title')}</h2>
-          <button
-            onClick={onClose}
-            aria-label={t('pathExport.cancel')}
-            className="shrink-0 rounded-lg bg-slate-800 px-2 py-1 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="mt-4 space-y-4">
+        <div className="space-y-4">
           {/* Format */}
           <div className="space-y-2">
             <label className="flex items-center justify-between gap-3">
@@ -658,7 +646,11 @@ export function ExportDialog({
             {t('pathExport.download')}
           </button>
         </div>
-      </div>
+      </Dialog>
+
+      {/* Outside the Dialog, not inside its panel: it is its own surface on its
+          own layer, and rendered within the panel it would inherit the panel's
+          clipping. */}
       {colorsOpen && (
         <StageColorDialog
           names={branchNames}
@@ -672,7 +664,7 @@ export function ExportDialog({
           }}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -727,23 +719,14 @@ function StageColorDialog({
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
-  const panelRef = useFocusTrap<HTMLDivElement>(true);
   const [drafts, setDrafts] = useState<Record<ColorRole, Map<number, number>>>(() => ({
     path: new Map(colors),
     ground: new Map(groundColors),
     pin: new Map(pinColors),
   }));
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation(); // the export dialog listens too; close only this one
-        onCancel();
-      }
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [onCancel]);
+  // The capture-phase Escape listener that used to live here, with a
+  // `stopPropagation` so the export dialog behind it did not close too, is now
+  // the shell's rule for every dialog: Escape reaches the topmost one only.
 
   const setColor = (role: ColorRole, i: number, rgb: number) =>
     setDrafts((d) => {
@@ -753,17 +736,20 @@ function StageColorDialog({
     });
 
   return (
-    <div className="dialog-overlay fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4" onClick={onCancel}>
-      <div
-        ref={panelRef}
-        className="dialog-panel max-h-[80vh] w-full max-w-sm overflow-y-auto rounded-2xl bg-slate-900 p-5 ring-1 ring-white/10"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('pathExport.stageColorsTitle')}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-base font-semibold text-slate-100">{t('pathExport.stageColorsTitle')}</h2>
-        <div className="mt-3 space-y-1.5">
+    <Dialog
+      id="pathExportColors"
+      title={t('pathExport.stageColorsTitle')}
+      onClose={onCancel}
+      // Opened from the export dialog, which is itself a base dialog.
+      layer="over"
+      size="sm"
+      layout="pad"
+      // Three swatch columns and a stage name. There is nothing here that more
+      // width would reveal.
+      expandable={false}
+    >
+      <>
+        <div className="space-y-1.5">
           {/* Header row: three columns is past the point where a bare swatch
               says what it paints. */}
           <div className="flex items-center justify-between gap-2 pb-1">
@@ -814,8 +800,8 @@ function StageColorDialog({
             {t('pathExport.apply')}
           </button>
         </div>
-      </div>
-    </div>
+      </>
+    </Dialog>
   );
 }
 

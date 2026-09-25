@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useFocusTrap } from '../common/useFocusTrap';
+import { Dialog } from '../common/Dialog';
 import { SiteMap } from './SiteMap';
 
 /**
@@ -28,32 +28,22 @@ export function SiteMapDialog({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
 
   return (
-    <div
-      className="dialog-overlay fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('map.title')}
+    <Dialog
+      id="siteMap"
+      title={t('map.title')}
+      onClose={onClose}
+      // It opens over the simulation panel, which is itself inside a dialog when
+      // reached from the location editor.
+      layer="over"
+      size="3xl"
+      // A map cannot usefully scroll, so the body takes the height and the map
+      // fills it. `role="dialog"` used to sit on the OVERLAY here, which told
+      // assistive tech the whole viewport was the dialog.
+      layout="fill"
     >
-      <div
-        ref={panelRef}
-        className="dialog-panel flex h-[80vh] max-h-[44rem] w-full max-w-3xl flex-col gap-3 rounded-2xl bg-slate-900 p-4 ring-1 ring-white/10"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-slate-100">{t('map.title')}</h2>
-          <button
-            onClick={onClose}
-            className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-300 hover:text-slate-100"
-          >
-            {t('common.close')}
-          </button>
-        </div>
-        <SiteMap latitudeDeg={latitudeDeg} longitudeDeg={longitudeDeg} onPick={onPick} className="min-h-0 flex-1" />
-      </div>
-    </div>
+      <SiteMap latitudeDeg={latitudeDeg} longitudeDeg={longitudeDeg} onPick={onPick} className="m-4 min-h-0 flex-1" />
+    </Dialog>
   );
 }

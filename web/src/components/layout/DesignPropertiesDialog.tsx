@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useFocusTrap } from '../common/useFocusTrap';
+import { Dialog } from '../common/Dialog';
 
 /**
  * Name/rename a saved design. Used by File > Save As... and by Rename in the
@@ -32,7 +32,6 @@ export function DesignPropertiesDialog({
   const { t } = useTranslation();
   const [name, setName] = useState(initialName);
   const inputRef = useRef<HTMLInputElement>(null);
-  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onCancel });
 
   // Select the seeded name so typing replaces it. A frame later: the focus
   // trap has just moved focus into the panel, and a select() before that
@@ -50,60 +49,52 @@ export function DesignPropertiesDialog({
   };
 
   return (
-    <div
-      className="dialog-overlay fixed inset-0 z-[70] grid place-items-center bg-black/60 p-4"
-      // This dialog is rendered INSIDE another overlay (the library's), so a
-      // bare onCancel here would bubble and dismiss both at once.
-      onClick={(e) => {
-        e.stopPropagation();
-        onCancel();
-      }}
+    <Dialog
+      id="designProperties"
+      title={title}
+      onClose={onCancel}
+      // It renders inside the library's overlay, so it needs the layer above it.
+      // The backdrop click no longer has to guard against dismissing both: the
+      // shell stops it bubbling for every dialog.
+      layer="top"
+      layout="pad"
+      // One field and two buttons. Nothing to widen.
+      expandable={false}
     >
-      <div
-        ref={panelRef}
-        className="dialog-panel w-full max-w-sm rounded-2xl bg-slate-900 p-6 ring-1 ring-white/10"
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-base font-semibold text-slate-100">{title}</h2>
+      <label htmlFor="design-name" className="mt-4 block text-xs font-medium text-slate-400">
+        {t('library.name')}
+      </label>
+      <input
+        id="design-name"
+        ref={inputRef}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') submit();
+        }}
+        maxLength={80}
+        className="mt-1 w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-100 ring-1 ring-white/10 focus:ring-sky-500"
+      />
 
-        <label htmlFor="design-name" className="mt-4 block text-xs font-medium text-slate-400">
-          {t('library.name')}
-        </label>
-        <input
-          id="design-name"
-          ref={inputRef}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') submit();
-          }}
-          maxLength={80}
-          className="mt-1 w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-100 ring-1 ring-white/10 focus:ring-sky-500"
-        />
-
-        {/* A duplicate name is allowed (designs are keyed by id, not name) but
+      {/* A duplicate name is allowed (designs are keyed by id, not name) but
             two identical rows in the library are confusing, so say so. */}
-        {duplicate && <p className="mt-2 text-xs text-amber-300">{t('library.duplicateName')}</p>}
+      {duplicate && <p className="mt-2 text-xs text-amber-300">{t('library.duplicateName')}</p>}
 
-        <div className="mt-6 flex justify-end gap-2">
-          <button
-            onClick={onCancel}
-            className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
-          >
-            {t('common.cancel')}
-          </button>
-          <button
-            onClick={submit}
-            disabled={trimmed === ''}
-            className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-50"
-          >
-            {confirmLabel}
-          </button>
-        </div>
+      <div className="mt-6 flex justify-end gap-2">
+        <button
+          onClick={onCancel}
+          className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+        >
+          {t('common.cancel')}
+        </button>
+        <button
+          onClick={submit}
+          disabled={trimmed === ''}
+          className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-50"
+        >
+          {confirmLabel}
+        </button>
       </div>
-    </div>
+    </Dialog>
   );
 }

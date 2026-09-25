@@ -13,6 +13,10 @@
     "discard": "破棄",
     "close": "閉じる"
   },
+  "dialog": {
+    "expand": "このダイアログを広げる",
+    "shrink": "このダイアログを元の大きさに戻す"
+  },
   "errors": {
     "openOrk": ".ork を開けませんでした：{{reason}}",
     "openExample": "そのサンプルを開けませんでした：{{reason}}",
@@ -149,7 +153,6 @@
     "title": "ヘルプ",
     "contents": "目次",
     "back": "戻る",
-    "close": "閉じる",
     "openOnSite": "ドキュメントサイトで開く",
     "loading": "読み込み中…",
     "missing": "この {{name}} にはドキュメントが含まれていないか、読み込めませんでした。オンラインで開くことはできます。"
@@ -1059,11 +1062,27 @@
   },
   "picker": {
     "pick": "部品を選択…（{{count}}）",
-    "close": "部品一覧を閉じる",
     "search": "部品を検索（メーカー、品番、説明）…",
     "dialogTitle": "部品を選択",
     "noResults": "該当する部品がありません。",
-    "results": "部品 {{count}} 件"
+    "results_other": "部品 {{count}} 件",
+    "colMfr": "メーカー",
+    "colPartNo": "品番",
+    "colOd": "外径",
+    "colId": "内径",
+    "colLen": "長さ",
+    "colFit": "適合",
+    "colNotes": "備考",
+    "allMfrs": "すべてのメーカー",
+    "allMaterials": "すべての材料",
+    "allShapes": "すべての形状",
+    "odFrom": "最小",
+    "odTo": "最大",
+    "fitsOnly": "ここに合うもの",
+    "fitsHint": "この部品が接する相手に合う部品だけを表示します。オフにするとカタログ全体が表示されます。",
+    "clear": "絞り込みを解除",
+    "showing": "{{total}} 件中 {{shown}} 件を表示",
+    "cdDefault": "このパラシュートの抗力係数はカタログに記載がないため、アプリの既定値を表示しています。"
   },
   "dash": {
     "menu": "モーター一覧",
@@ -1204,6 +1223,13 @@
     "allManufacturers": "すべてのメーカー",
     "mfrCount": "メーカー {{n}} 社",
     "diameter": "直径",
+    "min": "最小",
+    "max": "最大",
+    "fitsMount": "マウントに収まる ({{bore}})",
+    "fitsMountHint": "このマウントに収まるモーターのみ。内径と、モーターの突き出しを含めて収まる長さで判定します。オフにするとカタログ全体を表示します。",
+    "noResults": "一致するモーターがありません。",
+    "plugged": "プラグド",
+    "pluggedHint": "メーカーが射出薬なしで提供しているモーターのみ。多段化や電子式回収に使います。どのモーターでも遅延の設定からプラグドで飛ばせます。",
     "any": "すべて",
     "custom": "独自",
     "searchCode": "型式で検索（例：C6）…",

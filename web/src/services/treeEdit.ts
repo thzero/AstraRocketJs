@@ -6,6 +6,7 @@
  */
 import type { ComponentNode, ComponentType, RocketTree } from '../engine/openRocketEngine';
 import type { Component } from './componentDb';
+import { DEFAULT_CHUTE_CD } from './componentFilter';
 import { KERNEL_DEFAULTS } from '../tree/kernelDefaults.js';
 import { isChainType } from '../tree/componentKinds';
 import { uuid } from './uuid';
@@ -217,10 +218,13 @@ export function allowedChildren(parentType: string | undefined): ComponentType[]
   return ALLOWED_CHILDREN[parentType ?? 'stage'] ?? [];
 }
 
-// Node types that can be picked from the parts catalog (componentDb types).
+// Node types that can be picked from the parts catalog. Mostly componentDb's own
+// types, plus `innertube`, which is served by the body tube rows: see
+// componentDb.catalogTypeFor for why it has no catalog of its own.
 const CATALOG_TYPES: ReadonlySet<string> = new Set([
   'nosecone',
   'bodytube',
+  'innertube',
   'tubecoupler',
   'centeringring',
   'bulkhead',
@@ -286,7 +290,7 @@ export function catalogPatch(p: Component): Partial<ComponentNode> {
     case 'bulkhead':
       return { outerRadius: p.outerDiameter / 2, length: p.length, ...mat };
     case 'parachute':
-      return { diameter: p.diameter, cd: p.cd ?? 0.8 };
+      return { diameter: p.diameter, cd: p.cd ?? DEFAULT_CHUTE_CD };
   }
 }
 

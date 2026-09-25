@@ -10,6 +10,7 @@
 import { getMotorStore, type CustomMotor } from './motorStore';
 import { MIN_CURVE_SAMPLES } from './motorCurve';
 import { parseEng, totalImpulse } from './engParser';
+import { motorFitsMount, offersPlugged, type MountFit } from './motorPicker';
 import { fetchCatalog } from './remoteData';
 
 /** One catalog row — the VC sync utility's schema, plus optional custom-motor tags. */
@@ -150,6 +151,23 @@ export interface MotorFilter {
   /** Diameter range (mm), inclusive. Undefined ends = open. Defaults fit the mount. */
   minDiameter?: number;
   maxDiameter?: number;
+  /**
+   * Total impulse range (N·s), inclusive. Undefined ends = open.
+   *
+   * Not the same question as the impulse CLASS above, which is why both exist: a
+   * class is a doubling bucket, so H spans 160 to 320 N·s, and "at least 400 N·s"
+   * is a number that comes out of a design rather than a letter you can pick.
+   */
+  minImpulse?: number;
+  maxImpulse?: number;
+  /** Keep only motors that go in this mount (see motorFitsMount). */
+  fit?: MountFit;
+  /**
+   * Keep only motors the manufacturer lists as available plugged. What the spec
+   * says rather than what is possible: any motor can be FLOWN plugged (see
+   * offersPlugged), so this finds the ones built without an ejection charge.
+   */
+  plugged?: boolean;
 }
 
 export function filterMotors(catalog: CatalogMotor[], filter: MotorFilter): CatalogMotor[] {
@@ -159,6 +177,10 @@ export function filterMotors(catalog: CatalogMotor[], filter: MotorFilter): Cata
     if (filter.manufacturers.size > 0 && !filter.manufacturers.has(m.manufacturer)) return false;
     if (filter.minDiameter != null && m.diameter < filter.minDiameter) return false;
     if (filter.maxDiameter != null && m.diameter > filter.maxDiameter) return false;
+    if (filter.minImpulse != null && m.impulse < filter.minImpulse) return false;
+    if (filter.maxImpulse != null && m.impulse > filter.maxImpulse) return false;
+    if (filter.fit && !motorFitsMount(m, filter.fit)) return false;
+    if (filter.plugged && !offersPlugged(m)) return false;
     if (text && !m.designation.toLowerCase().includes(text)) return false;
     return true;
   });

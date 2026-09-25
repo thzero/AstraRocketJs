@@ -73,6 +73,22 @@ interface ComponentMap {
 export type ComponentType = keyof ComponentMap;
 export type Component = ComponentMap[ComponentType];
 
+/**
+ * A node type the picker can serve, which is NOT the same set as the catalog's
+ * own types: an inner tube has no catalog of its own.
+ *
+ * Neither does it upstream. OpenRocket's preset files carry a `BodyTube` block
+ * and nothing for inner tubes, because an inner tube IS dimensionally a body
+ * tube, and 51 of the body tube rows are explicitly motor mount tubes
+ * (`Blue Tube, 1.15"/29mm, MMT`). So an inner tube picks from the body tubes,
+ * the same way desktop OpenRocket does, and `catalogPatch` needs no new case
+ * because the row it receives is a body tube row.
+ */
+export type PickerType = ComponentType | 'innertube';
+
+/** The catalog type whose rows serve a node type. */
+export const catalogTypeFor = (t: PickerType): ComponentType => (t === 'innertube' ? 'bodytube' : t);
+
 interface ComponentCatalog {
   generated: string;
   count: number;

@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LaunchConditions, WindLevel } from '../../services/orkTree';
 import { NumberInput } from '../common/NumberInput';
-import { useFocusTrap } from '../common/useFocusTrap';
+import { Dialog } from '../common/Dialog';
 import { useUnits, type Units } from '../../prefs/useUnits';
 import { MAX_WIND_SPEED_MS } from '../../services/safetyLimits';
 import { hasIntensity, stdDevForIntensity, turbulenceIntensity, turbulenceLevel } from '../../services/windTurbulence';
@@ -117,7 +117,6 @@ export function WindProfileDialog({
 }) {
   const { t } = useTranslation();
   const u = useUnits();
-  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
   const fileRef = useRef<HTMLInputElement>(null);
   const [showVectors, setShowVectors] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -190,28 +189,20 @@ export function WindProfileDialog({
   };
 
   return (
-    <div className="dialog-overlay fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4" onClick={onClose}>
-      <div
-        ref={panelRef}
-        className="dialog-panel w-full max-w-4xl rounded-2xl bg-slate-900 p-6 ring-1 ring-white/10"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('windProfile.title')}
-        onClick={(e) => e.stopPropagation()}
-        onBlur={onCommit}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-lg font-semibold text-slate-100">{t('windProfile.title')}</h2>
-          <button
-            onClick={onClose}
-            aria-label={t('common.close')}
-            className="shrink-0 rounded-lg bg-slate-800 px-2 py-1 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_280px]">
+    <Dialog
+      id="windProfile"
+      title={t('windProfile.title')}
+      onClose={onClose}
+      // Opened from the launch panel inside the simulation editor's dialog.
+      layer="over"
+      size="4xl"
+      layout="pad"
+    >
+      {/* The commit-on-blur sits on a wrapper rather than the panel the shell
+          owns. Blur bubbles (React's onBlur is focusout), so every field inside
+          still commits when it is left. */}
+      <div onBlur={onCommit}>
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_280px]">
           <div className="min-w-0">
             <div className="flex gap-1 px-1 pb-1 text-[10px] uppercase tracking-wide text-slate-500">
               <span className="w-20">
@@ -392,6 +383,6 @@ export function WindProfileDialog({
           </button>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PLUGGED_DELAY, type MotorSpec, type IgnitionEvent } from '../../engine/openRocketEngine';
 import { MotorDialog } from './MotorDialog';
+import type { MountFit } from '../../services/motorPicker';
 import { MotorSpecDialog } from './MotorSpecDialog';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
@@ -20,7 +21,7 @@ export function MotorRow({
   motor,
   onChange,
   onError,
-  mountDiameter,
+  mount,
   title,
   ignition,
   onIgnitionChange,
@@ -31,8 +32,9 @@ export function MotorRow({
   motor: MotorSpec | null;
   onChange: (m: MotorSpec) => void;
   onError: (msg: string | null) => void;
-  /** Motor-mount bore (mm) — enables the picker's "only motors that fit" filter. */
-  mountDiameter?: number | null;
+  /** The mount's bore and the length it has room for (mm), which drive the
+   *  picker's "fits the mount" filter. */
+  mount?: MountFit | null;
   /** Card heading (e.g. "Motor - Center mount"); defaults to just "Motor". */
   title?: string;
   /** When this mount's motor ignites (defaults to automatic). */
@@ -131,7 +133,7 @@ export function MotorRow({
           onClose={() => setOpen(false)}
           onSelect={onChange}
           onError={onError}
-          mountDiameter={mountDiameter}
+          mount={mount}
           current={motor}
         />
       )}

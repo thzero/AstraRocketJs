@@ -13,6 +13,10 @@
     "discard": "Discard",
     "close": "Close"
   },
+  "dialog": {
+    "expand": "Make this dialog wider",
+    "shrink": "Return this dialog to its normal size"
+  },
   "errors": {
     "openOrk": "Could not open .ork: {{reason}}",
     "openExample": "Could not open that example: {{reason}}",
@@ -149,7 +153,6 @@
     "title": "Help",
     "contents": "Contents",
     "back": "Back",
-    "close": "Close",
     "openOnSite": "Open on the docs site",
     "loading": "Loading…",
     "missing": "The documentation is not part of this copy of {{name}}, or it could not be read. You can still open it online."
@@ -1064,11 +1067,28 @@
   },
   "picker": {
     "pick": "Select part… ({{count}})",
-    "close": "Close parts",
     "search": "Search parts (mfr, part #, description)…",
     "dialogTitle": "Select a part",
     "noResults": "No matching parts.",
-    "results": "{{count}} parts"
+    "results_one": "{{count}} part",
+    "results_other": "{{count}} parts",
+    "colMfr": "Mfr.",
+    "colPartNo": "Part no.",
+    "colOd": "OD",
+    "colId": "ID",
+    "colLen": "Length",
+    "colFit": "Fit",
+    "colNotes": "Notes",
+    "allMfrs": "All manufacturers",
+    "allMaterials": "All materials",
+    "allShapes": "All shapes",
+    "odFrom": "min",
+    "odTo": "max",
+    "fitsOnly": "Fits here",
+    "fitsHint": "Only parts that fit what this one has to join. Turn it off to see the whole catalog.",
+    "clear": "Clear filters",
+    "showing": "Showing {{shown}} of {{total}}",
+    "cdDefault": "The catalog does not publish a drag coefficient for this parachute, so this is the default the app applies."
   },
   "dash": {
     "menu": "Motor Dashboard",
@@ -1210,6 +1230,13 @@
     "allManufacturers": "All manufacturers",
     "mfrCount": "{{n}} manufacturers",
     "diameter": "Diameter",
+    "min": "min",
+    "max": "max",
+    "fitsMount": "Fits the mount ({{bore}})",
+    "fitsMountHint": "Only motors that go in this mount: its bore, and the length it has room for including the motor overhang. Turn it off to see the whole catalog.",
+    "noResults": "No matching motors.",
+    "plugged": "Plugged",
+    "pluggedHint": "Only motors the manufacturer lists without an ejection charge, for staging or electronic recovery. Any motor can still be flown plugged from the delay control.",
     "any": "Any",
     "custom": "custom",
     "searchCode": "Search by code (e.g. C6)…",

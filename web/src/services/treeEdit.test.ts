@@ -147,6 +147,10 @@ describe('mount + type rules', () => {
   it('hasCatalog / hasMaterial classify types', () => {
     expect(hasCatalog('nosecone')).toBe(true);
     expect(hasCatalog('trapezoidfinset')).toBe(false);
+    // An inner tube can be picked even though the catalog has no such type:
+    // it reads the body tube rows, 51 of which are motor mount tubes. See
+    // componentDb.catalogTypeFor.
+    expect(hasCatalog('innertube')).toBe(true);
     expect(hasMaterial('bodytube')).toBe(true);
     expect(hasMaterial('parachute')).toBe(false);
   });

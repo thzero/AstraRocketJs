@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
-import { useFocusTrap } from '../common/useFocusTrap';
+import { Dialog } from '../common/Dialog';
 import { printableParts } from '../../services/rocketPrintExport';
 
 /**
@@ -20,7 +20,6 @@ export function PrintExportDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const tree = useWorkspaceStore((s) => s.tree);
   const exportPrint = useWorkspaceStore((s) => s.exportPrint);
-  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
 
   const parts = useMemo(() => printableParts(tree), [tree]);
   // What the list shows, and what the file's object names become for a part
@@ -40,47 +39,21 @@ export function PrintExportDialog({ onClose }: { onClose: () => void }) {
       return next;
     });
 
+  const empty = parts.length === 0;
   return (
-    <div
-      className="dialog-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('print.title')}
-    >
-      <div
-        ref={panelRef}
-        className="dialog-panel flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-slate-900 ring-1 ring-white/10"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-          <h2 className="font-semibold text-slate-100">{t('print.title')}</h2>
-          <button onClick={onClose} className="px-2 text-slate-400 hover:text-slate-200" aria-label={t('common.close')}>
-            ✕
-          </button>
-        </div>
-
-        {parts.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-slate-400">{t('print.nothing')}</p>
-        ) : (
+    <Dialog
+      id="printExport"
+      title={t('print.title')}
+      onClose={onClose}
+      size="lg"
+      // The intro and the options/Save row are PINNED, above and below the part
+      // list, which is the only thing here that can grow. Leaving them in the
+      // flow put the Save button below however many parts the design has.
+      toolbar={empty ? undefined : <p className="px-4 py-2 text-xs leading-snug text-slate-400">{t('print.intro')}</p>}
+      footer={
+        empty ? undefined : (
           <>
-            <p className="border-b border-white/10 px-4 py-2 text-xs leading-snug text-slate-400">{t('print.intro')}</p>
-            <ul className="min-h-0 flex-1 overflow-y-auto px-4 py-2">
-              {parts.map((p) => (
-                <li key={p.id} style={{ paddingLeft: `${p.depth * 14}px` }}>
-                  <label className="flex items-center gap-2 py-1 text-sm text-slate-200">
-                    <input
-                      type="checkbox"
-                      checked={!excluded.has(p.id)}
-                      onChange={() => toggle(p.id)}
-                      className="accent-sky-500"
-                    />
-                    {label(p)}
-                  </label>
-                </li>
-              ))}
-            </ul>
-            <div className="space-y-2 border-t border-white/10 px-4 py-3">
+            <div className="space-y-2 px-4 py-3">
               <label className="flex items-center gap-2 text-xs text-slate-300">
                 <input
                   type="checkbox"
@@ -120,8 +93,28 @@ export function PrintExportDialog({ onClose }: { onClose: () => void }) {
               </button>
             </div>
           </>
-        )}
-      </div>
-    </div>
+        )
+      }
+    >
+      {empty ? (
+        <p className="px-4 py-8 text-center text-sm text-slate-400">{t('print.nothing')}</p>
+      ) : (
+        <ul className="px-4 py-2">
+          {parts.map((p) => (
+            <li key={p.id} style={{ paddingLeft: `${p.depth * 14}px` }}>
+              <label className="flex items-center gap-2 py-1 text-sm text-slate-200">
+                <input
+                  type="checkbox"
+                  checked={!excluded.has(p.id)}
+                  onChange={() => toggle(p.id)}
+                  className="accent-sky-500"
+                />
+                {label(p)}
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Dialog>
   );
 }

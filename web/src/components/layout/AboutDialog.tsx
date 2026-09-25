@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { appName, APP_VERSION, CONTRIBUTORS_URL, isPreRelease, UPSTREAM } from '../../services/appInfo';
 import { fetchCatalog } from '../../services/remoteData';
-import { useFocusTrap } from '../common/useFocusTrap';
+import { Dialog } from '../common/Dialog';
 
 interface Contributor {
   login: string;
@@ -54,152 +54,133 @@ const LINKS: [string, string][] = [
  *  engine, full .ork support), version, and credits. Copy lives in i18n.
  *  Mounted only while open (`{open && <AboutDialog />}`). */
 export function AboutDialog({ onClose }: { onClose: () => void }) {
-  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
   const { t } = useTranslation();
   const CONTRIBUTORS = useContributors();
   return (
-    <div className="dialog-overlay fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
-      <div
-        ref={panelRef}
-        className="dialog-panel w-full max-w-lg rounded-2xl bg-slate-900 p-6 ring-1 ring-white/10"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('about.open')}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">🚀</span>
-            <div>
-              <h2 className="text-lg font-semibold text-slate-100">{appName()}</h2>
-              <p className="text-xs text-slate-400">
-                {t('about.tagline')} · v{APP_VERSION}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label={t('about.close')}
-            className="shrink-0 rounded-lg bg-slate-800 px-2 py-1 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
-          >
-            ✕
-          </button>
-        </div>
+    <Dialog id="about" title={appName()} onClose={onClose} layout="pad" size="lg">
+      {/* The rocket, the tagline and the version used to be part of a bespoke
+          header. The header is shared now and has one shape, and these read as
+          content rather than chrome, so they open the body instead. */}
+      <div className="mb-4 flex items-center gap-3">
+        <span className="text-3xl">🚀</span>
+        <p className="text-xs text-slate-400">
+          {t('about.tagline')} · v{APP_VERSION}
+        </p>
+      </div>
 
-        <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-300">
-          {isPreRelease() && (
-            <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-amber-300 ring-1 ring-amber-400/30">
-              {t('about.wip')}
-            </p>
-          )}
-          <p>{t('about.body', { name: appName() })}</p>
-          <p>{t('about.ork')}</p>
-          <p>
-            <Trans
-              i18nKey="about.scope"
-              components={{
-                orLink: (
-                  <a
-                    href="https://openrocket.info"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sky-400 hover:underline"
-                  />
-                ),
-              }}
-            />
+      <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-300">
+        {isPreRelease() && (
+          <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-amber-300 ring-1 ring-amber-400/30">
+            {t('about.wip')}
           </p>
-        </div>
-
-        {CONTRIBUTORS.length > 0 && (
-          <div className="mt-4 border-t border-white/10 pt-3 text-xs leading-relaxed text-slate-500">
-            <p>
-              {/* The heading links to the full contributor graph when one is
-                  configured — the list here is a build-time snapshot. */}
-              {CONTRIBUTORS_URL ? (
+        )}
+        <p>{t('about.body', { name: appName() })}</p>
+        <p>{t('about.ork')}</p>
+        <p>
+          <Trans
+            i18nKey="about.scope"
+            components={{
+              orLink: (
                 <a
-                  href={CONTRIBUTORS_URL}
+                  href="https://openrocket.info"
                   target="_blank"
                   rel="noreferrer"
-                  title={t('about.contributorsAll')}
                   className="text-sky-400 hover:underline"
-                >
-                  {t('about.contributors')}
-                </a>
-              ) : (
-                t('about.contributors')
-              )}
-            </p>
-            <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-2">
-              {CONTRIBUTORS.map((c) => (
-                <li key={c.login}>
-                  <a
-                    href={c.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1.5 text-sky-400 hover:underline"
-                  >
-                    {c.avatar ? (
-                      <img src={c.avatar} alt="" aria-hidden className="size-5 rounded-full ring-1 ring-white/10" />
-                    ) : (
-                      <span
-                        aria-hidden
-                        className="grid size-5 place-items-center rounded-full bg-slate-800 text-[10px] font-medium text-slate-300 ring-1 ring-white/10"
-                      >
-                        {c.login.charAt(0).toUpperCase()}
-                      </span>
-                    )}
-                    {c.login}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+                />
+              ),
+            }}
+          />
+        </p>
+      </div>
 
+      {CONTRIBUTORS.length > 0 && (
         <div className="mt-4 border-t border-white/10 pt-3 text-xs leading-relaxed text-slate-500">
-          <p>{t('about.credits')}</p>
-          {/* WHICH OpenRocket. "The same physics core" is not checkable on its
+          <p>
+            {/* The heading links to the full contributor graph when one is
+                  configured — the list here is a build-time snapshot. */}
+            {CONTRIBUTORS_URL ? (
+              <a
+                href={CONTRIBUTORS_URL}
+                target="_blank"
+                rel="noreferrer"
+                title={t('about.contributorsAll')}
+                className="text-sky-400 hover:underline"
+              >
+                {t('about.contributors')}
+              </a>
+            ) : (
+              t('about.contributors')
+            )}
+          </p>
+          <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-2">
+            {CONTRIBUTORS.map((c) => (
+              <li key={c.login}>
+                <a
+                  href={c.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 text-sky-400 hover:underline"
+                >
+                  {c.avatar ? (
+                    <img src={c.avatar} alt="" aria-hidden className="size-5 rounded-full ring-1 ring-white/10" />
+                  ) : (
+                    <span
+                      aria-hidden
+                      className="grid size-5 place-items-center rounded-full bg-slate-800 text-[10px] font-medium text-slate-300 ring-1 ring-white/10"
+                    >
+                      {c.login.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                  {c.login}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="mt-4 border-t border-white/10 pt-3 text-xs leading-relaxed text-slate-500">
+        <p>{t('about.credits')}</p>
+        {/* WHICH OpenRocket. "The same physics core" is not checkable on its
               own: comparing a number against the desktop app, or asking whether
               a feature from some release is in here, needs the commit. Read from
               engine-java/extract/UPSTREAM at build time, never typed here. */}
-          <p className="mt-1">
-            <Trans
-              i18nKey="about.enginePin"
-              values={{ ref: UPSTREAM.shortRef, date: UPSTREAM.date }}
-              components={{
-                commitLink: (
-                  <a
-                    href={UPSTREAM.commitUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sky-400 hover:underline"
-                  />
-                ),
-              }}
-            />
-          </p>
-          <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1">
-            {LINKS.map(([name, href], i) => (
-              <span key={name}>
-                {i > 0 && <span className="text-slate-600">· </span>}
-                <a href={href} target="_blank" rel="noreferrer" className="text-sky-400 hover:underline">
-                  {name}
-                </a>
-              </span>
-            ))}
-          </p>
-        </div>
-
-        <div className="mt-5 flex justify-end">
-          <button
-            onClick={onClose}
-            className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
-          >
-            {t('about.close')}
-          </button>
-        </div>
+        <p className="mt-1">
+          <Trans
+            i18nKey="about.enginePin"
+            values={{ ref: UPSTREAM.shortRef, date: UPSTREAM.date }}
+            components={{
+              commitLink: (
+                <a
+                  href={UPSTREAM.commitUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sky-400 hover:underline"
+                />
+              ),
+            }}
+          />
+        </p>
+        <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1">
+          {LINKS.map(([name, href], i) => (
+            <span key={name}>
+              {i > 0 && <span className="text-slate-600">· </span>}
+              <a href={href} target="_blank" rel="noreferrer" className="text-sky-400 hover:underline">
+                {name}
+              </a>
+            </span>
+          ))}
+        </p>
       </div>
-    </div>
+
+      <div className="mt-5 flex justify-end">
+        <button
+          onClick={onClose}
+          className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
+        >
+          {t('about.close')}
+        </button>
+      </div>
+    </Dialog>
   );
 }

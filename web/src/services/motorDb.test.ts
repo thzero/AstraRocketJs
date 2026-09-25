@@ -88,6 +88,50 @@ describe('filterMotors', () => {
     expect(filterMotors(catalog, filter({ minDiameter: 24, maxDiameter: 18 }))).toEqual([]); // empty range
   });
 
+  it('filters by a total impulse range (N·s), inclusive', () => {
+    // The question a class cannot answer: a class is a doubling bucket, and a
+    // number out of a design lands between two letters.
+    expect(filterMotors(catalog, filter({ minImpulse: 9 })).map((m) => m.designation)).toEqual(['C6', 'D12']);
+    expect(filterMotors(catalog, filter({ maxImpulse: 8.8 })).map((m) => m.designation)).toEqual(['C6', 'B6']);
+    expect(filterMotors(catalog, filter({ minImpulse: 8.8, maxImpulse: 9 }))).toHaveLength(2);
+    expect(filterMotors(catalog, filter({ minImpulse: 100 }))).toEqual([]);
+  });
+
+  it('filters by what goes in the mount, on both bore and length', () => {
+    // Its own rows, because this is the one facet that reads a field the shared
+    // fixture has no reason to carry.
+    const row = (designation: string, diameter: number, length?: number): CatalogMotor => ({
+      designation,
+      manufacturer: 'Estes',
+      class: 'C',
+      diameter,
+      impulse: 8.8,
+      burn: 1.7,
+      mass: 24,
+      length,
+    });
+    const mounted = [row('fits', 18, 70), row('tooFat', 24, 70), row('tooLong', 18, 120), row('noLength', 18)];
+    // An 18 mm tube 70 mm long, plus the default 6.35 mm of overhang.
+    const kept = filterMotors(mounted, filter({ fit: { bore: 18, maxLength: 76.35 } }));
+    expect(kept.map((m) => m.designation)).toEqual(['fits', 'noLength']);
+  });
+
+  it('filters to the motors sold without an ejection charge', () => {
+    const row = (designation: string, delays?: string): CatalogMotor => ({
+      designation,
+      manufacturer: 'Estes',
+      class: 'C',
+      diameter: 18,
+      impulse: 8.8,
+      burn: 1.7,
+      mass: 24,
+      delays,
+    });
+    const rows = [row('pluggedOnly', 'P'), row('both', '0,3,5,P'), row('delayed', '4,6,8'), row('unknown')];
+    const kept = filterMotors(rows, filter({ plugged: true }));
+    expect(kept.map((m) => m.designation)).toEqual(['pluggedOnly', 'both']);
+  });
+
   it('AND-s facets together', () => {
     const r = filterMotors(catalog, filter({ classes: new Set(['C']), manufacturers: new Set(['Quest']) }));
     expect(r).toHaveLength(1);

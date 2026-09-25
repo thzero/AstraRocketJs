@@ -13,6 +13,10 @@
     "discard": "Descartar",
     "close": "Cerrar"
   },
+  "dialog": {
+    "expand": "Ensanchar este diálogo",
+    "shrink": "Devolver este diálogo a su tamaño normal"
+  },
   "errors": {
     "openOrk": "No se pudo abrir el .ork: {{reason}}",
     "openExample": "No se pudo abrir ese ejemplo: {{reason}}",
@@ -149,7 +153,6 @@
     "title": "Ayuda",
     "contents": "Contenido",
     "back": "Atrás",
-    "close": "Cerrar",
     "openOnSite": "Abrir en el sitio de documentación",
     "loading": "Cargando…",
     "missing": "La documentación no forma parte de esta copia de {{name}}, o no se pudo leer. Aún puedes abrirla en línea."
@@ -1069,11 +1072,29 @@
   },
   "picker": {
     "pick": "Seleccionar pieza… ({{count}})",
-    "close": "Cerrar piezas",
     "search": "Buscar piezas (fabricante, nº, descripción)…",
     "dialogTitle": "Elegir pieza",
     "noResults": "No hay piezas coincidentes.",
-    "results": "{{count}} piezas"
+    "results_one": "{{count}} pieza",
+    "results_many": "{{count}} piezas",
+    "results_other": "{{count}} piezas",
+    "colMfr": "Fabr.",
+    "colPartNo": "Ref.",
+    "colOd": "Ø ext.",
+    "colId": "Ø int.",
+    "colLen": "Longitud",
+    "colFit": "Ajuste",
+    "colNotes": "Notas",
+    "allMfrs": "Todos los fabricantes",
+    "allMaterials": "Todos los materiales",
+    "allShapes": "Todas las formas",
+    "odFrom": "mín",
+    "odTo": "máx",
+    "fitsOnly": "Encaja aquí",
+    "fitsHint": "Solo las piezas que encajan con aquello a lo que se une esta. Desactívalo para ver todo el catálogo.",
+    "clear": "Borrar filtros",
+    "showing": "Mostrando {{shown}} de {{total}}",
+    "cdDefault": "El catálogo no publica un coeficiente de resistencia para este paracaídas, así que este es el valor predeterminado de la aplicación."
   },
   "dash": {
     "menu": "Panel de motores",
@@ -1216,6 +1237,13 @@
     "allManufacturers": "Todos los fabricantes",
     "mfrCount": "{{n}} fabricantes",
     "diameter": "Diámetro",
+    "min": "mín",
+    "max": "máx",
+    "fitsMount": "Cabe en el soporte ({{bore}})",
+    "fitsMountHint": "Solo los motores que caben en este soporte: su diámetro interior y la longitud disponible, incluido el saliente del motor. Desactívalo para ver todo el catálogo.",
+    "noResults": "No hay motores que coincidan.",
+    "plugged": "Taponado",
+    "pluggedHint": "Solo motores que el fabricante ofrece sin carga de eyección, para separación de etapas o recuperación electrónica. Cualquier motor se puede volar taponado desde el control de retardo.",
     "any": "Cualquiera",
     "custom": "personaliz.",
     "searchCode": "Buscar por código (p. ej. C6)…",
