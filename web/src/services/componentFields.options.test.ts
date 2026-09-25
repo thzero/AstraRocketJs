@@ -23,7 +23,7 @@ import { FIELDS, type Field } from './componentFields';
  * another language renders the English word inside a translated panel, which is
  * the same defect one language further along.
  */
-const LOCALES = ['en', 'de', 'es', 'fr'] as const;
+const LOCALES = ['en', 'de', 'es', 'fr', 'pt-BR', 'pt-PT', 'nl', 'pl', 'ru', 'ja'] as const;
 
 /** The locale files, read the way the app ships them. `DATA_DIR` resolves from
  *  the repo rather than from `import.meta.url`, which a jsdom-flavored run

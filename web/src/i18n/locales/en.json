@@ -282,7 +282,7 @@
     "generalNote": "App-wide preferences, saved on this device.",
     "unitsNote": "Units are a display and entry preference only — designs are always stored in SI.",
     "unitsMetric": "Metric defaults",
-    "unitsClearFields_one": "Reset 1 field back to these units",
+    "unitsClearFields_one": "Reset {{count}} field back to these units",
     "unitsClearFields_other": "Reset {{count}} fields back to these units",
     "unitsImperial": "Imperial defaults",
     "saveDesignInfo": "Save design info (statistics) in the file",
@@ -850,7 +850,7 @@
     "computing": "Computing..."
   },
   "banner": {
-    "notes": "{{count}} import note",
+    "notes_one": "{{count}} import note",
     "notes_other": "{{count}} import notes",
     "loaded": "Loaded design (.ork)",
     "close": "Close",
@@ -1363,7 +1363,7 @@
     "separateFiles": "One file per part (a .zip)",
     "placeOnPlate": "Place each part on the build plate",
     "orientationNote": "Parts keep the orientation they have in the rocket — the axis runs along X, so bodies arrive lying down. Use your slicer’s lay-flat or rotate to stand them up.",
-    "count": "{{count}} part selected",
+    "count_one": "{{count}} part selected",
     "count_other": "{{count}} parts selected",
     "save": "Save 3MF"
   },

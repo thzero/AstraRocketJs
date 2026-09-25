@@ -282,7 +282,7 @@
     "generalNote": "App-weite Einstellungen, auf diesem Gerät gespeichert.",
     "unitsNote": "Einheiten sind nur eine Anzeige- und Eingabeeinstellung – Entwürfe werden immer in SI gespeichert.",
     "unitsMetric": "Metrische Voreinstellungen",
-    "unitsClearFields_one": "1 Feld auf diese Einheiten zurücksetzen",
+    "unitsClearFields_one": "{{count}} Feld auf diese Einheiten zurücksetzen",
     "unitsClearFields_other": "{{count}} Felder auf diese Einheiten zurücksetzen",
     "unitsImperial": "Imperiale Voreinstellungen",
     "saveDesignInfo": "Entwurfsinfos (Statistik) in der Datei speichern",
@@ -850,7 +850,7 @@
     "computing": "Wird berechnet …"
   },
   "banner": {
-    "notes": "{{count}} Importhinweis",
+    "notes_one": "{{count}} Importhinweis",
     "notes_other": "{{count}} Importhinweise",
     "loaded": "Geladener Entwurf (.ork)",
     "close": "Schließen",
@@ -1363,7 +1363,7 @@
     "separateFiles": "Eine Datei je Bauteil (eine .zip)",
     "placeOnPlate": "Jedes Bauteil auf der Druckplatte platzieren",
     "orientationNote": "Die Bauteile behalten die Ausrichtung, die sie in der Rakete haben – die Achse verläuft entlang X, Rumpfteile kommen also liegend an. Nutzen Sie im Slicer „flach legen“ oder das Drehen, um sie aufzustellen.",
-    "count": "{{count}} Bauteil ausgewählt",
+    "count_one": "{{count}} Bauteil ausgewählt",
     "count_other": "{{count}} Bauteile ausgewählt",
     "save": "3MF speichern"
   },

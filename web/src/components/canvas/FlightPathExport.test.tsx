@@ -208,7 +208,19 @@ describe('flight-path export dialog', () => {
     show(flight());
     const select = screen.getByLabelText('Language') as HTMLSelectElement;
     expect(select.value).toBe(''); // follow the app
-    expect([...select.options].map((o) => o.value)).toEqual(['', 'en', 'de', 'es', 'fr']);
+    expect([...select.options].map((o) => o.value)).toEqual([
+      '',
+      'en',
+      'de',
+      'es',
+      'fr',
+      'pt-BR',
+      'pt-PT',
+      'nl',
+      'pl',
+      'ru',
+      'ja',
+    ]);
     expect(select.options[0]!.textContent).toBe('Same as the app');
   });
 

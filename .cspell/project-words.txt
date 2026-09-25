@@ -49,6 +49,7 @@ blindnesses
 boattail
 boattails
 bodytube
+Bokmål
 Bonney
 boosterset
 browsable
@@ -61,6 +62,7 @@ centeringring
 Cesaroni
 checkcast
 classgraph
+CLDR
 clen
 Clippable
 clusterconfiguration
@@ -274,6 +276,7 @@ msvc
 multisampled
 multiset
 myfinset
+Nederlands
 Niskanen
 nnum
 Nonaxial
@@ -314,6 +317,8 @@ planform
 plottable
 podset
 podsets
+Polski
+Português
 powerseries
 poxy
 Pparity
@@ -474,3 +479,4 @@ xunits
 yunits
 zenrockets
 zoomable
+Русский
