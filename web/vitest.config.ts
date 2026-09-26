@@ -38,11 +38,11 @@ export default defineConfig({
       // before `vi.mock` gets a chance - and `UpdateToast` could not be
       // rendered in a test at all. The stub is the quiet default; a test that
       // cares mocks the specifier as usual.
-      'virtual:pwa-register/react': fileURLToPath(new URL('./src/testing/pwaRegisterStub.ts', import.meta.url)),
+      'virtual:pwa-register/react': fileURLToPath(new URL('./tests/testing/pwaRegisterStub.ts', import.meta.url)),
     },
   },
   test: {
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
     environment: 'node',
     // Vitest isolates one worker per FILE, and this suite is over a hundred of
     // them (measured 2026-09; the count only grows) — on a 32-core box that is
@@ -67,10 +67,14 @@ export default defineConfig({
       reporter: ['text-summary', 'json-summary', 'lcov'],
       include: ['src/**/*.{ts,tsx}'],
       // Generated (the 2.9 MB TeaVM bundle), or not code under test.
-      exclude: ['src/engine/vendor/**', 'src/**/*.test.*', 'src/testing/**', 'src/**/*.d.ts'],
-      // 62.03% lines measured 2026-09-20 (`npm run test:coverage`, 1655 tests
-      // in 142 files); the audit a few days earlier read 58%. The floor is
-      // under both so an ordinary refactor does not trip it.
+      // The tests and their scaffolding are their own tree now, and coverage
+      // only INCLUDES src, so neither needs excluding any more.
+      exclude: ['src/engine/vendor/**', 'src/**/*.d.ts'],
+      // 70.93% lines measured 2026-09-25 (`npm run test:coverage`, 2532 tests
+      // in 193 files); it read 62.03% on 2026-09-20 at 1655 tests, and 58% in
+      // the audit before that. The floor is left well under the measurement on
+      // purpose - it exists to catch a deletion, not to make every PR raise a
+      // number - so it moves only when a higher reading has stayed put.
       thresholds: { lines: 55 },
     },
   },

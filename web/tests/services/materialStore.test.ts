@@ -1,0 +1,108 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { KeyValueMaterialStore } from '../../src/services/materialStore';
+import type { KeyValueStore } from '../../src/services/keyValueStore';
+import type { Material } from '../../src/services/materialTypes';
+
+class FakeKv implements KeyValueStore {
+  map = new Map<string, string>();
+  async get(k: string) {
+    return this.map.has(k) ? this.map.get(k)! : null;
+  }
+  async set(k: string, v: string) {
+    this.map.set(k, v);
+    return true;
+  }
+  async remove(k: string) {
+    this.map.delete(k);
+  }
+  async update(k: string, fn: (raw: string | null) => string | null) {
+    const next = fn(await this.get(k));
+    if (next === null) {
+      await this.remove(k);
+      return true;
+    }
+    return await this.set(k, next);
+  }
+}
+
+const KEY = 'astrarrocketjs:materials:custom';
+const mat = (name: string, density = 1000): Material => ({ name, type: 'bulk', density }) as Material;
+
+let kv: FakeKv;
+let store: KeyValueMaterialStore;
+beforeEach(() => {
+  kv = new FakeKv();
+  store = new KeyValueMaterialStore(KEY, kv);
+});
+
+describe('KeyValueMaterialStore', () => {
+  it('starts empty', async () => {
+    expect(await store.list()).toEqual([]);
+  });
+
+  it('adds materials newest-first and stamps custom:true', async () => {
+    await store.add(mat('Balsa', 160));
+    await store.add(mat('Birch', 680));
+    const list = await store.list();
+    expect(list.map((m) => m.name)).toEqual(['Birch', 'Balsa']);
+    expect(list.every((m) => m.custom === true)).toBe(true);
+  });
+
+  it('replaces an existing material by name+type', async () => {
+    await store.add(mat('Balsa', 160));
+    await store.add(mat('Balsa', 170)); // same name+type → replace, not duplicate
+    const list = await store.list();
+    expect(list).toHaveLength(1);
+    expect(list[0]!.density).toBe(170);
+  });
+
+  it('removes by name+type', async () => {
+    await store.add(mat('Balsa', 160));
+    await store.remove('Balsa', 'bulk');
+    expect(await store.list()).toEqual([]);
+  });
+
+  it('returns [] on corrupt or non-array JSON', async () => {
+    await kv.set(KEY, '{not json');
+    expect(await store.list()).toEqual([]);
+    await kv.set(KEY, '{"a":1}');
+    expect(await store.list()).toEqual([]);
+  });
+
+  it('filters out invalid rows from stored data', async () => {
+    await kv.set(
+      KEY,
+      JSON.stringify([
+        { name: 'Balsa', type: 'bulk', density: 160 },
+        { name: 'no-density' },
+        { type: 'bulk', density: Number.NaN },
+      ]),
+    );
+    const list = await store.list();
+    expect(list).toHaveLength(1);
+    expect(list[0]!.name).toBe('Balsa');
+  });
+});
+
+describe('writes go through kv.update', () => {
+  it('adds and removes in one store transaction each, and propagates a refusal', async () => {
+    const updates: string[] = [];
+    kv.update = async (k, fn) => {
+      updates.push(k);
+      const next = fn(kv.map.get(k) ?? null);
+      if (next === null) kv.map.delete(k);
+      else kv.map.set(k, next);
+      return true;
+    };
+    kv.set = async () => {
+      throw new Error('set() must not be used for a read-modify-write');
+    };
+    await store.add(mat('Balsa', 160));
+    await store.remove('Balsa', 'bulk');
+    expect(updates).toEqual([KEY, KEY]);
+    expect(await store.list()).toEqual([]);
+
+    kv.update = async () => false; // storage refused it
+    await expect(store.add(mat('Birch'))).rejects.toThrow('storage-full');
+  });
+});

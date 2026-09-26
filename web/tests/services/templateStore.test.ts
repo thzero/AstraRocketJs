@@ -1,0 +1,120 @@
+import { describe, it, expect } from 'vitest';
+import { KeyValueTemplateStore, parseTemplateFilename, type UserTemplate } from '../../src/services/templateStore';
+import type { KeyValueStore } from '../../src/services/keyValueStore';
+
+class FakeKv implements KeyValueStore {
+  map = new Map<string, string>();
+  async get(k: string) {
+    return this.map.has(k) ? this.map.get(k)! : null;
+  }
+  async set(k: string, v: string) {
+    this.map.set(k, v);
+    return true;
+  }
+  async remove(k: string) {
+    this.map.delete(k);
+  }
+  async update(k: string, fn: (raw: string | null) => string | null) {
+    const next = fn(await this.get(k));
+    if (next === null) {
+      await this.remove(k);
+      return true;
+    }
+    return await this.set(k, next);
+  }
+}
+
+const KEY = 'astrarrocketjs:templates:custom';
+const tpl = (id: string, ext = 'kml'): UserTemplate => ({
+  id,
+  name: id.replace(/\..*$/, ''),
+  ext,
+  source: `{{title}}`,
+});
+
+describe('parseTemplateFilename', () => {
+  it('splits <name>.<ext>.mustache into name + extension', () => {
+    expect(parseTemplateFilename('my-waypoints.csv.mustache')).toEqual({
+      id: 'my-waypoints.csv.mustache',
+      name: 'my-waypoints',
+      ext: 'csv',
+    });
+    expect(parseTemplateFilename('track.kml.mustache')).toEqual({
+      id: 'track.kml.mustache',
+      name: 'track',
+      ext: 'kml',
+    });
+  });
+
+  it('defaults a bare <name>.mustache to the txt extension', () => {
+    expect(parseTemplateFilename('notes.mustache')).toEqual({ id: 'notes.mustache', name: 'notes', ext: 'txt' });
+  });
+
+  it('lowercases the extension', () => {
+    expect(parseTemplateFilename('a.GPX.mustache').ext).toBe('gpx');
+  });
+});
+
+describe('KeyValueTemplateStore', () => {
+  it('adds, lists (newest first), and removes by id', async () => {
+    const store = new KeyValueTemplateStore(KEY, new FakeKv());
+    await store.add(tpl('a.kml.mustache'));
+    await store.add(tpl('b.gpx.mustache', 'gpx'));
+    expect((await store.list()).map((t) => t.id)).toEqual(['b.gpx.mustache', 'a.kml.mustache']);
+    await store.remove('a.kml.mustache');
+    expect((await store.list()).map((t) => t.id)).toEqual(['b.gpx.mustache']);
+  });
+
+  it('replaces an existing template with the same id', async () => {
+    const store = new KeyValueTemplateStore(KEY, new FakeKv());
+    await store.add({ id: 'x.kml.mustache', name: 'x', ext: 'kml', source: 'one' });
+    await store.add({ id: 'x.kml.mustache', name: 'x', ext: 'kml', source: 'two' });
+    const list = await store.list();
+    expect(list.length).toBe(1);
+    expect(list[0]!.source).toBe('two');
+  });
+
+  it('survives a corrupt store entry', async () => {
+    const kv = new FakeKv();
+    await kv.set(KEY, '{not json');
+    const store = new KeyValueTemplateStore(KEY, kv);
+    expect(await store.list()).toEqual([]);
+  });
+});
+
+describe('writes go through kv.update', () => {
+  it('adds and removes in one store transaction each, and propagates a refusal', async () => {
+    const kv = new FakeKv();
+    const store = new KeyValueTemplateStore(KEY, kv);
+    const updates: string[] = [];
+    kv.update = async (k, fn) => {
+      updates.push(k);
+      const next = fn(kv.map.get(k) ?? null);
+      if (next === null) kv.map.delete(k);
+      else kv.map.set(k, next);
+      return true;
+    };
+    kv.set = async () => {
+      throw new Error('set() must not be used for a read-modify-write');
+    };
+    await store.add(tpl('a.kml.mustache'));
+    await store.remove('a.kml.mustache');
+    expect(updates).toEqual([KEY, KEY]);
+    expect(await store.list()).toEqual([]);
+
+    kv.update = async () => false;
+    await expect(store.add(tpl('b.kml.mustache'))).rejects.toThrow('storage-full');
+  });
+
+  it('setTemplateStore swaps the active store', async () => {
+    const { getTemplateStore, setTemplateStore } = await import('../../src/services/templateStore');
+    const before = getTemplateStore();
+    const mine = { list: async () => [tpl('mine.kml.mustache')] } as unknown as typeof before;
+    setTemplateStore(mine);
+    try {
+      expect(getTemplateStore()).toBe(mine);
+    } finally {
+      setTemplateStore(before);
+    }
+  });
+});
