@@ -24,16 +24,16 @@ Everything that follows is therefore about **the program around the engine**: wh
 
 | Desktop feature | Where it stands here, and why |
 | --- | --- |
-| **Rocket optimization** (search a design parameter for the best apogee, altitude or velocity) | Not available.  |
-| **Custom expressions** (define your own flight variable from the simulated ones and plot it) | Not available. |
-| **Simulation extensions and scripting** (air-start, roll control, the JavaScript scripting extension) | Not available. |
+| **Rocket optimization** (search a design parameter for the best apogee, altitude or velocity) | Not available. OpenRocket's `optimization` package is not part of the extraction (`engine-java/extract/manifest.txt`), so the search machinery is not even in the bundled core. It would have to be rebuilt on the JavaScript side. |
+| **Custom expressions** (define your own flight variable from the simulated ones and plot it) | Not available, for the same reason: the `customexpression` package is not extracted. The flight CSV export hands you the raw series to compute from yourself. |
+| **Simulation extensions and scripting** (air-start, roll control, the JavaScript scripting extension) | Not available. The `simulation/extension` package is not extracted, so an extension cannot run. It shows in the bundled examples: the two "simulation extension" designs open and fly as ordinary airframes, which is exactly what their own descriptions say. |
 | **Flight configurations in the interface** (several named motor setups per design, switched from a dropdown) | Partly. A `.ork` carrying several configurations **round-trips** them, and an import warns when a configuration you did not open uses a motor missing from the catalog. But the app opens **one** as a single simulation, and there is no way to author or switch between them. |
-| **Appearance, decals and Photo Studio** (textures on components, rendered photos) | Not available, no plans at this time. |
-| **Fin marking guide** (the wrap-around paper template that says where around the tube each fin goes) | Not available yet. |
-| **Saving your own component to a preset library** | Not available. |
-| **`.rse` (RockSim) motor files** | Not available: `.eng` only. Wanted most for hybrids, whose data often ships as `.rse`. |
-| **Packed recovery-device dimensions** | Not available. |
-| **Languages** | OpenRocket ships more locales. |
+| **Appearance, decals and Photo Studio** (textures on components, rendered photos) | Not available. The core's `appearance` classes *are* extracted, so a file's appearance survives a round-trip, but nothing in the interface edits or draws it. The 3D view is a solid model. |
+| **Saving your own component to a preset library** | Partly. **Save as part** stores a component you built and offers it back in the picker on every design, whole: geometry, material, finish and color, not just the dimensions a catalog row publishes. **Menu → My Parts** lists, edits and removes them. What is missing is the file half: OpenRocket's presets are `.orc` files you can share and load, and a saved part here lives in your browser only. Assemblies are out too — a body tube saves without its fins. |
+| **Packed recovery-device dimensions** | Not available. Canopy and line materials, shroud count and length, and a streamer's Cd are all editable, but the *packed* length and radius are not read by the bundled core's component factory, so they cannot affect mass or CG. An `.ork` round-trip writes constants in their place. |
+| **Camera shrouds and other protuberances** | Not available. They are not first-class components in OpenRocket's own model either, so even there they contribute mass and a drawing rather than aerodynamics. |
+| **Printing** | A different shape. OpenRocket prints from a print dialog; here the design report is written as a **PDF** you then print, and its templates are 1:1. |
+| **Languages** | OpenRocket ships in more languages than this app does. |
 | **Validated staged flight** | Multi-stage rockets are authorable here and simulate as independent branches, and their static mass, CG and stability match desktop OpenRocket. The flown staged trajectory (separation and upper-stage ignition timing, booster descent) has **not** been checked end-to-end against the desktop yet. Treat staged flight results as preliminary. See [Safety](./safety.md). |
 
 ## What this has, and desktop OpenRocket does not
@@ -47,10 +47,18 @@ Everything that follows is therefore about **the program around the engine**: wh
 | **Flight-path export to KML / GPX / waypoint CSV** | Opens the flight in Google Earth or a GPS app, with per-stage track colors, a mission name, summary balloons carrying the flight's numbers, and importable custom Mustache templates. |
 | **Whole-rocket 3MF, and per-part STL / GLB / 3MF** | One file with a named object per part, ready for a slicer. OpenRocket exports OBJ, which this does too; the rest is extra. |
 | **DXF cut sheets** | Flat parts (fins, rings, bulkheads) as 2D cut files. |
+| **RASAero II (`.CDX1`) export** | Hands the design to RASAero II for its own aerodynamic analysis. |
+| **RockSim `.rkt` export** | OpenRocket opens RockSim files; it does not write them. Both directions work here, and each one names what it leaves behind. See [Files & Exports](./files-and-exports.md#rocksim-rkt). |
 | **Saved launch locations, on a map** | Name the field you fly from and recall its coordinates and elevation, with a satellite or street map to check them against the ground, and click-to-set for a field with no published numbers. Something close to this is [open upstream as a pull request](https://github.com/openrocket/openrocket/pull/3211) and has not shipped. |
 | **Parachute descent sizing** | Pick a canopy and see the descent rate it gives against the main and drogue bands, and the diameter needed to hit each. |
 | **NAR / Tripoli limits, enforced** | The rod is held within 20 degrees of vertical and surface wind at or below 20 mph, and a run outside those is **refused** rather than flown. Every set of results carries a "Before you fly" card. See [Safety](./safety.md). |
+| **Undo that covers simulations too** | Component edits and simulation changes (motor, ignition, launch conditions, adding or deleting a simulation) sit on one timeline. |
+| **A unit picker on every value** | The unit printed beside any number is also a control for that particular field, on top of the metric and imperial profiles. See [Settings](./settings.md#units). |
 | **Nothing to save, and nothing uploaded** | Editing autosaves, the header says when the last write landed, and there is no server and no account. |
+
+## Where they are on a par
+
+Component-tree editing with live CG, CP and stability. Multi-stage and parallel staging with separation and ignition timing. Freeform fin editing. Mass and CG overrides. The ~2,900-part catalog and OpenRocket's material database. Custom materials, custom motors and your own saved parts. Motor selection with real thrust curves, ejection-delay choice and plugged motors, plus `.eng` and `.rse` import. Component Analysis: per-part drag broken down, each part's stability contribution and its own CP, and every fin set's roll forcing and damping, across a Mach sweep at a chosen angle of attack and wind direction. Flight charts. A 3D trajectory with playback, a scrubbable timeline and speed control. The design report, 1:1 templates and CSV summaries. Full-fidelity `.ork` round-trips in both directions.
 
 ## What to use which for
 

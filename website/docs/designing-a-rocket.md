@@ -72,13 +72,11 @@ Everything else may legitimately be zero, which is why it is not marked. A **tip
 
 A fin set's **Fillet** section takes the radius of the glue bead along the fin root and the material the bead is made of. Both count: the fillet's volume is added to every fin's mass and its centroid pulls the CG aft, the same way desktop OpenRocket computes it.
 
-The material matters because a fillet is rarely the fin's own. A 6 mm bead on three fins around a 26 mm tube is about 1.1 g in cardboard and 2.0 g in something epoxy-dense, and the CG moves a couple of millimeters with it. Leave the material unset and the bead is weighed as cardboard (680 kg/m³), which is what the kernel and the `.ork` writer both fall back to. There is no built-in epoxy: the material list is OpenRocket's own, which has none, so add one with **＋ Add custom…** if you want the real number.
+The material matters because a fillet is rarely the fin's own. A 6 mm bead on three fins around a 26 mm tube is about 1.1 g in cardboard and 2.0 g in something epoxy-dense, and the CG moves a couple of millimeters with it. Leave the material unset and the bead is weighed as cardboard (680 kg/m³), which is what the kernel and the `.ork` writer both fall back to. Pick one of the [adhesives](#adhesives) instead, or add your own with the material picker.
 
 **Tube fins have no fillet.** A tube fin set is a tube, not a fin, so the kernel has no fillet to give it and the section does not appear.
 
-**The adhesives are only offered where they make sense.** A structural part's material list leaves them out, because nothing is built out of glue, and a fillet's list has only adhesives in it, for the mirror of that reason. A bead of something unusual is not shut out by that: a thickened mix or a putty is a custom material, and **＋ Add custom…** asks which group it belongs in, so filing it under Adhesives puts it in the fillet list. And a material a part already uses stays in that part's list either way, so the panel keeps describing what the part is actually made of.
-
-Fillets were carried through `.ork` import, export and scaling for a while before they were flown, so a design imported from desktop OpenRocket may gain a little mass the first time you open it after this change.
+**A fillet's material list holds adhesives only**, and a structural part's list holds everything but. To use something unusual, add it with **＋ Add custom…** and file it under Adhesives. A material a part already uses stays in its list either way.
 
 
 ## Freeform fins {#freeform-fins}
@@ -157,21 +155,15 @@ Every structural component has a **material**, which the engine uses (by its **d
 
 > Note: a material's **name and density** both survive a `.ork` round-trip, including for a material this app has and desktop OpenRocket does not. What does not travel is its membership of your own custom list — see the [FAQ](./faq.md).
 
-The material list is **OpenRocket's own, ported verbatim** from its `Databases.java`: all 32 bulk, 8 surface and 42 line materials, same names, same densities, same groups. That is deliberate and it is not negotiable. The engine applies a material by its density, so a name or a number this app carries and desktop OpenRocket does not is a design the two programs weigh differently, which is exactly the kind of divergence the port exists to prevent. The list is not typed by hand: `web/scripts/sync-materials.mjs` reads them straight out of `Databases.java` into `web/public/data/materials.generated.json`, and `engine-java/extract/extract.mjs --check` compares the two entry by entry and fails on any difference. That is how the twenty-two line materials that were missing for a while were found.
-
-There is one exception, and this section is its justification.
+The material list is **OpenRocket's own**: all 32 bulk, 8 surface and 42 line materials, with the same names, densities and groups. The app adds the two things below.
 
 ### Two corrected elastic cords {#corrected-materials}
 
-Upstream's flat elastic cords read 0.0018, 0.0043 and 0.008 kg/m for 2, 6 and 12 mm, and then **0.0012 for 19 mm and 0.0016 for 25 mm**. The two widest are lighter than the 6 mm, by a factor of ten. It is a dropped digit, not a measurement, and it makes a 3 m shock cord of 3/4 in flat elastic read 3.6 g instead of about 37.
-
-The app offers **Elastic cord, corrected** in both widths, at 0.0123 and 0.016. mmrocket-sim found the error and published those values; interpolating upstream's own 6 mm and 12 mm entries gives 0.0127 and 0.0167, which is the same answer.
-
-The wrong entries are still there, unchanged. A design that names one has to keep reading back the density it was saved with, and quietly re-weighing somebody's rocket is worse than a bad number they can see. Pick the corrected one on a new design.
+Flat elastic cord in 19 mm and 25 mm is listed a second time as **Elastic cord, corrected**, at 0.0123 and 0.016 kg/m. The original entries are unchanged, so a design that already names one keeps the density it was saved with. Pick the corrected one on a new design.
 
 ### Adhesives {#adhesives}
 
-**Upstream has no adhesive at all.** Not one epoxy, not wood glue. That was fine while nothing in the app was made of glue, and stopped being fine when fin fillets started counting toward mass and CG: the fillet's material picker could offer thirty-one materials, none of which a fillet is ever made of. So the app adds an **Adhesives** group of its own, in `web/scripts/data/materials.app.json` — the hand-maintained half of the table, which no tool regenerates. Every density below is read off a manufacturer document, cited here and carried in the `source` and `note` fields of the entry itself.
+The app adds an **Adhesives** group, for fin fillets. Every density below is read off a manufacturer document, cited in the table and carried in the `source` and `note` fields of the entry itself.
 
 | Material | kg/m³ | What the figure is | Source |
 |---|---|---|---|
@@ -189,17 +181,12 @@ The wrong entries are still there, unchanged. A design that names one has to kee
 | J-B Weld Original | 1840 | **mixed liquid**: Part A 1.78, Part B 1.902, 1:1 by volume | [Part A SDS](https://cecas.clemson.edu/cedar/wp-content/uploads/2016/10/J-B-Weld.pdf), [Part B SDS](https://media.napaonline.com/is/content/GenuinePartsCompany/2118182pdf) |
 | Carpenter's glue (PVA, dried) | 1190 | dried film; see below | [Titebond III TDS](https://ardec.ca/media/catalog/specs/tds-titebond-III-ultimate-wood-glue.pdf) |
 
-Four things are worth knowing before you trust any of these to three digits.
+Notes on the figures:
 
-**Cured is not mixed.** West System, AeroPoxy and RocketPoxy publish the density of the *cured solid*, which is exactly what a fillet is. The rest publish only their liquid components, so those rows are the components mixed at the maker's own ratio. Epoxy shrinks 2 to 3 percent as it cures, so a cured bead runs about that much denser than the number in the table.
-
-**Carpenter's glue is a special case.** Titebond III is 9.22 lb/gal (1105 kg/m³) at **52% solids**, so a wood glue bead loses roughly half its volume drying and what is left is polyvinyl acetate at about 1.19. The table carries the dried figure, which means you should model the bead you have *after* it dries, not the one you squeezed out.
-
-**A thickened fillet is a different material.** Colloidal silica or milled fiber moves epoxy only a little, but microballoons or phenolic spheres drop a West System bead from 1180 to roughly 600 to 800. If you thicken, weigh a known volume of your actual mix and add it with **＋ Add custom…** instead.
-
-**Some products publish nothing.** ProLine 4500 is the notable rocketry example: the maker publishes no density, and the community comparison threads that collect its other properties do not have one either, so it is deliberately absent rather than guessed. To add it yourself, mix a small batch, fill a 10 mL syringe or a marked cup, weigh it, and divide: grams per milliliter times 1000 is the kg/m³ the app wants.
-
-**And the spread matters less than it looks.** Swapping the heaviest unfilled epoxy here for the lightest moves a three-fin, 6 mm fillet set by well under a gram. J-B Weld is the only row that changes an answer, and that is because it is steel-filled.
+- **Cured, not mixed.** West System, AeroPoxy and RocketPoxy give the cured solid. The rest give their liquid components at the maker's ratio; a cured bead runs 2 to 3 percent denser.
+- **Carpenter's glue** is the dried figure. Model the bead after it dries, not as squeezed out.
+- **A thickened fillet is a different material.** Microballoons drop a West System bead to roughly 600 to 800. Weigh your own mix and add it as a custom material.
+- **ProLine 4500 is absent**: the maker publishes no density. To add it, weigh a known volume and divide.
 
 ## Motor mount
 

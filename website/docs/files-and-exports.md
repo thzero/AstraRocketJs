@@ -29,6 +29,15 @@ Going the other way, RockSim has no element for **rail buttons** or **parallel (
 
 > **Menu → Open and Save As work on designs saved inside the app** (see [Saved designs](#saved-designs) below); `.ork` files move to and from your disk through **Import** and **Export**.
 
+## Motor files (`.eng` / `.rse`)
+
+A motor the catalog does not carry comes in from a file, through **Import .eng / .rse** in the motor picker. An imported motor carries its own thrust curve, so it needs no lookup and works offline; it is listed in the picker with a ★, is deletable there, and is saved in your browser rather than in the design.
+
+- **`.eng` (RASP)** is the plain-text format nearly every site offers. It gives the designation, diameter, length, delays, propellant and loaded weight, and the thrust curve. The mass at each instant is reconstructed from the thrust curve and the propellant weight, which is what OpenRocket does with a RASP file too.
+- **`.rse` (RockSim)** is XML and carries more: what the motor **is** (single-use, reloadable or **hybrid**), a delay list that can say **plugged**, the motor's real launch CG, and the propellant mass at every sample rather than one number for the whole burn. When a file supplies that mass column, the simulation flies it instead of the reconstruction. A `.rse` that asks for its own mass or CG to be recalculated gets the reconstruction anyway, matching OpenRocket.
+
+The format is read from the file's contents, not its name, so a `.rse` saved as `.eng` still works. One `.rse` can hold a whole manufacturer range; every motor in it is imported and the picker says how many arrived.
+
 ## Saved designs
 
 The app keeps a library of your rockets in the browser, so you can work on several and switch between them without exporting a file each time.

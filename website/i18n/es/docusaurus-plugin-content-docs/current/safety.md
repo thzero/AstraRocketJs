@@ -69,6 +69,12 @@ La aplicación no sabe nada de dónde estás ni de qué te está permitido hacer
 - El **permiso para lanzar** en el terreno que vayas a usar.
 - Las **normas del campo** y el **responsable de seguridad de vuelo** (RSO). Lo que decida el RSO está por encima de cualquier cosa en tu pantalla.
 
+### Aviso legal {#disclaimer}
+
+Este software se ofrece "tal cual", sin garantía de ningún tipo, expresa o implícita, incluida cualquier garantía de exactitud, comerciabilidad o idoneidad para un fin concreto. Los resultados de las simulaciones son estimaciones. No sustituyen al código de seguridad aplicable, a un responsable de seguridad del campo de vuelo, a una autorización de espacio aéreo ni a tu propio criterio.
+
+**Tú, y solo tú, eres responsable de cualquier cohete que construyas, de cualquier motor que uses y de cualquier vuelo que realices.** Ni AstraRocketJs, ni quienes contribuyen a él, ni los autores del software del que deriva aceptan responsabilidad alguna por lesiones, muerte, daños materiales, incumplimientos normativos o cualquier otra pérdida derivada del uso de este software o de la confianza depositada en sus resultados, en la máxima medida permitida por la ley. Al usar el software, lo aceptas.
+
 ## Motores experimentales y de investigación {#experimental-and-research-motors}
 
 La aplicación modela motores a partir de curvas de empuje publicadas, y puede importar una curva que hayas medido tú. No es una guía para diseñar, fabricar ni encender un motor, y nada en ella evalúa si un motor es seguro de construir o de encender. El trabajo con motores experimentales es peligroso y, en la mayoría de los sitios, está estrictamente regulado. Corresponde a una organización de investigación y a las personas cualificadas para supervisarlo.

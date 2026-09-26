@@ -76,14 +76,16 @@ bridge (the one place the app stores something that is not SI: degrees, Celsius,
 hPa). `useUnits.test.tsx` covers the _wiring_, that `at()` actually consults the
 per-field layer while the quantity-level calls deliberately do not.
 
-**File I/O and round-trips** (`src/services/ork*`, `wireLoadedOrk`, `xmlUtil`, `engParser`)
+**File I/O and round-trips** (`src/services/ork*`, `wireLoadedOrk`, `xmlUtil`, `engParser`, `rseParser`)
 
 `.ork` export to import round-trip at full fidelity, design metadata, the
 optional `<designinfo>` block, radial angles on lugs and rail buttons, recovery
 device features, and the newly editable component options. Plus the rule that an
 imported `absolute` position is rewritten into the parent frame for the editor
 but **written back out as it came in**, so a round-trip stays byte-stable. `.eng`
-motor parsing and total impulse. XML escaping in both the string and DOM paths.
+motor parsing and total impulse. `.rse` motor parsing held to `RockSimMotorLoader.java`
+rule by rule, including the mass column the format carries and `.eng` cannot.
+XML escaping in both the string and DOM paths.
 
 **Export formats** (`csvExport`, `reportCsv`, `dxfExport`, `meshExport`,
 `solidMesh`, `rasaeroExport`, `flightPathExport`, `schematicExport`, `reportPdf`)

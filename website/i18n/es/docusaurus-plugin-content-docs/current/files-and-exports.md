@@ -29,6 +29,15 @@ En el otro sentido, RockSim no tiene elemento para los **botones de raíl** ni p
 
 > **Menú → Abrir y Guardar como trabajan sobre los diseños guardados dentro de la aplicación** (consulta [Diseños guardados](#saved-designs) más abajo); los archivos `.ork` van y vienen de tu disco mediante **Importar** y **Exportar**.
 
+## Archivos de motor (`.eng` / `.rse`) {#motor-files-eng--rse}
+
+Un motor que el catálogo no trae entra desde un archivo, con **Importar .eng / .rse** en el selector de motores. Un motor importado lleva su propia curva de empuje, así que no necesita ninguna consulta y funciona sin conexión; aparece en el selector con una ★, se puede eliminar desde ahí y se guarda en tu navegador, no en el diseño.
+
+- **`.eng` (RASP)** es el formato de texto plano que ofrece casi cualquier sitio. Da la designación, el diámetro, la longitud, los retardos, el peso de propelente y el peso cargado, y la curva de empuje. La masa en cada instante se reconstruye a partir de la curva de empuje y del peso de propelente, que es lo que OpenRocket hace también con un archivo RASP.
+- **`.rse` (RockSim)** es XML y lleva más: qué **es** el motor (de un solo uso, recargable o **híbrido**), una lista de retardos que puede decir **taponado**, el CG real del motor en el despegue, y la masa de propelente en cada muestra en lugar de un único número para toda la combustión. Cuando un archivo aporta esa columna de masa, la simulación la vuela en vez de la reconstrucción. Un `.rse` que pide que se recalculen su masa o su CG recibe igualmente la reconstrucción, igual que en OpenRocket.
+
+El formato se lee del contenido del archivo, no de su nombre, así que un `.rse` guardado como `.eng` funciona igual. Un solo `.rse` puede contener toda la gama de un fabricante; se importan todos sus motores y el selector indica cuántos han entrado.
+
 ## Diseños guardados {#saved-designs}
 
 La aplicación mantiene una biblioteca de tus cohetes en el navegador, así que puedes trabajar en varios y cambiar entre ellos sin exportar un archivo cada vez.

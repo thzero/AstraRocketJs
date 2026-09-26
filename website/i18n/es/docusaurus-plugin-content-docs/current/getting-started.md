@@ -35,7 +35,7 @@ En un **teléfono** las mismas áreas pasan a ser pestañas en la parte inferior
 
 El panel de componentes es solo de escritorio, así que un teléfono sirve para leer y simular un diseño más que para construirlo.
 
-La barra superior tiene **deshacer / rehacer**, un selector de idioma (English · Español), una nota de cuándo se guardó tu cohete por última vez y el **menú de la aplicación**: Nuevo, Abrir… y Guardar como… (la biblioteca de diseños de la app), **Importar ▸ OpenRocket** y **Exportar ▸ OpenRocket / RASAero II** para los archivos `.ork` y demás en disco, **Informe de diseño**, **Panel de motores**, **Ajustes**, **Ayuda**, **Privacidad** y **Acerca de**.
+La barra superior tiene **deshacer / rehacer**, un selector de idioma (English · Español), una nota de cuándo se guardó tu cohete por última vez y el **menú de la aplicación**: Nuevo, Abrir… y Guardar como… (la biblioteca de diseños de la app), **Importar ▸ OpenRocket** y **Exportar ▸ OpenRocket / RASAero II** para los archivos `.ork` y demás en disco, **Informe de diseño**, **Panel de motores**, **Ubicaciones de lanzamiento**, **Mis piezas**, **Ajustes**, **Ayuda**, **Privacidad** y **Acerca de**.
 
 ## Tu primer cohete
 
@@ -56,4 +56,4 @@ Abrir uno se comporta igual que importar un `.ork`: obtienes tu propia copia sin
 
 ## Dónde viven tus datos
 
-Tus cohetes se guardan **en este navegador, en este dispositivo**, junto con tus motores y materiales personalizados y tus [ajustes](./settings.md). Exporta un `.ork` para conservar una copia en tu disco, llevarla a otro equipo o compartirla. No se sube nada a ningún sitio.
+Tus cohetes se guardan **en este navegador, en este dispositivo**, junto con tus motores personalizados, tus piezas guardadas, tus materiales, tus lugares de lanzamiento guardados y tus [ajustes](./settings.md). Exporta un `.ork` para conservar una copia en tu disco, llevarla a otro equipo o compartirla. No se sube nada a ningún sitio.

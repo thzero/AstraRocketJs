@@ -72,13 +72,12 @@ Todo lo demás puede valer cero legítimamente, y por eso no está marcado. Una 
 
 La sección **Filete** de un juego de aletas toma el radio del cordón de cola a lo largo de la raíz de la aleta y el material del que está hecho. Los dos cuentan: el volumen del filete se suma a la masa de cada aleta y su centroide tira del CG hacia atrás, igual que lo calcula OpenRocket de escritorio.
 
-El material importa porque un filete rara vez es del mismo material que la aleta. Un cordón de 6 mm en tres aletas alrededor de un tubo de 26 mm son unos 1,1 g en cartón y 2,0 g en algo con la densidad de la resina epoxi, y el CG se desplaza un par de milímetros con ello. Si dejas el material sin elegir, el cordón se pesa como cartón (680 kg/m³), que es a lo que recurren tanto el núcleo como el escritor de `.ork`. No hay resina epoxi integrada: la lista de materiales es la propia de OpenRocket, que no la tiene, así que añade una con **＋ Añadir personalizado…** si quieres el número real.
+El material importa porque un filete rara vez es del mismo material que la aleta. Un cordón de 6 mm en tres aletas alrededor de un tubo de 26 mm son unos 1,1 g en cartón y 2,0 g en algo con la densidad de la resina epoxi, y el CG se desplaza un par de milímetros con ello. Si dejas el material sin elegir, el cordón se pesa como cartón (680 kg/m³), que es a lo que recurren tanto el núcleo como el escritor de `.ork`. Elige uno de los [adhesivos](#adhesives), o añade el tuyo con el selector de materiales.
 
 **Los tubos como aletas no tienen filete.** Un juego de tubos como aletas es un tubo, no una aleta, así que el núcleo no tiene ningún filete que darle y la sección no aparece.
 
-**Los adhesivos solo se ofrecen donde tienen sentido.** La lista de materiales de una pieza estructural los omite, porque nada se construye con pegamento, y la lista de un filete solo tiene adhesivos, por la razón contraria. Eso no deja fuera un cordón de algo poco común: una mezcla espesada o una masilla es un material personalizado, y **＋ Añadir personalizado…** pregunta a qué grupo pertenece, así que archivarlo en Adhesivos lo pone en la lista del filete. Y un material que una pieza ya usa sigue en su lista en cualquier caso, para que el panel siga describiendo de qué está hecha de verdad.
+**La lista de materiales de un filete solo tiene adhesivos**, y la de una pieza estructural tiene todo lo demás. Para usar algo poco común, añádelo con **＋ Añadir personalizado…** y archívalo en Adhesivos. Un material que una pieza ya usa sigue en su lista en cualquier caso.
 
-Los filetes se conservaron en la importación, la exportación y el escalado de `.ork` durante un tiempo antes de volar, así que un diseño importado de OpenRocket de escritorio puede ganar algo de masa la primera vez que lo abras tras este cambio.
 
 
 ## Aletas de forma libre {#freeform-fins}
@@ -157,21 +156,15 @@ Todo componente estructural tiene un **material**, que el motor de física usa (
 
 > Nota: el **nombre y la densidad** de un material sobreviven al viaje de ida y vuelta por `.ork`, incluso los de un material que esta aplicación tiene y OpenRocket de escritorio no. Lo que no viaja es su pertenencia a tu lista personalizada; ver las [preguntas frecuentes](./faq.md).
 
-La lista de materiales es **la propia de OpenRocket, portada literalmente** desde su `Databases.java`: los 32 materiales de volumen, los 8 de superficie y los 42 de línea, con los mismos nombres, densidades y grupos. Eso es deliberado y no es negociable. El motor de física aplica un material por su densidad, así que un nombre o un número que esta aplicación tenga y OpenRocket de escritorio no, es un diseño que los dos programas pesan de forma distinta, que es justo la clase de divergencia que la portación existe para evitar. La lista no se escribe a mano: `web/scripts/sync-materials.mjs` los lee directamente de `Databases.java` a `web/public/data/materials.generated.json`, y `engine-java/extract/extract.mjs --check` compara las dos entrada por entrada y falla ante cualquier diferencia. Así se encontraron los veintidós materiales de línea que faltaron durante un tiempo.
-
-Hay una excepción, y esta sección es su justificación.
+La lista de materiales es **la propia de OpenRocket**: los 32 materiales de volumen, los 8 de superficie y los 42 de línea, con los mismos nombres, densidades y grupos. La aplicación añade las dos cosas siguientes.
 
 ### Dos cordones elásticos corregidos {#corrected-materials}
 
-Los cordones elásticos planos de OpenRocket son 0,0018, 0,0043 y 0,008 kg/m para 2, 6 y 12 mm, y luego **0,0012 para 19 mm y 0,0016 para 25 mm**. Los dos más anchos pesan menos que el de 6 mm, por un factor de diez. Es un dígito perdido, no una medida, y hace que un cordón de choque de 3 m de elástico plano de 3/4 de pulgada marque 3,6 g en vez de unos 37.
-
-La aplicación ofrece **Elastic cord, corrected** en ambos anchos, a 0,0123 y 0,016. mmrocket-sim encontró el error y publicó esos valores; interpolar las propias entradas de 6 y 12 mm de OpenRocket da 0,0127 y 0,0167, que es la misma respuesta.
-
-Las entradas erróneas siguen ahí, sin tocar. Un diseño que nombre una tiene que seguir leyendo la densidad con la que se guardó, y volver a pesar el cohete de alguien en silencio es peor que un número malo que se puede ver. En un diseño nuevo, elige la corregida.
+El cordón elástico plano de 19 mm y 25 mm aparece una segunda vez como **Elastic cord, corrected**, a 0,0123 y 0,016 kg/m. Las entradas originales no se tocan, así que un diseño que ya nombre una conserva la densidad con la que se guardó. En un diseño nuevo, elige la corregida.
 
 ### Adhesivos {#adhesives}
 
-**Arriba no hay ningún adhesivo.** Ni una resina epoxi, ni cola de carpintero. Eso no importaba mientras nada en la aplicación estuviera hecho de pegamento, y dejó de no importar cuando los filetes de las aletas empezaron a contar para la masa y el CG: el selector de material del filete podía ofrecer treinta y un materiales, ninguno de los cuales se usa jamás en un filete. Así que la aplicación añade un grupo **Adhesivos** propio, en `web/scripts/data/materials.app.json`, la mitad de la tabla que se mantiene a mano y que ninguna herramienta regenera. Cada densidad de abajo está leída de un documento del fabricante, citado aquí y guardado en los campos `source` y `note` de la propia entrada.
+La aplicación añade un grupo **Adhesivos**, para los filetes de las aletas. Cada densidad de abajo está leída de un documento del fabricante, citado en la tabla y guardado en los campos `source` y `note` de la propia entrada.
 
 | Material | kg/m³ | Qué es la cifra | Fuente |
 |---|---|---|---|
@@ -189,17 +182,12 @@ Las entradas erróneas siguen ahí, sin tocar. Un diseño que nombre una tiene q
 | J-B Weld Original | 1840 | **líquido mezclado**: parte A 1,78, parte B 1,902, 1:1 en volumen | [SDS parte A](https://cecas.clemson.edu/cedar/wp-content/uploads/2016/10/J-B-Weld.pdf), [SDS parte B](https://media.napaonline.com/is/content/GenuinePartsCompany/2118182pdf) |
 | Cola de carpintero (PVA, seca) | 1190 | película seca; ver abajo | [TDS de Titebond III](https://ardec.ca/media/catalog/specs/tds-titebond-III-ultimate-wood-glue.pdf) |
 
-Conviene saber cuatro cosas antes de fiarse de estas cifras con tres dígitos.
+Notas sobre las cifras:
 
-**Curado no es mezclado.** West System, AeroPoxy y RocketPoxy publican la densidad del *sólido curado*, que es exactamente lo que es un filete. El resto solo publica sus componentes líquidos, así que esas filas son los componentes mezclados en la proporción del propio fabricante. La resina epoxi encoge entre un 2 y un 3 por ciento al curar, así que un cordón curado pesa alrededor de eso más que el número de la tabla.
-
-**La cola de carpintero es un caso aparte.** Titebond III son 9,22 lb/gal (1105 kg/m³) con un **52% de sólidos**, así que un cordón de cola pierde más o menos la mitad de su volumen al secarse y lo que queda es acetato de polivinilo a unos 1,19. La tabla lleva la cifra seca, lo que significa que debes modelar el cordón que tienes *después* de que seque, no el que echaste.
-
-**Un filete espesado es otro material.** La sílice coloidal o la fibra molida mueven poco la resina, pero las microesferas la bajan de 1180 a unos 600-800. Si espesas, pesa un volumen conocido de tu mezcla real y añádela con **＋ Añadir personalizado…** en vez de usar la tabla.
-
-**Algunos productos no publican nada.** ProLine 4500 es el ejemplo notable en cohetería: el fabricante no publica densidad, y los hilos de comparación de la comunidad que recogen sus demás propiedades tampoco la tienen, así que está ausente a propósito en vez de inventada. Para añadirla tú, mezcla un poco, llena una jeringa de 10 mL o un vaso marcado, pésalo y divide: gramos por mililitro por 1000 son los kg/m³ que la aplicación quiere.
-
-**Y la diferencia importa menos de lo que parece.** Cambiar la resina sin carga más pesada de aquí por la más ligera mueve un juego de filetes de 6 mm en tres aletas bastante menos de un gramo. J-B Weld es la única fila que cambia una respuesta, y es porque lleva carga de acero.
+- **Curado, no mezclado.** West System, AeroPoxy y RocketPoxy dan el sólido curado. Los demás dan sus componentes líquidos en la proporción del fabricante; un cordón curado queda de un 2 a un 3 por ciento más denso.
+- **La cola de carpintero** es la cifra en seco. Modela el cordón una vez seco, no recién aplicado.
+- **Un filete espesado es otro material.** Las microesferas bajan un cordón de West System a unos 600-800. Pesa tu propia mezcla y añádela como material personalizado.
+- **ProLine 4500 no está**: el fabricante no publica su densidad. Para añadirla, pesa un volumen conocido y divide.
 
 ## Soporte del motor {#motor-mount}
 
