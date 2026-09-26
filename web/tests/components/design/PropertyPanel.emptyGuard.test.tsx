@@ -36,10 +36,10 @@ describe('an emptied required dimension', () => {
   it('writes nothing when the box is cleared', () => {
     const onChange = vi.fn();
     render(onChange);
-    const radius = screen.getByLabelText('Radius') as HTMLInputElement;
+    const diameter = screen.getByLabelText('Diameter') as HTMLInputElement;
 
-    fireEvent.focus(radius);
-    fireEvent.change(radius, { target: { value: '' } });
+    fireEvent.focus(diameter);
+    fireEvent.change(diameter, { target: { value: '' } });
 
     // The old behavior coerced this to 0 and handed it to the tree.
     expect(onChange).not.toHaveBeenCalled();
@@ -48,14 +48,16 @@ describe('an emptied required dimension', () => {
   it('still writes a real value typed into the same box', () => {
     const onChange = vi.fn();
     render(onChange);
-    const radius = screen.getByLabelText('Radius') as HTMLInputElement;
+    const diameter = screen.getByLabelText('Diameter') as HTMLInputElement;
 
-    fireEvent.focus(radius);
-    fireEvent.change(radius, { target: { value: '' } });
-    fireEvent.change(radius, { target: { value: '2' } });
+    fireEvent.focus(diameter);
+    fireEvent.change(diameter, { target: { value: '' } });
+    fireEvent.change(diameter, { target: { value: '2' } });
 
     expect(onChange).toHaveBeenCalledTimes(1);
-    expect(onChange.mock.calls[0]![0]).toHaveProperty('outerRadius');
+    // Typed as a DIAMETER in cm, stored as a radius in meters: the box and the
+    // node are two different numbers and the halving happens between them.
+    expect(onChange.mock.calls[0]![0]).toEqual({ outerRadius: 0.01 });
   });
 
   it('still lets a DELIBERATE zero through, for the run gate to refuse', () => {
@@ -63,10 +65,10 @@ describe('an emptied required dimension', () => {
     // blocks the flight, so it does not need to be forbidden at the keystroke.
     const onChange = vi.fn();
     render(onChange);
-    const radius = screen.getByLabelText('Radius') as HTMLInputElement;
+    const diameter = screen.getByLabelText('Diameter') as HTMLInputElement;
 
-    fireEvent.focus(radius);
-    fireEvent.change(radius, { target: { value: '0' } });
+    fireEvent.focus(diameter);
+    fireEvent.change(diameter, { target: { value: '0' } });
 
     expect(onChange).toHaveBeenCalledWith({ outerRadius: 0 });
   });

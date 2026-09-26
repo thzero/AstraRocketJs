@@ -4,6 +4,10 @@ import { finCutContour, finRootChord } from '../tree/finPlanform';
 // Shared with the .ork reader and writer, so a part that lost a tag is cut at
 // the size it was read and saved as (the engine-block wall used to differ).
 import { COMPONENT_DEFAULTS } from './componentDefaults';
+// The enclosing-tube walk and the ring radius resolution moved to their own
+// module when the 3D view and the 2D schematic needed them: importing them
+// from here would have pulled the R12 serializer into the first-paint bundle.
+import { mountBore, nodeContext, plateOuter, type Tube } from './discGeometry';
 
 /**
  * DXF export — the 2D CNC/laser boundary for a rocket's FLAT, plate-cut parts:
@@ -29,8 +33,6 @@ export const DXF_MIME = 'image/vnd.dxf';
 // export, and it was written out in three separate files.
 import { M_TO_MM } from '../prefs/units';
 const EPS = 1e-6;
-/** Used when a ring's outer radius can't be resolved from its parent tube. */
-const FALLBACK_RADIUS = 0.012;
 /** Center cross-hair arm as a fraction of the outer radius. */
 const CROSS_FRAC = 0.6;
 const TEXT_H = 0.003;
@@ -121,48 +123,6 @@ function discPart(node: ComponentNode, outerR: number, boreR: number | null, lab
   return { label, ents: [...ents, ...textBlock(ents, labels)] };
 }
 
-// --- tree walk: resolve each cuttable part against its enclosing tube -------
-
-interface Tube {
-  outerR: number;
-  innerR: number;
-}
-function tubeRadii(node: ComponentNode): Tube | null {
-  const t = node.type;
-  if (t === 'bodytube' || t === 'innertube' || t === 'tubecoupler') {
-    const or = num(node, 'outerRadius', NaN);
-    if (!Number.isNaN(or))
-      return { outerR: or, innerR: Math.max(0, or - num(node, 'thickness', COMPONENT_DEFAULTS.bodytube.thickness)) };
-  } else if (t === 'nosecone') {
-    const ar = num(node, 'aftRadius', NaN);
-    if (!Number.isNaN(ar)) {
-      return { outerR: ar, innerR: Math.max(0, ar - num(node, 'thickness', COMPONENT_DEFAULTS.nosecone.thickness)) };
-    }
-  } else if (t === 'transition') {
-    const or = Math.max(num(node, 'aftRadius', 0), num(node, 'foreRadius', 0));
-    if (or > 0) {
-      return { outerR: or, innerR: Math.max(0, or - num(node, 'thickness', COMPONENT_DEFAULTS.transition.thickness)) };
-    }
-  }
-  return null;
-}
-
-/** Outer radius of a plate part that fills its parent tube's bore. */
-function plateOuter(node: ComponentNode, enclosing: Tube | null): number {
-  const explicit = num(node, 'outerRadius', NaN);
-  if (!Number.isNaN(explicit)) return explicit;
-  if (enclosing && enclosing.innerR > 0) return enclosing.innerR;
-  return FALLBACK_RADIUS;
-}
-
-/** The motor-mount bore a centering ring centers — an inner tube among siblings. */
-function mountBore(siblings: ComponentNode[]): number | null {
-  const mount = siblings.find((s) => s.type === 'innertube');
-  if (!mount) return null;
-  const or = num(mount, 'outerRadius', NaN);
-  return Number.isNaN(or) ? null : or;
-}
-
 /** The flat cut part for one cuttable node, given its enclosing-tube context. */
 function partForNode(node: ComponentNode, enclosing: Tube | null, siblings: ComponentNode[]): Part | null {
   switch (node.type) {
@@ -184,29 +144,6 @@ function partForNode(node: ComponentNode, enclosing: Tube | null, siblings: Comp
     default:
       return null;
   }
-}
-
-/** Locate a node plus the enclosing tube + siblings its cut part needs. */
-function nodeContext(
-  tree: RocketTree,
-  nodeId: string,
-): { node: ComponentNode; enclosing: Tube | null; siblings: ComponentNode[] } | null {
-  let found: { node: ComponentNode; enclosing: Tube | null; siblings: ComponentNode[] } | null = null;
-  const walk = (node: ComponentNode, enclosing: Tube | null, siblings: ComponentNode[]): boolean => {
-    if (node.id === nodeId) {
-      found = { node, enclosing, siblings };
-      return true;
-    }
-    const kids = node.children ?? [];
-    const childEnclosing = tubeRadii(node) ?? enclosing; // a tube redefines the bore for its children
-    for (const kid of kids) if (walk(kid, childEnclosing, kids)) return true;
-    return false;
-  };
-  for (const stage of tree.components) {
-    const kids = stage.type === 'stage' ? (stage.children ?? []) : [stage];
-    for (const kid of kids) if (walk(kid, tubeRadii(kid) ?? null, kids)) break;
-  }
-  return found;
 }
 
 // --- layout + R12 serialization --------------------------------------------
@@ -359,40 +296,6 @@ function serialize(ents: Ent[]): string {
   p(0, 'ENDSEC');
   p(0, 'EOF');
   return out.join('\n') + '\n';
-}
-
-/**
- * Resolved solid dimensions of a disc / ring / tube part (centering ring,
- * bulkhead, coupler, engine block), for its 3D mesh export — the same radius
- * resolution the DXF uses (explicit radii, else the parent tube's bore, else the
- * mount an inner tube provides). Returns null for any other type.
- */
-export function resolveDisc(
-  tree: RocketTree,
-  nodeId: string,
-): { outerR: number; innerR: number; length: number } | null {
-  const ctx = nodeContext(tree, nodeId);
-  if (!ctx) return null;
-  const { node, enclosing, siblings } = ctx;
-  const outerR = plateOuter(node, enclosing);
-  if (node.type === 'bulkhead') {
-    return { outerR, innerR: 0, length: num(node, 'length', COMPONENT_DEFAULTS.bulkhead.length) };
-  }
-  if (node.type === 'centeringring') {
-    const bore = num(node, 'innerRadius', NaN);
-    const innerR = Number.isNaN(bore) ? (mountBore(siblings) ?? 0) : bore;
-    return { outerR, innerR, length: num(node, 'length', COMPONENT_DEFAULTS.centeringring.length) };
-  }
-  if (node.type === 'tubecoupler' || node.type === 'engineblock') {
-    const wall = num(
-      node,
-      'thickness',
-      node.type === 'engineblock' ? COMPONENT_DEFAULTS.engineblock.thickness : COMPONENT_DEFAULTS.tubecoupler.thickness,
-    );
-    const length = num(node, 'length', node.type === 'engineblock' ? COMPONENT_DEFAULTS.engineblock.length : 0.003);
-    return { outerR, innerR: Math.max(0, outerR - wall), length };
-  }
-  return null;
 }
 
 /**

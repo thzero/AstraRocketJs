@@ -338,6 +338,7 @@ rasaero
 rasterizes
 Rasterizing
 RATT
+raycaster
 readback
 recomputable
 recoveryhardware

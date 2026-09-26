@@ -13,7 +13,10 @@ import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { outerProfile } from '../../tree/shapeProfile.js';
 import { colorForType, DEFAULT_PART_COLORS, type PartPalette } from '../../services/partColors';
-import { axialStart, colorOf, type MotorDims } from './schematicGeometry';
+import { COMPONENT_DEFAULTS } from '../../services/componentDefaults';
+import { DISC_TYPES } from '../../services/componentFormats';
+import { resolveDisc } from '../../services/discGeometry';
+import { axialStart, colorOf, internalExtent, type MotorDims } from './schematicGeometry';
 
 /**
  * Owns the 3D geometry of the rocket: the component tree to Piece list build
@@ -26,15 +29,43 @@ import { axialStart, colorOf, type MotorDims } from './schematicGeometry';
 // A component's own `color` override, else its group color from the palette.
 const nodeColor = (n: ComponentNode, palette: PartPalette): string => colorOf(n, colorForType(n.type, palette));
 
+/** Internal parts drawn as the SPACE THEY TAKE rather than as a made part —
+ *  packed recovery gear and mass objects. `DISC_TYPES` are the made parts. */
+const PACKED_TYPES = new Set(['parachute', 'streamer', 'shockcord', 'masscomponent']);
+
 // Axial placement is the shared `schematicGeometry.axialStart`. A private copy
 // used to live here and had drifted: it returned a bare `pos.offset` for the
 // `absolute` method where the 2D view (and the kernel) add the parent's start,
 // so an absolutely positioned child sat in a different place in 3D than in 2D.
 
+/** A shoulder: the reduced-diameter stub that plugs into the tube next door. */
+interface Shoulder {
+  radius: number;
+  length: number;
+}
+
+/** A node's shoulder under the given key prefix, or undefined when it has none. */
+const shoulderOf = (n: ComponentNode, prefix: '' | 'fore' | 'aft'): Shoulder | undefined => {
+  // A nose cone has one shoulder and spells it `shoulderRadius`; a transition
+  // has two and spells them `foreShoulderRadius` / `aftShoulderRadius`.
+  const key = (what: 'Radius' | 'Length') => (prefix ? `${prefix}Shoulder${what}` : `shoulder${what}`);
+  const radius = num(n, key('Radius'), 0);
+  const length = num(n, key('Length'), 0);
+  return radius > 1e-6 && length > 1e-6 ? { radius, length } : undefined;
+};
+
 /**
  * Lathe points for a nose/transition outer profile (kernel-exact shapes from
  * shapeProfile.ts). Lathe geometry revolves around +Y; the radius floor keeps
  * the tip from degenerating.
+ *
+ * Shoulders are part of the profile, not separate pieces: two more points at
+ * the stub's radius, exactly the pair `solidMesh` appends for the printed
+ * solid. They were missing here alone, so a shoulder round-tripped through
+ * `.ork`, was editable, drew in the 2D schematic and printed - and the 3D
+ * model stopped dead at the base of the cone. Inside the neighboring tube is
+ * where a shoulder lives, which is the one place the view could not show it
+ * until the airframe could be opened.
  */
 function lathePoints(
   shape: string,
@@ -43,12 +74,64 @@ function lathePoints(
   foreR: number,
   aftR: number,
   clipped?: boolean,
+  fore?: Shoulder,
+  aft?: Shoulder,
 ): THREE.Vector2[] {
   // `clipped` = the node's stored flag; absent keeps the kernel default
   // (clipped), so the drawn transition matches the geometry the engine flies.
-  return outerProfile(shape, param, length, foreR, aftR, undefined, undefined, clipped).map(
-    ([x, r]) => new THREE.Vector2(Math.max(0.0001, r), x),
-  );
+  const profile = outerProfile(shape, param, length, foreR, aftR, undefined, undefined, clipped);
+  // Clamped to the body it steps down from: a shoulder wider than its own part
+  // is a modeling slip, and revolved it would be a flange standing proud of the
+  // airframe rather than a stub inside the next tube.
+  if (fore) {
+    const r = Math.min(fore.radius, foreR);
+    profile.unshift([-fore.length, r], [0, r]);
+  }
+  if (aft) {
+    const r = Math.min(aft.radius, aftR);
+    profile.push([length, r], [length + aft.length, r]);
+  }
+  return profile.map(([x, r]) => new THREE.Vector2(Math.max(0.0001, r), x));
+}
+
+/**
+ * A tube or ring cross-section revolved about the rocket axis: the rectangle
+ * innerR..outerR by 0..length, spanning x = 0..length.
+ *
+ * Tubes were solid cylinders, which is invisible while the only way to see
+ * inside is a translucent shell, and wrong the moment one is cut open: a
+ * zero-thickness shell has no wall to show, so a section through it reads as a
+ * soap bubble, and the bore is where every internal part has to fit.
+ *
+ * The dimensions come from the same `resolveDisc` the DXF cut sheet and the
+ * print solids use. The revolve is the view's own because `solidMesh.ts` says
+ * in its header that its geometry is built watertight for printing and does
+ * not serve the view; this is the same rectangle at the view's segment count,
+ * with no welding or manifold checks.
+ */
+function annulusGeometry(outerR: number, innerR: number, length: number): THREE.BufferGeometry {
+  // A wall at least as thick as the radius leaves no bore. `discSolid` returns
+  // null there and the part is dropped from a print, which is right for a file
+  // nobody can slice and wrong for a view: losing the tube is a worse answer
+  // than drawing it solid, so the bore is what gets dropped.
+  const bore = innerR > 1e-6 && innerR < outerR - 1e-6 ? innerR : 0;
+  const pts = bore
+    ? [
+        new THREE.Vector2(bore, 0),
+        new THREE.Vector2(outerR, 0),
+        new THREE.Vector2(outerR, length),
+        new THREE.Vector2(bore, length),
+        new THREE.Vector2(bore, 0), // close the ring's cross-section
+      ]
+    : [
+        new THREE.Vector2(0, 0),
+        new THREE.Vector2(outerR, 0),
+        new THREE.Vector2(outerR, length),
+        new THREE.Vector2(0, length),
+      ];
+  const geo = new THREE.LatheGeometry(pts, 48);
+  geo.rotateZ(-Math.PI / 2); // lathe axial (+Y) -> rocket axis (+X)
+  return geo;
 }
 
 export interface Piece {
@@ -228,10 +311,10 @@ export function buildPieces(
         )) {
           place(
             `inner${k++}`,
-            new THREE.CylinderGeometry(r, r, len, 32),
+            annulusGeometry(r, r - num(child, 'thickness', COMPONENT_DEFAULTS.innertube.thickness), len),
             nodeColor(child, palette),
-            [start + len / 2, off.y, off.z],
-            [0, 0, -Math.PI / 2],
+            [start, off.y, off.z],
+            undefined,
             xform,
             'glass',
           );
@@ -265,8 +348,48 @@ export function buildPieces(
             .multiply(new THREE.Matrix4().makeTranslation(podStart, podRadius, 0));
           addChain(podChain, xform ? new THREE.Matrix4().copy(xform).multiply(m) : m);
         }
+      } else if (DISC_TYPES.has(child.type)) {
+        // Centering rings, couplers, bulkheads and engine blocks, at the
+        // dimensions the DXF cut sheet and the printed solid use: explicit
+        // radii, else the enclosing tube's bore, with a ring's own bore taken
+        // from the motor mount it centers. `resolveDisc` is that resolution,
+        // and it is imported rather than recreated so the part you see and the
+        // part you cut cannot drift apart.
+        const d = child.id ? resolveDisc(tree, child.id) : null;
+        if (d && d.outerR > 0 && d.length > 0) {
+          const start = axialStart(child, d.length, pStart, pLen);
+          place(
+            `disc${k++}`,
+            annulusGeometry(d.outerR, d.innerR, d.length),
+            nodeColor(child, palette),
+            [start, 0, 0],
+            undefined,
+            xform,
+          );
+        }
+      } else if (PACKED_TYPES.has(child.type)) {
+        // Packed recovery gear and mass objects, at the same extent the 2D
+        // schematic dashes in (`internalExtent`). Their packed size only
+        // reaches the tree from an imported .ork — the editor has no field for
+        // it and the kernel never reads it (TODO.md, recovery packed
+        // dimensions) — so for a design built here this is the schematic's
+        // fallback box, drawn as a volume. Getting a real one is that item's
+        // job, not this one's; what matters here is that it is never a
+        // DIFFERENT invented size from the one the 2D view already shows.
+        const { length, radius } = internalExtent(child, pRadius);
+        if (radius > 0 && length > 0) {
+          const start = axialStart(child, length, pStart, pLen);
+          place(
+            `packed${k++}`,
+            new THREE.CylinderGeometry(radius, radius, length, 24),
+            nodeColor(child, palette),
+            [start + length / 2, 0, 0],
+            [0, 0, -Math.PI / 2],
+            xform,
+          );
+        }
       }
-      // Other internal components are not rendered in 3D (invisible in tubes).
+      // Rail buttons and the rest stay out of the 3D build.
     }
   };
 
@@ -281,7 +404,16 @@ export function buildPieces(
       if (n.type === 'nosecone') {
         const R = num(n, 'aftRadius', 0.012);
         const shapeName = typeof n['shape'] === 'string' ? (n['shape'] as string) : 'ogive';
-        const pts = lathePoints(shapeName, numOpt(n, 'shapeParameter'), len, 0, R);
+        const pts = lathePoints(
+          shapeName,
+          numOpt(n, 'shapeParameter'),
+          len,
+          0,
+          R,
+          undefined,
+          undefined,
+          shoulderOf(n, ''),
+        );
         place(
           `nose${k++}`,
           new THREE.LatheGeometry(pts, 48),
@@ -296,12 +428,15 @@ export function buildPieces(
         x += len;
       } else if (n.type === 'bodytube') {
         const R = num(n, 'outerRadius', 0.012);
+        // Hollow: the wall the part list already carries, revolved, so a
+        // cutaway shows a wall and a bore instead of a solid rod.
+        const wall = num(n, 'thickness', COMPONENT_DEFAULTS.bodytube.thickness);
         place(
           `body${k++}`,
-          new THREE.CylinderGeometry(R, R, len, 48),
+          annulusGeometry(R, R - wall, len),
           nodeColor(n, palette),
-          [x + len / 2, 0, 0],
-          [0, 0, -Math.PI / 2],
+          [x, 0, 0],
+          undefined,
           xform,
           true,
         );
@@ -337,6 +472,8 @@ export function buildPieces(
           rf,
           ra,
           typeof n['clipped'] === 'boolean' ? (n['clipped'] as boolean) : undefined,
+          shoulderOf(n, 'fore'),
+          shoulderOf(n, 'aft'),
         );
         place(
           `trans${k++}`,

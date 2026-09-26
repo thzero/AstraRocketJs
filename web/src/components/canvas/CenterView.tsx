@@ -377,14 +377,23 @@ export function CenterView() {
             )}
             {/* Quick-glance stats card (mmrocket-style): sits INSIDE the ruler frame on
             the 2D view (clear of the top + left rulers when they're on), and in the
-            upper-left corner in 3D. Toggleable via the header Info button. */}
+            upper-left corner in 3D. Toggleable via the header Info button.
+
+            In 3D it hangs BELOW the view-preset row rather than level with it.
+            That row is pinned top-right and the card top-left, which reads as
+            two corners only while the pane is wider than both put together —
+            below that they overlap, and the card is z-20 against the row's
+            z-index 2, so it covered Reset / Side / Aft AND ate their clicks.
+            Buttons you can see and cannot press is the worse half of that, and
+            it got worse with every button added to the row. A readout yields to
+            a control. */}
             {(view === '2d' || view === '3d') && showInfoCard && (
               <div
                 className="absolute z-20"
                 style={
                   view === '2d'
                     ? { left: (rulers.left ? 60 : 44) + ROLL_GUTTER, top: rulers.top ? 44 : 12 }
-                    : { left: 44, top: 12 }
+                    : { left: 44, top: 44 }
                 }
               >
                 <InfoOverlay info={info} />

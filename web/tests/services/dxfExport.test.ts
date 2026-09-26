@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { RocketTree } from '../../src/engine/openRocketEngine';
-import { componentToDxf, resolveDisc } from '../../src/services/dxfExport';
+import { componentToDxf } from '../../src/services/dxfExport';
+import { resolveDisc } from '../../src/services/discGeometry';
 import { COMPONENT_DEFAULTS } from '../../src/services/componentDefaults';
 
 const tree = {

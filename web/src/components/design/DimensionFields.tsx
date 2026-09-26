@@ -102,6 +102,7 @@ export function NumberField({
   min = 0,
   max,
   required,
+  auto,
   onChange,
   onCommit,
 }: {
@@ -114,6 +115,13 @@ export function NumberField({
   max?: number;
   /** A zero here is degenerate geometry — see the `Field` type. */
   required?: boolean;
+  /**
+   * A "follows something else" switch. While it is on the number is derived
+   * and the box is read-only, so the checkbox is the control and the box is
+   * the readout - rather than a box you can type into whose value is silently
+   * overwritten on the next edit.
+   */
+  auto?: { on: boolean; label: string; title: string; onToggle: (on: boolean) => void };
   onChange: (v: number) => void;
   onCommit?: () => void; // fires on blur — closes the undo entry for this edit
 }) {
@@ -147,12 +155,25 @@ export function NumberField({
           step={step}
           min={min}
           max={max}
+          disabled={auto?.on}
           className={markRing(
-            'w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500',
+            `w-24 rounded-md px-2 py-1 text-right text-sm ring-1 ring-white/10 focus:outline-none focus:ring-sky-500 ${
+              auto?.on ? 'bg-slate-800/50 text-slate-400' : 'bg-slate-800 text-slate-100'
+            }`,
             missing,
           )}
         />
         {unit && <span className="min-w-10 text-xs text-slate-500">{unit}</span>}
+        {auto && (
+          <input
+            type="checkbox"
+            checked={auto.on}
+            onChange={(e) => auto.onToggle(e.target.checked)}
+            aria-label={auto.label}
+            title={auto.title}
+            className="accent-sky-500"
+          />
+        )}
       </span>
     </label>
   );
@@ -193,6 +214,7 @@ export function FieldRow({
     step: number;
     min?: number;
     max?: number;
+    auto?: { on: boolean; label: string; title: string; onToggle: (on: boolean) => void };
     onChange: (v: number) => void;
   }) => <NumberField label={label} required={f.required} onCommit={onCommit} {...props} />;
 
@@ -283,14 +305,62 @@ export function FieldRow({
         onChange: (v) => onChange({ [f.key]: fu.fromUi(v) }),
       });
     }
-    default: {
-      // length: stored meters, shown in this field's length unit
+    case 'bore': {
+      // A tube's inner diameter, which is not stored: the node and the `.ork`
+      // carry the outer radius and the WALL, and the bore is the pair of them.
+      // So typing a bore writes the wall back, leaving the outside where it is
+      // - the same way OpenRocket's three linked tube fields behave, and the
+      // right way round for the job: the outside of a tube is decided by what
+      // it has to slide into, and it is the wall that gives.
+      //
+      // Read through `num` exactly as the thickness row above it does, rather
+      // than through the per-type defaults the file services use, so the two
+      // rows can never show a wall and a bore that disagree. A wall of zero is
+      // already marked as degenerate on its own row; a bore typed all the way
+      // out to the outer diameter lands there honestly instead of being nudged
+      // off it by an invented minimum.
       const fu = u.at(scope, 'length');
+      const outerR = num(node, 'outerRadius');
+      const od = 2 * outerR;
       return numeric({
         unit: <UnitChip quantity="length" scope={scope} />,
-        value: fu.toUi(num(node, f.key)),
+        value: fu.toUi(Math.max(0, od - 2 * num(node, 'thickness'))),
         step: fu.step(0.0005),
-        onChange: (v) => onChange({ [f.key]: fu.fromUi(v) }),
+        max: fu.toUi(od),
+        onChange: (v) => {
+          const bore = Math.max(0, Math.min(od, fu.fromUi(v)));
+          // Floored as well as clamped: the unit round trip leaves dust, and a
+          // wall of -1.7e-18 is a negative thickness heading for the mass, the
+          // mesh and the .ork, none of which check for one.
+          onChange({ thickness: Math.max(0, (od - bore) / 2) });
+        },
+      });
+    }
+    default: {
+      // length: stored meters, shown in this field's length unit. `diameter`
+      // fields are radii in the node and diameters in the box (see FieldFlags):
+      // the doubling lives here, at the edit boundary, and nowhere else.
+      const fu = u.at(scope, 'length');
+      const k = f.diameter ? 2 : 1;
+      // `auto`: the value follows something else (a shoulder follows the bore of
+      // the tube it plugs into). Ticking it commits at once and the resolver
+      // fills the number in the same edit; clearing it pins whatever it now is.
+      const autoKey = f.auto;
+      return numeric({
+        unit: <UnitChip quantity="length" scope={scope} />,
+        value: fu.toUi(k * num(node, f.key)),
+        step: fu.step(0.0005),
+        ...(autoKey
+          ? {
+              auto: {
+                on: node[autoKey] === true,
+                label: `${label}: ${t('prop.auto')}`,
+                title: t('prop.autoShoulder'),
+                onToggle: (on: boolean) => commitChange({ [autoKey]: on }),
+              },
+            }
+          : {}),
+        onChange: (v) => onChange({ [f.key]: fu.fromUi(v) / k }),
       });
     }
   }

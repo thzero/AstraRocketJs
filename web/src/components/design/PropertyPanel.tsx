@@ -244,7 +244,9 @@ export function PropertyPanel({
         <p className="rounded-md bg-amber-500/10 px-2 py-1.5 text-[11px] leading-snug text-amber-300 ring-1 ring-amber-500/30">
           {t('prop.tubeFinsCollide', {
             max: tubeFinMaxCount(num(node, 'outerRadius'), parentRadius),
-            radius: u.fmt('length', tubeFinMaxRadius(num(node, 'finCount'), parentRadius) ?? 0),
+            // Doubled to match the field it is about: the tube's size reads as
+            // a diameter in the box above this warning.
+            diameter: u.fmt('length', 2 * (tubeFinMaxRadius(num(node, 'finCount'), parentRadius) ?? 0)),
             unit: u.sym('length'),
           })}
         </p>

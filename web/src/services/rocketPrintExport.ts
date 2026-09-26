@@ -2,7 +2,7 @@ import type { ComponentNode, ComponentType, RocketTree } from '../engine/openRoc
 import { asStageNodes } from './orkTree';
 import { parentRadiusOf } from '../tree/finPlanform';
 import { discSolid, makeWatertight, solidForNode } from './solidMesh';
-import { resolveDisc } from './dxfExport';
+import { resolveDisc } from './discGeometry';
 import { DISC_TYPES, isPrintable } from './componentFormats';
 import { colorForType } from './partColors';
 import { buildThreeMf, THREE_MF_MIME, type ThreeMfPart } from './threeMf';

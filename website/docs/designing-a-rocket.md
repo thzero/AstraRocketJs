@@ -32,9 +32,23 @@ It is not only a label. The simulation judges a deployment differently depending
 
 A mass component is not only a lump of ballast — it can hold inner structure of its own, so an altimeter bay or a payload sled can be modeled as the sled plus the rings, bulkheads, hardware and recovery gear nested inside it. Add parts to it the same way as to a body tube.
 
+## How dimensions are stated
+
+**Every round dimension is a diameter.** That is how tubes are sold, how the parts catalog lists them, how the component tree labels them and how OpenRocket states them. `.ork` files store radii internally and always have; that is a detail of the file, and the number you type is never one of them.
+
+**A tube also states its bore.** Body tubes, inner tubes, couplers, engine blocks, tube fins and launch lugs show an **inner diameter** between the outer diameter and the wall thickness. It is not a fourth independent number: a tube has an outside and a wall, and the bore is what the two leave. Typing a bore therefore changes the **wall**, and leaves the outer diameter alone, because the outside of a tube is usually decided by what it has to slide into. A bore wider than the tube itself is clamped to a wall of zero rather than a negative one.
+
+That makes the fit questions direct ones. Does the motor go in? Compare the motor's diameter to the mount's inner diameter. Does the coupler fit the tube? Its outer diameter against the tube's inner diameter. Will the rod clear the lug? The lug's inner diameter, which until now was whatever the file happened to carry, since there was no field for a lug's wall at all.
+
+**A shoulder can follow the tube it plugs into.** Beside each shoulder diameter, on a nose cone and on both ends of a transition, is a switch. With it on, the diameter is the bore of the part next door - the one below a nose cone, above and below a transition - and it stays that way: widen the tube's wall and the stub that goes into it follows in the same keystroke. The box is a readout while the switch is on, and turning the switch off pins whatever the number currently is.
+
+Only the diameter follows. How far the shoulder reaches into the tube is yours, so a part with the switch on and no shoulder length still has no shoulder, which is the right place to start from.
+
+The switch is on for parts you add here, and off for everything read from a file, because in a file an absent shoulder means the part has none. Nothing you import grows one. `.ork` has no way to record the switch, so a file written here carries the resolved number and a round trip through desktop OpenRocket freezes it at that value.
+
 ## Required dimensions
 
-Some dimensions define what a part *is*. A body tube with no radius is not a narrow tube, it is nothing — so those fields are marked, and a design that is missing one cannot be flown.
+Some dimensions define what a part *is*. A body tube with no diameter is not a narrow tube, it is nothing — so those fields are marked, and a design that is missing one cannot be flown.
 
 A required field carries a small red **\*** after its label, always, whether or not it is filled. That is there so you can see what a part needs *before* you have left anything blank.
 
@@ -46,26 +60,26 @@ If a required dimension is **zero**, the field escalates: the label is boxed in 
 
 | Component | Required |
 | --- | --- |
-| Nose cone | length, radius, thickness |
-| Body tube | length, radius, thickness |
-| Transition | length, fore radius, aft radius, thickness |
+| Nose cone | length, diameter, thickness |
+| Body tube | length, diameter, thickness |
+| Transition | length, fore diameter, aft diameter, thickness |
 | Trapezoidal / elliptical fin set | fin count, root chord, height, thickness |
 | Free-form fin set | fin count, thickness |
-| Tube fin set | tube count, length, tube radius, thickness |
-| Inner tube | length, radius, thickness |
+| Tube fin set | tube count, length, tube diameter, thickness |
+| Inner tube | length, diameter, thickness |
 | Coupler, engine block | length, thickness |
 | Centering ring | thickness |
 | Bulkhead | thickness |
-| Launch lug | length, radius |
+| Launch lug | length, diameter |
 | Rail button | outer diameter |
 | Parachute | diameter, drag coefficient |
 | Streamer | length, width, drag coefficient |
 | Mass component | mass |
 | Pod set / parallel stage | instance count |
 
-**Radii that fill their parent are left blank.** A coupler, engine block, centering ring or bulkhead takes its outer radius from whatever it sits in, and a centering ring takes its inner radius from the motor mount running through it, so leaving those empty is a real answer rather than a gap — it is what `.ork` files call *auto*, and the value follows along when you resize the tube. Type a number and that number is used instead. An inner tube is the exception: it *is* the motor mount, so its size is the thing being stated.
+**Diameters that fill their parent are left blank.** A coupler, engine block, centering ring or bulkhead takes its outer diameter from whatever it sits in, and a centering ring takes its inner diameter from the motor mount running through it, so leaving those empty is a real answer rather than a gap — it is what `.ork` files call *auto*, and the value follows along when you resize the tube. Type a number and that number is used instead. An inner tube is the exception: it *is* the motor mount, so its size is the thing being stated.
 
-Everything else may legitimately be zero, which is why it is not marked. A **tip chord** of 0 is a delta fin; **sweep** or **cant** of 0 is a straight one; a **shoulder** or **fin tab** of 0 is simply absent; **motor overhang** 0 is flush; a centering ring's **inner radius** of 0 is a solid disc; a mass component's **length** of 0 is a point mass; and every **delay** and **angle offset** starts at 0. A stage has no required fields at all — its settings are triggers and delays.
+Everything else may legitimately be zero, which is why it is not marked. A **tip chord** of 0 is a delta fin; **sweep** or **cant** of 0 is a straight one; a **shoulder** or **fin tab** of 0 is simply absent; **motor overhang** 0 is flush; a centering ring's **inner diameter** of 0 is a solid disc; a mass component's **length** of 0 is a point mass; and every **delay** and **angle offset** starts at 0. A stage has no required fields at all — its settings are triggers and delays.
 
 
 ## Fin fillets {#fin-fillets}
@@ -135,7 +149,7 @@ Saved parts live in your browser alongside your custom materials and imported mo
 
 **Menu → My Parts** is the library itself: every saved part of every type, whatever the open design happens to contain. The list is on the left, grouped by type; selecting a part opens it on the right.
 
-The editor uses the same fields the component panel does, in the same units, so a saved nose cone is edited as a nose cone: rename it, change its maker or notes, change its shape, length, radius, shoulder, material or color. **Save** writes it in place and leaves it selected, so a rename does not leave the old copy behind and you can work down the list without reopening anything. **Discard** puts the part back as it was stored, and switching to another part with unsaved edits asks first. **Delete** is in the same row, at the other end, and also asks. What the editor leaves out is the half of the panel that describes a part's place in a rocket (position, move, the fit-ranked picker, the descent-rate readout), because a saved part has no parent and no design to be judged against until you apply it. The picker only opens when a component of a matching type is selected, so it is not the place to manage a saved bulkhead on a rocket that has no bulkhead in it. Deleting asks first, in both places, because the design a part came from may be long gone.
+The editor uses the same fields the component panel does, in the same units, so a saved nose cone is edited as a nose cone: rename it, change its maker or notes, change its shape, length, diameter, shoulder, material or color. **Save** writes it in place and leaves it selected, so a rename does not leave the old copy behind and you can work down the list without reopening anything. **Discard** puts the part back as it was stored, and switching to another part with unsaved edits asks first. **Delete** is in the same row, at the other end, and also asks. What the editor leaves out is the half of the panel that describes a part's place in a rocket (position, move, the fit-ranked picker, the descent-rate readout), because a saved part has no parent and no design to be judged against until you apply it. The picker only opens when a component of a matching type is selected, so it is not the place to manage a saved bulkhead on a rocket that has no bulkhead in it. Deleting asks first, in both places, because the design a part came from may be long gone.
 
 ### Sizing a parachute
 

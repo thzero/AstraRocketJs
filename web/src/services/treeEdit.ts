@@ -10,6 +10,10 @@ import { DEFAULT_CHUTE_CD } from './componentFilter';
 import { KERNEL_DEFAULTS } from '../tree/kernelDefaults.js';
 import { isChainType } from '../tree/componentKinds';
 import { uuid } from './uuid';
+// Every mutator here ends by resolving the shoulders that follow a neighbor:
+// this is the one door the tree is edited through, so nothing downstream has to
+// know the feature exists.
+import { syncAutoShoulders } from './autoShoulder';
 
 /**
  * A unique id for a new node.
@@ -71,7 +75,7 @@ export function updateNode(tree: RocketTree, id: string, patch: Partial<Componen
     return nodes;
   };
   const components = rec(tree.components);
-  return { ...tree, components };
+  return syncAutoShoulders({ ...tree, components });
 }
 
 export function removeNode(tree: RocketTree, id: string): RocketTree {
@@ -86,7 +90,7 @@ export function removeNode(tree: RocketTree, id: string): RocketTree {
     return false;
   };
   rec(next.components);
-  return next;
+  return syncAutoShoulders(next);
 }
 
 export function addChild(tree: RocketTree, parentId: string, node: ComponentNode): RocketTree {
@@ -97,7 +101,7 @@ export function addChild(tree: RocketTree, parentId: string, node: ComponentNode
       break;
     }
   }
-  return next;
+  return syncAutoShoulders(next);
 }
 
 /** The id of the first motor-mount node, for seating the motor. */
@@ -355,7 +359,9 @@ export function moveNode(tree: RocketTree, id: string, dir: -1 | 1): RocketTree 
     return false;
   };
   rec(next.components);
-  return next;
+  // Moving a part changes WHO its neighbors are, so a shoulder that follows one
+  // has a new tube to follow.
+  return syncAutoShoulders(next);
 }
 
 /** A new node of `type` with reasonable default dimensions (SI units, m). */
@@ -366,12 +372,25 @@ export function defaultNode(type: ComponentType): ComponentNode {
     // default separation (used only when it sits below another stage).
     case 'stage':
       return { type, id, separationEvent: 'ejection', separationDelay: 0 };
+    // The shoulder diameters follow the tube next door (see autoShoulder.ts).
+    // Only on parts created HERE: the flag is never written by the .ork reader,
+    // so no design that already exists grows a shoulder it did not have.
     case 'nosecone':
-      return { type, id, shape: 'ogive', length: 0.1, aftRadius: 0.013, thickness: 0.001 };
+      return { type, id, shape: 'ogive', length: 0.1, aftRadius: 0.013, thickness: 0.001, shoulderAuto: true };
     case 'bodytube':
       return { type, id, length: 0.2, outerRadius: 0.013, thickness: 0.0005 };
     case 'transition':
-      return { type, id, shape: 'conical', length: 0.05, foreRadius: 0.013, aftRadius: 0.019, thickness: 0.0005 };
+      return {
+        type,
+        id,
+        shape: 'conical',
+        length: 0.05,
+        foreRadius: 0.013,
+        aftRadius: 0.019,
+        thickness: 0.0005,
+        foreShoulderAuto: true,
+        aftShoulderAuto: true,
+      };
     case 'trapezoidfinset':
       return {
         type,
@@ -604,7 +623,7 @@ export function addPart(
   if (!stageId) {
     const next = clone(tree);
     next.components.push(node);
-    return { tree: next, id };
+    return { tree: syncAutoShoulders(next), id };
   }
   if (!allowedChildren('stage').includes(type)) {
     throw new Error(`A ${type} cannot be added here: neither the selected part nor the stage may host it.`);

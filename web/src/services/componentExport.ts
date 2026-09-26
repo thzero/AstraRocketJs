@@ -7,7 +7,8 @@ import { download, exportFilename } from './saveFile';
 import { buildThreeMf, THREE_MF_MIME } from './threeMf';
 import { colorForType } from './partColors';
 import { makeWatertight } from './solidMesh';
-import { componentToDxf, resolveDisc, DXF_MIME } from './dxfExport';
+import { componentToDxf, DXF_MIME } from './dxfExport';
+import { resolveDisc } from './discGeometry';
 import { DISC_TYPES, type ExportFormat } from './componentFormats';
 
 /**

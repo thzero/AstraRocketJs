@@ -4,6 +4,7 @@ import { axialLength, axialStart } from '../../tree/position.js';
 import { finSpan } from '../../tree/finPlanform.js';
 import { outerProfile } from '../../tree/shapeProfile.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
+import { KERNEL_MASSCOMPONENT_RADIUS } from '../../tree/kernelDefaults.js';
 import { assemblyBoundingRadius, isAssembly, resolveAssemblyRadius } from '../../tree/assembly.js';
 import type { StabilityState } from '../../services/simReport.js';
 
@@ -347,6 +348,38 @@ export function computeSchematicLayout(
   const x0 = Math.max(pad + rLeft, (w - totalLen * scale) / 2);
   const ctx: Ctx = { scale, cy: (h + rTop - rBot) / 2, x0 };
   return { chain, totalLen, maxR, vHalf, snapXs, radialSnaps, rTop, rBot, rLeft, rRight, w, h, scale, ctx };
+}
+
+/**
+ * The drawn extent of an INTERNAL component — the box the 2D schematic dashes
+ * in, and the solid the 3D view puts inside the airframe. ONE function,
+ * because the two views disagreeing about what fits in a bay is worse than
+ * either of them being rough.
+ *
+ * `packedLength` / `packedRadius` are not consulted: orkImport reads
+ * <packedlength>/<packedradius> into `length` / `radius`
+ * (orkImport.ts:441-488), so neither key is ever written and a branch reading
+ * them is unreachable.
+ *
+ * For a MASS COMPONENT the last-resort radius is the KERNEL's default
+ * (ComponentFactory masscomponent radius = 0.005), not a fraction of the
+ * parent. It used to be `pRadius * 0.7`, so a mass component with no `radius`
+ * key — which is every one the editor creates — was drawn at ~9 mm on a 13 mm
+ * tube and flown at 5 mm. A drawing that disagrees with the simulation is
+ * worse than an ugly one.
+ *
+ * Every other internal type keeps the fraction: the kernel does not read
+ * `radius` for a parachute, streamer or shock cord (packed sizes are not wired
+ * through, see TODO.md), so there is no simulated size to agree with, and
+ * applying the 5 mm mass default to a parachute shrank the default design's
+ * chute box until its glyph no longer fit.
+ */
+export function internalExtent(node: ComponentNode, parentRadius: number): { length: number; radius: number } {
+  const dflt = node.type === 'masscomponent' ? KERNEL_MASSCOMPONENT_RADIUS : parentRadius * 0.7;
+  return {
+    length: num(node, 'length', 0.025),
+    radius: Math.min(parentRadius * 0.85, num(node, 'outerRadius', num(node, 'radius', dflt))),
+  };
 }
 
 /**

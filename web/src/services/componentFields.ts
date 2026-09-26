@@ -47,11 +47,41 @@ import { CLUSTER_OPTIONS, clusterCount } from '../tree/cluster';
  */
 export type PanelSection = 'placement' | 'finTab' | 'motor' | 'fillet';
 
-type FieldFlags = { required?: true; section?: PanelSection };
+/**
+ * `diameter` means the value is STORED as a radius and EDITED as a diameter.
+ *
+ * The node keys mirror the `.ork` tags, which are radii in meters, and this
+ * panel renders node keys straight through - so every airframe dimension read
+ * as a radius while everything around it spoke diameter: the parts picker's
+ * own column (`outerDiameter`, halved on apply in treeEdit.ts), the component
+ * tree's row (`outerRadius * 2`), the DXF sheet's `Ø` labels, the motor
+ * catalog, the rail button (which STORES a diameter), and OpenRocket itself.
+ * Nobody measures a tube with a radius.
+ *
+ * It is a per-field flag rather than a rule about key names, because a fillet
+ * radius really is a radius: it is the bead along a fin root, not a circle
+ * anybody measures across. Storage does not move: the `.ork` tag, the kernel bridge and the
+ * catalog all still carry radii, and only the two numbers at the edit boundary
+ * are doubled and halved.
+ */
+/**
+ * `auto` names the node key of a flag that makes this dimension FOLLOW
+ * something else, and the field read-only while it is set.
+ *
+ * Used by the shoulder diameters, which follow the bore of the tube they plug
+ * into (see services/autoShoulder.ts). The stored value is still a plain
+ * number - the resolver writes it - so every consumer outside this panel is
+ * unaffected, and clearing the box pins whatever it currently is.
+ */
+type FieldFlags = { required?: true; section?: PanelSection; diameter?: true; auto?: string };
 
 export type Field = FieldFlags &
   (
     | { key: string; label: string; kind: 'length' } // stored m, shown in units.length
+    // A tube's BORE. Not a node key at all: it is read from the outer radius
+    // and the wall, and typing one writes the wall back. See the `bore` branch
+    // in DimensionFields for why the wall is the side that gives.
+    | { key: string; label: string; kind: 'bore' }
     | { key: string; label: string; kind: 'mass' } // stored kg, shown in units.mass
     | { key: string; label: string; kind: 'count' }
     | { key: string; label: string; kind: 'distance'; step?: number } // stored m, shown in units.distance
@@ -124,6 +154,23 @@ const FIN_TABS: Field[] = [
 // is a Tube, not a FinSet, so the kernel has no fillet to give it.
 const FIN_FILLET: Field = { key: 'filletRadius', label: 'filletRadius', kind: 'length', section: 'fillet' };
 
+/**
+ * The inner diameter of a straight tube, between its outside and its wall -
+ * the order those three read in, and the order OpenRocket puts them in.
+ *
+ * Every tube in the table carries an outer radius and a wall thickness and the
+ * bore was derived from the pair in `discGeometry.tubeRadii`, where the DXF
+ * sheet, the printed solids and the 3D cutaway all read it, and shown nowhere.
+ * It is the dimension a tube is actually bought and fitted by: what slides
+ * into it, what it slides over, whether the motor goes in.
+ *
+ * Not on a nose cone or transition, whose wall follows a curved profile and
+ * has no single bore, and not on a centering ring or bulkhead, whose
+ * `innerRadius` is a stored dimension of its own rather than a consequence of
+ * a wall.
+ */
+const TUBE_BORE: Field = { key: 'innerDiameter', label: 'innerDiameter', kind: 'bore' };
+
 const FIN_ROTATION: Field = { key: 'rotation', label: 'rotation', kind: 'angle', step: 5, section: 'placement' };
 
 // Off-axis assembly placement (PodSet / ParallelStage) — how many instances
@@ -177,16 +224,17 @@ const RAW_FIELDS: Record<string, Field[]> = {
     // (ogive/power/parabolic/haack) - filtered at render by shapeUsesParameter.
     { key: 'shapeParameter', label: 'shapeParameter', kind: 'number', step: 0.05 },
     { key: 'length', label: 'length', kind: 'length' },
-    { key: 'aftRadius', label: 'radius', kind: 'length' },
+    { key: 'aftRadius', label: 'diameter', kind: 'length', diameter: true },
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'shoulderLength', label: 'shoulderLength', kind: 'length' },
-    { key: 'shoulderRadius', label: 'shoulderRadius', kind: 'length' },
+    { key: 'shoulderRadius', label: 'shoulderDiameter', kind: 'length', diameter: true, auto: 'shoulderAuto' },
     { key: 'shoulderThickness', label: 'shoulderThickness', kind: 'length' },
     { key: 'shoulderCapped', label: 'shoulderCapped', kind: 'bool' },
   ],
   bodytube: [
     { key: 'length', label: 'length', kind: 'length' },
-    { key: 'outerRadius', label: 'radius', kind: 'length' },
+    { key: 'outerRadius', label: 'diameter', kind: 'length', diameter: true },
+    TUBE_BORE,
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'motorMount', label: 'motorMount', kind: 'bool', section: 'motor' },
     { key: 'motorOverhang', label: 'motorOverhang', kind: 'length', section: 'motor' },
@@ -206,13 +254,19 @@ const RAW_FIELDS: Record<string, Field[]> = {
     // parameter the nose cone did. Filtered at render by shapeUsesParameter.
     { key: 'shapeParameter', label: 'shapeParameter', kind: 'number', step: 0.05 },
     { key: 'length', label: 'length', kind: 'length' },
-    { key: 'foreRadius', label: 'foreRadius', kind: 'length' },
-    { key: 'aftRadius', label: 'aftRadius', kind: 'length' },
+    { key: 'foreRadius', label: 'foreDiameter', kind: 'length', diameter: true },
+    { key: 'aftRadius', label: 'aftDiameter', kind: 'length', diameter: true },
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'foreShoulderLength', label: 'foreShoulderLength', kind: 'length' },
-    { key: 'foreShoulderRadius', label: 'foreShoulderRadius', kind: 'length' },
+    {
+      key: 'foreShoulderRadius',
+      label: 'foreShoulderDiameter',
+      kind: 'length',
+      diameter: true,
+      auto: 'foreShoulderAuto',
+    },
     { key: 'aftShoulderLength', label: 'aftShoulderLength', kind: 'length' },
-    { key: 'aftShoulderRadius', label: 'aftShoulderRadius', kind: 'length' },
+    { key: 'aftShoulderRadius', label: 'aftShoulderDiameter', kind: 'length', diameter: true, auto: 'aftShoulderAuto' },
   ],
   trapezoidfinset: [
     { key: 'finCount', label: 'finCount', kind: 'count' },
@@ -247,13 +301,15 @@ const RAW_FIELDS: Record<string, Field[]> = {
   tubefinset: [
     { key: 'finCount', label: 'tubeCount', kind: 'count' },
     { key: 'length', label: 'length', kind: 'length' },
-    { key: 'outerRadius', label: 'tubeRadius', kind: 'length' },
+    { key: 'outerRadius', label: 'tubeDiameter', kind: 'length', diameter: true },
+    TUBE_BORE,
     { key: 'thickness', label: 'thickness', kind: 'length' },
     FIN_ROTATION,
   ],
   innertube: [
     { key: 'length', label: 'length', kind: 'length' },
-    { key: 'outerRadius', label: 'radius', kind: 'length' },
+    { key: 'outerRadius', label: 'diameter', kind: 'length', diameter: true },
+    TUBE_BORE,
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'motorMount', label: 'motorMount', kind: 'bool', section: 'motor' },
     { key: 'motorOverhang', label: 'motorOverhang', kind: 'length', section: 'motor' },
@@ -273,26 +329,35 @@ const RAW_FIELDS: Record<string, Field[]> = {
   ],
   tubecoupler: [
     { key: 'length', label: 'length', kind: 'length' },
-    { key: 'outerRadius', label: 'radius', kind: 'length' },
+    { key: 'outerRadius', label: 'diameter', kind: 'length', diameter: true },
+    TUBE_BORE,
     { key: 'thickness', label: 'thickness', kind: 'length' },
   ],
   centeringring: [
     { key: 'length', label: 'thickness', kind: 'length' },
-    { key: 'outerRadius', label: 'outerRadius', kind: 'length' },
-    { key: 'innerRadius', label: 'innerRadius', kind: 'length' },
+    { key: 'outerRadius', label: 'outerDiameter', kind: 'length', diameter: true },
+    { key: 'innerRadius', label: 'innerDiameter', kind: 'length', diameter: true },
   ],
   bulkhead: [
     { key: 'length', label: 'thickness', kind: 'length' },
-    { key: 'outerRadius', label: 'radius', kind: 'length' },
+    { key: 'outerRadius', label: 'diameter', kind: 'length', diameter: true },
   ],
   engineblock: [
     { key: 'length', label: 'length', kind: 'length' },
-    { key: 'outerRadius', label: 'radius', kind: 'length' },
+    { key: 'outerRadius', label: 'diameter', kind: 'length', diameter: true },
+    TUBE_BORE,
     { key: 'thickness', label: 'thickness', kind: 'length' },
   ],
   launchlug: [
     { key: 'length', label: 'length', kind: 'length' },
-    { key: 'outerRadius', label: 'radius', kind: 'length' },
+    { key: 'outerRadius', label: 'diameter', kind: 'length', diameter: true },
+    TUBE_BORE,
+    // A lug's WALL round-trips through `.ork` (importReaders.ts:275 /
+    // exportWriters.ts:285) and sizes its printed solid, and nothing could set
+    // it - so the bore, which is the only dimension of a lug that has to be
+    // right, was whatever the file said or the 0.3 mm default. The rod has to
+    // fit through it.
+    { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'angleOffset', label: 'rotation', kind: 'angle', section: 'placement' },
   ],
   railbutton: [

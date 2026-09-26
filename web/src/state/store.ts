@@ -3,6 +3,7 @@ import i18n from '../i18n';
 import { confirm } from './confirmStore';
 import { prompt } from './promptStore';
 import { scaleRocket } from '../tree/scaleRocket';
+import { syncAutoShoulders } from '../services/autoShoulder';
 import { buildRocketTree, specToTree, C6, type RocketSpec, type StaticInfo } from '../engine/api';
 import type {
   MotorSpec,
@@ -902,7 +903,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     // them belong to each simulation.
     scaleDesign: (factor) => {
       const { tree, sims } = get();
-      const next = scaleRocket(tree, factor);
+      // Scaling is the one tree change that does not go through `treeEdit`, so
+      // it re-resolves the shoulders that follow a neighbor itself. It scales
+      // every radius by the same factor, so the numbers already agree - this is
+      // belt and braces against a rounding drift that would otherwise persist.
+      const next = syncAutoShoulders(scaleRocket(tree, factor));
       if (next === tree) return; // 1×, or a non-positive/non-finite factor — nothing to do
       recordStep(); // one undo step for the whole scale
       set({ tree: next, selectedId: null, sims: reconcileAll(next, sims) });
