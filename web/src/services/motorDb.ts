@@ -10,6 +10,7 @@
 import { getMotorStore, type CustomMotor } from './motorStore';
 import { MIN_CURVE_SAMPLES } from './motorCurve';
 import { parseEng, totalImpulse } from './engParser';
+import { parseRse } from './rseParser';
 import { motorFitsMount, offersPlugged, type MountFit } from './motorPicker';
 import { fetchCatalog } from './remoteData';
 
@@ -76,6 +77,13 @@ function customToRow(cm: CustomMotor): CatalogMotor {
     mass: cm.totalWeightG,
     custom: true,
     id: cm.id,
+    length: cm.length,
+    propWeightG: cm.propWeightG,
+    // `.rse` carries these; `.eng` has nowhere to put either. They are what
+    // make an imported hybrid read as a hybrid in the detail panel, and what
+    // lets the plugged filter see a motor built without an ejection charge.
+    type: cm.type,
+    delays: cm.delayList,
   };
 }
 
@@ -129,10 +137,22 @@ export async function loadCatalog(): Promise<CatalogMotor[]> {
   return [...custom, ...bundled];
 }
 
-/** Parse a .eng file, store it as a custom motor, and return the refreshed catalog. */
-export async function importCustomMotorFromEng(text: string): Promise<CatalogMotor[]> {
-  await getMotorStore().addCustomMotor(parseEng(text));
-  return loadCatalog();
+/**
+ * Parse a motor file, store what it holds, and return the refreshed catalog.
+ *
+ * The format is chosen from the file's BYTES rather than its extension, the
+ * way `designFile.ts` picks between `.ork` and `.rkt`: a `.rse` arrives named
+ * `.rse`, `.rse.xml` or occasionally `.eng` from a site that guessed, and the
+ * one thing that never lies is whether the text is XML.
+ *
+ * Returns the refreshed catalog and how many motors landed, because a `.rse`
+ * can be a manufacturer's whole range and importing 40 of them silently would
+ * be indistinguishable from importing one.
+ */
+export async function importCustomMotors(text: string): Promise<{ catalog: CatalogMotor[]; imported: number }> {
+  const motors = text.trimStart().startsWith('<') ? parseRse(text) : [parseEng(text)];
+  for (const m of motors) await getMotorStore().addCustomMotor(m);
+  return { catalog: await loadCatalog(), imported: motors.length };
 }
 
 /** Remove an imported motor and return the refreshed catalog. */

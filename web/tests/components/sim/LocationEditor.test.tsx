@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
-import { LocationEditDialog } from '../../../src/components/sim/LocationEditDialog';
+import { LocationEditor } from '../../../src/components/sim/LocationEditor';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import type { LaunchLocation } from '../../../src/services/launchLocationStore';
 
@@ -9,7 +9,7 @@ import type { LaunchLocation } from '../../../src/services/launchLocationStore';
  * The full location editor: name AND coordinates.
  *
  * Renaming alone was never the useful edit — the thing you most want to correct
- * about a location is a number. These cover the two jobs the dialog does (fix an
+ * about a location is a number. These cover the two jobs the pane does (fix an
  * existing location, create one from nothing) and the guard that keeps a location the
  * store would reject from being reachable at all.
  */
@@ -24,17 +24,23 @@ const HOME: LaunchLocation = {
 
 const render = (location: LaunchLocation | null, takenNames: string[] = []) => {
   const onSave = vi.fn();
-  const onCancel = vi.fn();
+  const onDirtyChange = vi.fn();
   renderWithProviders(
-    <LocationEditDialog location={location} takenNames={takenNames} onSave={onSave} onCancel={onCancel} />,
+    <LocationEditor
+      location={location}
+      takenNames={takenNames}
+      onSave={onSave}
+      onDirtyChange={onDirtyChange}
+      onBack={vi.fn()}
+    />,
   );
-  return { onSave, onCancel };
+  return { onSave, onDirtyChange };
 };
 
 const field = (name: string) => screen.getByLabelText(name) as HTMLInputElement;
 const save = () => screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement;
 
-describe('LocationEditDialog, editing', () => {
+describe('LocationEditor, editing', () => {
   it('seeds every field from the location', () => {
     render(HOME);
     expect((screen.getByRole('textbox') as HTMLInputElement).value).toBe('Home field');
@@ -71,7 +77,7 @@ describe('LocationEditDialog, editing', () => {
   });
 });
 
-describe('LocationEditDialog, the map', () => {
+describe('LocationEditor, the map', () => {
   it('shows the location it is editing', () => {
     render(HOME);
     // Hemispheres, not signs: the readout is there to make a wrong-signed
@@ -107,7 +113,7 @@ describe('LocationEditDialog, the map', () => {
   });
 });
 
-describe('LocationEditDialog, creating', () => {
+describe('LocationEditor, creating', () => {
   it('starts empty and refuses to save until it is a real place', () => {
     const { onSave } = render(null);
     expect(save().disabled).toBe(true);
@@ -143,5 +149,43 @@ describe('LocationEditDialog, creating', () => {
     fireEvent.change(field('Longitude'), { target: { value: '-400' } });
     fireEvent.click(save());
     expect(onSave.mock.calls[0]![0]).toMatchObject({ latitudeDeg: 90, longitudeDeg: -180 });
+  });
+});
+
+describe('LocationEditor, the unsaved-edit guard', () => {
+  const discard = () => screen.getByRole('button', { name: 'Discard' }) as HTMLButtonElement;
+
+  it('offers nothing to save or discard until something changes', () => {
+    const { onDirtyChange } = render(HOME);
+    expect(save().disabled).toBe(true);
+    expect(discard().disabled).toBe(true);
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it('reports a change so the list can ask before dropping it', () => {
+    const { onDirtyChange } = render(HOME);
+    fireEvent.change(field('Latitude'), { target: { value: '39.1234' } });
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+    expect(save().disabled).toBe(false);
+  });
+
+  it('is clean again when an edit is typed back to what was stored', () => {
+    // Compared against the STORED location rather than tracked by a flag set
+    // on every keystroke, so the discard prompt cannot fire over an edit
+    // nobody made.
+    const { onDirtyChange } = render(HOME);
+    fireEvent.change(field('Latitude'), { target: { value: '39.1234' } });
+    fireEvent.change(field('Latitude'), { target: { value: '39.05' } });
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it('puts every field back as it was stored', () => {
+    render(HOME);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Renamed' } });
+    fireEvent.change(field('Latitude'), { target: { value: '1' } });
+    fireEvent.click(discard());
+    expect((screen.getByRole('textbox') as HTMLInputElement).value).toBe('Home field');
+    expect(field('Latitude').value).toBe('39.05');
+    expect(save().disabled).toBe(true);
   });
 });

@@ -1046,12 +1046,15 @@
     "absolute": "Absoluto"
   },
   "motor": {
-    "importEng": "Importar .eng",
     "plugged": "tampado",
     "all": "Todos",
     "count": "{{total}} motores",
     "deleteTitle": "Excluir o motor importado {{name}}",
-    "importedTitle": "Motor importado"
+    "importedTitle": "Motor importado",
+    "import": "Importar .eng / .rse",
+    "importedN_one": "{{count}} motor importado",
+    "importedN_many": "{{count}} motores importados",
+    "importedN_other": "{{count}} motores importados"
   },
   "schematic": {
     "cg": "CG",
@@ -1431,11 +1434,15 @@
     "menu": "Locais de lançamento",
     "apply": "Usar este local na simulação atual",
     "empty": "Nenhum local salvo ainda. Salve um a partir do cartão Local de lançamento na aba Simulações, para não ter que digitar de novo as coordenadas de um campo.",
-    "edit": "Editar",
     "new": "Novo local",
     "name": "Nome",
     "duplicateName": "Outro local já tem este nome.",
-    "needsSite": "Informe uma latitude e uma longitude primeiro: um local de lançamento é um lugar, e metade dele seria salva como 0°, 0°."
+    "needsSite": "Informe uma latitude e uma longitude primeiro: um local de lançamento é um lugar, e metade dele seria salva como 0°, 0°.",
+    "pickHint": "Selecione um local à esquerda para editá-lo, ou adicione um novo.",
+    "discardConfirm": "Descartar as alterações deste local?",
+    "back": "Voltar à lista",
+    "use": "Usar",
+    "applyNeedsSave": "Salve ou descarte as alterações antes de usar este local."
   },
   "map": {
     "label": "Mapa do local de lançamento",

@@ -95,12 +95,12 @@ test('the layer buttons switch which provider is asked', async ({ page }) => {
   await dialog.getByRole('button', { name: 'Satellite' }).click();
 });
 
-test('the location editor carries a map beside its fields', async ({ page }) => {
+test('the location editor carries a map under its fields', async ({ page }) => {
   await ready(page);
   await openTab(page, 'Simulations');
 
-  // Save a location, then reopen it for editing: the editor is where a mistyped
-  // coordinate gets corrected, so the map belongs next to those fields.
+  // Save a location, then select it for editing: the editor is where a mistyped
+  // coordinate gets corrected, so the map belongs with those fields.
   await lat(page).fill('39.05');
   await lon(page).fill('-104.8');
   await blurFields(page);
@@ -110,8 +110,10 @@ test('the location editor carries a map beside its fields', async ({ page }) => 
   await naming.getByRole('button', { name: 'Save', exact: true }).click();
 
   await page.getByRole('button', { name: 'Manage saved locations' }).click();
-  await page.getByRole('dialog', { name: 'Manage saved locations' }).getByRole('button', { name: 'Edit' }).click();
-  const editor = page.getByRole('dialog', { name: 'Edit' });
+  // Master-detail: the editor is the right-hand pane of the same dialog, so
+  // selecting the location on the left IS opening it.
+  const editor = page.getByRole('dialog', { name: 'Manage saved locations' });
+  await editor.getByRole('button', { name: /Home field/ }).click();
   await expect(editor.getByText('39.0500° N, 104.8000° W')).toBeVisible();
 
   // Typing a coordinate moves the pin, so the map answers the draft rather

@@ -1041,12 +1041,14 @@
     "absolute": "Absolut"
   },
   "motor": {
-    "importEng": ".eng importieren",
     "plugged": "verschlossen",
     "all": "Alle",
     "count": "{{total}} Motoren",
     "deleteTitle": "Importierten Motor {{name}} löschen",
-    "importedTitle": "Importierter Motor"
+    "importedTitle": "Importierter Motor",
+    "import": ".eng / .rse importieren",
+    "importedN_one": "{{count}} Motor importiert",
+    "importedN_other": "{{count}} Motoren importiert"
   },
   "schematic": {
     "cg": "CG",
@@ -1423,11 +1425,15 @@
     "menu": "Startorte",
     "apply": "Diesen Ort für die aktuelle Simulation verwenden",
     "empty": "Noch keine gespeicherten Orte. Speichern Sie einen über die Karte „Startplatz“ im Reiter „Simulationen“, damit Sie die Koordinaten eines Geländes nicht erneut eintippen müssen.",
-    "edit": "Bearbeiten",
     "new": "Neuer Ort",
     "name": "Name",
     "duplicateName": "Ein anderer Ort trägt diesen Namen bereits.",
-    "needsSite": "Geben Sie zuerst Breite und Länge ein – ein Startort ist ein Ort, und eine Hälfte davon würde als 0°, 0° gespeichert."
+    "needsSite": "Geben Sie zuerst Breite und Länge ein – ein Startort ist ein Ort, und eine Hälfte davon würde als 0°, 0° gespeichert.",
+    "pickHint": "Wähle links einen Ort aus, um ihn zu bearbeiten, oder lege einen neuen an.",
+    "discardConfirm": "Die Änderungen an diesem Ort verwerfen?",
+    "back": "Zurück zur Liste",
+    "use": "Verwenden",
+    "applyNeedsSave": "Speichere oder verwirf die Änderungen, bevor du diesen Ort verwendest."
   },
   "map": {
     "label": "Karte des Startplatzes",

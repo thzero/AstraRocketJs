@@ -348,6 +348,7 @@ refreshable
 reimplementation
 relativehumidity
 relativeto
+reloadable
 rels
 requestfailed
 reselecting

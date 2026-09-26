@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { hasCurve, importCustomMotorFromEng, deleteCustomMotor, type CatalogMotor } from '../../services/motorDb';
+import { hasCurve, importCustomMotors, deleteCustomMotor, type CatalogMotor } from '../../services/motorDb';
 import { fetchMotorSpec } from '../../services/thrustcurve';
 import { MAX_IDX, parseDelays, type MountFit } from '../../services/motorPicker';
 import { PLUGGED_DELAY, type MotorSpec } from '../../engine/openRocketEngine';
@@ -235,13 +235,23 @@ export function MotorDialog({
     }
   };
 
+  /** What the last import did, shown where the motor count is. */
+  const [note, setNote] = useState<string | null>(null);
+
   const onImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
     onError(null);
+    setNote(null);
     try {
-      setCatalog(await importCustomMotorFromEng(await file.text()));
+      const { catalog, imported } = await importCustomMotors(await file.text());
+      setCatalog(catalog);
+      // Reported in the dialog rather than through onError, which is the
+      // simulation panel behind it: a RockSim engine-database file can hold a
+      // manufacturer whole range, and one motor landing looks exactly like
+      // forty in a list of 800.
+      setNote(t('motor.importedN', { count: imported }));
     } catch (err) {
       onError(err instanceof Error ? err.message : String(err));
     }
@@ -297,9 +307,9 @@ export function MotorDialog({
                 onClick={() => fileRef.current?.click()}
                 className="shrink-0 rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-200 hover:bg-slate-700"
               >
-                {t('motor.importEng')}
+                {t('motor.import')}
               </button>
-              <input ref={fileRef} type="file" accept=".eng,.ENG" className="hidden" onChange={onImport} />
+              <input ref={fileRef} type="file" accept=".eng,.ENG,.rse,.RSE" className="hidden" onChange={onImport} />
             </div>
 
             <div className="flex gap-2">
@@ -402,7 +412,7 @@ export function MotorDialog({
           )}
 
           <div className="border-t border-white/10 p-2 text-center text-[11px] uppercase tracking-wide text-slate-500">
-            {loading ? '' : t('motor.count', { total: matches.length })}
+            {loading ? '' : (note ?? t('motor.count', { total: matches.length }))}
           </div>
         </div>
         {/* end LEFT */}

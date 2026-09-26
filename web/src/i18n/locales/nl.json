@@ -1041,12 +1041,14 @@
     "absolute": "Absoluut"
   },
   "motor": {
-    "importEng": ".eng importeren",
     "plugged": "afgesloten",
     "all": "Alle",
     "count": "{{total}} motoren",
     "deleteTitle": "Geïmporteerde motor {{name}} verwijderen",
-    "importedTitle": "Geïmporteerde motor"
+    "importedTitle": "Geïmporteerde motor",
+    "import": ".eng / .rse importeren",
+    "importedN_one": "{{count}} motor geïmporteerd",
+    "importedN_other": "{{count}} motoren geïmporteerd"
   },
   "schematic": {
     "cg": "CG",
@@ -1423,11 +1425,15 @@
     "menu": "Lanceerlocaties",
     "apply": "Deze locatie voor de huidige simulatie gebruiken",
     "empty": "Nog geen opgeslagen locaties. Sla er een op vanaf de kaart Lanceerlocatie op het tabblad Simulaties, zodat je de coördinaten van een terrein niet opnieuw hoeft te typen.",
-    "edit": "Bewerken",
     "new": "Nieuwe locatie",
     "name": "Naam",
     "duplicateName": "Een andere locatie heeft deze naam al.",
-    "needsSite": "Voer eerst een breedte- en lengtegraad in: een lanceerlocatie is een plek, en de helft ervan zou als 0°, 0° worden opgeslagen."
+    "needsSite": "Voer eerst een breedte- en lengtegraad in: een lanceerlocatie is een plek, en de helft ervan zou als 0°, 0° worden opgeslagen.",
+    "pickHint": "Kies links een locatie om die te bewerken, of voeg er een toe.",
+    "discardConfirm": "De wijzigingen aan deze locatie verwerpen?",
+    "back": "Terug naar de lijst",
+    "use": "Gebruiken",
+    "applyNeedsSave": "Sla je wijzigingen op of verwerp ze voordat je deze locatie gebruikt."
   },
   "map": {
     "label": "Kaart van de lanceerlocatie",

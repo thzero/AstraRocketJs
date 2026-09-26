@@ -1051,12 +1051,16 @@
     "absolute": "Bezwzględne"
   },
   "motor": {
-    "importEng": "Zaimportuj .eng",
     "plugged": "zaślepiony",
     "all": "Wszystkie",
     "count": "Silników: {{total}}",
     "deleteTitle": "Usuń zaimportowany silnik {{name}}",
-    "importedTitle": "Zaimportowany silnik"
+    "importedTitle": "Zaimportowany silnik",
+    "import": "Importuj .eng / .rse",
+    "importedN_one": "Zaimportowano {{count}} silnik",
+    "importedN_few": "Zaimportowano {{count}} silniki",
+    "importedN_many": "Zaimportowano {{count}} silników",
+    "importedN_other": "Zaimportowano {{count}} silnika"
   },
   "schematic": {
     "cg": "SC",
@@ -1439,11 +1443,15 @@
     "menu": "Miejsca startu",
     "apply": "Użyj tego miejsca w bieżącej symulacji",
     "empty": "Nie ma jeszcze zapisanych miejsc. Zapisz jedno z karty miejsca startu na karcie Symulacje, aby nie wpisywać współrzędnych pola od nowa.",
-    "edit": "Edytuj",
     "new": "Nowe miejsce",
     "name": "Nazwa",
     "duplicateName": "Inne miejsce ma już taką nazwę.",
-    "needsSite": "Najpierw podaj szerokość i długość geograficzną: miejsce startu jest punktem, a jego połowa zapisałaby się jako 0°, 0°."
+    "needsSite": "Najpierw podaj szerokość i długość geograficzną: miejsce startu jest punktem, a jego połowa zapisałaby się jako 0°, 0°.",
+    "pickHint": "Wybierz miejsce po lewej, aby je edytować, albo dodaj nowe.",
+    "discardConfirm": "Odrzucić zmiany w tym miejscu?",
+    "back": "Powrót do listy",
+    "use": "Użyj",
+    "applyNeedsSave": "Zapisz lub odrzuć zmiany, zanim użyjesz tego miejsca."
   },
   "map": {
     "label": "Mapa miejsca startu",

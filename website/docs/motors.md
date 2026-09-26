@@ -20,6 +20,13 @@ Where a motor offers multiple ejection delays, pick the one you're flying (or a 
 ### `.eng` files (RASP)
 Import a standard **`.eng`** thrust-curve file — it carries its own curve, so no lookup is needed. Imported motors appear in the picker (flagged, and deletable) and are saved in your browser.
 
+### `.rse` files (RockSim)
+The same button takes **`.rse`**, which is the format to use for a **hybrid**: RASP has no way to record what a motor IS, so an `.eng` import is a motor of unknown type, while a `.rse` import reads as a hybrid (or reloadable, or single-use) in the motor detail panel. It is also the only one that can say a motor is sold **plugged**, which is what the picker's plugged filter looks for.
+
+It is the richer format in one more way that changes what you fly. `.eng` gives a single propellant weight and leaves the mass curve to be reconstructed from the thrust curve; `.rse` records the mass at every sample, and the simulation uses those measured figures directly when the file supplies them. It carries the motor's real launch CG too, instead of the mid-length approximation a RASP file forces. A file that asks for its mass or CG to be recalculated (`auto-calc-mass`, `auto-calc-cg`) gets the same reconstruction as `.eng`, which is what OpenRocket does with it.
+
+A `.rse` can hold one motor or a manufacturer's whole range; every motor in the file is imported, and the picker says how many landed. The format is detected from the file's contents rather than its name, so a `.rse` saved as `.eng` still reads correctly.
+
 ### Custom motors
 Custom/imported motors persist locally alongside your custom materials, so they're available across your designs on that browser.
 

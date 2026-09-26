@@ -1041,12 +1041,14 @@
     "absolute": "Absolute"
   },
   "motor": {
-    "importEng": "Import .eng",
     "plugged": "plugged",
     "all": "All",
     "count": "{{total}} motors",
     "deleteTitle": "Delete imported motor {{name}}",
-    "importedTitle": "Imported motor"
+    "importedTitle": "Imported motor",
+    "import": "Import .eng / .rse",
+    "importedN_one": "{{count}} motor imported",
+    "importedN_other": "{{count}} motors imported"
   },
   "schematic": {
     "cg": "CG",
@@ -1420,14 +1422,18 @@
     "manage": "Manage saved locations",
     "deleteConfirm": "Delete the saved location “{{name}}”? This cannot be undone.",
     "saveFailed": "That location could not be saved — your browser storage may be full or blocked.",
-    "menu": "Launch locations",
+    "menu": "Launch Locations",
     "apply": "Use this location for the current simulation",
     "empty": "No saved locations yet. Save one from the Launch site card on the Simulations tab, so you do not have to retype a field’s coordinates.",
-    "edit": "Edit",
     "new": "New location",
     "name": "Name",
     "duplicateName": "Another location already has this name.",
-    "needsSite": "Enter a latitude and longitude first — a launch location is a place, and half of one would save as 0°, 0°."
+    "needsSite": "Enter a latitude and longitude first — a launch location is a place, and half of one would save as 0°, 0°.",
+    "pickHint": "Select a location on the left to edit it, or add a new one.",
+    "discardConfirm": "Discard the changes to this location?",
+    "back": "Back to the list",
+    "use": "Use",
+    "applyNeedsSave": "Save or discard your changes before using this location."
   },
   "map": {
     "label": "Launch site map",

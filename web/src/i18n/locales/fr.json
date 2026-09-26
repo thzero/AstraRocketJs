@@ -1046,12 +1046,15 @@
     "absolute": "Absolu"
   },
   "motor": {
-    "importEng": "Importer un .eng",
     "plugged": "obturé",
     "all": "Tous",
     "count": "{{total}} moteurs",
     "deleteTitle": "Supprimer le moteur importé {{name}}",
-    "importedTitle": "Moteur importé"
+    "importedTitle": "Moteur importé",
+    "import": "Importer .eng / .rse",
+    "importedN_one": "{{count}} moteur importé",
+    "importedN_many": "{{count}} moteurs importés",
+    "importedN_other": "{{count}} moteurs importés"
   },
   "schematic": {
     "cg": "CG",
@@ -1431,11 +1434,15 @@
     "menu": "Lieux de lancement",
     "apply": "Utiliser ce lieu pour la simulation en cours",
     "empty": "Aucun lieu enregistré pour l'instant. Enregistrez-en un depuis la fiche « Site de lancement » de l'onglet Simulations, pour ne pas avoir à ressaisir les coordonnées d'un terrain.",
-    "edit": "Modifier",
     "new": "Nouveau lieu",
     "name": "Nom",
     "duplicateName": "Un autre lieu porte déjà ce nom.",
-    "needsSite": "Saisissez d'abord une latitude et une longitude – un lieu de lancement est un endroit, et n'en donner que la moitié l'enregistrerait comme 0°, 0°."
+    "needsSite": "Saisissez d'abord une latitude et une longitude – un lieu de lancement est un endroit, et n'en donner que la moitié l'enregistrerait comme 0°, 0°.",
+    "pickHint": "Sélectionnez un lieu à gauche pour le modifier, ou ajoutez-en un.",
+    "discardConfirm": "Abandonner les modifications de ce lieu ?",
+    "back": "Retour à la liste",
+    "use": "Utiliser",
+    "applyNeedsSave": "Enregistrez ou abandonnez vos modifications avant d’utiliser ce lieu."
   },
   "map": {
     "label": "Carte du site de lancement",

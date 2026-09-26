@@ -104,21 +104,20 @@ test('a location can be edited and deleted', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Manage saved locations' }).click();
   const manage = page.getByRole('dialog', { name: 'Manage saved locations' });
-  await manage.getByRole('button', { name: 'Edit' }).click();
-  // By NAME, not `.last()`: the manage dialog is still open behind it.
-  const edit = page.getByRole('dialog', { name: 'Edit' });
-  await edit.getByRole('textbox').fill('New name');
-  await edit.getByRole('button', { name: 'Save', exact: true }).click();
+  // Selecting on the left opens the editor on the right, in the same dialog.
+  await manage.getByRole('button', { name: /Old name/ }).click();
+  await manage.getByRole('textbox').fill('New name');
+  await manage.getByRole('button', { name: 'Save', exact: true }).click();
 
-  // The manage list refreshes itself; the launch panel's dropdown behind the
-  // modal refreshes when the dialog closes, which is when it is next visible.
+  // The list refreshes under the editor and the location stays selected; the
+  // launch panel's dropdown behind the modal refreshes when the dialog closes.
   await expect(manage.getByText('New name')).toBeVisible();
   await expect(manage.getByText('Old name')).toHaveCount(0);
 
   // Deleting asks first: the location is the only copy of coordinates somebody may
   // have measured at a field.
   await manage.getByRole('button', { name: 'Delete' }).click();
-  await page.getByRole('button', { name: 'Delete', exact: true }).last().click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
   await expect(manage.getByText(/No saved locations yet/i)).toBeVisible();
 
   await manage.getByRole('button', { name: 'Close' }).click();
@@ -158,9 +157,13 @@ test('a location applies to the current simulation from the menu', async ({ page
   // targets the ACTIVE simulation through the same patch the dropdown uses.
   await page.getByRole('button', { name: 'Menu' }).click();
   await page.getByRole('menuitem', { name: 'Launch locations' }).click();
-  await page.getByRole('dialog', { name: 'Manage saved locations' }).getByText('Home field').click();
+  const menuManage = page.getByRole('dialog', { name: 'Manage saved locations' });
+  // Selecting shows the location; Use is what applies it. A row click applied
+  // it outright before, which was an action with no visible affordance.
+  await menuManage.getByRole('button', { name: /Home field/ }).click();
+  await menuManage.getByRole('button', { name: 'Use', exact: true }).click();
 
-  await expect(page.getByRole('dialog', { name: 'Manage saved locations' })).toBeHidden();
+  await expect(menuManage).toBeHidden();
   await expect(page.getByLabel('Latitude', { exact: true })).toHaveValue('39.05');
 });
 
@@ -171,20 +174,19 @@ test('a location’s coordinates can be corrected, not just its name', async ({ 
   await savePad(page, 'Home field');
 
   await page.getByRole('button', { name: 'Manage saved locations' }).click();
-  await page.getByRole('dialog', { name: 'Manage saved locations' }).getByRole('button', { name: 'Edit' }).click();
-  const edit = page.getByRole('dialog', { name: 'Edit' });
-  // The reason this dialog exists: a typo in a coordinate is the thing you most
-  // want to fix about a location, and renaming could not.
-  await edit.getByLabel('Latitude', { exact: true }).fill('39.1234');
-  await edit.getByLabel('Altitude', { exact: true }).fill('1830');
-  // The name must still be the name. The dialog focuses and selects it on open,
-  // and while that was a `requestAnimationFrame` it could land a frame late,
-  // mid-keystroke, and swallow the latitude into the name box - saving a
-  // location called "39.1234". Silent to a user, so it is asserted here.
-  await expect(edit.getByRole('textbox')).toHaveValue('Home field');
-  await edit.getByRole('button', { name: 'Save', exact: true }).click();
-
   const manage = page.getByRole('dialog', { name: 'Manage saved locations' });
+  await manage.getByRole('button', { name: /Home field/ }).click();
+  // The reason this editor exists: a typo in a coordinate is the thing you most
+  // want to fix about a location, and renaming could not.
+  await manage.getByLabel('Latitude', { exact: true }).fill('39.1234');
+  await manage.getByLabel('Altitude', { exact: true }).fill('1830');
+  // The name must still be the name. The editor focuses and selects it when
+  // CREATING, and while that was a `requestAnimationFrame` it could land a
+  // frame late, mid-keystroke, and swallow the latitude into the name box -
+  // saving a location called "39.1234". Silent to a user, so it is asserted.
+  await expect(manage.getByRole('textbox')).toHaveValue('Home field');
+  await manage.getByRole('button', { name: 'Save', exact: true }).click();
+
   await expect(manage.getByText('39.1234')).toBeVisible();
   await manage.getByRole('button', { name: 'Close' }).click();
 
@@ -205,18 +207,19 @@ test('a location can be created from nothing, in the menu', async ({ page }) => 
   // way to add one there.
   const manage = page.getByRole('dialog', { name: 'Manage saved locations' });
   await manage.getByRole('button', { name: 'New location' }).click();
-  const edit = page.getByRole('dialog', { name: 'New location' });
-  await edit.getByRole('textbox').fill('Bong');
-  await edit.getByLabel('Latitude', { exact: true }).fill('42.66');
-  await edit.getByLabel('Longitude', { exact: true }).fill('-88.14');
-  await edit.getByLabel('Altitude', { exact: true }).fill('238');
-  await edit.getByRole('button', { name: 'Save', exact: true }).click();
+  await manage.getByRole('textbox').fill('Bong');
+  await manage.getByLabel('Latitude', { exact: true }).fill('42.66');
+  await manage.getByLabel('Longitude', { exact: true }).fill('-88.14');
+  await manage.getByLabel('Altitude', { exact: true }).fill('238');
+  await manage.getByRole('button', { name: 'Save', exact: true }).click();
 
-  await expect(manage.getByText('Bong')).toBeVisible();
-  await expect(manage.getByText(/42\.6600/)).toBeVisible();
+  // Scoped to the LIST row: the map's readout carries the same coordinate,
+  // and both panes are on screen at once.
+  await expect(manage.getByRole('button', { name: /Bong/ })).toContainText(/42\.6600/);
 
-  // It applies to the open simulation like any other location.
-  await manage.getByText('Bong').click();
+  // It applies to the open simulation like any other location. The new one is
+  // left selected by its own save, so Use is right there.
+  await manage.getByRole('button', { name: 'Use', exact: true }).click();
   await openTab(page, 'Simulations');
   await expect(page.getByLabel('Latitude', { exact: true })).toHaveValue('42.66');
 });
