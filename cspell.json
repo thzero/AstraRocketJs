@@ -21,6 +21,7 @@
   ],
   "files": [
     "web/src/**/*.{ts,tsx}",
+    "web/tests/**/*.{ts,tsx}",
     "web/e2e/**/*.ts",
     "web/scripts/**/*.mjs",
     "web/index.html",
