@@ -92,6 +92,7 @@ export function AppHeader() {
             onReport: () => open('report'),
             onMotors: () => open('motors'),
             onLaunchLocations: () => open('locations'),
+            onSavedParts: () => open('parts'),
             onSettings: () => open('settings'),
             // No argument is the docs index; Safety opens Help already ON its
             // own page, which is the whole point of addressing help by slug.

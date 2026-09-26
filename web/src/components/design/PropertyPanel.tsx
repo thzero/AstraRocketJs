@@ -7,6 +7,10 @@ import type { FitContext } from '../../services/componentFilter';
 // Lazily loaded: it pulls in the ~740 kB component catalog (services/componentDb),
 // so it splits into its own chunk fetched only when a catalog part is selected.
 const ComponentPicker = lazy(() => import('./ComponentPicker').then((m) => ({ default: m.ComponentPicker })));
+// Lazy for the same reason and behind the same Suspense boundary: it is the
+// other half of the picker, and nothing needs either until a catalog part is
+// selected.
+const SavePartButton = lazy(() => import('./SavePartButton').then((m) => ({ default: m.SavePartButton })));
 import { AppearanceSection } from './AppearanceSection';
 import { FreeformFinEditor } from './FreeformFinEditor';
 import { RecoverySizingReadout } from './RecoverySizingReadout';
@@ -155,7 +159,16 @@ export function PropertyPanel({
 
         {hasCatalog(node.type) && (
           <Suspense fallback={<div className="text-xs text-slate-500">{t('common.loading')}</div>}>
-            <ComponentPicker type={node.type as PickerType} fit={fit} onApply={(p) => commitChange(catalogPatch(p))} />
+            <div className="space-y-2">
+              <ComponentPicker
+                type={node.type as PickerType}
+                fit={fit}
+                onApply={(p) => commitChange(catalogPatch(p))}
+              />
+              {/* The other direction: take the part you just built and put it
+                  in the picker above, on this design and every other one. */}
+              <SavePartButton node={node} type={node.type as PickerType} />
+            </div>
           </Suspense>
         )}
       </div>

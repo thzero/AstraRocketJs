@@ -282,6 +282,13 @@ export function queryComponents<C extends Component>(
   }
 
   const cmp = (a: Ranked<C>, b: Ranked<C>): number => {
+    // The user's OWN saved parts come first, under every sort and every
+    // direction. Not a preference: the picker renders a capped window (200 of
+    // 1088 body tubes) and a saved part that sorts past the cap is a part the
+    // person saved, was told was saved, and then cannot find. There are never
+    // many of them, they stay ordered among themselves by the active column,
+    // and the catalog below them is unaffected.
+    if (!!a.part.custom !== !!b.part.custom) return a.part.custom ? -1 : 1;
     if (q.sort === 'fit') {
       // A row with no score goes last whichever way the arrow points: it is not
       // "the worst fit", it is absent from the ranking.

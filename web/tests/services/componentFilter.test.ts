@@ -382,6 +382,57 @@ describe('sorting the columns that were not sortable', () => {
   });
 });
 
+describe("the user's own saved parts", () => {
+  /** A saved part, as customParts projects one into the row list. */
+  const saved = (partNo: string, outerDiameter: number): BodyTubeComponent => ({
+    type: 'bodytube',
+    mfr: 'Bench',
+    partNo,
+    desc: '',
+    materialDensity: 680,
+    outerDiameter,
+    innerDiameter: outerDiameter - 0.001,
+    length: 0.3,
+    id: `custom:bodytube:Bench:${partNo}`,
+    custom: true,
+    patch: { length: 0.3 },
+  });
+
+  it('sorts ahead of the catalog under every column and direction', () => {
+    const list: Component[] = [...ofType('bodytube'), saved('mine', 0.05)];
+    for (const sort of ['mfr', 'partNo', 'od', 'id', 'length'] as const)
+      for (const dir of [1, -1] as const) {
+        const first = queryComponents(list, q({ sort, dir }), 'bodytube')[0];
+        expect(first?.part.partNo, `${sort} ${dir}`).toBe('mine');
+      }
+  });
+
+  it('sorts ahead of the catalog under the fit ranking too', () => {
+    // A deliberately BAD fit, against a context the catalog answers exactly.
+    // Ranking it on merit would bury it; the rule is that your own parts are
+    // never off the end of the 200-row window the picker draws.
+    const fit: FitContext = { airframeOuter: [0.0258] };
+    const list: Component[] = [...ofType('bodytube'), saved('mine', 0.2)];
+    const rows = queryComponents(list, q({ sort: 'fit' }), 'bodytube', fit);
+    expect(rows[0]?.part.partNo).toBe('mine');
+    expect(rows[1]?.fit).toBeLessThan(rows[0]?.fit ?? Infinity);
+  });
+
+  it('still orders saved parts among THEMSELVES by the active column', () => {
+    const list: Component[] = [saved('b', 0.05), saved('a', 0.06), ...ofType('bodytube')];
+    const up = queryComponents(list, q({ sort: 'partNo' }), 'bodytube');
+    expect([up[0]?.part.partNo, up[1]?.part.partNo]).toEqual(['a', 'b']);
+    const down = queryComponents(list, q({ sort: 'partNo', dir: -1 }), 'bodytube');
+    expect([down[0]?.part.partNo, down[1]?.part.partNo]).toEqual(['b', 'a']);
+  });
+
+  it('is filtered like any other row', () => {
+    const list: Component[] = [...ofType('bodytube'), saved('mine', 0.05)];
+    expect(queryComponents(list, q({ mfr: 'Estes' }), 'bodytube').some((r) => r.part.custom)).toBe(false);
+    expect(queryComponents(list, q({ text: 'bench' }), 'bodytube').map((r) => r.part.partNo)).toEqual(['mine']);
+  });
+});
+
 describe('the catalog has no drag coefficients to filter by', () => {
   it('ships a null Cd for every parachute, which is why there is no Cd facet', () => {
     // OpenRocket's preset files carry no DragCoefficient for a parachute, so all

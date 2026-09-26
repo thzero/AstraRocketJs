@@ -127,6 +127,18 @@ Instead of dialing in dimensions by hand, use the contextual **"Select a part…
 
 Applying a preset just fills in the component's fields — you can tweak it afterward. The catalog is bundled reference data (~2,900 parts); nothing is fetched at runtime.
 
+### Saving your own parts
+
+A part you built belongs in that picker too. **Save as part**, under the picker in the component panel, stores the component as it stands and offers it back on every design in that browser. Your own parts are listed first, marked with a ★, and the ✕ beside one removes it.
+
+It saves the **whole component**, not only the dimensions the picker's columns show: the material and finish, a nose cone's shoulder, a parachute's line count, a body tube's motor-mount flag, the color. Saving again under the same maker and part name replaces the earlier copy. Parts attached to the one you save (its fin set, its inner tube) are not saved with it.
+
+Saved parts live in your browser alongside your custom materials and imported motors, so they follow you between designs but not between machines.
+
+**Menu → My Parts** is the library itself: every saved part of every type, whatever the open design happens to contain. The list is on the left, grouped by type; selecting a part opens it on the right.
+
+The editor uses the same fields the component panel does, in the same units, so a saved nose cone is edited as a nose cone: rename it, change its maker or notes, change its shape, length, radius, shoulder, material or color. **Save** writes it in place and leaves it selected, so a rename does not leave the old copy behind and you can work down the list without reopening anything. **Discard** puts the part back as it was stored, and switching to another part with unsaved edits asks first. **Delete** is in the same row, at the other end, and also asks. What the editor leaves out is the half of the panel that describes a part's place in a rocket (position, move, the fit-ranked picker, the descent-rate readout), because a saved part has no parent and no design to be judged against until you apply it. The picker only opens when a component of a matching type is selected, so it is not the place to manage a saved bulkhead on a rocket that has no bulkhead in it. Deleting asks first, in both places, because the design a part came from may be long gone.
+
 ### Sizing a parachute
 
 Selecting a **parachute** shows a **descent-sizing** readout in its panel. From the design's descent mass (see *recovery weight*) and the air density at the launch site, it gives:

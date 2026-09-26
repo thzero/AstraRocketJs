@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   catalogTypeFor,
@@ -7,6 +7,12 @@ import {
   type ComponentType,
   type PickerType,
 } from '../../services/componentDb';
+import {
+  customRowsForType,
+  deleteCustomPart,
+  onSavedPartsChanged,
+  savedPartsVersion,
+} from '../../services/customParts';
 import {
   DEFAULT_CHUTE_CD,
   describeNotes,
@@ -22,6 +28,7 @@ import {
   type Ranked,
   type SortKey,
 } from '../../services/componentFilter';
+import { confirm } from '../../state/confirmStore';
 import { fmtNum } from '../../i18n/format';
 import { useUnits, type Units } from '../../prefs/useUnits';
 import { useCatalogProgress } from '../common/CatalogLoading';
@@ -43,6 +50,19 @@ type CatalogState =
   { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; all: Component[] };
 /** A fetch that finished, filed under the type and attempt it answers. */
 type CatalogLanded = { type: PickerType; attempt: number; result: Exclude<CatalogState, { status: 'loading' }> };
+
+/**
+ * The rows for a node type: the user's own saved parts (customParts.ts) first,
+ * then the manufacturer catalog. Saved first for the same reason imported
+ * motors are (motorDb.loadCatalog): it is the order they are found in when
+ * nothing is sorted yet, and the list is sorted by a column the moment the
+ * dialog opens anyway.
+ */
+async function loadRows(type: PickerType): Promise<Component[]> {
+  const catalogType = catalogTypeFor(type);
+  const [saved, catalog] = await Promise.all([customRowsForType(catalogType), componentsForType(catalogType)]);
+  return [...saved, ...catalog];
+}
 
 /**
  * Picks a real cataloged part (from the bundled OpenRocket component DB) of a
@@ -75,11 +95,16 @@ export function ComponentPicker({
   // top of the effect: that was a synchronous setState in an effect, which is
   // a cascading render the compiler lint rejects.
   const [landed, setLanded] = useState<CatalogLanded | null>(null);
+  // Deliberately NOT part of the identity below: a save or a delete re-runs
+  // the load, but the list already in hand stays `ready` while it does, so the
+  // open dialog is not torn down and the button does not flash back to
+  // "Loading" for a change the user just made in the panel behind it.
+  const version = useSyncExternalStore(onSavedPartsChanged, savedPartsVersion, savedPartsVersion);
   const state: CatalogState =
     landed && landed.type === type && landed.attempt === attempt ? landed.result : { status: 'loading' };
   useEffect(() => {
     let ok = true;
-    componentsForType(catalogTypeFor(type))
+    loadRows(type)
       .then((all) => ok && setLanded({ type, attempt, result: { status: 'ready', all } }))
       .catch((e: unknown) => {
         if (!ok) return;
@@ -94,7 +119,7 @@ export function ComponentPicker({
     return () => {
       ok = false;
     };
-  }, [type, attempt]);
+  }, [type, attempt, version]);
   // Live bytes for the ~1 MB component catalog, so a slow link is legible.
   const progress = useCatalogProgress('components');
   const pct = progress?.total ? Math.min(100, Math.round((progress.loaded / progress.total) * 100)) : null;
@@ -159,6 +184,13 @@ interface Col {
   /** The full value for a cell that a fixed width has to truncate, shown on
    *  hover. Omitted where the cell text is already complete. */
   title?: (r: Ranked<Component>) => string;
+  /** A cell that is not text. Only the saved-part delete control needs one;
+   *  it takes precedence over `cell`, which stays required so every column
+   *  still has a text form. */
+  render?: (r: Ranked<Component>) => ReactNode;
+  /** The heading names the column for a screen reader but is not drawn: a
+   *  control column has no room for a word and needs no title above it. */
+  headSrOnly?: boolean;
 }
 
 /**
@@ -195,7 +227,18 @@ function columnsFor(type: ComponentType, u: Units, t: (k: string) => string, ran
     : [];
 
   const ident: Col[] = [
-    { key: 'mfr', head: t('picker.colMfr'), sort: 'mfr', w: 'w-36', cell: (r) => r.part.mfr, title: (r) => r.part.mfr },
+    {
+      key: 'mfr',
+      head: t('picker.colMfr'),
+      sort: 'mfr',
+      w: 'w-36',
+      // The star marks the user's own saved parts, the way it marks an
+      // imported motor in the motor picker and a custom material in the
+      // material picker. Part of the maker cell rather than a column of its
+      // own: what it says is who made this, not one more dimension.
+      cell: (r) => (r.part.custom ? `★ ${r.part.mfr}` : r.part.mfr),
+      title: (r) => (r.part.custom ? t('picker.savedTitle') : r.part.mfr),
+    },
     {
       key: 'partNo',
       head: t('picker.colPartNo'),
@@ -347,7 +390,63 @@ function PickerDialog({
   const shapes = useMemo(() => noseShapes(all), [all]);
   const ranked = useMemo(() => queryComponents(all, q, type, fit), [all, q, type, fit]);
   const shown = ranked.slice(0, ROW_CAP);
-  const cols = useMemo(() => columnsFor(catType, u, t, canFit), [catType, u, t, canFit]);
+  const baseCols = useMemo(() => columnsFor(catType, u, t, canFit), [catType, u, t, canFit]);
+  // A refused delete is not always "storage full" (see the store), so the
+  // store's own message is shown rather than a guess, and the part stays in
+  // the list until the write actually succeeds.
+  const [delErr, setDelErr] = useState<string | null>(null);
+  const remove = async (p: Component) => {
+    if (!p.id) return;
+    // Asked here as well as in the manage dialog: a saved part can be the only
+    // copy of geometry somebody worked out, if the design it came from has
+    // since been deleted, and this ✕ sits one row away from the part they
+    // meant to apply.
+    const ok = await confirm({
+      message: t('picker.deleteSavedConfirm', { name: p.partNo }),
+      confirmLabel: t('common.delete'),
+      danger: true,
+    });
+    if (!ok) return;
+    setDelErr(null);
+    try {
+      // The list refreshes through the version counter the outer component
+      // subscribes to, so there is nothing to re-fetch here.
+      await deleteCustomPart(p.id);
+    } catch (e) {
+      setDelErr(e instanceof Error ? e.message : String(e));
+    }
+  };
+  // The delete column exists only when there is something to delete, so an
+  // untouched catalog keeps every pixel of its width for the part.
+  const hasSaved = useMemo(() => all.some((p) => p.custom), [all]);
+  const cols: Col[] = hasSaved
+    ? [
+        ...baseCols,
+        {
+          key: 'del',
+          head: t('common.delete'),
+          headSrOnly: true,
+          w: 'w-10',
+          cell: () => '',
+          render: (r) =>
+            r.part.custom ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation(); // the whole row applies the part
+                  void remove(r.part);
+                }}
+                // Enter on the button would otherwise reach the ROW's own
+                // key handler as well, deleting the part and applying it.
+                onKeyDown={(e) => e.stopPropagation()}
+                aria-label={t('picker.deleteSaved', { name: r.part.partNo })}
+                className="text-red-400 hover:text-red-300"
+              >
+                ✕
+              </button>
+            ) : null,
+        },
+      ]
+    : baseCols;
 
   /** Clicking a heading sorts by it; clicking the active one flips direction. */
   const sortBy = (key: SortKey) => set(key === q.sort ? { dir: q.dir === 1 ? -1 : 1 } : { sort: key, dir: 1 });
@@ -477,6 +576,10 @@ function PickerDialog({
           {ranked.length > shown.length
             ? t('picker.showing', { shown: shown.length, total: ranked.length })
             : t('picker.results', { count: ranked.length })}
+          {/* A delete that the storage layer refused. It belongs here rather
+              than beside the row, which is gone from view the moment the list
+              is scrolled or filtered. */}
+          {delErr && <div className="mt-1 normal-case tracking-normal text-red-400">{delErr}</div>}
         </div>
       }
     >
@@ -500,6 +603,8 @@ function PickerDialog({
                     {c.head}
                     {c.sort === q.sort && <span aria-hidden="true">{q.dir === 1 ? ' ▲' : ' ▼'}</span>}
                   </button>
+                ) : c.headSrOnly ? (
+                  <span className="sr-only">{c.head}</span>
                 ) : (
                   c.head
                 )}
@@ -510,7 +615,10 @@ function PickerDialog({
         <tbody>
           {shown.map((r, i) => (
             <tr
-              key={`${r.part.mfr}:${r.part.partNo}:${i}`}
+              // A saved part has a real id; a catalog row is identified by the
+              // pair it publishes, with the index to separate the duplicates
+              // the catalog does contain.
+              key={r.part.id ?? `${r.part.mfr}:${r.part.partNo}:${i}`}
               onClick={() => onApply(r.part)}
               tabIndex={0}
               role="button"
@@ -533,7 +641,7 @@ function PickerDialog({
                     c.key === 'partNo' ? 'font-medium text-slate-100' : ''
                   } ${c.key === 'notes' || c.key === 'material' ? 'text-slate-500' : ''} ${c.hide ?? ''}`}
                 >
-                  {c.cell(r)}
+                  {c.render ? c.render(r) : c.cell(r)}
                 </td>
               ))}
             </tr>

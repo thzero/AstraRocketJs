@@ -127,6 +127,18 @@ En lugar de introducir dimensiones a mano, usa los selectores contextuales **«S
 
 Aplicar un preajuste solo rellena los campos del componente: puedes retocarlo después. El catálogo son datos de referencia incluidos (~2.900 piezas).
 
+### Guardar tus propias piezas {#saving-your-own-parts}
+
+Una pieza que hayas construido también cabe en ese selector. **Guardar como pieza**, bajo el selector en el panel del componente, almacena la pieza tal como está y la ofrece de nuevo en todos los diseños de ese navegador. Tus propias piezas aparecen primero, marcadas con una ★, y la ✕ que las acompaña las elimina.
+
+Se guarda la **pieza entera**, no solo las dimensiones que muestran las columnas del selector: el material y el acabado, el hombro de una ojiva, el número de cuerdas de un paracaídas, la marca de soporte de motor de un tubo, el color. Guardarla de nuevo con el mismo fabricante y nombre reemplaza la copia anterior. Las piezas unidas a la que guardas (su juego de aletas, su tubo interior) no se guardan con ella.
+
+Las piezas guardadas viven en tu navegador junto a tus materiales personalizados y tus motores importados, así que te acompañan entre diseños pero no entre equipos.
+
+**Menú → Mis piezas** es la biblioteca en sí: todas las piezas guardadas, de cualquier tipo, contenga lo que contenga el diseño abierto. La lista está a la izquierda, agrupada por tipo; al seleccionar una pieza se abre a la derecha.
+
+El editor usa los mismos campos que el panel del componente, en las mismas unidades, así que una ojiva guardada se edita como una ojiva: cambia su nombre, su fabricante o sus notas, y también su forma, longitud, radio, hombro, material o color. **Guardar** la escribe en el sitio y la deja seleccionada, así que cambiar el nombre no deja atrás la copia anterior y puedes recorrer la lista sin volver a abrir nada. **Descartar** devuelve la pieza a como estaba almacenada, y pasar a otra pieza con cambios sin guardar pregunta antes. **Eliminar** está en la misma fila, en el otro extremo, y también pregunta. Lo que el editor no muestra es la mitad del panel que describe el lugar de una pieza en un cohete (posición, mover, el selector ordenado por ajuste, la lectura de velocidad de descenso), porque una pieza guardada no tiene padre ni diseño contra el que juzgarse hasta que la aplicas. El selector solo se abre cuando hay seleccionado un componente de un tipo que corresponda, así que no es el lugar para gestionar un mamparo guardado en un cohete que no lleva ninguno. Al eliminar se pregunta primero, en ambos sitios, porque el diseño del que salió la pieza puede llevar mucho tiempo borrado.
+
 ### Dimensionar un paracaídas {#sizing-a-parachute}
 
 Al seleccionar un **paracaídas** aparece una lectura de **dimensionado del descenso** en su panel. A partir de la masa de descenso del diseño (consulta *peso de recuperación*) y la densidad del aire en el campo de vuelo, ofrece:

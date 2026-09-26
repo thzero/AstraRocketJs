@@ -264,6 +264,12 @@ export function hasMaterial(type: string): boolean {
 
 /** Map a chosen catalog part onto a node patch (radii, length, material, …). */
 export function catalogPatch(p: Component): Partial<ComponentNode> {
+  // A SAVED part (customParts.ts) carries its whole node, not the handful of
+  // dimensions a catalog row publishes, and applying only the switch below
+  // would drop the nose cone's shoulder, the parachute's lines, the tube's
+  // motor mount and the part's color: everything the user saved it FOR.
+  // Copied, so the stored object cannot be mutated through the tree.
+  if (p.custom && p.patch) return { ...p.patch };
   const mat =
     'materialDensity' in p && p.materialDensity
       ? { density: p.materialDensity, materialName: (p as { material?: string }).material }

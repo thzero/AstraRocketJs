@@ -110,6 +110,9 @@ Real manufacturer parts (Estes/Apogee/LOC/BlueTube/…), extracted from the **Op
   ```
 - **`web/src/services/componentDb.ts`** loads it (a discriminated union by `type`) and filters.
 - **UI:** contextual **"Select a part…"** pickers in the editor — nose cone and body tube prefill their geometry + material; a **Recovery** group's parachute picker prefills diameter + Cd. Applying a part is pure app-side (it fills the `RocketSpec`); the engine is unchanged.
+- **Saved parts** — a component the user built, persisted under `parts:custom` through the swappable **`PresetStore`** (`services/presetStore.ts`), the fourth store of the same shape as motors, materials and templates. Unlike a catalog row, which publishes a handful of dimensions, a saved part holds the **whole node**: `services/customParts.ts` strips only what identifies the node it came from (`id`, `type`, `name`, `position`, `children`) and keeps the rest, so a cone's shoulder, a chute's lines, a tube's motor mount and the part's color all come back. `customParts` also PROJECTS each saved part down to a `Component` row (the inverse of `treeEdit.catalogPatch`, held to the catalog's own `isComponentRow`), so the picker searches, facets, fit-ranks and sorts one list rather than two; `catalogPatch` then applies the carried node instead of the per-type map. Saved parts sort ahead of the catalog under every column, because the picker draws a capped 200-row window and a part you saved must never fall off the end of it. Flagged with a ★ and deletable, like an imported motor.
+- **The manage view** — `components/design/SavedPartsDialog.tsx`, reached from the menu beside the motor dashboard and the saved launch locations, for the reason those two exist: the picker only renders for a selected node of a matching type (`treeEdit.hasCatalog`), so it cannot show a saved bulkhead on a design that has none. It reads `customParts.listSavedParts`, which differs from `customRowsForType` in ONE way that is the point of it: a part that no longer projects to a row is kept, with a null row, because the only list you can delete from must not hide the parts the picker already drops.
+- **Editing** — the dialog is master-detail (`layout="fill"`, list left at 300px, detail right), the shape the motor picker already uses, including its phone rule: one pane at a time under `md`, with a back control in the detail. `SavedPartEditor.tsx` composes the property panel's OWN pieces (`visibleFields` / `FieldRow`, `MaterialSection`, `AppearanceSection`), which is possible because all of them take a node and an `onChange` and nothing else; `RecoverySizingReadout` is the single store-coupled section and is the one it leaves out. A saved part's `id` is therefore opaque and stable (`custom:<base36 time>:<random>`) rather than the `custom:<type>:<mfr>:<partNo>` it started as: an id that encoded the label made a rename inexpressible, since it produced a different id and so copied the part instead of moving it. The label is what `saveCustomPart` now matches on for "saving again under the same maker and name replaces it", and `updateCustomPart` keeps the id, refusing a label another part of the same type already holds.
 
 Like the motor catalog, it is a generated file under `public/data/` fetched on first use (see above) rather than compiled into the bundle, so it costs nothing until a picker is opened — and it is published to the `data` branch on the same weekly schedule.
 
@@ -178,7 +181,7 @@ Two faults in that work are worth keeping written down, because both produced so
 
 ## Where user data lives (swappable stores)
 
-Client-side user data lives behind **two independently swappable, typed domain stores** — one for motors, one for materials — so either can be replaced with a different implementation without touching the services or the UI:
+Client-side user data lives behind **independently swappable, typed domain stores** — one each for motors, materials and saved parts — so any of them can be replaced with a different implementation without touching the services or the UI:
 
 ```
 keyValueStore.ts    KeyValueStore (get/set/remove) + LocalStorageKeyValueStore  — the interface
@@ -199,19 +202,27 @@ motorStore.ts       MotorStore   — getMotorStore() / setMotorStore(store)
 materialStore.ts    MaterialStore — getMaterialStore() / setMaterialStore(store)
    list / add / remove Material. Default KeyValueMaterialStore persists via a KeyValueStore;
    materials.ts owns the domain rules (validation, merging built-ins with custom).
+
+presetStore.ts      PresetStore  — getPresetStore() / setPresetStore(store)
+   list / add / remove CustomPart — the components the user saved for reuse, each holding a
+   whole node rather than a catalog row's dimensions. Default KeyValuePresetStore persists via
+   a KeyValueStore; customParts.ts owns the domain rules (what is saved, the projection to a
+   picker row, the change signal the picker subscribes to).
 ```
 
 All of them default to persisting through an **`IndexedDbKeyValueStore`**, and their interfaces are async so a different implementation (a backend, a shared store) fits without reshaping callers. To replace one on the client, implement its interface and swap it:
 
 - **Motors:** `setMotorStore(new MyMotorStore())`
 - **Materials:** `setMaterialStore(new MyMaterialStore())`
+- **Saved parts:** `setPresetStore(new MyPresetStore())`
 
 …or keep the default domain logic over a different key-value backend:
 
 - `setMotorStore(new KeyValueMotorStore(new MyKeyValueStore()))`
 - `setMaterialStore(new KeyValueMaterialStore('materials:custom', new MyKeyValueStore()))`
+- `setPresetStore(new KeyValuePresetStore('parts:custom', new MyKeyValueStore()))`
 
-Swapping one does not affect the other.
+Swapping one does not affect the others.
 
 ### Why IndexedDB, and the two places localStorage remains
 

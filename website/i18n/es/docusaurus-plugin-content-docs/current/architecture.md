@@ -110,6 +110,9 @@ Piezas reales de fabricante (Estes/Apogee/LOC/BlueTube/…), extraídas de la **
   ```
 - **`web/src/services/componentDb.ts`** lo carga (una unión discriminada por `type`) y lo filtra.
 - **Interfaz:** selectores contextuales **«Selecciona una pieza…»** en el editor; la ojiva y el tubo rellenan su geometría y material; el selector de paracaídas de un grupo de **Recuperación** rellena el diámetro y el Cd. Aplicar una pieza es puramente del lado de la aplicación (rellena el `RocketSpec`); el motor no cambia.
+- **Piezas guardadas:** un componente que ha construido la persona usuaria, persistido bajo `parts:custom` mediante el **`PresetStore`** intercambiable (`services/presetStore.ts`), el cuarto almacén con la misma forma que los de motores, materiales y plantillas. A diferencia de una fila del catálogo, que publica un puñado de dimensiones, una pieza guardada conserva el **nodo entero**: `services/customParts.ts` descarta solo lo que identifica al nodo del que salió (`id`, `type`, `name`, `position`, `children`) y guarda el resto, de modo que vuelven el hombro de una ojiva, las cuerdas de un paracaídas, el soporte de motor de un tubo y el color de la pieza. `customParts` además PROYECTA cada pieza guardada a una fila `Component` (la inversa de `treeEdit.catalogPatch`, sometida al propio `isComponentRow` del catálogo), así que el selector busca, filtra por facetas, ordena y puntúa el ajuste sobre una sola lista en lugar de dos; `catalogPatch` aplica entonces el nodo que la fila lleva consigo en vez del mapa por tipo. Las piezas guardadas se ordenan por delante del catálogo en todas las columnas, porque el selector dibuja una ventana limitada a 200 filas y una pieza que has guardado nunca debe quedar fuera de ella. Marcadas con una ★ y eliminables, como un motor importado.
+- **La vista de gestión:** `components/design/SavedPartsDialog.tsx`, accesible desde el menú junto al panel de motores y a los lugares de lanzamiento guardados, por el mismo motivo por el que existen esos dos: el selector solo se dibuja cuando hay seleccionado un nodo de un tipo que corresponda (`treeEdit.hasCatalog`), así que no puede mostrar un mamparo guardado en un diseño que no lleva ninguno. Lee `customParts.listSavedParts`, que se diferencia de `customRowsForType` en UNA cosa, que es su razón de ser: una pieza que ya no se proyecta a una fila se conserva, con la fila a null, porque la única lista desde la que se puede eliminar no debe ocultar las piezas que el selector ya descarta.
+- **La edición:** el diálogo es maestro-detalle (`layout="fill"`, lista a la izquierda con 300 px, detalle a la derecha), la misma forma que ya usa el selector de motores, incluida su regla para el móvil: un panel cada vez por debajo de `md`, con un control para volver en el detalle. `SavedPartEditor.tsx` compone las PROPIAS piezas del panel de propiedades (`visibleFields` / `FieldRow`, `MaterialSection`, `AppearanceSection`), lo cual es posible porque todas reciben un nodo y un `onChange` y nada más; `RecoverySizingReadout` es la única sección acoplada al almacén y es la que se queda fuera. Por eso el `id` de una pieza guardada es opaco y estable (`custom:<tiempo en base36>:<aleatorio>`) en lugar del `custom:<type>:<mfr>:<partNo>` inicial: un id que codificaba la etiqueta hacía imposible expresar un cambio de nombre, porque producía otro id y copiaba la pieza en vez de moverla. La etiqueta es ahora con lo que `saveCustomPart` compara para que «guardarla de nuevo con el mismo fabricante y nombre la reemplace», y `updateCustomPart` conserva el id y rechaza una etiqueta que ya use otra pieza del mismo tipo.
 
 Igual que el catálogo de motores, es un archivo generado bajo `public/data/` que se descarga al primer uso (véase más arriba) en lugar de compilarse en el paquete, así que no cuesta nada hasta que se abre un selector, y se publica en la rama `data` con la misma periodicidad semanal.
 
@@ -178,7 +181,7 @@ Merece la pena dejar escritos dos fallos de ese trabajo, porque ambos producían
 
 ## Dónde viven los datos (almacenes intercambiables) {#where-user-data-lives-swappable-stores}
 
-Los datos del lado del cliente viven tras **almacenes de dominio tipados e intercambiables de forma independiente** —uno para motores, otro para materiales—, así que cualquiera puede sustituirse por otra implementación sin tocar los servicios ni la interfaz:
+Los datos del lado del cliente viven tras **almacenes de dominio tipados e intercambiables de forma independiente** —uno para motores, otro para materiales y otro para las piezas guardadas—, así que cualquiera puede sustituirse por otra implementación sin tocar los servicios ni la interfaz:
 
 ```
 keyValueStore.ts    KeyValueStore (get/set/remove) + LocalStorageKeyValueStore  — la interfaz
@@ -200,19 +203,28 @@ materialStore.ts    MaterialStore — getMaterialStore() / setMaterialStore(stor
    list / add / remove Material. El KeyValueMaterialStore por defecto persiste mediante un
    KeyValueStore; materials.ts es dueño de las reglas de dominio (validación, fusión de
    incorporados con personalizados).
+
+presetStore.ts      PresetStore  — getPresetStore() / setPresetStore(store)
+   list / add / remove CustomPart: los componentes que se han guardado para reutilizarlos, cada
+   uno con un nodo entero en lugar de las dimensiones de una fila del catálogo. El
+   KeyValuePresetStore por defecto persiste mediante un KeyValueStore; customParts.ts es dueño
+   de las reglas de dominio (qué se guarda, la proyección a fila del selector y la señal de
+   cambio a la que se suscribe el selector).
 ```
 
 Todos ellos persisten por defecto mediante un **`IndexedDbKeyValueStore`**, y sus interfaces son asíncronas para que otra implementación (un backend, un almacén compartido) encaje sin reformar a quienes las llaman. Para sustituir uno en el cliente, implementa su interfaz e intercámbialo:
 
 - **Motores:** `setMotorStore(new MyMotorStore())`
 - **Materiales:** `setMaterialStore(new MyMaterialStore())`
+- **Piezas guardadas:** `setPresetStore(new MyPresetStore())`
 
 …o conserva la lógica de dominio por defecto sobre otro backend clave-valor:
 
 - `setMotorStore(new KeyValueMotorStore(new MyKeyValueStore()))`
 - `setMaterialStore(new KeyValueMaterialStore('materials:custom', new MyKeyValueStore()))`
+- `setPresetStore(new KeyValuePresetStore('parts:custom', new MyKeyValueStore()))`
 
-Intercambiar uno no afecta al otro.
+Intercambiar uno no afecta a los demás.
 
 ### Por qué IndexedDB, y los dos sitios donde queda localStorage {#why-indexeddb-and-the-two-places-localstorage-remains}
 

@@ -27,6 +27,7 @@ export interface FileMenuActions {
   onReport: () => void;
   onMotors: () => void;
   onLaunchLocations: () => void;
+  onSavedParts: () => void;
   onSettings: () => void;
   /** Open in-app Help at the docs index. */
   onHelp: () => void;
@@ -266,6 +267,12 @@ function FileMenu({
           reachable from the one panel that happens to use it. */}
       <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onLaunchLocations)}>
         {t('location.menu')}
+      </button>
+      {/* And the third: the component picker only opens when a part of a
+          matching type is selected, so this is the only way to see a saved
+          bulkhead on a design that has no bulkhead in it. */}
+      <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onSavedParts)}>
+        {t('picker.savedManage')}
       </button>
       <div className="my-1 border-t border-white/10" />
       <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onSettings)}>
