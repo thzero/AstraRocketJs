@@ -31,7 +31,8 @@ export function InfoOverlay({ info }: { info: StaticInfo | null }) {
   const state = stabilityState(cal) ?? 'under';
   // Margin as a fraction of overall length — the same figure the stat tiles and
   // the CP callout carry, so the quick-glance card isn't missing a data item.
-  const pct = info.length > 0 ? ((info.cp - info.cg) / info.length) * 100 : 0;
+  // The engine's own figure, not ours: see StaticInfo.stabilityPercent.
+  const pct = info.stabilityPercent;
   const rows: [string, React.ReactNode][] = [
     [t('stats.length'), `${u.fmt('length', info.length)} ${u.sym('length')}`],
     [t('stability.mass'), `${u.fmt('mass', info.mass)} ${u.sym('mass')}`],

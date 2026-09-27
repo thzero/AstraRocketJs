@@ -72,6 +72,7 @@ CODATA
 codegen
 Coeff
 compname
+configdialog
 configid
 constantgravity
 constructability
@@ -85,6 +86,7 @@ crosssection
 Crêpe
 curveless
 customexpression
+customreference
 datasheet
 dataviz
 DATCOM
@@ -111,10 +113,13 @@ displaycolor
 dmanufacturing
 dmodel
 docblocks
+docmaterials
+docprefs
 doublewedge
 drei
 drei's
 DREV
+edgessameasinside
 efins
 Eggtimer
 ejectioncharge
@@ -153,6 +158,10 @@ Fleeman
 flightcomputer
 flightdata
 foreradius
+foreshouldercapped
+foreshoulderlength
+foreshoulderradius
+foreshoulderthickness
 frameloop
 Français
 freeformfinset
@@ -197,12 +206,14 @@ innerdiameter
 innerradius
 innertube
 Inouye
+insideappearance
 Instanceable
 instancecount
 instanceseparation
 INSUNITS
 isdrogue
 isflipped
+Itot
 Jambol
 jank
 javac
@@ -215,6 +226,7 @@ Karman
 Kevlars
 killable
 kitchensink
+kitname
 KOSDON
 Kutta
 languagedetector
@@ -236,6 +248,7 @@ linematerial
 linestyle
 Lngs
 loadouts
+luma
 Maccoll
 macrotask
 mapfiles
@@ -286,6 +299,7 @@ nosuchfinish
 notsimulated
 nozzleexitdiameter
 nudgeable
+opacityaffectstexture
 openrocket
 openstreetmap
 openxmlformats
@@ -306,8 +320,10 @@ packedradius
 paraline
 parallelstage
 parsererror
+partno
 persistable
 PETG
+photostudio
 pindex
 pipefail
 pitot
@@ -319,6 +335,7 @@ podset
 podsets
 Polski
 Português
+Positionable
 powerseries
 poxy
 Pparity
@@ -390,6 +407,7 @@ SKYRIPPER
 smoot
 speedms
 spillholediameter
+splittable
 ssaero
 sscale
 stagenumber
@@ -416,6 +434,7 @@ Temurin
 tfins
 thrustcurve
 thrustcurve's
+thrustcurves
 thzero
 Timeto
 tipchord

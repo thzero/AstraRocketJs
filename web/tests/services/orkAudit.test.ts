@@ -90,9 +90,9 @@ describe('launch fields the app edits (finding 2)', () => {
 
 describe('recovery packed size (finding 3)', () => {
   const tree = wrap([
-    node({ type: 'parachute', id: 'c', diameter: 0.4, length: 0.06, packedRadius: 0.02 }),
-    node({ type: 'streamer', id: 's', length: 0.045, packedRadius: 0.015 }),
-    node({ type: 'shockcord', id: 'k', length: 0.03, packedRadius: 0.01 }),
+    node({ type: 'parachute', id: 'c', diameter: 0.4, length: 0.06, radius: 0.02 }),
+    node({ type: 'streamer', id: 's', length: 0.045, radius: 0.015 }),
+    node({ type: 'shockcord', id: 'k', length: 0.03, radius: 0.01 }),
   ]);
   const xml = exportOrk({ name: 'R', tree });
   const back = importOrk(xml).tree;
@@ -108,18 +108,18 @@ describe('recovery packed size (finding 3)', () => {
 
   it('reads them back on all three devices', () => {
     expect(findByType(back, 'parachute')!['length']).toBe(0.06);
-    expect(findByType(back, 'parachute')!['packedRadius']).toBe(0.02);
+    expect(findByType(back, 'parachute')!['radius']).toBe(0.02);
     expect(findByType(back, 'streamer')!['length']).toBe(0.045);
-    expect(findByType(back, 'streamer')!['packedRadius']).toBe(0.015);
+    expect(findByType(back, 'streamer')!['radius']).toBe(0.015);
     expect(findByType(back, 'shockcord')!['length']).toBe(0.03);
-    expect(findByType(back, 'shockcord')!['packedRadius']).toBe(0.01);
+    expect(findByType(back, 'shockcord')!['radius']).toBe(0.01);
   });
 
   it('keeps the stock size for a device that never said, without growing a key', () => {
     const stock = importOrk(exportOrk({ name: 'R', tree: wrap([node({ type: 'parachute', id: 'c' })]) })).tree;
     const c = findByType(stock, 'parachute')!;
     expect(c['length']).toBe(COMPONENT_DEFAULTS.recovery.packedLength);
-    expect(c['packedRadius']).toBeUndefined();
+    expect(c['radius']).toBeUndefined();
   });
 });
 

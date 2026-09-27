@@ -7,8 +7,10 @@ import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { MAX_INSTANCE_COUNT, num, str } from '../../tree/nodeProps';
-import { shapeParamMax, shapeUsesParameter } from '../../tree/shapeProfile';
+import { clusterCount } from '../../tree/cluster';
+import { shapeIsClippable, shapeParamMax, shapeUsesParameter } from '../../tree/shapeProfile';
 import { FIELDS, type Field, type PanelSection } from '../../services/componentFields';
+import { DERIVED } from '../../services/derivedFields';
 
 /**
  * The property panel's per-type shape and dimension fields: the numeric row
@@ -25,10 +27,16 @@ import { FIELDS, type Field, type PanelSection } from '../../services/componentF
 const defaultShape = (node: ComponentNode): string =>
   str(node, 'shape', node.type === 'nosecone' ? 'ogive' : 'conical');
 
-/** The declared fields of this part that the panel shows. */
-export function visibleFields(node: ComponentNode, isFirstStage: boolean): Field[] {
-  // The top stage separates from nothing above it — hide its separation fields.
-  const allFields = node.type === 'stage' && isFirstStage ? [] : (FIELDS[node.type] ?? []);
+/**
+ * Whether a declared field APPLIES to this particular node, as opposed to being
+ * declared for its type. Every one of these would otherwise be a control that
+ * sets a value nothing reads.
+ *
+ * Shared by `visibleFields` and `sectionFields`, which partition a type's
+ * fields between them: a test in only one of the two would hide a row in the
+ * dimension list and leave the same row on a section heading.
+ */
+function applies(node: ComponentNode, f: Field): boolean {
   /**
    * Drop the shape parameter for shapes that do not use one.
    *
@@ -40,12 +48,40 @@ export function visibleFields(node: ComponentNode, isFirstStage: boolean): Field
    * whatever the file said. `shapeUsesParameter` was the exported, tested
    * helper that would have gated it, with zero production callers.
    */
-  return (
-    allFields
-      .filter((f) => f.key !== 'shapeParameter' || shapeUsesParameter(defaultShape(node)))
-      // Sectioned fields are rendered by their own section instead, so the
-      // dimension list stays dimensions.
-      .filter((f) => f.section === undefined)
+  if (f.key === 'shapeParameter') return shapeUsesParameter(defaultShape(node));
+  /**
+   * Same for the CLIPPED flag. `Transition.isClipped()` returns false outright
+   * for a shape that cannot be clipped (conical, ogive, parabolic), so on those
+   * the checkbox would set a value the kernel and both views ignore: a control
+   * that does nothing.
+   */
+  if (f.key === 'clipped') return shapeIsClippable(defaultShape(node));
+  /**
+   * A FILLED part is solid, so it has no wall and no bore. The desktop greys
+   * both out; a one-column panel drops them, which also stops the bore row
+   * offering to write a thickness the kernel is ignoring.
+   */
+  if (f.key === 'thickness' || f.key === 'innerDiameter') return node['filled'] !== true;
+  /**
+   * The cluster's spacing and roll, both ways of stating the spacing, and the
+   * angle the group sits at describe where the OTHER tubes go. A single tube
+   * has no others: `clusterCount` is 1, every consumer ignores all three, and
+   * the rows sat there taking values anyway.
+   */
+  if (f.key === 'clusterScale' || f.key === 'clusterSeparation' || f.key === 'clusterRotation') {
+    return clusterCount(str(node, 'cluster', 'single')) > 1;
+  }
+  return true;
+}
+
+/** The declared fields of this part that the panel shows in its dimension list. */
+export function visibleFields(node: ComponentNode, isFirstStage: boolean): Field[] {
+  // The top stage separates from nothing above it — hide its separation fields.
+  const allFields = node.type === 'stage' && isFirstStage ? [] : (FIELDS[node.type] ?? []);
+  return allFields.filter(
+    // Sectioned fields are rendered by their own section instead, so the
+    // dimension list stays dimensions.
+    (f) => f.section === undefined && applies(node, f),
   );
 }
 
@@ -56,7 +92,7 @@ export function visibleFields(node: ComponentNode, isFirstStage: boolean): Field
  * and a field that fell out of both would simply stop being editable.
  */
 export function sectionFields(node: ComponentNode, section: PanelSection): Field[] {
-  return (FIELDS[node.type] ?? []).filter((f) => f.section === section);
+  return (FIELDS[node.type] ?? []).filter((f) => f.section === section && applies(node, f));
 }
 
 /**
@@ -208,6 +244,18 @@ export function FieldRow({
     onChange(patch);
     onCommit?.();
   };
+  /** The follow-something-else switch for a field that declares one. */
+  const autoProp = () =>
+    f.auto
+      ? {
+          auto: {
+            on: node[f.auto.flag] === true,
+            label: `${label}: ${t('prop.auto')}`,
+            title: t(`prop.${f.auto.tip}`),
+            onToggle: (on: boolean) => commitChange({ [f.auto!.flag]: on }),
+          },
+        }
+      : {};
   const numeric = (props: {
     unit?: ReactNode;
     value: number;
@@ -238,6 +286,19 @@ export function FieldRow({
         </label>
       );
     }
+    case 'text':
+      return (
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-slate-400">{label}</span>
+          <textarea
+            rows={3}
+            value={typeof node[f.key] === 'string' ? (node[f.key] as string) : ''}
+            onChange={(e) => onChange({ [f.key]: e.target.value || undefined })}
+            onBlur={onCommit}
+            className="w-full resize-y rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+          />
+        </label>
+      );
     case 'bool':
       return (
         <label className="flex items-center justify-between gap-3">
@@ -289,6 +350,7 @@ export function FieldRow({
         value: num(node, f.key),
         step: f.step ?? 0.1,
         max: paramMax,
+        ...autoProp(),
         onChange: (v) => onChange({ [f.key]: paramMax === undefined ? v : Math.min(paramMax, Math.max(0, v)) }),
       });
     }
@@ -336,6 +398,33 @@ export function FieldRow({
         },
       });
     }
+    case 'derived': {
+      // A second door onto numbers the part DOES store: a fin's sweep as an
+      // angle, a streamer's area or aspect ratio, a mass component's density.
+      // Nothing here is a node key - the pair of conversions in
+      // services/derivedFields.ts reads the stored keys and writes them back,
+      // the same arrangement as the `bore` row above, and for the same reason:
+      // the arithmetic is the kernel's and belongs somewhere it can be tested.
+      const d = DERIVED[f.derived];
+      // A bare ratio has no unit group and no chip, so it also has no scope to
+      // convert through: it is read and written as itself.
+      const fu = d.quantity ? u.at(scope, d.quantity) : undefined;
+      const patch = (v: number) => onChange(d.write(node, fu ? fu.fromUi(v) : v));
+      const value = d.read(node);
+      const bound = (v: number | undefined) => (v === undefined ? undefined : Number((fu ? fu.toUi(v) : v).toFixed(6)));
+      return numeric({
+        unit: d.quantity ? <UnitChip quantity={d.quantity} scope={scope} /> : undefined,
+        value: fu ? fu.toUi(value) : value,
+        // The spec's own bounds, converted like the value. Snapped, because a
+        // bound is a round number by construction and the unit round trip
+        // leaves dust on it: 89 degrees came out as 89.00000000000001, which
+        // the input then shows as the limit.
+        min: bound(d.min?.(node) ?? 0),
+        max: bound(d.max?.(node)),
+        step: fu ? fu.step(f.step ?? 0.1) : (f.step ?? 0.1),
+        onChange: patch,
+      });
+    }
     default: {
       // length: stored meters, shown in this field's length unit. `diameter`
       // fields are radii in the node and diameters in the box (see FieldFlags):
@@ -345,21 +434,11 @@ export function FieldRow({
       // `auto`: the value follows something else (a shoulder follows the bore of
       // the tube it plugs into). Ticking it commits at once and the resolver
       // fills the number in the same edit; clearing it pins whatever it now is.
-      const autoKey = f.auto;
       return numeric({
         unit: <UnitChip quantity="length" scope={scope} />,
         value: fu.toUi(k * num(node, f.key)),
         step: fu.step(0.0005),
-        ...(autoKey
-          ? {
-              auto: {
-                on: node[autoKey] === true,
-                label: `${label}: ${t('prop.auto')}`,
-                title: t('prop.autoShoulder'),
-                onToggle: (on: boolean) => commitChange({ [autoKey]: on }),
-              },
-            }
-          : {}),
+        ...autoProp(),
         onChange: (v) => onChange({ [f.key]: fu.fromUi(v) / k }),
       });
     }

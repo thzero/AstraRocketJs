@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 import { AUTO_COMPONENT_FIELDS, REQUIRED_COMPONENT_FIELDS } from './requiredComponent';
 import { CLUSTER_OPTIONS, clusterCount } from '../tree/cluster';
+import type { DerivedName } from './derivedFields';
 
 /**
  * The component field table: which properties each component type exposes,
@@ -42,10 +43,16 @@ import { CLUSTER_OPTIONS, clusterCount } from '../tree/cluster';
  *   mounts one, how far the motor hangs out, and how many tubes the cluster is.
  * - `fillet` is the glue bead along a fin's root: a radius, and the material it
  *   is made of, which is rarely the fin's own (epoxy on plywood).
+ * - `shoulder` is the stub that plugs into the tube next door: four fields that
+ *   describe a different piece of the part from the cone or taper above them,
+ *   and that a transition has TWO of. `foreShoulder` and `aftShoulder` are
+ *   those two, kept apart rather than run together, because eight rows under
+ *   one heading is a wall and the two ends are independent builds.
  *
  * A field with no `section` is a dimension and renders in the main list.
  */
-export type PanelSection = 'placement' | 'finTab' | 'motor' | 'fillet';
+export type PanelSection =
+  'placement' | 'finTab' | 'motor' | 'fillet' | 'shoulder' | 'foreShoulder' | 'aftShoulder' | 'comment';
 
 /**
  * `diameter` means the value is STORED as a radius and EDITED as a diameter.
@@ -73,7 +80,14 @@ export type PanelSection = 'placement' | 'finTab' | 'motor' | 'fillet';
  * number - the resolver writes it - so every consumer outside this panel is
  * unaffected, and clearing the box pins whatever it currently is.
  */
-type FieldFlags = { required?: true; section?: PanelSection; diameter?: true; auto?: string };
+type FieldFlags = {
+  required?: true;
+  section?: PanelSection;
+  diameter?: true;
+  /** `flag` is the node key that turns following on; `tip` names the `prop.*`
+   *  string that says WHAT is being followed, which differs per field. */
+  auto?: { flag: string; tip: 'autoShoulder' | 'autoRadius' | 'autoComputed' };
+};
 
 export type Field = FieldFlags &
   (
@@ -82,12 +96,20 @@ export type Field = FieldFlags &
     // and the wall, and typing one writes the wall back. See the `bore` branch
     // in DimensionFields for why the wall is the side that gives.
     | { key: string; label: string; kind: 'bore' }
+    // A second door onto numbers the part already stores: a fin's sweep as an
+    // ANGLE, a streamer's area and aspect ratio, a mass component's density.
+    // `key` names the row, not a node key; `derived` names the pair of
+    // conversions in services/derivedFields.ts.
+    | { key: string; label: string; kind: 'derived'; derived: DerivedName; step?: number }
     | { key: string; label: string; kind: 'mass' } // stored kg, shown in units.mass
     | { key: string; label: string; kind: 'count' }
     | { key: string; label: string; kind: 'distance'; step?: number } // stored m, shown in units.distance
     | { key: string; label: string; kind: 'number'; step?: number; unit?: string }
     | { key: string; label: string; kind: 'angle'; step?: number } // stored radians, shown in units.angle
     | { key: string; label: string; kind: 'bool' }
+    // Free text, a paragraph rather than a line: OpenRocket gives every
+    // component a Comment tab, and ours was dropped on every save.
+    | { key: string; label: string; kind: 'text' }
     | {
         key: string;
         label: string;
@@ -107,6 +129,19 @@ const NOSE_SHAPES = ['ogive', 'conical', 'ellipsoid', 'power', 'parabolic', 'haa
 // (ComponentFactory.deployEventOf); the same strings .ork import/export use.
 // Apogee first: it's the default and the most common single-deploy trigger.
 const DEPLOY_EVENTS = ['apogee', 'ejection', 'altitude', 'launch', 'never'];
+
+// What a mass component represents (MassComponent.MassComponentType). Naming
+// only, no physics, and the same strings the .ork carries.
+const MASS_COMPONENT_TYPES = [
+  'masscomponent',
+  'altimeter',
+  'flightcomputer',
+  'deploymentcharge',
+  'tracker',
+  'payload',
+  'recoveryhardware',
+  'battery',
+];
 
 // Stage-separation triggers (SeparationEvent, ComponentFactory.separationEventOf)
 // — when a stage lets go of the one above it. Ejection first: the desktop default
@@ -153,6 +188,51 @@ const FIN_TABS: Field[] = [
 // was preserved on disk and flew as nothing. TUBE fins have none: a TubeFinSet
 // is a Tube, not a FinSet, so the kernel has no fillet to give it.
 const FIN_FILLET: Field = { key: 'filletRadius', label: 'filletRadius', kind: 'length', section: 'fillet' };
+
+/** Notes on this part. Upstream puts it on `RocketComponent`, so every type has
+ *  one; here it is appended to every list rather than repeated in each. */
+const COMMENT: Field = { key: 'comment', label: 'comment', kind: 'text', section: 'comment' };
+
+// The fin's section through the chord. OpenRocket's own FinSet.CrossSection,
+// which carries the volume factors 1.00 / 0.99 / 0.85 and so changes the fin's
+// mass as well as its drag. The kernel has been reading it from the tree since
+// the fin bridge was written; nothing could set it.
+const FIN_CROSS_SECTION: Field = {
+  key: 'crossSection',
+  label: 'crossSection',
+  kind: 'select',
+  options: ['square', 'rounded', 'airfoil'],
+  optI18n: 'crossSection',
+};
+
+// Off-center placement of INTERNAL structure: how far off the axis, and
+// which way round. Both round-trip through `.ork` and now reach the kernel.
+const RADIAL_PLACEMENT: Field[] = [
+  { key: 'radialPosition', label: 'radialPosition', kind: 'length', section: 'placement' },
+  { key: 'radialDirection', label: 'radialDirection', kind: 'angle', step: 15, section: 'placement' },
+];
+
+// N copies of one part, evenly spaced along the body. OpenRocket's
+// <instancecount>/<instanceseparation>.
+const LINE_INSTANCES: Field[] = [
+  { key: 'instanceCount', label: 'instanceCount', kind: 'count', section: 'placement' },
+  { key: 'instanceSeparation', label: 'instanceSeparation', kind: 'length', section: 'placement' },
+];
+
+// A recovery device or mass object's PACKED size: the space it takes up in the
+// airframe, and where its mass therefore sits.
+const PACKED: Field[] = [
+  { key: 'length', label: 'packedLength', kind: 'length' },
+  {
+    key: 'radius',
+    label: 'packedDiameter',
+    kind: 'length',
+    diameter: true,
+    // Automatic here means "as much room as the parent gives it"
+    // (MassObject.getMaxParentRadius).
+    auto: { flag: 'radiusAuto', tip: 'autoRadius' },
+  },
+];
 
 /**
  * The inner diameter of a straight tube, between its outside and its wall -
@@ -224,17 +304,46 @@ const RAW_FIELDS: Record<string, Field[]> = {
     // (ogive/power/parabolic/haack) - filtered at render by shapeUsesParameter.
     { key: 'shapeParameter', label: 'shapeParameter', kind: 'number', step: 0.05 },
     { key: 'length', label: 'length', kind: 'length' },
-    { key: 'aftRadius', label: 'diameter', kind: 'length', diameter: true },
+    {
+      key: 'aftRadius',
+      label: 'diameter',
+      kind: 'length',
+      diameter: true,
+      auto: { flag: 'aftRadiusAuto', tip: 'autoRadius' },
+    },
+    // Solid all the way through, with no bore. The desktop's Filled
+    // checkbox, and `<thickness>filled</thickness>` in the file. The wall row
+    // is dropped while it is on, the way the desktop greys it out.
+    { key: 'filled', label: 'filled', kind: 'bool' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'shoulderLength', label: 'shoulderLength', kind: 'length' },
-    { key: 'shoulderRadius', label: 'shoulderDiameter', kind: 'length', diameter: true, auto: 'shoulderAuto' },
-    { key: 'shoulderThickness', label: 'shoulderThickness', kind: 'length' },
-    { key: 'shoulderCapped', label: 'shoulderCapped', kind: 'bool' },
+    // A flipped nose cone is a tail cone: the same part turned round.
+    { key: 'flipped', label: 'flipped', kind: 'bool' },
+    { key: 'shoulderLength', label: 'shoulderLength', kind: 'length', section: 'shoulder' },
+    {
+      key: 'shoulderRadius',
+      label: 'shoulderDiameter',
+      kind: 'length',
+      diameter: true,
+      auto: { flag: 'shoulderAuto', tip: 'autoShoulder' },
+      section: 'shoulder',
+    },
+    { key: 'shoulderThickness', label: 'shoulderThickness', kind: 'length', section: 'shoulder' },
+    { key: 'shoulderCapped', label: 'shoulderCapped', kind: 'bool', section: 'shoulder' },
   ],
   bodytube: [
     { key: 'length', label: 'length', kind: 'length' },
-    { key: 'outerRadius', label: 'diameter', kind: 'length', diameter: true },
+    {
+      key: 'outerRadius',
+      label: 'diameter',
+      kind: 'length',
+      diameter: true,
+      auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' },
+    },
     TUBE_BORE,
+    // Solid all the way through, with no bore. The desktop's Filled
+    // checkbox, and `<thickness>filled</thickness>` in the file. The wall row
+    // is dropped while it is on, the way the desktop greys it out.
+    { key: 'filled', label: 'filled', kind: 'bool' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'motorMount', label: 'motorMount', kind: 'bool', section: 'motor' },
     { key: 'motorOverhang', label: 'motorOverhang', kind: 'length', section: 'motor' },
@@ -254,37 +363,69 @@ const RAW_FIELDS: Record<string, Field[]> = {
     // parameter the nose cone did. Filtered at render by shapeUsesParameter.
     { key: 'shapeParameter', label: 'shapeParameter', kind: 'number', step: 0.05 },
     { key: 'length', label: 'length', kind: 'length' },
-    { key: 'foreRadius', label: 'foreDiameter', kind: 'length', diameter: true },
-    { key: 'aftRadius', label: 'aftDiameter', kind: 'length', diameter: true },
+    {
+      key: 'foreRadius',
+      label: 'foreDiameter',
+      kind: 'length',
+      diameter: true,
+      auto: { flag: 'foreRadiusAuto', tip: 'autoRadius' },
+    },
+    {
+      key: 'aftRadius',
+      label: 'aftDiameter',
+      kind: 'length',
+      diameter: true,
+      auto: { flag: 'aftRadiusAuto', tip: 'autoRadius' },
+    },
+    // Solid all the way through, with no bore. The desktop's Filled
+    // checkbox, and `<thickness>filled</thickness>` in the file. The wall row
+    // is dropped while it is on, the way the desktop greys it out.
+    { key: 'filled', label: 'filled', kind: 'bool' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'foreShoulderLength', label: 'foreShoulderLength', kind: 'length' },
+    // Clipped or full profile, for the shapes where it means anything
+    // (ellipsoid, power, haack). The drawing, the mesh and the kernel all read
+    // it; only a file could set it.
+    { key: 'clipped', label: 'clipped', kind: 'bool' },
+    { key: 'foreShoulderLength', label: 'foreShoulderLength', kind: 'length', section: 'foreShoulder' },
     {
       key: 'foreShoulderRadius',
       label: 'foreShoulderDiameter',
       kind: 'length',
       diameter: true,
-      auto: 'foreShoulderAuto',
+      auto: { flag: 'foreShoulderAuto', tip: 'autoShoulder' },
+      section: 'foreShoulder',
     },
     // Each shoulder's own WALL, and whether its far end is closed by a disc of
     // the part's material. Both round-tripped through `.ork` with no field to
     // set them, and the wall was never handed to the kernel at all, so a
     // transition's shoulders flew weighing nothing. A nose cone has carried the
     // same two rows since it was written; this is the two-sided version.
-    { key: 'foreShoulderThickness', label: 'foreShoulderThickness', kind: 'length' },
-    { key: 'foreShoulderCapped', label: 'foreShoulderCapped', kind: 'bool' },
-    { key: 'aftShoulderLength', label: 'aftShoulderLength', kind: 'length' },
-    { key: 'aftShoulderRadius', label: 'aftShoulderDiameter', kind: 'length', diameter: true, auto: 'aftShoulderAuto' },
-    { key: 'aftShoulderThickness', label: 'aftShoulderThickness', kind: 'length' },
-    { key: 'aftShoulderCapped', label: 'aftShoulderCapped', kind: 'bool' },
+    { key: 'foreShoulderThickness', label: 'foreShoulderThickness', kind: 'length', section: 'foreShoulder' },
+    { key: 'foreShoulderCapped', label: 'foreShoulderCapped', kind: 'bool', section: 'foreShoulder' },
+    { key: 'aftShoulderLength', label: 'aftShoulderLength', kind: 'length', section: 'aftShoulder' },
+    {
+      key: 'aftShoulderRadius',
+      label: 'aftShoulderDiameter',
+      kind: 'length',
+      diameter: true,
+      auto: { flag: 'aftShoulderAuto', tip: 'autoShoulder' },
+      section: 'aftShoulder',
+    },
+    { key: 'aftShoulderThickness', label: 'aftShoulderThickness', kind: 'length', section: 'aftShoulder' },
+    { key: 'aftShoulderCapped', label: 'aftShoulderCapped', kind: 'bool', section: 'aftShoulder' },
   ],
   trapezoidfinset: [
     { key: 'finCount', label: 'finCount', kind: 'count' },
     { key: 'rootChord', label: 'rootChord', kind: 'length' },
     { key: 'tipChord', label: 'tipChord', kind: 'length' },
     { key: 'sweep', label: 'sweep', kind: 'length' },
+    // The same sweep, as a plan does it. Signed: negative is a forward sweep,
+    // which is the one row here where a minus sign is meaningful.
+    { key: 'sweepAngle', label: 'sweepAngle', kind: 'derived', derived: 'sweepAngle', step: 5 },
     { key: 'height', label: 'height', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
+    FIN_CROSS_SECTION,
     FIN_ROTATION,
     FIN_FILLET,
     ...FIN_TABS,
@@ -295,6 +436,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'height', label: 'height', kind: 'length' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
+    FIN_CROSS_SECTION,
     FIN_ROTATION,
     FIN_FILLET,
     ...FIN_TABS,
@@ -303,6 +445,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'finCount', label: 'finCount', kind: 'count' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
+    FIN_CROSS_SECTION,
     FIN_ROTATION,
     FIN_FILLET,
     ...FIN_TABS,
@@ -310,7 +453,13 @@ const RAW_FIELDS: Record<string, Field[]> = {
   tubefinset: [
     { key: 'finCount', label: 'tubeCount', kind: 'count' },
     { key: 'length', label: 'length', kind: 'length' },
-    { key: 'outerRadius', label: 'tubeDiameter', kind: 'length', diameter: true },
+    {
+      key: 'outerRadius',
+      label: 'tubeDiameter',
+      kind: 'length',
+      diameter: true,
+      auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' },
+    },
     TUBE_BORE,
     { key: 'thickness', label: 'thickness', kind: 'length' },
     FIN_ROTATION,
@@ -335,27 +484,77 @@ const RAW_FIELDS: Record<string, Field[]> = {
         o === 'single' ? t('cluster.single') : t('cluster.pattern', { name: o, n: clusterCount(o) }),
       section: 'motor',
     },
+    // What the pattern is drawn at: the spacing between tubes, as a multiple of
+    // the tube diameter, and the roll of the whole group.
+    { key: 'clusterScale', label: 'clusterScale', kind: 'number', step: 0.1, section: 'motor' },
+    // The same spacing as a DISTANCE between tube walls. The desktop has one
+    // spinner and a Relative/Absolute switch over it; both rows are live here.
+    {
+      key: 'clusterSeparation',
+      label: 'clusterSeparation',
+      kind: 'derived',
+      derived: 'clusterSeparation',
+      section: 'motor',
+    },
+    { key: 'clusterRotation', label: 'clusterRotation', kind: 'angle', step: 15, section: 'motor' },
+    ...RADIAL_PLACEMENT,
   ],
   tubecoupler: [
     { key: 'length', label: 'length', kind: 'length' },
-    { key: 'outerRadius', label: 'diameter', kind: 'length', diameter: true },
+    {
+      key: 'outerRadius',
+      label: 'diameter',
+      kind: 'length',
+      diameter: true,
+      auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' },
+    },
     TUBE_BORE,
     { key: 'thickness', label: 'thickness', kind: 'length' },
+    ...RADIAL_PLACEMENT,
   ],
   centeringring: [
     { key: 'length', label: 'thickness', kind: 'length' },
-    { key: 'outerRadius', label: 'outerDiameter', kind: 'length', diameter: true },
-    { key: 'innerRadius', label: 'innerDiameter', kind: 'length', diameter: true },
+    {
+      key: 'outerRadius',
+      label: 'outerDiameter',
+      kind: 'length',
+      diameter: true,
+      auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' },
+    },
+    {
+      key: 'innerRadius',
+      label: 'innerDiameter',
+      kind: 'length',
+      diameter: true,
+      auto: { flag: 'innerRadiusAuto', tip: 'autoRadius' },
+    },
+    ...LINE_INSTANCES,
+    ...RADIAL_PLACEMENT,
   ],
   bulkhead: [
     { key: 'length', label: 'thickness', kind: 'length' },
-    { key: 'outerRadius', label: 'diameter', kind: 'length', diameter: true },
+    {
+      key: 'outerRadius',
+      label: 'diameter',
+      kind: 'length',
+      diameter: true,
+      auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' },
+    },
+    ...LINE_INSTANCES,
+    ...RADIAL_PLACEMENT,
   ],
   engineblock: [
     { key: 'length', label: 'length', kind: 'length' },
-    { key: 'outerRadius', label: 'diameter', kind: 'length', diameter: true },
+    {
+      key: 'outerRadius',
+      label: 'diameter',
+      kind: 'length',
+      diameter: true,
+      auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' },
+    },
     TUBE_BORE,
     { key: 'thickness', label: 'thickness', kind: 'length' },
+    ...RADIAL_PLACEMENT,
   ],
   launchlug: [
     { key: 'length', label: 'length', kind: 'length' },
@@ -368,36 +567,73 @@ const RAW_FIELDS: Record<string, Field[]> = {
     // fit through it.
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'angleOffset', label: 'rotation', kind: 'angle', section: 'placement' },
+    ...LINE_INSTANCES,
   ],
   railbutton: [
     { key: 'outerDiameter', label: 'outerDiameter', kind: 'length' },
+    // The rest of the button: the file services have carried these since they
+    // stopped writing the desktop's constructor constants, and the kernel
+    // takes them now, so a 1010 button sized by hand weighs what it should.
+    { key: 'innerDiameter', label: 'innerDiameter', kind: 'length' },
+    { key: 'height', label: 'height', kind: 'length' },
+    { key: 'baseHeight', label: 'baseHeight', kind: 'length' },
+    { key: 'flangeHeight', label: 'flangeHeight', kind: 'length' },
+    { key: 'screwHeight', label: 'screwHeight', kind: 'length' },
     { key: 'angleOffset', label: 'rotation', kind: 'angle', section: 'placement' },
+    ...LINE_INSTANCES,
   ],
   parachute: [
     { key: 'diameter', label: 'diameter', kind: 'length' },
-    { key: 'cd', label: 'dragCoeff', kind: 'number', step: 0.05 },
+    { key: 'cd', label: 'dragCoeff', kind: 'number', step: 0.05, auto: { flag: 'cdAuto', tip: 'autoComputed' } },
     { key: 'lineCount', label: 'lineCount', kind: 'count' },
-    { key: 'lineLength', label: 'lineLength', kind: 'length' },
+    { key: 'lineLength', label: 'lineLength', kind: 'length', auto: { flag: 'lineLengthAuto', tip: 'autoComputed' } },
     // Which half of a dual-deployment pair this is. The kernel judges the
     // deployment speed against different thresholds depending on it, and cannot
     // warn about dual deployment at all unless something on the stage says drogue.
-    { key: 'drogue', label: 'drogue', kind: 'bool' },
     { key: 'deployEvent', label: 'deployEvent', kind: 'select', options: DEPLOY_EVENTS, optI18n: 'deployEvent' },
     { key: 'deployAltitude', label: 'deployAltitude', kind: 'distance', step: 10 },
     { key: 'deployDelay', label: 'deployDelay', kind: 'number', unit: 's', step: 0.5 },
+    ...PACKED,
+    ...RADIAL_PLACEMENT,
   ],
   streamer: [
     { key: 'stripLength', label: 'length', kind: 'length' },
     { key: 'stripWidth', label: 'width', kind: 'length' },
-    { key: 'cd', label: 'dragCoeff', kind: 'number', step: 0.05 },
-    { key: 'drogue', label: 'drogue', kind: 'bool' },
+    // How much fabric, and how long and thin. Either one re-cuts the strip and
+    // leaves the other where it is.
+    { key: 'stripArea', label: 'stripArea', kind: 'derived', derived: 'stripArea' },
+    { key: 'stripAspect', label: 'stripAspect', kind: 'derived', derived: 'stripAspect', step: 0.5 },
+    { key: 'cd', label: 'dragCoeff', kind: 'number', step: 0.05, auto: { flag: 'cdAuto', tip: 'autoComputed' } },
     { key: 'deployEvent', label: 'deployEvent', kind: 'select', options: DEPLOY_EVENTS, optI18n: 'deployEvent' },
     { key: 'deployAltitude', label: 'deployAltitude', kind: 'distance', step: 10 },
     { key: 'deployDelay', label: 'deployDelay', kind: 'number', unit: 's', step: 0.5 },
+    ...PACKED,
+    ...RADIAL_PLACEMENT,
   ],
   masscomponent: [
     { key: 'mass', label: 'mass', kind: 'mass' },
-    { key: 'length', label: 'length', kind: 'length' },
+    // The other way to say the same thing, for when you know what the lump is
+    // made of rather than what it weighs. Approximate: the volume it divides by
+    // is the PACKED size, which is the room the part takes up, not the part.
+    { key: 'massDensity', label: 'massDensity', kind: 'derived', derived: 'massDensity' },
+    // What the lump IS. No physics: OpenRocket uses it to name and picture the
+    // part, and it round-tripped through the file with nothing to set it.
+    {
+      key: 'massComponentType',
+      label: 'massComponentType',
+      kind: 'select',
+      options: MASS_COMPONENT_TYPES,
+      optI18n: 'massComponentType',
+    },
+    ...PACKED,
+    ...RADIAL_PLACEMENT,
+  ],
+  shockcord: [
+    // The cord itself, which is the whole part: this type had no editable
+    // field at all, so its length came from a file or the 0.3 m default.
+    { key: 'cordLength', label: 'cordLength', kind: 'length', auto: { flag: 'cordLengthAuto', tip: 'autoComputed' } },
+    ...PACKED,
+    ...RADIAL_PLACEMENT,
   ],
   // External pods: assembly placement only (their own chain is edited as
   // children).
@@ -433,7 +669,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
 export const FIELDS: Record<string, Field[]> = Object.fromEntries(
   Object.entries(RAW_FIELDS).map(([type, fields]) => [
     type,
-    fields.map((f) =>
+    [...fields, COMMENT].map((f) =>
       (REQUIRED_COMPONENT_FIELDS[type] ?? []).includes(f.key) && !(AUTO_COMPONENT_FIELDS[type] ?? []).includes(f.key)
         ? { ...f, required: true }
         : f,

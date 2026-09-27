@@ -16,6 +16,8 @@ import {
   finTabsXml,
   header,
   material,
+  overrides,
+  packedRadiusXml,
   packedXml,
   position,
   separationXml,
@@ -72,7 +74,7 @@ const recoveryHead = (w: OrkWriter, node: ComponentNode, d: number, fallback: st
   position(w, d, node, 'top');
   packedXml(w, d, node);
   radialZeros(w, d);
-  w.emit(d, `<cd>${typeof node['cd'] === 'number' ? node['cd'] : 'auto'}</cd>`);
+  w.emit(d, `<cd>${node['cdAuto'] === true || typeof node['cd'] !== 'number' ? 'auto' : node['cd']}</cd>`);
   material(w, d, node, 'surface');
   // Only when true, and in this position: RecoveryDeviceSaver emits it right
   // after the material and omits it for a main, so a round-tripped file stays
@@ -102,12 +104,15 @@ const writeNosecone: NodeWriter = (w, node, d) => {
   w.emit(d, `<shape>${escapeXml(String(node['shape'] ?? 'ogive'))}</shape>`);
   w.emit(d, '<shapeclipped>false</shapeclipped>');
   shapeParamXml(w, d, node);
-  w.emit(d, `<aftradius>${num(node, 'aftRadius', COMPONENT_DEFAULTS.nosecone.aftRadius)}</aftradius>`);
+  w.emit(
+    d,
+    `<aftradius>${node['aftRadiusAuto'] === true ? 'auto' : num(node, 'aftRadius', COMPONENT_DEFAULTS.nosecone.aftRadius)}</aftradius>`,
+  );
   w.emit(d, `<aftshoulderradius>${num(node, 'shoulderRadius', 0)}</aftshoulderradius>`);
   w.emit(d, `<aftshoulderlength>${num(node, 'shoulderLength', 0)}</aftshoulderlength>`);
   w.emit(d, `<aftshoulderthickness>${num(node, 'shoulderThickness', 0)}</aftshoulderthickness>`);
   w.emit(d, `<aftshouldercapped>${node['shoulderCapped'] === true}</aftshouldercapped>`);
-  w.emit(d, '<isflipped>false</isflipped>');
+  w.emit(d, `<isflipped>${node['flipped'] === true}</isflipped>`);
 };
 
 const writeTransition: NodeWriter = (w, node, d) => {
@@ -130,8 +135,13 @@ const writeTransition: NodeWriter = (w, node, d) => {
     w.emit(d, `<shapeclipped>${clippedOut}</shapeclipped>`);
   }
   shapeParamXml(w, d, node);
-  w.emit(d, `<foreradius>${typeof node['foreRadius'] === 'number' ? node['foreRadius'] : 'auto'}</foreradius>`);
-  w.emit(d, `<aftradius>${typeof node['aftRadius'] === 'number' ? node['aftRadius'] : 'auto'}</aftradius>`);
+  // A transition's radius is automatic when the FLAG says so, and still when
+  // the key is simply missing: that is how a tree built before the flag
+  // existed spells it, and how the reader has always understood the file.
+  const transAuto = (key: 'foreRadius' | 'aftRadius') =>
+    node[`${key}Auto`] === true || typeof node[key] !== 'number' ? 'auto' : String(node[key]);
+  w.emit(d, `<foreradius>${transAuto('foreRadius')}</foreradius>`);
+  w.emit(d, `<aftradius>${transAuto('aftRadius')}</aftradius>`);
   for (const side of ['fore', 'aft'] as const) {
     const key = side === 'fore' ? 'foreShoulder' : 'aftShoulder';
     w.emit(d, `<${side}shoulderradius>${num(node, `${key}Radius`, 0)}</${side}shoulderradius>`);
@@ -147,7 +157,7 @@ const writeBodytube: NodeWriter = (w, node, d) => {
   material(w, d, node);
   w.emit(d, `<length>${num(node, 'length', 0.3)}</length>`);
   w.emit(d, `<thickness>${num(node, 'thickness', COMPONENT_DEFAULTS.bodytube.thickness)}</thickness>`);
-  w.emit(d, `<radius>${num(node, 'outerRadius', 0.012)}</radius>`);
+  w.emit(d, `<radius>${node['outerRadiusAuto'] === true ? 'auto' : num(node, 'outerRadius', 0.012)}</radius>`);
   // Extension tag (desktop warns-and-ignores): sub-minimum flag.
   if (node['caseAirframe'] === true) {
     w.emit(d, '<caseairframe>true</caseairframe>');
@@ -190,7 +200,9 @@ const writeTubeFinset: NodeWriter = (w, node, d) => {
   position(w, d, node, 'bottom');
   finishXml(w, d, node);
   material(w, d, node);
-  w.emit(d, `<radius>${typeof node['outerRadius'] === 'number' ? node['outerRadius'] : 'auto'}</radius>`);
+  // A tube fin set with no diameter is sized by the kernel from the body
+  // radius and the fin count, so the flag has to survive the save.
+  autoRadius(w, d, node, 'outerRadius', 'radius');
   w.emit(d, `<length>${num(node, 'length', 0.1)}</length>`);
   w.emit(d, `<thickness>${num(node, 'thickness', 0.0005)}</thickness>`);
 };
@@ -316,7 +328,7 @@ const writeParachute: NodeWriter = (w, node, d) => {
     w.emit(d, `<spillholediameter>${node['spillHoleDiameter']}</spillholediameter>`);
   }
   w.emit(d, `<linecount>${num(node, 'lineCount', 6)}</linecount>`);
-  w.emit(d, `<linelength>${num(node, 'lineLength', 0.3)}</linelength>`);
+  w.emit(d, `<linelength>${node['lineLengthAuto'] === true ? 'auto' : num(node, 'lineLength', 0.3)}</linelength>`);
   if (typeof node['lineDensity'] === 'number') {
     const lname = typeof node['lineMaterialName'] === 'string' ? (node['lineMaterialName'] as string) : 'custom';
     w.emit(d, `<linematerial type="line" density="${node['lineDensity']}">${escapeXml(lname)}</linematerial>`);
@@ -339,7 +351,7 @@ const writeShockcord: NodeWriter = (w, node, d) => {
   position(w, d, node, 'top');
   packedXml(w, d, node);
   radialZeros(w, d);
-  w.emit(d, `<cordlength>${num(node, 'cordLength', 0.3)}</cordlength>`);
+  w.emit(d, `<cordlength>${node['cordLengthAuto'] === true ? 'auto' : num(node, 'cordLength', 0.3)}</cordlength>`);
   material(w, d, node, 'line');
 };
 
@@ -347,7 +359,7 @@ const writeMasscomponent: NodeWriter = (w, node, d) => {
   header(w, d, node, 'Mass Component');
   position(w, d, node, 'top');
   w.emit(d, `<packedlength>${num(node, 'length', 0.02)}</packedlength>`);
-  w.emit(d, `<packedradius>${num(node, 'radius', COMPONENT_DEFAULTS.masscomponent.radius)}</packedradius>`);
+  w.emit(d, packedRadiusXml(node, COMPONENT_DEFAULTS.masscomponent.radius));
   // Off-axis placement (meters + degrees). Was hard-wired to 0, so a mass
   // off the centerline collapsed onto the axis on save/reload.
   w.emit(d, `<radialposition>${num(node, 'radialPosition', 0)}</radialposition>`);
@@ -442,6 +454,11 @@ export function stageXml(w: OrkWriter, depth: number, st: ComponentNode, i: numb
   emit(depth, '<stage>');
   emit(depth + 1, `<name>${escapeXml(st.name ?? (i === 0 ? 'Sustainer' : `Booster ${i}`))}</name>`);
   emit(depth + 1, `<id>${uuid()}</id>`);
+  // A stage can be overridden like any other component, and the kernel applies
+  // it. This block writes its own name and id rather than going through
+  // `header()`, which is where every other component picks the overrides up,
+  // so a stage-level override flew and was dropped on the way out.
+  overrides(w, depth + 1, st);
   // RASAero power-on base-drag input (meters, no conversion). Non-standard
   // element (OpenRocket desktop ignores it); only emitted when set > 0 so a
   // plain design round-trips exactly. Applies to every stage incl. sustainer.

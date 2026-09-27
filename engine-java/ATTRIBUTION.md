@@ -18,6 +18,19 @@ from *File → Open Example*. They are **OpenRocket's own work, GPL-3.0**, taken
 
 **Modified:** each file's stored `<flightdata>` is stripped. Nothing else is changed.
 
+## Shape descriptions — OpenRocket
+
+`web/src/i18n/locales/*.json` carries a `shapeDesc` block: the paragraph the property panel
+shows under the shape picker, explaining what an ogive, power series or clipped ellipsoid
+transition actually is. Those strings are **OpenRocket's own work, GPL-3.0**, taken from
+`core/src/main/resources/l10n/messages*.properties` at the commit `extract/UPSTREAM` pins
+(`Shape.<name>.desc1` for a nose cone, `desc2` for a transition), including the translations
+for every language this app ships.
+
+**Modified:** HTML entities are resolved to characters, whitespace is collapsed, and one
+misspelling in the English parabolic-series string is corrected. The `<b>`, `<i>` and `<sup>`
+markup is kept and rendered by `components/design/ShapeDescription.tsx`.
+
 ## RASAero-style aerodynamics extensions — mmrocket-sim
 
 Some extracted sources carry **opt-in supersonic-aerodynamics extensions that are NOT part of

@@ -88,3 +88,77 @@ describe('a tube states its bore', () => {
     expect(onChange).toHaveBeenCalledWith({ outerRadius: 0.025 });
   });
 });
+
+/**
+ * A control that cannot do anything must not be offered.
+ *
+ * `Transition.isClipped()` returns false outright for a shape that is not
+ * clippable, so on a conical or ogive transition the clipped flag is read by
+ * nothing: not the kernel, not the schematic, not the 3D build. The shape
+ * parameter has been filtered this way since it was added; the clipped flag
+ * arrived without the same guard.
+ */
+const transition = (shape: string): ComponentNode =>
+  ({
+    id: 'tr',
+    type: 'transition',
+    name: 'Transition',
+    shape,
+    length: 0.05,
+    foreRadius: 0.013,
+    aftRadius: 0.019,
+    thickness: 0.0005,
+  }) as unknown as ComponentNode;
+
+describe('the clipped-profile flag', () => {
+  const render = (shape: string) =>
+    renderWithProviders(
+      <PropertyPanel node={transition(shape)} onChange={() => {}} onRemove={() => {}} canRemove isFirstStage={false} />,
+    );
+
+  it('is offered on a shape that can be clipped', () => {
+    render('ellipsoid');
+    expect(screen.queryByLabelText('Clipped profile')).not.toBeNull();
+  });
+
+  it('is not offered on one that cannot', () => {
+    render('conical');
+    expect(screen.queryByLabelText('Clipped profile')).toBeNull();
+  });
+});
+
+/**
+ * A filled part has no wall and no bore, so neither row is offered: the
+ * desktop greys them out, and leaving them here would let you type a
+ * thickness the kernel is ignoring.
+ */
+describe('the filled flag', () => {
+  const tube = (filled: boolean) =>
+    ({
+      id: 'bt',
+      type: 'bodytube',
+      name: 'Body tube',
+      length: 0.2,
+      outerRadius: 0.013,
+      thickness: 0.0005,
+      filled,
+    }) as unknown as ComponentNode;
+
+  const render = (filled: boolean) =>
+    renderWithProviders(
+      <PropertyPanel node={tube(filled)} onChange={() => {}} onRemove={() => {}} canRemove isFirstStage={false} />,
+    );
+
+  it('offers the wall and the bore on a hollow tube', () => {
+    render(false);
+    expect(screen.queryByLabelText('Thickness')).not.toBeNull();
+    expect(screen.queryByLabelText('Inner diameter')).not.toBeNull();
+  });
+
+  it('drops both once the part is solid', () => {
+    render(true);
+    expect(screen.queryByLabelText('Thickness')).toBeNull();
+    expect(screen.queryByLabelText('Inner diameter')).toBeNull();
+    expect(screen.queryByLabelText('Filled')).not.toBeNull();
+  });
+});

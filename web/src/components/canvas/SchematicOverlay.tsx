@@ -50,7 +50,8 @@ export function StabilityOverlay({
   const cgX = info && showMarkers ? ctx.x0 + info.cg * scale : null;
   const cpX = info && showMarkers ? ctx.x0 + info.cp * scale : null;
   const stab = info ? stabilityState(info.stabilityCalibers) : null;
-  const marginPct = info && info.length > 0 ? ((info.cp - info.cg) / info.length) * 100 : null;
+  // The engine's own figure, not ours: see StaticInfo.stabilityPercent.
+  const marginPct = info ? info.stabilityPercent : null;
   const stabWord =
     stab === 'under' ? t('schematic.underStable') : stab === 'over' ? t('schematic.overStable') : t('schematic.ok');
   // A zero-length design has no margin percentage to print, so it gets no

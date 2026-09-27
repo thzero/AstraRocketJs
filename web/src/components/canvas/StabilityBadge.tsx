@@ -40,7 +40,8 @@ export function StabilityBadge({
   const cpTile = u.at(unitScope('stats', 'cp'), 'length');
   if (!info) return null;
   const cal = info.stabilityCalibers;
-  const pct = info.length > 0 ? ((info.cp - info.cg) / info.length) * 100 : 0;
+  // The engine's own figure, not ours: see StaticInfo.stabilityPercent.
+  const pct = info.stabilityPercent;
   // Moments of inertia span orders of magnitude (roll ~1e-5, pitch ~1e-3 kg·m²);
   // exponential below 1e-4, 4-sig-fig fixed above, so both read cleanly.
   const fmtInertia = (v: number) => {

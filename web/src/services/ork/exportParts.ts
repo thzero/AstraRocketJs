@@ -6,6 +6,7 @@ import { uuid } from '../uuid';
 import { COMPONENT_DEFAULTS } from '../componentDefaults';
 import type { OrkDeployOverride } from '../orkTypes';
 import type { OrkWriter } from './exportWriter';
+import { passthroughOf } from './passthrough';
 
 /**
  * The element groups more than one .ork component writer shares: material,
@@ -80,11 +81,56 @@ export function position(
 export function header(w: OrkWriter, depth: number, node: ComponentNode, fallback: string): void {
   w.emit(depth, `<name>${escapeXml(node.name ?? fallback)}</name>`);
   w.emit(depth, `<id>${uuid()}</id>`);
+  if (typeof node['comment'] === 'string' && node['comment']) {
+    w.emit(depth, `<comment>${escapeXml(node['comment'] as string)}</comment>`);
+  }
+  if (typeof node['lineStyle'] === 'string' && node['lineStyle']) {
+    w.emit(depth, `<linestyle>${escapeXml(node['lineStyle'] as string)}</linestyle>`);
+  }
+  presetXml(w, depth, node);
+  colorXml(w, depth, node);
   overrides(w, depth, node);
+  // Whatever the file carried that this app has no model for, back where it was
+  // (services/ork/passthrough.ts). Last in the header so it cannot come between
+  // two elements the desktop's own reader expects in order.
+  for (const raw of passthroughOf(node)) w.emit(depth, raw);
+}
+
+/**
+ * The catalog part this component came from, as `RocketComponentSaver` writes
+ * it. Kept only while the component still MATCHES it: `treeEdit` drops the link
+ * the moment a dimension changes, the same way the kernel's setters call
+ * `clearPreset`, so a link can never claim a part number the geometry no longer
+ * is.
+ */
+function presetXml(w: OrkWriter, depth: number, node: ComponentNode): void {
+  const p = node['preset'] as { type?: string; manufacturer?: string; partNo?: string; digest?: string } | undefined;
+  if (!p || typeof p !== 'object' || !p.partNo) return;
+  const attr = (name: string, v: string | undefined) => (v ? ` ${name}="${escapeXml(v)}"` : '');
+  w.emit(
+    depth,
+    `<preset${attr('type', p.type)}${attr('manufacturer', p.manufacturer)}${attr('partno', p.partNo)}${attr('digest', p.digest)}/>`,
+  );
+}
+
+/**
+ * A part's own color, as the desktop stores it: three 0-255 channels on one
+ * element, absent when the part takes its group color.
+ *
+ * The app has had a color picker for a long time and this was written nowhere,
+ * so a design saved as `.ork` came back in its group color. It is the only place the editor
+ * offered a control and then threw the answer away.
+ */
+function colorXml(w: OrkWriter, depth: number, node: ComponentNode): void {
+  const hex = typeof node['color'] === 'string' ? (node['color'] as string) : null;
+  const m = hex && /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return;
+  const n = parseInt(m[1]!, 16);
+  w.emit(depth, `<color red="${(n >> 16) & 255}" green="${(n >> 8) & 255}" blue="${n & 255}"/>`);
 }
 
 // Mass/CG/Cd overrides, exactly as the desktop RocketComponentSaver writes them.
-function overrides(w: OrkWriter, depth: number, node: ComponentNode): void {
+export function overrides(w: OrkWriter, depth: number, node: ComponentNode): void {
   const sub = (key: string) => (node[key] === true ? 'true' : 'false');
   if (typeof node['overrideMass'] === 'number') {
     w.emit(depth, `<overridemass>${node['overrideMass']}</overridemass>`);
@@ -236,7 +282,10 @@ export function thicknessXml(w: OrkWriter, depth: number, node: ComponentNode, f
  */
 export function packedXml(w: OrkWriter, depth: number, node: ComponentNode): void {
   w.emit(depth, `<packedlength>${num(node, 'length', COMPONENT_DEFAULTS.recovery.packedLength)}</packedlength>`);
-  w.emit(depth, `<packedradius>${num(node, 'packedRadius', COMPONENT_DEFAULTS.recovery.packedRadius)}</packedradius>`);
+  // `radius`, not `packedRadius`: the reader puts <packedradius> into `radius`
+  // and the engine bridge reads `radius`, so the writer was reading a key
+  // nothing in the app ever sets and every save wrote the 12.5 mm constant.
+  w.emit(depth, packedRadiusXml(node, COMPONENT_DEFAULTS.recovery.packedRadius));
 }
 
 // Engine defaults from Transition.Shape.defaultParameter() — writing any
@@ -255,9 +304,21 @@ export function shapeParamXml(w: OrkWriter, depth: number, node: ComponentNode):
  * `auto`, which threw away a ring the user had sized by hand: it exported as
  * automatic and came back the width of its body tube.
  */
+/** `<packedradius>`, with the `auto <value>` form MassObjectSaver writes. */
+export function packedRadiusXml(node: ComponentNode, fallback: number): string {
+  const v = num(node, 'radius', fallback);
+  return `<packedradius>${node['radiusAuto'] === true ? `auto ${v}` : v}</packedradius>`;
+}
+
 export function autoRadius(w: OrkWriter, depth: number, node: ComponentNode, key: string, tag: string): void {
+  // The FLAG decides, because the value beside it is the RESOLVED number: a
+  // ring that fills its tube now carries the bore it filled, and writing that
+  // number would turn a design that follows its tube into one that is pinned
+  // to whatever the tube happened to be. An absent value still means auto,
+  // which is how a tree built before the flag existed spells it.
   const v = node[key];
-  w.emit(depth, `<${tag}>${typeof v === 'number' && v > 0 ? v : 'auto'}</${tag}>`);
+  const auto = node[`${key}Auto`] === true || !(typeof v === 'number' && v > 0);
+  w.emit(depth, `<${tag}>${auto ? 'auto' : v}</${tag}>`);
 }
 
 /**

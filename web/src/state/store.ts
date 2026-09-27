@@ -12,7 +12,7 @@ import type {
   ComponentType as PartType,
   IgnitionEvent,
 } from '../engine/openRocketEngine';
-import { findMountId, updateNode, removeNode, addPart, addStage, moveNode } from '../services/treeEdit';
+import { findMountId, updateNode, removeNode, addPart, addStage, moveNode, setStageDrogue } from '../services/treeEdit';
 import { activeExtraMounts, reconcileMounts } from '../services/mountMotors';
 import type { LaunchConditions } from '../services/orkTree';
 import type { OrkExportMotor } from '../services/orkFile';
@@ -275,6 +275,17 @@ export interface WorkspaceState {
   scaleDesign: (factor: number) => void;
   setSelectedId: (id: string | null) => void;
   patchSelected: (patch: Partial<ComponentNode>) => void;
+  /**
+   * Run one of the tree-shape ACTIONS from services/componentActions: convert a
+   * fin set to freeform, split a fin set / pod / booster / cluster, reset a
+   * cluster's spacing. One undo step, and nothing at all when the action says
+   * there was nothing to do.
+   */
+  applyTreeAction: (change: (tree: RocketTree) => RocketTree) => void;
+  /** Dual deployment for one stage: which of its recovery devices is the
+   *  drogue, or `null` for single deployment. One undo step, because it clears
+   *  the rest of the stage in the same breath. */
+  setStageDrogue: (stageId: string, deviceId: string | null) => void;
   removeSelected: () => void;
   addPartToTree: (type: PartType) => void;
   addStageToTree: () => void;
@@ -923,6 +934,25 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // hot per-keystroke edit path.
       const touchesMounts = 'motorMount' in patch;
       set({ tree: next, sims: touchesMounts ? reconcileAll(next, sims) : sims });
+    },
+    applyTreeAction: (change) => {
+      const { tree, sims } = get();
+      const next = change(tree);
+      if (next === tree) return;
+      recordStep();
+      // Splitting a cluster duplicates the tube it is on, mounts included, so
+      // the mount topology really can change here - unlike a field edit.
+      set({ tree: next, sims: reconcileAll(next, sims) });
+    },
+    setStageDrogue: (stageId, deviceId) => {
+      const { tree } = get();
+      const next = setStageDrogue(tree, stageId, deviceId);
+      if (next === tree) return; // already the drogue, or already none
+      // A whole undo step rather than an in-flight edit: this is a discrete
+      // choice that can touch several devices at once, not a slider drag. The
+      // flag changes warnings only, so no mount or simulation reconcile.
+      recordStep();
+      set({ tree: next });
     },
     removeSelected: () => {
       const { selectedId, tree, sims } = get();

@@ -204,7 +204,7 @@ const kitchenSink = (): RocketTree =>
                 diameter: 0.3,
                 cd: 0.8,
                 length: 0.06,
-                packedRadius: 0.02,
+                radius: 0.02,
                 deployEvent: 'apogee',
                 deployAltitude: 250,
                 deployDelay: 1.5,

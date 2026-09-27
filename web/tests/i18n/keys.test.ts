@@ -64,9 +64,12 @@ const DYNAMIC_PREFIXES: string[] = [
   'pathExport.preset.', // t(`pathExport.preset.${preset.id}`) and `${id}Note`
   'pathExport.doc.', // buildLabels() - the strings the built-in export templates write INTO the file
   'deployEvent.', // `${f.optI18n}.${o}` - componentFields option labels
+  'crossSection.', // same - the fin section (square / rounded / airfoil)
+  'massComponentType.', // same - what a mass component represents
   'separationEvent.', // same
   'radiusMethod.', // same
   'noseShape.', // same - the nose cone and transition shape lists
+  'shapeDesc.', // t(`shapeDesc.${node.type}.${shape}`) - ShapeDescription
   'tabOffsetMethod.', // same - what a fin tab's offset is measured from
   'positionFrom.', // t(`positionFrom.${m}`) - PlacementSection's own select
   'units.q.', // t(`units.q.${q}`) - unit quantity names

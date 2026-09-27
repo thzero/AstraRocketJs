@@ -94,6 +94,104 @@ describe('the kernel is actually wired up', () => {
   });
 });
 
+/**
+ * The stability margin is the kernel's to convert, both ways of stating it.
+ *
+ * The app used to compute the percentage itself, in four separate views, as
+ * `((cp - cg) / length) * 100`. That is the right shape over the WRONG
+ * denominator: OpenRocket's `PercentageOfLengthUnit` divides by
+ * `getLengthAerodynamic()`, the span of the AERODYNAMIC components, while
+ * `length` bounds every component including the ones with no aerodynamic effect.
+ *
+ * The fixture below is the ordinary way the two differ: a motor tube that hangs
+ * out of the back of the airframe. An inner tube is an `InternalComponent`, whose
+ * `isAerodynamic()` is final and false, so the overhang lengthens the rocket
+ * without lengthening its aerodynamic span.
+ */
+const OVERHANG = {
+  components: [
+    {
+      id: 'stage1',
+      type: 'stage',
+      children: [
+        { id: 'nose', type: 'nosecone', length: 0.1, aftRadius: 0.013, thickness: 0.001, shape: 'ogive' },
+        {
+          id: 'tube',
+          type: 'bodytube',
+          length: 0.2,
+          outerRadius: 0.013,
+          thickness: 0.0005,
+          children: [
+            {
+              id: 'fins',
+              type: 'trapezoidfinset',
+              finCount: 3,
+              rootChord: 0.06,
+              tipChord: 0.03,
+              sweep: 0.03,
+              height: 0.05,
+              thickness: 0.003,
+              position: { method: 'bottom', offset: 0 },
+            },
+            {
+              // 70 mm of motor tube in a 200 mm airframe, pushed 40 mm out the
+              // back: the rocket is 40 mm longer than its aerodynamic span.
+              id: 'mount',
+              type: 'innertube',
+              length: 0.07,
+              outerRadius: 0.0095,
+              thickness: 0.0005,
+              motorMount: true,
+              position: { method: 'bottom', offset: 0.04 },
+            },
+          ],
+        },
+      ],
+    },
+  ],
+} as unknown as RocketTree;
+
+describe('the stability margin comes from the kernel, in both units', () => {
+  it('reports an aerodynamic span shorter than the rocket, for this design', () => {
+    // The premise of every assertion below. Without it the two denominators are
+    // the same number and the test proves nothing.
+    const info = OpenRocketDesign.buildTree(OVERHANG).staticInfo();
+    expect(info.length).toBeCloseTo(0.34, 6); // 100 + 200 + 40 mm of overhang
+    expect(info.lengthAerodynamic).toBeCloseTo(0.3, 6); // nose + tube, no overhang
+    expect(info.lengthAerodynamic).toBeLessThan(info.length);
+  });
+
+  it('measures the percentage against the AERODYNAMIC span', () => {
+    const info = OpenRocketDesign.buildTree(OVERHANG).staticInfo();
+    const margin = info.cp - info.cg;
+    expect(info.stabilityPercent).toBeCloseTo((margin / info.lengthAerodynamic) * 100, 6);
+  });
+
+  it('is NOT the old figure, which divided by the whole rocket', () => {
+    // The regression this pins: 0.34 m instead of 0.30 m understated the margin
+    // by about 12% on a design as ordinary as a motor with overhang.
+    const info = OpenRocketDesign.buildTree(OVERHANG).staticInfo();
+    const wrong = ((info.cp - info.cg) / info.length) * 100;
+    expect(Math.abs(info.stabilityPercent - wrong)).toBeGreaterThan(0.5);
+  });
+
+  it('measures calibers against the largest body diameter', () => {
+    // `CaliberUnit`, which is the reference DIAMETER and has nothing to do with
+    // either length: a 26 mm body on this design.
+    const info = OpenRocketDesign.buildTree(OVERHANG).staticInfo();
+    expect(info.stabilityCalibers).toBeCloseTo((info.cp - info.cg) / info.refDiameter, 6);
+    expect(info.refDiameter).toBeCloseTo(0.026, 6);
+  });
+
+  it('agrees with itself: the two units are the same margin', () => {
+    const info = OpenRocketDesign.buildTree(OVERHANG).staticInfo();
+    const fromCal = info.stabilityCalibers * info.refDiameter;
+    const fromPct = (info.stabilityPercent / 100) * info.lengthAerodynamic;
+    expect(fromCal).toBeCloseTo(fromPct, 9);
+    expect(fromCal).toBeCloseTo(info.cp - info.cg, 9);
+  });
+});
+
 describe('error envelopes, from the Java side', () => {
   /**
    * `reset()` used to do `nextHandle = 1`, so handle ids were REUSED. The web
@@ -678,5 +776,155 @@ describe("a transition's shoulders weigh what they are built from", () => {
       }),
     );
     expect(thick).toBeGreaterThan(auto);
+  });
+});
+
+/**
+ * The audit's category 2: values that round-tripped through the file and never
+ * reached the kernel. Mass is the witness again, because that is the whole
+ * point - each of these changes what the rocket weighs or how its weight is
+ * distributed, and until now the file kept them and the simulation ignored them.
+ */
+const withPart = (part: Record<string, unknown>) =>
+  ({
+    components: [
+      {
+        id: 'stage1',
+        type: 'stage',
+        children: [
+          { id: 'nose', type: 'nosecone', length: 0.1, aftRadius: 0.02, thickness: 0.001, shape: 'ogive' },
+          {
+            id: 'tube',
+            type: 'bodytube',
+            length: 0.3,
+            outerRadius: 0.02,
+            thickness: 0.001,
+            children: [part],
+          },
+        ],
+      },
+    ],
+  }) as unknown as RocketTree;
+
+const dryMass = (tree: RocketTree) => OpenRocketDesign.buildTree(tree).staticInfo().massEmpty;
+
+describe('the audit gaps reach the kernel', () => {
+  it('weighs a rail button at its own geometry, not the kernel default', () => {
+    const stock = dryMass(withPart({ id: 'rb', type: 'railbutton', outerDiameter: 0.0097 }));
+    const tall = dryMass(
+      withPart({ id: 'rb', type: 'railbutton', outerDiameter: 0.0097, height: 0.03, baseHeight: 0.006 }),
+    );
+    expect(tall).toBeGreaterThan(stock);
+  });
+
+  it('builds every instance of a repeated ring', () => {
+    // Compared as the ring's own contribution, not the whole rocket's mass:
+    // the airframe dwarfs three centering rings.
+    const bare = dryMass(withPart({ id: 'x', type: 'bulkhead', length: 0.0001, outerRadius: 0.0001 }));
+    const one = dryMass(withPart({ id: 'cr', type: 'centeringring', length: 0.003, outerRadius: 0.019 })) - bare;
+    const three =
+      dryMass(
+        withPart({
+          id: 'cr',
+          type: 'centeringring',
+          length: 0.003,
+          outerRadius: 0.019,
+          instanceCount: 3,
+          instanceSeparation: 0.02,
+        }),
+      ) - bare;
+    expect(one).toBeGreaterThan(0);
+    expect(three / one).toBeCloseTo(3, 1);
+  });
+
+  it('moves a mass object off the axis when the design says so', () => {
+    const roll = (radialPosition: number) =>
+      OpenRocketDesign.buildTree(
+        withPart({ id: 'm', type: 'masscomponent', mass: 0.05, length: 0.02, radius: 0.005, radialPosition }),
+      ).staticInfo().rollInertia;
+    // Moving mass off the long axis can only increase the roll inertia.
+    // A RING is deliberately not tested here: upstream `RingComponent`
+    // returns its CG on the axis whatever the radial position says
+    // (`getComponentCG` ignores shiftY/shiftZ), so the value is a drawing and
+    // bounding-box concern there, and the bridge is faithful to that.
+    expect(roll(0.012)).toBeGreaterThan(roll(0));
+  });
+
+  it('packs a recovery device at the radius the design gives it', () => {
+    const narrow = OpenRocketDesign.buildTree(
+      withPart({ id: 'p', type: 'parachute', diameter: 0.4, cd: 0.8, length: 0.05, radius: 0.005 }),
+    ).staticInfo().rollInertia;
+    const wide = OpenRocketDesign.buildTree(
+      withPart({ id: 'p', type: 'parachute', diameter: 0.4, cd: 0.8, length: 0.05, radius: 0.018 }),
+    ).staticInfo().rollInertia;
+    expect(wide).toBeGreaterThan(narrow);
+  });
+
+  it('flies a flipped nose cone as a tail cone', () => {
+    const cg = (flip: boolean) => {
+      const t = withPart({ id: 'x', type: 'centeringring', length: 0.003 });
+      const nose = (t.components[0] as unknown as { children: Record<string, unknown>[] }).children[0]!;
+      nose['flipped'] = flip;
+      return OpenRocketDesign.buildTree(t).staticInfo().cgEmpty;
+    };
+    // Mirroring the profile does not change its VOLUME, so the mass is the
+    // same either way. What moves is where that mass sits: a cone that tapers
+    // the other way puts its material at the other end.
+    expect(cg(true)).not.toBeCloseTo(cg(false), 4);
+  });
+
+  it('takes the fin cross-section, which changes the fin volume', () => {
+    const square = dryMass(
+      withPart({
+        id: 'f',
+        type: 'trapezoidfinset',
+        finCount: 3,
+        rootChord: 0.06,
+        tipChord: 0.03,
+        height: 0.04,
+        thickness: 0.004,
+        crossSection: 'square',
+      }),
+    );
+    const airfoil = dryMass(
+      withPart({
+        id: 'f',
+        type: 'trapezoidfinset',
+        finCount: 3,
+        rootChord: 0.06,
+        tipChord: 0.03,
+        height: 0.04,
+        thickness: 0.004,
+        crossSection: 'airfoil',
+      }),
+    );
+    // AIRFOIL's volume factor is 0.85 against SQUARE's 1.00.
+    expect(airfoil).toBeLessThan(square);
+  });
+});
+
+/**
+ * A FILLED component is solid: no wall, no bore. The desktop offers it as a
+ * checkbox on a nose cone, a transition and a body tube, and it rides in the
+ * file as `<thickness>filled</thickness>`. The first two reached the kernel;
+ * a body tube did not, so a solid tube flew hollow.
+ */
+describe('a filled component is solid', () => {
+  const tubeTree = (filled: boolean) =>
+    ({
+      components: [
+        {
+          id: 'stage1',
+          type: 'stage',
+          children: [
+            { id: 'nose', type: 'nosecone', length: 0.1, aftRadius: 0.02, thickness: 0.001, shape: 'ogive' },
+            { id: 'tube', type: 'bodytube', length: 0.3, outerRadius: 0.02, thickness: 0.001, filled },
+          ],
+        },
+      ],
+    }) as unknown as RocketTree;
+
+  it('weighs a solid body tube more than a walled one', () => {
+    expect(dryMass(tubeTree(true))).toBeGreaterThan(dryMass(tubeTree(false)));
   });
 });

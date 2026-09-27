@@ -1,6 +1,6 @@
 import type { MotorSpec } from '../engine/openRocketEngine';
 import type { CatalogMotor } from './motorDb';
-import { getMotorStore, isThrustSampleArray } from './motorStore';
+import { getMotorStore, isThrustSampleArray, type CustomMotor } from './motorStore';
 import { declaredLength, readStreamWithProgress } from './fetchProgress';
 
 /**
@@ -366,26 +366,7 @@ export async function fetchMotorSpec(cat: CatalogMotor, ejectionDelay: number, c
     if (!cm) {
       throw new Error(`Imported motor ${cat.designation} is no longer stored — re-import its motor file.`);
     }
-    return samplesToMotorSpec(
-      {
-        motorId: cm.id,
-        designation: cm.designation,
-        commonName: cm.designation,
-        manufacturerAbbrev: cm.manufacturer,
-        diameter: cm.diameter,
-        length: cm.length,
-        totalWeightG: cm.totalWeightG,
-        propWeightG: cm.propWeightG,
-        availability: 'custom',
-      },
-      cm.samples,
-      ejectionDelay,
-      // Both are `.rse`-only, and both are stored in the file's units: the CG
-      // as a launch value in mm from the motor's forward end (the spec wants
-      // m), the masses in grams (the spec wants kg).
-      cm.cgMm === undefined ? undefined : [[0, cm.cgMm / 1000]],
-      cm.massesG?.map((g) => g / 1000),
-    );
+    return customMotorToSpec(cm, ejectionDelay);
   }
 
   // Bundled catalog motor carrying its thrust curve(s) → build entirely from
@@ -425,4 +406,36 @@ export async function fetchMotorSpec(cat: CatalogMotor, ejectionDelay: number, c
     if (cached) return cached.value; // stale spec fallback
     throw e;
   }
+}
+
+/**
+ * A parsed `.eng` / `.rse` motor as a flyable {@link MotorSpec}.
+ *
+ * Exported because such a motor does not have to be in the user's own custom
+ * list to be flyable: a `.ork` from the desktop EMBEDS the thrust curve of every
+ * motor it uses, and `loadOrk` builds a spec straight from one of those rather
+ * than leaving the mount empty. Nothing is written to the store on that path -
+ * the curve belongs to the design that carried it, not to the user's catalog.
+ */
+export function customMotorToSpec(cm: CustomMotor, ejectionDelay: number): MotorSpec {
+  return samplesToMotorSpec(
+    {
+      motorId: cm.id,
+      designation: cm.designation,
+      commonName: cm.designation,
+      manufacturerAbbrev: cm.manufacturer,
+      diameter: cm.diameter,
+      length: cm.length,
+      totalWeightG: cm.totalWeightG,
+      propWeightG: cm.propWeightG,
+      availability: 'custom',
+    },
+    cm.samples,
+    ejectionDelay,
+    // Both are `.rse`-only, and both are stored in the file's units: the CG as a
+    // launch value in mm from the motor's forward end (the spec wants m), the
+    // masses in grams (the spec wants kg).
+    cm.cgMm === undefined ? undefined : [[0, cm.cgMm / 1000]],
+    cm.massesG?.map((g) => g / 1000),
+  );
 }

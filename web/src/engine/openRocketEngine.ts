@@ -474,6 +474,13 @@ export interface SimulationOptions {
 
 export interface StaticInfo {
   length: number;
+  /**
+   * The span of the AERODYNAMIC components only (`getLengthAerodynamic`), which
+   * is what {@link StaticInfo.stabilityPercent} is measured against. Not the same
+   * as {@link StaticInfo.length}, which bounds every component including the ones
+   * with no aerodynamic effect.
+   */
+  lengthAerodynamic: number;
   /** Launch mass (kg) — includes the motor when one is set. */
   mass: number;
   /** Dry structure mass (kg) — no motor. */
@@ -484,7 +491,25 @@ export interface StaticInfo {
   cg: number;
   cp: number;
   cna: number;
+  /**
+   * Stability margin in calibers, as OpenRocket's own `CaliberUnit` converts it.
+   *
+   * The engine owns this, and the percentage below, because they are the SAME
+   * margin (`cp - cg`) over two different denominators - the largest body
+   * diameter, and the aerodynamic length - and neither denominator is anything
+   * this app has. Do not re-derive either one here.
+   */
   stabilityCalibers: number;
+  /**
+   * The same margin as a percentage of the AERODYNAMIC length, as OpenRocket's
+   * own `PercentageOfLengthUnit` converts it.
+   *
+   * Four views used to compute `((cp - cg) / length) * 100` for themselves, which
+   * is the right shape over the wrong denominator: `length` bounds every
+   * component, so any design with a non-aerodynamic part outside the aerodynamic
+   * envelope read a percentage the desktop does not show.
+   */
+  stabilityPercent: number;
   refDiameter: number;
   /** Loaded (with-motor) roll moment of inertia, about the long axis (kg·m²). */
   rollInertia: number;
@@ -615,6 +640,19 @@ export interface RocketTree {
   /** Design-type token: original | commercial_kit | clone_kit | upscale_kit |
    *  downscale_kit | modified_kit | kit_bash (OpenRocket DesignType). */
   designType?: string;
+  /**
+   * What the stability calibers are measured against: OpenRocket's
+   * `<referencetype>` (maximum | fore | custom) and, for `custom`, the length in
+   * meters. Carried rather than editable - the app measures against the widest
+   * body, which is `maximum` - but a design that says otherwise keeps saying it.
+   */
+  referenceType?: string;
+  customReference?: number;
+  /** Raw `<rocket>` children this app has no model for (ork/passthrough.ts). */
+  xmlExtra?: string[];
+  /** Raw `<openrocket>` children this app has no model for: Photo Studio, the
+   *  document preferences, the custom expressions. */
+  docExtra?: string[];
   components: ComponentNode[];
 }
 

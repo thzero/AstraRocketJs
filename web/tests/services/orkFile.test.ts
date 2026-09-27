@@ -5,6 +5,7 @@ import { specToTree } from '../../src/engine/api';
 import type { RocketSpec, ComponentNode, RocketTree } from '../../src/engine/openRocketEngine';
 import type { DesignInfo } from '../../src/services/orkTypes';
 import { badDimensions } from '../../src/services/requiredComponent';
+import { updateNode } from '../../src/services/treeEdit';
 
 const spec = {
   noseCone: { length: 0.1, aftRadius: 0.013, thickness: 0.001 },
@@ -676,14 +677,26 @@ describe('automatic ring radii round-trip', () => {
     expect(xml).toContain('<innerradius>auto</innerradius>');
   });
 
-  it('reads auto back as automatic rather than as a missing number', () => {
+  it('reads auto back as automatic, with the size it resolves to', () => {
     const out = importOrk(exportOrk({ name: 'Auto', tree: ringTree() }));
     const ring = findByType(out.tree, 'centeringring') as Record<string, unknown>;
-    // Absent, not zero: absent is how the whole app spells automatic, and it is
-    // what `ComponentFactory` reads to leave the kernel's own flag on.
-    expect(ring.outerRadius).toBeUndefined();
-    expect(ring.innerRadius).toBeUndefined();
+    // A FLAG with the resolved number beside it, rather than an absent key.
+    // Absence used to be how the app spelled automatic, which meant the panel
+    // showed 0 and the drawing used a fallback while the kernel used the real
+    // bore. The flag says it follows; the number is what it currently is.
+    expect(ring.outerRadiusAuto).toBe(true);
+    expect(ring.innerRadiusAuto).toBe(true);
+    expect(ring.outerRadius).toBeCloseTo(0.0125, 6); // the tube's bore
     expect(badDimensions(out.tree)).toEqual([]);
+  });
+
+  it('still writes auto on the way back out, not the number it resolved to', () => {
+    // Otherwise a ring that FOLLOWS its tube would come back pinned to
+    // whatever that tube happened to be when it was saved.
+    const once = importOrk(exportOrk({ name: 'Auto', tree: ringTree() }));
+    const twice = exportOrk({ name: 'Auto', tree: once.tree });
+    expect(twice).toContain('<outerradius>auto</outerradius>');
+    expect(twice).toContain('<innerradius>auto</innerradius>');
   });
 
   it('keeps a radius that was set by hand instead of flattening it to auto', () => {
@@ -704,5 +717,199 @@ describe('automatic ring radii round-trip', () => {
     const xml = exportOrk({ name: 'Auto', tree: ringTree() });
     const bulkhead = xml.slice(xml.indexOf('<bulkhead>'), xml.indexOf('</bulkhead>'));
     expect(bulkhead).not.toContain('innerradius');
+  });
+});
+
+/**
+ * The fields a full audit against `DocumentConfig.java` found the writer
+ * dropping, or the reader never looking at. Each one round-tripped in the file
+ * or reached the kernel but not both, which is the state that looks supported
+ * and is not.
+ */
+describe('audit round trips (2026-09-27)', () => {
+  const tree = {
+    name: 'Audit',
+    components: [
+      {
+        type: 'stage',
+        id: 's1',
+        name: 'S',
+        // A stage can be overridden like any other component. This block wrote
+        // its own name and id instead of going through the shared header, so
+        // the override flew and was dropped on the way out.
+        overrideMass: 0.25,
+        overrideSubcomponentsMass: true,
+        children: [
+          {
+            type: 'nosecone',
+            id: 'nc',
+            shape: 'ogive',
+            length: 0.1,
+            aftRadius: 0.013,
+            thickness: 0.001,
+            flipped: true,
+            color: '#ff8800',
+            comment: 'Sanded to 400 grit & filled',
+            lineStyle: 'dashed',
+          },
+          {
+            type: 'bodytube',
+            id: 'bt',
+            length: 0.3,
+            outerRadius: 0.013,
+            thickness: 0.001,
+            children: [
+              { type: 'centeringring', id: 'cr', length: 0.003, instanceCount: 3, instanceSeparation: 0.05 },
+              {
+                type: 'masscomponent',
+                id: 'mc',
+                mass: 0.02,
+                length: 0.03,
+                radius: 0.009,
+                massComponentType: 'altimeter',
+                radialPosition: 0.004,
+                radialDirection: 1.2,
+              },
+              { type: 'shockcord', id: 'sc', cordLength: 2.5, length: 0.02, radius: 0.008 },
+              {
+                type: 'railbutton',
+                id: 'rb',
+                outerDiameter: 0.0097,
+                innerDiameter: 0.006,
+                height: 0.012,
+                baseHeight: 0.003,
+                flangeHeight: 0.0025,
+                screwHeight: 0.001,
+              },
+              {
+                type: 'trapezoidfinset',
+                id: 'fn',
+                finCount: 3,
+                rootChord: 0.06,
+                tipChord: 0.03,
+                height: 0.04,
+                thickness: 0.003,
+                crossSection: 'airfoil',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  } as unknown as RocketTree;
+
+  const out = importOrk(exportOrk({ name: 'Audit', tree }));
+  const get = (type: string) => findByType(out.tree, type) as Record<string, unknown>;
+
+  it('keeps a part color, which the writer never wrote at all', () => {
+    expect(get('nosecone').color).toBe('#ff8800');
+  });
+
+  it('keeps a flipped nose cone, which was hardcoded false on the way out', () => {
+    expect(get('nosecone').flipped).toBe(true);
+  });
+
+  it('keeps a stage-level override', () => {
+    const stage = out.tree.components[0] as unknown as Record<string, unknown>;
+    expect(stage.overrideMass).toBeCloseTo(0.25, 9);
+    expect(stage.overrideSubcomponentsMass).toBe(true);
+  });
+
+  it('keeps repeated instances and their spacing', () => {
+    expect(get('centeringring').instanceCount).toBe(3);
+    expect(get('centeringring').instanceSeparation).toBeCloseTo(0.05, 9);
+  });
+
+  it('keeps what a mass component is, and where off the axis it sits', () => {
+    expect(get('masscomponent').massComponentType).toBe('altimeter');
+    expect(get('masscomponent').radialPosition).toBeCloseTo(0.004, 9);
+    expect(get('masscomponent').radialDirection).toBeCloseTo(1.2, 6);
+  });
+
+  it('keeps a shock cord, which had no editable field until now', () => {
+    expect(get('shockcord').cordLength).toBeCloseTo(2.5, 9);
+    expect(get('shockcord').radius).toBeCloseTo(0.008, 9);
+  });
+
+  it('keeps the whole rail button, not just its outer diameter', () => {
+    const rb = get('railbutton');
+    expect(rb.innerDiameter).toBeCloseTo(0.006, 9);
+    expect(rb.height).toBeCloseTo(0.012, 9);
+    expect(rb.baseHeight).toBeCloseTo(0.003, 9);
+    expect(rb.flangeHeight).toBeCloseTo(0.0025, 9);
+    expect(rb.screwHeight).toBeCloseTo(0.001, 9);
+  });
+
+  it('keeps the fin cross-section', () => {
+    expect(get('trapezoidfinset').crossSection).toBe('airfoil');
+  });
+
+  it('keeps a part comment, which was dropped on every save', () => {
+    expect(get('nosecone').comment).toBe('Sanded to 400 grit & filled');
+  });
+
+  it('keeps the line style, which we do not draw but must not forget', () => {
+    expect(get('nosecone').lineStyle).toBe('dashed');
+  });
+});
+
+/**
+ * The catalog link.
+ *
+ * The desktop shows which part a component is at the top of every config
+ * dialog, and our picker is the same control, so the link is a fact about the
+ * design. It was read nowhere and written nowhere, which is why a design that
+ * came back from OpenRocket had forgotten every part it was built from.
+ *
+ * The half that matters is the DROPPING: a link that outlives the dimensions
+ * labels a hand-sized tube with somebody's part number.
+ */
+describe('the catalog part a component came from', () => {
+  const withPreset = () =>
+    ({
+      name: 'Preset',
+      components: [
+        {
+          type: 'stage',
+          id: 's1',
+          name: 'S',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'bt',
+              length: 0.3,
+              outerRadius: 0.0131,
+              thickness: 0.00046,
+              preset: { type: 'bodytube', manufacturer: 'Estes', partNo: 'BT-50' },
+            },
+          ],
+        },
+      ],
+    }) as unknown as RocketTree;
+
+  it('survives a round trip', () => {
+    const back = findByType(importOrk(exportOrk({ name: 'P', tree: withPreset() })).tree, 'bodytube');
+    expect(back!['preset']).toMatchObject({ manufacturer: 'Estes', partNo: 'BT-50' });
+  });
+
+  it('is written the way the desktop writes it', () => {
+    const xml = exportOrk({ name: 'P', tree: withPreset() });
+    expect(xml).toContain('<preset type="bodytube" manufacturer="Estes" partno="BT-50"/>');
+  });
+
+  it('is dropped when a dimension it defines moves', () => {
+    const edited = updateNode(withPreset(), 'bt', { outerRadius: 0.02 });
+    expect(findByType(edited, 'bodytube')!['preset']).toBeUndefined();
+  });
+
+  it('is dropped when the material changes', () => {
+    const edited = updateNode(withPreset(), 'bt', { materialName: 'Blue tube', density: 1100 });
+    expect(findByType(edited, 'bodytube')!['preset']).toBeUndefined();
+  });
+
+  it('survives an edit that does not change what the part IS', () => {
+    for (const patch of [{ name: 'Payload bay' }, { comment: 'from the spares box' }, { overrideMass: 0.05 }]) {
+      expect(findByType(updateNode(withPreset(), 'bt', patch), 'bodytube')!['preset']).toBeDefined();
+    }
   });
 });

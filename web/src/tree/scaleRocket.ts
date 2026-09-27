@@ -173,8 +173,14 @@ const round = (x: number, places = 12): number => {
   return Math.round(x * p) / p;
 };
 
-/** Scales one node's own fields. Children are handled by the caller. */
-function scaleNode(n: ComponentNode, k: number): ComponentNode {
+/**
+ * Scales one node's own fields. Children are handled by the caller.
+ *
+ * Exported for the freeform editor's **Scale fin**, which is this applied to one
+ * component: the same key lists, so a scaled fin's tab, fillet and thickness
+ * follow its outline exactly as they would in a whole-rocket scale.
+ */
+export function scaleNode(n: ComponentNode, k: number): ComponentNode {
   const type = n.type;
   const fixed = FIXED_SIZE.has(type);
   const out: ComponentNode = { ...n };

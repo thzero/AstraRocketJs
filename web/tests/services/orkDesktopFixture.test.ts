@@ -220,7 +220,7 @@ describe('a desktop-authored .ork', () => {
   it('reads the parachute packed size', () => {
     const c = findByType(res.tree, 'parachute')!;
     expect(c['length']).toBe(0.06);
-    expect(c['packedRadius']).toBe(0.02);
+    expect(c['radius']).toBe(0.02);
   });
 
   it('reads the rail button geometry and material', () => {
@@ -262,7 +262,7 @@ describe('a desktop-authored .ork', () => {
     // And the desktop can read it back the same way.
     const again = importOrk(xml);
     expect(again.launch?.windAltitudeReference).toBe('agl');
-    expect(findByType(again.tree, 'parachute')!['packedRadius']).toBe(0.02);
+    expect(findByType(again.tree, 'parachute')!['radius']).toBe(0.02);
     expect(findByType(again.tree, 'railbutton')!['height']).toBe(0.012);
   });
 });

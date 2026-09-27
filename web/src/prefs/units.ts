@@ -17,6 +17,7 @@ export type Quantity =
   | 'length' // component dimensions (UNITS_LENGTH)
   | 'motorDimensions' // motor diameter / length (UNITS_MOTOR_DIMENSIONS)
   | 'distance' // altitude, apogee, drift (UNITS_DISTANCE)
+  | 'area' // a streamer's strip area (UNITS_AREA)
   | 'mass' // UNITS_MASS
   | 'velocity' // UNITS_VELOCITY
   | 'windspeed' // UNITS_WINDSPEED
@@ -65,6 +66,15 @@ export const UNITS: Record<Quantity, UnitDef[]> = {
     { symbol: 'ft', toSI: 0.3048 },
     { symbol: 'yd', toSI: 0.9144 },
     { symbol: 'mi', toSI: 1609.344 },
+  ],
+  // Squares of the length factors, written as the squaring rather than as a
+  // decimal so each one reads as its own definition.
+  area: [
+    { symbol: 'mm²', toSI: 0.001 ** 2 },
+    { symbol: 'cm²', toSI: 0.01 ** 2 },
+    { symbol: 'm²', toSI: 1 },
+    { symbol: 'in²', toSI: 0.0254 ** 2 },
+    { symbol: 'ft²', toSI: 0.3048 ** 2 },
   ],
   mass: [
     { symbol: 'g', toSI: 0.001 },
@@ -187,6 +197,7 @@ export const METRIC_UNITS: UnitSelection = {
   length: 'cm',
   motorDimensions: 'mm',
   distance: 'm',
+  area: 'cm²',
   mass: 'g',
   velocity: 'm/s',
   windspeed: 'm/s',
@@ -206,6 +217,7 @@ export const IMPERIAL_UNITS: UnitSelection = {
   length: 'in',
   motorDimensions: 'in',
   distance: 'ft',
+  area: 'in²',
   mass: 'oz',
   velocity: 'ft/s',
   windspeed: 'mph',

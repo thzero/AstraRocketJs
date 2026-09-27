@@ -11,6 +11,8 @@ import info.openrocket.core.aerodynamics.BarrowmanCalculator;
 import info.openrocket.core.aerodynamics.RASAeroStabilityCalculator;
 import info.openrocket.core.aerodynamics.RASAeroDragCalculator;
 import info.openrocket.core.aerodynamics.FlightConditions;
+import info.openrocket.core.unit.CaliberUnit;
+import info.openrocket.core.unit.PercentageOfLengthUnit;
 import info.openrocket.core.document.Simulation;
 import info.openrocket.core.logging.WarningSet;
 import info.openrocket.core.masscalc.MassCalculator;
@@ -653,10 +655,32 @@ public final class OpenRocketEngine {
 
         double refDiameter = conditions.getRefLength(); // refLength IS the reference diameter
         double cg = structure.getCM().getX();
-        double stabilityCal = (cp.getX() - cg) / conditions.getRefLength();
+
+        // The stability margin is a LENGTH (cp - cg); calibers and percent are two
+        // ways of displaying it. Both conversions are OpenRocket's OWN unit
+        // classes bound to the selected configuration, not arithmetic of ours,
+        // because the two denominators are not what they look like:
+        //
+        //   CaliberUnit           -> the largest body DIAMETER over the active
+        //                            components (CaliberUnit.calculateCaliber).
+        //   PercentageOfLengthUnit-> getLengthAerodynamic(), the span of the
+        //                            AERODYNAMIC components only - not
+        //                            getLength(), which bounds every component.
+        //
+        // The app used to divide by its own `length` (all components) to get the
+        // percentage, in four different views, which disagreed with the desktop on
+        // any design with a non-aerodynamic part outside the aerodynamic envelope.
+        FlightConfiguration config = ctx.rocket.getSelectedConfiguration();
+        double margin = cp.getX() - cg;
+        double stabilityCal = new CaliberUnit(config).toUnit(margin);
+        double stabilityPct = new PercentageOfLengthUnit(config).toUnit(margin);
 
         StringBuilder sb = new StringBuilder("{");
         num(sb, "length", ctx.rocket.getLength()).append(',');
+        // The aerodynamic span, which is what the percentage is measured against.
+        // Exported so a consumer can see the denominator rather than infer it.
+        num(sb, "lengthAerodynamic", config.getLengthAerodynamic()).append(',');
+        num(sb, "stabilityPercent", stabilityPct).append(',');
         num(sb, "mass", structure.getMass()).append(',');
         num(sb, "massEmpty", empty.getMass()).append(',');
         num(sb, "cgEmpty", empty.getCM().getX()).append(',');

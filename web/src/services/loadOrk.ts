@@ -17,7 +17,10 @@ export interface MountMotor {
   ignitionDelay?: number;
 }
 import { loadCatalog, findCatalogMotor } from './motorDb';
-import { fetchMotorSpec } from './thrustcurve';
+import { customMotorToSpec, fetchMotorSpec } from './thrustcurve';
+import { parseRse, removeDelay } from './rseParser';
+import type { CustomMotor } from './motorStore';
+import type { OrkMotorRef } from './orkTypes';
 import { findMounts } from './treeEdit';
 
 export interface LoadedOrk {
@@ -91,6 +94,55 @@ export function emptyMountMotor(): MotorSpec {
   };
 }
 
+/**
+ * The mount's motor plus whatever ignition override the file asked for.
+ *
+ * Lifted out because three paths now seat a motor - the catalog, the file's own
+ * embedded curve, and that curve again after a failed fetch - and an ignition
+ * event applied on only some of them is a design that stages differently
+ * depending on whether thrustcurve.org answered.
+ */
+function applyIgnition(
+  design: ReturnType<typeof OpenRocketDesign.buildTree>,
+  mountId: string,
+  ref: OrkMotorRef,
+  spec: MotorSpec,
+): MountMotor {
+  const entry: MountMotor = { spec };
+  if (ref.ignitionEvent && IGNITION_EVENTS.has(ref.ignitionEvent)) {
+    design.setMotorIgnitionById(mountId, ref.ignitionEvent as IgnitionEvent, ref.ignitionDelay ?? 0);
+    entry.ignitionEvent = ref.ignitionEvent as IgnitionEvent;
+    entry.ignitionDelay = ref.ignitionDelay ?? 0;
+  }
+  return entry;
+}
+
+/**
+ * The file's embedded thrust curves, keyed by designation without its delay.
+ *
+ * Keyed that way because the `.ork` names a motor as `J350-14` while the curve it
+ * embeds is the motor `J350`: the delay is the mount's choice, not the motor's.
+ * Upper-cased so the match does not turn on how the file spells it.
+ *
+ * A curve that will not parse is reported and skipped rather than failing the
+ * whole open: the design is still perfectly loadable without it, and the mount
+ * falls through to the unresolved placeholder it would have had anyway.
+ */
+function embeddedCurves(files: string[] | undefined, notes: string[]): Map<string, CustomMotor> {
+  const out = new Map<string, CustomMotor>();
+  for (const text of files ?? []) {
+    try {
+      for (const motor of parseRse(text)) {
+        const key = removeDelay(motor.designation).toUpperCase();
+        if (!out.has(key)) out.set(key, motor);
+      }
+    } catch {
+      notes.push('A thrust curve stored in the file could not be read and was skipped.');
+    }
+  }
+  return out;
+}
+
 export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   resetEngine(); // free the previous design's handles
   // Either format, chosen from the bytes (designFile.ts). Everything below is
@@ -102,10 +154,23 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   const notes = [...(res.notes ?? []), ...(res.ignored ?? []).map((i) => `Skipped unsupported: ${i}`)];
 
   const catalog = await loadCatalog();
+  // Thrust curves the file brought with it, by designation. A `.ork` from the
+  // desktop embeds the curve of every motor the design uses, exactly so it opens
+  // somewhere that does not have them.
+  const embedded = embeddedCurves(res.embeddedMotors, notes);
   const motorSpecs: Record<string, MountMotor> = {};
   for (const [mountId, ref] of Object.entries(res.motors ?? {})) {
     const cat = findCatalogMotor(catalog, ref.designation, ref.manufacturer);
     if (!cat) {
+      // Before giving up: the file may carry the curve itself.
+      const own = embedded.get(removeDelay(ref.designation).toUpperCase());
+      if (own) {
+        notes.push(`Motor "${ref.designation}" isn't in the catalog — using the thrust curve stored in the file.`);
+        const spec = customMotorToSpec(own, ref.delay);
+        design.setMotorById(mountId, spec);
+        motorSpecs[mountId] = applyIgnition(design, mountId, ref, spec);
+        continue;
+      }
       // Keep the designation as an UNRESOLVED (curve-less) motor rather than a
       // default: the mount shows what the file wanted, the run is blocked until
       // the user picks a real motor, and nothing silently flies a C6.
@@ -118,14 +183,18 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
     try {
       const spec = await fetchMotorSpec(cat, ref.delay);
       design.setMotorById(mountId, spec);
-      const entry: MountMotor = { spec };
-      if (ref.ignitionEvent && IGNITION_EVENTS.has(ref.ignitionEvent)) {
-        design.setMotorIgnitionById(mountId, ref.ignitionEvent as IgnitionEvent, ref.ignitionDelay ?? 0);
-        entry.ignitionEvent = ref.ignitionEvent as IgnitionEvent;
-        entry.ignitionDelay = ref.ignitionDelay ?? 0;
-      }
-      motorSpecs[mountId] = entry;
+      motorSpecs[mountId] = applyIgnition(design, mountId, ref, spec);
     } catch (e) {
+      // Same fallback as the not-in-catalog branch: a network failure should not
+      // cost a design the curve it was carrying all along.
+      const own = embedded.get(removeDelay(ref.designation).toUpperCase());
+      if (own) {
+        notes.push(`Motor "${ref.designation}" could not be fetched — using the thrust curve stored in the file.`);
+        const spec = customMotorToSpec(own, ref.delay);
+        design.setMotorById(mountId, spec);
+        motorSpecs[mountId] = applyIgnition(design, mountId, ref, spec);
+        continue;
+      }
       // Seat the UNRESOLVED motor, exactly as the `!cat` branch above does.
       // Leaving the mount empty was not neutral: mountMotors seeds a default
       // C6 for any mount without one, so a single transient thrustcurve.org

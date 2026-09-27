@@ -1,7 +1,7 @@
-import { lazy, Suspense } from 'react';
+import { Fragment, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { isAxial, hasCatalog, hasMaterial, catalogPatch } from '../../services/treeEdit';
+import { isAxial, hasCatalog, hasMaterial, catalogPatch, presetRef } from '../../services/treeEdit';
 import type { PickerType } from '../../services/componentDb';
 import type { FitContext } from '../../services/componentFilter';
 // Lazily loaded: it pulls in the ~740 kB component catalog (services/componentDb),
@@ -19,8 +19,13 @@ import { num } from '../../tree/nodeProps';
 import { tubeFinMaxCount, tubeFinMaxRadius } from '../../tree/tubefins';
 import { FieldRow, FieldSection, sectionFields, visibleFields } from './DimensionFields';
 import { MaterialSection, RecoveryMaterialSection } from './MaterialSection';
+import { StageRecovery } from './StageRecovery';
+import { ComponentActions } from './ComponentActions';
+import { AutoFinTabButton } from './AutoFinTabButton';
+import { FreeformFinActions } from './FreeformFinActions';
 import { MaterialPicker } from './MaterialPicker';
 import { OverridesSection } from './OverridesSection';
+import { ShapeDescription } from './ShapeDescription';
 import { PlacementSection } from './PlacementSection';
 
 /**
@@ -96,6 +101,9 @@ export function PropertyPanel({
   }
 
   const fields = visibleFields(node, isFirstStage);
+  // `shapeParameter` is filtered out for shapes that do not use one, so the
+  // description follows whichever of the two is last on screen.
+  const shapeAnchor = fields.filter((f) => f.key === 'shape' || f.key === 'shapeParameter').at(-1)?.key;
   const label = t(`part.${node.type}`, { defaultValue: node.type });
   // Discrete controls (select / checkbox / pickers) finish the moment they
   // change, so patch and close the undo entry in one shot.
@@ -163,7 +171,10 @@ export function PropertyPanel({
               <ComponentPicker
                 type={node.type as PickerType}
                 fit={fit}
-                onApply={(p) => commitChange(catalogPatch(p))}
+                // The link goes in with the dimensions: the desktop shows which
+                // catalog part a component is, and drops the link as soon as a
+                // dimension moves (see treeEdit.breaksPreset).
+                onApply={(p) => commitChange({ ...catalogPatch(p), ...presetRef(p) })}
               />
               {/* The other direction: take the part you just built and put it
                   in the picker above, on this design and every other one. */}
@@ -173,9 +184,44 @@ export function PropertyPanel({
         )}
       </div>
 
+      {/* What the chosen shape IS, in OpenRocket's own words, directly under
+          the controls it describes: the shape and, where the shape uses one,
+          its parameter. The desktop puts it beside those two; a one-column
+          panel puts it below them. */}
       {fields.map((f) => (
-        <FieldRow key={f.key} node={node} field={f} onChange={onChange} onCommit={onCommit} />
+        <Fragment key={f.key}>
+          <FieldRow node={node} field={f} onChange={onChange} onCommit={onCommit} />
+          {f.key === shapeAnchor && <ShapeDescription node={node} />}
+        </Fragment>
       ))}
+
+      {/* The stub that plugs into the tube next door. It is a different piece
+          of the part from the cone or taper above it, and it was reading as
+          four more dimensions of the same shape. A transition has two, kept
+          apart because each end is its own build and eight rows under one
+          heading is a wall. Only one of the three renders for a given part:
+          FieldSection draws nothing when the type has no field in it. */}
+      <FieldSection
+        node={node}
+        title={t('prop.shoulder')}
+        fields={sectionFields(node, 'shoulder')}
+        onChange={onChange}
+        onCommit={onCommit}
+      />
+      <FieldSection
+        node={node}
+        title={t('prop.foreShoulder')}
+        fields={sectionFields(node, 'foreShoulder')}
+        onChange={onChange}
+        onCommit={onCommit}
+      />
+      <FieldSection
+        node={node}
+        title={t('prop.aftShoulder')}
+        fields={sectionFields(node, 'aftShoulder')}
+        onChange={onChange}
+        onCommit={onCommit}
+      />
 
       {/* The through-the-wall tab is a separate piece of the fin — four fields
           that describe the part of it buried in the airframe, not its
@@ -187,7 +233,9 @@ export function PropertyPanel({
         fields={sectionFields(node, 'finTab')}
         onChange={onChange}
         onCommit={onCommit}
-      />
+      >
+        <AutoFinTabButton node={node} />
+      </FieldSection>
 
       {/* What the tube does for a MOTOR, as against what the tube is. A body
           tube gets two of these rows and an inner tube three; both used to run
@@ -252,6 +300,17 @@ export function PropertyPanel({
         </p>
       )}
 
+      {/* Notes on this part, which the desktop gives a tab of its own and we
+          had been dropping on every save. Last, because it is the only field
+          that is about the builder rather than the rocket. */}
+      <FieldSection
+        node={node}
+        title={t('prop.comment')}
+        fields={sectionFields(node, 'comment')}
+        onChange={onChange}
+        onCommit={onCommit}
+      />
+
       {hasMaterial(node.type) && <MaterialSection node={node} onCommitChange={commitChange} />}
 
       {/* Freeform fin: its defining feature is the outline polygon, edited
@@ -263,12 +322,21 @@ export function PropertyPanel({
             onChange={(pts) => onChange({ points: pts } as Partial<ComponentNode>)}
             onCommit={onCommit}
           />
+          {/* Scale fin, Import from image and Export CSV: the desktop's own
+              Point Actions menu, which needs the node rather than just the
+              point list. */}
+          <FreeformFinActions node={node} />
         </div>
       )}
 
       {(node.type === 'parachute' || node.type === 'streamer') && (
         <RecoveryMaterialSection node={node} onCommitChange={commitChange} />
       )}
+
+      {/* Single or dual deployment, chosen on the STAGE, which is the only place
+          OpenRocket offers it. A pod set is not a stage and has no recovery
+          plan of its own; a parallel stage is one and does. */}
+      {(node.type === 'stage' || node.type === 'parallelstage') && <StageRecovery node={node} />}
 
       {/* Descent sizing — canopy diameter for the descent bands + this chute's
           own descent rate, from the live descent mass. Parachutes only (the
@@ -285,6 +353,11 @@ export function PropertyPanel({
       {node.type !== 'stage' && (
         <AppearanceSection node={node} onChange={onChange} onCommit={onCommit} onCommitChange={commitChange} />
       )}
+
+      {/* The tree-shape actions: Convert to freeform, the three Splits and the
+          cluster's Reset. Above Overrides, because they are still about the part
+          itself. */}
+      <ComponentActions node={node} />
 
       {/* Overrides are LAST on every part, without exception. They are not a
           property of the part the way its dimensions, material and placement

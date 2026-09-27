@@ -1,4 +1,14 @@
 /**
+ * Both derived-value passes, in the order they depend on each other: an
+ * automatic diameter moves a tube's bore, and a shoulder follows that bore.
+ *
+ * Exported because it is the ONE choke point for it: any module that rewrites
+ * the tree ends with this, or the values that follow a neighbor go stale until
+ * some unrelated edit happens to fix them.
+ */
+export const syncDerived = (tree: RocketTree): RocketTree => syncAutoShoulders(syncAutoRadii(tree));
+
+/**
  * Pure, immutable helpers for editing a component tree (add / update / remove
  * nodes) plus sensible defaults for new parts. Each op returns a fresh tree so
  * React state updates cleanly; the caller re-runs buildTree to recompute the
@@ -14,6 +24,8 @@ import { uuid } from './uuid';
 // this is the one door the tree is edited through, so nothing downstream has to
 // know the feature exists.
 import { syncAutoShoulders } from './autoShoulder';
+import { syncAutoRadii } from './autoRadius';
+import { FIELDS } from './componentFields';
 
 /**
  * A unique id for a new node.
@@ -52,6 +64,28 @@ export function findNode(tree: RocketTree, id: string): ComponentNode | null {
  * parts per character. The contract is unchanged: the input tree is never
  * mutated, and the result is a distinct object even when `id` is not found.
  */
+/**
+ * Does this edit make the part stop being the catalog part it came from?
+ *
+ * The kernel answers this by calling `clearPreset()` from the setters a preset
+ * defines (`BodyTube.setOuterRadius`, `ExternalComponent.setMaterial`, and so
+ * on). Here the FIELDS table is the same list: everything in a type's dimension
+ * rows, plus the material, describes the part itself, while placement, motor
+ * mount, comment, color and the overrides describe where it sits and how it is
+ * accounted for.
+ *
+ * Deliberately conservative. Keeping a link that no longer matches would label
+ * a hand-sized tube with somebody's part number; dropping one the desktop
+ * would have kept costs nothing but the label.
+ */
+function breaksPreset(type: string, patch: Partial<ComponentNode>): boolean {
+  if ('preset' in patch) return false; // the picker sets the link and the dimensions together
+  const keys = Object.keys(patch);
+  if (keys.some((k) => k === 'materialName' || k === 'density')) return true;
+  const dimensions = new Set((FIELDS[type] ?? []).filter((f) => f.section === undefined).map((f) => f.key));
+  return keys.some((k) => dimensions.has(k));
+}
+
 export function updateNode(tree: RocketTree, id: string, patch: Partial<ComponentNode>): RocketTree {
   let found = false;
   const rec = (nodes: ComponentNode[]): ComponentNode[] => {
@@ -60,7 +94,9 @@ export function updateNode(tree: RocketTree, id: string, patch: Partial<Componen
       if (n.id === id) {
         found = true;
         const out = nodes.slice();
-        out[i] = { ...n, ...patch };
+        const next = { ...n, ...patch };
+        if (n['preset'] && breaksPreset(n.type, patch)) delete next['preset'];
+        out[i] = next;
         return out;
       }
       if (n.children) {
@@ -75,7 +111,7 @@ export function updateNode(tree: RocketTree, id: string, patch: Partial<Componen
     return nodes;
   };
   const components = rec(tree.components);
-  return syncAutoShoulders({ ...tree, components });
+  return syncDerived({ ...tree, components });
 }
 
 export function removeNode(tree: RocketTree, id: string): RocketTree {
@@ -90,7 +126,7 @@ export function removeNode(tree: RocketTree, id: string): RocketTree {
     return false;
   };
   rec(next.components);
-  return syncAutoShoulders(next);
+  return syncDerived(next);
 }
 
 export function addChild(tree: RocketTree, parentId: string, node: ComponentNode): RocketTree {
@@ -101,7 +137,7 @@ export function addChild(tree: RocketTree, parentId: string, node: ComponentNode
       break;
     }
   }
-  return syncAutoShoulders(next);
+  return syncDerived(next);
 }
 
 /** The id of the first motor-mount node, for seating the motor. */
@@ -267,6 +303,21 @@ export function hasMaterial(type: string): boolean {
 }
 
 /** Map a chosen catalog part onto a node patch (radii, length, material, …). */
+/**
+ * The catalog link to record beside the dimensions a pick applies: which part
+ * this component now IS, in the shape the `.ork` carries it
+ * (`RocketComponentSaver`, `<preset type manufacturer partno>`).
+ *
+ * A part the user saved themselves is not in anybody's catalog, so it gets no
+ * link: writing one would claim a manufacturer's part number for it.
+ */
+export function presetRef(p: Component): Partial<ComponentNode> {
+  if (p.custom || !p.partNo) return { preset: undefined } as Partial<ComponentNode>;
+  return {
+    preset: { type: p.type, manufacturer: p.mfr, partNo: p.partNo },
+  } as unknown as Partial<ComponentNode>;
+}
+
 export function catalogPatch(p: Component): Partial<ComponentNode> {
   // A SAVED part (customParts.ts) carries its whole node, not the handful of
   // dimensions a catalog row publishes, and applying only the switch below
@@ -361,7 +412,7 @@ export function moveNode(tree: RocketTree, id: string, dir: -1 | 1): RocketTree 
   rec(next.components);
   // Moving a part changes WHO its neighbors are, so a shoulder that follows one
   // has a new tube to follow.
-  return syncAutoShoulders(next);
+  return syncDerived(next);
 }
 
 /** A new node of `type` with reasonable default dimensions (SI units, m). */
@@ -566,6 +617,50 @@ export function stageNodes(tree: RocketTree): ComponentNode[] {
   return tree.components.filter((n) => n.type === 'stage');
 }
 
+/**
+ * The recovery devices inside one stage, in tree order.
+ *
+ * What the stage's Recovery section chooses between: OpenRocket asks which
+ * device in THIS stage is the drogue, so a chute in the booster is not on offer
+ * when configuring the sustainer.
+ */
+export function recoveryDevices(tree: RocketTree, stageId: string): ComponentNode[] {
+  const stage = findNode(tree, stageId);
+  if (!stage?.children) return [];
+  return [...walk(stage.children)].filter((n) => n.type === 'parachute' || n.type === 'streamer');
+}
+
+/**
+ * Make ONE device in a stage the drogue, or none of them.
+ *
+ * The drogue flag is stored per device (`<isdrogue>` in the file), but it is a
+ * property of the STAGE's recovery plan: single deployment is no drogue, dual
+ * deployment is exactly one, and the desktop only ever sets it from the stage's
+ * Recovery tab, clearing the rest of the stage first. Doing the same here is
+ * what keeps a design out of the state OpenRocket's own UI cannot produce - two
+ * drogues in one stage, which its warning code reads as whichever it walks into
+ * first.
+ *
+ * Returns the same tree when nothing changes, so an undo step is only recorded
+ * for a real edit.
+ */
+export function setStageDrogue(tree: RocketTree, stageId: string, deviceId: string | null): RocketTree {
+  const wanted = new Map<string, boolean>();
+  for (const d of recoveryDevices(tree, stageId)) {
+    wanted.set(d.id as string, d.id === deviceId);
+  }
+  let next = tree;
+  for (const [id, on] of wanted) {
+    const node = findNode(next, id);
+    if (!node) continue;
+    if ((node['drogue'] === true) === on) continue;
+    // `undefined` rather than `false`, so a single-deployment stage writes no
+    // `<isdrogue>` at all, which is what the desktop's saver omits.
+    next = updateNode(next, id, { drogue: on ? true : undefined } as Partial<ComponentNode>);
+  }
+  return next;
+}
+
 /** Whether `id` is the top stage — the one with nothing above it to separate from. */
 export function isFirstStage(tree: RocketTree, id: string): boolean {
   const stages = stageNodes(tree);
@@ -623,7 +718,7 @@ export function addPart(
   if (!stageId) {
     const next = clone(tree);
     next.components.push(node);
-    return { tree: syncAutoShoulders(next), id };
+    return { tree: syncDerived(next), id };
   }
   if (!allowedChildren('stage').includes(type)) {
     throw new Error(`A ${type} cannot be added here: neither the selected part nor the stage may host it.`);
