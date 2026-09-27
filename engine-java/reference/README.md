@@ -102,31 +102,49 @@ through.
 ## Current state
 
 Every fixture in `fixtures/` runs by default, so dropping a new one in gates it.
-Both serial-staging patterns pass, event sequences identical on every branch and
-separation at t=2.0 s on both sides:
+All three pass, with event sequences identical on every branch:
 
-| fixture | pattern | agreement |
-|---|---|---|
-| `staged-flight.json` | high-power: separation at booster burnout, sustainer lit by electronics 1 s later, booster under its own chute | sustainer ~1e-6, booster ~1e-9 |
-| `staged-flight-auto.json` | low/mid-power gap staging: the booster's ejection charge both separates it and lights the sustainer (default `AUTOMATIC` ignition, no timer), chuteless booster tumbles down | sustainer ~1e-10, booster ~1e-13 |
+| fixture | pattern |
+|---|---|
+| `staged-flight.json` | high-power serial: separation at booster burnout, sustainer lit by electronics 1 s later, booster under its own chute |
+| `staged-flight-auto.json` | low/mid-power gap staging: the booster's ejection charge both separates it and lights the sustainer (default `AUTOMATIC` ignition, no timer), chuteless booster tumbles down |
+| `strap-on-booster.json` | two strap-on `ParallelStage` boosters on the core's body tube, separating at their own burnout; radial placement rather than stacking |
 
-They mirror `ParityMain.runStagingScenario`'s `"timed"` and `"auto"` cases, which
-were already locked across JVM/JS/WASM but had never been compared to upstream.
+The first two mirror `ParityMain.runStagingScenario`'s `"timed"` and `"auto"`
+cases and the third mirrors `podScenarios` case C. All three were already locked
+across JVM/JS/WASM and none had been compared to upstream.
 
-**One open lead.** The timed fixture's sustainer branch disagrees by ~1e-6, about
-17x upstream's own run-to-run spread, so that is a small systematic difference and
-not noise. The auto fixture is a comparably long flight and agrees to ~1e-10, so
-"error accumulates over a long flight" does not explain it. What the two fixtures
-differ in is the **ignition override**: the timed one calls
-`setMotorIgnitionById(..., "burnout", 1.0)` and the auto one sets nothing. That
-path is the place to look.
+Each flies to the ground, so apogee, recovery deployment and ground hit are all
+inside the comparison. The strap-on fixture deliberately drops the 6 s `maxTime`
+cap `ParityMain` uses there: that cap exists because parity compares whole
+recorded series and a chuteless tumble's tail drifts the sample count, which is
+not something this comparison reads.
+
+### The one open discrepancy
+
+Two of the six branches disagree with upstream at the 1e-6 level while the other
+four agree to 1e-9 or better:
+
+| fixture | branch | relative | absolute |
+|---|---|---|---|
+| `staged-flight` | Sustainer | ~1.0e-6 | ~5.8e-4 m |
+| `strap-on-booster` | Boosters | ~2.2e-6 | ~5.9e-4 m |
+| `staged-flight` | Booster | ~1.8e-9 | |
+| `staged-flight-auto` | Sustainer | ~1.1e-10 | |
+| `staged-flight-auto` | Booster | ~4e-14 | |
+| `strap-on-booster` | Core | ~2.1e-9 | |
+
+Upstream's own run-to-run spread is ~6e-8 relative, so the top two are systematic
+and not noise. **The two absolute gaps are near-identical (~5.9e-4 m) across
+completely different rockets and altitudes, which points at a fixed offset in one
+quantity rather than error accumulating over a flight.**
+
+No common factor found yet. An earlier guess that it tracked the ignition override
+(`setMotorIgnitionById`) is **ruled out**: the strap-on fixture sets no override
+and still shows it, while `staged-flight-auto` sets none and does not.
 
 ### Not covered yet
 
-- separating `ParallelStage` boosters (`ParityMain.podScenarios` case C). Needs
-  real work rather than a fixture: `Fixture.java` does not build `parallelstage`
-  at all, so it would need the type plus `radiusMethod` / `radiusOffset` /
-  `angleMethod` / `angleOffset` / `instanceCount`
 - `.ork` round-trip: the fixture is a design tree, not a file, so upstream's real
   `.ork` loader is compiled in but unused. Loading the same `.ork` on both sides
   would extend this to `orkFile.ts`

@@ -1,0 +1,237 @@
+{
+  "_comment": [
+    "A core rocket with TWO strap-on boosters, flown by both the engine we ship and",
+    "pristine upstream core.",
+    "",
+    "Different shape of problem from the two serial fixtures. The boosters are a",
+    "ParallelStage hanging off the core's body tube, not a stage stacked underneath,",
+    "so the thing under test is radial placement: instanceCount, radiusMethod and",
+    "radiusOffset (a GAP from the parent's surface, not a radius from the",
+    "centerline), angleMethod and angleOffset. A ParallelStage is still an",
+    "AxialStage, so it separates at booster burnout and flies its own branch, which",
+    "is what makes this comparable to the serial cases at all.",
+    "",
+    "Mirrors ParityMain.podScenarios case C, with one deliberate difference: that",
+    "scenario caps maxTime at 6 s and this does not. The cap is there because parity",
+    "compares whole recorded series, and the tail of a chuteless tumble drifts the",
+    "sample count by one. This comparison reads event sequences, apogee and",
+    "separation time, none of which the drift touches, and the full flight was",
+    "checked to agree - so the fixture covers the core's apogee, chute deployment and",
+    "ground hit rather than stopping before any of them.",
+    "",
+    "The leading SIM_WARN on the core branch is expected and appears on both sides:",
+    "the booster tubes have no nose cone, so the airframe is open at the front.",
+    "",
+    "Same rules as the other fixtures: every aero- and mass-relevant property",
+    "explicit, and every component that can be an event source named. See",
+    "staged-flight.json for why both of those matter."
+  ],
+  "design": {
+    "name": "StrapOnReference",
+    "components": [
+      {
+        "type": "stage",
+        "name": "Core",
+        "children": [
+          {
+            "type": "nosecone",
+            "shape": "conical",
+            "length": 0.07,
+            "aftRadius": 0.012,
+            "thickness": 0.002,
+            "density": 680
+          },
+          {
+            "type": "bodytube",
+            "name": "CoreTube",
+            "length": 0.3,
+            "outerRadius": 0.012,
+            "thickness": 0.0003,
+            "density": 950,
+            "children": [
+              {
+                "type": "trapezoidfinset",
+                "finCount": 3,
+                "rootChord": 0.05,
+                "tipChord": 0.03,
+                "sweep": 0.02,
+                "height": 0.03,
+                "thickness": 0.003,
+                "density": 680
+              },
+              {
+                "type": "innertube",
+                "id": "cmount",
+                "name": "CoreMount",
+                "length": 0.07,
+                "outerRadius": 0.0095,
+                "thickness": 0.0005,
+                "motorMount": true,
+                "density": 680,
+                "position": {
+                  "method": "bottom",
+                  "offset": 0
+                }
+              },
+              {
+                "type": "parachute",
+                "name": "CoreChute",
+                "diameter": 0.3,
+                "cd": 0.8,
+                "lineCount": 6,
+                "lineLength": 0.3,
+                "deployEvent": "apogee",
+                "deployDelay": 0
+              },
+              {
+                "type": "parallelstage",
+                "name": "Boosters",
+                "instanceCount": 2,
+                "radiusMethod": "relative",
+                "radiusOffset": 0,
+                "angleMethod": "relative",
+                "angleOffset": 0,
+                "separationEvent": "burnout",
+                "separationDelay": 0,
+                "position": {
+                  "method": "bottom",
+                  "offset": 0
+                },
+                "children": [
+                  {
+                    "type": "bodytube",
+                    "name": "BoosterTube",
+                    "length": 0.12,
+                    "outerRadius": 0.01,
+                    "thickness": 0.0003,
+                    "density": 950,
+                    "children": [
+                      {
+                        "type": "trapezoidfinset",
+                        "finCount": 3,
+                        "rootChord": 0.04,
+                        "tipChord": 0.02,
+                        "sweep": 0.02,
+                        "height": 0.03,
+                        "thickness": 0.003,
+                        "density": 680
+                      },
+                      {
+                        "type": "innertube",
+                        "id": "bmount",
+                        "name": "StrapOnMount",
+                        "length": 0.07,
+                        "outerRadius": 0.0095,
+                        "thickness": 0.0005,
+                        "motorMount": true,
+                        "density": 680,
+                        "position": {
+                          "method": "bottom",
+                          "offset": 0
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "motors": [
+    {
+      "mount": "cmount",
+      "designation": "C6",
+      "diameter": 0.018,
+      "length": 0.07,
+      "cgX": 0.035,
+      "ejectionDelay": 5.0,
+      "times": [
+        0,
+        0.1,
+        0.3,
+        0.5,
+        1.0,
+        1.5,
+        1.85,
+        2.0
+      ],
+      "thrusts": [
+        0,
+        12.0,
+        6.0,
+        5.1,
+        4.9,
+        4.8,
+        4.5,
+        0
+      ],
+      "masses": [
+        0.024,
+        0.0231,
+        0.0215,
+        0.0202,
+        0.0174,
+        0.0147,
+        0.0133,
+        0.0132
+      ]
+    },
+    {
+      "mount": "bmount",
+      "designation": "C6",
+      "diameter": 0.018,
+      "length": 0.07,
+      "cgX": 0.035,
+      "ejectionDelay": 0.0,
+      "times": [
+        0,
+        0.1,
+        0.3,
+        0.5,
+        1.0,
+        1.5,
+        1.85,
+        2.0
+      ],
+      "thrusts": [
+        0,
+        12.0,
+        6.0,
+        5.1,
+        4.9,
+        4.8,
+        4.5,
+        0
+      ],
+      "masses": [
+        0.024,
+        0.0231,
+        0.0215,
+        0.0202,
+        0.0174,
+        0.0147,
+        0.0133,
+        0.0132
+      ]
+    }
+  ],
+  "options": {
+    "rodLength": 1.2,
+    "rodAngle": 0,
+    "rodDirection": 1.5707963267948966,
+    "launchLatitude": 28.61,
+    "launchLongitude": -80.6,
+    "launchAltitude": 0,
+    "geodetic": "spherical",
+    "gravityModel": "wgs",
+    "windAverage": 0,
+    "windStdDeviation": 0,
+    "windDirection": 1.5707963267948966,
+    "randomSeed": 42,
+    "timeStep": 0.05,
+    "maxTime": 1200
+  }
+}

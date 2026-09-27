@@ -25,15 +25,19 @@ import info.openrocket.core.rocketcomponent.FlightConfigurationId;
 import info.openrocket.core.rocketcomponent.InnerTube;
 import info.openrocket.core.rocketcomponent.MotorMount;
 import info.openrocket.core.rocketcomponent.NoseCone;
+import info.openrocket.core.rocketcomponent.ParallelStage;
 import info.openrocket.core.rocketcomponent.Parachute;
 import info.openrocket.core.rocketcomponent.RecoveryDevice;
+import info.openrocket.core.rocketcomponent.RingInstanceable;
 import info.openrocket.core.rocketcomponent.Rocket;
 import info.openrocket.core.rocketcomponent.RocketComponent;
 import info.openrocket.core.rocketcomponent.StageSeparationConfiguration;
 import info.openrocket.core.rocketcomponent.StructuralComponent;
 import info.openrocket.core.rocketcomponent.Transition;
 import info.openrocket.core.rocketcomponent.TrapezoidFinSet;
+import info.openrocket.core.rocketcomponent.position.AngleMethod;
 import info.openrocket.core.rocketcomponent.position.AxialMethod;
+import info.openrocket.core.rocketcomponent.position.RadiusMethod;
 import info.openrocket.core.util.Coordinate;
 
 /**
@@ -99,7 +103,7 @@ final class Fixture {
             f.applySeparation(stage, stageNode, used);
 
             for (JsonElement child : arrOrEmpty(stageNode, "children")) {
-                stage.addChild(f.component(child.getAsJsonObject()));
+                f.component(stage, child.getAsJsonObject());
             }
             used.add("children");
             reject(stageNode, used, "stage");
@@ -152,7 +156,17 @@ final class Fixture {
         stage.getSeparationConfigurations().setDefault(sep);
     }
 
-    private RocketComponent component(JsonObject node) {
+    /**
+     * Builds one component and attaches it to {@code parent}, then recurses.
+     *
+     * TOP-DOWN, and it has to be: upstream's {@code BodyTube.addChild} calls
+     * {@code getRocket()} when the child is a stage, which throws
+     * "getRocket() called with root component Body Tube" unless that tube is
+     * already connected to the rocket. Building the subtree first and attaching it
+     * afterwards works for every other component and fails only on a strap-on
+     * booster, which is a good reason not to rely on it anywhere.
+     */
+    private void component(RocketComponent parent, JsonObject node) {
         Set<String> used = new LinkedHashSet<>(List.of("type"));
         String type = str(node, "type", null);
         if (type == null) {
@@ -211,6 +225,29 @@ final class Fixture {
                 c = p;
                 break;
             }
+            case "parallelstage": {
+                // Strap-on booster. A ParallelStage IS an AxialStage, so it
+                // separates and flies its own branch like a stacked booster does.
+                ParallelStage ps = new ParallelStage();
+                // Placement, position and separation ALL have to wait for the
+                // parent: setRadiusMethod and setAxialMethod read getParent() and
+                // NPE without one, and the attach happens in the caller. Position
+                // is consumed here rather than by the generic deferral below,
+                // because for an assembly it has to land AFTER the radial
+                // placement, in one ordered action.
+                used.add("instanceCount");
+                used.add("radiusMethod");
+                used.add("radiusOffset");
+                used.add("angleOffset");
+                used.add("angleMethod");
+                used.add("separationEvent");
+                used.add("separationDelay");
+                used.add("separationAltitude");
+                used.add("position");
+                pendingAssemblies.add(new Assembly(ps, node));
+                c = ps;
+                break;
+            }
             default:
                 throw new IllegalArgumentException("reference harness does not build component type: " + type);
         }
@@ -246,16 +283,16 @@ final class Fixture {
             }
         }
 
-        // Children before position: upstream's setAxialMethod/setAxialOffset read
-        // getParent(), so they are applied by the PARENT after the attach below.
+        parent.addChild(c);
+
         for (JsonElement child : arrOrEmpty(node, "children")) {
-            c.addChild(component(child.getAsJsonObject()));
+            component(c, child.getAsJsonObject());
         }
         used.add("children");
 
         JsonObject position = node.has("position") ? node.getAsJsonObject("position") : null;
         used.add("position");
-        if (position != null) {
+        if (position != null && !(c instanceof RingInstanceable)) {
             // Deferred: upstream's setAxialMethod and setAxialOffset both read
             // getParent() and NPE on a component that has not been attached yet.
             // The attach happens in the CALLER, so the position cannot be applied
@@ -265,7 +302,6 @@ final class Fixture {
         }
 
         reject(node, used, type);
-        return c;
     }
 
     /** A position that could not be applied until its component had a parent. */
@@ -281,13 +317,87 @@ final class Fixture {
 
     private final List<Pos> pending = new ArrayList<>();
 
-    /** Applied once the whole tree is attached, so every parent exists. */
+    /** A ring assembly whose placement could not be applied until it had a parent. */
+    private static final class Assembly {
+        final RingInstanceable ring;
+        final JsonObject node;
+
+        Assembly(RingInstanceable ring, JsonObject node) {
+            this.ring = ring;
+            this.node = node;
+        }
+    }
+
+    private final List<Assembly> pendingAssemblies = new ArrayList<>();
+
+    /**
+     * Applied once the whole tree is attached, so every parent exists.
+     *
+     * Assemblies first, so a strap-on booster is placed before anything inside it
+     * is positioned against it.
+     */
     private void applyPositions() {
+        for (Assembly a : pendingAssemblies) {
+            RingInstanceable ring = a.ring;
+            JsonObject node = a.node;
+            ring.setInstanceCount((int) reqDblLoose(node, "instanceCount"));
+            ring.setRadiusMethod(radiusMethod(req(node, "radiusMethod", new LinkedHashSet<>())));
+            // RADIUS OFFSET, not setRadius(method, value): the offset is a gap from
+            // the parent's surface, while setRadius is from the centerline and
+            // double-subtracts the parent radius.
+            ring.setRadiusOffset(reqDblLoose(node, "radiusOffset"));
+            ring.setAngleOffset(reqDblLoose(node, "angleOffset"));
+            ring.setAngleMethod(angleMethod(req(node, "angleMethod", new LinkedHashSet<>())));
+
+            RocketComponent component = (RocketComponent) ring;
+            JsonObject position = node.has("position") ? node.getAsJsonObject("position") : null;
+            if (position != null) {
+                component.setAxialMethod(axialMethod(str(position, "method", "bottom")));
+                component.setAxialOffset(dbl(position, "offset", 0));
+                reject(position, new LinkedHashSet<>(List.of("method", "offset")), "parallelstage.position");
+            }
+            // It separates, so it carries a separation configuration exactly as a
+            // stacked stage does.
+            applySeparation((AxialStage) ring, node, new LinkedHashSet<>());
+        }
+        pendingAssemblies.clear();
+
         for (Pos p : pending) {
             p.component.setAxialMethod(axialMethod(str(p.position, "method", "bottom")));
             p.component.setAxialOffset(dbl(p.position, "offset", 0));
         }
         pending.clear();
+    }
+
+    /**
+     * A required double whose key was already marked consumed at build time.
+     * Separate from reqDbl only so the strictness bookkeeping stays honest: the
+     * keys are recorded in the component case, which is where `reject` runs.
+     */
+    private static double reqDblLoose(JsonObject o, String key) {
+        Double v = dblOrNull(o, key);
+        if (v == null) {
+            throw new IllegalArgumentException("required key '" + key + "' is missing");
+        }
+        return v;
+    }
+
+    private static RadiusMethod radiusMethod(String name) {
+        switch (name.toLowerCase()) {
+            case "free": return RadiusMethod.FREE;
+            case "surface": return RadiusMethod.SURFACE;
+            case "coaxial": return RadiusMethod.COAXIAL;
+            case "relative": return RadiusMethod.RELATIVE;
+            default: throw new IllegalArgumentException("unknown radius method: " + name);
+        }
+    }
+
+    private static AngleMethod angleMethod(String name) {
+        switch (name.toLowerCase()) {
+            case "fixed": return AngleMethod.FIXED;
+            case "relative": return AngleMethod.RELATIVE;
+            default: throw new IllegalArgumentException("unknown angle method: " + name);
+        }
     }
 
     private void applyDeployment(RecoveryDevice device, JsonObject node, Set<String> used) {
