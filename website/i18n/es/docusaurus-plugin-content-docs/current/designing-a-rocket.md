@@ -46,6 +46,10 @@ Solo sigue el diámetro. Hasta dónde llega el encaje dentro del tubo lo decides
 
 El interruptor viene activado en las piezas que añades aquí y desactivado en todo lo que se lee de un archivo, porque en un archivo un encaje ausente significa que la pieza no lo tiene. Nada de lo que importes gana uno. `.ork` no tiene forma de guardar el interruptor, así que un archivo escrito aquí lleva el número ya resuelto y una ida y vuelta por OpenRocket de escritorio lo deja congelado en ese valor.
 
+**Un encaje tiene pared y puede ir cerrado.** Cada uno lleva su propio espesor y un interruptor **Cerrado** que tapa su extremo exterior con un disco del material de la propia pieza. El disco tiene el espesor de la pared del encaje, y es lo que convierte una ojiva en un compartimento cerrado donde puedes meter lastre de morro o un altímetro. Ambos cuentan para la masa, el CG y los momentos de inercia. Una transición tiene un juego por lado, delantero y trasero, y son independientes.
+
+Si dejas en blanco el espesor de un encaje, OpenRocket lo toma de la pared de la propia pieza en cuanto el encaje recibe una longitud, así que un valor ausente no es un cero.
+
 ## Dimensiones obligatorias {#required-dimensions}
 
 Algunas dimensiones definen lo que una pieza *es*. Un tubo de fuselaje sin diámetro no es un tubo estrecho: no es nada. Por eso esos campos están marcados, y un diseño al que le falte uno no se puede volar.

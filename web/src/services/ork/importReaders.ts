@@ -114,6 +114,10 @@ const readTransition: NodeReader = (_ctx, el) => {
     if (l > 0) n[`${key}Length`] = l;
     const th = numTag(el, `${side}shoulderthickness`, 0);
     if (th > 0) n[`${key}Thickness`] = th;
+    // A capped shoulder is closed by a disc of the part's own material. Read
+    // per side: a transition has two, and only the nose cone's single flag was
+    // ever read, under a key a transition does not carry.
+    if (text(el, `:scope > ${side}shouldercapped`) === 'true') n[`${key}Capped`] = true;
   }
   return n;
 };

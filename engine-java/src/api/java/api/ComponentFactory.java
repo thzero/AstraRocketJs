@@ -178,10 +178,28 @@ final class ComponentFactory {
                 if (!Double.isNaN(aShL)) {
                     t.setAftShoulderLength(aShL);
                 }
+                // Shoulder WALL, per side. Set after the radius, which clamps
+                // the thickness it already holds (Transition.setForeShoulderRadius).
+                // These round-tripped through the .ork and were never handed to
+                // the kernel, so a transition's shoulders flew as if they had no
+                // wall and weighed nothing, whatever the file said. A capped
+                // shoulder is made OUT of this wall, so the cap below was a
+                // no-op without it.
+                double fShT = dbl(node, "foreShoulderThickness", Double.NaN);
+                if (!Double.isNaN(fShT)) {
+                    t.setForeShoulderThickness(fShT);
+                }
+                double aShT = dbl(node, "aftShoulderThickness", Double.NaN);
+                if (!Double.isNaN(aShT)) {
+                    t.setAftShoulderThickness(aShT);
+                }
                 // Capped shoulder = a closed disc of the part's own material, so
-                // it has mass. The flag round-trips in the file but a nose cone's
-                // was the only one read; a transition's was dropped.
-                t.setAftShoulderCapped(bool(node, "shoulderCapped", false));
+                // it has mass. A transition has one per side; only the aft one
+                // was read, and it was read from the NOSE CONE's key, which a
+                // transition node never carries. `shoulderCapped` stays as a
+                // fallback for a node written before the per-side keys existed.
+                t.setForeShoulderCapped(bool(node, "foreShoulderCapped", false));
+                t.setAftShoulderCapped(bool(node, "aftShoulderCapped", bool(node, "shoulderCapped", false)));
                 c = t;
                 break;
             }

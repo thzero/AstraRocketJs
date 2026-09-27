@@ -46,6 +46,10 @@ Only the diameter follows. How far the shoulder reaches into the tube is yours, 
 
 The switch is on for parts you add here, and off for everything read from a file, because in a file an absent shoulder means the part has none. Nothing you import grows one. `.ork` has no way to record the switch, so a file written here carries the resolved number and a round trip through desktop OpenRocket freezes it at that value.
 
+**A shoulder has a wall, and can be capped.** Each one carries its own thickness, and a **Capped** switch that closes its far end with a disc of the part's own material. The disc is as thick as the shoulder's wall, so it is what turns a nose cone into a closed bay you can put nose weight or an altimeter behind. Both count toward mass, CG and the moments of inertia. A transition has a set per side, fore and aft, and they are independent.
+
+Leave a shoulder's thickness blank and OpenRocket fills it from the part's own wall the moment the shoulder gets a length, so an absent value is not a zero one.
+
 ## Required dimensions
 
 Some dimensions define what a part *is*. A body tube with no diameter is not a narrow tube, it is nothing — so those fields are marked, and a design that is missing one cannot be flown.

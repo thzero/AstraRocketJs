@@ -592,3 +592,91 @@ describe('fin fillets are flown, not just stored', () => {
     expect(cg(0.006)).toBeGreaterThan(cg(0));
   });
 });
+
+/**
+ * A transition's shoulders reach the kernel whole.
+ *
+ * Both halves of a shoulder's mass were being dropped on the way in. The WALL
+ * round-tripped through `.ork` and `ComponentFactory` never set it, so the
+ * stub flew as a surface with no material. The CAP - the disc that closes the
+ * far end - was read only from the nose cone's `shoulderCapped` key, which a
+ * transition node does not carry, and the `.ork` writer emitted a hardcoded
+ * false for both of its sides.
+ *
+ * Mass is the only honest witness: the fields can be set, saved and reloaded
+ * and still change nothing about the rocket that flies. So this asks the real
+ * kernel what the design weighs.
+ */
+const withTransition = (shoulder: Record<string, unknown>) =>
+  ({
+    components: [
+      {
+        id: 'stage1',
+        type: 'stage',
+        children: [
+          { id: 'nose', type: 'nosecone', length: 0.1, aftRadius: 0.02, thickness: 0.001, shape: 'ogive' },
+          { id: 'upper', type: 'bodytube', length: 0.2, outerRadius: 0.02, thickness: 0.001 },
+          {
+            id: 'trans',
+            type: 'transition',
+            shape: 'conical',
+            length: 0.05,
+            foreRadius: 0.02,
+            aftRadius: 0.013,
+            thickness: 0.001,
+            foreShoulderRadius: 0.019,
+            foreShoulderLength: 0.03,
+            aftShoulderRadius: 0.012,
+            aftShoulderLength: 0.03,
+            ...shoulder,
+          },
+          { id: 'lower', type: 'bodytube', length: 0.2, outerRadius: 0.013, thickness: 0.001 },
+        ],
+      },
+    ],
+  }) as unknown as RocketTree;
+
+const massOf = (tree: RocketTree) => OpenRocketDesign.buildTree(tree).staticInfo().massEmpty;
+
+describe("a transition's shoulders weigh what they are built from", () => {
+  it('a shoulder with a wall weighs more than one without', () => {
+    const bare = massOf(withTransition({}));
+    const walled = massOf(withTransition({ foreShoulderThickness: 0.002, aftShoulderThickness: 0.002 }));
+    expect(walled).toBeGreaterThan(bare);
+  });
+
+  it('capping either end adds the disc that closes it', () => {
+    const walls = { foreShoulderThickness: 0.002, aftShoulderThickness: 0.002 };
+    const open = massOf(withTransition(walls));
+    const foreCapped = massOf(withTransition({ ...walls, foreShoulderCapped: true }));
+    const bothCapped = massOf(withTransition({ ...walls, foreShoulderCapped: true, aftShoulderCapped: true }));
+    // Per SIDE: the fore cap alone is not the whole of it, which is what
+    // reading one flag for both ends would have produced.
+    expect(foreCapped).toBeGreaterThan(open);
+    expect(bothCapped).toBeGreaterThan(foreCapped);
+  });
+
+  it('falls back to the part wall when the shoulder carries no thickness', () => {
+    // An absent shoulder thickness is not a zero one. OpenRocket fills the
+    // shoulder's wall (and radius) from the part when the shoulder LENGTH goes
+    // from zero to something - Transition.setForeShoulderLength - so a cap
+    // still has material to be made of. It is also why the panel showing 0 for
+    // that absent key states a number the kernel is not using.
+    const open = massOf(withTransition({}));
+    const capped = massOf(withTransition({ foreShoulderCapped: true, aftShoulderCapped: true }));
+    expect(capped).toBeGreaterThan(open);
+  });
+
+  it('lets an explicit wall override the one the kernel would fill in', () => {
+    const auto = massOf(withTransition({ foreShoulderCapped: true, aftShoulderCapped: true }));
+    const thick = massOf(
+      withTransition({
+        foreShoulderCapped: true,
+        aftShoulderCapped: true,
+        foreShoulderThickness: 0.003,
+        aftShoulderThickness: 0.003,
+      }),
+    );
+    expect(thick).toBeGreaterThan(auto);
+  });
+});

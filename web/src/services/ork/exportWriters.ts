@@ -137,7 +137,7 @@ const writeTransition: NodeWriter = (w, node, d) => {
     w.emit(d, `<${side}shoulderradius>${num(node, `${key}Radius`, 0)}</${side}shoulderradius>`);
     w.emit(d, `<${side}shoulderlength>${num(node, `${key}Length`, 0)}</${side}shoulderlength>`);
     w.emit(d, `<${side}shoulderthickness>${num(node, `${key}Thickness`, 0)}</${side}shoulderthickness>`);
-    w.emit(d, `<${side}shouldercapped>false</${side}shouldercapped>`);
+    w.emit(d, `<${side}shouldercapped>${node[`${key}Capped`] === true}</${side}shouldercapped>`);
   }
 };
 

@@ -265,8 +265,17 @@ const RAW_FIELDS: Record<string, Field[]> = {
       diameter: true,
       auto: 'foreShoulderAuto',
     },
+    // Each shoulder's own WALL, and whether its far end is closed by a disc of
+    // the part's material. Both round-tripped through `.ork` with no field to
+    // set them, and the wall was never handed to the kernel at all, so a
+    // transition's shoulders flew weighing nothing. A nose cone has carried the
+    // same two rows since it was written; this is the two-sided version.
+    { key: 'foreShoulderThickness', label: 'foreShoulderThickness', kind: 'length' },
+    { key: 'foreShoulderCapped', label: 'foreShoulderCapped', kind: 'bool' },
     { key: 'aftShoulderLength', label: 'aftShoulderLength', kind: 'length' },
     { key: 'aftShoulderRadius', label: 'aftShoulderDiameter', kind: 'length', diameter: true, auto: 'aftShoulderAuto' },
+    { key: 'aftShoulderThickness', label: 'aftShoulderThickness', kind: 'length' },
+    { key: 'aftShoulderCapped', label: 'aftShoulderCapped', kind: 'bool' },
   ],
   trapezoidfinset: [
     { key: 'finCount', label: 'finCount', kind: 'count' },

@@ -489,8 +489,11 @@ describe('newly-editable component options round-trip', () => {
             thickness: 0.0005,
             foreShoulderLength: 0.015,
             foreShoulderRadius: 0.012,
+            foreShoulderThickness: 0.0007,
+            foreShoulderCapped: true,
             aftShoulderLength: 0.018,
             aftShoulderRadius: 0.018,
+            aftShoulderThickness: 0.0009,
             position: { method: 'bottom', offset: 0 },
           },
           {
@@ -548,6 +551,18 @@ describe('newly-editable component options round-trip', () => {
     expect(tr.foreShoulderRadius).toBeCloseTo(0.012, 6);
     expect(tr.aftShoulderLength).toBeCloseTo(0.018, 6);
     expect(tr.aftShoulderRadius).toBeCloseTo(0.018, 6);
+  });
+
+  it('preserves each transition shoulder wall and cap, per side', () => {
+    // The walls were read and written all along; the caps were not. The writer
+    // emitted a hardcoded `false` for both sides, so a capped shoulder was
+    // dropped on the way out and could not come back - and the two sides have
+    // to stay apart, since the fore one here is capped and the aft one is not.
+    const tr = findByType(out.tree, 'transition') as Record<string, unknown>;
+    expect(tr.foreShoulderThickness).toBeCloseTo(0.0007, 6);
+    expect(tr.aftShoulderThickness).toBeCloseTo(0.0009, 6);
+    expect(tr.foreShoulderCapped).toBe(true);
+    expect(tr.aftShoulderCapped).toBeUndefined();
   });
 
   it('preserves the body-tube motor-mount flag + overhang', () => {
