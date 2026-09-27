@@ -1,0 +1,6 @@
+// A build of its OWN, deliberately not a subproject of engine-java's TeaVM
+// build: this one compiles PRISTINE upstream core against its real Maven
+// dependencies (Guice, JAXB, GraalVM-JS, classgraph), which is exactly the set
+// the engine build exists to avoid. Keeping the two separate means nothing here
+// can perturb the shipped engine's compile.
+rootProject.name = 'openrocket-reference'

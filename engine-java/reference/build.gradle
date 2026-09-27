@@ -1,0 +1,133 @@
+/*
+ * Compiles PRISTINE upstream OpenRocket core, plus the reference harness in
+ * src/ref, and runs the harness.
+ *
+ * Nothing here is shipped. The point is an INDEPENDENT reference: the flight
+ * numbers this prints come from upstream's own code compiled from upstream's own
+ * sources, so comparing them against the engine we ship can catch what
+ * test/parity cannot - a dropped file in extract/manifest.txt, or a patch in
+ * patches/ that moved behavior rather than just placating TeaVM.
+ *
+ * Run it from engine-java:  ./gradlew -p reference reference
+ * Or, with provisioning:    node reference/run.mjs
+ */
+plugins {
+    id 'java'
+}
+
+def upstream = file('../.openrocket-src')
+def coreRoot = new File(upstream, 'core')
+def coreJava = new File(coreRoot, 'src/main/java')
+
+if (!coreJava.isDirectory()) {
+    throw new GradleException(
+            "pristine upstream core is not provisioned at ${coreJava}.\n" +
+            "  Run: node reference/provision.mjs")
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+    // Upstream core ships a module-info.java. We compile it as a plain
+    // classpath source set (see the sourceSets exclude below), so module path
+    // inference has to stay off or javac tries to resolve every dependency as a
+    // named module.
+    modularity.inferModulePath = false
+}
+
+repositories {
+    mavenCentral()
+    // Upstream core declares this for a couple of older artifacts; mirror it or
+    // resolution fails on exactly those.
+    maven { url = 'https://repository.mulesoft.org/nexus/content/repositories/public/' }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = [coreJava, file('src')]
+            // Compiling core on the classpath, so its module descriptor is not
+            // just unnecessary, it is actively wrong here.
+            exclude 'module-info.java'
+        }
+        resources {
+            srcDirs = [new File(coreRoot, 'src/main/resources')]
+        }
+    }
+}
+
+/*
+ * Upstream's dependency list, read out of upstream's OWN build.gradle rather
+ * than copied into this file.
+ *
+ * A hand-copied list is a second copy of something upstream owns, and it would
+ * go stale silently the next time extract/UPSTREAM is bumped: the symptom would
+ * be a NoClassDefFoundError deep in a flight, blamed on the harness. Parsing it
+ * means a bump either resolves or fails loudly at configuration time.
+ */
+def upstreamCoreDeps = { ->
+    def text = new File(coreRoot, 'build.gradle').text
+    // The single top-level `dependencies { ... }` block: anchored at column 0,
+    // closed by a brace at column 0. Nested blocks are indented, so they do not
+    // terminate the match.
+    def m = text =~ /(?ms)^dependencies \{(.*?)^\}/
+    if (!m.find()) {
+        throw new GradleException("could not find the dependencies block in ${coreRoot}/build.gradle")
+    }
+    def body = m.group(1)
+    def coords = []
+    def localJars = []
+    body.eachLine { line ->
+        def trimmed = line.trim()
+        if (trimmed.startsWith('//') || trimmed.isEmpty()) return
+        def coord = trimmed =~ /^implementation\s+['"]([^'"]+)['"]\s*$/
+        if (coord.find()) {
+            coords << coord.group(1)
+            return
+        }
+        // implementation files('libs/script-api-1.0.jar') - a jar vendored in
+        // the upstream tree, needed to compile core's scripting package.
+        def local = trimmed =~ /^implementation\s+files\(\s*['"]([^'"]+)['"]\s*\)\s*$/
+        if (local.find()) {
+            localJars << local.group(1)
+        }
+    }
+    if (coords.isEmpty()) {
+        throw new GradleException("parsed upstream's dependencies block but found no coordinates")
+    }
+    return [coords: coords, localJars: localJars]
+}()
+
+dependencies {
+    upstreamCoreDeps.coords.each { implementation it }
+    upstreamCoreDeps.localJars.each { rel ->
+        def jar = new File(coreRoot, rel)
+        if (!jar.isFile()) {
+            throw new GradleException("upstream vendored jar is missing: ${jar}\n  Run: node reference/provision.mjs")
+        }
+        implementation files(jar)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    // Upstream core is not warning-clean under a modern javac and it is not ours
+    // to fix. Keep the log about OUR harness.
+    options.compilerArgs << '-nowarn'
+}
+
+/** Print the reference flight numbers on stdout, one scenario per line. */
+tasks.register('reference', JavaExec) {
+    group = 'verification'
+    description = 'Run the pristine-upstream reference harness'
+    mainClass = 'ref.ReferenceMain'
+    classpath = sourceSets.main.runtimeClasspath
+    // The harness writes its result lines to stdout and nothing else may, or the
+    // comparison reads logback chatter as data.
+    systemProperty 'logback.configurationFile',
+            new File(projectDir, 'logback-quiet.xml').absolutePath
+    if (project.hasProperty('refArgs')) {
+        args project.property('refArgs').toString().split(' ')
+    }
+}

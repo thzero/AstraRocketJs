@@ -1,0 +1,186 @@
+{
+  "_comment": [
+    "Booster + sustainer, flown by BOTH the engine we ship and pristine upstream core.",
+    "",
+    "The airframe mirrors ParityMain.runStagingScenario's 'timed' pattern - the",
+    "high-power staging case: separation at booster burnout, sustainer lit by",
+    "electronics 1 s later, booster recovering under its own chute on its own",
+    "branch. That scenario is already locked across JVM/JS/WASM; what it has never",
+    "been is compared to upstream.",
+    "",
+    "EVERY aero- or mass-relevant property is explicit, on purpose. A property left",
+    "out would be supplied by each side's own default, and two engines agreeing",
+    "because they share a default is not evidence while two disagreeing over",
+    "different defaults is a false alarm. The one deliberate exception is a property",
+    "where BOTH sides fall through to the same upstream component default and",
+    "neither injects one of its own (fin cant, tube finish, chute material): those",
+    "are upstream's value on both sides by construction.",
+    "",
+    "Nose cone 'shape' is the property that taught this: ComponentFactory defaults a",
+    "missing shape to CONICAL while upstream's NoseCone constructor does not, so a",
+    "fixture that omitted it would have compared two different rockets.",
+    "",
+    "Every component that can appear as an event SOURCE carries a 'name' for the",
+    "same reason, and run.mjs fails if one does not. An unnamed component falls",
+    "back to its type's default name, and the two sides render that differently ON",
+    "PURPOSE: upstream translates it ('Inner Tube'), while the shipped engine",
+    "installs a bare DebugTranslator so the kernel emits stable machine keys",
+    "('[InnerTube.InnerTube]') for web/src/services/warningText.ts to localize -",
+    "see the note on Application.getTranslator in src/shims. Naming the component",
+    "sidesteps a difference that is deliberate, without weakening the comparison."
+  ],
+
+  "design": {
+    "name": "StagedReference",
+    "components": [
+      {
+        "type": "stage",
+        "name": "Sustainer",
+        "children": [
+          {
+            "type": "nosecone",
+            "shape": "conical",
+            "length": 0.07,
+            "aftRadius": 0.012,
+            "thickness": 0.002,
+            "density": 680
+          },
+          {
+            "type": "bodytube",
+            "length": 0.3,
+            "outerRadius": 0.012,
+            "thickness": 0.0003,
+            "density": 950,
+            "children": [
+              {
+                "type": "trapezoidfinset",
+                "finCount": 3,
+                "rootChord": 0.05,
+                "tipChord": 0.03,
+                "sweep": 0.02,
+                "height": 0.025,
+                "thickness": 0.003,
+                "density": 680
+              },
+              {
+                "type": "innertube",
+                "id": "smount",
+                "name": "SustainerMount",
+                "length": 0.07,
+                "outerRadius": 0.0095,
+                "thickness": 0.0005,
+                "motorMount": true,
+                "density": 680,
+                "position": { "method": "bottom", "offset": 0 }
+              },
+              {
+                "type": "parachute",
+                "name": "SustainerChute",
+                "diameter": 0.35,
+                "cd": 0.8,
+                "lineCount": 6,
+                "lineLength": 0.3,
+                "deployEvent": "apogee",
+                "deployDelay": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "stage",
+        "name": "Booster",
+        "separationEvent": "burnout",
+        "separationDelay": 0,
+        "children": [
+          {
+            "type": "bodytube",
+            "length": 0.12,
+            "outerRadius": 0.012,
+            "thickness": 0.0003,
+            "density": 950,
+            "children": [
+              {
+                "type": "trapezoidfinset",
+                "finCount": 3,
+                "rootChord": 0.05,
+                "tipChord": 0.03,
+                "sweep": 0.025,
+                "height": 0.035,
+                "thickness": 0.003,
+                "density": 680
+              },
+              {
+                "type": "innertube",
+                "id": "bmount",
+                "name": "BoosterMount",
+                "length": 0.07,
+                "outerRadius": 0.0095,
+                "thickness": 0.0005,
+                "motorMount": true,
+                "density": 680,
+                "position": { "method": "bottom", "offset": 0 }
+              },
+              {
+                "type": "parachute",
+                "name": "BoosterChute",
+                "diameter": 0.25,
+                "cd": 0.8,
+                "lineCount": 6,
+                "lineLength": 0.3,
+                "deployEvent": "apogee",
+                "deployDelay": 0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+
+  "motors": [
+    {
+      "mount": "smount",
+      "designation": "C6",
+      "diameter": 0.018,
+      "length": 0.07,
+      "cgX": 0.035,
+      "ejectionDelay": 5.0,
+      "times": [0, 0.1, 0.3, 0.5, 1.0, 1.5, 1.85, 2.0],
+      "thrusts": [0, 12.0, 6.0, 5.1, 4.9, 4.8, 4.5, 0],
+      "masses": [0.024, 0.0231, 0.0215, 0.0202, 0.0174, 0.0147, 0.0133, 0.0132]
+    },
+    {
+      "mount": "bmount",
+      "designation": "C6",
+      "diameter": 0.018,
+      "length": 0.07,
+      "cgX": 0.035,
+      "ejectionDelay": 0.0,
+      "times": [0, 0.1, 0.3, 0.5, 1.0, 1.5, 1.85, 2.0],
+      "thrusts": [0, 12.0, 6.0, 5.1, 4.9, 4.8, 4.5, 0],
+      "masses": [0.024, 0.0231, 0.0215, 0.0202, 0.0174, 0.0147, 0.0133, 0.0132]
+    }
+  ],
+
+  "ignition": [
+    { "mount": "smount", "event": "burnout", "delay": 1.0 }
+  ],
+
+  "options": {
+    "rodLength": 1.0,
+    "rodAngle": 0,
+    "rodDirection": 1.5707963267948966,
+    "launchLatitude": 28.61,
+    "launchLongitude": -80.6,
+    "launchAltitude": 0,
+    "geodetic": "spherical",
+    "gravityModel": "wgs",
+    "windAverage": 0,
+    "windStdDeviation": 0,
+    "windDirection": 1.5707963267948966,
+    "randomSeed": 42,
+    "timeStep": 0.05,
+    "maxTime": 1200
+  }
+}

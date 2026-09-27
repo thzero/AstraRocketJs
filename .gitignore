@@ -51,3 +51,8 @@ web/coverage/
 engine-java/.openrocket-src/
 
 docs/rasaero/diffs/
+
+# The reference harness's own Gradle build (compiles pristine upstream core
+# against its real Maven dependencies; nothing here ships).
+engine-java/reference/.gradle/
+engine-java/reference/build/

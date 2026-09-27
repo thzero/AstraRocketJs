@@ -1,0 +1,17 @@
+<!--
+  Upstream core logs through slf4j/logback and pulls logback-classic in as a real
+  dependency, so without this every run interleaves INFO lines with the harness's
+  result lines on the same stream. The comparison reads stdout as data, so any
+  log output is corruption, not noise. Errors still go to stderr.
+-->
+<configuration>
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
+        <encoder>
+            <pattern>%-5level %logger{20} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <root level="ERROR">
+        <appender-ref ref="STDERR"/>
+    </root>
+</configuration>
