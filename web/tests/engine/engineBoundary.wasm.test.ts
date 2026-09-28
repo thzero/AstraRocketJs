@@ -265,4 +265,49 @@ describe('the shipped build computes what the JS build computes', () => {
     expect(b.cg).toBeCloseTo(a.cg, 12);
     expect(b.cp).toBeCloseTo(a.cp, 12);
   });
+
+  /**
+   * The seeding of a LAYERED wind, on the target that ships.
+   *
+   * Upstream's 4-arg `addWindLevel` builds each level's sub-model with the
+   * no-arg `PinkNoiseWindModel` constructor, which seeds itself from
+   * `new Random().nextInt()`; nothing else put the run's seed back, so a
+   * turbulent multi-level profile flew a different gust pattern every run. The
+   * parity set carries no `windLevels` case at all, so neither the JVM
+   * comparison nor the golden values cover this - the JS boundary test and this
+   * one are the whole of it, and this is the build most browsers run.
+   *
+   * Equality is EXACT on purpose: the claim is that one seed reproduces one
+   * flight, and a tolerance would pass on turbulence that merely landed nearby.
+   * Cross-target equality is deliberately NOT asserted here; turbulence
+   * compounds a ULP difference over a whole trajectory, and bit-for-bit
+   * JS/WASM agreement is what the parity gate is for.
+   */
+  it('gives one turbulent wind profile the same flight twice at one seed', () => {
+    const fly = (randomSeed: number) => {
+      wasm.reset();
+      const h = wasm.buildRocket(tree([MOUNT]));
+      wasm.setMotorById(h, 'm', 'C6', 0.018, 0.07, [0, 1, 2], [0, 6, 0], [0.024, 0.018, 0.012], 0.035, 5);
+      const out = JSON.parse(
+        wasm.simulateJson(
+          h,
+          JSON.stringify({
+            launchRodLength: 1,
+            randomSeed,
+            windLevels: [
+              { altitude: 0, speed: 6, direction: Math.PI / 2, stddev: 2 },
+              { altitude: 600, speed: 14, direction: Math.PI / 2, stddev: 4 },
+            ],
+          }),
+        ),
+      );
+      expect(out.error).toBeUndefined();
+      return out.summary.maxAltitude as number;
+    };
+
+    const first = fly(7);
+    expect(first).toBeGreaterThan(0);
+    expect(fly(7)).toBe(first);
+    expect(fly(8)).not.toBe(first);
+  });
 });

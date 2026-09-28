@@ -1374,6 +1374,21 @@ public final class OpenRocketEngine {
                         JsonLite.dbl(lvl, "direction", Math.PI / 2),
                         JsonLite.dbl(lvl, "stddev", 0));
             }
+            // Seeded LAST, after every level is in place: setSeed walks the
+            // level list, which is only complete now. addWindLevel builds each
+            // level's sub-model with the no-arg PinkNoiseWindModel constructor
+            // (seed from new Random().nextInt()), so without this the turbulence
+            // of a multi-level profile was freshly random on every run and two
+            // runs of one design at one randomSeed could not be compared --
+            // which is exactly what the wind sweep does. setRandomSeed below
+            // does NOT cover it: that stores an int on SimulationConditions and
+            // never reaches the wind model. Upstream makes this same call in
+            // SimulationOptions.toSimulationConditions; we hand-build the
+            // conditions instead, so we have to make it ourselves.
+            // The single-level branch below has always been seeded, via the
+            // constructor. Level seeds are derived by altitude rank, so they do
+            // not depend on the order the levels arrived in.
+            ml.setSeed(randomSeed);
             // MSL or AGL. The constructor defaults to MSL and nothing here used
             // to say otherwise, so an AGL profile flew as if its altitudes were
             // above sea level -- the same numbers, a different wind, and at a

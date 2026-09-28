@@ -4212,6 +4212,10 @@ iocmw_PinkNoiseWindModel__init_0 = () => {
     iocmw_PinkNoiseWindModel__init_1(var_0);
     return var_0;
 },
+iocmw_PinkNoiseWindModel_setSeed = ($this, $seed) => {
+    $this.$seed = $seed ^ 1933814275;
+    iocmw_PinkNoiseWindModel_reset($this);
+},
 iocmw_PinkNoiseWindModel_getAverage = $this => {
     return $this.$average0;
 },
@@ -20475,6 +20479,14 @@ iocmw_MultiLevelPinkNoiseWindModel_setAltitudeReference = ($this, $altitudeRefer
     $this.$altitudeReference = $altitudeReference;
     $this.$fireChangeEvent();
 },
+iocmw_MultiLevelPinkNoiseWindModel_setSeed = ($this, $seed) => {
+    let $i;
+    $i = 0;
+    while ($i < $this.$levels.$size()) {
+        ($this.$levels.$get0($i)).$model.$setSeed(($seed * 31 | 0) + $i | 0);
+        $i = $i + 1 | 0;
+    }
+},
 iocmw_MultiLevelPinkNoiseWindModel_equals = ($this, $o) => {
     let $that, $i;
     if ($this === $o)
@@ -25989,7 +26001,7 @@ ju_Random__init_0 = () => {
 },
 ju_Random__init_ = ($this, $seed) => {
     jl_Object__init_($this);
-    $this.$setSeed($seed);
+    $this.$setSeed0($seed);
 },
 ju_Random__init_2 = var_0 => {
     let var_1 = new ju_Random();
@@ -47748,6 +47760,7 @@ a_OpenRocketEngine_simulateJsonImpl = ($rocketHandle, $optionsJson) => {
             $i = 0;
             while (true) {
                 if ($i >= $windLevels.$size()) {
+                    $ml.$setSeed($randomSeed);
                     if (!jl_String_equalsIgnoreCase($rt_s(1521), a_JsonLite_str($o, $rt_s(1522), $rt_s(1523)))) {
                         iocmw_WindModel$AltitudeReference_$callClinit();
                         var$11 = iocmw_WindModel$AltitudeReference_MSL;
@@ -59031,9 +59044,9 @@ ju_Map, 0, jl_Object, [], 1537, 0, 0, ["$getOrDefault", $rt_wrapFunction2(ju_Map
 ju_SequencedMap, 0, jl_Object, [ju_Map], 1537, 0, 0, ["$getOrDefault", $rt_wrapFunction2(ju_Map_getOrDefault), "$computeIfAbsent", $rt_wrapFunction2(ju_Map_computeIfAbsent), "$merge", $rt_wrapFunction3(ju_Map_merge)],
 iocu_MathUtil, "MathUtil", 44, jl_Object, [], 1, [0,0,0], () => iocu_MathUtil_$callClinit(), 0,
 iocmw_WindModel, 0, jl_Object, [iocu_Monitorable, jl_Cloneable, iocu_ChangeSource], 1537, 0, 0, 0,
-iocmw_PinkNoiseWindModel, "PinkNoiseWindModel", 31, jl_Object, [iocmw_WindModel], 1, [0,0,0], () => iocmw_PinkNoiseWindModel_$callClinit(), ["$_init_8", $rt_wrapFunction1(iocmw_PinkNoiseWindModel__init_), "$_init_0", $rt_wrapFunction0(iocmw_PinkNoiseWindModel__init_1), "$getAverage", $rt_wrapFunction0(iocmw_PinkNoiseWindModel_getAverage), "$setAverage", $rt_wrapFunction1(iocmw_PinkNoiseWindModel_setAverage), "$setDirection", $rt_wrapFunction1(iocmw_PinkNoiseWindModel_setDirection), "$getDirection", $rt_wrapFunction0(iocmw_PinkNoiseWindModel_getDirection),
-"$getStandardDeviation", $rt_wrapFunction0(iocmw_PinkNoiseWindModel_getStandardDeviation), "$setStandardDeviation", $rt_wrapFunction1(iocmw_PinkNoiseWindModel_setStandardDeviation), "$getTurbulenceIntensity", $rt_wrapFunction0(iocmw_PinkNoiseWindModel_getTurbulenceIntensity), "$setTurbulenceIntensity", $rt_wrapFunction1(iocmw_PinkNoiseWindModel_setTurbulenceIntensity), "$getWindVelocity0", $rt_wrapFunction3(iocmw_PinkNoiseWindModel_getWindVelocity0), "$getWindVelocity", $rt_wrapFunction2(iocmw_PinkNoiseWindModel_getWindVelocity),
-"$equals1", $rt_wrapFunction1(iocmw_PinkNoiseWindModel_equals), "$hashCode", $rt_wrapFunction0(iocmw_PinkNoiseWindModel_hashCode), "$addChangeListener", $rt_wrapFunction1(iocmw_PinkNoiseWindModel_addChangeListener), "$fireChangeEvent", $rt_wrapFunction0(iocmw_PinkNoiseWindModel_fireChangeEvent)],
+iocmw_PinkNoiseWindModel, "PinkNoiseWindModel", 31, jl_Object, [iocmw_WindModel], 1, [0,0,0], () => iocmw_PinkNoiseWindModel_$callClinit(), ["$_init_8", $rt_wrapFunction1(iocmw_PinkNoiseWindModel__init_), "$_init_0", $rt_wrapFunction0(iocmw_PinkNoiseWindModel__init_1), "$setSeed", $rt_wrapFunction1(iocmw_PinkNoiseWindModel_setSeed), "$getAverage", $rt_wrapFunction0(iocmw_PinkNoiseWindModel_getAverage), "$setAverage", $rt_wrapFunction1(iocmw_PinkNoiseWindModel_setAverage), "$setDirection", $rt_wrapFunction1(iocmw_PinkNoiseWindModel_setDirection),
+"$getDirection", $rt_wrapFunction0(iocmw_PinkNoiseWindModel_getDirection), "$getStandardDeviation", $rt_wrapFunction0(iocmw_PinkNoiseWindModel_getStandardDeviation), "$setStandardDeviation", $rt_wrapFunction1(iocmw_PinkNoiseWindModel_setStandardDeviation), "$getTurbulenceIntensity", $rt_wrapFunction0(iocmw_PinkNoiseWindModel_getTurbulenceIntensity), "$setTurbulenceIntensity", $rt_wrapFunction1(iocmw_PinkNoiseWindModel_setTurbulenceIntensity), "$getWindVelocity0", $rt_wrapFunction3(iocmw_PinkNoiseWindModel_getWindVelocity0),
+"$getWindVelocity", $rt_wrapFunction2(iocmw_PinkNoiseWindModel_getWindVelocity), "$equals1", $rt_wrapFunction1(iocmw_PinkNoiseWindModel_equals), "$hashCode", $rt_wrapFunction0(iocmw_PinkNoiseWindModel_hashCode), "$addChangeListener", $rt_wrapFunction1(iocmw_PinkNoiseWindModel_addChangeListener), "$fireChangeEvent", $rt_wrapFunction0(iocmw_PinkNoiseWindModel_fireChangeEvent)],
 iocl_Message, "Message", 49, jl_Object, [jl_Cloneable], 1025, [0,0,0], () => iocl_Message_$callClinit(), ["$_init_0", $rt_wrapFunction0(iocl_Message__init_), "$toString", $rt_wrapFunction0(iocl_Message_toString), "$replaceContents", $rt_wrapFunction1(iocl_Message_replaceContents), "$getID", $rt_wrapFunction0(iocl_Message_getID), "$getSources", $rt_wrapFunction0(iocl_Message_getSources), "$setSources", $rt_wrapFunction1(iocl_Message_setSources), "$getPriority", $rt_wrapFunction0(iocl_Message_getPriority), "$setPriority",
 $rt_wrapFunction1(iocl_Message_setPriority), "$equals1", $rt_wrapFunction1(iocl_Message_equals), "$sourcesEqual", $rt_wrapFunction2(iocl_Message_sourcesEqual), "$hashCode", $rt_wrapFunction0(iocl_Message_hashCode), "$clone0", $rt_wrapFunction0(iocl_Message_clone)]]);
 $rt_metadata([iocl_SimulationAbort, "SimulationAbort", 49, iocl_Message, [], 1, [0,0,0], () => iocl_SimulationAbort_$callClinit(), ["$getMessageDescription", $rt_wrapFunction0(iocl_SimulationAbort_getMessageDescription), "$replaceBy", $rt_wrapFunction1(iocl_SimulationAbort_replaceBy), "$_init_177", $rt_wrapFunction1(iocl_SimulationAbort__init_)],
@@ -59336,7 +59349,8 @@ ju_LinkedHashMapEntrySet, "LinkedHashMapEntrySet", 1, ju_AbstractSet, [ju_Sequen
 iocs_ThrustState, "ThrustState", 36, jl_Enum, [], 65537, [0,0,0], () => iocs_ThrustState_$callClinit(), ["$getName", $rt_wrapFunction0(iocs_ThrustState_getName), "$getNext0", $rt_wrapFunction0(iocs_ThrustState_getNext), "$getSequenceNumber", $rt_wrapFunction0(iocs_ThrustState_getSequenceNumber), "$isThrusting", $rt_wrapFunction0(iocs_ThrustState_isThrusting), "$toString", $rt_wrapFunction0(iocs_ThrustState_toString)],
 juf_Predicate, 0, jl_Object, [], 1537, 0, 0, 0,
 iocmw_MultiLevelPinkNoiseWindModel, "MultiLevelPinkNoiseWindModel", 31, jl_Object, [iocmw_WindModel], 1, [0,0,0], () => iocmw_MultiLevelPinkNoiseWindModel_$callClinit(), ["$_init_0", $rt_wrapFunction0(iocmw_MultiLevelPinkNoiseWindModel__init_0), "$addWindLevel", $rt_wrapFunction4(iocmw_MultiLevelPinkNoiseWindModel_addWindLevel), "$clearLevels", $rt_wrapFunction0(iocmw_MultiLevelPinkNoiseWindModel_clearLevels), "$getWindVelocity0", $rt_wrapFunction3(iocmw_MultiLevelPinkNoiseWindModel_getWindVelocity), "$getWindVelocity",
-$rt_wrapFunction2(iocmw_MultiLevelPinkNoiseWindModel_getWindVelocity0), "$setAltitudeReference", $rt_wrapFunction1(iocmw_MultiLevelPinkNoiseWindModel_setAltitudeReference), "$equals1", $rt_wrapFunction1(iocmw_MultiLevelPinkNoiseWindModel_equals), "$hashCode", $rt_wrapFunction0(iocmw_MultiLevelPinkNoiseWindModel_hashCode), "$addChangeListener", $rt_wrapFunction1(iocmw_MultiLevelPinkNoiseWindModel_addChangeListener), "$fireChangeEvent", $rt_wrapFunction0(iocmw_MultiLevelPinkNoiseWindModel_fireChangeEvent)],
+$rt_wrapFunction2(iocmw_MultiLevelPinkNoiseWindModel_getWindVelocity0), "$setAltitudeReference", $rt_wrapFunction1(iocmw_MultiLevelPinkNoiseWindModel_setAltitudeReference), "$setSeed", $rt_wrapFunction1(iocmw_MultiLevelPinkNoiseWindModel_setSeed), "$equals1", $rt_wrapFunction1(iocmw_MultiLevelPinkNoiseWindModel_equals), "$hashCode", $rt_wrapFunction0(iocmw_MultiLevelPinkNoiseWindModel_hashCode), "$addChangeListener", $rt_wrapFunction1(iocmw_MultiLevelPinkNoiseWindModel_addChangeListener), "$fireChangeEvent",
+$rt_wrapFunction0(iocmw_MultiLevelPinkNoiseWindModel_fireChangeEvent)],
 iocl_MessageSet$1, "MessageSet$1", 49, jl_Object, [ju_Iterator], 0, [iocl_MessageSet,0,0], 0, ["$_init_116", $rt_wrapFunction2(iocl_MessageSet$1__init_), "$hasNext", $rt_wrapFunction0(iocl_MessageSet$1_hasNext), "$next1", $rt_wrapFunction0(iocl_MessageSet$1_next0), "$remove0", $rt_wrapFunction0(iocl_MessageSet$1_remove), "$next", $rt_wrapFunction0(iocl_MessageSet$1_next)],
 iocu_WorldCoordinate, "WorldCoordinate", 44, jl_Object, [jl_Cloneable], 1, [0,0,0], 0, ["$_init_12", $rt_wrapFunction3(iocu_WorldCoordinate__init_0), "$getAltitude", $rt_wrapFunction0(iocu_WorldCoordinate_getAltitude), "$getLongitudeRad", $rt_wrapFunction0(iocu_WorldCoordinate_getLongitudeRad), "$getLongitudeDeg", $rt_wrapFunction0(iocu_WorldCoordinate_getLongitudeDeg), "$getLatitudeRad", $rt_wrapFunction0(iocu_WorldCoordinate_getLatitudeRad), "$getLatitudeDeg", $rt_wrapFunction0(iocu_WorldCoordinate_getLatitudeDeg),
 "$toString", $rt_wrapFunction0(iocu_WorldCoordinate_toString), "$equals1", $rt_wrapFunction1(iocu_WorldCoordinate_equals), "$hashCode", $rt_wrapFunction0(iocu_WorldCoordinate_hashCode)],
@@ -59460,7 +59474,7 @@ os_Logger, 0, jl_Object, [], 1537, 0, 0, 0,
 otes_TeaVMLogger, "TeaVMLogger", 18, jl_Object, [os_Logger], 1, [0,0,0], 0, ["$_init_", $rt_wrapFunction1(otes_TeaVMLogger__init_), "$trace", $rt_wrapFunction1(otes_TeaVMLogger_trace), "$debug", $rt_wrapFunction1(otes_TeaVMLogger_debug), "$info", $rt_wrapFunction1(otes_TeaVMLogger_info), "$info0", $rt_wrapFunction2(otes_TeaVMLogger_info0), "$warn", $rt_wrapFunction1(otes_TeaVMLogger_warn1), "$warn2", $rt_wrapFunction2(otes_TeaVMLogger_warn), "$warn1", $rt_wrapFunction2(otes_TeaVMLogger_warn0), "$error2", $rt_wrapFunction1(otes_TeaVMLogger_error),
 "$error1", $rt_wrapFunction2(otes_TeaVMLogger_error0), "$error0", $rt_wrapFunction2(otes_TeaVMLogger_error1)],
 jur_RandomGenerator, 0, jl_Object, [], 1537, 0, 0, 0,
-ju_Random, "Random", 1, jl_Object, [jur_RandomGenerator, ji_Serializable], 1, [0,0,0], 0, ["$_init_0", $rt_wrapFunction0(ju_Random__init_1), "$_init_21", $rt_wrapFunction1(ju_Random__init_), "$setSeed", $rt_wrapFunction1(ju_Random_setSeed), "$nextInt", $rt_wrapFunction0(ju_Random_nextInt), "$next2", $rt_wrapFunction1(ju_Random_next), "$nextDouble", $rt_wrapFunction0(ju_Random_nextDouble), "$nextGaussian", $rt_wrapFunction0(ju_Random_nextGaussian)],
+ju_Random, "Random", 1, jl_Object, [jur_RandomGenerator, ji_Serializable], 1, [0,0,0], 0, ["$_init_0", $rt_wrapFunction0(ju_Random__init_1), "$_init_21", $rt_wrapFunction1(ju_Random__init_), "$setSeed0", $rt_wrapFunction1(ju_Random_setSeed), "$nextInt", $rt_wrapFunction0(ju_Random_nextInt), "$next2", $rt_wrapFunction1(ju_Random_next), "$nextDouble", $rt_wrapFunction0(ju_Random_nextDouble), "$nextGaussian", $rt_wrapFunction0(ju_Random_nextGaussian)],
 jl_Runnable, 0, jl_Object, [], 1537, 0, 0, 0,
 jur_PossessiveQuantifierSet, "PossessiveQuantifierSet", 2, jur_LeafQuantifierSet, [], 0, [0,0,0], 0, ["$_init_74", $rt_wrapFunction3(jur_PossessiveQuantifierSet__init_), "$matches1", $rt_wrapFunction3(jur_PossessiveQuantifierSet_matches)],
 ju_Locale, "Locale", 1, jl_Object, [jl_Cloneable, ji_Serializable], 17, [0,0,0], () => ju_Locale_$callClinit(), ["$_init_114", $rt_wrapFunction2(ju_Locale__init_1), "$_init_43", $rt_wrapFunction3(ju_Locale__init_0), "$equals1", $rt_wrapFunction1(ju_Locale_equals), "$getCountry", $rt_wrapFunction0(ju_Locale_getCountry), "$getLanguage", $rt_wrapFunction0(ju_Locale_getLanguage), "$hashCode", $rt_wrapFunction0(ju_Locale_hashCode), "$toString", $rt_wrapFunction0(ju_Locale_toString), "$toLanguageTag", $rt_wrapFunction0(ju_Locale_toLanguageTag)],

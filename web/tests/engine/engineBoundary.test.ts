@@ -286,6 +286,43 @@ describe('error envelopes, from the Java side', () => {
     ).toThrow(/repeat|level 2/i);
   });
 
+  /**
+   * Upstream's 4-arg `addWindLevel` builds each level's sub-model with the
+   * NO-ARG `PinkNoiseWindModel` constructor, which seeds itself from
+   * `new Random().nextInt()`. Nothing else seeded it: `setRandomSeed` only
+   * stores an int on `SimulationConditions` and never reaches the wind model,
+   * and the explicit seeding at the bridge's single-level branch is on the
+   * other side of the `if`. So a TURBULENT multi-level profile was freshly
+   * random on every run - five runs of one design at `randomSeed: 7` came back
+   * 12.26 m, 232.44 m, 8.58 m, 14.86 m and 204.35 m - while single-level runs
+   * repeated exactly. `WindProfileDialog` ships and makes per-level stddev
+   * editable, and `windSweep` compares runs across a changed parameter, so the
+   * comparison was against noise.
+   *
+   * Both halves matter. Same-seed-repeats alone would also pass if the
+   * turbulence were simply dead, so the different-seed case is what says the
+   * seed actually reaches the levels.
+   */
+  it('gives one turbulent profile the same flight twice at one seed', () => {
+    const fly = (randomSeed: number) => {
+      const d = build();
+      d.setMotorById('tube', C6);
+      return d.simulate({
+        launchRodLength: 1,
+        randomSeed,
+        windLevels: [
+          { altitude: 0, speed: 6, direction: Math.PI / 2, stddev: 2 },
+          { altitude: 600, speed: 14, direction: Math.PI / 2, stddev: 4 },
+        ],
+      } as never).summary.maxAltitude;
+    };
+
+    const first = fly(7);
+    expect(first).toBeGreaterThan(0);
+    expect(fly(7)).toBe(first);
+    expect(fly(8)).not.toBe(first);
+  });
+
   it('still flies a profile with one level per altitude', () => {
     const d = build();
     d.setMotorById('tube', C6);
