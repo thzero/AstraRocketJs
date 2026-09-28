@@ -195,19 +195,19 @@ export function deploymentConfigs(w: OrkWriter, depth: number, node: ComponentNo
 }
 
 /**
- * The fin fillet: the glue bead along the root (see readFillet). The old
- * hard-coded 0.0 + Cardboard silently deleted a designer's epoxy fillets from
- * their own .ork on every save; the Cardboard fallback below is the same
- * literal, used only when the design names no fillet material of its own.
+ * The fin fillet: the glue bead along the root (see readFillet). The node's own
+ * radius and material are written when it has them, so a save cannot delete a
+ * designer's epoxy fillets from their own .ork.
  *
- * That fallback is not arbitrary: Cardboard at 680 kg/m3 is what the KERNEL
- * uses for a fillet with no material (ApplicationPreferences
- * .getDefaultComponentMaterial for BULK), so the mass this app flies and the
- * mass desktop OpenRocket computes from the file it writes agree either way.
+ * The Cardboard fallback applies only when the design names no fillet material,
+ * and is not arbitrary: Cardboard at 680 kg/m3 is what the KERNEL uses for a
+ * fillet with no material (ApplicationPreferences.getDefaultComponentMaterial
+ * for BULK), so the mass this app flies and the mass desktop OpenRocket computes
+ * from the file it writes agree either way.
  *
  * The group is written only when the design carries one, the way `material`
- * above does. It used to default to PaperProducts alongside whatever material
- * name the node had, so a Fiberglass fillet was filed under paper.
+ * above does. Defaulting it to PaperProducts would file a Fiberglass fillet
+ * under paper.
  */
 export function filletXml(w: OrkWriter, depth: number, node: ComponentNode): void {
   w.emit(depth, `<filletradius>${num(node, 'filletRadius', 0)}</filletradius>`);
@@ -230,10 +230,10 @@ export function filletXml(w: OrkWriter, depth: number, node: ComponentNode): voi
 /**
  * A fin set's placement around the body. The desktop writes <angleoffset>
  * and the 15.03-compat <rotation> from the SAME value
- * (RocketComponentSaver.java:125-130: both are angleOffset in degrees).
- * This writer used to put the real angle only in <rotation> and 0.0 in
- * <angleoffset>, so a reader that trusts the modern element, as the desktop
- * does, unrotated every fin set this app saved.
+ * (RocketComponentSaver.java:125-130: both are angleOffset in degrees), so both
+ * get the real angle here. Writing it only into the 15.03-compat <rotation>
+ * leaves a reader that trusts the modern element, as the desktop does, to read
+ * every fin set this app saves as having no rotation at all.
  */
 export function finAngleXml(w: OrkWriter, depth: number, node: ComponentNode, method: 'relative' | 'fixed'): void {
   const deg = (num(node, 'rotation', 0) * 180) / Math.PI;
@@ -277,8 +277,8 @@ export function thicknessXml(w: OrkWriter, depth: number, node: ComponentNode, f
 /**
  * A recovery device's packed size, from the node (see readPackedSize). The
  * MassObject constructor constants are the fallback only when the design
- * genuinely never said; they used to be written unconditionally, which
- * threw away the packed length the reader had just brought in.
+ * genuinely never said; writing them unconditionally would throw away the packed
+ * length the reader brought in.
  */
 export function packedXml(w: OrkWriter, depth: number, node: ComponentNode): void {
   w.emit(depth, `<packedlength>${num(node, 'length', COMPONENT_DEFAULTS.recovery.packedLength)}</packedlength>`);
@@ -299,12 +299,13 @@ export function shapeParamXml(w: OrkWriter, depth: number, node: ComponentNode):
  * A radius that may be automatic: the number when the part carries one, the
  * sentinel `auto` when it does not.
  *
- * Inner structure takes its outer radius from whatever it sits in, so `auto`
- * is a real answer rather than a missing one. This used to be hard-wired to
- * `auto`, which threw away a ring the user had sized by hand: it exported as
- * automatic and came back the width of its body tube.
+ * Inner structure takes its outer radius from whatever it sits in, so `auto` is
+ * a real answer rather than a missing one. Hard-wiring `auto` throws away a ring
+ * the user sized by hand: it exports as automatic and comes back the width of
+ * its body tube.
+ *
+ * Emitted as `<packedradius>`, in the `auto <value>` form MassObjectSaver writes.
  */
-/** `<packedradius>`, with the `auto <value>` form MassObjectSaver writes. */
 export function packedRadiusXml(node: ComponentNode, fallback: number): string {
   const v = num(node, 'radius', fallback);
   return `<packedradius>${node['radiusAuto'] === true ? `auto ${v}` : v}</packedradius>`;

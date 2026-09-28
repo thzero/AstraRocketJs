@@ -1,8 +1,8 @@
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import { num } from '../tree/nodeProps';
 import { finCutContour, finRootChord } from '../tree/finPlanform';
-// Shared with the .ork reader and writer, so a part that lost a tag is cut at
-// the size it was read and saved as (the engine-block wall used to differ).
+// Shared with the .ork reader and writer, so a part that lost a tag is cut at the
+// size it was read and saved as.
 import { COMPONENT_DEFAULTS } from './componentDefaults';
 // The enclosing-tube walk and the ring radius resolution moved to their own
 // module when the 3D view and the 2D schematic needed them: importing them

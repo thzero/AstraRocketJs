@@ -216,9 +216,9 @@ export function NumberField({
 }
 
 /**
- * One type-specific field of the selected part, by its declared kind. Six
- * inline branches used to build the same NumberField in the panel's render
- * loop; the kind switch lives here so the panel body reads as a list of rows.
+ * One type-specific field of the selected part, by its declared kind. The kind
+ * switch lives here, rather than as inline branches in the panel's render loop,
+ * so the panel body reads as a list of rows.
  */
 export function FieldRow({
   node,

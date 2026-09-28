@@ -305,9 +305,9 @@ describe('mount ↔ motor reconciliation', () => {
 
 /**
  * The motor loadout is per simulation, which is OpenRocket's "flight
- * configuration". It used to be one workspace-level map, so a staged rocket
- * could only ever be flown one way: seating a different sustainer motor changed
- * it for every simulation at once, and had to age all of their results.
+ * configuration". Shared workspace-wide, a staged rocket could only be flown one
+ * way: seating a different sustainer motor would change it for every simulation at
+ * once and age all of their results.
  */
 describe('each simulation owns its motor loadout', () => {
   beforeEach(() => {
@@ -441,22 +441,10 @@ describe('simulation run guards', () => {
 });
 
 /**
- * The workbench has three tabs, and two of them own a family of views: Design
- * the design ones, Results the flight ones. Picking either end has to move the
- * other, or a run finishes on a tab you are not looking at (which is exactly
- * what it used to do) or the view switch quietly draws a flight chart on the
- * Design tab.
- *
- * `designPane` is the second axis — which half of the Design tab a phone shows.
- * It is not a tab, so moving between its two values must never change what the
- * workbench is doing.
- */
-/**
- * A design edit used to NULL every cached result, so the numbers you were
- * comparing a change against vanished the moment you made it, the Results tab
- * came and went on every keystroke, and "run outdated simulations
- * automatically" had no state it could ever mean. They are now kept and
- * flagged, the way OpenRocket does it.
+ * A design edit FLAGS every cached result rather than nulling it, the way
+ * OpenRocket does. Nulled, the numbers a change is being compared against vanish
+ * the moment it is made, the Results tab comes and goes on every keystroke, and
+ * "run outdated simulations automatically" has no state it can mean.
  */
 describe('results age instead of being destroyed', () => {
   const seed = (): void => {
@@ -583,9 +571,9 @@ describe('running a selection', () => {
 
   /**
    * Running IS asking to see the answer, so every run lands on Results - a batch
-   * as much as a single flight. A batch used to stay put on the theory that
-   * twelve rows should not yank you onto whichever finished last; in practice
-   * that left a click with nothing behind it after every run.
+   * as much as a single flight. Leaving a batch where it is, so that twelve rows
+   * do not yank the user onto whichever finished last, leaves a click with nothing
+   * behind it after every run.
    */
   it('shows the run, one flight or a batch', async () => {
     await s().runSims([s().activeId], {} as SimPrefs);
@@ -666,6 +654,16 @@ describe('running a selection', () => {
   });
 });
 
+/**
+ * The workbench has three tabs, and two of them own a family of views: Design the
+ * design ones, Results the flight ones. Picking either end has to move the other,
+ * or a run finishes on a tab the user is not looking at, or the view switch draws
+ * a flight chart on the Design tab.
+ *
+ * `designPane` is the second axis - which half of the Design tab a phone shows. It
+ * is not a tab, so moving between its two values must never change what the
+ * workbench is doing.
+ */
 describe('tab and view stay in step', () => {
   beforeEach(() => s().resetWorkspace());
 
@@ -696,9 +694,9 @@ describe('tab and view stay in step', () => {
   });
 
   it('never strands you on Results with no result', () => {
-    // Opening or starting a design writes `view` directly. It used to leave the
-    // tab behind, which left a Results tab with nothing to show and a view
-    // switch with every button hidden.
+    // Opening or starting a design writes `view` directly. Leaving the tab behind
+    // gives a Results tab with nothing to show and a view switch with every
+    // button hidden.
     s().setView('flight');
     s().setTab('results');
     expect(s().tab).toBe('results');
@@ -799,8 +797,8 @@ describe('openDesign is race-safe', () => {
       loadedMeta: null,
     });
 
-    // A is slow, B is instant — so B lands first and A's continuation arrives
-    // afterwards, which is exactly the interleaving that used to win.
+    // A is slow, B is instant - so B lands first and A's continuation arrives
+    // afterwards, which is the interleaving that has to lose.
     let releaseA!: () => void;
     const slowA = new Promise<void>((r) => (releaseA = r));
     const active: string[] = [];
@@ -858,7 +856,7 @@ describe('replacing the workspace is race-safe across actions, not just openDesi
 
   it('a slow import does not overwrite the fast one the user opened after it', async () => {
     // Import a large .ork then a small one: the small one lands first, and the
-    // large one used to arrive afterwards and replace it.
+    // large one must not arrive afterwards and replace it.
     let releaseSlow!: () => void;
     const slow = new Promise<void>((r) => (releaseSlow = r));
     vi.doMock('../../src/services/loadOrk', () => ({
@@ -921,10 +919,10 @@ describe('replacing the workspace is race-safe across actions, not just openDesi
 });
 
 /**
- * Every library call that reports a refused write returns a boolean, and the
- * store used to discard all of them. For openDesign the consequence was the
- * one designLibrary.setActive documents: this session edits B while the
- * library still names A, and the next launch reopens A.
+ * Every library call that reports a refused write returns a boolean, and the store
+ * has to honor it. Discarded, the consequence for openDesign is the one
+ * designLibrary.setActive documents: this session edits B while the library still
+ * names A, and the next launch reopens A.
  */
 describe('openDesign honors a refused setActive', () => {
   beforeEach(() => s().resetWorkspace());
@@ -1031,13 +1029,13 @@ describe('the safety codes stop a run', () => {
 /**
  * The workspace the store hands to persistence CARRIES its flight results.
  *
- * It used to strip them, so a reload lost every run. The split now happens one
- * level down, in `workspaceStore.save`: the design blob stays lean and the
- * flights go to their own key, written only when a run has changed them. That
- * keeps the per-keystroke autosave cheap without throwing the results away.
+ * Stripping them here would lose every run on reload. The split happens one level
+ * down, in `workspaceStore.save`: the design blob stays lean and the flights go to
+ * their own key, written only when a run has changed them, which keeps the
+ * per-keystroke autosave cheap without throwing the results away.
  *
- * Last in the file on purpose - it swaps the design-library singleton, which has
- * no restore, so anything after it would inherit the stub.
+ * Last in the file on purpose - it swaps the design-library singleton, which has no
+ * restore, so anything after it would inherit the stub.
  */
 describe('what reaches storage', () => {
   it('hands the flight results over rather than dropping them', async () => {

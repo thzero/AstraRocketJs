@@ -10,9 +10,8 @@ import { RangeSlider } from './RangeSlider';
  * manufacturer dropdown, class chips, impulse bounds, diameter range and
  * plugged box, over the same filter state. Each dialog lays them out differently (the picker
  * stacks them, the dashboard puts them on one row), so this is a set of pieces
- * rather than one bar. They were two verbatim copies, and the dashboard's
- * diameter readout had drifted to raw millimeters while the picker's followed
- * the user's unit.
+ * rather than one bar. Kept as two copies they drift, as the diameter readout
+ * does: raw millimeters on one side, the user's unit on the other.
  *
  * One piece is NOT shared: fitting the mount only means something where there is
  * a mount, which is the picker. The dashboard is a reference browser with no
@@ -69,8 +68,7 @@ export function useMotorFilter(catalog: CatalogMotor[], init: MotorFilterInit = 
 
   /**
    * Ticking pulls the diameter ceiling down to what the mount takes; clearing it
-   * gives back whatever ceiling the user had. The restriction is then a thing
-   * you can SEE, which is the whole point of the box.
+   * gives back whatever ceiling the user had, so the restriction is visible.
    *
    * It never WIDENS a narrower choice: someone who asked for 13 mm and up did
    * not ask for 18 mm just by ticking a box.

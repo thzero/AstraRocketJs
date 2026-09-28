@@ -143,16 +143,8 @@ const build = (res: FlightResult, over: Partial<ReturnType<typeof defaultExportO
   );
 
 /**
- * These fields exist so a Mustache template written for desktop OpenRocket
- * renders correctly here. Mustache resolves an unknown key to an empty string,
- * so a missing one is not an error — it is a KML with no colors and
- * coordinates that have lost their altitude. Hence the belt-and-braces checks.
- */
-/**
- * `hexToRgbInt` is what turns the branch color picker into an exported KML
- * color, and it had no test at all - its renamed twin `hexToRgbTuple` in
- * `reportPdf` has a full block covering bad input, and this one had nothing.
- * They used to share the name `hexToRgb`.
+ * `hexToRgbInt` turns the branch color picker into an exported KML color. Its twin
+ * `hexToRgbTuple` in `reportPdf` covers the same bad input separately.
  */
 describe('hexToRgbInt', () => {
   it('packs #rrggbb into one 0xRRGGBB integer', () => {
@@ -186,6 +178,12 @@ describe('hexToRgbInt', () => {
   });
 });
 
+/**
+ * These fields exist so a Mustache template written for desktop OpenRocket renders
+ * correctly here. Mustache resolves an unknown key to an empty string, so a missing
+ * one is not an error - it is a KML with no colors and coordinates that have lost
+ * their altitude. Hence the belt-and-braces checks.
+ */
 describe('desktop model parity', () => {
   it('gives each branch a palette color and contiguous index', () => {
     const m = build(staged);
@@ -204,10 +202,10 @@ describe('desktop model parity', () => {
   });
 
   it('renders every color opaque, whether defaulted or picked', () => {
-    // Alpha used to depend on HOW the color was obtained: the derived ground
-    // shade was drawn at 0xd0 and a picked one at 0xff, so choosing exactly the
-    // default gave a different result from leaving it alone. A color is a
-    // value, not a value plus a provenance flag.
+    // Alpha must not depend on HOW the color was obtained: a derived ground shade
+    // at 0xd0 against a picked one at 0xff makes choosing exactly the default
+    // differ from leaving it alone. A color is a value, not a value plus a
+    // provenance flag.
     const defaulted = build(staged).branches[0]!;
     const picked = build(staged, {
       branchGroundColors: new Map([[0, 0xff2d55]]), // the default, chosen explicitly
@@ -447,8 +445,8 @@ describe('stage colors', () => {
   it('each color lands on its own KML element', () => {
     // Assert on the RENDERED bytes, with the surrounding <Style id> included.
     // The model can be right while the template wires the wrong field into the
-    // wrong element - and the pin used to share the path's token, so a careless
-    // find-and-replace repaints the flight path.
+    // wrong element, and the pin and the path have separate tokens precisely so a
+    // careless find-and-replace cannot repaint the flight path.
     const kml = renderKml(
       build(staged, {
         branchColors: new Map([[0, 0x112233]]),
@@ -458,8 +456,8 @@ describe('stage colors', () => {
     );
     expect(kml).toContain('<Style id="flightPath0"><LineStyle><color>ff332211</color>');
     expect(kml).toContain('<Style id="groundTrack0"><LineStyle><color>ff665544</color>');
-    // The pin, structurally: the color inside the waypoint style's
-    // IconStyle, which is the element that used to carry the path's token.
+    // The pin, structurally: the color inside the waypoint style's IconStyle, not
+    // the path's token.
     const iconStyle = /<Style id="waypoint0">[\s\S]*?<IconStyle>\s*<color>([0-9a-f]{8})<\/color>/.exec(kml);
     expect(iconStyle?.[1]).toBe('ff998877');
     // ...and the flight-path line still has its own, unchanged by the pin.
@@ -897,8 +895,8 @@ describe('kernel component names', () => {
   });
 
   it('names the device in the EXPORT language, not the app language', () => {
-    // It used to be the one English word among translated pin names, because
-    // the de-bracketing produced a humanized key rather than a translation.
+    // Translated, not humanized from the de-bracketed key, which would leave one
+    // English word among the translated pin names.
     const kml = renderKml(
       buildFlightPathModel(
         unnamed,

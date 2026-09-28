@@ -68,6 +68,14 @@
 # no view here reports as its own number, so it is recorded as an inherited
 # inaccuracy instead. Revisit if roll rate is ever published as a result.
 #
+# REVERSED THE SAME DAY: TAKEN, on the user's decision, as
+# `PATCH(offaxis-roll-inertia)`. Their files are written against an older
+# kernel and could not be dropped in; the two hunks (the motor guard removed,
+# the tube spread added) were ported onto upstream's current files. Measured on
+# a split pair 15 mm off the axis, upstream's loaded roll inertia was 4.9% under
+# the identical `double` cluster; patched, the two agree to the last digit. See
+# patches/LEDGER.md, "Off-axis tubes and motors carry their roll inertia".
+#
 # NOT TAKEN: their seeded `addWindLevel` (`MultiLevelPinkNoiseWindModel`).
 # Applicable, and not done in this pass. This bridge builds the multi-level
 # model through upstream's unseeded overload, so a flight with turbulent wind

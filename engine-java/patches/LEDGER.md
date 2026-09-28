@@ -46,7 +46,7 @@ diffs remain in `docs/rasaero/diffs/`. `extract --check` now prints both lists
 on every run, so the distinction is visible instead of having to be
 reconstructed.
 
-## The 16 patches
+## The 18 patches
 
 | File (under `info/openrocket/core/`) | Why |
 | --- | --- |
@@ -66,6 +66,8 @@ reconstructed.
 | `simulation/SimulationOptions.java` | Dropped the `java.nio.file` lookup-table subsystem — absent from TeaVM's classlib. |
 | `unit/Unit.java` | Dropped `Locale.Category` — absent from TeaVM's classlib. |
 | `util/ArrayList.java` | `clone()` rewritten for WASM-GC (the `ClassCastException` documented at `build.gradle:81-82`). |
+| `masscalc/MassCalculation.java` | `PATCH(offaxis-roll-inertia)`: a motor in a single off-axis mount gets its parallel-axis roll inertia. See "Off-axis tubes and motors carry their roll inertia". |
+| `rocketcomponent/RingComponent.java` | `PATCH(offaxis-roll-inertia)`: an off-axis inner tube, alone or clustered, adds its instances' parallel-axis spread to its roll inertia. Same section. |
 
 Both `LongUUID` files now carry a `PATCH(teavm-uuid)` marker, so the reason no
 longer has to be reverse-engineered from a diff. Every patch in the table now
@@ -1097,3 +1099,96 @@ outlines are indistinguishable from having sent no outline.
 - **Found by:** the 2026-09-27 review of mmrocket-sim (`extract/MMROCKET-SIM`),
   which fixed the same upstream behavior in their own kernel. Upstreamable: the
   rollback tells the caller nothing in desktop OpenRocket either.
+
+
+---
+
+## Off-axis tubes and motors carry their roll inertia - 2026-09-27
+
+`PATCH(offaxis-roll-inertia)`, in `masscalc/MassCalculation.java` and
+`rocketcomponent/RingComponent.java`. The first deliberate PHYSICS divergence
+from upstream in this kernel: every patch before it is a TeaVM gap, a
+determinism fix, a RASAero extension, or a refusal the bridge reads. It was
+taken on the user's decision after the 2026-09-27 mmrocket-sim review had
+recorded it as skipped (see `extract/MMROCKET-SIM`).
+
+**The defect, upstream's at `98f05af97`.** A mass at distance r from the roll
+axis adds m * r^2 to roll inertia. Upstream gives that term to pods and parallel
+stages (their children are placed off-axis and `RigidBody.rebase` adds it) and
+to the motors of a multi-motor cluster (an explicit `r^2` loop). It gives it to
+nothing else an inner tube holds:
+
+- `RingComponent.getComponentCG()` puts a single-instance tube on the axis,
+  ignoring `radialPosition`, and its rotational unit inertia is the ring's own
+  `(ro^2 + ri^2) / 2`. A split-cluster tube therefore has no transport term.
+- A clustered tube's CG is the mean of its instance offsets, and its unit
+  inertia is still the single ring's. The tubes' spread about that mean is lost.
+- `calculateMountData` wraps the motors' `r^2` loop in `if( 1 < instanceCount )`,
+  so a single motor in a shifted tube gets none, although
+  `InnerTube.getInstanceOffsets()` carries the shift at every count.
+
+The same two motors 15 mm off the axis therefore had different roll inertia
+depending on whether they were drawn as two split tubes or one `double` cluster.
+
+**Measured**, on the JVM, with the parity scenario below (Ixx in kg m^2):
+
+| design | upstream | patched |
+| --- | --- | --- |
+| split pair, structure | 2.0617052305285663E-4 | 2.0683744390330555E-4 |
+| split pair, loaded | 2.081145230528566E-4 | 2.1958144390330558E-4 |
+| `double` cluster, structure | 2.061705230528566E-4 | 2.0683744390330555E-4 |
+| `double` cluster, loaded | 2.189145230528566E-4 | 2.1958144390330555E-4 |
+| one tube on the axis, structure | 2.0604362283547953E-4 | unchanged, bit for bit |
+| one tube on the axis, loaded | 2.0701562283547952E-4 | unchanged, bit for bit |
+
+Upstream had the split pair's loaded roll inertia 4.9% under the identical
+`double` layout. Patched, the two agree to the last digit of Ixx. Mass, CG and
+Iyy are identical before and after on every row.
+
+**The change.**
+
+- `MassCalculation.calculateMountData`: the `if( 1 < instanceCount )` guard is
+  removed, so every instance adds `eachMass * r^2`. `clusterLocalCM` sits on the
+  mount's parent axis at every count, so the term about that axis belongs to the
+  body and `rebase()` cannot add it twice. An on-axis mount's one offset is
+  `(0, 0, 0)` and adds exactly 0.0. 19 lines of divergence.
+- `RingComponent.getRotationalUnitInertia` returns the ring's own term plus a new
+  private `instanceSpreadUnitInertia()`: the mean squared distance of the
+  instance offsets from the point `getComponentCG()` already places the mass at
+  (the axis for one instance, the mean of the offsets for several). Using that
+  point means no CG moves and no pitch or yaw term appears. When the spread is
+  exactly 0.0 the method returns the upstream value untouched, so centering
+  rings, bulkheads, couplers, engine blocks, sleeves and centerline tubes see no
+  added floating-point operation. 61 lines of divergence, most of it the
+  Javadoc.
+
+**What it moves, and what it does not.** Roll inertia only: the "Rotational
+inertia" flight-data column and the divisor of roll acceleration in
+`AbstractRKSimulationStepper`, so the roll-rate transient of a flight with
+canted fins. The steady spin rate does not depend on inertia, and nothing else
+reads it. The per-fin-set roll forcing and damping coefficients are aerodynamic
+and do not move. CG, CP, margin and trajectory do not move: every existing
+golden value, including the three-tube `flight.cluster.ring3`, is unchanged, and
+both aero scorecards are unchanged (9/135 and 61/135).
+
+**Known residual**, shared with upstream's own cluster motors: the term is
+taken about the ring's PARENT axis. A tube offset d inside a pod set offset D is
+charged m * (D^2 + d^2) and misses the 2 * m * D.d cross term. Recorded, not
+modeled.
+
+- **Guard:** `ParityMain.splitClusterScenarios`, six `mass.split.*` golden lines
+  (split, `double`, and the on-axis control, each as structure and loaded).
+  `golden.txt` 342 to 348 lines; the only other line that moved is
+  `uuid.first`, which reads the process-wide `LongUUID` counter and shifts
+  because the new scenario builds three rockets earlier in the run.
+- **Divergence:** `extract/DIVERGENCE.txt` gains the two files at 61 and 19.
+  `extract --check` OK against `98f05af97`.
+- **Artifact:** both targets rebuilt. `instanceSpreadUnitInertia` appears in
+  `web/src/engine/vendor/openrocket-engine.mjs` and in
+  `web/public/engine/openrocket-engine.wasm`.
+- **Found by:** mmrocket-sim, whose version of this fix is written against an
+  older kernel (`Coordinate` rather than `CoordinateIF`, the old recursive
+  `calculateMotors`, their own subtree-override inertia fix) and could not be
+  taken as whole files. The two hunks were ported onto upstream's current files.
+- **Upstreamable,** and should be offered: the defect is in desktop OpenRocket
+  too. Retire this patch when upstream fixes it.

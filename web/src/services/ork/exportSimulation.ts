@@ -34,13 +34,13 @@ function conditionsXml(w: OrkWriter, depth: number, launch: LaunchConditions): v
   const { emit } = w;
   emit(depth, `<configid>${escapeXml(w.defaultId)}</configid>`);
   emit(depth, `<launchrodlength>${launch.launchRodLengthM ?? 0}</launchrodlength>`);
-  // The app edits launch-into-wind, the rod heading, the wind heading and
-  // the longitude (LaunchPanel), and this writer used to emit the desktop's
-  // preference defaults for all four, so a save threw the user's own
-  // settings away. Units per OpenRocketSaver.java:349-354: the rod heading
-  // is DEGREES on disk (written as radians * 360 / 2pi, like the rod angle);
-  // the wind heading is RADIANS (getDirection() written raw). The fallbacks
-  // are the desktop's own defaults, used only when the field was never set.
+  // The app edits launch-into-wind, the rod heading, the wind heading and the
+  // longitude (LaunchPanel), so all four are written from the design rather than
+  // from the desktop's preference defaults. Units per OpenRocketSaver.java:
+  // 349-354: the rod heading is DEGREES on disk (written as radians * 360 / 2pi,
+  // like the rod angle); the wind heading is RADIANS (getDirection() written
+  // raw). The fallbacks are the desktop's own defaults, used only when the field
+  // was never set.
   emit(depth, `<launchintowind>${launch.launchIntoWind === true}</launchintowind>`);
   emit(depth, `<launchrodangle>${launch.launchRodAngleDeg ?? 0}</launchrodangle>`);
   emit(depth, `<launchroddirection>${launch.launchRodDirectionDeg ?? 90}</launchroddirection>`);
@@ -51,7 +51,7 @@ function conditionsXml(w: OrkWriter, depth: number, launch: LaunchConditions): v
   emit(depth, `<launchlongitude>${launch.longitudeDeg ?? -80.6}</launchlongitude>`);
   emit(depth, `<geodeticmethod>${launch.geodetic ?? 'spherical'}</geodeticmethod>`);
   // Gravity: only written when it is NOT the default, so a file that never
-  // touched it stays byte-comparable with what we used to produce.
+  // touched it round-trips unchanged.
   if (launch.gravityModel === 'constant') {
     emit(depth, '<gravitymodel>Constant</gravitymodel>');
     emit(depth, `<constantgravity>${launch.constantGravity ?? 9.80665}</constantgravity>`);
@@ -89,9 +89,9 @@ function windXml(w: OrkWriter, depth: number, launch: LaunchConditions): void {
   const levels = launch.windLevels ?? [];
   if (levels.length) {
     // The altitude reference is an ATTRIBUTE of <wind>, exactly as
-    // OpenRocketSaver.java:367 writes it and importt/WindHandler.java:25
-    // reads it. It used to go out as a child element the desktop never
-    // looks at, so an AGL profile saved here opened on the desktop as MSL.
+    // OpenRocketSaver.java:367 writes it and importt/WindHandler.java:25 reads
+    // it. As a child element the desktop never looks at it, so an AGL profile
+    // saved here would open there as MSL.
     emit(depth, `<wind model="multilevel" altituderef="${(launch.windAltitudeReference ?? 'msl').toUpperCase()}">`);
     for (const l of levels) {
       // Attributes, not child elements, and direction in RADIANS like the

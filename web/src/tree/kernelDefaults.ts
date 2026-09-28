@@ -93,10 +93,10 @@ type KernelRow = (typeof KERNEL_DEFAULTS)[ComponentType];
  * The kernel's axial `length` default for a type, or `undefined` when the
  * factory reads none (stage, rail button, the assemblies, freeform fins).
  *
- * `position.axialLength` used to fall back to 0.025 for EVERY non-fin type,
- * which is the parachute/streamer/shock-cord default: a bulkhead or centering
- * ring that had lost its `length` was laid out 12x longer than the kernel flew
- * it, and an inner tube or tube fin set shorter.
+ * Per type, not one fallback for all: 0.025 is the parachute/streamer/shock-cord
+ * default, and applying it to every non-fin type lays out a bulkhead or centering
+ * ring that lost its `length` 12x longer than the kernel flies it, and an inner
+ * tube or tube fin set shorter.
  */
 export function kernelLength(type: ComponentType): number | undefined {
   const row: KernelRow & { length?: number } = KERNEL_DEFAULTS[type];
@@ -117,12 +117,11 @@ export const KERNEL_BODYTUBE_OUTER_RADIUS = KERNEL_DEFAULTS.bodytube.outerRadius
  * (ComponentFactory.java:205-208). The elliptical set shares `rootChord` and
  * `height` (:218-219).
  *
- * These used to live in `finPlanform.ts`, attributed to "what treeEdit and
- * orkImport write", which they never were (the editor seeds a 60 x 50 mm fin):
- * they are the kernel's, and this is the table that verifies them. A freeform
- * fin's root-chord fallback for a degenerate outline reads `rootChord` from
- * here too; that one is an app choice (the kernel refuses such an outline),
- * and it is pinned to the kernel's trapezoid so every consumer agrees.
+ * These are the KERNEL's defaults, not "what treeEdit and orkImport write" (the
+ * editor seeds a 60 x 50 mm fin), and this is the table that verifies them. A
+ * freeform fin's root-chord fallback for a degenerate outline reads `rootChord`
+ * from here too; that one is an app choice, since the kernel refuses such an
+ * outline, and it is pinned to the kernel's trapezoid so every consumer agrees.
  */
 export const FIN_DEFAULTS = {
   rootChord: KERNEL_DEFAULTS.trapezoidfinset.rootChord,

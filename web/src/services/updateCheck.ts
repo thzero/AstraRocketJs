@@ -40,10 +40,9 @@ export const UPDATE_MIN_GAP_MS = 5 * 60_000;
 /**
  * How long "Later" holds the prompt back.
  *
- * Dismissing used to be permanent for the session: one click and the app never
- * mentioned it again, however long the tab stayed open. That is a dismissal, not
- * a reminder. Long enough not to nag, short enough that a day's work does not
- * end on a stale build.
+ * Held back rather than dismissed for the session: a permanent dismissal means
+ * one click and no further mention however long the tab stays open. Long enough
+ * not to nag, short enough that a day's work does not end on a stale build.
  */
 export const UPDATE_SNOOZE_MS = 2 * 60 * 60_000;
 

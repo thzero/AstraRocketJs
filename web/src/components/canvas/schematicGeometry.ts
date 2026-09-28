@@ -175,9 +175,9 @@ export function profilePath(
 }
 
 /**
- * Pure geometry derived from the tree, info and container size, so the
- * frequently-changing state (hover, zoom, calipers, roll) no longer
- * recomputes the whole layout on every render.
+ * Pure geometry derived from the tree, info and container size, so
+ * frequently-changing state (hover, zoom, calipers, roll) does not recompute the
+ * whole layout on every render.
  */
 export function computeSchematicLayout(
   tree: RocketTree,
@@ -363,16 +363,14 @@ export function computeSchematicLayout(
  *
  * For a MASS COMPONENT the last-resort radius is the KERNEL's default
  * (ComponentFactory masscomponent radius = 0.005), not a fraction of the
- * parent. It used to be `pRadius * 0.7`, so a mass component with no `radius`
- * key — which is every one the editor creates — was drawn at ~9 mm on a 13 mm
- * tube and flown at 5 mm. A drawing that disagrees with the simulation is
- * worse than an ugly one.
+ * parent. A `pRadius * 0.7` fraction draws a mass component with no `radius` key
+ * - which is every one the editor creates - at ~9 mm on a 13 mm tube while the
+ * kernel flies it at 5 mm, and the drawing must agree with the simulation.
  *
- * Every other internal type keeps the fraction: the kernel does not read
- * `radius` for a parachute, streamer or shock cord (packed sizes are not wired
- * through, see TODO.md), so there is no simulated size to agree with, and
- * applying the 5 mm mass default to a parachute shrank the default design's
- * chute box until its glyph no longer fit.
+ * Every other internal type keeps the fraction: the kernel does not read `radius`
+ * for a parachute, streamer or shock cord (packed sizes are not wired through,
+ * see TODO.md), so there is no simulated size to agree with, and the 5 mm mass
+ * default shrinks the default design's chute box until its glyph does not fit.
  */
 export function internalExtent(node: ComponentNode, parentRadius: number): { length: number; radius: number } {
   const dflt = node.type === 'masscomponent' ? KERNEL_MASSCOMPONENT_RADIUS : parentRadius * 0.7;

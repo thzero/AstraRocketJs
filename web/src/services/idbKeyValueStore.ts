@@ -117,12 +117,11 @@ function markDegraded(): void {
  * Whether a failed write hit the storage QUOTA rather than IndexedDB itself
  * being unusable.
  *
- * The two used to be treated alike: any failed `set`/`update` flipped the
- * one-way `degraded` flag and warned that storage had fallen back to
- * localStorage for the session. A full disk is a different fact from a
- * blocked database. IndexedDB keeps working for reads and for smaller writes
- * after a QuotaExceededError, and the honest signal for it is `set`'s false,
- * which `workspaceStore.save` already turns into "storage is full".
+ * The two are not alike, so they are not reported alike: a full disk is a
+ * different fact from a blocked database. IndexedDB keeps working for reads and
+ * for smaller writes after a QuotaExceededError, so a quota failure must not
+ * flip the one-way `degraded` flag. Its signal is `set`'s false, which
+ * `workspaceStore.save` turns into "storage is full".
  */
 function isQuotaError(e: unknown): boolean {
   return !!e && typeof e === 'object' && (e as { name?: unknown }).name === 'QuotaExceededError';
@@ -247,7 +246,7 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
 
   async get(key: string): Promise<string | null> {
     // A key we had to write to the fallback is NEWER there; the IndexedDB
-    // entry, if any, is the stale one that used to shadow it.
+    // entry, if any, is the stale one.
     if (this.fellBack.has(key)) {
       const v = await this.fallback.get(key);
       if (v != null) return v;
@@ -311,10 +310,10 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
       const ok = await this.fallback.update(key, (raw) => fn(raw ?? current));
       if (ok) {
         this.fellBack.add(key);
-        // Same as `set`: without this the stale IndexedDB entry shadowed the
+        // Same as `set`: without this the stale IndexedDB entry shadows the
         // fallback in the NEXT session, where `fellBack` no longer exists. The
-        // design library index is mutated only through `update`, so this was
-        // the key that mattered most.
+        // design library index is mutated only through `update`, so it is the
+        // key this matters most for.
         try {
           await tx('readwrite', (s) => s.delete(key));
         } catch {

@@ -1,7 +1,7 @@
 /**
- * Tiny shared XML helpers for the file-format services (.ork/.rkt/.CDX1/SVG).
- * One escape implementation app-wide — the per-file copies had drifted (some
- * skipped the quote escape).
+ * Tiny shared XML helpers for the file-format services (.ork/.rkt/.CDX1/SVG). One
+ * escape implementation app-wide, since per-file copies drift apart on details
+ * like whether the quote is escaped.
  */
 
 export function escapeXml(s: string): string {

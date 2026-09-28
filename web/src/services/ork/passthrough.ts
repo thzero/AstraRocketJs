@@ -151,9 +151,9 @@ export const KNOWN_COMPONENT_TAGS: ReadonlySet<string> = new Set([
  * `referencetype` and `customreference` are here rather than carried because the
  * writer emits a `referencetype` of its own: carrying one as well would put the
  * element in the file twice. They are read and written explicitly instead, which
- * also fixes a quieter bug - the writer used to emit a hardcoded `maximum`, so a
- * design whose stability calibers were measured against a custom length came back
- * measured against its widest body tube.
+ * also keeps the writer off a hardcoded `maximum`: that brings a design whose
+ * stability calibers were measured against a custom length back measured against
+ * its widest body tube.
  */
 export const KNOWN_ROCKET_TAGS: ReadonlySet<string> = new Set([
   'name',

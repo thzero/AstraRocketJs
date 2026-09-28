@@ -109,11 +109,10 @@ export interface DriftSweep {
    * The simulation's own inputs as they stood when it flew — motor, loadout,
    * ignition, launch conditions, run overrides.
    *
-   * Staleness is not only about the DESIGN. Swapping the motor or moving the
-   * pad changes where the rocket comes down as surely as moving a fin does, and
-   * a region that quietly went on describing the old motor would be the most
-   * misleading thing on the view. Compared by reference, the same test a run
-   * uses (`sameSimInputs`).
+   * Staleness is not only about the DESIGN: swapping the motor or moving the pad
+   * changes where the rocket comes down as surely as moving a fin does, so a
+   * region must not go on describing the old motor. Compared by reference, the
+   * same test a run uses (`sameSimInputs`).
    */
   inputs: SimInputs;
   spec: WindSweepSpec;
@@ -270,11 +269,11 @@ export function surfaceWind(launch: LaunchConditions): SweepPoint {
 /**
  * The standard deviation `was`/`wasStdDev` means once the average moves to `now`.
  *
- * Untouched when the old average was zero: `turbulenceIntensity` answers a flat
- * 1 there (the kernel's own stand-in for a ratio it cannot take), and putting
- * that through would turn a still-air layer carrying a whisper of scatter into
- * one whose gusts equal the whole swept wind. The same guard the wind profile
- * editor uses when a level's speed is retyped.
+ * Untouched when the old average was zero: `turbulenceIntensity` answers a flat 1
+ * there (the kernel's own stand-in for a ratio it cannot take), and putting that
+ * through turns a still-air layer carrying a whisper of scatter into one whose
+ * gusts equal the whole swept wind. The same guard the wind profile editor applies
+ * when a level's speed is retyped.
  */
 function retune(was: number, wasStdDev: number, now: number): number {
   if (!hasIntensity(was)) return wasStdDev;

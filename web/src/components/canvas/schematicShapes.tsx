@@ -113,8 +113,8 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   const shapes: React.ReactNode[] = [];
   // Dashed "shadow" shapes (inner components, shoulders) paint AFTER the whole
   // hull: SVG stacks by document order, so a coupler overhanging into the NEXT
-  // tube used to vanish under that tube's opaque fill (while the overhang into
-  // the PREVIOUS tube, already painted, stayed visible — Eric's ebay report).
+  // tube would vanish under that tube's opaque fill, while its overhang into the
+  // PREVIOUS tube, already painted, stayed visible.
   const overlay: React.ReactNode[] = [];
   // Wireframe fin outlines and their hit surfaces, painted after overlay: while
   // the view is rolled every fin becomes a plain outline over the body (desktop
@@ -211,11 +211,10 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   };
 
   // Every component's drawn extent (layout px), unioned across instances
-  // (cluster copies, pod rings) as the shapes render. Recorded for ALL parts,
-  // not just the hovered one: this used to filter on the hovered id, which
-  // made the id an input of the whole scene build, so every hover enter and
-  // leave rebuilt every shape. A few dozen boxes per scene is nothing next to
-  // that.
+  // (cluster copies, pod rings) as the shapes render. Recorded for ALL parts, not
+  // just the hovered one: filtering on the hovered id makes that id an input of
+  // the whole scene build, so every hover enter and leave rebuilds every shape.
+  // A few dozen boxes per scene costs far less.
   const extents: HoverExtents = new Map();
   const noteHover = (n: ComponentNode, x0: number, y0: number, x1: number, y1: number) => {
     if (!n.id) return;
@@ -577,8 +576,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
       } else if (t === 'launchlug' || t === 'railbutton') {
         // 0.0097 is RailButton's own default (RailButton.java:61), which is
         // also what orkImport writes and what the kernel flies when the key is
-        // absent. The old 0.004 drew a button less than half the size of the
-        // one being simulated.
+        // absent, so the drawn button is the size of the simulated one.
         // Rail buttons are edited via 'outerDiameter' (their only size field)
         // and have no axial 'length' — a button is about as long as it is wide.
         const btnDia = t === 'railbutton' ? num(child, 'outerDiameter', KERNEL_RAILBUTTON_OUTER_DIAMETER) : 0;
@@ -610,10 +608,9 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
       } else {
         // Internal component: dashed outline inside the parent. A clustered
         // inner tube draws once per cluster position (side-view projection).
-        // Per-type stroke color + a small tag differentiate what used to be
-        // identical gray boxes (issue 2026-08-05a #21) — tubes/couplers stay
-        // neutral (they really are tube segments), payload-type parts get
-        // muted colors from the theme-safe midrange.
+        // Per-type stroke color + a small tag, so these do not read as identical
+        // gray boxes (issue 2026-08-05a #21): payload-type parts get muted
+        // colors from the theme-safe midrange.
         const TYPE_STYLE: Partial<Record<string, { stroke: string; tag: string }>> = {
           parachute: { stroke: '#b06a35', tag: 'chute' },
           streamer: { stroke: '#a08c2e', tag: 'strmr' },
@@ -622,10 +619,9 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           centeringring: { stroke: '#6f8a5c', tag: 'CR' },
           bulkhead: { stroke: '#66748c', tag: 'BH' },
           engineblock: { stroke: '#7d7050', tag: 'EB' },
-          // Couplers and inner tubes were left neutral on the grounds that they
-          // "really are tube segments". What that produced was two unlabeled
-          // gray boxes told apart only by size - and size is exactly what the
-          // 85% cap used to distort for the coupler.
+          // Couplers and inner tubes get their own ink too: left neutral they
+          // are two unlabeled gray boxes told apart only by size, and size is
+          // what the 85% cap distorts for the coupler.
           tubecoupler: { stroke: '#7f6ea8', tag: 'TC' },
           innertube: { stroke: '#3f8f6f', tag: 'IT' },
         };
@@ -793,15 +789,15 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   };
 
   /**
-   * Ink for a shoulder. It is the OWNING part's color (its override, else this
-   * steel blue), not the neutral gray every dashed annotation used to share.
+   * Ink for a shoulder: the OWNING part's color (its override, else this steel
+   * blue) rather than the gray the other dashed annotations share.
    *
    * A shoulder is a snug fit by definition - a 24 mm stub in a 26 mm tube - so
-   * its box is always within a pixel or two of the tube's own outline, and in a
-   * gray that close to the tube's stroke it was drawn and invisible. Being in
-   * the DOM is not being on screen. Tying it to the part it belongs to also says
-   * WHOSE shoulder it is, which matters where two meet: a transition's fore
-   * shoulder and the nose cone's aft shoulder can sit in the same tube.
+   * its box always falls within a pixel or two of the tube's own outline, and a
+   * gray that close to the tube's stroke is in the DOM without being on screen.
+   * Tying it to the part it belongs to also says WHOSE shoulder it is, which
+   * matters where two meet: a transition's fore shoulder and the nose cone's aft
+   * shoulder can sit in the same tube.
    */
   const SHOULDER_INK = '#4f8fa0';
 

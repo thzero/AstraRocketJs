@@ -30,11 +30,10 @@ import { FIELDS } from './componentFields';
 /**
  * A unique id for a new node.
  *
- * This was a module-scope counter minting `<type>-<n>`, which restarted at
- * zero on every page load while the persisted tree kept its ids. The second
- * session's first body tube got `bodytube-1` again, and every walker in this
- * file stops at the first match, so editing or deleting the new part edited
- * or deleted the old one. A UUID cannot collide across sessions.
+ * A UUID, not a `<type>-<n>` counter: a module-scope counter restarts at zero on
+ * every page load while the persisted tree keeps its ids, so the next session's
+ * first body tube is `bodytube-1` again. Every walker in this file stops at the
+ * first match, so editing or deleting the new part would hit the old one.
  */
 function newId(): string {
   return uuid();
@@ -55,16 +54,6 @@ export function findNode(tree: RocketTree, id: string): ComponentNode | null {
 }
 
 /**
- * Patch one node, returning a new tree.
- *
- * Path-copies only the SPINE from the root to the patched node; every sibling
- * and untouched subtree is shared with the input. This runs on every keystroke
- * in the property panel, and it used to `structuredClone` the whole design
- * first, so typing a length into a hundred-part rocket serialized a hundred
- * parts per character. The contract is unchanged: the input tree is never
- * mutated, and the result is a distinct object even when `id` is not found.
- */
-/**
  * Does this edit make the part stop being the catalog part it came from?
  *
  * The kernel answers this by calling `clearPreset()` from the setters a preset
@@ -74,9 +63,9 @@ export function findNode(tree: RocketTree, id: string): ComponentNode | null {
  * mount, comment, color and the overrides describe where it sits and how it is
  * accounted for.
  *
- * Deliberately conservative. Keeping a link that no longer matches would label
- * a hand-sized tube with somebody's part number; dropping one the desktop
- * would have kept costs nothing but the label.
+ * Deliberately conservative. Keeping a link that no longer matches would label a
+ * hand-sized tube with somebody's part number; dropping one the desktop would
+ * have kept costs nothing but the label.
  */
 function breaksPreset(type: string, patch: Partial<ComponentNode>): boolean {
   if ('preset' in patch) return false; // the picker sets the link and the dimensions together
@@ -86,6 +75,15 @@ function breaksPreset(type: string, patch: Partial<ComponentNode>): boolean {
   return keys.some((k) => dimensions.has(k));
 }
 
+/**
+ * Patch one node, returning a new tree.
+ *
+ * Path-copies only the SPINE from the root to the patched node; every sibling and
+ * untouched subtree is shared with the input. This runs on every keystroke in the
+ * property panel, so a `structuredClone` of the whole design would serialize a
+ * hundred parts per character on a hundred-part rocket. The input tree is never
+ * mutated, and the result is a distinct object even when `id` is not found.
+ */
 export function updateNode(tree: RocketTree, id: string, patch: Partial<ComponentNode>): RocketTree {
   let found = false;
   const rec = (nodes: ComponentNode[]): ComponentNode[] => {
@@ -234,9 +232,7 @@ const ALLOWED_CHILDREN: Record<string, ComponentType[]> = {
   // The list mirrors the kernel's own rule (`MassComponent.isCompatible` takes
   // any `InternalComponent`) rather than a narrower one of our own. It has to:
   // the engine builds whatever tree it is handed, and a rule tighter than the
-  // kernel's would reject a `.ork` the desktop writes happily. It was empty
-  // until now because the extracted kernel carried a stale copy of
-  // `MassComponent` that forbade children outright.
+  // kernel's would reject a `.ork` the desktop writes happily.
   masscomponent: [
     'innertube',
     'tubecoupler',
@@ -688,14 +684,13 @@ export function addStage(tree: RocketTree): { tree: RocketTree; id: string } {
  * nothing is selected. Returns the new tree and the new node's id.
  *
  * {@link allowedChildren} is ENFORCED here, not only by the Add menu. The menu
- * offers valid types for the selected part, but this is the function every
- * caller goes through, and it used to trust `selectedId` outright: a part
- * added while a fin was selected went under the fin, a bulkhead added with the
- * stage selected went straight into the stage, and the kernel then built a
- * tree the desktop would never write. Now a selection that cannot host `type`
- * yields to its nearest ancestor that can (the fin's body tube), then to the
- * stage; a type not even the stage may host is a caller bug, and throws rather
- * than silently producing an invalid design.
+ * offers valid types for the selected part, but this is the function every caller
+ * goes through, so trusting `selectedId` outright would put a part added while a
+ * fin was selected under the fin and let the kernel build a tree the desktop
+ * would never write. A selection that cannot host `type` yields to its nearest
+ * ancestor that can (the fin's body tube), then to the stage; a type not even the
+ * stage may host is a caller bug, and throws rather than silently producing an
+ * invalid design.
  */
 export function addPart(
   tree: RocketTree,

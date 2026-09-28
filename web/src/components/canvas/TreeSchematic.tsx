@@ -80,9 +80,9 @@ export function TreeSchematic({
   /**
    * Reports an export failure to the caller's note channel. Rasterizing really
    * can fail — svgToImage rejects from img.onerror, and a big rocket at 7680px
-   * can exhaust the canvas — and the awaited rejection used to go nowhere: the
-   * button just did nothing, which reads as "the export is broken" with
-   * nothing to report.
+   * can exhaust the canvas - and an awaited rejection with nowhere to go leaves
+   * the button doing nothing, which reads as "the export is broken" with nothing
+   * to report.
    */
   onError?: (message: string) => void;
   /** Nose-up view (S1 rotate / S4 phone): the horizontal layout rotates as
@@ -135,9 +135,9 @@ export function TreeSchematic({
   const pan = useRef<{ pointerX: number; pointerY: number; x0: number; y0: number; active: boolean } | null>(null);
 
   // --- measure the axial chain (memoized) ---
-  // Pure geometry derived from the tree, info and container size, so the
-  // frequently-changing state (hover, zoom, calipers, roll) no longer
-  // recomputes the whole layout on every render.
+  // Pure geometry derived from the tree, info and container size, so
+  // frequently-changing state (hover, zoom, calipers, roll) does not recompute
+  // the whole layout on every render.
   const layout = useMemo(
     () => computeSchematicLayout(tree, info, { vertical, chPx, cw, maxHeight, fillHeight, rulers }),
     [tree, info, vertical, chPx, cw, maxHeight, fillHeight, rulers],
@@ -148,17 +148,15 @@ export function TreeSchematic({
    * Arms a background pan — but does NOT start one, and deliberately does not
    * capture the pointer yet.
    *
-   * This handler runs for every press that reaches the svg, which is every
-   * press on the axial chain (nose cone, body tube, transition). It used to pan on the
-   * very first pointermove and capture the pointer immediately, so the 1-3 px
-   * of jitter in an ordinary physical click dragged the whole drawing out from
-   * under the pointer between press and release. The click then landed on the
-   * <svg> instead of the shape and selecting those parts did nothing at all —
-   * while children stayed fine, and the vertical view (which attaches neither
-   * handler) worked perfectly. Capturing on press made it worse by retargeting
-   * the release as well.
+   * This handler runs for every press that reaches the svg, which is every press
+   * on the axial chain (nose cone, body tube, transition). Panning on the first
+   * pointermove, or capturing the pointer on press, lets the 1-3 px of jitter in
+   * an ordinary physical click drag the drawing out from under the pointer between
+   * press and release: the click lands on the <svg> instead of the shape, so
+   * selecting those parts does nothing, while children and the vertical view
+   * (which attaches neither handler) stay fine.
    *
-   * Both now wait for real movement, so a click stays a click.
+   * Both wait for real movement, so a click stays a click.
    */
   const beginPan = (e: React.PointerEvent) => {
     const rect = svgRef.current?.getBoundingClientRect();

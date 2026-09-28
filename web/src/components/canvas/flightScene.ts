@@ -99,10 +99,11 @@ export function buildFlightScene(result: FlightResult, phase: PhaseColors): Flig
   for (const [type, tt] of wanted) {
     if (tt == null) continue;
     // `sp` is empty when every sample failed the finiteness filter above (a
-    // kernel failure that still returns a result object). A `!` used to silence
-    // that, so the second callout threw on `undefined.distanceTo` — inside the
-    // memo, i.e. before the component's `scenePts.length < 2` empty-state
-    // guard, taking the whole app down instead of showing "no path".
+    // kernel failure that still returns a result object). Checked rather than
+    // silenced with a `!`: the second callout would throw on
+    // `undefined.distanceTo` inside the memo, before the component's
+    // `scenePts.length < 2` guard, taking the app down instead of showing
+    // "no path".
     const pos = sp[idxAt(tt)];
     if (!pos) continue;
     if (cos.some((c) => c.pos.distanceTo(pos) < 1.5)) continue; // skip coincident label

@@ -29,11 +29,8 @@ const TONE: Record<SimStatus, string> = {
  * The simulations table: one row per flight setup over the shared design, with
  * the columns OpenRocket's own simulation tab carries.
  *
- * It replaces an accordion that could show the LIST or the selected simulation's
- * configuration but never both — a workaround for the 380px column the sim panel
- * used to live in. With its own tab there is room for the table and the editor
- * beside it, so comparing two motors is reading two rows rather than switching
- * back and forth.
+ * The tab gives room for the table and the editor beside it, so comparing two
+ * motors is reading two rows rather than switching back and forth.
  *
  * Narrow screens keep the three columns worth having (status, name, apogee) and
  * drop the rest; the table does not scroll sideways, because a phone dragging a

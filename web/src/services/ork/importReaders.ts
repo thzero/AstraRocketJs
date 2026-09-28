@@ -237,9 +237,8 @@ const readInnertube: NodeReader = (ctx, el) => {
   // tubes, each carrying its position as <radialposition> (meters) +
   // <radialdirection> (DEGREES). We keep the direction in radians (like
   // angleOffset) and only carry non-zero values so a centered tube stays
-  // clean. Previously neither was read and the writer hard-wrote 0.0, so
-  // every off-center tube collapsed onto the centerline and the next save
-  // made it permanent.
+  // clean. Unread, with the writer hard-writing 0.0, every off-center tube
+  // collapses onto the centerline and the next save makes it permanent.
   readRadial(el, n);
   // Our extension tag: the mount's physical motor-length limit.
   const mml = numTag(el, 'maxmotorlength', 0);
@@ -307,13 +306,12 @@ const readRailbutton: NodeReader = (_ctx, el) => {
   const n = base(el, 'railbutton', true);
   const rb = COMPONENT_DEFAULTS.railbutton;
   n['outerDiameter'] = numTag(el, 'outerdiameter', rb.outerDiameter);
-  // The rest of the button's geometry (RailButtonSaver.java writes all
-  // six) and its material, PASS-THROUGH like fillets: the app neither
-  // draws nor simulates them, but the exporter used to hard-write the
-  // desktop's constructor constants and a Delrin material, so a 1010
-  // button sized by hand on the desktop came back from a save as the
-  // stock 1010 button. Only carried when they differ from the defaults
-  // the writer would fall back to, so an untouched design stays clean.
+  // The rest of the button's geometry (RailButtonSaver.java writes all six)
+  // and its material, PASS-THROUGH like fillets: the app neither draws nor
+  // simulates them, so hard-writing the desktop's constructor constants and a
+  // Delrin material would bring a 1010 button sized by hand on the desktop
+  // back from a save as the stock one. Only carried when they differ from the
+  // defaults the writer falls back to, so an untouched design stays clean.
   for (const [tag, key] of [
     ['innerdiameter', 'innerDiameter'],
     ['height', 'height'],

@@ -2,10 +2,9 @@
  * The warning palette and row shell, shared by everything in the results column
  * that has to say "look at this".
  *
- * It lived inside FlightWarnings while that was the only reader. The safety
- * card's "not modeled" row is the second, and a copied class string is a
- * palette that drifts: retune the amber in one place and the other row quietly
- * keeps the old one.
+ * Shared rather than copied into each reader (FlightWarnings, the safety card's
+ * "not modeled" row): a copied class string is a palette that drifts, so retuning
+ * the amber in one place leaves the other row on the previous value.
  *
  * HIGH reads as a problem, the rest as a note. Never color alone: every row
  * that wears these also carries the ⚠ glyph and says in words what it is about.

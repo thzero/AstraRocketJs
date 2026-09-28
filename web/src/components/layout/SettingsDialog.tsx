@@ -504,11 +504,10 @@ function NumRow(props: NumRowProps) {
 }
 
 /**
- * One numeric setting. The value is held as a draft while the field has focus
- * and written on blur. It used to persist on every keystroke, and every caller
- * substitutes its default for an empty field, so backspacing "0.01" to retype
- * it wrote the default to the settings store mid-edit and the box refilled
- * itself under the cursor.
+ * One numeric setting. The value is held as a draft while the field has focus and
+ * written on blur. Persisted per keystroke it would write the caller's default
+ * mid-edit, since every caller substitutes one for an empty field, so backspacing
+ * "0.01" to retype it refills the box under the cursor.
  */
 function NumField({ label, unit, value, step, min, max, placeholder, onChange }: NumRowProps) {
   // undefined: not editing, show the stored value. Otherwise the draft.

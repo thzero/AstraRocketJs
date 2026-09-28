@@ -254,9 +254,9 @@ export interface Ranked<C extends Component> {
 
 /**
  * Filter, rank and sort in one pass. The result is every match, NOT a page of
- * them: capping belongs to the renderer, which has to be able to say how many
- * it is holding back. (The old picker sliced to 300 and then reported that
- * number as the total, so 1088 body tubes read as "300 parts".)
+ * them: capping belongs to the renderer, which has to be able to say how many it
+ * is holding back. Slicing here and reporting the slice as the total makes 1088
+ * body tubes read as "300 parts".
  */
 export function queryComponents<C extends Component>(
   list: C[],

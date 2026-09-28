@@ -126,16 +126,14 @@ export interface WorkspaceState {
    * Browser storage is not keeping the user's work (quota hit, or IndexedDB
    * blocked and we are back on the 5 MB localStorage cap).
    *
-   * A SEPARATE slot from `err` on purpose. It used to share it, and the rebuild
-   * effect clears `err` on every successful build — which happens milliseconds
-   * after load and again on every keystroke — so the one warning telling the
-   * user their work is no longer being saved was wiped before it could be read.
+   * A SEPARATE slot from `err`, because the rebuild effect clears `err` on every
+   * successful build — milliseconds after load, and again on every keystroke —
+   * and this warning has to outlive that.
+   *
    * A successful save clears ONLY the transient "full" case. `degraded` and
-   * `loadFailed` are facts about this session that a later save does not undo:
-   * `idbKeyValueStore.markDegraded()` is one-way and never notifies twice, so
-   * clearing its message on the next successful write retired it permanently —
-   * one keystroke after it appeared — and the user met the 5 MB cap later with
-   * nothing on screen to explain it. Hence the `kind`.
+   * `loadFailed` are facts about this session that a later save does not undo,
+   * and `idbKeyValueStore.markDegraded()` is one-way and never notifies twice,
+   * so a message cleared here would never be raised again. Hence the `kind`.
    */
   storageWarning: string | null;
   storageWarningKind: StorageWarningKind | null;
@@ -244,11 +242,9 @@ export interface WorkspaceState {
   /**
    * When the autosave last landed (epoch ms), or null before the first one.
    *
-   * The File menu used to carry a **Save** item. It never stood between the
-   * user and their work - editing autosaves on a 500 ms debounce and unload
-   * writes a synchronous journal - so all it really offered was the
-   * reassurance that saving was happening at all. This is that reassurance,
-   * said by the thing that actually knows (see SaveStatus).
+   * There is no Save command: editing autosaves on a 500 ms debounce, and
+   * unload writes a synchronous journal. This is what SaveStatus reads to tell
+   * the user that saving is happening at all.
    */
   lastSavedAt: number | null;
   /** The autosave landed. From useWorkspaceEffects, on a successful write. */
@@ -259,8 +255,7 @@ export interface WorkspaceState {
    * Bumped by every `hydrate`. Restoring a design is not editing it: the
    * flight-invalidation effect (useWorkspaceEffects) re-seeds its baseline on
    * a change here instead of flagging the restored results stale. Boot is one
-   * hydrate; File > Open is another, and that one carried results the effect
-   * used to age (and `autoRunOutdated` then re-flew) for nothing.
+   * hydrate; File > Open is another, and that one can arrive carrying results.
    */
   hydrationGen: number;
   hydrate: (w: {
@@ -427,9 +422,9 @@ export const selectExtraMotors = (s: WorkspaceState): Record<string, MountMotor>
  * True when the ACTIVE sim's last run threw on the design that is still loaded.
  *
  * Self-expiring by construction: it compares the recorded tree against the
- * current one, so any edit makes it false again and a retry is allowed. That is
- * the whole point — auto-run must not retry a configuration it already knows
- * fails, but it must try again the moment the user changes something.
+ * current one, so any edit makes it false again and a retry is allowed:
+ * auto-run must not retry a configuration it already knows fails, but it must
+ * try again the moment the user changes something.
  */
 export const selectRunFailed = (s: WorkspaceState): boolean => {
   const run = s.simRuns[selectActive(s).id];
@@ -439,18 +434,18 @@ export const selectRunFailed = (s: WorkspaceState): boolean => {
 /**
  * A motor is usable only if it carries a full thrust curve.
  *
- * Re-exported from `services/runnability`, which is where the whole "can this
- * row fly" question lives now so the Run button and the run loop share it.
+ * Re-exported from `services/runnability`, which owns the "can this row fly"
+ * question so the Run button and the run loop share one answer.
  */
 export { hasThrustCurve };
 
 /**
  * Repair a persisted workspace so a stale/partial blob can't blank the app.
- * We merge each launch over the current defaults (a `launch` missing fields
- * would blank the Launch panel) and drop any stale results. A curve-less motor
- * is KEPT as-is — the rebuild no longer seats it (so it can't blank the app),
- * the run stays blocked ("no motor"), and an unresolved .ork motor is never
- * silently replaced with a default. Only a wholly-missing motor falls back to C6.
+ * Each launch is merged over the current defaults (a `launch` missing fields
+ * would blank the Launch panel). A curve-less motor is KEPT as-is: the rebuild
+ * does not seat it, so it cannot blank the app, the run stays blocked ("no
+ * motor"), and an unresolved .ork motor is never silently replaced with a
+ * default. Only a wholly-missing motor falls back to C6.
  */
 function sanitizeSims(sims: Simulation[]): Simulation[] {
   const launchDefaults = loadSettings().launchDefaults;
@@ -519,23 +514,21 @@ function uniqueSimName(sims: Simulation[], label: (n: number) => string, start: 
  * design views, Results the flight ones. Rocket and Simulate show no view at
  * all, so a caller sitting on either is left where it is.
  *
- * Every write of `view` goes through this. Writing the two apart is how you end
- * up on a Results tab with no result and an empty view switch, which is exactly
- * what opening a new design from that tab used to do.
+ * Every write of `view` goes through this. Writing the two apart lands you on a
+ * Results tab with no result and an empty view switch.
  */
 /**
  * One monotonic counter for "which workspace is open".
  *
- * It began as openDesign's own token, which defended that action against
- * ANOTHER openDesign and nothing else. Every other way of replacing the
- * workspace went unguarded: import a large .ork then a small one and the small
- * one lands first, the large one overwriting it; open a library design and then
+ * Every action that replaces the workspace races with every other, not just
+ * with itself: import a large .ork then a small one and the small one lands
+ * first, with the large one overwriting it; open a library design and then
  * import, and the import's `setActiveId(null)` lands before openDesign's
- * continuation, which then flushes the imported rocket out under a null id
- * (a stray entry) and hydrates the library design over the top of it.
+ * continuation, which flushes the imported rocket out under a null id (a stray
+ * entry) and hydrates the library design over the top of it.
  *
- * So every action that REPLACES the workspace bumps it, and every continuation
- * past an await re-checks before it touches the store.
+ * So every action that REPLACES the workspace bumps this, and every
+ * continuation past an await re-checks before it touches the store.
  */
 let workspaceGen = 0;
 /** Sequence for design-list refreshes; see refreshDesigns. */
@@ -653,10 +646,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   /**
    * Put the recorded INPUTS back, and carry the live results across.
    *
-   * History entries hold no results (see {@link snap}), so restoring one used to
-   * blank every flight the user had — an undo of a typo threw away numbers that
-   * were still perfectly readable. The design did change, so what comes back is
-   * flagged outdated rather than presented as current.
+   * History entries hold no results (see {@link snap}), so the live ones are
+   * carried across rather than blanked: an undo of a typo must not throw away
+   * numbers that are still readable. The design did change, so what comes back
+   * is flagged outdated rather than presented as current.
    */
   const restore = (e: HistoryEntry) => {
     const live = new Map(get().sims.map((x) => [x.id, x]));
@@ -712,12 +705,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
    * Write the open design out now, ahead of switching away from it. False if
    * storage refused the write.
    *
-   * The refusal used to be swallowed here on the theory that "the banner
-   * already says so". It did not: only the debounced autosave's catch raises
-   * the banner, and File > Save calls this directly, so a Save within the
-   * 500 ms debounce on a full store reported success with nothing written.
-   * Callers decide what a refusal means for them (a switch still proceeds; a
-   * Save must say it failed).
+   * The refusal is reported rather than swallowed: only the debounced
+   * autosave's catch raises the storage banner, and File > Save calls this
+   * directly, so a Save within the 500 ms debounce on a full store would
+   * otherwise report success with nothing written. Callers decide what a refusal
+   * means for them (a switch still proceeds; a Save must say it failed).
    */
   const flushActive = async (): Promise<boolean> => {
     try {
@@ -810,12 +802,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   /**
    * Swap the whole workspace in ONE `set`, always resetting the transient block.
    *
-   * `hydrate`, `openOrkFile` and `resetWorkspace` each replaced the design and
-   * each reset a different subset of what goes with it: none cleared `simRuns`,
-   * `lastRunIds` or `resultSimId`, so the Results tab could point at a run id
-   * from the previous design, and a batch still in flight kept `simBusy` on the
-   * new one; `resetWorkspace` left `err` standing and wrote in two `set` calls,
-   * so a subscriber saw the blank design with the old design's error under it.
+   * `hydrate`, `openOrkFile` and `resetWorkspace` all route through here so the
+   * transient block cannot outlive the design it belongs to: a stale `simRuns`,
+   * `lastRunIds` or `resultSimId` points the Results tab at a run id from the
+   * previous design, a batch still in flight holds `simBusy` on the new one, and
+   * a standing `err` shows the old design's error under the new one. The single
+   * `set` keeps a subscriber from seeing either half alone.
+   *
    * A batch still running belongs to the old design, so it is canceled here
    * (its answers would be dropped by the `ranOn` guard anyway).
    */
@@ -1015,12 +1008,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
     setExtraMotor: (mountId, m) => {
       recordStep();
-      // ONE simulation's loadout. This map used to be workspace-level, so
-      // seating an upper-stage motor changed it for every simulation at once
-      // and aged all of their results -- two sims could never differ below the
-      // primary mount, which is exactly what comparing staged motors needs.
-      // Editing a selection does not bring that back: the motor stays the one
-      // thing a tick cannot reach (see patchActive).
+      // ONE simulation's loadout, not the workspace's: comparing staged motors
+      // needs two sims to differ below the primary mount, so seating an
+      // upper-stage motor must not age every other sim's results. The motor
+      // stays the one thing a tick cannot reach (see patchActive).
       patchActive((sim) => ({
         extraMotors: { ...sim.extraMotors, [mountId]: { ...sim.extraMotors[mountId], spec: m } },
       }));
@@ -1157,17 +1148,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // rocket that no longer exists, and installing them would show numbers for
       // geometry that is no longer on screen.
       const ranOn = s.tree;
-      // Collected, not reported as they happen. Each skip used to `set({err})`
-      // on its own, so in a batch every message overwrote the one before it and
-      // the user was left holding whichever row failed last -- with no name on
-      // it. They are reported together once the batch drains.
+      // Collected, not reported as they happen: a per-skip `set({ err })` leaves
+      // only whichever row failed last, with no name on it. They are reported
+      // together, named, once the batch drains.
       const skipped: Unflyable[] = [];
-      // Failures are collected for the same reason skips are, and it is the
-      // same bug one step later: each row's catch did `set({ err })`, so in a
-      // batch every message overwrote the one before it and carried no row
-      // name -- and then the skip line below overwrote whatever survived. Six
-      // rows with two timeouts and one missing motor reported only the missing
-      // motor, with no sign that two flights had failed at all.
+      // Collected for the same reason skips are, and kept separate from them:
+      // sharing one `err` slot means six rows with two timeouts and one missing
+      // motor report only the missing motor, with no sign that two flights
+      // failed at all.
       const failed: { name: string; msg: string }[] = [];
       /** Patch one row's transient run state, leaving every other row alone. */
       const setRun = (simId: string, run: SimRun | null) =>
@@ -1247,11 +1235,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               // is no longer on screen. The others in flight do the same.
               if (get().tree !== ranOn) return;
               // Same test for THIS row's own inputs. Editing a simulation's
-              // launch conditions while it flies used to be prevented by locking
-              // the editor for the duration; dropping the answer is the same
-              // answer the design already gets, and it leaves the row where the
-              // edit left it -- outdated, with its previous numbers -- instead of
-              // marking it current against conditions it no longer has.
+              // launch conditions while it flies drops the answer rather than
+              // locking the editor for the duration, which leaves the row where
+              // the edit left it -- outdated, with its previous numbers --
+              // instead of marking it current against conditions it no longer
+              // has.
               const now = get().sims.find((x) => x.id === sim.id);
               if (!now || !sameSimInputs(flownFrom, simInputs(now))) {
                 setRun(sim.id, null);
@@ -1413,7 +1401,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const seed = runPrefs.randomSeed ?? freshSeed();
 
       // A sweep supersedes whatever was held: two regions on one plan view
-      // would be unreadable, and the old one answers a question that has just
+      // would be unreadable, and the held one answers a question that has just
       // been asked again.
       sweepAbort?.abort();
       const abort = new AbortController();
@@ -1459,7 +1447,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             } finally {
               // Only while THIS sweep still owns the counter. A second sweep
               // replaces the first mid-flight (the run button is not gated on
-              // the old one draining), and the first's stragglers would
+              // the earlier one draining), and the first's stragglers would
               // otherwise tick the new one's progress past its own total --
               // including when it is the same row being re-swept, which is the
               // common case.
@@ -1669,8 +1657,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     renameDesign: async (id, name) => {
-      // `rename` reports a refused index write; ignoring it showed the new name
-      // from memory and the old one next session.
+      // `rename` reports a refused index write. Ignoring it would show the new
+      // name from memory and the stored one next session.
       if (!(await getDesignLibrary().rename(id, name.trim() || i18n.t('library.untitled')))) {
         get().setStorageWarning(i18n.t('storage.full'), 'full');
       }

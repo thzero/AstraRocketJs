@@ -54,8 +54,8 @@ export function StabilityOverlay({
   const marginPct = info ? info.stabilityPercent : null;
   const stabWord =
     stab === 'under' ? t('schematic.underStable') : stab === 'over' ? t('schematic.overStable') : t('schematic.ok');
-  // A zero-length design has no margin percentage to print, so it gets no
-  // margin text either (the `!` that used to sit on marginPct printed "NaN%").
+  // A zero-length design has no margin percentage to print, so it gets no margin
+  // text either: asserted non-null, `marginPct` prints "NaN%".
   const marginText =
     info && stab && marginPct !== null
       ? `${STABILITY_GLYPH[stab]} ${fmtNum(info.stabilityCalibers, 2)} ${t('stability.caliber')} · ${fmtNum(marginPct, 1)}% — ${stabWord}`

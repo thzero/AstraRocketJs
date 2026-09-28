@@ -3,13 +3,11 @@ import type { ComponentType } from '../engine/openRocketEngine';
 /**
  * What KIND of thing each component type is, in one table.
  *
- * The tree modules used to answer "is this a chain member / an assembly / a
- * fin set" with ad-hoc string tests: `type.endsWith('finset')`, three separate
- * `new Set(['nosecone', 'bodytube', 'transition'])` literals (position.ts,
- * assembly.ts, scaleRocket.ts) plus a fourth in treeEdit.ts, and
- * `type === 'podset' || type === 'parallelstage'`. Each copy was correct on the
- * day it was written and nothing tied them together, so adding a component
- * type meant finding every one of them by hand.
+ * One table, so "is this a chain member / an assembly / a fin set" has one answer.
+ * Asked with ad-hoc string tests instead - `type.endsWith('finset')`, a
+ * `new Set(['nosecone', 'bodytube', 'transition'])` literal per module,
+ * `type === 'podset' || type === 'parallelstage'` - nothing ties the copies
+ * together, and adding a component type means finding every one of them by hand.
  *
  * Keyed by `ComponentType` and checked with `satisfies`, so a type added to
  * the union without a row here is a compile error rather than a part that

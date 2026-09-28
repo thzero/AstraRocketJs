@@ -10,23 +10,19 @@ import { hasUsableCurve } from './motorCurve';
 import type { RocketTree } from '../engine/openRocketEngine';
 
 /**
- * Why a given simulation cannot be flown — asked in ONE place, so the Run
- * button and the run loop cannot disagree about it.
- *
- * They used to. The button judged a batch on the ACTIVE simulation's motor
- * alone (and only when exactly one row was selected), while the loop checked
- * every row and skipped the bad ones; and on safety limits the button blocked
- * the whole batch while the loop skipped only the offending row. So a batch
- * could be refused outright over one bad row, and a batch with an unflyable row
- * could be started with the button showing nothing wrong.
+ * Why a given simulation cannot be flown - asked in ONE place, so the Run button
+ * and the run loop cannot disagree about it. Judged apart, they diverge on which
+ * rows a batch is judged by and on whether a limit blocks the batch or skips the
+ * row, which shows up as a batch refused over one bad row, or a batch with an
+ * unflyable row started with the button showing nothing wrong.
  */
 
 /**
  * A motor is usable only if it carries a full thrust curve.
  *
- * The one predicate in `motorCurve.ts`, which is also what the builder seats
- * a motor by. This used to accept any non-empty arrays, so a one-sample motor
- * passed the Run button and then left the mount empty at build time.
+ * The one predicate in `motorCurve.ts`, which is also what the builder seats a
+ * motor by. Accepting any non-empty arrays instead would pass a one-sample motor
+ * through the Run button and then leave the mount empty at build time.
  */
 export const hasThrustCurve = (m: MotorSpec | undefined | null): boolean => hasUsableCurve(m);
 
@@ -58,10 +54,9 @@ export function unflyable(sim: Simulation): UnflyableReason | null {
   if (missing.length) return { kind: 'incomplete', missing };
   // Before the limits for the same reason: the codes are judged on the SURFACE
   // level, and a profile with two levels at one altitude is not a profile the
-  // kernel will accept at all. It used to reach `simulate()` and come back as
-  // `engine simulate failed: Wind level already exists for altitude: 0.0` --
-  // the kernel naming its own internals, after the design was built, for
-  // something the profile editor let the user type.
+  // kernel will accept at all. Left to `simulate()` it comes back as `engine
+  // simulate failed: Wind level already exists for altitude: 0.0`, which names
+  // the kernel's internals for something the profile editor let the user type.
   if (duplicateAltitudeRows(sim.launch.windLevels ?? []).length) return { kind: 'windProfile' };
   const violations = launchLimitViolations(sim.launch);
   return violations.length ? { kind: 'limits', violations } : null;
@@ -105,8 +100,8 @@ export function unflyableText(
  *
  * Separate from {@link unflyable} because these are facts about the ROCKET, not
  * about one row: every simulation shares the tree, so there is no "skip the bad
- * one and fly the rest" here. A design with a zero-radius body tube used to
- * simulate happily and hand back an apogee, which is a worse answer than none.
+ * one and fly the rest" here. A design with a zero-radius body tube simulates
+ * happily and hands back an apogee, which is a worse answer than none.
  */
 export type DesignBlocker = { kind: 'noMount' } | { kind: 'badGeometry'; bad: BadDimension[] };
 

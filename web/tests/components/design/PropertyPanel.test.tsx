@@ -105,12 +105,11 @@ describe('tube fin collision warning', () => {
 });
 
 /**
- * One name, one place. A part's angle around the body is the same kernel
- * property whatever the part is (`FinSet.getBaseRotation()` returns
- * `getAngleOffset()`), but the panel used to call it "Angle around body" on a
- * lug and "Base rotation" on a fin set, and render both in the middle of the
- * dimension list between a radius and a thickness. It is one label now, in the
- * section that already answers WHERE the part goes.
+ * One name, one place. A part's angle around the body is the same kernel property
+ * whatever the part is (`FinSet.getBaseRotation()` returns `getAngleOffset()`), so
+ * it carries one label, in the section that answers WHERE the part goes, rather
+ * than "Angle around body" on a lug and "Base rotation" on a fin set halfway down
+ * the dimension list.
  */
 describe('placement section', () => {
   const placement = () => screen.getByText('Placement').parentElement!;
@@ -123,7 +122,7 @@ describe('placement section', () => {
       expect(box.getByLabelText('Position from')).toBeTruthy();
       expect(box.getByLabelText('Offset')).toBeTruthy();
       expect(box.getByLabelText('Rotation')).toBeTruthy();
-      // The old names are gone from the panel entirely.
+      // Neither per-type name appears in the panel.
       expect(screen.queryByLabelText('Angle around body')).toBeNull();
       expect(screen.queryByLabelText('Base rotation')).toBeNull();
     },
@@ -159,9 +158,8 @@ describe('override section placement', () => {
  * The through-the-wall tab is its own section.
  *
  * Its four fields describe a separate piece of the fin, the part buried in the
- * airframe, and they used to run on under the planform where they read as four
- * more dimensions of the same shape: root chord, tip chord, sweep, height,
- * thickness, cant, then fin tab length.
+ * airframe. Run on under the planform they read as four more dimensions of the same
+ * shape: root chord, tip chord, sweep, height, thickness, cant, then fin tab length.
  */
 describe('fin tab section', () => {
   const finTab = () => screen.getByText('Fin tab').parentElement!;
@@ -184,9 +182,9 @@ describe('fin tab section', () => {
 /**
  * What a tube does for a MOTOR, as against what the tube is.
  *
- * A body tube's "Motor mount" and "Motor overhang", and an inner tube's
- * cluster with them, used to run on under the radius and thickness as though
- * they were three more dimensions of the tube.
+ * A body tube's "Motor mount" and "Motor overhang", and an inner tube's cluster
+ * with them, are not three more dimensions of the tube and do not run on under its
+ * radius and thickness.
  */
 describe('motor section', () => {
   const motor = () => screen.getByText('Motor').parentElement!;
@@ -215,8 +213,8 @@ describe('motor section', () => {
 /**
  * The name and the catalog picker are one section: they answer what the part
  * IS, as against its dimensions. They are also the only rows the panel builds
- * itself rather than declaring in FIELDS, which is why they used to float
- * loose above everything else.
+ * itself rather than declaring in FIELDS, so without the section they float loose
+ * above everything else.
  *
  * Color is NOT one of them. It sits in Appearance, below, because it says how
  * the part is drawn rather than what it is, and nothing about it reaches the
@@ -296,9 +294,9 @@ describe('fin fillet', () => {
   });
 
   it('shows the material whether or not a radius has been typed yet', () => {
-    // It used to appear only once the radius was non-zero, which hid it: you
-    // cannot find a control that is not on the screen, and which of the two
-    // rows you fill first is the builder's choice, not the panel's.
+    // Shown whatever the radius: a control gated on a non-zero radius cannot be
+    // found on the screen, and which of the two rows the builder fills first is
+    // their choice, not the panel's.
     show({ id: 'f1', type: 'trapezoidfinset' } as unknown as ComponentNode);
     expect(within(fillet()).getByText('Fillet material')).toBeTruthy();
     show({ id: 'f2', type: 'trapezoidfinset', filletRadius: 0.006 } as unknown as ComponentNode);

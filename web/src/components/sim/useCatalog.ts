@@ -6,10 +6,10 @@ import { loadCatalog, type CatalogMotor } from '../../services/motorDb';
  * state both motor dialogs render around it.
  *
  * On MOUNT, with no `open` guard: the dialogs that use this are mounted only
- * while open (`{open && <Dialog />}`), so mounting IS the deferral. The ~1.6 MB
- * catalog (see services/remoteData.ts) used to be fetched on app start because
- * both dialogs were mounted permanently and merely `return null` when closed,
- * which does not stop an effect.
+ * while open (`{open && <Dialog />}`), so mounting IS the deferral. Kept mounted
+ * and returning null when closed, the dialogs would fetch the ~1.6 MB catalog
+ * (see services/remoteData.ts) on app start, since `return null` does not stop an
+ * effect.
  *
  * `onLoaded` fires once per successful load with the catalog it produced. The
  * picker seeds its selection from the seated motor there, which is the one

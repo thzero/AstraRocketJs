@@ -21,14 +21,13 @@ export interface WiredOrk {
  * order) drives the Motor panel: its motor rides on the initial simulation and
  * its ignition override lives on that sim, NOT in extraMotors like every other
  * mount. A mount the file gave no motor for, primary or not, is seated with the
- * curve-less placeholder from `loadOrk.emptyMountMotor`, never a default: the
- * run gate then blocks with "no motor" until the user picks one. (This used to
- * put a C6 on an empty primary and let `reconcileMounts` seed a C6 into every
- * other empty mount, so a file saved without motors opened as a flyable rocket
- * on motors it never named, the very thing `loadOrk` refuses to do for a motor
- * it cannot resolve.) `reconcileMounts` then only drops motors whose mounts are
- * gone. Pure (no I/O): the caller supplies `launchDefaults` so this stays
- * testable — it's the .ork-import mapping most likely to regress on odd files.
+ * curve-less placeholder from `loadOrk.emptyMountMotor`, never a default: the run
+ * gate then blocks with "no motor" until the user picks one. Seeding a C6 instead
+ * would open a file saved without motors as a flyable rocket on motors it never
+ * named, which is what `loadOrk` refuses to do for a motor it cannot resolve.
+ * `reconcileMounts` then only drops motors whose mounts are gone. Pure (no I/O):
+ * the caller supplies `launchDefaults` so this stays testable, it being the
+ * .ork-import mapping most likely to regress on odd files.
  */
 export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions): WiredOrk {
   // `.ork` can position a component with method="absolute", which is a

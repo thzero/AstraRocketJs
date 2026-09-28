@@ -7,22 +7,20 @@ import { AlertDialog } from './AlertDialog';
  * store (see {@link confirm}). Mounted once at the app root.
  *
  * Escape and the backdrop cancel; Enter activates whichever button has focus
- * (Confirm, by autoFocus), which is native button behavior and needs no
- * listener. A window-level Enter handler used to call `settle(true)` for every
- * target, so with focus resting on Cancel the destructive action still went
- * ahead.
+ * (Confirm, by autoFocus), which is native button behavior and needs no listener. A
+ * window-level Enter handler would settle `true` whatever has focus, so the
+ * destructive action goes ahead with Cancel focused.
  *
  * Everything else about the box - the overlay, the focus trap, the Escape, the
  * heading and the button pair - is {@link AlertDialog}, which it shares with the
  * work-in-progress notice.
  *
- * It renders NOTHING until there is a request, which is also what keeps the
- * focus trap honest: the trap's effect deps are `[active]`, so a permanently
- * mounted panel with a constant `true` ran once, found no element, returned
- * early and never ran again. That was this dialog's bug for a while - the one
- * modal mounted for the life of the app had no trap and no focus restore, while
- * every conditionally mounted sibling was fine. Mounting the panel with the
- * request makes the two the same thing.
+ * It renders NOTHING until there is a request, which is also what keeps the focus
+ * trap honest: the trap's effect deps are `[active]`, so a permanently mounted
+ * panel with a constant `true` runs once, finds no element, returns early and never
+ * runs again, leaving the modal with no trap and no focus restore. Mounting the
+ * panel with the request makes this dialog behave like every conditionally mounted
+ * sibling.
  */
 export function ConfirmDialog() {
   const request = useConfirmStore((s) => s.request);

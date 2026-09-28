@@ -11,11 +11,10 @@ import { MAX_ARCHIVE_ENTRIES, MAX_ARCHIVE_ENTRY_BYTES, MAX_ARCHIVE_TOTAL_BYTES }
  *
  * A `.ork` written by the desktop is a zip of up to four kinds of member: the
  * `rocket.ork` XML, the thrust curve of every motor the design uses, the image
- * behind every decal, and a `preview.png` thumbnail. We used to take the XML and
- * drop the rest on the floor, which cost a design its motors: OpenRocket embeds
- * the curves precisely so the file opens on an install that does not have them,
- * and without them a design using anything outside our catalog opened with an
- * empty mount and a blocked run.
+ * behind every decal, and a `preview.png` thumbnail. The curves are read, not just
+ * the XML: OpenRocket embeds them precisely so the file opens on an install that
+ * does not have them, and without them a design using anything outside our catalog
+ * opens with an empty mount and a blocked run.
  */
 export type OrkArchive = {
   /** The `rocket.ork` member, or the whole file when it is bare XML. */

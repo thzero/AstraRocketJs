@@ -6,12 +6,12 @@ import { renderWithProviders } from '../../testing/renderWithProviders';
 import { readExpanded, sizeClasses, writeExpanded } from '../../../src/components/common/dialogSize';
 
 /**
- * The shell every dialog in the app now shares. Each used to hand-roll the
- * overlay, the panel, the focus trap, the stop-propagation and the close button,
- * and the copies had drifted: two skipped `.dialog-panel` and so lost the
- * full-bleed phone treatment, nine declared no maximum height, and the
- * accessible name was sometimes an `aria-label` duplicating the visible heading
- * rather than pointing at it. These are the guarantees that replace all of that.
+ * The shell every dialog in the app shares: the overlay, the panel, the focus trap,
+ * the stop-propagation and the close button. Hand-rolled per dialog these drift -
+ * off `.dialog-panel` and so out of the full-bleed phone treatment, past the bottom
+ * of a short window with no maximum height, onto an `aria-label` duplicating the
+ * visible heading rather than pointing at it. These are the guarantees that hold
+ * instead.
  */
 
 const open = (props: Partial<Parameters<typeof Dialog>[0]> = {}) => {
@@ -42,8 +42,8 @@ describe('Dialog', () => {
     });
 
     it('keeps the classes that make a dialog full-bleed on a phone', () => {
-      // `.dialog-panel` and `.dialog-overlay` carry the below-lg full-screen
-      // rules in index.css, and two dialogs used to miss them entirely.
+      // `.dialog-panel` and `.dialog-overlay` carry the below-lg full-screen rules
+      // in index.css, so a dialog missing them gets no phone treatment at all.
       const { container, dialog } = open();
       expect(dialog.className).toContain('dialog-panel');
       expect(container.querySelector('.dialog-overlay')).not.toBeNull();
@@ -270,9 +270,9 @@ describe('Dialog', () => {
   });
 
   it('closes only the dialog on top when two are open', () => {
-    // A nested dialog is rendered beside the one it opened from, and Escape is
-    // a window listener, so both used to answer it: dismissing the rename
-    // prompt inside the design library shut the library too.
+    // A nested dialog is rendered beside the one it opened from, and Escape is a
+    // window listener, so both would answer it: dismissing the rename prompt
+    // inside the design library would shut the library too.
     const under = vi.fn();
     const over = vi.fn();
     const r = renderWithProviders(

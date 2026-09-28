@@ -11,8 +11,8 @@ import { layerClass, widthClass, type DialogLayer, type DialogSize } from './dia
  * something or to ask one question, so it has no toolbar, no footer, no scrolling
  * body, no layout to choose and nothing to expand into: there is no content
  * behind the content. What it DOES need and a plain dialog does not is a
- * description - the message is what a screen reader should read out on arrival,
- * pointed at by `aria-describedby`, which neither of the two copies had.
+ * description: the message is what a screen reader should read out on arrival,
+ * pointed at by `aria-describedby`.
  *
  * It is deliberately NOT full-bleed on a phone (no `.dialog-panel`, see
  * index.css): filling a screen with two lines and a button is all empty space,
@@ -20,11 +20,10 @@ import { layerClass, widthClass, type DialogLayer, type DialogSize } from './dia
  * where full bleed would read as that dialog being replaced rather than as
  * something raised over it.
  *
- * The two copies of this had drifted the way the twenty-odd ordinary dialogs
- * had: different backdrop opacities, different heading scales, one naming itself
- * with an `aria-label` that repeated its own visible heading and the other with a
- * hardcoded element id, and one carrying its own window-level Escape listener
- * beside the one `useFocusTrap` already provides.
+ * One shell, because copies drift: different backdrop opacities, different heading
+ * scales, an `aria-label` repeating its own visible heading in one and a hardcoded
+ * element id in the next, and a window-level Escape listener beside the one
+ * `useFocusTrap` already provides.
  */
 export function AlertDialog({
   title,

@@ -26,9 +26,8 @@ function outerDiameter(n: ComponentNode): number | undefined {
 /**
  * Bore of a tube-like component, or undefined when it has no wall to subtract.
  *
- * A body tube carries an outer radius and a wall thickness rather than a bore,
- * which is why the picker could not previously offer to match one: the number a
- * coupler has to fit is not stored, it is derived.
+ * A body tube carries an outer radius and a wall thickness rather than a bore, so
+ * the number a coupler has to fit is not stored but derived here.
  */
 function innerDiameter(n: ComponentNode): number | undefined {
   if (n.type !== 'bodytube' && n.type !== 'tubecoupler' && n.type !== 'innertube') return undefined;

@@ -33,9 +33,8 @@ export function exportOrk({
   const { emit } = w;
 
   emit(0, "<?xml version='1.0' encoding='utf-8'?>");
-  // The creator is the app's own name (appInfo), not a literal: the literal
-  // had drifted from the app's actual name and was naming a program that does
-  // not exist in every file this app saved.
+  // The creator is the app's own name (appInfo), not a literal, which drifts from
+  // the app's actual name and names a program that does not exist.
   emit(0, `<openrocket version="1.10" creator="${escapeXml(appName())}">`);
   emit(1, '<rocket>');
   emit(2, `<name>${escapeXml(name)}</name>`);
@@ -59,10 +58,9 @@ export function exportOrk({
   // desktop model); legacy flat trees wrap into one implicit stage.
   const stageNodes = asStageNodes(tree);
   motorConfigurationsXml(w, 2, stageNodes.length);
-  // The file's own reference, not a constant: this used to be a hardcoded
-  // `maximum`, which silently re-measured a design whose calibers were set
-  // against a custom length. `maximum` is still the default, and is what this
-  // app itself measures against.
+  // The file's own reference, not a constant: a hardcoded `maximum` silently
+  // re-measures a design whose calibers were set against a custom length.
+  // `maximum` is the default, and is what this app itself measures against.
   emit(2, `<referencetype>${escapeXml(tree.referenceType || 'maximum')}</referencetype>`);
   if (typeof tree.customReference === 'number' && tree.customReference > 0) {
     emit(2, `<customreference>${tree.customReference}</customreference>`);

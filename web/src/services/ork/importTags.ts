@@ -91,8 +91,9 @@ export function readAutoValue(el: Element, node: ComponentNode, tag: string, fla
   return false;
 }
 
-/** The bulk material's `group` attribute, when the file carries one (the
- *  name and density are read by `baseNode`). Pass-through, like readFillet. */
+/** The bulk material's `group` attribute, when the file carries one (the name
+ *  and density are read by `matName` / `matDensity`). Pass-through, like
+ *  readFillet. */
 export function readMaterialGroup(el: Element, node: ComponentNode): void {
   const m = el.querySelector(':scope > material');
   if (!m || m.getAttribute('type') !== 'bulk') return;
@@ -180,12 +181,11 @@ export function readAirfoil(el: Element, node: ComponentNode): void {
  * Fin fillets, PASS-THROUGH only.
  *
  * OpenRocket's FinSetSaver writes <filletradius>/<filletmaterial> for every fin
- * set and counts the fillet volume toward fin mass. This app's kernel bridge
- * does not model fillets yet — but the exporter used to hard-write
- * `<filletradius>0.0</filletradius>` and a Cardboard material, so opening a
- * desktop design with 6 mm epoxy fillets and saving it DELETED them from the
- * user's own file. Preserving the values costs nothing and stops the
- * destruction; the mass still is not counted, which the import note says.
+ * set and counts the fillet volume toward fin mass. This app's kernel bridge does
+ * not model fillets, so the values are carried rather than recomputed: hard-writing
+ * `<filletradius>0.0</filletradius>` and a Cardboard material would delete a
+ * desktop design's 6 mm epoxy fillets from the user's own file on save. The mass is
+ * still not counted, which the import note says.
  */
 function readFillet(el: Element, node: ComponentNode): void {
   const r = numTag(el, 'filletradius', 0);

@@ -774,10 +774,10 @@ function Legend({ color, label, onChange }: { color: string; label: string; onCh
   const ref = useRef<HTMLInputElement>(null);
   // The NATIVE `change` event: a color input fires it once, when the OS picker
   // closes with a new value, whereas React's `onChange` maps to `input` and
-  // fires on every drag tick. Closing the picker with its own OK does not
-  // always move focus, so blur alone left the swatch showing the old color
-  // until something else took focus. `onChange` is a stable useCallback from
-  // the parent, so this subscribes once per color rather than once per render.
+  // fires on every drag tick. Closing the picker with its own OK does not always
+  // move focus, so blur alone leaves the swatch showing the previous color until
+  // something else takes focus. `onChange` is a stable useCallback from the
+  // parent, so this subscribes once per color rather than once per render.
   useEffect(() => {
     const el = ref.current;
     if (!el) return;

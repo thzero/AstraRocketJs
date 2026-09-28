@@ -70,16 +70,16 @@ export function MaterialPicker({
   const [mats, setMats] = useState<Material[]>([]);
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
-  // Which group the new material joins. Custom materials used to be filed in a
-  // `Custom` group of their own, which put every one of them at the top of the
-  // list and away from the material it is usually a variant of.
+  // Which group the new material joins. A `Custom` group of their own puts every
+  // one of them at the top of the list, away from the material it is usually a
+  // variant of.
   const [group, setGroup] = useState(DEFAULT_CUSTOM_GROUP);
   // In the field's unit; converted to SI on save. null while empty.
   const [dens, setDens] = useState<number | null>(null);
   const [addErr, setAddErr] = useState<string | null>(null);
-  // Deleting can fail too, now that the material store reports a refused write
-  // instead of swallowing it. `addErr` renders only inside the add form, so a
-  // delete needs its own line or the failure would be invisible.
+  // Deleting can fail too: the material store reports a refused write rather than
+  // swallowing it. `addErr` renders only inside the add form, so a delete needs
+  // its own line or the failure is invisible.
   const [delErr, setDelErr] = useState<string | null>(null);
   // Set when the catalog could not be fetched. Distinct from "no materials":
   // the list is empty either way, and only one of them is the app's fault.

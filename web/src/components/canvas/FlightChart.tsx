@@ -34,8 +34,8 @@ export { maxFlightTime } from './flightChartAxis';
 export function FlightChart({ flight }: { flight: ChartFlight }) {
   const { t } = useTranslation();
   // Which panels are open, remembered between visits (services/settings.ts).
-  // It used to be component state seeded from a constant, so anyone who worked
-  // with thrust or mass re-ticked them every time the Results tab was opened.
+  // Component state seeded from a constant would have anyone who works with
+  // thrust or mass re-ticking them on every visit to the Results tab.
   const { settings, update } = useSettings();
   const on = useMemo(() => visibleSeries(settings.flightSeries), [settings.flightSeries]);
   const [csvOpen, setCsvOpen] = useState(false);

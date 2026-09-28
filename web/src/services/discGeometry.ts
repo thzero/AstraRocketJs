@@ -1,7 +1,7 @@
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import { num } from '../tree/nodeProps';
-// Shared with the .ork reader and writer, so a part that lost a tag is sized
-// the way it was read and saved (the engine-block wall used to differ).
+// Shared with the .ork reader and writer, so a part that lost a tag is sized the
+// way it was read and saved.
 import { COMPONENT_DEFAULTS } from './componentDefaults';
 
 /**
@@ -10,11 +10,10 @@ import { COMPONENT_DEFAULTS } from './componentDefaults';
  * "a centering ring in this body tube, around that motor mount" into an outer
  * radius, a bore and a length.
  *
- * This lives apart from every consumer because there are now three of them and
- * they must agree: the DXF cut sheet (dxfExport), the STL/3MF print solids
- * (componentExport, rocketPrintExport) and the 3D view's internals
- * (rocketPieces). It used to sit inside the DXF writer, which meant the 3D
- * view could only reuse it by dragging the whole R12 serializer into the
+ * This lives apart from its three consumers because they must agree: the DXF cut
+ * sheet (dxfExport), the STL/3MF print solids (componentExport,
+ * rocketPrintExport) and the 3D view's internals (rocketPieces). Held inside the
+ * DXF writer it could only be reused by dragging the whole R12 serializer into the
  * first-paint bundle. No three.js and no writers here, so anyone can import it.
  */
 
@@ -105,10 +104,10 @@ export function resolveDisc(
  * siblings by the time it draws a child, and has no tree to look a node up in.
  *
  * It exists so the sketch can size a coupler the way the cut sheet and the 3D
- * model do. The sketch used to draw every internal through `internalExtent`,
- * whose radius is capped at 85% of the parent - a cap a coupler hits EVERY
- * time, since a coupler fills the bore by definition - so the same part was one
- * size in the sketch and another everywhere else.
+ * model do. Drawing every internal through `internalExtent` instead caps the
+ * radius at 85% of the parent, which a coupler hits EVERY time since it fills the
+ * bore by definition, so the same part comes out one size in the sketch and
+ * another everywhere else.
  */
 export function discDims(
   node: ComponentNode,

@@ -39,10 +39,10 @@ export function AppHeader() {
 
   return (
     // flex-wrap, not a fixed row: the title, badges and action group together
-    // need ~530px, so on a phone the row used to run off the right edge and
-    // make the whole DOCUMENT scroll sideways, which slid the bottom tab bar
-    // out of view with it. Wrapping keeps every control reachable and the page
-    // exactly one viewport wide, at any width and in any language.
+    // need ~530px, so on a phone a fixed row runs off the right edge and makes the
+    // whole DOCUMENT scroll sideways, sliding the bottom tab bar out of view.
+    // Wrapping keeps every control reachable and the page exactly one viewport
+    // wide, at any width and in any language.
     <header className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3">
       <span className="text-xl">🚀</span>
       <h1 className="text-base font-semibold tracking-tight">{t('app.title')}</h1>
@@ -95,7 +95,7 @@ export function AppHeader() {
             onSavedParts: () => open('parts'),
             onSettings: () => open('settings'),
             // No argument is the docs index; Safety opens Help already ON its
-            // own page, which is the whole point of addressing help by slug.
+            // own page, which is what addressing help by slug is for.
             onHelp: () => openHelp(),
             onSafety: () => openHelp('safety'),
             onPrivacy: () => open('privacy'),

@@ -303,9 +303,9 @@ const writeRailbutton: NodeWriter = (w, node, d) => {
   w.emit(d, `<angleoffset method="relative">${(num(node, 'angleOffset', Math.PI) * 180) / Math.PI}</angleoffset>`);
   position(w, d, node, 'middle');
   finishXml(w, d, node);
-  // Material and the five other dimensions come from the node when the
-  // reader kept them (see the railbutton import case); the constructor
-  // constants they used to be hard-wired to are now only the fallback.
+  // Material and the five other dimensions come from the node when the reader
+  // kept them (see the railbutton import case); the constructor constants are
+  // only the fallback.
   const rb = COMPONENT_DEFAULTS.railbutton;
   material(w, d, node, 'bulk', {
     name: rb.materialName,

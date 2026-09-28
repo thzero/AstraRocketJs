@@ -1,8 +1,8 @@
 import { fmtNum } from '../../i18n/format';
 
 // Shared scaffold for the thrust-vs-time charts (MotorDetail's ThrustChart plus
-// MotorDashboard's CombineChart and ComparePane): the same linear scales, axis
-// furniture, and path builders that were hand-rolled — and had drifted — in each.
+// MotorDashboard's CombineChart and ComparePane): one set of linear scales, axis
+// furniture and path builders, so the three cannot drift apart.
 // FlightChart's Panel is deliberately NOT built on this: it has a per-panel
 // y-domain, a hover crosshair, clipping, and event overlays that don't generalize.
 
@@ -10,8 +10,7 @@ export type XY = readonly [number, number];
 
 /**
  * Vertical headroom above the tallest sample: the peak label and the dot need
- * room under the top edge. One number, so every thrust chart leaves the same
- * gap; it used to be a bare `* 1.08` in four places.
+ * room under the top edge. One number, so every thrust chart leaves the same gap.
  */
 export const CHART_HEADROOM = 1.08;
 

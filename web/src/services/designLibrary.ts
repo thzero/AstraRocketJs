@@ -1,9 +1,4 @@
-// The saved-designs library.
-//
-// Before this, the app held exactly ONE design: a single blob under
-// `astrarrocketjs:workspace`, replaced whenever you opened another. That was a
-// localStorage-era shape — with IndexedDB there is no reason a design has to be
-// the only one. Designs are now addressable:
+// The saved-designs library. Designs are addressable:
 //
 //   astrarrocketjs:designs:index        → DesignMeta[]  (small: id, name, updatedAt)
 //   astrarrocketjs:designs:<id>         → one Workspace blob (the INPUTS)
@@ -126,12 +121,11 @@ export class DesignLibrary {
    * Mutate the index ATOMICALLY: read, transform and write in one store
    * transaction.
    *
-   * Every mutation here used to be `readIndex()` then `writeIndex()`, with
-   * several awaited round trips in between. This is an installable PWA and
-   * IndexedDB is shared across tabs, so two tabs saving at once both read
-   * `[X]`, one writes `[A,X]`, the other writes `[B,X]`, and one entry is
-   * gone. Since `activeId()` filters against the index, that design becomes
-   * unreachable and its bytes are orphaned.
+   * A read-then-write with awaited round trips in between is not enough: this is
+   * an installable PWA and IndexedDB is shared across tabs, so two tabs saving
+   * at once both read `[X]`, one writes `[A,X]`, the other writes `[B,X]`, and
+   * one entry is gone. `activeId()` filters against the index, so that design
+   * becomes unreachable and its bytes are orphaned.
    */
   private async mutateIndex(fn: (list: DesignMeta[]) => DesignMeta[]): Promise<boolean> {
     return await this.kv.update(INDEX_KEY, (raw) => {
@@ -196,10 +190,9 @@ export class DesignLibrary {
   /**
    * Register a new design and make it active. Returns its meta.
    *
-   * Throws `storage-full` if the write is refused. It used to discard `write`'s
-   * boolean and fall back to a FABRICATED meta, so the caller got a clean
-   * resolve for a design that was never stored — and this is the path taken by
-   * the first save of a session, i.e. exactly when there is no other copy yet.
+   * Throws `storage-full` if the write is refused, rather than resolving with a
+   * fabricated meta for a design that was never stored. This is the path taken
+   * by the first save of a session, when there is no other copy yet.
    */
   async create(name: string, w: Workspace): Promise<DesignMeta> {
     const id = freshId();
@@ -223,8 +216,8 @@ export class DesignLibrary {
 
   /** Rename a design. False if storage refused the write. */
   async rename(id: string, name: string): Promise<boolean> {
-    // Also had its boolean discarded: the UI showed the new name from memory
-    // and the next session showed the old one.
+    // The boolean matters here too: dropping it shows the new name from memory
+    // and the old one next session.
     return await this.mutateIndex((list) => list.map((m) => (m.id === id ? { ...m, name } : m)));
   }
 
@@ -320,9 +313,9 @@ export class DesignLibrary {
         if (!(await this.kv.set(designKey(id), raw))) return; // retry next session
         // The INDEX write gates the delete too, for the same reason the blob
         // write does. `activeId()` filters against this index, so a design
-        // missing from it is unreachable — and the line below removes the only
+        // missing from it is unreachable, and the line below removes the only
         // other copy. Blob stored + index refused (quota, degraded fallback)
-        // used to leave the user opening an empty workspace with their
+        // would leave the user opening an empty workspace with their
         // pre-library design gone for good.
         if (!(await this.writeIndex([{ id, name: legacyName(raw), updatedAt: Date.now() }]))) return;
         await this.setActive(id);

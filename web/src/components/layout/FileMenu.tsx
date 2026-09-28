@@ -44,22 +44,18 @@ export interface FileMenuActions {
  * Safety / Privacy / About.
  *
  * There is no **Save**. Editing autosaves on a 500 ms debounce, with a
- * synchronous journal on unload, so the item never stood between the user and
- * their work: it flushed a write that was already coming, and sent a
- * never-named design to Save As. The header says when the last save landed
- * instead (SaveStatus), which is the reassurance the item was really there for
- * - and naming a design is Save As, which is what it delegated to anyway.
+ * synchronous journal on unload, so the header reports when the last save landed
+ * (SaveStatus) instead, and naming a design is Save As.
  *
  * Mounted only while open (`{menuOpen && <FileMenu />}`), and it owns the two
  * inline "Import" / "Export" submenus: they reveal their format sub-items in
  * place (a flyout would be clipped by the menu's overflow-hidden) and collapse
- * whenever the menu closes, which unmounting does for free. AppHeader used to
- * hold that state and reset it in an effect on `menuOpen`.
+ * whenever the menu closes, which unmounting does without an effect on
+ * `menuOpen`.
  *
- * Every item is `tabIndex={-1}` in the JSX so the arrow keys drive navigation
- * and Tab leaves the menu; that used to be an imperative
- * `items.forEach((el) => (el.tabIndex = -1))` re-run whenever a sub-item
- * appeared.
+ * Every item is `tabIndex={-1}` in the JSX, rather than assigned imperatively
+ * whenever a sub-item appears, so the arrow keys drive navigation and Tab leaves
+ * the menu.
  */
 function FileMenu({
   canSave,

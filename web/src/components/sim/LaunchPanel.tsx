@@ -223,10 +223,9 @@ export function LaunchPanel({
     return withUnit(fmtUpTo(ui, ladderDigits(ui)), fu.sym);
   };
   const [profileOpen, setProfileOpen] = useState(false);
-  // Geolocation is a 10 s round trip that can simply be refused, and both
-  // outcomes used to be invisible: the error callback was an empty block and
-  // there was no pending state, so pressing the button appeared to do nothing
-  // and users pressed it again.
+  // Geolocation is a 10 s round trip that can simply be refused. Without a
+  // pending state and a reported error, both outcomes are invisible and the
+  // button appears to do nothing.
   const [locating, setLocating] = useState(false);
   const [locateErr, setLocateErr] = useState<string | null>(null);
   const [mapOpen, setMapOpen] = useState(false);
@@ -398,9 +397,9 @@ export function LaunchPanel({
                   onCommit?.();
                 },
                 () => {
-                  // Denial used to produce no visible change whatsoever, so
-                  // the user pressed the button again. There is a 10 s
-                  // timeout behind it too, with nothing on screen either way.
+                  // Denial is silent, and there is a 10 s timeout behind it,
+                  // so the pending state has to be cleared on both paths or the
+                  // button never settles.
                   setLocating(false);
                   setLocateErr(t('launch.locationDenied'));
                 },
@@ -528,8 +527,8 @@ export function LaunchPanel({
               {...req('windAverage')}
               value={launch.windAverage}
               onChange={(v) => {
-                // Cleared is CLEARED. It used to land as 0, which is a real
-                // wind speed, so emptying the field quietly asserted still air.
+                // Cleared is CLEARED, not 0: 0 is a real wind speed, so
+                // landing there makes emptying the field assert still air.
                 if (v == null) return onChange({ windAverage: null });
                 // OpenRocket holds the turbulence INTENSITY constant when the
                 // average moves (`PinkNoiseWindModel.setAverage`), so wind that

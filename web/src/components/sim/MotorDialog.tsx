@@ -40,12 +40,10 @@ const saveMfrs = (s: Set<string>) => {
 /**
  * The diameter range [lowIdx, highIdx], remembered across sessions.
  *
- * A NEW key, because whatever is under the old one was very likely never chosen
- * by anyone: the picker used to seed the ceiling from the mount on first open
- * and then save it as though it were a preference, so a range picked for an
- * 18 mm mount followed the user to every other mount they ever loaded. The
- * mount's cap belongs to the fit checkbox now, and starting this over costs at
- * most one drag of a slider.
+ * Seeded from nothing but the user's own drags. Seeding the ceiling from the
+ * mount and then storing it as a preference makes a range picked for an 18 mm
+ * mount follow the user to every other mount they load; capping by the mount is
+ * the fit checkbox's job instead.
  */
 const DIA_KEY = 'astrarrocketjs:motorPicker:dia2';
 const loadDia = (): [number, number] | null => {
@@ -131,8 +129,8 @@ export function MotorDialog({
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   // Generation of the pick in flight. fetchMotorSpec can take seconds over the
-  // network; a result that lands after the user canceled (this dialog is
-  // unmounted on close) used to be applied to the mount anyway.
+  // network, and a result that lands after the user canceled (this dialog is
+  // unmounted on close) must not be applied to the mount.
   const pickGen = useRef(0);
   useEffect(
     () => () => {
@@ -157,13 +155,11 @@ export function MotorDialog({
     },
   });
   /**
-   * The remembered diameter range is now a plain PREFERENCE.
-   *
-   * It used to default its top stop to whatever fitted this mount, and from then
-   * on that read as the user's own setting: pick for a 29 mm mount once, and the
-   * stored range followed you to a 54 mm mount and hid every motor that mount
-   * exists to fly. Capping by the mount belongs to the fit checkbox, which is
-   * per-mount, visible, and can be turned off.
+   * The remembered diameter range is a plain PREFERENCE, never defaulted from the
+   * mount: a top stop seeded from a 29 mm mount reads as the user's own setting
+   * and then follows them to a 54 mm mount, hiding every motor that mount exists
+   * to fly. Capping by the mount is the fit checkbox's job, which is per-mount,
+   * visible, and can be turned off.
    */
   const [filterInit] = useState(() => ({
     mfrs: loadMfrs(),
@@ -269,10 +265,10 @@ export function MotorDialog({
 
   // What the dialog acts on is the highlight the user can SEE. `selected` is
   // kept across filter changes so clearing a filter brings the highlight back,
-  // but while the filter hides that row there is no visible highlight, and a
-  // Select button applying a motor that is not on screen (the seated C6 while
-  // the list shows A8s) was the surprise the picker used to hand out. Derived,
-  // not cleared, so nothing has to be reset when the filter changes back.
+  // but while the filter hides that row there is no visible highlight, and the
+  // Select button must not apply a motor that is not on screen (the seated C6
+  // while the list shows A8s). Derived, not cleared, so nothing has to be reset
+  // when the filter changes back.
   const selectedKey = selected ? keyOf(selected) : null;
   const shown = selected && matches.some((m) => keyOf(m) === selectedKey) ? selected : null;
 

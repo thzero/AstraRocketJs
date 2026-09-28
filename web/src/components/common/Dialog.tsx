@@ -6,14 +6,12 @@ import { layerClass, readExpanded, sizeClasses, writeExpanded, type DialogLayer,
 /**
  * The one modal shell.
  *
- * Every dialog in the app is one of these. Each used to hand-roll the same five
- * things: the overlay, the panel,
- * `useFocusTrap`, a `stopPropagation` to keep a click inside from closing it, and
- * a `✕`. Each copy drifted. Two of them skipped `.dialog-panel` entirely and so
- * missed the full-bleed treatment every other dialog gets on a phone (see
- * index.css), nine declared no maximum height and ran off the bottom of a short
- * window, and the accessible name was sometimes an `aria-label` duplicating the
- * visible heading instead of pointing at it.
+ * Every dialog in the app is one of these, so the five things they all need are
+ * declared once: the overlay, the panel, `useFocusTrap`, a `stopPropagation` to
+ * keep a click inside from closing it, and a close button. Hand-rolled copies
+ * drift - off `.dialog-panel` and so out of the phone full-bleed treatment (see
+ * index.css), past the bottom of a short window with no maximum height, or onto
+ * an `aria-label` that duplicates the visible heading instead of pointing at it.
  *
  * Three body layouts, because there are genuinely three kinds:
  *
@@ -48,9 +46,8 @@ export function Dialog({
   children,
 }: {
   /**
-   * A stable id, used to remember an expanded dialog. Required, because an
-   * unnamed dialog could not persist the choice and would silently collapse
-   * again on every open.
+   * A stable id, used to remember an expanded dialog. Required: without one the
+   * choice cannot be persisted and the dialog silently collapses on every open.
    */
   id: string;
   title: string;
@@ -120,10 +117,10 @@ export function Dialog({
 }) {
   const { t } = useTranslation();
   // The trap goes on the PANEL, not the overlay: anchored on the overlay it
-  // treated the whole viewport as the dialog, and role/aria-modal sat on an
-  // element with no accessible name.
-  // Escape reaches only the topmost open surface, so a nested dialog closing on
-  // Escape no longer takes the one it opened from with it (useFocusTrap).
+  // treats the whole viewport as the dialog, and role/aria-modal land on an
+  // element with no accessible name. Escape reaches only the topmost open
+  // surface, so a nested dialog closing on Escape does not take the one it
+  // opened from with it (useFocusTrap).
   const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: dismissible ? onClose : undefined });
   const headingId = useId();
   const [expanded, setExpanded] = useState(() => readExpanded(id));

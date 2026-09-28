@@ -152,14 +152,11 @@ export function ExportDialog({
     altitude: asDistanceUnit(settings.pathExport.altitudeUnit) !== undefined,
     distance: asDistanceUnit(settings.pathExport.distanceUnit) !== undefined,
   });
-  // Write the preference-shaped fields back from the handlers that change
-  // them, and nowhere else. An effect keyed on `opts` used to do this, and it
-  // ran on mount (opening the dialog rewrote the settings) and on every
-  // keystroke in the mission field (the one field that is deliberately NOT
-  // persisted, but it lives in `opts` too). Each write recreates the settings
-  // context and hits localStorage, so that was a settings save per keystroke.
-  // The mission name is excluded at the source (it is not in
-  // PathExportSettings), so it cannot leak into the store.
+  // Write the preference-shaped fields back from the handlers that change them,
+  // and nowhere else. An effect keyed on `opts` would run on mount and on every
+  // keystroke in the mission field, and each write recreates the settings context
+  // and hits localStorage. The mission name is excluded at the source (it is not
+  // in PathExportSettings), so it cannot leak into the store.
   const persist = (next: FlightPathExportOptions) => {
     const explicit = explicitUnits.current;
     update({
@@ -185,10 +182,9 @@ export function ExportDialog({
       },
     });
   };
-  // The latest options, for handlers. `change` used to spread the render's
-  // closed-over `opts`, so two changes committed in one tick (or a change
-  // landing before a re-render) built the second patch on a stale copy and
-  // dropped the first. A ref that every writer updates gives the handlers the
+  // The latest options, for handlers. Spreading the render's closed-over `opts`
+  // builds the second of two changes committed in one tick on a stale copy and
+  // drops the first. A ref that every writer updates gives the handlers the
   // current value without a side effect inside a state updater.
   const optsRef = useRef(opts);
   const patchOpts = (patch: Partial<FlightPathExportOptions>): FlightPathExportOptions => {
@@ -284,13 +280,13 @@ export function ExportDialog({
     if (!selectedUser) return;
     try {
       await store.remove(selectedUser.id);
-      // Inside the try as well: a listing that fails after the delete used to
-      // reject out of the handler, so the row vanished from the store but the
-      // dialog kept showing it and no error was reported.
+      // Inside the try as well: a listing that fails after the delete would
+      // otherwise reject out of the handler, leaving the row gone from the store,
+      // still shown in the dialog, and no error reported.
       setTemplates(await store.list());
     } catch {
-      // The template store now reports a refused write rather than resolving
-      // cleanly on one, so this can throw where it never used to.
+      // The template store reports a refused write rather than resolving cleanly
+      // on one, so this can throw.
       setError(t('storage.full'));
       return;
     }
@@ -419,9 +415,8 @@ export function ExportDialog({
                   <button
                     key={preset.id}
                     type="button"
-                    // A toggle, not a plain button: before this nothing on
-                    // screen said which shape the dialog was in, and the
-                    // answer is knowable — see `matchingPreset`.
+                    // A toggle, not a plain button: which shape the dialog is
+                    // in is knowable, so it is announced - see `matchingPreset`.
                     aria-pressed={active}
                     // The set is cloned on the way in, so the module-level one a
                     // preset carries is never the object the dialog then mutates.
@@ -505,9 +500,8 @@ export function ExportDialog({
                   type="button"
                   onClick={() => setColorsOpen(true)}
                   title={t('pathExport.stageColorsTitle')}
-                  // Sized to the stage-track-start select beside it. It used to
-                  // be text-[11px] next to that control's text-sm, which read
-                  // as an afterthought rather than the other half of the row.
+                  // text-sm to match the stage-track-start select beside it:
+                  // the two are halves of one row.
                   className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
                 >
                   {t('pathExport.stageColors')}
@@ -724,9 +718,8 @@ function StageColorDialog({
     ground: new Map(groundColors),
     pin: new Map(pinColors),
   }));
-  // The capture-phase Escape listener that used to live here, with a
-  // `stopPropagation` so the export dialog behind it did not close too, is now
-  // the shell's rule for every dialog: Escape reaches the topmost one only.
+  // Escape is handled by the shell, whose rule covers every dialog: it reaches
+  // the topmost one only.
 
   const setColor = (role: ColorRole, i: number, rgb: number) =>
     setDrafts((d) => {

@@ -9,21 +9,19 @@ import { useSettings } from '../../state/SettingsProvider';
  * opens its configuration, and — for an imported `.ork` — what the file could
  * not bring across, with a button to dismiss it.
  *
- * The name used to live in the component tree's header as well, which said the
- * same thing twice on the same screen. It belongs here, where it has the width
- * for a long name and sits over the drawing it titles rather than over the
- * parts list.
+ * The name lives here and not in the component tree's header too, which would say
+ * the same thing twice on one screen. Here it has the width for a long name and
+ * sits over the drawing it titles rather than over the parts list.
  *
- * The import notes collapse. They matter most on the import that raised them
- * and less on the tenth look at the same design, and on a file with several they
- * took a third of the canvas with no way to fold them away short of dismissing
- * the card — which also throws away the only record of them.
+ * The import notes collapse. They matter most on the import that raised them and
+ * less on the tenth look at the same design, and on a file with several they take a
+ * third of the canvas; dismissing the card is the only other way to fold them away,
+ * and that throws away the only record of them.
  *
- * Collapsed or not is a SETTING (`showImportNotes`), not component state: the
- * card unmounts whenever you close a design or leave the Design tab, so local
- * state meant the notes sprang open again on the next import and the fold had
- * to be repeated forever. App-wide rather than per design, for the reasons on
- * the setting itself.
+ * Collapsed or not is a SETTING (`showImportNotes`), not component state: the card
+ * unmounts whenever you close a design or leave the Design tab, so local state lets
+ * the notes spring open again on the next import. App-wide rather than per design,
+ * for the reasons on the setting itself.
  */
 export function LoadedBanner({
   loaded,

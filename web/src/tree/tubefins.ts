@@ -49,10 +49,10 @@ export function tubeFinMaxCount(outerRadius: number, bodyRadius: number): number
 }
 
 /**
- * Every fin set, tube fins included — the `FIN_SET_TYPES` table in
- * componentKinds.ts (it used to be `type.endsWith('finset')`, a string test
- * nothing tied to the `ComponentType` union). Mirrors what OpenRocket's
- * FinMarkingGuide collects:
+ * Every fin set, tube fins included - the `FIN_SET_TYPES` table in
+ * componentKinds.ts, rather than a `type.endsWith('finset')` string test nothing
+ * ties to the `ComponentType` union. Mirrors what OpenRocket's FinMarkingGuide
+ * collects:
  *
  *     next instanceof FinSet || next instanceof TubeFinSet || …
  *

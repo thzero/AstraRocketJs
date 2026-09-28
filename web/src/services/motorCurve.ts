@@ -3,15 +3,13 @@ import type { MotorSpec } from '../engine/openRocketEngine';
 /**
  * THE "does this motor carry a usable thrust curve" predicate.
  *
- * Four thresholds used to exist, one per module: `runnability.hasThrustCurve`
- * accepted any non-empty arrays, `buildRocket` and `engine/api` seated a motor
- * at two or more time samples, `motorDb.hasCurve` wanted two catalog samples,
- * and `motorStore.isThrustSampleArray` wanted one finite sample. So a
- * one-sample motor was "flyable" to the Run button, left the mount empty at
- * build time, and then failed the kernel's own "too short thrust curve" check
- * from some other path. One predicate, matching the builder
- * (`openRocketEngine.setMotorById`): at least {@link MIN_CURVE_SAMPLES}
- * samples, the three arrays in lockstep, every value finite.
+ * One predicate, matching the builder (`openRocketEngine.setMotorById`): at least
+ * {@link MIN_CURVE_SAMPLES} samples, the three arrays in lockstep, every value
+ * finite.
+ *
+ * A threshold per module makes a one-sample motor "flyable" to the Run button,
+ * empty at the mount at build time, and then a failure of the kernel's own "too
+ * short thrust curve" check from some other path.
  */
 export const MIN_CURVE_SAMPLES = 2;
 

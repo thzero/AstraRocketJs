@@ -5,18 +5,17 @@ import { lerpAt } from './interpolate';
  * The flight as a TIMELINE: one row per event, each carrying the state of the
  * rocket at that instant.
  *
- * The charts have always marked events as a label strip (FlightChartEvents),
- * which answers "when" and nothing else, and a handful of instants reach the
- * summary tiles (rod exit, rail margin, deploy speed). Neither is a list you
- * can read down. Everything here was already computed: `FlightResult.events`
- * carries the kernel's full event list — not just the five the chart labels —
- * and every series needed to sample at an event time is on the same branch, so
- * this file is a JOIN, not physics.
+ * The charts mark events as a label strip (FlightChartEvents), which answers
+ * "when" and nothing else, and a handful of instants reach the summary tiles (rod
+ * exit, rail margin, deploy speed). Neither is a list you can read down. Nothing
+ * here is computed twice: `FlightResult.events` carries the kernel's full event
+ * list, not just the five the chart labels, and every series needed to sample at
+ * an event time is on the same branch, so this file is a JOIN, not physics.
  *
  * The one exception is {@link maxQ}, which the kernel does not record.
  *
- * Pure and component-free, like aeroTables.ts beside AeroComponentTables: the
- * join and the peak are provable without mounting a table.
+ * Pure and component-free, like aeroTables.ts beside AeroComponentTables, so the
+ * join and the peak are testable without mounting a table.
  */
 
 /**
@@ -33,9 +32,8 @@ export const MAX_Q = 'MAX_Q';
  *
  * This is deliberately wider than `EVENT_LABEL` in simReport.ts, which is the
  * set worth DRAWING on a chart: five marks on a plot is a readable plot, and
- * fifteen is a smear. A table has rows and no such limit, so the events that
- * were previously invisible (rail departure, ignition, separation, tumble) get
- * named here.
+ * fifteen is a smear. A table has rows and no such limit, so the events a chart
+ * cannot carry (rail departure, ignition, separation, tumble) are named here.
  *
  * A type absent from this map is dropped rather than shown under its raw
  * kernel name. That is on purpose for the three diagnostics — SIM_WARN,

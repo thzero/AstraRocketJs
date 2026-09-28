@@ -13,12 +13,11 @@ const FOCUSABLE = [
 
 export interface FocusTrapOptions {
   /**
-   * Called on a window-level Escape while the trap is active, and only if this
-   * is the TOPMOST open surface. Every modal in the app closes on Escape, and
-   * each one used to carry its own copy of the same five-line window listener;
-   * this is the one copy. Omit it for a surface that must not be dismissible
-   * (WorkInProgressDialog) -- which then swallows Escape while it is on top,
-   * rather than letting it through to whatever is underneath.
+   * Called on a window-level Escape while the trap is active, and only if this is
+   * the TOPMOST open surface. Every modal in the app closes on Escape, and this is
+   * the one window listener that does it. Omit it for a surface that must not be
+   * dismissible (WorkInProgressDialog) -- which then swallows Escape while it is
+   * on top, rather than letting it through to whatever is underneath.
    */
   onEscape?: () => void;
 }
@@ -86,9 +85,9 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean, { onEscape 
     //
     // Unless the dialog already placed it. React applies `autoFocus` during
     // commit, before this passive effect runs, so moving focus unconditionally
-    // overrode every `autoFocus` in every dialog: ConfirmDialog's Confirm
-    // button lost to Cancel (which came first in DOM order), and the name and
-    // search inputs lost to their dialog's close button.
+    // overrides every `autoFocus` in every dialog: ConfirmDialog's Confirm button
+    // loses to Cancel (first in DOM order), and the name and search inputs lose to
+    // their dialog's close button.
     if (!panel.contains(document.activeElement)) {
       const first = focusable()[0];
       if (first) first.focus();

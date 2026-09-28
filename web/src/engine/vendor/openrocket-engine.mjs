@@ -3160,7 +3160,42 @@ iocr_RingComponent_getLongitudinalUnitInertia = $this => {
     return iocr_RocketComponent_ringLongitudinalUnitInertia($this.$getOuterRadius(), $this.$getInnerRadius(), $this.$getLength());
 },
 iocr_RingComponent_getRotationalUnitInertia = $this => {
-    return iocr_RocketComponent_ringRotationalUnitInertia($this.$getOuterRadius(), $this.$getInnerRadius());
+    let $own, $spread;
+    $own = iocr_RocketComponent_ringRotationalUnitInertia($this.$getOuterRadius(), $this.$getInnerRadius());
+    $spread = iocr_RingComponent_instanceSpreadUnitInertia($this);
+    if ($spread !== 0.0)
+        $own = $own + $spread;
+    return $own;
+},
+iocr_RingComponent_instanceSpreadUnitInertia = $this => {
+    let $offsets, var$2, $count, $refY, $refZ, var$6, $c, var$8, $sum, var$10, $dy, $dz;
+    $offsets = $this.$getInstanceOffsets();
+    var$2 = $offsets.data;
+    $count = var$2.length;
+    $refY = 0.0;
+    $refZ = 0.0;
+    if (1 < $this.$getInstanceCount()) {
+        var$6 = 0;
+        while (var$6 < $count) {
+            $c = var$2[var$6];
+            $refY = $refY + $c.$getY();
+            $refZ = $refZ + $c.$getZ();
+            var$6 = var$6 + 1 | 0;
+        }
+        var$8 = $count;
+        $refY = $refY / var$8;
+        $refZ = $refZ / var$8;
+    }
+    $sum = 0.0;
+    var$10 = 0;
+    while (var$10 < $count) {
+        $c = var$2[var$10];
+        $dy = $c.$getY() - $refY;
+        $dz = $c.$getZ() - $refZ;
+        $sum = $sum + $dy * $dy + $dz * $dz;
+        var$10 = var$10 + 1 | 0;
+    }
+    return $sum / $count;
 },
 iocr_RingComponent__clinit_ = () => {
     iocr_RingComponent_$assertionsDisabled = jl_Class_desiredAssertionStatus($rt_cls(iocr_RingComponent)) ? 0 : 1;
@@ -52633,7 +52668,7 @@ iocm_MassCalculation_toString = $this => {
     return $this.$toCMDebug();
 },
 iocm_MassCalculation_calculateMountData = ($this, $motorConfig, $motorState) => {
-    let $motor, $motorTime, $mountXPosition, $instanceCount, $motorXPosition, $offsets, $eachMass, $eachCMx, $eachMotorMass, $eachMotorCMx, $eachCasingMass, $eachCasingCMx, $clusterLocalCM, var$16, var$17, $clusterBaseIr, $clusterIt, var$20, var$21, var$22, $coord, $distance, $clusterCM, $entry, $clusterMOI;
+    let $motor, $motorTime, $mountXPosition, $instanceCount, $motorXPosition, $offsets, $eachMass, $eachCMx, $eachMotorMass, $eachMotorCMx, $eachCasingMass, $eachCasingCMx, var$15, $clusterLocalCM, var$17, var$18, $clusterBaseIr, $clusterIt, var$21, var$22, $coord, $distance, $clusterCM, $entry, $clusterMOI;
     if (!$this.$config.$isComponentActive($this.$root0))
         return $this;
     if ($motorConfig.$isEmpty())
@@ -52658,22 +52693,20 @@ iocm_MassCalculation_calculateMountData = ($this, $motorConfig, $motorState) => 
         $eachMass = $eachMotorMass - $eachCasingMass;
         $eachCMx = ($eachMotorCMx * $eachMotorMass - $eachCasingCMx * $eachCasingMass) / $eachMass;
     }
+    var$15 = $offsets.data;
     $clusterLocalCM = new iocu_Coordinate;
-    var$16 = $mountXPosition + $motorXPosition + $eachCMx;
-    var$17 = $instanceCount;
-    iocu_Coordinate__init_2($clusterLocalCM, var$16, 0.0, 0.0, $eachMass * var$17);
-    $clusterBaseIr = $motorConfig.$getUnitRotationalInertia() * var$17 * $eachMass;
-    $clusterIt = $motorConfig.$getUnitLongitudinalInertia() * var$17 * $eachMass;
-    if (1 < $instanceCount) {
-        var$20 = $offsets.data;
-        var$21 = var$20.length;
-        var$22 = 0;
-        while (var$22 < var$21) {
-            $coord = var$20[var$22];
-            $distance = jl_Math_hypot($coord.$getY(), $coord.$getZ());
-            $clusterBaseIr = $clusterBaseIr + $eachMass * jl_Math_pow($distance, 2.0);
-            var$22 = var$22 + 1 | 0;
-        }
+    var$17 = $mountXPosition + $motorXPosition + $eachCMx;
+    var$18 = $instanceCount;
+    iocu_Coordinate__init_2($clusterLocalCM, var$17, 0.0, 0.0, $eachMass * var$18);
+    $clusterBaseIr = $motorConfig.$getUnitRotationalInertia() * var$18 * $eachMass;
+    $clusterIt = $motorConfig.$getUnitLongitudinalInertia() * var$18 * $eachMass;
+    var$21 = var$15.length;
+    var$22 = 0;
+    while (var$22 < var$21) {
+        $coord = var$15[var$22];
+        $distance = jl_Math_hypot($coord.$getY(), $coord.$getZ());
+        $clusterBaseIr = $clusterBaseIr + $eachMass * jl_Math_pow($distance, 2.0);
+        var$22 = var$22 + 1 | 0;
     }
     $clusterCM = $this.$transform3.$transform($clusterLocalCM);
     $this.$addMass($clusterCM);

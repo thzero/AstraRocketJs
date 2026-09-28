@@ -14,11 +14,9 @@ import type { Ignition } from '../services/buildRocket';
  * without touching the plumbing.
  *
  * The request is a DISCRIMINATED UNION on `method`, and each method names its
- * result type in {@link WorkerResults}. It used to be one `{method: 'ping' |
- * 'simulate'; args: SimPayload | null}` shape with `result: unknown`, so the
- * worker cast `args as SimPayload` and the client cast the result to
- * `FlightResult`, and a new method could be wired up with the wrong payload on
- * either side without a compile error.
+ * result type in {@link WorkerResults}. One shape with `args: SimPayload | null`
+ * and `result: unknown` instead forces a cast on both sides, and lets a new method
+ * be wired up with the wrong payload without a compile error.
  */
 export interface SimPayload {
   tree: RocketTree;

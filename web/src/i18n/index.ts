@@ -16,10 +16,9 @@ import ru from './locales/ru.json';
 import ja from './locales/ja.json';
 
 /**
- * Every locale, once: its code, its native name for the switcher, and its
- * bundle. `LANGUAGES` and `resources` are both derived from this, where they
- * used to be two lists that had to be kept in step by hand (a bundle
- * registered but not selectable, or the reverse, compiled fine).
+ * Every locale, once: its code, its native name for the switcher, and its bundle.
+ * `LANGUAGES` and `resources` are both derived from this, so a bundle cannot be
+ * registered without being selectable, or the reverse.
  *
  * A code carries a region only when the variants are genuinely different
  * translations rather than one with an accent moved. Brazilian and European
@@ -55,13 +54,12 @@ i18n
     resources: Object.fromEntries(LOCALES.map((l) => [l.code, { translation: l.translation }])),
     fallbackLng: 'en',
     supportedLngs: LANGUAGES.map((l) => l.code),
-    // NO `load: 'languageOnly'`. It used to be here so a browser set to
-    // es-ES / es-MX resolved to our 'es' bundle, but it strips the region from
-    // every code, which would have collapsed pt-BR and pt-PT onto a 'pt' we do
-    // not ship, sending every Portuguese browser to English. i18next's
-    // best-match already does the widening we wanted: an unshipped region falls
-    // back to the base language when we ship one ('es-MX' → 'es'), and to the
-    // first matching region when we ship only regions ('pt' → 'pt-BR').
+    // NO `load: 'languageOnly'`: it strips the region from every code,
+    // collapsing pt-BR and pt-PT onto a 'pt' we do not ship and sending every
+    // Portuguese browser to English. i18next's best-match already widens
+    // correctly: an unshipped region falls back to the base language when we
+    // ship one ('es-MX' → 'es'), and to the first matching region when we ship
+    // only regions ('pt' → 'pt-BR').
     interpolation: { escapeValue: false }, // React already escapes
     detection: {
       order: ['querystring', 'localStorage', 'navigator'],

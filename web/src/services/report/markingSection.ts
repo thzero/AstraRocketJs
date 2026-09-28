@@ -19,9 +19,9 @@ import { GUIDE_WIDTH_MM, cutPoints, type MarkingGuide, type MarkingGuideSet } fr
 /** Space between strips, across and down (mm). */
 const GAP_MM = 10;
 /**
- * The band above each strip: the name line, the piece line when the strip was
- * cut up, and the fore-end arrow on a line of its own. The arrow used to share
- * the piece line and the two ran into each other.
+ * The band above each strip: the name line, the piece line when the strip was cut
+ * up, and the fore-end arrow on a line of its own, so it cannot run into the
+ * piece line.
  */
 const HEADER_MM = 12.5;
 /** Arrow head, 10 pt (`FinMarkingGuide.ARROW_SIZE`). */
@@ -51,8 +51,8 @@ export function writeMarkingGuideSection(p: PdfPage, set: MarkingGuideSet): void
 
   writeRuler(p);
 
-  // A strip is never scaled (the whole point is that it is the tube's real
-  // circumference), so one too long for the page is CUT INTO PIECES that butt
+  // A strip is never scaled, since it has to be the tube's real circumference,
+  // so one too long for the page is CUT INTO PIECES that butt
   // together, the way upstream tiles its rasterized guide across pages. A 4 in
   // tube wraps 320 mm, which no paper this report offers can hold in one piece,
   // and that is the size the guide matters most at. `cutPoints` decides WHERE

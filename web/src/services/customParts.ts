@@ -179,12 +179,10 @@ function bump(): void {
 export async function saveCustomPart(node: ComponentNode, type: PickerType, meta: PartMeta): Promise<CustomPart> {
   const { mfr, partNo, desc } = cleanMeta(meta);
   const catalogType = catalogTypeFor(type);
-  // "Saving again under the same maker and name replaces it" is matched on
-  // the LABEL, and the id is stable and opaque. It used to be the other way
-  // round, with the id encoding `<type>:<mfr>:<partNo>` and the label doing
-  // the identifying, which made a rename impossible to express: it produced a
-  // different id, so the part was copied rather than renamed and the original
-  // stayed behind under its old name.
+  // "Saving again under the same maker and name replaces it" is matched on the
+  // LABEL, and the id is stable and opaque. An id encoding
+  // `<type>:<mfr>:<partNo>` cannot express a rename: it changes with the name, so
+  // the part is copied and the original stays behind under its old name.
   const existing = (await getPresetStore().list()).find(
     (p) => p.type === catalogType && p.mfr === mfr && p.partNo === partNo,
   );

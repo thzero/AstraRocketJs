@@ -37,17 +37,14 @@ export interface TileSource {
  * Both layers come from Esri's ArcGIS tile services, and NOT from
  * `tile.openstreetmap.org`.
  *
- * The street layer used to be OSM's own tile servers. That was wrong: those are
- * donated, volunteer-funded infrastructure, and the OSM Tile Usage Policy is
- * explicit that they exist for OpenStreetMap's own use and that third-party
- * applications are to run their own or buy from a provider. They enforce it, so
- * the layer also simply 403'd in the browser. Making it work would have meant
- * complying our way into using someone's charity as a CDN, which is the part
- * that was actually wrong.
+ * OSM's own tile servers are donated, volunteer-funded infrastructure, and the OSM
+ * Tile Usage Policy is explicit that they exist for OpenStreetMap's own use and
+ * that third-party applications are to run their own or buy from a provider. They
+ * enforce it, and the layer 403s in the browser.
  *
- * Esri's street map carries OSM DATA and credits it in the attribution below,
- * so the mapping still reaches the people who made it - over a commercial CDN
- * that is provisioned for being used.
+ * Esri's street map carries OSM DATA and credits it in the attribution below, so
+ * the mapping still reaches the people who made it, over a commercial CDN that is
+ * provisioned for being used.
  *
  * Both paths are {z}/{y}/{x}, not the {z}/{x}/{y} most tile servers use.
  * Attribution strings are the `copyrightText` each service publishes in its own

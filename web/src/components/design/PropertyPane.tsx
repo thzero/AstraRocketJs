@@ -1,10 +1,10 @@
 import { PropertyPanel } from './PropertyPanel';
 import { useSelectedComponent } from './useSelectedComponent';
 
-/** Design tab, right column: the selected part's property editor (which renders
- *  its own "pick a part" hint when nothing is selected). Gets a whole column of
- *  its own here — it used to be stacked under the component tree in a single
- *  340px column, where the two grew into each other. */
+/** Design tab, right column: the selected part's property editor (which renders its
+ *  own "pick a part" hint when nothing is selected). A column of its own, rather
+ *  than stacked under the component tree in a single 340px one where the two grow
+ *  into each other. */
 export function PropertyPane() {
   const sel = useSelectedComponent();
 

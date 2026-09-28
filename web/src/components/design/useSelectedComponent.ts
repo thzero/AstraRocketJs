@@ -12,10 +12,9 @@ import { num } from '../../tree/nodeProps';
  * the guarded edit/delete/move actions, and the few facts about its place in the
  * tree that the node itself doesn't carry.
  *
- * Its own hook because the tree and the property editor now sit in OPPOSITE
- * columns of the Design tab (see App.tsx) rather than stacked in one. The glue
- * used to live in the component that rendered both; with them apart, neither
- * pane should have to import the other to get it.
+ * Its own hook because the tree and the property editor sit in OPPOSITE columns of
+ * the Design tab (see App.tsx) rather than stacked in one, so neither pane has to
+ * import the other to get this.
  */
 export function useSelectedComponent() {
   const { t } = useTranslation();

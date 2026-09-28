@@ -35,7 +35,7 @@ const btn =
 /**
  * Altitude against wind speed, the way the desktop draws it: altitude up, speed
  * across, one marker per level. The direction vectors are optional because on a
- * profile whose layers back round they are the whole point, and on a profile
+ * profile whose layers back round they carry the information, and on a profile
  * that blows one way throughout they are noise.
  */
 function ProfileChart({ levels, u, showVectors }: { levels: WindLevel[]; u: Units; showVectors: boolean }) {
@@ -179,10 +179,9 @@ export function WindProfileDialog({
     setLevels([
       ...levels,
       {
-        // 300 m above the HIGHEST level, not above the last row: the list is
-        // not sorted, so on a profile of 0/600/300 the last row's +300 landed
-        // on 600 and the new row collided with an existing level the moment it
-        // was added.
+        // 300 m above the HIGHEST level, not above the last row: the list is not
+        // sorted, so on a profile of 0/600/300 the last row's +300 lands on 600
+        // and collides with an existing level.
         altitudeM: Math.max(0, ...levels.map((l) => l.altitudeM)) + 300,
         speed: last?.speed ?? 0,
         directionDeg: last?.directionDeg ?? 90,

@@ -30,11 +30,10 @@ export interface Simulation {
    * above, this is OpenRocket's "flight configuration": the whole set of motors
    * a given simulation flies.
    *
-   * It used to be one workspace-level map shared by every simulation, which
-   * meant a multi-mount or staged rocket could only ever be flown one way —
-   * changing an upper-stage motor changed it for every simulation at once, and
-   * so had to age all of their results. Per simulation, "C6 sustainer vs. D12
-   * sustainer" is two rows in the table.
+   * Per simulation, not per workspace: a shared map means a multi-mount or
+   * staged rocket can only be flown one way, because changing an upper-stage
+   * motor changes it for every simulation at once and ages all of their results.
+   * Held here, "C6 sustainer vs. D12 sustainer" is two rows in the table.
    */
   extraMotors: Record<string, MountMotor>;
   launch: LaunchConditions;
@@ -43,11 +42,10 @@ export interface Simulation {
   /**
    * The cached result no longer matches the inputs.
    *
-   * An edit used to NULL every result outright, which is why the Results tab had
-   * to appear and disappear and why you could not compare a change against the
-   * run that preceded it. OpenRocket instead keeps the numbers and flags them,
-   * and so do we: the result stays readable, the status column goes amber, and
-   * re-running clears it.
+   * An edit flags the result rather than nulling it, which is what OpenRocket
+   * does: the numbers stay readable so a change can be compared against the run
+   * before it, the Results tab stays put, the status column goes amber, and
+   * re-running clears the flag.
    */
   outdated?: boolean;
   /**
@@ -130,9 +128,8 @@ export interface ResultFlight {
  * The flight the Results tab shows.
  *
  * `chosen` is the Results picker's own selection; NULL means "whichever
- * simulation is active", which is what the tab did before the picker existed
- * and the right default - open Results and you are reading the row you were
- * just working on.
+ * simulation is active", so opening Results reads the row you were just
+ * working on.
  *
  * Falls back to the active simulation whenever the choice cannot be honored -
  * an id that no longer names a row, or one whose run has since been cleared -
@@ -157,10 +154,9 @@ export type SimStatus = 'notRun' | 'queued' | 'running' | 'failed' | 'outdated' 
 /**
  * Transient run state for ONE simulation, keyed by sim id in the store.
  *
- * It is per-sim because the worker pool runs several flights at once: a single
- * `runningId` could only ever name one of four, and a batch of twelve is queued
- * all at once and starts a few at a time, so "waiting its turn" and "in the air"
- * are different things a row has to be able to say.
+ * Per-sim because the worker pool runs several flights at once, and because a
+ * batch of twelve is queued all at once and starts a few at a time: "waiting its
+ * turn" and "in the air" are different things a row has to be able to say.
  *
  * `failed` carries the design it failed ON, which is what stops auto-run
  * retrying a configuration already known to fail while still allowing a retry
@@ -243,8 +239,8 @@ export const freshSeed = (): number => Math.floor(Math.random() * 2 ** 32) - 2 *
 export function simConditions(launch: CompleteLaunch, prefs?: SimPrefs) {
   // "Launch into the wind" aims the rod at the surface wind heading, overriding
   // the manual rod direction. Multilevel wind: the SURFACE level is the lowest
-  // altitude (safetyLimits.surfaceLevel), not `windLevels[0]`; levels are not
-  // kept sorted, and a top-down profile used to aim the rod at the wind aloft.
+  // altitude (safetyLimits.surfaceLevel), not `windLevels[0]`: levels are not
+  // kept sorted, so a top-down profile would aim the rod at the wind aloft.
   const windDirDeg = surfaceLevel(launch)?.directionDeg ?? launch.windDirectionDeg ?? DEFAULT_HEADING_DEG;
   const rodDirDeg = launch.launchIntoWind ? windDirDeg : (launch.launchRodDirectionDeg ?? DEFAULT_HEADING_DEG);
   return {

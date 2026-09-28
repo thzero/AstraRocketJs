@@ -8,9 +8,9 @@ import { STABILITY_GLYPH } from './schematicGeometry';
 /**
  * Tone per stability band. The SAME classifier as the 2D callout and the 3D
  * gadget beside this card (`stabilityState`: under < 1 cal, over > 6 cal, ok
- * between), so the three readouts on one screen never disagree about a design.
- * This card used to carry a third tier set (>= 1 ok, >= 0 warn, else) that
- * called a 7-caliber rocket fine while the drawing next to it said over-stable.
+ * between), so the three readouts on one screen never disagree about a design. A
+ * tier set of its own (>= 1 ok, >= 0 warn, else) calls a 7-caliber rocket fine
+ * while the drawing next to it says over-stable.
  */
 const STABILITY_TONE: Record<StabilityState, string> = {
   ok: 'text-emerald-400',

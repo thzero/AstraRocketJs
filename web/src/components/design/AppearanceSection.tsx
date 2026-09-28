@@ -7,12 +7,11 @@ import { useSettings } from '../../state/SettingsProvider';
 /**
  * How the part is DRAWN, as against what it is.
  *
- * Color is the only thing in here, and it used to sit in the Part section
- * beside the name and the catalog picker. It does not belong with them: those
- * two say what the part is and what it is made from, and both are written to
- * the `.ork`; this one is a view preference that changes nothing about the
- * rocket. A section of its own says so, and leaves room for the other
- * appearance settings (finish, texture) whenever they land.
+ * Color is the only thing in here, and it does not belong in the Part section with
+ * the name and the catalog picker: those say what the part is and what it is made
+ * from, and both are written to the `.ork`, while this is a view preference that
+ * changes nothing about the rocket. A section of its own says so, and leaves room
+ * for the other appearance settings (finish, texture) whenever they land.
  *
  * Second to last on every part, directly above Overrides, for the same reason
  * Overrides is last: it is read far less often than anything describing the

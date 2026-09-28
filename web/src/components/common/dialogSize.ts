@@ -35,8 +35,8 @@ export const widthClass = (size: DialogSize): string => WIDTH[size];
  */
 const EXPANDED = 'max-w-[96vw]';
 
-/** Height is capped whatever the width, because a tall dialog on a short window
- *  used to run off the bottom: nine of the twenty declared no max height. */
+/** Height is capped whatever the width: uncapped, a tall dialog runs off the
+ *  bottom of a short window. */
 const HEIGHT = 'max-h-[85vh]';
 const HEIGHT_EXPANDED = 'max-h-[94vh]';
 

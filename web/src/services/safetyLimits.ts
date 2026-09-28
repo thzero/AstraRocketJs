@@ -38,11 +38,10 @@ export interface LimitViolation {
  * The GROUND layer of a multilevel wind profile, or `undefined` when the
  * launch has no profile.
  *
- * Levels are not kept sorted (a CSV or a `.ork` can list them top-down), so
- * the surface is the LOWEST altitude, not the first entry. `simulations.ts`
- * used to take `windLevels[0]` for the "launch into the wind" heading while
- * this file took the lowest, so a top-down profile aimed the rod at the wind
- * aloft and judged the safety code on the wind at the pad. One reader.
+ * Levels are not kept sorted (a CSV or a `.ork` can list them top-down), so the
+ * surface is the LOWEST altitude, not the first entry. One reader, so the "launch
+ * into the wind" heading and the safety code cannot be judged on two different
+ * levels of the same profile.
  */
 export function surfaceLevel(launch: LaunchConditions): WindLevel | undefined {
   const levels = launch.windLevels ?? [];
@@ -90,12 +89,11 @@ export function launchLimitViolations(launch: LaunchConditions): LimitViolation[
 /**
  * One violation as a sentence, in the units the reader has selected.
  *
- * Both codes state their numbers in imperial, and this used to quote them that
- * way so the figure matched the source. That put "20 mph" in front of a reader
- * whose every other readout is m/s, which is a rule they then have to convert
- * before they can act on it — so both the offending value and the cap are
- * converted, and the symbol travels with each number rather than sitting in the
- * translated sentence.
+ * Both codes state their numbers in imperial. Quoted that way the figure matches
+ * the source but puts "20 mph" in front of a reader whose every other readout is
+ * m/s, leaving them to convert a rule before they can act on it. So both the
+ * offending value and the cap are converted, and the symbol travels with each
+ * number rather than sitting in the translated sentence.
  *
  * `u` is passed in rather than read here: see {@link UnitSymbols}.
  */

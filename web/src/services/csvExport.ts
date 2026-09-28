@@ -33,9 +33,9 @@ const col = (units: UnitSelection, q: Quantity): { f: number; sym: string } => (
  * comments — OpenRocket's own Export data options, which it keeps in
  * `CsvOptionPanel` and the export panel beside it.
  *
- * It used to be none of these: the button wrote a fixed twelve columns, comma
- * separated, six significant digits, with the event lines always on. That is one
- * opinion about a file somebody else has to read.
+ * All of it is the user's choice: a fixed twelve columns, comma separated, six
+ * significant digits with the event lines always on is one opinion about a file
+ * somebody else has to read.
  */
 export interface FlightCsvOptions {
   /** Series keys to write, in `flightColumns` order. */

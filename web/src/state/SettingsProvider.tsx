@@ -14,14 +14,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(loadSettings);
 
   // Persist from the two events that change settings, never from an effect on
-  // `settings`. An effect wrote loadSettings()' own output straight back on
-  // mount, and `loadSettings` normalizes, dropping keys it does not recognize:
-  // merely OPENING an older build permanently destroyed any preference a newer
-  // build had written. A "skip the first run" ref was added for that, and
-  // StrictMode defeated it: React runs every effect's setup twice on mount and
-  // refs persist across the pair, so the second run saw the flag set and wrote
-  // anyway, in exactly the environment developers test in. Writing from the
-  // event has no first run to skip.
+  // `settings`. An effect writes loadSettings()' own output straight back on
+  // mount, and `loadSettings` normalizes by dropping keys it does not recognize,
+  // so merely OPENING an older build would destroy any preference a newer build
+  // wrote. A "skip the first run" ref does not save it either: StrictMode runs
+  // every effect's setup twice on mount and refs persist across the pair, so the
+  // second run sees the flag set and writes anyway. Writing from the event has no
+  // first run to skip.
   //
   // Stable identities, so a consumer can list `update` in an effect's deps
   // (or leave it out) without the effect re-running on every settings change.

@@ -167,10 +167,9 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
     while ((outgoing.get(start)?.length ?? 0) > 0) {
       const loop: number[] = [start];
       // Every edge this attempt consumes, so a failed walk can put them back.
-      // `step` POPS, and the old code just `continue`d on failure — those edges
-      // were gone for good, the boundary they belonged to was never capped, and
-      // makeWatertight still returned normally. meshExport then labeled the
-      // result watertight and handed someone an STL with a hole in it.
+      // `step` POPS, so a bare `continue` on failure loses them for good: the
+      // boundary they belong to is never capped, makeWatertight still returns
+      // normally, and meshExport labels an STL with a hole in it watertight.
       const eaten: Array<[number, number]> = [];
       const take = (u: number): number | undefined => {
         const v = step(u);
@@ -343,11 +342,10 @@ function revolveSolidX(surface: [number, number][], axialOffset: number): THREE.
  */
 export function discSolid(outerR: number, innerR: number, length: number): THREE.BufferGeometry | null {
   const len = length > 1e-6 ? length : 0.002;
-  // An INVERTED ring (ID >= OD — reachable from a malformed .ork or a bad
-  // catalog row) used to fall through to the solid-cylinder branch and export a
-  // centering ring as a solid disc. Printed, that blocks the motor tube, and
-  // nothing said so. Every other degenerate case in solidForNode returns null;
-  // this one now does too.
+  // An INVERTED ring (ID >= OD - reachable from a malformed .ork or a bad catalog
+  // row) would otherwise fall through to the solid-cylinder branch and export a
+  // centering ring as a solid disc, which blocks the motor tube once printed with
+  // nothing saying so. Every degenerate case in solidForNode returns null.
   if (innerR > 1e-6 && innerR >= outerR - 1e-6) return null;
   const hasBore = innerR > 1e-6 && innerR < outerR - 1e-6;
   const pts = hasBore
@@ -390,10 +388,9 @@ function oneFinSolid(child: ComponentNode, parentRadius: number | null): THREE.B
   // a solid whose faces pass through each other.
   if (child.type === 'freeformfinset' && !isSimplePolygon(freeformPoints(child))) return null;
 
-  // The outline, tab folded in, from the ONE fin-geometry module. This used to
-  // sample its own elliptical curve here and got a sine arch instead of the
-  // kernel's half-ellipse, so the printed fin was a different shape from the
-  // one that flew. See tree/finPlanform.ts.
+  // The outline, tab folded in, from the ONE fin-geometry module, so the printed
+  // fin is the shape that flew. Sampling an elliptical curve here instead yields
+  // a sine arch rather than the kernel's half-ellipse. See tree/finPlanform.ts.
   const contour = finCutContour(child, parentRadius);
   if (!contour || contour.length < 3) return null;
 
@@ -469,10 +466,10 @@ function buildSolid(node: ComponentNode, parentRadius: number | null): THREE.Buf
     case 'tubefinset': {
       // A tube fin set legitimately carries NO outerRadius: the kernel
       // auto-sizes it from the body radius and the fin count
-      // (TubeFinSet.getOuterRadius). This used to substitute a hard 12 mm, so a
-      // 6-tube set on a 25 mm body exported at less than half its real
-      // diameter with no warning. Without a parent radius the size is simply
-      // unknowable, so skip the part rather than invent one.
+      // (TubeFinSet.getOuterRadius). A hard 12 mm substitute exports a 6-tube set
+      // on a 25 mm body at less than half its real diameter with no warning.
+      // Without a parent radius the size is unknowable, so skip the part rather
+      // than invent one.
       const R =
         node.type === 'tubefinset'
           ? (numOpt(node, 'outerRadius') ?? (parentRadius != null ? tubeFinRadius(node, parentRadius) : NaN))

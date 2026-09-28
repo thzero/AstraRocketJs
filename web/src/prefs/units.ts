@@ -155,9 +155,8 @@ export type UnitSelection = Record<Quantity, string>;
  * and nothing else: not its Thickness, not the tree, not the stats strip.
  *
  * Per-field rather than per-quantity because changing a unit where you are
- * reading is a local act. A chip that silently re-based every length in the app
- * is a big effect to hang off a small control, and the owner's call is that it
- * should not (2026-09-13).
+ * reading is a local act: re-basing every length in the app is too large an
+ * effect to hang off a chip.
  *
  * A field with no entry here follows Settings ▸ Units, and keeps following it
  * — so changing a default still moves everything the user never touched.

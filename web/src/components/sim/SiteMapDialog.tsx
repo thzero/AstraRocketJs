@@ -39,8 +39,8 @@ export function SiteMapDialog({
       layer="over"
       size="3xl"
       // A map cannot usefully scroll, so the body takes the height and the map
-      // fills it. `role="dialog"` used to sit on the OVERLAY here, which told
-      // assistive tech the whole viewport was the dialog.
+      // fills it. `role="dialog"` belongs on the panel, not the overlay, which
+      // would tell assistive tech the whole viewport is the dialog.
       layout="fill"
     >
       <SiteMap latitudeDeg={latitudeDeg} longitudeDeg={longitudeDeg} onPick={onPick} className="m-4 min-h-0 flex-1" />

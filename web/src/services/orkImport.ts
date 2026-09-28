@@ -28,10 +28,10 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
   const comment = text(rocketEl, ':scope > comment') ?? undefined;
   const revision = text(rocketEl, ':scope > revision') ?? undefined;
   const designType = text(rocketEl, ':scope > designtype')?.toLowerCase() ?? undefined;
-  // What the stability calibers are measured against. Read rather than carried
-  // because the writer emits a `referencetype` of its own, and used to emit a
-  // hardcoded `maximum`: a design measured against a custom length came back
-  // measured against its widest body tube.
+  // What the stability calibers are measured against. Read rather than carried,
+  // because the writer emits a `referencetype` of its own and a hardcoded
+  // `maximum` brings a design measured against a custom length back measured
+  // against its widest body tube.
   // Only when it is NOT the default: `maximum` is what this app measures against
   // and what the writer emits anyway, so recording it would put the same word on
   // every tree for nothing.

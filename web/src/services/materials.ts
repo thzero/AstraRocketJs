@@ -16,7 +16,7 @@ import { fetchCatalog } from './remoteData';
  *
  * ~16 KB, so it is not deferred the way the 1.6 MB motor catalog is: the first
  * thing that wants a material asks for it and everything after shares the one
- * promise, exactly as the bundled import used to share a module.
+ * promise.
  */
 function loadBuiltins(): Promise<Material[]> {
   return fetchCatalog<Material[]>('materials', isMaterialCatalog);
@@ -42,10 +42,9 @@ function loadCustom(): Promise<Material[]> {
 export const DEFAULT_CUSTOM_GROUP = 'Other';
 
 /**
- * What custom materials used to be filed under, before they joined the real
- * groups. Still read, never written: a material saved by an older build is
- * re-homed on the way out of the store rather than stranded in a group nothing
- * else is in.
+ * The group older builds filed custom materials under. Still read, never
+ * written: a material saved that way is re-homed on the way out of the store
+ * rather than stranded in a group nothing else is in.
  */
 const LEGACY_CUSTOM_GROUP = 'Custom';
 
@@ -96,16 +95,16 @@ export async function removeCustom(name: string, type: MaterialType): Promise<Ma
  * Exported for test, and separate from the store round trip so the rule can be
  * read without one.
  *
- * Two things it does, both of which the old `[...custom, ...builtins]` did not:
+ * Two things a plain `[...custom, ...builtins]` concatenation does not do:
  *
- * - **A custom material with a built-in's name replaces it**, in place: same
- *   row, same group, your density. It used to appear as well, so the list
- *   carried two materials called `Blue tube` in two different groups, and which
- *   one a design got depended on which the picker found first.
+ * - **A custom material with a built-in's name replaces it**, in place: same row,
+ *   same group, the user's density. Appended instead, the list carries two
+ *   materials called `Blue tube` in two different groups, and which one a design
+ *   gets depends on which the picker finds first.
  * - **The rest join a real group** rather than a `Custom` one of their own. A
  *   custom material is marked with a star where it sits; a group per provenance
- *   put every one of them at the top of the list, away from the material it is
- *   a variant of.
+ *   puts every one of them at the top of the list, away from the material it is a
+ *   variant of.
  */
 export function mergeCustom(builtins: Material[], custom: Material[]): Material[] {
   const byName = new Map(custom.map((m) => [m.name, m]));

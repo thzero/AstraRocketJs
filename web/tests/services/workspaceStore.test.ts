@@ -21,11 +21,10 @@ class FakeKv implements KeyValueStore {
   /**
    * ATOMIC, like the real IndexedDB transaction behind it.
    *
-   * It used to be a plain `get` then `set` with an await in between, so two
-   * overlapping index mutations each read the same list and the second
-   * clobbered the first. That is not what the store does - and it hid the
-   * duplicate-entry bug below, because three concurrent creates left one
-   * surviving index row and the test read that as "one design".
+   * A plain `get` then `set` with an await in between is not what the store does,
+   * and it lets two overlapping index mutations read the same list so the second
+   * clobbers the first. That also hides the duplicate-entry case below: three
+   * concurrent creates leave one surviving index row, which reads as "one design".
    */
   private lock: Promise<unknown> = Promise.resolve();
   async update(k: string, fn: (raw: string | null) => string | null) {
@@ -49,10 +48,9 @@ class FakeKv implements KeyValueStore {
 /**
  * A plausible flight result.
  *
- * It used to be the stub `{ series: {} }`, which was enough while nothing
- * validated stored results. `DesignLibrary.readResults` now shape-checks every
- * entry (a stored `NaN` comes back as `null` and threw in the exporters), so a
- * fixture has to look like a flight the app could actually have produced.
+ * Not the stub `{ series: {} }`: `DesignLibrary.readResults` shape-checks every
+ * entry (a stored `NaN` comes back as `null`, which throws in the exporters), so
+ * a fixture has to look like a flight the app could have produced.
  */
 const flight = (time: number[] = [0, 1]) =>
   ({
@@ -140,12 +138,11 @@ describe('LibraryWorkspaceStore', () => {
   /**
    * Overlapping FIRST saves are one design, not one each.
    *
-   * Every save that finds no active id used to call `lib.create()`, and the
-   * first create is the slowest write the app makes. The 500 ms autosave
+   * A save that finds no active id must not call `lib.create()` unconditionally:
+   * the first create is the slowest write the app makes, the 500 ms autosave
    * debounce can fire again inside it, and the `visibilitychange` flush saves
-   * outside the debounce entirely - so tabbing away just after an import left
-   * the library holding several identical rockets, all but one of them
-   * orphaned, which is what File > Open was full of.
+   * outside the debounce entirely. So tabbing away just after an import leaves the
+   * library holding several identical rockets, all but one orphaned.
    */
   it('creates ONE design when first saves overlap', async () => {
     await Promise.all([store.save(workspace()), store.save(workspace()), store.save(workspace())]);
@@ -191,9 +188,9 @@ describe('LibraryWorkspaceStore', () => {
   /**
    * Flights persist, but NOT inside the design blob.
    *
-   * They used to be dropped entirely, so a reload lost every run. They are stored
-   * now — under their own key, because the design blob is rewritten on every
+   * Stored under their own key, because the design blob is rewritten on every
    * keystroke's debounced autosave and a result is tens of thousands of samples.
+   * Dropped, a reload loses every run.
    */
   it('stores flight results, and keeps them out of the design blob', async () => {
     await store.save(workspace());
@@ -238,11 +235,11 @@ describe('LibraryWorkspaceStore', () => {
   /**
    * A design that is THERE but unreadable is not the same as no design.
    *
-   * `load()` used to return null for both, so the hydration gate opened with
-   * the default rocket and the autosave wrote it over the unreadable design AT
-   * THE SAME ID 500 ms after the first edit. It now throws — which the effects
-   * hook already handles by raising the load-failed warning — and detaches, so
-   * the next save creates a new entry instead of finishing the overwrite.
+   * `load()` returning null for both opens the hydration gate with the default
+   * rocket, and the autosave writes it over the unreadable design AT THE SAME ID
+   * 500 ms after the first edit. It throws instead - which the effects hook handles
+   * by raising the load-failed warning - and detaches, so the next save creates a
+   * new entry rather than finishing the overwrite.
    */
   it.each([
     ['unparseable', '{bad json'],

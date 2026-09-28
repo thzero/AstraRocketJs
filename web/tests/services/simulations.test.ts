@@ -89,24 +89,24 @@ describe('simConditions', () => {
     expect(c.timeStep).toBe(0.01);
     expect(c.maxTime).toBe(60);
 
-    // NOT undefined, which is what this used to assert. An omitted key does not
-    // reach the kernel as "no seed" — the bridge defaults it to the constant 42,
-    // so every run of a turbulent-wind flight came back bit-identical.
+    // NOT undefined: an omitted key does not reach the kernel as "no seed", the
+    // bridge defaults it to the constant 42, so every run of a turbulent-wind
+    // flight would come back bit-identical.
     expect(c.randomSeed).toEqual(expect.any(Number));
     expect(Number.isInteger(c.randomSeed)).toBe(true);
     expect(c.randomSeed).toBeGreaterThanOrEqual(-(2 ** 31));
     expect(c.randomSeed).toBeLessThan(2 ** 31);
 
-    // A fresh one each call, which is the whole point.
+    // A fresh one on each call.
     const seeds = new Set(Array.from({ length: 20 }, () => simConditions(base, PREFS).randomSeed));
     expect(seeds.size).toBeGreaterThan(1);
   });
 
   /**
    * The recovery-deployment thresholds reach the KERNEL, which is what raises the
-   * deployment warning. `deploymentSpeedWarn` used to be a tile color and nothing
-   * else: the engine ran on its own hard-coded 20 m/s, so moving the setting
-   * changed what the summary painted amber and not what the flight reported.
+   * deployment warning. Left out, the engine runs on its own hard-coded 20 m/s, so
+   * `deploymentSpeedWarn` would change what the summary paints amber and not what
+   * the flight reports.
    */
   it('passes the deployment-warning thresholds to the engine', () => {
     const c = simConditions(base, {
@@ -139,8 +139,8 @@ describe('launch into the wind with a multilevel profile', () => {
   ];
 
   it('aims the rod at the SURFACE level (lowest altitude), not windLevels[0]', () => {
-    // Listed top-down, the first entry is the wind aloft; the rod used to be
-    // aimed at it while the safety code judged the wind at the pad.
+    // Listed top-down, the first entry is the wind aloft; the rod must not be
+    // aimed at it while the safety code judges the wind at the pad.
     const c = simConditions({ ...base, launchIntoWind: true, windLevels: topDown });
     expect(c.launchRodDirection).toBeCloseTo(deg2rad(135), 9);
   });

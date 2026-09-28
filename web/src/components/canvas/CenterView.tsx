@@ -177,10 +177,8 @@ export function CenterView() {
   // rebuild (applyBuild) hands the store a fresh info identity, and depending on
   // that re-fires the effect for a design that hasn't actually changed.
   const hasDesign = !!info;
-  // "Run outdated simulations automatically" — which, until results were kept
-  // across an edit, could only ever mean "never run": an edit destroyed the
-  // result, so the only state this could see was a missing one. Now it covers
-  // both, which is what the setting has always said.
+  // "Run outdated simulations automatically" covers both a missing result and an
+  // aged one, which is what the setting says.
   const needsRun = !result || !!outdated;
   useEffect(() => {
     if (settings.simulation.autoRunOutdated && isResultView(view) && needsRun && hasDesign && !busy && !runFailed) {
@@ -188,10 +186,9 @@ export function CenterView() {
     }
   }, [view, needsRun, hasDesign, busy, runFailed, settings.simulation, runSim]);
 
-  // There used to be a second effect here that walked you off a result view when
-  // the result vanished under you. Nothing vanishes any more — an edit ages the
-  // numbers instead of deleting them — and a simulation that has never been run
-  // shows the "run one" prompt below rather than an empty pane.
+  // No effect walks the user off a result view: an edit ages the numbers instead
+  // of deleting them, and a simulation that has never been run shows the "run one"
+  // prompt below rather than an empty pane.
 
   // Header slot the 2D schematic's control buttons (calipers, zoom, export)
   // portal into, so they sit centered in the same row as the view toggle.
@@ -445,9 +442,9 @@ export function CenterView() {
             ) : view === 'flight' ? (
               // Keyed on the simulation: a different flight gets a fresh chart
               // (trace selection and zoom start over), while a re-run of the
-              // SAME simulation keeps its id and so keeps the view. FlightChart
-              // used to reset both through effects keyed on the trace list,
-              // which blanked the first frame and left a stale zoom on re-run.
+              // SAME simulation keeps its id and so keeps the view. Resetting
+              // both through effects keyed on the trace list instead blanks the
+              // first frame and leaves a stale zoom on re-run.
               <div className="h-full p-2">{flight ? <FlightChart key={flight.id} flight={flight} /> : prompt}</div>
             ) : view === 'path' ? (
               <div className="relative h-full p-2">

@@ -9,32 +9,17 @@ import type { DerivedName } from './derivedFields';
  *
  * This is DOMAIN DATA, not presentation. It encodes the OpenRocket component
  * vocabulary, the shape lists, the deploy and separation event vocabularies,
- * the unit kinds and the required-ness - and it lived inside `PropertyPanel`,
- * a React component, where three test files already had to import it and
- * `services/requiredComponent` cross-checks its own invariants against it. A
- * service depending on a component module for the shape of its own domain is
- * backwards, and it was most of why that file ran to 898 lines.
+ * the unit kinds and the required-ness. It does NOT live in `PropertyPanel`: three
+ * test files import it directly, and `services/requiredComponent` cross-checks its
+ * own invariants against it, so a service would be depending on a component module
+ * for the shape of its own domain.
  */
 
-/**
- * `required` means a ZERO here is degenerate, not that the box can be empty.
- *
- * Unlike the launch conditions -- where a cleared field had to be told apart
- * from a typed zero, because still air and sea level are real values -- a part
- * has no meaningful "blank length". Zero IS the invalid state, so there is no
- * second state to model and the field keeps storing a number.
- *
- * Marked conservatively: only where a zero makes the part stop being that part.
- * Plenty of dimensions here are legitimately zero and are NOT marked -- a
- * tipChord of 0 is a delta fin, a sweep or cant of 0 is a straight one, a
- * shoulder or fin tab of 0 is simply absent, and every delay and angle offset
- * starts at 0.
- */
 /**
  * The panel sections a field can be pulled OUT of the dimension list into.
  *
  * - `placement` is where the part goes: the angle around the body, rendered
- *   beside "Position from" and "Offset". It used to sit in the middle of the
+ *   beside "Position from" and "Offset" rather than in the middle of the
  *   dimensions, between a radius and a thickness.
  * - `finTab` is the optional through-the-wall tab, four fields that describe a
  *   separate piece of the fin and read as a run-on of the planform without a
@@ -81,6 +66,20 @@ export type PanelSection =
  * unaffected, and clearing the box pins whatever it currently is.
  */
 type FieldFlags = {
+  /**
+   * A ZERO here is degenerate; it does NOT mean the box can be empty.
+   *
+   * Unlike the launch conditions -- where a cleared field has to be told apart
+   * from a typed zero, because still air and sea level are real values -- a part
+   * has no meaningful "blank length". Zero IS the invalid state, so there is no
+   * second state to model and the field keeps storing a number.
+   *
+   * Marked conservatively: only where a zero makes the part stop being that part.
+   * Plenty of dimensions here are legitimately zero and are NOT marked -- a
+   * tipChord of 0 is a delta fin, a sweep or cant of 0 is a straight one, a
+   * shoulder or fin tab of 0 is simply absent, and every delay and angle offset
+   * starts at 0.
+   */
   required?: true;
   section?: PanelSection;
   diameter?: true;

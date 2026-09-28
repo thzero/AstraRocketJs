@@ -129,9 +129,9 @@ export function FlightGroundMap({
    *
    * Tagged rather than cleared on a change: a tile key is a zoom and a column,
    * so the same keys come back when the layer switches from imagery to street,
-   * and a stale texture would sit under the new one until it loaded. Carrying
-   * the layout with them means the old set simply stops matching - and nothing
-   * has to reset state from inside an effect to make that true.
+   * and a stale texture would sit under the new one until it loaded. Carrying the
+   * layout with them means the previous set simply stops matching, with no state
+   * reset from inside an effect.
    */
   const [loaded, setLoaded] = useState<{ of: typeof layer; texes: Record<string, THREE.Texture> }>({
     of: layer,

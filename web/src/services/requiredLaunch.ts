@@ -8,12 +8,10 @@ import type { LaunchConditions } from './orkTree';
  * model, gravity) or means something specific by its absence (blank temperature
  * and pressure mean ISA standard).
  *
- * Why this needs saying at all: the panel used to coerce a cleared field with
- * `v ?? 0`, so emptying the rod length stored ZERO. That reads as a real value
- * to everything downstream, and five of these six are legitimately zero -- rod
- * angle straight up, still air, no gusts, sea level, the equator -- so "the
- * user cleared it" and "the user meant 0" were the same state. They are now
- * stored as null and told apart here.
+ * Stored as null when cleared, never coerced with `v ?? 0`: zero reads as a real
+ * value to everything downstream, and five of these six are legitimately zero --
+ * rod angle straight up, still air, no gusts, sea level, the equator -- so a
+ * coerced field makes "the user cleared it" and "the user meant 0" the same state.
  */
 export const REQUIRED_LAUNCH_KEYS = [
   'launchRodLengthM',

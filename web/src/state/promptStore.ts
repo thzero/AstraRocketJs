@@ -22,12 +22,11 @@ interface PromptState {
  * Drives the single app-wide {@link PromptDialog}: the name dialog as a
  * promise, so the workspace store can ask for a name mid-action.
  *
- * The sibling of {@link confirmStore}, and for the same reason. Naming used to
- * be reachable only through the header's dialog host, which means only a React
- * component could raise it — but the import path needs an answer BEFORE it
- * hands a rocket to the library, and it lives in the store. The alternative
- * was letting the import land first and naming it afterwards, which is exactly
- * the race that fills the library with copies.
+ * The sibling of {@link confirmStore}, and for the same reason: the import path
+ * needs a name BEFORE it hands a rocket to the library, and it lives in the store,
+ * so naming cannot be reachable only through the header's dialog host. Letting the
+ * import land first and naming it afterwards is the race that fills the library
+ * with copies.
  */
 export const usePromptStore = create<PromptState>((set, get) => ({
   request: null,

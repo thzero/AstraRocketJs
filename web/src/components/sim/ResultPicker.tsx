@@ -8,18 +8,16 @@ import { useWorkspaceStore, selectActive } from '../../state/store';
  * It IS the heading rather than sitting beside one: a title naming the flight
  * and a dropdown showing the same name next to it said one thing twice.
  *
- * ONE RUN, ONE NAME. The choice is offered only when the last run flew more than
- * one simulation, and then it lists exactly those. It used to count simulations
- * that HAVE a result, which is a different thing entirely: results persist, so
- * running one simulation after having run another last week put a dropdown on
- * screen for a single run. An `h2` either way, so the pane keeps a landmark a
- * screen reader can jump to.
+ * ONE RUN, ONE NAME. The choice is offered only when the LAST RUN flew more than
+ * one simulation, and then it lists exactly those. Counting simulations that HAVE
+ * a result is a different thing: results persist, so running one simulation after
+ * having run another last week would put a dropdown on screen for a single run. An
+ * `h2` either way, so the pane keeps a landmark a screen reader can jump to.
  *
  * A picker of its own, not the Simulations table's tick boxes. The ticks answer
- * "which rows should Run fly"; this answers "which flight am I reading". Those
- * are different questions asked at different moments, and sharing one control
- * meant that reading a result silently re-armed the Run button, and that ticking
- * rows to fly them yanked the charts around underneath you.
+ * "which rows should Run fly"; this answers "which flight am I reading". Sharing
+ * one control for both means reading a result silently re-arms the Run button, and
+ * ticking rows to fly them yanks the charts around underneath you.
  *
  * Only simulations that have actually flown are offered. A row with no result is
  * not a choice, it is a run waiting to happen.

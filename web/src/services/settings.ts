@@ -90,10 +90,9 @@ export interface SimulationSettings {
    * Recovery-deployment speed (m/s) at/above which a SINGLE-deployment recovery
    * is too fast (zippering / hardware damage). Below = green.
    *
-   * Drives two things that used to disagree: the deploy-speed tile's color, and
-   * the kernel's own deployment warning — which ran on its own hard-coded 20 m/s
-   * until this was passed through, so moving this slider changed the tile and
-   * nothing else.
+   * Drives both the deploy-speed tile's color and the kernel's own deployment
+   * warning, which is passed this value rather than its hard-coded 20 m/s so the
+   * two cannot disagree.
    */
   deploymentSpeedWarn: number;
   /**
@@ -309,20 +308,17 @@ export interface ReportSettings {
 /**
  * The flight-path export options that outlive one export.
  *
- * This used to be one boolean, on the reasoning that everything else in that
- * dialog describes THIS export and a stale value silently mislabels the next
- * file. That reasoning still holds for exactly one field - the MISSION NAME,
- * which is still deliberately not persisted - and it was over-applied to the
- * rest: which waypoints you want, what units you export in and what colors
- * your stages are is a working habit, and re-picking them on every export is
- * the kind of friction nobody reports.
+ * Which waypoints you want, what units you export in and what colors your stages
+ * are is a working habit, so it persists. The MISSION NAME is deliberately NOT
+ * persisted: it describes one export, and a stale value silently mislabels the
+ * next file.
  *
  * The per-stage colors carry a known consequence, accepted deliberately. They
  * are keyed by the stage's INDEX in the flight data, not by name, because two
  * stages of one rocket can share a name and name-keying would silently make
  * them share a color. So colors restored from here land on whatever stage now
  * occupies index 0, which may be a different rocket entirely. That is the
- * point: the reason to remember colors is a consistent look across exports.
+ * intent: the reason to remember colors is a consistent look across exports.
  *
  * Every field is optional-by-validation on load: an older store, a newer one,
  * or a hand-edited one costs at most the field it broke.
@@ -340,10 +336,10 @@ export interface PathExportSettings {
   /** Keep every Nth path point. A positive integer. */
   pathStride?: number;
   /**
-   * Export units. ABSENT means "follow the app's distance preference", which
-   * is what a fresh install does; a stored value is an explicit choice made in
-   * the dialog and outranks the app units, because the whole point of the
-   * control is exporting in something other than what you are looking at.
+   * Export units. ABSENT means "follow the app's distance preference", which is
+   * what a fresh install does; a stored value is an explicit choice made in the
+   * dialog and outranks the app units, since the control exists to export in
+   * something other than what you are looking at.
    */
   altitudeUnit?: string;
   distanceUnit?: string;
@@ -434,8 +430,7 @@ export const DEFAULT_SETTINGS: Settings = {
   simulation: {
     timeStep: 0.05,
     maxTime: 1200,
-    // The kernel's own RECOMMENDED_ANGLE_STEP (AbstractRKSimulationStepper),
-    // which is what every run used before this was settable.
+    // The kernel's own RECOMMENDED_ANGLE_STEP (AbstractRKSimulationStepper).
     maxAngleStep: (3 * Math.PI) / 180,
     randomSeed: null,
     confirmDelete: true,
@@ -597,10 +592,10 @@ export function loadSettings(): Settings {
       // An older store has no value here, and an unrecognized one falls back
       // rather than leaving the tables with a style nothing renders.
       aeroHeat: s.aeroHeat === 'openrocket' ? 'openrocket' : DEFAULT_SETTINGS.aeroHeat,
-      // Clamped like every adjacent field. `typeof === 'number'` let
-      // NaN, 0, Infinity and negatives through, and a stored NaN makes the
-      // flight-playback clock never advance with no way back but clearing
-      // storage - the same failure the treePaneWidth clamp was added for.
+      // Clamped like every adjacent field: a bare `typeof === 'number'` admits
+      // NaN, 0, Infinity and negatives, and a stored NaN leaves the
+      // flight-playback clock never advancing with no way back but clearing
+      // storage.
       playbackSpeed: clampPlayback(s.playbackSpeed),
       simulation: (() => {
         const sim = { ...DEFAULT_SETTINGS.simulation, ...(s.simulation ?? {}) };

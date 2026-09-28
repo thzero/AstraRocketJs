@@ -123,10 +123,9 @@ const MASS_KEYS = ['mass', 'overrideMass'] as const;
  * COMPUTED mass scales (densities are untouched): a solid is a volume (k³), a
  * canopy/streamer a surface (k²), a cord a line (k).
  *
- * Every type is listed. The table used to hold only the exceptions over an
- * open `Record<string, number>` with `?? 3` at the read, so the k³ cases were
- * implicit and a new type fell into them unreviewed; the launch-lug error
- * below is exactly what that produced.
+ * Every type is listed, rather than only the exceptions over an open
+ * `Record<string, number>` with `?? 3` at the read: that leaves the k³ cases
+ * implicit and drops a newly added type into them unreviewed.
  */
 const MASS_EXPONENT: Record<ComponentType, number> = {
   // A stage or assembly has no mass of its own, but an `overrideMass` pinned on

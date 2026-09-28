@@ -504,10 +504,10 @@ export interface StaticInfo {
    * The same margin as a percentage of the AERODYNAMIC length, as OpenRocket's
    * own `PercentageOfLengthUnit` converts it.
    *
-   * Four views used to compute `((cp - cg) / length) * 100` for themselves, which
-   * is the right shape over the wrong denominator: `length` bounds every
+   * Read from here rather than computed per view as `((cp - cg) / length) * 100`,
+   * which is the right shape over the wrong denominator: `length` bounds every
    * component, so any design with a non-aerodynamic part outside the aerodynamic
-   * envelope read a percentage the desktop does not show.
+   * envelope reads a percentage the desktop does not show.
    */
   stabilityPercent: number;
   refDiameter: number;
@@ -554,12 +554,8 @@ export type ComponentType =
   // that was loaded from a `.ork` this app itself wrote. The renderers do draw
   // it, and import/export round-trip it.
   //
-  // This comment used to claim "the editor's engineTree() lowers a fairing to
-  // a kernel strake-fin + CD/mass overrides before buildTree". THERE IS NO
-  // engineTree ANYWHERE IN web/src — the lowering was never written, so the
-  // kernel used to reject the type outright and any design carrying one failed
-  // to build at all. `ComponentFactory` now accepts it as a mass-carrying
-  // component so such a file loads; its drag is still not modeled.
+  // `ComponentFactory` accepts it as a mass-carrying component, so such a file
+  // loads. Its drag is NOT modeled: there is no lowering to a kernel type.
   //
   // Scope: RASAero. See engine-java/ATTRIBUTION.md and docs/AUDIT_ENGINE.md
   // Appendix R.
@@ -603,12 +599,13 @@ export interface ComponentPosition {
    * absolute position is rewritten to the equivalent `top` offset on load —
    * otherwise the app draws the part somewhere the engine does not fly it.
    *
-   * Rewriting it would also change what we write back out, and `.ork`
-   * round-trips are meant to be byte-stable. So the original is kept here and
-   * `orkExport` restores it, as long as `resolved` still matches the current
-   * offset (i.e. the user has not moved the part since importing).
+   * Rewriting it would also change what we write back out, and `.ork` round-trips
+   * are meant to be byte-stable. So the original is kept here and `orkExport`
+   * restores it, as long as `resolved` still matches the current offset (i.e. the
+   * user has not moved the part since importing).
+   *
+   * `absolute` and `after` are the two file-only methods; both resolve to 'top'.
    */
-  /** The two file-only methods: both are resolved to 'top' on load. */
   ork?: { method: 'absolute' | 'after'; offset: number; resolved: number };
 }
 
@@ -862,11 +859,11 @@ export interface AeroSweep {
    * How many non-finite readings the kernel met building the per-component
    * breakdown below.
    *
-   * Those cells come back `null` rather than 0 — a component that genuinely
-   * generates no normal force also reads 0, so a swallowed NaN used to be
-   * indistinguishable from it, and the breakdown quietly stopped adding up to
-   * the rocket totals. Any count above zero means the table is incomplete and
-   * should say so. Optional: a kernel built before this omits it.
+   * Those cells come back `null` rather than 0, because a component that
+   * genuinely generates no normal force also reads 0 and a NaN reported as 0 is
+   * indistinguishable from it while the breakdown stops adding up to the rocket
+   * totals. Any count above zero means the table is incomplete and should say so.
+   * Optional: an older kernel omits it.
    */
   nonFinite?: number;
   /**
@@ -895,9 +892,9 @@ export interface AeroSweep {
      * Stable identity for this component — the kernel's own UUID.
      *
      * Use this for row keys and for joining to {@link ComponentMass}, NOT
-     * `name`: nothing forces a part to be renamed, so two unnamed body tubes
-     * are both called "Body tube". Optional because a kernel built before this
-     * was added omits it; fall back to `name` then.
+     * `name`: nothing forces a part to be renamed, so two unnamed body tubes are
+     * both called "Body tube". Optional because an older kernel omits it; fall
+     * back to `name` then.
      */
     key?: string;
     /** Display label. Not unique — see `key`. */
@@ -1023,13 +1020,13 @@ export class OpenRocketDesign {
    * The kernel handle, refused once the engine that issued it has been reset.
    *
    * `resetEngine()` frees the whole handle table, and the app calls it before
-   * every rebuild — so a design object outliving one is addressing a number
-   * that now belongs to somebody else's rocket. The kernel also rejects this
-   * (its counter no longer rewinds, so a freed handle stays permanently
-   * unknown), but only after the call has crossed into TeaVM and come back as
-   * a message. Catching it here makes it a typed error, by name, before the
-   * boundary. Every `this.handle` read below goes through this getter, which
-   * is why there is no check at each of the ten call sites.
+   * every rebuild, so a design object outliving one addresses a number that now
+   * belongs to somebody else's rocket. The kernel rejects this too (its counter
+   * does not rewind, so a freed handle stays permanently unknown), but only after
+   * the call has crossed into TeaVM and come back as a message. Catching it here
+   * makes it a typed error, by name, before the boundary. Every `this.handle`
+   * read below goes through this getter, so the ten call sites need no check of
+   * their own.
    */
   private get handle(): number {
     if (this.generation !== engineGeneration) throw new StaleDesignError();

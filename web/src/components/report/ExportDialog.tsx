@@ -46,10 +46,9 @@ const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
  *
  * Mounted only while open (`{open && <ExportDialog />}`). The report model is
  * assembled ONCE, in a state initializer, and the include/exclude selection is
- * derived from it there too; both then hold still for the dialog's life. This
- * used to be an effect behind a ref latch that reset whenever `open` went
- * false, which is how dismissing the print-settings popover used to throw the
- * selection away.
+ * derived from it there too; both then hold still for the dialog's life. Built in
+ * an effect instead, the selection is thrown away whenever `open` goes false,
+ * which dismissing the print-settings popover does.
  */
 export function ExportDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -156,8 +155,8 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
         try {
           await runSim(settings.simulation);
         } catch (e) {
-          // The rejection used to be swallowed and the PDF written with the
-          // PREVIOUS run's numbers, unmarked. The user asked for fresh data;
+          // Reported, not swallowed: swallowing writes the PDF with the
+          // PREVIOUS run's numbers, unmarked. The user asked for fresh data, so
           // say why there is none and write nothing.
           useWorkspaceStore.getState().setErr(t('export.simFailed', { message: errorText(e) }));
           return;
@@ -206,7 +205,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   };
 
   // The pinned row of actions, declared here because it is the shell's `footer`
-  // and so has to be named before the body that used to follow it.
+  // and so has to be named before the body it is passed with.
   const actionRow = (
     <div className="flex items-center justify-between gap-2 border-t border-white/10 p-4">
       <button

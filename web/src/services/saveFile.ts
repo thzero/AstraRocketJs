@@ -1,13 +1,12 @@
 /**
  * One way to hand the user a file.
  *
- * Every export used to build its own `<a download>` click, with the revoke
- * timing drifting between them. Worse, that anchor is unreliable in exactly one
- * place: iOS/iPadOS running the app as an INSTALLED PWA, where a blob download
- * silently does nothing and the file simply never appears. Since the app is now
- * installable, that is a real configuration, not a curiosity.
+ * One implementation, so the blob revoke timing cannot drift between exports, and
+ * because the `<a download>` anchor is unreliable in one place: iOS/iPadOS running
+ * the app as an INSTALLED PWA, where a blob download silently does nothing and the
+ * file never appears. The app is installable, so that is a real configuration.
  *
- * So: anchor download everywhere (it is what people expect — straight to the
+ * So: anchor download everywhere, which is what people expect (straight to the
  * downloads folder, no extra tap), and the share sheet only where the anchor
  * cannot be trusted, which on iOS offers "Save to Files".
  */

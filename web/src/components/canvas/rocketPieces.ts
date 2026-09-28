@@ -33,10 +33,10 @@ const nodeColor = (n: ComponentNode, palette: PartPalette): string => colorOf(n,
  *  packed recovery gear and mass objects. `DISC_TYPES` are the made parts. */
 const PACKED_TYPES = new Set(['parachute', 'streamer', 'shockcord', 'masscomponent']);
 
-// Axial placement is the shared `schematicGeometry.axialStart`. A private copy
-// used to live here and had drifted: it returned a bare `pos.offset` for the
-// `absolute` method where the 2D view (and the kernel) add the parent's start,
-// so an absolutely positioned child sat in a different place in 3D than in 2D.
+// Axial placement is the shared `schematicGeometry.axialStart`, not a copy: for
+// the `absolute` method the 2D view and the kernel add the parent's start to
+// `pos.offset`, so a second implementation puts an absolutely positioned child in
+// a different place in 3D than in 2D.
 
 /** A shoulder: the reduced-diameter stub that plugs into the tube next door. */
 interface Shoulder {
@@ -206,9 +206,9 @@ export function buildPieces(
     // from the NORMALIZED points while drawing the RAW ones, so a fin whose
     // outline began at x = 20 mm was rendered 20 mm aft of where it is mounted.
     const outline = finPlanformPoints(child) ?? FREEFORM_FALLBACK;
-    // A planform needs three points to enclose anything; a degenerate one (a
-    // freeform set whose points were cleared) used to reach `outline[0]!` and
-    // throw out of the geometry build, taking the whole view down.
+    // A planform needs three points to enclose anything. A degenerate one (a
+    // freeform set whose points were cleared) must not reach `outline[0]!`, which
+    // throws out of the geometry build and takes the whole view down.
     const first = outline[0];
     if (!first || outline.length < 3) return;
 

@@ -36,9 +36,9 @@ import { Dialog } from '../common/Dialog';
 
 /**
  * How many rows are rendered at once. There are 1088 body tubes and no
- * virtualization in the tree, so the list is capped — but the footer reports the
- * MATCH count and says how many it is holding back. The old picker sliced to 300
- * and then printed that number as the total, so the catalog read as small.
+ * virtualization in the tree, so the list is capped. The footer reports the MATCH
+ * count and how many rows are held back, rather than printing the cap as the
+ * total and making the catalog read as small.
  */
 const ROW_CAP = 200;
 
@@ -108,8 +108,9 @@ export function ComponentPicker({
       .then((all) => ok && setLanded({ type, attempt, result: { status: 'ready', all } }))
       .catch((e: unknown) => {
         if (!ok) return;
-        // Previously swallowed, leaving the button reading "Pick (0)" as though
-        // the catalog were simply empty. Say what happened and offer a retry.
+        // Reported, not swallowed: swallowing leaves the button reading "Pick (0)"
+        // as though the catalog were simply empty. Say what happened, offer a
+        // retry.
         setLanded({
           type,
           attempt,
@@ -196,9 +197,8 @@ interface Col {
 /**
  * The columns for a type, in order. Per type rather than one union, because the
  * fields that identify a part differ: a centering ring IS its OD/ID pair, a
- * parachute has a canopy diameter and a Cd and no length at all, and showing a
- * blank column for the ones a type lacks is how the old single-line layout ended
- * up hiding the bore in prose.
+ * parachute has a canopy diameter and a Cd and no length at all. One union would
+ * mean a blank column for every field a type lacks.
  *
  * Dimension headings come from the `prop.*` namespace the property panel already
  * uses, so a part's bore is called the same thing in the picker as in the editor
@@ -313,9 +313,9 @@ function columnsFor(type: ComponentType, u: Units, t: (k: string) => string, ran
           head: t('prop.shape'),
           sort: 'shape',
           w: 'w-28',
-          // The catalog stores the kernel's lowercase enum; it used to be
-          // rendered raw, so the column read `ogive` / `haack` in every
-          // language beside translated headings.
+          // The catalog stores the kernel's lowercase enum, so it is translated
+          // here: rendered raw the column reads `ogive` / `haack` in every
+          // language, beside translated headings.
           cell: (r) => (r.part.type === 'nosecone' ? t(`noseShape.${r.part.shape}`) : '—'),
         },
         odCol,

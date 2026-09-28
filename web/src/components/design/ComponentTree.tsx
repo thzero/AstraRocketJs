@@ -28,12 +28,11 @@ const ADD_GROUPS: { group: string; items: ComponentType[] }[] = [
  * (and the schematic outlines it); selecting in the schematic highlights the
  * row here and scrolls it into view.
  *
- * A real `tree` of `treeitem`s. Rows used to be `role="button"` with the
- * expand toggle and the export button nested inside, which is invalid (a
- * button may not contain interactive content) and told a screen reader
- * nothing about depth, folding or which row is selected. The rows are still a
- * flat list; `aria-level` carries the depth, as ARIA allows for a flattened
- * tree.
+ * A real `tree` of `treeitem`s, not `role="button"` rows: a button may not contain
+ * interactive content, which the expand toggle and the export button are, and it
+ * tells a screen reader nothing about depth, folding or which row is selected. The
+ * rows are a flat list; `aria-level` carries the depth, as ARIA allows for a
+ * flattened tree.
  */
 
 /**
@@ -370,8 +369,8 @@ export function ComponentTree({
   // Fold the whole list away (header stays) so the property editor gets the room
   // once a part is picked. Collapsed, the header names the selected part.
   const [listOpen, setListOpen] = useState(true);
-  // One lookup serves both the collapsed header's name and the Add menu's
-  // parent type; it used to be done twice per render.
+  // One lookup serves both the collapsed header's name and the Add menu's parent
+  // type.
   const selectedNode = selectedId ? findNode(tree, selectedId) : null;
   const selectedName = selectedNode
     ? typeof selectedNode.name === 'string' && selectedNode.name

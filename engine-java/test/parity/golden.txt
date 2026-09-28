@@ -1,4 +1,4 @@
-# golden v1 sha256=04b559219a89575a2e5e457bdd8e5d250291f4c1805aa1829c9fd7238f76c246 lines=342 generated=2026-09-20T02:58:33.848Z commit=c67cb4e39f016858cf94c7bc90aaa6b8689d24c5
+# golden v1 sha256=797f83638a56fff81c79ac51c08a7b0a07cf8a1fba54a4f048aae46bcbc6aed5 lines=348 generated=2026-09-28T02:12:08.054Z commit=bbf038f867c8843ace5df6fd22ea523830e360f8
 # The JVM reference output, recorded deliberately with `npm run parity:golden`.
 # parity.mjs re-verifies the sha256 above on every run, so a hand-edited value
 # here fails the gate instead of quietly becoming the new truth.
@@ -221,6 +221,12 @@ flight.cluster.single|92.42637711540402|35.889214347341074|59.160489234109676|4.
 cluster.ring3.geometry|3.0|-0.010969655114602888|-1.582067810090848E-18|0.005484827557301446|-0.0095|0.005484827557301444|0.009500000000000001
 cluster.ring3.info|0.5700000000000001|0.22579058694745557|0.3908255269311849|0.42044981253605923|9.84604279207823|0.44885281219506584|0.0
 flight.cluster.ring3|281.9010253341885|92.08990484570371|151.35357875332164|6.540903967975881|63.649679122046535
+mass.split.split.structure|0.15230854061312457|0.32129213010522906|0.0|0.0|2.0683744390330555E-4|0.0048187411748152045
+mass.split.split.launch|0.20030854061312459|0.3725030156897895|0.0|0.0|2.1958144390330558E-4|0.006506203625115642
+mass.split.double.structure|0.15230854061312457|0.32129213010522906|0.0|0.0|2.0683744390330555E-4|0.004818741174815204
+mass.split.double.launch|0.20030854061312459|0.3725030156897895|0.0|0.0|2.1958144390330555E-4|0.006506203625115641
+mass.split.axis.structure|0.15082649427879358|0.31921676628499207|0.0|0.0|2.0604362283547953E-4|0.0047512211297989415
+mass.split.axis.launch|0.17482649427879357|0.348839265040253|0.0|0.0|2.0701562283547952E-4|0.005725595898927984
 staging.auto.branches|2|Sustainer|Booster
 staging.auto.b0.events|LAUNCH@TwoStage|IGNITION@[InnerTube.InnerTube]|LIFTOFF|LAUNCHROD|BURNOUT@[InnerTube.InnerTube]|EJECTION_CHARGE@Booster|STAGE_SEPARATION@Booster|IGNITION@[InnerTube.InnerTube]|BURNOUT@[InnerTube.InnerTube]|EJECTION_CHARGE@Sustainer|RECOVERY_DEVICE_DEPLOYMENT@SustainerChute|APOGEE@TwoStage|GROUND_HIT|SIMULATION_END
 flight.staging.auto.b0|543.2235556016174|2.0
@@ -339,7 +345,7 @@ collator.matrix|2|=<>><<>><<>>>>>><<<>=>><<>><<>>>>>><<<<<=<<<>><<>><<<<<<<<<>=<
 collator.matrix|3|=<>><<>><<>>>>>><<<>=>><<>><<>>>>>><<<<<=<<<>><<>><<<<<<<<<>=<<>><<>><<<<<<<>>>>=>>><<>>>>>><<<>>>><=>><<>>>>>><<<<<<<<<=><<>><<<<<<<<<<<<<<=<<>><<<<<<<>>>>>>>>=<>>>>>>>>>>>>>>>>>>=>>>>>>>>><<<<<<<<<<=<<<<<<<<<<<<<<<<<<>=<<<<<<<<<>><<>><<>>=><<<<<<<>><<>><<>><=<<<<<<<>><<>><<>>>>=><<<<<>><<>><<>>>><=<<<>>>>>>>><<>>>>>>=<>>>>>>>>><<>>>>>>>=>>>>>>>>><<>>>>>><<=
 collator.independent|0.0|-1.0|0.0|3.0
 uuid.spread|4096.0|4096.0
-uuid.first|7fc63098-7b4b-4664-a96e-78c41bc55cfd
+uuid.first|9a5a6e93-1b38-4c95-b928-f242015bd064
 prefs.wind|2.0|0.1|1.5707963267948966|0.2
 prefs.launch|1.0|0.0|1.5707963267948966|0.0|28.61|-80.6
 prefs.atmos|288.15|101325.0|0.0|9.807

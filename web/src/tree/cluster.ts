@@ -87,9 +87,9 @@ export const CLUSTER_OPTIONS: ClusterPattern[] = Object.keys(CLUSTER_POINTS) as 
 
 /**
  * Whether a node's `cluster` field names a pattern the table knows. A design
- * can carry anything here (a `.ork` from a newer desktop, a hand edit), and an
- * unknown name used to index the open record and read `undefined` at every
- * call site; now the call sites ask once and fall back to `single` deliberately.
+ * can carry anything here (a `.ork` from a newer desktop, a hand edit), so the
+ * call sites ask once and fall back to `single` deliberately rather than indexing
+ * the open record and reading `undefined`.
  */
 export const isClusterPattern = (v: unknown): v is ClusterPattern =>
   typeof v === 'string' && Object.prototype.hasOwnProperty.call(CLUSTER_POINTS, v);
@@ -113,12 +113,12 @@ export function clusterCount(cluster: string | undefined): number {
  *     ret.add( x * cos + y * sin);
  *     ret.add(-x * sin + y * cos);
  *
- * — R(−θ). This used to compute `x·cos − y·sin` / `x·sin + y·cos`, which is
- * R(+θ), so every drawn cluster was turned 2θ the wrong way: a 3-ring clocked
- * 30° on 19 mm tubes put its first tube at (−5.48, −9.50) mm where the kernel
- * flies it at (−10.97, 0). The physics never saw it — the kernel keeps its own
- * copy — but the 2D schematic, the 3D model and the aft view all disagreed with
- * what was being flown, and `cluster.test.ts` pinned the wrong sign.
+ * — R(−θ). Note the signs: `x·cos − y·sin` / `x·sin + y·cos` is R(+θ), which
+ * turns the drawing 2θ the wrong way — a 3-ring clocked 30° on 19 mm tubes would
+ * put its first tube at (−5.48, −9.50) mm where the kernel flies it at
+ * (−10.97, 0). The kernel keeps its own copy, so the physics is unaffected, but
+ * the 2D schematic, the 3D model and the aft view would all disagree with what is
+ * being flown.
  *
  * Two things InnerTube.getClusterPoints (InnerTube.java:263-273) also does and
  * this does NOT: it rotates by `clusterRotation − radialDirection`, and it adds

@@ -99,16 +99,12 @@ describe('hydration', () => {
   /**
    * A language switch must not touch the workspace.
    *
-   * The load effect used to depend on `t`, whose identity changes on
-   * `i18n.changeLanguage`, so switching language re-ran `load()` and re-hydrated
-   * — and `hydrate` runs `sanitizeSims`, which nulls every sim result. Changing
-   * the language silently threw away every flight the user had run. It could
-   * also re-hydrate the persisted design over a freshly imported .ork, because
-   * `openOrkFile` clears only the in-memory activeId.
-   *
-   * An earlier version of this test USED that re-run as a convenient way to
-   * cancel the first load, and asserted `load` was called twice — documenting
-   * the bug as intended behavior.
+   * The load effect must not depend on `t`, whose identity changes on
+   * `i18n.changeLanguage`: that re-runs `load()` and re-hydrates, and `hydrate` runs
+   * `sanitizeSims`, which nulls every sim result. So switching language would throw
+   * away every flight the user had run. It can also re-hydrate the persisted design
+   * over a freshly imported .ork, because `openOrkFile` clears only the in-memory
+   * activeId.
    */
   it('does not reload or re-hydrate when the language changes', async () => {
     load.mockResolvedValue(saved());
@@ -128,9 +124,9 @@ describe('hydration', () => {
   });
 
   /**
-   * A rejected load used to leave `hydrated` and `ready` false forever: no
-   * autosave, no unload flush, no engine rebuild, `info` null — the app sitting
-   * there with no stats and no stability badge, saving nothing, and nothing on
+   * A rejected load must not leave `hydrated` and `ready` false forever: that means
+   * no autosave, no unload flush, no engine rebuild and a null `info`, so the app
+   * sits there with no stats and no stability badge, saving nothing, with nothing on
    * screen to say why.
    */
   it('degrades to a working workspace when the load rejects, and says so', async () => {
@@ -299,10 +295,9 @@ describe('the unload journal', () => {
 
 describe('what triggers a rebuild', () => {
   /**
-   * The rebuild used to key on `tree`, which every store action replaces. So
-   * typing a designer name ran a full engine build plus an aero sweep, and the
-   * result invalidation — keyed the same way — threw away every simulation
-   * result the user had.
+   * The rebuild must not key on `tree`, which every store action replaces: typing a
+   * designer name would run a full engine build plus an aero sweep, and the result
+   * invalidation, keyed the same way, would throw away every simulation result.
    */
   it('editing the design metadata neither rebuilds nor invalidates', async () => {
     await mount();
@@ -474,10 +469,10 @@ describe('restoring a saved design does not invalidate its flights', () => {
 
   /**
    * File > Open is a SECOND hydrate, after the boot one seeded the baseline.
-   * The library design carries its own results with `outdated: false`; its key
-   * differs from the design it replaces, and the effect used to read that as an
-   * edit and flag every restored flight stale (which `autoRunOutdated` then
-   * re-flew). Any hydrate must re-seed the baseline instead.
+   * The library design carries its own results with `outdated: false`, and its key
+   * differs from the design it replaces, which the effect must not read as an edit:
+   * that flags every restored flight stale and `autoRunOutdated` re-flies it. Any
+   * hydrate re-seeds the baseline instead.
    */
   it('keeps the results current when a library design is opened over the boot design', async () => {
     await mount(); // boot on the default design; the baseline is now its key
