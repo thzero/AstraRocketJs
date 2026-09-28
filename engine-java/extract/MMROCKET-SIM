@@ -34,7 +34,46 @@
 # nozzleExitDiameter in no UI; and their turbulence-seed documentation fix,
 # whose analogue here ("auto" quietly meaning the constant 42) was already
 # found and fixed in web/src/services/simulations.ts.
+#
+# 2026-09-27: reviewed 76d8035 (v0.142, 2026-09-24), diffing from 4a9b8f7, the
+# previous reviewed point. 439 commits and 440 files, of which 17 files and 11
+# commits are under engine-java. Their five new or changed kernel patches split
+# three ways.
+#
+# TAKEN: the self-intersecting freeform outline. `FreeformFinSet.setPoints`
+# refuses a crossing outline by rolling it back and logging, which through a
+# bridge means flying the CONSTRUCTOR'S DEFAULT FIN - measured here at length
+# 0.325 m / CP 0.2588 m against the drawn outline's 0.300 m / 0.2454 m, with no
+# error anywhere. Their fix and ours are the same shape (a recorded refusal the
+# bridge reads and throws on, a deliberate divergence from desktop's silent
+# substitution); the half of their entry about a TeaVM `%g` crash does not apply,
+# because those two log lines were rebuilt with string concatenation here when
+# the file was first patched for `Geo2D`. See patches/LEDGER.md, "A refused fin
+# outline is no longer flown as the default fin".
+#
+# NOT APPLICABLE: their `BarrowmanCalculator` aft-base nozzle credit and the
+# matching `RK4SimulationStepper` per-stage-instance pressure thrust. Both halves
+# belong to a patch pair we do not carry - this engine rides upstream's own
+# per-motor `MotorConfiguration.nozzleExitDiameter` and
+# `getThrustingNozzleExitArea`, unpatched - so there is nothing here for either
+# correction to land on. Their re-carve of the `FinSetCalc` Kbf comment is the
+# correction this file's 2026-09-22 entry already took.
+#
+# SKIPPED, A DECISION NOT A GAP: `MassCalculation` + `RingComponent`, an off-axis
+# motor mount and its tube carrying their parallel-axis ROLL inertia. The defect
+# is real and is upstream 24.12's, byte for byte: a single inner tube placed off
+# the centerline (the everyday split cluster) contributes no transport term, and
+# a cluster's tubes miss their spread about the mean. Taking it would break the
+# claim this engine is built on - bit-identical to upstream - for an inertia term
+# no view here reports as its own number, so it is recorded as an inherited
+# inaccuracy instead. Revisit if roll rate is ever published as a result.
+#
+# NOT TAKEN: their seeded `addWindLevel` (`MultiLevelPinkNoiseWindModel`).
+# Applicable, and not done in this pass. This bridge builds the multi-level
+# model through upstream's unseeded overload, so a flight with turbulent wind
+# levels is not reproducible run to run; the single-level path here has been
+# seeded from `randomSeed` since it was written.
 repo    = https://github.com/mtnmanak/mmrocket-sim.git
-ref     = 4a9b8f7699cc592e95be8c3938bd9ec9ac2015fb
-version = 0.137
-dated   = 2026-09-21
+ref     = 76d8035871d80971d636b57b39101ad4388abd9d
+version = 0.142
+dated   = 2026-09-24

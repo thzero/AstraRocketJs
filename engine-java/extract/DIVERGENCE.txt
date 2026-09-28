@@ -17,8 +17,8 @@ info/openrocket/core/aerodynamics/barrowman/SymmetricComponentCalc.java 411
 info/openrocket/core/simulation/SimulationOptions.java 155
 info/openrocket/core/aerodynamics/BarrowmanDragCalculator.java 83
 info/openrocket/core/rocketcomponent/FinSet.java 78
+info/openrocket/core/rocketcomponent/FreeformFinSet.java 66
 info/openrocket/core/aerodynamics/BarrowmanStabilityCalculator.java 56
-info/openrocket/core/rocketcomponent/FreeformFinSet.java 39
 info/openrocket/core/rocketcomponent/FlightConfigurationId.java 29
 info/openrocket/core/util/BoundingBox.java 19
 info/openrocket/core/rocketcomponent/InstanceMap.java 18

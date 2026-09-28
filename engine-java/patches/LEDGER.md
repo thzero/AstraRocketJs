@@ -53,7 +53,7 @@ reconstructed.
 | `aerodynamics/barrowman/FinSetCalc.java` | RASAero #4 (fin airfoil), #3 (Rogers Kbf), #1 Phase 1. |
 | `aerodynamics/barrowman/SymmetricComponentCalc.java` | RASAero #1 Phase 1 — opt-in supersonic nose/body aero. |
 | `rocketcomponent/FinSet.java` | TWO reasons. (1) `java.awt.geom.Point2D` → `core.util.Geo2D` (no AWT under TeaVM). (2) RASAero #4: a 62-line airfoil-section API at `FinSet.java:282-348` (`airfoilSection`, `airfoilLeDiamond`, `airfoilTeDiamond`, `finLeRadius`) that `FinSetCalc.java:136-139` reads in its constructor. Re-extracting this file verbatim plus the `Geo2D` line BREAKS THE FINSETCALC COMPILE - the same failure shape the 2026-09-16 reconciliation hit with `setStubbyNoseFloor`. See `docs/rasaero/diffs/`. |
-| `rocketcomponent/FreeformFinSet.java` | `java.awt.geom` (`Line2D`/`Point2D`) → `core.util.Geo2D`. |
+| `rocketcomponent/FreeformFinSet.java` | TWO reasons. (1) `java.awt.geom` (`Line2D`/`Point2D`) → `core.util.Geo2D`. (2) `setPoints` RECORDS a refused outline (`isOutlineRefused`), so the bridge can refuse the build by name instead of flying the default fin - see "A refused fin outline is no longer flown as the default fin". |
 | `rocketcomponent/ComponentAssembly.java` | `Collections.emptyList()` → `new ArrayList<>()`. |
 | `rocketcomponent/FlightConfiguration.java` | `ConcurrentLinkedQueue` → `LinkedList` (TeaVM classlib gap). |
 | `rocketcomponent/FlightConfigurationId.java` | `java.util.UUID` → `core.util.LongUUID` (TeaVM's UUID has no `(long, long)` constructor, `getMostSignificantBits` or `compareTo`). |
@@ -1025,3 +1025,75 @@ rather than quietly validate against the stale tree.
 `--src` and `OPENROCKET_SRC` still take precedence, so CI (which checks out the
 ref itself, now read from `UPSTREAM` per G11) is unchanged, and `--refresh`
 forces a re-fetch.
+
+## A refused fin outline is no longer flown as the default fin - 2026-09-27
+
+`FreeformFinSet.setPoints` is upstream's guard against a self-intersecting fin,
+and it guards by ROLLING BACK: it snaps the outline to the body, tests
+`intersects()`, and on a crossing puts the previous outline and length back,
+reporting the refusal only through `log.warn`. On the desktop the previous
+outline is whatever the user was editing. Through the bridge it is the outline
+the constructor just built - the kernel's DEFAULT fin - so a design whose file
+or editor states a crossing outline was FLOWN AS A DIFFERENT ROCKET, with no
+error, no warning and no way to tell from any number on screen.
+
+Measured on this build before the change, on a 0.1 m nose + 0.2 m tube with a
+three-fin freeform set:
+
+| outline | length | CP |
+| --- | --- | --- |
+| as drawn (a legal trapezoid) | 0.300 m | 0.24536320141675705 m |
+| a bowtie (two points swapped) | 0.325 m | 0.25880633042174095 m |
+| a repeated point | 0.325 m | 0.25880633042174095 m |
+| **no points at all (the default fin)** | **0.325 m** | **0.25880633042174095 m** |
+
+The last three lines are the same rocket. That is the defect: the two refused
+outlines are indistinguishable from having sent no outline.
+
+- **Change (one line changed in place, one block appended):** the rollback test
+  becomes `if ((outlineRefused = intersects()))` - the same single call, assigned
+  as it is tested - and a `private boolean outlineRefused` plus
+  `public boolean isOutlineRefused()` are appended after upstream's last member.
+  Nothing is inserted above the rollback, so every upstream line keeps its
+  number. Assigned on every call, so a later good outline clears it.
+- **Only `setPoints(ArrayList, boolean)` records.** It is the single path the
+  bridge builds an outline through; `setPoint`, `addPoint` and `removePoint` roll
+  back for an interactive desktop editor and are left exactly as upstream wrote
+  them.
+- **The bridge half (not a patch - `api/ComponentFactory.java`):** the
+  `freeformfinset` case reads the flag after `setPoints` and throws
+  `Fin set "<name>": its outline crosses or touches itself, so it cannot be
+  simulated. Redraw it in the fin editor.`, falling back to `freeform fin set`
+  when the node has no name. A DIVERGENCE from desktop, which substitutes
+  silently: a design that draws one fin and flies another is the worse answer,
+  and it is the answer this engine gave until now.
+- **Not the TeaVM `%g` half.** Upstream reports the refusal with
+  `log.warn(String.format("... (%g, %g) ..."))`, which TeaVM's `Formatter` cannot
+  do; those two lines were already rebuilt with string concatenation when this
+  file was first patched for `Geo2D`, so the crash mmrocket-sim found in the same
+  method could not happen here. What was left was the silent substitution, which
+  no amount of logging fixes in a browser.
+- **The app half:** `services/loadOrk.ts buildForImport` keeps a file that
+  states such an outline OPENABLE. Opening is not flying: the design that cannot
+  be simulated is the one somebody needs to open in order to fix it, and this app
+  can write one, because the `.ork` writer takes the tree rather than the
+  kernel's opinion of it. The tree is handed back as written and only the
+  throwaway handle that seats the file's motors is built from a copy with the
+  freeform outlines dropped; the kernel's own sentence becomes an import note,
+  and the app's rebuild then refuses in the same words in the banner.
+- **Guards:** `web/tests/engine/engineBoundary.test.ts`, "a self-intersecting
+  freeform fin outline is refused" - the named refusal for a crossing and for a
+  repeated point, the unnamed fallback, a valid outline still building at its own
+  length, a good outline building after a refused one, and the table above as an
+  assertion: a refused outline must NOT return the default fin's length.
+  `web/tests/services/loadOrk.unbuildable.test.ts` covers the import, including
+  that a failure the repair cannot reach rethrows the original error.
+- **Divergence:** `extract/DIVERGENCE.txt` 39 → 66 lines for this file.
+- **Artifact:** both targets rebuilt, JS and WASM-GC, which are a matched pair
+  (`build-engine.mjs`). `isOutlineRefused` 0 → 7 occurrences in
+  `web/src/engine/vendor/openrocket-engine.mjs` and the refusal sentence present
+  in it and in `web/public/engine/openrocket-engine.wasm` - the grep, not
+  Gradle's UP-TO-DATE, is the evidence.
+- **Found by:** the 2026-09-27 review of mmrocket-sim (`extract/MMROCKET-SIM`),
+  which fixed the same upstream behavior in their own kernel. Upstreamable: the
+  rollback tells the caller nothing in desktop OpenRocket either.

@@ -928,3 +928,117 @@ describe('a filled component is solid', () => {
     expect(dryMass(tubeTree(true))).toBeGreaterThan(dryMass(tubeTree(false)));
   });
 });
+
+/**
+ * A SELF-INTERSECTING freeform outline is refused by name, not flown as some
+ * other fin.
+ *
+ * `FreeformFinSet.setPoints` validates AFTER it has snapped the outline to the
+ * body, and on a crossing it rolls the whole outline back to whatever the fin
+ * held before - on a fin the bridge has just constructed, the kernel's DEFAULT
+ * outline - reporting the refusal only to the log. Read by nobody, that flew a
+ * fin the design does not draw: measured on this build before the fix, a
+ * crossing outline reported length 0.325 m and CP 0.2588 m, the default fin's
+ * own numbers, where the outline as drawn gives 0.300 m and 0.2454 m. Neither
+ * an error nor a warning reached the app.
+ *
+ * So the assertion that matters is not "it throws": it is that the refused
+ * outline does NOT quietly produce the default fin's geometry. Both halves are
+ * pinned, because a future kernel that stops rolling back would pass the first
+ * and fail the second.
+ */
+describe('a self-intersecting freeform fin outline is refused', () => {
+  const finTree = (points?: number[][], name?: string) =>
+    ({
+      components: [
+        {
+          id: 'stage1',
+          type: 'stage',
+          children: [
+            { id: 'nose', type: 'nosecone', length: 0.1, aftRadius: 0.013, thickness: 0.001, shape: 'ogive' },
+            {
+              id: 'tube',
+              type: 'bodytube',
+              length: 0.2,
+              outerRadius: 0.013,
+              thickness: 0.0005,
+              children: [
+                {
+                  id: 'fins',
+                  type: 'freeformfinset',
+                  ...(name ? { name } : {}),
+                  finCount: 3,
+                  thickness: 0.003,
+                  ...(points ? { points } : {}),
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }) as unknown as RocketTree;
+
+  /** A plain trapezoid, 0.06 m root chord: legal, and 0.05 m shorter than the default fin. */
+  const VALID = [
+    [0, 0],
+    [0.02, 0.05],
+    [0.05, 0.05],
+    [0.06, 0],
+  ];
+  /** The same four points with two swapped, so the outline crosses itself. */
+  const BOWTIE = [
+    [0, 0],
+    [0.05, 0.05],
+    [0, 0.05],
+    [0.06, 0],
+  ];
+  /** A repeated point: the segment it makes touches its neighbor along its whole length. */
+  const REPEATED = [
+    [0, 0],
+    [0.02, 0.05],
+    [0.02, 0.05],
+    [0.06, 0],
+  ];
+
+  const info = (points?: number[][]) => OpenRocketDesign.buildTree(finTree(points, 'Forward fins')).staticInfo();
+
+  it('builds a valid outline at its own length', () => {
+    expect(info(VALID).length).toBeCloseTo(0.3, 9);
+  });
+
+  it('refuses a crossing outline, naming the fin set', () => {
+    expect(() => info(BOWTIE)).toThrow(/Forward fins/);
+    expect(() => info(BOWTIE)).toThrow(/crosses or touches itself/);
+  });
+
+  it('refuses an outline with a repeated point', () => {
+    expect(() => info(REPEATED)).toThrow(/crosses or touches itself/);
+  });
+
+  it('falls back on the type when the fin set has no name', () => {
+    expect(() => OpenRocketDesign.buildTree(finTree(BOWTIE)).staticInfo()).toThrow(/freeform fin set/);
+  });
+
+  /**
+   * The silent substitution itself, stated as geometry: a refused outline must
+   * not return the DEFAULT fin's numbers. `info()` with no points IS the default
+   * fin, so this compares the two answers the app would have shown.
+   */
+  it('does not fly the default fin in place of the refused one', () => {
+    const fallback = info();
+    expect(fallback.length).toBeCloseTo(0.325, 9);
+    let flew: number | null = null;
+    try {
+      flew = info(BOWTIE).length;
+    } catch {
+      /* refused, which is the point */
+    }
+    expect(flew).not.toBe(fallback.length);
+  });
+
+  /** The flag is per-call, so one refused fin must not poison the next build. */
+  it('builds a good outline after a refused one', () => {
+    expect(() => info(BOWTIE)).toThrow();
+    expect(info(VALID).length).toBeCloseTo(0.3, 9);
+  });
+});

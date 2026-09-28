@@ -296,6 +296,21 @@ final class ComponentFactory {
                                 "freeformfinset needs at least 3 points");
                     }
                     fins.setPoints(pts);
+                    // A self-intersecting outline is REFUSED by the kernel, which rolls
+                    // it back to the fin it held before -- here the constructor's
+                    // DEFAULT fin -- and says so only to the log. Left unread that flew
+                    // a fin the design does not draw: a crossing outline measured length
+                    // 0.325 m / CP 0.2588 m, the default fin's numbers, where the
+                    // outline as drawn gives 0.300 m / 0.2454 m. Refused by name
+                    // instead; the flag is the FreeformFinSet patch (patches/LEDGER.md).
+                    // A DIVERGENCE from desktop, which substitutes silently: a design
+                    // that draws one fin and flies another is the worse answer.
+                    if (fins.isOutlineRefused()) {
+                        String finName = str(node, "name", "freeform fin set");
+                        throw new IllegalArgumentException("Fin set \"" + finName
+                                + "\": its outline crosses or touches itself, so it cannot"
+                                + " be simulated. Redraw it in the fin editor.");
+                    }
                 }
                 c = fins;
                 break;

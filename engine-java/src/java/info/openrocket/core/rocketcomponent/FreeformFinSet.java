@@ -299,7 +299,16 @@ public class FreeformFinSet extends FinSet {
 
 		update(validateFinTab);
 
-		if (intersects()) {
+		// PATCH(astrarrocketjs): RECORD the refusal. Upstream rolls a refused outline
+		// back to whatever the fin held before and returns normally, so a design that
+		// draws a self-intersecting fin silently flies the CONSTRUCTOR'S DEFAULT fin:
+		// measured on the JS artifact, a crossing outline read length 0.325 m / CP
+		// 0.2588 m (the default fin's own numbers) where the outline as drawn gives
+		// 0.300 m / 0.2454 m. api/ComponentFactory reads this flag and refuses the
+		// build BY NAME instead. Assigned inside the `if` (double parens: deliberate,
+		// not a comparison typo) so the rollback below keeps its shape, and assigned
+		// on EVERY call, so a later good outline clears it.
+		if ((outlineRefused = intersects())) {
 			// on error, reset to the old points
 			this.points = pointsCopy;
 			this.length = lengthCopy;
@@ -613,4 +622,20 @@ public class FreeformFinSet extends FinSet {
 		return false;
 	}
 	
+
+	// PATCH(astrarrocketjs): see patches/LEDGER.md. Appended after upstream's last
+	// member so every upstream line above keeps its number. Set by
+	// setPoints(ArrayList, boolean), the only path the bridge builds an outline
+	// through; the interactive setPoint/addPoint/removePoint rollbacks are
+	// desktop-only and are left exactly as upstream wrote them.
+	private boolean outlineRefused = false;
+	
+	/**
+	 * True when the LAST setPoints() call was refused for self-intersection and the
+	 * previous outline kept. Upstream reports a refusal only to the log.
+	 */
+	public boolean isOutlineRefused() {
+		return outlineRefused;
+	}
+
 }

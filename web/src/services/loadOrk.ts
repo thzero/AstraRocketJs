@@ -5,6 +5,7 @@ import {
   type IgnitionEvent,
   type RocketTree,
   type MotorSpec,
+  type ComponentNode,
 } from '../engine/openRocketEngine';
 import { parseDesignFile } from './designFile';
 import type { OrkExportMotor } from './orkFile';
@@ -37,6 +38,14 @@ export interface LoadedOrk {
   motorSpecs: Record<string, MountMotor>;
   /** Imported launch/sim conditions (wind, rod, site, geodetic), if the file had any. */
   launch?: Partial<LaunchConditions>;
+  /**
+   * Set when the tree AS WRITTEN could not be built, and the handle below was
+   * built from a repaired copy so the file could still be opened (see
+   * `buildForImport`). `design` and `info` then describe that copy, NOT this
+   * design: read neither. The app does not - it rebuilds from `tree` - and the
+   * rebuild refuses in the same place, which is what the user needs to see.
+   */
+  unbuildable?: string;
 }
 
 const IGNITION_EVENTS: ReadonlySet<string> = new Set(['automatic', 'launch', 'ejectioncharge', 'burnout', 'never']);
@@ -143,15 +152,70 @@ function embeddedCurves(files: string[] | undefined, notes: string[]): Map<strin
   return out;
 }
 
+/**
+ * Build the file's tree, and if the kernel REFUSES it, build a repaired copy
+ * instead so the file still opens.
+ *
+ * The kernel refuses a design it cannot fly - a freeform fin whose outline
+ * crosses itself is the case this was written for, since the kernel rolls such
+ * an outline back and the bridge now says so by name rather than flying the
+ * default fin. Opening is not flying, though: a design that cannot be simulated
+ * is exactly the design somebody needs to OPEN in order to fix, and refusing the
+ * whole file would leave a rocket saved from this app unreachable. So the tree is
+ * handed back untouched and only the throwaway handle - which exists to seat the
+ * file's motors, and whose numbers nothing downstream reads (`wireLoadedOrk`
+ * takes the tree, the specs and the notes) - is built from a copy with every
+ * freeform outline dropped to the kernel's default.
+ *
+ * The retry is deliberately blind: no attempt to decide from the message whether
+ * an outline was the cause. A build that fails for some other reason fails the
+ * retry too and the ORIGINAL error is what the caller sees.
+ *
+ * The note carries the kernel's own sentence, which names the offending part,
+ * and the app's rebuild hits the same refusal a moment later - so the reason
+ * appears in the banner as well, in the same words, for as long as it is true.
+ */
+export function buildForImport(tree: RocketTree): { design: OpenRocketDesign; unbuildable?: string } {
+  try {
+    return { design: OpenRocketDesign.buildTree(tree) };
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : String(e);
+    let repaired;
+    try {
+      repaired = OpenRocketDesign.buildTree(withoutFreeformOutlines(tree));
+    } catch {
+      throw e; // not an outline this could rescue - the real error is the useful one
+    }
+    return {
+      design: repaired,
+      unbuildable: `${reason} The design is open so it can be fixed; nothing will simulate until it is.`,
+    };
+  }
+}
+
+/** The tree with every freeform fin set's `points` dropped, so the kernel uses its own outline. */
+function withoutFreeformOutlines(tree: RocketTree): RocketTree {
+  const strip = (nodes: ComponentNode[] | undefined): ComponentNode[] | undefined =>
+    nodes?.map((n) => {
+      const kids = strip(n.children as ComponentNode[] | undefined);
+      const next = { ...n, ...(kids ? { children: kids } : {}) } as ComponentNode & { points?: unknown };
+      if (next.type === 'freeformfinset') delete next.points;
+      return next;
+    });
+  return { ...tree, components: strip(tree.components as ComponentNode[]) ?? [] } as RocketTree;
+}
+
 export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   resetEngine(); // free the previous design's handles
   // Either format, chosen from the bytes (designFile.ts). Everything below is
   // format-agnostic: it works off the import RESULT, and a `.rkt` simply
   // arrives with no motors and no flight configurations to resolve.
   const res = parseDesignFile(buffer);
-  const design = OpenRocketDesign.buildTree(res.tree);
+  const built = buildForImport(res.tree);
+  const design = built.design;
 
   const notes = [...(res.notes ?? []), ...(res.ignored ?? []).map((i) => `Skipped unsupported: ${i}`)];
+  if (built.unbuildable) notes.push(built.unbuildable);
 
   const catalog = await loadCatalog();
   // Thrust curves the file brought with it, by designation. A `.ork` from the
@@ -242,5 +306,15 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   }
 
   const info = design.staticInfo();
-  return { name: res.name, design, info, notes, tree: res.tree, motors: res.motors, motorSpecs, launch: res.launch };
+  return {
+    name: res.name,
+    design,
+    info,
+    notes,
+    tree: res.tree,
+    motors: res.motors,
+    motorSpecs,
+    launch: res.launch,
+    unbuildable: built.unbuildable,
+  };
 }
