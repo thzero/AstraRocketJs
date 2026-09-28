@@ -116,6 +116,7 @@ dmodel
 docblocks
 docmaterials
 docprefs
+domcontentloaded
 doublewedge
 drei
 drei's
@@ -179,6 +180,7 @@ goldens
 gradlew
 gravitymodel
 gridlines
+Guardado
 Guice
 haack
 haack's
@@ -423,6 +425,7 @@ stripwidth
 strmr
 subclassing
 subcomponents
+subresource
 Substitutor
 sust
 sustainers
@@ -496,6 +499,7 @@ windmodeltype
 windspeed
 windspeedms
 windturbulence
+wordmark
 worktree
 xform
 xunits
