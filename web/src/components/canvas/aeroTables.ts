@@ -3,10 +3,8 @@ import type { AeroSweep, ComponentMass } from '../../engine/openRocketEngine';
 
 /**
  * The pure half of AeroAnalysis: the cell-shading formulas, the per-table row
- * builders and the chart geometry (domain, stacked bands, axis ticks). Pulled
- * out of the component so each is provable without mounting the pane, which
- * had 14% coverage while carrying a formula-for-formula port of OpenRocket's
- * heat map and three table joins.
+ * builders and the chart geometry (domain, stacked bands, axis ticks). Separate
+ * from the component so each is testable without mounting the pane.
  */
 
 export type HeatStyle = 'sky' | 'openrocket';
@@ -21,18 +19,15 @@ export function hsv(h: number, sat: number, val: number): string {
 }
 
 /**
- * Cell shading for a magnitude. Two styles, because which one reads faster is a
- * matter of taste and of what you are already used to.
+ * Cell shading for a magnitude, in either of two styles.
  *
  * `sky` (default) is ONE hue that strengthens with the value, scaled against the
- * row set's own largest - a magnitude ramp, which is what these numbers are, and
- * it sits on our dark table without fighting it. It is capped short of opaque so
- * the text keeps its own color.
+ * row set's own largest: a relative magnitude ramp on a dark table. Capped short
+ * of opaque so the text keeps its own color.
  *
  * `openrocket` is the desktop's renderer, formula for formula: hue rotates green
  * to red over an ABSOLUTE Cd scale (full red at 1.5), saturation climbs with it,
- * value pinned at 1. That means light cells, so the text goes dark with them -
- * the same trade the desktop makes.
+ * value pinned at 1. The cells come out light, so the text goes dark with them.
  */
 export function heat(value: number, max: number, style: HeatStyle): CSSProperties | undefined {
   if (!Number.isFinite(value) || value <= 0) return undefined;

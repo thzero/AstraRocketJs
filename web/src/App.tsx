@@ -1,6 +1,6 @@
 import { useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useWorkspaceStore, selectActive } from './state/store';
+import { useWorkspaceStore, selectActive, selectDesignName } from './state/store';
 import { useWorkspaceEffects } from './state/useWorkspaceEffects';
 import { AppHeader } from './components/layout/AppHeader';
 import { CenterView } from './components/canvas/CenterView';
@@ -8,6 +8,7 @@ import { TreePanel } from './components/design/TreePanel';
 import { PropertyPane } from './components/design/PropertyPane';
 import { SimulationsPane } from './components/sim/SimulationsPane';
 import { SimEditor } from './components/sim/SimEditor';
+import { FlightEventsTable } from './components/sim/FlightEventsTable';
 import { SimSummary } from './components/sim/SimSummary';
 import { FlightWarnings } from './components/sim/FlightWarnings';
 import { TabBar } from './components/layout/TabBar';
@@ -15,6 +16,7 @@ import { WorkInProgressDialog } from './components/layout/WorkInProgressDialog';
 import { ConfirmDialog } from './components/common/ConfirmDialog';
 import { PromptDialog } from './components/common/PromptDialog';
 import { UpdateToast } from './components/layout/UpdateToast';
+import { EngineNotice } from './components/layout/EngineNotice';
 import { useIsDesktop } from './components/common/useMediaQuery';
 import { PaneSplitter } from './components/layout/PaneSplitter';
 import { useSettings } from './state/SettingsProvider';
@@ -35,6 +37,10 @@ export default function App() {
   const err = useWorkspaceStore((s) => s.err);
   const storageWarning = useWorkspaceStore((s) => s.storageWarning);
   const result = useWorkspaceStore((s) => selectActive(s).result);
+  // Titles the CSV the events table writes, so a file on disk says which run it
+  // came from rather than only "flight-events.csv".
+  const activeSimName = useWorkspaceStore((s) => selectActive(s).name);
+  const designName = useWorkspaceStore(selectDesignName);
 
   // The center pane backs BOTH the Design and Results tabs, and stays mounted
   // across the switch: the 2D/3D canvases are expensive to build, and remounting
@@ -99,6 +105,10 @@ export default function App() {
         </p>
       )}
       {err && <p className="border-b border-red-500/30 bg-red-950/60 px-4 py-2 text-sm text-red-300">{err}</p>}
+      {/* Third banner, and the one that outranks both: without the kernel there
+          are no numbers to be wrong about. It renders nothing once the engine is
+          up, which is the ordinary case within a second or two of first paint. */}
+      <EngineNotice />
 
       {/*
         One row of panes; the TAB decides which of them are in it, so each tab
@@ -235,6 +245,10 @@ export default function App() {
                 useMediaQuery. */}
             {desktop && <FlightWarnings sim={result} />}
             <SimSummary sim={result} />
+            {/* Under the tiles, not above: the tiles are the verdict on the
+                flight and the timeline is how it got there. The column
+                scrolls, which is what a table of a dozen-odd rows needs. */}
+            <FlightEventsTable sim={result} simName={activeSimName} designName={designName} />
           </div>
         </section>
       </main>

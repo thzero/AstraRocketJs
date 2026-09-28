@@ -9,8 +9,9 @@ import { test, expect, openTab, ready, runButton, runFlight, importOrk } from '.
  * entry fields cap what you can type (see simulations-tab.spec.ts); this is the
  * case they cannot cover.
  *
- * `out-of-limits.ork` is `two-stage.ork` with a 35° rod angle and 15 m/s
- * (~34 mph) of wind.
+ * `out-of-limits.ork` is `two-stage.ork` with a 35° rod angle and 15 m/s of
+ * wind. The messages quote the reader units (metric by default), not the
+ * codes own mph.
  */
 test('an imported .ork outside the limits is flagged and refused', async ({ page }) => {
   await page.goto('/');
@@ -19,21 +20,20 @@ test('an imported .ork outside the limits is flagged and refused', async ({ page
   // The loaded banner lists what is wrong, with the numbers and the rule.
   const banner = page.getByText(/Launch rod angle is 35/);
   await expect(banner).toBeVisible();
-  await expect(page.getByText(/Wind speed is 33.6 mph/)).toBeVisible();
+  await expect(page.getByText('Wind speed is 15 m/s')).toBeVisible();
 
   // And the run is off the table until it is fixed.
   await openTab(page, 'Simulations');
   const run = runButton(page);
   await expect(run).toBeDisabled();
   // Names the row and gives BOTH reasons with the rule behind each, rather than
-  // a bare "cannot run". The regex used to look for wording this path never
-  // produced, and the assertion was masked by a different refusal entirely:
-  // every centering ring in the file imported with no radius, so the design was
-  // rejected for a zero dimension before the launch check was ever reached.
+  // a bare "cannot run". The regex has to match the wording THIS path produces:
+  // a design rejected for a zero dimension (every centering ring importing with no
+  // radius, say) never reaches the launch check at all, which masks the assertion.
   const notice = page.getByText(/was not run .* launch conditions are outside the safety codes/);
   await expect(notice).toBeVisible();
   await expect(notice).toContainText('above the 20° the NAR and Tripoli safety codes allow');
-  await expect(notice).toContainText('above the 20 mph the NAR and Tripoli safety codes allow');
+  await expect(notice).toContainText('above the 8.9 m/s the NAR and Tripoli safety codes allow');
 
   // Bring both back inside and it flies. The fields clamp, so typing anything
   // over the cap lands exactly on it.
@@ -134,12 +134,13 @@ test('the run summary carries a safety card linking to the docs', async ({ page 
   await expect(card).toHaveClass(/amber/);
   await expect(card).toContainText('⚠');
 
-  // BELOW the tiles, not above them: a caveat read before the numbers exist is
-  // a caveat about nothing.
+  // ABOVE the tiles, not below them: it leads the numbers, because what a
+  // reading is worth is a thing to know before reading it. Folded, the ⚠ and
+  // the words are still the first thing over the measurements.
   const tiles = page.locator('section[aria-label="Simulation results"]').filter({ visible: true });
   const cardBox = (await card.boundingBox())!;
   const tileBox = (await tiles.boundingBox())!;
-  expect(cardBox.y).toBeGreaterThanOrEqual(tileBox.y + tileBox.height);
+  expect(cardBox.y + cardBox.height).toBeLessThanOrEqual(tileBox.y);
 
   /**
    * And it still takes you to the safety notes - now in the in-app Help rather

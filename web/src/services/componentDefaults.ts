@@ -3,13 +3,11 @@ import { KERNEL_DEFAULTS } from '../tree/kernelDefaults';
 /**
  * Fallback values the FILE services share.
  *
- * `orkImport` (what a missing `.ork` tag becomes), `orkExport` (what an absent
- * node key is written as) and `dxfExport` (what an absent key is cut as) each
- * carried their own literal for the same field, and the copies had drifted:
- * the engine block wall was 0.001 in the .ork reader and writer but 0.00095 in
- * the DXF, and a bulkhead read as 0.003 long and wrote back as 0.002. A part
- * that lost a tag on the way in came out a different size on the way out, and
- * nothing reported it.
+ * `orkImport` (what a missing `.ork` tag becomes), `orkExport` (what an absent node
+ * key is written as) and `dxfExport` (what an absent key is cut as) read the same
+ * field from here rather than each holding its own literal. Separate copies drift,
+ * and a part that loses a tag on the way in then comes out a different size on the
+ * way out with nothing reporting it.
  *
  * Where the kernel has a default for the field (`kernelDefaults.ts`, verified
  * against the real engine) it is the authority and is re-exported here rather
@@ -49,9 +47,8 @@ export const COMPONENT_DEFAULTS = {
   },
   engineblock: {
     length: KERNEL_DEFAULTS.engineblock.length,
-    // The kernel's wall, not the 0.001 the .ork services used to invent: the
-    // DXF already cut at this value, so a block that lost its tag was drawn
-    // and cut at two different bores.
+    // The kernel's wall, which is also what the DXF cuts at, so a block that
+    // lost its tag is not drawn and cut at two different bores.
     thickness: KERNEL_DEFAULTS.engineblock.thickness,
   },
   centeringring: {

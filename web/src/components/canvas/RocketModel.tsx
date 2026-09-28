@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import * as THREE from 'three';
 import { useHoverCursor } from '../common/useHoverCursor';
 import type { Piece } from './rocketPieces';
@@ -11,16 +12,36 @@ export function RocketModel({
   pieces,
   selectedId,
   onSelect,
+  clip,
 }: {
   pieces: Piece[];
   selectedId?: string | null;
   onSelect?: (id: string) => void;
+  /** Cutaway: the half-space to keep. Applied to the AIRFRAME only (hull and
+   *  inner tubes) — what is inside them stays whole, so the view is a rocket
+   *  with its side opened rather than a scene sliced in half. Nothing inside
+   *  is cut, so there is no open cross-section to cap and no stencil pass. */
+  clip?: THREE.Plane | null;
 }) {
   const hoverCursor = useHoverCursor();
+  // One array for every material: a new [plane] each render would reallocate
+  // (and re-upload) uniforms on every frame the component re-renders.
+  const planes = useMemo(() => (clip ? [clip] : null), [clip]);
+  // A hit on the removed side of a clipped part is a hit on something nobody
+  // can see: the raycaster does not know about clipping planes. Returning
+  // WITHOUT stopping propagation hands the event to the next intersection —
+  // the far wall, or the mount behind it — which is the part actually under
+  // the pointer.
+  const hidden = (p: Piece, point: THREE.Vector3): boolean =>
+    !!clip && (!!p.translucent || !!p.innerGlass) && clip.distanceToPoint(point) < 0;
   return (
     <>
       {pieces.map((p) => {
         const selected = !!p.id && p.id === selectedId;
+        // Cut parts go opaque: the see-through tiers exist to show what is
+        // inside a closed shell, and once the shell is open they only make the
+        // internals muddier.
+        const cut = !!planes && (!!p.translucent || !!p.innerGlass);
         return (
           <mesh
             key={p.key}
@@ -31,6 +52,7 @@ export function RocketModel({
             onClick={
               p.id && onSelect
                 ? (e) => {
+                    if (hidden(p, e.point)) return;
                     e.stopPropagation();
                     onSelect(p.id!);
                   }
@@ -39,6 +61,7 @@ export function RocketModel({
             onPointerOver={
               p.id && onSelect
                 ? (e) => {
+                    if (hidden(p, e.point)) return;
                     e.stopPropagation();
                     hoverCursor(true);
                   }
@@ -58,10 +81,11 @@ export function RocketModel({
               metalness={0.05}
               emissive={selected ? '#0284c7' : '#000000'}
               emissiveIntensity={selected ? 0.6 : 0}
-              transparent={!selected && (!!p.translucent || !!p.innerGlass)}
-              opacity={selected ? 1 : p.translucent ? 0.55 : p.innerGlass ? 0.5 : 1}
-              depthWrite={selected || (!p.translucent && !p.innerGlass)}
-              side={!selected && (p.translucent || p.innerGlass) ? THREE.DoubleSide : THREE.FrontSide}
+              transparent={!selected && !cut && (!!p.translucent || !!p.innerGlass)}
+              opacity={selected || cut ? 1 : p.translucent ? 0.55 : p.innerGlass ? 0.5 : 1}
+              depthWrite={selected || cut || (!p.translucent && !p.innerGlass)}
+              side={cut || (!selected && (p.translucent || p.innerGlass)) ? THREE.DoubleSide : THREE.FrontSide}
+              clippingPlanes={cut ? planes : null}
             />
           </mesh>
         );

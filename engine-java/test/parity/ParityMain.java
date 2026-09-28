@@ -44,6 +44,7 @@ public final class ParityMain {
         finVariantScenarios();
         dualDeployScenarios();
         clusterScenarios();
+        splitClusterScenarios();
         stagingScenarios();
         podScenarios();
         aeroSweepScenarios();
@@ -140,12 +141,13 @@ public final class ParityMain {
      * is not testing that TeaVM compiled our source faithfully, it is testing
      * that our stub agrees with the JDK it stands in for - the one comparison
      * in this harness where a mismatch means the stub is wrong rather than the
-     * compiler. Nothing printed a sorted list before, so the stub could
-     * disagree with the JDK indefinitely and no gate would notice.
+     * compiler. Without a sorted list printed here, the stub could disagree with
+     * the JDK indefinitely and no gate would notice.
      * <p>
      * {@code DesignationComparator} is the live consumer and it sorts at
      * PRIMARY, where "H128W" and "H128-W" must compare EQUAL and "AeroTech"
-     * must sort before "A-P". The old stub got that second one backwards.
+     * must sort before "A-P" - a raw case-sensitive tiebreak gets that second one
+     * backwards.
      */
     private static void collatorScenarios() {
         String[] names = {
@@ -171,9 +173,9 @@ public final class ParityMain {
             }
             System.out.println("collator.matrix|" + strengths[s] + "|" + row);
         }
-        // Strength must be per-instance: getInstance() used to hand back one
-        // shared singleton with a no-op setStrength, so two callers asking for
-        // different strengths silently got whichever was set last.
+        // Strength must be per-instance: a shared singleton with a no-op
+        // setStrength hands two callers asking for different strengths whichever
+        // was set last.
         java.text.Collator primary = java.text.Collator.getInstance(java.util.Locale.US);
         primary.setStrength(java.text.Collator.PRIMARY);
         java.text.Collator identical = java.text.Collator.getInstance(java.util.Locale.US);
@@ -209,8 +211,8 @@ public final class ParityMain {
             prefixes.add(s8);
             if (i == 0) first = u.toString();
         }
-        // 4096 distinct most-significant halves: the old counter managed 2048.
-        // Many distinct short keys: the old one managed exactly 1.
+        // 4096 distinct most-significant halves, and many distinct short keys: a
+        // raw counter yields 2048 and exactly 1 respectively.
         line("uuid.spread", msbs.size(), prefixes.size());
         // Exact value, so the two platforms must agree bit for bit.
         System.out.println("uuid.first|" + first);
@@ -695,6 +697,60 @@ public final class ParityMain {
                     api.JsonLite.dbl(summary, "maxAcceleration", Double.NaN),
                     api.JsonLite.dbl(summary, "timeToApogee", Double.NaN),
                     api.JsonLite.dbl(summary, "flightTime", Double.NaN));
+        }
+    }
+
+    /**
+     * PATCH(offaxis-roll-inertia): the same two motors 15 mm off the axis, built
+     * two ways. "split" is the desktop split cluster, two single-instance inner
+     * tubes each at radialPosition 0.015; "double" is one inner tube with a
+     * double cluster scaled to the same offsets. The mass is in the same places,
+     * so roll inertia (Ixx) must agree between the two, for the structure and
+     * with the motors loaded. Upstream gave the split pair neither the tubes'
+     * nor the motors' m * r^2. "axis" is the on-axis control: the patch adds
+     * exactly 0.0 there.
+     */
+    private static void splitClusterScenarios() {
+        String head = "{\"name\":\"Split\",\"components\":["
+                + "{\"type\":\"nosecone\",\"length\":0.12,\"aftRadius\":0.033,\"thickness\":0.002},"
+                + "{\"type\":\"bodytube\",\"length\":0.45,\"outerRadius\":0.033,\"thickness\":0.001,\"density\":950,\"children\":["
+                + "  {\"type\":\"trapezoidfinset\",\"finCount\":3,\"rootChord\":0.09,\"tipChord\":0.05,\"sweep\":0.04,\"height\":0.06,\"thickness\":0.003},";
+        String tail = "  {\"type\":\"parachute\",\"diameter\":0.45}"
+                + "]}]}";
+        String tube = "{\"type\":\"innertube\",\"length\":0.075,\"outerRadius\":0.0095,\"thickness\":0.0005,\"motorMount\":true,"
+                + "\"position\":{\"method\":\"bottom\",\"offset\":0}";
+        String[][] designs = {
+            { "split", head
+                + "  " + tube + ",\"id\":\"m1\",\"radialPosition\":0.015,\"radialDirection\":0},"
+                + "  " + tube + ",\"id\":\"m2\",\"radialPosition\":0.015,\"radialDirection\":3.141592653589793},"
+                + tail },
+            { "double", head
+                + "  " + tube + ",\"id\":\"m1\",\"cluster\":\"double\",\"clusterScale\":" + (0.015 / 0.0095)
+                + ",\"clusterRotation\":0},"
+                + tail },
+            { "axis", head
+                + "  " + tube + ",\"id\":\"m1\"},"
+                + tail },
+        };
+        double[] times = { 0, 0.1, 0.3, 0.5, 1.0, 1.5, 1.85, 2.0 };
+        double[] thrusts = { 0, 12.0, 6.0, 5.1, 4.9, 4.8, 4.5, 0 };
+        double[] masses = { 0.0240, 0.0231, 0.0215, 0.0202, 0.0174, 0.0147, 0.0133, 0.0132 };
+        for (String[] d : designs) {
+            int r = api.OpenRocketEngine.buildRocket(d[1]);
+            api.OpenRocketEngine.setMotorById(r, "m1", "C6", 0.018, 0.070, times, thrusts, masses, 0.035, 4.0);
+            if ("split".equals(d[0])) {
+                api.OpenRocketEngine.setMotorById(r, "m2", "C6", 0.018, 0.070, times, thrusts, masses, 0.035, 4.0);
+            }
+            FlightConfiguration config = ((info.openrocket.core.rocketcomponent.Rocket) getRocketFromInfo(r))
+                    .getSelectedConfiguration();
+            RigidBody structure = MassCalculator.calculateStructure(config);
+            line("mass.split." + d[0] + ".structure", structure.getMass(),
+                    structure.getCM().getX(), structure.getCM().getY(), structure.getCM().getZ(),
+                    structure.getIxx(), structure.getIyy());
+            RigidBody launch = MassCalculator.calculateLaunch(config);
+            line("mass.split." + d[0] + ".launch", launch.getMass(),
+                    launch.getCM().getX(), launch.getCM().getY(), launch.getCM().getZ(),
+                    launch.getIxx(), launch.getIyy());
         }
     }
 

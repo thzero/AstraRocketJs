@@ -18,10 +18,6 @@ const { version } = JSON.parse(readFileSync(new URL('../web/package.json', impor
 // the thing that goes stale without anyone noticing. Bumping UPSTREAM moves
 // this page, the Spanish one, and the app's About dialog together.
 //
-// `extract/MMROCKET-SIM` is read the same way and for the same reason: the
-// comparison appendix says which mmrocket-sim the RASAero-style extensions were
-// last reviewed against, and that fact already has a home.
-//
 // `key = value` lines, below a header in which every line is a `#` comment.
 const pinFile = (path: string) => {
   const fields = new Map(
@@ -48,18 +44,6 @@ const upstream = {
   commitUrl: `${upstreamField('repo').replace(/\.git$/, '')}/commit/${upstreamRef}`,
 };
 
-const mmrocketField = pinFile('../engine-java/extract/MMROCKET-SIM');
-const mmrocketRef = mmrocketField('ref');
-const mmrocket = {
-  ref: mmrocketRef,
-  shortRef: mmrocketRef.slice(0, 7),
-  version: mmrocketField('version'),
-  // Their release's own date, not the date of our review of it.
-  date: mmrocketField('dated'),
-  repoUrl: mmrocketField('repo').replace(/\.git$/, ''),
-  commitUrl: `${mmrocketField('repo').replace(/\.git$/, '')}/commit/${mmrocketRef}`,
-};
-
 // The docs site. Built separately from the app and copied into web/dist/docs by
 // the Pages deploy, so both live on the one GitHub Pages site:
 //   /AstraRocketJs/        the app
@@ -81,9 +65,9 @@ const config: Config = {
   organizationName: 'thzero',
   projectName: 'AstraRocketJs',
 
-  // Read by <UpstreamPin />, <MmrocketPin /> and <AppVersion />, which Overview
-  // and the comparison appendix render in both locales.
-  customFields: { upstream, mmrocket, appVersion: version },
+  // Read by <UpstreamPin /> and <AppVersion />, which Overview and the
+  // comparison appendices render in both locales.
+  customFields: { upstream, appVersion: version },
 
   // A broken internal link should fail the build, not ship — the old wiki had no
   // such check, which is how stale page references survived.

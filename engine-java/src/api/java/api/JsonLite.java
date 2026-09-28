@@ -200,10 +200,10 @@ public final class JsonLite {
             // the UI verbatim as "null" via services/buildRocket.ts.
             throw new IllegalArgumentException("JSON: bad number '" + text + "' at " + start);
         }
-        // An exponent overflow used to become Infinity with no error at all:
-        // `"length":1e999` built a rocket whose every StaticInfo field then
-        // serialized as null, because the writer sanitizes non-finite values
-        // and the JS side only checks for an `error` key. Refuse it at the door.
+        // An exponent overflow must not pass as Infinity: `"length":1e999` builds a
+        // rocket whose every StaticInfo field then serializes as null, because the
+        // writer sanitizes non-finite values and the JS side only checks for an
+        // `error` key. Refuse it at the door.
         if (Double.isNaN(d) || Double.isInfinite(d)) {
             throw new IllegalArgumentException("JSON: non-finite number '" + text + "' at " + start);
         }

@@ -54,6 +54,7 @@ export function NumberInput({
   placeholder,
   className,
   ariaLabel,
+  invalid,
 }: {
   value: number | null;
   onChange: (v: number | null) => void;
@@ -64,6 +65,12 @@ export function NumberInput({
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  /**
+   * The value in the box is not acceptable, for a reason the input itself
+   * cannot see - a wind level sharing its altitude with another row. Says so
+   * to a screen reader, which a red ring on its own does not.
+   */
+  invalid?: boolean;
   /**
    * Names the input explicitly. A field row is a <label> that also holds the
    * UnitChip, and a wrapping label's accessible name is its whole subtree — so
@@ -85,6 +92,7 @@ export function NumberInput({
       placeholder={placeholder}
       className={className}
       aria-label={ariaLabel}
+      aria-invalid={invalid || undefined}
       value={draft ?? (blank ? '' : fmt(value as number))}
       // `fmt`, not `String`: the prop is usually a unit conversion, so a
       // stored 0.3 m arrives here as 0.30000000000000004 in cm, and String()

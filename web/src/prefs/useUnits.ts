@@ -1,14 +1,12 @@
 import { useMemo } from 'react';
 import { useSettings } from '../state/SettingsProvider';
-import { fmtNum } from '../i18n/format';
+import { fmtNum, ladderDigits } from '../i18n/format';
 import { niceStep, siToUi, siToUiDelta, uiToSi, unitFor, type Quantity, type UnitSelection } from './units';
 
 /** Locale-aware formatting with a magnitude ladder when no precision is asked. */
 function format(v: number, digits?: number): string {
   if (!Number.isFinite(v)) return '—';
-  if (digits !== undefined) return fmtNum(v, digits);
-  const a = Math.abs(v);
-  return fmtNum(v, a >= 100 ? 0 : a >= 10 ? 1 : a >= 1 ? 2 : 3);
+  return fmtNum(v, digits ?? ladderDigits(v));
 }
 
 /** One field's unit, already resolved — the same helpers with the unit bound. */

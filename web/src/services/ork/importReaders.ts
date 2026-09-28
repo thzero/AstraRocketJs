@@ -20,7 +20,9 @@ import {
   readMaterialGroup,
   readPackedSize,
   readSeparation,
+  readAutoValue,
   readSoftMaterial,
+  readOverrides,
 } from './importTags';
 import { captureDeployments, configScoped, readMotor, type OrkImportContext } from './importConfigs';
 
@@ -58,7 +60,11 @@ const readCant = (el: Element, n: ComponentNode) => {
 /** A <cd> that is a number: ignore `auto` and a garbage value rather than store (and re-export) NaN. */
 const readCd = (el: Element, n: ComponentNode) => {
   const cdText = text(el, ':scope > cd');
-  if (cdText && cdText !== 'auto') {
+  if (cdText === 'auto') {
+    n['cdAuto'] = true;
+    return;
+  }
+  if (cdText) {
     const cdv = Number(cdText);
     if (Number.isFinite(cdv)) n['cd'] = cdv;
   }
@@ -75,7 +81,9 @@ const readRadial = (el: Element, n: ComponentNode) => {
 const readNosecone: NodeReader = (_ctx, el) => {
   const n = base(el, 'nosecone', false);
   n['length'] = numTag(el, 'length', COMPONENT_DEFAULTS.nosecone.length);
-  n['aftRadius'] = numTag(el, 'aftradius', COMPONENT_DEFAULTS.nosecone.aftRadius);
+  const ncR = autoRadiusTag(el, 'aftradius');
+  if (ncR === undefined) n['aftRadiusAuto'] = true;
+  n['aftRadius'] = ncR ?? COMPONENT_DEFAULTS.nosecone.aftRadius;
   readThicknessOrFilled(el, n, COMPONENT_DEFAULTS.nosecone.thickness);
   n['shape'] = text(el, ':scope > shape') ?? 'ogive';
   n['shapeParameter'] = numTag(el, 'shapeparameter', shapeParamDefault(String(n['shape'])));
@@ -86,16 +94,21 @@ const readNosecone: NodeReader = (_ctx, el) => {
   const shT = numTag(el, 'aftshoulderthickness', 0);
   if (shT > 0) n['shoulderThickness'] = shT;
   if (text(el, ':scope > aftshouldercapped') === 'true') n['shoulderCapped'] = true;
+  // A flipped nose cone is a tail cone. The writer emitted a hardcoded
+  // false and nothing read it, so one came back the right way round.
+  if (text(el, ':scope > isflipped') === 'true') n['flipped'] = true;
   return n;
 };
 
 const readTransition: NodeReader = (_ctx, el) => {
   const n = base(el, 'transition', false);
   n['length'] = numTag(el, 'length', COMPONENT_DEFAULTS.transition.length);
-  const fore = numTag(el, 'foreradius', NaN);
-  const aft = numTag(el, 'aftradius', NaN);
-  if (!Number.isNaN(fore)) n['foreRadius'] = fore;
-  if (!Number.isNaN(aft)) n['aftRadius'] = aft;
+  const fore = autoRadiusTag(el, 'foreradius');
+  const aft = autoRadiusTag(el, 'aftradius');
+  if (fore === undefined) n['foreRadiusAuto'] = true;
+  else n['foreRadius'] = fore;
+  if (aft === undefined) n['aftRadiusAuto'] = true;
+  else n['aftRadius'] = aft;
   readThicknessOrFilled(el, n, COMPONENT_DEFAULTS.transition.thickness);
   n['shape'] = text(el, ':scope > shape') ?? 'conical';
   n['shapeParameter'] = numTag(el, 'shapeparameter', shapeParamDefault(String(n['shape'])));
@@ -114,6 +127,10 @@ const readTransition: NodeReader = (_ctx, el) => {
     if (l > 0) n[`${key}Length`] = l;
     const th = numTag(el, `${side}shoulderthickness`, 0);
     if (th > 0) n[`${key}Thickness`] = th;
+    // A capped shoulder is closed by a disc of the part's own material. Read
+    // per side: a transition has two, and only the nose cone's single flag was
+    // ever read, under a key a transition does not carry.
+    if (text(el, `:scope > ${side}shouldercapped`) === 'true') n[`${key}Capped`] = true;
   }
   return n;
 };
@@ -121,7 +138,9 @@ const readTransition: NodeReader = (_ctx, el) => {
 const readBodytube: NodeReader = (ctx, el) => {
   const n = base(el, 'bodytube', false);
   n['length'] = numTag(el, 'length', 0.3);
-  n['outerRadius'] = numTag(el, 'radius', 0.012);
+  const btR = autoRadiusTag(el, 'radius');
+  if (btR === undefined) n['outerRadiusAuto'] = true;
+  n['outerRadius'] = btR ?? 0.012;
   n['thickness'] = numTag(el, 'thickness', COMPONENT_DEFAULTS.bodytube.thickness);
   readMotor(ctx, el, n);
   // Extension tag: sub-minimum flag (motor case is the airframe).
@@ -193,8 +212,9 @@ const readTubeFinset: NodeReader = (_ctx, el) => {
   const n = base(el, 'tubefinset', true);
   n['finCount'] = finCountTag(el, 6);
   n['length'] = numTag(el, 'length', 0.1);
-  const r = numTag(el, 'radius', NaN);
-  if (!Number.isNaN(r)) n['outerRadius'] = r;
+  const r = autoRadiusTag(el, 'radius');
+  if (r === undefined) n['outerRadiusAuto'] = true;
+  else n['outerRadius'] = r;
   const th = numTag(el, 'thickness', NaN);
   if (!Number.isNaN(th)) n['thickness'] = th;
   readFinRotation(el, n);
@@ -217,9 +237,8 @@ const readInnertube: NodeReader = (ctx, el) => {
   // tubes, each carrying its position as <radialposition> (meters) +
   // <radialdirection> (DEGREES). We keep the direction in radians (like
   // angleOffset) and only carry non-zero values so a centered tube stays
-  // clean. Previously neither was read and the writer hard-wrote 0.0, so
-  // every off-center tube collapsed onto the centerline and the next save
-  // made it permanent.
+  // clean. Unread, with the writer hard-writing 0.0, every off-center tube
+  // collapses onto the centerline and the next save makes it permanent.
   readRadial(el, n);
   // Our extension tag: the mount's physical motor-length limit.
   const mml = numTag(el, 'maxmotorlength', 0);
@@ -233,6 +252,7 @@ const readTubecoupler: NodeReader = (_ctx, el) => {
   n['length'] = numTag(el, 'length', 0.05);
   n['thickness'] = numTag(el, 'thickness', COMPONENT_DEFAULTS.tubecoupler.thickness);
   const or = autoRadiusTag(el, 'outerradius');
+  if (or === undefined) n['outerRadiusAuto'] = true;
   if (or !== undefined) n['outerRadius'] = or;
   return n;
 };
@@ -241,8 +261,10 @@ const readCenteringring: NodeReader = (_ctx, el) => {
   const n = base(el, 'centeringring', true);
   n['length'] = numTag(el, 'length', COMPONENT_DEFAULTS.centeringring.length);
   const cor = autoRadiusTag(el, 'outerradius');
+  if (cor === undefined) n['outerRadiusAuto'] = true;
   if (cor !== undefined) n['outerRadius'] = cor;
   const cir = autoRadiusTag(el, 'innerradius');
+  if (cir === undefined) n['innerRadiusAuto'] = true;
   if (cir !== undefined) n['innerRadius'] = cir;
   readInstances(el, n);
   return n;
@@ -254,6 +276,7 @@ const readBulkhead: NodeReader = (_ctx, el) => {
   // No inner radius: a bulkhead is solid, and upstream's saver omits the
   // element for one entirely (RadiusRingComponentSaver).
   const bor = autoRadiusTag(el, 'outerradius');
+  if (bor === undefined) n['outerRadiusAuto'] = true;
   if (bor !== undefined) n['outerRadius'] = bor;
   readInstances(el, n);
   return n;
@@ -264,6 +287,7 @@ const readEngineblock: NodeReader = (_ctx, el) => {
   n['length'] = numTag(el, 'length', COMPONENT_DEFAULTS.engineblock.length);
   n['thickness'] = numTag(el, 'thickness', COMPONENT_DEFAULTS.engineblock.thickness);
   const eor = autoRadiusTag(el, 'outerradius');
+  if (eor === undefined) n['outerRadiusAuto'] = true;
   if (eor !== undefined) n['outerRadius'] = eor;
   return n;
 };
@@ -282,13 +306,12 @@ const readRailbutton: NodeReader = (_ctx, el) => {
   const n = base(el, 'railbutton', true);
   const rb = COMPONENT_DEFAULTS.railbutton;
   n['outerDiameter'] = numTag(el, 'outerdiameter', rb.outerDiameter);
-  // The rest of the button's geometry (RailButtonSaver.java writes all
-  // six) and its material, PASS-THROUGH like fillets: the app neither
-  // draws nor simulates them, but the exporter used to hard-write the
-  // desktop's constructor constants and a Delrin material, so a 1010
-  // button sized by hand on the desktop came back from a save as the
-  // stock 1010 button. Only carried when they differ from the defaults
-  // the writer would fall back to, so an untouched design stays clean.
+  // The rest of the button's geometry (RailButtonSaver.java writes all six)
+  // and its material, PASS-THROUGH like fillets: the app neither draws nor
+  // simulates them, so hard-writing the desktop's constructor constants and a
+  // Delrin material would bring a 1010 button sized by hand on the desktop
+  // back from a save as the stock one. Only carried when they differ from the
+  // defaults the writer falls back to, so an untouched design stays clean.
   for (const [tag, key] of [
     ['innerdiameter', 'innerDiameter'],
     ['height', 'height'],
@@ -327,7 +350,7 @@ const readParachute: NodeReader = (ctx, el) => {
   readCd(el, n);
   // Bounded: the kernel sums line mass per line, and a file can say anything.
   n['lineCount'] = clampCount(numTag(el, 'linecount', 6), 1, MAX_LINE_COUNT);
-  n['lineLength'] = numTag(el, 'linelength', 0.3);
+  if (!readAutoValue(el, n, 'linelength', 'lineLengthAuto')) n['lineLength'] = numTag(el, 'linelength', 0.3);
   readSoftMaterial(el, n, 'surface', 'surfaceDensity', 'surfaceMaterialName');
   readSoftMaterial(el, n, 'line', 'lineDensity', 'lineMaterialName', ':scope > linematerial');
   // Drogue or main. The desktop writes <isdrogue> only when it is true, and
@@ -361,7 +384,7 @@ const readStreamer: NodeReader = (ctx, el) => {
 const readShockcord: NodeReader = (_ctx, el) => {
   const n = base(el, 'shockcord', true);
   readPackedSize(el, n);
-  n['cordLength'] = numTag(el, 'cordlength', 0.3);
+  if (!readAutoValue(el, n, 'cordlength', 'cordLengthAuto')) n['cordLength'] = numTag(el, 'cordlength', 0.3);
   readSoftMaterial(el, n, 'line', 'lineDensity', 'lineMaterialName');
   return n;
 };
@@ -474,6 +497,10 @@ export function readStages(ctx: OrkImportContext, stages: Element[]): ComponentN
       id: freshId(),
       name: text(stageEl, ':scope > name') ?? (i === 0 ? 'Sustainer' : `Booster ${i}`),
     };
+    // A stage can be overridden like any other component, and the writer emits
+    // it, but this builds its own node rather than going through the part
+    // reader - so it was the one place an override was written and not read.
+    readOverrides(stageEl, stage);
     // RASAero power-on base-drag input (meters) — every stage, incl. sustainer.
     const nozzle = numTag(stageEl, 'nozzleexitdiameter', NaN);
     if (!Number.isNaN(nozzle) && nozzle > 0) stage['nozzleExitDiameter'] = nozzle;

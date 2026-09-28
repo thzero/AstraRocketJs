@@ -2,6 +2,7 @@ import type { PartKey } from './partColors';
 import type { CompleteLaunch } from './requiredLaunch';
 import { DEFAULT_HEADING_DEG } from './simulations';
 import { DEFAULT_CSV_COLUMNS } from './flightColumns';
+import { usableWindLevels } from './windLevels';
 import {
   METRIC_UNITS,
   UNIT_CHOICES,
@@ -89,10 +90,9 @@ export interface SimulationSettings {
    * Recovery-deployment speed (m/s) at/above which a SINGLE-deployment recovery
    * is too fast (zippering / hardware damage). Below = green.
    *
-   * Drives two things that used to disagree: the deploy-speed tile's color, and
-   * the kernel's own deployment warning — which ran on its own hard-coded 20 m/s
-   * until this was passed through, so moving this slider changed the tile and
-   * nothing else.
+   * Drives both the deploy-speed tile's color and the kernel's own deployment
+   * warning, which is passed this value rather than its hard-coded 20 m/s so the
+   * two cannot disagree.
    */
   deploymentSpeedWarn: number;
   /**
@@ -137,6 +137,22 @@ export interface Settings {
   unitOverrides: UnitOverrides;
   /** Per-group color overrides for the 3D model (empty = built-in defaults). */
   partColors: Partial<Record<PartKey, string>>;
+  /**
+   * What a NEWLY ADDED part is made of, keyed `<partType>:<materialType>`
+   * (`bodytube:bulk`, `parachute:line`). Empty means no preference.
+   *
+   * The name AND the density are stored, so adding a part is synchronous and
+   * needs no lookup — and a custom material that is later edited or deleted
+   * cannot change or break what a preference means. That matches what a custom
+   * material actually is in this app: a density with a name.
+   *
+   * The preference is spent at CREATION: the new part carries the material
+   * outright, shows it in the panel and writes it to the `.ork`. It is
+   * deliberately not resolved at simulation time the way desktop OpenRocket's
+   * equivalent preference is, because that would make the same file weigh one
+   * thing here and another on the machine you sent it to.
+   */
+  defaultMaterials: Record<string, { name: string; density: number }>;
   /** Flight-path phase colors. */
   phaseColors: { boost: string; coast: string; descent: string };
   /**
@@ -178,6 +194,21 @@ export interface Settings {
    * has not been saved has no stable identity.
    */
   showImportNotes: boolean;
+  /**
+   * Whether the results "Before you fly" card is unfolded.
+   *
+   * It FOLDS rather than dismisses, and what folds away is the body, never the
+   * heading: the card is a standing caution on every run, not a one-time
+   * notice, so an acknowledgment that made it disappear for good would remove
+   * the one thing it exists to do - be present at the moment a reading is
+   * being acted on. Folded, the ⚠ and the words "Before you fly" still head
+   * the numbers and the body is one click away.
+   *
+   * A setting rather than component state for the same reason as
+   * `showImportNotes`: the summary unmounts on every tab change, so a local
+   * fold would have to be repeated forever.
+   */
+  showSafetyCard: boolean;
   /**
    * Width of the Design tab's component-tree column, in CSS pixels.
    *
@@ -277,20 +308,17 @@ export interface ReportSettings {
 /**
  * The flight-path export options that outlive one export.
  *
- * This used to be one boolean, on the reasoning that everything else in that
- * dialog describes THIS export and a stale value silently mislabels the next
- * file. That reasoning still holds for exactly one field - the MISSION NAME,
- * which is still deliberately not persisted - and it was over-applied to the
- * rest: which waypoints you want, what units you export in and what colors
- * your stages are is a working habit, and re-picking them on every export is
- * the kind of friction nobody reports.
+ * Which waypoints you want, what units you export in and what colors your stages
+ * are is a working habit, so it persists. The MISSION NAME is deliberately NOT
+ * persisted: it describes one export, and a stale value silently mislabels the
+ * next file.
  *
  * The per-stage colors carry a known consequence, accepted deliberately. They
  * are keyed by the stage's INDEX in the flight data, not by name, because two
  * stages of one rocket can share a name and name-keying would silently make
  * them share a color. So colors restored from here land on whatever stage now
  * occupies index 0, which may be a different rocket entirely. That is the
- * point: the reason to remember colors is a consistent look across exports.
+ * intent: the reason to remember colors is a consistent look across exports.
  *
  * Every field is optional-by-validation on load: an older store, a newer one,
  * or a hand-edited one costs at most the field it broke.
@@ -308,10 +336,10 @@ export interface PathExportSettings {
   /** Keep every Nth path point. A positive integer. */
   pathStride?: number;
   /**
-   * Export units. ABSENT means "follow the app's distance preference", which
-   * is what a fresh install does; a stored value is an explicit choice made in
-   * the dialog and outranks the app units, because the whole point of the
-   * control is exporting in something other than what you are looking at.
+   * Export units. ABSENT means "follow the app's distance preference", which is
+   * what a fresh install does; a stored value is an explicit choice made in the
+   * dialog and outranks the app units, since the control exists to export in
+   * something other than what you are looking at.
    */
   altitudeUnit?: string;
   distanceUnit?: string;
@@ -395,14 +423,14 @@ export const DEFAULT_SETTINGS: Settings = {
   units: METRIC_UNITS,
   unitOverrides: {},
   partColors: {},
+  defaultMaterials: {},
   phaseColors: { boost: '#fb923c', coast: '#38bdf8', descent: '#34d399' },
   aeroHeat: 'sky',
   playbackSpeed: 0.5,
   simulation: {
     timeStep: 0.05,
     maxTime: 1200,
-    // The kernel's own RECOMMENDED_ANGLE_STEP (AbstractRKSimulationStepper),
-    // which is what every run used before this was settable.
+    // The kernel's own RECOMMENDED_ANGLE_STEP (AbstractRKSimulationStepper).
     maxAngleStep: (3 * Math.PI) / 180,
     randomSeed: null,
     confirmDelete: true,
@@ -418,6 +446,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showInfoCard: true,
   showStats: true,
   showImportNotes: true,
+  showSafetyCard: true,
   treePaneWidth: TREE_PANE_DEFAULT,
   sidePaneWidth: SIDE_PANE_DEFAULT,
   maximizeCenter: false,
@@ -533,6 +562,23 @@ export function loadSettings(): Settings {
           ([, v]) => typeof v === 'string' && HEX_COLOR.test(v),
         ),
       ) as Partial<Record<PartKey, string>>,
+      // Filtered the same way, and for a sharper reason: a density out of this
+      // map is stamped onto a new part and flown. A stored string, NaN or a
+      // negative would reach the kernel as the mass of somebody's airframe.
+      defaultMaterials: Object.fromEntries(
+        Object.entries((s.defaultMaterials ?? {}) as Record<string, unknown>).filter(([key, v]) => {
+          if (!/^[a-z]+:(bulk|surface|line)$/.test(key)) return false;
+          const m = v as { name?: unknown; density?: unknown } | null;
+          return (
+            !!m &&
+            typeof m.name === 'string' &&
+            m.name.trim() !== '' &&
+            typeof m.density === 'number' &&
+            Number.isFinite(m.density) &&
+            m.density > 0
+          );
+        }),
+      ) as Settings['defaultMaterials'],
       // The same hex filter partColors gets: these reach a style attribute
       // and the KML/GPX exports, and the merge let any value type through.
       phaseColors: (() => {
@@ -546,10 +592,10 @@ export function loadSettings(): Settings {
       // An older store has no value here, and an unrecognized one falls back
       // rather than leaving the tables with a style nothing renders.
       aeroHeat: s.aeroHeat === 'openrocket' ? 'openrocket' : DEFAULT_SETTINGS.aeroHeat,
-      // Clamped like every adjacent field. `typeof === 'number'` let
-      // NaN, 0, Infinity and negatives through, and a stored NaN makes the
-      // flight-playback clock never advance with no way back but clearing
-      // storage - the same failure the treePaneWidth clamp was added for.
+      // Clamped like every adjacent field: a bare `typeof === 'number'` admits
+      // NaN, 0, Infinity and negatives, and a stored NaN leaves the
+      // flight-playback clock never advancing with no way back but clearing
+      // storage.
       playbackSpeed: clampPlayback(s.playbackSpeed),
       simulation: (() => {
         const sim = { ...DEFAULT_SETTINGS.simulation, ...(s.simulation ?? {}) };
@@ -612,16 +658,14 @@ export function loadSettings(): Settings {
         // reaches simConditions() and then simulate() for each new simulation,
         // and `Array.isArray` let a stored [{altitudeM: "x", speed: null}]
         // walk straight into the kernel.
+        // `usableWindLevels` rather than a finiteness filter written out here:
+        // a stored profile carrying two levels at ONE altitude is just as
+        // unusable as one carrying a string, and the kernel refuses it the same
+        // way. The rule lives in services/windLevels, next to the run gate and
+        // the .ork reader that need the same answer.
         if (l.windLevels !== undefined) {
           l.windLevels = Array.isArray(l.windLevels)
-            ? l.windLevels.filter(
-                (w: unknown) =>
-                  !!w &&
-                  typeof w === 'object' &&
-                  ['altitudeM', 'speed', 'directionDeg', 'stddev'].every((k) =>
-                    Number.isFinite((w as Record<string, unknown>)[k]),
-                  ),
-              )
+            ? usableWindLevels(l.windLevels)
             : DEFAULT_SETTINGS.launchDefaults.windLevels;
         }
         return l;
@@ -630,6 +674,7 @@ export function loadSettings(): Settings {
       showInfoCard: typeof s.showInfoCard === 'boolean' ? s.showInfoCard : DEFAULT_SETTINGS.showInfoCard,
       showStats: typeof s.showStats === 'boolean' ? s.showStats : DEFAULT_SETTINGS.showStats,
       showImportNotes: typeof s.showImportNotes === 'boolean' ? s.showImportNotes : DEFAULT_SETTINGS.showImportNotes,
+      showSafetyCard: typeof s.showSafetyCard === 'boolean' ? s.showSafetyCard : DEFAULT_SETTINGS.showSafetyCard,
       // Clamped rather than trusted: the value reaches a style attribute, and a
       // hand-edited or corrupted one would otherwise render a column of 0 or of
       // 90000 pixels with no way back but clearing storage.

@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { findMounts, findNode, findParent, siblingIndex, stageNodes } from '../../services/treeEdit';
+import { findMounts, findNode, findParent, hasCatalog, siblingIndex, stageNodes } from '../../services/treeEdit';
+import { fitContextFor } from '../../services/componentFit';
 import { useWorkspaceStore } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
 import { num } from '../../tree/nodeProps';
@@ -11,10 +12,9 @@ import { num } from '../../tree/nodeProps';
  * the guarded edit/delete/move actions, and the few facts about its place in the
  * tree that the node itself doesn't carry.
  *
- * Its own hook because the tree and the property editor now sit in OPPOSITE
- * columns of the Design tab (see App.tsx) rather than stacked in one. The glue
- * used to live in the component that rendered both; with them apart, neither
- * pane should have to import the other to get it.
+ * Its own hook because the tree and the property editor sit in OPPOSITE columns of
+ * the Design tab (see App.tsx) rather than stacked in one, so neither pane has to
+ * import the other to get this.
  */
 export function useSelectedComponent() {
   const { t } = useTranslation();
@@ -34,6 +34,13 @@ export function useSelectedComponent() {
     return parent ? num(parent, 'outerRadius') : 0;
   }, [tree, selectedId, node]);
   const sib = useMemo(() => (selectedId ? siblingIndex(tree, selectedId) : null), [tree, selectedId]);
+  // What the part being edited has to fit, for the catalog picker's ranking.
+  // Only for the types that HAVE a catalog: for everything else it would be a
+  // tree walk per selection with nothing reading the result.
+  const fit = useMemo(
+    () => (node && hasCatalog(node.type) ? fitContextFor(tree, selectedId) : undefined),
+    [tree, selectedId, node],
+  );
 
   // Guard the last motor mount: deleting it — or turning its motorMount off —
   // leaves nowhere to seat a motor, so the rocket can no longer be simulated.
@@ -73,5 +80,6 @@ export function useSelectedComponent() {
     canRemove: !isOnlyStage,
     isFirstStage,
     parentRadius,
+    fit,
   };
 }

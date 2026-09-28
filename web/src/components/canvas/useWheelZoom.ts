@@ -2,10 +2,9 @@ import { useEffect, useRef, type RefObject } from 'react';
 import { zoomAbout, type ZoomState } from './schematicGeometry';
 
 /**
- * Wheel-zoom about the pointer for an SVG drawing. TreeSchematic and AftView
- * each carried a copy of this effect; the copies had already drifted (one
- * re-registered its listener on every layout change, the other read the
- * layout through a ref written during render).
+ * Wheel-zoom about the pointer for an SVG drawing, shared by TreeSchematic and
+ * AftView so the two cannot drift on when the listener re-registers or how the
+ * layout is read.
  *
  * A native, non-passive listener: React's onWheel is passive, so the
  * preventDefault that keeps the page from scrolling has to be attached here.

@@ -107,11 +107,16 @@ cd web
 npm run sync:motors                  # sweep thrustcurve.org → public/data/motors.generated.json (~800 motors)
 npm run sync:components              # parse the OpenRocket-Components DB → public/data/components.generated.json (~2,900 parts)
 #   sync:components reads OPENROCKET_PRESETS (or --src <path-to>/openrocket-database/orc) if the DB isn't at the default local path
+npm run sync:materials               # OpenRocket's material database + ours → public/data/materials.generated.json (97 materials)
+#   reads the extractor's own .openrocket-src, or --src <openrocket checkout>. The app's OWN materials
+#   (adhesives, and corrections to upstream values that are wrong) are in scripts/data/materials.app.json,
+#   hand-maintained; this merges them in but never writes to that file. Every row keeps a `kind` saying
+#   which input it came from, and `extract --check` holds the upstream rows to upstream.
 npm run sync:examples                # OpenRocket's example rockets → public/examples/ (16 designs, ~330 kB)
 #   pulls from the commit engine-java/extract/UPSTREAM pins, and strips each file's stored flight data
 #   (96% of the bytes). --src <full-openrocket-checkout> to work offline; the extractor's own sparse
 #   .openrocket-src does NOT have them (it is limited to core/src/main/java).
-npm run sync:contributors            # GitHub contributors → src/data/contributors.generated.json (About dialog)
+npm run sync:contributors            # GitHub contributors → public/data/contributors.generated.json (About dialog)
 #   avatars are inlined as data URIs; set GITHUB_TOKEN to avoid the 60 req/hour unauthenticated limit
 ```
 

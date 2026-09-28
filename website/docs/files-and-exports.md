@@ -29,6 +29,15 @@ Going the other way, RockSim has no element for **rail buttons** or **parallel (
 
 > **Menu → Open and Save As work on designs saved inside the app** (see [Saved designs](#saved-designs) below); `.ork` files move to and from your disk through **Import** and **Export**.
 
+## Motor files (`.eng` / `.rse`)
+
+A motor the catalog does not carry comes in from a file, through **Import .eng / .rse** in the motor picker. An imported motor carries its own thrust curve, so it needs no lookup and works offline; it is listed in the picker with a ★, is deletable there, and is saved in your browser rather than in the design.
+
+- **`.eng` (RASP)** is the plain-text format nearly every site offers. It gives the designation, diameter, length, delays, propellant and loaded weight, and the thrust curve. The mass at each instant is reconstructed from the thrust curve and the propellant weight, which is what OpenRocket does with a RASP file too.
+- **`.rse` (RockSim)** is XML and carries more: what the motor **is** (single-use, reloadable or **hybrid**), a delay list that can say **plugged**, the motor's real launch CG, and the propellant mass at every sample rather than one number for the whole burn. When a file supplies that mass column, the simulation flies it instead of the reconstruction. A `.rse` that asks for its own mass or CG to be recalculated gets the reconstruction anyway, matching OpenRocket.
+
+The format is read from the file's contents, not its name, so a `.rse` saved as `.eng` still works. One `.rse` can hold a whole manufacturer range; every motor in it is imported and the picker says how many arrived.
+
 ## Saved designs
 
 The app keeps a library of your rockets in the browser, so you can work on several and switch between them without exporting a file each time.
@@ -76,7 +85,7 @@ Notes on the 3D geometry:
 - Everything is scaled to **millimeters** (the unit slicers and CAD assume) and each part is a **watertight, manifold solid** — a slicer won't reject it.
 - **Tubes are hollow** (real wall thickness), not solid rods; nose cones and transitions include their **shoulders**; a nose/transition/bulkhead is a solid body.
 - A **fin set** exports one fin; a **tube fin set** exports one tube — you print/cut as many as the design has.
-- Filenames come from the component's name (or its type).
+- Filenames are the rocket's name and then the component's (or its type), so the nose cones of two designs do not collide in your downloads folder. See [What a download is called](#what-a-download-is-called).
 
 ## Rocket design report (PDF / CSV)
 
@@ -87,6 +96,7 @@ Tick the elements to include:
 - **Design report** — a schematic of the rocket plus the summary numbers (length, max diameter, empty/loaded mass and CG, CP, fineness, stability in calibers and %, Mach-0.3 drag coefficient, normal-force slope, and pitch/roll inertia), for the whole rocket and each stage.
 - **Parts detail** — per stage, every component with its material, dimensions and mass.
 - **Fin templates**, **Nose cone templates**, **Transition templates** — **1:1** cut/trace outlines (fins fold in any through-the-wall tab), with a cm/inch ruler to verify the print scale. Print at **100% / actual size** (no page scaling).
+- **Fin marking guide**: **1:1** wrap-around strips that say *where around the tube* each part goes, one per body tube that carries a fin set. See [Fin marking guide](#fin-marking-guide) below.
 
 Plus a few options:
 
@@ -103,12 +113,45 @@ Then choose an output:
 
 The **Settings** button (persisted) controls the **template fill / border colors**, **paper size** (Letter / A4) and **orientation** (Portrait / Landscape).
 
+### Fin marking guide
+
+The cutting templates give a fin's shape. This gives its **position**: a paper strip you wrap around the body tube to mark where each fin, tube fin, launch lug and rail button goes. It is the only printed aid **tube fins** get at all, since a tube has no outline to cut a template from.
+
+One strip per body tube that carries a fin set, printed 1:1. Everything angular on that tube shares the strip, each an arrow across it under its own name, so the guide answers *where does the lug sit relative to the fins*.
+
+To use one: print at **100% / actual size**, check the ruler, cut the strip out, wrap it around the tube with the **Fore** arrow pointing at the nose and the two ends **butted together, not overlapped**, then mark through each arrow. Rule a line along the tube through each pair of marks; that line is where the part goes.
+
+Some details worth knowing:
+
+- The strip is cut to the circumference **plus one paper thickness** (0.1 mm), because the marks sit on the outside of the wrapped paper rather than on the tube. Without it the ends fall short, and the smaller the tube the more it shows.
+- The **seam** is placed in the widest gap between marks, so nothing you have to mark ends up under the tape.
+- **Canted fins** are marked on the slant, with dashed lines at the root's fore and aft ends and a cross at its center.
+- A strip too long for the page is **cut into pieces** that butt together and are taped in order, with the joins kept off the marks. Nothing is ever scaled down: a shrunk marking guide is worse than none. A 4 in tube wraps 320 mm, so it always takes two pieces.
+- A part no strip can carry is **named in a footnote** rather than dropped, so nothing disappears silently: a lug on a nose cone or transition, whose circumference changes along its length, or a lug on a tube with no fin set.
+
+Where the first fin sits around the body is the fin set's **Rotation** field, in the component panel's **Placement** section. A launch lug and a rail button carry the same field: it is one property, so it has one name.
+
+### What a download is called
+
+Every export names its file the same way, because a downloads folder is a flat list shared with everything else your browser saves there. The parts, in reading order:
+
+| The file is | Named | For example |
+| --- | --- | --- |
+| about the rocket | rocket, then what the file is | `Bertha-design.ork`, `Bertha-report.pdf`, `Bertha-aero-table.csv`, `Bertha-2d.svg` |
+| about a simulation | rocket, then the run, then what the file is | `Bertha-C6 flight-flight-data.csv`, `Bertha-C6 flight-flight-events.csv`, `Bertha-C6 flight-flight-path.kml` |
+| a printable part | rocket, then the component | `Bertha-Nose cone.stl` |
+
+A simulation export carries the run's name as well as the rocket's, because a rocket has several simulations and they are the thing being compared. Characters a filesystem will not take are replaced, and a part with nothing in it drops out, so an unnamed design still produces a usable filename.
+
+The rocket's name is its own name if you set one, otherwise the name of the file it was imported from. Re-saving a design you opened gives the same filename back rather than stacking suffixes, because that name is read from inside the file and never from the filename.
+
 ## Exporting data
 
 **Flight and drag data** can be exported as **CSV** for use in a spreadsheet or your own analysis. Columns are in [your chosen units](./settings.md#units) and each header names the unit it carries, so a file stays self-describing; numbers always use `.` as the decimal separator whatever your app language:
 
 - **Flight data** — the simulated time-history (from the Flight view).
 - **Drag table** — the Cd / breakdown / CP vs Mach data (from the Aero view).
+- **Flight events** — the event timeline, one row per event, from the **CSV** button on the [Flight events](./running-a-simulation.md#flight-events) table. Where the table on screen keeps each event's extras on a line under it, the file gives every one of them its own column: stability, thrust-to-weight, angle of attack, Mach and dynamic pressure, plus the source component and the stage. Most rows leave most of those columns blank, which is the honest shape — only the rail-departure row has a thrust-to-weight, and an empty cell says it does not have one rather than that it is zero. This is separate from the flight data above, which can already carry the events as comment lines: a comment is for a reader, and this is the events as data.
 
 ### Choosing what goes in the flight CSV
 

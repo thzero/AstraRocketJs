@@ -3,6 +3,7 @@ import { xmlText as text } from '../xmlUtil';
 import { COMPONENT_DEFAULTS } from '../componentDefaults';
 import { clampCount, finiteNum } from './numbers';
 import { MAX_ASSEMBLY_INSTANCES, MAX_FIN_COUNT } from './importLimits';
+import { EXTRA_KEY, readPassthrough } from './passthrough';
 
 /**
  * Readers for the individual .ork elements more than one component carries:
@@ -54,21 +55,45 @@ export function finCountTag(el: Element, fallback: number = COMPONENT_DEFAULTS.f
 }
 
 /**
- * A recovery device's packed size: <packedlength> as `length` (the key the
- * rest of the app already reads) and <packedradius> as `packedRadius`. The
- * radius was never read, and the writer emitted the MassObject constructor
- * constants for both, so a chute packed to its real bay came back the stock
- * 25 x 12.5 mm on every save. Kept only when it differs from the default the
- * writer falls back to, so an untouched design stays clean.
+ * A recovery device's packed size: <packedlength> as `length` and
+ * <packedradius> as `radius`. Both are MassObject's own length and radius
+ * upstream, which is why those are the names, and `radius` is the key the
+ * engine bridge, the schematic and the 3D build all read.
+ *
+ * It was stored as `packedRadius` instead, a key nothing else in the app
+ * touched, so the value survived a round trip through the file and reached
+ * nothing: the kernel flew the 12.5 mm default and the views drew their own
+ * fallback. Kept only when it differs from the default the writer falls back
+ * to, so an untouched design stays clean.
  */
 export function readPackedSize(el: Element, node: ComponentNode): void {
   node['length'] = numTag(el, 'packedlength', COMPONENT_DEFAULTS.recovery.packedLength);
+  // `<packedradius>auto 0.0125</packedradius>` is how MassObjectSaver writes an
+  // automatic packed radius: the marker AND the value it worked out.
+  const raw = text(el, ':scope > packedradius')?.trim() ?? '';
+  if (raw.toLowerCase().startsWith('auto')) {
+    node['radiusAuto'] = true;
+    const v = Number(raw.slice(4).trim());
+    if (Number.isFinite(v) && v > 0) node['radius'] = v;
+    return;
+  }
   const r = numTag(el, 'packedradius', NaN);
-  if (!Number.isNaN(r) && r !== COMPONENT_DEFAULTS.recovery.packedRadius) node['packedRadius'] = r;
+  if (!Number.isNaN(r) && r !== COMPONENT_DEFAULTS.recovery.packedRadius) node['radius'] = r;
 }
 
-/** The bulk material's `group` attribute, when the file carries one (the
- *  name and density are read by `baseNode`). Pass-through, like readFillet. */
+/** `<cd>auto</cd>`, `<linelength>auto</linelength>`, `<cordlength>auto</cordlength>`:
+ *  a value the kernel works out, which the desktop shows as a checkbox. */
+export function readAutoValue(el: Element, node: ComponentNode, tag: string, flag: string): boolean {
+  if ((text(el, `:scope > ${tag}`)?.trim().toLowerCase() ?? '') === 'auto') {
+    node[flag] = true;
+    return true;
+  }
+  return false;
+}
+
+/** The bulk material's `group` attribute, when the file carries one (the name
+ *  and density are read by `matName` / `matDensity`). Pass-through, like
+ *  readFillet. */
 export function readMaterialGroup(el: Element, node: ComponentNode): void {
   const m = el.querySelector(':scope > material');
   if (!m || m.getAttribute('type') !== 'bulk') return;
@@ -156,12 +181,11 @@ export function readAirfoil(el: Element, node: ComponentNode): void {
  * Fin fillets, PASS-THROUGH only.
  *
  * OpenRocket's FinSetSaver writes <filletradius>/<filletmaterial> for every fin
- * set and counts the fillet volume toward fin mass. This app's kernel bridge
- * does not model fillets yet — but the exporter used to hard-write
- * `<filletradius>0.0</filletradius>` and a Cardboard material, so opening a
- * desktop design with 6 mm epoxy fillets and saving it DELETED them from the
- * user's own file. Preserving the values costs nothing and stops the
- * destruction; the mass still is not counted, which the import note says.
+ * set and counts the fillet volume toward fin mass. This app's kernel bridge does
+ * not model fillets, so the values are carried rather than recomputed: hard-writing
+ * `<filletradius>0.0</filletradius>` and a Cardboard material would delete a
+ * desktop design's 6 mm epoxy fillets from the user's own file on save. The mass is
+ * still not counted, which the import note says.
  */
 function readFillet(el: Element, node: ComponentNode): void {
   const r = numTag(el, 'filletradius', 0);
@@ -258,14 +282,71 @@ function readPosition(el: Element): ComponentPosition | undefined {
  * overrides and (for the types the desktop positions) the axial position.
  */
 export function readCommon(el: Element, node: ComponentNode, withPosition: boolean): void {
+  // Anything in this component we have no model for, kept as raw XML so a save
+  // does not strip it (services/ork/passthrough.ts). First, so that a node
+  // carrying only unknown elements still carries them.
+  const extra = readPassthrough(el);
+  if (extra) node[EXTRA_KEY] = extra;
   const nm = text(el, ':scope > name');
   if (nm) node.name = nm;
+  // The desktop's Comment tab. Carried through so a builder's notes survive a
+  // round trip; nothing in the app reads it but the panel.
+  const cmt = text(el, ':scope > comment');
+  if (cmt) node['comment'] = cmt;
+  // The 2D line style the desktop draws this part with. Carried, not shown:
+  // our schematic has one line style, so a control for it would do nothing.
+  const ls = text(el, ':scope > linestyle');
+  if (ls) node['lineStyle'] = ls;
+  // Which catalog part this component came from. The desktop shows it at the
+  // top of every config dialog (the Parts Library row), and our own picker is
+  // the same control, so the link is a fact about the design and not an
+  // implementation detail of the file.
+  const preset = el.querySelector(':scope > preset');
+  if (preset) {
+    const partNo = preset.getAttribute('partno');
+    if (partNo) {
+      node['preset'] = {
+        type: preset.getAttribute('type') ?? '',
+        manufacturer: preset.getAttribute('manufacturer') ?? '',
+        partNo,
+        ...(preset.getAttribute('digest') ? { digest: preset.getAttribute('digest') } : {}),
+      };
+    }
+  }
   const density = matDensity(el);
   if (density !== undefined) node.density = density;
   const bulkName = matName(el, 'bulk');
   if (bulkName) node['materialName'] = bulkName;
   const fin = text(el, ':scope > finish');
   if (fin && fin !== 'normal') node['finish'] = fin;
+  // The part's own color: three 0-255 channels on one element in the file, a
+  // hex string in the tree, which is what the pickers and both views use.
+  const col = el.querySelector(':scope > color');
+  if (col) {
+    const ch = (name: string) => {
+      const v = Number(col.getAttribute(name));
+      return Number.isFinite(v) ? Math.min(255, Math.max(0, Math.round(v))) : null;
+    };
+    const [r, g, b] = [ch('red'), ch('green'), ch('blue')];
+    if (r !== null && g !== null && b !== null) {
+      node['color'] = `#${[r, g, b].map((x) => x.toString(16).padStart(2, '0')).join('')}`;
+    }
+  }
+  readOverrides(el, node);
+  if (withPosition) {
+    const pos = readPosition(el);
+    if (pos) node.position = pos;
+  }
+}
+
+/**
+ * Mass / CG / Cd overrides, and the flags that spread them over the subtree.
+ *
+ * Split out of `readCommon` for the STAGE, which builds its own node rather
+ * than going through the part reader, and so was the one component whose
+ * overrides the writer emitted and the reader ignored.
+ */
+export function readOverrides(el: Element, node: ComponentNode): void {
   const om = numTag(el, 'overridemass', NaN);
   if (!Number.isNaN(om)) node['overrideMass'] = om;
   const ocg = numTag(el, 'overridecg', NaN);
@@ -283,9 +364,5 @@ export function readCommon(el: Element, node: ComponentNode, withPosition: boole
   }
   if (legacyAll || text(el, ':scope > overridesubcomponentscd') === 'true') {
     node['overrideSubcomponentsCD'] = true;
-  }
-  if (withPosition) {
-    const pos = readPosition(el);
-    if (pos) node.position = pos;
   }
 }

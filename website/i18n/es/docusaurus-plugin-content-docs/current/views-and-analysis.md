@@ -57,7 +57,7 @@ Puedes exportar estos datos como **CSV** (consulta [Archivos y exportaciones](./
 
 ## Vuelo (tras una simulación) {#flight-after-a-simulation}
 
-Un panel de **gráficas de vuelo** a lo largo del tiempo: altitud, velocidad, aceleración, Mach, empuje, masa, resistencia y estabilidad. Los eventos del vuelo (fin de combustión, apogeo, apertura, aterrizaje) están marcados. Elige qué magnitudes se muestran desde la barra de fichas, pasa el cursor para obtener una retícula sincronizada y la lectura de valores en todas las gráficas, y amplía o desplaza el eje temporal (los botones +/−, arrastrando, o con Ctrl / pellizco). **Las magnitudes que elijas se recuerdan**: abre empuje y masa una vez y seguirán abiertas la próxima vez, en este diseño y en cualquier otro.
+Un panel de **gráficas de vuelo** a lo largo del tiempo: altitud, velocidad, aceleración, Mach, empuje, masa, resistencia y estabilidad. Los eventos del vuelo (fin de combustión, apogeo, apertura, aterrizaje) están marcados, lo que responde *cuándo*; la tabla **[Eventos de vuelo](./running-a-simulation.md#flight-events)** del panel de Resultados lee esos mismos eventos como una lista, cada uno con el estado del cohete en ese instante. Elige qué magnitudes se muestran desde la barra de fichas, pasa el cursor para obtener una retícula sincronizada y la lectura de valores en todas las gráficas, y amplía o desplaza el eje temporal (los botones +/−, arrastrando, o con Ctrl / pellizco). **Las magnitudes que elijas se recuerdan**: abre empuje y masa una vez y seguirán abiertas la próxima vez, en este diseño y en cualquier otro.
 
 **Elegir qué vuelo** — si ejecutas una sola simulación, el título del panel es simplemente su nombre. Si ejecutas varias a la vez, el título se convierte en un **selector** con esas mismas: púlsalo y elige el vuelo que quieres leer. Uno cada vez, y la elección gobierna las tres vistas de resultados — las gráficas, la traza en tierra y la trayectoria 3D —, así que al cambiar ves el mismo vuelo lo mires como lo mires.
 
@@ -73,11 +73,49 @@ El norte va arriba, la rampa está en el centro y ambos ejes comparten escala, a
 
 Dibuja las mismas trazas que las gráficas de vuelo, así que un vuelo por etapas muestra el descenso propio de cada una: un propulsor agotado suele caer bastante lejos del sustentador.
 
+### El terreno bajo la traza {#the-ground-under-the-track}
+
+La traza puede dibujarse sobre **imágenes aéreas del campo desde el que volaste**, en las coordenadas con las que se simuló ese vuelo. Esa es la diferencia entre leer «364 m con rumbo 270» y ver que el propulsor cayó en la arboleda.
+
+**Ninguna · Satélite · Callejero** en la esquina elige la capa. Empieza en **Ninguna**, y no se descarga nada hasta que pides el terreno: los anillos y los números son la medida y no dependen de una foto, así que abrir Resultados no es motivo para ir a buscarla. Qué capa eliges se comparte con el [mapa del campo de lanzamiento](./running-a-simulation.md#the-map), y encender o apagar el terreno se mantiene entre esta vista y la trayectoria 3D durante la sesión, porque es una sola pregunta sobre cómo quieres leer el terreno y no un ajuste por vista.
+
+El zoom sigue al vuelo: una deriva de 200 m se dibuja más cerca que una de 5 km. La vista nunca se acerca más de unos **100 m de lado**, por corto que sea el vuelo: con aire en calma el cohete aterriza a unos centímetros de la rampa, y una imagen de esa cantidad de hierba no es ninguna imagen. Así, un aterrizaje sobre la rampa se lee como un punto sobre la rampa, que es la verdad.
+
+Las teselas son las mismas que usa el mapa del campo de lanzamiento y se guardan igual, así que un campo que consultaste en casa se sigue dibujando sin cobertura. Un lugar que nunca has visto se dibuja sin ellas, es decir, el gráfico limpio y una medida igual de correcta: los anillos de distancia no dependen de la imagen. El crédito del proveedor aparece en la esquina siempre que se muestran imágenes, como exigen sus condiciones.
+
 Para llevarte lo mismo fuera de la aplicación, la [exportación de trayectoria](./files-and-exports.md) lo escribe como KML o GPX para Google Earth, y el CSV del vuelo ahora incluye columnas **Este** y **Norte** junto a la altitud.
+
+### La región de deriva (un barrido de viento) {#the-drift-region-a-wind-sweep}
+
+:::warning Experimental
+
+Es nuevo y está menos asentado que el resto de esta página. Cada vuelo de un barrido pasa por el mismo núcleo validado que cualquier otra simulación, así que los aterrizajes individuales son tan buenos como lo son en general los resultados de vuelo de la aplicación, pero la **región dibujada a su alrededor no se ha contrastado con una recuperación real**, y es probable que cambien tanto la forma de los controles como la rejilla por defecto y la elección de dos desviaciones típicas.
+
+Léelo como una ayuda para planificar: qué tamaño de campo pide esto y hacia dónde va el paseo, más o menos. No es una autorización de seguridad de campo, ni sustituye a las [comprobaciones de seguridad](./safety.md) ni a mirar el campo real.
+
+:::
+
+La traza anterior es dónde cae el cohete con el **único** conjunto de condiciones que escribiste. La mañana de un lanzamiento nadie conoce el viento con una décima de metro por segundo de precisión, así que la pregunta útil es sobre qué terreno podría caer con todo lo que el día pueda hacer. **Deriva**, arriba a la derecha, responde a eso volando una **rejilla** de vientos y guardando dónde aterrizó cada vuelo.
+
+Tú defines la rejilla: una velocidad de viento **desde** y **hasta**, cuántas **velocidades** recorrer, cuántos **rumbos** y qué **abanico** de rumbos cubrir (todo el compás, o un arco centrado en el viento que escribiste). Los dos recuentos se multiplican, así que el panel indica cuántos vuelos son antes de ejecutarlos. Vuelan sobre el mismo grupo de workers que usa un lote de simulaciones, varios a la vez, y la cuenta avanza según aterrizan; **Cancelar** los detiene.
+
+El resultado dibuja tres cosas en la vista en planta, con el color propio de cada etapa:
+
+- La **envolvente sombreada**: la región exacta de las condiciones voladas. Nada del barrido aterrizó fuera de ella, y esta es la forma que hay que salir a mirar.
+- La **elipse discontinua**: los mismos aterrizajes como un centro, dos ejes y un rumbo, a dos desviaciones típicas. Es la elipse de recuperación de siempre, la versión que cabe en una ficha de vuelo y que se compara entre diseños, motores y días. Con un barrido de todo el compás queda correctamente *dentro* del anillo de aterrizajes y no alrededor.
+- Un **punto por vuelo**, y una cruz en el aterrizaje medio. Donde se agolpan los puntos es donde cae el cohete la mayoría de los días que cubre el barrido.
+
+La lectura bajo el gráfico añade la **banda de distancias** de cada etapa (el más cercano y el más lejano de sus aterrizajes barridos) junto a la distancia y el rumbo del vuelo que ya estabas leyendo.
+
+Todo salvo el viento se mantiene tal y como lo tiene la simulación: el mismo diseño, motor, ignición, rampa, emplazamiento y ajustes de ejecución, y una sola semilla de turbulencia para toda la rejilla. Eso es lo que hace que la dispersión sea atribuible al viento y no a una docena de cosas moviéndose a la vez, y por eso el mismo barrido ejecutado dos veces dibuja la misma región. La banda de velocidad está limitada por el mismo [límite del código de seguridad](./safety.md) que aplica el botón Ejecutar, así que un barrido nunca dibuja terreno al que la aplicación no volará.
+
+Un barrido pertenece al vuelo sobre el que se construyó, y solo se guarda uno a la vez: elige otro vuelo y la región no se dibuja. Si después editas el diseño, el motor o las condiciones de lanzamiento, la región sigue en pantalla con un aviso de que es anterior a lo que se muestra: los aterrizajes siguen siendo la respuesta honesta para el cohete que los voló. **Borrar** la elimina. Nada de un barrido se guarda con el diseño.
 
 ## Trayectoria 3D (tras una simulación) {#3d-path-after-a-simulation}
 
 La **trayectoria del vuelo en 3D**: el recorrido del cohete por el espacio, incluida la deriva por el viento.
+
+El **plano del suelo puede llevar las mismas imágenes aéreas**, colocadas en las coordenadas del campo de lanzamiento, de modo que la trayectoria se arquea sobre el campo real y no sobre una rejilla vacía. Los mismos botones **Ninguna · Satélite · Callejero** están arriba a la izquierda, empiezan en **Ninguna** y comparten su elección con la traza en tierra y con el mapa del campo de lanzamiento. La imagen cubre algo más allá de lo más lejos que llegó el cohete desde la rampa, no el plano entero, para que un vuelo de trescientos metros no descargue un kilómetro de paisaje a cada lado; la rejilla de referencia continúa más allá de su borde.
 
 Un botón **⬇ Exportar** guarda la trayectoria para herramientas cartográficas —**KML** (Google Earth), **GPX** o un **CSV de puntos de paso**— con opciones sobre qué puntos y líneas incluir, y soporte para tus propias plantillas. Consulta [Archivos y exportaciones](./files-and-exports.md#exporting-the-flight-path-kml--gpx--csv).
 

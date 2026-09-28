@@ -1,4 +1,14 @@
 /**
+ * Both derived-value passes, in the order they depend on each other: an
+ * automatic diameter moves a tube's bore, and a shoulder follows that bore.
+ *
+ * Exported because it is the ONE choke point for it: any module that rewrites
+ * the tree ends with this, or the values that follow a neighbor go stale until
+ * some unrelated edit happens to fix them.
+ */
+export const syncDerived = (tree: RocketTree): RocketTree => syncAutoShoulders(syncAutoRadii(tree));
+
+/**
  * Pure, immutable helpers for editing a component tree (add / update / remove
  * nodes) plus sensible defaults for new parts. Each op returns a fresh tree so
  * React state updates cleanly; the caller re-runs buildTree to recompute the
@@ -6,18 +16,24 @@
  */
 import type { ComponentNode, ComponentType, RocketTree } from '../engine/openRocketEngine';
 import type { Component } from './componentDb';
+import { DEFAULT_CHUTE_CD } from './componentFilter';
 import { KERNEL_DEFAULTS } from '../tree/kernelDefaults.js';
 import { isChainType } from '../tree/componentKinds';
 import { uuid } from './uuid';
+// Every mutator here ends by resolving the shoulders that follow a neighbor:
+// this is the one door the tree is edited through, so nothing downstream has to
+// know the feature exists.
+import { syncAutoShoulders } from './autoShoulder';
+import { syncAutoRadii } from './autoRadius';
+import { FIELDS } from './componentFields';
 
 /**
  * A unique id for a new node.
  *
- * This was a module-scope counter minting `<type>-<n>`, which restarted at
- * zero on every page load while the persisted tree kept its ids. The second
- * session's first body tube got `bodytube-1` again, and every walker in this
- * file stops at the first match, so editing or deleting the new part edited
- * or deleted the old one. A UUID cannot collide across sessions.
+ * A UUID, not a `<type>-<n>` counter: a module-scope counter restarts at zero on
+ * every page load while the persisted tree keeps its ids, so the next session's
+ * first body tube is `bodytube-1` again. Every walker in this file stops at the
+ * first match, so editing or deleting the new part would hit the old one.
  */
 function newId(): string {
   return uuid();
@@ -38,13 +54,34 @@ export function findNode(tree: RocketTree, id: string): ComponentNode | null {
 }
 
 /**
+ * Does this edit make the part stop being the catalog part it came from?
+ *
+ * The kernel answers this by calling `clearPreset()` from the setters a preset
+ * defines (`BodyTube.setOuterRadius`, `ExternalComponent.setMaterial`, and so
+ * on). Here the FIELDS table is the same list: everything in a type's dimension
+ * rows, plus the material, describes the part itself, while placement, motor
+ * mount, comment, color and the overrides describe where it sits and how it is
+ * accounted for.
+ *
+ * Deliberately conservative. Keeping a link that no longer matches would label a
+ * hand-sized tube with somebody's part number; dropping one the desktop would
+ * have kept costs nothing but the label.
+ */
+function breaksPreset(type: string, patch: Partial<ComponentNode>): boolean {
+  if ('preset' in patch) return false; // the picker sets the link and the dimensions together
+  const keys = Object.keys(patch);
+  if (keys.some((k) => k === 'materialName' || k === 'density')) return true;
+  const dimensions = new Set((FIELDS[type] ?? []).filter((f) => f.section === undefined).map((f) => f.key));
+  return keys.some((k) => dimensions.has(k));
+}
+
+/**
  * Patch one node, returning a new tree.
  *
- * Path-copies only the SPINE from the root to the patched node; every sibling
- * and untouched subtree is shared with the input. This runs on every keystroke
- * in the property panel, and it used to `structuredClone` the whole design
- * first, so typing a length into a hundred-part rocket serialized a hundred
- * parts per character. The contract is unchanged: the input tree is never
+ * Path-copies only the SPINE from the root to the patched node; every sibling and
+ * untouched subtree is shared with the input. This runs on every keystroke in the
+ * property panel, so a `structuredClone` of the whole design would serialize a
+ * hundred parts per character on a hundred-part rocket. The input tree is never
  * mutated, and the result is a distinct object even when `id` is not found.
  */
 export function updateNode(tree: RocketTree, id: string, patch: Partial<ComponentNode>): RocketTree {
@@ -55,7 +92,9 @@ export function updateNode(tree: RocketTree, id: string, patch: Partial<Componen
       if (n.id === id) {
         found = true;
         const out = nodes.slice();
-        out[i] = { ...n, ...patch };
+        const next = { ...n, ...patch };
+        if (n['preset'] && breaksPreset(n.type, patch)) delete next['preset'];
+        out[i] = next;
         return out;
       }
       if (n.children) {
@@ -70,7 +109,7 @@ export function updateNode(tree: RocketTree, id: string, patch: Partial<Componen
     return nodes;
   };
   const components = rec(tree.components);
-  return { ...tree, components };
+  return syncDerived({ ...tree, components });
 }
 
 export function removeNode(tree: RocketTree, id: string): RocketTree {
@@ -85,7 +124,7 @@ export function removeNode(tree: RocketTree, id: string): RocketTree {
     return false;
   };
   rec(next.components);
-  return next;
+  return syncDerived(next);
 }
 
 export function addChild(tree: RocketTree, parentId: string, node: ComponentNode): RocketTree {
@@ -96,7 +135,7 @@ export function addChild(tree: RocketTree, parentId: string, node: ComponentNode
       break;
     }
   }
-  return next;
+  return syncDerived(next);
 }
 
 /** The id of the first motor-mount node, for seating the motor. */
@@ -193,9 +232,7 @@ const ALLOWED_CHILDREN: Record<string, ComponentType[]> = {
   // The list mirrors the kernel's own rule (`MassComponent.isCompatible` takes
   // any `InternalComponent`) rather than a narrower one of our own. It has to:
   // the engine builds whatever tree it is handed, and a rule tighter than the
-  // kernel's would reject a `.ork` the desktop writes happily. It was empty
-  // until now because the extracted kernel carried a stale copy of
-  // `MassComponent` that forbade children outright.
+  // kernel's would reject a `.ork` the desktop writes happily.
   masscomponent: [
     'innertube',
     'tubecoupler',
@@ -217,10 +254,13 @@ export function allowedChildren(parentType: string | undefined): ComponentType[]
   return ALLOWED_CHILDREN[parentType ?? 'stage'] ?? [];
 }
 
-// Node types that can be picked from the parts catalog (componentDb types).
+// Node types that can be picked from the parts catalog. Mostly componentDb's own
+// types, plus `innertube`, which is served by the body tube rows: see
+// componentDb.catalogTypeFor for why it has no catalog of its own.
 const CATALOG_TYPES: ReadonlySet<string> = new Set([
   'nosecone',
   'bodytube',
+  'innertube',
   'tubecoupler',
   'centeringring',
   'bulkhead',
@@ -235,7 +275,13 @@ const MATERIAL_TYPES: ReadonlySet<string> = new Set([
   'nosecone',
   'bodytube',
   'transition',
-  'fairing',
+  // NOT 'fairing'. It is modeled as a MassComponent whose mass is set outright
+  // (ComponentFactory's fairing case calls setComponentMass), so a material
+  // changes nothing the kernel flies; `writeFairing` has no <material> element
+  // to put one in either, so the choice was dropped on the next save. It was
+  // the one type for which picking a material did nothing and then forgot
+  // itself. See `ork/materialRoundTrip.test.ts`, which holds every type in this
+  // set to the opposite.
   'trapezoidfinset',
   'ellipticalfinset',
   'freeformfinset',
@@ -253,7 +299,28 @@ export function hasMaterial(type: string): boolean {
 }
 
 /** Map a chosen catalog part onto a node patch (radii, length, material, …). */
+/**
+ * The catalog link to record beside the dimensions a pick applies: which part
+ * this component now IS, in the shape the `.ork` carries it
+ * (`RocketComponentSaver`, `<preset type manufacturer partno>`).
+ *
+ * A part the user saved themselves is not in anybody's catalog, so it gets no
+ * link: writing one would claim a manufacturer's part number for it.
+ */
+export function presetRef(p: Component): Partial<ComponentNode> {
+  if (p.custom || !p.partNo) return { preset: undefined } as Partial<ComponentNode>;
+  return {
+    preset: { type: p.type, manufacturer: p.mfr, partNo: p.partNo },
+  } as unknown as Partial<ComponentNode>;
+}
+
 export function catalogPatch(p: Component): Partial<ComponentNode> {
+  // A SAVED part (customParts.ts) carries its whole node, not the handful of
+  // dimensions a catalog row publishes, and applying only the switch below
+  // would drop the nose cone's shoulder, the parachute's lines, the tube's
+  // motor mount and the part's color: everything the user saved it FOR.
+  // Copied, so the stored object cannot be mutated through the tree.
+  if (p.custom && p.patch) return { ...p.patch };
   const mat =
     'materialDensity' in p && p.materialDensity
       ? { density: p.materialDensity, materialName: (p as { material?: string }).material }
@@ -280,7 +347,7 @@ export function catalogPatch(p: Component): Partial<ComponentNode> {
     case 'bulkhead':
       return { outerRadius: p.outerDiameter / 2, length: p.length, ...mat };
     case 'parachute':
-      return { diameter: p.diameter, cd: p.cd ?? 0.8 };
+      return { diameter: p.diameter, cd: p.cd ?? DEFAULT_CHUTE_CD };
   }
 }
 
@@ -339,7 +406,9 @@ export function moveNode(tree: RocketTree, id: string, dir: -1 | 1): RocketTree 
     return false;
   };
   rec(next.components);
-  return next;
+  // Moving a part changes WHO its neighbors are, so a shoulder that follows one
+  // has a new tube to follow.
+  return syncDerived(next);
 }
 
 /** A new node of `type` with reasonable default dimensions (SI units, m). */
@@ -350,12 +419,25 @@ export function defaultNode(type: ComponentType): ComponentNode {
     // default separation (used only when it sits below another stage).
     case 'stage':
       return { type, id, separationEvent: 'ejection', separationDelay: 0 };
+    // The shoulder diameters follow the tube next door (see autoShoulder.ts).
+    // Only on parts created HERE: the flag is never written by the .ork reader,
+    // so no design that already exists grows a shoulder it did not have.
     case 'nosecone':
-      return { type, id, shape: 'ogive', length: 0.1, aftRadius: 0.013, thickness: 0.001 };
+      return { type, id, shape: 'ogive', length: 0.1, aftRadius: 0.013, thickness: 0.001, shoulderAuto: true };
     case 'bodytube':
       return { type, id, length: 0.2, outerRadius: 0.013, thickness: 0.0005 };
     case 'transition':
-      return { type, id, shape: 'conical', length: 0.05, foreRadius: 0.013, aftRadius: 0.019, thickness: 0.0005 };
+      return {
+        type,
+        id,
+        shape: 'conical',
+        length: 0.05,
+        foreRadius: 0.013,
+        aftRadius: 0.019,
+        thickness: 0.0005,
+        foreShoulderAuto: true,
+        aftShoulderAuto: true,
+      };
     case 'trapezoidfinset':
       return {
         type,
@@ -531,6 +613,50 @@ export function stageNodes(tree: RocketTree): ComponentNode[] {
   return tree.components.filter((n) => n.type === 'stage');
 }
 
+/**
+ * The recovery devices inside one stage, in tree order.
+ *
+ * What the stage's Recovery section chooses between: OpenRocket asks which
+ * device in THIS stage is the drogue, so a chute in the booster is not on offer
+ * when configuring the sustainer.
+ */
+export function recoveryDevices(tree: RocketTree, stageId: string): ComponentNode[] {
+  const stage = findNode(tree, stageId);
+  if (!stage?.children) return [];
+  return [...walk(stage.children)].filter((n) => n.type === 'parachute' || n.type === 'streamer');
+}
+
+/**
+ * Make ONE device in a stage the drogue, or none of them.
+ *
+ * The drogue flag is stored per device (`<isdrogue>` in the file), but it is a
+ * property of the STAGE's recovery plan: single deployment is no drogue, dual
+ * deployment is exactly one, and the desktop only ever sets it from the stage's
+ * Recovery tab, clearing the rest of the stage first. Doing the same here is
+ * what keeps a design out of the state OpenRocket's own UI cannot produce - two
+ * drogues in one stage, which its warning code reads as whichever it walks into
+ * first.
+ *
+ * Returns the same tree when nothing changes, so an undo step is only recorded
+ * for a real edit.
+ */
+export function setStageDrogue(tree: RocketTree, stageId: string, deviceId: string | null): RocketTree {
+  const wanted = new Map<string, boolean>();
+  for (const d of recoveryDevices(tree, stageId)) {
+    wanted.set(d.id as string, d.id === deviceId);
+  }
+  let next = tree;
+  for (const [id, on] of wanted) {
+    const node = findNode(next, id);
+    if (!node) continue;
+    if ((node['drogue'] === true) === on) continue;
+    // `undefined` rather than `false`, so a single-deployment stage writes no
+    // `<isdrogue>` at all, which is what the desktop's saver omits.
+    next = updateNode(next, id, { drogue: on ? true : undefined } as Partial<ComponentNode>);
+  }
+  return next;
+}
+
 /** Whether `id` is the top stage — the one with nothing above it to separate from. */
 export function isFirstStage(tree: RocketTree, id: string): boolean {
   const stages = stageNodes(tree);
@@ -558,21 +684,25 @@ export function addStage(tree: RocketTree): { tree: RocketTree; id: string } {
  * nothing is selected. Returns the new tree and the new node's id.
  *
  * {@link allowedChildren} is ENFORCED here, not only by the Add menu. The menu
- * offers valid types for the selected part, but this is the function every
- * caller goes through, and it used to trust `selectedId` outright: a part
- * added while a fin was selected went under the fin, a bulkhead added with the
- * stage selected went straight into the stage, and the kernel then built a
- * tree the desktop would never write. Now a selection that cannot host `type`
- * yields to its nearest ancestor that can (the fin's body tube), then to the
- * stage; a type not even the stage may host is a caller bug, and throws rather
- * than silently producing an invalid design.
+ * offers valid types for the selected part, but this is the function every caller
+ * goes through, so trusting `selectedId` outright would put a part added while a
+ * fin was selected under the fin and let the kernel build a tree the desktop
+ * would never write. A selection that cannot host `type` yields to its nearest
+ * ancestor that can (the fin's body tube), then to the stage; a type not even the
+ * stage may host is a caller bug, and throws rather than silently producing an
+ * invalid design.
  */
 export function addPart(
   tree: RocketTree,
   type: ComponentType,
   selectedId: string | null,
+  /** Merged onto the new node — the caller's per-part-type material defaults
+   *  (`services/materials.defaultMaterialPatch`). Kept as a parameter rather
+   *  than read here so this module stays a pure tree editor with no settings
+   *  of its own. */
+  seed: Partial<ComponentNode> = {},
 ): { tree: RocketTree; id: string } {
-  const node = defaultNode(type);
+  const node = { ...defaultNode(type), ...seed };
   const id = node.id!;
   const stageId = tree.components.find((n) => n.type === 'stage')?.id;
   let host = selectedId ? findNode(tree, selectedId) : null;
@@ -583,7 +713,7 @@ export function addPart(
   if (!stageId) {
     const next = clone(tree);
     next.components.push(node);
-    return { tree: next, id };
+    return { tree: syncDerived(next), id };
   }
   if (!allowedChildren('stage').includes(type)) {
     throw new Error(`A ${type} cannot be added here: neither the selected part nor the stage may host it.`);

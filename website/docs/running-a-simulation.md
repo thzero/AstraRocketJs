@@ -22,7 +22,7 @@ The launch site is a property of the **field**, not of a flight, so it does not 
 
 - **💾 Save this location** stores the three site fields under a name. Saving under a name you already used updates that location instead of adding a second one you could not tell apart in the list.
 - The **dropdown** applies a saved location's latitude, longitude and elevation. It is one ordinary edit, so it undoes like any other. It reads **Custom location** whenever the fields match no saved location, recognized from the numbers themselves, so it stays right whether you typed them, imported them from a `.ork` or used 📍 **Use my location**. Picking **Custom location** yourself returns the three site fields to your [Settings](./settings.md) launch defaults — the **Kennedy Space Center** unless you have changed them. That is for when you are somewhere new and would rather start from a known place than edit a saved location's numbers one at a time: the map has somewhere to open, and all three fields stay filled, so the run is never refused for a blank. It is an ordinary edit too, so undo brings the old site back.
-- **⚙ Manage saved locations** lists them with their coordinates, so two fields with similar names can be told apart. **Edit** opens the whole location — name, latitude, longitude and elevation — because a mistyped coordinate is the thing you most often want to fix, and **New location** creates one by typing the numbers in. The same list is in the **menu → Launch locations**, beside the Motor Dashboard, so you can look at your locations without first opening a simulation; picking one there applies it to the simulation you have open, and **New location** is the way to add one from there, where no launch fields are on screen to capture.
+- **⚙ Manage saved locations** is a two-pane library: the locations on the left with their coordinates, so two fields with similar names can be told apart, and the selected one open on the right. The editor is the whole location — name, latitude, longitude, elevation and the map — because a mistyped coordinate is the thing you most often want to fix. **Save** writes it and leaves it selected, **Discard** puts it back as it was stored, and moving to another location with unsaved edits asks first. **Use** applies the selected location to the simulation you have open, and is refused while you have unsaved edits, since what it offers is one of the sites you have *saved*. **New location** creates one by typing the numbers in. The same library is in the **menu → Launch locations**, beside the Motor Dashboard, so you can look at your locations without first opening a simulation, and **New location** is the way to add one from there, where no launch fields are on screen to capture.
 
 Elevation is shown and edited in whatever unit your launch site card uses, so a field at 6,004 ft reads that way in both places. Latitude and longitude are always degrees, and both are required — 0°, 0° is a point in the Gulf of Guinea, not "unset".
 
@@ -82,15 +82,32 @@ These two checks are also the *only* safety rules the app enforces. What the sim
 
 Running opens the **Results** tab on the flight you just ran — one simulation or a batch, since running is asking to see the answer.
 
-Results are shown as tiles, in roughly chronological flight order, including:
+A **Before you fly** card heads the results: what these numbers are (estimates from a model, not a flight card), what the model never had (fin flutter, structural loads, parachute inflation and opening shock, your motor's behavior on the day), and the reminder to weigh and balance the rocket you actually built and enter those as overrides before trusting the margin. It links to **[Safety](./safety.md)**, and it leads the numbers rather than following them, because what a reading is worth is a thing to know before reading it.
+
+Click its heading to fold the explanation away. Folding asks you to acknowledge the notes first, because the fold is remembered and that click is the last time they get offered on this browser; canceling leaves the card open, and opening it back up asks nothing. What never folds is the heading itself, so the warning glyph and the words stay above the numbers either way.
+
+Under it, results are shown as tiles, in roughly chronological flight order, including:
 
 - **Rail-exit velocity** (flagged if below your safety minimum)
 - **Optimum delay** and **time to apogee**
 - **Apogee** (max altitude) and **max velocity / acceleration / Mach**
 - **Deployment speed** (flagged if above your warning threshold; green when safely low). On a [dual-deployment](./designing-a-rocket.md#dual-deployment) design the flight engine judges the main and the drogue against their own thresholds instead, and reports a warning for each.
 - **Landing speed**, **flight time**, and **downrange** distance
+- **Max-Q**, the peak dynamic pressure of the boost. The engine does not record it, so it is derived from the air density and speed of sound the run already carries; it is the number that decides whether the airframe holds together. A result saved before simulations kept the full series set has no air density stored, and reports no Max-Q rather than a zero that would look like an answer.
 
-Underneath the tiles is a **Before you fly** card: what these numbers are (estimates from a model, not a flight card), what the model never had (fin flutter, structural loads, parachute inflation and opening shock, your motor's behavior on the day), and the reminder to weigh and balance the rocket you actually built and enter those as overrides before trusting the margin. It links to **[Safety](./safety.md)**, and it is there on every run because it applies to every run.
+### Flight events
+
+Under the tiles, the **Flight events** table is the flight as a list you can read down: one row per event, with the time it happened and the state of the rocket at that instant. The charts mark the same events as labels, which answers *when* and nothing else.
+
+Every event the engine raises is named, not just the five the charts label, so rail departure, ignition, stage separation and tumble appear here for the first time. Each row carries the **altitude** and **speed** at its instant, in units you set from the column headers, and the rows that are read for more carry it on a line of their own:
+
+- **Rail departure** gives the static margin, thrust-to-weight and angle of attack it left the rail with.
+- **Burnout** gives its Mach.
+- **Max-Q** gives the dynamic pressure and the Mach at the peak.
+
+A **recovery deployment** names the parachute that fired, so a dual-deploy drogue is told from the main, and a clustered stage gets one row per motor rather than one for the stage. On a staged flight every stage is in the one table, tagged and interleaved on the single launch clock, because that is the order the flight happened in: a spent booster comes down while the sustainer is still coasting.
+
+The **CSV** button writes the table as a file. See **[Files & Exports](./files-and-exports.md#exporting-data)**.
 
 For the full time-history, open the **[Flight and 3D-path views](./views-and-analysis.md)**. To save the numbers, see **[Files & Exports](./files-and-exports.md)**.
 

@@ -6,12 +6,29 @@
 // app; the picker reads it and prefills the editor's geometry + material. SI
 // units throughout (m, kg/m^3).
 import { fetchCatalog } from './remoteData';
-import type { NoseShape } from '../engine/openRocketEngine';
+import type { ComponentNode, NoseShape } from '../engine/openRocketEngine';
 
 interface ComponentBase {
   mfr: string;
   partNo: string;
   desc: string;
+  /**
+   * The three fields below are a SAVED PART's, and absent on every catalog
+   * row. They live here rather than in a row type of their own so that the
+   * user's own parts are ordinary rows to the picker and to componentFilter:
+   * one list to search, facet, fit-rank and sort. See customParts.ts.
+   */
+  /** Stable local id, for deleting the saved part it came from. */
+  id?: string;
+  /** Marks the row as the user's own (a star in the picker, and deletable). */
+  custom?: true;
+  /**
+   * The whole saved node. A catalog row publishes a handful of dimensions; a
+   * saved part is a component the user BUILT, so applying only those
+   * dimensions would drop its shoulder, its lines, its motor mount and its
+   * color. `treeEdit.catalogPatch` applies this instead of the per-type map.
+   */
+  patch?: Partial<ComponentNode>;
 }
 
 export interface BodyTubeComponent extends ComponentBase {
@@ -72,6 +89,22 @@ interface ComponentMap {
 
 export type ComponentType = keyof ComponentMap;
 export type Component = ComponentMap[ComponentType];
+
+/**
+ * A node type the picker can serve, which is NOT the same set as the catalog's
+ * own types: an inner tube has no catalog of its own.
+ *
+ * Neither does it upstream. OpenRocket's preset files carry a `BodyTube` block
+ * and nothing for inner tubes, because an inner tube IS dimensionally a body
+ * tube, and 51 of the body tube rows are explicitly motor mount tubes
+ * (`Blue Tube, 1.15"/29mm, MMT`). So an inner tube picks from the body tubes,
+ * the same way desktop OpenRocket does, and `catalogPatch` needs no new case
+ * because the row it receives is a body tube row.
+ */
+export type PickerType = ComponentType | 'innertube';
+
+/** The catalog type whose rows serve a node type. */
+export const catalogTypeFor = (t: PickerType): ComponentType => (t === 'innertube' ? 'bodytube' : t);
 
 interface ComponentCatalog {
   generated: string;

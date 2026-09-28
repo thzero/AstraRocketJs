@@ -125,6 +125,28 @@ export default defineConfig({
         globIgnores: ['**/openrocket-engine-*.js'],
         // The WASM kernel alone is ~2.5 MB, over Workbox's 2 MiB default.
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        // `?v=<hash>` has to be ignored when matching the precache, or the
+        // runtime catalogs are unreachable offline.
+        //
+        // remoteData.ts appends the manifest's content hash to every catalog
+        // URL so a CDN cannot serve a stale copy. manifest.json is itself
+        // precached, so with the network off the app still READS a hash and
+        // still asks for `data/motors.generated.json?v=429fee4cf0b3` - and
+        // Workbox keys the precache on `data/motors.generated.json`, so the
+        // query made every one of those a miss. Offline, the request fell
+        // through every runtime rule (they cover page loads, the jsDelivr
+        // host and the engine fallback) and failed at the network: no motors,
+        // no components, no materials, on the one device that is at a launch
+        // site with no signal. Workbox's default ignores only `utm_*` and
+        // `fbclid`.
+        //
+        // Ignoring it costs nothing. The in-build copy changes only when the
+        // app is rebuilt, and a rebuild changes the precache revision, which
+        // is what actually busts this cache. The separately deployed catalog
+        // host - the copy the hash exists for - is a different origin and is
+        // answered by its own StaleWhileRevalidate rule below, which this does
+        // not touch.
+        ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^v$/],
         cleanupOutdatedCaches: true,
         // No precache-first navigation route. With it, every page load was
         // answered from the worker's precache, so a plain reload could NEVER
@@ -219,7 +241,8 @@ export default defineConfig({
             },
           },
           {
-            // Launch-site map tiles (components/sim/SiteMap.tsx).
+            // Map tiles: the launch-site map (components/sim/SiteMap.tsx) and
+            // the ground track's imagery (components/canvas/GroundTrack.tsx).
             //
             // Cache-first, and this is the point of the map rather than a
             // nicety: a pad you checked at home has to draw at the field, and
@@ -227,15 +250,30 @@ export default defineConfig({
             // the ground, so a stale one is still right - Esri and OSM change
             // imagery on the order of years - which is why nothing revalidates.
             //
-            // Capped at 600 tiles, a little over a screenful at each zoom for
+            // Capped at 1200 tiles, a little over a screenful at each zoom for
             // a handful of pads, so browsing the world does not grow without
             // limit; Workbox evicts the least recently used past that.
+            //
+            // It was 600 while the site map was the only surface drawing them.
+            // The ground track pulls tiles around the SAME pads, so most of
+            // what it asks for is already here, but it sizes its zoom to the
+            // flight rather than to SITE_ZOOM and so fills a second zoom level
+            // per site. A cap that evicts a pad's imagery to make room for the
+            // same pad's imagery at another zoom would break the one promise
+            // the cache exists for, which is that a site checked at home draws
+            // at the field.
             urlPattern:
               /^https:\/\/server\.arcgisonline\.com\/ArcGIS\/rest\/services\/(World_Imagery|World_Street_Map)\//,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'astra-map-tiles',
-              expiration: { maxEntries: 600, maxAgeSeconds: 60 * 60 * 24 * 180 },
+              // v2: the tiles are requested with CORS now, because the 3D
+              // ground map loads them as WebGL textures. An entry cached by an
+              // older build is opaque, and an opaque response cannot answer a
+              // CORS request - it would fail the texture and, worse, the plain
+              // `<img>` maps that now ask the same way. A new cache name
+              // retires those entries instead of poisoning the feature.
+              cacheName: 'astra-map-tiles-v2',
+              expiration: { maxEntries: 1200, maxAgeSeconds: 60 * 60 * 24 * 180 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },

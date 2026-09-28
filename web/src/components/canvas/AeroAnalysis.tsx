@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useWorkspaceStore, selectActive } from '../../state/store';
+import { useWorkspaceStore, selectActive, selectDesignName } from '../../state/store';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import { aeroTableCsv, CSV_MIME } from '../../services/csvExport';
+import { exportFilename } from '../../services/saveFile';
 import { download } from '../../services/saveFile';
 import type { ComponentMass } from '../../engine/openRocketEngine';
 import type { ChartSeries } from './aeroTables';
@@ -17,7 +18,7 @@ import { Num, Seg } from './AeroInputs';
 export { buildLinePath, heat, hsv, niceName } from './aeroTables';
 
 /**
- * Aerodynamic analysis (RASAero-style "Aero Plots", mmrocket-style). Two panes
+ * Aerodynamic analysis (RASAero-style "Aero Plots"). Two panes
  * off the static design, no flight needed — it is all one `aeroSweep`.
  *
  * **Charts**: Cd vs Mach (power-off, + power-on when a nozzle exit is set), the
@@ -46,6 +47,7 @@ export function AeroAnalysis() {
   const { t } = useTranslation();
   const u = useUnits();
   const rocket = useWorkspaceStore((s) => s.rocket);
+  const designName = useWorkspaceStore(selectDesignName);
   const info = useWorkspaceStore((s) => s.info);
   // Which motor the POWER-ON curve belongs to.
   //
@@ -83,9 +85,9 @@ export function AeroAnalysis() {
   // The picked Mach, clamped to the sweep at READ time. Shrinking the sweep has
   // to bring the picked Mach back with it, or the strip header prints the raw
   // pick while the tables snap to the nearest sample that EXISTS: set Max Mach
-  // to 5, scrub to 3.0, switch back to M1, and the header read "at Mach 3.00"
-  // above three tables reading Mach 1.00. Deriving here beats the effect that
-  // used to clamp it (one render with the wrong value, then a second).
+  // to 5, scrub to 3.0, switch back to M1, and the header reads "at Mach 3.00"
+  // above three tables reading Mach 1.00. Derived rather than clamped in an
+  // effect, which costs a render at the wrong value before the correction.
   const pick = Math.min(machPick, machMax);
   // The slider sticks at the last hovered Mach once the pointer leaves. The
   // commit happens in the SETTER, on the transition to null, not in an effect
@@ -116,9 +118,9 @@ export function AeroAnalysis() {
   }, [rocket]);
 
   // Memoized so each ChartCard sees the SAME series identity across hover
-  // renders: the cards memoize their domain and paths on the series, and a
-  // fresh array per render (this used to be built in the render body) would
-  // defeat that on every pointer move. `cpSeries` maps the whole sweep.
+  // renders: the cards memoize their domain and paths on the series, so a fresh
+  // array per render defeats that on every pointer move. `cpSeries` maps the
+  // whole sweep.
   const lengthFactor = u.factor('length');
   const bodyLen = info?.length ?? 0;
   const { cdSeries, breakdown, cpSeries } = useMemo((): {
@@ -131,11 +133,9 @@ export function AeroAnalysis() {
     if (sweep.hasNozzle) cd.push({ name: t('aero.powerOn'), color: POWER_ON, values: sweep.powerOn.total });
     return {
       cdSeries: cd,
-      // By type only. A per-component version of this chart used to sit behind
-      // a toggle here, but the Per component pane now tabulates the same
-      // figures with the pressure / base / friction split beside them -- which
-      // a stack of lines, one per part, could never show. Two ways to read one
-      // thing, the worse one taking a control.
+      // By type only. The Per component pane tabulates the same figures with the
+      // pressure / base / friction split beside them, which a stack of lines,
+      // one per part, cannot show.
       breakdown: [
         { name: t('aero.friction'), color: CAT[0]!, values: sweep.powerOff.friction },
         { name: t('aero.pressure'), color: CAT[1]!, values: sweep.powerOff.pressure },
@@ -186,7 +186,9 @@ export function AeroAnalysis() {
         <span className="text-[10px] text-slate-500">{t('aero.maxMach')}</span>
         <Seg options={[1, 2, 3, 5] as const} value={machMax} onChange={setMachMax} fmt={(v) => `M${v}`} />
         <button
-          onClick={() => download('aero-table.csv', aeroTableCsv(sweep, u.all), CSV_MIME)}
+          onClick={() =>
+            download(exportFilename([designName, 'aero-table'], 'csv'), aeroTableCsv(sweep, u.all), CSV_MIME)
+          }
           title={t('aero.exportCsv')}
           className="rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
         >

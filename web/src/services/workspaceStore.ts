@@ -47,8 +47,8 @@ export interface WorkspaceStore {
    * the one the workspace implies.
    *
    * Import resolves a name clash with the library before it hands the rocket
-   * over (see store.ts `adoptImport`), and the answer has to survive until the
-   * debounced autosave actually creates the entry. Passing it through here
+   * over (see store.ts `homeForImport`), and the answer has to survive until
+   * the debounced autosave actually creates the entry. Passing it through here
    * keeps that single create in the store, rather than having the caller race
    * the autosave with a `create` of its own. Cleared by `setActiveId`.
    */
@@ -149,17 +149,16 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
   /**
    * The `lib.create()` of a first save that is still in flight.
    *
-   * Two saves can overlap while the store is detached, and both used to see a
-   * null `activeId` and create an entry of their own: the library ended up
-   * with several identical designs from one rocket, and every one but the last
-   * was orphaned - nothing was active in it, so nothing ever wrote to it again.
+   * Two saves can overlap while the store is detached. Without this, both see a
+   * null `activeId` and create an entry of their own, leaving the library with
+   * several identical designs from one rocket and every one but the last
+   * orphaned: nothing is active in it, so nothing ever writes to it again.
    *
-   * It is not a narrow window. The autosave debounce is 500 ms and the first
+   * The window is not narrow. The autosave debounce is 500 ms and the first
    * IndexedDB create is the slowest write the app makes (open the database,
    * write the blob, mutate the index, set the pointer), so a second keystroke
-   * can easily land inside it - and the `visibilitychange` flush saves outside
-   * the debounce entirely, so tabbing away right after an import hits it every
-   * time.
+   * lands inside it easily, and the `visibilitychange` flush saves outside the
+   * debounce entirely, so tabbing away right after an import hits it every time.
    */
   private creating: Promise<DesignMeta> | null = null;
   /** See `setPendingName`. */
@@ -239,14 +238,13 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
   /**
    * The active design, or null when there is genuinely nothing saved.
    *
-   * THROWS when a design is supposed to be there and cannot be read. Returning
-   * null for both used to mean the caller could not tell them apart: the
-   * hydration gate opened with the DEFAULT rocket and, 500 ms after the user's
-   * first edit, the autosave wrote that default over the unreadable design AT
-   * THE SAME ID. Reachable today from a truncated blob, and by construction the
-   * moment a future build stamps `version: 2` into a PWA whose older build is
-   * still cached — the same hazard the SettingsProvider first-run guard exists
-   * for, on the one thing here that cannot be recomputed.
+   * THROWS when a design is supposed to be there and cannot be read, so the
+   * caller can tell that apart from "nothing saved". Returning null for both
+   * opens the hydration gate with the DEFAULT rocket, and 500 ms after the
+   * user's first edit the autosave writes that default over the unreadable
+   * design AT THE SAME ID. Reachable from a truncated blob, and by construction
+   * the moment a build stamps `version: 2` into a PWA whose older build is still
+   * cached.
    *
    * `activeId()` has already filtered against the index, so a set `activeId`
    * means the library believes this design exists. Detach before throwing, so
@@ -287,8 +285,8 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     const lib = getDesignLibrary();
     const leanW = lean(w);
     // Wait out a create already in flight instead of starting a second one
-    // (see `creating`). A failed one is swallowed here so this save can retry
-    // it below; the retry reports the failure in its own right.
+    // (see `creating`). A failure is ignored here so this save can retry it
+    // below; the retry reports the failure in its own right.
     if (!this.activeId && this.creating) await this.creating.catch(() => {});
     // First save of a session that started with no library entry (a fresh
     // browser, or everything deleted) creates the design rather than dropping it.

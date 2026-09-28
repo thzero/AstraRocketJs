@@ -349,11 +349,10 @@ public class FinSetCalc extends RocketComponentCalc {
 		// acts on the body near the fin root; placed at the root quarter-chord
 		// (forward of the swept-fin MAC) it nudges the total CP aft, which RAISES
 		// the static margin the app displays: margin is (xCP-xCG)/d with x measured
-		// aft. This said "a more conservative static margin" until 2026-09-22, and
-		// that is backwards. Aft is the closer answer for the geometries the term
-		// was validated against, not the safer one - on an erroneously aft CP it
-		// overstates how much margin the rocket actually has. (Correction taken
-		// from mmrocket-sim, which credits Ken Karbon, Apogee Peak of Flight 687.)
+		// aft. Note that aft is the CLOSER answer for the geometries the term was
+		// validated against, not the safer one: on an erroneously aft CP it
+		// overstates how much margin the rocket actually has. (Taken from
+		// mmrocket-sim, which credits Ken Karbon, Apogee Peak of Flight 687.)
 		// Flag off ⇒ identical to before.
 		// (feature #1 Phase 1: the NACA-1307 interference above already contains
 		// the full body carryover, so the separate Kbf term is suppressed while
@@ -823,8 +822,8 @@ public class FinSetCalc extends RocketComponentCalc {
 	 * criterion for linearized (Ackeret) supersonic thin-section theory
 	 * (transonic small-disturbance similarity: Liepmann &amp; Roshko
 	 * "Elements of Gasdynamics" ch. 12; Ashley &amp; Landahl "Aerodynamics of
-	 * Wings and Bodies" ch. 12). 1.0 is the criterion itself, not a fit — see
-	 * the sensitivity sweep in validation/scorecard-phase6-2026-08-25.md.
+	 * Wings and Bodies" ch. 12). 1.0 is the criterion itself, not a fit to the
+	 * anchors.
 	 */
 	private static final double SS_TRANSONIC_K = 1.0;
 
@@ -1055,19 +1054,16 @@ public class FinSetCalc extends RocketComponentCalc {
 		// (M2.00: Fin Frict 0.037, Fin Wave 0.067, Fin Interference 0.031).
 		// Flag on: +80% of the fin friction drag. Mach-flat, as RASAero's is.
 		//
-		// PROVENANCE CORRECTED 2026-08-25, and the number RE-MEASURED rather
-		// than re-asserted - full accounting in
-		// validation/scorecard-junction-2026-08-25.md:
-		//  - It is NOT anchored to the ARCAS fins-on/fins-off increment, as an
-		//    earlier version of this comment claimed. That increment (TN D-4013
-		//    CA,corr, Short: 0.073 / 0.078 / 0.080 at M0.60 / 0.70 / 0.80) also
-		//    contains the tunnel model's fin-anchor brackets, which RASAero
-		//    books in a SEPARATE Protuberance column (manual p.92 note; its
-		//    ARCAS deck slide 2 enters those anchors as a rail guide), plus fin
-		//    LE bluntness this kernel charges only when finLeRadius is given.
-		//    It is an UPPER BOUND on fin+interference drag, not a calibration
-		//    target - and taken literally it asks for 2.08x / 2.25x / 2.34x at
-		//    M0.60 / 0.70 / 0.80, not 1.8x.
+		// PROVENANCE, measured rather than asserted:
+		//  - It is NOT anchored to the ARCAS fins-on/fins-off increment. That
+		//    increment (TN D-4013 CA,corr, Short: 0.073 / 0.078 / 0.080 at M0.60 /
+		//    0.70 / 0.80) also contains the tunnel model's fin-anchor brackets,
+		//    which RASAero books in a SEPARATE Protuberance column (manual p.92
+		//    note; its ARCAS deck slide 2 enters those anchors as a rail guide),
+		//    plus fin LE bluntness this kernel charges only when finLeRadius is
+		//    given. It is an UPPER BOUND on fin+interference drag, not a
+		//    calibration target - and taken literally it asks for 2.08x / 2.25x /
+		//    2.34x at M0.60 / 0.70 / 0.80, not 1.8x.
 		//  - It is NOT junction interference in the Hoerner sense: a junction is
 		//    a corner effect whose drag area scales with t^2, while this scales
 		//    with fin wetted area x Cf. Implied per-junction coefficient across
@@ -1085,16 +1081,12 @@ public class FinSetCalc extends RocketComponentCalc {
 		//    fin increment 14-39% SHORT of the measured one (0.0631 vs 0.073
 		//    and 0.0616 vs 0.080 on ARCAS Short at M0.60/M0.80; 0.0605 vs 0.100
 		//    on ARCAS Long at M0.60). At 1.0x it is 52-66% short.
-		// Whether it should apply in BOTH models rather than only flag-on is
-		// measured in the same scorecard and is the owner's call (it moves
-		// desktop-OpenRocket parity, so it is not made here).
+		// Whether it should apply in the parity model as well moves
+		// desktop-OpenRocket parity, so it is not decided here.
 		//
-		// MACH-FLAT IS THE MEASURED ANSWER, NOT A SIMPLIFICATION - checked
-		// 2026-08-25, do not re-litigate without new data. It was proposed
-		// (docs/research/trf-aero-research-2026-08-25.md 1.3) that this factor
-		// should fade toward 1.0 by M1.5-2, on the reasoning that junction /
-		// horseshoe-vortex interference is a subsonic boundary-layer effect.
-		// Both halves of that were tested and both fail:
+		// MACH-FLAT IS THE MEASURED ANSWER, NOT A SIMPLIFICATION. A fade toward
+		// 1.0 by M1.5-2, on the reasoning that junction / horseshoe-vortex
+		// interference is a subsonic boundary-layer effect, fails both ways:
 		//  - The premise is void. This is not a junction term (see above), so
 		//    the physical argument for a fade does not attach to it.
 		//  - The data says flat. The only Mach-resolved measurement of the
@@ -1113,30 +1105,24 @@ public class FinSetCalc extends RocketComponentCalc {
 		//    subsonic ratio would be HIGHER than 0.840, which argues for a
 		//    subsonic rise, never a fade.)
 		//  - The supersonic "we run long" evidence the fade was meant to fix is
-		//    now attributed elsewhere. The 2026-08-25 fins-off gates measure
+		//    now attributed elsewhere. The fins-off gates measure
 		//    our BODY at +8.3% (Short) and +17.9% (Long) at M0.60, and that
 		//    body bias, carried forward at its measured rate, accounts for
 		//    53-139% of the ARCAS-Short supersonic overshoot and 194%+ of
 		//    ARCAS-Long's - i.e. all of it, before the fins are touched.
 		//    Fading this term would take drag off the fin set (already 14-39%
 		//    SHORT where it can be measured) to pay for a body error, which is
-		//    the same compensating-error trade the fins-off gates were added to
-		//    stop. Full accounting: validation/scorecard-finsoff-2026-08-25.md.
+		//    the same compensating-error trade the fins-off gates exist to stop.
 		//
-		// 2026-08-25, OWNER'S RULING APPLIED — the term now runs in ROGERS KBF
-		// as well as in Supersonic, and is still absent from the parity model.
-		// scorecard-junction-2026-08-25.md left exactly this as "the option the
-		// data supports ... not a change to make without Eric", because it moves
-		// desktop-OpenRocket parity. Eric ruled (docs/working-notes.md, standing
-		// ruling 2026-08-25) that only "OpenRocket - Extended Barrowman" is a
-		// parity commitment and that Kbf/Supersonic are to be decided on
-		// accuracy alone. The measurement, on the unchanged anchors:
+		// The term runs in ROGERS KBF as well as in Supersonic, and is absent from
+		// the parity model: only "OpenRocket - Extended Barrowman" is a parity
+		// commitment, so Kbf and Supersonic are decided on accuracy alone. The
+		// measurement, on the unchanged anchors:
 		// 80 of the 83 gated CD rows move CLOSER to the data (3 move away, all
 		// rma53d02 subsonic rows where we already read high), the aggregate
 		// RMS of |delta|/tol over all gated rows falls 5.279 -> 4.970, and on
 		// the two tester flights LEM-IV's over-prediction goes +7.3% -> +2.2%
-		// and Buckeye's +19.4% -> +11.9%. Re-measured on the 175-gate anchors
-		// in validation/scorecard-transition-2026-08-25.md.
+		// and Buckeye's +19.4% -> +11.9%, re-measured on the 175-gate anchors.
 		if (rogersKbf || supersonicAero) {
 			cd *= 1.8;
 		}
@@ -1158,20 +1144,14 @@ public class FinSetCalc extends RocketComponentCalc {
 		// PATCH (feature #4): RASAero-class airfoil sections — per-shape
 		// linearized/Busemann thickness wave drag + blunt-base + LE bluntness.
 		//
-		// PARITY FIX 2026-08-25 — this used to be INPUT-gated only, i.e. naming
-		// an airfoil section replaced desktop OpenRocket's pressure-drag model
-		// in EVERY aero model, including "OpenRocket - Extended Barrowman",
-		// whose entire claim is bit-identical desktop physics. Desktop has no
-		// airfoilSection concept at all (its FinSet knows only the three-valued
-		// CrossSection), so for a classic run the honest answer is the one
-		// desktop would give from the same design: the crossSection branch
-		// below. Measured size of the violation on a square-vs-doublewedge fin
-		// at M1.8: CD 0.585 vs 0.303 - a factor of ~1.9 on total CD, in the
-		// model that promises no difference at all. Named as a BUG in the
-		// owner's standing ruling (docs/working-notes.md, 2026-08-25: "anything
-		// that currently moves CLASSIC numbers away from desktop must move OUT
-		// of classic"). Effect on the harness, both directions reported, in
-		// validation/scorecard-transition-2026-08-25.md.
+		// Gated on the SUPERSONIC model, not merely on the input being present.
+		// Desktop OpenRocket has no airfoilSection concept at all (its FinSet
+		// knows only the three-valued CrossSection), so a classic
+		// "OpenRocket - Extended Barrowman" run has to fall through to the
+		// crossSection branch below, whose whole claim is bit-identical desktop
+		// physics. Input-gated alone, a square-vs-doublewedge fin at M1.8 reads
+		// CD 0.585 vs 0.303 - a factor of ~1.9 on total CD, in the model that
+		// promises no difference at all.
 		//
 		// Kbf and Supersonic keep the section model unchanged - this gate is
 		// true for both - so no non-parity user's numbers move by this edit.
@@ -1190,10 +1170,10 @@ public class FinSetCalc extends RocketComponentCalc {
 		// referenced to fin planform area. Sharp TE ⇒ no base term. Scored
 		// against the ARCAS/Finner CD anchors.
 		//
-		// PATCH (feature #1 Phase 6): the M0.9->1.2 LINEAR blend this used to
-		// carry peaked at the top of its own ramp while the branch it bridged
-		// onto was already falling; thicknessWave() replaces it with
-		// rise -> peak at M1.05 -> decay along the branch.
+		// PATCH (feature #1 Phase 6): thicknessWave() gives rise -> peak at M1.05
+		// -> decay along the branch. A LINEAR M0.9->1.2 blend instead peaks at
+		// the top of its own ramp while the branch it bridges onto is already
+		// falling.
 		if (supersonicAero && crossSection == FinSet.CrossSection.AIRFOIL) {
 			double tc = (macLength > MathUtil.EPSILON) ? thickness / macLength : 0;
 			double wave = thicknessWave(mach, 16.0 / 3.0, tc);
@@ -1328,8 +1308,8 @@ public class FinSetCalc extends RocketComponentCalc {
 		// the old ramp verbatim: the section model is INPUT-gated rather than
 		// flag-gated, so an ungated change here would move CLASSIC numbers for
 		// every design that names an airfoil section, and classic is
-		// desktop-OpenRocket parity. Same boundary, and the same open Eric
-		// decision, as the Phase-5 sweep fade below.
+		// desktop-OpenRocket parity. Same boundary, and the same open decision,
+		// as the Phase-5 sweep fade below.
 		double wave = 0;
 		if (supersonicAero) {
 			wave = thicknessWave(mach, thicknessFactor, tau);

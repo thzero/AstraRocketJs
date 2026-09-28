@@ -81,13 +81,12 @@ test('the layer buttons switch which provider is asked', async ({ page }) => {
 
   // Switching layers is a question about the PICTURE, so it must not touch the
   // coordinates. The layer buttons sit inside the box the map's pointer
-  // handlers are on, and their events bubble: this used to read as a click on
-  // the ground and move the launch site to the map's top-left corner.
+  // handlers are on, and their events bubble, so an unstopped click reads as a
+  // click on the ground and moves the launch site to the map's top-left corner.
   await expect(dialog.getByText('39.0500° N, 104.8000° W')).toBeVisible();
 
-  // And nothing ever reached OpenStreetMap's volunteer tile servers, which the
-  // street layer used to be pointed at. Asserted on the real network traffic,
-  // because that is the only place the mistake would show.
+  // And nothing reaches OpenStreetMap's volunteer tile servers. Asserted on the
+  // real network traffic, because that is the only place the mistake would show.
   expect(asked.filter((u) => u.includes('openstreetmap.org'))).toEqual([]);
 
   // Put the layer back: it is remembered for the session, and the location editor
@@ -95,12 +94,12 @@ test('the layer buttons switch which provider is asked', async ({ page }) => {
   await dialog.getByRole('button', { name: 'Satellite' }).click();
 });
 
-test('the location editor carries a map beside its fields', async ({ page }) => {
+test('the location editor carries a map under its fields', async ({ page }) => {
   await ready(page);
   await openTab(page, 'Simulations');
 
-  // Save a location, then reopen it for editing: the editor is where a mistyped
-  // coordinate gets corrected, so the map belongs next to those fields.
+  // Save a location, then select it for editing: the editor is where a mistyped
+  // coordinate gets corrected, so the map belongs with those fields.
   await lat(page).fill('39.05');
   await lon(page).fill('-104.8');
   await blurFields(page);
@@ -110,8 +109,10 @@ test('the location editor carries a map beside its fields', async ({ page }) => 
   await naming.getByRole('button', { name: 'Save', exact: true }).click();
 
   await page.getByRole('button', { name: 'Manage saved locations' }).click();
-  await page.getByRole('dialog', { name: 'Manage saved locations' }).getByRole('button', { name: 'Edit' }).click();
-  const editor = page.getByRole('dialog', { name: 'Edit' });
+  // Master-detail: the editor is the right-hand pane of the same dialog, so
+  // selecting the location on the left IS opening it.
+  const editor = page.getByRole('dialog', { name: 'Manage saved locations' });
+  await editor.getByRole('button', { name: /Home field/ }).click();
   await expect(editor.getByText('39.0500° N, 104.8000° W')).toBeVisible();
 
   // Typing a coordinate moves the pin, so the map answers the draft rather

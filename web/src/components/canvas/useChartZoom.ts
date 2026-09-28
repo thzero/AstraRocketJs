@@ -37,9 +37,9 @@ export function useChartZoom(hostRef: RefObject<HTMLDivElement | null>, maxT: nu
 
   // Ctrl/pinch-wheel zooms about the cursor (plain wheel still scrolls the
   // panel list). Native non-passive listener so we can preventDefault. The
-  // listener is attached ONCE and reads the latest handler through a ref: it
-  // used to re-attach on every zoom, pan and resize (each changes the window
-  // it closes over), which is a remove/add pair per wheel notch.
+  // listener is attached ONCE and reads the latest handler through a ref.
+  // Closing over the window directly re-attaches on every zoom, pan and resize,
+  // which is a remove/add pair per wheel notch.
   const onWheelRef = useRef<(e: WheelEvent) => void>(() => {});
   useEffect(() => {
     onWheelRef.current = (e: WheelEvent) => {

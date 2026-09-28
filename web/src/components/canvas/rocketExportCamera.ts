@@ -3,8 +3,8 @@ import * as THREE from 'three';
 /**
  * Owns the export framing for the 3D image snapshot: the NaN-safe box guard,
  * the corner-by-corner camera fit and the throwaway export camera with its
- * near/far bracket. Pure three.js math, kept out of the component so the
- * framing is provable without a mounted canvas (Rocket3D.test.ts).
+ * near/far bracket. Pure three.js math, kept out of the component so the framing
+ * is testable without a mounted canvas (Rocket3D.test.ts).
  */
 
 /**
@@ -132,9 +132,9 @@ export function fitCameraToBox(
 }
 
 /**
- * A throwaway camera that frames `box` the way `src` is currently looking.
- * Kept out of the snapshot handler so the whole export view — framing AND
- * clipping planes — is provable without a mounted canvas.
+ * A throwaway camera that frames `box` the way `src` is currently looking. Kept
+ * out of the snapshot handler so the whole export view - framing AND clipping
+ * planes - is testable without a mounted canvas.
  */
 export function exportCamera(box: THREE.Box3, src: THREE.PerspectiveCamera, aspect: number): THREE.PerspectiveCamera {
   const { position, target } = fitCameraToBox(

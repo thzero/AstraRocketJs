@@ -25,6 +25,15 @@ export interface FlightScene {
   alts: number[];
   vels: number[];
   callouts: { type: string; pos: THREE.Vector3; time: number }[];
+  /**
+   * Scene units per meter, which is the whole scale of the drawing.
+   *
+   * Peak altitude is pinned to 24 units, so this varies with the flight. It is
+   * reported rather than recomputed by anything that needs to put a real-world
+   * measurement into the scene - the ground map lays tiles out in meters and
+   * has to agree with the arc exactly.
+   */
+  unitsPerMeter: number;
 }
 
 export function buildFlightScene(result: FlightResult, phase: PhaseColors): FlightScene {
@@ -90,10 +99,11 @@ export function buildFlightScene(result: FlightResult, phase: PhaseColors): Flig
   for (const [type, tt] of wanted) {
     if (tt == null) continue;
     // `sp` is empty when every sample failed the finiteness filter above (a
-    // kernel failure that still returns a result object). A `!` used to silence
-    // that, so the second callout threw on `undefined.distanceTo` — inside the
-    // memo, i.e. before the component's `scenePts.length < 2` empty-state
-    // guard, taking the whole app down instead of showing "no path".
+    // kernel failure that still returns a result object). Checked rather than
+    // silenced with a `!`: the second callout would throw on
+    // `undefined.distanceTo` inside the memo, before the component's
+    // `scenePts.length < 2` guard, taking the app down instead of showing
+    // "no path".
     const pos = sp[idxAt(tt)];
     if (!pos) continue;
     if (cos.some((c) => c.pos.distanceTo(pos) < 1.5)) continue; // skip coincident label
@@ -108,6 +118,7 @@ export function buildFlightScene(result: FlightResult, phase: PhaseColors): Flig
     times: rows.map((r) => r.t),
     alts: rows.map((r) => r.a),
     vels: rows.map((r) => r.v),
+    unitsPerMeter: s,
     callouts: cos,
   };
 }

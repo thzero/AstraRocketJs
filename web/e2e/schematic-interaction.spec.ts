@@ -6,11 +6,8 @@ import { test, expect, type Page } from './base';
  * (schematic.spec) doesn't touch. This is the safety net for decomposing the
  * renderer, whose shapes carry the interaction handlers.
  *
- * It used to claim "drag-reposition" as well. No test dragged a component, and
- * none could have: `onPatchNode` was never passed, so `beginDrag` early-returned
- * and the handler was never attached. That whole path has been removed — the
- * property panel sets a component's position numerically. A docblock promising
- * a safety net that does not exist is worse than no docblock.
+ * Drag-reposition is NOT among them: there is no such path in the renderer, and a
+ * component's position is set numerically in the property panel.
  */
 test.describe('2D schematic interaction', () => {
   const schematic = (page: Page) =>

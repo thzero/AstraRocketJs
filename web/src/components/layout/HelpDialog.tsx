@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { useTranslation } from 'react-i18next';
 import { appName, docPageUrl, helpUrlFor } from '../../services/appInfo';
 import { type HelpEntry, type HelpPage, helpTarget, helpTargetFromUrl, loadHelpPage } from '../../services/helpDocs';
-import { useFocusTrap } from '../common/useFocusTrap';
+import { Dialog } from '../common/Dialog';
 
 /**
  * Help, read WITHOUT leaving the design you are holding.
@@ -54,7 +54,6 @@ const railRow =
 
 export function HelpDialog({ page, onClose }: { page: string; onClose: () => void }) {
   const { t, i18n } = useTranslation();
-  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
   const frameRef = useRef<HTMLIFrameElement>(null);
 
   // `page` is only the ENTRY point: whoever opened Help named a topic.
@@ -257,16 +256,29 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
   const headings = probed?.page?.contents.headings ?? [];
 
   return (
-    <div className="dialog-overlay fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4" onClick={onClose}>
-      <div
-        ref={panelRef}
-        className="dialog-panel flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-slate-900 ring-1 ring-white/10"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('help.title')}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
+    <Dialog
+      id="help"
+      // The PAGE's title, not the word Help: the dialog is a reader and which
+      // page you are on is the thing worth saying. It is also the accessible
+      // name, so a screen reader announces the same.
+      title={heading}
+      // The dialog stays "Help" to assistive tech while the heading above moves
+      // with the page: this is the one dialog you navigate WITHIN, and a name
+      // that changed under you as you followed a link would be worse than one
+      // naming the frame.
+      name={t('help.title')}
+      // Only once a real page title is showing. Before one loads the heading IS
+      // "Help", and an eyebrow saying so again just prints the word twice.
+      eyebrow={probed?.page?.title ? t('help.title') : undefined}
+      onClose={onClose}
+      // Reachable from a dialog's own help link, so it has to sit above one.
+      layer="over"
+      size="4xl"
+      // An iframe cannot usefully be scrolled by its container: it takes the
+      // height and scrolls its own document.
+      layout="fill"
+      leading={
+        <>
           {/* Rendered only once a page has loaded and brought its contents with
               it: with nothing to list, this would be a control that looks
               clickable and does nothing. */}
@@ -290,124 +302,118 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
           >
             &lsaquo;
           </button>
-          <h2 className="min-w-0 flex-1 truncate text-lg font-semibold text-slate-100">{heading}</h2>
-          {siteHref && (
-            <a
-              href={siteHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={t('help.openOnSite')}
-              title={t('help.openOnSite')}
-              className="shrink-0 rounded-lg bg-slate-800 px-2 py-1 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
-            >
-              {/* The label costs about 130px, and at phone width the header
-                  already carries four controls; below `sm` the glyph stands in
-                  for it, with the same accessible name either way. */}
-              <span className="hidden sm:inline">{t('help.openOnSite')}</span>
-              <span className="sm:hidden" aria-hidden>
-                ↗
-              </span>
-            </a>
-          )}
-          <button
-            onClick={onClose}
-            aria-label={t('help.close')}
-            className="shrink-0 rounded-lg bg-slate-800 px-2 py-1 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+        </>
+      }
+      actions={
+        siteHref && (
+          <a
+            href={siteHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={t('help.openOnSite')}
+            title={t('help.openOnSite')}
+            className="shrink-0 rounded-lg bg-slate-800 px-2 py-1 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
           >
-            ✕
-          </button>
-        </div>
-
-        <div className="relative flex min-h-0 flex-1">
-          {/* The contents rail. In the flex row from `md` up; below it, an
+            {/* The label costs about 130px, and at phone width the header
+                already carries four controls; below `sm` the glyph stands in
+                for it, with the same accessible name either way. */}
+            <span className="hidden sm:inline">{t('help.openOnSite')}</span>
+            <span className="sm:hidden" aria-hidden>
+              ↗
+            </span>
+          </a>
+        )
+      }
+    >
+      <div className="relative flex min-h-0 flex-1">
+        {/* The contents rail. In the flex row from `md` up; below it, an
               overlay over the page, because at phone width there is no room
               for both and the phone is where finding a topic matters most.
               (The docs site's own sidebar is display:none below 997px, which is
               the reason the dialog draws its own instead of revealing that one.) */}
-          {pages.length > 0 && contentsOpen && (
-            <nav
-              aria-label={t('help.contents')}
-              className="absolute inset-y-0 left-0 z-10 w-56 shrink-0 overflow-y-auto border-r border-white/10 bg-slate-900 p-2 md:static md:z-auto"
-            >
-              {pages.map((entry, i) =>
-                entry.page === null ? (
-                  <p
-                    key={`group-${i}`}
-                    className="mt-3 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500 first:mt-0"
+        {pages.length > 0 && contentsOpen && (
+          <nav
+            aria-label={t('help.contents')}
+            className="absolute inset-y-0 left-0 z-10 w-56 shrink-0 overflow-y-auto border-r border-white/10 bg-slate-900 p-2 md:static md:z-auto"
+          >
+            {pages.map((entry, i) =>
+              entry.page === null ? (
+                <p
+                  key={`group-${i}`}
+                  className="mt-3 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500 first:mt-0"
+                >
+                  {entry.label}
+                </p>
+              ) : (
+                <Fragment key={entry.page}>
+                  <button
+                    onClick={() => pick(entry.page!)}
+                    aria-current={entry.page === target.slug ? 'page' : undefined}
+                    className={`${railRow} ${entry.page === target.slug ? 'bg-slate-800 font-semibold text-sky-300' : ''}`}
                   >
                     {entry.label}
-                  </p>
-                ) : (
-                  <Fragment key={entry.page}>
-                    <button
-                      onClick={() => pick(entry.page!)}
-                      aria-current={entry.page === target.slug ? 'page' : undefined}
-                      className={`${railRow} ${entry.page === target.slug ? 'bg-slate-800 font-semibold text-sky-300' : ''}`}
-                    >
-                      {entry.label}
-                    </button>
-                    {/* The page you are ON opens into its own headings, so the
+                  </button>
+                  {/* The page you are ON opens into its own headings, so the
                         rail answers both "what else is there" and "where in
                         this page". Picking one goes through the same
                         same-slug-scroll path a heading link inside the frame
                         takes. */}
-                    {entry.page === target.slug &&
-                      headings.map((h) => (
-                        <button
-                          key={h.hash}
-                          ref={h.hash === activeHash ? activeRow : undefined}
-                          onClick={() => pick(`${target.slug}${h.hash}`)}
-                          aria-current={h.hash === activeHash ? 'location' : undefined}
-                          className={`${railRow} ${h.level > 1 ? 'pl-8' : 'pl-5'} ${
-                            h.hash === activeHash ? 'bg-slate-800 text-sky-300' : 'text-slate-400'
-                          }`}
-                        >
-                          {h.label}
-                        </button>
-                      ))}
-                  </Fragment>
-                ),
-              )}
-            </nav>
-          )}
-
-          <div className="relative min-h-0 flex-1">
-            {status === 'missing' ? (
-              <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-                <p className="text-sm text-slate-300">{t('help.missing', { name: appName() })}</p>
-                {siteHref && (
-                  <a
-                    href={siteHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
-                  >
-                    {t('help.openOnSite')}
-                  </a>
-                )}
-              </div>
-            ) : (
-              <>
-                {status !== 'ready' && (
-                  <p className="absolute inset-0 grid place-items-center text-sm text-slate-500">{t('help.loading')}</p>
-                )}
-                {status !== 'probing' && (
-                  <iframe
-                    ref={frameRef}
-                    src={target.src}
-                    title={t('help.title')}
-                    onLoad={onFrameLoad}
-                    // Hidden until the theme and the embed attribute are on,
-                    // otherwise a light-mode machine shows a white flash of the
-                    // full site chrome before the first paint of the stripped one.
-                    className={`h-full w-full border-0 ${status === 'ready' ? '' : 'opacity-0'}`}
-                  />
-                )}
-              </>
+                  {entry.page === target.slug &&
+                    headings.map((h) => (
+                      <button
+                        key={h.hash}
+                        ref={h.hash === activeHash ? activeRow : undefined}
+                        onClick={() => pick(`${target.slug}${h.hash}`)}
+                        aria-current={h.hash === activeHash ? 'location' : undefined}
+                        className={`${railRow} ${h.level > 1 ? 'pl-8' : 'pl-5'} ${
+                          h.hash === activeHash ? 'bg-slate-800 text-sky-300' : 'text-slate-400'
+                        }`}
+                      >
+                        {h.label}
+                      </button>
+                    ))}
+                </Fragment>
+              ),
             )}
-          </div>
+          </nav>
+        )}
+
+        <div className="relative min-h-0 flex-1">
+          {status === 'missing' ? (
+            <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+              <p className="text-sm text-slate-300">{t('help.missing', { name: appName() })}</p>
+              {siteHref && (
+                <a
+                  href={siteHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
+                >
+                  {t('help.openOnSite')}
+                </a>
+              )}
+            </div>
+          ) : (
+            <>
+              {status !== 'ready' && (
+                <p className="absolute inset-0 grid place-items-center text-sm text-slate-500">{t('help.loading')}</p>
+              )}
+              {status !== 'probing' && (
+                <iframe
+                  ref={frameRef}
+                  src={target.src}
+                  title={t('help.title')}
+                  onLoad={onFrameLoad}
+                  // Hidden until the theme and the embed attribute are on,
+                  // otherwise a light-mode machine shows a white flash of the
+                  // full site chrome before the first paint of the stripped one.
+                  className={`h-full w-full border-0 ${status === 'ready' ? '' : 'opacity-0'}`}
+                />
+              )}
+            </>
+          )}
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

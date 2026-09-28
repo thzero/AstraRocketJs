@@ -22,12 +22,8 @@ export const minWindow = (maxT: number) => Math.max(maxT / 500, 0.05);
 /**
  * The x-axis extent: the longest time any branch reaches.
  *
- * Loop, do not spread. This used to be
- *   Math.max(flightTime, ...branches.flatMap((b) => b.series.time))
- * evaluated in the render body, so it re-ran on EVERY pointer move (hover sets
- * state) and, for a fine-timestep multi-stage flight, pushed a six-figure
- * argument list into Math.max — which throws RangeError and blanks the panel.
- * FlightPath3D avoids the identical hazard the identical way.
+ * Loop, do not spread: a fine-timestep multi-stage flight pushes a six-figure
+ * argument list into `Math.max`, which throws RangeError and blanks the panel.
  */
 export function maxFlightTime(branches: { series: FlightSeries }[], flightTime: number | undefined): number {
   let m = Math.max(flightTime || 1, 1);
@@ -63,10 +59,9 @@ export function zoomWindow(t0: number, t1: number, factor: number, anchorT: numb
 
 /**
  * The window actually shown for a saved zoom, clamped to the CURRENT flight's
- * span at read time: a re-run of the same simulation can land shorter than
- * the window zoomed on the previous run, and the window used to be reset by
- * an effect keyed on the trace list, which a re-run does not change, so the
- * stale window survived it.
+ * span at read time: a re-run of the same simulation can land shorter than the
+ * window zoomed on the previous run, and it cannot be reset by an effect keyed on
+ * the trace list, which a re-run does not change.
  */
 export function resolveWindow(zoom: TimeWindow | null, maxT: number): { t0: number; t1: number; zoomed: boolean } {
   const t1 = zoom ? Math.min(zoom.t1, maxT) : maxT;

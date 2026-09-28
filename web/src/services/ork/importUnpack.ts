@@ -6,9 +6,28 @@ import { MAX_ARCHIVE_ENTRIES, MAX_ARCHIVE_ENTRY_BYTES, MAX_ARCHIVE_TOTAL_BYTES }
  * XML, or bare XML, either as a string or a buffer.
  */
 
-/** The XML text inside a `.ork`: the archive's `.ork` member, or the bare file. */
-export function unpackOrkXml(data: ArrayBuffer | string): string {
-  if (typeof data === 'string') return data;
+/**
+ * What a `.ork` archive holds besides its XML.
+ *
+ * A `.ork` written by the desktop is a zip of up to four kinds of member: the
+ * `rocket.ork` XML, the thrust curve of every motor the design uses, the image
+ * behind every decal, and a `preview.png` thumbnail. The curves are read, not just
+ * the XML: OpenRocket embeds them precisely so the file opens on an install that
+ * does not have them, and without them a design using anything outside our catalog
+ * opens with an empty mount and a blocked run.
+ */
+export type OrkArchive = {
+  /** The `rocket.ork` member, or the whole file when it is bare XML. */
+  xml: string;
+  /** Embedded RockSim thrust curves (`thrustcurves/<digest>.rse`), as text. */
+  motorFiles: string[];
+  /** Members we kept nothing from, by name, so the import can say so. */
+  dropped: string[];
+};
+
+/** Everything usable in a `.ork`, whether it is a zip or bare XML. */
+export function unpackOrk(data: ArrayBuffer | string): OrkArchive {
+  if (typeof data === 'string') return { xml: data, motorFiles: [], dropped: [] };
   const bytes = new Uint8Array(data);
   if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
     // Zip-bomb guard: a `.ork` is a zip, and fflate's unzipSync has no built-in
@@ -27,11 +46,23 @@ export function unpackOrkXml(data: ArrayBuffer | string): string {
         return true;
       },
     });
-    const entryName = Object.keys(entries).find((n) => n.endsWith('.ork')) ?? Object.keys(entries)[0];
+    const names = Object.keys(entries);
+    const entryName = names.find((n) => n.endsWith('.ork')) ?? names[0];
     if (!entryName) throw new Error('Empty .ork archive');
-    return strFromU8(entries[entryName]!);
+    const motorFiles: string[] = [];
+    const dropped: string[] = [];
+    for (const name of names) {
+      if (name === entryName) continue;
+      // Any `.rse` in the archive, not just `thrustcurves/` ones: the folder is
+      // the desktop's convention, not something the loader depends on.
+      if (name.toLowerCase().endsWith('.rse')) motorFiles.push(strFromU8(entries[name]!));
+      // A thumbnail is regenerated on demand by whatever opens the file next, so
+      // losing it is not a loss worth reporting.
+      else if (name !== 'preview.png') dropped.push(name);
+    }
+    return { xml: strFromU8(entries[entryName]!), motorFiles, dropped };
   }
-  return strFromU8(bytes);
+  return { xml: strFromU8(bytes), motorFiles: [], dropped: [] };
 }
 
 /** The parsed document, or an error naming what is wrong with the text. */

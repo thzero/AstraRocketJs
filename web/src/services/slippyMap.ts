@@ -37,17 +37,14 @@ export interface TileSource {
  * Both layers come from Esri's ArcGIS tile services, and NOT from
  * `tile.openstreetmap.org`.
  *
- * The street layer used to be OSM's own tile servers. That was wrong: those are
- * donated, volunteer-funded infrastructure, and the OSM Tile Usage Policy is
- * explicit that they exist for OpenStreetMap's own use and that third-party
- * applications are to run their own or buy from a provider. They enforce it, so
- * the layer also simply 403'd in the browser. Making it work would have meant
- * complying our way into using someone's charity as a CDN, which is the part
- * that was actually wrong.
+ * OSM's own tile servers are donated, volunteer-funded infrastructure, and the OSM
+ * Tile Usage Policy is explicit that they exist for OpenStreetMap's own use and
+ * that third-party applications are to run their own or buy from a provider. They
+ * enforce it, and the layer 403s in the browser.
  *
- * Esri's street map carries OSM DATA and credits it in the attribution below,
- * so the mapping still reaches the people who made it - over a commercial CDN
- * that is provisioned for being used.
+ * Esri's street map carries OSM DATA and credits it in the attribution below, so
+ * the mapping still reaches the people who made it, over a commercial CDN that is
+ * provisioned for being used.
  *
  * Both paths are {z}/{y}/{x}, not the {z}/{x}/{y} most tile servers use.
  * Attribution strings are the `copyrightText` each service publishes in its own
@@ -238,3 +235,34 @@ export function unproject(
  * coordinate typed a few hundred meters out is still on screen.
  */
 export const SITE_ZOOM = 15;
+
+/**
+ * The tile zoom to draw a plan view at, given how much ground one of its pixels
+ * covers.
+ *
+ * The launch-site map picks its own scale, so a fixed {@link SITE_ZOOM} is all
+ * it needs. A view that sizes itself to the flight cannot work that way: a 200 m
+ * drift and a 20 km one are the same picture at different scales, and the zoom
+ * has to follow.
+ *
+ * Tile zooms are integers, so the answer is the NEAREST one - in log space,
+ * since the ladder doubles at every step - and the caller scales the layer by
+ * the leftover fraction. Rounding up instead, to the first zoom at least as
+ * detailed as the drawing, is the tempting choice and the wrong one: it puts
+ * the leftover fraction in (0.5, 1], so the layer has to be laid out at up to
+ * twice the box in each direction, which is up to FOUR times the tiles. Seven
+ * rows of seven, measured, where nearest gives three or five. Those are real
+ * fetches from someone else's servers and real entries in a capped offline
+ * cache, against at most a 1.41x magnification of imagery that a 2x display is
+ * already upscaling anyway.
+ *
+ * The leftover fraction, `metersPerPixel(lat, zoom) / target`, is therefore in
+ * [0.707, 1.415].
+ */
+export function zoomForMetersPerPixel(latDeg: number, target: number, maxZoom: number): number {
+  if (!(target > 0)) return maxZoom;
+  // metersPerPixel halves with every zoom step, so the exact zoom that matches
+  // the target is a logarithm rather than a search.
+  const z = Math.round(Math.log2(metersPerPixel(latDeg, 0) / target));
+  return Math.max(MIN_ZOOM, Math.min(maxZoom, z));
+}

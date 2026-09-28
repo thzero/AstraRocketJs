@@ -16,6 +16,8 @@
     "validate": "node validation/score.mjs",
     "validate:supersonic": "node validation/score.mjs --supersonic",
     "validate:strict": "node validation/score.mjs --strict",
+    "reference": "node reference/run.mjs",
+    "reference:show": "node reference/run.mjs --show",
     "extract:check": "node extract/extract.mjs --check",
     "extract:bless": "node extract/extract.mjs --bless"
   }

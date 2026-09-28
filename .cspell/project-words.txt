@@ -49,6 +49,7 @@ blindnesses
 boattail
 boattails
 bodytube
+Bokmål
 Bonney
 boosterset
 browsable
@@ -59,8 +60,10 @@ caseairframe
 catchable
 centeringring
 Cesaroni
+chuteless
 checkcast
 classgraph
+CLDR
 clen
 Clippable
 clusterconfiguration
@@ -70,6 +73,7 @@ CODATA
 codegen
 Coeff
 compname
+configdialog
 configid
 constantgravity
 constructability
@@ -83,6 +87,8 @@ crosssection
 Crêpe
 curveless
 customexpression
+customreference
+datasheet
 dataviz
 DATCOM
 dbcook
@@ -101,16 +107,21 @@ designinfo
 designtype
 desync
 desynced
+Deutsch
 dflt
 directiondeg
 displaycolor
 dmanufacturing
 dmodel
 docblocks
+docmaterials
+docprefs
+domcontentloaded
 doublewedge
 drei
 drei's
 DREV
+edgessameasinside
 efins
 Eggtimer
 ejectioncharge
@@ -127,6 +138,7 @@ EXTMAX
 EXTMIN
 fairingshape
 façade
+fbclid
 fcid
 FDLIBM
 FFFFL
@@ -148,7 +160,12 @@ Fleeman
 flightcomputer
 flightdata
 foreradius
+foreshouldercapped
+foreshoulderlength
+foreshoulderradius
+foreshoulderthickness
 frameloop
+Français
 freeformfinset
 fshape
 gainmap
@@ -156,12 +173,14 @@ geodeticmethod
 Geographics
 Geolocator
 GEOMS
+glenmarc
 GLTF
 Golay
 goldens
 gradlew
 gravitymodel
 gridlines
+Guardado
 Guice
 haack
 haack's
@@ -180,6 +199,7 @@ idioma
 ignitionconfiguration
 ignitiondelay
 ignitionevent
+iiia
 imperialish
 importt
 indexeddb
@@ -189,12 +209,14 @@ innerdiameter
 innerradius
 innertube
 Inouye
+insideappearance
 Instanceable
 instancecount
 instanceseparation
 INSUNITS
 isdrogue
 isflipped
+Itot
 Jambol
 jank
 javac
@@ -207,6 +229,7 @@ Karman
 Kevlars
 killable
 kitchensink
+kitname
 KOSDON
 Kutta
 languagedetector
@@ -228,6 +251,7 @@ linematerial
 linestyle
 Lngs
 loadouts
+luma
 Maccoll
 macrotask
 mapfiles
@@ -248,6 +272,7 @@ metalness
 Metas
 Meteo
 Metrum
+microballoons
 MicroMaxx
 MINFEATURE
 miscompiles
@@ -267,6 +292,7 @@ msvc
 multisampled
 multiset
 myfinset
+Nederlands
 Niskanen
 nnum
 Nonaxial
@@ -276,6 +302,7 @@ nosuchfinish
 notsimulated
 nozzleexitdiameter
 nudgeable
+opacityaffectstexture
 openrocket
 openstreetmap
 openxmlformats
@@ -293,10 +320,13 @@ overridesubcomponentscg
 overridesubcomponentsmass
 packedlength
 packedradius
+paraline
 parallelstage
 parsererror
+partno
 persistable
 PETG
+photostudio
 pindex
 pipefail
 pitot
@@ -306,7 +336,11 @@ planform
 plottable
 podset
 podsets
+Polski
+Português
+Positionable
 powerseries
+poxy
 Pparity
 precached
 precaches
@@ -315,6 +349,7 @@ prefs
 premultiplies
 pushversion
 putchar
+quik
 radialdirection
 radialposition
 radiusoffset
@@ -323,6 +358,7 @@ rasaero
 rasterizes
 Rasterizing
 RATT
+raycaster
 readback
 recomputable
 recoveryhardware
@@ -333,6 +369,7 @@ refreshable
 reimplementation
 relativehumidity
 relativeto
+reloadable
 rels
 requestfailed
 reselecting
@@ -373,6 +410,7 @@ SKYRIPPER
 smoot
 speedms
 spillholediameter
+splittable
 ssaero
 sscale
 stagenumber
@@ -387,6 +425,7 @@ stripwidth
 strmr
 subclassing
 subcomponents
+subresource
 Substitutor
 sust
 sustainers
@@ -399,9 +438,11 @@ Temurin
 tfins
 thrustcurve
 thrustcurve's
+thrustcurves
 thzero
 Timeto
 tipchord
+titebond
 Toggleable
 transcendentals
 trapezoidfinset
@@ -416,6 +457,7 @@ tubefins
 tubefinset
 turb
 unawaited
+unbuildable
 unbuilt
 uncanted
 unclickable
@@ -457,9 +499,11 @@ windmodeltype
 windspeed
 windspeedms
 windturbulence
+wordmark
 worktree
 xform
 xunits
 yunits
 zenrockets
 zoomable
+Русский

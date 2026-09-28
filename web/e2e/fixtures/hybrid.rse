@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<engine-database>
+  <engine-list>
+    <engine mfg="Bench Aerospace" code="J350-P" Type="hybrid" dia="54" len="622"
+            initWt="1620" propWt="680" delays="P" auto-calc-mass="0" auto-calc-cg="0"
+            Itot="640" avgThrust="350" peakThrust="470" burn-time="1.83">
+      <comments>A bench-built hybrid, for the import test.</comments>
+      <data>
+        <eng-data t="0" f="0" m="1620" cg="311"/>
+        <eng-data t="0.1" f="470" m="1580" cg="309"/>
+        <eng-data t="0.5" f="410" m="1420" cg="305"/>
+        <eng-data t="1.0" f="360" m="1230" cg="300"/>
+        <eng-data t="1.5" f="300" m="1050" cg="296"/>
+        <eng-data t="1.83" f="0" m="940" cg="294"/>
+      </data>
+    </engine>
+  </engine-list>
+</engine-database>

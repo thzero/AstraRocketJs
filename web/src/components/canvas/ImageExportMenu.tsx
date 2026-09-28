@@ -67,8 +67,8 @@ export function ImageExportMenu({
         <div
           // A `role="menu"` whose children are plain buttons is an invalid
           // structure: screen readers announce "menu, 0 items". Escape and
-          // focus-return complete the menu-button contract that AppHeader
-          // already implements; only outside-pointerdown used to close this.
+          // focus-return complete the menu-button contract that AppHeader also
+          // implements; outside-pointerdown alone is not enough to close this.
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
               e.stopPropagation();

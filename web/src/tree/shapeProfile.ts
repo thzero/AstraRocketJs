@@ -19,6 +19,8 @@
  *   false draws the unclipped delta shape r1 + shape(x, r2−r1, length), the
  *   same profile the engine then flies.
  */
+import type { ComponentNode } from '../engine/openRocketEngine';
+import { num } from './nodeProps';
 
 const MINFEATURE = 0.001;
 const CLIP_PRECISION = 0.0001;
@@ -151,8 +153,8 @@ function calculateClip(shape: string, param: number, length: number, r1: number,
  * The abscissas outerProfile() samples: the even 0..length ladder, plus any
  * caller-supplied `extra` merged in (sorted, deduped, clamped to the span).
  *
- * WHY the extras exist: a consumer that has to CUT the profile at some x — the
- * 3D-print splitter in tree/splitSolid.ts — otherwise lands its cut plane on a
+ * WHY the extras exist: a consumer that has to read the profile AT some x —
+ * services/reportGeometry.ts, sizing a part at a station — otherwise lands on a
  * chord between two samples instead of on the true curve. The error is tiny
  * (a 3" 4:1 tangent ogive has a ~1238 mm ogive radius, so a 4.76 mm chord has
  * a 0.0023 mm sagitta, three orders below print resolution, and it is the same
@@ -239,4 +241,37 @@ export function outerProfile(
     pts.push([x, radiusAt(flipped ? length - x : x)]);
   }
   return pts;
+}
+
+/**
+ * The outer radius of a SYMMETRIC component at one station along it, in meters.
+ *
+ * `SymmetricComponent.getRadius(x)`: a tube is one radius end to end, a nose
+ * cone runs from a point to its base and a transition between its two ends. The
+ * station is clamped into the part, as the kernel's own getter does.
+ *
+ * `extraX` gives the profile an exact sample at the station asked for, so this
+ * reads the true curve rather than a chord between two even samples. Note
+ * `reportGeometry` keeps its own copy of the same call: it already has the pair
+ * of radii in hand from its walk, and would have to look them up again to use
+ * this.
+ */
+export function stationRadius(node: ComponentNode, x: number): number {
+  const length = num(node, 'length');
+  switch (node.type) {
+    case 'nosecone':
+    case 'transition': {
+      const foreR = node.type === 'nosecone' ? 0 : num(node, 'foreRadius');
+      const aftR = num(node, 'aftRadius');
+      if (!(length > 0)) return aftR;
+      const shape = typeof node['shape'] === 'string' ? (node['shape'] as string) : 'conical';
+      const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
+      const at = Math.max(0, Math.min(length, x));
+      const param = typeof node['shapeParameter'] === 'number' ? (node['shapeParameter'] as number) : undefined;
+      const pts = outerProfile(shape, param, length, foreR, aftR, 1, [at], clipped);
+      return pts.find(([px]) => Math.abs(px - at) < 1e-9)?.[1] ?? aftR;
+    }
+    default:
+      return num(node, 'outerRadius');
+  }
 }

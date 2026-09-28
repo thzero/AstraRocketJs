@@ -29,6 +29,16 @@ export interface OrkTreeImportResult {
    * to null when the file declares the ISA standard atmosphere).
    */
   launch?: Partial<LaunchConditions>;
+  /**
+   * RockSim thrust curves the `.ork` archive carried, as raw `.rse` text.
+   *
+   * OpenRocket embeds the curve of every motor a design uses so the file opens
+   * on an install that does not have them. `loadOrk` falls back to these when
+   * the catalog cannot resolve a motor by name, instead of leaving the mount
+   * empty. Absent for a bare-XML `.ork` and for a `.rkt`, neither of which can
+   * carry one.
+   */
+  embeddedMotors?: string[];
 }
 
 /** One rocket-level <motorconfiguration> declaration. */

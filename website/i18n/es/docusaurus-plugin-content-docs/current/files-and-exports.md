@@ -29,6 +29,15 @@ En el otro sentido, RockSim no tiene elemento para los **botones de raíl** ni p
 
 > **Menú → Abrir y Guardar como trabajan sobre los diseños guardados dentro de la aplicación** (consulta [Diseños guardados](#saved-designs) más abajo); los archivos `.ork` van y vienen de tu disco mediante **Importar** y **Exportar**.
 
+## Archivos de motor (`.eng` / `.rse`) {#motor-files-eng--rse}
+
+Un motor que el catálogo no trae entra desde un archivo, con **Importar .eng / .rse** en el selector de motores. Un motor importado lleva su propia curva de empuje, así que no necesita ninguna consulta y funciona sin conexión; aparece en el selector con una ★, se puede eliminar desde ahí y se guarda en tu navegador, no en el diseño.
+
+- **`.eng` (RASP)** es el formato de texto plano que ofrece casi cualquier sitio. Da la designación, el diámetro, la longitud, los retardos, el peso de propelente y el peso cargado, y la curva de empuje. La masa en cada instante se reconstruye a partir de la curva de empuje y del peso de propelente, que es lo que OpenRocket hace también con un archivo RASP.
+- **`.rse` (RockSim)** es XML y lleva más: qué **es** el motor (de un solo uso, recargable o **híbrido**), una lista de retardos que puede decir **taponado**, el CG real del motor en el despegue, y la masa de propelente en cada muestra en lugar de un único número para toda la combustión. Cuando un archivo aporta esa columna de masa, la simulación la vuela en vez de la reconstrucción. Un `.rse` que pide que se recalculen su masa o su CG recibe igualmente la reconstrucción, igual que en OpenRocket.
+
+El formato se lee del contenido del archivo, no de su nombre, así que un `.rse` guardado como `.eng` funciona igual. Un solo `.rse` puede contener toda la gama de un fabricante; se importan todos sus motores y el selector indica cuántos han entrado.
+
 ## Diseños guardados {#saved-designs}
 
 La aplicación mantiene una biblioteca de tus cohetes en el navegador, así que puedes trabajar en varios y cambiar entre ellos sin exportar un archivo cada vez.
@@ -76,7 +85,7 @@ Notas sobre la geometría 3D:
 - Todo se escala a **milímetros** (la unidad que asumen los laminadores y el CAD) y cada pieza es un **sólido estanco y variedad cerrada**: un laminador no lo rechazará.
 - Los **tubos son huecos** (con espesor de pared real), no varillas macizas; las ojivas y transiciones incluyen sus **hombros**; una ojiva, transición o mamparo es un cuerpo macizo.
 - Un **juego de aletas** exporta una aleta; un **juego de aletas tubulares** exporta un tubo: imprimes o cortas tantos como tenga el diseño.
-- Los nombres de archivo salen del nombre del componente (o de su tipo).
+- Los nombres de archivo son el del cohete y luego el del componente (o su tipo), para que las ojivas de dos diseños no choquen en tu carpeta de descargas. Consulta [Cómo se llama una descarga](#what-a-download-is-called).
 
 ## Informe de diseño del cohete (PDF / CSV) {#rocket-design-report-pdf--csv}
 
@@ -87,6 +96,7 @@ Marca los elementos que quieras incluir:
 - **Informe de diseño** — un esquema del cohete más los números de resumen (longitud, diámetro máximo, masa y CG vacío/cargado, CP, finura, estabilidad en calibres y %, coeficiente de resistencia a Mach 0,3, pendiente de fuerza normal e inercias de cabeceo y balanceo), para el cohete entero y para cada etapa.
 - **Detalle de piezas** — por etapa, cada componente con su material, dimensiones y masa.
 - **Plantillas de aletas**, **de ojivas** y **de transiciones** — contornos **1:1** para cortar o calcar (las aletas incluyen cualquier pestaña pasante), con una regla en cm/pulgadas para verificar la escala de impresión. Imprime al **100 % / tamaño real** (sin ajuste de página).
+- **Guía de marcado de aletas**: tiras **1:1** que se enrollan alrededor del tubo y dicen *en qué punto de su contorno* va cada pieza, una por cada tubo del cuerpo que lleve un juego de aletas. Ver [Guía de marcado de aletas](#fin-marking-guide) más abajo.
 
 Además de algunas opciones:
 
@@ -102,6 +112,38 @@ Después elige una salida:
 **Unidades** (se recuerda, junto a las demás opciones) elige en qué se escriben el PDF y el CSV: **Mis unidades por defecto** sigue a [Ajustes ▸ Unidades](./settings.md#units), o fija el documento en **Métricas** o **Imperiales** para que se lea igual sea cual sea la unidad en la que estés trabajando, útil cuando el informe es para otra persona. Ten en cuenta que «mis unidades por defecto» se refiere a los valores de esa pestaña y *no* a la unidad que hayas puesto en un campo concreto: un informe mitad en pulgadas y mitad en centímetros según dónde hayas hecho clic no le sirve a nadie. Las plantillas 1:1 y la regla impresa siguen siempre en mm/cm, porque miden la página.
 
 El botón de **Ajustes** (que se recuerda) controla los **colores de relleno y borde de las plantillas**, el **tamaño de papel** (Carta / A4) y la **orientación** (Vertical / Horizontal).
+
+### Guía de marcado de aletas {#fin-marking-guide}
+
+Las plantillas de corte dan la forma de una aleta. Esto da su **posición**: una tira de papel que se enrolla alrededor del tubo del cuerpo para marcar dónde va cada aleta, tubo, guía de lanzamiento y botón de riel. Es la única ayuda impresa que reciben los **tubos como aletas**, ya que un tubo no tiene contorno del que cortar una plantilla.
+
+Una tira por cada tubo del cuerpo que lleve un juego de aletas, impresa a escala 1:1. Todo lo que va a un ángulo en ese tubo comparte la tira, cada cosa como una flecha que la cruza bajo su propio nombre, así que la guía responde a *dónde va la guía de lanzamiento respecto a las aletas*.
+
+Para usarla: imprime al **100 % / tamaño real**, verifica la regla, recorta la tira, enróllala alrededor del tubo con la flecha **Proa** apuntando a la ojiva y los dos extremos **a tope, sin superponer**, y marca a través de cada flecha. Traza una línea a lo largo del tubo por cada par de marcas; esa línea es donde va la pieza.
+
+Algunos detalles que conviene saber:
+
+- La tira se corta a la circunferencia **más un espesor de papel** (0,1 mm), porque las marcas quedan por fuera del papel enrollado y no sobre el tubo. Sin eso los extremos no llegan a juntarse, y cuanto más pequeño es el tubo más se nota.
+- La **costura** se sitúa en el hueco más ancho entre marcas, para que nada de lo que hay que marcar acabe debajo de la cinta.
+- Las **aletas inclinadas** se marcan en diagonal, con líneas discontinuas en los extremos de proa y popa de la raíz y una cruz en su centro.
+- Una tira demasiado larga para la página se **corta en piezas** que se unen a tope y se pegan en orden, con las uniones apartadas de las marcas. Nada se reduce de escala nunca: una guía de marcado encogida es peor que ninguna. Un tubo de 4 pulgadas da una vuelta de 320 mm, así que siempre lleva dos piezas.
+- Una pieza que ninguna tira puede llevar se **nombra en una nota al pie** en vez de desaparecer sin más: una guía de lanzamiento en una ojiva o transición, cuya circunferencia cambia a lo largo, o una guía en un tubo sin juego de aletas.
+
+Dónde se sitúa la primera aleta alrededor del cuerpo es el campo **Rotación** del juego de aletas, en la sección **Colocación** del panel de componentes. La guía de lanzamiento y el botón de riel llevan el mismo campo: es una sola propiedad, así que tiene un solo nombre.
+
+### Cómo se llama una descarga {#what-a-download-is-called}
+
+Todas las exportaciones nombran su archivo igual, porque la carpeta de descargas es una lista plana compartida con todo lo demás que guarda el navegador. Las partes, en orden de lectura:
+
+| El archivo trata de | Se llama | Por ejemplo |
+| --- | --- | --- |
+| el cohete | el cohete y luego qué es el archivo | `Bertha-design.ork`, `Bertha-report.pdf`, `Bertha-aero-table.csv`, `Bertha-2d.svg` |
+| una simulación | el cohete, la simulación y qué es el archivo | `Bertha-C6 flight-flight-data.csv`, `Bertha-C6 flight-flight-events.csv`, `Bertha-C6 flight-flight-path.kml` |
+| una pieza imprimible | el cohete y luego el componente | `Bertha-Nose cone.stl` |
+
+Una exportación de simulación lleva el nombre de la ejecución además del cohete, porque un cohete tiene varias simulaciones y son justo lo que se compara. Los caracteres que un sistema de archivos no admite se sustituyen, y una parte vacía desaparece, así que un diseño sin nombre sigue dando un nombre de archivo utilizable.
+
+El nombre del cohete es el suyo propio si se lo has puesto y, si no, el del archivo del que se importó. Volver a guardar un diseño que abriste devuelve el mismo nombre en vez de acumular sufijos, porque ese nombre se lee de dentro del archivo y nunca del nombre de archivo.
 
 ## Exportar datos {#exporting-data}
 
@@ -120,6 +162,7 @@ Tus elecciones se recuerdan para la siguiente exportación.
 
 - **Datos de vuelo** — el historial temporal simulado (desde la vista de Vuelo).
 - **Tabla de resistencia** — los datos de Cd, desglose y CP frente a Mach (desde la vista Aero).
+- **Eventos de vuelo** — la tabla de eventos, una fila por evento, desde el botón **CSV** de la tabla [Eventos de vuelo](./running-a-simulation.md#flight-events). Donde la tabla en pantalla guarda los extras de cada evento en una línea debajo, el archivo da a cada uno su propia columna: estabilidad, relación empuje-peso, ángulo de ataque, Mach y presión dinámica, más el componente de origen y la etapa. La mayoría de las filas deja la mayoría de esas columnas en blanco, que es la forma honesta: solo la fila de salida de rampa tiene relación empuje-peso, y una celda vacía dice que no la tiene, no que valga cero. Es distinto de los datos de vuelo de arriba, que ya pueden llevar los eventos como líneas de comentario: un comentario es para quien lee, y esto son los eventos como datos.
 
 ## Exportar la trayectoria de vuelo (KML / GPX / CSV) {#exporting-the-flight-path-kml--gpx--csv}
 

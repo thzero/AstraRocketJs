@@ -7,7 +7,12 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const FILES = { motors: 'motors.generated.json', components: 'components.generated.json' };
+const FILES = {
+  motors: 'motors.generated.json',
+  components: 'components.generated.json',
+  materials: 'materials.generated.json',
+  contributors: 'contributors.generated.json',
+};
 
 /** Recompute manifest.json from whatever catalogs are present in `dir`. */
 export function writeDataManifest(dir) {

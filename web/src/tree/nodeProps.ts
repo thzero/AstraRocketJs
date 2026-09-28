@@ -3,8 +3,8 @@ import type { ComponentNode, ComponentPosition } from '../engine/openRocketEngin
 /**
  * Typed accessors for a ComponentNode's open-ended parameter bag
  * (`[param: string]: unknown`). Each reads one key, returning the value when it
- * has the expected type and the fallback otherwise — the guard-and-cast that
- * every consumer used to hand-roll as a local `num` / `numVal` helper.
+ * has the expected type and the fallback otherwise, so no consumer has to
+ * hand-roll the guard-and-cast as a local helper.
  */
 
 /** Numeric parameter, or `fb` (default 0) when absent / non-numeric / non-finite.
@@ -63,12 +63,10 @@ const AXIAL_METHODS: ReadonlySet<string> = new Set<ComponentPosition['method']>(
  * the offset is a finite number, each falling back to the kernel's own
  * default (`top`, 0: ComponentFactory.java:606-607) otherwise.
  *
- * `position.ts` used to `as ComponentPosition` the raw field in three places
- * and put `pos.offset` straight into arithmetic, while `scaleRocket.ts`
- * guarded `typeof pos.offset === 'number'` in a fourth. A hand-edited design
- * or a hostile `.ork` with `offset: "0.1"` reached `pLen - childLen + "0.1"`
- * and produced a string station. One reader, the same guard the numeric
- * accessors above already apply.
+ * One reader, applying the same guard as the numeric accessors above, rather than
+ * an `as ComponentPosition` cast at each call site: a hand-edited design or a
+ * hostile `.ork` with `offset: "0.1"` otherwise reaches `pLen - childLen + "0.1"`
+ * and produces a string station.
  *
  * `ork` (what an imported file actually said) rides along untouched, since the
  * exporter writes it back verbatim.

@@ -2,15 +2,14 @@
 /**
  * Run ONE TeaVM target's parity main() and print what it printed. Nothing else.
  *
- * This exists as a SEPARATE, DISPOSABLE PROCESS, and that is the whole point.
+ * This is a SEPARATE, DISPOSABLE PROCESS, and it has to be.
  *
- * ON LINUX, A PROCESS THAT HAS INSTANTIATED THE WASM-GC MODULE CANNOT EXIT.
- * Not by falling off the end, not by process.exit(), not after waiting. Its
- * event loop stops running too, so timers armed beforehand never fire. Only a
- * signal gets it out. Measured on Ubuntu 26.04 / node 22.23.2, and merely
- * LOADING the module is enough - main() need not run. It does not reproduce on
- * Windows, which is why it only ever showed up in CI. The bottom of this file
- * has the numbers.
+ * ON LINUX, A PROCESS THAT HAS INSTANTIATED THE WASM-GC MODULE CANNOT EXIT. Not by
+ * falling off the end, not by process.exit(), not after waiting. Its event loop
+ * stops running too, so timers armed beforehand never fire. Only a signal gets it
+ * out. Measured on Ubuntu 26.04 / node 22.23.2, and merely LOADING the module is
+ * enough - main() need not run. It does not reproduce on Windows, so it shows up
+ * only in CI. The bottom of this file has the numbers.
  *
  * So this process does the loading, prints, and is SIGKILLed - by itself
  * normally, by parity.mjs if it overstays. parity.mjs itself never touches a

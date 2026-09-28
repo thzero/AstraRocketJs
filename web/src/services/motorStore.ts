@@ -18,11 +18,15 @@ export interface CachedEntry<T> {
 }
 
 /**
- * A user-imported motor (from a `.eng` file). Unlike a catalog motor — specs
- * only, curve fetched from thrustcurve on demand — a custom motor carries its
- * OWN thrust curve, so it resolves to a MotorSpec entirely from local data with
- * no network. It is user content: created by import, listed in the picker, and
- * removable.
+ * A user-imported motor (from a `.eng` or `.rse` file). Unlike a catalog motor
+ * — specs only, curve fetched from thrustcurve on demand — a custom motor
+ * carries its OWN thrust curve, so it resolves to a MotorSpec entirely from
+ * local data with no network. It is user content: created by import, listed in
+ * the picker, and removable.
+ *
+ * The last four fields are what `.rse` carries and RASP `.eng` cannot. They are
+ * all optional, so an `.eng` motor stored before they existed still validates
+ * and still resolves.
  */
 export interface CustomMotor {
   /** Stable local id, e.g. "custom:<manufacturer>:<designation>". */
@@ -40,7 +44,26 @@ export interface CustomMotor {
   /** Ejection delays the file lists (informational; the picker sets the delay). */
   delays?: number[];
   samples: { time: number; thrust: number }[];
-  source: 'eng';
+  /**
+   * The delays as the CATALOG spells them ("4,6,10,P"), which is the only form
+   * that can say "plugged" — `motorPicker.offersPlugged` reads this. `.eng`
+   * has no way to mark a motor plugged, so it fills `delays` above instead.
+   */
+  delayList?: string;
+  /** What the file says the motor IS. A hybrid is why `.rse` import exists. */
+  type?: 'SU' | 'reload' | 'hybrid';
+  /**
+   * Mass at each sample, in grams, parallel to `samples`.
+   *
+   * The real reason `.rse` is the richer format: with this the kernel flies the
+   * MEASURED mass curve, instead of one reconstructed from total impulse and a
+   * single header number (`thrustcurve.samplesToMotorSpec`, which is still the
+   * path for every motor without it).
+   */
+  massesG?: number[];
+  /** Launch CG, mm from the motor's forward end. Absent → half the length. */
+  cgMm?: number;
+  source: 'eng' | 'rse';
 }
 
 export interface MotorStore {
@@ -100,9 +123,23 @@ function isCustomMotor(v: unknown): v is CustomMotor {
     Number.isFinite(m.length) &&
     Number.isFinite(m.totalWeightG) &&
     Number.isFinite(m.propWeightG) &&
-    isThrustSampleArray(m.samples)
+    isThrustSampleArray(m.samples) &&
+    isMassArray(m.massesG, m.samples.length) &&
+    (m.cgMm === undefined || Number.isFinite(m.cgMm))
   );
 }
+
+/**
+ * The per-sample mass column of a `.rse` motor: absent, or one finite
+ * non-negative gram figure per sample.
+ *
+ * Checked as hard as `samples` is, and for the same reason: this array reaches
+ * the kernel as the flown mass curve. A short one would leave `masses` and
+ * `times` different lengths across the TeaVM boundary, and a NaN in it is the
+ * blank-design failure `samplesToMotorSpec` already documents.
+ */
+const isMassArray = (v: unknown, samples: number): boolean =>
+  v === undefined || (Array.isArray(v) && v.length === samples && v.every((x) => Number.isFinite(x) && x >= 0));
 
 /**
  * Default MotorStore: persists through a KeyValueStore (IndexedDB by

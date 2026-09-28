@@ -20,7 +20,7 @@ Los componentes admitidos incluyen:
 - **Recuperación** — paracaídas, cinta, cordón de choque.
 - **Masa y exterior** — componente de masa, guía de lanzamiento, botón de raíl, carenados y cápsulas.
 
-Cada pieza expone las dimensiones y opciones que el motor de física necesita (longitudes, radios, espesor, geometría de aletas, etc.). La edición está amortiguada: el modelo se reconstruye y las estadísticas se refrescan mientras escribes o arrastras.
+Cada pieza expone las dimensiones y opciones que el motor de física necesita (longitudes, diámetros, espesor, geometría de aletas, etc.). La edición está amortiguada: el modelo se reconstruye y las estadísticas se refrescan mientras escribes o arrastras.
 
 ### Despliegue dual
 
@@ -32,9 +32,27 @@ No es solo una etiqueta. La simulación juzga cada apertura de forma distinta se
 
 Un componente de masa no es solo un lastre: puede contener estructura interior propia, así que una bahía de altímetro o una bandeja de carga útil se modela como la bandeja más los anillos, mamparos, electrónica y equipo de recuperación anidados dentro. Se le añaden piezas igual que a un tubo de cuerpo.
 
+## Cómo se expresan las dimensiones {#how-dimensions-are-stated}
+
+**Toda dimensión circular es un diámetro.** Así se venden los tubos, así los lista el catálogo de piezas, así los etiqueta el árbol de componentes y así los expresa OpenRocket. Los archivos `.ork` guardan radios internamente, y siempre lo han hecho; eso es un detalle del archivo, y el número que escribes nunca es uno de ellos.
+
+**Un tubo también declara su interior.** Los tubos de fuselaje, los tubos interiores, los acopladores, los topes de motor, las aletas tubulares y las guías de lanzamiento muestran un **diámetro interior** entre el diámetro exterior y el espesor de pared. No es un cuarto número independiente: un tubo tiene un exterior y una pared, y el interior es lo que dejan los dos. Por eso escribir un diámetro interior cambia la **pared** y deja el diámetro exterior intacto, porque el exterior de un tubo suele venir decidido por aquello en lo que tiene que encajar. Un interior más ancho que el propio tubo se limita a una pared de cero, nunca a una negativa.
+
+Así las preguntas de ajuste son directas. ¿Entra el motor? Compara el diámetro del motor con el diámetro interior del soporte. ¿Encaja el acoplador en el tubo? Su diámetro exterior contra el diámetro interior del tubo. ¿Pasará la varilla por la guía? El diámetro interior de la guía, que hasta ahora era el que trajera el archivo, porque no existía ningún campo para la pared de una guía.
+
+**Un encaje puede seguir al tubo en el que entra.** Junto a cada diámetro de encaje, en una ojiva y en los dos extremos de una transición, hay un interruptor. Con él activado, el diámetro es el diámetro interior de la pieza contigua - la de abajo en una ojiva, la de arriba y la de abajo en una transición - y se mantiene así: aumenta el espesor de pared del tubo y el encaje que entra en él lo sigue en la misma pulsación. Mientras está activado la casilla es solo lectura, y al desactivarlo se fija el número que hubiera en ese momento.
+
+Solo sigue el diámetro. Hasta dónde llega el encaje dentro del tubo lo decides tú, así que una pieza con el interruptor activado y sin longitud de encaje sigue sin tener encaje, que es el punto de partida correcto.
+
+El interruptor viene activado en las piezas que añades aquí y desactivado en todo lo que se lee de un archivo, porque en un archivo un encaje ausente significa que la pieza no lo tiene. Nada de lo que importes gana uno. `.ork` no tiene forma de guardar el interruptor, así que un archivo escrito aquí lleva el número ya resuelto y una ida y vuelta por OpenRocket de escritorio lo deja congelado en ese valor.
+
+**Un encaje tiene pared y puede ir cerrado.** Cada uno lleva su propio espesor y un interruptor **Cerrado** que tapa su extremo exterior con un disco del material de la propia pieza. El disco tiene el espesor de la pared del encaje, y es lo que convierte una ojiva en un compartimento cerrado donde puedes meter lastre de morro o un altímetro. Ambos cuentan para la masa, el CG y los momentos de inercia. Una transición tiene un juego por lado, delantero y trasero, y son independientes.
+
+Si dejas en blanco el espesor de un encaje, OpenRocket lo toma de la pared de la propia pieza en cuanto el encaje recibe una longitud, así que un valor ausente no es un cero.
+
 ## Dimensiones obligatorias {#required-dimensions}
 
-Algunas dimensiones definen lo que una pieza *es*. Un tubo de fuselaje sin radio no es un tubo estrecho: no es nada. Por eso esos campos están marcados, y un diseño al que le falte uno no se puede volar.
+Algunas dimensiones definen lo que una pieza *es*. Un tubo de fuselaje sin diámetro no es un tubo estrecho: no es nada. Por eso esos campos están marcados, y un diseño al que le falte uno no se puede volar.
 
 Un campo obligatorio lleva un pequeño **\*** rojo tras su etiqueta, siempre, esté relleno o no. Está ahí para que veas qué necesita una pieza *antes* de dejar algo en blanco.
 
@@ -46,26 +64,38 @@ Si una dimensión obligatoria vale **cero**, el campo escala el aviso: la etique
 
 | Componente | Obligatorio |
 | --- | --- |
-| Ojiva | longitud, radio, espesor |
-| Tubo de fuselaje | longitud, radio, espesor |
-| Transición | longitud, radio anterior, radio posterior, espesor |
+| Ojiva | longitud, diámetro, espesor |
+| Tubo de fuselaje | longitud, diámetro, espesor |
+| Transición | longitud, diámetro anterior, diámetro posterior, espesor |
 | Juego de aletas trapezoidales / elípticas | número de aletas, cuerda raíz, altura, espesor |
 | Juego de aletas de forma libre | número de aletas, espesor |
-| Juego de aletas tubulares | número de tubos, longitud, radio del tubo, espesor |
-| Tubo interior | longitud, radio, espesor |
+| Juego de aletas tubulares | número de tubos, longitud, diámetro del tubo, espesor |
+| Tubo interior | longitud, diámetro, espesor |
 | Acoplador, tope de motor | longitud, espesor |
 | Anillo centrador | espesor |
 | Mamparo | espesor |
-| Guía de lanzamiento | longitud, radio |
+| Guía de lanzamiento | longitud, diámetro |
 | Botón de riel | diámetro exterior |
 | Paracaídas | diámetro, coeficiente de arrastre |
 | Cinta | longitud, anchura, coeficiente de arrastre |
 | Componente de masa | masa |
 | Conjunto de cápsulas / etapa paralela | número de instancias |
 
-**Los radios que se ajustan a la pieza que los contiene se dejan en blanco.** Un acoplador, un tope de motor, un anillo centrador o un mamparo toman su radio exterior de la pieza en la que van montados, y un anillo centrador toma su radio interior del soporte del motor que lo atraviesa, así que dejarlos vacíos es una respuesta real y no un hueco: es lo que los archivos `.ork` llaman *auto*, y el valor se ajusta solo cuando cambias el tubo de tamaño. Si escribes un número, se usa ese. El tubo interior es la excepción: él *es* el soporte del motor, así que su tamaño es justo lo que se está declarando.
+**Los diámetros que se ajustan a la pieza que los contiene se dejan en blanco.** Un acoplador, un tope de motor, un anillo centrador o un mamparo toman su diámetro exterior de la pieza en la que van montados, y un anillo centrador toma su diámetro interior del soporte del motor que lo atraviesa, así que dejarlos vacíos es una respuesta real y no un hueco: es lo que los archivos `.ork` llaman *auto*, y el valor se ajusta solo cuando cambias el tubo de tamaño. Si escribes un número, se usa ese. El tubo interior es la excepción: él *es* el soporte del motor, así que su tamaño es justo lo que se está declarando.
 
-Todo lo demás puede valer cero legítimamente, y por eso no está marcado. Una **cuerda de punta** de 0 es una aleta delta; una **flecha** o un **ángulo de calado** de 0 es una aleta recta; un **hombro** o una **lengüeta** de 0 simplemente no existe; un **voladizo del motor** de 0 está enrasado; un **radio interior** de 0 en un anillo centrador es un disco macizo; una **longitud** de 0 en un componente de masa es una masa puntual; y todos los **retardos** y **desplazamientos angulares** parten de 0. Una etapa no tiene ningún campo obligatorio: sus ajustes son disparadores y retardos.
+Todo lo demás puede valer cero legítimamente, y por eso no está marcado. Una **cuerda de punta** de 0 es una aleta delta; una **flecha** o un **ángulo de calado** de 0 es una aleta recta; un **hombro** o una **lengüeta** de 0 simplemente no existe; un **voladizo del motor** de 0 está enrasado; un **diámetro interior** de 0 en un anillo centrador es un disco macizo; una **longitud** de 0 en un componente de masa es una masa puntual; y todos los **retardos** y **desplazamientos angulares** parten de 0. Una etapa no tiene ningún campo obligatorio: sus ajustes son disparadores y retardos.
+
+
+## Filetes de las aletas {#fin-fillets}
+
+La sección **Filete** de un juego de aletas toma el radio del cordón de cola a lo largo de la raíz de la aleta y el material del que está hecho. Los dos cuentan: el volumen del filete se suma a la masa de cada aleta y su centroide tira del CG hacia atrás, igual que lo calcula OpenRocket de escritorio.
+
+El material importa porque un filete rara vez es del mismo material que la aleta. Un cordón de 6 mm en tres aletas alrededor de un tubo de 26 mm son unos 1,1 g en cartón y 2,0 g en algo con la densidad de la resina epoxi, y el CG se desplaza un par de milímetros con ello. Si dejas el material sin elegir, el cordón se pesa como cartón (680 kg/m³), que es a lo que recurren tanto el núcleo como el escritor de `.ork`. Elige uno de los [adhesivos](#adhesives), o añade el tuyo con el selector de materiales.
+
+**Los tubos como aletas no tienen filete.** Un juego de tubos como aletas es un tubo, no una aleta, así que el núcleo no tiene ningún filete que darle y la sección no aparece.
+
+**La lista de materiales de un filete solo tiene adhesivos**, y la de una pieza estructural tiene todo lo demás. Para usar algo poco común, añádelo con **＋ Añadir personalizado…** y archívalo en Adhesivos. Un material que una pieza ya usa sigue en su lista en cualquier caso.
+
 
 
 ## Aletas de forma libre {#freeform-fins}
@@ -114,6 +144,18 @@ En lugar de introducir dimensiones a mano, usa los selectores contextuales **«S
 
 Aplicar un preajuste solo rellena los campos del componente: puedes retocarlo después. El catálogo son datos de referencia incluidos (~2.900 piezas).
 
+### Guardar tus propias piezas {#saving-your-own-parts}
+
+Una pieza que hayas construido también cabe en ese selector. **Guardar como pieza**, bajo el selector en el panel del componente, almacena la pieza tal como está y la ofrece de nuevo en todos los diseños de ese navegador. Tus propias piezas aparecen primero, marcadas con una ★, y la ✕ que las acompaña las elimina.
+
+Se guarda la **pieza entera**, no solo las dimensiones que muestran las columnas del selector: el material y el acabado, el hombro de una ojiva, el número de cuerdas de un paracaídas, la marca de soporte de motor de un tubo, el color. Guardarla de nuevo con el mismo fabricante y nombre reemplaza la copia anterior. Las piezas unidas a la que guardas (su juego de aletas, su tubo interior) no se guardan con ella.
+
+Las piezas guardadas viven en tu navegador junto a tus materiales personalizados y tus motores importados, así que te acompañan entre diseños pero no entre equipos.
+
+**Menú → Mis piezas** es la biblioteca en sí: todas las piezas guardadas, de cualquier tipo, contenga lo que contenga el diseño abierto. La lista está a la izquierda, agrupada por tipo; al seleccionar una pieza se abre a la derecha.
+
+El editor usa los mismos campos que el panel del componente, en las mismas unidades, así que una ojiva guardada se edita como una ojiva: cambia su nombre, su fabricante o sus notas, y también su forma, longitud, diámetro, hombro, material o color. **Guardar** la escribe en el sitio y la deja seleccionada, así que cambiar el nombre no deja atrás la copia anterior y puedes recorrer la lista sin volver a abrir nada. **Descartar** devuelve la pieza a como estaba almacenada, y pasar a otra pieza con cambios sin guardar pregunta antes. **Eliminar** está en la misma fila, en el otro extremo, y también pregunta. Lo que el editor no muestra es la mitad del panel que describe el lugar de una pieza en un cohete (posición, mover, el selector ordenado por ajuste, la lectura de velocidad de descenso), porque una pieza guardada no tiene padre ni diseño contra el que juzgarse hasta que la aplicas. El selector solo se abre cuando hay seleccionado un componente de un tipo que corresponda, así que no es el lugar para gestionar un mamparo guardado en un cohete que no lleva ninguno. Al eliminar se pregunta primero, en ambos sitios, porque el diseño del que salió la pieza puede llevar mucho tiempo borrado.
+
 ### Dimensionar un paracaídas {#sizing-a-parachute}
 
 Al seleccionar un **paracaídas** aparece una lectura de **dimensionado del descenso** en su panel. A partir de la masa de descenso del diseño (consulta *peso de recuperación*) y la densidad del aire en el campo de vuelo, ofrece:
@@ -128,9 +170,42 @@ Necesita un motor cargado (para conocer la masa de descenso). Es solo una ayuda 
 Todo componente estructural tiene un **material**, que el motor de física usa (por su **densidad**) para calcular la masa y el CG:
 
 - **Materiales incorporados** — la lista completa de OpenRocket (volumen / superficie / línea, con sus densidades). Cada tipo tiene su propia [unidad de densidad](./settings.md#units) — el material sólido por volumen, la tela del paracaídas por superficie y la cuerda por longitud — y la densidad de un material personalizado se lee en la unidad que esté mostrándose.
-- **Materiales personalizados** — define los tuyos (nombre + densidad); se guardan en tu navegador y se reutilizan en todos los diseños.
+- **Materiales personalizados** — define los tuyos (nombre, densidad y a qué grupo pertenece); se guardan en tu navegador y se reutilizan en todos los diseños. Un material personalizado va **dentro de ese grupo**, marcado con una ★, y no en un grupo aparte: casi siempre es una variante de algo que ya está en la lista y se lee mejor a su lado. Si le das el **mismo nombre que a uno incorporado**, lo reemplaza con tu densidad en vez de aparecer dos veces.
 
-> Nota: la **densidad** de un material (y por tanto toda la física) se conserva en un viaje de ida y vuelta por `.ork`, pero el **nombre** de un material no predeterminado puede no sobrevivir todavía a guardar y recargar — consulta las [Preguntas frecuentes](./faq.md).
+> Nota: el **nombre y la densidad** de un material sobreviven al viaje de ida y vuelta por `.ork`, incluso los de un material que esta aplicación tiene y OpenRocket de escritorio no. Lo que no viaja es su pertenencia a tu lista personalizada; ver las [preguntas frecuentes](./faq.md).
+
+La lista de materiales es **la propia de OpenRocket**: los 32 materiales de volumen, los 8 de superficie y los 42 de línea, con los mismos nombres, densidades y grupos. La aplicación añade las dos cosas siguientes.
+
+### Dos cordones elásticos corregidos {#corrected-materials}
+
+El cordón elástico plano de 19 mm y 25 mm aparece una segunda vez como **Elastic cord, corrected**, a 0,0123 y 0,016 kg/m. Las entradas originales no se tocan, así que un diseño que ya nombre una conserva la densidad con la que se guardó. En un diseño nuevo, elige la corregida.
+
+### Adhesivos {#adhesives}
+
+La aplicación añade un grupo **Adhesivos**, para los filetes de las aletas. Cada densidad de abajo está leída de un documento del fabricante, citado en la tabla y guardado en los campos `source` y `note` de la propia entrada.
+
+| Material | kg/m³ | Qué es la cifra | Fuente |
+|---|---|---|---|
+| West System 105/205 Fast | 1180 | densidad relativa curada 1,18 | [TDS](https://www.westsystem.com/app/uploads/2022/09/105_205-207-Combined.pdf) |
+| West System 105/206 Slow | 1180 | curada 1,18 | [TDS](https://www.westsystem.com/app/uploads/2022/09/105_205-207-Combined.pdf) |
+| West System 105/207 Clear | 1150 | curada 1,15 | [TDS](https://www.westsystem.com/app/uploads/2022/09/105_205-207-Combined.pdf) |
+| West System 105/209 Extra Slow | 1160 | curada 1,16 | [TDS](https://www.westsystem.com/app/uploads/2022/09/105_205-207-Combined.pdf) |
+| West System Six10 | 1180 | curada 1,18 (resina 1,17, endurecedor 1,04) | [TDS](https://www.westsystem.com/app/uploads/2022/12/Six10-Technical-Data-Sheet.pdf) |
+| West System G/5 Five-Minute | 1210 | curada 1,21 | [TDS](https://eu.westsystem.com/app/uploads/2022/12/G5-Five-Minute-Epoxy-Adhesive-2024.pdf) |
+| AeroPoxy PR2032/PH3660 | 1110 | curada 1,11 | [Boletín PTM&W](https://web.archive.org/web/20220626225252/https://www.ptm-w.com/aeropoxy/AEROPOXY%20Product%20Bulletins/AEROPOXY%20PR2032%20Bulletin%20w-4%20Hardeners%2024Jun08.pdf) |
+| AeroPoxy ES6209 | 1090 | curada 1,09 (resina 1,10, endurecedor 0,98) | [Boletín PTM&W](https://web.archive.org/web/20240712145738/https://www.ptm-w.com/aeropoxy/AEROPOXY%20Product%20Bulletins/AEROPOXY%20ES6209%20Bulletin.pdf) |
+| RocketPoxy G5000 | 1500 | «densidad relativa mezclada 1,50» | [Ficha de Glenmarc](https://www.glenmarc.com/datasheets/EPOXY/RP_G5000_DATASHEET.pdf) |
+| TotalBoat High Performance | 1080 | **líquido mezclado**: resina 1,11, endurecedor ~1,00, 2:1 en volumen | [SDS](https://portal.sdsguru.com/SDS/Download/26223), [proporciones](https://www.totalboat.com/products/high-performance-epoxy-resin) |
+| BSI Quik / Mid / Slow-Cure | 1060 | **líquido mezclado**: par del SDS 0,97 / 1,15, 1:1 en volumen | [SDS](https://bsi-inc.com/sds_pdf/sds_slow_cure.pdf) |
+| J-B Weld Original | 1840 | **líquido mezclado**: parte A 1,78, parte B 1,902, 1:1 en volumen | [SDS parte A](https://cecas.clemson.edu/cedar/wp-content/uploads/2016/10/J-B-Weld.pdf), [SDS parte B](https://media.napaonline.com/is/content/GenuinePartsCompany/2118182pdf) |
+| Cola de carpintero (PVA, seca) | 1190 | película seca; ver abajo | [TDS de Titebond III](https://ardec.ca/media/catalog/specs/tds-titebond-III-ultimate-wood-glue.pdf) |
+
+Notas sobre las cifras:
+
+- **Curado, no mezclado.** West System, AeroPoxy y RocketPoxy dan el sólido curado. Los demás dan sus componentes líquidos en la proporción del fabricante; un cordón curado queda de un 2 a un 3 por ciento más denso.
+- **La cola de carpintero** es la cifra en seco. Modela el cordón una vez seco, no recién aplicado.
+- **Un filete espesado es otro material.** Las microesferas bajan un cordón de West System a unos 600-800. Pesa tu propia mezcla y añádela como material personalizado.
+- **ProLine 4500 no está**: el fabricante no publica su densidad. Para añadirla, pesa un volumen conocido y divide.
 
 ## Soporte del motor {#motor-mount}
 

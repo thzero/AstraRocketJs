@@ -2,6 +2,14 @@
 
 Every `PATCH(...)` comment in `src/java/` points here. This is that file.
 
+Entries below are dated and are a RECORD: their counts and findings were true when
+written, and are left alone rather than restated. For what is true now, read the
+non-dated sections and `extract/DIVERGENCE.txt`.
+
+The `A`/`G`/`D`/`P` labels are finding ids from the `engine-java/` audit run against
+`docs/AUDIT_PROMPT_ENGINE.md`. That audit's report was never committed, so the ids
+are cross-references within this ledger and nothing else.
+
 ## How the pieces fit
 
 - **`patches/` is an INPUT, not a record.** Each file here is a complete,
@@ -46,14 +54,14 @@ diffs remain in `docs/rasaero/diffs/`. `extract --check` now prints both lists
 on every run, so the distinction is visible instead of having to be
 reconstructed.
 
-## The 16 patches
+## The 18 patches
 
 | File (under `info/openrocket/core/`) | Why |
 | --- | --- |
 | `aerodynamics/barrowman/FinSetCalc.java` | RASAero #4 (fin airfoil), #3 (Rogers Kbf), #1 Phase 1. |
 | `aerodynamics/barrowman/SymmetricComponentCalc.java` | RASAero #1 Phase 1 — opt-in supersonic nose/body aero. |
 | `rocketcomponent/FinSet.java` | TWO reasons. (1) `java.awt.geom.Point2D` → `core.util.Geo2D` (no AWT under TeaVM). (2) RASAero #4: a 62-line airfoil-section API at `FinSet.java:282-348` (`airfoilSection`, `airfoilLeDiamond`, `airfoilTeDiamond`, `finLeRadius`) that `FinSetCalc.java:136-139` reads in its constructor. Re-extracting this file verbatim plus the `Geo2D` line BREAKS THE FINSETCALC COMPILE - the same failure shape the 2026-09-16 reconciliation hit with `setStubbyNoseFloor`. See `docs/rasaero/diffs/`. |
-| `rocketcomponent/FreeformFinSet.java` | `java.awt.geom` (`Line2D`/`Point2D`) → `core.util.Geo2D`. |
+| `rocketcomponent/FreeformFinSet.java` | TWO reasons. (1) `java.awt.geom` (`Line2D`/`Point2D`) → `core.util.Geo2D`. (2) `setPoints` RECORDS a refused outline (`isOutlineRefused`), so the bridge can refuse the build by name instead of flying the default fin - see "A refused fin outline is no longer flown as the default fin". |
 | `rocketcomponent/ComponentAssembly.java` | `Collections.emptyList()` → `new ArrayList<>()`. |
 | `rocketcomponent/FlightConfiguration.java` | `ConcurrentLinkedQueue` → `LinkedList` (TeaVM classlib gap). |
 | `rocketcomponent/FlightConfigurationId.java` | `java.util.UUID` → `core.util.LongUUID` (TeaVM's UUID has no `(long, long)` constructor, `getMostSignificantBits` or `compareTo`). |
@@ -66,6 +74,8 @@ reconstructed.
 | `simulation/SimulationOptions.java` | Dropped the `java.nio.file` lookup-table subsystem — absent from TeaVM's classlib. |
 | `unit/Unit.java` | Dropped `Locale.Category` — absent from TeaVM's classlib. |
 | `util/ArrayList.java` | `clone()` rewritten for WASM-GC (the `ClassCastException` documented at `build.gradle:81-82`). |
+| `masscalc/MassCalculation.java` | `PATCH(offaxis-roll-inertia)`: a motor in a single off-axis mount gets its parallel-axis roll inertia. See "Off-axis tubes and motors carry their roll inertia". |
+| `rocketcomponent/RingComponent.java` | `PATCH(offaxis-roll-inertia)`: an off-axis inner tube, alone or clustered, adds its instances' parallel-axis spread to its roll inertia. Same section. |
 
 Both `LongUUID` files now carry a `PATCH(teavm-uuid)` marker, so the reason no
 longer has to be reverse-engineered from a diff. Every patch in the table now
@@ -273,7 +283,7 @@ nodes now carry a `drogue` key, and the web app round-trips it through
 OpenRocket's own `<isdrogue>` element.
 
 Parity is unaffected: adding a warning changes no physics, and both targets stay
-clean with `golden.txt` unmoved. `web/src/engine/engineBoundary.test.ts` flies a
+clean with `golden.txt` unmoved. `web/tests/engine/engineBoundary.test.ts` flies a
 real dual-deployment rocket for each branch, since a warning nothing can raise
 looks exactly like one that never fires.
 
@@ -335,7 +345,7 @@ Parity is unaffected (this changes no physics), and `golden.txt` did not move.
 
 ## Two shims stopped matching upstream - 2026-09-19
 
-Both found by the `engine-java/` audit (`docs/AUDIT_ENGINE.md`, P1 and P2) by
+Both found by the `engine-java/` audit (P1 and P2) by
 diffing against the pinned upstream rather than against ourselves. Neither is a
 patch: both are *shims*, and that is the point. `extract --check` walks `src/java`
 against `manifest.txt` and never looks at `src/shims`, so a shim that drifts from
@@ -390,14 +400,14 @@ repeated builds.
 
 This does not close the structural hole. Nothing still compares a shim to the
 upstream class it shadows; `preferencesScenarios()` pins one shim's values, not
-the comparison. See `docs/AUDIT_ENGINE.md` G10.
+the comparison. See engine audit G10.
 
 
 ---
 
 ## The extraction gate now interrogates the patches - 2026-09-19
 
-`docs/AUDIT_ENGINE.md` G1 and G2. Both were demonstrated by running the bad edit
+Engine audit G1 and G2. Both were demonstrated by running the bad edit
 through the gate, not argued.
 
 **The hole.** `--check` verifies one invariant, `src/java == upstream + patches`.
@@ -423,7 +433,7 @@ returned `avg / 0`.
   DP), so deletions and reorderings count.
 - Every patch is reported unconditionally, including delta 0. A zero means the
   patch is byte-identical to upstream, which is the *leftover* the table above
-  says to delete; it is labelled as such in the output.
+  says to delete; it is labeled as such in the output.
 - `extract/DIVERGENCE.txt` is a new committed baseline of those numbers.
   `--check` recomputes and **fails** on any mismatch, on an unlisted patch, on a
   blessed patch that has vanished, and on the baseline file being absent, so
@@ -461,7 +471,7 @@ signing for it.
 
 ## The physics gate is now hard to switch off, and it can see roll - 2026-09-19
 
-`docs/AUDIT_ENGINE.md` G3, G5, G7, G9 and G4. The first four are about the gate
+Engine audit G3, G5, G7, G9 and G4. The first four are about the gate
 being switchable-off or forgeable; G4 is the one real coverage hole they were
 protecting.
 
@@ -533,7 +543,7 @@ golden tolerances are unchanged, so the measured blind band is unchanged.
 
 ## The API boundary defends itself now - 2026-09-19
 
-`docs/AUDIT_ENGINE.md` A1, A2, A3, A5, A6, A7 and G6. Everything here is
+Engine audit A1, A2, A3, A5, A6, A7 and G6. Everything here is
 reachable from an `.ork` file a stranger can send, and every fix below was
 re-verified by driving the **shipped** vendored artifact under Node, not by
 reading the source.
@@ -631,7 +641,7 @@ the app today.
 
 ## The four defaults tables now have one arbiter - 2026-09-19
 
-`docs/AUDIT_ENGINE.md` A14. Four places independently decided what an absent
+Engine audit A14. Four places independently decided what an absent
 field means: `api.ComponentFactory` (`dbl(node, "key", D)`), `treeEdit.defaultNode`,
 `orkImport`, and the renderers' per-call-site `num(node, 'key', fallback)`.
 Nothing derived any of them from the others.
@@ -686,7 +696,7 @@ engine source changed, so parity and `golden.txt` are untouched.
 
 ## Shim drift is detectable, and the Collator stub is no longer a guess - 2026-09-19
 
-`docs/AUDIT_ENGINE.md` G10, G16 and G17.
+Engine audit G10, G16 and G17.
 
 ### G10 - nothing compared a shim to the class it shadows
 
@@ -753,10 +763,10 @@ agree on every pair in that corpus, on both targets.
 
 *One line moved that is not ours.* `flight.para.summary` re-recorded as
 `335.3732629410451` against the committed `335.37326183578364`, a ~3e-9 relative
-difference. That is the JVM run-to-run instability already noted in
-`docs/AUDIT_ENGINE.md` G18, and the new value is exactly what a fresh JVM run on
-this machine produces. It is three orders of magnitude inside the 0.5% flight
-tolerance so the gate is indifferent either way, but the golden now carries a
+difference. That is the JVM run-to-run instability already noted as engine audit
+G18, and the new value is exactly what a fresh JVM run on this machine produces.
+It is three orders of magnitude inside the 0.5% flight tolerance so the gate is
+indifferent either way, but the golden now carries a
 machine-specific value on that one line, which is worth knowing before anyone
 tightens that tolerance.
 
@@ -768,7 +778,7 @@ ratchet green, `web/` green at 1410 tests, typecheck and lint clean.
 
 ## The rest of the audit - 2026-09-19
 
-`docs/AUDIT_ENGINE.md` A8, A9, A10, A12, G8, G12, G13, G18 and the whole D
+Engine audit A8, A9, A10, A12, G8, G12, G13, G18 and the whole D
 (documentation) set. G14 deliberately left open at the owner's direction.
 
 ### Boundary
@@ -955,12 +965,12 @@ shrouds are a feature at all.
 Provenance is now marked at every surface that touches it: `ComponentFactory`,
 `openRocketEngine.ts` (whose comment also promised an `engineTree()` lowering
 that does not exist), `schema.ts`, `orkImport`, `orkExport`, and
-`ATTRIBUTION.md`. The finding moved from A9 to **Appendix R5** in
-`docs/AUDIT_ENGINE.md`, with the rest of the RASAero work.
+`ATTRIBUTION.md`. The finding moved from A9 to **Appendix R5** of the
+engine audit, with the rest of the RASAero work.
 
 ### The shipped target is tested now - 2026-09-19
 
-`docs/AUDIT_ENGINE.md` A4, which is the finding that cannot be fixed, only
+Engine audit A4, which is the finding that cannot be fixed, only
 contained.
 
 **The problem, restated plainly.** The engine compiles twice. TeaVM's JS
@@ -981,7 +991,7 @@ the inputs, which the A2/A3/A5/A6 work did.
 numbers (342 lines, both targets, bit-identical), but no test covered WASM for
 BEHAVIOR. The suite was vouching for a build nobody ships.
 
-`web/src/engine/engineBoundary.wasm.test.ts` loads the real
+`web/tests/engine/engineBoundary.wasm.test.ts` loads the real
 `web/public/engine/openrocket-engine.wasm` through the runtime IIFE exactly as
 `tryLoadWasm()` does, and runs the bad inputs against it: depth-capped JSON, a
 non-finite literal, an uncapped instance count, an over-large sweep, and the
@@ -1025,3 +1035,168 @@ rather than quietly validate against the stale tree.
 `--src` and `OPENROCKET_SRC` still take precedence, so CI (which checks out the
 ref itself, now read from `UPSTREAM` per G11) is unchanged, and `--refresh`
 forces a re-fetch.
+
+## A refused fin outline is no longer flown as the default fin - 2026-09-27
+
+`FreeformFinSet.setPoints` is upstream's guard against a self-intersecting fin,
+and it guards by ROLLING BACK: it snaps the outline to the body, tests
+`intersects()`, and on a crossing puts the previous outline and length back,
+reporting the refusal only through `log.warn`. On the desktop the previous
+outline is whatever the user was editing. Through the bridge it is the outline
+the constructor just built - the kernel's DEFAULT fin - so a design whose file
+or editor states a crossing outline was FLOWN AS A DIFFERENT ROCKET, with no
+error, no warning and no way to tell from any number on screen.
+
+Measured on this build before the change, on a 0.1 m nose + 0.2 m tube with a
+three-fin freeform set:
+
+| outline | length | CP |
+| --- | --- | --- |
+| as drawn (a legal trapezoid) | 0.300 m | 0.24536320141675705 m |
+| a bowtie (two points swapped) | 0.325 m | 0.25880633042174095 m |
+| a repeated point | 0.325 m | 0.25880633042174095 m |
+| **no points at all (the default fin)** | **0.325 m** | **0.25880633042174095 m** |
+
+The last three lines are the same rocket. That is the defect: the two refused
+outlines are indistinguishable from having sent no outline.
+
+- **Change (one line changed in place, one block appended):** the rollback test
+  becomes `if ((outlineRefused = intersects()))` - the same single call, assigned
+  as it is tested - and a `private boolean outlineRefused` plus
+  `public boolean isOutlineRefused()` are appended after upstream's last member.
+  Nothing is inserted above the rollback, so every upstream line keeps its
+  number. Assigned on every call, so a later good outline clears it.
+- **Only `setPoints(ArrayList, boolean)` records.** It is the single path the
+  bridge builds an outline through; `setPoint`, `addPoint` and `removePoint` roll
+  back for an interactive desktop editor and are left exactly as upstream wrote
+  them.
+- **The bridge half (not a patch - `api/ComponentFactory.java`):** the
+  `freeformfinset` case reads the flag after `setPoints` and throws
+  `Fin set "<name>": its outline crosses or touches itself, so it cannot be
+  simulated. Redraw it in the fin editor.`, falling back to `freeform fin set`
+  when the node has no name. A DIVERGENCE from desktop, which substitutes
+  silently: a design that draws one fin and flies another is the worse answer,
+  and it is the answer this engine gave until now.
+- **Not the TeaVM `%g` half.** Upstream reports the refusal with
+  `log.warn(String.format("... (%g, %g) ..."))`, which TeaVM's `Formatter` cannot
+  do; those two lines were already rebuilt with string concatenation when this
+  file was first patched for `Geo2D`, so the crash mmrocket-sim found in the same
+  method could not happen here. What was left was the silent substitution, which
+  no amount of logging fixes in a browser.
+- **The app half:** `services/loadOrk.ts buildForImport` keeps a file that
+  states such an outline OPENABLE. Opening is not flying: the design that cannot
+  be simulated is the one somebody needs to open in order to fix it, and this app
+  can write one, because the `.ork` writer takes the tree rather than the
+  kernel's opinion of it. The tree is handed back as written and only the
+  throwaway handle that seats the file's motors is built from a copy with the
+  freeform outlines dropped; the kernel's own sentence becomes an import note,
+  and the app's rebuild then refuses in the same words in the banner.
+- **Guards:** `web/tests/engine/engineBoundary.test.ts`, "a self-intersecting
+  freeform fin outline is refused" - the named refusal for a crossing and for a
+  repeated point, the unnamed fallback, a valid outline still building at its own
+  length, a good outline building after a refused one, and the table above as an
+  assertion: a refused outline must NOT return the default fin's length.
+  `web/tests/services/loadOrk.unbuildable.test.ts` covers the import, including
+  that a failure the repair cannot reach rethrows the original error.
+- **Divergence:** `extract/DIVERGENCE.txt` 39 → 66 lines for this file.
+- **Artifact:** both targets rebuilt, JS and WASM-GC, which are a matched pair
+  (`build-engine.mjs`). `isOutlineRefused` 0 → 7 occurrences in
+  `web/src/engine/vendor/openrocket-engine.mjs` and the refusal sentence present
+  in it and in `web/public/engine/openrocket-engine.wasm` - the grep, not
+  Gradle's UP-TO-DATE, is the evidence.
+- **Found by:** the 2026-09-27 review of mmrocket-sim (`extract/MMROCKET-SIM`),
+  which fixed the same upstream behavior in their own kernel. Upstreamable: the
+  rollback tells the caller nothing in desktop OpenRocket either.
+
+
+---
+
+## Off-axis tubes and motors carry their roll inertia - 2026-09-27
+
+`PATCH(offaxis-roll-inertia)`, in `masscalc/MassCalculation.java` and
+`rocketcomponent/RingComponent.java`. The first deliberate PHYSICS divergence
+from upstream in this kernel: every patch before it is a TeaVM gap, a
+determinism fix, a RASAero extension, or a refusal the bridge reads. It was
+taken on the user's decision after the 2026-09-27 mmrocket-sim review had
+recorded it as skipped (see `extract/MMROCKET-SIM`).
+
+**The defect, upstream's at `98f05af97`.** A mass at distance r from the roll
+axis adds m * r^2 to roll inertia. Upstream gives that term to pods and parallel
+stages (their children are placed off-axis and `RigidBody.rebase` adds it) and
+to the motors of a multi-motor cluster (an explicit `r^2` loop). It gives it to
+nothing else an inner tube holds:
+
+- `RingComponent.getComponentCG()` puts a single-instance tube on the axis,
+  ignoring `radialPosition`, and its rotational unit inertia is the ring's own
+  `(ro^2 + ri^2) / 2`. A split-cluster tube therefore has no transport term.
+- A clustered tube's CG is the mean of its instance offsets, and its unit
+  inertia is still the single ring's. The tubes' spread about that mean is lost.
+- `calculateMountData` wraps the motors' `r^2` loop in `if( 1 < instanceCount )`,
+  so a single motor in a shifted tube gets none, although
+  `InnerTube.getInstanceOffsets()` carries the shift at every count.
+
+The same two motors 15 mm off the axis therefore had different roll inertia
+depending on whether they were drawn as two split tubes or one `double` cluster.
+
+**Measured**, on the JVM, with the parity scenario below (Ixx in kg m^2):
+
+| design | upstream | patched |
+| --- | --- | --- |
+| split pair, structure | 2.0617052305285663E-4 | 2.0683744390330555E-4 |
+| split pair, loaded | 2.081145230528566E-4 | 2.1958144390330558E-4 |
+| `double` cluster, structure | 2.061705230528566E-4 | 2.0683744390330555E-4 |
+| `double` cluster, loaded | 2.189145230528566E-4 | 2.1958144390330555E-4 |
+| one tube on the axis, structure | 2.0604362283547953E-4 | unchanged, bit for bit |
+| one tube on the axis, loaded | 2.0701562283547952E-4 | unchanged, bit for bit |
+
+Upstream had the split pair's loaded roll inertia 4.9% under the identical
+`double` layout. Patched, the two agree to the last digit of Ixx. Mass, CG and
+Iyy are identical before and after on every row.
+
+**The change.**
+
+- `MassCalculation.calculateMountData`: the `if( 1 < instanceCount )` guard is
+  removed, so every instance adds `eachMass * r^2`. `clusterLocalCM` sits on the
+  mount's parent axis at every count, so the term about that axis belongs to the
+  body and `rebase()` cannot add it twice. An on-axis mount's one offset is
+  `(0, 0, 0)` and adds exactly 0.0. 19 lines of divergence.
+- `RingComponent.getRotationalUnitInertia` returns the ring's own term plus a new
+  private `instanceSpreadUnitInertia()`: the mean squared distance of the
+  instance offsets from the point `getComponentCG()` already places the mass at
+  (the axis for one instance, the mean of the offsets for several). Using that
+  point means no CG moves and no pitch or yaw term appears. When the spread is
+  exactly 0.0 the method returns the upstream value untouched, so centering
+  rings, bulkheads, couplers, engine blocks, sleeves and centerline tubes see no
+  added floating-point operation. 61 lines of divergence, most of it the
+  Javadoc.
+
+**What it moves, and what it does not.** Roll inertia only: the "Rotational
+inertia" flight-data column and the divisor of roll acceleration in
+`AbstractRKSimulationStepper`, so the roll-rate transient of a flight with
+canted fins. The steady spin rate does not depend on inertia, and nothing else
+reads it. The per-fin-set roll forcing and damping coefficients are aerodynamic
+and do not move. CG, CP, margin and trajectory do not move: every existing
+golden value, including the three-tube `flight.cluster.ring3`, is unchanged, and
+both aero scorecards are unchanged (9/135 and 61/135).
+
+**Known residual**, shared with upstream's own cluster motors: the term is
+taken about the ring's PARENT axis. A tube offset d inside a pod set offset D is
+charged m * (D^2 + d^2) and misses the 2 * m * D.d cross term. Recorded, not
+modeled.
+
+- **Guard:** `ParityMain.splitClusterScenarios`, six `mass.split.*` golden lines
+  (split, `double`, and the on-axis control, each as structure and loaded).
+  `golden.txt` 342 to 348 lines; the only other line that moved is
+  `uuid.first`, which reads the process-wide `LongUUID` counter and shifts
+  because the new scenario builds three rockets earlier in the run.
+- **Divergence:** `extract/DIVERGENCE.txt` gains the two files at 61 and 19.
+  `extract --check` OK against `98f05af97`.
+- **Artifact:** both targets rebuilt. `instanceSpreadUnitInertia` appears in
+  `web/src/engine/vendor/openrocket-engine.mjs` and in
+  `web/public/engine/openrocket-engine.wasm`.
+- **Found by:** mmrocket-sim, whose version of this fix is written against an
+  older kernel (`Coordinate` rather than `CoordinateIF`, the old recursive
+  `calculateMotors`, their own subtree-override inertia fix) and could not be
+  taken as whole files. The two hunks were ported onto upstream's current files.
+- **Upstreamable,** and should be offered: the defect is in desktop OpenRocket
+  too. Retire this patch when upstream fixes it.

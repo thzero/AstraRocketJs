@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Bounds } from '@react-three/drei';
 import type { RocketTree, StaticInfo } from '../../engine/openRocketEngine';
@@ -105,6 +106,16 @@ export function Rocket3D({
   // one always highlighted; Reset is a momentary re-fit of the current view and
   // is never highlighted. (No third "3/4" preset — 2D has only two views.)
   const [preset, setPreset] = useState<'side' | 'aft'>('side');
+  // Cutaway (section view): remove the near half of the AIRFRAME so the mount,
+  // rings, couplers and packed bays inside it are seen directly rather than
+  // through a translucent shell. The plane is fixed at z = 0 with the kept half
+  // behind it, which is the half the side preset looks at; it does not follow
+  // the camera, so orbiting past 180 degrees puts you behind the cut and the
+  // side button brings it back. Per-material (not renderer.clippingPlanes)
+  // because only the airframe is cut, and `localClippingEnabled` on the Canvas
+  // below is what makes per-material planes work at all.
+  const [cutaway, setCutaway] = useState(false);
+  const clipPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, -1), 0), []);
   const sidePos: [number, number, number] = [center, 0, camDist * 1.05];
   const aftPos: [number, number, number] = [totalLen + camDist * 0.9, 0, 0];
   const moveCam = (pos: [number, number, number]) => {
@@ -168,6 +179,15 @@ export function Rocket3D({
         >
           {t('view.aft')}
         </button>
+        <button
+          className="file-btn"
+          style={presetStyle(cutaway)}
+          aria-pressed={cutaway}
+          title={t('view.cutawayTitle')}
+          onClick={() => setCutaway((c) => !c)}
+        >
+          {t('view.cutaway')}
+        </button>
       </div>
       <Canvas
         // Measure the LAYOUT box, not the painted one. On a portrait phone the
@@ -182,7 +202,10 @@ export function Rocket3D({
         // The export's live-canvas FALLBACK reads the drawing buffer after the
         // frame — without this flag WebGL may have discarded it and drawImage
         // returns black. The preferred offscreen path does not need it.
-        gl={{ preserveDrawingBuffer: true }}
+        // localClippingEnabled is what lets a MATERIAL carry its own clipping
+        // plane (the cutaway); without it three.js honors only the renderer's
+        // global planes and the toggle does nothing.
+        gl={{ preserveDrawingBuffer: true, localClippingEnabled: true }}
         onCreated={(state) => {
           r3f.current = { gl: state.gl, scene: state.scene, camera: state.camera, setFrameloop: state.setFrameloop };
         }}
@@ -195,7 +218,12 @@ export function Rocket3D({
         <directionalLight position={[-0.5, -1.5, -2.5]} intensity={0.35} />
         <Bounds fit clip observe margin={1.1}>
           <group>
-            <RocketModel pieces={pieces} selectedId={selectedId} onSelect={onSelect} />
+            <RocketModel
+              pieces={pieces}
+              selectedId={selectedId}
+              onSelect={onSelect}
+              clip={cutaway ? clipPlane : null}
+            />
             {/* CG/CP sit on the rocket axis — inside the shell — so they must
               render ON TOP (depthTest off, high renderOrder) to be visible,
               exactly like the 2D markers. `transparent` puts them in the

@@ -35,7 +35,7 @@ On a **phone** the same areas become tabs along the bottom, because there is no 
 
 The components panel is desktop-only, so a phone is for reading and simulating a design rather than building one.
 
-The top bar has **undo / redo**, a language switcher (English · Español), a note of when your rocket was last saved, and the **app menu**: New, Open… and Save As… (the in-app design library), **Import ▸ OpenRocket** and **Export ▸ OpenRocket / RASAero II** for `.ork` and other files on disk, **Rocket Design Report**, **Motor Dashboard**, **Settings**, **Help**, **Privacy** and **About**.
+The top bar has **undo / redo**, a language switcher (English · Español), a note of when your rocket was last saved, and the **app menu**: New, Open… and Save As… (the in-app design library), **Import ▸ OpenRocket** and **Export ▸ OpenRocket / RASAero II** for `.ork` and other files on disk, **Rocket Design Report**, **Motor Dashboard**, **Launch Locations**, **My Parts**, **Settings**, **Help**, **Privacy** and **About**.
 
 ## Your first rocket
 
@@ -56,4 +56,4 @@ Opening one behaves exactly like importing a `.ork`: you get your own unsaved co
 
 ## Where your data lives
 
-Your rocket is a `.ork` file **on your disk** — open and save it explicitly. The app also keeps a **working copy in your browser** so a refresh or accidental close won't lose your current design, along with your custom motors, materials, and [settings](./settings.md). Nothing is uploaded anywhere.
+Your rocket is a `.ork` file **on your disk** — open and save it explicitly. The app also keeps a **working copy in your browser** so a refresh or accidental close won't lose your current design, along with your custom motors, saved parts, materials, saved launch locations and [settings](./settings.md). Nothing is uploaded anywhere.

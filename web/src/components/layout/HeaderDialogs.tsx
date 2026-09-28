@@ -13,6 +13,7 @@ import { PrivacyDialog } from './PrivacyDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { MotorDashboard } from '../sim/MotorDashboard';
 import { LocationsDialog } from '../sim/LocationsDialog';
+import { SavedPartsDialog } from '../design/SavedPartsDialog';
 import { useHelpStore } from '../../state/helpStore';
 
 /**
@@ -28,7 +29,17 @@ import { useHelpStore } from '../../state/helpStore';
  */
 
 export type HeaderDialog =
-  'motors' | 'report' | 'about' | 'privacy' | 'settings' | 'library' | 'examples' | 'print' | 'locations' | 'saveAs';
+  | 'motors'
+  | 'report'
+  | 'about'
+  | 'privacy'
+  | 'settings'
+  | 'library'
+  | 'examples'
+  | 'print'
+  | 'locations'
+  | 'parts'
+  | 'saveAs';
 
 type OpenFlags = Record<HeaderDialog, boolean>;
 
@@ -42,6 +53,7 @@ const NONE_OPEN: OpenFlags = {
   examples: false,
   print: false,
   locations: false,
+  parts: false,
   saveAs: false,
 };
 
@@ -83,6 +95,7 @@ function HeaderDialogs({ flags, onClose }: { flags: OpenFlags; onClose: (id: Hea
       {flags.examples && <ExamplesDialog onClose={() => onClose('examples')} />}
       {flags.print && <PrintExportDialog onClose={() => onClose('print')} />}
       {flags.locations && <LocationsDialog onClose={() => onClose('locations')} />}
+      {flags.parts && <SavedPartsDialog onClose={() => onClose('parts')} />}
       {flags.saveAs && (
         <DesignPropertiesDialog
           title={t('file.saveAs')}

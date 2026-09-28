@@ -5,10 +5,10 @@ import { test, expect, openTab, runFlight } from './base';
  * `revision` and `designType` — all round-tripped to the `.ork`, none of them
  * physics.
  *
- * The store replaces the whole tree object for these edits, and both the engine
- * rebuild and the result-invalidation used to key on the tree's object identity.
- * So typing a designer name ran a full engine rebuild + aero sweep and threw
- * away every simulation result the user had.
+ * The store replaces the whole tree object for these edits, so neither the engine
+ * rebuild nor the result-invalidation may key on the tree's object identity: typing
+ * a designer name would run a full engine rebuild + aero sweep and throw away every
+ * simulation result.
  */
 test('editing the design metadata keeps the flight results', async ({ page }) => {
   await page.goto('/');

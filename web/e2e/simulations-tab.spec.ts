@@ -4,10 +4,10 @@ import { test, expect, autosaved, openTab, runButton, runFlight, defined } from 
  * The Simulations tab: a table of runs over the shared design, with the selected
  * one's editor beside it.
  *
- * The behavior worth pinning is what a design edit does to a result. It used to
- * DELETE every cached result, which is why the Results tab came and went on each
- * keystroke and why you could never compare a change against the run before it.
- * OpenRocket keeps the numbers and flags them, and so do we.
+ * The behavior worth pinning is what a design edit does to a result: it FLAGS the
+ * cached numbers rather than deleting them, the way OpenRocket does. Deleted, the
+ * Results tab comes and goes on each keystroke and a change cannot be compared
+ * against the run before it.
  */
 
 test.beforeEach(async ({ page }) => {
@@ -32,8 +32,8 @@ test('an edited design ages the results instead of destroying them', async ({ pa
   await expect(row).toContainText('Outdated');
   await expect(row).toHaveText(apogee.replace('Up to date', 'Outdated'));
 
-  // And the Results tab is still there, still holding the flight. It used to
-  // disappear the moment the edit landed.
+  // And the Results tab is still there, still holding the flight, rather than
+  // disappearing the moment the edit lands.
   await expect(
     page.getByRole('navigation', { name: 'Workbench' }).getByRole('button', { name: 'Results' }),
   ).toBeVisible();
@@ -52,9 +52,8 @@ test('a second simulation is its own row, with its own motor', async ({ page }) 
   const rows = page.getByRole('row').filter({ hasText: /Simulation/ });
   await expect(rows).toHaveCount(2);
 
-  // The copy is selected, so the editor beside the table is editing IT — the
-  // point of the split, since the old accordion could show the list or the
-  // configuration but never both.
+  // The copy is selected, so the editor beside the table is editing IT, which is
+  // what having both on screen at once is for.
   await expect(page.getByRole('textbox', { name: 'Rename simulation' })).toHaveValue('Simulation 1 copy');
 
   // Running affects only the selected row.
@@ -202,8 +201,8 @@ test('a flight survives a reload', async ({ page }) => {
   await page.reload();
   await openTab(page, 'Simulations');
 
-  // Same numbers, still current — not "not run", which is what a reload used to
-  // give you because the results were never written at all.
+  // Same numbers, still current - not "not run", which is what a reload gives
+  // when the results were never written.
   await expect(row).toContainText('Up to date');
   await expect(row).toHaveText(before);
 
@@ -264,12 +263,11 @@ test('a run leaves the design editor unblocked', async ({ page }) => {
   await runButton(page).click();
   await expect(page.getByRole('button', { name: 'Flight', exact: true })).toBeVisible({ timeout: 30_000 });
 
-  // The design editors used to be covered by a full-pane overlay while a run was
-  // in flight. That overlay is gone entirely - an edit during a run costs the
-  // run instead, since `runSims` discards any answer flown against a tree or a
-  // simulation that has since changed. That half is pinned in
-  // `state/batchParallel.test.ts`, which holds the sim call open by hand rather
-  // than racing the real engine; this checks the editor is left usable.
+  // No full-pane overlay covers the design editors while a run is in flight: an
+  // edit during a run costs the run instead, since `runSims` discards any answer
+  // flown against a tree or a simulation that has since changed. That half is
+  // pinned in `state/batchParallel.test.ts`, which holds the sim call open by hand
+  // rather than racing the real engine; this checks the editor is left usable.
   await openTab(page, 'Design');
   await page.locator('div[title="Body tube"]').click();
   const length = page.getByLabel('Length', { exact: true }).first();
@@ -287,8 +285,8 @@ test('a simulation stays editable while it flies', async ({ page }) => {
   await page.getByRole('checkbox', { name: 'Select all simulations' }).check();
   await runButton(page).click();
 
-  // The editor used to be covered by an overlay for the whole run, so none of
-  // this was reachable until the flight finished.
+  // An overlay over the editor for the whole run leaves none of this reachable
+  // until the flight finishes.
   const angle = page.getByRole('spinbutton', { name: 'Angle', exact: true });
   await expect(angle).toBeEditable();
   await angle.fill('12');
@@ -321,9 +319,9 @@ test('the results picker chooses which flight every results view shows', async (
   await expect(page.getByRole('menu')).toHaveCount(0);
 
   // The same choice governs the ground track, not just the charts. Scoped to the
-  // view's own wrapper: the names also appear in the table behind it.
+  // drift readout: the names also appear in the table behind it.
   await page.getByRole('button', { name: 'Ground track', exact: true }).click();
-  const track = page.getByRole('img', { name: /north up/ }).locator('..');
+  const track = page.getByRole('group', { name: /Where each stage landed/ });
   await expect(track.getByText('Stage 1', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /Choose which flight/ })).toHaveText(/^Simulation 1/);
 });
@@ -355,6 +353,25 @@ test('the chart panels you pick are still there after a reload', async ({ page }
   await expect(page.getByRole('button', { name: 'Thrust', exact: true })).toHaveAttribute('aria-pressed', 'true');
 });
 
+/**
+ * The 3D path draws the PICKED flight, like the view under it, rather than the
+ * ACTIVE simulation's own result. Keyed on the active row, adding a row after a run
+ * blanks the one results view that could still draw the flight, beside charts that
+ * are drawing it.
+ */
+test('the 3D path draws the flight being shown, not only the active row', async ({ page }) => {
+  await runFlight(page); // lands on Results
+
+  await openTab(page, 'Simulations');
+  await page.getByRole('button', { name: 'Duplicate simulation' }).click();
+  await openTab(page, 'Results');
+
+  await page.getByRole('button', { name: '3D path', exact: true }).click();
+  // A canvas at all is the claim: the scene mounted rather than the pane
+  // falling back to "run a simulation".
+  await expect(page.locator('canvas').first()).toBeVisible();
+});
+
 test('the ground track shows where the flight lands, and how far', async ({ page }) => {
   await openTab(page, 'Simulations');
   // Wind, so there is a drift worth drawing: straight up in still air lands on
@@ -375,7 +392,9 @@ test('the ground track shows where the flight lands, and how far', async ({ page
 test('the CSV export asks what to write instead of just downloading', async ({ page }) => {
   await runFlight(page); // lands on Results, Flight view
 
-  await page.getByRole('button', { name: /CSV/ }).click();
+  // By title, not by its ⬇ CSV label: the events table grew a CSV button of its
+  // own, so the label alone now matches two buttons that write different files.
+  await page.getByTitle('Download flight data (.csv)').click();
   const dialog = page.getByRole('dialog', { name: 'Export flight data' });
   await expect(dialog).toBeVisible();
 
@@ -399,7 +418,7 @@ test('the CSV export asks what to write instead of just downloading', async ({ p
 
   // The choice is remembered, the way OpenRocket's export panel remembers its
   // own: reopening shows the one column still ticked.
-  await page.getByRole('button', { name: /CSV/ }).click();
+  await page.getByTitle('Download flight data (.csv)').click();
   await expect(dialog.getByRole('checkbox', { name: 'Altitude', exact: true })).toBeChecked();
   await expect(dialog.getByText(/Exporting 1 of \d+/)).toBeVisible();
 });

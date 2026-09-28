@@ -3,6 +3,7 @@ import i18n from '../i18n';
 import { confirm } from './confirmStore';
 import { prompt } from './promptStore';
 import { scaleRocket } from '../tree/scaleRocket';
+import { syncAutoShoulders } from '../services/autoShoulder';
 import { buildRocketTree, specToTree, C6, type RocketSpec, type StaticInfo } from '../engine/api';
 import type {
   MotorSpec,
@@ -11,7 +12,7 @@ import type {
   ComponentType as PartType,
   IgnitionEvent,
 } from '../engine/openRocketEngine';
-import { findMountId, updateNode, removeNode, addPart, addStage, moveNode } from '../services/treeEdit';
+import { findMountId, updateNode, removeNode, addPart, addStage, moveNode, setStageDrogue } from '../services/treeEdit';
 import { activeExtraMounts, reconcileMounts } from '../services/mountMotors';
 import type { LaunchConditions } from '../services/orkTree';
 import type { OrkExportMotor } from '../services/orkFile';
@@ -25,6 +26,7 @@ import { wireLoadedOrk } from '../services/wireLoadedOrk';
 // INEFFECTIVE_DYNAMIC_IMPORT warning without moving a byte.
 import { fetchExample } from '../services/exampleLibrary';
 import {
+  freshSeed,
   newSimulation,
   sameSimInputs,
   simConditions,
@@ -34,7 +36,18 @@ import {
   type SimRun,
 } from '../services/simulations';
 import { simulateInWorker, SimTimeoutError, SimCanceledError } from '../engine/simClient';
+import { landingPoint } from '../services/groundTrack';
+import {
+  normalizeSweepSpec,
+  sweepLaunch,
+  sweepPoints,
+  surfaceWind,
+  type DriftSweep,
+  type SweepLanding,
+  type WindSweepSpec,
+} from '../services/windSweep';
 import { loadSettings } from '../services/settings';
+import { defaultMaterialPatch } from '../services/materials';
 import { launchLimitViolations, limitText } from '../services/safetyLimits';
 import {
   unflyable,
@@ -50,6 +63,17 @@ import { getDesignLibrary, type DesignMeta } from '../services/designLibrary';
 import { getWorkspaceStore, validateWorkspace, type Workspace } from '../services/workspaceStore';
 import type { MotorDims } from '../components/canvas/Rocket3D';
 import { isResultView, type Tab, type DesignPane, type ViewMode } from './tabs';
+import { unitSymbols } from '../prefs/units';
+
+/**
+ * Display units for a message the store builds outside React. Read per call,
+ * not once: the store outlives any one settings value, and a message quoting
+ * the unit the reader had when the app booted is worse than one quoting none.
+ */
+const displayUnits = () => {
+  const s = loadSettings();
+  return unitSymbols(s.units, s.unitOverrides);
+};
 
 // A clean, classic sport rocket (~55 cm, 26 mm airframe, swept 3-fin).
 const DEFAULT_SPEC: RocketSpec = {
@@ -102,16 +126,14 @@ export interface WorkspaceState {
    * Browser storage is not keeping the user's work (quota hit, or IndexedDB
    * blocked and we are back on the 5 MB localStorage cap).
    *
-   * A SEPARATE slot from `err` on purpose. It used to share it, and the rebuild
-   * effect clears `err` on every successful build — which happens milliseconds
-   * after load and again on every keystroke — so the one warning telling the
-   * user their work is no longer being saved was wiped before it could be read.
+   * A SEPARATE slot from `err`, because the rebuild effect clears `err` on every
+   * successful build — milliseconds after load, and again on every keystroke —
+   * and this warning has to outlive that.
+   *
    * A successful save clears ONLY the transient "full" case. `degraded` and
-   * `loadFailed` are facts about this session that a later save does not undo:
-   * `idbKeyValueStore.markDegraded()` is one-way and never notifies twice, so
-   * clearing its message on the next successful write retired it permanently —
-   * one keystroke after it appeared — and the user met the 5 MB cap later with
-   * nothing on screen to explain it. Hence the `kind`.
+   * `loadFailed` are facts about this session that a later save does not undo,
+   * and `idbKeyValueStore.markDegraded()` is one-way and never notifies twice,
+   * so a message cleared here would never be raised again. Hence the `kind`.
    */
   storageWarning: string | null;
   storageWarningKind: StorageWarningKind | null;
@@ -171,6 +193,29 @@ export interface WorkspaceState {
    */
   resultSimId: string | null;
   /**
+   * The last finished wind sweep, or null.
+   *
+   * ONE at a time, workspace-wide, rather than one per simulation. A sweep is a
+   * few dozen flights and answers a question you ask about the row you are
+   * reading right now ("where could THIS come down today"); keeping a stale one
+   * per row would hold megabytes of landings for rows nobody is looking at, and
+   * would put the reader in front of a picture they did not just ask for. It
+   * carries the simulation and the design it was flown from, so the ground
+   * track can tell "not this flight" from "this flight, but the rocket has
+   * changed since".
+   *
+   * Transient by design: never persisted, and dropped with the workspace.
+   */
+  driftSweep: DriftSweep | null;
+  /**
+   * The sweep in flight: which row, and how far through. Null when none is.
+   *
+   * Progress is counted rather than shown per flight, because the flights are
+   * not rows anybody can see — there is no table of thirty-two swept cells, and
+   * there should not be. "18 of 32" is the whole of what a reader needs.
+   */
+  driftSweepRun: { simId: string; done: number; total: number } | null;
+  /**
    * The simulations the LAST run actually flew, in the order they were asked for.
    *
    * This, not "every simulation that has a result", is what decides whether the
@@ -197,11 +242,9 @@ export interface WorkspaceState {
   /**
    * When the autosave last landed (epoch ms), or null before the first one.
    *
-   * The File menu used to carry a **Save** item. It never stood between the
-   * user and their work - editing autosaves on a 500 ms debounce and unload
-   * writes a synchronous journal - so all it really offered was the
-   * reassurance that saving was happening at all. This is that reassurance,
-   * said by the thing that actually knows (see SaveStatus).
+   * There is no Save command: editing autosaves on a 500 ms debounce, and
+   * unload writes a synchronous journal. This is what SaveStatus reads to tell
+   * the user that saving is happening at all.
    */
   lastSavedAt: number | null;
   /** The autosave landed. From useWorkspaceEffects, on a successful write. */
@@ -212,8 +255,7 @@ export interface WorkspaceState {
    * Bumped by every `hydrate`. Restoring a design is not editing it: the
    * flight-invalidation effect (useWorkspaceEffects) re-seeds its baseline on
    * a change here instead of flagging the restored results stale. Boot is one
-   * hydrate; File > Open is another, and that one carried results the effect
-   * used to age (and `autoRunOutdated` then re-flew) for nothing.
+   * hydrate; File > Open is another, and that one can arrive carrying results.
    */
   hydrationGen: number;
   hydrate: (w: {
@@ -228,6 +270,17 @@ export interface WorkspaceState {
   scaleDesign: (factor: number) => void;
   setSelectedId: (id: string | null) => void;
   patchSelected: (patch: Partial<ComponentNode>) => void;
+  /**
+   * Run one of the tree-shape ACTIONS from services/componentActions: convert a
+   * fin set to freeform, split a fin set / pod / booster / cluster, reset a
+   * cluster's spacing. One undo step, and nothing at all when the action says
+   * there was nothing to do.
+   */
+  applyTreeAction: (change: (tree: RocketTree) => RocketTree) => void;
+  /** Dual deployment for one stage: which of its recovery devices is the
+   *  drogue, or `null` for single deployment. One undo step, because it clears
+   *  the rest of the stage in the same breath. */
+  setStageDrogue: (stageId: string, deviceId: string | null) => void;
   removeSelected: () => void;
   addPartToTree: (type: PartType) => void;
   addStageToTree: () => void;
@@ -272,6 +325,15 @@ export interface WorkspaceState {
   runOutdated: (prefs: SimPrefs) => Promise<void>;
   /** Stop the batch in flight. Rows already finished keep their results. */
   cancelRun: () => void;
+  /**
+   * Fly a grid of wind conditions around one simulation's own, and keep where
+   * each flight came down. Replaces whatever sweep was held before.
+   */
+  runDriftSweep: (simId: string, spec: WindSweepSpec, prefs: SimPrefs) => Promise<void>;
+  /** Stop the sweep in flight. Nothing is kept: a part-flown grid is not a region. */
+  cancelDriftSweep: () => void;
+  /** Throw the held sweep away. */
+  clearDriftSweep: () => void;
 
   setTab: (tab: Tab) => void;
   /** Open the Design tab on one of its two phone panes (see {@link DesignPane}). */
@@ -317,6 +379,17 @@ export interface WorkspaceState {
 export const selectActive = (s: WorkspaceState): Simulation => s.sims.find((x) => x.id === s.activeId) ?? s.sims[0]!;
 
 /**
+ * What to CALL this rocket: its own name, else the name of the file it was
+ * imported from, else the app's default.
+ *
+ * The same three-step fallback the .ork, .rkt, 3MF and RASAero exports each
+ * spelled out inline; it is here so every download that carries the rocket's
+ * name carries the same one (see `exportFilename`).
+ */
+export const selectDesignName = (s: WorkspaceState): string =>
+  (typeof s.tree.name === 'string' && s.tree.name) || s.loadedMeta?.name || defaultDesignName();
+
+/**
  * What the Run button will fly: the ticked rows, or the active simulation when
  * nothing is ticked. One place decides it, so the button's label, its enabled
  * state and the action itself can never disagree.
@@ -349,9 +422,9 @@ export const selectExtraMotors = (s: WorkspaceState): Record<string, MountMotor>
  * True when the ACTIVE sim's last run threw on the design that is still loaded.
  *
  * Self-expiring by construction: it compares the recorded tree against the
- * current one, so any edit makes it false again and a retry is allowed. That is
- * the whole point — auto-run must not retry a configuration it already knows
- * fails, but it must try again the moment the user changes something.
+ * current one, so any edit makes it false again and a retry is allowed:
+ * auto-run must not retry a configuration it already knows fails, but it must
+ * try again the moment the user changes something.
  */
 export const selectRunFailed = (s: WorkspaceState): boolean => {
   const run = s.simRuns[selectActive(s).id];
@@ -361,18 +434,18 @@ export const selectRunFailed = (s: WorkspaceState): boolean => {
 /**
  * A motor is usable only if it carries a full thrust curve.
  *
- * Re-exported from `services/runnability`, which is where the whole "can this
- * row fly" question lives now so the Run button and the run loop share it.
+ * Re-exported from `services/runnability`, which owns the "can this row fly"
+ * question so the Run button and the run loop share one answer.
  */
 export { hasThrustCurve };
 
 /**
  * Repair a persisted workspace so a stale/partial blob can't blank the app.
- * We merge each launch over the current defaults (a `launch` missing fields
- * would blank the Launch panel) and drop any stale results. A curve-less motor
- * is KEPT as-is — the rebuild no longer seats it (so it can't blank the app),
- * the run stays blocked ("no motor"), and an unresolved .ork motor is never
- * silently replaced with a default. Only a wholly-missing motor falls back to C6.
+ * Each launch is merged over the current defaults (a `launch` missing fields
+ * would blank the Launch panel). A curve-less motor is KEPT as-is: the rebuild
+ * does not seat it, so it cannot blank the app, the run stays blocked ("no
+ * motor"), and an unresolved .ork motor is never silently replaced with a
+ * default. Only a wholly-missing motor falls back to C6.
  */
 function sanitizeSims(sims: Simulation[]): Simulation[] {
   const launchDefaults = loadSettings().launchDefaults;
@@ -441,23 +514,21 @@ function uniqueSimName(sims: Simulation[], label: (n: number) => string, start: 
  * design views, Results the flight ones. Rocket and Simulate show no view at
  * all, so a caller sitting on either is left where it is.
  *
- * Every write of `view` goes through this. Writing the two apart is how you end
- * up on a Results tab with no result and an empty view switch, which is exactly
- * what opening a new design from that tab used to do.
+ * Every write of `view` goes through this. Writing the two apart lands you on a
+ * Results tab with no result and an empty view switch.
  */
 /**
  * One monotonic counter for "which workspace is open".
  *
- * It began as openDesign's own token, which defended that action against
- * ANOTHER openDesign and nothing else. Every other way of replacing the
- * workspace went unguarded: import a large .ork then a small one and the small
- * one lands first, the large one overwriting it; open a library design and then
+ * Every action that replaces the workspace races with every other, not just
+ * with itself: import a large .ork then a small one and the small one lands
+ * first, with the large one overwriting it; open a library design and then
  * import, and the import's `setActiveId(null)` lands before openDesign's
- * continuation, which then flushes the imported rocket out under a null id
- * (a stray entry) and hydrates the library design over the top of it.
+ * continuation, which flushes the imported rocket out under a null id (a stray
+ * entry) and hydrates the library design over the top of it.
  *
- * So every action that REPLACES the workspace bumps it, and every continuation
- * past an await re-checks before it touches the store.
+ * So every action that REPLACES the workspace bumps this, and every
+ * continuation past an await re-checks before it touches the store.
  */
 let workspaceGen = 0;
 /** Sequence for design-list refreshes; see refreshDesigns. */
@@ -503,6 +574,16 @@ function showing(s: { tab: Tab; designPane: DesignPane }, view: ViewMode): Parti
  * value in a tree that is serialized and compared by identity.
  */
 let batchAbort: AbortController | null = null;
+
+/**
+ * The wind sweep in flight, if any.
+ *
+ * Its own handle rather than `batchAbort`. A sweep and a normal run are
+ * separate pieces of work with separate Cancel buttons, and sharing one
+ * controller would mean canceling a sweep also killed a batch of simulations
+ * somebody started beside it.
+ */
+let sweepAbort: AbortController | null = null;
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   /**
@@ -565,10 +646,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   /**
    * Put the recorded INPUTS back, and carry the live results across.
    *
-   * History entries hold no results (see {@link snap}), so restoring one used to
-   * blank every flight the user had — an undo of a typo threw away numbers that
-   * were still perfectly readable. The design did change, so what comes back is
-   * flagged outdated rather than presented as current.
+   * History entries hold no results (see {@link snap}), so the live ones are
+   * carried across rather than blanked: an undo of a typo must not throw away
+   * numbers that are still readable. The design did change, so what comes back
+   * is flagged outdated rather than presented as current.
    */
   const restore = (e: HistoryEntry) => {
     const live = new Map(get().sims.map((x) => [x.id, x]));
@@ -624,12 +705,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
    * Write the open design out now, ahead of switching away from it. False if
    * storage refused the write.
    *
-   * The refusal used to be swallowed here on the theory that "the banner
-   * already says so". It did not: only the debounced autosave's catch raises
-   * the banner, and File > Save calls this directly, so a Save within the
-   * 500 ms debounce on a full store reported success with nothing written.
-   * Callers decide what a refusal means for them (a switch still proceeds; a
-   * Save must say it failed).
+   * The refusal is reported rather than swallowed: only the debounced
+   * autosave's catch raises the storage banner, and File > Save calls this
+   * directly, so a Save within the 500 ms debounce on a full store would
+   * otherwise report success with nothing written. Callers decide what a refusal
+   * means for them (a switch still proceeds; a Save must say it failed).
    */
   const flushActive = async (): Promise<boolean> => {
     try {
@@ -722,24 +802,32 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   /**
    * Swap the whole workspace in ONE `set`, always resetting the transient block.
    *
-   * `hydrate`, `openOrkFile` and `resetWorkspace` each replaced the design and
-   * each reset a different subset of what goes with it: none cleared `simRuns`,
-   * `lastRunIds` or `resultSimId`, so the Results tab could point at a run id
-   * from the previous design, and a batch still in flight kept `simBusy` on the
-   * new one; `resetWorkspace` left `err` standing and wrote in two `set` calls,
-   * so a subscriber saw the blank design with the old design's error under it.
+   * `hydrate`, `openOrkFile` and `resetWorkspace` all route through here so the
+   * transient block cannot outlive the design it belongs to: a stale `simRuns`,
+   * `lastRunIds` or `resultSimId` points the Results tab at a run id from the
+   * previous design, a batch still in flight holds `simBusy` on the new one, and
+   * a standing `err` shows the old design's error under the new one. The single
+   * `set` keeps a subscriber from seeing either half alone.
+   *
    * A batch still running belongs to the old design, so it is canceled here
    * (its answers would be dropped by the `ranOn` guard anyway).
    */
   const replaceWorkspace = (patch: Partial<WorkspaceState> | ((s: WorkspaceState) => Partial<WorkspaceState>)) => {
     batchAbort?.abort();
     batchAbort = null;
+    // A sweep belongs to a simulation of the design being replaced, so it goes
+    // with it rather than being left pointing at an id in the outgoing
+    // workspace.
+    sweepAbort?.abort();
+    sweepAbort = null;
     set((s) => ({
       simRuns: {},
       lastRunIds: [],
       resultSimId: null,
       selectedSimIds: [],
       simBusy: false,
+      driftSweep: null,
+      driftSweepRun: null,
       err: null,
       ...(typeof patch === 'function' ? patch(s) : patch),
     }));
@@ -755,6 +843,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     simRuns: {},
     resultSimId: null,
     lastRunIds: [],
+    driftSweep: null,
+    driftSweepRun: null,
     selectedId: null,
     loadedMeta: null,
     rocket: null,
@@ -817,7 +907,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     // them belong to each simulation.
     scaleDesign: (factor) => {
       const { tree, sims } = get();
-      const next = scaleRocket(tree, factor);
+      // Scaling is the one tree change that does not go through `treeEdit`, so
+      // it re-resolves the shoulders that follow a neighbor itself. It scales
+      // every radius by the same factor, so the numbers already agree - this is
+      // belt and braces against a rounding drift that would otherwise persist.
+      const next = syncAutoShoulders(scaleRocket(tree, factor));
       if (next === tree) return; // 1×, or a non-positive/non-finite factor — nothing to do
       recordStep(); // one undo step for the whole scale
       set({ tree: next, selectedId: null, sims: reconcileAll(next, sims) });
@@ -834,6 +928,25 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const touchesMounts = 'motorMount' in patch;
       set({ tree: next, sims: touchesMounts ? reconcileAll(next, sims) : sims });
     },
+    applyTreeAction: (change) => {
+      const { tree, sims } = get();
+      const next = change(tree);
+      if (next === tree) return;
+      recordStep();
+      // Splitting a cluster duplicates the tube it is on, mounts included, so
+      // the mount topology really can change here - unlike a field edit.
+      set({ tree: next, sims: reconcileAll(next, sims) });
+    },
+    setStageDrogue: (stageId, deviceId) => {
+      const { tree } = get();
+      const next = setStageDrogue(tree, stageId, deviceId);
+      if (next === tree) return; // already the drogue, or already none
+      // A whole undo step rather than an in-flight edit: this is a discrete
+      // choice that can touch several devices at once, not a slider drag. The
+      // flag changes warnings only, so no mount or simulation reconcile.
+      recordStep();
+      set({ tree: next });
+    },
     removeSelected: () => {
       const { selectedId, tree, sims } = get();
       if (!selectedId) return;
@@ -844,7 +957,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     addPartToTree: (type) => {
       recordStep();
       const { tree, selectedId, sims } = get();
-      const { tree: next, id } = addPart(tree, type, selectedId);
+      // Settings ▸ Materials: a new part carries the material the user set for
+      // its type, outright, so it shows in the panel and lands in the .ork.
+      const seed = defaultMaterialPatch(type, loadSettings().defaultMaterials) as Partial<ComponentNode>;
+      const { tree: next, id } = addPart(tree, type, selectedId, seed);
       set({ tree: next, selectedId: id, sims: reconcileAll(next, sims) });
     },
     addStageToTree: () => {
@@ -892,12 +1008,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
     setExtraMotor: (mountId, m) => {
       recordStep();
-      // ONE simulation's loadout. This map used to be workspace-level, so
-      // seating an upper-stage motor changed it for every simulation at once
-      // and aged all of their results -- two sims could never differ below the
-      // primary mount, which is exactly what comparing staged motors needs.
-      // Editing a selection does not bring that back: the motor stays the one
-      // thing a tick cannot reach (see patchActive).
+      // ONE simulation's loadout, not the workspace's: comparing staged motors
+      // needs two sims to differ below the primary mount, so seating an
+      // upper-stage motor must not age every other sim's results. The motor
+      // stays the one thing a tick cannot reach (see patchActive).
       patchActive((sim) => ({
         extraMotors: { ...sim.extraMotors, [mountId]: { ...sim.extraMotors[mountId], spec: m } },
       }));
@@ -1034,17 +1148,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // rocket that no longer exists, and installing them would show numbers for
       // geometry that is no longer on screen.
       const ranOn = s.tree;
-      // Collected, not reported as they happen. Each skip used to `set({err})`
-      // on its own, so in a batch every message overwrote the one before it and
-      // the user was left holding whichever row failed last -- with no name on
-      // it. They are reported together once the batch drains.
+      // Collected, not reported as they happen: a per-skip `set({ err })` leaves
+      // only whichever row failed last, with no name on it. They are reported
+      // together, named, once the batch drains.
       const skipped: Unflyable[] = [];
-      // Failures are collected for the same reason skips are, and it is the
-      // same bug one step later: each row's catch did `set({ err })`, so in a
-      // batch every message overwrote the one before it and carried no row
-      // name -- and then the skip line below overwrote whatever survived. Six
-      // rows with two timeouts and one missing motor reported only the missing
-      // motor, with no sign that two flights had failed at all.
+      // Collected for the same reason skips are, and kept separate from them:
+      // sharing one `err` slot means six rows with two timeouts and one missing
+      // motor report only the missing motor, with no sign that two flights
+      // failed at all.
       const failed: { name: string; msg: string }[] = [];
       /** Patch one row's transient run state, leaving every other row alone. */
       const setRun = (simId: string, run: SimRun | null) =>
@@ -1082,7 +1193,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         flying.push({ sim, launch: sim.launch });
       }
       if (!flying.length) {
-        if (skipped.length) set({ err: skipped.map((u) => unflyableText(u, i18n.t)).join(' ') });
+        if (skipped.length) set({ err: skipped.map((u) => unflyableText(u, i18n.t, displayUnits())).join(' ') });
         return;
       }
 
@@ -1124,11 +1235,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               // is no longer on screen. The others in flight do the same.
               if (get().tree !== ranOn) return;
               // Same test for THIS row's own inputs. Editing a simulation's
-              // launch conditions while it flies used to be prevented by locking
-              // the editor for the duration; dropping the answer is the same
-              // answer the design already gets, and it leaves the row where the
-              // edit left it -- outdated, with its previous numbers -- instead of
-              // marking it current against conditions it no longer has.
+              // launch conditions while it flies drops the answer rather than
+              // locking the editor for the duration, which leaves the row where
+              // the edit left it -- outdated, with its previous numbers --
+              // instead of marking it current against conditions it no longer
+              // has.
               const now = get().sims.find((x) => x.id === sim.id);
               if (!now || !sameSimInputs(flownFrom, simInputs(now))) {
                 setRun(sim.id, null);
@@ -1161,7 +1272,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // ONE line for everything that did not produce a flight, refusals and
         // failures together, each naming its row.
         const problems = [
-          ...skipped.map((u) => unflyableText(u, i18n.t)),
+          ...skipped.map((u) => unflyableText(u, i18n.t, displayUnits())),
           ...failed.map((f) => i18n.t('sim.failedNamed', { name: f.name, message: f.msg })),
         ];
         if (problems.length) set({ err: problems.join(' ') });
@@ -1223,6 +1334,168 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       batchAbort?.abort();
     },
 
+    /**
+     * Fly one simulation over a GRID of wind conditions and keep where each
+     * flight came down.
+     *
+     * Everything but the wind is the row's own: the same design, motor loadout,
+     * ignition, rod, site and run preferences. That is what makes the resulting
+     * spread attributable — the landings differ because the wind did, not
+     * because a dozen things did at once.
+     *
+     * Three deliberate departures from {@link WorkspaceState.runSims}:
+     *
+     * - The results are NOT installed on the row. A swept flight is not the
+     *   simulation's flight; it was flown under conditions the user did not
+     *   type, and writing one back would replace the numbers on their flight
+     *   card with a hypothetical.
+     * - `series: 'summary'`, against `simConditions`'s 'full'. The only thing
+     *   read from a swept flight is where its track ends, and a full series set
+     *   is about a megabyte and a half each — thirty-two of those is fifty
+     *   megabytes serialized out of a worker and dropped on the floor.
+     * - ONE random seed for the whole grid, minted here when the preferences do
+     *   not pin one. Letting each flight draw its own turbulence would mix the
+     *   scatter the sweep exists to measure with scatter from the dice, and the
+     *   same sweep run twice would draw a different region for no reason the
+     *   reader could see.
+     *
+     * A failed cell is skipped rather than failing the sweep: thirty-one
+     * landings still describe a region, and the count says how many of the
+     * flights asked for actually produced one.
+     */
+    runDriftSweep: async (simId, spec, prefs) => {
+      const s = get();
+      const blocker = designBlocker(s.tree);
+      if (blocker) {
+        set({ err: designBlockerText(blocker, i18n.t) });
+        return;
+      }
+      const sim = s.sims.find((x) => x.id === simId);
+      if (!sim) return;
+      // The same one refusal the Run button and the run loop share. A sweep
+      // around conditions this app will not fly is a region it will not stand
+      // behind, and every cell of the grid would be refused individually
+      // anyway.
+      const reason = unflyable(sim);
+      if (reason) {
+        set({ err: unflyableText({ id: sim.id, name: sim.name, reason }, i18n.t, displayUnits()) });
+        return;
+      }
+      // Captured, because the narrowing `isComplete` gives is lost the moment
+      // it has to survive into the per-flight closures below.
+      const launch = sim.launch;
+      if (!isComplete(launch)) return;
+
+      const normalized = normalizeSweepSpec(spec);
+      const points = sweepPoints(normalized, surfaceWind(launch).headingDeg);
+      if (!points.length) return;
+
+      // What this sweep is OF. The awaits below can outlast any of it, exactly
+      // as a normal batch can, and a region drawn from a rocket that has since
+      // changed is worse than no region.
+      const ranOn = s.tree;
+      const flownFrom = simInputs(sim);
+      // The row's own overrides win over the globals, exactly as a normal run
+      // resolves them; only then is a missing seed filled in.
+      const runPrefs: SimPrefs = { ...prefs, ...sim.prefs };
+      const seed = runPrefs.randomSeed ?? freshSeed();
+
+      // A sweep supersedes whatever was held: two regions on one plan view
+      // would be unreadable, and the held one answers a question that has just
+      // been asked again.
+      sweepAbort?.abort();
+      const abort = new AbortController();
+      sweepAbort = abort;
+      set({ driftSweep: null, driftSweepRun: { simId, done: 0, total: points.length }, err: null });
+
+      const landings: SweepLanding[] = [];
+      let flown = 0;
+      try {
+        await Promise.all(
+          points.map(async (point) => {
+            try {
+              const result = await simulateInWorker(
+                {
+                  tree: ranOn,
+                  motor: sim.motor,
+                  extraMotors: sim.extraMotors,
+                  primaryIgnition: { event: sim.ignitionEvent, delay: sim.ignitionDelay },
+                  options: {
+                    ...simConditions(sweepLaunch(launch, point), { ...runPrefs, randomSeed: seed }),
+                    series: 'summary',
+                  },
+                },
+                { signal: abort.signal },
+              );
+              // `branches` is only present once a staged rocket separates; the
+              // unstaged case is the top-level series, as branch 0. Same
+              // unwrapping the flight charts and the ground track do, so a
+              // swept landing lands on the trace it belongs to.
+              const branches = result.branches?.length ? result.branches : [{ series: result.series }];
+              let landed = false;
+              branches.forEach((b, i) => {
+                const p = landingPoint(b.series);
+                if (!p) return;
+                landed = true;
+                landings.push({ branch: i, east: p.east, north: p.north, ...point });
+              });
+              if (landed) flown++;
+            } catch {
+              // One refused cell is not a refused sweep. Cancellation lands
+              // here too and is handled by the aborted check below, which
+              // discards the whole part-flown grid.
+            } finally {
+              // Only while THIS sweep still owns the counter. A second sweep
+              // replaces the first mid-flight (the run button is not gated on
+              // the earlier one draining), and the first's stragglers would
+              // otherwise tick the new one's progress past its own total --
+              // including when it is the same row being re-swept, which is the
+              // common case.
+              if (sweepAbort === abort) {
+                set((st) =>
+                  st.driftSweepRun ? { driftSweepRun: { ...st.driftSweepRun, done: st.driftSweepRun.done + 1 } } : {},
+                );
+              }
+            }
+          }),
+        );
+        // A canceled sweep keeps nothing. Half a grid is not half a region: the
+        // cells arrive in whatever order the pool frees up, so what survives is
+        // an arbitrary subset of the conditions, and a hull drawn round it
+        // would understate the drift by an amount nobody could estimate.
+        if (abort.signal.aborted) return;
+        if (get().tree !== ranOn) return;
+        const now = get().sims.find((x) => x.id === simId);
+        if (!now || !sameSimInputs(flownFrom, simInputs(now))) return;
+        if (!landings.length) {
+          set({ err: i18n.t('sweep.noLandings') });
+          return;
+        }
+        set({
+          driftSweep: {
+            simId,
+            tree: ranOn,
+            inputs: flownFrom,
+            spec: normalized,
+            asked: points.length,
+            flown,
+            landings,
+          },
+        });
+      } finally {
+        if (sweepAbort === abort) {
+          sweepAbort = null;
+          set({ driftSweepRun: null });
+        }
+      }
+    },
+
+    cancelDriftSweep: () => {
+      sweepAbort?.abort();
+    },
+
+    clearDriftSweep: () => set({ driftSweep: null }),
+
     // The two below keep the mobile tab and the center-pane view in step -- see
     // {@link showing}. Harmless at desktop widths, where the tab bar is hidden
     // and `tab` only decides what a later resize lands on.
@@ -1272,7 +1545,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // silently flown. The run refuses too (see runSims).
         const outside = launchLimitViolations(sim0.launch);
         const notes = outside.length
-          ? [...loadedMeta.notes, ...outside.map((v) => limitText(v, i18n.t))]
+          ? [...loadedMeta.notes, ...outside.map((v) => limitText(v, i18n.t, displayUnits()))]
           : loadedMeta.notes;
         replaceWorkspace({
           tree,
@@ -1384,8 +1657,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     renameDesign: async (id, name) => {
-      // `rename` reports a refused index write; ignoring it showed the new name
-      // from memory and the old one next session.
+      // `rename` reports a refused index write. Ignoring it would show the new
+      // name from memory and the stored one next session.
       if (!(await getDesignLibrary().rename(id, name.trim() || i18n.t('library.untitled')))) {
         get().setStorageWarning(i18n.t('storage.full'), 'full');
       }

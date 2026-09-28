@@ -1,13 +1,24 @@
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { FIN_DEFAULTS, finRootChord, finSpan } from '../../tree/finPlanform';
 import { countOf, num } from '../../tree/nodeProps';
-import { KERNEL_MASSCOMPONENT_RADIUS, KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
+import { KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
 import { freeformPoints } from '../../tree/position.js';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { DISPLAY_NAME } from '../../tree/schema.js';
+import { DISC_TYPES } from '../../services/componentFormats.js';
+import { discDims, tubeRadii } from '../../services/discGeometry.js';
 import { assemblyChainLength, isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
-import { axialStart, colorOf, finTabFront, profilePath, unionBox, type Ctx, type HoverBox } from './schematicGeometry';
+import {
+  axialStart,
+  colorOf,
+  finTabFront,
+  internalExtent,
+  profilePath,
+  unionBox,
+  type Ctx,
+  type HoverBox,
+} from './schematicGeometry';
 
 // The one shared override rule (schematicGeometry.colorOf), under the name this
 // file has always used it by.
@@ -102,8 +113,8 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   const shapes: React.ReactNode[] = [];
   // Dashed "shadow" shapes (inner components, shoulders) paint AFTER the whole
   // hull: SVG stacks by document order, so a coupler overhanging into the NEXT
-  // tube used to vanish under that tube's opaque fill (while the overhang into
-  // the PREVIOUS tube, already painted, stayed visible — Eric's ebay report).
+  // tube would vanish under that tube's opaque fill, while its overhang into the
+  // PREVIOUS tube, already painted, stayed visible.
   const overlay: React.ReactNode[] = [];
   // Wireframe fin outlines and their hit surfaces, painted after overlay: while
   // the view is rolled every fin becomes a plain outline over the body (desktop
@@ -200,11 +211,10 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   };
 
   // Every component's drawn extent (layout px), unioned across instances
-  // (cluster copies, pod rings) as the shapes render. Recorded for ALL parts,
-  // not just the hovered one: this used to filter on the hovered id, which
-  // made the id an input of the whole scene build, so every hover enter and
-  // leave rebuilt every shape. A few dozen boxes per scene is nothing next to
-  // that.
+  // (cluster copies, pod rings) as the shapes render. Recorded for ALL parts, not
+  // just the hovered one: filtering on the hovered id makes that id an input of
+  // the whole scene build, so every hover enter and leave rebuilds every shape.
+  // A few dozen boxes per scene costs far less.
   const extents: HoverExtents = new Map();
   const noteHover = (n: ComponentNode, x0: number, y0: number, x1: number, y1: number) => {
     if (!n.id) return;
@@ -566,8 +576,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
       } else if (t === 'launchlug' || t === 'railbutton') {
         // 0.0097 is RailButton's own default (RailButton.java:61), which is
         // also what orkImport writes and what the kernel flies when the key is
-        // absent. The old 0.004 drew a button less than half the size of the
-        // one being simulated.
+        // absent, so the drawn button is the size of the simulated one.
         // Rail buttons are edited via 'outerDiameter' (their only size field)
         // and have no axial 'length' — a button is about as long as it is wide.
         const btnDia = t === 'railbutton' ? num(child, 'outerDiameter', KERNEL_RAILBUTTON_OUTER_DIAMETER) : 0;
@@ -599,10 +608,9 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
       } else {
         // Internal component: dashed outline inside the parent. A clustered
         // inner tube draws once per cluster position (side-view projection).
-        // Per-type stroke color + a small tag differentiate what used to be
-        // identical gray boxes (issue 2026-08-05a #21) — tubes/couplers stay
-        // neutral (they really are tube segments), payload-type parts get
-        // muted colors from the theme-safe midrange.
+        // Per-type stroke color + a small tag, so these do not read as identical
+        // gray boxes (issue 2026-08-05a #21): payload-type parts get muted
+        // colors from the theme-safe midrange.
         const TYPE_STYLE: Partial<Record<string, { stroke: string; tag: string }>> = {
           parachute: { stroke: '#b06a35', tag: 'chute' },
           streamer: { stroke: '#a08c2e', tag: 'strmr' },
@@ -611,27 +619,24 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           centeringring: { stroke: '#6f8a5c', tag: 'CR' },
           bulkhead: { stroke: '#66748c', tag: 'BH' },
           engineblock: { stroke: '#7d7050', tag: 'EB' },
+          // Couplers and inner tubes get their own ink too: left neutral they
+          // are two unlabeled gray boxes told apart only by size, and size is
+          // what the 85% cap distorts for the coupler.
+          tubecoupler: { stroke: '#7f6ea8', tag: 'TC' },
+          innertube: { stroke: '#3f8f6f', tag: 'IT' },
         };
         const style = TYPE_STYLE[child.type];
-        // `packedLength` / `packedRadius` used to sit at the end of each chain
-        // as a fallback. Neither key is ever written: orkImport reads
-        // <packedlength>/<packedradius> into `length`/`radius`
-        // (orkImport.ts:441-488), so both branches were unreachable.
-        const len = num(child, 'length', 0.025);
-        // For a MASS COMPONENT the last fallback is the KERNEL's default
-        // (ComponentFactory masscomponent radius = 0.005), not a fraction of
-        // the parent. It used to be `pRadius * 0.7`, so a mass component with no
-        // `radius` key - which is every one the editor creates - was drawn at
-        // ~9 mm on a 13 mm tube and flown at 5 mm. A drawing that disagrees with
-        // the simulation is worse than an ugly one.
-        //
-        // Every other internal type keeps the fraction: the kernel does not read
-        // `radius` for a parachute, streamer, shock cord or ring (packed sizes
-        // are not wired through, see TODO.md), so there is no simulated size to
-        // agree with, and applying the 5 mm mass default to a parachute shrank
-        // the default design's chute box until its glyph no longer fit.
-        const dfltRadius = child.type === 'masscomponent' ? KERNEL_MASSCOMPONENT_RADIUS : pRadius * 0.7;
-        const r = Math.min(pRadius * 0.85, num(child, 'outerRadius', num(child, 'radius', dfltRadius)));
+        // A ring, coupler, bulkhead or engine block is sized the way the DXF cut
+        // sheet and the printed solid size it: its own radii, else the bore of
+        // the tube it sits in, with a ring's bore taken from the mount through
+        // it. Everything else keeps `internalExtent`, whose 85% cap is what
+        // keeps a chute's INVENTED fallback box off the tube wall - a real
+        // dimension does not need protecting from itself, and a coupler hit
+        // that cap every time, since filling the bore is what a coupler is.
+        const disc = DISC_TYPES.has(child.type) ? discDims(child, tubeRadii(parent), parent.children ?? []) : null;
+        const { length: len, radius: r } = disc
+          ? { length: disc.length, radius: disc.outerR }
+          : internalExtent(child, pRadius);
         const start = axialStart(child, len, pStart, pLen);
         const offsets =
           child.type === 'innertube'
@@ -783,10 +788,23 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
     }
   };
 
+  /**
+   * Ink for a shoulder: the OWNING part's color (its override, else this steel
+   * blue) rather than the gray the other dashed annotations share.
+   *
+   * A shoulder is a snug fit by definition - a 24 mm stub in a 26 mm tube - so
+   * its box always falls within a pixel or two of the tube's own outline, and a
+   * gray that close to the tube's stroke is in the DOM without being on screen.
+   * Tying it to the part it belongs to also says WHOSE shoulder it is, which
+   * matters where two meet: a transition's fore shoulder and the nose cone's aft
+   * shoulder can sit in the same tube.
+   */
+  const SHOULDER_INK = '#4f8fa0';
+
   // Dashed outline for a shoulder sliding inside the adjacent tube. Painted in
   // the overlay pass — an aft shoulder lives inside the NEXT tube, which is
   // drawn later and would otherwise cover it.
-  const shoulderRect = (startX: number, lenSi: number, rSi: number, color: string, baseY: number) => {
+  const shoulderRect = (owner: ComponentNode, startX: number, lenSi: number, rSi: number, baseY: number) => {
     if (lenSi <= 0 || rSi <= 0) return;
     overlay.push(
       <rect
@@ -796,11 +814,13 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         width={Math.max(1.5, lenSi * scale)}
         height={2 * rSi * scale}
         fill="rgba(127,127,127,0.001)"
-        stroke={color}
-        strokeWidth="1"
+        stroke={isSel(owner) ? 'var(--accent)' : fillOf(owner, SHOULDER_INK)}
+        strokeWidth={selWidth(owner)}
         strokeDasharray="3 2"
         style={{ pointerEvents: 'none' }}
-      />,
+      >
+        <title>{nameOf(owner)}</title>
+      </rect>,
     );
   };
 
@@ -823,7 +843,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
             {...clickable(n)}
           />,
         );
-        shoulderRect(cx + len, num(n, 'shoulderLength', 0), num(n, 'shoulderRadius', 0), '#9a978f', baseY);
+        shoulderRect(n, cx + len, num(n, 'shoulderLength', 0), num(n, 'shoulderRadius', 0), baseY);
         renderChildren(n, cx, len, r, baseY);
         cx += len;
       } else if (n.type === 'bodytube') {
@@ -878,8 +898,8 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           />,
         );
         const fsl = num(n, 'foreShoulderLength', 0);
-        shoulderRect(cx - fsl, fsl, num(n, 'foreShoulderRadius', 0), '#9a978f', baseY);
-        shoulderRect(cx + len, num(n, 'aftShoulderLength', 0), num(n, 'aftShoulderRadius', 0), '#9a978f', baseY);
+        shoulderRect(n, cx - fsl, fsl, num(n, 'foreShoulderRadius', 0), baseY);
+        shoulderRect(n, cx + len, num(n, 'aftShoulderLength', 0), num(n, 'aftShoulderRadius', 0), baseY);
         renderChildren(n, cx, len, Math.max(rf, ra), baseY);
         cx += len;
       }

@@ -109,7 +109,11 @@ export function OverridesSection({
 
   return (
     <div className="space-y-3 border-t border-white/5 pt-3">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{t('override.title')}</div>
+      {/* Same markup as every other section heading (FieldSection,
+          PlacementSection, the panel's Part block) — this one was a div two
+          sizes and one shade apart, which only showed once the sections
+          around it had headings of their own. */}
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('override.title')}</h3>
       <OverrideRow
         label={t('override.mass')}
         unit={<UnitChip quantity="mass" scope={massOverrideScope} />}

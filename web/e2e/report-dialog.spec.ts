@@ -2,24 +2,23 @@ import { readFile } from 'node:fs/promises';
 import { test, expect, type Page, ready, importOrk, defined } from './base';
 
 /**
- * The Rocket Design Report dialog. A MULTI-STAGE design is the whole point of
- * this suite: assembleReport() builds each stage alone (which resets the shared
- * engine) and then reinstalls a rebuilt whole-rocket handle via applyBuild. That
- * hands the store fresh `info`/`rocket` object identities, and the dialog's
- * assemble effect used to depend on them — so it assembled, rebuilt, re-ran,
- * assembled… until React tore the entire app down with "Maximum update depth
- * exceeded" and the dialog never appeared at all.
+ * The Rocket Design Report dialog, over a MULTI-STAGE design because that is what
+ * re-enters the shared engine: assembleReport() builds each stage alone (which resets
+ * the shared engine) and then reinstalls a rebuilt whole-rocket handle via
+ * applyBuild. That hands the store fresh `info`/`rocket` object identities, so an
+ * assemble effect depending on them assembles, rebuilds, re-runs and assembles
+ * again until React tears the app down with "Maximum update depth exceeded" and
+ * the dialog never appears.
  *
  * The PDF test below is the only thing in the suite that EXECUTES
- * services/reportPdf.ts. All 447 lines of it ran at zero coverage: the unit
- * tests cannot reach it (ExportDialog pulls it in through a lazy `await
- * import`), and this spec only ever checked that the button was enabled.
+ * services/reportPdf.ts: the unit tests cannot reach it, because ExportDialog
+ * pulls it in through a lazy `await import`.
  */
 
 /**
- * Menu > Rocket Design Report. By the button's accessible name: the glyph in it
- * is `aria-hidden` (AppHeader.tsx), so "Menu" is the whole name and the
- * `/menu|☰/i` this used to match on could never see the ☰ anyway.
+ * Menu > Rocket Design Report. By the button's accessible name: the glyph in it is
+ * `aria-hidden` (AppHeader.tsx), so "Menu" is the whole name and no pattern can
+ * match the glyph.
  */
 const openReport = async (page: Page) => {
   await page.getByRole('button', { name: 'Menu' }).click();
@@ -44,7 +43,7 @@ test.describe('Rocket Design Report dialog', () => {
     await expect(page.getByRole('button', { name: /Save as PDF/i })).toBeEnabled();
     await expect(page.getByRole('button', { name: /Save as CSV/i })).toBeEnabled();
 
-    // The app is still standing — the loop used to blank the whole tree.
+    // The app is still standing: the assemble loop blanks the whole tree.
     await page.getByRole('button', { name: 'Close' }).first().click();
     await expect(page.getByText('L/D', { exact: true })).toBeVisible();
     expect(errors).toEqual([]);

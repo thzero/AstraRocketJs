@@ -9,7 +9,7 @@ No: es una aplicación independiente que **ejecuta el motor de física de OpenRo
 No. Es una aplicación web: abre la URL en un navegador moderno. Sin JDK, sin descargas.
 
 ### ¿Se suben mis diseños a algún sitio?
-No. Todo se ejecuta en tu dispositivo. Tus cohetes, tus motores y materiales personalizados y tus ajustes se guardan en el almacenamiento local de tu navegador, y puedes exportar un `.ork` a tu disco. No se envía nada a ningún servidor.
+No. Todo se ejecuta en tu dispositivo. Tus cohetes, tus motores personalizados, tus piezas guardadas, tus materiales, tus lugares de lanzamiento guardados y tus ajustes se guardan en el almacenamiento propio de tu navegador (IndexedDB, con localStorage como alternativa), y puedes exportar un `.ork` a tu disco. No se envía nada a ningún servidor.
 
 ### ¿Mis archivos `.ork` funcionarán en OpenRocket de escritorio?
 Sí: la importación y la exportación son de ida y vuelta con total fidelidad, y un archivo exportado se vuelve a abrir en OpenRocket de escritorio.
@@ -37,8 +37,11 @@ Sí. Tras la primera visita, la aplicación conserva en tu dispositivo tanto la 
 ### ¿Qué es la insignia `WASM` / `JS` de la cabecera?
 Indica qué motor se ha cargado: **WASM** (WebAssembly, el rápido por defecto) o **JS** (JavaScript, la alternativa para navegadores sin soporte de WASM). Ambos producen resultados idénticos.
 
-### El nombre de un material cambió tras guardar y reabrir un `.ork`. ¿Está mal mi cohete?
-No: **la física se conserva** (los materiales se aplican por densidad, así que la masa, el CG y la estabilidad son exactos). Solo el **nombre** legible de un material no predeterminado puede no sobrevivir todavía al viaje de ida y vuelta; la densidad queda intacta.
+### ¿Sobrevive un material personalizado al guardar en `.ork`?
+Sí, el nombre y la densidad, para todos los materiales que el editor ofrece: el material de volumen de una pieza estructural, el material del filete de una aleta y los materiales de tela y de cuerda de un dispositivo de recuperación. `services/ork/materialRoundTrip.test.ts` los comprueba uno a uno. Eso importa sobre todo para los materiales que esta aplicación tiene y OpenRocket de escritorio no, los [adhesivos y los cordones elásticos corregidos](./designing-a-rocket.md#adhesives): el nombre se escribe en el elemento `<material>` del archivo tal y como lo elegiste.
+
+Lo que no viaja es la pertenencia del material a **tu** lista personalizada. Abre ese archivo en otro equipo y la pieza sigue teniendo la densidad correcta con el nombre correcto, pero el material no estará en el selector de ese navegador hasta que lo añadas allí.
+
 
 ### La simulación no bloqueó la aplicación mientras se ejecutaba, ¿es normal?
 Sí. Las simulaciones de vuelo se ejecutan en un Web Worker en segundo plano, así que la interfaz sigue respondiendo mientras se calcula un vuelo.

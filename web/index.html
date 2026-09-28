@@ -9,11 +9,13 @@
     <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" />
     <title>AstraRocketJs</title>
     <style>
-      /* Instant paint before any JS: dark background (no white flash) + a boot
-         splash shown while the lazy physics engine (WASM-GC, ~2.3 MB, or the JS
-         fallback) fetches and compiles. main.tsx awaits initEngine() before it
-         mounts React, so #root stays empty until then — React replaces this
-         splash the moment it renders. */
+      /* Instant paint before any JS: dark background (no white flash) plus a
+         wordmark, so the first frame is not an empty page while the app's own
+         bundle parses. React replaces it the moment it renders, which is now as
+         soon as the modules evaluate — the engine loads BEHIND the app (see
+         main.tsx), so nothing here waits on a 2.3 MB download any more, and the
+         bar sweeps rather than reporting a figure nothing updates. Progress and
+         failure are the app's job now: components/layout/EngineNotice.tsx. */
       html,
       body {
         margin: 0;
@@ -119,10 +121,12 @@
         <div class="rk">🚀</div>
         <div class="wm">AstraRocketJs</div>
         <div class="sp"></div>
-        <div class="bar indeterminate" id="boot-bar"><i></i></div>
-        <!-- English until main.tsx runs: i18n is not loaded yet at first paint.
-             bootSplash.ts replaces this with translated, per-phase text. -->
-        <div class="cap" id="boot-cap">Loading engine…</div>
+        <div class="bar indeterminate"><i></i></div>
+        <!-- English, and the only string here that cannot be translated: i18n is
+             not loaded at first paint. It is on screen for as long as the app's
+             own bundle takes to evaluate, and says "starting" rather than naming
+             the engine, which no longer gates this. -->
+        <div class="cap">Starting…</div>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>

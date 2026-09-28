@@ -1,6 +1,7 @@
 import type { LaunchConditions } from '../orkTree';
 import { xmlText as text } from '../xmlUtil';
 import { stdDevForIntensity } from '../windTurbulence';
+import { usableWindLevels } from '../windLevels';
 import { finiteNum } from './numbers';
 import { numTag } from './importTags';
 
@@ -25,8 +26,8 @@ export function readLaunchConditions(doc: Document): Partial<LaunchConditions> |
   if (!Number.isNaN(rodAngle)) launch.launchRodAngleDeg = rodAngle;
   // Rod heading is DEGREES on disk like the rod angle (OpenRocketSaver.java:
   // launchroddirection is written as radians * 360 / 2pi). The app edits all
-  // three of these, and the writer used to emit constants for them, so a
-  // launch set up on the desktop came back pointing at the default heading.
+  // three of these, so they are read from the file rather than defaulted, or a
+  // launch set up on the desktop comes back pointing at the default heading.
   const rodDir = numTag(condEl, 'launchroddirection', NaN);
   if (!Number.isNaN(rodDir)) launch.launchRodDirectionDeg = rodDir;
   const intoWind = (text(condEl, ':scope > launchintowind') ?? '').trim().toLowerCase();
@@ -84,20 +85,28 @@ function readWind(condEl: Element, launch: Partial<LaunchConditions>): void {
   if (mlEl && windModelType.includes('multilevel')) {
     // finiteNum, not `parseFloat(x) || 0`: that let "Infinity" through as a
     // wind speed, and the kernel's wind model has no answer for it.
-    const levels = Array.from(mlEl.querySelectorAll(':scope > windlevel')).map((w) => ({
-      altitudeM: finiteNum(w.getAttribute('altitude')) ?? 0,
-      speed: finiteNum(w.getAttribute('speed')) ?? 0,
-      directionDeg: ((finiteNum(w.getAttribute('direction')) ?? 0) * 180) / Math.PI,
-      stddev: finiteNum(w.getAttribute('standarddeviation')) ?? 0,
-    }));
+    //
+    // The altitude has no `?? 0`, unlike the other three: it is the level's
+    // IDENTITY to the kernel, which keys its levels on it. Defaulted to 0 m, a
+    // file that omits or garbles one imports as a second surface level, which
+    // either displaces the real surface wind or collides with it and fails every
+    // run with `Wind level already exists for altitude: 0.0`. `usableWindLevels`
+    // drops it, and drops a file's own repeated altitude the same way.
+    const levels = usableWindLevels(
+      Array.from(mlEl.querySelectorAll(':scope > windlevel')).map((w) => ({
+        altitudeM: finiteNum(w.getAttribute('altitude')),
+        speed: finiteNum(w.getAttribute('speed')) ?? 0,
+        directionDeg: ((finiteNum(w.getAttribute('direction')) ?? 0) * 180) / Math.PI,
+        stddev: finiteNum(w.getAttribute('standarddeviation')) ?? 0,
+      })),
+    );
     if (levels.length) launch.windLevels = levels;
     // MSL unless the file says AGL. The desktop carries it as an ATTRIBUTE on
     // the <wind> element (OpenRocketSaver.java:367 writes
     // <wind model="multilevel" altituderef="AGL">, importt/WindHandler.java:25
-    // reads attributes.get("altituderef")). This reader used to look for a
-    // child element or an attribute of a different name, so every AGL profile
-    // the desktop saved came in as MSL. The other spellings stay accepted for
-    // the files this app wrote before it matched the desktop.
+    // reads attributes.get("altituderef")), so that is what is read here, or
+    // every AGL profile the desktop saves comes in as MSL. The other spellings
+    // stay accepted for the files older builds of this app wrote.
     const ref = (
       mlEl.getAttribute('altituderef') ??
       text(mlEl, ':scope > altitudereference') ??

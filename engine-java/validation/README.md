@@ -1,9 +1,10 @@
 # Validation harness (RASAero #1 supersonic/hypersonic build)
 
 Scores the JS engine against **measured** wind-tunnel and free-flight anchor
-datasets. Provenance, tolerances, and every caveat live in
-`docs/research/validation-anchors-2026-08-03.md`; the target physics lives in
-`docs/research/rasaero-supersonic-spec-2026-08-03.md`.
+datasets. Tolerances and conventions are in `anchors.json` (`_readme` and the
+per-series fields); each dataset's published source is named in the fixture and
+in the scorecards. The research write-ups those were drawn from are not in this
+repo, so anything not recorded here is not recorded anywhere.
 
 ## Run it
 

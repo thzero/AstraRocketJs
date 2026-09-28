@@ -18,7 +18,11 @@ test('the parachute editor exposes deployment overrides, simulates, and persists
 
   // Recovery-specific editors: shroud lines + surface/line material pickers.
   await expect(page.getByLabel('Shroud lines')).toBeVisible();
-  await expect(page.getByLabel('Line length')).toBeVisible();
+  // `exact`, because the field carries an Auto switch labeled "Line length:
+  // Auto" and getByLabel matches on substring: without it this resolves to the
+  // number field AND the checkbox, and fails on strict mode rather than on
+  // anything about the editor.
+  await expect(page.getByLabel('Line length', { exact: true })).toBeVisible();
   await expect(page.getByText('Canopy material')).toBeVisible();
   await expect(page.getByText('Shroud line material')).toBeVisible();
 

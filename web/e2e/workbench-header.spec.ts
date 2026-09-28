@@ -3,11 +3,11 @@ import { test, expect, runFlight, ready, box } from './base';
 /**
  * The desktop workbench tabs sit IN the header, not in a strip below it.
  *
- * They used to own a full row of their own to hold two or three words, while the
- * header beside them ran empty from the WASM badge to the far-right controls.
- * Asserted geometrically rather than by class name: what matters is that the
- * tabs cost no vertical space, which is exactly "the nav is inside the header's
- * box", and that nothing wraps the header onto a second line.
+ * A row of their own costs a full line to hold two or three words while the header
+ * beside them runs empty from the WASM badge to the far-right controls. Asserted
+ * geometrically rather than by class name: what matters is that the tabs cost no
+ * vertical space, which is exactly "the nav is inside the header's box", and that
+ * nothing wraps the header onto a second line.
  *
  * Desktop-only, and in its own file for that reason: it measures the header
  * at the lg breakpoint EXACTLY (1024), where the phone project's emulation
@@ -21,11 +21,20 @@ test('the workbench tabs live in the header rather than a row of their own', asy
   await page.setViewportSize({ width: 1024, height: 900 });
   await ready(page);
   await runFlight(page);
-  await page.getByRole('combobox', { name: /language|idioma/i }).selectOption('es');
 
   const header = page.locator('header').first();
+  // The save status is PART of the tightest state, and it only appears once the
+  // debounced autosave lands - a tick or two after the run. Measured before it
+  // arrives the header is ~115px lighter than the one anybody sees, and a row
+  // that wraps in six of the ten languages reads as a row that fits.
+  await expect(header.getByText(/^Saved/)).toBeVisible();
+
+  await page.getByRole('combobox', { name: /language|idioma/i }).selectOption('es');
   const nav = page.getByRole('navigation', { name: /Workbench|Banco/i });
   await expect(nav.getByRole('button')).toHaveCount(3);
+  // Both halves of the switch have landed: the tabs' text and the status', the
+  // latter being the one that reflows late.
+  await expect(header.getByText(/^Guardado/)).toBeVisible();
 
   const h = await box(header);
   const n = await box(nav);

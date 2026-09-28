@@ -2,11 +2,13 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LaunchConditions, WindLevel } from '../../services/orkTree';
 import { NumberInput } from '../common/NumberInput';
-import { useFocusTrap } from '../common/useFocusTrap';
+import { markRing } from '../common/FieldMark';
+import { Dialog } from '../common/Dialog';
 import { useUnits, type Units } from '../../prefs/useUnits';
 import { MAX_WIND_SPEED_MS } from '../../services/safetyLimits';
 import { hasIntensity, stdDevForIntensity, turbulenceIntensity, turbulenceLevel } from '../../services/windTurbulence';
 import { parseWindProfileCsv, WindProfileCsvError } from '../../services/windProfileCsv';
+import { duplicateAltitudeRows } from '../../services/windLevels';
 
 /**
  * The altitude-layered wind profile, as OpenRocket's Wind Profile Editor: one
@@ -33,7 +35,7 @@ const btn =
 /**
  * Altitude against wind speed, the way the desktop draws it: altitude up, speed
  * across, one marker per level. The direction vectors are optional because on a
- * profile whose layers back round they are the whole point, and on a profile
+ * profile whose layers back round they carry the information, and on a profile
  * that blows one way throughout they are noise.
  */
 function ProfileChart({ levels, u, showVectors }: { levels: WindLevel[]; u: Units; showVectors: boolean }) {
@@ -117,7 +119,6 @@ export function WindProfileDialog({
 }) {
   const { t } = useTranslation();
   const u = useUnits();
-  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
   const fileRef = useRef<HTMLInputElement>(null);
   const [showVectors, setShowVectors] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -137,6 +138,16 @@ export function WindProfileDialog({
   const surfaceLevel = levels.length
     ? levels.reduce((lowIdx, l, i) => (l.altitudeM < levels[lowIdx]!.altitudeM ? i : lowIdx), 0)
     : -1;
+  /**
+   * The rows sharing an altitude with an earlier row. The kernel refuses a
+   * profile like that outright, in its own words, half way into a run
+   * (`Wind level already exists for altitude: 0.0`), so the editor that let it
+   * be typed is where it has to be said. Flagged rather than prevented: a row
+   * passes through a collision on the way to a legal value - clearing 300 to
+   * type 3000 goes past 0 - and refusing the keystroke would make the column
+   * unusable.
+   */
+  const dupeRows = new Set(duplicateAltitudeRows(levels));
 
   const setLevels = (next: WindLevel[]) => onChange({ windLevels: next.length ? next : undefined });
   /** Replace the whole profile (import, reset): every row is new. */
@@ -145,8 +156,19 @@ export function WindProfileDialog({
     setRowIds(next.map((_, i) => base + i));
     setLevels(next);
   };
-  const patchLevel = (i: number, p: Partial<WindLevel>) =>
+  /**
+   * Edit one level, dropping a value that is not a real number.
+   *
+   * `NumberInput` refuses a non-finite ENTRY, but a finite entry is not a
+   * finite stored value: the box holds display units and the level holds SI, so
+   * 1e306 ft of altitude converts to Infinity meters. That reached the level,
+   * the chart, the .ork and the kernel's wind model, none of which have an
+   * answer for it. One guard here covers all four columns.
+   */
+  const patchLevel = (i: number, p: Partial<WindLevel>) => {
+    if (Object.values(p).some((v) => !Number.isFinite(v))) return;
     setLevels(levels.map((l, j) => (j === i ? { ...l, ...p } : l)));
+  };
   const removeLevel = (i: number) => {
     setRowIds(rowIds.filter((_, j) => j !== i));
     setLevels(levels.filter((_, j) => j !== i));
@@ -157,7 +179,10 @@ export function WindProfileDialog({
     setLevels([
       ...levels,
       {
-        altitudeM: (last?.altitudeM ?? 0) + 300,
+        // 300 m above the HIGHEST level, not above the last row: the list is not
+        // sorted, so on a profile of 0/600/300 the last row's +300 lands on 600
+        // and collides with an existing level.
+        altitudeM: Math.max(0, ...levels.map((l) => l.altitudeM)) + 300,
         speed: last?.speed ?? 0,
         directionDeg: last?.directionDeg ?? 90,
         stddev: last?.stddev ?? 0,
@@ -190,28 +215,20 @@ export function WindProfileDialog({
   };
 
   return (
-    <div className="dialog-overlay fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4" onClick={onClose}>
-      <div
-        ref={panelRef}
-        className="dialog-panel w-full max-w-4xl rounded-2xl bg-slate-900 p-6 ring-1 ring-white/10"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('windProfile.title')}
-        onClick={(e) => e.stopPropagation()}
-        onBlur={onCommit}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-lg font-semibold text-slate-100">{t('windProfile.title')}</h2>
-          <button
-            onClick={onClose}
-            aria-label={t('common.close')}
-            className="shrink-0 rounded-lg bg-slate-800 px-2 py-1 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_280px]">
+    <Dialog
+      id="windProfile"
+      title={t('windProfile.title')}
+      onClose={onClose}
+      // Opened from the launch panel inside the simulation editor's dialog.
+      layer="over"
+      size="4xl"
+      layout="pad"
+    >
+      {/* The commit-on-blur sits on a wrapper rather than the panel the shell
+          owns. Blur bubbles (React's onBlur is focusout), so every field inside
+          still commits when it is left. */}
+      <div onBlur={onCommit}>
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_280px]">
           <div className="min-w-0">
             <div className="flex gap-1 px-1 pb-1 text-[10px] uppercase tracking-wide text-slate-500">
               <span className="w-20">
@@ -242,8 +259,17 @@ export function WindProfileDialog({
                       min={0}
                       ariaLabel={`${t('windProfile.altitude')} ${i + 1}`}
                       value={u.toUi('distance', l.altitudeM)}
-                      onChange={(v) => patchLevel(i, { altitudeM: u.fromUi('distance', v ?? 0) })}
-                      className={`${cell} w-20`}
+                      // No `?? 0`, unlike the columns beside it: an altitude is
+                      // the level's IDENTITY to the kernel, not a quantity with
+                      // a harmless zero, so an emptied box writes nothing
+                      // rather than moving the layer down onto the pad.
+                      onChange={(v) => v !== null && patchLevel(i, { altitudeM: u.fromUi('distance', v) })}
+                      invalid={dupeRows.has(i)}
+                      // `markRing`, not another ring class appended: both are
+                      // the same custom property and Tailwind emits them in its
+                      // own order, so the later one in the string does not
+                      // reliably win. Swapping it is what the field rows do.
+                      className={markRing(`${cell} w-20`, dupeRows.has(i))}
                     />
                     <NumberInput
                       step={u.step('windspeed', 0.5)}
@@ -333,6 +359,11 @@ export function WindProfileDialog({
               />
             </div>
             <p className="mt-1 text-[11px] leading-snug text-slate-500">{t('windProfile.csvFormat')}</p>
+            {dupeRows.size > 0 && (
+              <p role="alert" className="mt-1 text-[11px] leading-snug text-red-300">
+                {t('windProfile.duplicateAltitude')}
+              </p>
+            )}
             {error && (
               <p role="alert" className="mt-1 text-[11px] leading-snug text-red-300">
                 {error}
@@ -392,6 +423,6 @@ export function WindProfileDialog({
           </button>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

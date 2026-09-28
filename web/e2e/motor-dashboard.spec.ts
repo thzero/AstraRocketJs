@@ -68,8 +68,18 @@ test('column chooser adds columns and remembers them across a reload', async ({ 
 
 test('adding many columns scrolls the grid, it does not shove the detail pane', async ({ page }) => {
   const dialog = await openDashboard(page);
-  await dialog.locator('tbody tr').first().click();
+  // Pin the row before clicking it, for the reason spelled out in the first test
+  // here: the grid renders before the catalog lands, so an immediate `first()`
+  // click can land on a row that is replaced when it arrives, and the selection
+  // goes with it. The search is cleared again so the columns below are measured
+  // against the whole grid.
+  const search = dialog.getByPlaceholder(/Search by code/i);
+  await search.fill('C6');
+  const row = dialog.locator('tbody tr').first();
+  await expect(row).toContainText('C6');
+  await row.click();
   await expect(dialog.getByText('View on ThrustCurve.org')).toBeVisible();
+  await search.fill('');
 
   // Turn on every optional column.
   await dialog.getByText('Columns', { exact: true }).click();

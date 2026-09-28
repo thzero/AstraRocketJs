@@ -236,8 +236,7 @@ export interface FlightPathExportOptions {
    * and track name. Several exports opened in one Google Earth session are
    * otherwise indistinguishable: every two-stage design contributes a folder
    * called "Sustainer" and a track called "Sustainer flight path", and two
-   * designs can each own a "Simulation 1". Empty means no prefix anywhere, and
-   * every name is written exactly as it was before this option existed.
+   * designs can each own a "Simulation 1". Empty means no prefix anywhere.
    */
   missionName: string;
   /**
@@ -252,20 +251,16 @@ export interface FlightPathExportOptions {
    * Per-stage FLIGHT-PATH color overrides, keyed by the branch's index in the
    * built model. Sparse on purpose: a stage left on its palette color stores
    * nothing, so the palette can change later without stranding saved values.
-   *
-   * Kept under the old name rather than renamed to `branchPathColors`, so
-   * existing callers and tests still read correctly.
    */
   branchColors: Map<number, number>;
   /**
    * Per-stage GROUND-TRACK color overrides. Same shape, same sparseness.
    *
-   * This used to be derived: the ground track was the path color darkened 45%
-   * and drawn at 82% alpha. The derivation existed for a good reason - from
-   * directly overhead the ground track sits under the flight path, and one
-   * color reads as one line - but it washed out against satellite imagery and
-   * the user had nothing to fix it with, because the color was never a value
-   * they owned. It is its own color now, with its own palette.
+   * Its own color with its own palette, rather than a darkened derivative of the
+   * path color: a derived color washes out against satellite imagery and leaves
+   * the user nothing to fix it with. The cost is that from directly overhead,
+   * where the ground track sits under the flight path, the two no longer read as
+   * one line.
    */
   branchGroundColors: Map<number, number>;
   /**
@@ -516,9 +511,8 @@ export interface FlightPathBranch {
   /** Zero-based position in `model.branches`, for building unique style ids. */
   index: number;
   /**
-   * This branch's FLIGHT-PATH color as RRGGBB. Kept under the old name (rather
-   * than `pathColorRgb`) so a template written before ground and pin got their
-   * own colors still renders.
+   * This branch's FLIGHT-PATH color as RRGGBB. Templates reference this key by
+   * name, so renaming it stops saved templates rendering.
    */
   colorRgb: string;
   /** This branch's GROUND-TRACK color as RRGGBB. */
@@ -896,17 +890,17 @@ export function buildFlightPathModel(
     const pinRgb = options.branchPinColors?.get(branch.index) ?? defaultPinColor(branch.index);
     // The folder name carries the mission; the raw stage name stays on the
     // branch context, where the waypoint labels are qualified from it. Prefix
-    // the branch name first and qualify from that, and you can no longer have
-    // one without the other.
+    // the branch name first and qualify from that, and the two cannot be had
+    // separately.
     branch.name = withMission(mission, branch.name);
     branch.colorRgb = rgbHex(rgb);
     branch.groundColorRgb = rgbHex(groundRgb);
     branch.pinColorRgb = rgbHex(pinRgb);
-    // All three opaque. Alpha used to depend on whether the color was derived,
-    // which meant the same color rendered differently depending on how it got
-    // there - picking exactly the default gave a different result from leaving
-    // it alone. If translucency is wanted it becomes its own control, with its
-    // own default, by the same rule as the colors.
+    // All three opaque, whatever the color's provenance: an alpha that depends on
+    // whether the color was derived renders the same color differently depending
+    // on how it got there, so picking exactly the default differs from leaving it
+    // alone. Translucency, if wanted, becomes its own control with its own
+    // default, by the same rule as the colors.
     branch.pathColorKml = kmlColor(rgb, 0xff);
     branch.groundColorKml = kmlColor(groundRgb, 0xff);
     branch.pinColorKml = kmlColor(pinRgb, 0xff);

@@ -67,8 +67,8 @@ public class SymmetricComponentCalc extends RocketComponentCalc {
 	 * exact Taylor-Maccoll cone / ogive theory (Sims NASA SP-3004 class
 	 * values reach ~1.2-1.4x slender by M4-5) and calibrated against the
 	 * ARCAS (TN D-4013/D-4014) and Basic Finner (DREV-TM-9703) CP/CNa
-	 * anchors — see docs/research/validation-anchors-2026-08-03.md and
-	 * validation/score.mjs. Transitions/boattails keep slender values (their
+	 * anchors - see validation/score.mjs and validation/anchors.json.
+	 * Transitions/boattails keep slender values (their
 	 * supersonic behavior is Phase-2+ work). Default false ⇒ bit-identical.
 	 */
 	private boolean supersonicAero = false;
@@ -715,12 +715,10 @@ public class SymmetricComponentCalc extends RocketComponentCalc {
 	 * their own evidence.
 	 *
 	 * Opt-in: gated on its OWN flag, stubbyNoseFloor - see the field above and
-	 * api.OpenRocketEngine.setStubbyNoseFloor. This used to say
-	 * "rogersKbf || supersonicAero exactly like FinSetCalc's extensions", which
-	 * is a DIFFERENT gate and made this a third physics flag that no comment and
-	 * no markdown file in the repo mentioned: anyone auditing "flags off means
-	 * bit-identical" checked the two documented flags and never learned this one
-	 * existed. The classic model stays bit-identical to desktop with it off.
+	 * api.OpenRocketEngine.setStubbyNoseFloor. NOT
+	 * `rogersKbf || supersonicAero`, which is a different gate and would make
+	 * this a third physics flag hiding behind the two documented ones. The
+	 * classic model stays bit-identical to desktop with it off.
 	 */
 	private void applyStubbyNoseFloor(LinearInterpolator interpolator, double min, boolean tableShape) {
 		if (!tableShape || !isNoseShape) {

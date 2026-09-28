@@ -1,11 +1,18 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CatalogMotor } from '../../services/motorDb';
-import { useFocusTrap } from '../common/useFocusTrap';
+import { Dialog } from '../common/Dialog';
 import { MotorDetail } from './MotorDetail';
 import { keyOf } from './motorKey';
 import { useCatalog } from './useCatalog';
-import { ClassChips, DiameterRange, ManufacturerMenu, useMotorFilter } from './MotorFilterBar';
+import {
+  ClassChips,
+  DiameterRange,
+  ImpulseRange,
+  ManufacturerMenu,
+  PluggedFilter,
+  useMotorFilter,
+} from './MotorFilterBar';
 import { useVisibleColumns } from './motorColumns';
 import { useMotorSort } from './useMotorSort';
 import { ColumnChooser, MotorGrid } from './MotorGrid';
@@ -37,7 +44,6 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
   const [curveIdx, setCurveIdx] = useState(0);
   const [checked, setChecked] = useState<Map<string, CatalogMotor>>(new Map());
   const [mode, setMode] = useState<Mode>('detail');
-  const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: onClose });
 
   const { catalog, loading: catalogLoading, error: catalogError, retry } = useCatalog();
   const { visCols, cols, toggleCol } = useVisibleColumns();
@@ -51,6 +57,10 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
     setMfrs,
     dia,
     setDia,
+    imp,
+    setImp,
+    plugged,
+    setPlugged,
     classes,
     manufacturers,
     matches: filtered,
@@ -82,147 +92,140 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
     });
 
   return (
-    <div
-      className="dialog-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-    >
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="motor-dashboard-title"
-        className="dialog-panel flex h-[760px] max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-slate-900 ring-1 ring-white/10"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between gap-2 border-b border-white/10 p-3">
-          <h2 id="motor-dashboard-title" className="text-sm font-semibold text-slate-200">
-            {t('dash.title')}
-          </h2>
-          <div className="flex items-center gap-2">
-            {checked.size > 0 && (
-              <>
-                <span className="text-xs text-slate-400">{t('dash.selectedN', { n: checked.size })}</span>
-                <button
-                  onClick={() => {
-                    setChecked(new Map());
-                    setMode('detail');
-                  }}
-                  className="rounded-lg bg-slate-800 px-2 py-1 text-xs text-slate-300 hover:bg-slate-700"
-                >
-                  {t('dash.clear')}
-                </button>
-              </>
-            )}
+    <Dialog
+      id="motorDashboard"
+      title={t('dash.title')}
+      onClose={onClose}
+      size="6xl"
+      // A two-pane browser: the grid and the detail rail scroll separately, flush
+      // to the panel's edges, so the body takes the height and adds no padding
+      // of its own.
+      layout="fill"
+      // A definite height rather than the viewport's, so a thousand-row grid
+      // does not make the dialog as tall as the screen on a large monitor.
+      height={760}
+      actions={
+        checked.size > 0 && (
+          <>
+            <span className="text-xs text-slate-400">{t('dash.selectedN', { n: checked.size })}</span>
             <button
-              onClick={onClose}
-              aria-label={t('banner.close')}
-              className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 hover:bg-slate-700"
+              onClick={() => {
+                setChecked(new Map());
+                setMode('detail');
+              }}
+              className="rounded-lg bg-slate-800 px-2 py-1 text-xs text-slate-300 hover:bg-slate-700"
             >
-              ✕
+              {t('dash.clear')}
             </button>
-          </div>
-        </div>
-
-        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          {/* LEFT: filters + sortable grid. min-w-0 lets this flex child shrink
+          </>
+        )
+      }
+    >
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        {/* LEFT: filters + sortable grid. min-w-0 lets this flex child shrink
               below the table's intrinsic width so the grid scrolls internally
               instead of pushing the detail pane. Hidden while a full-width tool
               (compare/combine) is open. */}
-          <div
-            className={`${effMode === 'detail' ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-1 flex-col md:border-r md:border-white/10`}
-          >
-            <div className="flex flex-wrap items-center gap-2 p-3">
-              <input
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                autoFocus
-                placeholder={t('motorDlg.searchCode')}
-                className="min-w-[140px] flex-1 rounded-lg bg-slate-950 px-3 py-1.5 text-sm text-slate-100 ring-1 ring-white/10 placeholder:text-slate-500 focus:outline-none focus:ring-sky-500"
-              />
-              <ManufacturerMenu manufacturers={manufacturers} mfrs={mfrs} onChange={setMfrs} align="right" />
-              <ColumnChooser visCols={visCols} onToggle={toggleCol} />
-              <DiameterRange dia={dia} onChange={setDia} />
-            </div>
-            <div className="flex flex-wrap gap-1 px-3 pb-2">
-              <ClassChips classes={classes} cls={cls} onChange={setCls} />
-            </div>
-
-            <MotorGrid
-              shown={shown}
-              cols={cols}
-              sort={sort}
-              onSort={clickHeader}
-              selected={selected}
-              onSelect={select}
-              checked={checked}
-              onToggleCheck={toggleCheck}
-              catalogLoading={catalogLoading}
-              catalogError={catalogError}
-              onRetry={retry}
+        <div
+          className={`${effMode === 'detail' ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-1 flex-col md:border-r md:border-white/10`}
+        >
+          <div className="flex flex-wrap items-center gap-2 p-3">
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              autoFocus
+              placeholder={t('motorDlg.searchCode')}
+              className="min-w-[140px] flex-1 rounded-lg bg-slate-950 px-3 py-1.5 text-sm text-slate-100 ring-1 ring-white/10 placeholder:text-slate-500 focus:outline-none focus:ring-sky-500"
             />
+            <ManufacturerMenu manufacturers={manufacturers} mfrs={mfrs} onChange={setMfrs} align="right" />
+            <ColumnChooser visCols={visCols} onToggle={toggleCol} />
+            <DiameterRange dia={dia} onChange={setDia} />
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 pb-2">
+            <ClassChips classes={classes} cls={cls} onChange={setCls} />
+            {/* Beside the class chips, which answer the coarse version of the
+                same question: a class is a doubling bucket, so H runs from 160
+                to 320 N·s and a threshold out of a design lands between two
+                letters. */}
+            <ImpulseRange imp={imp} onChange={setImp} />
+            <PluggedFilter plugged={plugged} onChange={setPlugged} />
           </div>
 
-          {/* RIGHT: detail rail (narrow) or a full-width tool (compare/combine). */}
-          <div
-            className={`min-h-0 overflow-y-auto ${effMode === 'detail' ? 'w-full md:w-[440px] md:shrink-0' : 'w-full flex-1'}`}
-          >
-            {effMode !== 'detail' && (
-              <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-white/10 bg-slate-900 px-3 py-2">
-                <button
-                  onClick={() => setMode('detail')}
-                  className="rounded-lg bg-slate-800 px-3 py-1 text-xs font-medium text-slate-200 hover:bg-slate-700"
-                >
-                  ← {t('dash.back')}
-                </button>
-                <ToolBtn active={effMode === 'compare'} disabled={checked.size < 2} onClick={() => setMode('compare')}>
-                  {t('dash.compareN', { n: checked.size })}
-                </ToolBtn>
-                <ToolBtn active={effMode === 'combine'} disabled={checked.size < 2} onClick={() => setMode('combine')}>
-                  {t('dash.combine', { n: checked.size })}
-                </ToolBtn>
-              </div>
-            )}
-            {effMode === 'compare' ? (
-              <MotorComparePane motors={checkedMotors} cols={cols} />
-            ) : effMode === 'combine' ? (
-              <MotorCombinePane motors={checkedMotors} />
-            ) : checked.size >= 2 ? (
-              // A multi-selection is active: prompt with what the two tools do,
-              // rather than a single motor's detail.
-              <div className="p-6">
-                <div className="mx-auto max-w-xs space-y-4 text-center">
-                  <div className="text-xs uppercase tracking-wide text-slate-500">
-                    {t('dash.selectedN', { n: checked.size })}
-                  </div>
-                  <div className="space-y-2 text-left">
-                    <button
-                      onClick={() => setMode('compare')}
-                      className="w-full rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-500"
-                    >
-                      {t('dash.compareN', { n: checked.size })}
-                    </button>
-                    <p className="text-xs leading-snug text-slate-500">{t('dash.compareDesc')}</p>
-                    <button
-                      onClick={() => setMode('combine')}
-                      className="w-full rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-slate-100 hover:bg-slate-600"
-                    >
-                      {t('dash.combine', { n: checked.size })}
-                    </button>
-                    <p className="text-xs leading-snug text-slate-500">{t('dash.combineDesc')}</p>
-                  </div>
+          <MotorGrid
+            shown={shown}
+            cols={cols}
+            sort={sort}
+            onSort={clickHeader}
+            selected={selected}
+            onSelect={select}
+            checked={checked}
+            onToggleCheck={toggleCheck}
+            catalogLoading={catalogLoading}
+            catalogError={catalogError}
+            onRetry={retry}
+          />
+        </div>
+
+        {/* RIGHT: detail rail (narrow) or a full-width tool (compare/combine). */}
+        <div
+          className={`min-h-0 overflow-y-auto ${effMode === 'detail' ? 'w-full md:w-[440px] md:shrink-0' : 'w-full flex-1'}`}
+        >
+          {effMode !== 'detail' && (
+            <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-white/10 bg-slate-900 px-3 py-2">
+              <button
+                onClick={() => setMode('detail')}
+                className="rounded-lg bg-slate-800 px-3 py-1 text-xs font-medium text-slate-200 hover:bg-slate-700"
+              >
+                ← {t('dash.back')}
+              </button>
+              <ToolBtn active={effMode === 'compare'} disabled={checked.size < 2} onClick={() => setMode('compare')}>
+                {t('dash.compareN', { n: checked.size })}
+              </ToolBtn>
+              <ToolBtn active={effMode === 'combine'} disabled={checked.size < 2} onClick={() => setMode('combine')}>
+                {t('dash.combine', { n: checked.size })}
+              </ToolBtn>
+            </div>
+          )}
+          {effMode === 'compare' ? (
+            <MotorComparePane motors={checkedMotors} cols={cols} />
+          ) : effMode === 'combine' ? (
+            <MotorCombinePane motors={checkedMotors} />
+          ) : checked.size >= 2 ? (
+            // A multi-selection is active: prompt with what the two tools do,
+            // rather than a single motor's detail.
+            <div className="p-6">
+              <div className="mx-auto max-w-xs space-y-4 text-center">
+                <div className="text-xs uppercase tracking-wide text-slate-500">
+                  {t('dash.selectedN', { n: checked.size })}
+                </div>
+                <div className="space-y-2 text-left">
+                  <button
+                    onClick={() => setMode('compare')}
+                    className="w-full rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-500"
+                  >
+                    {t('dash.compareN', { n: checked.size })}
+                  </button>
+                  <p className="text-xs leading-snug text-slate-500">{t('dash.compareDesc')}</p>
+                  <button
+                    onClick={() => setMode('combine')}
+                    className="w-full rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-slate-100 hover:bg-slate-600"
+                  >
+                    {t('dash.combine', { n: checked.size })}
+                  </button>
+                  <p className="text-xs leading-snug text-slate-500">{t('dash.combineDesc')}</p>
                 </div>
               </div>
-            ) : selected ? (
-              <MotorDetail motor={selected} curveIndex={curveIdx} onCurveChange={setCurveIdx} />
-            ) : (
-              <div className="grid h-full place-items-center p-6 text-center text-sm text-slate-500">
-                {t('dash.hint')}
-              </div>
-            )}
-          </div>
+            </div>
+          ) : selected ? (
+            <MotorDetail motor={selected} curveIndex={curveIdx} onCurveChange={setCurveIdx} />
+          ) : (
+            <div className="grid h-full place-items-center p-6 text-center text-sm text-slate-500">
+              {t('dash.hint')}
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }
 

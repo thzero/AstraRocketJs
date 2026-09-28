@@ -111,8 +111,8 @@ function buildAftScene(
         title: nameOf(n),
       });
       reach(cy, cz, r);
-      // Body-tube mounts (minimum/sub-minimum builds) draw their motor too —
-      // previously only inner tubes did.
+      // Body-tube mounts (minimum/sub-minimum builds) draw their motor too, not
+      // just inner tubes.
       if (n.type === 'bodytube' && n['motorMount'] === true) {
         const motor = n.id ? motors?.[n.id] : undefined;
         if (motor) inner.push(motorShape(n, 0, cy, cz, motor.diameter));

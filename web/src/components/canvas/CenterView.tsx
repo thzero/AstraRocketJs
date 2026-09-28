@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   useWorkspaceStore,
   selectActive,
+  selectDesignName,
   selectExtraMotors,
   selectMotorDims,
   selectRunFailed,
@@ -12,10 +13,10 @@ import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
 import { APP_VERSION, appName } from '../../services/appInfo';
 import { descentMass } from '../../services/recoverySizing';
-import { resultFlight } from '../../services/simulations';
+import { resultFlight, type ResultFlight } from '../../services/simulations';
 import { TreeSchematic } from './TreeSchematic';
 import { AftView } from './AftView';
-import { FlightChart, type ChartFlight } from './FlightChart';
+import { FlightChart } from './FlightChart';
 import { GroundTrack } from './GroundTrack';
 import { ResultPicker } from '../sim/ResultPicker';
 import { FlightPathExport } from './FlightPathExport';
@@ -25,8 +26,10 @@ import { DesignWarnings } from './DesignWarnings';
 import { InfoOverlay } from './InfoOverlay';
 import { AeroAnalysis } from './AeroAnalysis';
 import { LoadedBanner } from './LoadedBanner';
+import { FlightEventsTable } from '../sim/FlightEventsTable';
 import { SimSummary } from '../sim/SimSummary';
 import { useIsDesktop } from '../common/useMediaQuery';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 import { FlightWarnings } from '../sim/FlightWarnings';
 
 // three.js is heavy, so the 3D views are code-split — their chunks load only when
@@ -73,6 +76,7 @@ export function CenterView() {
   const selectedId = useWorkspaceStore((s) => s.selectedId);
   const onSelect = useWorkspaceStore((s) => s.setSelectedId);
   const result = useWorkspaceStore((s) => selectActive(s).result);
+  const designName = useWorkspaceStore(selectDesignName);
   const sims = useWorkspaceStore((s) => s.sims);
   const activeId = useWorkspaceStore((s) => selectActive(s).id);
   const resultSimId = useWorkspaceStore((s) => s.resultSimId);
@@ -89,10 +93,22 @@ export function CenterView() {
    * builds a fresh object is compared by reference by zustand, so subscribing to
    * one re-renders forever (see `selectRunIds`).
    */
-  const flight = useMemo<ChartFlight | null>(
+  const flight = useMemo<ResultFlight | null>(
     () => resultFlight(sims, resultSimId, activeId),
     [sims, resultSimId, activeId],
   );
+
+  /**
+   * The flight the 3D path animates: the one being SHOWN, falling back to the
+   * active row's own result.
+   *
+   * Bound once so the guard and the view cannot disagree. They did: the guard
+   * asked the active simulation for a result while the view below it drew this
+   * expression, so adding a second row after a run - or picking another row in
+   * the Results picker - left the 3D path saying "run a simulation" while the
+   * charts beside it drew the flight.
+   */
+  const pathResult = flight?.result ?? result;
 
   /**
    * The header block the 2D/3D image exports stamp on the page — name, the
@@ -161,10 +177,8 @@ export function CenterView() {
   // rebuild (applyBuild) hands the store a fresh info identity, and depending on
   // that re-fires the effect for a design that hasn't actually changed.
   const hasDesign = !!info;
-  // "Run outdated simulations automatically" — which, until results were kept
-  // across an edit, could only ever mean "never run": an edit destroyed the
-  // result, so the only state this could see was a missing one. Now it covers
-  // both, which is what the setting has always said.
+  // "Run outdated simulations automatically" covers both a missing result and an
+  // aged one, which is what the setting says.
   const needsRun = !result || !!outdated;
   useEffect(() => {
     if (settings.simulation.autoRunOutdated && isResultView(view) && needsRun && hasDesign && !busy && !runFailed) {
@@ -172,10 +186,9 @@ export function CenterView() {
     }
   }, [view, needsRun, hasDesign, busy, runFailed, settings.simulation, runSim]);
 
-  // There used to be a second effect here that walked you off a result view when
-  // the result vanished under you. Nothing vanishes any more — an edit ages the
-  // numbers instead of deleting them — and a simulation that has never been run
-  // shows the "run one" prompt below rather than an empty pane.
+  // No effect walks the user off a result view: an edit ages the numbers instead
+  // of deleting them, and a simulation that has never been run shows the "run one"
+  // prompt below rather than an empty pane.
 
   // Header slot the 2D schematic's control buttons (calipers, zoom, export)
   // portal into, so they sit centered in the same row as the view toggle.
@@ -217,6 +230,7 @@ export function CenterView() {
         <div className="max-h-[45%] shrink-0 space-y-3 overflow-y-auto px-3 pt-3 lg:hidden">
           {!desktop && <FlightWarnings sim={result} />}
           <SimSummary sim={result} />
+          <FlightEventsTable sim={result} simName={flight?.name ?? simName} designName={designName} />
         </div>
       )}
       {/* Everything from here to the stats strip is the DRAWING half: the view
@@ -359,16 +373,25 @@ export function CenterView() {
                 </div>
               </>
             )}
-            {/* Quick-glance stats card (mmrocket-style): sits INSIDE the ruler frame on
+            {/* Quick-glance stats card: sits INSIDE the ruler frame on
             the 2D view (clear of the top + left rulers when they're on), and in the
-            upper-left corner in 3D. Toggleable via the header Info button. */}
+            upper-left corner in 3D. Toggleable via the header Info button.
+
+            In 3D it hangs BELOW the view-preset row rather than level with it.
+            That row is pinned top-right and the card top-left, which reads as
+            two corners only while the pane is wider than both put together —
+            below that they overlap, and the card is z-20 against the row's
+            z-index 2, so it covered Reset / Side / Aft AND ate their clicks.
+            Buttons you can see and cannot press is the worse half of that, and
+            it got worse with every button added to the row. A readout yields to
+            a control. */}
             {(view === '2d' || view === '3d') && showInfoCard && (
               <div
                 className="absolute z-20"
                 style={
                   view === '2d'
                     ? { left: (rulers.left ? 60 : 44) + ROLL_GUTTER, top: rulers.top ? 44 : 12 }
-                    : { left: 44, top: 12 }
+                    : { left: 44, top: 44 }
                 }
               >
                 <InfoOverlay info={info} />
@@ -399,34 +422,48 @@ export function CenterView() {
                 )}
               </div>
             ) : view === '3d' ? (
-              <Suspense fallback={loading}>
-                <Rocket3D
-                  tree={tree}
-                  info={info}
-                  motors={motors}
-                  selectedId={selectedId}
-                  onSelect={onSelect}
-                  showMarkers={showMarkers}
-                  exportData={exportData}
-                />
-              </Suspense>
+              // Outside the Suspense: it is the chunk FETCH that fails on a
+              // stale deploy, and Suspense re-throws that rejection rather than
+              // holding it. Without something above to catch it the throw takes
+              // the whole app down, not just this canvas.
+              <ErrorBoundary>
+                <Suspense fallback={loading}>
+                  <Rocket3D
+                    tree={tree}
+                    info={info}
+                    motors={motors}
+                    selectedId={selectedId}
+                    onSelect={onSelect}
+                    showMarkers={showMarkers}
+                    exportData={exportData}
+                  />
+                </Suspense>
+              </ErrorBoundary>
             ) : view === 'flight' ? (
               // Keyed on the simulation: a different flight gets a fresh chart
               // (trace selection and zoom start over), while a re-run of the
-              // SAME simulation keeps its id and so keeps the view. FlightChart
-              // used to reset both through effects keyed on the trace list,
-              // which blanked the first frame and left a stale zoom on re-run.
+              // SAME simulation keeps its id and so keeps the view. Resetting
+              // both through effects keyed on the trace list instead blanks the
+              // first frame and leaves a stale zoom on re-run.
               <div className="h-full p-2">{flight ? <FlightChart key={flight.id} flight={flight} /> : prompt}</div>
             ) : view === 'path' ? (
               <div className="relative h-full p-2">
-                {result ? (
+                {pathResult ? (
                   <>
-                    <Suspense fallback={loading}>
-                      {/* One rocket is animated, so this follows the picker's
-                          FIRST choice rather than overlaying like the charts and
-                          the ground track do. */}
-                      <FlightPath3D result={flight?.result ?? result} tree={tree} motors={motors} />
-                    </Suspense>
+                    <ErrorBoundary>
+                      <Suspense fallback={loading}>
+                        {/* One rocket is animated, so this follows the picker's
+                            FIRST choice rather than overlaying like the charts and
+                            the ground track do. */}
+                        <FlightPath3D
+                          result={pathResult}
+                          tree={tree}
+                          motors={motors}
+                          latitudeDeg={flight?.launch.latitudeDeg}
+                          longitudeDeg={flight?.launch.longitudeDeg}
+                        />
+                      </Suspense>
+                    </ErrorBoundary>
                     <div className="pointer-events-none absolute inset-x-0 top-5 z-10 flex justify-center">
                       <div className="pointer-events-auto">
                         <FlightPathExport variant="overlay" />
@@ -438,7 +475,21 @@ export function CenterView() {
                 )}
               </div>
             ) : view === 'ground' ? (
-              <div className="h-full p-2">{flight ? <GroundTrack flight={flight} /> : prompt}</div>
+              <div className="h-full p-2">
+                {flight ? (
+                  // The coordinates come off the flight's OWN simulation, not
+                  // the active one: the Results picker can be showing a row
+                  // other than the one being edited.
+                  <GroundTrack
+                    flight={flight}
+                    latitudeDeg={flight.launch.latitudeDeg}
+                    longitudeDeg={flight.launch.longitudeDeg}
+                    launch={flight.launch}
+                  />
+                ) : (
+                  prompt
+                )}
+              </div>
             ) : (
               <div className="h-full p-2">{info ? <AeroAnalysis /> : prompt}</div>
             )}

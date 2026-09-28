@@ -57,7 +57,7 @@ You can export these as **CSV** (see [Files & Exports](./files-and-exports.md)).
 
 ## Flight (after a simulation)
 
-A panel of **flight charts** over time: altitude, velocity, acceleration, Mach, thrust, mass, drag, and stability. Flight events (burnout, apogee, deployment, landing) are marked. Toggle which measures show from the chip bar, hover for a synchronized crosshair and value readout across every chart, and zoom / pan the time axis (the +/− buttons, drag, or Ctrl / pinch-scroll). **The measures you pick are remembered** — open thrust and mass once and they are still open next time, in this design and any other.
+A panel of **flight charts** over time: altitude, velocity, acceleration, Mach, thrust, mass, drag, and stability. Flight events (burnout, apogee, deployment, landing) are marked, which answers *when*; the **[Flight events](./running-a-simulation.md#flight-events)** table on the Results pane reads the same events down a list, each with the state of the rocket at that instant. Toggle which measures show from the chip bar, hover for a synchronized crosshair and value readout across every chart, and zoom / pan the time axis (the +/− buttons, drag, or Ctrl / pinch-scroll). **The measures you pick are remembered** — open thrust and mass once and they are still open next time, in this design and any other.
 
 **Choosing which flight** — run one simulation and the pane's title is simply its name. Run several at once and the title becomes a **picker** listing exactly those: click it and choose the flight to read. One at a time, and the choice governs all three results views — the charts, the [ground track](#ground-track-after-a-simulation) and the 3D path — so switching shows you the same flight whichever way you are looking at it.
 
@@ -73,11 +73,49 @@ North is up, the pad is at the center, and both axes share one scale, so the pic
 
 It draws the same traces the flight charts do, so a staged flight shows each stage's own descent — a spent booster usually lands somewhere quite different from the sustainer.
 
+### The ground under the track
+
+The track can be drawn over **aerial imagery of the field you flew from**, at the coordinates that simulation was flown at. That is the difference between reading "364 m on a bearing of 270" and seeing that the booster came down in the treeline.
+
+**None · Satellite · Street** in the corner chooses the layer. It starts on **None**, and nothing is fetched until you ask for the ground: the rings and the numbers are the measurement and they do not depend on a picture, so opening Results is not a reason to go and get one. Which layer you pick is shared with the [launch-site map](./running-a-simulation.md#the-map), and turning the ground on or off carries between this view and the 3D path for the session, because it is one question about how you want to read the ground rather than a setting per view.
+
+The zoom follows the flight: a 200 m drift draws closer in than a 5 km one. The view never zooms closer than about **100 m across**, however short the flight — still air lands a rocket a few centimeters from the pad, and a picture of that much grass is no picture at all. So a landing on the pad reads as a dot on the pad, which is the truth about it.
+
+Tiles are the same ones the launch-site map uses and are cached the same way, so a field you checked at home still draws with no signal. Somewhere you have never viewed draws without them, which is the plain plot and still a correct measurement — the range rings do not depend on the picture. The provider's credit sits in the corner whenever imagery is showing, as its terms require.
+
 To take the same thing outside the app, the [flight-path export](./files-and-exports.md) writes it as KML or GPX for Google Earth, and the flight CSV now carries **East** and **North** columns beside altitude.
+
+### The drift region (a wind sweep) {#the-drift-region-a-wind-sweep}
+
+:::warning Experimental
+
+New, and less settled than the rest of this page. Each flight in a sweep goes through the same validated kernel as any other simulation, so the individual landings are as good as the app's flight results generally are — but the **region drawn around them has not been checked against a real recovery**, and the shape of the controls, the default grid and the two-sigma choice are all likely to change.
+
+Read it as a planning aid: how big a field this wants, and roughly which way the walk goes. It is not a range-safety clearance, and it is not a substitute for the [safety checks](./safety.md) or for looking at the actual field.
+
+:::
+
+The track above is where the rocket comes down under the **one** set of conditions you typed. Nobody knows the wind to a tenth of a meter per second on the morning of a launch, so the more useful question is which ground it could come down on across everything the day might do. **Drift**, at the top right, answers that by flying a **grid** of winds and keeping where each flight landed.
+
+You set the grid: a wind speed **from** and **to**, how many **speeds** to step through, how many **headings**, and how wide a **spread** of headings to cover (all round the compass, or an arc centered on the wind you typed). The two step counts multiply, so the panel says how many flights that is before you run it. They fly over the same worker pool a batch of simulations uses, several at once, and the count ticks down as they land; **Cancel** stops them.
+
+The result draws three things on the plan view, in each stage's own color:
+
+- The **shaded envelope** — the exact region of the conditions flown. Nothing in the sweep landed outside it, and this is the shape to walk out and look at.
+- The **dashed ellipse** — the same landings as a center, two axes and a bearing, at two standard deviations. This is the familiar recovery ellipse, the version that fits on a flight card and compares between designs, motors and days. Over an all-round sweep it correctly sits *inside* the ring of landings rather than around it.
+- A **dot per flight**, and a cross at the mean landing. Where the dots crowd is where the rocket lands on most of the days the sweep covers.
+
+The readout under the plot gains the **range band** for each stage — the nearest and furthest of its swept landings — beside the distance and bearing of the flight you were already reading.
+
+Everything but the wind is held exactly as the simulation has it: the same design, motor, ignition, rod, site and run settings, and one turbulence seed across the whole grid. That is what makes the spread attributable to the wind rather than to a dozen things moving at once, and it is why the same sweep run twice draws the same region. The speed band is capped by the same [safety-code limit](./safety.md) the Run button enforces, so a sweep never draws ground the app will not fly to.
+
+A sweep belongs to the flight it was built around, and only one is held at a time: pick a different flight and the region is not drawn. Edit the design, the motor or the launch conditions afterwards and the region stays up with a note saying it is older than what is on screen — the landings are still the honest answer for the rocket that flew them. **Clear** removes it. Nothing about a sweep is saved with the design.
 
 ## 3D path (after a simulation)
 
 The flight **trajectory in 3D** — the rocket's path through space, including drift from wind.
+
+The **ground plane can carry the same aerial imagery**, laid at the launch site's coordinates so the trajectory arcs over the real field rather than over an empty grid. The same **None · Satellite · Street** buttons sit at the top left, starting on **None** and sharing their choice with the ground track and the launch-site map. The imagery covers a little past the furthest the rocket got from the pad rather than the whole plane, so a three-hundred-meter flight does not fetch a kilometer of scenery either side; the reference grid carries on beyond its edge.
 
 An **⬇ Export** button saves the flight path for mapping tools — **KML** (Google Earth), **GPX**, or a **waypoint CSV** — with options for which waypoints and lines to include, and support for your own templates. See [Files & Exports](./files-and-exports.md#exporting-the-flight-path-kml--gpx--csv).
 

@@ -5,9 +5,8 @@ import { numOpt, positionOf } from './nodeProps';
 
 /**
  * Scale a whole rocket by one factor — the "upscale/downscale a plan" workflow.
- * Ported from the sibling mmrocket-sim `tree/scaleRocket.ts`; the motor-mount
- * snapping half of that file (which needs a motor-class database) is left out —
- * this is the pure geometric scale.
+ * Motor-mount snapping is left out (it needs a motor-class database); this is
+ * the pure geometric scale.
  *
  * WHY A KEY LIST AND NOT A SCHEMA WALK: `ComponentNode` has an open index
  * signature and importers write length-valued keys no schema declares (freeform
@@ -124,10 +123,9 @@ const MASS_KEYS = ['mass', 'overrideMass'] as const;
  * COMPUTED mass scales (densities are untouched): a solid is a volume (k³), a
  * canopy/streamer a surface (k²), a cord a line (k).
  *
- * Every type is listed. The table used to hold only the exceptions over an
- * open `Record<string, number>` with `?? 3` at the read, so the k³ cases were
- * implicit and a new type fell into them unreviewed; the launch-lug error
- * below is exactly what that produced.
+ * Every type is listed, rather than only the exceptions over an open
+ * `Record<string, number>` with `?? 3` at the read: that leaves the k³ cases
+ * implicit and drops a newly added type into them unreviewed.
  */
 const MASS_EXPONENT: Record<ComponentType, number> = {
   // A stage or assembly has no mass of its own, but an `overrideMass` pinned on
@@ -173,8 +171,14 @@ const round = (x: number, places = 12): number => {
   return Math.round(x * p) / p;
 };
 
-/** Scales one node's own fields. Children are handled by the caller. */
-function scaleNode(n: ComponentNode, k: number): ComponentNode {
+/**
+ * Scales one node's own fields. Children are handled by the caller.
+ *
+ * Exported for the freeform editor's **Scale fin**, which is this applied to one
+ * component: the same key lists, so a scaled fin's tab, fillet and thickness
+ * follow its outline exactly as they would in a whole-rocket scale.
+ */
+export function scaleNode(n: ComponentNode, k: number): ComponentNode {
   const type = n.type;
   const fixed = FIXED_SIZE.has(type);
   const out: ComponentNode = { ...n };

@@ -7,12 +7,12 @@ import type { AeroSweep, OpenRocketDesign } from '../../engine/openRocketEngine'
  *
  * The sweep runs from an EFFECT into state, not inside a render-time memo.
  * `rocket.aeroSweep` is a synchronous kernel call (48-50 samples with a full
- * per-component force analysis) that used to run in the render body, so
- * every input change stalled the render with no busy state and nothing on
- * screen could respond until it returned. Deferring it one macrotask lets
- * the render that shows `pending` paint first: the previous chart stays up
- * and interactive, the header shows it is computing, and a stale run (the
- * inputs changed again before it started) is skipped rather than displayed.
+ * per-component force analysis), so run in the render body it stalls the render on
+ * every input change with no busy state and nothing on screen able to respond.
+ * Deferring it one macrotask lets the render that shows `pending` paint first: the
+ * previous chart stays up and interactive, the header shows it is computing, and a
+ * stale run (the inputs changed again before it started) is skipped rather than
+ * displayed.
  */
 
 /** The flight conditions and Mach range one sweep is flown at. */
@@ -60,9 +60,9 @@ export function useAeroSweep(
       let next: AeroSweep | null = null;
       if (run.rocket) {
         try {
-          // Finer steps over a shorter sweep: M1 at 0.02 is 48 samples, fewer than
-          // the 59 the old M3 default already asked for, and it puts the resolution
-          // where a subsonic rocket's drag actually moves - the rise from ~0.8.
+          // Finer steps over a shorter sweep: M1 at 0.02 is 48 samples, and it
+          // puts the resolution where a subsonic rocket's drag actually moves -
+          // the rise from ~0.8.
           const machStep = run.machMax <= 1 ? 0.02 : run.machMax > 3 ? 0.1 : 0.05;
           next = run.rocket.aeroSweep({
             machMin: 0.05,

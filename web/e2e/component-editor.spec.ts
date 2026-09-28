@@ -14,7 +14,10 @@ test.beforeEach(async ({ page }) => {
 test('nose-cone editor exposes shoulder fields incl. the capped toggle', async ({ page }) => {
   await page.locator('div[title="Nose cone"]').click();
   await expect(page.getByLabel('Shoulder length')).toBeVisible();
-  await expect(page.getByLabel('Shoulder radius')).toBeVisible();
+  await expect(page.getByLabel('Shoulder diameter', { exact: true })).toBeVisible();
+  // The shoulder diameter follows the bore of the tube it plugs into; the
+  // switch for that sits beside it and is off on a design read from a file.
+  await expect(page.getByLabel('Shoulder diameter: Auto')).not.toBeChecked();
   await expect(page.getByLabel('Shoulder capped')).toBeVisible(); // boolean field kind
 });
 

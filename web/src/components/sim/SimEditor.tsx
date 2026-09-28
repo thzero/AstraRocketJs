@@ -17,9 +17,8 @@ import type { SimPrefs } from '../../services/simulations';
  * Everything about the SELECTED simulation: its name, a motor card per mount,
  * the launch conditions, and its overrides of the global run preferences.
  *
- * Sits in the Simulations tab's right column at lg+, and inline under the table
- * on a phone — the table alone would leave a phone with no way to change a motor
- * at all, which the old single-column panel did allow.
+ * Sits in the Simulations tab's right column at lg+, and inline under the table on
+ * a phone, which would otherwise have no way to change a motor at all.
  *
  * Reads the store directly, so the same element works in both places.
  */
@@ -134,6 +133,13 @@ export function SimEditor() {
           const or = typeof mt.outerRadius === 'number' ? mt.outerRadius : null;
           const th = typeof mt.thickness === 'number' ? mt.thickness : 0;
           const bore = or != null ? (or - th) * 2 * 1000 : null; // inner diameter, mm
+          // How long a motor may be: the tube plus its overhang, because that is
+          // where the app already seats one (aft - motorLength + overhang). The
+          // bare tube length would refuse a motor the rocket can actually fly.
+          const tubeLen = typeof mt.length === 'number' ? mt.length : null;
+          const overhang = typeof mt.motorOverhang === 'number' ? mt.motorOverhang : 0;
+          const mount =
+            bore != null ? { bore, maxLength: tubeLen != null ? (tubeLen + overhang) * 1000 : undefined } : null;
           return (
             <MotorRow
               key={id}
@@ -141,7 +147,7 @@ export function SimEditor() {
               motor={isPrimary ? motor : (extraMotors[id]?.spec ?? null)}
               onChange={isPrimary ? onMotorChange : (m) => setExtraMotor(id, m)}
               onError={onError}
-              mountDiameter={bore}
+              mount={mount}
               ignition={
                 isPrimary
                   ? { event: ignitionEvent ?? 'automatic', delay: ignitionDelay ?? 0 }

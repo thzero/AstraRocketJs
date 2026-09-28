@@ -16,7 +16,7 @@ test.describe('accessibility', () => {
     const dialog = page.getByRole('dialog').first();
     await expect(dialog).toBeVisible();
 
-    // The close button used to have no accessible name at all — just "✕".
+    // The close button carries a real accessible name, not just the ✕ glyph.
     await expect(dialog.getByRole('button', { name: 'Close' })).toBeVisible();
 
     // …and there was no keyboard way out of an aria-modal overlay.
@@ -59,7 +59,7 @@ test.describe('accessibility', () => {
     await page.goto('/');
 
     // The whole workbench at once: the stats strip, the property panel and the
-    // launch panel each mint unit chips, and they used to collide ACROSS panels
+    // launch panel each mint unit chips, and they must not collide ACROSS panels
     // — two "Length unit"s (the rod's and the rocket's) and two "Direction
     // unit"s (the rod's and the wind's) on screen together, indistinguishable
     // to anyone navigating by name.
@@ -105,9 +105,9 @@ test.describe('accessibility', () => {
     await page.goto('/');
     await page.getByRole('button', { name: 'Menu' }).click();
 
-    // Both submenus can be open at once, and both entries used to read
-    // "OpenRocket (.ork)" — ambiguous to a screen reader and a strict-mode
-    // violation for getByRole.
+    // Both submenus can be open at once, so two entries reading "OpenRocket
+    // (.ork)" are ambiguous to a screen reader and a strict-mode violation for
+    // getByRole.
     await page.getByRole('menuitem', { name: /^Import$/ }).click();
     await expect(page.getByRole('menuitem', { name: 'Import OpenRocket (.ork)' })).toBeVisible();
   });

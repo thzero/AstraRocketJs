@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { fmtNum } from '../../i18n/format';
+import { fmtNum, fmtUpTo, withUnit } from '../../i18n/format';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
@@ -56,6 +56,12 @@ export function RecoverySizingReadout({ node }: { node: ComponentNode }) {
   const cd = num(node, 'cd', 0.8);
   const diameter = num(node, 'diameter');
 
+  // The bands are authored in ft/s, so they are round there and nowhere else:
+  // "15-20 ft/s" is "4.6-6.1 m/s". One decimal at most, trailing zeros dropped,
+  // keeps both readable instead of picking a fixed count that spoils one.
+  const rateBand = (minSi: number, maxSi: number) =>
+    withUnit(`${fmtUpTo(rateUnit.toUi(minSi), 1)}–${fmtUpTo(rateUnit.toUi(maxSi), 1)}`, rateUnit.sym);
+
   const sizing = useMemo(() => {
     const mass = descentMass(info?.mass, [motor, ...Object.values(extraMotors).map((e) => e.spec)]);
     if (mass == null) return null;
@@ -91,13 +97,17 @@ export function RecoverySizingReadout({ node }: { node: ComponentNode }) {
             </div>
           )}
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-xs text-slate-400">{t('recovery.mainTarget')}</span>
+            <span className="text-xs text-slate-400">
+              {t('recovery.mainTarget', { range: rateBand(MAIN_BAND.min, MAIN_BAND.max) })}
+            </span>
             <span className="text-sm tabular-nums text-slate-200">
               Ø {mainUnit.fmt(sizing.mainD)} <UnitChip quantity="length" scope={unitScope('recovery', 'mainD')} />
             </span>
           </div>
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-xs text-slate-400">{t('recovery.drogueTarget')}</span>
+            <span className="text-xs text-slate-400">
+              {t('recovery.drogueTarget', { range: rateBand(DROGUE_BAND.min, DROGUE_BAND.max) })}
+            </span>
             <span className="text-sm tabular-nums text-slate-200">
               Ø {drogueUnit.fmt(sizing.drogueD)} <UnitChip quantity="length" scope={unitScope('recovery', 'drogueD')} />
             </span>

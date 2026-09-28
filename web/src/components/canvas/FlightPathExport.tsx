@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive } from '../../state/store';
-import { download as saveDownload, safeFilename } from '../../services/saveFile';
+import { download as saveDownload, exportFilename, safeFilename } from '../../services/saveFile';
 import { useUnits } from '../../prefs/useUnits';
 import {
   buildFlightPathModel,
@@ -30,7 +30,7 @@ import {
   type StageTrackStart,
 } from '../../services/flightPathExport';
 import { getTemplateStore, parseTemplateFilename, type UserTemplate } from '../../services/templateStore';
-import { useFocusTrap } from '../common/useFocusTrap';
+import { Dialog } from '../common/Dialog';
 import { decodeStageColors, encodeStageColors } from '../../services/settings';
 import { useSettings } from '../../state/SettingsProvider';
 import { LANGUAGES } from '../../i18n';
@@ -101,11 +101,6 @@ export function ExportDialog({
   result: import('../../engine/openRocketEngine').FlightResult;
 }) {
   const { t, i18n } = useTranslation();
-  // Tab stays inside the modal, and focus returns to the trigger on close.
-  // Seven dialogs declared aria-modal and had neither, so Tab walked straight
-  // out into the page behind the overlay — the exact gap useFocusTrap exists
-  // to close, already used by seven of their siblings.
-  const panelRef = useFocusTrap<HTMLDivElement>(true);
   const store = useMemo(() => getTemplateStore(), []);
   const [selected, setSelected] = useState<string>(EXPORT_FORMATS[0]!.id);
   const units = useUnits();
@@ -157,14 +152,11 @@ export function ExportDialog({
     altitude: asDistanceUnit(settings.pathExport.altitudeUnit) !== undefined,
     distance: asDistanceUnit(settings.pathExport.distanceUnit) !== undefined,
   });
-  // Write the preference-shaped fields back from the handlers that change
-  // them, and nowhere else. An effect keyed on `opts` used to do this, and it
-  // ran on mount (opening the dialog rewrote the settings) and on every
-  // keystroke in the mission field (the one field that is deliberately NOT
-  // persisted, but it lives in `opts` too). Each write recreates the settings
-  // context and hits localStorage, so that was a settings save per keystroke.
-  // The mission name is excluded at the source (it is not in
-  // PathExportSettings), so it cannot leak into the store.
+  // Write the preference-shaped fields back from the handlers that change them,
+  // and nowhere else. An effect keyed on `opts` would run on mount and on every
+  // keystroke in the mission field, and each write recreates the settings context
+  // and hits localStorage. The mission name is excluded at the source (it is not
+  // in PathExportSettings), so it cannot leak into the store.
   const persist = (next: FlightPathExportOptions) => {
     const explicit = explicitUnits.current;
     update({
@@ -190,10 +182,9 @@ export function ExportDialog({
       },
     });
   };
-  // The latest options, for handlers. `change` used to spread the render's
-  // closed-over `opts`, so two changes committed in one tick (or a change
-  // landing before a re-render) built the second patch on a stale copy and
-  // dropped the first. A ref that every writer updates gives the handlers the
+  // The latest options, for handlers. Spreading the render's closed-over `opts`
+  // builds the second of two changes committed in one tick on a stale copy and
+  // drops the first. A ref that every writer updates gives the handlers the
   // current value without a side effect inside a state updater.
   const optsRef = useRef(opts);
   const patchOpts = (patch: Partial<FlightPathExportOptions>): FlightPathExportOptions => {
@@ -289,13 +280,13 @@ export function ExportDialog({
     if (!selectedUser) return;
     try {
       await store.remove(selectedUser.id);
-      // Inside the try as well: a listing that fails after the delete used to
-      // reject out of the handler, so the row vanished from the store but the
-      // dialog kept showing it and no error was reported.
+      // Inside the try as well: a listing that fails after the delete would
+      // otherwise reject out of the handler, leaving the row gone from the store,
+      // still shown in the dialog, and no error reported.
       setTemplates(await store.list());
     } catch {
-      // The template store now reports a refused write rather than resolving
-      // cleanly on one, so this can throw where it never used to.
+      // The template store reports a refused write rather than resolving cleanly
+      // on one, so this can throw.
       setError(t('storage.full'));
       return;
     }
@@ -332,7 +323,7 @@ export function ExportDialog({
         ext = resolved.format.extension;
         mime = resolved.format.mime;
       }
-      saveDownload(`${safeFilename(meta.simName, 'flight')}.${ext}`, text, mime);
+      saveDownload(exportFilename([meta.rocketName, meta.simName, 'flight-path'], ext, 'flight'), text, mime);
       onClose();
     } catch {
       setError(t('pathExport.renderError'));
@@ -340,27 +331,20 @@ export function ExportDialog({
   };
 
   return (
-    <div className="dialog-overlay fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
-      <div
-        ref={panelRef}
-        className="dialog-panel max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-slate-900 p-5 ring-1 ring-white/10"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('pathExport.title')}
-        onClick={(e) => e.stopPropagation()}
+    <>
+      <Dialog
+        id="pathExport"
+        title={t('pathExport.title')}
+        onClose={onClose}
+        size="md"
+        // A form of sections, read top to bottom. A rule under the heading would
+        // be one more line in something that already has plenty.
+        layout="pad"
+        // A column of labeled fields at a readable measure. Widening it would
+        // stretch the rows, not show more of anything.
+        expandable={false}
       >
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-base font-semibold text-slate-100">{t('pathExport.title')}</h2>
-          <button
-            onClick={onClose}
-            aria-label={t('pathExport.cancel')}
-            className="shrink-0 rounded-lg bg-slate-800 px-2 py-1 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="mt-4 space-y-4">
+        <div className="space-y-4">
           {/* Format */}
           <div className="space-y-2">
             <label className="flex items-center justify-between gap-3">
@@ -431,9 +415,8 @@ export function ExportDialog({
                   <button
                     key={preset.id}
                     type="button"
-                    // A toggle, not a plain button: before this nothing on
-                    // screen said which shape the dialog was in, and the
-                    // answer is knowable — see `matchingPreset`.
+                    // A toggle, not a plain button: which shape the dialog is
+                    // in is knowable, so it is announced - see `matchingPreset`.
                     aria-pressed={active}
                     // The set is cloned on the way in, so the module-level one a
                     // preset carries is never the object the dialog then mutates.
@@ -517,9 +500,8 @@ export function ExportDialog({
                   type="button"
                   onClick={() => setColorsOpen(true)}
                   title={t('pathExport.stageColorsTitle')}
-                  // Sized to the stage-track-start select beside it. It used to
-                  // be text-[11px] next to that control's text-sm, which read
-                  // as an afterthought rather than the other half of the row.
+                  // text-sm to match the stage-track-start select beside it:
+                  // the two are halves of one row.
                   className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
                 >
                   {t('pathExport.stageColors')}
@@ -658,7 +640,11 @@ export function ExportDialog({
             {t('pathExport.download')}
           </button>
         </div>
-      </div>
+      </Dialog>
+
+      {/* Outside the Dialog, not inside its panel: it is its own surface on its
+          own layer, and rendered within the panel it would inherit the panel's
+          clipping. */}
       {colorsOpen && (
         <StageColorDialog
           names={branchNames}
@@ -672,7 +658,7 @@ export function ExportDialog({
           }}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -727,23 +713,13 @@ function StageColorDialog({
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
-  const panelRef = useFocusTrap<HTMLDivElement>(true);
   const [drafts, setDrafts] = useState<Record<ColorRole, Map<number, number>>>(() => ({
     path: new Map(colors),
     ground: new Map(groundColors),
     pin: new Map(pinColors),
   }));
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation(); // the export dialog listens too; close only this one
-        onCancel();
-      }
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [onCancel]);
+  // Escape is handled by the shell, whose rule covers every dialog: it reaches
+  // the topmost one only.
 
   const setColor = (role: ColorRole, i: number, rgb: number) =>
     setDrafts((d) => {
@@ -753,17 +729,20 @@ function StageColorDialog({
     });
 
   return (
-    <div className="dialog-overlay fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4" onClick={onCancel}>
-      <div
-        ref={panelRef}
-        className="dialog-panel max-h-[80vh] w-full max-w-sm overflow-y-auto rounded-2xl bg-slate-900 p-5 ring-1 ring-white/10"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('pathExport.stageColorsTitle')}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-base font-semibold text-slate-100">{t('pathExport.stageColorsTitle')}</h2>
-        <div className="mt-3 space-y-1.5">
+    <Dialog
+      id="pathExportColors"
+      title={t('pathExport.stageColorsTitle')}
+      onClose={onCancel}
+      // Opened from the export dialog, which is itself a base dialog.
+      layer="over"
+      size="sm"
+      layout="pad"
+      // Three swatch columns and a stage name. There is nothing here that more
+      // width would reveal.
+      expandable={false}
+    >
+      <>
+        <div className="space-y-1.5">
           {/* Header row: three columns is past the point where a bare swatch
               says what it paints. */}
           <div className="flex items-center justify-between gap-2 pb-1">
@@ -814,8 +793,8 @@ function StageColorDialog({
             {t('pathExport.apply')}
           </button>
         </div>
-      </div>
-    </div>
+      </>
+    </Dialog>
   );
 }
 

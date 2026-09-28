@@ -30,10 +30,12 @@ Ser explícito sobre las carencias es más útil que una advertencia genérica:
 - **La resistencia estructural.** El cohete es un cuerpo rígido. Nada comprueba si el fuselaje sobrevive al max-Q, a una apertura brusca o a un desgarro del tubo.
 - **El inflado del paracaídas.** La resistencia de un dispositivo de recuperación se activa en su evento de apertura, tras el retardo que hayas fijado. Ni el transitorio de inflado del velamen ni la carga de choque de apertura se calculan. La aplicación te avisa de una apertura rápida en lugar de decirte qué le hace al tubo.
 - **La variación del motor.** La curva de empuje es una curva de certificación, no tu motor el día del lanzamiento. La dispersión entre lotes, la temperatura del propelente, la edad y el almacenamiento mueven el número real.
-- **La diferencia entre el modelo y lo que construiste.** Los filetes de cola, la pintura, una ojiva más pesada de lo que supone la tabla de materiales, un juego de aletas dos grados torcido, un paracaídas plegado más apretado de lo que admite la bahía. La simulación vuela el plano.
+- **La diferencia entre el modelo y lo que construiste.** La pintura, un filete de cola que no introdujiste, una ojiva más pesada de lo que supone la tabla de materiales, un juego de aletas dos grados torcido, un paracaídas plegado más apretado de lo que admite la bahía. La simulación vuela el plano.
 - **El suelo.** Sin terreno, sin obstáculos, sin árboles, sin térmicas, sin efecto suelo, y sin la fricción del lanzador ni un cohete que se atasque en la guía.
 
 ## Antes de volar {#before-you-fly}
+
+El panel de resultados encabeza sus números con una tarjeta **Antes de volar** que lleva la versión corta de esta página. Se pliega: pulsa su encabezado y la explicación se recoge, aunque antes te pide confirmar que has leído las notas, porque el pliegue se recuerda y ese clic es la última vez que se ofrecen en este navegador. El encabezado nunca se pliega, así que el aviso sigue sobre los números elijas lo que elijas.
 
 Lo más valioso que puedes hacer es dejar de simular un plano y empezar a simular el cohete que tienes sobre la mesa:
 
@@ -66,6 +68,12 @@ La aplicación no sabe nada de dónde estás ni de qué te está permitido hacer
 - La **ley sobre compra, certificación, transporte y almacenamiento de motores** donde vivas, y tener el nivel de certificación que el motor exige.
 - El **permiso para lanzar** en el terreno que vayas a usar.
 - Las **normas del campo** y el **responsable de seguridad de vuelo** (RSO). Lo que decida el RSO está por encima de cualquier cosa en tu pantalla.
+
+### Aviso legal {#disclaimer}
+
+Este software se ofrece "tal cual", sin garantía de ningún tipo, expresa o implícita, incluida cualquier garantía de exactitud, comerciabilidad o idoneidad para un fin concreto. Los resultados de las simulaciones son estimaciones. No sustituyen al código de seguridad aplicable, a un responsable de seguridad del campo de vuelo, a una autorización de espacio aéreo ni a tu propio criterio.
+
+**Tú, y solo tú, eres responsable de cualquier cohete que construyas, de cualquier motor que uses y de cualquier vuelo que realices.** Ni AstraRocketJs, ni quienes contribuyen a él, ni los autores del software del que deriva aceptan responsabilidad alguna por lesiones, muerte, daños materiales, incumplimientos normativos o cualquier otra pérdida derivada del uso de este software o de la confianza depositada en sus resultados, en la máxima medida permitida por la ley. Al usar el software, lo aceptas.
 
 ## Motores experimentales y de investigación {#experimental-and-research-motors}
 

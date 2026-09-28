@@ -5,6 +5,7 @@ import {
   type IgnitionEvent,
   type RocketTree,
   type MotorSpec,
+  type ComponentNode,
 } from '../engine/openRocketEngine';
 import { parseDesignFile } from './designFile';
 import type { OrkExportMotor } from './orkFile';
@@ -17,7 +18,10 @@ export interface MountMotor {
   ignitionDelay?: number;
 }
 import { loadCatalog, findCatalogMotor } from './motorDb';
-import { fetchMotorSpec } from './thrustcurve';
+import { customMotorToSpec, fetchMotorSpec } from './thrustcurve';
+import { parseRse, removeDelay } from './rseParser';
+import type { CustomMotor } from './motorStore';
+import type { OrkMotorRef } from './orkTypes';
 import { findMounts } from './treeEdit';
 
 export interface LoadedOrk {
@@ -34,6 +38,14 @@ export interface LoadedOrk {
   motorSpecs: Record<string, MountMotor>;
   /** Imported launch/sim conditions (wind, rod, site, geodetic), if the file had any. */
   launch?: Partial<LaunchConditions>;
+  /**
+   * Set when the tree AS WRITTEN could not be built, and the handle below was
+   * built from a repaired copy so the file could still be opened (see
+   * `buildForImport`). `design` and `info` then describe that copy, NOT this
+   * design: read neither. The app does not - it rebuilds from `tree` - and the
+   * rebuild refuses in the same place, which is what the user needs to see.
+   */
+  unbuildable?: string;
 }
 
 const IGNITION_EVENTS: ReadonlySet<string> = new Set(['automatic', 'launch', 'ejectioncharge', 'burnout', 'never']);
@@ -91,21 +103,138 @@ export function emptyMountMotor(): MotorSpec {
   };
 }
 
+/**
+ * The mount's motor plus whatever ignition override the file asked for.
+ *
+ * Lifted out because three paths now seat a motor - the catalog, the file's own
+ * embedded curve, and that curve again after a failed fetch - and an ignition
+ * event applied on only some of them is a design that stages differently
+ * depending on whether thrustcurve.org answered.
+ */
+function applyIgnition(
+  design: ReturnType<typeof OpenRocketDesign.buildTree>,
+  mountId: string,
+  ref: OrkMotorRef,
+  spec: MotorSpec,
+): MountMotor {
+  const entry: MountMotor = { spec };
+  if (ref.ignitionEvent && IGNITION_EVENTS.has(ref.ignitionEvent)) {
+    design.setMotorIgnitionById(mountId, ref.ignitionEvent as IgnitionEvent, ref.ignitionDelay ?? 0);
+    entry.ignitionEvent = ref.ignitionEvent as IgnitionEvent;
+    entry.ignitionDelay = ref.ignitionDelay ?? 0;
+  }
+  return entry;
+}
+
+/**
+ * The file's embedded thrust curves, keyed by designation without its delay.
+ *
+ * Keyed that way because the `.ork` names a motor as `J350-14` while the curve it
+ * embeds is the motor `J350`: the delay is the mount's choice, not the motor's.
+ * Upper-cased so the match does not turn on how the file spells it.
+ *
+ * A curve that will not parse is reported and skipped rather than failing the
+ * whole open: the design is still perfectly loadable without it, and the mount
+ * falls through to the unresolved placeholder it would have had anyway.
+ */
+function embeddedCurves(files: string[] | undefined, notes: string[]): Map<string, CustomMotor> {
+  const out = new Map<string, CustomMotor>();
+  for (const text of files ?? []) {
+    try {
+      for (const motor of parseRse(text)) {
+        const key = removeDelay(motor.designation).toUpperCase();
+        if (!out.has(key)) out.set(key, motor);
+      }
+    } catch {
+      notes.push('A thrust curve stored in the file could not be read and was skipped.');
+    }
+  }
+  return out;
+}
+
+/**
+ * Build the file's tree, and if the kernel REFUSES it, build a repaired copy
+ * instead so the file still opens.
+ *
+ * The kernel refuses a design it cannot fly - a freeform fin whose outline
+ * crosses itself is the case this was written for, since the kernel rolls such
+ * an outline back and the bridge now says so by name rather than flying the
+ * default fin. Opening is not flying, though: a design that cannot be simulated
+ * is exactly the design somebody needs to OPEN in order to fix, and refusing the
+ * whole file would leave a rocket saved from this app unreachable. So the tree is
+ * handed back untouched and only the throwaway handle - which exists to seat the
+ * file's motors, and whose numbers nothing downstream reads (`wireLoadedOrk`
+ * takes the tree, the specs and the notes) - is built from a copy with every
+ * freeform outline dropped to the kernel's default.
+ *
+ * The retry is deliberately blind: no attempt to decide from the message whether
+ * an outline was the cause. A build that fails for some other reason fails the
+ * retry too and the ORIGINAL error is what the caller sees.
+ *
+ * The note carries the kernel's own sentence, which names the offending part,
+ * and the app's rebuild hits the same refusal a moment later - so the reason
+ * appears in the banner as well, in the same words, for as long as it is true.
+ */
+export function buildForImport(tree: RocketTree): { design: OpenRocketDesign; unbuildable?: string } {
+  try {
+    return { design: OpenRocketDesign.buildTree(tree) };
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : String(e);
+    let repaired;
+    try {
+      repaired = OpenRocketDesign.buildTree(withoutFreeformOutlines(tree));
+    } catch {
+      throw e; // not an outline this could rescue - the real error is the useful one
+    }
+    return {
+      design: repaired,
+      unbuildable: `${reason} The design is open so it can be fixed; nothing will simulate until it is.`,
+    };
+  }
+}
+
+/** The tree with every freeform fin set's `points` dropped, so the kernel uses its own outline. */
+function withoutFreeformOutlines(tree: RocketTree): RocketTree {
+  const strip = (nodes: ComponentNode[] | undefined): ComponentNode[] | undefined =>
+    nodes?.map((n) => {
+      const kids = strip(n.children as ComponentNode[] | undefined);
+      const next = { ...n, ...(kids ? { children: kids } : {}) } as ComponentNode & { points?: unknown };
+      if (next.type === 'freeformfinset') delete next.points;
+      return next;
+    });
+  return { ...tree, components: strip(tree.components as ComponentNode[]) ?? [] } as RocketTree;
+}
+
 export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   resetEngine(); // free the previous design's handles
   // Either format, chosen from the bytes (designFile.ts). Everything below is
   // format-agnostic: it works off the import RESULT, and a `.rkt` simply
   // arrives with no motors and no flight configurations to resolve.
   const res = parseDesignFile(buffer);
-  const design = OpenRocketDesign.buildTree(res.tree);
+  const built = buildForImport(res.tree);
+  const design = built.design;
 
   const notes = [...(res.notes ?? []), ...(res.ignored ?? []).map((i) => `Skipped unsupported: ${i}`)];
+  if (built.unbuildable) notes.push(built.unbuildable);
 
   const catalog = await loadCatalog();
+  // Thrust curves the file brought with it, by designation. A `.ork` from the
+  // desktop embeds the curve of every motor the design uses, exactly so it opens
+  // somewhere that does not have them.
+  const embedded = embeddedCurves(res.embeddedMotors, notes);
   const motorSpecs: Record<string, MountMotor> = {};
   for (const [mountId, ref] of Object.entries(res.motors ?? {})) {
     const cat = findCatalogMotor(catalog, ref.designation, ref.manufacturer);
     if (!cat) {
+      // Before giving up: the file may carry the curve itself.
+      const own = embedded.get(removeDelay(ref.designation).toUpperCase());
+      if (own) {
+        notes.push(`Motor "${ref.designation}" isn't in the catalog — using the thrust curve stored in the file.`);
+        const spec = customMotorToSpec(own, ref.delay);
+        design.setMotorById(mountId, spec);
+        motorSpecs[mountId] = applyIgnition(design, mountId, ref, spec);
+        continue;
+      }
       // Keep the designation as an UNRESOLVED (curve-less) motor rather than a
       // default: the mount shows what the file wanted, the run is blocked until
       // the user picks a real motor, and nothing silently flies a C6.
@@ -118,14 +247,18 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
     try {
       const spec = await fetchMotorSpec(cat, ref.delay);
       design.setMotorById(mountId, spec);
-      const entry: MountMotor = { spec };
-      if (ref.ignitionEvent && IGNITION_EVENTS.has(ref.ignitionEvent)) {
-        design.setMotorIgnitionById(mountId, ref.ignitionEvent as IgnitionEvent, ref.ignitionDelay ?? 0);
-        entry.ignitionEvent = ref.ignitionEvent as IgnitionEvent;
-        entry.ignitionDelay = ref.ignitionDelay ?? 0;
-      }
-      motorSpecs[mountId] = entry;
+      motorSpecs[mountId] = applyIgnition(design, mountId, ref, spec);
     } catch (e) {
+      // Same fallback as the not-in-catalog branch: a network failure should not
+      // cost a design the curve it was carrying all along.
+      const own = embedded.get(removeDelay(ref.designation).toUpperCase());
+      if (own) {
+        notes.push(`Motor "${ref.designation}" could not be fetched — using the thrust curve stored in the file.`);
+        const spec = customMotorToSpec(own, ref.delay);
+        design.setMotorById(mountId, spec);
+        motorSpecs[mountId] = applyIgnition(design, mountId, ref, spec);
+        continue;
+      }
       // Seat the UNRESOLVED motor, exactly as the `!cat` branch above does.
       // Leaving the mount empty was not neutral: mountMotors seeds a default
       // C6 for any mount without one, so a single transient thrustcurve.org
@@ -173,5 +306,15 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   }
 
   const info = design.staticInfo();
-  return { name: res.name, design, info, notes, tree: res.tree, motors: res.motors, motorSpecs, launch: res.launch };
+  return {
+    name: res.name,
+    design,
+    info,
+    notes,
+    tree: res.tree,
+    motors: res.motors,
+    motorSpecs,
+    launch: res.launch,
+    unbuildable: built.unbuildable,
+  };
 }

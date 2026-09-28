@@ -5,10 +5,10 @@ import { test, expect, tableRows, defined } from './base';
  * part to be renamed, so an unnamed one takes its class default and a two-tube
  * rocket has two "Body tube"s.
  *
- * The engine facade used to key its per-component maps on `getName()`, which
- * merged them into a single row — drag summed across both, instance count
- * last-wins, CP averaged into a station belonging to neither. The maps are keyed
- * on the component's UUID now, and the tables key their rows on it too.
+ * The engine facade keys its per-component maps on the component's UUID, and the
+ * tables key their rows on it too. Keyed on `getName()` the two merge into a single
+ * row: drag summed across both, instance count last-wins, CP averaged into a station
+ * belonging to neither.
  */
 test('two parts sharing a name are two rows, not one merged one', async ({ page }) => {
   await page.goto('/');

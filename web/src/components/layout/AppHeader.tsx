@@ -38,25 +38,36 @@ export function AppHeader() {
   useUndoShortcuts();
 
   return (
-    // flex-wrap, not a fixed row: the title, badges and action group together
-    // need ~530px, so on a phone the row used to run off the right edge and
-    // make the whole DOCUMENT scroll sideways, which slid the bottom tab bar
-    // out of view with it. Wrapping keeps every control reachable and the page
+    // flex-wrap, not a fixed row: the title, the live save state and the action
+    // group together outrun a phone's width, and a fixed row would run off the
+    // right edge and make the whole DOCUMENT scroll sideways, sliding the bottom
+    // tab bar out of view. Wrapping keeps every control reachable and the page
     // exactly one viewport wide, at any width and in any language.
     <header className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3">
       <span className="text-xl">🚀</span>
       <h1 className="text-base font-semibold tracking-tight">{t('app.title')}</h1>
+      {/* The three static badges - version, pre-release, engine backend - are
+          `hidden` under xl, and EngineBadge carries the same gate.
+
+          At the lg breakpoint (1024) the workbench tabs appear and the save
+          status is showing, and the row then needs up to 1046px of the 992 it
+          has: it wraps to two lines in de, es, fr, nl, pt-PT and ru, which puts
+          back the row the tabs were moved into the header to save. These three
+          cost 160px with their gaps and are the only things here that are
+          neither a control nor live state - the version and the backend are
+          both in the About dialog, and the pre-release state has its own
+          blocking notice on first visit. */}
       <button
         onClick={() => open('about')}
         title={t('about.open')}
-        className="rounded text-[10px] font-medium tabular-nums text-slate-500 hover:text-sky-400"
+        className="hidden rounded text-[10px] font-medium tabular-nums text-slate-500 hover:text-sky-400 xl:inline"
       >
         v{APP_VERSION}
       </button>
       {isPreRelease() && (
         <span
           title={t('about.wip')}
-          className="rounded bg-amber-500/10 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-300 ring-1 ring-amber-400/30"
+          className="hidden rounded bg-amber-500/10 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-300 ring-1 ring-amber-400/30 xl:inline"
         >
           {t('wip.badge')}
         </span>
@@ -92,9 +103,10 @@ export function AppHeader() {
             onReport: () => open('report'),
             onMotors: () => open('motors'),
             onLaunchLocations: () => open('locations'),
+            onSavedParts: () => open('parts'),
             onSettings: () => open('settings'),
             // No argument is the docs index; Safety opens Help already ON its
-            // own page, which is the whole point of addressing help by slug.
+            // own page, which is what addressing help by slug is for.
             onHelp: () => openHelp(),
             onSafety: () => openHelp('safety'),
             onPrivacy: () => open('privacy'),

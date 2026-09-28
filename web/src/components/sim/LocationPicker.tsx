@@ -98,9 +98,9 @@ export function LocationPicker({
    *
    * Compared on the numbers rather than remembered as a selection: the fields
    * can be edited directly, imported from a `.ork` or replaced by "use my
-   * location", and a remembered id would keep claiming a location that is no longer
-   * what is on screen. Rounded to ~1 m of latitude, since a location's stored
-   * precision and a typed one need not match bit for bit.
+   * location", and a remembered id would keep claiming a location that is not what
+   * is on screen. Rounded to ~1 m of latitude, since a location's stored precision
+   * and a typed one need not match bit for bit.
    */
   const near = (a: number | null | undefined, b: number, eps: number) => a != null && Math.abs(a - b) < eps;
   const current = locations.find(

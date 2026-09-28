@@ -72,6 +72,16 @@ Las unidades son una preferencia de **visualización y entrada**. Tu diseño se 
 - Las cifras sin unidad tampoco cambian: la estabilidad en calibres o en % de la longitud, los coeficientes de resistencia, el Mach, CNα y los tiempos en segundos.
 - Los diámetros de los porta-motores y del filtro de motores siguen en mm, porque 18 mm / 24 mm / 29 mm son en la práctica **nombres** de motor.
 
+## Materiales {#materials}
+
+De qué está hecha una **pieza recién añadida**. Una fila por hueco de material: los catorce tipos de pieza estructural, más la tela y las cuerdas de un paracaídas, una cinta y un cordón de choque, porque una pieza puede llevar más de un tipo de material a la vez.
+
+La elección se gasta al añadir la pieza: el material se escribe en ella en ese momento, así que aparece en el panel de propiedades y viaja con el diseño en el `.ork`. Las piezas que ya están en el cohete no se tocan, ni tampoco un diseño que abras.
+
+Eso no es como funciona la preferencia equivalente de OpenRocket de escritorio, y es a propósito. El escritorio deja la pieza sin asignar y aplica tu preferencia al calcular la masa, lo que significa que el mismo archivo pesa una cosa en la máquina que lo creó y otra en la máquina a la que se lo enviaste. Aquí lo que elegiste está en el archivo.
+
+Los materiales personalizados también pueden ser predeterminados, y los adhesivos igual. Deja una fila en **Automático** y ese tipo de pieza seguirá recibiendo la densidad incorporada (cartón para piezas sólidas, nailon ripstop para las telas, cordón elástico para las cuerdas).
+
 ## Valores por defecto de la simulación
 
 Estos valores inicializan cada nueva simulación (aún puedes ajustar las condiciones de lanzamiento de cada una — consulta [Ejecutar una simulación](./running-a-simulation.md)):

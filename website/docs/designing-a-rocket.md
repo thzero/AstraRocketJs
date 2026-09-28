@@ -32,9 +32,27 @@ It is not only a label. The simulation judges a deployment differently depending
 
 A mass component is not only a lump of ballast — it can hold inner structure of its own, so an altimeter bay or a payload sled can be modeled as the sled plus the rings, bulkheads, hardware and recovery gear nested inside it. Add parts to it the same way as to a body tube.
 
+## How dimensions are stated
+
+**Every round dimension is a diameter.** That is how tubes are sold, how the parts catalog lists them, how the component tree labels them and how OpenRocket states them. `.ork` files store radii internally and always have; that is a detail of the file, and the number you type is never one of them.
+
+**A tube also states its bore.** Body tubes, inner tubes, couplers, engine blocks, tube fins and launch lugs show an **inner diameter** between the outer diameter and the wall thickness. It is not a fourth independent number: a tube has an outside and a wall, and the bore is what the two leave. Typing a bore therefore changes the **wall**, and leaves the outer diameter alone, because the outside of a tube is usually decided by what it has to slide into. A bore wider than the tube itself is clamped to a wall of zero rather than a negative one.
+
+That makes the fit questions direct ones. Does the motor go in? Compare the motor's diameter to the mount's inner diameter. Does the coupler fit the tube? Its outer diameter against the tube's inner diameter. Will the rod clear the lug? The lug's inner diameter, which until now was whatever the file happened to carry, since there was no field for a lug's wall at all.
+
+**A shoulder can follow the tube it plugs into.** Beside each shoulder diameter, on a nose cone and on both ends of a transition, is a switch. With it on, the diameter is the bore of the part next door - the one below a nose cone, above and below a transition - and it stays that way: widen the tube's wall and the stub that goes into it follows in the same keystroke. The box is a readout while the switch is on, and turning the switch off pins whatever the number currently is.
+
+Only the diameter follows. How far the shoulder reaches into the tube is yours, so a part with the switch on and no shoulder length still has no shoulder, which is the right place to start from.
+
+The switch is on for parts you add here, and off for everything read from a file, because in a file an absent shoulder means the part has none. Nothing you import grows one. `.ork` has no way to record the switch, so a file written here carries the resolved number and a round trip through desktop OpenRocket freezes it at that value.
+
+**A shoulder has a wall, and can be capped.** Each one carries its own thickness, and a **Capped** switch that closes its far end with a disc of the part's own material. The disc is as thick as the shoulder's wall, so it is what turns a nose cone into a closed bay you can put nose weight or an altimeter behind. Both count toward mass, CG and the moments of inertia. A transition has a set per side, fore and aft, and they are independent.
+
+Leave a shoulder's thickness blank and OpenRocket fills it from the part's own wall the moment the shoulder gets a length, so an absent value is not a zero one.
+
 ## Required dimensions
 
-Some dimensions define what a part *is*. A body tube with no radius is not a narrow tube, it is nothing — so those fields are marked, and a design that is missing one cannot be flown.
+Some dimensions define what a part *is*. A body tube with no diameter is not a narrow tube, it is nothing — so those fields are marked, and a design that is missing one cannot be flown.
 
 A required field carries a small red **\*** after its label, always, whether or not it is filled. That is there so you can see what a part needs *before* you have left anything blank.
 
@@ -46,26 +64,37 @@ If a required dimension is **zero**, the field escalates: the label is boxed in 
 
 | Component | Required |
 | --- | --- |
-| Nose cone | length, radius, thickness |
-| Body tube | length, radius, thickness |
-| Transition | length, fore radius, aft radius, thickness |
+| Nose cone | length, diameter, thickness |
+| Body tube | length, diameter, thickness |
+| Transition | length, fore diameter, aft diameter, thickness |
 | Trapezoidal / elliptical fin set | fin count, root chord, height, thickness |
 | Free-form fin set | fin count, thickness |
-| Tube fin set | tube count, length, tube radius, thickness |
-| Inner tube | length, radius, thickness |
+| Tube fin set | tube count, length, tube diameter, thickness |
+| Inner tube | length, diameter, thickness |
 | Coupler, engine block | length, thickness |
 | Centering ring | thickness |
 | Bulkhead | thickness |
-| Launch lug | length, radius |
+| Launch lug | length, diameter |
 | Rail button | outer diameter |
 | Parachute | diameter, drag coefficient |
 | Streamer | length, width, drag coefficient |
 | Mass component | mass |
 | Pod set / parallel stage | instance count |
 
-**Radii that fill their parent are left blank.** A coupler, engine block, centering ring or bulkhead takes its outer radius from whatever it sits in, and a centering ring takes its inner radius from the motor mount running through it, so leaving those empty is a real answer rather than a gap — it is what `.ork` files call *auto*, and the value follows along when you resize the tube. Type a number and that number is used instead. An inner tube is the exception: it *is* the motor mount, so its size is the thing being stated.
+**Diameters that fill their parent are left blank.** A coupler, engine block, centering ring or bulkhead takes its outer diameter from whatever it sits in, and a centering ring takes its inner diameter from the motor mount running through it, so leaving those empty is a real answer rather than a gap — it is what `.ork` files call *auto*, and the value follows along when you resize the tube. Type a number and that number is used instead. An inner tube is the exception: it *is* the motor mount, so its size is the thing being stated.
 
-Everything else may legitimately be zero, which is why it is not marked. A **tip chord** of 0 is a delta fin; **sweep** or **cant** of 0 is a straight one; a **shoulder** or **fin tab** of 0 is simply absent; **motor overhang** 0 is flush; a centering ring's **inner radius** of 0 is a solid disc; a mass component's **length** of 0 is a point mass; and every **delay** and **angle offset** starts at 0. A stage has no required fields at all — its settings are triggers and delays.
+Everything else may legitimately be zero, which is why it is not marked. A **tip chord** of 0 is a delta fin; **sweep** or **cant** of 0 is a straight one; a **shoulder** or **fin tab** of 0 is simply absent; **motor overhang** 0 is flush; a centering ring's **inner diameter** of 0 is a solid disc; a mass component's **length** of 0 is a point mass; and every **delay** and **angle offset** starts at 0. A stage has no required fields at all — its settings are triggers and delays.
+
+
+## Fin fillets {#fin-fillets}
+
+A fin set's **Fillet** section takes the radius of the glue bead along the fin root and the material the bead is made of. Both count: the fillet's volume is added to every fin's mass and its centroid pulls the CG aft, the same way desktop OpenRocket computes it.
+
+The material matters because a fillet is rarely the fin's own. A 6 mm bead on three fins around a 26 mm tube is about 1.1 g in cardboard and 2.0 g in something epoxy-dense, and the CG moves a couple of millimeters with it. Leave the material unset and the bead is weighed as cardboard (680 kg/m³), which is what the kernel and the `.ork` writer both fall back to. Pick one of the [adhesives](#adhesives) instead, or add your own with the material picker.
+
+**Tube fins have no fillet.** A tube fin set is a tube, not a fin, so the kernel has no fillet to give it and the section does not appear.
+
+**A fillet's material list holds adhesives only**, and a structural part's list holds everything but. To use something unusual, add it with **＋ Add custom…** and file it under Adhesives. A material a part already uses stays in its list either way.
 
 
 ## Freeform fins {#freeform-fins}
@@ -114,6 +143,18 @@ Instead of dialing in dimensions by hand, use the contextual **"Select a part…
 
 Applying a preset just fills in the component's fields — you can tweak it afterward. The catalog is bundled reference data (~2,900 parts); nothing is fetched at runtime.
 
+### Saving your own parts
+
+A part you built belongs in that picker too. **Save as part**, under the picker in the component panel, stores the component as it stands and offers it back on every design in that browser. Your own parts are listed first, marked with a ★, and the ✕ beside one removes it.
+
+It saves the **whole component**, not only the dimensions the picker's columns show: the material and finish, a nose cone's shoulder, a parachute's line count, a body tube's motor-mount flag, the color. Saving again under the same maker and part name replaces the earlier copy. Parts attached to the one you save (its fin set, its inner tube) are not saved with it.
+
+Saved parts live in your browser alongside your custom materials and imported motors, so they follow you between designs but not between machines.
+
+**Menu → My Parts** is the library itself: every saved part of every type, whatever the open design happens to contain. The list is on the left, grouped by type; selecting a part opens it on the right.
+
+The editor uses the same fields the component panel does, in the same units, so a saved nose cone is edited as a nose cone: rename it, change its maker or notes, change its shape, length, diameter, shoulder, material or color. **Save** writes it in place and leaves it selected, so a rename does not leave the old copy behind and you can work down the list without reopening anything. **Discard** puts the part back as it was stored, and switching to another part with unsaved edits asks first. **Delete** is in the same row, at the other end, and also asks. What the editor leaves out is the half of the panel that describes a part's place in a rocket (position, move, the fit-ranked picker, the descent-rate readout), because a saved part has no parent and no design to be judged against until you apply it. The picker only opens when a component of a matching type is selected, so it is not the place to manage a saved bulkhead on a rocket that has no bulkhead in it. Deleting asks first, in both places, because the design a part came from may be long gone.
+
 ### Sizing a parachute
 
 Selecting a **parachute** shows a **descent-sizing** readout in its panel. From the design's descent mass (see *recovery weight*) and the air density at the launch site, it gives:
@@ -128,9 +169,42 @@ It needs a motor loaded (to know the descent mass). It's an on-screen aid only �
 Every structural component has a **material**, which the engine uses (by its **density**) to compute mass and CG:
 
 - **Built-in materials** — OpenRocket's full list (bulk / surface / line, with densities). Each kind has its own [density unit](./settings.md#units) — bulk stock by volume, parachute fabric by area, cord by length — and a custom material's density is read in whichever unit is shown.
-- **Custom materials** — define your own (name + density); they're saved in your browser and reusable across designs.
+- **Custom materials** — define your own (name, density and which group it belongs in); they're saved in your browser and reusable across designs. A custom material sits **in that group**, marked with a ★, rather than in a group of its own: it is usually a variant of something already in the list, and it reads better beside it. Give one the **same name as a built-in** and it replaces that entry at your density instead of appearing twice.
 
-> Note: a material's **density** (and therefore all physics) is preserved through a `.ork` round-trip, but a non-default material's **name** may not yet survive save/reload — see the [FAQ](./faq.md).
+> Note: a material's **name and density** both survive a `.ork` round-trip, including for a material this app has and desktop OpenRocket does not. What does not travel is its membership of your own custom list — see the [FAQ](./faq.md).
+
+The material list is **OpenRocket's own**: all 32 bulk, 8 surface and 42 line materials, with the same names, densities and groups. The app adds the two things below.
+
+### Two corrected elastic cords {#corrected-materials}
+
+Flat elastic cord in 19 mm and 25 mm is listed a second time as **Elastic cord, corrected**, at 0.0123 and 0.016 kg/m. The original entries are unchanged, so a design that already names one keeps the density it was saved with. Pick the corrected one on a new design.
+
+### Adhesives {#adhesives}
+
+The app adds an **Adhesives** group, for fin fillets. Every density below is read off a manufacturer document, cited in the table and carried in the `source` and `note` fields of the entry itself.
+
+| Material | kg/m³ | What the figure is | Source |
+|---|---|---|---|
+| West System 105/205 Fast | 1180 | cured specific gravity 1.18 | [TDS](https://www.westsystem.com/app/uploads/2022/09/105_205-207-Combined.pdf) |
+| West System 105/206 Slow | 1180 | cured 1.18 | [TDS](https://www.westsystem.com/app/uploads/2022/09/105_205-207-Combined.pdf) |
+| West System 105/207 Clear | 1150 | cured 1.15 | [TDS](https://www.westsystem.com/app/uploads/2022/09/105_205-207-Combined.pdf) |
+| West System 105/209 Extra Slow | 1160 | cured 1.16 | [TDS](https://www.westsystem.com/app/uploads/2022/09/105_205-207-Combined.pdf) |
+| West System Six10 | 1180 | cured 1.18 (resin 1.17, hardener 1.04) | [TDS](https://www.westsystem.com/app/uploads/2022/12/Six10-Technical-Data-Sheet.pdf) |
+| West System G/5 Five-Minute | 1210 | cured 1.21 | [TDS](https://eu.westsystem.com/app/uploads/2022/12/G5-Five-Minute-Epoxy-Adhesive-2024.pdf) |
+| AeroPoxy PR2032/PH3660 | 1110 | cured 1.11 | [PTM&W bulletin](https://web.archive.org/web/20220626225252/https://www.ptm-w.com/aeropoxy/AEROPOXY%20Product%20Bulletins/AEROPOXY%20PR2032%20Bulletin%20w-4%20Hardeners%2024Jun08.pdf) |
+| AeroPoxy ES6209 | 1090 | cured 1.09 (resin 1.10, hardener 0.98) | [PTM&W bulletin](https://web.archive.org/web/20240712145738/https://www.ptm-w.com/aeropoxy/AEROPOXY%20Product%20Bulletins/AEROPOXY%20ES6209%20Bulletin.pdf) |
+| RocketPoxy G5000 | 1500 | "specific gravity mixed 1.50" | [Glenmarc datasheet](https://www.glenmarc.com/datasheets/EPOXY/RP_G5000_DATASHEET.pdf) |
+| TotalBoat High Performance | 1080 | **mixed liquid**: resin 1.11, hardener ~1.00, 2:1 by volume | [SDS](https://portal.sdsguru.com/SDS/Download/26223), [mix ratios](https://www.totalboat.com/products/high-performance-epoxy-resin) |
+| BSI Quik / Mid / Slow-Cure | 1060 | **mixed liquid**: SDS pair 0.97 / 1.15, 1:1 by volume | [SDS](https://bsi-inc.com/sds_pdf/sds_slow_cure.pdf) |
+| J-B Weld Original | 1840 | **mixed liquid**: Part A 1.78, Part B 1.902, 1:1 by volume | [Part A SDS](https://cecas.clemson.edu/cedar/wp-content/uploads/2016/10/J-B-Weld.pdf), [Part B SDS](https://media.napaonline.com/is/content/GenuinePartsCompany/2118182pdf) |
+| Carpenter's glue (PVA, dried) | 1190 | dried film; see below | [Titebond III TDS](https://ardec.ca/media/catalog/specs/tds-titebond-III-ultimate-wood-glue.pdf) |
+
+Notes on the figures:
+
+- **Cured, not mixed.** West System, AeroPoxy and RocketPoxy give the cured solid. The rest give their liquid components at the maker's ratio; a cured bead runs 2 to 3 percent denser.
+- **Carpenter's glue** is the dried figure. Model the bead after it dries, not as squeezed out.
+- **A thickened fillet is a different material.** Microballoons drop a West System bead to roughly 600 to 800. Weigh your own mix and add it as a custom material.
+- **ProLine 4500 is absent**: the maker publishes no density. To add it, weigh a known volume and divide.
 
 ## Motor mount
 

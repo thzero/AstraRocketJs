@@ -1,0 +1,215 @@
+{
+  "_comment": [
+    "Booster + sustainer, the LOW/MID-POWER gap-staging pattern, flown by both the",
+    "engine we ship and pristine upstream core.",
+    "",
+    "Different code path from staged-flight.json, which is why it is a separate",
+    "fixture rather than a tweak of it. Here the booster motor's ejection charge does",
+    "two jobs at once: it separates the booster AND lights the sustainer, because the",
+    "sustainer's motor keeps its default AUTOMATIC ignition instead of being handed a",
+    "timer. There is no 'ignition' block below for exactly that reason - adding one",
+    "would test the timed path again. The booster carries no parachute and falls on",
+    "its own branch.",
+    "",
+    "Mirrors ParityMain.runStagingScenario's 'auto' case. Everything else follows the",
+    "same rules as staged-flight.json: every aero- and mass-relevant property",
+    "explicit, and every component that can be an event source named."
+  ],
+  "design": {
+    "name": "StagedReferenceAuto",
+    "components": [
+      {
+        "type": "stage",
+        "name": "Sustainer",
+        "children": [
+          {
+            "type": "nosecone",
+            "shape": "conical",
+            "length": 0.07,
+            "aftRadius": 0.012,
+            "thickness": 0.002,
+            "density": 680
+          },
+          {
+            "type": "bodytube",
+            "length": 0.3,
+            "outerRadius": 0.012,
+            "thickness": 0.0003,
+            "density": 950,
+            "children": [
+              {
+                "type": "trapezoidfinset",
+                "finCount": 3,
+                "rootChord": 0.05,
+                "tipChord": 0.03,
+                "sweep": 0.02,
+                "height": 0.025,
+                "thickness": 0.003,
+                "density": 680
+              },
+              {
+                "type": "innertube",
+                "id": "smount",
+                "name": "SustainerMount",
+                "length": 0.07,
+                "outerRadius": 0.0095,
+                "thickness": 0.0005,
+                "motorMount": true,
+                "density": 680,
+                "position": {
+                  "method": "bottom",
+                  "offset": 0
+                }
+              },
+              {
+                "type": "parachute",
+                "name": "SustainerChute",
+                "diameter": 0.35,
+                "cd": 0.8,
+                "lineCount": 6,
+                "lineLength": 0.3,
+                "deployEvent": "apogee",
+                "deployDelay": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "stage",
+        "name": "Booster",
+        "separationEvent": "ejection",
+        "separationDelay": 0,
+        "children": [
+          {
+            "type": "bodytube",
+            "length": 0.12,
+            "outerRadius": 0.012,
+            "thickness": 0.0003,
+            "density": 950,
+            "children": [
+              {
+                "type": "trapezoidfinset",
+                "finCount": 3,
+                "rootChord": 0.05,
+                "tipChord": 0.03,
+                "sweep": 0.025,
+                "height": 0.035,
+                "thickness": 0.003,
+                "density": 680
+              },
+              {
+                "type": "innertube",
+                "id": "bmount",
+                "name": "BoosterMount",
+                "length": 0.07,
+                "outerRadius": 0.0095,
+                "thickness": 0.0005,
+                "motorMount": true,
+                "density": 680,
+                "position": {
+                  "method": "bottom",
+                  "offset": 0
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "motors": [
+    {
+      "mount": "smount",
+      "designation": "C6",
+      "diameter": 0.018,
+      "length": 0.07,
+      "cgX": 0.035,
+      "ejectionDelay": 5.0,
+      "times": [
+        0,
+        0.1,
+        0.3,
+        0.5,
+        1.0,
+        1.5,
+        1.85,
+        2.0
+      ],
+      "thrusts": [
+        0,
+        12.0,
+        6.0,
+        5.1,
+        4.9,
+        4.8,
+        4.5,
+        0
+      ],
+      "masses": [
+        0.024,
+        0.0231,
+        0.0215,
+        0.0202,
+        0.0174,
+        0.0147,
+        0.0133,
+        0.0132
+      ]
+    },
+    {
+      "mount": "bmount",
+      "designation": "C6",
+      "diameter": 0.018,
+      "length": 0.07,
+      "cgX": 0.035,
+      "ejectionDelay": 0.0,
+      "times": [
+        0,
+        0.1,
+        0.3,
+        0.5,
+        1.0,
+        1.5,
+        1.85,
+        2.0
+      ],
+      "thrusts": [
+        0,
+        12.0,
+        6.0,
+        5.1,
+        4.9,
+        4.8,
+        4.5,
+        0
+      ],
+      "masses": [
+        0.024,
+        0.0231,
+        0.0215,
+        0.0202,
+        0.0174,
+        0.0147,
+        0.0133,
+        0.0132
+      ]
+    }
+  ],
+  "options": {
+    "rodLength": 1.0,
+    "rodAngle": 0,
+    "rodDirection": 1.5707963267948966,
+    "launchLatitude": 28.61,
+    "launchLongitude": -80.6,
+    "launchAltitude": 0,
+    "geodetic": "spherical",
+    "gravityModel": "wgs",
+    "windAverage": 0,
+    "windStdDeviation": 0,
+    "windDirection": 1.5707963267948966,
+    "randomSeed": 42,
+    "timeStep": 0.05,
+    "maxTime": 1200
+  }
+}

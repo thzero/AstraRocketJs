@@ -4,10 +4,9 @@ import { freeformPoints, freeformRootChord } from './position';
 import { FIN_DEFAULTS, KERNEL_BODYTUBE_OUTER_RADIUS } from './kernelDefaults';
 
 /**
- * Re-exported so existing importers keep working. The values themselves live
- * in `kernelDefaults.ts`, the one table verified against the real engine: they
- * used to be declared here as "what treeEdit and orkImport write", which was
- * never what they were (they are ComponentFactory's fin defaults).
+ * Re-exported for convenience. The values themselves live in `kernelDefaults.ts`,
+ * the one table verified against the real engine; they are ComponentFactory's fin
+ * defaults, not "what treeEdit and orkImport write".
  */
 export { FIN_DEFAULTS, KERNEL_BODYTUBE_OUTER_RADIUS };
 
@@ -210,9 +209,9 @@ export function finSpan(node: ComponentNode): number {
  * taller than the body radius would pass through the airframe's axis and out
  * the other side.
  *
- * Only the DXF writer used to clamp. The STL and the 1:1 PDF template did not,
- * so a 20 mm tab on a 12 mm-radius body was cut three different depths
- * depending on which export the user opened.
+ * Clamped here rather than in each writer, so the DXF, the STL and the 1:1 PDF
+ * template cannot cut a 20 mm tab on a 12 mm-radius body to three different
+ * depths.
  *
  * @param parentRadius body radius at the fin, or a non-positive value / `null`
  *   when the caller genuinely has no parent (then no clamp is applied).
@@ -294,8 +293,8 @@ export function parentRadiusOf(tree: RocketTree, nodeId: string): number | null 
 /** The mounting radius of a symmetric body component, or `null` if it is not one. */
 function symmetricRadius(node: ComponentNode): number | null {
   // 0.012 is the kernel's body-tube default (ComponentFactory bodytube
-  // outerRadius), so a radius-less tube clamps the tab the way it is flown.
-  // It used to fall back to FIN_DEFAULTS.rootChord, a chord, not a radius.
+  // outerRadius), so a radius-less tube clamps the tab the way it is flown. Note
+  // it is a radius: FIN_DEFAULTS.rootChord is a chord and does not belong here.
   if (node.type === 'bodytube') return num(node, 'outerRadius', KERNEL_BODYTUBE_OUTER_RADIUS) || null;
   if (node.type === 'nosecone') return num(node, 'aftRadius', 0) || null;
   if (node.type === 'transition') {

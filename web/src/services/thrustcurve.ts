@@ -1,6 +1,6 @@
 import type { MotorSpec } from '../engine/openRocketEngine';
 import type { CatalogMotor } from './motorDb';
-import { getMotorStore, isThrustSampleArray } from './motorStore';
+import { getMotorStore, isThrustSampleArray, type CustomMotor } from './motorStore';
 import { declaredLength, readStreamWithProgress } from './fetchProgress';
 
 /**
@@ -102,14 +102,27 @@ export function samplesToMotorSpec(
   samples: TcSample[],
   ejectionDelay: number,
   cgSamples?: [number, number][],
+  /**
+   * Mass at each sample, kg, parallel to `samples` BEFORE the normalization
+   * below. Only a `.rse` import has one: the format measures the mass curve
+   * rather than leaving it to be reconstructed. Ignored unless it matches the
+   * samples one for one, because a column that has to be stretched to fit is a
+   * guess wearing the clothes of a measurement.
+   */
+  massSamples?: number[],
 ): MotorSpec {
-  // Normalize: sorted, starting at t=0.
-  const pts = [...samples].sort((a, b) => a.time - b.time);
+  // Normalize: sorted, starting at t=0. A supplied mass column RIDES ALONG
+  // through both steps rather than being indexed separately afterwards, so a
+  // file whose samples are not in time order cannot end up with its masses
+  // against the wrong times, and the prepended t=0 point takes the first
+  // mass (the loaded mass) rather than shifting the whole column by one.
+  const measured = massSamples?.length === samples.length ? massSamples : undefined;
+  const pts = samples.map((s, i) => ({ ...s, mass: measured?.[i] })).sort((a, b) => a.time - b.time);
   if (pts.length === 0) {
     throw new Error(`No thrust samples for ${motor.designation}`);
   }
   if (pts[0]!.time > 0) {
-    pts.unshift({ time: 0, thrust: 0 });
+    pts.unshift({ time: 0, thrust: 0, mass: pts[0]!.mass });
   }
 
   // thrustcurve.org's catalog is not uniformly populated: some entries publish
@@ -154,9 +167,14 @@ export function samplesToMotorSpec(
 
   const times = pts.map((p) => p.time);
   const thrusts = pts.map((p) => p.thrust);
-  const masses = cumImpulse.map((impulse) =>
-    totImpulse > 0 ? totalMass - propMass * (impulse / totImpulse) : totalMass,
-  );
+  // The file's own mass curve when it has one, else the reconstruction: mass
+  // falls from loaded to burnout in proportion to cumulative impulse. That is
+  // what OpenRocket does for a RASP file and, via `AbstractMotorLoader
+  // .calculateMass`, for a `.rse` that asks for its mass to be auto-calculated
+  // — the same arithmetic, so `.rse` import ports no copy of it.
+  const masses = measured
+    ? pts.map((p) => p.mass!)
+    : cumImpulse.map((impulse) => (totImpulse > 0 ? totalMass - propMass * (impulse / totImpulse) : totalMass));
 
   return {
     designation: motor.designation,
@@ -340,29 +358,15 @@ async function fetchSamplesCached(motor: TcMotor, cat: CatalogMotor): Promise<Tc
  * offline and instant, while a stale curve refreshes on its next use.
  */
 export async function fetchMotorSpec(cat: CatalogMotor, ejectionDelay: number, curveIndex = 0): Promise<MotorSpec> {
-  // Imported (.eng) motors carry their own curve — build the spec from local
-  // data, no thrustcurve lookup.
+  // Imported (.eng / .rse) motors carry their own curve — build the spec from
+  // local data, no thrustcurve lookup.
   if (cat.custom && cat.id) {
     const id = cat.id;
     const cm = (await getMotorStore().listCustomMotors()).find((m) => m.id === id);
     if (!cm) {
-      throw new Error(`Imported motor ${cat.designation} is no longer stored — re-import its .eng file.`);
+      throw new Error(`Imported motor ${cat.designation} is no longer stored — re-import its motor file.`);
     }
-    return samplesToMotorSpec(
-      {
-        motorId: cm.id,
-        designation: cm.designation,
-        commonName: cm.designation,
-        manufacturerAbbrev: cm.manufacturer,
-        diameter: cm.diameter,
-        length: cm.length,
-        totalWeightG: cm.totalWeightG,
-        propWeightG: cm.propWeightG,
-        availability: 'custom',
-      },
-      cm.samples,
-      ejectionDelay,
-    );
+    return customMotorToSpec(cm, ejectionDelay);
   }
 
   // Bundled catalog motor carrying its thrust curve(s) → build entirely from
@@ -402,4 +406,36 @@ export async function fetchMotorSpec(cat: CatalogMotor, ejectionDelay: number, c
     if (cached) return cached.value; // stale spec fallback
     throw e;
   }
+}
+
+/**
+ * A parsed `.eng` / `.rse` motor as a flyable {@link MotorSpec}.
+ *
+ * Exported because such a motor does not have to be in the user's own custom
+ * list to be flyable: a `.ork` from the desktop EMBEDS the thrust curve of every
+ * motor it uses, and `loadOrk` builds a spec straight from one of those rather
+ * than leaving the mount empty. Nothing is written to the store on that path -
+ * the curve belongs to the design that carried it, not to the user's catalog.
+ */
+export function customMotorToSpec(cm: CustomMotor, ejectionDelay: number): MotorSpec {
+  return samplesToMotorSpec(
+    {
+      motorId: cm.id,
+      designation: cm.designation,
+      commonName: cm.designation,
+      manufacturerAbbrev: cm.manufacturer,
+      diameter: cm.diameter,
+      length: cm.length,
+      totalWeightG: cm.totalWeightG,
+      propWeightG: cm.propWeightG,
+      availability: 'custom',
+    },
+    cm.samples,
+    ejectionDelay,
+    // Both are `.rse`-only, and both are stored in the file's units: the CG as a
+    // launch value in mm from the motor's forward end (the spec wants m), the
+    // masses in grams (the spec wants kg).
+    cm.cgMm === undefined ? undefined : [[0, cm.cgMm / 1000]],
+    cm.massesG?.map((g) => g / 1000),
+  );
 }

@@ -11,8 +11,8 @@ import type { CatalogMotor } from '../../services/motorDb';
  * collision does not just warn in the console: it makes two distinct motors
  * select and check as one.
  *
- * Its own module so the picker (MotorDialog) can share it without importing
- * the whole dashboard. The picker used to key rows on their LIST INDEX, so a
- * highlight pointed at a different motor the moment a filter moved the list.
+ * Its own module so the picker (MotorDialog) can share it without importing the
+ * whole dashboard. Keyed on the LIST INDEX instead, a highlight points at a
+ * different motor the moment a filter moves the list.
  */
 export const keyOf = (m: CatalogMotor) => `${m.manufacturer}|${m.designation}|${m.diameter}|${m.code ?? ''}`;

@@ -1,17 +1,22 @@
 /**
- * Runtime loader for the reference catalogs (motors, components).
+ * Runtime loader for the reference data (motors, components, materials,
+ * contributors).
  *
  * The data files live in `public/data/` — copied verbatim into the build like
  * the WASM engine, NOT compiled into the JS bundle — and are fetched at runtime.
  * That decouples the data from the app: refreshing a catalog is a matter of
  * overwriting the JSON on the host, no rebuild/redeploy of the app.
  *
+ * Every dataset the app ships goes through here, whatever its size, not only the
+ * 1.6 MB motor file: a table of materials under `src/` reads as source rather
+ * than as a copy of the database it comes from, and drifts from it.
+ *
  * `VITE_DATA_BASE` takes that a step further. Point it at a separately deployed
  * catalog host — the orphan `data` branch served over jsDelivr, published by
  * .github/workflows/sync-catalogs.yml — and refreshing a catalog needs no app
  * build and no Pages deploy at all, just a push to that branch. Left unset it
- * resolves to the in-build copy, so dev, preview and an unconfigured build
- * behave exactly as they did before.
+ * resolves to the in-build copy, which is what dev, preview and an unconfigured
+ * build use.
  *
  * The in-build copy is always kept as a fallback and tried second, so an
  * unreachable or not-yet-created data host degrades to a catalog frozen at the
@@ -177,9 +182,8 @@ function manifest(base: string): Promise<Record<string, string>> {
 }
 
 // One in-flight/settled promise per catalog, so repeated callers share a single
-// network fetch for the whole session (the old build-time `import()` was
-// module-cached; this restores that). A refresh of the file is picked up on the
-// next page load, when the manifest hash — and this cache — start fresh.
+// network fetch for the whole session. A refresh of the file is picked up on the
+// next page load, when the manifest hash and this cache both start fresh.
 const catalogP = new Map<string, Promise<unknown>>();
 
 /**
@@ -202,12 +206,11 @@ export function fetchCatalog<T>(name: string, valid?: (v: unknown) => boolean): 
             undefined,
             (p) => reportProgress(name, p),
           );
-          // A host that is UP but WRONG defeated the whole point of the fallback
+          // A host that is UP but WRONG would otherwise defeat the fallback
           // chain: `{"error":"rebuilding"}` served with HTTP 200 parses fine, so
-          // the loop returned it and never tried the in-build copy. The caller
-          // then spread a non-array and threw "bundled is not iterable" into the
-          // picker. A shape mismatch is a failure of THIS base, so treat it as
-          // one and move on.
+          // the loop would return it, never try the in-build copy, and leave the
+          // caller spreading a non-array. A shape mismatch is a failure of THIS
+          // base, so treat it as one and move on.
           if (valid && !valid(body)) throw new Error('unexpected catalog shape');
           return body;
         } catch (e) {

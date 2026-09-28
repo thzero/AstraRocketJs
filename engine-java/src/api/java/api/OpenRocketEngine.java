@@ -1,5 +1,6 @@
 package api;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +12,8 @@ import info.openrocket.core.aerodynamics.BarrowmanCalculator;
 import info.openrocket.core.aerodynamics.RASAeroStabilityCalculator;
 import info.openrocket.core.aerodynamics.RASAeroDragCalculator;
 import info.openrocket.core.aerodynamics.FlightConditions;
+import info.openrocket.core.unit.CaliberUnit;
+import info.openrocket.core.unit.PercentageOfLengthUnit;
 import info.openrocket.core.document.Simulation;
 import info.openrocket.core.logging.WarningSet;
 import info.openrocket.core.masscalc.MassCalculator;
@@ -87,49 +90,45 @@ public final class OpenRocketEngine {
         return h;
     }
 
-    /**
-     * The `{"error": ...}` envelope the JS side already looks for.
-     *
-     * Only simulateJson used to produce one, so the `parsed.error` checks in
-     * web/src/engine/openRocketEngine.ts after getStaticInfo, getComponentInfo,
-     * getAeroSweep and getComponentMasses were DEAD CODE giving false
-     * confidence: those methods threw out of TeaVM instead, surfacing in JS as
-     * an opaque throw from inside a 2.9 MB bundle, and JSON.parse never ran.
-     */
-    /**
-     * READ THIS BEFORE ADDING AN ENTRY POINT.
-     *
-     * `catch (RuntimeException e) { return errorJson(e); }` is NOT a safety net
-     * on the target that ships.
-     *
-     * The engine compiles twice. TeaVM's JS backend converts a native
-     * JavaScript error caught inside a Java `try` into a
-     * `java.lang.RuntimeException`, so a stack overflow there really is caught
-     * and really does come back as an `{"error": ...}` envelope. WASM-GC has no
-     * equivalent: a wasm trap is not a `WebAssembly.Exception` carrying the
-     * `teavm.javaException` tag, so no Java catch clause ever sees it and it
-     * unwinds straight out of the module. The app loads WASM-GC by default and
-     * falls back to JS, so the backend WITHOUT the net is the one users run.
-     *
-     * Measured on the shipped artifacts with one 6000-deep options blob:
-     * JS returned `{"error":"(JavaScript) RangeError: Maximum call stack size
-     * exceeded"}`; WASM-GC threw a bare RangeError out of the module.
-     *
-     * There is no Java fix - you cannot catch a trap. So the rule for anything
-     * that can recurse, loop or allocate on caller-supplied input is: BOUND IT
-     * AT THE BOUNDARY. That is what `JsonLite.MAX_DEPTH` and
-     * `MAX_INPUT_CHARS`, the `MAX_SWEEP_POINTS` integer point count, and
-     * `ComponentFactory.count()` exist for. The envelope is for reporting
-     * ordinary bad input, not for surviving exhaustion.
-     *
-     * `web/src/engine/engineBoundary.wasm.test.ts` runs those bounds against
-     * the WASM build so this stays checked rather than remembered.
-     */
-    /** Double.isFinite, spelled out — TeaVM's classlib coverage of it varies. */
+    /** Double.isFinite, spelled out - TeaVM's classlib coverage of it varies. */
     private static boolean isFinite(double v) {
         return !Double.isNaN(v) && !Double.isInfinite(v);
     }
 
+    /**
+     * The `{"error": ...}` envelope the JS side looks for.
+     *
+     * EVERY entry point has to produce one. `parsed.error` is checked in
+     * web/src/engine/openRocketEngine.ts after getStaticInfo, getComponentInfo,
+     * getAeroSweep and getComponentMasses, so a method that throws out of TeaVM
+     * instead surfaces in JS as an opaque throw from inside a 2.9 MB bundle and
+     * JSON.parse never runs.
+     *
+     * READ THIS BEFORE ADDING AN ENTRY POINT:
+     * `catch (RuntimeException e) { return errorJson(e); }` is NOT a safety net on
+     * the target that ships.
+     *
+     * The engine compiles twice. TeaVM's JS backend converts a native JavaScript
+     * error caught inside a Java `try` into a `java.lang.RuntimeException`, so a
+     * stack overflow there is caught and does come back as an envelope. WASM-GC has
+     * no equivalent: a wasm trap is not a `WebAssembly.Exception` carrying the
+     * `teavm.javaException` tag, so no Java catch clause sees it and it unwinds
+     * straight out of the module. The app loads WASM-GC by default and falls back to
+     * JS, so the backend WITHOUT the net is the one users run.
+     *
+     * Measured on the shipped artifacts with one 6000-deep options blob: JS returned
+     * `{"error":"(JavaScript) RangeError: Maximum call stack size exceeded"}`;
+     * WASM-GC threw a bare RangeError out of the module.
+     *
+     * A trap cannot be caught, so the rule for anything that can recurse, loop or
+     * allocate on caller-supplied input is: BOUND IT AT THE BOUNDARY. That is what
+     * `JsonLite.MAX_DEPTH` and `MAX_INPUT_CHARS`, the `MAX_SWEEP_POINTS` integer
+     * point count, and `ComponentFactory.count()` exist for. The envelope is for
+     * reporting ordinary bad input, not for surviving exhaustion.
+     *
+     * `web/tests/engine/engineBoundary.wasm.test.ts` runs those bounds against the
+     * WASM build so this stays checked rather than remembered.
+     */
     private static String errorJson(Throwable e) {
         String msg = e.getMessage();
         if (msg == null || msg.isEmpty()) {
@@ -149,15 +148,14 @@ public final class OpenRocketEngine {
     /**
      * A handle of a KNOWN kind.
      * <p>
-     * Every call site used to blind-cast the {@code Object} above, and the
-     * wrapper's generation counter catches a handle from a RESET engine but
-     * never a handle of the wrong TYPE. Worse, the engine compiles at
-     * {@code optimization = NONE}, where TeaVM elides the checkcast: passing a
-     * rocket handle to {@code addTrapezoidFins} did not throw a
-     * ClassCastException, it used the wrong object and failed further in with
+     * Checked here rather than blind-cast at the call site: the wrapper's
+     * generation counter catches a handle from a RESET engine but never one of the
+     * wrong TYPE, and the engine compiles at {@code optimization = NONE}, where
+     * TeaVM elides the checkcast. So passing a rocket handle to
+     * {@code addTrapezoidFins} throws no ClassCastException at all; it uses the
+     * wrong object and fails further in with
      * {@code $this.$checkState is not a function} on the JS target and a
-     * null-message JavaError on WASM-GC. Checking the type here makes the
-     * mistake say what it is, on both targets, at the boundary.
+     * null-message JavaError on WASM-GC.
      */
     private static <T> T get(int handle, Class<T> kind, String what) {
         Object o = get(handle);
@@ -231,9 +229,9 @@ public final class OpenRocketEngine {
         }
 
         Object comps = tree.get("components");
-        // PRESENT but not a list used to be coerced to empty, so
-        // buildRocket('{"components":"nope"}') returned a handle and reported a
-        // perfectly healthy all-zero rocket. Absent still means an empty tree.
+        // PRESENT but not a list is an error, not an empty list: coerced,
+        // buildRocket('{"components":"nope"}') returns a handle and reports a
+        // perfectly healthy all-zero rocket. Absent means an empty tree.
         if (comps != null && !(comps instanceof List)) {
             throw new IllegalArgumentException("'components' must be a list, got "
                     + comps.getClass().getSimpleName());
@@ -503,8 +501,8 @@ public final class OpenRocketEngine {
         mc.setEjectionDelay(ejectionDelay);
         // RASAero feature #2 (power-on base drag): apply this stage's captured nozzle
         // exit diameter to the motor (upstream's native per-motor model). Upstream
-        // rejects a nozzle wider than the motor (the old per-stage model didn't
-        // validate), so clamp to the motor diameter rather than throw and break the sim.
+        // rejects a nozzle wider than the motor, so clamp to the motor diameter
+        // rather than throw and break the sim.
         Double nozzle = ctx.nozzleDia.get(((RocketComponent) mount).getStage());
         if (nozzle != null && nozzle > 0) {
             mc.setNozzleExitDiameter(Math.min(nozzle, diameter));
@@ -653,10 +651,32 @@ public final class OpenRocketEngine {
 
         double refDiameter = conditions.getRefLength(); // refLength IS the reference diameter
         double cg = structure.getCM().getX();
-        double stabilityCal = (cp.getX() - cg) / conditions.getRefLength();
+
+        // The stability margin is a LENGTH (cp - cg); calibers and percent are two
+        // ways of displaying it. Both conversions are OpenRocket's OWN unit
+        // classes bound to the selected configuration, not arithmetic of ours,
+        // because the two denominators are not what they look like:
+        //
+        //   CaliberUnit           -> the largest body DIAMETER over the active
+        //                            components (CaliberUnit.calculateCaliber).
+        //   PercentageOfLengthUnit-> getLengthAerodynamic(), the span of the
+        //                            AERODYNAMIC components only - not
+        //                            getLength(), which bounds every component.
+        //
+        // Dividing by the app's own `length` (all components) for the percentage
+        // disagrees with the desktop on any design with a non-aerodynamic part
+        // outside the aerodynamic envelope.
+        FlightConfiguration config = ctx.rocket.getSelectedConfiguration();
+        double margin = cp.getX() - cg;
+        double stabilityCal = new CaliberUnit(config).toUnit(margin);
+        double stabilityPct = new PercentageOfLengthUnit(config).toUnit(margin);
 
         StringBuilder sb = new StringBuilder("{");
         num(sb, "length", ctx.rocket.getLength()).append(',');
+        // The aerodynamic span, which is what the percentage is measured against.
+        // Exported so a consumer can see the denominator rather than infer it.
+        num(sb, "lengthAerodynamic", config.getLengthAerodynamic()).append(',');
+        num(sb, "stabilityPercent", stabilityPct).append(',');
         num(sb, "mass", structure.getMass()).append(',');
         num(sb, "massEmpty", empty.getMass()).append(',');
         num(sb, "cgEmpty", empty.getCM().getX()).append(',');
@@ -1234,11 +1254,10 @@ public final class OpenRocketEngine {
      */
     @JSExport
     public static String simulateJson(int rocketHandle, String optionsJson) {
-        // The whole body, not just the simulate() call. The handle lookup and
-        // the options parse used to sit ~117 lines ABOVE the try below, so the
-        // catch that claims to cover them never saw either: a stale handle or a
-        // malformed options blob escaped as an opaque TeaVM throw out of a
-        // 2.9 MB bundle, and openRocketEngine.ts only inspects `error`.
+        // The whole body, not just the simulate() call: the handle lookup and the
+        // options parse have to be INSIDE this try, or a stale handle or a
+        // malformed options blob escapes as an opaque TeaVM throw out of a 2.9 MB
+        // bundle, and openRocketEngine.ts only inspects `error`.
         try {
             return simulateJsonImpl(rocketHandle, optionsJson);
         } catch (RuntimeException e) {
@@ -1319,13 +1338,51 @@ public final class OpenRocketEngine {
             // altitude. clearLevels() drops the constructor's default level 0.
             MultiLevelPinkNoiseWindModel ml = new MultiLevelPinkNoiseWindModel();
             ml.clearLevels();
-            for (Map<String, Object> lvl : windLevels) {
+            List<Double> seen = new ArrayList<>();
+            for (int i = 0; i < windLevels.size(); i++) {
+                Map<String, Object> lvl = windLevels.get(i);
+                // The altitude is the level's IDENTITY here, not a quantity with
+                // a sensible zero: the kernel keys its levels on it and
+                // interpolates between them by it. Defaulting an absent or
+                // unreadable one to 0 therefore did not mean "ground level"
+                // harmlessly -- it dropped the layer onto the pad, where it
+                // either displaced the surface wind or collided with it and
+                // failed the whole run. A level that cannot say where it is is
+                // refused here, where the message can say which one it was.
+                double altitude = JsonLite.dbl(lvl, "altitude", Double.NaN);
+                if (!isFinite(altitude)) {
+                    throw new IllegalArgumentException(
+                            "wind level " + (i + 1) + " of " + windLevels.size() + " has no usable altitude");
+                }
+                // Said here rather than left to addWindLevel, which throws
+                // "Wind level already exists for altitude: 0.0" -- true, but it
+                // names neither the rows involved nor what to do about it.
+                if (seen.contains(Double.valueOf(altitude))) {
+                    throw new IllegalArgumentException("wind levels repeat the altitude " + altitude
+                            + " m (level " + (i + 1) + "); each level needs its own altitude");
+                }
+                seen.add(Double.valueOf(altitude));
                 ml.addWindLevel(
-                        JsonLite.dbl(lvl, "altitude", 0),
+                        altitude,
                         JsonLite.dbl(lvl, "speed", 0),
                         JsonLite.dbl(lvl, "direction", Math.PI / 2),
                         JsonLite.dbl(lvl, "stddev", 0));
             }
+            // Seeded LAST, after every level is in place: setSeed walks the
+            // level list, which is only complete now. addWindLevel builds each
+            // level's sub-model with the no-arg PinkNoiseWindModel constructor
+            // (seed from new Random().nextInt()), so without this the turbulence
+            // of a multi-level profile was freshly random on every run and two
+            // runs of one design at one randomSeed could not be compared --
+            // which is exactly what the wind sweep does. setRandomSeed below
+            // does NOT cover it: that stores an int on SimulationConditions and
+            // never reaches the wind model. Upstream makes this same call in
+            // SimulationOptions.toSimulationConditions; we hand-build the
+            // conditions instead, so we have to make it ourselves.
+            // The single-level branch below has always been seeded, via the
+            // constructor. Level seeds are derived by altitude rank, so they do
+            // not depend on the order the levels arrived in.
+            ml.setSeed(randomSeed);
             // MSL or AGL. The constructor defaults to MSL and nothing here used
             // to say otherwise, so an AGL profile flew as if its altitudes were
             // above sea level -- the same numbers, a different wind, and at a

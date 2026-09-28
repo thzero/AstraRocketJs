@@ -97,9 +97,9 @@ export function parseWindProfileCsv(text: string): WindProfileCsvResult {
 
   const need = Math.max(altIdx, speedIdx, dirIdx, sdIdx);
   const levels: WindProfileCsvResult = [];
-  // `altitudeagl` used to be accepted as a plain alias and its meaning dropped:
-  // the levels imported as MSL, which at a 1500 m site is a different wind.
-  // The caller applies it; a header that says nothing leaves it unset.
+  // `altitudeagl` carries a reference, so it is not a plain alias: dropped, the
+  // levels import as MSL, which at a 1500 m site is a different wind. The caller
+  // applies it; a header that says nothing leaves it unset.
   const reference = altitudeReference(headers[altIdx]!);
   if (reference) levels.reference = reference;
 

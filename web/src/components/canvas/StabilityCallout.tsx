@@ -43,7 +43,8 @@ export function StabilityCallout({
     if (!Number.isFinite(info.cp)) return null;
     const state = stabilityState(cal);
     if (!state || cal == null) return null;
-    const pct = info.length > 0 ? fmtNum(((info.cp - info.cg) / info.length) * 100, 1) : '0';
+    // The engine's own figure, not ours: see StaticInfo.stabilityPercent.
+    const pct = fmtNum(info.stabilityPercent, 1);
     const word =
       state === 'under'
         ? ` — ${t('schematic.underStable')}`

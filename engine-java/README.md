@@ -19,9 +19,9 @@ engine-java/
   package.json            no deps, nothing to install — just named `npm run` entry points
   build-engine.mjs        one-step build + vendor into web/  (both targets; --js / --wasm for one)
   extract/                  extract.mjs + manifest.txt — regenerate src/java/ from OpenRocket
-  patches/                15 full-file OVERRIDES of OpenRocket sources (why each, in the file header)
+  patches/                18 full-file OVERRIDES of OpenRocket sources (why each, in the file header)
   src/
-    java/                 ~270 OpenRocket source files (the physics), already overridden
+    java/                 272 OpenRocket source files (the physics), already overridden
     shims/java/           our replacements for classes we don't extract (Guice, prefs, LongUUID, Geo2D, RASAero…)
     jdkstubs/             java.text.Collator stand-in — the one java.* class TeaVM's JDK lacks
     api/java/api/         the @JSExport facade the browser calls (OpenRocketEngine, …)
@@ -35,7 +35,7 @@ OpenRocket's full `core` is ~700 files and pulls in Guice, JAXB, GraalVM-JS, cla
 
 ### 1. `src/java/` — the OpenRocket physics, extracted to a subset
 
-**Extraction** = copying only the ~270 files the physics + simulation actually need, leaving the reflection/IO-heavy machinery (file loaders, plugin system, scripting, Swing hooks) behind. These files are **real OpenRocket source** — ~256 are byte-for-byte upstream; 16 carry overrides (see `patches/`). By package:
+**Extraction** = copying only the 272 files the physics + simulation actually need, leaving the reflection/IO-heavy machinery (file loaders, plugin system, scripting, Swing hooks) behind. These files are **real OpenRocket source** — 254 are byte-for-byte upstream; 18 carry overrides (see `patches/`). By package:
 
 | files | package | what it is |
 |------:|---------|------------|
@@ -51,7 +51,7 @@ OpenRocket's full `core` is ~700 files and pulls in Guice, JAXB, GraalVM-JS, cla
 
 ### 2. `patches/` — full-file overrides of extracted sources
 
-**These are not diffs.** Each file under `patches/` is a *complete, hand-edited copy* of the OpenRocket file at the same relative path; extract writes it **instead of** the pristine upstream one. "Applying a patch" is a file-level swap, not a `git apply`. Two flavours:
+**These are not diffs.** Each file under `patches/` is a *complete, hand-edited copy* of the OpenRocket file at the same relative path; extract writes it **instead of** the pristine upstream one. "Applying a patch" is a file-level swap, not a `git apply`. Two kinds:
 
 - **TeaVM-compat** — e.g. `UUID`→`LongUUID`, `ConcurrentHashMap`/`ConcurrentLinkedQueue`→plain collections, `String.format("%g")`→`%s`, replacing `BarrowmanCalculator`'s reflective `Class.forName(...)` calc lookup with an explicit `instanceof` chain, dropping `java.awt.geom` (`FinSet`/`FreeformFinSet`/`BoundingBox` now use the `Geo2D` shim), and a copy-constructor `ArrayList.clone()` (WASM-GC's strict casts reject the JVM's `(ArrayList) super.clone()`).
 - **Opt-in RASAero supersonic-aero extensions** — default-off feature code (see `../docs/rasaero/` for the physics and reviewable diffs vs stock OpenRocket).

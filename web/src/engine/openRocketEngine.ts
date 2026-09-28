@@ -29,7 +29,9 @@ type EngineApi = typeof import('./vendor/openrocket-engine.mjs');
 let active: EngineApi | null = null;
 let initPromise: Promise<'wasm' | 'js'> | null = null;
 
-/** The active engine; throws if initEngine() hasn't resolved yet (main.tsx awaits it before mount). */
+/** The active engine; throws if initEngine() has not resolved yet. The app mounts
+ *  before it has, so callers on the main thread check `engineStore.phase` rather
+ *  than treating this as unreachable. */
 function eng(): EngineApi {
   if (!active) {
     throw new Error('OpenRocket engine not initialized — await initEngine() before using it.');
@@ -147,9 +149,33 @@ function parseEnvelope<T>(operation: string, raw: string, expectArray = false): 
   return parsed as T;
 }
 
-/** Dynamically import the JS engine as its own chunk — loaded only when WASM is unavailable. */
+/**
+ * Dynamically import the JS engine as its own chunk — loaded only when WASM is
+ * unavailable.
+ *
+ * This one is NOT retryable the way the WASM urls are (see `attemptUrl`): the
+ * specifier has to stay static for the bundler to emit the chunk, so a retry
+ * re-imports the same url and the module registry hands back the same pending
+ * entry if the first fetch stalled. A retry therefore recovers a stalled WASM
+ * load, which is the path a browser that has WASM-GC always takes, and not a
+ * stalled fallback on a browser that does not.
+ */
 async function loadJsEngine(): Promise<EngineApi> {
   return await import('./vendor/openrocket-engine.mjs');
+}
+
+/**
+ * The url to ask for on THIS attempt.
+ *
+ * A retry has to request a different url or it is not a retry. The browser
+ * coalesces a second `<script>` for a src already in flight onto the pending
+ * request, so re-running a runtime load whose fetch has stalled attaches
+ * straight back to the stall and issues no new request at all — measured: zero
+ * network requests after pressing Retry. The first attempt is left unadorned so
+ * the ordinary path keeps a plain, cacheable url.
+ */
+function attemptUrl(url: string): string {
+  return initAttempt === 0 ? url : `${url}${url.includes('?') ? '&' : '?'}retry=${initAttempt}`;
 }
 
 /** Load the WASM-GC runtime once (it installs globalThis.TeaVM.wasmGC). */
@@ -163,7 +189,7 @@ function loadWasmRuntime(): Promise<void> {
   // no eval, and blob URLs aren't behind Vite's /public wall. Lets WASM also run
   // inside the sim worker; on any failure tryLoadWasm falls the worker back to JS.
   if (typeof document === 'undefined') {
-    return fetch(WASM_RUNTIME_URL)
+    return fetch(attemptUrl(WASM_RUNTIME_URL))
       .then((r) => {
         if (!r.ok) throw new Error(`WASM-GC runtime fetch failed (${r.status})`);
         return r.text();
@@ -179,7 +205,7 @@ function loadWasmRuntime(): Promise<void> {
   }
   return new Promise<void>((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = WASM_RUNTIME_URL;
+    s.src = attemptUrl(WASM_RUNTIME_URL);
     s.onload = () => resolve();
     s.onerror = () => reject(new Error('WASM-GC runtime failed to load'));
     document.head.appendChild(s);
@@ -240,7 +266,7 @@ async function tryLoadWasm(onStatus?: (s: EngineLoadStatus) => void): Promise<En
     // takes the WebAssembly.compile(bytes) path, sidestepping the runtime's
     // Node-vs-browser (fs vs fetch) detection entirely. installImports rewires
     // the kernel's console output into the shared log sink (see above).
-    const res = await fetch(WASM_URL);
+    const res = await fetch(attemptUrl(WASM_URL));
     if (!res.ok) return null;
     // Stream it so the boot splash can show real bytes: this is ~2.3 MB, the
     // largest thing the app fetches, and on a slow link it is most of the wait.
@@ -300,32 +326,62 @@ export function backendPref(): BackendPref {
 }
 
 /**
+ * Which attempt is current. Bumped by {@link resetEngineInit} so an abandoned
+ * load cannot install itself later — see there.
+ */
+let initAttempt = 0;
+
+/**
  * Load the engine backend once: WASM-GC first (unless `?engine=js` forces JS or
- * the browser lacks WASM), else the JS build as a fallback. Idempotent. MUST be
- * awaited before any engine use (main.tsx awaits it before mounting) — engine
- * calls before it resolves throw, since neither backend is loaded until now.
+ * the browser lacks WASM), else the JS build as a fallback. Idempotent.
  * Resolves to which backend is active.
+ *
+ * Engine calls before this resolves throw, so the app treats "no engine yet" as
+ * a state rather than awaiting it: nothing here is on the path to mounting the
+ * UI (see main.tsx), and `state/engineStore.ts` is what the UI reads.
  *
  * @param pref the backend preference, when the caller has already resolved it
  *   (the sim worker gets it from the main thread); else read here.
  */
 export function initEngine(onStatus?: (s: EngineLoadStatus) => void, pref?: BackendPref): Promise<'wasm' | 'js'> {
   if (!initPromise) {
+    const mine = initAttempt;
     initPromise = (async () => {
       const wasm = (pref ?? backendPref()) === 'js' ? null : await tryLoadWasm(onStatus);
       if (wasm) {
-        active = wasm;
+        if (mine === initAttempt) active = wasm;
         return 'wasm';
       }
       // The JS build is a dynamic import, so the bundler owns the fetch and there
       // are no byte counts to report — just name the step.
       onStatus?.({ phase: 'downloading', loaded: 0, total: null });
-      active = await loadJsEngine();
+      const js = await loadJsEngine();
+      if (mine === initAttempt) active = js;
       onStatus?.({ phase: 'starting' });
       return 'js';
     })();
   }
   return initPromise;
+}
+
+/**
+ * Drop the cached load so the next {@link initEngine} starts over.
+ *
+ * `initPromise` is memoized for the life of the page, and neither failure mode
+ * clears itself: a rejected promise stays rejected, and a fetch that STALLS
+ * rather than fails never settles at all. Without this the only way back from a
+ * lost engine download is a page reload.
+ *
+ * The abandoned attempt is still running and can resolve minutes later, which is
+ * why `initAttempt` moves: whichever backend it eventually loads must not
+ * overwrite the one a later attempt already installed. Handles issued by the old
+ * engine are void either way, hence the generation bump.
+ */
+export function resetEngineInit(): void {
+  initAttempt++;
+  initPromise = null;
+  active = null;
+  engineGeneration++;
 }
 
 export type NoseShape = 'ogive' | 'conical' | 'ellipsoid' | 'power' | 'parabolic' | 'haack';
@@ -474,6 +530,13 @@ export interface SimulationOptions {
 
 export interface StaticInfo {
   length: number;
+  /**
+   * The span of the AERODYNAMIC components only (`getLengthAerodynamic`), which
+   * is what {@link StaticInfo.stabilityPercent} is measured against. Not the same
+   * as {@link StaticInfo.length}, which bounds every component including the ones
+   * with no aerodynamic effect.
+   */
+  lengthAerodynamic: number;
   /** Launch mass (kg) — includes the motor when one is set. */
   mass: number;
   /** Dry structure mass (kg) — no motor. */
@@ -484,7 +547,25 @@ export interface StaticInfo {
   cg: number;
   cp: number;
   cna: number;
+  /**
+   * Stability margin in calibers, as OpenRocket's own `CaliberUnit` converts it.
+   *
+   * The engine owns this, and the percentage below, because they are the SAME
+   * margin (`cp - cg`) over two different denominators - the largest body
+   * diameter, and the aerodynamic length - and neither denominator is anything
+   * this app has. Do not re-derive either one here.
+   */
   stabilityCalibers: number;
+  /**
+   * The same margin as a percentage of the AERODYNAMIC length, as OpenRocket's
+   * own `PercentageOfLengthUnit` converts it.
+   *
+   * Read from here rather than computed per view as `((cp - cg) / length) * 100`,
+   * which is the right shape over the wrong denominator: `length` bounds every
+   * component, so any design with a non-aerodynamic part outside the aerodynamic
+   * envelope reads a percentage the desktop does not show.
+   */
+  stabilityPercent: number;
   refDiameter: number;
   /** Loaded (with-motor) roll moment of inertia, about the long axis (kg·m²). */
   rollInertia: number;
@@ -529,15 +610,10 @@ export type ComponentType =
   // that was loaded from a `.ork` this app itself wrote. The renderers do draw
   // it, and import/export round-trip it.
   //
-  // This comment used to claim "the editor's engineTree() lowers a fairing to
-  // a kernel strake-fin + CD/mass overrides before buildTree". THERE IS NO
-  // engineTree ANYWHERE IN web/src — the lowering was never written, so the
-  // kernel used to reject the type outright and any design carrying one failed
-  // to build at all. `ComponentFactory` now accepts it as a mass-carrying
-  // component so such a file loads; its drag is still not modeled.
+  // `ComponentFactory` accepts it as a mass-carrying component, so such a file
+  // loads. Its drag is NOT modeled: there is no lowering to a kernel type.
   //
-  // Scope: RASAero. See engine-java/ATTRIBUTION.md and docs/AUDIT_ENGINE.md
-  // Appendix R.
+  // Scope: RASAero. See engine-java/ATTRIBUTION.md.
   | 'fairing'
   | 'parachute'
   | 'streamer'
@@ -578,12 +654,13 @@ export interface ComponentPosition {
    * absolute position is rewritten to the equivalent `top` offset on load —
    * otherwise the app draws the part somewhere the engine does not fly it.
    *
-   * Rewriting it would also change what we write back out, and `.ork`
-   * round-trips are meant to be byte-stable. So the original is kept here and
-   * `orkExport` restores it, as long as `resolved` still matches the current
-   * offset (i.e. the user has not moved the part since importing).
+   * Rewriting it would also change what we write back out, and `.ork` round-trips
+   * are meant to be byte-stable. So the original is kept here and `orkExport`
+   * restores it, as long as `resolved` still matches the current offset (i.e. the
+   * user has not moved the part since importing).
+   *
+   * `absolute` and `after` are the two file-only methods; both resolve to 'top'.
    */
-  /** The two file-only methods: both are resolved to 'top' on load. */
   ork?: { method: 'absolute' | 'after'; offset: number; resolved: number };
 }
 
@@ -615,6 +692,19 @@ export interface RocketTree {
   /** Design-type token: original | commercial_kit | clone_kit | upscale_kit |
    *  downscale_kit | modified_kit | kit_bash (OpenRocket DesignType). */
   designType?: string;
+  /**
+   * What the stability calibers are measured against: OpenRocket's
+   * `<referencetype>` (maximum | fore | custom) and, for `custom`, the length in
+   * meters. Carried rather than editable - the app measures against the widest
+   * body, which is `maximum` - but a design that says otherwise keeps saying it.
+   */
+  referenceType?: string;
+  customReference?: number;
+  /** Raw `<rocket>` children this app has no model for (ork/passthrough.ts). */
+  xmlExtra?: string[];
+  /** Raw `<openrocket>` children this app has no model for: Photo Studio, the
+   *  document preferences, the custom expressions. */
+  docExtra?: string[];
   components: ComponentNode[];
 }
 
@@ -824,11 +914,11 @@ export interface AeroSweep {
    * How many non-finite readings the kernel met building the per-component
    * breakdown below.
    *
-   * Those cells come back `null` rather than 0 — a component that genuinely
-   * generates no normal force also reads 0, so a swallowed NaN used to be
-   * indistinguishable from it, and the breakdown quietly stopped adding up to
-   * the rocket totals. Any count above zero means the table is incomplete and
-   * should say so. Optional: a kernel built before this omits it.
+   * Those cells come back `null` rather than 0, because a component that
+   * genuinely generates no normal force also reads 0 and a NaN reported as 0 is
+   * indistinguishable from it while the breakdown stops adding up to the rocket
+   * totals. Any count above zero means the table is incomplete and should say so.
+   * Optional: an older kernel omits it.
    */
   nonFinite?: number;
   /**
@@ -857,9 +947,9 @@ export interface AeroSweep {
      * Stable identity for this component — the kernel's own UUID.
      *
      * Use this for row keys and for joining to {@link ComponentMass}, NOT
-     * `name`: nothing forces a part to be renamed, so two unnamed body tubes
-     * are both called "Body tube". Optional because a kernel built before this
-     * was added omits it; fall back to `name` then.
+     * `name`: nothing forces a part to be renamed, so two unnamed body tubes are
+     * both called "Body tube". Optional because an older kernel omits it; fall
+     * back to `name` then.
      */
     key?: string;
     /** Display label. Not unique — see `key`. */
@@ -985,13 +1075,13 @@ export class OpenRocketDesign {
    * The kernel handle, refused once the engine that issued it has been reset.
    *
    * `resetEngine()` frees the whole handle table, and the app calls it before
-   * every rebuild — so a design object outliving one is addressing a number
-   * that now belongs to somebody else's rocket. The kernel also rejects this
-   * (its counter no longer rewinds, so a freed handle stays permanently
-   * unknown), but only after the call has crossed into TeaVM and come back as
-   * a message. Catching it here makes it a typed error, by name, before the
-   * boundary. Every `this.handle` read below goes through this getter, which
-   * is why there is no check at each of the ten call sites.
+   * every rebuild, so a design object outliving one addresses a number that now
+   * belongs to somebody else's rocket. The kernel rejects this too (its counter
+   * does not rewind, so a freed handle stays permanently unknown), but only after
+   * the call has crossed into TeaVM and come back as a message. Catching it here
+   * makes it a typed error, by name, before the boundary. Every `this.handle`
+   * read below goes through this getter, so the ten call sites need no check of
+   * their own.
    */
   private get handle(): number {
     if (this.generation !== engineGeneration) throw new StaleDesignError();

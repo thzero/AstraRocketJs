@@ -33,7 +33,7 @@ export function lerpAt(xs: readonly number[], ys: readonly (number | null)[], x:
   const span = xs[i]! - xs[i - 1]!;
   // No `span === 0` branch: reaching index `i` means `x > xs[i-1]`, and
   // `xs` is required sorted-ascending, so `xs[i] === xs[i-1]` cannot hold
-  // here. The guard that used to sit here read as a real divide-by-zero
-  // check while being unreachable; the genuine empty-input guard is above.
+  // here. A guard here would read as a real divide-by-zero check while being
+  // unreachable; the genuine empty-input guard is above.
   return y0 + ((x - xs[i - 1]!) / span) * (y1 - y0);
 }

@@ -27,10 +27,9 @@ import { M_TO_MM } from '../prefs/units';
 export function finPlanformMm(node: ComponentNode, parentRadius: number | null = null): { pts: Pt[]; count: number } {
   const root = finRootChord(node);
   const height = finSpan(node);
-  // The outline comes from the ONE fin-geometry module (tree/finPlanform.ts).
-  // This function used to sample its own elliptical curve and produced a sine
-  // arch, so the 1:1 cutting template was a different shape from the fin the
-  // kernel flew and from the DXF of the same part.
+  // The outline comes from the ONE fin-geometry module (tree/finPlanform.ts), so
+  // the 1:1 cutting template, the DXF and the fin the kernel flies are the same
+  // shape. Sampling an elliptical curve here instead yields a sine arch.
   const top = finPlanformPoints(node) ?? FREEFORM_FALLBACK;
   // Flip to the PDF's frame: the root sits at y = height and the span rises
   // toward 0, so the template prints tip-up.
@@ -147,9 +146,8 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
     const height = finSpan(node);
     const start = axialStart(node, root, pStart, pLen);
     const R = radiusAt(start - pStart);
-    // One outline for every planar fin type, from tree/finPlanform.ts. The
-    // elliptical branch here used to sample its own sine arch and carried a
-    // comment claiming it was "a true half-ellipse"; it was not.
+    // One outline for every planar fin type, from tree/finPlanform.ts, which is
+    // the only half-ellipse that matches the kernel's.
     const outline = finPlanformPoints(node) ?? FREEFORM_FALLBACK;
     push(
       outline.map(([px, py]) => [start + px, R + py] as Pt),

@@ -1,6 +1,6 @@
 import { zipSync, strToU8 } from 'fflate';
 import { exportOrk, type OrkTreeExportInput } from './orkFile';
-import { saveBlob, safeFilename } from './saveFile';
+import { saveBlob, exportFilename } from './saveFile';
 import type { RocketTree } from '../engine/openRocketEngine';
 
 /** Build a .ork (zip containing rocket.ork) Blob from an export input. */
@@ -12,7 +12,7 @@ function orkBlob(input: OrkTreeExportInput): Blob {
 
 /** Export a design as a .ork file the user downloads. */
 export function downloadOrk(input: OrkTreeExportInput): void {
-  void saveBlob(orkBlob(input), `${safeFilename(input.name)}.ork`);
+  void saveBlob(orkBlob(input), exportFilename([input.name, 'design'], 'ork'));
 }
 
 /**
@@ -26,6 +26,6 @@ export function downloadOrk(input: OrkTreeExportInput): void {
 export async function downloadRkt(name: string, tree: RocketTree): Promise<string[]> {
   const { exportRkt } = await import('./rktExport');
   const { xml, skipped } = exportRkt(name, tree);
-  await saveBlob(new Blob([xml], { type: 'application/xml' }), `${safeFilename(name)}.rkt`);
+  await saveBlob(new Blob([xml], { type: 'application/xml' }), exportFilename([name, 'design'], 'rkt'));
   return skipped;
 }

@@ -1,4 +1,4 @@
-import { saveBlob, safeFilename } from './saveFile';
+import { saveBlob, exportFilename } from './saveFile';
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import type { ReportModel } from './reportModel';
 import type { UnitSelection } from '../prefs/units';
@@ -9,6 +9,8 @@ import { writeDesignSection } from './report/designSection';
 import { writeMotorsSection } from './report/motorsSection';
 import { writePartsSection } from './report/partsSection';
 import { writeTemplatesSection } from './report/templatesSection';
+import { markingGuides } from './report/markingGuide';
+import { writeMarkingGuideSection } from './report/markingSection';
 
 export type * from './report/options';
 export * from './report/layout';
@@ -24,12 +26,6 @@ export * from './report/layout';
  * This module decides WHICH sections appear and in what order; each section
  * draws itself under `report/` against the shared page cursor (`PdfPage`).
  */
-
-// `safeFilename` from saveFile.ts, not a local copy: this one fell to the bug
-// that helper documents -- a name of only separators ("///") collapses to "_",
-// which is truthy and so survives the `|| 'rocket'` fallback as a useless
-// filename.
-const safe = (name: string) => safeFilename(name, 'rocket');
 
 export async function downloadReportPdf(
   model: ReportModel,
@@ -68,10 +64,18 @@ export async function downloadReportPdf(
     writeTemplatesSection(page, tree, finSets, noses, transitions);
   }
 
+  // --- Fin marking guides (1:1) ---
+  // Not per-stage like the cutting templates: a marking guide belongs to a
+  // BODY TUBE, and the tube is what the reader wraps it around.
+  if (opts.finMarkingGuide) {
+    const guides = markingGuides(tree);
+    if (guides.guides.length) writeMarkingGuideSection(page, guides);
+  }
+
   if (!page.started) heading(page, t('report.title')); // nothing selected — an empty-ish page beats a corrupt file
   // saveBlob, not jsPDF's doc.save(): that uses its own `<a download>` click,
   // which "silently does nothing and the file simply never appears" on
   // iOS/iPadOS installed as a PWA (saveFile.ts:5-13). Every other export in the
   // app routes through saveBlob; the PDF report was the one that did not.
-  await saveBlob(doc.output('blob'), `${safe(model.name)}.pdf`);
+  await saveBlob(doc.output('blob'), exportFilename([model.name, 'report'], 'pdf'));
 }

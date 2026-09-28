@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive } from '../../state/store';
 import { useSettings } from '../../state/SettingsProvider';
+import { useUnits } from '../../prefs/useUnits';
 import { designBlocker, designBlockerText, unflyableSims, unflyableText } from '../../services/runnability';
 
 /**
@@ -14,6 +15,7 @@ import { designBlocker, designBlockerText, unflyableSims, unflyableText } from '
 export function RunButton({ className = '' }: { className?: string }) {
   const { t } = useTranslation();
   const { settings } = useSettings();
+  const units = useUnits();
   // Subscribe to the two STABLE pieces and derive the list here. Subscribing to
   // `selectRunIds` directly loops forever: it builds a fresh array on every
   // call, zustand compares by reference, so every render schedules another.
@@ -48,7 +50,7 @@ export function RunButton({ className = '' }: { className?: string }) {
   const notice = design
     ? designBlockerText(design, t)
     : refused.length
-      ? refused.map((u) => unflyableText(u, t)).join(' ')
+      ? refused.map((u) => unflyableText(u, t, units)).join(' ')
       : null;
 
   const label = busy ? t('sim.cancel') : flyable > 1 ? t('sim.runMany', { count: flyable }) : t('sim.run');

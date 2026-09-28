@@ -12,13 +12,11 @@ import { useShowResultsTab } from './useShowResultsTab';
  * picks its own column layout, which is what freed the right column for the
  * property editor (see App.tsx).
  *
- * It used to be a strip of its own below the header, which cost a second full
- * row to hold two or three words while the header beside it sat almost empty
- * from the badges to the far-right controls. Sitting in that gap, the tabs cost
- * no height at all. `self-stretch` with a negating `-my-3` against the header's
- * `py-3` makes the nav exactly as tall as the header, so the active tab's
- * underline lands on the header's own bottom border and still reads as
- * continuous with the pane it labels.
+ * Inside the header rather than a strip below it, so the tabs cost no height: they
+ * sit in the gap between the badges and the far-right controls. `self-stretch` with
+ * a negating `-my-3` against the header's `py-3` makes the nav exactly as tall as
+ * the header, so the active tab's underline lands on the header's own bottom border
+ * and reads as continuous with the pane it labels.
  *
  * The phone keeps its bottom bar: a header this narrow already wraps, and a
  * horizontal tab row in it would wrap to the second row it was meant to save.

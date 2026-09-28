@@ -14,7 +14,3 @@ AstraRocketJs is a monorepo: a **web app** (`web/`) and the **OpenRocket engine*
 - **Run the app** — `cd web && npm install && npm run dev`.
 - **Rebuild the engine** (rarely needed; the build is committed) — `cd engine-java && node build-engine.mjs`, which builds and vendors both the WASM-GC and JS targets.
 - **Engine** — extracted OpenRocket core, minimally patched for TeaVM (`engine-java/`), exposed to the app through a typed wrapper (`web/src/engine/openRocketEngine.ts`).
-
-## Attribution
-
-The engine derives from OpenRocket (GPL-3.0); the opt-in supersonic-aero (RASAero-style) extensions are the original work of the mmrocket-sim project. Full credits and license lineage are in [`engine-java/ATTRIBUTION.md`](https://github.com/thzero/AstraRocketJs/blob/HEAD/engine-java/ATTRIBUTION.md).

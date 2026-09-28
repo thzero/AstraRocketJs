@@ -4,7 +4,7 @@ import { parentRadiusOf } from '../../tree/finPlanform';
 import { num } from '../../tree/nodeProps';
 import { fmtNum } from '../../i18n/format';
 import { pageFrame, templateFits } from './layout';
-import { ensure, fillPolygon, heading, sectionBreak, sub, type PdfPage } from './pdfPage';
+import { ensure, fillPolygon, heading, sectionBreak, sub, writeRuler, type PdfPage } from './pdfPage';
 
 /**
  * The 1:1 templates: the hint and the printed scale bar, then a cutting
@@ -37,24 +37,6 @@ export function writeTemplatesSection(
     const prof = profileMm(n, num(n, 'foreRadius', 0.012), num(n, 'aftRadius', 0.009), 'conical');
     if (prof) template(p, (n.name as string) || t('report.transition'), prof.pts, prof.w, prof.h);
   }
-}
-
-/** A 10 cm / 3 in scale bar, so a print can be checked for true scale. */
-function writeRuler(p: PdfPage): void {
-  const { doc, t, M } = p;
-  sub(p, t('report.ruler'), 9);
-  ensure(p, 16);
-  const ry = p.y + 6;
-  doc
-    .setDrawColor(20)
-    .setLineWidth(0.2)
-    .line(M, ry, M + 100, ry);
-  for (let d = 0; d <= 100; d++) doc.line(M + d, ry, M + d, ry - (d % 10 === 0 ? 4 : d % 5 === 0 ? 2.5 : 1.5));
-  doc.setFontSize(6).setTextColor(20);
-  for (let cm = 0; cm <= 10; cm++) doc.text(`${cm}`, M + cm * 10, ry - 5);
-  for (let inch = 0; inch <= 3; inch++) doc.text(`${inch} in`, M + inch * 25.4, ry + 4);
-  doc.text('cm', M + 103, ry - 4);
-  p.y = ry + 8;
 }
 
 function writeFinTemplates(p: PdfPage, tree: RocketTree, finSets: ComponentNode[]): void {

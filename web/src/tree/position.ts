@@ -144,7 +144,7 @@ export function resolveFilePositions(tree: RocketTree): RocketTree {
     const children = parent.children.map((child) => {
       let next = child;
       // Validated, not cast: a file can carry a string offset or a method the
-      // union does not know, and both used to reach the arithmetic below as-is.
+      // union does not know, and neither must reach the arithmetic below as-is.
       const pos = positionOf(child);
       if (pos.method === 'after') {
         changed = true;

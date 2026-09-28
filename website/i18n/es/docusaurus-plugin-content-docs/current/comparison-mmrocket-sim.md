@@ -5,11 +5,10 @@ sidebar_position: 20
 
 import AppVersion from '@site/src/components/AppVersion';
 import UpstreamPin from '@site/src/components/UpstreamPin';
-import MmrocketPin from '@site/src/components/MmrocketPin';
 
 :::info Instantánea, y cómo leerla
 
-Escrito el **2026-09-22**, comparando **AstraRocketJs <AppVersion />** (motor compilado a partir de OpenRocket <UpstreamPin />) con **[mmrocket-sim](https://github.com/mtnmanak/mmrocket-sim)** en <MmrocketPin />, la versión que `engine-java/extract/MMROCKET-SIM` registra como la última revisada aquí.
+Escrito el **2026-09-22**, comparando **AstraRocketJs <AppVersion />** (motor compilado a partir de OpenRocket <UpstreamPin />) con **[mmrocket-sim](https://github.com/mtnmanak/mmrocket-sim)** en v0.137 (2026-09-21), la versión revisada aquí cuando se escribió esta página. `engine-java/extract/MMROCKET-SIM` registra esa revisión y las posteriores.
 
 Esta página es más corta que las otras dos a propósito, y la sección sobre [lo que deliberadamente no compara](#lo-que-esta-pagina-no-tabula) explica por qué. En resumen: la documentación pública de mmrocket-sim cubre su compilación y su estructura, no su interfaz, y una tabla de funciones montada adivinando sobre la aplicación de otro es peor que no tener tabla.
 
@@ -59,6 +58,6 @@ Así que ve y úsala. Está en **[mmrsim.mountainmanrockets.com](https://mmrsim.
 
 `engine-java/extract/MMROCKET-SIM` registra el commit contra el que se revisaron por última vez sus extensiones, de modo que "¿qué han cambiado desde la última vez que miramos?" es una pregunta con una respuesta calculable, y no una que dependa de que siga habiendo una copia antigua en el disco de alguien. Revisar significa descargar su repositorio, comparar ese commit con su cabeza actual, leer solo lo que llega al Java compartido y después dejar escrito qué se tomó y qué se descartó.
 
-La revisión de <MmrocketPin /> es un buen ejemplo del tráfico habitual: dieciséis commits, cinco archivos Java compartidos tocados y todas las ediciones solo de comentarios. Se tomó una corrección (su arreglo de una nota que describía un desplazamiento del CP hacia atrás como un margen estático más conservador, cuando mover el CP hacia atrás *aumenta* el margen mostrado). Se descartaron dos cambios por no ser aplicables aquí, cada uno con su motivo por escrito. Conviene señalar que hoy es un canal de un solo sentido: las extensiones fluyen de ellos hacia aquí, y nada vuelve automáticamente.
+La revisión de v0.137 es un buen ejemplo del tráfico habitual: dieciséis commits, cinco archivos Java compartidos tocados y todas las ediciones solo de comentarios. Se tomó una corrección (su arreglo de una nota que describía un desplazamiento del CP hacia atrás como un margen estático más conservador, cuando mover el CP hacia atrás *aumenta* el margen mostrado). Se descartaron dos cambios por no ser aplicables aquí, cada uno con su motivo por escrito. Conviene señalar que hoy es un canal de un solo sentido: las extensiones fluyen de ellos hacia aquí, y nada vuelve automáticamente.
 
 El mismo archivo es cuidadoso con lo que no es. No condiciona nada, ninguna herramienta lo clona, y a `extract --check` ni le consta ni le importa. El único commit que condiciona algo aquí es el de OpenRocket, en la [Descripción general](./overview.md).

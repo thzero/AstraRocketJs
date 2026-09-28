@@ -8,9 +8,9 @@ import { STABILITY_GLYPH } from './schematicGeometry';
 /**
  * Tone per stability band. The SAME classifier as the 2D callout and the 3D
  * gadget beside this card (`stabilityState`: under < 1 cal, over > 6 cal, ok
- * between), so the three readouts on one screen never disagree about a design.
- * This card used to carry a third tier set (>= 1 ok, >= 0 warn, else) that
- * called a 7-caliber rocket fine while the drawing next to it said over-stable.
+ * between), so the three readouts on one screen never disagree about a design. A
+ * tier set of its own (>= 1 ok, >= 0 warn, else) calls a 7-caliber rocket fine
+ * while the drawing next to it says over-stable.
  */
 const STABILITY_TONE: Record<StabilityState, string> = {
   ok: 'text-emerald-400',
@@ -19,7 +19,7 @@ const STABILITY_TONE: Record<StabilityState, string> = {
 };
 
 /**
- * Quick-glance readout box for the 2D/3D view (mmrocket-style): length, loaded
+ * Quick-glance readout box for the 2D/3D view: length, loaded
  * mass, CG, CP, and stability, as label→value rows. The fuller breakdown lives in
  * the "all stats" strip beneath the view.
  */
@@ -31,7 +31,8 @@ export function InfoOverlay({ info }: { info: StaticInfo | null }) {
   const state = stabilityState(cal) ?? 'under';
   // Margin as a fraction of overall length — the same figure the stat tiles and
   // the CP callout carry, so the quick-glance card isn't missing a data item.
-  const pct = info.length > 0 ? ((info.cp - info.cg) / info.length) * 100 : 0;
+  // The engine's own figure, not ours: see StaticInfo.stabilityPercent.
+  const pct = info.stabilityPercent;
   const rows: [string, React.ReactNode][] = [
     [t('stats.length'), `${u.fmt('length', info.length)} ${u.sym('length')}`],
     [t('stability.mass'), `${u.fmt('mass', info.mass)} ${u.sym('mass')}`],

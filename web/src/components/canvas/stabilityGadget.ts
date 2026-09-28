@@ -5,8 +5,8 @@ import { markerRadius } from './rocketPieces';
 /**
  * Owns the pure side of the 3D stability readout: the margin color tiers
  * shared by every stability ink in the 3D view, and the floating CG/CP gadget
- * layout. No React or three.js objects, so the numbers are provable without
- * a mounted canvas (stabilityGadget.test.ts).
+ * layout. No React or three.js objects, so the numbers are testable without a
+ * mounted canvas (stabilityGadget.test.ts).
  */
 
 // DARK-theme status hexes on purpose: the 3D background is the dusk gradient

@@ -9,11 +9,8 @@ export { isResultView, type ViewMode };
  * Center-pane view switch, showing one family: 2D · 3D · Aero on the Design tab,
  * Flight · 3D path · Ground track on Results.
  *
- * It used to render all five together and take a `mobileFamily` prop whose only
- * job was to hide the other family below `lg` — because on a phone the two
- * families already lived on different tabs, and offering "3D path" from Sketch
- * would have jumped you to another tab. Now that the tabs exist at every width,
- * the tab picks the family and this only switches within it.
+ * The tab picks the family and this only switches within it. Rendering all five
+ * together would offer "3D path" from Sketch, which jumps to another tab.
  */
 export function ViewToggle({
   view,
