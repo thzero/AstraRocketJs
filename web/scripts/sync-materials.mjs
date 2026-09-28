@@ -26,12 +26,10 @@
 // `note`, `corrects`) stay in the hand-maintained file and are NOT shipped:
 // they are for whoever edits that file, and the browser has no use for them.
 //
-// WHY THIS EXISTS. The list used to be typed by hand into a .ts file, and it
-// had drifted: 20 of upstream's 42 line materials, missing every Kevlar
-// 12-strand above 5/16 in, all five nylon flat webbings, both rubber bands,
-// all seven braided elastics and the Paraline. Nothing showed it, because a
-// missing material is just one the picker does not offer. Hand-copying a
-// table of 82 numbers out of someone else's source is not a thing to do twice.
+// WHY THIS EXISTS. Typed by hand, the list drifts: 20 of upstream's 42 line
+// materials, missing every Kevlar 12-strand above 5/16 in, all five nylon flat
+// webbings, both rubber bands, all seven braided elastics and the Paraline. Nothing
+// shows it, because a missing material is just one the picker does not offer.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';

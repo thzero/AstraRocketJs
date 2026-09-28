@@ -9,8 +9,8 @@ import { useAeroSweep } from '../../../src/components/canvas/useAeroSweep';
  * render that changes an input until the run for THOSE inputs lands, the
  * previous sweep stays up meanwhile, a run whose inputs changed before it
  * started never lands, and no rocket means nothing is pending and nothing is
- * shown. `pending` used to be a flag set at the top of the effect; now it is
- * derived, and these pin that the derivation says the same things.
+ * shown. `pending` is DERIVED rather than a flag set at the top of the effect, and
+ * these pin that the derivation says all four of those things.
  */
 
 const fakeSweep = (machMax: number) => ({ machs: [0.05, machMax] }) as unknown as AeroSweep;

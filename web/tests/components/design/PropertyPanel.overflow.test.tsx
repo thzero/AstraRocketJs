@@ -31,8 +31,8 @@ const chute = (): ComponentNode =>
  * reader takes back as 0, so the field showed a number the geometry never had.
  */
 describe('a dimension whose unit conversion overflows', () => {
-  // Kilometers on this one field, which is the whole point: in meters (the
-  // default) the conversion is a multiply by one and cannot overflow.
+  // Kilometers on this one field: in meters (the default) the conversion is a
+  // multiply by one and cannot overflow.
   beforeEach(() => seedSettings({ unitOverrides: { [unitScope('prop', 'parachute', 'deployAltitude')]: 'km' } }));
 
   const render = (onChange: (p: Partial<ComponentNode>) => void) =>

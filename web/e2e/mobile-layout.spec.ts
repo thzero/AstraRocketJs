@@ -5,12 +5,11 @@ import { test, expect, type Page, note, openTab, runFlight, ready, box } from '.
  * prompts stay carded, and a finished run lands on its own Results tab. The
  * desktop contrasts kept here run at 1500 wide, well past the breakpoint.
  *
- * This file used to hold six features in 651 lines. The viewport-overflow,
- * sketch-rotation, pane-divider, maximize and header-tabs suites are their own
- * specs now (layout-overflow, sketch-rotation, pane-splitter, maximize,
- * workbench-header), and the app-open wait they all copied is `ready()` in
- * base.ts. This file is also run by the Pixel 7 project in playwright.config.ts,
- * so nothing in it may depend on a desktop-only element being rendered.
+ * The viewport-overflow, sketch-rotation, pane-divider, maximize and header-tabs
+ * suites are their own specs (layout-overflow, sketch-rotation, pane-splitter,
+ * maximize, workbench-header), and the app-open wait they share is `ready()` in
+ * base.ts. This file is also run by the Pixel 7 project in playwright.config.ts, so
+ * nothing in it may depend on a desktop-only element being rendered.
  */
 
 /**
@@ -83,9 +82,9 @@ test.describe('short prompts', () => {
 });
 
 /**
- * A finished run used to set the flight view while leaving you on Simulate --
- * so the chart appeared on the Sketch tab, which you were not looking at, and
- * your drawing was displaced by it. The flight views now have their own tab.
+ * A finished run moves to the tab that can show it. Setting the flight view while
+ * leaving the user on Simulate puts the chart on the Sketch tab, which they are not
+ * looking at, and displaces their drawing.
  */
 test('a finished run lands on the Results tab', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -126,10 +125,9 @@ test('a finished run lands on the Results tab', async ({ page }) => {
 });
 
 test('the desktop workbench splits the view families across its tabs too', async ({ page }) => {
-  // This used to assert the opposite — all five views in one switch — because
-  // the desktop had no tabs and the families only split on a phone. Now the
-  // workbench is tabbed at every width, so the same rule applies up here: the
-  // tab picks the family, the switch moves within it.
+  // The workbench is tabbed at every width, so the same rule applies here as on a
+  // phone: the tab picks the family, the switch moves within it. NOT all five views
+  // in one switch.
   await page.setViewportSize({ width: 1500, height: 950 });
   await ready(page);
   await runFlight(page); // lands on Results
@@ -190,9 +188,9 @@ test('starting a new design does not strand you on an empty Results tab', async 
   const resultsTab = page.getByRole('button', { name: /Results/ });
   await expect(resultsTab).toBeVisible({ timeout: 30_000 });
 
-  // New design straight from the Results tab. The result is gone with it, so
-  // the tab has nothing left to show -- and every view button belongs to the
-  // other family, which used to leave the switch completely empty.
+  // New design straight from the Results tab. The result is gone with it, so the
+  // tab has nothing left to show, and every view button belongs to the other
+  // family -- which must not leave the switch completely empty.
   await page.getByRole('button', { name: 'Menu' }).click();
   await page.getByRole('menuitem', { name: 'New' }).click();
   await page

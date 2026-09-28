@@ -53,10 +53,9 @@ describe('stageParts', () => {
 
 describe('finSetPositions', () => {
   // A swept freeform fin whose tip trailing corner overhangs the root: the root
-  // chord is 0.06, but the furthest-aft point is 0.09. This used to report
-  // bottomX from Math.max, overstating the root trailing edge by the 30 mm of
-  // overhang — and disagreeing with the schematic, which has always used the
-  // kernel's own last.x - first.x.
+  // chord is 0.06, but the furthest-aft point is 0.09. `bottomX` from Math.max
+  // overstates the root trailing edge by the 30 mm of overhang and disagrees with
+  // the schematic, which uses the kernel's own last.x - first.x.
   it('spans a swept freeform fin by its ROOT chord, not its aftmost point', () => {
     const swept = node({
       type: 'stage',
@@ -94,11 +93,9 @@ describe('finSetPositions', () => {
     expect(sets[0]!.topX).toBeCloseTo(0.25, 9);
     expect(sets[0]!.bottomX).toBeCloseTo(0.3, 9); // 0.25 + 0.05 rootChord
   });
-  // This test used to assert 0.16 — it pinned `Math.max(...xs)` as the root
-  // length, which is what the code did rather than what is correct, and so kept
-  // the bug alive. These points are exactly the overhanging case: the outline
-  // reaches 0.06 aft, but the root runs first.x -> last.x = 0.04, which is what
-  // the kernel flies (FreeformFinSet.length = last.x - first.x).
+  // The overhanging case: the outline reaches 0.06 aft, but the root runs
+  // first.x -> last.x = 0.04, which is what the kernel flies
+  // (FreeformFinSet.length = last.x - first.x). NOT `Math.max(...xs)`.
   it('uses a freeform fin ROOT chord, not the outline max-x, as the root length', () => {
     const s = node({
       type: 'stage',

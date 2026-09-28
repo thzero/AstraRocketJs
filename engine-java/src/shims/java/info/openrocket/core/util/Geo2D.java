@@ -9,11 +9,11 @@ package info.openrocket.core.util;
  * upstream deleted, and may "restore" `java.awt.geom`.
  * <p>
  * These replace the handful of {@code java.awt.geom.Line2D}/{@code java.awt.geom.Point2D}
- * calls that previously tied {@code core} to the {@code java.desktop} module even though
- * they are pure coordinate arithmetic with no rendering involved.  The segment-intersection
- * routine reproduces the semantics of {@code Line2D.linesIntersect} — including the
- * treatment of collinear, overlapping segments — so that fin-outline validation behaves
- * exactly as it did before.
+ * calls that would otherwise tie {@code core} to the {@code java.desktop} module, even
+ * though they are pure coordinate arithmetic with no rendering involved. The
+ * segment-intersection routine reproduces the semantics of
+ * {@code Line2D.linesIntersect}, including the treatment of collinear, overlapping
+ * segments, so fin-outline validation behaves identically.
  */
 public final class Geo2D {
 

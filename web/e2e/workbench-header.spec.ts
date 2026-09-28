@@ -3,11 +3,11 @@ import { test, expect, runFlight, ready, box } from './base';
 /**
  * The desktop workbench tabs sit IN the header, not in a strip below it.
  *
- * They used to own a full row of their own to hold two or three words, while the
- * header beside them ran empty from the WASM badge to the far-right controls.
- * Asserted geometrically rather than by class name: what matters is that the
- * tabs cost no vertical space, which is exactly "the nav is inside the header's
- * box", and that nothing wraps the header onto a second line.
+ * A row of their own costs a full line to hold two or three words while the header
+ * beside them runs empty from the WASM badge to the far-right controls. Asserted
+ * geometrically rather than by class name: what matters is that the tabs cost no
+ * vertical space, which is exactly "the nav is inside the header's box", and that
+ * nothing wraps the header onto a second line.
  *
  * Desktop-only, and in its own file for that reason: it measures the header
  * at the lg breakpoint EXACTLY (1024), where the phone project's emulation

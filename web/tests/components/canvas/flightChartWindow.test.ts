@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { clampWindow, minWindow, resolveWindow, zoomWindow } from '../../../src/components/canvas/flightChartAxis';
 
 /**
- * The zoom/pan window math, now pure so the clamps that used to live inside
- * the component's closures can be pinned without a pointer.
+ * The zoom/pan window math, pure so the clamps can be pinned without a pointer.
  */
 
 describe('clampWindow', () => {

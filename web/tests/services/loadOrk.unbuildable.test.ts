@@ -7,14 +7,14 @@ import { buildForImport } from '../../src/services/loadOrk';
  *
  * The kernel refuses a self-intersecting freeform outline by name rather than
  * rolling it back to its default fin (engine-java/patches/LEDGER.md), which is
- * what the app wants everywhere a number is shown. On IMPORT it would have cost
- * more than it gained: the design that cannot be simulated is exactly the design
- * somebody needs to open in order to fix it, and this app can save such a file -
- * the `.ork` writer takes the tree, not the kernel's opinion of it. So the file
- * opens, the tree arrives as written, and the reason travels with it.
+ * what the app wants everywhere a number is shown. On IMPORT that costs more than
+ * it gains: the design that cannot be simulated is exactly the design somebody
+ * needs to open in order to fix it, and this app can save such a file - the `.ork`
+ * writer takes the tree, not the kernel's opinion of it. So the file opens, the tree
+ * arrives as written, and the reason travels with it.
  *
- * Real kernel: the whole point is that the recovery survives what the Java
- * actually throws, which a stub would only assert about itself.
+ * Real kernel, so the recovery is tested against what the Java actually throws
+ * rather than against a stub's idea of it.
  */
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 

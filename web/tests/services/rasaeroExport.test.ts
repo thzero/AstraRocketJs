@@ -145,10 +145,9 @@ describe('finish to RASAero surface (desktop table)', () => {
 });
 
 /**
- * An assembly in the sustainer chain used to be skipped like an internal
- * part. A pod or a strap-on booster is external aerodynamics, and a file that
- * quietly omits it describes a different rocket (the desktop refuses them,
- * RASAeroExport.error33).
+ * An assembly in the sustainer chain is not skipped like an internal part. A pod or
+ * a strap-on booster is external aerodynamics, and a file that quietly omits it
+ * describes a different rocket (the desktop refuses them, RASAeroExport.error33).
  */
 describe('assemblies RASAero cannot hold', () => {
   const withAssembly = (type: 'podset' | 'parallelstage'): RocketTree => ({

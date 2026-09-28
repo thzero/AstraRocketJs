@@ -9,28 +9,26 @@ export type WipState = 'acknowledged' | 'shown';
  * The shared `test`, which arrives with the pre-1.0 work-in-progress notice
  * already out of the way.
  *
- * Every spec used to open with its own copy of
+ * Handled here rather than per spec with a swallowed
  *
  *     page.getByRole('button', { name: 'I understand' })
  *       .click({ timeout: 10_000 })
  *       .catch(() => {});
  *
- * — twenty definitions and seventy-six calls, each swallowing its own failure.
- * That `.catch` is why a slow boot never reported "the notice would not go
- * away": it reported, twenty steps later, that some unrelated click had been
- * intercepted by `div.fixed.inset-0.z-[60]`, which is the notice's backdrop.
+ * whose `.catch` turns "the notice would not go away" into a report, twenty steps
+ * later, that some unrelated click was intercepted by `div.fixed.inset-0.z-[60]` -
+ * the notice's backdrop.
  *
- * The notice is gated on a stored flag (WorkInProgressDialog.tsx:16), so this
- * sets the flag rather than racing the button, and e2e/wip-gate.spec.ts is now
- * the one place that exercises the gate itself. A spec that wants to SEE the
- * notice asks for it:
+ * The notice is gated on a stored flag (WorkInProgressDialog.tsx:16), so this sets
+ * the flag rather than racing the button, and e2e/wip-gate.spec.ts is the one place
+ * that exercises the gate itself. A spec that wants to SEE the notice asks for it:
  *
  *     test.use({ wip: 'shown' });
  *
- * The seed MERGES into whatever is already stored, and has to keep doing so:
- * it runs on every navigation, `page.reload()` included, and a dozen specs
- * reload precisely to prove a preference survived. Overwriting the blob would
- * erase the thing they assert.
+ * The seed MERGES into whatever is already stored, and has to keep doing so: it
+ * runs on every navigation, `page.reload()` included, and a dozen specs reload
+ * precisely to prove a preference survived. Overwriting the blob erases the thing
+ * they assert.
  */
 export const test = base.extend<{ wip: WipState }>({
   wip: ['acknowledged', { option: true }],
@@ -142,10 +140,9 @@ export async function autosaved(page: Page, needle: string, atLeast = 1): Promis
 /**
  * Open a workbench tab (Design · Simulations · Results).
  *
- * The workbench is tabbed at every width now, so the design editor, the
- * simulation controls and the flight charts are no longer all on screen at once
- * the way the old three-pane desktop layout had them. A spec that edits a part
- * and then runs a simulation has to say where it is going.
+ * The workbench is tabbed at every width, so the design editor, the simulation
+ * controls and the flight charts are not all on screen at once. A spec that edits a
+ * part and then runs a simulation has to say where it is going.
  *
  * Scoped to the desktop strip by its label: the phone's bottom bar carries
  * overlapping names ("Simulate", "Results") and both are in the DOM at once.
@@ -228,10 +225,9 @@ export type NameClash = 'overwrite' | 'keepBoth';
 /**
  * Answer the "a rocket with this name is already saved" dialog.
  *
- * Import gives a rocket its own library entry, so re-importing the same file
- * used to add an identical row to File > Open every time. It asks now, and
- * "Keep both" leads straight on to the name dialog, whose suggested "… (2)"
- * this accepts.
+ * Import gives a rocket its own library entry, so re-importing the same file asks
+ * rather than adding an identical row to File > Open. "Keep both" leads straight
+ * on to the name dialog, whose suggested "… (2)" this accepts.
  */
 async function resolveNameClash(page: Page, choice: NameClash): Promise<void> {
   const ask = page.getByRole('alertdialog', { name: 'A rocket with this name is already saved' });
@@ -292,11 +288,10 @@ export async function box(target: Locator): Promise<{ x: number; y: number; widt
  *
  * The aero tables carry no accessible name of their own (they are a `<table>`
  * under a `TableHead` `<h3>`, see AeroAnalysis.tsx), so the specs reached them
- * by document index: `querySelectorAll('table')[1]`. That index moved every
- * time a table was added or a pane was mounted hidden. The heading IS named,
- * and the app renders each table as the first one after its heading, so this
- * selects by that relationship instead. It is an XPath axis, not a class name,
- * so it survives restyling.
+ * by document index: `querySelectorAll('table')[1]`, which moves every time a table
+ * is added or a pane is mounted hidden. The heading IS named, and the app renders
+ * each table as the first one after its heading, so this selects by that
+ * relationship. It is an XPath axis, not a class name, so it survives restyling.
  */
 export function tableUnder(page: Page, heading: string | RegExp): Locator {
   return page.getByRole('heading', { name: heading }).locator('xpath=following::table[1]');

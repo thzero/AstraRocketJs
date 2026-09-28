@@ -86,8 +86,8 @@ describe('the new launch fields round-trip through .ork', () => {
   });
 
   it('leaves ISA once humidity alone is set', () => {
-    // Temperature and pressure are still null, so the old both-or-ISA test would
-    // have written model="isa" and thrown the humidity away.
+    // Temperature and pressure are still null, so a both-or-ISA test would write
+    // model="isa" and throw the humidity away.
     const xml = exportOrk({ name: 'Opts', tree, launch: { ...base, relativeHumidity: 0.9 } });
     expect(xml).not.toContain('<atmosphere model="isa"/>');
     expect(xml).toContain('<relativehumidity>0.9</relativehumidity>');
@@ -101,8 +101,7 @@ describe('the new launch fields round-trip through .ork', () => {
   });
 
   it('keeps the Earth model that was chosen', () => {
-    // It used to be hardcoded to spherical on the way out, so a WGS84 design
-    // came back spherical.
+    // Hardcoded to spherical on the way out, a WGS84 design comes back spherical.
     expect(roundTrip({ ...base, geodetic: 'wgs84' })?.geodetic).toBe('wgs84');
     expect(roundTrip({ ...base, geodetic: 'flat' })?.geodetic).toBe('flat');
   });

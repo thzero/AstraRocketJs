@@ -264,11 +264,10 @@ describe('findCatalogMotor — full .ork designations vs short catalog names', (
 /**
  * One malformed row must cost that row, not the catalog.
  *
- * `isCatalog` was `every(isCatalogMotor)`, and remoteData rejects a body its
- * predicate refuses, so a single bad row on the data host threw the whole
- * ~1500-motor catalog away (and, once the in-build copy carried the same row,
- * left the picker empty). The intent all along (docs/AUDIT.md, seventh pass)
- * was row-by-row: drop the bad rows, keep the rest.
+ * `isCatalog` must not be `every(isCatalogMotor)`: remoteData rejects a body its
+ * predicate refuses, so a single bad row on the data host throws the whole
+ * ~1500-motor catalog away, and once the in-build copy carries the same row the
+ * picker is empty. Row by row instead: drop the bad rows, keep the rest.
  */
 describe('loadCatalog with a malformed row', () => {
   const good = (designation: string): CatalogMotor => ({

@@ -30,16 +30,14 @@ const RESULT = { summary: { maxAltitude: 100 }, events: [], series: {} } as unkn
 /**
  * A batch reports EVERY row that did not fly, naming each one.
  *
- * Each row's `catch` used to `set({ err })` on its own, so in a batch every
- * message overwrote the one before it and none carried a row name. Then the
- * skip line, emitted once the batch drained, overwrote whatever had survived.
- * A batch with two timeouts and one row with no motor reported only the one with no motor
- * row, with nothing to say two flights had failed at all - while both failed
- * rows went red in the table with no reason attached to either.
+ * A per-row `set({ err })` leaves only the last message, with no row name on it,
+ * and the skip line emitted once the batch drains then overwrites whatever
+ * survived. A batch with two timeouts and one row with no motor would report only
+ * the missing motor, with nothing to say two flights had failed at all, while both
+ * failed rows went red in the table with no reason attached to either.
  *
- * `runSims` already solved exactly this for SKIPS, collecting them into an
- * array and emitting one named line. The comment describing that fix sat
- * directly above the code that still had the bug for failures.
+ * Failures are collected into an array and emitted as one named line, the way
+ * `runSims` already handles SKIPS.
  */
 describe('a batch where rows FAIL', () => {
   beforeEach(() => {
@@ -61,7 +59,7 @@ describe('a batch where rows FAIL', () => {
   });
 
   it('names EVERY failed row, not just whichever finished last', async () => {
-    // Fail all three, so the old last-writer-wins behavior is unmistakable.
+    // Fail all three, so a last-writer-wins report is unmistakable.
     simulateMock.mockImplementation(() => Promise.reject(new Error('kernel exploded')));
 
     await st().runSims(
@@ -78,7 +76,7 @@ describe('a batch where rows FAIL', () => {
   it('does not let the skip line erase the failures', async () => {
     // Charlie cannot fly at all (a curve-less motor is what an unresolved
     // `.ork` import leaves behind), so the skip path has something to say too.
-    // That skip line used to be written over the failures, unconditionally.
+    // Its line must not be written over the failures.
     useWorkspaceStore.setState({
       sims: st().sims.map((x) =>
         x.name === 'Charlie' ? { ...x, motor: { ...C6, times: [], thrusts: [], masses: [] } } : x,

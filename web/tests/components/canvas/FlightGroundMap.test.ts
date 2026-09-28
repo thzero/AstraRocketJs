@@ -116,8 +116,8 @@ describe('groundMapLayout', () => {
   /**
    * The budget this exists to keep. Imagery is fetched from someone else's
    * servers and kept in a capped offline cache shared with two other surfaces,
-   * so a single flight must not cost a screenful of tiles per view. Covering
-   * the whole ground plane rather than the flight used to cost 36.
+   * so a single flight must not cost a screenful of tiles per view. Covering the
+   * whole ground plane rather than the flight costs 36.
    */
   it('costs a modest number of tiles at any scale', () => {
     for (const radius of [MIN_EXTENT_M, 120, 360, 1_500, 20_000]) {

@@ -9,10 +9,10 @@
  *
  * Both are live production artifacts, NOT one plus an experiment: openRocketEngine.ts defaults to
  * backend 'auto', which loads WASM-GC where the browser supports it (Chrome 119+/FF 120+/Safari
- * 18+) and falls back to JS otherwise. So WASM-GC is the path most browsers actually take. This is
- * why the default is both, and why it used to be a trap: rebuilding only JS refreshed the FALLBACK,
- * left the .wasm stale, and the browser then ran the old physics silently, with nothing to see.
- * Build one alone only when you know why you want to.
+ * 18+) and falls back to JS otherwise. So WASM-GC is the path most browsers actually take, and that
+ * is why the default is both: rebuilding only JS refreshes the FALLBACK, leaves the .wasm stale, and
+ * the browser goes on running the old physics with nothing to see. Build one alone only when you
+ * know why you want to.
  * Needs a JDK (JAVA_HOME, or whatever the Gradle wrapper resolves) and Node 22+.
  *
  *   node build-engine.mjs             # build + vendor BOTH engines (default)

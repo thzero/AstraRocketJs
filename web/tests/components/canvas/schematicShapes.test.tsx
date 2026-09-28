@@ -135,12 +135,11 @@ describe('a nose cone shoulder', () => {
 /**
  * Structure is drawn at the size it really is.
  *
- * Every internal used to go through `internalExtent`, whose radius is capped at
- * 85% of the parent. That cap protects a chute, whose box is an invented
- * fallback rather than a dimension anybody entered. A coupler is the opposite:
- * it fills the bore by definition, so it hit the cap EVERY time and was drawn
- * narrower than it is - while the DXF cut sheet, the printed solid and the 3D
- * model all sized it from the real bore. One part, two sizes.
+ * `internalExtent` caps a radius at 85% of the parent, which protects a chute,
+ * whose box is an invented fallback rather than a dimension anybody entered. A
+ * coupler is the opposite: it fills the bore by definition, so it hits that cap
+ * EVERY time and is drawn narrower than it is, while the DXF cut sheet, the printed
+ * solid and the 3D model size it from the real bore. One part, two sizes.
  */
 describe('a coupler is sized like the part you would cut', () => {
   const bore = 0.02 - COMPONENT_DEFAULTS.bodytube.thickness;

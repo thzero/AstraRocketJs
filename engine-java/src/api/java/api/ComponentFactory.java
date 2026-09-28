@@ -65,14 +65,13 @@ final class ComponentFactory {
      * Instance-count ceiling, mirroring {@code web/src/tree/nodeProps.ts}
      * MAX_INSTANCE_COUNT.
      * <p>
-     * It used to exist ONLY on the JS side, and only in the property panel and
-     * the renderers: {@code orkImport.ts} writes the raw file value into the
-     * tree and nothing clamped it before {@code buildRocket}. Uncapped,
-     * {@code PodSet.getInstanceOffsets} allocates an array per instance on
-     * every mass, aero and integration step, so a pod set of 100000 took 4.2 s
-     * for a SINGLE getStaticInfo - which the app calls per keystroke - and
-     * {@code 1e999} reached {@code (int) Infinity} = 2147483647 and simply
-     * exhausted the heap. The boundary owns this rule now, not the UI.
+     * The BOUNDARY owns this rule, not the UI: {@code orkImport.ts} writes the raw
+     * file value into the tree, so a cap in the property panel and the renderers
+     * alone never sees it. Uncapped, {@code PodSet.getInstanceOffsets} allocates an
+     * array per instance on every mass, aero and integration step, so a pod set of
+     * 100000 takes 4.2 s for a SINGLE getStaticInfo - which the app calls per
+     * keystroke - and {@code 1e999} reaches {@code (int) Infinity} = 2147483647 and
+     * exhausts the heap.
      */
     static final int MAX_INSTANCE_COUNT = 64;
 
@@ -88,10 +87,10 @@ final class ComponentFactory {
     /**
      * Read a count that reaches an allocation or a per-step loop.
      * <p>
-     * Every one of these used to be a bare {@code (int) dbl(...)}, which turns
-     * NaN into 0 and Infinity into Integer.MAX_VALUE. Out-of-range is rejected
-     * rather than clamped: silently building a different rocket than the file
-     * describes is the bug class this whole boundary keeps producing.
+     * NOT a bare {@code (int) dbl(...)}, which turns NaN into 0 and Infinity into
+     * Integer.MAX_VALUE. Out-of-range is rejected rather than clamped: silently
+     * building a different rocket than the file describes is the failure this
+     * boundary exists to prevent.
      */
     private static int count(Map<String, Object> node, String key, int fallback, int max) {
         double v = dbl(node, key, fallback);
@@ -585,34 +584,20 @@ final class ComponentFactory {
                 break;
             }
             // RASAERO-ORIGIN app extension, not an OpenRocket type: a camera
-            // shroud, written to `.ork` as our own <fairing> element (the
-            // desktop warns and skips it). Added for the RASAero supersonic
-            // work and never finished - nothing in the editor can create one
-            // (no ALLOWED_CHILDREN entry, no defaultNode case, no property
-            // panel), so it appears only in a design loaded from a `.ork` this
-            // app itself wrote.
+            // shroud, written to `.ork` as our own <fairing> element (the desktop
+            // warns and skips it). Nothing in the editor can create one - no
+            // ALLOWED_CHILDREN entry, no defaultNode case, no property panel - so
+            // it appears only in a design loaded from a `.ork` this app wrote.
             //
-            // It used to hit the `default:` below and throw, so such a design
-            // round-tripped through OUR OWN file format and then could not be
-            // built at all - no static info, no simulation - while both
-            // renderers drew it happily. The `engineTree()` lowering that
-            // openRocketEngine.ts promised was never written.
+            // Handled here rather than left to the `default:` below, which throws:
+            // a design that round-trips through our own file format has to build.
             //
-            // Modelled as a MassComponent: mass and length are carried, so the
-            // design loads and its mass and CG are right.
-            //
-            // HONEST LIMITATION: the shroud's DRAG is not modelled. A fairing
-            // is an external body with frontal area, and MassComponent
-            // contributes none, so a design with one flies slightly further
-            // than it should. That is strictly better than not flying at all,
-            // but it is half a fix.
-            //
-            // Deliberately left there: fairings are RASAero-scope work, and
-            // that scope is not currently being carried. Finishing this means
-            // deciding which OpenRocket primitive supplies the frontal-area
-            // drag - and, before that, whether camera shrouds are a feature at
-            // all, given nothing can create one. See docs/AUDIT_ENGINE.md
-            // Appendix R.
+            // Modelled as a MassComponent, so mass, length and CG are right. Its
+            // DRAG is NOT modelled: a fairing is an external body with frontal
+            // area and MassComponent contributes none, so a design carrying one
+            // flies slightly further than it should. Closing that means choosing
+            // which OpenRocket primitive supplies the frontal-area drag. Scope:
+            // RASAero. See engine-java/ATTRIBUTION.md.
             case "fairing": {
                 MassComponent f = new MassComponent();
                 f.setComponentMass(dbl(node, "mass", 0.03));

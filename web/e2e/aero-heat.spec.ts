@@ -29,9 +29,9 @@ const columnColors = (page: Page, table: number, header: string) =>
  * and meaningless for anything else: CNalpha runs to 15 or 20 per radian, so
  * every row would clamp to the same red and the column would say nothing.
  *
- * The stability table used to pass `heatStyle === 'openrocket' ? 'openrocket' :
- * 'sky'` for CNalpha — an identity expression, since HeatStyle has exactly two
- * members. It read as a guard and was not one.
+ * So the stability table does not pass the style through for CNalpha. Note that
+ * `heatStyle === 'openrocket' ? 'openrocket' : 'sky'` is not a guard: HeatStyle has
+ * exactly two members, so it is an identity expression.
  */
 test.describe('aero table shading', () => {
   test('Cd is shaded on the OpenRocket scale, CNalpha is not', async ({ page }) => {

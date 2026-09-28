@@ -44,10 +44,9 @@ describe('WindProfileDialog rows', () => {
 
   /**
    * Two levels at one altitude is not a profile the kernel will build: it keys
-   * its levels on altitude and throws on the second one. That used to surface
-   * half way into a run, in the kernel's own words
-   * (`Wind level already exists for altitude: 0.0`), for something this editor
-   * let the user type.
+   * its levels on altitude and throws on the second one. Unflagged here it surfaces
+   * half way into a run, in the kernel's own words (`Wind level already exists for
+   * altitude: 0.0`), for something this editor let the user type.
    */
   it('flags a row repeating an earlier altitude, and says why', () => {
     renderWithProviders(<Host />);

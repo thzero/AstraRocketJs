@@ -58,7 +58,7 @@ const openLive = () => renderWithProviders(<Live />);
 /** The print-settings popover's own panel, found by its heading. */
 const settingsPopover = () =>
   screen.queryByRole('heading', { name: 'Print settings' })?.closest('[role="dialog"]') ?? null;
-/** Its backdrop — the element whose click used to bubble into the dialog. */
+/** Its backdrop - the element whose click must not bubble into the dialog. */
 const settingsBackdrop = () => settingsPopover()!.parentElement as HTMLElement;
 
 describe('ExportDialog', () => {
@@ -70,11 +70,11 @@ describe('ExportDialog', () => {
 
   /**
    * The report-settings popover is rendered as a CHILD of the export dialog's
-   * own full-screen overlay, and that overlay's onClick is `onClose`. So a
-   * click on the popover's backdrop used to bubble into it and shut the whole
-   * Export dialog — and since reopening resets the once-per-open assemble
-   * latch, every include/exclude checkbox the user had set came back from
-   * defaults. Adjusting a report setting silently discarded the selection.
+   * own full-screen overlay, and that overlay's onClick is `onClose`. Left to
+   * bubble, a click on the popover's backdrop shuts the whole Export dialog, and
+   * since reopening resets the once-per-open assemble latch, every include/exclude
+   * checkbox comes back from defaults - so adjusting a report setting discards the
+   * selection.
    */
   it('dismissing the settings popover does not close the dialog behind it', () => {
     const onClose = open();

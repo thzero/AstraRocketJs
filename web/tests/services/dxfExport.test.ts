@@ -87,12 +87,12 @@ describe('per-component DXF export', () => {
   });
 
   it('exports a freeform fin with more points than a spread could carry', () => {
-    // `orkImport` puts no cap on <finpoints><point>, and the span used to be
-    // `Math.max(...outline.map(p => p.y))`. A spread becomes one argument per
-    // element, so past the engine's argument limit it dies with an opaque
-    // "Maximum call stack size exceeded" - not a rejection, a crash, on a file
-    // that parsed fine. Nothing else in the suite passes a large outline, so
-    // the `reduce` that replaced it had nothing holding it.
+    // `orkImport` puts no cap on <finpoints><point>, so the span must not be
+    // `Math.max(...outline.map(p => p.y))`: a spread becomes one argument per
+    // element, and past the engine's argument limit it dies with an opaque
+    // "Maximum call stack size exceeded" - a crash, not a rejection, on a file
+    // that parsed fine. Nothing else in the suite passes a large outline, so this
+    // is what holds the `reduce`.
     // 200 000 points over a 60 mm chord, zig-zagged by 20 µm so that `dedupe`
     // (which drops consecutive points within EPS) keeps every one of them -
     // otherwise the outline collapses and never reaches the size in question.

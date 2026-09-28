@@ -53,11 +53,11 @@ describe('unflyable', () => {
   });
 
   /**
-   * The kernel keys its wind levels on altitude and throws on the second one at
-   * a given height, so this used to come back from `simulate()` as
-   * `engine simulate failed: Wind level already exists for altitude: 0.0` --
-   * after the design was built, in the kernel's words, for something the
-   * profile editor let the user type. The gate names it before the run starts.
+   * The kernel keys its wind levels on altitude and throws on the second one at a
+   * given height, so left to `simulate()` this comes back as `engine simulate
+   * failed: Wind level already exists for altitude: 0.0` -- after the design is
+   * built, in the kernel's words, for something the profile editor let the user
+   * type. The gate names it before the run starts.
    */
   it('refuses a wind profile with two levels at one altitude', () => {
     const doubled = sim('x', {
@@ -96,8 +96,8 @@ describe('unflyable', () => {
   });
 
   it('refuses a simulation with a blank required field', () => {
-    // The field used to coerce a cleared box to 0, so this state could not
-    // exist and an empty rod length flew as a zero-length rod.
+    // A field that coerces a cleared box to 0 cannot reach this state, and an
+    // empty rod length flies as a zero-length rod.
     const r = unflyable(sim('x', { launch: { ...launch, launchRodLengthM: null } }));
     expect(r?.kind).toBe('incomplete');
     expect(r && r.kind === 'incomplete' && r.missing).toEqual(['launchRodLengthM']);

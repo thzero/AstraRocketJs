@@ -165,8 +165,8 @@ describe('optional <designinfo> block', () => {
 });
 
 describe('launch-lug / rail-button radial angle round-trips', () => {
-  // A tree with a lug at 45° and a rail button at 90° around the body. These
-  // used to be silently overwritten with 180° on every save.
+  // A tree with a lug at 45° and a rail button at 90° around the body. Neither
+  // may be overwritten with 180° on save.
   const tree = {
     components: [
       {
@@ -293,7 +293,7 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
 
   it('preserves a split-cluster inner tube radial offset through export → import', () => {
     // A split cluster is single tubes carrying radialPosition (m) + radialDirection (rad).
-    // Regression: the writer used to hard-write 0.0, collapsing every tube onto the axis.
+    // A writer that hard-writes 0.0 collapses every tube onto the axis.
     const clustered = {
       components: [
         {
@@ -681,9 +681,9 @@ describe('automatic ring radii round-trip', () => {
     const out = importOrk(exportOrk({ name: 'Auto', tree: ringTree() }));
     const ring = findByType(out.tree, 'centeringring') as Record<string, unknown>;
     // A FLAG with the resolved number beside it, rather than an absent key.
-    // Absence used to be how the app spelled automatic, which meant the panel
-    // showed 0 and the drawing used a fallback while the kernel used the real
-    // bore. The flag says it follows; the number is what it currently is.
+    // Spelling automatic as absence leaves the panel showing 0 and the drawing on
+    // a fallback while the kernel uses the real bore. The flag says it follows;
+    // the number is what it currently is.
     expect(ring.outerRadiusAuto).toBe(true);
     expect(ring.innerRadiusAuto).toBe(true);
     expect(ring.outerRadius).toBeCloseTo(0.0125, 6); // the tube's bore

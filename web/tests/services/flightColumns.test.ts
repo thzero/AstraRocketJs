@@ -41,12 +41,11 @@ describe('flightColumns', () => {
   /**
    * Every variable carries a NAME, in both languages.
    *
-   * The dialog used to show bare kernel symbols — "Abx", "dΦ", "ha" — for
-   * everything beyond the app's own dozen, which is unreadable unless you
-   * already know the symbol table. The names are generated from OpenRocket's
-   * own `FlightDataType` and its message bundles, so a variable reads the same
-   * here as it does in the desktop app; this catches a symbol that slipped
-   * through without one.
+   * Bare kernel symbols — "Abx", "dΦ", "ha" — are unreadable unless you already
+   * know the symbol table. The names are generated from OpenRocket's own
+   * `FlightDataType` and its message bundles, so a variable reads the same here
+   * as it does in the desktop app; this catches a symbol that slipped through
+   * without one.
    */
   it('names every column it can offer, in English and Spanish', () => {
     // A result carrying every key the table knows about.

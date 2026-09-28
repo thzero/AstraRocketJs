@@ -85,10 +85,10 @@ describe('multilevel wind profile round-trips through .ork', () => {
   });
 
   /**
-   * A hand-written fragment in the desktop's EXACT form. The reader used to
-   * look for a child <altitudereference> element or an attribute of another
-   * name, so every AGL profile the desktop saved came in as MSL, which at a
-   * 1500 m site is a different wind entirely.
+   * A hand-written fragment in the desktop's EXACT form. Read from a child
+   * <altitudereference> element or an attribute of another name, every AGL profile
+   * the desktop saves comes in as MSL, which at a 1500 m site is a different wind
+   * entirely.
    */
   it('reads the altitude reference from the attribute the desktop writes', () => {
     const desktop = (ref: string) =>

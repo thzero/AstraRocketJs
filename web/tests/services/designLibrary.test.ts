@@ -126,11 +126,11 @@ describe('design library', () => {
   });
 
   it('reports a refused INDEX write too, not just the design blob', async () => {
-    // The index write used to be treated as survivable on the grounds that the
-    // design itself is stored. But activeId() filters against the index, so a
-    // design missing from it is unreachable: a new one vanishes and the next
-    // session opens empty over orphaned bytes. Fail the write so
-    // workspaceStore.save() can raise "storage full" instead.
+    // The index write is not survivable, even though the design itself is stored:
+    // activeId() filters against the index, so a design missing from it is
+    // unreachable, a new one vanishes, and the next session opens empty over
+    // orphaned bytes. Fail the write so workspaceStore.save() can raise
+    // "storage full".
     const a = await lib.create('A', ws('a'));
     let calls = 0;
     const realSet = kv.set.bind(kv);
@@ -161,7 +161,7 @@ describe('migrating the pre-library single workspace', () => {
     // The user's one design must survive the upgrade.
     expect(treeName(await lib.read(list[0]!.id))).toBe('existing-work');
     expect(await lib.activeId()).toBe(list[0]!.id);
-    // And the old key is reclaimed once it is safely copied.
+    // And the legacy key is reclaimed once it is safely copied.
     expect(kv.map.has(LEGACY)).toBe(false);
   });
 
@@ -203,10 +203,10 @@ describe('migrating the pre-library single workspace', () => {
   });
 
   /**
-   * `create()` used to discard the boolean `write()` returns and fall back to a
-   * FABRICATED meta, so the caller got a clean resolve for a design that was
-   * never stored. This is the path the first save of a session takes — exactly
-   * when there is no other copy yet.
+   * `create()` must not discard the boolean `write()` returns and fall back to a
+   * FABRICATED meta, which resolves cleanly for a design that was never stored.
+   * This is the path the first save of a session takes, when there is no other copy
+   * yet.
    */
   it('throws instead of reporting success for a create the store refused', async () => {
     kv.full = true;

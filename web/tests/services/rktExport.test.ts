@@ -180,8 +180,8 @@ describe('exportRkt', () => {
   });
 
   it('sets UseKnownCG only on the part that actually overrides', () => {
-    // Turning it on makes RockSim stop computing mass AND CG from geometry, so
-    // it must not appear on a part we had no measured figures for.
+    // Turning it on makes RockSim stop computing mass AND CG from geometry, so it
+    // must not appear on a part with no measured figures.
     expect(xml.match(/<UseKnownCG>1<\/UseKnownCG>/g)).toHaveLength(1);
   });
 

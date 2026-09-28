@@ -97,11 +97,10 @@ describe('the kernel is actually wired up', () => {
 /**
  * The stability margin is the kernel's to convert, both ways of stating it.
  *
- * The app used to compute the percentage itself, in four separate views, as
- * `((cp - cg) / length) * 100`. That is the right shape over the WRONG
- * denominator: OpenRocket's `PercentageOfLengthUnit` divides by
- * `getLengthAerodynamic()`, the span of the AERODYNAMIC components, while
- * `length` bounds every component including the ones with no aerodynamic effect.
+ * Computed app-side as `((cp - cg) / length) * 100` it is the right shape over the
+ * WRONG denominator: OpenRocket's `PercentageOfLengthUnit` divides by
+ * `getLengthAerodynamic()`, the span of the AERODYNAMIC components, while `length`
+ * bounds every component including the ones with no aerodynamic effect.
  *
  * The fixture below is the ordinary way the two differ: a motor tube that hangs
  * out of the back of the airframe. An inner tube is an `InternalComponent`, whose
@@ -194,12 +193,12 @@ describe('the stability margin comes from the kernel, in both units', () => {
 
 describe('error envelopes, from the Java side', () => {
   /**
-   * `reset()` used to do `nextHandle = 1`, so handle ids were REUSED. The web
+   * `reset()` must not rewind `nextHandle`, which would REUSE handle ids. The web
    * app calls `resetEngine()` before every rebuild and `buildRocket` registers
-   * exactly one object — so the new design got handle 1, the same number a
-   * design held from before the rebuild still carried, and that stale object
-   * silently returned results for the NEW rocket. The counter no longer
-   * rewinds, so a freed handle stays permanently unknown.
+   * exactly one object, so the new design would take handle 1 -- the number a
+   * design held from before the rebuild still carries -- and that stale object
+   * would return results for the NEW rocket. The counter only climbs, so a freed
+   * handle stays permanently unknown.
    */
   it('a design held across a reset fails loudly instead of aliasing the next rocket', () => {
     const stale = build();
@@ -230,11 +229,11 @@ describe('error envelopes, from the Java side', () => {
 
   it('refuses a sweep whose point count overflows, instead of returning an empty one', () => {
     // Finite inputs whose quotient is not: (1 - 0) / 5e-324 is Infinity, and
-    // `(long) Infinity + 1` wrapped negative past the point cap. The JS build
-    // threw a RangeError out of the bundle; the WASM build returned an empty
-    // sweep with no error at all. Now both refuse it by name. The regex is
-    // deliberately NOT /sweep/: the wrapper prefixes every envelope with
-    // "Drag sweep failed", so that would have matched the old RangeError too.
+    // `(long) Infinity + 1` wraps negative past the point cap. Unguarded, the JS
+    // build throws a RangeError out of the bundle and the WASM build returns an
+    // empty sweep with no error at all; both have to refuse it by name. The regex
+    // is deliberately NOT /sweep/: the wrapper prefixes every envelope with
+    // "Drag sweep failed", which would match a bare RangeError too.
     expect(() => build().aeroSweep({ machMin: 0, machMax: 1, machStep: 5e-324 })).toThrow(/infinite number|over the/);
     expect(() => build().aeroSweep({ machMin: -1.7e308, machMax: 1.7e308, machStep: 0.05 })).toThrow(
       /infinite number|over the/,
@@ -477,13 +476,11 @@ describe('component masses are ordered, not shuffled', () => {
 });
 
 /**
- * The three options the bridge used to hardcode, proved against the REAL kernel
- * rather than at the marshalling seam. An option the Java ignores looks exactly
- * like a working one from the JS side, which is how all three sat unnoticed:
- * the app sent nothing, so nothing looked missing. Each case therefore asserts
- * the flight actually MOVED.
+ * Three options the bridge could hardcode, proved against the REAL kernel rather
+ * than at the marshalling seam. An option the Java ignores looks exactly like a
+ * working one from the JS side, so each case asserts the flight actually MOVED.
  */
-describe('options the bridge used to hardcode reach the physics', () => {
+describe('the bridge passes these options through to the physics', () => {
   const deg = (d: number) => (d * Math.PI) / 180;
 
   const fly = (options: Record<string, unknown>) => {
@@ -634,7 +631,7 @@ describe('dual deployment reaches the kernel', () => {
 
   it('stays silent when the same chute is not marked as a drogue', () => {
     // Without the flag the stage is single-deployment, so the drogue branch is
-    // never entered at all. This is what every app-built rocket used to be.
+    // never entered at all.
     expect(keys(dualTree(false), { drogueLowSpeedWarn: 50 })).not.toContain('RECOVERY_DROGUE_LOW_SPEED');
   });
 

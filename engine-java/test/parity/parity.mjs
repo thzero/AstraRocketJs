@@ -176,9 +176,7 @@ if (!jvm.length) {
 }
 
 const REL_TOL_DEFAULT = 1e-13;   // static/instantaneous calcs stay bit-identical (JS Math ULP only)
-// Flight (time-integrated) tolerances — full diagnosis in
-// ../../../docs/flight-parity-determinism.md (summary in engine-java/README.md
-// "Cross-platform flight determinism"). The adaptive RK4 step-size picks min(dt[i]); a ~1e-15
+// Flight (time-integrated) tolerances. The adaptive RK4 step-size picks min(dt[i]); a ~1e-15
 // cross-platform Math difference can flip which limit wins, drifting the timestep,
 // which the (deliberately under-damped) apogee turn amplifies. On the smooth
 // reference flight this reaches ~1.9e-3 relative by apogee (≈0.2 mm of 330 m, ~1 ms

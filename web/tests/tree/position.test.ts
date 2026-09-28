@@ -34,9 +34,9 @@ describe('axialLength', () => {
 
   it('uses length, then a default, for other parts', () => {
     expect(axialLength({ type: 'bodytube', length: 0.1 })).toBeCloseTo(0.1);
-    // A recovery device's PACKED length is what `length` holds — orkImport
-    // reads <packedlength> into it. There is no separate `packedLength` key to
-    // fall back to, and the fallback that used to be here never fired.
+    // A recovery device's PACKED length is what `length` holds - orkImport reads
+    // <packedlength> into it. There is no separate `packedLength` key, so a
+    // fallback on one would never fire.
     expect(axialLength({ type: 'parachute', length: 0.3 })).toBeCloseTo(0.3);
     // The fallback is the KERNEL's per-type length, not 0.025 for every type
     // (that is the parachute / streamer / shock-cord value; a bulkhead flies
@@ -197,16 +197,16 @@ describe('resolveFilePositions', () => {
     const ps = resolveFilePositions(tree).components[0]!.children![1]!;
     // `after` follows the aft end of the middle-positioned sibling. The pod's
     // own chain is 0.3 long, so middle puts m1 at (0.3 - 0.02)/2 = 0.14 and m2
-    // lands at 0.16. With the old parent length of 0, m1 resolved to -0.01 and
-    // m2 chained to +0.01 — both forward of where the part actually sits.
+    // lands at 0.16. With a parent length of 0, m1 resolves to -0.01 and m2
+    // chains to +0.01 - both forward of where the part actually sits.
     expect(ps.children![2]!.position!.offset).toBeCloseTo(0.16);
   });
 });
 
 describe('freeformRootChord', () => {
-  // The kernel's definition: FreeformFinSet.length = last.x - first.x. Four
-  // other modules used to compute this as Math.max(...xs), which is the same
-  // number ONLY when the aftmost point is also the root trailing corner.
+  // The kernel's definition: FreeformFinSet.length = last.x - first.x. Computed as
+  // Math.max(...xs) it is the same number ONLY when the aftmost point is also the
+  // root trailing corner.
   it('is the span between the first and last points, not the aftmost point', () => {
     // A swept fin whose tip trailing corner overhangs the root: root chord
     // 0.06, but the furthest-aft point is 0.09.
@@ -319,12 +319,11 @@ describe('normalizeFreeformPoints', () => {
 });
 
 /**
- * AxialMethod.AFTER — the method the importer used to throw away.
+ * AxialMethod.AFTER, which the importer has to carry.
  *
- * `orkImport` allowed only top/middle/bottom/absolute, so `method="after"`
- * returned undefined and the part lost its position entirely, defaulting to the
- * parent's top. A coupler seated after an inner tube jumped to the front of the
- * body tube.
+ * Allowing only top/middle/bottom/absolute makes `method="after"` return undefined
+ * and the part lose its position entirely, defaulting to the parent's top: a
+ * coupler seated after an inner tube jumps to the front of the body tube.
  *
  * The kernel's meaning (RocketComponent.setAfter:1459-1491): start at the aft
  * end of the previous sibling, offset forced to 0. NOT the `outerLength +

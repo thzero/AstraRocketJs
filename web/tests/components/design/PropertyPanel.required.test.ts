@@ -104,10 +104,9 @@ describe('required component fields', () => {
    * from the component it sits in, and a centering ring takes its inner radius
    * from the motor mount through it — which is what the `.ork` spells `auto` and
    * what `ComponentFactory` leaves the kernel to compute. Marking them would
-   * demand a number the design does not need, and would put a red box on every
-   * ring in an imported file, which is exactly what it used to do: the importer
-   * read `auto` as a missing number, so the whole design was refused with "a
-   * required dimension is zero".
+   * demand a number the design does not need, and would put a red box on every ring
+   * in an imported file: read as a missing number, `auto` gets the whole design
+   * refused with "a required dimension is zero".
    */
   it('never marks a radius the kernel derives', () => {
     const derived: [string, string][] = [

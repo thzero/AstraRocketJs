@@ -359,12 +359,12 @@ describe('flight-path export dialog', () => {
   });
 
   /**
-   * What the dialog writes to the app settings, and when. It used to persist
-   * from an effect keyed on the whole option object: that ran on mount (so
-   * merely opening the dialog rewrote the settings) and on every keystroke in
-   * the mission field (which is the one field deliberately NOT persisted), and
-   * it stored the units unconditionally, which froze them to whatever the app
-   * showed on the first open instead of following the app's distance unit.
+   * What the dialog writes to the app settings, and when. Persisted from an effect
+   * keyed on the whole option object it would run on mount, so merely opening the
+   * dialog rewrites the settings, and on every keystroke in the mission field,
+   * which is the one field deliberately NOT persisted. Storing the units
+   * unconditionally freezes them to whatever the app showed on the first open
+   * instead of following the app's distance unit.
    */
   describe('persistence', () => {
     const altUnit = () => screen.getByLabelText('Altitude') as HTMLSelectElement;

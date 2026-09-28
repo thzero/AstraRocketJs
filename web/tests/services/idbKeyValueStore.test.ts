@@ -47,8 +47,8 @@ beforeEach(async () => {
 // the transaction before it commits, which is what a commit-time I/O error or a quota
 // hit looks like. Resolving on `onsuccess` reported those as saved.
 //
-// `abortAfterSuccess` restores itself via try/finally: an assertion failure
-// here used to leave the spy installed and silently corrupt the next test.
+// `abortAfterSuccess` restores itself via try/finally, or an assertion failure
+// here leaves the spy installed and silently corrupts the next test.
 const abortAfterSuccess = async (body: () => Promise<void>) => {
   const realPut = IDBObjectStore.prototype.put;
   const spy = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (
@@ -333,15 +333,14 @@ describe('storage-degraded signal', () => {
 });
 
 /**
- * `update()` falling back to localStorage, which `set()` had already been
- * taught about and `update()` had not.
+ * `update()` falling back to localStorage the same way `set()` does.
  *
- * On a failed IndexedDB write `set` deletes the now-stale IndexedDB entry so
- * that in the NEXT session, where `fellBack` is empty again, `get` cannot read
- * IndexedDB first and serve the old value. `update` recorded the key in
- * `fellBack` and stopped there. The design library index is mutated only
- * through `update`, so a library edit that hit the quota looked saved for the
- * rest of the session and was gone on the next launch.
+ * On a failed IndexedDB write both delete the now-stale IndexedDB entry, so that in
+ * the NEXT session, where `fellBack` is empty again, `get` cannot read IndexedDB
+ * first and serve the old value. Recording the key in `fellBack` and stopping there
+ * is not enough: the design library index is mutated only through `update`, so a
+ * library edit that hit the quota would look saved for the rest of the session and
+ * be gone on the next launch.
  */
 describe('update() falling back to localStorage', () => {
   it('is served by a fresh session instead of the stale IndexedDB entry', async () => {

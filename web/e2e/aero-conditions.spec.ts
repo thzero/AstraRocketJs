@@ -21,10 +21,9 @@ const rollRow = async (page: Page) => {
 /**
  * Set one flight-condition field and wait for the sweep it triggers.
  *
- * `settled` is the reading the caller is about to assert on: this polls until
- * it CHANGES, which is the only honest signal that the re-run finished. It
- * used to sleep 500 ms and hope — inside this shared helper, so every
- * assertion in the file rode on that guess.
+ * `settled` is the reading the caller is about to assert on: this polls until it
+ * CHANGES, which is the only honest signal that the re-run finished. A fixed sleep
+ * here would put every assertion in the file on the same guess.
  */
 const setField = async (page: Page, label: string, value: string, settled?: () => Promise<unknown>) => {
   // By ROLE: every one of these number inputs sits beside a unit chip, and the

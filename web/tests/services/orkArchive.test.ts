@@ -8,11 +8,10 @@ import { parseRse } from '../../src/services/rseParser';
 /**
  * The members of a `.ork` archive other than its XML.
  *
- * A `.ork` is a zip of up to four kinds of member, and we used to take the XML
- * and drop the rest. One of those dropped members has teeth: OpenRocket embeds
- * the thrust curve of every motor a design uses, precisely so the file opens on
- * an install that does not have them, and without it a design using anything
- * outside our catalog opened with an empty mount and a blocked run.
+ * A `.ork` is a zip of up to four kinds of member, and one of them has teeth:
+ * OpenRocket embeds the thrust curve of every motor a design uses, precisely so the
+ * file opens on an install that does not have them. Dropped with the rest, a design
+ * using anything outside our catalog opens with an empty mount and a blocked run.
  *
  * jsdom, because importing a design parses XML.
  */

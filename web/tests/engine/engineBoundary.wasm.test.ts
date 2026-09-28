@@ -26,7 +26,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
  * target that ships. It cannot be fixed in our Java - there is no catch that
  * sees a trap - which is why the real defense is bounding the inputs
  * (`JsonLite.MAX_DEPTH`, the aero-sweep point cap, `ComponentFactory`'s count
- * caps). See docs/AUDIT_ENGINE.md A4.
+ * caps). See the `errorJson` contract in engine-java/src/api/java/api/OpenRocketEngine.java.
  *
  * This file exists so that stays TRUE rather than remembered: it runs the bad
  * inputs against WASM and asserts the bounds hold there too. If someone adds an
@@ -106,9 +106,9 @@ describe('the harness is really driving WASM', () => {
 });
 
 describe('the shipped WASM-GC build enforces the same input bounds as JS', () => {
-  // These are the inputs that used to reach an unbounded loop, an unbounded
-  // allocation or a stack overflow. On WASM those failures would NOT have been
-  // catchable, so it matters that the bound fires before the kernel gets there.
+  // These are the inputs that reach an unbounded loop, an unbounded allocation or
+  // a stack overflow. On WASM those failures are NOT catchable, so the bound has
+  // to fire before the kernel gets there.
   const cases: Array<[name: string, call: (e: any) => unknown, expected: RegExp]> = [
     [
       'JSON nested past MAX_DEPTH is refused, not a stack overflow',

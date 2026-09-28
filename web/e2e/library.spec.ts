@@ -88,9 +88,9 @@ test.describe('design library', () => {
     await openLibrary(page);
     await expect(page.getByText('Test Rocket')).toBeVisible();
 
-    // The loop re-ran `setRenaming(null)` on every iteration, so this dialog
-    // used to be torn down a few ms after opening. The loop was a refresh loop,
-    // so "the store went quiet and the dialog is still here" is the assertion.
+    // A refresh loop re-running `setRenaming(null)` on every iteration tears this
+    // dialog down a few ms after it opens, so "the store went quiet and the dialog
+    // is still here" is the assertion.
     await page.getByRole('button', { name: 'Rename' }).first().click();
     const rename = page.getByRole('dialog', { name: 'Rename' });
     await expect(rename).toBeVisible();

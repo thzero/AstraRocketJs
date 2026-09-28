@@ -81,13 +81,12 @@ test('the layer buttons switch which provider is asked', async ({ page }) => {
 
   // Switching layers is a question about the PICTURE, so it must not touch the
   // coordinates. The layer buttons sit inside the box the map's pointer
-  // handlers are on, and their events bubble: this used to read as a click on
-  // the ground and move the launch site to the map's top-left corner.
+  // handlers are on, and their events bubble, so an unstopped click reads as a
+  // click on the ground and moves the launch site to the map's top-left corner.
   await expect(dialog.getByText('39.0500° N, 104.8000° W')).toBeVisible();
 
-  // And nothing ever reached OpenStreetMap's volunteer tile servers, which the
-  // street layer used to be pointed at. Asserted on the real network traffic,
-  // because that is the only place the mistake would show.
+  // And nothing reaches OpenStreetMap's volunteer tile servers. Asserted on the
+  // real network traffic, because that is the only place the mistake would show.
   expect(asked.filter((u) => u.includes('openstreetmap.org'))).toEqual([]);
 
   // Put the layer back: it is remembered for the session, and the location editor

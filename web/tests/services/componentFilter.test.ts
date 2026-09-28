@@ -201,8 +201,8 @@ describe('queryComponents', () => {
   const couplers = ofType('tubecoupler');
 
   it('narrows 237 couplers to the handful that fit a real bore', () => {
-    // This is the whole point of the feature. The bore is a real Public Missiles
-    // 2.1" tube; before this, picking its coupler meant reading 237 rows.
+    // The bore is a real Public Missiles 2.1" tube. Without the fit filter,
+    // picking its coupler means reading 237 rows.
     const fit: FitContext = { parentInner: 0.0515112 };
     const all = queryComponents(couplers, q(), 'tubecoupler', fit);
     const fits = queryComponents(couplers, q({ fitsOnly: true }), 'tubecoupler', fit);
@@ -274,8 +274,8 @@ describe('queryComponents', () => {
   });
 
   it('returns every match, leaving any capping to the caller', () => {
-    // The old picker sliced to 300 and then reported 300 as the total, so a
-    // 1088-row type read as though the catalog were small.
+    // Every match, uncapped: slicing here and reporting the slice as the total
+    // makes a 1088-row type read as though the catalog were small.
     expect(queryComponents(tubes, q(), 'bodytube').length).toBe(tubes.length);
     expect(tubes.length).toBeGreaterThan(300);
   });

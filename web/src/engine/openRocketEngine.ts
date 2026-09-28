@@ -557,8 +557,7 @@ export type ComponentType =
   // `ComponentFactory` accepts it as a mass-carrying component, so such a file
   // loads. Its drag is NOT modeled: there is no lowering to a kernel type.
   //
-  // Scope: RASAero. See engine-java/ATTRIBUTION.md and docs/AUDIT_ENGINE.md
-  // Appendix R.
+  // Scope: RASAero. See engine-java/ATTRIBUTION.md.
   | 'fairing'
   | 'parachute'
   | 'streamer'

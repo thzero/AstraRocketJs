@@ -397,8 +397,8 @@ describe('isCachedMotorSpec', () => {
 });
 
 /**
- * The timeout error used to be constructed bare, so the abort that caused it
- * was gone: a bug report showed only the friendly text.
+ * A bare timeout error loses the abort that caused it, leaving a bug report with
+ * only the friendly text.
  */
 describe('post timeout keeps its cause', () => {
   const online = {

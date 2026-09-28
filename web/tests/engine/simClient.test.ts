@@ -97,9 +97,9 @@ describe('simClient timeout', () => {
 });
 
 /**
- * The pool is the whole point of running a batch: `simulate()` inside a worker
- * is a synchronous engine call, so four requests to ONE worker are four flights
- * end to end. These assert the transport actually spreads them.
+ * The pool is what makes a batch worth running: `simulate()` inside a worker is a
+ * synchronous engine call, so four requests to ONE worker are four flights end to
+ * end. These assert the transport spreads them.
  */
 describe('simClient pool', () => {
   it('runs several sims at once, one per worker', async () => {

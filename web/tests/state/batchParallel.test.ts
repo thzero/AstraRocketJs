@@ -47,10 +47,9 @@ interface Call {
 /**
  * The batch runs every row CONCURRENTLY.
  *
- * It used to `await` each sim inside a `for` loop, because there was one worker
- * holding one engine and firing several only queued them behind each other.
- * With a pool of workers the loop was the bottleneck, so these assert the store
- * actually submits them all and lets the transport decide how many fly at once.
+ * An `await` per sim inside a `for` loop is the bottleneck once there is a pool of
+ * workers rather than one engine, so these assert the store submits them all and
+ * lets the transport decide how many fly at once.
  */
 describe('a batch over the worker pool', () => {
   let calls: Call[];

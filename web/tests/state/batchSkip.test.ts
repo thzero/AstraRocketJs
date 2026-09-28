@@ -32,11 +32,10 @@ const RESULT = { summary: { maxAltitude: 100 }, events: [], series: {} } as unkn
 /**
  * One unflyable row must not cost the rest of the batch.
  *
- * The Run button and the run loop used to judge this differently: the button
- * checked the ACTIVE simulation's motor (and only for a single run), while it
- * blocked the WHOLE batch if any row broke the safety codes. So a batch could
- * be vetoed over one bad row, or started with an unflyable row the button never
- * mentioned. Both now ask `services/runnability`.
+ * The Run button and the run loop both ask `services/runnability`, so they cannot
+ * judge it differently. Judged apart - the button on the ACTIVE simulation's motor,
+ * the safety codes against the whole batch - a batch is vetoed over one bad row, or
+ * started with an unflyable row the button never mentions.
  */
 describe('a batch with an unflyable row', () => {
   beforeEach(async () => {
@@ -76,8 +75,8 @@ describe('a batch with an unflyable row', () => {
   });
 
   it('reports BOTH skipped rows, naming each', async () => {
-    // Each skip used to set `err` on its own, so the last one overwrote the
-    // first and the message carried no name at all.
+    // A per-skip `set({ err })` leaves only the last message, with no row name on
+    // it.
     await st().runSims(
       st().sims.map((x) => x.id),
       PREFS,
@@ -88,8 +87,8 @@ describe('a batch with an unflyable row', () => {
   });
 
   it('refuses the whole batch when the DESIGN has a zeroed dimension', async () => {
-    // Every row shares the tree, so there is no good row to let through. This
-    // used to fly and hand back an apogee for a zero-volume body tube.
+    // Every row shares the tree, so there is no good row to let through: flown, a
+    // zero-volume body tube hands back an apogee.
     const tree = st().tree;
     const zeroed = structuredClone(tree);
     const walk = (n: { type?: string; outerRadius?: number; children?: unknown[] }) => {

@@ -214,10 +214,9 @@ const CASES: Case[] = [
     4,
   ],
   // ---- The per-type lengths and the fin planform defaults ------------------
-  // These used to live outside this table: `position.axialLength` fell back to
-  // 0.025 for every non-fin type, `finPlanform.FIN_DEFAULTS` was declared as
-  // "what treeEdit writes", and `tubefins` had a bare 6. Every one is now read
-  // from KERNEL_DEFAULTS and pinned here against the engine.
+  // Every one is read from KERNEL_DEFAULTS and pinned here against the engine,
+  // rather than a 0.025 fallback in `position.axialLength`, a FIN_DEFAULTS declared
+  // as "what treeEdit writes", and a bare 6 in `tubefins`.
   [
     'nosecone.length',
     n({ type: 'nosecone', shape: 'ogive', aftRadius: 0.013 }),

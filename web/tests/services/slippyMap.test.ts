@@ -166,11 +166,10 @@ describe('tile sources', () => {
   });
 
   it('asks nobody’s volunteer tile servers', () => {
-    // The street layer used to be `tile.openstreetmap.org`. Those are donated,
-    // volunteer-funded machines, and OSM's Tile Usage Policy says third-party
-    // apps are to run their own or buy from a provider. A test rather than a
-    // comment, because the easy way to "fix" a blocked tile layer is to point
-    // it back at them.
+    // NOT `tile.openstreetmap.org`: those are donated, volunteer-funded machines,
+    // and OSM's Tile Usage Policy says third-party apps are to run their own or
+    // buy from a provider. A test rather than a comment, because the easy way to
+    // "fix" a blocked tile layer is to point it at them.
     for (const source of Object.values(TILE_SOURCES)) {
       expect(source.url(15, 1, 2)).not.toMatch(/openstreetmap\.org/);
       expect(source.url(15, 1, 2)).toMatch(/^https:\/\/server\.arcgisonline\.com\//);

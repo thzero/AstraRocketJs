@@ -11,20 +11,20 @@ import java.util.Locale;
  * ONLY under TeaVM.</b> That is precisely what makes it dangerous: the JVM
  * reference and the browser can sort differently, and the parity harness cannot
  * see it unless something prints a sorted list. {@code ParityMain.collatorScenarios()}
- * now does, so a divergence fails the gate instead of shipping quietly.
+ * does, so a divergence fails the gate instead of shipping quietly.
  *
  * <h2>What it reproduces</h2>
  *
- * The previous version approximated every strength with
- * {@code compareToIgnoreCase} plus a case-sensitive tiebreak. Measured against
+ * Approximating every strength with {@code compareToIgnoreCase} plus a
+ * case-sensitive tiebreak is not enough. Measured against
  * {@code Collator.getInstance(Locale.US)} on JDK 21 over a corpus of real
- * designations and manufacturers, that disagreed on 22 of 1369 ordered pairs,
- * including genuine <em>reversals</em> rather than just ties: "AeroTech" vs
- * "A-P" came out +1 where the JDK says -1.
+ * designations and manufacturers, that disagrees on 22 of 1369 ordered pairs,
+ * including genuine <em>reversals</em> rather than just ties: "AeroTech" vs "A-P"
+ * comes out +1 where the JDK says -1.
  * <p>
- * This version reproduces the JDK's ordering exactly (0 of 1369 mismatched at
- * all four strengths, on that corpus) by building the comparison in the same
- * layers real collation uses:
+ * This reproduces the JDK's ordering exactly (0 of 1369 mismatched at all four
+ * strengths, on that corpus) by building the comparison in the same layers real
+ * collation uses:
  * <ol>
  *   <li><b>Primary</b>: letters and digits only, case-folded. Punctuation that
  *       en_US treats as variable ({@code - _ / ' .} and space) is ignored, so
@@ -36,8 +36,7 @@ import java.util.Locale;
  *       hyphen).</li>
  *   <li><b>Tertiary</b>: case, and note the direction - Java collation sorts
  *       <em>lowercase before uppercase</em>, the opposite of a raw
- *       {@code compareTo}. Getting this backwards is why the old tiebreak
- *       reversed "K550W" and "k550w".</li>
+ *       {@code compareTo}. Backwards, this reverses "K550W" and "k550w".</li>
  *   <li><b>Identical</b>: raw code-point order as the final discriminator.</li>
  * </ol>
  *

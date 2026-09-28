@@ -276,9 +276,9 @@ describe('the levels above a component', () => {
 
 describe('what the stability calibers are measured against', () => {
   it('keeps a custom reference length instead of re-measuring the design', () => {
-    // The writer used to emit a hardcoded `maximum`, so a design whose calibers
-    // were set against a fixed length came back measured against its widest
-    // body tube - a different stability number for the same rocket.
+    // A writer that emits a hardcoded `maximum` brings a design whose calibers
+    // were set against a fixed length back measured against its widest body tube -
+    // a different stability number for the same rocket.
     const ref = `    <referencetype>custom</referencetype>
     <customreference>0.0331</customreference>`;
     const res = importOrk(docWith(ref, ''));

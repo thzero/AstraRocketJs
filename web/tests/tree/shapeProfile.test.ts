@@ -118,17 +118,17 @@ describe('outerProfile', () => {
  * The clipped profile — `calculateClip()`, the binary search that positions
  * every clipped ellipsoid / power / haack transition.
  *
- * It had no test at all, and it is the one piece of this port whose output is
- * not obvious by inspection: it solves for how far up a VIRTUAL nose cone the
- * transition starts. The kernel states the equation it solves, in the comment
- * over `Transition.calculateClip` (Transition.java:695-700):
+ * It is the one piece of this port whose output is not obvious by inspection: it
+ * solves for how far up a VIRTUAL nose cone the transition starts. The kernel states
+ * the equation it solves, in the comment over `Transition.calculateClip`
+ * (Transition.java:695-700):
  *
  *     r1 == type.getRadius(clipLength, r2, clipLength + length, shapeParameter)
  *
- * so these tests recover `clipLength` here by an INDEPENDENT solve of that same
- * published equation and check the drawn profile against it. A drifted binary
- * search — wrong bracket, wrong convergence, clipping something it should not —
- * fails; a rewrite that still solves the kernel's equation passes.
+ * so these tests recover `clipLength` by an INDEPENDENT solve of that same published
+ * equation and check the drawn profile against it. A binary search with the wrong
+ * bracket or convergence, or one clipping something it should not, fails; any
+ * rewrite that still solves the kernel's equation passes.
  */
 describe('calculateClip (via the clipped profile)', () => {
   const CLIPPABLE = ['ellipsoid', 'power', 'haack'] as const;

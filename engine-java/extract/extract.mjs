@@ -85,12 +85,11 @@ const git = (cwd, ...argv) =>
 /**
  * The pinned upstream, fetched on demand.
  *
- * Requiring a hand-made clone made the one gate that compares us to OpenRocket
- * the one gate nobody could run without a setup ritual - so it only ever ran in
- * CI, which is exactly backwards for a check whose whole job is to catch a
- * local edit before it lands. Sparse (core/src/main/java only) and blobless, so
- * it is seconds and megabytes, and it is keyed to the ref: if the pin moves,
- * the cache is re-pointed rather than silently reused at the old commit.
+ * Fetched rather than requiring a hand-made clone, so the one gate that compares us
+ * to OpenRocket does not need a setup ritual to run locally - which is where a check
+ * meant to catch a local edit before it lands has to work. Sparse (core/src/main/java
+ * only) and blobless, so it is seconds and megabytes, and keyed to the ref: if the
+ * pin moves, the cache is re-pointed rather than silently reused at the old commit.
  */
 const provisionUpstream = () => {
   const { repo, ref } = readPin();
@@ -225,12 +224,12 @@ const unpatched = walk(extractedRoot)
 // exactly what happened to FinSetCalc (871 lines, and a whole NACA Report 1307
 // fin-body interference model that was never extracted at all).
 //
-// This used to be a line-MULTISET count (`a.filter(l => !bSet.has(l))`), which
-// is not a diff: a change made only of deletions, or of reorderings, scored 0
-// whenever the moved lines' exact text occurred elsewhere in the file. Deleting
-// the `count++;` from MathUtil.average() scored 0 - the identical line also
-// appears in stddev() - so the patch vanished from the report entirely while
-// average() started dividing by zero. It is a real LCS diff now.
+// A real LCS diff, NOT a line-MULTISET count (`a.filter(l => !bSet.has(l))`), which
+// is not a diff at all: a change made only of deletions, or of reorderings, scores 0
+// whenever the moved lines' exact text occurs elsewhere in the file. Deleting the
+// `count++;` from MathUtil.average() scores 0, because the identical line also
+// appears in stddev(), so the patch vanishes from the report entirely while
+// average() divides by zero.
 const changedLines = (a, b) => {
   // Trim the common prefix/suffix first: a patch shares almost all of its text
   // with upstream, so this leaves the DP a few dozen lines in the usual case.
@@ -326,15 +325,15 @@ if (bless) {
 //
 // A shim is the only provider of a fully-qualified name that upstream also
 // defines, so a semantic gap between the two is invisible at compile time and
-// wrong at runtime. Nothing here used to look at src/shims at all: --check
-// walks src/java against the manifest, and gates.yml never mentions shims. The
-// 2026-09-18 upstream bump re-extracted six drifted manifest files and did not
-// look at a single shim.
+// wrong at runtime. Checked here because nothing else looks at src/shims: --check
+// walks src/java against the manifest, and gates.yml never mentions shims, so an
+// upstream bump can re-extract every drifted manifest file without touching a single
+// shim.
 //
-// That is not hypothetical. ApplicationPreferences.getAverageWindModel() had
-// stopped matching upstream - it returned a dead-calm wind model where the
-// desktop seeds 2 m/s at 10% turbulence - and no gate in this repo could see
-// it. See patches/LEDGER.md, "Two shims stopped matching upstream".
+// That is not hypothetical: ApplicationPreferences.getAverageWindModel() stopped
+// matching upstream - returning a dead-calm wind model where the desktop seeds 2 m/s
+// at 10% turbulence - with no gate in this repo able to see it. See
+// patches/LEDGER.md, "Two shims stopped matching upstream".
 //
 // A shim cannot be diffed against the class it replaces (that is the point of a
 // shim: 162 lines standing in for 2089). What CAN be checked is whether the
@@ -435,10 +434,10 @@ if (!hasBaseline) {
   console.error('extract:   create it with --bless.');
 }
 
-// Every one of these is a reason the extracted tree is not reproducible, so
-// every one has to fail the check. Only `missing` used to, which is what made a
-// single bogus manifest entry load-bearing: delete it and --check went green
-// over 16 drifted and 13 unmanaged files.
+// Every one of these is a reason the extracted tree is not reproducible, so every
+// one has to fail the check. With only `missing` failing, a single bogus manifest
+// entry becomes load-bearing: delete it and --check goes green over 16 drifted and
+// 13 unmanaged files.
 // `unblessed` is counted for the reason DIVERGENCE.txt's own header gives: the
 // other four counters all rest on "src/java == upstream + patches", which a
 // coordinated edit to BOTH sides satisfies by construction. This counter is the
@@ -454,10 +453,10 @@ if (!hasBaseline) {
 // materials the carved kernel asks for BY NAME. The rest of the list exists
 // only on the app side, where nothing was comparing it to anything.
 //
-// It had silently drifted. Upstream carries 42 LINE materials and the app
-// carried 20, missing every Kevlar 12-strand above 5/16 in, all five nylon flat
-// webbings, both rubber bands, all seven braided elastics and the Paraline -
-// which is most of what a shock cord or a set of shroud lines is made of. Each
+// Unchecked it drifts silently: upstream carries 42 LINE materials against the
+// app's 20, missing every Kevlar 12-strand above 5/16 in, all five nylon flat
+// webbings, both rubber bands, all seven braided elastics and the Paraline - which
+// is most of what a shock cord or a set of shroud lines is made of. Each
 // absence is invisible from inside the app: the picker simply does not offer
 // it, and a design that names one arrives from a `.ork` as a custom material.
 //

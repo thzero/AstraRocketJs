@@ -188,12 +188,11 @@ describe('rocketSideView', () => {
  * conflating them is the bug this guards:
  *
  *   - use the aftmost point to position, and the fin moves forward of where the
- *     engine flies it (what four modules used to do);
+ *     engine flies it;
  *   - use the root chord to draw, and the overhang gets clipped off the shape.
  *
- * The 2D schematic already had this right — it keeps `root` and `aftX` apart,
- * with a comment saying the aft point must not move the fin. These pin the same
- * invariant for the report geometry, which is where it was got wrong.
+ * The 2D schematic keeps `root` and `aftX` apart for the same reason. These pin the
+ * invariant for the report geometry.
  */
 describe('freeform fin: root positions, outline draws', () => {
   // Root chord 0.06 (first -> last x); furthest-aft point 0.09.
@@ -242,8 +241,8 @@ describe('freeform fin: root positions, outline draws', () => {
     const xs = view.fins[0]!.map((p) => p[0]);
     const start = Math.min(...xs);
     // Bottom-anchored: the ROOT trailing edge sits at the tube's aft end
-    // (200 mm), so the fin starts at 140 mm — not 110 mm, which is where the
-    // aftmost-point measure used to put it.
+    // (200 mm), so the fin starts at 140 mm - not 110 mm, where an
+    // aftmost-point measure puts it.
     expect(start).toBeCloseTo(140, 3);
     // …and the drawn polygon still reaches the full 90 mm of outline.
     expect(Math.max(...xs) - start).toBeCloseTo(90, 3);
@@ -377,7 +376,7 @@ describe('rocketSideView: tube fins draw as tubes', () => {
     // Body radius 12 mm, tube radius 10 mm: the silhouette runs 12 → 32 mm.
     expect(Math.min(...ys)).toBeCloseTo(12, 6);
     expect(Math.max(...ys)).toBeCloseTo(32, 6);
-    // The old default-built fin reached 12 + 30 = 42 mm and was never flat-topped.
+    // A default-built fin reaches 12 + 30 = 42 mm and is not flat-topped.
     expect(Math.max(...ys)).not.toBeCloseTo(42, 3);
   });
 
@@ -436,12 +435,12 @@ describe('elliptical planform matches the kernel at interior stations', () => {
 /**
  * The PDF side view has to show what the 2D schematic shows.
  *
- * It used to walk only the core chain, so a strap-on booster cluster printed
- * as a single plain tube while the screen drew the boosters. The report figure
- * is the one you hand someone to check the design, and it was lying by
- * omission. Both now use the same `resolveAssemblyRadius` + `ringInstanceOffsets`
- * from tree/assembly.ts, so the expected offsets below are derived from the
- * kernel's ring convention rather than copied from the implementation.
+ * Walking only the core chain prints a strap-on booster cluster as a single plain
+ * tube while the screen draws the boosters, and the report figure is the one handed
+ * to someone checking the design. Both use the same `resolveAssemblyRadius` +
+ * `ringInstanceOffsets` from tree/assembly.ts, so the expected offsets below are
+ * derived from the kernel's ring convention rather than copied from the
+ * implementation.
  */
 describe('rocketSideView: off-axis assemblies', () => {
   const CORE_R = 0.012;

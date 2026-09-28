@@ -55,7 +55,7 @@ function javaSource(relPath: string): string {
     raw = readFileSync(JAVA_ROOT + relPath, 'utf8');
   } catch {
     // Deliberately a failure, not a skip: a gate that silently disables itself
-    // when its reference moves is exactly the hole this file was added to fill.
+    // when its reference moves is the hole this file exists to close.
     throw new Error(
       `Kernel reference source not found: engine-java/src/java/info/openrocket/core/${relPath}. ` +
         `The fin-geometry port is verified against it; if the kernel tree moved, update JAVA_ROOT here.`,
@@ -229,9 +229,9 @@ describe('through-the-wall tab vs FinSet.java', () => {
   });
 
   it('never cuts a tab deeper than the body radius', () => {
-    // 20 mm tab on a 12 mm-radius body: the kernel caps it at 12 mm. The STL
-    // and the 1:1 PDF template both used to cut the full 20 mm, straight
-    // through the airframe axis, while the DXF of the same part cut 12 mm.
+    // 20 mm tab on a 12 mm-radius body: the kernel caps it at 12 mm. Unclamped,
+    // the STL and the 1:1 PDF template cut the full 20 mm, straight through the
+    // airframe axis, while the DXF of the same part cuts 12 mm.
     const n = node({ type: 'trapezoidfinset', tabHeight: 0.02, tabLength: 0.02, tabOffsetMethod: 'middle' });
     expect(finTabSpan(n, 0.05, 0.012)?.height).toBeCloseTo(0.012, 12);
     expect(finTabSpan(n, 0.05, 0.03)?.height).toBeCloseTo(0.02, 12);

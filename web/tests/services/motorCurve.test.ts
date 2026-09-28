@@ -7,9 +7,9 @@ import { buildRocketTree, C6 } from '../../src/engine/api';
 import { __setEngineForTests, type MotorSpec, type RocketTree } from '../../src/engine/openRocketEngine';
 
 /**
- * ONE threshold for "this motor can fly". Four modules used to each decide it
- * for themselves (any length, >= 2, >= 2, > 0), so a one-sample motor was
- * flyable to the Run button and empty at the mount.
+ * ONE threshold for "this motor can fly". Decided per module (any length, >= 2,
+ * >= 2, > 0), a one-sample motor is flyable to the Run button and empty at the
+ * mount.
  */
 const one: MotorSpec = { ...C6, times: [0], thrusts: [5], masses: [0.02] };
 

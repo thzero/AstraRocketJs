@@ -99,7 +99,7 @@ describe('positionOf', () => {
     expect(positionOf(node({ position: null }))).toEqual({ method: 'top', offset: 0 });
   });
   it('reads a string offset as 0 rather than letting it into arithmetic', () => {
-    // `pLen - childLen + "0.1"` is a string; it used to reach the layout as one.
+    // `pLen - childLen + "0.1"` is a string, and must not reach the layout as one.
     expect(positionOf(node({ position: { method: 'middle', offset: '0.1' } }))).toEqual({
       method: 'middle',
       offset: 0,

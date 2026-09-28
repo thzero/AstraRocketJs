@@ -50,8 +50,8 @@ describe('ComponentPicker', () => {
 
   it('names every dimension it shows, and the unit once in the heading', async () => {
     const { dialog } = await open('bodytube');
-    // The bore was previously nowhere but the description prose, though it is
-    // the number that decides what goes inside the tube.
+    // The bore gets a column of its own: it is the number that decides what goes
+    // inside the tube, and prose is not where it belongs.
     expect(headers(dialog)).toEqual(['Mfr.', 'Part no.', 'OD (mm)', 'ID (mm)', 'Length (mm)', 'Material', 'Notes']);
   });
 
@@ -73,8 +73,8 @@ describe('ComponentPicker', () => {
     const { dialog } = await open('nosecone');
     const shapes = new Set(rows(dialog).map((r) => r[2]));
     expect(shapes.size).toBeGreaterThan(0);
-    // The catalog stores `ogive` / `haack` / `ellipsoid`; the column used to
-    // show exactly that, lowercase, beside translated headings.
+    // The catalog stores `ogive` / `haack` / `ellipsoid`; the column must not show
+    // exactly that, lowercase, beside translated headings.
     for (const s of shapes) expect(s).not.toMatch(/^(ogive|haack|ellipsoid|conical|parabolic)$/);
     expect([...shapes].some((s) => s === 'Ogive' || s === 'Ellipsoid' || s === 'Haack')).toBe(true);
   });
@@ -88,8 +88,8 @@ describe('ComponentPicker', () => {
     });
 
     it('reports the true match count and says when it is holding rows back', async () => {
-      // 1088 body tubes, 200 rendered. The old picker sliced to 300 and then
-      // printed "300 parts" as though that were the catalog.
+      // 1088 body tubes, 200 rendered. The footer reports the MATCH count, not the
+      // cap, which would read as though the catalog held 200 parts.
       const { dialog } = await open('bodytube');
       expect(rows(dialog).length).toBe(200);
       expect(footer(dialog)).toMatch(/Showing 200 of 1[,. ]?088/);

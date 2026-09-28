@@ -63,8 +63,8 @@ describe('flightKey', () => {
     components: [{ type: 'nosecone', id: 'n1', name: 'Nose cone', length: 0.1 }],
   });
 
-  // The whole point: these are the edits that used to throw away every
-  // simulation result, because the store replaces the tree object for all of them.
+  // The store replaces the tree object for all of these, so a rebuild keyed on
+  // `tree` would throw away every simulation result.
   it('ignores the design metadata that is round-tripped but never flown', () => {
     const base = flightKey(design());
     expect(flightKey({ ...design(), designer: 'Grace' })).toBe(base);

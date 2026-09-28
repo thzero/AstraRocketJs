@@ -44,8 +44,8 @@ describe('lerpAt', () => {
   it('extrapolates off the END OF THE X-DOMAIN when ys is longer than xs', () => {
     // The regression the other cases cannot see: every one of them passes an
     // equal-length pair, where `ys[ys.length-1]` and `ys[xs.length-1]` are the
-    // same element. The clamp used to index off `ys`, so a longer `ys` returned
-    // a value from outside the x-domain entirely.
+    // same element. Clamped off `ys`, a longer `ys` returns a value from outside
+    // the x-domain entirely.
     expect(lerpAt([0, 1], [0, 10, 999], 5)).toBe(10);
     expect(lerpAt([0, 1, 2], [0, 10, 20, 30, 40], 99)).toBe(20);
     // A null at the true last knot still reads as no data, not as the surplus.

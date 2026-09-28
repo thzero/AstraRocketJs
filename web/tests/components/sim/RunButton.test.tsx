@@ -30,11 +30,11 @@ const LAUNCH = {
 /**
  * What the button PROMISES has to match what the run will do.
  *
- * It used to judge a batch on the active simulation's motor alone, and only
- * when exactly one row was selected, while blocking the whole batch if any row
- * broke the safety codes. So a twelve-row batch could be refused over one bad
- * row, and a batch containing an unflyable row could be started with the button
- * showing nothing wrong. Both questions now go through `services/runnability`.
+ * Both questions go through `services/runnability`. Judged on the active
+ * simulation's motor alone, and only when exactly one row is selected, while the
+ * safety codes block the whole batch, a twelve-row batch is refused over one bad row
+ * and a batch containing an unflyable row starts with the button showing nothing
+ * wrong.
  */
 describe('RunButton over a selection', () => {
   beforeEach(() => {
@@ -95,8 +95,8 @@ describe('RunButton over a selection', () => {
   });
 
   it('refuses a row with a blank required field, naming the field', () => {
-    // The panel used to coerce a cleared box to 0, so this could not happen and
-    // an empty rod length flew as a zero-length rod.
+    // A panel that coerces a cleared box to 0 cannot produce this, and an empty
+    // rod length flies as a zero-length rod.
     useWorkspaceStore.setState({
       sims: st().sims.map((x) => (x.name === 'Good' ? { ...x, launch: { ...x.launch, launchRodLengthM: null } } : x)),
     });

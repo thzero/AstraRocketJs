@@ -6,8 +6,8 @@ import { hasThrustCurve } from '../../src/services/runnability';
  * but the app cannot produce, covered in loadOrk.test.ts). The policy is the
  * same: the mount is seated with a curve-less placeholder so the run gate
  * blocks with "no motor", and the import notes say which mount to fill.
- * Nothing downstream may treat the missing entry as a hole to fill with a
- * default C6, which is what `wireLoadedOrk` and `reconcileMounts` used to do.
+ * Nothing downstream may treat the missing entry as a hole for `wireLoadedOrk` or
+ * `reconcileMounts` to fill with a default C6.
  */
 
 const design = {

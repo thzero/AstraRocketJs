@@ -135,10 +135,10 @@ describe('fetchCatalog — separate data host configured', () => {
   });
 
   it('falls back when the host is UP but serving the wrong shape', async () => {
-    // The nastiest case for a fallback chain: `{"error":"rebuilding"}` with
-    // HTTP 200 parses fine, so the loop used to return it and never try the
-    // in-build copy. The caller then spread a non-array and threw
-    // "bundled is not iterable" into the motor picker.
+    // The nastiest case for a fallback chain: `{"error":"rebuilding"}` with HTTP
+    // 200 parses fine, so unvalidated the loop returns it, never tries the
+    // in-build copy, and leaves the caller spreading a non-array into the motor
+    // picker.
     vi.stubEnv('VITE_DATA_BASE', REMOTE);
     stubFetch({
       [`${REMOTE}manifest.json`]: { body: { motors: 'h1' } },
@@ -237,7 +237,7 @@ describe('fetchCatalog — separate data host configured', () => {
       await Promise.resolve();
       expect(settled).toBe(false);
 
-      // ...but it does give up at 8s, not the old 15s.
+      // ...but it does give up at 8s.
       await vi.advanceTimersByTimeAsync(3_500);
       await expect(caught).resolves.toMatch(/Could not load the motors catalog/);
     } finally {

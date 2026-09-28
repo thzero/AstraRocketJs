@@ -27,10 +27,9 @@ test('an imported .ork outside the limits is flagged and refused', async ({ page
   const run = runButton(page);
   await expect(run).toBeDisabled();
   // Names the row and gives BOTH reasons with the rule behind each, rather than
-  // a bare "cannot run". The regex used to look for wording this path never
-  // produced, and the assertion was masked by a different refusal entirely:
-  // every centering ring in the file imported with no radius, so the design was
-  // rejected for a zero dimension before the launch check was ever reached.
+  // a bare "cannot run". The regex has to match the wording THIS path produces:
+  // a design rejected for a zero dimension (every centering ring importing with no
+  // radius, say) never reaches the launch check at all, which masks the assertion.
   const notice = page.getByText(/was not run .* launch conditions are outside the safety codes/);
   await expect(notice).toBeVisible();
   await expect(notice).toContainText('above the 20° the NAR and Tripoli safety codes allow');

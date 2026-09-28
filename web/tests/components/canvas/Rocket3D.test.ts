@@ -171,14 +171,11 @@ describe('exportCamera', () => {
 });
 
 /**
- * The internals build. The 3D view used to render the airframe and the motor
- * only — `rocketPieces` said so in a comment ("Other internal components are
- * not rendered in 3D (invisible in tubes)") — which was harmless while the
- * only way to look inside was a translucent shell and wrong the moment there
- * was a cutaway: cutting a rocket open to find nothing in it is not a feature.
- * These hold the two things that make the cut worth taking: tubes are hollow,
- * and what the 2D schematic draws inside them is in the 3D build too, at the
- * dimensions the rest of the app already agreed on.
+ * The internals build. The airframe and the motor alone are enough for a
+ * translucent shell but not for a cutaway: cutting a rocket open to find nothing
+ * in it is not a feature. These hold the two things that make the cut worth
+ * taking: tubes are hollow, and what the 2D schematic draws inside them is in the
+ * 3D build too, at the dimensions the rest of the app agrees on.
  */
 const tree = {
   name: 'Section',

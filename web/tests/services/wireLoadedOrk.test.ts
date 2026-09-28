@@ -42,11 +42,10 @@ describe('wireLoadedOrk', () => {
   });
 
   /**
-   * A mount the FILE left empty flies nothing, not a default. This used to
-   * seat a C6 on an empty primary and let reconcileMounts seed a C6 into every
-   * other empty mount, so a design saved without motors opened as a flyable
-   * rocket on motors the file never named, the very thing loadOrk refuses to
-   * do for a motor it cannot resolve.
+   * A mount the FILE left empty flies nothing, not a default. Seating a C6 on an
+   * empty primary and letting reconcileMounts seed one into every other empty mount
+   * opens a design saved without motors as a flyable rocket on motors the file never
+   * named, which is what loadOrk refuses to do for a motor it cannot resolve.
    */
   it('seats a curve-less placeholder, never a C6, in a mount the file left empty', () => {
     const w = wireLoadedOrk(loaded({ motorSpecs: {} }), launchDefaults);

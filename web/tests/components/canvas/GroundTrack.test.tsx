@@ -165,11 +165,11 @@ describe('GroundTrack imagery', () => {
    * The case a plain run actually produces, and the one this feature is judged
    * on: still air lands the rocket a tenth of a meter from the pad.
    *
-   * It used to draw no map at all. The view sized itself to the flight, the
-   * zoom ran past what any provider holds, and the result was an empty box
-   * under a Satellite button that looked pressed. The fix is in the view's
-   * scale rather than here: `trackExtent` floors at a field (MIN_EXTENT_M), so
-   * there is ground worth showing and the imagery is ordinary imagery.
+   * Sized to the flight alone, the zoom runs past what any provider holds and the
+   * result is an empty box under a Satellite button that looks pressed. The floor
+   * is in the view's scale rather than here: `trackExtent` bottoms out at a field
+   * (MIN_EXTENT_M), so there is ground worth showing and the imagery is ordinary
+   * imagery.
    */
   it('still draws a map when the rocket lands on the pad', () => {
     const calm = flight();

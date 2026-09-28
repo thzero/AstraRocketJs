@@ -90,49 +90,45 @@ public final class OpenRocketEngine {
         return h;
     }
 
-    /**
-     * The `{"error": ...}` envelope the JS side already looks for.
-     *
-     * Only simulateJson used to produce one, so the `parsed.error` checks in
-     * web/src/engine/openRocketEngine.ts after getStaticInfo, getComponentInfo,
-     * getAeroSweep and getComponentMasses were DEAD CODE giving false
-     * confidence: those methods threw out of TeaVM instead, surfacing in JS as
-     * an opaque throw from inside a 2.9 MB bundle, and JSON.parse never ran.
-     */
-    /**
-     * READ THIS BEFORE ADDING AN ENTRY POINT.
-     *
-     * `catch (RuntimeException e) { return errorJson(e); }` is NOT a safety net
-     * on the target that ships.
-     *
-     * The engine compiles twice. TeaVM's JS backend converts a native
-     * JavaScript error caught inside a Java `try` into a
-     * `java.lang.RuntimeException`, so a stack overflow there really is caught
-     * and really does come back as an `{"error": ...}` envelope. WASM-GC has no
-     * equivalent: a wasm trap is not a `WebAssembly.Exception` carrying the
-     * `teavm.javaException` tag, so no Java catch clause ever sees it and it
-     * unwinds straight out of the module. The app loads WASM-GC by default and
-     * falls back to JS, so the backend WITHOUT the net is the one users run.
-     *
-     * Measured on the shipped artifacts with one 6000-deep options blob:
-     * JS returned `{"error":"(JavaScript) RangeError: Maximum call stack size
-     * exceeded"}`; WASM-GC threw a bare RangeError out of the module.
-     *
-     * There is no Java fix - you cannot catch a trap. So the rule for anything
-     * that can recurse, loop or allocate on caller-supplied input is: BOUND IT
-     * AT THE BOUNDARY. That is what `JsonLite.MAX_DEPTH` and
-     * `MAX_INPUT_CHARS`, the `MAX_SWEEP_POINTS` integer point count, and
-     * `ComponentFactory.count()` exist for. The envelope is for reporting
-     * ordinary bad input, not for surviving exhaustion.
-     *
-     * `web/src/engine/engineBoundary.wasm.test.ts` runs those bounds against
-     * the WASM build so this stays checked rather than remembered.
-     */
-    /** Double.isFinite, spelled out — TeaVM's classlib coverage of it varies. */
+    /** Double.isFinite, spelled out - TeaVM's classlib coverage of it varies. */
     private static boolean isFinite(double v) {
         return !Double.isNaN(v) && !Double.isInfinite(v);
     }
 
+    /**
+     * The `{"error": ...}` envelope the JS side looks for.
+     *
+     * EVERY entry point has to produce one. `parsed.error` is checked in
+     * web/src/engine/openRocketEngine.ts after getStaticInfo, getComponentInfo,
+     * getAeroSweep and getComponentMasses, so a method that throws out of TeaVM
+     * instead surfaces in JS as an opaque throw from inside a 2.9 MB bundle and
+     * JSON.parse never runs.
+     *
+     * READ THIS BEFORE ADDING AN ENTRY POINT:
+     * `catch (RuntimeException e) { return errorJson(e); }` is NOT a safety net on
+     * the target that ships.
+     *
+     * The engine compiles twice. TeaVM's JS backend converts a native JavaScript
+     * error caught inside a Java `try` into a `java.lang.RuntimeException`, so a
+     * stack overflow there is caught and does come back as an envelope. WASM-GC has
+     * no equivalent: a wasm trap is not a `WebAssembly.Exception` carrying the
+     * `teavm.javaException` tag, so no Java catch clause sees it and it unwinds
+     * straight out of the module. The app loads WASM-GC by default and falls back to
+     * JS, so the backend WITHOUT the net is the one users run.
+     *
+     * Measured on the shipped artifacts with one 6000-deep options blob: JS returned
+     * `{"error":"(JavaScript) RangeError: Maximum call stack size exceeded"}`;
+     * WASM-GC threw a bare RangeError out of the module.
+     *
+     * A trap cannot be caught, so the rule for anything that can recurse, loop or
+     * allocate on caller-supplied input is: BOUND IT AT THE BOUNDARY. That is what
+     * `JsonLite.MAX_DEPTH` and `MAX_INPUT_CHARS`, the `MAX_SWEEP_POINTS` integer
+     * point count, and `ComponentFactory.count()` exist for. The envelope is for
+     * reporting ordinary bad input, not for surviving exhaustion.
+     *
+     * `web/tests/engine/engineBoundary.wasm.test.ts` runs those bounds against the
+     * WASM build so this stays checked rather than remembered.
+     */
     private static String errorJson(Throwable e) {
         String msg = e.getMessage();
         if (msg == null || msg.isEmpty()) {
@@ -152,15 +148,14 @@ public final class OpenRocketEngine {
     /**
      * A handle of a KNOWN kind.
      * <p>
-     * Every call site used to blind-cast the {@code Object} above, and the
-     * wrapper's generation counter catches a handle from a RESET engine but
-     * never a handle of the wrong TYPE. Worse, the engine compiles at
-     * {@code optimization = NONE}, where TeaVM elides the checkcast: passing a
-     * rocket handle to {@code addTrapezoidFins} did not throw a
-     * ClassCastException, it used the wrong object and failed further in with
+     * Checked here rather than blind-cast at the call site: the wrapper's
+     * generation counter catches a handle from a RESET engine but never one of the
+     * wrong TYPE, and the engine compiles at {@code optimization = NONE}, where
+     * TeaVM elides the checkcast. So passing a rocket handle to
+     * {@code addTrapezoidFins} throws no ClassCastException at all; it uses the
+     * wrong object and fails further in with
      * {@code $this.$checkState is not a function} on the JS target and a
-     * null-message JavaError on WASM-GC. Checking the type here makes the
-     * mistake say what it is, on both targets, at the boundary.
+     * null-message JavaError on WASM-GC.
      */
     private static <T> T get(int handle, Class<T> kind, String what) {
         Object o = get(handle);
@@ -234,9 +229,9 @@ public final class OpenRocketEngine {
         }
 
         Object comps = tree.get("components");
-        // PRESENT but not a list used to be coerced to empty, so
-        // buildRocket('{"components":"nope"}') returned a handle and reported a
-        // perfectly healthy all-zero rocket. Absent still means an empty tree.
+        // PRESENT but not a list is an error, not an empty list: coerced,
+        // buildRocket('{"components":"nope"}') returns a handle and reports a
+        // perfectly healthy all-zero rocket. Absent means an empty tree.
         if (comps != null && !(comps instanceof List)) {
             throw new IllegalArgumentException("'components' must be a list, got "
                     + comps.getClass().getSimpleName());
@@ -506,8 +501,8 @@ public final class OpenRocketEngine {
         mc.setEjectionDelay(ejectionDelay);
         // RASAero feature #2 (power-on base drag): apply this stage's captured nozzle
         // exit diameter to the motor (upstream's native per-motor model). Upstream
-        // rejects a nozzle wider than the motor (the old per-stage model didn't
-        // validate), so clamp to the motor diameter rather than throw and break the sim.
+        // rejects a nozzle wider than the motor, so clamp to the motor diameter
+        // rather than throw and break the sim.
         Double nozzle = ctx.nozzleDia.get(((RocketComponent) mount).getStage());
         if (nozzle != null && nozzle > 0) {
             mc.setNozzleExitDiameter(Math.min(nozzle, diameter));
@@ -668,9 +663,9 @@ public final class OpenRocketEngine {
         //                            AERODYNAMIC components only - not
         //                            getLength(), which bounds every component.
         //
-        // The app used to divide by its own `length` (all components) to get the
-        // percentage, in four different views, which disagreed with the desktop on
-        // any design with a non-aerodynamic part outside the aerodynamic envelope.
+        // Dividing by the app's own `length` (all components) for the percentage
+        // disagrees with the desktop on any design with a non-aerodynamic part
+        // outside the aerodynamic envelope.
         FlightConfiguration config = ctx.rocket.getSelectedConfiguration();
         double margin = cp.getX() - cg;
         double stabilityCal = new CaliberUnit(config).toUnit(margin);
@@ -1259,11 +1254,10 @@ public final class OpenRocketEngine {
      */
     @JSExport
     public static String simulateJson(int rocketHandle, String optionsJson) {
-        // The whole body, not just the simulate() call. The handle lookup and
-        // the options parse used to sit ~117 lines ABOVE the try below, so the
-        // catch that claims to cover them never saw either: a stale handle or a
-        // malformed options blob escaped as an opaque TeaVM throw out of a
-        // 2.9 MB bundle, and openRocketEngine.ts only inspects `error`.
+        // The whole body, not just the simulate() call: the handle lookup and the
+        // options parse have to be INSIDE this try, or a stale handle or a
+        // malformed options blob escapes as an opaque TeaVM throw out of a 2.9 MB
+        // bundle, and openRocketEngine.ts only inspects `error`.
         try {
             return simulateJsonImpl(rocketHandle, optionsJson);
         } catch (RuntimeException e) {

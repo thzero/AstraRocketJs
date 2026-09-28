@@ -6,16 +6,15 @@ import { serveData } from '../testing/serveData';
 /**
  * How a custom material joins the list.
  *
- * It used to be `[...custom, ...builtins]` with every custom material filed
- * under a `Custom` group of its own, which had two problems. A custom material
- * named after a built-in appeared TWICE, in two different groups, and which one
- * a design picked up depended on which the lookup found first. And a material
- * that is a variant of Plywood was listed at the top of the picker rather than
- * beside the plywood, because the group said where it came from instead of what
- * it is.
+ * NOT `[...custom, ...builtins]` with every custom material filed under a `Custom`
+ * group of its own, which has two problems. A custom material named after a built-in
+ * appears TWICE, in two different groups, and which one a design picks up depends on
+ * which the lookup finds first. And a material that is a variant of Plywood is
+ * listed at the top of the picker rather than beside the plywood, because the group
+ * says where it came from instead of what it is.
  *
- * Now the provenance is carried by the `custom` flag alone — the picker stars
- * it — and the group says what the material is.
+ * The provenance is carried by the `custom` flag alone - the picker stars it - and
+ * the group says what the material is.
  */
 
 const m = (name: string, group: string, density: number, custom = false): Material => ({

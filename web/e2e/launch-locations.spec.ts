@@ -44,7 +44,7 @@ test('a saved location survives a reload and fills the site fields', async ({ pa
   await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
   await openTab(page, 'Simulations');
 
-  // Still there after the reload — this is the whole point.
+  // Still there after the reload.
   await expect(page.getByRole('option', { name: 'Home field' })).toBeAttached();
   await page.getByLabel('Latitude', { exact: true }).fill('0');
   await blurFields(page);

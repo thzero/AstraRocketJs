@@ -5,14 +5,14 @@ import { createRef } from 'react';
 import { PaneSplitter } from '../../../src/components/layout/PaneSplitter';
 
 /**
- * The separator's announced range, which had nothing checking it.
+ * The separator's announced range.
  *
- * `aria-valuemax` used to carry the static `max` prop while `clamp` enforced
- * `min(max, innerWidth - reserve)`. On any window narrow enough for the cap to
- * bite, the separator advertised a range it could not reach: a screen reader
- * read "maximum 2000" and End - which announces itself as going to the
- * maximum - landed at 224 with no explanation. The value a widget reports and
- * the value it can actually take have to be the same number.
+ * `aria-valuemax` must not carry the static `max` prop while `clamp` enforces
+ * `min(max, innerWidth - reserve)`: on any window narrow enough for the cap to
+ * bite, the separator advertises a range it cannot reach, so a screen reader reads
+ * "maximum 2000" and End - which announces itself as going to the maximum - lands
+ * at 224 with no explanation. The value a widget reports and the value it can take
+ * have to be the same number.
  */
 
 const props = (over: Partial<Parameters<typeof PaneSplitter>[0]> = {}) => ({

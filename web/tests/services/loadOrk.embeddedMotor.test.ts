@@ -3,14 +3,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { MotorSpec } from '../../src/engine/openRocketEngine';
 
 /**
- * A `.ork` brings the thrust curve of every motor it uses, so the file opens on
- * an install that does not have them. We used to throw those away with the rest
- * of the archive, so a design built on anything outside our catalog opened with
- * an empty mount and a blocked run, with the answer sitting unread in the file.
+ * A `.ork` brings the thrust curve of every motor it uses, so the file opens on an
+ * install that does not have them. Discarded with the rest of the archive, a design
+ * built on anything outside our catalog opens with an empty mount and a blocked
+ * run, with the answer sitting unread in the file.
  *
- * Two paths have to use it: the catalog not knowing the designation at all, and
- * the catalog knowing it but the curve download failing. Both used to end at the
- * unresolved placeholder.
+ * Two paths have to use it, neither ending at the unresolved placeholder: the
+ * catalog not knowing the designation at all, and the catalog knowing it but the
+ * curve download failing.
  *
  * The engine, the parser, the catalog and the spec builder are mocked: what is
  * under test is the wiring decision, not the kernel or the `.rse` reader.
@@ -90,8 +90,8 @@ describe('a motor the catalog does not have', () => {
   });
 
   it('matches the curve by designation WITHOUT the delay', async () => {
-    // The file says `J350-6`, the curve says `J350`. Matching the two verbatim
-    // would never hit, which is the whole point of stripping the delay.
+    // The file says `J350-6`, the curve says `J350`, so the delay has to be
+    // stripped: matched verbatim the two never meet.
     await loadOrk(new ArrayBuffer(0));
     const motor = customMotorToSpec.mock.calls[0]![0] as { designation: string };
     expect(motor.designation).toContain('J350');

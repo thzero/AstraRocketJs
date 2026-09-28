@@ -152,9 +152,9 @@ describe('solid mesher (per component)', () => {
   });
 
   it('makeWatertight caps EVERY boundary loop when two share a vertex', () => {
-    // Two open triangles sharing one corner (vertex 0). That shared vertex is
-    // the start of two boundary edges — the old single-successor Map kept only
-    // the last and left one triangle's loop uncapped; the multimap caps both.
+    // Two open triangles sharing one corner (vertex 0). That shared vertex is the
+    // start of two boundary edges, so a single-successor Map keeps only the last
+    // and leaves one triangle's loop uncapped; the multimap caps both.
     const g = new THREE.BufferGeometry();
     g.setAttribute(
       'position',
@@ -292,7 +292,7 @@ describe('solid mesher (per component)', () => {
 });
 
 /**
- * Two ways the exporter used to hand out a solid it should not have.
+ * Two ways the exporter could hand out a solid it should not.
  */
 const geom = (pos: number[], idx: number[]) => {
   const g = new THREE.BufferGeometry();
@@ -316,11 +316,10 @@ describe('makeWatertight keeps its contract or fails', () => {
   });
 
   it('throws on a non-manifold edge rather than returning it as watertight', () => {
-    // Three triangles sharing ONE edge. Fan-capping cannot fix an edge used
-    // three times, and the walk never sees it (it is not a BOUNDARY edge, it is
-    // an over-used one) — so the old code capped what it could and returned a
-    // geometry with seven bad edges, which meshExport then labeled watertight
-    // and wrote into an STL.
+    // Three triangles sharing ONE edge. Fan-capping cannot fix an edge used three
+    // times, and the walk never sees it (it is not a BOUNDARY edge, it is an
+    // over-used one), so capping what can be capped returns a geometry with seven
+    // bad edges that meshExport would label watertight and write into an STL.
     const fan = geom([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 1], [0, 1, 2, 0, 1, 3, 0, 1, 4]);
     expect(countBoundaryEdges(fan)).toBe(7);
     expect(() => makeWatertight(fan)).toThrow(/open edge/i);

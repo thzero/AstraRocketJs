@@ -6,12 +6,10 @@ import i18n, { LANGUAGES } from '../../src/i18n/index';
 /**
  * Which bundle a browser's language tag lands on.
  *
- * This used to be one option (`load: 'languageOnly'`) doing one job: widen
- * es-ES / es-MX onto the 'es' bundle. Shipping pt-BR and pt-PT as separate
- * translations made that option actively wrong: it strips the region from
- * every code, so both Portuguese tags resolved to a 'pt' bundle that does not
- * exist and every Portuguese browser got English. Removing it leans on
- * i18next's own best-match instead, which widens in both directions:
+ * There is no `load: 'languageOnly'`: it strips the region from every code, so with
+ * pt-BR and pt-PT shipped as separate translations both Portuguese tags resolve to
+ * a 'pt' bundle that does not exist and every Portuguese browser gets English.
+ * i18next's own best-match widens in both directions instead:
  *
  *   - a region we do not ship, where we DO ship its base language, falls back
  *     to the base bundle (es-MX → es);

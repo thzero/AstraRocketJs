@@ -59,10 +59,10 @@ describe('addCustom validation', () => {
 
 describe('materialsForType / findMaterial', () => {
   it('lists a custom material inside a real group, not above everything', async () => {
-    // It used to be `[...custom, ...builtins]`, which put every custom material
-    // at the top under a `Custom` group of its own. The provenance is the star
-    // the picker draws, not the material's place in the list. See
-    // `materialsMerge.test.ts` for the rule itself.
+    // NOT `[...custom, ...builtins]`, which puts every custom material at the top
+    // under a `Custom` group of its own. The provenance is the star the picker
+    // draws, not the material's place in the list. See `materialsMerge.test.ts`
+    // for the rule itself.
     await addCustom('ZZZ Custom', 'bulk', 999, 'Woods');
     const list = await materialsForType('bulk');
     const added = list.find((m) => m.name === 'ZZZ Custom');

@@ -99,10 +99,9 @@ test('the layer buttons and the drift readout are not clipped by the square', as
   await flyDownwind(page);
   await showGround(page);
 
-  // The square used to be sized to the whole pane, so the pane overflowed by
-  // the height of the readout beneath it and the centered overflow was cut off
-  // at both ends - taking the distance and bearing with it, which are the two
-  // numbers this view exists to give you.
+  // Sized to the whole pane, the pane overflows by the height of the readout
+  // beneath it and the centered overflow is cut off at both ends, taking the
+  // distance and bearing with it - the two numbers this view exists to give.
   await expect(page.getByText(/364 m · 270°/)).toBeInViewport();
   await expect(page.getByRole('button', { name: 'Satellite', exact: true })).toBeInViewport();
   // The provider's attribution is a condition of using the tiles at all.

@@ -124,9 +124,9 @@ describe('LocationPicker', () => {
   });
 
   it('ships the Kennedy Space Center as that default', () => {
-    // Asserted against the NUMBERS, not against `loadSettings()` again: the
-    // test above reads the same source the component does, so on its own it
-    // would keep passing if the shipped default drifted somewhere else.
+    // Asserted against the NUMBERS, not against `loadSettings()` again: the test
+    // above reads the same source the component does, so on its own it keeps
+    // passing whatever the shipped default becomes.
     expect(DEFAULT_SITE.latitudeDeg).toBeCloseTo(28.61, 6);
     expect(DEFAULT_SITE.longitudeDeg).toBeCloseTo(-80.6, 6);
     expect(DEFAULT_SITE.launchAltitudeM).toBeCloseTo(0, 6);
