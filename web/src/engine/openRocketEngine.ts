@@ -29,7 +29,9 @@ type EngineApi = typeof import('./vendor/openrocket-engine.mjs');
 let active: EngineApi | null = null;
 let initPromise: Promise<'wasm' | 'js'> | null = null;
 
-/** The active engine; throws if initEngine() hasn't resolved yet (main.tsx awaits it before mount). */
+/** The active engine; throws if initEngine() has not resolved yet. The app mounts
+ *  before it has, so callers on the main thread check `engineStore.phase` rather
+ *  than treating this as unreachable. */
 function eng(): EngineApi {
   if (!active) {
     throw new Error('OpenRocket engine not initialized — await initEngine() before using it.');
@@ -147,9 +149,33 @@ function parseEnvelope<T>(operation: string, raw: string, expectArray = false): 
   return parsed as T;
 }
 
-/** Dynamically import the JS engine as its own chunk — loaded only when WASM is unavailable. */
+/**
+ * Dynamically import the JS engine as its own chunk — loaded only when WASM is
+ * unavailable.
+ *
+ * This one is NOT retryable the way the WASM urls are (see `attemptUrl`): the
+ * specifier has to stay static for the bundler to emit the chunk, so a retry
+ * re-imports the same url and the module registry hands back the same pending
+ * entry if the first fetch stalled. A retry therefore recovers a stalled WASM
+ * load, which is the path a browser that has WASM-GC always takes, and not a
+ * stalled fallback on a browser that does not.
+ */
 async function loadJsEngine(): Promise<EngineApi> {
   return await import('./vendor/openrocket-engine.mjs');
+}
+
+/**
+ * The url to ask for on THIS attempt.
+ *
+ * A retry has to request a different url or it is not a retry. The browser
+ * coalesces a second `<script>` for a src already in flight onto the pending
+ * request, so re-running a runtime load whose fetch has stalled attaches
+ * straight back to the stall and issues no new request at all — measured: zero
+ * network requests after pressing Retry. The first attempt is left unadorned so
+ * the ordinary path keeps a plain, cacheable url.
+ */
+function attemptUrl(url: string): string {
+  return initAttempt === 0 ? url : `${url}${url.includes('?') ? '&' : '?'}retry=${initAttempt}`;
 }
 
 /** Load the WASM-GC runtime once (it installs globalThis.TeaVM.wasmGC). */
@@ -163,7 +189,7 @@ function loadWasmRuntime(): Promise<void> {
   // no eval, and blob URLs aren't behind Vite's /public wall. Lets WASM also run
   // inside the sim worker; on any failure tryLoadWasm falls the worker back to JS.
   if (typeof document === 'undefined') {
-    return fetch(WASM_RUNTIME_URL)
+    return fetch(attemptUrl(WASM_RUNTIME_URL))
       .then((r) => {
         if (!r.ok) throw new Error(`WASM-GC runtime fetch failed (${r.status})`);
         return r.text();
@@ -179,7 +205,7 @@ function loadWasmRuntime(): Promise<void> {
   }
   return new Promise<void>((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = WASM_RUNTIME_URL;
+    s.src = attemptUrl(WASM_RUNTIME_URL);
     s.onload = () => resolve();
     s.onerror = () => reject(new Error('WASM-GC runtime failed to load'));
     document.head.appendChild(s);
@@ -240,7 +266,7 @@ async function tryLoadWasm(onStatus?: (s: EngineLoadStatus) => void): Promise<En
     // takes the WebAssembly.compile(bytes) path, sidestepping the runtime's
     // Node-vs-browser (fs vs fetch) detection entirely. installImports rewires
     // the kernel's console output into the shared log sink (see above).
-    const res = await fetch(WASM_URL);
+    const res = await fetch(attemptUrl(WASM_URL));
     if (!res.ok) return null;
     // Stream it so the boot splash can show real bytes: this is ~2.3 MB, the
     // largest thing the app fetches, and on a slow link it is most of the wait.
@@ -300,32 +326,62 @@ export function backendPref(): BackendPref {
 }
 
 /**
+ * Which attempt is current. Bumped by {@link resetEngineInit} so an abandoned
+ * load cannot install itself later — see there.
+ */
+let initAttempt = 0;
+
+/**
  * Load the engine backend once: WASM-GC first (unless `?engine=js` forces JS or
- * the browser lacks WASM), else the JS build as a fallback. Idempotent. MUST be
- * awaited before any engine use (main.tsx awaits it before mounting) — engine
- * calls before it resolves throw, since neither backend is loaded until now.
+ * the browser lacks WASM), else the JS build as a fallback. Idempotent.
  * Resolves to which backend is active.
+ *
+ * Engine calls before this resolves throw, so the app treats "no engine yet" as
+ * a state rather than awaiting it: nothing here is on the path to mounting the
+ * UI (see main.tsx), and `state/engineStore.ts` is what the UI reads.
  *
  * @param pref the backend preference, when the caller has already resolved it
  *   (the sim worker gets it from the main thread); else read here.
  */
 export function initEngine(onStatus?: (s: EngineLoadStatus) => void, pref?: BackendPref): Promise<'wasm' | 'js'> {
   if (!initPromise) {
+    const mine = initAttempt;
     initPromise = (async () => {
       const wasm = (pref ?? backendPref()) === 'js' ? null : await tryLoadWasm(onStatus);
       if (wasm) {
-        active = wasm;
+        if (mine === initAttempt) active = wasm;
         return 'wasm';
       }
       // The JS build is a dynamic import, so the bundler owns the fetch and there
       // are no byte counts to report — just name the step.
       onStatus?.({ phase: 'downloading', loaded: 0, total: null });
-      active = await loadJsEngine();
+      const js = await loadJsEngine();
+      if (mine === initAttempt) active = js;
       onStatus?.({ phase: 'starting' });
       return 'js';
     })();
   }
   return initPromise;
+}
+
+/**
+ * Drop the cached load so the next {@link initEngine} starts over.
+ *
+ * `initPromise` is memoized for the life of the page, and neither failure mode
+ * clears itself: a rejected promise stays rejected, and a fetch that STALLS
+ * rather than fails never settles at all. Without this the only way back from a
+ * lost engine download is a page reload.
+ *
+ * The abandoned attempt is still running and can resolve minutes later, which is
+ * why `initAttempt` moves: whichever backend it eventually loads must not
+ * overwrite the one a later attempt already installed. Handles issued by the old
+ * engine are void either way, hence the generation bump.
+ */
+export function resetEngineInit(): void {
+  initAttempt++;
+  initPromise = null;
+  active = null;
+  engineGeneration++;
 }
 
 export type NoseShape = 'ogive' | 'conical' | 'ellipsoid' | 'power' | 'parabolic' | 'haack';

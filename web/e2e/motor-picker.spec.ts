@@ -184,7 +184,11 @@ test('the manufacturer selection persists across reloads', async ({ page }) => {
   // Open the manufacturer dropdown and tick the first one; the summary collapses
   // to that single name.
   await summary.click();
-  const firstMfr = dialog.getByRole('checkbox').first();
+  // Scoped to the <details> the manufacturers live in. Unscoped, `.first()` also
+  // matches the "Fits the mount" checkbox, which sits outside it and is already
+  // on screen: whenever the list has not finished opening, `.first()` resolves
+  // to THAT immediately rather than waiting, and the test ticks the wrong box.
+  const firstMfr = dialog.locator('details').getByRole('checkbox').first();
   const name = (await firstMfr.evaluate((el) => el.closest('label')?.textContent?.trim() ?? '')) as string;
   await firstMfr.check();
   await expect(summary).toHaveText(name);

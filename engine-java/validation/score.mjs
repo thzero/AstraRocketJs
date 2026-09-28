@@ -1,7 +1,7 @@
 /**
  * Validation scoring harness — grades the JS engine against the measured
- * anchor datasets in validation/anchors.json (see
- * docs/research/validation-anchors-2026-08-03.md for provenance).
+ * anchor datasets in validation/anchors.json (provenance and tolerances are in
+ * its `_readme` and per-series fields).
  *
  * Usage:
  *   node validation/score.mjs               # classic model (flag off) scorecard to stdout

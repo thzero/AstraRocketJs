@@ -21,11 +21,20 @@ test('the workbench tabs live in the header rather than a row of their own', asy
   await page.setViewportSize({ width: 1024, height: 900 });
   await ready(page);
   await runFlight(page);
-  await page.getByRole('combobox', { name: /language|idioma/i }).selectOption('es');
 
   const header = page.locator('header').first();
+  // The save status is PART of the tightest state, and it only appears once the
+  // debounced autosave lands - a tick or two after the run. Measured before it
+  // arrives the header is ~115px lighter than the one anybody sees, and a row
+  // that wraps in six of the ten languages reads as a row that fits.
+  await expect(header.getByText(/^Saved/)).toBeVisible();
+
+  await page.getByRole('combobox', { name: /language|idioma/i }).selectOption('es');
   const nav = page.getByRole('navigation', { name: /Workbench|Banco/i });
   await expect(nav.getByRole('button')).toHaveCount(3);
+  // Both halves of the switch have landed: the tabs' text and the status', the
+  // latter being the one that reflows late.
+  await expect(header.getByText(/^Guardado/)).toBeVisible();
 
   const h = await box(header);
   const n = await box(nav);

@@ -127,7 +127,10 @@
   },
   "engine": {
     "wasmTip": "Physics engine: WebAssembly (fast path)",
-    "jsTip": "Physics engine: JavaScript (fallback)"
+    "jsTip": "Physics engine: JavaScript (fallback)",
+    "slow": "The physics engine is taking longer than usual to load.",
+    "needsIt": "The design tools work without it; the numbers and the simulations need it.",
+    "retry": "Retry"
   },
   "about": {
     "open": "About",
@@ -1383,7 +1386,7 @@
     "downloadingOf": "Downloading engine… {{done}} / {{total}} MB",
     "downloaded": "Downloading engine… {{done}} MB",
     "starting": "Starting engine…",
-    "failed": "Engine unavailable — starting anyway"
+    "failed": "The physics engine could not be loaded."
   },
   "catalog": {
     "loadingMotors": "Loading motor catalog…",

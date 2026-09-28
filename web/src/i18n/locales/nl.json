@@ -127,7 +127,10 @@
   },
   "engine": {
     "wasmTip": "Fysicamotor: WebAssembly (snelle route)",
-    "jsTip": "Fysicamotor: JavaScript (terugvaloptie)"
+    "jsTip": "Fysicamotor: JavaScript (terugvaloptie)",
+    "slow": "De natuurkundemotor laadt langer dan gebruikelijk.",
+    "needsIt": "De ontwerpgereedschappen werken zonder motor; de getallen en de simulaties hebben hem nodig.",
+    "retry": "Opnieuw proberen"
   },
   "about": {
     "open": "Over",
@@ -1383,7 +1386,7 @@
     "downloadingOf": "Motor downloaden… {{done}} / {{total}} MB",
     "downloaded": "Motor downloaden… {{done}} MB",
     "starting": "Motor starten…",
-    "failed": "Motor niet beschikbaar, wordt toch gestart"
+    "failed": "De natuurkundemotor kon niet worden geladen."
   },
   "catalog": {
     "loadingMotors": "Motorcatalogus laden…",

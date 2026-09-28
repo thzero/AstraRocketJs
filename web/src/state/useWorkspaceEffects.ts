@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18nGlobal from '../i18n';
 import { useWorkspaceStore, selectActive, selectExtraMotors } from './store';
+import { useEngineStore } from './engineStore';
 import { getWorkspaceStore } from '../services/workspaceStore';
 import { onStorageDegraded } from '../services/idbKeyValueStore';
 import { requestPersistentStorage } from '../services/persistStorage';
@@ -104,6 +105,9 @@ export function useWorkspaceEffects() {
   const extraMotors = useWorkspaceStore(selectExtraMotors);
   const loadedMeta = useWorkspaceStore((s) => s.loadedMeta);
   const motor = useWorkspaceStore((s) => selectActive(s).motor);
+  // The rebuild effect below is the app's one engine caller on the main thread,
+  // so it is where "the kernel is not up yet" is handled.
+  const enginePhase = useEngineStore((s) => s.phase);
 
   useEffect(() => {
     if (!hydrated.current) return;
@@ -200,6 +204,12 @@ export function useWorkspaceEffects() {
   const components = tree.components;
   useEffect(() => {
     if (!ready) return; // wait for hydration so we build the real design once, not the default first
+    // And wait for the kernel, which the app no longer blocks on before mounting
+    // (main.tsx). Building without one throws, and computeStaticInfo would turn
+    // that into a red error banner over what is really just "not loaded yet" -
+    // EngineNotice says that, and says it once. `enginePhase` is a dependency,
+    // so the design builds itself the moment the engine arrives.
+    if (enginePhase !== 'ready') return;
     const store = useWorkspaceStore.getState();
     // Read the tree from the store rather than closing over it, so the effect
     // does not have to depend on the whole object to use it.
@@ -223,7 +233,7 @@ export function useWorkspaceEffects() {
       store.applyBuild(res.info, res.rocket);
       store.setErr(null);
     }
-  }, [ready, components, motor, extraMotors]);
+  }, [ready, enginePhase, components, motor, extraMotors]);
 
   // Editing the design invalidates every simulation's cached result.
   //

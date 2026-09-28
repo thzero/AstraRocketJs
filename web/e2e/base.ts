@@ -188,8 +188,32 @@ export async function runFlight(page: Page): Promise<void> {
  * more than the default.
  */
 export async function ready(page: Page): Promise<void> {
+  // Collected for the FAILURE path only. A bare "element(s) not found" here says
+  // nothing about why the app never rendered, and there is more than one way for
+  // that to happen: main.tsx holds the React mount until initEngine settles, so
+  // an engine fetch that stalls rather than failing leaves the boot splash up
+  // and looks identical to a slow build or a thrown error. Whether the root ever
+  // mounted separates them.
+  const problems: string[] = [];
+  page.on('console', (m) => {
+    if (m.type() === 'error') problems.push(`console.error: ${m.text()}`);
+  });
+  page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
+
   await page.goto('/');
-  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+  try {
+    await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+  } catch (err) {
+    const state = await page
+      .evaluate(() => ({
+        mounted: (document.getElementById('root')?.childElementCount ?? 0) > 0,
+        onScreen: document.body.innerText.trim().replace(/\s+/g, ' ').slice(0, 200),
+      }))
+      .catch((e: unknown) => ({ evaluateFailed: String(e) }));
+    throw new Error(
+      `${(err as Error).message}\n\nready() gave up with: ${JSON.stringify({ ...state, problems }, null, 2)}`,
+    );
+  }
 }
 
 /**

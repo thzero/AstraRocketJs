@@ -2,6 +2,14 @@
 
 Every `PATCH(...)` comment in `src/java/` points here. This is that file.
 
+Entries below are dated and are a RECORD: their counts and findings were true when
+written, and are left alone rather than restated. For what is true now, read the
+non-dated sections and `extract/DIVERGENCE.txt`.
+
+The `A`/`G`/`D`/`P` labels are finding ids from the `engine-java/` audit run against
+`docs/AUDIT_PROMPT_ENGINE.md`. That audit's report was never committed, so the ids
+are cross-references within this ledger and nothing else.
+
 ## How the pieces fit
 
 - **`patches/` is an INPUT, not a record.** Each file here is a complete,
@@ -275,7 +283,7 @@ nodes now carry a `drogue` key, and the web app round-trips it through
 OpenRocket's own `<isdrogue>` element.
 
 Parity is unaffected: adding a warning changes no physics, and both targets stay
-clean with `golden.txt` unmoved. `web/src/engine/engineBoundary.test.ts` flies a
+clean with `golden.txt` unmoved. `web/tests/engine/engineBoundary.test.ts` flies a
 real dual-deployment rocket for each branch, since a warning nothing can raise
 looks exactly like one that never fires.
 
@@ -337,7 +345,7 @@ Parity is unaffected (this changes no physics), and `golden.txt` did not move.
 
 ## Two shims stopped matching upstream - 2026-09-19
 
-Both found by the `engine-java/` audit (`docs/AUDIT_ENGINE.md`, P1 and P2) by
+Both found by the `engine-java/` audit (P1 and P2) by
 diffing against the pinned upstream rather than against ourselves. Neither is a
 patch: both are *shims*, and that is the point. `extract --check` walks `src/java`
 against `manifest.txt` and never looks at `src/shims`, so a shim that drifts from
@@ -392,14 +400,14 @@ repeated builds.
 
 This does not close the structural hole. Nothing still compares a shim to the
 upstream class it shadows; `preferencesScenarios()` pins one shim's values, not
-the comparison. See `docs/AUDIT_ENGINE.md` G10.
+the comparison. See engine audit G10.
 
 
 ---
 
 ## The extraction gate now interrogates the patches - 2026-09-19
 
-`docs/AUDIT_ENGINE.md` G1 and G2. Both were demonstrated by running the bad edit
+Engine audit G1 and G2. Both were demonstrated by running the bad edit
 through the gate, not argued.
 
 **The hole.** `--check` verifies one invariant, `src/java == upstream + patches`.
@@ -425,7 +433,7 @@ returned `avg / 0`.
   DP), so deletions and reorderings count.
 - Every patch is reported unconditionally, including delta 0. A zero means the
   patch is byte-identical to upstream, which is the *leftover* the table above
-  says to delete; it is labelled as such in the output.
+  says to delete; it is labeled as such in the output.
 - `extract/DIVERGENCE.txt` is a new committed baseline of those numbers.
   `--check` recomputes and **fails** on any mismatch, on an unlisted patch, on a
   blessed patch that has vanished, and on the baseline file being absent, so
@@ -463,7 +471,7 @@ signing for it.
 
 ## The physics gate is now hard to switch off, and it can see roll - 2026-09-19
 
-`docs/AUDIT_ENGINE.md` G3, G5, G7, G9 and G4. The first four are about the gate
+Engine audit G3, G5, G7, G9 and G4. The first four are about the gate
 being switchable-off or forgeable; G4 is the one real coverage hole they were
 protecting.
 
@@ -535,7 +543,7 @@ golden tolerances are unchanged, so the measured blind band is unchanged.
 
 ## The API boundary defends itself now - 2026-09-19
 
-`docs/AUDIT_ENGINE.md` A1, A2, A3, A5, A6, A7 and G6. Everything here is
+Engine audit A1, A2, A3, A5, A6, A7 and G6. Everything here is
 reachable from an `.ork` file a stranger can send, and every fix below was
 re-verified by driving the **shipped** vendored artifact under Node, not by
 reading the source.
@@ -633,7 +641,7 @@ the app today.
 
 ## The four defaults tables now have one arbiter - 2026-09-19
 
-`docs/AUDIT_ENGINE.md` A14. Four places independently decided what an absent
+Engine audit A14. Four places independently decided what an absent
 field means: `api.ComponentFactory` (`dbl(node, "key", D)`), `treeEdit.defaultNode`,
 `orkImport`, and the renderers' per-call-site `num(node, 'key', fallback)`.
 Nothing derived any of them from the others.
@@ -688,7 +696,7 @@ engine source changed, so parity and `golden.txt` are untouched.
 
 ## Shim drift is detectable, and the Collator stub is no longer a guess - 2026-09-19
 
-`docs/AUDIT_ENGINE.md` G10, G16 and G17.
+Engine audit G10, G16 and G17.
 
 ### G10 - nothing compared a shim to the class it shadows
 
@@ -755,10 +763,10 @@ agree on every pair in that corpus, on both targets.
 
 *One line moved that is not ours.* `flight.para.summary` re-recorded as
 `335.3732629410451` against the committed `335.37326183578364`, a ~3e-9 relative
-difference. That is the JVM run-to-run instability already noted in
-`docs/AUDIT_ENGINE.md` G18, and the new value is exactly what a fresh JVM run on
-this machine produces. It is three orders of magnitude inside the 0.5% flight
-tolerance so the gate is indifferent either way, but the golden now carries a
+difference. That is the JVM run-to-run instability already noted as engine audit
+G18, and the new value is exactly what a fresh JVM run on this machine produces.
+It is three orders of magnitude inside the 0.5% flight tolerance so the gate is
+indifferent either way, but the golden now carries a
 machine-specific value on that one line, which is worth knowing before anyone
 tightens that tolerance.
 
@@ -770,7 +778,7 @@ ratchet green, `web/` green at 1410 tests, typecheck and lint clean.
 
 ## The rest of the audit - 2026-09-19
 
-`docs/AUDIT_ENGINE.md` A8, A9, A10, A12, G8, G12, G13, G18 and the whole D
+Engine audit A8, A9, A10, A12, G8, G12, G13, G18 and the whole D
 (documentation) set. G14 deliberately left open at the owner's direction.
 
 ### Boundary
@@ -957,12 +965,12 @@ shrouds are a feature at all.
 Provenance is now marked at every surface that touches it: `ComponentFactory`,
 `openRocketEngine.ts` (whose comment also promised an `engineTree()` lowering
 that does not exist), `schema.ts`, `orkImport`, `orkExport`, and
-`ATTRIBUTION.md`. The finding moved from A9 to **Appendix R5** in
-`docs/AUDIT_ENGINE.md`, with the rest of the RASAero work.
+`ATTRIBUTION.md`. The finding moved from A9 to **Appendix R5** of the
+engine audit, with the rest of the RASAero work.
 
 ### The shipped target is tested now - 2026-09-19
 
-`docs/AUDIT_ENGINE.md` A4, which is the finding that cannot be fixed, only
+Engine audit A4, which is the finding that cannot be fixed, only
 contained.
 
 **The problem, restated plainly.** The engine compiles twice. TeaVM's JS
@@ -983,7 +991,7 @@ the inputs, which the A2/A3/A5/A6 work did.
 numbers (342 lines, both targets, bit-identical), but no test covered WASM for
 BEHAVIOR. The suite was vouching for a build nobody ships.
 
-`web/src/engine/engineBoundary.wasm.test.ts` loads the real
+`web/tests/engine/engineBoundary.wasm.test.ts` loads the real
 `web/public/engine/openrocket-engine.wasm` through the runtime IIFE exactly as
 `tryLoadWasm()` does, and runs the bad inputs against it: depth-capped JSON, a
 non-finite literal, an uncapped instance count, an over-large sweep, and the

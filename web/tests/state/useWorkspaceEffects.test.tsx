@@ -43,6 +43,7 @@ vi.mock('../../src/services/idbKeyValueStore', async (orig) => ({
 
 import { useWorkspaceEffects } from '../../src/state/useWorkspaceEffects';
 import { useWorkspaceStore } from '../../src/state/store';
+import { useEngineStore } from '../../src/state/engineStore';
 import { getDesignLibrary, setDesignLibrary, type DesignLibrary } from '../../src/services/designLibrary';
 import { renderWithProviders } from '../testing/renderWithProviders';
 import i18n from '../../src/i18n';
@@ -70,6 +71,10 @@ beforeEach(() => {
   save.mockReset().mockResolvedValue(undefined);
   saveSync.mockReset();
   computeStaticInfo.mockReset().mockReturnValue({ info: { length: 1 }, rocket: {} });
+  // The rebuild effect waits on the kernel now, because the app mounts before it
+  // is loaded. Every test here but the gating one is about what the rebuild does
+  // ONCE there is an engine, so they start with one.
+  useEngineStore.setState({ phase: 'ready', backend: 'js', status: null, slow: false, error: null });
 });
 afterEach(() => {
   cleanup();
@@ -355,6 +360,46 @@ describe('what triggers a rebuild', () => {
 
     expect(s().info).toBeNull();
     expect(s().err).toBe('fin tab longer than the root chord');
+  });
+
+  it('waits for the kernel, and builds the moment it arrives', async () => {
+    // The app mounts before the engine is loaded, so this is the ordinary first
+    // second of every visit, not an error path.
+    useEngineStore.setState({ phase: 'loading', backend: null });
+    await mount();
+
+    // No build, and - the point of the gate - no error banner either: blaming
+    // the design for a kernel that has not finished downloading would be a
+    // message about nothing the user can act on.
+    expect(computeStaticInfo).not.toHaveBeenCalled();
+    expect(s().info).toBeNull();
+    expect(s().err).toBeNull();
+
+    await act(async () => {
+      useEngineStore.setState({ phase: 'ready', backend: 'wasm' });
+      await Promise.resolve();
+    });
+
+    expect(computeStaticInfo).toHaveBeenCalledTimes(1);
+    expect(s().info).not.toBeNull();
+  });
+
+  it('builds again after a retry that swaps the engine underneath it', async () => {
+    // `retry()` throws the old engine away, so whatever was built under it is
+    // void. A second 'ready' has to rebuild rather than sit on the stale handle.
+    await mount();
+    expect(computeStaticInfo).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      useEngineStore.setState({ phase: 'loading', backend: null });
+      await Promise.resolve();
+    });
+    await act(async () => {
+      useEngineStore.setState({ phase: 'ready', backend: 'js' });
+      await Promise.resolve();
+    });
+
+    expect(computeStaticInfo).toHaveBeenCalledTimes(2);
   });
 });
 

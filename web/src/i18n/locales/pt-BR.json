@@ -127,7 +127,10 @@
   },
   "engine": {
     "wasmTip": "Motor de física: WebAssembly (caminho rápido)",
-    "jsTip": "Motor de física: JavaScript (alternativa)"
+    "jsTip": "Motor de física: JavaScript (alternativa)",
+    "slow": "O motor de física está demorando mais que o normal para carregar.",
+    "needsIt": "As ferramentas de projeto funcionam sem ele; os números e as simulações precisam dele.",
+    "retry": "Tentar de novo"
   },
   "about": {
     "open": "Sobre",
@@ -1391,7 +1394,7 @@
     "downloadingOf": "Baixando o motor… {{done}} / {{total}} MB",
     "downloaded": "Baixando o motor… {{done}} MB",
     "starting": "Iniciando o motor…",
-    "failed": "Motor indisponível, iniciando mesmo assim"
+    "failed": "Não foi possível carregar o motor de física."
   },
   "catalog": {
     "loadingMotors": "Carregando o catálogo de motores…",

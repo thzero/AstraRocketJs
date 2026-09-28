@@ -127,7 +127,10 @@
   },
   "engine": {
     "wasmTip": "Physik-Engine: WebAssembly (schneller Pfad)",
-    "jsTip": "Physik-Engine: JavaScript (Rückfallebene)"
+    "jsTip": "Physik-Engine: JavaScript (Rückfallebene)",
+    "slow": "Die Physik-Engine lädt länger als gewöhnlich.",
+    "needsIt": "Die Konstruktionswerkzeuge funktionieren auch ohne sie; die Kennwerte und die Simulationen brauchen sie.",
+    "retry": "Erneut versuchen"
   },
   "about": {
     "open": "Über",
@@ -1383,7 +1386,7 @@
     "downloadingOf": "Engine wird heruntergeladen… {{done}} / {{total}} MB",
     "downloaded": "Engine wird heruntergeladen… {{done}} MB",
     "starting": "Engine wird gestartet…",
-    "failed": "Engine nicht verfügbar – es wird trotzdem gestartet"
+    "failed": "Die Physik-Engine konnte nicht geladen werden."
   },
   "catalog": {
     "loadingMotors": "Motorkatalog wird geladen…",

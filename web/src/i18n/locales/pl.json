@@ -127,7 +127,10 @@
   },
   "engine": {
     "wasmTip": "Silnik fizyki: WebAssembly (szybka ścieżka)",
-    "jsTip": "Silnik fizyki: JavaScript (wariant zapasowy)"
+    "jsTip": "Silnik fizyki: JavaScript (wariant zapasowy)",
+    "slow": "Silnik fizyczny ładuje się dłużej niż zwykle.",
+    "needsIt": "Narzędzia projektowe działają bez niego; wyniki i symulacje go wymagają.",
+    "retry": "Spróbuj ponownie"
   },
   "about": {
     "open": "O programie",
@@ -1399,7 +1402,7 @@
     "downloadingOf": "Pobieranie silnika… {{done}} / {{total}} MB",
     "downloaded": "Pobieranie silnika… {{done}} MB",
     "starting": "Uruchamianie silnika…",
-    "failed": "Silnik niedostępny, uruchamiamy i tak"
+    "failed": "Nie udało się wczytać silnika fizycznego."
   },
   "catalog": {
     "loadingMotors": "Wczytywanie katalogu silników…",

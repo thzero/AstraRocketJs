@@ -127,7 +127,10 @@
   },
   "engine": {
     "wasmTip": "物理エンジン：WebAssembly（高速版）",
-    "jsTip": "物理エンジン：JavaScript（代替版）"
+    "jsTip": "物理エンジン：JavaScript（代替版）",
+    "slow": "物理エンジンの読み込みにいつもより時間がかかっています。",
+    "needsIt": "設計ツールはエンジンなしでも使えます。数値とシミュレーションには必要です。",
+    "retry": "再試行"
   },
   "about": {
     "open": "このアプリについて",
@@ -1375,7 +1378,7 @@
     "downloadingOf": "エンジンをダウンロード中… {{done}} / {{total}} MB",
     "downloaded": "エンジンをダウンロード中… {{done}} MB",
     "starting": "エンジンを起動中…",
-    "failed": "エンジンを利用できません。このまま起動します"
+    "failed": "物理エンジンを読み込めませんでした。"
   },
   "catalog": {
     "loadingMotors": "モーターカタログを読み込み中…",

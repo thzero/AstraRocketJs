@@ -16,6 +16,7 @@ import { WorkInProgressDialog } from './components/layout/WorkInProgressDialog';
 import { ConfirmDialog } from './components/common/ConfirmDialog';
 import { PromptDialog } from './components/common/PromptDialog';
 import { UpdateToast } from './components/layout/UpdateToast';
+import { EngineNotice } from './components/layout/EngineNotice';
 import { useIsDesktop } from './components/common/useMediaQuery';
 import { PaneSplitter } from './components/layout/PaneSplitter';
 import { useSettings } from './state/SettingsProvider';
@@ -104,6 +105,10 @@ export default function App() {
         </p>
       )}
       {err && <p className="border-b border-red-500/30 bg-red-950/60 px-4 py-2 text-sm text-red-300">{err}</p>}
+      {/* Third banner, and the one that outranks both: without the kernel there
+          are no numbers to be wrong about. It renders nothing once the engine is
+          up, which is the ordinary case within a second or two of first paint. */}
+      <EngineNotice />
 
       {/*
         One row of panes; the TAB decides which of them are in it, so each tab

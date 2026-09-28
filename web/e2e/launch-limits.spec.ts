@@ -134,12 +134,13 @@ test('the run summary carries a safety card linking to the docs', async ({ page 
   await expect(card).toHaveClass(/amber/);
   await expect(card).toContainText('⚠');
 
-  // BELOW the tiles, not above them: a caveat read before the numbers exist is
-  // a caveat about nothing.
+  // ABOVE the tiles, not below them: it leads the numbers, because what a
+  // reading is worth is a thing to know before reading it. Folded, the ⚠ and
+  // the words are still the first thing over the measurements.
   const tiles = page.locator('section[aria-label="Simulation results"]').filter({ visible: true });
   const cardBox = (await card.boundingBox())!;
   const tileBox = (await tiles.boundingBox())!;
-  expect(cardBox.y).toBeGreaterThanOrEqual(tileBox.y + tileBox.height);
+  expect(cardBox.y + cardBox.height).toBeLessThanOrEqual(tileBox.y);
 
   /**
    * And it still takes you to the safety notes - now in the in-app Help rather

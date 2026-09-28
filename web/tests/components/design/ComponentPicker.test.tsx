@@ -41,6 +41,23 @@ const headers = (dialog: HTMLElement): string[] =>
   [...dialog.querySelectorAll('thead th')].map((th) => th.textContent?.replace(/[▲▼]/g, '').trim() ?? '');
 const footer = (dialog: HTMLElement): string => dialog.lastElementChild?.textContent ?? '';
 
+/**
+ * The sortable heading, as the button a screen reader gets.
+ *
+ * Scoped to `thead`, not to the whole dialog: an accessible-name query computes
+ * a name for every element under its container, and the container here holds a
+ * 200-row table - 380 ms per call, against 1 ms over the heading row. Two calls
+ * per test is enough to pass the 5 s timeout on a loaded CI box.
+ */
+const head = (dialog: HTMLElement, name: string): HTMLElement =>
+  within(dialog.querySelector('thead')!).getByRole('button', { name: new RegExp(`^${name}`) });
+
+/** The search box, and the toolbar holding both rows of filters around it. */
+const search = (dialog: HTMLElement): HTMLElement => within(dialog).getByLabelText(/Search parts/);
+/** The way out of a filter set. Scoped to the toolbar, for `head`'s reason. */
+const clearFilters = (dialog: HTMLElement): HTMLElement =>
+  within(search(dialog).parentElement!).getByRole('button', { name: 'Clear filters' });
+
 describe('ComponentPicker', () => {
   beforeAll(serveData);
   // Millimeters so the assertions read like the catalog does. The default is cm,
@@ -220,7 +237,7 @@ describe('ComponentPicker', () => {
       fireEvent.change(within(dialog).getByLabelText(/Search parts/), { target: { value: '~~~' } });
       expect(rows(dialog).length).toBe(1);
       expect(rows(dialog)[0]![0]).toContain('No matching parts');
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Clear filters' }));
+      fireEvent.click(clearFilters(dialog));
       expect(rows(dialog).length).toBe(200);
     });
 
@@ -229,7 +246,7 @@ describe('ComponentPicker', () => {
       fireEvent.change(within(dialog).getByLabelText('Material'), { target: { value: 'Balsa' } });
       fireEvent.change(within(dialog).getByLabelText('Shape'), { target: { value: 'conical' } });
       const narrowed = rows(dialog).length;
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Clear filters' }));
+      fireEvent.click(clearFilters(dialog));
       expect(rows(dialog).length).toBeGreaterThan(narrowed);
       expect((within(dialog).getByLabelText('Material') as HTMLSelectElement).value).toBe('');
       expect((within(dialog).getByLabelText('Shape') as HTMLSelectElement).value).toBe('');
@@ -247,26 +264,25 @@ describe('ComponentPicker', () => {
   describe('sorting', () => {
     it('sorts by a column, and flips when the same heading is clicked again', async () => {
       const { dialog } = await open('bodytube');
-      const head = (name: string) => within(dialog).getByRole('button', { name: new RegExp(`^${name}`) });
 
-      fireEvent.click(head('OD'));
+      fireEvent.click(head(dialog, 'OD'));
       const up = rows(dialog).map((r) => Number(r[2]));
       expect(up).toEqual([...up].sort((a, b) => a - b));
 
-      fireEvent.click(head('OD'));
+      fireEvent.click(head(dialog, 'OD'));
       const down = rows(dialog).map((r) => Number(r[2]));
       expect(down).toEqual([...down].sort((a, b) => b - a));
     });
 
     it('tells assistive tech which column is sorted, and which way', async () => {
       const { dialog } = await open('bodytube');
-      fireEvent.click(within(dialog).getByRole('button', { name: /^Length/ }));
+      fireEvent.click(head(dialog, 'Length'));
       const th = [...dialog.querySelectorAll('thead th')];
       const sorted = th.filter((h) => h.getAttribute('aria-sort') !== 'none');
       expect(sorted.length).toBe(1);
       expect(sorted[0]!.textContent).toContain('Length');
       expect(sorted[0]!.getAttribute('aria-sort')).toBe('ascending');
-      fireEvent.click(within(dialog).getByRole('button', { name: /^Length/ }));
+      fireEvent.click(head(dialog, 'Length'));
       expect(sorted[0]!.getAttribute('aria-sort')).toBe('descending');
     });
   });
@@ -294,7 +310,7 @@ describe('ComponentPicker', () => {
   describe('sorting the columns that were not sortable', () => {
     it('sorts a nose cone by shape', async () => {
       const { dialog } = await open('nosecone');
-      fireEvent.click(within(dialog).getByRole('button', { name: /^Shape/ }));
+      fireEvent.click(head(dialog, 'Shape'));
       const shapes = rows(dialog).map((r) => r[2]!);
       expect(new Set(shapes).size).toBeGreaterThan(1);
       expect(shapes).toEqual([...shapes].sort((a, b) => a.localeCompare(b)));
@@ -304,9 +320,8 @@ describe('ComponentPicker', () => {
 
     it('sorts a parachute by drag coefficient', async () => {
       const { dialog } = await open('parachute');
-      const head = within(dialog).getByRole('button', { name: /^Drag coeff/ });
-      expect(head).toBeTruthy(); // it was not a button at all before
-      fireEvent.click(head);
+      // A heading that is a BUTTON: the column is sortable, not just labeled.
+      fireEvent.click(head(dialog, 'Drag coeff'));
       const th = [...dialog.querySelectorAll('thead th')].find((h) => h.textContent!.includes('Drag coeff'))!;
       expect(th.getAttribute('aria-sort')).toBe('ascending');
     });
@@ -331,7 +346,7 @@ describe('ComponentPicker', () => {
     expect(facets.querySelectorAll('select').length).toBeGreaterThan(1);
     // Clear is pushed to the far right rather than sitting in the run of filters.
     fireEvent.change(search, { target: { value: 'estes' } });
-    const clear = within(dialog).getByRole('button', { name: 'Clear filters' });
+    const clear = clearFilters(dialog);
     expect(clear.className).toContain('ml-auto');
     expect(facets.contains(clear)).toBe(true);
   });

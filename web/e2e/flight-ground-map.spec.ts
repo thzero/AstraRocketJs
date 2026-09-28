@@ -54,7 +54,11 @@ test('draws no ground imagery until it is asked for', async ({ page }) => {
 
   await showGround(page);
   await expect(attribution(page)).toBeVisible();
-  expect(asked.length).toBeGreaterThan(0);
+  // Polled, because the attribution is rendered by turning the layer ON and the
+  // first tile request goes out after that. A plain expect samples the array
+  // once, in the gap between the two, and reads zero whenever the machine is
+  // loaded enough to widen it.
+  await expect.poll(() => asked.length, { timeout: 15_000 }).toBeGreaterThan(0);
 });
 
 test('the ground map turns off and back on from over the canvas', async ({ page }) => {

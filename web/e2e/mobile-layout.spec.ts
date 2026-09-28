@@ -148,7 +148,18 @@ test('the desktop workbench splits the view families across its tabs too', async
   }
 });
 
-test('the Results tab leads with the run numbers, without starving the chart', async ({ page }) => {
+/**
+ * The Results tab on the smallest phone we target, where the summary column is
+ * capped at 45% of the pane and scrolls inside that cap.
+ *
+ * The caution leads it and the numbers follow, which is the whole point of the
+ * card being above the tiles rather than under them: what a reading is worth is
+ * a thing to know before reading it. On a 320x568 phone that puts the tiles off
+ * the bottom of the column until it is scrolled, so the thing worth pinning is
+ * that they are REACHABLE - a caution that cost you the numbers entirely would
+ * be a different bug from the one the order is solving.
+ */
+test('the Results tab leads with the safety card, and the numbers scroll up behind it', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 }); // the smallest phone we target
   await ready(page);
   await page.getByRole('button', { name: /Simulate/ }).click();
@@ -156,26 +167,47 @@ test('the Results tab leads with the run numbers, without starving the chart', a
   await expect(page.getByRole('button', { name: /Results/ })).toBeVisible({ timeout: 30_000 });
 
   const m = await page.evaluate(() => {
+    const card = document.querySelector('main section[aria-label="Before you fly"]');
     const grid = document.querySelector('main section[aria-label="Simulation results"]');
     const half = document.querySelector('main div.min-h-0.w-full.flex-1.flex-col');
     const pane = half?.parentElement;
+    // The summary column, found by what it DOES rather than by its classes: the
+    // nearest ancestor that actually scrolls.
+    let col: HTMLElement | null = card?.parentElement ?? null;
+    while (col && !(col.scrollHeight > col.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(col).overflowY)))
+      col = col.parentElement;
+    const box = (el?: Element | null) => (el ? Math.round(el.getBoundingClientRect().top) : null);
     return {
-      summaryTop: grid ? Math.round(grid.getBoundingClientRect().top) : null,
+      cardTop: box(card),
+      cardBottom: card ? Math.round(card.getBoundingClientRect().bottom) : null,
+      summaryTop: box(grid),
+      // The column's CONTENT edge: it carries a pt-3, so its border box starts
+      // 12px above anything inside it.
+      colTop: col ? Math.round(col.getBoundingClientRect().top + parseFloat(getComputedStyle(col).paddingTop)) : null,
+      colHolds: !!col && !!card && !!grid && col.contains(card) && col.contains(grid),
+      colScrolls: col ? col.scrollHeight > col.clientHeight : false,
       chartHeight: half ? Math.round(half.getBoundingClientRect().height) : 0,
       paneHeight: pane ? Math.round(pane.getBoundingClientRect().height) : 0,
     };
   });
   note('results tab', JSON.stringify(m));
 
-  // Apogee and the rest are the first thing on the tab. Scoped to the first one
-  // in DOM order — the center pane's — because the sim editor keeps its own copy
-  // mounted behind the Simulate tab.
+  // The card and the tiles are one scrolling column, card first and flush with
+  // its top, so the caution is what the tab opens on.
+  expect(m.colHolds).toBe(true);
+  expect(m.colScrolls).toBe(true);
+  expect(m.cardTop).toBe(m.colTop);
+  expect(m.summaryTop).toBeGreaterThanOrEqual(m.cardBottom!);
+
+  // And the numbers are a scroll away, not gone: Apogee reaches the viewport.
+  // Scoped to the first region in DOM order — the center pane's — because the
+  // sim editor keeps its own copy mounted behind the Simulate tab.
   const summary = page.getByRole('region', { name: 'Simulation results' }).first();
-  await expect(summary).toBeVisible();
-  await expect(summary.getByText('Apogee', { exact: true })).toBeVisible();
-  expect(m.summaryTop).toBeLessThan(m.chartHeight); // above the chart, not below
-  // …but the tiles are a fixed ~300px, so they are capped and scroll rather than
-  // squeezing the chart they describe down to nothing (it was 91px before).
+  await summary.getByText('Apogee', { exact: true }).scrollIntoViewIfNeeded();
+  await expect(summary.getByText('Apogee', { exact: true })).toBeInViewport();
+
+  // The column is capped rather than free to grow, so it scrolls instead of
+  // squeezing the chart it describes down to nothing (it was 91px before).
   expect(m.chartHeight).toBeGreaterThan(200);
   expect(m.chartHeight).toBeGreaterThan(m.paneHeight * 0.5);
 });

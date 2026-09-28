@@ -127,7 +127,10 @@
   },
   "engine": {
     "wasmTip": "Moteur physique : WebAssembly (voie rapide)",
-    "jsTip": "Moteur physique : JavaScript (solution de repli)"
+    "jsTip": "Moteur physique : JavaScript (solution de repli)",
+    "slow": "Le moteur physique met plus de temps que d’habitude à charger.",
+    "needsIt": "Les outils de conception fonctionnent sans lui ; les valeurs et les simulations en ont besoin.",
+    "retry": "Réessayer"
   },
   "about": {
     "open": "À propos",
@@ -1391,7 +1394,7 @@
     "downloadingOf": "Téléchargement du moteur… {{done}} / {{total}} Mo",
     "downloaded": "Téléchargement du moteur… {{done}} Mo",
     "starting": "Démarrage du moteur…",
-    "failed": "Moteur indisponible – démarrage malgré tout"
+    "failed": "Le moteur physique n’a pas pu être chargé."
   },
   "catalog": {
     "loadingMotors": "Chargement du catalogue de moteurs…",
