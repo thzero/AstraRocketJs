@@ -5,9 +5,8 @@ import { numOpt, positionOf } from './nodeProps';
 
 /**
  * Scale a whole rocket by one factor — the "upscale/downscale a plan" workflow.
- * Ported from the sibling mmrocket-sim `tree/scaleRocket.ts`; the motor-mount
- * snapping half of that file (which needs a motor-class database) is left out —
- * this is the pure geometric scale.
+ * Motor-mount snapping is left out (it needs a motor-class database); this is
+ * the pure geometric scale.
  *
  * WHY A KEY LIST AND NOT A SCHEMA WALK: `ComponentNode` has an open index
  * signature and importers write length-valued keys no schema declares (freeform

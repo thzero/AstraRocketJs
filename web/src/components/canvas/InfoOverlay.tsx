@@ -19,7 +19,7 @@ const STABILITY_TONE: Record<StabilityState, string> = {
 };
 
 /**
- * Quick-glance readout box for the 2D/3D view (mmrocket-style): length, loaded
+ * Quick-glance readout box for the 2D/3D view: length, loaded
  * mass, CG, CP, and stability, as label→value rows. The fuller breakdown lives in
  * the "all stats" strip beneath the view.
  */

@@ -58,6 +58,20 @@ Reports 1307/1135, NASA TN D-4013/D-4014/D-6945, Hoerner, DATCOM) and calibrated
 wind-tunnel and free-flight data. The physics writeup and the diffs against stock OpenRocket are
 in `../docs/rasaero/`.
 
+## RASAero II design export — mmrocket-sim
+
+The `.CDX1` design exporter in `web/` was **ported from the mmrocket-sim project's
+`services/rasaeroFile.ts`** (<https://github.com/mtnmanak/mmrocket-sim>, by Mountain Man Rockets),
+and is incorporated here **under GPL-3.0** like the rest of their work above. It is the app-side
+writer only: no engine code and no aerodynamics, just the file format.
+
+**Modified:** the single module was split into an orchestrator, `web/src/services/rasaeroExport.ts`,
+and the per-block writers under `web/src/services/rasaero/` (sustainer, booster, recovery, launch
+site, engines, simulation, surface, units). The output was checked against real RASAero II on
+2026-08-25.
+
+`extract/MMROCKET-SIM` records the commit this was last reviewed against.
+
 ## Two corrected elastic cord densities — mmrocket-sim
 
 `web/scripts/data/materials.app.json` carries two line materials that are not upstream OpenRocket's:

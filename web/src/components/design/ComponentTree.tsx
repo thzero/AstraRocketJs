@@ -99,7 +99,7 @@ const TYPE_COLOR: Record<string, string> = {
   parallelstage: '#e2e8f0',
 };
 
-// A distinct glyph per component type (mmrocket-style), colored by TYPE_COLOR so
+// A distinct glyph per component type, colored by TYPE_COLOR so
 // the tree reads by shape AND color at a glance.
 const TYPE_SYMBOL: Record<string, string> = {
   stage: '≡',

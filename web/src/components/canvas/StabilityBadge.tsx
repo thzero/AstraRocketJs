@@ -8,7 +8,7 @@ import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 
 /**
- * "All stats" strip under the canvas (mmrocket-style): length, max diameter,
+ * "All stats" strip under the canvas: length, max diameter,
  * empty/loaded mass and CG, CP, and stability (calibers + % of length). All from
  * the live StaticInfo — empty = dry structure, loaded = with the seated motor.
  *

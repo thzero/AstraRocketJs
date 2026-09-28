@@ -17,7 +17,7 @@ export { buildTraces, visibleSeries, type ChartFlight } from './flightChartTrace
 export { maxFlightTime } from './flightChartAxis';
 
 /**
- * Flight data as SMALL MULTIPLES (mmrocket-style): time on a shared x, and one
+ * Flight data as SMALL MULTIPLES: time on a shared x, and one
  * stacked single-series panel per measure — each with its OWN y-scale, because
  * measures of different magnitude are never dual-axed. A chip bar toggles which
  * panels show; a single hover drives a synchronized crosshair + value readout

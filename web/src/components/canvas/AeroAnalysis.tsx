@@ -18,7 +18,7 @@ import { Num, Seg } from './AeroInputs';
 export { buildLinePath, heat, hsv, niceName } from './aeroTables';
 
 /**
- * Aerodynamic analysis (RASAero-style "Aero Plots", mmrocket-style). Two panes
+ * Aerodynamic analysis (RASAero-style "Aero Plots"). Two panes
  * off the static design, no flight needed — it is all one `aeroSweep`.
  *
  * **Charts**: Cd vs Mach (power-off, + power-on when a nozzle exit is set), the

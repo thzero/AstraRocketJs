@@ -41,7 +41,6 @@ Also distrust any test that pins a parameterized curve only by its point count, 
 - `orkImport` mints node ids via `freshId()` (Maps/Sets), so parsed strings are not used as write keys → **no prototype-pollution write surface** — only report proto-pollution if you find an actual `obj[untrustedKey] = …` write.
 - `import './kernelLogSink.js'` (in `openRocketEngine.ts`) is a **side-effect import** (installs stdout/stderr sinks). As of 2026-09-19 that module has NO exports at all, so there is nothing to flag there either way.
 - Some exports exist only so a unit test can reach an internal helper — deliberate, label "test-only export (intentional)", not dead.
-- The 2D schematic (`components/canvas/{TreeSchematic,schematicShapes,schematicGeometry,AftView}`) is a simplified fork of mmrocket-sim's and its projection math was recently reworked for pods — regressions are likeliest there.
 - **Fin planform geometry is now centralized** in `web/src/tree/finPlanform.ts` and gated by `finPlanform.kernel.test.ts`. No consumer may sample a fin outline itself; if you find one that does, that is a finding. A guard test already fails on kernel trigonometry outside `tree/{finPlanform,tubefins,shapeProfile}.ts`.
 - `App` and `i18n` use default exports intentionally; the rest of the tree is named exports.
 

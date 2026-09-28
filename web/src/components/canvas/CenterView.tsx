@@ -376,7 +376,7 @@ export function CenterView() {
                 </div>
               </>
             )}
-            {/* Quick-glance stats card (mmrocket-style): sits INSIDE the ruler frame on
+            {/* Quick-glance stats card: sits INSIDE the ruler frame on
             the 2D view (clear of the top + left rulers when they're on), and in the
             upper-left corner in 3D. Toggleable via the header Info button.
 

@@ -1,27 +1,15 @@
 # AUDIT_PROMPT_ENGINE - `engine-java/` audit (AstraRocketJs)
 
-Companion to `docs/AUDIT_PROMPT.md`, which audits `web/` and explicitly puts the
-kernel out of scope. This one covers the other side of that boundary.
+Companion to `docs/AUDIT_PROMPT.md`, which audits `web/` and explicitly puts the kernel out of scope. This one covers the other side of that boundary.
 
-It is a different kind of audit, and the difference is the whole point. Of
-~68,000 lines under `engine-java/`, about 55,000 are byte-for-byte OpenRocket
-that must not be "improved": changing them breaks the extraction's
-reproducibility gate and forks us from upstream. The auditable surface is the
-~13,000 lines where a human hand touched the physics, plus the build and the
-gates. A prompt that does not say this precisely will get back a report full of
-findings against OpenRocket.
+It is a different kind of audit, and the difference is the whole point. Of ~68,000 lines under `engine-java/`, about 55,000 are byte-for-byte OpenRocket that must not be "improved": changing them breaks the extraction's reproducibility gate and forks us from upstream. The auditable surface is the ~13,000 lines where a human hand touched the physics, plus the build and the gates. A prompt that does not say this precisely will get back a report full of findings against OpenRocket.
 
-Paste the block below to a capable agent. Run from the repo root
-(`AstraRocketJs/`); all paths are repo-root-relative.
+Paste the block below to a capable agent. Run from the repo root (`AstraRocketJs/`); all paths are repo-root-relative.
 
 ---
 
-Do a full engineering audit of the **`engine-java/`** module in this repo. It
-turns the OpenRocket simulation core (`info.openrocket.core`) into two browser
-engine modules (TeaVM to WASM-GC and to JavaScript) that the `web/` app loads.
-Read `engine-java/README.md` and `engine-java/patches/LEDGER.md` first: they
-explain the extract/patch/shim/jdkstub mechanism, and the audit is largely a
-test of whether what they claim is true.
+Do a full engineering audit of the **`engine-java/`** module in this repo. It turns the OpenRocket simulation core (`info.openrocket.core`) into two browser engine modules (TeaVM to WASM-GC and to JavaScript) that the `web/` app loads. 
+Read `engine-java/README.md` and `engine-java/patches/LEDGER.md` first: they explain the extract/patch/shim/jdkstub mechanism, and the audit is largely a test of whether what they claim is true.
 
 ## Scope: what is and is not auditable here
 
