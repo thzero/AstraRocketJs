@@ -54,13 +54,11 @@ if (process.env.JAVA_HOME && !existsSync(process.env.JAVA_HOME)) delete gradleEn
 //
 // The daemon is a long-lived `java` process that inherits this process's stdio.
 // When this script exits, the daemon keeps that pipe open, the CI runner never
-// sees EOF on the step's output, and the STEP HANGS. Cleanup used to log it:
+// sees EOF on the step's output, and the STEP HANGS, which cleanup reports as
 // "Terminate orphan process: pid (NNNN) (java)".
 //
-// This part works, and is not the hang that came after it. The last
-// instrumented run left exactly ONE orphan process and it was `node`, not
-// `java`: no daemon survives the build any more. See the exit note at the
-// bottom of this file for what the remaining hang actually was.
+// This is a separate matter from the WASM-GC exit problem; see the exit note at
+// the bottom of this file for that one.
 //
 // It has to be the command line. Gradle's precedence for `org.gradle.daemon` is
 // (highest first) command line, GRADLE_USER_HOME/gradle.properties, the project
@@ -107,21 +105,19 @@ const TARGET_TIMEOUT_MS = 2 * 60 * 1000;
  * Run one TeaVM target's parity main() in a CHILD PROCESS and return everything
  * it printed.
  *
- * A child, not this process, and that IS the fix for the CI hang: on Linux a
- * process that has instantiated the WASM-GC module can never exit again, by any
- * means, and its event loop stops turning with it. This script used to load the
- * targets into ITSELF and inherited exactly that. run-target.mjs carries it
- * instead, prints, and dies by signal; nothing here ever touches a TeaVM
- * target, so this process exits like anything else. The measurements are at the
- * bottom of run-target.mjs.
+ * A child, not this process, and that is what keeps this script able to exit: on
+ * Linux a process that has instantiated the WASM-GC module can never exit again, by
+ * any means, and its event loop stops turning with it. run-target.mjs carries the
+ * target instead, prints, and dies by signal; nothing here ever touches a TeaVM
+ * target. The measurements are at the bottom of run-target.mjs.
  *
  * Because the child leaves by SIGKILL it has no exit status to report with, so
  * SUCCESS IS THE SENTINEL, not the status. Anything else is a failed target and
  * says which way it failed. A crash still reports the ordinary way: node prints
  * the stack to stderr (forwarded below), no sentinel arrives, this fails.
  *
- * It also retires the console.log monkey-patching this used to need to capture
- * in-process output: a child's stdout is captured by the pipe, for free.
+ * It also needs no console.log monkey-patching to capture in-process output: a
+ * child's stdout is captured by the pipe.
  */
 function runTarget(target) {
   const needed = target === 'wasm' ? [wasmPath, wasmRuntimePath] : [jsPath];
@@ -165,10 +161,10 @@ function runTarget(target) {
 const norm = (s) => s.split(/\r?\n/).map((l) => l.trimEnd()).filter(Boolean);
 const jvm = norm(jvmRaw);
 
-// A reference that printed NOTHING used to compare equal to a target that
-// printed nothing: Math.max(0, 0) is 0, the loop below never runs, and the
-// script said `parity ok: 0 lines`. Only golden.txt caught it, which made the
-// physics gate load-bearing for a fidelity failure it was never meant to cover.
+// An empty reference must not compare equal to an empty target: Math.max(0, 0) is
+// 0, the loop below never runs, and the script reports `parity ok: 0 lines`. Only
+// golden.txt would catch that, making the physics gate load-bearing for a fidelity
+// failure it is not meant to cover.
 if (!jvm.length) {
   console.error('PARITY FAILURE: the JVM reference produced no output at all.');
   console.error('  Nothing was compared. This is a harness or build failure, not a pass.');
@@ -285,8 +281,8 @@ if (exceptions.length) {
 // stands between a changed number and a green build, and it is protected
 // accordingly:
 //
-//   - a MISSING golden.txt fails (it used to warn and exit 0, so `git rm`ing it
-//     switched the physics gate off with CI still green);
+//   - a MISSING golden.txt fails, rather than warning and exiting 0, which would
+//     let `git rm`ing it switch the physics gate off with CI still green;
 //   - the header carries a sha256 of the data lines, re-verified on every run,
 //     so hand-editing one value to make a regression pass fails instead;
 //   - --golden compares BEFORE it overwrites and prints what it is about to
@@ -382,35 +378,18 @@ if (writeGolden) {
 
 // --- exit: nothing from here up may need the event loop ---------------------
 //
-// Four attempts, written down because every wrong one read as plausible:
-//
-//   1. "Node drains its event loop and exits."  It does not, so an explicit
-//      process.exit() was added.
-//   2. "It is the Gradle daemon holding the step's pipe open."  It was, once.
-//      `--no-daemon` on the command line fixed that and it stayed fixed.
-//   3. "It is the stdout flush."  The exit became
-//
-//          await new Promise((resolve) => process.stdout.write('', resolve));
-//          process.exit(0);
-//
-//      and that callback did not fire on a runner.
-//   4. "Race the flush against a timer and it cannot block."  Run 35267658288
-//      printed both verdicts and `golden ok`, then never reached the `echo`
-//      the workflow had put immediately after `node`, and cleanup terminated
-//      one orphan: `node`. A 2000 ms setTimeout had not fired in 77 seconds.
-//
-// All four were guesses. The fifth attempt reproduced it on Ubuntu 26.04 /
-// node 22.23.2 and just measured it, and the answer is none of the above:
+// Measured on Ubuntu 26.04 / node 22.23.2:
 //
 //   ONCE A PROCESS HAS INSTANTIATED THE WASM-GC MODULE IT CANNOT EXIT, and its
 //   event loop stops turning. Falling off the end hangs, process.exit() hangs,
-//   waiting first hangs, and timers armed beforehand never fire - which is why
-//   (4)'s 2-second fallback was never going to help. Only a signal ends it.
-//   Loading the module is enough; main() need not run. The JS target is fine.
+//   waiting first hangs, and timers armed beforehand never fire, so a timeout
+//   fallback cannot help either. Only a signal ends it. Loading the module is
+//   enough; main() need not run. The JS target is fine. It does not reproduce on
+//   Windows, so it shows up only in CI.
 //
-// So the rule is not "flush carefully", and not "exit explicitly". It is that
-// THIS script must never load a TeaVM target. run-target.mjs does it in a
-// process built to be killed, and this one stays ordinary: every verdict goes
-// out through a synchronous write (see `say` at the top) so nothing is
-// buffered here, and the exit below is a bare statement.
+// The rule is therefore not "flush carefully" or "exit explicitly": it is that
+// THIS script must never load a TeaVM target. run-target.mjs does it in a process
+// built to be killed, and this one stays ordinary - every verdict goes out through
+// a synchronous write (see `say` at the top) so nothing is buffered here, and the
+// exit below is a bare statement.
 process.exit(0);

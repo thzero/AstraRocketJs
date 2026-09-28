@@ -18,8 +18,8 @@
  * its way through, which fixes the condition as a side effect.
  *
  * Nothing in here can block indefinitely: no callback, no timer, no promise, no
- * event loop, and no unbounded retry. That is the whole point, and the exit
- * note at the bottom of parity.mjs says what happens when it is not honored.
+ * event loop, and no unbounded retry. The exit note at the bottom of parity.mjs
+ * says what happens when that is not honored.
  */
 import { writeSync } from 'node:fs';
 

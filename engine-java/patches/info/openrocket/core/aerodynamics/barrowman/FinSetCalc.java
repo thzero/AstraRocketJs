@@ -1056,15 +1056,14 @@ public class FinSetCalc extends RocketComponentCalc {
 		//
 		// PROVENANCE, measured rather than asserted:
 		//  - It is NOT anchored to the ARCAS fins-on/fins-off increment. That
-		//    increment (TN D-4013
-		//    CA,corr, Short: 0.073 / 0.078 / 0.080 at M0.60 / 0.70 / 0.80) also
-		//    contains the tunnel model's fin-anchor brackets, which RASAero
-		//    books in a SEPARATE Protuberance column (manual p.92 note; its
-		//    ARCAS deck slide 2 enters those anchors as a rail guide), plus fin
-		//    LE bluntness this kernel charges only when finLeRadius is given.
-		//    It is an UPPER BOUND on fin+interference drag, not a calibration
-		//    target - and taken literally it asks for 2.08x / 2.25x / 2.34x at
-		//    M0.60 / 0.70 / 0.80, not 1.8x.
+		//    increment (TN D-4013 CA,corr, Short: 0.073 / 0.078 / 0.080 at M0.60 /
+		//    0.70 / 0.80) also contains the tunnel model's fin-anchor brackets,
+		//    which RASAero books in a SEPARATE Protuberance column (manual p.92
+		//    note; its ARCAS deck slide 2 enters those anchors as a rail guide),
+		//    plus fin LE bluntness this kernel charges only when finLeRadius is
+		//    given. It is an UPPER BOUND on fin+interference drag, not a
+		//    calibration target - and taken literally it asks for 2.08x / 2.25x /
+		//    2.34x at M0.60 / 0.70 / 0.80, not 1.8x.
 		//  - It is NOT junction interference in the Hoerner sense: a junction is
 		//    a corner effect whose drag area scales with t^2, while this scales
 		//    with fin wetted area x Cf. Implied per-junction coefficient across

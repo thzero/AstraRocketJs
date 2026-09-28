@@ -16,7 +16,7 @@ test.describe('accessibility', () => {
     const dialog = page.getByRole('dialog').first();
     await expect(dialog).toBeVisible();
 
-    // The close button used to have no accessible name at all — just "✕".
+    // The close button carries a real accessible name, not just the ✕ glyph.
     await expect(dialog.getByRole('button', { name: 'Close' })).toBeVisible();
 
     // …and there was no keyboard way out of an aria-modal overlay.

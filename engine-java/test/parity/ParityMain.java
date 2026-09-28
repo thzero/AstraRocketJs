@@ -141,12 +141,13 @@ public final class ParityMain {
      * is not testing that TeaVM compiled our source faithfully, it is testing
      * that our stub agrees with the JDK it stands in for - the one comparison
      * in this harness where a mismatch means the stub is wrong rather than the
-     * compiler. Nothing printed a sorted list before, so the stub could
-     * disagree with the JDK indefinitely and no gate would notice.
+     * compiler. Without a sorted list printed here, the stub could disagree with
+     * the JDK indefinitely and no gate would notice.
      * <p>
      * {@code DesignationComparator} is the live consumer and it sorts at
      * PRIMARY, where "H128W" and "H128-W" must compare EQUAL and "AeroTech"
-     * must sort before "A-P". The old stub got that second one backwards.
+     * must sort before "A-P" - a raw case-sensitive tiebreak gets that second one
+     * backwards.
      */
     private static void collatorScenarios() {
         String[] names = {
@@ -172,9 +173,9 @@ public final class ParityMain {
             }
             System.out.println("collator.matrix|" + strengths[s] + "|" + row);
         }
-        // Strength must be per-instance: getInstance() used to hand back one
-        // shared singleton with a no-op setStrength, so two callers asking for
-        // different strengths silently got whichever was set last.
+        // Strength must be per-instance: a shared singleton with a no-op
+        // setStrength hands two callers asking for different strengths whichever
+        // was set last.
         java.text.Collator primary = java.text.Collator.getInstance(java.util.Locale.US);
         primary.setStrength(java.text.Collator.PRIMARY);
         java.text.Collator identical = java.text.Collator.getInstance(java.util.Locale.US);
@@ -210,8 +211,8 @@ public final class ParityMain {
             prefixes.add(s8);
             if (i == 0) first = u.toString();
         }
-        // 4096 distinct most-significant halves: the old counter managed 2048.
-        // Many distinct short keys: the old one managed exactly 1.
+        // 4096 distinct most-significant halves, and many distinct short keys: a
+        // raw counter yields 2048 and exactly 1 respectively.
         line("uuid.spread", msbs.size(), prefixes.size());
         // Exact value, so the two platforms must agree bit for bit.
         System.out.println("uuid.first|" + first);
