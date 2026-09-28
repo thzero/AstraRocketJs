@@ -18,6 +18,8 @@
     "shrink": "Przywróć to okno do normalnego rozmiaru"
   },
   "errors": {
+    "viewFailed": "Nie udało się załadować tego widoku.",
+    "staleBuild": "Aplikacja została zaktualizowana, gdy ta karta była otwarta, więc jej część nie znajduje się już na serwerze. Odśwież, aby pobrać nową wersję.",
     "openOrk": "Nie udało się otworzyć pliku .ork: {{reason}}",
     "openExample": "Nie udało się otworzyć tego przykładu: {{reason}}",
     "saveOrk": "Nie udało się zapisać pliku .ork: {{reason}}",
@@ -428,6 +430,7 @@
     "failedNamed": "„{{name}}” nie udała się: {{message}}",
     "noMotorNamed": "„{{name}}” nie ma użytecznego silnika.",
     "incomplete": "W „{{name}}” brakuje: {{fields}}.",
+    "windProfile": "„{{name}}” ma dwie warstwy wiatru na tej samej wysokości.",
     "badGeometry": "Najpierw popraw projekt: wymagany wymiar wynosi zero w {{parts}}.",
     "skipping_one": "Pominięto {{count}} symulację:",
     "skipping_few": "Pominięto {{count}} symulacje:",
@@ -1472,6 +1475,7 @@
     "turbulence": "Turbulencja",
     "intensity": "Intensywność",
     "noLevels": "Nie ma jeszcze poziomów wiatru.",
+    "duplicateAltitude": "Dwie warstwy mają tę samą wysokość. Każda warstwa potrzebuje własnej, a symulacja nie uruchomi się, dopóki jedna z nich nie zostanie przesunięta.",
     "addLevel": "Dodaj nowy poziom",
     "resetLevels": "Przywróć poziomy",
     "importLevels": "Zaimportuj poziomy",

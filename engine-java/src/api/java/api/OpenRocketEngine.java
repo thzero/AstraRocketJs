@@ -1,5 +1,6 @@
 package api;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1343,9 +1344,32 @@ public final class OpenRocketEngine {
             // altitude. clearLevels() drops the constructor's default level 0.
             MultiLevelPinkNoiseWindModel ml = new MultiLevelPinkNoiseWindModel();
             ml.clearLevels();
-            for (Map<String, Object> lvl : windLevels) {
+            List<Double> seen = new ArrayList<>();
+            for (int i = 0; i < windLevels.size(); i++) {
+                Map<String, Object> lvl = windLevels.get(i);
+                // The altitude is the level's IDENTITY here, not a quantity with
+                // a sensible zero: the kernel keys its levels on it and
+                // interpolates between them by it. Defaulting an absent or
+                // unreadable one to 0 therefore did not mean "ground level"
+                // harmlessly -- it dropped the layer onto the pad, where it
+                // either displaced the surface wind or collided with it and
+                // failed the whole run. A level that cannot say where it is is
+                // refused here, where the message can say which one it was.
+                double altitude = JsonLite.dbl(lvl, "altitude", Double.NaN);
+                if (!isFinite(altitude)) {
+                    throw new IllegalArgumentException(
+                            "wind level " + (i + 1) + " of " + windLevels.size() + " has no usable altitude");
+                }
+                // Said here rather than left to addWindLevel, which throws
+                // "Wind level already exists for altitude: 0.0" -- true, but it
+                // names neither the rows involved nor what to do about it.
+                if (seen.contains(Double.valueOf(altitude))) {
+                    throw new IllegalArgumentException("wind levels repeat the altitude " + altitude
+                            + " m (level " + (i + 1) + "); each level needs its own altitude");
+                }
+                seen.add(Double.valueOf(altitude));
                 ml.addWindLevel(
-                        JsonLite.dbl(lvl, "altitude", 0),
+                        altitude,
                         JsonLite.dbl(lvl, "speed", 0),
                         JsonLite.dbl(lvl, "direction", Math.PI / 2),
                         JsonLite.dbl(lvl, "stddev", 0));

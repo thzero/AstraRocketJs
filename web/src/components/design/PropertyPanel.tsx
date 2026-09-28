@@ -11,6 +11,7 @@ const ComponentPicker = lazy(() => import('./ComponentPicker').then((m) => ({ de
 // other half of the picker, and nothing needs either until a catalog part is
 // selected.
 const SavePartButton = lazy(() => import('./SavePartButton').then((m) => ({ default: m.SavePartButton })));
+import { ErrorBoundary } from '../common/ErrorBoundary';
 import { AppearanceSection } from './AppearanceSection';
 import { FreeformFinEditor } from './FreeformFinEditor';
 import { RecoverySizingReadout } from './RecoverySizingReadout';
@@ -166,21 +167,27 @@ export function PropertyPanel({
         </label>
 
         {hasCatalog(node.type) && (
-          <Suspense fallback={<div className="text-xs text-slate-500">{t('common.loading')}</div>}>
-            <div className="space-y-2">
-              <ComponentPicker
-                type={node.type as PickerType}
-                fit={fit}
-                // The link goes in with the dimensions: the desktop shows which
-                // catalog part a component is, and drops the link as soon as a
-                // dimension moves (see treeEdit.breaksPreset).
-                onApply={(p) => commitChange({ ...catalogPatch(p), ...presetRef(p) })}
-              />
-              {/* The other direction: take the part you just built and put it
-                  in the picker above, on this design and every other one. */}
-              <SavePartButton node={node} type={node.type as PickerType} />
-            </div>
-          </Suspense>
+          // Outside the Suspense, because it is the chunk FETCH that fails on
+          // a stale deploy and Suspense re-throws that rejection. Uncaught it
+          // took the whole app down over a picker; caught here, the dimensions
+          // below it stay editable.
+          <ErrorBoundary>
+            <Suspense fallback={<div className="text-xs text-slate-500">{t('common.loading')}</div>}>
+              <div className="space-y-2">
+                <ComponentPicker
+                  type={node.type as PickerType}
+                  fit={fit}
+                  // The link goes in with the dimensions: the desktop shows which
+                  // catalog part a component is, and drops the link as soon as a
+                  // dimension moves (see treeEdit.breaksPreset).
+                  onApply={(p) => commitChange({ ...catalogPatch(p), ...presetRef(p) })}
+                />
+                {/* The other direction: take the part you just built and put it
+                    in the picker above, on this design and every other one. */}
+                <SavePartButton node={node} type={node.type as PickerType} />
+              </div>
+            </Suspense>
+          </ErrorBoundary>
         )}
       </div>
 

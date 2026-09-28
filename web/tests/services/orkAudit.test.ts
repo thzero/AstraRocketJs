@@ -198,13 +198,25 @@ describe('one finite-number parse (finding 12)', () => {
     `<bodytube><name>B</name><length>0.3</length><radius>0.012</radius></bodytube></subcomponents></stage>` +
     `</subcomponents></rocket><simulations><simulation><name>x</name><conditions>${inner}</conditions></simulation></simulations></openrocket>`;
 
+  /**
+   * A level whose ALTITUDE is unreadable is now dropped rather than zeroed. The
+   * other three still fall back to 0, because a still layer is a meaningful
+   * reading; an altitude is not a quantity with a harmless zero but the level's
+   * identity to the kernel, which keys its levels on it. Zeroing one put a
+   * second level on the pad, where it either displaced the real surface wind or
+   * collided with it and failed every run (see services/windLevels).
+   */
   it('does not let Infinity through a wind level', () => {
-    const xml = sim(
+    const bad =
       '<wind model="multilevel" altituderef="MSL"><windlevel altitude="Infinity" speed="1e309" direction="NaN" standarddeviation=""/></wind>' +
-        '<windmodeltype>MultiLevel</windmodeltype>',
-    );
-    const level = importOrk(xml).launch!.windLevels![0]!;
-    expect(level).toEqual({ altitudeM: 0, speed: 0, directionDeg: 0, stddev: 0 });
+      '<windmodeltype>MultiLevel</windmodeltype>';
+    expect(importOrk(sim(bad)).launch!.windLevels).toBeUndefined();
+
+    const usable =
+      '<wind model="multilevel" altituderef="MSL"><windlevel altitude="300" speed="1e309" direction="NaN" standarddeviation=""/></wind>' +
+      '<windmodeltype>MultiLevel</windmodeltype>';
+    const level = importOrk(sim(usable)).launch!.windLevels![0]!;
+    expect(level).toEqual({ altitudeM: 300, speed: 0, directionDeg: 0, stddev: 0 });
   });
 
   it('reads a blank axial offset as 0 and a bad one as 0, never NaN', () => {

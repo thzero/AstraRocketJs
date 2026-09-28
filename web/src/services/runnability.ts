@@ -5,6 +5,7 @@ import type { UnitSymbols } from '../prefs/units';
 import { missingRequired, type RequiredLaunchKey } from './requiredLaunch';
 import { badDimensions, type BadDimension } from './requiredComponent';
 import { findMounts } from './treeEdit';
+import { duplicateAltitudeRows } from './windLevels';
 import { hasUsableCurve } from './motorCurve';
 import type { RocketTree } from '../engine/openRocketEngine';
 
@@ -32,6 +33,8 @@ export const hasThrustCurve = (m: MotorSpec | undefined | null): boolean => hasU
 export type UnflyableReason =
   | { kind: 'noMotor' }
   | { kind: 'incomplete'; missing: RequiredLaunchKey[] }
+  /** Two wind levels at one altitude — a profile the kernel will not build. */
+  | { kind: 'windProfile' }
   | { kind: 'limits'; violations: LimitViolation[] };
 
 export interface Unflyable {
@@ -53,6 +56,13 @@ export function unflyable(sim: Simulation): UnflyableReason | null {
   // rod angle is not "within 20 degrees of vertical", it is nothing to judge.
   const missing = missingRequired(sim.launch);
   if (missing.length) return { kind: 'incomplete', missing };
+  // Before the limits for the same reason: the codes are judged on the SURFACE
+  // level, and a profile with two levels at one altitude is not a profile the
+  // kernel will accept at all. It used to reach `simulate()` and come back as
+  // `engine simulate failed: Wind level already exists for altitude: 0.0` --
+  // the kernel naming its own internals, after the design was built, for
+  // something the profile editor let the user type.
+  if (duplicateAltitudeRows(sim.launch.windLevels ?? []).length) return { kind: 'windProfile' };
   const violations = launchLimitViolations(sim.launch);
   return violations.length ? { kind: 'limits', violations } : null;
 }
@@ -86,6 +96,7 @@ export function unflyableText(
     const fields = u.reason.missing.map((k) => t(`launch.field.${k}`)).join(', ');
     return t('sim.incomplete', { name: u.name, fields });
   }
+  if (u.reason.kind === 'windProfile') return t('sim.windProfile', { name: u.name });
   return `${t('limits.refused', { name: u.name })} ${u.reason.violations.map((v) => limitText(v, t, units)).join(' ')}`;
 }
 

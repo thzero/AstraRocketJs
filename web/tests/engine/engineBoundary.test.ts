@@ -252,6 +252,52 @@ describe('error envelopes, from the Java side', () => {
     expect(() => engine.setMotorIgnitionById(h, 'tube', 'launch', 1)).not.toThrow();
   });
 
+  /**
+   * A wind level's ALTITUDE is its identity to the kernel:
+   * `MultiLevelPinkNoiseWindModel` binary-searches its sorted list to insert
+   * one and throws on a collision. The bridge read it as
+   * `JsonLite.dbl(lvl, "altitude", 0)`, so an absent or unreadable altitude
+   * became a level at the pad - which either displaced the real surface wind or
+   * collided with the ground level and failed the run with the kernel naming
+   * its own internals. Both faults are refused here, by name.
+   */
+  it('refuses a wind level that cannot say where it is', () => {
+    const fly = (windLevels: unknown[]) => {
+      const d = build();
+      d.setMotorById('tube', C6);
+      return () => d.simulate({ launchRodLength: 1, randomSeed: 7, windLevels } as never);
+    };
+    const level = (o: Record<string, unknown>) => ({ speed: 4, direction: Math.PI / 2, stddev: 0, ...o });
+
+    expect(fly([level({})])).toThrow(/altitude/i);
+    // JSON.stringify writes NaN and Infinity as null, so the bridge sees an
+    // absent value and takes its default — which is now NaN, not 0.
+    expect(fly([level({ altitude: NaN })])).toThrow(/altitude/i);
+    expect(fly([level({ altitude: Infinity })])).toThrow(/altitude/i);
+    expect(fly([level({ altitude: 'high' })])).toThrow(/altitude/i);
+  });
+
+  it('refuses two wind levels at one altitude, naming the row', () => {
+    const d = build();
+    d.setMotorById('tube', C6);
+    const level = (altitude: number, speed: number) => ({ altitude, speed, direction: Math.PI / 2, stddev: 0 });
+    expect(() =>
+      d.simulate({ launchRodLength: 1, randomSeed: 7, windLevels: [level(0, 4), level(0, 9)] } as never),
+    ).toThrow(/repeat|level 2/i);
+  });
+
+  it('still flies a profile with one level per altitude', () => {
+    const d = build();
+    d.setMotorById('tube', C6);
+    const level = (altitude: number, speed: number) => ({ altitude, speed, direction: Math.PI / 2, stddev: 0 });
+    const out = d.simulate({
+      launchRodLength: 1,
+      randomSeed: 7,
+      windLevels: [level(0, 2), level(600, 9)],
+    } as never);
+    expect(out.summary.maxAltitude).toBeGreaterThan(0);
+  });
+
   it('still runs a sane sweep', () => {
     const sweep = build().aeroSweep({ machMin: 0.1, machMax: 0.3, machStep: 0.1 });
     expect(sweep.machs.length).toBeGreaterThan(1);

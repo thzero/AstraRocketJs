@@ -18,6 +18,8 @@
     "shrink": "Return this dialog to its normal size"
   },
   "errors": {
+    "viewFailed": "This view could not be loaded.",
+    "staleBuild": "The app was updated while this tab was open, so part of it is no longer on the server. Reload to get the new build.",
     "openOrk": "Could not open .ork: {{reason}}",
     "openExample": "Could not open that example: {{reason}}",
     "saveOrk": "Could not save .ork: {{reason}}",
@@ -426,6 +428,7 @@
     "failedNamed": "\"{{name}}\" failed: {{message}}",
     "noMotorNamed": "\"{{name}}\" has no usable motor.",
     "incomplete": "\"{{name}}\" is missing: {{fields}}.",
+    "windProfile": "\"{{name}}\" has two wind levels at the same altitude.",
     "badGeometry": "Fix the design first — a required dimension is zero: {{parts}}.",
     "skipping_one": "Skipping {{count}} simulation:",
     "skipping_other": "Skipping {{count}} simulations:",
@@ -1456,6 +1459,7 @@
     "turbulence": "Turbulence",
     "intensity": "Intensity",
     "noLevels": "No wind levels yet.",
+    "duplicateAltitude": "Two levels share an altitude. Each level needs its own, and the simulation cannot run until one of them moves.",
     "addLevel": "Add new level",
     "resetLevels": "Reset levels",
     "importLevels": "Import levels",

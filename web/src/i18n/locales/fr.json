@@ -18,6 +18,8 @@
     "shrink": "Rendre à cette boîte de dialogue sa taille normale"
   },
   "errors": {
+    "viewFailed": "Cette vue n'a pas pu être chargée.",
+    "staleBuild": "L'application a été mise à jour pendant que cet onglet était ouvert, donc une partie n'est plus sur le serveur. Rechargez pour obtenir la nouvelle version.",
     "openOrk": "Impossible d'ouvrir le .ork : {{reason}}",
     "openExample": "Impossible d'ouvrir cet exemple : {{reason}}",
     "saveOrk": "Impossible d'enregistrer le .ork : {{reason}}",
@@ -427,6 +429,7 @@
     "failedNamed": "Échec de « {{name}} » : {{message}}",
     "noMotorNamed": "« {{name}} » n'a aucun moteur utilisable.",
     "incomplete": "Il manque à « {{name}} » : {{fields}}.",
+    "windProfile": "« {{name}} » a deux couches de vent à la même altitude.",
     "badGeometry": "Corrigez d'abord la conception – une dimension requise est nulle : {{parts}}.",
     "skipping_one": "{{count}} simulation ignorée :",
     "skipping_many": "{{count}} simulations ignorées :",
@@ -1464,6 +1467,7 @@
     "turbulence": "Turbulence",
     "intensity": "Intensité",
     "noLevels": "Aucune couche de vent pour l'instant.",
+    "duplicateAltitude": "Deux couches partagent la même altitude. Chaque couche a besoin de la sienne, et la simulation ne peut pas s'exécuter avant que l'une des deux soit déplacée.",
     "addLevel": "Ajouter une couche",
     "resetLevels": "Réinitialiser les couches",
     "importLevels": "Importer des couches",

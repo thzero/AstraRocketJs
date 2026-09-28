@@ -29,6 +29,7 @@ import { LoadedBanner } from './LoadedBanner';
 import { FlightEventsTable } from '../sim/FlightEventsTable';
 import { SimSummary } from '../sim/SimSummary';
 import { useIsDesktop } from '../common/useMediaQuery';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 import { FlightWarnings } from '../sim/FlightWarnings';
 
 // three.js is heavy, so the 3D views are code-split — their chunks load only when
@@ -424,17 +425,23 @@ export function CenterView() {
                 )}
               </div>
             ) : view === '3d' ? (
-              <Suspense fallback={loading}>
-                <Rocket3D
-                  tree={tree}
-                  info={info}
-                  motors={motors}
-                  selectedId={selectedId}
-                  onSelect={onSelect}
-                  showMarkers={showMarkers}
-                  exportData={exportData}
-                />
-              </Suspense>
+              // Outside the Suspense: it is the chunk FETCH that fails on a
+              // stale deploy, and Suspense re-throws that rejection rather than
+              // holding it. Without something above to catch it the throw takes
+              // the whole app down, not just this canvas.
+              <ErrorBoundary>
+                <Suspense fallback={loading}>
+                  <Rocket3D
+                    tree={tree}
+                    info={info}
+                    motors={motors}
+                    selectedId={selectedId}
+                    onSelect={onSelect}
+                    showMarkers={showMarkers}
+                    exportData={exportData}
+                  />
+                </Suspense>
+              </ErrorBoundary>
             ) : view === 'flight' ? (
               // Keyed on the simulation: a different flight gets a fresh chart
               // (trace selection and zoom start over), while a re-run of the
@@ -446,18 +453,20 @@ export function CenterView() {
               <div className="relative h-full p-2">
                 {pathResult ? (
                   <>
-                    <Suspense fallback={loading}>
-                      {/* One rocket is animated, so this follows the picker's
-                          FIRST choice rather than overlaying like the charts and
-                          the ground track do. */}
-                      <FlightPath3D
-                        result={pathResult}
-                        tree={tree}
-                        motors={motors}
-                        latitudeDeg={flight?.launch.latitudeDeg}
-                        longitudeDeg={flight?.launch.longitudeDeg}
-                      />
-                    </Suspense>
+                    <ErrorBoundary>
+                      <Suspense fallback={loading}>
+                        {/* One rocket is animated, so this follows the picker's
+                            FIRST choice rather than overlaying like the charts and
+                            the ground track do. */}
+                        <FlightPath3D
+                          result={pathResult}
+                          tree={tree}
+                          motors={motors}
+                          latitudeDeg={flight?.launch.latitudeDeg}
+                          longitudeDeg={flight?.launch.longitudeDeg}
+                        />
+                      </Suspense>
+                    </ErrorBoundary>
                     <div className="pointer-events-none absolute inset-x-0 top-5 z-10 flex justify-center">
                       <div className="pointer-events-auto">
                         <FlightPathExport variant="overlay" />

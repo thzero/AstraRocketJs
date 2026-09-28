@@ -18,6 +18,8 @@
     "shrink": "このダイアログを元の大きさに戻す"
   },
   "errors": {
+    "viewFailed": "このビューを読み込めませんでした。",
+    "staleBuild": "このタブを開いている間にアプリが更新されたため、一部がサーバー上にありません。再読み込みして新しいビルドを取得してください。",
     "openOrk": ".ork を開けませんでした：{{reason}}",
     "openExample": "そのサンプルを開けませんでした：{{reason}}",
     "saveOrk": ".ork を保存できませんでした：{{reason}}",
@@ -425,6 +427,7 @@
     "failedNamed": "「{{name}}」が失敗しました：{{message}}",
     "noMotorNamed": "「{{name}}」に使えるモーターがありません。",
     "incomplete": "「{{name}}」に不足があります：{{fields}}。",
+    "windProfile": "「{{name}}」に同じ高度の風レイヤーが 2 つあります。",
     "badGeometry": "先に設計を修正してください。必須の寸法が 0 になっています：{{parts}}。",
     "skipping_other": "{{count}} 件のシミュレーションをスキップします：",
     "timeout": "シミュレーションに時間がかかりすぎたため停止しました。もう一度試すか、設計を簡単にしてください。",
@@ -1448,6 +1451,7 @@
     "turbulence": "乱流",
     "intensity": "強度",
     "noLevels": "風の層がまだありません。",
+    "duplicateAltitude": "2 つのレイヤーが同じ高度にあります。各レイヤーには固有の高度が必要で、どちらかを動かすまでシミュレーションは実行できません。",
     "addLevel": "新しい層を追加",
     "resetLevels": "層をリセット",
     "importLevels": "層を取り込む",

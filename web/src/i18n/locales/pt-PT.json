@@ -18,6 +18,8 @@
     "shrink": "Devolver esta janela ao tamanho normal"
   },
   "errors": {
+    "viewFailed": "Não foi possível carregar esta vista.",
+    "staleBuild": "A aplicação foi atualizada enquanto este separador estava aberto, pelo que parte dela já não está no servidor. Recarregue para obter a nova versão.",
     "openOrk": "Não foi possível abrir o .ork: {{reason}}",
     "openExample": "Não foi possível abrir esse exemplo: {{reason}}",
     "saveOrk": "Não foi possível guardar o .ork: {{reason}}",
@@ -427,6 +429,7 @@
     "failedNamed": "\"{{name}}\" falhou: {{message}}",
     "noMotorNamed": "\"{{name}}\" não tem um motor utilizável.",
     "incomplete": "Falta em \"{{name}}\": {{fields}}.",
+    "windProfile": "\"{{name}}\" tem dois níveis de vento na mesma altitude.",
     "badGeometry": "Corrija primeiro o projeto: uma dimensão obrigatória está a zero em {{parts}}.",
     "skipping_one": "A ignorar {{count}} simulação:",
     "skipping_many": "A ignorar {{count}} simulações:",
@@ -1464,6 +1467,7 @@
     "turbulence": "Turbulência",
     "intensity": "Intensidade",
     "noLevels": "Ainda não há níveis de vento.",
+    "duplicateAltitude": "Dois níveis estão na mesma altitude. Cada nível precisa da sua própria, e a simulação não pode correr até que um deles seja movido.",
     "addLevel": "Acrescentar um nível",
     "resetLevels": "Restaurar os níveis",
     "importLevels": "Importar níveis",

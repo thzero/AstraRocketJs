@@ -57,6 +57,7 @@ async function loadWasm(): Promise<any> {
 
 const NOSE = { type: 'nosecone', id: 'n', shape: 'ogive', length: 0.07, aftRadius: 0.013, thickness: 0.001 };
 const TUBE = { type: 'bodytube', id: 'b', length: 0.3, outerRadius: 0.013, thickness: 0.0005 };
+const MOUNT = { type: 'bodytube', id: 'm', length: 0.1, outerRadius: 0.013, thickness: 0.0005, motorMount: true };
 const tree = (extra: unknown[] = []) => JSON.stringify({ components: [NOSE, TUBE, ...extra] });
 
 /** What a call did, without caring which mechanism reported it. */
@@ -136,6 +137,38 @@ describe('the shipped WASM-GC build enforces the same input bounds as JS', () =>
       /instanceCount/,
     ],
     [
+      'a wind level with no usable altitude is refused, not flown at 0 m',
+      (e) => {
+        const h = e.buildRocket(tree([MOUNT]));
+        e.setMotorById(h, 'm', 'C6', 0.018, 0.07, [0, 1, 2], [0, 6, 0], [0.024, 0.018, 0.012], 0.035, 5);
+        // A level's altitude is its IDENTITY to the kernel, which keys its
+        // levels on it, so the bridge's `JsonLite.dbl(lvl, "altitude", 0)` put
+        // an unnamed layer on the pad rather than refusing it.
+        return e.simulateJson(
+          h,
+          JSON.stringify({
+            launchRodLength: 1,
+            randomSeed: 7,
+            windLevels: [{ speed: 4, direction: Math.PI / 2, stddev: 0 }],
+          }),
+        );
+      },
+      /altitude/i,
+    ],
+    [
+      'two wind levels at one altitude are refused by name',
+      (e) => {
+        const h = e.buildRocket(tree([MOUNT]));
+        e.setMotorById(h, 'm', 'C6', 0.018, 0.07, [0, 1, 2], [0, 6, 0], [0.024, 0.018, 0.012], 0.035, 5);
+        const level = (altitude: number, speed: number) => ({ altitude, speed, direction: Math.PI / 2, stddev: 0 });
+        return e.simulateJson(
+          h,
+          JSON.stringify({ launchRodLength: 1, randomSeed: 7, windLevels: [level(0, 4), level(0, 9)] }),
+        );
+      },
+      /repeat|level 2/i,
+    ],
+    [
       'an over-large aero sweep is refused',
       (e) => {
         const h = e.buildRocket(tree());
@@ -186,7 +219,6 @@ describe('the shipped WASM-GC build enforces the same input bounds as JS', () =>
 
   it('a non-finite ignition delay is refused by the kernel itself, not only by the wrapper', () => {
     wasm.reset();
-    const MOUNT = { type: 'bodytube', id: 'm', length: 0.1, outerRadius: 0.013, thickness: 0.0005, motorMount: true };
     const h = wasm.buildRocket(tree([MOUNT]));
     wasm.setMotorById(h, 'm', 'C6', 0.018, 0.07, [0, 1, 2], [0, 6, 0], [0.024, 0.018, 0.012], 0.035, 5);
     // `setMotorIgnitionById` returns void, so there is no envelope to carry a

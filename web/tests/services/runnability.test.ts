@@ -52,6 +52,42 @@ describe('unflyable', () => {
     expect(unflyable(sim('x', { motor: { designation: 'M' } as never }))?.kind).toBe('noMotor');
   });
 
+  /**
+   * The kernel keys its wind levels on altitude and throws on the second one at
+   * a given height, so this used to come back from `simulate()` as
+   * `engine simulate failed: Wind level already exists for altitude: 0.0` --
+   * after the design was built, in the kernel's words, for something the
+   * profile editor let the user type. The gate names it before the run starts.
+   */
+  it('refuses a wind profile with two levels at one altitude', () => {
+    const doubled = sim('x', {
+      launch: {
+        ...launch,
+        windLevels: [
+          { altitudeM: 0, speed: 4, directionDeg: 90, stddev: 0 },
+          { altitudeM: 0, speed: 9, directionDeg: 120, stddev: 0 },
+        ],
+      },
+    });
+    expect(unflyable(doubled)?.kind).toBe('windProfile');
+    expect(unflyableText({ id: 'x', name: 'Windy', reason: { kind: 'windProfile' } }, t, units)).toContain(
+      'sim.windProfile',
+    );
+  });
+
+  it('passes a profile with one level per altitude', () => {
+    const fine = sim('x', {
+      launch: {
+        ...launch,
+        windLevels: [
+          { altitudeM: 0, speed: 4, directionDeg: 90, stddev: 0 },
+          { altitudeM: 600, speed: 9, directionDeg: 120, stddev: 0 },
+        ],
+      },
+    });
+    expect(unflyable(fine)).toBeNull();
+  });
+
   it('reports launch conditions outside the safety codes', () => {
     const hot = sim('x', { launch: { ...launch, windAverage: MAX_WIND_SPEED_MS + 1 } });
     const r = unflyable(hot);

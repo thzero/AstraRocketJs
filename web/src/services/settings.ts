@@ -2,6 +2,7 @@ import type { PartKey } from './partColors';
 import type { CompleteLaunch } from './requiredLaunch';
 import { DEFAULT_HEADING_DEG } from './simulations';
 import { DEFAULT_CSV_COLUMNS } from './flightColumns';
+import { usableWindLevels } from './windLevels';
 import {
   METRIC_UNITS,
   UNIT_CHOICES,
@@ -662,16 +663,14 @@ export function loadSettings(): Settings {
         // reaches simConditions() and then simulate() for each new simulation,
         // and `Array.isArray` let a stored [{altitudeM: "x", speed: null}]
         // walk straight into the kernel.
+        // `usableWindLevels` rather than a finiteness filter written out here:
+        // a stored profile carrying two levels at ONE altitude is just as
+        // unusable as one carrying a string, and the kernel refuses it the same
+        // way. The rule lives in services/windLevels, next to the run gate and
+        // the .ork reader that need the same answer.
         if (l.windLevels !== undefined) {
           l.windLevels = Array.isArray(l.windLevels)
-            ? l.windLevels.filter(
-                (w: unknown) =>
-                  !!w &&
-                  typeof w === 'object' &&
-                  ['altitudeM', 'speed', 'directionDeg', 'stddev'].every((k) =>
-                    Number.isFinite((w as Record<string, unknown>)[k]),
-                  ),
-              )
+            ? usableWindLevels(l.windLevels)
             : DEFAULT_SETTINGS.launchDefaults.windLevels;
         }
         return l;

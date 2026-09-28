@@ -18,6 +18,8 @@
     "shrink": "Dit venster weer op normale grootte zetten"
   },
   "errors": {
+    "viewFailed": "Deze weergave kon niet worden geladen.",
+    "staleBuild": "De app is bijgewerkt terwijl dit tabblad open stond, dus een deel staat niet meer op de server. Herlaad om de nieuwe versie te krijgen.",
     "openOrk": "Kon het .ork-bestand niet openen: {{reason}}",
     "openExample": "Kon dat voorbeeld niet openen: {{reason}}",
     "saveOrk": "Kon het .ork-bestand niet opslaan: {{reason}}",
@@ -426,6 +428,7 @@
     "failedNamed": "\"{{name}}\" is mislukt: {{message}}",
     "noMotorNamed": "\"{{name}}\" heeft geen bruikbare motor.",
     "incomplete": "In \"{{name}}\" ontbreekt: {{fields}}.",
+    "windProfile": "\"{{name}}\" heeft twee windlagen op dezelfde hoogte.",
     "badGeometry": "Repareer eerst het ontwerp: een verplichte maat staat op nul bij {{parts}}.",
     "skipping_one": "{{count}} simulatie wordt overgeslagen:",
     "skipping_other": "{{count}} simulaties worden overgeslagen:",
@@ -1456,6 +1459,7 @@
     "turbulence": "Turbulentie",
     "intensity": "Intensiteit",
     "noLevels": "Nog geen windlagen.",
+    "duplicateAltitude": "Twee lagen staan op dezelfde hoogte. Elke laag heeft een eigen hoogte nodig, en de simulatie kan niet lopen totdat een van beide wordt verplaatst.",
     "addLevel": "Nieuwe laag toevoegen",
     "resetLevels": "Lagen herstellen",
     "importLevels": "Lagen importeren",

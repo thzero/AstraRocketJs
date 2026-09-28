@@ -18,6 +18,8 @@
     "shrink": "Dieses Fenster auf die normale Größe zurücksetzen"
   },
   "errors": {
+    "viewFailed": "Diese Ansicht konnte nicht geladen werden.",
+    "staleBuild": "Die App wurde aktualisiert, während dieser Tab offen war, daher liegt ein Teil davon nicht mehr auf dem Server. Laden Sie neu, um die neue Version zu erhalten.",
     "openOrk": ".ork konnte nicht geöffnet werden: {{reason}}",
     "openExample": "Dieses Beispiel konnte nicht geöffnet werden: {{reason}}",
     "saveOrk": ".ork konnte nicht gespeichert werden: {{reason}}",
@@ -426,6 +428,7 @@
     "failedNamed": "„{{name}}“ fehlgeschlagen: {{message}}",
     "noMotorNamed": "„{{name}}“ hat keinen nutzbaren Motor.",
     "incomplete": "„{{name}}“ fehlt: {{fields}}.",
+    "windProfile": "„{{name}}“ hat zwei Windschichten in derselben Höhe.",
     "badGeometry": "Korrigieren Sie zuerst den Entwurf – eine erforderliche Abmessung ist null: {{parts}}.",
     "skipping_one": "{{count}} Simulation wird übersprungen:",
     "skipping_other": "{{count}} Simulationen werden übersprungen:",
@@ -1456,6 +1459,7 @@
     "turbulence": "Turbulenz",
     "intensity": "Intensität",
     "noLevels": "Noch keine Windschichten.",
+    "duplicateAltitude": "Zwei Schichten liegen in derselben Höhe. Jede Schicht braucht ihre eigene Höhe, und die Simulation läuft erst, wenn eine davon verschoben wird.",
     "addLevel": "Neue Schicht hinzufügen",
     "resetLevels": "Schichten zurücksetzen",
     "importLevels": "Schichten importieren",

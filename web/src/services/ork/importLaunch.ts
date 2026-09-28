@@ -1,6 +1,7 @@
 import type { LaunchConditions } from '../orkTree';
 import { xmlText as text } from '../xmlUtil';
 import { stdDevForIntensity } from '../windTurbulence';
+import { usableWindLevels } from '../windLevels';
 import { finiteNum } from './numbers';
 import { numTag } from './importTags';
 
@@ -84,12 +85,21 @@ function readWind(condEl: Element, launch: Partial<LaunchConditions>): void {
   if (mlEl && windModelType.includes('multilevel')) {
     // finiteNum, not `parseFloat(x) || 0`: that let "Infinity" through as a
     // wind speed, and the kernel's wind model has no answer for it.
-    const levels = Array.from(mlEl.querySelectorAll(':scope > windlevel')).map((w) => ({
-      altitudeM: finiteNum(w.getAttribute('altitude')) ?? 0,
-      speed: finiteNum(w.getAttribute('speed')) ?? 0,
-      directionDeg: ((finiteNum(w.getAttribute('direction')) ?? 0) * 180) / Math.PI,
-      stddev: finiteNum(w.getAttribute('standarddeviation')) ?? 0,
-    }));
+    //
+    // The altitude has no `?? 0`, unlike the other three: it is the level's
+    // IDENTITY to the kernel, which keys its levels on it. A file that omits or
+    // garbles one used to import as a second level at 0 m, which either
+    // displaced the real surface wind or collided with it and failed every run
+    // with `Wind level already exists for altitude: 0.0`. `usableWindLevels`
+    // drops it, and drops a file's own repeated altitude the same way.
+    const levels = usableWindLevels(
+      Array.from(mlEl.querySelectorAll(':scope > windlevel')).map((w) => ({
+        altitudeM: finiteNum(w.getAttribute('altitude')),
+        speed: finiteNum(w.getAttribute('speed')) ?? 0,
+        directionDeg: ((finiteNum(w.getAttribute('direction')) ?? 0) * 180) / Math.PI,
+        stddev: finiteNum(w.getAttribute('standarddeviation')) ?? 0,
+      })),
+    );
     if (levels.length) launch.windLevels = levels;
     // MSL unless the file says AGL. The desktop carries it as an ATTRIBUTE on
     // the <wind> element (OpenRocketSaver.java:367 writes

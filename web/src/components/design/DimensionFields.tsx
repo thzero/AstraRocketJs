@@ -244,6 +244,26 @@ export function FieldRow({
     onChange(patch);
     onCommit?.();
   };
+  /**
+   * Write a converted number to the node, or nothing if the conversion
+   * overflowed.
+   *
+   * `NumberInput` refuses a non-finite ENTRY (see `parseFieldValue`), but a
+   * finite entry is not a finite STORED value: the box holds display units and
+   * the node holds SI, so 1e306 g/cm3 is 1e309 kg/m3, which is Infinity. That
+   * went straight into the node, through the mass and the mesh, and out to the
+   * `.ork` as `Infinity` -- which the reader takes back as 0, so the field
+   * showed a number the geometry had never had.
+   *
+   * Every numeric branch below converts, and they are the only place this can
+   * happen, so the guard sits on the one way out rather than in each of them.
+   * The whole patch is dropped, not the bad key: a `derived` field writes two
+   * linked numbers, and half of that pair is worse than neither.
+   */
+  const patchNumber = (patch: Partial<ComponentNode>) => {
+    if (Object.values(patch).some((v) => typeof v === 'number' && !Number.isFinite(v))) return;
+    onChange(patch);
+  };
   /** The follow-something-else switch for a field that declares one. */
   const autoProp = () =>
     f.auto
@@ -320,7 +340,7 @@ export function FieldRow({
         // Clamped at the SOURCE as well as in every consumer: the field had a
         // floor and no ceiling, so the count reached the node and was
         // persisted and exported before any renderer saw it.
-        onChange: (v) => onChange({ [f.key]: Math.min(MAX_INSTANCE_COUNT, Math.max(1, Math.round(v))) }),
+        onChange: (v) => patchNumber({ [f.key]: Math.min(MAX_INSTANCE_COUNT, Math.max(1, Math.round(v))) }),
       });
     case 'mass': {
       const fu = u.at(scope, 'mass');
@@ -328,7 +348,7 @@ export function FieldRow({
         unit: <UnitChip quantity="mass" scope={scope} />,
         value: fu.toUi(num(node, f.key)),
         step: fu.step(0.0005),
-        onChange: (v) => onChange({ [f.key]: fu.fromUi(v) }),
+        onChange: (v) => patchNumber({ [f.key]: fu.fromUi(v) }),
       });
     }
     case 'distance': {
@@ -337,7 +357,7 @@ export function FieldRow({
         unit: <UnitChip quantity="distance" scope={scope} />,
         value: fu.toUi(num(node, f.key)),
         step: fu.step(f.step ?? 10),
-        onChange: (v) => onChange({ [f.key]: fu.fromUi(v) }),
+        onChange: (v) => patchNumber({ [f.key]: fu.fromUi(v) }),
       });
     }
     case 'number': {
@@ -351,7 +371,7 @@ export function FieldRow({
         step: f.step ?? 0.1,
         max: paramMax,
         ...autoProp(),
-        onChange: (v) => onChange({ [f.key]: paramMax === undefined ? v : Math.min(paramMax, Math.max(0, v)) }),
+        onChange: (v) => patchNumber({ [f.key]: paramMax === undefined ? v : Math.min(paramMax, Math.max(0, v)) }),
       });
     }
     case 'angle': {
@@ -364,7 +384,7 @@ export function FieldRow({
         min: -fu.toUi(Math.PI),
         step: fu.step(((f.step ?? 5) * Math.PI) / 180),
         value: fu.toUi(num(node, f.key)),
-        onChange: (v) => onChange({ [f.key]: fu.fromUi(v) }),
+        onChange: (v) => patchNumber({ [f.key]: fu.fromUi(v) }),
       });
     }
     case 'bore': {
@@ -394,7 +414,7 @@ export function FieldRow({
           // Floored as well as clamped: the unit round trip leaves dust, and a
           // wall of -1.7e-18 is a negative thickness heading for the mass, the
           // mesh and the .ork, none of which check for one.
-          onChange({ thickness: Math.max(0, (od - bore) / 2) });
+          patchNumber({ thickness: Math.max(0, (od - bore) / 2) });
         },
       });
     }
@@ -409,7 +429,7 @@ export function FieldRow({
       // A bare ratio has no unit group and no chip, so it also has no scope to
       // convert through: it is read and written as itself.
       const fu = d.quantity ? u.at(scope, d.quantity) : undefined;
-      const patch = (v: number) => onChange(d.write(node, fu ? fu.fromUi(v) : v));
+      const patch = (v: number) => patchNumber(d.write(node, fu ? fu.fromUi(v) : v));
       const value = d.read(node);
       const bound = (v: number | undefined) => (v === undefined ? undefined : Number((fu ? fu.toUi(v) : v).toFixed(6)));
       return numeric({
@@ -439,7 +459,7 @@ export function FieldRow({
         value: fu.toUi(k * num(node, f.key)),
         step: fu.step(0.0005),
         ...autoProp(),
-        onChange: (v) => onChange({ [f.key]: fu.fromUi(v) / k }),
+        onChange: (v) => patchNumber({ [f.key]: fu.fromUi(v) / k }),
       });
     }
   }

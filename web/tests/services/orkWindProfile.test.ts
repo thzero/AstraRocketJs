@@ -114,6 +114,43 @@ describe('multilevel wind profile round-trips through .ork', () => {
     expect(importOrk(xml).launch?.windAltitudeReference).toBe('agl');
   });
 
+  /**
+   * The altitude is the level's IDENTITY to the kernel, not a quantity with a
+   * harmless zero. `?? 0` therefore did not mean "assume ground level": it put
+   * a second level on the pad, where it either displaced the real surface wind
+   * or collided with it and failed every run with the kernel's
+   * `Wind level already exists for altitude: 0.0`.
+   */
+  it('drops a level whose altitude the file does not give, rather than landing it on the pad', () => {
+    const withBadLevels = (levels: string) =>
+      `<openrocket version="1.10" creator="OpenRocket 24.12"><rocket><name>W</name><subcomponents><stage><name>S</name>` +
+      `<subcomponents><bodytube><name>B</name><length>0.3</length><radius>0.012</radius></bodytube></subcomponents>` +
+      `</stage></subcomponents></rocket><simulations><simulation status="notsimulated"><name>Simulation 1</name>` +
+      `<simulator>RK4Simulator</simulator><calculator>BarrowmanCalculator</calculator><conditions>` +
+      `<wind model="multilevel" altituderef="MSL">${levels}</wind>` +
+      `<windmodeltype>MultiLevel</windmodeltype><atmosphere model="isa"/></conditions></simulation></simulations></openrocket>`;
+
+    const missing = importOrk(
+      withBadLevels(
+        `<windlevel altitude="0.0" speed="2.0" direction="1.57" standarddeviation="0.2"/>` +
+          `<windlevel speed="6.0" direction="2.09" standarddeviation="1.2"/>` +
+          `<windlevel altitude="nonsense" speed="7.0" direction="2.09"/>` +
+          `<windlevel altitude="500.0" speed="6.0" direction="2.09" standarddeviation="1.2"/>`,
+      ),
+    ).launch?.windLevels;
+    expect(missing?.map((l) => l.altitudeM)).toEqual([0, 500]);
+
+    // A file that repeats an altitude is refused the same way, first row wins.
+    const repeated = importOrk(
+      withBadLevels(
+        `<windlevel altitude="0.0" speed="2.0" direction="1.57"/>` +
+          `<windlevel altitude="0.0" speed="9.0" direction="1.57"/>`,
+      ),
+    ).launch?.windLevels;
+    expect(repeated).toHaveLength(1);
+    expect(repeated![0]!.speed).toBe(2);
+  });
+
   it('still writes the average model when there is no profile', () => {
     const xml = exportOrk({ name: 'Wind', tree, launch: base });
     expect(xml).toContain('<windmodeltype>Average</windmodeltype>');
