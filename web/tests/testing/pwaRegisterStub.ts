@@ -13,6 +13,7 @@
 export function useRegisterSW(_options?: {
   onRegisteredSW?: (url: string, registration: ServiceWorkerRegistration | undefined) => void;
   onRegisterError?: (error: unknown) => void;
+  onNeedRefresh?: () => void;
 }): {
   needRefresh: [boolean, (v: boolean) => void];
   offlineReady: [boolean, (v: boolean) => void];

@@ -6,6 +6,8 @@ import {
   dueForCheck,
   promptDue,
   snoozeUntil,
+  readyToApplyHidden,
+  UPDATE_APPLY_HIDDEN_MS,
 } from '../../src/services/updateCheck';
 
 const T = 1_700_000_000_000;
@@ -57,5 +59,40 @@ describe('the intervals themselves', () => {
     expect(UPDATE_SNOOZE_MS).toBeGreaterThanOrEqual(UPDATE_POLL_MS);
     expect(snoozeUntil(T)).toBe(T + UPDATE_SNOOZE_MS);
     expect(snoozeUntil(T, 1000)).toBe(T + 1000);
+  });
+});
+
+describe('applying an update nobody answered', () => {
+  const hidden = T - UPDATE_APPLY_HIDDEN_MS;
+
+  it('waits for a worker to actually be there', () => {
+    expect(readyToApplyHidden(false, hidden, false, T)).toBe(false);
+  });
+
+  it('does nothing while the tab is on screen', () => {
+    // `null` is the visible tab: there is no moment it went hidden.
+    expect(readyToApplyHidden(true, null, false, T)).toBe(false);
+  });
+
+  it('holds off until the tab has been hidden long enough, boundary included', () => {
+    // A glance at another tab is not walking away, and reloading under a glance
+    // is the interruption `prompt` exists to prevent.
+    expect(readyToApplyHidden(true, T - 1, false, T)).toBe(false);
+    expect(readyToApplyHidden(true, hidden + 1, false, T)).toBe(false);
+    expect(readyToApplyHidden(true, hidden, false, T)).toBe(true);
+    expect(readyToApplyHidden(true, hidden - 1, false, T)).toBe(true);
+  });
+
+  it('never throws away a flight that is still in the air', () => {
+    // The sims run in a worker pool and keep going while the tab is hidden, so
+    // "nobody is looking" is not the same as "nothing is happening".
+    expect(readyToApplyHidden(true, hidden, true, T)).toBe(false);
+    // …and comes back to it once the batch lands, rather than giving up.
+    expect(readyToApplyHidden(true, hidden, false, T)).toBe(true);
+  });
+
+  it('takes the threshold the caller names', () => {
+    expect(readyToApplyHidden(true, T - 1000, false, T, 1000)).toBe(true);
+    expect(readyToApplyHidden(true, T - 999, false, T, 1000)).toBe(false);
   });
 });
