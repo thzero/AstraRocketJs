@@ -5,10 +5,10 @@ import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { freeformPoints } from '../../tree/position';
-import { scaleComponent } from '../../services/componentActions';
-import { FinImageError, finPointsCsv, finPointsFromImage } from '../../services/finImage';
-import { download } from '../../services/saveFile';
-import { updateNode } from '../../services/treeEdit';
+import { scaleComponent } from '../../services/design/componentActions';
+import { FinImageError, finPointsCsv, finPointsFromImage } from '../../services/design/finImage';
+import { download } from '../../services/files/saveFile';
+import { updateNode } from '../../services/design/treeEdit';
 import { useWorkspaceStore } from '../../state/store';
 
 /**

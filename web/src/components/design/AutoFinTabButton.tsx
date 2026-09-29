@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { autoFinTab, canAutoFinTab } from '../../services/finTabAuto';
-import { findParent, updateNode } from '../../services/treeEdit';
+import { autoFinTab, canAutoFinTab } from '../../services/design/finTabAuto';
+import { findParent, updateNode } from '../../services/design/treeEdit';
 import { useWorkspaceStore } from '../../state/store';
 
 /**
@@ -11,7 +11,7 @@ import { useWorkspaceStore } from '../../state/store';
  * It reads the tree rather than taking a patch callback, because the answer
  * depends on the fin's NEIGHBORS - the mount tube it has to reach and the
  * centering rings it has to fit between - which the property panel does not
- * have. See services/finTabAuto.ts for the rule.
+ * have. See services/design/finTabAuto.ts for the rule.
  *
  * Renders nothing for a fin set that is not on a symmetric body, because there
  * is nothing to measure against and the desktop does nothing there either.

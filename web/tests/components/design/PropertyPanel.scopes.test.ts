@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { FIELDS, PANEL_SCOPE_KEYS } from '../../../src/services/componentFields';
+import { FIELDS, PANEL_SCOPE_KEYS } from '../../../src/services/design/componentFields';
 import { unitScope } from '../../../src/prefs/units';
-import { isAxial } from '../../../src/services/treeEdit';
+import { isAxial } from '../../../src/services/design/treeEdit';
 
 /**
  * Unit scopes are strings assembled at the call site — `unitScope('prop',

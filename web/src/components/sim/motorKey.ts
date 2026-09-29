@@ -1,4 +1,4 @@
-import type { CatalogMotor } from '../../services/motorDb';
+import type { CatalogMotor } from '../../services/motors/motorDb';
 
 /**
  * Stable identity for a motor across filter/sort changes.

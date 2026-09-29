@@ -6,7 +6,7 @@ import {
   findSeparators,
   findStages,
   isUpperStageMount,
-} from '../../services/treeEdit';
+} from '../../services/design/treeEdit';
 import { useWorkspaceStore, selectEditedConfig } from '../../state/store';
 import { MotorRow } from '../sim/MotorRow';
 import { DeploymentSection } from './DeploymentSection';

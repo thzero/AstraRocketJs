@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
-import { warningText } from '../../services/warningText';
+import { warningText } from '../../services/app/warningText';
 
 /**
  * What the engine flagged about the DESIGN itself: a discontinuity between body

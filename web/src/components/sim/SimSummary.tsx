@@ -4,9 +4,9 @@ import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import type { FlightResult } from '../../engine/api';
-import { maxQ } from '../../services/flightEvents';
-import { lerpAt } from '../../services/interpolate';
-import { stabilityTone } from '../../services/simReport';
+import { maxQ } from '../../services/flight/flightEvents';
+import { lerpAt } from '../../services/flight/interpolate';
+import { stabilityTone } from '../../services/flight/simReport';
 import { useSettings } from '../../state/SettingsProvider';
 import { confirm } from '../../state/confirmStore';
 import { useHelpStore } from '../../state/helpStore';
@@ -206,7 +206,7 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
   // Max-Q: the kernel never recorded it, but it records both halves of it, so
   // it is derived here rather than in the engine. Null on a result saved back
   // when the app asked for the `summary` series set, which carries neither air
-  // density nor the speed of sound — see services/flightEvents.
+  // density nor the speed of sound — see services/flight/flightEvents.
   const peakQ = sim ? maxQ(sim.series) : null;
   if (!s) return null;
   return (

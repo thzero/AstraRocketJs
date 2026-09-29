@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { KERNEL_DEFAULTS, kernelLength } from '../../src/tree/kernelDefaults';
-import { defaultNode } from '../../src/services/treeEdit';
+import { defaultNode } from '../../src/services/design/treeEdit';
 import type { ComponentNode, ComponentType } from '../../src/engine/openRocketEngine';
 
 /**

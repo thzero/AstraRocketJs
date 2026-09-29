@@ -1,14 +1,19 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { LaunchConditions, WindLevel } from '../../services/orkTree';
+import type { LaunchConditions, WindLevel } from '../../services/design/orkTree';
 import { NumberInput } from '../common/NumberInput';
 import { markRing } from '../common/FieldMark';
 import { Dialog } from '../common/Dialog';
 import { useUnits, type Units } from '../../prefs/useUnits';
-import { MAX_WIND_SPEED_MS } from '../../services/safetyLimits';
-import { hasIntensity, stdDevForIntensity, turbulenceIntensity, turbulenceLevel } from '../../services/windTurbulence';
-import { parseWindProfileCsv, WindProfileCsvError } from '../../services/windProfileCsv';
-import { duplicateAltitudeRows } from '../../services/windLevels';
+import { MAX_WIND_SPEED_MS } from '../../services/flight/safetyLimits';
+import {
+  hasIntensity,
+  stdDevForIntensity,
+  turbulenceIntensity,
+  turbulenceLevel,
+} from '../../services/flight/windTurbulence';
+import { parseWindProfileCsv, WindProfileCsvError } from '../../services/flight/windProfileCsv';
+import { duplicateAltitudeRows } from '../../services/flight/windLevels';
 
 /**
  * The altitude-layered wind profile, as OpenRocket's Wind Profile Editor: one

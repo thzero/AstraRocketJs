@@ -1,10 +1,10 @@
 import { Fragment, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { isAxial, hasCatalog, hasMaterial, catalogPatch, presetRef } from '../../services/treeEdit';
-import type { PickerType } from '../../services/componentDb';
-import type { FitContext } from '../../services/componentFilter';
-// Lazily loaded: it pulls in the ~740 kB component catalog (services/componentDb),
+import { isAxial, hasCatalog, hasMaterial, catalogPatch, presetRef } from '../../services/design/treeEdit';
+import type { PickerType } from '../../services/parts/componentDb';
+import type { FitContext } from '../../services/parts/componentFilter';
+// Lazily loaded: it pulls in the ~740 kB component catalog (services/parts/componentDb),
 // so it splits into its own chunk fetched only when a catalog part is selected.
 const ComponentPicker = lazy(() => import('./ComponentPicker').then((m) => ({ default: m.ComponentPicker })));
 // Lazy for the same reason and behind the same Suspense boundary: it is the

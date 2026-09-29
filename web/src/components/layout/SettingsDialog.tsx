@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../state/SettingsProvider';
-import { DEFAULT_SETTINGS, type SimulationSettings } from '../../services/settings';
-import { PART_KEYS, mergePalette } from '../../services/partColors';
+import { DEFAULT_SETTINGS, type SimulationSettings } from '../../services/storage/settings';
+import { PART_KEYS, mergePalette } from '../../services/design/partColors';
 import { NumberInput } from '../common/NumberInput';
 import { Dialog } from '../common/Dialog';
 import { DefaultMaterials } from './DefaultMaterials';
 import { LaunchPanel } from '../sim/LaunchPanel';
-import { withRequiredFrom } from '../../services/requiredLaunch';
+import { withRequiredFrom } from '../../services/flight/requiredLaunch';
 import { IMPERIAL_UNITS, METRIC_UNITS, QUANTITIES, UNITS, unitScope } from '../../prefs/units';
 import { useUnits } from '../../prefs/useUnits';
 

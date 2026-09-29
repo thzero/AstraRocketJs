@@ -31,7 +31,7 @@ import {
   TREE_PANE_DEFAULT,
   TREE_PANE_MAX,
   TREE_PANE_MIN,
-} from './services/settings';
+} from './services/storage/settings';
 
 export default function App() {
   useWorkspaceEffects();

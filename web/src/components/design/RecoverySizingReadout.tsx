@@ -7,7 +7,7 @@ import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { num } from '../../tree/nodeProps';
 import { useWorkspaceStore, selectActive, selectConfig } from '../../state/store';
-import { motorSpecs } from '../../services/flightConfigs';
+import { motorSpecs } from '../../services/flight/flightConfigs';
 import {
   airDensity,
   canopyDiameter,
@@ -17,7 +17,7 @@ import {
   DROGUE_BAND,
   MAIN_BAND,
   type RateVerdict,
-} from '../../services/recoverySizing';
+} from '../../services/flight/recoverySizing';
 
 /** Tone for the current-chute descent rate: green inside a band, amber outside. */
 const VERDICT_TONE: Record<RateVerdict, string> = {

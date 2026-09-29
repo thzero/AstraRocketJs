@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
 import type { StaticInfo } from '../../engine/api';
-import { stabilityState, type StabilityState } from '../../services/simReport';
+import { stabilityState, type StabilityState } from '../../services/flight/simReport';
 import { useUnits } from '../../prefs/useUnits';
 import { STABILITY_GLYPH } from './schematicGeometry';
 

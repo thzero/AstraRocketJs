@@ -1,4 +1,4 @@
-import type { Translate } from '../../src/services/flightPathExport';
+import type { Translate } from '../../src/services/exports/flightPathExport';
 
 /**
  * A {@link Translate} over a REAL locale bundle, for tests of code that writes

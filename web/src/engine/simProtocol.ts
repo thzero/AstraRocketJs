@@ -1,5 +1,5 @@
 import type { FlightResult, RocketTree, SimulationOptions } from './openRocketEngine';
-import type { FlightConfig } from '../services/flightConfigs';
+import type { FlightConfig } from '../services/flight/flightConfigs';
 
 /**
  * Shared message contract between the main thread (engine/simClient.ts) and the

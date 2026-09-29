@@ -11,7 +11,7 @@
 // import order, so this eager import must precede the DYNAMIC engine load below
 // (neither backend is imported statically now) — see kernelLogSink.ts.
 import './kernelLogSink.js';
-import { declaredLength, readStreamWithProgress } from '../services/fetchProgress';
+import { declaredLength, readStreamWithProgress } from '../services/app/fetchProgress';
 
 // The WASM-GC engine + its loader live in web/public/engine/ (served verbatim by
 // Vite — a .js in src/ would be run through import-analysis, which warns on the

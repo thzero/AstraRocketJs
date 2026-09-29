@@ -11,7 +11,7 @@ import { test, expect, type Page, ready, importOrk, defined } from './base';
  * the dialog never appears.
  *
  * The PDF test below is the only thing in the suite that EXECUTES
- * services/reportPdf.ts: the unit tests cannot reach it, because ExportDialog
+ * services/report/reportPdf.ts: the unit tests cannot reach it, because ExportDialog
  * pulls it in through a lazy `await import`.
  */
 

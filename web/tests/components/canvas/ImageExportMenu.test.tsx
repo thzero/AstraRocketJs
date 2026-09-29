@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import { ImageExportMenu } from '../../../src/components/canvas/ImageExportMenu';
-import { IMAGE_WIDTHS } from '../../../src/services/schematicExport.js';
+import { IMAGE_WIDTHS } from '../../../src/services/exports/schematicExport.js';
 
 /**
  * The menu-button contract, which this popover declared and did not keep.

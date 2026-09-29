@@ -18,14 +18,20 @@ import {
   selectRunFailed,
 } from '../../src/state/store';
 import { C6 } from '../../src/engine/api';
-import { setDesignLibrary } from '../../src/services/designLibrary';
+import { setDesignLibrary } from '../../src/services/storage/designLibrary';
 import { useConfirmStore } from '../../src/state/confirmStore';
 import { usePromptStore } from '../../src/state/promptStore';
-import { getWorkspaceStore } from '../../src/services/workspaceStore';
-import { findMounts, findNode, findRecoveryDevices, findSeparators, findStages } from '../../src/services/treeEdit';
+import { getWorkspaceStore } from '../../src/services/storage/workspaceStore';
+import {
+  findMounts,
+  findNode,
+  findRecoveryDevices,
+  findSeparators,
+  findStages,
+} from '../../src/services/design/treeEdit';
 import { seatMotor, CURVELESS } from '../testing/seatMotor';
 import type { FlightResult } from '../../src/engine/openRocketEngine';
-import type { SimPrefs } from '../../src/services/simulations';
+import type { SimPrefs } from '../../src/services/flight/simulations';
 
 // The undo/redo history is pure JSON bookkeeping over the design tree (the React
 // rebuild effect isn't involved), so we exercise the store actions directly.
@@ -1101,7 +1107,7 @@ describe('replacing the workspace is race-safe across actions, not just openDesi
 
   beforeEach(() => {
     s().resetWorkspace();
-    vi.doUnmock('../../src/services/loadOrk');
+    vi.doUnmock('../../src/services/files/loadOrk');
   });
 
   it('a slow import does not overwrite the fast one the user opened after it', async () => {
@@ -1109,7 +1115,7 @@ describe('replacing the workspace is race-safe across actions, not just openDesi
     // large one must not arrive afterwards and replace it.
     let releaseSlow!: () => void;
     const slow = new Promise<void>((r) => (releaseSlow = r));
-    vi.doMock('../../src/services/loadOrk', () => ({
+    vi.doMock('../../src/services/files/loadOrk', () => ({
       loadOrk: async (bytes: ArrayBuffer) => ({
         name: new TextDecoder().decode(bytes),
         notes: [],
@@ -1131,7 +1137,7 @@ describe('replacing the workspace is race-safe across actions, not just openDesi
   it('a superseded import does not post its error over the design that replaced it', async () => {
     let releaseSlow!: () => void;
     const slow = new Promise<void>((r) => (releaseSlow = r));
-    vi.doMock('../../src/services/loadOrk', () => ({
+    vi.doMock('../../src/services/files/loadOrk', () => ({
       loadOrk: async (bytes: ArrayBuffer) => {
         if (new TextDecoder().decode(bytes) === 'BAD') throw new Error('corrupt zip');
         return {
@@ -1157,7 +1163,7 @@ describe('replacing the workspace is race-safe across actions, not just openDesi
   it('starting a new design voids an import still in flight', async () => {
     let releaseSlow!: () => void;
     const slow = new Promise<void>((r) => (releaseSlow = r));
-    vi.doMock('../../src/services/loadOrk', () => ({
+    vi.doMock('../../src/services/files/loadOrk', () => ({
       loadOrk: async () => ({
         name: 'IMPORTED',
         notes: [],
@@ -1400,7 +1406,7 @@ describe('importing a rocket whose name is already saved', () => {
     }) as unknown as File;
 
   const mockLoadOrk = () =>
-    vi.doMock('../../src/services/loadOrk', () => ({
+    vi.doMock('../../src/services/files/loadOrk', () => ({
       loadOrk: async (bytes: ArrayBuffer) => {
         const name = new TextDecoder().decode(bytes);
         return {
@@ -1464,7 +1470,7 @@ describe('importing a rocket whose name is already saved', () => {
   afterEach(() => {
     stop.forEach((fn) => fn());
     stop = [];
-    vi.doUnmock('../../src/services/loadOrk');
+    vi.doUnmock('../../src/services/files/loadOrk');
   });
 
   it('imports straight through when the name is free', async () => {

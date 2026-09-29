@@ -4,7 +4,7 @@ import { isValidElement } from 'react';
 import type { ComponentNode } from '../../../src/engine/openRocketEngine';
 import { buildSchematicShapes } from '../../../src/components/canvas/schematicShapes';
 import { KERNEL_MASSCOMPONENT_RADIUS } from '../../../src/tree/kernelDefaults.js';
-import { COMPONENT_DEFAULTS } from '../../../src/services/componentDefaults';
+import { COMPONENT_DEFAULTS } from '../../../src/services/design/componentDefaults';
 
 /** Every `<rect>` in a node list, keyed by its `<title>` text. */
 const rectsByTitle = (nodes: ReactNode[]): Map<string, ReactElement<Record<string, unknown>>> => {

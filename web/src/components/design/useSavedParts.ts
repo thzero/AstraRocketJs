@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { listSavedParts, onSavedPartsChanged, type SavedPartEntry } from '../../services/customParts';
+import { listSavedParts, onSavedPartsChanged, type SavedPartEntry } from '../../services/parts/customParts';
 
 /**
  * Every saved part, kept in step with the store.

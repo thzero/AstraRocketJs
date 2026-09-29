@@ -2,14 +2,14 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18nGlobal from '../i18n';
 import { useWorkspaceStore, selectConfig } from './store';
-import { seatedMotorsKey } from '../services/flightConfigs';
+import { seatedMotorsKey } from '../services/flight/flightConfigs';
 import { useEngineStore } from './engineStore';
-import { getWorkspaceStore } from '../services/workspaceStore';
-import { onStorageDegraded } from '../services/idbKeyValueStore';
-import { requestPersistentStorage } from '../services/persistStorage';
-import { computeStaticInfo, flightKey } from '../services/buildRocket';
+import { getWorkspaceStore } from '../services/storage/workspaceStore';
+import { onStorageDegraded } from '../services/storage/idbKeyValueStore';
+import { requestPersistentStorage } from '../services/storage/persistStorage';
+import { computeStaticInfo, flightKey } from '../services/design/buildRocket';
 import { warmSimWorker } from '../engine/simClient';
-import { appName } from '../services/appInfo';
+import { appName } from '../services/app/appInfo';
 
 /**
  * The React-side effects for the workspace store: keep the browser title in sync,

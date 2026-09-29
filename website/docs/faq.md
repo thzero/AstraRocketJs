@@ -38,7 +38,7 @@ Yes. After your first visit the app keeps itself, the physics engine and both ca
 Which engine backend loaded: **WASM** (WebAssembly — the fast default) or **JS** (JavaScript — the fallback for browsers without WASM support). Both produce identical results.
 
 ### Does a custom material survive saving to a `.ork`?
-Yes, name and density both, for every material the editor offers one for: the bulk material of a structural part, a fin's fillet material, and a recovery device's canopy and line materials. `services/ork/materialRoundTrip.test.ts` holds each of them to it. That matters most for the materials this app has and desktop OpenRocket does not, the [adhesives and the corrected elastic cords](./designing-a-rocket.md#adhesives): the name is written into the file's `<material>` element exactly as you picked it.
+Yes, name and density both, for every material the editor offers one for: the bulk material of a structural part, a fin's fillet material, and a recovery device's canopy and line materials. `services/files/ork/materialRoundTrip.test.ts` holds each of them to it. That matters most for the materials this app has and desktop OpenRocket does not, the [adhesives and the corrected elastic cords](./designing-a-rocket.md#adhesives): the name is written into the file's `<material>` element exactly as you picked it.
 
 What does not travel is the material's membership of **your** custom list. Open that file on another machine and the part is still the right density under the right name, but the material is not in that browser's picker until you add it there.
 

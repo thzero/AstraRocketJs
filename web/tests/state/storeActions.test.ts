@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useWorkspaceStore } from '../../src/state/store';
-import { DesignLibrary, setDesignLibrary } from '../../src/services/designLibrary';
-import type { KeyValueStore } from '../../src/services/keyValueStore';
+import { DesignLibrary, setDesignLibrary } from '../../src/services/storage/designLibrary';
+import type { KeyValueStore } from '../../src/services/storage/keyValueStore';
 
 /**
  * The store actions that produce files or mutate the design library.

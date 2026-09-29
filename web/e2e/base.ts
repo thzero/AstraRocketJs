@@ -1,6 +1,6 @@
 import { test as base, expect, type Locator, type Page } from '@playwright/test';
 
-/** Mirrors `KEY` in src/services/settings.ts. */
+/** Mirrors `KEY` in src/services/storage/settings.ts. */
 const SETTINGS_KEY = 'astrarrocketjs:settings:v1';
 
 export type WipState = 'acknowledged' | 'shown';

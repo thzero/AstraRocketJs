@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getLaunchLocationStore, type LaunchLocation } from '../../services/launchLocationStore';
+import { getLaunchLocationStore, type LaunchLocation } from '../../services/storage/launchLocationStore';
 
 /**
  * The saved locations, kept in step with the store.

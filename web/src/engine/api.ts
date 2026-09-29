@@ -10,8 +10,8 @@ import {
   type RocketTree,
   type ComponentNode,
 } from './openRocketEngine';
-import { defaultMaterialPatch } from '../services/materialSlots';
-import { defaultDesignName } from '../services/appInfo';
+import { defaultMaterialPatch } from '../services/design/materialSlots';
+import { defaultDesignName } from '../services/app/appInfo';
 
 export type { RocketSpec, StaticInfo, FlightResult } from './openRocketEngine';
 
@@ -31,7 +31,7 @@ export const C6: MotorSpec = {
 /**
  * Build a rocket from an editable component tree, with no motors in it.
  *
- * Motors are seated by `services/buildRocket.buildConfiguredRocket`, from the
+ * Motors are seated by `services/design/buildRocket.buildConfiguredRocket`, from the
  * flight configuration being flown: one place decides which motor goes in which
  * mount, so the drawing, the static readouts and the flight cannot disagree.
  *

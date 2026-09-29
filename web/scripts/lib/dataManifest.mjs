@@ -1,5 +1,5 @@
 // Writes public/data/manifest.json — a content hash per runtime catalog, used
-// by the app to cache-bust a replaced data file (see src/services/remoteData.ts).
+// by the app to cache-bust a replaced data file (see src/services/app/remoteData.ts).
 // The hash fingerprints the DATA, so it's stable across a later prettier reformat
 // of the JSON and changes only when the catalog content changes.
 import { createHash } from 'node:crypto';

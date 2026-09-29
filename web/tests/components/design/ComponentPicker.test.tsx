@@ -4,8 +4,8 @@ import { fireEvent, waitFor, within } from '@testing-library/react';
 import { ComponentPicker } from '../../../src/components/design/ComponentPicker';
 import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import { serveData } from '../../testing/serveData';
-import type { PickerType } from '../../../src/services/componentDb';
-import type { FitContext } from '../../../src/services/componentFilter';
+import type { PickerType } from '../../../src/services/parts/componentDb';
+import type { FitContext } from '../../../src/services/parts/componentFilter';
 
 /**
  * The picker over the REAL catalog (`serveData`), because every complaint it is

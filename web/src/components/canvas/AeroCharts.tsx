@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
-import { lerpAt } from '../../services/interpolate';
+import { lerpAt } from '../../services/flight/interpolate';
 import {
   buildLinePath,
   chartDomain,

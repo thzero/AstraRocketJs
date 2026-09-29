@@ -6,7 +6,7 @@ import { outerProfile } from '../../tree/shapeProfile.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { KERNEL_MASSCOMPONENT_RADIUS } from '../../tree/kernelDefaults.js';
 import { assemblyBoundingRadius, isAssembly, resolveAssemblyRadius } from '../../tree/assembly.js';
-import type { StabilityState } from '../../services/simReport.js';
+import type { StabilityState } from '../../services/flight/simReport.js';
 
 export interface Ctx {
   scale: number;

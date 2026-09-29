@@ -3,11 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
 import { Dialog } from '../common/Dialog';
-import { flightColumns, type FlightColumn } from '../../services/flightColumns';
+import { flightColumns, type FlightColumn } from '../../services/flight/flightColumns';
 import { useWorkspaceStore, selectDesignName } from '../../state/store';
-import { flightDataCsv, CSV_MIME } from '../../services/csvExport';
-import { exportFilename } from '../../services/saveFile';
-import { download } from '../../services/saveFile';
+import { flightDataCsv, CSV_MIME } from '../../services/exports/csvExport';
+import { exportFilename } from '../../services/files/saveFile';
+import { download } from '../../services/files/saveFile';
 import type { FlightResult } from '../../engine/openRocketEngine';
 
 /**

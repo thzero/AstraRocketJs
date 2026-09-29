@@ -6,8 +6,8 @@ import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
 import { resolveUnitChoice, UNIT_CHOICES, type UnitChoice } from '../../prefs/units';
 import { Dialog } from '../common/Dialog';
-import { DEFAULT_REPORT } from '../../services/settings';
-import { assembleReport, type ReportModel } from '../../services/reportModel';
+import { DEFAULT_REPORT } from '../../services/storage/settings';
+import { assembleReport, type ReportModel } from '../../services/report/reportModel';
 import { isPlanarFinSet } from '../../tree/tubefins';
 import { markingGuides } from '../../services/report/markingGuide';
 import type { ComponentNode } from '../../engine/openRocketEngine';
@@ -165,7 +165,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
         }
       }
       const fresh = assembleReport() ?? model;
-      const { downloadReportPdf } = await import('../../services/reportPdf');
+      const { downloadReportPdf } = await import('../../services/report/reportPdf');
       await downloadReportPdf(
         fresh,
         tree,
@@ -196,7 +196,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   const saveCsv = async () => {
     if (!model) return;
     try {
-      const { downloadDesignCsv } = await import('../../services/reportCsv');
+      const { downloadDesignCsv } = await import('../../services/report/reportCsv');
       downloadDesignCsv(assembleReport() ?? model, exportUnits);
       onClose();
     } catch (e) {

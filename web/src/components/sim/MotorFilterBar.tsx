@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { filterMotors, allClasses, allManufacturers, type CatalogMotor } from '../../services/motorDb';
-import { STD_DIAMS, MAX_IDX, fitIdx, type MountFit } from '../../services/motorPicker';
+import { filterMotors, allClasses, allManufacturers, type CatalogMotor } from '../../services/motors/motorDb';
+import { STD_DIAMS, MAX_IDX, fitIdx, type MountFit } from '../../services/motors/motorPicker';
 import { useUnits } from '../../prefs/useUnits';
 import { RangeSlider } from './RangeSlider';
 

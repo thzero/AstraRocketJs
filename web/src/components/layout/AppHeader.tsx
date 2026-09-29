@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { APP_VERSION, isPreRelease } from '../../services/appInfo';
+import { APP_VERSION, isPreRelease } from '../../services/app/appInfo';
 import { useWorkspaceStore } from '../../state/store';
 import { useHelpStore } from '../../state/helpStore';
 import { LanguageSwitcher } from './LanguageSwitcher';
@@ -30,7 +30,7 @@ export function AppHeader() {
   // A second input for the same handler, differing only in its `accept`. One
   // input filtered to both would show `.ork` files to somebody who picked
   // RockSim from the menu; the reader sniffs the bytes either way
-  // (services/designFile.ts), so a mislabeled file still opens.
+  // (services/files/designFile.ts), so a mislabeled file still opens.
   const rktRef = useRef<HTMLInputElement>(null);
   const { open, dialogs } = useHeaderDialogs();
   const openHelp = useHelpStore((s) => s.openHelp);

@@ -1,5 +1,5 @@
 import { fmtNum } from '../../i18n/format';
-import { lerpAt } from '../../services/interpolate';
+import { lerpAt } from '../../services/flight/interpolate';
 
 /**
  * Owns the per-panel hover readout: the crosshair line (the e2e suite

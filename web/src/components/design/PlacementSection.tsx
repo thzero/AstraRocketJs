@@ -3,7 +3,7 @@ import type { ComponentNode, ComponentPosition } from '../../engine/openRocketEn
 import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
-import { PANEL_SCOPE_KEYS } from '../../services/componentFields';
+import { PANEL_SCOPE_KEYS } from '../../services/design/componentFields';
 import { FieldRow, NumberField, sectionFields } from './DimensionFields';
 
 /**

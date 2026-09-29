@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { colorForType, mergePalette } from '../../services/partColors';
+import { colorForType, mergePalette } from '../../services/design/partColors';
 import { useSettings } from '../../state/SettingsProvider';
 
 /**

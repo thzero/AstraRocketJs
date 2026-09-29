@@ -1,6 +1,6 @@
 // Builds the Docusaurus site into web/public/docs, where Vite copies it into
 // dist and the service worker precaches it. That is what the in-app Help dialog
-// reads (src/services/helpDocs.ts).
+// reads (src/services/app/helpDocs.ts).
 //
 //   npm run docs:build
 //

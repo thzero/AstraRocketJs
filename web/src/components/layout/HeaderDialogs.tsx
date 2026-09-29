@@ -1,12 +1,18 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { defaultDesignName } from '../../services/appInfo';
+import { defaultDesignName } from '../../services/app/appInfo';
 import { useWorkspaceStore } from '../../state/store';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 import { DesignLibraryDialog } from './DesignLibraryDialog';
 import { DesignPropertiesDialog } from './DesignPropertiesDialog';
 import { ExamplesDialog } from './ExamplesDialog';
 import { AboutDialog } from './AboutDialog';
-import { ExportDialog } from '../report/ExportDialog';
+// Lazily loaded: it is the only eager holder of `services/report/reportModel`,
+// which `store.saveDesign` already imports dynamically to keep the report model
+// out of the main bundle. One static import from a dialog this host mounts
+// eagerly pins the module and everything under it, and the build says so
+// (INEFFECTIVE_DYNAMIC_IMPORT). Nothing needs the report until it is opened.
+const ExportDialog = lazy(() => import('../report/ExportDialog').then((m) => ({ default: m.ExportDialog })));
 import { PrintExportDialog } from '../report/PrintExportDialog';
 import { HelpDialog } from './HelpDialog';
 import { PrivacyDialog } from './PrivacyDialog';
@@ -82,7 +88,18 @@ function HeaderDialogs({ flags, onClose }: { flags: OpenFlags; onClose: (id: Hea
   return (
     <>
       {flags.motors && <MotorDashboard onClose={() => onClose('motors')} />}
-      {flags.report && <ExportDialog onClose={() => onClose('report')} />}
+      {/* The boundary sits OUTSIDE the Suspense: it is the chunk FETCH that
+          fails on a stale deploy, and Suspense re-throws that rejection during
+          render. The fallback is nothing rather than an empty modal frame,
+          since a dialog that arrives a beat late reads better than one that
+          flashes a shell first. */}
+      {flags.report && (
+        <ErrorBoundary>
+          <Suspense fallback={null}>
+            <ExportDialog onClose={() => onClose('report')} />
+          </Suspense>
+        </ErrorBoundary>
+      )}
       {flags.about && <AboutDialog onClose={() => onClose('about')} />}
       {flags.privacy && <PrivacyDialog onClose={() => onClose('privacy')} />}
       {/* '' is the docs index, so the null check is not a truthiness check.

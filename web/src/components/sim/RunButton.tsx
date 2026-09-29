@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive, configOf } from '../../state/store';
-import { primaryMotor } from '../../services/flightConfigs';
+import { primaryMotor } from '../../services/flight/flightConfigs';
 import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
-import { designBlocker, designBlockerText, unflyableSims, unflyableText } from '../../services/runnability';
+import { designBlocker, designBlockerText, unflyableSims, unflyableText } from '../../services/flight/runnability';
 
 /**
  * Runs whatever the table has selected: the ticked rows, or the active

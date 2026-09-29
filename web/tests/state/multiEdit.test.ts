@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useWorkspaceStore, selectActive, configOf } from '../../src/state/store';
 import { C6 } from '../../src/engine/api';
-import { findMounts } from '../../src/services/treeEdit';
-import { primaryMotor } from '../../src/services/flightConfigs';
+import { findMounts } from '../../src/services/design/treeEdit';
+import { primaryMotor } from '../../src/services/flight/flightConfigs';
 
 const st = () => useWorkspaceStore.getState();
 const byName = (n: string) => st().sims.find((x) => x.name === n)!;

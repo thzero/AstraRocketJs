@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FIELDS } from '../../../src/services/componentFields';
+import { FIELDS } from '../../../src/services/design/componentFields';
 
 const req = (type: string) =>
   (FIELDS[type] ?? [])

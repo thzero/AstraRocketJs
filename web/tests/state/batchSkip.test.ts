@@ -9,9 +9,9 @@ vi.mock('../../src/engine/simClient', async (orig) => ({
 
 import { useWorkspaceStore } from '../../src/state/store';
 import { seatMotor, CURVELESS } from '../testing/seatMotor';
-import { MAX_WIND_SPEED_MS } from '../../src/services/safetyLimits';
+import { MAX_WIND_SPEED_MS } from '../../src/services/flight/safetyLimits';
 import type { FlightResult } from '../../src/engine/openRocketEngine';
-import type { SimPrefs } from '../../src/services/simulations';
+import type { SimPrefs } from '../../src/services/flight/simulations';
 
 const st = () => useWorkspaceStore.getState();
 const byName = (n: string) => st().sims.find((x) => x.name === n)!;
@@ -32,7 +32,7 @@ const RESULT = { summary: { maxAltitude: 100 }, events: [], series: {} } as unkn
 /**
  * One unflyable row must not cost the rest of the batch.
  *
- * The Run button and the run loop both ask `services/runnability`, so they cannot
+ * The Run button and the run loop both ask `services/flight/runnability`, so they cannot
  * judge it differently. Judged apart - the button on the ACTIVE simulation's motor,
  * the safety codes against the whole batch - a batch is vetoed over one bad row, or
  * started with an unflyable row the button never mentions.

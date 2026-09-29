@@ -9,8 +9,8 @@ import { unitScope } from '../../prefs/units';
 import { MAX_INSTANCE_COUNT, num, str } from '../../tree/nodeProps';
 import { clusterCount } from '../../tree/cluster';
 import { shapeIsClippable, shapeParamMax, shapeUsesParameter } from '../../tree/shapeProfile';
-import { FIELDS, type Field, type PanelSection } from '../../services/componentFields';
-import { DERIVED } from '../../services/derivedFields';
+import { FIELDS, type Field, type PanelSection } from '../../services/design/componentFields';
+import { DERIVED } from '../../services/design/derivedFields';
 
 /**
  * The property panel's per-type shape and dimension fields: the numeric row
@@ -440,7 +440,7 @@ export function FieldRow({
       // A second door onto numbers the part DOES store: a fin's sweep as an
       // angle, a streamer's area or aspect ratio, a mass component's density.
       // Nothing here is a node key - the pair of conversions in
-      // services/derivedFields.ts reads the stored keys and writes them back,
+      // services/design/derivedFields.ts reads the stored keys and writes them back,
       // the same arrangement as the `bore` row above, and for the same reason:
       // the arithmetic is the kernel's and belongs somewhere it can be tested.
       const d = DERIVED[f.derived];

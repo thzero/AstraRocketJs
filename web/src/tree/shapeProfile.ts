@@ -154,7 +154,7 @@ function calculateClip(shape: string, param: number, length: number, r1: number,
  * caller-supplied `extra` merged in (sorted, deduped, clamped to the span).
  *
  * WHY the extras exist: a consumer that has to read the profile AT some x —
- * services/reportGeometry.ts, sizing a part at a station — otherwise lands on a
+ * services/report/reportGeometry.ts, sizing a part at a station — otherwise lands on a
  * chord between two samples instead of on the true curve. The error is tiny
  * (a 3" 4:1 tangent ogive has a ~1238 mm ogive radius, so a 4.76 mm chord has
  * a 0.0023 mm sagitta, three orders below print resolution, and it is the same

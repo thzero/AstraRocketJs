@@ -5,16 +5,16 @@ import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { useSettings } from '../../state/SettingsProvider';
 import { useWorkspaceStore, configOf } from '../../state/store';
-import { sameSimInputs, simInputs } from '../../services/simulations';
-import { MAX_WIND_SPEED_MS } from '../../services/safetyLimits';
+import { sameSimInputs, simInputs } from '../../services/flight/simulations';
+import { MAX_WIND_SPEED_MS } from '../../services/flight/safetyLimits';
 import {
   defaultSweepSpec,
   normalizeSweepSpec,
   sweepFlightCount,
   surfaceWind,
   type WindSweepSpec,
-} from '../../services/windSweep';
-import type { LaunchConditions } from '../../services/orkTree';
+} from '../../services/flight/windSweep';
+import type { LaunchConditions } from '../../services/design/orkTree';
 
 /**
  * The controls for a wind sweep: the grid to fly, and what came of the last one.

@@ -10,7 +10,7 @@ import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEn
  * The actions row. What is tested here is the OFFER - which buttons a part gets,
  * and which are refused with a reason - plus that pressing one reaches the store
  * as a single undoable step. The transforms themselves are covered by
- * services/componentActions.test.ts.
+ * services/design/componentActions.test.ts.
  */
 
 const node = (o: Record<string, unknown>): ComponentNode => o as unknown as ComponentNode;

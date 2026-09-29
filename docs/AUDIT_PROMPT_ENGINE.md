@@ -129,7 +129,7 @@ the kernel, and the only code here that the app calls directly.
   malformed-input behavior, numeric parsing of `NaN`/`Infinity`/exponent
   overflow/leading zeros, unterminated strings, escape and surrogate handling,
   duplicate keys, and what it returns versus throws. Compare its behavior to
-  the caps `web/src/services/orkImport.ts` already applies on its own side, and
+  the caps `web/src/services/files/orkImport.ts` already applies on its own side, and
   say which side is actually enforcing what.
 - **Results are JSON strings built by hand** (the kernel ships no JSON lib).
   Hunt the serialization side: a `NaN` or `Infinity` emitted into JSON is not

@@ -22,7 +22,7 @@ import { renderWithProviders } from '../../testing/renderWithProviders';
  */
 
 const loadCatalog = vi.fn(() => Promise.resolve([]));
-vi.mock('../../../src/services/motorDb', async (orig) => ({
+vi.mock('../../../src/services/motors/motorDb', async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   loadCatalog: () => loadCatalog(),
 }));

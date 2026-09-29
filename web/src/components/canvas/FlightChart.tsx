@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
-import { EVENT_LABEL, clusterEventLabels } from '../../services/simReport';
+import { EVENT_LABEL, clusterEventLabels } from '../../services/flight/simReport';
 import { FlightCsvDialog } from '../sim/FlightCsvDialog';
 import { useSettings } from '../../state/SettingsProvider';
 import { PAD_L, PAD_R, maxFlightTime } from './flightChartAxis';
@@ -33,7 +33,7 @@ export { maxFlightTime } from './flightChartAxis';
  */
 export function FlightChart({ flight }: { flight: ChartFlight }) {
   const { t } = useTranslation();
-  // Which panels are open, remembered between visits (services/settings.ts).
+  // Which panels are open, remembered between visits (services/storage/settings.ts).
   // Component state seeded from a constant would have anyone who works with
   // thrust or mass re-ticking them on every visit to the Results tab.
   const { settings, update } = useSettings();

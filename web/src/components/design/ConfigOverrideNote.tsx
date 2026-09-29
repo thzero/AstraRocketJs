@@ -1,6 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { deployOverride, loadoutLabel, sepOverride, stageFlies, type FlightConfig } from '../../services/flightConfigs';
+import {
+  deployOverride,
+  loadoutLabel,
+  sepOverride,
+  stageFlies,
+  type FlightConfig,
+} from '../../services/flight/flightConfigs';
 import { useWorkspaceStore } from '../../state/store';
 import type { ConfigsTab } from '../../state/tabs';
 

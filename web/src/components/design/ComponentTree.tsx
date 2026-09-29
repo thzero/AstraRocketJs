@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import type { ComponentNode, ComponentType, RocketTree } from '../../engine/openRocketEngine';
-import { allowedChildren, findNode } from '../../services/treeEdit';
+import { allowedChildren, findNode } from '../../services/design/treeEdit';
 import { ComponentExportButton } from './ComponentExportButton';
 import { useUnits, type Units } from '../../prefs/useUnits';
 

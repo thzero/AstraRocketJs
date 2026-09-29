@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { hasCurve, importCustomMotors, deleteCustomMotor, type CatalogMotor } from '../../services/motorDb';
-import { fetchMotorSpec } from '../../services/thrustcurve';
-import { MAX_IDX, parseDelays, type MountFit } from '../../services/motorPicker';
+import { hasCurve, importCustomMotors, deleteCustomMotor, type CatalogMotor } from '../../services/motors/motorDb';
+import { fetchMotorSpec } from '../../services/motors/thrustcurve';
+import { MAX_IDX, parseDelays, type MountFit } from '../../services/motors/motorPicker';
 import { PLUGGED_DELAY, type MotorSpec } from '../../engine/openRocketEngine';
 import { useUnits } from '../../prefs/useUnits';
 import { Dialog } from '../common/Dialog';

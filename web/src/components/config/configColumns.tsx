@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
-import { deployOverride, sepOverride, stageFlies, type FlightConfig } from '../../services/flightConfigs';
-import { findMounts, findRecoveryDevices, findSeparators, findStages } from '../../services/treeEdit';
+import { deployOverride, sepOverride, stageFlies, type FlightConfig } from '../../services/flight/flightConfigs';
+import { findMounts, findRecoveryDevices, findSeparators, findStages } from '../../services/design/treeEdit';
 import { num, str } from '../../tree/nodeProps';
 import type { FieldUnit } from '../../prefs/useUnits';
 import { partName, type ConfigColumn } from './ConfigsTable';

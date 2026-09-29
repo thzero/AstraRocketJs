@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useState } from 'react';
 import { fireEvent, screen, waitFor, act } from '@testing-library/react';
 import { renderWithProviders } from '../../testing/renderWithProviders';
-import type { CatalogMotor } from '../../../src/services/motorDb';
+import type { CatalogMotor } from '../../../src/services/motors/motorDb';
 import type { MotorSpec } from '../../../src/engine/openRocketEngine';
 
 const curve = {
@@ -28,12 +28,12 @@ const X: CatalogMotor = {
 const Y: CatalogMotor = { ...X, designation: 'Y', delays: '3,5,8' };
 
 const loadCatalog = vi.fn(() => Promise.resolve([X, Y]));
-vi.mock('../../../src/services/motorDb', async (orig) => ({
+vi.mock('../../../src/services/motors/motorDb', async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   loadCatalog: () => loadCatalog(),
 }));
 const fetchMotorSpec = vi.fn<(m: CatalogMotor, delay: number) => Promise<MotorSpec>>();
-vi.mock('../../../src/services/thrustcurve', () => ({
+vi.mock('../../../src/services/motors/thrustcurve', () => ({
   fetchMotorSpec: (m: CatalogMotor, d: number) => fetchMotorSpec(m, d),
 }));
 

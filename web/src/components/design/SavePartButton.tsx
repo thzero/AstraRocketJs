@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import type { PickerType } from '../../services/componentDb';
-import { DEFAULT_CUSTOM_MFR, saveCustomPart } from '../../services/customParts';
+import type { PickerType } from '../../services/parts/componentDb';
+import { DEFAULT_CUSTOM_MFR, saveCustomPart } from '../../services/parts/customParts';
 import { Dialog } from '../common/Dialog';
 
 /**

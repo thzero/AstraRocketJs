@@ -6,7 +6,7 @@ import { ConfigsPane } from '../../../src/components/config/ConfigsPane';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import { useWorkspaceStore } from '../../../src/state/store';
 import { useConfirmStore } from '../../../src/state/confirmStore';
-import { findMounts, findRecoveryDevices, findStages } from '../../../src/services/treeEdit';
+import { findMounts, findRecoveryDevices, findStages } from '../../../src/services/design/treeEdit';
 import { C6 } from '../../../src/engine/api';
 
 const st = () => useWorkspaceStore.getState();

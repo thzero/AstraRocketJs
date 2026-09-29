@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithProviders } from '../../testing/renderWithProviders';
-import { UPSTREAM } from '../../../src/services/appInfo';
+import { UPSTREAM } from '../../../src/services/app/appInfo';
 import { AboutDialog } from '../../../src/components/layout/AboutDialog';
 
 /**

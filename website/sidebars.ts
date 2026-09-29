@@ -6,7 +6,7 @@ import type { SidebarsConfig } from '@docusaurus/plugin-content-docs';
 // On the site it is a taste call for a set this small: twenty pages in five
 // groups fit without scrolling, and half-open / half-shut was arbitrary. In the
 // APP it is a requirement. The in-app Help dialog draws its contents rail by
-// reading this sidebar out of a built page (web/src/services/helpDocs.ts), and
+// reading this sidebar out of a built page (web/src/services/app/helpDocs.ts), and
 // Docusaurus renders a COLLAPSED category's children into no page at all, so a
 // collapsed group here is a group missing from the rail. e2e/help-dialog.spec.ts
 // reaches into the last category for exactly that reason.

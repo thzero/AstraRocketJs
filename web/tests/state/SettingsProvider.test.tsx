@@ -6,13 +6,13 @@ import { act, render } from '@testing-library/react';
 const saveSettings = vi.hoisted(() => vi.fn());
 const loadSettings = vi.hoisted(() => vi.fn());
 
-vi.mock('../../src/services/settings', async (orig) => {
-  const real = await orig<typeof import('../../src/services/settings')>();
+vi.mock('../../src/services/storage/settings', async (orig) => {
+  const real = await orig<typeof import('../../src/services/storage/settings')>();
   return { ...real, saveSettings, loadSettings };
 });
 
 import { SettingsProvider, useSettings } from '../../src/state/SettingsProvider';
-import { DEFAULT_SETTINGS } from '../../src/services/settings';
+import { DEFAULT_SETTINGS } from '../../src/services/storage/settings';
 
 /** Renders the provider and hands back its `update` so a test can change one. */
 function Harness({ onReady }: { onReady: (u: (p: Record<string, unknown>) => void) => void }) {

@@ -5,7 +5,7 @@ import { PropertyPanel } from '../../../src/components/design/PropertyPanel';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import { serveData } from '../../testing/serveData';
 import type { ComponentNode } from '../../../src/engine/openRocketEngine';
-import { FIELDS } from '../../../src/services/componentFields';
+import { FIELDS } from '../../../src/services/design/componentFields';
 
 const show = (node: ComponentNode, extra: { parentRadius?: number } = {}) => {
   const onChange = vi.fn();

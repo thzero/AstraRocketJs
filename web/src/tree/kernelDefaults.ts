@@ -7,8 +7,8 @@ import type { ComponentType } from '../engine/openRocketEngine';
  *
  * `api.ComponentFactory` reads every optional field as
  * `dbl(node, "key", DEFAULT)`. Three other places independently decided what
- * those defaults are: `services/treeEdit.defaultNode` (what the editor creates),
- * `services/orkImport` (what a missing `.ork` tag becomes), and the renderers'
+ * those defaults are: `services/design/treeEdit.defaultNode` (what the editor creates),
+ * `services/files/orkImport` (what a missing `.ork` tag becomes), and the renderers'
  * per-call-site `num(node, 'key', fallback)`. Four hand-maintained tables, none
  * of them derived from the other three.
  *

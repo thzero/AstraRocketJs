@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive, selectConfig } from '../../state/store';
-import { launchDiffKeys, prefDiffKeys } from '../../services/simDiff';
-import { loadoutLabel } from '../../services/flightConfigs';
+import { launchDiffKeys, prefDiffKeys } from '../../services/flight/simDiff';
+import { loadoutLabel } from '../../services/flight/flightConfigs';
 import { useSettings } from '../../state/SettingsProvider';
 import { RunButton } from './RunButton';
 import { useIsDesktop } from '../common/useMediaQuery';
@@ -10,7 +10,7 @@ import { LaunchPanel } from './LaunchPanel';
 import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
 import { FieldLabel, markRing } from '../common/FieldMark';
-import type { SimPrefs } from '../../services/simulations';
+import type { SimPrefs } from '../../services/flight/simulations';
 
 /**
  * Everything about the SELECTED simulation: its name, the flight configuration

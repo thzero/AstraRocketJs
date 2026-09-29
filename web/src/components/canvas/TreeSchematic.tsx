@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { RocketTree, StaticInfo } from '../../engine/openRocketEngine';
 import { useUnits } from '../../prefs/useUnits';
-import type { ExportData } from '../../services/schematicExport.js';
+import type { ExportData } from '../../services/exports/schematicExport.js';
 import {
   computeSchematicLayout,
   niceRulerStep,

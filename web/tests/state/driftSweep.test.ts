@@ -11,11 +11,11 @@ vi.mock('../../src/engine/simClient', async (orig) => ({
 import { useWorkspaceStore } from '../../src/state/store';
 import { seatMotor, CURVELESS } from '../testing/seatMotor';
 import { C6 } from '../../src/engine/api';
-import type { SimPrefs } from '../../src/services/simulations';
+import type { SimPrefs } from '../../src/services/flight/simulations';
 import type { FlightResult } from '../../src/engine/openRocketEngine';
 import type { SimPayload } from '../../src/engine/simProtocol';
 import type { SimCallOptions } from '../../src/engine/simClient';
-import { normalizeSweepSpec, type WindSweepSpec } from '../../src/services/windSweep';
+import { normalizeSweepSpec, type WindSweepSpec } from '../../src/services/flight/windSweep';
 
 const st = () => useWorkspaceStore.getState();
 

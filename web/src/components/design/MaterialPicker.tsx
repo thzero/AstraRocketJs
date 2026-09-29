@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { materialsForType, addCustom, removeCustom, groupsOf, DEFAULT_CUSTOM_GROUP } from '../../services/materials';
-import { ADHESIVE_GROUP, type Material, type MaterialType } from '../../services/materialTypes';
+import {
+  materialsForType,
+  addCustom,
+  removeCustom,
+  groupsOf,
+  DEFAULT_CUSTOM_GROUP,
+} from '../../services/materials/materials';
+import { ADHESIVE_GROUP, type Material, type MaterialType } from '../../services/materials/materialTypes';
 import { UnitChip } from '../common/UnitChip';
 import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';

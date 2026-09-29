@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
 import { Dialog } from '../common/Dialog';
-import { printableParts } from '../../services/rocketPrintExport';
+import { printableParts } from '../../services/exports/printableParts';
 
 /**
  * The whole-rocket 3D-print export.

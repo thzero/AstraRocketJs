@@ -2,9 +2,9 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
 import type { FlightResult } from '../../engine/api';
-import { CSV_MIME, flightEventsCsv } from '../../services/csvExport';
-import { EVENT_EXTRAS, EVENT_NAME, eventRows, type EventRow, type ExtraKey } from '../../services/flightEvents';
-import { download, exportFilename } from '../../services/saveFile';
+import { CSV_MIME, flightEventsCsv } from '../../services/exports/csvExport';
+import { EVENT_EXTRAS, EVENT_NAME, eventRows, type EventRow, type ExtraKey } from '../../services/flight/flightEvents';
+import { download, exportFilename } from '../../services/files/saveFile';
 import { unitScope } from '../../prefs/units';
 import { useUnits } from '../../prefs/useUnits';
 import { UnitChip } from '../common/UnitChip';
@@ -19,7 +19,7 @@ import { UnitChip } from '../common/UnitChip';
  * speed the chute actually saw — were already computed and had nowhere to be
  * read. This is that reading.
  *
- * Its rows are the pure join in services/flightEvents; this file is the markup,
+ * Its rows are the pure join in services/flight/flightEvents; this file is the markup,
  * the same split aeroTables.ts and AeroComponentTables make.
  *
  * Every branch, interleaved on the one launch clock, because the charts beside

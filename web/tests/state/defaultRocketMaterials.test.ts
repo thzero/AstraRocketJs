@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { useWorkspaceStore } from '../../src/state/store';
-import { findNode } from '../../src/services/treeEdit';
+import { findNode } from '../../src/services/design/treeEdit';
 import { KERNEL_MATERIALS } from '../../src/tree/kernelDefaults';
 
 /**

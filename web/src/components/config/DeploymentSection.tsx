@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { deployOverride, type FlightConfig } from '../../services/flightConfigs';
+import { deployOverride, type FlightConfig } from '../../services/flight/flightConfigs';
 import { useWorkspaceStore } from '../../state/store';
 import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';

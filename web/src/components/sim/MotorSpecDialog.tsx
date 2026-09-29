@@ -3,8 +3,8 @@ import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import { PLUGGED_DELAY, type MotorSpec } from '../../engine/openRocketEngine';
 import { ThrustChart, Stat } from './MotorDetail';
-import { initialThrust } from '../../services/motorPicker';
-import { curveStats } from '../../services/motorMath';
+import { initialThrust } from '../../services/motors/motorPicker';
+import { curveStats } from '../../services/motors/motorMath';
 import { Dialog } from '../common/Dialog';
 import { inUserUnit, withUnit } from './motorFormat';
 

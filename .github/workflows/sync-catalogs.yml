@@ -4,7 +4,7 @@ name: Sync Catalogs
 # ThrustCurve.org API and components from the OpenRocket-Components database —
 # and publishes them to the orphan `data` branch.
 #
-# The app fetches these at runtime (web/src/services/remoteData.ts), so a refresh
+# The app fetches these at runtime (web/src/services/app/remoteData.ts), so a refresh
 # published here is live WITHOUT an app rebuild or a Pages deploy, as soon as the
 # CDN edge expires. The copy committed under web/public/data stays in the build
 # as a fallback for when the data host is unreachable; refresh that one by hand

@@ -6,17 +6,17 @@ import { OrbitControls, Line, Html } from '@react-three/drei';
 import type { ComponentNode, FlightResult, RocketTree } from '../../engine/openRocketEngine';
 import { num } from '../../tree/nodeProps';
 import { buildPieces, type Piece } from './Rocket3D';
-import { colorForType, mergePalette, type PartPalette } from '../../services/partColors';
+import { colorForType, mergePalette, type PartPalette } from '../../services/design/partColors';
 import { useSettings } from '../../state/SettingsProvider';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
-import { EVENT_LABEL } from '../../services/simReport';
+import { EVENT_LABEL } from '../../services/flight/simReport';
 import { buildFlightScene, indexForProgress, modelPoseAt, newModelPose, type FlightScene } from './flightScene';
 import { colorOf, type MotorDims } from './schematicGeometry';
 import { FlightGroundMap } from './FlightGroundMap';
-import { TILE_SOURCES, type TileSourceId } from '../../services/slippyMap';
-import { groundImagery, rememberGroundImagery, rememberTileLayer, tileLayer } from '../../services/tileLayer';
-import { MIN_EXTENT_M } from '../../services/groundTrack';
+import { TILE_SOURCES, type TileSourceId } from '../../services/map/slippyMap';
+import { groundImagery, rememberGroundImagery, rememberTileLayer, tileLayer } from '../../services/map/tileLayer';
+import { MIN_EXTENT_M } from '../../services/flight/groundTrack';
 
 /**
  * 3D flight path (adapted from Vector Celeste's Flight3D, one better). Draws the
@@ -122,7 +122,7 @@ export function FlightPath3D({
   const progressRef = useRef(0);
   /**
    * Which imagery lies on the ground, shared with the site map and the ground
-   * track for the session (services/tileLayer.ts) so "satellite or street" is
+   * track for the session (services/map/tileLayer.ts) so "satellite or street" is
    * one answer across the app.
    */
   const [layer, setLayer] = useState<'off' | TileSourceId>(() => (groundImagery() ? tileLayer() : 'off'));

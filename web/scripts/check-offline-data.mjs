@@ -4,7 +4,7 @@
 //   npm run e2e:offline-data
 //
 // Motors, components, materials and contributors are files under public/data
-// fetched at run time (src/services/remoteData.ts), not bundled. They are
+// fetched at run time (src/services/app/remoteData.ts), not bundled. They are
 // precached by the service worker, so "offline at first open" should cover them
 // the way it covers the app shell and the docs. It did not.
 //
@@ -42,7 +42,7 @@ const VITE = resolve(WEB, 'node_modules/vite/bin/vite.js');
 const OUT = 'dist-offline-data-check';
 const PORT = 4183;
 const URL_ = `http://localhost:${PORT}/`;
-// The app settings blob (services/settings.ts); the same key e2e/base.ts seeds.
+// The app settings blob (services/storage/settings.ts); the same key e2e/base.ts seeds.
 const SETTINGS_KEY = 'astrarrocketjs:settings:v1';
 
 const log = (...a) => console.log('[offline-data]', ...a);

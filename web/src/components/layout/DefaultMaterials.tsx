@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { MaterialPicker } from '../design/MaterialPicker';
-import { MATERIAL_SLOTS, defaultMaterialKey } from '../../services/materialSlots';
-import type { Settings } from '../../services/settings';
+import { MATERIAL_SLOTS, defaultMaterialKey } from '../../services/design/materialSlots';
+import type { Settings } from '../../services/storage/settings';
 
 /**
  * Settings ▸ Materials: what a NEWLY ADDED part is made of.

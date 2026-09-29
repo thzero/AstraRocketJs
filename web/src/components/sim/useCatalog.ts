@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { loadCatalog, type CatalogMotor } from '../../services/motorDb';
+import { loadCatalog, type CatalogMotor } from '../../services/motors/motorDb';
 
 /**
  * The motor catalog, loaded once on mount, with the loading / error / retry
@@ -8,7 +8,7 @@ import { loadCatalog, type CatalogMotor } from '../../services/motorDb';
  * On MOUNT, with no `open` guard: the dialogs that use this are mounted only
  * while open (`{open && <Dialog />}`), so mounting IS the deferral. Kept mounted
  * and returning null when closed, the dialogs would fetch the ~1.6 MB catalog
- * (see services/remoteData.ts) on app start, since `return null` does not stop an
+ * (see services/app/remoteData.ts) on app start, since `return null` does not stop an
  * effect.
  *
  * `onLoaded` fires once per successful load with the catalog it produced. The

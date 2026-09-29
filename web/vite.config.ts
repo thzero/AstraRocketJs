@@ -103,7 +103,7 @@ export default defineConfig({
         // the CDN copy on the `data` branch first (VITE_DATA_BASE in deploy.yml)
         // and the runtimeCaching rule below stores that copy too. But the CDN
         // is tried first and the in-build copy is the FALLBACK
-        // (services/remoteData.ts), so a runtime rule for /data/ would only
+        // (services/app/remoteData.ts), so a runtime rule for /data/ would only
         // ever fill on a session where the CDN had already failed. Someone who
         // installs the app online and first opens the motor picker at a launch
         // site with no signal gets an empty picker unless the in-build copy was
@@ -111,7 +111,7 @@ export default defineConfig({
         // PWA (the comment on VitePWA above), so the 2.6 MB stays in the
         // precache and the CDN copy is the one that refreshes.
         // `ork` is in here for the bundled OpenRocket examples
-        // (public/examples/, see services/exampleLibrary.ts). All seventeen come
+        // (public/examples/, see services/storage/exampleLibrary.ts). All seventeen come
         // to ~340 kB with their stored flight data stripped, which is cheap
         // enough to buy the same promise the rest of the app makes: an example
         // opens on a first offline load, not only if you happened to be online
@@ -202,7 +202,7 @@ export default defineConfig({
             // any docs page already visited. The in-app Help dialog does not
             // rely on this at all, because it requests
             // `docs/<slug>/index.html` directly and that IS the precache key
-            // (services/helpDocs.ts). This is the fallback for reading the
+            // (services/app/helpDocs.ts). This is the fallback for reading the
             // docs outside the dialog.
             //
             // It does mean a visited page is stored twice, once precached and

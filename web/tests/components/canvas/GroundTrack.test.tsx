@@ -4,10 +4,10 @@ import { fireEvent, screen } from '@testing-library/react';
 import { GroundTrack } from '../../../src/components/canvas/GroundTrack';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import type { ChartFlight } from '../../../src/components/canvas/FlightChart';
-import type { LaunchConditions } from '../../../src/services/orkTree';
+import type { LaunchConditions } from '../../../src/services/design/orkTree';
 import { useWorkspaceStore } from '../../../src/state/store';
-import { defaultSweepSpec, type DriftSweep } from '../../../src/services/windSweep';
-import { simInputs } from '../../../src/services/simulations';
+import { defaultSweepSpec, type DriftSweep } from '../../../src/services/flight/windSweep';
+import { simInputs } from '../../../src/services/flight/simulations';
 
 const st = () => useWorkspaceStore.getState();
 
@@ -17,8 +17,8 @@ const st = () => useWorkspaceStore.getState();
  * jsdom never fetches an `<img>`, so nothing here needs a tile server: what is
  * checked is which tiles the view ASKS for, and that it still draws a correct
  * plan view when it asks for none. The projection itself is covered against
- * hand-computed figures in `services/slippyMap.test.ts`, and the track geometry
- * in `services/groundTrack.test.ts`.
+ * hand-computed figures in `services/map/slippyMap.test.ts`, and the track geometry
+ * in `services/flight/groundTrack.test.ts`.
  *
  * There is no ResizeObserver in jsdom either, which the component handles by
  * keeping its 420 px default.
@@ -149,7 +149,7 @@ describe('GroundTrack imagery', () => {
   });
 
   /**
-   * A simulation cannot run without coordinates (services/requiredLaunch.ts),
+   * A simulation cannot run without coordinates (services/flight/requiredLaunch.ts),
    * so this is the defensive case rather than the common one. It matters
    * because the alternative - falling back to a default site the way the KML
    * export does - would draw somebody else's field under a real measurement.

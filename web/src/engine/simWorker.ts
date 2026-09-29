@@ -7,7 +7,7 @@
  * worker's log sink (kernelLogSink, imported transitively), off the main console.
  */
 import { initEngine, resetEngine } from './openRocketEngine';
-import { buildConfiguredRocket } from '../services/buildRocket';
+import { buildConfiguredRocket } from '../services/design/buildRocket';
 import type { WorkerRequest, WorkerResponse } from './simProtocol';
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;

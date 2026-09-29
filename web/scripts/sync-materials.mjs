@@ -2,7 +2,7 @@
 //
 // Writes public/data/materials.generated.json — the runtime catalog the editor
 // offers, fetched at run time like motors and components (see
-// src/services/remoteData.ts) rather than compiled into the JS bundle.
+// src/services/app/remoteData.ts) rather than compiled into the JS bundle.
 //
 //   node scripts/sync-materials.mjs
 //   node scripts/sync-materials.mjs --src <openrocket checkout>

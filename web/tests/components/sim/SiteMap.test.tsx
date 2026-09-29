@@ -10,7 +10,7 @@ import { renderWithProviders } from '../../testing/renderWithProviders';
  * jsdom never fetches an `<img>`, so nothing here depends on a tile server
  * being reachable: what is checked is the URLs the component ASKS for, where
  * it puts the pin, and what a pointer does. The projection itself is covered
- * in `services/slippyMap.test.ts` against hand-computed figures.
+ * in `services/map/slippyMap.test.ts` against hand-computed figures.
  *
  * There is no ResizeObserver in jsdom either, which the component handles by
  * keeping its 320x256 default — so the center of the box is (160, 128) below.

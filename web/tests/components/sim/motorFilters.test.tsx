@@ -2,7 +2,7 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../../testing/renderWithProviders';
-import type { CatalogMotor } from '../../../src/services/motorDb';
+import type { CatalogMotor } from '../../../src/services/motors/motorDb';
 
 /**
  * The picker's narrowing filters beyond code, maker and class: total impulse,
@@ -26,11 +26,11 @@ const CATALOG: CatalogMotor[] = [
   { ...base, designation: 'E20', class: 'E', diameter: 29, length: 100, impulse: 40, delays: '6,8' },
 ];
 
-vi.mock('../../../src/services/motorDb', async (orig) => ({
+vi.mock('../../../src/services/motors/motorDb', async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   loadCatalog: () => Promise.resolve(CATALOG),
 }));
-vi.mock('../../../src/services/thrustcurve', () => ({ fetchMotorSpec: vi.fn() }));
+vi.mock('../../../src/services/motors/thrustcurve', () => ({ fetchMotorSpec: vi.fn() }));
 
 const { MotorDialog } = await import('../../../src/components/sim/MotorDialog');
 

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { fireEvent, screen } from '@testing-library/react';
 import { WindProfileDialog } from '../../../src/components/sim/WindProfileDialog';
 import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
-import type { LaunchConditions, WindLevel } from '../../../src/services/orkTree';
+import type { LaunchConditions, WindLevel } from '../../../src/services/design/orkTree';
 
 const LEVELS: WindLevel[] = [
   { altitudeM: 0, speed: 2, directionDeg: 90, stddev: 0 },

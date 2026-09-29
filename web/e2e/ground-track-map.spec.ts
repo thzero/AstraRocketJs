@@ -4,7 +4,7 @@ import { test, expect, openTab, ready, runFlight, type Page } from './base';
  * Map imagery under the ground track.
  *
  * The tile math is covered against hand-computed figures in
- * `services/slippyMap.test.ts`, and which tiles get asked for in
+ * `services/map/slippyMap.test.ts`, and which tiles get asked for in
  * `components/canvas/GroundTrack.test.tsx`. What neither can check is the part
  * that only a real layout engine decides: whether the scaled tile layer
  * actually lands on the geometry drawn over it. A layer half a box out still
@@ -99,7 +99,7 @@ test('the tile layer covers the plot it sits under, exactly', async ({ page }) =
   expect(Math.abs(layer!.h - box!.h)).toBeLessThanOrEqual(1);
 
   // Square, because a plan view with different scales on its two axes is not a
-  // map (services/groundTrack.ts).
+  // map (services/flight/groundTrack.ts).
   expect(Math.abs(box!.w - box!.h)).toBeLessThanOrEqual(1);
 });
 

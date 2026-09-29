@@ -6,8 +6,8 @@ import { freeformPoints } from '../../tree/position.js';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { DISPLAY_NAME } from '../../tree/schema.js';
-import { DISC_TYPES } from '../../services/componentFormats.js';
-import { discDims, tubeRadii } from '../../services/discGeometry.js';
+import { DISC_TYPES } from '../../services/files/componentFormats.js';
+import { discDims, tubeRadii } from '../../services/design/discGeometry.js';
 import { assemblyChainLength, isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
 import {
   axialStart,

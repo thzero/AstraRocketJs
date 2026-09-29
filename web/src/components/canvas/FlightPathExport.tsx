@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive, selectConfig } from '../../state/store';
-import { primaryMotor } from '../../services/flightConfigs';
-import { download as saveDownload, exportFilename, safeFilename } from '../../services/saveFile';
+import { primaryMotor } from '../../services/flight/flightConfigs';
+import { download as saveDownload, exportFilename, safeFilename } from '../../services/files/saveFile';
 import { useUnits } from '../../prefs/useUnits';
 import {
   buildFlightPathModel,
@@ -29,10 +29,10 @@ import {
   type AltitudeReference,
   type DistanceUnit,
   type StageTrackStart,
-} from '../../services/flightPathExport';
-import { getTemplateStore, parseTemplateFilename, type UserTemplate } from '../../services/templateStore';
+} from '../../services/exports/flightPathExport';
+import { getTemplateStore, parseTemplateFilename, type UserTemplate } from '../../services/exports/templateStore';
 import { Dialog } from '../common/Dialog';
-import { decodeStageColors, encodeStageColors } from '../../services/settings';
+import { decodeStageColors, encodeStageColors } from '../../services/storage/settings';
 import { useSettings } from '../../state/SettingsProvider';
 import { LANGUAGES } from '../../i18n';
 
@@ -98,7 +98,7 @@ export function ExportDialog({
 }: {
   onClose: () => void;
   meta: { simName: string; rocketName: string; motorName: string };
-  launch: import('../../services/orkTree').LaunchConditions;
+  launch: import('../../services/design/orkTree').LaunchConditions;
   result: import('../../engine/openRocketEngine').FlightResult;
 }) {
   const { t, i18n } = useTranslation();

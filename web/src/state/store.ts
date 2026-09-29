@@ -3,7 +3,7 @@ import i18n from '../i18n';
 import { confirm } from './confirmStore';
 import { prompt } from './promptStore';
 import { scaleRocket } from '../tree/scaleRocket';
-import { syncAutoShoulders } from '../services/autoShoulder';
+import { syncAutoShoulders } from '../services/design/autoShoulder';
 import { buildRocketTree, specToTree, type RocketSpec, type StaticInfo } from '../engine/api';
 import type {
   MotorSpec,
@@ -12,7 +12,15 @@ import type {
   ComponentType as PartType,
   IgnitionEvent,
 } from '../engine/openRocketEngine';
-import { findStages, updateNode, removeNode, addPart, addStage, moveNode, setStageDrogue } from '../services/treeEdit';
+import {
+  findStages,
+  updateNode,
+  removeNode,
+  addPart,
+  addStage,
+  moveNode,
+  setStageDrogue,
+} from '../services/design/treeEdit';
 import {
   configFor,
   liveMotors,
@@ -24,17 +32,17 @@ import {
   reconcileConfigs,
   ensureConfig,
   type FlightConfig,
-} from '../services/flightConfigs';
-import type { LaunchConditions } from '../services/orkTree';
-import type { OrkExportMotor } from '../services/orkFile';
-import type { DesignInfo } from '../services/orkTypes';
-import { buildExportMotorMap } from '../services/exportMotors';
-import { wireLoadedOrk } from '../services/wireLoadedOrk';
+} from '../services/flight/flightConfigs';
+import type { LaunchConditions } from '../services/design/orkTree';
+import type { OrkExportMotor } from '../services/files/orkFile';
+import type { DesignInfo } from '../services/files/orkTypes';
+import { buildExportMotorMap } from '../services/motors/exportMotors';
+import { wireLoadedOrk } from '../services/files/wireLoadedOrk';
 // Static, not the lazy import the neighboring .ork paths use: this is a fetch
 // wrapper with no heavy dependencies, and the library dialog imports it
 // statically anyway, so a dynamic import here only produces rolldown's
 // INEFFECTIVE_DYNAMIC_IMPORT warning without moving a byte.
-import { fetchExample } from '../services/exampleLibrary';
+import { fetchExample } from '../services/storage/exampleLibrary';
 import {
   freshSeed,
   newSimulation,
@@ -44,9 +52,9 @@ import {
   type Simulation,
   type SimPrefs,
   type SimRun,
-} from '../services/simulations';
+} from '../services/flight/simulations';
 import { simulateInWorker, SimTimeoutError, SimCanceledError } from '../engine/simClient';
-import { landingPoint } from '../services/groundTrack';
+import { landingPoint } from '../services/flight/groundTrack';
 import {
   normalizeSweepSpec,
   sweepLaunch,
@@ -55,10 +63,10 @@ import {
   type DriftSweep,
   type SweepLanding,
   type WindSweepSpec,
-} from '../services/windSweep';
-import { loadSettings } from '../services/settings';
-import { defaultMaterialPatch } from '../services/materialSlots';
-import { launchLimitViolations, limitText } from '../services/safetyLimits';
+} from '../services/flight/windSweep';
+import { loadSettings } from '../services/storage/settings';
+import { defaultMaterialPatch } from '../services/design/materialSlots';
+import { launchLimitViolations, limitText } from '../services/flight/safetyLimits';
 import {
   unflyable,
   unflyableText,
@@ -66,12 +74,12 @@ import {
   designBlocker,
   designBlockerText,
   type Unflyable,
-} from '../services/runnability';
-import { isComplete, type CompleteLaunch } from '../services/requiredLaunch';
-import { defaultDesignName } from '../services/appInfo';
-import { getDesignLibrary, type DesignMeta } from '../services/designLibrary';
-import { getWorkspaceStore, type Workspace } from '../services/workspaceStore';
-import { migrateWorkspace } from '../services/workspaceMigrate';
+} from '../services/flight/runnability';
+import { isComplete, type CompleteLaunch } from '../services/flight/requiredLaunch';
+import { defaultDesignName } from '../services/app/appInfo';
+import { getDesignLibrary, type DesignMeta } from '../services/storage/designLibrary';
+import { getWorkspaceStore, type Workspace } from '../services/storage/workspaceStore';
+import { migrateWorkspace } from '../services/storage/workspaceMigrate';
 import type { MotorDims } from '../components/canvas/Rocket3D';
 import { isResultView, type ConfigsTab, type Tab, type DesignPane, type ViewMode } from './tabs';
 import { unitSymbols } from '../prefs/units';
@@ -213,7 +221,7 @@ export interface WorkspaceState {
   sims: Simulation[];
   /**
    * The flight configurations this design holds - the named motor loadouts each
-   * simulation points at (services/flightConfigs.ts).
+   * simulation points at (services/flight/flightConfigs.ts).
    *
    * Never empty: a simulation names the configuration it flies, so there is
    * always one to name.
@@ -361,7 +369,7 @@ export interface WorkspaceState {
   setSelectedId: (id: string | null) => void;
   patchSelected: (patch: Partial<ComponentNode>) => void;
   /**
-   * Run one of the tree-shape ACTIONS from services/componentActions: convert a
+   * Run one of the tree-shape ACTIONS from services/design/componentActions: convert a
    * fin set to freeform, split a fin set / pod / booster / cluster, reset a
    * cluster's spacing. One undo step, and nothing at all when the action says
    * there was nothing to do.
@@ -507,10 +515,10 @@ export interface WorkspaceState {
   /** Write the design as a RockSim `.rkt`. */
   saveRkt: () => Promise<void>;
   /** Write the design's printable parts as 3MF (one file, or a zip of files). */
-  exportPrint: (opts: import('../services/rocketPrintExport').PrintExportOptions) => Promise<void>;
+  exportPrint: (opts: import('../services/exports/rocketPrintExport').PrintExportOptions) => Promise<void>;
   saveRasaero: () => Promise<void>;
   /** Export a single component as a 3D mesh (stl/obj/glb) or a 2D cut sheet (dxf). */
-  exportComponent: (nodeId: string, format: import('../services/componentFormats').ExportFormat) => Promise<void>;
+  exportComponent: (nodeId: string, format: import('../services/files/componentFormats').ExportFormat) => Promise<void>;
 }
 
 /** The active simulation (falls back to the first if the id no longer exists). */
@@ -591,7 +599,7 @@ export const selectRunFailed = (s: WorkspaceState): boolean => {
 /**
  * A motor is usable only if it carries a full thrust curve.
  *
- * Re-exported from `services/runnability`, which owns the "can this row fly"
+ * Re-exported from `services/flight/runnability`, which owns the "can this row fly"
  * question so the Run button and the run loop share one answer.
  */
 export { hasThrustCurve };
@@ -1055,7 +1063,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       ),
     hydrate: (w) => {
       // A stored workspace is lifted to the current shape before it gets here
-      // (services/workspaceMigrate), so this only has to repair a blob that is
+      // (services/storage/workspaceMigrate), so this only has to repair a blob that is
       // the right shape and still partial.
       const configs = sanitizeConfigs(w.tree, w.configs);
       const sims = sanitizeSims(w.sims, configs);
@@ -1430,7 +1438,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const sim = s.sims.find((x) => x.id === simId);
         if (!sim) continue;
         // Why a row cannot fly is decided in ONE place, shared with the Run
-        // button (services/runnability). A row with no usable motor, or with
+        // button (services/flight/runnability). A row with no usable motor, or with
         // launch conditions outside the NAR/Tripoli codes, is skipped: those
         // are simulation settings rather than design, so there is nothing to
         // preserve by flying them, and a number this app will not stand
@@ -1781,7 +1789,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // it isn't part of first paint, only of opening a file.
         const bytes = await file.arrayBuffer();
         if (stale()) return;
-        const { loadOrk } = await import('../services/loadOrk');
+        const { loadOrk } = await import('../services/files/loadOrk');
         const res = await loadOrk(bytes);
         if (stale()) return;
         const { tree, configs, sims, activeId, loadedMeta } = wireLoadedOrk(res, loadSettings().launchDefaults);
@@ -1996,14 +2004,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         let designInfo: DesignInfo | undefined;
         if (loadSettings().saveDesignInfo) {
           const [{ assembleReport }, { buildDesignInfo }] = await Promise.all([
-            import('../services/reportModel'),
-            import('../services/designInfo'),
+            import('../services/report/reportModel'),
+            import('../services/report/designInfo'),
           ]);
           const report = assembleReport();
           if (report) designInfo = buildDesignInfo(report);
         }
         // The .ork writer is a lazily-imported chunk — only needed on save.
-        const { downloadOrk } = await import('../services/saveOrk');
+        const { downloadOrk } = await import('../services/files/saveOrk');
         downloadOrk({
           name: tree.name || loadedMeta?.name || defaultDesignName(),
           tree,
@@ -2019,7 +2027,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     saveRkt: async () => {
       try {
         const { tree, loadedMeta } = get();
-        const { downloadRkt } = await import('../services/saveOrk');
+        const { downloadRkt } = await import('../services/files/saveOrk');
         const name = tree.name || loadedMeta?.name || defaultDesignName();
         const skipped = await downloadRkt(name, tree);
         // RockSim has no element for some of what this app can build (rail
@@ -2036,7 +2044,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     exportPrint: async (opts) => {
       try {
         const { tree, loadedMeta } = get();
-        const { downloadRocket3mf } = await import('../services/rocketPrintExport');
+        const { downloadRocket3mf } = await import('../services/exports/rocketPrintExport');
         const name = tree.name || loadedMeta?.name || defaultDesignName();
         const { skipped } = await downloadRocket3mf(name, tree, opts);
         // A part whose geometry fails the manifold check is left out rather
@@ -2055,7 +2063,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // CDX1 engine-string writer's Cdx1ExportEngine verbatim.
         const motors = buildExportMotorMap(tree, selectConfig(get()), loadedMeta?.exportMotors ?? {});
         // The RASAero writer is a lazily-imported chunk — only needed on export.
-        const { downloadCdx1 } = await import('../services/rasaeroExport');
+        const { downloadCdx1 } = await import('../services/files/rasaeroExport');
         downloadCdx1({
           name: tree.name || loadedMeta?.name || defaultDesignName(),
           tree,
@@ -2071,7 +2079,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
     exportComponent: async (nodeId, format) => {
       try {
-        const { exportComponent } = await import('../services/componentExport');
+        const { exportComponent } = await import('../services/files/componentExport');
         const ok = await exportComponent(get().tree, nodeId, format);
         if (!ok) set({ err: i18n.t('errors.exportUnsupported', { format: format.toUpperCase() }) });
       } catch (e) {

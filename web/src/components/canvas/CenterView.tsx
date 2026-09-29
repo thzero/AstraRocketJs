@@ -11,10 +11,10 @@ import {
 import { confirm } from '../../state/confirmStore';
 import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
-import { APP_VERSION, appName } from '../../services/appInfo';
-import { descentMass } from '../../services/recoverySizing';
-import { motorSpecs } from '../../services/flightConfigs';
-import { resultFlight, type ResultFlight } from '../../services/simulations';
+import { APP_VERSION, appName } from '../../services/app/appInfo';
+import { descentMass } from '../../services/flight/recoverySizing';
+import { motorSpecs } from '../../services/flight/flightConfigs';
+import { resultFlight, type ResultFlight } from '../../services/flight/simulations';
 import { TreeSchematic } from './TreeSchematic';
 import { AftView } from './AftView';
 import { FlightChart } from './FlightChart';

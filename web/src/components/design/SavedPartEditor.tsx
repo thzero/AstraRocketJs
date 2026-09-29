@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { hasMaterial } from '../../services/treeEdit';
-import { updateCustomPart, type PartMeta } from '../../services/customParts';
-import type { CustomPart } from '../../services/presetStore';
+import { hasMaterial } from '../../services/design/treeEdit';
+import { updateCustomPart, type PartMeta } from '../../services/parts/customParts';
+import type { CustomPart } from '../../services/parts/presetStore';
 import { AppearanceSection } from './AppearanceSection';
 import { FieldRow, FieldSection, sectionFields, visibleFields } from './DimensionFields';
 import { MaterialSection, RecoveryMaterialSection } from './MaterialSection';

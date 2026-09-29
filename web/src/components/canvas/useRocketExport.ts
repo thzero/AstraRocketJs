@@ -5,8 +5,8 @@ import {
   snapshotWithHeader,
   type ExportData,
   type ImageFormat,
-} from '../../services/schematicExport.js';
-import { download, safeFilename } from '../../services/saveFile';
+} from '../../services/exports/schematicExport.js';
+import { download, safeFilename } from '../../services/files/saveFile';
 import type { ImageExportOptions } from './ImageExportMenu.js';
 import { piecesBounds, type Piece } from './rocketPieces';
 import { exportCamera, isFittableBox } from './rocketExportCamera';

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { LaunchConditions } from '../../services/orkTree';
-import { getLaunchLocationStore, locationFrom, type LaunchLocation } from '../../services/launchLocationStore';
-import { loadSettings } from '../../services/settings';
+import type { LaunchConditions } from '../../services/design/orkTree';
+import { getLaunchLocationStore, locationFrom, type LaunchLocation } from '../../services/storage/launchLocationStore';
+import { loadSettings } from '../../services/storage/settings';
 import { useLocationList } from './useLocationList';
 import { DesignPropertiesDialog } from '../layout/DesignPropertiesDialog';
 import { LocationsDialog } from './LocationsDialog';

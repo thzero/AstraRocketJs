@@ -15,7 +15,7 @@ import { writeDataManifest } from './lib/dataManifest.mjs';
 
 const API = 'https://www.thrustcurve.org/api/v1';
 // public/data is served as-is (not bundled) so the catalog can be refreshed
-// without rebuilding the app — see src/services/remoteData.ts.
+// without rebuilding the app — see src/services/app/remoteData.ts.
 const DATA_DIR = fileURLToPath(new URL('../public/data', import.meta.url));
 const OUT = resolve(DATA_DIR, 'motors.generated.json');
 

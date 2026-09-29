@@ -10,7 +10,7 @@ vi.mock('../../src/engine/simClient', async (orig) => ({
 import { useWorkspaceStore } from '../../src/state/store';
 import { seatMotor, CURVELESS } from '../testing/seatMotor';
 import type { FlightResult } from '../../src/engine/openRocketEngine';
-import type { SimPrefs } from '../../src/services/simulations';
+import type { SimPrefs } from '../../src/services/flight/simulations';
 
 const st = () => useWorkspaceStore.getState();
 

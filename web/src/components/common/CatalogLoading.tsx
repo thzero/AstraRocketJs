@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { subscribeCatalogProgress, type CatalogProgress } from '../../services/remoteData';
+import { subscribeCatalogProgress, type CatalogProgress } from '../../services/app/remoteData';
 import { fmtMb } from '../../i18n/format';
 
 /**
- * Download feedback for the runtime catalogs (see services/remoteData.ts).
+ * Download feedback for the runtime catalogs (see services/app/remoteData.ts).
  *
  * The motor catalog is ~1.6 MB and the component catalog ~1.0 MB, fetched on
  * first use rather than bundled. A bare "Loading…" leaves the user unable to

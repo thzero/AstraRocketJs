@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { FlightResult } from '../../engine/api';
-import { warningText, warningHelp } from '../../services/warningText';
+import { warningText, warningHelp } from '../../services/app/warningText';
 import { WARNING_ROW, WARNING_TONE } from './warningTone';
 
 /**

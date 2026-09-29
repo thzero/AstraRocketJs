@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectConfig, selectDesignName } from '../../state/store';
-import { primaryMotor } from '../../services/flightConfigs';
+import { primaryMotor } from '../../services/flight/flightConfigs';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
-import { aeroTableCsv, CSV_MIME } from '../../services/csvExport';
-import { exportFilename } from '../../services/saveFile';
-import { download } from '../../services/saveFile';
+import { aeroTableCsv, CSV_MIME } from '../../services/exports/csvExport';
+import { exportFilename } from '../../services/files/saveFile';
+import { download } from '../../services/files/saveFile';
 import type { ComponentMass } from '../../engine/openRocketEngine';
 import type { ChartSeries } from './aeroTables';
 import { useAeroSweep } from './useAeroSweep';

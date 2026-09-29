@@ -1,12 +1,12 @@
 import { useTranslation } from 'react-i18next';
-import type { Simulation, SimStatus, SimRun } from '../../services/simulations';
-import { simStatus } from '../../services/simulations';
+import type { Simulation, SimStatus, SimRun } from '../../services/flight/simulations';
+import { simStatus } from '../../services/flight/simulations';
 import type { RocketTree } from '../../engine/openRocketEngine';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { fmtNum } from '../../i18n/format';
-import { warningText } from '../../services/warningText';
-import { loadoutLabel, type FlightConfig } from '../../services/flightConfigs';
+import { warningText } from '../../services/app/warningText';
+import { loadoutLabel, type FlightConfig } from '../../services/flight/flightConfigs';
 import { configOf } from '../../state/store';
 
 /** Dot color per status. Paired with a text label in the cell, never color alone. */

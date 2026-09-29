@@ -11,8 +11,8 @@ vi.mock('../../src/engine/simClient', async (orig) => ({
 
 import { useWorkspaceStore } from '../../src/state/store';
 import { C6 } from '../../src/engine/api';
-import { findMounts } from '../../src/services/treeEdit';
-import { simStatus, type SimPrefs } from '../../src/services/simulations';
+import { findMounts } from '../../src/services/design/treeEdit';
+import { simStatus, type SimPrefs } from '../../src/services/flight/simulations';
 import type { FlightResult } from '../../src/engine/openRocketEngine';
 // The real class (the mock spreads the actual module), so the store's
 // `instanceof SimCanceledError` check sees the same identity it would in the app.

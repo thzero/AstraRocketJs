@@ -37,7 +37,7 @@ const URL_ = `http://localhost:${PORT}/`;
 const VERSION_A = '0.0.0-update-a';
 const VERSION_B = '0.0.0-update-b';
 const VERSION_C = '0.0.0-update-c';
-// The app settings blob (services/settings.ts); the same key e2e/base.ts seeds.
+// The app settings blob (services/storage/settings.ts); the same key e2e/base.ts seeds.
 const SETTINGS_KEY = 'astrarrocketjs:settings:v1';
 
 const log = (...a) => console.log('[update-flow]', ...a);

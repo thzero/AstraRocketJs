@@ -1,7 +1,13 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { appName, docPageUrl, helpUrlFor } from '../../services/appInfo';
-import { type HelpEntry, type HelpPage, helpTarget, helpTargetFromUrl, loadHelpPage } from '../../services/helpDocs';
+import { appName, docPageUrl, helpUrlFor } from '../../services/app/appInfo';
+import {
+  type HelpEntry,
+  type HelpPage,
+  helpTarget,
+  helpTargetFromUrl,
+  loadHelpPage,
+} from '../../services/app/helpDocs';
 import { Dialog } from '../common/Dialog';
 
 /**

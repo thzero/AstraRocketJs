@@ -1,6 +1,6 @@
 import { useWorkspaceStore } from '../../src/state/store';
-import { newFlightConfig } from '../../src/services/flightConfigs';
-import { findMounts } from '../../src/services/treeEdit';
+import { newFlightConfig } from '../../src/services/flight/flightConfigs';
+import { findMounts } from '../../src/services/design/treeEdit';
 import type { MotorSpec } from '../../src/engine/openRocketEngine';
 
 /**

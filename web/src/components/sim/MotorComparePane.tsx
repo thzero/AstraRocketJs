@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import type { CatalogMotor } from '../../services/motorDb';
-import type { Sample } from '../../services/motorCombine';
+import type { CatalogMotor } from '../../services/motors/motorDb';
+import type { Sample } from '../../services/motors/motorCombine';
 import { useUnits } from '../../prefs/useUnits';
 import { keyOf } from './motorKey';
 import { ALIGN, heading, type Col } from './motorColumns';

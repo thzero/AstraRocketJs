@@ -3,8 +3,8 @@ import { test, expect, openTab, ready, runFlight, type Page } from './base';
 /**
  * A drift sweep, flown for real.
  *
- * The grid math is covered in `services/windSweep.test.ts`, the region math in
- * `services/driftEllipse.test.ts`, the store's contract in
+ * The grid math is covered in `services/flight/windSweep.test.ts`, the region math in
+ * `services/flight/driftEllipse.test.ts`, the store's contract in
  * `state/driftSweep.test.ts` and the drawing in
  * `components/canvas/GroundTrack.test.tsx` — all against stubbed flights. What
  * none of them can check is the thing that decides whether the feature works at
