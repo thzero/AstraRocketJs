@@ -46,4 +46,4 @@ What does not travel is the material's membership of **your** custom list. Open 
 Yes. Flight simulations run in a background Web Worker, so the UI stays responsive while a flight computes.
 
 ### How do I report a bug or request a feature?
-See the **[Contributing](./contributing.md)** page — bug reports, feature ideas, translations, and code are all welcome.
+See **[CONTRIBUTING.md](https://github.com/thzero/AstraRocketJs/blob/HEAD/CONTRIBUTING.md)** — bug reports, feature ideas, translations, and code are all welcome.

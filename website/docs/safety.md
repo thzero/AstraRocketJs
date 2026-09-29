@@ -81,4 +81,4 @@ The app models motors from published thrust curves, and can import a curve you m
 
 ## If a number looks wrong
 
-If the app disagrees with desktop OpenRocket, or with a flight you actually flew, that is worth reporting: differences against the desktop program are treated as bugs, because the engine is meant to match it. See [Contributing](./contributing.md).
+If the app disagrees with desktop OpenRocket, or with a flight you actually flew, that is worth reporting: differences against the desktop program are treated as bugs, because the engine is meant to match it. See [CONTRIBUTING.md](https://github.com/thzero/AstraRocketJs/blob/HEAD/CONTRIBUTING.md).

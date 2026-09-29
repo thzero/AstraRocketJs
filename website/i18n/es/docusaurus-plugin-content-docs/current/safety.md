@@ -81,4 +81,4 @@ La aplicación modela motores a partir de curvas de empuje publicadas, y puede i
 
 ## Si un número parece equivocado {#if-a-number-looks-wrong}
 
-Si la aplicación discrepa del OpenRocket de escritorio, o de un vuelo que realmente hiciste, merece la pena informarlo: las diferencias frente al programa de escritorio se tratan como errores, porque el motor está pensado para coincidir con él. Consulta [Contribuir](./contributing.md).
+Si la aplicación discrepa del OpenRocket de escritorio, o de un vuelo que realmente hiciste, merece la pena informarlo: las diferencias frente al programa de escritorio se tratan como errores, porque el motor está pensado para coincidir con él. Consulta [Contribuir](https://github.com/thzero/AstraRocketJs/blob/HEAD/CONTRIBUTING.md).

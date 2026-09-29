@@ -42,7 +42,6 @@ Everything that follows is therefore about **the program around the engine**: wh
 | --- | --- |
 | **Runs in a browser, installs, and works offline** | No JDK and no download. After the first visit the app, the engine and both catalogs stay on your device, so a full simulation runs at a field with no signal. See [Offline & Installing](./offline-and-installing.md). |
 | **A layout that fits a phone** | The desktop workbench becomes tabs along the bottom, with the rocket views turned a quarter turn so the airframe runs down the long edge of the screen. |
-| **RASAero-style supersonic aerodynamics** | Opt-in corrections to Extended Barrowman above roughly Mach 1.5, where the stock model's body CP is frozen at its Mach-1 value. They are **not** part of OpenRocket: they are the work of the mmrocket-sim project, carried here under GPL-3.0. See [Compared with mmrocket-sim](./comparison-mmrocket-sim.md). |
 | **Ground-track view** | The flight seen from directly above, north up, pad at the center, with range rings and the landing distance and bearing for each stage. |
 | **Flight-path export to KML / GPX / waypoint CSV** | Opens the flight in Google Earth or a GPS app, with per-stage track colors, a mission name, summary balloons carrying the flight's numbers, and importable custom Mustache templates. |
 | **Whole-rocket 3MF, and per-part STL / GLB / 3MF** | One file with a named object per part, ready for a slicer. OpenRocket exports OBJ, which this does too; the rest is extra. |
@@ -55,10 +54,6 @@ Everything that follows is therefore about **the program around the engine**: wh
 | **Undo that covers simulations too** | Component edits and simulation changes (motor, ignition, launch conditions, adding or deleting a simulation) sit on one timeline. |
 | **A unit picker on every value** | The unit printed beside any number is also a control for that particular field, on top of the metric and imperial profiles. See [Settings](./settings.md#units). |
 | **Nothing to save, and nothing uploaded** | Editing autosaves, the header says when the last write landed, and there is no server and no account. |
-
-## Where they are on a par
-
-Component-tree editing with live CG, CP and stability. Multi-stage and parallel staging with separation and ignition timing. Freeform fin editing. Mass and CG overrides. The ~2,900-part catalog and OpenRocket's material database. Custom materials, custom motors and your own saved parts. Motor selection with real thrust curves, ejection-delay choice and plugged motors, plus `.eng` and `.rse` import. Component Analysis: per-part drag broken down, each part's stability contribution and its own CP, and every fin set's roll forcing and damping, across a Mach sweep at a chosen angle of attack and wind direction. Flight charts. A 3D trajectory with playback, a scrubbable timeline and speed control. The design report, 1:1 templates and CSV summaries. Full-fidelity `.ork` round-trips in both directions.
 
 ## What to use which for
 

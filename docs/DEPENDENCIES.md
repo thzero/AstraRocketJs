@@ -1,7 +1,8 @@
----
-title: "Dependencies"
-sidebar_position: 17
----
+# AstraRocketJs — Dependencies
+
+> The npm version policy, and why a package is deliberately held back from its latest.
+> Read this before "fixing" anything `npm outdated` flags.
+
 Only `web/` has npm dependencies (`engine-java/` uses the bundled Gradle wrapper). This page records the **version policy** and, more importantly, **why a package is deliberately not on its latest version** — so the next person to run `npm outdated` doesn't re-litigate a decision, or "fix" a pin that exists for a reason.
 
 _Last audited: **2026-09-11**._
@@ -53,14 +54,6 @@ React 19.3.0 falls outside that ceiling. Installing it fails with `ERESOLVE … 
 Nothing newer than 9.7.0 is published except `10.0.0-canary.*` prereleases, which we do not ship.
 
 **Unblocked when:** a stable `@react-three/fiber` widens that peer range. All four packages then move to 19.3 together, in one install.
-
-### Not held (for the record)
-
-These are current, and were verified rather than assumed:
-
-- **`three` / `@types/three` at `0.186.0`** — upgraded from r169 on 2026-09-11. Nothing capped them; every consumer (`drei`, `fiber`, `three-mesh-bvh`, `@monogrid/gainmap-js`, …) declares a floor only, highest `>=0.159`. The 17-release jump required **no source changes** to `Rocket3D.tsx` or `FlightPath3D.tsx`.
-- **`tailwindcss` / `@tailwindcss/vite` at `4.3.3`** — these read `^4.0.0` for a long time while resolving to the newest 4.x. That was a policy #1 violation (a stale floor), not an outdated install.
-- **`typescript` at `5.9.3`** — `8.x` of `typescript-eslint` and the current `vite` have not been checked against TypeScript 7 (the native port). Not a hold so much as an upgrade nobody has costed yet.
 
 ## Re-checking a hold
 

@@ -2,7 +2,7 @@
  * Main-thread client for the sim worker (engine/simWorker.ts). Owns a POOL of
  * workers, correlates requests/responses by id, and exposes a small typed
  * surface. The transport is a generic RPC so future phases can add methods
- * without changing this plumbing (see docs/engine-worker-proposal.md).
+ * without changing this plumbing.
  *
  * Why a pool. `simulate()` inside a worker is a SYNCHRONOUS engine call, so it
  * blocks that worker's message loop for the whole flight: posting four requests

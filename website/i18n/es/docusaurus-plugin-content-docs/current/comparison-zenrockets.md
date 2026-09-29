@@ -10,11 +10,6 @@ import UpstreamPin from '@site/src/components/UpstreamPin';
 
 Escrito el **2026-09-23**, comparando **AstraRocketJs <AppVersion />** (motor compilado a partir de OpenRocket <UpstreamPin />) con **[ZenRockets](https://zenrockets.com)** en la versión **v0.2.0**, la última entrada de [su registro de cambios](https://zenrockets.com/docs/changelog) en esa fecha (fechada el 2026-09-15).
 
-Dos advertencias honestas, porque cambian lo que vale esta página:
-
-- Está escrita a partir de **[su documentación pública](https://zenrockets.com/docs)**, no del producto en funcionamiento. Su documentación puede ir por detrás de su aplicación, y una fila de aquí puede quedar obsoleta a la semana siguiente.
-- La escribimos nosotros, sobre un proyecto que no es nuestro. Hemos procurado que la tabla de "ellos lo tienen y nosotros no" sea la más larga de la página, porque es la que de verdad le sirve a quien lee. Si alguna fila es injusta o incorrecta, [dínoslo](./contributing.md) y se corrige.
-
 :::
 
 ## No son el mismo tipo de herramienta
@@ -59,15 +54,10 @@ Contrastado con su documentación en la fecha indicada arriba.
 | **Aletas tubulares, colas anulares y pods anidados al importar de RockSim** | Su documentación de importación los da por omitidos. Aquí las aletas tubulares se importan y se simulan. |
 | **Funcionar del todo sin conexión, sin subir nada** | La aplicación, el motor y ambos catálogos se quedan en tu dispositivo tras la primera visita, y no hay cuenta. Un servicio que necesita sesión y una descarga de previsión es otra propuesta muy distinta en un campo sin cobertura. |
 | **Análisis de componentes** | Resistencia por pieza desglosada en presión, base y fricción, la contribución de cada pieza a la estabilidad y su propio CP, y el forzado y amortiguamiento de alabeo de cada juego de aletas, a lo largo de un barrido de Mach con ángulo de ataque, dirección de viento y velocidad de alabeo elegidos, con un ajuste **Peor caso** que busca el ángulo de viento en el que el CP queda más adelantado. |
-| **Aerodinámica supersónica al estilo RASAero** | Correcciones opcionales por encima de Mach 1,5 aproximadamente, calibradas con datos publicados de túnel de viento y de vuelo libre. Consulta [Comparación con mmrocket-sim](./comparison-mmrocket-sim.md). |
 | **Todo lo que puedes sacar de ella** | Un informe de diseño completo en PDF con plantillas 1:1 de aletas, ojivas y transiciones; hojas de corte DXF; STL, OBJ, GLB y 3MF por pieza más 3MF del cohete entero; RASAero II `.CDX1`; datos de vuelo y tablas de resistencia en CSV; la trayectoria en KML, GPX o CSV de waypoints con plantillas propias; y el esquema en SVG, PNG o JPG. Su exportación documentada es 3MF. |
 | **Límites NAR / Tripoli, aplicados** | Una simulación con la rampa a más de 20 grados de la vertical o con viento en superficie por encima de 20 mph se rechaza en lugar de volarse. Su validación previa al vuelo produce errores, avisos y alertas; no es lo mismo que negarse a volar. |
 | **Multilingüe** | |
 | **Gratis** | |
-
-## En qué están a la par
-
-Fuselajes paramétricos con el conjunto habitual de componentes y perfiles de ojiva. Editor de aletas de forma libre. Preajustes de piezas, tus propias piezas guardadas y biblioteca de materiales. Masa, CG, CP de Barrowman y estabilidad en calibres en vivo. Vuelos multietapa con separación y encendido por etapa. Recuperación en apogeo, a una altitud o por carga de eyección. Clústeres de motores con retardos por motor. Validación previa al vuelo en lenguaje claro. Gráficas de vuelo sincronizadas. Reproducción 3D con desplazamiento por la línea temporal y control de velocidad, más traza sobre el terreno. Cohetes de ejemplo. Borradores autoguardados y deshacer. Unidades métricas e imperiales por categoría, almacenadas en SI. Exportación 3MF para impresión.
 
 ## Para qué usar cada uno
 
