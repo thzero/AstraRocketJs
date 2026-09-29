@@ -64,3 +64,41 @@ export function promptDue(snoozedUntil: number | null, now: number): boolean {
 export function snoozeUntil(now: number, ms: number = UPDATE_SNOOZE_MS): number {
   return now + ms;
 }
+
+/**
+ * How long the tab has to stay hidden before a waiting update is applied
+ * without anyone having asked for it.
+ *
+ * Long enough that alt-tabbing to read a motor chart and coming straight back
+ * does not reload the page under you; short enough that stepping away for a
+ * minute is enough. The design is already safe either way - the workspace
+ * autosaves on a 500 ms debounce and flushes on `visibilitychange` - so what
+ * this protects is attention, not data.
+ */
+export const UPDATE_APPLY_HIDDEN_MS = 30_000;
+
+/**
+ * Whether a waiting worker may be applied with no answer from the user.
+ *
+ * `registerType: 'prompt'` means the new worker activates ONLY when the running
+ * page posts SKIP_WAITING, and `clientsClaim` is off, so it cannot take over by
+ * itself. A worker nobody asks for therefore waits for the life of the tab.
+ * That is a permanent stranding in three ordinary cases: a build old enough to
+ * have no prompt, a second tab holding the old worker alive, and the prompt
+ * simply being dismissed. The only escape is the hard reload this whole
+ * mechanism exists to spare people, so an offer nobody answered is taken up on
+ * their behalf - but only once doing it cannot interrupt anything.
+ *
+ * `busy` is a flight in the air. A reload would throw it away, and it is the
+ * one thing here that keeps running while the tab is hidden.
+ */
+export function readyToApplyHidden(
+  waiting: boolean,
+  hiddenSince: number | null,
+  busy: boolean,
+  now: number,
+  after: number = UPDATE_APPLY_HIDDEN_MS,
+): boolean {
+  if (!waiting || busy || hiddenSince === null) return false;
+  return now - hiddenSince >= after;
+}

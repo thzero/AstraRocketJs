@@ -2,7 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useTranslation } from 'react-i18next';
 import { APP_VERSION } from '../../services/appInfo';
-import { UPDATE_POLL_MS, dueForCheck, snoozeUntil, UPDATE_SNOOZE_MS } from '../../services/updateCheck';
+import {
+  UPDATE_POLL_MS,
+  dueForCheck,
+  snoozeUntil,
+  UPDATE_SNOOZE_MS,
+  readyToApplyHidden,
+} from '../../services/updateCheck';
+import { useWorkspaceStore } from '../../state/store';
 
 /**
  * "A new version is available — reload?" for the service worker.
@@ -17,8 +24,8 @@ import { UPDATE_POLL_MS, dueForCheck, snoozeUntil, UPDATE_SNOOZE_MS } from '../.
  *   - Nothing ever checked. `useRegisterSW` was called with no `onRegisteredSW`,
  *     so the only time the browser looked for a new worker was on a navigation.
  *     A tab left open across a deploy - the normal way this app is used - never
- *     found out. It now polls hourly, and again whenever the tab is brought back
- *     to the front or the network returns, both rate-limited.
+ *     found out. It now polls (see UPDATE_POLL_MS), and again whenever the tab
+ *     is brought back to the front or the network returns, both rate-limited.
  *   - Dismissing was permanent. `setNeedRefresh(false)` for the rest of the
  *     session, so one click and it never mentioned the update again. "Later" now
  *     snoozes, and the prompt comes back.
@@ -27,6 +34,14 @@ import { UPDATE_POLL_MS, dueForCheck, snoozeUntil, UPDATE_SNOOZE_MS } from '../.
  * progress, which is the exact thing `registerType: 'prompt'` exists to prevent;
  * this says its piece from the bottom of the window and lets you finish the
  * sentence you were typing.
+ *
+ * And it finishes the job whether or not it is answered. Under `prompt` the new
+ * worker activates only when the page posts SKIP_WAITING, and `clientsClaim` is
+ * off, so one that is never asked waits for the life of the tab - which is the
+ * whole of it if the prompt was dismissed, if a second tab is holding the old
+ * worker alive, or if the running build is old enough to have no prompt at all.
+ * A tab left hidden long enough therefore takes the update up unasked; see
+ * `readyToApplyHidden`.
  */
 export function UpdateToast() {
   const lastCheck = useRef<number | null>(null);
@@ -38,6 +53,17 @@ export function UpdateToast() {
   // under StrictMode the whole thing runs twice in development.
   const [swReg, setSwReg] = useState<ServiceWorkerRegistration | null>(null);
 
+  /*
+   * A waiting worker, remembered independently of whether the PROMPT is still
+   * showing.
+   *
+   * Dismissing the toast hides the offer; it does not make the new build go
+   * away, and `setNeedRefresh(false)` is the app forgetting the one fact it
+   * needs to finish the job. The worker is still sitting there waiting to be
+   * asked, and with `clientsClaim` off it will wait for the life of the tab.
+   */
+  const [waiting, setWaiting] = useState(false);
+
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
@@ -45,6 +71,13 @@ export function UpdateToast() {
     onRegisteredSW(_url, registration) {
       lastCheck.current = Date.now(); // registering just did one
       setSwReg(registration ?? null);
+    },
+    // The worker telling us one is waiting, which is the fact the dismissal
+    // below must not erase. Taken from the registration's own callback rather
+    // than derived from `needRefresh`, so nothing here has to set state from a
+    // render or an effect to remember it.
+    onNeedRefresh() {
+      setWaiting(true);
     },
   });
 
@@ -68,6 +101,47 @@ export function UpdateToast() {
       window.removeEventListener('online', check);
     };
   }, [swReg]);
+
+  /*
+   * Apply it while nobody is looking.
+   *
+   * `registerType: 'prompt'` is the right default and stays: a deploy must not
+   * reload the page mid-design. But an offer that is never answered leaves the
+   * tab on the old build for good, and the only way out is the hard reload this
+   * whole mechanism exists to spare people. So once the tab has been hidden
+   * long enough for a reload to cost nothing, it is taken up unasked.
+   *
+   * `simBusy` is read at the moment it fires rather than subscribed to: a
+   * flight in the air is the one thing that keeps running while the tab is
+   * hidden, and re-running this effect every time it changes would restart the
+   * clock on a batch finishing.
+   */
+  useEffect(() => {
+    if (!waiting) return;
+    let timer: ReturnType<typeof setInterval> | null = null;
+    const stop = () => {
+      if (timer !== null) clearInterval(timer);
+      timer = null;
+    };
+    const onVisibility = () => {
+      stop();
+      if (document.visibilityState !== 'hidden') return;
+      const hiddenSince = Date.now();
+      // Polled rather than a single timeout: if a flight is still in the air
+      // when the wait is up, this has to come back to it rather than give up.
+      timer = setInterval(() => {
+        if (!readyToApplyHidden(true, hiddenSince, useWorkspaceStore.getState().simBusy, Date.now())) return;
+        stop();
+        void updateServiceWorker(true);
+      }, 5_000);
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    onVisibility(); // the tab may be hidden already
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [waiting, updateServiceWorker]);
 
   // Snoozing hides the prompt without throwing away `needRefresh`, so the same
   // waiting worker is still there to offer when the snooze runs out.

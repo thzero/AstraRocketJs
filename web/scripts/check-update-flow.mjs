@@ -27,7 +27,7 @@ import { chromium } from '@playwright/test';
 
 // The callbacks handed to page.evaluate() run in the browser; the lint config
 // for scripts/ knows only Node globals.
-/* global document, location */
+/* global document, location, window */
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
 const VITE = resolve(WEB, 'node_modules/vite/bin/vite.js');
@@ -36,6 +36,7 @@ const PORT = 4179;
 const URL_ = `http://localhost:${PORT}/`;
 const VERSION_A = '0.0.0-update-a';
 const VERSION_B = '0.0.0-update-b';
+const VERSION_C = '0.0.0-update-c';
 // The app settings blob (services/settings.ts); the same key e2e/base.ts seeds.
 const SETTINGS_KEY = 'astrarrocketjs:settings:v1';
 
@@ -202,7 +203,48 @@ async function main() {
       }
     });
 
-    log('OK: a plain reload and the toast both put the new build on screen, and offline still boots');
+    build(VERSION_C);
+
+    // The case that stranded a real tab, and the reason this step exists.
+    //
+    // Under `registerType: 'prompt'` the waiting worker activates ONLY when the
+    // page posts SKIP_WAITING, and `clientsClaim` is off, so a worker nobody
+    // asks for waits for the life of the tab. Dismissing the toast used to be
+    // exactly that - one click and the tab stayed on the old build until it was
+    // hard-reloaded, which is the thing this whole file exists to prove
+    // unnecessary. So an unanswered update is taken up once the tab is hidden.
+    await step('an update nobody answers is applied once the tab is hidden', async () => {
+      await page.evaluate(async () => {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (!reg) throw new Error('no registration');
+        await reg.update();
+      });
+      await page.getByText('A new version is available.').waitFor({ timeout: 60_000 });
+
+      // Refuse it, the way a user who does not want to be interrupted does.
+      await page.getByRole('button', { name: 'Dismiss', exact: true }).click();
+      await page.getByText('A new version is available.').waitFor({ state: 'hidden', timeout: 30_000 });
+
+      // A marker that cannot survive a navigation, so the assertion below is
+      // about the page having actually reloaded rather than about its text.
+      await page.evaluate(() => {
+        window.__stillTheSameDocument = true;
+      });
+
+      // Hide the tab. Playwright cannot set visibilityState, and the code under
+      // test reads exactly that plus the event, so both are supplied here.
+      await page.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+
+      // Nothing is clicked from here. The wait is real time: the threshold is
+      // 30 s and the check polls every 5 s, so this lands around 35 s.
+      await page.waitForFunction(() => window.__stillTheSameDocument === undefined, null, { timeout: 120_000 });
+      await page.getByText(`v${VERSION_C}`, { exact: true }).waitFor({ timeout: 60_000 });
+    });
+
+    log('OK: a plain reload, the toast and a dismissed prompt all end on the new build, and offline still boots');
   } finally {
     await browser.close();
     server.kill();
