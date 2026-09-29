@@ -38,7 +38,7 @@ Así que en aerodinámica supersónica esta aplicación va por detrás de mmrock
 | --- | --- | --- |
 | **Forma** | Aplicación de navegador, instalable, funciona sin conexión | Aplicación de navegador, instalable, funciona sin conexión (según su README) |
 | **Motor** | Núcleo de OpenRocket compilado con TeaVM | Núcleo de OpenRocket compilado con TeaVM |
-| **Commit de OpenRocket** | <UpstreamPin />, una compilación de desarrollo posterior a 24.12 | OpenRocket 24.12, según su README |
+| **Commit de OpenRocket** | <UpstreamPin />, de la rama **unstable** | OpenRocket 24.12, según su README |
 | **Destino de compilación** | **WebAssembly (WASM-GC)** con JavaScript como alternativa; una etiqueta en la cabecera dice cuál se cargó | JavaScript, según su README |
 | **Integrador de vuelo** | La compilación fijada incluye `RK4SimulationStepper` y `RK6SimulationStepper`, y ambos están en el manifiesto de extracción | RK4 con paso de tiempo adaptativo, según su README |
 | **Extensiones supersónicas** | Incorporadas de mmrocket-sim, desactivadas por defecto, opcionales por indicador | Obra propia, desarrollada allí |

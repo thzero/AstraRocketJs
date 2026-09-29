@@ -2,15 +2,145 @@
 title: "Developer Guide"
 sidebar_position: 15
 ---
-AstraRocketJs is a monorepo: a **web app** (`web/`) and the **OpenRocket engine** (`engine-java/`) compiled to WebAssembly + JavaScript by TeaVM. Full developer docs live in the repo:
+AstraRocketJs is a monorepo: a **web app** (`web/`) and the **OpenRocket engine** (`engine-java/`) compiled to WebAssembly + JavaScript by TeaVM. This page is how to build it, run it and submit a change.
 
 - **[Architecture & internals](./architecture.md)** — how it all fits together: the extracted engine, the WASM/JS build pipeline and backend selection, threading (the simulation Web Worker), and the motor / material / component / `.ork` data flows.
-- **[Contributing](./contributing.md)** — requirements, install, running the app, rebuilding the engine, the catalog tools, tests, and how to report bugs, translate, and submit changes.
+- **[Contributing](./contributing.md)** — reporting bugs, suggesting features, the maintainer tasks, translating, and the docs.
 - **[Dependencies](./dependencies.md)** — the npm version policy, and why a package is deliberately held back from its latest (read this before "fixing" anything `npm outdated` flags).
 
-## The short version
+## Project layout
 
-- **Requirements** — Node 22+ for the app; a JDK only if you rebuild the engine (Gradle is bundled).
-- **Run the app** — `cd web && npm install && npm run dev`.
-- **Rebuild the engine** (rarely needed; the build is committed) — `cd engine-java && node build-engine.mjs`, which builds and vendors both the WASM-GC and JS targets.
-- **Engine** — extracted OpenRocket core, minimally patched for TeaVM (`engine-java/`), exposed to the app through a typed wrapper (`web/src/engine/openRocketEngine.ts`).
+It's a monorepo with two halves:
+
+- **`web/`** — the app: **Vite + React + TypeScript + Tailwind CSS**. This is where the vast majority of contributions happen (UI, 2D/3D views, `.ork` import/export, editor, simulation setup).
+- **`engine-java/`** — OpenRocket's physics `core`, extracted and compiled by **TeaVM** to **WebAssembly + JavaScript**. The app loads the committed build (WASM by default, JS as a fallback) through the typed wrapper `web/src/engine/openRocketEngine.ts`.
+
+For the full architecture — engine build pipeline, WASM/JS backend selection, threading (the sim Web Worker), and the motor/materials/`.ork` data flows — see the **[Architecture & internals](./architecture.md)** page.
+
+## Getting started
+
+**Requirements**
+
+- **Node 22+** (npm ships with Node) — for the web app and the catalog tools.
+- **Only if you rebuild the engine:** a **JDK** (Temurin **21** is known-good; the engine targets Java 17). You don't need to install Gradle — it's bundled via the wrapper (`engine-java/gradlew`). Most contributors never need this; the built engine is committed.
+
+**Install** — only `web/` has npm dependencies. `engine-java/` has **no** `npm install` (it uses the bundled Gradle wrapper + plain-Node scripts):
+
+```bash
+cd web
+npm install
+```
+
+**Run the app** (from `web/`):
+
+```bash
+npm run dev          # dev server with hot reload — prints a local URL
+npm run build        # typecheck (tsc) + production build — must pass before a PR
+npm run preview      # serve the production build locally
+npm run test         # Vitest: unit tests (.test.ts) and component tests (.test.tsx)
+npm run test:watch   # Vitest in watch mode while developing
+npm run e2e          # Playwright end-to-end smoke tests (downloads Chromium the first time)
+npm run verify       # every gate CI runs on the web app: format, spell, typecheck, lint, knip, test
+```
+
+Please **verify UI changes in a real browser**, not just that it compiles.
+
+A few house rules that keep the codebase consistent:
+
+- **All user-facing text goes through i18n.** Add keys to `web/src/i18n/locales/en.json` **and** `es.json` — never hardcode strings in components. See [Translation](./contributing.md#translation).
+- **Never hardcode the app name, version, or the help/docs URL.** They come from `web/src/services/appInfo.ts` — name from i18n, version from `package.json`, and `HELP_URL` from `package.json`'s `wiki.url` (overridable at build time with `HELP_URL=…`).
+- **Match the surrounding code** — its naming, comment density, and style.
+
+## Working on the engine
+
+Most contributions don't touch the engine. If you do:
+
+- **Don't edit the extracted OpenRocket sources under `engine-java/src/java/` directly** — they track OpenRocket's **unstable** branch. Necessary tweaks go through a documented override in `engine-java/patches/` (see also `engine-java/ATTRIBUTION.md`).
+- ARJ's own engine glue — the `@JSExport` facade, the component-tree builder, overrides, etc. — lives in `engine-java/src/api/`. That's fair game.
+- Changing the engine requires a **JDK** (see **Requirements** above) and rebuilding **both** targets (WASM-GC is the default backend, JS the fallback):
+
+  ```bash
+  cd engine-java
+  node build-engine.mjs           # builds + vendors BOTH targets (the default)
+  ```
+
+- **Commit the Java change and _both_ regenerated artifacts (`.mjs` + `.wasm`) together** — they must stay in sync, or the app runs stale physics (and the two backends must match).
+
+## Catalog tools
+
+The reference catalogs — motors and components — are **build artifacts** under `web/public/data/`, regenerated by scripts in `web/scripts/` and committed. The app fetches them at runtime rather than bundling them, so a refresh can ship without rebuilding (see **Catalog publishing** below). Run them from `web/` (they need only Node):
+
+```bash
+cd web
+npm run sync:motors                  # sweep thrustcurve.org → public/data/motors.generated.json (~800 motors)
+npm run sync:components              # parse the OpenRocket-Components DB → public/data/components.generated.json (~2,900 parts)
+#   sync:components reads OPENROCKET_PRESETS (or --src <path-to>/openrocket-database/orc) if the DB isn't at the default local path
+npm run sync:materials               # OpenRocket's material database + ours → public/data/materials.generated.json (97 materials)
+#   reads the extractor's own .openrocket-src, or --src <openrocket checkout>. The app's OWN materials
+#   (adhesives, and corrections to upstream values that are wrong) are in scripts/data/materials.app.json,
+#   hand-maintained; this merges them in but never writes to that file. Every row keeps a `kind` saying
+#   which input it came from, and `extract --check` holds the upstream rows to upstream.
+npm run sync:examples                # OpenRocket's example rockets → public/examples/ (16 designs, ~330 kB)
+#   pulls from the commit engine-java/extract/UPSTREAM pins, and strips each file's stored flight data
+#   (96% of the bytes). --src <full-openrocket-checkout> to work offline; the extractor's own sparse
+#   .openrocket-src does NOT have them (it is limited to core/src/main/java).
+npm run sync:contributors            # GitHub contributors → public/data/contributors.generated.json (About dialog)
+#   avatars are inlined as data URIs; set GITHUB_TOKEN to avoid the 60 req/hour unauthenticated limit
+```
+
+Examples are the one artifact here that is **not** published to the `data` branch: they are pinned to the engine's upstream ref, so they change with a rebuild rather than on a schedule, and they are precached so an example opens offline. Re-run `sync:examples` when bumping `extract/UPSTREAM`; `exampleLibrary.test.ts` fails if the index's ref and `UPSTREAM` disagree.
+
+## Catalog publishing
+
+Catalogs no longer ride along with a deploy. `.github/workflows/sync-catalogs.yml` (weekly, plus **Run workflow**) regenerates them and pushes the JSON to an orphan **`data`** branch, which jsDelivr serves. The built app reads that branch via `VITE_DATA_BASE` (set in `deploy.yml`), so **a catalog refresh goes live without rebuilding or redeploying the app**.
+
+The copy committed under `web/public/data/` stays in the build as a fallback, used whenever the CDN is unreachable or before the `data` branch exists — so the app always works, at worst with catalogs frozen at the last deploy. Refresh that floor by running the scripts above and committing.
+
+Run a sync locally against the published copy only if you want it current in a dev build; `sync-components.mjs` reuses the previous `generated` timestamp when the parts are unchanged, so a no-op run leaves the file (and its manifest hash) untouched.
+
+The contributor list is the exception: the Pages deploy re-runs `sync-contributors.mjs` before `npm run build`, so a newly merged contributor is credited automatically on the next deploy to `master`. That step is best-effort (`continue-on-error`) — if the GitHub API is unavailable the build falls back to the committed JSON, which is why the file stays in the repo. Run `npm run sync:contributors` locally only if you want the list current in a dev build.
+
+## Commit etiquette
+
+- Use **atomic commits**: one logical change per commit. Fixing a bug _and_ spotting a typo elsewhere? Two commits.
+- Give commits **useful names**. If there's an issue, prefix with it: `[#123] Fix stability when fins are swept aft`. The `#123` auto-links the issue.
+- A short subject plus a body explaining _why/how_ is ideal.
+
+## Pull requests
+
+Open a PR from your branch to **`master`**. In the description:
+
+1. Which issue it addresses — e.g. "Solves #123, where …".
+2. The underlying cause.
+3. How you fixed it.
+
+Make sure `npm run verify` passes (it runs the same gates CI does, in the same order), and that you've checked the change in the browser. Add or update tests for any logic you touch under `web/src/services` or `web/src/engine`. Keep engine `.mjs`/`.wasm` regenerations in the same PR as their Java changes.
+
+What CI gates on the PR itself:
+
+| Workflow         | Runs                                                                     | When                      |
+| ---------------- | ------------------------------------------------------------------------ | ------------------------- |
+| `parity`         | `npm run parity`, then a rebuild compared against the committed binaries | first                     |
+| `reproducible`   | `npm run extract:check` against the pinned OpenRocket                    | first                     |
+| `build-and-test` | `npm run verify` with coverage, then `vite build`                        | in parallel with `parity` |
+| `e2e`            | Playwright, sharded three ways                                           | in parallel with `parity` |
+
+Pushes to `dev` run only the web gates (`dev.yml`, about two minutes), so a broken test shows up on the push that broke it rather than when the PR to `master` is opened.
+
+The Docusaurus site is **not** built on a PR. It is typechecked and built in `deploy.yml` on merge to `master`, so a broken MDX page or `sidebars.ts` shows up as a failed deploy rather than a failed PR check.
+
+Those four jobs live in `.github/workflows/gates.yml`, a reusable workflow. `ci.yml` calls it on a PR and `deploy.yml` calls the same file on merge to `master`, so master is held to exactly what a PR was held to and there is only one definition to maintain. Add a gate to `gates.yml` and both get it.
+
+On merge, `deploy.yml` runs those gates and only then typechecks and builds the docs, builds the app and publishes to Pages. Nothing publishes unless every gate is green.
+
+## Which kind of test
+
+|                                                         | For                                                                                          | Example                               |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------- |
+| **`.test.ts`** (Vitest, node)                           | Pure logic: parsers, transforms, conversions, stores. Most tests are these.                  | `prefs/units.test.ts`                 |
+| **`.test.tsx`** (Vitest + React Testing Library, jsdom) | A rule that lives in a component and has no service to test instead.                         | `components/common/UnitChip.test.tsx` |
+| **`e2e/*.spec.ts`** (Playwright)                        | Whole journeys, and anything needing the real engine, layout or persistence across a reload. | `e2e/units.spec.ts`                   |
+
+Component tests render through `src/testing/renderWithProviders.tsx`, which wraps the component in the app's providers and initializes real translations — so assertions read the strings a user actually sees, and a renamed i18n key fails a test instead of showing a raw key on screen. Seed preferences with `seedSettings({ … })` before rendering and read back what a component wrote with `readSettings()`.
+
+**Prefer a `.test.ts`.** If logic is hard to reach without rendering, that is usually a sign it should move into a module of its own — as the launch-condition unit bridge did (`prefs/launchUnits.ts`), which had been unreachable inside a `.tsx` and therefore untested.

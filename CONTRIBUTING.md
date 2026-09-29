@@ -12,7 +12,7 @@ By participating you agree to our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 - **Report a bug or request a feature** — open a [GitHub issue](https://github.com/thzero/AstraRocketJs/issues/new/choose); the bug and feature-request templates will guide you.
 
-- **Set up and run the app** — see [Documentation → Contributing → Getting started](https://thzero.github.io/AstraRocketJs/docs/contributing#getting-started).
+- **Set up and run the app** — see [Documentation → Contributing → Getting started](https://thzero.github.io/AstraRocketJs/docs/developer-guide#getting-started).
 
 - **Contribute code** — collaborators can submit a pull request via GitHub.
 

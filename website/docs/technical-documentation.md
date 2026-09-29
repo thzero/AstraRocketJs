@@ -28,6 +28,5 @@ OpenRocket's **[Resources wiki page](https://github.com/openrocket/openrocket/wi
 Two things are ours rather than OpenRocket's, and are documented here:
 
 - **[Architecture & internals](./architecture.md)** — which parts of the OpenRocket core were extracted, the TeaVM compilation to WebAssembly and JavaScript, and the handful of compatibility patches applied to the kernel.
-- **The supersonic aerodynamics extension** — the opt-in RASAero-style corrections (see [Settings](./settings.md)) are the original work of the mmrocket-sim project, not part of OpenRocket. Their physics, source diffs and validation are in [`docs/rasaero/`](https://github.com/thzero/AstraRocketJs/tree/HEAD/docs/rasaero) and [`engine-java/ATTRIBUTION.md`](https://github.com/thzero/AstraRocketJs/blob/HEAD/engine-java/ATTRIBUTION.md).
 
 AstraRocketJs is an independent project and is not affiliated with OpenRocket.

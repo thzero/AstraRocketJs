@@ -1,7 +1,7 @@
 # Proposal: what the tests cover, and what they assume
 
 > Design proposal / decision record. Status: **proposed**, for review. Nothing in here changes code.
-> Companion to [Contributing → Which kind of test](https://thzero.github.io/AstraRocketJs/docs/contributing#which-kind-of-test),
+> Companion to [Developer Guide → Which kind of test](https://thzero.github.io/AstraRocketJs/docs/developer-guide#which-kind-of-test),
 > which says _how_ to write a test. This document says what the suites currently
 > **cover**, what each one **assumes** about the world it runs in, and what a green
 > run does and does not entitle anyone to believe.

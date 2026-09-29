@@ -34,7 +34,7 @@ mmrocket-sim's subject is **RASAero-style supersonic aerodynamics**: the correct
 | --- | --- | --- |
 | **Shape** | Browser app, installable, works offline | Browser app, installable, works offline (per their README) |
 | **Engine** | OpenRocket core compiled with TeaVM | OpenRocket core compiled with TeaVM |
-| **OpenRocket pin** | <UpstreamPin />, a post-24.12 development build | OpenRocket 24.12, per their README |
+| **OpenRocket pin** | <UpstreamPin />, from the **unstable** branch | OpenRocket 24.12, per their README |
 | **Compile target** | **WebAssembly (WASM-GC)** with a JavaScript fallback; a badge in the header says which loaded | JavaScript, per their README |
 | **Flight integrator** | The pinned build carries `RK4SimulationStepper` and `RK6SimulationStepper`, both listed in the extraction manifest | RK4 with adaptive time stepping, per their README |
 | **Supersonic extensions** | Carried from mmrocket-sim, off by default, opt-in per simulation | Their own work, developed there |
