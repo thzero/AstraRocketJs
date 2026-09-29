@@ -47,4 +47,4 @@ Lo que no viaja es la pertenencia del material a **tu** lista personalizada. Abr
 Sí. Las simulaciones de vuelo se ejecutan en un Web Worker en segundo plano, así que la interfaz sigue respondiendo mientras se calcula un vuelo.
 
 ### ¿Cómo informo de un fallo o pido una función?
-Consulta la página **[Contribuir](./contributing.md)**: se agradecen informes de fallos, ideas de funciones, traducciones y código.
+Consulta la página **[Contribuir](https://github.com/thzero/AstraRocketJs/blob/HEAD/CONTRIBUTING.md)**: se agradecen informes de fallos, ideas de funciones, traducciones y código.

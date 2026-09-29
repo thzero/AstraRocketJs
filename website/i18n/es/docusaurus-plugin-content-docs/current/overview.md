@@ -29,7 +29,6 @@ Para los modelos físicos subyacentes, la referencia es la [documentación de Op
 - **Introducción** — esta página, [Características](./features.md) y las [Preguntas frecuentes](./faq.md).
 - **Primeros pasos** — [abre la aplicación y crea tu primer cohete](./getting-started.md), y los [Ajustes](./settings.md).
 - **Guía de uso** — diseño, motores, las vistas, simulación, archivos/exportaciones y [Seguridad](./safety.md).
-- **Desarrollo** — la [Guía del desarrollador](./developer-guide.md) para compilar y contribuir.
 - **Apéndice** — mapas de funciones fechados frente a [OpenRocket](./comparison-openrocket.md), [ZenRockets](./comparison-zenrockets.md) y [mmrocket-sim](./comparison-mmrocket-sim.md), incluido lo que cada uno hace y esta aplicación no.
 
 :::warning Antes de volar

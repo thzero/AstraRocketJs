@@ -1,7 +1,7 @@
 # Proposal: what the tests cover, and what they assume
 
 > Design proposal / decision record. Status: **proposed**, for review. Nothing in here changes code.
-> Companion to [Developer Guide → Which kind of test](https://thzero.github.io/AstraRocketJs/docs/developer-guide#which-kind-of-test),
+> Companion to [Developer Guide → Which kind of test](./DEVELOPER.md#which-kind-of-test),
 > which says _how_ to write a test. This document says what the suites currently
 > **cover**, what each one **assumes** about the world it runs in, and what a green
 > run does and does not entitle anyone to believe.
@@ -50,7 +50,7 @@ gates (`build-and-test` and `e2e`) then run in **parallel** behind it: both
 declare `needs: [parity, reproducible]`, and neither waits on the other.
 
 This document is about the middle and bottom rows. The engine layer is documented
-in [Contributing → Validation & fidelity tests](https://thzero.github.io/AstraRocketJs/docs/contributing#validation--fidelity-tests).
+in [Developer Guide → Validation & fidelity tests](./DEVELOPER.md#validation--fidelity-tests).
 
 ## Unit and component tests
 
@@ -470,7 +470,7 @@ Stated so the list is arguable rather than assumed:
 ## Open questions
 
 1. Where should this live long term: here in `docs/`, or folded into the
-   [Contributing](https://thzero.github.io/AstraRocketJs/docs/contributing) page
+   [CONTRIBUTING.md](../CONTRIBUTING.md)
    next to "Which kind of test"? It is longer than that page wants, but the seam
    rule belongs beside it.
 2. Is the unenforced-coverage position the right one, or is a floor under the four

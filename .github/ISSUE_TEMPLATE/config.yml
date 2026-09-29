@@ -4,5 +4,5 @@ contact_links:
     url: https://thzero.github.io/AstraRocketJs/docs/
     about: How to use the app — designing, motors, simulations, files & exports.
   - name: 🛠 Contributing guide
-    url: https://thzero.github.io/AstraRocketJs/docs/contributing
+    url: https://github.com/thzero/AstraRocketJs/blob/HEAD/CONTRIBUTING.md
     about: Setup, building the engine, and how to submit changes.

@@ -251,7 +251,7 @@ The classic-off failure is the *point*: it quantifies where stock OpenRocket is 
 
 The scoring harness, anchors, fixtures and scorecards live in
 [`engine-java/validation/`](../../engine-java/validation/) — one copy, next to the engine it
-scores, which is what `website/docs/contributing.md` points contributors at.
+scores, which is what `docs/DEVELOPER.md` points contributors at.
 
 A byte-identical second copy used to sit here under `docs/rasaero/validation/`. Two copies of the
 same anchors drift, and a contributor re-scoring the engine could not tell which was

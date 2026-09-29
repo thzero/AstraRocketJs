@@ -25,12 +25,6 @@ const sidebars: SidebarsConfig = {
       collapsed: false,
       items: ['designing-a-rocket', 'motors', 'views-and-analysis', 'running-a-simulation', 'files-and-exports', 'safety'],
     },
-    {
-      type: 'category',
-      label: 'Developing',
-      collapsed: false,
-      items: ['contributing', 'developer-guide', 'architecture', 'dependencies'],
-    },
     // Feature maps against the other tools, each one a dated snapshot that says
     // so at the top. Last, because they answer "should I use this?" rather than
     // "how do I use this?".

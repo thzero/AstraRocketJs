@@ -1,6 +1,6 @@
 # Proposal: tabbed workbench, right-hand property editor, parallel simulations
 
-> Design proposal / decision record. Status: **Phases 1-4 implemented.** Companion to the [Architecture & internals](https://thzero.github.io/AstraRocketJs/docs/architecture) documentation page and to [`engine-worker-proposal.md`](./engine-worker-proposal.md), whose Phase 1 transport this builds on.
+> Design proposal / decision record. Status: **Phases 1-4 implemented.** Companion to the [`ARCHITECTURE.md`](./ARCHITECTURE.md) and to [`engine-worker-proposal.md`](./engine-worker-proposal.md), whose Phase 1 transport this builds on.
 
 ## Problem
 

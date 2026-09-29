@@ -100,7 +100,8 @@ test('a link inside the docs navigates the dialog, and Back returns', async ({ p
   const docs = page.frameLocator(`iframe[title="${helpDialog}"]`);
   await docs.locator('.pagination-nav__link--next').click();
 
-  await expect(dialog.getByRole('heading', { name: 'Contributing' })).toBeVisible();
+  // Safety is the last User Guide page, so next is the Appendix's first.
+  await expect(dialog.getByRole('heading', { name: 'Compared with OpenRocket' })).toBeVisible();
   // Still inside the app: the frame moved, the page did not.
   await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 

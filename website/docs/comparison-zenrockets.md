@@ -54,15 +54,10 @@ Read against their documentation on the date above.
 | **Tube fins, ring tails and nested pods on RockSim import** | Their import documentation lists those as skipped. Tube fins import here and simulate. |
 | **Working fully offline, with nothing uploaded** | The app, the engine and both catalogs are kept on your device after the first visit, and there is no account. A service that needs a session and a forecast fetch is a different proposition at a field with no signal. |
 | **Component Analysis** | Per-component drag split into pressure, base and friction, each part's stability contribution and its own CP, and every fin set's roll forcing and damping, over a Mach sweep at a chosen angle of attack, wind direction and roll rate, with a **Worst** setting that finds the wind angle where the CP sits furthest forward. |
-| **RASAero-style supersonic aerodynamics** | Opt-in corrections above roughly Mach 1.5, calibrated against published wind-tunnel and free-flight anchors. See [Compared with mmrocket-sim](./comparison-mmrocket-sim.md). |
 | **Everything you can get out of it** | A full design report as PDF with 1:1 fin, nose and transition templates; DXF cut sheets; per-part STL, OBJ, GLB and 3MF plus whole-rocket 3MF; RASAero II `.CDX1`; flight data and drag tables as CSV; the flight path as KML, GPX or waypoint CSV with custom templates; the schematic as SVG, PNG or JPG. Their documented export is 3MF. |
 | **NAR / Tripoli limits, enforced** | A run with the rod past 20 degrees from vertical or surface wind above 20 mph is refused rather than flown. Their pre-flight validation produces errors, warnings and alerts; it is not the same thing as declining to fly. |
 | **Multilingual** | |
 | **Free** | |
-
-## Where they are on a par
-
-Parametric airframes with the usual component set and nose profiles. A freeform fin editor. Part presets, your own saved parts, and a material library. Live mass, CG, Barrowman CP and stability in calibers. Multi-stage flights with per-stage separation and ignition. Recovery at apogee, at an altitude, or on an ejection charge. Motor clusters with per-motor delays. Plain-language pre-flight validation. Synchronized flight charts. 3D playback with a scrubbable timeline and speed control, plus a ground track. Example rockets. Autosaved drafts and undo. Metric and imperial units per category, stored in SI. 3MF export for printing.
 
 ## What to use which for
 

@@ -29,7 +29,6 @@ For the underlying physics models, the [OpenRocket documentation](https://openro
 - **Introduction** — this page, [Features](./features.md), and the [FAQ](./faq.md).
 - **Getting Started** — [open the app and make your first rocket](./getting-started.md), and the [Settings](./settings.md).
 - **User Guide** — designing, motors, the views, simulating, files/exports, and [Safety](./safety.md).
-- **Developing** — the [Developer Guide](./developer-guide.md) for building and contributing.
 - **Appendix** — dated feature maps against [OpenRocket](./comparison-openrocket.md), [ZenRockets](./comparison-zenrockets.md) and [mmrocket-sim](./comparison-mmrocket-sim.md), including what each of them does that this does not.
 
 :::warning Before you fly

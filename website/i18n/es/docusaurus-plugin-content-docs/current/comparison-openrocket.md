@@ -10,10 +10,6 @@ import UpstreamPin from '@site/src/components/UpstreamPin';
 
 Escrito el **2026-09-22**, comparando **AstraRocketJs <AppVersion />** (motor compilado a partir de OpenRocket <UpstreamPin />) con **OpenRocket de escritorio**: la versión **24.12**, la versión numerada actual, y la línea de desarrollo `unstable` en la que se sitúa el commit fijado.
 
-Una página de comparación se queda obsoleta sin que nada falle, así que trata la fecha de arriba como la caducidad de lo que se afirma aquí. Si una fila es incorrecta, es un error como cualquier otro: [avísanos](./contributing.md).
-
-Esto es un mapa de funciones, no un argumento de venta. Las filas que merece la pena leer son aquellas en las que OpenRocket de escritorio tiene algo que esta aplicación no tiene, y cada una de ellas dice **por qué**, porque una carencia sin un motivo detrás es solo una disculpa.
-
 :::
 
 ## Lo único que no es una diferencia
@@ -46,7 +42,6 @@ Todo lo que sigue trata, por tanto, del **programa que rodea al motor**: qué pu
 | --- | --- |
 | **Funciona en el navegador, se instala y funciona sin conexión** | Sin JDK y sin descarga. Tras la primera visita, la aplicación, el motor y ambos catálogos se quedan en tu dispositivo, así que una simulación completa se ejecuta en un campo sin cobertura. Consulta [Sin conexión e instalación](./offline-and-installing.md). |
 | **Una disposición pensada para el móvil** | El banco de trabajo de escritorio se convierte en pestañas en la parte inferior, y las vistas del cohete giran un cuarto de vuelta para que el fuselaje ocupe el lado largo de la pantalla. |
-| **Aerodinámica supersónica al estilo RASAero** | Correcciones opcionales al Barrowman extendido por encima de Mach 1,5 aproximadamente, donde el modelo original congela el CP del cuerpo en su valor de Mach 1. **No** forman parte de OpenRocket: son obra del proyecto mmrocket-sim, incorporada aquí bajo GPL-3.0. Consulta [Comparación con mmrocket-sim](./comparison-mmrocket-sim.md). |
 | **Vista de traza sobre el terreno** | El vuelo visto desde arriba, con el norte arriba y la rampa en el centro, con anillos de distancia y la distancia y el rumbo de aterrizaje de cada etapa. |
 | **Exportación de la trayectoria a KML / GPX / CSV de waypoints** | Abre el vuelo en Google Earth o en una aplicación GPS, con un color por etapa, un nombre de misión, globos de resumen con los números del vuelo y plantillas Mustache propias importables. |
 | **3MF del cohete entero, y STL / GLB / 3MF por pieza** | Un archivo con un objeto con nombre por pieza, listo para el laminador. OpenRocket exporta OBJ, que esta aplicación también; el resto es adicional. |
@@ -59,10 +54,6 @@ Todo lo que sigue trata, por tanto, del **programa que rodea al motor**: qué pu
 | **Deshacer que también cubre las simulaciones** | Las ediciones de componentes y los cambios de simulación (motor, encendido, condiciones de lanzamiento, añadir o borrar una simulación) están en una única línea temporal. |
 | **Un selector de unidades en cada valor** | La unidad impresa junto a cualquier número es también un control para ese campo concreto, además de los perfiles métrico e imperial. Consulta [Ajustes](./settings.md#units). |
 | **Nada que guardar y nada que se suba** | La edición se guarda sola, la barra superior dice cuándo se escribió por última vez, y no hay servidor ni cuentas. |
-
-## En qué están a la par
-
-Edición del árbol de componentes con CG, CP y estabilidad en vivo. Creación de etapas múltiples y paralelas con separación y tiempos de encendido. Edición de aletas de forma libre. Anulaciones de masa y CG. El catálogo de ~2.900 piezas y la base de materiales de OpenRocket. Materiales personalizados, motores personalizados y tus propias piezas guardadas. Selección de motores con curvas de empuje reales, elección del retardo de eyección y motores taponados, además de importación de `.eng` y `.rse`. Análisis de componentes: resistencia por pieza desglosada, la contribución de cada una a la estabilidad y su propio CP, y el forzado y amortiguamiento de alabeo de cada juego de aletas, a lo largo de un barrido de Mach con ángulo de ataque y dirección de viento elegidos. Gráficas de vuelo. Trayectoria 3D con reproducción, desplazamiento por la línea temporal y control de velocidad. Informe de diseño, plantillas 1:1 y resúmenes en CSV. Ida y vuelta de `.ork` con fidelidad completa en ambos sentidos.
 
 ## Para qué usar cada uno
 

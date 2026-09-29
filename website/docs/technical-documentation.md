@@ -2,7 +2,7 @@
 title: "Technical Documentation"
 sidebar_position: 3
 ---
-AstraRocketJs runs **OpenRocket's own physics kernel** — the aerodynamics, mass/CG and flight integration are OpenRocket's code, not a reimplementation (see [Architecture & internals](./architecture.md)). So for *how the physics works*, OpenRocket's own technical documentation is the reference, and nothing here restates it.
+AstraRocketJs runs **OpenRocket's own physics kernel** — the aerodynamics, mass/CG and flight integration are OpenRocket's code, not a reimplementation (see [Architecture & internals](https://github.com/thzero/AstraRocketJs/blob/HEAD/docs/ARCHITECTURE.md)). So for *how the physics works*, OpenRocket's own technical documentation is the reference, and nothing here restates it.
 
 ## OpenRocket technical documentation
 
@@ -27,6 +27,6 @@ OpenRocket's **[Resources wiki page](https://github.com/openrocket/openrocket/wi
 
 Two things are ours rather than OpenRocket's, and are documented here:
 
-- **[Architecture & internals](./architecture.md)** — which parts of the OpenRocket core were extracted, the TeaVM compilation to WebAssembly and JavaScript, and the handful of compatibility patches applied to the kernel.
+- **[Architecture & internals](https://github.com/thzero/AstraRocketJs/blob/HEAD/docs/ARCHITECTURE.md)** — which parts of the OpenRocket core were extracted, the TeaVM compilation to WebAssembly and JavaScript, and the handful of compatibility patches applied to the kernel.
 
 AstraRocketJs is an independent project and is not affiliated with OpenRocket.

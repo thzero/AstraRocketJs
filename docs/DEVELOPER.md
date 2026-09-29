@@ -1,12 +1,13 @@
----
-title: "Developer Guide"
-sidebar_position: 15
----
+# AstraRocketJs — Developer Guide
+
+> How to build the project, run it, and submit a change. Internal documentation: it assumes a
+> source checkout, so it lives in the repo rather than in the app's Help.
+
 AstraRocketJs is a monorepo: a **web app** (`web/`) and the **OpenRocket engine** (`engine-java/`) compiled to WebAssembly + JavaScript by TeaVM. This page is how to build it, run it and submit a change.
 
-- **[Architecture & internals](./architecture.md)** — how it all fits together: the extracted engine, the WASM/JS build pipeline and backend selection, threading (the simulation Web Worker), and the motor / material / component / `.ork` data flows.
-- **[Contributing](./contributing.md)** — reporting bugs, suggesting features, the maintainer tasks, translating, and the docs.
-- **[Dependencies](./dependencies.md)** — the npm version policy, and why a package is deliberately held back from its latest (read this before "fixing" anything `npm outdated` flags).
+- **[Architecture & internals](./ARCHITECTURE.md)** — how it all fits together: the extracted engine, the WASM/JS build pipeline and backend selection, threading (the simulation Web Worker), and the motor / material / component / `.ork` data flows.
+- **[Contributing](../CONTRIBUTING.md)** — reporting bugs, suggesting features, the maintainer tasks, translating, and the docs.
+- **[Dependencies](./DEPENDENCIES.md)** — the npm version policy, and why a package is deliberately held back from its latest (read this before "fixing" anything `npm outdated` flags).
 
 ## Project layout
 
@@ -15,7 +16,7 @@ It's a monorepo with two halves:
 - **`web/`** — the app: **Vite + React + TypeScript + Tailwind CSS**. This is where the vast majority of contributions happen (UI, 2D/3D views, `.ork` import/export, editor, simulation setup).
 - **`engine-java/`** — OpenRocket's physics `core`, extracted and compiled by **TeaVM** to **WebAssembly + JavaScript**. The app loads the committed build (WASM by default, JS as a fallback) through the typed wrapper `web/src/engine/openRocketEngine.ts`.
 
-For the full architecture — engine build pipeline, WASM/JS backend selection, threading (the sim Web Worker), and the motor/materials/`.ork` data flows — see the **[Architecture & internals](./architecture.md)** page.
+For the full architecture — engine build pipeline, WASM/JS backend selection, threading (the sim Web Worker), and the motor/materials/`.ork` data flows — see **[Architecture & internals](./ARCHITECTURE.md)** in the repo.
 
 ## Getting started
 
@@ -47,7 +48,7 @@ Please **verify UI changes in a real browser**, not just that it compiles.
 
 A few house rules that keep the codebase consistent:
 
-- **All user-facing text goes through i18n.** Add keys to `web/src/i18n/locales/en.json` **and** `es.json` — never hardcode strings in components. See [Translation](./contributing.md#translation).
+- **All user-facing text goes through i18n.** Add keys to `web/src/i18n/locales/en.json` **and** `es.json` — never hardcode strings in components. See [Translation](../CONTRIBUTING.md#translation).
 - **Never hardcode the app name, version, or the help/docs URL.** They come from `web/src/services/appInfo.ts` — name from i18n, version from `package.json`, and `HELP_URL` from `package.json`'s `wiki.url` (overridable at build time with `HELP_URL=…`).
 - **Match the surrounding code** — its naming, comment density, and style.
 
@@ -144,3 +145,42 @@ On merge, `deploy.yml` runs those gates and only then typechecks and builds the 
 Component tests render through `src/testing/renderWithProviders.tsx`, which wraps the component in the app's providers and initializes real translations — so assertions read the strings a user actually sees, and a renamed i18n key fails a test instead of showing a raw key on screen. Seed preferences with `seedSettings({ … })` before rendering and read back what a component wrote with `readSettings()`.
 
 **Prefer a `.test.ts`.** If logic is hard to reach without rendering, that is usually a sign it should move into a module of its own — as the launch-condition unit bridge did (`prefs/launchUnits.ts`), which had been unreachable inside a `.tsx` and therefore untested.
+
+## Maintainer tasks
+
+Occasional, advanced tasks — you won't need them for a typical change.
+
+### Validation & fidelity tests
+
+Two harnesses guard the engine (both need Node 22+; run from the repo root):
+
+```bash
+# 1. Parity test — proves BOTH browser engines (TeaVM WASM-GC and JS) return numbers
+#    identical to the reference JVM. Builds a parity engine variant (-Pparity), runs the
+#    same scenarios on each, and diffs them line-by-line. Both targets by default;
+#    --js / --wasm narrow it to one.
+node engine-java/test/parity/parity.mjs
+
+# 2. Aero validation — scores the engine against wind-tunnel anchors (ARCAS /
+#    Basic Finner / HB-2).
+node engine-java/validation/score.mjs               # classic Extended Barrowman
+node engine-java/validation/score.mjs --supersonic  # with the supersonic-aero model on
+node engine-java/validation/score.mjs --strict      # exit 1 on any gate-point failure
+```
+
+From inside `engine-java/` these have shorter names: `npm run parity`, `npm run validate`, `npm run build`. Same scripts, no dependencies to install — see `engine-java/README.md`.
+
+The parity harness compiles **only** under `-Pparity`, so the shipped engine carries no test code. Run the parity test after any engine change.
+
+### Re-extraction / upgrading OpenRocket
+
+The extracted OpenRocket sources are a committed snapshot — you only touch this when adopting a newer OpenRocket. `engine-java/extract/extract.mjs` regenerates `src/java/` from an OpenRocket source tree (repo checkout, plain source tree, or an extracted `-sources.jar`) and overlays the patches in `patches/`:
+
+```bash
+cd engine-java
+node extract/extract.mjs --check --src /path/to/openrocket   # verify only: report drift & missing files
+node extract/extract.mjs --src /path/to/openrocket           # regenerate src/java/
+# (or set OPENROCKET_SRC instead of --src)
+```
+
+`--check` writes nothing; it reports any manifest file missing upstream (version mismatch) and any extracted file that differs from `upstream (+patch)`. On a version bump, re-diff each file in `patches/` against the new upstream, then re-extract and rebuild.
