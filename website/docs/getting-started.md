@@ -14,7 +14,7 @@ When it loads you'll see a brief splash while the physics engine loads, then a s
 
 On a desktop the workbench is three **tabs**, in the top bar beside the app name. Each one lays the window out the way its own job needs, rather than all three sharing one fixed grid:
 
-- **Design.** The component tree on the left, the rocket view in the center, the selected part's editor on the right. That third column needs a window at least 1280px wide; narrower than that the editor opens as a dialog over the drawing instead, with the same fields in the same units.
+- **Design.** The component tree on the left, the rocket view in the center, the selected part's editor on the right. That third column needs a window at least 1536px wide, which most laptops are not; narrower than that the editor opens as a dialog over the drawing instead, with the same fields in the same units.
 - **Simulations.** The table of runs across the full width, with the selected simulation's editor (motor, ignition, launch setup, options) on the right.
 - **Results.** The flight charts, ground track and 3D path in the center, the run's numbers on the right. It appears once a simulation has produced a result, and a finished run takes you straight to it.
 

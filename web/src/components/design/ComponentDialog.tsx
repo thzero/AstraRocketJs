@@ -7,8 +7,9 @@ import { useSelectedComponent } from './useSelectedComponent';
 
 /**
  * The component editor as a dialog, for a window too narrow to carry the Design
- * tab's property column: below `xl` the tree, the drawing and a third column do
- * not fit, so the editor opens over the drawing instead of beside it.
+ * tab's property column: below `2xl` the tree, the drawing and a third column
+ * do not fit, so the editor opens over the drawing instead of beside it. That
+ * is most laptops, not only phones.
  *
  * Mounted ONLY at those widths and only on the Design tab (see App.tsx), which
  * is the same rule the sim editor follows and for the same reason: the panel has

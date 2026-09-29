@@ -314,17 +314,6 @@ export function PropertyPanel({
         </p>
       )}
 
-      {/* Notes on this part, which the desktop gives a tab of its own and we
-          had been dropping on every save. Last, because it is the only field
-          that is about the builder rather than the rocket. */}
-      <FieldSection
-        node={node}
-        title={t('prop.comment')}
-        fields={sectionFields(node, 'comment')}
-        onChange={onChange}
-        onCommit={onCommit}
-      />
-
       {hasMaterial(node.type) && <MaterialSection node={node} onCommitChange={commitChange} />}
 
       {/* Freeform fin: its defining feature is the outline polygon, edited
@@ -382,13 +371,27 @@ export function PropertyPanel({
           itself. */}
       <ComponentActions node={node} />
 
-      {/* Overrides are LAST on every part, without exception. They are not a
-          property of the part the way its dimensions, material and placement
-          are: they are a deliberate override of what those add up to, reached
-          for rarely and after the part is described. Sitting in the middle,
-          between the material and the placement, they pushed the placement
-          rows below three rows nobody was looking for. */}
+      {/* Overrides are the last thing about the ROCKET on every part, without
+          exception. They are not a property of the part the way its dimensions,
+          material and placement are: they are a deliberate override of what
+          those add up to, reached for rarely and after the part is described.
+          Sitting in the middle, between the material and the placement, they
+          pushed the placement rows below three rows nobody was looking for. */}
       <OverridesSection node={node} onChange={onChange} onCommit={onCommit} />
+
+      {/* Notes on this part, which the desktop gives a tab of its own and we had
+          been dropping on every save. Dead last, below even the overrides: it is
+          the only field here that is about the BUILDER rather than the rocket,
+          so nothing the panel says about the part should be under it. It was
+          sitting above the material, which put a free-text box between the
+          part's dimensions and what it is made of. */}
+      <FieldSection
+        node={node}
+        title={t('prop.comment')}
+        fields={sectionFields(node, 'comment')}
+        onChange={onChange}
+        onCommit={onCommit}
+      />
     </section>
   );
 }

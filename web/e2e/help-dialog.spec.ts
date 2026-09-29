@@ -163,7 +163,7 @@ test('the contents rail lists every page, and the headings of the one you are on
 });
 
 test.describe('at phone width', () => {
-  // The desktop project runs at 1500px, where the rail is simply beside the
+  // The desktop project runs at 1600px, where the rail is simply beside the
   // page. This is the layout that matters at a launch site.
   test.use({ viewport: { width: 390, height: 844 } });
 

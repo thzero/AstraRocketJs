@@ -14,7 +14,7 @@ Al cargar verás una breve pantalla de inicio mientras se carga el motor de fís
 
 En un ordenador el banco de trabajo son tres **pestañas**, en la barra superior junto al nombre de la aplicación. Cada una organiza la ventana como su propia tarea necesita, en vez de compartir las tres una única cuadrícula fija:
 
-- **Diseño.** El árbol de componentes a la izquierda, la vista del cohete en el centro y el editor de la pieza seleccionada a la derecha. Esa tercera columna necesita una ventana de al menos 1280px de ancho; por debajo de eso el editor se abre como un diálogo sobre el dibujo, con los mismos campos y las mismas unidades.
+- **Diseño.** El árbol de componentes a la izquierda, la vista del cohete en el centro y el editor de la pieza seleccionada a la derecha. Esa tercera columna necesita una ventana de al menos 1536px de ancho, más de lo que tienen la mayoría de los portátiles; por debajo de eso el editor se abre como un diálogo sobre el dibujo, con los mismos campos y las mismas unidades.
 - **Simulaciones.** La tabla de ejecuciones a todo lo ancho, con el editor de la simulación seleccionada (motor, ignición, configuración de lanzamiento, opciones) a la derecha.
 - **Resultados.** Las gráficas de vuelo, la traza en tierra y la trayectoria 3D en el centro, y los números de la ejecución a la derecha. Aparece en cuanto una simulación ha producido un resultado, y al terminar una ejecución te lleva directamente allí.
 

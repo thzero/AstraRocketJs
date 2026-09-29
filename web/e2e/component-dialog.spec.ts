@@ -3,21 +3,22 @@ import { test, expect, ready, type Page } from './base';
 /**
  * Where the component editor IS, which depends on how wide the window is.
  *
- * The Design tab wants three columns, and three of them do not fit under `xl`:
- * the tree and a 380px property panel leave the drawing a strip. So at 1280 and
+ * The Design tab wants three columns, and three of them do not fit under `2xl`:
+ * the tree and a 380px property panel leave the drawing a strip. So at 1536 and
  * up the editor is the right-hand column it has always been, and under that it
  * is a dialog opened over the drawing. Never both at once - a hidden second copy
  * is still in the document, and every field in it still answers to its label.
  *
- * The column itself is covered by component-editor.spec (which runs at the
- * project's 1500) and pane-splitter.spec; this is about the SWITCH.
+ * The band this covers is mostly LAPTOPS, not phones: 1280 and 1440 are on the
+ * dialog. The column itself is covered by component-editor.spec (which runs at
+ * the project's 1600) and pane-splitter.spec; this is about the SWITCH.
  */
 
 const editor = (page: Page) => page.getByRole('dialog', { name: 'Edit component' });
 /** The heading of the property column, and so the tell that the column is there. */
 const columnHint = (page: Page) => page.getByText(/Select a component in the tree or drawing/i);
 
-test('between lg and xl the editor is a dialog, and the column is gone', async ({ page }) => {
+test('between lg and 2xl the editor is a dialog, and the column is gone', async ({ page }) => {
   // Wide enough for the component tree (lg), too narrow for a third column.
   await page.setViewportSize({ width: 1200, height: 900 });
   await ready(page);
@@ -55,12 +56,19 @@ test('between lg and xl the editor is a dialog, and the column is gone', async (
   await expect(editor(page).getByLabel('Fin tab length')).toBeVisible();
 });
 
-test('at xl and up it is the right-hand column, with no dialog', async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 900 }); // exactly the breakpoint
+test('at 2xl and up it is the right-hand column, with no dialog', async ({ page }) => {
+  // A full-size laptop is still on the dialog - this is the case the move to
+  // `2xl` is about, and the one a `1280` check would have called a column.
+  await page.setViewportSize({ width: 1500, height: 900 });
   await ready(page);
-
-  await expect(columnHint(page)).toBeVisible();
+  await expect(columnHint(page)).toHaveCount(0);
   await page.locator('div[title="Nose cone"]').click();
+  await expect(editor(page)).toBeVisible();
+  await editor(page).getByRole('button', { name: /close/i }).click();
+
+  // And at the breakpoint exactly, it is the column.
+  await page.setViewportSize({ width: 1536, height: 900 });
+  await expect(columnHint(page)).toHaveCount(0); // the part is still selected
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByLabel('Shoulder length')).toHaveCount(1);
 });

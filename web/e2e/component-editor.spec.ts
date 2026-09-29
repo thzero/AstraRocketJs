@@ -51,6 +51,27 @@ test('a freeform fin can be added, shows the outline editor, and simulates', asy
   await runFlight(page);
 });
 
+/**
+ * Comment is the bottom of the panel, under the overrides.
+ *
+ * It is the only field in the editor that is about the BUILDER rather than the
+ * rocket, so nothing the panel says about the part belongs below it. It used to
+ * sit between the part's dimensions and its material, which put a free-text box
+ * in the middle of the geometry.
+ */
+test('the Comment section is the last thing in the editor', async ({ page }) => {
+  await page.locator('div[title="Body tube"]').click();
+
+  const panel = page.locator('main > section').nth(2);
+  const heading = (name: string) => panel.getByRole('heading', { name, exact: true });
+  const comment = await box(heading('Comment'));
+  // The sections a body tube titles, in the order the panel declares them.
+  // MaterialSection carries no heading of its own, so it is not on this list.
+  for (const above of ['Part', 'Motor', 'Appearance', 'Overrides']) {
+    expect(comment.y).toBeGreaterThan((await box(heading(above))).y);
+  }
+});
+
 test('the design actions share one row above the component list', async ({ page }) => {
   // + Stage, + Add and Scale were split across the heading row and a second row
   // below it, which read as two unrelated groups and cost a row of height.

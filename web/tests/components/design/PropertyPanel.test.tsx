@@ -137,20 +137,34 @@ describe('placement section', () => {
 });
 
 /**
- * Overrides sit at the bottom of every part, without exception.
+ * Overrides sit at the bottom of every part's description, without exception,
+ * and Comment sits below even them.
  *
- * They are not a property of the part the way its dimensions, material and
+ * Overrides are not a property of the part the way its dimensions, material and
  * placement are; they override what those add up to. Rendered in the middle,
  * they pushed a lug's placement rows below three rows nobody was looking for,
  * and where they fell varied by type, since a parachute has two sections
  * between them and a body tube has none.
+ *
+ * Comment is the one section that is not about the part at all - it is a note
+ * from the builder - so nothing the panel says about the part may be under it.
+ * It used to sit above the material, which put a free-text box between the
+ * part's dimensions and what it is made of.
  */
-describe('override section placement', () => {
-  it.each(Object.keys(FIELDS))('puts the overrides last on a %s', (type) => {
+describe('bottom of the panel', () => {
+  /** A section by its heading. Comment cannot be found by text: the section and
+   *  its single field carry the same label, so `getByText` sees two. */
+  const section = (name: string) =>
+    [...document.querySelectorAll('h3')].find((h) => (h.textContent ?? '').trim() === name)?.parentElement ?? null;
+
+  it.each(Object.keys(FIELDS))('ends a %s with the overrides and then the comment', (type) => {
     show({ id: 'o1', type } as unknown as ComponentNode);
     const panel = document.querySelector('section')!;
     const overrides = screen.getByText('Overrides').parentElement!;
-    expect(panel.lastElementChild).toBe(overrides);
+    const comment = section('Comment');
+    expect(comment, `${type} has no Comment section`).not.toBeNull();
+    expect(panel.lastElementChild).toBe(comment);
+    expect(comment!.previousElementSibling).toBe(overrides);
   });
 });
 

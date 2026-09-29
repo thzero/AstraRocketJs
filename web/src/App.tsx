@@ -54,8 +54,8 @@ export default function App() {
   // breakpoint (see components/common/useMediaQuery). Everything else here is
   // plain `lg:` classes.
   const desktop = useIsDesktop();
-  // The component editor is the same story one breakpoint up: a third column on
-  // Design needs `xl`, and under it the editor is a dialog over the drawing
+  // The component editor is the same story two breakpoints up: a third column
+  // on Design needs `2xl`, and under it the editor is a dialog over the drawing
   // (ComponentDialog) rather than a column beside it.
   const wide = useIsWide();
 
@@ -92,7 +92,7 @@ export default function App() {
   const maxed = settings.maximizeCenter && onCenter;
   const sideStyle = { width: sideW, maxWidth: `calc(100vw - ${sideReserve}px)` };
   // What the tree has to leave for the column on its other side. Zero on Design
-  // below `xl`, where there is no property column to leave room for, and the
+  // below `2xl`, where there is no property column to leave room for, and the
   // tree would otherwise be capped against a pane that is not on screen.
   const propsW = wide ? sideW : 0;
   const commitSide = (w: number) => {
@@ -181,13 +181,14 @@ export default function App() {
           <CenterView />
         </section>
 
-        {/* RIGHT — the selected part's properties (Design tab; `xl` and up).
+        {/* RIGHT — the selected part's properties (Design tab; `2xl` and up).
             This column is what the tab split bought: the editor used to be
-            stacked under the tree in the left one. It wants `xl` rather than
-            `lg` because it is the THIRD column on this tab, and at 1024 the tree
-            and a property panel between them leave the drawing a strip. Under
-            that the editor is ComponentDialog, mounted below, and this column is
-            not rendered at all: one editor in the document, never two. */}
+            stacked under the tree in the left one. It wants `2xl` rather than
+            `lg` because it is the THIRD column on this tab, and at 1024, or at
+            1440, the tree and a property panel between them leave the drawing a
+            strip. Under that the editor is ComponentDialog, mounted below, and
+            this column is not rendered at all: one editor in the document,
+            never two. */}
         {wide && tab === 'design' && !maxed && (
           <>
             <SideSplitter
