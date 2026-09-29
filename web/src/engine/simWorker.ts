@@ -1,7 +1,6 @@
 /// <reference lib="webworker" />
 /**
- * Sim worker (Option B, Phase 1 — see docs/engine-worker-proposal.md). Runs the
- * heavy flight simulation on its own thread so a ~500 ms sim never freezes the
+ * Sim worker. Runs the heavy flight simulation on its own thread so a ~500 ms sim never freezes the
  * UI. It loads its OWN engine instance (WASM-GC, JS fallback) — independent of
  * the main thread's — and, on each `simulate` request, rebuilds the rocket from
  * the posted tree and runs it. The kernel's per-flight INFO logging goes to this

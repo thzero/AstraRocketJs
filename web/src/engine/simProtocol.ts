@@ -10,8 +10,7 @@ import type { Ignition } from '../services/buildRocket';
  *
  * The transport is a generic method-dispatch RPC (`{id, method, args}` →
  * `{id, ok, …}`) rather than a bespoke "simulate" message, so later phases can
- * add operations (aeroSweep, staticInfo — see docs/engine-worker-proposal.md)
- * without touching the plumbing.
+ * add operations (aeroSweep, staticInfo) without touching the plumbing.
  *
  * The request is a DISCRIMINATED UNION on `method`, and each method names its
  * result type in {@link WorkerResults}. One shape with `args: SimPayload | null`
