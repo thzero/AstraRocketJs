@@ -978,6 +978,7 @@
   },
   "prop": {
     "selectHint": "Select a component in the tree or drawing to edit its properties.",
+    "editTitle": "Edit component",
     "name": "Name",
     "delete": "Delete",
     "lastStage": "A rocket needs at least one stage",

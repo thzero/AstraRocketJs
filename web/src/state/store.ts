@@ -151,6 +151,18 @@ export interface WorkspaceState {
   storageWarning: string | null;
   storageWarningKind: StorageWarningKind | null;
   selectedId: string | null;
+  /**
+   * Bumped by every selection GESTURE, including one that picks the part that
+   * was already selected.
+   *
+   * `selectedId` alone cannot carry that: tapping the same part in the drawing
+   * a second time writes the id it already holds, so nothing downstream sees an
+   * event. The component dialog (the editor below the property column's
+   * breakpoint) opens on this rather than on the id, or the part it left
+   * selected when it closed could not be reopened without first selecting
+   * something else.
+   */
+  selectionSeq: number;
   loadedMeta: LoadedMeta;
   rocket: Rocket | null; // live engine handle (set by the rebuild effect; used by runSim)
   // --- history (undo/redo of component edits) ---
@@ -963,6 +975,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     driftSweep: null,
     driftSweepRun: null,
     selectedId: null,
+    selectionSeq: 0,
     loadedMeta: null,
     rocket: null,
     past: [],
@@ -1032,7 +1045,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       recordStep(); // one undo step for the whole scale
       set({ tree: next, selectedId: null, configs: reconcileConfigs(next, configs) });
     },
-    setSelectedId: (selectedId) => set({ selectedId }),
+    setSelectedId: (selectedId) => set((s) => ({ selectedId, selectionSeq: s.selectionSeq + 1 })),
     patchSelected: (patch) => {
       const { selectedId, tree, configs } = get();
       if (!selectedId) return;
@@ -1072,18 +1085,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
     addPartToTree: (type) => {
       recordStep();
-      const { tree, selectedId, configs } = get();
+      const { tree, selectedId, configs, selectionSeq } = get();
       // Settings ▸ Materials: a new part carries the material the user set for
       // its type, outright, so it shows in the panel and lands in the .ork.
       const seed = defaultMaterialPatch(type, loadSettings().defaultMaterials) as Partial<ComponentNode>;
       const { tree: next, id } = addPart(tree, type, selectedId, seed);
-      set({ tree: next, selectedId: id, configs: reconcileConfigs(next, configs) });
+      // A new part is selected the moment it exists, and that counts as a
+      // selection: on a narrow window it is what opens the editor over it.
+      set({ tree: next, selectedId: id, selectionSeq: selectionSeq + 1, configs: reconcileConfigs(next, configs) });
     },
     addStageToTree: () => {
       recordStep();
-      const { tree, configs } = get();
+      const { tree, configs, selectionSeq } = get();
       const { tree: next, id } = addStage(tree);
-      set({ tree: next, selectedId: id, configs: reconcileConfigs(next, configs) });
+      set({ tree: next, selectedId: id, selectionSeq: selectionSeq + 1, configs: reconcileConfigs(next, configs) });
     },
     moveSelected: (dir) => {
       const { selectedId, tree, configs } = get();

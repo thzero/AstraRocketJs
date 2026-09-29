@@ -983,6 +983,7 @@
   },
   "prop": {
     "selectHint": "Selecione um componente na árvore ou no desenho para editar as propriedades dele.",
+    "editTitle": "Editar componente",
     "name": "Nome",
     "delete": "Eliminar",
     "lastStage": "Um foguetão precisa de pelo menos um andar",

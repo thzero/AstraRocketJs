@@ -1,4 +1,4 @@
-import { test, expect, openTab, runFlight } from './base';
+import { test, expect, openTab, ready, runFlight } from './base';
 
 /**
  * The Rocket-configuration dialog edits `name`, `designer`, `comments`,
@@ -10,6 +10,36 @@ import { test, expect, openTab, runFlight } from './base';
  * a designer name would run a full engine rebuild + aero sweep and throw away every
  * simulation result.
  */
+/**
+ * And it is reachable only where the component tree is. Naming a design, its
+ * designer and its revision history is something you do to a design you are
+ * building; where parts cannot be added the banner shows the name as a title
+ * with no ✎, rather than a control that opens a dialog onto a design this
+ * window cannot otherwise change.
+ */
+test('the name is a control only where a design can be built', async ({ page }) => {
+  await ready(page);
+  const edit = page.getByRole('button', { name: 'Edit rocket configuration' });
+  await expect(edit).toBeVisible();
+  // Whatever this design is called; the point is that the LINE survives losing
+  // its control, not what the default design happens to be named.
+  const title = ((await edit.textContent()) ?? '').replace('✎', '').trim();
+  expect(title).not.toBe('');
+
+  // Maximized: the side columns step aside, the tree with them.
+  await page.getByRole('button', { name: /whole window/ }).click();
+  await expect(edit).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(edit).toBeVisible();
+
+  // A phone. The banner is on the Rocket half, and the name is still THERE,
+  // just not a button: it titles the pane.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: /Rocket/ }).click();
+  await expect(edit).toHaveCount(0);
+  await expect(page.getByText(title, { exact: true })).toBeVisible();
+});
+
 test('editing the design metadata keeps the flight results', async ({ page }) => {
   await page.goto('/');
 

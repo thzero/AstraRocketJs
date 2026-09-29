@@ -73,6 +73,7 @@ export function PropertyPanel({
   isFirstStage = false,
   parentRadius = 0,
   fit,
+  flush = false,
 }: {
   node: ComponentNode | null;
   onChange: (patch: Partial<ComponentNode>) => void;
@@ -91,15 +92,20 @@ export function PropertyPanel({
   parentRadius?: number;
   /** Geometry around this part, so the catalog picker can rank what fits it. */
   fit?: FitContext;
+  /**
+   * Drop the panel's own card, for a host that already is one. The right column
+   * needs the card to read as a panel against the pane behind it; the component
+   * dialog is already a slate-900 surface with a ring, and a second one inside
+   * it is a box drawn around the inside of a box.
+   */
+  flush?: boolean;
 }) {
   const { t } = useTranslation();
   const u = useUnits();
+  // The card is the panel's own surface, and the host says whether it needs one.
+  const card = flush ? '' : ' rounded-xl bg-slate-900 ring-1 ring-white/10';
   if (!node) {
-    return (
-      <section className="rounded-xl bg-slate-900 p-3 text-sm text-slate-500 ring-1 ring-white/10">
-        {t('prop.selectHint')}
-      </section>
-    );
+    return <section className={`p-3 text-sm text-slate-500${card}`}>{t('prop.selectHint')}</section>;
   }
 
   const fields = visibleFields(node, isFirstStage);
@@ -115,7 +121,7 @@ export function PropertyPanel({
   };
 
   return (
-    <section className="space-y-3 rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
+    <section className={`space-y-3 p-3${card}`}>
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</h2>
         <div className="flex items-center gap-1">

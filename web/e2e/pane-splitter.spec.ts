@@ -57,8 +57,9 @@ test('the tree column can be dragged, and keeps its width', async ({ page }) => 
 });
 
 test('the divider leaves room for the other panes, and only shows where it applies', async ({ page }) => {
-  // The narrowest desktop width. A width stored on a wide monitor must not crush
-  // the canvas when the same browser profile opens here.
+  // The narrowest desktop width. Design is TWO columns here, not three: the
+  // property panel wants `xl` and is a dialog under it (component-dialog.spec),
+  // so the tree only has to leave the canvas its floor.
   await page.setViewportSize({ width: 1024, height: 900 });
   await ready(page);
 
@@ -67,8 +68,8 @@ test('the divider leaves room for the other panes, and only shows where it appli
 
   const tree = await box(page.locator('main > section').first());
   const center = await box(page.locator('main > section').nth(1));
-  expect(tree.width).toBeLessThan(640); // the flat maximum gave way to the window
-  expect(center.width).toBeGreaterThan(250); // and the canvas is still a canvas
+  expect(tree.width).toBe(640); // its flat maximum, with the window still clear of it
+  expect(center.width).toBeGreaterThan(320); // and the canvas keeps CENTER_PANE_MIN
 
   // The tree column is a Design-tab thing, so its divider is too. (The side
   // divider is on every tab, which is its own test.)

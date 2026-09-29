@@ -988,6 +988,7 @@
   },
   "prop": {
     "selectHint": "Wybierz część w drzewie albo na rysunku, aby zmienić jej właściwości.",
+    "editTitle": "Edytuj część",
     "name": "Nazwa",
     "delete": "Usuń",
     "lastStage": "Rakieta musi mieć co najmniej jeden stopień",

@@ -1,5 +1,6 @@
 import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useCanBuildDesign } from '../design/useCanBuildDesign';
 
 /**
  * The header's file menu: the trigger button that owns the open flag and
@@ -74,6 +75,9 @@ function FileMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  // Read here rather than threaded in as a prop: it is a fact about the window,
+  // not a decision the header is making.
+  const canBuild = useCanBuildDesign();
 
   // On open, pull focus to the first enabled item, unless focus is already
   // inside (the trigger handed it over). Once, on mount: the menu is a fresh
@@ -266,10 +270,19 @@ function FileMenu({
       </button>
       {/* And the third: the component picker only opens when a part of a
           matching type is selected, so this is the only way to see a saved
-          bulkhead on a design that has no bulkhead in it. */}
-      <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onSavedParts)}>
-        {t('picker.savedManage')}
-      </button>
+          bulkhead on a design that has no bulkhead in it.
+
+          Gone where the component tree is (useCanBuildDesign). A saved part is
+          applied THROUGH a component, and it is adding the component it belongs
+          on that such a window cannot do; the library would open onto a design
+          it has no way to put anything into. The picker inside the property
+          editor stays, so a part already in the rocket can still be sized from
+          the catalog, and saved parts are still SAVED from there. */}
+      {canBuild && (
+        <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onSavedParts)}>
+          {t('picker.savedManage')}
+        </button>
+      )}
       <div className="my-1 border-t border-white/10" />
       <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onSettings)}>
         {t('settings.title')}

@@ -978,6 +978,7 @@
   },
   "prop": {
     "selectHint": "Kies een onderdeel in de boom of de tekening om de eigenschappen ervan te bewerken.",
+    "editTitle": "Onderdeel bewerken",
     "name": "Naam",
     "delete": "Verwijderen",
     "lastStage": "Een raket heeft minstens één trap nodig",
