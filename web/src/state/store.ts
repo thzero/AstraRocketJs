@@ -57,7 +57,7 @@ import {
   type WindSweepSpec,
 } from '../services/windSweep';
 import { loadSettings } from '../services/settings';
-import { defaultMaterialPatch } from '../services/materials';
+import { defaultMaterialPatch } from '../services/materialSlots';
 import { launchLimitViolations, limitText } from '../services/safetyLimits';
 import {
   unflyable,
@@ -86,11 +86,52 @@ const displayUnits = () => {
   return unitSymbols(s.units, s.unitOverrides);
 };
 
-// A clean, classic sport rocket (~55 cm, 26 mm airframe, swept 3-fin).
+/**
+ * A clean, classic sport rocket (~55 cm, 26 mm airframe, swept 3-fin), built out
+ * of what one is actually built out of.
+ *
+ * The named materials are the ones that make this a rocket rather than a shape:
+ * an **injection-molded polystyrene** nose cone and **basswood** fins. Basswood
+ * rather than balsa because these fins are large for the airframe and swept, and
+ * a sport model that is meant to survive being flown more than once gets the
+ * stiffer of the two. Everything else takes the kernel's stock bulk material,
+ * and for a cardboard airframe, a cardboard motor tube and fiber centering rings
+ * that is the right answer already.
+ *
+ * It matters to the numbers, not just the label. Left unnamed both parts weighed
+ * as cardboard at 680 kg/m3, which is 1.6x too light for the nose cone (1050)
+ * and a third too heavy for the fins (500) - mass at the two ENDS of the rocket,
+ * so the error lands where it moves the CG and the stability margin furthest.
+ *
+ * Names and densities are the material catalog's own
+ * (`public/data/materials.generated.json`, synced from upstream); the group is
+ * the `.ork` database string, which for Woods and Plastics is the same word.
+ * `defaultRocketMaterials.test.ts` checks all three against the shipped catalog,
+ * so a sync that renames or re-weighs one fails rather than silently flying a
+ * different rocket.
+ */
 const DEFAULT_SPEC: RocketSpec = {
-  noseCone: { length: 0.13, aftRadius: 0.013, thickness: 0.0008, shape: 'ogive' },
+  noseCone: {
+    length: 0.13,
+    aftRadius: 0.013,
+    thickness: 0.0008,
+    shape: 'ogive',
+    material: 'Polystyrene',
+    materialDensity: 1050,
+    materialGroup: 'Plastics',
+  },
   bodyTube: { length: 0.42, outerRadius: 0.013, thickness: 0.0005 },
-  fins: { count: 3, rootChord: 0.08, tipChord: 0.038, sweep: 0.055, height: 0.058, thickness: 0.0028 },
+  fins: {
+    count: 3,
+    rootChord: 0.08,
+    tipChord: 0.038,
+    sweep: 0.055,
+    height: 0.058,
+    thickness: 0.0028,
+    material: 'Basswood',
+    materialDensity: 500,
+    materialGroup: 'Woods',
+  },
   motorMount: { length: 0.07, outerRadius: 0.0092, thickness: 0.0004 },
   parachute: { diameter: 0.4, dragCoefficient: 0.8 },
 };

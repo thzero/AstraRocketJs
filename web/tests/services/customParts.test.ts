@@ -138,7 +138,11 @@ describe('applying a saved part', () => {
     const node = tube();
     const part = await saveCustomPart(node, 'bodytube', meta);
     const patch = catalogPatch(customPartToRow(part)!);
-    expect(patch).toEqual(presetNode(node));
+    // Plus the pin: a saved part states a diameter, so applying it turns the
+    // automatic flag off on whatever it is applied to, exactly as the kernel's
+    // own `setOuterRadius` does. Without it the auto resolver would overwrite
+    // the part on its next pass and the picker would read as doing nothing.
+    expect(patch).toEqual({ ...presetNode(node), outerRadiusAuto: false });
     // The point of the feature: a flag no catalog row has a column for.
     expect(patch.motorMount).toBe(true);
     expect(patch.color).toBe('#ff0000');

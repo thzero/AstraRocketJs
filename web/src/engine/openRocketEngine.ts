@@ -396,6 +396,10 @@ export interface RocketSpec {
     materialDensity?: number;
     /** Selected material name (display / .ork round-trip only; density drives physics). */
     material?: string;
+    /** The material's `.ork` group, as `MaterialGroup.getDatabaseString()` spells
+     *  it. Written to the file beside the name, so a design saved here files the
+     *  material under the same category the desktop would. */
+    materialGroup?: string;
   };
   bodyTube: {
     length: number;
@@ -403,6 +407,7 @@ export interface RocketSpec {
     thickness: number;
     materialDensity?: number;
     material?: string;
+    materialGroup?: string;
   };
   fins: {
     count: number;
@@ -413,6 +418,7 @@ export interface RocketSpec {
     thickness: number;
     materialDensity?: number;
     material?: string;
+    materialGroup?: string;
   };
   motorMount: {
     length: number;

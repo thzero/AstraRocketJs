@@ -169,6 +169,49 @@ describe('bottom of the panel', () => {
 });
 
 /**
+ * The automatic switch says what it is.
+ *
+ * It was a bare 13x13 checkbox at the right end of the row with the word only
+ * in a `title`, so on a centering ring - which has one on each of its two
+ * diameters - it read as two unexplained ticks, and the feature they turn on
+ * was reported missing from parts that had it all along. The accessible name
+ * keeps the field's own name in front of the word, so the two rows are still
+ * told apart when the page is read aloud.
+ */
+describe('the automatic switch', () => {
+  const switches = () =>
+    [...document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].filter((c) =>
+      /: Auto$/.test(c.getAttribute('aria-label') ?? ''),
+    );
+
+  it.each([
+    ['centeringring', ['Outer diameter: Auto', 'Inner diameter: Auto']],
+    ['bulkhead', ['Diameter: Auto']],
+    ['tubecoupler', ['Diameter: Auto']],
+    ['engineblock', ['Diameter: Auto']],
+  ] as const)('gives a %s one per automatic diameter, worded', (type, names) => {
+    show({ id: 'a1', type } as unknown as ComponentNode);
+    const found = switches();
+    expect(found.map((c) => c.getAttribute('aria-label'))).toEqual([...names]);
+    for (const c of found) {
+      // The word is ON THE PAGE, in the switch's own label, not only in a title.
+      const worded = c.closest('label');
+      expect(worded, `${type}: ${c.getAttribute('aria-label')} has no label`).not.toBeNull();
+      expect(worded!.textContent?.trim()).toBe('Auto');
+      // And that label binds to the switch, not to the number box beside it:
+      // one label cannot serve two controls, which is why the word could not be
+      // written at all while the row was a single <label>.
+      expect(worded!.querySelectorAll('input').length).toBe(1);
+    }
+  });
+
+  it('leaves a part with no automatic dimension no switch at all', () => {
+    show({ id: 'i1', type: 'innertube' } as unknown as ComponentNode);
+    expect(switches()).toEqual([]);
+  });
+});
+
+/**
  * The through-the-wall tab is its own section.
  *
  * Its four fields describe a separate piece of the fin, the part buried in the
@@ -221,6 +264,25 @@ describe('motor section', () => {
   it('gives a tube that never holds a motor no section at all', () => {
     show({ id: 'c1', type: 'tubecoupler' } as unknown as ComponentNode);
     expect(screen.queryByText('Motor')).toBeNull();
+  });
+
+  /**
+   * And it sits BELOW the material.
+   *
+   * Everything above it describes the tube itself - its dimensions, then what
+   * it is made of - and this is the first section about the job the tube has
+   * been given. Between the wall thickness and the material it split the
+   * description of one object in half, and on an inner tube the six cluster
+   * rows pushed the material picker most of a screen down.
+   */
+  it.each(['bodytube', 'innertube'])('sits below the material on a %s', (type) => {
+    show({ id: 'm1', type } as unknown as ComponentNode);
+    // MaterialSection has no heading of its own, so the picker's own label is
+    // what marks where it starts.
+    const material = screen.getByText('Material');
+    const heading = screen.getByText('Motor');
+    // Node.DOCUMENT_POSITION_FOLLOWING: the motor heading comes after it.
+    expect(material.compareDocumentPosition(heading) & 4).toBe(4);
   });
 });
 

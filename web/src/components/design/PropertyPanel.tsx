@@ -251,17 +251,6 @@ export function PropertyPanel({
         <AutoFinTabButton node={node} />
       </FieldSection>
 
-      {/* What the tube does for a MOTOR, as against what the tube is. A body
-          tube gets two of these rows and an inner tube three; both used to run
-          on under the radius and thickness. */}
-      <FieldSection
-        node={node}
-        title={t('prop.motor')}
-        fields={sectionFields(node, 'motor')}
-        onChange={onChange}
-        onCommit={onCommit}
-      />
-
       {/* The glue bead along the fin root. Its material is rarely the fin's own
           — epoxy on plywood — so it carries its own, beside the radius.
           The picker used to appear only once the radius was non-zero, on the
@@ -315,6 +304,24 @@ export function PropertyPanel({
       )}
 
       {hasMaterial(node.type) && <MaterialSection node={node} onCommitChange={commitChange} />}
+
+      {/* What the tube does for a MOTOR, as against what the tube IS. Only a
+          body tube (two rows) and an inner tube (six, the cluster among them)
+          have one; every other type renders nothing here.
+
+          Below the material rather than above it, because everything above this
+          point describes the tube itself - its dimensions, then what it is made
+          of - and this is the first section about the job it has been given. A
+          body tube's motor-mount switch sitting between its wall thickness and
+          its material split the description of one object in half, and on an
+          inner tube the cluster rows pushed the material six rows down. */}
+      <FieldSection
+        node={node}
+        title={t('prop.motor')}
+        fields={sectionFields(node, 'motor')}
+        onChange={onChange}
+        onCommit={onCommit}
+      />
 
       {/* Freeform fin: its defining feature is the outline polygon, edited
           graphically rather than as scalar fields. */}

@@ -4,6 +4,7 @@ import { num } from '../../tree/nodeProps';
 import { escapeXml } from '../xmlUtil';
 import { uuid } from '../uuid';
 import { COMPONENT_DEFAULTS } from '../componentDefaults';
+import { KERNEL_MATERIALS } from '../../tree/kernelDefaults';
 import type { OrkDeployOverride, OrkSepOverride } from '../orkTypes';
 import type { OrkWriter } from './exportWriter';
 import { passthroughOf } from './passthrough';
@@ -16,8 +17,14 @@ import { passthroughOf } from './passthrough';
  * element order the desktop savers use.
  */
 
-/** The desktop's stock bulk material, written when a part carries none. */
-const CARDBOARD = { name: 'Cardboard', density: 680, group: 'PaperProducts' } as const;
+/**
+ * The desktop's stock bulk material, written when a part carries none.
+ *
+ * The same table the editor seeds a new part from, so a part that arrived
+ * without one is saved as the material it was already being weighed with rather
+ * than as a fourth opinion about what that is.
+ */
+const CARDBOARD = KERNEL_MATERIALS.bulk;
 
 export function material(
   w: OrkWriter,
@@ -47,7 +54,11 @@ export function material(
       const name = typeof node['surfaceMaterialName'] === 'string' ? (node['surfaceMaterialName'] as string) : 'custom';
       emit(depth, `<material type="surface" density="${node['surfaceDensity']}">${escapeXml(name)}</material>`);
     } else {
-      emit(depth, '<material type="surface" density="0.067" group="Fabrics">Ripstop nylon</material>');
+      emit(
+        depth,
+        `<material type="surface" density="${KERNEL_MATERIALS.surface.density}" ` +
+          `group="${KERNEL_MATERIALS.surface.group}">${escapeXml(KERNEL_MATERIALS.surface.name)}</material>`,
+      );
     }
   } else {
     if (typeof node['lineDensity'] === 'number') {
@@ -56,7 +67,8 @@ export function material(
     } else {
       emit(
         depth,
-        '<material type="line" density="0.0018" group="ThreadsLines">Elastic cord (round 2 mm, 1/16 in)</material>',
+        `<material type="line" density="${KERNEL_MATERIALS.line.density}" ` +
+          `group="${KERNEL_MATERIALS.line.group}">${escapeXml(KERNEL_MATERIALS.line.name)}</material>`,
       );
     }
   }

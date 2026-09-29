@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { specToTree } from '../../src/engine/api';
 import type { RocketSpec, ComponentNode, RocketTree } from '../../src/engine/openRocketEngine';
+import { KERNEL_MATERIALS } from '../../src/tree/kernelDefaults';
 
 const baseSpec = {
   noseCone: { length: 0.1, aftRadius: 0.013, thickness: 0.001 }, // no shape, no material
@@ -30,14 +31,30 @@ describe('specToTree', () => {
     expect(stage.children!.map((c) => c.id)).toEqual(['nose', 'body']);
   });
 
-  it('defaults the nose shape to ogive and copies material only when present', () => {
+  it("defaults the nose shape to ogive and takes the spec's material where it names one", () => {
     const { tree } = specToTree(baseSpec);
-    const nose = child(tree, 'nose') as { shape?: string; density?: number };
+    const nose = child(tree, 'nose') as { shape?: string; density?: number; materialName?: string };
     expect(nose.shape).toBe('ogive');
-    expect(nose.density).toBeUndefined(); // nose had no materialDensity
-    const body = child(tree, 'body') as { density?: number; materialName?: string };
+    // The nose names no material, so it gets the one the kernel would weigh it
+    // with anyway rather than nothing. Leaving it bare only meant the panel read
+    // "Not specified" for a part already flying as cardboard.
+    expect(nose.density).toBe(KERNEL_MATERIALS.bulk.density);
+    expect(nose.materialName).toBe(KERNEL_MATERIALS.bulk.name);
+    // The spec's own material wins where it has one, and brings no stock group
+    // with it: that string belongs to the kernel's material, not this one.
+    const body = child(tree, 'body') as { density?: number; materialName?: string; materialGroup?: string };
     expect(body.density).toBe(930);
     expect(body.materialName).toBe('Cardboard');
+    expect(body.materialGroup).toBeUndefined();
+  });
+
+  it('gives the parachute both of its material slots', () => {
+    // A recovery device is the one part with two: a surface material for the
+    // canopy and a line material for the shrouds, in different units.
+    const { tree } = specToTree({ ...baseSpec, parachute: { diameter: 0.4 } } as unknown as RocketSpec);
+    const chute = child(tree, 'chute') as { surfaceDensity?: number; lineDensity?: number };
+    expect(chute.surfaceDensity).toBe(KERNEL_MATERIALS.surface.density);
+    expect(chute.lineDensity).toBe(KERNEL_MATERIALS.line.density);
   });
 
   it('bottom-aligns the fin set and seats a motor mount with overhang', () => {

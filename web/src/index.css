@@ -1,5 +1,20 @@
 @import 'tailwindcss';
 
+/*
+ * A breakpoint of our own, for the header's badge group (version, pre-release,
+ * engine backend).
+ *
+ * Named rather than written as an arbitrary `min-[...]` variant at the one place
+ * that uses it, because the number is a MEASURED budget and not a round one:
+ * below it the header wraps to two rows in the longest languages, which puts
+ * back the row the workbench tabs were moved into the header to save. The value
+ * is checked at this exact width by e2e/workbench-header.spec.ts, in the worst
+ * language, with the save status showing and all four tabs in the row.
+ */
+@theme {
+  --breakpoint-badge: 1180px;
+}
+
 :root {
   color-scheme: dark;
 }

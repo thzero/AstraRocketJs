@@ -28,7 +28,7 @@ export function WorkbenchTabs() {
   const showResults = useShowResultsTab();
 
   return (
-    <nav aria-label={t('tabs.workbench')} className="-my-3 ml-4 hidden self-stretch items-stretch gap-1 lg:flex">
+    <nav aria-label={t('tabs.workbench')} className="-my-3 ml-3 hidden self-stretch items-stretch gap-1 lg:flex">
       <TabButton active={tab === 'design'} onClick={() => onTab('design')} label={t('tabs.design')} />
       <TabButton active={tab === 'configs'} onClick={() => onTab('configs')} label={t('tabs.configs')} />
       <TabButton active={tab === 'sim'} onClick={() => onTab('sim')} label={t('tabs.simulations')} />

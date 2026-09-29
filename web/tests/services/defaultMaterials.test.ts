@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { defaultMaterialKey, defaultMaterialPatch } from '../../src/services/materials';
+import { defaultMaterialKey, defaultMaterialPatch } from '../../src/services/materialSlots';
+import { KERNEL_MATERIALS } from '../../src/tree/kernelDefaults';
 import { addPart } from '../../src/services/treeEdit';
 import { loadSettings, saveSettings, DEFAULT_SETTINGS } from '../../src/services/settings';
 import type { ComponentNode, RocketTree } from '../../src/engine/openRocketEngine';
@@ -21,11 +22,42 @@ const PLY = { name: 'Plywood (birch)', density: 630 };
 const KEVLAR = { name: 'Kevlar 12-strand (3.2 mm, 1/8 in)', density: 0.00967306 };
 
 describe('defaultMaterialPatch', () => {
-  it('is empty when nothing is set', () => {
-    expect(defaultMaterialPatch('bodytube', {})).toEqual({});
+  it('falls back to the material the kernel would weigh the part with', () => {
+    // Not empty. An unset part was never a lighter part: `ComponentFactory`
+    // only calls `setMaterial` for a positive density, so the part kept its
+    // Java constructor's material and flew as cardboard regardless. Leaving the
+    // node bare only meant the panel could not say so, and said "Not specified"
+    // instead - a state desktop OpenRocket has no equivalent of, since every
+    // component there is constructed WITH one of these.
+    expect(defaultMaterialPatch('bodytube', {})).toEqual({
+      materialName: KERNEL_MATERIALS.bulk.name,
+      density: KERNEL_MATERIALS.bulk.density,
+      materialGroup: KERNEL_MATERIALS.bulk.group,
+    });
+  });
+
+  it('fills both slots of a recovery device', () => {
+    expect(defaultMaterialPatch('parachute', {})).toEqual({
+      surfaceMaterialName: KERNEL_MATERIALS.surface.name,
+      surfaceDensity: KERNEL_MATERIALS.surface.density,
+      lineMaterialName: KERNEL_MATERIALS.line.name,
+      lineDensity: KERNEL_MATERIALS.line.density,
+    });
+  });
+
+  it('gives a part with no material slot nothing at all', () => {
+    // A stage, a pod set and a mass component carry a mass outright rather than
+    // a density and a volume, so there is no slot to fill.
+    for (const type of ['stage', 'podset', 'parallelstage', 'masscomponent']) {
+      expect(defaultMaterialPatch(type, {}), type).toEqual({});
+    }
   });
 
   it('maps a bulk default onto the keys a part carries its material in', () => {
+    // And it beats the kernel's, carrying no group with it: the group is the
+    // `.ork` database string, which is known for the kernel's own material and
+    // not for one chosen through the settings - the same as a material picked
+    // in the property panel, which carries none either.
     const patch = defaultMaterialPatch('trapezoidfinset', { 'trapezoidfinset:bulk': PLY });
     expect(patch).toEqual({ materialName: 'Plywood (birch)', density: 630 });
   });
@@ -69,11 +101,16 @@ describe('a new part is seeded with it', () => {
     expect(added['density']).toBe(1300);
   });
 
-  it('leaves the part unset when there is no preference', () => {
-    const { tree: next, id } = addPart(tree, 'bodytube', null);
+  it('carries the kernel material when there is no preference', () => {
+    // `addPart` takes the seed from its caller, so this is what the store hands
+    // it (store.addPartToTree). With no preference set that is the kernel's own
+    // material rather than nothing, which is why a new part no longer opens on
+    // "Not specified" while flying as cardboard.
+    const seed = defaultMaterialPatch('bodytube', {});
+    const { tree: next, id } = addPart(tree, 'bodytube', null, seed as Partial<ComponentNode>);
     const added = next.components[0]!.children!.find((n) => n.id === id) as unknown as Record<string, unknown>;
-    expect(added['materialName']).toBeUndefined();
-    expect(added['density']).toBeUndefined();
+    expect(added['materialName']).toBe(KERNEL_MATERIALS.bulk.name);
+    expect(added['density']).toBe(KERNEL_MATERIALS.bulk.density);
   });
 
   it('does not overwrite the dimensions a part is created with', () => {

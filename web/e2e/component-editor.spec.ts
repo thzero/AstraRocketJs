@@ -52,6 +52,29 @@ test('a freeform fin can be added, shows the outline editor, and simulates', asy
 });
 
 /**
+ * A part the app creates names its material.
+ *
+ * It used to carry none, so the picker read "Not specified" with an "automatic"
+ * badge and a paragraph explaining that the part was being weighed with a
+ * built-in density anyway. It is seeded with that same material now, so the
+ * panel says what the simulation is using rather than describing the gap.
+ */
+test('a new part is made of something', async ({ page }) => {
+  await page.locator('div[title="Body tube"]').click();
+  await page.locator('select').filter({ hasText: 'Centering ring' }).selectOption({ label: 'Centering ring' });
+
+  const panel = page.locator('main > section').nth(2);
+  // The material select, found by the one option only it has.
+  const material = panel.locator('select').filter({ has: page.locator('option[value="__default__"]') });
+  await expect(material).toHaveValue('Cardboard');
+  // "Not specified" is still an OPTION - a design can hold a part with no
+  // material - but nothing is on it, so neither the badge that stands in for a
+  // density nor the paragraph explaining the gap is on the page.
+  await expect(panel.getByText('automatic')).toHaveCount(0);
+  await expect(panel.getByText(/No material assigned/)).toHaveCount(0);
+});
+
+/**
  * Comment is the bottom of the panel, under the overrides.
  *
  * It is the only field in the editor that is about the BUILDER rather than the

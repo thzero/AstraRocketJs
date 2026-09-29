@@ -46,33 +46,42 @@ export function AppHeader() {
     <header className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3">
       <span className="text-xl">🚀</span>
       <h1 className="text-base font-semibold tracking-tight">{t('app.title')}</h1>
-      {/* The three static badges - version, pre-release, engine backend - are
-          `hidden` under xl, and EngineBadge carries the same gate.
+      {/* The three static badges - version, pre-release, engine backend - in one
+          pill rather than three, and shown from the `badge` breakpoint up.
 
-          At the lg breakpoint (1024) the workbench tabs appear and the save
-          status is showing, and the row then needs up to 1046px of the 992 it
-          has: it wraps to two lines in de, es, fr, nl, pt-PT and ru, which puts
-          back the row the tabs were moved into the header to save. These three
-          cost 160px with their gaps and are the only things here that are
-          neither a control nor live state - the version and the backend are
-          both in the About dialog, and the pre-release state has its own
-          blocking notice on first visit. */}
-      <button
-        onClick={() => open('about')}
-        title={t('about.open')}
-        className="hidden rounded text-[10px] font-medium tabular-nums text-slate-500 hover:text-sky-400 xl:inline"
-      >
-        v{APP_VERSION}
-      </button>
-      {isPreRelease() && (
-        <span
-          title={t('about.wip')}
-          className="hidden rounded bg-amber-500/10 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-300 ring-1 ring-amber-400/30 xl:inline"
+          They are the only things in this row that are neither a control nor
+          live state, so they are what gives when the row runs out of width, and
+          it does: from the lg breakpoint (1024) up the workbench tabs are in
+          the header and the save status is showing, and with these three the
+          row needs 1176px in the longest language (ru; pt-PT wants 1172, de
+          1168, en 1120). `--breakpoint-badge` is 1180. Wrapping to two lines
+          puts back the row the tabs were moved into the header to save, so they
+          hide below the width where they fit rather than being allowed to push.
+          Nothing is lost by that: the version and the backend are both in the
+          About dialog, and the pre-release state has its own blocking notice on
+          first visit.
+
+          One pill rather than three because three cost two extra gaps and two
+          extra sets of padding to say one thing, and because a row of small
+          unrelated-looking chips reads as clutter where a single grouped one
+          reads as a stamp. The colors still separate them: the backend is
+          emerald for WebAssembly and slate for the JavaScript fallback, the
+          pre-release word is amber. */}
+      <span className="hidden items-center gap-1 rounded px-1 py-0.5 text-[10px] leading-none ring-1 ring-white/10 badge:inline-flex">
+        <button
+          onClick={() => open('about')}
+          title={t('about.open')}
+          className="font-medium tabular-nums text-slate-500 hover:text-sky-400"
         >
-          {t('wip.badge')}
-        </span>
-      )}
-      <EngineBadge />
+          v{APP_VERSION}
+        </button>
+        {isPreRelease() && (
+          <span title={t('about.wip')} className="text-[9px] font-semibold uppercase tracking-wide text-amber-300">
+            {t('wip.badge')}
+          </span>
+        )}
+        <EngineBadge />
+      </span>
       <SaveStatus />
 
       {/* The desktop workbench tabs live in the header's dead middle rather than

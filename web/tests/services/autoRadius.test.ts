@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode, RocketTree } from '../../src/engine/openRocketEngine';
 import { syncAutoRadii } from '../../src/services/autoRadius';
-import { updateNode } from '../../src/services/treeEdit';
+import { addPart, catalogPatch, defaultNode, updateNode } from '../../src/services/treeEdit';
 import { importOrk, exportOrk } from '../../src/services/orkFile';
 import { KERNEL_DEFAULTS } from '../../src/tree/kernelDefaults';
 
@@ -251,5 +251,92 @@ describe('the values the kernel works out, through a file', () => {
     const back = find(importOrk(xml).tree, 'parachute');
     expect(back['radiusAuto']).toBe(true);
     expect(back['radius']).toBeCloseTo(0.025, 9);
+  });
+});
+
+/**
+ * A new bore-filling part starts AUTOMATIC, because that is what its kernel
+ * constructor does.
+ *
+ * `TubeCoupler()`, `Bulkhead()` and `EngineBlock()` each call
+ * `setOuterRadiusAutomatic(true)`; `CenteringRing()` turns on both its outer
+ * radius and its inner one. The app was creating all four with the flags off
+ * and a hardcoded 25 mm diameter, so a ring dropped into a 54 mm airframe
+ * arrived sized for a different rocket and simulated quietly at that size until
+ * somebody found the checkbox. The checkbox was there the whole time; what was
+ * missing is that it starts ticked.
+ */
+describe('what a new part starts as', () => {
+  it.each([
+    ['centeringring', ['outerRadiusAuto', 'innerRadiusAuto']],
+    ['bulkhead', ['outerRadiusAuto']],
+    ['tubecoupler', ['outerRadiusAuto']],
+    ['engineblock', ['outerRadiusAuto']],
+  ] as const)('gives a new %s its automatic diameters', (type, flags) => {
+    const node = defaultNode(type);
+    for (const flag of flags) expect(node[flag], `${type}.${flag}`).toBe(true);
+  });
+
+  it('leaves an inner tube pinned, since the kernel sizes one to a motor', () => {
+    // `InnerTube()` sets an explicit A-C motor size and no automatic flag: a
+    // motor mount is sized by the motor, not by the tube around it.
+    expect(defaultNode('innertube')['outerRadiusAuto']).toBeUndefined();
+  });
+
+  it('resolves the new part against the tube it lands in, in the same edit', () => {
+    // `tube` takes a RADIUS: 26 mm of it, with a 1 mm wall, so the bore radius
+    // is 25 mm. The ring fills it rather than arriving at the 12.5 mm radius the
+    // old default hardcoded.
+    const host = tube('b', 0.026);
+    const { tree, id } = addPart(stage([host]), 'centeringring', 'b');
+    const ring = (chainOf(tree)[0]!.children as ComponentNode[])[0]!;
+    expect(ring.id).toBe(id);
+    expect(ring['outerRadius']).toBeCloseTo(0.025, 9);
+    // No motor mount beside it, so the bore is 0 - a solid disc, which is what
+    // `CenteringRing.getInnerRadius` gives with no InnerTube sibling too.
+    expect(ring['innerRadius']).toBe(0);
+  });
+
+  it('follows the mount when there is one', () => {
+    const host = { ...tube('b', 0.026), children: [] as ComponentNode[] } as unknown as ComponentNode;
+    host.children = [
+      { type: 'innertube', id: 'mt', length: 0.07, outerRadius: 0.0095, motorMount: true } as unknown as ComponentNode,
+    ];
+    const { tree } = addPart(stage([host]), 'centeringring', 'b');
+    const kids = chainOf(tree)[0]!.children as ComponentNode[];
+    const ring = kids.find((n) => n.type === 'centeringring')!;
+    expect(ring['innerRadius']).toBeCloseTo(0.0095, 9);
+  });
+});
+
+/**
+ * A dimension a picked part STATES pins itself.
+ *
+ * The kernel's setters do this - `RadiusRingComponent.setOuterRadius` clears
+ * `outerRadiusAutomatic` - and here it is load-bearing: applied to a ring whose
+ * diameter is automatic, an unpinned patch is overwritten by `syncAutoRadii` on
+ * its next pass, so the picker would read as doing nothing at all.
+ */
+describe('applying a catalog part', () => {
+  // 40 mm outside, deliberately NOT the 50 mm bore of the tube it lands in: a part
+  // whose diameter happened to equal the resolved one would pass this whether
+  // it was pinned or overwritten.
+  const row = (over: Record<string, unknown>) =>
+    ({ type: 'centeringring', outerDiameter: 0.04, innerDiameter: 0.029, length: 0.003, ...over }) as never;
+
+  it('turns the automatic flag off for each diameter it states', () => {
+    const patch = catalogPatch(row({}));
+    expect(patch['outerRadiusAuto']).toBe(false);
+    expect(patch['innerRadiusAuto']).toBe(false);
+  });
+
+  it('survives the resolver it would otherwise lose to', () => {
+    // Automatic would give the ring the 25 mm bore radius of the tube; the
+    // picked part is 40 mm across, so 20 mm.
+    const { tree, id } = addPart(stage([tube('b', 0.026)]), 'centeringring', 'b');
+    const picked = updateNode(tree, id, catalogPatch(row({})));
+    const ring = (chainOf(syncAutoRadii(picked))[0]!.children as ComponentNode[])[0]!;
+    expect(ring['outerRadius']).toBeCloseTo(0.02, 9); // the part, not the bore
+    expect(ring['innerRadius']).toBeCloseTo(0.0145, 9);
   });
 });

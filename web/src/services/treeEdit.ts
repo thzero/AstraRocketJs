@@ -345,7 +345,6 @@ export function hasMaterial(type: string): boolean {
   return MATERIAL_TYPES.has(type);
 }
 
-/** Map a chosen catalog part onto a node patch (radii, length, material, …). */
 /**
  * The catalog link to record beside the dimensions a pick applies: which part
  * this component now IS, in the shape the `.ork` carries it
@@ -361,7 +360,50 @@ export function presetRef(p: Component): Partial<ComponentNode> {
   } as unknown as Partial<ComponentNode>;
 }
 
+/**
+ * The automatic flag that governs each dimension a preset can state.
+ *
+ * Only the ones `syncAutoRadii` actually resolves. The kernel's own setters do
+ * this - `RadiusRingComponent.setOuterRadius` and `BodyTube.setOuterRadius`
+ * both clear `outerRadiusAutomatic` - and here it is what stops the resolver
+ * overwriting the part you just picked on its next pass, which would read as
+ * the picker doing nothing at all.
+ */
+const AUTO_FLAG_OF: Record<string, string> = {
+  outerRadius: 'outerRadiusAuto',
+  innerRadius: 'innerRadiusAuto',
+  foreRadius: 'foreRadiusAuto',
+  aftRadius: 'aftRadiusAuto',
+  radius: 'radiusAuto',
+};
+
+/**
+ * Turn the automatic flag off for every dimension the patch states outright,
+ * unless the patch has an opinion about the flag itself - a saved part that was
+ * stored AS automatic stays automatic.
+ */
+function pinStated(patch: Partial<ComponentNode>): Partial<ComponentNode> {
+  const out: Record<string, unknown> = { ...patch };
+  for (const [dim, flag] of Object.entries(AUTO_FLAG_OF)) {
+    if (out[dim] !== undefined && out[flag] === undefined) out[flag] = false;
+  }
+  return out as Partial<ComponentNode>;
+}
+
+/**
+ * Map a chosen catalog part onto a node patch (radii, length, material, …).
+ *
+ * The dimensions it states are PINNED as they are applied: a part picked for a
+ * ring whose diameter is automatic would otherwise be undone by the resolver on
+ * its next pass. That was unreachable while nothing started automatic; the four
+ * bore-filling parts now do, as their kernel constructors do.
+ */
 export function catalogPatch(p: Component): Partial<ComponentNode> {
+  return pinStated(statedPatch(p));
+}
+
+/** The dimensions the chosen part states, before {@link pinStated} pins them. */
+function statedPatch(p: Component): Partial<ComponentNode> {
   // A SAVED part (customParts.ts) carries its whole node, not the handful of
   // dimensions a catalog row publishes, and applying only the switch below
   // would drop the nose cone's shoulder, the parachute's lines, the tube's
@@ -543,12 +585,24 @@ export function defaultNode(type: ComponentType): ComponentNode {
         motorOverhang: 0.00635,
         position: { method: 'bottom', offset: 0 },
       };
+    // The four parts that fill the bore of the tube they sit in start
+    // AUTOMATIC, because that is what their kernel constructors do:
+    // `TubeCoupler()`, `Bulkhead()` and `EngineBlock()` each call
+    // `setOuterRadiusAutomatic(true)`, and `CenteringRing()` turns on both its
+    // outer radius and its inner one. Without the flags a ring dropped into a
+    // 54 mm airframe arrived sized for a 25 mm one and stayed that way until
+    // someone noticed the checkbox, which is a wrong rocket that simulates
+    // quietly. The radii below are still written, because the app keeps the
+    // resolved number beside the flag rather than spelling auto as an absent
+    // key (see services/autoRadius); `addPart` resolves them against the real
+    // parent in the same edit.
     case 'tubecoupler':
       return {
         type,
         id,
         length: 0.03,
         outerRadius: 0.0125,
+        outerRadiusAuto: true,
         thickness: 0.0005,
         position: { method: 'bottom', offset: 0 },
       };
@@ -558,17 +612,31 @@ export function defaultNode(type: ComponentType): ComponentNode {
         id,
         length: 0.003,
         outerRadius: 0.0125,
+        outerRadiusAuto: true,
+        // A ring's bore follows the motor mount running through it, and is 0
+        // with no mount there - a solid disc, which is what the kernel gives
+        // too (`CenteringRing.getInnerRadius` starts at 0 and takes the largest
+        // InnerTube sibling it overlaps).
         innerRadius: 0.0092,
+        innerRadiusAuto: true,
         position: { method: 'bottom', offset: 0 },
       };
     case 'bulkhead':
-      return { type, id, length: 0.003, outerRadius: 0.0125, position: { method: 'bottom', offset: 0 } };
+      return {
+        type,
+        id,
+        length: 0.003,
+        outerRadius: 0.0125,
+        outerRadiusAuto: true,
+        position: { method: 'bottom', offset: 0 },
+      };
     case 'engineblock':
       return {
         type,
         id,
         length: 0.005,
         outerRadius: 0.0092,
+        outerRadiusAuto: true,
         thickness: 0.0005,
         position: { method: 'bottom', offset: 0 },
       };
@@ -744,7 +812,7 @@ export function addPart(
   type: ComponentType,
   selectedId: string | null,
   /** Merged onto the new node — the caller's per-part-type material defaults
-   *  (`services/materials.defaultMaterialPatch`). Kept as a parameter rather
+   *  (`services/materialSlots.defaultMaterialPatch`). Kept as a parameter rather
    *  than read here so this module stays a pure tree editor with no settings
    *  of its own. */
   seed: Partial<ComponentNode> = {},

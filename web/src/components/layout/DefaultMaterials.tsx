@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { MaterialPicker } from '../design/MaterialPicker';
-import { defaultMaterialKey } from '../../services/materials';
-import type { MaterialType } from '../../services/materialTypes';
+import { MATERIAL_SLOTS, defaultMaterialKey } from '../../services/materialSlots';
 import type { Settings } from '../../services/settings';
 
 /**
@@ -18,28 +17,6 @@ import type { Settings } from '../../services/settings';
  * than one: a parachute has a canopy and its shroud lines, and they are
  * different kinds of material measured in different units.
  */
-
-/** Every slot a default can be set for, in the order the editor lists parts. */
-const SLOTS: { part: string; material: MaterialType }[] = [
-  { part: 'nosecone', material: 'bulk' },
-  { part: 'bodytube', material: 'bulk' },
-  { part: 'transition', material: 'bulk' },
-  { part: 'trapezoidfinset', material: 'bulk' },
-  { part: 'ellipticalfinset', material: 'bulk' },
-  { part: 'freeformfinset', material: 'bulk' },
-  { part: 'tubefinset', material: 'bulk' },
-  { part: 'innertube', material: 'bulk' },
-  { part: 'tubecoupler', material: 'bulk' },
-  { part: 'centeringring', material: 'bulk' },
-  { part: 'bulkhead', material: 'bulk' },
-  { part: 'engineblock', material: 'bulk' },
-  { part: 'launchlug', material: 'bulk' },
-  { part: 'railbutton', material: 'bulk' },
-  { part: 'parachute', material: 'surface' },
-  { part: 'parachute', material: 'line' },
-  { part: 'streamer', material: 'surface' },
-  { part: 'shockcord', material: 'line' },
-];
 
 export function DefaultMaterials({
   defaults,
@@ -62,7 +39,7 @@ export function DefaultMaterials({
   return (
     <div className="space-y-3">
       <p className="text-[11px] leading-snug text-slate-500">{t('settings.materialsNote')}</p>
-      {SLOTS.map(({ part, material }) => {
+      {MATERIAL_SLOTS.map(({ part, material }) => {
         const key = defaultMaterialKey(part, material);
         return (
           <MaterialPicker

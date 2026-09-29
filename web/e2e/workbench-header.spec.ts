@@ -52,3 +52,41 @@ test('the workbench tabs live in the header rather than a row of their own', asy
   // And the first pane starts immediately under it, with no strip in between.
   expect((await box(page.locator('main'))).y).toBeLessThanOrEqual(h.y + h.height + 1);
 });
+
+/**
+ * The version / pre-release / backend badges appear as soon as the row can hold
+ * them, and not one pixel before.
+ *
+ * They are the only things in the header that are neither a control nor live
+ * state, so they are what gives when it runs out of width. The budget is
+ * MEASURED, not chosen: with all four tabs and the save status in the row the
+ * group fits from 1176 up in the longest language (ru), and `--breakpoint-badge`
+ * in index.css is 1180. This is what pins that number - a longer version string,
+ * another tab or a wordier translation pushes the requirement past it, and the
+ * header would start wrapping instead of hiding.
+ */
+test('the static badges appear exactly where the row can hold them', async ({ page }) => {
+  await page.setViewportSize({ width: 1180, height: 900 });
+  await ready(page);
+  await runFlight(page);
+
+  const header = page.locator('header').first();
+  await expect(header.getByText(/^Saved/)).toBeVisible();
+  // Russian: the widest of the ten, and so the one the breakpoint is set by.
+  await page.getByRole('combobox', { name: /language|idioma/i }).selectOption('ru');
+  await expect(header.getByText(/^Сохранено/)).toBeVisible();
+
+  // The version opens About, so it is a button; the backend names itself only in
+  // its tooltip, where the product names are latin in every language.
+  const version = header.getByRole('button', { name: /^v\d/ });
+  const backend = header.getByTitle(/WebAssembly|JavaScript/);
+  await expect(version).toBeVisible();
+  await expect(backend).toBeVisible();
+  expect((await box(header)).height).toBeLessThan(70);
+
+  // One pixel under it they are gone, rather than pushing the row onto two.
+  await page.setViewportSize({ width: 1179, height: 900 });
+  await expect(version).toBeHidden();
+  await expect(backend).toBeHidden();
+  expect((await box(header)).height).toBeLessThan(70);
+});

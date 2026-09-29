@@ -29,7 +29,15 @@ async function rects(page: Page) {
   });
 }
 
-/** A flight with a real drift, so the view is sized to a track rather than a dot. */
+/**
+ * A flight with a real drift, so the view is sized to a track rather than a dot.
+ *
+ * The distance the two tests below pin is the DEFAULT rocket's, flown into a
+ * 7 m/s wind, so it moves whenever that design does: it was 364 m until the
+ * default rocket got the materials a real one is built from (polystyrene nose,
+ * basswood fins), which took 3 g off it and sent it a little higher and further
+ * downwind. A change here is a real change to the design, not a flaky number.
+ */
 async function flyDownwind(page: Page): Promise<void> {
   await ready(page);
   await openTab(page, 'Simulations');
@@ -102,7 +110,7 @@ test('the layer buttons and the drift readout are not clipped by the square', as
   // Sized to the whole pane, the pane overflows by the height of the readout
   // beneath it and the centered overflow is cut off at both ends, taking the
   // distance and bearing with it - the two numbers this view exists to give.
-  await expect(page.getByText(/364 m · 270°/)).toBeInViewport();
+  await expect(page.getByText(/377 m · 270°/)).toBeInViewport();
   await expect(page.getByRole('button', { name: 'Satellite', exact: true })).toBeInViewport();
   // The provider's attribution is a condition of using the tiles at all.
   await expect(page.getByText(/Imagery: Esri/)).toBeInViewport();
@@ -116,7 +124,7 @@ test('turns the imagery off and keeps the measurement', async ({ page }) => {
   expect((await rects(page)).tiles).toBe(0);
   // The rings and the readout are what the view was before imagery, and still is.
   await expect(page.getByRole('img', { name: /over the ground/i })).toBeVisible();
-  await expect(page.getByText(/364 m · 270°/)).toBeInViewport();
+  await expect(page.getByText(/377 m · 270°/)).toBeInViewport();
 
   // And back on, which is the half of a toggle that is easy to leave broken.
   await page.getByRole('button', { name: 'Satellite', exact: true }).click();
