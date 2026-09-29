@@ -1,8 +1,7 @@
-import type { ComponentNode, MotorSpec, OpenRocketDesign, RocketTree, StaticInfo } from '../engine/openRocketEngine';
-import type { MountMotor } from './loadOrk';
-import { useWorkspaceStore, selectActive } from '../state/store';
+import type { ComponentNode, OpenRocketDesign, StaticInfo } from '../engine/openRocketEngine';
+import { useWorkspaceStore, selectConfig, configOf } from '../state/store';
 import { buildConfiguredRocket } from './buildRocket';
-import { findMountId } from './treeEdit';
+import { motorSpecs } from './flightConfigs';
 import { motorStats, type MotorStats } from './rocketReport';
 import { num } from '../tree/nodeProps';
 import { isFinSet } from '../tree/tubefins';
@@ -130,32 +129,6 @@ export function multiStageSummaries(
   }
 }
 
-/**
- * The motor that belongs to THIS stage's mount.
- *
- * Each per-stage summary is built from a one-stage tree, and
- * `buildConfiguredRocket` seats whatever motor it is handed into whatever
- * mount `findMountId` finds in the tree it is given. Handing it the active
- * simulation's `motor` unconditionally therefore loaded the SUSTAINER's motor
- * into the booster, and the extra-motors loop then skipped the booster's own
- * motor because its id matched the mount that had just been filled. The
- * booster's mass and CG in the PDF report and in the `.ork` `<designinfo>`
- * block described a rocket that does not exist, and were exported as
- * authoritative.
- *
- * Which mount is PRIMARY is a property of the whole rocket, so it is resolved
- * against the full tree and passed in.
- */
-export function stageMotor(
-  stageTree: RocketTree,
-  primaryMountId: string | undefined,
-  active: { motor?: MotorSpec; extraMotors: Record<string, MountMotor> },
-): MotorSpec | undefined {
-  const mount = findMountId(stageTree);
-  if (!mount) return undefined; // no mount in this stage: nothing to seat
-  return mount === primaryMountId ? active.motor : active.extraMotors[mount]?.spec;
-}
-
 /** Assemble the report from the live design + simulations (synchronous engine work). */
 export function assembleReport(): ReportModel | null {
   const s = useWorkspaceStore.getState();
@@ -188,38 +161,21 @@ export function assembleReport(): ReportModel | null {
   // finally, see multiStageSummaries) even if a stage build throws.
   let stageSummaries: Summary[];
   if (stages.length > 1) {
-    const active = selectActive(s);
-    // Which mount is the PRIMARY one is a property of the whole rocket, so it
-    // is resolved against the full tree.
-    const primaryMountId = findMountId(tree);
-    const ignition = { event: active.ignitionEvent, delay: active.ignitionDelay };
+    const flown = selectConfig(s);
     stageSummaries = multiStageSummaries(
       stages,
       stageName,
-      (st) => {
-        // Each stage is built alone, so `findMountId` on that one-stage tree
-        // finds ITS mount - and `buildConfiguredRocket` seats whatever motor
-        // it is handed into exactly that mount. Passing `active.motor`
-        // unconditionally therefore loaded the SUSTAINER's motor into the
-        // booster, and the extras loop then skipped the booster's own motor
-        // because its id matched the mount it had just found. The per-stage
-        // mass and CG rows in the PDF and in the .ork <designinfo> block were
-        // computed for a rocket that does not exist, and exported as
-        // authoritative.
-        const stageTree = { name, components: [st] } as never;
-        return buildConfiguredRocket(
-          stageTree,
-          stageMotor(stageTree, primaryMountId, active),
-          active.extraMotors,
-        ).staticInfo();
-      },
+      (st) =>
+        // Each stage is built alone, and the configuration keys its motors by
+        // MOUNT ID, so a one-stage tree gets exactly the motors that stage's own
+        // mounts hold: the sustainer's motor cannot land in the booster, and a
+        // stage with no mount is built empty rather than borrowing one.
+        buildConfiguredRocket({ name, components: [st] } as never, flown).staticInfo(),
       () => {
         // The live handle is REPLACED by this, so it has to be configured the
-        // way the rebuild effect configures it - including the primary
-        // ignition override, which was dropped here. Reading a report left
-        // store.rocket describing a rocket whose override was gone, and the
-        // rebuild effect could not correct it because none of its deps moved.
-        const main = buildConfiguredRocket(tree, active.motor, active.extraMotors, ignition);
+        // way the rebuild effect configures it - the same configuration, whose
+        // ignition overrides ride along with its motors.
+        const main = buildConfiguredRocket(tree, flown);
         return { info: main.staticInfo(), handle: main };
       },
       (built) => s.applyBuild(built.info, built.handle),
@@ -229,10 +185,10 @@ export function assembleReport(): ReportModel | null {
   }
 
   const configs: MotorConfig[] = s.sims.map((sim) => {
-    const specs = [sim.motor, ...Object.values(sim.extraMotors).map((m) => m.spec)].filter((m) => m && m.times?.length);
+    const specs = motorSpecs(tree, configOf(s.configs, sim)).filter((m) => m.times?.length);
     return {
       name: sim.name,
-      motors: specs.map((m) => motorStats(m!)),
+      motors: specs.map((m) => motorStats(m)),
       loadedMass: info.mass,
       flight: sim.result ? sim.result.summary : null,
     };

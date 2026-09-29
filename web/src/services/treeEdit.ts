@@ -152,6 +152,53 @@ export function findMounts(tree: RocketTree): ComponentNode[] {
 }
 
 /**
+ * Every recovery device in the design, in tree order.
+ *
+ * What a flight configuration's recovery overrides are keyed by, the way the
+ * mounts are what its motors are keyed by. `recoveryDevices` answers the
+ * narrower question the stage's own Recovery section asks.
+ */
+export function findRecoveryDevices(tree: RocketTree): ComponentNode[] {
+  const out: ComponentNode[] = [];
+  for (const n of walk(tree.components)) {
+    if ((n.type === 'parachute' || n.type === 'streamer') && typeof n.id === 'string') out.push(n);
+  }
+  return out;
+}
+
+/**
+ * Every stage in the design, in the order the KERNEL numbers them.
+ *
+ * Stage numbers are handed out as stages are added to the rocket, and the build
+ * walks the tree depth-first, so this pre-order walk over stage and
+ * parallel-stage nodes is that same order: index 0 is stage 0, the sustainer.
+ * The `.ork` file numbers its `<stage number="n">` flags the same way, which is
+ * why one walk answers for both.
+ */
+export function findStages(tree: RocketTree): ComponentNode[] {
+  const out: ComponentNode[] = [];
+  for (const n of walk(tree.components)) {
+    if ((n.type === 'stage' || n.type === 'parallelstage') && typeof n.id === 'string') out.push(n);
+  }
+  return out;
+}
+
+/**
+ * Every part that separates from what it is attached to, in tree order.
+ *
+ * The booster stages (every top-level stage but the first: the top one has
+ * nothing above it to let go of) and every parallel booster. What a flight
+ * configuration's separation overrides are keyed by.
+ */
+export function findSeparators(tree: RocketTree): ComponentNode[] {
+  const out = tree.components.filter((n) => n.type === 'stage' && typeof n.id === 'string').slice(1);
+  for (const n of walk(tree.components)) {
+    if (n.type === 'parallelstage' && typeof n.id === 'string') out.push(n);
+  }
+  return out;
+}
+
+/**
  * Whether a mount sits on a stage that has another stage BELOW it (a sustainer /
  * upper stage) — the only case where "ignite on the stage below's ejection /
  * burnout" can ever fire. False for a single (or implicit) stage and for the

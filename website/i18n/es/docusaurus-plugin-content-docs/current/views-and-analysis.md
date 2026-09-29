@@ -1,6 +1,6 @@
 ---
 title: "Vistas y análisis"
-sidebar_position: 10
+sidebar_position: 11
 ---
 La barra de herramientas del panel central cambia entre vistas. **2D**, **3D** y **Aero** están siempre disponibles; **Vuelo** y **Trayectoria 3D** aparecen en cuanto ejecutas una simulación.
 

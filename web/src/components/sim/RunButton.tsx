@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useWorkspaceStore, selectActive } from '../../state/store';
+import { useWorkspaceStore, selectActive, configOf } from '../../state/store';
+import { primaryMotor } from '../../services/flightConfigs';
 import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
 import { designBlocker, designBlockerText, unflyableSims, unflyableText } from '../../services/runnability';
@@ -24,6 +25,7 @@ export function RunButton({ className = '' }: { className?: string }) {
   const runIds = useMemo(() => (selectedIds.length ? selectedIds : [activeId]), [selectedIds, activeId]);
   const sims = useWorkspaceStore((s) => s.sims);
   const tree = useWorkspaceStore((s) => s.tree);
+  const configs = useWorkspaceStore((s) => s.configs);
   const busy = useWorkspaceStore((s) => s.simBusy);
   const info = useWorkspaceStore((s) => s.info);
   const runSims = useWorkspaceStore((s) => s.runSims);
@@ -35,7 +37,10 @@ export function RunButton({ className = '' }: { className?: string }) {
     () => runIds.map((id) => sims.find((x) => x.id === id)).filter((x): x is NonNullable<typeof x> => !!x),
     [runIds, sims],
   );
-  const refused = useMemo(() => unflyableSims(about), [about]);
+  const refused = useMemo(
+    () => unflyableSims(about, (sim) => primaryMotor(tree, configOf(configs, sim))),
+    [about, tree, configs],
+  );
   const flyable = about.length - refused.length;
 
   // A fault in the DESIGN stops everything: every row shares the tree, so there

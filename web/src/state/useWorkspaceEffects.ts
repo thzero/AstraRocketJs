@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18nGlobal from '../i18n';
-import { useWorkspaceStore, selectActive, selectExtraMotors } from './store';
+import { useWorkspaceStore, selectConfig } from './store';
+import { seatedMotorsKey } from '../services/flightConfigs';
 import { useEngineStore } from './engineStore';
 import { getWorkspaceStore } from '../services/workspaceStore';
 import { onStorageDegraded } from '../services/idbKeyValueStore';
@@ -102,9 +103,12 @@ export function useWorkspaceEffects() {
   const tree = useWorkspaceStore((s) => s.tree);
   const sims = useWorkspaceStore((s) => s.sims);
   const activeId = useWorkspaceStore((s) => s.activeId);
-  const extraMotors = useWorkspaceStore(selectExtraMotors);
+  const configs = useWorkspaceStore((s) => s.configs);
   const loadedMeta = useWorkspaceStore((s) => s.loadedMeta);
-  const motor = useWorkspaceStore((s) => selectActive(s).motor);
+  // WHICH motors the active row has seated, ignition excluded (see
+  // flightConfigs.seatedMotorsKey). A string, because zustand v5 compares a
+  // selector's result by identity and this is derived per call.
+  const seated = useWorkspaceStore((s) => seatedMotorsKey(s.tree, selectConfig(s)));
   // The rebuild effect below is the app's one engine caller on the main thread,
   // so it is where "the kernel is not up yet" is handled.
   const enginePhase = useEngineStore((s) => s.phase);
@@ -120,7 +124,7 @@ export function useWorkspaceEffects() {
     }
     const id = setTimeout(() => {
       getWorkspaceStore()
-        .save({ version: 1, tree, sims, activeId, loadedMeta })
+        .save({ version: 2, tree, sims, configs, activeId, loadedMeta })
         // There is now a design worth keeping, so ask the browser not to evict
         // this origin under disk pressure. Once per session, best-effort.
         // A successful save retires a "storage full" warning and nothing else:
@@ -138,7 +142,7 @@ export function useWorkspaceEffects() {
         .catch(() => useWorkspaceStore.getState().setStorageWarning(i18nGlobal.t('storage.full'), 'full'));
     }, 500);
     return () => clearTimeout(id);
-  }, [tree, sims, activeId, loadedMeta]);
+  }, [tree, sims, configs, activeId, loadedMeta]);
 
   // IndexedDB blocked (policy, some private modes) means we are back on the 5 MB
   // localStorage cap this move existed to escape. Say so NOW rather than letting
@@ -163,9 +167,10 @@ export function useWorkspaceEffects() {
     const snapshot = () => {
       const s = useWorkspaceStore.getState();
       return {
-        version: 1 as const,
+        version: 2 as const,
         tree: s.tree,
         sims: s.sims,
+        configs: s.configs,
         activeId: s.activeId,
         loadedMeta: s.loadedMeta,
       };
@@ -211,21 +216,12 @@ export function useWorkspaceEffects() {
     // so the design builds itself the moment the engine arrives.
     if (enginePhase !== 'ready') return;
     const store = useWorkspaceStore.getState();
-    // Read the tree from the store rather than closing over it, so the effect
-    // does not have to depend on the whole object to use it.
-    // Ignition read from the STORE, not closed over, so it need not be a
-    // dependency. Ignition timing cannot move mass, CG, CP, static margin or
-    // Cd - staticInfo() and aeroSweep() are geometry plus loaded-motor
-    // properties - but it was in the deps, and the delay field is a raw number
-    // input with a per-keystroke onChange. Typing "1.25" ran four complete
-    // buildConfiguredRocket + staticInfo + aeroSweep cycles on the main thread
-    // for four identical results. The handle still carries the current
-    // override because it is read here at build time.
-    const active = selectActive(store);
-    const res = computeStaticInfo(store.tree, motor, extraMotors, {
-      event: active.ignitionEvent,
-      delay: active.ignitionDelay,
-    });
+    // Tree and configuration read from the STORE rather than closed over, so the
+    // effect need not depend on either object to use them: `components` and
+    // `seated` are the narrow keys that say when a rebuild is owed. The handle
+    // still carries the current ignition overrides, because the configuration is
+    // read here at build time.
+    const res = computeStaticInfo(store.tree, selectConfig(store));
     if ('error' in res) {
       store.applyBuild(null, null);
       store.setErr(res.error);
@@ -233,7 +229,7 @@ export function useWorkspaceEffects() {
       store.applyBuild(res.info, res.rocket);
       store.setErr(null);
     }
-  }, [ready, enginePhase, components, motor, extraMotors]);
+  }, [ready, enginePhase, components, seated]);
 
   // Editing the design invalidates every simulation's cached result.
   //

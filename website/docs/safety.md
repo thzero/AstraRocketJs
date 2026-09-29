@@ -1,6 +1,6 @@
 ---
 title: "Safety"
-sidebar_position: 13
+sidebar_position: 14
 ---
 AstraRocketJs is a design and simulation tool. It is not a safety authority, and a simulation is not a flight card. This page says plainly what the numbers are worth, what the model does not know, and what to check before you fly.
 

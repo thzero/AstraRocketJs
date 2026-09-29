@@ -1121,6 +1121,17 @@ export class OpenRocketDesign {
   }
 
   /**
+   * Leaves one stage on the ground for this flight, or puts it back.
+   *
+   * OpenRocket's stage activeness: a grounded stage contributes no mass, no
+   * aerodynamics and no motor, which is how a two-stage design is flown as its
+   * own sustainer without deleting the booster.
+   */
+  setStageActiveById(componentId: string, active: boolean): void {
+    callEngine('setStageActiveById', () => eng().setStageActiveById(this.handle, componentId, active));
+  }
+
+  /**
    * Overrides WHEN this mount's motor ignites (call after setMotorById).
    * Staged rockets: "automatic" is the low/mid-power default; high-power
    * sustainers are electronics-timed — e.g. ('burnout', 1.0) for booster

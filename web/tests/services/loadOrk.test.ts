@@ -64,7 +64,7 @@ describe('loadOrk when the thrust-curve download fails', () => {
     fetchMotorSpec.mockRejectedValue(new Error('network down'));
     const loaded = await loadOrk(new ArrayBuffer(0));
 
-    const seated = loaded.motorSpecs['mount1'];
+    const seated = loaded.configs[0]!.motors['mount1'];
     expect(seated).toBeDefined();
     expect(seated!.spec.designation).toBe('K550');
     // An unresolved motor carries the designation but NO curve, which is what
@@ -93,7 +93,7 @@ describe('loadOrk when the thrust-curve download fails', () => {
       ejectionDelay: 0,
     });
     const loaded = await loadOrk(new ArrayBuffer(0));
-    expect(loaded.motorSpecs['mount1']!.spec.times).toHaveLength(3);
+    expect(loaded.configs[0]!.motors['mount1']!.spec.times).toHaveLength(3);
     expect(design.setMotorById).toHaveBeenCalled();
   });
 });

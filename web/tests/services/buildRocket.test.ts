@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import type { OpenRocketDesign, RocketTree, StaticInfo } from '../../src/engine/openRocketEngine';
 import { computeStaticInfo, flightKey } from '../../src/services/buildRocket';
+import { newFlightConfig } from '../../src/services/flightConfigs';
 
 const tree = { components: [] } as unknown as RocketTree;
+const config = newFlightConfig();
 
 // A stub engine handle: staticInfo() returns a fresh object; aeroSweep()'s
 // power-off total drives the cd fill-in (or throws to exercise the fallback).
@@ -22,7 +24,7 @@ const fakeRocket = (opts: {
 describe('computeStaticInfo', () => {
   it('returns the static info + live handle and fills cd from the Mach-0.3 sweep', () => {
     const rocket = fakeRocket({ sweepTotal: [0.42] });
-    const res = computeStaticInfo(tree, undefined, {}, undefined, () => rocket);
+    const res = computeStaticInfo(tree, config, () => rocket);
     expect('error' in res).toBe(false);
     if ('error' in res) return;
     expect(res.rocket).toBe(rocket); // the live handle the app installs
@@ -30,7 +32,7 @@ describe('computeStaticInfo', () => {
   });
 
   it('leaves cd undefined when the drag sweep throws (best-effort)', () => {
-    const res = computeStaticInfo(tree, undefined, {}, undefined, () => fakeRocket({ sweepThrows: true }));
+    const res = computeStaticInfo(tree, config, () => fakeRocket({ sweepThrows: true }));
     expect('error' in res).toBe(false);
     if ('error' in res) return;
     expect(res.info.cd).toBeUndefined(); // sweep failure doesn't fail the whole build
@@ -38,7 +40,7 @@ describe('computeStaticInfo', () => {
   });
 
   it('returns an error message when the build throws, instead of throwing', () => {
-    const res = computeStaticInfo(tree, undefined, {}, undefined, () => {
+    const res = computeStaticInfo(tree, config, () => {
       throw new Error('bad geometry');
     });
     expect(res).toEqual({ error: 'bad geometry' });
@@ -50,7 +52,7 @@ describe('computeStaticInfo', () => {
         throw new Error('kernel blew up');
       },
     } as unknown as OpenRocketDesign;
-    const res = computeStaticInfo(tree, undefined, {}, undefined, () => rocket);
+    const res = computeStaticInfo(tree, config, () => rocket);
     expect(res).toEqual({ error: 'kernel blew up' });
   });
 });

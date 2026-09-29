@@ -10,19 +10,25 @@ import {
 import { parseDesignFile } from './designFile';
 import type { OrkExportMotor } from './orkFile';
 import type { LaunchConditions } from './orkTree';
-
-/** A resolved motor + its ignition override, keyed by mount id for rebuilds. */
-export interface MountMotor {
-  spec: MotorSpec;
-  ignitionEvent?: IgnitionEvent;
-  ignitionDelay?: number;
-}
 import { loadCatalog, findCatalogMotor } from './motorDb';
 import { customMotorToSpec, fetchMotorSpec } from './thrustcurve';
 import { parseRse, removeDelay } from './rseParser';
 import type { CustomMotor } from './motorStore';
 import type { OrkMotorRef } from './orkTypes';
 import { findMounts } from './treeEdit';
+import { hasUsableCurve } from './motorCurve';
+import { uuid } from './uuid';
+import { type DeployOverride, type MountMotor } from './flightConfigs';
+
+/** One of the file's flight configurations, with its motors resolved. */
+export interface LoadedConfig {
+  /** The file's own `configid`, kept so a round trip is identity. */
+  id: string;
+  name: string | null;
+  motors: Record<string, MountMotor>;
+  /** What this configuration said about recovery deployment (carried, not edited). */
+  deployments?: Record<string, DeployOverride>;
+}
 
 export interface LoadedOrk {
   name: string;
@@ -33,9 +39,18 @@ export interface LoadedOrk {
   /** The parsed tree + motors, kept so the design can be re-exported (round-trip). */
   tree: RocketTree;
   motors: Record<string, OrkExportMotor>;
-  /** Resolved motor specs keyed by mount id — so an edited design can rebuild
-   *  and re-seat the file's motors without re-fetching thrust curves. */
-  motorSpecs: Record<string, MountMotor>;
+  /**
+   * EVERY flight configuration the file declared, with its motors resolved to
+   * thrust curves, in file order and never empty.
+   *
+   * All of them, not just the one the import applied: a `.ork` carrying three
+   * configurations is a rocket somebody set up three ways, and reading one of
+   * them would quietly discard the other two the moment the design was saved
+   * back.
+   */
+  configs: LoadedConfig[];
+  /** Which configuration the file marks default; the one the app opens on. */
+  chosenConfigId: string;
   /** Imported launch/sim conditions (wind, rod, site, geodetic), if the file had any. */
   launch?: Partial<LaunchConditions>;
   /**
@@ -106,20 +121,13 @@ export function emptyMountMotor(): MotorSpec {
 /**
  * The mount's motor plus whatever ignition override the file asked for.
  *
- * Lifted out because three paths now seat a motor - the catalog, the file's own
- * embedded curve, and that curve again after a failed fetch - and an ignition
- * event applied on only some of them is a design that stages differently
- * depending on whether thrustcurve.org answered.
+ * Lifted out because every configuration's every mount builds one, and an
+ * ignition event applied on only some of them is a design that stages
+ * differently depending on which configuration was opened.
  */
-function applyIgnition(
-  design: ReturnType<typeof OpenRocketDesign.buildTree>,
-  mountId: string,
-  ref: OrkMotorRef,
-  spec: MotorSpec,
-): MountMotor {
+function mountMotor(ref: OrkMotorRef, spec: MotorSpec): MountMotor {
   const entry: MountMotor = { spec };
   if (ref.ignitionEvent && IGNITION_EVENTS.has(ref.ignitionEvent)) {
-    design.setMotorIgnitionById(mountId, ref.ignitionEvent as IgnitionEvent, ref.ignitionDelay ?? 0);
     entry.ignitionEvent = ref.ignitionEvent as IgnitionEvent;
     entry.ignitionDelay = ref.ignitionDelay ?? 0;
   }
@@ -222,18 +230,28 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   // desktop embeds the curve of every motor the design uses, exactly so it opens
   // somewhere that does not have them.
   const embedded = embeddedCurves(res.embeddedMotors, notes);
-  const motorSpecs: Record<string, MountMotor> = {};
-  for (const [mountId, ref] of Object.entries(res.motors ?? {})) {
+
+  // One resolution per distinct motor, not per mount per configuration: three
+  // configurations flying the same J350 are one catalog lookup and one fetch,
+  // and one note when it cannot be found rather than three identical ones.
+  const resolved = new Map<string, MotorSpec>();
+  const resolveMotor = async (ref: OrkMotorRef): Promise<MotorSpec> => {
+    const key = `${(ref.manufacturer ?? '').toLowerCase()}|${ref.designation.toLowerCase()}|${ref.delay}`;
+    const hit = resolved.get(key);
+    if (hit) return hit;
+    const spec = await resolveOnce(ref);
+    resolved.set(key, spec);
+    return spec;
+  };
+  const resolveOnce = async (ref: OrkMotorRef): Promise<MotorSpec> => {
+    const own = () => embedded.get(removeDelay(ref.designation).toUpperCase());
     const cat = findCatalogMotor(catalog, ref.designation, ref.manufacturer);
     if (!cat) {
       // Before giving up: the file may carry the curve itself.
-      const own = embedded.get(removeDelay(ref.designation).toUpperCase());
-      if (own) {
+      const curve = own();
+      if (curve) {
         notes.push(`Motor "${ref.designation}" isn't in the catalog — using the thrust curve stored in the file.`);
-        const spec = customMotorToSpec(own, ref.delay);
-        design.setMotorById(mountId, spec);
-        motorSpecs[mountId] = applyIgnition(design, mountId, ref, spec);
-        continue;
+        return customMotorToSpec(curve, ref.delay);
       }
       // Keep the designation as an UNRESOLVED (curve-less) motor rather than a
       // default: the mount shows what the file wanted, the run is blocked until
@@ -241,68 +259,78 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
       notes.push(
         `Motor "${ref.designation}" isn't in the catalog — pick a motor for that mount (it won't fly a default).`,
       );
-      motorSpecs[mountId] = { spec: unresolvedMotor(ref) };
-      continue;
+      return unresolvedMotor(ref);
     }
     try {
-      const spec = await fetchMotorSpec(cat, ref.delay);
-      design.setMotorById(mountId, spec);
-      motorSpecs[mountId] = applyIgnition(design, mountId, ref, spec);
+      return await fetchMotorSpec(cat, ref.delay);
     } catch (e) {
       // Same fallback as the not-in-catalog branch: a network failure should not
       // cost a design the curve it was carrying all along.
-      const own = embedded.get(removeDelay(ref.designation).toUpperCase());
-      if (own) {
+      const curve = own();
+      if (curve) {
         notes.push(`Motor "${ref.designation}" could not be fetched — using the thrust curve stored in the file.`);
-        const spec = customMotorToSpec(own, ref.delay);
-        design.setMotorById(mountId, spec);
-        motorSpecs[mountId] = applyIgnition(design, mountId, ref, spec);
-        continue;
+        return customMotorToSpec(curve, ref.delay);
       }
       // Seat the UNRESOLVED motor, exactly as the `!cat` branch above does.
-      // Leaving the mount empty was not neutral: mountMotors seeds a default
-      // C6 for any mount without one, so a single transient thrustcurve.org
-      // failure while opening an L-motor design produced a runnable simulation
-      // flying a 10 N-s C6, with the only warning buried in the import notes
-      // that settings.showImportNotes can hide.
+      // Leaving the mount empty is not neutral: a mount without an entry is
+      // seeded with a default C6 (flightConfigs.reconcileConfig), so a single
+      // transient thrustcurve.org failure while opening an L-motor design would
+      // produce a runnable simulation flying a 10 N-s C6, with the only warning
+      // buried in the import notes that settings.showImportNotes can hide.
       notes.push(
         `Motor "${ref.designation}": ${e instanceof Error ? e.message : String(e)} - pick a motor for that mount (it won't fly a default).`,
       );
-      motorSpecs[mountId] = { spec: unresolvedMotor(ref) };
+      return unresolvedMotor(ref);
     }
+  };
+
+  // The file's configurations, or one standing in for a file that declares
+  // none: a `.rkt`, a bare-XML `.ork`, or a hand-rolled one whose <motor>
+  // elements were read without a declaration table (importConfigs).
+  const declared = res.configs?.length
+    ? res.configs
+    : [{ id: uuid(), name: null, isDefault: true, motors: res.motors ?? {}, deployments: {} }];
+  const chosenConfigId = declared.some((c) => c.id === res.chosenConfigId) ? res.chosenConfigId! : declared[0]!.id;
+
+  const mounts = findMounts(res.tree).map((m) => m.id as string);
+  const configs: LoadedConfig[] = [];
+  for (const cfg of declared) {
+    const motors: Record<string, MountMotor> = {};
+    for (const [mountId, ref] of Object.entries(cfg.motors ?? {})) {
+      motors[mountId] = mountMotor(ref, await resolveMotor(ref));
+    }
+    // Every mount this configuration named no motor for gets the empty
+    // placeholder (see emptyMountMotor), so nothing seeds it a default later.
+    for (const id of mounts) if (!motors[id]) motors[id] = { spec: emptyMountMotor() };
+    configs.push({
+      id: cfg.id,
+      name: cfg.name,
+      motors,
+      ...(Object.keys(cfg.deployments ?? {}).length ? { deployments: cfg.deployments } : {}),
+    });
   }
 
-  // Every mount the file gave no motor for gets the empty placeholder (see
-  // emptyMountMotor), named in one note so the user knows which to fill.
-  const emptyMounts = findMounts(res.tree).filter((m) => !motorSpecs[m.id as string]);
-  for (const m of emptyMounts) motorSpecs[m.id as string] = { spec: emptyMountMotor() };
+  // Named once, for the configuration the app opens on: a design with four
+  // empty mounts across three configurations does not need twelve sentences.
+  const chosen = configs.find((c) => c.id === chosenConfigId)!;
+  const emptyMounts = findMounts(res.tree).filter((m) => !hasUsableCurve(chosen.motors[m.id as string]?.spec));
   if (emptyMounts.length) {
-    const names = emptyMounts.map((m) => `"${m.name ?? m.type}"`).join(', ');
-    notes.push(
-      `No motor in this file for ${emptyMounts.length === 1 ? 'mount' : 'mounts'} ${names} - pick one before flying (it won't fly a default).`,
-    );
-  }
-
-  // The app imports ONE configuration as a single simulation, but a .ork can
-  // carry several (each a sim on the desktop). Scan the OTHER configurations'
-  // motors too, so a missing engine in a not-opened config isn't silent. Only
-  // the opened config's motors were catalog-checked above; dedupe by name and
-  // skip any the opened config already resolved.
-  const openedRefs = new Set(Object.values(res.motors ?? {}).map((r) => r.designation.toLowerCase()));
-  const missingOther = new Map<string, string>(); // key → display designation
-  for (const cfg of res.configs ?? []) {
-    if (cfg.id === res.chosenConfigId) continue;
-    for (const ref of Object.values(cfg.motors ?? {})) {
-      if (openedRefs.has(ref.designation.toLowerCase())) continue;
-      if (findCatalogMotor(catalog, ref.designation, ref.manufacturer)) continue; // we have it
-      missingOther.set(`${ref.designation.toLowerCase()}|${(ref.manufacturer ?? '').toLowerCase()}`, ref.designation);
+    const named = emptyMounts.filter((m) => !chosen.motors[m.id as string]?.spec.designation);
+    if (named.length) {
+      const names = named.map((m) => `"${m.name ?? m.type}"`).join(', ');
+      notes.push(
+        `No motor in this file for ${named.length === 1 ? 'mount' : 'mounts'} ${names} - pick one before flying (it won't fly a default).`,
+      );
     }
   }
-  if (missingOther.size) {
-    notes.push(
-      `Other flight configurations use motors not in the catalog: ${[...missingOther.values()].join(', ')}. ` +
-        `Those configurations can't be simulated here until you add the motor(s).`,
-    );
+
+  // Seat the OPENED configuration into the throwaway handle, which is what the
+  // static info below is read from. The other configurations are data at this
+  // point; each is built in turn by whichever simulation flies it.
+  for (const [mountId, m] of Object.entries(chosen.motors)) {
+    if (!hasUsableCurve(m.spec)) continue;
+    design.setMotorById(mountId, m.spec);
+    if (m.ignitionEvent) design.setMotorIgnitionById(mountId, m.ignitionEvent, m.ignitionDelay ?? 0);
   }
 
   const info = design.staticInfo();
@@ -313,7 +341,8 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
     notes,
     tree: res.tree,
     motors: res.motors,
-    motorSpecs,
+    configs,
+    chosenConfigId,
     launch: res.launch,
     unbuildable: built.unbuildable,
   };

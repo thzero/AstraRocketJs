@@ -3,7 +3,9 @@ import { hasUsableCurve, MIN_CURVE_SAMPLES } from '../../src/services/motorCurve
 import { hasThrustCurve } from '../../src/services/runnability';
 import { hasCurve, type CatalogMotor } from '../../src/services/motorDb';
 import { isThrustSampleArray } from '../../src/services/motorStore';
-import { buildRocketTree, C6 } from '../../src/engine/api';
+import { C6 } from '../../src/engine/api';
+import { buildConfiguredRocket } from '../../src/services/buildRocket';
+import { newFlightConfig } from '../../src/services/flightConfigs';
 import { __setEngineForTests, type MotorSpec, type RocketTree } from '../../src/engine/openRocketEngine';
 
 /**
@@ -73,7 +75,7 @@ describe('a one-sample motor is rejected everywhere', () => {
     ).toBe(true);
   });
 
-  it('by the builder (engine/api.buildRocketTree leaves the mount empty)', () => {
+  it('by the builder (buildConfiguredRocket leaves the mount empty)', () => {
     const seated: unknown[] = [];
     __setEngineForTests({
       buildRocket: () => 1,
@@ -83,10 +85,10 @@ describe('a one-sample motor is rejected everywhere', () => {
       },
     } as never);
     try {
-      const tree = { components: [] } as unknown as RocketTree;
-      buildRocketTree(tree, one, 'mount');
+      const tree = { components: [{ type: 'bodytube', id: 'mount', motorMount: true }] } as unknown as RocketTree;
+      buildConfiguredRocket(tree, newFlightConfig({ mount: { spec: one } }));
       expect(seated).toHaveLength(0);
-      buildRocketTree(tree, C6, 'mount');
+      buildConfiguredRocket(tree, newFlightConfig({ mount: { spec: C6 } }));
       expect(seated).toHaveLength(1);
     } finally {
       __setEngineForTests(null);

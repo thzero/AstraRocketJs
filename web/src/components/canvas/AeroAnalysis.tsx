@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useWorkspaceStore, selectActive, selectDesignName } from '../../state/store';
+import { useWorkspaceStore, selectConfig, selectDesignName } from '../../state/store';
+import { primaryMotor } from '../../services/flightConfigs';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import { aeroTableCsv, CSV_MIME } from '../../services/csvExport';
@@ -59,7 +60,7 @@ export function AeroAnalysis() {
   // -- it analyzes whatever the active simulation has loaded, which is our
   // equivalent of the desktop dialog's motor-configuration dropdown -- so when
   // that curve is on screen, say whose it is.
-  const motorName = useWorkspaceStore((s) => selectActive(s).motor?.designation);
+  const motorName = useWorkspaceStore((s) => primaryMotor(s.tree, selectConfig(s))?.designation);
   // M1 by default: the overwhelming majority of hobby flights never reach Mach 1,
   // and sweeping to M3 spent two thirds of the x axis on speeds the rocket will
   // not see, squeezing the subsonic rise nobody could then read.

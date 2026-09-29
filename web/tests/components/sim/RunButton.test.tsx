@@ -5,7 +5,7 @@ import { screen } from '@testing-library/react';
 import { RunButton } from '../../../src/components/sim/RunButton';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import { useWorkspaceStore } from '../../../src/state/store';
-import { C6 } from '../../../src/engine/api';
+import { seatMotor, CURVELESS } from '../../testing/seatMotor';
 import { MAX_WIND_SPEED_MS } from '../../../src/services/safetyLimits';
 
 const st = () => useWorkspaceStore.getState();
@@ -54,13 +54,11 @@ describe('RunButton over a selection', () => {
       sims: st()
         .sims.map((x) => ({ ...x, launch: { ...LAUNCH } }))
         .map((x) =>
-          x.name === 'NoMotor'
-            ? { ...x, motor: { ...C6, times: [], thrusts: [], masses: [] } }
-            : x.name === 'TooWindy'
-              ? { ...x, motor: C6, launch: { ...x.launch, windAverage: MAX_WIND_SPEED_MS + 5 } }
-              : { ...x, motor: C6 },
+          x.name === 'TooWindy' ? { ...x, launch: { ...x.launch, windAverage: MAX_WIND_SPEED_MS + 5 } } : x,
         ),
     });
+    // A curve-less motor is what an unresolved .ork import leaves behind.
+    seatMotor('NoMotor', CURVELESS);
   });
 
   it('counts only the rows that will actually fly', () => {

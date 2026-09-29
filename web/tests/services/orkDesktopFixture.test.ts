@@ -241,7 +241,6 @@ describe('a desktop-authored .ork', () => {
     const xml = exportOrk({
       name: res.name,
       tree: res.tree,
-      motors: res.motors,
       launch: res.launch as never,
       configs: res.configs,
       activeConfigId: res.chosenConfigId,

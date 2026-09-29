@@ -1,4 +1,5 @@
 import { asStageNodes } from './orkTree';
+import { findStages } from './treeEdit';
 import { escapeXml } from './xmlUtil';
 import { uuid } from './uuid';
 import { appName } from './appInfo';
@@ -17,18 +18,8 @@ import { DOC_EXTRA_KEY, ROCKET_EXTRA_KEY, passthroughOf } from './ork/passthroug
  * `ork/exportWriters.ts`; the flight-configuration table, the simulation block
  * and the design-info block each have their own module.
  */
-export function exportOrk({
-  name,
-  tree,
-  motors,
-  motor,
-  mountId,
-  launch,
-  configs,
-  activeConfigId,
-  designInfo,
-}: OrkTreeExportInput): string {
-  const { writeConfigs, defaultId } = resolveWriteConfigs({ motors, motor, mountId, configs, activeConfigId });
+export function exportOrk({ name, tree, launch, configs, activeConfigId, designInfo }: OrkTreeExportInput): string {
+  const { writeConfigs, defaultId } = resolveWriteConfigs({ configs, activeConfigId });
   const w = createOrkWriter(writeConfigs, defaultId);
   const { emit } = w;
 
@@ -57,7 +48,13 @@ export function exportOrk({
   // Stage nodes at the top level export as sibling <stage> blocks (the
   // desktop model); legacy flat trees wrap into one implicit stage.
   const stageNodes = asStageNodes(tree);
-  motorConfigurationsXml(w, 2, stageNodes.length);
+  // The ids, not just the count: a configuration grounds a stage by node id,
+  // and their order here IS the file's stage numbering.
+  motorConfigurationsXml(
+    w,
+    2,
+    findStages(tree).map((n) => n.id as string | undefined),
+  );
   // The file's own reference, not a constant: a hardcoded `maximum` silently
   // re-measures a design whose calibers were set against a custom length.
   // `maximum` is the default, and is what this app itself measures against.

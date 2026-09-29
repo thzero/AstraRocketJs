@@ -11,7 +11,8 @@ vi.mock('../../src/engine/simClient', async (orig) => ({
 import {
   useWorkspaceStore,
   selectActive,
-  selectExtraMotors,
+  selectConfig,
+  configOf,
   selectRunIds,
   hasThrustCurve,
   selectRunFailed,
@@ -21,7 +22,8 @@ import { setDesignLibrary } from '../../src/services/designLibrary';
 import { useConfirmStore } from '../../src/state/confirmStore';
 import { usePromptStore } from '../../src/state/promptStore';
 import { getWorkspaceStore } from '../../src/services/workspaceStore';
-import { findMounts, findNode } from '../../src/services/treeEdit';
+import { findMounts, findNode, findRecoveryDevices, findSeparators, findStages } from '../../src/services/treeEdit';
+import { seatMotor, CURVELESS } from '../testing/seatMotor';
 import type { FlightResult } from '../../src/engine/openRocketEngine';
 import type { SimPrefs } from '../../src/services/simulations';
 
@@ -30,6 +32,10 @@ import type { SimPrefs } from '../../src/services/simulations';
 const s = () => useWorkspaceStore.getState();
 const len = (id: string): number | undefined => findNode(s().tree, id)?.length as number | undefined;
 const active = () => selectActive(s());
+/** The active row's flight configuration, and what it seats in the aft mount. */
+const config = () => selectConfig(s());
+const mountId = () => findMounts(s().tree)[0]!.id as string;
+const seated = () => config().motors[mountId()]!.spec;
 
 // Several describes queue `mockRejectedValueOnce` / `mockImplementationOnce`
 // on the shared sim stub. If an assertion throws before the run consumes the
@@ -179,12 +185,12 @@ describe('simulation undo/redo', () => {
   });
 
   it('undoes a motor change', () => {
-    const before = active().motor.designation;
-    s().setActiveMotor({ ...C6, designation: 'Z99' });
-    expect(active().motor.designation).toBe('Z99');
+    const before = seated().designation;
+    s().setMountMotor(config().id, mountId(), { ...C6, designation: 'Z99' });
+    expect(seated().designation).toBe('Z99');
     expect(s().past).toHaveLength(1);
     s().undo();
-    expect(active().motor.designation).toBe(before);
+    expect(seated().designation).toBe(before);
   });
 
   it('coalesces a launch edit and undoes it in one step', () => {
@@ -242,43 +248,41 @@ describe('simulation undo/redo', () => {
     s().setSelectedId('nose');
     s().patchSelected({ length: 0.3 });
     s().commitEdit(); // entry 1: tree edit
-    s().setActiveMotor({ ...C6, designation: 'Q1' }); // entry 2: sim edit
+    s().setMountMotor(config().id, mountId(), { ...C6, designation: 'Q1' }); // entry 2: loadout edit
     expect(s().past).toHaveLength(2);
     s().undo(); // reverts the motor
-    expect(active().motor.designation).not.toBe('Q1');
+    expect(seated().designation).not.toBe('Q1');
     s().undo(); // reverts the tree edit
     expect(findNode(s().tree, 'nose')!.length).not.toBe(0.3);
   });
 });
 
-describe('mount ↔ motor reconciliation', () => {
+describe('mount to motor reconciliation', () => {
   beforeEach(() => {
     s().resetWorkspace();
-  }); // default design: one mount ('mount'), no extras
+  }); // default design: one mount, one configuration
 
-  // The motors seated in the non-primary mounts belong to a SIMULATION (they are
-  // its flight configuration); the mounts themselves belong to the shared
-  // design. So adding or removing a mount has to reach every simulation's
-  // loadout, not just the selected one.
-  const extras = () => selectExtraMotors(s());
+  // The mounts belong to the shared design; the motors seated in them belong to
+  // the flight configurations. So adding or removing a mount has to reach every
+  // configuration, not just the one the active row flies.
+  const motors = () => config().motors;
 
   it('seeds a default motor when a second mount is added', () => {
-    expect(Object.keys(extras())).toHaveLength(0);
+    expect(Object.keys(motors())).toHaveLength(1);
     s().setSelectedId('body');
     s().addPartToTree('innertube'); // default innertube is a motor mount
-    const ids = Object.keys(extras());
-    expect(ids).toHaveLength(1);
-    expect(extras()[ids[0]!]!.spec.designation).toBe('C6'); // new mount is loaded
+    const added = s().selectedId!;
+    expect(Object.keys(motors())).toHaveLength(2);
+    expect(motors()[added]!.spec.designation).toBe('C6'); // new mount is loaded
   });
 
-  it('drops the extra-motor entry when its mount is removed', () => {
+  it('drops the entry when its mount is removed', () => {
     s().setSelectedId('body');
     s().addPartToTree('innertube');
     const addedId = s().selectedId!;
-    expect(extras()[addedId]).toBeDefined();
+    expect(motors()[addedId]).toBeDefined();
     s().removeSelected();
-    expect(extras()[addedId]).toBeUndefined(); // no stale entry left behind
-    expect(Object.keys(extras())).toHaveLength(0);
+    expect(motors()[addedId]).toBeUndefined(); // no stale entry left behind
   });
 
   it('undo restores the mounts and their motors together', () => {
@@ -287,90 +291,333 @@ describe('mount ↔ motor reconciliation', () => {
     const addedId = s().selectedId!;
     s().undo();
     expect(findNode(s().tree, addedId)).toBeNull(); // mount gone
-    expect(extras()[addedId]).toBeUndefined(); // and its seeded motor
+    expect(motors()[addedId]).toBeUndefined(); // and its seeded motor
   });
 
-  it('seeds the new mount into EVERY simulation, not just the selected one', () => {
-    s().addSim();
+  it('seeds the new mount into EVERY configuration, not just the active one', () => {
+    s().addConfig(); // a second setup, so this is really about all of them
     s().setSelectedId('body');
     s().addPartToTree('innertube');
     const addedId = s().selectedId!;
-    expect(s().sims).toHaveLength(2);
-    expect(s().sims.every((x) => !!x.extraMotors[addedId])).toBe(true);
+    expect(s().configs.length).toBeGreaterThan(1);
+    expect(s().configs.every((c) => !!c.motors[addedId])).toBe(true);
 
     s().removeSelected();
-    expect(s().sims.every((x) => !x.extraMotors[addedId])).toBe(true);
+    expect(s().configs.every((c) => !c.motors[addedId])).toBe(true);
   });
 });
 
 /**
- * The motor loadout is per simulation, which is OpenRocket's "flight
- * configuration". Shared workspace-wide, a staged rocket could only be flown one
- * way: seating a different sustainer motor would change it for every simulation at
- * once and age all of their results.
+ * A simulation NAMES the configuration it flies, and a configuration is SHARED:
+ * changing its motors changes what every row flying it flies. That is the point
+ * of a configuration, and it is why motors are edited in one place (the
+ * Configurations tab) rather than from a row that only happens to fly them.
  */
-describe('each simulation owns its motor loadout', () => {
+describe('a simulation flies one configuration', () => {
   beforeEach(() => {
     s().resetWorkspace();
     s().setSelectedId('body');
-    s().addPartToTree('innertube'); // a second mount, seeded in both sims below
+    s().addPartToTree('innertube'); // a second mount, seeded in every configuration
   });
 
-  it('seats a motor on one simulation without touching the other', () => {
+  const seatedIn = (simId: string, mount: string) =>
+    configOf(
+      s().configs,
+      s().sims.find((x) => x.id === simId)!,
+    ).motors[mount]!.spec.designation;
+
+  it('seats a motor for every row flying that configuration', () => {
     const mount = s().selectedId!;
     const first = s().activeId;
     s().addSim();
     const second = s().activeId;
     expect(second).not.toBe(first);
+    const shared = config().id;
+    expect(configOf(s().configs, s().sims[0]!).id).toBe(shared); // one setup, two rows
 
-    const d12 = { ...C6, designation: 'D12' };
-    s().setExtraMotor(mount, d12);
+    s().setMountMotor(shared, mount, { ...C6, designation: 'D12' });
 
-    const byId = (id: string) => s().sims.find((x) => x.id === id)!;
-    expect(byId(second).extraMotors[mount]!.spec.designation).toBe('D12');
-    expect(byId(first).extraMotors[mount]!.spec.designation).toBe('C6');
+    expect(seatedIn(second, mount)).toBe('D12');
+    expect(seatedIn(first, mount)).toBe('D12');
   });
 
-  it('ages only the simulation whose loadout changed', () => {
+  it('leaves a row that flies another configuration alone', () => {
     const mount = s().selectedId!;
     const first = s().activeId;
     s().addSim();
     const second = s().activeId;
+    s().addConfig(); // a setup of its own for the second row
+    const own = s().selectedConfigId!;
+    s().setSimConfig(second, own);
+
+    s().setMountMotor(own, mount, { ...C6, designation: 'D12' });
+
+    expect(seatedIn(second, mount)).toBe('D12');
+    expect(seatedIn(first, mount)).toBe('C6');
+  });
+
+  it('ages every flight flown on the configuration that changed', () => {
+    const mount = s().selectedId!;
+    const first = s().activeId;
+    s().addSim();
+    const second = s().activeId;
+    s().addConfig();
+    s().setSimConfig(second, s().selectedConfigId!);
     useWorkspaceStore.setState((st) => ({
       sims: st.sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: false })),
     }));
 
-    s().setExtraMotor(mount, { ...C6, designation: 'D12' });
+    s().setMountMotor(
+      configOf(
+        s().configs,
+        s().sims.find((x) => x.id === first)!,
+      ).id,
+      mount,
+      {
+        ...C6,
+        designation: 'D12',
+      },
+    );
 
     const byId = (id: string) => s().sims.find((x) => x.id === id)!;
+    expect(byId(first).outdated).toBe(true);
+    expect(byId(second).outdated).toBe(false); // it flies a different setup
+  });
+
+  it('a duplicate flies the same configuration', () => {
+    const mount = s().selectedId!;
+    s().setMountMotor(config().id, mount, { ...C6, designation: 'D12' });
+    const src = s().activeId;
+    s().duplicateSim(src);
+    expect(s().activeId).not.toBe(src);
+    expect(selectActive(s()).configId).toBe(s().sims.find((x) => x.id === src)!.configId);
+    expect(config().motors[mount]!.spec.designation).toBe('D12');
+  });
+
+  it('a new simulation joins an existing configuration rather than cloning it', () => {
+    const before = s().configs.length;
+    s().addSim();
+    expect(s().configs).toHaveLength(before); // same default loadout, same configuration
+  });
+});
+
+/**
+ * The configurations themselves: adding, copying, deleting, and pointing a row
+ * at another one. Every simulation names the configuration it flies, so the list
+ * can never be emptied and a deletion has to re-point the rows that flew it.
+ */
+describe('managing configurations', () => {
+  beforeEach(() => {
+    s().resetWorkspace();
+  });
+
+  it('adds one even when an identical loadout is already there', () => {
+    // New says "another setup". One that silently selected an existing row
+    // would be a button that appears to do nothing.
+    s().addConfig();
+    expect(s().configs).toHaveLength(2);
+    expect(s().selectedConfigId).toBe(s().configs[1]!.id);
+  });
+
+  it('copies a configuration next to the one it came from', () => {
+    const mount = mountId();
+    s().setMountMotor(config().id, mount, { ...C6, designation: 'D12' });
+    s().copyConfig(config().id);
+    expect(s().configs).toHaveLength(2);
+    expect(s().configs[1]!.motors[mount]!.spec.designation).toBe('D12');
+    expect(s().configs[1]!.id).not.toBe(s().configs[0]!.id);
+    expect(s().selectedConfigId).toBe(s().configs[1]!.id);
+  });
+
+  it('names a copy after a NAMED source, and leaves an unnamed one unnamed', () => {
+    // An unnamed configuration is labeled by its motors, so "Estes C6 copy"
+    // would name a thing nobody named.
+    s().copyConfig(config().id);
+    expect(s().configs[1]!.name).toBeNull();
+    s().renameConfig(s().configs[0]!.id, 'Contest');
+    s().copyConfig(s().configs[0]!.id);
+    expect(s().configs[1]!.name).toContain('Contest');
+  });
+
+  it('treats an empty name as unnamed rather than as a blank', () => {
+    s().renameConfig(config().id, 'Contest');
+    expect(config().name).toBe('Contest');
+    s().renameConfig(config().id, '   ');
+    expect(config().name).toBeNull();
+  });
+
+  it('refuses to delete the only configuration', () => {
+    s().deleteConfig(config().id);
+    expect(s().configs).toHaveLength(1);
+  });
+
+  it('moves the rows that flew a deleted configuration, and ages them', () => {
+    const doomed = config().id;
+    s().addConfig();
+    const keep = s().selectedConfigId!;
+    useWorkspaceStore.setState((st) => ({
+      sims: st.sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: false })),
+    }));
+
+    s().deleteConfig(doomed);
+
+    expect(s().configs).toHaveLength(1);
+    expect(s().sims.every((x) => x.configId === keep)).toBe(true);
+    expect(s().sims.every((x) => x.outdated)).toBe(true); // they fly something else now
+  });
+
+  it('points one row at another configuration, ageing only that row', () => {
+    s().addSim();
+    const second = s().activeId;
+    s().addConfig();
+    const other = s().selectedConfigId!;
+    useWorkspaceStore.setState((st) => ({
+      sims: st.sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: false })),
+    }));
+
+    s().setSimConfig(second, other);
+
+    const byId = (id: string) => s().sims.find((x) => x.id === id)!;
+    expect(byId(second).configId).toBe(other);
     expect(byId(second).outdated).toBe(true);
-    expect(byId(first).outdated).toBe(false); // the other simulation is untouched
+    expect(
+      s()
+        .sims.filter((x) => x.id !== second)
+        .every((x) => !x.outdated),
+    ).toBe(true);
   });
 
-  it('a duplicate carries the loadout forward', () => {
-    const mount = s().selectedId!;
-    s().setExtraMotor(mount, { ...C6, designation: 'D12' });
-    s().duplicateSim(s().activeId);
-    expect(selectExtraMotors(s())[mount]!.spec.designation).toBe('D12');
+  it('undoes an added configuration', () => {
+    s().addConfig();
+    expect(s().configs).toHaveLength(2);
+    s().undo();
+    expect(s().configs).toHaveLength(1);
+  });
+});
+
+describe('per-configuration recovery', () => {
+  beforeEach(() => {
+    s().resetWorkspace(); // the default design has one parachute
   });
 
-  it('folds a legacy workspace-level map into every simulation', () => {
-    // Blobs written before the move carry one shared map, which applied to every
-    // sim -- so that is where it has to land.
-    const tree = s().tree;
-    const mount = s().selectedId!;
-    const legacy = { [mount]: { spec: { ...C6, designation: 'D12' } } };
-    s().hydrate({
-      tree,
-      sims: [
-        { ...selectActive(s()), id: 'a', extraMotors: undefined as never },
-        { ...selectActive(s()), id: 'b', extraMotors: undefined as never },
-      ],
-      activeId: 'a',
-      extraMotors: legacy as never,
-      loadedMeta: null,
-    });
-    expect(s().sims.every((x) => x.extraMotors[mount]!.spec.designation === 'D12')).toBe(true);
+  const chuteId = () => findRecoveryDevices(s().tree)[0]!.id as string;
+
+  it('overrides one field and leaves the rest to the design', () => {
+    s().setDeployment(config().id, chuteId(), 'deployAltitude', 150);
+    expect(config().deployments![chuteId()]).toEqual({ deployAltitude: 150 });
+  });
+
+  it('clears a field back to the design, and the map with it', () => {
+    // No overrides at all means NO `deployments`, which is what the builder
+    // short-circuits on and what the exporter reads as "as designed".
+    s().setDeployment(config().id, chuteId(), 'deployAltitude', 150);
+    s().setDeployment(config().id, chuteId(), 'deployAltitude', null);
+    expect(config().deployments).toBeUndefined();
+  });
+
+  it('ages every flight flown on the configuration that changed', () => {
+    s().addSim();
+    useWorkspaceStore.setState((st) => ({
+      sims: st.sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: false })),
+    }));
+    s().setDeployment(config().id, chuteId(), 'deployEvent', 'altitude');
+    expect(s().sims.every((x) => x.outdated)).toBe(true);
+  });
+
+  it('is undone in one step, like any other edit', () => {
+    s().setDeployment(config().id, chuteId(), 'deployDelay', 2);
+    s().commitEdit();
+    s().undo();
+    expect(config().deployments).toBeUndefined();
+  });
+});
+
+describe('per-configuration staging', () => {
+  beforeEach(() => {
+    s().resetWorkspace();
+    s().addStageToTree(); // a booster, which is the only thing that separates
+  });
+
+  const boosterId = () => findSeparators(s().tree)[0]!.id as string;
+
+  it('overrides one field and leaves the rest to the design', () => {
+    s().setSeparation(config().id, boosterId(), 'separationDelay', 2);
+    expect(config().separations![boosterId()]).toEqual({ separationDelay: 2 });
+  });
+
+  it('clears a field back to the design, and the map with it', () => {
+    s().setSeparation(config().id, boosterId(), 'separationDelay', 2);
+    s().setSeparation(config().id, boosterId(), 'separationDelay', null);
+    expect(config().separations).toBeUndefined();
+  });
+
+  it('ages every flight flown on the configuration that changed', () => {
+    s().addSim();
+    useWorkspaceStore.setState((st) => ({
+      sims: st.sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: false })),
+    }));
+    s().setSeparation(config().id, boosterId(), 'separationEvent', 'burnout');
+    expect(s().sims.every((x) => x.outdated)).toBe(true);
+  });
+
+  it('drops the override when its booster is deleted', () => {
+    const booster = boosterId();
+    s().setSeparation(config().id, booster, 'separationDelay', 2);
+    s().setSelectedId(booster);
+    s().removeSelected();
+    expect(config().separations?.[booster]).toBeUndefined();
+  });
+});
+
+describe('per-configuration stage activeness', () => {
+  beforeEach(() => {
+    s().resetWorkspace();
+    s().addStageToTree(); // two stages: one to ground, one to keep flying
+  });
+
+  const stageIds = () => findStages(s().tree).map((n) => n.id as string);
+
+  it('grounds a stage for this configuration alone', () => {
+    const [, booster] = stageIds();
+    s().addConfig();
+    const other = s().selectedConfigId!;
+    s().setStageFlies(other, booster!, false);
+    expect(s().configs.find((c) => c.id === other)!.grounded).toEqual([booster]);
+    expect(s().configs.find((c) => c.id !== other)!.grounded).toBeUndefined();
+  });
+
+  it('puts it back, and drops the list when nothing is grounded', () => {
+    const [, booster] = stageIds();
+    const id = config().id;
+    s().setStageFlies(id, booster!, false);
+    s().setStageFlies(id, booster!, true);
+    expect(config().grounded).toBeUndefined();
+  });
+
+  it('keeps the list in TREE order however it was clicked', () => {
+    const [sustainer, booster] = stageIds();
+    const id = config().id;
+    s().setStageFlies(id, booster!, false);
+    s().setStageFlies(id, sustainer!, false);
+    // Grounding the last flying stage is refused, so only the booster is down.
+    expect(config().grounded).toEqual([booster]);
+  });
+
+  it('refuses to ground the last stage still flying', () => {
+    const [sustainer, booster] = stageIds();
+    const id = config().id;
+    s().setStageFlies(id, booster!, false);
+    s().setStageFlies(id, sustainer!, false);
+    expect(config().grounded).toEqual([booster]); // something has to fly
+  });
+
+  it('ages every flight flown on the configuration that changed', () => {
+    const [, booster] = stageIds();
+    useWorkspaceStore.setState((st) => ({
+      sims: st.sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: false })),
+    }));
+    s().setStageFlies(config().id, booster!, false);
+    expect(s().sims.every((x) => x.outdated)).toBe(true);
   });
 });
 
@@ -469,11 +716,16 @@ describe('results age instead of being destroyed', () => {
     expect(active().outdated).toBe(true);
   });
 
-  it('flags EVERY simulation when a workspace-level motor changes', () => {
-    // Extra-mount motors are not per-simulation, so one change ages them all.
-    const mount = findMounts(s().tree)[0]!.id as string;
-    s().setExtraMotor(mount, C6);
-    expect(s().sims.every((x) => x.result && x.outdated)).toBe(true);
+  it('flags only the row whose motor changed, because the configuration forks', () => {
+    // A motor edit is about one row (store.patchActiveConfig): a configuration
+    // several rows fly is forked first, so the others keep flying what they flew.
+    s().setMountMotor(config().id, mountId(), { ...C6, designation: 'D12' });
+    expect(active().outdated).toBe(true);
+    expect(
+      s()
+        .sims.filter((x) => x.id !== s().activeId)
+        .every((x) => x.result && !x.outdated),
+    ).toBe(true);
   });
 
   it('a finished run is current again', async () => {
@@ -621,11 +873,9 @@ describe('running a selection', () => {
   it('carries on past a simulation that cannot fly', async () => {
     s().addSim();
     const [first, second] = s().sims;
-    // Strip the first sim's thrust curve: unflyable, but not a reason to
+    // The first row flies a curve-less motor: unflyable, but not a reason to
     // abandon the rest of the batch.
-    useWorkspaceStore.setState((st) => ({
-      sims: st.sims.map((x) => (x.id === first!.id ? { ...x, motor: { ...C6, thrusts: [] } } : x)),
-    }));
+    seatMotor(first!.name, CURVELESS);
 
     await s().runSims([first!.id, second!.id], {} as SimPrefs);
 
@@ -865,7 +1115,8 @@ describe('replacing the workspace is race-safe across actions, not just openDesi
         notes: [],
         tree: { name: new TextDecoder().decode(bytes), components: [] },
         motors: {},
-        motorSpecs: {},
+        configs: [{ id: 'cfg-1', name: null, motors: {} }],
+        chosenConfigId: 'cfg-1',
       }),
     }));
 
@@ -883,7 +1134,14 @@ describe('replacing the workspace is race-safe across actions, not just openDesi
     vi.doMock('../../src/services/loadOrk', () => ({
       loadOrk: async (bytes: ArrayBuffer) => {
         if (new TextDecoder().decode(bytes) === 'BAD') throw new Error('corrupt zip');
-        return { name: 'GOOD', notes: [], tree: { name: 'GOOD', components: [] }, motors: {}, motorSpecs: {} };
+        return {
+          name: 'GOOD',
+          notes: [],
+          tree: { name: 'GOOD', components: [] },
+          motors: {},
+          configs: [{ id: 'cfg-1', name: null, motors: {} }],
+          chosenConfigId: 'cfg-1',
+        };
       },
     }));
 
@@ -1145,7 +1403,14 @@ describe('importing a rocket whose name is already saved', () => {
     vi.doMock('../../src/services/loadOrk', () => ({
       loadOrk: async (bytes: ArrayBuffer) => {
         const name = new TextDecoder().decode(bytes);
-        return { name, notes: [], tree: { name, components: [] }, motors: {}, motorSpecs: {} };
+        return {
+          name,
+          notes: [],
+          tree: { name, components: [] },
+          motors: {},
+          configs: [{ id: `cfg-${name}`, name: null, motors: {} }],
+          chosenConfigId: `cfg-${name}`,
+        };
       },
     }));
 
@@ -1182,9 +1447,10 @@ describe('importing a rocket whose name is already saved', () => {
   /** What the debounced autosave would write, once the import has landed. */
   const autosave = () =>
     getWorkspaceStore().save({
-      version: 1,
+      version: 2,
       tree: s().tree,
       sims: s().sims,
+      configs: s().configs,
       activeId: s().activeId,
       loadedMeta: s().loadedMeta,
     });

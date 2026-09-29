@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import {
   useWorkspaceStore,
   selectActive,
+  selectConfig,
   selectDesignName,
-  selectExtraMotors,
   selectMotorDims,
   selectRunFailed,
 } from '../../state/store';
@@ -13,6 +13,7 @@ import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
 import { APP_VERSION, appName } from '../../services/appInfo';
 import { descentMass } from '../../services/recoverySizing';
+import { motorSpecs } from '../../services/flightConfigs';
 import { resultFlight, type ResultFlight } from '../../services/simulations';
 import { TreeSchematic } from './TreeSchematic';
 import { AftView } from './AftView';
@@ -82,9 +83,8 @@ export function CenterView() {
   const resultSimId = useWorkspaceStore((s) => s.resultSimId);
   const outdated = useWorkspaceStore((s) => selectActive(s).outdated);
   const simName = useWorkspaceStore((s) => selectActive(s).name);
-  const motor = useWorkspaceStore((s) => selectActive(s).motor);
-  const extraMotors = useWorkspaceStore(selectExtraMotors);
-  const motors = useMemo(() => selectMotorDims(tree, motor, extraMotors), [tree, motor, extraMotors]);
+  const config = useWorkspaceStore(selectConfig);
+  const motors = useMemo(() => selectMotorDims(tree, config), [tree, config]);
 
   /**
    * The flight every results view draws, chosen in the Results picker.
@@ -135,8 +135,8 @@ export function CenterView() {
   // loaded-minus-burnout mass). Undefined with no motor loaded — nothing to
   // subtract — so the tile shows a "needs a motor" hint instead of a wrong number.
   const recoveryWeight = useMemo(
-    () => descentMass(info?.mass, [motor, ...Object.values(extraMotors).map((e) => e.spec)]) ?? undefined,
-    [info?.mass, motor, extraMotors],
+    () => descentMass(info?.mass, motorSpecs(tree, config)) ?? undefined,
+    [info?.mass, tree, config],
   );
 
   // Optionally auto-run an outdated (never-run/stale) sim when a results view opens.

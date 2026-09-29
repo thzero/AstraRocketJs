@@ -72,7 +72,15 @@ vi.mock('../../src/services/motorDb', () => ({
 
 const { loadOrk } = await import('../../src/services/loadOrk');
 
-const SPEC = { designation: 'J350', thrusts: [0, 420, 380, 0] } as unknown as MotorSpec;
+// A full curve, because the seating step only hands the kernel a motor it can
+// accept: a curve-less spec is what an UNRESOLVED motor looks like, and seating
+// one throws "Too short thrust-curve" (motorCurve.hasUsableCurve).
+const SPEC = {
+  designation: 'J350',
+  times: [0, 1, 2, 3],
+  thrusts: [0, 420, 380, 0],
+  masses: [0.6, 0.5, 0.4, 0.3],
+} as unknown as MotorSpec;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -85,7 +93,7 @@ describe('a motor the catalog does not have', () => {
   it('flies the curve the file brought, rather than nothing', async () => {
     const res = await loadOrk(new ArrayBuffer(0));
     expect(customMotorToSpec).toHaveBeenCalledTimes(1);
-    expect(res.motorSpecs['mount1']!.spec).toBe(SPEC);
+    expect(res.configs[0]!.motors['mount1']!.spec).toBe(SPEC);
     expect(design.setMotorById).toHaveBeenCalledWith('mount1', SPEC);
   });
 
@@ -110,7 +118,7 @@ describe('a motor the catalog does not have', () => {
     expect(customMotorToSpec).not.toHaveBeenCalled();
     // The unresolved placeholder, exactly as before: the run gate blocks rather
     // than a C6 flying under an L-motor design.
-    expect(res.motorSpecs['mount1']!.spec.thrusts).toEqual([]);
+    expect(res.configs[0]!.motors['mount1']!.spec.thrusts).toEqual([]);
     expect(res.notes.join('\n')).toMatch(/pick a motor for that mount/i);
   });
 });
@@ -123,14 +131,14 @@ describe('a motor the catalog has but cannot fetch', () => {
 
   it('falls back to the file’s own curve rather than a placeholder', async () => {
     const res = await loadOrk(new ArrayBuffer(0));
-    expect(res.motorSpecs['mount1']!.spec).toBe(SPEC);
+    expect(res.configs[0]!.motors['mount1']!.spec).toBe(SPEC);
     expect(res.notes.join('\n')).toMatch(/could not be fetched/i);
   });
 
   it('keeps the placeholder when there is no embedded curve to fall back to', async () => {
     embedded.value = undefined;
     const res = await loadOrk(new ArrayBuffer(0));
-    expect(res.motorSpecs['mount1']!.spec.thrusts).toEqual([]);
+    expect(res.configs[0]!.motors['mount1']!.spec.thrusts).toEqual([]);
   });
 
   it('prefers the catalog when the fetch works, so nothing changes for a normal design', async () => {

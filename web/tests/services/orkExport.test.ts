@@ -43,7 +43,14 @@ const xmlFor = (tree: RocketTree) => exportOrk({ name: 'Rocket', tree } as never
 describe('exportOrk — imported absolute positions', () => {
   const load = (tree: RocketTree) =>
     wireLoadedOrk(
-      { name: 'Rocket', notes: [], tree, motors: {}, motorSpecs: {} } as unknown as LoadedOrk,
+      {
+        name: 'Rocket',
+        notes: [],
+        tree,
+        motors: {},
+        configs: [{ id: 'cfg-1', name: null, motors: {} }],
+        chosenConfigId: 'cfg-1',
+      } as unknown as LoadedOrk,
       {} as unknown as LaunchConditions,
     ).tree;
 

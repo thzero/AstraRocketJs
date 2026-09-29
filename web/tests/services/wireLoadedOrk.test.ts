@@ -1,13 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode, MotorSpec, RocketTree } from '../../src/engine/openRocketEngine';
 import type { LaunchConditions } from '../../src/services/orkTree';
-import type { LoadedOrk, MountMotor } from '../../src/services/loadOrk';
+import type { LoadedOrk } from '../../src/services/loadOrk';
+import { primaryMotor, type MountMotor } from '../../src/services/flightConfigs';
 import { hasThrustCurve, unflyable } from '../../src/services/runnability';
 import { wireLoadedOrk } from '../../src/services/wireLoadedOrk';
 
 const node = (o: object) => o as unknown as ComponentNode;
 const spec = (designation: string): MotorSpec => ({ designation }) as unknown as MotorSpec;
-// First motorMount = primary; 'pod' is a second mount that should ride in extraMotors.
+// Two mounts: the aft one, and 'pod' as a second.
 const tree = {
   components: [
     node({ type: 'bodytube', id: 'primary', motorMount: true }),
@@ -17,60 +18,121 @@ const tree = {
 
 const launchDefaults = { launchRodAngleDeg: 5, windAverage: 3 } as unknown as LaunchConditions;
 
+const config = (over: Partial<LoadedOrk['configs'][number]> = {}) => ({
+  id: 'cfg-1',
+  name: null,
+  motors: {} as Record<string, MountMotor>,
+  ...over,
+});
+
 const loaded = (over: Partial<LoadedOrk>): LoadedOrk =>
-  ({ name: 'Rocket', notes: ['note'], tree, motors: {}, motorSpecs: {}, ...over }) as unknown as LoadedOrk;
+  ({
+    name: 'Rocket',
+    notes: ['note'],
+    tree,
+    motors: {},
+    configs: [config()],
+    chosenConfigId: 'cfg-1',
+    ...over,
+  }) as unknown as LoadedOrk;
 
 describe('wireLoadedOrk', () => {
-  it('puts the primary motor on the sim (with its ignition) and other mounts in extraMotors', () => {
+  it('keeps each configuration’s motors, ignition and FILE id', () => {
     const motorA = spec('A');
     const motorB = spec('B');
-    const res = loaded({
-      motorSpecs: {
-        primary: { spec: motorA, ignitionEvent: 'launch', ignitionDelay: 2 } as MountMotor,
-        pod: { spec: motorB } as MountMotor,
-      },
-    });
-    const w = wireLoadedOrk(res, launchDefaults);
+    const w = wireLoadedOrk(
+      loaded({
+        configs: [
+          config({
+            motors: {
+              primary: { spec: motorA, ignitionEvent: 'launch', ignitionDelay: 2 },
+              pod: { spec: motorB },
+            },
+          }),
+        ],
+      }),
+      launchDefaults,
+    );
 
-    expect(w.sim0.motor).toBe(motorA); // primary drives the Motor panel
-    expect(w.sim0.ignitionEvent).toBe('launch'); // ignition lifted onto the sim...
-    expect(w.sim0.ignitionDelay).toBe(2);
-    expect(Object.keys(w.extraMotors)).toEqual(['pod']); // ...NOT into extraMotors
-    expect(w.extraMotors.pod!.spec).toBe(motorB);
+    expect(w.configs).toHaveLength(1);
+    const c = w.configs[0]!;
+    expect(c.id).toBe('cfg-1'); // the file's own configid, so a save writes it back
+    expect(Object.keys(c.motors).sort()).toEqual(['pod', 'primary']);
+    expect(c.motors.primary!.spec).toBe(motorA);
+    expect(c.motors.primary!.ignitionEvent).toBe('launch'); // ignition rides with its motor
+    expect(c.motors.primary!.ignitionDelay).toBe(2);
+    expect(c.motors.pod!.spec).toBe(motorB);
     expect(w.tree).toBe(tree);
     expect(w.loadedMeta).toEqual({ name: 'Rocket', notes: ['note'], exportMotors: {} });
   });
 
   /**
-   * A mount the FILE left empty flies nothing, not a default. Seating a C6 on an
-   * empty primary and letting reconcileMounts seed one into every other empty mount
-   * opens a design saved without motors as a flyable rocket on motors the file never
-   * named, which is what loadOrk refuses to do for a motor it cannot resolve.
+   * A configuration is a way the rocket is set up to fly, so importing three and
+   * opening one would leave two setups visible in the table with no run to put
+   * numbers against.
    */
-  it('seats a curve-less placeholder, never a C6, in a mount the file left empty', () => {
-    const w = wireLoadedOrk(loaded({ motorSpecs: {} }), launchDefaults);
-    expect(hasThrustCurve(w.sim0.motor)).toBe(false);
-    expect(w.sim0.motor.designation).toBe('');
-    expect(w.sim0.ignitionEvent).toBeUndefined();
-    expect(w.extraMotors.pod).toBeDefined(); // present, so reconcileMounts has no hole to fill
-    expect(hasThrustCurve(w.extraMotors.pod!.spec)).toBe(false);
+  it('gives every configuration a simulation of its own', () => {
+    const w = wireLoadedOrk(
+      loaded({
+        configs: [
+          config({ id: 'a', name: 'Contest', motors: { primary: { spec: spec('A') } } }),
+          config({ id: 'b', motors: { primary: { spec: spec('B') }, pod: { spec: spec('') } } }),
+          config({ id: 'c', name: 'Contest', motors: { primary: { spec: spec('C') } } }),
+        ],
+        chosenConfigId: 'b',
+      }),
+      launchDefaults,
+    );
+
+    expect(w.sims).toHaveLength(3);
+    expect(w.sims.map((x) => x.configId)).toEqual(['a', 'b', 'c']);
+    // The one the file marks default is the one the app opens on.
+    expect(w.activeId).toBe(w.sims[1]!.id);
+    // Named after the configuration: its name, else its motors. Two
+    // configurations named the same are still two rows you can tell apart.
+    expect(w.sims.map((x) => x.name)).toEqual(['Contest', 'B', 'Contest 2']);
+  });
+
+  it('carries a configuration’s deployment overrides through untouched', () => {
+    // Not editable here yet, but dropping them would rewrite another
+    // configuration's recovery settings on the first save.
+    const deployments = { chute: { deployAltitude: 120 } };
+    const w = wireLoadedOrk(loaded({ configs: [config({ deployments })] }), launchDefaults);
+    expect(w.configs[0]!.deployments).toEqual(deployments);
+  });
+
+  /**
+   * A mount the FILE left empty flies nothing, not a default. Seating a C6 in it
+   * opens a design saved without motors as a flyable rocket on motors the file
+   * never named, which is what loadOrk refuses to do for a motor it cannot
+   * resolve.
+   */
+  it('keeps a curve-less placeholder, and never seeds a C6 over it', () => {
+    const empty = { spec: spec('') };
+    const w = wireLoadedOrk(loaded({ configs: [config({ motors: { primary: empty, pod: empty } })] }), launchDefaults);
+    for (const id of ['primary', 'pod']) {
+      const seated = w.configs[0]!.motors[id];
+      expect(seated).toBeDefined(); // present, so reconcileConfig has no hole to fill
+      expect(hasThrustCurve(seated!.spec)).toBe(false);
+    }
   });
 
   it('is blocked by the run gate until a motor is picked', () => {
-    const w = wireLoadedOrk(loaded({ motorSpecs: {} }), launchDefaults);
-    expect(unflyable(w.sim0)).toEqual({ kind: 'noMotor' });
+    const empty = { spec: spec('') };
+    const w = wireLoadedOrk(loaded({ configs: [config({ motors: { primary: empty, pod: empty } })] }), launchDefaults);
+    expect(unflyable(w.sims[0]!, primaryMotor(w.tree, w.configs[0]!))).toEqual({ kind: 'noMotor' });
   });
 
   it('drops a motor whose mount no longer exists in the tree', () => {
-    const w = wireLoadedOrk(loaded({ motorSpecs: { ghost: { spec: spec('G') } as MountMotor } }), launchDefaults);
-    expect(w.extraMotors.ghost).toBeUndefined(); // 'ghost' isn't a mount in the tree
-    expect(Object.keys(w.extraMotors)).toEqual(['pod']); // only the real non-primary mount remains (placeholder)
+    const w = wireLoadedOrk(loaded({ configs: [config({ motors: { ghost: { spec: spec('G') } } })] }), launchDefaults);
+    expect(w.configs[0]!.motors.ghost).toBeUndefined(); // 'ghost' isn't a mount in the tree
+    expect(Object.keys(w.configs[0]!.motors).sort()).toEqual(['pod', 'primary']); // the real mounts
   });
 
   it('merges launch defaults under the file’s launch conditions', () => {
     const w = wireLoadedOrk(loaded({ launch: { windAverage: 9 } as Partial<LaunchConditions> }), launchDefaults);
-    expect(w.sim0.launch.windAverage).toBe(9); // file wins
-    expect((w.sim0.launch as unknown as { launchRodAngleDeg: number }).launchRodAngleDeg).toBe(5); // default fills the rest
+    expect(w.sims[0]!.launch.windAverage).toBe(9); // file wins
+    expect((w.sims[0]!.launch as unknown as { launchRodAngleDeg: number }).launchRodAngleDeg).toBe(5); // default fills the rest
   });
 });
 

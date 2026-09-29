@@ -230,7 +230,7 @@ describe('GroundTrack drift region', () => {
   const sweep = (simId: string, tree = st().tree): DriftSweep => ({
     simId,
     tree,
-    inputs: simInputs(st().sims[0]!),
+    inputs: simInputs(st().sims[0]!, st().configs[0]!),
     spec: defaultSweepSpec(4),
     asked: 4,
     flown: 4,

@@ -1,6 +1,6 @@
 import { PLUGGED_DELAY, type ComponentNode } from '../../engine/openRocketEngine';
 import { xmlText as text } from '../xmlUtil';
-import type { OrkMotorRef, OrkFlightConfig, OrkDeployOverride } from '../orkTypes';
+import type { OrkMotorRef, OrkFlightConfig, OrkDeployOverride, OrkSepOverride } from '../orkTypes';
 import { numTag } from './importTags';
 import { MAX_MOTOR_CONFIGS } from './importLimits';
 
@@ -44,6 +44,8 @@ export function readFlightConfigs(
       isDefault: c.getAttribute('default') === 'true',
       motors: {},
       deployments: {},
+      separations: {},
+      grounded: [],
     }))
     .filter((c) => c.id !== '');
   const chosenConfigId =
@@ -88,6 +90,51 @@ export function captureDeployments(ctx: OrkImportContext, el: Element, node: Com
     if (text(src, ':scope > deployaltitude') !== null) o.deployAltitude = numTag(src, 'deployaltitude', 200);
     if (text(src, ':scope > deploydelay') !== null) o.deployDelay = numTag(src, 'deploydelay', 0);
     if (Object.keys(o).length > 0 && node.id) c.deployments[node.id] = o;
+  }
+}
+
+/**
+ * Read each configuration's `<stage number="n" active="false"/>` flags into the
+ * stages they name.
+ *
+ * Called once the tree is built, because the file addresses a stage by NUMBER
+ * and everything downstream addresses it by node id: `stages` is the same walk
+ * the numbering comes from (treeEdit.findStages), so position n is stage n. A
+ * flag naming a stage the file does not have is dropped rather than guessed at.
+ */
+export function readStageActiveness(configEls: Element[], configs: OrkFlightConfig[], stageIds: string[]): void {
+  for (const el of configEls) {
+    const config = configs.find((c) => c.id === el.getAttribute('configid'));
+    if (!config) continue;
+    for (const flag of Array.from(el.querySelectorAll(':scope > stage'))) {
+      if (flag.getAttribute('active') !== 'false') continue;
+      const id = stageIds[Number(flag.getAttribute('number'))];
+      if (id) config.grounded.push(id);
+    }
+  }
+}
+
+/**
+ * Record EVERY configuration's <separationconfiguration> for this booster, the
+ * way {@link captureDeployments} records its recovery.
+ *
+ * Same fallback for the same reason: a configuration that declares no block of
+ * its own stages the way the bare tags say, and recording the RESOLVED value is
+ * what keeps a save from handing it the opened configuration's staging instead.
+ */
+export function captureSeparations(ctx: OrkImportContext, el: Element, node: ComponentNode): void {
+  for (const c of ctx.configs) {
+    const block = Array.from(el.children).find(
+      (x) => x.tagName === 'separationconfiguration' && x.getAttribute('configid') === c.id,
+    );
+    const src = block ?? el;
+    const o: OrkSepOverride = {};
+    const event = text(src, ':scope > separationevent');
+    if (event) o.separationEvent = event;
+    if (text(src, ':scope > separationdelay') !== null) o.separationDelay = numTag(src, 'separationdelay', 0);
+    if (text(src, ':scope > separationaltitude') !== null)
+      o.separationAltitude = numTag(src, 'separationaltitude', 200);
+    if (Object.keys(o).length > 0 && node.id) c.separations[node.id] = o;
   }
 }
 

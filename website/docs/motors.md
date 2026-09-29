@@ -2,7 +2,7 @@
 title: "Motors"
 sidebar_position: 9
 ---
-A motor is assigned to a rocket's **motor mount** (inner tube). The right-hand Simulations panel shows the current motor for the selected simulation and a **Change…** button to pick a different one.
+A motor is assigned to a rocket's **motor mount** (inner tube). Motors live in a [flight configuration](./flight-configurations.md), and the **Configurations** tab is where they are picked: one card per mount, each showing the motor it holds and a **Change…** button to pick a different one.
 
 ## The motor picker
 
@@ -32,4 +32,4 @@ Custom/imported motors persist locally alongside your custom materials, so they'
 
 ## Multiple mounts
 
-A design can have more than one motor mount (e.g. clustered or staged). The **primary** mount (the first, nose-to-tail) takes the motor shown at the top of the Simulations panel; every additional mount gets its own card below it. Additional mounts keep the motors they were imported/opened with, and a newly added mount starts with a **default motor** so the design is always ready to fly — just hit **Change…** on its card to pick the real one. Remove a mount and its motor is dropped automatically. See [Running a Simulation](./running-a-simulation.md) for staging and ignition.
+A design can have more than one motor mount (e.g. clustered or staged). Every mount gets a card of its own in the Configurations tab, aft to nose, and every configuration holds a motor for each of them. Mounts keep the motors they were imported or opened with, and a newly added mount starts with a **default motor** so the design is always ready to fly — just hit **Change…** on its card to pick the real one. Remove a mount and its motor is dropped automatically. See [Flight Configurations](./flight-configurations.md) for ignition, staging and how one setup is shared between simulations.

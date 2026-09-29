@@ -15,6 +15,7 @@ import { ErrorBoundary } from '../common/ErrorBoundary';
 import { AppearanceSection } from './AppearanceSection';
 import { FreeformFinEditor } from './FreeformFinEditor';
 import { RecoverySizingReadout } from './RecoverySizingReadout';
+import { ConfigOverrideNote } from './ConfigOverrideNote';
 import { useUnits } from '../../prefs/useUnits';
 import { num } from '../../tree/nodeProps';
 import { tubeFinMaxCount, tubeFinMaxRadius } from '../../tree/tubefins';
@@ -337,8 +338,17 @@ export function PropertyPanel({
       )}
 
       {(node.type === 'parachute' || node.type === 'streamer') && (
-        <RecoveryMaterialSection node={node} onCommitChange={commitChange} />
+        <>
+          {/* The deployment fields above are the DESIGN's; a flight
+              configuration may open this device at another moment. */}
+          <ConfigOverrideNote node={node} />
+          <RecoveryMaterialSection node={node} onCommitChange={commitChange} />
+        </>
       )}
+
+      {/* Same for staging: the separation fields above are the design's, and a
+          configuration may let this booster go at another moment. */}
+      {(node.type === 'stage' || node.type === 'parallelstage') && <ConfigOverrideNote node={node} />}
 
       {/* Single or dual deployment, chosen on the STAGE, which is the only place
           OpenRocket offers it. A pod set is not a stage and has no recovery

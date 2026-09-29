@@ -7,6 +7,8 @@ import { CenterView } from './components/canvas/CenterView';
 import { TreePanel } from './components/design/TreePanel';
 import { PropertyPane } from './components/design/PropertyPane';
 import { SimulationsPane } from './components/sim/SimulationsPane';
+import { ConfigsPane } from './components/config/ConfigsPane';
+import { ConfigEditor } from './components/config/ConfigEditor';
 import { SimEditor } from './components/sim/SimEditor';
 import { FlightEventsTable } from './components/sim/FlightEventsTable';
 import { SimSummary } from './components/sim/SimSummary';
@@ -63,10 +65,11 @@ export default function App() {
   const treeRef = useRef<HTMLElement>(null);
   // One ref per right column, because which one is mounted depends on the tab.
   const propsRef = useRef<HTMLElement>(null);
+  const configEditRef = useRef<HTMLElement>(null);
   const simEditRef = useRef<HTMLElement>(null);
   const summaryRef = useRef<HTMLElement>(null);
 
-  // The three right columns share ONE width, so the divider is the same control
+  // The four right columns share ONE width, so the divider is the same control
   // wherever it appears. The left column only exists on Design, so it only
   // reserves room there.
   // `reserve` and the CSS cap are the same rule, said twice: the splitter
@@ -188,6 +191,34 @@ export default function App() {
         >
           <PropertyPane />
         </section>
+
+        {/* CONFIGURATIONS — toolbar + the table of flight configurations. Full
+            width for the same reason the simulations table has it: the table is
+            one row per setup and one column per mount, and both grow with the
+            rocket. */}
+        <section
+          className={`${tab === 'configs' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col lg:h-full lg:overflow-hidden`}
+        >
+          <ConfigsPane />
+        </section>
+
+        {/* RIGHT — the selected configuration's motors (Configurations tab;
+            desktop only). On a phone it is inline under the table instead, so a
+            phone can still change a motor. */}
+        {desktop && tab === 'configs' && (
+          <>
+            <SideSplitter
+              paneRef={configEditRef}
+              width={sideW}
+              reserve={sideReserve}
+              onDrag={setDragSide}
+              onCommit={commitSide}
+            />
+            <section ref={configEditRef} style={sideStyle} className="shrink-0 overflow-y-auto lg:h-full">
+              <ConfigEditor />
+            </section>
+          </>
+        )}
 
         {/* SIMULATIONS — toolbar + the table of runs. Its own tab, so the table
             gets the full width rather than the 380px column the whole sim panel

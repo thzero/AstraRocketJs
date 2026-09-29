@@ -1,4 +1,4 @@
-import type { OrkExportMotor, OrkDeployOverride } from '../orkTypes';
+import type { OrkExportMotor, OrkDeployOverride, OrkSepOverride } from '../orkTypes';
 
 /**
  * The line sink every .ork writer function draws on, plus the flight
@@ -13,8 +13,12 @@ export interface OrkWriteConfig {
   id: string;
   name: string | null;
   motors: Record<string, OrkExportMotor>;
-  /** null for the ACTIVE config: its deployment comes from the live tree. */
+  /** null when this configuration recovers the way the design does. */
   deployments: Record<string, OrkDeployOverride> | null;
+  /** null when this configuration stages the way the design does. */
+  separations: Record<string, OrkSepOverride> | null;
+  /** Stage node ids this configuration leaves on the ground. */
+  grounded: string[];
 }
 
 export interface OrkWriter {

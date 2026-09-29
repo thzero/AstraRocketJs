@@ -46,8 +46,8 @@ export interface Unflyable {
  * conditions say, and reporting the conditions of a rocket that has no engine
  * would be noise.
  */
-export function unflyable(sim: Simulation): UnflyableReason | null {
-  if (!hasThrustCurve(sim.motor)) return { kind: 'noMotor' };
+export function unflyable(sim: Simulation, motor: MotorSpec | undefined): UnflyableReason | null {
+  if (!hasThrustCurve(motor)) return { kind: 'noMotor' };
   // Before the safety codes, because a code is judged ON these numbers: a blank
   // rod angle is not "within 20 degrees of vertical", it is nothing to judge.
   const missing = missingRequired(sim.launch);
@@ -62,11 +62,16 @@ export function unflyable(sim: Simulation): UnflyableReason | null {
   return violations.length ? { kind: 'limits', violations } : null;
 }
 
-/** Every simulation in `sims` that cannot fly, in the order given. */
-export function unflyableSims(sims: Simulation[]): Unflyable[] {
+/**
+ * Every simulation in `sims` that cannot fly, in the order given.
+ *
+ * `motorOf` resolves the row's own flight configuration, because two rows can
+ * fly different configurations and the motor is what the first check is about.
+ */
+export function unflyableSims(sims: Simulation[], motorOf: (sim: Simulation) => MotorSpec | undefined): Unflyable[] {
   const out: Unflyable[] = [];
   for (const sim of sims) {
-    const reason = unflyable(sim);
+    const reason = unflyable(sim, motorOf(sim));
     if (reason) out.push({ id: sim.id, name: sim.name, reason });
   }
   return out;

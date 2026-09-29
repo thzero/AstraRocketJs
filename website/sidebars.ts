@@ -23,7 +23,15 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'User Guide',
       collapsed: false,
-      items: ['designing-a-rocket', 'motors', 'views-and-analysis', 'running-a-simulation', 'files-and-exports', 'safety'],
+      items: [
+        'designing-a-rocket',
+        'motors',
+        'flight-configurations',
+        'views-and-analysis',
+        'running-a-simulation',
+        'files-and-exports',
+        'safety',
+      ],
     },
     // Feature maps against the other tools, each one a dated snapshot that says
     // so at the top. Last, because they answer "should I use this?" rather than

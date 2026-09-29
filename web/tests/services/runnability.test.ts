@@ -6,6 +6,7 @@ import { METRIC_UNITS, unitSymbols } from '../../src/prefs/units';
 /** The reader's units, which every limit sentence is now rendered in. */
 const units = unitSymbols(METRIC_UNITS, {});
 import type { Simulation } from '../../src/services/simulations';
+import type { MotorSpec } from '../../src/engine/openRocketEngine';
 import type { LaunchConditions } from '../../src/services/orkTree';
 
 const launch: LaunchConditions = {
@@ -22,8 +23,20 @@ const launch: LaunchConditions = {
 
 const CURVE = { designation: 'C6', times: [0, 1], thrusts: [0, 5], masses: [0.02, 0.01] };
 
-const sim = (name: string, over: Partial<Simulation> = {}): Simulation =>
-  ({ id: name, name, motor: CURVE, launch, result: null, extraMotors: {}, ...over }) as unknown as Simulation;
+/**
+ * A row, with the motor it is judged by hanging off it.
+ *
+ * The gate takes the motor as an argument now, because it lives in the row's
+ * flight configuration rather than on the row; carrying it here keeps each case
+ * readable as one object.
+ */
+type Row = Simulation & { motor?: MotorSpec };
+
+const sim = (name: string, over: Partial<Row> = {}): Row =>
+  ({ id: name, name, motor: CURVE, launch, result: null, ...over }) as unknown as Row;
+
+const gate = (s: Row) => unflyable(s, s.motor);
+const gateAll = (rows: Row[]) => unflyableSims(rows, (r) => (r as Row).motor);
 
 const t = (key: string, vars?: Record<string, unknown>) =>
   `${key}${
@@ -45,11 +58,11 @@ describe('hasThrustCurve', () => {
 
 describe('unflyable', () => {
   it('passes a simulation with a real motor and legal conditions', () => {
-    expect(unflyable(sim('ok'))).toBeNull();
+    expect(gate(sim('ok'))).toBeNull();
   });
 
   it('reports a curve-less motor, which an unresolved .ork import leaves behind', () => {
-    expect(unflyable(sim('x', { motor: { designation: 'M' } as never }))?.kind).toBe('noMotor');
+    expect(gate(sim('x', { motor: { designation: 'M' } as never }))?.kind).toBe('noMotor');
   });
 
   /**
@@ -69,7 +82,7 @@ describe('unflyable', () => {
         ],
       },
     });
-    expect(unflyable(doubled)?.kind).toBe('windProfile');
+    expect(gate(doubled)?.kind).toBe('windProfile');
     expect(unflyableText({ id: 'x', name: 'Windy', reason: { kind: 'windProfile' } }, t, units)).toContain(
       'sim.windProfile',
     );
@@ -85,12 +98,12 @@ describe('unflyable', () => {
         ],
       },
     });
-    expect(unflyable(fine)).toBeNull();
+    expect(gate(fine)).toBeNull();
   });
 
   it('reports launch conditions outside the safety codes', () => {
     const hot = sim('x', { launch: { ...launch, windAverage: MAX_WIND_SPEED_MS + 1 } });
-    const r = unflyable(hot);
+    const r = gate(hot);
     expect(r?.kind).toBe('limits');
     expect(r && r.kind === 'limits' && r.violations[0]!.field).toBe('windSpeed');
   });
@@ -98,7 +111,7 @@ describe('unflyable', () => {
   it('refuses a simulation with a blank required field', () => {
     // A field that coerces a cleared box to 0 cannot reach this state, and an
     // empty rod length flies as a zero-length rod.
-    const r = unflyable(sim('x', { launch: { ...launch, launchRodLengthM: null } }));
+    const r = gate(sim('x', { launch: { ...launch, launchRodLengthM: null } }));
     expect(r?.kind).toBe('incomplete');
     expect(r && r.kind === 'incomplete' && r.missing).toEqual(['launchRodLengthM']);
   });
@@ -108,13 +121,13 @@ describe('unflyable', () => {
     const zeros = sim('x', {
       launch: { ...launch, windAverage: 0, windStdDev: 0, launchAltitudeM: 0, latitudeDeg: 0, launchRodAngleDeg: 0 },
     });
-    expect(unflyable(zeros)).toBeNull();
+    expect(gate(zeros)).toBeNull();
   });
 
   it('checks completeness BEFORE the safety codes', () => {
     // A blank rod angle is not "within 20 degrees of vertical"; it is nothing
     // to judge, so the missing field is the useful thing to report.
-    const r = unflyable(sim('x', { launch: { ...launch, launchRodAngleDeg: null, windAverage: 99 } }));
+    const r = gate(sim('x', { launch: { ...launch, launchRodAngleDeg: null, windAverage: 99 } }));
     expect(r?.kind).toBe('incomplete');
   });
 
@@ -123,7 +136,7 @@ describe('unflyable', () => {
       motor: { designation: 'M' } as never,
       launch: { ...launch, launchRodAngleDeg: MAX_ROD_ANGLE_DEG + 10 },
     });
-    expect(unflyable(both)?.kind).toBe('noMotor');
+    expect(gate(both)?.kind).toBe('noMotor');
   });
 });
 
@@ -135,24 +148,22 @@ describe('unflyableSims', () => {
       sim('C'),
       sim('D', { launch: { ...launch, launchRodAngleDeg: 45 } }),
     ];
-    expect(unflyableSims(rows).map((u) => u.name)).toEqual(['B', 'D']);
+    expect(gateAll(rows).map((u) => u.name)).toEqual(['B', 'D']);
   });
 
   it('is empty when every row can fly', () => {
-    expect(unflyableSims([sim('A'), sim('B')])).toEqual([]);
+    expect(gateAll([sim('A'), sim('B')])).toEqual([]);
   });
 });
 
 describe('unflyableText', () => {
   it('names the simulation, so a batch message says which row it means', () => {
-    const [bad] = unflyableSims([sim('Sustainer', { motor: { designation: 'M' } as never })]);
+    const [bad] = gateAll([sim('Sustainer', { motor: { designation: 'M' } as never })]);
     expect(unflyableText(bad!, t, units)).toContain('name=Sustainer');
   });
 
   it('names the blank fields so the message points at what to fill', () => {
-    const [bad] = unflyableSims([
-      sim('Half done', { launch: { ...launch, launchRodLengthM: null, latitudeDeg: null } }),
-    ]);
+    const [bad] = gateAll([sim('Half done', { launch: { ...launch, launchRodLengthM: null, latitudeDeg: null } })]);
     const msg = unflyableText(bad!, t, units);
     expect(msg).toContain('sim.incomplete');
     expect(msg).toContain('Half done');
@@ -161,7 +172,7 @@ describe('unflyableText', () => {
   });
 
   it('spells out each limit that was broken', () => {
-    const [bad] = unflyableSims([sim('Windy', { launch: { ...launch, windAverage: MAX_WIND_SPEED_MS + 5 } })]);
+    const [bad] = gateAll([sim('Windy', { launch: { ...launch, windAverage: MAX_WIND_SPEED_MS + 5 } })]);
     const msg = unflyableText(bad!, t, units);
     expect(msg).toContain('limits.refused');
     expect(msg).toContain('limits.wind');

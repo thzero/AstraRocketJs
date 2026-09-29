@@ -16,7 +16,7 @@ import { test, expect, runFlight, ready, box } from './base';
  */
 test('the workbench tabs live in the header rather than a row of their own', async ({ page }) => {
   // The narrowest desktop width (the lg breakpoint), in the longer of the two
-  // languages, with all three tabs showing - the tightest the header ever gets
+  // languages, with all four tabs showing - the tightest the header ever gets
   // before the bottom bar takes over.
   await page.setViewportSize({ width: 1024, height: 900 });
   await ready(page);
@@ -31,7 +31,7 @@ test('the workbench tabs live in the header rather than a row of their own', asy
 
   await page.getByRole('combobox', { name: /language|idioma/i }).selectOption('es');
   const nav = page.getByRole('navigation', { name: /Workbench|Banco/i });
-  await expect(nav.getByRole('button')).toHaveCount(3);
+  await expect(nav.getByRole('button')).toHaveCount(4);
   // Both halves of the switch have landed: the tabs' text and the status', the
   // latter being the one that reflows late.
   await expect(header.getByText(/^Guardado/)).toBeVisible();

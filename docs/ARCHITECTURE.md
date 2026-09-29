@@ -157,6 +157,22 @@ Every printable output starts at `services/solidMesh.ts`, which builds a **water
 
 **Orientation is never changed.** Solids are lathed about Y and rotated into X (`solidMesh.ts`), so the rocket's axis runs along X and bodies export lying down. The print export's "place on the build plate" is a pure TRANSLATION for that reason: standing parts up would be right for tubes and wrong for every fin and ring, and it would make the 3MF differ from the STL of the same part.
 
+## Flight configurations
+
+A **flight configuration** is one way the rocket is set up to fly, and it is OpenRocket's own model: a motor per mount with its ignition, when each recovery device deploys, when each booster separates, and which stages are active. `web/src/services/flightConfigs.ts` owns the type and the rules; `Simulation.configId` names the one a row flies, so several simulations share one setup and a change to it ages every flight that was flown on it.
+
+The design tree holds the DEFAULT for deployment and separation, and a configuration overrides it **per field**: an empty field falls through to the part, which is what the editor shows as the placeholder. `configuredTree(tree, config)` writes those overrides into a copy of the tree before the build and returns the same object when there are none, so the rebuild key and the memo chains never see a change that is not one. Stage activeness cannot be expressed as a node value and is applied to the built rocket instead, by `setStageActiveById`, after the motors, since grounding a stage refreshes the configuration's active-motor list.
+
+```
+FlightConfig  →  configuredTree()  →  buildRocketTree()  →  setMotorById ×n  →  setStageActiveById ×n  →  simulate()
+```
+
+That one path is what the main thread and the sim worker both take (`services/buildRocket.ts`), so what you see and what you fly cannot drift.
+
+**Numbering.** The kernel numbers stages in the order they are added, which is a pre-order walk over `stage` and `parallelstage` nodes, so a parallel booster nested in an early stage shifts every stage after it. `treeEdit.findStages` is that walk, and it is what the `.ork`'s `<stage number="n" active="…">` flags are keyed by; the facade itself takes a component id rather than a number, so nothing downstream has to reproduce the rule.
+
+**Persistence.** Configurations live in the workspace (`version: 2`), not in each simulation. `services/workspaceMigrate.ts` lifts a version-1 workspace by minting a configuration per distinct loadout, deduped, so twelve rows that flew the same motors arrive as one setup rather than twelve copies of it.
+
 ## Opening `.ork` files
 
 **Open .ork** loads an existing OpenRocket design at **full fidelity** — any design the engine's component-tree API supports (stages, transitions, couplers, rings, bulkheads…), not just the fixed editor layout:
@@ -166,9 +182,9 @@ Every printable output starts at `services/solidMesh.ts`, which builds a **water
 ```
 
 - **`web/src/services/orkFile.ts`** unzips with `fflate` and parses the OpenRocket XML with `DOMParser`. No Java loader, no network — OpenRocket's own `.ork` loader lives in *core* (`core/.../file/openrocket`), but parsing in JS is far lighter than dragging it through TeaVM.
-- **`web/src/services/loadOrk.ts`** orchestrates: `importOrk` → `buildTree` → resolve each mount's motor against our catalog (`findCatalogMotor` → `fetchMotorSpec`) → `staticInfo`. Unresolved motors / unsupported components surface as notes on the loaded-design banner.
+- **`web/src/services/loadOrk.ts`** orchestrates: `importOrk` → `buildTree` → resolve EVERY flight configuration's motors against our catalog (`findCatalogMotor` → `fetchMotorSpec`, one resolution per distinct motor however many configurations use it) → `staticInfo` on the one the file marks default. `wireLoadedOrk` then turns each configuration into a `FlightConfig`, keeping the file's own `configid`, with a simulation to fly it. Unresolved motors / unsupported components surface as notes on the loaded-design banner.
 
-**Save .ork** exports the current design (`orkFile.exportOrk` → zipped with `fflate` → downloaded via `web/src/services/saveOrk.ts`). Export → re-import is verified **bit-identical** (same mass/CG/CP/stability), and the files re-open in desktop OpenRocket.
+**Save .ork** exports the current design (`orkFile.exportOrk` → zipped with `fflate` → downloaded via `web/src/services/saveOrk.ts`), with every flight configuration it holds: a file that came in with three goes out with three, each writing its own motors, its own `<deploymentconfiguration>` and `<separationconfiguration>` blocks and its own stage flags. Export → re-import is verified **bit-identical** (same mass/CG/CP/stability), and the files re-open in desktop OpenRocket.
 
 ## Saved launch locations
 

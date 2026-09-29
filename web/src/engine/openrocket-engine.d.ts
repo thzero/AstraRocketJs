@@ -21,6 +21,7 @@ declare module '*openrocket-engine.mjs' {
     ignitionEvent: string,
     ignitionDelay: number,
   ): void;
+  export function setStageActiveById(rocket: number, componentId: string, active: boolean): void;
   export function addNoseCone(
     rocket: number,
     length: number,

@@ -8,7 +8,7 @@ vi.mock('../../src/engine/simClient', async (orig) => ({
 }));
 
 import { useWorkspaceStore } from '../../src/state/store';
-import { C6 } from '../../src/engine/api';
+import { seatMotor, CURVELESS } from '../testing/seatMotor';
 import { MAX_WIND_SPEED_MS } from '../../src/services/safetyLimits';
 import type { FlightResult } from '../../src/engine/openRocketEngine';
 import type { SimPrefs } from '../../src/services/simulations';
@@ -51,17 +51,14 @@ describe('a batch with an unflyable row', () => {
     st().renameSim(st().sims[2]!.id, 'TooWindy');
     st().commitEdit();
 
-    // A curve-less motor is exactly what an unresolved .ork import leaves behind.
     useWorkspaceStore.setState({
       sims: st().sims.map((x) =>
-        x.name === 'NoMotor'
-          ? { ...x, motor: { ...C6, times: [], thrusts: [], masses: [] } }
-          : x.name === 'TooWindy'
-            ? { ...x, launch: { ...x.launch, windAverage: MAX_WIND_SPEED_MS + 5 } }
-            : { ...x, motor: C6 },
+        x.name === 'TooWindy' ? { ...x, launch: { ...x.launch, windAverage: MAX_WIND_SPEED_MS + 5 } } : x,
       ),
       err: null,
     });
+    // A curve-less motor is exactly what an unresolved .ork import leaves behind.
+    seatMotor('NoMotor', CURVELESS);
   });
 
   it('flies the good row and skips the other two', async () => {

@@ -41,15 +41,15 @@ export function modelingNotes(components: ComponentNode[]): string[] {
 }
 
 /**
- * Multi-config notes: the chosen configuration's values were applied by
- * the config-scoped reads — say which one, and how to get another.
+ * Multi-config notes: what a file's flight configurations say that is worth
+ * flagging on the way in.
+ *
+ * Every configuration is imported, with its motors, its recovery, its staging
+ * and which stages it grounds, so there is nothing left to warn about being
+ * dropped. What remains is a file that declares configurations and carries no
+ * motors for them, and the hand-rolled case below.
  */
-export function configNotes(
-  rocketEl: Element,
-  configEls: Element[],
-  configs: OrkFlightConfig[],
-  chosenConfigId: string | null,
-): string[] {
+export function configNotes(rocketEl: Element, configs: OrkFlightConfig[]): string[] {
   const notes: string[] = [];
   if (configs.length > 1) {
     const mountMotorEls = Array.from(rocketEl.querySelectorAll('motormount > motor'));
@@ -57,21 +57,6 @@ export function configNotes(
       // Declared configs but no <motor> in any mount: worth flagging that the
       // mounts came in empty (nothing to simulate until a motor is picked).
       notes.push(`File declares ${configs.length} flight configurations but carried no motors to import.`);
-    }
-    // Which configuration was opened (and that there are others) is shown in the
-    // Simulations panel now, so it's no longer a load note.
-    // Stage activeness (<stage active="false">) is not applied (Stage C) —
-    // warn when the chosen configuration would actually ground a stage. Name it
-    // (never the UUID — that appears nowhere in our UI or OpenRocket's).
-    const chosenEl = configEls.find((c) => c.getAttribute('configid') === chosenConfigId);
-    if (
-      chosenEl &&
-      Array.from(chosenEl.querySelectorAll(':scope > stage')).some((s) => s.getAttribute('active') === 'false')
-    ) {
-      const name = configs.find((c) => c.id === chosenConfigId)?.name;
-      notes.push(
-        `${name ? `Configuration “${name}”` : 'The opened configuration'} deactivates one or more stages — stage activeness isn’t applied here, so all stages fly in the simulation.`,
-      );
     }
   } else if (configs.length === 0) {
     // Hand-rolled files may key <motor configid>s without declaring the configs,

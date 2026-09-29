@@ -147,7 +147,10 @@ export async function autosaved(page: Page, needle: string, atLeast = 1): Promis
  * Scoped to the desktop strip by its label: the phone's bottom bar carries
  * overlapping names ("Simulate", "Results") and both are in the DOM at once.
  */
-export async function openTab(page: Page, name: 'Design' | 'Simulations' | 'Results'): Promise<void> {
+export async function openTab(
+  page: Page,
+  name: 'Design' | 'Configurations' | 'Simulations' | 'Results',
+): Promise<void> {
   await page.getByRole('navigation', { name: 'Workbench' }).getByRole('button', { name, exact: true }).click();
 }
 

@@ -2,7 +2,7 @@
 title: "Motores"
 sidebar_position: 9
 ---
-Un motor se asigna al **soporte de motor** (tubo interior) del cohete. El panel de Simulaciones de la derecha muestra el motor actual de la simulación seleccionada y un botón **Cambiar…** para elegir otro.
+Un motor se asigna al **soporte de motor** (tubo interior) del cohete. Los motores viven en una [configuración de vuelo](./flight-configurations.md), y la pestaña **Configuraciones** es donde se eligen: una tarjeta por soporte, cada una con el motor que lleva y un botón **Cambiar…** para elegir otro.
 
 ## El selector de motores
 
@@ -32,4 +32,4 @@ Los motores personalizados o importados se conservan localmente junto a tus mate
 
 ## Varios soportes
 
-Un diseño puede tener más de un soporte de motor (por ejemplo, en clúster o por etapas). El soporte **principal** (el primero, de la ojiva a la cola) toma el motor que se muestra en la parte superior del panel de Simulaciones; cada soporte adicional tiene su propia tarjeta debajo. Los soportes adicionales conservan los motores con los que se importaron o abrieron, y un soporte recién añadido empieza con un **motor por defecto** para que el diseño siempre esté listo para volar: solo tienes que pulsar **Cambiar…** en su tarjeta para elegir el real. Si eliminas un soporte, su motor se descarta automáticamente. Consulta [Ejecutar una simulación](./running-a-simulation.md) para el uso de etapas y la ignición.
+Un diseño puede tener más de un soporte de motor (por ejemplo, en clúster o por etapas). Cada soporte tiene su propia tarjeta en la pestaña Configuraciones, de cola a punta, y cada configuración lleva un motor para todos ellos. Los soportes conservan los motores con los que se importaron o abrieron, y un soporte recién añadido empieza con un **motor por defecto** para que el diseño siempre esté listo para volar: solo tienes que pulsar **Cambiar…** en su tarjeta para elegir el real. Si eliminas un soporte, su motor se descarta automáticamente. Consulta [Configuraciones de vuelo](./flight-configurations.md) para la ignición, las etapas y cómo una preparación se comparte entre simulaciones.

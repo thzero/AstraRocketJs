@@ -15,13 +15,11 @@ const launch: LaunchConditions = {
   pressureHPa: null,
 };
 
-const C6 = { designation: 'C6' } as Simulation['motor'];
-
 const sim = (over: Partial<Simulation> = {}): Simulation =>
   ({
     id: Math.random().toString(36),
     name: 'S',
-    motor: C6,
+    configId: 'config-1',
     launch,
     result: null,
     extraMotors: {},

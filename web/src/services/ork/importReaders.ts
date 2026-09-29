@@ -24,7 +24,13 @@ import {
   readSoftMaterial,
   readOverrides,
 } from './importTags';
-import { captureDeployments, configScoped, readMotor, type OrkImportContext } from './importConfigs';
+import {
+  captureDeployments,
+  captureSeparations,
+  configScoped,
+  readMotor,
+  type OrkImportContext,
+} from './importConfigs';
 
 /**
  * One reader per .ork element tag: the node the element becomes, before its
@@ -434,6 +440,7 @@ const readAssembly =
       // Same separation read as a booster <stage> — the chosen config's
       // block wins over the bare defaults.
       readSeparation(configScoped(ctx, el, 'separationconfiguration') ?? el, n);
+      captureSeparations(ctx, el, n);
     }
     return n;
   };
@@ -508,6 +515,7 @@ export function readStages(ctx: OrkImportContext, stages: Element[]): ComponentN
       // Like ignition: the chosen config's block overrides the bare defaults
       // (24.12 writes a <separationconfiguration> for EVERY config id).
       readSeparation(configScoped(ctx, stageEl, 'separationconfiguration') ?? stageEl, stage);
+      captureSeparations(ctx, stageEl, stage);
     }
     const kids = convertChildren(ctx, stageEl);
     if (kids.length > 0) stage.children = kids;

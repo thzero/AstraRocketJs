@@ -1,6 +1,6 @@
 ---
 title: "Views & Analysis"
-sidebar_position: 10
+sidebar_position: 11
 ---
 The center pane's toolbar switches between views. **2D**, **3D**, and **Aero** are always available; **Flight** and **3D path** appear once you've run a simulation.
 

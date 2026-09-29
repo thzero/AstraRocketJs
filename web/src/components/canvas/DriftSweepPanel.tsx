@@ -4,7 +4,7 @@ import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { useSettings } from '../../state/SettingsProvider';
-import { useWorkspaceStore } from '../../state/store';
+import { useWorkspaceStore, configOf } from '../../state/store';
 import { sameSimInputs, simInputs } from '../../services/simulations';
 import { MAX_WIND_SPEED_MS } from '../../services/safetyLimits';
 import {
@@ -50,6 +50,7 @@ export function DriftSweepPanel({ simId, launch }: { simId: string; launch: Laun
   const run = useWorkspaceStore((s) => s.driftSweepRun);
   const tree = useWorkspaceStore((s) => s.tree);
   const sim = useWorkspaceStore((s) => s.sims.find((x) => x.id === simId));
+  const configs = useWorkspaceStore((s) => s.configs);
   const runDriftSweep = useWorkspaceStore((s) => s.runDriftSweep);
   const cancelDriftSweep = useWorkspaceStore((s) => s.cancelDriftSweep);
   const clearDriftSweep = useWorkspaceStore((s) => s.clearDriftSweep);
@@ -65,7 +66,9 @@ export function DriftSweepPanel({ simId, launch }: { simId: string; launch: Laun
   // Either half can age it: the airframe, or the row's own motor, loadout and
   // launch conditions. A sweep for a row that has since been deleted is stale
   // too, since there is nothing left to compare it against.
-  const stale = mine !== null && (mine.tree !== tree || !sim || !sameSimInputs(mine.inputs, simInputs(sim)));
+  const stale =
+    mine !== null &&
+    (mine.tree !== tree || !sim || !sameSimInputs(mine.inputs, simInputs(sim, configOf(configs, sim))));
 
   const patch = (p: Partial<WindSweepSpec>) => setSpec((cur) => ({ ...cur, ...p }));
   /** Blur or a discrete change: the field stops mid-edit and is pulled into range. */

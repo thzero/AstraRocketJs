@@ -561,6 +561,36 @@ public final class OpenRocketEngine {
         }
     }
 
+    /**
+     * Leaves one stage on the ground for this flight configuration, or puts it
+     * back in the flight.
+     *
+     * OpenRocket's stage activeness: an inactive stage contributes no mass, no
+     * aerodynamics and no motor, which is how a two-stage design is flown as the
+     * sustainer alone without deleting the booster. The flight configuration
+     * owns the flag, so two configurations over one design can fly the whole
+     * stack and the upper stage by itself.
+     *
+     * Addressed by component id like every other per-part call here, rather than
+     * by the kernel's stage NUMBER: numbers are handed out in the order stages
+     * are added, so a parallel booster nested in an early stage shifts the ones
+     * after it, and the caller would have to reproduce that rule to be right.
+     */
+    @JSExport
+    public static void setStageActiveById(int rocketHandle, String componentId, boolean active) {
+        RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
+        RocketComponent comp = ctx.ids.get(componentId);
+        if (!(comp instanceof AxialStage)) {
+            throw new IllegalArgumentException(
+                    "Component id '" + componentId + "' is not a stage");
+        }
+        FlightConfiguration config = ctx.rocket.getSelectedConfiguration();
+        config._setStageActive(((AxialStage) comp).getStageNumber(), active);
+        // Same refresh applyMotor does: the configuration caches which motors and
+        // component instances are active, and grounding a stage changes both.
+        config.update();
+    }
+
     // ---------- Analysis ----------
 
     /**

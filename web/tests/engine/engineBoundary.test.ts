@@ -556,6 +556,83 @@ describe('the bridge passes these options through to the physics', () => {
  * The drogue-low-speed check on top of that was commented out upstream and is
  * enabled by a patch here, so this file is the only thing proving either half.
  */
+/**
+ * Stage activeness, through the real kernel.
+ *
+ * A grounded stage contributes no mass, no aerodynamics and no motor, which is
+ * how a two-stage design is flown as its own sustainer. The flag lives on the
+ * flight configuration, so this is also the check that the facade addresses a
+ * stage by node id and reaches the configuration the rest of the API reads.
+ */
+describe('a grounded stage leaves the flight', () => {
+  const TWO_STAGE = {
+    components: [
+      {
+        id: 'sustainer',
+        type: 'stage',
+        children: [
+          { id: 'nose', type: 'nosecone', length: 0.1, aftRadius: 0.013, thickness: 0.001, shape: 'ogive' },
+          { id: 'upper', type: 'bodytube', length: 0.2, outerRadius: 0.013, thickness: 0.0005 },
+        ],
+      },
+      {
+        id: 'booster',
+        type: 'stage',
+        children: [
+          {
+            id: 'lower',
+            type: 'bodytube',
+            length: 0.3,
+            outerRadius: 0.013,
+            thickness: 0.0005,
+            motorMount: true,
+            children: [
+              {
+                id: 'lower-fins',
+                type: 'trapezoidfinset',
+                finCount: 3,
+                rootChord: 0.06,
+                tipChord: 0.03,
+                sweep: 0.03,
+                height: 0.05,
+                thickness: 0.003,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  } as unknown as RocketTree;
+
+  it('drops the stage"s mass and length from the static info', () => {
+    const whole = OpenRocketDesign.buildTree(TWO_STAGE).staticInfo();
+    const design = OpenRocketDesign.buildTree(TWO_STAGE);
+    design.setStageActiveById('booster', false);
+    const sustainerOnly = design.staticInfo();
+
+    expect(sustainerOnly.mass).toBeLessThan(whole.mass);
+    expect(sustainerOnly.length).toBeLessThan(whole.length);
+  });
+
+  it('leaves the booster"s motor out of the loaded mass', () => {
+    const design = OpenRocketDesign.buildTree(TWO_STAGE);
+    design.setMotorById('lower', C6);
+    const loaded = design.staticInfo().mass;
+
+    const grounded = OpenRocketDesign.buildTree(TWO_STAGE);
+    grounded.setMotorById('lower', C6);
+    grounded.setStageActiveById('booster', false);
+    // The motor is in the stage that stayed behind, so the propellant goes with
+    // it: this is the number a "sustainer only" configuration flies on.
+    expect(grounded.staticInfo().mass).toBeLessThan(loaded - C6.masses![0]! / 2);
+  });
+
+  it('refuses an id that is not a stage, by name', () => {
+    const design = OpenRocketDesign.buildTree(TWO_STAGE);
+    expect(() => design.setStageActiveById('nose', false)).toThrow(/not a stage/i);
+  });
+});
+
 describe('dual deployment reaches the kernel', () => {
   /** The TREE above plus a drogue at apogee and a main lower down. */
   const dualTree = (drogue: boolean) =>

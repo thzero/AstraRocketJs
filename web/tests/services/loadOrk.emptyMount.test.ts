@@ -58,8 +58,8 @@ const { loadOrk, emptyMountMotor } = await import('../../src/services/loadOrk');
 describe('loadOrk with mounts the file gave no motor', () => {
   it('seats a curve-less placeholder in every empty mount', async () => {
     const loaded = await loadOrk(new ArrayBuffer(0));
-    expect(Object.keys(loaded.motorSpecs).sort()).toEqual(['body', 'pod']);
-    for (const m of Object.values(loaded.motorSpecs)) {
+    expect(Object.keys(loaded.configs[0]!.motors).sort()).toEqual(['body', 'pod']);
+    for (const m of Object.values(loaded.configs[0]!.motors)) {
       expect(hasThrustCurve(m.spec)).toBe(false);
       expect(m.spec.designation).toBe('');
     }

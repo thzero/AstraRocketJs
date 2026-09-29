@@ -1,7 +1,7 @@
 import { PLUGGED_DELAY } from '../../engine/openRocketEngine';
 import { escapeXml } from '../xmlUtil';
 import { uuid } from '../uuid';
-import type { OrkExportMotor, OrkTreeExportInput } from '../orkTypes';
+import type { OrkTreeExportInput } from '../orkTypes';
 import type { OrkWriteConfig, OrkWriter } from './exportWriter';
 
 /**
@@ -12,49 +12,52 @@ import type { OrkWriteConfig, OrkWriter } from './exportWriter';
  */
 
 /**
- * The configurations to write. Classic path (no configs): ONE minted
- * config carrying the working set — exactly the pre-Stage-B output.
+ * The configurations to write, and which of them is the file's default.
+ *
+ * What the app holds, written as it stands: a design has flight configurations
+ * (services/flightConfigs.ts), and each one carries its own motors. A design
+ * with none at all - a `.rkt` on its way out, or a rocket with no mounts - gets
+ * ONE unnamed configuration minted here, because every `<motormount>` block
+ * keys its motors by a `configid` and the file has to declare one for them.
+ *
+ * A configuration that overrides no deployment writes `null`, which the device
+ * writers read as "recovers the way the design says" - the bare tags each device
+ * already carries. One that overrides something writes its own block, whether or
+ * not it is the default.
  */
-export function resolveWriteConfigs(
-  input: Pick<OrkTreeExportInput, 'motors' | 'motor' | 'mountId' | 'configs' | 'activeConfigId'>,
-): { writeConfigs: OrkWriteConfig[]; defaultId: string } {
-  const { motors, motor, mountId, configs, activeConfigId } = input;
-  const motorMap: Record<string, OrkExportMotor> = { ...(motors ?? {}) };
-  if (motor && mountId && !motorMap[mountId]) motorMap[mountId] = motor;
-  const active = configs?.find((c) => c.id === activeConfigId) ?? null;
-  const writeConfigs: OrkWriteConfig[] =
-    configs && configs.length > 0
-      ? configs.map((c) => ({
-          id: c.id,
-          name: c.name,
-          motors: c === active ? motorMap : c.motors,
-          deployments: c === active ? null : (c.deployments ?? {}),
-        }))
-      : [{ id: uuid(), name: null, motors: motorMap, deployments: null }];
-  // Active = none but motors loaded: mint an extra config carrying the live
-  // set, unnamed (the desktop renders unnamed configs as their motor list).
-  const minted =
-    configs && configs.length > 0 && !active && Object.keys(motorMap).length > 0
-      ? { id: uuid(), name: null, motors: motorMap, deployments: null }
-      : null;
-  if (minted) writeConfigs.push(minted);
-  // default="true" (also what <simulation> references): the active config,
-  // else the minted custom one, else the original default.
-  const defaultId =
-    active?.id ??
-    minted?.id ??
-    (configs && configs.length > 0 ? (configs.find((c) => c.isDefault)?.id ?? configs[0]!.id) : writeConfigs[0]!.id);
+export function resolveWriteConfigs(input: Pick<OrkTreeExportInput, 'configs' | 'activeConfigId'>): {
+  writeConfigs: OrkWriteConfig[];
+  defaultId: string;
+} {
+  const { configs, activeConfigId } = input;
+  if (!configs?.length) {
+    const minted = { id: uuid(), name: null, motors: {}, deployments: null, separations: null, grounded: [] };
+    return { writeConfigs: [minted], defaultId: minted.id };
+  }
+  const defaultId = configs.find((c) => c.id === activeConfigId)?.id ?? configs[0]!.id;
+  const writeConfigs: OrkWriteConfig[] = configs.map((c) => ({
+    id: c.id,
+    name: c.name,
+    motors: c.motors,
+    deployments: c.deployments ?? null,
+    separations: c.separations ?? null,
+    grounded: c.grounded ?? [],
+  }));
   return { writeConfigs, defaultId };
 }
 
 /** The rocket-level <motorconfiguration> declarations, one per write config. */
-export function motorConfigurationsXml(w: OrkWriter, depth: number, stageCount: number): void {
+export function motorConfigurationsXml(w: OrkWriter, depth: number, stageIds: (string | undefined)[]): void {
   for (const c of w.writeConfigs) {
     w.emit(depth, `<motorconfiguration configid="${escapeXml(c.id)}"${c.id === w.defaultId ? ' default="true"' : ''}>`);
     if (c.name !== null) w.emit(depth + 1, `<name>${escapeXml(c.name)}</name>`);
-    for (let i = 0; i < stageCount; i++) {
-      w.emit(depth + 1, `<stage number="${i}" active="true"/>`);
-    }
+    // One flag per stage, in the kernel's own numbering (see treeEdit.findStages,
+    // which is the walk this list comes from). A grounded stage says so here;
+    // that is the whole of what stage activeness is in the file.
+    stageIds.forEach((id, i) => {
+      const active = !(id && c.grounded.includes(id));
+      w.emit(depth + 1, `<stage number="${i}" active="${active}"/>`);
+    });
     w.emit(depth, '</motorconfiguration>');
   }
 }

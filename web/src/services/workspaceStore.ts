@@ -12,23 +12,24 @@
 import { getDesignLibrary, type DesignLibrary, type DesignMeta, type StoredResults } from './designLibrary';
 import type { FlightResult, RocketTree } from '../engine/openRocketEngine';
 import type { Simulation } from './simulations';
-import type { MountMotor } from './loadOrk';
+import type { FlightConfig } from './flightConfigs';
+import { migrateWorkspace } from './workspaceMigrate';
 import type { OrkExportMotor } from './orkFile';
 
 export interface Workspace {
-  version: 1;
+  version: 2;
   tree: RocketTree;
   sims: Simulation[];
-  activeId: string;
   /**
-   * LEGACY: one shared map of non-primary-mount motors for the whole workspace.
+   * The flight configurations this design holds (services/flightConfigs.ts).
    *
-   * Read, never written. The motor loadout now rides on each simulation
-   * (`Simulation.extraMotors`) so two simulations can fly the same airframe with
-   * different upper-stage motors. `hydrate` folds a blob written before that
-   * into every simulation, which reproduces exactly what the shared map meant.
+   * At least one, always: every simulation names the configuration it flies, so
+   * a design with none has nothing to fly. A configuration no simulation points
+   * at is kept rather than pruned - it is a setup the user built, not a byproduct
+   * of a row.
    */
-  extraMotors?: Record<string, MountMotor>;
+  configs: FlightConfig[];
+  activeId: string;
   /** Imported-.ork source metadata (banner + round-trip export), or null. */
   loadedMeta: { name: string; notes: string[]; exportMotors: Record<string, OrkExportMotor> } | null;
 }
@@ -194,7 +195,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
       // first would overwrite the real stored design with it and clear the
       // journal, losing the design permanently — every later load would re-read
       // the same bad blob.
-      const w = validate(journal.w);
+      const w = migrateWorkspace(journal.w);
       if (!w) {
         clearJournal();
         return await this.readActive(lib);
@@ -216,7 +217,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     //
     // It belongs to "no design yet", so replay it by CREATING one.
     if (journal && journal.id === null && this.activeId === null) {
-      const w = validate(journal.w);
+      const w = migrateWorkspace(journal.w);
       clearJournal();
       if (w) {
         try {
@@ -253,7 +254,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
    */
   private async readActive(lib: DesignLibrary): Promise<Workspace | null> {
     if (!this.activeId) return null;
-    const w = validate(await lib.read(this.activeId));
+    const w = migrateWorkspace(await lib.read(this.activeId));
     if (!w) {
       this.activeId = null;
       throw new Error('unreadable-design');
@@ -352,25 +353,6 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
       /* quota or storage blocked — nothing further we can do while unloading */
     }
   }
-}
-
-/** Reject a truncated or hand-edited blob before the tree reaches the engine:
- *  a `tree.components` that isn't an array would crash buildTree deep in the
- *  kernel rather than fail cleanly here. Exported so the store's openDesign
- *  applies the same check the boot path does. */
-export function validateWorkspace(w: Workspace | null): Workspace | null {
-  return validate(w);
-}
-
-function validate(w: Workspace | null): Workspace | null {
-  return w &&
-    w.version === 1 &&
-    w.tree &&
-    Array.isArray((w.tree as { components?: unknown }).components) &&
-    Array.isArray(w.sims) &&
-    w.sims.length > 0
-    ? w
-    : null;
 }
 
 const store: WorkspaceStore = new LibraryWorkspaceStore();

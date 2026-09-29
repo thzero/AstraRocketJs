@@ -1,9 +1,10 @@
 import { xmlText as text } from './xmlUtil';
 import { syncAutoRadii } from './autoRadius';
+import { findStages } from './treeEdit';
 import type { RocketTree } from '../engine/openRocketEngine';
 import type { OrkImportResult } from './orkTypes';
 import { parseOrkXml, unpackOrk } from './ork/importUnpack';
-import { readFlightConfigs, type OrkImportContext } from './ork/importConfigs';
+import { readFlightConfigs, readStageActiveness, type OrkImportContext } from './ork/importConfigs';
 import { readStages } from './ork/importReaders';
 import { KNOWN_DOCUMENT_TAGS, KNOWN_ROCKET_TAGS, readPassthrough } from './ork/passthrough';
 import { readLaunchConditions } from './ork/importLaunch';
@@ -67,12 +68,19 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
   if (components.every((s) => (s.children ?? []).length === 0)) {
     throw new Error('No supported components found in this design.');
   }
+  // Stage activeness, once the tree exists: the file addresses a stage by
+  // number and the configurations address it by node id.
+  readStageActiveness(
+    configEls,
+    configs,
+    findStages({ name, components } as RocketTree).map((n) => n.id as string),
+  );
   const { notes, ignored } = ctx;
   if (ignored.size) {
     notes.push(`Ignored unsupported components: ${[...ignored].join(', ')}.`);
   }
   notes.push(...modelingNotes(components));
-  notes.push(...configNotes(rocketEl, configEls, configs, chosenConfigId));
+  notes.push(...configNotes(rocketEl, configs));
   notes.push(...archiveNotes(doc, archive.dropped));
 
   const launch = readLaunchConditions(doc);

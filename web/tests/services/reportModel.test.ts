@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode, StaticInfo } from '../../src/engine/openRocketEngine';
-import { stageParts, finSetPositions, multiStageSummaries, stageMotor } from '../../src/services/reportModel';
+import { stageParts, finSetPositions, multiStageSummaries } from '../../src/services/reportModel';
+import { motorSpecs, newFlightConfig } from '../../src/services/flightConfigs';
 
 const node = (o: object): ComponentNode => o as unknown as ComponentNode;
 
@@ -209,15 +210,13 @@ describe('finSetPositions — tube fins', () => {
 /**
  * Each stage's summary must be built with the motor in THAT stage's mount.
  *
- * `buildConfiguredRocket` seats whatever motor it is handed into whatever
- * mount it finds in the tree it is given, and each per-stage summary is built
- * from a one-stage tree. Passing the active simulation's `motor` regardless
- * therefore put the SUSTAINER's motor in the booster, and the extra-motors
- * loop then skipped the booster's own motor because its id matched the mount
- * that had just been filled. The booster's mass and CG went into the PDF and
- * the `.ork` `<designinfo>` block describing a rocket that does not exist.
+ * A per-stage summary is built from a ONE-STAGE tree, and a flight configuration
+ * keys its motors by mount id, so the motors seated in that tree are exactly the
+ * ones that stage's own mounts hold. Nothing pairs a motor with a mount by
+ * position, which is what put the sustainer's motor in the booster back when the
+ * first mount's motor was held apart from the rest.
  */
-describe('stageMotor', () => {
+describe('per-stage motors', () => {
   const tree = (id: string) =>
     ({
       name: 'R',
@@ -225,25 +224,22 @@ describe('stageMotor', () => {
     }) as never;
 
   const spec = (designation: string) => ({ designation }) as never;
-  const active = {
-    motor: spec('SUSTAINER-K550'),
-    extraMotors: { boosterMount: { spec: spec('BOOSTER-M1350') } } as never,
-  };
-
-  it('gives the primary mount the active simulation motor', () => {
-    expect(stageMotor(tree('sustainerMount'), 'sustainerMount', active)?.designation).toBe('SUSTAINER-K550');
+  const config = newFlightConfig({
+    sustainerMount: { spec: spec('SUSTAINER-K550') },
+    boosterMount: { spec: spec('BOOSTER-M1350') },
   });
 
-  it("gives a booster ITS OWN motor, not the sustainer's", () => {
-    expect(stageMotor(tree('boosterMount'), 'sustainerMount', active)?.designation).toBe('BOOSTER-M1350');
+  it('gives each stage the motor in its own mount', () => {
+    expect(motorSpecs(tree('sustainerMount'), config)[0]?.designation).toBe('SUSTAINER-K550');
+    expect(motorSpecs(tree('boosterMount'), config)[0]?.designation).toBe('BOOSTER-M1350');
   });
 
-  it('seats nothing in a stage whose mount has no motor of its own', () => {
-    expect(stageMotor(tree('emptyMount'), 'sustainerMount', active)).toBeUndefined();
+  it('seats nothing in a stage whose mount holds no motor', () => {
+    expect(motorSpecs(tree('emptyMount'), config)).toEqual([]);
   });
 
   it('seats nothing in a stage with no mount at all', () => {
     const noMount = { name: 'R', components: [node({ type: 'stage', children: [node({ type: 'bodytube' })] })] };
-    expect(stageMotor(noMount as never, 'sustainerMount', active)).toBeUndefined();
+    expect(motorSpecs(noMount as never, config)).toEqual([]);
   });
 });

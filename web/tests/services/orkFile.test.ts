@@ -17,6 +17,10 @@ const spec = {
 
 const motor: OrkExportMotor = { designation: 'C6', manufacturer: 'Estes', diameter: 0.018, length: 0.07, delay: 3 };
 
+/** One unnamed flight configuration seating `motor` in `mountId` - what a
+ *  single-mount design exports as. */
+const loaded = (mountId: string, m: OrkExportMotor = motor) => [{ id: 'cfg-1', name: null, motors: { [mountId]: m } }];
+
 const findByType = (tree: RocketTree, type: string): ComponentNode | undefined => {
   const stack = [...tree.components];
   while (stack.length) {
@@ -29,7 +33,7 @@ const findByType = (tree: RocketTree, type: string): ComponentNode | undefined =
 
 describe('exportOrk → importOrk round-trip', () => {
   const { tree, mountId } = specToTree(spec);
-  const xml = exportOrk({ name: 'Round Trip', tree, mountId, motor });
+  const xml = exportOrk({ name: 'Round Trip', tree, configs: loaded(mountId) });
 
   it('produces OpenRocket XML', () => {
     expect(typeof xml).toBe('string');
@@ -42,9 +46,7 @@ describe('exportOrk → importOrk round-trip', () => {
     const out = exportOrk({
       name: 'Evil',
       tree,
-      mountId,
-      motor,
-      configs: [{ id: evil, name: null, isDefault: true, motors: {}, deployments: {} }],
+      configs: [{ id: evil, name: null, motors: {} }],
       activeConfigId: evil,
     });
     expect(out).not.toContain('<injected'); // the raw tag must never form
@@ -94,7 +96,7 @@ describe('design metadata (Rocket configuration) round-trip', () => {
     revision: 'v3 — moved the CP forward',
     designType: 'upscale_kit',
   };
-  const xml = exportOrk({ name: withMeta.name!, tree: withMeta, mountId, motor });
+  const xml = exportOrk({ name: withMeta.name!, tree: withMeta, configs: loaded(mountId) });
 
   it('emits the metadata elements (only what is set)', () => {
     expect(xml).toContain('<designer>Ada Lovelace</designer>');
@@ -113,14 +115,14 @@ describe('design metadata (Rocket configuration) round-trip', () => {
 
   it('escapes metadata so a crafted comment cannot inject XML', () => {
     const evil: RocketTree = { ...tree, name: 'X', comment: '</comment><injected/>' };
-    const out = exportOrk({ name: 'X', tree: evil, mountId, motor });
+    const out = exportOrk({ name: 'X', tree: evil, configs: loaded(mountId) });
     expect(out).not.toContain('<injected/>'); // the raw tag must never form
     expect(out).toContain('&lt;injected/&gt;'); // escaped instead
     expect(importOrk(out)).toBeTruthy(); // still valid XML
   });
 
   it('omits absent metadata and defaults design type to original', () => {
-    const bare = exportOrk({ name: 'Bare', tree: { ...tree, name: 'Bare' }, mountId, motor });
+    const bare = exportOrk({ name: 'Bare', tree: { ...tree, name: 'Bare' }, configs: loaded(mountId) });
     expect(bare).not.toContain('<designer>');
     expect(bare).not.toContain('<revision>');
     expect(bare).toContain('<designtype>original</designtype>');
@@ -131,7 +133,7 @@ describe('optional <designinfo> block', () => {
   const { tree, mountId } = specToTree(spec);
 
   it('is absent by default — a normal save is unchanged', () => {
-    expect(exportOrk({ name: 'X', tree, mountId, motor })).not.toContain('<designinfo>');
+    expect(exportOrk({ name: 'X', tree, configs: loaded(mountId) })).not.toContain('<designinfo>');
   });
 
   it('emits statistics and fin-set positions when provided', () => {
@@ -142,7 +144,7 @@ describe('optional <designinfo> block', () => {
       ],
       finsets: [{ stageNumber: 0, stage: 'Sustainer', name: 'Trapezoidal fin set', topX: 0.35, bottomX: 0.4 }],
     };
-    const out = exportOrk({ name: 'X', tree, mountId, motor, designInfo });
+    const out = exportOrk({ name: 'X', tree, configs: loaded(mountId), designInfo });
     expect(out).toContain('<designinfo>');
     expect(out).toContain('<statistics scope="rocket">');
     expect(out).toContain('<stat field="Length" value="0.425" unit="m"/>');
@@ -158,7 +160,7 @@ describe('optional <designinfo> block', () => {
       groups: [{ scope: 'rocket', stats: [{ field: 'x"><evil', value: '0', unit: '' }] }],
       finsets: [],
     };
-    const out = exportOrk({ name: 'X', tree, mountId, motor, designInfo });
+    const out = exportOrk({ name: 'X', tree, configs: loaded(mountId), designInfo });
     expect(out).not.toContain('"><evil'); // the raw break-out must never form
     expect(out).toContain('&quot;&gt;&lt;evil'); // escaped instead
   });

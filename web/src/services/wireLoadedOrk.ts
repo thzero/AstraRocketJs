@@ -1,33 +1,37 @@
 import type { RocketTree } from '../engine/openRocketEngine';
-import { findMounts } from './treeEdit';
 import { resolveFilePositions } from '../tree/position';
-import { reconcileMounts } from './mountMotors';
+import { loadoutLabel, newFlightConfig, reconcileConfig, type FlightConfig } from './flightConfigs';
 import { newSimulation, type Simulation } from './simulations';
-import { emptyMountMotor, type LoadedOrk, type MountMotor } from './loadOrk';
+import type { LoadedOrk } from './loadOrk';
 import type { LaunchConditions } from './orkTree';
 import type { OrkExportMotor } from './orkFile';
 
-/** The workspace slices a loaded .ork maps onto: the design tree, the non-primary
- *  mount motors, the initial simulation, and the round-trip export metadata. */
+/** The workspace slices a loaded .ork maps onto: the design tree, its flight
+ *  configurations, one simulation per configuration, and the round-trip export
+ *  metadata. */
 export interface WiredOrk {
   tree: RocketTree;
-  extraMotors: Record<string, MountMotor>;
-  sim0: Simulation;
+  configs: FlightConfig[];
+  sims: Simulation[];
+  /** The simulation flying the configuration the file marks default. */
+  activeId: string;
   loadedMeta: { name: string; notes: string[]; exportMotors: Record<string, OrkExportMotor> };
 }
 
 /**
- * Map a freshly parsed .ork onto the workspace. The primary mount (first in tree
- * order) drives the Motor panel: its motor rides on the initial simulation and
- * its ignition override lives on that sim, NOT in extraMotors like every other
- * mount. A mount the file gave no motor for, primary or not, is seated with the
- * curve-less placeholder from `loadOrk.emptyMountMotor`, never a default: the run
- * gate then blocks with "no motor" until the user picks one. Seeding a C6 instead
- * would open a file saved without motors as a flyable rocket on motors it never
- * named, which is what `loadOrk` refuses to do for a motor it cannot resolve.
- * `reconcileMounts` then only drops motors whose mounts are gone. Pure (no I/O):
- * the caller supplies `launchDefaults` so this stays testable, it being the
- * .ork-import mapping most likely to regress on odd files.
+ * Map a freshly parsed .ork onto the workspace: every configuration it declared
+ * becomes a flight configuration, and each gets a simulation that flies it.
+ *
+ * One simulation per configuration because that is what a configuration IS on
+ * the desktop: a way the rocket is set up to fly. Importing three and opening
+ * one would leave two setups the user could see in the table and had no run to
+ * put numbers against.
+ *
+ * Each configuration keeps the file's own id, so a save writes the same
+ * `configid` back and a round trip is identity rather than a rewrite.
+ *
+ * Pure (no I/O): the caller supplies `launchDefaults` so this stays testable, it
+ * being the .ork-import mapping most likely to regress on odd files.
  */
 export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions): WiredOrk {
   // `.ork` can position a component with method="absolute", which is a
@@ -38,25 +42,47 @@ export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions):
   // parent-relative offset; the original is preserved on the position so
   // `orkExport` still round-trips the file byte-for-byte.
   const tree = resolveFilePositions(res.tree);
-  const mounts = findMounts(tree).map((m) => m.id as string);
-  const primary = mounts[0];
-  const extra = { ...res.motorSpecs };
-  // Same policy as loadOrk, applied here too so a LoadedOrk built any other
-  // way (tests, older persisted loads) cannot reach reconcileMounts with a
-  // hole for it to fill with a default.
-  for (const id of mounts) if (!extra[id]) extra[id] = { spec: emptyMountMotor() };
-  const primaryMount = primary ? extra[primary] : undefined;
-  const primaryMotor = primaryMount ? primaryMount.spec : emptyMountMotor();
-  if (primary && extra[primary]) delete extra[primary]; // primary's motor rides on the sim, not extraMotors
-  const sim0: Simulation = {
-    ...newSimulation(res.name, primaryMotor, { ...launchDefaults, ...res.launch }),
-    ignitionEvent: primaryMount?.ignitionEvent,
-    ignitionDelay: primaryMount?.ignitionDelay,
-  };
+  const launch = { ...launchDefaults, ...res.launch };
+
+  const configs = res.configs.map((c) => {
+    const config = newFlightConfig(c.motors, c.name, c.id);
+    // `reconcileConfig` only drops motors whose mounts are gone: the import
+    // already seated a curve-less placeholder in every mount this configuration
+    // named no motor for, so there is no hole for it to fill with a default.
+    // Seeding a C6 would open a file saved without motors as a flyable rocket on
+    // motors it never named.
+    const reconciled = reconcileConfig(tree, config);
+    return c.deployments ? { ...reconciled, deployments: c.deployments } : reconciled;
+  });
+
+  const taken = new Set<string>();
+  const sims = configs.map((c) => newSimulation(simName(tree, c, res.name, taken), c.id, launch));
+
   return {
     tree,
-    extraMotors: reconcileMounts(tree, extra),
-    sim0,
+    configs,
+    sims,
+    activeId: sims[configs.findIndex((c) => c.id === res.chosenConfigId)]?.id ?? sims[0]!.id,
     loadedMeta: { name: res.name, notes: res.notes, exportMotors: res.motors },
   };
+}
+
+/**
+ * What to call the simulation that flies one configuration: the configuration's
+ * name, else its motors, else the rocket's own name.
+ *
+ * The rows have to be told apart in the table, and the thing that distinguishes
+ * them IS the configuration. `.ork` does name its simulations, but those names
+ * are not read here, and "Simulation 1" against a three-configuration file says
+ * less than the motors do.
+ *
+ * `taken` carries across the set, because two configurations can seat the same
+ * motors and a file may name two the same.
+ */
+function simName(tree: RocketTree, config: FlightConfig, fallback: string, taken: Set<string>): string {
+  const base = config.name || loadoutLabel(tree, config) || fallback;
+  let name = base;
+  for (let n = 2; taken.has(name); n++) name = `${base} ${n}`;
+  taken.add(name);
+  return name;
 }

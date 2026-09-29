@@ -1,8 +1,9 @@
-// A named simulation = one flight setup over the shared rocket design: its own
-// motor (primary mount) + launch conditions + last result. The right panel is a
-// list of these; switching the active one drives the stability readout and sim.
-import type { MotorSpec, FlightResult, IgnitionEvent, RocketTree } from '../engine/openRocketEngine';
-import type { MountMotor } from './loadOrk';
+// A named simulation = one flight setup over the shared rocket design: the
+// flight configuration it flies + launch conditions + last result. The right
+// panel is a list of these; switching the active one drives the stability
+// readout and sim.
+import type { FlightResult, RocketTree } from '../engine/openRocketEngine';
+import type { FlightConfig } from './flightConfigs';
 import type { LaunchConditions } from './orkTree';
 import type { CompleteLaunch } from './requiredLaunch';
 import { surfaceLevel } from './safetyLimits';
@@ -19,23 +20,16 @@ export const DEFAULT_HEADING_DEG = 90;
 export interface Simulation {
   id: string;
   name: string;
-  motor: MotorSpec;
-  /** When the primary mount's motor ignites (undefined = automatic / at launch). */
-  ignitionEvent?: IgnitionEvent;
-  /** Seconds after the ignition event (default 0). */
-  ignitionDelay?: number;
   /**
-   * Motors for every NON-primary mount, keyed by mount id — the rest of this
-   * simulation's motor loadout. Together with `motor` and the ignition fields
-   * above, this is OpenRocket's "flight configuration": the whole set of motors
-   * a given simulation flies.
+   * The flight configuration this simulation flies (services/flightConfigs.ts):
+   * which motor sits in which mount, and when each one ignites.
    *
-   * Per simulation, not per workspace: a shared map means a multi-mount or
-   * staged rocket can only be flown one way, because changing an upper-stage
-   * motor changes it for every simulation at once and ages all of their results.
-   * Held here, "C6 sustainer vs. D12 sustainer" is two rows in the table.
+   * A reference, not a copy. Several simulations can name one configuration, so
+   * "C6 sustainer vs. D12 sustainer" is two configurations that rows point at
+   * rather than two duplicated loadouts, and pointing a row at another setup is
+   * one field rather than a motor per mount.
    */
-  extraMotors: Record<string, MountMotor>;
+  configId: string;
   launch: LaunchConditions;
   /** Cached last flight result (null until this simulation has ever been run). */
   result: FlightResult | null;
@@ -71,40 +65,30 @@ export interface Simulation {
  * the design tree.
  *
  * Reference identity is the whole test, and it is enough because every store
- * action replaces these rather than mutating them (`patchActive` / `patchTargets`
- * spread). An edit that happens to restore the same value is a different object
- * and costs a run, which is the safe direction to be wrong in.
+ * action replaces these rather than mutating them (`patchTargets` and
+ * `patchActiveConfig` spread). An edit that happens to restore the same value is
+ * a different object and costs a run, which is the safe direction to be wrong in.
  */
 export interface SimInputs {
-  motor: MotorSpec;
-  extraMotors: Record<string, MountMotor>;
+  /**
+   * The configuration this row flies, by object.
+   *
+   * Covers both halves at once: pointing the row at another setup hands back a
+   * different configuration, and editing the setup replaces the object (every
+   * store action spreads rather than mutating).
+   */
+  config: FlightConfig;
   launch: LaunchConditions;
   prefs: Partial<SimPrefs> | undefined;
-  ignitionEvent: IgnitionEvent | undefined;
-  ignitionDelay: number | undefined;
 }
 
-export function simInputs(sim: Simulation): SimInputs {
-  return {
-    motor: sim.motor,
-    extraMotors: sim.extraMotors,
-    launch: sim.launch,
-    prefs: sim.prefs,
-    ignitionEvent: sim.ignitionEvent,
-    ignitionDelay: sim.ignitionDelay,
-  };
+export function simInputs(sim: Simulation, config: FlightConfig): SimInputs {
+  return { config, launch: sim.launch, prefs: sim.prefs };
 }
 
 /** True when nothing a flight depends on has moved since `a` was captured. */
 export function sameSimInputs(a: SimInputs, b: SimInputs): boolean {
-  return (
-    a.motor === b.motor &&
-    a.extraMotors === b.extraMotors &&
-    a.launch === b.launch &&
-    a.prefs === b.prefs &&
-    a.ignitionEvent === b.ignitionEvent &&
-    a.ignitionDelay === b.ignitionDelay
-  );
+  return a.config === b.config && a.launch === b.launch && a.prefs === b.prefs;
 }
 
 /** The flight the Results tab is drawing. */
@@ -186,8 +170,8 @@ function newSimId(): string {
   return uuid();
 }
 
-export function newSimulation(name: string, motor: MotorSpec, launch: LaunchConditions): Simulation {
-  return { id: newSimId(), name, motor, launch, result: null, extraMotors: {} };
+export function newSimulation(name: string, configId: string, launch: LaunchConditions): Simulation {
+  return { id: newSimId(), name, configId, launch, result: null };
 }
 
 const rad = (deg: number) => (deg * Math.PI) / 180;

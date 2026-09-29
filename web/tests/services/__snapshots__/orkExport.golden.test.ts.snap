@@ -1,10 +1,716 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`golden .ork export > mints an unnamed config for a live motor set with no active config, ISA atmosphere 1`] = `
+exports[`golden .ork export > falls back to the FIRST configuration as default when none is active, ISA atmosphere 1`] = `
 "<?xml version='1.0' encoding='utf-8'?>
 <openrocket version="1.10" creator="AstraRocketJs">
   <rocket>
     <name>Kitchen sink</name>
+    <id>00000000-0000-4000-8000-000000000001</id>
+    <axialoffset method="absolute">0.0</axialoffset>
+    <position type="absolute">0.0</position>
+    <comment>Every &quot;type&quot; &amp; block</comment>
+    <designer>Golden &lt;tester&gt;</designer>
+    <revision>r7</revision>
+    <designtype>kit</designtype>
+    <motorconfiguration configid="cfg-a" default="true">
+      <name>Two stage</name>
+      <stage number="0" active="true"/>
+      <stage number="1" active="true"/>
+      <stage number="2" active="true"/>
+    </motorconfiguration>
+    <motorconfiguration configid="cfg-b">
+      <stage number="0" active="true"/>
+      <stage number="1" active="true"/>
+      <stage number="2" active="true"/>
+    </motorconfiguration>
+    <motorconfiguration configid="cfg-c">
+      <name>Empty</name>
+      <stage number="0" active="true"/>
+      <stage number="1" active="true"/>
+      <stage number="2" active="true"/>
+    </motorconfiguration>
+    <referencetype>maximum</referencetype>
+    <subcomponents>
+      <stage>
+        <name>Sustainer</name>
+        <id>00000000-0000-4000-8000-000000000002</id>
+        <nozzleexitdiameter>0.02</nozzleexitdiameter>
+        <subcomponents>
+          <nosecone>
+            <name>Nose</name>
+            <id>00000000-0000-4000-8000-000000000003</id>
+            <overridemass>0.05</overridemass>
+            <overridesubcomponentsmass>true</overridesubcomponentsmass>
+            <overridecg>0.07</overridecg>
+            <overridesubcomponentscg>false</overridesubcomponentscg>
+            <overridecd>0.4</overridecd>
+            <overridesubcomponentscd>false</overridesubcomponentscd>
+            <finish>smooth</finish>
+            <material type="bulk" density="1050" group="Plastics">Polystyrene</material>
+            <length>0.15</length>
+            <thickness>0.002</thickness>
+            <shape>haack</shape>
+            <shapeclipped>false</shapeclipped>
+            <shapeparameter>0.33</shapeparameter>
+            <aftradius>0.025</aftradius>
+            <aftshoulderradius>0.024</aftshoulderradius>
+            <aftshoulderlength>0.03</aftshoulderlength>
+            <aftshoulderthickness>0.002</aftshoulderthickness>
+            <aftshouldercapped>true</aftshouldercapped>
+            <isflipped>false</isflipped>
+            <subcomponents>
+              <masscomponent>
+                <name>Tracker</name>
+                <id>00000000-0000-4000-8000-000000000004</id>
+                <axialoffset method="top">0</axialoffset>
+                <position type="top">0</position>
+                <packedlength>0.02</packedlength>
+                <packedradius>0.005</packedradius>
+                <radialposition>0</radialposition>
+                <radialdirection>0</radialdirection>
+                <mass>0.02</mass>
+                <masscomponenttype>tracker</masscomponenttype>
+              </masscomponent>
+            </subcomponents>
+          </nosecone>
+          <transition>
+            <name>Transition</name>
+            <id>00000000-0000-4000-8000-000000000005</id>
+            <finish>normal</finish>
+            <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+            <length>0.06</length>
+            <thickness>filled</thickness>
+            <shape>ellipsoid</shape>
+            <shapeclipped>false</shapeclipped>
+            <shapeparameter>0</shapeparameter>
+            <foreradius>0.025</foreradius>
+            <aftradius>0.03</aftradius>
+            <foreshoulderradius>0.024</foreshoulderradius>
+            <foreshoulderlength>0.02</foreshoulderlength>
+            <foreshoulderthickness>0</foreshoulderthickness>
+            <foreshouldercapped>false</foreshouldercapped>
+            <aftshoulderradius>0</aftshoulderradius>
+            <aftshoulderlength>0</aftshoulderlength>
+            <aftshoulderthickness>0.001</aftshoulderthickness>
+            <aftshouldercapped>false</aftshouldercapped>
+          </transition>
+          <transition>
+            <name>Transition</name>
+            <id>00000000-0000-4000-8000-000000000006</id>
+            <finish>normal</finish>
+            <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+            <length>0.04</length>
+            <thickness>0.002</thickness>
+            <shape>conical</shape>
+            <shapeparameter>0</shapeparameter>
+            <foreradius>0.03</foreradius>
+            <aftradius>auto</aftradius>
+            <foreshoulderradius>0</foreshoulderradius>
+            <foreshoulderlength>0</foreshoulderlength>
+            <foreshoulderthickness>0</foreshoulderthickness>
+            <foreshouldercapped>false</foreshouldercapped>
+            <aftshoulderradius>0</aftshoulderradius>
+            <aftshoulderlength>0</aftshoulderlength>
+            <aftshoulderthickness>0</aftshoulderthickness>
+            <aftshouldercapped>false</aftshouldercapped>
+          </transition>
+          <bodytube>
+            <name>Airframe</name>
+            <id>00000000-0000-4000-8000-000000000007</id>
+            <finish>normal</finish>
+            <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+            <length>0.6</length>
+            <thickness>0.001</thickness>
+            <radius>0.03</radius>
+            <caseairframe>true</caseairframe>
+            <motormount>
+              <ignitionevent>automatic</ignitionevent>
+              <ignitiondelay>0</ignitiondelay>
+              <overhang>0.01</overhang>
+              <motor configid="cfg-b">
+                <type>single</type>
+                <manufacturer>Estes</manufacturer>
+                <designation>E12</designation>
+                <diameter>0.024</diameter>
+                <length>0.07</length>
+                <delay>4</delay>
+              </motor>
+              <ignitionconfiguration configid="cfg-b">
+                <ignitionevent>automatic</ignitionevent>
+                <ignitiondelay>0</ignitiondelay>
+              </ignitionconfiguration>
+            </motormount>
+            <subcomponents>
+              <trapezoidfinset>
+                <name>Fins</name>
+                <id>00000000-0000-4000-8000-000000000008</id>
+                <instancecount>4</instancecount>
+                <fincount>4</fincount>
+                <radiusoffset method="surface">0.0</radiusoffset>
+                <angleoffset method="relative">45</angleoffset>
+                <rotation>45</rotation>
+                <axialoffset method="bottom">-0.01</axialoffset>
+                <position type="bottom">-0.01</position>
+                <finish>normal</finish>
+                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                <thickness>0.003</thickness>
+                <crosssection>airfoil</crosssection>
+                <airfoilsection>doublewedge</airfoilsection>
+                <airfoillediamond>0.01</airfoillediamond>
+                <airfoiltediamond>0.02</airfoiltediamond>
+                <finleradius>0.001</finleradius>
+                <cant>1.9996227050065731</cant>
+                <tabheight>0.01</tabheight>
+                <tablength>0.05</tablength>
+                <tabposition relativeto="front">0.005</tabposition>
+                <tabposition relativeto="top">0.005</tabposition>
+                <filletradius>0.004</filletradius>
+                <filletmaterial type="bulk" density="1200" group="Plastics">Epoxy</filletmaterial>
+                <rootchord>0.1</rootchord>
+                <tipchord>0.05</tipchord>
+                <sweeplength>0.04</sweeplength>
+                <height>0.06</height>
+              </trapezoidfinset>
+              <freeformfinset>
+                <name>Freeform Fin Set</name>
+                <id>00000000-0000-4000-8000-000000000009</id>
+                <instancecount>3</instancecount>
+                <fincount>3</fincount>
+                <radiusoffset method="surface">0.0</radiusoffset>
+                <angleoffset method="relative">0</angleoffset>
+                <rotation>0</rotation>
+                <axialoffset method="absolute">0.31</axialoffset>
+                <position type="absolute">0.31</position>
+                <finish>normal</finish>
+                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                <thickness>0.003</thickness>
+                <crosssection>square</crosssection>
+                <cant>0</cant>
+                <tabheight>0.01</tabheight>
+                <tablength>0.02</tablength>
+                <tabposition relativeto="end">0</tabposition>
+                <tabposition relativeto="bottom">0</tabposition>
+                <filletradius>0</filletradius>
+                <filletmaterial type="bulk" density="680" group="PaperProducts">Cardboard</filletmaterial>
+                <finpoints>
+                  <point x="0" y="0"/>
+                  <point x="0.02" y="0.05"/>
+                  <point x="0.06" y="0.05"/>
+                  <point x="0.08" y="0"/>
+                </finpoints>
+              </freeformfinset>
+              <ellipticalfinset>
+                <name>Elliptical Fin Set</name>
+                <id>00000000-0000-4000-8000-000000000010</id>
+                <instancecount>2</instancecount>
+                <fincount>2</fincount>
+                <radiusoffset method="surface">0.0</radiusoffset>
+                <angleoffset method="relative">0</angleoffset>
+                <rotation>0</rotation>
+                <axialoffset method="top">0.3</axialoffset>
+                <position type="top">0.3</position>
+                <finish>normal</finish>
+                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                <thickness>0.003</thickness>
+                <crosssection>square</crosssection>
+                <cant>0</cant>
+                <tabheight>0.01</tabheight>
+                <tablength>0.02</tablength>
+                <tabposition relativeto="center">0</tabposition>
+                <tabposition relativeto="middle">0</tabposition>
+                <filletradius>0</filletradius>
+                <filletmaterial type="bulk" density="680" group="PaperProducts">Cardboard</filletmaterial>
+                <rootchord>0.07</rootchord>
+                <height>0.04</height>
+              </ellipticalfinset>
+              <tubefinset>
+                <name>Tube Fin Set</name>
+                <id>00000000-0000-4000-8000-000000000011</id>
+                <instancecount>6</instancecount>
+                <fincount>6</fincount>
+                <radiusoffset method="coaxial">0.0</radiusoffset>
+                <angleoffset method="fixed">5.729577951308232</angleoffset>
+                <rotation>5.729577951308232</rotation>
+                <axialoffset method="bottom">0</axialoffset>
+                <position type="bottom">0</position>
+                <finish>normal</finish>
+                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                <radius>0.012</radius>
+                <length>0.08</length>
+                <thickness>0.0005</thickness>
+              </tubefinset>
+              <innertube>
+                <name>Motor mount</name>
+                <id>00000000-0000-4000-8000-000000000012</id>
+                <axialoffset method="bottom">0</axialoffset>
+                <position type="bottom">0</position>
+                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                <length>0.12</length>
+                <radialposition>0.01</radialposition>
+                <radialdirection>90</radialdirection>
+                <outerradius>0.015</outerradius>
+                <thickness>0.0005</thickness>
+                <clusterconfiguration>2x2</clusterconfiguration>
+                <clusterscale>1.1</clusterscale>
+                <clusterrotation>29.999999999999996</clusterrotation>
+                <maxmotorlength>0.14</maxmotorlength>
+                <motormount>
+                  <ignitionevent>automatic</ignitionevent>
+                  <ignitiondelay>0</ignitiondelay>
+                  <overhang>0</overhang>
+                  <motor configid="cfg-a">
+                    <type>single</type>
+                    <manufacturer>AeroTech</manufacturer>
+                    <designation>H128W</designation>
+                    <diameter>0.029</diameter>
+                    <length>0.194</length>
+                    <delay>10</delay>
+                  </motor>
+                  <motor configid="cfg-b">
+                    <type>single</type>
+                    <manufacturer>AeroTech</manufacturer>
+                    <designation>F39</designation>
+                    <diameter>0.029</diameter>
+                    <length>0.124</length>
+                    <delay>6</delay>
+                  </motor>
+                  <ignitionconfiguration configid="cfg-a">
+                    <ignitionevent>automatic</ignitionevent>
+                    <ignitiondelay>0</ignitiondelay>
+                  </ignitionconfiguration>
+                  <ignitionconfiguration configid="cfg-b">
+                    <ignitionevent>automatic</ignitionevent>
+                    <ignitiondelay>0</ignitiondelay>
+                  </ignitionconfiguration>
+                </motormount>
+                <subcomponents>
+                  <engineblock>
+                    <name>Engine Block</name>
+                    <id>00000000-0000-4000-8000-000000000013</id>
+                    <axialoffset method="bottom">0</axialoffset>
+                    <position type="bottom">0</position>
+                    <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                    <length>0.005</length>
+                    <radialposition>0.0</radialposition>
+                    <radialdirection>0.0</radialdirection>
+                    <outerradius>0.014</outerradius>
+                    <thickness>0.002</thickness>
+                  </engineblock>
+                  <centeringring>
+                    <name>Centering Ring</name>
+                    <id>00000000-0000-4000-8000-000000000014</id>
+                    <instancecount>3</instancecount>
+                    <instanceseparation>0.02</instanceseparation>
+                    <axialoffset method="bottom">0</axialoffset>
+                    <position type="bottom">0</position>
+                    <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                    <length>0.002</length>
+                    <radialposition>0.0</radialposition>
+                    <radialdirection>0.0</radialdirection>
+                    <outerradius>auto</outerradius>
+                    <innerradius>0.015</innerradius>
+                  </centeringring>
+                </subcomponents>
+              </innertube>
+              <innertube>
+                <name>Inner Tube</name>
+                <id>00000000-0000-4000-8000-000000000015</id>
+                <axialoffset method="bottom">0</axialoffset>
+                <position type="bottom">0</position>
+                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                <length>0.07</length>
+                <radialposition>0</radialposition>
+                <radialdirection>0</radialdirection>
+                <outerradius>0.0095</outerradius>
+                <thickness>0.0005</thickness>
+                <clusterconfiguration>single</clusterconfiguration>
+                <clusterscale>1</clusterscale>
+                <clusterrotation>0</clusterrotation>
+                <motormount>
+                  <ignitionevent>automatic</ignitionevent>
+                  <ignitiondelay>0</ignitiondelay>
+                  <overhang>0</overhang>
+                </motormount>
+              </innertube>
+              <tubecoupler>
+                <name>Tube Coupler</name>
+                <id>00000000-0000-4000-8000-000000000016</id>
+                <axialoffset method="middle">0.05</axialoffset>
+                <position type="middle">0.05</position>
+                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                <length>0.06</length>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <outerradius>0.029</outerradius>
+                <thickness>0.0005</thickness>
+              </tubecoupler>
+              <bulkhead>
+                <name>Bulkhead</name>
+                <id>00000000-0000-4000-8000-000000000017</id>
+                <instancecount>1</instancecount>
+                <instanceseparation>0</instanceseparation>
+                <axialoffset method="bottom">0</axialoffset>
+                <position type="bottom">0</position>
+                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                <length>0.004</length>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <outerradius>0.029</outerradius>
+              </bulkhead>
+              <launchlug>
+                <name>Launch Lug</name>
+                <id>00000000-0000-4000-8000-000000000018</id>
+                <instancecount>2</instancecount>
+                <instanceseparation>0</instanceseparation>
+                <angleoffset method="relative">59.99999999999999</angleoffset>
+                <radialdirection>59.99999999999999</radialdirection>
+                <axialoffset method="middle">0</axialoffset>
+                <position type="middle">0</position>
+                <finish>normal</finish>
+                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                <radius>0.0025</radius>
+                <length>0.04</length>
+                <thickness>0.0003</thickness>
+              </launchlug>
+              <railbutton>
+                <name>Rail Button</name>
+                <id>00000000-0000-4000-8000-000000000019</id>
+                <instancecount>1</instancecount>
+                <instanceseparation>0</instanceseparation>
+                <angleoffset method="relative">0</angleoffset>
+                <axialoffset method="middle">0</axialoffset>
+                <position type="middle">0</position>
+                <finish>normal</finish>
+                <material type="bulk" density="1400" group="Plastics">Acetal</material>
+                <outerdiameter>0.0125</outerdiameter>
+                <innerdiameter>0.009</innerdiameter>
+                <height>0.011</height>
+                <baseheight>0.003</baseheight>
+                <flangeheight>0.002</flangeheight>
+                <screwheight>0</screwheight>
+              </railbutton>
+              <parachute>
+                <name>Drogue</name>
+                <id>00000000-0000-4000-8000-000000000020</id>
+                <axialoffset method="top">0</axialoffset>
+                <position type="top">0</position>
+                <packedlength>0.06</packedlength>
+                <packedradius>0.02</packedradius>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <cd>0.8</cd>
+                <material type="surface" density="0.05">Nylon</material>
+                <isdrogue>true</isdrogue>
+                <deployevent>apogee</deployevent>
+                <deployaltitude>250</deployaltitude>
+                <deploydelay>1.5</deploydelay>
+                <deploymentconfiguration configid="cfg-a">
+                  <deployevent>apogee</deployevent>
+                  <deployaltitude>250</deployaltitude>
+                  <deploydelay>1.5</deploydelay>
+                </deploymentconfiguration>
+                <deploymentconfiguration configid="cfg-b">
+                  <deployevent>ejection</deployevent>
+                  <deployaltitude>200</deployaltitude>
+                  <deploydelay>0</deploydelay>
+                </deploymentconfiguration>
+                <diameter>0.3</diameter>
+                <spillholediameter>0.03</spillholediameter>
+                <linecount>8</linecount>
+                <linelength>0.5</linelength>
+                <linematerial type="line" density="0.002">Kevlar line</linematerial>
+              </parachute>
+              <parachute>
+                <name>Main</name>
+                <id>00000000-0000-4000-8000-000000000021</id>
+                <axialoffset method="top">0</axialoffset>
+                <position type="top">0</position>
+                <packedlength>0.025</packedlength>
+                <packedradius>0.0125</packedradius>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <cd>auto</cd>
+                <material type="surface" density="0.067" group="Fabrics">Ripstop nylon</material>
+                <deployevent>altitude</deployevent>
+                <deployaltitude>150</deployaltitude>
+                <deploydelay>0</deploydelay>
+                <deploymentconfiguration configid="cfg-a">
+                  <deployevent>altitude</deployevent>
+                  <deployaltitude>150</deployaltitude>
+                  <deploydelay>0</deploydelay>
+                </deploymentconfiguration>
+                <deploymentconfiguration configid="cfg-b">
+                  <deployaltitude>120</deployaltitude>
+                </deploymentconfiguration>
+                <diameter>0.3</diameter>
+                <linecount>6</linecount>
+                <linelength>0.3</linelength>
+                <linematerial type="line" density="0.0018" group="ThreadsLines">Elastic cord (round 2 mm, 1/16 in)</linematerial>
+              </parachute>
+              <streamer>
+                <name>Streamer</name>
+                <id>00000000-0000-4000-8000-000000000022</id>
+                <axialoffset method="top">0</axialoffset>
+                <position type="top">0</position>
+                <packedlength>0.025</packedlength>
+                <packedradius>0.0125</packedradius>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <cd>0.6</cd>
+                <material type="surface" density="0.067" group="Fabrics">Ripstop nylon</material>
+                <isdrogue>true</isdrogue>
+                <deployevent>ejection</deployevent>
+                <deployaltitude>200</deployaltitude>
+                <deploydelay>0</deploydelay>
+                <deploymentconfiguration configid="cfg-a">
+                  <deployevent>ejection</deployevent>
+                  <deployaltitude>200</deployaltitude>
+                  <deploydelay>0</deploydelay>
+                </deploymentconfiguration>
+                <striplength>1</striplength>
+                <stripwidth>0.04</stripwidth>
+              </streamer>
+              <shockcord>
+                <name>Shock Cord</name>
+                <id>00000000-0000-4000-8000-000000000023</id>
+                <axialoffset method="top">0</axialoffset>
+                <position type="top">0</position>
+                <packedlength>0.025</packedlength>
+                <packedradius>0.0125</packedradius>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <cordlength>1.2</cordlength>
+                <material type="line" density="0.003">Elastic</material>
+              </shockcord>
+              <masscomponent>
+                <name>Mass Component</name>
+                <id>00000000-0000-4000-8000-000000000024</id>
+                <axialoffset method="top">0</axialoffset>
+                <position type="top">0</position>
+                <packedlength>0.05</packedlength>
+                <packedradius>0.02</packedradius>
+                <radialposition>0.005</radialposition>
+                <radialdirection>180</radialdirection>
+                <mass>0.1</mass>
+                <masscomponenttype>payload</masscomponenttype>
+              </masscomponent>
+              <fairing>
+                <name>Camera shroud</name>
+                <id>00000000-0000-4000-8000-000000000025</id>
+                <axialoffset method="middle">0</axialoffset>
+                <position type="middle">0</position>
+                <finish>polished</finish>
+                <length>0.09</length>
+                <width>0.03</width>
+                <height>0.025</height>
+                <fairingshape>halfround</fairingshape>
+                <mass>0.04</mass>
+              </fairing>
+              <podset>
+                <name>Pod set</name>
+                <id>00000000-0000-4000-8000-000000000026</id>
+                <instancecount>3</instancecount>
+                <radiusoffset method="free">0.05</radiusoffset>
+                <angleoffset method="relative">90</angleoffset>
+                <axialoffset method="bottom">0</axialoffset>
+                <position type="bottom">0</position>
+                <subcomponents>
+                  <bodytube>
+                    <name>Body Tube</name>
+                    <id>00000000-0000-4000-8000-000000000027</id>
+                    <finish>normal</finish>
+                    <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                    <length>0.1</length>
+                    <thickness>0.0003</thickness>
+                    <radius>0.01</radius>
+                  </bodytube>
+                </subcomponents>
+              </podset>
+              <parallelstage>
+                <name>Booster</name>
+                <id>00000000-0000-4000-8000-000000000028</id>
+                <instancecount>2</instancecount>
+                <radiusoffset method="relative">0.04</radiusoffset>
+                <angleoffset method="fixed">28.64788975654116</angleoffset>
+                <axialoffset method="bottom">0</axialoffset>
+                <position type="bottom">0</position>
+                <separationevent>burnout</separationevent>
+                <separationaltitude>300</separationaltitude>
+                <separationdelay>0.5</separationdelay>
+                <separationconfiguration configid="cfg-a">
+                  <separationevent>burnout</separationevent>
+                  <separationaltitude>300</separationaltitude>
+                  <separationdelay>0.5</separationdelay>
+                </separationconfiguration>
+                <separationconfiguration configid="cfg-b">
+                  <separationevent>burnout</separationevent>
+                  <separationaltitude>300</separationaltitude>
+                  <separationdelay>0.5</separationdelay>
+                </separationconfiguration>
+                <separationconfiguration configid="cfg-c">
+                  <separationevent>burnout</separationevent>
+                  <separationaltitude>300</separationaltitude>
+                  <separationdelay>0.5</separationdelay>
+                </separationconfiguration>
+                <subcomponents>
+                  <bodytube>
+                    <name>Body Tube</name>
+                    <id>00000000-0000-4000-8000-000000000029</id>
+                    <finish>normal</finish>
+                    <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                    <length>0.2</length>
+                    <thickness>0.0003</thickness>
+                    <radius>0.015</radius>
+                    <subcomponents>
+                      <innertube>
+                        <name>Inner Tube</name>
+                        <id>00000000-0000-4000-8000-000000000030</id>
+                        <axialoffset method="bottom">0</axialoffset>
+                        <position type="bottom">0</position>
+                        <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                        <length>0.1</length>
+                        <radialposition>0</radialposition>
+                        <radialdirection>0</radialdirection>
+                        <outerradius>0.0095</outerradius>
+                        <thickness>0.0005</thickness>
+                        <clusterconfiguration>single</clusterconfiguration>
+                        <clusterscale>1</clusterscale>
+                        <clusterrotation>0</clusterrotation>
+                        <motormount>
+                          <ignitionevent>automatic</ignitionevent>
+                          <ignitiondelay>0</ignitiondelay>
+                          <overhang>0</overhang>
+                        </motormount>
+                      </innertube>
+                    </subcomponents>
+                  </bodytube>
+                </subcomponents>
+              </parallelstage>
+            </subcomponents>
+          </bodytube>
+        </subcomponents>
+      </stage>
+      <stage>
+        <name>Booster</name>
+        <id>00000000-0000-4000-8000-000000000031</id>
+        <separationevent>launch</separationevent>
+        <separationaltitude>100</separationaltitude>
+        <separationdelay>2</separationdelay>
+        <separationconfiguration configid="cfg-a">
+          <separationevent>launch</separationevent>
+          <separationaltitude>100</separationaltitude>
+          <separationdelay>2</separationdelay>
+        </separationconfiguration>
+        <separationconfiguration configid="cfg-b">
+          <separationevent>launch</separationevent>
+          <separationaltitude>100</separationaltitude>
+          <separationdelay>2</separationdelay>
+        </separationconfiguration>
+        <separationconfiguration configid="cfg-c">
+          <separationevent>launch</separationevent>
+          <separationaltitude>100</separationaltitude>
+          <separationdelay>2</separationdelay>
+        </separationconfiguration>
+        <subcomponents>
+          <bodytube>
+            <name>Body Tube</name>
+            <id>00000000-0000-4000-8000-000000000032</id>
+            <finish>normal</finish>
+            <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+            <length>0.3</length>
+            <thickness>0.0003</thickness>
+            <radius>0.03</radius>
+            <subcomponents>
+              <innertube>
+                <name>Inner Tube</name>
+                <id>00000000-0000-4000-8000-000000000033</id>
+                <axialoffset method="bottom">0</axialoffset>
+                <position type="bottom">0</position>
+                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                <length>0.1</length>
+                <radialposition>0</radialposition>
+                <radialdirection>0</radialdirection>
+                <outerradius>0.0095</outerradius>
+                <thickness>0.0005</thickness>
+                <clusterconfiguration>single</clusterconfiguration>
+                <clusterscale>1</clusterscale>
+                <clusterrotation>0</clusterrotation>
+                <motormount>
+                  <ignitionevent>launch</ignitionevent>
+                  <ignitiondelay>0</ignitiondelay>
+                  <overhang>0</overhang>
+                  <motor configid="cfg-a">
+                    <type>single</type>
+                    <manufacturer>AeroTech</manufacturer>
+                    <designation>G80</designation>
+                    <diameter>0.029</diameter>
+                    <length>0.124</length>
+                    <delay>none</delay>
+                  </motor>
+                  <ignitionconfiguration configid="cfg-a">
+                    <ignitionevent>launch</ignitionevent>
+                    <ignitiondelay>0</ignitiondelay>
+                  </ignitionconfiguration>
+                </motormount>
+              </innertube>
+            </subcomponents>
+          </bodytube>
+        </subcomponents>
+      </stage>
+    </subcomponents>
+  </rocket>
+  <simulations>
+    <simulation status="notsimulated">
+      <name>Simulation 1</name>
+      <simulator>RK4Simulator</simulator>
+      <calculator>BarrowmanCalculator</calculator>
+      <conditions>
+        <configid>cfg-a</configid>
+        <launchrodlength>1.5</launchrodlength>
+        <launchintowind>true</launchintowind>
+        <launchrodangle>5</launchrodangle>
+        <launchroddirection>45</launchroddirection>
+        <windaverage>3</windaverage>
+        <windturbulence>0.19999999999999998</windturbulence>
+        <winddirection>3.141592653589793</winddirection>
+        <wind model="average">
+          <speed>3</speed>
+          <direction>3.141592653589793</direction>
+          <standarddeviation>0.6</standarddeviation>
+        </wind>
+        <windmodeltype>Average</windmodeltype>
+        <launchaltitude>1200</launchaltitude>
+        <launchlatitude>39.5</launchlatitude>
+        <launchlongitude>-104.7</launchlongitude>
+        <geodeticmethod>wgs84</geodeticmethod>
+        <atmosphere model="isa"/>
+        <timestep>0.05</timestep>
+        <maxtime>1200.0</maxtime>
+      </conditions>
+    </simulation>
+  </simulations>
+  <designinfo>
+    <statistics scope="rocket">
+      <stat field="length" value="1.250" unit="m"/>
+    </statistics>
+    <statistics scope="stage" stagenumber="1" name="Booster &quot;B&quot;">
+      <stat field="mass" value="0.4500" unit="kg"/>
+      <stat field="cg" value="0.8000" unit="m"/>
+    </statistics>
+    <finset stagenumber="0" stage="Sustainer" name="Fins">
+      <nosetoroottop unit="m">0.7123</nosetoroottop>
+      <nosetorootbottom unit="m">0.8123</nosetorootbottom>
+    </finset>
+  </designinfo>
+</openrocket>
+"
+`;
+
+exports[`golden .ork export > mints one configuration for a design that declares none, so the mounts have an id to key by 1`] = `
+"<?xml version='1.0' encoding='utf-8'?>
+<openrocket version="1.10" creator="AstraRocketJs">
+  <rocket>
+    <name>Bare</name>
     <id>00000000-0000-4000-8000-000000000002</id>
     <axialoffset method="absolute">0.0</axialoffset>
     <position type="absolute">0.0</position>
@@ -12,23 +718,10 @@ exports[`golden .ork export > mints an unnamed config for a live motor set with 
     <designer>Golden &lt;tester&gt;</designer>
     <revision>r7</revision>
     <designtype>kit</designtype>
-    <motorconfiguration configid="cfg-a">
-      <name>Two stage</name>
-      <stage number="0" active="true"/>
-      <stage number="1" active="true"/>
-    </motorconfiguration>
-    <motorconfiguration configid="cfg-b">
-      <stage number="0" active="true"/>
-      <stage number="1" active="true"/>
-    </motorconfiguration>
-    <motorconfiguration configid="cfg-c">
-      <name>Empty</name>
-      <stage number="0" active="true"/>
-      <stage number="1" active="true"/>
-    </motorconfiguration>
     <motorconfiguration configid="00000000-0000-4000-8000-000000000001" default="true">
       <stage number="0" active="true"/>
       <stage number="1" active="true"/>
+      <stage number="2" active="true"/>
     </motorconfiguration>
     <referencetype>maximum</referencetype>
     <subcomponents>
@@ -128,18 +821,6 @@ exports[`golden .ork export > mints an unnamed config for a live motor set with 
               <ignitionevent>automatic</ignitionevent>
               <ignitiondelay>0</ignitiondelay>
               <overhang>0.01</overhang>
-              <motor configid="cfg-b">
-                <type>single</type>
-                <manufacturer>Estes</manufacturer>
-                <designation>E12</designation>
-                <diameter>0.024</diameter>
-                <length>0.07</length>
-                <delay>4</delay>
-              </motor>
-              <ignitionconfiguration configid="cfg-b">
-                <ignitionevent>automatic</ignitionevent>
-                <ignitiondelay>0</ignitiondelay>
-              </ignitionconfiguration>
             </motormount>
             <subcomponents>
               <trapezoidfinset>
@@ -255,35 +936,6 @@ exports[`golden .ork export > mints an unnamed config for a live motor set with 
                 <clusterscale>1.1</clusterscale>
                 <clusterrotation>29.999999999999996</clusterrotation>
                 <maxmotorlength>0.14</maxmotorlength>
-                <motormount>
-                  <ignitionevent>automatic</ignitionevent>
-                  <ignitiondelay>0</ignitiondelay>
-                  <overhang>0</overhang>
-                  <motor configid="cfg-b">
-                    <type>single</type>
-                    <manufacturer>AeroTech</manufacturer>
-                    <designation>F39</designation>
-                    <diameter>0.029</diameter>
-                    <length>0.124</length>
-                    <delay>6</delay>
-                  </motor>
-                  <motor configid="00000000-0000-4000-8000-000000000001">
-                    <type>single</type>
-                    <manufacturer>AeroTech</manufacturer>
-                    <designation>H128W</designation>
-                    <diameter>0.029</diameter>
-                    <length>0.194</length>
-                    <delay>10</delay>
-                  </motor>
-                  <ignitionconfiguration configid="cfg-b">
-                    <ignitionevent>automatic</ignitionevent>
-                    <ignitiondelay>0</ignitiondelay>
-                  </ignitionconfiguration>
-                  <ignitionconfiguration configid="00000000-0000-4000-8000-000000000001">
-                    <ignitionevent>automatic</ignitionevent>
-                    <ignitiondelay>0</ignitiondelay>
-                  </ignitionconfiguration>
-                </motormount>
                 <subcomponents>
                   <engineblock>
                     <name>Engine Block</name>
@@ -405,16 +1057,6 @@ exports[`golden .ork export > mints an unnamed config for a live motor set with 
                 <deployevent>apogee</deployevent>
                 <deployaltitude>250</deployaltitude>
                 <deploydelay>1.5</deploydelay>
-                <deploymentconfiguration configid="cfg-b">
-                  <deployevent>ejection</deployevent>
-                  <deployaltitude>200</deployaltitude>
-                  <deploydelay>0</deploydelay>
-                </deploymentconfiguration>
-                <deploymentconfiguration configid="00000000-0000-4000-8000-000000000001">
-                  <deployevent>apogee</deployevent>
-                  <deployaltitude>250</deployaltitude>
-                  <deploydelay>1.5</deploydelay>
-                </deploymentconfiguration>
                 <diameter>0.3</diameter>
                 <spillholediameter>0.03</spillholediameter>
                 <linecount>8</linecount>
@@ -435,14 +1077,6 @@ exports[`golden .ork export > mints an unnamed config for a live motor set with 
                 <deployevent>altitude</deployevent>
                 <deployaltitude>150</deployaltitude>
                 <deploydelay>0</deploydelay>
-                <deploymentconfiguration configid="cfg-b">
-                  <deployaltitude>120</deployaltitude>
-                </deploymentconfiguration>
-                <deploymentconfiguration configid="00000000-0000-4000-8000-000000000001">
-                  <deployevent>altitude</deployevent>
-                  <deployaltitude>150</deployaltitude>
-                  <deploydelay>0</deploydelay>
-                </deploymentconfiguration>
                 <diameter>0.3</diameter>
                 <linecount>6</linecount>
                 <linelength>0.3</linelength>
@@ -463,11 +1097,6 @@ exports[`golden .ork export > mints an unnamed config for a live motor set with 
                 <deployevent>ejection</deployevent>
                 <deployaltitude>200</deployaltitude>
                 <deploydelay>0</deploydelay>
-                <deploymentconfiguration configid="00000000-0000-4000-8000-000000000001">
-                  <deployevent>ejection</deployevent>
-                  <deployaltitude>200</deployaltitude>
-                  <deploydelay>0</deploydelay>
-                </deploymentconfiguration>
                 <striplength>1</striplength>
                 <stripwidth>0.04</stripwidth>
               </streamer>
@@ -538,21 +1167,6 @@ exports[`golden .ork export > mints an unnamed config for a live motor set with 
                 <separationevent>burnout</separationevent>
                 <separationaltitude>300</separationaltitude>
                 <separationdelay>0.5</separationdelay>
-                <separationconfiguration configid="cfg-a">
-                  <separationevent>burnout</separationevent>
-                  <separationaltitude>300</separationaltitude>
-                  <separationdelay>0.5</separationdelay>
-                </separationconfiguration>
-                <separationconfiguration configid="cfg-b">
-                  <separationevent>burnout</separationevent>
-                  <separationaltitude>300</separationaltitude>
-                  <separationdelay>0.5</separationdelay>
-                </separationconfiguration>
-                <separationconfiguration configid="cfg-c">
-                  <separationevent>burnout</separationevent>
-                  <separationaltitude>300</separationaltitude>
-                  <separationdelay>0.5</separationdelay>
-                </separationconfiguration>
                 <separationconfiguration configid="00000000-0000-4000-8000-000000000001">
                   <separationevent>burnout</separationevent>
                   <separationaltitude>300</separationaltitude>
@@ -602,21 +1216,6 @@ exports[`golden .ork export > mints an unnamed config for a live motor set with 
         <separationevent>launch</separationevent>
         <separationaltitude>100</separationaltitude>
         <separationdelay>2</separationdelay>
-        <separationconfiguration configid="cfg-a">
-          <separationevent>launch</separationevent>
-          <separationaltitude>100</separationaltitude>
-          <separationdelay>2</separationdelay>
-        </separationconfiguration>
-        <separationconfiguration configid="cfg-b">
-          <separationevent>launch</separationevent>
-          <separationaltitude>100</separationaltitude>
-          <separationdelay>2</separationdelay>
-        </separationconfiguration>
-        <separationconfiguration configid="cfg-c">
-          <separationevent>launch</separationevent>
-          <separationaltitude>100</separationaltitude>
-          <separationdelay>2</separationdelay>
-        </separationconfiguration>
         <separationconfiguration configid="00000000-0000-4000-8000-000000000001">
           <separationevent>launch</separationevent>
           <separationaltitude>100</separationaltitude>
@@ -646,23 +1245,6 @@ exports[`golden .ork export > mints an unnamed config for a live motor set with 
                 <clusterconfiguration>single</clusterconfiguration>
                 <clusterscale>1</clusterscale>
                 <clusterrotation>0</clusterrotation>
-                <motormount>
-                  <ignitionevent>launch</ignitionevent>
-                  <ignitiondelay>0</ignitiondelay>
-                  <overhang>0</overhang>
-                  <motor configid="00000000-0000-4000-8000-000000000001">
-                    <type>single</type>
-                    <manufacturer>AeroTech</manufacturer>
-                    <designation>G80</designation>
-                    <diameter>0.029</diameter>
-                    <length>0.124</length>
-                    <delay>none</delay>
-                  </motor>
-                  <ignitionconfiguration configid="00000000-0000-4000-8000-000000000001">
-                    <ignitionevent>launch</ignitionevent>
-                    <ignitiondelay>0</ignitiondelay>
-                  </ignitionconfiguration>
-                </motormount>
               </innertube>
             </subcomponents>
           </bodytube>
@@ -671,48 +1253,576 @@ exports[`golden .ork export > mints an unnamed config for a live motor set with 
     </subcomponents>
   </rocket>
   <simulations>
-    <simulation status="notsimulated">
-      <name>Simulation 1</name>
-      <simulator>RK4Simulator</simulator>
-      <calculator>BarrowmanCalculator</calculator>
-      <conditions>
-        <configid>00000000-0000-4000-8000-000000000001</configid>
-        <launchrodlength>1.5</launchrodlength>
-        <launchintowind>true</launchintowind>
-        <launchrodangle>5</launchrodangle>
-        <launchroddirection>45</launchroddirection>
-        <windaverage>3</windaverage>
-        <windturbulence>0.19999999999999998</windturbulence>
-        <winddirection>3.141592653589793</winddirection>
-        <wind model="average">
-          <speed>3</speed>
-          <direction>3.141592653589793</direction>
-          <standarddeviation>0.6</standarddeviation>
-        </wind>
-        <windmodeltype>Average</windmodeltype>
-        <launchaltitude>1200</launchaltitude>
-        <launchlatitude>39.5</launchlatitude>
-        <launchlongitude>-104.7</launchlongitude>
-        <geodeticmethod>wgs84</geodeticmethod>
-        <atmosphere model="isa"/>
-        <timestep>0.05</timestep>
-        <maxtime>1200.0</maxtime>
-      </conditions>
-    </simulation>
   </simulations>
-  <designinfo>
-    <statistics scope="rocket">
-      <stat field="length" value="1.250" unit="m"/>
-    </statistics>
-    <statistics scope="stage" stagenumber="1" name="Booster &quot;B&quot;">
-      <stat field="mass" value="0.4500" unit="kg"/>
-      <stat field="cg" value="0.8000" unit="m"/>
-    </statistics>
-    <finset stagenumber="0" stage="Sustainer" name="Fins">
-      <nosetoroottop unit="m">0.7123</nosetoroottop>
-      <nosetorootbottom unit="m">0.8123</nosetorootbottom>
-    </finset>
-  </designinfo>
+</openrocket>
+"
+`;
+
+exports[`golden .ork export > writes a lone configuration, and no launch block 1`] = `
+"<?xml version='1.0' encoding='utf-8'?>
+<openrocket version="1.10" creator="AstraRocketJs">
+  <rocket>
+    <name>Classic</name>
+    <id>00000000-0000-4000-8000-000000000001</id>
+    <axialoffset method="absolute">0.0</axialoffset>
+    <position type="absolute">0.0</position>
+    <comment>Every &quot;type&quot; &amp; block</comment>
+    <designer>Golden &lt;tester&gt;</designer>
+    <revision>r7</revision>
+    <designtype>kit</designtype>
+    <motorconfiguration configid="cfg-one" default="true">
+      <stage number="0" active="true"/>
+      <stage number="1" active="true"/>
+      <stage number="2" active="true"/>
+    </motorconfiguration>
+    <referencetype>maximum</referencetype>
+    <subcomponents>
+      <stage>
+        <name>Sustainer</name>
+        <id>00000000-0000-4000-8000-000000000002</id>
+        <nozzleexitdiameter>0.02</nozzleexitdiameter>
+        <subcomponents>
+          <nosecone>
+            <name>Nose</name>
+            <id>00000000-0000-4000-8000-000000000003</id>
+            <overridemass>0.05</overridemass>
+            <overridesubcomponentsmass>true</overridesubcomponentsmass>
+            <overridecg>0.07</overridecg>
+            <overridesubcomponentscg>false</overridesubcomponentscg>
+            <overridecd>0.4</overridecd>
+            <overridesubcomponentscd>false</overridesubcomponentscd>
+            <finish>smooth</finish>
+            <material type="bulk" density="1050" group="Plastics">Polystyrene</material>
+            <length>0.15</length>
+            <thickness>0.002</thickness>
+            <shape>haack</shape>
+            <shapeclipped>false</shapeclipped>
+            <shapeparameter>0.33</shapeparameter>
+            <aftradius>0.025</aftradius>
+            <aftshoulderradius>0.024</aftshoulderradius>
+            <aftshoulderlength>0.03</aftshoulderlength>
+            <aftshoulderthickness>0.002</aftshoulderthickness>
+            <aftshouldercapped>true</aftshouldercapped>
+            <isflipped>false</isflipped>
+            <subcomponents>
+              <masscomponent>
+                <name>Tracker</name>
+                <id>00000000-0000-4000-8000-000000000004</id>
+                <axialoffset method="top">0</axialoffset>
+                <position type="top">0</position>
+                <packedlength>0.02</packedlength>
+                <packedradius>0.005</packedradius>
+                <radialposition>0</radialposition>
+                <radialdirection>0</radialdirection>
+                <mass>0.02</mass>
+                <masscomponenttype>tracker</masscomponenttype>
+              </masscomponent>
+            </subcomponents>
+          </nosecone>
+          <transition>
+            <name>Transition</name>
+            <id>00000000-0000-4000-8000-000000000005</id>
+            <finish>normal</finish>
+            <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+            <length>0.06</length>
+            <thickness>filled</thickness>
+            <shape>ellipsoid</shape>
+            <shapeclipped>false</shapeclipped>
+            <shapeparameter>0</shapeparameter>
+            <foreradius>0.025</foreradius>
+            <aftradius>0.03</aftradius>
+            <foreshoulderradius>0.024</foreshoulderradius>
+            <foreshoulderlength>0.02</foreshoulderlength>
+            <foreshoulderthickness>0</foreshoulderthickness>
+            <foreshouldercapped>false</foreshouldercapped>
+            <aftshoulderradius>0</aftshoulderradius>
+            <aftshoulderlength>0</aftshoulderlength>
+            <aftshoulderthickness>0.001</aftshoulderthickness>
+            <aftshouldercapped>false</aftshouldercapped>
+          </transition>
+          <transition>
+            <name>Transition</name>
+            <id>00000000-0000-4000-8000-000000000006</id>
+            <finish>normal</finish>
+            <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+            <length>0.04</length>
+            <thickness>0.002</thickness>
+            <shape>conical</shape>
+            <shapeparameter>0</shapeparameter>
+            <foreradius>0.03</foreradius>
+            <aftradius>auto</aftradius>
+            <foreshoulderradius>0</foreshoulderradius>
+            <foreshoulderlength>0</foreshoulderlength>
+            <foreshoulderthickness>0</foreshoulderthickness>
+            <foreshouldercapped>false</foreshouldercapped>
+            <aftshoulderradius>0</aftshoulderradius>
+            <aftshoulderlength>0</aftshoulderlength>
+            <aftshoulderthickness>0</aftshoulderthickness>
+            <aftshouldercapped>false</aftshouldercapped>
+          </transition>
+          <bodytube>
+            <name>Airframe</name>
+            <id>00000000-0000-4000-8000-000000000007</id>
+            <finish>normal</finish>
+            <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+            <length>0.6</length>
+            <thickness>0.001</thickness>
+            <radius>0.03</radius>
+            <caseairframe>true</caseairframe>
+            <motormount>
+              <ignitionevent>automatic</ignitionevent>
+              <ignitiondelay>0</ignitiondelay>
+              <overhang>0.01</overhang>
+            </motormount>
+            <subcomponents>
+              <trapezoidfinset>
+                <name>Fins</name>
+                <id>00000000-0000-4000-8000-000000000008</id>
+                <instancecount>4</instancecount>
+                <fincount>4</fincount>
+                <radiusoffset method="surface">0.0</radiusoffset>
+                <angleoffset method="relative">45</angleoffset>
+                <rotation>45</rotation>
+                <axialoffset method="bottom">-0.01</axialoffset>
+                <position type="bottom">-0.01</position>
+                <finish>normal</finish>
+                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                <thickness>0.003</thickness>
+                <crosssection>airfoil</crosssection>
+                <airfoilsection>doublewedge</airfoilsection>
+                <airfoillediamond>0.01</airfoillediamond>
+                <airfoiltediamond>0.02</airfoiltediamond>
+                <finleradius>0.001</finleradius>
+                <cant>1.9996227050065731</cant>
+                <tabheight>0.01</tabheight>
+                <tablength>0.05</tablength>
+                <tabposition relativeto="front">0.005</tabposition>
+                <tabposition relativeto="top">0.005</tabposition>
+                <filletradius>0.004</filletradius>
+                <filletmaterial type="bulk" density="1200" group="Plastics">Epoxy</filletmaterial>
+                <rootchord>0.1</rootchord>
+                <tipchord>0.05</tipchord>
+                <sweeplength>0.04</sweeplength>
+                <height>0.06</height>
+              </trapezoidfinset>
+              <freeformfinset>
+                <name>Freeform Fin Set</name>
+                <id>00000000-0000-4000-8000-000000000009</id>
+                <instancecount>3</instancecount>
+                <fincount>3</fincount>
+                <radiusoffset method="surface">0.0</radiusoffset>
+                <angleoffset method="relative">0</angleoffset>
+                <rotation>0</rotation>
+                <axialoffset method="absolute">0.31</axialoffset>
+                <position type="absolute">0.31</position>
+                <finish>normal</finish>
+                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                <thickness>0.003</thickness>
+                <crosssection>square</crosssection>
+                <cant>0</cant>
+                <tabheight>0.01</tabheight>
+                <tablength>0.02</tablength>
+                <tabposition relativeto="end">0</tabposition>
+                <tabposition relativeto="bottom">0</tabposition>
+                <filletradius>0</filletradius>
+                <filletmaterial type="bulk" density="680" group="PaperProducts">Cardboard</filletmaterial>
+                <finpoints>
+                  <point x="0" y="0"/>
+                  <point x="0.02" y="0.05"/>
+                  <point x="0.06" y="0.05"/>
+                  <point x="0.08" y="0"/>
+                </finpoints>
+              </freeformfinset>
+              <ellipticalfinset>
+                <name>Elliptical Fin Set</name>
+                <id>00000000-0000-4000-8000-000000000010</id>
+                <instancecount>2</instancecount>
+                <fincount>2</fincount>
+                <radiusoffset method="surface">0.0</radiusoffset>
+                <angleoffset method="relative">0</angleoffset>
+                <rotation>0</rotation>
+                <axialoffset method="top">0.3</axialoffset>
+                <position type="top">0.3</position>
+                <finish>normal</finish>
+                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                <thickness>0.003</thickness>
+                <crosssection>square</crosssection>
+                <cant>0</cant>
+                <tabheight>0.01</tabheight>
+                <tablength>0.02</tablength>
+                <tabposition relativeto="center">0</tabposition>
+                <tabposition relativeto="middle">0</tabposition>
+                <filletradius>0</filletradius>
+                <filletmaterial type="bulk" density="680" group="PaperProducts">Cardboard</filletmaterial>
+                <rootchord>0.07</rootchord>
+                <height>0.04</height>
+              </ellipticalfinset>
+              <tubefinset>
+                <name>Tube Fin Set</name>
+                <id>00000000-0000-4000-8000-000000000011</id>
+                <instancecount>6</instancecount>
+                <fincount>6</fincount>
+                <radiusoffset method="coaxial">0.0</radiusoffset>
+                <angleoffset method="fixed">5.729577951308232</angleoffset>
+                <rotation>5.729577951308232</rotation>
+                <axialoffset method="bottom">0</axialoffset>
+                <position type="bottom">0</position>
+                <finish>normal</finish>
+                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                <radius>0.012</radius>
+                <length>0.08</length>
+                <thickness>0.0005</thickness>
+              </tubefinset>
+              <innertube>
+                <name>Motor mount</name>
+                <id>00000000-0000-4000-8000-000000000012</id>
+                <axialoffset method="bottom">0</axialoffset>
+                <position type="bottom">0</position>
+                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                <length>0.12</length>
+                <radialposition>0.01</radialposition>
+                <radialdirection>90</radialdirection>
+                <outerradius>0.015</outerradius>
+                <thickness>0.0005</thickness>
+                <clusterconfiguration>2x2</clusterconfiguration>
+                <clusterscale>1.1</clusterscale>
+                <clusterrotation>29.999999999999996</clusterrotation>
+                <maxmotorlength>0.14</maxmotorlength>
+                <motormount>
+                  <ignitionevent>automatic</ignitionevent>
+                  <ignitiondelay>0</ignitiondelay>
+                  <overhang>0</overhang>
+                  <motor configid="cfg-one">
+                    <type>single</type>
+                    <manufacturer>Estes</manufacturer>
+                    <designation>C6</designation>
+                    <diameter>0.018</diameter>
+                    <length>0.07</length>
+                    <delay>3</delay>
+                  </motor>
+                  <ignitionconfiguration configid="cfg-one">
+                    <ignitionevent>automatic</ignitionevent>
+                    <ignitiondelay>0</ignitiondelay>
+                  </ignitionconfiguration>
+                </motormount>
+                <subcomponents>
+                  <engineblock>
+                    <name>Engine Block</name>
+                    <id>00000000-0000-4000-8000-000000000013</id>
+                    <axialoffset method="bottom">0</axialoffset>
+                    <position type="bottom">0</position>
+                    <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                    <length>0.005</length>
+                    <radialposition>0.0</radialposition>
+                    <radialdirection>0.0</radialdirection>
+                    <outerradius>0.014</outerradius>
+                    <thickness>0.002</thickness>
+                  </engineblock>
+                  <centeringring>
+                    <name>Centering Ring</name>
+                    <id>00000000-0000-4000-8000-000000000014</id>
+                    <instancecount>3</instancecount>
+                    <instanceseparation>0.02</instanceseparation>
+                    <axialoffset method="bottom">0</axialoffset>
+                    <position type="bottom">0</position>
+                    <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                    <length>0.002</length>
+                    <radialposition>0.0</radialposition>
+                    <radialdirection>0.0</radialdirection>
+                    <outerradius>auto</outerradius>
+                    <innerradius>0.015</innerradius>
+                  </centeringring>
+                </subcomponents>
+              </innertube>
+              <innertube>
+                <name>Inner Tube</name>
+                <id>00000000-0000-4000-8000-000000000015</id>
+                <axialoffset method="bottom">0</axialoffset>
+                <position type="bottom">0</position>
+                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                <length>0.07</length>
+                <radialposition>0</radialposition>
+                <radialdirection>0</radialdirection>
+                <outerradius>0.0095</outerradius>
+                <thickness>0.0005</thickness>
+                <clusterconfiguration>single</clusterconfiguration>
+                <clusterscale>1</clusterscale>
+                <clusterrotation>0</clusterrotation>
+                <motormount>
+                  <ignitionevent>automatic</ignitionevent>
+                  <ignitiondelay>0</ignitiondelay>
+                  <overhang>0</overhang>
+                </motormount>
+              </innertube>
+              <tubecoupler>
+                <name>Tube Coupler</name>
+                <id>00000000-0000-4000-8000-000000000016</id>
+                <axialoffset method="middle">0.05</axialoffset>
+                <position type="middle">0.05</position>
+                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                <length>0.06</length>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <outerradius>0.029</outerradius>
+                <thickness>0.0005</thickness>
+              </tubecoupler>
+              <bulkhead>
+                <name>Bulkhead</name>
+                <id>00000000-0000-4000-8000-000000000017</id>
+                <instancecount>1</instancecount>
+                <instanceseparation>0</instanceseparation>
+                <axialoffset method="bottom">0</axialoffset>
+                <position type="bottom">0</position>
+                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                <length>0.004</length>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <outerradius>0.029</outerradius>
+              </bulkhead>
+              <launchlug>
+                <name>Launch Lug</name>
+                <id>00000000-0000-4000-8000-000000000018</id>
+                <instancecount>2</instancecount>
+                <instanceseparation>0</instanceseparation>
+                <angleoffset method="relative">59.99999999999999</angleoffset>
+                <radialdirection>59.99999999999999</radialdirection>
+                <axialoffset method="middle">0</axialoffset>
+                <position type="middle">0</position>
+                <finish>normal</finish>
+                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                <radius>0.0025</radius>
+                <length>0.04</length>
+                <thickness>0.0003</thickness>
+              </launchlug>
+              <railbutton>
+                <name>Rail Button</name>
+                <id>00000000-0000-4000-8000-000000000019</id>
+                <instancecount>1</instancecount>
+                <instanceseparation>0</instanceseparation>
+                <angleoffset method="relative">0</angleoffset>
+                <axialoffset method="middle">0</axialoffset>
+                <position type="middle">0</position>
+                <finish>normal</finish>
+                <material type="bulk" density="1400" group="Plastics">Acetal</material>
+                <outerdiameter>0.0125</outerdiameter>
+                <innerdiameter>0.009</innerdiameter>
+                <height>0.011</height>
+                <baseheight>0.003</baseheight>
+                <flangeheight>0.002</flangeheight>
+                <screwheight>0</screwheight>
+              </railbutton>
+              <parachute>
+                <name>Drogue</name>
+                <id>00000000-0000-4000-8000-000000000020</id>
+                <axialoffset method="top">0</axialoffset>
+                <position type="top">0</position>
+                <packedlength>0.06</packedlength>
+                <packedradius>0.02</packedradius>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <cd>0.8</cd>
+                <material type="surface" density="0.05">Nylon</material>
+                <isdrogue>true</isdrogue>
+                <deployevent>apogee</deployevent>
+                <deployaltitude>250</deployaltitude>
+                <deploydelay>1.5</deploydelay>
+                <diameter>0.3</diameter>
+                <spillholediameter>0.03</spillholediameter>
+                <linecount>8</linecount>
+                <linelength>0.5</linelength>
+                <linematerial type="line" density="0.002">Kevlar line</linematerial>
+              </parachute>
+              <parachute>
+                <name>Main</name>
+                <id>00000000-0000-4000-8000-000000000021</id>
+                <axialoffset method="top">0</axialoffset>
+                <position type="top">0</position>
+                <packedlength>0.025</packedlength>
+                <packedradius>0.0125</packedradius>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <cd>auto</cd>
+                <material type="surface" density="0.067" group="Fabrics">Ripstop nylon</material>
+                <deployevent>altitude</deployevent>
+                <deployaltitude>150</deployaltitude>
+                <deploydelay>0</deploydelay>
+                <diameter>0.3</diameter>
+                <linecount>6</linecount>
+                <linelength>0.3</linelength>
+                <linematerial type="line" density="0.0018" group="ThreadsLines">Elastic cord (round 2 mm, 1/16 in)</linematerial>
+              </parachute>
+              <streamer>
+                <name>Streamer</name>
+                <id>00000000-0000-4000-8000-000000000022</id>
+                <axialoffset method="top">0</axialoffset>
+                <position type="top">0</position>
+                <packedlength>0.025</packedlength>
+                <packedradius>0.0125</packedradius>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <cd>0.6</cd>
+                <material type="surface" density="0.067" group="Fabrics">Ripstop nylon</material>
+                <isdrogue>true</isdrogue>
+                <deployevent>ejection</deployevent>
+                <deployaltitude>200</deployaltitude>
+                <deploydelay>0</deploydelay>
+                <striplength>1</striplength>
+                <stripwidth>0.04</stripwidth>
+              </streamer>
+              <shockcord>
+                <name>Shock Cord</name>
+                <id>00000000-0000-4000-8000-000000000023</id>
+                <axialoffset method="top">0</axialoffset>
+                <position type="top">0</position>
+                <packedlength>0.025</packedlength>
+                <packedradius>0.0125</packedradius>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <cordlength>1.2</cordlength>
+                <material type="line" density="0.003">Elastic</material>
+              </shockcord>
+              <masscomponent>
+                <name>Mass Component</name>
+                <id>00000000-0000-4000-8000-000000000024</id>
+                <axialoffset method="top">0</axialoffset>
+                <position type="top">0</position>
+                <packedlength>0.05</packedlength>
+                <packedradius>0.02</packedradius>
+                <radialposition>0.005</radialposition>
+                <radialdirection>180</radialdirection>
+                <mass>0.1</mass>
+                <masscomponenttype>payload</masscomponenttype>
+              </masscomponent>
+              <fairing>
+                <name>Camera shroud</name>
+                <id>00000000-0000-4000-8000-000000000025</id>
+                <axialoffset method="middle">0</axialoffset>
+                <position type="middle">0</position>
+                <finish>polished</finish>
+                <length>0.09</length>
+                <width>0.03</width>
+                <height>0.025</height>
+                <fairingshape>halfround</fairingshape>
+                <mass>0.04</mass>
+              </fairing>
+              <podset>
+                <name>Pod set</name>
+                <id>00000000-0000-4000-8000-000000000026</id>
+                <instancecount>3</instancecount>
+                <radiusoffset method="free">0.05</radiusoffset>
+                <angleoffset method="relative">90</angleoffset>
+                <axialoffset method="bottom">0</axialoffset>
+                <position type="bottom">0</position>
+                <subcomponents>
+                  <bodytube>
+                    <name>Body Tube</name>
+                    <id>00000000-0000-4000-8000-000000000027</id>
+                    <finish>normal</finish>
+                    <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                    <length>0.1</length>
+                    <thickness>0.0003</thickness>
+                    <radius>0.01</radius>
+                  </bodytube>
+                </subcomponents>
+              </podset>
+              <parallelstage>
+                <name>Booster</name>
+                <id>00000000-0000-4000-8000-000000000028</id>
+                <instancecount>2</instancecount>
+                <radiusoffset method="relative">0.04</radiusoffset>
+                <angleoffset method="fixed">28.64788975654116</angleoffset>
+                <axialoffset method="bottom">0</axialoffset>
+                <position type="bottom">0</position>
+                <separationevent>burnout</separationevent>
+                <separationaltitude>300</separationaltitude>
+                <separationdelay>0.5</separationdelay>
+                <separationconfiguration configid="cfg-one">
+                  <separationevent>burnout</separationevent>
+                  <separationaltitude>300</separationaltitude>
+                  <separationdelay>0.5</separationdelay>
+                </separationconfiguration>
+                <subcomponents>
+                  <bodytube>
+                    <name>Body Tube</name>
+                    <id>00000000-0000-4000-8000-000000000029</id>
+                    <finish>normal</finish>
+                    <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                    <length>0.2</length>
+                    <thickness>0.0003</thickness>
+                    <radius>0.015</radius>
+                    <subcomponents>
+                      <innertube>
+                        <name>Inner Tube</name>
+                        <id>00000000-0000-4000-8000-000000000030</id>
+                        <axialoffset method="bottom">0</axialoffset>
+                        <position type="bottom">0</position>
+                        <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                        <length>0.1</length>
+                        <radialposition>0</radialposition>
+                        <radialdirection>0</radialdirection>
+                        <outerradius>0.0095</outerradius>
+                        <thickness>0.0005</thickness>
+                        <clusterconfiguration>single</clusterconfiguration>
+                        <clusterscale>1</clusterscale>
+                        <clusterrotation>0</clusterrotation>
+                        <motormount>
+                          <ignitionevent>automatic</ignitionevent>
+                          <ignitiondelay>0</ignitiondelay>
+                          <overhang>0</overhang>
+                        </motormount>
+                      </innertube>
+                    </subcomponents>
+                  </bodytube>
+                </subcomponents>
+              </parallelstage>
+            </subcomponents>
+          </bodytube>
+        </subcomponents>
+      </stage>
+      <stage>
+        <name>Booster</name>
+        <id>00000000-0000-4000-8000-000000000031</id>
+        <separationevent>launch</separationevent>
+        <separationaltitude>100</separationaltitude>
+        <separationdelay>2</separationdelay>
+        <separationconfiguration configid="cfg-one">
+          <separationevent>launch</separationevent>
+          <separationaltitude>100</separationaltitude>
+          <separationdelay>2</separationdelay>
+        </separationconfiguration>
+        <subcomponents>
+          <bodytube>
+            <name>Body Tube</name>
+            <id>00000000-0000-4000-8000-000000000032</id>
+            <finish>normal</finish>
+            <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+            <length>0.3</length>
+            <thickness>0.0003</thickness>
+            <radius>0.03</radius>
+            <subcomponents>
+              <innertube>
+                <name>Inner Tube</name>
+                <id>00000000-0000-4000-8000-000000000033</id>
+                <axialoffset method="bottom">0</axialoffset>
+                <position type="bottom">0</position>
+                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
+                <length>0.1</length>
+                <radialposition>0</radialposition>
+                <radialdirection>0</radialdirection>
+                <outerradius>0.0095</outerradius>
+                <thickness>0.0005</thickness>
+                <clusterconfiguration>single</clusterconfiguration>
+                <clusterscale>1</clusterscale>
+                <clusterrotation>0</clusterrotation>
+              </innertube>
+            </subcomponents>
+          </bodytube>
+        </subcomponents>
+      </stage>
+    </subcomponents>
+  </rocket>
+  <simulations>
+  </simulations>
 </openrocket>
 "
 `;
@@ -733,15 +1843,18 @@ exports[`golden .ork export > writes every configuration, block and component ty
       <name>Two stage</name>
       <stage number="0" active="true"/>
       <stage number="1" active="true"/>
+      <stage number="2" active="true"/>
     </motorconfiguration>
     <motorconfiguration configid="cfg-b">
       <stage number="0" active="true"/>
       <stage number="1" active="true"/>
+      <stage number="2" active="true"/>
     </motorconfiguration>
     <motorconfiguration configid="cfg-c">
       <name>Empty</name>
       <stage number="0" active="true"/>
       <stage number="1" active="true"/>
+      <stage number="2" active="true"/>
     </motorconfiguration>
     <referencetype>maximum</referencetype>
     <subcomponents>
@@ -1430,574 +2543,6 @@ exports[`golden .ork export > writes every configuration, block and component ty
 "
 `;
 
-exports[`golden .ork export > writes the classic single-config path with a legacy motor and no launch block 1`] = `
-"<?xml version='1.0' encoding='utf-8'?>
-<openrocket version="1.10" creator="AstraRocketJs">
-  <rocket>
-    <name>Classic</name>
-    <id>00000000-0000-4000-8000-000000000002</id>
-    <axialoffset method="absolute">0.0</axialoffset>
-    <position type="absolute">0.0</position>
-    <comment>Every &quot;type&quot; &amp; block</comment>
-    <designer>Golden &lt;tester&gt;</designer>
-    <revision>r7</revision>
-    <designtype>kit</designtype>
-    <motorconfiguration configid="00000000-0000-4000-8000-000000000001" default="true">
-      <stage number="0" active="true"/>
-      <stage number="1" active="true"/>
-    </motorconfiguration>
-    <referencetype>maximum</referencetype>
-    <subcomponents>
-      <stage>
-        <name>Sustainer</name>
-        <id>00000000-0000-4000-8000-000000000003</id>
-        <nozzleexitdiameter>0.02</nozzleexitdiameter>
-        <subcomponents>
-          <nosecone>
-            <name>Nose</name>
-            <id>00000000-0000-4000-8000-000000000004</id>
-            <overridemass>0.05</overridemass>
-            <overridesubcomponentsmass>true</overridesubcomponentsmass>
-            <overridecg>0.07</overridecg>
-            <overridesubcomponentscg>false</overridesubcomponentscg>
-            <overridecd>0.4</overridecd>
-            <overridesubcomponentscd>false</overridesubcomponentscd>
-            <finish>smooth</finish>
-            <material type="bulk" density="1050" group="Plastics">Polystyrene</material>
-            <length>0.15</length>
-            <thickness>0.002</thickness>
-            <shape>haack</shape>
-            <shapeclipped>false</shapeclipped>
-            <shapeparameter>0.33</shapeparameter>
-            <aftradius>0.025</aftradius>
-            <aftshoulderradius>0.024</aftshoulderradius>
-            <aftshoulderlength>0.03</aftshoulderlength>
-            <aftshoulderthickness>0.002</aftshoulderthickness>
-            <aftshouldercapped>true</aftshouldercapped>
-            <isflipped>false</isflipped>
-            <subcomponents>
-              <masscomponent>
-                <name>Tracker</name>
-                <id>00000000-0000-4000-8000-000000000005</id>
-                <axialoffset method="top">0</axialoffset>
-                <position type="top">0</position>
-                <packedlength>0.02</packedlength>
-                <packedradius>0.005</packedradius>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
-                <mass>0.02</mass>
-                <masscomponenttype>tracker</masscomponenttype>
-              </masscomponent>
-            </subcomponents>
-          </nosecone>
-          <transition>
-            <name>Transition</name>
-            <id>00000000-0000-4000-8000-000000000006</id>
-            <finish>normal</finish>
-            <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
-            <length>0.06</length>
-            <thickness>filled</thickness>
-            <shape>ellipsoid</shape>
-            <shapeclipped>false</shapeclipped>
-            <shapeparameter>0</shapeparameter>
-            <foreradius>0.025</foreradius>
-            <aftradius>0.03</aftradius>
-            <foreshoulderradius>0.024</foreshoulderradius>
-            <foreshoulderlength>0.02</foreshoulderlength>
-            <foreshoulderthickness>0</foreshoulderthickness>
-            <foreshouldercapped>false</foreshouldercapped>
-            <aftshoulderradius>0</aftshoulderradius>
-            <aftshoulderlength>0</aftshoulderlength>
-            <aftshoulderthickness>0.001</aftshoulderthickness>
-            <aftshouldercapped>false</aftshouldercapped>
-          </transition>
-          <transition>
-            <name>Transition</name>
-            <id>00000000-0000-4000-8000-000000000007</id>
-            <finish>normal</finish>
-            <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
-            <length>0.04</length>
-            <thickness>0.002</thickness>
-            <shape>conical</shape>
-            <shapeparameter>0</shapeparameter>
-            <foreradius>0.03</foreradius>
-            <aftradius>auto</aftradius>
-            <foreshoulderradius>0</foreshoulderradius>
-            <foreshoulderlength>0</foreshoulderlength>
-            <foreshoulderthickness>0</foreshoulderthickness>
-            <foreshouldercapped>false</foreshouldercapped>
-            <aftshoulderradius>0</aftshoulderradius>
-            <aftshoulderlength>0</aftshoulderlength>
-            <aftshoulderthickness>0</aftshoulderthickness>
-            <aftshouldercapped>false</aftshouldercapped>
-          </transition>
-          <bodytube>
-            <name>Airframe</name>
-            <id>00000000-0000-4000-8000-000000000008</id>
-            <finish>normal</finish>
-            <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
-            <length>0.6</length>
-            <thickness>0.001</thickness>
-            <radius>0.03</radius>
-            <caseairframe>true</caseairframe>
-            <motormount>
-              <ignitionevent>automatic</ignitionevent>
-              <ignitiondelay>0</ignitiondelay>
-              <overhang>0.01</overhang>
-            </motormount>
-            <subcomponents>
-              <trapezoidfinset>
-                <name>Fins</name>
-                <id>00000000-0000-4000-8000-000000000009</id>
-                <instancecount>4</instancecount>
-                <fincount>4</fincount>
-                <radiusoffset method="surface">0.0</radiusoffset>
-                <angleoffset method="relative">45</angleoffset>
-                <rotation>45</rotation>
-                <axialoffset method="bottom">-0.01</axialoffset>
-                <position type="bottom">-0.01</position>
-                <finish>normal</finish>
-                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
-                <thickness>0.003</thickness>
-                <crosssection>airfoil</crosssection>
-                <airfoilsection>doublewedge</airfoilsection>
-                <airfoillediamond>0.01</airfoillediamond>
-                <airfoiltediamond>0.02</airfoiltediamond>
-                <finleradius>0.001</finleradius>
-                <cant>1.9996227050065731</cant>
-                <tabheight>0.01</tabheight>
-                <tablength>0.05</tablength>
-                <tabposition relativeto="front">0.005</tabposition>
-                <tabposition relativeto="top">0.005</tabposition>
-                <filletradius>0.004</filletradius>
-                <filletmaterial type="bulk" density="1200" group="Plastics">Epoxy</filletmaterial>
-                <rootchord>0.1</rootchord>
-                <tipchord>0.05</tipchord>
-                <sweeplength>0.04</sweeplength>
-                <height>0.06</height>
-              </trapezoidfinset>
-              <freeformfinset>
-                <name>Freeform Fin Set</name>
-                <id>00000000-0000-4000-8000-000000000010</id>
-                <instancecount>3</instancecount>
-                <fincount>3</fincount>
-                <radiusoffset method="surface">0.0</radiusoffset>
-                <angleoffset method="relative">0</angleoffset>
-                <rotation>0</rotation>
-                <axialoffset method="absolute">0.31</axialoffset>
-                <position type="absolute">0.31</position>
-                <finish>normal</finish>
-                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
-                <thickness>0.003</thickness>
-                <crosssection>square</crosssection>
-                <cant>0</cant>
-                <tabheight>0.01</tabheight>
-                <tablength>0.02</tablength>
-                <tabposition relativeto="end">0</tabposition>
-                <tabposition relativeto="bottom">0</tabposition>
-                <filletradius>0</filletradius>
-                <filletmaterial type="bulk" density="680" group="PaperProducts">Cardboard</filletmaterial>
-                <finpoints>
-                  <point x="0" y="0"/>
-                  <point x="0.02" y="0.05"/>
-                  <point x="0.06" y="0.05"/>
-                  <point x="0.08" y="0"/>
-                </finpoints>
-              </freeformfinset>
-              <ellipticalfinset>
-                <name>Elliptical Fin Set</name>
-                <id>00000000-0000-4000-8000-000000000011</id>
-                <instancecount>2</instancecount>
-                <fincount>2</fincount>
-                <radiusoffset method="surface">0.0</radiusoffset>
-                <angleoffset method="relative">0</angleoffset>
-                <rotation>0</rotation>
-                <axialoffset method="top">0.3</axialoffset>
-                <position type="top">0.3</position>
-                <finish>normal</finish>
-                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
-                <thickness>0.003</thickness>
-                <crosssection>square</crosssection>
-                <cant>0</cant>
-                <tabheight>0.01</tabheight>
-                <tablength>0.02</tablength>
-                <tabposition relativeto="center">0</tabposition>
-                <tabposition relativeto="middle">0</tabposition>
-                <filletradius>0</filletradius>
-                <filletmaterial type="bulk" density="680" group="PaperProducts">Cardboard</filletmaterial>
-                <rootchord>0.07</rootchord>
-                <height>0.04</height>
-              </ellipticalfinset>
-              <tubefinset>
-                <name>Tube Fin Set</name>
-                <id>00000000-0000-4000-8000-000000000012</id>
-                <instancecount>6</instancecount>
-                <fincount>6</fincount>
-                <radiusoffset method="coaxial">0.0</radiusoffset>
-                <angleoffset method="fixed">5.729577951308232</angleoffset>
-                <rotation>5.729577951308232</rotation>
-                <axialoffset method="bottom">0</axialoffset>
-                <position type="bottom">0</position>
-                <finish>normal</finish>
-                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
-                <radius>0.012</radius>
-                <length>0.08</length>
-                <thickness>0.0005</thickness>
-              </tubefinset>
-              <innertube>
-                <name>Motor mount</name>
-                <id>00000000-0000-4000-8000-000000000013</id>
-                <axialoffset method="bottom">0</axialoffset>
-                <position type="bottom">0</position>
-                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
-                <length>0.12</length>
-                <radialposition>0.01</radialposition>
-                <radialdirection>90</radialdirection>
-                <outerradius>0.015</outerradius>
-                <thickness>0.0005</thickness>
-                <clusterconfiguration>2x2</clusterconfiguration>
-                <clusterscale>1.1</clusterscale>
-                <clusterrotation>29.999999999999996</clusterrotation>
-                <maxmotorlength>0.14</maxmotorlength>
-                <motormount>
-                  <ignitionevent>automatic</ignitionevent>
-                  <ignitiondelay>0</ignitiondelay>
-                  <overhang>0</overhang>
-                  <motor configid="00000000-0000-4000-8000-000000000001">
-                    <type>single</type>
-                    <manufacturer>Estes</manufacturer>
-                    <designation>C6</designation>
-                    <diameter>0.018</diameter>
-                    <length>0.07</length>
-                    <delay>3</delay>
-                  </motor>
-                  <ignitionconfiguration configid="00000000-0000-4000-8000-000000000001">
-                    <ignitionevent>automatic</ignitionevent>
-                    <ignitiondelay>0</ignitiondelay>
-                  </ignitionconfiguration>
-                </motormount>
-                <subcomponents>
-                  <engineblock>
-                    <name>Engine Block</name>
-                    <id>00000000-0000-4000-8000-000000000014</id>
-                    <axialoffset method="bottom">0</axialoffset>
-                    <position type="bottom">0</position>
-                    <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
-                    <length>0.005</length>
-                    <radialposition>0.0</radialposition>
-                    <radialdirection>0.0</radialdirection>
-                    <outerradius>0.014</outerradius>
-                    <thickness>0.002</thickness>
-                  </engineblock>
-                  <centeringring>
-                    <name>Centering Ring</name>
-                    <id>00000000-0000-4000-8000-000000000015</id>
-                    <instancecount>3</instancecount>
-                    <instanceseparation>0.02</instanceseparation>
-                    <axialoffset method="bottom">0</axialoffset>
-                    <position type="bottom">0</position>
-                    <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
-                    <length>0.002</length>
-                    <radialposition>0.0</radialposition>
-                    <radialdirection>0.0</radialdirection>
-                    <outerradius>auto</outerradius>
-                    <innerradius>0.015</innerradius>
-                  </centeringring>
-                </subcomponents>
-              </innertube>
-              <innertube>
-                <name>Inner Tube</name>
-                <id>00000000-0000-4000-8000-000000000016</id>
-                <axialoffset method="bottom">0</axialoffset>
-                <position type="bottom">0</position>
-                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
-                <length>0.07</length>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
-                <outerradius>0.0095</outerradius>
-                <thickness>0.0005</thickness>
-                <clusterconfiguration>single</clusterconfiguration>
-                <clusterscale>1</clusterscale>
-                <clusterrotation>0</clusterrotation>
-                <motormount>
-                  <ignitionevent>automatic</ignitionevent>
-                  <ignitiondelay>0</ignitiondelay>
-                  <overhang>0</overhang>
-                </motormount>
-              </innertube>
-              <tubecoupler>
-                <name>Tube Coupler</name>
-                <id>00000000-0000-4000-8000-000000000017</id>
-                <axialoffset method="middle">0.05</axialoffset>
-                <position type="middle">0.05</position>
-                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
-                <length>0.06</length>
-                <radialposition>0.0</radialposition>
-                <radialdirection>0.0</radialdirection>
-                <outerradius>0.029</outerradius>
-                <thickness>0.0005</thickness>
-              </tubecoupler>
-              <bulkhead>
-                <name>Bulkhead</name>
-                <id>00000000-0000-4000-8000-000000000018</id>
-                <instancecount>1</instancecount>
-                <instanceseparation>0</instanceseparation>
-                <axialoffset method="bottom">0</axialoffset>
-                <position type="bottom">0</position>
-                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
-                <length>0.004</length>
-                <radialposition>0.0</radialposition>
-                <radialdirection>0.0</radialdirection>
-                <outerradius>0.029</outerradius>
-              </bulkhead>
-              <launchlug>
-                <name>Launch Lug</name>
-                <id>00000000-0000-4000-8000-000000000019</id>
-                <instancecount>2</instancecount>
-                <instanceseparation>0</instanceseparation>
-                <angleoffset method="relative">59.99999999999999</angleoffset>
-                <radialdirection>59.99999999999999</radialdirection>
-                <axialoffset method="middle">0</axialoffset>
-                <position type="middle">0</position>
-                <finish>normal</finish>
-                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
-                <radius>0.0025</radius>
-                <length>0.04</length>
-                <thickness>0.0003</thickness>
-              </launchlug>
-              <railbutton>
-                <name>Rail Button</name>
-                <id>00000000-0000-4000-8000-000000000020</id>
-                <instancecount>1</instancecount>
-                <instanceseparation>0</instanceseparation>
-                <angleoffset method="relative">0</angleoffset>
-                <axialoffset method="middle">0</axialoffset>
-                <position type="middle">0</position>
-                <finish>normal</finish>
-                <material type="bulk" density="1400" group="Plastics">Acetal</material>
-                <outerdiameter>0.0125</outerdiameter>
-                <innerdiameter>0.009</innerdiameter>
-                <height>0.011</height>
-                <baseheight>0.003</baseheight>
-                <flangeheight>0.002</flangeheight>
-                <screwheight>0</screwheight>
-              </railbutton>
-              <parachute>
-                <name>Drogue</name>
-                <id>00000000-0000-4000-8000-000000000021</id>
-                <axialoffset method="top">0</axialoffset>
-                <position type="top">0</position>
-                <packedlength>0.06</packedlength>
-                <packedradius>0.02</packedradius>
-                <radialposition>0.0</radialposition>
-                <radialdirection>0.0</radialdirection>
-                <cd>0.8</cd>
-                <material type="surface" density="0.05">Nylon</material>
-                <isdrogue>true</isdrogue>
-                <deployevent>apogee</deployevent>
-                <deployaltitude>250</deployaltitude>
-                <deploydelay>1.5</deploydelay>
-                <diameter>0.3</diameter>
-                <spillholediameter>0.03</spillholediameter>
-                <linecount>8</linecount>
-                <linelength>0.5</linelength>
-                <linematerial type="line" density="0.002">Kevlar line</linematerial>
-              </parachute>
-              <parachute>
-                <name>Main</name>
-                <id>00000000-0000-4000-8000-000000000022</id>
-                <axialoffset method="top">0</axialoffset>
-                <position type="top">0</position>
-                <packedlength>0.025</packedlength>
-                <packedradius>0.0125</packedradius>
-                <radialposition>0.0</radialposition>
-                <radialdirection>0.0</radialdirection>
-                <cd>auto</cd>
-                <material type="surface" density="0.067" group="Fabrics">Ripstop nylon</material>
-                <deployevent>altitude</deployevent>
-                <deployaltitude>150</deployaltitude>
-                <deploydelay>0</deploydelay>
-                <diameter>0.3</diameter>
-                <linecount>6</linecount>
-                <linelength>0.3</linelength>
-                <linematerial type="line" density="0.0018" group="ThreadsLines">Elastic cord (round 2 mm, 1/16 in)</linematerial>
-              </parachute>
-              <streamer>
-                <name>Streamer</name>
-                <id>00000000-0000-4000-8000-000000000023</id>
-                <axialoffset method="top">0</axialoffset>
-                <position type="top">0</position>
-                <packedlength>0.025</packedlength>
-                <packedradius>0.0125</packedradius>
-                <radialposition>0.0</radialposition>
-                <radialdirection>0.0</radialdirection>
-                <cd>0.6</cd>
-                <material type="surface" density="0.067" group="Fabrics">Ripstop nylon</material>
-                <isdrogue>true</isdrogue>
-                <deployevent>ejection</deployevent>
-                <deployaltitude>200</deployaltitude>
-                <deploydelay>0</deploydelay>
-                <striplength>1</striplength>
-                <stripwidth>0.04</stripwidth>
-              </streamer>
-              <shockcord>
-                <name>Shock Cord</name>
-                <id>00000000-0000-4000-8000-000000000024</id>
-                <axialoffset method="top">0</axialoffset>
-                <position type="top">0</position>
-                <packedlength>0.025</packedlength>
-                <packedradius>0.0125</packedradius>
-                <radialposition>0.0</radialposition>
-                <radialdirection>0.0</radialdirection>
-                <cordlength>1.2</cordlength>
-                <material type="line" density="0.003">Elastic</material>
-              </shockcord>
-              <masscomponent>
-                <name>Mass Component</name>
-                <id>00000000-0000-4000-8000-000000000025</id>
-                <axialoffset method="top">0</axialoffset>
-                <position type="top">0</position>
-                <packedlength>0.05</packedlength>
-                <packedradius>0.02</packedradius>
-                <radialposition>0.005</radialposition>
-                <radialdirection>180</radialdirection>
-                <mass>0.1</mass>
-                <masscomponenttype>payload</masscomponenttype>
-              </masscomponent>
-              <fairing>
-                <name>Camera shroud</name>
-                <id>00000000-0000-4000-8000-000000000026</id>
-                <axialoffset method="middle">0</axialoffset>
-                <position type="middle">0</position>
-                <finish>polished</finish>
-                <length>0.09</length>
-                <width>0.03</width>
-                <height>0.025</height>
-                <fairingshape>halfround</fairingshape>
-                <mass>0.04</mass>
-              </fairing>
-              <podset>
-                <name>Pod set</name>
-                <id>00000000-0000-4000-8000-000000000027</id>
-                <instancecount>3</instancecount>
-                <radiusoffset method="free">0.05</radiusoffset>
-                <angleoffset method="relative">90</angleoffset>
-                <axialoffset method="bottom">0</axialoffset>
-                <position type="bottom">0</position>
-                <subcomponents>
-                  <bodytube>
-                    <name>Body Tube</name>
-                    <id>00000000-0000-4000-8000-000000000028</id>
-                    <finish>normal</finish>
-                    <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
-                    <length>0.1</length>
-                    <thickness>0.0003</thickness>
-                    <radius>0.01</radius>
-                  </bodytube>
-                </subcomponents>
-              </podset>
-              <parallelstage>
-                <name>Booster</name>
-                <id>00000000-0000-4000-8000-000000000029</id>
-                <instancecount>2</instancecount>
-                <radiusoffset method="relative">0.04</radiusoffset>
-                <angleoffset method="fixed">28.64788975654116</angleoffset>
-                <axialoffset method="bottom">0</axialoffset>
-                <position type="bottom">0</position>
-                <separationevent>burnout</separationevent>
-                <separationaltitude>300</separationaltitude>
-                <separationdelay>0.5</separationdelay>
-                <separationconfiguration configid="00000000-0000-4000-8000-000000000001">
-                  <separationevent>burnout</separationevent>
-                  <separationaltitude>300</separationaltitude>
-                  <separationdelay>0.5</separationdelay>
-                </separationconfiguration>
-                <subcomponents>
-                  <bodytube>
-                    <name>Body Tube</name>
-                    <id>00000000-0000-4000-8000-000000000030</id>
-                    <finish>normal</finish>
-                    <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
-                    <length>0.2</length>
-                    <thickness>0.0003</thickness>
-                    <radius>0.015</radius>
-                    <subcomponents>
-                      <innertube>
-                        <name>Inner Tube</name>
-                        <id>00000000-0000-4000-8000-000000000031</id>
-                        <axialoffset method="bottom">0</axialoffset>
-                        <position type="bottom">0</position>
-                        <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
-                        <length>0.1</length>
-                        <radialposition>0</radialposition>
-                        <radialdirection>0</radialdirection>
-                        <outerradius>0.0095</outerradius>
-                        <thickness>0.0005</thickness>
-                        <clusterconfiguration>single</clusterconfiguration>
-                        <clusterscale>1</clusterscale>
-                        <clusterrotation>0</clusterrotation>
-                        <motormount>
-                          <ignitionevent>automatic</ignitionevent>
-                          <ignitiondelay>0</ignitiondelay>
-                          <overhang>0</overhang>
-                        </motormount>
-                      </innertube>
-                    </subcomponents>
-                  </bodytube>
-                </subcomponents>
-              </parallelstage>
-            </subcomponents>
-          </bodytube>
-        </subcomponents>
-      </stage>
-      <stage>
-        <name>Booster</name>
-        <id>00000000-0000-4000-8000-000000000032</id>
-        <separationevent>launch</separationevent>
-        <separationaltitude>100</separationaltitude>
-        <separationdelay>2</separationdelay>
-        <separationconfiguration configid="00000000-0000-4000-8000-000000000001">
-          <separationevent>launch</separationevent>
-          <separationaltitude>100</separationaltitude>
-          <separationdelay>2</separationdelay>
-        </separationconfiguration>
-        <subcomponents>
-          <bodytube>
-            <name>Body Tube</name>
-            <id>00000000-0000-4000-8000-000000000033</id>
-            <finish>normal</finish>
-            <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
-            <length>0.3</length>
-            <thickness>0.0003</thickness>
-            <radius>0.03</radius>
-            <subcomponents>
-              <innertube>
-                <name>Inner Tube</name>
-                <id>00000000-0000-4000-8000-000000000034</id>
-                <axialoffset method="bottom">0</axialoffset>
-                <position type="bottom">0</position>
-                <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
-                <length>0.1</length>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
-                <outerradius>0.0095</outerradius>
-                <thickness>0.0005</thickness>
-                <clusterconfiguration>single</clusterconfiguration>
-                <clusterscale>1</clusterscale>
-                <clusterrotation>0</clusterrotation>
-              </innertube>
-            </subcomponents>
-          </bodytube>
-        </subcomponents>
-      </stage>
-    </subcomponents>
-  </rocket>
-  <simulations>
-  </simulations>
-</openrocket>
-"
-`;
-
 exports[`golden .ork import > reads the kitchen-sink export back into the same result as before 1`] = `
 {
   "chosenConfigId": "cfg-a",
@@ -2020,6 +2565,7 @@ exports[`golden .ork import > reads the kitchen-sink export back into the same r
           "deployEvent": "ejection",
         },
       },
+      "grounded": [],
       "id": "cfg-a",
       "isDefault": true,
       "motors": {
@@ -2045,6 +2591,18 @@ exports[`golden .ork import > reads the kitchen-sink export back into the same r
         },
       },
       "name": "Two stage",
+      "separations": {
+        "c27": {
+          "separationAltitude": 300,
+          "separationDelay": 0.5,
+          "separationEvent": "burnout",
+        },
+        "c30": {
+          "separationAltitude": 100,
+          "separationDelay": 2,
+          "separationEvent": "launch",
+        },
+      },
     },
     {
       "deployments": {
@@ -2062,6 +2620,7 @@ exports[`golden .ork import > reads the kitchen-sink export back into the same r
           "deployEvent": "ejection",
         },
       },
+      "grounded": [],
       "id": "cfg-b",
       "isDefault": false,
       "motors": {
@@ -2087,6 +2646,18 @@ exports[`golden .ork import > reads the kitchen-sink export back into the same r
         },
       },
       "name": null,
+      "separations": {
+        "c27": {
+          "separationAltitude": 300,
+          "separationDelay": 0.5,
+          "separationEvent": "burnout",
+        },
+        "c30": {
+          "separationAltitude": 100,
+          "separationDelay": 2,
+          "separationEvent": "launch",
+        },
+      },
     },
     {
       "deployments": {
@@ -2106,10 +2677,23 @@ exports[`golden .ork import > reads the kitchen-sink export back into the same r
           "deployEvent": "ejection",
         },
       },
+      "grounded": [],
       "id": "cfg-c",
       "isDefault": false,
       "motors": {},
       "name": "Empty",
+      "separations": {
+        "c27": {
+          "separationAltitude": 300,
+          "separationDelay": 0.5,
+          "separationEvent": "burnout",
+        },
+        "c30": {
+          "separationAltitude": 100,
+          "separationDelay": 2,
+          "separationEvent": "launch",
+        },
+      },
     },
   ],
   "ignored": [],
@@ -2753,6 +3337,7 @@ exports[`golden .ork import > reads the kitchen-sink export back into the same r
           "deployEvent": "ejection",
         },
       },
+      "grounded": [],
       "id": "cfg-a",
       "isDefault": true,
       "motors": {
@@ -2778,6 +3363,18 @@ exports[`golden .ork import > reads the kitchen-sink export back into the same r
         },
       },
       "name": "Two stage",
+      "separations": {
+        "c59": {
+          "separationAltitude": 300,
+          "separationDelay": 0.5,
+          "separationEvent": "burnout",
+        },
+        "c62": {
+          "separationAltitude": 100,
+          "separationDelay": 2,
+          "separationEvent": "launch",
+        },
+      },
     },
     {
       "deployments": {
@@ -2795,6 +3392,7 @@ exports[`golden .ork import > reads the kitchen-sink export back into the same r
           "deployEvent": "ejection",
         },
       },
+      "grounded": [],
       "id": "cfg-b",
       "isDefault": false,
       "motors": {
@@ -2820,6 +3418,18 @@ exports[`golden .ork import > reads the kitchen-sink export back into the same r
         },
       },
       "name": null,
+      "separations": {
+        "c59": {
+          "separationAltitude": 300,
+          "separationDelay": 0.5,
+          "separationEvent": "burnout",
+        },
+        "c62": {
+          "separationAltitude": 100,
+          "separationDelay": 2,
+          "separationEvent": "launch",
+        },
+      },
     },
     {
       "deployments": {
@@ -2839,10 +3449,23 @@ exports[`golden .ork import > reads the kitchen-sink export back into the same r
           "deployEvent": "ejection",
         },
       },
+      "grounded": [],
       "id": "cfg-c",
       "isDefault": false,
       "motors": {},
       "name": "Empty",
+      "separations": {
+        "c59": {
+          "separationAltitude": 300,
+          "separationDelay": 0.5,
+          "separationEvent": "burnout",
+        },
+        "c62": {
+          "separationAltitude": 100,
+          "separationDelay": 2,
+          "separationEvent": "launch",
+        },
+      },
     },
   ],
   "ignored": [],

@@ -327,31 +327,27 @@ const launch: LaunchConditions = {
 const multiConfigInput = (): OrkTreeExportInput => ({
   name: 'Kitchen sink',
   tree: kitchenSink(),
-  motors: {
-    mount: { designation: 'H128W', manufacturer: 'AeroTech', diameter: 0.029, length: 0.194, delay: 10 },
-    boosterMount: {
-      designation: 'G80',
-      manufacturer: 'AeroTech',
-      diameter: 0.029,
-      length: 0.124,
-      delay: 1e9,
-      ignitionEvent: 'launch',
-      ignitionDelay: 0,
-    },
-  },
   launch,
   configs: [
     {
       id: 'cfg-a',
       name: 'Two stage',
-      isDefault: true,
-      motors: {},
-      deployments: {},
+      motors: {
+        mount: { designation: 'H128W', manufacturer: 'AeroTech', diameter: 0.029, length: 0.194, delay: 10 },
+        boosterMount: {
+          designation: 'G80',
+          manufacturer: 'AeroTech',
+          diameter: 0.029,
+          length: 0.124,
+          delay: 1e9,
+          ignitionEvent: 'launch',
+          ignitionDelay: 0,
+        },
+      },
     },
     {
       id: 'cfg-b',
       name: null,
-      isDefault: false,
       motors: {
         mount: { designation: 'F39', manufacturer: 'AeroTech', diameter: 0.029, length: 0.124, delay: 6 },
         body: { designation: 'E12', manufacturer: 'Estes', diameter: 0.024, length: 0.07, delay: 4 },
@@ -361,7 +357,7 @@ const multiConfigInput = (): OrkTreeExportInput => ({
         main: { deployAltitude: 120 },
       },
     },
-    { id: 'cfg-c', name: 'Empty', isDefault: false, motors: {}, deployments: {} },
+    { id: 'cfg-c', name: 'Empty', motors: {}, deployments: {} },
   ],
   activeConfigId: 'cfg-a',
   designInfo: {
@@ -387,18 +383,28 @@ describe('golden .ork export', () => {
     expect(exportOrk(multiConfigInput())).toMatchSnapshot();
   });
 
-  it('writes the classic single-config path with a legacy motor and no launch block', () => {
+  it('writes a lone configuration, and no launch block', () => {
     nextUuid = 0;
     const xml = exportOrk({
       name: 'Classic',
       tree: kitchenSink(),
-      motor: { designation: 'C6', manufacturer: 'Estes', diameter: 0.018, length: 0.07, delay: 3 },
-      mountId: 'mount',
+      configs: [
+        {
+          id: 'cfg-one',
+          name: null,
+          motors: { mount: { designation: 'C6', manufacturer: 'Estes', diameter: 0.018, length: 0.07, delay: 3 } },
+        },
+      ],
     });
     expect(xml).toMatchSnapshot();
   });
 
-  it('mints an unnamed config for a live motor set with no active config, ISA atmosphere', () => {
+  it('mints one configuration for a design that declares none, so the mounts have an id to key by', () => {
+    nextUuid = 0;
+    expect(exportOrk({ name: 'Bare', tree: kitchenSink() })).toMatchSnapshot();
+  });
+
+  it('falls back to the FIRST configuration as default when none is active, ISA atmosphere', () => {
     nextUuid = 0;
     const input = multiConfigInput();
     input.activeConfigId = null;

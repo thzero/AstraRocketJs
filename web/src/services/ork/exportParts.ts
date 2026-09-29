@@ -4,7 +4,7 @@ import { num } from '../../tree/nodeProps';
 import { escapeXml } from '../xmlUtil';
 import { uuid } from '../uuid';
 import { COMPONENT_DEFAULTS } from '../componentDefaults';
-import type { OrkDeployOverride } from '../orkTypes';
+import type { OrkDeployOverride, OrkSepOverride } from '../orkTypes';
 import type { OrkWriter } from './exportWriter';
 import { passthroughOf } from './passthrough';
 
@@ -164,16 +164,22 @@ export function airfoilXml(w: OrkWriter, depth: number, node: ComponentNode): vo
 }
 
 /**
- * Per-configuration recovery deployment. The ACTIVE configuration (and the
- * classic single-config path) takes its values from the live tree — those are
- * already written as the bare defaults just above, so its block simply
- * repeats them. Every OTHER configuration replays what it carried in from
- * import. Without this, saving after opening one configuration rewrote every
- * configuration's recovery settings to the opened one's — a chute set to pop
- * at apogee in config A could come back deploying at 300 m.
+ * Per-configuration recovery deployment: when this device opens under each
+ * configuration.
+ *
+ * A configuration that overrides nothing takes the live tree's values, which are
+ * already written as the bare defaults just above, so its block simply repeats
+ * them. One that overrides writes what it overrides. Without this, saving after
+ * opening one configuration rewrote every configuration's recovery settings to
+ * the opened one's — a chute set to pop at apogee in config A could come back
+ * deploying at 300 m.
  */
 export function deploymentConfigs(w: OrkWriter, depth: number, node: ComponentNode): void {
-  if (w.writeConfigs.length < 2) return;
+  // Nothing to say when there is one configuration and it recovers the way the
+  // design does: the bare tags above already say it. One configuration that
+  // DOES override still needs its block, or the override would be the one thing
+  // the file lost.
+  if (w.writeConfigs.length < 2 && !w.writeConfigs[0]?.deployments) return;
   for (const c of w.writeConfigs) {
     const o: OrkDeployOverride =
       c.deployments === null
@@ -326,20 +332,28 @@ export function autoRadius(w: OrkWriter, depth: number, node: ComponentNode, key
  * A stage's (or strap-on booster's) separation: the DEFAULT params written
  * bare, then one <separationconfiguration> per config (AxialStageSaver writes
  * the same pair for a lower <stage>).
+ *
+ * A configuration that stages differently writes its own values into its block;
+ * the rest repeat the design's. Writing the design's for all of them, as this
+ * once did, made saving after opening one configuration the moment every other
+ * one forgot when its booster let go.
  */
 export function separationXml(w: OrkWriter, depth: number, node: ComponentNode): void {
   const ev = typeof node['separationEvent'] === 'string' ? (node['separationEvent'] as string) : 'ejection';
   const delay = typeof node['separationDelay'] === 'number' ? (node['separationDelay'] as number) : 0;
   const alt = typeof node['separationAltitude'] === 'number' ? (node['separationAltitude'] as number) : 200;
-  const sep = (d: number) => {
-    w.emit(d, `<separationevent>${escapeXml(ev)}</separationevent>`);
-    w.emit(d, `<separationaltitude>${alt}</separationaltitude>`);
-    w.emit(d, `<separationdelay>${delay}</separationdelay>`);
+  const sep = (d: number, o: OrkSepOverride) => {
+    w.emit(d, `<separationevent>${escapeXml(o.separationEvent ?? ev)}</separationevent>`);
+    w.emit(d, `<separationaltitude>${o.separationAltitude ?? alt}</separationaltitude>`);
+    w.emit(d, `<separationdelay>${o.separationDelay ?? delay}</separationdelay>`);
   };
-  sep(depth);
+  sep(depth, {});
   for (const c of w.writeConfigs) {
     w.emit(depth, `<separationconfiguration configid="${escapeXml(c.id)}">`);
-    sep(depth + 1);
+    // The configuration's own values where it has them, the design's where it
+    // does not. Every configuration gets a block, as the desktop's saver writes
+    // one per configuration whether or not it differs.
+    sep(depth + 1, (node.id && c.separations?.[node.id]) || {});
     w.emit(depth, '</separationconfiguration>');
   }
 }

@@ -9,6 +9,7 @@ vi.mock('../../src/engine/simClient', async (orig) => ({
 }));
 
 import { useWorkspaceStore } from '../../src/state/store';
+import { seatMotor, CURVELESS } from '../testing/seatMotor';
 import { C6 } from '../../src/engine/api';
 import type { SimPrefs } from '../../src/services/simulations';
 import type { FlightResult } from '../../src/engine/openRocketEngine';
@@ -68,11 +69,14 @@ describe('a drift sweep', () => {
     );
     while (st().sims.length > 1) st().deleteSim(st().sims[st().sims.length - 1]!.id);
     useWorkspaceStore.setState({
-      sims: st().sims.map((x) => ({ ...x, motor: C6, result: null, outdated: false })),
+      sims: st().sims.map((x) => ({ ...x, result: null, outdated: false })),
       driftSweep: null,
       driftSweepRun: null,
       err: null,
     });
+    // A usable motor, re-seated per case: a test that points the row at a
+    // curve-less configuration must not leave the next one unflyable.
+    seatMotor(st().sims[0]!.name, C6);
   });
 
   const simId = () => st().sims[0]!.id;
@@ -100,7 +104,7 @@ describe('a drift sweep', () => {
     const done = start();
     const winds = calls.map((c) => [c.payload.options.windAverage, c.payload.options.windDirection]);
     expect(new Set(winds.map((w) => String(w))).size).toBe(4);
-    expect(new Set(calls.map((c) => c.payload.motor)).size).toBe(1);
+    expect(new Set(calls.map((c) => c.payload.config)).size).toBe(1);
     expect(new Set(calls.map((c) => c.payload.tree)).size).toBe(1);
     expect(new Set(calls.map((c) => c.payload.options.launchRodAngle)).size).toBe(1);
     calls.forEach((c) => c.settle(landed(1, 1)));
@@ -195,9 +199,7 @@ describe('a drift sweep', () => {
   });
 
   it('refuses a simulation with no usable motor, without flying anything', async () => {
-    useWorkspaceStore.setState({
-      sims: st().sims.map((x) => ({ ...x, motor: { ...C6, times: [], thrusts: [], masses: [] } })),
-    });
+    seatMotor(st().sims[0]!.name, CURVELESS);
     await start();
     expect(calls).toHaveLength(0);
     expect(st().err).toBeTruthy();

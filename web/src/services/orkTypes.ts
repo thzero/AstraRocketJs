@@ -62,6 +62,18 @@ export interface OrkFlightConfig {
    * leave another configuration's chute set to deploy at the wrong time.
    */
   deployments: Record<string, OrkDeployOverride>;
+  /**
+   * THIS configuration's <separationconfiguration> overrides, keyed by the
+   * booster's editor node id. Carried for the same reason the deployments are:
+   * a save that wrote one configuration's staging over every other one would
+   * change when a booster lets go on flights nobody opened.
+   */
+  separations: Record<string, OrkSepOverride>;
+  /**
+   * THIS configuration's grounded stages, by the stage's editor node id: the
+   * `<stage number="n" active="false"/>` flags in its declaration.
+   */
+  grounded: string[];
 }
 
 /** One <deploymentconfiguration> block's fields (all optional, as in the file). */
@@ -69,6 +81,13 @@ export interface OrkDeployOverride {
   deployEvent?: string;
   deployAltitude?: number;
   deployDelay?: number;
+}
+
+/** One <separationconfiguration> block's fields (all optional, as in the file). */
+export interface OrkSepOverride {
+  separationEvent?: string;
+  separationDelay?: number;
+  separationAltitude?: number;
 }
 
 /**
@@ -140,36 +159,37 @@ export interface OrkExportConfig {
   id: string;
   /** Written as <name> only when non-null (desktop writes renamed configs only). */
   name: string | null;
-  isDefault: boolean;
   /** This configuration's motors keyed by mount node id. */
   motors: Record<string, OrkExportMotor>;
   /**
    * This configuration's recovery-deployment overrides keyed by recovery-device
-   * node id, as captured at import. The ACTIVE configuration's values come from
+   * node id, as captured at import. The DEFAULT configuration's values come from
    * the live tree instead; these keep every OTHER configuration intact.
    */
   deployments?: Record<string, OrkDeployOverride>;
+  /**
+   * This configuration's separation overrides keyed by booster node id, the way
+   * `deployments` carries its recovery.
+   */
+  separations?: Record<string, OrkSepOverride>;
+  /** The stages this configuration leaves on the ground, by node id. */
+  grounded?: string[];
 }
 
 export interface OrkTreeExportInput {
   name: string;
   tree: RocketTree;
-  /** Motors keyed by mount node id (Release C: one per mount). */
-  motors?: Record<string, OrkExportMotor>;
-  /** Legacy single-motor form (tests/back-compat). */
-  motor?: OrkExportMotor;
-  mountId?: string | null;
-  /** Launch-site conditions — written as one <simulation> when present. */
-  launch?: LaunchConditions;
   /**
-   * Stage B multi-config save. Absent/empty keeps the classic single
-   * minted-config output. When supplied, every configuration is written with
-   * its stable id; the ACTIVE one's motors come from `motors` (the live
-   * working set — in-app edits persist into it), the rest from their own map.
+   * The design's flight configurations, each carrying its own motors. Every one
+   * is written, with its stable id, so a file that came in with three comes back
+   * out with three. Absent or empty for a design that has no configurations at
+   * all, where one is minted (see `resolveWriteConfigs`).
    */
   configs?: OrkExportConfig[];
-  /** Which config the working set (`motors`) came from; null = none/custom. */
+  /** Which configuration is written default="true"; the first when unset. */
   activeConfigId?: string | null;
+  /** Launch-site conditions — written as one <simulation> when present. */
+  launch?: LaunchConditions;
   /** Derived statistics block; emitted only when the caller opts in (preference). */
   designInfo?: DesignInfo;
 }

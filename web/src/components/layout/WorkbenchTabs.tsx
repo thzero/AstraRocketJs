@@ -7,8 +7,8 @@ import { useShowResultsTab } from './useShowResultsTab';
  * {@link TabBar}'s bottom bar does the same job with the Design tab split in
  * two).
  *
- * Three tabs for the three things you are ever doing: changing geometry,
- * managing the runs over it, reading one back. Each one owns the whole width and
+ * Four tabs for the four things you are ever doing: changing geometry, setting
+ * up the motors it flies on, managing the runs over it, reading one back. Each one owns the whole width and
  * picks its own column layout, which is what freed the right column for the
  * property editor (see App.tsx).
  *
@@ -30,6 +30,7 @@ export function WorkbenchTabs() {
   return (
     <nav aria-label={t('tabs.workbench')} className="-my-3 ml-4 hidden self-stretch items-stretch gap-1 lg:flex">
       <TabButton active={tab === 'design'} onClick={() => onTab('design')} label={t('tabs.design')} />
+      <TabButton active={tab === 'configs'} onClick={() => onTab('configs')} label={t('tabs.configs')} />
       <TabButton active={tab === 'sim'} onClick={() => onTab('sim')} label={t('tabs.simulations')} />
       {showResults && (
         <TabButton active={tab === 'results'} onClick={() => onTab('results')} label={t('tabs.results')} />
@@ -46,7 +47,7 @@ function TabButton({ active, onClick, label }: { active: boolean; onClick: () =>
       // A bottom border rather than a fill: the tab sits directly above the
       // panes it labels, so the active one should read as continuous with them.
       // `-mb-px` pulls it over the header's border rather than stacking on it.
-      className={`-mb-px flex items-center border-b-2 px-4 text-sm font-semibold ${
+      className={`-mb-px flex items-center border-b-2 px-3 text-sm font-semibold ${
         active
           ? 'border-sky-500 text-sky-300'
           : 'border-transparent text-slate-400 hover:border-white/20 hover:text-slate-200'

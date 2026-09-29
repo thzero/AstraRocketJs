@@ -1,15 +1,8 @@
 import { buildRocketTree } from '../engine/api';
-import type { IgnitionEvent, MotorSpec, OpenRocketDesign, RocketTree, StaticInfo } from '../engine/openRocketEngine';
-import { findMountId } from './treeEdit';
-import { activeExtraMounts } from './mountMotors';
+import type { OpenRocketDesign, RocketTree, StaticInfo } from '../engine/openRocketEngine';
+import { configuredTree, liveMotors, stageFlies, type FlightConfig } from './flightConfigs';
+import { findStages } from './treeEdit';
 import { hasUsableCurve } from './motorCurve';
-import type { MountMotor } from './loadOrk';
-
-/** A mount's ignition override (undefined event = engine default, "automatic"). */
-export interface Ignition {
-  event?: IgnitionEvent;
-  delay?: number;
-}
 
 /**
  * A key over everything about a design that can change a FLIGHT.
@@ -31,32 +24,41 @@ export function flightKey(tree: RocketTree): string {
 }
 
 /**
- * Build the rocket exactly as the live rebuild effect does: the primary mount
- * takes `motor`, every other mount takes its imported motor from `extraMotors`
- * (skipping ones that are gone or are the primary). Shared by the main-thread
- * rebuild (useWorkspaceEffects) and the sim worker (engine/simWorker.ts) so a
- * worker-run flight sim executes on the *identical* configuration — no drift
- * between "what you see" (main-thread staticInfo) and "what you simulate".
+ * Build the rocket with one flight configuration seated in it: every live mount
+ * takes the motor that configuration puts there, plus its ignition override.
+ *
+ * Shared by the main-thread rebuild (useWorkspaceEffects) and the sim worker
+ * (engine/simWorker.ts) so a worker-run flight executes on the *identical*
+ * configuration: no drift between "what you see" (main-thread staticInfo) and
+ * "what you simulate".
+ *
+ * Mounts are seated in TREE ORDER (`liveMotors`), which is also what drops a
+ * motor whose mount is gone, so the build cannot depend on the order the motors
+ * were edited in. The configuration's recovery and separation overrides are
+ * applied to the tree first, so when it recovers and when it stages are the
+ * configuration's too, and any stage it grounds is flagged inactive after the
+ * motors are in.
  */
-export function buildConfiguredRocket(
-  tree: RocketTree,
-  motor: MotorSpec | undefined,
-  extraMotors: Record<string, MountMotor>,
-  primaryIgnition?: Ignition,
-): OpenRocketDesign {
-  const mountId = findMountId(tree);
-  const r = buildRocketTree(tree, motor, mountId);
-  // Seat the primary mount's ignition override (skip when "automatic" — that's
-  // the engine default and needs no call).
-  if (mountId && primaryIgnition?.event)
-    r.setMotorIgnitionById(mountId, primaryIgnition.event, primaryIgnition.delay ?? 0);
-  // The one "skip the primary or a vanished mount" filter (mountMotors.ts),
-  // shared with the store's motor-dimension selector, and the one
-  // "usable curve" predicate the builder itself seats by (motorCurve.ts).
-  for (const [id, m] of activeExtraMounts(tree, extraMotors, mountId)) {
-    if (!hasUsableCurve(m.spec)) continue; // unresolved/curve-less motor — leave the mount empty
+export function buildConfiguredRocket(tree: RocketTree, config: FlightConfig): OpenRocketDesign {
+  // The configuration's recovery and separation overrides go in as node values,
+  // which is where the kernel already reads both from.
+  const r = buildRocketTree(configuredTree(tree, config));
+  for (const [id, m] of liveMotors(tree, config)) {
+    // The one "usable curve" predicate (motorCurve.ts). A curve-less motor -
+    // an unresolved .ork motor, or a mount the file left empty - leaves the
+    // mount empty rather than throwing "Too short thrust-curve"; the run gate
+    // then reports "no motor" instead of the app failing to draw the rocket.
+    if (!hasUsableCurve(m.spec)) continue;
     r.setMotorById(id, m.spec);
+    // Skip "automatic": it is the engine's own default and needs no call.
     if (m.ignitionEvent) r.setMotorIgnitionById(id, m.ignitionEvent, m.ignitionDelay ?? 0);
+  }
+  // AFTER the motors: grounding a stage refreshes the configuration's active
+  // motor list, and a motor seated later would put a grounded stage's engine
+  // back into it.
+  for (const stage of findStages(tree)) {
+    const id = stage.id as string;
+    if (!stageFlies(config, id)) r.setStageActiveById(id, false);
   }
   return r;
 }
@@ -75,13 +77,11 @@ export type StaticInfoResult = { info: StaticInfo; rocket: OpenRocketDesign } | 
  */
 export function computeStaticInfo(
   tree: RocketTree,
-  motor: MotorSpec | undefined,
-  extraMotors: Record<string, MountMotor>,
-  ignition?: Ignition,
+  config: FlightConfig,
   build: typeof buildConfiguredRocket = buildConfiguredRocket,
 ): StaticInfoResult {
   try {
-    const rocket = build(tree, motor, extraMotors, ignition);
+    const rocket = build(tree, config);
     const info = rocket.staticInfo();
     // Best-effort: a design the sweep can't evaluate just leaves cd undefined.
     try {

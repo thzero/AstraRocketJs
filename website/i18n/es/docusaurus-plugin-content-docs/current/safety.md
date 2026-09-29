@@ -1,6 +1,6 @@
 ---
 title: "Seguridad"
-sidebar_position: 13
+sidebar_position: 14
 ---
 AstraRocketJs es una herramienta de diseño y simulación. No es una autoridad en seguridad, y una simulación no es una hoja de vuelo. Esta página dice con claridad cuánto valen los números, qué cosas el modelo no sabe, y qué comprobar antes de volar.
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useWorkspaceStore, selectActive } from '../../state/store';
+import { useWorkspaceStore, selectActive, selectConfig } from '../../state/store';
+import { primaryMotor } from '../../services/flightConfigs';
 import { download as saveDownload, exportFilename, safeFilename } from '../../services/saveFile';
 import { useUnits } from '../../prefs/useUnits';
 import {
@@ -57,7 +58,7 @@ export function FlightPathExport({ variant = 'chip' }: { variant?: 'chip' | 'ove
   const result = useWorkspaceStore((s) => selectActive(s).result);
   const launch = useWorkspaceStore((s) => selectActive(s).launch);
   const simName = useWorkspaceStore((s) => selectActive(s).name);
-  const motor = useWorkspaceStore((s) => selectActive(s).motor);
+  const motor = useWorkspaceStore((s) => primaryMotor(s.tree, selectConfig(s)));
   const tree = useWorkspaceStore((s) => s.tree);
 
   if (!result) return null;
