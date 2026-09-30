@@ -1,19 +1,15 @@
 @import 'tailwindcss';
 
 /*
- * A breakpoint of our own, for the header's badge group (version, pre-release,
- * engine backend).
- *
- * Named rather than written as an arbitrary `min-[...]` variant at the one place
- * that uses it, because the number is a MEASURED budget and not a round one:
- * below it the header wraps to two rows in the longest languages, which puts
- * back the row the workbench tabs were moved into the header to save. The value
- * is checked at this exact width by e2e/workbench-header.spec.ts, in the worst
- * language, with the save status showing and all four tabs in the row.
+ * The app header is one row from 1180 up, in every language, and in English at
+ * every desktop width. Below that, in the wordiest languages, it wraps: at 1024
+ * the four workbench tabs, the identity block (mark, name, version, pre-release
+ * word, engine backend), the save status and the four controls need more width
+ * than there is, and wrapping is what a flex row does about that. The identity
+ * block is never what gives - it reads the same at every width - and the budget
+ * is checked by e2e/workbench-header.spec.ts in a font WIDER than the local one,
+ * because `system-ui` is whatever the OS supplies.
  */
-@theme {
-  --breakpoint-badge: 1180px;
-}
 
 :root {
   color-scheme: dark;

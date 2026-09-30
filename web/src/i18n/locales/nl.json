@@ -200,6 +200,7 @@
   },
   "save": {
     "saved": "Opgeslagen {{when}}",
+    "savedShort": "Opgeslagen",
     "justNow": "net",
     "tip": "Laatst opgeslagen om {{time}}. Je raket wordt automatisch opgeslagen terwijl je hem bewerkt."
   },

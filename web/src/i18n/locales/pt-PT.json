@@ -200,6 +200,7 @@
   },
   "save": {
     "saved": "Guardado {{when}}",
+    "savedShort": "Guardado",
     "justNow": "agora mesmo",
     "tip": "Guardado pela última vez às {{time}}. O seu foguetão é guardado automaticamente enquanto o edita."
   },

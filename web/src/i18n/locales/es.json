@@ -200,6 +200,7 @@
   },
   "save": {
     "saved": "Guardado {{when}}",
+    "savedShort": "Guardado",
     "justNow": "ahora mismo",
     "tip": "Guardado por última vez a las {{time}}. Tu cohete se guarda automáticamente mientras lo editas."
   },

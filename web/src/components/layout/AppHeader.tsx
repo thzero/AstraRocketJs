@@ -43,31 +43,22 @@ export function AppHeader() {
     // right edge and make the whole DOCUMENT scroll sideways, sliding the bottom
     // tab bar out of view. Wrapping keeps every control reachable and the page
     // exactly one viewport wide, at any width and in any language.
-    <header className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3">
+    <header className="flex flex-wrap items-center gap-1.5 border-b border-white/10 px-4 py-3 xl:gap-2">
+      {/* The mark, the name and the three badges are the app's identity, and they
+          read the same at every width: no breakpoint takes one of them away, so
+          nobody has to learn that a narrower window means a different header.
+          What gives when the row runs short is elsewhere - the save status' age
+          and the menu's word below xl - and below that the row wraps, which is
+          what it has always done on a phone. */}
       <span className="text-xl">🚀</span>
       <h1 className="text-base font-semibold tracking-tight">{t('app.title')}</h1>
       {/* The three static badges - version, pre-release, engine backend - in one
-          pill rather than three, and shown from the `badge` breakpoint up.
-
-          They are the only things in this row that are neither a control nor
-          live state, so they are what gives when the row runs out of width, and
-          it does: from the lg breakpoint (1024) up the workbench tabs are in
-          the header and the save status is showing, and with these three the
-          row needs 1176px in the longest language (ru; pt-PT wants 1172, de
-          1168, en 1120). `--breakpoint-badge` is 1180. Wrapping to two lines
-          puts back the row the tabs were moved into the header to save, so they
-          hide below the width where they fit rather than being allowed to push.
-          Nothing is lost by that: the version and the backend are both in the
-          About dialog, and the pre-release state has its own blocking notice on
-          first visit.
-
-          One pill rather than three because three cost two extra gaps and two
-          extra sets of padding to say one thing, and because a row of small
-          unrelated-looking chips reads as clutter where a single grouped one
-          reads as a stamp. The colors still separate them: the backend is
-          emerald for WebAssembly and slate for the JavaScript fallback, the
-          pre-release word is amber. */}
-      <span className="hidden items-center gap-1 rounded px-1 py-0.5 text-[10px] leading-none ring-1 ring-white/10 badge:inline-flex">
+          pill rather than three: three cost two extra gaps and two extra sets of
+          padding to say one thing, and a row of small unrelated-looking chips
+          reads as clutter where a single grouped one reads as a stamp. The colors
+          separate them: the backend is emerald for WebAssembly and slate for the
+          JavaScript fallback, the pre-release word is amber. */}
+      <span className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-[10px] leading-none ring-1 ring-white/10">
         <button
           onClick={() => open('about')}
           title={t('about.open')}
@@ -89,7 +80,7 @@ export function AppHeader() {
           TabBar takes over. */}
       <WorkbenchTabs />
 
-      <div className="ml-auto flex shrink-0 items-center gap-2">
+      <div className="ml-auto flex shrink-0 items-center gap-1.5 xl:gap-2">
         <UndoRedoButtons />
         <LanguageSwitcher />
         <FileMenuButton

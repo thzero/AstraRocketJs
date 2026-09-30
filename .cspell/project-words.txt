@@ -385,6 +385,7 @@ Savitzky
 screenful
 screwheight
 sealevel
+Segoe
 Semispan
 separationaltitude
 separationconfiguration
@@ -490,6 +491,7 @@ USGS
 Vantor
 vels
 verts
+visualização
 Vuelo
 weathercocking
 windaverage

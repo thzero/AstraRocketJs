@@ -200,6 +200,7 @@
   },
   "save": {
     "saved": "Zapisano {{when}}",
+    "savedShort": "Zapisano",
     "justNow": "właśnie teraz",
     "tip": "Ostatni zapis o {{time}}. Rakieta jest zapisywana automatycznie w trakcie edycji."
   },

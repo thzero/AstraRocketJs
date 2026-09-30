@@ -200,6 +200,7 @@
   },
   "save": {
     "saved": "Gespeichert {{when}}",
+    "savedShort": "Gespeichert",
     "justNow": "gerade eben",
     "tip": "Zuletzt gespeichert um {{time}}. Ihre Rakete wird beim Bearbeiten automatisch gespeichert."
   },

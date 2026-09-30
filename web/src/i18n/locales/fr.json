@@ -200,6 +200,7 @@
   },
   "save": {
     "saved": "Enregistré {{when}}",
+    "savedShort": "Enregistré",
     "justNow": "à l'instant",
     "tip": "Dernier enregistrement à {{time}}. Votre fusée est enregistrée automatiquement au fil de vos modifications."
   },

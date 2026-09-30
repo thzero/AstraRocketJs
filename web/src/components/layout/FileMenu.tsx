@@ -345,7 +345,9 @@ export function FileMenuButton({ canSave, actions }: { canSave: boolean; actions
         title={t('menu.open')}
         className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
       >
-        <span aria-hidden>☰</span> {t('menu.open')}
+        {/* The word goes below xl, where the header is tightest; the button is
+            still named 'Menu' there, by its own title attribute. */}
+        <span aria-hidden>☰</span> <span className="hidden xl:inline">{t('menu.open')}</span>
       </button>
       {menuOpen && (
         <FileMenu

@@ -200,6 +200,7 @@
   },
   "save": {
     "saved": "Salvo {{when}}",
+    "savedShort": "Salvo",
     "justNow": "agora mesmo",
     "tip": "Salvo pela última vez às {{time}}. Seu foguete é salvo automaticamente enquanto você edita."
   },

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
+import { useIsXl } from '../common/useMediaQuery';
 
 /** How often the relative time is recomputed while the app sits idle. */
 const TICK_MS = 30_000;
@@ -24,6 +25,11 @@ const TICK_MS = 30_000;
 export function SaveStatus() {
   const { t, i18n } = useTranslation();
   const lastSavedAt = useWorkspaceStore((s) => s.lastSavedAt);
+  // Below xl the status is the word alone: the header is carrying the workbench
+  // tabs, the app name and the badge group there, and the age is 55px of
+  // it in German. What the status is for is that a save HAPPENED; the exact time is in the
+  // tooltip at every width.
+  const withAge = useIsXl();
   const warning = useWorkspaceStore((s) => s.storageWarning);
 
   // The clock is STATE, read in render, rather than a `Date.now()` in the
@@ -59,7 +65,7 @@ export function SaveStatus() {
       })}
       className="text-[10px] font-medium text-slate-500"
     >
-      {t('save.saved', { when })}
+      {withAge ? t('save.saved', { when }) : t('save.savedShort')}
     </span>
   );
 }

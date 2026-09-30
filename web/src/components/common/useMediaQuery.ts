@@ -35,6 +35,19 @@ function useMediaQuery(query: string): boolean {
 export const useIsDesktop = (): boolean => useMediaQuery('(min-width: 1024px)');
 
 /**
+ * The `xl:` breakpoint, as a boolean.
+ *
+ * The header's save status says how long ago the write landed only from here up
+ * (see layout/SaveStatus): below it the row is carrying the workbench tabs, the
+ * app name and the badge group, and the age is the part of it worth the width.
+ * A JavaScript query rather than a pair of `xl:` classes because the two strings
+ * are the SAME status: rendered twice, "Saved just now" and "Saved" would both
+ * answer to the status role and to a text query, on a phone as much as on a
+ * desktop, and one of them would be a lie about what is on screen.
+ */
+export const useIsXl = (): boolean => useMediaQuery('(min-width: 1280px)');
+
+/**
  * The `2xl:` breakpoint, as a boolean.
  *
  * The Design tab's property column needs the window to be this wide: it is a
