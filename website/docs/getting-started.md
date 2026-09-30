@@ -35,7 +35,7 @@ On a **phone** the same areas become tabs along the bottom, because there is no 
 
 The components panel is desktop-only, so a phone cannot add, reorder or delete parts. It can edit the ones a design already has: tap a part in the **Sketch** view and its editor opens as a dialog. Two things follow the panel rather than the drawing, and are not offered where it is absent: **My Parts**, since a saved part is applied through a component, and the **rocket's name and configuration**, since naming a design is something you do to one you are building. Both also step aside while the drawing is maximized, for the same reason the panel does.
 
-The top bar has **undo / redo**, a language switcher (English · Español), a note of when your rocket was last saved, and the **app menu**: New, Open… and Save As… (the in-app design library), **Import ▸ OpenRocket** and **Export ▸ OpenRocket / RASAero II** for `.ork` and other files on disk, **Rocket Design Report**, **Motor Dashboard**, **Launch Locations**, **My Parts**, **Settings**, **Help**, **Privacy** and **About**.
+The top bar has **undo / redo**, a language switcher (ten languages), a note of when your rocket was last saved, and the **app menu**: New, Open… and Save As… (the in-app design library), **Import ▸ OpenRocket** and **Export ▸ OpenRocket / RASAero II** for `.ork` and other files on disk, **Rocket Design Report**, **Motor Dashboard**, **Launch Locations**, **My Parts**, **Settings**, **Help**, **Privacy** and **About**.
 
 ## Your first rocket
 

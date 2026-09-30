@@ -119,7 +119,7 @@ Un cohete puede tener más de una etapa. **+ Etapa** (en la cabecera del panel d
 
 También puedes añadir **cápsulas** (podsets) y propulsores en **paralelo** (adosados) como conjuntos. Tras un vuelo por etapas, las **[gráficas de vuelo](./views-and-analysis.md#flight-after-a-simulation)** dibujan la trayectoria propia de cada etapa.
 
-> Los vuelos por etapas se **simulan** como ramas independientes —cada propulsor agotado vuela, despliega y aterriza por su cuenta— y la masa, el CG y la estabilidad estáticos coinciden con OpenRocket de escritorio. La *trayectoria de vuelo* por etapas todavía no está validada de principio a fin contra OpenRocket, así que trata los números de vuelo de varias etapas como preliminares.
+> Los vuelos por etapas se **simulan** como ramas independientes —cada propulsor agotado vuela, despliega y aterriza por su cuenta— y la masa, el CG y la estabilidad estáticos coinciden con OpenRocket de escritorio. La *trayectoria de vuelo* también se comprueba contra OpenRocket original sin modificar: secuencias de eventos idénticas en cada rama y apogeos que coinciden con una tolerancia relativa de 1e-5.
 
 ## Deshacer / rehacer {#undo--redo}
 

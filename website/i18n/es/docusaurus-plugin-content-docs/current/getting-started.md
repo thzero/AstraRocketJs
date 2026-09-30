@@ -35,7 +35,7 @@ En un **teléfono** las mismas áreas pasan a ser pestañas en la parte inferior
 
 El panel de componentes es solo de escritorio, así que un teléfono no puede añadir, reordenar ni borrar piezas. Sí puede editar las que el diseño ya tiene: toca una pieza en la vista **Boceto** y su editor se abre como un diálogo. Dos cosas acompañan al panel y no al dibujo, y no se ofrecen donde el panel no está: **Mis piezas**, porque una pieza guardada se aplica a través de un componente, y el **nombre y la configuración del cohete**, porque poner nombre a un diseño es algo que se hace sobre uno que estás construyendo. Ambas se apartan también mientras el dibujo está maximizado, por la misma razón que el panel.
 
-La barra superior tiene **deshacer / rehacer**, un selector de idioma (English · Español), una nota de cuándo se guardó tu cohete por última vez y el **menú de la aplicación**: Nuevo, Abrir… y Guardar como… (la biblioteca de diseños de la app), **Importar ▸ OpenRocket** y **Exportar ▸ OpenRocket / RASAero II** para los archivos `.ork` y demás en disco, **Informe de diseño**, **Panel de motores**, **Ubicaciones de lanzamiento**, **Mis piezas**, **Ajustes**, **Ayuda**, **Privacidad** y **Acerca de**.
+La barra superior tiene **deshacer / rehacer**, un selector de idioma (diez idiomas), una nota de cuándo se guardó tu cohete por última vez y el **menú de la aplicación**: Nuevo, Abrir… y Guardar como… (la biblioteca de diseños de la app), **Importar ▸ OpenRocket** y **Exportar ▸ OpenRocket / RASAero II** para los archivos `.ork` y demás en disco, **Informe de diseño**, **Panel de motores**, **Ubicaciones de lanzamiento**, **Mis piezas**, **Ajustes**, **Ayuda**, **Privacidad** y **Acerca de**.
 
 ## Tu primer cohete
 

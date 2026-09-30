@@ -14,7 +14,7 @@ Trata el apogeo, el margen de estabilidad, la velocidad de apertura, la velocida
 
 La física es el propio núcleo de OpenRocket, compilado para ejecutarse en tu navegador y validado bit a bit contra el programa de escritorio. Calcula:
 
-- La **aerodinámica** por el método Barrowman extendido (con extensiones supersónicas), que da el CP, la resistencia y la estabilidad.
+- La **aerodinámica** por el método Barrowman extendido, que da el CP, la resistencia y la estabilidad.
 - La **masa y el CG** a partir de la geometría de cada pieza por la densidad de su material, más cualquier [invalidación](#before-you-fly) que introduzcas.
 - El **vuelo** como movimiento de cuerpo rígido integrado con RK4/RK6, gobernado por la curva de empuje real del motor que elegiste.
 - La **atmósfera** como el modelo estándar ISA, o con tu propia temperatura y presión, con un modelo de gravedad WGS o constante y una Tierra plana, esférica o WGS84.

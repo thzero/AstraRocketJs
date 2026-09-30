@@ -118,7 +118,7 @@ A rocket can have more than one stage. **+ Stage** (in the Components panel head
 
 You can also add **pods** (podsets) and **parallel** (strap-on) boosters as assemblies. After a staged flight, the **[Flight charts](./views-and-analysis.md#flight-after-a-simulation)** plot each stage's own trajectory.
 
-> Staged flights **simulate** as independent branches — each spent booster flies, deploys, and lands on its own — and static mass / CG / stability match desktop OpenRocket. The staged *flight trajectory* itself is not yet validated against OpenRocket end-to-end, so treat multi-stage flight numbers as preliminary.
+> Staged flights **simulate** as independent branches — each spent booster flies, deploys, and lands on its own — and static mass / CG / stability match desktop OpenRocket. The flown trajectory is checked against unmodified upstream OpenRocket as well: identical event sequences on every branch, and apogee agreeing to 1e-5 relative.
 
 ## Undo / redo
 

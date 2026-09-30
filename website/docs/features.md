@@ -49,6 +49,6 @@ sidebar_position: 2
 - **Your choice of units** — metric or imperial presets, or a unit per quantity (component and motor dimensions, altitude, mass, velocity, wind, acceleration, angle, density, temperature, pressure, thrust, impulse). The unit beside any value is also a picker for that one field. Designs stay SI, so switching never edits a rocket. See **[Settings](./settings.md#units)**.
 - Launch conditions are held to the **NAR / Tripoli** flying limits (rod within 20° of vertical, surface wind at or below 20 mph) and a run outside them is refused rather than flown. See the **[Safety](./safety.md)** page.
 - **Keyboard navigation** — the component tree is fully arrow-key navigable (broader accessibility is an ongoing effort).
-- **Multilingual** — currently English and Spanish.
+- **Multilingual** — currently ten: English, German, Spanish, French, Portuguese (Brazil and Portugal), Dutch, Polish, Russian and Japanese.
 
 See the [FAQ](./faq.md) for more on the current limits.

@@ -9,13 +9,13 @@ The UI is **responsive**: a three-pane workbench (editor · rocket view · motor
 ## Highlights
 
 **Real OpenRocket physics, fast, in the browser**
-- The actual OpenRocket core (extended Barrowman **+ RASAero** aerodynamics, mass/CG, RK4/RK6 flight), compiled to **WebAssembly** (JavaScript fallback) via TeaVM — validated **bit-identical** to upstream OpenRocket.
+- The actual OpenRocket core (extended Barrowman aerodynamics, mass/CG, RK4/RK6 flight), compiled to **WebAssembly** (JavaScript fallback) via TeaVM — validated **bit-identical** to upstream OpenRocket.
 - Flight simulations run in a **Web Worker**, off the main thread, so the UI stays responsive during a run.
 
 **Design & analyze**
 - Component-tree editor with **live CG / CP / stability** as you edit — calibers, % of length, **on-pad *and* rail-exit** margins, and fineness ratio.
 - **Undo / redo** across the whole workspace — component edits *and* simulation changes on one timeline (`Ctrl/⌘+Z`, `Ctrl+Shift+Z`).
-- **Multi-stage rockets** — add booster stages, pods, and parallel boosters, with configurable separation and upper-stage ignition (staged flights simulate as independent branches; trajectory validation vs. OpenRocket is in progress).
+- **Multi-stage rockets** — add booster stages, pods, and parallel boosters, with configurable separation and upper-stage ignition (staged flights simulate as independent branches, checked against upstream OpenRocket).
 - **2D schematic** with drag-to-measure **calipers**, length + cross-section rulers, zoom/pan, spin (roll), and an aft (head-on) view.
 - **3D model** view, plus a **3D flight path** after a simulation. CG/CP markers and a length·mass·CG·CP·stability card can be toggled on either view.
 - **Scale the whole rocket** by a factor or to a target body diameter in one undoable step, and **parachute descent sizing** that reads the descent rate a canopy gives you and the diameter each target rate needs.
@@ -35,7 +35,7 @@ The UI is **responsive**: a three-pane workbench (editor · rocket view · motor
 **Yours, on your device**
 - No server, no accounts, nothing uploaded — the physics runs entirely on your device. Your `.ork` designs are **files on your disk** (open / save); the browser just keeps a working copy (so a refresh won't lose your rocket) plus your custom motors, materials, and settings.
 - **Units are yours to pick** — metric or imperial presets, or a unit per quantity (lengths, altitude, mass, velocity, wind, acceleration, angle, density, temperature, pressure, thrust, impulse), and the unit printed beside any value is a picker for that one field. Designs are always stored in SI, so switching units never edits a rocket or changes how a `.ork` is written — units live in your browser, not in the file, so a design opened in desktop OpenRocket shows in OpenRocket's units.
-- **Responsive** (desktop three-pane workbench → tabs on a phone, with the rocket views turned to the screen's long edge), in **English and Spanish**.
+- **Responsive** (desktop three-pane workbench → tabs on a phone, with the rocket views turned to the screen's long edge), in **ten languages**.
 - **Says what its numbers are worth** — launch conditions are held to the NAR / Tripoli flying limits (rod within 20° of vertical, surface wind at or below 20 mph) and a run outside them is refused. Every set of results carries a **Before you fly** card naming what the model does not have (fin flutter, structural loads, parachute inflation and opening shock, your motor on the day), linking to a **[Safety](https://thzero.github.io/AstraRocketJs/docs/safety)** page.
 
 ## Getting started
