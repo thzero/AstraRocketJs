@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n';
 import { useWorkspaceStore } from '../../state/store';
@@ -7,7 +7,7 @@ import { useUnits } from '../../prefs/useUnits';
 import { resolveUnitChoice, UNIT_CHOICES, type UnitChoice } from '../../prefs/units';
 import { Dialog } from '../common/Dialog';
 import { DEFAULT_REPORT } from '../../services/storage/settings';
-import { assembleReport, type ReportModel } from '../../services/report/reportModel';
+import { assembleReport, type ReportBuild, type ReportModel } from '../../services/report/reportModel';
 import { isPlanarFinSet } from '../../tree/tubefins';
 import { markingGuides } from '../../services/report/markingGuide';
 import type { ComponentNode } from '../../engine/openRocketEngine';
@@ -45,10 +45,16 @@ const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
  * Save as PDF.
  *
  * Mounted only while open (`{open && <ExportDialog />}`). The report model is
- * assembled ONCE, in a state initializer, and the include/exclude selection is
- * derived from it there too; both then hold still for the dialog's life. Built in
- * an effect instead, the selection is thrown away whenever `open` goes false,
+ * assembled ONCE and the include/exclude selection is derived from it in the
+ * same pass; both then hold still for the dialog's life. Rebuilding either from
+ * a value that changes throws the selection away whenever `open` goes false,
  * which dismissing the print-settings popover does.
+ *
+ * Assembling a MULTI-STAGE report builds each stage alone, which resets the
+ * shared engine, so the whole rocket is rebuilt afterwards. Installing that
+ * rebuild is a store write, and this dialog cannot make it from the initializer
+ * without updating every other store subscriber mid-render, so it takes the
+ * build back from `assembleReport` and installs it in a layout effect instead.
  */
 export function ExportDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -75,16 +81,31 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   // dialog standing with its "no design" message, not take the app down. The
   // failure is remembered here and reported below, so the initializer stays a
   // pure computation.
-  const [initial] = useState<{ model: ReportModel | null; error: string | null }>(() => {
+  //
+  // `rebuilt` is the whole-rocket build a MULTI-STAGE report leaves behind, for
+  // the effect below to install. Assembling per-stage summaries resets the
+  // shared engine, and `assembleReport` would otherwise re-seat the live handle
+  // through the store from inside this initializer: a store write during render,
+  // which updates every other subscriber mid-render (React: "Cannot update a
+  // component (`DesignWarnings`) while rendering a different component").
+  const [initial] = useState<{ model: ReportModel | null; error: string | null; rebuilt: ReportBuild | null }>(() => {
     const { info, rocket } = useWorkspaceStore.getState();
-    if (!info || !rocket) return { model: null, error: null };
+    if (!info || !rocket) return { model: null, error: null, rebuilt: null };
+    let rebuilt: ReportBuild | null = null;
     try {
-      return { model: assembleReport(), error: null };
+      return { model: assembleReport((built) => (rebuilt = built)), error: null, rebuilt };
     } catch (e) {
-      return { model: null, error: errorText(e) };
+      return { model: null, error: errorText(e), rebuilt };
     }
   });
   const model = initial.model;
+
+  // Before the browser paints, so the window is never shown against an engine
+  // left on the last stage that was built. The engine ITSELF is already whole
+  // by here; this is only the store catching up to the new handle.
+  useLayoutEffect(() => {
+    if (initial.rebuilt) useWorkspaceStore.getState().applyBuild(initial.rebuilt.info, initial.rebuilt.handle);
+  }, [initial.rebuilt]);
   useEffect(() => {
     if (!initial.error) return;
     // `i18n.t`, not the hook's `t`: this must not depend on a value that

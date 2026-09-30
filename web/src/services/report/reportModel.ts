@@ -99,7 +99,7 @@ export function stageParts(
 }
 
 /** One full engine build: its static info plus the live handle to install. */
-interface Built {
+export interface ReportBuild {
   info: StaticInfo;
   handle: OpenRocketDesign;
 }
@@ -119,8 +119,8 @@ export function multiStageSummaries(
   stages: ComponentNode[],
   stageName: (st: ComponentNode, i: number) => string,
   buildStage: (st: ComponentNode) => StaticInfo,
-  buildWhole: () => Built,
-  restore: (built: Built) => void,
+  buildWhole: () => ReportBuild,
+  restore: (built: ReportBuild) => void,
 ): Summary[] {
   try {
     return stages.map((st, i) => ({ label: stageName(st, i), info: buildStage(st) }));
@@ -129,8 +129,19 @@ export function multiStageSummaries(
   }
 }
 
-/** Assemble the report from the live design + simulations (synchronous engine work). */
-export function assembleReport(): ReportModel | null {
+/**
+ * Assemble the report from the live design + simulations (synchronous engine
+ * work).
+ *
+ * `install` is where the whole-rocket rebuild goes on a MULTI-STAGE design,
+ * whose per-stage builds reset the shared engine. It defaults to re-seating the
+ * live handle through the store, which is what a caller outside React wants.
+ * A caller rendering a component passes its own, because a store write during
+ * render updates every other subscriber mid-render; it is handed the same build
+ * to install once it is out of the render pass. The engine is whole either way
+ * by the time this returns: only the store's view of it is the caller's to time.
+ */
+export function assembleReport(install?: (built: ReportBuild) => void): ReportModel | null {
   const s = useWorkspaceStore.getState();
   const { tree, info, rocket } = s;
   if (!info || !rocket) return null;
@@ -178,7 +189,7 @@ export function assembleReport(): ReportModel | null {
         const main = buildConfiguredRocket(tree, flown);
         return { info: main.staticInfo(), handle: main };
       },
-      (built) => s.applyBuild(built.info, built.handle),
+      install ?? ((built) => s.applyBuild(built.info, built.handle)),
     );
   } else {
     stageSummaries = stageList.map((st, i) => ({ label: stageName(st, i), info }));

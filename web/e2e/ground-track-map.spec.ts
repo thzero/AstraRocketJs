@@ -30,13 +30,35 @@ async function rects(page: Page) {
 }
 
 /**
+ * The drift readout, checked by its SHAPE and a band rather than by its digits.
+ *
+ * The same design in the same wind lands on 377 m or 378 m from one run to the
+ * next, so an exact string fails about one run in four. Both tests here are
+ * about the readout being ON SCREEN (the pane used to cut its ends off), and
+ * neither is the place that owns the number: `driftEllipse.test.ts` and
+ * `groundTrack.test.ts` do. The band is wide enough to absorb the meter that
+ * moves and far too narrow to absorb a change to the design.
+ */
+async function expectDrift(page: Page): Promise<void> {
+  const readout = page.getByRole('group', { name: /Where each stage landed/i }).getByText(/^\d+ m · \d+°$/);
+  await expect(readout).toBeInViewport();
+  const figures = /^(\d+) m · (\d+)°$/.exec((await readout.innerText()).trim());
+  expect(figures).not.toBeNull();
+  const [, meters, bearing] = figures!;
+  expect(Number(meters)).toBeGreaterThanOrEqual(370);
+  expect(Number(meters)).toBeLessThanOrEqual(385);
+  expect(Number(bearing)).toBeGreaterThanOrEqual(265);
+  expect(Number(bearing)).toBeLessThanOrEqual(275);
+}
+
+/**
  * A flight with a real drift, so the view is sized to a track rather than a dot.
  *
- * The distance the two tests below pin is the DEFAULT rocket's, flown into a
+ * The distance the two tests below check is the DEFAULT rocket's, flown into a
  * 7 m/s wind, so it moves whenever that design does: it was 364 m until the
  * default rocket got the materials a real one is built from (polystyrene nose,
  * basswood fins), which took 3 g off it and sent it a little higher and further
- * downwind. A change here is a real change to the design, not a flaky number.
+ * downwind.
  */
 async function flyDownwind(page: Page): Promise<void> {
   await ready(page);
@@ -110,7 +132,7 @@ test('the layer buttons and the drift readout are not clipped by the square', as
   // Sized to the whole pane, the pane overflows by the height of the readout
   // beneath it and the centered overflow is cut off at both ends, taking the
   // distance and bearing with it - the two numbers this view exists to give.
-  await expect(page.getByText(/377 m · 270°/)).toBeInViewport();
+  await expectDrift(page);
   await expect(page.getByRole('button', { name: 'Satellite', exact: true })).toBeInViewport();
   // The provider's attribution is a condition of using the tiles at all.
   await expect(page.getByText(/Imagery: Esri/)).toBeInViewport();
@@ -124,7 +146,7 @@ test('turns the imagery off and keeps the measurement', async ({ page }) => {
   expect((await rects(page)).tiles).toBe(0);
   // The rings and the readout are what the view was before imagery, and still is.
   await expect(page.getByRole('img', { name: /over the ground/i })).toBeVisible();
-  await expect(page.getByText(/377 m · 270°/)).toBeInViewport();
+  await expectDrift(page);
 
   // And back on, which is the half of a toggle that is easy to leave broken.
   await page.getByRole('button', { name: 'Satellite', exact: true }).click();
