@@ -125,6 +125,18 @@ Los tres dependen de que el cohete diga qué paracaídas es cuál. Marca **Pilot
 
 Cada uno de estos también se puede sobrescribir por simulación, en las opciones de esa simulación.
 
+Al cambiar cualquiera de ellos, todas las simulaciones que ya se han ejecutado se marcan como **desactualizadas**, de modo que un resultado guardado nunca afirma describir unos ajustes con los que no se voló. Una simulación que fija el ajuste por su cuenta no se toca, porque su propio valor sigue aplicándose. Vuelve a ejecutarla para actualizar los números.
+
+## Modelo de vuelo
+
+Todo lo anterior decide cuándo *avisa* un vuelo. Esto cambia lo que hace el vuelo.
+
+- **Salida según las guías** — desactivado por defecto, que es el comportamiento propio de OpenRocket: el cohete permanece en el riel durante toda su longitud, estén donde estén las guías de lanzamiento o los botones de riel. OpenRocket calcula una longitud que tiene en cuenta las guías y luego no la usa, así que una guía montada por encima de la cola del cohete recibe un recorrido guiado que no tiene, y los botones de riel no se consideran en absoluto.
+
+  Al activarlo, la fase guiada termina cuando la guía más trasera sale del riel, sea una guía de lanzamiento o un botón. El cohete se libera en ese momento además de informarse allí, así que cambia el vuelo en sí, no solo el número. Espera una velocidad de salida algo menor: un botón de riel suele quedar de 10 a 20 cm por encima de la cola, lo que en un riel de 1,8 m supone alrededor de un 8 % menos de recorrido guiado. Un diseño sin ninguna guía es una torre de lanzamiento y vuela igual en ambos casos.
+
+  Es un ajuste y no una corrección porque el motor se comprueba contra OpenRocket de escritorio vuelo a vuelo. Desactivado, una ejecución coincide exactamente con OpenRocket.
+
 ## Restablecer
 
 Abajo en el diálogo hay dos botones: **Restablecer ‹pestaña›** repone solo la pestaña en la que estás (así que **Restablecer Unidades** toca las unidades y nada más), y **Restablecer todo** devuelve cada ajuste de cada pestaña a su valor por defecto.

@@ -125,6 +125,18 @@ All three depend on the rocket saying which chute is which. Tick **Drogue (dual 
 
 Each of these can also be overridden per simulation, in the simulation's own options.
 
+Changing any of them marks every simulation that has already run as **outdated**, so a saved result never claims to describe settings it was not flown under. A simulation that pins the setting for itself is left alone, since its own value still applies. Run it again to bring the numbers up to date.
+
+## Flight model
+
+Everything above decides when a flight *warns*. This one changes what the flight does.
+
+- **Guide-aware rod clearance** — off by default, which is OpenRocket's own behavior: the rocket stays on the rod for the full rod length wherever its launch lugs or rail buttons sit. OpenRocket works out a guide-aware length and then never uses it, so a guide mounted above the rocket's aft end is credited with guided travel it does not have, and rail buttons are not considered at all.
+
+  Turn it on and the guided phase ends when the aft-most guide leaves the rod, lug or rail button alike. The rocket is released at that moment as well as reported there, so the flight itself changes, not just the number. Expect the rail-exit velocity to come out a little lower: a rail button usually sits 10 to 20 cm above the tail, which on a 1.8 m rail is roughly 8% less guided travel. A design with no guide at all is a tower launcher and flies identically either way.
+
+  It is a setting rather than a correction because the engine is checked against desktop OpenRocket flight for flight. Left off, a run matches OpenRocket exactly.
+
 ## Reset
 
 Two buttons sit at the bottom of the dialog: **Reset ‹tab›** puts back just the tab you are on (so **Reset Units** touches units and nothing else), and **Reset all** returns every setting on every tab to its default.

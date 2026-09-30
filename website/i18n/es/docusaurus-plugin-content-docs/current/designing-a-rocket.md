@@ -165,6 +165,10 @@ Al seleccionar un **paracaídas** aparece una lectura de **dimensionado del desc
 
 Necesita un motor cargado (para conocer la masa de descenso). Es solo una ayuda en pantalla: no se escribe nada en el diseño.
 
+**Antes de ejecutar una simulación, son estimaciones**, y la lectura lo indica. La masa, la velocidad y la densidad del aire las calcula la aplicación a partir del diseño, no el motor de vuelo. Cuando una simulación ha desplegado realmente este paracaídas, la masa y la velocidad de descenso se sustituyen por lo que registró el motor, leído del propio vuelo, y la lectura lo indica así. En un diseño por etapas también nombra la etapa de la que provienen las cifras, algo que la estimación no puede hacer: un propulsor se separa y baja por su cuenta, así que el número del diseño es el del conjunto completo y no el de ninguna de las dos partes.
+
+Los dos **diámetros** sugeridos siguen siendo estimaciones en todos los casos, y se marcan como tales. Qué tamaño debe tener un paracaídas es una pregunta sobre un cohete que aún no has volado, así que ninguna simulación puede responderla.
+
 ## Materiales {#materials}
 
 Todo componente estructural tiene un **material**, que el motor de física usa (por su **densidad**) para calcular la masa y el CG. Una pieza que añades lleva uno desde que existe: el que hayas puesto en [Ajustes ▸ Materiales](./settings.md#materials), o si no el material de serie con el que el motor la pesaría de todos modos: **Cardboard** para una pieza maciza, **Ripstop nylon** para una tela, **Elastic cord** para las cuerdas y el cordón de choque. Son los propios valores por defecto de OpenRocket, los mismos con los que construye cada componente nuevo.

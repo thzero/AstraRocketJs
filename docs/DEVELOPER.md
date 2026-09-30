@@ -52,10 +52,21 @@ A few house rules that keep the codebase consistent:
 - **Never hardcode the app name, version, or the help/docs URL.** They come from `web/src/services/app/appInfo.ts` — name from i18n, version from `package.json`, and `HELP_URL` from `package.json`'s `wiki.url` (overridable at build time with `HELP_URL=…`).
 - **Match the surrounding code** — its naming, comment density, and style.
 
+## Where a number comes from
+
+**The engine owns the physics. The UI reports facts known before a run and facts known after a run; it does not calculate.** The kernel is what gets validated against desktop OpenRocket, so a figure the app works out for itself is a second implementation that nothing checks. One did drift and shipped wrong.
+
+Before adding a readout, ask which side of the run it comes from. Before a run, that is the design's own values and what the kernel reports about the built rocket; after a run, it is `result.summary`, `result.events` and `result.series` sampled at an event's time with `lerpAt`. Series and events are per branch, which is the only way to be right about a separated booster.
+
+An app-side **estimate** is allowed as a design aid, and only if the UI says it is an estimate and it is replaced by the kernel's figures once a run has them. `services/flight/recoverySizing.ts` (the estimate) against `services/flight/recoveryFlown.ts` (the reader) is the worked pair.
+
+Full reasoning and the exceptions: [**Who owns a number**](./ARCHITECTURE.md#who-owns-a-number).
+
 ## Working on the engine
 
 Most contributions don't touch the engine. If you do:
 
+- **Before patching a kernel file to change flight behavior, try a `SimulationListener` first.** The bridge can add one to `SimulationConditions`, which costs no patched file, no `DIVERGENCE.txt` re-bless, and leaves the default path byte-identical because the listener is simply not attached when the feature is off. `api/GuideClearanceListener.java` is the worked example; see [**The extracted engine**](./ARCHITECTURE.md#the-extracted-engine-engine-javasrcjava) for the hooks it relies on and the two traps.
 - **Don't edit the extracted OpenRocket sources under `engine-java/src/java/` directly** — they track OpenRocket's **unstable** branch. Necessary tweaks go through a documented override in `engine-java/patches/` (see also `engine-java/ATTRIBUTION.md`).
 - ARJ's own engine glue — the `@JSExport` facade, the component-tree builder, overrides, etc. — lives in `engine-java/src/api/`. That's fair game.
 - Changing the engine requires a **JDK** (see **Requirements** above) and rebuilding **both** targets (WASM-GC is the default backend, JS the fallback):

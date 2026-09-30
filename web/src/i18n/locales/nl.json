@@ -160,7 +160,12 @@
     "back": "Terug",
     "openOnSite": "Openen op de documentatiesite",
     "loading": "Laden…",
-    "missing": "De documentatie zit niet in deze kopie van {{name}}, of kon niet worden gelezen. Je kunt die nog wel online openen."
+    "missing": "De documentatie zit niet in deze kopie van {{name}}, of kon niet worden gelezen. Je kunt die nog wel online openen.",
+    "search": "Zoeken in de help",
+    "searchClear": "Zoekopdracht wissen",
+    "searchNone": "Niets in de handleiding komt overeen met “{{query}}”.",
+    "searchBusy": "Zoeken…",
+    "searchMatches": "Overeenkomsten: {{n}}"
   },
   "override": {
     "title": "Overschrijvingen",

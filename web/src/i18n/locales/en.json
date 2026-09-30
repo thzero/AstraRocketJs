@@ -160,7 +160,12 @@
     "back": "Back",
     "openOnSite": "Open on the docs site",
     "loading": "Loading…",
-    "missing": "The documentation is not part of this copy of {{name}}, or it could not be read. You can still open it online."
+    "missing": "The documentation is not part of this copy of {{name}}, or it could not be read. You can still open it online.",
+    "search": "Search help",
+    "searchClear": "Clear search",
+    "searchNone": "Nothing in the guide matches “{{query}}”.",
+    "searchBusy": "Searching…",
+    "searchMatches": "Matches: {{n}}"
   },
   "override": {
     "title": "Overrides",

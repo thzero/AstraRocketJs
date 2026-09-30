@@ -18,7 +18,11 @@ AstraRocketJs runs the **OpenRocket physics kernel** in the browser, compiled to
 
 OpenRocket's full `core` module is ~700 Java files and pulls in Guice, JAXB, GraalVM-JS and classgraph — none of which TeaVM (the Java→JavaScript/WASM compiler) can handle. **Extraction** is a one-time copy of just the ~270 files the physics and simulation actually need, leaving behind all the reflection-heavy machinery (file loaders, plugin system, scripting, GUI hooks).
 
-`src/java/` tracks OpenRocket's **unstable** branch, with the TeaVM-compatibility overrides in `patches/` applied on top (`UUID`→`LongUUID`, one concurrent map swapped for a plain one, a reflection-free aerodynamic calculator lookup, and a copy-constructor `ArrayList.clone()` that WASM-GC's strict casts require). **This is the engine** — when the UI calls `staticInfo()` or `simulate()`, this is the code that runs. Don't edit extracted files directly; changes go through a documented override in `patches/` (only when upgrading the upstream OpenRocket version).
+`src/java/` tracks OpenRocket's **unstable** branch, with the TeaVM-compatibility overrides in `patches/` applied on top (`UUID`→`LongUUID`, one concurrent map swapped for a plain one, a reflection-free aerodynamic calculator lookup, and a copy-constructor `ArrayList.clone()` that WASM-GC's strict casts require). **This is the engine** — when the UI calls `staticInfo()` or `simulate()`, this is the code that runs. Don't edit extracted files directly; changes go through a documented override in `patches/` (only when upgrading the upstream OpenRocket version), which also means re-blessing `engine-java/extract/DIVERGENCE.txt`.
+
+**Before patching a kernel file to change flight behavior, check whether a `SimulationListener` can do it.** `SimulationConditions.getSimulationListenerList()` is a public mutable list the `src/api/` bridge populates, cloned per flight branch, and the engine fires hooks throughout its step loop. A listener costs no patched file, no re-bless, and leaves the default path byte-identical, because it is simply not attached when the feature is off.
+
+`api/GuideClearanceListener.java` is the worked example: the opt-in guide-aware rod clearance model. `firePostStep` runs before the engine's own launch-guide check and is handed the mutable status; handling a `LAUNCHROD` event does nothing but set `launchRodCleared`, and the engine's own check is guarded on that same flag, so an event added earlier suppresses the engine's later one instead of duplicating it. Both steppers key the rod constraint on the flag, so the event releases the rocket as well as reporting it, and `FlightData` already interpolates `launchRodVelocity` at the event's own time. Two traps: override `isSystemListener()` to return true or every flight raises `Warning.LISTENERS_AFFECTED`, and capture a branch's origin in `startSimulationBranch`, which is where the engine reads its own.
 
 Extracted sources by area:
 
@@ -35,6 +39,32 @@ Extracted sources by area:
 | … | rest | logging, i18n, materials, presets, appearance |
 
 (~270 kernel files under `src/java/`, plus `src/shims/`, `src/jdkstubs/` and the `src/api/` facade — 286 Java files total.)
+
+## Who owns a number
+
+**The engine owns the physics. The UI reports facts known before a run and facts known after a run; it does not calculate.**
+
+This is the rule that keeps the app honest about what it is. The kernel is the thing being validated against desktop OpenRocket, so any figure the app works out for itself is a second implementation that nothing checks and that drifts the moment the kernel moves. It has happened: a stability margin computed app-side as `((cp - cg) / length) * 100` was the right shape over the wrong denominator, because OpenRocket divides by the AERODYNAMIC length and `length` bounds every component including the ones with no aerodynamic effect. CP, CG, calibers and the percentage margin all come from the kernel now.
+
+So for any readout, the question is which side of the run it comes from:
+
+- **Before a run** the known facts are the design's own values and whatever the kernel reports about the built rocket (`staticInfo`, `componentInfo`, `componentMasses`, `aeroSweep`).
+- **After a run** they are the flight's own record: `result.summary`, `result.events`, and `result.series` sampled at an event's time. `services/flight/interpolate.ts` (`lerpAt`) is the reader, and the kernel itself derives `launchRodVelocity` the same way.
+
+Series and events are **per branch**. A staged flight splits into one branch per descending piece, and that is the only way to be right about a separated booster: it comes down on its own with its own mass, so any whole-design figure is the stack's and neither piece's.
+
+### Estimates
+
+An app-side estimate is allowed, as a **design aid only**, and only if both of these hold:
+
+1. the UI says it is an estimate, and
+2. it is replaced by the kernel's figures once a run has them.
+
+The worked example is the parachute panel's **Descent sizing** block and the **Mass (Recovery)** stats tile. `services/flight/recoverySizing.ts` estimates a descent mass (loaded mass less the propellant that burns off), a descent rate (the descent equation at an air density the app models itself) and the two canopy diameters that would hit the main and drogue bands. None of that is the kernel's, which is why it can be shown before the design has ever flown.
+
+`services/flight/recoveryFlown.ts` is the other half: it reads what a run recorded for a named recovery device — the mass series at its deployment event, and the velocity at the END of its descent phase (the next chute, or the ground) where the rate has settled. The readout switches to those figures and says so, naming the branch when the flight had more than one. An **outdated** run falls back to the estimate rather than quoting a rocket that has since moved.
+
+The two suggested diameters stay an estimate permanently and are marked as one, because *what size should I use* is a question about a design that has not flown and no simulation answers it. The marker goes on a readout's **label**, never in place of a unit chip: that chip is the control that sets the readout's unit, and a marker is not worth a control.
 
 ## Build → run pipeline
 
@@ -62,6 +92,19 @@ Two deliberate exclusions and additions:
 The worker is registered with `registerType: 'prompt'`, not `autoUpdate`: a silent activation reloads the page, which would interrupt an edit in progress. `components/layout/UpdateToast.tsx` asks instead. A waiting worker activates only when the page posts `SKIP_WAITING`, so an offer that is never answered would hold the tab on the old build for the life of the tab; the toast therefore applies the update itself once the tab has been hidden for `UPDATE_APPLY_HIDDEN_MS` with no simulation in flight.
 
 Icons are generated from `web/public/favicon.svg` by `npm run gen:icons` (rerun after changing the favicon). The maskable variant is inset to the ~80% safe zone because launchers crop to a circle or squircle and would otherwise clip the fins.
+
+## The guide, and searching it
+
+`website/` is a Docusaurus site and the only copy of the documentation. The deploy builds it once and uses it twice: published at the docs URL, and copied into `web/public/docs` so the app carries it. The in-app **Help** dialog (`components/layout/HelpDialog.tsx`) is a second *renderer* over those built pages, never a second copy: it frames them and strips the site chrome with an embed stylesheet that ships with the docs (`website/src/css/custom.css`). `web/public/docs` is gitignored, so a dev build has no docs until `npm run docs:build` has been run, and the dialog offers the docs site instead.
+
+Addressing is the whole offline story. `docs/<slug>/index.html` is the exact key Workbox precaches each page under; `docs/<slug>/` is not (`directoryIndex` is off), so every link inside the frame is intercepted and re-opened as a file. `npm run e2e:offline-help` proves it against a real build and a real worker.
+
+The contents rail, the page headings and the search index are all read out of the sidebar and the markup Docusaurus builds into **every** page, so a new page is registered in `sidebars.ts` and nowhere else. (With one condition, noted there: a `collapsed` category renders its children into no page at all, and the whole group would go missing from the rail.)
+
+**Two searches, because there are two places to search from.**
+
+- The published site uses `@easyops-cn/docusaurus-search-local`, whose index is built with the site and fetched with a `?_=<hash>` of the sources behind it, so a deploy cannot be answered from a cached old index. That hash is what `docsDir` is for in this plugin and nothing else, which is why it lists `i18n` as well: the default is the English sources alone, so a Spanish-only change did not move it. That index is kept out of the app precache (`globIgnores` in `web/vite.config.ts`): it is about 1.5 MB, and the dialog could not use the plugin anyway, because the embed stylesheet hides the navbar its search box lives in.
+- The dialog searches the built pages themselves (`services/app/helpSearch.ts`). The first search fetches every page the rail lists, splits each at its `h2`/`h3` anchors, and keeps that for the session. A section matches only if *every* word typed appears in it, ranked heading over body over page title, and opening a result marks the words in the frame and scrolls to the first one. Because it reads the same precached files the frame renders, it works offline with nothing extra shipped and no index that can drift from the pages it describes.
 
 ## Motor data & thrust-curve caching
 
@@ -127,7 +170,13 @@ Like the motor catalog, it is a generated file under `public/data/` fetched on f
 
 Read by `services/files/rktImport.ts` and written by `services/files/rktExport.ts` — a TypeScript PORT of OpenRocket's `file/rocksim/` package, not an extraction of it. That package is SAX-based and pulls in the desktop's document, appearance and warning machinery; the schema it encodes is small enough to read directly, and reading it here keeps both directions on the same side of the engine boundary as the `.ork` pair: plain DOM, unit-testable, no kernel round trip. The element vocabulary, the unit factors and the four enums are transcribed from `RockSimCommonConstants.java` and its siblings, so an upstream bump can be diffed against those files.
 
+**The specification is the handlers, not the element names.** `file/rocksim/importt/` (twenty of them) and `file/rocksim/export/` (the DTOs) are what a `.rkt` question is answered by; `RockSimCommonConstants.java` only names the tags. A dozen handlers do something the format alone gives no hint of, and reading the tag instead of the handler is how the reader came to be wrong about mass in four separate ways. Examples, each pinned by a case in `web/tests/services/files/rktDesktopParity.test.ts` that names its handler: a zero `<ID>` means a SOLID part, because `setInnerRadius` is `setThickness(outer - r)`; a recovery device's density may arrive in any of RockSim's three kinds and a BULK one only becomes areal once multiplied by the fabric's `Thickness`; a mass object's stated CG is measured from its parent's front and is already in its position, so it must be thrown away; most shock cords do not say they are shock cords; a fin set on a nose cone or transition must be converted to freeform or `addChild` refuses it outright; and a detachable pod is a strap-on booster.
+
 Three conversions run through everything, and getting one wrong yields a design that is silently 2x or 1000x off rather than one that fails to load: RockSim is **millimeters** and **grams**, and every circular dimension in the file is a **diameter**. The exceptions are documented at their call sites — a parachute's `Dia` really is a diameter on both sides, and `ShroudLineMassPerMM` is kg/m despite its name.
+
+**The package converts inbound by DIVIDING by its constant and outbound by multiplying**, and that direction is load-bearing: `ROCKSIM_TO_OPENROCKET_SURFACE_DENSITY` is `1/10`, so a surface density comes in at ten times the file's number and goes out at a tenth. Having those two swapped is a hundredfold error in each direction that cancels on a round trip, so a reader test and a writer test can agree with each other and with nothing else.
+
+**One deliberate divergence:** every RockSim `RadialAngle` and `CantAngle` is degrees, and our nodes hold radians. The desktop importer feeds those degrees straight into `setAngleOffset`, `setRadialDirection` and `setBaseRotation`, all of which are radians, and its exporter writes radians back into the degrees field. We convert in both directions at all six sites, so an imported design differs from desktop's wherever a part carries a roll angle. Do not "align" these to upstream.
 
 `services/files/designFile.ts` picks the reader from the file's bytes (a zip is a `.ork`; otherwise the root element decides), so `loadOrk` has one path for both formats and everything downstream — the notes banner, the safety-limit check, the unsaved-copy semantics — is shared rather than duplicated per format. The header carries one hidden file input per format, differing only in `accept`.
 
@@ -172,6 +221,25 @@ That one path is what the main thread and the sim worker both take (`services/de
 **Numbering.** The kernel numbers stages in the order they are added, which is a pre-order walk over `stage` and `parallelstage` nodes, so a parallel booster nested in an early stage shifts every stage after it. `treeEdit.findStages` is that walk, and it is what the `.ork`'s `<stage number="n" active="…">` flags are keyed by; the facade itself takes a component id rather than a number, so nothing downstream has to reproduce the rule.
 
 **Persistence.** Configurations live in the workspace (`version: 2`), not in each simulation. `services/storage/workspaceMigrate.ts` lifts a version-1 workspace by minting a configuration per distinct loadout, deduped, so twelve rows that flew the same motors arrive as one setup rather than twelve copies of it.
+
+## When a saved result goes stale
+
+A run's numbers are kept and the row is marked **outdated** rather than thrown away, so a design edit ages a flight instead of destroying it. Four inputs decide what a flight computes, and **each needs its own trigger** — there is no single choke point, so a new input needs a new one:
+
+| input | what ages the result |
+|-------|----------------------|
+| the design tree | the watcher in `state/useWorkspaceEffects.ts`, calling `markOutdated` |
+| a simulation's own inputs (launch conditions, per-row overrides, chosen config) | `patchTargets` in `state/store.ts` |
+| a flight configuration (motor, ignition, deployment, separation, nozzle, stage active) | `patchConfig`, which ages the rows using that config |
+| the global run preferences in Settings ▸ Simulation | the settings watcher in `useWorkspaceEffects.ts`, calling `markPrefsOutdated` |
+
+Results are **persisted** (`workspaceStore` splits them out to their own storage key), so a missing trigger does not merely mislead for a session: the row still claims to be current after a reload.
+
+`SimPrefs` is the authoritative list of settings a flight reads, and `SIM_PREF_KEYS` names them at runtime with a compile-time exhaustiveness check — adding a key to the type without listing it fails the build and the error names the missing key. `SimulationSettings` is a superset: `confirmDelete` and `autoRunOutdated` are interface behavior and `railExitVelocityMin` only colors the rod-exit tile, so none of the three can move a number and listing them would age every result for nothing.
+
+Two traps in the settings watcher. Compare **key by key**, because the settings store hands out a new `simulation` object on every unrelated change in it, so comparing identity would age every result the moment somebody switched a unit or a part color. And a row that **overrides** the changed key is unaffected — its override wins at run time — so `markPrefsOutdated` takes the changed keys and skips those rows.
+
+The design watcher additionally needs its hydration guard: restoring a design is not editing it, and without the guard every restored result was aged on boot and, with `autoRunOutdated` on, immediately re-flown.
 
 ## Opening `.ork` files
 

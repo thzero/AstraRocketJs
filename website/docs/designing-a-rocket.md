@@ -162,7 +162,11 @@ Selecting a **parachute** shows a **descent-sizing** readout in its panel. From 
 - the **descent rate** this canopy actually produces, in your [velocity unit](./settings.md#units), color-coded against the accepted **main** (15–20 ft/s) and **drogue** (50–75 ft/s) bands, and
 - the **canopy diameter** you'd need to hit each band, at this canopy's own drag coefficient.
 
-It needs a motor loaded (to know the descent mass). It's an on-screen aid only — nothing is written to the design.
+It needs a motor loaded (to know the descent mass). It's an on-screen aid only: nothing is written to the design.
+
+**Before you run a simulation these are estimates**, and the readout says so. The mass, the rate and the air density are all worked out by the app from the design, not by the flight engine. Once a simulation has actually deployed this canopy, the mass and the descent rate are replaced by what the engine recorded, read from the flight itself, and the readout says that instead. On a staged design it also names the stage the figures came from, which the estimate cannot do: a booster separates and comes down on its own, so the design-side number is the whole stack rather than either piece.
+
+The two suggested **diameters** stay estimates whatever happens, and are marked as such. What size a canopy should be is a question about a rocket you have not flown yet, so no simulation can answer it.
 
 ## Materials
 

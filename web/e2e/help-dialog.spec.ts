@@ -100,8 +100,9 @@ test('a link inside the docs navigates the dialog, and Back returns', async ({ p
   const docs = page.frameLocator(`iframe[title="${helpDialog}"]`);
   await docs.locator('.pagination-nav__link--next').click();
 
-  // Safety is the last User Guide page, so next is the Appendix's first.
-  await expect(dialog.getByRole('heading', { name: 'Compared with OpenRocket' })).toBeVisible();
+  // Safety is the last User Guide page, so next is the Appendix's first, which
+  // is the glossary (see the note in sidebars.ts for why it leads that group).
+  await expect(dialog.getByRole('heading', { name: 'Glossary' })).toBeVisible();
   // Still inside the app: the frame moved, the page did not.
   await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 
@@ -160,6 +161,53 @@ test('the contents rail lists every page, and the headings of the one you are on
   // And it folds away, for the width it costs.
   await dialog.getByRole('button', { name: 'Contents' }).click();
   await expect(contents).toBeHidden();
+});
+
+test('search finds a section on another page and opens it there', async ({ page }) => {
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'Menu' }).click();
+  await page.getByRole('menuitem', { name: 'Help' }).click();
+
+  const dialog = page.getByRole('dialog', { name: helpDialog });
+  const contents = dialog.getByRole('navigation', { name: 'Contents' });
+  // Opened at the docs index: the point is that search reaches a page the
+  // reader is not on and has never opened.
+  await expect(dialog.getByRole('heading', { name: 'Overview' })).toBeVisible();
+
+  await contents.getByLabel('Search help').fill('ejection delay');
+
+  // The index is built from the same built pages the frame renders, on first
+  // use, so what is worth an end-to-end test is that a REAL docs build comes
+  // back as searchable text: a page whose markup the reader changed shape on
+  // would index as nothing and fail here rather than in a unit test with a
+  // fixture in it.
+  // Scoped to the results group, which is named by its own count line: the rail
+  // holds two lists of buttons that look alike, and a row's accessible name
+  // includes its quoted snippet, so the phrase matches several of them.
+  const results = contents.getByRole('group', { name: /Matches:/ });
+  await expect(results).toBeVisible();
+
+  const hit = results.getByRole('button').first();
+  // Ranked first because the words are the section's own heading rather than a
+  // phrase somewhere in a page's text.
+  await expect(hit).toContainText('Ejection delay');
+  // Where the section is, beside what it is called.
+  await expect(hit).toContainText('Motors');
+
+  await hit.click();
+  await expect(dialog.getByRole('heading', { name: 'Motors' })).toBeVisible();
+
+  // And the words are marked in the page itself, which is what makes a hit on a
+  // long page (the glossary is one heading per letter) findable by eye.
+  const docs = page.frameLocator(`iframe[title="${helpDialog}"]`);
+  await expect(docs.locator('article mark[data-astra-help-mark]').first()).toBeVisible();
+
+  // Clearing gives the page list back, rather than leaving the rail showing
+  // results for a search that is no longer there.
+  await dialog.getByRole('button', { name: 'Clear search' }).click();
+  await expect(contents.getByRole('button', { name: 'Safety', exact: true })).toBeVisible();
+  await expect(docs.locator('article mark[data-astra-help-mark]')).toHaveCount(0);
 });
 
 test.describe('at phone width', () => {

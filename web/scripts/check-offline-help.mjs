@@ -40,6 +40,10 @@ const SETTINGS_KEY = 'astrarrocketjs:settings:v1';
 // dialog, the second by navigating at it directly.
 const UNREAD_PAGE = { menuItem: 'Safety', heading: 'Safety' };
 const DIRECT_PAGE = 'docs/motors/';
+// A search run with the network off. It has to reach pages nobody opened, so
+// the term is one that appears across the guide rather than on the page the
+// dialog happens to be showing.
+const SEARCH = { query: 'ejection delay', match: /Ejection delay/ };
 
 const log = (...a) => console.log('[offline-help]', ...a);
 
@@ -126,6 +130,26 @@ async function main() {
       await article.waitFor({ timeout: 30_000 });
       const text = (await article.textContent())?.trim();
       if (text !== UNREAD_PAGE.heading) throw new Error(`frame shows ${JSON.stringify(text)}`);
+    });
+
+    await step('offline, searching the guide builds its index from the precache', async () => {
+      const dialog = page.getByRole('dialog', { name: 'Help' });
+      const before = failed.length;
+      await dialog.getByLabel('Search help').fill(SEARCH.query);
+      const rows = dialog.getByRole('button', { name: SEARCH.match });
+      await rows.first().waitFor({ timeout: 30_000 });
+
+      // The index is one fetch per page, and every one of them is answered by
+      // the precache or not at all. A page the worker does not hold would show
+      // up here as a failed request rather than as a shorter list, which is the
+      // difference between search being offline and merely looking offline.
+      const broke = failed.slice(before).filter((r) => r.includes('/docs/'));
+      if (broke.length) throw new Error(`docs requests failed offline: ${broke.join(', ')}`);
+
+      await rows.first().click();
+      const article = page.frameLocator('iframe[title="Help"]').locator('article h1');
+      await article.waitFor({ timeout: 30_000 });
+      if (!(await article.textContent())?.trim()) throw new Error('the result opened a page with no heading');
     });
 
     await step(`offline, ${DIRECT_PAGE} still loads by direct navigation`, async () => {

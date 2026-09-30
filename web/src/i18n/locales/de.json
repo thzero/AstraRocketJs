@@ -160,7 +160,12 @@
     "back": "Zurück",
     "openOnSite": "Auf der Doku-Website öffnen",
     "loading": "Wird geladen…",
-    "missing": "Die Dokumentation gehört nicht zu dieser Kopie von {{name}} oder konnte nicht gelesen werden. Sie können sie weiterhin online öffnen."
+    "missing": "Die Dokumentation gehört nicht zu dieser Kopie von {{name}} oder konnte nicht gelesen werden. Sie können sie weiterhin online öffnen.",
+    "search": "Hilfe durchsuchen",
+    "searchClear": "Suche löschen",
+    "searchNone": "Nichts in der Anleitung passt zu „{{query}}“.",
+    "searchBusy": "Suche läuft…",
+    "searchMatches": "Treffer: {{n}}"
   },
   "override": {
     "title": "Überschreibungen",

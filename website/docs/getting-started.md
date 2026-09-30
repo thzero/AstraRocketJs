@@ -37,6 +37,8 @@ The components panel is desktop-only, so a phone cannot add, reorder or delete p
 
 The top bar has **undo / redo**, a language switcher (ten languages), a note of when your rocket was last saved, and the **app menu**: New, Open… and Save As… (the in-app design library), **Import ▸ OpenRocket** and **Export ▸ OpenRocket / RASAero II** for `.ork` and other files on disk, **Rocket Design Report**, **Motor Dashboard**, **Launch Locations**, **My Parts**, **Settings**, **Help**, **Privacy** and **About**.
 
+**Help** opens this guide inside the app rather than sending you to a website, and the whole guide ships with the app, so it reads at a field with no signal. Its contents rail lists every page and the headings of the one you are on, and the box above that list searches all of them at once: pick a result and the page opens with your words marked.
+
 ## Your first rocket
 
 1. **Start from the default rocket**, or **New** (menu) for a fresh one, or **Open** an existing `.ork` file. There are also **[example rockets](#example-rockets)** built in, which is the quickest way to see what the app can do.

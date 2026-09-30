@@ -305,7 +305,7 @@ public final class OpenRocketEngine {
      */
     static void applySeparationConfig(AxialStage stage, Map<String, Object> stageNode,
             Map<AxialStage, Double> nozzleDia) {
-        // RASAero power-on base-drag: per-stage nozzle exit diameter (metres). Upstream
+        // RASAero power-on base-drag: per-stage nozzle exit diameter (meters). Upstream
         // owns feature #2 natively via a PER-MOTOR MotorConfiguration.nozzleExitDiameter,
         // so we capture the per-stage input here and hand it to the stage's motor in
         // applyMotor. Applies to every stage (incl. the sustainer). Absent/0 => power-off.
@@ -1451,6 +1451,16 @@ public final class OpenRocketEngine {
         conditions.setRecoveryDrogueMainHighSpeedWarning(JsonLite.dbl(o, "mainHighSpeedWarn", 30.48));
         conditions.setRecoveryDrogueMainLowSpeedWarning(JsonLite.dbl(o, "mainLowSpeedWarn", 15.24));
 
+        // OPT-IN guide-aware rod clearance. Upstream compares travel with the full
+        // rod length wherever the guides sit, so a lug or rail button above the
+        // aft end gets travel it does not have and the rod-exit speed reads high.
+        // The listener is simply absent when the key is off, which is why the
+        // default flight is byte-identical to upstream rather than switched at
+        // run time: see GuideClearanceListener for why no kernel file is patched.
+        if (JsonLite.bool(o, "guideAwareRodClearance", false)) {
+            conditions.getSimulationListenerList().add(new GuideClearanceListener());
+        }
+
         try {
             BasicEventSimulationEngine engine = new BasicEventSimulationEngine();
             engine.simulate(conditions);
@@ -1484,7 +1494,7 @@ public final class OpenRocketEngine {
         final FlightConfigurationId fcid;
         final Map<String, RocketComponent> ids = new HashMap<>();
         /**
-         * Per-stage RASAero power-on nozzle-exit diameter (metres), captured from
+         * Per-stage RASAero power-on nozzle-exit diameter (meters), captured from
          * the `nozzleExitDiameter` stage input. Applied to that stage's motor as
          * upstream's per-motor MotorConfiguration.nozzleExitDiameter when the motor
          * is set (see applyMotor) — the browser keeps a per-stage input; the engine

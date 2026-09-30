@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, type KeyboardEvent, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { appName, docPageUrl, helpUrlFor } from '../../services/app/appInfo';
 import {
@@ -8,6 +8,15 @@ import {
   helpTargetFromUrl,
   loadHelpPage,
 } from '../../services/app/helpDocs';
+import {
+  type HelpHit,
+  clearMarks,
+  helpIndex,
+  markMatches,
+  searchHelp,
+  searchTokens,
+  splitHighlight,
+} from '../../services/app/helpSearch';
 import { Dialog } from '../common/Dialog';
 
 /**
@@ -58,6 +67,41 @@ const SPY_OFFSET_PX = 96;
 const railRow =
   'block w-full truncate rounded px-2 py-1 text-left text-xs text-slate-300 hover:bg-slate-800 hover:text-slate-100';
 
+/**
+ * How long a pause in typing means "search for that".
+ *
+ * A search is not free the way filtering a list in memory is: the first one
+ * fetches every page to build the index, and each one after that scans every
+ * section of every page. Neither is worth doing for the prefixes on the way to
+ * a word.
+ */
+const SEARCH_DEBOUNCE_MS = 200;
+
+/**
+ * The shortest query worth running.
+ *
+ * One letter matches most of the guide, so the result would be a list too long
+ * to read, built at the cost of the whole index.
+ */
+const SEARCH_MIN_CHARS = 2;
+
+/** Text with the searched-for words marked, for a result row. */
+function Marked({ text, tokens }: { text: string; tokens: string[] }) {
+  return (
+    <>
+      {splitHighlight(text, tokens).map((segment, i) =>
+        segment.hit ? (
+          <mark key={i} className="rounded bg-amber-300/25 text-amber-100">
+            {segment.text}
+          </mark>
+        ) : (
+          <Fragment key={i}>{segment.text}</Fragment>
+        ),
+      )}
+    </>
+  );
+}
+
 export function HelpDialog({ page, onClose }: { page: string; onClose: () => void }) {
   const { t, i18n } = useTranslation();
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -92,6 +136,18 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
   const [activeHash, setActiveHash] = useState('');
   const activeRow = useRef<HTMLButtonElement>(null);
 
+  // Search. `query` is what has been typed; `found` is the answer for a query,
+  // TAGGED with it the same way the probe is tagged with its src, so a result
+  // list for a query that has since been edited stops matching instead of having
+  // to be cleared. `highlight` is the words to mark inside the frame, which is
+  // set by OPENING a result rather than by typing: marking the page you happen
+  // to be reading as you type would be the dialog rearranging itself under you.
+  const [query, setQuery] = useState('');
+  const [found, setFound] = useState<{ query: string; hits: HelpHit[] } | null>(null);
+  const [highlight, setHighlight] = useState<string[]>([]);
+  const trimmed = query.trim();
+  const resultsId = useId();
+
   // Keep the current heading in view in the rail itself. On a long page the row
   // the frame has reached can easily be scrolled out of a 17-page list, and a
   // highlight you cannot see is not one that follows you.
@@ -116,6 +172,33 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
       canceled = true;
     };
   }, [target]);
+
+  /*
+   * Search the whole guide, after a pause in typing.
+   *
+   * `pages` is the dependency that matters: it is the rail's own page list, so
+   * search covers exactly what the dialog can open and is only possible once a
+   * page has loaded and brought that list with it. On a build with no docs it
+   * stays empty, and the search box is not rendered at all.
+   */
+  useEffect(() => {
+    // Nothing is cleared on the way out: `found` carries the query it answers,
+    // so an answer for a query that has since been shortened simply stops
+    // matching, the same way the probe's src tag works above.
+    if (trimmed.length < SEARCH_MIN_CHARS || pages.length === 0) return;
+    let canceled = false;
+    const timer = window.setTimeout(() => {
+      // The index is built on the first search and kept for the session; this
+      // resolves immediately on every search after it.
+      void helpIndex(pages, i18n.language).then((docs) => {
+        if (!canceled) setFound({ query: trimmed, hits: searchHelp(docs, trimmed) });
+      });
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      canceled = true;
+      window.clearTimeout(timer);
+    };
+  }, [trimmed, pages, i18n.language]);
 
   const probed = probe?.src === target.src ? probe : null;
   const ready = frame === target.src;
@@ -253,6 +336,46 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
     [navigate],
   );
 
+  /** Open a result: the page it is on, with the words that found it marked. */
+  const openHit = useCallback(
+    (hit: HelpHit) => {
+      setHighlight(searchTokens(trimmed));
+      pick(hit.page);
+    },
+    [pick, trimmed],
+  );
+
+  const clearSearch = useCallback(() => {
+    setQuery('');
+    setHighlight([]);
+  }, []);
+
+  /**
+   * Mark the words inside the frame, and go to the first one.
+   *
+   * Not part of the load handler, because opening a second result on the SAME
+   * page does not reload the frame: `navigate` scrolls it instead, so this is
+   * keyed on the anchor as well as on the page. Marking is undone before each
+   * re-run, which leaves the document as it was served.
+   */
+  useEffect(() => {
+    const doc = frameRef.current?.contentDocument;
+    const root = doc?.querySelector('article');
+    if (!ready || !doc || !root) return;
+    const marks = markMatches(root, highlight);
+    const win = doc.defaultView;
+    if (marks.length && win) {
+      // The first match at or after the section the result named. The anchor
+      // alone lands on the HEADING, which on a page like the glossary is a
+      // letter with a hundred entries under it.
+      const anchor = target.hash ? doc.getElementById(decodeURIComponent(target.hash.slice(1))) : null;
+      const from = anchor ? anchor.getBoundingClientRect().top + win.scrollY : 0;
+      const at = marks.find((mark) => mark.getBoundingClientRect().top + win.scrollY >= from) ?? marks[0]!;
+      at.scrollIntoView({ block: 'center' });
+    }
+    return () => clearMarks(root);
+  }, [ready, highlight, target.hash, target.src]);
+
   // The same page on the published site: what you send someone, and the way out
   // of the dialog for anything it renders badly. Empty when the build has no
   // docs URL at all (see docPageUrl).
@@ -260,6 +383,67 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
   const heading = probed?.page?.title || t('help.title');
   // Headings belong to the page they were read from; the page list does not.
   const headings = probed?.page?.contents.headings ?? [];
+
+  // An answer counts only while it still describes what is in the box; between
+  // an edit and the next answer the rail says it is working, rather than
+  // showing results for a query that is no longer there.
+  const results = found?.query === trimmed ? found.hits : null;
+  const searching = results === null && trimmed.length >= SEARCH_MIN_CHARS;
+  const hitTokens = useMemo(() => searchTokens(trimmed), [trimmed]);
+
+  const onSearchKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape' && query !== '') {
+      // Clear the search instead of closing the dialog. Escape closes every
+      // modal in the app (useFocusTrap's window listener), and stopping it here
+      // is the narrow exception: the reason you are in a search box is that you
+      // have not found the thing yet, so shutting the guide is the wrong answer.
+      e.stopPropagation();
+      clearSearch();
+      return;
+    }
+    if (e.key !== 'Enter') return;
+    const top = results?.[0];
+    if (top) openHit(top);
+  };
+
+  const pageRows = pages.map((entry, i) =>
+    entry.page === null ? (
+      <p
+        key={`group-${i}`}
+        className="mt-3 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500 first:mt-0"
+      >
+        {entry.label}
+      </p>
+    ) : (
+      <Fragment key={entry.page}>
+        <button
+          onClick={() => pick(entry.page!)}
+          aria-current={entry.page === target.slug ? 'page' : undefined}
+          className={`${railRow} ${entry.page === target.slug ? 'bg-slate-800 font-semibold text-sky-300' : ''}`}
+        >
+          {entry.label}
+        </button>
+        {/* The page you are ON opens into its own headings, so the rail answers
+            both "what else is there" and "where in this page". Picking one goes
+            through the same same-slug-scroll path a heading link inside the
+            frame takes. */}
+        {entry.page === target.slug &&
+          headings.map((h) => (
+            <button
+              key={h.hash}
+              ref={h.hash === activeHash ? activeRow : undefined}
+              onClick={() => pick(`${target.slug}${h.hash}`)}
+              aria-current={h.hash === activeHash ? 'location' : undefined}
+              className={`${railRow} ${h.level > 1 ? 'pl-8' : 'pl-5'} ${
+                h.hash === activeHash ? 'bg-slate-800 text-sky-300' : 'text-slate-400'
+              }`}
+            >
+              {h.label}
+            </button>
+          ))}
+      </Fragment>
+    ),
+  );
 
   return (
     <Dialog
@@ -342,44 +526,76 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
             aria-label={t('help.contents')}
             className="absolute inset-y-0 left-0 z-10 w-56 shrink-0 overflow-y-auto border-r border-white/10 bg-slate-900 p-2 md:static md:z-auto"
           >
-            {pages.map((entry, i) =>
-              entry.page === null ? (
-                <p
-                  key={`group-${i}`}
-                  className="mt-3 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500 first:mt-0"
+            {/* Search the whole guide, not this page: the index is every page
+                the rail lists. It sits in the rail because that is where the
+                question "where is this?" is already answered, and because the
+                dialog header carries four controls at phone width already. */}
+            <div className="mb-2 flex items-center gap-1">
+              <input
+                // Not type="search": the browsers that draw their own clear
+                // glyph for it draw a second one beside the button below.
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={onSearchKey}
+                placeholder={t('help.search')}
+                aria-label={t('help.search')}
+                enterKeyHint="search"
+                className="min-w-0 flex-1 rounded bg-slate-800 px-2 py-1 text-xs text-slate-200 ring-1 ring-white/10 placeholder:text-slate-500 focus:outline-none focus:ring-sky-500"
+              />
+              {query !== '' && (
+                <button
+                  onClick={clearSearch}
+                  aria-label={t('help.searchClear')}
+                  title={t('help.searchClear')}
+                  className="shrink-0 rounded px-1.5 py-1 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-200"
                 >
-                  {entry.label}
-                </p>
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {results !== null ? (
+              results.length === 0 ? (
+                <p className="px-2 py-3 text-xs text-slate-400">{t('help.searchNone', { query: trimmed })}</p>
               ) : (
-                <Fragment key={entry.page}>
-                  <button
-                    onClick={() => pick(entry.page!)}
-                    aria-current={entry.page === target.slug ? 'page' : undefined}
-                    className={`${railRow} ${entry.page === target.slug ? 'bg-slate-800 font-semibold text-sky-300' : ''}`}
+                // Grouped, and named by its own count line: the rail holds two
+                // lists that look alike, and this is what says which one is on
+                // screen to a screen reader and to a test.
+                <div role="group" aria-labelledby={resultsId}>
+                  <p
+                    id={resultsId}
+                    className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500"
                   >
-                    {entry.label}
-                  </button>
-                  {/* The page you are ON opens into its own headings, so the
-                        rail answers both "what else is there" and "where in
-                        this page". Picking one goes through the same
-                        same-slug-scroll path a heading link inside the frame
-                        takes. */}
-                  {entry.page === target.slug &&
-                    headings.map((h) => (
-                      <button
-                        key={h.hash}
-                        ref={h.hash === activeHash ? activeRow : undefined}
-                        onClick={() => pick(`${target.slug}${h.hash}`)}
-                        aria-current={h.hash === activeHash ? 'location' : undefined}
-                        className={`${railRow} ${h.level > 1 ? 'pl-8' : 'pl-5'} ${
-                          h.hash === activeHash ? 'bg-slate-800 text-sky-300' : 'text-slate-400'
-                        }`}
-                      >
-                        {h.label}
-                      </button>
-                    ))}
-                </Fragment>
-              ),
+                    {t('help.searchMatches', { n: results.length })}
+                  </p>
+                  {results.map((hit) => (
+                    <button
+                      key={hit.page}
+                      onClick={() => openHit(hit)}
+                      className="mb-1 block w-full rounded px-2 py-1 text-left hover:bg-slate-800"
+                    >
+                      {/* The section, then the page it is in: a result is a
+                          place in the guide, and the section is the part of that
+                          you were looking for. A page's lead text has no heading
+                          of its own, so the page name stands in. */}
+                      <span className="block truncate text-xs font-semibold text-slate-200">
+                        <Marked text={hit.heading || hit.label} tokens={hitTokens} />
+                      </span>
+                      {hit.heading !== '' && (
+                        <span className="block truncate text-[10px] text-slate-500">{hit.label}</span>
+                      )}
+                      <span className="mt-0.5 block text-[10px] leading-snug text-slate-400">
+                        <Marked text={hit.snippet} tokens={hitTokens} />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )
+            ) : searching ? (
+              <p className="px-2 py-3 text-xs text-slate-500">{t('help.searchBusy')}</p>
+            ) : (
+              pageRows
             )}
           </nav>
         )}

@@ -132,7 +132,7 @@ La franja inferior resume el diseño actual como una cuadrícula de fichas (se p
 - **Longitud**, **diámetro máximo** y **relación de finura** (longitud / diámetro).
 - **Masa** y **CG**, cada uno mostrado **vacío / cargado** (en seco y con el motor) en una sola ficha.
 - **CP** (centro de presión).
-- **Peso de recuperación** — la masa de descenso (masa cargada menos el propelente que se quema). Se muestra cuando hay un motor cargado; es la masa que el paracaídas baja realmente.
+- **Peso de recuperación** — la masa de descenso (masa cargada menos el propelente que se quema). Se muestra cuando hay un motor cargado; es la masa que el paracaídas baja realmente. El recuadro indica **Masa (Recuperación, est.)** mientras esa cifra es la estimación propia de la aplicación a partir del diseño, y quita la marca cuando una simulación ha desplegado un dispositivo de recuperación y la masa del propio motor la ha sustituido.
 - **Estabilidad** — en **calibres** (en la rampa) y como **% de la longitud**.
 - **Coef. de resistencia** — el coeficiente de resistencia en planeo (sin empuje) a Mach 0,3.
 - **Pendiente de fuerza normal** — CNα (por radián), la pendiente del coeficiente de fuerza normal de Barrowman a Mach 0,3.

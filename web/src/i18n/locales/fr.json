@@ -160,7 +160,12 @@
     "back": "Retour",
     "openOnSite": "Ouvrir sur le site de documentation",
     "loading": "Chargement…",
-    "missing": "La documentation ne fait pas partie de cette copie de {{name}}, ou elle n'a pas pu être lue. Vous pouvez toujours l'ouvrir en ligne."
+    "missing": "La documentation ne fait pas partie de cette copie de {{name}}, ou elle n'a pas pu être lue. Vous pouvez toujours l'ouvrir en ligne.",
+    "search": "Rechercher dans l'aide",
+    "searchClear": "Effacer la recherche",
+    "searchNone": "Rien dans le guide ne correspond à « {{query}} ».",
+    "searchBusy": "Recherche…",
+    "searchMatches": "Résultats : {{n}}"
   },
   "override": {
     "title": "Valeurs forcées",

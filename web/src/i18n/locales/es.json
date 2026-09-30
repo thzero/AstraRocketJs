@@ -160,7 +160,12 @@
     "back": "Atrás",
     "openOnSite": "Abrir en el sitio de documentación",
     "loading": "Cargando…",
-    "missing": "La documentación no forma parte de esta copia de {{name}}, o no se pudo leer. Aún puedes abrirla en línea."
+    "missing": "La documentación no forma parte de esta copia de {{name}}, o no se pudo leer. Aún puedes abrirla en línea.",
+    "search": "Buscar en la ayuda",
+    "searchClear": "Borrar la búsqueda",
+    "searchNone": "Nada en la guía coincide con «{{query}}».",
+    "searchBusy": "Buscando…",
+    "searchMatches": "Coincidencias: {{n}}"
   },
   "override": {
     "title": "Anulaciones",

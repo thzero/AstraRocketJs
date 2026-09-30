@@ -37,6 +37,8 @@ El panel de componentes es solo de escritorio, así que un teléfono no puede a�
 
 La barra superior tiene **deshacer / rehacer**, un selector de idioma (diez idiomas), una nota de cuándo se guardó tu cohete por última vez y el **menú de la aplicación**: Nuevo, Abrir… y Guardar como… (la biblioteca de diseños de la app), **Importar ▸ OpenRocket** y **Exportar ▸ OpenRocket / RASAero II** para los archivos `.ork` y demás en disco, **Informe de diseño**, **Panel de motores**, **Ubicaciones de lanzamiento**, **Mis piezas**, **Ajustes**, **Ayuda**, **Privacidad** y **Acerca de**.
 
+**Ayuda** abre esta guía dentro de la aplicación en lugar de llevarte a un sitio web, y la guía completa se incluye con la aplicación, así que se lee en un campo de vuelo sin cobertura. Su panel de contenido enumera todas las páginas y los apartados de la que estás leyendo, y el cuadro que hay encima de esa lista las busca todas a la vez: elige un resultado y la página se abre con tus palabras resaltadas.
+
 ## Tu primer cohete
 
 1. **Empieza con el cohete por defecto**, o usa **Nuevo** (menú) para uno en blanco, o **Importa** un archivo `.ork` existente. También hay **[cohetes de ejemplo](#example-rockets)** incluidos, que son la forma más rápida de ver lo que puede hacer la aplicación.

@@ -160,7 +160,12 @@
     "back": "Voltar",
     "openOnSite": "Abrir no sítio da documentação",
     "loading": "A carregar…",
-    "missing": "A documentação não faz parte desta cópia do {{name}}, ou não foi possível lê-la. Ainda a pode abrir online."
+    "missing": "A documentação não faz parte desta cópia do {{name}}, ou não foi possível lê-la. Ainda a pode abrir online.",
+    "search": "Procurar na ajuda",
+    "searchClear": "Limpar a procura",
+    "searchNone": "Nada no guia corresponde a «{{query}}».",
+    "searchBusy": "A procurar…",
+    "searchMatches": "Correspondências: {{n}}"
   },
   "override": {
     "title": "Substituições",

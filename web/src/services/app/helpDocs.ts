@@ -49,19 +49,12 @@ export function helpTarget(page: string, language: string): HelpTarget {
   return { page, slug, hash, fileUrl, src: `${fileUrl}${hash}` };
 }
 
-/** A page that is in this build, read before the frame is pointed at it. */
-export interface HelpPage {
-  /** The article's own heading, which titles the dialog. */
-  title: string;
-  /** The page list and this page's headings, for the contents rail. */
-  contents: HelpContents;
-}
-
 /**
- * Fetch a page and read what the dialog needs out of it, or null when it is not
- * in this build.
+ * One built docs page, parsed, or null when it is not in this build.
  *
- * Null covers the two ways it can be absent, which the dialog answers the same
+ * The one place a docs file is read, so everything that reads the docs agrees on
+ * what counts as one: a response that is ok AND carries the Docusaurus marker.
+ * Null covers the two ways a page can be absent, which callers answer the same
  * way (offer the docs site):
  *
  *  - a DEV build. `web/public/docs` is gitignored and only written by the
@@ -72,7 +65,47 @@ export interface HelpPage {
  *
  * On a deployed build this is a service-worker cache hit, because `fileUrl` is
  * the key the page is precached under (see {@link docPageFileUrl}), which is
- * what makes it affordable on every open.
+ * what makes it affordable on every open and what makes the search index
+ * affordable at all.
+ */
+export async function fetchHelpDocument(fileUrl: string): Promise<Document | null> {
+  let html: string;
+  try {
+    const res = await fetch(fileUrl);
+    if (!res.ok) return null;
+    html = await res.text();
+  } catch {
+    return null;
+  }
+  if (!html.includes(DOCUSAURUS_MARKER)) return null;
+  return new DOMParser().parseFromString(html, 'text/html');
+}
+
+/**
+ * A heading's own words.
+ *
+ * Each heading ends with Docusaurus's own anchor link, which contributes a
+ * stray glyph to textContent.
+ */
+export function headingLabel(h: Element): string {
+  return [...h.childNodes]
+    .filter((n) => !(n instanceof Element && n.classList.contains('hash-link')))
+    .map((n) => n.textContent ?? '')
+    .join('')
+    .trim();
+}
+
+/** A page that is in this build, read before the frame is pointed at it. */
+export interface HelpPage {
+  /** The article's own heading, which titles the dialog. */
+  title: string;
+  /** The page list and this page's headings, for the contents rail. */
+  contents: HelpContents;
+}
+
+/**
+ * Read what the dialog needs out of a page, or null when it is not in this
+ * build (see {@link fetchHelpDocument} for what absent means).
  *
  * THE BUILT HTML, NOT THE LIVE FRAME, and that is the point of doing it here.
  * Docusaurus decides what to render from the window size, and the frame inside
@@ -83,16 +116,8 @@ export interface HelpPage {
  * has both, always, and it is already in hand.
  */
 export async function loadHelpPage(target: HelpTarget): Promise<HelpPage | null> {
-  let html: string;
-  try {
-    const res = await fetch(target.fileUrl);
-    if (!res.ok) return null;
-    html = await res.text();
-  } catch {
-    return null;
-  }
-  if (!html.includes(DOCUSAURUS_MARKER)) return null;
-  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const doc = await fetchHelpDocument(target.fileUrl);
+  if (!doc) return null;
   return {
     title: doc.querySelector('article h1')?.textContent?.trim() ?? '',
     contents: readContents(doc),
@@ -210,13 +235,7 @@ export function readContents(doc: Document): HelpContents {
   // linked to, and they are there at any width and either side of hydration.
   const headings: HelpHeading[] = [];
   for (const h of doc.querySelectorAll('.theme-doc-markdown h2[id], .theme-doc-markdown h3[id]')) {
-    // Each heading ends with Docusaurus's own anchor link, which contributes a
-    // stray glyph to textContent.
-    const label = [...h.childNodes]
-      .filter((n) => !(n instanceof Element && n.classList.contains('hash-link')))
-      .map((n) => n.textContent ?? '')
-      .join('')
-      .trim();
+    const label = headingLabel(h);
     if (!label) continue;
     headings.push({ hash: `#${h.id}`, label, level: h.tagName === 'H2' ? 1 : 2 });
   }

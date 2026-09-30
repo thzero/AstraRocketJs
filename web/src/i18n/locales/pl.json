@@ -160,7 +160,12 @@
     "back": "Wróć",
     "openOnSite": "Otwórz w witrynie dokumentacji",
     "loading": "Wczytywanie…",
-    "missing": "Dokumentacja nie wchodzi w skład tej kopii {{name}} albo nie da się jej odczytać. Nadal można ją otworzyć w internecie."
+    "missing": "Dokumentacja nie wchodzi w skład tej kopii {{name}} albo nie da się jej odczytać. Nadal można ją otworzyć w internecie.",
+    "search": "Szukaj w pomocy",
+    "searchClear": "Wyczyść wyszukiwanie",
+    "searchNone": "Nic w przewodniku nie pasuje do „{{query}}”.",
+    "searchBusy": "Szukanie…",
+    "searchMatches": "Trafienia: {{n}}"
   },
   "override": {
     "title": "Nadpisania",

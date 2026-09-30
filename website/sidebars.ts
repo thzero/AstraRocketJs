@@ -40,7 +40,10 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Appendix',
       collapsed: false,
-      items: ['comparison-openrocket', 'comparison-zenrockets', 'comparison-mmrocket-sim'],
+      // Glossary first: it answers 'what does this word mean?', which is
+      // reference a reader reaches for mid-task, while the comparisons answer
+      // 'should I use this?' and are read once.
+      items: ['glossary', 'comparison-openrocket', 'comparison-zenrockets', 'comparison-mmrocket-sim'],
     },
   ],
 };
