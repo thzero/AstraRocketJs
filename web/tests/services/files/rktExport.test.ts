@@ -31,7 +31,10 @@ const design: RocketTree = {
           length: 0.1,
           aftRadius: 0.0124,
           thickness: 0.0015,
-          shape: 'ogive',
+          // POWER, not ogive: a shape parameter only round-trips on a shape
+          // that uses one, because the reader drops it on the others exactly as
+          // `NoseConeHandler` does.
+          shape: 'power',
           shapeParameter: 0.75,
           materialName: 'Polystyrene',
           density: 1050,

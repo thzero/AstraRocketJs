@@ -47,6 +47,22 @@ const SHAPE_CODES: Record<string, number> = {
 /** `RockSimLocationMode` ordinals, by our placement method. */
 const LOCATION_CODES: Record<string, number> = { top: 0, absolute: 1, bottom: 2, middle: 0, after: 0 };
 
+/**
+ * `TipShapeCode` ordinals, by our cross-section token
+ * (`TipShapeCode.convertTipShapeCode`). RockSim calls a fin's cross section its
+ * tip shape.
+ */
+const TIP_SHAPE_CODES: Record<string, number> = { square: 0, rounded: 1, airfoil: 2 };
+
+/**
+ * kg/m2 → RockSim's surface density in g/cm2.
+ *
+ * `ROCKSIM_TO_OPENROCKET_SURFACE_DENSITY`, MULTIPLIED on the way out and divided
+ * on the way in, which is the one direction the kernel uses it in each path
+ * (`BasePartDTO` line 181 and `BaseHandler.computeDensity`).
+ */
+const SURFACE_DENSITY = 1 / 10;
+
 interface Writer {
   emit: (depth: number, s: string) => void;
   /** Types that had no RockSim element, named once each for the caller. */
@@ -99,8 +115,11 @@ function writeCommon(w: Writer, d: number, n: ComponentNode, withPosition: boole
 
   const density = numOf(n, 'density') ?? numOf(n, 'surfaceDensity');
   if (density !== undefined) {
-    // Surface densities go back out in g/cm², which is ×10 from kg/m².
-    el(w, d, 'Density', densityType === 1 ? density * 10 : density);
+    // A surface density goes back out in g/cm2, which is a TENTH of kg/m2.
+    // `BasePartDTO` line 181 multiplies by the same constant the reader divides
+    // by, so the two directions are one factor, not two; writing x10 here made
+    // an exported canopy a hundred times too heavy in RockSim.
+    el(w, d, 'Density', densityType === 1 ? density * SURFACE_DENSITY : density);
     el(w, d, 'DensityType', densityType);
   }
 
@@ -248,6 +267,9 @@ const writeFinSet: PartWriter = (w, d, n) => {
   if (cant) el(w, d, 'CantAngle', deg(cant));
   const angle = numOf(n, 'angleOffset');
   if (angle) el(w, d, 'RadialAngle', deg(angle));
+  // The fin's cross section, which RockSim calls a tip shape
+  // (`FinSetDTO` line 72). Omitting it exported every fin as square.
+  el(w, d, 'TipShapeCode', TIP_SHAPE_CODES[strOf(n, 'crossSection') ?? 'square'] ?? 0);
 
   const tabLength = numOf(n, 'tabLength');
   if (tabLength !== undefined && tabLength > 0) {
