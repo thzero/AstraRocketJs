@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { NumberInput } from '../common/NumberInput';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
+import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { LAUNCH_SI } from '../../prefs/launchUnits';
 import { uuid } from '../../services/app/uuid';
@@ -215,7 +216,7 @@ export function LocationEditor({
               step={altUnit.step(10)}
               min={altUnit.toUi(LIMITS.launchAltitudeM.min)}
               max={altUnit.toUi(LIMITS.launchAltitudeM.max)}
-              onChange={(v) => setAlt(v === null ? null : altUnit.fromUi(v))}
+              onChange={onSi(altUnit, setAlt)}
               className={numberClass}
             />
           </Row>

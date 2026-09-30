@@ -5,6 +5,7 @@ import { NumberInput } from '../common/NumberInput';
 import { FieldLabel, markRing } from '../common/FieldMark';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
+import { clampEntry } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { MAX_INSTANCE_COUNT, num, str } from '../../tree/nodeProps';
 import { clusterCount } from '../../tree/cluster';
@@ -263,23 +264,21 @@ export function FieldRow({
     onCommit?.();
   };
   /**
-   * Write a converted number to the node, or nothing if the conversion
-   * overflowed.
+   * Write a converted patch to the node, or nothing at all.
    *
-   * `NumberInput` refuses a non-finite ENTRY (see `parseFieldValue`), but a
-   * finite entry is not a finite STORED value: the box holds display units and
-   * the node holds SI, so 1e306 g/cm3 is 1e309 kg/m3, which is Infinity. That
-   * went straight into the node, through the mass and the mesh, and out to the
-   * `.ork` as `Infinity` -- which the reader takes back as 0, so the field
-   * showed a number the geometry had never had.
+   * Each branch below converts through `FieldUnit.toSi`, which is the app's one
+   * rule for what an entry may store (prefs/entryValue) and answers `null` for
+   * a value that cannot survive the conversion -- 1e306 g/cm3 is 1e309 kg/m3,
+   * which is Infinity. This drops such a patch rather than writing the `null`
+   * on into the node.
    *
-   * Every numeric branch below converts, and they are the only place this can
-   * happen, so the guard sits on the one way out rather than in each of them.
    * The whole patch is dropped, not the bad key: a `derived` field writes two
-   * linked numbers, and half of that pair is worse than neither.
+   * linked numbers, and half of that pair is worse than neither. That is also
+   * why the finite check stays here as well as in `toSi` -- `derived` and `bore`
+   * do arithmetic of their own on the converted value before it lands.
    */
   const patchNumber = (patch: Partial<ComponentNode>) => {
-    if (Object.values(patch).some((v) => typeof v === 'number' && !Number.isFinite(v))) return;
+    if (Object.values(patch).some((v) => v === null || (typeof v === 'number' && !Number.isFinite(v)))) return;
     onChange(patch);
   };
   /** The follow-something-else switch for a field that declares one. */
@@ -366,7 +365,7 @@ export function FieldRow({
         unit: <UnitChip quantity="mass" scope={scope} />,
         value: fu.toUi(num(node, f.key)),
         step: fu.step(0.0005),
-        onChange: (v) => patchNumber({ [f.key]: fu.fromUi(v) }),
+        onChange: (v) => patchNumber({ [f.key]: fu.toSi(v) }),
       });
     }
     case 'distance': {
@@ -375,7 +374,7 @@ export function FieldRow({
         unit: <UnitChip quantity="distance" scope={scope} />,
         value: fu.toUi(num(node, f.key)),
         step: fu.step(f.step ?? 10),
-        onChange: (v) => patchNumber({ [f.key]: fu.fromUi(v) }),
+        onChange: (v) => patchNumber({ [f.key]: fu.toSi(v) }),
       });
     }
     case 'number': {
@@ -402,7 +401,7 @@ export function FieldRow({
         min: -fu.toUi(Math.PI),
         step: fu.step(((f.step ?? 5) * Math.PI) / 180),
         value: fu.toUi(num(node, f.key)),
-        onChange: (v) => patchNumber({ [f.key]: fu.fromUi(v) }),
+        onChange: (v) => patchNumber({ [f.key]: fu.toSi(v) }),
       });
     }
     case 'bore': {
@@ -428,7 +427,9 @@ export function FieldRow({
         step: fu.step(0.0005),
         max: fu.toUi(od),
         onChange: (v) => {
-          const bore = Math.max(0, Math.min(od, fu.fromUi(v)));
+          const si = fu.toSi(v);
+          if (si === null) return;
+          const bore = Math.max(0, Math.min(od, si));
           // Floored as well as clamped: the unit round trip leaves dust, and a
           // wall of -1.7e-18 is a negative thickness heading for the mass, the
           // mesh and the .ork, none of which check for one.
@@ -447,7 +448,13 @@ export function FieldRow({
       // A bare ratio has no unit group and no chip, so it also has no scope to
       // convert through: it is read and written as itself.
       const fu = d.quantity ? u.at(scope, d.quantity) : undefined;
-      const patch = (v: number) => patchNumber(d.write(node, fu ? fu.fromUi(v) : v));
+      const patch = (v: number) => {
+        // A bare ratio has no unit to convert through, so it takes the same
+        // rule with no conversion leg rather than skipping the check.
+        const si = fu ? fu.toSi(v) : clampEntry(v);
+        if (si === null) return;
+        patchNumber(d.write(node, si));
+      };
       const value = d.read(node);
       const bound = (v: number | undefined) => (v === undefined ? undefined : Number((fu ? fu.toUi(v) : v).toFixed(6)));
       return numeric({
@@ -477,7 +484,7 @@ export function FieldRow({
         value: fu.toUi(k * num(node, f.key)),
         step: fu.step(0.0005),
         ...autoProp(),
-        onChange: (v) => patchNumber({ [f.key]: fu.fromUi(v) / k }),
+        onChange: (v) => patchNumber({ [f.key]: fu.toSi(v, (si) => si / k) }),
       });
     }
   }

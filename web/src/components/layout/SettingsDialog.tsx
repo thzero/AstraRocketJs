@@ -10,6 +10,7 @@ import { LaunchPanel } from '../sim/LaunchPanel';
 import { withRequiredFrom } from '../../services/flight/requiredLaunch';
 import { IMPERIAL_UNITS, METRIC_UNITS, QUANTITIES, UNITS, unitScope } from '../../prefs/units';
 import { useUnits } from '../../prefs/useUnits';
+import { onSi } from '../../prefs/entryValue';
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4];
 const speedLabel = (s: number) => (s === 0.25 ? '¼×' : s === 0.5 ? '½×' : `${s}×`);
@@ -330,11 +331,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               step={angle.step((0.5 * Math.PI) / 180)}
               min={angle.toUi((0.05 * Math.PI) / 180)}
               value={angle.toUi(settings.simulation.maxAngleStep)}
-              onChange={(v) =>
-                setSim({
-                  maxAngleStep: v == null ? DEFAULT_SETTINGS.simulation.maxAngleStep : angle.fromUi(v),
-                })
-              }
+              onChange={onSi(angle, (si) => setSim({ maxAngleStep: si ?? DEFAULT_SETTINGS.simulation.maxAngleStep }))}
             />
             <NumRow
               label={t('settings.randomSeed')}
@@ -353,12 +350,9 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               step={u.step('velocity', 1)}
               min={0}
               value={u.toUi('velocity', settings.simulation.railExitVelocityMin)}
-              onChange={(v) =>
-                setSim({
-                  railExitVelocityMin:
-                    v == null ? DEFAULT_SETTINGS.simulation.railExitVelocityMin : u.fromUi('velocity', v),
-                })
-              }
+              onChange={onSi(u.plain('velocity'), (si) =>
+                setSim({ railExitVelocityMin: si ?? DEFAULT_SETTINGS.simulation.railExitVelocityMin }),
+              )}
             />
             {/* The three deployment thresholds. Which one a flight uses depends
                   on the stage's recovery layout: no drogue is single-deployment
@@ -374,12 +368,9 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               step={u.step('velocity', 1)}
               min={0}
               value={u.toUi('velocity', settings.simulation.deploymentSpeedWarn)}
-              onChange={(v) =>
-                setSim({
-                  deploymentSpeedWarn:
-                    v == null ? DEFAULT_SETTINGS.simulation.deploymentSpeedWarn : u.fromUi('velocity', v),
-                })
-              }
+              onChange={onSi(u.plain('velocity'), (si) =>
+                setSim({ deploymentSpeedWarn: si ?? DEFAULT_SETTINGS.simulation.deploymentSpeedWarn }),
+              )}
             />
             <NumRow
               label={t('settings.mainHighSpeedWarn')}
@@ -388,12 +379,9 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               step={u.step('velocity', 1)}
               min={0}
               value={u.toUi('velocity', settings.simulation.mainHighSpeedWarn)}
-              onChange={(v) =>
-                setSim({
-                  mainHighSpeedWarn:
-                    v == null ? DEFAULT_SETTINGS.simulation.mainHighSpeedWarn : u.fromUi('velocity', v),
-                })
-              }
+              onChange={onSi(u.plain('velocity'), (si) =>
+                setSim({ mainHighSpeedWarn: si ?? DEFAULT_SETTINGS.simulation.mainHighSpeedWarn }),
+              )}
             />
             <NumRow
               label={t('settings.mainLowSpeedWarn')}
@@ -402,11 +390,9 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               step={u.step('velocity', 1)}
               min={0}
               value={u.toUi('velocity', settings.simulation.mainLowSpeedWarn)}
-              onChange={(v) =>
-                setSim({
-                  mainLowSpeedWarn: v == null ? DEFAULT_SETTINGS.simulation.mainLowSpeedWarn : u.fromUi('velocity', v),
-                })
-              }
+              onChange={onSi(u.plain('velocity'), (si) =>
+                setSim({ mainLowSpeedWarn: si ?? DEFAULT_SETTINGS.simulation.mainLowSpeedWarn }),
+              )}
             />
             {/* The drogue side of the same pair, live since the fork enables the
                   check upstream leaves commented out. Like the two above it only
@@ -418,12 +404,9 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               step={u.step('velocity', 1)}
               min={0}
               value={u.toUi('velocity', settings.simulation.drogueLowSpeedWarn)}
-              onChange={(v) =>
-                setSim({
-                  drogueLowSpeedWarn:
-                    v == null ? DEFAULT_SETTINGS.simulation.drogueLowSpeedWarn : u.fromUi('velocity', v),
-                })
-              }
+              onChange={onSi(u.plain('velocity'), (si) =>
+                setSim({ drogueLowSpeedWarn: si ?? DEFAULT_SETTINGS.simulation.drogueLowSpeedWarn }),
+              )}
             />
           </>
         )}

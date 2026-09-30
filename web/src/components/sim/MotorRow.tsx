@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { clampEntry } from '../../prefs/entryValue';
 import { PLUGGED_DELAY, type MotorSpec, type IgnitionEvent } from '../../engine/openRocketEngine';
 import { MotorDialog } from './MotorDialog';
 import type { MountFit } from '../../services/motors/motorPicker';
@@ -196,7 +197,9 @@ function IgnitionControl({
             value={delay}
             aria-label={t('sims.ignitionDelay')}
             title={t('sims.ignitionDelay')}
-            onChange={(e) => onChange(event, Math.max(0, parseFloat(e.target.value) || 0))}
+            // `parseFloat(x) || 0` let Infinity through to the ignition delay the
+            // kernel flies, because `Infinity || 0` is Infinity.
+            onChange={(e) => onChange(event, clampEntry(parseFloat(e.target.value), 0) ?? 0)}
             onBlur={onCommit}
             className="w-14 rounded bg-slate-950 px-1.5 py-0.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
           />

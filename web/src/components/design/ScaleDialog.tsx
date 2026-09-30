@@ -5,6 +5,7 @@ import { useWorkspaceStore } from '../../state/store';
 import { NumberInput } from '../common/NumberInput';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
+import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { maxBodyDiameter, rocketLength } from '../../tree/scaleRocket';
 
@@ -84,7 +85,14 @@ export function ScaleDialog({ onClose }: { onClose: () => void }) {
                     already formats. 1 mm of step and floor, converted. */}
               <NumberInput
                 value={fu.toUi(baseD * factor)}
-                onChange={(v) => v !== null && v > 0 && baseD > 0 && setFactor(fu.fromUi(v) / baseD)}
+                onChange={onSi(
+                  fu,
+                  (si) => si !== null && si > 0 && setFactor(si),
+                  // The box holds a diameter and the dialog holds the RATIO of
+                  // it to the design's own, so the division is part of the
+                  // conversion and is checked with it.
+                  (si) => (baseD > 0 ? si / baseD : NaN),
+                )}
                 step={fu.step(0.001)}
                 min={fu.toUi(0.001)}
                 className={input}

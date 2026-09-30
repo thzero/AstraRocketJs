@@ -5,6 +5,7 @@ import { NumberInput } from '../common/NumberInput';
 import { markRing } from '../common/FieldMark';
 import { Dialog } from '../common/Dialog';
 import { useUnits, type Units } from '../../prefs/useUnits';
+import { onSi } from '../../prefs/entryValue';
 import { MAX_WIND_SPEED_MS } from '../../services/flight/safetyLimits';
 import {
   hasIntensity,
@@ -164,11 +165,12 @@ export function WindProfileDialog({
   /**
    * Edit one level, dropping a value that is not a real number.
    *
-   * `NumberInput` refuses a non-finite ENTRY, but a finite entry is not a
-   * finite stored value: the box holds display units and the level holds SI, so
-   * 1e306 ft of altitude converts to Infinity meters. That reached the level,
-   * the chart, the .ork and the kernel's wind model, none of which have an
-   * answer for it. One guard here covers all four columns.
+   * The four columns convert through `onSi` (prefs/entryValue), which already
+   * refuses a value that cannot survive the conversion - 1e306 ft of altitude
+   * is Infinity meters, which reached the level, the chart, the .ork and the
+   * kernel's wind model, none of which have an answer for it. This stays as the
+   * net for the values this function is handed from somewhere OTHER than a box:
+   * `setSpeed` recomputes a level's deviation from its own turbulence ratio.
    */
   const patchLevel = (i: number, p: Partial<WindLevel>) => {
     if (Object.values(p).some((v) => !Number.isFinite(v))) return;
@@ -268,7 +270,7 @@ export function WindProfileDialog({
                       // the level's IDENTITY to the kernel, not a quantity with
                       // a harmless zero, so an emptied box writes nothing
                       // rather than moving the layer down onto the pad.
-                      onChange={(v) => v !== null && patchLevel(i, { altitudeM: u.fromUi('distance', v) })}
+                      onChange={onSi(u.plain('distance'), (si) => si !== null && patchLevel(i, { altitudeM: si }))}
                       invalid={dupeRows.has(i)}
                       // `markRing`, not another ring class appended: both are
                       // the same custom property and Tailwind emits them in its
@@ -282,14 +284,19 @@ export function WindProfileDialog({
                       max={i === surfaceLevel ? u.toUi('windspeed', MAX_WIND_SPEED_MS) : undefined}
                       ariaLabel={`${t('launch.speed')} ${i + 1}`}
                       value={u.toUi('windspeed', l.speed)}
-                      onChange={(v) => setSpeed(i, u.fromUi('windspeed', v ?? 0))}
+                      onChange={onSi(u.plain('windspeed'), (si) => setSpeed(i, si ?? 0))}
                       className={`${cell} w-16`}
                     />
                     <NumberInput
                       step={u.step('angle', (5 * Math.PI) / 180)}
                       ariaLabel={`${t('launch.direction')} ${i + 1}`}
                       value={u.toUi('angle', (l.directionDeg * Math.PI) / 180)}
-                      onChange={(v) => patchLevel(i, { directionDeg: (u.fromUi('angle', v ?? 0) * 180) / Math.PI })}
+                      onChange={onSi(
+                        u.plain('angle'),
+                        (si) => patchLevel(i, { directionDeg: si ?? 0 }),
+                        // Stored in degrees, like the `.ork`'s wind direction.
+                        (si) => (si * 180) / Math.PI,
+                      )}
                       className={`${cell} w-14`}
                     />
                     <NumberInput
@@ -297,7 +304,7 @@ export function WindProfileDialog({
                       min={0}
                       ariaLabel={`${t('windProfile.deviation')} ${i + 1}`}
                       value={u.toUi('windspeed', l.stddev)}
-                      onChange={(v) => patchLevel(i, { stddev: u.fromUi('windspeed', v ?? 0) })}
+                      onChange={onSi(u.plain('windspeed'), (si) => patchLevel(i, { stddev: si ?? 0 }))}
                       className={`${cell} w-16`}
                     />
                     <NumberInput

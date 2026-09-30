@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useSettings } from '../state/SettingsProvider';
 import { fmtNum, ladderDigits } from '../i18n/format';
 import { niceStep, siToUi, siToUiDelta, uiToSi, unitFor, type Quantity, type UnitSelection } from './units';
+import { siEntry } from './entryValue';
 
 /** Locale-aware formatting with a magnitude ladder when no precision is asked. */
 function format(v: number, digits?: number): string {
@@ -14,7 +15,21 @@ export interface FieldUnit {
   /** The symbol this field is shown in. */
   sym: string;
   toUi: (si: number) => number;
+  /**
+   * The RAW conversion, for a number that is not being stored — a chart axis,
+   * a ruler step, a readout. It can overflow, so an entry must not use it:
+   * see {@link FieldUnit.toSi}.
+   */
   fromUi: (ui: number) => number;
+  /**
+   * What a TYPED value means: the SI number to store, or `null` for "do not
+   * store" (blank, or a value that cannot survive the conversion). This is the
+   * call every data-entry box makes — see prefs/entryValue.
+   *
+   * `then` chains the extra leg for a field whose stored form is not SI, and
+   * its result is checked too.
+   */
+  toSi: (ui: number | null | undefined, then?: (si: number) => number) => number | null;
   fmt: (si: number, digits?: number) => string;
   step: (si: number) => number;
 }
@@ -27,8 +42,13 @@ export interface Units {
   sym: (q: Quantity) => string;
   /** SI → the displayed number. */
   toUi: (q: Quantity, si: number) => number;
-  /** A typed-in number → SI, for writing back to the tree / kernel. */
+  /**
+   * The raw conversion the other way, for a number that is not being stored.
+   * An entry uses {@link Units.toSi}, which cannot overflow into the tree.
+   */
   fromUi: (q: Quantity, ui: number) => number;
+  /** A typed-in number → the SI value to store, or `null` for "do not store". */
+  toSi: (q: Quantity, ui: number | null | undefined, then?: (si: number) => number) => number | null;
   /**
    * SI → a locale-formatted string, no unit suffix. Omit `digits` to get a
    * magnitude ladder instead of a fixed count — which is what a readout wants
@@ -44,6 +64,14 @@ export interface Units {
    * not a conversion — use `toUi` for a single reading.
    */
   factor: (q: Quantity) => number;
+  /**
+   * The same helpers bound to a quantity at the Settings default, for a box
+   * that has NO chip of its own — a preference, a filter bound, a wind-profile
+   * cell. It is `at` without a field scope, and it exists so such a box can
+   * hand itself to `onSi` (prefs/entryValue) exactly like a scoped field does,
+   * rather than spelling the conversion and its check out again.
+   */
+  plain: (q: Quantity) => FieldUnit;
   /**
    * The same helpers for ONE FIELD, honouring a unit set from that field's own
    * chip. Use it wherever a `<UnitChip scope=…>` is rendered, passing the same
@@ -72,24 +100,27 @@ export function useUnits(): Units {
   const { settings } = useSettings();
   const { units, unitOverrides } = settings;
   return useMemo(() => {
-    const at = (scope: string, q: Quantity): FieldUnit => {
-      const sym = unitFor(units, unitOverrides, q, scope);
+    const bind = (q: Quantity, sym: string): FieldUnit => {
       return {
         sym,
         toUi: (si) => siToUi(q, sym, si),
         fromUi: (ui) => uiToSi(q, sym, ui),
+        toSi: (ui, then) => siEntry(q, sym, ui, then),
         fmt: (si, digits) => (Number.isFinite(si) ? format(siToUi(q, sym, si), digits) : '—'),
         step: (si) => niceStep(siToUiDelta(q, sym, si)),
       };
     };
+    const at = (scope: string, q: Quantity): FieldUnit => bind(q, unitFor(units, unitOverrides, q, scope));
     return {
       all: units,
       sym: (q) => units[q],
       toUi: (q, si) => siToUi(q, units[q], si),
       fromUi: (q, ui) => uiToSi(q, units[q], ui),
+      toSi: (q, ui, then) => siEntry(q, units[q], ui, then),
       fmt: (q, si, digits) => (Number.isFinite(si) ? format(siToUi(q, units[q], si), digits) : '—'),
       step: (q, si) => niceStep(siToUiDelta(q, units[q], si)),
       factor: (q) => siToUiDelta(q, units[q], 1),
+      plain: (q) => bind(q, units[q]),
       at,
     };
   }, [units, unitOverrides]);

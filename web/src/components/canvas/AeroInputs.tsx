@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { parseEntry } from '../../prefs/entryValue';
 
 /**
  * The small controls on the AeroAnalysis header: the flight-condition number
@@ -40,9 +41,11 @@ export function Num({
   const [draft, setDraft] = useState<string | null>(null);
   const commit = () => {
     if (draft === null) return;
-    const v = parseFloat(draft);
     setDraft(null);
-    if (Number.isFinite(v)) onChange(Math.min(max, Math.max(min, v)));
+    // The app's one entry rule (prefs/entryValue) rather than a second copy of
+    // it: a refused value commits nothing and the box falls back to what it had.
+    const v = parseEntry(draft, min, max);
+    if (v !== null) onChange(v);
   };
   return (
     <label className="flex items-center gap-1.5">

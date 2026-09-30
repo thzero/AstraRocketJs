@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { clampEntry } from '../../prefs/entryValue';
 import { useWorkspaceStore, selectActive, selectConfig } from '../../state/store';
 import { primaryMotor } from '../../services/flight/flightConfigs';
 import { download as saveDownload, exportFilename, safeFilename } from '../../services/files/saveFile';
@@ -471,7 +472,10 @@ export function ExportDialog({
                   min={1}
                   step={1}
                   value={opts.pathStride}
-                  onChange={(e) => change({ pathStride: Math.max(1, Math.floor(Number(e.target.value) || 1)) })}
+                  // `Math.floor(Infinity)` is Infinity and so is `Math.max(1, Infinity)`,
+                  // so the old `Number(x) || 1` saved an infinite stride in the export
+                  // options. Whole samples, at least one, and a real number.
+                  onChange={(e) => change({ pathStride: clampEntry(Math.floor(parseFloat(e.target.value)), 1) ?? 1 })}
                   className="w-20 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
                 />
               </label>

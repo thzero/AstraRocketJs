@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { clampEntry } from '../../prefs/entryValue';
 import { hasCurve, importCustomMotors, deleteCustomMotor, type CatalogMotor } from '../../services/motors/motorDb';
 import { fetchMotorSpec } from '../../services/motors/thrustcurve';
 import { MAX_IDX, parseDelays, type MountFit } from '../../services/motors/motorPicker';
@@ -477,7 +478,11 @@ function DelayControl({ motor, delay, onDelay }: { motor: CatalogMotor; delay: n
         min={0}
         step={0.5}
         value={delay >= PLUGGED_DELAY ? '' : delay}
-        onChange={(e) => onDelay(Math.max(0, parseFloat(e.target.value) || 0))}
+        // Clamped at PLUGGED_DELAY rather than left open: every consumer already
+        // reads a delay at or above it as plugged (`toKernelDelay`), so an absurd
+        // typed number lands on the meaning it already had instead of arriving as
+        // an Infinity that `parseFloat(x) || 0` used to pass straight through.
+        onChange={(e) => onDelay(clampEntry(parseFloat(e.target.value), 0, PLUGGED_DELAY) ?? 0)}
         placeholder={t('motorDlg.custom')}
         title={t('motorDlg.custom')}
         aria-label={t('sims.delay')}

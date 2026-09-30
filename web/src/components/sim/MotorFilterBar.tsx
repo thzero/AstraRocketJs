@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { parseEntry } from '../../prefs/entryValue';
 import { filterMotors, allClasses, allManufacturers, type CatalogMotor } from '../../services/motors/motorDb';
 import { STD_DIAMS, MAX_IDX, fitIdx, type MountFit } from '../../services/motors/motorPicker';
 import { useUnits } from '../../prefs/useUnits';
@@ -270,10 +271,9 @@ export function ImpulseRange({ imp, onChange }: { imp: ImpulseRange; onChange: (
     'w-16 rounded-md bg-slate-950 px-2 py-1 text-right text-xs tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500';
   // Held in N·s like the catalog; only what is typed and shown moves to the
   // user's unit, the same split the diameter stops use.
-  const bound = (text: string): number | null => {
-    const n = Number(text);
-    return text.trim() === '' || !Number.isFinite(n) ? null : u.fromUi('impulse', n);
-  };
+  // See ComponentPicker's `odBound`: the finite check belongs on the CONVERTED
+  // number. A refused bound reads as "no bound", this filter's empty box.
+  const bound = (text: string): number | null => u.toSi('impulse', parseEntry(text));
   const shown = (si: number | null) => (si == null ? '' : String(Number(u.toUi('impulse', si).toFixed(3))));
   return (
     <div className="flex items-center gap-2 text-xs text-slate-300">

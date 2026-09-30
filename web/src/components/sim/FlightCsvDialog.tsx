@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
+import { clampEntry } from '../../prefs/entryValue';
 import { Dialog } from '../common/Dialog';
 import { flightColumns, type FlightColumn } from '../../services/flight/flightColumns';
 import { useWorkspaceStore, selectDesignName } from '../../state/store';
@@ -158,7 +159,7 @@ export function FlightCsvDialog({
                   className={`${field} w-16 text-right`}
                   aria-label={t('csv.decimals')}
                   value={saved.decimals}
-                  onChange={(e) => patch({ decimals: Math.min(Math.max(Number(e.target.value) || 0, 0), 12) })}
+                  onChange={(e) => patch({ decimals: clampEntry(Math.floor(parseFloat(e.target.value)), 0, 12) ?? 0 })}
                 />
               </div>
               <label className="flex items-center gap-2">

@@ -9,6 +9,7 @@ import { useIsDesktop } from '../common/useMediaQuery';
 import { LaunchPanel } from './LaunchPanel';
 import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
+import { onSi } from '../../prefs/entryValue';
 import { FieldLabel, markRing } from '../common/FieldMark';
 import type { SimPrefs } from '../../services/flight/simulations';
 
@@ -205,10 +206,8 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
   // velocity unit both ways; the stored value stays SI. `fmt` for the
   // placeholder rather than the raw number, since the global is SI too.
   const speed = (si: number | undefined): number | null => (si == null ? null : u.toUi('velocity', si));
-  const onSpeed =
-    (key: 'deploymentSpeedWarn' | 'mainHighSpeedWarn' | 'mainLowSpeedWarn' | 'drogueLowSpeedWarn') =>
-    (v: number | null) =>
-      setSimPref(key, v == null ? null : u.fromUi('velocity', v));
+  const onSpeed = (key: 'deploymentSpeedWarn' | 'mainHighSpeedWarn' | 'mainLowSpeedWarn' | 'drogueLowSpeedWarn') =>
+    onSi(u.plain('velocity'), (si) => setSimPref(key, si));
   const vSym = u.sym('velocity');
   const vStep = u.step('velocity', 1);
 

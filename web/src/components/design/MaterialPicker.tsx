@@ -180,7 +180,11 @@ export function MaterialPicker({
 
   const submitCustom = async () => {
     try {
-      const next = await addCustom(name, type, dens == null ? NaN : fu.fromUi(dens), group);
+      // `toSi`, not `fromUi`: the box holds the user's density unit and the
+      // store holds SI, and a bulk density also has a physical ceiling
+      // (prefs/entryValue). A refused entry arrives as NaN, which `addCustom`
+      // already rejects with the message the form shows.
+      const next = await addCustom(name, type, fu.toSi(dens) ?? NaN, group);
       const list = await materialsForType(type);
       if (!mounted.current) return; // see deleteCurrentCustom
       setMats(list);

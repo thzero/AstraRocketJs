@@ -4,6 +4,7 @@ import type { ComponentNode } from '../../engine/openRocketEngine';
 import { NumberInput } from '../common/NumberInput';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
+import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { num } from '../../tree/nodeProps';
 import { PANEL_SCOPE_KEYS } from '../../services/design/componentFields';
@@ -126,7 +127,7 @@ export function OverridesSection({
             overrideSubcomponentsMass: on ? (node.overrideSubcomponentsMass as boolean | undefined) : undefined,
           })
         }
-        onValue={(v) => onChange({ overrideMass: overrideMassUnit.fromUi(v) })}
+        onValue={onSi(overrideMassUnit, (si) => si !== null && onChange({ overrideMass: si }))}
         onCommit={onCommit}
         subLabel={t('override.applyAll')}
         sub={node.overrideSubcomponentsMass === true}
@@ -144,7 +145,7 @@ export function OverridesSection({
             overrideSubcomponentsCG: on ? (node.overrideSubcomponentsCG as boolean | undefined) : undefined,
           })
         }
-        onValue={(v) => onChange({ overrideCGX: overrideCgUnit.fromUi(v) })}
+        onValue={onSi(overrideCgUnit, (si) => si !== null && onChange({ overrideCGX: si }))}
         onCommit={onCommit}
         subLabel={t('override.applyAll')}
         sub={node.overrideSubcomponentsCG === true}

@@ -7,6 +7,7 @@ import { isFilled, missingRequired, type RequiredLaunchKey } from '../../service
 import { UnitChip } from '../common/UnitChip';
 import { useUnits, type Units } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
+import { onSi } from '../../prefs/entryValue';
 import { fmtUpTo, ladderDigits, withUnit } from '../../i18n/format';
 import { LAUNCH_SI, type LaunchUnitKind } from '../../prefs/launchUnits';
 import { MAX_ROD_ANGLE_RAD, MAX_WIND_SPEED_MS } from '../../services/flight/safetyLimits';
@@ -183,7 +184,11 @@ function QNum({
       required={required}
       missing={missing}
       value={value === null ? null : fu.toUi(c.toSi(value))}
-      onChange={(v) => onChange(v === null ? null : c.fromSi(fu.fromUi(v)))}
+      // Two legs: the box's unit to SI, then SI to what the field is STORED
+      // in (degrees, Celsius, hPa). `onSi` checks both, so neither an entry
+      // that overflows on conversion nor one that overflows on the way to the
+      // stored convention reaches the launch conditions.
+      onChange={onSi(fu, onChange, c.fromSi)}
     />
   );
 }

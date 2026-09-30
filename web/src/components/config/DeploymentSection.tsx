@@ -4,6 +4,7 @@ import { deployOverride, type FlightConfig } from '../../services/flight/flightC
 import { useWorkspaceStore } from '../../state/store';
 import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
+import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { num, str } from '../../tree/nodeProps';
 
@@ -76,7 +77,7 @@ export function DeploymentSection({ config, device }: { config: FlightConfig; de
             value={over?.deployAltitude == null ? null : alt.toUi(over.deployAltitude)}
             placeholder={alt.fmt(num(device, 'deployAltitude'))}
             step={alt.step(10)}
-            onChange={(v) => setDeployment(config.id, id, 'deployAltitude', v == null ? null : alt.fromUi(v))}
+            onChange={onSi(alt, (si) => setDeployment(config.id, id, 'deployAltitude', si))}
             onCommit={onCommit}
             className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
           />

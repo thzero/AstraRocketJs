@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
+import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { useSettings } from '../../state/SettingsProvider';
 import { useWorkspaceStore, configOf } from '../../state/store';
@@ -81,7 +82,7 @@ export function DriftSweepPanel({ simId, launch }: { simId: string; launch: Laun
       <span className="flex items-center gap-1">
         <NumberInput
           value={wind.toUi(spec[key])}
-          onChange={(v) => patch({ [key]: v == null ? 0 : wind.fromUi(v) })}
+          onChange={onSi(wind, (si) => patch({ [key]: si ?? 0 }))}
           onCommit={settle}
           step={wind.step(0.5)}
           min={0}

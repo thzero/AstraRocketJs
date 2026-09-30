@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { ComponentNode, ComponentPosition } from '../../engine/openRocketEngine';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
+import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { PANEL_SCOPE_KEYS } from '../../services/design/componentFields';
 import { FieldRow, NumberField, sectionFields } from './DimensionFields';
@@ -71,7 +72,7 @@ export function PlacementSection({
         // A negative offset is legal (a part sitting proud of its parent);
         // the bound is in the field's unit so it doesn't shrink in inches.
         min={-offsetUnit.toUi(100)}
-        onChange={(v) => onChange({ position: { ...pos, offset: offsetUnit.fromUi(v) } })}
+        onChange={onSi(offsetUnit, (si) => si !== null && onChange({ position: { ...pos, offset: si } }))}
         onCommit={onCommit}
       />
       {rotations.map((f) => (

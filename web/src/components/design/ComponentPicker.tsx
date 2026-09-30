@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { parseEntry } from '../../prefs/entryValue';
 import {
   catalogTypeFor,
   componentsForType,
@@ -451,10 +452,11 @@ function PickerDialog({
   /** Clicking a heading sorts by it; clicking the active one flips direction. */
   const sortBy = (key: SortKey) => set(key === q.sort ? { dir: q.dir === 1 ? -1 : 1 } : { sort: key, dir: 1 });
   /** Length typed in the user's own unit, held as meters. */
-  const odBound = (text: string): number | null => {
-    const n = Number(text);
-    return text.trim() === '' || !Number.isFinite(n) ? null : u.fromUi('length', n);
-  };
+  // `toSi`, not a finite check followed by `fromUi`: the check has to be on the
+  // CONVERTED number, or a bound finite in inches is an infinite one in meters.
+  // A refused bound reads the same as an empty box, which is this filter's
+  // "no bound" and the safe answer for a box being typed into.
+  const odBound = (text: string): number | null => u.toSi('length', parseEntry(text));
   const boundText = (si: number | null) => (si == null ? '' : String(Number(u.toUi('length', si).toFixed(3))));
 
   return (

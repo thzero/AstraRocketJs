@@ -4,6 +4,7 @@ import { sepOverride, stageFlies, type FlightConfig } from '../../services/fligh
 import { useWorkspaceStore } from '../../state/store';
 import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
+import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { num, str } from '../../tree/nodeProps';
 
@@ -131,7 +132,7 @@ export function SeparationSection({
                 value={over?.separationAltitude == null ? null : alt.toUi(over.separationAltitude)}
                 placeholder={alt.fmt(num(stage, 'separationAltitude', 200))}
                 step={alt.step(10)}
-                onChange={(v) => setSeparation(config.id, id, 'separationAltitude', v == null ? null : alt.fromUi(v))}
+                onChange={onSi(alt, (si) => setSeparation(config.id, id, 'separationAltitude', si))}
                 onCommit={onCommit}
                 className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
               />
