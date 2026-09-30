@@ -8,9 +8,9 @@ import {
   setLaunchLocationStore,
   type LaunchLocation,
   type LaunchLocationStore,
-} from '../../../src/services/launchLocationStore';
-import type { LaunchConditions } from '../../../src/services/orkTree';
-import { loadSettings } from '../../../src/services/settings';
+} from '../../../src/services/storage/launchLocationStore';
+import type { LaunchConditions } from '../../../src/services/design/orkTree';
+import { loadSettings } from '../../../src/services/storage/settings';
 
 /** What the picker writes for "Custom location": the shipped default is KSC. */
 const DEFAULT_SITE = loadSettings().launchDefaults;
@@ -227,6 +227,6 @@ describe('LocationPicker', () => {
 
 /** The live store's contents — the picker refreshes from it after every write. */
 async function setPadThenList(): Promise<LaunchLocation[]> {
-  const { getLaunchLocationStore } = await import('../../../src/services/launchLocationStore');
+  const { getLaunchLocationStore } = await import('../../../src/services/storage/launchLocationStore');
   return getLaunchLocationStore().list();
 }

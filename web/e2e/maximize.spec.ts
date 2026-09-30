@@ -14,14 +14,14 @@ test('the drawing can take the whole window, and come back', async ({ page }) =>
   const width = async () => (await box(center)).width;
   const tree = page.getByRole('heading', { name: 'Components' });
 
-  expect(await width()).toBe(750);
+  expect(await width()).toBe(850);
   await expect(tree).toBeVisible();
 
   const stats = page.getByText('Static statistics');
   await expect(stats).toBeVisible();
 
   await page.getByRole('button', { name: /whole window/ }).click();
-  expect(await width()).toBe(1500);
+  expect(await width()).toBe(1600);
   await expect(tree).toBeHidden();
   // The statistics strip is a footer ABOUT the design, not part of the drawing,
   // and at full width it was taking 175px off the top of the very thing the
@@ -36,11 +36,11 @@ test('the drawing can take the whole window, and come back', async ({ page }) =>
   // now hidden.
   await page.reload();
   await expect(page.getByRole('button', { name: 'Side', exact: true })).toBeVisible({ timeout: 20_000 });
-  expect(await width()).toBe(1500);
+  expect(await width()).toBe(1600);
 
   // Escape gets out, so the way back does not depend on finding one glyph.
   await page.keyboard.press('Escape');
-  expect(await width()).toBe(750);
+  expect(await width()).toBe(850);
   await expect(tree).toBeVisible();
   await expect(stats).toBeVisible();
   await expect(page.getByRole('separator')).toHaveCount(2);
@@ -67,7 +67,7 @@ test('maximizing does not strand the simulation editor', async ({ page }) => {
   await runFlight(page);
 
   // Results shares the center pane, so it maximizes too.
-  expect((await box(page.locator('main > section').nth(1))).width).toBe(1500);
+  expect((await box(page.locator('main > section').nth(1))).width).toBe(1600);
 
   // Simulations does NOT: the toggle lives in the center pane's toolbar, which
   // is not on that tab, so honoring the flag there would hide the simulation

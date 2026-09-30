@@ -10,7 +10,8 @@ import { test, expect, openTab, ready, type Page } from './base';
  */
 
 async function openPicker(page: Page) {
-  await openTab(page, 'Simulations');
+  // One motor card per mount, on the Configurations tab.
+  await openTab(page, 'Configurations');
   await page
     .getByRole('button', { name: /change/i })
     .first()

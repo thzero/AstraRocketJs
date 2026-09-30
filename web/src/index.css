@@ -1,5 +1,16 @@
 @import 'tailwindcss';
 
+/*
+ * The app header is one row from 1180 up, in every language, and in English at
+ * every desktop width. Below that, in the wordiest languages, it wraps: at 1024
+ * the four workbench tabs, the identity block (mark, name, version, pre-release
+ * word, engine backend), the save status and the four controls need more width
+ * than there is, and wrapping is what a flex row does about that. The identity
+ * block is never what gives - it reads the same at every width - and the budget
+ * is checked by e2e/workbench-header.spec.ts in a font WIDER than the local one,
+ * because `system-ui` is whatever the OS supplies.
+ */
+
 :root {
   color-scheme: dark;
 }

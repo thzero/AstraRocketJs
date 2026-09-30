@@ -10,7 +10,7 @@ import {
 } from '../../src/tree/componentKinds';
 import { isAssembly } from '../../src/tree/assembly';
 import { isFinSet, isPlanarFinSet } from '../../src/tree/tubefins';
-import { isAxial } from '../../src/services/treeEdit';
+import { isAxial } from '../../src/services/design/treeEdit';
 
 describe('COMPONENT_KIND', () => {
   it('derives the chain, assembly and fin-set families from one table', () => {

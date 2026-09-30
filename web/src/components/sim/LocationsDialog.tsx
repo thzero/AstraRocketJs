@@ -7,7 +7,7 @@ import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { LAUNCH_SI } from '../../prefs/launchUnits';
 import { LocationEditor } from './LocationEditor';
-import { getLaunchLocationStore, type LaunchLocation } from '../../services/launchLocationStore';
+import { getLaunchLocationStore, type LaunchLocation } from '../../services/storage/launchLocationStore';
 import { useLocationList } from './useLocationList';
 
 /**

@@ -25,7 +25,7 @@ export function renderWithProviders(ui: ReactElement): RenderResult {
   return render(<SettingsProvider>{ui}</SettingsProvider>);
 }
 
-/** The key `services/settings.ts` persists to. */
+/** The key `services/storage/settings.ts` persists to. */
 const SETTINGS_KEY = 'astrarrocketjs:settings:v1';
 
 /**

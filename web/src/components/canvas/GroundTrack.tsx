@@ -9,10 +9,10 @@ import {
   trackExtent,
   type GroundPoint,
   type GroundTrackLine,
-} from '../../services/groundTrack';
-import { driftRegion, ellipsePolygon, type DriftRegion } from '../../services/driftEllipse';
+} from '../../services/flight/groundTrack';
+import { driftRegion, ellipsePolygon, type DriftRegion } from '../../services/flight/driftEllipse';
 import { useWorkspaceStore } from '../../state/store';
-import type { LaunchConditions } from '../../services/orkTree';
+import type { LaunchConditions } from '../../services/design/orkTree';
 import { DriftSweepPanel } from './DriftSweepPanel';
 import {
   TILE_SIZE,
@@ -21,8 +21,8 @@ import {
   visibleTiles,
   zoomForMetersPerPixel,
   type TileSourceId,
-} from '../../services/slippyMap';
-import { groundImagery, rememberGroundImagery, rememberTileLayer, tileLayer } from '../../services/tileLayer';
+} from '../../services/map/slippyMap';
+import { groundImagery, rememberGroundImagery, rememberTileLayer, tileLayer } from '../../services/map/tileLayer';
 import { buildTraces, type ChartFlight } from './FlightChart';
 
 /**
@@ -41,9 +41,9 @@ import { buildTraces, type ChartFlight } from './FlightChart';
  * spent booster usually lands somewhere quite different from the sustainer.
  *
  * The imagery is the same tile machinery the launch-site map uses
- * (services/slippyMap.ts), at the coordinates the flight was actually FLOWN
+ * (services/map/slippyMap.ts), at the coordinates the flight was actually FLOWN
  * from: latitude and longitude are required simulation inputs that go to the
- * kernel (services/requiredLaunch.ts, services/simulations.ts), so there is
+ * kernel (services/flight/requiredLaunch.ts, services/flight/simulations.ts), so there is
  * nothing to infer. Tiles are cached by the service worker, so a site looked at
  * at home still draws at the field; somewhere never viewed draws without them,
  * which is the view this had before and is still a correct picture.
@@ -350,7 +350,7 @@ export function GroundTrack({
                 that produced it both have to read over it rather than through
                 it.
 
-                Two shapes on purpose (see services/driftEllipse.ts). The filled
+                Two shapes on purpose (see services/flight/driftEllipse.ts). The filled
                 hull is the exact envelope of the conditions actually flown —
                 nothing landed outside it. The dashed ellipse is the same
                 landings as a center and two axes, which is the number you write

@@ -9,7 +9,7 @@ import {
   splitCluster,
   splitInstances,
   splitCount,
-} from '../../services/componentActions';
+} from '../../services/design/componentActions';
 import { num } from '../../tree/nodeProps';
 import { useWorkspaceStore } from '../../state/store';
 

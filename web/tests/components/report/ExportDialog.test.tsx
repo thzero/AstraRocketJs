@@ -6,18 +6,18 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 // The real one drives the engine. This dialog's job is the SELECTION UI on top
 // of it, so hand it a fixed model and assert on what the user can do with it.
 const assembleReport = vi.hoisted(() => vi.fn());
-vi.mock('../../../src/services/reportModel', async (orig) => ({
-  ...(await orig<typeof import('../../../src/services/reportModel')>()),
+vi.mock('../../../src/services/report/reportModel', async (orig) => ({
+  ...(await orig<typeof import('../../../src/services/report/reportModel')>()),
   assembleReport,
 }));
 
 const downloadReportPdf = vi.hoisted(() => vi.fn());
-vi.mock('../../../src/services/reportPdf', () => ({ downloadReportPdf }));
+vi.mock('../../../src/services/report/reportPdf', () => ({ downloadReportPdf }));
 
 import { ExportDialog } from '../../../src/components/report/ExportDialog';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import { useWorkspaceStore } from '../../../src/state/store';
-import type { ReportModel } from '../../../src/services/reportModel';
+import type { ReportModel } from '../../../src/services/report/reportModel';
 
 const model = (): ReportModel =>
   ({

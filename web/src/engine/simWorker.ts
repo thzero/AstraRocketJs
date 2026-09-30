@@ -7,7 +7,7 @@
  * worker's log sink (kernelLogSink, imported transitively), off the main console.
  */
 import { initEngine, resetEngine } from './openRocketEngine';
-import { buildConfiguredRocket } from '../services/buildRocket';
+import { buildConfiguredRocket } from '../services/design/buildRocket';
 import type { WorkerRequest, WorkerResponse } from './simProtocol';
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
@@ -53,11 +53,11 @@ ctx.onmessage = async (e: MessageEvent<WorkerRequest>) => {
       case 'simulate': {
         // Narrowed by the discriminated union, not cast: `req.args` IS a
         // SimPayload here and nothing else.
-        const { tree, motor, extraMotors, primaryIgnition, options } = req.args;
+        const { tree, config, options } = req.args;
         // This worker only ever holds sim rockets; clear prior handles so the
         // engine's handle registry doesn't grow across runs.
         resetEngine();
-        const design = buildConfiguredRocket(tree, motor, extraMotors, primaryIgnition);
+        const design = buildConfiguredRocket(tree, config);
         const result = design.simulate(options); // already a plain, cloneable object
         reply({ id, ok: true, result });
         return;

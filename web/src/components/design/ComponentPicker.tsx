@@ -6,13 +6,13 @@ import {
   type Component,
   type ComponentType,
   type PickerType,
-} from '../../services/componentDb';
+} from '../../services/parts/componentDb';
 import {
   customRowsForType,
   deleteCustomPart,
   onSavedPartsChanged,
   savedPartsVersion,
-} from '../../services/customParts';
+} from '../../services/parts/customParts';
 import {
   DEFAULT_CHUTE_CD,
   describeNotes,
@@ -27,7 +27,7 @@ import {
   type FitContext,
   type Ranked,
   type SortKey,
-} from '../../services/componentFilter';
+} from '../../services/parts/componentFilter';
 import { confirm } from '../../state/confirmStore';
 import { fmtNum } from '../../i18n/format';
 import { useUnits, type Units } from '../../prefs/useUnits';

@@ -16,23 +16,25 @@ import { act, cleanup } from '@testing-library/react';
 const load = vi.hoisted(() => vi.fn());
 const save = vi.hoisted(() => vi.fn());
 const saveSync = vi.hoisted(() => vi.fn());
-vi.mock('../../src/services/workspaceStore', async (orig) => ({
-  ...(await orig<typeof import('../../src/services/workspaceStore')>()),
+vi.mock('../../src/services/storage/workspaceStore', async (orig) => ({
+  ...(await orig<typeof import('../../src/services/storage/workspaceStore')>()),
   getWorkspaceStore: () => ({ load, save, saveSync }),
 }));
 
 const computeStaticInfo = vi.hoisted(() => vi.fn());
-vi.mock('../../src/services/buildRocket', async (orig) => ({
-  ...(await orig<typeof import('../../src/services/buildRocket')>()),
+vi.mock('../../src/services/design/buildRocket', async (orig) => ({
+  ...(await orig<typeof import('../../src/services/design/buildRocket')>()),
   computeStaticInfo,
 }));
 
 vi.mock('../../src/engine/simClient', () => ({ warmSimWorker: vi.fn() }));
-vi.mock('../../src/services/persistStorage', () => ({ requestPersistentStorage: vi.fn(() => Promise.resolve(true)) }));
+vi.mock('../../src/services/storage/persistStorage', () => ({
+  requestPersistentStorage: vi.fn(() => Promise.resolve(true)),
+}));
 
 const degraded = vi.hoisted(() => ({ fire: null as null | (() => void) }));
-vi.mock('../../src/services/idbKeyValueStore', async (orig) => ({
-  ...(await orig<typeof import('../../src/services/idbKeyValueStore')>()),
+vi.mock('../../src/services/storage/idbKeyValueStore', async (orig) => ({
+  ...(await orig<typeof import('../../src/services/storage/idbKeyValueStore')>()),
   onStorageDegraded: (cb: () => void) => {
     degraded.fire = cb;
     return () => {
@@ -44,7 +46,7 @@ vi.mock('../../src/services/idbKeyValueStore', async (orig) => ({
 import { useWorkspaceEffects } from '../../src/state/useWorkspaceEffects';
 import { useWorkspaceStore } from '../../src/state/store';
 import { useEngineStore } from '../../src/state/engineStore';
-import { getDesignLibrary, setDesignLibrary, type DesignLibrary } from '../../src/services/designLibrary';
+import { getDesignLibrary, setDesignLibrary, type DesignLibrary } from '../../src/services/storage/designLibrary';
 import { renderWithProviders } from '../testing/renderWithProviders';
 import i18n from '../../src/i18n';
 

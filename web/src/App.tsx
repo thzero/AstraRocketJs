@@ -6,7 +6,10 @@ import { AppHeader } from './components/layout/AppHeader';
 import { CenterView } from './components/canvas/CenterView';
 import { TreePanel } from './components/design/TreePanel';
 import { PropertyPane } from './components/design/PropertyPane';
+import { ComponentDialog } from './components/design/ComponentDialog';
 import { SimulationsPane } from './components/sim/SimulationsPane';
+import { ConfigsPane } from './components/config/ConfigsPane';
+import { ConfigEditor } from './components/config/ConfigEditor';
 import { SimEditor } from './components/sim/SimEditor';
 import { FlightEventsTable } from './components/sim/FlightEventsTable';
 import { SimSummary } from './components/sim/SimSummary';
@@ -17,7 +20,7 @@ import { ConfirmDialog } from './components/common/ConfirmDialog';
 import { PromptDialog } from './components/common/PromptDialog';
 import { UpdateToast } from './components/layout/UpdateToast';
 import { EngineNotice } from './components/layout/EngineNotice';
-import { useIsDesktop } from './components/common/useMediaQuery';
+import { useIsDesktop, useIsWide } from './components/common/useMediaQuery';
 import { PaneSplitter } from './components/layout/PaneSplitter';
 import { useSettings } from './state/SettingsProvider';
 import {
@@ -28,7 +31,7 @@ import {
   TREE_PANE_DEFAULT,
   TREE_PANE_MAX,
   TREE_PANE_MIN,
-} from './services/settings';
+} from './services/storage/settings';
 
 export default function App() {
   useWorkspaceEffects();
@@ -51,6 +54,10 @@ export default function App() {
   // breakpoint (see components/common/useMediaQuery). Everything else here is
   // plain `lg:` classes.
   const desktop = useIsDesktop();
+  // The component editor is the same story two breakpoints up: a third column
+  // on Design needs `2xl`, and under it the editor is a dialog over the drawing
+  // (ComponentDialog) rather than a column beside it.
+  const wide = useIsWide();
 
   // Both side columns are user-sized. The committed widths are settings; the
   // `drag*` values hold the in-flight one so a drag repaints at pointer speed
@@ -63,10 +70,11 @@ export default function App() {
   const treeRef = useRef<HTMLElement>(null);
   // One ref per right column, because which one is mounted depends on the tab.
   const propsRef = useRef<HTMLElement>(null);
+  const configEditRef = useRef<HTMLElement>(null);
   const simEditRef = useRef<HTMLElement>(null);
   const summaryRef = useRef<HTMLElement>(null);
 
-  // The three right columns share ONE width, so the divider is the same control
+  // The four right columns share ONE width, so the divider is the same control
   // wherever it appears. The left column only exists on Design, so it only
   // reserves room there.
   // `reserve` and the CSS cap are the same rule, said twice: the splitter
@@ -83,6 +91,10 @@ export default function App() {
   // the simulation editor would be stranded.
   const maxed = settings.maximizeCenter && onCenter;
   const sideStyle = { width: sideW, maxWidth: `calc(100vw - ${sideReserve}px)` };
+  // What the tree has to leave for the column on its other side. Zero on Design
+  // below `2xl`, where there is no property column to leave room for, and the
+  // tree would otherwise be capped against a pane that is not on screen.
+  const propsW = wide ? sideW : 0;
   const commitSide = (w: number) => {
     setDragSide(null);
     update({ sidePaneWidth: w });
@@ -136,7 +148,7 @@ export default function App() {
           // dragging, restated in CSS: a width stored on a wide monitor must not
           // crush the center pane when the same browser profile opens on a
           // narrow one.
-          style={{ width: treeW, maxWidth: `calc(100vw - ${sideW + CENTER_PANE_MIN}px)` }}
+          style={{ width: treeW, maxWidth: `calc(100vw - ${propsW + CENTER_PANE_MIN}px)` }}
           className={`hidden shrink-0 lg:h-full lg:overflow-y-auto ${tab === 'design' && !maxed ? 'lg:block' : ''}`}
         >
           <TreePanel />
@@ -151,7 +163,7 @@ export default function App() {
             width={treeW}
             min={TREE_PANE_MIN}
             max={TREE_PANE_MAX}
-            reserve={sideW + CENTER_PANE_MIN}
+            reserve={propsW + CENTER_PANE_MIN}
             fallback={TREE_PANE_DEFAULT}
             label={t('panes.resizeTree')}
             onDrag={setDragTree}
@@ -169,25 +181,56 @@ export default function App() {
           <CenterView />
         </section>
 
-        {/* RIGHT — the selected part's properties (Design tab; desktop only).
+        {/* RIGHT — the selected part's properties (Design tab; `2xl` and up).
             This column is what the tab split bought: the editor used to be
-            stacked under the tree in the left one. */}
-        {tab === 'design' && !maxed && (
-          <SideSplitter
-            paneRef={propsRef}
-            width={sideW}
-            reserve={sideReserve}
-            onDrag={setDragSide}
-            onCommit={commitSide}
-          />
+            stacked under the tree in the left one. It wants `2xl` rather than
+            `lg` because it is the THIRD column on this tab, and at 1024, or at
+            1440, the tree and a property panel between them leave the drawing a
+            strip. Under that the editor is ComponentDialog, mounted below, and
+            this column is not rendered at all: one editor in the document,
+            never two. */}
+        {wide && tab === 'design' && !maxed && (
+          <>
+            <SideSplitter
+              paneRef={propsRef}
+              width={sideW}
+              reserve={sideReserve}
+              onDrag={setDragSide}
+              onCommit={commitSide}
+            />
+            <section ref={propsRef} style={sideStyle} className="shrink-0 overflow-y-auto lg:h-full">
+              <PropertyPane />
+            </section>
+          </>
         )}
+
+        {/* CONFIGURATIONS — toolbar + the table of flight configurations. Full
+            width for the same reason the simulations table has it: the table is
+            one row per setup and one column per mount, and both grow with the
+            rocket. */}
         <section
-          ref={propsRef}
-          style={sideStyle}
-          className={`hidden shrink-0 lg:h-full lg:overflow-y-auto ${tab === 'design' && !maxed ? 'lg:block' : ''}`}
+          className={`${tab === 'configs' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col lg:h-full lg:overflow-hidden`}
         >
-          <PropertyPane />
+          <ConfigsPane />
         </section>
+
+        {/* RIGHT — the selected configuration's motors (Configurations tab;
+            desktop only). On a phone it is inline under the table instead, so a
+            phone can still change a motor. */}
+        {desktop && tab === 'configs' && (
+          <>
+            <SideSplitter
+              paneRef={configEditRef}
+              width={sideW}
+              reserve={sideReserve}
+              onDrag={setDragSide}
+              onCommit={commitSide}
+            />
+            <section ref={configEditRef} style={sideStyle} className="shrink-0 overflow-y-auto lg:h-full">
+              <ConfigEditor />
+            </section>
+          </>
+        )}
 
         {/* SIMULATIONS — toolbar + the table of runs. Its own tab, so the table
             gets the full width rather than the 380px column the whole sim panel
@@ -254,6 +297,10 @@ export default function App() {
       </main>
 
       <TabBar />
+      {/* The component editor, for every width the column above is not on. Only
+          on Design: the selection it edits is that tab's, and the mount is what
+          resets it when you leave. */}
+      {!wide && tab === 'design' && <ComponentDialog />}
       <WorkInProgressDialog />
       <ConfirmDialog />
       <PromptDialog />

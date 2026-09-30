@@ -2,8 +2,8 @@
  * Workbench navigation, on two independent axes.
  *
  * `Tab` is what the whole workbench is doing, and it reads the same at every
- * width: Design changes geometry, Simulations manages the runs over it, Results
- * reads one back. Each tab gets its own column layout (see App.tsx).
+ * width: Design changes geometry, Configurations holds the motor loadouts the
+ * runs fly, Simulations manages the runs over it, Results reads one back. Each tab gets its own column layout (see App.tsx).
  *
  * `DesignPane` is a PHONE concern and nothing more. The Design tab wants to show
  * the stats strip and the drawing together, which it does at lg+; a phone has
@@ -12,9 +12,18 @@
  * every desktop pane rule to carry an `lg:` override undoing a split that only
  * matters on a phone.
  */
-export type Tab = 'design' | 'sim' | 'results';
+export type Tab = 'design' | 'configs' | 'sim' | 'results';
 
 export type DesignPane = 'stats' | 'sketch';
+
+/**
+ * Which part of a flight configuration the Configurations tab is showing.
+ *
+ * The desktop's own split: a configuration says which motors fly, when the
+ * recovery devices open and when each booster lets go, and those are different
+ * tables over the same rows.
+ */
+export type ConfigsTab = 'motors' | 'recovery' | 'separation';
 
 /**
  * What the center pane shows. Lives here, beside `Tab`, because the store keeps the

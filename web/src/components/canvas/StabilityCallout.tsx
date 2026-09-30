@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { Line } from '@react-three/drei';
 import type { StaticInfo } from '../../engine/openRocketEngine';
 import { fmtNum } from '../../i18n/format';
-import { stabilityState } from '../../services/simReport.js';
+import { stabilityState } from '../../services/flight/simReport.js';
 import { useUnits } from '../../prefs/useUnits';
 import { CalloutLabel } from './rocketCallouts';
 import { MARGIN_COLOR } from './stabilityGadget';

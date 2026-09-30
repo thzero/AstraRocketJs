@@ -1,6 +1,6 @@
 import type { RocketTree } from '../../engine/openRocketEngine';
-import type { ReportModel } from '../reportModel';
-import { rocketSideView } from '../reportGeometry';
+import type { ReportModel } from './reportModel';
+import { rocketSideView } from './reportGeometry';
 import { pageFrame, sideViewOrigin, sideViewScale } from './layout';
 import { ensure, fillScaled, heading, kvGrid, sectionBreak, sub, summaryRows, type PdfPage } from './pdfPage';
 

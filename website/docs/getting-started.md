@@ -14,7 +14,7 @@ When it loads you'll see a brief splash while the physics engine loads, then a s
 
 On a desktop the workbench is three **tabs**, in the top bar beside the app name. Each one lays the window out the way its own job needs, rather than all three sharing one fixed grid:
 
-- **Design.** The component tree on the left, the rocket view in the center, the selected part's editor on the right.
+- **Design.** The component tree on the left, the rocket view in the center, the selected part's editor on the right. That third column needs a window at least 1536px wide, which most laptops are not; narrower than that the editor opens as a dialog over the drawing instead, with the same fields in the same units.
 - **Simulations.** The table of runs across the full width, with the selected simulation's editor (motor, ignition, launch setup, options) on the right.
 - **Results.** The flight charts, ground track and 3D path in the center, the run's numbers on the right. It appears once a simulation has produced a result, and a finished run takes you straight to it.
 
@@ -33,9 +33,9 @@ On a **phone** the same areas become tabs along the bottom, because there is no 
 - **Simulate** — motor, launch setup, **Run**, and the result summary.
 - **Results** — the run's numbers (apogee, rod exit, max speed, landing, downrange …) with the flight charts and the 3D flight path below them. It appears once a simulation has produced a result, and a finished run takes you straight to it.
 
-The components panel is desktop-only, so a phone is for reading and simulating a design rather than building one.
+The components panel is desktop-only, so a phone cannot add, reorder or delete parts. It can edit the ones a design already has: tap a part in the **Sketch** view and its editor opens as a dialog. Two things follow the panel rather than the drawing, and are not offered where it is absent: **My Parts**, since a saved part is applied through a component, and the **rocket's name and configuration**, since naming a design is something you do to one you are building. Both also step aside while the drawing is maximized, for the same reason the panel does.
 
-The top bar has **undo / redo**, a language switcher (English · Español), a note of when your rocket was last saved, and the **app menu**: New, Open… and Save As… (the in-app design library), **Import ▸ OpenRocket** and **Export ▸ OpenRocket / RASAero II** for `.ork` and other files on disk, **Rocket Design Report**, **Motor Dashboard**, **Launch Locations**, **My Parts**, **Settings**, **Help**, **Privacy** and **About**.
+The top bar has **undo / redo**, a language switcher (ten languages), a note of when your rocket was last saved, and the **app menu**: New, Open… and Save As… (the in-app design library), **Import ▸ OpenRocket** and **Export ▸ OpenRocket / RASAero II** for `.ork` and other files on disk, **Rocket Design Report**, **Motor Dashboard**, **Launch Locations**, **My Parts**, **Settings**, **Help**, **Privacy** and **About**.
 
 ## Your first rocket
 

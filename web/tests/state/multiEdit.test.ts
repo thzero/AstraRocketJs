@@ -1,9 +1,16 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useWorkspaceStore, selectActive } from '../../src/state/store';
+import { useWorkspaceStore, selectActive, configOf } from '../../src/state/store';
 import { C6 } from '../../src/engine/api';
+import { findMounts } from '../../src/services/design/treeEdit';
+import { primaryMotor } from '../../src/services/flight/flightConfigs';
 
 const st = () => useWorkspaceStore.getState();
 const byName = (n: string) => st().sims.find((x) => x.name === n)!;
+/** The default design's one mount, and what a named row has seated in it. */
+const mountId = () => findMounts(st().tree)[0]!.id as string;
+const motorOf = (n: string) => primaryMotor(st().tree, configOf(st().configs, byName(n)))!;
+const configIdOf = (n: string) => byName(n).configId;
+const ignitionOf = (n: string) => configOf(st().configs, byName(n)).motors[mountId()]?.ignitionEvent;
 
 /**
  * Editing follows the SELECTION: a tick already means "fly these" and "delete
@@ -13,6 +20,10 @@ const byName = (n: string) => st().sims.find((x) => x.name === n)!;
  */
 describe('editing across a selection', () => {
   beforeEach(() => {
+    // From a clean workspace, so one case's motor change cannot leave the next
+    // case's rows on configurations of their own: `addSim` joins the setup that
+    // already holds the default loadout, and an edited one no longer holds it.
+    st().resetWorkspace();
     // Three simulations that disagree, so a patch that wrongly copied the
     // active one's whole block would be visible rather than a no-op.
     const s = st();
@@ -85,30 +96,39 @@ describe('editing across a selection', () => {
     ).toEqual(['B', 'C', 'Renamed']);
   });
 
-  it('keeps the MOTOR single-target, because that is what the rows exist to compare', () => {
-    // Several simulations exist to fly one airframe on different motors. A bulk
-    // motor change collapses exactly that comparison, and leaves every row
-    // looking deliberately identical afterwards.
-    st().setSimsSelected([byName('A').id, byName('B').id, byName('C').id]);
+  it('changes the motor for every row flying that configuration, tick or no tick', () => {
+    // A motor belongs to a configuration, not to a row. A/B/C were created with
+    // the same loadout, so they fly ONE configuration and all three move: that is
+    // what sharing a setup means, and it is why the selection is not consulted.
+    st().setSimsSelected([byName('A').id]);
     const D12 = { ...C6, designation: 'D12' };
-    st().setActiveMotor(D12);
-    expect(byName('A').motor.designation).toBe('D12'); // the active one
-    expect(byName('B').motor.designation).toBe(C6.designation);
-    expect(byName('C').motor.designation).toBe(C6.designation);
+    st().setMountMotor(configIdOf('A'), mountId(), D12);
+    expect(motorOf('A').designation).toBe('D12');
+    expect(motorOf('B').designation).toBe('D12');
+    expect(motorOf('C').designation).toBe('D12');
   });
 
-  it('keeps primary ignition single-target too, since it is part of the loadout', () => {
-    st().setSimsSelected([byName('A').id, byName('B').id]);
-    st().setActiveIgnition('burnout', 2);
-    expect(byName('A').ignitionEvent).toBe('burnout');
-    expect(byName('B').ignitionEvent).toBeUndefined();
+  it('leaves a row flying a different configuration alone', () => {
+    st().addConfig();
+    const own = st().selectedConfigId!;
+    st().setSimConfig(byName('B').id, own);
+    st().setMountMotor(own, mountId(), { ...C6, designation: 'D12' });
+    expect(motorOf('B').designation).toBe('D12');
+    expect(motorOf('A').designation).toBe(C6.designation);
   });
 
-  it('ages only the row whose motor changed', () => {
+  it('carries ignition with the motor, for the same rows', () => {
     st().setSimsSelected([byName('A').id, byName('B').id]);
-    st().setActiveMotor({ ...C6, designation: 'E9' });
+    st().setMountIgnition(configIdOf('A'), mountId(), 'burnout', 2);
+    expect(ignitionOf('A')).toBe('burnout');
+    expect(ignitionOf('B')).toBe('burnout');
+  });
+
+  it('ages every row flown on the configuration that changed', () => {
+    st().setSimsSelected([byName('A').id]);
+    st().setMountMotor(configIdOf('A'), mountId(), { ...C6, designation: 'E9' });
     expect(byName('A').outdated).toBe(true);
-    expect(byName('B').outdated).toBeFalsy();
+    expect(byName('B').outdated).toBe(true);
   });
 
   it('merges run-option overrides per row', () => {

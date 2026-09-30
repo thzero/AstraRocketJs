@@ -9,7 +9,7 @@ import {
   type Piece,
 } from '../../../src/components/canvas/Rocket3D';
 import { internalExtent } from '../../../src/components/canvas/schematicGeometry';
-import { resolveDisc } from '../../../src/services/discGeometry';
+import { resolveDisc } from '../../../src/services/design/discGeometry';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
 
 /**

@@ -16,8 +16,8 @@ import {
   unproject,
   visibleTiles,
   type TileSourceId,
-} from '../../services/slippyMap';
-import { rememberTileLayer, tileLayer } from '../../services/tileLayer';
+} from '../../services/map/slippyMap';
+import { rememberTileLayer, tileLayer } from '../../services/map/tileLayer';
 
 /**
  * The launch site, seen from above.
@@ -33,7 +33,7 @@ import { rememberTileLayer, tileLayer } from '../../services/tileLayer';
  * at computed offsets rather than through a mapping library: showing one point
  * and letting it be dragged is the whole requirement, and Leaflet or MapLibre
  * would bring a layer system, a plugin surface and a stylesheet for the parts
- * we do not use. The projection lives in `services/slippyMap.ts`, where it is
+ * we do not use. The projection lives in `services/map/slippyMap.ts`, where it is
  * tested against hand-computed figures.
  *
  * Tiles are cached by the service worker (see the runtime rule in

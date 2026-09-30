@@ -6,7 +6,7 @@ import type { SidebarsConfig } from '@docusaurus/plugin-content-docs';
 // On the site it is a taste call for a set this small: twenty pages in five
 // groups fit without scrolling, and half-open / half-shut was arbitrary. In the
 // APP it is a requirement. The in-app Help dialog draws its contents rail by
-// reading this sidebar out of a built page (web/src/services/helpDocs.ts), and
+// reading this sidebar out of a built page (web/src/services/app/helpDocs.ts), and
 // Docusaurus renders a COLLAPSED category's children into no page at all, so a
 // collapsed group here is a group missing from the rail. e2e/help-dialog.spec.ts
 // reaches into the last category for exactly that reason.
@@ -23,7 +23,15 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'User Guide',
       collapsed: false,
-      items: ['designing-a-rocket', 'motors', 'views-and-analysis', 'running-a-simulation', 'files-and-exports', 'safety'],
+      items: [
+        'designing-a-rocket',
+        'motors',
+        'flight-configurations',
+        'views-and-analysis',
+        'running-a-simulation',
+        'files-and-exports',
+        'safety',
+      ],
     },
     // Feature maps against the other tools, each one a dated snapshot that says
     // so at the top. Last, because they answer "should I use this?" rather than

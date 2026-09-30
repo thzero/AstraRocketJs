@@ -1,6 +1,5 @@
-import type { FlightResult, MotorSpec, RocketTree, SimulationOptions } from './openRocketEngine';
-import type { MountMotor } from '../services/loadOrk';
-import type { Ignition } from '../services/buildRocket';
+import type { FlightResult, RocketTree, SimulationOptions } from './openRocketEngine';
+import type { FlightConfig } from '../services/flight/flightConfigs';
 
 /**
  * Shared message contract between the main thread (engine/simClient.ts) and the
@@ -19,10 +18,8 @@ import type { Ignition } from '../services/buildRocket';
  */
 export interface SimPayload {
   tree: RocketTree;
-  motor: MotorSpec | undefined;
-  extraMotors: Record<string, MountMotor>;
-  /** Primary mount's ignition override (undefined = automatic). */
-  primaryIgnition?: Ignition;
+  /** The flight configuration to seat: one motor per mount, with its ignition. */
+  config: FlightConfig;
   options: SimulationOptions;
 }
 

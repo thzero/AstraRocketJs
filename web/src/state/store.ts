@@ -3,8 +3,8 @@ import i18n from '../i18n';
 import { confirm } from './confirmStore';
 import { prompt } from './promptStore';
 import { scaleRocket } from '../tree/scaleRocket';
-import { syncAutoShoulders } from '../services/autoShoulder';
-import { buildRocketTree, specToTree, C6, type RocketSpec, type StaticInfo } from '../engine/api';
+import { syncAutoShoulders } from '../services/design/autoShoulder';
+import { buildRocketTree, specToTree, type RocketSpec, type StaticInfo } from '../engine/api';
 import type {
   MotorSpec,
   RocketTree,
@@ -12,19 +12,37 @@ import type {
   ComponentType as PartType,
   IgnitionEvent,
 } from '../engine/openRocketEngine';
-import { findMountId, updateNode, removeNode, addPart, addStage, moveNode, setStageDrogue } from '../services/treeEdit';
-import { activeExtraMounts, reconcileMounts } from '../services/mountMotors';
-import type { LaunchConditions } from '../services/orkTree';
-import type { OrkExportMotor } from '../services/orkFile';
-import type { DesignInfo } from '../services/orkTypes';
-import type { MountMotor } from '../services/loadOrk';
-import { buildExportMotorMap } from '../services/exportMotors';
-import { wireLoadedOrk } from '../services/wireLoadedOrk';
+import {
+  findStages,
+  updateNode,
+  removeNode,
+  addPart,
+  addStage,
+  moveNode,
+  setStageDrogue,
+} from '../services/design/treeEdit';
+import {
+  configFor,
+  liveMotors,
+  type DeployOverride,
+  type SepOverride,
+  newFlightConfig,
+  primaryMotor,
+  reconcileConfig,
+  reconcileConfigs,
+  ensureConfig,
+  type FlightConfig,
+} from '../services/flight/flightConfigs';
+import type { LaunchConditions } from '../services/design/orkTree';
+import type { OrkExportMotor } from '../services/files/orkFile';
+import type { DesignInfo } from '../services/files/orkTypes';
+import { buildExportMotorMap } from '../services/motors/exportMotors';
+import { wireLoadedOrk } from '../services/files/wireLoadedOrk';
 // Static, not the lazy import the neighboring .ork paths use: this is a fetch
 // wrapper with no heavy dependencies, and the library dialog imports it
 // statically anyway, so a dynamic import here only produces rolldown's
 // INEFFECTIVE_DYNAMIC_IMPORT warning without moving a byte.
-import { fetchExample } from '../services/exampleLibrary';
+import { fetchExample } from '../services/storage/exampleLibrary';
 import {
   freshSeed,
   newSimulation,
@@ -34,9 +52,9 @@ import {
   type Simulation,
   type SimPrefs,
   type SimRun,
-} from '../services/simulations';
+} from '../services/flight/simulations';
 import { simulateInWorker, SimTimeoutError, SimCanceledError } from '../engine/simClient';
-import { landingPoint } from '../services/groundTrack';
+import { landingPoint } from '../services/flight/groundTrack';
 import {
   normalizeSweepSpec,
   sweepLaunch,
@@ -45,10 +63,10 @@ import {
   type DriftSweep,
   type SweepLanding,
   type WindSweepSpec,
-} from '../services/windSweep';
-import { loadSettings } from '../services/settings';
-import { defaultMaterialPatch } from '../services/materials';
-import { launchLimitViolations, limitText } from '../services/safetyLimits';
+} from '../services/flight/windSweep';
+import { loadSettings } from '../services/storage/settings';
+import { defaultMaterialPatch } from '../services/design/materialSlots';
+import { launchLimitViolations, limitText } from '../services/flight/safetyLimits';
 import {
   unflyable,
   unflyableText,
@@ -56,13 +74,14 @@ import {
   designBlocker,
   designBlockerText,
   type Unflyable,
-} from '../services/runnability';
-import { isComplete, type CompleteLaunch } from '../services/requiredLaunch';
-import { defaultDesignName } from '../services/appInfo';
-import { getDesignLibrary, type DesignMeta } from '../services/designLibrary';
-import { getWorkspaceStore, validateWorkspace, type Workspace } from '../services/workspaceStore';
+} from '../services/flight/runnability';
+import { isComplete, type CompleteLaunch } from '../services/flight/requiredLaunch';
+import { defaultDesignName } from '../services/app/appInfo';
+import { getDesignLibrary, type DesignMeta } from '../services/storage/designLibrary';
+import { getWorkspaceStore, type Workspace } from '../services/storage/workspaceStore';
+import { migrateWorkspace } from '../services/storage/workspaceMigrate';
 import type { MotorDims } from '../components/canvas/Rocket3D';
-import { isResultView, type Tab, type DesignPane, type ViewMode } from './tabs';
+import { isResultView, type ConfigsTab, type Tab, type DesignPane, type ViewMode } from './tabs';
 import { unitSymbols } from '../prefs/units';
 
 /**
@@ -75,11 +94,52 @@ const displayUnits = () => {
   return unitSymbols(s.units, s.unitOverrides);
 };
 
-// A clean, classic sport rocket (~55 cm, 26 mm airframe, swept 3-fin).
+/**
+ * A clean, classic sport rocket (~55 cm, 26 mm airframe, swept 3-fin), built out
+ * of what one is actually built out of.
+ *
+ * The named materials are the ones that make this a rocket rather than a shape:
+ * an **injection-molded polystyrene** nose cone and **basswood** fins. Basswood
+ * rather than balsa because these fins are large for the airframe and swept, and
+ * a sport model that is meant to survive being flown more than once gets the
+ * stiffer of the two. Everything else takes the kernel's stock bulk material,
+ * and for a cardboard airframe, a cardboard motor tube and fiber centering rings
+ * that is the right answer already.
+ *
+ * It matters to the numbers, not just the label. Left unnamed both parts weighed
+ * as cardboard at 680 kg/m3, which is 1.6x too light for the nose cone (1050)
+ * and a third too heavy for the fins (500) - mass at the two ENDS of the rocket,
+ * so the error lands where it moves the CG and the stability margin furthest.
+ *
+ * Names and densities are the material catalog's own
+ * (`public/data/materials.generated.json`, synced from upstream); the group is
+ * the `.ork` database string, which for Woods and Plastics is the same word.
+ * `defaultRocketMaterials.test.ts` checks all three against the shipped catalog,
+ * so a sync that renames or re-weighs one fails rather than silently flying a
+ * different rocket.
+ */
 const DEFAULT_SPEC: RocketSpec = {
-  noseCone: { length: 0.13, aftRadius: 0.013, thickness: 0.0008, shape: 'ogive' },
+  noseCone: {
+    length: 0.13,
+    aftRadius: 0.013,
+    thickness: 0.0008,
+    shape: 'ogive',
+    material: 'Polystyrene',
+    materialDensity: 1050,
+    materialGroup: 'Plastics',
+  },
   bodyTube: { length: 0.42, outerRadius: 0.013, thickness: 0.0005 },
-  fins: { count: 3, rootChord: 0.08, tipChord: 0.038, sweep: 0.055, height: 0.058, thickness: 0.0028 },
+  fins: {
+    count: 3,
+    rootChord: 0.08,
+    tipChord: 0.038,
+    sweep: 0.055,
+    height: 0.058,
+    thickness: 0.0028,
+    material: 'Basswood',
+    materialDensity: 500,
+    materialGroup: 'Woods',
+  },
   motorMount: { length: 0.07, outerRadius: 0.0092, thickness: 0.0004 },
   parachute: { diameter: 0.4, dragCoefficient: 0.8 },
 };
@@ -89,13 +149,15 @@ type LoadedMeta = { name: string; notes: string[]; exportMotors: Record<string, 
 
 /** One undo/redo checkpoint: the whole editable workspace — the design tree (and
  *  which part was selected, so undo re-focuses what changed) plus the simulations,
- *  the active sim, and the extra-mount motors, all of which persist to the same
+ *  the active sim, and the flight configurations, all of which persist to the same
  *  file. Cached flight `result`s are stripped in {@link snap}: they're large,
  *  recomputable outputs, not edits. */
 type HistoryEntry = {
   tree: RocketTree;
   selectedId: string | null;
   sims: Simulation[];
+  /** The motor loadouts live here, so an undo of a motor change has to restore them. */
+  configs: FlightConfig[];
   activeId: string;
   /**
    * The three fields `deleteSim` prunes alongside `sims`.
@@ -138,6 +200,18 @@ export interface WorkspaceState {
   storageWarning: string | null;
   storageWarningKind: StorageWarningKind | null;
   selectedId: string | null;
+  /**
+   * Bumped by every selection GESTURE, including one that picks the part that
+   * was already selected.
+   *
+   * `selectedId` alone cannot carry that: tapping the same part in the drawing
+   * a second time writes the id it already holds, so nothing downstream sees an
+   * event. The component dialog (the editor below the property column's
+   * breakpoint) opens on this rather than on the id, or the part it left
+   * selected when it closed could not be reopened without first selecting
+   * something else.
+   */
+  selectionSeq: number;
   loadedMeta: LoadedMeta;
   rocket: Rocket | null; // live engine handle (set by the rebuild effect; used by runSim)
   // --- history (undo/redo of component edits) ---
@@ -145,6 +219,31 @@ export interface WorkspaceState {
   future: HistoryEntry[];
   // --- simulations ---
   sims: Simulation[];
+  /**
+   * The flight configurations this design holds - the named motor loadouts each
+   * simulation points at (services/flight/flightConfigs.ts).
+   *
+   * Never empty: a simulation names the configuration it flies, so there is
+   * always one to name.
+   */
+  configs: FlightConfig[];
+  /**
+   * The configuration the Configurations tab is pointed at, or null to follow
+   * the active simulation's.
+   *
+   * Transient, like `selectedId` on the design tree: which row you had
+   * highlighted is not part of the design, and a stored one would outlive the
+   * configuration it names.
+   */
+  selectedConfigId: string | null;
+  /**
+   * Which part of a configuration the tab is showing: its motors, or when its
+   * recovery devices open.
+   *
+   * In the store rather than the pane, because the table and the editor beside
+   * it are different components at lg+ (see App.tsx) and both follow it.
+   */
+  configsTab: ConfigsTab;
   activeId: string;
   /**
    * Rows ticked for running, which is a DIFFERENT question from `activeId`.
@@ -261,9 +360,8 @@ export interface WorkspaceState {
   hydrate: (w: {
     tree: RocketTree;
     sims: Simulation[];
+    configs: FlightConfig[];
     activeId: string;
-    /** LEGACY: pre-per-simulation workspaces kept one shared map here. */
-    extraMotors?: Record<string, MountMotor>;
     loadedMeta: LoadedMeta;
   }) => void;
 
@@ -271,7 +369,7 @@ export interface WorkspaceState {
   setSelectedId: (id: string | null) => void;
   patchSelected: (patch: Partial<ComponentNode>) => void;
   /**
-   * Run one of the tree-shape ACTIONS from services/componentActions: convert a
+   * Run one of the tree-shape ACTIONS from services/design/componentActions: convert a
    * fin set to freeform, split a fin set / pod / booster / cluster, reset a
    * cluster's spacing. One undo step, and nothing at all when the action says
    * there was nothing to do.
@@ -295,13 +393,61 @@ export interface WorkspaceState {
   redo: () => void;
 
   setActiveId: (id: string) => void;
-  setActiveMotor: (m: MotorSpec) => void;
-  /** Set when the primary mount's motor ignites (per active simulation). */
-  setActiveIgnition: (event: IgnitionEvent, delay: number) => void;
-  /** Set the motor for a non-primary mount (multi-mount rockets). */
-  setExtraMotor: (mountId: string, m: MotorSpec) => void;
-  /** Set when a non-primary mount's motor ignites. */
-  setExtraIgnition: (mountId: string, event: IgnitionEvent, delay: number) => void;
+  /** Point the Configurations tab at one configuration; null follows the active simulation. */
+  setSelectedConfigId: (id: string | null) => void;
+  setConfigsTab: (tab: ConfigsTab) => void;
+  /**
+   * Seat a motor in one mount of one flight configuration.
+   *
+   * Every mount goes through this, the first one included: one call, one map, so
+   * nothing can disagree about which motor is where. Every simulation flying
+   * that configuration is aged, because all of them now fly a different motor.
+   */
+  setMountMotor: (configId: string, mountId: string, m: MotorSpec) => void;
+  /** Set when one mount's motor ignites, in one configuration. */
+  setMountIgnition: (configId: string, mountId: string, event: IgnitionEvent, delay: number) => void;
+  /**
+   * Override one deployment field of one recovery device, in one configuration;
+   * null clears that field so the device's own value on the design applies again.
+   *
+   * Per FIELD, like a simulation's preference overrides: a configuration can
+   * move the altitude and leave the event where the design put it.
+   */
+  setDeployment: <K extends keyof DeployOverride>(
+    configId: string,
+    deviceId: string,
+    key: K,
+    value: DeployOverride[K] | null,
+  ) => void;
+  /**
+   * Override one separation field of one booster, in one configuration; null
+   * clears it so the stage's own value on the design applies again.
+   */
+  setSeparation: <K extends keyof SepOverride>(
+    configId: string,
+    stageId: string,
+    key: K,
+    value: SepOverride[K] | null,
+  ) => void;
+  /**
+   * Fly one stage in this configuration, or leave it on the ground. Refused for
+   * the last stage still flying: a rocket with no stages is not a flight.
+   */
+  setStageFlies: (configId: string, stageId: string, flies: boolean) => void;
+  /** Add an empty-default configuration and select it. */
+  addConfig: () => void;
+  /** Copy one configuration, placing the copy after it, and select it. */
+  copyConfig: (id: string) => void;
+  /** Name a configuration; an empty name means unnamed (labeled by its motors). */
+  renameConfig: (id: string, name: string) => void;
+  /**
+   * Delete a configuration. Refused for the last one, since every simulation
+   * names the configuration it flies. Rows that flew it move to the first
+   * remaining one.
+   */
+  deleteConfig: (id: string) => void;
+  /** Point one simulation at a configuration. */
+  setSimConfig: (simId: string, configId: string) => void;
   patchLaunch: (p: Partial<LaunchConditions>) => void;
   addSim: () => void;
   duplicateSim: (id: string) => void;
@@ -369,10 +515,10 @@ export interface WorkspaceState {
   /** Write the design as a RockSim `.rkt`. */
   saveRkt: () => Promise<void>;
   /** Write the design's printable parts as 3MF (one file, or a zip of files). */
-  exportPrint: (opts: import('../services/rocketPrintExport').PrintExportOptions) => Promise<void>;
+  exportPrint: (opts: import('../services/exports/rocketPrintExport').PrintExportOptions) => Promise<void>;
   saveRasaero: () => Promise<void>;
   /** Export a single component as a 3D mesh (stl/obj/glb) or a 2D cut sheet (dxf). */
-  exportComponent: (nodeId: string, format: import('../services/componentFormats').ExportFormat) => Promise<void>;
+  exportComponent: (nodeId: string, format: import('../services/files/componentFormats').ExportFormat) => Promise<void>;
 }
 
 /** The active simulation (falls back to the first if the id no longer exists). */
@@ -415,8 +561,27 @@ export const selectRunIds = (s: WorkspaceState): string[] =>
  */
 const selectEditIds = (s: WorkspaceState): string[] => selectRunIds(s);
 
-/** The active simulation's non-primary-mount motors — its flight configuration. */
-export const selectExtraMotors = (s: WorkspaceState): Record<string, MountMotor> => selectActive(s).extraMotors;
+/**
+ * The flight configuration the ACTIVE simulation flies.
+ *
+ * Safe to subscribe to: it hands back a stored object, so a re-render happens
+ * when that configuration or the active row changes and not otherwise.
+ */
+export const selectConfig = (s: WorkspaceState): FlightConfig => configFor(s.configs, selectActive(s).configId);
+
+/**
+ * The configuration the Configurations tab is editing: the one it has selected,
+ * else the one the active simulation flies.
+ *
+ * Following the active simulation is what makes arriving at the tab show the
+ * setup you were just looking at, rather than an arbitrary row.
+ */
+export const selectEditedConfig = (s: WorkspaceState): FlightConfig =>
+  configFor(s.configs, s.selectedConfigId ?? selectActive(s).configId);
+
+/** The configuration one given row flies (the table, the Run button). */
+export const configOf = (configs: readonly FlightConfig[], sim: Simulation): FlightConfig =>
+  configFor(configs, sim.configId);
 
 /**
  * True when the ACTIVE sim's last run threw on the design that is still loaded.
@@ -434,47 +599,57 @@ export const selectRunFailed = (s: WorkspaceState): boolean => {
 /**
  * A motor is usable only if it carries a full thrust curve.
  *
- * Re-exported from `services/runnability`, which owns the "can this row fly"
+ * Re-exported from `services/flight/runnability`, which owns the "can this row fly"
  * question so the Run button and the run loop share one answer.
  */
 export { hasThrustCurve };
 
 /**
  * Repair a persisted workspace so a stale/partial blob can't blank the app.
+ *
  * Each launch is merged over the current defaults (a `launch` missing fields
- * would blank the Launch panel). A curve-less motor is KEPT as-is: the rebuild
- * does not seat it, so it cannot blank the app, the run stays blocked ("no
- * motor"), and an unresolved .ork motor is never silently replaced with a
- * default. Only a wholly-missing motor falls back to C6.
+ * would blank the Launch panel), and a simulation naming a configuration that is
+ * not there is pointed at the first one, the way a stale `activeId` falls back to
+ * the first row.
  */
-function sanitizeSims(sims: Simulation[]): Simulation[] {
+function sanitizeSims(sims: Simulation[], configs: FlightConfig[]): Simulation[] {
   const launchDefaults = loadSettings().launchDefaults;
+  const known = new Set(configs.map((c) => c.id));
+  const fallback = configs[0]!.id;
   const safe = (Array.isArray(sims) ? sims : []).filter((s) => s && typeof s.id === 'string');
-  if (!safe.length) return [newSimulation('Simulation 1', C6, launchDefaults)];
+  if (!safe.length) return [newSimulation('Simulation 1', fallback, launchDefaults)];
   return safe.map((s) => ({
     ...s,
     launch: { ...launchDefaults, ...(s.launch ?? {}) },
-    motor: s.motor ?? C6,
-    extraMotors: s.extraMotors ?? {},
+    configId: known.has(s.configId) ? s.configId : fallback,
     // Kept, not dropped: flights persist under their own key and are re-attached
     // by the workspace store before this sees them (workspaceStore.withResults).
     result: s.result ?? null,
   }));
 }
 
-/** Motor case dimensions for the 2D/3D views (primary mount + any extra mounts). */
-export function selectMotorDims(
-  tree: RocketTree,
-  motor: MotorSpec,
-  extraMotors: Record<string, MountMotor>,
-): MotorDims {
+/**
+ * At least one configuration, always.
+ *
+ * A curve-less motor inside one is KEPT as-is: the build does not seat it, so it
+ * cannot blank the app, the run stays blocked ("no motor"), and an unresolved
+ * `.ork` motor is never silently replaced with a default. Only a wholly missing
+ * set falls back to a default loadout.
+ */
+function sanitizeConfigs(tree: RocketTree, configs: FlightConfig[]): FlightConfig[] {
+  const safe = (Array.isArray(configs) ? configs : []).filter((c) => c && typeof c.id === 'string' && c.motors);
+  return reconcileConfigs(tree, safe.length ? safe : [defaultConfig(tree)]);
+}
+
+/** A configuration with the app default motor in every mount. */
+function defaultConfig(tree: RocketTree): FlightConfig {
+  return reconcileConfig(tree, newFlightConfig());
+}
+
+/** Motor case dimensions for the 2D/3D views, one per loaded mount. */
+export function selectMotorDims(tree: RocketTree, config: FlightConfig): MotorDims {
   const m: MotorDims = {};
-  const mountId = findMountId(tree);
-  if (mountId) m[mountId] = { length: motor.length, diameter: motor.diameter, label: motor.designation };
-  // The primary mount is drawn from `motor` above; the shared filter skips any
-  // lingering extra entry for it (and for mounts no longer in the tree) so
-  // nothing misrenders, and so this cannot drift from what the builder seats.
-  for (const [id, mm] of activeExtraMounts(tree, extraMotors, mountId)) {
+  for (const [id, mm] of liveMotors(tree, config)) {
     m[id] = { length: mm.spec.length, diameter: mm.spec.diameter, label: mm.spec.designation };
   }
   return m;
@@ -482,24 +657,6 @@ export function selectMotorDims(
 
 /** First `label(n)` (n = start, start+1, …) not already used by a sim — so New
  *  and Duplicate never reuse a name, even after deletions. */
-/**
- * Re-key every simulation's extra-mount motors against the tree.
- *
- * Returns the same array — and the same per-simulation objects — when nothing
- * mount-related moved, so the per-keystroke edit path allocates nothing and the
- * autosave effect does not see a change that isn't one.
- */
-function reconcileAll(tree: RocketTree, sims: Simulation[]): Simulation[] {
-  let changed = false;
-  const next = sims.map((x) => {
-    const em = reconcileMounts(tree, x.extraMotors);
-    if (em === x.extraMotors) return x;
-    changed = true;
-    return { ...x, extraMotors: em };
-  });
-  return changed ? next : sims;
-}
-
 function uniqueSimName(sims: Simulation[], label: (n: number) => string, start: number): string {
   const taken = new Set(sims.map((x) => x.name));
   let n = start;
@@ -608,19 +765,29 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   };
 
   /**
-   * Patch ONLY the active simulation, whatever is ticked.
+   * Edit one flight configuration in place, and age every flight that was flown
+   * on it.
    *
-   * For the two things a selection must not touch. A NAME pushed across three
-   * rows leaves three rows called the same thing. A MOTOR is worse: the whole
-   * reason to keep several simulations is to fly the same airframe on different
-   * motors, so a bulk motor change collapses exactly the comparison the rows
-   * exist to make -- and it is the one edit you cannot undo by eye afterwards,
-   * because every row now looks deliberately identical.
+   * SHARED by design: a configuration is a setup several simulations can point
+   * at, so changing its motors changes what all of them fly. That is what the
+   * configurations tab is for, and it is why motors are edited there and nowhere
+   * else - two surfaces writing the same loadout under different rules is how
+   * they come to disagree.
+   *
+   * The affected rows' cached flights are stale by definition, so they are aged
+   * here rather than by each caller.
    */
-  const patchActive = (make: (sim: Simulation) => Partial<Simulation>) => {
-    const id = selectActive(get()).id;
-    // Same as patchTargets: an input edit, so the flight is stale by definition.
-    set((s) => ({ sims: s.sims.map((x) => (x.id === id ? { ...x, outdated: true, ...make(x) } : x)) }));
+  const patchConfig = (configId: string, mutate: (c: FlightConfig) => FlightConfig) => {
+    set((s) => {
+      const current = s.configs.find((c) => c.id === configId);
+      if (!current) return {};
+      const edited = mutate(current);
+      if (edited === current) return {};
+      return {
+        configs: s.configs.map((c) => (c.id === configId ? edited : c)),
+        sims: s.sims.map((x) => (x.configId === configId ? { ...x, outdated: true } : x)),
+      };
+    });
   };
 
   // --- undo/redo plumbing ---
@@ -637,6 +804,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       tree: s.tree,
       selectedId: s.selectedId,
       sims: s.sims.map((x) => ({ ...x, result: null })),
+      configs: s.configs,
       activeId: s.activeId,
       selectedSimIds: s.selectedSimIds,
       lastRunIds: s.lastRunIds,
@@ -660,6 +828,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const held = live.get(x.id)?.result;
         return held ? { ...x, result: held, outdated: true } : x;
       }),
+      configs: e.configs,
       activeId: e.activeId,
       selectedSimIds: e.selectedSimIds,
       lastRunIds: e.lastRunIds,
@@ -691,12 +860,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   const snapshotOf = (s: {
     tree: Workspace['tree'];
     sims: Workspace['sims'];
+    configs: Workspace['configs'];
     activeId: string;
     loadedMeta: Workspace['loadedMeta'];
   }): Workspace => ({
-    version: 1,
+    version: 2,
     tree: s.tree,
     sims: s.sims,
+    configs: s.configs,
     activeId: s.activeId,
     loadedMeta: s.loadedMeta,
   });
@@ -833,8 +1004,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }));
   };
 
+  // The app mounts before anything is hydrated, so the default design has to be
+  // a complete workspace: one simulation flying one configuration. A reader that
+  // finds no simulation at all has nothing to fall back to.
+  const tree0 = specToTree(DEFAULT_SPEC).tree;
+  const config0 = defaultConfig(tree0);
+  const sim0 = newSimulation('Simulation 1', config0.id, loadSettings().launchDefaults);
+
   return {
-    tree: specToTree(DEFAULT_SPEC).tree,
+    tree: tree0,
     info: null,
     err: null,
     storageWarning: null,
@@ -846,12 +1024,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     driftSweep: null,
     driftSweepRun: null,
     selectedId: null,
+    selectionSeq: 0,
     loadedMeta: null,
     rocket: null,
     past: [],
     future: [],
-    sims: [newSimulation('Simulation 1', C6, loadSettings().launchDefaults)],
-    activeId: '',
+    sims: [sim0],
+    configs: [config0],
+    selectedConfigId: null,
+    configsTab: 'motors',
+    activeId: sim0.id,
     selectedSimIds: [],
     simBusy: false,
     tab: 'design',
@@ -880,33 +1062,29 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           : {},
       ),
     hydrate: (w) => {
-      // A workspace written before the loadout moved onto each simulation has
-      // ONE shared map. It applied to every sim, so folding it into every sim
-      // reproduces exactly what that workspace flew. Sims carrying their own map
-      // (anything written since) keep it.
-      const legacy = w.extraMotors;
-      const migrated =
-        legacy && Object.keys(legacy).length
-          ? w.sims.map((x) => (x.extraMotors ? x : { ...x, extraMotors: legacy }))
-          : w.sims;
-      const sims = reconcileAll(w.tree, sanitizeSims(migrated));
+      // A stored workspace is lifted to the current shape before it gets here
+      // (services/storage/workspaceMigrate), so this only has to repair a blob that is
+      // the right shape and still partial.
+      const configs = sanitizeConfigs(w.tree, w.configs);
+      const sims = sanitizeSims(w.sims, configs);
       const activeId = sims.some((s) => s.id === w.activeId) ? w.activeId : sims[0]!.id;
       replaceWorkspace((s) => ({
         tree: w.tree,
         sims,
+        configs,
         activeId,
         loadedMeta: w.loadedMeta ?? null,
         hydrationGen: s.hydrationGen + 1,
       }));
     },
 
-    // Each structural/field edit reconciles the extra-mount motors to the new
+    // Each structural/field edit reconciles the flight configurations to the new
     // tree (drop gone mounts, seed a default for new ones) so no loadout can
-    // drift from the mounts. See {@link reconcileAll}: EVERY simulation, because
-    // the mounts belong to the shared design even though the motors seated in
-    // them belong to each simulation.
+    // drift from the mounts. EVERY configuration, because the mounts belong to
+    // the shared design even though the motors seated in them belong to the
+    // configurations.
     scaleDesign: (factor) => {
-      const { tree, sims } = get();
+      const { tree, configs } = get();
       // Scaling is the one tree change that does not go through `treeEdit`, so
       // it re-resolves the shoulders that follow a neighbor itself. It scales
       // every radius by the same factor, so the numbers already agree - this is
@@ -914,11 +1092,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const next = syncAutoShoulders(scaleRocket(tree, factor));
       if (next === tree) return; // 1×, or a non-positive/non-finite factor — nothing to do
       recordStep(); // one undo step for the whole scale
-      set({ tree: next, selectedId: null, sims: reconcileAll(next, sims) });
+      set({ tree: next, selectedId: null, configs: reconcileConfigs(next, configs) });
     },
-    setSelectedId: (selectedId) => set({ selectedId }),
+    setSelectedId: (selectedId) => set((s) => ({ selectedId, selectionSeq: s.selectionSeq + 1 })),
     patchSelected: (patch) => {
-      const { selectedId, tree, sims } = get();
+      const { selectedId, tree, configs } = get();
       if (!selectedId) return;
       beginEdit();
       const next = updateNode(tree, selectedId, patch);
@@ -926,16 +1104,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // name/length/color/slider patch can't, so skip the full tree walk on the
       // hot per-keystroke edit path.
       const touchesMounts = 'motorMount' in patch;
-      set({ tree: next, sims: touchesMounts ? reconcileAll(next, sims) : sims });
+      set({ tree: next, configs: touchesMounts ? reconcileConfigs(next, configs) : configs });
     },
     applyTreeAction: (change) => {
-      const { tree, sims } = get();
+      const { tree, configs } = get();
       const next = change(tree);
       if (next === tree) return;
       recordStep();
       // Splitting a cluster duplicates the tube it is on, mounts included, so
       // the mount topology really can change here - unlike a field edit.
-      set({ tree: next, sims: reconcileAll(next, sims) });
+      set({ tree: next, configs: reconcileConfigs(next, configs) });
     },
     setStageDrogue: (stageId, deviceId) => {
       const { tree } = get();
@@ -948,33 +1126,35 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set({ tree: next });
     },
     removeSelected: () => {
-      const { selectedId, tree, sims } = get();
+      const { selectedId, tree, configs } = get();
       if (!selectedId) return;
       recordStep();
       const next = removeNode(tree, selectedId);
-      set({ tree: next, selectedId: null, sims: reconcileAll(next, sims) });
+      set({ tree: next, selectedId: null, configs: reconcileConfigs(next, configs) });
     },
     addPartToTree: (type) => {
       recordStep();
-      const { tree, selectedId, sims } = get();
+      const { tree, selectedId, configs, selectionSeq } = get();
       // Settings ▸ Materials: a new part carries the material the user set for
       // its type, outright, so it shows in the panel and lands in the .ork.
       const seed = defaultMaterialPatch(type, loadSettings().defaultMaterials) as Partial<ComponentNode>;
       const { tree: next, id } = addPart(tree, type, selectedId, seed);
-      set({ tree: next, selectedId: id, sims: reconcileAll(next, sims) });
+      // A new part is selected the moment it exists, and that counts as a
+      // selection: on a narrow window it is what opens the editor over it.
+      set({ tree: next, selectedId: id, selectionSeq: selectionSeq + 1, configs: reconcileConfigs(next, configs) });
     },
     addStageToTree: () => {
       recordStep();
-      const { tree, sims } = get();
+      const { tree, configs, selectionSeq } = get();
       const { tree: next, id } = addStage(tree);
-      set({ tree: next, selectedId: id, sims: reconcileAll(next, sims) });
+      set({ tree: next, selectedId: id, selectionSeq: selectionSeq + 1, configs: reconcileConfigs(next, configs) });
     },
     moveSelected: (dir) => {
-      const { selectedId, tree, sims } = get();
+      const { selectedId, tree, configs } = get();
       if (!selectedId) return;
       recordStep();
       const next = moveNode(tree, selectedId, dir);
-      set({ tree: next, sims: reconcileAll(next, sims) });
+      set({ tree: next, configs: reconcileConfigs(next, configs) });
     },
     updateDesignMeta: (patch) => {
       // Applied in one shot from the Rocket-configuration dialog → one undo step.
@@ -998,45 +1178,134 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     setActiveId: (activeId) => set({ activeId }), // switching the active sim isn't an edit — no history
-    setActiveMotor: (m) => {
+    setSelectedConfigId: (selectedConfigId) => set({ selectedConfigId }),
+    setConfigsTab: (configsTab) => set({ configsTab }),
+    setMountMotor: (configId, mountId, m) => {
       recordStep();
-      patchActive(() => ({ motor: m }));
+      patchConfig(configId, (c) => ({ ...c, motors: { ...c.motors, [mountId]: { ...c.motors[mountId], spec: m } } }));
     },
-    setActiveIgnition: (event, delay) => {
+    setMountIgnition: (configId, mountId, event, delay) => {
       beginEdit();
-      patchActive(() => ({ ignitionEvent: event, ignitionDelay: delay }));
+      patchConfig(configId, (c) => {
+        const seated = c.motors[mountId];
+        if (!seated) return c; // no motor in that mount: nothing to time
+        return { ...c, motors: { ...c.motors, [mountId]: { ...seated, ignitionEvent: event, ignitionDelay: delay } } };
+      });
     },
-    setExtraMotor: (mountId, m) => {
+    setDeployment: (configId, deviceId, key, value) => {
+      beginEdit();
+      patchConfig(configId, (c) => {
+        const device = { ...(c.deployments?.[deviceId] ?? {}) };
+        // REMOVED, not stored as undefined: `applyDeployments` patches every key
+        // the override declares, and an explicit `undefined` would write it over
+        // the design's own value as a blank.
+        if (value === null) delete device[key];
+        else device[key] = value;
+        const deployments = { ...(c.deployments ?? {}) };
+        if (Object.keys(device).length) deployments[deviceId] = device;
+        else delete deployments[deviceId];
+        // Likewise for the map: no overrides at all means no `deployments`, which
+        // is what `applyDeployments` short-circuits on and what the exporter
+        // reads as "this configuration recovers the way the design says".
+        return { ...c, ...(Object.keys(deployments).length ? { deployments } : { deployments: undefined }) };
+      });
+    },
+    setSeparation: (configId, stageId, key, value) => {
+      beginEdit();
+      patchConfig(configId, (c) => {
+        // Same shape as the deployment override above, field by field: an empty
+        // stage entry is removed, and an empty map takes `separations` with it.
+        const stage = { ...(c.separations?.[stageId] ?? {}) };
+        if (value === null) delete stage[key];
+        else stage[key] = value;
+        const separations = { ...(c.separations ?? {}) };
+        if (Object.keys(stage).length) separations[stageId] = stage;
+        else delete separations[stageId];
+        return { ...c, ...(Object.keys(separations).length ? { separations } : { separations: undefined }) };
+      });
+    },
+    setStageFlies: (configId, stageId, flies) => {
       recordStep();
-      // ONE simulation's loadout, not the workspace's: comparing staged motors
-      // needs two sims to differ below the primary mount, so seating an
-      // upper-stage motor must not age every other sim's results. The motor
-      // stays the one thing a tick cannot reach (see patchActive).
-      patchActive((sim) => ({
-        extraMotors: { ...sim.extraMotors, [mountId]: { ...sim.extraMotors[mountId], spec: m } },
-      }));
+      const stages = findStages(get().tree).map((n) => n.id as string);
+      patchConfig(configId, (c) => {
+        const grounded = new Set(c.grounded ?? []);
+        if (flies) grounded.delete(stageId);
+        else grounded.add(stageId);
+        // Something has to fly. Grounding the last one leaves the builder an
+        // empty rocket, which the kernel refuses - and refusing here says so
+        // where the user can see it rather than as a failed build.
+        if (stages.every((id) => grounded.has(id))) return c;
+        const next = stages.filter((id) => grounded.has(id)); // tree order, not click order
+        return { ...c, ...(next.length ? { grounded: next } : { grounded: undefined }) };
+      });
     },
-    setExtraIgnition: (mountId, event, delay) => {
+    addConfig: () => {
+      recordStep();
+      const s = get();
+      // Always a NEW one, even when an identical loadout is already there: this
+      // is the button that says "another setup", and one that sometimes silently
+      // selected an existing row would be a button that does nothing.
+      const made = defaultConfig(s.tree);
+      set({ configs: [...s.configs, made], selectedConfigId: made.id });
+    },
+    copyConfig: (id) => {
+      const s = get();
+      const src = s.configs.find((c) => c.id === id);
+      if (!src) return;
+      recordStep();
+      // Named copies say so; an unnamed one stays unnamed, because its label is
+      // its motor list and "Estes C6 copy" would name a thing nobody named.
+      const copy = newFlightConfig(
+        { ...src.motors },
+        src.name === null ? null : i18n.t('configs.copyName', { name: src.name }),
+      );
+      const next = [...s.configs];
+      next.splice(s.configs.findIndex((c) => c.id === id) + 1, 0, copy);
+      set({ configs: next, selectedConfigId: copy.id });
+    },
+    renameConfig: (id, name) => {
       beginEdit();
-      patchActive((sim) => ({
-        extraMotors: {
-          ...sim.extraMotors,
-          [mountId]: { ...sim.extraMotors[mountId]!, ignitionEvent: event, ignitionDelay: delay },
-        },
-      }));
+      // Empty means UNNAMED, not a blank name: the label falls back to the motor
+      // list, which is what the desktop shows and what a blank row could not.
+      const trimmed = name.trim();
+      set((s) => ({ configs: s.configs.map((c) => (c.id === id ? { ...c, name: trimmed || null } : c)) }));
+    },
+    deleteConfig: (id) => {
+      const s = get();
+      const rest = s.configs.filter((c) => c.id !== id);
+      if (!rest.length) return; // the last one: every simulation needs one to fly
+      recordStep();
+      // The rows that flew it have to fly something, so they take the first
+      // remaining configuration - and are aged, because what they fly changed.
+      const fallback = rest[0]!.id;
+      set({
+        configs: rest,
+        sims: s.sims.map((x) => (x.configId === id ? { ...x, configId: fallback, outdated: true } : x)),
+        selectedConfigId: s.selectedConfigId === id ? fallback : s.selectedConfigId,
+      });
+    },
+    setSimConfig: (simId, configId) => {
+      const s = get();
+      const sim = s.sims.find((x) => x.id === simId);
+      if (!sim || sim.configId === configId || !s.configs.some((c) => c.id === configId)) return;
+      recordStep();
+      set({ sims: s.sims.map((x) => (x.id === simId ? { ...x, configId, outdated: true } : x)) });
     },
     patchLaunch: (p) => {
       beginEdit();
       patchTargets((sim) => ({ launch: { ...sim.launch, ...p } }));
     },
     addSim: () => {
-      // A fresh simulation starts from the app default motor + the user's global
+      // A fresh simulation flies the app default loadout under the user's global
       // launch defaults (duplicateSim carries an existing setup forward instead).
+      // It JOINS an existing configuration that already holds that loadout rather
+      // than minting a second identical one.
       recordStep();
       const s = get();
       const name = uniqueSimName(s.sims, (n) => i18n.t('sims.untitled', { n }), s.sims.length + 1);
-      const s0 = newSimulation(name, C6, loadSettings().launchDefaults);
-      set({ sims: [...s.sims, s0], activeId: s0.id });
+      const { configs, id: configId } = ensureConfig(s.configs, defaultConfig(s.tree).motors);
+      const s0 = newSimulation(name, configId, loadSettings().launchDefaults);
+      set({ sims: [...s.sims, s0], configs, activeId: s0.id });
     },
     duplicateSim: (id) => {
       const s = get();
@@ -1045,17 +1314,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       recordStep();
       const copy = i18n.t('sims.copyName', { name: src.name });
       const name = uniqueSimName(s.sims, (n) => (n === 1 ? copy : `${copy} ${n}`), 1);
-      // Carry the whole configuration forward: the primary mount's ignition, the
-      // rest of the loadout, and any per-simulation option overrides. Duplicate
-      // exists to vary ONE thing against an otherwise identical setup, so
-      // anything it silently reset would be a trap.
-      const s0 = {
-        ...newSimulation(name, src.motor, src.launch),
-        ignitionEvent: src.ignitionEvent,
-        ignitionDelay: src.ignitionDelay,
-        extraMotors: src.extraMotors,
-        prefs: src.prefs,
-      };
+      // Carry the whole setup forward: the same flight configuration, and any
+      // per-simulation option overrides. Duplicate exists to vary ONE thing
+      // against an otherwise identical setup, so anything it silently reset would
+      // be a trap. The copy SHARES the configuration rather than cloning it -
+      // editing either row's motors forks it (see patchActiveConfig), so what the
+      // copy flies cannot change under it.
+      const s0 = { ...newSimulation(name, src.configId, src.launch), prefs: src.prefs };
       const next = [...s.sims];
       next.splice(s.sims.findIndex((x) => x.id === id) + 1, 0, s0);
       set({ sims: next, activeId: s0.id });
@@ -1173,12 +1438,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const sim = s.sims.find((x) => x.id === simId);
         if (!sim) continue;
         // Why a row cannot fly is decided in ONE place, shared with the Run
-        // button (services/runnability). A row with no usable motor, or with
+        // button (services/flight/runnability). A row with no usable motor, or with
         // launch conditions outside the NAR/Tripoli codes, is skipped: those
         // are simulation settings rather than design, so there is nothing to
         // preserve by flying them, and a number this app will not stand
         // behind is worse than no number. One bad row never abandons the rest.
-        const reason = unflyable(sim);
+        const reason = unflyable(sim, primaryMotor(s.tree, configOf(s.configs, sim)));
         if (reason) {
           skipped.push({ id: simId, name: sim.name, reason });
           setRun(simId, { phase: 'failed', tree: ranOn });
@@ -1210,7 +1475,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             // What this row is being flown FROM. The design has `ranOn`; this is
             // the same guard per simulation, for the motor, ignition, launch
             // conditions and run overrides that only this row carries.
-            const flownFrom = simInputs(sim);
+            const config = configOf(get().configs, sim);
+            const flownFrom = simInputs(sim, config);
             try {
               // The sim runs in a Web Worker (its own engine instance), off the main
               // thread, so a ~500 ms flight never freezes the UI. The worker rebuilds
@@ -1219,9 +1485,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               const result = await simulateInWorker(
                 {
                   tree: ranOn,
-                  motor: sim.motor,
-                  extraMotors: sim.extraMotors,
-                  primaryIgnition: { event: sim.ignitionEvent, delay: sim.ignitionDelay },
+                  config,
                   // The sim's own overrides win over the global preferences; unset keys
                   // fall through, so a workspace that never touches them runs as before.
                   options: simConditions(launch, { ...prefs, ...sim.prefs }),
@@ -1241,7 +1505,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               // instead of marking it current against conditions it no longer
               // has.
               const now = get().sims.find((x) => x.id === sim.id);
-              if (!now || !sameSimInputs(flownFrom, simInputs(now))) {
+              if (!now || !sameSimInputs(flownFrom, simInputs(now, configOf(get().configs, now)))) {
                 setRun(sim.id, null);
                 return;
               }
@@ -1376,7 +1640,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // around conditions this app will not fly is a region it will not stand
       // behind, and every cell of the grid would be refused individually
       // anyway.
-      const reason = unflyable(sim);
+      const config = configOf(s.configs, sim);
+      const reason = unflyable(sim, primaryMotor(s.tree, config));
       if (reason) {
         set({ err: unflyableText({ id: sim.id, name: sim.name, reason }, i18n.t, displayUnits()) });
         return;
@@ -1394,7 +1659,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // as a normal batch can, and a region drawn from a rocket that has since
       // changed is worse than no region.
       const ranOn = s.tree;
-      const flownFrom = simInputs(sim);
+      const flownFrom = simInputs(sim, config);
       // The row's own overrides win over the globals, exactly as a normal run
       // resolves them; only then is a missing seed filled in.
       const runPrefs: SimPrefs = { ...prefs, ...sim.prefs };
@@ -1417,9 +1682,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               const result = await simulateInWorker(
                 {
                   tree: ranOn,
-                  motor: sim.motor,
-                  extraMotors: sim.extraMotors,
-                  primaryIgnition: { event: sim.ignitionEvent, delay: sim.ignitionDelay },
+                  config,
                   options: {
                     ...simConditions(sweepLaunch(launch, point), { ...runPrefs, randomSeed: seed }),
                     series: 'summary',
@@ -1466,7 +1729,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         if (abort.signal.aborted) return;
         if (get().tree !== ranOn) return;
         const now = get().sims.find((x) => x.id === simId);
-        if (!now || !sameSimInputs(flownFrom, simInputs(now))) return;
+        if (!now || !sameSimInputs(flownFrom, simInputs(now, configOf(get().configs, now)))) return;
         if (!landings.length) {
           set({ err: i18n.t('sweep.noLandings') });
           return;
@@ -1526,10 +1789,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // it isn't part of first paint, only of opening a file.
         const bytes = await file.arrayBuffer();
         if (stale()) return;
-        const { loadOrk } = await import('../services/loadOrk');
+        const { loadOrk } = await import('../services/files/loadOrk');
         const res = await loadOrk(bytes);
         if (stale()) return;
-        const { tree, extraMotors, sim0, loadedMeta } = wireLoadedOrk(res, loadSettings().launchDefaults);
+        const { tree, configs, sims, activeId, loadedMeta } = wireLoadedOrk(res, loadSettings().launchDefaults);
         // Where this rocket is going to live, settled while the previous design
         // is still the open one (see homeForImport).
         const home = await homeForImport(loadedMeta.name, stale);
@@ -1543,16 +1806,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // Launch conditions are simulation settings, so a file carrying them
         // outside the safety codes is flagged on the way in rather than
         // silently flown. The run refuses too (see runSims).
-        const outside = launchLimitViolations(sim0.launch);
+        // Every imported simulation shares the file's launch conditions, so one
+        // check answers for all of them.
+        const outside = launchLimitViolations(sims[0]!.launch);
         const notes = outside.length
           ? [...loadedMeta.notes, ...outside.map((v) => limitText(v, i18n.t, displayUnits()))]
           : loadedMeta.notes;
         replaceWorkspace({
           tree,
           loadedMeta: { ...loadedMeta, notes },
-          // The import's non-primary-mount motors ARE this simulation's loadout.
-          sims: [{ ...sim0, extraMotors }],
-          activeId: sim0.id,
+          // Every configuration the file declared, and a simulation per
+          // configuration to fly it.
+          sims,
+          configs,
+          activeId,
           selectedId: null,
           tab: 'design',
           designPane: 'stats',
@@ -1603,9 +1870,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const lib = getDesignLibrary();
       // The boot path runs every stored design through the same shape check
       // before it hydrates; this path read the raw blob and handed it straight
-      // to hydrate(), where a non-array `tree.components` reaches reconcileAll
+      // to hydrate(), where a non-array `tree.components` reaches reconcileConfigs
       // and then the kernel. Same check, same `library.missing` outcome.
-      const w = validateWorkspace(await lib.read(id));
+      const w = migrateWorkspace(await lib.read(id));
       if (stale()) return;
       if (!w) {
         set({ err: i18n.t('library.missing') });
@@ -1689,16 +1956,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     resetWorkspace: () => {
       claimWorkspace(); // New: any import or library open still in flight is void
-      const s0 = newSimulation('Simulation 1', C6, loadSettings().launchDefaults);
+      const tree = specToTree(DEFAULT_SPEC).tree;
+      const config = defaultConfig(tree);
+      const s0 = newSimulation('Simulation 1', config.id, loadSettings().launchDefaults);
       clearHistory(); // starting a new design drops the previous design's undo stack
       // Detach from the open library entry, or the first autosave would write
       // this blank design straight over the rocket the user just had open.
       getWorkspaceStore().setActiveId?.(null);
       replaceWorkspace((s) => ({
         activeDesignId: null,
-        tree: specToTree(DEFAULT_SPEC).tree,
+        tree,
         loadedMeta: null,
         sims: [s0],
+        configs: [config],
         activeId: s0.id,
         selectedId: null,
         ...showing(s, '2d'),
@@ -1716,14 +1986,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     saveOrk: async () => {
       try {
         const { tree, loadedMeta } = get();
-        const active = selectActive(get());
-        const extraMotors = active.extraMotors;
-        const motors = buildExportMotorMap(
-          tree,
-          { motor: active.motor, ignitionEvent: active.ignitionEvent, ignitionDelay: active.ignitionDelay },
-          extraMotors,
-          loadedMeta?.exportMotors ?? {},
-        );
+        // EVERY configuration, each with its own motors: the file carries the
+        // whole set, so opening one setup and saving cannot discard the others.
+        const base = loadedMeta?.exportMotors ?? {};
+        const configs = get().configs.map((c) => ({
+          id: c.id,
+          name: c.name,
+          motors: buildExportMotorMap(tree, c, base),
+          deployments: c.deployments,
+          separations: c.separations,
+          grounded: c.grounded,
+        }));
         // Derived-statistics block — only when the user opted in (off by default,
         // so a normal save stays byte-identical). Built from the same report model
         // the PDF export uses; both are lazily imported (also avoids a static
@@ -1731,18 +2004,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         let designInfo: DesignInfo | undefined;
         if (loadSettings().saveDesignInfo) {
           const [{ assembleReport }, { buildDesignInfo }] = await Promise.all([
-            import('../services/reportModel'),
-            import('../services/designInfo'),
+            import('../services/report/reportModel'),
+            import('../services/report/designInfo'),
           ]);
           const report = assembleReport();
           if (report) designInfo = buildDesignInfo(report);
         }
         // The .ork writer is a lazily-imported chunk — only needed on save.
-        const { downloadOrk } = await import('../services/saveOrk');
+        const { downloadOrk } = await import('../services/files/saveOrk');
         downloadOrk({
           name: tree.name || loadedMeta?.name || defaultDesignName(),
           tree,
-          motors,
+          configs,
+          activeConfigId: selectConfig(get()).id,
           launch: selectActive(get()).launch,
           designInfo,
         });
@@ -1753,7 +2027,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     saveRkt: async () => {
       try {
         const { tree, loadedMeta } = get();
-        const { downloadRkt } = await import('../services/saveOrk');
+        const { downloadRkt } = await import('../services/files/saveOrk');
         const name = tree.name || loadedMeta?.name || defaultDesignName();
         const skipped = await downloadRkt(name, tree);
         // RockSim has no element for some of what this app can build (rail
@@ -1770,7 +2044,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     exportPrint: async (opts) => {
       try {
         const { tree, loadedMeta } = get();
-        const { downloadRocket3mf } = await import('../services/rocketPrintExport');
+        const { downloadRocket3mf } = await import('../services/exports/rocketPrintExport');
         const name = tree.name || loadedMeta?.name || defaultDesignName();
         const { skipped } = await downloadRocket3mf(name, tree, opts);
         // A part whose geometry fails the manifold check is left out rather
@@ -1785,17 +2059,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       try {
         const { tree, loadedMeta, info } = get();
         const active = selectActive(get());
-        const extraMotors = active.extraMotors;
         // Same motor map the .ork exporter builds — OrkExportMotor satisfies the
         // CDX1 engine-string writer's Cdx1ExportEngine verbatim.
-        const motors = buildExportMotorMap(
-          tree,
-          { motor: active.motor, ignitionEvent: active.ignitionEvent, ignitionDelay: active.ignitionDelay },
-          extraMotors,
-          loadedMeta?.exportMotors ?? {},
-        );
+        const motors = buildExportMotorMap(tree, selectConfig(get()), loadedMeta?.exportMotors ?? {});
         // The RASAero writer is a lazily-imported chunk — only needed on export.
-        const { downloadCdx1 } = await import('../services/rasaeroExport');
+        const { downloadCdx1 } = await import('../services/files/rasaeroExport');
         downloadCdx1({
           name: tree.name || loadedMeta?.name || defaultDesignName(),
           tree,
@@ -1811,7 +2079,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
     exportComponent: async (nodeId, format) => {
       try {
-        const { exportComponent } = await import('../services/componentExport');
+        const { exportComponent } = await import('../services/files/componentExport');
         const ok = await exportComponent(get().tree, nodeId, format);
         if (!ok) set({ err: i18n.t('errors.exportUnsupported', { format: format.toUpperCase() }) });
       } catch (e) {

@@ -13,7 +13,7 @@ const engine = vi.hoisted(() => ({
   resetEngine: vi.fn(),
 }));
 vi.mock('../../src/engine/openRocketEngine', () => engine);
-vi.mock('../../src/services/buildRocket', () => ({
+vi.mock('../../src/services/design/buildRocket', () => ({
   buildConfiguredRocket: () => ({ simulate: () => ({ summary: {}, events: [], series: {} }) }),
 }));
 

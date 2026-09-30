@@ -7,8 +7,8 @@ import type { ComponentType } from '../engine/openRocketEngine';
  *
  * `api.ComponentFactory` reads every optional field as
  * `dbl(node, "key", DEFAULT)`. Three other places independently decided what
- * those defaults are: `services/treeEdit.defaultNode` (what the editor creates),
- * `services/orkImport` (what a missing `.ork` tag becomes), and the renderers'
+ * those defaults are: `services/design/treeEdit.defaultNode` (what the editor creates),
+ * `services/files/orkImport` (what a missing `.ork` tag becomes), and the renderers'
  * per-call-site `num(node, 'key', fallback)`. Four hand-maintained tables, none
  * of them derived from the other three.
  *
@@ -85,6 +85,33 @@ export const KERNEL_DEFAULTS = {
   podset: { instanceCount: 2 },
   parallelstage: {},
 } as const satisfies Record<ComponentType, Readonly<Record<string, number>>>;
+
+/**
+ * The material the kernel gives a component that names none, by material type.
+ *
+ * `ComponentFactory` only calls `setMaterial` when the node carries a positive
+ * `density`, so a part without one keeps whatever its Java constructor was
+ * given: `ExternalComponent`, `StructuralComponent`, `RecoveryDevice`,
+ * `ShockCord` and `FinSet` all ask
+ * `ApplicationPreferences.getDefaultComponentMaterial`, which with no stored
+ * preference returns the three below (`ApplicationPreferences.StaticFieldHolder`).
+ *
+ * These are the densities such a part is ALREADY flying at. They are here so
+ * that the editor can name them - a part that reads "Not specified" while
+ * weighing 680 kg/m3 of cardboard is a panel disagreeing with the simulation -
+ * and so the `.ork` writer's fallbacks and the new-part seed are one table
+ * rather than three copies of the same three numbers.
+ *
+ * `group` is the `.ork` database string upstream's `RocketComponentSaver`
+ * writes (`mat.getGroup().getDatabaseString()`), NOT the display group the
+ * material catalog sorts the picker by; those vocabularies differ (Cardboard is
+ * `PaperProducts` in a file and `Paper` in the list).
+ */
+export const KERNEL_MATERIALS = {
+  bulk: { name: 'Cardboard', density: 680, group: 'PaperProducts' },
+  surface: { name: 'Ripstop nylon', density: 0.067, group: 'Fabrics' },
+  line: { name: 'Elastic cord (round 2 mm, 1/16 in)', density: 0.0018, group: 'ThreadsLines' },
+} as const satisfies Record<string, { name: string; density: number; group: string }>;
 
 /** One row of the table, as the union of every row's shape. */
 type KernelRow = (typeof KERNEL_DEFAULTS)[ComponentType];

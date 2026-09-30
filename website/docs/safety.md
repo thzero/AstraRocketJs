@@ -1,6 +1,6 @@
 ---
 title: "Safety"
-sidebar_position: 13
+sidebar_position: 14
 ---
 AstraRocketJs is a design and simulation tool. It is not a safety authority, and a simulation is not a flight card. This page says plainly what the numbers are worth, what the model does not know, and what to check before you fly.
 
@@ -14,7 +14,7 @@ Treat apogee, stability margin, deployment speed, descent rate and landing dista
 
 The physics is OpenRocket's own core, compiled to run in your browser and validated bit-identical against the desktop program. It computes:
 
-- **Aerodynamics** by the Extended Barrowman method (with supersonic extensions), giving CP, drag and stability.
+- **Aerodynamics** by the Extended Barrowman method, giving CP, drag and stability.
 - **Mass and CG** from each part's geometry times its material density, plus any [overrides](#before-you-fly) you enter.
 - **Flight** as rigid-body motion integrated with RK4/RK6, driven by the real thrust curve of the motor you picked.
 - **Atmosphere** as the ISA standard model, or your own temperature and pressure, with a WGS or constant gravity model and a flat, spherical or WGS84 earth.

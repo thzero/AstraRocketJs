@@ -42,6 +42,35 @@ test.beforeEach(async ({ page }) => {
   await ready(page);
 });
 
+/**
+ * The library goes where the component tree goes.
+ *
+ * A saved part is applied THROUGH a component, so a window that cannot add the
+ * component it belongs on would open the library onto a design it has no way to
+ * put anything into. The catalog picker inside the property editor is a
+ * different thing and stays: it re-sizes a part the design already has.
+ */
+test('My Parts is offered only where a design can be built', async ({ page }) => {
+  const entry = page.getByRole('menuitem', { name: 'My Parts' });
+  const menu = page.getByRole('button', { name: 'Menu' });
+
+  await menu.click();
+  await expect(entry).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  // Maximized: the tree steps aside to give the drawing the window.
+  await page.getByRole('button', { name: /whole window/ }).click();
+  await menu.click();
+  await expect(entry).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape'); // and out of maximize
+
+  // A phone, where the tree is not rendered at all.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await menu.click();
+  await expect(entry).toHaveCount(0);
+});
+
 test('a saved body tube is offered back in the picker, starred, and can be deleted', async ({ page }) => {
   await page.locator('div[title="Body tube"]').click();
 

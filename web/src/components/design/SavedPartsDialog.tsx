@@ -4,9 +4,9 @@ import { confirm } from '../../state/confirmStore';
 import { Dialog } from '../common/Dialog';
 import { fmtNum } from '../../i18n/format';
 import { useUnits, type Units } from '../../prefs/useUnits';
-import { DEFAULT_CHUTE_CD } from '../../services/componentFilter';
-import { deleteCustomPart, type SavedPartEntry } from '../../services/customParts';
-import type { Component } from '../../services/componentDb';
+import { DEFAULT_CHUTE_CD } from '../../services/parts/componentFilter';
+import { deleteCustomPart, type SavedPartEntry } from '../../services/parts/customParts';
+import type { Component } from '../../services/parts/componentDb';
 import { SavedPartEditor } from './SavedPartEditor';
 import { useSavedParts } from './useSavedParts';
 

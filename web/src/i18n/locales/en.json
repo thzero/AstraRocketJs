@@ -200,6 +200,7 @@
   },
   "save": {
     "saved": "Saved {{when}}",
+    "savedShort": "Saved",
     "justNow": "just now",
     "tip": "Last saved at {{time}}. Your rocket is saved automatically as you edit it."
   },
@@ -345,6 +346,42 @@
     "type_modified_kit": "Modified kit",
     "type_kit_bash": "Kit bash"
   },
+  "configs": {
+    "title": "Flight configurations",
+    "hint": "A configuration is one set of motors, one per mount. Every simulation flies one, and several simulations can share the same one.",
+    "new": "＋ New",
+    "copy": "Copy",
+    "copyName": "{{name}} copy",
+    "delete": "Delete",
+    "deleteLast": "Can't delete the only configuration",
+    "deleteConfirm": "Delete this configuration? Any simulation flying it moves to the first one left.",
+    "name": "Configuration",
+    "rename": "Rename configuration",
+    "namePlaceholder": "Unnamed: shown as its motors",
+    "noMotors": "No motors",
+    "flights": "Flights",
+    "flownBy": "Simulations flying this: {{count}}",
+    "pick": "Flight configuration",
+    "pickFor": "Flight configuration for {{name}}",
+    "edit": "Edit motors…",
+    "motors": "Motors",
+    "recovery": "Recovery",
+    "recoveryHint": "When each recovery device opens on this flight. Empty follows the design; a value here applies to this configuration only.",
+    "overridden": "Overridden",
+    "asDesigned": "As designed ({{value}})",
+    "altitudeFromDesign": "Deploys at the altitude the design sets, until you set one here.",
+    "noRecovery": "This design has no recovery device.",
+    "deployOverridden": "Deploys differently in:",
+    "separation": "Staging",
+    "separationHint": "When each stage flies and when each booster lets go. Empty follows the design; a value here applies to this configuration only.",
+    "noSeparation": "This design has one stage, so nothing separates.",
+    "neverSeparates": "This booster stays attached for the whole flight.",
+    "separationOverridden": "Separates differently in:",
+    "flies": "Flies on this configuration",
+    "grounded": "Grounded",
+    "groundedHint": "Left on the ground: no mass, no drag, no motor. The rest of the rocket flies without it.",
+    "stageGrounded": "Left on the ground in:"
+  },
   "tabs": {
     "rocket": "Rocket",
     "sketch": "Sketch",
@@ -352,7 +389,9 @@
     "results": "Results",
     "design": "Design",
     "simulations": "Simulations",
-    "workbench": "Workbench"
+    "workbench": "Workbench",
+    "configs": "Configurations",
+    "configsShort": "Config"
   },
   "view": {
     "2d": "2D",
@@ -940,6 +979,7 @@
   },
   "prop": {
     "selectHint": "Select a component in the tree or drawing to edit its properties.",
+    "editTitle": "Edit component",
     "name": "Name",
     "delete": "Delete",
     "lastStage": "A rocket needs at least one stage",

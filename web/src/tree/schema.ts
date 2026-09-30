@@ -13,7 +13,7 @@ import type { ComponentType } from '../engine/openRocketEngine';
  *
  * This module once also held containment rules, default nodes, and the
  * per-type property-field tables, but those were superseded by the live
- * definitions in `services/treeEdit` (containment / allowed children) and
+ * definitions in `services/design/treeEdit` (containment / allowed children) and
  * `components/design/PropertyPanel` (field tables) and became dead exports.
  */
 export const DISPLAY_NAME: Record<ComponentType, string> = {

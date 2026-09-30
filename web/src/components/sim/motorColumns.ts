@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { TFunction } from 'i18next';
-import type { CatalogMotor } from '../../services/motorDb';
-import { avgThrustOf as avgOf, ispOf, massFracOf } from '../../services/motorMath';
+import type { CatalogMotor } from '../../services/motors/motorDb';
+import { avgThrustOf as avgOf, ispOf, massFracOf } from '../../services/motors/motorMath';
 import { fmtNum } from '../../i18n/format';
 import type { Units } from '../../prefs/useUnits';
 import type { Quantity } from '../../prefs/units';

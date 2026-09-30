@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
 import { LocationEditor } from '../../../src/components/sim/LocationEditor';
 import { renderWithProviders } from '../../testing/renderWithProviders';
-import type { LaunchLocation } from '../../../src/services/launchLocationStore';
+import type { LaunchLocation } from '../../../src/services/storage/launchLocationStore';
 
 /**
  * The full location editor: name AND coordinates.

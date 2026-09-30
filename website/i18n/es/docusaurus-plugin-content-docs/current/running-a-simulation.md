@@ -1,8 +1,14 @@
 ---
 title: "Ejecutar una simulación"
-sidebar_position: 11
+sidebar_position: 12
 ---
-Las simulaciones están en el panel de la derecha. Puedes mantener **varias simulaciones con nombre** para un mismo diseño (por ejemplo, distintos motores o campos de vuelo), **duplicar** una como punto de partida y eliminarlas. El botón rojo **Eliminar simulación** (junto al nombre de la simulación actual) la borra tras una confirmación; el espacio de trabajo siempre conserva al menos una, así que se desactiva cuando solo queda una.
+Las simulaciones están en el panel de la derecha. Una simulación es una [configuración de vuelo](./flight-configurations.md) —los motores, la recuperación y las etapas— volada bajo unas condiciones de lanzamiento, así que lo que cada fila lleva de propio es su nombre, la configuración que vuela, las condiciones y el último resultado. Puedes mantener **varias simulaciones con nombre** para un mismo diseño (por ejemplo, distintos motores o campos de vuelo), **duplicar** una como punto de partida y eliminarlas. El botón rojo **Eliminar simulación** (junto al nombre de la simulación actual) la borra tras una confirmación; el espacio de trabajo siempre conserva al menos una, así que se desactiva cuando solo queda una.
+
+## Elige qué vuela
+
+La columna **Configuración** de la tabla, y el selector en la parte superior del editor, eligen qué [configuración de vuelo](./flight-configurations.md) vuela esa fila; los motores que lleva se detallan debajo. **Editar motores…** abre la pestaña Configuraciones en esa configuración.
+
+Varias filas pueden volar la misma configuración, que es justo para lo que están: cambia un motor una vez y todos los vuelos que la usan quedan marcados para volver a ejecutarse. Dos filas que deban diferir en el motor quieren dos configuraciones, una para cada una.
 
 ## Configura el lanzamiento
 

@@ -200,6 +200,7 @@
   },
   "save": {
     "saved": "Guardado {{when}}",
+    "savedShort": "Guardado",
     "justNow": "ahora mismo",
     "tip": "Guardado por última vez a las {{time}}. Tu cohete se guarda automáticamente mientras lo editas."
   },
@@ -346,6 +347,42 @@
     "type_modified_kit": "Kit modificado",
     "type_kit_bash": "Combinación de kits"
   },
+  "configs": {
+    "title": "Configuraciones de vuelo",
+    "hint": "Una configuración es un conjunto de motores, uno por soporte. Cada simulación vuela una, y varias simulaciones pueden compartir la misma.",
+    "new": "＋ Nueva",
+    "copy": "Copiar",
+    "copyName": "Copia de {{name}}",
+    "delete": "Eliminar",
+    "deleteLast": "No se puede eliminar la única configuración",
+    "deleteConfirm": "¿Eliminar esta configuración? Toda simulación que la vuele pasará a la primera que quede.",
+    "name": "Configuración",
+    "rename": "Renombrar configuración",
+    "namePlaceholder": "Sin nombre: se muestra con sus motores",
+    "noMotors": "Sin motores",
+    "flights": "Vuelos",
+    "flownBy": "Simulaciones que vuelan esta: {{count}}",
+    "pick": "Configuración de vuelo",
+    "pickFor": "Configuración de vuelo para {{name}}",
+    "edit": "Editar motores…",
+    "motors": "Motores",
+    "recovery": "Recuperación",
+    "recoveryHint": "Cuándo se abre cada dispositivo de recuperación en este vuelo. Vacío sigue al diseño; un valor aquí solo se aplica a esta configuración.",
+    "overridden": "Anulado",
+    "asDesigned": "Como en el diseño ({{value}})",
+    "altitudeFromDesign": "Se abre a la altitud que fija el diseño, hasta que indiques una aquí.",
+    "noRecovery": "Este diseño no tiene dispositivo de recuperación.",
+    "deployOverridden": "Se abre de otra forma en:",
+    "separation": "Separación",
+    "separationHint": "Qué etapas vuelan y cuándo se suelta cada propulsor. Vacío sigue al diseño; un valor aquí solo se aplica a esta configuración.",
+    "noSeparation": "Este diseño tiene una sola etapa, así que no se separa nada.",
+    "neverSeparates": "Este propulsor permanece unido durante todo el vuelo.",
+    "separationOverridden": "Se separa de otra forma en:",
+    "flies": "Vuela en esta configuración",
+    "grounded": "En tierra",
+    "groundedHint": "Se queda en tierra: sin masa, sin resistencia, sin motor. El resto del cohete vuela sin ella.",
+    "stageGrounded": "Se queda en tierra en:"
+  },
   "tabs": {
     "rocket": "Cohete",
     "sketch": "Croquis",
@@ -353,7 +390,9 @@
     "results": "Resultados",
     "design": "Diseño",
     "simulations": "Simulaciones",
-    "workbench": "Banco de trabajo"
+    "workbench": "Banco de trabajo",
+    "configs": "Configuraciones",
+    "configsShort": "Config."
   },
   "view": {
     "2d": "2D",
@@ -945,6 +984,7 @@
   },
   "prop": {
     "selectHint": "Selecciona un componente en el árbol o el dibujo para editar sus propiedades.",
+    "editTitle": "Editar componente",
     "name": "Nombre",
     "delete": "Eliminar",
     "lastStage": "Un cohete necesita al menos una etapa",

@@ -10,8 +10,8 @@ import {
   type RocketTree,
   type ComponentNode,
 } from './openRocketEngine';
-import { defaultDesignName } from '../services/appInfo';
-import { hasUsableCurve } from '../services/motorCurve';
+import { defaultMaterialPatch } from '../services/design/materialSlots';
+import { defaultDesignName } from '../services/app/appInfo';
 
 export type { RocketSpec, StaticInfo, FlightResult } from './openRocketEngine';
 
@@ -29,20 +29,18 @@ export const C6: MotorSpec = {
 };
 
 /**
- * Build a rocket from an editable component tree and (optionally) seat a motor
- * in the mount with `mountId`. Used by the tree editor. resetEngine() frees the
- * previous design's handles, so always rebuild before reading static info / simulating.
+ * Build a rocket from an editable component tree, with no motors in it.
+ *
+ * Motors are seated by `services/design/buildRocket.buildConfiguredRocket`, from the
+ * flight configuration being flown: one place decides which motor goes in which
+ * mount, so the drawing, the static readouts and the flight cannot disagree.
+ *
+ * resetEngine() frees the previous design's handles, so always rebuild before
+ * reading static info / simulating.
  */
-export function buildRocketTree(tree: RocketTree, motor?: MotorSpec, mountId?: string): OpenRocketDesign {
+export function buildRocketTree(tree: RocketTree): OpenRocketDesign {
   resetEngine();
-  const rocket = OpenRocketDesign.buildTree(tree);
-  // Only seat a motor that actually carries a thrust curve (motorCurve.ts, the
-  // one predicate the Run button and the other mounts use too). An unresolved
-  // .ork motor is a curve-less placeholder; setMotorById on it would throw
-  // "Too short thrust-curve". Skipping it leaves the mount empty so the design
-  // still builds (and the run stays blocked until a real motor is picked).
-  if (motor && mountId && hasUsableCurve(motor)) rocket.setMotorById(mountId, motor);
-  return rocket;
+  return OpenRocketDesign.buildTree(tree);
 }
 
 /**
@@ -52,8 +50,25 @@ export function buildRocketTree(tree: RocketTree, motor?: MotorSpec, mountId?: s
  */
 export function specToTree(spec: RocketSpec): { tree: RocketTree; mountId: string } {
   const mountId = 'mount';
-  const bulk = (density?: number, materialName?: string) =>
-    density ? { density, ...(materialName ? { materialName } : {}) } : {};
+  /**
+   * What a part of this design is made of: the spec's material where it names
+   * one, and otherwise the stock material for every slot the type has
+   * (`defaultMaterialPatch` with no user preference).
+   *
+   * Never nothing. `RocketSpec` carries no density at all today, so leaving the
+   * fallback out meant every part of the first design anybody opens read "Not
+   * specified" in the panel while the kernel flew it as cardboard - the editor
+   * disagreeing with the simulation about the same rocket. It is the same three
+   * materials either way, so no mass moves; the panel just says which.
+   */
+  const material = (type: string, m?: { materialDensity?: number; material?: string; materialGroup?: string }) =>
+    m?.materialDensity
+      ? {
+          density: m.materialDensity,
+          ...(m.material ? { materialName: m.material } : {}),
+          ...(m.materialGroup ? { materialGroup: m.materialGroup } : {}),
+        }
+      : defaultMaterialPatch(type, {});
 
   const nose: ComponentNode = {
     type: 'nosecone',
@@ -62,7 +77,7 @@ export function specToTree(spec: RocketSpec): { tree: RocketTree; mountId: strin
     length: spec.noseCone.length,
     aftRadius: spec.noseCone.aftRadius,
     thickness: spec.noseCone.thickness,
-    ...bulk(spec.noseCone.materialDensity, spec.noseCone.material),
+    ...material('nosecone', spec.noseCone),
   };
   const body: ComponentNode = {
     type: 'bodytube',
@@ -70,7 +85,7 @@ export function specToTree(spec: RocketSpec): { tree: RocketTree; mountId: strin
     length: spec.bodyTube.length,
     outerRadius: spec.bodyTube.outerRadius,
     thickness: spec.bodyTube.thickness,
-    ...bulk(spec.bodyTube.materialDensity, spec.bodyTube.material),
+    ...material('bodytube', spec.bodyTube),
     children: [
       {
         type: 'trapezoidfinset',
@@ -84,7 +99,7 @@ export function specToTree(spec: RocketSpec): { tree: RocketTree; mountId: strin
         // Fin sets sit at the aft end of the body tube (bottom-aligned), like
         // OpenRocket's default — without this they draw up by the nose.
         position: { method: 'bottom', offset: 0 },
-        ...bulk(spec.fins.materialDensity, spec.fins.material),
+        ...material('trapezoidfinset', spec.fins),
       },
       {
         type: 'innertube',
@@ -97,6 +112,7 @@ export function specToTree(spec: RocketSpec): { tree: RocketTree; mountId: strin
         // protrudes ~0.25 in (6.35 mm) past the aft end, the usual overhang.
         position: { method: 'bottom', offset: 0 },
         motorOverhang: 0.00635,
+        ...material('innertube'),
       },
       // Two centering rings hold the motor mount concentric in the body tube:
       // one at the mount's fore end, one at the aft end. Outer wall = body inner
@@ -107,6 +123,7 @@ export function specToTree(spec: RocketSpec): { tree: RocketTree; mountId: strin
         outerRadius: spec.bodyTube.outerRadius - spec.bodyTube.thickness,
         innerRadius: spec.motorMount.outerRadius,
         length: 0.003,
+        ...material('centeringring'),
         position: { method: 'top', offset: Math.max(0, spec.bodyTube.length - spec.motorMount.length) },
       },
       {
@@ -115,6 +132,7 @@ export function specToTree(spec: RocketSpec): { tree: RocketTree; mountId: strin
         outerRadius: spec.bodyTube.outerRadius - spec.bodyTube.thickness,
         innerRadius: spec.motorMount.outerRadius,
         length: 0.003,
+        ...material('centeringring'),
         position: { method: 'bottom', offset: 0 },
       },
       ...(spec.parachute
@@ -131,6 +149,9 @@ export function specToTree(spec: RocketSpec): { tree: RocketTree; mountId: strin
               deployEvent: 'apogee',
               deployAltitude: 200,
               deployDelay: 0,
+              // Two slots, not one: the canopy is a surface material and the
+              // shroud lines are a line material, and both feed the chute's mass.
+              ...material('parachute'),
               // Recovery packs up near the nose (front of the body tube).
               position: { method: 'top', offset: 0.02 },
             } as ComponentNode,

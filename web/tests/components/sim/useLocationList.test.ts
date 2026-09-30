@@ -6,7 +6,7 @@ import {
   setLaunchLocationStore,
   type LaunchLocation,
   type LaunchLocationStore,
-} from '../../../src/services/launchLocationStore';
+} from '../../../src/services/storage/launchLocationStore';
 
 /**
  * The ordering guard, which is the whole reason this hook exists.

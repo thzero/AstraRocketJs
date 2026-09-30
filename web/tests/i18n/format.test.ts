@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { fmtUpTo, ladderDigits, withUnit } from '../../src/i18n/format';
 import { siToUi } from '../../src/prefs/units';
-import { DROGUE_BAND, MAIN_BAND } from '../../src/services/recoverySizing';
+import { DROGUE_BAND, MAIN_BAND } from '../../src/services/flight/recoverySizing';
 
 /**
  * The helpers behind every figure that is authored in one unit and shown in

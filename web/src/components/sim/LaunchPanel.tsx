@@ -1,17 +1,22 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { LaunchConditions } from '../../services/orkTree';
+import type { LaunchConditions } from '../../services/design/orkTree';
 import { NumberInput } from '../common/NumberInput';
 import { FieldLabel, markRing } from '../common/FieldMark';
-import { isFilled, missingRequired, type RequiredLaunchKey } from '../../services/requiredLaunch';
+import { isFilled, missingRequired, type RequiredLaunchKey } from '../../services/flight/requiredLaunch';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits, type Units } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { fmtUpTo, ladderDigits, withUnit } from '../../i18n/format';
 import { LAUNCH_SI, type LaunchUnitKind } from '../../prefs/launchUnits';
-import { MAX_ROD_ANGLE_RAD, MAX_WIND_SPEED_MS } from '../../services/safetyLimits';
-import { G0 } from '../../services/motorMath';
-import { hasIntensity, stdDevForIntensity, turbulenceIntensity, turbulenceLevel } from '../../services/windTurbulence';
+import { MAX_ROD_ANGLE_RAD, MAX_WIND_SPEED_MS } from '../../services/flight/safetyLimits';
+import { G0 } from '../../services/motors/motorMath';
+import {
+  hasIntensity,
+  stdDevForIntensity,
+  turbulenceIntensity,
+  turbulenceLevel,
+} from '../../services/flight/windTurbulence';
 import { WindProfileDialog } from './WindProfileDialog';
 import { LocationPicker } from './LocationPicker';
 import { SiteMapDialog } from './SiteMapDialog';

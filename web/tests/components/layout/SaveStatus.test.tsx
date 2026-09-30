@@ -15,8 +15,28 @@ import { SaveStatus } from '../../../src/components/layout/SaveStatus';
 const set = (patch: Partial<ReturnType<typeof useWorkspaceStore.getState>>) =>
   act(() => useWorkspaceStore.setState(patch));
 
+/**
+ * jsdom has no matchMedia, and the status asks whether the window is at least xl
+ * wide: below that it says the word alone, because the header is carrying the
+ * tabs, the app name and the badge group and the age is what that band trades
+ * away. `true` is the wide answer, which is the one that includes the age.
+ */
+const stubWidth = (isXl: boolean): void => {
+  window.matchMedia = ((query: string) => ({
+    matches: isXl,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia;
+};
+
 describe('SaveStatus', () => {
   beforeEach(() => {
+    stubWidth(true);
     vi.useFakeTimers({ shouldAdvanceTime: true });
     set({ lastSavedAt: null, storageWarning: null, storageWarningKind: null });
   });
@@ -31,6 +51,15 @@ describe('SaveStatus', () => {
     renderWithProviders(<SaveStatus />);
     set({ lastSavedAt: Date.now() });
     expect(screen.getByRole('status').textContent).toBe('Saved just now');
+  });
+
+  it('says the word without the age below xl', () => {
+    stubWidth(false);
+    renderWithProviders(<SaveStatus />);
+    set({ lastSavedAt: Date.now() });
+    // The word, and nothing about when: the exact time stays in the tooltip.
+    expect(screen.getByRole('status').textContent).toBe('Saved');
+    expect(screen.getByRole('status').title).toMatch(/Last saved at/);
   });
 
   it('ages on its own, without anything else re-rendering it', () => {

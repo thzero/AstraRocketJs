@@ -8,7 +8,7 @@ import {
   zoomForMetersPerPixel,
   type TileRef,
   type TileSourceId,
-} from '../../services/slippyMap';
+} from '../../services/map/slippyMap';
 
 /**
  * Aerial imagery laid ON the 3D view's ground plane.
@@ -17,7 +17,7 @@ import {
  * (flightScene.ts), so the ground it is drawn over may as well be the real one:
  * a descent that ends in the treeline reads as the treeline rather than as a
  * point on a grid. Same tiles, same projection and the same session layer as
- * the launch-site map and the ground track (services/slippyMap.ts).
+ * the launch-site map and the ground track (services/map/slippyMap.ts).
  *
  * One quad per tile rather than one stitched texture. Stitching would mean
  * drawing every tile into a canvas and uploading the result, which taints

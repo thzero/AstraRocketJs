@@ -1,4 +1,4 @@
-import type { ReportModel } from '../reportModel';
+import type { ReportModel } from './reportModel';
 import { fmtNum } from '../../i18n/format';
 import { siToUi } from '../../prefs/units';
 import { heading, len, q, qv, sectionBreak, sub, table, type Col, type PdfPage } from './pdfPage';

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { keyOf } from '../../../src/components/sim/motorKey';
-import type { CatalogMotor } from '../../../src/services/motorDb';
+import type { CatalogMotor } from '../../../src/services/motors/motorDb';
 
 const motor = (o: Partial<CatalogMotor>) =>
   ({ manufacturer: 'AeroTech', designation: 'F67', diameter: 29, ...o }) as CatalogMotor;

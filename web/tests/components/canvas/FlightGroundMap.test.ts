@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { groundMapLayout } from '../../../src/components/canvas/FlightGroundMap';
-import { TILE_SIZE } from '../../../src/services/slippyMap';
-import { MIN_EXTENT_M } from '../../../src/services/groundTrack';
+import { TILE_SIZE } from '../../../src/services/map/slippyMap';
+import { MIN_EXTENT_M } from '../../../src/services/flight/groundTrack';
 
 /**
  * Where the ground map's tiles land in the 3D scene.

@@ -5,7 +5,7 @@ import { PropertyPanel } from '../../../src/components/design/PropertyPanel';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import { serveData } from '../../testing/serveData';
 import type { ComponentNode } from '../../../src/engine/openRocketEngine';
-import { FIELDS } from '../../../src/services/componentFields';
+import { FIELDS } from '../../../src/services/design/componentFields';
 
 const show = (node: ComponentNode, extra: { parentRadius?: number } = {}) => {
   const onChange = vi.fn();
@@ -137,20 +137,77 @@ describe('placement section', () => {
 });
 
 /**
- * Overrides sit at the bottom of every part, without exception.
+ * Overrides sit at the bottom of every part's description, without exception,
+ * and Comment sits below even them.
  *
- * They are not a property of the part the way its dimensions, material and
+ * Overrides are not a property of the part the way its dimensions, material and
  * placement are; they override what those add up to. Rendered in the middle,
  * they pushed a lug's placement rows below three rows nobody was looking for,
  * and where they fell varied by type, since a parachute has two sections
  * between them and a body tube has none.
+ *
+ * Comment is the one section that is not about the part at all - it is a note
+ * from the builder - so nothing the panel says about the part may be under it.
+ * It used to sit above the material, which put a free-text box between the
+ * part's dimensions and what it is made of.
  */
-describe('override section placement', () => {
-  it.each(Object.keys(FIELDS))('puts the overrides last on a %s', (type) => {
+describe('bottom of the panel', () => {
+  /** A section by its heading. Comment cannot be found by text: the section and
+   *  its single field carry the same label, so `getByText` sees two. */
+  const section = (name: string) =>
+    [...document.querySelectorAll('h3')].find((h) => (h.textContent ?? '').trim() === name)?.parentElement ?? null;
+
+  it.each(Object.keys(FIELDS))('ends a %s with the overrides and then the comment', (type) => {
     show({ id: 'o1', type } as unknown as ComponentNode);
     const panel = document.querySelector('section')!;
     const overrides = screen.getByText('Overrides').parentElement!;
-    expect(panel.lastElementChild).toBe(overrides);
+    const comment = section('Comment');
+    expect(comment, `${type} has no Comment section`).not.toBeNull();
+    expect(panel.lastElementChild).toBe(comment);
+    expect(comment!.previousElementSibling).toBe(overrides);
+  });
+});
+
+/**
+ * The automatic switch says what it is.
+ *
+ * It was a bare 13x13 checkbox at the right end of the row with the word only
+ * in a `title`, so on a centering ring - which has one on each of its two
+ * diameters - it read as two unexplained ticks, and the feature they turn on
+ * was reported missing from parts that had it all along. The accessible name
+ * keeps the field's own name in front of the word, so the two rows are still
+ * told apart when the page is read aloud.
+ */
+describe('the automatic switch', () => {
+  const switches = () =>
+    [...document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].filter((c) =>
+      /: Auto$/.test(c.getAttribute('aria-label') ?? ''),
+    );
+
+  it.each([
+    ['centeringring', ['Outer diameter: Auto', 'Inner diameter: Auto']],
+    ['bulkhead', ['Diameter: Auto']],
+    ['tubecoupler', ['Diameter: Auto']],
+    ['engineblock', ['Diameter: Auto']],
+  ] as const)('gives a %s one per automatic diameter, worded', (type, names) => {
+    show({ id: 'a1', type } as unknown as ComponentNode);
+    const found = switches();
+    expect(found.map((c) => c.getAttribute('aria-label'))).toEqual([...names]);
+    for (const c of found) {
+      // The word is ON THE PAGE, in the switch's own label, not only in a title.
+      const worded = c.closest('label');
+      expect(worded, `${type}: ${c.getAttribute('aria-label')} has no label`).not.toBeNull();
+      expect(worded!.textContent?.trim()).toBe('Auto');
+      // And that label binds to the switch, not to the number box beside it:
+      // one label cannot serve two controls, which is why the word could not be
+      // written at all while the row was a single <label>.
+      expect(worded!.querySelectorAll('input').length).toBe(1);
+    }
+  });
+
+  it('leaves a part with no automatic dimension no switch at all', () => {
+    show({ id: 'i1', type: 'innertube' } as unknown as ComponentNode);
+    expect(switches()).toEqual([]);
   });
 });
 
@@ -207,6 +264,25 @@ describe('motor section', () => {
   it('gives a tube that never holds a motor no section at all', () => {
     show({ id: 'c1', type: 'tubecoupler' } as unknown as ComponentNode);
     expect(screen.queryByText('Motor')).toBeNull();
+  });
+
+  /**
+   * And it sits BELOW the material.
+   *
+   * Everything above it describes the tube itself - its dimensions, then what
+   * it is made of - and this is the first section about the job the tube has
+   * been given. Between the wall thickness and the material it split the
+   * description of one object in half, and on an inner tube the six cluster
+   * rows pushed the material picker most of a screen down.
+   */
+  it.each(['bodytube', 'innertube'])('sits below the material on a %s', (type) => {
+    show({ id: 'm1', type } as unknown as ComponentNode);
+    // MaterialSection has no heading of its own, so the picker's own label is
+    // what marks where it starts.
+    const material = screen.getByText('Material');
+    const heading = screen.getByText('Motor');
+    // Node.DOCUMENT_POSITION_FOLLOWING: the motor heading comes after it.
+    expect(material.compareDocumentPosition(heading) & 4).toBe(4);
   });
 });
 

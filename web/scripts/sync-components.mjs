@@ -19,7 +19,7 @@ const DEFAULT_SRC = 'D:/programming/java/openrocket/openrocket-database/orc';
 const argSrc = process.argv.indexOf('--src');
 const SRC = argSrc >= 0 ? process.argv[argSrc + 1] : process.env.OPENROCKET_PRESETS || DEFAULT_SRC;
 // public/data is served as-is (not bundled) so the catalog can be refreshed
-// without rebuilding the app — see src/services/remoteData.ts.
+// without rebuilding the app — see src/services/app/remoteData.ts.
 const DATA_DIR = fileURLToPath(new URL('../public/data', import.meta.url));
 const OUT = resolve(DATA_DIR, 'components.generated.json');
 

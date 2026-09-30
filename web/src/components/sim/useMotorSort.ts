@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { CatalogMotor } from '../../services/motorDb';
+import type { CatalogMotor } from '../../services/motors/motorDb';
 import { COLUMNS } from './motorColumns';
 
 /**

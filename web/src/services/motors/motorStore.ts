@@ -1,0 +1,237 @@
+// Swappable client-side store for MOTOR data — the user's imported (custom)
+// motors and the per-motor thrustcurve caches (thrustcurve.ts). Like
+// MaterialStore this is a typed DOMAIN store: it owns the persistence POLICY
+// (per-entry TTL / freshness), so an implementer of `MotorStore` can use a
+// completely different caching strategy — a backend that does its own
+// expiry, IndexedDB, etc. The default persists through a KeyValueStore.
+//
+// Replace it on the client, independently of the material store:
+//   setMotorStore(new MyMotorStore())
+import type { KeyValueStore } from '../storage/keyValueStore';
+import { IndexedDbKeyValueStore } from '../storage/idbKeyValueStore';
+import { MIN_CURVE_SAMPLES } from './motorCurve';
+
+/** A cached value plus whether it is past its freshness window. */
+export interface CachedEntry<T> {
+  value: T;
+  stale: boolean;
+}
+
+/**
+ * A user-imported motor (from a `.eng` or `.rse` file). Unlike a catalog motor
+ * — specs only, curve fetched from thrustcurve on demand — a custom motor
+ * carries its OWN thrust curve, so it resolves to a MotorSpec entirely from
+ * local data with no network. It is user content: created by import, listed in
+ * the picker, and removable.
+ *
+ * The last four fields are what `.rse` carries and RASP `.eng` cannot. They are
+ * all optional, so an `.eng` motor stored before they existed still validates
+ * and still resolves.
+ */
+export interface CustomMotor {
+  /** Stable local id, e.g. "custom:<manufacturer>:<designation>". */
+  id: string;
+  designation: string;
+  manufacturer: string;
+  /** Impulse class letter (derived from total impulse). */
+  class: string;
+  /** mm */
+  diameter: number;
+  /** mm */
+  length: number;
+  totalWeightG: number;
+  propWeightG: number;
+  /** Ejection delays the file lists (informational; the picker sets the delay). */
+  delays?: number[];
+  samples: { time: number; thrust: number }[];
+  /**
+   * The delays as the CATALOG spells them ("4,6,10,P"), which is the only form
+   * that can say "plugged" — `motorPicker.offersPlugged` reads this. `.eng`
+   * has no way to mark a motor plugged, so it fills `delays` above instead.
+   */
+  delayList?: string;
+  /** What the file says the motor IS. A hybrid is why `.rse` import exists. */
+  type?: 'SU' | 'reload' | 'hybrid';
+  /**
+   * Mass at each sample, in grams, parallel to `samples`.
+   *
+   * The real reason `.rse` is the richer format: with this the kernel flies the
+   * MEASURED mass curve, instead of one reconstructed from total impulse and a
+   * single header number (`thrustcurve.samplesToMotorSpec`, which is still the
+   * path for every motor without it).
+   */
+  massesG?: number[];
+  /** Launch CG, mm from the motor's forward end. Absent → half the length. */
+  cgMm?: number;
+  source: 'eng' | 'rse';
+}
+
+export interface MotorStore {
+  /** A per-motor cache entry (metadata / curve / spec), validated by `valid`. */
+  readEntry<T>(key: string, valid: (v: unknown) => boolean): Promise<CachedEntry<T> | null>;
+  /** Write a per-motor cache entry, stamped now for freshness (best-effort). */
+  writeEntry<T>(key: string, value: T): Promise<void>;
+  /** The user's imported (custom) motors. */
+  listCustomMotors(): Promise<CustomMotor[]>;
+  /** Add or replace (by id) an imported motor. */
+  addCustomMotor(motor: CustomMotor): Promise<void>;
+  /** Remove an imported motor by id. */
+  removeCustomMotor(id: string): Promise<void>;
+}
+
+const CUSTOM_MOTORS_KEY = 'astrarrocketjs:motors:custom';
+const DEFAULT_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
+
+/** An entry stamped with its fetch time, for TTL freshness. */
+interface Envelope<T> {
+  t: number;
+  v: T;
+}
+
+/**
+ * A thrust curve of at least {@link MIN_CURVE_SAMPLES} samples, every one a
+ * finite `{time, thrust}`.
+ *
+ * Shared with thrustcurve.ts, which had the only copy of this check: custom
+ * motors are the one store whose payload reaches `simulate()` without a second
+ * gate, and the element shape was never looked at. `samples: [{}]` out of a
+ * corrupted IndexedDB blob became `times: [undefined]` and NaN masses inside
+ * the kernel. `Number.isFinite`, not `typeof === 'number'`: NaN and Infinity
+ * are both numbers and neither survives the TeaVM boundary. The sample count
+ * is the builder's threshold (motorCurve.ts): this accepted a single sample,
+ * which the kernel then refused as "too short".
+ */
+export const isThrustSampleArray = (v: unknown): boolean =>
+  Array.isArray(v) &&
+  v.length >= MIN_CURVE_SAMPLES &&
+  v.every((s) => {
+    const p = s as { time?: unknown; thrust?: unknown } | null;
+    return !!p && Number.isFinite(p.time) && Number.isFinite(p.thrust);
+  });
+
+function isCustomMotor(v: unknown): v is CustomMotor {
+  const m = v as CustomMotor;
+  return (
+    !!m &&
+    typeof m.id === 'string' &&
+    typeof m.designation === 'string' &&
+    // Both were unchecked. motorDb.ts sorts on `class` with localeCompare, so a
+    // row missing it takes down the whole motor picker, not just its own entry.
+    typeof m.manufacturer === 'string' &&
+    typeof m.class === 'string' &&
+    Number.isFinite(m.diameter) &&
+    Number.isFinite(m.length) &&
+    Number.isFinite(m.totalWeightG) &&
+    Number.isFinite(m.propWeightG) &&
+    isThrustSampleArray(m.samples) &&
+    isMassArray(m.massesG, m.samples.length) &&
+    (m.cgMm === undefined || Number.isFinite(m.cgMm))
+  );
+}
+
+/**
+ * The per-sample mass column of a `.rse` motor: absent, or one finite
+ * non-negative gram figure per sample.
+ *
+ * Checked as hard as `samples` is, and for the same reason: this array reaches
+ * the kernel as the flown mass curve. A short one would leave `masses` and
+ * `times` different lengths across the TeaVM boundary, and a NaN in it is the
+ * blank-design failure `samplesToMotorSpec` already documents.
+ */
+const isMassArray = (v: unknown, samples: number): boolean =>
+  v === undefined || (Array.isArray(v) && v.length === samples && v.every((x) => Number.isFinite(x) && x >= 0));
+
+/**
+ * Default MotorStore: persists through a KeyValueStore (IndexedDB by
+ * default), applying a fixed-TTL freshness policy to per-motor entries and a
+ * signature guard to the catalog mirror. Pass a different KeyValueStore to move
+ * the bytes elsewhere, or a different `ttlMs` to tune revalidation.
+ */
+export class KeyValueMotorStore implements MotorStore {
+  constructor(
+    private readonly kv: KeyValueStore = new IndexedDbKeyValueStore(),
+    private readonly ttlMs: number = DEFAULT_TTL_MS,
+  ) {}
+
+  async readEntry<T>(key: string, valid: (v: unknown) => boolean): Promise<CachedEntry<T> | null> {
+    try {
+      const raw = await this.kv.get(key);
+      if (!raw) return null;
+      const env = JSON.parse(raw) as Envelope<T>;
+      if (typeof env?.t !== 'number' || !valid(env.v)) {
+        await this.kv.remove(key);
+        return null;
+      }
+      return { value: env.v, stale: Date.now() - env.t > this.ttlMs };
+    } catch {
+      return null; // storage unavailable / parse error
+    }
+  }
+
+  async writeEntry<T>(key: string, value: T): Promise<void> {
+    try {
+      await this.kv.set(key, JSON.stringify({ t: Date.now(), v: value } satisfies Envelope<T>));
+    } catch {
+      // cache writes are best-effort — a failure just means the next use refetches
+    }
+  }
+
+  /** The stored list, tolerating an absent, corrupt or partly invalid blob. */
+  private static parseCustom(raw: string | null): CustomMotor[] {
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      return Array.isArray(parsed) ? parsed.filter(isCustomMotor) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private async readCustom(): Promise<CustomMotor[]> {
+    try {
+      return KeyValueMotorStore.parseCustom(await this.kv.get(CUSTOM_MOTORS_KEY));
+    } catch {
+      return [];
+    }
+  }
+
+  async listCustomMotors(): Promise<CustomMotor[]> {
+    return this.readCustom();
+  }
+
+  // add/remove propagate write failures (an import must be known to have saved),
+  // unlike the best-effort cache writes above. `kv.update` REPORTS failure by
+  // returning false rather than throwing, so the boolean has to be checked —
+  // discarding it meant MotorDialog awaited the import, got a clean resolve, and
+  // re-rendered a catalog that simply did not contain the motor, with no error.
+  //
+  // `kv.update`, not read-then-set: this is an installable PWA whose IndexedDB
+  // is shared across tabs, and a get/set with an await between them let two
+  // tabs importing at once each drop the other's motor (the same race
+  // DesignLibrary.mutateIndex closes for the design index).
+  async addCustomMotor(motor: CustomMotor): Promise<void> {
+    const ok = await this.kv.update(CUSTOM_MOTORS_KEY, (raw) =>
+      JSON.stringify([motor, ...KeyValueMotorStore.parseCustom(raw).filter((m) => m.id !== motor.id)]),
+    );
+    if (!ok) throw new Error('storage-full');
+  }
+
+  async removeCustomMotor(id: string): Promise<void> {
+    const ok = await this.kv.update(CUSTOM_MOTORS_KEY, (raw) =>
+      JSON.stringify(KeyValueMotorStore.parseCustom(raw).filter((m) => m.id !== id)),
+    );
+    if (!ok) throw new Error('storage-full');
+  }
+}
+
+// The active motor store. The header promised `setMotorStore` for years and
+// it did not exist; the seam is the same one the material store has.
+let store: MotorStore = new KeyValueMotorStore();
+
+export function getMotorStore(): MotorStore {
+  return store;
+}
+
+export function setMotorStore(next: MotorStore): void {
+  store = next;
+}

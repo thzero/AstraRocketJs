@@ -4,28 +4,70 @@ import { LANGUAGES } from '../../i18n';
 /** Header language dropdown (react-i18next). */
 export function LanguageSwitcher() {
   const { i18n, t } = useTranslation();
+  // Blank when the resolved language is not one of the options, which is what
+  // the closed select shows in that state too (no option matches, nothing is
+  // selected). `resolve.test.ts` pins the widening that keeps it from happening.
+  const selected = LANGUAGES.find((l) => l.code === i18n.resolvedLanguage)?.name ?? '';
   return (
-    // A native select is as wide as its WIDEST option, not its selected one,
-    // so 'Português (Portugal)' sets the width in every language. Uncapped
-    // that is 150px, which puts the header action group 2px past a 320px
-    // viewport and makes the whole document scroll sideways - see
-    // e2e/layout-overflow.spec.ts for what that costs the bottom tab bar. The
-    // cap is lifted at sm, where the room exists; under it the closed select
-    // truncates, and the two Portuguese entries still read apart
-    // ('Português (Bra...' / 'Português (Por...') while the open dropdown
-    // shows both in full.
-    <select
-      value={i18n.resolvedLanguage}
-      onChange={(e) => i18n.changeLanguage(e.target.value)}
-      aria-label={t('lang.label')}
-      title={t('lang.label')}
-      className="max-w-32 truncate rounded-lg bg-slate-800 px-2 py-1.5 text-xs font-medium text-slate-200 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500 sm:max-w-none"
-    >
-      {LANGUAGES.map((l) => (
-        <option key={l.code} value={l.code}>
-          {l.name}
-        </option>
-      ))}
-    </select>
+    // A native select is as wide as its WIDEST option rather than its selected
+    // one, so 'Português (Portugal)' set this control's width in every language:
+    // 161px of header spent to show the word 'Español', and each language added
+    // is another chance to make it wider. The header has no such width to spare.
+    // With the workbench tabs in the row it wraps to a second line on a system
+    // font wider than the one it was measured against, and that is the row the
+    // tabs were moved into the header to save.
+    //
+    // So the width comes from an invisible sizer holding the SELECTED name, with
+    // the select laid over it. It is still one real <select> carrying the full
+    // names, and the open dropdown is as wide as the browser wants; only the
+    // closed width changed. The sizer must keep the select's own text metrics
+    // (text-xs, font-medium) and padding, or the name it sizes for is not the
+    // width the name needs.
+    //
+    // The cap is what the sizer cannot do on its own: it holds the name that is
+    // ITSELF the longest, which is the case the header has least room for, since
+    // 'Português (Portugal)' comes with the longest translation of the
+    // pre-release word beside it. It applies at every width rather than only
+    // below sm, where it was guarding a different failure with the same cause:
+    // uncapped, that name puts the action group 2px past a 320px viewport and
+    // makes the whole DOCUMENT scroll sideways - see e2e/layout-overflow.spec.ts
+    // for what that costs the bottom tab bar. Capped, the closed select
+    // truncates and the two Portuguese entries still read apart
+    // ('Português (Bra...' / 'Português (Por...'), while the open dropdown shows
+    // every name in full.
+    <span className="relative inline-flex max-w-24 items-center xl:max-w-28">
+      {/* `invisible` rather than hidden: visibility:hidden keeps the box, which is
+          the whole point of this span. py-1.5 is the control's HEIGHT, since the
+          select is out of flow and this is the only thing giving the wrapper a box,
+          and pr-7 is the room the chevron below is drawn in. */}
+      <span aria-hidden className="invisible truncate py-1.5 pr-7 pl-2 text-xs font-medium">
+        {selected}
+      </span>
+      <select
+        value={i18n.resolvedLanguage}
+        onChange={(e) => i18n.changeLanguage(e.target.value)}
+        aria-label={t('lang.label')}
+        title={t('lang.label')}
+        className="absolute inset-0 h-full w-full appearance-none truncate rounded-lg bg-slate-800 pr-7 pl-2 text-xs font-medium text-slate-200 ring-1 ring-white/10 focus:ring-sky-500 focus:outline-none"
+      >
+        {LANGUAGES.map((l) => (
+          <option key={l.code} value={l.code}>
+            {l.name}
+          </option>
+        ))}
+      </select>
+      {/* Our own chevron, because `appearance-none` is what makes the sizer above
+          honest: a select left to its native appearance lays its arrow out INSIDE
+          the content box, on top of the padding, so the name is squeezed into
+          whatever is left and 'English' closes as 'E...'. Drawn in the pr-7 both
+          boxes reserve, and never a click target of its own. */}
+      <svg
+        aria-hidden
+        viewBox="0 0 10 6"
+        className="pointer-events-none absolute right-2.5 h-1.5 w-2.5 fill-none stroke-slate-400 stroke-2"
+      >
+        <path d="M1 1l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
   );
 }

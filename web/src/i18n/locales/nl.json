@@ -200,6 +200,7 @@
   },
   "save": {
     "saved": "Opgeslagen {{when}}",
+    "savedShort": "Opgeslagen",
     "justNow": "net",
     "tip": "Laatst opgeslagen om {{time}}. Je raket wordt automatisch opgeslagen terwijl je hem bewerkt."
   },
@@ -345,6 +346,42 @@
     "type_modified_kit": "Aangepast bouwpakket",
     "type_kit_bash": "Combinatie van bouwpakketten"
   },
+  "configs": {
+    "title": "Vluchtconfiguraties",
+    "hint": "Een configuratie is één set motoren, één per houder. Elke simulatie vliegt er één, en meerdere simulaties kunnen dezelfde delen.",
+    "new": "＋ Nieuw",
+    "copy": "Kopiëren",
+    "copyName": "Kopie van {{name}}",
+    "delete": "Verwijderen",
+    "deleteLast": "De enige configuratie kan niet worden verwijderd",
+    "deleteConfirm": "Deze configuratie verwijderen? Elke simulatie die erop vliegt gaat naar de eerste die overblijft.",
+    "name": "Configuratie",
+    "rename": "Configuratie hernoemen",
+    "namePlaceholder": "Naamloos: wordt getoond als zijn motoren",
+    "noMotors": "Geen motoren",
+    "flights": "Vluchten",
+    "flownBy": "Simulaties die hierop vliegen: {{count}}",
+    "pick": "Vluchtconfiguratie",
+    "pickFor": "Vluchtconfiguratie voor {{name}}",
+    "edit": "Motoren bewerken…",
+    "motors": "Motoren",
+    "recovery": "Berging",
+    "recoveryHint": "Wanneer elk bergingsmiddel opengaat op deze vlucht. Leeg volgt het ontwerp; een waarde hier geldt alleen voor deze configuratie.",
+    "overridden": "Overschreven",
+    "asDesigned": "Zoals ontworpen ({{value}})",
+    "altitudeFromDesign": "Gaat open op de hoogte die het ontwerp aangeeft, tot je er hier een invult.",
+    "noRecovery": "Dit ontwerp heeft geen bergingsmiddel.",
+    "deployOverridden": "Gaat anders open in:",
+    "separation": "Trapscheiding",
+    "separationHint": "Welke trappen vliegen en wanneer elke booster loskomt. Leeg volgt het ontwerp; een waarde hier geldt alleen voor deze configuratie.",
+    "noSeparation": "Dit ontwerp heeft één trap, dus er scheidt niets.",
+    "neverSeparates": "Deze booster blijft de hele vlucht vastzitten.",
+    "separationOverridden": "Scheidt anders in:",
+    "flies": "Vliegt in deze configuratie",
+    "grounded": "Aan de grond",
+    "groundedHint": "Blijft aan de grond: geen massa, geen weerstand, geen motor. De rest van de raket vliegt zonder.",
+    "stageGrounded": "Blijft aan de grond in:"
+  },
   "tabs": {
     "rocket": "Raket",
     "sketch": "Schets",
@@ -352,7 +389,9 @@
     "results": "Resultaten",
     "design": "Ontwerp",
     "simulations": "Simulaties",
-    "workbench": "Werkbank"
+    "workbench": "Werkbank",
+    "configs": "Configuraties",
+    "configsShort": "Config."
   },
   "view": {
     "2d": "2D",
@@ -940,6 +979,7 @@
   },
   "prop": {
     "selectHint": "Kies een onderdeel in de boom of de tekening om de eigenschappen ervan te bewerken.",
+    "editTitle": "Onderdeel bewerken",
     "name": "Naam",
     "delete": "Verwijderen",
     "lastStage": "Een raket heeft minstens één trap nodig",

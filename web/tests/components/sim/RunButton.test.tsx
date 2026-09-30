@@ -5,8 +5,8 @@ import { screen } from '@testing-library/react';
 import { RunButton } from '../../../src/components/sim/RunButton';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import { useWorkspaceStore } from '../../../src/state/store';
-import { C6 } from '../../../src/engine/api';
-import { MAX_WIND_SPEED_MS } from '../../../src/services/safetyLimits';
+import { seatMotor, CURVELESS } from '../../testing/seatMotor';
+import { MAX_WIND_SPEED_MS } from '../../../src/services/flight/safetyLimits';
 
 const st = () => useWorkspaceStore.getState();
 const byName = (n: string) => st().sims.find((x) => x.name === n)!;
@@ -30,7 +30,7 @@ const LAUNCH = {
 /**
  * What the button PROMISES has to match what the run will do.
  *
- * Both questions go through `services/runnability`. Judged on the active
+ * Both questions go through `services/flight/runnability`. Judged on the active
  * simulation's motor alone, and only when exactly one row is selected, while the
  * safety codes block the whole batch, a twelve-row batch is refused over one bad row
  * and a batch containing an unflyable row starts with the button showing nothing
@@ -54,13 +54,11 @@ describe('RunButton over a selection', () => {
       sims: st()
         .sims.map((x) => ({ ...x, launch: { ...LAUNCH } }))
         .map((x) =>
-          x.name === 'NoMotor'
-            ? { ...x, motor: { ...C6, times: [], thrusts: [], masses: [] } }
-            : x.name === 'TooWindy'
-              ? { ...x, motor: C6, launch: { ...x.launch, windAverage: MAX_WIND_SPEED_MS + 5 } }
-              : { ...x, motor: C6 },
+          x.name === 'TooWindy' ? { ...x, launch: { ...x.launch, windAverage: MAX_WIND_SPEED_MS + 5 } } : x,
         ),
     });
+    // A curve-less motor is what an unresolved .ork import leaves behind.
+    seatMotor('NoMotor', CURVELESS);
   });
 
   it('counts only the rows that will actually fly', () => {

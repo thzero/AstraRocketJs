@@ -9,8 +9,8 @@ import { unitScope } from '../../prefs/units';
 import { MAX_INSTANCE_COUNT, num, str } from '../../tree/nodeProps';
 import { clusterCount } from '../../tree/cluster';
 import { shapeIsClippable, shapeParamMax, shapeUsesParameter } from '../../tree/shapeProfile';
-import { FIELDS, type Field, type PanelSection } from '../../services/componentFields';
-import { DERIVED } from '../../services/derivedFields';
+import { FIELDS, type Field, type PanelSection } from '../../services/design/componentFields';
+import { DERIVED } from '../../services/design/derivedFields';
 
 /**
  * The property panel's per-type shape and dimension fields: the numeric row
@@ -161,6 +161,7 @@ export function NumberField({
   onChange: (v: number) => void;
   onCommit?: () => void; // fires on blur — closes the undo entry for this edit
 }) {
+  const { t } = useTranslation();
   // No separate "blank" state to check for: 0 is exactly what is wrong here, so
   // an emptied box and a typed zero collapse into one condition.
   const missing = required && !(Number.isFinite(value) && value > 0);
@@ -180,38 +181,55 @@ export function NumberField({
     onChange(v ?? 0);
   };
   return (
-    <label className="flex items-center justify-between gap-3">
-      <FieldLabel text={label} required={required} missing={missing} />
-      <span className="flex items-center gap-1">
-        <NumberInput
-          ariaLabel={label}
-          value={Number.isFinite(value) ? value : 0}
-          onChange={write}
-          onCommit={onCommit}
-          step={step}
-          min={min}
-          max={max}
-          disabled={auto?.on}
-          className={markRing(
-            `w-24 rounded-md px-2 py-1 text-right text-sm ring-1 ring-white/10 focus:outline-none focus:ring-sky-500 ${
-              auto?.on ? 'bg-slate-800/50 text-slate-400' : 'bg-slate-800 text-slate-100'
-            }`,
-            missing,
-          )}
-        />
-        {unit && <span className="min-w-10 text-xs text-slate-500">{unit}</span>}
-        {auto && (
+    // A row, not one big <label>. The switch below is a SECOND control, and a
+    // label may only bind to one: wrapping both made the word "Auto" focus the
+    // number box rather than tick the box beside it, which is why it could not
+    // be worded at all before.
+    <div className="flex items-center justify-between gap-2">
+      <label className="flex min-w-0 flex-1 items-center justify-between gap-2">
+        <FieldLabel text={label} required={required} missing={missing} />
+        <span className="flex shrink-0 items-center gap-1">
+          <NumberInput
+            ariaLabel={label}
+            value={Number.isFinite(value) ? value : 0}
+            onChange={write}
+            onCommit={onCommit}
+            step={step}
+            min={min}
+            max={max}
+            disabled={auto?.on}
+            className={markRing(
+              `w-24 rounded-md px-2 py-1 text-right text-sm ring-1 ring-white/10 focus:outline-none focus:ring-sky-500 ${
+                auto?.on ? 'bg-slate-800/50 text-slate-400' : 'bg-slate-800 text-slate-100'
+              }`,
+              missing,
+            )}
+          />
+          {unit && <span className="min-w-10 text-xs text-slate-500">{unit}</span>}
+        </span>
+      </label>
+      {/* The switch says what it is. It was a bare 13px checkbox at the right
+          end of the row with the word only in a `title`, so on a centering ring
+          - where BOTH diameters have one - it read as two unexplained ticks,
+          and the feature they turn on was reported missing. The accessible name
+          keeps the field's own name in front of it ("Outer diameter: Auto"), so
+          the two rows are still told apart when the page is read aloud. */}
+      {auto && (
+        <label
+          title={auto.title}
+          className="flex shrink-0 cursor-pointer items-center gap-1 text-[11px] leading-none text-slate-400"
+        >
           <input
             type="checkbox"
             checked={auto.on}
             onChange={(e) => auto.onToggle(e.target.checked)}
             aria-label={auto.label}
-            title={auto.title}
             className="accent-sky-500"
           />
-        )}
-      </span>
-    </label>
+          {t('prop.auto')}
+        </label>
+      )}
+    </div>
   );
 }
 
@@ -422,7 +440,7 @@ export function FieldRow({
       // A second door onto numbers the part DOES store: a fin's sweep as an
       // angle, a streamer's area or aspect ratio, a mass component's density.
       // Nothing here is a node key - the pair of conversions in
-      // services/derivedFields.ts reads the stored keys and writes them back,
+      // services/design/derivedFields.ts reads the stored keys and writes them back,
       // the same arrangement as the `bore` row above, and for the same reason:
       // the arithmetic is the kernel's and belongs somewhere it can be tested.
       const d = DERIVED[f.derived];

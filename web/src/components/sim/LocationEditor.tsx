@@ -5,9 +5,9 @@ import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { LAUNCH_SI } from '../../prefs/launchUnits';
-import { uuid } from '../../services/uuid';
+import { uuid } from '../../services/app/uuid';
 import { SiteMap } from './SiteMap';
-import type { LaunchLocation } from '../../services/launchLocationStore';
+import type { LaunchLocation } from '../../services/storage/launchLocationStore';
 
 /**
  * The detail half of the saved locations dialog: one location in full — name,

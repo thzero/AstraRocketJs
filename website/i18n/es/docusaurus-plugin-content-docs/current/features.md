@@ -49,6 +49,6 @@ sidebar_position: 2
 - **Las unidades que prefieras** — valores métricos o imperiales, o una unidad por magnitud (dimensiones de componentes y de motor, altitud, masa, velocidad, viento, aceleración, ángulo, densidad, temperatura, presión, empuje, impulso). La unidad junto a cualquier valor también es un selector para ese campo concreto. Los diseños siguen en SI, así que cambiarlas nunca modifica un cohete. Consulta **[Ajustes](./settings.md#units)**.
 - Las condiciones de lanzamiento se ajustan a los límites de vuelo de la **NAR y Tripoli** (guía dentro de 20° de la vertical, viento en superficie igual o inferior a 20 mph), y una ejecución fuera de ellos se rechaza en lugar de volarse. Consulta la página de **[Seguridad](./safety.md)**.
 - **Navegación por teclado** — el árbol de componentes se recorre completamente con las flechas (una accesibilidad más amplia es un trabajo en curso).
-- **Multilingüe** — actualmente inglés y español.
+- **Multilingüe** — actualmente diez: inglés, alemán, español, francés, portugués (Brasil y Portugal), neerlandés, polaco, ruso y japonés.
 
 Consulta las [Preguntas frecuentes](./faq.md) para más detalles sobre los límites actuales.

@@ -33,3 +33,30 @@ function useMediaQuery(query: string): boolean {
 
 /** The `lg:` breakpoint, as a boolean. Keep in step with Tailwind's default. */
 export const useIsDesktop = (): boolean => useMediaQuery('(min-width: 1024px)');
+
+/**
+ * The `xl:` breakpoint, as a boolean.
+ *
+ * The header's save status says how long ago the write landed only from here up
+ * (see layout/SaveStatus): below it the row is carrying the workbench tabs, the
+ * app name and the badge group, and the age is the part of it worth the width.
+ * A JavaScript query rather than a pair of `xl:` classes because the two strings
+ * are the SAME status: rendered twice, "Saved just now" and "Saved" would both
+ * answer to the status role and to a text query, on a phone as much as on a
+ * desktop, and one of them would be a lie about what is on screen.
+ */
+export const useIsXl = (): boolean => useMediaQuery('(min-width: 1280px)');
+
+/**
+ * The `2xl:` breakpoint, as a boolean.
+ *
+ * The Design tab's property column needs the window to be this wide: it is a
+ * third column beside the component tree and the drawing, and under 1536 the
+ * three of them leave the drawing too little to be a drawing. An ordinary
+ * laptop is on the dialog, which is the point - 1280 and 1440 are the widths
+ * this is about, not only phones. Below it the component editor is a DIALOG
+ * instead (see components/design/ComponentDialog), which is why this is a
+ * JavaScript query rather than a `2xl:` class: the editor has to exist in
+ * exactly one of the two places, never both.
+ */
+export const useIsWide = (): boolean => useMediaQuery('(min-width: 1536px)');

@@ -6,7 +6,8 @@ import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { num } from '../../tree/nodeProps';
-import { useWorkspaceStore, selectActive, selectExtraMotors } from '../../state/store';
+import { useWorkspaceStore, selectActive, selectConfig } from '../../state/store';
+import { motorSpecs } from '../../services/flight/flightConfigs';
 import {
   airDensity,
   canopyDiameter,
@@ -16,7 +17,7 @@ import {
   DROGUE_BAND,
   MAIN_BAND,
   type RateVerdict,
-} from '../../services/recoverySizing';
+} from '../../services/flight/recoverySizing';
 
 /** Tone for the current-chute descent rate: green inside a band, amber outside. */
 const VERDICT_TONE: Record<RateVerdict, string> = {
@@ -43,8 +44,8 @@ export function RecoverySizingReadout({ node }: { node: ComponentNode }) {
   const drogueUnit = u.at(unitScope('recovery', 'drogueD'), 'length');
   const massUnit = u.at(unitScope('recovery', 'mass'), 'mass');
   const info = useWorkspaceStore((s) => s.info);
-  const motor = useWorkspaceStore((s) => selectActive(s).motor);
-  const extraMotors = useWorkspaceStore(selectExtraMotors);
+  const tree = useWorkspaceStore((s) => s.tree);
+  const config = useWorkspaceStore(selectConfig);
   const launch = useWorkspaceStore((s) => selectActive(s).launch);
 
   // `num(..., 0.8)`, not `|| 0.8`: `nodeProps.num` already returns 0 for an
@@ -63,7 +64,7 @@ export function RecoverySizingReadout({ node }: { node: ComponentNode }) {
     withUnit(`${fmtUpTo(rateUnit.toUi(minSi), 1)}–${fmtUpTo(rateUnit.toUi(maxSi), 1)}`, rateUnit.sym);
 
   const sizing = useMemo(() => {
-    const mass = descentMass(info?.mass, [motor, ...Object.values(extraMotors).map((e) => e.spec)]);
+    const mass = descentMass(info?.mass, motorSpecs(tree, config));
     if (mass == null) return null;
     const rho = airDensity(launch);
     const rate = diameter > 0 ? descentRate(mass, diameter, cd, rho) : null;
@@ -74,7 +75,7 @@ export function RecoverySizingReadout({ node }: { node: ComponentNode }) {
       mainD: canopyDiameter(mass, MAIN_BAND.target, cd, rho),
       drogueD: canopyDiameter(mass, DROGUE_BAND.target, cd, rho),
     };
-  }, [info?.mass, motor, extraMotors, launch, cd, diameter]);
+  }, [info?.mass, tree, config, launch, cd, diameter]);
 
   return (
     <div className="space-y-2 border-t border-white/5 pt-3">

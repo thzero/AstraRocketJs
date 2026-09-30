@@ -6,6 +6,7 @@ import { SimulationsTable } from './SimulationsTable';
 import { SimEditor } from './SimEditor';
 import { RunButton } from './RunButton';
 import { useIsDesktop } from '../common/useMediaQuery';
+import { ToolBtn } from '../common/ToolBtn';
 
 /**
  * The Simulations tab: a toolbar, the table of runs, and — on a phone — the
@@ -22,6 +23,8 @@ export function SimulationsPane() {
   const sims = useWorkspaceStore((s) => s.sims);
   const activeId = useWorkspaceStore((s) => selectActive(s).id);
   const tree = useWorkspaceStore((s) => s.tree);
+  const configs = useWorkspaceStore((s) => s.configs);
+  const setSimConfig = useWorkspaceStore((s) => s.setSimConfig);
   const simRuns = useWorkspaceStore((s) => s.simRuns);
   const selectedIds = useWorkspaceStore((s) => s.selectedSimIds);
 
@@ -87,6 +90,8 @@ export function SimulationsPane() {
           selectedIds={selectedIds}
           runs={simRuns}
           tree={tree}
+          configs={configs}
+          onSetConfig={setSimConfig}
           onSelect={onSelect}
           onToggle={onToggle}
           onToggleAll={(all) => setSelected(all ? sims.map((x) => x.id) : [])}
@@ -103,32 +108,5 @@ export function SimulationsPane() {
         {!desktop && <SimEditor />}
       </div>
     </div>
-  );
-}
-
-function ToolBtn({
-  children,
-  onClick,
-  disabled,
-  title,
-  danger,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  title?: string;
-  danger?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={`rounded-lg px-3 py-1.5 text-sm font-medium ring-1 ring-white/10 disabled:cursor-not-allowed disabled:text-slate-600 ${
-        danger ? 'bg-slate-800 text-red-300 hover:bg-slate-700' : 'bg-slate-800 text-sky-300 hover:bg-slate-700'
-      }`}
-    >
-      {children}
-    </button>
   );
 }

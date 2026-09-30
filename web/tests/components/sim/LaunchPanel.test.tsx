@@ -3,7 +3,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import { LaunchPanel } from '../../../src/components/sim/LaunchPanel';
 import { renderWithProviders } from '../../testing/renderWithProviders';
-import type { LaunchConditions } from '../../../src/services/orkTree';
+import type { LaunchConditions } from '../../../src/services/design/orkTree';
 
 const LAUNCH: LaunchConditions = {
   launchRodLengthM: 1,

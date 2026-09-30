@@ -187,7 +187,7 @@ test('a location’s coordinates can be corrected, not just its name', async ({ 
   await expect(manage.getByRole('textbox')).toHaveValue('Home field');
   await manage.getByRole('button', { name: 'Save', exact: true }).click();
 
-  await expect(manage.getByText('39.1234')).toBeVisible();
+  await expect(manage.getByRole('button', { name: /Home field 39\.1234/ })).toBeVisible();
   await manage.getByRole('button', { name: 'Close' }).click();
 
   // And the corrected values are what applying it now writes.

@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { recoveryDevices } from '../../services/treeEdit';
+import { recoveryDevices } from '../../services/design/treeEdit';
 import { useWorkspaceStore } from '../../state/store';
 
 /**

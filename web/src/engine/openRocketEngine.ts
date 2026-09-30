@@ -11,7 +11,7 @@
 // import order, so this eager import must precede the DYNAMIC engine load below
 // (neither backend is imported statically now) — see kernelLogSink.ts.
 import './kernelLogSink.js';
-import { declaredLength, readStreamWithProgress } from '../services/fetchProgress';
+import { declaredLength, readStreamWithProgress } from '../services/app/fetchProgress';
 
 // The WASM-GC engine + its loader live in web/public/engine/ (served verbatim by
 // Vite — a .js in src/ would be run through import-analysis, which warns on the
@@ -396,6 +396,10 @@ export interface RocketSpec {
     materialDensity?: number;
     /** Selected material name (display / .ork round-trip only; density drives physics). */
     material?: string;
+    /** The material's `.ork` group, as `MaterialGroup.getDatabaseString()` spells
+     *  it. Written to the file beside the name, so a design saved here files the
+     *  material under the same category the desktop would. */
+    materialGroup?: string;
   };
   bodyTube: {
     length: number;
@@ -403,6 +407,7 @@ export interface RocketSpec {
     thickness: number;
     materialDensity?: number;
     material?: string;
+    materialGroup?: string;
   };
   fins: {
     count: number;
@@ -413,6 +418,7 @@ export interface RocketSpec {
     thickness: number;
     materialDensity?: number;
     material?: string;
+    materialGroup?: string;
   };
   motorMount: {
     length: number;
@@ -1118,6 +1124,17 @@ export class OpenRocketDesign {
         toKernelDelay(motor.ejectionDelay),
       ),
     );
+  }
+
+  /**
+   * Leaves one stage on the ground for this flight, or puts it back.
+   *
+   * OpenRocket's stage activeness: a grounded stage contributes no mass, no
+   * aerodynamics and no motor, which is how a two-stage design is flown as its
+   * own sustainer without deleting the booster.
+   */
+  setStageActiveById(componentId: string, active: boolean): void {
+    callEngine('setStageActiveById', () => eng().setStageActiveById(this.handle, componentId, active));
   }
 
   /**

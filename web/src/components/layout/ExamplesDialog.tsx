@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
 import { Dialog } from '../common/Dialog';
-import { loadExampleIndex, type ExampleMeta } from '../../services/exampleLibrary';
+import { loadExampleIndex, type ExampleMeta } from '../../services/storage/exampleLibrary';
 
 /**
  * The bundled OpenRocket examples, in two places because they answer two

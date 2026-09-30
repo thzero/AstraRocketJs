@@ -1,6 +1,6 @@
 import type { jsPDF } from 'jspdf';
 import type { StaticInfo } from '../../engine/openRocketEngine';
-import type { Pt } from '../reportGeometry';
+import type { Pt } from './reportGeometry';
 import { fmtNum } from '../../i18n/format';
 import { siToUi, type Quantity, type UnitSelection } from '../../prefs/units';
 import { hexToRgbTuple, pageFrame } from './layout';

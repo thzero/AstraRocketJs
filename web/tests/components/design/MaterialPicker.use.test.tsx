@@ -4,8 +4,8 @@ import { cleanup, waitFor } from '@testing-library/react';
 import { serveData } from '../../testing/serveData';
 import { MaterialPicker } from '../../../src/components/design/MaterialPicker';
 import { renderWithProviders } from '../../testing/renderWithProviders';
-import { addCustom } from '../../../src/services/materials';
-import { ADHESIVE_GROUP } from '../../../src/services/materialTypes';
+import { addCustom } from '../../../src/services/materials/materials';
+import { ADHESIVE_GROUP } from '../../../src/services/materials/materialTypes';
 
 /**
  * Which materials a component is offered.

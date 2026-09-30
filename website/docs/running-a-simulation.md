@@ -1,8 +1,14 @@
 ---
 title: "Running a Simulation"
-sidebar_position: 11
+sidebar_position: 12
 ---
-Simulations live in the right-hand panel. You can keep **several named simulations** for one design (e.g. different motors or launch sites), **duplicate** one as a starting point, and delete them. The red **Delete simulation** button (next to the current simulation's name) removes it after a confirmation; the workspace always keeps at least one, so it's disabled when only one remains.
+Simulations live in the right-hand panel. A simulation is a [flight configuration](./flight-configurations.md) — the motors, the recovery and the staging — flown under a set of launch conditions, so what a row carries of its own is its name, the configuration it flies, the conditions and the last result. You can keep **several named simulations** for one design (e.g. different motors or launch sites), **duplicate** one as a starting point, and delete them. The red **Delete simulation** button (next to the current simulation's name) removes it after a confirmation; the workspace always keeps at least one, so it's disabled when only one remains.
+
+## Pick what it flies
+
+The **Configuration** column in the table, and the picker at the top of the editor, choose which [flight configuration](./flight-configurations.md) the row flies; the motors it seats are spelled out underneath. **Edit motors…** opens the Configurations tab on that one.
+
+Several rows can fly the same configuration, which is the point of having them: change a motor once and every flight that uses it is flagged for a re-run. Two rows that should differ by motor want two configurations, one each.
 
 ## Set up the launch
 

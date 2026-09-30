@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { StaticInfo } from '../../engine/openRocketEngine';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
-import { stabilityState, type StabilityState } from '../../services/simReport.js';
+import { stabilityState, type StabilityState } from '../../services/flight/simReport.js';
 import { calloutLayout, hoverTagFor, MARKER_R, STABILITY_GLYPH, type Ctx, type HoverBox } from './schematicGeometry';
 
 /**

@@ -41,7 +41,7 @@ test('the tree column can be dragged, and keeps its width', async ({ page }) => 
   // and past 640 the column is mostly gutter.
   await drag(page, sep, 5);
   expect(await width()).toBe(300);
-  await drag(page, sep, 1495);
+  await drag(page, sep, 1595);
   expect(await width()).toBe(640);
 
   // Keyboard-reachable, because a pointer-only control is no control at all for
@@ -57,8 +57,9 @@ test('the tree column can be dragged, and keeps its width', async ({ page }) => 
 });
 
 test('the divider leaves room for the other panes, and only shows where it applies', async ({ page }) => {
-  // The narrowest desktop width. A width stored on a wide monitor must not crush
-  // the canvas when the same browser profile opens here.
+  // The narrowest desktop width. Design is TWO columns here, not three: the
+  // property panel wants `xl` and is a dialog under it (component-dialog.spec),
+  // so the tree only has to leave the canvas its floor.
   await page.setViewportSize({ width: 1024, height: 900 });
   await ready(page);
 
@@ -67,8 +68,8 @@ test('the divider leaves room for the other panes, and only shows where it appli
 
   const tree = await box(page.locator('main > section').first());
   const center = await box(page.locator('main > section').nth(1));
-  expect(tree.width).toBeLessThan(640); // the flat maximum gave way to the window
-  expect(center.width).toBeGreaterThan(250); // and the canvas is still a canvas
+  expect(tree.width).toBe(640); // its flat maximum, with the window still clear of it
+  expect(center.width).toBeGreaterThan(320); // and the canvas keeps CENTER_PANE_MIN
 
   // The tree column is a Design-tab thing, so its divider is too. (The side
   // divider is on every tab, which is its own test.)
@@ -99,7 +100,7 @@ test('the side column can be dragged, and the width is shared by every tab', asy
   const width = async () => (await box(props)).width;
 
   expect(await width()).toBe(380);
-  await drag(page, sep, 1000);
+  await drag(page, sep, 1100);
   expect(await width()).toBe(500);
 
   await page.reload();
@@ -108,7 +109,7 @@ test('the side column can be dragged, and the width is shared by every tab', asy
 
   // The pane is on the RIGHT of this divider, so the clamps are mirrored: drag
   // toward the edge it sits against to shrink it.
-  await drag(page, sep, 1495);
+  await drag(page, sep, 1595);
   expect(await width()).toBe(300);
   await drag(page, sep, 100);
   expect(await width()).toBe(640);
@@ -129,7 +130,7 @@ test('every right-hand column is the same width, on whichever tab it appears', a
 
   // Sized once, on Results.
   const sep = page.getByRole('separator', { name: /side panel/ });
-  await drag(page, sep, 1100);
+  await drag(page, sep, 1200);
 
   const visible = page.locator('main > section:visible').last();
   expect((await box(visible)).width).toBe(400);

@@ -1,11 +1,11 @@
-import { EVENT_LABEL } from '../../services/simReport';
+import { EVENT_LABEL } from '../../services/flight/simReport';
 import { EVENT_ROW_H, PAD_L, PAD_R } from './flightChartAxis';
 
 /**
  * Owns the event-label strip above the panels: the pure row packing that
  * keeps labels from overlapping, the strip height rule, and the sticky SVG
  * that draws them. The clustering of near-coincident events is the shared
- * `clusterEventLabels` in services/simReport; this starts from its output.
+ * `clusterEventLabels` in services/flight/simReport; this starts from its output.
  */
 
 export interface EventLabel {

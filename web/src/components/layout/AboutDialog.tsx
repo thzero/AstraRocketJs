@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
-import { appName, APP_VERSION, CONTRIBUTORS_URL, isPreRelease, UPSTREAM } from '../../services/appInfo';
-import { fetchCatalog } from '../../services/remoteData';
+import { appName, APP_VERSION, CONTRIBUTORS_URL, isPreRelease, UPSTREAM } from '../../services/app/appInfo';
+import { fetchCatalog } from '../../services/app/remoteData';
 import { Dialog } from '../common/Dialog';
 
 interface Contributor {

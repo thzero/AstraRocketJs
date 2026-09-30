@@ -81,7 +81,7 @@ If a required dimension is **zero**, the field escalates: the label is boxed in 
 | Mass component | mass |
 | Pod set / parallel stage | instance count |
 
-**Diameters that fill their parent are left blank.** A coupler, engine block, centering ring or bulkhead takes its outer diameter from whatever it sits in, and a centering ring takes its inner diameter from the motor mount running through it, so leaving those empty is a real answer rather than a gap — it is what `.ork` files call *auto*, and the value follows along when you resize the tube. Type a number and that number is used instead. An inner tube is the exception: it *is* the motor mount, so its size is the thing being stated.
+**Diameters that fill their parent are left blank.** A coupler, engine block, centering ring or bulkhead takes its outer diameter from whatever it sits in, and a centering ring takes its inner diameter from the motor mount running through it, so leaving those empty is a real answer rather than a gap — it is what `.ork` files call *auto*, and the value follows along when you resize the tube. In the editor it is the small checkbox beside the field, and a new coupler, engine block, centering ring or bulkhead arrives with it ticked, so the part is the right size for the airframe you dropped it into before you touch it. Untick it, or pick a part from the catalog, and the number you give is used instead. A centering ring with no motor mount beside it has an inner diameter of zero, which is a solid disc: that is what desktop OpenRocket gives too. An inner tube is the exception to all of it: it *is* the motor mount, so its size is the thing being stated.
 
 Everything else may legitimately be zero, which is why it is not marked. A **tip chord** of 0 is a delta fin; **sweep** or **cant** of 0 is a straight one; a **shoulder** or **fin tab** of 0 is simply absent; **motor overhang** 0 is flush; a centering ring's **inner diameter** of 0 is a solid disc; a mass component's **length** of 0 is a point mass; and every **delay** and **angle offset** starts at 0. A stage has no required fields at all — its settings are triggers and delays.
 
@@ -118,7 +118,7 @@ A rocket can have more than one stage. **+ Stage** (in the Components panel head
 
 You can also add **pods** (podsets) and **parallel** (strap-on) boosters as assemblies. After a staged flight, the **[Flight charts](./views-and-analysis.md#flight-after-a-simulation)** plot each stage's own trajectory.
 
-> Staged flights **simulate** as independent branches — each spent booster flies, deploys, and lands on its own — and static mass / CG / stability match desktop OpenRocket. The staged *flight trajectory* itself is not yet validated against OpenRocket end-to-end, so treat multi-stage flight numbers as preliminary.
+> Staged flights **simulate** as independent branches — each spent booster flies, deploys, and lands on its own — and static mass / CG / stability match desktop OpenRocket. The flown trajectory is checked against unmodified upstream OpenRocket as well: identical event sequences on every branch, and apogee agreeing to 1e-5 relative.
 
 ## Undo / redo
 
@@ -151,7 +151,7 @@ It saves the **whole component**, not only the dimensions the picker's columns s
 
 Saved parts live in your browser alongside your custom materials and imported motors, so they follow you between designs but not between machines.
 
-**Menu → My Parts** is the library itself: every saved part of every type, whatever the open design happens to contain. The list is on the left, grouped by type; selecting a part opens it on the right.
+**Menu → My Parts** is the library itself: every saved part of every type, whatever the open design happens to contain. The list is on the left, grouped by type; selecting a part opens it on the right. It is offered wherever the Components panel is, and goes with it: a saved part is applied through a component, so a window that cannot add the component it belongs on would open the library onto a design it has no way to put anything into. The picker inside a part's own editor is a different thing and stays, since it re-sizes a part the design already has.
 
 The editor uses the same fields the component panel does, in the same units, so a saved nose cone is edited as a nose cone: rename it, change its maker or notes, change its shape, length, diameter, shoulder, material or color. **Save** writes it in place and leaves it selected, so a rename does not leave the old copy behind and you can work down the list without reopening anything. **Discard** puts the part back as it was stored, and switching to another part with unsaved edits asks first. **Delete** is in the same row, at the other end, and also asks. What the editor leaves out is the half of the panel that describes a part's place in a rocket (position, move, the fit-ranked picker, the descent-rate readout), because a saved part has no parent and no design to be judged against until you apply it. The picker only opens when a component of a matching type is selected, so it is not the place to manage a saved bulkhead on a rocket that has no bulkhead in it. Deleting asks first, in both places, because the design a part came from may be long gone.
 
@@ -166,7 +166,9 @@ It needs a motor loaded (to know the descent mass). It's an on-screen aid only �
 
 ## Materials
 
-Every structural component has a **material**, which the engine uses (by its **density**) to compute mass and CG:
+Every structural component has a **material**, which the engine uses (by its **density**) to compute mass and CG. A part you add carries one from the moment it exists: whatever you set in [Settings ▸ Materials](./settings.md#materials), or else the stock material the engine would weigh it with anyway: **Cardboard** for a solid part, **Ripstop nylon** for a canopy, **Elastic cord** for shroud lines and shock cord. Those are OpenRocket's own defaults, the same ones it builds every new component with.
+
+A part can still read **Not specified** if it came from a design saved before this app named them. It is not a weightless part: the engine falls back to the same three materials. Pick one from the list and the panel stops guessing.
 
 - **Built-in materials** — OpenRocket's full list (bulk / surface / line, with densities). Each kind has its own [density unit](./settings.md#units) — bulk stock by volume, parachute fabric by area, cord by length — and a custom material's density is read in whichever unit is shown.
 - **Custom materials** — define your own (name, density and which group it belongs in); they're saved in your browser and reusable across designs. A custom material sits **in that group**, marked with a ★, rather than in a group of its own: it is usually a variant of something already in the list, and it reads better beside it. Give one the **same name as a built-in** and it replaces that entry at your density instead of appearing twice.

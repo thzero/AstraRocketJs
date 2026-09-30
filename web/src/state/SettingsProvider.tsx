@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
-import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from '../services/settings';
+import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from '../services/storage/settings';
 
 interface SettingsCtx {
   settings: Settings;

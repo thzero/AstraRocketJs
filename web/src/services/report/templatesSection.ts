@@ -1,5 +1,5 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
-import { finPlanformMm, profileMm, type Pt } from '../reportGeometry';
+import { finPlanformMm, profileMm, type Pt } from './reportGeometry';
 import { parentRadiusOf } from '../../tree/finPlanform';
 import { num } from '../../tree/nodeProps';
 import { fmtNum } from '../../i18n/format';

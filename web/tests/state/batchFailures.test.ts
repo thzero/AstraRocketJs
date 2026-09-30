@@ -8,9 +8,9 @@ vi.mock('../../src/engine/simClient', async (orig) => ({
 }));
 
 import { useWorkspaceStore } from '../../src/state/store';
-import { C6 } from '../../src/engine/api';
+import { seatMotor, CURVELESS } from '../testing/seatMotor';
 import type { FlightResult } from '../../src/engine/openRocketEngine';
-import type { SimPrefs } from '../../src/services/simulations';
+import type { SimPrefs } from '../../src/services/flight/simulations';
 
 const st = () => useWorkspaceStore.getState();
 
@@ -52,10 +52,7 @@ describe('a batch where rows FAIL', () => {
     st().renameSim(st().sims[2]!.id, 'Charlie');
     st().commitEdit();
 
-    useWorkspaceStore.setState({
-      sims: st().sims.map((x) => ({ ...x, motor: C6 })),
-      err: null,
-    });
+    useWorkspaceStore.setState({ err: null });
   });
 
   it('names EVERY failed row, not just whichever finished last', async () => {
@@ -77,11 +74,7 @@ describe('a batch where rows FAIL', () => {
     // Charlie cannot fly at all (a curve-less motor is what an unresolved
     // `.ork` import leaves behind), so the skip path has something to say too.
     // Its line must not be written over the failures.
-    useWorkspaceStore.setState({
-      sims: st().sims.map((x) =>
-        x.name === 'Charlie' ? { ...x, motor: { ...C6, times: [], thrusts: [], masses: [] } } : x,
-      ),
-    });
+    seatMotor('Charlie', CURVELESS);
     // The payload carries no row identity, so key on call order: `flying` is
     // built in target order, and with Charlie skipped that is Alpha then Bravo.
     simulateMock.mockRejectedValueOnce(new Error('boom alpha')).mockResolvedValue(RESULT);

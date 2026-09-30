@@ -8,7 +8,7 @@ import UpstreamPin from '@site/src/components/UpstreamPin';
 
 :::info Snapshot, and how to read it
 
-Written **2026-09-22**, comparing **AstraRocketJs <AppVersion />** (engine built from OpenRocket <UpstreamPin />) against **desktop OpenRocket**: release **24.12**, the current numbered release, and the `unstable` development line the engine pin sits on.
+Written **2026-09-29**, comparing **AstraRocketJs <AppVersion />** (engine built from OpenRocket <UpstreamPin />) against **desktop OpenRocket**: release **24.12**, the current numbered release, and the `unstable` development line the engine pin sits on.
 
 :::
 
@@ -27,14 +27,11 @@ Everything that follows is therefore about **the program around the engine**: wh
 | **Rocket optimization** (search a design parameter for the best apogee, altitude or velocity) | Not available. OpenRocket's `optimization` package is not part of the extraction (`engine-java/extract/manifest.txt`), so the search machinery is not even in the bundled core. It would have to be rebuilt on the JavaScript side. |
 | **Custom expressions** (define your own flight variable from the simulated ones and plot it) | Not available, for the same reason: the `customexpression` package is not extracted. The flight CSV export hands you the raw series to compute from yourself. |
 | **Simulation extensions and scripting** (air-start, roll control, the JavaScript scripting extension) | Not available. The `simulation/extension` package is not extracted, so an extension cannot run. It shows in the bundled examples: the two "simulation extension" designs open and fly as ordinary airframes, which is exactly what their own descriptions say. |
-| **Flight configurations in the interface** (several named motor setups per design, switched from a dropdown) | Partly. A `.ork` carrying several configurations **round-trips** them, and an import warns when a configuration you did not open uses a motor missing from the catalog. But the app opens **one** as a single simulation, and there is no way to author or switch between them. |
 | **Appearance, decals and Photo Studio** (textures on components, rendered photos) | Not available. The core's `appearance` classes *are* extracted, so a file's appearance survives a round-trip, but nothing in the interface edits or draws it. The 3D view is a solid model. |
 | **Saving your own component to a preset library** | Partly. **Save as part** stores a component you built and offers it back in the picker on every design, whole: geometry, material, finish and color, not just the dimensions a catalog row publishes. **Menu → My Parts** lists, edits and removes them. What is missing is the file half: OpenRocket's presets are `.orc` files you can share and load, and a saved part here lives in your browser only. Assemblies are out too — a body tube saves without its fins. |
-| **Packed recovery-device dimensions** | Not available. Canopy and line materials, shroud count and length, and a streamer's Cd are all editable, but the *packed* length and radius are not read by the bundled core's component factory, so they cannot affect mass or CG. An `.ork` round-trip writes constants in their place. |
 | **Camera shrouds and other protuberances** | Not available. They are not first-class components in OpenRocket's own model either, so even there they contribute mass and a drawing rather than aerodynamics. |
 | **Printing** | A different shape. OpenRocket prints from a print dialog; here the design report is written as a **PDF** you then print, and its templates are 1:1. |
 | **Languages** | OpenRocket ships in more languages than this app does. |
-| **Validated staged flight** | Multi-stage rockets are authorable here and simulate as independent branches, and their static mass, CG and stability match desktop OpenRocket. The flown staged trajectory (separation and upper-stage ignition timing, booster descent) has **not** been checked end-to-end against the desktop yet. Treat staged flight results as preliminary. See [Safety](./safety.md). |
 
 ## What this has, and desktop OpenRocket does not
 
@@ -42,6 +39,7 @@ Everything that follows is therefore about **the program around the engine**: wh
 | --- | --- |
 | **Runs in a browser, installs, and works offline** | No JDK and no download. After the first visit the app, the engine and both catalogs stay on your device, so a full simulation runs at a field with no signal. See [Offline & Installing](./offline-and-installing.md). |
 | **A layout that fits a phone** | The desktop workbench becomes tabs along the bottom, with the rocket views turned a quarter turn so the airframe runs down the long edge of the screen. |
+| **Flight configurations** (several named setups per design, each with its own motors, recovery, staging and active stages) | A **Configurations** tab of its own: rows are configurations, columns are the mounts, chutes or stages they configure, and every simulation names the one it flies. A `.ork`'s configurations all come in, keeping the file's own ids, each with a simulation to fly it. See [Flight Configurations](./flight-configurations.md). |
 | **Ground-track view** | The flight seen from directly above, north up, pad at the center, with range rings and the landing distance and bearing for each stage. |
 | **Flight-path export to KML / GPX / waypoint CSV** | Opens the flight in Google Earth or a GPS app, with per-stage track colors, a mission name, summary balloons carrying the flight's numbers, and importable custom Mustache templates. |
 | **Whole-rocket 3MF, and per-part STL / GLB / 3MF** | One file with a named object per part, ready for a slicer. OpenRocket exports OBJ, which this does too; the rest is extra. |

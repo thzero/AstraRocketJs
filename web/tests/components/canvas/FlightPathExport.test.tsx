@@ -4,7 +4,7 @@ import { fireEvent, screen, within } from '@testing-library/react';
 import { ExportDialog } from '../../../src/components/canvas/FlightPathExport';
 import { readSettings, renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import type { FlightResult } from '../../../src/engine/openRocketEngine';
-import type { LaunchConditions } from '../../../src/services/orkTree';
+import type { LaunchConditions } from '../../../src/services/design/orkTree';
 
 const series = {
   time: [0, 1, 2],

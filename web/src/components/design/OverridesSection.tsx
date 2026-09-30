@@ -6,7 +6,7 @@ import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { num } from '../../tree/nodeProps';
-import { PANEL_SCOPE_KEYS } from '../../services/componentFields';
+import { PANEL_SCOPE_KEYS } from '../../services/design/componentFields';
 
 /**
  * The property panel's override section: the mass / CG / CD overrides

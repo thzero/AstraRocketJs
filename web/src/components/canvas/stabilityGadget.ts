@@ -1,5 +1,5 @@
 import type { StaticInfo } from '../../engine/openRocketEngine';
-import { stabilityState, type StabilityState } from '../../services/simReport.js';
+import { stabilityState, type StabilityState } from '../../services/flight/simReport.js';
 import { markerRadius } from './rocketPieces';
 
 /**

@@ -1,10 +1,10 @@
 import { Fragment, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { isAxial, hasCatalog, hasMaterial, catalogPatch, presetRef } from '../../services/treeEdit';
-import type { PickerType } from '../../services/componentDb';
-import type { FitContext } from '../../services/componentFilter';
-// Lazily loaded: it pulls in the ~740 kB component catalog (services/componentDb),
+import { isAxial, hasCatalog, hasMaterial, catalogPatch, presetRef } from '../../services/design/treeEdit';
+import type { PickerType } from '../../services/parts/componentDb';
+import type { FitContext } from '../../services/parts/componentFilter';
+// Lazily loaded: it pulls in the ~740 kB component catalog (services/parts/componentDb),
 // so it splits into its own chunk fetched only when a catalog part is selected.
 const ComponentPicker = lazy(() => import('./ComponentPicker').then((m) => ({ default: m.ComponentPicker })));
 // Lazy for the same reason and behind the same Suspense boundary: it is the
@@ -15,6 +15,7 @@ import { ErrorBoundary } from '../common/ErrorBoundary';
 import { AppearanceSection } from './AppearanceSection';
 import { FreeformFinEditor } from './FreeformFinEditor';
 import { RecoverySizingReadout } from './RecoverySizingReadout';
+import { ConfigOverrideNote } from './ConfigOverrideNote';
 import { useUnits } from '../../prefs/useUnits';
 import { num } from '../../tree/nodeProps';
 import { tubeFinMaxCount, tubeFinMaxRadius } from '../../tree/tubefins';
@@ -72,6 +73,7 @@ export function PropertyPanel({
   isFirstStage = false,
   parentRadius = 0,
   fit,
+  flush = false,
 }: {
   node: ComponentNode | null;
   onChange: (patch: Partial<ComponentNode>) => void;
@@ -90,15 +92,20 @@ export function PropertyPanel({
   parentRadius?: number;
   /** Geometry around this part, so the catalog picker can rank what fits it. */
   fit?: FitContext;
+  /**
+   * Drop the panel's own card, for a host that already is one. The right column
+   * needs the card to read as a panel against the pane behind it; the component
+   * dialog is already a slate-900 surface with a ring, and a second one inside
+   * it is a box drawn around the inside of a box.
+   */
+  flush?: boolean;
 }) {
   const { t } = useTranslation();
   const u = useUnits();
+  // The card is the panel's own surface, and the host says whether it needs one.
+  const card = flush ? '' : ' rounded-xl bg-slate-900 ring-1 ring-white/10';
   if (!node) {
-    return (
-      <section className="rounded-xl bg-slate-900 p-3 text-sm text-slate-500 ring-1 ring-white/10">
-        {t('prop.selectHint')}
-      </section>
-    );
+    return <section className={`p-3 text-sm text-slate-500${card}`}>{t('prop.selectHint')}</section>;
   }
 
   const fields = visibleFields(node, isFirstStage);
@@ -114,7 +121,7 @@ export function PropertyPanel({
   };
 
   return (
-    <section className="space-y-3 rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
+    <section className={`space-y-3 p-3${card}`}>
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</h2>
         <div className="flex items-center gap-1">
@@ -244,17 +251,6 @@ export function PropertyPanel({
         <AutoFinTabButton node={node} />
       </FieldSection>
 
-      {/* What the tube does for a MOTOR, as against what the tube is. A body
-          tube gets two of these rows and an inner tube three; both used to run
-          on under the radius and thickness. */}
-      <FieldSection
-        node={node}
-        title={t('prop.motor')}
-        fields={sectionFields(node, 'motor')}
-        onChange={onChange}
-        onCommit={onCommit}
-      />
-
       {/* The glue bead along the fin root. Its material is rarely the fin's own
           — epoxy on plywood — so it carries its own, beside the radius.
           The picker used to appear only once the radius was non-zero, on the
@@ -307,18 +303,25 @@ export function PropertyPanel({
         </p>
       )}
 
-      {/* Notes on this part, which the desktop gives a tab of its own and we
-          had been dropping on every save. Last, because it is the only field
-          that is about the builder rather than the rocket. */}
+      {hasMaterial(node.type) && <MaterialSection node={node} onCommitChange={commitChange} />}
+
+      {/* What the tube does for a MOTOR, as against what the tube IS. Only a
+          body tube (two rows) and an inner tube (six, the cluster among them)
+          have one; every other type renders nothing here.
+
+          Below the material rather than above it, because everything above this
+          point describes the tube itself - its dimensions, then what it is made
+          of - and this is the first section about the job it has been given. A
+          body tube's motor-mount switch sitting between its wall thickness and
+          its material split the description of one object in half, and on an
+          inner tube the cluster rows pushed the material six rows down. */}
       <FieldSection
         node={node}
-        title={t('prop.comment')}
-        fields={sectionFields(node, 'comment')}
+        title={t('prop.motor')}
+        fields={sectionFields(node, 'motor')}
         onChange={onChange}
         onCommit={onCommit}
       />
-
-      {hasMaterial(node.type) && <MaterialSection node={node} onCommitChange={commitChange} />}
 
       {/* Freeform fin: its defining feature is the outline polygon, edited
           graphically rather than as scalar fields. */}
@@ -337,8 +340,17 @@ export function PropertyPanel({
       )}
 
       {(node.type === 'parachute' || node.type === 'streamer') && (
-        <RecoveryMaterialSection node={node} onCommitChange={commitChange} />
+        <>
+          {/* The deployment fields above are the DESIGN's; a flight
+              configuration may open this device at another moment. */}
+          <ConfigOverrideNote node={node} />
+          <RecoveryMaterialSection node={node} onCommitChange={commitChange} />
+        </>
       )}
+
+      {/* Same for staging: the separation fields above are the design's, and a
+          configuration may let this booster go at another moment. */}
+      {(node.type === 'stage' || node.type === 'parallelstage') && <ConfigOverrideNote node={node} />}
 
       {/* Single or dual deployment, chosen on the STAGE, which is the only place
           OpenRocket offers it. A pod set is not a stage and has no recovery
@@ -366,13 +378,27 @@ export function PropertyPanel({
           itself. */}
       <ComponentActions node={node} />
 
-      {/* Overrides are LAST on every part, without exception. They are not a
-          property of the part the way its dimensions, material and placement
-          are: they are a deliberate override of what those add up to, reached
-          for rarely and after the part is described. Sitting in the middle,
-          between the material and the placement, they pushed the placement
-          rows below three rows nobody was looking for. */}
+      {/* Overrides are the last thing about the ROCKET on every part, without
+          exception. They are not a property of the part the way its dimensions,
+          material and placement are: they are a deliberate override of what
+          those add up to, reached for rarely and after the part is described.
+          Sitting in the middle, between the material and the placement, they
+          pushed the placement rows below three rows nobody was looking for. */}
       <OverridesSection node={node} onChange={onChange} onCommit={onCommit} />
+
+      {/* Notes on this part, which the desktop gives a tab of its own and we had
+          been dropping on every save. Dead last, below even the overrides: it is
+          the only field here that is about the BUILDER rather than the rocket,
+          so nothing the panel says about the part should be under it. It was
+          sitting above the material, which put a free-text box between the
+          part's dimensions and what it is made of. */}
+      <FieldSection
+        node={node}
+        title={t('prop.comment')}
+        fields={sectionFields(node, 'comment')}
+        onChange={onChange}
+        onCommit={onCommit}
+      />
     </section>
   );
 }

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { CatalogMotor } from '../../services/motorDb';
-import { combineCurves, impulseClass, type Sample } from '../../services/motorCombine';
+import type { CatalogMotor } from '../../services/motors/motorDb';
+import { combineCurves, impulseClass, type Sample } from '../../services/motors/motorCombine';
 import { useUnits } from '../../prefs/useUnits';
 import { Stat } from './MotorDetail';
 import { keyOf } from './motorKey';

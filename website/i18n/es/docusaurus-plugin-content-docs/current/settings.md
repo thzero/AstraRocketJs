@@ -76,7 +76,7 @@ Las unidades son una preferencia de **visualización y entrada**. Tu diseño se 
 
 De qué está hecha una **pieza recién añadida**. Una fila por hueco de material: los catorce tipos de pieza estructural, más la tela y las cuerdas de un paracaídas, una cinta y un cordón de choque, porque una pieza puede llevar más de un tipo de material a la vez.
 
-La elección se gasta al añadir la pieza: el material se escribe en ella en ese momento, así que aparece en el panel de propiedades y viaja con el diseño en el `.ork`. Las piezas que ya están en el cohete no se tocan, ni tampoco un diseño que abras.
+La elección se gasta al añadir la pieza: el material se escribe en ella en ese momento, así que aparece en el panel de propiedades y viaja con el diseño en el `.ork`. Las piezas que ya están en el cohete no se tocan, ni tampoco un diseño que abras. Si dejas una fila sin poner, la pieza recibe el material de serie del motor para ese hueco (Cardboard, Ripstop nylon o Elastic cord), así que una pieza nueva siempre dice de qué está hecha.
 
 Eso no es como funciona la preferencia equivalente de OpenRocket de escritorio, y es a propósito. El escritorio deja la pieza sin asignar y aplica tu preferencia al calcular la masa, lo que significa que el mismo archivo pesa una cosa en la máquina que lo creó y otra en la máquina a la que se lo enviaste. Aquí lo que elegiste está en el archivo.
 

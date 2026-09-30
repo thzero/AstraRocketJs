@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
 import type { StaticInfo } from '../../engine/api';
-import { stabilityTone, stabilityVerdictKey } from '../../services/simReport';
+import { stabilityTone, stabilityVerdictKey } from '../../services/flight/simReport';
 import { Stat } from '../common/Stat';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';

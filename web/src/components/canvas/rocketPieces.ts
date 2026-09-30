@@ -12,10 +12,10 @@ import {
 import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { outerProfile } from '../../tree/shapeProfile.js';
-import { colorForType, DEFAULT_PART_COLORS, type PartPalette } from '../../services/partColors';
-import { COMPONENT_DEFAULTS } from '../../services/componentDefaults';
-import { DISC_TYPES } from '../../services/componentFormats';
-import { resolveDisc } from '../../services/discGeometry';
+import { colorForType, DEFAULT_PART_COLORS, type PartPalette } from '../../services/design/partColors';
+import { COMPONENT_DEFAULTS } from '../../services/design/componentDefaults';
+import { DISC_TYPES } from '../../services/files/componentFormats';
+import { resolveDisc } from '../../services/design/discGeometry';
 import { axialStart, colorOf, internalExtent, type MotorDims } from './schematicGeometry';
 
 /**

@@ -1,0 +1,441 @@
+import type { MotorSpec } from '../../engine/openRocketEngine';
+import type { CatalogMotor } from './motorDb';
+import { getMotorStore, isThrustSampleArray, type CustomMotor } from './motorStore';
+import { declaredLength, readStreamWithProgress } from '../app/fetchProgress';
+
+/**
+ * thrustcurve.org API v1 client (CORS-enabled; verified reflective
+ * Access-Control-Allow-Origin). The VC catalog gives us only specs — no
+ * motorId, length or propellant weight — so at pick time we resolve the full
+ * motor via search.json, then pull its thrust CURVE via download.json. API
+ * units are mm / grams; converted to the engine's SI at the boundary here.
+ *
+ * "Store both in local": the catalog lives in localStorage (motorDb.ts) and the
+ * resolved MotorSpec (metadata + curve) is cached here, so a picked motor is
+ * fully available offline after the first fetch.
+ */
+const API = 'https://www.thrustcurve.org/api/v1';
+
+/** The thrustcurve fields we need beyond the VC catalog to build a MotorSpec. */
+interface TcMotor {
+  motorId: string;
+  designation: string;
+  commonName: string;
+  manufacturerAbbrev: string;
+  /** mm */
+  diameter: number;
+  /** mm */
+  length: number;
+  totalWeightG: number;
+  propWeightG: number;
+  availability: string;
+}
+
+interface TcSample {
+  time: number;
+  thrust: number;
+}
+
+// Most motors ship their curve in the bundled catalog and never hit the network;
+// only the handful without a bundled curve reach thrustcurve.org. Cap that fetch
+// so a slow/unreachable server fails cleanly instead of hanging "Loading…".
+const FETCH_TIMEOUT_MS = 5_000;
+const MAX_RESPONSE_BYTES = 16 * 1024 * 1024; // 16 MiB — motor lists/curves are KB-scale
+/** Budget for the body once headers are in, separate from the first-byte one. */
+const BODY_TIMEOUT_MS = 20_000;
+
+async function post<T>(path: string, body: unknown): Promise<T> {
+  const ctl = new AbortController();
+  // Staged, the way remoteData.fetchJson does it. The first budget covers
+  // time-to-first-byte; once headers are in, the host is alive and the body
+  // gets its own. A single budget spanning both would cut off a slow download.
+  let timer = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${API}/${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctl.signal,
+    });
+    clearTimeout(timer);
+    timer = setTimeout(() => ctl.abort(), BODY_TIMEOUT_MS);
+    if (!res.ok) throw new Error(`thrustcurve.org ${path} → HTTP ${res.status}`);
+    const len = Number(res.headers.get('content-length'));
+    if (Number.isFinite(len) && len > MAX_RESPONSE_BYTES) throw new Error(`thrustcurve.org ${path} response too large`);
+    // AWAITED, not returned: `finally` runs at the `return` statement, so
+    // returning the unawaited promise cleared the abort timer before the body
+    // had been read. A host that sent headers and then stalled hung the motor
+    // picker forever, with the only timeout already canceled.
+    //
+    // Streamed rather than res.json() so MAX_RESPONSE_BYTES is enforced on the
+    // bytes RECEIVED. The content-length check above only fires when the host
+    // declared one; a chunked response declared none and buffered unbounded.
+    if (!res.body) return await (res.json() as Promise<T>);
+    const bytes = await readStreamWithProgress(res.body, declaredLength(res), () => {}, MAX_RESPONSE_BYTES);
+    return JSON.parse(new TextDecoder().decode(bytes)) as T;
+  } catch (e) {
+    if (ctl.signal.aborted) {
+      // Keep the abort as the cause: without it the original DOMException is
+      // gone and a bug report shows only the friendly text. Assigned after
+      // construction because the ErrorOptions form is ES2022 and the tsconfig
+      // lib is ES2020.
+      const err = new Error('thrustcurve.org timed out - check your connection and try again.');
+      (err as { cause?: unknown }).cause = e;
+      throw err;
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Pure transform: thrust samples + catalog metadata → engine MotorSpec.
+ * Mass at each sample time interpolates from total weight down to burnout
+ * weight proportionally to CUMULATIVE IMPULSE (trapezoidal), matching how
+ * OpenRocket treats .eng files. CG uses the file's real launch CG (`cgSamples`,
+ * from the RockSim data) when available, else falls back to half the motor
+ * length — the same approximation OpenRocket applies to RASP data without CG.
+ */
+export function samplesToMotorSpec(
+  motor: TcMotor,
+  samples: TcSample[],
+  ejectionDelay: number,
+  cgSamples?: [number, number][],
+  /**
+   * Mass at each sample, kg, parallel to `samples` BEFORE the normalization
+   * below. Only a `.rse` import has one: the format measures the mass curve
+   * rather than leaving it to be reconstructed. Ignored unless it matches the
+   * samples one for one, because a column that has to be stretched to fit is a
+   * guess wearing the clothes of a measurement.
+   */
+  massSamples?: number[],
+): MotorSpec {
+  // Normalize: sorted, starting at t=0. A supplied mass column RIDES ALONG
+  // through both steps rather than being indexed separately afterwards, so a
+  // file whose samples are not in time order cannot end up with its masses
+  // against the wrong times, and the prepended t=0 point takes the first
+  // mass (the loaded mass) rather than shifting the whole column by one.
+  const measured = massSamples?.length === samples.length ? massSamples : undefined;
+  const pts = samples.map((s, i) => ({ ...s, mass: measured?.[i] })).sort((a, b) => a.time - b.time);
+  if (pts.length === 0) {
+    throw new Error(`No thrust samples for ${motor.designation}`);
+  }
+  if (pts[0]!.time > 0) {
+    pts.unshift({ time: 0, thrust: 0, mass: pts[0]!.mass });
+  }
+
+  // thrustcurve.org's catalog is not uniformly populated: some entries publish
+  // no loaded/propellant weight, and a few list more propellant than loaded
+  // mass. Without this guard those become NaN / negative masses that reach the
+  // kernel, where TeaVM throws a raw "cannot be converted to a BigInt" and the
+  // whole design blanks. Refuse with something a rocketeer can act on.
+  if (!Number.isFinite(motor.totalWeightG) || !Number.isFinite(motor.propWeightG)) {
+    throw new Error(
+      `thrustcurve.org publishes no loaded/propellant weight for ${motor.designation}, ` +
+        'so it cannot be simulated. Pick another motor.',
+    );
+  }
+  if (motor.propWeightG > motor.totalWeightG) {
+    throw new Error(
+      `${motor.designation} is cataloged with more propellant (${motor.propWeightG} g) than ` +
+        `loaded mass (${motor.totalWeightG} g), so its burn would end at a negative mass. ` +
+        'Pick another motor.',
+    );
+  }
+  // diameter/length feed kernel geometry (÷1000 → m); a malformed/compromised
+  // catalog entry with a non-finite or non-positive size would NaN/blank the design.
+  const badSize = (v: number) => !Number.isFinite(v) || v <= 0;
+  if (badSize(motor.diameter) || badSize(motor.length)) {
+    throw new Error(
+      `thrustcurve.org gives ${motor.designation} a bad size ` +
+        `(diameter ${motor.diameter} mm, length ${motor.length} mm), so it can't be simulated. Pick another motor.`,
+    );
+  }
+
+  const totalMass = motor.totalWeightG / 1000;
+  const propMass = motor.propWeightG / 1000;
+
+  // Cumulative impulse via trapezoid rule.
+  const cumImpulse: number[] = [0];
+  for (let i = 1; i < pts.length; i++) {
+    const dt = pts[i]!.time - pts[i - 1]!.time;
+    const area = (dt * (pts[i]!.thrust + pts[i - 1]!.thrust)) / 2;
+    cumImpulse.push(cumImpulse[i - 1]! + area);
+  }
+  const totImpulse = cumImpulse[cumImpulse.length - 1]!;
+
+  const times = pts.map((p) => p.time);
+  const thrusts = pts.map((p) => p.thrust);
+  // The file's own mass curve when it has one, else the reconstruction: mass
+  // falls from loaded to burnout in proportion to cumulative impulse. That is
+  // what OpenRocket does for a RASP file and, via `AbstractMotorLoader
+  // .calculateMass`, for a `.rse` that asks for its mass to be auto-calculated
+  // — the same arithmetic, so `.rse` import ports no copy of it.
+  const masses = measured
+    ? pts.map((p) => p.mass!)
+    : cumImpulse.map((impulse) => (totImpulse > 0 ? totalMass - propMass * (impulse / totImpulse) : totalMass));
+
+  return {
+    designation: motor.designation,
+    manufacturer: motor.manufacturerAbbrev,
+    diameter: motor.diameter / 1000,
+    length: motor.length / 1000,
+    times,
+    thrusts,
+    masses,
+    // Real launch CG from the file (m from nose) when the sync bundled it, else
+    // mid-length — matching OpenRocket, which reads CG from the RockSim file and
+    // falls back to half-length for RASP-only motors.
+    cgX: cgSamples?.[0]?.[1] ?? motor.length / 2000,
+    ejectionDelay,
+  };
+}
+
+/**
+ * Resolves a VC catalog row to the full thrustcurve record (motorId, length,
+ * propellant weight) — the fields the catalog omits. Searches by common name
+ * first (the catalog stores commonName||designation), then designation, and
+ * disambiguates by diameter and in-production status.
+ */
+/**
+ * A search.json hit this module can act on: a string `motorId` (the key the
+ * curve is fetched and cached by) and a finite `diameter` (what `pick` sorts
+ * on). The network result was used and cached with NO shape check while only
+ * the cache READ checked `.motorId`: a hit without one was written to the
+ * cache, then requested from download.json as `motorIds: [undefined]`.
+ * Weights and length are checked later, in samplesToMotorSpec, with errors
+ * that name the motor.
+ */
+const isTcMotor = (v: unknown): v is TcMotor => {
+  const m = v as TcMotor | null;
+  return (
+    !!m &&
+    typeof m === 'object' &&
+    typeof m.motorId === 'string' &&
+    m.motorId.length > 0 &&
+    typeof m.designation === 'string' &&
+    Number.isFinite(m.diameter)
+  );
+};
+
+async function resolveTcMotor(cat: CatalogMotor): Promise<TcMotor> {
+  const pick = (list: TcMotor[]): TcMotor | undefined => {
+    if (list.length === 0) return undefined;
+    return [...list].sort(
+      (a, b) =>
+        Math.abs(a.diameter - cat.diameter) - Math.abs(b.diameter - cat.diameter) ||
+        Number(b.availability === 'regular') - Number(a.availability === 'regular'),
+    )[0];
+  };
+
+  for (const query of [{ commonName: cat.designation }, { designation: cat.designation }]) {
+    const { results } = await post<{ results?: unknown }>('search.json', {
+      manufacturer: cat.manufacturer,
+      ...query,
+      maxResults: 25,
+    });
+    const hit = pick(Array.isArray(results) ? results.filter(isTcMotor) : []);
+    if (hit) return hit;
+  }
+  throw new Error(`Could not find ${cat.manufacturer} ${cat.designation} on thrustcurve.org`);
+}
+
+// Per-motor entries (curve, metadata, resolved spec) revalidate on the
+// MotorStore's TTL (see below). CACHE_VERSION is the separate GLOBAL reset:
+// bump it to invalidate every per-motor entry at once (e.g. if this pipeline's
+// math or shapes change), since it namespaces every key. Catalog updates are a
+// separate, build-time concern (see motorDb.ts / scripts/sync-motors.mjs).
+const CACHE_VERSION = 'v1';
+const SPEC_PREFIX = `astrarrocketjs:tc:${CACHE_VERSION}:motor:`;
+const SAMPLE_PREFIX = `astrarrocketjs:tc:${CACHE_VERSION}:samples:`;
+const META_PREFIX = `astrarrocketjs:tc:${CACHE_VERSION}:meta:`;
+
+/** Stable localStorage key for a picked motor + delay. */
+function specKey(cat: CatalogMotor, ejectionDelay: number): string {
+  return `${SPEC_PREFIX}${cat.manufacturer}:${cat.designation}:${ejectionDelay}`;
+}
+
+/** Delay-independent key for a motor's resolved thrustcurve metadata. */
+function metaKey(cat: CatalogMotor): string {
+  return `${META_PREFIX}${cat.manufacturer}:${cat.designation}`;
+}
+
+// thrustcurve's sample FILES are not immutable — contributors revise/replace
+// them over time — so the per-motor entries revalidate lazily: the MotorStore
+// reports each entry's staleness (its TTL/freshness policy), and we re-fetch
+// only for a motor the user picks AGAIN once its entry has aged out. Falling
+// back to the stale value keeps a failed refresh (offline / API down) working.
+// One definition, in motorStore.ts beside the store that persists these. This
+// copy accepted NaN and Infinity, which `typeof === 'number'` lets through.
+const isSampleArray = isThrustSampleArray;
+
+// A cached spec is checked the way a cached curve is: every sample of all three
+// arrays finite, not just non-empty. Length alone let a spec whose arrays had
+// been serialized with nulls (a NaN mass, an Infinity time) straight back into
+// the kernel, the same BigInt crash the sample guard exists to stop.
+const isFiniteArray = (xs: unknown): xs is number[] =>
+  Array.isArray(xs) && xs.length > 0 && xs.every((x) => Number.isFinite(x));
+
+/** Exported for test: the cache-read validator for a stored MotorSpec. */
+export const isCachedMotorSpec = (v: unknown): boolean => {
+  const s = v as MotorSpec | null;
+  return (
+    !!s &&
+    typeof s === 'object' &&
+    isFiniteArray(s.times) &&
+    isFiniteArray(s.thrusts) &&
+    isFiniteArray(s.masses) &&
+    s.times.length === s.thrusts.length &&
+    s.times.length === s.masses.length
+  );
+};
+const isSpec = isCachedMotorSpec;
+
+/**
+ * The resolved thrustcurve record (motorId, dimensions, weights) for a catalog
+ * motor. Cached by a delay-independent key; refreshed lazily once past the TTL,
+ * and falling back to the stale copy if thrustcurve is unreachable.
+ */
+async function resolveTcMotorCached(cat: CatalogMotor): Promise<TcMotor> {
+  const key = metaKey(cat);
+  const cached = await getMotorStore().readEntry<TcMotor>(key, isTcMotor);
+  if (cached && !cached.stale) return cached.value;
+  try {
+    const motor = await resolveTcMotor(cat);
+    await getMotorStore().writeEntry(key, motor);
+    return motor;
+  } catch (e) {
+    if (cached) return cached.value; // stale-but-usable beats failing
+    throw e;
+  }
+}
+
+/**
+ * The thrust curve for a motor. TTL-cached; revalidates lazily the next time
+ * the motor is picked past the TTL, and falls back to the stale curve if the
+ * refresh fails (offline / API down).
+ */
+async function fetchSamplesCached(motor: TcMotor, cat: CatalogMotor): Promise<TcSample[]> {
+  const key = SAMPLE_PREFIX + motor.motorId;
+  const cached = await getMotorStore().readEntry<TcSample[]>(key, isSampleArray);
+  if (cached && !cached.stale) return cached.value;
+  try {
+    const body = await post<{ results?: { format: string; samples?: TcSample[] }[] }>('download.json', {
+      motorIds: [motor.motorId],
+      data: 'samples',
+    });
+    const files = body.results ?? [];
+    // Prefer RASP data, fall back to any file with samples.
+    const file = files.find((f) => f.format === 'RASP' && f.samples?.length) ?? files.find((f) => f.samples?.length);
+    if (!file?.samples) {
+      if (cached) return cached.value;
+      throw new Error(`No thrust-curve data available for ${cat.designation}`);
+    }
+    // Validate the NETWORK path with the same guard the cache read uses
+    // (line ~257). Only the cached branch was checked, so a garbled or hostile
+    // download.json carrying `samples: [{time: null, thrust: 5}]` went straight
+    // into samplesToMotorSpec: cumImpulse NaN, nulls through times/masses, and
+    // the whole array across the TeaVM boundary, where it surfaces as the
+    // opaque "cannot be converted to a BigInt" blank design this file already
+    // documents.
+    if (!isSampleArray(file.samples)) {
+      if (cached) return cached.value;
+      throw new Error(`Thrust-curve data for ${cat.designation} is malformed`);
+    }
+    await getMotorStore().writeEntry(key, file.samples);
+    return file.samples;
+  } catch (e) {
+    if (cached) return cached.value; // offline / API down — use the stale curve
+    throw e;
+  }
+}
+
+/**
+ * Builds the full MotorSpec for a catalog motor: resolve metadata, fetch the
+ * thrust curve, interpolate masses. Every layer is TTL-cached in localStorage
+ * (spec by motor+delay, metadata and curve by motor) so a repeat pick is
+ * offline and instant, while a stale curve refreshes on its next use.
+ */
+export async function fetchMotorSpec(cat: CatalogMotor, ejectionDelay: number, curveIndex = 0): Promise<MotorSpec> {
+  // Imported (.eng / .rse) motors carry their own curve — build the spec from
+  // local data, no thrustcurve lookup.
+  if (cat.custom && cat.id) {
+    const id = cat.id;
+    const cm = (await getMotorStore().listCustomMotors()).find((m) => m.id === id);
+    if (!cm) {
+      throw new Error(`Imported motor ${cat.designation} is no longer stored — re-import its motor file.`);
+    }
+    return customMotorToSpec(cm, ejectionDelay);
+  }
+
+  // Bundled catalog motor carrying its thrust curve(s) → build entirely from
+  // local data, no thrustcurve.org fetch (the offline/instant path). Uses the
+  // selected curve (default: the best/first).
+  const curve = cat.curves?.[curveIndex] ?? cat.curves?.[0];
+  if (curve && curve.samples.length > 0 && cat.length != null && cat.propWeightG != null) {
+    const spec = samplesToMotorSpec(
+      {
+        motorId: `${cat.manufacturer}:${cat.designation}`,
+        designation: cat.designation,
+        commonName: cat.designation,
+        manufacturerAbbrev: cat.manufacturer,
+        diameter: cat.diameter,
+        length: cat.length,
+        totalWeightG: cat.mass,
+        propWeightG: cat.propWeightG,
+        availability: 'regular',
+      },
+      curve.samples.map(([time, thrust]) => ({ time, thrust })),
+      ejectionDelay,
+      cat.cg,
+    );
+    return { ...spec, curveSrc: curve.src };
+  }
+
+  const key = specKey(cat, ejectionDelay);
+  const cached = await getMotorStore().readEntry<MotorSpec>(key, isSpec);
+  if (cached && !cached.stale) return cached.value;
+  try {
+    const motor = await resolveTcMotorCached(cat);
+    const samples = await fetchSamplesCached(motor, cat);
+    const spec = samplesToMotorSpec(motor, samples, ejectionDelay);
+    await getMotorStore().writeEntry(key, spec);
+    return spec;
+  } catch (e) {
+    if (cached) return cached.value; // stale spec fallback
+    throw e;
+  }
+}
+
+/**
+ * A parsed `.eng` / `.rse` motor as a flyable {@link MotorSpec}.
+ *
+ * Exported because such a motor does not have to be in the user's own custom
+ * list to be flyable: a `.ork` from the desktop EMBEDS the thrust curve of every
+ * motor it uses, and `loadOrk` builds a spec straight from one of those rather
+ * than leaving the mount empty. Nothing is written to the store on that path -
+ * the curve belongs to the design that carried it, not to the user's catalog.
+ */
+export function customMotorToSpec(cm: CustomMotor, ejectionDelay: number): MotorSpec {
+  return samplesToMotorSpec(
+    {
+      motorId: cm.id,
+      designation: cm.designation,
+      commonName: cm.designation,
+      manufacturerAbbrev: cm.manufacturer,
+      diameter: cm.diameter,
+      length: cm.length,
+      totalWeightG: cm.totalWeightG,
+      propWeightG: cm.propWeightG,
+      availability: 'custom',
+    },
+    cm.samples,
+    ejectionDelay,
+    // Both are `.rse`-only, and both are stored in the file's units: the CG as a
+    // launch value in mm from the motor's forward end (the spec wants m), the
+    // masses in grams (the spec wants kg).
+    cm.cgMm === undefined ? undefined : [[0, cm.cgMm / 1000]],
+    cm.massesG?.map((g) => g / 1000),
+  );
+}

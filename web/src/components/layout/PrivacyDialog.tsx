@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { appName } from '../../services/appInfo';
+import { appName } from '../../services/app/appInfo';
 import { Dialog } from '../common/Dialog';
 
 /** Privacy policy modal: the app is client-only; nothing leaves the device

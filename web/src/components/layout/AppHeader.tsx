@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { APP_VERSION, isPreRelease } from '../../services/appInfo';
+import { APP_VERSION, isPreRelease } from '../../services/app/appInfo';
 import { useWorkspaceStore } from '../../state/store';
 import { useHelpStore } from '../../state/helpStore';
 import { LanguageSwitcher } from './LanguageSwitcher';
@@ -30,7 +30,7 @@ export function AppHeader() {
   // A second input for the same handler, differing only in its `accept`. One
   // input filtered to both would show `.ork` files to somebody who picked
   // RockSim from the menu; the reader sniffs the bytes either way
-  // (services/designFile.ts), so a mislabeled file still opens.
+  // (services/files/designFile.ts), so a mislabeled file still opens.
   const rktRef = useRef<HTMLInputElement>(null);
   const { open, dialogs } = useHeaderDialogs();
   const openHelp = useHelpStore((s) => s.openHelp);
@@ -43,36 +43,36 @@ export function AppHeader() {
     // right edge and make the whole DOCUMENT scroll sideways, sliding the bottom
     // tab bar out of view. Wrapping keeps every control reachable and the page
     // exactly one viewport wide, at any width and in any language.
-    <header className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3">
+    <header className="flex flex-wrap items-center gap-1.5 border-b border-white/10 px-4 py-3 xl:gap-2">
+      {/* The mark, the name and the three badges are the app's identity, and they
+          read the same at every width: no breakpoint takes one of them away, so
+          nobody has to learn that a narrower window means a different header.
+          What gives when the row runs short is elsewhere - the save status' age
+          and the menu's word below xl - and below that the row wraps, which is
+          what it has always done on a phone. */}
       <span className="text-xl">🚀</span>
       <h1 className="text-base font-semibold tracking-tight">{t('app.title')}</h1>
-      {/* The three static badges - version, pre-release, engine backend - are
-          `hidden` under xl, and EngineBadge carries the same gate.
-
-          At the lg breakpoint (1024) the workbench tabs appear and the save
-          status is showing, and the row then needs up to 1046px of the 992 it
-          has: it wraps to two lines in de, es, fr, nl, pt-PT and ru, which puts
-          back the row the tabs were moved into the header to save. These three
-          cost 160px with their gaps and are the only things here that are
-          neither a control nor live state - the version and the backend are
-          both in the About dialog, and the pre-release state has its own
-          blocking notice on first visit. */}
-      <button
-        onClick={() => open('about')}
-        title={t('about.open')}
-        className="hidden rounded text-[10px] font-medium tabular-nums text-slate-500 hover:text-sky-400 xl:inline"
-      >
-        v{APP_VERSION}
-      </button>
-      {isPreRelease() && (
-        <span
-          title={t('about.wip')}
-          className="hidden rounded bg-amber-500/10 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-300 ring-1 ring-amber-400/30 xl:inline"
+      {/* The three static badges - version, pre-release, engine backend - in one
+          pill rather than three: three cost two extra gaps and two extra sets of
+          padding to say one thing, and a row of small unrelated-looking chips
+          reads as clutter where a single grouped one reads as a stamp. The colors
+          separate them: the backend is emerald for WebAssembly and slate for the
+          JavaScript fallback, the pre-release word is amber. */}
+      <span className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-[10px] leading-none ring-1 ring-white/10">
+        <button
+          onClick={() => open('about')}
+          title={t('about.open')}
+          className="font-medium tabular-nums text-slate-500 hover:text-sky-400"
         >
-          {t('wip.badge')}
-        </span>
-      )}
-      <EngineBadge />
+          v{APP_VERSION}
+        </button>
+        {isPreRelease() && (
+          <span title={t('about.wip')} className="text-[9px] font-semibold uppercase tracking-wide text-amber-300">
+            {t('wip.badge')}
+          </span>
+        )}
+        <EngineBadge />
+      </span>
       <SaveStatus />
 
       {/* The desktop workbench tabs live in the header's dead middle rather than
@@ -80,7 +80,7 @@ export function AppHeader() {
           TabBar takes over. */}
       <WorkbenchTabs />
 
-      <div className="ml-auto flex shrink-0 items-center gap-2">
+      <div className="ml-auto flex shrink-0 items-center gap-1.5 xl:gap-2">
         <UndoRedoButtons />
         <LanguageSwitcher />
         <FileMenuButton

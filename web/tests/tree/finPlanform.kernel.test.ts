@@ -11,7 +11,7 @@ import {
   trapezoidFinPoints,
 } from '../../src/tree/finPlanform';
 import { tubeFinRadius } from '../../src/tree/tubefins';
-import { finPlanformMm } from '../../src/services/reportGeometry';
+import { finPlanformMm } from '../../src/services/report/reportGeometry';
 
 /**
  * DIFFERENTIAL TEST: the ported fin geometry vs the OpenRocket kernel.

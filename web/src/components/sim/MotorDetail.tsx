@@ -2,9 +2,9 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
-import type { CatalogMotor } from '../../services/motorDb';
-import { initialThrust } from '../../services/motorPicker';
-import { avgThrustOf, ispOf, massFracOf } from '../../services/motorMath';
+import type { CatalogMotor } from '../../services/motors/motorDb';
+import { initialThrust } from '../../services/motors/motorPicker';
+import { avgThrustOf, ispOf, massFracOf } from '../../services/motors/motorMath';
 import { ChartAxes, CHART_HEADROOM, chartScales, linePath, baselineArea } from './chartAxes';
 import { inUserUnit, withUnit } from './motorFormat';
 

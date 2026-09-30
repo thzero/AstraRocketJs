@@ -4,7 +4,7 @@ import { test, expect, openTab, ready, runFlight, type Page } from './base';
  * Map imagery under the ground track.
  *
  * The tile math is covered against hand-computed figures in
- * `services/slippyMap.test.ts`, and which tiles get asked for in
+ * `services/map/slippyMap.test.ts`, and which tiles get asked for in
  * `components/canvas/GroundTrack.test.tsx`. What neither can check is the part
  * that only a real layout engine decides: whether the scaled tile layer
  * actually lands on the geometry drawn over it. A layer half a box out still
@@ -29,7 +29,37 @@ async function rects(page: Page) {
   });
 }
 
-/** A flight with a real drift, so the view is sized to a track rather than a dot. */
+/**
+ * The drift readout, checked by its SHAPE and a band rather than by its digits.
+ *
+ * The same design in the same wind lands on 377 m or 378 m from one run to the
+ * next, so an exact string fails about one run in four. Both tests here are
+ * about the readout being ON SCREEN (the pane used to cut its ends off), and
+ * neither is the place that owns the number: `driftEllipse.test.ts` and
+ * `groundTrack.test.ts` do. The band is wide enough to absorb the meter that
+ * moves and far too narrow to absorb a change to the design.
+ */
+async function expectDrift(page: Page): Promise<void> {
+  const readout = page.getByRole('group', { name: /Where each stage landed/i }).getByText(/^\d+ m · \d+°$/);
+  await expect(readout).toBeInViewport();
+  const figures = /^(\d+) m · (\d+)°$/.exec((await readout.innerText()).trim());
+  expect(figures).not.toBeNull();
+  const [, meters, bearing] = figures!;
+  expect(Number(meters)).toBeGreaterThanOrEqual(370);
+  expect(Number(meters)).toBeLessThanOrEqual(385);
+  expect(Number(bearing)).toBeGreaterThanOrEqual(265);
+  expect(Number(bearing)).toBeLessThanOrEqual(275);
+}
+
+/**
+ * A flight with a real drift, so the view is sized to a track rather than a dot.
+ *
+ * The distance the two tests below check is the DEFAULT rocket's, flown into a
+ * 7 m/s wind, so it moves whenever that design does: it was 364 m until the
+ * default rocket got the materials a real one is built from (polystyrene nose,
+ * basswood fins), which took 3 g off it and sent it a little higher and further
+ * downwind.
+ */
 async function flyDownwind(page: Page): Promise<void> {
   await ready(page);
   await openTab(page, 'Simulations');
@@ -91,7 +121,7 @@ test('the tile layer covers the plot it sits under, exactly', async ({ page }) =
   expect(Math.abs(layer!.h - box!.h)).toBeLessThanOrEqual(1);
 
   // Square, because a plan view with different scales on its two axes is not a
-  // map (services/groundTrack.ts).
+  // map (services/flight/groundTrack.ts).
   expect(Math.abs(box!.w - box!.h)).toBeLessThanOrEqual(1);
 });
 
@@ -102,7 +132,7 @@ test('the layer buttons and the drift readout are not clipped by the square', as
   // Sized to the whole pane, the pane overflows by the height of the readout
   // beneath it and the centered overflow is cut off at both ends, taking the
   // distance and bearing with it - the two numbers this view exists to give.
-  await expect(page.getByText(/364 m · 270°/)).toBeInViewport();
+  await expectDrift(page);
   await expect(page.getByRole('button', { name: 'Satellite', exact: true })).toBeInViewport();
   // The provider's attribution is a condition of using the tiles at all.
   await expect(page.getByText(/Imagery: Esri/)).toBeInViewport();
@@ -116,7 +146,7 @@ test('turns the imagery off and keeps the measurement', async ({ page }) => {
   expect((await rects(page)).tiles).toBe(0);
   // The rings and the readout are what the view was before imagery, and still is.
   await expect(page.getByRole('img', { name: /over the ground/i })).toBeVisible();
-  await expect(page.getByText(/364 m · 270°/)).toBeInViewport();
+  await expectDrift(page);
 
   // And back on, which is the half of a toggle that is easy to leave broken.
   await page.getByRole('button', { name: 'Satellite', exact: true }).click();

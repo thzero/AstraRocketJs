@@ -4,7 +4,7 @@ import { fireEvent, screen } from '@testing-library/react';
 import { StageRecovery } from '../../../src/components/design/StageRecovery';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import { useWorkspaceStore } from '../../../src/state/store';
-import { recoveryDevices } from '../../../src/services/treeEdit';
+import { recoveryDevices } from '../../../src/services/design/treeEdit';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
 
 /**

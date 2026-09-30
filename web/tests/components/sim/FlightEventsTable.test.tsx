@@ -3,12 +3,12 @@ import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, screen, within } from '@testing-library/react';
 import { FlightEventsTable } from '../../../src/components/sim/FlightEventsTable';
 import { renderWithProviders } from '../../testing/renderWithProviders';
-import * as saveFile from '../../../src/services/saveFile';
+import * as saveFile from '../../../src/services/files/saveFile';
 import type { FlightResult, FlightSeries } from '../../../src/engine/openRocketEngine';
 
 /**
  * The timeline as it is actually read. The row join is proved in
- * services/flightEvents.test.ts; what this covers is what that join is FOR —
+ * services/flight/flightEvents.test.ts; what this covers is what that join is FOR —
  * that an event's own numbers land on its own row, that the extras a type is
  * read for appear only on that type, and that a stage is named only when there
  * is more than one.

@@ -11,7 +11,8 @@ vi.mock('../../src/engine/simClient', async (orig) => ({
 
 import { useWorkspaceStore } from '../../src/state/store';
 import { C6 } from '../../src/engine/api';
-import { simStatus, type SimPrefs } from '../../src/services/simulations';
+import { findMounts } from '../../src/services/design/treeEdit';
+import { simStatus, type SimPrefs } from '../../src/services/flight/simulations';
 import type { FlightResult } from '../../src/engine/openRocketEngine';
 // The real class (the mock spreads the actual module), so the store's
 // `instanceof SimCanceledError` check sees the same identity it would in the app.
@@ -20,6 +21,8 @@ import type { SimCallOptions } from '../../src/engine/simClient';
 import type { SimPayload } from '../../src/engine/simProtocol';
 
 const st = () => useWorkspaceStore.getState();
+/** The default design's one motor mount, which is where a swapped motor goes. */
+const mountId = () => findMounts(st().tree)[0]!.id as string;
 const byName = (n: string) => st().sims.find((x) => x.name === n)!;
 const statusOf = (n: string) => simStatus(byName(n), st().simRuns, st().tree);
 
@@ -377,7 +380,7 @@ describe('a simulation edited while it is in the air', () => {
     const run = st().runSims([target], PREFS);
 
     st().setActiveId(target);
-    st().setActiveMotor({ ...C6, designation: 'D12' });
+    st().setMountMotor(byName('A').configId, mountId(), { ...C6, designation: 'D12' });
 
     calls[0]!.resolve(result(500));
     await run;

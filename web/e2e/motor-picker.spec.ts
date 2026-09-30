@@ -20,9 +20,9 @@ import { test, expect, type Page, autosaved, openTab, runFlight } from './base';
  */
 
 async function openPicker(page: Page) {
-  // The motor cards live on the Simulations tab (one per mount), not beside the
-  // design any more.
-  await openTab(page, 'Simulations');
+  // The motor cards live on the Configurations tab (one per mount): a loadout
+  // belongs to a flight configuration, not to one simulation.
+  await openTab(page, 'Configurations');
   await page
     .getByRole('button', { name: /change/i })
     .first()
@@ -34,8 +34,8 @@ async function openPicker(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
-  // Every flow here drives a motor card, and those live on the Simulations tab.
-  await openTab(page, 'Simulations');
+  // Every flow here drives a motor card, and those live on the Configurations tab.
+  await openTab(page, 'Configurations');
 });
 
 test('opens with the seated motor already selected', async ({ page }) => {
@@ -214,11 +214,11 @@ test('the motor card exposes an ignition event that persists across reloads', as
   await ignition.selectOption('launch');
   await expect(page.getByLabel('Ignition delay (s)')).toBeVisible();
 
-  // The setting rides on the simulation, so the workspace autosave restores it
-  // — once it has actually been written, which is what this waits for.
+  // The setting rides on the flight configuration, so the workspace autosave
+  // restores it — once it has actually been written, which is what this waits for.
   await autosaved(page, '"ignitionEvent":"launch"');
   await page.reload();
-  await openTab(page, 'Simulations'); // a reload lands on Design
+  await openTab(page, 'Configurations'); // a reload lands on Design
   await expect(page.getByLabel('Ignition', { exact: true })).toHaveValue('launch');
 });
 

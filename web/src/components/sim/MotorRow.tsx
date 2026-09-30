@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PLUGGED_DELAY, type MotorSpec, type IgnitionEvent } from '../../engine/openRocketEngine';
 import { MotorDialog } from './MotorDialog';
-import type { MountFit } from '../../services/motorPicker';
+import type { MountFit } from '../../services/motors/motorPicker';
 import { MotorSpecDialog } from './MotorSpecDialog';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';

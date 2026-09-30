@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { CatalogMotor } from '../../services/motorDb';
+import type { CatalogMotor } from '../../services/motors/motorDb';
 import { Dialog } from '../common/Dialog';
 import { MotorDetail } from './MotorDetail';
 import { keyOf } from './motorKey';

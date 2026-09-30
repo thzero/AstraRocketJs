@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { appName, isPreRelease } from '../../services/appInfo';
+import { appName, isPreRelease } from '../../services/app/appInfo';
 import { useSettings } from '../../state/SettingsProvider';
 import { AlertDialog } from '../common/AlertDialog';
 

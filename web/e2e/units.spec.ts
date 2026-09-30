@@ -31,10 +31,13 @@ test('the preferences reach the fields, the tree, the rulers and the stats strip
   await page.goto('/');
 
   const bodyTube = page.locator('div[title="Body tube"]').first();
-  const schematic = page.locator('svg').first();
   // The ruler's unit caption is its own <text>, distinct from the tick numbers,
-  // found by its data hook rather than its color class.
-  const rulerUnit = schematic.locator('text[data-ruler-unit]').first();
+  // found by its data hook rather than its color class - and reached without
+  // going through `svg.first()`, which is whichever svg the document happens to
+  // put first and has been the language switcher's chevron as readily as the
+  // drawing. The hook is unique to the rulers; `.first()` picks the length ruler
+  // over the cross-section one.
+  const rulerUnit = page.locator('text[data-ruler-unit]').first();
   const statsUnit = page.getByLabel('Length unit').first();
 
   await expect(bodyTube).toContainText('cm');
@@ -68,7 +71,7 @@ test('a chip changes its own field only, and nothing else moves', async ({ page 
   await expect(thicknessRow.getByLabel('Component dimensions unit')).toHaveValue('cm');
   // …nor did the tree row, the ruler, or the stats strip.
   await expect(page.locator('div[title="Body tube"]').first()).toContainText('cm');
-  await expect(page.locator('svg').first().locator('text[data-ruler-unit]').first()).toHaveText('cm');
+  await expect(page.locator('text[data-ruler-unit]').first()).toHaveText('cm');
   // …and Settings still shows the untouched default.
   const dialog = await openUnitsTab(page);
   await expect(dialog.getByLabel('Component dimensions')).toHaveValue('cm');

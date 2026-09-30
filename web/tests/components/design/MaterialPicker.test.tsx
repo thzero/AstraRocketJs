@@ -4,9 +4,9 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { MaterialPicker } from '../../../src/components/design/MaterialPicker';
 import { renderWithProviders } from '../../testing/renderWithProviders';
-import { setMaterialStore, type MaterialStore } from '../../../src/services/materialStore';
+import { setMaterialStore, type MaterialStore } from '../../../src/services/materials/materialStore';
 import { serveData } from '../../testing/serveData';
-import type { Material } from '../../../src/services/materialTypes';
+import type { Material } from '../../../src/services/materials/materialTypes';
 
 /**
  * The picker's two store round-trips finish after an await and are guarded by

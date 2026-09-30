@@ -44,8 +44,11 @@ export default defineConfig({
     {
       name: 'chromium',
       // Desktop width so the split-pane layout (stats footer + Simulations
-      // panel) renders — the mobile layout hides both behind tabs.
-      use: { ...devices['Desktop Chrome'], viewport: { width: 1500, height: 950 } },
+      // panel) renders — the mobile layout hides both behind tabs. Past `2xl`
+      // (1536), which is what the Design tab's property column asks for: at
+      // 1500 that column is a dialog instead (component-dialog.spec) and every
+      // spec that drives the property editor would be driving the dialog.
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1600, height: 950 } },
     },
     {
       name: 'mobile-chromium',

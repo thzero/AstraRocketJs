@@ -2,7 +2,7 @@ import { useCallback, useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
-import { lerpAt } from '../../services/interpolate';
+import { lerpAt } from '../../services/flight/interpolate';
 import { PAD_L, PAD_R, PANEL_H } from './flightChartAxis';
 import type { Branch, Meta } from './flightChartTraces';
 import { PanelHover } from './FlightChartHover';

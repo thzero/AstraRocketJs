@@ -33,7 +33,7 @@ const DOCS = resolve(WEB, 'public/docs/index.html');
 const OUT = 'dist-offline-check';
 const PORT = 4181;
 const URL_ = `http://localhost:${PORT}/`;
-// The app settings blob (services/settings.ts); the same key e2e/base.ts seeds.
+// The app settings blob (services/storage/settings.ts); the same key e2e/base.ts seeds.
 const SETTINGS_KEY = 'astrarrocketjs:settings:v1';
 
 // Pages nobody opens before going offline. The first is read through the

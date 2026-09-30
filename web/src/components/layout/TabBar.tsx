@@ -6,9 +6,13 @@ import { useShowResultsTab } from './useShowResultsTab';
  * Mobile bottom tab bar (hidden at lg+, where {@link WorkbenchTabs} sits under
  * the header instead).
  *
- * Four buttons over three tabs: the Design tab has two halves a phone can't show
+ * Five buttons over four tabs: the Design tab has two halves a phone can't show
  * at once, so Rocket and Sketch both open it and pick the half (`designPane`).
  * At lg+ that split disappears and Design is one button showing both.
+ *
+ * The labels are shorter here than in the header strip, because five of them
+ * share the width of a phone: `tabs.configsShort` names the tab that the desktop
+ * calls Configurations.
  *
  * It is the last flex child of a fixed-height column whose main area is
  * `overflow-hidden`, so it stays put while a pane scrolls behind it. The
@@ -37,6 +41,7 @@ export function TabBar() {
         label={t('tabs.sketch')}
         icon="📐"
       />
+      <TabButton active={tab === 'configs'} onClick={() => onTab('configs')} label={t('tabs.configsShort')} icon="🔥" />
       <TabButton active={tab === 'sim'} onClick={() => onTab('sim')} label={t('tabs.simulate')} icon="📈" />
       {showResults && (
         <TabButton active={tab === 'results'} onClick={() => onTab('results')} label={t('tabs.results')} icon="📊" />

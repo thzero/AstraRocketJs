@@ -1,51 +1,45 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { findMounts, isUpperStageMount } from '../../services/treeEdit';
-import { useWorkspaceStore, selectActive, selectExtraMotors } from '../../state/store';
-import { launchDiffKeys, prefDiffKeys } from '../../services/simDiff';
+import { useWorkspaceStore, selectActive, selectConfig } from '../../state/store';
+import { launchDiffKeys, prefDiffKeys } from '../../services/flight/simDiff';
+import { loadoutLabel } from '../../services/flight/flightConfigs';
 import { useSettings } from '../../state/SettingsProvider';
-import { MotorRow } from './MotorRow';
 import { RunButton } from './RunButton';
 import { useIsDesktop } from '../common/useMediaQuery';
 import { LaunchPanel } from './LaunchPanel';
 import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
 import { FieldLabel, markRing } from '../common/FieldMark';
-import type { SimPrefs } from '../../services/simulations';
+import type { SimPrefs } from '../../services/flight/simulations';
 
 /**
- * Everything about the SELECTED simulation: its name, a motor card per mount,
- * the launch conditions, and its overrides of the global run preferences.
+ * Everything about the SELECTED simulation: its name, the flight configuration
+ * it flies, the launch conditions, and its overrides of the global run
+ * preferences.
  *
- * Sits in the Simulations tab's right column at lg+, and inline under the table on
- * a phone, which would otherwise have no way to change a motor at all.
+ * The configuration is PICKED here and edited in the Configurations tab. A
+ * loadout several simulations share cannot also be editable from one of them
+ * without the two surfaces disagreeing about whether a change is about the row
+ * or about the setup.
  *
- * Reads the store directly, so the same element works in both places.
+ * Sits in the Simulations tab's right column at lg+, and inline under the table
+ * on a phone. Reads the store directly, so the same element works in both places.
  */
 export function SimEditor() {
   const { t } = useTranslation();
   const activeId = useWorkspaceStore((s) => selectActive(s).id);
   const name = useWorkspaceStore((s) => selectActive(s).name);
-  const motor = useWorkspaceStore((s) => selectActive(s).motor);
-  const ignitionEvent = useWorkspaceStore((s) => selectActive(s).ignitionEvent);
-  const ignitionDelay = useWorkspaceStore((s) => selectActive(s).ignitionDelay);
   const launch = useWorkspaceStore((s) => selectActive(s).launch);
   const tree = useWorkspaceStore((s) => s.tree);
-  const extraMotors = useWorkspaceStore(selectExtraMotors);
-  const setExtraMotor = useWorkspaceStore((s) => s.setExtraMotor);
+  const config = useWorkspaceStore(selectConfig);
+  const configs = useWorkspaceStore((s) => s.configs);
   const onRenameSim = useWorkspaceStore((s) => s.renameSim);
-  const onMotorChange = useWorkspaceStore((s) => s.setActiveMotor);
-  const setActiveIgnition = useWorkspaceStore((s) => s.setActiveIgnition);
-  const setExtraIgnition = useWorkspaceStore((s) => s.setExtraIgnition);
+  const setSimConfig = useWorkspaceStore((s) => s.setSimConfig);
+  const setSelectedConfigId = useWorkspaceStore((s) => s.setSelectedConfigId);
+  const setTab = useWorkspaceStore((s) => s.setTab);
   const onLaunchChange = useWorkspaceStore((s) => s.patchLaunch);
   const onCommit = useWorkspaceStore((s) => s.commitEdit);
-  const onError = useWorkspaceStore((s) => s.setErr);
 
-  // One card per motor mount. The first (primary) mount's motor is the sim's
-  // `motor`; the rest are its `extraMotors`, keyed by mount id. All of it is
-  // per-simulation, so two sims can seat different upper-stage motors.
-  const mounts = useMemo(() => findMounts(tree), [tree]);
-  const primaryId = mounts[0]?.id;
   const desktop = useIsDesktop();
 
   // Everything the editor writes to: the ticked rows, or the active simulation
@@ -126,43 +120,42 @@ export function SimEditor() {
           />
         </section>
 
-        {mounts.map((mt, i) => {
-          const id = mt.id as string;
-          const isPrimary = id === primaryId;
-          const mountName = typeof mt.name === 'string' && mt.name ? mt.name : `${t('part.innertube')} ${i + 1}`;
-          const or = typeof mt.outerRadius === 'number' ? mt.outerRadius : null;
-          const th = typeof mt.thickness === 'number' ? mt.thickness : 0;
-          const bore = or != null ? (or - th) * 2 * 1000 : null; // inner diameter, mm
-          // How long a motor may be: the tube plus its overhang, because that is
-          // where the app already seats one (aft - motorLength + overhang). The
-          // bare tube length would refuse a motor the rocket can actually fly.
-          const tubeLen = typeof mt.length === 'number' ? mt.length : null;
-          const overhang = typeof mt.motorOverhang === 'number' ? mt.motorOverhang : 0;
-          const mount =
-            bore != null ? { bore, maxLength: tubeLen != null ? (tubeLen + overhang) * 1000 : undefined } : null;
-          return (
-            <MotorRow
-              key={id}
-              title={mounts.length > 1 ? `${t('sims.motor')} - ${mountName}` : undefined}
-              motor={isPrimary ? motor : (extraMotors[id]?.spec ?? null)}
-              onChange={isPrimary ? onMotorChange : (m) => setExtraMotor(id, m)}
-              onError={onError}
-              mount={mount}
-              ignition={
-                isPrimary
-                  ? { event: ignitionEvent ?? 'automatic', delay: ignitionDelay ?? 0 }
-                  : {
-                      event: extraMotors[id]?.ignitionEvent ?? 'automatic',
-                      delay: extraMotors[id]?.ignitionDelay ?? 0,
-                    }
-              }
-              onIgnitionChange={isPrimary ? setActiveIgnition : (e, d) => setExtraIgnition(id, e, d)}
-              onCommit={onCommit}
-              upperStage={isUpperStageMount(tree, id)}
-              soloEdit={multi}
-            />
-          );
-        })}
+        {/* WHICH setup this row flies. The motors themselves are in the
+            Configurations tab: one place writes a loadout, and a configuration
+            several rows share cannot be quietly edited from one of them. */}
+        <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
+          <div className="mb-1 flex items-baseline gap-2 text-[10px] uppercase tracking-wide text-slate-400">
+            {t('configs.name')}
+            {multi && <span className="normal-case text-slate-500">{t('sims.thisOneOnly')}</span>}
+          </div>
+          <select
+            value={config.id}
+            onChange={(e) => setSimConfig(activeId, e.target.value)}
+            aria-label={t('configs.pick')}
+            className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+          >
+            {configs.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name || loadoutLabel(tree, c) || t('configs.noMotors')}
+              </option>
+            ))}
+          </select>
+          {/* What it actually seats, spelled out: a named configuration says
+              nothing about its motors, and the motors are what the row flies. */}
+          <p className="mt-2 text-xs text-slate-400">{loadoutLabel(tree, config) || t('configs.noMotors')}</p>
+          <button
+            type="button"
+            onClick={() => {
+              // Open the tab ON this configuration rather than wherever it was
+              // left, so the round trip lands on the motors this row flies.
+              setSelectedConfigId(config.id);
+              setTab('configs');
+            }}
+            className="mt-2 rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700"
+          >
+            {t('configs.edit')}
+          </button>
+        </section>
 
         <LaunchPanel launch={launch} onChange={onLaunchChange} onCommit={onCommit} diff={launchDiff} />
         <SimOptions diff={prefDiff} />

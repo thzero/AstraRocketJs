@@ -6,8 +6,8 @@ import {
   schematicSvg,
   svgToImage,
   type ExportData,
-} from '../../services/schematicExport.js';
-import { download, safeFilename } from '../../services/saveFile.js';
+} from '../../services/exports/schematicExport.js';
+import { download, safeFilename } from '../../services/files/saveFile.js';
 import { ImageExportMenu } from './ImageExportMenu.js';
 import { ZOOM_IDENTITY, type ZoomState } from './schematicGeometry';
 

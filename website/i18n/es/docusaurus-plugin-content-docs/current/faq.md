@@ -38,7 +38,7 @@ Sí. Tras la primera visita, la aplicación conserva en tu dispositivo tanto la 
 Indica qué motor se ha cargado: **WASM** (WebAssembly, el rápido por defecto) o **JS** (JavaScript, la alternativa para navegadores sin soporte de WASM). Ambos producen resultados idénticos.
 
 ### ¿Sobrevive un material personalizado al guardar en `.ork`?
-Sí, el nombre y la densidad, para todos los materiales que el editor ofrece: el material de volumen de una pieza estructural, el material del filete de una aleta y los materiales de tela y de cuerda de un dispositivo de recuperación. `services/ork/materialRoundTrip.test.ts` los comprueba uno a uno. Eso importa sobre todo para los materiales que esta aplicación tiene y OpenRocket de escritorio no, los [adhesivos y los cordones elásticos corregidos](./designing-a-rocket.md#adhesives): el nombre se escribe en el elemento `<material>` del archivo tal y como lo elegiste.
+Sí, el nombre y la densidad, para todos los materiales que el editor ofrece: el material de volumen de una pieza estructural, el material del filete de una aleta y los materiales de tela y de cuerda de un dispositivo de recuperación. `services/files/ork/materialRoundTrip.test.ts` los comprueba uno a uno. Eso importa sobre todo para los materiales que esta aplicación tiene y OpenRocket de escritorio no, los [adhesivos y los cordones elásticos corregidos](./designing-a-rocket.md#adhesives): el nombre se escribe en el elemento `<material>` del archivo tal y como lo elegiste.
 
 Lo que no viaja es la pertenencia del material a **tu** lista personalizada. Abre ese archivo en otro equipo y la pieza sigue teniendo la densidad correcta con el nombre correcto, pero el material no estará en el selector de ese navegador hasta que lo añadas allí.
 

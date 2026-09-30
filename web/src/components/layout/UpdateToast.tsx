@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useTranslation } from 'react-i18next';
-import { APP_VERSION } from '../../services/appInfo';
+import { APP_VERSION } from '../../services/app/appInfo';
 import {
   UPDATE_POLL_MS,
   dueForCheck,
   snoozeUntil,
   UPDATE_SNOOZE_MS,
   readyToApplyHidden,
-} from '../../services/updateCheck';
+} from '../../services/app/updateCheck';
 import { useWorkspaceStore } from '../../state/store';
 
 /**

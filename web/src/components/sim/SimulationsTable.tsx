@@ -1,16 +1,13 @@
 import { useTranslation } from 'react-i18next';
-import type { Simulation, SimStatus, SimRun } from '../../services/simulations';
-import { simStatus } from '../../services/simulations';
-import type { MotorSpec, RocketTree } from '../../engine/openRocketEngine';
+import type { Simulation, SimStatus, SimRun } from '../../services/flight/simulations';
+import { simStatus } from '../../services/flight/simulations';
+import type { RocketTree } from '../../engine/openRocketEngine';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { fmtNum } from '../../i18n/format';
-import { warningText } from '../../services/warningText';
-
-/** "Estes C6" — manufacturer + designation, or just the designation if unknown. */
-function motorLabel(m: MotorSpec): string {
-  return m.manufacturer ? `${m.manufacturer} ${m.designation}` : m.designation;
-}
+import { warningText } from '../../services/app/warningText';
+import { loadoutLabel, type FlightConfig } from '../../services/flight/flightConfigs';
+import { configOf } from '../../state/store';
 
 /** Dot color per status. Paired with a text label in the cell, never color alone. */
 const TONE: Record<SimStatus, string> = {
@@ -42,6 +39,8 @@ export function SimulationsTable({
   selectedIds,
   runs,
   tree,
+  configs,
+  onSetConfig,
   onSelect,
   onToggle,
   onToggleAll,
@@ -58,6 +57,10 @@ export function SimulationsTable({
    *  was recorded on; an edit since then means the run was never retried, not
    *  that it fails. */
   tree: RocketTree;
+  /** The design's flight configurations, so each row can say what it flies. */
+  configs: FlightConfig[];
+  /** Point one row at another configuration. */
+  onSetConfig: (simId: string, configId: string) => void;
   onSelect: (id: string) => void;
   onToggle: (id: string) => void;
   onToggleAll: (all: boolean) => void;
@@ -108,7 +111,7 @@ export function SimulationsTable({
           </th>
           <Th>{t('sims.status')}</Th>
           <Th>{t('sims.name')}</Th>
-          <Th wide>{t('sims.motor')}</Th>
+          <Th wide>{t('configs.name')}</Th>
           <Th num>
             {t('sim.apogee')} <Unit>{apogee.sym}</Unit>
           </Th>
@@ -195,7 +198,27 @@ export function SimulationsTable({
                 </button>
               </Td>
               <Td wide>
-                <span className="text-slate-400">{motorLabel(s.motor)}</span>
+                {/* A picker, not a readout: which setup a row flies is the one
+                    thing about a row you change from the table, and crossing to
+                    another tab to do it would make comparing two motors a
+                    navigation exercise. `stopPropagation` because the row's own
+                    click selects the simulation. */}
+                <select
+                  value={configOf(configs, s).id}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    onSetConfig(s.id, e.target.value);
+                  }}
+                  aria-label={t('configs.pickFor', { name: s.name })}
+                  className="w-full max-w-56 rounded-md bg-slate-800 px-1.5 py-1 text-xs text-slate-200 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+                >
+                  {configs.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name || loadoutLabel(tree, c) || t('configs.noMotors')}
+                    </option>
+                  ))}
+                </select>
               </Td>
               <Num className={dim}>{r ? apogee.fmt(r.maxAltitude) : null}</Num>
               <Num wide className={dim}>

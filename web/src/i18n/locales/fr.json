@@ -200,6 +200,7 @@
   },
   "save": {
     "saved": "Enregistré {{when}}",
+    "savedShort": "Enregistré",
     "justNow": "à l'instant",
     "tip": "Dernier enregistrement à {{time}}. Votre fusée est enregistrée automatiquement au fil de vos modifications."
   },
@@ -346,6 +347,42 @@
     "type_modified_kit": "Kit modifié",
     "type_kit_bash": "Mélange de kits"
   },
+  "configs": {
+    "title": "Configurations de vol",
+    "hint": "Une configuration est un jeu de moteurs, un par support. Chaque simulation en vole une, et plusieurs simulations peuvent partager la même.",
+    "new": "＋ Nouvelle",
+    "copy": "Copier",
+    "copyName": "Copie de {{name}}",
+    "delete": "Supprimer",
+    "deleteLast": "Impossible de supprimer la seule configuration",
+    "deleteConfirm": "Supprimer cette configuration ? Toute simulation qui la vole passera à la première restante.",
+    "name": "Configuration",
+    "rename": "Renommer la configuration",
+    "namePlaceholder": "Sans nom : affichée par ses moteurs",
+    "noMotors": "Aucun moteur",
+    "flights": "Vols",
+    "flownBy": "Simulations qui volent celle-ci : {{count}}",
+    "pick": "Configuration de vol",
+    "pickFor": "Configuration de vol pour {{name}}",
+    "edit": "Modifier les moteurs…",
+    "motors": "Moteurs",
+    "recovery": "Récupération",
+    "recoveryHint": "Quand chaque dispositif de récupération s’ouvre sur ce vol. Vide suit la conception ; une valeur ici ne s’applique qu’à cette configuration.",
+    "overridden": "Remplacé",
+    "asDesigned": "Comme conçu ({{value}})",
+    "altitudeFromDesign": "S’ouvre à l’altitude fixée par la conception, tant que vous n’en indiquez pas une ici.",
+    "noRecovery": "Cette conception n’a aucun dispositif de récupération.",
+    "deployOverridden": "S’ouvre différemment dans :",
+    "separation": "Étagement",
+    "separationHint": "Quels étages volent et quand chaque propulseur se sépare. Vide suit la conception ; une valeur ici ne s’applique qu’à cette configuration.",
+    "noSeparation": "Cette conception a un seul étage : rien ne se sépare.",
+    "neverSeparates": "Ce propulseur reste attaché pendant tout le vol.",
+    "separationOverridden": "Se sépare différemment dans :",
+    "flies": "Vole dans cette configuration",
+    "grounded": "Au sol",
+    "groundedHint": "Reste au sol : pas de masse, pas de traînée, pas de moteur. Le reste de la fusée vole sans lui.",
+    "stageGrounded": "Reste au sol dans :"
+  },
   "tabs": {
     "rocket": "Fusée",
     "sketch": "Croquis",
@@ -353,7 +390,9 @@
     "results": "Résultats",
     "design": "Conception",
     "simulations": "Simulations",
-    "workbench": "Établi"
+    "workbench": "Établi",
+    "configs": "Configurations",
+    "configsShort": "Config."
   },
   "view": {
     "2d": "2D",
@@ -945,6 +984,7 @@
   },
   "prop": {
     "selectHint": "Sélectionnez un composant dans l'arborescence ou le dessin pour modifier ses propriétés.",
+    "editTitle": "Modifier le composant",
     "name": "Nom",
     "delete": "Supprimer",
     "lastStage": "Une fusée doit avoir au moins un étage",

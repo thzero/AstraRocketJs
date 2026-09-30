@@ -14,7 +14,7 @@ Al cargar verás una breve pantalla de inicio mientras se carga el motor de fís
 
 En un ordenador el banco de trabajo son tres **pestañas**, en la barra superior junto al nombre de la aplicación. Cada una organiza la ventana como su propia tarea necesita, en vez de compartir las tres una única cuadrícula fija:
 
-- **Diseño.** El árbol de componentes a la izquierda, la vista del cohete en el centro y el editor de la pieza seleccionada a la derecha.
+- **Diseño.** El árbol de componentes a la izquierda, la vista del cohete en el centro y el editor de la pieza seleccionada a la derecha. Esa tercera columna necesita una ventana de al menos 1536px de ancho, más de lo que tienen la mayoría de los portátiles; por debajo de eso el editor se abre como un diálogo sobre el dibujo, con los mismos campos y las mismas unidades.
 - **Simulaciones.** La tabla de ejecuciones a todo lo ancho, con el editor de la simulación seleccionada (motor, ignición, configuración de lanzamiento, opciones) a la derecha.
 - **Resultados.** Las gráficas de vuelo, la traza en tierra y la trayectoria 3D en el centro, y los números de la ejecución a la derecha. Aparece en cuanto una simulación ha producido un resultado, y al terminar una ejecución te lleva directamente allí.
 
@@ -33,9 +33,9 @@ En un **teléfono** las mismas áreas pasan a ser pestañas en la parte inferior
 - **Simular** — motor, configuración del lanzamiento, **Ejecutar** y el resumen de resultados.
 - **Resultados** — los números de la ejecución (apogeo, salida del raíl, velocidad máxima, aterrizaje, alcance …) con las gráficas de vuelo y la trayectoria 3D debajo. Aparece en cuanto una simulación ha producido un resultado, y al terminar una ejecución te lleva directamente allí.
 
-El panel de componentes es solo de escritorio, así que un teléfono sirve para leer y simular un diseño más que para construirlo.
+El panel de componentes es solo de escritorio, así que un teléfono no puede añadir, reordenar ni borrar piezas. Sí puede editar las que el diseño ya tiene: toca una pieza en la vista **Boceto** y su editor se abre como un diálogo. Dos cosas acompañan al panel y no al dibujo, y no se ofrecen donde el panel no está: **Mis piezas**, porque una pieza guardada se aplica a través de un componente, y el **nombre y la configuración del cohete**, porque poner nombre a un diseño es algo que se hace sobre uno que estás construyendo. Ambas se apartan también mientras el dibujo está maximizado, por la misma razón que el panel.
 
-La barra superior tiene **deshacer / rehacer**, un selector de idioma (English · Español), una nota de cuándo se guardó tu cohete por última vez y el **menú de la aplicación**: Nuevo, Abrir… y Guardar como… (la biblioteca de diseños de la app), **Importar ▸ OpenRocket** y **Exportar ▸ OpenRocket / RASAero II** para los archivos `.ork` y demás en disco, **Informe de diseño**, **Panel de motores**, **Ubicaciones de lanzamiento**, **Mis piezas**, **Ajustes**, **Ayuda**, **Privacidad** y **Acerca de**.
+La barra superior tiene **deshacer / rehacer**, un selector de idioma (diez idiomas), una nota de cuándo se guardó tu cohete por última vez y el **menú de la aplicación**: Nuevo, Abrir… y Guardar como… (la biblioteca de diseños de la app), **Importar ▸ OpenRocket** y **Exportar ▸ OpenRocket / RASAero II** para los archivos `.ork` y demás en disco, **Informe de diseño**, **Panel de motores**, **Ubicaciones de lanzamiento**, **Mis piezas**, **Ajustes**, **Ayuda**, **Privacidad** y **Acerca de**.
 
 ## Tu primer cohete
 
