@@ -8,6 +8,8 @@ import { getWorkspaceStore } from '../services/storage/workspaceStore';
 import { onStorageDegraded } from '../services/storage/idbKeyValueStore';
 import { requestPersistentStorage } from '../services/storage/persistStorage';
 import { computeStaticInfo, flightKey } from '../services/design/buildRocket';
+import { changedPrefKeys } from '../services/flight/simulations';
+import { useSettings } from './SettingsProvider';
 import { warmSimWorker } from '../engine/simClient';
 import { appName } from '../services/app/appInfo';
 
@@ -268,4 +270,34 @@ export function useWorkspaceEffects() {
     lastFlight.current = flight;
     useWorkspaceStore.getState().markOutdated();
   }, [ready, flight, hydrationGen]);
+
+  /**
+   * The same invalidation for the GLOBAL run preferences.
+   *
+   * A design edit ages its results through the effect above, a simulation's own
+   * edits through `patchTargets`, and a flight configuration's (motor, ignition,
+   * deployment, separation) through `patchConfig`. The globals in Settings >
+   * Simulation were the one input a flight reads that nothing watched, so
+   * changing the time step or the flight model left every saved result claiming
+   * to be current - and results are persisted, so it survived a reload too.
+   *
+   * `changedPrefKeys` compares the nine keys rather than the object, because the
+   * settings store hands out a new `simulation` object on every unrelated change
+   * in it: switching a unit or a part color would otherwise age every result.
+   *
+   * Unlike the design watcher this needs no hydration guard. It compares against
+   * what it last SAW rather than against a stored baseline, and the settings are
+   * loaded once before the first paint, so there is no restore to mistake for an
+   * edit.
+   */
+  const { settings } = useSettings();
+  const simPrefs = settings.simulation;
+  const lastPrefs = useRef<typeof simPrefs | null>(null);
+  useEffect(() => {
+    const before = lastPrefs.current;
+    lastPrefs.current = simPrefs;
+    if (before === null) return; // first sight is the baseline, not a change
+    const changed = changedPrefKeys(before, simPrefs);
+    if (changed.length > 0) useWorkspaceStore.getState().markPrefsOutdated(changed);
+  }, [simPrefs]);
 }

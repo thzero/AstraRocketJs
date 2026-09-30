@@ -117,6 +117,24 @@ export interface SimulationSettings {
   /** Minimum safe rod/rail-exit velocity (m/s): the rod-exit tile is green at or
    *  above this, and warns below it (too slow to be stable off the rail). */
   railExitVelocityMin: number;
+  /**
+   * Which launch-guide clearance model to fly. Default false, OpenRocket's own.
+   *
+   * OpenRocket compares the rocket's travel with the FULL rod length wherever
+   * the guides sit: it computes a lug-aware effective length and never reads it
+   * at the check. A lug or rail button above the rocket's aft end is therefore
+   * credited with guided travel it does not have, and the rod-exit speed reads
+   * high; rail buttons are not considered at all.
+   *
+   * True flies the guide-aware model: the guided phase ends when the aft-most
+   * guide, lug or button, leaves the rod, and the rocket is released there as
+   * well as reported there.
+   *
+   * A CHOICE and not a fix, because the engine is validated bit-identical to
+   * upstream. It is also the only setting here that changes what the flight
+   * does rather than what it warns about, which is why it says so in the panel.
+   */
+  guideAwareRodClearance: boolean;
 }
 
 /** Which sides of the 2D side view carry a measurement ruler. */
@@ -440,6 +458,8 @@ export const DEFAULT_SETTINGS: Settings = {
     mainLowSpeedWarn: 15.24,
     drogueLowSpeedWarn: 3.048,
     railExitVelocityMin: 15,
+    // OpenRocket's own model, so an existing install's numbers do not move.
+    guideAwareRodClearance: false,
   },
   launchDefaults: DEFAULT_LAUNCH,
   showMarkers: true,
@@ -614,6 +634,10 @@ export function loadSettings(): Settings {
         // The rod-exit tile compares against it; a stored string or NaN made
         // the tile's color undecidable.
         sim.railExitVelocityMin = pos(sim.railExitVelocityMin, DEFAULT_SETTINGS.simulation.railExitVelocityMin);
+        // A stored string or number here would reach the bridge, where the
+        // options parser refuses anything but a boolean and takes the whole run
+        // down rather than the one key.
+        sim.guideAwareRodClearance = sim.guideAwareRodClearance === true;
         return sim;
       })(),
       launchDefaults: (() => {

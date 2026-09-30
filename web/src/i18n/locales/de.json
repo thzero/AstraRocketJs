@@ -316,6 +316,9 @@
     "mainLowSpeedWarn": "Auswurfgeschwindigkeit Hauptschirm (min.)",
     "drogueLowSpeedWarn": "Auswurfgeschwindigkeit Bremsschirm (min.)",
     "railExitMinHint": "Darunter haben die Finnen zu wenig Anströmung zum Steuern, die Rakete kann also in den Wind drehen (Windfahneneffekt) oder beim Verlassen der Schiene instabil werden.",
+    "simModel": "Flugmodell",
+    "guideAwareRodClearance": "Startführung berücksichtigen",
+    "guideAwareRodClearanceHint": "OpenRocket führt die Rakete über die ganze Schienenlänge, unabhängig davon, wo Startösen oder Schienenknöpfe sitzen. Aktiviert verlässt die Rakete die Schiene, sobald ihre hinterste Führung sie verlässt: meist etwas früher und mit etwas geringerer Geschwindigkeit am Schienenende. Deaktiviert entspricht OpenRocket.",
     "deploySpeedWarnHint": "Einfachauswurf (ohne Bremsschirm): Oberhalb dieser Geschwindigkeit droht beim Öffnen des Fallschirms ein Aufschlitzen der Zelle (Zippering) oder ein Reißen der Kappe.",
     "mainHighSpeedWarnHint": "Doppelauswurf: Oberhalb davon kommt der HAUPTSCHIRM zu schnell heraus – meist ein zu kleiner Bremsschirm, der die Rakete nicht genug verzögert, oder ein zu hoch eingestellter Auswurf des Hauptschirms.",
     "mainLowSpeedWarnHint": "Doppelauswurf: Unterhalb davon öffnet der Hauptschirm, während die Rakete kaum sinkt, was in der Regel einen Auswurf nahe dem Apogäum bedeutet – ein langsamer Abstieg aus voller Höhe mit viel Abdrift.",
@@ -448,7 +451,8 @@
     "needsMotor": "Motor laden",
     "cd": "Widerstandsbeiwert",
     "rollInertia": "Rollträgheit (startfertig)",
-    "pitchInertia": "Nickträgheit (startfertig)"
+    "pitchInertia": "Nickträgheit (startfertig)",
+    "recoveryWeightEstimated": "Masse (Bergung, gesch.)"
   },
   "sim": {
     "run": "Flugsimulation starten",
@@ -1305,7 +1309,7 @@
   "recovery": {
     "title": "Auslegung des Abstiegs",
     "needsMotor": "Laden Sie einen Motor, um gegen die Abstiegsmasse auszulegen (startfertige Masse abzüglich Treibstoff).",
-    "forMass": "Für eine Abstiegsmasse von {{mass}} g:",
+    "forMass": "Geschätzt für eine Sinkmasse von {{mass}}:",
     "thisChute": "Diese Kappe",
     "mainTarget": "Hauptschirm ({{range}})",
     "drogueTarget": "Bremsschirm ({{range}})",
@@ -1316,7 +1320,10 @@
       "between": "zwischen den Bändern",
       "drogue": "Bereich Bremsschirm",
       "fast": "sehr schnell"
-    }
+    },
+    "forMassRun": "Im letzten Lauf gemessen, bei einer Sinkmasse von {{mass}}:",
+    "forMassRunBranch": "Im letzten Lauf an {{branch}} gemessen, bei einer Sinkmasse von {{mass}}:",
+    "diametersEstimated": "Die Durchmesser sind Schätzwerte für den Entwurf, keine Simulationsergebnisse."
   },
   "sims": {
     "new": "＋ Neu",

@@ -316,6 +316,9 @@
     "mainLowSpeedWarn": "Openingssnelheid hoofdparachute (min.)",
     "drogueLowSpeedWarn": "Openingssnelheid drogue (min.)",
     "railExitMinHint": "Daaronder hebben de vinnen te weinig luchtstroom om te sturen, dus kan de raket de wind in draaien of instabiel worden zodra hij de stang verlaat.",
+    "simModel": "Vluchtmodel",
+    "guideAwareRodClearance": "Railverlating volgens de geleiders",
+    "guideAwareRodClearanceHint": "OpenRocket houdt de raket over de volle raillengte geleid, waar de lanceerlippen of railknoppen ook zitten. Aan verlaat de raket de rail zodra de achterste geleider dat doet: meestal iets eerder, en een iets lagere snelheid bij het verlaten van de rail. Uit komt overeen met OpenRocket.",
     "deploySpeedWarnHint": "Enkelvoudig openen (zonder drogue): boven deze snelheid loop je het risico dat het openen van de parachute de romp openscheurt of de koepel verscheurt.",
     "mainHighSpeedWarnHint": "Dubbel openen: daarboven komt de HOOFDPARACHUTE er te snel uit, meestal door een drogue die te klein is om de raket af te remmen of door een hoofdparachute die te hoog is ingesteld.",
     "mainLowSpeedWarnHint": "Dubbel openen: daaronder gaat de hoofdparachute open terwijl de raket nauwelijks daalt, wat normaal betekent dat hij rond het apogeum is opengegaan: een langzame daling met veel drift vanaf de volle hoogte.",
@@ -448,7 +451,8 @@
     "needsMotor": "laad een motor",
     "cd": "Weerstandscoëff.",
     "rollInertia": "Rolinertie (geladen)",
-    "pitchInertia": "Stampinertie (geladen)"
+    "pitchInertia": "Stampinertie (geladen)",
+    "recoveryWeightEstimated": "Massa (Berging, schatting)"
   },
   "sim": {
     "run": "Vluchtsimulatie uitvoeren",
@@ -1305,7 +1309,7 @@
   "recovery": {
     "title": "Daling dimensioneren",
     "needsMotor": "Laad een motor om te dimensioneren op de dalingsmassa (geladen massa min de stuwstof).",
-    "forMass": "Voor een dalingsmassa van {{mass}} g:",
+    "forMass": "Geschat voor een daalmassa van {{mass}}:",
     "thisChute": "Deze koepel",
     "mainTarget": "Hoofdparachute ({{range}})",
     "drogueTarget": "Drogue ({{range}})",
@@ -1316,7 +1320,10 @@
       "between": "tussen de bereiken",
       "drogue": "bereik drogue",
       "fast": "erg snel"
-    }
+    },
+    "forMassRun": "Gemeten in de laatste run, bij een daalmassa van {{mass}}:",
+    "forMassRunBranch": "Gemeten in de laatste run op {{branch}}, bij een daalmassa van {{mass}}:",
+    "diametersEstimated": "De diameters zijn schattingen om mee te ontwerpen, geen simulatieresultaten."
   },
   "sims": {
     "new": "＋ Nieuw",

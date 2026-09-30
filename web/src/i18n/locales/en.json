@@ -316,6 +316,9 @@
     "mainLowSpeedWarn": "Main deploy speed (min)",
     "drogueLowSpeedWarn": "Drogue deploy speed (min)",
     "railExitMinHint": "Below this the fins have too little airflow to steer, so the rocket can weathercock into the wind or go unstable as it leaves the rod.",
+    "simModel": "Flight model",
+    "guideAwareRodClearance": "Guide-aware rod clearance",
+    "guideAwareRodClearanceHint": "OpenRocket keeps the rocket on the rod for the full rod length, wherever its launch lugs or rail buttons sit. On, the rocket leaves the rod when its aft-most guide does: usually a little sooner, and a slightly lower rail-exit velocity. Off matches OpenRocket.",
     "deploySpeedWarnHint": "Single deployment (no drogue): above this speed, opening the parachute risks zippering the airframe or tearing the canopy.",
     "mainHighSpeedWarnHint": "Dual deployment: above this the MAIN is coming out too fast — usually a drogue too small to slow the rocket, or a main set to deploy too high.",
     "mainLowSpeedWarnHint": "Dual deployment: below this the main opens while the rocket is barely descending, which normally means it deployed near apogee — a slow, drifty descent from full altitude.",
@@ -448,7 +451,8 @@
     "needsMotor": "load a motor",
     "cd": "Drag coeff.",
     "rollInertia": "Roll inertia (loaded)",
-    "pitchInertia": "Pitch inertia (loaded)"
+    "pitchInertia": "Pitch inertia (loaded)",
+    "recoveryWeightEstimated": "Mass (Recovery, est.)"
   },
   "sim": {
     "run": "Run flight simulation",
@@ -1305,7 +1309,7 @@
   "recovery": {
     "title": "Descent sizing",
     "needsMotor": "Load a motor to size against the descent mass (loaded mass minus propellant).",
-    "forMass": "For a descent mass of {{mass}} g:",
+    "forMass": "Estimated for a descent mass of {{mass}}:",
     "thisChute": "This canopy",
     "mainTarget": "Main ({{range}})",
     "drogueTarget": "Drogue ({{range}})",
@@ -1316,7 +1320,10 @@
       "between": "between bands",
       "drogue": "drogue range",
       "fast": "very fast"
-    }
+    },
+    "forMassRun": "Measured in the last run, at a descent mass of {{mass}}:",
+    "forMassRunBranch": "Measured in the last run on {{branch}}, at a descent mass of {{mass}}:",
+    "diametersEstimated": "Diameters are estimates to design against, not simulation results."
   },
   "sims": {
     "new": "＋ New",

@@ -30,6 +30,8 @@ const prefs: SimPrefs = {
   mainHighSpeedWarn: 30.48,
   mainLowSpeedWarn: 15.24,
   drogueLowSpeedWarn: 3.048,
+  // OpenRocket's own clearance model, which is the default.
+  guideAwareRodClearance: false,
 };
 
 describe('simConditions carries the options the bridge gained', () => {

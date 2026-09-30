@@ -523,6 +523,28 @@ export interface SimulationOptions {
   mainLowSpeedWarn?: number;
   drogueLowSpeedWarn?: number;
   /**
+   * Which launch-guide clearance model to fly. Default false, which is
+   * OpenRocket's own.
+   *
+   * Upstream compares the rocket's travel with the FULL rod length wherever the
+   * guides actually sit: it computes a lug-aware effective length in
+   * `SimulationStatus` and never reads it at the check. So a lug or rail button
+   * above the rocket's aft end is credited with guided travel it does not have,
+   * and the reported rod-exit speed reads high. Rail buttons are not considered
+   * at all, and the lug search looks at one instance, which on a fore/aft pair
+   * is the forward one.
+   *
+   * Set true and the flight ends its guided phase when the aft-most guide, lug
+   * or button, leaves the rod. The rocket is released at that moment as well as
+   * reported there, since reporting a departure the rocket has not made would
+   * leave it mechanically constrained past its own exit.
+   *
+   * It is a choice rather than a fix because the engine is validated
+   * bit-identical to upstream: off, the bridge attaches nothing and the flight
+   * is upstream's exactly. See `api/GuideClearanceListener.java`.
+   */
+  guideAwareRodClearance?: boolean;
+  /**
    * Series payload mode. 'summary' (the default) returns the 12 friendly-named
    * arrays plus only the symbol series the app's flight report reads every run
    * (Pl, θl, Px, Py, dΦ). 'full' additionally returns every series the branch
@@ -1266,6 +1288,7 @@ export class OpenRocketDesign {
           mainHighSpeedWarn: options.mainHighSpeedWarn,
           mainLowSpeedWarn: options.mainLowSpeedWarn,
           drogueLowSpeedWarn: options.drogueLowSpeedWarn,
+          guideAwareRodClearance: options.guideAwareRodClearance,
           series: options.series,
         }),
       ),

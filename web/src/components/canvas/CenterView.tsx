@@ -13,6 +13,7 @@ import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
 import { APP_VERSION, appName } from '../../services/app/appInfo';
 import { descentMass } from '../../services/flight/recoverySizing';
+import { sustainerDescentMass } from '../../services/flight/recoveryFlown';
 import { motorSpecs } from '../../services/flight/flightConfigs';
 import { resultFlight, type ResultFlight } from '../../services/flight/simulations';
 import { TreeSchematic } from './TreeSchematic';
@@ -131,13 +132,25 @@ export function CenterView() {
     }),
     [loadedMeta, tree.name, info, units.all, motors],
   );
-  // Recovery weight = loaded mass − the propellant that burns off (every motor's
-  // loaded-minus-burnout mass). Undefined with no motor loaded — nothing to
-  // subtract — so the tile shows a "needs a motor" hint instead of a wrong number.
-  const recoveryWeight = useMemo(
-    () => descentMass(info?.mass, motorSpecs(tree, config)) ?? undefined,
-    [info?.mass, tree, config],
-  );
+  /**
+   * What the recovery system brings down, and whether that is an ESTIMATE.
+   *
+   * Estimated from the design it is loaded mass less the propellant that burns
+   * off, which is arithmetic of ours and says so on the tile. Once a run has
+   * deployed a device the kernel's own mass under the sustainer's first chute
+   * replaces it, and the tile drops the estimate marker.
+   *
+   * Undefined with no motor loaded - nothing to subtract - so the tile shows a
+   * "needs a motor" hint rather than a wrong number.
+   */
+  const recovery = useMemo(() => {
+    const measured = sustainerDescentMass(outdated ? null : result);
+    if (measured != null) return { mass: measured, estimated: false };
+    const est = descentMass(info?.mass, motorSpecs(tree, config));
+    return est == null ? null : { mass: est, estimated: true };
+  }, [info?.mass, tree, config, result, outdated]);
+  const recoveryWeight = recovery?.mass;
+  const recoveryEstimated = recovery?.estimated ?? true;
 
   // Optionally auto-run an outdated (never-run/stale) sim when a results view opens.
   const { settings, update } = useSettings();
@@ -510,6 +523,7 @@ export function CenterView() {
         <StabilityBadge
           info={info}
           recoveryWeight={recoveryWeight}
+          recoveryEstimated={recoveryEstimated}
           expanded={settings.showStats}
           onToggle={() => update({ showStats: !settings.showStats })}
         />

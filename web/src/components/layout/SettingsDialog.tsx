@@ -75,7 +75,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
       // between them.
       height={560}
       toolbar={
-        // Tabs. A real tablist: which section is open was signalled by
+        // Tabs. A real tablist: which section is open was signaled by
         // background color alone, which a screen reader cannot announce. In the
         // toolbar band so it stays put while a long tab scrolls.
         <div role="tablist" aria-label={t('settings.title')} className="flex flex-wrap gap-1 p-3">
@@ -408,6 +408,18 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                 setSim({ drogueLowSpeedWarn: si ?? DEFAULT_SETTINGS.simulation.drogueLowSpeedWarn }),
               )}
             />
+            {/* Everything above this heading decides when a flight WARNS. What
+                  follows changes what the flight does, so it is separated and
+                  its hint says which way the number moves. */}
+            <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              {t('settings.simModel')}
+            </div>
+            <CheckRow
+              label={t('settings.guideAwareRodClearance')}
+              hint={t('settings.guideAwareRodClearanceHint')}
+              checked={settings.simulation.guideAwareRodClearance}
+              onChange={(v) => setSim({ guideAwareRodClearance: v })}
+            />
           </>
         )}
 
@@ -437,8 +449,20 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-function CheckRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
+function CheckRow({
+  label,
+  checked,
+  onChange,
+  hint,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  /** Rendered under the row, like NumRow's. A setting that changes what the
+   *  flight DOES rather than what it warns about has to say so. */
+  hint?: string;
+}) {
+  const row = (
     <label className="flex items-center gap-2">
       <input
         type="checkbox"
@@ -448,6 +472,13 @@ function CheckRow({ label, checked, onChange }: { label: string; checked: boolea
       />
       <span className="text-sm text-slate-300">{label}</span>
     </label>
+  );
+  if (!hint) return row;
+  return (
+    <div>
+      {row}
+      <p className="mt-0.5 text-[11px] leading-snug text-slate-500">{hint}</p>
+    </div>
   );
 }
 

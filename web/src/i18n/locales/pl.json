@@ -318,6 +318,9 @@
     "mainLowSpeedWarn": "Prędkość otwarcia głównego (min.)",
     "drogueLowSpeedWarn": "Prędkość otwarcia hamującego (min.)",
     "railExitMinHint": "Poniżej tej wartości stateczniki mają za mały nadmuch, aby sterować, więc przy zejściu z pręta rakieta może obrócić się w wiatr albo stracić stabilność.",
+    "simModel": "Model lotu",
+    "guideAwareRodClearance": "Uwzględniaj położenie prowadnic",
+    "guideAwareRodClearanceHint": "OpenRocket prowadzi rakietę przez całą długość szyny, niezależnie od tego, gdzie znajdują się ucha startowe czy guziki szynowe. Po włączeniu rakieta schodzi z szyny, gdy zrobi to jej najbardziej tylna prowadnica: zwykle nieco wcześniej i z nieco mniejszą prędkością przy zejściu. Wyłączone odpowiada OpenRocket.",
     "deploySpeedWarnHint": "Otwarcie jednostopniowe (bez spadochronu hamującego): powyżej tej prędkości otwarcie spadochronu grozi podłużnym rozerwaniem kadłuba albo rozdarciem czaszy.",
     "mainHighSpeedWarnHint": "Otwarcie dwustopniowe: powyżej tej wartości GŁÓWNY spadochron wychodzi za szybko, zwykle z powodu zbyt małego spadochronu hamującego albo zbyt wysoko ustawionego otwarcia głównego.",
     "mainLowSpeedWarnHint": "Otwarcie dwustopniowe: poniżej tej wartości główny spadochron otwiera się, gdy rakieta prawie nie opada, co zwykle oznacza otwarcie blisko apogeum: wolne opadanie z pełnej wysokości i duży dryf.",
@@ -450,7 +453,8 @@
     "needsMotor": "włóż silnik",
     "cd": "Współ. oporu",
     "rollInertia": "Bezwładność przechylania (z paliwem)",
-    "pitchInertia": "Bezwładność pochylania (z paliwem)"
+    "pitchInertia": "Bezwładność pochylania (z paliwem)",
+    "recoveryWeightEstimated": "Masa (Odzysk, szac.)"
   },
   "sim": {
     "run": "Wykonaj symulację lotu",
@@ -1319,7 +1323,7 @@
   "recovery": {
     "title": "Dobór opadania",
     "needsMotor": "Włóż silnik, aby liczyć od masy przy opadaniu (masa z paliwem minus paliwo).",
-    "forMass": "Dla masy przy opadaniu {{mass}} g:",
+    "forMass": "Szacowane dla masy opadania {{mass}}:",
     "thisChute": "Ta czasza",
     "mainTarget": "Główny ({{range}})",
     "drogueTarget": "Hamujący ({{range}})",
@@ -1330,7 +1334,10 @@
       "between": "między zakresami",
       "drogue": "zakres hamującego",
       "fast": "bardzo szybko"
-    }
+    },
+    "forMassRun": "Zmierzone w ostatnim przebiegu, przy masie opadania {{mass}}:",
+    "forMassRunBranch": "Zmierzone w ostatnim przebiegu na {{branch}}, przy masie opadania {{mass}}:",
+    "diametersEstimated": "Średnice są szacunkami do projektowania, a nie wynikami symulacji."
   },
   "sims": {
     "new": "＋ Nowa",

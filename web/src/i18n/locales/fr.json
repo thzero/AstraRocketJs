@@ -317,6 +317,9 @@
     "mainLowSpeedWarn": "Vitesse de déploiement du principal (min.)",
     "drogueLowSpeedWarn": "Vitesse de déploiement du drogue (min.)",
     "railExitMinHint": "En dessous, les ailerons reçoivent trop peu d'écoulement pour guider la fusée, qui peut girouetter face au vent ou devenir instable en quittant la rampe.",
+    "simModel": "Modèle de vol",
+    "guideAwareRodClearance": "Sortie selon les guides",
+    "guideAwareRodClearanceHint": "OpenRocket garde la fusée guidée sur toute la longueur de la rampe, où que soient les œillets de rampe ou les boutons de rail. Activé, la fusée quitte la rampe quand son guide le plus arrière la quitte : généralement un peu plus tôt, et une vitesse en sortie de rampe un peu plus faible. Désactivé correspond à OpenRocket.",
     "deploySpeedWarnHint": "Déploiement simple (sans drogue) : au-dessus de cette vitesse, l'ouverture du parachute risque de déchirer le tube (effet zipper) ou la voilure.",
     "mainHighSpeedWarnHint": "Double déploiement : au-dessus, le PRINCIPAL sort trop vite – en général un drogue trop petit pour freiner la fusée, ou un principal réglé pour s'ouvrir trop haut.",
     "mainLowSpeedWarnHint": "Double déploiement : en dessous, le principal s'ouvre alors que la fusée descend à peine, ce qui signifie normalement un déploiement près de l'apogée – une descente lente et très dérivante depuis l'altitude maximale.",
@@ -449,7 +452,8 @@
     "needsMotor": "chargez un moteur",
     "cd": "Coeff. de traînée",
     "rollInertia": "Inertie en roulis (en charge)",
-    "pitchInertia": "Inertie en tangage (en charge)"
+    "pitchInertia": "Inertie en tangage (en charge)",
+    "recoveryWeightEstimated": "Masse (Récupération, est.)"
   },
   "sim": {
     "run": "Lancer la simulation de vol",
@@ -1312,7 +1316,7 @@
   "recovery": {
     "title": "Dimensionnement de la descente",
     "needsMotor": "Chargez un moteur pour dimensionner d'après la masse à la descente (masse en charge moins le propergol).",
-    "forMass": "Pour une masse à la descente de {{mass}} g :",
+    "forMass": "Estimé pour une masse à la descente de {{mass}} :",
     "thisChute": "Cette voilure",
     "mainTarget": "Principal ({{range}})",
     "drogueTarget": "Drogue ({{range}})",
@@ -1323,7 +1327,10 @@
       "between": "entre les plages",
       "drogue": "plage du drogue",
       "fast": "très rapide"
-    }
+    },
+    "forMassRun": "Mesuré au dernier vol, pour une masse à la descente de {{mass}} :",
+    "forMassRunBranch": "Mesuré au dernier vol sur {{branch}}, pour une masse à la descente de {{mass}} :",
+    "diametersEstimated": "Les diamètres sont des estimations pour concevoir, pas des résultats de simulation."
   },
   "sims": {
     "new": "＋ Nouvelle",

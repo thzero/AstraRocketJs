@@ -317,6 +317,9 @@
     "mainLowSpeedWarn": "Velocidade de abertura do principal (mín.)",
     "drogueLowSpeedWarn": "Velocidade de abertura do drogue (mín.)",
     "railExitMinHint": "Abaixo disto as aletas têm demasiado pouco fluxo de ar para dirigir, pelo que o foguetão pode virar-se para o vento ou ficar instável ao deixar a haste.",
+    "simModel": "Modelo de voo",
+    "guideAwareRodClearance": "Saída conforme as guias",
+    "guideAwareRodClearanceHint": "O OpenRocket mantém o foguetão guiado ao longo de todo o comprimento da calha, onde quer que estejam as guias de lançamento ou os botões de calha. Ativado, o foguetão deixa a calha quando a sua guia mais traseira o deixa: normalmente um pouco mais cedo e com velocidade de saída um pouco menor. Desativado corresponde ao OpenRocket.",
     "deploySpeedWarnHint": "Abertura única (sem drogue): acima desta velocidade, abrir o paraquedas arrisca rasgar a fuselagem a todo o comprimento ou romper o velame.",
     "mainHighSpeedWarnHint": "Abertura dupla: acima disto o PRINCIPAL está a sair demasiado depressa, normalmente por um drogue demasiado pequeno para travar o foguetão ou por um principal configurado para abrir demasiado alto.",
     "mainLowSpeedWarnHint": "Abertura dupla: abaixo disto o principal abre com o foguetão quase sem descer, o que em geral significa que abriu perto do apogeu, uma descida lenta e à deriva desde a altitude máxima.",
@@ -449,7 +452,8 @@
     "needsMotor": "carregue um motor",
     "cd": "Coef. de resistência",
     "rollInertia": "Inércia de rolamento (carregado)",
-    "pitchInertia": "Inércia de arfagem (carregado)"
+    "pitchInertia": "Inércia de arfagem (carregado)",
+    "recoveryWeightEstimated": "Massa (Recuperação, est.)"
   },
   "sim": {
     "run": "Executar a simulação de voo",
@@ -1312,7 +1316,7 @@
   "recovery": {
     "title": "Dimensionamento da descida",
     "needsMotor": "Carregue um motor para dimensionar em relação à massa de descida (massa carregada menos o propelente).",
-    "forMass": "Para uma massa de descida de {{mass}} g:",
+    "forMass": "Estimado para uma massa de descida de {{mass}}:",
     "thisChute": "Este velame",
     "mainTarget": "Principal ({{range}})",
     "drogueTarget": "Drogue ({{range}})",
@@ -1323,7 +1327,10 @@
       "between": "entre intervalos",
       "drogue": "intervalo do drogue",
       "fast": "muito rápida"
-    }
+    },
+    "forMassRun": "Medido na última execução, com uma massa de descida de {{mass}}:",
+    "forMassRunBranch": "Medido na última execução em {{branch}}, com uma massa de descida de {{mass}}:",
+    "diametersEstimated": "Os diâmetros são estimativas para projetar, não resultados da simulação."
   },
   "sims": {
     "new": "＋ Nova",

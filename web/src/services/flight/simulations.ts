@@ -193,6 +193,60 @@ export interface SimPrefs {
   mainLowSpeedWarn: number;
   /** Drogue-side minimum, dual deployment only. */
   drogueLowSpeedWarn: number;
+  /**
+   * Which launch-guide clearance model to fly - see `SimulationSettings`. The
+   * only member of this type that changes the FLIGHT rather than a warning
+   * threshold, and the only reason it lives here is that `settings.simulation`
+   * is handed to `runSims` as the prefs whole: there is no per-simulation
+   * control for it, and a design does not carry one.
+   */
+  guideAwareRodClearance: boolean;
+}
+
+/**
+ * Every {@link SimPrefs} key, at runtime.
+ *
+ * `SimPrefs` is exactly the settings a FLIGHT reads, which is what makes it the
+ * right list for deciding whether a saved result still describes the current
+ * ones: `SimulationSettings` also carries `confirmDelete` and `autoRunOutdated`
+ * (interface only) and `railExitVelocityMin` (the rod-exit tile's color, never
+ * passed to the engine), none of which can change a number.
+ *
+ * The check below is what keeps this honest. A type cannot be enumerated at
+ * runtime, so this list is hand-written, and a key added to `SimPrefs` without
+ * being added here would silently stop invalidating results. `EXHAUSTIVE` fails
+ * to compile in that case.
+ */
+export const SIM_PREF_KEYS = [
+  'timeStep',
+  'maxTime',
+  'maxAngleStep',
+  'randomSeed',
+  'deploymentSpeedWarn',
+  'mainHighSpeedWarn',
+  'mainLowSpeedWarn',
+  'drogueLowSpeedWarn',
+  'guideAwareRodClearance',
+] as const satisfies readonly (keyof SimPrefs)[];
+
+/** Compile-time proof that {@link SIM_PREF_KEYS} names every `SimPrefs` key. */
+type EXHAUSTIVE =
+  Exclude<keyof SimPrefs, (typeof SIM_PREF_KEYS)[number]> extends never
+    ? true
+    : ['SIM_PREF_KEYS is missing', Exclude<keyof SimPrefs, (typeof SIM_PREF_KEYS)[number]>];
+const _exhaustive: EXHAUSTIVE = true;
+void _exhaustive;
+
+/**
+ * Which flight-affecting preferences differ between two sets of GLOBALS.
+ *
+ * Compared key by key rather than by identity, because the settings object is
+ * rebuilt on every unrelated change in the same store: switching a unit or a
+ * part color hands out a new `simulation` object holding the same nine numbers,
+ * and treating that as an edit would age every result on screen.
+ */
+export function changedPrefKeys(before: SimPrefs, after: SimPrefs): (keyof SimPrefs)[] {
+  return SIM_PREF_KEYS.filter((k) => before[k] !== after[k]);
 }
 
 /**
@@ -260,6 +314,7 @@ export function simConditions(launch: CompleteLaunch, prefs?: SimPrefs) {
     mainHighSpeedWarn: prefs?.mainHighSpeedWarn,
     mainLowSpeedWarn: prefs?.mainLowSpeedWarn,
     drogueLowSpeedWarn: prefs?.drogueLowSpeedWarn,
+    guideAwareRodClearance: prefs?.guideAwareRodClearance,
     // EVERY series the branch records, not the friendly dozen.
     //
     // `summary` was the default here since the option existed, so a run kept 17

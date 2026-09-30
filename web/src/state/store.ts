@@ -351,6 +351,21 @@ export interface WorkspaceState {
   applyBuild: (info: StaticInfo | null, rocket: Rocket | null) => void; // from the rebuild effect
   markOutdated: () => void; // from the tree-change effect
   /**
+   * Age the results a change to the GLOBAL run preferences invalidates.
+   *
+   * A design edit and a simulation edit already age their own rows, and so does
+   * a flight-configuration edit (motor, ignition, deployment, separation) -
+   * those go through `patchConfig`. The global preferences were the one input a
+   * flight reads that nothing watched, so changing the time step or the flight
+   * model left every saved result on screen claiming to be current, including
+   * after a reload.
+   *
+   * Takes the CHANGED keys rather than marking everything, because a row with
+   * its own override for a key the global moved is not affected: its override
+   * wins at run time, so its numbers still stand.
+   */
+  markPrefsOutdated: (changed: readonly (keyof SimPrefs)[]) => void;
+  /**
    * Bumped by every `hydrate`. Restoring a design is not editing it: the
    * flight-invalidation effect (useWorkspaceEffects) re-seeds its baseline on
    * a change here instead of flagging the restored results stale. Boot is one
@@ -1061,6 +1076,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           ? { sims: s.sims.map((x) => (x.result ? { ...x, outdated: true } : x)) }
           : {},
       ),
+    markPrefsOutdated: (changed) =>
+      set((s) => {
+        // A row is affected only where it does NOT pin the key itself.
+        const affected = (sim: Simulation) => changed.some((k) => sim.prefs?.[k] === undefined);
+        if (!s.sims.some((x) => x.result && !x.outdated && affected(x))) return {};
+        return { sims: s.sims.map((x) => (x.result && affected(x) ? { ...x, outdated: true } : x)) };
+      }),
     hydrate: (w) => {
       // A stored workspace is lifted to the current shape before it gets here
       // (services/storage/workspaceMigrate), so this only has to repair a blob that is

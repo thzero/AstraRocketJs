@@ -315,6 +315,9 @@
     "mainLowSpeedWarn": "メインの展開速度（下限）",
     "drogueLowSpeedWarn": "ドローグの展開速度（下限）",
     "railExitMinHint": "これを下回るとフィンに当たる気流が弱すぎて姿勢を保てず、ロッドを離れる際に風上へ向いたり不安定になったりします。",
+    "simModel": "飛行モデル",
+    "guideAwareRodClearance": "ガイド位置を考慮したロッド離脱",
+    "guideAwareRodClearanceHint": "OpenRocket は、ランチラグやレールボタンの位置に関わらず、ロッド全長にわたって機体を拘束します。有効にすると、最後端のガイドがロッドを離れた時点で機体が離脱します。通常はやや早く、レール離脱速度もわずかに低くなります。無効の場合は OpenRocket と一致します。",
     "deploySpeedWarnHint": "単段展開（ドローグなし）：この速度を超えてパラシュートを開くと、機体が縦に裂けたりキャノピーが破れたりする恐れがあります。",
     "mainHighSpeedWarnHint": "二段展開：これを超えるとメインの展開が速すぎます。多くの場合、ドローグが小さすぎて減速できていないか、メインの展開高度が高すぎます。",
     "mainLowSpeedWarnHint": "二段展開：これを下回るとメインはほとんど降下していない状態で開いており、通常はアポジー付近で展開したことを意味します。最高高度からゆっくり降り、風に流されます。",
@@ -447,7 +450,8 @@
     "needsMotor": "モーターを搭載してください",
     "cd": "抗力係数",
     "rollInertia": "ロール慣性（搭載時）",
-    "pitchInertia": "ピッチ慣性（搭載時）"
+    "pitchInertia": "ピッチ慣性（搭載時）",
+    "recoveryWeightEstimated": "質量（回収・推定）"
   },
   "sim": {
     "run": "飛行シミュレーションを実行",
@@ -1298,7 +1302,7 @@
   "recovery": {
     "title": "降下速度の設計",
     "needsMotor": "降下時質量（搭載時質量から推進剤を引いた値）を基準に検討するには、モーターを搭載してください。",
-    "forMass": "降下時質量 {{mass}} g の場合：",
+    "forMass": "降下質量 {{mass}} と仮定した推定値:",
     "thisChute": "このキャノピー",
     "mainTarget": "メイン（{{range}}）",
     "drogueTarget": "ドローグ（{{range}}）",
@@ -1309,7 +1313,10 @@
       "between": "範囲の間",
       "drogue": "ドローグの範囲",
       "fast": "非常に速い"
-    }
+    },
+    "forMassRun": "前回の計算での実測値（降下質量 {{mass}}）:",
+    "forMassRunBranch": "前回の計算の {{branch}} での実測値（降下質量 {{mass}}）:",
+    "diametersEstimated": "直径は設計の目安となる推定値で、シミュレーション結果ではありません。"
   },
   "sims": {
     "new": "＋ 新規",

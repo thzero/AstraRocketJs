@@ -317,6 +317,9 @@
     "mainLowSpeedWarn": "Velocidad de apertura del principal (mín)",
     "drogueLowSpeedWarn": "Velocidad de apertura del piloto (mín)",
     "railExitMinHint": "Por debajo de esto las aletas tienen muy poco flujo para dirigir, y el cohete puede orientarse al viento o volverse inestable al salir de la guía.",
+    "simModel": "Modelo de vuelo",
+    "guideAwareRodClearance": "Salida según las guías",
+    "guideAwareRodClearanceHint": "OpenRocket mantiene el cohete guiado durante toda la longitud del riel, estén donde estén las guías de lanzamiento o los botones de riel. Activado, el cohete sale del riel cuando lo hace su guía más trasera: normalmente un poco antes y con una velocidad de salida algo menor. Desactivado coincide con OpenRocket.",
     "deploySpeedWarnHint": "Despliegue simple (sin piloto): por encima de esta velocidad, abrir el paracaídas puede dañar el fuselaje o rasgar la vela.",
     "mainHighSpeedWarnHint": "Doble despliegue: por encima de esto el PRINCIPAL sale demasiado rápido — normalmente un piloto demasiado pequeño o un principal programado demasiado alto.",
     "mainLowSpeedWarnHint": "Doble despliegue: por debajo de esto el principal se abre con el cohete apenas descendiendo, lo que suele significar que se desplegó cerca del apogeo — un descenso lento y con mucha deriva.",
@@ -449,7 +452,8 @@
     "needsMotor": "carga un motor",
     "cd": "Coef. resistencia",
     "rollInertia": "Inercia de alabeo (cargado)",
-    "pitchInertia": "Inercia de cabeceo (cargado)"
+    "pitchInertia": "Inercia de cabeceo (cargado)",
+    "recoveryWeightEstimated": "Masa (Recuperación, est.)"
   },
   "sim": {
     "run": "Simular vuelo",
@@ -1312,7 +1316,7 @@
   "recovery": {
     "title": "Dimensionado de descenso",
     "needsMotor": "Carga un motor para dimensionar según la masa de descenso (masa cargada menos propelente).",
-    "forMass": "Para una masa de descenso de {{mass}} g:",
+    "forMass": "Estimado para una masa de descenso de {{mass}}:",
     "thisChute": "Este paracaídas",
     "mainTarget": "Principal ({{range}})",
     "drogueTarget": "Piloto ({{range}})",
@@ -1323,7 +1327,10 @@
       "between": "entre rangos",
       "drogue": "rango piloto",
       "fast": "muy rápido"
-    }
+    },
+    "forMassRun": "Medido en la última ejecución, con una masa de descenso de {{mass}}:",
+    "forMassRunBranch": "Medido en la última ejecución en {{branch}}, con una masa de descenso de {{mass}}:",
+    "diametersEstimated": "Los diámetros son estimaciones para diseñar, no resultados de la simulación."
   },
   "sims": {
     "new": "＋ Nueva",

@@ -19,12 +19,19 @@ import { unitScope } from '../../prefs/units';
 export function StabilityBadge({
   info,
   recoveryWeight,
+  recoveryEstimated,
   expanded,
   onToggle,
 }: {
   info: StaticInfo | null;
   /** Descent mass (kg) = loaded − expelled propellant; undefined with no motor. */
   recoveryWeight?: number;
+  /**
+   * The recovery mass is the app's own arithmetic on the design rather than a
+   * figure from a run, so the tile's label says so. False once a run has deployed
+   * a device and the kernel's own mass has replaced it.
+   */
+  recoveryEstimated?: boolean;
   expanded: boolean;
   onToggle: () => void;
 }) {
@@ -100,11 +107,18 @@ export function StabilityBadge({
               </>
             }
           />
-          {/* Descent mass — loaded minus the propellant that burns off. Needs a
-              motor loaded to have propellant to subtract. Sits next to Mass. */}
+          {/* What the recovery system brings down. Estimated from the design
+              (loaded minus the propellant that burns off) until a run reports the
+              kernel's own mass under the chute, which is also the only way to get
+              it right on a staged design: a booster descends on its own branch.
+              Needs a motor loaded to have propellant to subtract.
+
+              The ESTIMATE is marked on the label rather than in place of the unit
+              chip below: the chip is the control that sets this tile's unit, and
+              a marker is not worth a control. */}
           <Stat
             card
-            label={t('stats.recoveryWeight')}
+            label={recoveryEstimated ? t('stats.recoveryWeightEstimated') : t('stats.recoveryWeight')}
             value={recoveryWeight != null ? recoveryTile.fmt(recoveryWeight) : '—'}
             sub={
               recoveryWeight != null ? (
