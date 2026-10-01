@@ -2,6 +2,7 @@ import { buildRocketTree } from '../../engine/api';
 import type { OpenRocketDesign, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
 import { configuredTree, liveMotors, stageFlies, type FlightConfig } from '../flight/flightConfigs';
 import { findStages } from './treeEdit';
+import { badDimensions, type BadDimension } from './requiredComponent';
 import { hasUsableCurve } from '../motors/motorCurve';
 
 /**
@@ -63,8 +64,18 @@ export function buildConfiguredRocket(tree: RocketTree, config: FlightConfig): O
   return r;
 }
 
-/** Static info + the live handle it was read from, or a build/read error message. */
-export type StaticInfoResult = { info: StaticInfo; rocket: OpenRocketDesign } | { error: string };
+/**
+ * Static info + the live handle it was read from, or a build/read failure.
+ *
+ * A failure carries the engine's own message AND, where the design explains
+ * itself, the dimensions that are zero. The engine's message does not name a
+ * part: a tube fin set with a zero length divides by its own chord for the
+ * aspect ratio (`TubeFinSetCalc`), and what reaches the banner is "The number
+ * NaN cannot be converted to a BigInt", which tells nobody which part to go and
+ * fix. The app already knows (`badDimensions`), and the Run button already says
+ * so in those words, so the banner says the same thing.
+ */
+export type StaticInfoResult = { info: StaticInfo; rocket: OpenRocketDesign } | { error: string; bad?: BadDimension[] };
 
 /**
  * Build the configured rocket and read its static info (CG / CP / stability),
@@ -91,6 +102,7 @@ export function computeStaticInfo(
     }
     return { info, rocket };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : String(e) };
+    const bad = badDimensions(tree);
+    return { error: e instanceof Error ? e.message : String(e), ...(bad.length ? { bad } : {}) };
   }
 }

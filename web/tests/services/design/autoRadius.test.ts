@@ -181,6 +181,34 @@ describe('automatic values other than the neighbor rule', () => {
     expect(kid(t)['radius']).toBeCloseTo(0.025, 9);
   });
 
+  /**
+   * A disc inside an AUTOMATIC-radius coupler, which is every coupler the Add
+   * menu makes.
+   *
+   * Resolving inside-out gave the child its parent's bare default rather than
+   * the bore the parent had just taken from the airframe: on a 3-inch tube a
+   * bulkhead came out 24.00 mm across instead of 72.20. That number is what the
+   * schematic drew, what the DXF cut and what the 1:1 template measured, so a
+   * part cut from it fitted nothing.
+   */
+  it('fills a ring to the bore of an automatic coupler, not the coupler default', () => {
+    const t = syncAutoRadii(
+      inTube({
+        type: 'tubecoupler',
+        id: 'cp',
+        length: 0.03,
+        thickness: 0.0005,
+        outerRadius: 0.0125, // the Add menu's default, pending resolution
+        outerRadiusAuto: true,
+        children: [{ type: 'bulkhead', id: 'bh', length: 0.003, outerRadius: 0.0125, outerRadiusAuto: true }],
+      } as unknown as ComponentNode),
+    );
+    const coupler = kid(t);
+    const bulkhead = (coupler.children as ComponentNode[])[0]!;
+    expect(coupler['outerRadius']).toBeCloseTo(0.025, 9); // the 26 mm tube's bore
+    expect(bulkhead['outerRadius']).toBeCloseTo(0.0245, 9); // the COUPLER's bore
+  });
+
   it('sizes a tube fin set from the body and the fin count', () => {
     const t = syncAutoRadii(
       inTube({

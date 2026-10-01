@@ -149,8 +149,14 @@ const find = (nodes: ComponentNode[] | undefined, name: string): ComponentNode =
 
 describe('exportRkt', () => {
   it('writes a RockSim document a reader can find the design in', () => {
-    expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
-    expect(xml).toContain('<RockSimDocument>');
+    // STARTS with the root element, nothing in front of it. Desktop
+    // OpenRocket identifies a RockSim file by its first eleven bytes being
+    // `<RockSimDoc` exactly (`GeneralRocketLoader.ROCKSIM_SIGNATURE`), unlike
+    // the OpenRocket check beside it, which scans the buffer. An XML
+    // declaration in front made every `.rkt` this app wrote open as
+    // "Unsupported or corrupt file". The desktop's own saver writes none.
+    expect(xml.startsWith('<RockSimDocument>')).toBe(true);
+    expect(xml).not.toContain('<?xml');
     expect(xml).toContain('<FileVersion>4</FileVersion>');
     expect(xml).toContain('<Name>Round Trip</Name>');
     expect(xml).toContain('<StageCount>1</StageCount>');

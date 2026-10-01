@@ -415,7 +415,11 @@ export function exportRkt(name: string, tree: RocketTree): RktExportResult {
   const written = Math.min(stages.length, STAGE_ELEMENTS.length);
   if (stages.length > STAGE_ELEMENTS.length) w.skipped.add(`stage ${STAGE_ELEMENTS.length + 1} and beyond`);
 
-  w.emit(0, '<?xml version="1.0" encoding="UTF-8"?>');
+  // NO XML DECLARATION. `GeneralRocketLoader` identifies a RockSim file by the
+  // first eleven bytes being `<RockSimDoc` exactly - unlike its OpenRocket
+  // check, which scans the buffer - so a declaration in front of the root
+  // element made every `.rkt` this app wrote "Unsupported or corrupt file" in
+  // desktop OpenRocket. The desktop's own `RockSimSaver` writes none either.
   w.emit(0, '<RockSimDocument>');
   // Version 4 is what OpenRocket's own saver writes and what its loader reads.
   w.emit(1, '<FileVersion>4</FileVersion>');

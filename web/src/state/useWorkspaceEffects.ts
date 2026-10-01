@@ -8,6 +8,7 @@ import { getWorkspaceStore } from '../services/storage/workspaceStore';
 import { onStorageDegraded } from '../services/storage/idbKeyValueStore';
 import { requestPersistentStorage } from '../services/storage/persistStorage';
 import { computeStaticInfo, flightKey } from '../services/design/buildRocket';
+import { designBlockerText } from '../services/flight/runnability';
 import { changedPrefKeys } from '../services/flight/simulations';
 import { useSettings } from './SettingsProvider';
 import { warmSimWorker } from '../engine/simClient';
@@ -229,7 +230,15 @@ export function useWorkspaceEffects() {
     const res = computeStaticInfo(store.tree, selectConfig(store));
     if ('error' in res) {
       store.applyBuild(null, null);
-      store.setErr(res.error);
+      // The design's own explanation when it has one. The engine's message for
+      // a zero dimension names no part ("The number NaN cannot be converted to
+      // a BigInt" for a tube fin set with no length), and the Run button
+      // already says which part and which field, in those words.
+      store.setErr(
+        res.bad?.length
+          ? designBlockerText({ kind: 'badGeometry', bad: res.bad }, i18nGlobal.t.bind(i18nGlobal))
+          : res.error,
+      );
     } else {
       store.applyBuild(res.info, res.rocket);
       store.setErr(null);

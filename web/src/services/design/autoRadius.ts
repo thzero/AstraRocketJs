@@ -111,13 +111,6 @@ export function syncAutoRadii(tree: RocketTree): RocketTree {
     let changed = false;
     const out = nodes.map((n, i) => {
       let node = n;
-      if (n.children) {
-        const kids = chain(n.children, n);
-        if (kids !== n.children) {
-          node = { ...node, children: kids };
-          changed = true;
-        }
-      }
       // Rings, tube fins and packed devices take their size from what they are
       // INSIDE, not from the part beside them, so they resolve against the
       // parent rather than through the neighbor rule below.
@@ -145,6 +138,20 @@ export function syncAutoRadii(tree: RocketTree): RocketTree {
         const r = first ?? (spec.side === -1 ? ahead : behind) ?? KERNEL_DEFAULTS.bodytube.outerRadius;
         if (node[spec.radius] !== r) {
           node = { ...node, [spec.radius]: r };
+          changed = true;
+        }
+      }
+      // CHILDREN LAST, so each one sees a parent whose own radius is already
+      // resolved. Resolving inside-out gave a disc inside an AUTOMATIC-radius
+      // coupler the coupler's bare default instead of its real bore: on a
+      // 3-inch airframe a bulkhead came out 24.00 mm across rather than 72.2,
+      // which is what the schematic drew, the DXF cut and the printed template
+      // measured. Every coupler the Add menu makes is automatic, so the only
+      // way to miss it was to size the coupler by hand first.
+      if (node.children) {
+        const kids = chain(node.children, node);
+        if (kids !== node.children) {
+          node = { ...node, children: kids };
           changed = true;
         }
       }
