@@ -171,6 +171,46 @@ describe('findCatalogMotor', () => {
   });
 });
 
+/**
+ * A name with the motor's total impulse written in front of it.
+ *
+ * RockSim names a Cesaroni motor that way - `206J530-IM` for a J530 - where the
+ * catalog holds the name on its own and its own `code` carries a different
+ * impulse figure. With nothing to read past the number, such a motor matched
+ * nothing at all and the mount opened empty.
+ */
+describe('findCatalogMotor — a leading impulse number', () => {
+  const cat: CatalogMotor[] = [
+    {
+      designation: 'J530',
+      manufacturer: 'Cesaroni',
+      class: 'J',
+      diameter: 38,
+      impulse: 1,
+      burn: 1,
+      mass: 1,
+      code: '1115J530-15A',
+    },
+    { designation: '1/2A6', manufacturer: 'Estes', class: 'A', diameter: 13, impulse: 1, burn: 1, mass: 1 },
+  ];
+
+  it.each(['206J530-IM', '1115J530', '1115J530-15A', 'J530-IM', 'J530'])('resolves %s', (name) => {
+    expect(findCatalogMotor(cat, name, 'Cesaroni')!.designation).toBe('J530');
+  });
+
+  it('leaves a designation that really starts with digits alone', () => {
+    // The number is only read past when a LETTER follows it, so "1/2A6" is not
+    // quietly turned into an A6.
+    expect(findCatalogMotor(cat, '1/2A6', 'Estes')!.designation).toBe('1/2A6');
+  });
+
+  it('still matches nothing when the motor is not in the catalog', () => {
+    // The point of reading past the impulse is to find the right motor, not to
+    // find any motor: no tier may shorten a name into a different one.
+    expect(findCatalogMotor(cat, '206K530-IM', 'Cesaroni')).toBeUndefined();
+  });
+});
+
 describe('findCatalogMotor — full .ork designations vs short catalog names', () => {
   // Catalog keys the SHORT designation; the full name lives in `code`, exactly
   // as our bundled motors.generated.json does (see Fireball.ZL1.DD.multi.ork).

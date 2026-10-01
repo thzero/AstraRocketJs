@@ -1467,7 +1467,8 @@
   "storage": {
     "full": "Não foi possível salvar o seu trabalho: o armazenamento do navegador está cheio. Exporte o seu projeto para guardá-lo.",
     "degraded": "Seu navegador está bloqueando o banco de dados dele, então o aplicativo recorreu a uma área de armazenamento bem menor (cerca de 5 MB) e salvar pode falhar conforme o projeto cresce. Navegação privada é a causa comum. Exporte o que quiser guardar.",
-    "loadFailed": "Não foi possível ler o seu projeto salvo. Começando do zero; o trabalho novo continuará sendo salvo."
+    "loadFailed": "Não foi possível ler o seu projeto salvo. Começando do zero; o trabalho novo continuará sendo salvo.",
+    "conflict": "Este projeto foi alterado em outra aba, então suas edições aqui não estão sendo salvas. Exporte-as para mantê-las ou reabra o projeto em Meus foguetes para carregar a versão da outra aba."
   },
   "library": {
     "title": "Meus foguetes",

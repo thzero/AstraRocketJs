@@ -1467,7 +1467,8 @@
   "storage": {
     "full": "Não foi possível guardar o seu trabalho: o armazenamento do navegador está cheio. Exporte o seu projeto para o conservar.",
     "degraded": "O seu navegador está a bloquear a base de dados dele, pelo que a aplicação passou a usar uma área de armazenamento muito menor (cerca de 5 MB) e guardar pode falhar à medida que o projeto cresce. A navegação privada é a causa habitual. Exporte tudo o que quiser conservar.",
-    "loadFailed": "Não foi possível ler o projeto que guardou. A começar de novo; o trabalho novo continuará a ser guardado."
+    "loadFailed": "Não foi possível ler o projeto que guardou. A começar de novo; o trabalho novo continuará a ser guardado.",
+    "conflict": "Este projeto foi alterado noutro separador, pelo que as suas edições aqui não estão a ser guardadas. Exporte-as para as manter ou reabra o projeto em Os meus foguetões para carregar a versão do outro separador."
   },
   "library": {
     "title": "Os meus foguetões",

@@ -405,12 +405,30 @@ function pinStated(patch: Partial<ComponentNode>): Partial<ComponentNode> {
  * its next pass. That was unreachable while nothing started automatic; the four
  * bore-filling parts now do, as their kernel constructors do.
  */
-export function catalogPatch(p: Component): Partial<ComponentNode> {
-  return pinStated(statedPatch(p));
+export function catalogPatch(p: Component, node?: ComponentNode): Partial<ComponentNode> {
+  return pinStated(statedPatch(p, node));
+}
+
+/**
+ * A wall for a cone the catalog calls hollow but states no wall for.
+ *
+ * The row publishes `filled` and an outside diameter and nothing else, so a
+ * hollow part has to inherit a wall from somewhere. The node's own is the right
+ * answer when it IS a wall: picking a different hollow cone should not throw
+ * away a thickness that was typed for this airframe. It is the wrong answer
+ * when the part being replaced was SOLID, because its "wall" is its whole
+ * radius, and carried onto a hollow part it keeps the cone solid at the new
+ * part's dimensions - a nose cone still flying several times its real mass.
+ */
+function hollowWall(node: ComponentNode | undefined, radius: number): Partial<ComponentNode> {
+  const n = node as Record<string, unknown> | undefined;
+  const wall = typeof n?.['thickness'] === 'number' ? n['thickness'] : null;
+  const wasSolid = n?.['filled'] === true || wall == null || wall >= radius;
+  return wasSolid ? ({ thickness: KERNEL_DEFAULTS.nosecone.thickness } as Partial<ComponentNode>) : {};
 }
 
 /** The dimensions the chosen part states, before {@link pinStated} pins them. */
-function statedPatch(p: Component): Partial<ComponentNode> {
+function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode> {
   // A SAVED part (customParts.ts) carries its whole node, not the handful of
   // dimensions a catalog row publishes, and applying only the switch below
   // would drop the nose cone's shoulder, the parachute's lines, the tube's
@@ -422,14 +440,22 @@ function statedPatch(p: Component): Partial<ComponentNode> {
       ? { density: p.materialDensity, materialName: (p as { material?: string }).material }
       : {};
   switch (p.type) {
-    case 'nosecone':
+    case 'nosecone': {
+      const radius = p.outerDiameter / 2;
       return {
         shape: p.shape,
         length: p.length,
-        aftRadius: p.outerDiameter / 2,
-        ...(p.filled ? { thickness: p.outerDiameter / 2 } : {}),
+        aftRadius: radius,
+        // SAID OUTRIGHT, both ways. The kernel reads solidness from this flag
+        // (`ComponentFactory` calls `setFilled`), not from the thickness, so
+        // leaving it alone let the part BEFORE this one decide: a solid cone
+        // followed by a hollow one went on flying solid, at the hollow one's
+        // dimensions, and the `.ork` went on saying `<thickness>filled`.
+        filled: !!p.filled,
+        ...(p.filled ? { thickness: radius } : hollowWall(node, radius)),
         ...mat,
       };
+    }
     case 'bodytube':
     case 'tubecoupler':
       return {

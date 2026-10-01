@@ -283,9 +283,19 @@ export function findCatalogMotor(
 
   // `H128W-OLD` → base `H128W` (drop one trailing -/_ suffix) → bare `H128`
   // (drop trailing propellant letters). Both are retried against designation+code.
-  const base = raw.replace(/[-_][^-_]*$/, '');
-  const bare = base.replace(/[A-Za-z]+$/, '');
-  const stripped = [base, bare].map((s) => s.toLowerCase()).filter((s) => s && s !== want);
+  const shrink = (name: string): string[] => {
+    const base = name.replace(/[-_][^-_]*$/, '');
+    return [name, base, base.replace(/[A-Za-z]+$/, '')];
+  };
+  // `206J530-IM` → `J530-IM` → `J530`. RockSim writes a Cesaroni motor with its
+  // total impulse in front of the name, where the catalog holds the name on its
+  // own, and the file's number is not always the one our row's code carries.
+  // Only read past when a LETTER follows it, so a designation that really
+  // begins with digits ("1/2A6", a bare part number) is left alone.
+  const noImpulse = raw.replace(/^\d+(?=[A-Za-z])/, '');
+  const stripped = [...new Set([...shrink(raw), ...(noImpulse === raw ? [] : shrink(noImpulse))])]
+    .map((s) => s.toLowerCase())
+    .filter((s) => s && s !== want);
 
   const tiers: Array<() => CatalogMotor[]> = [
     () => catalog.filter((m) => m.designation.toLowerCase() === want),

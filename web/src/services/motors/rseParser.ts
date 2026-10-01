@@ -30,10 +30,8 @@
 //     other.
 import type { CustomMotor } from './motorStore';
 import { impulseClass } from './motorCombine';
+import { delayList } from './motorPicker';
 import { totalImpulse } from './engParser';
-
-/** Any delay at or past this is the file's way of saying plugged. */
-const DELAY_LIMIT = 90;
 
 /** RockSim's `Type` attribute, mapped to the catalog's own vocabulary. */
 const TYPES: Record<string, NonNullable<CustomMotor['type']>> = {
@@ -76,35 +74,6 @@ function optNum(el: Element, name: string): number {
   if (raw === null) return NaN;
   const v = Number(raw);
   return Number.isFinite(v) ? v : NaN;
-}
-
-/**
- * The delays a file lists, as the catalog's delay STRING (`"4,6,10,P"`).
- *
- * A string rather than the number array `.eng` import produces, because that is
- * what `motorPicker.parseDelays` and `offersPlugged` read, and it is the only
- * way to say "plugged" at all: upstream uses an infinite delay for that and a
- * number array has nowhere to put it.
- */
-function parseDelays(raw: string | null): string | undefined {
-  if (!raw) return undefined;
-  const out: string[] = [];
-  let plugged = false;
-  for (const tok of raw.split(',')) {
-    const t = tok.trim();
-    if (!t) continue;
-    const v = Number(t);
-    if (Number.isFinite(v)) {
-      // Upstream reads any delay at or past 90 s as the file's way of writing
-      // a plugged motor, rather than as a real 90-second delay.
-      if (v >= DELAY_LIMIT) plugged = true;
-      else out.push(String(v));
-    } else if (/^p/i.test(t)) {
-      plugged = true;
-    }
-  }
-  if (plugged) out.push('P');
-  return out.length ? out.join(',') : undefined;
 }
 
 /**
@@ -220,8 +189,7 @@ function parseEngine(el: Element): CustomMotor {
     length,
     totalWeightG,
     propWeightG,
-    delays: undefined,
-    delayList: parseDelays(el.getAttribute('delays')),
+    delayList: delayList(el.getAttribute('delays'), 'rocksim'),
     type,
     // Grams, parallel to `samples`. This is the whole reason `.rse` is the
     // richer format: the mass curve is measured rather than inferred from the

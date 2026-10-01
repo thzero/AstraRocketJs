@@ -172,6 +172,20 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
    * straight over the old one.
    */
   private gen = 0;
+  /**
+   * The library's `updatedAt` for the active design as this tab last saw it.
+   *
+   * THE AUTOSAVE SLOT IS SHARED. Two tabs of an installed PWA open the same
+   * design, because both open whatever was active, and each one autosaves its
+   * own copy on a 500 ms debounce. Writing unconditionally made that last
+   * writer wins: a single edit in a tab left open yesterday overwrote a day's
+   * work in the other, and once that tab closed there was nothing left to
+   * recover from. Nothing ever said so.
+   *
+   * Null means this tab has no claim on the entry yet (it has not read or
+   * written it), and the first write establishes one.
+   */
+  private lastSeenAt: number | null = null;
 
   async load(): Promise<Workspace | null> {
     const lib = getDesignLibrary();
@@ -203,6 +217,10 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
       if (await lib.write(journal.id, (await this.nameOf(journal.id)) ?? nameFor(w), w)) {
         clearJournal();
       }
+      // This tab has just written the entry, so the claim it holds on it is the
+      // one it leaves behind; without this the first autosave reads its own
+      // journal replay as another tab's work.
+      this.lastSeenAt = (await this.metaOf(journal.id))?.updatedAt ?? null;
       // The journal carries no results (see `lean`), so they come from their own
       // key — a reload after a run still opens on the numbers it produced.
       return this.trackResults(withResults(w, await lib.readResults(journal.id)));
@@ -259,6 +277,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
       this.activeId = null;
       throw new Error('unreadable-design');
     }
+    this.lastSeenAt = (await this.metaOf(this.activeId))?.updatedAt ?? null;
     return this.trackResults(withResults(w, await lib.readResults(this.activeId)));
   }
 
@@ -304,13 +323,24 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
       if (gen !== this.gen) return; // the workspace moved on; that entry is the old one's
       this.pendingName = null;
       this.activeId = meta.id;
+      this.lastSeenAt = meta.updatedAt;
       await this.saveResults(lib, meta.id, w);
       return;
     }
+    // Another tab's work is not ours to throw away. Refuse rather than write
+    // over an entry that has moved since this tab last saw it, and keep
+    // refusing: this tab's design is still in front of the user, who can export
+    // it or reopen the design to take the other tab's version. A warning AFTER
+    // the overwrite would name work that no longer exists to be rescued.
+    const meta = await this.metaOf(this.activeId);
+    if (this.lastSeenAt != null && meta && meta.updatedAt > this.lastSeenAt) {
+      throw new Error('conflict');
+    }
     // The design is the ONE thing here that cannot be recomputed, so surface a
     // failed write (storage full) instead of silently dropping the user's work.
-    const name = (await this.nameOf(this.activeId)) ?? nameFor(w);
+    const name = meta?.name ?? nameFor(w);
     if (!(await lib.write(this.activeId, name, leanW))) throw new Error('storage-full');
+    this.lastSeenAt = (await this.metaOf(this.activeId))?.updatedAt ?? Date.now();
     await this.saveResults(lib, this.activeId, w);
   }
 
@@ -333,6 +363,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     // A different design has different flights; what we know about the last
     // write no longer applies to the one we are about to make.
     this.savedResults = new Map();
+    this.lastSeenAt = null;
   }
 
   /** Name the next created design (see the interface). Call AFTER

@@ -14,6 +14,7 @@ import type { CustomMotor } from './motorStore';
 // N-s MicroMaxx an "A", while the shared one called the same motor "below A".
 // Same motor, two different classes depending on which screen you were on.
 import { impulseClass } from './motorCombine';
+import { delayList } from './motorPicker';
 
 /** Total impulse (Ns) of a thrust curve by the trapezoid rule. */
 export function totalImpulse(samples: { time: number; thrust: number }[]): number {
@@ -57,12 +58,30 @@ export function parseEng(text: string): CustomMotor {
     throw new Error('Malformed .eng header — propellant mass must be between 0 and the total mass.');
   }
 
-  const delays = delaysS!.split('-').map(Number).filter(Number.isFinite);
+  // Through the shared reader, which is what the catalog's delay column is and
+  // the only form that can say plugged. Splitting on '-' and dropping anything
+  // non-numeric lost the whole field for a plugged motor, and `customToRow`
+  // reads `delayList` and nothing else, so an imported `.eng` arrived at the
+  // picker with no delays at all.
+  const delays = delayList(delaysS, 'rasp');
 
+  // A data line is a time and a thrust, and nothing else is tolerated inside
+  // the block. Upstream (`RASPMotorLoader`) refuses the whole file on anything
+  // else; this stopped at it and kept what it had, so a file with one bad line
+  // imported as the fragment of a curve before it, with no complaint. On a
+  // two-pulse motor that is the first pulse flown as the whole motor.
+  //
+  // The one line that legitimately ends the block is the NEXT motor's header,
+  // which is why its 7 fields are the only non-data line that stops rather than
+  // throws (comments and blanks are already gone).
   const samples: { time: number; thrust: number }[] = [];
   for (let i = 1; i < lines.length; i++) {
-    const [t, f] = lines[i]!.split(/\s+/).map(Number);
-    if (!Number.isFinite(t) || !Number.isFinite(f)) break; // end of this motor's data
+    const fields = lines[i]!.split(/\s+/);
+    if (fields.length >= 7) break; // the next motor in a multi-motor file
+    const [t, f] = fields.map(Number);
+    if (fields.length !== 2 || !Number.isFinite(t) || !Number.isFinite(f)) {
+      throw new Error(`Malformed .eng data on line ${i + 1} — expected a time and a thrust, got "${lines[i]}".`);
+    }
     samples.push({ time: t!, thrust: f! });
   }
   if (samples.length < 2) throw new Error('.eng file has no thrust-curve data points.');
@@ -77,7 +96,7 @@ export function parseEng(text: string): CustomMotor {
     length,
     totalWeightG: totalKg * 1000,
     propWeightG: propKg * 1000,
-    delays: delays.length ? delays : undefined,
+    delayList: delays,
     samples,
     source: 'eng',
   };

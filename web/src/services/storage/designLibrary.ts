@@ -184,7 +184,17 @@ export class DesignLibrary {
     // existing one stops advancing its `updatedAt` so the library list silently
     // goes stale. Reporting the failure lets `workspaceStore.save()` raise
     // "storage full" instead of the user finding out later.
-    return await this.mutateIndex((list) => [{ id, name, updatedAt: Date.now() }, ...list.filter((m) => m.id !== id)]);
+    // STRICTLY LATER than the stamp being replaced, not merely `Date.now()`.
+    // Two writes inside the same millisecond leave the stamp unchanged, and the
+    // stamp is what tells a second tab that the entry moved under it
+    // (`workspaceStore.save`) and what tells a reload that the library has
+    // passed an unload journal (`Journal.t`). A tie reads as "nothing happened",
+    // which is the one answer that is never true after a write.
+    return await this.mutateIndex((list) => {
+      const prev = list.find((m) => m.id === id);
+      const updatedAt = Math.max(Date.now(), (prev?.updatedAt ?? 0) + 1);
+      return [{ id, name, updatedAt }, ...list.filter((m) => m.id !== id)];
+    });
   }
 
   /**

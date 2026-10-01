@@ -1475,7 +1475,8 @@
   "storage": {
     "full": "Nie udało się zapisać pracy: pamięć przeglądarki jest pełna. Wyeksportuj projekt, aby go zachować.",
     "degraded": "Przeglądarka blokuje swoją bazę danych, więc aplikacja przeszła na znacznie mniejszą pamięć (około 5 MB) i wraz z rozrostem projektu zapis może się nie udawać. Zwykle dzieje się tak w trybie prywatnym. Wyeksportuj wszystko, co chcesz zachować.",
-    "loadFailed": "Nie udało się odczytać zapisanego projektu. Zaczynamy od nowa; dalsza praca będzie zapisywana."
+    "loadFailed": "Nie udało się odczytać zapisanego projektu. Zaczynamy od nowa; dalsza praca będzie zapisywana.",
+    "conflict": "Ten projekt został zmieniony w innej karcie, więc zmiany wprowadzone tutaj nie są zapisywane. Wyeksportuj je, aby je zachować, albo otwórz projekt ponownie w Moich rakietach, aby wczytać wersję z drugiej karty."
   },
   "library": {
     "title": "Moje rakiety",

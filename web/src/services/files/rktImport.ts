@@ -1,3 +1,4 @@
+import { decodeFileText } from './decodeText';
 import type { ComponentNode, ComponentType } from '../../engine/openRocketEngine';
 import { freshId } from '../design/orkTree';
 import { xmlText as text } from './xmlUtil';
@@ -799,7 +800,7 @@ const STAGE_CG_ELEMENTS = ['Stage3CG', 'Stage2CGAlone', 'Stage1CGAlone'] as cons
  * takes it unchanged.
  */
 export function importRkt(data: ArrayBuffer | string): OrkImportResult {
-  const xml = typeof data === 'string' ? data : new TextDecoder().decode(data);
+  const xml = typeof data === 'string' ? data : decodeFileText(new Uint8Array(data));
   const doc = parseOrkXml(xml);
   const design = doc.querySelector('RockSimDocument > DesignInformation > RocketDesign');
   if (!design) throw new Error('Not a .rkt file (missing <RocketDesign>)');

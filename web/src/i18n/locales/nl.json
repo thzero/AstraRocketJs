@@ -1459,7 +1459,8 @@
   "storage": {
     "full": "Kon je werk niet opslaan: de browseropslag is vol. Exporteer je ontwerp om het te bewaren.",
     "degraded": "Je browser blokkeert zijn database, dus de app is teruggevallen op een veel kleinere opslagruimte (ongeveer 5 MB) en opslaan kan mislukken zodra je ontwerp groeit. Privé navigeren is de gebruikelijke oorzaak. Exporteer alles wat je wilt bewaren.",
-    "loadFailed": "Je opgeslagen ontwerp kon niet worden gelezen. Er wordt blanco begonnen; nieuw werk wordt wel opgeslagen."
+    "loadFailed": "Je opgeslagen ontwerp kon niet worden gelezen. Er wordt blanco begonnen; nieuw werk wordt wel opgeslagen.",
+    "conflict": "Dit ontwerp is in een ander tabblad gewijzigd, dus je wijzigingen hier worden niet opgeslagen. Exporteer ze om ze te bewaren, of open het ontwerp opnieuw via Mijn raketten om de versie van het andere tabblad te laden."
   },
   "library": {
     "title": "Mijn raketten",

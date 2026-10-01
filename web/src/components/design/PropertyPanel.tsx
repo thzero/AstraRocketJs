@@ -211,7 +211,7 @@ export function PropertyPanel({
                   // The link goes in with the dimensions: the desktop shows which
                   // catalog part a component is, and drops the link as soon as a
                   // dimension moves (see treeEdit.breaksPreset).
-                  onApply={(p) => commitChange({ ...catalogPatch(p), ...presetRef(p) })}
+                  onApply={(p) => commitChange({ ...catalogPatch(p, node), ...presetRef(p) })}
                 />
                 {/* The other direction: take the part you just built and put it
                     in the picker above, on this design and every other one. */}

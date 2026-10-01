@@ -126,7 +126,20 @@ type HistoryEntry = {
 const HISTORY_LIMIT = 100;
 
 /** Which condition raised `storageWarning` — only 'full' is save-clearable. */
-export type StorageWarningKind = 'full' | 'degraded' | 'loadFailed';
+export type StorageWarningKind = 'full' | 'degraded' | 'loadFailed' | 'conflict';
+
+/**
+ * The warning a refused save deserves, from what refused it.
+ *
+ * A conflict is not a storage failure: nothing is wrong with the browser, and
+ * telling the user to free space would send them off fixing the wrong thing.
+ * Another tab has moved the design on, and what they need to know is that this
+ * tab's edits are not being kept and how to rescue them.
+ */
+export const saveFailure = (e: unknown): { msg: string; kind: StorageWarningKind } =>
+  e instanceof Error && e.message === 'conflict'
+    ? { msg: i18n.t('storage.conflict'), kind: 'conflict' }
+    : { msg: i18n.t('storage.full'), kind: 'full' };
 
 export interface WorkspaceState {
   // --- design ---
@@ -852,10 +865,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     try {
       await getWorkspaceStore().save(snapshotOf(useWorkspaceStore.getState()));
       return true;
-    } catch {
+    } catch (e) {
+      // Recorded rather than returned, so a caller that only cares WHETHER the
+      // write landed still reports the right reason it did not.
+      lastFlushFailure = e;
       return false;
     }
   };
+  /** Why the last `flushActive` returned false, for the caller that reports it. */
+  let lastFlushFailure: unknown = null;
 
   const clearHistory = () => {
     txn = null;
@@ -1856,7 +1874,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // debounced autosave would be lost to the swap. A refused write does not
       // block the switch (the user asked to open something else), but it is
       // not silent either.
-      if (!(await flushActive()) && !stale()) get().setStorageWarning(i18n.t('storage.full'), 'full');
+      if (!(await flushActive()) && !stale()) {
+        const { msg, kind } = saveFailure(lastFlushFailure);
+        get().setStorageWarning(msg, kind);
+      }
       if (stale()) return;
       // A refused pointer write means this session would edit B while the
       // library still names A, and the next launch reopens A. Stop before the

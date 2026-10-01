@@ -1467,7 +1467,8 @@
   "storage": {
     "full": "No se pudo guardar tu trabajo: el almacenamiento del navegador está lleno. Exporta tu diseño para conservarlo.",
     "degraded": "Tu navegador está bloqueando su base de datos, así que la aplicación ha recurrido a un área de almacenamiento mucho más pequeña (unos 5 MB) y el guardado puede fallar a medida que crezca tu diseño. La navegación privada suele ser la causa. Exporta lo que quieras conservar.",
-    "loadFailed": "No se pudo leer el diseño guardado. Se empieza de cero; el trabajo nuevo sí se guardará."
+    "loadFailed": "No se pudo leer el diseño guardado. Se empieza de cero; el trabajo nuevo sí se guardará.",
+    "conflict": "Este diseño se modificó en otra pestaña, por lo que tus cambios aquí no se están guardando. Expórtalos para conservarlos, o vuelve a abrir el diseño en Mis cohetes para cargar la versión de la otra pestaña."
   },
   "library": {
     "title": "Mis cohetes",

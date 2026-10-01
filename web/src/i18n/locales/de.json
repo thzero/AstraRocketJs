@@ -1459,7 +1459,8 @@
   "storage": {
     "full": "Ihre Arbeit konnte nicht gespeichert werden – der Browserspeicher ist voll. Exportieren Sie Ihren Entwurf, um ihn zu behalten.",
     "degraded": "Ihr Browser blockiert seine Datenbank, daher weicht die App auf einen viel kleineren Speicherbereich (etwa 5 MB) aus, und das Speichern kann fehlschlagen, wenn Ihr Entwurf wächst. Meist liegt es am privaten Modus. Exportieren Sie alles, was Sie behalten möchten.",
-    "loadFailed": "Ihr gespeicherter Entwurf konnte nicht gelesen werden. Es wird neu begonnen – neue Arbeit wird weiterhin gespeichert."
+    "loadFailed": "Ihr gespeicherter Entwurf konnte nicht gelesen werden. Es wird neu begonnen – neue Arbeit wird weiterhin gespeichert.",
+    "conflict": "Dieses Design wurde in einem anderen Tab geändert, daher werden deine Änderungen hier nicht gespeichert. Exportiere sie, um sie zu behalten, oder öffne das Design erneut unter „Meine Raketen“, um die Version des anderen Tabs zu laden."
   },
   "library": {
     "title": "Meine Raketen",

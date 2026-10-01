@@ -1467,7 +1467,8 @@
   "storage": {
     "full": "Impossible d'enregistrer votre travail – le stockage du navigateur est plein. Exportez votre conception pour la conserver.",
     "degraded": "Votre navigateur bloque sa base de données : l'application se rabat donc sur un espace de stockage bien plus petit (environ 5 Mo) et l'enregistrement peut échouer à mesure que votre conception grandit. La navigation privée en est la cause habituelle. Exportez tout ce que vous souhaitez conserver.",
-    "loadFailed": "Votre conception enregistrée n'a pas pu être lue. Nouveau départ – le travail à venir sera toujours enregistré."
+    "loadFailed": "Votre conception enregistrée n'a pas pu être lue. Nouveau départ – le travail à venir sera toujours enregistré.",
+    "conflict": "Cette conception a été modifiée dans un autre onglet, vos modifications ici ne sont donc pas enregistrées. Exportez-les pour les conserver, ou rouvrez la conception dans Mes fusées pour charger la version de l'autre onglet."
   },
   "library": {
     "title": "Mes fusées",

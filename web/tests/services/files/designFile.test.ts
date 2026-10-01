@@ -54,6 +54,47 @@ describe('sniffDesignFormat', () => {
     expect(sniffDesignFormat(ork)).toBe('ork');
   });
 
+  /**
+   * A Windows tool writes UTF-16 readily, and the file is perfectly valid XML.
+   * Read as UTF-8 it is the right characters with a NUL between each one, so it
+   * matched neither root element and the app turned it away as not a design
+   * file at all - a file that opens fine everywhere else.
+   */
+  describe('a file written in UTF-16', () => {
+    /** The string as UTF-16 bytes, with or without a byte order mark. */
+    const utf16 = (text: string, { be = false, bom = true } = {}): ArrayBuffer => {
+      const u = new Uint8Array((text.length + (bom ? 1 : 0)) * 2);
+      const view = new DataView(u.buffer);
+      let i = 0;
+      if (bom) view.setUint16(i++ * 2, 0xfeff, !be);
+      for (const ch of text) view.setUint16(i++ * 2, ch.charCodeAt(0), !be);
+      return u.buffer;
+    };
+
+    it('reads a little-endian RockSim document', () => {
+      expect(sniffDesignFormat(utf16(RKT))).toBe('rkt');
+      expect(parseDesignFile(utf16(RKT)).name).toBe('Sniffed');
+    });
+
+    it('reads a big-endian OpenRocket document', () => {
+      expect(sniffDesignFormat(utf16(ORK, { be: true }))).toBe('ork');
+      expect(parseDesignFile(utf16(ORK, { be: true })).name).toBe('Sniffed ork');
+    });
+
+    it('reads one with no byte order mark, from the shape of its first tag', () => {
+      // `<` is 3C 00 one way round and 00 3C the other, and no UTF-8 text has a
+      // NUL in its first two bytes.
+      expect(sniffDesignFormat(utf16(ORK, { bom: false }))).toBe('ork');
+      expect(sniffDesignFormat(utf16(RKT, { be: true, bom: false }))).toBe('rkt');
+    });
+
+    it('still reads plain UTF-8, mark or no mark', () => {
+      const withBom = new Uint8Array([0xef, 0xbb, 0xbf, ...new TextEncoder().encode(ORK)]);
+      expect(sniffDesignFormat(withBom.buffer.slice(0) as ArrayBuffer)).toBe('ork');
+      expect(sniffDesignFormat(bytes(ORK))).toBe('ork');
+    });
+  });
+
   it('says nothing for a file that is neither', () => {
     expect(sniffDesignFormat('<html><body>nope</body></html>')).toBeNull();
     expect(sniffDesignFormat('')).toBeNull();

@@ -53,6 +53,65 @@ export function motorFitsMount(m: { diameter: number; length?: number }, fit: Mo
   return true;
 }
 
+/**
+ * RASP keeps a whole-number delay under this and drops the rest
+ * (`RASPMotorLoader`, whose own comment is "Many RASP files have 100 as an only
+ * delay"). Dropped, not plugged: the file is not claiming a motor with no
+ * ejection charge, it is claiming nothing.
+ */
+const RASP_DROP_AT = 99;
+
+/** RockSim reads a delay at or past this AS plugged (`RockSimMotorLoader.DELAY_LIMIT`). */
+const ROCKSIM_PLUGGED_AT = 90;
+
+/**
+ * A motor file's delay field as the CATALOG spells it (`"4,6,10,P"`).
+ *
+ * The string is the only form that can say plugged, which is why it is what
+ * `parseDelays` and `offersPlugged` read and what a catalog row carries. Both
+ * importers come through here, and a `.eng` that never set it arrived at the
+ * picker with no delays at all.
+ *
+ * THE TWO FORMATS DISAGREE, so each gets its own kernel loader's rule rather
+ * than one that looks reasonable for both. A big number means opposite things:
+ * RockSim writes 1000 to mean plugged, while a RASP file writing 100 means
+ * nothing at all and upstream throws it away. Reading the RASP one as plugged
+ * offers a no-ejection-charge option the file never claimed; reading the
+ * RockSim one as seconds opens the chute long after the rocket is down.
+ */
+export function delayList(raw: string | null | undefined, format: 'rasp' | 'rocksim'): string | undefined {
+  if (!raw) return undefined;
+  const rasp = format === 'rasp';
+  // RASP's own word for "this motor lists none".
+  if (rasp && /^none$/i.test(raw.trim())) return undefined;
+  const out: number[] = [];
+  let plugged = false;
+  for (const tok of raw.split(rasp ? /[-,\s]+/ : /[,\s]+/)) {
+    const t = tok.trim();
+    if (!t) continue;
+    if (/^p/i.test(t)) {
+      plugged = true;
+      continue;
+    }
+    const v = Number(t);
+    if (!Number.isFinite(v)) continue;
+    if (rasp) {
+      // `[0-9]+` and under 99, exactly what RASPMotorLoader keeps.
+      if (/^\d+$/.test(t) && v < RASP_DROP_AT) out.push(v);
+    } else if (v >= ROCKSIM_PLUGGED_AT) {
+      plugged = true;
+    } else {
+      out.push(v);
+    }
+  }
+  // RASP sorts its delays; RockSim keeps the file's order, so neither is
+  // reordered here beyond what its own loader does.
+  if (rasp) out.sort((a, b) => a - b);
+  const parts = out.map(String);
+  if (plugged) parts.push('P');
+  return parts.length ? parts.join(',') : undefined;
+}
+
 /** Parse a motor's delay string ("4,6,7,8,10" / "0-3-5-7" / "P") into its numeric
  *  delay options and whether it offers a plugged (no-ejection) choice. */
 export function parseDelays(s?: string): { delays: number[]; plugged: boolean } {

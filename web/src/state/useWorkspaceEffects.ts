@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18nGlobal from '../i18n';
-import { useWorkspaceStore, selectConfig } from './store';
+import { useWorkspaceStore, selectConfig, saveFailure } from './store';
 import { seatedMotorsKey } from '../services/flight/flightConfigs';
 import { useEngineStore } from './engineStore';
 import { getWorkspaceStore } from '../services/storage/workspaceStore';
@@ -141,7 +141,10 @@ export function useWorkspaceEffects() {
           useWorkspaceStore.getState().markSaved();
           void requestPersistentStorage();
         })
-        .catch(() => useWorkspaceStore.getState().setStorageWarning(i18nGlobal.t('storage.full'), 'full'));
+        .catch((e: unknown) => {
+          const { msg, kind } = saveFailure(e);
+          useWorkspaceStore.getState().setStorageWarning(msg, kind);
+        });
     }, 500);
     return () => clearTimeout(id);
   }, [tree, sims, configs, activeId, loadedMeta]);

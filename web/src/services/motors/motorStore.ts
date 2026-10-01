@@ -41,13 +41,15 @@ export interface CustomMotor {
   length: number;
   totalWeightG: number;
   propWeightG: number;
-  /** Ejection delays the file lists (informational; the picker sets the delay). */
-  delays?: number[];
   samples: { time: number; thrust: number }[];
   /**
-   * The delays as the CATALOG spells them ("4,6,10,P"), which is the only form
-   * that can say "plugged" — `motorPicker.offersPlugged` reads this. `.eng`
-   * has no way to mark a motor plugged, so it fills `delays` above instead.
+   * The delays the file lists, as the CATALOG spells them ("4,6,10,P").
+   *
+   * A string, because it is the only form that can say "plugged" and it is what
+   * `motorPicker.parseDelays` and `offersPlugged` read, and what `customToRow`
+   * puts in the row's delay column. Both importers fill it through
+   * `motorPicker.delayList`; there is no second, numeric form, because a
+   * number array has nowhere to put plugged and nothing ever read one.
    */
   delayList?: string;
   /** What the file says the motor IS. A hybrid is why `.rse` import exists. */

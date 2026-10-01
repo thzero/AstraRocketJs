@@ -1459,7 +1459,8 @@
   "storage": {
     "full": "Could not save your work — browser storage is full. Export your design to keep it.",
     "degraded": "Your browser is blocking its database, so the app has fallen back to a much smaller storage area (about 5 MB) and saving may fail as your design grows. Private browsing is the usual cause. Export anything you want to keep.",
-    "loadFailed": "Your saved design could not be read. Starting fresh — new work will still be saved."
+    "loadFailed": "Your saved design could not be read. Starting fresh — new work will still be saved.",
+    "conflict": "This design was changed in another tab, so your edits here are not being saved. Export them to keep them, or reopen the design from My Rockets to load the other tab's version."
   },
   "library": {
     "title": "My Rockets",

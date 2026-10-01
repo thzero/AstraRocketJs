@@ -43,22 +43,52 @@ export interface SizingLaunch {
   temperatureC?: number | null;
   /** Site pressure override, hPa, or null to use the ISA value. */
   pressureHPa?: number | null;
+  /**
+   * Site relative humidity as a FRACTION, or null for the kernel's 0.
+   *
+   * Read only to decide WHICH air the flight is flying (see `airDensity`); the
+   * density below is dry-air. The kernel's own humidity term raises the gas
+   * constant by about a percent at 30 degrees C and saturation
+   * (`AtmosphericConditions.getGasConstant`), which is inside this block's
+   * stated accuracy and not worth a second copy of that formula.
+   */
+  relativeHumidity?: number | null;
 }
 
 /**
  * Air density at the launch site (kg/m^3). Descent happens at the field, not
  * at sea level, and it matters: rho falls ~14 % by 5,000 ft and v goes as
- * 1/sqrt(rho), so the same canopy lands ~8 % faster there. Uses the ISA model
- * from the site altitude, with explicit temperature / pressure overrides when
- * the launch conditions carry them.
+ * 1/sqrt(rho), so the same canopy lands ~8 % faster there.
+ *
+ * THE RULE IS THE FLIGHT'S, not a reasonable one chosen here, because a sizing
+ * panel that sizes for air the rocket will not fly in is worse than one that
+ * says nothing. The bridge (`api/OpenRocketEngine.simulate`) decides it in two
+ * branches, and both are mirrored below:
+ *
+ *   NOTHING set - standard ISA, which at the pad is the ISA value FOR THE SITE
+ *   ALTITUDE.
+ *
+ *   ANY ONE of temperature, pressure or humidity set - an `ExtendedISAModel`
+ *   anchored AT the site altitude, where a field left blank is filled with the
+ *   sea-level STANDARD constant rather than with the ISA value for that
+ *   altitude. Humidity counts: humidity alone switches branches.
+ *
+ * The second branch is the one that bites, and only away from sea level, which
+ * is why it went unnoticed. At a 2,682 m field with 30 C typed and the pressure
+ * left blank, filling the blank from the site altitude gives 0.8388 kg/m^3
+ * where the flight flies 1.1644, and a descent rate 18 % apart. At sea level
+ * the two branches agree exactly, so nothing shows.
  */
 export function airDensity(launch?: SizingLaunch | null): number {
   if (!launch) return RHO0;
   const h = launch.launchAltitudeM ?? 0;
+  const custom = launch.temperatureC != null || launch.pressureHPa != null || launch.relativeHumidity != null;
   const tIsa = T0 - LAPSE * h;
   const pIsa = P0 * Math.pow(tIsa / T0, G0 / (R_AIR * LAPSE));
-  const t = launch.temperatureC != null ? launch.temperatureC + 273.15 : tIsa;
-  const p = launch.pressureHPa != null ? launch.pressureHPa * 100 : pIsa;
+  // T0 / P0 are the kernel's own ExtendedISAModel.STANDARD_TEMPERATURE and
+  // STANDARD_PRESSURE; a blank in the custom branch is filled with those.
+  const t = launch.temperatureC != null ? launch.temperatureC + 273.15 : custom ? T0 : tIsa;
+  const p = launch.pressureHPa != null ? launch.pressureHPa * 100 : custom ? P0 : pIsa;
   if (!(t > 0) || !(p > 0)) return RHO0;
   return p / (R_AIR * t);
 }
