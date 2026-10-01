@@ -984,6 +984,7 @@
   "prop": {
     "selectHint": "ツリーか図で部品を選ぶと、その属性を編集できます。",
     "editTitle": "部品を編集",
+    "catalogPart": "カタログ部品",
     "name": "名前",
     "delete": "削除",
     "lastStage": "ロケットには少なくとも 1 段必要です",

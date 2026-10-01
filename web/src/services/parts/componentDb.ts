@@ -45,6 +45,8 @@ export interface NoseConeComponent extends ComponentBase {
   material?: string;
   materialDensity: number;
   shape: NoseShape;
+  /** OpenRocket's own checksum for this part; the `.ork` link is invalid without it. */
+  digest?: string;
   filled: boolean;
   outerDiameter: number;
   length: number;

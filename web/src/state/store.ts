@@ -4,7 +4,8 @@ import { confirm } from './confirmStore';
 import { prompt } from './promptStore';
 import { scaleRocket } from '../tree/scaleRocket';
 import { syncAutoShoulders } from '../services/design/autoShoulder';
-import { buildRocketTree, specToTree, type RocketSpec, type StaticInfo } from '../engine/api';
+import { defaultRocketTree } from '../services/design/defaultRocket';
+import { buildRocketTree, type StaticInfo } from '../engine/api';
 import type {
   MotorSpec,
   RocketTree,
@@ -36,7 +37,7 @@ import {
 import type { LaunchConditions } from '../services/design/orkTree';
 import type { OrkExportMotor } from '../services/files/orkFile';
 import type { DesignInfo } from '../services/files/orkTypes';
-import { buildExportMotorMap } from '../services/motors/exportMotors';
+import { buildExportMotorMap, fillMotorDigests } from '../services/motors/exportMotors';
 import { wireLoadedOrk } from '../services/files/wireLoadedOrk';
 // Static, not the lazy import the neighboring .ork paths use: this is a fetch
 // wrapper with no heavy dependencies, and the library dialog imports it
@@ -92,56 +93,6 @@ import { unitSymbols } from '../prefs/units';
 const displayUnits = () => {
   const s = loadSettings();
   return unitSymbols(s.units, s.unitOverrides);
-};
-
-/**
- * A clean, classic sport rocket (~55 cm, 26 mm airframe, swept 3-fin), built out
- * of what one is actually built out of.
- *
- * The named materials are the ones that make this a rocket rather than a shape:
- * an **injection-molded polystyrene** nose cone and **basswood** fins. Basswood
- * rather than balsa because these fins are large for the airframe and swept, and
- * a sport model that is meant to survive being flown more than once gets the
- * stiffer of the two. Everything else takes the kernel's stock bulk material,
- * and for a cardboard airframe, a cardboard motor tube and fiber centering rings
- * that is the right answer already.
- *
- * It matters to the numbers, not just the label. Left unnamed both parts weighed
- * as cardboard at 680 kg/m3, which is 1.6x too light for the nose cone (1050)
- * and a third too heavy for the fins (500) - mass at the two ENDS of the rocket,
- * so the error lands where it moves the CG and the stability margin furthest.
- *
- * Names and densities are the material catalog's own
- * (`public/data/materials.generated.json`, synced from upstream); the group is
- * the `.ork` database string, which for Woods and Plastics is the same word.
- * `defaultRocketMaterials.test.ts` checks all three against the shipped catalog,
- * so a sync that renames or re-weighs one fails rather than silently flying a
- * different rocket.
- */
-const DEFAULT_SPEC: RocketSpec = {
-  noseCone: {
-    length: 0.13,
-    aftRadius: 0.013,
-    thickness: 0.0008,
-    shape: 'ogive',
-    material: 'Polystyrene',
-    materialDensity: 1050,
-    materialGroup: 'Plastics',
-  },
-  bodyTube: { length: 0.42, outerRadius: 0.013, thickness: 0.0005 },
-  fins: {
-    count: 3,
-    rootChord: 0.08,
-    tipChord: 0.038,
-    sweep: 0.055,
-    height: 0.058,
-    thickness: 0.0028,
-    material: 'Basswood',
-    materialDensity: 500,
-    materialGroup: 'Woods',
-  },
-  motorMount: { length: 0.07, outerRadius: 0.0092, thickness: 0.0004 },
-  parachute: { diameter: 0.4, dragCoefficient: 0.8 },
 };
 
 type Rocket = ReturnType<typeof buildRocketTree>;
@@ -1022,7 +973,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   // The app mounts before anything is hydrated, so the default design has to be
   // a complete workspace: one simulation flying one configuration. A reader that
   // finds no simulation at all has nothing to fall back to.
-  const tree0 = specToTree(DEFAULT_SPEC).tree;
+  const tree0 = defaultRocketTree();
   const config0 = defaultConfig(tree0);
   const sim0 = newSimulation('Simulation 1', config0.id, loadSettings().launchDefaults);
 
@@ -1978,7 +1929,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     resetWorkspace: () => {
       claimWorkspace(); // New: any import or library open still in flight is void
-      const tree = specToTree(DEFAULT_SPEC).tree;
+      const tree = defaultRocketTree();
       const config = defaultConfig(tree);
       const s0 = newSimulation('Simulation 1', config.id, loadSettings().launchDefaults);
       clearHistory(); // starting a new design drops the previous design's undo stack
@@ -2011,14 +1962,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // EVERY configuration, each with its own motors: the file carries the
         // whole set, so opening one setup and saving cannot discard the others.
         const base = loadedMeta?.exportMotors ?? {};
-        const configs = get().configs.map((c) => ({
-          id: c.id,
-          name: c.name,
-          motors: buildExportMotorMap(tree, c, base),
-          deployments: c.deployments,
-          separations: c.separations,
-          grounded: c.grounded,
-        }));
+        // The digests come from the motor catalog here rather than from the
+        // seated spec: a spec is persisted with the design, so a motor seated
+        // before the catalog carried digests would never gain one.
+        const configs = await Promise.all(
+          get().configs.map(async (c) => ({
+            id: c.id,
+            name: c.name,
+            motors: await fillMotorDigests(buildExportMotorMap(tree, c, base)),
+            deployments: c.deployments,
+            separations: c.separations,
+            grounded: c.grounded,
+          })),
+        );
         // Derived-statistics block — only when the user opted in (off by default,
         // so a normal save stays byte-identical). Built from the same report model
         // the PDF export uses; both are lazily imported (also avoids a static

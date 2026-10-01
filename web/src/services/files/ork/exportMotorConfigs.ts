@@ -86,6 +86,10 @@ export function motorMountXml(w: OrkWriter, depth: number, nodeId: string | unde
     emit(depth + 1, `<motor configid="${escapeXml(c.id)}">`);
     emit(depth + 2, '<type>single</type>');
     emit(depth + 2, `<manufacturer>${escapeXml(m.manufacturer ?? 'custom')}</manufacturer>`);
+    // Between manufacturer and designation, where the desktop writes it. Which
+    // of its database entries this motor is: without it a name shared by
+    // several resolves to whichever comes first, with a warning saying so.
+    if (m.digest) emit(depth + 2, `<digest>${escapeXml(m.digest)}</digest>`);
     emit(depth + 2, `<designation>${escapeXml(m.designation)}</designation>`);
     emit(depth + 2, `<diameter>${m.diameter}</diameter>`);
     emit(depth + 2, `<length>${m.length}</length>`);

@@ -4,6 +4,9 @@ import { type LaunchConditions } from '../design/orkTree';
 export interface OrkMotorRef {
   designation: string;
   manufacturer: string;
+  /** The file's own `<digest>`, carried through so a re-export still names the
+   *  desktop database entry the file named. */
+  digest?: string;
   diameter: number;
   length: number;
   delay: number;
@@ -110,6 +113,12 @@ export interface OrkImportResult extends OrkTreeImportResult {
 export interface OrkExportMotor {
   designation: string;
   manufacturer?: string;
+  /**
+   * OpenRocket's own digest for the motor: which of ITS database entries this
+   * is. Several can share a manufacturer and designation, and with no digest
+   * the desktop takes the first and says it did.
+   */
+  digest?: string;
   diameter: number;
   length: number;
   delay: number;

@@ -5,6 +5,7 @@ import { findMounts, findRecoveryDevices, findSeparators, findStages } from '../
 import { num, str } from '../../tree/nodeProps';
 import type { FieldUnit } from '../../prefs/useUnits';
 import { partName, type ConfigColumn } from './ConfigsTable';
+import { motorDesignation } from '../../services/motors/motorName';
 
 /**
  * What each sub-tab of the configurations table shows: one column per mount, or
@@ -31,7 +32,7 @@ export function motorColumns(tree: RocketTree, t: TFunction): ConfigColumn[] {
       if (!seated?.spec.designation) return <span className="text-slate-600">–</span>;
       return (
         <>
-          {seated.spec.designation}
+          {motorDesignation(seated.spec)}
           {/* Ignition only when it is NOT the default: an "automatic" on every
               cell is noise, and the one cell that air-starts is the thing worth
               seeing here. */}

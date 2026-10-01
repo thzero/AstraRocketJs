@@ -16,6 +16,9 @@ import {
   seatedMotorsKey,
 } from '../../../src/services/flight/flightConfigs';
 import { C6 } from '../../../src/engine/api';
+import { parseDelays } from '../../../src/services/motors/motorPicker';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { ComponentNode, MotorSpec, RocketTree } from '../../../src/engine/openRocketEngine';
 
 const node = (o: object) => o as unknown as ComponentNode;
@@ -64,6 +67,23 @@ describe('reconcileConfig', () => {
     const out = reconcileConfig(tree, newFlightConfig());
     expect(Object.keys(out.motors).sort()).toEqual(['aft', 'pod']);
     expect(out.motors.aft!.spec).toBe(C6);
+  });
+
+  it('seeds it on a delay the picker itself would have chosen', () => {
+    // The seeded motor is the one motor the app picks FOR you, so the delay has
+    // to be one Estes actually sells on a C6 and the one `MotorDialog.choose`
+    // would land on: the middle of that motor's own charges, not a constant.
+    const { delays } = parseDelays(
+      (
+        JSON.parse(readFileSync(resolve(process.cwd(), 'public/data/motors.generated.json'), 'utf8')) as {
+          manufacturer: string;
+          designation: string;
+          delays?: string;
+        }[]
+      ).find((m) => m.manufacturer === 'Estes' && m.designation === 'C6')!.delays,
+    );
+    expect(delays).toContain(C6.ejectionDelay);
+    expect(C6.ejectionDelay).toBe(delays[Math.floor(delays.length / 2)]);
   });
 
   it('drops a motor whose mount is gone', () => {

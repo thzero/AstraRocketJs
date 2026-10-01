@@ -269,22 +269,46 @@ test('offers OpenRocket’s heat as an alternative shading', async ({ page }) =>
   const cells = await cdCells(page);
   note('OR heat', JSON.stringify(cells));
 
-  // Cd 0.468 -> r=0.312, hue=0.1253, sat=0.3184, val=1 -> rgb(255,235,174).
-  // Straight from ComponentAnalysisGeneralPanel's DragCellRenderer.
+  const rgb = (s: string) => defined(s.match(/\d+/g), `rgb channels in "${s}"`).map(Number);
+
+  /*
+   * ComponentAnalysisGeneralPanel's DragCellRenderer, written out: hue rotates
+   * green to red over an ABSOLUTE 0-1.5 Cd scale, saturation climbs with it,
+   * value pinned at 1.
+   *
+   * Written out here rather than imported, because importing ours would compare
+   * the app with itself. Applied to the cell's OWN value rather than hard-coded
+   * against one rocket, so editing the default design cannot turn this into a
+   * failing color assertion; what it pins is the formula. The cell text is
+   * rounded to three decimals while the color uses the full value, which is
+   * what the one-channel tolerance is for.
+   */
+  const expected = (value: number) => {
+    const r = value / 1.5;
+    const hue = Math.max(0, Math.min(0.3333 * (1 - 2 * r), 0.3333));
+    const sat = Math.max(0, Math.min(0.8 * r + 0.1 * (1 - r), 1));
+    return [5, 3, 1].map((n) => {
+      const k = (n + hue * 6) % 6;
+      return Math.round(255 * (1 - sat * Math.max(0, Math.min(k, 4 - k, 1))));
+    });
+  };
+
+  // A mid-scale cell, where both the hue and the saturation terms are doing
+  // something: at the ends one of them is clamped.
   const mid = defined(
-    cells.find((c) => c.value === 0.468),
-    'the Cd 0.468 cell',
+    cells.find((c) => c.value > 0.2 && c.value < 0.8),
+    'a mid-scale Cd cell',
   );
-  expect(mid.bg).toBe('rgb(255, 235, 174)');
+  const got = rgb(mid.bg);
+  for (const [i, want] of expected(mid.value).entries()) {
+    expect(Math.abs(defined(got[i], `channel ${i} of the Cd ${mid.value} cell`) - want)).toBeLessThanOrEqual(1);
+  }
 
   // The hue really rotates: the biggest cell is red, the smallest green-ish.
-  const rgb = (s: string) => defined(s.match(/\d+/g), `rgb channels in "${s}"`).map(Number);
-  const big = rgb(
-    defined(
-      cells.find((c) => c.value === 1.292),
-      'the Cd 1.292 cell',
-    ).bg,
-  );
+  // The largest cell, whatever it is: the rocket's own total, which is the one
+  // row that cannot go missing.
+  const largest = [...cells].sort((a, b) => b.value - a.value)[0];
+  const big = rgb(defined(largest, 'the largest Cd cell').bg);
   const small = rgb(defined(cells.at(-1), 'the last Cd cell').bg);
   expect(big[0]).toBeGreaterThan(defined(big[1], 'the green channel of the biggest cell')); // red dominant
   expect(small[1]).toBeGreaterThan(defined(small[0], 'the red channel of the smallest cell')); // green dominant

@@ -13,6 +13,7 @@ import { parseEng, totalImpulse } from './engParser';
 import { parseRse } from './rseParser';
 import { motorFitsMount, offersPlugged, type MountFit } from './motorPicker';
 import { fetchCatalog } from '../app/remoteData';
+import { PLUGGED_DELAY } from '../../engine/openRocketEngine';
 
 /** One catalog row — the VC sync utility's schema, plus optional custom-motor tags. */
 export interface CatalogMotor {
@@ -51,10 +52,39 @@ export interface CatalogMotor {
   /** Set by the sync when no thrust curve could be bundled (none published, or
    *  missing length/prop weight). Such a motor can't be plotted / combined. */
   noCurve?: boolean;
+  /**
+   * OpenRocket's own digests for this motor, one per entry its database holds
+   * for the name, with the delays that entry offers. Put here by
+   * `npm run sync:motor-digests`.
+   *
+   * A `.ork` identifies a motor by manufacturer, designation, diameter and
+   * length, and the desktop's database holds SEVERAL entries behind one of
+   * those names (Estes C6 is a plugged one and a delayed one). With nothing to
+   * choose between them it takes the first and warns that it did. The digest is
+   * the only field that names which, which is why `<digest>` goes into every
+   * `<motor>` block we write - see `catalogDigest`.
+   */
+  digests?: { digest: string; delays: (number | 'P')[] }[];
   /** CG-vs-time as [[t (s), cgFromNose (m)]], read from the motor file (RockSim)
    *  — the real CG OpenRocket uses. Launch CG = cg[0][1]. Absent → the motor
    *  build falls back to mid-length (same as OpenRocket for RASP-only data). */
   cg?: [number, number][];
+}
+
+/**
+ * Which of OpenRocket's entries for this motor the seated delay means.
+ *
+ * The delay is what separates them in the usual case - a plugged C6 and a C6-5
+ * are different motors with different digests - and where it does not, the sync
+ * has already put the entry whose curve is closest to ours first. Undefined
+ * when the catalog has no digests for the row, which is a motor the desktop's
+ * database does not contain: then we write no digest rather than a wrong one.
+ */
+export function catalogDigest(cat: CatalogMotor, ejectionDelay: number): string | undefined {
+  const entries = cat.digests;
+  if (!entries?.length) return undefined;
+  const want: number | 'P' = ejectionDelay >= PLUGGED_DELAY ? 'P' : Math.round(ejectionDelay);
+  return (entries.find((e) => e.delays.includes(want)) ?? entries[0]!).digest;
 }
 
 /** Whether a catalog motor has a usable bundled thrust curve: the same sample

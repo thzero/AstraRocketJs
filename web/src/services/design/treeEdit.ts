@@ -356,7 +356,14 @@ export function hasMaterial(type: string): boolean {
 export function presetRef(p: Component): Partial<ComponentNode> {
   if (p.custom || !p.partNo) return { preset: undefined } as Partial<ComponentNode>;
   return {
-    preset: { type: p.type, manufacturer: p.mfr, partNo: p.partNo },
+    preset: {
+      type: p.type,
+      manufacturer: p.mfr,
+      partNo: p.partNo,
+      // The desktop rejects a link with no checksum, so one without it is a link
+      // that would cost the reader a warning dialog and buy nothing.
+      ...((p as { digest?: string }).digest ? { digest: (p as { digest?: string }).digest } : {}),
+    },
   } as unknown as Partial<ComponentNode>;
 }
 

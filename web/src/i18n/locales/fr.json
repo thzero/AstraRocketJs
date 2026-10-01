@@ -994,6 +994,7 @@
   "prop": {
     "selectHint": "Sélectionnez un composant dans l'arborescence ou le dessin pour modifier ses propriétés.",
     "editTitle": "Modifier le composant",
+    "catalogPart": "Pièce du catalogue",
     "name": "Nom",
     "delete": "Supprimer",
     "lastStage": "Une fusée doit avoir au moins un étage",

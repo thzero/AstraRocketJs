@@ -867,7 +867,8 @@ describe('audit round trips (2026-09-27)', () => {
  * labels a hand-sized tube with somebody's part number.
  */
 describe('the catalog part a component came from', () => {
-  const withPreset = () =>
+  /** A link as an imported desktop file carries one: with its digest. */
+  const withPreset = (extra: Record<string, unknown> = {}) =>
     ({
       name: 'Preset',
       components: [
@@ -882,7 +883,13 @@ describe('the catalog part a component came from', () => {
               length: 0.3,
               outerRadius: 0.0131,
               thickness: 0.00046,
-              preset: { type: 'bodytube', manufacturer: 'Estes', partNo: 'BT-50' },
+              preset: {
+                type: 'bodytube',
+                manufacturer: 'Estes',
+                partNo: 'BT-50, 30352',
+                digest: 'a59dec8e4034a2fee5955dbf4ff07f1c',
+                ...extra,
+              },
             },
           ],
         },
@@ -891,12 +898,30 @@ describe('the catalog part a component came from', () => {
 
   it('survives a round trip', () => {
     const back = findByType(importOrk(exportOrk({ name: 'P', tree: withPreset() })).tree, 'bodytube');
-    expect(back!['preset']).toMatchObject({ manufacturer: 'Estes', partNo: 'BT-50' });
+    expect(back!['preset']).toMatchObject({
+      type: 'bodytube',
+      manufacturer: 'Estes',
+      partNo: 'BT-50, 30352',
+      digest: 'a59dec8e4034a2fee5955dbf4ff07f1c',
+    });
   });
 
   it('is written the way the desktop writes it', () => {
+    // The type is the kernel's enum constant, which is what `Type.valueOf`
+    // parses: a file saying `type="bodytube"` names a type it does not have.
+    // The digest and the attribute order are `RocketComponentSaver`'s own.
     const xml = exportOrk({ name: 'P', tree: withPreset() });
-    expect(xml).toContain('<preset type="bodytube" manufacturer="Estes" partno="BT-50"/>');
+    expect(xml).toContain(
+      '<preset type="BODY_TUBE" manufacturer="Estes" partno="BT-50, 30352" digest="a59dec8e4034a2fee5955dbf4ff07f1c"/>',
+    );
+  });
+
+  it('is not written at all without a digest', () => {
+    // The desktop rejects a preset element with no digest and says so in a
+    // dialog, so a link our own catalog cannot digest stays out of the file
+    // rather than costing every reader a warning about a part that loaded fine.
+    const noDigest = withPreset({ digest: undefined });
+    expect(exportOrk({ name: 'P', tree: noDigest })).not.toContain('<preset');
   });
 
   it('is dropped when a dimension it defines moves', () => {

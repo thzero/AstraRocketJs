@@ -5,10 +5,10 @@ import type { OrkExportMotor } from '../../../src/services/files/orkFile';
 import { buildExportMotorMap } from '../../../src/services/motors/exportMotors';
 
 const node = (o: object) => o as unknown as ComponentNode;
-const spec = (designation: string): MotorSpec =>
-  ({ designation, diameter: 0.024, length: 0.07, ejectionDelay: 5 }) as unknown as MotorSpec;
-const mount = (designation: string, extra?: Partial<MountMotor>): MountMotor =>
-  ({ spec: spec(designation), ...extra }) as MountMotor;
+const spec = (designation: string, manufacturer?: string): MotorSpec =>
+  ({ designation, manufacturer, diameter: 0.024, length: 0.07, ejectionDelay: 5 }) as unknown as MotorSpec;
+const mount = (designation: string, extra?: Partial<MountMotor>, manufacturer?: string): MountMotor =>
+  ({ spec: spec(designation, manufacturer), ...extra }) as MountMotor;
 
 // Two mounts: the aft one and a second ('pod') standing in for a cluster/pod.
 const tree = {
@@ -56,5 +56,32 @@ describe('buildExportMotorMap', () => {
   it('writes nothing when the tree has no motor mount', () => {
     const noMount = { components: [node({ type: 'bodytube', id: 'x' })] } as unknown as RocketTree;
     expect(buildExportMotorMap(noMount, newFlightConfig({ primary: mount('D12') }))).toEqual({});
+  });
+});
+
+describe('the motor manufacturer', () => {
+  it('is the seated motor’s own', () => {
+    // The desktop resolves a motor by manufacturer AND designation, so a file
+    // that names no manufacturer opens with "No motor with designation 'C6' for
+    // manufacturer 'custom' found" and an empty mount. Every motor the picker
+    // seats carries one (thrustcurve.ts); this map used to drop it.
+    const m = buildExportMotorMap(tree, newFlightConfig({ primary: mount('C6', undefined, 'Estes') }));
+    expect(m.primary).toMatchObject({ designation: 'C6', manufacturer: 'Estes' });
+  });
+
+  it('falls back to what an import captured', () => {
+    const base: Record<string, OrkExportMotor> = {
+      primary: { designation: 'C6', manufacturer: 'Quest', diameter: 0.024, length: 0.07, delay: 5 },
+    };
+    const m = buildExportMotorMap(tree, newFlightConfig({ primary: mount('C6') }), base);
+    expect(m.primary!.manufacturer).toBe('Quest');
+  });
+
+  it('prefers the seated motor over the imported field', () => {
+    const base: Record<string, OrkExportMotor> = {
+      primary: { designation: 'C6', manufacturer: 'Quest', diameter: 0.024, length: 0.07, delay: 5 },
+    };
+    const m = buildExportMotorMap(tree, newFlightConfig({ primary: mount('C6', undefined, 'Estes') }), base);
+    expect(m.primary!.manufacturer).toBe('Estes');
   });
 });

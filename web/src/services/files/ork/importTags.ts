@@ -1,4 +1,5 @@
 import type { ComponentNode, ComponentPosition } from '../../../engine/openRocketEngine';
+import { appPresetType } from './presetTypes';
 import { xmlText as text } from '../xmlUtil';
 import { COMPONENT_DEFAULTS } from '../../design/componentDefaults';
 import { clampCount, finiteNum } from './numbers';
@@ -306,7 +307,9 @@ export function readCommon(el: Element, node: ComponentNode, withPosition: boole
     const partNo = preset.getAttribute('partno');
     if (partNo) {
       node['preset'] = {
-        type: preset.getAttribute('type') ?? '',
+        // The file carries the kernel's enum constant (NOSE_CONE); the picker
+        // and the panel speak our row types.
+        type: appPresetType(preset.getAttribute('type') ?? ''),
         manufacturer: preset.getAttribute('manufacturer') ?? '',
         partNo,
         ...(preset.getAttribute('digest') ? { digest: preset.getAttribute('digest') } : {}),

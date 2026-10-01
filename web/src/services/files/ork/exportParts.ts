@@ -1,6 +1,7 @@
 import type { ComponentNode, ComponentPosition } from '../../../engine/openRocketEngine';
 import { shapeParamDefault } from '../../../tree/shapeProfile';
 import { num } from '../../../tree/nodeProps';
+import { kernelPresetType } from './presetTypes';
 import { escapeXml } from '../xmlUtil';
 import { uuid } from '../../app/uuid';
 import { COMPONENT_DEFAULTS } from '../../design/componentDefaults';
@@ -114,14 +115,26 @@ export function header(w: OrkWriter, depth: number, node: ComponentNode, fallbac
  * the moment a dimension changes, the same way the kernel's setters call
  * `clearPreset`, so a link can never claim a part number the geometry no longer
  * is.
+ *
+ * WRITTEN ONLY WITH A DIGEST, which is why a link picked from our own catalog
+ * does not reach the file. The desktop's reader treats a preset element without
+ * one as invalid and says so in a dialog ("Invalid ComponentPreset for component
+ * Nose Cone, no digest specified"), so half an element is worse than none: it
+ * buys nothing and costs every reader a warning. The digest is an MD5 the
+ * kernel computes over a preset's own properties (`ComponentPreset.computeDigest`)
+ * and our catalog (`sync-components.mjs`) does not carry one yet, so the links
+ * that survive a save are the ones an imported desktop file brought with it.
+ *
+ * The TYPE is the kernel's enum constant, not our row type: see presetTypes.
  */
 function presetXml(w: OrkWriter, depth: number, node: ComponentNode): void {
   const p = node['preset'] as { type?: string; manufacturer?: string; partNo?: string; digest?: string } | undefined;
-  if (!p || typeof p !== 'object' || !p.partNo) return;
+  if (!p || typeof p !== 'object' || !p.partNo || !p.digest) return;
   const attr = (name: string, v: string | undefined) => (v ? ` ${name}="${escapeXml(v)}"` : '');
   w.emit(
     depth,
-    `<preset${attr('type', p.type)}${attr('manufacturer', p.manufacturer)}${attr('partno', p.partNo)}${attr('digest', p.digest)}/>`,
+    `<preset${attr('type', kernelPresetType(p.type))}${attr('manufacturer', p.manufacturer)}` +
+      `${attr('partno', p.partNo)}${attr('digest', p.digest)}/>`,
   );
 }
 

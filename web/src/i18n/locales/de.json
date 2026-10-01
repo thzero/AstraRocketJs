@@ -989,6 +989,7 @@
   "prop": {
     "selectHint": "Wählen Sie ein Bauteil im Baum oder in der Zeichnung, um seine Eigenschaften zu bearbeiten.",
     "editTitle": "Bauteil bearbeiten",
+    "catalogPart": "Katalogteil",
     "name": "Name",
     "delete": "Löschen",
     "lastStage": "Eine Rakete braucht mindestens eine Stufe",

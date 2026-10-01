@@ -155,8 +155,14 @@ export function readMotor(ctx: OrkImportContext, el: Element, node: ComponentNod
   // which the engine maps to +Inf ("never fires") at the kernel boundary.
   const resolveRef = (motorEl: Element, igEl: Element): OrkMotorRef => {
     const delayText = text(motorEl, ':scope > delay');
+    // Carried through rather than used: the motor is resolved from our own
+    // catalog, but a design saved again should still name the desktop entry the
+    // file named, including for a motor we could not resolve. Absent stays
+    // absent, so a file with no digest round-trips to one with no digest.
+    const digest = text(motorEl, ':scope > digest');
     return {
       designation: text(motorEl, ':scope > designation') ?? 'unknown',
+      ...(digest ? { digest } : {}),
       manufacturer: text(motorEl, ':scope > manufacturer') ?? 'unknown',
       diameter: numTag(motorEl, 'diameter', 0.018),
       length: numTag(motorEl, 'length', 0.07),

@@ -75,6 +75,7 @@ async function loadRows(type: PickerType): Promise<Component[]> {
 export function ComponentPicker({
   type,
   fit,
+  current,
   onApply,
 }: {
   /** The NODE's type, not the catalog's: an inner tube is served by the body tube
@@ -83,6 +84,8 @@ export function ComponentPicker({
   /** Geometry around the node being filled, so the parts that actually fit can
    *  be ranked first. Absent is fine: the fit control then says so. */
   fit?: FitContext;
+  /** The part this component is already linked to, so the list can mark it. */
+  current?: string;
   onApply: (p: Component) => void;
 }) {
   const { t } = useTranslation();
@@ -151,6 +154,7 @@ export function ComponentPicker({
           type={type}
           all={state.all}
           fit={fit}
+          current={current}
           onApply={(p) => {
             onApply(p);
             setOpen(false);
@@ -355,12 +359,14 @@ function PickerDialog({
   type,
   all,
   fit,
+  current,
   onApply,
   onClose,
 }: {
   type: PickerType;
   all: Component[];
   fit?: FitContext;
+  current?: string;
   onApply: (p: Component) => void;
   onClose: () => void;
 }) {
@@ -624,13 +630,19 @@ function PickerDialog({
               onClick={() => onApply(r.part)}
               tabIndex={0}
               role="button"
+              // The one this component is already built from, marked rather than
+              // merely present: opening a list of 856 parts to find out which one
+              // you are on is not an answer.
+              aria-current={r.part.partNo === current ? 'true' : undefined}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
                   onApply(r.part);
                 }
               }}
-              className="cursor-pointer border-b border-white/5 text-slate-300 hover:bg-slate-800 focus:bg-slate-800 focus:outline-none"
+              className={`cursor-pointer border-b border-white/5 hover:bg-slate-800 focus:bg-slate-800 focus:outline-none ${
+                r.part.partNo === current ? 'bg-slate-800 font-semibold text-sky-300' : 'text-slate-300'
+              }`}
             >
               {cols.map((c) => (
                 <td

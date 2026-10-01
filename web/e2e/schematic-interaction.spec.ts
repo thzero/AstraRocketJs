@@ -46,7 +46,10 @@ test.describe('2D schematic interaction', () => {
     await ready(page);
     const svg = schematic(page);
     const box = (await svg.boundingBox())!;
-    await page.mouse.move(box.x + box.width * 0.45, box.y + box.height / 2);
+    // Two thirds back, which is airframe and nothing else: the default design
+    // packs a chute, a shock cord, wadding and a lug along the forward half, and
+    // the tag names whichever part is under the cursor.
+    await page.mouse.move(box.x + box.width * 0.62, box.y + box.height / 2);
     await expect(svg.locator('text', { hasText: /Body tube/i })).toBeVisible();
   });
 

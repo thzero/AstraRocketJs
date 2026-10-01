@@ -113,6 +113,8 @@ export function PropertyPanel({
   // description follows whichever of the two is last on screen.
   const shapeAnchor = fields.filter((f) => f.key === 'shape' || f.key === 'shapeParameter').at(-1)?.key;
   const label = t(`part.${node.type}`, { defaultValue: node.type });
+  // The catalog row this part was picked from, as `presetRef` recorded it.
+  const catalogPart = node['preset'] as { manufacturer?: string; partNo?: string } | undefined;
   // Discrete controls (select / checkbox / pickers) finish the moment they
   // change, so patch and close the undo entry in one shot.
   const commitChange = (patch: Partial<ComponentNode>) => {
@@ -173,6 +175,27 @@ export function PropertyPanel({
           />
         </label>
 
+        {/*
+            WHICH catalog part this is, when it came from one.
+            The link is written by the picker and carried into the `.ork`
+            (`presetRef`), and until this row existed nothing on screen said so:
+            a design built from real parts looked hand-typed. It disappears by
+            itself when an edit breaks the link, because `breaksPreset` drops the
+            link with the same commit.
+        */}
+        {catalogPart && (
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs text-slate-400">{t('prop.catalogPart')}</span>
+            <span
+              className="w-40 truncate text-right text-sm text-slate-200"
+              title={`${catalogPart.manufacturer} ${catalogPart.partNo}`}
+            >
+              {catalogPart.partNo}
+              <span className="block truncate text-[10px] text-slate-500">{catalogPart.manufacturer}</span>
+            </span>
+          </div>
+        )}
+
         {hasCatalog(node.type) && (
           // Outside the Suspense, because it is the chunk FETCH that fails on
           // a stale deploy and Suspense re-throws that rejection. Uncaught it
@@ -184,6 +207,7 @@ export function PropertyPanel({
                 <ComponentPicker
                   type={node.type as PickerType}
                   fit={fit}
+                  current={catalogPart?.partNo}
                   // The link goes in with the dimensions: the desktop shows which
                   // catalog part a component is, and drops the link as soon as a
                   // dimension moves (see treeEdit.breaksPreset).

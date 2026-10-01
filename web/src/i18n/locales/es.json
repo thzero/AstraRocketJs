@@ -994,6 +994,7 @@
   "prop": {
     "selectHint": "Selecciona un componente en el árbol o el dibujo para editar sus propiedades.",
     "editTitle": "Editar componente",
+    "catalogPart": "Pieza del catálogo",
     "name": "Nombre",
     "delete": "Eliminar",
     "lastStage": "Un cohete necesita al menos una etapa",

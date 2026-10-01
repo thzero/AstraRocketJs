@@ -15,7 +15,17 @@ import { defaultDesignName } from '../services/app/appInfo';
 
 export type { RocketSpec, StaticInfo, FlightResult } from './openRocketEngine';
 
-/** A stock Estes C6 (SI units): times→thrust, per-sample motor mass. */
+/**
+ * A stock Estes C6 (SI units): times→thrust, per-sample motor mass.
+ *
+ * Seated into any mount that has no motor (`flightConfigs.reconcileConfig`), so
+ * it is what the default design flies until somebody picks something.
+ *
+ * The 5 s delay is the one the picker itself would choose: Estes sells the C6 in
+ * 0, 3, 5 and 7, and `MotorDialog.choose` takes the middle of a motor's own
+ * charges rather than a fixed number. A 3 here made the one motor the app seats
+ * for you the one motor it would not have picked.
+ */
 export const C6: MotorSpec = {
   designation: 'C6',
   manufacturer: 'Estes',
@@ -25,7 +35,7 @@ export const C6: MotorSpec = {
   thrusts: [0, 12, 5, 5, 0],
   masses: [0.0227, 0.0165, 0.0165, 0.013, 0.012],
   cgX: 0.035,
-  ejectionDelay: 3.0,
+  ejectionDelay: 5.0,
 };
 
 /**
