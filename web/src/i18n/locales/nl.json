@@ -323,7 +323,7 @@
     "railExitMinHint": "Daaronder hebben de vinnen te weinig luchtstroom om te sturen, dus kan de raket de wind in draaien of instabiel worden zodra hij de stang verlaat.",
     "simModel": "Vluchtmodel",
     "guideAwareRodClearance": "Railverlating volgens de geleiders",
-    "guideAwareRodClearanceHint": "OpenRocket houdt de raket over de volle raillengte geleid, waar de lanceerlippen of railknoppen ook zitten. Aan verlaat de raket de rail zodra de achterste geleider dat doet: meestal iets eerder, en een iets lagere snelheid bij het verlaten van de rail. Uit komt overeen met OpenRocket.",
+    "guideAwareRodClearanceHint": "OpenRocket houdt de raket over de volle lengte van de lanceerstang geleid, waar de lugs of railknoppen ook zitten. Aan: een lug geleidt tot het achterste uiteinde de stang verlaat, terwijl een rail twee knoppen nodig heeft en alleen geleidt tot de op een na laatste de rail verlaat, dus één knop geleidt helemaal niet. Meestal iets eerder van de stang en een iets lagere uittreesnelheid. Uit komt overeen met OpenRocket.",
     "deploySpeedWarnHint": "Enkelvoudig openen (zonder drogue): boven deze snelheid loop je het risico dat het openen van de parachute de romp openscheurt of de koepel verscheurt.",
     "mainHighSpeedWarnHint": "Dubbel openen: daarboven komt de HOOFDPARACHUTE er te snel uit, meestal door een drogue die te klein is om de raket af te remmen of door een hoofdparachute die te hoog is ingesteld.",
     "mainLowSpeedWarnHint": "Dubbel openen: daaronder gaat de hoofdparachute open terwijl de raket nauwelijks daalt, wat normaal betekent dat hij rond het apogeum is opengegaan: een langzame daling met veel drift vanaf de volle hoogte.",
@@ -915,7 +915,8 @@
     "loaded": "Ontwerp geladen (.ork)",
     "close": "Sluiten",
     "closeTitle": "Deze import weggooien en met een nieuw ontwerp beginnen",
-    "closeConfirm": "Dit geladen ontwerp weggooien en met een nieuw beginnen? Niet-opgeslagen wijzigingen gaan verloren."
+    "closeConfirm": "Dit geladen ontwerp weggooien en met een nieuw beginnen? Niet-opgeslagen wijzigingen gaan verloren.",
+    "repaired": "{{part}}: een {{field}} van {{was}} valt buiten wat de app toestaat en is verlaagd naar {{now}}."
   },
   "part": {
     "stage": "Trap",

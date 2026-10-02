@@ -324,7 +324,7 @@
     "railExitMinHint": "Por debajo de esto las aletas tienen muy poco flujo para dirigir, y el cohete puede orientarse al viento o volverse inestable al salir de la guía.",
     "simModel": "Modelo de vuelo",
     "guideAwareRodClearance": "Salida según las guías",
-    "guideAwareRodClearanceHint": "OpenRocket mantiene el cohete guiado durante toda la longitud del riel, estén donde estén las guías de lanzamiento o los botones de riel. Activado, el cohete sale del riel cuando lo hace su guía más trasera: normalmente un poco antes y con una velocidad de salida algo menor. Desactivado coincide con OpenRocket.",
+    "guideAwareRodClearanceHint": "OpenRocket mantiene el cohete en la guía durante toda su longitud, estén donde estén sus anillas o patines. Activado: una anilla guía hasta que su extremo posterior sale de la guía, mientras que un raíl necesita dos patines y solo guía hasta que sale el penúltimo, de modo que un patín solo no guía nada. Suele salir algo antes y con una velocidad de salida algo menor. Desactivado equivale a OpenRocket.",
     "deploySpeedWarnHint": "Despliegue simple (sin piloto): por encima de esta velocidad, abrir el paracaídas puede dañar el fuselaje o rasgar la vela.",
     "mainHighSpeedWarnHint": "Doble despliegue: por encima de esto el PRINCIPAL sale demasiado rápido — normalmente un piloto demasiado pequeño o un principal programado demasiado alto.",
     "mainLowSpeedWarnHint": "Doble despliegue: por debajo de esto el principal se abre con el cohete apenas descendiendo, lo que suele significar que se desplegó cerca del apogeo — un descenso lento y con mucha deriva.",
@@ -920,7 +920,8 @@
     "loaded": "Diseño cargado (.ork)",
     "close": "Cerrar",
     "closeTitle": "Descartar esta importación y empezar un diseño nuevo",
-    "closeConfirm": "¿Descartar este diseño cargado y empezar uno nuevo? Se perderán los cambios no guardados."
+    "closeConfirm": "¿Descartar este diseño cargado y empezar uno nuevo? Se perderán los cambios no guardados.",
+    "repaired": "{{part}}: un valor de {{field}} de {{was}} queda fuera de lo que la aplicación permite, así que se redujo a {{now}}."
   },
   "part": {
     "stage": "Etapa",

@@ -52,6 +52,7 @@ vi.mock('../../../src/services/motors/motorDb', () => ({
   // The catalog HITS: this is the path where the designation is known and only
   // the curve download fails.
   findCatalogMotor: () => ({ designation: 'K550', manufacturer: 'AeroTech', diameter: 54 }),
+  matchCatalogMotor: () => ({ motor: { designation: 'K550', manufacturer: 'AeroTech', diameter: 54 } }),
 }));
 
 const { loadOrk } = await import('../../../src/services/files/loadOrk');

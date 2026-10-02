@@ -324,7 +324,7 @@
     "railExitMinHint": "Abaixo disto as aletas têm demasiado pouco fluxo de ar para dirigir, pelo que o foguetão pode virar-se para o vento ou ficar instável ao deixar a haste.",
     "simModel": "Modelo de voo",
     "guideAwareRodClearance": "Saída conforme as guias",
-    "guideAwareRodClearanceHint": "O OpenRocket mantém o foguetão guiado ao longo de todo o comprimento da calha, onde quer que estejam as guias de lançamento ou os botões de calha. Ativado, o foguetão deixa a calha quando a sua guia mais traseira o deixa: normalmente um pouco mais cedo e com velocidade de saída um pouco menor. Desativado corresponde ao OpenRocket.",
+    "guideAwareRodClearanceHint": "O OpenRocket mantém o foguetão na guia ao longo de todo o seu comprimento, onde quer que estejam as argolas ou os botões de calha. Ligado: uma argola guia até a sua extremidade traseira deixar a guia, enquanto uma calha precisa de dois botões e guia apenas até sair o penúltimo, pelo que um único botão não guia de todo. Em geral sai um pouco mais cedo e com velocidade de saída um pouco menor. Desligado corresponde ao OpenRocket.",
     "deploySpeedWarnHint": "Abertura única (sem drogue): acima desta velocidade, abrir o paraquedas arrisca rasgar a fuselagem a todo o comprimento ou romper o velame.",
     "mainHighSpeedWarnHint": "Abertura dupla: acima disto o PRINCIPAL está a sair demasiado depressa, normalmente por um drogue demasiado pequeno para travar o foguetão ou por um principal configurado para abrir demasiado alto.",
     "mainLowSpeedWarnHint": "Abertura dupla: abaixo disto o principal abre com o foguetão quase sem descer, o que em geral significa que abriu perto do apogeu, uma descida lenta e à deriva desde a altitude máxima.",
@@ -920,7 +920,8 @@
     "loaded": "Projeto carregado (.ork)",
     "close": "Fechar",
     "closeTitle": "Descartar esta importação e começar um projeto novo",
-    "closeConfirm": "Descartar este projeto carregado e começar um novo? As alterações não guardadas serão perdidas."
+    "closeConfirm": "Descartar este projeto carregado e começar um novo? As alterações não guardadas serão perdidas.",
+    "repaired": "{{part}}: um valor de {{field}} de {{was}} está fora do que a aplicação permite, pelo que foi reduzido para {{now}}."
   },
   "part": {
     "stage": "Andar",

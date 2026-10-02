@@ -4,6 +4,7 @@ import {
   allClasses,
   allManufacturers,
   findCatalogMotor,
+  matchCatalogMotor,
   hasCurve,
   loadCatalog,
   type CatalogMotor,
@@ -211,6 +212,71 @@ describe('findCatalogMotor — a leading impulse number', () => {
   });
 });
 
+/**
+ * A name carrying its impulse, its propellant and its delay as separate parts.
+ *
+ * RockSim writes a Cesaroni motor as `26-E31-WH-15A` - impulse, designation,
+ * propellant, delay - where the catalog holds `E31` and its own code is
+ * `26E31-15A`. Dropping one trailing segment left `26-E31-WH`, which is neither,
+ * so the motor matched nothing and the mount opened empty.
+ */
+describe('findCatalogMotor — a name in several hyphenated parts', () => {
+  const cat: CatalogMotor[] = [
+    {
+      designation: 'E31',
+      manufacturer: 'Cesaroni',
+      class: 'E',
+      diameter: 24,
+      impulse: 1,
+      burn: 1,
+      mass: 1,
+      code: '26E31-15A',
+    },
+    {
+      designation: 'H135',
+      manufacturer: 'Cesaroni',
+      class: 'H',
+      diameter: 29,
+      impulse: 1,
+      burn: 1,
+      mass: 1,
+      code: '217H135-12A',
+    },
+    {
+      designation: 'H135',
+      manufacturer: 'AeroTech',
+      class: 'H',
+      diameter: 29,
+      impulse: 1,
+      burn: 1,
+      mass: 1,
+      code: 'HP-H135W',
+    },
+    { designation: '1/2A6', manufacturer: 'Estes', class: 'A', diameter: 13, impulse: 1, burn: 1, mass: 1 },
+  ];
+
+  it('reads past the impulse and the propellant alike', () => {
+    expect(findCatalogMotor(cat, '26-E31-WH-15A', 'Cesaroni')!.designation).toBe('E31');
+  });
+
+  it('keeps letting the maker in the file break the tie', () => {
+    // Two makers publish an H135, and the file says which one wrote this design.
+    expect(findCatalogMotor(cat, '217-H135-WH-12A', 'AeroTech')!.manufacturer).toBe('AeroTech');
+    expect(findCatalogMotor(cat, '217-H135-WH-12A', 'Cesaroni')!.manufacturer).toBe('Cesaroni');
+  });
+
+  it('never wears a name down to a bare number', () => {
+    // Every candidate has to keep a letter. Without that, `26-E31-WH-15A`
+    // shortens to `26`, which is a figure that could match another motor by its
+    // digits rather than by being that motor.
+    expect(findCatalogMotor(cat, '26-ZZ9-WH-15A', 'Cesaroni')).toBeUndefined();
+  });
+
+  it('leaves a designation that really starts with digits alone', () => {
+    expect(findCatalogMotor(cat, '1/2A6', 'Estes')!.designation).toBe('1/2A6');
+  });
+});
+
 describe('findCatalogMotor — full .ork designations vs short catalog names', () => {
   // Catalog keys the SHORT designation; the full name lives in `code`, exactly
   // as our bundled motors.generated.json does (see Fireball.ZL1.DD.multi.ork).
@@ -351,5 +417,71 @@ describe('loadCatalog with a malformed row', () => {
   it('still rejects a catalog with no usable row at all', async () => {
     serve([{ designation: 42 }, 'nope']);
     await expect(loadCatalog()).rejects.toThrow(/Could not load the motors catalog/);
+  });
+});
+
+/**
+ * HOW the motor was found, not just which one.
+ *
+ * The tiers run from "this is the name" down to "this is what the name looks
+ * like with its impulse and propellant taken off", and the file's manufacturer
+ * is a preference rather than a filter. Every one of those is a match worth
+ * making and none is the file confirming the motor, and the caller used to be
+ * told none of it: an `I170-P` filed under Kosdon loaded Cesaroni's I170 in
+ * silence.
+ */
+describe('matchCatalogMotor — how sure the match is', () => {
+  const cat: CatalogMotor[] = [
+    { designation: 'C6', manufacturer: 'Estes', class: 'C', diameter: 18, impulse: 1, burn: 1, mass: 1 },
+    { designation: 'I170', manufacturer: 'Cesaroni', class: 'I', diameter: 38, impulse: 1, burn: 1, mass: 1 },
+    { designation: 'I170', manufacturer: 'AeroTech', class: 'I', diameter: 54, impulse: 1, burn: 1, mass: 1 },
+    {
+      designation: 'E31',
+      manufacturer: 'Cesaroni',
+      class: 'E',
+      diameter: 24,
+      impulse: 1,
+      burn: 1,
+      mass: 1,
+      code: '26E31-15A',
+    },
+  ];
+
+  it('has no doubt when the name and the maker both say so', () => {
+    expect(matchCatalogMotor(cat, 'C6', 'Estes')).toEqual({ motor: cat[0] });
+  });
+
+  it('reports the MAKER when the file named one we carry nothing for', () => {
+    // The tie-break never empties a non-empty set, which is right - some motor
+    // is better than none - but it is not the motor the file named.
+    const m = matchCatalogMotor(cat, 'I170', 'Kosdon');
+    expect(m!.motor.manufacturer).toBe('Cesaroni');
+    expect(m!.doubt).toBe('maker');
+  });
+
+  it('reports SEVERAL when nothing separates two equally good matches', () => {
+    const m = matchCatalogMotor(cat, 'I170');
+    expect(m!.doubt).toBe('several');
+  });
+
+  it('reports SHORTENED when the name only matched once parts came off', () => {
+    const m = matchCatalogMotor(cat, '26-E31-WH-15A', 'Cesaroni');
+    expect(m!.motor.designation).toBe('E31');
+    expect(m!.doubt).toBe('shortened');
+  });
+
+  it('puts the maker first, as the most surprising of the three', () => {
+    // `206-I170-WH-14A` under Kosdon is shortened AND another maker's AND one
+    // of two. Which one it is told about should be the one that moves a flight.
+    expect(matchCatalogMotor(cat, '206-I170-WH-14A', 'Kosdon')!.doubt).toBe('maker');
+  });
+
+  it('finds nothing rather than doubting something', () => {
+    expect(matchCatalogMotor(cat, 'ZZ9', 'Estes')).toBeUndefined();
+  });
+
+  it('is what findCatalogMotor returns, without the doubt', () => {
+    // The callers that only want the row keep working unchanged.
+    expect(findCatalogMotor(cat, 'I170', 'Kosdon')).toBe(matchCatalogMotor(cat, 'I170', 'Kosdon')!.motor);
   });
 });

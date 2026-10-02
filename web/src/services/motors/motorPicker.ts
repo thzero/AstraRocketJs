@@ -47,6 +47,27 @@ export interface MountFit {
  * imported from an `.eng` need not, and dropping it from the list would be a
  * guess dressed up as a measurement. Both bounds carry the rounding slack above.
  */
+/**
+ * The hole a motor has to go into, from the mount's own node, or null when the
+ * tube does not state a diameter.
+ *
+ * Shared so the motor browser and the file reader judge a fit by the same
+ * numbers. The LENGTH allowance is the tube PLUS its overhang, because that is
+ * where the app seats a motor (aft - motorLength + overhang); the bare tube
+ * would refuse a motor the rocket can actually fly.
+ */
+export function mountFit(node: Record<string, unknown>): MountFit | null {
+  const or = typeof node['outerRadius'] === 'number' ? node['outerRadius'] : null;
+  if (or == null) return null;
+  const th = typeof node['thickness'] === 'number' ? node['thickness'] : 0;
+  const tubeLen = typeof node['length'] === 'number' ? node['length'] : null;
+  const overhang = typeof node['motorOverhang'] === 'number' ? node['motorOverhang'] : 0;
+  return {
+    bore: (or - th) * 2 * 1000,
+    ...(tubeLen != null ? { maxLength: (tubeLen + overhang) * 1000 } : {}),
+  };
+}
+
 export function motorFitsMount(m: { diameter: number; length?: number }, fit: MountFit): boolean {
   if (m.diameter > fit.bore + FIT_TOLERANCE_MM) return false;
   if (fit.maxLength != null && m.length != null && m.length > fit.maxLength + FIT_TOLERANCE_MM) return false;

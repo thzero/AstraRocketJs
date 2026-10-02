@@ -284,3 +284,98 @@ describe('exportRkt, multi-stage', () => {
     expect(find(r.tree.components[1]!.children, 'Lower')).toBeTruthy();
   });
 });
+
+/**
+ * RockSim has no cluster: it knows one tube per motor.
+ *
+ * OpenRocket keeps ONE inner tube carrying a cluster pattern, and the desktop
+ * splits it on the way out (`InnerBodyTubeDTO.handleCluster`). This writer did
+ * not, so a three-motor cluster was saved as a single tube and the file named
+ * one motor where the design flies three. Everything mounted inside the mount
+ * went with that one tube too.
+ *
+ * Checked against the desktop's own output for the same design: three members
+ * at 10.9697 mm from the axis, 120 degrees apart, each carrying the engine
+ * block. The angles are written in degrees here, which is this writer's one
+ * deliberate departure from the format; the places are the same ones.
+ */
+describe('exportRkt — a clustered motor mount', () => {
+  const mount = (cluster: string): ComponentNode =>
+    ({
+      type: 'innertube',
+      id: 'mount',
+      name: 'Mount',
+      motorMount: true,
+      cluster,
+      length: 0.1,
+      outerRadius: 0.0095,
+      thickness: 0.0005,
+      position: { method: 'bottom', offset: 0 },
+      children: [
+        {
+          type: 'engineblock',
+          id: 'block',
+          name: 'Block',
+          length: 0.005,
+          outerRadius: 0.009,
+          thickness: 0.003,
+          position: { method: 'top', offset: 0 },
+        },
+      ],
+    }) as unknown as ComponentNode;
+
+  const clustered = (cluster: string): string =>
+    exportRkt('Cluster', {
+      name: 'Cluster',
+      components: [
+        {
+          type: 'stage',
+          id: 's1',
+          name: 'Sustainer',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'tube',
+              name: 'Body',
+              length: 0.4,
+              outerRadius: 0.04,
+              thickness: 0.001,
+              children: [mount(cluster)],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree).xml;
+
+  it('writes one tube per motor, named as the desktop names them', () => {
+    const xml = clustered('3-ring');
+    for (const n of [1, 2, 3]) expect(xml).toContain(`<Name>Mount #${n}</Name>`);
+    // The airframe plus the three members, and no un-split mount left behind.
+    expect(xml.match(/<BodyTube>/g)).toHaveLength(4);
+    expect(xml).not.toContain('<Name>Mount</Name>');
+  });
+
+  it('puts everything inside the mount into EVERY tube, not just the first', () => {
+    // An engine block is what the motor pushes against, so a cluster missing
+    // two of them is a file describing a different rocket.
+    expect(clustered('3-ring').match(/<Name>Block<\/Name>/g)).toHaveLength(3);
+  });
+
+  it('places the members where the desktop places them', () => {
+    const xml = clustered('3-ring');
+    // 10.9697 mm from the axis for a 19 mm tube in a 3-ring, which is the
+    // figure OpenRocket 24.12 writes for the same design.
+    expect(xml.match(/<RadialLoc>10\.9696/g)).toHaveLength(3);
+    // 120 degrees apart, in this writer's own angle unit.
+    for (const a of ['-150', '-30', '90']) {
+      expect(xml).toContain(`<RadialAngle>${a}</RadialAngle>`);
+    }
+  });
+
+  it('leaves a single mount as one tube', () => {
+    const xml = clustered('single');
+    expect(xml).toContain('<Name>Mount</Name>');
+    expect(xml.match(/<BodyTube>/g)).toHaveLength(2);
+    expect(xml.match(/<Name>Block<\/Name>/g)).toHaveLength(1);
+  });
+});

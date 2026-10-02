@@ -324,7 +324,7 @@
     "railExitMinHint": "Abaixo disto as aletas têm pouco fluxo de ar para dirigir, então o foguete pode cata-ventar contra o vento ou ficar instável ao deixar a haste.",
     "simModel": "Modelo de voo",
     "guideAwareRodClearance": "Saída conforme as guias",
-    "guideAwareRodClearanceHint": "O OpenRocket mantém o foguete guiado por todo o comprimento do trilho, onde quer que estejam as guias de lançamento ou os botões de trilho. Ativado, o foguete deixa o trilho quando a sua guia mais traseira o deixa: geralmente um pouco mais cedo e com velocidade de saída um pouco menor. Desativado corresponde ao OpenRocket.",
+    "guideAwareRodClearanceHint": "O OpenRocket mantém o foguete na guia por todo o comprimento dela, onde quer que estejam as argolas ou os botões de trilho. Ligado: uma argola guia até sua extremidade traseira deixar a guia, enquanto um trilho precisa de dois botões e guia apenas até o penúltimo sair, de modo que um único botão não guia nada. Em geral sai um pouco antes e com velocidade de saída um pouco menor. Desligado equivale ao OpenRocket.",
     "deploySpeedWarnHint": "Abertura única (sem drogue): acima desta velocidade, abrir o paraquedas arrisca rasgar a fuselagem no sentido do comprimento ou romper o velame.",
     "mainHighSpeedWarnHint": "Abertura dupla: acima disto o PRINCIPAL está saindo rápido demais, normalmente por um drogue pequeno demais para frear o foguete ou por um principal configurado para abrir alto demais.",
     "mainLowSpeedWarnHint": "Abertura dupla: abaixo disto o principal abre com o foguete mal descendo, o que em geral significa que ele abriu perto do apogeu, uma descida lenta e à deriva desde a altitude cheia.",
@@ -920,7 +920,8 @@
     "loaded": "Projeto carregado (.ork)",
     "close": "Fechar",
     "closeTitle": "Descartar esta importação e começar um projeto novo",
-    "closeConfirm": "Descartar este projeto carregado e começar um novo? As alterações não salvas serão perdidas."
+    "closeConfirm": "Descartar este projeto carregado e começar um novo? As alterações não salvas serão perdidas.",
+    "repaired": "{{part}}: um valor de {{field}} de {{was}} está fora do que o aplicativo permite, então foi reduzido para {{now}}."
   },
   "part": {
     "stage": "Estágio",

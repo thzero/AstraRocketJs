@@ -323,7 +323,7 @@
     "railExitMinHint": "Darunter haben die Finnen zu wenig Anströmung zum Steuern, die Rakete kann also in den Wind drehen (Windfahneneffekt) oder beim Verlassen der Schiene instabil werden.",
     "simModel": "Flugmodell",
     "guideAwareRodClearance": "Startführung berücksichtigen",
-    "guideAwareRodClearanceHint": "OpenRocket führt die Rakete über die ganze Schienenlänge, unabhängig davon, wo Startösen oder Schienenknöpfe sitzen. Aktiviert verlässt die Rakete die Schiene, sobald ihre hinterste Führung sie verlässt: meist etwas früher und mit etwas geringerer Geschwindigkeit am Schienenende. Deaktiviert entspricht OpenRocket.",
+    "guideAwareRodClearanceHint": "OpenRocket hält die Rakete über die volle Startschienenlänge geführt, egal wo ihre Startführungen oder Schienengleiter sitzen. An: eine Führungshülse führt, bis ihr hinteres Ende die Schiene verlässt, während eine Schiene zwei Gleiter braucht und nur führt, bis der vorletzte sie verlässt, ein einzelner Gleiter führt also gar nicht. Meist etwas früher von der Schiene und eine etwas geringere Austrittsgeschwindigkeit. Aus entspricht OpenRocket.",
     "deploySpeedWarnHint": "Einfachauswurf (ohne Bremsschirm): Oberhalb dieser Geschwindigkeit droht beim Öffnen des Fallschirms ein Aufschlitzen der Zelle (Zippering) oder ein Reißen der Kappe.",
     "mainHighSpeedWarnHint": "Doppelauswurf: Oberhalb davon kommt der HAUPTSCHIRM zu schnell heraus – meist ein zu kleiner Bremsschirm, der die Rakete nicht genug verzögert, oder ein zu hoch eingestellter Auswurf des Hauptschirms.",
     "mainLowSpeedWarnHint": "Doppelauswurf: Unterhalb davon öffnet der Hauptschirm, während die Rakete kaum sinkt, was in der Regel einen Auswurf nahe dem Apogäum bedeutet – ein langsamer Abstieg aus voller Höhe mit viel Abdrift.",
@@ -915,7 +915,8 @@
     "loaded": "Geladener Entwurf (.ork)",
     "close": "Schließen",
     "closeTitle": "Diesen Import verwerfen und einen neuen Entwurf beginnen",
-    "closeConfirm": "Diesen geladenen Entwurf verwerfen und einen neuen beginnen? Nicht gespeicherte Änderungen gehen verloren."
+    "closeConfirm": "Diesen geladenen Entwurf verwerfen und einen neuen beginnen? Nicht gespeicherte Änderungen gehen verloren.",
+    "repaired": "{{part}}: ein Wert von {{was}} für {{field}} liegt außerhalb des Zulässigen und wurde auf {{now}} verringert."
   },
   "part": {
     "stage": "Stufe",

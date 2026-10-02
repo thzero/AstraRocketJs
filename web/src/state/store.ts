@@ -38,6 +38,7 @@ import type { LaunchConditions } from '../services/design/orkTree';
 import type { OrkExportMotor } from '../services/files/orkFile';
 import type { DesignInfo } from '../services/files/orkTypes';
 import { buildExportMotorMap, fillMotorDigests } from '../services/motors/exportMotors';
+import { repairValues, type RepairedValue } from '../services/design/repairValues';
 import { wireLoadedOrk } from '../services/files/wireLoadedOrk';
 // Static, not the lazy import the neighboring .ork paths use: this is a fetch
 // wrapper with no heavy dependencies, and the library dialog imports it
@@ -125,6 +126,17 @@ type HistoryEntry = {
 /** Cap the stack so a long session can't grow memory without bound. */
 const HISTORY_LIMIT = 100;
 
+/** Each repaired value as the banner's own line. */
+const repairNotes = (repaired: RepairedValue[]): string[] =>
+  repaired.map((r) =>
+    i18n.t('banner.repaired', {
+      part: r.name,
+      field: i18n.t(`prop.${r.field}`),
+      was: r.was,
+      now: r.now,
+    }),
+  );
+
 /** Which condition raised `storageWarning` — only 'full' is save-clearable. */
 export type StorageWarningKind = 'full' | 'degraded' | 'loadFailed' | 'conflict';
 
@@ -148,6 +160,17 @@ export interface WorkspaceState {
   /** Transient failure of the thing the user just did — a bad .ork, a sim that
    *  threw. Cleared by the next successful rebuild. */
   err: string | null;
+  /**
+   * Values a design arrived with that no value of their quantity can be, pulled
+   * back to the limit on the way in (`design/repairValues`).
+   *
+   * TRANSIENT, unlike the import notes beside them in the banner. The repair is
+   * saved with the design, so it is done once and there is nothing left to
+   * report on the next load; a note kept in `loadedMeta` would persist and say
+   * it again forever. Every load path fills this, including the autosaved
+   * session, which has no notes of its own.
+   */
+  repairNotes: string[];
   /**
    * Browser storage is not keeping the user's work (quota hit, or IndexedDB
    * blocked and we are back on the 5 MB localStorage cap).
@@ -1010,6 +1033,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     selectedId: null,
     selectionSeq: 0,
     loadedMeta: null,
+    repairNotes: [],
     rocket: null,
     past: [],
     future: [],
@@ -1059,8 +1083,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const configs = sanitizeConfigs(w.tree, w.configs);
       const sims = sanitizeSims(w.sims, configs);
       const activeId = sims.some((s) => s.id === w.activeId) ? w.activeId : sims[0]!.id;
+      // And the VALUES, which nothing clamped on the way in: a design autosaved
+      // by a build from before a limit existed, or opened from a file by one,
+      // can carry a density no material has. See `repairValues`.
+      const fixed = repairValues(w.tree);
       replaceWorkspace((s) => ({
-        tree: w.tree,
+        repairNotes: repairNotes(fixed.repaired),
+        tree: fixed.tree,
         sims,
         configs,
         activeId,
@@ -1803,8 +1832,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const notes = outside.length
           ? [...loadedMeta.notes, ...outside.map((v) => limitText(v, i18n.t, displayUnits()))]
           : loadedMeta.notes;
+        // A file is the likeliest source of a value no material has, and the
+        // one place the app can still say where it came from.
+        const fixed = repairValues(tree);
         replaceWorkspace({
-          tree,
+          repairNotes: repairNotes(fixed.repaired),
+          tree: fixed.tree,
           loadedMeta: { ...loadedMeta, notes },
           // Every configuration the file declared, and a simulation per
           // configuration to fly it.

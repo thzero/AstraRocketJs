@@ -70,6 +70,7 @@ vi.mock('../../../src/services/motors/thrustcurve', () => ({ fetchMotorSpec, cus
 vi.mock('../../../src/services/motors/motorDb', () => ({
   loadCatalog: () => Promise.resolve([]),
   findCatalogMotor: (_c: unknown, designation: string) => ({ designation }),
+  matchCatalogMotor: (_c: unknown, designation: string) => ({ motor: { designation } }),
 }));
 
 const { loadOrk } = await import('../../../src/services/files/loadOrk');

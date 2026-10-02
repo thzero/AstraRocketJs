@@ -325,7 +325,7 @@
     "railExitMinHint": "Poniżej tej wartości stateczniki mają za mały nadmuch, aby sterować, więc przy zejściu z pręta rakieta może obrócić się w wiatr albo stracić stabilność.",
     "simModel": "Model lotu",
     "guideAwareRodClearance": "Uwzględniaj położenie prowadnic",
-    "guideAwareRodClearanceHint": "OpenRocket prowadzi rakietę przez całą długość szyny, niezależnie od tego, gdzie znajdują się ucha startowe czy guziki szynowe. Po włączeniu rakieta schodzi z szyny, gdy zrobi to jej najbardziej tylna prowadnica: zwykle nieco wcześniej i z nieco mniejszą prędkością przy zejściu. Wyłączone odpowiada OpenRocket.",
+    "guideAwareRodClearanceHint": "OpenRocket utrzymuje rakietę na prowadnicy przez całą jej długość, niezależnie od położenia uszu startowych czy guzików szynowych. Włączone: ucho prowadzi, dopóki jego tylny koniec nie zejdzie z prowadnicy, natomiast szyna wymaga dwóch guzików i prowadzi tylko do zejścia przedostatniego z nich, więc pojedynczy guzik nie prowadzi wcale. Zwykle nieco wcześniejsze zejście i nieco niższa prędkość na końcu prowadnicy. Wyłączone odpowiada OpenRocket.",
     "deploySpeedWarnHint": "Otwarcie jednostopniowe (bez spadochronu hamującego): powyżej tej prędkości otwarcie spadochronu grozi podłużnym rozerwaniem kadłuba albo rozdarciem czaszy.",
     "mainHighSpeedWarnHint": "Otwarcie dwustopniowe: powyżej tej wartości GŁÓWNY spadochron wychodzi za szybko, zwykle z powodu zbyt małego spadochronu hamującego albo zbyt wysoko ustawionego otwarcia głównego.",
     "mainLowSpeedWarnHint": "Otwarcie dwustopniowe: poniżej tej wartości główny spadochron otwiera się, gdy rakieta prawie nie opada, co zwykle oznacza otwarcie blisko apogeum: wolne opadanie z pełnej wysokości i duży dryf.",
@@ -925,7 +925,8 @@
     "loaded": "Wczytano projekt (.ork)",
     "close": "Zamknij",
     "closeTitle": "Odrzuć ten import i zacznij nowy projekt",
-    "closeConfirm": "Odrzucić wczytany projekt i zacząć nowy? Niezapisane zmiany zostaną utracone."
+    "closeConfirm": "Odrzucić wczytany projekt i zacząć nowy? Niezapisane zmiany zostaną utracone.",
+    "repaired": "{{part}}: wartość {{field}} równa {{was}} wykracza poza dopuszczalny zakres, więc zmniejszono ją do {{now}}."
   },
   "part": {
     "stage": "Stopień",

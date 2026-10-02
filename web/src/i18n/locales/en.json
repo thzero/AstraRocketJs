@@ -323,7 +323,7 @@
     "railExitMinHint": "Below this the fins have too little airflow to steer, so the rocket can weathercock into the wind or go unstable as it leaves the rod.",
     "simModel": "Flight model",
     "guideAwareRodClearance": "Guide-aware rod clearance",
-    "guideAwareRodClearanceHint": "OpenRocket keeps the rocket on the rod for the full rod length, wherever its launch lugs or rail buttons sit. On, the rocket leaves the rod when its aft-most guide does: usually a little sooner, and a slightly lower rail-exit velocity. Off matches OpenRocket.",
+    "guideAwareRodClearanceHint": "OpenRocket keeps the rocket on the rod for the full rod length, wherever its launch lugs or rail buttons sit. On, a lug guides until its aft end leaves the rod, while a rail needs two buttons and guides only until the second-to-last of them leaves it, so a single button gives no guided travel at all. Usually a little sooner off the rod, and a slightly lower rail-exit velocity. Off matches OpenRocket.",
     "deploySpeedWarnHint": "Single deployment (no drogue): above this speed, opening the parachute risks zippering the airframe or tearing the canopy.",
     "mainHighSpeedWarnHint": "Dual deployment: above this the MAIN is coming out too fast — usually a drogue too small to slow the rocket, or a main set to deploy too high.",
     "mainLowSpeedWarnHint": "Dual deployment: below this the main opens while the rocket is barely descending, which normally means it deployed near apogee — a slow, drifty descent from full altitude.",
@@ -915,7 +915,8 @@
     "loaded": "Loaded design (.ork)",
     "close": "Close",
     "closeTitle": "Discard this import and start a fresh design",
-    "closeConfirm": "Discard this loaded design and start a fresh one? Unsaved changes will be lost."
+    "closeConfirm": "Discard this loaded design and start a fresh one? Unsaved changes will be lost.",
+    "repaired": "{{part}}: a {{field}} of {{was}} is outside anything the app allows, so it was reduced to {{now}}."
   },
   "part": {
     "stage": "Stage",

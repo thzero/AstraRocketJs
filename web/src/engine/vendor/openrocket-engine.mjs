@@ -232,6 +232,7 @@ $rt_createIntArrayFromData = data => {
     buffer.set(data);
     return new $rt_intArrayCls(buffer);
 },
+$rt_createBooleanArray = sz => new $rt_booleanArrayCls(new Int8Array(sz)),
 $rt_createDoubleArray = sz => new $rt_doubleArrayCls(new Float64Array(sz)),
 $rt_createDoubleArrayFromData = data => {
     let buffer = new Float64Array(data.length);
@@ -10890,7 +10891,7 @@ function iocr_RailButton() {
     a.$baseHeight_m = 0.0;
     a.$screwHeight_m = 0.0;
     a.$radialDistance_m = 0.0;
-    a.$angleOffsetRad0 = 0.0;
+    a.$angleOffsetRad = 0.0;
     a.$instanceCount1 = 0;
     a.$instanceSeparation0 = 0.0;
 }
@@ -10905,7 +10906,7 @@ iocr_RailButton__init_ = $this => {
     iocrp_AxialMethod_$callClinit();
     iocr_ExternalComponent__init_($this, iocrp_AxialMethod_MIDDLE);
     $this.$radialDistance_m = 0.0;
-    $this.$angleOffsetRad0 = 3.141592653589793;
+    $this.$angleOffsetRad = 3.141592653589793;
     $this.$instanceCount1 = 1;
     $this.$instanceSeparation0 = 0.0;
     $this.$outerDiameter_m = 0.0097;
@@ -11029,6 +11030,9 @@ iocr_RailButton_setOuterDiameter = ($this, $newOD) => {
     iocr_ComponentChangeEvent_$callClinit();
     $this.$fireComponentChangeEvent(iocr_ComponentChangeEvent_BOTH_CHANGE);
 },
+iocr_RailButton_getAngleOffset = $this => {
+    return $this.$angleOffsetRad;
+},
 iocr_RailButton_setAngleMethod = ($this, $newMethod) => {
     return;
 },
@@ -11041,9 +11045,9 @@ iocr_RailButton_setAngleOffset = ($this, $angle_rad) => {
             $listener.$setAngleOffset($angle_rad);
     }
     $clamped_rad = iocu_MathUtil_clamp($angle_rad, (-3.141592653589793), 3.141592653589793);
-    if (iocu_MathUtil_equals($this.$angleOffsetRad0, $clamped_rad))
+    if (iocu_MathUtil_equals($this.$angleOffsetRad, $clamped_rad))
         return;
-    $this.$angleOffsetRad0 = $clamped_rad;
+    $this.$angleOffsetRad = $clamped_rad;
     iocr_ComponentChangeEvent_$callClinit();
     $this.$fireComponentChangeEvent(iocr_ComponentChangeEvent_AERODYNAMIC_CHANGE);
 },
@@ -11068,8 +11072,8 @@ iocr_RailButton_getInstanceBoundingBox = $this => {
 iocr_RailButton_getInstanceOffsets = $this => {
     let $toReturn, $yOffset, $zOffset, $index;
     $toReturn = $rt_createArray(iocu_CoordinateIF, $this.$getInstanceCount());
-    $yOffset = jl_Math_cos($this.$angleOffsetRad0) * $this.$radialDistance_m;
-    $zOffset = jl_Math_sin($this.$angleOffsetRad0) * $this.$radialDistance_m;
+    $yOffset = jl_Math_cos($this.$angleOffsetRad) * $this.$radialDistance_m;
+    $zOffset = jl_Math_sin($this.$angleOffsetRad) * $this.$radialDistance_m;
     $index = 0;
     while ($index < $this.$getInstanceCount()) {
         $toReturn.data[$index] = iocu_Coordinate__init_($index * $this.$instanceSeparation0, $yOffset, $zOffset);
@@ -11174,10 +11178,10 @@ iocr_RailButton_getComponentCG = $this => {
         $rt_throw(var$12);
     }
     $CMx = $this.$instanceSeparation0 * ($this.$instanceCount1 - 1 | 0) / 2.0;
-    var$16 = jl_Math_cos($this.$angleOffsetRad0);
+    var$16 = jl_Math_cos($this.$angleOffsetRad);
     var$17 = $parentRadius + $heightCM;
     $CMy = var$16 * var$17;
-    $CMz = jl_Math_sin($this.$angleOffsetRad0) * var$17;
+    $CMz = jl_Math_sin($this.$angleOffsetRad) * var$17;
     return iocu_Coordinate__init_0($CMx, $CMy, $CMz, $this.$getComponentMass());
 },
 iocr_RailButton_getComponentName = $this => {
@@ -40757,7 +40761,13 @@ function a_GuideClearanceListener() {
     a.$effectiveLength = 0.0;
     a.$origin = null;
 }
-let a_GuideClearanceListener__init_ = $this => {
+let a_GuideClearanceListener_SAME_LINE_RADIANS = 0.0,
+a_GuideClearanceListener_$callClinit = () => {
+    a_GuideClearanceListener_$callClinit = $rt_eraseClinit(a_GuideClearanceListener);
+    a_GuideClearanceListener__clinit_();
+},
+a_GuideClearanceListener__init_ = $this => {
+    a_GuideClearanceListener_$callClinit();
     iocsl_AbstractSimulationListener__init_($this);
     $this.$effectiveLength = NaN;
     $this.$origin = null;
@@ -40793,40 +40803,129 @@ a_GuideClearanceListener_postStep = ($this, $status) => {
     }
 },
 a_GuideClearanceListener_effectiveRodLength = ($configuration, $rodLength) => {
-    let $guideX, var$4, $c, $aftLocal, var$7, var$8, var$9, $p, $maxX, var$12;
-    $guideX = NaN;
-    var$4 = ($configuration.$getActiveComponents()).$iterator();
-    while (var$4.$hasNext()) {
-        $c = var$4.$next();
-        if ($c instanceof iocr_LaunchLug)
-            $aftLocal = $c.$getLength();
-        else {
-            if (!($c instanceof iocr_RailButton))
-                continue;
-            $aftLocal = $c.$getOuterDiameter() / 2.0;
-        }
-        var$7 = ($c.$toAbsolute(iocu_Coordinate__init_4($aftLocal))).data;
-        var$8 = var$7.length;
-        var$9 = 0;
-        while (var$9 < var$8) {
-            $p = var$7[var$9];
-            if (!(!(isNaN($guideX) ? 1 : 0) && !($p.$getX() > $guideX)))
-                $guideX = $p.$getX();
-            var$9 = var$9 + 1 | 0;
+    let $lugX, $angles, $centers, $aftEdges, var$7, $c, var$9, var$10, var$11, $p, $b, $radius, var$15, $maxX, var$17, $lugLength, $buttonX, $buttonLength;
+    a_GuideClearanceListener_$callClinit();
+    $lugX = NaN;
+    $angles = ju_ArrayList__init_();
+    $centers = ju_ArrayList__init_();
+    $aftEdges = ju_ArrayList__init_();
+    var$7 = ($configuration.$getActiveComponents()).$iterator();
+    while (var$7.$hasNext()) {
+        $c = var$7.$next();
+        if ($c instanceof iocr_LaunchLug) {
+            var$9 = ($c.$toAbsolute(iocu_Coordinate__init_4($c.$getLength()))).data;
+            var$10 = var$9.length;
+            var$11 = 0;
+            while (var$11 < var$10) {
+                $p = var$9[var$11];
+                if (!(!(isNaN($lugX) ? 1 : 0) && !($p.$getX() > $lugX)))
+                    $lugX = $p.$getX();
+                var$11 = var$11 + 1 | 0;
+            }
+        } else if ($c instanceof iocr_RailButton) {
+            $b = $c;
+            $radius = $b.$getOuterDiameter() / 2.0;
+            var$9 = ($c.$toAbsolute(iocu_Coordinate__init_4(0.0))).data;
+            var$10 = var$9.length;
+            var$15 = 0;
+            while (var$15 < var$10) {
+                $p = var$9[var$15];
+                $angles.$add(jl_Double_valueOf($b.$getAngleOffset()));
+                $centers.$add(jl_Double_valueOf($p.$getX()));
+                $aftEdges.$add(jl_Double_valueOf($p.$getX() + $radius));
+                var$15 = var$15 + 1 | 0;
+            }
         }
     }
-    if (isNaN($guideX) ? 1 : 0)
-        return $rodLength;
     $maxX = 0.0;
-    var$12 = ($configuration.$getBounds()).$iterator();
-    while (var$12.$hasNext()) {
-        $c = var$12.$next();
+    var$17 = ($configuration.$getBounds()).$iterator();
+    while (var$17.$hasNext()) {
+        $c = var$17.$next();
         if ($c.$getX() > $maxX)
             $maxX = $c.$getX();
     }
+    $lugLength = !(isNaN($lugX) ? 1 : 0) ? a_GuideClearanceListener_travel($rodLength, $maxX, $lugX) : NaN;
+    $buttonX = a_GuideClearanceListener_railGuideX($angles, $centers, $aftEdges);
+    $buttonLength = !(isNaN($buttonX) ? 1 : 0) ? a_GuideClearanceListener_travel($rodLength, $maxX, $buttonX) : NaN;
+    if (!(isNaN($lugLength) ? 1 : 0) && !(isNaN($buttonLength) ? 1 : 0))
+        return jl_Math_min($lugLength, $buttonLength);
+    if (!(isNaN($lugLength) ? 1 : 0))
+        return $lugLength;
+    if (!(isNaN($buttonLength) ? 1 : 0))
+        return $buttonLength;
+    if (!$angles.$isEmpty())
+        $rodLength = 0.0;
+    return $rodLength;
+},
+a_GuideClearanceListener_travel = ($rodLength, $maxX, $guideX) => {
+    a_GuideClearanceListener_$callClinit();
     if (!($maxX >= $guideX))
         return $rodLength;
     return jl_Math_max(0.0, $rodLength - ($maxX - $guideX));
+},
+a_GuideClearanceListener_railGuideX = ($angles, $centers, $aftEdges) => {
+    let $best, $taken, $i, var$7, $lineCenters, $lineAftEdges, $j, $x;
+    a_GuideClearanceListener_$callClinit();
+    $best = NaN;
+    $taken = $rt_createBooleanArray($angles.$size());
+    $i = 0;
+    while ($i < $angles.$size()) {
+        var$7 = $taken.data;
+        if (!var$7[$i]) {
+            $lineCenters = ju_ArrayList__init_();
+            $lineAftEdges = ju_ArrayList__init_();
+            $j = $i;
+            while ($j < $angles.$size()) {
+                if (!var$7[$j] && a_GuideClearanceListener_sameLine(($angles.$get0($i)).$doubleValue(), ($angles.$get0($j)).$doubleValue())) {
+                    var$7[$j] = 1;
+                    $lineCenters.$add($centers.$get0($j));
+                    $lineAftEdges.$add($aftEdges.$get0($j));
+                }
+                $j = $j + 1 | 0;
+            }
+            $x = a_GuideClearanceListener_secondStationFromAft($lineCenters, $lineAftEdges);
+            if (!(isNaN($x) ? 1 : 0) && !(!(isNaN($best) ? 1 : 0) && !($x > $best)))
+                $best = $x;
+        }
+        $i = $i + 1 | 0;
+    }
+    return $best;
+},
+a_GuideClearanceListener_sameLine = ($a, $b) => {
+    let $d;
+    a_GuideClearanceListener_$callClinit();
+    $d = jl_Math_abs($a - $b) % 6.283185307179586;
+    if ($d > 3.141592653589793)
+        $d = 6.283185307179586 - $d;
+    return !($d <= a_GuideClearanceListener_SAME_LINE_RADIANS) ? 0 : 1;
+},
+a_GuideClearanceListener_secondStationFromAft = ($centers, $aftEdges) => {
+    let $last, $i, $second, $secondAftEdge, $c;
+    a_GuideClearanceListener_$callClinit();
+    $last = NaN;
+    $i = 0;
+    while ($i < $centers.$size()) {
+        if (!(!(isNaN($last) ? 1 : 0) && !(($centers.$get0($i)).$doubleValue() > $last)))
+            $last = ($centers.$get0($i)).$doubleValue();
+        $i = $i + 1 | 0;
+    }
+    if (isNaN($last) ? 1 : 0)
+        return NaN;
+    $second = NaN;
+    $secondAftEdge = NaN;
+    $i = 0;
+    while ($i < $centers.$size()) {
+        $c = ($centers.$get0($i)).$doubleValue();
+        if (!($last - $c <= 5.0E-4) && !(!(isNaN($second) ? 1 : 0) && !($c > $second))) {
+            $secondAftEdge = ($aftEdges.$get0($i)).$doubleValue();
+            $second = $c;
+        }
+        $i = $i + 1 | 0;
+    }
+    return $secondAftEdge;
+},
+a_GuideClearanceListener__clinit_ = () => {
+    a_GuideClearanceListener_SAME_LINE_RADIANS = jl_Math_toRadians(1.0);
 },
 jl_IllegalMonitorStateException = $rt_classWithoutFields(jl_RuntimeException),
 jl_IllegalMonitorStateException__init_0 = $this => {
@@ -54768,7 +54867,7 @@ function iocr_LaunchLug() {
     let a = this; iocr_Tube.call(a);
     a.$radius = 0.0;
     a.$thickness1 = 0.0;
-    a.$angleOffsetRad = 0.0;
+    a.$angleOffsetRad0 = 0.0;
     a.$radialOffset = 0.0;
     a.$instanceCount2 = 0;
     a.$instanceSeparation = 0.0;
@@ -54783,7 +54882,7 @@ iocr_LaunchLug__init_ = $this => {
     iocr_LaunchLug_$callClinit();
     iocrp_AxialMethod_$callClinit();
     iocr_Tube__init_($this, iocrp_AxialMethod_MIDDLE);
-    $this.$angleOffsetRad = 3.141592653589793;
+    $this.$angleOffsetRad0 = 3.141592653589793;
     $this.$radialOffset = 0.0;
     $this.$instanceCount2 = 1;
     $this.$instanceSeparation = 0.0;
@@ -54856,9 +54955,9 @@ iocr_LaunchLug_setAngleOffset = ($this, $newAngleRadians) => {
             $listener.$setAngleOffset($newAngleRadians);
     }
     $clamped_rad = iocu_MathUtil_clamp($newAngleRadians, (-3.141592653589793), 3.141592653589793);
-    if (iocu_MathUtil_equals($this.$angleOffsetRad, $clamped_rad))
+    if (iocu_MathUtil_equals($this.$angleOffsetRad0, $clamped_rad))
         return;
-    $this.$angleOffsetRad = $clamped_rad;
+    $this.$angleOffsetRad0 = $clamped_rad;
     iocr_ComponentChangeEvent_$callClinit();
     $this.$fireComponentChangeEvent(iocr_ComponentChangeEvent_BOTH_CHANGE);
 },
@@ -54882,8 +54981,8 @@ iocr_LaunchLug_isAfter = $this => {
 iocr_LaunchLug_getInstanceOffsets = $this => {
     let $toReturn, $yOffset, $zOffset, $index;
     $toReturn = $rt_createArray(iocu_CoordinateIF, $this.$getInstanceCount());
-    $yOffset = jl_Math_cos($this.$angleOffsetRad) * $this.$radialOffset;
-    $zOffset = jl_Math_sin($this.$angleOffsetRad) * $this.$radialOffset;
+    $yOffset = jl_Math_cos($this.$angleOffsetRad0) * $this.$radialOffset;
+    $zOffset = jl_Math_sin($this.$angleOffsetRad0) * $this.$radialOffset;
     $index = 0;
     while ($index < $this.$getInstanceCount()) {
         $toReturn.data[$index] = iocu_Coordinate__init_($index * $this.$instanceSeparation, $yOffset, $zOffset);
@@ -54932,8 +55031,8 @@ iocr_LaunchLug_getComponentCG = $this => {
     let $parentRadius, $CMx, $CMy, $CMz;
     $parentRadius = !($this.$parent instanceof iocr_SymmetricComponent) ? 0.0 : $this.$parent.$getRadius0($this.$getAxialOffset0());
     $CMx = $this.$length1 / 2.0 + $this.$instanceSeparation * ($this.$instanceCount2 - 1 | 0) / 2.0;
-    $CMy = jl_Math_cos($this.$angleOffsetRad) * ($parentRadius + $this.$getOuterRadius());
-    $CMz = jl_Math_sin($this.$angleOffsetRad) * ($parentRadius + $this.$getOuterRadius());
+    $CMy = jl_Math_cos($this.$angleOffsetRad0) * ($parentRadius + $this.$getOuterRadius());
+    $CMz = jl_Math_sin($this.$angleOffsetRad0) * ($parentRadius + $this.$getOuterRadius());
     return iocu_Coordinate__init_0($CMx, $CMy, $CMz, $this.$getComponentMass());
 },
 iocr_LaunchLug_getComponentName = $this => {
@@ -59299,8 +59398,8 @@ iocr_Instanceable, 0, jl_Object, [], 1537, 0, 0, 0,
 iocr_LineInstanceable, 0, jl_Object, [iocrp_AxialPositionable, iocr_Instanceable], 1537, 0, 0, 0,
 iocr_RailButton, "RailButton", 46, iocr_ExternalComponent, [iocrp_AnglePositionable, iocrp_AxialPositionable, iocr_BoxBounded, iocr_LineInstanceable], 1, [0,0,0], () => iocr_RailButton_$callClinit(), ["$_init_0", $rt_wrapFunction0(iocr_RailButton__init_), "$getOuterDiameter", $rt_wrapFunction0(iocr_RailButton_getOuterDiameter), "$getInnerDiameter", $rt_wrapFunction0(iocr_RailButton_getInnerDiameter), "$getInnerHeight", $rt_wrapFunction0(iocr_RailButton_getInnerHeight), "$getTotalHeight", $rt_wrapFunction0(iocr_RailButton_getTotalHeight),
 "$getFlangeHeight", $rt_wrapFunction0(iocr_RailButton_getFlangeHeight), "$setBaseHeight", $rt_wrapFunction1(iocr_RailButton_setBaseHeight), "$setFlangeHeight", $rt_wrapFunction1(iocr_RailButton_setFlangeHeight), "$setTotalHeight", $rt_wrapFunction1(iocr_RailButton_setTotalHeight), "$getMaxBaseHeight", $rt_wrapFunction0(iocr_RailButton_getMaxBaseHeight), "$getMaxFlangeHeight", $rt_wrapFunction0(iocr_RailButton_getMaxFlangeHeight), "$getMinTotalHeight", $rt_wrapFunction0(iocr_RailButton_getMinTotalHeight), "$setScrewHeight",
-$rt_wrapFunction1(iocr_RailButton_setScrewHeight), "$setInnerDiameter", $rt_wrapFunction1(iocr_RailButton_setInnerDiameter), "$setOuterDiameter", $rt_wrapFunction1(iocr_RailButton_setOuterDiameter), "$setAngleMethod", $rt_wrapFunction1(iocr_RailButton_setAngleMethod), "$setAngleOffset", $rt_wrapFunction1(iocr_RailButton_setAngleOffset), "$setAxialMethod", $rt_wrapFunction1(iocr_RailButton_setAxialMethod), "$getInstanceBoundingBox", $rt_wrapFunction0(iocr_RailButton_getInstanceBoundingBox), "$getInstanceOffsets",
-$rt_wrapFunction0(iocr_RailButton_getInstanceOffsets), "$componentChanged", $rt_wrapFunction1(iocr_RailButton_componentChanged), "$getComponentVolume", $rt_wrapFunction0(iocr_RailButton_getComponentVolume), "$setInstanceSeparation", $rt_wrapFunction1(iocr_RailButton_setInstanceSeparation), "$setInstanceCount", $rt_wrapFunction1(iocr_RailButton_setInstanceCount), "$getInstanceCount", $rt_wrapFunction0(iocr_RailButton_getInstanceCount), "$getComponentBounds", $rt_wrapFunction0(iocr_RailButton_getComponentBounds),
+$rt_wrapFunction1(iocr_RailButton_setScrewHeight), "$setInnerDiameter", $rt_wrapFunction1(iocr_RailButton_setInnerDiameter), "$setOuterDiameter", $rt_wrapFunction1(iocr_RailButton_setOuterDiameter), "$getAngleOffset", $rt_wrapFunction0(iocr_RailButton_getAngleOffset), "$setAngleMethod", $rt_wrapFunction1(iocr_RailButton_setAngleMethod), "$setAngleOffset", $rt_wrapFunction1(iocr_RailButton_setAngleOffset), "$setAxialMethod", $rt_wrapFunction1(iocr_RailButton_setAxialMethod), "$getInstanceBoundingBox", $rt_wrapFunction0(iocr_RailButton_getInstanceBoundingBox),
+"$getInstanceOffsets", $rt_wrapFunction0(iocr_RailButton_getInstanceOffsets), "$componentChanged", $rt_wrapFunction1(iocr_RailButton_componentChanged), "$getComponentVolume", $rt_wrapFunction0(iocr_RailButton_getComponentVolume), "$setInstanceSeparation", $rt_wrapFunction1(iocr_RailButton_setInstanceSeparation), "$setInstanceCount", $rt_wrapFunction1(iocr_RailButton_setInstanceCount), "$getInstanceCount", $rt_wrapFunction0(iocr_RailButton_getInstanceCount), "$getComponentBounds", $rt_wrapFunction0(iocr_RailButton_getComponentBounds),
 "$getComponentCG", $rt_wrapFunction0(iocr_RailButton_getComponentCG), "$getComponentName", $rt_wrapFunction0(iocr_RailButton_getComponentName), "$getLongitudinalUnitInertia", $rt_wrapFunction0(iocr_RailButton_getLongitudinalUnitInertia), "$getRotationalUnitInertia", $rt_wrapFunction0(iocr_RailButton_getRotationalUnitInertia), "$isCompatible", $rt_wrapFunction1(iocr_RailButton_isCompatible)],
 ju_Hashtable$HashIterator, "Hashtable$HashIterator", 1, jl_Object, [ju_Iterator], 0, [ju_Hashtable,0,0], 0, ["$_init_178", $rt_wrapFunction2(ju_Hashtable$HashIterator__init_), "$hasNext", $rt_wrapFunction0(ju_Hashtable$HashIterator_hasNext), "$next", $rt_wrapFunction0(ju_Hashtable$HashIterator_next), "$remove0", $rt_wrapFunction0(ju_Hashtable$HashIterator_remove)],
 otciu_UnicodeHelper, 0, jl_Object, [], 17, 0, 0, 0,
@@ -59884,7 +59983,7 @@ ju_WeakHashMap$3, "WeakHashMap$3", 1, ju_AbstractCollection, [], 0, [ju_WeakHash
 ju_FormatFlagsConversionMismatchException, "FormatFlagsConversionMismatchException", 1, ju_IllegalFormatException, [], 1, [0,0,0], 0, ["$_init_196", $rt_wrapFunction2(ju_FormatFlagsConversionMismatchException__init_)],
 jur_CompositeGroupQuantifierSet, "CompositeGroupQuantifierSet", 2, jur_GroupQuantifierSet, [], 0, [0,0,0], 0, ["$_init_149", function(var_1, var_2, var_3, var_4, var_5) { jur_CompositeGroupQuantifierSet__init_(this, var_1, var_2, var_3, var_4, var_5); }, "$matches1", $rt_wrapFunction3(jur_CompositeGroupQuantifierSet_matches), "$getName", $rt_wrapFunction0(jur_CompositeGroupQuantifierSet_getName)],
 jur_RelCompositeGroupQuantifierSet, "RelCompositeGroupQuantifierSet", 2, jur_CompositeGroupQuantifierSet, [], 0, [0,0,0], 0, ["$_init_149", function(var_1, var_2, var_3, var_4, var_5) { jur_RelCompositeGroupQuantifierSet__init_(this, var_1, var_2, var_3, var_4, var_5); }, "$matches1", $rt_wrapFunction3(jur_RelCompositeGroupQuantifierSet_matches)],
-a_GuideClearanceListener, "GuideClearanceListener", 24, iocsl_AbstractSimulationListener, [], 16, [0,0,0], 0, ["$_init_0", $rt_wrapFunction0(a_GuideClearanceListener__init_), "$isSystemListener", $rt_wrapFunction0(a_GuideClearanceListener_isSystemListener), "$startSimulationBranch", $rt_wrapFunction1(a_GuideClearanceListener_startSimulationBranch), "$postStep", $rt_wrapFunction1(a_GuideClearanceListener_postStep)],
+a_GuideClearanceListener, "GuideClearanceListener", 24, iocsl_AbstractSimulationListener, [], 16, [0,0,0], () => a_GuideClearanceListener_$callClinit(), ["$_init_0", $rt_wrapFunction0(a_GuideClearanceListener__init_), "$isSystemListener", $rt_wrapFunction0(a_GuideClearanceListener_isSystemListener), "$startSimulationBranch", $rt_wrapFunction1(a_GuideClearanceListener_startSimulationBranch), "$postStep", $rt_wrapFunction1(a_GuideClearanceListener_postStep)],
 jl_IllegalMonitorStateException, "IllegalMonitorStateException", 8, jl_RuntimeException, [], 1, [0,0,0], 0, ["$_init_0", $rt_wrapFunction0(jl_IllegalMonitorStateException__init_0)],
 iocmg_ConstantGravityModel, "ConstantGravityModel", 30, jl_Record, [iocmg_GravityModel], 17, [0,0,0], 0, ["$_init_17", $rt_wrapFunction1(iocmg_ConstantGravityModel__init_), "$getGravity", $rt_wrapFunction1(iocmg_ConstantGravityModel_getGravity), "$toString", $rt_wrapFunction0(iocmg_ConstantGravityModel_toString), "$hashCode", $rt_wrapFunction0(iocmg_ConstantGravityModel_hashCode), "$equals1", $rt_wrapFunction1(iocmg_ConstantGravityModel_equals)],
 ju_LinkedHashMapIterator$EntryIterator, "LinkedHashMapIterator$EntryIterator", 1, ju_LinkedHashMapIterator, [ju_Iterator], 0, [ju_LinkedHashMapIterator,0,0], 0, ["$_init_35", $rt_wrapFunction2(ju_LinkedHashMapIterator$EntryIterator__init_), "$next0", $rt_wrapFunction0(ju_LinkedHashMapIterator$EntryIterator_next), "$next", $rt_wrapFunction0(ju_LinkedHashMapIterator$EntryIterator_next0)],
@@ -60161,7 +60260,8 @@ ju_IllegalFormatFlagsException, "IllegalFormatFlagsException", 1, ju_IllegalForm
 iocr_InstanceMap, "InstanceMap", 46, ju_LinkedHashMap, [], 1, [0,0,0], 0, ["$computeIfAbsent", $rt_wrapFunction2(ju_Map_computeIfAbsent), "$merge", $rt_wrapFunction3(ju_Map_merge), "$_init_0", $rt_wrapFunction0(iocr_InstanceMap__init_), "$count", $rt_wrapFunction1(iocr_InstanceMap_count), "$emplace", $rt_wrapFunction4(iocr_InstanceMap_emplace), "$getInstanceContexts", $rt_wrapFunction1(iocr_InstanceMap_getInstanceContexts), "$toString", $rt_wrapFunction0(iocr_InstanceMap_toString)],
 iocm_DesignationComparator, "DesignationComparator", 32, jl_Object, [ju_Comparator], 1, [0,0,0], () => iocm_DesignationComparator_$callClinit(), ["$_init_0", $rt_wrapFunction0(iocm_DesignationComparator__init_), "$compare1", $rt_wrapFunction2(iocm_DesignationComparator_compare), "$compare2", $rt_wrapFunction2(iocm_DesignationComparator_compare0)],
 ju_Arrays$ArrayAsList, "Arrays$ArrayAsList", 1, ju_AbstractList, [ju_RandomAccess, ji_Serializable], 0, [ju_Arrays,0,0], 0, ["$removeIf", $rt_wrapFunction1(ju_Collection_removeIf), "$sort3", $rt_wrapFunction1(ju_List_sort), "$_init_64", $rt_wrapFunction1(ju_Arrays$ArrayAsList__init_), "$get0", $rt_wrapFunction1(ju_Arrays$ArrayAsList_get), "$set3", $rt_wrapFunction2(ju_Arrays$ArrayAsList_set), "$size", $rt_wrapFunction0(ju_Arrays$ArrayAsList_size)]]);
-let $rt_charArrayCls = $rt_arraycls($rt_charcls),
+let $rt_booleanArrayCls = $rt_arraycls($rt_booleancls),
+$rt_charArrayCls = $rt_arraycls($rt_charcls),
 $rt_byteArrayCls = $rt_arraycls($rt_bytecls),
 $rt_shortArrayCls = $rt_arraycls($rt_shortcls),
 $rt_intArrayCls = $rt_arraycls($rt_intcls),

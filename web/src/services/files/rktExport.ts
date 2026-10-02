@@ -1,4 +1,5 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
+import { clusterCount, clusterOffsets } from '../../tree/cluster';
 import { asStageNodes } from '../design/orkTree';
 import { escapeXml } from './xmlUtil';
 
@@ -365,11 +366,61 @@ const PARTS: Record<string, { tag: string; write: PartWriter }> = {
   podset: { tag: 'ExternalPod', write: writePod },
 };
 
+/**
+ * A clustered motor mount as the tubes RockSim can actually hold.
+ *
+ * RockSim has no cluster: it knows one tube per motor, each placed by its own
+ * radial distance and angle. OpenRocket keeps ONE inner tube carrying a cluster
+ * pattern, and the desktop's own exporter splits it on the way out
+ * (`InnerBodyTubeDTO.handleCluster`). This writer did not, so a three-motor
+ * cluster was saved as a single tube: the file named one motor where the design
+ * flies three, and everything mounted inside the mount went with the one tube.
+ *
+ * Every member keeps the mount's children, so an engine block inside the cluster
+ * is written into each tube rather than only the first. The pattern itself is
+ * dropped from the copies, because each one IS a single tube now.
+ *
+ * The member's radial place is the cluster offset added to whatever offset the
+ * mount itself carried, composed in Cartesian and handed back as the distance
+ * and angle the format states.
+ */
+function clusterMembers(n: ComponentNode): ComponentNode[] {
+  const pattern = strOf(n, 'cluster');
+  const count = clusterCount(pattern);
+  if (n.type !== 'innertube' || count <= 1) return [n];
+  const offsets = clusterOffsets(
+    pattern,
+    numOf(n, 'outerRadius') ?? 0,
+    numOf(n, 'clusterScale') ?? 1,
+    numOf(n, 'clusterRotation') ?? 0,
+  );
+  const baseR = numOf(n, 'radialPosition') ?? 0;
+  const baseDir = numOf(n, 'radialDirection') ?? 0;
+  const baseY = baseR * Math.cos(baseDir);
+  const baseZ = baseR * Math.sin(baseDir);
+  return offsets.map((o, i) => {
+    const y = baseY + o.y;
+    const z = baseZ + o.z;
+    return {
+      ...n,
+      name: `${n.name ?? 'Mount'} #${i + 1}`,
+      cluster: 'single',
+      radialPosition: Math.hypot(y, z),
+      radialDirection: Math.atan2(z, y),
+    } as unknown as ComponentNode;
+  });
+}
+
 /** One part and, in `<AttachedParts>`, everything mounted on it. */
 function writePart(w: Writer, depth: number, n: ComponentNode): void {
   const spec = PARTS[n.type];
   if (!spec) {
     w.skipped.add(n.type);
+    return;
+  }
+  const members = clusterMembers(n);
+  if (members.length > 1) {
+    for (const member of members) writePart(w, depth, member);
     return;
   }
   w.emit(depth, `<${spec.tag}>`);
