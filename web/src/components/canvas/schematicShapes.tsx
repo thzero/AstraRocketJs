@@ -1,8 +1,7 @@
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { FIN_DEFAULTS, finRootChord, finSpan } from '../../tree/finPlanform';
+import { FREEFORM_FALLBACK, finPlanformPoints, finRootChord, finSpan, finTabSpan } from '../../tree/finPlanform';
 import { countOf, num } from '../../tree/nodeProps';
 import { KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
-import { freeformPoints } from '../../tree/position.js';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { DISPLAY_NAME } from '../../tree/schema.js';
@@ -12,7 +11,6 @@ import { assemblyChainLength, isAssembly, resolveAssemblyRadius, ringInstanceOff
 import {
   axialStart,
   colorOf,
-  finTabFront,
   internalExtent,
   profilePath,
   unionBox,
@@ -297,11 +295,18 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
       // Through-the-wall fin tab: dashed rect from the body surface inward,
       // foreshortened with the fin instance `p` it belongs to.
       const renderTab = (finStart: number, finLen: number, p: number) => {
-        const tabH = Math.min(num(child, 'tabHeight', 0), pRadius);
-        const tabLen = num(child, 'tabLength', 0);
-        if (tabH <= 0 || tabLen <= 0) return;
-        const front = finStart + finTabFront(child, finLen);
-        const yInner = baseY - (pRadius - tabH) * p * ctx.scale;
+        // Through `finTabSpan`, not a local read of tabHeight/tabLength: it
+        // clamps the tab into [0, rootChord] and its height into the parent
+        // radius, which the local arithmetic here did not. A tab longer than
+        // its root chord -- a state the app warns about -- was drawn hanging
+        // past the fin's edges while the DXF, the STL and the 1:1 PDF template
+        // all cut the clamped tab. The drawing and the part you cut have to be
+        // the same part.
+        const tab = finTabSpan(child, finLen, pRadius);
+        if (!tab) return;
+        const front = finStart + tab.x0;
+        const tabLen = tab.x1 - tab.x0;
+        const yInner = baseY - (pRadius - tab.height) * p * ctx.scale;
         const ySurface = baseY - pRadius * p * ctx.scale;
         const hPx = Math.abs(yInner - ySurface);
         if (wire && hPx < 0.5) return;
@@ -321,10 +326,26 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           />,
         );
       };
-      if (t === 'freeformfinset') {
-        const raw = freeformPoints(child);
-        if (raw.length >= 3) {
-          const xs = raw.map((p) => p[0]);
+      if (t === 'freeformfinset' || t === 'trapezoidfinset' || t === 'ellipticalfinset') {
+        // ONE branch for all three planar fin types, and the outline comes from
+        // `finPlanformPoints` -- the module that owns it -- rather than from
+        // dimensions re-assembled here.
+        //
+        // This file used to build the trapezoid as a polygon literal and the
+        // ellipse as an SVG `A` arc from `rootChord`/`tipChord`/`sweep`/
+        // `height`, which meant it silently skipped the two rules the kernel
+        // applies: the tip collapse (a tip chord at or below 0.0001 m is a
+        // TRIANGLE, not a trapezoid with a zero-length tip edge) and the
+        // `Math.max(root, MIN_ROOT)` floor. A `.ork` with rootChord <= 0 drew a
+        // degenerate shape here while every other view drew the floored one.
+        //
+        // The ellipse is now the kernel's own 31-point outline rather than a
+        // smooth arc. At schematic scale the two are indistinguishable, and the
+        // polygon is what the 3D view, the STL, the DXF and the PDF template
+        // all draw -- so the drawing is the part that gets cut, which an
+        // idealized arc could not promise.
+        const outline = finPlanformPoints(child) ?? FREEFORM_FALLBACK;
+        {
           // Root chord (first→last point, where the outline meets the body)
           // positions the fin and its tab — the same measure the engine uses,
           // from the one module that owns it (tree/finPlanform), so this view
@@ -333,7 +354,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           // root when the tip trailing corner overhangs; it only widens the
           // drawn shape and its hover/hit box, and must NOT move the fin forward.
           const chord = finRootChord(child);
-          const aftX = Math.max(...xs);
+          const aftX = Math.max(...outline.map((pt) => pt[0]));
           const start = axialStart(child, chord, pStart, pLen);
           const ymax = finSpan(child);
           const reach = pRadius + ymax;
@@ -349,7 +370,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           );
           const clip = airframeClip(baseY, pRadius);
           for (const { p, near } of projections) {
-            const ptsStr = raw
+            const ptsStr = outline
               .map(([px, py]) => `${ctx.x0 + (start + px) * ctx.scale},${baseY - (pRadius + py) * p * ctx.scale}`)
               .join(' ');
             // Rolled: an outline over the body — every instance, including one
@@ -378,80 +399,6 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
               (near ? overlay : shapes).push(body);
               renderTab(start, chord, p);
             }
-          }
-        }
-      } else if (t === 'trapezoidfinset' || t === 'ellipticalfinset') {
-        // Fallbacks from tree/finPlanform, not local literals: this file used
-        // `root * 0.6` for a missing tipChord while the mesh and PDF paths used
-        // 0.03, so the same fin was a different part on screen and in the STL.
-        // (The elliptical arc below is drawn with an SVG `A` command, which is a
-        // true half-ellipse, so only the trapezoid dimensions come from here.)
-        const root = num(child, 'rootChord', FIN_DEFAULTS.rootChord);
-        const tip = t === 'trapezoidfinset' ? num(child, 'tipChord', FIN_DEFAULTS.tipChord) : 0;
-        const sweep = t === 'trapezoidfinset' ? num(child, 'sweep', FIN_DEFAULTS.sweep) : root / 2;
-        const height = num(child, 'height', FIN_DEFAULTS.height);
-        const start = axialStart(child, root, pStart, pLen);
-        const reach = pRadius + height;
-        const projections = finFactors(child);
-        noteHoverFins(
-          child,
-          ctx.x0 + start * ctx.scale,
-          ctx.x0 + (start + Math.max(root, sweep + tip)) * ctx.scale,
-          baseY,
-          reach,
-          pRadius,
-          projections,
-        );
-        const finClip = airframeClip(baseY, pRadius);
-        for (const { p, near } of projections) {
-          // A point at radius r projects to y = baseY − r·cos θ (angle 0 = up);
-          // both the root (r = pRadius) and the tip (r = reach) scale by `p`.
-          const y0 = baseY - pRadius * p * ctx.scale;
-          const yh = baseY - reach * p * ctx.scale;
-          const X = ctx.x0 + start * ctx.scale;
-          const ry = Math.abs(y0 - yh);
-          // Elliptical fin = a true half-ellipse by SVG arc (a quadratic Bézier
-          // only reaches ~57% of its control height). ry unfloored while wired
-          // so an edge-on ellipse degenerates to the line the other shapes draw.
-          const ellipse = `M ${X} ${y0} A ${(root / 2) * ctx.scale} ${wire ? ry : Math.max(2, ry)} 0 0 ${p > 0 ? 1 : 0} ${X + root * ctx.scale} ${y0} Z`;
-          const trap = `${X},${y0} ${X + sweep * ctx.scale},${yh} ${X + (sweep + tip) * ctx.scale},${yh} ${X + root * ctx.scale},${y0}`;
-          if (wire) {
-            pushWire(child, grab, finClip, (extra) =>
-              t === 'trapezoidfinset' ? (
-                <polygon key={key++} points={trap} {...extra} />
-              ) : (
-                <path key={key++} d={ellipse} {...extra} />
-              ),
-            );
-            renderTab(start, root, p);
-            continue;
-          }
-          const outsideClip = near ? undefined : `url(#${finClip})`;
-          const body =
-            t === 'trapezoidfinset' ? (
-              <polygon
-                key={key++}
-                clipPath={outsideClip}
-                points={trap}
-                fill={fillOf(child, '#b9b7b0')}
-                stroke={selStroke(child, '#7a786f')}
-                strokeWidth={selWidth(child)}
-                {...grab}
-              />
-            ) : (
-              <path
-                key={key++}
-                clipPath={outsideClip}
-                d={ellipse}
-                fill={fillOf(child, '#b9b7b0')}
-                stroke={selStroke(child, '#7a786f')}
-                strokeWidth={selWidth(child)}
-                {...grab}
-              />
-            );
-          if (reach * Math.abs(p) > pRadius) {
-            (near ? overlay : shapes).push(body);
-            renderTab(start, root, p);
           }
         }
       } else if (t === 'tubefinset') {

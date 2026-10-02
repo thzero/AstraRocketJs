@@ -1,3 +1,4 @@
+import { nsKey } from '../../../src/services/storage/storageKeys';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { DesignLibrary } from '../../../src/services/storage/designLibrary';
 import type { KeyValueStore } from '../../../src/services/storage/keyValueStore';
@@ -100,7 +101,7 @@ describe('design library', () => {
 
   it('ignores an active id whose design is gone from the index', async () => {
     await lib.create('A', ws('a'));
-    kv.map.set('astrarrocketjs:designs:active', 'ghost');
+    kv.map.set(nsKey('designs:active'), 'ghost');
     expect(await lib.activeId()).toBeNull();
   });
 
@@ -144,14 +145,14 @@ describe('design library', () => {
 
   it('survives a corrupt index without losing addressable designs', async () => {
     const a = await lib.create('A', ws('a'));
-    kv.map.set('astrarrocketjs:designs:index', '{not json');
+    kv.map.set(nsKey('designs:index'), '{not json');
     expect(await lib.list()).toEqual([]);
     expect(treeName(await lib.read(a.id))).toBe('a');
   });
 });
 
 describe('migrating the pre-library single workspace', () => {
-  const LEGACY = 'astrarrocketjs:workspace';
+  const LEGACY = nsKey('workspace');
 
   it('adopts an existing workspace as the first design and opens it', async () => {
     kv.map.set(LEGACY, JSON.stringify(ws('existing-work')));

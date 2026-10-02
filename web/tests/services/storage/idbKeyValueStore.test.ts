@@ -1,3 +1,4 @@
+import { STORAGE_PREFIX, nsKey } from '../../../src/services/storage/storageKeys';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import 'fake-indexeddb/auto';
 import {
@@ -37,7 +38,7 @@ class FakeLocal implements KeyValueStore {
 beforeEach(async () => {
   await __resetIdbForTests();
   await new Promise<void>((res) => {
-    const req = indexedDB.deleteDatabase('astrarrocketjs');
+    const req = indexedDB.deleteDatabase(STORAGE_PREFIX);
     req.onsuccess = req.onerror = req.onblocked = () => res();
   });
 });
@@ -69,8 +70,8 @@ const abortAfterSuccess = async (body: () => Promise<void>) => {
 describe('IndexedDbKeyValueStore', () => {
   it('round-trips a value', async () => {
     const kv = new IndexedDbKeyValueStore(new FakeLocal());
-    expect(await kv.set('astrarrocketjs:workspace', '{"a":1}')).toBe(true);
-    expect(await kv.get('astrarrocketjs:workspace')).toBe('{"a":1}');
+    expect(await kv.set(nsKey('workspace'), '{"a":1}')).toBe(true);
+    expect(await kv.get(nsKey('workspace'))).toBe('{"a":1}');
   });
 
   it('returns null for a key it has never held', async () => {
@@ -95,17 +96,17 @@ describe('IndexedDbKeyValueStore', () => {
 describe('migration from localStorage', () => {
   it('copies an existing value across on first read and frees the old entry', async () => {
     const local = new FakeLocal();
-    local.map.set('astrarrocketjs:workspace', '{"design":"old"}');
+    local.map.set(nsKey('workspace'), '{"design":"old"}');
     const kv = new IndexedDbKeyValueStore(local);
 
     // The pre-upgrade design must survive — losing it would lose the user's work.
-    expect(await kv.get('astrarrocketjs:workspace')).toBe('{"design":"old"}');
+    expect(await kv.get(nsKey('workspace'))).toBe('{"design":"old"}');
     // Reclaiming the 5 MB budget is the point of moving.
-    expect(local.map.has('astrarrocketjs:workspace')).toBe(false);
+    expect(local.map.has(nsKey('workspace'))).toBe(false);
 
     // Still there once localStorage no longer has it.
     await __resetIdbForTests();
-    expect(await new IndexedDbKeyValueStore(new FakeLocal()).get('astrarrocketjs:workspace')).toBe('{"design":"old"}');
+    expect(await new IndexedDbKeyValueStore(new FakeLocal()).get(nsKey('workspace'))).toBe('{"design":"old"}');
   });
 
   it('prefers the IndexedDB value over a stale legacy one', async () => {

@@ -52,7 +52,15 @@ export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions):
     // Seeding a C6 would open a file saved without motors as a flyable rocket on
     // motors it never named.
     const reconciled = reconcileConfig(tree, config);
-    return c.deployments ? { ...reconciled, deployments: c.deployments } : reconciled;
+    // Everything the file carried for THIS configuration, not just the
+    // deployments: a separation override and a grounded stage are its settings
+    // too, and forwarding one of the three silently reset the other two.
+    return {
+      ...reconciled,
+      ...(c.deployments ? { deployments: c.deployments } : {}),
+      ...(c.separations ? { separations: c.separations } : {}),
+      ...(c.grounded?.length ? { grounded: c.grounded } : {}),
+    };
   });
 
   const taken = new Set<string>();

@@ -351,6 +351,48 @@ describe('what triggers a rebuild', () => {
     expect(s().sims.every((x) => x.outdated)).toBe(true); // …but flagged
   });
 
+  /**
+   * Grounding a stage changes the static info -- a grounded stage contributes no
+   * mass, no aero and no motor -- and the rebuild key did not mention it. The
+   * worker flew the sustainer alone while `info` still described the whole
+   * stack, so the stats strip, the stability badge and the RASAero launch mass
+   * all came from a handle for a different rocket. `seatedMotorsKey` could not
+   * see it: it is mount-and-spec only, and grounding moves neither.
+   */
+  it('grounding a stage rebuilds, because a grounded stage is a different rocket', async () => {
+    await mount();
+    // Two stages, because the store refuses to ground the only one ("something
+    // has to fly") -- against a single-stage design the call is a no-op and the
+    // test would pass for the wrong reason.
+    act(() => s().addStageToTree());
+    await act(async () => void (await Promise.resolve()));
+    computeStaticInfo.mockClear();
+    const cfg = s().configs[0]!;
+    const booster = s().tree.components.at(-1)!.id as string;
+
+    act(() => s().setStageFlies(cfg.id, booster, false));
+    expect(s().configs[0]!.grounded).toContain(booster); // the write landed
+    expect(computeStaticInfo).toHaveBeenCalledTimes(1);
+
+    // And back: un-grounding is just as much a change of rocket.
+    act(() => s().setStageFlies(cfg.id, booster, true));
+    expect(computeStaticInfo).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not rebuild when the grounded set is set to what it already was', async () => {
+    await mount();
+    act(() => s().addStageToTree());
+    await act(async () => void (await Promise.resolve()));
+    const cfg = s().configs[0]!;
+    const booster = s().tree.components.at(-1)!.id as string;
+    act(() => s().setStageFlies(cfg.id, booster, false));
+    computeStaticInfo.mockClear();
+
+    // The key is a sorted set, so a no-op write must not cost a kernel build.
+    act(() => s().setStageFlies(cfg.id, booster, false));
+    expect(computeStaticInfo).not.toHaveBeenCalled();
+  });
+
   it('surfaces a build failure instead of leaving stale stats on screen', async () => {
     await mount();
     computeStaticInfo.mockReturnValue({ error: 'fin tab longer than the root chord' });

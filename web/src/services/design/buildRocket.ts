@@ -1,6 +1,6 @@
 import { buildRocketTree } from '../../engine/api';
 import type { OpenRocketDesign, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
-import { configuredTree, liveMotors, stageFlies, type FlightConfig } from '../flight/flightConfigs';
+import { configuredTree, liveMotors, seatedMotorsKey, stageFlies, type FlightConfig } from '../flight/flightConfigs';
 import { findStages } from './treeEdit';
 import { badDimensions, type BadDimension } from './requiredComponent';
 import { hasUsableCurve } from '../motors/motorCurve';
@@ -22,6 +22,30 @@ import { hasUsableCurve } from '../motors/motorCurve';
  */
 export function flightKey(tree: RocketTree): string {
   return JSON.stringify(tree.components, (k, v) => (k === 'name' ? undefined : (v as unknown)));
+}
+
+/**
+ * A key over every CONFIGURATION input that can change the STATIC info.
+ *
+ * `buildConfiguredRocket` reads three things off the configuration, and the
+ * rebuild effect keyed on only one of them. `seatedMotorsKey` covers the motors
+ * and their ignition; nothing covered `grounded`, so grounding a booster left
+ * `info` describing the whole stack while the worker flew the sustainer alone.
+ * Mass, CG, CP, calibers and the RASAero launch mass all came from the stale
+ * handle, and the readouts and the flight described different rockets.
+ *
+ * Sorted, because the key is about WHAT is grounded and not the order the user
+ * clicked. Combined with the tree's `components` identity by the caller.
+ *
+ * The configuration's deployment and separation overrides are deliberately NOT
+ * here, although `configuredTree` bakes them in: they move when recovery fires
+ * and when a stage lets go, which is flight timing, and change no static mass or
+ * dimension. A rebuild for one of those would be a needless kernel build on
+ * every chute-altitude keystroke.
+ */
+export function buildKey(tree: RocketTree, config: FlightConfig): string {
+  const grounded = [...(config.grounded ?? [])].sort().join(',');
+  return `${seatedMotorsKey(tree, config)}#${grounded}`;
 }
 
 /**

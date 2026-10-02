@@ -1,3 +1,4 @@
+import { nsKey } from '../../../src/services/storage/storageKeys';
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fireEvent, screen, within } from '@testing-library/react';
@@ -369,7 +370,7 @@ describe('flight-path export dialog', () => {
   describe('persistence', () => {
     const altUnit = () => screen.getByLabelText('Altitude') as HTMLSelectElement;
     const distUnit = () => screen.getByLabelText('Distance') as HTMLSelectElement;
-    const stored = () => localStorage.getItem('astrarrocketjs:settings:v1');
+    const stored = () => localStorage.getItem(nsKey('settings:v1'));
     /** The app's Settings > Units distance preference, changed outside the dialog. */
     const setAppDistance = (unit: string) => {
       const s = readSettings();

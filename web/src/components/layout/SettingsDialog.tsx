@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../state/SettingsProvider';
-import { DEFAULT_SETTINGS, type SimulationSettings } from '../../services/storage/settings';
+import { DEFAULT_SETTINGS, SIM_BOUNDS, type SimulationSettings } from '../../services/storage/settings';
 import { PART_KEYS, mergePalette } from '../../services/design/partColors';
 import { NumberInput } from '../common/NumberInput';
 import { Dialog } from '../common/Dialog';
@@ -307,12 +307,12 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               label={t('settings.timeStep')}
               unit="s"
               step={0.01}
-              min={0.001}
+              min={SIM_BOUNDS.timeStep.min}
               // maxTime / timeStep IS the solver's iteration count, and both
               // ends were open. 1000000 s (a plausible slip for 1000) at the
               // default 0.01 s step asks for 100 M integration steps, with
               // no way to interrupt the run.
-              max={10}
+              max={SIM_BOUNDS.timeStep.max}
               value={settings.simulation.timeStep}
               onChange={(v) => setSim({ timeStep: v ?? DEFAULT_SETTINGS.simulation.timeStep })}
             />
@@ -320,8 +320,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               label={t('settings.maxTime')}
               unit="s"
               step={60}
-              min={1}
-              max={10000}
+              min={SIM_BOUNDS.maxTime.min}
+              max={SIM_BOUNDS.maxTime.max}
               value={settings.simulation.maxTime}
               onChange={(v) => setSim({ maxTime: v ?? DEFAULT_SETTINGS.simulation.maxTime })}
             />
@@ -329,7 +329,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               label={t('settings.maxAngleStep')}
               unit={angle.sym}
               step={angle.step((0.5 * Math.PI) / 180)}
-              min={angle.toUi((0.05 * Math.PI) / 180)}
+              min={angle.toUi(SIM_BOUNDS.maxAngleStep.min)}
+              max={angle.toUi(SIM_BOUNDS.maxAngleStep.max)}
               value={angle.toUi(settings.simulation.maxAngleStep)}
               onChange={onSi(angle, (si) => setSim({ maxAngleStep: si ?? DEFAULT_SETTINGS.simulation.maxAngleStep }))}
             />

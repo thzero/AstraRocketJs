@@ -50,13 +50,23 @@ vi.mock('../../../src/services/files/designFile', () => ({
     // The chosen configuration's motors, as the config-scoped reads resolve them.
     motors: { body: ref('D12') },
     configs: [
-      { id: 'low', name: 'Low power', isDefault: false, motors: { body: ref('C6') }, deployments: {} },
+      {
+        id: 'low',
+        name: 'Low power',
+        isDefault: false,
+        motors: { body: ref('C6') },
+        deployments: {},
+        separations: {},
+        grounded: [],
+      },
       {
         id: 'high',
         name: null,
         isDefault: true,
         motors: { body: ref('D12'), pod: ref('A8', { ignitionEvent: 'burnout', ignitionDelay: 1 }) },
         deployments: { chute: { deployAltitude: 150 } },
+        separations: { booster: { separationDelay: 2 } },
+        grounded: ['booster'],
       },
     ],
     chosenConfigId: 'high',
@@ -137,5 +147,24 @@ describe('loadOrk with several flight configurations', () => {
     const res = await loadOrk(new ArrayBuffer(0));
     expect(res.configs[1]!.deployments).toEqual({ chute: { deployAltitude: 150 } });
     expect(res.configs[0]!.deployments).toBeUndefined(); // it had none
+  });
+
+  /**
+   * `OrkFlightConfig` declares `separations` and `grounded` non-optional and
+   * documents both as "carried for the same reason the deployments are".
+   * `LoadedConfig` named neither, so a `.ork` whose configuration said
+   * `<stage number="1" active="false"/>` or carried a
+   * `<separationconfiguration>` lost it on open -- and `saveOrk` then wrote the
+   * undefined value back, so the file lost it for good. The round-trip test
+   * could not see this: it goes importOrk to exportOrk and never through
+   * `loadOrk`.
+   */
+  it('carries the separation overrides and the grounded stages too', async () => {
+    const res = await loadOrk(new ArrayBuffer(0));
+    expect(res.configs[1]!.separations).toEqual({ booster: { separationDelay: 2 } });
+    expect(res.configs[1]!.grounded).toEqual(['booster']);
+    // The one that declared neither keeps them absent rather than empty.
+    expect(res.configs[0]!.separations).toBeUndefined();
+    expect(res.configs[0]!.grounded).toBeUndefined();
   });
 });

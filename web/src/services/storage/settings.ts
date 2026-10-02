@@ -1,3 +1,4 @@
+import { nsKey } from './storageKeys';
 import type { PartKey } from '../design/partColors';
 import type { CompleteLaunch } from '../flight/requiredLaunch';
 import { DEFAULT_HEADING_DEG } from '../flight/simulations';
@@ -437,6 +438,22 @@ const clampPlayback = (v: unknown): number =>
     ? Math.min(10, Math.max(0.05, v))
     : DEFAULT_SETTINGS.playbackSpeed;
 
+/**
+ * Bounds for the solver inputs, in SI, shared by BOTH surfaces that offer them.
+ *
+ * `maxTime / timeStep` IS the solver's iteration count, and both ends were open
+ * on the per-simulation override while the global row capped them: 1000000 s (a
+ * plausible slip for 1000) at the default step asks for tens of millions of RK4
+ * steps, with nothing to interrupt it. The cap existed in one of the two places
+ * that can set the value, which is the drift this constant exists to stop.
+ * `maxAngleStep` is in radians here, like the field it bounds.
+ */
+export const SIM_BOUNDS = {
+  timeStep: { min: 0.001, max: 10 },
+  maxTime: { min: 1, max: 10_000 },
+  maxAngleStep: { min: (0.05 * Math.PI) / 180, max: (30 * Math.PI) / 180 },
+} as const;
+
 export const DEFAULT_SETTINGS: Settings = {
   units: METRIC_UNITS,
   unitOverrides: {},
@@ -491,7 +508,7 @@ export const DEFAULT_SETTINGS: Settings = {
   wipAcknowledged: false,
 };
 
-const KEY = 'astrarrocketjs:settings:v1';
+const KEY = nsKey('settings:v1');
 
 /**
  * Validate the stored flight-path export block field by field.

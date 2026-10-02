@@ -5,7 +5,6 @@ import {
   rulerGraduations,
   snapNear,
   calloutLayout,
-  finTabFront,
   axialStart,
   computeSchematicLayout,
   profilePath,
@@ -69,19 +68,6 @@ describe('snapNear', () => {
     expect(snapNear(0.11, [0.1, 0.2], 0.05)).toBeCloseTo(0.1, 9); // within eps
     expect(snapNear(0.15, [0.1, 0.2], 0.02)).toBeCloseTo(0.15, 9); // both 0.05 away > eps → raw
     expect(snapNear(0.3, [], 0.05)).toBe(0.3); // no targets
-  });
-});
-
-describe('finTabFront', () => {
-  const finLen = 0.05;
-  it('resolves the tab leading edge per anchor method', () => {
-    expect(finTabFront(node({ tabOffset: 0.01, tabOffsetMethod: 'top' }), finLen)).toBeCloseTo(0.01, 9);
-    expect(finTabFront(node({ tabOffset: 0, tabLength: 0.02, tabOffsetMethod: 'bottom' }), finLen)).toBeCloseTo(
-      0.03,
-      9,
-    );
-    // middle is the default
-    expect(finTabFront(node({ tabOffset: 0, tabLength: 0.02 }), finLen)).toBeCloseTo(0.015, 9);
   });
 });
 

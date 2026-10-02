@@ -1,3 +1,4 @@
+import { nsKey } from '../../../src/services/storage/storageKeys';
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import {
   builtinsForType,
@@ -36,7 +37,7 @@ class FakeKv implements KeyValueStore {
 beforeAll(serveData);
 
 // Fresh in-memory material store per test (avoids cross-test bleed via the singleton).
-beforeEach(() => setMaterialStore(new KeyValueMaterialStore('astrarrocketjs:materials:custom', new FakeKv())));
+beforeEach(() => setMaterialStore(new KeyValueMaterialStore(nsKey('materials:custom'), new FakeKv())));
 
 describe('builtinsForType', () => {
   it('returns only built-ins of the requested type', async () => {

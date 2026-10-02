@@ -14,6 +14,7 @@ import nl from './locales/nl.json';
 import pl from './locales/pl.json';
 import ru from './locales/ru.json';
 import ja from './locales/ja.json';
+import { nsKey } from '../services/storage/storageKeys';
 
 /**
  * Every locale, once: its code, its native name for the switcher, and its bundle.
@@ -66,7 +67,7 @@ i18n
       caches: ['localStorage'],
       // App-namespaced so we don't collide with another i18next app on the same
       // origin (the detector's default key is a bare 'i18nextLng').
-      lookupLocalStorage: 'astrarrocketjs:i18nextLng',
+      lookupLocalStorage: nsKey('i18nextLng'),
     },
   });
 

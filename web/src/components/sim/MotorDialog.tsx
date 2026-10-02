@@ -1,3 +1,4 @@
+import { nsKey } from '../../services/storage/storageKeys';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { clampEntry } from '../../prefs/entryValue';
@@ -22,7 +23,7 @@ import {
 } from './MotorFilterBar';
 
 // Selected manufacturers persist across sessions (the user's usual set).
-const MFRS_KEY = 'astrarrocketjs:motorPicker:mfrs';
+const MFRS_KEY = nsKey('motorPicker:mfrs');
 const loadMfrs = (): Set<string> => {
   try {
     const r = localStorage.getItem(MFRS_KEY);
@@ -46,7 +47,7 @@ const saveMfrs = (s: Set<string>) => {
  * mount follow the user to every other mount they load; capping by the mount is
  * the fit checkbox's job instead.
  */
-const DIA_KEY = 'astrarrocketjs:motorPicker:dia2';
+const DIA_KEY = nsKey('motorPicker:dia2');
 const loadDia = (): [number, number] | null => {
   try {
     const v = JSON.parse(localStorage.getItem(DIA_KEY) ?? 'null');

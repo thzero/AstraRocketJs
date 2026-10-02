@@ -1,6 +1,7 @@
 import type { KeyValueStore } from './keyValueStore';
 import { IndexedDbKeyValueStore } from './idbKeyValueStore';
 import { uuid } from '../app/uuid';
+import { nsKey } from './storageKeys';
 
 /**
  * Swappable client-side store for the user's saved LAUNCH PADS.
@@ -47,7 +48,7 @@ export interface LaunchLocationStore {
  * would leave that entry behind with nothing reading it - a list that silently
  * came back empty, which is exactly the failure this store exists to prevent.
  */
-const LOCATIONS_KEY = 'astrarrocketjs:pads:custom';
+const LOCATIONS_KEY = nsKey('pads:custom');
 
 /** A location whose numbers are inside the ranges the launch fields themselves enforce. */
 function isLocation(v: unknown): v is LaunchLocation {

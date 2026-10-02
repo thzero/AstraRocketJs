@@ -4,6 +4,7 @@ import { useWorkspaceStore, selectActive, selectConfig } from '../../state/store
 import { launchDiffKeys, prefDiffKeys } from '../../services/flight/simDiff';
 import { loadoutLabel } from '../../services/flight/flightConfigs';
 import { useSettings } from '../../state/SettingsProvider';
+import { SIM_BOUNDS } from '../../services/storage/settings';
 import { RunButton } from './RunButton';
 import { useIsDesktop } from '../common/useMediaQuery';
 import { LaunchPanel } from './LaunchPanel';
@@ -238,7 +239,8 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           value={prefs?.timeStep ?? null}
           placeholder={String(g.timeStep)}
           step={0.01}
-          min={0.001}
+          min={SIM_BOUNDS.timeStep.min}
+          max={SIM_BOUNDS.timeStep.max}
           onChange={(v) => setSimPref('timeStep', v)}
           onCommit={onCommit}
         />
@@ -249,7 +251,8 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           value={prefs?.maxTime ?? null}
           placeholder={String(g.maxTime)}
           step={60}
-          min={1}
+          min={SIM_BOUNDS.maxTime.min}
+          max={SIM_BOUNDS.maxTime.max}
           onChange={(v) => setSimPref('maxTime', v)}
           onCommit={onCommit}
         />
@@ -263,7 +266,8 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           value={prefs?.maxAngleStep == null ? null : +((prefs.maxAngleStep * 180) / Math.PI).toFixed(3)}
           placeholder={String(+((g.maxAngleStep * 180) / Math.PI).toFixed(3))}
           step={0.5}
-          min={0.05}
+          min={+((SIM_BOUNDS.maxAngleStep.min * 180) / Math.PI).toFixed(3)}
+          max={+((SIM_BOUNDS.maxAngleStep.max * 180) / Math.PI).toFixed(3)}
           onChange={(v) => setSimPref('maxAngleStep', v == null ? null : (v * Math.PI) / 180)}
           onCommit={onCommit}
         />
@@ -397,6 +401,7 @@ function Override({
   placeholder,
   step,
   min,
+  max,
   hint,
   mixed,
   onChange,
@@ -408,6 +413,7 @@ function Override({
   placeholder: string;
   step: number;
   min?: number;
+  max?: number;
   /** What the number is FOR — same text the global setting carries. */
   hint?: string;
   /** The simulations being edited together disagree on this override. */
@@ -425,6 +431,7 @@ function Override({
           placeholder={placeholder}
           step={step}
           min={min}
+          max={max}
           mixed={mixed}
           onChange={onChange}
           onCommit={onCommit}
@@ -444,6 +451,7 @@ function Override({
           onCommit={onCommit}
           step={step}
           min={min}
+          max={max}
           placeholder={placeholder}
           className={markRing(
             'w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500',

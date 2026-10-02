@@ -1,7 +1,8 @@
+import { STORAGE_PREFIX, nsKey } from '../src/services/storage/storageKeys';
 import { test as base, expect, type Locator, type Page } from '@playwright/test';
 
 /** Mirrors `KEY` in src/services/storage/settings.ts. */
-const SETTINGS_KEY = 'astrarrocketjs:settings:v1';
+const SETTINGS_KEY = nsKey('settings:v1');
 
 export type WipState = 'acknowledged' | 'shown';
 
@@ -109,9 +110,11 @@ export async function autosaved(page: Page, needle: string, atLeast = 1): Promis
     .poll(
       () =>
         page.evaluate(
-          (n) =>
+          // The prefix is passed IN: this function body is serialized and run in
+          // the page, where a module import does not reach.
+          ([n, db]) =>
             new Promise<number>((resolve) => {
-              const req = indexedDB.open('astrarrocketjs');
+              const req = indexedDB.open(db);
               req.onerror = () => resolve(-1);
               req.onsuccess = () => {
                 let tx;
@@ -130,7 +133,7 @@ export async function autosaved(page: Page, needle: string, atLeast = 1): Promis
                   );
               };
             }),
-          needle,
+          [needle, STORAGE_PREFIX] as const,
         ),
       { timeout: 15_000, message: `autosave never wrote ${atLeast}x ${needle}` },
     )

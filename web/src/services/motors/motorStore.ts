@@ -10,6 +10,7 @@
 import type { KeyValueStore } from '../storage/keyValueStore';
 import { IndexedDbKeyValueStore } from '../storage/idbKeyValueStore';
 import { MIN_CURVE_SAMPLES } from './motorCurve';
+import { nsKey } from '../storage/storageKeys';
 
 /** A cached value plus whether it is past its freshness window. */
 export interface CachedEntry<T> {
@@ -81,7 +82,7 @@ export interface MotorStore {
   removeCustomMotor(id: string): Promise<void>;
 }
 
-const CUSTOM_MOTORS_KEY = 'astrarrocketjs:motors:custom';
+const CUSTOM_MOTORS_KEY = nsKey('motors:custom');
 const DEFAULT_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
 
 /** An entry stamped with its fetch time, for TTL freshness. */

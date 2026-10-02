@@ -130,7 +130,15 @@ export function discDims(
       node.type === 'engineblock' ? COMPONENT_DEFAULTS.engineblock.thickness : COMPONENT_DEFAULTS.tubecoupler.thickness,
     );
     const length = num(node, 'length', node.type === 'engineblock' ? COMPONENT_DEFAULTS.engineblock.length : 0.003);
-    return { outerR, innerR: Math.max(0, outerR - wall), length };
+    // A wall at least as thick as the radius leaves no bore, and `discSolid`
+    // then falls through to its NO-BORE branch and lathes a solid rod: a
+    // coupler printed as a plug, with nothing saying so. `solidMesh`'s tube
+    // branch refuses exactly this case and explains why; the disc path never
+    // got the guard, and `discDims` also feeds the DXF sheet and the 3D
+    // internals, so all three agreed on the wrong part. Reachable from a units
+    // slip in a hand-edited .ork (thickness 0.02 against radius 0.012).
+    if (!(wall < outerR)) return null;
+    return { outerR, innerR: outerR - wall, length };
   }
   return null;
 }

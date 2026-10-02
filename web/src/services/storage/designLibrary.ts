@@ -1,9 +1,9 @@
 // The saved-designs library. Designs are addressable:
 //
-//   astrarrocketjs:designs:index        → DesignMeta[]  (small: id, name, updatedAt)
-//   astrarrocketjs:designs:<id>         → one Workspace blob (the INPUTS)
-//   astrarrocketjs:designs:<id>:results → that design's flight results
-//   astrarrocketjs:designs:active       → the id currently open
+//   <prefix>:designs:index        → DesignMeta[]  (small: id, name, updatedAt)
+//   <prefix>:designs:<id>         → one Workspace blob (the INPUTS)
+//   <prefix>:designs:<id>:results → that design's flight results
+//   <prefix>:designs:active       → the id currently open
 //
 // The index is deliberately separate from the designs. Autosave runs on a 500 ms
 // debounce while you edit, so it must rewrite ONE design — not a single document
@@ -19,16 +19,17 @@ import type { KeyValueStore } from './keyValueStore';
 import { IndexedDbKeyValueStore } from './idbKeyValueStore';
 import type { Workspace } from './workspaceStore';
 import type { FlightResult } from '../../engine/openRocketEngine';
+import { nsKey } from './storageKeys';
 
 /** A design's cached flights, by simulation id. */
 export type StoredResults = Record<string, FlightResult>;
 
-const INDEX_KEY = 'astrarrocketjs:designs:index';
-const ACTIVE_KEY = 'astrarrocketjs:designs:active';
-const designKey = (id: string) => `astrarrocketjs:designs:${id}`;
-const resultsKey = (id: string) => `astrarrocketjs:designs:${id}:results`;
+const INDEX_KEY = nsKey('designs:index');
+const ACTIVE_KEY = nsKey('designs:active');
+const designKey = (id: string) => nsKey(`designs:${id}`);
+const resultsKey = (id: string) => nsKey(`designs:${id}:results`);
 /** The pre-library single-workspace key, migrated on first use. */
-const LEGACY_KEY = 'astrarrocketjs:workspace';
+const LEGACY_KEY = nsKey('workspace');
 
 export interface DesignMeta {
   id: string;

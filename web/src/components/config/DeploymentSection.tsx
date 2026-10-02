@@ -77,6 +77,13 @@ export function DeploymentSection({ config, device }: { config: FlightConfig; de
             value={over?.deployAltitude == null ? null : alt.toUi(over.deployAltitude)}
             placeholder={alt.fmt(num(device, 'deployAltitude'))}
             step={alt.step(10)}
+            // Floored at zero, as the design-side field is by `NumberField`'s own
+            // `min = 0` default. `onSi` rejects only a null or a failed conversion,
+            // not a negative, so a typed or pasted -150 committed into the flight
+            // configuration: the kernel's altitude trigger then never fires and the
+            // design flies ballistic under that ONE configuration, with nothing on
+            // screen marking the field.
+            min={alt.toUi(0)}
             onChange={onSi(alt, (si) => setDeployment(config.id, id, 'deployAltitude', si))}
             onCommit={onCommit}
             className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"

@@ -20,8 +20,9 @@
 // "storage is full" mid-edit. The first fallback flips a one-way flag and
 // notifies listeners so the UI can warn up front (see onStorageDegraded).
 import { type KeyValueStore, LocalStorageKeyValueStore } from './keyValueStore';
+import { STORAGE_PREFIX } from './storageKeys';
 
-const DB_NAME = 'astrarrocketjs';
+const DB_NAME = STORAGE_PREFIX;
 const DB_VERSION = 1;
 const STORE = 'kv';
 

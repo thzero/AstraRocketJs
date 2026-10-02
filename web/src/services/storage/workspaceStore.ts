@@ -15,6 +15,7 @@ import type { Simulation } from '../flight/simulations';
 import type { FlightConfig } from '../flight/flightConfigs';
 import { migrateWorkspace } from './workspaceMigrate';
 import type { OrkExportMotor } from '../files/orkFile';
+import { nsKey } from './storageKeys';
 
 export interface Workspace {
   version: 2;
@@ -65,7 +66,7 @@ export interface WorkspaceStore {
  * change between sessions, and replaying a journal into the wrong one would
  * overwrite an unrelated rocket.
  */
-const UNLOAD_KEY = 'astrarrocketjs:designs:unload';
+const UNLOAD_KEY = nsKey('designs:unload');
 
 interface Journal {
   id: string | null;

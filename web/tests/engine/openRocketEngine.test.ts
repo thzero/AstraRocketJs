@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { STORAGE_PREFIX, nsKey } from '../../src/services/storage/storageKeys';
 import {
   ENGINE_PREF_KEY,
   OpenRocketDesign,
@@ -270,10 +271,22 @@ describe('backendPref', () => {
     expect(backendPref()).toBe('wasm');
     store.set(ENGINE_PREF_KEY, 'js');
     expect(backendPref()).toBe('js');
-    expect(ENGINE_PREF_KEY).toBe('astrarocketjs:engine');
+    // Built from the app's one storage prefix, not spelled out. It used to be
+    // its own correctly-spelled namespace, which made it the second of two.
+    expect(ENGINE_PREF_KEY).toBe(nsKey('engine'));
+    expect(ENGINE_PREF_KEY.startsWith(`${STORAGE_PREFIX}:`)).toBe(true);
     vi.stubGlobal('location', { search: '?engine=wasm' });
     expect(backendPref()).toBe('wasm');
     vi.stubGlobal('location', { search: '?engine=bogus' });
     expect(backendPref()).toBe('js'); // unknown query value: fall through to storage
+  });
+
+  it('still honors an override left under the key this one used to have', () => {
+    // The key moved onto the app's one prefix, so anyone who had set the
+    // backend override keeps it rather than silently reverting to auto.
+    const store = new Map<string, string>([['astrarocketjs:engine', 'js']]);
+    vi.stubGlobal('localStorage', { getItem: (k: string) => store.get(k) ?? null });
+    vi.stubGlobal('location', { search: '' });
+    expect(backendPref()).toBe('js');
   });
 });

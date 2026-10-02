@@ -1,3 +1,4 @@
+import { nsKey } from '../../../src/services/storage/storageKeys';
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { LibraryWorkspaceStore, type Workspace } from '../../../src/services/storage/workspaceStore';
@@ -32,7 +33,7 @@ class FakeKv implements KeyValueStore {
   }
 }
 
-const UNLOAD_KEY = 'astrarrocketjs:designs:unload';
+const UNLOAD_KEY = nsKey('designs:unload');
 
 const ws = (name: string): Workspace =>
   ({
@@ -72,7 +73,7 @@ describe('unload journal', () => {
     expect(nameOf(loaded)).toBe('precious');
 
     // Valid JSON, wrong shape: a future build's version stamp.
-    const activeId = kv.map.get('astrarrocketjs:designs:active');
+    const activeId = kv.map.get(nsKey('designs:active'));
     localStorage.setItem(UNLOAD_KEY, JSON.stringify({ id: activeId, w: { ...ws('from-a-newer-build'), version: 2 } }));
 
     const again = await new LibraryWorkspaceStore().load();
@@ -195,7 +196,7 @@ describe('a journal older than the stored design', () => {
     await store.save(ws('newer'));
     const loaded = await store.load();
     expect(nameOf(loaded)).toBe('newer');
-    const activeId = kv.map.get('astrarrocketjs:designs:active');
+    const activeId = kv.map.get(nsKey('designs:active'));
 
     // A journal stamped a minute BEFORE that save landed.
     localStorage.setItem(UNLOAD_KEY, JSON.stringify({ id: activeId, w: ws('stale-unload'), t: Date.now() - 60_000 }));
@@ -208,7 +209,7 @@ describe('a journal older than the stored design', () => {
   it('is replayed when it is newer, and when it carries no stamp (older build)', async () => {
     await store.save(ws('saved'));
     await store.load();
-    const activeId = kv.map.get('astrarrocketjs:designs:active');
+    const activeId = kv.map.get(nsKey('designs:active'));
 
     localStorage.setItem(UNLOAD_KEY, JSON.stringify({ id: activeId, w: ws('newer-unload'), t: Date.now() + 1000 }));
     expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('newer-unload');

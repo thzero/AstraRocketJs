@@ -15,6 +15,7 @@
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import type { KeyValueStore } from '../storage/keyValueStore';
 import { IndexedDbKeyValueStore } from '../storage/idbKeyValueStore';
+import { nsKey } from '../storage/storageKeys';
 
 /** A component the user saved for reuse. */
 export interface CustomPart {
@@ -45,7 +46,7 @@ export interface PresetStore {
   remove(id: string): Promise<void>;
 }
 
-const CUSTOM_KEY = 'astrarrocketjs:parts:custom';
+const CUSTOM_KEY = nsKey('parts:custom');
 
 /**
  * One stored row this build can use.

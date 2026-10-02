@@ -17,7 +17,7 @@ const MOBILE_SPECS = ['**/layout-overflow.spec.ts', '**/sketch-rotation.spec.ts'
 
 export default defineConfig({
   testDir: './e2e',
-  // Serial, everywhere. `fullyParallel: false` only serialises WITHIN a file —
+  // Serial, everywhere. `fullyParallel: false` only serializes WITHIN a file —
   // Playwright still spreads FILES across `workers`, which defaults to half the
   // machine's cores. On a 32-core box that is 16 headless Chromiums, each
   // software-rendering WebGL and loading the 2.9 MB WASM engine against this one

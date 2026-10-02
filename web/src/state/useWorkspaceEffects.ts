@@ -2,12 +2,12 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18nGlobal from '../i18n';
 import { useWorkspaceStore, selectConfig, saveFailure } from './store';
-import { seatedMotorsKey } from '../services/flight/flightConfigs';
+
 import { useEngineStore } from './engineStore';
 import { getWorkspaceStore } from '../services/storage/workspaceStore';
 import { onStorageDegraded } from '../services/storage/idbKeyValueStore';
 import { requestPersistentStorage } from '../services/storage/persistStorage';
-import { computeStaticInfo, flightKey } from '../services/design/buildRocket';
+import { computeStaticInfo, flightKey, buildKey } from '../services/design/buildRocket';
 import { designBlockerText } from '../services/flight/runnability';
 import { changedPrefKeys } from '../services/flight/simulations';
 import { useSettings } from './SettingsProvider';
@@ -108,10 +108,15 @@ export function useWorkspaceEffects() {
   const activeId = useWorkspaceStore((s) => s.activeId);
   const configs = useWorkspaceStore((s) => s.configs);
   const loadedMeta = useWorkspaceStore((s) => s.loadedMeta);
-  // WHICH motors the active row has seated, ignition excluded (see
-  // flightConfigs.seatedMotorsKey). A string, because zustand v5 compares a
-  // selector's result by identity and this is derived per call.
-  const seated = useWorkspaceStore((s) => seatedMotorsKey(s.tree, selectConfig(s)));
+  // Every CONFIGURATION input the engine build reads: the seated motors with
+  // their ignition, AND the grounded stages (see buildRocket.buildKey). A
+  // string, because zustand v5 compares a selector's result by identity and
+  // this is derived per call.
+  //
+  // `seatedMotorsKey` alone was the key, and it does not mention `grounded`, so
+  // grounding a booster never rebuilt: the worker flew the sustainer while
+  // `info` still described the whole stack.
+  const buildInputs = useWorkspaceStore((s) => buildKey(s.tree, selectConfig(s)));
   // The rebuild effect below is the app's one engine caller on the main thread,
   // so it is where "the kernel is not up yet" is handled.
   const enginePhase = useEngineStore((s) => s.phase);
@@ -243,7 +248,7 @@ export function useWorkspaceEffects() {
       store.applyBuild(res.info, res.rocket);
       store.setErr(null);
     }
-  }, [ready, enginePhase, components, seated]);
+  }, [ready, enginePhase, components, buildInputs]);
 
   // Editing the design invalidates every simulation's cached result.
   //

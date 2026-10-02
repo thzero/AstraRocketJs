@@ -10,16 +10,19 @@ import { test, expect, openTab, runFlight } from './base';
  * link inside that frame is intercepted and re-opened in the dialog rather than
  * navigating the frame out of the app.
  *
- * SKIPPED WITHOUT THE DOCS, and that is a real gap, not a formality.
- * `web/public/docs` is gitignored and the docs are deliberately NOT built on a
- * PR (see the note above the e2e job in gates.yml), so these skip in CI and run
- * for anyone who has run `npm run docs:build`. Building Docusaurus in the e2e
- * job, once per shard, would close it; that is a cost decision, and the one
- * already recorded in gates.yml was taken when the app did not depend on the
- * docs output. It does now.
+ * REQUIRES THE DOCS, and in CI that is not negotiable. `web/public/docs` is
+ * gitignored, so for a long time these tests skipped on every CI run and the
+ * shard reported green: the in-app Help dialog and offline Help had no
+ * automated coverage anywhere, which is not what a passing e2e job looks like.
+ * The e2e and update-flow jobs now run `npm run docs:build` for themselves.
  *
- * The skip is on the DIRECTORY, not on the dialog's behavior: with no docs the
- * dialog correctly offers the docs site instead, which is a different thing
+ * So the skip is LOCAL ONLY. Without the docs a CI run fails loudly and names
+ * the missing step, because a silent skip is the exact failure this spec was
+ * found in. Locally it still skips, so nobody has to build Docusaurus to run
+ * the rest of the suite.
+ *
+ * The condition is on the DIRECTORY, not on the dialog's behavior: with no docs
+ * the dialog correctly offers the docs site instead, which is a different thing
  * from the feature being broken, and helpDocs.test.ts covers that path.
  */
 
@@ -29,10 +32,18 @@ const helpDialog = 'Help';
 const docsBuilt = existsSync('public/docs/index.html');
 
 test.beforeEach(() => {
-  // Not a disabled test but an environment precondition. The rule exists to
-  // stop a failing spec being quietly switched off, and this one runs in full
-  // wherever the docs exist. The way to delete the suppression is to build the
-  // docs in the e2e job (see above), not to widen the rule.
+  // In CI the docs are a hard precondition: the job builds them, and if they
+  // are missing the job configuration is wrong and has to say so. Skipping
+  // here is what hid this spec entirely for every CI run it ever had.
+  if (process.env.CI && !docsBuilt) {
+    throw new Error(
+      'web/public/docs is not built. The e2e and update-flow jobs run `npm run docs:build`; ' +
+        'if that step was removed or failed, these tests must fail rather than skip.',
+    );
+  }
+  // Locally it stays a skip: an environment precondition, not a disabled test.
+  // The rule exists to stop a failing spec being quietly switched off, and this
+  // one runs in full wherever the docs exist.
   // eslint-disable-next-line playwright/no-skipped-test
   test.skip(!docsBuilt, 'web/public/docs is not built; run `npm run docs:build`');
 });

@@ -53,6 +53,7 @@ export function MotorGrid({
   catalogLoading,
   catalogError,
   onRetry,
+  active,
 }: {
   /** The filtered, sorted rows. */
   shown: CatalogMotor[];
@@ -66,12 +67,23 @@ export function MotorGrid({
   catalogLoading: boolean;
   catalogError: string | null;
   onRetry: () => void;
+  /**
+   * Whether the grid is the surface on screen.
+   *
+   * The arrow-key stepper is a `window` listener, and the dashboard keeps this
+   * grid MOUNTED while a full-width tool is open -- it only hides it with a
+   * CSS class. So pressing ArrowDown while reading the Compare pane stepped the
+   * selection and `onSelect` flipped the mode back to the detail rail, closing
+   * the comparison you had just set up.
+   */
+  active: boolean;
 }) {
   const { t } = useTranslation();
   const u = useUnits();
   const bodyRef = useRef<HTMLTableSectionElement>(null);
 
   useEffect(() => {
+    if (!active) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
       const tag = (e.target as HTMLElement).tagName;
@@ -82,7 +94,7 @@ export function MotorGrid({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [shown, selected, onSelect]);
+  }, [active, shown, selected, onSelect]);
 
   useEffect(() => {
     if (!selected) return;

@@ -6,6 +6,7 @@ import type { ComponentNode } from '../../../src/engine/openRocketEngine';
 import {
   solidForNode,
   discSolid,
+  discSolidForNode,
   makeWatertight,
   countBoundaryEdges,
   isSimplePolygon,
@@ -403,5 +404,53 @@ describe('a self-crossing freeform fin is not exportable', () => {
 
   it('still exports the same outline uncrossed', () => {
     expect(solidForNode(fin(straight))).not.toBeNull();
+  });
+});
+
+/**
+ * The validation choke point, and the two paths that used to go round it.
+ *
+ * `solidForNode`'s comment claimed every printable solid left through it. Two
+ * did not: the per-component export and the print sheet both resolved a
+ * disc/ring themselves and called `discSolid` raw, so centering rings,
+ * bulkheads, couplers and engine blocks were the four part types with no
+ * validation at all.
+ */
+describe('discSolidForNode applies the same validation as solidForNode', () => {
+  it('builds an ordinary ring', () => {
+    expect(discSolidForNode(0.012, 0.008, 0.003)).not.toBeNull();
+  });
+
+  it('refuses a zero outer radius instead of a zero-triangle solid', () => {
+    // The shape of the bug: four on-axis points, `dropDegenerate` removes every
+    // triangle, and `makeWatertight` returns early on `boundaryEdges === 0`
+    // before its own throw. The STL then downloads with no geometry in it and
+    // the export reports success.
+    expect(discSolidForNode(0, 0, 0.003)).toBeNull();
+  });
+
+  it('refuses a non-positive outer radius, inverted winding and all', () => {
+    // A negative radius lathes an INSIDE-OUT solid, and `validateSolid` cannot
+    // see that: its orientation check counts directed edges, which a
+    // consistently reversed winding satisfies. So the dimension is refused
+    // where it is read.
+    expect(discSolid(-0.012, 0, 0.003)).toBeNull();
+    expect(discSolidForNode(-0.012, 0, 0.003)).toBeNull();
+    expect(discSolidForNode(0, 0, 0.003)).toBeNull();
+  });
+
+  it('substitutes a nominal length for a missing one, on purpose', () => {
+    // NOT a degenerate case: `discSolid` reads a length at or below 1e-6 as
+    // "not stated" and uses 2 mm, so a ring whose length the file omitted is
+    // still exportable. Pinned so the guard above is not later widened into
+    // refusing it.
+    expect(discSolidForNode(0.012, 0.008, 0)).not.toBeNull();
+  });
+
+  it('agrees with discSolid wherever discSolid already refused', () => {
+    // A bore equal to the outer radius is the inverted-ring case discSolid
+    // itself rejects; the wrapper must not resurrect it.
+    expect(discSolid(0.012, 0.012, 0.003)).toBeNull();
+    expect(discSolidForNode(0.012, 0.012, 0.003)).toBeNull();
   });
 });

@@ -1,3 +1,4 @@
+import { nsKey } from '../../../src/services/storage/storageKeys';
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { LibraryWorkspaceStore, type Workspace } from '../../../src/services/storage/workspaceStore';
@@ -95,10 +96,7 @@ const workspace = (): Workspace =>
 const designKey = (kv: FakeKv) =>
   [...kv.map.keys()].find(
     (k) =>
-      k.startsWith('astrarrocketjs:designs:') &&
-      !k.endsWith(':index') &&
-      !k.endsWith(':active') &&
-      !k.endsWith(':results'),
+      k.startsWith(nsKey('designs:')) && !k.endsWith(':index') && !k.endsWith(':active') && !k.endsWith(':results'),
   )!;
 
 let kv: FakeKv;
@@ -329,10 +327,7 @@ describe('LibraryWorkspaceStore', () => {
     // keys: the flights live beside each design under the same prefix.
     const keys = [...kv.map.keys()].filter(
       (k) =>
-        k.startsWith('astrarrocketjs:designs:') &&
-        !k.endsWith(':index') &&
-        !k.endsWith(':active') &&
-        !k.endsWith(':results'),
+        k.startsWith(nsKey('designs:')) && !k.endsWith(':index') && !k.endsWith(':active') && !k.endsWith(':results'),
     );
     expect(keys).toHaveLength(2);
   });

@@ -1,3 +1,4 @@
+import { nsKey } from '../../../src/services/storage/storageKeys';
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, within } from '@testing-library/react';
@@ -318,16 +319,16 @@ describe('dialogSize', () => {
     writeExpanded('b', false);
     expect(readExpanded('a')).toBe(true);
     expect(readExpanded('b')).toBe(false);
-    expect(JSON.parse(localStorage.getItem('astrarrocketjs:dialogExpanded')!)).toEqual({ a: true });
+    expect(JSON.parse(localStorage.getItem(nsKey('dialogExpanded'))!)).toEqual({ a: true });
     // Collapsing removes the entry rather than storing a false.
     writeExpanded('a', false);
-    expect(JSON.parse(localStorage.getItem('astrarrocketjs:dialogExpanded')!)).toEqual({});
+    expect(JSON.parse(localStorage.getItem(nsKey('dialogExpanded'))!)).toEqual({});
   });
 
   it('survives storage that is unavailable or holds junk', () => {
     // Private browsing with site data blocked throws on access, and a dialog
     // still has to open.
-    localStorage.setItem('astrarrocketjs:dialogExpanded', 'not json');
+    localStorage.setItem(nsKey('dialogExpanded'), 'not json');
     expect(readExpanded('a')).toBe(false);
     expect(() => writeExpanded('a', true)).not.toThrow();
 

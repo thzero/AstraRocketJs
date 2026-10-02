@@ -12,6 +12,7 @@
 // (neither backend is imported statically now) — see kernelLogSink.ts.
 import './kernelLogSink.js';
 import { declaredLength, readStreamWithProgress } from '../services/app/fetchProgress';
+import { nsKey } from '../services/storage/storageKeys';
 
 // The WASM-GC engine + its loader live in web/public/engine/ (served verbatim by
 // Vite — a .js in src/ would be run through import-analysis, which warns on the
@@ -292,10 +293,23 @@ async function tryLoadWasm(onStatus?: (s: EngineLoadStatus) => void): Promise<En
 
 export type BackendPref = 'wasm' | 'js' | 'auto';
 
-/** The app-namespaced localStorage key for the backend override. */
-export const ENGINE_PREF_KEY = 'astrarocketjs:engine';
-/** The pre-namespacing key, still honored so an existing override keeps working. */
-const LEGACY_ENGINE_PREF_KEY = 'engine';
+/**
+ * The app-namespaced localStorage key for the backend override.
+ *
+ * Built from `STORAGE_PREFIX` like every other key. It used to be spelled out,
+ * and spelled CORRECTLY, which made it the app's second storage namespace: one
+ * key under `astrarocketjs:` and seventeen under the misspelled prefix every
+ * other store uses. Nothing swept either, so nothing was lost, but a future
+ * "clear app data" over one prefix would have missed the other. One namespace
+ * now; correcting the spelling is a data migration and its own change.
+ */
+export const ENGINE_PREF_KEY = nsKey('engine');
+/**
+ * Keys this override used to live under, still honored so an existing one keeps
+ * working. `engine` is pre-namespacing; the second is the correctly-spelled
+ * namespace this key alone used before it joined the rest.
+ */
+const LEGACY_ENGINE_PREF_KEYS = ['engine', 'astrarocketjs:engine'] as const;
 
 /**
  * Backend preference. Default is 'auto' → try WASM-GC first, fall back to JS
@@ -305,7 +319,7 @@ const LEGACY_ENGINE_PREF_KEY = 'engine';
  * `(ArrayList) super.clone()`, which throws ClassCastException under WASM-GC's
  * strict typing — see the PATCH in engine-java). Overrides for debugging /
  * unsupported browsers: `?engine=js` (or
- * `localStorage.setItem('astrarocketjs:engine','js')`) forces JS;
+ * `localStorage.setItem(ENGINE_PREF_KEY,'js')`) forces JS;
  * `?engine=wasm` forces the WASM attempt.
  *
  * MAIN THREAD ONLY. A worker has no page `location` (its `location` is the
@@ -317,7 +331,9 @@ export function backendPref(): BackendPref {
   try {
     const q = new URLSearchParams(location.search).get('engine');
     if (q === 'wasm' || q === 'js') return q;
-    const ls = localStorage.getItem(ENGINE_PREF_KEY) ?? localStorage.getItem(LEGACY_ENGINE_PREF_KEY);
+    const ls =
+      localStorage.getItem(ENGINE_PREF_KEY) ??
+      LEGACY_ENGINE_PREF_KEYS.map((k) => localStorage.getItem(k)).find((v) => v != null);
     if (ls === 'wasm' || ls === 'js') return ls;
   } catch {
     /* no location/localStorage (SSR/tests/workers) → auto */

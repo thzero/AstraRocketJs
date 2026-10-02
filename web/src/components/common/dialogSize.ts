@@ -1,3 +1,4 @@
+import { nsKey } from '../../services/storage/storageKeys';
 /**
  * Dialog widths, and the user's choice to expand one.
  *
@@ -83,7 +84,7 @@ export const layerClass: Record<DialogLayer, string> = {
 };
 
 /** Where the expanded-dialog preferences live. Namespaced like the rest. */
-const KEY = 'astrarrocketjs:dialogExpanded';
+const KEY = nsKey('dialogExpanded');
 
 /**
  * Whether the user has expanded this dialog before.

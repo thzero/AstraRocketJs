@@ -1,8 +1,9 @@
+import { nsKey } from '../../../src/services/storage/storageKeys';
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { loadSettings, saveSettings, DEFAULT_SETTINGS } from '../../../src/services/storage/settings';
 
-const KEY = 'astrarrocketjs:settings:v1';
+const KEY = nsKey('settings:v1');
 
 beforeEach(() => localStorage.clear());
 

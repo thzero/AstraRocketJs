@@ -6,6 +6,7 @@
 import type { Material, MaterialType } from './materialTypes';
 import type { KeyValueStore } from '../storage/keyValueStore';
 import { IndexedDbKeyValueStore } from '../storage/idbKeyValueStore';
+import { nsKey } from '../storage/storageKeys';
 
 export interface MaterialStore {
   /** All stored custom materials (implementation decides ordering). */
@@ -16,7 +17,7 @@ export interface MaterialStore {
   remove(name: string, type: MaterialType): Promise<void>;
 }
 
-const CUSTOM_KEY = 'astrarrocketjs:materials:custom';
+const CUSTOM_KEY = nsKey('materials:custom');
 
 function isMaterial(v: unknown): v is Material {
   const m = v as Material;

@@ -2,6 +2,7 @@ import type { MotorSpec } from '../../engine/openRocketEngine';
 import type { CatalogMotor } from './motorDb';
 import { getMotorStore, isThrustSampleArray, type CustomMotor } from './motorStore';
 import { declaredLength, readStreamWithProgress } from '../app/fetchProgress';
+import { nsKey } from '../storage/storageKeys';
 
 /**
  * thrustcurve.org API v1 client (CORS-enabled; verified reflective
@@ -247,9 +248,9 @@ async function resolveTcMotor(cat: CatalogMotor): Promise<TcMotor> {
 // math or shapes change), since it namespaces every key. Catalog updates are a
 // separate, build-time concern (see motorDb.ts / scripts/sync-motors.mjs).
 const CACHE_VERSION = 'v1';
-const SPEC_PREFIX = `astrarrocketjs:tc:${CACHE_VERSION}:motor:`;
-const SAMPLE_PREFIX = `astrarrocketjs:tc:${CACHE_VERSION}:samples:`;
-const META_PREFIX = `astrarrocketjs:tc:${CACHE_VERSION}:meta:`;
+const SPEC_PREFIX = nsKey(`tc:${CACHE_VERSION}:motor:`);
+const SAMPLE_PREFIX = nsKey(`tc:${CACHE_VERSION}:samples:`);
+const META_PREFIX = nsKey(`tc:${CACHE_VERSION}:meta:`);
 
 /** Stable localStorage key for a picked motor + delay. */
 function specKey(cat: CatalogMotor, ejectionDelay: number): string {

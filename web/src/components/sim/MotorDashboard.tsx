@@ -152,6 +152,10 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
           </div>
 
           <MotorGrid
+            // Hidden by a CSS class above, not unmounted, so the grid has to be
+            // told when it is not the surface on screen: its window-level
+            // arrow-key listener would otherwise still be live.
+            active={effMode === 'detail'}
             shown={shown}
             cols={cols}
             sort={sort}

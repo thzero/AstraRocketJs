@@ -346,6 +346,11 @@ export function discSolid(outerR: number, innerR: number, length: number): THREE
   // row) would otherwise fall through to the solid-cylinder branch and export a
   // centering ring as a solid disc, which blocks the motor tube once printed with
   // nothing saying so. Every degenerate case in solidForNode returns null.
+  // A non-positive outer radius lathes an inside-out or on-axis solid, and the
+  // validator cannot see the inverted case: its orientation check counts
+  // DIRECTED edges, which a consistently reversed winding satisfies. Refused
+  // here, where the dimension is, rather than hoped away downstream.
+  if (!(outerR > 1e-6)) return null;
   if (innerR > 1e-6 && innerR >= outerR - 1e-6) return null;
   const hasBore = innerR > 1e-6 && innerR < outerR - 1e-6;
   const pts = hasBore
@@ -415,16 +420,39 @@ function oneFinSolid(child: ComponentNode, parentRadius: number | null): THREE.B
  * per-component STL/OBJ/GLB export.
  */
 export function solidForNode(node: ComponentNode, parentRadius: number | null = null): THREE.BufferGeometry | null {
-  const geo = buildSolid(node, parentRadius);
+  return validated(buildSolid(node, parentRadius));
+}
+
+/**
+ * THE choke point, so it is one function and not a line repeated per path.
+ *
+ * `countBoundaryEdges` (used inside `makeWatertight`) only asks "is every edge
+ * used twice", which is satisfied by an EMPTY mesh and by a cap whose triangles
+ * overlap facing opposite ways. Both shipped. Returning null makes the caller
+ * report "this part can't be exported" instead of writing a file no slicer can
+ * use.
+ *
+ * It used to live inline in `solidForNode`, whose comment claimed every
+ * printable solid left through there. Two paths did not: the per-component
+ * export and the print sheet both called `discSolid` directly for rings,
+ * bulkheads, couplers and engine blocks, so those four were the parts with no
+ * validation at all. An explicit `outerRadius: 0` lathes four on-axis points,
+ * `dropDegenerate` removes every triangle, and `makeWatertight` then returns
+ * early on `boundaryEdges === 0` before its own throw -- a zero-triangle STL
+ * that downloads reporting success.
+ */
+function validated(geo: THREE.BufferGeometry | null): THREE.BufferGeometry | null {
   if (!geo) return null;
-  // The choke point. Every printable solid leaves through here, so it is the
-  // one place worth asking whether it is really a solid. `countBoundaryEdges`
-  // (used inside makeWatertight) only asks "is every edge used twice", which
-  // is satisfied by an EMPTY mesh and by a cap whose triangles overlap facing
-  // opposite ways. Both shipped. Returning null makes the caller report "this
-  // part can't be exported" instead of writing a file that no slicer can use.
   if (validateSolid(geo, meshTolerances(geo).area).length) return null;
   return geo;
+}
+
+/**
+ * A disc/ring solid through the same validation, for the callers that resolve
+ * the dimensions themselves because they are already walking the tree.
+ */
+export function discSolidForNode(outerR: number, innerR: number, length: number): THREE.BufferGeometry | null {
+  return validated(discSolid(outerR, innerR, length));
 }
 
 function buildSolid(node: ComponentNode, parentRadius: number | null): THREE.BufferGeometry | null {

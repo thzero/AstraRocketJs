@@ -110,16 +110,6 @@ export function calloutLayout(
   return { cg, cp, margin };
 }
 
-/** Tab front edge from the fin's leading edge (AxialMethod.getAsPosition). */
-export function finTabFront(n: ComponentNode, finLen: number): number {
-  const offset = num(n, 'tabOffset', 0);
-  const tabLen = num(n, 'tabLength', 0);
-  const method = typeof n['tabOffsetMethod'] === 'string' ? (n['tabOffsetMethod'] as string) : 'middle';
-  if (method === 'top') return offset;
-  if (method === 'bottom') return offset + (finLen - tabLen);
-  return offset + (finLen - tabLen) / 2;
-}
-
 // One implementation, in the tree layer. This file carried its own copy
 // (and Rocket3D a third, which disagreed on `absolute`); the canvas re-exports
 // so its importers keep working.

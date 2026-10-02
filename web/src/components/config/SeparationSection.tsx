@@ -132,6 +132,11 @@ export function SeparationSection({
                 value={over?.separationAltitude == null ? null : alt.toUi(over.separationAltitude)}
                 placeholder={alt.fmt(num(stage, 'separationAltitude', 200))}
                 step={alt.step(10)}
+                // Floored at zero, like the design-side field. `onSi` rejects only a
+                // null or a failed conversion, not a negative, so a typed -150 was
+                // committed and the stage then never separated on altitude under that
+                // one configuration.
+                min={alt.toUi(0)}
                 onChange={onSi(alt, (si) => setSeparation(config.id, id, 'separationAltitude', si))}
                 onCommit={onCommit}
                 className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"

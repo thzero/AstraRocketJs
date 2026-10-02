@@ -19,7 +19,7 @@ import { findMounts } from '../design/treeEdit';
 import { motorFitsMount, mountFit } from '../motors/motorPicker';
 import { hasUsableCurve } from '../motors/motorCurve';
 import { uuid } from '../app/uuid';
-import { type DeployOverride, type MountMotor } from '../flight/flightConfigs';
+import { type DeployOverride, type MountMotor, type SepOverride } from '../flight/flightConfigs';
 
 /** One of the file's flight configurations, with its motors resolved. */
 export interface LoadedConfig {
@@ -29,6 +29,17 @@ export interface LoadedConfig {
   motors: Record<string, MountMotor>;
   /** What this configuration said about recovery deployment (carried, not edited). */
   deployments?: Record<string, DeployOverride>;
+  /**
+   * ...and about staging, and about which stages stay on the pad. Carried for
+   * the same reason the deployments are, and they were not: `OrkFlightConfig`
+   * has declared both as non-optional all along, and this interface named
+   * neither, so opening a `.ork` whose configuration said
+   * `<stage number="1" active="false"/>` or carried a
+   * `<separationconfiguration>` dropped it on the floor. `saveOrk` then wrote
+   * the undefined value back and the file lost the setting for good.
+   */
+  separations?: Record<string, SepOverride>;
+  grounded?: string[];
 }
 
 export interface LoadedOrk {
@@ -320,7 +331,17 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   // elements were read without a declaration table (importConfigs).
   const declared = res.configs?.length
     ? res.configs
-    : [{ id: uuid(), name: null, isDefault: true, motors: res.motors ?? {}, deployments: {} }];
+    : [
+        {
+          id: uuid(),
+          name: null,
+          isDefault: true,
+          motors: res.motors ?? {},
+          deployments: {},
+          separations: {},
+          grounded: [],
+        },
+      ];
   const chosenConfigId = declared.some((c) => c.id === res.chosenConfigId) ? res.chosenConfigId! : declared[0]!.id;
 
   const mountNodes = findMounts(res.tree);
@@ -374,6 +395,8 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
       name: cfg.name,
       motors,
       ...(Object.keys(cfg.deployments ?? {}).length ? { deployments: cfg.deployments } : {}),
+      ...(Object.keys(cfg.separations ?? {}).length ? { separations: cfg.separations } : {}),
+      ...(cfg.grounded?.length ? { grounded: cfg.grounded } : {}),
     });
   }
 

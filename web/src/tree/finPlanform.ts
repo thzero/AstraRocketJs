@@ -4,11 +4,17 @@ import { freeformPoints, freeformRootChord } from './position';
 import { FIN_DEFAULTS, KERNEL_BODYTUBE_OUTER_RADIUS } from './kernelDefaults';
 
 /**
- * Re-exported for convenience. The values themselves live in `kernelDefaults.ts`,
- * the one table verified against the real engine; they are ComponentFactory's fin
- * defaults, not "what treeEdit and orkImport write".
+ * Re-exported for convenience. The value itself lives in `kernelDefaults.ts`,
+ * the one table verified against the real engine.
+ *
+ * `FIN_DEFAULTS` is deliberately NOT re-exported any more. It was, and
+ * `schematicShapes` imported it from here alongside `finRootChord` and
+ * `finSpan` and then assembled its own trapezoid and its own elliptical arc
+ * from those dimensions -- holding everything this module offers except the
+ * outline. A consumer that wants fin DIMENSIONS can take them from
+ * `kernelDefaults`; what it gets from here is a planform.
  */
-export { FIN_DEFAULTS, KERNEL_BODYTUBE_OUTER_RADIUS };
+export { KERNEL_BODYTUBE_OUTER_RADIUS };
 
 /**
  * THE fin planform. One source of truth for every consumer that draws, prints,

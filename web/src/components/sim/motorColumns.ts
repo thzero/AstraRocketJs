@@ -5,6 +5,7 @@ import { avgThrustOf as avgOf, ispOf, massFracOf } from '../../services/motors/m
 import { fmtNum } from '../../i18n/format';
 import type { Units } from '../../prefs/useUnits';
 import type { Quantity } from '../../prefs/units';
+import { nsKey } from '../../services/storage/storageKeys';
 
 /**
  * The motor dashboard's column table: every column the grid can show, how each
@@ -149,7 +150,7 @@ const DEFAULT_COLS = ['designation', 'manufacturer', 'class', 'diameter', 'impul
 export const ALIGN = { left: 'text-left', center: 'text-center', right: 'text-right' } as const;
 
 // The chosen columns persist across sessions.
-const COLS_KEY = 'astrarrocketjs:motorDash:cols';
+const COLS_KEY = nsKey('motorDash:cols');
 const loadCols = (): string[] => {
   try {
     const r = JSON.parse(localStorage.getItem(COLS_KEY) ?? 'null');

@@ -5,6 +5,7 @@
 // the material/motor stores; swap setTemplateStore(...) for a bespoke backend.
 import type { KeyValueStore } from '../storage/keyValueStore';
 import { IndexedDbKeyValueStore } from '../storage/idbKeyValueStore';
+import { nsKey } from '../storage/storageKeys';
 
 /** A user-imported export template. */
 export interface UserTemplate {
@@ -44,7 +45,7 @@ export interface TemplateStore {
   remove(id: string): Promise<void>;
 }
 
-const CUSTOM_KEY = 'astrarrocketjs:templates:custom';
+const CUSTOM_KEY = nsKey('templates:custom');
 
 function isUserTemplate(v: unknown): v is UserTemplate {
   const t = v as UserTemplate;

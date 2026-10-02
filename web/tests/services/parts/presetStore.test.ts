@@ -1,3 +1,4 @@
+import { nsKey } from '../../../src/services/storage/storageKeys';
 import { describe, it, expect } from 'vitest';
 import { KeyValuePresetStore, type CustomPart } from '../../../src/services/parts/presetStore';
 import type { KeyValueStore } from '../../../src/services/storage/keyValueStore';
@@ -24,7 +25,7 @@ class FakeKv implements KeyValueStore {
   }
 }
 
-const KEY = 'astrarrocketjs:parts:custom';
+const KEY = nsKey('parts:custom');
 const part = (partNo: string, length = 0.2): CustomPart => ({
   id: `custom:bodytube:Mine:${partNo}`,
   type: 'bodytube',
