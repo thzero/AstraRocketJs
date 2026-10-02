@@ -202,7 +202,10 @@ export const g = (p: PdfPage, kg: number): string => q(p, 'mass', kg, 0);
 /** The summary grid's rows for one static-info block (the rocket, or one stage). */
 export function summaryRows(p: PdfPage, info: StaticInfo): [string, string][] {
   const { t } = p;
-  const pct = info.length > 0 ? ((info.cp - info.cg) / info.length) * 100 : 0;
+  // The engine's own figure, not ours: see StaticInfo.stabilityPercent. The
+  // margin is over the AERODYNAMIC length, which this module does not have;
+  // dividing by `length` reads a percentage the desktop does not show.
+  const pct = info.stabilityPercent;
   return [
     [t('report.length'), len(p, info.length)],
     [t('report.maxDiameter'), len(p, info.refDiameter)],

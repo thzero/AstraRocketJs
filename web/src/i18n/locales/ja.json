@@ -900,6 +900,7 @@
     "pressure": "圧力",
     "base": "底面",
     "pctBody": "機体比 %",
+    "pctLength": "全長比 %",
     "supersonicNote": "拡張バロウマン法：マッハ 1.5 程度を超えると近似になります。",
     "unavailable": "抗力を見るには有効なロケットを組み立ててください。",
     "crosshairHint": "抗力曲線。フォーカスして矢印キーで十字線を動かします。Shift で大きく移動、Home と End で両端へ、Esc で解除します。",

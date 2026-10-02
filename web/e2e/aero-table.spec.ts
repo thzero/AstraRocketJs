@@ -112,7 +112,12 @@ test.describe('aero stability table', () => {
 
     const r = await tableRows(page, 'Stability contribution');
     const head = defined(r[0], 'the stability table header row');
-    const cp = head.findIndex((h) => h.startsWith('CP'));
+    // The table carries TWO CP columns: the position in the user's length unit
+    // and, when the design has an aerodynamic length, the same position as a
+    // percentage of it. This test weights POSITIONS, so it must take the
+    // length-unit one; `startsWith('CP')` alone would silently pass whichever
+    // came first if the two were ever reordered.
+    const cp = head.findIndex((h) => h.startsWith('CP (') && !h.includes('%'));
     const cna = head.indexOf('CNα');
     const rocket = defined(
       r.find((x) => x[0] === 'Whole rocket'),

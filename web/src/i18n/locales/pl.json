@@ -912,6 +912,7 @@
     "pressure": "Ciśnienie",
     "base": "Denny",
     "pctBody": "% korpusu",
+    "pctLength": "% długości",
     "supersonicNote": "Rozszerzona metoda Barrowmana: powyżej około 1,5 liczby Macha to przybliżenie.",
     "unavailable": "Zbuduj poprawną rakietę, aby zobaczyć jej opór.",
     "crosshairHint": "Krzywe oporu. Ustaw fokus i przesuwaj celownik strzałkami; Shift dla większego kroku, Home i End na końce, Esc aby wyczyścić.",

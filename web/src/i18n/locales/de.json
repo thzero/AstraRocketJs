@@ -904,6 +904,7 @@
     "pressure": "Druck",
     "base": "Heck",
     "pctBody": "% Rumpf",
+    "pctLength": "% Länge",
     "supersonicNote": "Erweitertes Barrowman-Verfahren – oberhalb von etwa Mach 1,5 nur näherungsweise gültig.",
     "unavailable": "Bauen Sie eine gültige Rakete, um ihren Widerstand zu sehen.",
     "crosshairHint": "Widerstandskurven. Fokussieren und mit den Pfeiltasten das Fadenkreuz bewegen; Umschalt für größere Schritte, Pos1 und Ende für die Enden, Esc zum Zurücksetzen.",

@@ -908,6 +908,7 @@
     "pressure": "Pressão",
     "base": "Base",
     "pctBody": "% do corpo",
+    "pctLength": "% do comprimento",
     "supersonicNote": "Barrowman estendido: aproximado acima de ~Mach 1,5.",
     "unavailable": "Monte um foguete válido para ver o arrasto dele.",
     "crosshairHint": "Curvas de arrasto. Foque e use as setas para mover a mira; Shift para um passo maior, Home e End para as pontas, Esc para limpar.",

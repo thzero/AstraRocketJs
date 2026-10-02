@@ -904,6 +904,7 @@
     "pressure": "Pressure",
     "base": "Base",
     "pctBody": "% body",
+    "pctLength": "% length",
     "supersonicNote": "Extended Barrowman — approximate above ~Mach 1.5.",
     "unavailable": "Build a valid rocket to see its drag.",
     "crosshairHint": "Drag curves. Focus and use the arrow keys to move the crosshair; Shift for a larger step, Home and End for the ends, Escape to clear.",

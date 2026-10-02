@@ -296,3 +296,43 @@ export function machTicks(machMin: number, machMax: number): number[] {
   for (let m = step; m <= machMax + 1e-9; m += step) ticks.push(Number(m.toFixed(2)));
   return ticks;
 }
+
+/**
+ * How the CP vs Mach axis reads: the user's length unit, a percentage of the
+ * WHOLE airframe, or a percentage of the AERODYNAMIC length.
+ *
+ * Both percentages are offered because they answer different questions. `aero`
+ * is the denominator OpenRocket's own `PercentageOfLengthUnit` uses
+ * (`getLengthAerodynamic`), so it is the figure the desktop shows. `body`
+ * divides by the overall length, which is what "how far along the rocket in
+ * front of me" means and is shorter to explain at a launch. They differ on any
+ * design carrying a non-aerodynamic part outside the aerodynamic envelope: an
+ * overhanging rail button, a shock cord, an aft mass.
+ */
+export type CpMode = 'len' | 'body' | 'aero';
+
+/**
+ * The modes a design can actually express, in display order.
+ *
+ * A percentage needs a positive denominator, so a mode whose length is zero is
+ * left out rather than offered and silently ignored: a button that rendered
+ * meters under a `%` axis label would be an inert control.
+ */
+export function cpModesFor(bodyLen: number, aeroLen: number): CpMode[] {
+  const modes: CpMode[] = ['len'];
+  if (bodyLen > 0) modes.push('body');
+  if (aeroLen > 0) modes.push('aero');
+  return modes;
+}
+
+/**
+ * The divisor for a mode, or 0 when the axis should stay in length units.
+ *
+ * 0 for `len`, and also for a percentage mode whose length is not positive, so
+ * a selection the current design cannot express falls back to the length axis
+ * rather than dividing by zero.
+ */
+export function cpDivisor(mode: CpMode, bodyLen: number, aeroLen: number): number {
+  const d = mode === 'body' ? bodyLen : mode === 'aero' ? aeroLen : 0;
+  return d > 0 ? d : 0;
+}

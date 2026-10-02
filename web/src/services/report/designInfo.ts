@@ -55,7 +55,11 @@ function statsFor(info: StaticInfo, cd: number | undefined): DesignStat[] {
   if (hasAero && Number.isFinite(info.cp) && info.cp > 0) {
     push('CP', info.cp, M);
     push('Stability (on pad)', info.stabilityCalibers, CAL);
-    if (info.length > 0) push('Stability (%)', ((info.cp - info.cg) / info.length) * 100, PCT);
+    // The engine's own figure, not ours: see StaticInfo.stabilityPercent. The
+    // margin is over the AERODYNAMIC length, which this module does not have;
+    // dividing by `length` reads a percentage the desktop does not show, and
+    // this one is written into a saved .ork, so it outlives the session.
+    push('Stability (%)', info.stabilityPercent, PCT);
   }
   if (cd !== undefined) push(`Drag Coeff. (Ma ${CD_MACH})`, cd, NONE);
   if (hasAero) push('Normal-Force Slope (CNα)', info.cna, PER_RAD);

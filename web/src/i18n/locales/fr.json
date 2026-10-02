@@ -908,6 +908,7 @@
     "pressure": "Pression",
     "base": "Culot",
     "pctBody": "% corps",
+    "pctLength": "% longueur",
     "supersonicNote": "Barrowman étendu – approximatif au-delà d'environ Mach 1,5.",
     "unavailable": "Construisez une fusée valide pour voir sa traînée.",
     "crosshairHint": "Courbes de traînée. Placez le focus et utilisez les flèches pour déplacer le réticule ; Maj pour un pas plus grand, Origine et Fin pour les extrémités, Échap pour effacer.",

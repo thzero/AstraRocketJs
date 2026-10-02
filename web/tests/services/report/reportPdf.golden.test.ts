@@ -63,6 +63,10 @@ const node = (o: object) => o as unknown as ComponentNode;
 
 const info = (scale: number) => ({
   length: 1.2 * scale,
+  // Shorter than `length`, as it is on any design with a non-aerodynamic part
+  // outside the aerodynamic envelope, so the golden distinguishes the engine's
+  // stabilityPercent (13.6) from the wrong (cp - cg) / length (12.5).
+  lengthAerodynamic: 1.1 * scale,
   mass: 1.5 * scale,
   massEmpty: 1.1 * scale,
   cgEmpty: 0.6 * scale,
@@ -70,6 +74,7 @@ const info = (scale: number) => ({
   cp: 0.85 * scale,
   cna: 12.3,
   stabilityCalibers: 1.97,
+  stabilityPercent: 13.6,
   refDiameter: 0.076,
   rollInertia: 0.001,
   pitchInertia: 0.2,

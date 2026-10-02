@@ -8,7 +8,8 @@ import { aeroTableCsv, CSV_MIME } from '../../services/exports/csvExport';
 import { exportFilename } from '../../services/files/saveFile';
 import { download } from '../../services/files/saveFile';
 import type { ComponentMass } from '../../engine/openRocketEngine';
-import type { ChartSeries } from './aeroTables';
+import type { ChartSeries, CpMode } from './aeroTables';
+import { cpDivisor, cpModesFor } from './aeroTables';
 import { useAeroSweep } from './useAeroSweep';
 import { ChartCard } from './AeroCharts';
 import { ComponentTable, RollTable, StabilityTable } from './AeroComponentTables';
@@ -23,8 +24,8 @@ export { buildLinePath, heat, hsv, niceName } from './aeroTables';
  * off the static design, no flight needed — it is all one `aeroSweep`.
  *
  * **Charts**: Cd vs Mach (power-off, + power-on when a nozzle exit is set), the
- * drag breakdown into friction/pressure/base, and CP vs Mach (cm or % body
- * length). A shared hover crosshair and legend readout tie all three to one Mach.
+ * drag breakdown into friction/pressure/base, and CP vs Mach (length unit, %
+ * of the airframe, or % of the aerodynamic length). A shared hover crosshair and legend readout tie all three to one Mach.
  *
  * **Per component**: that same Mach, tabulated per part — drag, stability
  * contribution (CN-alpha, CP, mass) and roll dynamics — the three tabs of the
@@ -65,7 +66,14 @@ export function AeroAnalysis() {
   // and sweeping to M3 spent two thirds of the x axis on speeds the rocket will
   // not see, squeezing the subsonic rise nobody could then read.
   const [machMax, setMachMax] = useState(1);
-  const [cpPct, setCpPct] = useState(false);
+  // How the CP axis reads: the user's length unit, a percentage of the WHOLE
+  // airframe, or a percentage of the AERODYNAMIC length. The last is the
+  // denominator OpenRocket's own PercentageOfLengthUnit uses
+  // (`getLengthAerodynamic`), so it is the one that matches the desktop; the
+  // middle one answers "where on the rocket in front of me", which is a
+  // different and equally wanted question. Both are offered rather than one
+  // being chosen for the user.
+  const [cpModeSel, setCpMode] = useState<CpMode>('len');
   const [hoverM, setHoverM] = useState<number | null>(null);
   const [pane, setPane] = useState<'charts' | 'components'>('charts');
   // The Mach the tables report at. Hovering a chart parks it there too, so
@@ -124,6 +132,16 @@ export function AeroAnalysis() {
   // whole sweep.
   const lengthFactor = u.factor('length');
   const bodyLen = info?.length ?? 0;
+  // The engine's own aerodynamic span, not a length this module derives: it
+  // bounds only the components with an aerodynamic effect, so it is shorter
+  // than `length` on any design with an overhanging rail button or shock cord.
+  const aeroLen = info?.lengthAerodynamic ?? 0;
+  const cpModes = useMemo(() => cpModesFor(bodyLen, aeroLen), [bodyLen, aeroLen]);
+  // A selection the current design cannot express falls back rather than
+  // sticking: switching to a design with no aerodynamic length must not leave
+  // the axis claiming a percentage it is no longer drawing.
+  const cpMode = cpModes.includes(cpModeSel) ? cpModeSel : 'len';
+  const cpDiv = cpDivisor(cpMode, bodyLen, aeroLen);
   const { cdSeries, breakdown, cpSeries } = useMemo((): {
     cdSeries: Series[];
     breakdown: Series[];
@@ -142,18 +160,17 @@ export function AeroAnalysis() {
         { name: t('aero.pressure'), color: CAT[1]!, values: sweep.powerOff.pressure },
         { name: t('aero.base'), color: CAT[2]!, values: sweep.powerOff.base },
       ],
-      // As a percentage of body length CP has no unit; as a position it takes
-      // the user's length unit (a whole series is being scaled).
+      // As a percentage CP has no unit; as a position it takes the user's
+      // length unit (a whole series is being scaled).
       cpSeries: [
         {
           name: t('flight.cp'),
           color: POWER_OFF,
-          values:
-            cpPct && bodyLen > 0 ? sweep.cp.map((v) => (v / bodyLen) * 100) : sweep.cp.map((v) => v * lengthFactor),
+          values: cpDiv > 0 ? sweep.cp.map((v) => (v / cpDiv) * 100) : sweep.cp.map((v) => v * lengthFactor),
         },
       ],
     };
-  }, [sweep, cpPct, bodyLen, lengthFactor, t]);
+  }, [sweep, cpDiv, lengthFactor, t]);
 
   if (!sweep)
     return (
@@ -296,18 +313,18 @@ export function AeroAnalysis() {
               machMin={machMin}
               machMax={machMax}
               series={cpSeries}
-              unit={cpPct ? '%' : u.sym('length')}
+              unit={cpMode === 'len' ? u.sym('length') : '%'}
               digits={1}
               hoverM={hoverM}
               setHoverM={setHover}
               note={t('aero.supersonicNote')}
               right={
                 <Seg
-                  options={[false, true] as const}
-                  value={cpPct}
-                  onChange={setCpPct}
-                  fmt={(v) => (v ? t('aero.pctBody') : u.sym('length'))}
-                  disabled={bodyLen <= 0}
+                  options={cpModes}
+                  value={cpMode}
+                  onChange={setCpMode}
+                  fmt={(v) => (v === 'len' ? u.sym('length') : v === 'body' ? t('aero.pctBody') : t('aero.pctLength'))}
+                  disabled={cpModes.length < 2}
                 />
               }
             />
@@ -325,6 +342,8 @@ export function AeroAnalysis() {
               lengthFactor={u.factor('length')}
               massUnit={u.sym('mass')}
               massFactor={u.factor('mass')}
+              bodyLen={bodyLen}
+              aeroLen={aeroLen}
             />
             <RollTable sweep={sweep} machs={machs} mach={tableMach} />
           </>

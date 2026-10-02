@@ -11,7 +11,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Acceleration** — How quickly velocity is changing. *In the app:* the **Max accel** tile, the acceleration plot, and the `Az`, `Al`, `Ax`, `Ay`, `Abx`, `Aby` columns of a flight-data export. An onboard accelerometer reads about 1 G on the pad where this reads zero, because this is acceleration relative to the ground with gravity already accounted for.
 
-**Aerodynamic length** — The nose-to-tail span of the rocket's *external* parts. *In the app:* it is the denominator behind stability shown as a percentage of length. It differs from the **Length** tile whenever an internal part, such as a motor tube, reaches past the airframe.
+**Aerodynamic length** — The nose-to-tail span of the rocket's *external* parts. *In the app:* it is the denominator behind stability shown as a percentage of length, and behind the **% length** reading of CP vs Mach and the **CP (% length)** column of the stability table. It differs from the **Length** tile whenever an internal part, such as a motor tube, reaches past the airframe.
 
 **Aft / fore** — Toward the tail / toward the nose, whichever way the rocket points. *In the app:* field labels such as **Fore radius**, **Aft shoulder** and **Motor overhang**. Moving the CP aft raises the stability margin; moving the CG aft lowers it.
 
@@ -73,7 +73,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Center of gravity (CG)** — Where the rocket balances. *In the app:* the CG marker on the views, the CG tile, and the `cgLocation` series. It moves forward as propellant burns.
 
-**Center of pressure (CP)** — Where the aerodynamic forces act. *In the app:* the CP marker, the CP tile, and the `cpLocation` series. It moves with angle of attack and Mach number.
+**Center of pressure (CP)** — Where the aerodynamic forces act. *In the app:* the CP marker, the CP tile, and the `cpLocation` series. It moves with angle of attack and Mach number. On the Aero view it can be read as a length or as a percentage of either the overall or the **Aerodynamic length**.
 
 **Chord / root chord / tip chord** — A fin's width along the airflow / at the body / at its tip. *In the app:* fields on a trapezoidal fin set.
 

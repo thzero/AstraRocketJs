@@ -56,9 +56,18 @@ Ordered by plausibility: how much stands between the entry and a working change,
 
   So: only if OpenRocket carries a motor mass AND CG override of its own. Then it is a per-mount field, the value passed through, and the usual ten translations.
 
+- **Batch simulate - fly a set of motors against one design.** "Which of these do I fly today" is a question a single Launch cannot answer: you would build a flight configuration per candidate by hand, run them, and compare the rows yourself. The feature is a mount, a set of candidate motors, one run, and a table sorted by whatever you care about - apogee, rail-exit speed, max velocity, time to apogee, descent rate. mmrocket-sim ships this; it is the one thing of theirs that looks worth having.
+
+  **Most of the machine is already here, in the wind sweep.** `store.runDriftSweep` is a many-flights-one-question runner already: it fans out over `simClient.simulateInWorker` across `simConcurrency()` workers, holds an `AbortController` so a new ask supersedes the one in flight, reports `{ done, total }` progress rather than per-flight noise, and refuses up front with the SAME `designBlocker` / `unflyable` checks the Run button uses, so a batch cannot fly what a single run would not. Per-row preferences resolve the same way (`{ ...prefs, ...sim.prefs }`) and `freshSeed()` fills a missing seed. On the output side `flightColumns.ts` and `csvExport.ts` already hold the column vocabulary a run table downloads with, so the table has a format before it has a screen.
+
+  **What is NOT like theirs, and is the thing to settle: our motors live in flight configurations.** Theirs sit on the design, so sweeping a mount is swapping a field. Here every candidate motor IS a configuration, which forces a choice: a batch either CREATES configurations - persisted, named, and leaving thirty rows in the Simulations table that nobody asked to keep - or it flies throwaway ones that never reach the store. The second, for the reason `driftSweep` already gives in its own comment: a few dozen flights answering a question about the row you are reading right now should not become a few dozen things to tidy up afterwards. So the result is a transient table beside the sweep, not new rows, and it is dropped with the workspace exactly as a sweep is.
+
+  **Scope to state up front, because theirs is wider.** One mount per batch, with every other mount held at the active configuration's motors. No mixed-cluster combinations: our cluster is one motor choice for the whole ring (`cluster` on the inner tube), not a per-tube pick, so the combinatorics theirs has do not exist here. Candidates filtered by that mount's own bore and length through `motorPicker.motorFitsMount` and `mountFit`, which is now the single place that judges whether a motor goes in a tube.
+
+  Three things to decide before starting: where it lives (a row in the Motors panel, or its own pane beside Results); whether the table downloads as the run table does, which `csvExport.ts` makes nearly free; and whether a row can be PROMOTED into a real simulation once you pick a winner, which is the one thing that would justify writing configurations after all, for one row rather than thirty.
+
 ### Not worked up yet
 
-bulk simulation
 save to rasaero
 remove rasaero (its all wip and questionable value at this point)
 

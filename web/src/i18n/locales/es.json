@@ -908,6 +908,7 @@
     "pressure": "Presión",
     "base": "Base",
     "pctBody": "% cuerpo",
+    "pctLength": "% longitud",
     "supersonicNote": "Barrowman extendido — aproximado por encima de ~Mach 1.5.",
     "unavailable": "Construye un cohete válido para ver su resistencia.",
     "crosshairHint": "Curvas de resistencia. Enfoca y usa las flechas para mover la cruz; Mayús para un paso mayor, Inicio y Fin para los extremos, Escape para quitarla.",

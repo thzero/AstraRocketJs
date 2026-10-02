@@ -238,6 +238,8 @@ export function StabilityTable({
   lengthFactor,
   massUnit,
   massFactor,
+  bodyLen,
+  aeroLen,
 }: {
   sweep: AeroSweep;
   machs: number[];
@@ -247,6 +249,14 @@ export function StabilityTable({
   lengthFactor: number;
   massUnit: string;
   massFactor: number;
+  /** The overall airframe length (m): the denominator behind `CP (% body)`,
+   *  which is "how far along the rocket in front of me". 0 drops that column
+   *  rather than filling it with dashes. */
+  bodyLen: number;
+  /** The engine's aerodynamic length (m), the denominator OpenRocket's own
+   *  `PercentageOfLengthUnit` uses, and so the one behind `CP (% length)`. 0 drops
+   *  that column rather than filling it with dashes. */
+  aeroLen: number;
 }) {
   const { t } = useTranslation();
   const heatStyle = useSettings().settings.aeroHeat;
@@ -274,6 +284,17 @@ export function StabilityTable({
   const cell = 'px-2 py-1 text-right tabular-nums';
   const head = 'px-2 py-1 text-right font-medium';
   const pct = (v: number) => (totalCna ? `${((v / totalCna) * 100).toFixed(0)}%` : '—');
+  // CP as a percentage, over either length, the same two the CP vs Mach chart
+  // offers. `% body` is the whole airframe ("how far along the rocket in front
+  // of me"); `% length` is the AERODYNAMIC length, which is what the desktop's
+  // PercentageOfLengthUnit divides by. They differ on any design with a
+  // non-aerodynamic part outside the aerodynamic envelope. Both are distinct
+  // again from the `%` column on the far right, which is this component's share
+  // of total CNa, so each header names what it divides by.
+  const hasBodyLen = bodyLen > 0;
+  const hasAeroLen = aeroLen > 0;
+  const cpPctBody = (si: number) => fmtNum((si / bodyLen) * 100, 1);
+  const cpPctAero = (si: number) => fmtNum((si / aeroLen) * 100, 1);
 
   return (
     <div className="rounded-lg bg-slate-950/40 p-2 ring-1 ring-white/10">
@@ -287,6 +308,8 @@ export function StabilityTable({
               {hasMass && <th className={head}>{t('aero.totalMass', { unit: massUnit })}</th>}
               {hasMass && <th className={head}>{t('aero.cg', { unit: lengthUnit })}</th>}
               <th className={head}>CP ({lengthUnit})</th>
+              {hasBodyLen && <th className={head}>CP (% body)</th>}
+              {hasAeroLen && <th className={head}>CP (% length)</th>}
               <th className={head}>CNα</th>
               <th className={head}>%</th>
             </tr>
@@ -298,6 +321,8 @@ export function StabilityTable({
               {hasMass && <td className={cell}>&mdash;</td>}
               {hasMass && <td className={cell}>&mdash;</td>}
               <td className={cell}>{fmtNum((sweep.cp[i] ?? 0) * lengthFactor, 1)}</td>
+              {hasBodyLen && <td className={cell}>{cpPctBody(sweep.cp[i] ?? 0)}</td>}
+              {hasAeroLen && <td className={cell}>{cpPctAero(sweep.cp[i] ?? 0)}</td>}
               <td className={cell} style={cnaShaded ? heat(totalCna, totalCna, 'sky') : undefined}>
                 {fmtNum(totalCna, 2)}
               </td>
@@ -310,6 +335,8 @@ export function StabilityTable({
                 {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.mass * massFactor, 1) : '—'}</td>}
                 {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.cg * lengthFactor, 1) : '—'}</td>}
                 <td className={cell}>{fmtNum(r.cp * lengthFactor, 1)}</td>
+                {hasBodyLen && <td className={cell}>{cpPctBody(r.cp)}</td>}
+                {hasAeroLen && <td className={cell}>{cpPctAero(r.cp)}</td>}
                 <td className={cell} style={cnaShaded ? heat(r.cna, totalCna, 'sky') : undefined}>
                   {fmtNum(r.cna, 2)}
                 </td>

@@ -904,6 +904,7 @@
     "pressure": "Druk",
     "base": "Basis",
     "pctBody": "% romp",
+    "pctLength": "% lengte",
     "supersonicNote": "Uitgebreide Barrowman: een benadering boven ongeveer mach 1,5.",
     "unavailable": "Bouw een geldige raket om de weerstand ervan te zien.",
     "crosshairHint": "Weerstandscurven. Focus en gebruik de pijltjestoetsen om het kruispunt te verplaatsen; Shift voor een grotere stap, Home en End voor de uiteinden, Esc om te wissen.",

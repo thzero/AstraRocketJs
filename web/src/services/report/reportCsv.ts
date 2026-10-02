@@ -34,7 +34,10 @@ const cell = (s: string): string => {
 
 /** [field, value, unit] rows for one summary, in the user's units. */
 function summaryRows(info: StaticInfo, units: UnitSelection): [string, string, string][] {
-  const pct = info.length > 0 ? ((info.cp - info.cg) / info.length) * 100 : 0;
+  // The engine's own figure, not ours: see StaticInfo.stabilityPercent. The
+  // margin is over the AERODYNAMIC length, which this module does not have;
+  // dividing by `length` reads a percentage the desktop does not show.
+  const pct = info.stabilityPercent;
   // `fmtSi`, not the locale-aware formatter: this is a data file, and its
   // decimal separator must not move with the UI language.
   const len = (si: number) => fmtSi('length', units.length, si, 3);

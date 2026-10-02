@@ -73,7 +73,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Centro de gravedad (CG)** — Donde el cohete se equilibra. *En la aplicación:* el marcador de CG en las vistas, el recuadro de CG y la serie `cgLocation`. Se mueve hacia delante a medida que se quema el propelente.
 
-**Centro de presión (CP)** — Donde actúan las fuerzas aerodinámicas. *En la aplicación:* el marcador de CP, el recuadro de CP y la serie `cpLocation`. Se mueve con el ángulo de ataque y el número de Mach.
+**Centro de presión (CP)** — Donde actúan las fuerzas aerodinámicas. *En la aplicación:* el marcador de CP, el recuadro de CP y la serie `cpLocation`. Se mueve con el ángulo de ataque y el número de Mach. En la vista Aero puede leerse como longitud o como porcentaje de la longitud total o de la **Longitud aerodinámica**.
 
 **Cinta** — Una cinta usada en lugar de un paracaídas para un descenso rápido y a la deriva en cohetes pequeños. *En la aplicación:* **Cinta**, dimensionada por longitud y ancho de tira.
 
@@ -207,7 +207,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Longitud** — La envergadura de morro a cola de todas las piezas activas, incluidas las internas. Compárese con **Longitud aerodinámica**.
 
-**Longitud aerodinámica** — La envergadura de morro a cola de las piezas *externas* del cohete. *En la aplicación:* es el denominador de la estabilidad expresada como porcentaje de la longitud. Difiere del recuadro **Longitud** siempre que una pieza interna, como un tubo motor, sobresale del fuselaje.
+**Longitud aerodinámica** — La envergadura de morro a cola de las piezas *externas* del cohete. *En la aplicación:* es el denominador de la estabilidad expresada como porcentaje de la longitud, y de la lectura **% longitud** de CP frente a Mach y de la columna **CP (% length)** de la tabla de estabilidad. Difiere del recuadro **Longitud** siempre que una pieza interna, como un tubo motor, sobresale del fuselaje.
 
 ## M
 
