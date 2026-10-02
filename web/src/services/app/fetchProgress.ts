@@ -43,7 +43,16 @@ export async function readStreamWithProgress(
     if (!value) continue;
     chunks.push(value);
     loaded += value.byteLength;
-    if (loaded > maxBytes) throw new Error('response too large');
+    if (loaded > maxBytes) {
+      // Cancel, do not merely abandon. Dropping the reader leaves the transfer
+      // in flight, so the cap would bound the buffer we KEEP and not the bytes
+      // the network moves -- and the caller goes on to try its fallback base
+      // while the refused response is still downloading. `cancel` can itself
+      // reject (a stream already errored by the network), and that must not
+      // mask the reason we are here.
+      await reader.cancel().catch(() => {});
+      throw new Error('response too large');
+    }
     onProgress({ loaded, total });
   }
   const buf = new Uint8Array(loaded);

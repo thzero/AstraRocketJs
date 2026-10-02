@@ -20,6 +20,10 @@ export interface OrkImportContext {
   motors: Record<string, OrkMotorRef>;
   /** The first motor found (legacy callers). */
   motor: OrkMotorRef | undefined;
+  /** Components read so far, against MAX_COMPONENTS. Mutable on purpose:
+   *  the readers recurse, so the ceiling has to be one running total
+   *  rather than a per-level one. */
+  nodeCount: number;
 }
 
 /**

@@ -40,6 +40,22 @@ const TYPES: Record<string, NonNullable<CustomMotor['type']>> = {
   reloadable: 'reload',
 };
 
+/**
+ * Ceilings an untrusted `.rse` is held to.
+ *
+ * This parser is reached with NO file picker: `loadOrk` runs it over every
+ * `.rse` member an imported `.ork` carried, and that member may be up to the
+ * archive's 64 MiB per-entry ceiling. The `.ork` reader caps fin points and
+ * shroud lines for exactly this reason; the embedded-motor path capped nothing,
+ * so a member with a million `<engine>` elements froze the tab while merely
+ * OPENING a shared design.
+ *
+ * A manufacturer's whole range is a few hundred motors, and the longest real
+ * curve is a few thousand samples.
+ */
+export const MAX_RSE_ENGINES = 2000;
+export const MAX_RSE_SAMPLES = 20_000;
+
 /** One `<eng-data>` row, before the quirk fixing below. */
 interface Point {
   time: number;
@@ -153,7 +169,11 @@ function parseEngine(el: Element): CustomMotor {
     throw new Error(`.rse motor ${designation} lists more propellant than total mass.`);
   }
 
-  const rows: Point[] = [...el.querySelectorAll('data > eng-data')].map((d) => ({
+  const sampleEls = el.querySelectorAll('data > eng-data');
+  if (sampleEls.length > MAX_RSE_SAMPLES) {
+    throw new Error(`.rse motor ${designation} has more than ${MAX_RSE_SAMPLES} data points.`);
+  }
+  const rows: Point[] = [...sampleEls].map((d) => ({
     time: optNum(d, 't'),
     thrust: optNum(d, 'f'),
     mass: optNum(d, 'm'),
@@ -222,7 +242,12 @@ export function parseRse(text: string): CustomMotor[] {
   if (doc.querySelector('parsererror')) {
     throw new Error('Not a valid .rse file (XML parse error).');
   }
-  const engines = [...doc.querySelectorAll('engine')];
-  if (engines.length === 0) throw new Error('Not a valid .rse file (no <engine> found).');
-  return engines.map(parseEngine);
+  const engineEls = doc.querySelectorAll('engine');
+  if (engineEls.length === 0) throw new Error('Not a valid .rse file (no <engine> found).');
+  // Counted BEFORE the spread, so a crafted member does not materialize a
+  // million-element array on the way to being refused.
+  if (engineEls.length > MAX_RSE_ENGINES) {
+    throw new Error(`This .rse declares more than ${MAX_RSE_ENGINES} motors (possibly malformed).`);
+  }
+  return [...engineEls].map(parseEngine);
 }

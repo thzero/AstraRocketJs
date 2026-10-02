@@ -83,6 +83,23 @@ describe('the hostile-input caps actually fire', () => {
     expect(() => importOrk(ork(xml))).toThrow(/nest|deep/i);
   });
 
+  /**
+   * The element-COUNT vector, which the byte caps do not bound. A
+   * `<bodytube/>` is ~13 bytes, so the 64 MiB per-entry ceiling admits
+   * millions of them from a small zip, and every one is then re-scanned per
+   * declared configuration. Flat and wide, so the nesting cap never sees it.
+   */
+  it('refuses more components than MAX_COMPONENTS with a clear error', () => {
+    const many = '<bodytube><name>b</name><length>0.1</length><radius>0.01</radius></bodytube>'.repeat(10_050);
+    expect(() => importOrk(ork(wrap(many)))).toThrow(/too many components/i);
+  });
+
+  it('still accepts a component count a real design could plausibly use', () => {
+    const many = '<bodytube><name>b</name><length>0.1</length><radius>0.01</radius></bodytube>'.repeat(200);
+    const res = importOrk(ork(wrap(many)));
+    expect(res.tree.components[0]?.children?.length).toBe(200);
+  });
+
   it('still accepts nesting a real design could plausibly use', () => {
     const depth = 8;
     const open = '<subcomponents><bodytube><name>b</name><length>0.1</length><radius>0.01</radius>'.repeat(depth);

@@ -58,6 +58,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
     ignored: new Set<string>(),
     motors: {},
     motor: undefined,
+    nodeCount: 0,
   };
 
   // A file spells an automatic diameter as `auto`, which the readers turn into

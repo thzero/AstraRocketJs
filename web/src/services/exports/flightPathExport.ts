@@ -1463,8 +1463,26 @@ function escaperFor(extension: string): (raw: string) => string {
       // this same escaper, and quoting `-80.600000` turned every
       // western-hemisphere longitude and every below-pad altitude into text.
       return (raw) => (/^[=+@\t\r]|^-(?![\d.])/.test(raw) ? `'${raw}` : raw).replace(/"/g, '""');
+    case 'json':
+      // JSON's own string escaping, via the one function guaranteed to agree
+      // with every parser. `JSON.stringify` quotes what it returns, so the
+      // quotes are sliced off: the template supplies them, exactly as it does
+      // for the csv and xml cases.
+      return (raw) => JSON.stringify(raw).slice(1, -1);
     default:
-      return (raw) => raw;
+      // A template is named by the user, and `parseTemplateFilename` defaults a
+      // bare name to `txt`, so this branch renders real values into a format
+      // whose quoting rules nothing here knows. It cannot invent them, but it
+      // can refuse to emit the characters that corrupt a text file whatever the
+      // format: C0 controls and DEL, which is what a crafted component name
+      // would use to forge a record boundary. Printable punctuation is left
+      // alone, because in an unknown format it is as likely to be content.
+      // Matched per character and compared by code point rather than with a
+      // control-character class, which `no-control-regex` rejects for the
+      // ordinary reason that a literal control in a pattern is usually a
+      // mistake. Here they are the entire point, so the test moves out of the
+      // pattern instead of the rule being switched off.
+      return (raw) => raw.replace(/./gsu, (ch) => (ch < ' ' || ch === '' ? ' ' : ch));
   }
 }
 

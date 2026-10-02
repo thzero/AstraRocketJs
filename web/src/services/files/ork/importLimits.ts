@@ -26,4 +26,12 @@ export const MAX_MOTOR_CONFIGS = 256;
 export const MAX_FIN_COUNT = MAX_INSTANCE_COUNT;
 export const MAX_ASSEMBLY_INSTANCES = 1000;
 export const MAX_FIN_POINTS = 10_000;
+// Total components in one file. The byte caps above do NOT bound this: a
+// `<bodytube/>` is ~13 bytes, so the 64 MiB per-entry ceiling admits millions
+// of them from a small zip, and `convertChildren` walked every one. Each is
+// then re-scanned once per declared configuration (see MAX_MOTOR_CONFIGS), so
+// the import is O(components x configs) of synchronous DOM work on the main
+// thread -- a hung tab rather than the clear error these limits promise.
+// The largest real designs are a few hundred parts.
+export const MAX_COMPONENTS = 10_000;
 export const MAX_LINE_COUNT = 100;

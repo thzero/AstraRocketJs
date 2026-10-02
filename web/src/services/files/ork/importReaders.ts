@@ -4,7 +4,13 @@ import { shapeParamDefault } from '../../../tree/shapeProfile';
 import { xmlText as text } from '../xmlUtil';
 import { COMPONENT_DEFAULTS } from '../../design/componentDefaults';
 import { clampCount, finiteNum } from './numbers';
-import { MAX_ASSEMBLY_INSTANCES, MAX_FIN_POINTS, MAX_LINE_COUNT, MAX_NESTING_DEPTH } from './importLimits';
+import {
+  MAX_ASSEMBLY_INSTANCES,
+  MAX_COMPONENTS,
+  MAX_FIN_POINTS,
+  MAX_LINE_COUNT,
+  MAX_NESTING_DEPTH,
+} from './importLimits';
 import {
   autoRadiusTag,
   finCountTag,
@@ -485,6 +491,11 @@ function convertChildren(ctx: OrkImportContext, parentEl: Element, depth = 0): C
       ctx.ignored.add(el.tagName);
       continue;
     }
+    // Counted here rather than in each reader: this is the one place every
+    // child component enters the tree, whatever its type.
+    if (++ctx.nodeCount > MAX_COMPONENTS) {
+      throw new Error('This .ork declares too many components to open (possibly malformed).');
+    }
     const node = read(ctx, el);
     const kids = convertChildren(ctx, el, depth + 1);
     if (kids.length > 0) node.children = kids;
@@ -499,6 +510,9 @@ function convertChildren(ctx: OrkImportContext, parentEl: Element, depth = 0): C
  */
 export function readStages(ctx: OrkImportContext, stages: Element[]): ComponentNode[] {
   return stages.map((stageEl, i) => {
+    if (++ctx.nodeCount > MAX_COMPONENTS) {
+      throw new Error('This .ork declares too many components to open (possibly malformed).');
+    }
     const stage: ComponentNode = {
       type: 'stage',
       id: freshId(),
