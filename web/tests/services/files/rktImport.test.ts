@@ -320,3 +320,23 @@ describe('importRkt, multi-stage', () => {
     expect(byName(r.tree.components[1]!.children, 'Booster tube')).toBeTruthy();
   });
 });
+
+describe('importRkt, hostile input', () => {
+  const rkt = (parts: string): string =>
+    `<RockSimDocument><DesignInformation><RocketDesign><Name>Many</Name><StageCount>1</StageCount>` +
+    `<Stage3Parts>${parts}</Stage3Parts></RocketDesign></DesignInformation></RockSimDocument>`;
+  const tube = '<BodyTube><Name>b</Name><Len>100</Len><OD>20</OD><ID>19</ID></BodyTube>';
+
+  /**
+   * The element-COUNT vector, which the byte caps do not bound. Flat and wide,
+   * so the nesting cap never sees it.
+   */
+  it('refuses more components than MAX_COMPONENTS with a clear error', () => {
+    expect(() => importRkt(rkt(tube.repeat(10_050)))).toThrow(/too many components/i);
+  });
+
+  it('still accepts a component count a real design could plausibly use', () => {
+    const res = importRkt(rkt(tube.repeat(200)));
+    expect(res.tree.components[0]?.children?.length).toBe(200);
+  });
+});

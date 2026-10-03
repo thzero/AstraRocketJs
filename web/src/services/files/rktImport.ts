@@ -4,7 +4,7 @@ import { freshId } from '../design/orkTree';
 import { xmlText as text } from './xmlUtil';
 import { parseOrkXml } from './ork/importUnpack';
 import { clampCount, finiteNum } from './ork/numbers';
-import { MAX_FIN_POINTS, MAX_LINE_COUNT, MAX_NESTING_DEPTH } from './ork/importLimits';
+import { MAX_COMPONENTS, MAX_FIN_POINTS, MAX_LINE_COUNT, MAX_NESTING_DEPTH } from './ork/importLimits';
 import type { OrkImportResult } from './orkTypes';
 
 /**
@@ -67,6 +67,10 @@ interface RktContext {
   ignored: Set<string>;
   /** Tags we understand but deliberately do not carry, named once each. */
   dropped: Set<string>;
+  /** Components read so far, against MAX_COMPONENTS. Mutable on purpose:
+   *  the readers recurse, so the ceiling has to be one running total
+   *  rather than a per-level one. */
+  nodeCount: number;
 }
 
 // ---------------------------------------------------------------- readers ---
@@ -830,6 +834,11 @@ function readParts(ctx: RktContext, container: Element, depth = 0, parent?: Comp
       if (el.children.length > 0 || KNOWN_UNSUPPORTED.has(el.tagName)) ctx.ignored.add(el.tagName);
       continue;
     }
+    // Counted here rather than in each reader: this is the one place every
+    // part enters the tree, whatever its type.
+    if (++ctx.nodeCount > MAX_COMPONENTS) {
+      throw new Error('This .rkt declares too many components to open (possibly malformed).');
+    }
     const node = read(ctx, el, parent);
     if (parent !== undefined && FREEFORM_ONLY_PARENTS.has(parent.type)) {
       if (node.type === 'trapezoidfinset') {
@@ -885,7 +894,7 @@ export function importRkt(data: ArrayBuffer | string): OrkImportResult {
   if (!design) throw new Error('Not a .rkt file (missing <RocketDesign>)');
 
   const name = tag(design, 'Name') ?? 'Imported rocket';
-  const ctx: RktContext = { notes: [], ignored: new Set(), dropped: new Set() };
+  const ctx: RktContext = { notes: [], ignored: new Set(), dropped: new Set(), nodeCount: 0 };
 
   // `StageCount` decides how many of the three blocks are real: RockSim leaves
   // the unused ones in the file, empty, and reading them anyway would add empty
@@ -899,6 +908,9 @@ export function importRkt(data: ArrayBuffer | string): OrkImportResult {
   const components: ComponentNode[] = [];
   present.forEach((elName, i) => {
     const stageEl = design.querySelector(`:scope > ${elName}`);
+    if (++ctx.nodeCount > MAX_COMPONENTS) {
+      throw new Error('This .rkt declares too many components to open (possibly malformed).');
+    }
     const stage: ComponentNode = {
       type: 'stage',
       id: freshId(),
