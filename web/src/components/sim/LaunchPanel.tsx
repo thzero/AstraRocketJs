@@ -10,7 +10,7 @@ import { unitScope } from '../../prefs/units';
 import { onSi } from '../../prefs/entryValue';
 import { fmtUpTo, ladderDigits, withUnit } from '../../i18n/format';
 import { LAUNCH_SI, type LaunchUnitKind } from '../../prefs/launchUnits';
-import { MAX_ROD_ANGLE_RAD, MAX_WIND_SPEED_MS } from '../../services/flight/safetyLimits';
+import { MAX_ROD_ANGLE_RAD, MAX_TURBULENCE_PERCENT, MAX_WIND_SPEED_MS } from '../../services/flight/safetyLimits';
 import { G0 } from '../../services/motors/motorMath';
 import {
   hasIntensity,
@@ -21,6 +21,7 @@ import {
 import { WindProfileDialog } from './WindProfileDialog';
 import { LocationPicker } from './LocationPicker';
 import { SiteMapDialog } from './SiteMapDialog';
+import { useLatest } from '../common/useLatest';
 
 /**
  * Launch & atmosphere conditions for the flight simulation: wind (single average
@@ -238,6 +239,8 @@ export function LaunchPanel({
   // button appears to do nothing.
   const [locating, setLocating] = useState(false);
   const [locateErr, setLocateErr] = useState<string | null>(null);
+  // Which "use my location" attempt is current: the prompt outlives the panel.
+  const locate = useLatest();
   const [mapOpen, setMapOpen] = useState(false);
   const mixed = (k: keyof LaunchConditions) => diff?.has(k) ?? false;
   // Empty required fields on the simulation being shown. The SETTINGS copy of
@@ -396,8 +399,14 @@ export function LaunchPanel({
             onClick={() => {
               setLocateErr(null);
               setLocating(true);
+              // The browser's permission prompt can sit unanswered for minutes,
+              // and `onChange` writes to whatever rows are the CURRENT edit
+              // targets. Without this, allowing the prompt after switching
+              // simulations put the launch site on the wrong one.
+              const mine = locate.claim();
               navigator.geolocation.getCurrentPosition(
                 (pos) => {
+                  if (!mine()) return;
                   setLocating(false);
                   setLocateErr(null);
                   onChange({
@@ -407,6 +416,7 @@ export function LaunchPanel({
                   onCommit?.();
                 },
                 () => {
+                  if (!mine()) return;
                   // Denial is silent, and there is a 10 s timeout behind it,
                   // so the pending state has to be cleared on both paths or the
                   // button never settles.
@@ -559,6 +569,7 @@ export function LaunchPanel({
               u={u}
               stepSi={0.5}
               minSi={0}
+              maxSi={MAX_WIND_SPEED_MS}
               mixed={mixed('windStdDev')}
               {...req('windStdDev')}
               value={launch.windStdDev}
@@ -574,6 +585,7 @@ export function LaunchPanel({
               unit="%"
               step={1}
               min={0}
+              max={MAX_TURBULENCE_PERCENT}
               mixed={mixed('windStdDev')}
               value={Math.round(intensity * 100)}
               onChange={(v) => onChange({ windStdDev: stdDevForIntensity(windAvg, (v ?? 0) / 100) })}

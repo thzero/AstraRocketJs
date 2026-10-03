@@ -43,6 +43,7 @@ export const COMPONENT_DEFAULTS = {
     thickness: KERNEL_DEFAULTS.innertube.thickness,
   },
   tubecoupler: {
+    length: KERNEL_DEFAULTS.tubecoupler.length,
     thickness: KERNEL_DEFAULTS.tubecoupler.thickness,
   },
   engineblock: {

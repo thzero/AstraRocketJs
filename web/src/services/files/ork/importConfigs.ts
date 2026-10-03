@@ -1,8 +1,9 @@
 import { PLUGGED_DELAY, type ComponentNode } from '../../../engine/openRocketEngine';
 import { xmlText as text } from '../xmlUtil';
 import type { OrkMotorRef, OrkFlightConfig, OrkDeployOverride, OrkSepOverride } from '../orkTypes';
-import { numTag } from './importTags';
+import { nonNegTag, numTag } from './importTags';
 import { MAX_MOTOR_CONFIGS } from './importLimits';
+import { finiteNum } from './numbers';
 
 /**
  * Flight configurations on the way IN: the rocket-level declaration table,
@@ -91,8 +92,12 @@ export function captureDeployments(ctx: OrkImportContext, el: Element, node: Com
     const o: OrkDeployOverride = {};
     const event = text(src, ':scope > deployevent');
     if (event) o.deployEvent = event;
-    if (text(src, ':scope > deployaltitude') !== null) o.deployAltitude = numTag(src, 'deployaltitude', 200);
-    if (text(src, ':scope > deploydelay') !== null) o.deployDelay = numTag(src, 'deploydelay', 0);
+    // Floored for the same reason the input is (DeploymentSection passes
+    // `min={alt.toUi(0)}`): a negative deploy altitude never fires the kernel's
+    // altitude trigger, so the design flies ballistic under that one
+    // configuration. The file is the other door into the same field.
+    if (text(src, ':scope > deployaltitude') !== null) o.deployAltitude = nonNegTag(src, 'deployaltitude', 200);
+    if (text(src, ':scope > deploydelay') !== null) o.deployDelay = nonNegTag(src, 'deploydelay', 0);
     if (Object.keys(o).length > 0 && node.id) c.deployments[node.id] = o;
   }
 }
@@ -112,7 +117,14 @@ export function readStageActiveness(configEls: Element[], configs: OrkFlightConf
     if (!config) continue;
     for (const flag of Array.from(el.querySelectorAll(':scope > stage'))) {
       if (flag.getAttribute('active') !== 'false') continue;
-      const id = stageIds[Number(flag.getAttribute('number'))];
+      // Through `finiteNum`, because `Number(null)` is 0 and `Number('')` is 0:
+      // a `<stage active="false"/>` with NO number attribute, or a blank one,
+      // read as stage 0 and grounded the SUSTAINER. The doc above says such a
+      // flag is dropped rather than guessed at, and without this that held only
+      // for a non-numeric value.
+      const num = finiteNum(flag.getAttribute('number'));
+      if (num === undefined) continue;
+      const id = stageIds[num];
       if (id) config.grounded.push(id);
     }
   }
@@ -135,9 +147,9 @@ export function captureSeparations(ctx: OrkImportContext, el: Element, node: Com
     const o: OrkSepOverride = {};
     const event = text(src, ':scope > separationevent');
     if (event) o.separationEvent = event;
-    if (text(src, ':scope > separationdelay') !== null) o.separationDelay = numTag(src, 'separationdelay', 0);
+    if (text(src, ':scope > separationdelay') !== null) o.separationDelay = nonNegTag(src, 'separationdelay', 0);
     if (text(src, ':scope > separationaltitude') !== null)
-      o.separationAltitude = numTag(src, 'separationaltitude', 200);
+      o.separationAltitude = nonNegTag(src, 'separationaltitude', 200);
     if (Object.keys(o).length > 0 && node.id) c.separations[node.id] = o;
   }
 }
@@ -168,12 +180,12 @@ export function readMotor(ctx: OrkImportContext, el: Element, node: ComponentNod
       designation: text(motorEl, ':scope > designation') ?? 'unknown',
       ...(digest ? { digest } : {}),
       manufacturer: text(motorEl, ':scope > manufacturer') ?? 'unknown',
-      diameter: numTag(motorEl, 'diameter', 0.018),
-      length: numTag(motorEl, 'length', 0.07),
-      delay: delayText === 'none' ? PLUGGED_DELAY : numTag(motorEl, 'delay', 0),
+      diameter: nonNegTag(motorEl, 'diameter', 0.018),
+      length: nonNegTag(motorEl, 'length', 0.07),
+      delay: delayText === 'none' ? PLUGGED_DELAY : nonNegTag(motorEl, 'delay', 0),
       mountId: node.id,
       ignitionEvent: text(igEl, ':scope > ignitionevent') ?? undefined,
-      ignitionDelay: numTag(igEl, 'ignitiondelay', 0),
+      ignitionDelay: nonNegTag(igEl, 'ignitiondelay', 0),
     };
   };
   // Stage B: EVERY declared configuration's motor rides along as a preset

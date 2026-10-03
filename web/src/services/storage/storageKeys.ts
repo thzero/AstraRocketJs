@@ -1,34 +1,27 @@
-// The ONE file allowed to spell the namespace, which is misspelled on purpose
-// (see below). It is no longer in .cspell/project-words.txt, so every other
-// occurrence fails the spell gate, and storageKeys.test.ts asserts the list of
-// files permitted to name it.
-// cspell:ignore astrarrocketjs
+// cspell:ignore astrarrocketjs -- the OLD spelling, named twice below so the
+// rename is explicable. It is not a key any more.
 /**
  * THE app's storage namespace. Every `localStorage` key and the IndexedDB
  * database name are built from this and nowhere else.
  *
- * It is spelled wrong. `astrarrocketjs` has a doubled `r`, and it is the
- * namespace that holds every saved design, the workspace, the settings and all
- * the custom catalogs, so it cannot be corrected without migrating real user
- * data out of the old keys and the old database. That migration is its own
- * change; this is the step that makes it a ONE-LINE change when it comes.
+ * Spelled correctly. It was `astrarrocketjs`, with a doubled `r`, inlined across
+ * thirteen modules with the dictionary taught to accept both spellings - so the
+ * app had TWO namespaces, seventeen keys under the typo and one correctly-spelled
+ * `astrarocketjs:engine`. Both are now this one.
  *
- * Before this, the string was inlined in thirteen modules and the dictionary
- * had been taught to accept both spellings, so the app had TWO namespaces: this
- * one, and a correctly-spelled `astrarocketjs:engine`. Nothing swept either
- * prefix yet, so nothing was lost, but a future "clear app data" or quota sweep
- * over one would silently have missed the other.
+ * NO MIGRATION. The correction was made in 0.1.0 preview, where the only data
+ * under the old prefix is a developer's or a preview user's scratch design.
+ * Anything still sitting under `astrarrocketjs` is simply not read any more.
  *
- * The misspelling is no longer in `.cspell/project-words.txt`, so the spell
- * gate now REFUSES it everywhere except the one line below, and
- * `storageKeys.test.ts` asserts it appears in exactly one source file. A
- * fourteenth inlined copy fails both.
+ * `storageKeys.test.ts` holds the one-home property: no file but this one spells
+ * a KEY, which is this prefix followed by a colon. The bare project name is free
+ * to appear anywhere - it is the package name and the product name - and only the
+ * `prefix:` form is a storage key.
  */
-export const STORAGE_PREFIX = 'astrarrocketjs';
+export const STORAGE_PREFIX = 'astrarocketjs';
 
 /**
- * A namespaced key: `nsKey('designs:index')` is
- * `astrarrocketjs:designs:index`.
+ * A namespaced key: `nsKey('designs:index')` is `astrarocketjs:designs:index`.
  *
  * Takes the part AFTER the colon, so no caller writes the prefix or the
  * separator and none can disagree about either.

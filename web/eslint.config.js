@@ -7,7 +7,18 @@ import vitest from '@vitest/eslint-plugin';
 import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage', 'playwright-report', 'test-results'] },
+  {
+    // `public` and `src/engine/vendor` are GENERATED, and both `.prettierignore`
+    // and knip already exclude them. Without these two entries `eslint .` walked
+    // 70 generated files - the 2.9 MB vendored TeaVM bundle included - to apply
+    // zero rules to them, because every block below is `files`-scoped.
+    //
+    // Zero rules today is the hazard, not the cost. A config block added WITHOUT a
+    // `files` key is the normal way to add a project-wide rule, and the moment one
+    // appears it fires on all 70 under `--max-warnings 0`. That is a gate failure
+    // nobody will read as "the generated bundle is not our code".
+    ignores: ['dist', 'coverage', 'playwright-report', 'test-results', 'public', 'src/engine/vendor'],
+  },
   {
     // The build/sync scripts and this config itself are plain ESM .js/.mjs, so
     // the TypeScript block below (files: **/*.{ts,tsx}) never matched them —
@@ -24,6 +35,23 @@ export default tseslint.config(
     languageOptions: {
       ecmaVersion: 2020,
       globals: { ...globals.browser, ...globals.worker },
+      // The TYPE-AWARE parser. Without a program, the whole class of rules that
+      // needs to know whether an expression is a Promise is silently inert:
+      // `no-floating-promises`, `no-misused-promises`, `await-thenable` and the
+      // `no-unsafe-*` family were all off, and nothing said so.
+      //
+      // ALL THREE tsconfigs, named explicitly rather than through
+      // `projectService`. The service auto-discovers the nearest `tsconfig.json`
+      // and nothing else, and this project deliberately has three: `tsconfig.json`
+      // for src+tests, `tsconfig.e2e.json` for the Playwright specs, and
+      // `tsconfig.node.json` for the config files that decide what ships. Under the
+      // service, every e2e spec and every root config came back "was not found by
+      // the project service" - 31 parse errors, which is a louder failure than the
+      // one being fixed. These are the same three `npm run typecheck` runs.
+      parserOptions: {
+        project: ['./tsconfig.json', './tsconfig.e2e.json', './tsconfig.node.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     plugins: {
       'react-hooks': reactHooks,
@@ -59,6 +87,24 @@ export default tseslint.config(
       // src; defer to it (with the leading-underscore escape hatch) rather than
       // double-reporting.
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      // The two rules the type-aware parser above exists for.
+      //
+      // `no-floating-promises` is the one with teeth. Every one of the three it
+      // found was safe only by CONVENTION - the store action it called caught
+      // internally - so a new action that forgets to is a click that silently does
+      // nothing, with every gate green.
+      '@typescript-eslint/no-floating-promises': 'error',
+      // `checksVoidReturn: { attributes: false }` because a JSX handler prop is
+      // DECLARED `() => void` and React has never awaited one: `onClick={async
+      // () => ...}` is the ordinary way to write an async handler and flagging all
+      // 26 of them would be flagging React. The other `checksVoidReturn` cases,
+      // where a void-returning position is a real mistake, stay on.
+      '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: { attributes: false } }],
+      // The rest of `recommendedTypeChecked` is deliberately NOT adopted wholesale.
+      // The `no-unsafe-*` family fires on every `as unknown as` boundary cast, and
+      // this app has them on purpose at the kernel seam, where the vendored TeaVM
+      // bundle has no types to check against. Enabling that set means deciding what
+      // to do at that seam, which is its own change.
     },
   },
   {

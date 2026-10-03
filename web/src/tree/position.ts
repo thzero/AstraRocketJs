@@ -51,8 +51,8 @@ export function freeformRootChord(
  * desktop GUI's per-point edit path, not ours.)
  *
  * The app read the raw points instead, while placing the through-the-wall TAB
- * in root-relative coordinates via `finTabFront(node, root)` with
- * `root = last.x - first.x`. The two agree only when `points[0].x === 0`, and
+ * in root-relative coordinates (`finTabSpan`, which measures from the root chord
+ * rather than from the first point). The two agree only when `points[0].x === 0`, and
  * `FreeformFinEditor` lets the first vertex be dragged off it — so a fin whose
  * outline began at x = 20 mm had its tab cut 20 mm out of place on the 1:1 PDF
  * template and in the exported STL, on a part that has to pass through a slot.

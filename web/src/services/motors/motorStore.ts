@@ -78,6 +78,16 @@ export interface MotorStore {
   listCustomMotors(): Promise<CustomMotor[]>;
   /** Add or replace (by id) an imported motor. */
   addCustomMotor(motor: CustomMotor): Promise<void>;
+  /**
+   * Add or replace a whole BATCH in one write.
+   *
+   * A `.rse` engine database holds a manufacturer's entire range, and importing
+   * one motor at a time meant one read-modify-write per motor, each parsing and
+   * re-serializing the whole stored array: quadratic in the import, and a failure
+   * part way through left some motors stored, some not, and an error that could
+   * not say which. One write is linear and all-or-nothing.
+   */
+  addCustomMotors(motors: readonly CustomMotor[]): Promise<void>;
   /** Remove an imported motor by id. */
   removeCustomMotor(id: string): Promise<void>;
 }
@@ -213,8 +223,16 @@ export class KeyValueMotorStore implements MotorStore {
   // tabs importing at once each drop the other's motor (the same race
   // DesignLibrary.mutateIndex closes for the design index).
   async addCustomMotor(motor: CustomMotor): Promise<void> {
+    return this.addCustomMotors([motor]);
+  }
+
+  async addCustomMotors(motors: readonly CustomMotor[]): Promise<void> {
+    if (motors.length === 0) return;
+    // Last-id-wins within the batch, matching what repeated single adds did.
+    const byId = new Map(motors.map((m) => [m.id, m]));
+    const incoming = [...byId.values()].reverse();
     const ok = await this.kv.update(CUSTOM_MOTORS_KEY, (raw) =>
-      JSON.stringify([motor, ...KeyValueMotorStore.parseCustom(raw).filter((m) => m.id !== motor.id)]),
+      JSON.stringify([...incoming, ...KeyValueMotorStore.parseCustom(raw).filter((m) => !byId.has(m.id))]),
     );
     if (!ok) throw new Error('storage-full');
   }

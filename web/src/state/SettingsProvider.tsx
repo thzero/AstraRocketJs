@@ -1,5 +1,28 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from '../services/storage/settings';
+import i18n from '../i18n';
+
+/**
+ * Surface a refused settings write, out of the React updater it is detected in.
+ *
+ * `saveSettings` runs inside `setSettings`'s updater - deliberately, so it writes
+ * the state it is actually storing - and a zustand write from there is a store
+ * write during render. The microtask puts it after the render pass. Same banner
+ * the design library and the workspace use for the same cause.
+ *
+ * The store is imported LAZILY, and not for weight: a static edge from here would
+ * construct the workspace store as a side effect of loading this provider, and the
+ * store's initial state reads `loadSettings()` at construction. A test that mocks
+ * the settings module then builds the store against the mock before it has set one
+ * up. Nothing about a settings write needs the store until a write is refused.
+ */
+const reportRefused = () => {
+  queueMicrotask(() => {
+    void import('./store').then(({ useWorkspaceStore }) =>
+      useWorkspaceStore.getState().setStorageWarning(i18n.t('storage.full'), 'full'),
+    );
+  });
+};
 
 interface SettingsCtx {
   settings: Settings;
@@ -28,13 +51,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     (patch: Partial<Settings>) =>
       setSettings((s) => {
         const next = { ...s, ...patch };
-        saveSettings(next);
+        if (!saveSettings(next)) reportRefused();
         return next;
       }),
     [],
   );
   const reset = useCallback(() => {
-    saveSettings(DEFAULT_SETTINGS);
+    if (!saveSettings(DEFAULT_SETTINGS)) reportRefused();
     setSettings(DEFAULT_SETTINGS);
   }, []);
   const value = useMemo(() => ({ settings, update, reset }), [settings, update, reset]);

@@ -37,8 +37,7 @@ const URL_ = `http://localhost:${PORT}/`;
 // seeds. Spelled out because this is a plain .mjs harness with no TS loader, so it
 // cannot import STORAGE_PREFIX. A mismatch is self-detecting: the app would come up
 // without settings and the check below would fail.
-// cspell:ignore astrarrocketjs
-const SETTINGS_KEY = 'astrarrocketjs:settings:v1';
+const SETTINGS_KEY = 'astrarocketjs:settings:v1';
 
 // Pages nobody opens before going offline. The first is read through the
 // dialog, the second by navigating at it directly.

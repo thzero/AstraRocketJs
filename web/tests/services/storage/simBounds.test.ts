@@ -47,6 +47,10 @@ describe('SIM_BOUNDS', () => {
     // either way. Both rows must carry a max for all three fields.
     const editor = src('components/sim/SimEditor.tsx');
     expect((editor.match(/max=\{SIM_BOUNDS\./g) ?? []).length).toBeGreaterThanOrEqual(2);
-    expect(editor).toMatch(/max=\{\+\(\(SIM_BOUNDS\.maxAngleStep\.max/);
+    // The angle one goes through the FieldUnit rather than an inline conversion,
+    // the same way the global row resolves it: the bound still comes from
+    // SIM_BOUNDS, in whatever angle unit the user is working in.
+    expect(editor).toMatch(/max=\{angle\.toUi\(SIM_BOUNDS\.maxAngleStep\.max\)\}/);
+    expect(editor, 'the inline * 180 / Math.PI is what the unit scope replaced').not.toContain('* 180) / Math.PI');
   });
 });

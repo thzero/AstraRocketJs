@@ -121,11 +121,29 @@ export function multiStageSummaries(
   buildStage: (st: ComponentNode) => StaticInfo,
   buildWhole: () => ReportBuild,
   restore: (built: ReportBuild) => void,
+  onRestoreFailed: (e: unknown) => void,
 ): Summary[] {
   try {
     return stages.map((st, i) => ({ label: stageName(st, i), info: buildStage(st) }));
   } finally {
-    restore(buildWhole());
+    // The `finally` protected against a STAGE build throwing. It did not protect
+    // against `buildWhole()` itself throwing, and then `restore` never ran and
+    // the store kept pointing at the last per-stage build: a handle for one
+    // stage, standing in for the rocket. Nothing re-triggers the rebuild effect,
+    // because its dependencies did not change, so the aero pane stayed dead
+    // until an unrelated edit moved them.
+    //
+    // Reported, never rethrown. Rethrowing from a `finally` REPLACES whatever
+    // the try block threw, which would lose the stage failure that is the more
+    // useful of the two. The report itself is still valid - parts and fin-set
+    // positions were gathered off the live handle before any rebuild, and each
+    // stage summary comes from its own isolated build - so it is returned, and
+    // what is wrong is said out loud rather than left to be discovered.
+    try {
+      restore(buildWhole());
+    } catch (e) {
+      onRestoreFailed(e);
+    }
   }
 }
 
@@ -190,6 +208,13 @@ export function assembleReport(install?: (built: ReportBuild) => void): ReportMo
         return { info: main.staticInfo(), handle: main };
       },
       install ?? ((built) => s.applyBuild(built.info, built.handle)),
+      (e) => {
+        // Clear the live build rather than leave a stage handle standing in for
+        // the rocket. The stats and the aero pane then show their "not built"
+        // state, which is true, and the next design edit rebuilds.
+        s.applyBuild(null, null);
+        s.setErr(e instanceof Error ? e.message : String(e));
+      },
     );
   } else {
     stageSummaries = stageList.map((st, i) => ({ label: stageName(st, i), info }));

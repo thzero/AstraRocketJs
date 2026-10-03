@@ -18,7 +18,7 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chooseBuild, runJava } from './openrocketJava.mjs';
+import { chooseBuild, runJava } from './lib/openrocketJava.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const JAVA_SRC = resolve(HERE, 'ork-check/OrkCheck.java');

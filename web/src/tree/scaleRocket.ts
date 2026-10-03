@@ -181,7 +181,14 @@ const round = (x: number, places = 12): number => {
 export function scaleNode(n: ComponentNode, k: number): ComponentNode {
   const type = n.type;
   const fixed = FIXED_SIZE.has(type);
-  const out: ComponentNode = { ...n };
+  // Children are left OFF, rather than carried by the spread and overwritten by
+  // whichever caller remembers to. Both callers already supply their own
+  // (`scaleRocket` walks them, `componentActions.scaleFin` reuses them), and a
+  // returned node that aliased the input's `children` array was a scaled node
+  // sharing a subtree with the unscaled one - the doc above says children are the
+  // caller's business and now the code says it too.
+  const { children: _children, ...own } = n;
+  const out: ComponentNode = { ...own } as ComponentNode;
 
   // `?? []` survives for a persisted node whose `type` the union does not
   // know: the table is complete for the union, not for arbitrary input.
@@ -197,7 +204,13 @@ export function scaleNode(n: ComponentNode, k: number): ComponentNode {
     out['points'] = pts.map((p) =>
       Array.isArray(p) && p.length >= 2 && typeof p[0] === 'number' && typeof p[1] === 'number'
         ? [round((p[0] as number) * k), round((p[1] as number) * k)]
-        : p,
+        : // A row that is not a numeric pair is COPIED rather than passed through
+          // by reference: it cannot be scaled, but the scaled node must not share
+          // an array with the node it was scaled from. Left unscaled on purpose -
+          // guessing at what a malformed vertex meant is worse than carrying it.
+          Array.isArray(p)
+          ? [...(p as unknown[])]
+          : p,
     );
   }
 

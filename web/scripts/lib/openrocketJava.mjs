@@ -44,7 +44,10 @@ const JARS = [
   'txw2',
 ];
 
-export const arg = (name, fallback = null) => {
+// Not exported: `chooseBuild` below is the only caller, and nothing outside this
+// module imports it. (`sync-examples.mjs` has its own `arg`, which is a separate
+// copy of the same four lines.)
+const arg = (name, fallback = null) => {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : fallback;
 };
@@ -81,7 +84,8 @@ function cachedJars() {
  * reader's desktop will compare against. Checked rather than assumed: a path
  * that is not there is skipped, and finding none is reported by the caller.
  */
-export function installedJar() {
+// Not exported either: `chooseBuild` is its only caller.
+function installedJar() {
   const roots = [
     'C:/Program Files/OpenRocket/jar',
     'C:/Program Files (x86)/OpenRocket/jar',

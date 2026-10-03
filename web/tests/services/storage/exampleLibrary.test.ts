@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { importOrk } from '../../../src/services/files/orkFile';
 import { findCatalogMotor, type CatalogMotor } from '../../../src/services/motors/motorDb';
 import { __setEngineForTests, OpenRocketDesign } from '../../../src/engine/openRocketEngine';
+import { KERNEL_TEST_TIMEOUT_MS } from '../../testing/kernelTimeout';
 
 /**
  * Every bundled example, flown through the REAL kernel.
@@ -23,7 +24,7 @@ import { __setEngineForTests, OpenRocketDesign } from '../../../src/engine/openR
  * The real engine makes this one of the slower files in the suite (~2 s for all
  * sixteen), which is the cost of checking the real thing rather than a stub.
  */
-vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
+vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIMEOUT_MS });
 
 // vitest runs with `web/` as its root, so the repo paths hang off cwd —
 // `import.meta.url` is not a file: URL under the jsdom environment.

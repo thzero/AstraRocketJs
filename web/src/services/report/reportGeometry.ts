@@ -17,6 +17,7 @@ export type Pt = [number, number];
 // Imported, not redeclared: this is the unit constant for every dimensional
 // export, and it was written out in three separate files.
 import { M_TO_MM } from '../../prefs/units';
+import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
 
 /** A fin's planform outline (mm), root along the bottom, tab folded in below. */
 // Not `| null`: there is no input this returns null for — every branch below
@@ -125,7 +126,11 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
       // 50 mm, which then picked the station at which the body radius was
       // sampled, so on a boat tail the tubes were drawn floating off, or buried
       // in, the taper.
-      const len = num(node, 'length', 0.08);
+      // The kernel builds a tube fin set 100 mm long
+      // (ComponentFactory.java:260), and 0.08 was a literal that agreed with
+      // nothing. The span IS this number, so it also picks the station the body
+      // radius is sampled at.
+      const len = num(node, 'length', KERNEL_DEFAULTS.tubefinset.length);
       const s0 = axialStart(node, len, pStart, pLen);
       const R = radiusAt(s0 - pStart);
       const rt = tubeFinRadius(node, R);

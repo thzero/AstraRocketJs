@@ -9,6 +9,7 @@ import {
   selectRunFailed,
 } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
+import { fireAction } from '../../state/fireAction';
 import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
 import { APP_VERSION, appName } from '../../services/app/appInfo';
@@ -195,7 +196,7 @@ export function CenterView() {
   const needsRun = !result || !!outdated;
   useEffect(() => {
     if (settings.simulation.autoRunOutdated && isResultView(view) && needsRun && hasDesign && !busy && !runFailed) {
-      runSim(settings.simulation);
+      fireAction(runSim(settings.simulation));
     }
   }, [view, needsRun, hasDesign, busy, runFailed, settings.simulation, runSim]);
 

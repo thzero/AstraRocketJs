@@ -15,6 +15,7 @@ import {
   autoRadiusTag,
   finCountTag,
   isDrogueTag,
+  nonNegTag,
   numTag,
   readAirfoil,
   readAngleAroundBody,
@@ -58,7 +59,7 @@ const readThicknessOrFilled = (el: Element, n: ComponentNode, fallback: number) 
   if (text(el, ':scope > thickness') === 'filled') {
     n['filled'] = true;
   } else {
-    n['thickness'] = numTag(el, 'thickness', fallback);
+    n['thickness'] = nonNegTag(el, 'thickness', fallback);
   }
 };
 
@@ -84,7 +85,8 @@ const readCd = (el: Element, n: ComponentNode) => {
 
 /** Off-axis placement: <radialposition> (m) + <radialdirection> (deg → rad), only kept when non-zero. */
 const readRadial = (el: Element, n: ComponentNode) => {
-  const radPos = numTag(el, 'radialposition', 0);
+  // A DISTANCE from the axis, so floored; the direction beside it is an angle.
+  const radPos = nonNegTag(el, 'radialposition', 0);
   if (radPos !== 0) n['radialPosition'] = radPos;
   const radDir = numTag(el, 'radialdirection', 0);
   if (radDir !== 0) n['radialDirection'] = (radDir * Math.PI) / 180;
@@ -92,13 +94,13 @@ const readRadial = (el: Element, n: ComponentNode) => {
 
 const readNosecone: NodeReader = (_ctx, el) => {
   const n = base(el, 'nosecone', false);
-  n['length'] = numTag(el, 'length', COMPONENT_DEFAULTS.nosecone.length);
+  n['length'] = nonNegTag(el, 'length', COMPONENT_DEFAULTS.nosecone.length);
   const ncR = autoRadiusTag(el, 'aftradius');
   if (ncR === undefined) n['aftRadiusAuto'] = true;
   n['aftRadius'] = ncR ?? COMPONENT_DEFAULTS.nosecone.aftRadius;
   readThicknessOrFilled(el, n, COMPONENT_DEFAULTS.nosecone.thickness);
   n['shape'] = text(el, ':scope > shape') ?? 'ogive';
-  n['shapeParameter'] = numTag(el, 'shapeparameter', shapeParamDefault(String(n['shape'])));
+  n['shapeParameter'] = nonNegTag(el, 'shapeparameter', shapeParamDefault(String(n['shape'])));
   const shR = numTag(el, 'aftshoulderradius', 0);
   const shL = numTag(el, 'aftshoulderlength', 0);
   if (shR > 0) n['shoulderRadius'] = shR;
@@ -114,7 +116,7 @@ const readNosecone: NodeReader = (_ctx, el) => {
 
 const readTransition: NodeReader = (_ctx, el) => {
   const n = base(el, 'transition', false);
-  n['length'] = numTag(el, 'length', COMPONENT_DEFAULTS.transition.length);
+  n['length'] = nonNegTag(el, 'length', COMPONENT_DEFAULTS.transition.length);
   const fore = autoRadiusTag(el, 'foreradius');
   const aft = autoRadiusTag(el, 'aftradius');
   if (fore === undefined) n['foreRadiusAuto'] = true;
@@ -123,7 +125,7 @@ const readTransition: NodeReader = (_ctx, el) => {
   else n['aftRadius'] = aft;
   readThicknessOrFilled(el, n, COMPONENT_DEFAULTS.transition.thickness);
   n['shape'] = text(el, ':scope > shape') ?? 'conical';
-  n['shapeParameter'] = numTag(el, 'shapeparameter', shapeParamDefault(String(n['shape'])));
+  n['shapeParameter'] = nonNegTag(el, 'shapeparameter', shapeParamDefault(String(n['shape'])));
   // <shapeclipped>: clipped vs full profile (ellipsoid/power/haack).
   // Forwarded to the kernel bridge as 'clipped'; absent keeps the
   // kernel default (clipped, matching the desktop).
@@ -149,11 +151,11 @@ const readTransition: NodeReader = (_ctx, el) => {
 
 const readBodytube: NodeReader = (ctx, el) => {
   const n = base(el, 'bodytube', false);
-  n['length'] = numTag(el, 'length', 0.3);
+  n['length'] = nonNegTag(el, 'length', 0.3);
   const btR = autoRadiusTag(el, 'radius');
   if (btR === undefined) n['outerRadiusAuto'] = true;
   n['outerRadius'] = btR ?? 0.012;
-  n['thickness'] = numTag(el, 'thickness', COMPONENT_DEFAULTS.bodytube.thickness);
+  n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.bodytube.thickness);
   readMotor(ctx, el, n);
   // Extension tag: sub-minimum flag (motor case is the airframe).
   if (text(el, ':scope > caseairframe') === 'true') n['caseAirframe'] = true;
@@ -163,11 +165,13 @@ const readBodytube: NodeReader = (ctx, el) => {
 const readTrapezoidFinset: NodeReader = (_ctx, el) => {
   const n = base(el, 'trapezoidfinset', true);
   n['finCount'] = finCountTag(el);
-  n['rootChord'] = numTag(el, 'rootchord', 0.05);
-  n['tipChord'] = numTag(el, 'tipchord', 0.03);
+  n['rootChord'] = nonNegTag(el, 'rootchord', 0.05);
+  n['tipChord'] = nonNegTag(el, 'tipchord', 0.03);
+  // SIGNED, and the only fin dimension that is: a negative sweep is a
+  // forward-swept fin, which is a real shape the desktop draws.
   n['sweep'] = numTag(el, 'sweeplength', 0.02);
-  n['height'] = numTag(el, 'height', 0.03);
-  n['thickness'] = numTag(el, 'thickness', COMPONENT_DEFAULTS.finset.thickness);
+  n['height'] = nonNegTag(el, 'height', 0.03);
+  n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.finset.thickness);
   readCant(el, n);
   readAirfoil(el, n);
   readFinTabs(el, n);
@@ -178,7 +182,7 @@ const readTrapezoidFinset: NodeReader = (_ctx, el) => {
 const readFreeformFinset: NodeReader = (_ctx, el) => {
   const n = base(el, 'freeformfinset', true);
   n['finCount'] = finCountTag(el);
-  n['thickness'] = numTag(el, 'thickness', COMPONENT_DEFAULTS.finset.thickness);
+  n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.finset.thickness);
   readCant(el, n);
   readAirfoil(el, n);
   readFinTabs(el, n);
@@ -210,9 +214,9 @@ const readFreeformFinset: NodeReader = (_ctx, el) => {
 const readEllipticalFinset: NodeReader = (_ctx, el) => {
   const n = base(el, 'ellipticalfinset', true);
   n['finCount'] = finCountTag(el);
-  n['rootChord'] = numTag(el, 'rootchord', 0.05);
-  n['height'] = numTag(el, 'height', 0.03);
-  n['thickness'] = numTag(el, 'thickness', COMPONENT_DEFAULTS.finset.thickness);
+  n['rootChord'] = nonNegTag(el, 'rootchord', 0.05);
+  n['height'] = nonNegTag(el, 'height', 0.03);
+  n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.finset.thickness);
   readCant(el, n);
   readAirfoil(el, n);
   readFinTabs(el, n);
@@ -223,26 +227,26 @@ const readEllipticalFinset: NodeReader = (_ctx, el) => {
 const readTubeFinset: NodeReader = (_ctx, el) => {
   const n = base(el, 'tubefinset', true);
   n['finCount'] = finCountTag(el, 6);
-  n['length'] = numTag(el, 'length', 0.1);
+  n['length'] = nonNegTag(el, 'length', 0.1);
   const r = autoRadiusTag(el, 'radius');
   if (r === undefined) n['outerRadiusAuto'] = true;
   else n['outerRadius'] = r;
   const th = numTag(el, 'thickness', NaN);
-  if (!Number.isNaN(th)) n['thickness'] = th;
+  if (th >= 0) n['thickness'] = th;
   readFinRotation(el, n);
   return n;
 };
 
 const readInnertube: NodeReader = (ctx, el) => {
   const n = base(el, 'innertube', true);
-  n['length'] = numTag(el, 'length', 0.07);
-  n['outerRadius'] = numTag(el, 'outerradius', 0.0095);
-  n['thickness'] = numTag(el, 'thickness', COMPONENT_DEFAULTS.innertube.thickness);
+  n['length'] = nonNegTag(el, 'length', 0.07);
+  n['outerRadius'] = nonNegTag(el, 'outerradius', 0.0095);
+  n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.innertube.thickness);
   // Cluster (desktop stores rotation in DEGREES; we keep radians).
   const cluster = text(el, ':scope > clusterconfiguration');
   if (cluster && cluster !== 'single') {
     n['cluster'] = cluster;
-    n['clusterScale'] = numTag(el, 'clusterscale', 1);
+    n['clusterScale'] = nonNegTag(el, 'clusterscale', 1);
     n['clusterRotation'] = (numTag(el, 'clusterrotation', 0) * Math.PI) / 180;
   }
   // Off-axis / split-cluster offset: desktop splits a cluster into single
@@ -261,8 +265,8 @@ const readInnertube: NodeReader = (ctx, el) => {
 
 const readTubecoupler: NodeReader = (_ctx, el) => {
   const n = base(el, 'tubecoupler', true);
-  n['length'] = numTag(el, 'length', 0.05);
-  n['thickness'] = numTag(el, 'thickness', COMPONENT_DEFAULTS.tubecoupler.thickness);
+  n['length'] = nonNegTag(el, 'length', 0.05);
+  n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.tubecoupler.thickness);
   const or = autoRadiusTag(el, 'outerradius');
   if (or === undefined) n['outerRadiusAuto'] = true;
   if (or !== undefined) n['outerRadius'] = or;
@@ -271,7 +275,7 @@ const readTubecoupler: NodeReader = (_ctx, el) => {
 
 const readCenteringring: NodeReader = (_ctx, el) => {
   const n = base(el, 'centeringring', true);
-  n['length'] = numTag(el, 'length', COMPONENT_DEFAULTS.centeringring.length);
+  n['length'] = nonNegTag(el, 'length', COMPONENT_DEFAULTS.centeringring.length);
   const cor = autoRadiusTag(el, 'outerradius');
   if (cor === undefined) n['outerRadiusAuto'] = true;
   if (cor !== undefined) n['outerRadius'] = cor;
@@ -284,7 +288,7 @@ const readCenteringring: NodeReader = (_ctx, el) => {
 
 const readBulkhead: NodeReader = (_ctx, el) => {
   const n = base(el, 'bulkhead', true);
-  n['length'] = numTag(el, 'length', COMPONENT_DEFAULTS.bulkhead.length);
+  n['length'] = nonNegTag(el, 'length', COMPONENT_DEFAULTS.bulkhead.length);
   // No inner radius: a bulkhead is solid, and upstream's saver omits the
   // element for one entirely (RadiusRingComponentSaver).
   const bor = autoRadiusTag(el, 'outerradius');
@@ -296,8 +300,8 @@ const readBulkhead: NodeReader = (_ctx, el) => {
 
 const readEngineblock: NodeReader = (_ctx, el) => {
   const n = base(el, 'engineblock', true);
-  n['length'] = numTag(el, 'length', COMPONENT_DEFAULTS.engineblock.length);
-  n['thickness'] = numTag(el, 'thickness', COMPONENT_DEFAULTS.engineblock.thickness);
+  n['length'] = nonNegTag(el, 'length', COMPONENT_DEFAULTS.engineblock.length);
+  n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.engineblock.thickness);
   const eor = autoRadiusTag(el, 'outerradius');
   if (eor === undefined) n['outerRadiusAuto'] = true;
   if (eor !== undefined) n['outerRadius'] = eor;
@@ -306,9 +310,9 @@ const readEngineblock: NodeReader = (_ctx, el) => {
 
 const readLaunchlug: NodeReader = (_ctx, el) => {
   const n = base(el, 'launchlug', true);
-  n['length'] = numTag(el, 'length', 0.05);
-  n['outerRadius'] = numTag(el, 'radius', 0.0022);
-  n['thickness'] = numTag(el, 'thickness', 0.0003);
+  n['length'] = nonNegTag(el, 'length', 0.05);
+  n['outerRadius'] = nonNegTag(el, 'radius', 0.0022);
+  n['thickness'] = nonNegTag(el, 'thickness', 0.0003);
   n['angleOffset'] = readAngleAroundBody(el);
   readInstances(el, n);
   return n;
@@ -317,7 +321,7 @@ const readLaunchlug: NodeReader = (_ctx, el) => {
 const readRailbutton: NodeReader = (_ctx, el) => {
   const n = base(el, 'railbutton', true);
   const rb = COMPONENT_DEFAULTS.railbutton;
-  n['outerDiameter'] = numTag(el, 'outerdiameter', rb.outerDiameter);
+  n['outerDiameter'] = nonNegTag(el, 'outerdiameter', rb.outerDiameter);
   // The rest of the button's geometry (RailButtonSaver.java writes all six)
   // and its material, PASS-THROUGH like fillets: the app neither draws nor
   // simulates them, so hard-writing the desktop's constructor constants and a
@@ -332,7 +336,7 @@ const readRailbutton: NodeReader = (_ctx, el) => {
     ['screwheight', 'screwHeight'],
   ] as const) {
     const v = numTag(el, tag, NaN);
-    if (!Number.isNaN(v) && v !== rb[key]) n[key] = v;
+    if (v >= 0 && v !== rb[key]) n[key] = v;
   }
   readMaterialGroup(el, n);
   n['angleOffset'] = readAngleAroundBody(el);
@@ -346,23 +350,23 @@ const readRailbutton: NodeReader = (_ctx, el) => {
 // of a file this app wrote. See openRocketEngine.ts ComponentType.
 const readFairing: NodeReader = (_ctx, el) => {
   const n = base(el, 'fairing', true);
-  n['length'] = numTag(el, 'length', 0.08);
-  n['width'] = numTag(el, 'width', 0.025);
-  n['height'] = numTag(el, 'height', 0.02);
+  n['length'] = nonNegTag(el, 'length', 0.08);
+  n['width'] = nonNegTag(el, 'width', 0.025);
+  n['height'] = nonNegTag(el, 'height', 0.02);
   const fs = text(el, ':scope > fairingshape');
   if (fs) n['fairingShape'] = fs;
-  n['mass'] = numTag(el, 'mass', 0.03);
+  n['mass'] = nonNegTag(el, 'mass', 0.03);
   return n;
 };
 
 const readParachute: NodeReader = (ctx, el) => {
   const n = base(el, 'parachute', true);
   readPackedSize(el, n);
-  n['diameter'] = numTag(el, 'diameter', 0.3);
+  n['diameter'] = nonNegTag(el, 'diameter', 0.3);
   readCd(el, n);
   // Bounded: the kernel sums line mass per line, and a file can say anything.
   n['lineCount'] = clampCount(numTag(el, 'linecount', 6), 1, MAX_LINE_COUNT);
-  if (!readAutoValue(el, n, 'linelength', 'lineLengthAuto')) n['lineLength'] = numTag(el, 'linelength', 0.3);
+  if (!readAutoValue(el, n, 'linelength', 'lineLengthAuto')) n['lineLength'] = nonNegTag(el, 'linelength', 0.3);
   readSoftMaterial(el, n, 'surface', 'surfaceDensity', 'surfaceMaterialName');
   readSoftMaterial(el, n, 'line', 'lineDensity', 'lineMaterialName', ':scope > linematerial');
   // Drogue or main. The desktop writes <isdrogue> only when it is true, and
@@ -383,8 +387,8 @@ const readParachute: NodeReader = (ctx, el) => {
 const readStreamer: NodeReader = (ctx, el) => {
   const n = base(el, 'streamer', true);
   readPackedSize(el, n);
-  n['stripLength'] = numTag(el, 'striplength', 0.5);
-  n['stripWidth'] = numTag(el, 'stripwidth', 0.05);
+  n['stripLength'] = nonNegTag(el, 'striplength', 0.5);
+  n['stripWidth'] = nonNegTag(el, 'stripwidth', 0.05);
   readCd(el, n);
   readSoftMaterial(el, n, 'surface', 'surfaceDensity', 'surfaceMaterialName');
   if (isDrogueTag(el)) n['drogue'] = true;
@@ -396,16 +400,16 @@ const readStreamer: NodeReader = (ctx, el) => {
 const readShockcord: NodeReader = (_ctx, el) => {
   const n = base(el, 'shockcord', true);
   readPackedSize(el, n);
-  if (!readAutoValue(el, n, 'cordlength', 'cordLengthAuto')) n['cordLength'] = numTag(el, 'cordlength', 0.3);
+  if (!readAutoValue(el, n, 'cordlength', 'cordLengthAuto')) n['cordLength'] = nonNegTag(el, 'cordlength', 0.3);
   readSoftMaterial(el, n, 'line', 'lineDensity', 'lineMaterialName');
   return n;
 };
 
 const readMasscomponent: NodeReader = (_ctx, el) => {
   const n = base(el, 'masscomponent', true);
-  n['mass'] = numTag(el, 'mass', 0.01);
-  n['length'] = numTag(el, 'packedlength', 0.02);
-  n['radius'] = numTag(el, 'packedradius', COMPONENT_DEFAULTS.masscomponent.radius);
+  n['mass'] = nonNegTag(el, 'mass', 0.01);
+  n['length'] = nonNegTag(el, 'packedlength', 0.02);
+  n['radius'] = nonNegTag(el, 'packedradius', COMPONENT_DEFAULTS.masscomponent.radius);
   // Preserve-through: what KIND of mass this is (altimeter, payload…).
   // No mass/CG effect, but the desktop shows it and users set it there.
   const mct = text(el, ':scope > masscomponenttype');

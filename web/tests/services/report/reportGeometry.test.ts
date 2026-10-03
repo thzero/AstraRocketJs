@@ -31,8 +31,8 @@ describe('finPlanformMm', () => {
  * The freeform outline and its through-the-wall TAB have to share one origin.
  *
  * The outline was drawn in raw point coordinates while the tab was placed in
- * root-relative ones (`finTabFront(node, root)` with `root = last.x - first.x`),
- * so they agreed only when points[0].x === 0. `FreeformFinEditor` lets the
+ * root-relative ones (`finTabSpan`, measured from the root chord rather than from
+ * the first point), so they agreed only when points[0].x === 0. `FreeformFinEditor` lets the
  * first vertex be dragged off the origin, and the kernel normalizes on
  * `setPoints` — so the app cut the tab somewhere the engine does not.
  */
@@ -76,9 +76,8 @@ describe('a freeform fin whose outline does not start at the origin', () => {
   };
 
   it('centers the tab on the OUTLINE, not 20 mm forward of it', () => {
-    // Comparing tab to tab proves nothing: `finTabFront` works off
-    // `root = last.x - first.x`, which is translation-invariant, so the tab
-    // lands at 20..40 either way. What moved was the outline around it — with
+    // Comparing tab to tab proves nothing: the tab is placed off the root chord,
+    // which is translation-invariant, so it lands at 20..40 either way. What moved was the outline around it — with
     // the raw points it spanned 20..80, putting the "centered" tab hard against
     // the leading edge.
     const [lo, hi] = tabSpan(ff(SHIFTED));

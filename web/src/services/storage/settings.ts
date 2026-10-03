@@ -766,10 +766,26 @@ export function loadSettings(): Settings {
   }
 }
 
-export function saveSettings(s: Settings): void {
+/**
+ * Persist the settings, reporting whether the write happened.
+ *
+ * REPORTS rather than swallowing, which is the convention every other store in
+ * this slice was deliberately converted to (`designLibrary`,
+ * `launchLocationStore`, `workspaceStore`, `motorStore` all surface a refused
+ * write). A bare `catch {}` here meant a full quota silently discarded a
+ * preference change: the panel showed the new value for the rest of the session
+ * and the next session came up with the old one, with nothing in between to
+ * explain it.
+ *
+ * `false` covers both causes, which the caller cannot usefully tell apart: a
+ * quota refusal and storage being disabled outright both mean the preference did
+ * not persist.
+ */
+export function saveSettings(s: Settings): boolean {
   try {
     localStorage.setItem(KEY, JSON.stringify(s));
+    return true;
   } catch {
-    /* storage disabled */
+    return false;
   }
 }

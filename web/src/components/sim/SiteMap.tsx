@@ -18,6 +18,7 @@ import {
   type TileSourceId,
 } from '../../services/map/slippyMap';
 import { rememberTileLayer, tileLayer } from '../../services/map/tileLayer';
+import { useUnits, type Units } from '../../prefs/useUnits';
 
 /**
  * The launch site, seen from above.
@@ -75,6 +76,7 @@ export function SiteMap({
   className?: string;
 }) {
   const { t } = useTranslation();
+  const u = useUnits();
   const hostRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 320, h: 256 });
   const [source, setSource] = useState<TileSourceId>(tileLayer());
@@ -221,6 +223,30 @@ export function SiteMap({
       ? t('map.label')
       : `${t('map.label')}: ${formatCoord(latitudeDeg, longitudeDeg)}`;
 
+  /**
+   * Wheel zoom as a NATIVE non-passive listener, like `useWheelZoom` and
+   * `useChartZoom`.
+   *
+   * React's `onWheel` is registered passive at the root, so a `preventDefault`
+   * inside it does nothing: scrolling over the map zoomed the map AND scrolled the
+   * launch form underneath it, which on a phone means the map slides out from
+   * under the finger that is zooming it.
+   *
+   * The handler closes over `view` and `imagery`, so it is re-registered when
+   * either moves - cheap, and it keeps this a plain effect rather than a
+   * latest-value ref.
+   */
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || imagery === 'unavailable') return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      setZoom(view.zoom + (e.deltaY < 0 ? 1 : -1), localPoint(e));
+    };
+    host.addEventListener('wheel', onWheel, { passive: false });
+    return () => host.removeEventListener('wheel', onWheel);
+  });
+
   return (
     <div className={`flex flex-col gap-1 ${className}`}>
       <div
@@ -239,10 +265,6 @@ export function SiteMap({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={() => (drag.current = null)}
-        onWheel={(e) => {
-          if (imagery === 'unavailable') return;
-          setZoom(view.zoom + (e.deltaY < 0 ? 1 : -1), localPoint(e));
-        }}
       >
         {imagery === 'unavailable' ? (
           <Graticule latitudeDeg={latitudeDeg} longitudeDeg={longitudeDeg} width={size.w} height={size.h} />
@@ -358,7 +380,7 @@ export function SiteMap({
         {imagery === 'unavailable' ? (
           <span className="shrink-0 text-amber-400">{t('map.offline')}</span>
         ) : (
-          <span className="shrink-0 tabular-nums">{scaleLabel(view.lat, view.zoom)}</span>
+          <span className="shrink-0 tabular-nums">{scaleLabel(u, view.lat, view.zoom)}</span>
         )}
       </p>
       {onPick && imagery !== 'unavailable' && (
@@ -368,10 +390,35 @@ export function SiteMap({
   );
 }
 
-/** Roughly how much ground a hundred pixels covers, for a sense of scale. */
-function scaleLabel(lat: number, zoom: number): string {
-  const m = metersPerPixel(lat, zoom) * 100;
-  return m >= 1000 ? `${(m / 1000).toFixed(m >= 10000 ? 0 : 1)} km` : `${m.toFixed(0)} m`;
+/**
+ * The unit a scale bar PROMOTES to once the number gets large, by the unit the
+ * user picked.
+ *
+ * The label hardcoded m and km, so a user working in feet read the one length on
+ * this panel in a unit they do not use. Promoting is still worth doing - "1.2 km"
+ * beats "1234 m" - so the ladder is stated rather than dropped, and only for the
+ * two base units that have a large sibling in `UNITS.distance`. A user who
+ * already picked `km`, `yd` or `mi` is shown that unit at every size.
+ */
+const SCALE_PROMOTION: Record<string, { sym: string; perUnit: number }> = {
+  m: { sym: 'km', perUnit: 1000 },
+  ft: { sym: 'mi', perUnit: 5280 },
+};
+
+/**
+ * Roughly how much ground a hundred pixels covers, for a sense of scale, in the
+ * user's own distance unit.
+ */
+function scaleLabel(u: Units, lat: number, zoom: number): string {
+  const meters = metersPerPixel(lat, zoom) * 100;
+  const sym = u.sym('distance');
+  const ui = u.toUi('distance', meters);
+  const up = SCALE_PROMOTION[sym];
+  if (up && ui >= up.perUnit) {
+    const big = ui / up.perUnit;
+    return `${big.toFixed(big >= 10 ? 0 : 1)} ${up.sym}`;
+  }
+  return `${u.fmt('distance', meters, 0)} ${sym}`;
 }
 
 /**

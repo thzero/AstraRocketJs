@@ -50,7 +50,9 @@
     "sync:examples": "node scripts/sync-examples.mjs",
     "sync:contributors": "node scripts/sync-contributors.mjs",
     "test:coverage": "vitest run --coverage",
-    "verify": "npm run format:check && npm run spell && npm run typecheck && npm run lint && npm run knip && vitest run"
+    "gates": "npm run format:check && npm run spell && npm run typecheck && npm run lint && npm run knip && vite build",
+    "verify": "npm run gates && vitest run",
+    "verify:ci": "npm run gates && npm run test:coverage"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

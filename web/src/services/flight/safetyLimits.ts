@@ -26,6 +26,23 @@ const MPH_TO_MS = 0.44704;
 export const MAX_ROD_ANGLE_RAD = (MAX_ROD_ANGLE_DEG * Math.PI) / 180;
 export const MAX_WIND_SPEED_MS = MAX_WIND_SPEED_MPH * MPH_TO_MS;
 
+/**
+ * Ceiling on turbulence intensity, as the percentage the fields show.
+ * Ceiling on turbulence intensity, as the percentage the fields show.
+ *
+ * `turbulenceLevel`'s top rung is "extreme" at 25%. 100% is a scatter equal to
+ * the mean wind - four times past that rung - and is where the percentage field
+ * stops, so the two readings of one value cannot be driven apart by typing into
+ * the one that had no bound.
+ *
+ * The wind's STANDARD DEVIATION is bounded by `MAX_WIND_SPEED_MS` itself, not by a
+ * constant of its own: the average had a cap and the scatter had none anywhere
+ * between the box and the solver, and a scatter larger than the largest wind the
+ * codes allow is not a wind condition. No code states a figure for it, so
+ * inventing a second number would be inventing a limit.
+ */
+export const MAX_TURBULENCE_PERCENT = 100;
+
 export interface LimitViolation {
   field: 'rodAngle' | 'windSpeed';
   /** The offending value, in SI: radians, or m/s. */

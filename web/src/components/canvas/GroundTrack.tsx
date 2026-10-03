@@ -318,7 +318,15 @@ export function GroundTrack({
                   style={{ left: tile.left, top: tile.top, width: TILE_SIZE, height: TILE_SIZE }}
                   onLoad={() => {
                     errors.current = 0;
-                    setReached({ src: source, state: 'ok' });
+                    // The identity-preserving form, like `onError` below. A fresh
+                    // object literal is a new state value for every tile that
+                    // arrives, so a screenful re-rendered the whole track that
+                    // many times - and with unmemoized point strings over a track
+                    // that is never decimated, switching the layer on a long
+                    // flight stalled the tab.
+                    setReached((prev) =>
+                      prev?.src === source && prev.state === 'ok' ? prev : { src: source, state: 'ok' },
+                    );
                   }}
                   onError={() => {
                     // One 404 is a hole in the coverage at this zoom; a whole

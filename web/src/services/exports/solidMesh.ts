@@ -6,6 +6,7 @@ import { finCutContour, finRootChord, finSpan } from '../../tree/finPlanform';
 import { freeformPoints } from '../../tree/position';
 import { outerProfile } from '../../tree/shapeProfile';
 import { tubeFinRadius } from '../../tree/tubefins';
+import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
 import { meshTolerances, validateSolid } from './meshValidate';
 
 /**
@@ -448,6 +449,31 @@ function validated(geo: THREE.BufferGeometry | null): THREE.BufferGeometry | nul
 }
 
 /**
+ * A tube fin set's wall when the design states none.
+ *
+ * An APP choice, and the only one here: `ComponentFactory` never calls
+ * `setThickness` for a tube fin set, so the kernel keeps
+ * `TubeFinSet.thickness`, which is `Double.NaN`. There is no kernel number to
+ * agree with, and a NaN wall exports nothing at all, so the printable part
+ * borrows the inner tube's - the nearest thing the kernel does define for a
+ * small hollow tube - rather than a literal nobody can trace.
+ */
+const TUBE_FIN_WALL = KERNEL_DEFAULTS.innertube.thickness;
+
+/**
+ * The kernel's own default for one field of one component type.
+ *
+ * `NaN` when the factory reads no default for it, which makes the caller's
+ * `!(R > 0)` guard skip the part instead of inventing a size. That is the point:
+ * three literals here disagreed with `ComponentFactory` and the export shipped
+ * a part the simulation never flew.
+ */
+function kernelDefault(type: ComponentNode['type'], key: string, fallback = NaN): number {
+  const row = KERNEL_DEFAULTS[type] as Readonly<Record<string, number | undefined>>;
+  return row[key] ?? fallback;
+}
+
+/**
  * A disc/ring solid through the same validation, for the callers that resolve
  * the dimensions themselves because they are already walking the tree.
  */
@@ -459,7 +485,7 @@ function buildSolid(node: ComponentNode, parentRadius: number | null): THREE.Buf
   const len = num(node, 'length', 0);
   switch (node.type) {
     case 'nosecone': {
-      const R = num(node, 'aftRadius', 0.012);
+      const R = num(node, 'aftRadius', KERNEL_DEFAULTS.nosecone.aftRadius);
       if (!(R > 0) || !(len > 0)) return null; // zero-radius/length → empty, non-manifold lathe
       const shape = typeof node['shape'] === 'string' ? (node['shape'] as string) : 'ogive';
       const surface = outerProfile(shape, numOpt(node, 'shapeParameter'), len, 0, R, SEGMENTS);
@@ -498,11 +524,16 @@ function buildSolid(node: ComponentNode, parentRadius: number | null): THREE.Buf
       // on a 25 mm body at less than half its real diameter with no warning.
       // Without a parent radius the size is unknowable, so skip the part rather
       // than invent one.
+      // Per TYPE, from `KERNEL_DEFAULTS`, because one number for all three was
+      // wrong for two of them: the kernel builds an inner tube at 9.5 mm and a
+      // launch lug at 2.2 mm, and a hard 12 mm printed the lug at 5.5x its flown
+      // radius. A part that does not fit the rocket that was simulated is not a
+      // cosmetic difference in an export whose whole purpose is a physical part.
       const R =
         node.type === 'tubefinset'
           ? (numOpt(node, 'outerRadius') ?? (parentRadius != null ? tubeFinRadius(node, parentRadius) : NaN))
-          : num(node, 'outerRadius', 0.012);
-      const wall = num(node, 'thickness', node.type === 'launchlug' ? 0.0003 : 0.0005);
+          : num(node, 'outerRadius', kernelDefault(node.type, 'outerRadius'));
+      const wall = num(node, 'thickness', kernelDefault(node.type, 'thickness', TUBE_FIN_WALL));
       // A zero/negative outer radius (or length) revolves to an empty mesh that
       // still reads as "watertight"; return null so it's skipped from export
       // rather than handed over as a hollow non-solid (matches nose/transition/fin).

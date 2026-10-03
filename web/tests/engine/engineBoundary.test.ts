@@ -5,6 +5,7 @@ import {
   type MotorSpec,
   type RocketTree,
 } from '../../src/engine/openRocketEngine';
+import { KERNEL_TEST_TIMEOUT_MS } from '../testing/kernelTimeout';
 
 /**
  * The REAL kernel, not a stub.
@@ -27,10 +28,12 @@ import {
  * 1 s on an idle machine, but 5.5-11.7 s under `--coverage` with the suite's
  * other 82 files running beside it — measured, three runs out of three.
  *
- * Scoped to this file on purpose. A global bump would slacken 854 tests that
- * have no business taking seconds, and hide the thing a timeout is for.
+ * The cap and the reasoning for it live in `testing/kernelTimeout.ts`, shared with
+ * the three other files that fly the kernel. Still opted into per file: a global
+ * bump would slacken the thousands of tests that have no business taking seconds,
+ * and hide the thing a timeout is for.
  */
-vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
+vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIMEOUT_MS });
 
 type Engine = typeof import('../../src/engine/vendor/openrocket-engine.mjs');
 let engine: Engine;

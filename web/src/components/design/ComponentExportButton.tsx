@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
+import { fireAction } from '../../state/fireAction';
 import { useWorkspaceStore } from '../../state/store';
 import { componentFormats, type ExportFormat } from '../../services/files/componentFormats';
 
@@ -70,7 +71,7 @@ export function ComponentExportButton({ node }: { node: ComponentNode }) {
               onClick={(e) => {
                 e.stopPropagation();
                 setOpen(false);
-                exportComponent(id, f);
+                fireAction(exportComponent(id, f));
               }}
               className="flex w-full items-center px-3 py-1.5 text-left text-xs font-medium text-slate-200 hover:bg-slate-700"
             >

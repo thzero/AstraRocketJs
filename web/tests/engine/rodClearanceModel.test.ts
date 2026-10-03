@@ -6,6 +6,7 @@ import {
   type MotorSpec,
   type RocketTree,
 } from '../../src/engine/openRocketEngine';
+import { KERNEL_TEST_TIMEOUT_MS } from '../testing/kernelTimeout';
 
 /**
  * The two launch-guide clearance models, flown through the REAL kernel.
@@ -27,9 +28,10 @@ import {
  * numbers unless something compares them.
  *
  * Flies the real kernel, so it takes seconds rather than milliseconds - see
- * engineBoundary.test.ts for why the timeout is scoped to the file.
+ * `testing/kernelTimeout.ts` for the cap and why it is three times the measured
+ * work rather than just over it: this is the slowest file in the suite, 55 s alone.
  */
-vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
+vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIMEOUT_MS });
 
 type Engine = typeof import('../../src/engine/vendor/openrocket-engine.mjs');
 let engine: Engine;

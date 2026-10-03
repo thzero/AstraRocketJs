@@ -28,7 +28,13 @@ import * as THREE from 'three';
  */
 
 export type MeshIssueKind =
-  'empty' | 'non-finite' | 'degenerate-triangle' | 'repeated-vertex' | 'non-manifold-edge' | 'inconsistent-winding';
+  | 'empty'
+  | 'non-finite'
+  | 'degenerate-triangle'
+  | 'repeated-vertex'
+  | 'non-manifold-edge'
+  | 'inconsistent-winding'
+  | 'inside-out';
 
 export interface MeshIssue {
   kind: MeshIssueKind;
@@ -82,6 +88,16 @@ export function validateSolid(geo: THREE.BufferGeometry, areaTol = 0): MeshIssue
 
   let degenerate = 0;
   let repeated = 0;
+  /**
+   * Six times the signed volume, by the divergence theorem.
+   *
+   * The directed-edge count below proves the winding is CONSISTENT; it cannot say
+   * which way the surface faces, because flipping every triangle in a closed mesh
+   * flips every directed edge too and the counts come out identical. So a solid
+   * wound entirely inside out passed every check here, and a slicer reading it
+   * fills the room and leaves the part hollow.
+   */
+  let volume6 = 0;
   /** Directed edge use count, to separate "shared" from "shared the same way". */
   const directed = new Map<string, number>();
   const undirected = new Map<string, number>();
@@ -101,6 +117,9 @@ export function validateSolid(geo: THREE.BufferGeometry, areaTol = 0): MeshIssue
     c.fromBufferAttribute(pos, ic);
     const area = ab.subVectors(b, a).cross(ac.subVectors(c, a)).length() * 0.5;
     if (!(area > areaTol)) degenerate++;
+    // a . (b x c), summed. `ab` is scratch reused from the area above, so the
+    // cross is recomputed into it only after the area has been taken.
+    volume6 += a.dot(ab.copy(b).cross(c));
 
     for (const [u, v] of [
       [ia, ib],
@@ -156,6 +175,16 @@ export function validateSolid(geo: THREE.BufferGeometry, areaTol = 0): MeshIssue
       kind: 'inconsistent-winding',
       detail: `${flipped} edge(s) are traversed the same way by two faces, so the surface is not consistently oriented`,
       count: flipped,
+    });
+  }
+
+  // Which way the surface FACES, and only once it is closed and consistent:
+  // signed volume is meaningless on an open shell, and reporting it on top of a
+  // hole would name a second fault for one defect.
+  if (!open && !overused && !flipped && !repeated && !nonFinite && idx.count >= 3 && volume6 < 0) {
+    issues.push({
+      kind: 'inside-out',
+      detail: `the surface is closed and consistently wound but faces INWARD (signed volume ${(volume6 / 6).toExponential(2)})`,
     });
   }
 

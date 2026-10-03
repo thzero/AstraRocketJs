@@ -48,3 +48,63 @@ describe('CI trigger coverage', () => {
     expect(wf('dev.yml')).toContain('npm run verify');
   });
 });
+
+/**
+ * Every job that runs STEPS has a wall-clock cap.
+ *
+ * Six jobs across four workflows had none, so each inherited GitHub's 360-minute
+ * default - per shard for the three-way `e2e` matrix, and on a `sync` job that
+ * holds `contents: write` against the `data` branch the live app reads. The cap is
+ * not about slowness: it is about a HANG. A Playwright locator waiting on an
+ * element that never appears, a deadlocked kernel build, a fetch with no timeout
+ * of its own; uncapped, each of those sits burning runner minutes for six hours
+ * with the PR showing "in progress".
+ *
+ * Textual, like the trigger assertions above, and for the same two reasons: the
+ * hazard is the SHAPE of the config, and parsing would mean a YAML dependency that
+ * knip would then report as unlisted.
+ *
+ * A job that only calls a reusable workflow (`uses: ./.github/workflows/...`) is
+ * skipped: it runs no steps of its own, and its duration is the sum of the called
+ * workflow's jobs, each of which is capped here.
+ */
+describe('every job has a timeout', () => {
+  const FILES = ['ci.yml', 'deploy.yml', 'dev.yml', 'gates.yml', 'sync-catalogs.yml'];
+
+  /** Job blocks in one workflow, as `[name, body]`, split on the 2-space indent. */
+  const jobsOf = (text: string): [string, string][] => {
+    const after = text.split(/^jobs:\s*$/m)[1];
+    if (!after) return [];
+    const out: [string, string][] = [];
+    const parts = after.split(/^ {2}([A-Za-z][\w-]*):\s*$/m);
+    for (let i = 1; i < parts.length; i += 2) out.push([parts[i]!, parts[i + 1] ?? '']);
+    return out;
+  };
+
+  it('caps every job that runs steps', () => {
+    const uncapped: string[] = [];
+    for (const f of FILES) {
+      for (const [name, body] of jobsOf(wf(f))) {
+        if (/^\s*uses:/m.test(body) && !/^\s*steps:/m.test(body)) continue; // reusable-workflow call
+        if (!/^\s*timeout-minutes:\s*\d+/m.test(body)) uncapped.push(`${f}#${name}`);
+      }
+    }
+    expect(uncapped).toEqual([]);
+  });
+
+  it('finds the jobs at all, so a broken split cannot pass', () => {
+    // Without this, a regex that stops matching makes the loop above iterate over
+    // nothing and report a clean sweep of a file it never read.
+    const names = FILES.flatMap((f) => jobsOf(wf(f)).map(([n]) => n));
+    expect(names).toContain('build-and-test');
+    expect(names).toContain('e2e');
+    expect(names).toContain('sync');
+    expect(names.length).toBeGreaterThanOrEqual(10);
+  });
+
+  it('leaves no cap at the 360-minute default by writing it out', () => {
+    // A literal 360 is someone documenting the default rather than choosing a
+    // bound, which is the same hazard wearing a number.
+    for (const f of FILES) expect(wf(f), f).not.toMatch(/timeout-minutes:\s*360/);
+  });
+});

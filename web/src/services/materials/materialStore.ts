@@ -19,6 +19,17 @@ export interface MaterialStore {
 
 const CUSTOM_KEY = nsKey('materials:custom');
 
+/**
+ * A stored entry that is a usable material.
+ *
+ * `density > 0`, not merely finite. Every reader of a density divides or
+ * multiplies by it: a zero gives a part with no mass at all and a negative one
+ * gives a part that lightens the rocket and drags the CG off the airframe. The
+ * `.ork` and `.rkt` readers both already require `> 0` of a density off a file
+ * (`matDensity`, `readSoftMaterial`), and the kernel only calls `setMaterial`
+ * when the node carries a positive one. This is the same rule for the entry that
+ * comes back out of the user's own custom list.
+ */
 function isMaterial(v: unknown): v is Material {
   const m = v as Material;
   return (
@@ -26,6 +37,7 @@ function isMaterial(v: unknown): v is Material {
     typeof m.name === 'string' &&
     typeof m.density === 'number' &&
     Number.isFinite(m.density) &&
+    m.density > 0 &&
     (m.type === 'bulk' || m.type === 'surface' || m.type === 'line')
   );
 }

@@ -447,14 +447,34 @@ export function AftView({
           <line x1={0} y1={-E * 0.05} x2={0} y2={E * 0.05} stroke="#9a978f" strokeWidth={E / 300} />
         </g>
       </svg>
+      {/* Gated the way `SchematicControls` gates the same three. At the default
+          view both zoom-out and fit are no-ops - `zoomBy` clamps the scale at 1
+          and the view already IS `ZOOM_IDENTITY` - so they looked clickable and
+          did nothing, which is a bug here whatever the rationale. Zoom-in stops
+          at the shared ceiling for the same reason. */}
       <div className="schematic-controls">
-        <button title={t('schematic.zoomIn')} aria-label={t('schematic.zoomIn')} onClick={() => zoomBy(1.5)}>
+        <button
+          title={t('schematic.zoomIn')}
+          aria-label={t('schematic.zoomIn')}
+          onClick={() => zoomBy(1.5)}
+          disabled={zoom.k >= WHEEL_ZOOM.max}
+        >
           +
         </button>
-        <button title={t('schematic.zoomOut')} aria-label={t('schematic.zoomOut')} onClick={() => zoomBy(1 / 1.5)}>
+        <button
+          title={t('schematic.zoomOut')}
+          aria-label={t('schematic.zoomOut')}
+          onClick={() => zoomBy(1 / 1.5)}
+          disabled={zoom.k <= 1}
+        >
           −
         </button>
-        <button title={t('schematic.fit')} aria-label={t('schematic.fit')} onClick={() => setZoom(ZOOM_IDENTITY)}>
+        <button
+          title={t('schematic.fit')}
+          aria-label={t('schematic.fit')}
+          onClick={() => setZoom(ZOOM_IDENTITY)}
+          disabled={zoom.k === 1 && zoom.x === 0 && zoom.y === 0}
+        >
           ⤢
         </button>
       </div>

@@ -36,6 +36,7 @@ import { Dialog } from '../common/Dialog';
 import { decodeStageColors, encodeStageColors } from '../../services/storage/settings';
 import { useSettings } from '../../state/SettingsProvider';
 import { LANGUAGES } from '../../i18n';
+import { useLatest } from '../common/useLatest';
 
 /**
  * "Export flight path" — a port of OpenRocket's 3D-path export dialog. Renders a
@@ -200,6 +201,9 @@ export function ExportDialog({
   const change = (patch: Partial<FlightPathExportOptions>) => persist(patchOpts(patch));
   const [templates, setTemplates] = useState<UserTemplate[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // Which template-store write is current: a file read plus an IndexedDB write,
+  // and this dialog can close under either.
+  const storeWrite = useLatest();
   // Where a stage's track begins only means something once there is more than
   // one stage, so the control stays out of the way of a single-stage flight.
   const staged = (result.branches?.length ?? 0) > 1;
@@ -262,31 +266,44 @@ export function ExportDialog({
     const file = e.target.files?.[0];
     e.target.value = ''; // let the same file be re-imported after edits
     if (!file) return;
+    const mine = storeWrite.claim();
     try {
       const source = await file.text();
+      if (!mine()) return;
       if (!source.trim()) {
         setError(t('pathExport.importEmpty'));
         return;
       }
       const { id, name, ext } = parseTemplateFilename(file.name);
       await store.add({ id, name, ext, source });
-      setTemplates(await store.list());
+      const listed = await store.list();
+      // The store write is deliberately NOT undone on a stale token - the
+      // template is stored and should stay stored. What must not happen is
+      // selecting it in a dialog that has moved on, or reporting the outcome of
+      // one import over another's.
+      if (!mine()) return;
+      setTemplates(listed);
       setSelected(`${USER_PREFIX}${id}`);
       setError(null);
     } catch {
+      if (!mine()) return;
       setError(t('pathExport.importError'));
     }
   };
 
   const deleteSelected = async () => {
     if (!selectedUser) return;
+    const mine = storeWrite.claim();
     try {
       await store.remove(selectedUser.id);
       // Inside the try as well: a listing that fails after the delete would
       // otherwise reject out of the handler, leaving the row gone from the store,
       // still shown in the dialog, and no error reported.
-      setTemplates(await store.list());
+      const listed = await store.list();
+      if (!mine()) return;
+      setTemplates(listed);
     } catch {
+      if (!mine()) return;
       // The template store reports a refused write rather than resolving cleanly
       // on one, so this can throw.
       setError(t('storage.full'));

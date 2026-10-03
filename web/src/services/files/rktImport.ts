@@ -99,6 +99,72 @@ const dia = (el: Element, name: string): number | undefined => {
 const densityType = (el: Element): number => clampCount(num(el, 'DensityType') ?? 0, 0, 2);
 
 /**
+ * HTML 4.01 / CSS level 1 basic color keywords, which is the whole set of NAMES
+ * both an SVG `fill` and a three.js material understand without a lookup table,
+ * and the set RockSim writes ("Black", "Red", ...).
+ *
+ * Here so the value can be NORMALIZED to the `#rrggbb` the tree's `color` key
+ * means everywhere else. Carried as a name it rendered (both consumers parse
+ * CSS names) and then vanished on the way out: `orkExport.colorXml` matches
+ * `/^#?([0-9a-f]{6})$/i` and silently drops anything else, so a RockSim design
+ * converted to `.ork` lost every part color it had.
+ */
+// cspell:ignore grey -- a CSS color KEYWORD, not prose: CSS defines `gray` and
+// `grey` as two spellings of one color and both are valid in an SVG `fill`, so a
+// file that says one of them has to be understood.
+const BASIC_COLORS: Record<string, string> = {
+  black: '#000000',
+  silver: '#c0c0c0',
+  gray: '#808080',
+  grey: '#808080',
+  white: '#ffffff',
+  maroon: '#800000',
+  red: '#ff0000',
+  purple: '#800080',
+  fuchsia: '#ff00ff',
+  magenta: '#ff00ff',
+  green: '#008000',
+  lime: '#00ff00',
+  olive: '#808000',
+  yellow: '#ffff00',
+  navy: '#000080',
+  blue: '#0000ff',
+  teal: '#008080',
+  aqua: '#00ffff',
+  cyan: '#00ffff',
+};
+
+/**
+ * A RockSim `<Color>` as the `#rrggbb` the tree means, or nothing.
+ *
+ * The .ork reader validates its three 0-255 channels and builds a hex string;
+ * this wrote the element's text VERBATIM into the same key. So the key the
+ * schematic hands to SVG `fill`, the 3D view hands to a three.js material and
+ * the exporter matches against a strict hex pattern could hold any string at
+ * all, and nothing downstream agreed on what to do with one.
+ *
+ * Accepts the three spellings a file actually carries - `#rrggbb`, a bare
+ * `rrggbb`, the `#rgb` shorthand - and a basic color NAME. Anything else is
+ * dropped, which leaves the part on its group color rather than on a value no
+ * consumer can read.
+ */
+const rktColor = (raw: string | null | undefined): string | undefined => {
+  const t = raw?.trim();
+  if (!t) return undefined;
+  const named = BASIC_COLORS[t.toLowerCase()];
+  if (named) return named;
+  const hex = /^#?([0-9a-f]{6})$/i.exec(t);
+  if (hex) return `#${hex[1]!.toLowerCase()}`;
+  const short = /^#?([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(t);
+  if (short)
+    return `#${short
+      .slice(1, 4)
+      .map((c) => c.toLowerCase().repeat(2))
+      .join('')}`;
+  return undefined;
+};
+
+/**
  * A dimension, floored at zero.
  *
  * The handlers wrap most dimensions in `Math.max(0, …)`, and the ones that do
@@ -160,7 +226,7 @@ function readCommon(el: Element, n: ComponentNode, withPosition: boolean): void 
     if (knownCg !== undefined) n['overrideCGX'] = Math.max(0, knownCg);
   }
 
-  const color = tag(el, 'Color');
+  const color = rktColor(tag(el, 'Color'));
   if (color) n['color'] = color;
 
   if (withPosition) {
@@ -443,20 +509,33 @@ function readFinSet(ctx: RktContext, el: Element, parent?: ComponentNode): Compo
  * `<PointList>` is a `x,y|x,y|…` string in mm, measured from the fin's leading
  * root point. Capped like the `.ork` reader's `<finpoints>`: every renderer
  * walks the outline per fin, so an absurd list is a frozen tab.
+ *
+ * Scanned with `indexOf` rather than `raw.split('|')`, which is the cap working
+ * the way the `.ork` reader's sibling walk already does. `split` materializes
+ * EVERY pair before the first cap test, so a crafted `<PointList>` of a few
+ * megabytes allocated millions of substrings and the cap then discarded all but
+ * the first few hundred - the bound was on what we keep, not on what we build.
  */
 function readPointList(ctx: RktContext, el: Element): [number, number][] {
   const raw = tag(el, 'PointList');
   if (!raw) return [];
   const out: [number, number][] = [];
-  for (const pair of raw.split('|')) {
+  let at = 0;
+  while (at <= raw.length) {
     if (out.length >= MAX_FIN_POINTS) {
       ctx.notes.push(`A freeform fin had more than ${MAX_FIN_POINTS} points; the rest were dropped.`);
       break;
     }
-    const [xs, ys] = pair.split(',');
-    const x = finiteNum(xs);
-    const y = finiteNum(ys);
-    if (x !== undefined && y !== undefined) out.push([x / LENGTH, y / LENGTH]);
+    const bar = raw.indexOf('|', at);
+    const pair = raw.slice(at, bar === -1 ? raw.length : bar);
+    const comma = pair.indexOf(',');
+    if (comma !== -1) {
+      const x = finiteNum(pair.slice(0, comma));
+      const y = finiteNum(pair.slice(comma + 1));
+      if (x !== undefined && y !== undefined) out.push([x / LENGTH, y / LENGTH]);
+    }
+    if (bar === -1) break;
+    at = bar + 1;
   }
   return out;
 }

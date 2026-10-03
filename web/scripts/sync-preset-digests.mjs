@@ -45,7 +45,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chooseBuild, runDumper } from './openrocketJava.mjs';
+import { chooseBuild, runDumper } from './lib/openrocketJava.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const CATALOG = resolve(HERE, '../public/data/components.generated.json');

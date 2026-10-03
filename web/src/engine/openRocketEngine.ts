@@ -297,19 +297,26 @@ export type BackendPref = 'wasm' | 'js' | 'auto';
  * The app-namespaced localStorage key for the backend override.
  *
  * Built from `STORAGE_PREFIX` like every other key. It used to be spelled out,
- * and spelled CORRECTLY, which made it the app's second storage namespace: one
- * key under `astrarocketjs:` and seventeen under the misspelled prefix every
- * other store uses. Nothing swept either, so nothing was lost, but a future
- * "clear app data" over one prefix would have missed the other. One namespace
- * now; correcting the spelling is a data migration and its own change.
+ * and spelled correctly while every other store used a misspelled prefix, which
+ * made this the app's SECOND storage namespace. Both are the one namespace now,
+ * and the prefix is spelled right, so this key is back to the value it always had.
  */
 export const ENGINE_PREF_KEY = nsKey('engine');
 /**
  * Keys this override used to live under, still honored so an existing one keeps
- * working. `engine` is pre-namespacing; the second is the correctly-spelled
- * namespace this key alone used before it joined the rest.
+ * working: `engine` is pre-namespacing, and the typo prefix is what every other
+ * store wrote before the spelling was corrected.
+ *
+ * This one key is worth a read chain where the stores are not, because it is a
+ * DEBUG switch quoted in the docs - someone following those instructions set it
+ * by hand and should not have to do it twice. A design under the old prefix is
+ * preview scratch and is not read back; a `?engine=js` someone set this morning is
+ * a live instruction.
+ *
+ * cspell:ignore astrarrocketjs -- the OLD prefix, and the only place left in `src`
+ * that has to name it.
  */
-const LEGACY_ENGINE_PREF_KEYS = ['engine', 'astrarocketjs:engine'] as const;
+const LEGACY_ENGINE_PREF_KEYS = ['engine', 'astrarrocketjs:engine'] as const;
 
 /**
  * Backend preference. Default is 'auto' → try WASM-GC first, fall back to JS

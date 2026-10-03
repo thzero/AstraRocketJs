@@ -11,6 +11,7 @@ import { LaunchPanel } from './LaunchPanel';
 import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
+import { unitScope } from '../../prefs/units';
 import { FieldLabel, markRing } from '../common/FieldMark';
 import type { SimPrefs } from '../../services/flight/simulations';
 
@@ -197,6 +198,13 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
   const clearSimPrefs = useWorkspaceStore((s) => s.clearSimPrefs);
   const onCommit = useWorkspaceStore((s) => s.commitEdit);
   const g = settings.simulation;
+  // The SAME FieldUnit the global setting resolves, under the same scope key, so
+  // the two surfaces for this one stored value cannot disagree about its unit.
+  // This read a hardcoded degree sign and an inline `* 180 / Math.PI`, which
+  // SettingsDialog says in its own comment it was changed away from. `angle`
+  // offers `rad`, so a user working in radians saw one surface in degrees and the
+  // other in radians, for the same number.
+  const angle = u.at(unitScope('settings', 'maxAngleStep'), 'angle');
 
   /** What this simulation actually runs with: its overrides over the globals. */
   const eff = { ...g, ...(prefs ?? {}) };
@@ -259,16 +267,16 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
         <Override
           label={t('settings.maxAngleStep')}
           hint={t('settings.maxAngleStepHint')}
-          unit="°"
-          // Stored in RADIANS like the kernel's field, typed in degrees, which
-          // is the only way anyone thinks about "how far may it rotate".
+          unit={angle.sym}
+          // Stored in RADIANS like the kernel's field, edited in the user's angle
+          // unit through `angle` above - not in degrees by assumption.
           mixed={mixed('maxAngleStep')}
-          value={prefs?.maxAngleStep == null ? null : +((prefs.maxAngleStep * 180) / Math.PI).toFixed(3)}
-          placeholder={String(+((g.maxAngleStep * 180) / Math.PI).toFixed(3))}
-          step={0.5}
-          min={+((SIM_BOUNDS.maxAngleStep.min * 180) / Math.PI).toFixed(3)}
-          max={+((SIM_BOUNDS.maxAngleStep.max * 180) / Math.PI).toFixed(3)}
-          onChange={(v) => setSimPref('maxAngleStep', v == null ? null : (v * Math.PI) / 180)}
+          value={prefs?.maxAngleStep == null ? null : angle.toUi(prefs.maxAngleStep)}
+          placeholder={String(angle.toUi(g.maxAngleStep))}
+          step={angle.step((0.5 * Math.PI) / 180)}
+          min={angle.toUi(SIM_BOUNDS.maxAngleStep.min)}
+          max={angle.toUi(SIM_BOUNDS.maxAngleStep.max)}
+          onChange={onSi(angle, (si) => setSimPref('maxAngleStep', si))}
           onCommit={onCommit}
         />
         {/* The desktop pairs the time step with a slider, because the useful

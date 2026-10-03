@@ -163,7 +163,9 @@ describe('autosave', () => {
     save.mockClear();
 
     act(() => s().addPartToTree('bodytube'));
-    act(() => vi.advanceTimersByTime(400));
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
     act(() => s().addPartToTree('bodytube'));
     expect(save).not.toHaveBeenCalled(); // the second edit restarted the clock
 
@@ -210,7 +212,9 @@ describe('autosave', () => {
     renderWithProviders(<Host />);
 
     act(() => s().addPartToTree('bodytube'));
-    act(() => vi.advanceTimersByTime(1000));
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
     // Saving now would write the DEFAULT design over the one still being read.
     expect(save).not.toHaveBeenCalled();
 
@@ -280,7 +284,9 @@ describe('autosave', () => {
 describe('the unload journal', () => {
   it('flushes synchronously on pagehide', async () => {
     await mount();
-    act(() => window.dispatchEvent(new Event('pagehide')));
+    act(() => {
+      window.dispatchEvent(new Event('pagehide'));
+    });
     // Synchronous path: an async IndexedDB write cannot finish during teardown.
     expect(saveSync).toHaveBeenCalledTimes(1);
   });
@@ -288,14 +294,18 @@ describe('the unload journal', () => {
   it('does not journal a workspace it never hydrated', () => {
     load.mockReturnValue(new Promise(() => {})); // never settles
     renderWithProviders(<Host />);
-    act(() => window.dispatchEvent(new Event('pagehide')));
+    act(() => {
+      window.dispatchEvent(new Event('pagehide'));
+    });
     expect(saveSync).not.toHaveBeenCalled();
   });
 
   it('stops listening once unmounted', async () => {
     const { unmount } = await mount();
     unmount();
-    act(() => window.dispatchEvent(new Event('pagehide')));
+    act(() => {
+      window.dispatchEvent(new Event('pagehide'));
+    });
     expect(saveSync).not.toHaveBeenCalled();
   });
 });

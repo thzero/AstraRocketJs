@@ -41,8 +41,7 @@ const VERSION_C = '0.0.0-update-c';
 // seeds. Spelled out because this is a plain .mjs harness with no TS loader, so it
 // cannot import STORAGE_PREFIX. A mismatch is self-detecting: the app would come up
 // without settings and the check below would fail.
-// cspell:ignore astrarrocketjs
-const SETTINGS_KEY = 'astrarrocketjs:settings:v1';
+const SETTINGS_KEY = 'astrarocketjs:settings:v1';
 
 const log = (...a) => console.log('[update-flow]', ...a);
 const chunkOf = (html) => html.match(/assets\/index-[\w-]+\.js/)?.[0] ?? null;

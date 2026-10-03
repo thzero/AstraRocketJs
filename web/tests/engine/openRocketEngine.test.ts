@@ -271,8 +271,9 @@ describe('backendPref', () => {
     expect(backendPref()).toBe('wasm');
     store.set(ENGINE_PREF_KEY, 'js');
     expect(backendPref()).toBe('js');
-    // Built from the app's one storage prefix, not spelled out. It used to be
-    // its own correctly-spelled namespace, which made it the second of two.
+    // Built from the app's one storage prefix, not spelled out. This key was the
+    // app's SECOND namespace: it alone was spelled correctly while every other
+    // store used a typo, and the rename made both of them this one.
     expect(ENGINE_PREF_KEY).toBe(nsKey('engine'));
     expect(ENGINE_PREF_KEY.startsWith(`${STORAGE_PREFIX}:`)).toBe(true);
     vi.stubGlobal('location', { search: '?engine=wasm' });
@@ -281,10 +282,16 @@ describe('backendPref', () => {
     expect(backendPref()).toBe('js'); // unknown query value: fall through to storage
   });
 
-  it('still honors an override left under the key this one used to have', () => {
-    // The key moved onto the app's one prefix, so anyone who had set the
-    // backend override keeps it rather than silently reverting to auto.
-    const store = new Map<string, string>([['astrarocketjs:engine', 'js']]);
+  it('still honors an override left under the MISSPELLED prefix', () => {
+    // The one legacy read chain kept across the rename, and the only one: this is a
+    // debug switch quoted in the docs, so someone who set it by hand this morning
+    // should not have to do it twice. A design under the old prefix is preview
+    // scratch and is deliberately not read back; a backend override is a live
+    // instruction.
+    //
+    // Spelled out rather than built from a constant, because the point is the
+    // string that no longer has one. cspell:ignore astrarrocketjs
+    const store = new Map<string, string>([['astrarrocketjs:engine', 'js']]);
     vi.stubGlobal('localStorage', { getItem: (k: string) => store.get(k) ?? null });
     vi.stubGlobal('location', { search: '' });
     expect(backendPref()).toBe('js');

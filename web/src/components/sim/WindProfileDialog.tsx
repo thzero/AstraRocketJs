@@ -6,7 +6,7 @@ import { markRing } from '../common/FieldMark';
 import { Dialog } from '../common/Dialog';
 import { useUnits, type Units } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
-import { MAX_WIND_SPEED_MS } from '../../services/flight/safetyLimits';
+import { MAX_TURBULENCE_PERCENT, MAX_WIND_SPEED_MS } from '../../services/flight/safetyLimits';
 import {
   hasIntensity,
   stdDevForIntensity,
@@ -15,6 +15,7 @@ import {
 } from '../../services/flight/windTurbulence';
 import { parseWindProfileCsv, WindProfileCsvError } from '../../services/flight/windProfileCsv';
 import { duplicateAltitudeRows } from '../../services/flight/windLevels';
+import { useLatest } from '../common/useLatest';
 
 /**
  * The altitude-layered wind profile, as OpenRocket's Wind Profile Editor: one
@@ -128,6 +129,8 @@ export function WindProfileDialog({
   const fileRef = useRef<HTMLInputElement>(null);
   const [showVectors, setShowVectors] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Which CSV import is current: a file read outlives this dialog.
+  const csvImport = useLatest();
 
   const levels = launch.windLevels ?? [];
   // A stable key per row. WindLevel carries no id, and keying on the index
@@ -206,11 +209,19 @@ export function WindProfileDialog({
   };
 
   const importCsv = async (file: File) => {
+    // `file.text()` is a read that resolves after the fact, and
+    // `replaceLevels` writes to whatever simulations are the current edit
+    // targets. Closing this dialog, or picking a second file, must not let the
+    // first read land on them.
+    const mine = csvImport.claim();
     try {
-      replaceLevels(parseWindProfileCsv(await file.text()));
+      const levels = parseWindProfileCsv(await file.text());
+      if (!mine()) return;
+      replaceLevels(levels);
       setError(null);
       onCommit?.();
     } catch (e) {
+      if (!mine()) return;
       // Import REPLACES the profile, so a bad file must leave it untouched:
       // parse throws before anything is set rather than half-applying.
       setError(
@@ -302,6 +313,7 @@ export function WindProfileDialog({
                     <NumberInput
                       step={u.step('windspeed', 0.5)}
                       min={0}
+                      max={u.toUi('windspeed', MAX_WIND_SPEED_MS)}
                       ariaLabel={`${t('windProfile.deviation')} ${i + 1}`}
                       value={u.toUi('windspeed', l.stddev)}
                       onChange={onSi(u.plain('windspeed'), (si) => patchLevel(i, { stddev: si ?? 0 }))}
@@ -310,6 +322,7 @@ export function WindProfileDialog({
                     <NumberInput
                       step={1}
                       min={0}
+                      max={MAX_TURBULENCE_PERCENT}
                       ariaLabel={`${t('windProfile.turbulence')} ${i + 1}`}
                       value={Math.round(intensity * 100)}
                       onChange={(v) => patchLevel(i, { stddev: stdDevForIntensity(l.speed, (v ?? 0) / 100) })}

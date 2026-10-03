@@ -122,12 +122,27 @@ async function assertSane(catalog, withCurves) {
     );
   if (catalog.length && withCurves / catalog.length < 0.8)
     problems.push(`only ${withCurves}/${catalog.length} motors have a bundled curve`);
+  // The shrink floor compares against WHATEVER IS ON DISK at `OUT`, and which copy
+  // that is differs by caller. In the weekly workflow it is the live published
+  // catalog: the "Seed from the published catalogs" step clones the `data` branch
+  // over this file first, precisely so the floor measures against what users are
+  // actually being served. Run locally, with no seeding step, it is the committed
+  // copy, which can be months behind.
+  //
+  // Both are legitimate baselines, and the difference matters enough that the run
+  // says which one it used - a floor measured against a stale baseline is weaker
+  // than it looks, and nothing in the output distinguished the two cases.
   try {
     const prev = JSON.parse(await readFile(OUT, 'utf8'));
-    if (Array.isArray(prev) && prev.length && catalog.length < 0.9 * prev.length)
-      problems.push(`catalog shrank from ${prev.length} to ${catalog.length} motors`);
+    if (Array.isArray(prev) && prev.length) {
+      console.log(`Shrink floor: comparing ${catalog.length} against the ${prev.length} currently in ${OUT}.`);
+      if (catalog.length < 0.9 * prev.length)
+        problems.push(`catalog shrank from ${prev.length} to ${catalog.length} motors (baseline: ${OUT})`);
+    }
   } catch {
-    // No previous catalog to compare against (first run, or unreadable).
+    // No previous catalog to compare against (first run, or unreadable). Said out
+    // loud, because it means the shrink floor did not run at all.
+    console.log(`Shrink floor: SKIPPED, no readable baseline at ${OUT}.`);
   }
   if (problems.length) throw new Error(`Refusing to write motors.generated.json: ${problems.join('; ')}`);
 }

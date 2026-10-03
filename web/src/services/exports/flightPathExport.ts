@@ -1146,7 +1146,24 @@ function buildBranch(
 
   if (options.includeFlightPath || options.includeGroundTrack) {
     const stride = Math.max(1, options.pathStride);
+    /**
+     * One track point, or nothing at all for a sample we do not have.
+     *
+     * `finiteOr0` is the right answer for a SUMMARY figure - a missing distance
+     * reads as zero range - and the wrong one for a track point, where it plants
+     * the rocket on the pad at sea level in the middle of the flight and draws a
+     * line down to it and back. The sibling chart (`buildLinePath`) breaks its
+     * path on a non-finite sample for exactly this reason, and non-finite samples
+     * demonstrably occur: `sweep.nonFinite` is surfaced in the UI.
+     *
+     * Skipped rather than broken into separate track segments: a KML `LineString`
+     * and a GPX `trkseg` are one polyline per branch by format, and the templates
+     * are a published contract. So the line between the two real neighbors still
+     * closes the gap - which is an interpolation between two measured points, and
+     * honest in a way a fabricated sea-level point is not.
+     */
     const pushPoint = (i: number) => {
+      if (![time[i], alt[i], north?.[i], east?.[i]].every((v) => typeof v === 'number' && Number.isFinite(v))) return;
       const altAgl = finiteOr0(alt[i]);
       const t = finiteOr0(time[i]);
       branch.path.push({

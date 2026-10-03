@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { APP_VERSION, isPreRelease } from '../../services/app/appInfo';
 import { useWorkspaceStore } from '../../state/store';
+import { fireAction } from '../../state/fireAction';
 import { useHelpStore } from '../../state/helpStore';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { WorkbenchTabs } from './WorkbenchTabs';
@@ -86,7 +87,10 @@ export function AppHeader() {
         <FileMenuButton
           canSave={canSave}
           actions={{
-            onNew,
+            // Through `fireAction`, not passed directly. `FileMenuButton` declares
+            // these `() => void` and these four store actions return promises, so a
+            // failure the action forgot to catch would have vanished.
+            onNew: () => fireAction(onNew()),
             onOpenLibrary: () => open('library'),
             onSaveAs: () => {
               // Names of existing designs drive the duplicate warning.
@@ -96,10 +100,10 @@ export function AppHeader() {
             onImportOrk: () => orkRef.current?.click(),
             onImportRkt: () => rktRef.current?.click(),
             onImportExamples: () => open('examples'),
-            onExportOrk: onSave,
-            onExportRkt: onSaveRkt,
+            onExportOrk: () => fireAction(onSave()),
+            onExportRkt: () => fireAction(onSaveRkt()),
             onExportPrint: () => open('print'),
-            onExportRasaero: onSaveRasaero,
+            onExportRasaero: () => fireAction(onSaveRasaero()),
             onReport: () => open('report'),
             onMotors: () => open('motors'),
             onLaunchLocations: () => open('locations'),
@@ -130,7 +134,7 @@ export function AppHeader() {
           onChange={(e) => {
             const f = e.target.files?.[0];
             e.target.value = '';
-            if (f) onOpenFile(f);
+            if (f) fireAction(onOpenFile(f));
           }}
         />
       ))}

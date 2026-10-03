@@ -129,7 +129,15 @@ export function discDims(
       'thickness',
       node.type === 'engineblock' ? COMPONENT_DEFAULTS.engineblock.thickness : COMPONENT_DEFAULTS.tubecoupler.thickness,
     );
-    const length = num(node, 'length', node.type === 'engineblock' ? COMPONENT_DEFAULTS.engineblock.length : 0.003);
+    // The coupler length comes from the table, not a bare 0.003: the kernel
+    // builds a tube coupler 50 mm long (ComponentFactory.java:314), so a coupler
+    // whose `length` key is absent was sketched, cut and printed at a
+    // SIXTEENTH of the length it flew.
+    const length = num(
+      node,
+      'length',
+      node.type === 'engineblock' ? COMPONENT_DEFAULTS.engineblock.length : COMPONENT_DEFAULTS.tubecoupler.length,
+    );
     // A wall at least as thick as the radius leaves no bore, and `discSolid`
     // then falls through to its NO-BORE branch and lathes a solid rod: a
     // coupler printed as a plug, with nothing saying so. `solidMesh`'s tube

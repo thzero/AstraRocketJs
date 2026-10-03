@@ -15,6 +15,7 @@ import type {
 } from '../engine/openRocketEngine';
 import {
   findStages,
+  patchChangesNode,
   updateNode,
   removeNode,
   addPart,
@@ -1007,6 +1008,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       driftSweep: null,
       driftSweepRun: null,
       err: null,
+      // The BUILD, too. `info` and `rocket` describe the design on its way out,
+      // and the rebuild effect only replaces them on its next run, so for one
+      // frame a brand-new blank design showed the previous one's mass, CG and
+      // stability. Cleared here, which is the same state the rebuild effect uses
+      // for "not built yet" (`applyBuild(null, null)`), so the stats read as
+      // pending rather than as someone else's numbers.
+      info: null,
+      rocket: null,
       ...(typeof patch === 'function' ? patch(s) : patch),
     }));
   };
@@ -1118,6 +1127,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     patchSelected: (patch) => {
       const { selectedId, tree, configs } = get();
       if (!selectedId) return;
+      // Nothing at all when the patch says what the node already says, the way
+      // `applyTreeAction` and `setStageDrogue` below both return on an unchanged
+      // tree. Without it a clamped keystroke was a full kernel rebuild and an
+      // undo step that changes nothing.
+      if (!patchChangesNode(tree, selectedId, patch)) return;
       beginEdit();
       const next = updateNode(tree, selectedId, patch);
       // Only a change to the motor-mount flag can alter mount topology; a
@@ -2012,7 +2026,23 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
     saveOrk: async () => {
       try {
+        // ONE vintage of the design, captured before the first await.
+        //
+        // `tree` and `loadedMeta` were snapshotted here and `activeConfigId` and
+        // `launch` were read FRESH after the catalog fetch, which made this the
+        // only async action in the store with no staleness handling of any kind.
+        // Saving while the motor catalog was still loading and then editing wrote
+        // pre-edit geometry with a post-edit launch block: a file internally
+        // inconsistent in a way neither surface shows.
+        //
+        // The whole snapshot, not a `stale()` bail, because a save should write
+        // the design as it was when the user asked for it. `replaced` covers the
+        // other case, where the workspace is no longer this design at all.
+        const replaced = observeWorkspace();
         const { tree, loadedMeta } = get();
+        const activeConfigId = selectConfig(get()).id;
+        const launch = selectActive(get()).launch;
+        const configSnapshot = get().configs;
         // EVERY configuration, each with its own motors: the file carries the
         // whole set, so opening one setup and saving cannot discard the others.
         const base = loadedMeta?.exportMotors ?? {};
@@ -2020,7 +2050,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // seated spec: a spec is persisted with the design, so a motor seated
         // before the catalog carried digests would never gain one.
         const configs = await Promise.all(
-          get().configs.map(async (c) => ({
+          configSnapshot.map(async (c) => ({
             id: c.id,
             name: c.name,
             motors: await fillMotorDigests(buildExportMotorMap(tree, c, base)),
@@ -2044,12 +2074,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
         // The .ork writer is a lazily-imported chunk — only needed on save.
         const { downloadOrk } = await import('../services/files/saveOrk');
+        // A different design is open now: writing this one would hand the user a
+        // file for something they are no longer looking at.
+        if (replaced()) return;
         downloadOrk({
           name: tree.name || loadedMeta?.name || defaultDesignName(),
           tree,
           configs,
-          activeConfigId: selectConfig(get()).id,
-          launch: selectActive(get()).launch,
+          activeConfigId,
+          launch,
           designInfo,
         });
       } catch (e) {

@@ -263,6 +263,16 @@ export function chartDomain(
  * edge is the running sum through this series and whose bottom edge is the
  * running sum before it. Negative samples count as zero so a band never
  * inverts.
+ *
+ * Non-finite samples are handled the way {@link buildLinePath} handles them, and
+ * for the same reason: they demonstrably occur, since `sweep.nonFinite` is
+ * surfaced in the UI. Here one NaN was worse than a hole in a line. It
+ * accumulated into `cum`, so the literal string `NaN` went into the path data and
+ * EVERY band stacked above it was poisoned too; the browser then silently drops a
+ * path whose data it cannot parse, so the chart lost whole series with nothing
+ * said. A non-finite sample contributes zero to the running sum, which keeps the
+ * stack finite, and splits the band into separate closed polygons, so the gap
+ * reads as a gap instead of as a band pinched to the axis.
  */
 export function stackedBands(
   series: readonly ChartSeries[],
@@ -274,13 +284,40 @@ export function stackedBands(
   const cum = new Array<number>(machs.length).fill(0);
   for (const se of series) {
     const lower = cum.slice();
-    for (let i = 0; i < machs.length; i++) cum[i] = (cum[i] ?? 0) + Math.max(0, se.values[i] ?? 0);
-    const top = machs.map((m, i) => `${X(m).toFixed(1)},${Y(cum[i]!).toFixed(1)}`).join(' L');
-    const bot = machs
-      .map((m, i) => `${X(m).toFixed(1)},${Y(lower[i]!).toFixed(1)}`)
-      .reverse()
-      .join(' L');
-    bands.push({ fill: se.color, d: `M${top} L${bot} Z` });
+    for (let i = 0; i < machs.length; i++) {
+      const v = se.values[i];
+      // Zero, not NaN: a sample we cannot read must not move the stack that the
+      // bands above this one are measured from.
+      cum[i] = (cum[i] ?? 0) + (Number.isFinite(v) ? Math.max(0, v!) : 0);
+    }
+    // One closed polygon per run of samples that can be drawn at all.
+    const parts: string[] = [];
+    let run: number[] = [];
+    const flush = () => {
+      if (run.length < 2) {
+        // A single point has no area; a band of one sample is nothing to draw.
+        run = [];
+        return;
+      }
+      const top = run.map((i) => `${X(machs[i]!).toFixed(1)},${Y(cum[i]!).toFixed(1)}`).join(' L');
+      const bot = run
+        .map((i) => `${X(machs[i]!).toFixed(1)},${Y(lower[i]!).toFixed(1)}`)
+        .reverse()
+        .join(' L');
+      parts.push(`M${top} L${bot} Z`);
+      run = [];
+    };
+    for (let i = 0; i < machs.length; i++) {
+      const drawable =
+        Number.isFinite(machs[i]) &&
+        Number.isFinite(se.values[i]) &&
+        Number.isFinite(cum[i]) &&
+        Number.isFinite(lower[i]);
+      if (drawable) run.push(i);
+      else flush();
+    }
+    flush();
+    bands.push({ fill: se.color, d: parts.join(' ') });
   }
   return bands;
 }

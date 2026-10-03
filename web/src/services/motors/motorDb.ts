@@ -181,7 +181,10 @@ export async function loadCatalog(): Promise<CatalogMotor[]> {
  */
 export async function importCustomMotors(text: string): Promise<{ catalog: CatalogMotor[]; imported: number }> {
   const motors = text.trimStart().startsWith('<') ? parseRse(text) : [parseEng(text)];
-  for (const m of motors) await getMotorStore().addCustomMotor(m);
+  // ONE write for the whole file. A `.rse` engine database is a manufacturer's
+  // entire range, and a write per motor re-parsed the stored array every time and
+  // could stop half way with no way to say where.
+  await getMotorStore().addCustomMotors(motors);
   return { catalog: await loadCatalog(), imported: motors.length };
 }
 

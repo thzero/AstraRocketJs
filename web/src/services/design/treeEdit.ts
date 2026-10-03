@@ -76,6 +76,31 @@ function breaksPreset(type: string, patch: Partial<ComponentNode>): boolean {
 }
 
 /**
+ * Would {@link updateNode} change anything?
+ *
+ * `updateNode` always returns a fresh tree - it cannot cheaply know otherwise,
+ * because it path-copies the spine as it walks - and `tree.components` is the
+ * rebuild dependency, so a value-identical patch costs a full kernel build. The
+ * property panel fires one patch PER KEYSTROKE with the already-clamped value, so
+ * typing past a ceiling fires N identical patches, N kernel builds and an undo
+ * step that changes nothing.
+ *
+ * Shallow `!==` per key, which is the comparison `updateNode` itself makes when it
+ * spreads the patch. A patch that would drop the preset link counts as a change
+ * even when every value matches, because dropping it IS the change.
+ */
+export function patchChangesNode(tree: RocketTree, id: string, patch: Partial<ComponentNode>): boolean {
+  const node = findNode(tree, id);
+  if (!node) return false;
+  const current = node as unknown as Record<string, unknown>;
+  const incoming = patch as unknown as Record<string, unknown>;
+  for (const key of Object.keys(incoming)) {
+    if (current[key] !== incoming[key]) return true;
+  }
+  return node['preset'] !== undefined && breaksPreset(node.type, patch);
+}
+
+/**
  * Patch one node, returning a new tree.
  *
  * Path-copies only the SPINE from the root to the patched node; every sibling and

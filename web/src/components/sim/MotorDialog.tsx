@@ -1,7 +1,8 @@
 import { nsKey } from '../../services/storage/storageKeys';
+import { useLatest } from '../common/useLatest';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { clampEntry } from '../../prefs/entryValue';
+import { NumberInput } from '../common/NumberInput';
 import { hasCurve, importCustomMotors, deleteCustomMotor, type CatalogMotor } from '../../services/motors/motorDb';
 import { fetchMotorSpec } from '../../services/motors/thrustcurve';
 import { MAX_IDX, parseDelays, type MountFit } from '../../services/motors/motorPicker';
@@ -235,6 +236,9 @@ export function MotorDialog({
 
   /** What the last import did, shown where the motor count is. */
   const [note, setNote] = useState<string | null>(null);
+  // Which catalog write is current. Separate from `pickGen`: an import and a
+  // motor pick are different attempts and neither should cancel the other.
+  const catalogWrite = useLatest();
 
   const onImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -242,8 +246,13 @@ export function MotorDialog({
     if (!file) return;
     onError(null);
     setNote(null);
+    // A file read plus an IndexedDB write per motor, and a manufacturer range is
+    // hundreds of them. Guarded the same way `pick` above is: a result landing on
+    // a closed dialog, or behind a second import, is discarded.
+    const mine = catalogWrite.claim();
     try {
       const { catalog, imported } = await importCustomMotors(await file.text());
+      if (!mine()) return;
       setCatalog(catalog);
       // Reported in the dialog rather than through onError, which is the
       // simulation panel behind it: a RockSim engine-database file can hold a
@@ -251,6 +260,7 @@ export function MotorDialog({
       // forty in a list of 800.
       setNote(t('motor.importedN', { count: imported }));
     } catch (err) {
+      if (!mine()) return;
       onError(err instanceof Error ? err.message : String(err));
     }
   };
@@ -258,9 +268,13 @@ export function MotorDialog({
   const onDelete = async (m: CatalogMotor) => {
     if (!m.id) return;
     onError(null);
+    const mine = catalogWrite.claim();
     try {
-      setCatalog(await deleteCustomMotor(m.id));
+      const catalog = await deleteCustomMotor(m.id);
+      if (!mine()) return;
+      setCatalog(catalog);
     } catch (err) {
+      if (!mine()) return;
       onError(err instanceof Error ? err.message : String(err));
     }
   };
@@ -474,19 +488,27 @@ function DelayControl({ motor, delay, onDelay }: { motor: CatalogMotor; delay: n
       >
         {t('motor.plugged')}
       </button>
-      <input
-        type="number"
+      {/* `NumberInput`, not a raw <input>: this was the one data-entry box in the
+          app that was not, and it committed a 0-second charge the moment the
+          field was CLEARED to retype - an ejection charge that fires at burnout,
+          on a motor the user was in the middle of choosing a delay for. The draft
+          buffer exists for exactly that, and a blank box now means "no change"
+          until a number is typed.
+
+          Clamped at PLUGGED_DELAY rather than left open: every consumer already
+          reads a delay at or above it as plugged (`toKernelDelay`), so an absurd
+          typed number lands on the meaning it already had instead of arriving as
+          an Infinity. */}
+      <NumberInput
         min={0}
+        max={PLUGGED_DELAY}
         step={0.5}
-        value={delay >= PLUGGED_DELAY ? '' : delay}
-        // Clamped at PLUGGED_DELAY rather than left open: every consumer already
-        // reads a delay at or above it as plugged (`toKernelDelay`), so an absurd
-        // typed number lands on the meaning it already had instead of arriving as
-        // an Infinity that `parseFloat(x) || 0` used to pass straight through.
-        onChange={(e) => onDelay(clampEntry(parseFloat(e.target.value), 0, PLUGGED_DELAY) ?? 0)}
+        value={delay >= PLUGGED_DELAY ? null : delay}
+        onChange={(v) => {
+          if (v !== null) onDelay(v);
+        }}
         placeholder={t('motorDlg.custom')}
-        title={t('motorDlg.custom')}
-        aria-label={t('sims.delay')}
+        ariaLabel={t('sims.delay')}
         className="w-14 rounded bg-slate-950 px-1.5 py-0.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
       />
     </div>
