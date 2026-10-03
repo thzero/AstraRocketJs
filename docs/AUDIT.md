@@ -1345,20 +1345,46 @@ under-counted its own scope, which is recorded rather than quietly dropped.
 - **The fin recurrence guard is vacuous.** See C2. This is the most important
   test finding in the audit.
 - **`shapeProfile.test.ts` has no kernel anchoring** (REPORTED, with Java
-  citations). It never reads `engine-java`, and every clipped-profile assertion
-  computes its expected value by calling `shapeRadius`, the function under test.
-  Independent closed-form interior assertions exist only for `conical` and
-  `power`. `ellipsoid`, `ogive`, `parabolic` and `haack` are pinned only by
-  reaching full radius at the endpoint and by monotonicity, which is exactly the
-  property set the wrong fin curve shared with the right one. At the midpoint
-  the kernel gives `r * sqrt(3)/2 = 0.866r` and a sine arch gives `0.707r`, and
-  nothing in the file distinguishes them. Add a `shapeProfile.kernel.test.ts` in
-  the shape of the fin one.
-- **Three modules cannot be verified at all** (REPORTED). `markingGuide.ts`,
-  `finTabAuto.ts` and `finImage.ts` are ports of OpenRocket `swing` classes, and
-  the Java is not committed: `engine-java/src/java` carries only `core`.
-  `finTabAuto` decides the depth of a slot cut through the airframe. Vendor the
-  three files at the pinned ref and add drift guards.
+  citations) - FIXED 2026-10-03 by `tests/tree/shapeProfile.kernel.test.ts`, and
+  **this finding overstated the gap**, which is worth recording because the
+  correction came from measuring rather than from reading.
+
+  The claim was that four of the six curves were pinned only by reaching full radius
+  at the endpoint and by monotonicity. So each of the six branches was replaced in
+  turn with a quarter sine arch - which has exactly those two properties - and the
+  old file was run against each. It catches `conical`, `ellipsoid`, `power` and
+  `haack`. It is blind to **`parabolic`** alone: one shape, not four. The old file
+  has more shape-specific assertions than the finding credited, including an
+  ellipsoid check against the virtual nose it was cut from.
+
+  The CIRCULAR-EXPECTATION half of the finding stands and is independent of that
+  count: where the old file checks interior points, it computes the expected value by
+  calling `shapeRadius`, so a wrong formula produces a wrong expectation and the test
+  agrees with itself. The new file transcribes all six formulas from
+  `Transition.java` and reimplements them independently, sweeping seven interior
+  stations, so a drift between the two says which expression to look at.
+
+  Two things fell out of writing it. `shapeParamDefault('haack')` returns 0 and that
+  is CORRECT - `HAACK` does not override `defaultParameter()`, so it inherits the
+  base class's `0.0` (Transition.java:1312), and the 1/3 a reader reaches for is
+  `maxParameter()`. An assertion was written against 1/3 first and the Java settled
+  it. And the ogive is the only one of the six whose profile is not scale-invariant:
+  it is a circular arc computed from both length and radius, so its midpoint moves
+  from 0.791 R at a length-to-radius ratio of 2 to 0.750 R at 20. That is now a
+  property the file asserts, because a reader comparing midpoints across fixtures
+  would otherwise think one of them wrong.
+- **Three modules cannot be verified at all** (REPORTED) - WILL NOT FIX, by
+  decision 2026-10-03. `markingGuide.ts`, `finTabAuto.ts` and `finImage.ts` are
+  ports of OpenRocket `swing` classes, and that Java is not committed:
+  `engine-java/src/java` carries only `core`. So unlike every other kernel-facing
+  module, there is nothing in the repo to diff them against, and `finTabAuto`
+  decides the depth of a slot cut through the airframe.
+
+  Vendoring the three files at the pinned ref was the proposed fix and was declined:
+  it means carrying `swing` sources for three classes and a fourth drift guard to
+  maintain. Recorded as a known unverifiable, not as an open task - if one of these
+  three is ever suspected of being wrong, this entry is the reason there is no test
+  to consult.
 - **`discGeometry.ts` has no test file at all**, and it is the module the DXF
   sheet, the print solids and the 3D internals all share for ring and coupler
   sizing. `tubeRadii`, `plateOuter`, `mountBore`, `nodeContext`, `discDims` and
