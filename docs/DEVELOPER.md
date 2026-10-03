@@ -41,7 +41,12 @@ npm run preview      # serve the production build locally
 npm run test         # Vitest: unit tests (.test.ts) and component tests (.test.tsx)
 npm run test:watch   # Vitest in watch mode while developing
 npm run e2e          # Playwright end-to-end smoke tests (downloads Chromium the first time)
-npm run verify       # every gate CI runs on the web app: format, spell, typecheck, lint, knip, test
+npm run verify       # the pre-push gate: format, spell, typecheck, lint, knip,
+                     # the production build, and the unit suite. ~100 s.
+npm run verify:ci    # the same list, but the suite runs WITH coverage and fails if
+                     # it drops below the minimum percentages in vitest.config.ts
+                     # (lines 70, statements 69, branches 62, functions 61).
+                     # ~350 s, which is why CI runs this one and you run the other.
 ```
 
 Please **verify UI changes in a real browser**, not just that it compiles.
@@ -126,7 +131,7 @@ Open a PR from your branch to **`master`**. In the description:
 2. The underlying cause.
 3. How you fixed it.
 
-Make sure `npm run verify` passes (it runs the same gates CI does, in the same order), and that you've checked the change in the browser. Add or update tests for any logic you touch under `web/src/services` or `web/src/engine`. Keep engine `.mjs`/`.wasm` regenerations in the same PR as their Java changes.
+Make sure `npm run verify` passes (the same gate list CI runs, in the same order; CI adds coverage via `verify:ci`), and that you've checked the change in the browser. Add or update tests for any logic you touch under `web/src/services` or `web/src/engine`. Keep engine `.mjs`/`.wasm` regenerations in the same PR as their Java changes.
 
 What CI gates on the PR itself:
 
@@ -134,10 +139,10 @@ What CI gates on the PR itself:
 | ---------------- | ------------------------------------------------------------------------ | ------------------------- |
 | `parity`         | `npm run parity`, then a rebuild compared against the committed binaries | first                     |
 | `reproducible`   | `npm run extract:check` against the pinned OpenRocket                    | first                     |
-| `build-and-test` | `npm run verify` with coverage, then `vite build`                        | in parallel with `parity` |
+| `build-and-test` | `npm run verify:ci` (the `verify` list, with coverage)                   | in parallel with `parity` |
 | `e2e`            | Playwright, sharded three ways                                           | in parallel with `parity` |
 
-Pushes to `dev` run only the web gates (`dev.yml`, about two minutes), so a broken test shows up on the push that broke it rather than when the PR to `master` is opened.
+A push to **any branch but `master`** runs only the web gates (`dev.yml`, about six minutes: `verify:ci`, so the coverage minimums are checked on the push), so a broken test shows up on the push that broke it rather than when the PR to `master` is opened. `master` is excluded because `deploy.yml` already runs the full set there. This used to read `branches: [dev]`, which meant a push to any other branch, which is where most work happens, was checked by nothing at all; `web/tests/ciTriggers.test.ts` now fails if the trigger is narrowed back to a list of branch names.
 
 The Docusaurus site is **not** built on a PR. It is typechecked and built in `deploy.yml` on merge to `master`, so a broken MDX page or `sidebars.ts` shows up as a failed deploy rather than a failed PR check.
 

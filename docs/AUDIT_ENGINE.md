@@ -1,5 +1,7 @@
 # AUDIT_ENGINE - `engine-java/` audit
 
+<!-- cspell:ignore astrarrocketjs -->
+
 Date: 2026-10-01. Branch `test` at b610c12. Run per `docs/AUDIT_PROMPT_ENGINE.md`,
 six parallel review agents over the auditable surface, with the pinned upstream
 obtained and every patch file diffed against it.

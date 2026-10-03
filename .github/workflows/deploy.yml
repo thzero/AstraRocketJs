@@ -36,6 +36,10 @@ jobs:
   build:
     needs: gates
     runs-on: ubuntu-latest
+    # The web build plus both Docusaurus locales. Uncapped it inherited the
+    # 360-minute default; a hung webpack compile would have held the Pages
+    # deployment for six hours.
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: web
@@ -116,6 +120,9 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    # Just the Pages upload. Short, but it talks to a service, and a hung call to
+    # one is exactly what a cap is for.
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

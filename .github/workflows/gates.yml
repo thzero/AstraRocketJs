@@ -153,6 +153,18 @@ jobs:
   # Needs no JDK — just node and the pinned OpenRocket source.
   reproducible:
     runs-on: ubuntu-latest
+    # 15 minutes, against the 360-minute default this job used to inherit. The cap
+    # is for a HANG, not for slowness: a Playwright locator waiting on an element
+    # that never appears, a kernel build deadlocking, a fetch with no timeout of
+    # its own. Those used to sit burning runner minutes for six hours with the PR
+    # showing "in progress".
+    #
+    # 15 and not 10 because two of the four jobs this was added to run close to 8
+    # minutes - `build-and-test` is npm ci plus `verify:ci`, and each `e2e` shard
+    # pays two `npm ci`s, the Docusaurus build and a Playwright install before its
+    # ~3.6 min of specs. A cap sized just over the work is the mistake T9 records:
+    # the thing that eats the margin is runner load, which a shared runner has.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
@@ -229,6 +241,7 @@ jobs:
   # the whole job is a few seconds.
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 15 # see `reproducible` for why 15
     steps:
       - uses: actions/checkout@v7
 
@@ -248,6 +261,7 @@ jobs:
   build-and-test:
     needs: [reproducible, validate]
     runs-on: ubuntu-latest
+    timeout-minutes: 15 # see `reproducible` for why 15
     defaults:
       run:
         working-directory: web
@@ -283,13 +297,19 @@ jobs:
       #   lint          ESLint, warnings included.
       #   knip          Dead exports / unimported modules. Cheap, and it only
       #                 stays useful if something runs it.
-      #   vitest run    The unit suite.
+      #   vite build    The production build. Before the suite on purpose: it is
+      #                 ~20 s against the suite's ~5 min, so a broken build is
+      #                 reported early rather than after everything else passes.
+      #   vitest        The unit suite. `verify:ci` runs it with coverage and
+      #                 enforces the floors in vitest.config.ts; `verify` runs it
+      #                 without, because instrumentation is 65 s against 335 s and
+      #                 that belongs on a runner rather than in the inner loop.
       #
-      # The ONE difference from a local `npm run verify`: `-- --coverage` lands
-      # on the final `vitest run`, so here the suite also collects coverage and
-      # enforces the floor in vitest.config.ts. Locally the same is
-      # `npm run test:coverage`.
-      - run: npm run verify -- --coverage
+      # `verify:ci`, which is `gates` plus the suite WITH coverage. `verify` is the
+      # same `gates` plus the suite without it: ONE shared list, two endings, so the
+      # gate set still cannot drift between here and a developer's machine while the
+      # 270 s of coverage instrumentation stays off the command a human types.
+      - run: npm run verify:ci
 
       # Coverage used to be emitted and seen by nobody: `text-summary` scrolled
       # past in the log and `lcov` was written to a disk that was thrown away
@@ -329,10 +349,12 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      # `vite build` directly, not `npm run build`: that script is
-      # `typecheck && lint && vite build`, and verify above has just run both.
-      # Running them again cost ~40 s for no new information.
-      - run: npx vite build
+      # The production build is INSIDE `npm run verify` now, so there is no build
+      # step here: it used to be the only place `vite build` ran, which meant a
+      # change that typechecked and tested clean but broke the build was invisible
+      # to the push gate and to the local pre-push command. `verify` runs `vite
+      # build` directly rather than `npm run build`, because that script is
+      # `typecheck && lint && vite build` and verify has just run both.
 
   # NOTE: the Docusaurus site is NOT built here. It is gated in deploy.yml
   # on merge to master, where it is built into web/public/docs anyway. The
@@ -352,6 +374,8 @@ jobs:
     # Not gated on parity either: the ordering note at the top of this file.
     needs: [reproducible]
     runs-on: ubuntu-latest
+    # PER SHARD, so three jobs with 15 each. See `reproducible` for why 15.
+    timeout-minutes: 15
     # Sharded because the suite is ~3.6 min of WALL CLOCK that no amount of
     # caching touches — the browser download the cache below removes is ~90s of
     # a ~4.4 min job, and the tests are the rest.
@@ -384,7 +408,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          # The website lock too: this job builds the docs (below), which runs
+          # Docusaurus out of website/.
+          cache-dependency-path: |
+            web/package-lock.json
+            website/package-lock.json
 
       - run: npm ci
 
@@ -392,6 +420,23 @@ jobs:
       # lockfile hash: the browser build only changes when Playwright does, so
       # hashing the lockfile would throw away a good 130 MB download on every
       # unrelated dependency bump.
+
+      - name: Install the docs site's dependencies
+        working-directory: website
+        run: npm ci
+
+      # The in-app Help dialog reads web/public/docs, which is gitignored. With
+      # it absent, help-dialog.spec.ts SKIPPED -- on every CI run there had ever
+      # been -- and the shard still reported green, so the Help dialog had no
+      # automated coverage at all. The spec now FAILS in CI when the docs are
+      # missing, so this step cannot be quietly dropped again.
+      #
+      # Paid once per shard, which is the cost of the docs being a build input
+      # rather than only a published artifact. Both locales, as the deploy
+      # builds them, because the dialog can be opened in either.
+      - name: Build the docs the Help dialog reads
+        run: npm run docs:build
+
       - name: Resolve Playwright version
         id: pw
         run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
@@ -459,9 +504,30 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          # The website lock too: this job builds the docs (below), which runs
+          # Docusaurus out of website/.
+          cache-dependency-path: |
+            web/package-lock.json
+            website/package-lock.json
 
       - run: npm ci
+
+
+      - name: Install the docs site's dependencies
+        working-directory: website
+        run: npm ci
+
+      # The in-app Help dialog reads web/public/docs, which is gitignored. With
+      # it absent, help-dialog.spec.ts SKIPPED -- on every CI run there had ever
+      # been -- and the shard still reported green, so the Help dialog had no
+      # automated coverage at all. The spec now FAILS in CI when the docs are
+      # missing, so this step cannot be quietly dropped again.
+      #
+      # Paid once per shard, which is the cost of the docs being a build input
+      # rather than only a published artifact. Both locales, as the deploy
+      # builds them, because the dialog can be opened in either.
+      - name: Build the docs the Help dialog reads
+        run: npm run docs:build
 
       - name: Resolve Playwright version
         id: pw
@@ -482,3 +548,9 @@ jobs:
       - run: npm run e2e:update
 
       - run: npm run e2e:offline-data
+
+      # Help with the network off, which is the case the docs are built INTO the
+      # app for: a launch site with no signal. The script existed and no workflow
+      # ran it, so the one promise the precached docs make was unchecked while its
+      # sibling (offline DATA) was gated.
+      - run: npm run e2e:offline-help

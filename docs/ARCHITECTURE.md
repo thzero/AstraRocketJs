@@ -1,5 +1,6 @@
 # AstraRocketJs — Architecture & internals
 
+
 > The developer/architecture reference: the extracted engine, the WASM/JS build pipeline and backend
 > selection, threading (the simulation Web Worker), and the motor / material / component / `.ork`
 > data flows.
@@ -296,7 +297,7 @@ idbKeyValueStore.ts IndexedDbKeyValueStore — the DEFAULT backend for every sto
 
 designLibrary.ts    DesignLibrary — getDesignLibrary() / setDesignLibrary(lib)
    list / read / write / create / rename / remove, plus the active-design pointer. One
-   key per design (astrarrocketjs:designs:<id>) and a small separate index of
+   key per design (astrarocketjs:designs:<id>) and a small separate index of
    {id, name, updatedAt} — autosave rewrites ONE design on a 500 ms debounce, so a single
    document holding every design would be rewritten on every keystroke and grow with the
    library. workspaceStore.ts is a narrow façade over "the design being edited".

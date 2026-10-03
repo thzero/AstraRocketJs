@@ -36,7 +36,6 @@ aopalliance
 ARCAS
 arcgisonline
 astrarocketjs
-astrarrocketjs
 authorable
 axialoffset
 barrowman
@@ -448,6 +447,7 @@ Substitutor
 sust
 sustainers
 sweeplength
+swiftshader
 tabheight
 tablength
 tabposition
