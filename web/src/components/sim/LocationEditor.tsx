@@ -8,7 +8,7 @@ import { unitScope } from '../../prefs/units';
 import { LAUNCH_SI } from '../../prefs/launchUnits';
 import { uuid } from '../../services/app/uuid';
 import { SiteMap } from './SiteMap';
-import type { LaunchLocation } from '../../services/storage/launchLocationStore';
+import { LAUNCH_SITE_LIMITS as LIMITS, type LaunchLocation } from '../../services/storage/launchLocationStore';
 
 /**
  * The detail half of the saved locations dialog: one location in full — name,
@@ -281,14 +281,6 @@ export function LocationEditor({
     </>
   );
 }
-
-/** The ranges `launchLocationStore` validates against, named once. */
-const LIMITS = {
-  latitudeDeg: { min: -90, max: 90 },
-  longitudeDeg: { min: -180, max: 180 },
-  /** The Dead Sea shore to above any launch site, matching the altitude field. */
-  launchAltitudeM: { min: -500, max: 10000 },
-} as const;
 
 const numberClass =
   'w-28 rounded-md bg-slate-800 px-2 py-1.5 text-right text-sm tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500';

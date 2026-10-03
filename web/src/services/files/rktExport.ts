@@ -1,5 +1,6 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { clusterCount, clusterOffsets } from '../../tree/cluster';
+import { numOpt } from '../../tree/nodeProps';
 import { asStageNodes } from '../design/orkTree';
 import { escapeXml } from './xmlUtil';
 
@@ -83,12 +84,6 @@ const el = (w: Writer, depth: number, name: string, value: string | number): voi
   w.emit(depth, `<${name}>${typeof value === 'number' ? fmt(value) : escapeXml(value)}</${name}>`);
 };
 
-/** A node's numeric field, or undefined when it is absent or not a number. */
-const numOf = (n: ComponentNode, key: string): number | undefined => {
-  const v = n[key];
-  return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
-};
-
 const strOf = (n: ComponentNode, key: string): string | undefined => {
   const v = n[key];
   return typeof v === 'string' && v !== '' ? v : undefined;
@@ -114,7 +109,7 @@ function writeCommon(w: Writer, d: number, n: ComponentNode, withPosition: boole
   const material = strOf(n, 'materialName') ?? strOf(n, 'surfaceMaterialName');
   if (material) el(w, d, 'Material', material);
 
-  const density = numOf(n, 'density') ?? numOf(n, 'surfaceDensity');
+  const density = numOpt(n, 'density') ?? numOpt(n, 'surfaceDensity');
   if (density !== undefined) {
     // A surface density goes back out in g/cm2, which is a TENTH of kg/m2.
     // `BasePartDTO` line 181 multiplies by the same constant the reader divides
@@ -124,8 +119,8 @@ function writeCommon(w: Writer, d: number, n: ComponentNode, withPosition: boole
     el(w, d, 'DensityType', densityType);
   }
 
-  const overrideMass = numOf(n, 'overrideMass');
-  const overrideCg = numOf(n, 'overrideCGX');
+  const overrideMass = numOpt(n, 'overrideMass');
+  const overrideCg = numOpt(n, 'overrideCGX');
   if (overrideMass !== undefined || overrideCg !== undefined) {
     el(w, d, 'KnownMass', g(overrideMass ?? 0));
     el(w, d, 'KnownCG', mm(overrideCg ?? 0));
@@ -152,13 +147,13 @@ function writeWall(w: Writer, d: number, n: ComponentNode): void {
     return;
   }
   el(w, d, 'ConstructionType', 1);
-  put(w, d, 'WallThickness', numOf(n, 'thickness'), mm);
+  put(w, d, 'WallThickness', numOpt(n, 'thickness'), mm);
 }
 
 function writeShape(w: Writer, d: number, n: ComponentNode, fallback: string): void {
   const shape = strOf(n, 'shape') ?? fallback;
   el(w, d, 'ShapeCode', SHAPE_CODES[shape] ?? SHAPE_CODES[fallback]!);
-  const param = numOf(n, 'shapeParameter');
+  const param = numOpt(n, 'shapeParameter');
   if (param !== undefined) el(w, d, 'ShapeParameter', param);
 }
 
@@ -171,25 +166,25 @@ type PartWriter = (w: Writer, d: number, n: ComponentNode) => void;
 
 const writeNoseCone: PartWriter = (w, d, n) => {
   writeCommon(w, d, n, false);
-  put(w, d, 'Len', numOf(n, 'length'), mm);
-  put(w, d, 'BaseDia', numOf(n, 'aftRadius'), dia);
+  put(w, d, 'Len', numOpt(n, 'length'), mm);
+  put(w, d, 'BaseDia', numOpt(n, 'aftRadius'), dia);
   writeWall(w, d, n);
   writeShape(w, d, n, 'ogive');
-  put(w, d, 'ShoulderOD', numOf(n, 'shoulderRadius'), dia);
-  put(w, d, 'ShoulderLen', numOf(n, 'shoulderLength'), mm);
+  put(w, d, 'ShoulderOD', numOpt(n, 'shoulderRadius'), dia);
+  put(w, d, 'ShoulderLen', numOpt(n, 'shoulderLength'), mm);
 };
 
 const writeTransition: PartWriter = (w, d, n) => {
   writeCommon(w, d, n, true);
-  put(w, d, 'Len', numOf(n, 'length'), mm);
-  put(w, d, 'FrontDia', numOf(n, 'foreRadius'), dia);
-  put(w, d, 'RearDia', numOf(n, 'aftRadius'), dia);
+  put(w, d, 'Len', numOpt(n, 'length'), mm);
+  put(w, d, 'FrontDia', numOpt(n, 'foreRadius'), dia);
+  put(w, d, 'RearDia', numOpt(n, 'aftRadius'), dia);
   writeWall(w, d, n);
   writeShape(w, d, n, 'conical');
-  put(w, d, 'FrontShoulderDia', numOf(n, 'foreShoulderRadius'), dia);
-  put(w, d, 'FrontShoulderLen', numOf(n, 'foreShoulderLength'), mm);
-  put(w, d, 'RearShoulderDia', numOf(n, 'aftShoulderRadius'), dia);
-  put(w, d, 'RearShoulderLen', numOf(n, 'aftShoulderLength'), mm);
+  put(w, d, 'FrontShoulderDia', numOpt(n, 'foreShoulderRadius'), dia);
+  put(w, d, 'FrontShoulderLen', numOpt(n, 'foreShoulderLength'), mm);
+  put(w, d, 'RearShoulderDia', numOpt(n, 'aftShoulderRadius'), dia);
+  put(w, d, 'RearShoulderLen', numOpt(n, 'aftShoulderLength'), mm);
 };
 
 /** Both our tube types are one RockSim element, told apart by `IsInsideTube`. */
@@ -197,17 +192,17 @@ const writeTube =
   (inner: boolean): PartWriter =>
   (w, d, n) => {
     writeCommon(w, d, n, inner);
-    put(w, d, 'Len', numOf(n, 'length'), mm);
-    const or = numOf(n, 'outerRadius');
-    const th = numOf(n, 'thickness');
+    put(w, d, 'Len', numOpt(n, 'length'), mm);
+    const or = numOpt(n, 'outerRadius');
+    const th = numOpt(n, 'thickness');
     put(w, d, 'OD', or, dia);
     if (or !== undefined && th !== undefined) el(w, d, 'ID', dia(or - th));
     el(w, d, 'IsInsideTube', inner ? 1 : 0);
     el(w, d, 'IsMotorMount', n['motorMount'] === true ? 1 : 0);
-    put(w, d, 'EngineOverhang', numOf(n, 'motorOverhang'), mm);
+    put(w, d, 'EngineOverhang', numOpt(n, 'motorOverhang'), mm);
     if (inner) {
-      put(w, d, 'RadialLoc', numOf(n, 'radialPosition'), mm);
-      const dir = numOf(n, 'radialDirection');
+      put(w, d, 'RadialLoc', numOpt(n, 'radialPosition'), mm);
+      const dir = numOpt(n, 'radialDirection');
       if (dir) el(w, d, 'RadialAngle', deg(dir));
     }
   };
@@ -218,13 +213,13 @@ const RING_USAGE: Record<string, number> = { centeringring: 0, bulkhead: 1, engi
 const writeRing: PartWriter = (w, d, n) => {
   writeCommon(w, d, n, true);
   el(w, d, 'UsageCode', RING_USAGE[n.type] ?? 0);
-  put(w, d, 'Len', numOf(n, 'length'), mm);
-  const or = numOf(n, 'outerRadius');
+  put(w, d, 'Len', numOpt(n, 'length'), mm);
+  const or = numOpt(n, 'outerRadius');
   put(w, d, 'OD', or, dia);
   // A bulkhead is solid; a centering ring states its bore; the tube-like rings
   // state a wall, so their ID comes from the thickness instead.
-  const ir = numOf(n, 'innerRadius');
-  const th = numOf(n, 'thickness');
+  const ir = numOpt(n, 'innerRadius');
+  const th = numOpt(n, 'thickness');
   if (n.type === 'bulkhead') el(w, d, 'ID', 0);
   else if (ir !== undefined) el(w, d, 'ID', dia(ir));
   else if (or !== undefined && th !== undefined) el(w, d, 'ID', dia(or - th));
@@ -232,12 +227,12 @@ const writeRing: PartWriter = (w, d, n) => {
 
 const writeLaunchLug: PartWriter = (w, d, n) => {
   writeCommon(w, d, n, true);
-  put(w, d, 'Len', numOf(n, 'length'), mm);
-  const or = numOf(n, 'outerRadius');
-  const th = numOf(n, 'thickness');
+  put(w, d, 'Len', numOpt(n, 'length'), mm);
+  const or = numOpt(n, 'outerRadius');
+  const th = numOpt(n, 'thickness');
   put(w, d, 'OD', or, dia);
   if (or !== undefined && th !== undefined) el(w, d, 'ID', dia(or - th));
-  const angle = numOf(n, 'angleOffset');
+  const angle = numOpt(n, 'angleOffset');
   if (angle) el(w, d, 'RadialAngle', deg(angle));
 };
 
@@ -246,17 +241,17 @@ const FIN_SHAPE_CODES: Record<string, number> = { trapezoidfinset: 0, elliptical
 const writeFinSet: PartWriter = (w, d, n) => {
   writeCommon(w, d, n, true);
   el(w, d, 'ShapeCode', FIN_SHAPE_CODES[n.type] ?? 0);
-  el(w, d, 'FinCount', numOf(n, 'finCount') ?? 3);
-  put(w, d, 'Thickness', numOf(n, 'thickness'), mm);
+  el(w, d, 'FinCount', numOpt(n, 'finCount') ?? 3);
+  put(w, d, 'Thickness', numOpt(n, 'thickness'), mm);
 
   if (n.type === 'trapezoidfinset') {
-    put(w, d, 'RootChord', numOf(n, 'rootChord'), mm);
-    put(w, d, 'TipChord', numOf(n, 'tipChord'), mm);
-    put(w, d, 'SemiSpan', numOf(n, 'height'), mm);
-    put(w, d, 'SweepDistance', numOf(n, 'sweep'), mm);
+    put(w, d, 'RootChord', numOpt(n, 'rootChord'), mm);
+    put(w, d, 'TipChord', numOpt(n, 'tipChord'), mm);
+    put(w, d, 'SemiSpan', numOpt(n, 'height'), mm);
+    put(w, d, 'SweepDistance', numOpt(n, 'sweep'), mm);
   } else if (n.type === 'ellipticalfinset') {
-    put(w, d, 'RootChord', numOf(n, 'rootChord'), mm);
-    put(w, d, 'SemiSpan', numOf(n, 'height'), mm);
+    put(w, d, 'RootChord', numOpt(n, 'rootChord'), mm);
+    put(w, d, 'SemiSpan', numOpt(n, 'height'), mm);
   } else {
     const pts = n['points'];
     if (Array.isArray(pts) && pts.length >= 3) {
@@ -264,31 +259,31 @@ const writeFinSet: PartWriter = (w, d, n) => {
     }
   }
 
-  const cant = numOf(n, 'cant');
+  const cant = numOpt(n, 'cant');
   if (cant) el(w, d, 'CantAngle', deg(cant));
-  const angle = numOf(n, 'angleOffset');
+  const angle = numOpt(n, 'angleOffset');
   if (angle) el(w, d, 'RadialAngle', deg(angle));
   // The fin's cross section, which RockSim calls a tip shape
   // (`FinSetDTO` line 72). Omitting it exported every fin as square.
   el(w, d, 'TipShapeCode', TIP_SHAPE_CODES[strOf(n, 'crossSection') ?? 'square'] ?? 0);
 
-  const tabLength = numOf(n, 'tabLength');
+  const tabLength = numOpt(n, 'tabLength');
   if (tabLength !== undefined && tabLength > 0) {
     el(w, d, 'TabLength', mm(tabLength));
-    put(w, d, 'TabDepth', numOf(n, 'tabHeight'), mm);
-    el(w, d, 'TabOffset', mm(numOf(n, 'tabOffset') ?? 0));
+    put(w, d, 'TabDepth', numOpt(n, 'tabHeight'), mm);
+    el(w, d, 'TabOffset', mm(numOpt(n, 'tabOffset') ?? 0));
   }
 };
 
 const writeTubeFinSet: PartWriter = (w, d, n) => {
   writeCommon(w, d, n, true);
-  el(w, d, 'TubeCount', numOf(n, 'finCount') ?? 6);
-  put(w, d, 'Len', numOf(n, 'length'), mm);
-  const or = numOf(n, 'outerRadius');
-  const th = numOf(n, 'thickness');
+  el(w, d, 'TubeCount', numOpt(n, 'finCount') ?? 6);
+  put(w, d, 'Len', numOpt(n, 'length'), mm);
+  const or = numOpt(n, 'outerRadius');
+  const th = numOpt(n, 'thickness');
   put(w, d, 'OD', or, dia);
   if (or !== undefined && th !== undefined) el(w, d, 'ID', dia(or - th));
-  const angle = numOf(n, 'angleOffset');
+  const angle = numOpt(n, 'angleOffset');
   if (angle) el(w, d, 'RadialAngle', deg(angle));
 };
 
@@ -296,25 +291,25 @@ const writeParachute: PartWriter = (w, d, n) => {
   writeCommon(w, d, n, true, 1); // canopy fabric is a SURFACE density
   // `Dia` is a diameter on both sides — not halved, unlike every other
   // circular field in the format.
-  put(w, d, 'Dia', numOf(n, 'diameter'), mm);
-  const cd = numOf(n, 'cd');
+  put(w, d, 'Dia', numOpt(n, 'diameter'), mm);
+  const cd = numOpt(n, 'cd');
   if (cd !== undefined) el(w, d, 'DragCoefficient', cd);
-  el(w, d, 'ShroudLineCount', numOf(n, 'lineCount') ?? 6);
-  put(w, d, 'ShroudLineLen', numOf(n, 'lineLength'), mm);
-  put(w, d, 'SpillHoleDia', numOf(n, 'spillHoleDiameter'), mm);
+  el(w, d, 'ShroudLineCount', numOpt(n, 'lineCount') ?? 6);
+  put(w, d, 'ShroudLineLen', numOpt(n, 'lineLength'), mm);
+  put(w, d, 'SpillHoleDia', numOpt(n, 'spillHoleDiameter'), mm);
   const lineMaterial = strOf(n, 'lineMaterialName');
   if (lineMaterial) el(w, d, 'ShroudLineMaterial', lineMaterial);
   // kg/m straight through, despite the element's name: see the note on the
   // reader's side — `ROCKSIM_TO_OPENROCKET_LINE_DENSITY` is 1.
-  const lineDensity = numOf(n, 'lineDensity');
+  const lineDensity = numOpt(n, 'lineDensity');
   if (lineDensity !== undefined) el(w, d, 'ShroudLineMassPerMM', lineDensity);
 };
 
 const writeStreamer: PartWriter = (w, d, n) => {
   writeCommon(w, d, n, true, 1);
-  put(w, d, 'Len', numOf(n, 'stripLength'), mm);
-  put(w, d, 'Width', numOf(n, 'stripWidth'), mm);
-  const cd = numOf(n, 'cd');
+  put(w, d, 'Len', numOpt(n, 'stripLength'), mm);
+  put(w, d, 'Width', numOpt(n, 'stripWidth'), mm);
+  const cd = numOpt(n, 'cd');
   if (cd !== undefined) el(w, d, 'DragCoefficient', cd);
 };
 
@@ -324,21 +319,21 @@ const writeMassObject =
     writeCommon(w, d, n, true);
     el(w, d, 'TypeCode', shockCord ? 1 : 0);
     if (shockCord) {
-      const len = numOf(n, 'cordLength') ?? 0;
+      const len = numOpt(n, 'cordLength') ?? 0;
       el(w, d, 'Len', mm(len));
       // RockSim states a shock cord's MASS, not its line density.
-      el(w, d, 'KnownMass', g((numOf(n, 'lineDensity') ?? 0) * len));
+      el(w, d, 'KnownMass', g((numOpt(n, 'lineDensity') ?? 0) * len));
     } else {
-      put(w, d, 'Len', numOf(n, 'length'), mm);
-      put(w, d, 'Dia', numOf(n, 'radius'), dia);
-      el(w, d, 'KnownMass', g(numOf(n, 'mass') ?? 0));
+      put(w, d, 'Len', numOpt(n, 'length'), mm);
+      put(w, d, 'Dia', numOpt(n, 'radius'), dia);
+      el(w, d, 'KnownMass', g(numOpt(n, 'mass') ?? 0));
     }
   };
 
 const writePod: PartWriter = (w, d, n) => {
   writeCommon(w, d, n, true);
-  put(w, d, 'RadialLoc', numOf(n, 'radiusOffset'), mm);
-  const angle = numOf(n, 'angleOffset');
+  put(w, d, 'RadialLoc', numOpt(n, 'radiusOffset'), mm);
+  const angle = numOpt(n, 'angleOffset');
   if (angle) el(w, d, 'RadialAngle', deg(angle));
   el(w, d, 'Detachable', 0);
   el(w, d, 'Removed', 0);
@@ -390,12 +385,12 @@ function clusterMembers(n: ComponentNode): ComponentNode[] {
   if (n.type !== 'innertube' || count <= 1) return [n];
   const offsets = clusterOffsets(
     pattern,
-    numOf(n, 'outerRadius') ?? 0,
-    numOf(n, 'clusterScale') ?? 1,
-    numOf(n, 'clusterRotation') ?? 0,
+    numOpt(n, 'outerRadius') ?? 0,
+    numOpt(n, 'clusterScale') ?? 1,
+    numOpt(n, 'clusterRotation') ?? 0,
   );
-  const baseR = numOf(n, 'radialPosition') ?? 0;
-  const baseDir = numOf(n, 'radialDirection') ?? 0;
+  const baseR = numOpt(n, 'radialPosition') ?? 0;
+  const baseDir = numOpt(n, 'radialDirection') ?? 0;
   const baseY = baseR * Math.cos(baseDir);
   const baseZ = baseR * Math.sin(baseDir);
   return offsets.map((o, i) => {

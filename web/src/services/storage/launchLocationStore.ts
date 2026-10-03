@@ -50,21 +50,34 @@ export interface LaunchLocationStore {
  */
 const LOCATIONS_KEY = nsKey('pads:custom');
 
-/** A location whose numbers are inside the ranges the launch fields themselves enforce. */
+/**
+ * The ranges a launch site's numbers must fall in. The launch fields clamp to
+ * them and a stored location is validated against them, so a location saved from
+ * the fields always reads back.
+ *
+ * Latitude past +/-90 is rejected outright by Google Earth in the KML export, and
+ * all three reach the kernel (gravity, Coriolis, the atmosphere model). Altitude
+ * runs from the Dead Sea shore to above any launch site.
+ */
+export const LAUNCH_SITE_LIMITS = {
+  latitudeDeg: { min: -90, max: 90 },
+  longitudeDeg: { min: -180, max: 180 },
+  launchAltitudeM: { min: -500, max: 10000 },
+} as const;
+
+/** A location whose numbers are inside {@link LAUNCH_SITE_LIMITS}. */
 function isLocation(v: unknown): v is LaunchLocation {
   const p = v as LaunchLocation;
-  const num = (x: unknown, lo: number, hi: number): boolean =>
-    typeof x === 'number' && Number.isFinite(x) && x >= lo && x <= hi;
+  const num = (x: unknown, { min, max }: { min: number; max: number }): boolean =>
+    typeof x === 'number' && Number.isFinite(x) && x >= min && x <= max;
   return (
     !!p &&
     typeof p.id === 'string' &&
     p.id !== '' &&
     typeof p.name === 'string' &&
-    num(p.latitudeDeg, -90, 90) &&
-    num(p.longitudeDeg, -180, 180) &&
-    // The same floor and ceiling `LaunchPanel` clamps the altitude field to:
-    // the Dead Sea shore to above any launch site.
-    num(p.launchAltitudeM, -500, 10000)
+    num(p.latitudeDeg, LAUNCH_SITE_LIMITS.latitudeDeg) &&
+    num(p.longitudeDeg, LAUNCH_SITE_LIMITS.longitudeDeg) &&
+    num(p.launchAltitudeM, LAUNCH_SITE_LIMITS.launchAltitudeM)
   );
 }
 

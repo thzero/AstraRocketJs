@@ -3,10 +3,10 @@ import { useTranslation } from 'react-i18next';
 import type { CatalogMotor } from '../../services/motors/motorDb';
 import { combineCurves, impulseClass, type Sample } from '../../services/motors/motorCombine';
 import { useUnits } from '../../prefs/useUnits';
-import { Stat } from './MotorDetail';
+import { SpecItem } from './MotorDetail';
 import { keyOf } from './motorKey';
 import { seriesColor } from './motorSeries';
-import { inUserUnit, withUnit } from './motorFormat';
+import { inUserUnit, withFixedUnit } from './motorFormat';
 import { ChartAxes, CHART_HEADROOM, chartScales, linePath, baselineArea } from './chartAxes';
 
 /**
@@ -122,13 +122,13 @@ export function MotorCombinePane({ motors }: { motors: CatalogMotor[] }) {
         />
       )}
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
-        <Stat label={t('dash.motors')} value={String(combined.motorCount)} />
+        <SpecItem label={t('dash.motors')} value={String(combined.motorCount)} />
         {/* In the user's units, as MotorDetail's grid is; these four
             were the only readouts in the dashboard fixed to N and N.s. */}
-        <Stat label={t('motorDlg.totalImpulse')} value={inUserUnit(u, 'impulse', combined.totalImpulse, 1, 1)} />
-        <Stat label={t('motorDlg.maxThrust')} value={inUserUnit(u, 'force', combined.peakThrust, 1, 1)} />
-        <Stat label={t('motorDlg.avgThrust')} value={inUserUnit(u, 'force', combined.avgThrust, 1, 1)} />
-        <Stat label={t('motorDlg.burnTime')} value={withUnit(combined.burnTime, 's', 2)} />
+        <SpecItem label={t('motorDlg.totalImpulse')} value={inUserUnit(u, 'impulse', combined.totalImpulse, 1, 1)} />
+        <SpecItem label={t('motorDlg.maxThrust')} value={inUserUnit(u, 'force', combined.peakThrust, 1, 1)} />
+        <SpecItem label={t('motorDlg.avgThrust')} value={inUserUnit(u, 'force', combined.avgThrust, 1, 1)} />
+        <SpecItem label={t('motorDlg.burnTime')} value={withFixedUnit(combined.burnTime, 's', 2)} />
       </dl>
       <p className="mt-2 text-[11px] leading-snug text-slate-500">{t('dash.combineNote')}</p>
     </div>

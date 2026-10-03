@@ -9,13 +9,14 @@ the source before entry here.
 Scope: the `web/` package. `web/src/engine/vendor/` is generated TeaVM output
 and was not audited. `engine-java/` has its own prompt and its own report.
 
-**Status, 2026-10-02.** Every SECURITY finding (S1 to S5) and every CORRECTNESS
+**Status, 2026-10-03.** Every SECURITY finding (S1 to S5) and every CORRECTNESS
 finding at every severity (10 HIGH, 19 MED, 12 LOW) is fixed, each with a test
 proven to discriminate: the fix was reverted, the test watched to fail, and the
-fix restored. Every TOOLING finding is fixed too: T1 to T5 at HIGH, T6 to T10 at
-MED, and eight of the nine tooling-LOW items, with only the i18n triangle left open
-by decision. What remains is the architecture refactors, the test
-and accessibility lists, and the dead code - and all 32 findings in
+fix restored. That includes the `.rkt` component cap S2 left open. Every TOOLING
+finding is fixed too: T1 to T5 at HIGH, T6 to T10 at MED, and eight of the nine
+tooling-LOW items, with only the i18n triangle left open by decision. The dead
+code, the duplicated helpers and the test list are done. What remains is the
+architecture refactors, the accessibility list, and all 32 findings in
 `docs/AUDIT_ENGINE.md`, which has not been touched.
 
 Two MED findings in this report were closed without being worked on: C1 removed
@@ -1204,7 +1205,7 @@ These are design findings, not defects. Each names a concrete split.
   `useEffect`), `FlightPathExport.tsx`'s dialog (575 lines with two hydrate and
   persist field lists that must stay in lockstep). Each entry in the agent
   reports names the hooks to extract.
-- **Duplicated helpers.** Two exported `Stat` components, in
+- **Duplicated helpers** - FIXED 2026-10-03. Two exported `Stat` components, in
   `components/common/Stat.tsx` and `components/sim/MotorDetail.tsx`, with
   different markup and type scale, each imported by two files in the same area,
   so `import { Stat }` means different things. Two exported `withUnit`, in
@@ -1212,11 +1213,24 @@ These are design findings, not defects. Each names a concrete split.
   closes degrees up, and sibling files disagree about which they get. One
   `numOf` in `rktExport.ts` byte-identical to `nodeProps.numOpt`. Launch site
   bounds spelled out in three places while a comment claims they are named once.
-- **`TreeSchematic`'s `vertical` mode is unreachable.** The only call site never
-  passes it; the phone quarter-turn is done in CSS. About 12 live branches plus
-  a `textUp` callback spread at eight call sites that now always returns `{}`.
-  This also masks what would be a real accessibility bug if revived:
-  `role="img"` on an SVG whose shapes still carry `onClick`.
+
+  The two `Stat`s were not one component written twice: the motor one is a
+  `<dt>`/`<dd>` pair that must sit in a `<dl>`, the common one a free-standing
+  tile. Merging them would break the definition list, so the motor one is now
+  `SpecItem` and says what it requires. The motor `withUnit` is now
+  `withFixedUnit`, and it and `inUserUnit` both join number and symbol through
+  the i18n `withUnit`, so one function owns the spacing rule. `numOf` is gone and
+  `rktExport` imports `numOpt`. The bounds are `LAUNCH_SITE_LIMITS` in
+  `launchLocationStore.ts`, read by the store's validator, `LocationEditor` and
+  the three `LaunchPanel` site fields.
+- **`TreeSchematic`'s `vertical` mode is unreachable** - FIXED 2026-10-03, by
+  deleting it. The only call site never passes it; the phone quarter-turn is done
+  in CSS. About 12 live branches plus a `textUp` callback spread at eight call
+  sites that now always returns `{}`. This also masks what would be a real
+  accessibility bug if revived: `role="img"` on an SVG whose shapes still carry
+  `onClick`. The prop, `textUp`, the vertical branches in `schematicGeometry` and
+  `schematicShapes`, and the `schematic.sideAriaVertical` key in all ten locales
+  are gone.
 
 ### Tooling, low
 
@@ -1385,15 +1399,17 @@ under-counted its own scope, which is recorded rather than quietly dropped.
   maintain. Recorded as a known unverifiable, not as an open task - if one of these
   three is ever suspected of being wrong, this entry is the reason there is no test
   to consult.
-- **`discGeometry.ts` has no test file at all**, and it is the module the DXF
+- **`discGeometry.ts` has no test file at all** - FIXED 2026-10-02 by
+  `tests/services/design/discGeometry.test.ts` (see step 7). It is the module the DXF
   sheet, the print solids and the 3D internals all share for ring and coupler
   sizing. `tubeRadii`, `plateOuter`, `mountBore`, `nodeContext`, `discDims` and
   `boreAt` are untested; so are `scaleNode` and `stationRadius`.
-- **A golden test asserts a flag that has no reader.**
-  `reportPdf.golden.test.ts` passes `include: false` as if it suppressed a
-  stage. See the dead-code entry.
+- **A golden test asserts a flag that has no reader** - FIXED 2026-10-03 with
+  the dead-code pass. `reportPdf.golden.test.ts` passes `include: false` as if it
+  suppressed a stage. The flag is deleted and the test no longer passes it.
 - **`stackedBands`' only test never feeds it a non-finite sample**, while its
-  sibling `chartDomain` is tested for NaN in the same file.
+  sibling `chartDomain` is tested for NaN in the same file. FIXED 2026-10-03 by
+  `tests/components/canvas/stackedBandGaps.test.ts`.
 
 ### Accessibility
 
@@ -1443,6 +1459,16 @@ even on throw.
 ---
 
 ## Dead code
+
+**FIXED 2026-10-03.** Twelve of the thirteen exports below are deleted, along with
+`StageOption.include`, `importOrk`'s `configId` parameter and `TreeSchematic`'s
+`vertical` mode. `specToTree` had eight test callers building fixtures, so it moved
+to `tests/testing/specTree.ts` rather than being deleted. `resetHelpIndex` stays:
+it clears a module-level cache so each test starts clean, which makes it a test
+seam like `__setEngineForTests`, not dead code. Those two are the whole baseline
+in `tests/srcExportReach.test.ts`, the T7 gate, so a new test-only export fails
+the suite. Deleting `specToTree` from `engine/api.ts` also left its `RocketSpec`
+re-export unused, which knip caught and which is gone.
 
 knip exits 0, so everything here is something knip structurally cannot see, per
 T7. Each was confirmed by grepping all of `web/src`, with test-only usage noted.
@@ -1503,9 +1529,12 @@ holds. One test file, two edits.
 **2. One-line fixes that close a wrong-number path.** C3 and every security
 finding (S1 to S5) are **done**, each with tests. Remaining: C8 (two `max`
 props), C9 (two `min` props), C7 (one null return). All three are
-single-expression changes with a verified failure scenario. One thing S2 left
-open: `rktImport.readParts` has the same element-count gap the `.ork` reader
-just closed, against its own context type. Note what C3 turned up: the same
+single-expression changes with a verified failure scenario. The one thing S2 left
+open, `rktImport.readParts` having the element-count gap the `.ork` reader had
+closed, is FIXED 2026-10-03: `RktContext` carries the same running `nodeCount`
+against `MAX_COMPONENTS`, counted at the same two points (every part entering the
+tree, and every stage), with the `.ork` tests' two cases mirrored in
+`rktImport.test.ts`. Note what C3 turned up: the same
 wrong expression existed in a second exporter the audit had not flagged, so when
 fixing one of these, grep for the expression rather than trusting the file list.
 
@@ -1548,14 +1577,16 @@ are `KERNEL_DEFAULTS` reads, `tests/services/design/discGeometry.test.ts` exists
 and `tests/tree/kernelDefaultsConsumers.test.ts` holds the three consumers to the
 table by measuring the geometry they produce.
 
-**8. Add the missing kernel anchors.** `shapeProfile.kernel.test.ts` with
-interior-point assertions transcribed from the Java, not from `shapeRadius`.
-Then vendor the three `swing` sources so `markingGuide`, `finTabAuto` and
-`finImage` stop being unverifiable.
+**8. Add the missing kernel anchors. DONE as far as it goes.**
+`shapeProfile.kernel.test.ts` exists, with interior-point assertions transcribed
+from the Java, not from `shapeRadius`. Vendoring the three `swing` sources was
+declined, so `markingGuide`, `finTabAuto` and `finImage` stay unverifiable by
+decision (see Tests).
 
-**9. Dead code.** Delete the 12 unreachable exports, `StageOption.include`,
-`importOrk`'s unused parameter and `TreeSchematic`'s `vertical` mode. Mechanical
-once T7's second knip invocation exists to keep it from growing back.
+**9. Dead code. DONE**, along with the duplicated helpers. See the Dead code
+section and the Architecture entries. The guard against it growing back is
+`tests/srcExportReach.test.ts`, not a second knip run, because knip counts a test
+importer as a use however it is scoped (T7).
 
 **10. Deferred refactors.** The `outdated` derivation, `runSims` and
 `openOrkFile` extraction, the rebuild debounce, auto-run as a command, and the

@@ -20,6 +20,7 @@ import {
 } from '../../services/flight/windTurbulence';
 import { WindProfileDialog } from './WindProfileDialog';
 import { LocationPicker } from './LocationPicker';
+import { LAUNCH_SITE_LIMITS } from '../../services/storage/launchLocationStore';
 import { SiteMapDialog } from './SiteMapDialog';
 import { useLatest } from '../common/useLatest';
 
@@ -359,11 +360,8 @@ export function LaunchPanel({
           kind="distance"
           u={u}
           stepSi={10}
-          // Dead Sea shore to above any launch site: the kernel's atmosphere
-          // model takes this straight, and it was one of two site fields left
-          // unbounded after every sibling was given a range.
-          minSi={-500}
-          maxSi={10000}
+          minSi={LAUNCH_SITE_LIMITS.launchAltitudeM.min}
+          maxSi={LAUNCH_SITE_LIMITS.launchAltitudeM.max}
           mixed={mixed('launchAltitudeM')}
           {...req('launchAltitudeM')}
           value={launch.launchAltitudeM}
@@ -373,11 +371,8 @@ export function LaunchPanel({
           label={t('launch.latitude')}
           unit="°"
           step={1}
-          // Unbounded, these reached the kernel as launchLatitude (gravity and
-          // Coriolis) AND flightPathExport as the KML/GPX origin, where a
-          // latitude past ±90 is rejected outright by Google Earth.
-          min={-90}
-          max={90}
+          min={LAUNCH_SITE_LIMITS.latitudeDeg.min}
+          max={LAUNCH_SITE_LIMITS.latitudeDeg.max}
           mixed={mixed('latitudeDeg')}
           {...req('latitudeDeg')}
           value={launch.latitudeDeg}
@@ -387,8 +382,8 @@ export function LaunchPanel({
           label={t('launch.longitude')}
           unit="°"
           step={1}
-          min={-180}
-          max={180}
+          min={LAUNCH_SITE_LIMITS.longitudeDeg.min}
+          max={LAUNCH_SITE_LIMITS.longitudeDeg.max}
           mixed={mixed('longitudeDeg')}
           {...req('longitudeDeg')}
           value={launch.longitudeDeg}
