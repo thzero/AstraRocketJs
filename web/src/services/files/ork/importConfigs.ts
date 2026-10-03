@@ -37,10 +37,11 @@ export interface OrkImportContext {
  * the import O(configs x children) on the main thread and freezes the tab.
  * A real design has a handful.
  */
-export function readFlightConfigs(
-  rocketEl: Element,
-  requested: string | undefined,
-): { configEls: Element[]; configs: OrkFlightConfig[]; chosenConfigId: string | null } {
+export function readFlightConfigs(rocketEl: Element): {
+  configEls: Element[];
+  configs: OrkFlightConfig[];
+  chosenConfigId: string | null;
+} {
   const configEls = Array.from(rocketEl.querySelectorAll(':scope > motorconfiguration')).slice(0, MAX_MOTOR_CONFIGS);
   const configs: OrkFlightConfig[] = configEls
     .map((c) => ({
@@ -53,11 +54,7 @@ export function readFlightConfigs(
       grounded: [],
     }))
     .filter((c) => c.id !== '');
-  const chosenConfigId =
-    (requested != null && configs.some((c) => c.id === requested) ? requested : null) ??
-    configs.find((c) => c.isDefault)?.id ??
-    configs[0]?.id ??
-    null;
+  const chosenConfigId = configs.find((c) => c.isDefault)?.id ?? configs[0]?.id ?? null;
   return { configEls, configs, chosenConfigId };
 }
 

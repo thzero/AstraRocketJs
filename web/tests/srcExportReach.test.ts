@@ -20,10 +20,10 @@ import { fileURLToPath } from 'node:url';
  * `knip --production` is no good either, for the reason the audit records: it
  * reports none of these and emits ten false-positive unused dependencies.
  *
- * So the rule lives here. A test-only export is not wrong in itself - one of the
- * fourteen is a deliberate engine seam - but the SET of them should be a decision.
- * Left invisible this is where dead code hides: thirteen exports with a test apiece
- * and no caller, every one of them looking covered.
+ * So the rule lives here. A test-only export is not wrong in itself - a reset for
+ * module state is a legitimate seam - but the SET of them should be a decision.
+ * Left invisible this is where dead code hides: an export with a test and no
+ * caller looks covered.
  */
 
 const web = fileURLToPath(new URL('..', import.meta.url));
@@ -99,35 +99,15 @@ const testOnlyExports = (): string[] => {
 };
 
 /**
- * The baseline: exports a test reaches and nothing in the app does, 2026-10-02.
+ * Exports a test reaches and nothing in the app does. Each is a deliberate test
+ * seam over module state, and says so where it is declared.
  *
- * A BASELINE, not an endorsement. Listing a name here says the situation was known
- * on that date, not that it is right. Thirteen of the fourteen are the audit's
- * dead-code table; the fourteenth, `__setEngineForTests`, is a deliberate seam and
- * says so in its own doc.
- *
- * Deliberately NOT adjudicated line by line here. Deciding "intentional seam" or
- * "dead" for each one is the dead-code pass, and labeling them from a distance
- * would be guessing in a file that then looks authoritative. What this does is stop
- * the set growing in silence, and make the cleanup verifiable: delete a dead export
- * and the second test below fails until its line goes too.
+ * Delete one, or give it a real caller, and the second test below fails until its
+ * line goes too.
  */
 const BASELINE = [
-  'src/components/canvas/stabilityGadget.ts#calloutGadget',
-  'src/engine/api.ts#specToTree',
-  // The one that is intentional, and documented as such where it is declared.
   'src/engine/openRocketEngine.ts#__setEngineForTests',
-  'src/engine/simClient.ts#simConcurrency',
   'src/services/app/helpSearch.ts#resetHelpIndex',
-  'src/services/app/updateCheck.ts#promptDue',
-  'src/services/design/treeEdit.ts#findMountId',
-  'src/services/exports/meshValidate.ts#describeIssues',
-  'src/services/exports/meshValidate.ts#isValidSolid',
-  'src/services/materials/materials.ts#findMaterial',
-  'src/services/parts/componentDb.ts#filterComponents',
-  'src/services/parts/componentFilter.ts#odBounds',
-  'src/services/report/rocketReport.ts#thrustToWeight',
-  'src/services/storage/idbKeyValueStore.ts#isStorageDegraded',
 ];
 
 describe('src exports reached only from tests are a decision', () => {
@@ -148,9 +128,8 @@ describe('src exports reached only from tests are a decision', () => {
 
   it('actually finds things, so a broken scan cannot pass as a clean repo', () => {
     // The failure this guards: a regex that stops matching makes `found` empty and
-    // sends both assertions above green on a scan that saw nothing. The audit
-    // counted fourteen independently, which is what the baseline holds.
-    expect(found).toHaveLength(14);
+    // sends both assertions above green on a scan that saw nothing.
+    expect(found).toHaveLength(BASELINE.length);
     expect(srcFiles.length).toBeGreaterThan(200);
     expect(testFiles.length).toBeGreaterThan(200);
   });

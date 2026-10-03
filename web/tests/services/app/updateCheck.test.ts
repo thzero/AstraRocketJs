@@ -4,7 +4,6 @@ import {
   UPDATE_POLL_MS,
   UPDATE_SNOOZE_MS,
   dueForCheck,
-  promptDue,
   snoozeUntil,
   readyToApplyHidden,
   UPDATE_APPLY_HIDDEN_MS,
@@ -29,20 +28,6 @@ describe('dueForCheck', () => {
   it('takes a caller-supplied gap', () => {
     expect(dueForCheck(T, T + 1000, 500)).toBe(true);
     expect(dueForCheck(T, T + 1000, 5000)).toBe(false);
-  });
-});
-
-describe('promptDue', () => {
-  it('shows when nothing is snoozed', () => {
-    expect(promptDue(null, T)).toBe(true);
-  });
-
-  it('stays quiet until the snooze expires, boundary included', () => {
-    const until = snoozeUntil(T);
-    expect(promptDue(until, T)).toBe(false);
-    expect(promptDue(until, until - 1)).toBe(false);
-    expect(promptDue(until, until)).toBe(true);
-    expect(promptDue(until, until + 1)).toBe(true);
   });
 });
 

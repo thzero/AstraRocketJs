@@ -163,12 +163,6 @@ export function addChild(tree: RocketTree, parentId: string, node: ComponentNode
   return syncDerived(next);
 }
 
-/** The id of the first motor-mount node, for seating the motor. */
-export function findMountId(tree: RocketTree): string | undefined {
-  for (const n of walk(tree.components)) if (n.motorMount === true && typeof n.id === 'string') return n.id;
-  return undefined;
-}
-
 /** All motor-mount nodes in tree order (first = primary). */
 export function findMounts(tree: RocketTree): ComponentNode[] {
   const out: ComponentNode[] = [];

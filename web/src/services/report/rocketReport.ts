@@ -45,9 +45,3 @@ export function motorStats(spec: MotorSpec): MotorStats {
     length: spec.length,
   };
 }
-
-/** Thrust-to-weight of a motor stack lifting a loaded mass (dimensionless). */
-export function thrustToWeight(avgThrustN: number, loadedMassKg: number): number {
-  const w = loadedMassKg * 9.80665;
-  return w > 0 ? avgThrustN / w : 0;
-}

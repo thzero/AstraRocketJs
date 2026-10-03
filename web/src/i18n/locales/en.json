@@ -1190,7 +1190,6 @@
     "fit": "Fit to view",
     "aftAria": "Aft end view — looking at the rocket from behind; drag to rotate, wheel to zoom",
     "sideAria": "Rocket side view with CG and CP markers; wheel to zoom, drag background to pan",
-    "sideAriaVertical": "Rocket side view, nose up, with CG and CP markers",
     "caliperH": "Horizontal caliper handle {{end}}",
     "caliperV": "Vertical caliper handle {{end}}"
   },

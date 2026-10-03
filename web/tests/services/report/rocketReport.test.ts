@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { MotorSpec } from '../../../src/engine/openRocketEngine';
-import { motorStats, thrustToWeight } from '../../../src/services/report/rocketReport';
+import { motorStats } from '../../../src/services/report/rocketReport';
 
 // A simple triangular-ish curve: 10 N held for 2 s → 20 N·s, avg 10 N.
 const motor = {
@@ -31,13 +31,5 @@ describe('motorStats', () => {
     expect(m.burnTime).toBe(0);
     expect(m.avgThrust).toBe(0);
     expect(m.totalImpulse).toBe(0);
-  });
-});
-
-describe('thrustToWeight', () => {
-  it('is avg thrust over weight', () => {
-    expect(thrustToWeight(9.80665, 1)).toBeCloseTo(1, 6); // 1 kg weighs 9.80665 N
-    expect(thrustToWeight(50, 0.5)).toBeCloseTo(50 / (0.5 * 9.80665), 6);
-    expect(thrustToWeight(50, 0)).toBe(0);
   });
 });

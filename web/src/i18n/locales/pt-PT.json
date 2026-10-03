@@ -1196,7 +1196,6 @@
     "fit": "Ajustar à vista",
     "aftAria": "Vista traseira: a olhar o foguetão por trás; arraste para rodar, use a roda para ampliar",
     "sideAria": "Vista lateral do foguetão com os marcadores de CG e CP; roda para ampliar, arraste o fundo para mover",
-    "sideAriaVertical": "Vista lateral do foguetão, nariz para cima, com os marcadores de CG e CP",
     "caliperH": "Manípulo horizontal da craveira {{end}}",
     "caliperV": "Manípulo vertical da craveira {{end}}"
   },

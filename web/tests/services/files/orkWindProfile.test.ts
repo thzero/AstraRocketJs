@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { exportOrk, importOrk } from '../../../src/services/files/orkFile';
-import { specToTree } from '../../../src/engine/api';
+import { specToTree } from '../../testing/specTree';
 import type { RocketSpec } from '../../../src/engine/openRocketEngine';
 import type { LaunchConditions } from '../../../src/services/design/orkTree';
 

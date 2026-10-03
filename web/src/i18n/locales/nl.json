@@ -1190,7 +1190,6 @@
     "fit": "Passend maken",
     "aftAria": "Achteraanzicht: de raket van achteren gezien; sleep om te draaien, scrolwiel om te zoomen",
     "sideAria": "Zijaanzicht van de raket met de markers voor CG en CP; scrolwiel om te zoomen, sleep de achtergrond om te verschuiven",
-    "sideAriaVertical": "Zijaanzicht van de raket, neus omhoog, met de markers voor CG en CP",
     "caliperH": "Horizontale greep van de schuifmaat {{end}}",
     "caliperV": "Verticale greep van de schuifmaat {{end}}"
   },

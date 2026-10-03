@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { simConditions, type SimPrefs } from '../../../src/services/flight/simulations';
 import { exportOrk, importOrk } from '../../../src/services/files/orkFile';
-import { specToTree } from '../../../src/engine/api';
+import { specToTree } from '../../testing/specTree';
 import type { RocketSpec } from '../../../src/engine/openRocketEngine';
 import type { LaunchConditions } from '../../../src/services/design/orkTree';
 import type { CompleteLaunch } from '../../../src/services/flight/requiredLaunch';

@@ -419,6 +419,5 @@ describe('golden .ork import', () => {
     nextUuid = 0;
     const xml = exportOrk(multiConfigInput());
     expect(importOrk(xml)).toMatchSnapshot();
-    expect(importOrk(xml, { configId: 'cfg-b' })).toMatchSnapshot();
   });
 });

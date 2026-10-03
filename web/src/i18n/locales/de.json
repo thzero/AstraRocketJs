@@ -1190,7 +1190,6 @@
     "fit": "An die Ansicht anpassen",
     "aftAria": "Heckansicht – Blick von hinten auf die Rakete; zum Drehen ziehen, zum Zoomen scrollen",
     "sideAria": "Seitenansicht der Rakete mit CG- und CP-Markern; zum Zoomen scrollen, zum Verschieben den Hintergrund ziehen",
-    "sideAriaVertical": "Seitenansicht der Rakete, Spitze oben, mit CG- und CP-Markern",
     "caliperH": "Griff des waagerechten Messschiebers {{end}}",
     "caliperV": "Griff des senkrechten Messschiebers {{end}}"
   },

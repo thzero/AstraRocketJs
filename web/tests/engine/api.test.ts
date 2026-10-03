@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { specToTree } from '../../src/engine/api';
+import { specToTree } from '../testing/specTree';
 import type { RocketSpec, ComponentNode, RocketTree } from '../../src/engine/openRocketEngine';
 import { KERNEL_MATERIALS } from '../../src/tree/kernelDefaults';
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { validateSolid, isValidSolid } from '../../../src/services/exports/meshValidate';
+import { validateSolid } from '../../../src/services/exports/meshValidate';
 import { discSolid } from '../../../src/services/exports/solidMesh';
 
 /**
@@ -37,13 +37,13 @@ describe('a closed solid must face outward', () => {
   const tube = () => discSolid(0.024, 0.0225, 0.1)!;
 
   it('accepts the tube the exporter builds', () => {
-    expect(isValidSolid(tube())).toBe(true);
+    expect(validateSolid(tube())).toEqual([]);
   });
 
   it('refuses the same tube wound inside out', () => {
     const inside = flipped(tube());
     expect(kinds(inside)).toContain('inside-out');
-    expect(isValidSolid(inside)).toBe(false);
+    expect(validateSolid(inside)).not.toEqual([]);
   });
 
   it('still calls the flipped mesh consistently wound, which is the point', () => {

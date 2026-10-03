@@ -1202,7 +1202,6 @@
     "fit": "Dopasuj do widoku",
     "aftAria": "Widok z tyłu: rakieta widziana od tyłu; przeciągaj, aby obracać, kółko zmienia powiększenie",
     "sideAria": "Widok rakiety z boku ze znacznikami SC i SP; kółko zmienia powiększenie, przeciąganie tła przesuwa widok",
-    "sideAriaVertical": "Widok rakiety z boku, dziobem do góry, ze znacznikami SC i SP",
     "caliperH": "Uchwyt suwmiarki poziomej {{end}}",
     "caliperV": "Uchwyt suwmiarki pionowej {{end}}"
   },

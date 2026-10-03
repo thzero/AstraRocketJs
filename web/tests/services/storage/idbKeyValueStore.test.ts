@@ -4,10 +4,24 @@ import 'fake-indexeddb/auto';
 import {
   IndexedDbKeyValueStore,
   __resetIdbForTests,
-  isStorageDegraded,
   onStorageDegraded,
 } from '../../../src/services/storage/idbKeyValueStore';
 import type { KeyValueStore } from '../../../src/services/storage/keyValueStore';
+
+/**
+ * Is storage in its degraded, fell-back-to-localStorage state?
+ *
+ * Asked through `onStorageDegraded`, the seam the app uses: the subscription calls
+ * back immediately when the flag is already set, so subscribing and unsubscribing
+ * in one breath reads it.
+ */
+const degraded = (): boolean => {
+  let seen = false;
+  onStorageDegraded(() => {
+    seen = true;
+  })();
+  return seen;
+};
 
 /** Stand-in for the pre-IndexedDB localStorage store. */
 class FakeLocal implements KeyValueStore {
@@ -252,7 +266,7 @@ describe('an open blocked by another tab', () => {
 
     expect(await kv.set('k', 'v')).toBe(true);
     expect(local.map.get('k')).toBe('v');
-    expect(isStorageDegraded()).toBe(true); // the UI gets to warn up front
+    expect(degraded()).toBe(true); // the UI gets to warn up front
     spy.mockRestore();
   });
 
@@ -296,7 +310,7 @@ describe('storage-degraded signal', () => {
     const kv = new IndexedDbKeyValueStore(new FakeLocal());
     await kv.set('k', 'v');
     await kv.get('k');
-    expect(isStorageDegraded()).toBe(false);
+    expect(degraded()).toBe(false);
   });
 
   it('fires once when storage falls back, so the UI can warn up front', async () => {
@@ -312,7 +326,7 @@ describe('storage-degraded signal', () => {
     await kv.set('b', '2');
     await kv.get('a');
 
-    expect(isStorageDegraded()).toBe(true);
+    expect(degraded()).toBe(true);
     // One warning, not one per operation.
     expect(seen).toHaveBeenCalledOnce();
     boom.mockRestore();
@@ -387,7 +401,7 @@ describe('update() falling back to localStorage', () => {
         throw boom;
       }),
     ).rejects.toBe(boom);
-    expect(isStorageDegraded()).toBe(false);
+    expect(degraded()).toBe(false);
     expect(await kv.get('k')).toBe('v'); // the transaction was aborted, nothing changed
   });
 });
@@ -397,7 +411,7 @@ describe('a QuotaExceededError is not a degraded IndexedDB', () => {
     const local = new FakeLocal();
     const kv = new IndexedDbKeyValueStore(local);
     await kv.set('warm', 'up');
-    expect(isStorageDegraded()).toBe(false);
+    expect(degraded()).toBe(false);
 
     // The database is fine; this one write does not fit.
     const full = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(() => {
@@ -409,7 +423,7 @@ describe('a QuotaExceededError is not a degraded IndexedDB', () => {
       expect(local.map.get('k')).toBe('v');
       expect(await kv.update('k2', () => 'v2')).toBe(true);
       // ...but IndexedDB itself is not written off for the session.
-      expect(isStorageDegraded()).toBe(false);
+      expect(degraded()).toBe(false);
     } finally {
       full.mockRestore();
     }
@@ -425,7 +439,7 @@ describe('a QuotaExceededError is not a degraded IndexedDB', () => {
     });
     await __resetIdbForTests();
     await kv.set('a', '1');
-    expect(isStorageDegraded()).toBe(true);
+    expect(degraded()).toBe(true);
     boom.mockRestore();
   });
 });

@@ -1196,7 +1196,6 @@
     "fit": "Ajustar à vista",
     "aftAria": "Vista traseira: olhando o foguete por trás; arraste para girar, use a roda para dar zoom",
     "sideAria": "Vista lateral do foguete com os marcadores de CG e CP; roda para dar zoom, arraste o fundo para deslocar",
-    "sideAriaVertical": "Vista lateral do foguete, nariz para cima, com os marcadores de CG e CP",
     "caliperH": "Alça horizontal do paquímetro {{end}}",
     "caliperV": "Alça vertical do paquímetro {{end}}"
   },

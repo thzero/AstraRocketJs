@@ -5,7 +5,6 @@ import {
   updateNode,
   removeNode,
   addChild,
-  findMountId,
   findMounts,
   isUpperStageMount,
   isAxial,
@@ -96,10 +95,6 @@ describe('immutable edits', () => {
 });
 
 describe('mount + type rules', () => {
-  it('findMountId returns the first motor-mount id', () => {
-    expect(findMountId(makeTree())).toBe('m1');
-  });
-
   it('findMounts returns every motor-mount node in order', () => {
     const t = makeTree();
     // add a second mount under the body tube

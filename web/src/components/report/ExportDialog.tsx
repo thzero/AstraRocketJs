@@ -13,7 +13,6 @@ import { markingGuides } from '../../services/report/markingGuide';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 
 interface StageSel {
-  include: boolean;
   parts: boolean;
   finTemplates: boolean;
   hasFins: boolean;
@@ -125,7 +124,6 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           transitionTemplates: hasTransitions,
           finMarkingGuide: hasMarkingGuides,
           stages: model.stages.map((st, i) => ({
-            include: true,
             parts: true,
             finTemplates: true,
             // isPlanarFinSet: this gates the FIN TEMPLATES checkbox, and tube
@@ -160,7 +158,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
             noseTemplates: on && hasNoses,
             transitionTemplates: on && hasTransitions,
             finMarkingGuide: on && hasMarkingGuides,
-            stages: s.stages.map((st) => ({ ...st, include: on, parts: on, finTemplates: on && st.hasFins })),
+            stages: s.stages.map((st) => ({ ...st, parts: on, finTemplates: on && st.hasFins })),
           }
         : s,
     );
@@ -198,7 +196,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           noseTemplates: sel.noseTemplates,
           transitionTemplates: sel.transitionTemplates,
           finMarkingGuide: sel.finMarkingGuide,
-          stages: sel.stages.map((st) => ({ include: st.include, parts: st.parts, finTemplates: st.finTemplates })),
+          stages: sel.stages.map((st) => ({ parts: st.parts, finTemplates: st.finTemplates })),
           paper: settings.report.paper,
           orientation: settings.report.orientation,
           templateFill: settings.report.templateFill,

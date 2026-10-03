@@ -93,11 +93,6 @@ function openDb(): Promise<IDBDatabase> {
 let degraded = false;
 const degradedListeners = new Set<() => void>();
 
-/** True once IndexedDB has failed and storage fell back to localStorage. */
-export function isStorageDegraded(): boolean {
-  return degraded;
-}
-
 /** Notified the first time storage degrades. Fires immediately if it already
  *  has, so a late subscriber still sees it. Returns an unsubscribe. */
 export function onStorageDegraded(cb: () => void): () => void {

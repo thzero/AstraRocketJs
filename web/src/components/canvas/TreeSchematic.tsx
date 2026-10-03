@@ -57,7 +57,6 @@ export function TreeSchematic({
   onSelect,
   exportData,
   onError,
-  vertical,
   fillHeight,
   roll = 0,
   onRoll,
@@ -85,15 +84,10 @@ export function TreeSchematic({
    * to report.
    */
   onError?: (message: string) => void;
-  /** Nose-up view (S1 rotate / S4 phone): the horizontal layout rotates as
-   *  one group to fit the container's HEIGHT. Read-mostly — drag, pan, zoom
-   *  and the export/zoom controls are off; hover and click-select stay. */
-  vertical?: boolean;
   /** Hero canvas (batch 08-21e): the drawing surface spans the container's
    *  FULL height instead of the adaptive content height — otherwise the svg's
    *  invisible clip edges sit mid-canvas and a zoomed rocket "slides under"
-   *  what reads as a black box. Ignored in vertical mode (which fills by its
-   *  own rule); overrides maxHeight. */
+   *  what reads as a black box. Overrides maxHeight. */
   fillHeight?: boolean;
   /** Roll angle (radians) about the rocket's long axis — spins the fin sets so
    *  each fin projects by cos(roll + i·2π/N), like OpenRocket's rotation. */
@@ -115,7 +109,7 @@ export function TreeSchematic({
   // the column at native pixel scale on any monitor instead of a fixed 640px
   // canvas stretched to fit.
   const [cw, setCw] = useState(640);
-  // Container height (CSS px) — the length axis in vertical mode. Stays at
+  // Container height (CSS px), the drawing height under `fillHeight`. Stays at
   // the fallback when the wrap has no definite height to inherit.
   const [chPx, setChPx] = useState(480);
   // Hovered component (S5): accent wash + name tag drawn topmost. Enter/
@@ -139,8 +133,8 @@ export function TreeSchematic({
   // frequently-changing state (hover, zoom, calipers, roll) does not recompute
   // the whole layout on every render.
   const layout = useMemo(
-    () => computeSchematicLayout(tree, info, { vertical, chPx, cw, maxHeight, fillHeight, rulers }),
-    [tree, info, vertical, chPx, cw, maxHeight, fillHeight, rulers],
+    () => computeSchematicLayout(tree, info, { chPx, cw, maxHeight, fillHeight, rulers }),
+    [tree, info, chPx, cw, maxHeight, fillHeight, rulers],
   );
   const { chain, totalLen, maxR, vHalf, snapXs, radialSnaps, rTop, rBot, w, h, scale, ctx } = layout;
 
@@ -153,8 +147,7 @@ export function TreeSchematic({
    * pointermove, or capturing the pointer on press, lets the 1-3 px of jitter in
    * an ordinary physical click drag the drawing out from under the pointer between
    * press and release: the click lands on the <svg> instead of the shape, so
-   * selecting those parts does nothing, while children and the vertical view
-   * (which attaches neither handler) stay fine.
+   * selecting those parts does nothing.
    *
    * Both wait for real movement, so a click stays a click.
    */
@@ -264,8 +257,7 @@ export function TreeSchematic({
     caliperDrag.current = null;
   };
 
-  // Track the container's size so the viewBox can follow it (height feeds
-  // the vertical mode's length axis).
+  // Track the container's size so the viewBox can follow it.
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -277,7 +269,7 @@ export function TreeSchematic({
     return () => obs.disconnect();
   }, []);
 
-  // Wheel zoom around the pointer (shared hook; the vertical view is read-only).
+  // Wheel zoom around the pointer (shared hook).
   const wheelToView = useCallback(
     (e: WheelEvent, rect: DOMRect) => ({
       px: ((e.clientX - rect.left) / rect.width) * w,
@@ -285,19 +277,12 @@ export function TreeSchematic({
     }),
     [w, h],
   );
-  useWheelZoom(svgRef, setZoom, vertical ? null : wheelToView, WHEEL_ZOOM);
+  useWheelZoom(svgRef, setZoom, wheelToView, WHEEL_ZOOM);
 
   // Button zoom steps around the view center (the wheel handles precise
   // pointer-anchored zoom; these make the capability visible).
   const zoomBy = (f: number) =>
     setZoom((z) => zoomAbout(z, w / 2, h / 2, Math.min(WHEEL_ZOOM.max, Math.max(1, z.k * f))));
-
-  // Nose-up rendering rotates the whole drawing; every text label counter-
-  // rotates about its own anchor so it still reads horizontally.
-  const textUp = useCallback(
-    (x: number, y: number) => (vertical ? { transform: `rotate(-90 ${x} ${y})` } : {}),
-    [vertical],
-  );
 
   // Namespaces this instance's clipPath ids so two schematics sharing a document
   // can't cross-clip (url(#id) resolves to the first match in the document).
@@ -324,14 +309,12 @@ export function TreeSchematic({
         roll,
         uid,
         motors,
-        vertical,
         selectedId,
         onSelect,
         setHoverId,
         partName,
-        textUp,
       }),
-    [chain, ctx, scale, w, h, roll, uid, motors, vertical, selectedId, onSelect, partName, textUp],
+    [chain, ctx, scale, w, h, roll, uid, motors, selectedId, onSelect, partName],
   );
   // The hovered part's extent, resolved from the memoized map (see above).
   const hovered = hoverId ? extents.get(hoverId) : undefined;
@@ -343,7 +326,7 @@ export function TreeSchematic({
   // Rulers only at the default fit (a pan/zoom would slide them off scale). Each
   // side is toggled independently; length (top/bottom) and radial (left/right)
   // marks are computed if either ruler of that pair is on.
-  const rulersActive = !vertical && zoom.k === 1 && zoom.x === 0 && zoom.y === 0;
+  const rulersActive = zoom.k === 1 && zoom.x === 0 && zoom.y === 0;
   const showLen = rulersActive && (rulers.top || rulers.bottom);
   const showRad = rulersActive && (rulers.left || rulers.right);
   // Labeled majors are DENSE: aim for one roughly every ~12 screen px (rounded
@@ -391,11 +374,8 @@ export function TreeSchematic({
   const lengthRulerProps = { x0: rulerX0, x1: rulerX1, ctxX0: x0, scale, rulerStep, rulerDigits };
   const radialRulerProps = { frameTopY, frameBotY, vTop, scale, rulerStep, rulerDigits };
 
-  // The drawing's control strip. Vertical is read-mostly: no zoom to
-  // fit-reset, and the SVG/image exports assume the horizontal drawing
-  // (identity view transform), so the whole strip hides rather than export a
-  // sideways page.
-  const controls = vertical ? null : (
+  // The drawing's control strip.
+  const controls = (
     <SchematicControls
       svgRef={svgRef}
       exportData={exportData}
@@ -417,31 +397,25 @@ export function TreeSchematic({
   );
 
   return (
-    <div ref={wrapRef} style={{ position: 'relative', ...(vertical || fillHeight ? { height: '100%' } : null) }}>
+    <div ref={wrapRef} style={{ position: 'relative', ...(fillHeight ? { height: '100%' } : null) }}>
       <svg
         ref={svgRef}
-        viewBox={vertical ? `0 0 ${h} ${w}` : `0 0 ${w} ${h}`}
-        style={
-          vertical
-            ? { height: '100%', maxWidth: '100%', display: 'block', margin: '0 auto' }
-            : {
-                width: '100%',
-                height: 'auto',
-                display: 'block',
-                touchAction: 'none',
-                cursor: zoom.k > 1 ? 'grab' : undefined,
-              }
-        }
-        // role="img" ONLY for the read-only nose-up view: on the editable view it
-        // would tell assistive tech the whole SVG is a single static image and
-        // hide every clickable component. (Keyboard selection lives in the
-        // component tree, which is now focusable.)
-        role={vertical ? 'img' : undefined}
-        aria-label={vertical ? t('schematic.sideAriaVertical') : t('schematic.sideAria')}
-        onPointerDown={vertical ? undefined : beginPan}
-        onPointerMove={vertical ? undefined : onMove}
-        onPointerUp={vertical ? undefined : endDrag}
-        onPointerLeave={vertical ? undefined : endDrag}
+        viewBox={`0 0 ${w} ${h}`}
+        style={{
+          width: '100%',
+          height: 'auto',
+          display: 'block',
+          touchAction: 'none',
+          cursor: zoom.k > 1 ? 'grab' : undefined,
+        }}
+        // No role="img": it would tell assistive tech the whole SVG is a single
+        // static image and hide every clickable component. (Keyboard selection
+        // lives in the component tree, which is focusable.)
+        aria-label={t('schematic.sideAria')}
+        onPointerDown={beginPan}
+        onPointerMove={onMove}
+        onPointerUp={endDrag}
+        onPointerLeave={endDrag}
       >
         <defs>
           {/* Bulkhead fill: the engineering-drawing diagonal hatch. */}
@@ -451,25 +425,13 @@ export function TreeSchematic({
           {/* Airframe-band cuts: clip a far fin's fill at the tube wall. */}
           {clipDefs}
         </defs>
-        {/* Vertical: one rigid rotation of the horizontal layout — the w×h
-            layout rect maps exactly onto the transposed h×w viewBox with the
-            nose (layout left) up. rotate(-90) would put it nose DOWN. */}
-        <g transform={vertical ? `rotate(90 ${h / 2} ${h / 2})` : `translate(${zoom.x} ${zoom.y}) scale(${zoom.k})`}>
+        <g transform={`translate(${zoom.x} ${zoom.y}) scale(${zoom.k})`}>
           {shapes}
           {overlay}
           {/* Wireframe fin outlines while the view is rolled (paint topmost). */}
           {wires}
-          <StabilityOverlay
-            info={info}
-            showMarkers={showMarkers}
-            ctx={ctx}
-            scale={scale}
-            vHalf={vHalf}
-            w={w}
-            h={h}
-            textUp={textUp}
-          />
-          <HoverOverlay box={hovered?.box ?? null} name={hovered?.name ?? ''} w={w} h={h} textUp={textUp} />
+          <StabilityOverlay info={info} showMarkers={showMarkers} ctx={ctx} scale={scale} vHalf={vHalf} w={w} h={h} />
+          <HoverOverlay box={hovered?.box ?? null} name={hovered?.name ?? ''} w={w} h={h} />
           {caliperH && (
             <HorizontalCaliper
               cal={caliperH}

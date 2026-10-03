@@ -173,7 +173,7 @@ export function computeSchematicLayout(
   tree: RocketTree,
   info: StaticInfo | null,
   dims: {
-    vertical?: boolean;
+    /** Container height (CSS px), the drawing height under `fillHeight`. */
     chPx: number;
     cw: number;
     maxHeight: number;
@@ -198,7 +198,7 @@ export function computeSchematicLayout(
   scale: number;
   ctx: Ctx;
 } {
-  const { vertical, chPx, cw, maxHeight, fillHeight } = dims;
+  const { chPx, cw, maxHeight, fillHeight } = dims;
   // Stages flatten into one nose-to-tail chain (sustainer first, boosters
   // after — the desktop's stacking order); legacy flat trees pass through.
   const chain = tree.components.flatMap((n) => (n.type === 'stage' ? (n.children ?? []) : [n]));
@@ -294,11 +294,7 @@ export function computeSchematicLayout(
   }
   const radialSnaps = [...radialSet];
 
-  // Vertical mode swaps the container roles BEFORE layout: all layout math
-  // stays horizontal (length along x) and the finished drawing rotates
-  // nose-up as one group, so the length axis fits the container HEIGHT and
-  // the cross extent its width.
-  const w = Math.max(320, vertical ? chPx : cw);
+  const w = Math.max(320, cw);
   const pad = 26;
   // Height follows the rocket's own proportions (clamped): a long thin
   // rocket gets a wide low band, not a fixed frame of empty sky. When info
@@ -310,20 +306,18 @@ export function computeSchematicLayout(
   // left/right); each kept out of the fit so the drawing centers inside the frame.
   // A side that's toggled off reserves nothing, so the drawing reclaims that space.
   const R = dims.rulers ?? { top: true, bottom: true, left: true, right: true };
-  const rTop = vertical || !R.top ? 0 : RULER_H;
-  const rBot = vertical || !R.bottom ? 0 : RULER_H;
-  const rLeft = vertical || !R.left ? 0 : RULER_W;
-  const rRight = vertical || !R.right ? 0 : RULER_W;
-  const crossCap = vertical ? Math.max(160, cw) : maxHeight;
-  const h =
-    vertical || !fillHeight
-      ? Math.round(
-          Math.min(
-            crossCap,
-            Math.max(200, 2 * vHalf * ((w - 2 * pad - rLeft - rRight) / totalLen) + 2 * pad + lanes + rTop + rBot),
-          ),
-        )
-      : Math.max(200, chPx);
+  const rTop = R.top ? RULER_H : 0;
+  const rBot = R.bottom ? RULER_H : 0;
+  const rLeft = R.left ? RULER_W : 0;
+  const rRight = R.right ? RULER_W : 0;
+  const h = !fillHeight
+    ? Math.round(
+        Math.min(
+          maxHeight,
+          Math.max(200, 2 * vHalf * ((w - 2 * pad - rLeft - rRight) / totalLen) + 2 * pad + lanes + rTop + rBot),
+        ),
+      )
+    : Math.max(200, chPx);
   // Horizontal headroom: `totalLen` covers only the axial chain (nose+body), so
   // aft-swept fins overhang past it and the CG/CP labels reach right of the aft.
   // Fit to ~12% more than the bare length so nothing sits flush to the edge, and

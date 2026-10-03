@@ -138,11 +138,4 @@ describe('computeSchematicLayout', () => {
     const out = computeSchematicLayout(tree, null, dims);
     expect(out.snapXs.length).toBeGreaterThan(0);
   });
-
-  it('stays finite in vertical (nose-up) mode', () => {
-    const out = computeSchematicLayout(tree, null, { ...dims, vertical: true });
-    expect(Number.isFinite(out.w)).toBe(true);
-    expect(Number.isFinite(out.h)).toBe(true);
-    expect(Number.isFinite(out.scale)).toBe(true);
-  });
 });

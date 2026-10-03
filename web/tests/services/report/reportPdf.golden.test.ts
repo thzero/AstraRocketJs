@@ -293,8 +293,8 @@ const everything = {
   transitionTemplates: true,
   finMarkingGuide: true,
   stages: [
-    { include: true, parts: true, finTemplates: true },
-    { include: true, parts: true, finTemplates: true },
+    { parts: true, finTemplates: true },
+    { parts: true, finTemplates: true },
   ],
   paper: 'a4' as const,
   orientation: 'portrait' as const,
@@ -397,8 +397,8 @@ describe('golden PDF report', () => {
         paper: 'letter',
         orientation: 'landscape',
         stages: [
-          { include: true, parts: true, finTemplates: false },
-          { include: false, parts: false, finTemplates: true },
+          { parts: true, finTemplates: false },
+          { parts: false, finTemplates: true },
         ],
       },
       units,

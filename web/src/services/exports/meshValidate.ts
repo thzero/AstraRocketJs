@@ -191,16 +191,6 @@ export function validateSolid(geo: THREE.BufferGeometry, areaTol = 0): MeshIssue
   return issues;
 }
 
-/** True when {@link validateSolid} finds nothing wrong. */
-export function isValidSolid(geo: THREE.BufferGeometry, areaTol = 0): boolean {
-  return validateSolid(geo, areaTol).length === 0;
-}
-
-/** One line naming everything wrong with a solid, for an export error message. */
-export function describeIssues(issues: MeshIssue[]): string {
-  return issues.map((i) => i.detail).join('; ');
-}
-
 /**
  * Tolerances derived from the model's OWN size.
  *

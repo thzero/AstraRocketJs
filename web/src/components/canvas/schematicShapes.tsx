@@ -49,14 +49,12 @@ export interface SchematicShapesCfg {
    *  share one document — an unqualified id would cross-clip). */
   uid: string;
   motors?: Record<string, { length: number; diameter: number; label?: string }>;
-  vertical?: boolean;
   selectedId?: string | null;
   onSelect?: (id: string) => void;
   setHoverId: React.Dispatch<React.SetStateAction<string | null>>;
   /** Display name for an unnamed part (the tree panel's translated type name).
    *  Absent = the untranslated schema label. */
   partName?: (n: ComponentNode) => string;
-  textUp: (x: number, y: number) => { transform?: string };
 }
 
 /** What the scene knows about one component's drawn footprint, keyed by node
@@ -81,7 +79,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   /** Every drawn component's extent and display name, for the hover overlay. */
   extents: HoverExtents;
 } {
-  const { chain, ctx, scale, roll, uid, motors, vertical, selectedId, onSelect, setHoverId, textUp } = cfg;
+  const { chain, ctx, scale, roll, uid, motors, selectedId, onSelect, setHoverId } = cfg;
   const nameOf = (n: ComponentNode): string => n.name ?? cfg.partName?.(n) ?? DISPLAY_NAME[n.type];
 
   // Selection sync: click any drawn component to select it in the tree; the
@@ -261,7 +259,6 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           fontSize="10"
           fontWeight="bold"
           fill="#ffffff"
-          {...textUp(lx, cY)}
           style={{ pointerEvents: 'none' }}
         >
           {motor.label}
@@ -695,12 +692,9 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
             }
           }
           // Type tag, when the box has room for it — glyph types skip the
-          // text once their picture is drawn. Counter-rotated tags read
-          // horizontally in vertical mode, so the room roles swap.
+          // text once their picture is drawn.
           const hasGlyph = gs >= 8 && ['parachute', 'masscomponent', 'centeringring', 'shockcord'].includes(child.type);
-          const tagRoom = vertical
-            ? 2 * r * ctx.scale > 26 && len * ctx.scale > 11
-            : len * ctx.scale > 26 && 2 * r * ctx.scale > 11;
+          const tagRoom = len * ctx.scale > 26 && 2 * r * ctx.scale > 11;
           if (style && !hasGlyph && tagRoom) {
             const tx = ctx.x0 + (start + len / 2) * ctx.scale;
             const ty = baseY + off.y * ctx.scale;
@@ -713,7 +707,6 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
                 dominantBaseline="central"
                 fontSize="8.5"
                 fill={fillOf(child, style.stroke)}
-                {...textUp(tx, ty)}
                 style={{ pointerEvents: 'none', textTransform: 'uppercase', letterSpacing: '0.04em' }}
               >
                 {style.tag}

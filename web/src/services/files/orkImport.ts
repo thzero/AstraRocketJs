@@ -16,7 +16,7 @@ import { configNotes, modelingNotes } from './ork/importNotes';
  * (`ork/importReaders.ts`), then the launch conditions and the notes. Each
  * of those steps has its own module under `ork/`; this is the orchestrator.
  */
-export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string }): OrkImportResult {
+export function importOrk(data: ArrayBuffer | string): OrkImportResult {
   const archive = unpackOrk(data);
   const doc = parseOrkXml(archive.xml);
   const rocketEl = doc.querySelector('openrocket > rocket');
@@ -50,7 +50,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
   const stages = Array.from(rocketEl.querySelectorAll(':scope > subcomponents > stage'));
   if (stages.length === 0) throw new Error('No stage found');
 
-  const { configEls, configs, chosenConfigId } = readFlightConfigs(rocketEl, opts?.configId);
+  const { configEls, configs, chosenConfigId } = readFlightConfigs(rocketEl);
   const ctx: OrkImportContext = {
     configs,
     chosenConfigId,

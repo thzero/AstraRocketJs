@@ -321,13 +321,6 @@ export const materialFamilies = (list: Component[]): string[] =>
 export const noseShapes = (list: Component[]): string[] =>
   [...new Set(list.filter((p) => p.type === 'nosecone').map((p) => p.shape))].sort((a, b) => a.localeCompare(b));
 
-/** The outer-diameter span of a list, in meters, or null for an empty list. */
-export function odBounds(list: Component[]): { min: number; max: number } | null {
-  if (list.length === 0) return null;
-  const ds = list.map((p) => (p.type === 'parachute' ? p.diameter : p.outerDiameter));
-  return { min: Math.min(...ds), max: Math.max(...ds) };
-}
-
 /**
  * Units and the words that join two of them.
  *

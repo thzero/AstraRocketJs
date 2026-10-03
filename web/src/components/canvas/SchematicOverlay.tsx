@@ -15,9 +15,6 @@ import { calloutLayout, hoverTagFor, MARKER_R, STABILITY_GLYPH, type Ctx, type H
  * handler of its own silently ate the click.
  */
 
-/** Counter-rotation for a text label in the nose-up view (see TreeSchematic). */
-export type TextUp = (x: number, y: number) => { transform?: string };
-
 const STABILITY_VAR: Record<StabilityState, string> = {
   under: 'var(--status-serious)',
   over: 'var(--status-warn)',
@@ -32,7 +29,6 @@ export function StabilityOverlay({
   vHalf,
   w,
   h,
-  textUp,
 }: {
   info: StaticInfo | null;
   showMarkers: boolean;
@@ -41,7 +37,6 @@ export function StabilityOverlay({
   vHalf: number;
   w: number;
   h: number;
-  textUp: TextUp;
 }) {
   const { t } = useTranslation();
   const u = useUnits();
@@ -113,7 +108,6 @@ export function StabilityOverlay({
                 fontSize="11"
                 fontWeight="bold"
                 fill="var(--text-primary)"
-                {...textUp(callouts.cg.x + 8, callouts.cg.leaderY2)}
               >
                 {cgLabel}
               </text>
@@ -138,7 +132,6 @@ export function StabilityOverlay({
                 fontSize="11"
                 fontWeight="bold"
                 fill="var(--status-serious)"
-                {...textUp(callouts.cp.x + 8, callouts.cp.leaderY2)}
               >
                 {cpLabel}
               </text>
@@ -153,7 +146,6 @@ export function StabilityOverlay({
               fontSize="11"
               fontWeight="bold"
               fill={STABILITY_VAR[stab]}
-              {...textUp(callouts.margin.x, callouts.margin.y)}
             >
               {marginText}
             </text>
@@ -169,19 +161,7 @@ export function StabilityOverlay({
  * plus a name tag, deliberately fainter than the solid width-2 selection
  * outline so the two stay distinguishable.
  */
-export function HoverOverlay({
-  box,
-  name,
-  w,
-  h,
-  textUp,
-}: {
-  box: HoverBox | null;
-  name: string;
-  w: number;
-  h: number;
-  textUp: TextUp;
-}) {
+export function HoverOverlay({ box, name, w, h }: { box: HoverBox | null; name: string; w: number; h: number }) {
   const tag = box ? hoverTagFor(box, name, w, h) : null;
   if (!box || !tag) return null;
   return (
@@ -198,7 +178,7 @@ export function HoverOverlay({
         strokeWidth="1"
         strokeOpacity="0.6"
       />
-      <g {...textUp(tag.x, tag.y)}>
+      <g>
         <rect
           x={tag.x - tag.tw / 2}
           y={tag.y - 9}

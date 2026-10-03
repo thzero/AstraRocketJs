@@ -201,17 +201,3 @@ export function projectByType<T extends ComponentType>(cat: ComponentCatalog, ty
 export async function componentsForType<T extends ComponentType>(type: T): Promise<ComponentMap[T][]> {
   return projectByType(await loadCatalog(), type);
 }
-
-/**
- * Free-text filter over manufacturer / part number / description. Whitespace-
- * separated terms are AND-ed (each must appear somewhere), so "estes ogive"
- * finds Estes ogive parts even though no single field holds that exact phrase.
- */
-export function filterComponents<C extends Component>(list: C[], text: string): C[] {
-  const terms = text.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  if (terms.length === 0) return list;
-  return list.filter((c) => {
-    const hay = `${c.mfr} ${c.partNo} ${c.desc}`.toLowerCase();
-    return terms.every((term) => hay.includes(term));
-  });
-}

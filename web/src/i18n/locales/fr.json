@@ -1196,7 +1196,6 @@
     "fit": "Ajuster à la vue",
     "aftAria": "Vue arrière – la fusée vue de derrière ; glisser pour tourner, molette pour zoomer",
     "sideAria": "Vue de côté de la fusée avec les repères CG et CP ; molette pour zoomer, glisser le fond pour déplacer",
-    "sideAriaVertical": "Vue de côté de la fusée, ogive vers le haut, avec les repères CG et CP",
     "caliperH": "Poignée du pied à coulisse horizontal {{end}}",
     "caliperV": "Poignée du pied à coulisse vertical {{end}}"
   },

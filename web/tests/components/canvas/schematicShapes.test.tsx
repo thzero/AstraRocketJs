@@ -34,7 +34,6 @@ const build = (children: ComponentNode[]) => {
     roll: 0,
     uid: 't',
     setHoverId: () => {},
-    textUp: () => ({}),
   });
 };
 
@@ -100,7 +99,6 @@ describe('a nose cone shoulder', () => {
       roll: 0,
       uid: 't',
       setHoverId: () => {},
-      textUp: () => ({}),
     });
 
   const shoulder = (nose: Partial<ComponentNode> = {}) => rectsByTitle(withShoulder(nose).overlay).get('Nose cone');

@@ -55,11 +55,6 @@ export function dueForCheck(last: number | null, now: number, gap: number = UPDA
   return last === null || now - last >= gap;
 }
 
-/** Whether the prompt may show, given a snooze that may still be running. */
-export function promptDue(snoozedUntil: number | null, now: number): boolean {
-  return snoozedUntil === null || now >= snoozedUntil;
-}
-
 /** When a snooze started now would end. */
 export function snoozeUntil(now: number, ms: number = UPDATE_SNOOZE_MS): number {
   return now + ms;

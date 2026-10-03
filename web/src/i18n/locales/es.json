@@ -1196,7 +1196,6 @@
     "fit": "Ajustar a la vista",
     "aftAria": "Vista trasera — el cohete visto desde atrás; arrastra para rotar, rueda para zoom",
     "sideAria": "Vista lateral del cohete con marcadores de CG y CP; rueda para zoom, arrastra el fondo para mover",
-    "sideAriaVertical": "Vista lateral del cohete, ojiva arriba, con marcadores de CG y CP",
     "caliperH": "Manija del calibrador horizontal {{end}}",
     "caliperV": "Manija del calibrador vertical {{end}}"
   },
