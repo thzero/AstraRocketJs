@@ -1,6 +1,6 @@
 # AUDIT_ENGINE - `engine-java/` audit
 
-<!-- cspell:ignore astrarrocketjs -->
+<!-- cspell:ignore astrarrocketjs offaxis AEDC -->
 
 Date: 2026-10-01. Branch `test` at b610c12. Run per `docs/AUDIT_PROMPT_ENGINE.md`,
 six parallel review agents over the auditable surface, with the pinned upstream
@@ -110,7 +110,7 @@ documentation**, not wrong physics on the default path.
 
 ## 🔴 Correctness in shipped physics
 
-### P1. The Collator stub diverges from the JDK, and can make two motors compare equal (HIGH, VERIFIED)
+### P1. The Collator stub diverges from the JDK, and can make two motors compare equal (HIGH, VERIFIED) - FIXED 2026-10-04
 
 `engine-java/src/jdkstubs/java/text/Collator.java:125` treats `_`, `/`, `'` and `.`
 as primary-ignorable alongside `-` and space. The JDK treats only `-` and space
@@ -147,7 +147,21 @@ outright sign reversals at PRIMARY.
 Fix: restrict `isVariable` to `-` and space, give the rest a primary weight
 ordered before `0`, and add `.`, `'`, `_`, `/` to the parity corpus.
 
-### P2. Roll damping is not scaled while roll forcing is (MED, REPORTED)
+**FIXED 2026-10-04**, beyond the proposed fix. Measured against the real JDK 21
+first: only space and `-` are primary-ignorable, and `_ / . '` sort in that order
+ahead of digits. Fixing primary alone still left secondary and tertiary wrong on
+about 2,500 pairs, because the stub compared the variable characters as a bag
+rather than per position. The stub now gives every character a secondary and a
+tertiary weight, compared in order, and returns -1, 0 or 1 as the JDK does (it
+returned the raw key difference, which `collator.independent` caught). Measured
+over every string of up to three characters from `space - . _ ' / 0 1 a A` plus
+real designations and manufacturers, 5,198,400 ordered pairs at all four
+strengths: **0 mismatched**, where the old stub mismatched 324,000 to 375,000 per
+strength. The parity corpus gained `H128.W`, `H128'W`, `H128_W`, `H128/W`, `A.T.`,
+`1/4A3`, `LOC/Precision` and two names differing only in where a space and a
+hyphen fall; run against the old stub, parity fails on exactly those rows.
+
+### P2. Roll damping is not scaled while roll forcing is (MED, REPORTED) - CLOSED, out of scope
 
 With `supersonicAero` on, roll forcing is scaled by `ssaeroScale` (built from
 `cna1`, returned scaled by `calculateFinCNa1`), but `calculateDampingMoment` in
@@ -167,7 +181,7 @@ Fix: apply `ssaeroScale(mach)` to the supersonic branch of
 `calculateDampingMoment` and its transonic endpoints, or state in the javadoc that
 roll damping is deliberately left at the classic level.
 
-### P3. The transonic bridge omits a product-rule term (MED, VERIFIED)
+### P3. The transonic bridge omits a product-rule term (MED, VERIFIED) - CLOSED, out of scope
 
 In `patches/.../barrowman/FinSetCalc.java`, the flag-on supersonic branch is
 `finArea * ssaeroScale(mach) * (k1Analytic + k2Analytic*alpha + k3Analytic*alpha^2)`,
@@ -189,7 +203,7 @@ Upstream reference: `barrowman/FinSetCalc.java:617`.
 Fix: compute `superD = sscale*f' + ssaeroScaleDeriv(CNA_SUPERSONIC)*f`, or
 finite-difference the flag-on branch at M1.5.
 
-### P4. `hypot` makes single-motor roll inertia backend-dependent (MED, REPORTED)
+### P4. `hypot` makes single-motor roll inertia backend-dependent (MED, REPORTED) - FIXED 2026-10-04
 
 `patches/.../masscalc/MassCalculation.java:278` removes upstream's
 `if (1 < instanceCount)` guard, so `Math.hypot(y,z)` plus `Math.pow(d,2)` now runs
@@ -209,7 +223,10 @@ Upstream reference: `masscalc/MassCalculation.java:268-272`.
 Fix: `clusterIr += eachMass * (coord.getY()*coord.getY() + coord.getZ()*coord.getZ())`,
 identical on all three targets and strictly more accurate.
 
-### P5. Off-axis roll inertia reaches only one ring type (MED, REPORTED)
+**FIXED 2026-10-04.** The motor loop sums `y*y + z*z`. No golden value moved.
+`MassCalculation.java` 19 to 23 lines, re-blessed.
+
+### P5. Off-axis roll inertia reaches only one ring type (MED, REPORTED) - FIXED 2026-10-04
 
 `patches/.../rocketcomponent/RingComponent.java` derives its parallel-axis term
 from `getInstanceOffsets()`, which only `InnerTube` populates with
@@ -229,7 +246,14 @@ Upstream reference: `rocketcomponent/RingComponent.java:245`.
 Fix: add `shiftY`/`shiftZ` to the spread when `getInstanceOffsets()` does not carry
 them, or address the lateral CG asymmetry in P6.
 
-### P6. Roll inertia and lateral CG disagree about where the mass is (LOW, REPORTED, stated trade-off)
+**FIXED 2026-10-04.** `instanceSpreadUnitInertia` adds the ring's radial shift to
+offsets that do not already carry it (every ring type but `InnerTube`), with the
+reference point unchanged. Guard: `mass.offaxis.tubecoupler` and
+`mass.offaxis.innertube`, the same 15 mm off-axis tube drawn both ways, now agree
+to the last digit; with the previous code the coupler's Ixx is 2.0607e-4 against
+2.0646e-4. `RingComponent.java` 61 to 72 lines, re-blessed; golden 354 to 356.
+
+### P6. Roll inertia and lateral CG disagree about where the mass is (LOW, REPORTED, stated trade-off) - DECIDED 2026-10-04
 
 Roll inertia of an off-axis tube or motor is now correct while its lateral CG is
 still reported on the axis, so pitch and yaw inertia still miss the offset.
@@ -241,6 +265,14 @@ pitch and yaw terms. Assessed: it buys an unmoved `golden.txt` at the cost of a
 kernel that disagrees with itself about where the same mass is, and it is the
 direct cause of P5. If kept, record in the LEDGER that `MassObject` does it the
 other way, so the next reader does not read the asymmetry as an oversight.
+
+**Decided 2026-10-04: kept, and recorded.** The lateral CG stays on the axis.
+Moving it would shift the CG of every off-axis ring and add pitch and yaw terms, a
+much larger physics change that moves nearly every flight line, for a lateral
+offset no flight here acts on. `patches/LEDGER.md` now says that upstream's
+`MassObject.getComponentCG()` does it the other way and why these patches do not,
+so the asymmetry reads as a decision. P5 removed the part of it that made one ring
+type disagree with another.
 
 ### P7. The Van Driest fade misses the polished-finish branch (MED, REPORTED)
 
@@ -307,7 +339,7 @@ of the `java.nio.file` CSV subsystem, with no new flag, field or default added.
 
 ## 🟠 Gates and build integrity
 
-### G1. Parity validates a binary that is not the one that ships (HIGH, VERIFIED)
+### G1. Parity validates a binary that is not the one that ships (HIGH, VERIFIED) - FIXED 2026-10-04
 
 `engine-java/build.gradle:104` and `:125` both read
 
@@ -340,7 +372,17 @@ reference or `golden.txt`.
 Fix: reach the harness through an `@JSExport` on `api.OpenRocketEngine` so
 `mainClass` is the facade in both variants.
 
-### G2. `DIVERGENCE.txt` pins a line count, not content (HIGH, DEMONSTRATED)
+**FIXED 2026-10-04, by shipping the harness.** `ParityMain` compiles into every
+build and the facade exports `runParity()`; the facade is the `mainClass` of both
+targets, and `-Pparity` is gone. `parity.mjs` builds and vendors through
+`build-engine.mjs`, then runs the VENDORED `.mjs` and `.wasm`, the files the app
+loads, against the JVM running the same scenarios. So the shipped binary of each
+target is now what is compared, and what `golden.txt` pins. Both pass all 356
+lines, with the same bit-identical counts the sibling build had. The cost, chosen
+deliberately: about 95 KB on the JS engine and 62 KB on the WASM (3.3% and 2.5%),
+never executed by the app; its output goes to the kernel log sink, which drops it.
+
+### G2. `DIVERGENCE.txt` pins a line count, not content (HIGH, DEMONSTRATED) - FIXED 2026-10-04
 
 The blessed baseline records an LCS changed-line count per patch, so any
 coordinated `patches/` plus `src/java` edit that preserves the count passes
@@ -357,7 +399,16 @@ This is exactly the attack `DIVERGENCE.txt`'s own header claims to stop.
 Fix: record a sha256 of each patch beside the delta and fail on a hash change,
 exactly as `extract/SHIMS.txt` already does for shadowed shims.
 
-### G3. Nothing pins the golden line count (HIGH, VERIFIED and DEMONSTRATED)
+**FIXED 2026-10-04.** Each entry now carries a sha256 of the patch and of the
+upstream file it replaces, beside the count, and `extract --check` fails on any of
+the three moving, naming which (`patch content changed`, `upstream content
+changed`, `count a -> b`). An entry with no hashes parses and is reported as
+unblessed, so the old count-only file could not pass silently. Replayed the
+demonstration above: `0.5` to `0.6` in both copies of `FinSetCalc.java:183` keeps
+713 lines and now fails with `patch content changed`. Re-blessed with no count
+moving.
+
+### G3. Nothing pins the golden line count (HIGH, VERIFIED and DEMONSTRATED) - FIXED 2026-10-04
 
 `parity.mjs` has no `--expect-lines` counterpart to validation's `--expect-gates`.
 Verified: `--expect-lines` appears 0 times in `parity.mjs`, while `--expect-gates`
@@ -375,7 +426,12 @@ nothing while reporting "ok".
 Fix: add `--expect-lines <n>` and pass it in `gates.yml`, so a deliberate shrink has
 to be argued in the workflow diff.
 
-### G4. Validation fixtures are trusted on everything that matters (HIGH, DEMONSTRATED)
+**FIXED 2026-10-04.** `parity.mjs` takes `--expect-lines <n>` and fails with a named
+error when the golden holds a different number of values; `gates.yml` passes it.
+Checked both ways: the right count passes, a count one short fails. It is 354 now,
+not 348, because P1 and G6 below re-recorded the golden.
+
+### G4. Validation fixtures are trusted on everything that matters (HIGH, DEMONSTRATED) - FIXED 2026-10-04
 
 `validation/score.mjs` validates exactly two scalars per fixture, `length` and
 `refDiameter`, which are the two values that fin geometry, fin section and surface
@@ -396,7 +452,15 @@ lower bound.
 
 Fix: extend `_expect` to the aero quantities the fixture exists to produce.
 
-### G5. Tolerances and the gated set are both unpinned (HIGH, DEMONSTRATED)
+**FIXED 2026-10-04.** Each fixture's `_expect` now carries an `aero` block: drag,
+CNa and CP at Mach 0.5 and 2.0 under BOTH models, whichever one is being scored
+(`airfoilSection` is read only on the supersonic path), checked to 0.1%. The
+corruptions above move drag by 7% to 97%. Replayed: `crossSectionX`,
+`airfoilSectionX` and the thicker fin each now fail before scoring, naming the
+fixture and the figure. A deliberate model change re-records with
+`score.mjs --record-expect`.
+
+### G5. Tolerances and the gated set are both unpinned (HIGH, DEMONSTRATED) - FIXED 2026-10-04
 
 Two separate holes in the same file.
 
@@ -414,7 +478,13 @@ keeps `gateTotal` at exactly 135, raises the score to 64/135, and passes both
 
 Fix: pin a sorted hash of the `(series.id, mach, tol)` triples.
 
-### G6. Two shipped component types have no gate coverage at all (HIGH, REPORTED)
+**FIXED 2026-10-04.** The scorecard prints a sha256 over every gated point's
+series, quantity, Mach, anchor and tolerance, and CI passes it to both steps as
+`--expect-gate-hash`. Replayed: widening the `hb2` CNa tolerance tenfold now fails
+with the hash named; swapping gate flags changes the same hash. The README's "never
+widen a tolerance" rule is now enforced.
+
+### G6. Two shipped component types have no gate coverage at all (HIGH, REPORTED) - FIXED 2026-10-04
 
 `ComponentFactory` exposes `tubefinset` and `railbutton` to the app and both
 calculators compile into the shipped engine. `grep -ci tubefin` over
@@ -429,7 +499,15 @@ catch.
 Fix: add a tube-fin and a rail-button design to `ParityMain` and re-record golden.
 No new fixture needed; the static aero lines are enough.
 
-### G7. The WASM artifact gets no parity-confusion guard (MED, REPORTED)
+**FIXED 2026-10-04.** `ParityMain` builds a six-tube-fin design and a design with two
+rail buttons, and pins each one's static info and its drag breakdown, CNa and CP
+at Mach 0.3 and 0.8: six golden lines. The re-record also moved `uuid.first` (the
+new rockets use up harness UUIDs before it runs) and `flight.para.summary` by 3e-9
+relative (component ids feed the order the drag terms are summed in, the
+`InstanceMap` behavior under UPSTREAM findings). Checked by content rather than
+by position: nothing else changed.
+
+### G7. The WASM artifact gets no parity-confusion guard (MED, REPORTED) - FIXED 2026-10-04
 
 `build-engine.mjs`'s guard (expected exports present, `/ParityMain/` absent) runs
 only when the target list includes `js`. The WASM copies are vendored with no
@@ -443,6 +521,11 @@ as strings while `ParityMain` is absent, so both guards are implementable on the
 wasm bytes and simply are not applied.
 
 Fix: read the wasm as latin1 and run the same two checks before copying.
+
+**FIXED 2026-10-04** with G1. `build-engine.mjs` checks the expected facade exports
+in BOTH artifacts before vendoring either, reading the wasm as latin1. The old
+"no ParityMain" check is gone, since the harness now ships; `runParity` is on the
+export list instead, and the previous wasm, which lacks it, would be refused.
 
 ### G8. javac source encoding is left to the platform (MED, REPORTED)
 
@@ -477,7 +560,7 @@ numbers, with nothing comparing them.
 Fix: keep the floors at the measurement and have `score.mjs` read them from one
 committed file the README renders from.
 
-### G10. The committed scorecards are wrong on almost every row (MED, VERIFIED totals)
+### G10. The committed scorecards are wrong on almost every row (MED, VERIFIED totals) - FIXED 2026-10-04
 
 Row by row against live output: the classic scorecard has 161 of 187 model values
 changed with 3 verdict flips, and the supersonic one 116 of 187 changed with 21
@@ -493,6 +576,13 @@ under the current 135-gate anchors, and the README labels them historical, which
 the right handling.
 
 Fix: regenerate both current scorecards and commit.
+
+**FIXED 2026-10-04.** Regenerated as `validation/scorecard-classic.md` (9/135) and
+`validation/scorecard-supersonic.md` (61/135), under undated names so a name can no
+longer claim a date its content has outgrown. The two stale "current" files
+(`baseline-classic-2026-08-04.md`, `scorecard-audit-2026-08-04.md`) are removed;
+the phase-1 to phase-4 snapshots stay, labeled historical. The validation README's
+table, regenerate command and file list point at the new files.
 
 ### G11. Golden tolerances are loose where they need not be (MED, REPORTED)
 
@@ -524,7 +614,7 @@ a fixture that drives the kernel into a logged failure path scores silently.
 Fix: collect rather than discard, and fail if the kernel logged an error while a
 gated point was computed.
 
-### G13. The largest body of original physics is pinned by 10 golden lines (MED, REPORTED)
+### G13. The largest body of original physics is pinned by 10 golden lines (MED, REPORTED) - CLOSED, out of scope
 
 The opt-in RASAero model, two shim calculators plus patched upstream files, is
 pinned by 10 golden lines total (4 lift, 4 drag, 2 carryover), against 76
@@ -591,7 +681,7 @@ documented as having been found.
 
 ## 🟡 API boundary and untrusted input
 
-### B1. No magnitude bound on any file-sourced dimension (HIGH, DEMONSTRATED)
+### B1. No magnitude bound on any file-sourced dimension (HIGH, DEMONSTRATED) - FIXED 2026-10-04
 
 `JsonLite` refuses non-finite literals but bounds no magnitude.
 `{"type":"nosecone","length":1e300}` parses, builds, and `getStaticInfo` returns
@@ -611,7 +701,13 @@ Fix: bound dimensions at the boundary with a `dimension()` reader beside `count(
 and make the writers return an error envelope when a required scalar comes back
 non-finite instead of emitting `null` with `warnings:0`.
 
-### B2. The most common fin type silently flies a different rocket (HIGH, VERIFIED)
+**FIXED 2026-10-04**, both halves. Every number `ComponentFactory` reads is refused past
+`MAX_MAGNITUDE = 1e6` in SI units, naming the key. And `getStaticInfo` returns an
+error envelope when the length or mass comes back non-finite, instead of nulls
+beside `"warnings":0`. `{"length":1e300}` on a nose cone now fails with
+`'length' is out of range`.
+
+### B2. The most common fin type silently flies a different rocket (HIGH, VERIFIED) - FIXED 2026-10-04
 
 `ComponentFactory.java:249` reads the trapezoid fin count as a bare
 `(int) dbl(node, "finCount", 3)`. Lines 262, 273 and 319 all use
@@ -635,7 +731,15 @@ eight times the kernel's, so a 20-fin `.ork` imports clean and then either flies
 Fix: route line 249 through `count(...)` and lower the browser's `MAX_FIN_COUNT` to
 8.
 
-### B3. Whole subtrees can be dropped silently (MED, DEMONSTRATED)
+**FIXED 2026-10-04.** The trapezoid fin count goes through `count(...)` like the other
+three fin types, so 12, 3.9 and 0 are refused with `'finCount' must be a whole
+number in 1..8` instead of flying as 8, 3 and 1. The browser follows: a new
+`nodeProps.MAX_FIN_COUNT = 8` is the `.ork` import ceiling (desktop OpenRocket
+clamps the same way on load) and the fin-count field's maximum, while other
+instance counts keep 64. `engineBoundary.test.ts` drives the rebuilt kernel and
+fails against the previous one.
+
+### B3. Whole subtrees can be dropped silently (MED, DEMONSTRATED) - FIXED 2026-10-04
 
 `JsonLite.objList` returns an empty list for a key that is present but not a list,
 and silently skips any element that is not a Map. Measured: `"children":[1,2,3]` and
@@ -652,6 +756,11 @@ reports a healthy rocket.
 
 Fix: throw `wrongType` when the key is present and not a list, and when an element
 is not an object.
+
+**FIXED 2026-10-04.** `objList` treats an absent key as empty and refuses a present
+non-list (`should be a list`) and any element that is not an object. Both
+measured cases, `"children":[1,2,3]` and `"children":{...}`, are now errors, each
+tested against the rebuilt kernel.
 
 ### B4. Seven string-to-enum mappers silently default (MED, DEMONSTRATED)
 
@@ -807,6 +916,15 @@ cause the next real bug.
   geometry. That is the wind-tunnel anchor data the entire scorecard is measured
   against, and nobody can check it. This is the dangling-citation failure mode the
   comment audit already recorded.
+  **FIXED 2026-10-04 for the citations that matter.** The three fixtures now name the
+  published reports their geometry and anchors come from (NASA TN D-4013 and
+  D-4014, DREV-TM-9703, AEDC-TDR-64-137, as recorded in `anchors.json`). A scripted
+  existence check over every doc path the repo cites also found
+  `docs/AUDIT_CODE_QUALITY.md` (dropped from `dev.yml`, whose comment already states
+  why the workflow exists) and `docs/AUDIT_COMPONENT_COVERAGE.md` (dropped from two
+  `CHANGELOG.md` entries). The RASAero spec citation is gone from
+  `docs/AUDIT_PROMPT_ENGINE.md`; the one left in `docs/rasaero/diffs/` is part of
+  that out-of-scope snapshot.
 - **The LEDGER phase table is incomplete** (LOW). The 18-patch table, the stated
   authority for what each patch is for, lists FinSetCalc as "RASAero #4, #3, #1 Phase
   1" and SymmetricComponentCalc as "#1 Phase 1" only, while the files carry Phases 2,
@@ -926,6 +1044,16 @@ The prompt asks to front-load the patch diffs, because every other slice's sever
 depends on what they turn up. They turned up **zero unexplained hunks**, airtight
 gating and an exhaustive dispatch chain, so the order below reflects that result:
 the patches are in better shape than the gates that are supposed to protect them.
+
+**Steps 6, 7 and 9 are DONE too (2026-10-04):** G4, G5, G1 with G7, and P4 to P6.
+**Step 8 is CLOSED, out of scope:** P2, P3 and G13 are defects in the opt-in
+supersonic aero model, which nothing in the app enables. RASAero matters to this
+project only as an export format (`.CDX1`), so its kernel aero model is not
+maintained work. Step 10 (documentation) remains.
+
+**Steps 1 to 5 are DONE (2026-10-04):** G2, G3, B2, P1, B1, B3 and G6, each marked
+FIXED above with what was measured. The engine was rebuilt and the rebuild is
+byte-reproducible.
 
 **1. Close the two gate holes that let physics move invisibly.** G2
 (`DIVERGENCE.txt` hashes, not counts) and G3 (`--expect-lines`). Both are small, both

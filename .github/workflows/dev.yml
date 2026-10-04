@@ -4,8 +4,7 @@ name: Dev
 #
 # ci.yml is `pull_request`-only and deploy.yml is master-push-only, so a push
 # with no PR open was checked by NOTHING: a broken typecheck or a red unit test
-# sat on the branch until someone opened the PR. The code-quality audit
-# (docs/AUDIT_CODE_QUALITY.md) called for a workflow on every push.
+# sat on the branch until someone opened the PR.
 #
 # That is what `branches-ignore: [master]` is for, and it is the second attempt
 # at it. The first read `branches: [dev]`, which closed the hole for one branch

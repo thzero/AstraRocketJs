@@ -15,10 +15,10 @@ proven to discriminate: the fix was reverted, the test watched to fail, and the
 fix restored. That includes the `.rkt` component cap S2 left open. Every TOOLING
 finding is fixed too: T1 to T5 at HIGH, T6 to T10 at MED, and all nine
 tooling-LOW items. The dead code, the duplicated helpers, the test list, the
-`outdated` derivation and the rebuild debounce are done. What remains is the
-other architecture refactors (`runSims` and `openOrkFile` extraction, auto-run as
-a command, the three god components), the accessibility list, and all 32
-findings in `docs/AUDIT_ENGINE.md`, which has not been touched.
+`outdated` derivation, the rebuild debounce and the three god components are
+done, as are the `runSims` and `openOrkFile` extraction and the accessibility
+list. Every finding in this report is closed. What remains is the 32 findings in
+`docs/AUDIT_ENGINE.md`, which has not been touched.
 
 Two MED findings in this report were closed without being worked on: C1 removed
 the duplicate `finTabFront` and the unclamped schematic tab as collateral. They
@@ -1178,11 +1178,27 @@ These are design findings, not defects. Each names a concrete split.
   fly and which are refused and why, is a pure function trapped in an action;
   three test files drive the whole store and a stubbed worker to assert
   arithmetic. Lift `{ flying, skipped }` into `services/flight/runPlan.ts`.
+
+  FIXED 2026-10-04. `services/flight/runPlan.ts` holds three pure functions:
+  `planRun` (the design blocker, which rows fly, which are refused and why, and
+  which to record as failed, so a blocked design and a refused row share one
+  path), `runProblems` (the one error line, which was built in two places) and
+  `landingView` (which flight Results opens). `runSims` keeps the stateful part:
+  the abort controller, queued and running states, the worker calls, the two
+  mid-flight guards and installing results, and is 135 lines. `runPlan.test.ts`
+  tests the three with plain data; with the refusal disabled, 12 tests fail.
 - **`store.ts` `openOrkFile`** has the same shape for the import path: the
   library-naming policy with two modal dialogs, the safety-limit note text and
   the banner assembly are all inline. Lift `importBanner()` into
   `services/files/` and `homeForImport` into `designLibrary` with the dialogs
   injected.
+
+  FIXED 2026-10-04, smaller than proposed. By now `openOrkFile` is about 55
+  lines and the naming policy with its dialogs is already its own
+  `homeForImport`. The one pure piece left inline, the banner notes (the file's
+  notes plus any launch condition outside the codes), is `importNotes` in
+  `services/files/importBanner.ts`, with its own test. Splitting further would
+  only move code.
 - **`Simulation.outdated` is maintained by hand in seven places** plus a React
   effect with two refs. It is derivable: `simInputs` and `sameSimInputs` already
   compute the pair, and `runSims` captures `flownFrom` and then discards it.
@@ -1236,14 +1252,33 @@ These are design findings, not defects. Each names a concrete split.
   `simRuns` entry, so the guard does not cover it. That hole is FIXED
   2026-10-03: a blocked run now records each requested row as failed on the
   current tree, as a row skipped for its motor already was, so `selectRunFailed`
-  holds auto-run back until the design changes. The setting is off and hidden
-  today, so no user could hit it. Moving auto-run from an effect to a command is
-  still open.
+  holds auto-run back until the design changes. The setting now has its checkbox
+  in Settings > Simulation (off by default), and auto-run fires only while the
+  Results tab is showing: the center pane stays mounted behind the other tabs
+  with `view` still on a result view, so without that check an edit on the
+  Simulations tab re-flew the row and the landed run pulled the user to Results.
+  `e2e/auto-run.spec.ts` covers both settings. Moving auto-run from an effect to
+  a command is closed, not planned.
 - **God components.** `CenterView.tsx` (480-line body, eight concerns),
   `HelpDialog.tsx` (536-line body, six concerns, seven `useState` and five
   `useEffect`), `FlightPathExport.tsx`'s dialog (575 lines with two hydrate and
   persist field lists that must stay in lockstep). Each entry in the agent
   reports names the hooks to extract.
+
+  FIXED 2026-10-03, with no change to markup or behavior. `CenterView.tsx` is 136
+  lines: `useResultFlight`, `useRecoveryMass`, `useAutoRunOutdated`,
+  `useMaximizeCenter`, `useViewPrefs` and `useExportData`, with `CenterToolbar`
+  and `CenterCanvas` drawing the header row and the canvas. `HelpDialog.tsx` is
+  149: `useHelpNavigation` (back stack), `useHelpPage` (probe and page list),
+  `useHelpFrame` (frame load, scroll-spy, the anchor held until the frame loads),
+  `useHelpContents`, `useHelpSearch` and `useFrameHighlight`, with `HelpRail` and
+  `HelpPageFrame` drawing. `FlightPathExport.tsx` is 454: the two field lists are
+  one table, `PATH_EXPORT_FIELDS` in `pathExportFields.ts`, whose rows each carry
+  their own load and save, so a field cannot be remembered in one direction only;
+  `pathExportFields.test.ts` requires every row to round-trip. The template store
+  is `useExportTemplates`, the option state `useExportOptions`, and the format
+  picker, stage-color dialog, small controls and presets have their own files.
+  Stored preferences keep the same keys in the same order.
 - **Duplicated helpers** - FIXED 2026-10-03. Two exported `Stat` components, in
   `components/common/Stat.tsx` and `components/sim/MotorDetail.tsx`, with
   different markup and type scale, each imported by two files in the same area,
@@ -1465,6 +1500,33 @@ under-counted its own scope, which is recorded rather than quietly dropped.
 
 ### Accessibility
 
+**All nine FIXED 2026-10-04**, each with a test:
+
+- **Focus trap:** `iframe` is a stop in the trap, and the trap also pulls back
+  focus that lands outside the panel. Tab inside a frame is the frame
+  document's keydown, which the panel never hears, so without that second half
+  tabbing past the help page's last link left the dialog.
+- **Tabs:** Settings and the design library share `common/useTabs`. Each tab names
+  the panel it controls, the panel names its tab, the row is one tab stop, and
+  the arrow keys, Home and End move along it.
+- **Image export menu:** each width is named with its format ("PNG HD, 1920
+  px"), the row labels are hidden from screen readers, and the fit checkbox is
+  a `menuitemcheckbox`.
+- **Site map:** a tab stop with a key hint: arrows pan, + and - zoom, and Enter
+  or Space puts the location at the center, which a crosshair marks while the
+  map has keyboard focus.
+- **Glyph-only buttons:** move up/down, both color resets, and the flight
+  view's reset and loop have an `aria-label`. Loop and follow also have
+  `aria-pressed`. A sweep of every glyph-only button found the rest already
+  labeled.
+- **Shared labels:** both color rows are a row with a label bound to the color
+  input alone.
+- **Tables:** `MotorGrid` and `MotorComparePane` headers have `scope="col"`, and
+  the checkbox column has a screen-reader name.
+- **Catalog error:** `CatalogError` is `role="alert"`.
+- **Wind profile svg:** `role="img"` is gone. The chart pictures the levels the
+  rows already list, so it stays `aria-hidden`.
+
 - `useFocusTrap.ts`'s `FOCUSABLE` list omits `iframe`, and `HelpDialog`'s entire
   content is an iframe and the last element in the panel. So a keyboard-only or
   screen-reader user can reach every control of the Help dialog and never the
@@ -1641,6 +1703,6 @@ section and the Architecture entries. The guard against it growing back is
 importer as a use however it is scoped (T7).
 
 **10. Deferred refactors.** The `outdated` derivation and the rebuild debounce
-are DONE (see Architecture). Left: the `runSims` and `openOrkFile` extraction,
-auto-run as a command, and the three god components. Each is a real improvement
-and none is urgent.
+are DONE, and so are the three god components and the `runSims` and
+`openOrkFile` extraction (see Architecture). Auto-run as a command is closed,
+not planned: the effect is guarded and tested.

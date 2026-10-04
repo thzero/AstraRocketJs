@@ -26,10 +26,11 @@ import info.openrocket.core.util.Quaternion;
  * {@code Double.toString} values — no rounding, no locale, so the text is byte-comparable.
  *
  * The point is not the numbers themselves but that they are IDENTICAL on two runtimes: this
- * same class is compiled to the JVM and to TeaVM-JS, and {@code test/parity/parity.mjs} runs both
- * and diffs the output line-by-line. A mismatch means the browser build diverged from the
- * reference JVM (a TeaVM miscompile or unported dependency). This is a test artifact only —
- * compiled solely under {@code -Pparity}, never shipped in the production engine.
+ * same class runs on the JVM and inside the SHIPPED engine (TeaVM-JS and WASM-GC, through
+ * {@code OpenRocketEngine.runParity()}), and {@code test/parity/parity.mjs} diffs the output
+ * line by line. A mismatch means the browser build diverged from the reference JVM (a TeaVM
+ * miscompile or unported dependency). It ships so that parity checks the very files the app
+ * loads; the app never calls it.
  */
 public final class ParityMain {
     public static void main(String[] args) {
@@ -145,15 +146,21 @@ public final class ParityMain {
      * the JDK indefinitely and no gate would notice.
      * <p>
      * {@code DesignationComparator} is the live consumer and it sorts at
-     * PRIMARY, where "H128W" and "H128-W" must compare EQUAL and "AeroTech"
-     * must sort before "A-P" - a raw case-sensitive tiebreak gets that second one
-     * backwards.
+     * PRIMARY, where "H128W" and "H128-W" must compare EQUAL, "H128W" and "H128.W"
+     * must NOT, and "AeroTech" must sort before "A-P" - a raw case-sensitive
+     * tiebreak gets that last one backwards.
      */
     private static void collatorScenarios() {
         String[] names = {
                 "H128W", "H128-W", "AeroTech", "A-P", "K550W", "k550w",
                 "A10-3T", "A10 3T", "Pro38", "Pro-38", "1/2A3", "-5",
                 "C11-3", "C11 3", "Estes", "Cesaroni", "Loki", "LOKI", "loki",
+                // The four marks en_US does NOT ignore, each where it was once
+                // ignored and made two motors one, and real names that carry them.
+                "H128.W", "H128'W", "H128_W", "H128/W", "A.T.", "1/4A3", "LOC/Precision",
+                // The same space and hyphen in different places: secondary order
+                // depends on where they fall, not only on which they are.
+                "A-10 3T", "A 10-3T",
         };
         int[] strengths = {
                 java.text.Collator.PRIMARY, java.text.Collator.SECONDARY,
@@ -752,6 +759,19 @@ public final class ParityMain {
                     launch.getCM().getX(), launch.getCM().getY(), launch.getCM().getZ(),
                     launch.getIxx(), launch.getIyy());
         }
+
+        // The same tube 15 mm off the axis, drawn as a coupler and as an inner
+        // tube. Only InnerTube's offsets carry its radial shift, so the coupler
+        // used to get no m * r^2 at all; the two Ixx must now agree.
+        String offAxisTube = "\"length\":0.05,\"outerRadius\":0.0095,\"thickness\":0.0005,\"density\":1200,"
+                + "\"radialPosition\":0.015,\"radialDirection\":0.7,\"position\":{\"method\":\"top\",\"offset\":0.1}}";
+        for (String type : new String[] { "tubecoupler", "innertube" }) {
+            int r = api.OpenRocketEngine.buildRocket(head + "  {\"type\":\"" + type + "\"," + offAxisTube + "," + tail);
+            RigidBody structure = MassCalculator.calculateStructure(
+                    ((info.openrocket.core.rocketcomponent.Rocket) getRocketFromInfo(r)).getSelectedConfiguration());
+            line("mass.offaxis." + type, structure.getMass(), structure.getCM().getX(), structure.getIxx(),
+                    structure.getIyy());
+        }
     }
 
     /**
@@ -837,7 +857,47 @@ public final class ParityMain {
         int r2 = api.OpenRocketEngine.buildRocket(freeform);
         lineStaticInfo("fins.freeform.info", api.OpenRocketEngine.getStaticInfo(r2));
 
+        // Tube fins and rail buttons: both ship to the app, and both have their
+        // own aero and mass code that no other line here exercises. Without
+        // these, a wrong tube-fin CNa or rail-button drag term passes all three
+        // targets agreeing on it, and no golden value pins it.
+        String tubeFins = "{\"components\":["
+                + "{\"type\":\"nosecone\",\"length\":0.07,\"aftRadius\":0.012,\"thickness\":0.002},"
+                + "{\"type\":\"bodytube\",\"length\":0.30,\"outerRadius\":0.012,\"thickness\":0.0003,\"density\":950,\"children\":["
+                + "  {\"type\":\"tubefinset\",\"finCount\":6,\"length\":0.06,\"outerRadius\":0.006,"
+                + "   \"position\":{\"method\":\"bottom\",\"offset\":0}}"
+                + "]}]}";
+        componentAeroLines("fins.tube", api.OpenRocketEngine.buildRocket(tubeFins));
+
+        String railButtons = "{\"components\":["
+                + "{\"type\":\"nosecone\",\"length\":0.07,\"aftRadius\":0.012,\"thickness\":0.002},"
+                + "{\"type\":\"bodytube\",\"length\":0.30,\"outerRadius\":0.012,\"thickness\":0.0003,\"density\":950,\"children\":["
+                + "  {\"type\":\"trapezoidfinset\",\"finCount\":3,\"rootChord\":0.05,\"tipChord\":0.03,\"sweep\":0.02,\"height\":0.03,\"thickness\":0.003},"
+                + "  {\"type\":\"railbutton\",\"outerDiameter\":0.0097,\"height\":0.0097,\"instanceCount\":2,\"instanceSeparation\":0.15,"
+                + "   \"position\":{\"method\":\"top\",\"offset\":0.08}}"
+                + "]}]}";
+        componentAeroLines("railbutton", api.OpenRocketEngine.buildRocket(railButtons));
+
         finTabScenarios();
+    }
+
+    /** Static info, then the drag breakdown, CNa and CP at a subsonic and a transonic Mach. */
+    private static void componentAeroLines(String tag, int handle) {
+        lineStaticInfo(tag + ".info", api.OpenRocketEngine.getStaticInfo(handle));
+        info.openrocket.core.rocketcomponent.FlightConfiguration config =
+                ((info.openrocket.core.rocketcomponent.Rocket) getRocketFromInfo(handle)).getSelectedConfiguration();
+        info.openrocket.core.aerodynamics.BarrowmanCalculator calc =
+                new info.openrocket.core.aerodynamics.BarrowmanCalculator();
+        for (double mach : new double[] { 0.3, 0.8 }) {
+            info.openrocket.core.aerodynamics.FlightConditions cond =
+                    new info.openrocket.core.aerodynamics.FlightConditions(config);
+            cond.setMach(mach);
+            cond.setAOA(0);
+            info.openrocket.core.aerodynamics.AerodynamicForces f =
+                    calc.getAerodynamicForces(config, cond, new info.openrocket.core.logging.WarningSet());
+            line(tag + ".aero." + mach, f.getCD(), f.getFrictionCD(), f.getPressureCD(), f.getBaseCD(),
+                    f.getCP().getWeight(), f.getCP().getX());
+        }
     }
 
     /**

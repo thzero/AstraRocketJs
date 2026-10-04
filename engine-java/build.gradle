@@ -54,11 +54,13 @@ sourceSets {
     }
 }
 
-// The parity differential-test harness (test/parity/parity.mjs) compiles ONLY with -Pparity,
-// so the shipped production engine carries no test scenarios.
-if (project.hasProperty('parity')) {
-    sourceSets.main.java.srcDir 'test'
-}
+// The parity scenarios (test/parity/ParityMain.java) compile into EVERY build, and the shipped
+// engine exports them as OpenRocketEngine.runParity(). That is what lets test/parity/parity.mjs
+// run the vendored .mjs and .wasm themselves against the JVM reference: a separate harness build
+// had a different entry point and a larger reachable set than the binary users get, and
+// fastGlobalAnalysis links by reachability. The cost is the harness's bytes in the shipped
+// engine (about 2%), never executed by the app.
+sourceSets.main.java.srcDir 'test'
 
 compileJdkStubsJava {
     // Collator's package (java.text) is patched into java.base.
@@ -100,8 +102,8 @@ java {
 }
 
 teavm.js {
-    // Production entry is the facade; -Pparity swaps in the harness for the parity test.
-    mainClass = project.hasProperty('parity') ? 'parity.ParityMain' : 'api.OpenRocketEngine'
+    // The facade, in every build: the parity harness is reached through its runParity() export.
+    mainClass = 'api.OpenRocketEngine'
     obfuscated = false
     // Native ES module: real named exports. UMD's dynamically-assigned exports are invisible
     // to bundler static analysis — the whole engine got tree-shaken out of prod bundles.
@@ -122,14 +124,14 @@ teavm.js {
 // untouched; `generateWasmGC` writes to build/generated/teavm/wasm-gc/. Mirrors the JS guardrails
 // against the optimizer miscompile (see teavm.js above); re-verify they hold on the WASM backend.
 teavm.wasmGC {
-    mainClass = project.hasProperty('parity') ? 'parity.ParityMain' : 'api.OpenRocketEngine'
+    mainClass = 'api.OpenRocketEngine'
     obfuscated = false
     optimization = org.teavm.gradle.api.OptimizationLevel.NONE
     fastGlobalAnalysis = true
 }
 
 // JVM reference run of the parity harness; test/parity/parity.mjs compares the TeaVM-JS output
-// against it for bit-identical fidelity. Requires -Pparity (which compiles test/parity).
+// against it for bit-identical fidelity.
 tasks.register('parityJvm', JavaExec) {
     dependsOn 'classes'
     classpath = sourceSets.main.runtimeClasspath

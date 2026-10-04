@@ -11,13 +11,16 @@
  * of a 35s run, where a TeaVM build is 6s once its outputs are cached. Checking one target
  * alone is the special case, behind a flag.
  *
- * Self-contained: builds the parity engine variant (-Pparity) and the JVM reference itself.
- * Needs a JDK (JAVA_HOME, or whatever the Gradle wrapper already resolves) and Node 22+.
+ * Self-contained: builds and vendors the engine (build-engine.mjs, the same step as `npm run
+ * build`), then runs the VENDORED .mjs and .wasm - the exact files the app loads - through their
+ * runParity() export, against the JVM running the same scenarios. Needs a JDK (JAVA_HOME, or
+ * whatever the Gradle wrapper already resolves) and Node 22+.
  *
  *   node test/parity/parity.mjs           # BOTH targets vs ONE JVM reference (default)
  *   node test/parity/parity.mjs --js      # TeaVM-JS only
  *   node test/parity/parity.mjs --wasm    # TeaVM WASM-GC only
  *   node test/parity/parity.mjs --golden  # rewrite golden.txt from this run (deliberate changes only)
+ *   node test/parity/parity.mjs --expect-lines 356  # also require exactly this many golden values
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -43,6 +46,17 @@ const wantJs = process.argv.includes('--js');
 const wantWasm = process.argv.includes('--wasm');
 const targets = wantJs === wantWasm ? ['js', 'wasm'] : wantJs ? ['js'] : ['wasm'];
 const writeGolden = process.argv.includes('--golden');
+// The golden can be SHRUNK as well as moved: drop emissions from ParityMain,
+// re-record, and every remaining value still matches, so the gate reports "ok"
+// while the dropped physics goes unchecked. CI passes the expected count, so a
+// shrink (or a growth) has to be argued in the workflow diff, the way
+// validation's --expect-gates pins its anchor set.
+const expectLinesAt = process.argv.indexOf('--expect-lines');
+const expectLines = expectLinesAt === -1 ? null : Number(process.argv[expectLinesAt + 1]);
+if (expectLines !== null && !(Number.isInteger(expectLines) && expectLines > 0)) {
+  console.error(`parity: --expect-lines needs a positive whole number, got ${process.argv[expectLinesAt + 1]}`);
+  process.exit(1);
+}
 
 const here = dirname(fileURLToPath(import.meta.url));
 const engineRoot = resolve(here, '..', '..');
@@ -77,22 +91,29 @@ const gradle = (args) =>
     encoding: 'utf8',
   });
 
-// --- build the parity engine (harness as mainClass) + capture the JVM reference ---
-const GRADLE_TASK = { js: 'generateJavaScript', wasm: 'buildWasmGC' };
-for (const target of targets) {
-  console.error(`parity: building parity engine (-Pparity${target === 'wasm' ? ', WASM-GC' : ''}) …`);
-  gradle([GRADLE_TASK[target], '-Pparity', '--quiet', '--console=plain', ...NO_DAEMON]);
-}
+// --- build + vendor the SHIPPED engine, then capture the JVM reference ---
+//
+// The binary parity checks is the binary users get: build-engine.mjs builds
+// both targets with the production configuration and copies them into web/,
+// and the targets below are run from THOSE copies. A separate harness build
+// had its own entry point and a larger reachable set, and TeaVM links by
+// reachability, so it validated a sibling of what shipped.
+console.error(`parity: building and vendoring the engine (${targets.join(' + ')}) …`);
+execFileSync(process.execPath, [join(engineRoot, 'build-engine.mjs'), ...targets.map((t) => `--${t}`)], {
+  cwd: engineRoot,
+  env: gradleEnv,
+  stdio: ['ignore', process.stderr, 'inherit'],
+});
 // ONCE, however many targets are compared: the reference is the JVM running the
-// same harness, which does not depend on which TeaVM target it is checked against.
+// same scenarios, which does not depend on which TeaVM target it is checked against.
 console.error('parity: running JVM reference (parityJvm) …');
-const jvmRaw = gradle(['parityJvm', '-Pparity', '--quiet', '--console=plain', ...NO_DAEMON]);
+const jvmRaw = gradle(['parityJvm', '--quiet', '--console=plain', ...NO_DAEMON]);
 
-// --- TeaVM target output: run the parity main() and capture stdout ---
-const teavmDir = join(engineRoot, 'build', 'generated', 'teavm');
-const jsPath = join(teavmDir, 'js', 'astrarrocketjs-engine.js');
-const wasmPath = join(teavmDir, 'wasm-gc', 'astrarrocketjs-engine.wasm');
-const wasmRuntimePath = join(teavmDir, 'wasm-gc', 'astrarrocketjs-engine.wasm-runtime.js');
+// --- the vendored engine: run its runParity() and capture stdout ---
+const webRoot = resolve(engineRoot, '..', 'web');
+const jsPath = join(webRoot, 'src', 'engine', 'vendor', 'openrocket-engine.mjs');
+const wasmPath = join(webRoot, 'public', 'engine', 'openrocket-engine.wasm');
+const wasmRuntimePath = join(webRoot, 'public', 'engine', 'openrocket-engine.wasm-runtime.js');
 const runnerPath = join(here, 'run-target.mjs');
 
 // Purely a backstop. A target run is 1-4 seconds and run-target.mjs SIGKILLs
@@ -364,6 +385,12 @@ if (writeGolden) {
     console.error(`  actual: ${actual}`);
     console.error('  The file was edited by hand. Re-record it with `npm run parity:golden`');
     console.error('  so the change is a deliberate, reviewable regeneration.');
+    process.exit(1);
+  }
+  if (expectLines !== null && data.length !== expectLines) {
+    console.error(`GOLDEN FAILURE: expected ${expectLines} reference value(s), golden.txt holds ${data.length}.`);
+    console.error('  The set of checked values changed shape. If that was deliberate, update');
+    console.error('  --expect-lines in .github/workflows/gates.yml and say why in review.');
     process.exit(1);
   }
   const { moved, gn } = compareGolden(data, 'GOLDEN');

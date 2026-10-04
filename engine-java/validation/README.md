@@ -27,22 +27,21 @@ base-INCLUDED series sourced to D-4014 (whose data starts at M1.5), and the
 same measurement was already gated base-excluded as the transonic series' M1.2
 point. The old convention had flattered the score by one spurious pass (kernel
 base CD ≈ 0.09 at M1.19 vs the ±0.02 tolerance). Phase-1..4 scorecards below
-are historical (scored against the 137-gate anchors); the current state under
-revised anchors is `scorecard-audit-2026-08-04.md`.
+are historical (scored against the 137-gate anchors) and cannot be regenerated
+under the current ones.
 
-**The committed `.md` scorecards are 2026-08-04 snapshots and have not been
-regenerated since; the engine has moved under them.** The two live rows below
-are re-measured (2026-09-16) — run the commands above to check them yourself.
-`patches/LEDGER.md` records the same figures where they changed.
+The two current scorecards were regenerated on 2026-10-04 from the committed
+engine and match a live run row for row. Regenerate them after any engine
+rebuild (see below).
 
 | Model | Gate points | Scorecard |
 |---|---|---|
-| Classic Extended Barrowman | **9/135 (6.7%)** — file says 7/135 | `baseline-classic-2026-08-04.md` (stale) |
+| Classic Extended Barrowman | **9/135 (6.7%)** | `scorecard-classic.md` |
 | + Phase 1 (supersonic CP/CNα) | 52/137 historical | `scorecard-phase1-2026-08-04.md` |
 | + Phase 2 (drag fidelity) | 68/137 historical | `scorecard-phase2-2026-08-04.md` |
 | + Phase 3 (fin airfoil sections) | 65/137 historical | `scorecard-phase3-2026-08-04.md` |
 | + Phase 4 (hypersonic corrections) | 65/137 historical | `scorecard-phase4-2026-08-04.md` |
-| Current (Phase 4, revised anchors) | **61/135 (45.2%)** — file says 64/135 | `scorecard-audit-2026-08-04.md` (stale) |
+| Supersonic model, current anchors | **61/135 (45.2%)** | `scorecard-supersonic.md` |
 
 Phase 4 (Van Driest II friction above M4; cone wave-drag coefficient fading
 2.1 → Cp_max(M) over M4–8) moved no gates but cut HB-2's high-Mach CA0 excess
@@ -82,10 +81,11 @@ body needs Phase-2+/hypersonic treatment).
 Scoring conditions: Basic Finner scores at α = 2° (its free-flight fits ride
 at finite yaw — see the `_aoaNote` in anchors.json); everything else at α = 0.
 
-After any engine rebuild, regenerate and eyeball the scorecard:
+After any engine rebuild, regenerate both current scorecards and read the diff:
 
 ```
-node validation/score.mjs > validation/scorecard.md
+node validation/score.mjs > validation/scorecard-classic.md
+node validation/score.mjs --supersonic > validation/scorecard-supersonic.md
 ```
 
 ## Files
@@ -102,11 +102,11 @@ node validation/score.mjs > validation/scorecard.md
   `_readme`; `gate: false` series are informational)
 - `score.mjs` — builds each fixture, runs `aeroSweep` (which emits CD
   power-off/on + CP + CNα per Mach), interpolates at anchor Machs, grades
-- `baseline-classic-2026-08-04.md` — the classic Extended Barrowman scorecard
-  (flag off, regenerated whenever the harness changes): **7/135 gate points**
-- `scorecard-audit-2026-08-04.md` — the current supersonic-model scorecard
-  under the revised (135-gate) anchors
-- `scorecard-phase1-2026-08-04.md` — the Phase-1 supersonic-model scorecard
+- `scorecard-classic.md` — the current classic Extended Barrowman scorecard
+  (flag off): **9/135 gate points**
+- `scorecard-supersonic.md` — the current supersonic-model scorecard: **61/135**
+- `scorecard-phase1-2026-08-04.md` to `scorecard-phase4-2026-08-04.md` — the
+  historical phase scorecards, against the 137-gate anchors
 
 ## Baseline reading (why almost everything fails, and why that's fine)
 
@@ -128,6 +128,14 @@ The harness exists to turn red rows green, phase by phase. The classic kernel:
 
 Keep gates honest: never widen a tolerance to make a phase pass — the
 tolerances come from the datasets' own stated accuracies.
+
+That rule is enforced, not only stated. The scorecard prints a sha256 of the
+gated set (every gated point's series, Mach, anchor and tolerance), and CI
+passes it as `--expect-gate-hash`, so a widened tolerance or a swapped gate flag
+fails even when the gate count holds. Each fixture's `_expect.aero` pins its own
+drag, CNa and CP at Mach 0.5 and 2.0 under both models, so a fixture that stops
+modeling its rocket fails before it is scored. A deliberate aero model change
+re-records those with `node validation/score.mjs --record-expect`.
 
 ## Not yet in the harness
 

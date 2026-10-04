@@ -39,8 +39,8 @@ jobs:
     # engine-java/gradle.properties (daemon=true) overrides it. Setting it here
     # was tried and the step still hung. See the note in those scripts.
     # A backstop, not a budget. This job still runs four TeaVM builds - parity
-    # builds -Pparity for JS and for WASM-GC, then the committed-engine check
-    # builds both targets again - plus a cold Gradle cache save. It no longer
+    # builds and vendors JS and WASM-GC, then the committed-engine check builds
+    # both targets again - plus a cold Gradle cache save. It no longer
     # runs the JVM reference twice (see the parity step below). The cap has to
     # clear all of that on a cold cache with room to spare; 25 did not, and
     # canceled a job that was working.
@@ -78,9 +78,11 @@ jobs:
       # dependencies. It exists only to name these entry points, so `npm run`
       # works here with nothing installed and CI says what the docs say.
       #
-      # parity.mjs is self-contained: it builds the parity engine variant
-      # (-Pparity) and the JVM reference itself, then requires bit-identical
-      # output modulo a small ULP tolerance on transcendentals.
+      # parity.mjs is self-contained: it builds and vendors the engine, runs
+      # the VENDORED .mjs and .wasm (the files the app loads) through their
+      # runParity() export, and requires bit-identical output against the JVM
+      # running the same scenarios, modulo a small ULP tolerance on
+      # transcendentals.
       #
       # Both targets in one step, which is now the script's default: the JVM
       # reference is the expensive half and does not depend on the TeaVM target.
@@ -107,9 +109,12 @@ jobs:
       # turning. parity.mjs used to load the targets into itself. It no longer
       # does; test/parity/run-target.mjs carries that in a process built to be
       # killed. Nothing in this file had to change for it.
+      # --expect-lines pins how MANY golden values are checked: without it,
+      # dropping emissions from ParityMain and re-recording shrinks the physics
+      # gate while it still reports "ok". Change it only with a reason.
       - name: Parity — JVM vs TeaVM-JS and WASM-GC
         timeout-minutes: 20
-        run: npm run parity
+        run: npm run parity -- --expect-lines 356
 
       # Were the COMMITTED binaries actually built from this source?
       #
@@ -235,6 +240,13 @@ jobs:
   #   --expect-gates  the anchor SET must not silently shrink, which is the
   #                   other way this fails open (the denominator just gets
   #                   smaller and the scorecard still reads normally)
+  #   --expect-gate-hash  nor change identity at the same size: a sha256 over
+  #                   every gated point's series, Mach, anchor and tolerance, so
+  #                   widening a tolerance or swapping hard points for easy ones
+  #                   fails too. The scorecard prints the current hash.
+  #
+  # Each fixture also pins its own drag, CNa and CP (`_expect.aero`), so a
+  # fixture that stops modeling its rocket fails before it is scored.
   #
   # Raise the floors when the model improves; that is the point of a ratchet.
   # Needs no JDK and no build - it imports the committed vendored engine - so
@@ -251,11 +263,11 @@ jobs:
 
       - name: Aero scorecard, classic Extended Barrowman (flags off)
         working-directory: engine-java
-        run: node validation/score.mjs --expect-gates 135 --min 9
+        run: node validation/score.mjs --expect-gates 135 --min 9 --expect-gate-hash 1189f0ff05b29cb92230bb20c833af4aac4f8d5259540f161f6031884b4913be
 
       - name: Aero scorecard, opt-in supersonic path
         working-directory: engine-java
-        run: node validation/score.mjs --supersonic --expect-gates 135 --min 61
+        run: node validation/score.mjs --supersonic --expect-gates 135 --min 61 --expect-gate-hash 1189f0ff05b29cb92230bb20c833af4aac4f8d5259540f161f6031884b4913be
 
   # Not gated on parity: see the ordering note at the top of this file.
   build-and-test:

@@ -270,9 +270,17 @@ public abstract class RingComponent extends StructuralComponent implements BoxBo
 	 * offsets.
 	 * <p>
 	 * Exactly 0.0 whenever every instance sits on the reference point: a
-	 * centerline tube, a RadiusRingComponent line pattern (its offsets run along
-	 * x only), and the single ZERO offset other rings inherit from
+	 * centerline tube, an on-axis RadiusRingComponent line pattern (its offsets
+	 * run along x only), and the single ZERO offset other rings inherit from
 	 * RocketComponent.
+	 * <p>
+	 * The radial position counts for every ring type, not only InnerTube. Only
+	 * InnerTube's offsets carry it (its cluster points include the shift); every
+	 * other ring reports offsets on its own axis, while the bridge sets a radial
+	 * position on all of them. So the shift is added to those offsets here, and
+	 * a coupler or engine block bonded off the axis is charged the same m * r^2
+	 * as the same mass drawn as an inner tube. The reference point is unchanged:
+	 * it is still where getComponentCG() puts the mass.
 	 * <p>
 	 * Known residual, shared with the motor half in MassCalculation and with
 	 * upstream's own cluster motors: the term is about the ring's PARENT axis,
@@ -295,10 +303,13 @@ public abstract class RingComponent extends StructuralComponent implements BoxBo
 			refY /= count;
 			refZ /= count;
 		}
+		final boolean offsetsCarryShift = this instanceof InnerTube;
+		final double addY = offsetsCarryShift ? 0.0 : shiftY;
+		final double addZ = offsetsCarryShift ? 0.0 : shiftZ;
 		double sum = 0.0;
 		for (CoordinateIF c : offsets) {
-			final double dy = c.getY() - refY;
-			final double dz = c.getZ() - refZ;
+			final double dy = c.getY() + addY - refY;
+			final double dz = c.getZ() + addZ - refZ;
 			sum += dy * dy + dz * dz;
 		}
 		return sum / count;

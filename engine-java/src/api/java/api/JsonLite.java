@@ -272,13 +272,24 @@ public final class JsonLite {
         return (String) v;
     }
 
+    /**
+     * A list of objects. Absent is empty; present as anything else is refused,
+     * and so is an element that is not an object. Skipping either dropped a whole
+     * subtree: `"children":[1,2,3]` built a body tube with no fins, motor mount or
+     * recovery, and reported a healthy rocket.
+     */
     @SuppressWarnings("unchecked")
     public static List<Map<String, Object>> objList(Map<String, Object> m, String key) {
         Object v = m.get(key);
-        if (!(v instanceof List)) return new ArrayList<>();
+        if (v == null) return new ArrayList<>();
+        if (!(v instanceof List)) throw wrongType(key, v, "a list");
         List<Map<String, Object>> out = new ArrayList<>();
         for (Object o : (List<Object>) v) {
-            if (o instanceof Map) out.add((Map<String, Object>) o);
+            if (!(o instanceof Map)) {
+                throw new IllegalArgumentException("JSON: every entry of '" + key + "' should be an object, got "
+                        + (o == null ? "null" : o.getClass().getSimpleName()));
+            }
+            out.add((Map<String, Object>) o);
         }
         return out;
     }

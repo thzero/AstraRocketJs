@@ -48,7 +48,6 @@ import info.openrocket.core.rocketcomponent.position.RadiusMethod;
 import info.openrocket.core.util.Coordinate;
 
 import static api.JsonLite.bool;
-import static api.JsonLite.dbl;
 import static api.JsonLite.obj;
 import static api.JsonLite.str;
 
@@ -99,6 +98,25 @@ final class ComponentFactory {
                     "'" + key + "' must be a whole number in 1.." + max + " (got " + v + ")");
         }
         return (int) v;
+    }
+
+    /**
+     * The largest magnitude any component number may carry, in SI units. No real
+     * part comes near it (a kilometer-long tube, a density forty times
+     * osmium's), and it is far below where the geometry overflows: a
+     * `"length":1e300` nose cone parsed, built, and came back with every static
+     * figure null and no error.
+     */
+    static final double MAX_MAGNITUDE = 1e6;
+
+    /** A component number: {@link JsonLite#dbl}, refused past {@link #MAX_MAGNITUDE}. */
+    private static double dbl(Map<String, Object> node, String key, double fallback) {
+        double v = JsonLite.dbl(node, key, fallback);
+        if (Math.abs(v) > MAX_MAGNITUDE) {
+            throw new IllegalArgumentException(
+                    "'" + key + "' is out of range (got " + v + "; the limit is " + MAX_MAGNITUDE + ")");
+        }
+        return v;
     }
 
     private ComponentFactory() {}
@@ -246,7 +264,7 @@ final class ComponentFactory {
             }
             case "trapezoidfinset": {
                 TrapezoidFinSet fins = new TrapezoidFinSet(
-                        (int) dbl(node, "finCount", 3),
+                        count(node, "finCount", 3, MAX_FIN_COUNT),
                         dbl(node, "rootChord", 0.05),
                         dbl(node, "tipChord", 0.03),
                         dbl(node, "sweep", 0.02),

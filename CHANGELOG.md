@@ -538,7 +538,7 @@ so most entries describe getting a computation to match OpenRocket exactly.
 
 - **A part can be solid.** OpenRocket's **Filled** checkbox, on a nose cone, a transition and a body tube: no wall, no bore, material all the way through. It round-tripped in the file as `<thickness>filled</thickness>` and reached the kernel for the first two, never for a body tube, so a solid tube flew hollow and weighed what a wall would. It is a control now, the body tube is wired, and the wall and bore rows disappear while it is on, which is what the desktop greys out.
 
-  It came out of a SECOND audit pass. The first one used the `.ork` file format as its authority, which answers what a saved design can carry and not what the desktop lets you set, so anything the config dialogs offer that is not a file field was invisible to it. Reading those dialogs found this, the shape descriptions, and a short list of things still open, all of it now recorded in `docs/AUDIT_COMPONENT_COVERAGE.md` with the scope mistake written down beside it.
+  It came out of a SECOND audit pass. The first one used the `.ork` file format as its authority, which answers what a saved design can carry and not what the desktop lets you set, so anything the config dialogs offer that is not a file field was invisible to it. Reading those dialogs found this, the shape descriptions, and a short list of things still open.
 
 - **The panel says what the chosen shape IS.** A nose cone or transition now carries a paragraph under its shape picker, where the desktop puts one: what an ogive is, what the shape parameter does to a power or parabolic series, and why an unclipped ellipsoid transition looks the way it does. It is the only place the app explains what a shape parameter of 0.75 means, and the clipped flag in particular is unreadable without it.
 
@@ -552,7 +552,7 @@ so most entries describe getting a computation to match OpenRocket exactly.
 
   **Fields with no way to set them.** The fin cross-section (square, rounded, airfoil, which carries OpenRocket's own volume factors and so changes fin mass as well as drag), a transition's clipped profile, a cluster's spacing and rotation, off-center placement for internals, instance counts and spacing, a nose cone's flipped flag, what a mass component IS, a recovery device's packed size, the rest of a rail button's geometry, and a shock cord's cord length - that last on a component type which until now had no editable field at all.
 
-  Our own RASAero extensions stay internal, as they were: `airfoilSection` and its leading-edge bluntness radius round trip and reach the kernel but are not OpenRocket fields, so they get no control. `comment`, `linestyle` and `preset` stay unexposed on purpose, and the audit in `docs/AUDIT_COMPONENT_COVERAGE.md` says why.
+  Our own RASAero extensions stay internal, as they were: `airfoilSection` and its leading-edge bluntness radius round trip and reach the kernel but are not OpenRocket fields, so they get no control. `comment`, `linestyle` and `preset` stay unexposed on purpose.
 
 - **A shoulder gets its own section in the panel.** It is a different piece of the part from the cone or taper above it, and its four rows were running on under the planform as though they were four more dimensions of the same shape. A nose cone now has one **Shoulder** heading; a transition has **Fore shoulder** and **Aft shoulder**, kept apart rather than run together, because each end is its own build and eight rows under one heading is a wall. Same treatment the fin tab and the fillet already had.
 

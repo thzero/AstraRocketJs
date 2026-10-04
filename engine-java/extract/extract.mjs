@@ -261,14 +261,25 @@ const changedLines = (a, b) => {
 // EVERY patch, including delta 0. A patch identical to upstream is the
 // "leftover" LEDGER.md describes: it does nothing until someone runs extract,
 // at which point it silently swaps itself in. Zero is information, not noise.
+//
+// Each carries a sha256 of the patch and of the upstream file it replaces. The
+// count alone is not a content check: a coordinated patches/ + src/java edit that
+// keeps the changed-line count (one coefficient swapped for another) passes it,
+// and so does an upstream move that happens not to shift it.
+const sha = (text) => createHash('sha256').update(text).digest('hex');
 const divergence = [];
 for (const rel of manifest) {
   if (!patchSet.has(rel)) continue;
   const up = join(coreJavaRoot, rel);
   if (!existsSync(up)) continue;
-  const ours = norm(readFileSync(join(patchesRoot, rel), 'utf8')).split('\n');
-  const theirs = norm(readFileSync(up, 'utf8')).split('\n');
-  divergence.push({ rel, delta: changedLines(theirs, ours) });
+  const oursText = norm(readFileSync(join(patchesRoot, rel), 'utf8'));
+  const theirsText = norm(readFileSync(up, 'utf8'));
+  divergence.push({
+    rel,
+    delta: changedLines(theirsText.split('\n'), oursText.split('\n')),
+    patchSha: sha(oursText),
+    upstreamSha: sha(theirsText),
+  });
 }
 divergence.sort((x, y) => y.delta - x.delta || x.rel.localeCompare(y.rel));
 
@@ -280,33 +291,49 @@ if (hasBaseline) {
   for (const raw of readFileSync(divergencePath, 'utf8').split('\n')) {
     const entry = raw.trim();
     if (!entry || entry.startsWith('#')) continue;
-    const m = /^(\S+)\s+(\d+)$/.exec(entry);
+    // An entry with no hashes still parses, and is then reported as unblessed:
+    // a baseline that pins only counts is the gap the hashes close.
+    const m = /^(\S+)\s+(\d+)(?:\s+([0-9a-f]{64})\s+([0-9a-f]{64}))?$/.exec(entry);
     if (!m) die(`DIVERGENCE.txt: cannot parse line: ${entry}`);
-    baseline.set(m[1], Number(m[2]));
+    baseline.set(m[1], { delta: Number(m[2]), patchSha: m[3] ?? null, upstreamSha: m[4] ?? null });
   }
 }
 
 const unblessed = [];
 if (hasBaseline) {
-  for (const { rel, delta } of divergence) {
-    if (!baseline.has(rel)) unblessed.push({ rel, was: null, now: delta });
-    else if (baseline.get(rel) !== delta) unblessed.push({ rel, was: baseline.get(rel), now: delta });
+  for (const { rel, delta, patchSha, upstreamSha } of divergence) {
+    const was = baseline.get(rel);
+    if (!was) {
+      unblessed.push({ rel, was: null, now: delta, why: 'not blessed' });
+      continue;
+    }
+    const why = [
+      was.delta !== delta && `count ${was.delta} -> ${delta}`,
+      was.patchSha === null && 'no hashes recorded',
+      was.patchSha !== null && was.patchSha !== patchSha && 'patch content changed',
+      was.upstreamSha !== null && was.upstreamSha !== upstreamSha && 'upstream content changed',
+    ].filter(Boolean);
+    if (why.length) unblessed.push({ rel, was: was.delta, now: delta, why: why.join(', ') });
   }
   const seen = new Set(divergence.map((d) => d.rel));
-  for (const rel of baseline.keys()) {
-    if (!seen.has(rel)) unblessed.push({ rel, was: baseline.get(rel), now: null });
+  for (const [rel, was] of baseline) {
+    if (!seen.has(rel)) unblessed.push({ rel, was: was.delta, now: null, why: 'patch gone' });
   }
 }
 
 if (bless) {
   const header = [
-    '# How far each patch has diverged from upstream, in changed lines (LCS diff).',
+    '# How far each patch has diverged from upstream, in changed lines (LCS diff),',
+    '# then a sha256 of the patch and of the upstream file it replaces (both',
+    '# CRLF-normalized).',
     '#',
-    '# This file is the REVIEWED baseline. `extract --check` recomputes these',
-    '# numbers and fails on any difference, because the invariant it checks',
+    '# This file is the REVIEWED baseline. `extract --check` recomputes all three',
+    '# and fails on any difference, because the invariant it checks',
     '# ("src/java == upstream + patches") treats the patches as an input and so',
     '# can never question them. A coordinated patches/ + src/java edit passes',
-    '# that invariant by construction; it does not pass this file.',
+    '# that invariant by construction; it does not pass this file. The hashes are',
+    '# what make that true: a count is kept by an edit that swaps one value for',
+    '# another, and by an upstream move that happens not to shift it.',
     '#',
     '# Regenerate deliberately with `npm run extract:bless -- --src <openrocket>`',
     '# and say in review WHY a number moved. A delta of 0 means the patch is',
@@ -316,7 +343,9 @@ if (bless) {
     '',
     '',
   ].join('\n');
-  const body = divergence.map(({ rel, delta }) => `${rel} ${delta}`).join('\n');
+  const body = divergence
+    .map(({ rel, delta, patchSha, upstreamSha }) => `${rel} ${delta} ${patchSha} ${upstreamSha}`)
+    .join('\n');
   writeFileSync(divergencePath, `${header}${body}\n`);
   console.log(`extract: blessed ${divergence.length} patch divergence(s) -> extract/DIVERGENCE.txt`);
 }
@@ -424,8 +453,8 @@ if (divergence.length) {
 }
 if (unblessed.length) {
   console.error(`extract: ${unblessed.length} patch divergence(s) do NOT match extract/DIVERGENCE.txt:`);
-  unblessed.forEach(({ rel, was, now }) => console.error(
-    `  ! ${rel}  ${was === null ? 'not blessed' : `blessed ${was}`} -> ${now === null ? 'patch gone' : `now ${now}`}`,
+  unblessed.forEach(({ rel, was, now, why }) => console.error(
+    `  ! ${rel}  ${was === null ? 'not blessed' : `blessed ${was}`} -> ${now === null ? 'patch gone' : `now ${now}`} (${why})`,
   ));
   console.error('extract:   a patch changed without review. Re-run with --bless and say why.');
 }

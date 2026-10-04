@@ -75,7 +75,7 @@ reconstructed.
 | `unit/Unit.java` | Dropped `Locale.Category` — absent from TeaVM's classlib. |
 | `util/ArrayList.java` | `clone()` rewritten for WASM-GC (the `ClassCastException` documented at `build.gradle:81-82`). |
 | `masscalc/MassCalculation.java` | `PATCH(offaxis-roll-inertia)`: a motor in a single off-axis mount gets its parallel-axis roll inertia. See "Off-axis tubes and motors carry their roll inertia". |
-| `rocketcomponent/RingComponent.java` | `PATCH(offaxis-roll-inertia)`: an off-axis inner tube, alone or clustered, adds its instances' parallel-axis spread to its roll inertia. Same section. |
+| `rocketcomponent/RingComponent.java` | `PATCH(offaxis-roll-inertia)`: any off-axis ring (an inner tube alone or clustered, a coupler, an engine block) adds its instances' parallel-axis spread to its roll inertia. Same section. |
 
 Both `LongUUID` files now carry a `PATCH(teavm-uuid)` marker, so the reason no
 longer has to be reverse-engineered from a diff. Every patch in the table now
@@ -1178,6 +1178,35 @@ reads it. The per-fin-set roll forcing and damping coefficients are aerodynamic
 and do not move. CG, CP, margin and trajectory do not move: every existing
 golden value, including the three-tube `flight.cluster.ring3`, is unchanged, and
 both aero scorecards are unchanged (9/135 and 61/135).
+
+**Follow-up, 2026-10-04 (`docs/AUDIT_ENGINE.md` P4, P5, P6).**
+
+- **P4.** The motor loop sums `y*y + z*z` instead of `Math.pow(Math.hypot(y, z), 2)`.
+  JVM `hypot` (FDLIBM) and TeaVM's disagree by 1 ULP on about 12% of inputs (see
+  `Geo2D`), and with the guard removed the loop runs for every mount, so the JVM
+  reference and the shipped targets could report different roll inertia for one
+  off-axis motor. No golden value moved. `MassCalculation.java` 19 to 23 lines.
+- **P5.** The radial position now counts for every ring type. Only `InnerTube`'s
+  offsets carry it; every other ring reports offsets on its own axis while the
+  bridge sets a radial position on all of them, so a coupler, engine block or
+  sleeve bonded off the axis got no m * r^2. `instanceSpreadUnitInertia` adds the
+  shift to those offsets (not to `InnerTube`'s), with the reference point still
+  where `getComponentCG()` puts the mass. The couplers, engine blocks and sleeves
+  listed above as on-axis are on-axis only at radial position 0. Guard: two
+  `mass.offaxis.*` golden lines, a 15 mm off-axis tube drawn as a coupler and as
+  an inner tube, which agree to the last digit; with the previous code the
+  coupler's Ixx is 2.0607e-4 against 2.0646e-4. `RingComponent.java` 61 to 72
+  lines; `golden.txt` 354 to 356 (`uuid.first` moved too, as before).
+- **P6, decided: the lateral CG stays on the axis.** Upstream's own
+  `MassObject.getComponentCG()` does it the other way, returning
+  `(length/2, shiftY, shiftZ, mass)` so `rebase()` adds the roll, pitch and yaw
+  transport terms together. These patches deliberately add only the roll term
+  and leave every CG where upstream puts it: moving it would shift the CG of
+  every off-axis ring and add pitch and yaw terms, a far larger physics change
+  that moves nearly every flight line, for a lateral offset no flight here acts
+  on. The cost is that roll inertia and lateral CG disagree about where an
+  off-axis ring's mass is. That is the trade-off, not an oversight; P5 removed
+  the part of it that made one ring type disagree with another.
 
 **Known residual**, shared with upstream's own cluster motors: the term is
 taken about the ring's PARENT axis. A tube offset d inside a pod set offset D is

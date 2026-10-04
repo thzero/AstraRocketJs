@@ -78,10 +78,23 @@ public final class OpenRocketEngine {
     /**
      * TeaVM entry point for the production build. Intentionally empty: OpenRocketEngine only
      * needs to be the configured mainClass so it stays reachable and its @JSExport statics
-     * survive dead-code elimination. The JVM↔JS parity harness ({@code parity.ParityMain}) is a
-     * separate mainClass, compiled only under {@code -Pparity} (see build.gradle / parity.mjs).
+     * survive dead-code elimination. The JVM↔JS parity harness ({@code parity.ParityMain}) is
+     * reached through {@link #runParity()} rather than as a mainClass of its own.
      */
     public static void main(String[] args) {
+    }
+
+    /**
+     * Runs the parity scenarios, printing each result line to standard output.
+     * <p>
+     * In the shipped engine so that test/parity/parity.mjs can run the vendored
+     * .mjs and .wasm themselves against the JVM reference, rather than a separate
+     * harness build with its own entry point and link set. The app never calls
+     * it, and in the browser its output goes to the kernel log sink, which drops it.
+     */
+    @JSExport
+    public static void runParity() {
+        parity.ParityMain.main(new String[0]);
     }
 
     private static int register(Object o) {
@@ -697,6 +710,12 @@ public final class OpenRocketEngine {
         // disagrees with the desktop on any design with a non-aerodynamic part
         // outside the aerodynamic envelope.
         FlightConfiguration config = ctx.rocket.getSelectedConfiguration();
+        // A design whose length or mass is not a number is not a design the
+        // figures below describe. Written out, each would serialize as null beside
+        // `"warnings":0`, which the app paints as an empty, healthy rocket; an
+        // error names it instead.
+        requireFinite("length", ctx.rocket.getLength());
+        requireFinite("mass", structure.getMass());
         double margin = cp.getX() - cg;
         double stabilityCal = new CaliberUnit(config).toUnit(margin);
         double stabilityPct = new PercentageOfLengthUnit(config).toUnit(margin);
@@ -1752,6 +1771,13 @@ public final class OpenRocketEngine {
             }
         }
         return sb.append(']');
+    }
+
+    private static void requireFinite(String what, double value) {
+        if (Double.isNaN(value) || Double.isInfinite(value)) {
+            throw new IllegalStateException("The design's " + what + " is not a finite number (" + value
+                    + "); a dimension is probably out of range.");
+        }
     }
 
     private static StringBuilder num(StringBuilder sb, String key, double value) {

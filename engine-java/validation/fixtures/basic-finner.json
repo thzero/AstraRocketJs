@@ -1,8 +1,8 @@
 {
   "name": "Army-Navy Basic Finner (DRDC 30 mm free-flight model)",
-  "_expect": { "length": 0.3000, "refDiameter": 0.0300 },
+  "_expect": {"length":0.3,"refDiameter":0.03,"aero":{"classic.cd@0.5":0.3916124,"classic.cna@0.5":14.24536,"classic.cp@0.5":0.2461856,"classic.cd@2":0.7855507,"classic.cna@2":6.317049,"classic.cp@2":0.2126391,"supersonic.cd@0.5":0.4339005,"supersonic.cna@0.5":12.54611,"supersonic.cp@0.5":0.242305,"supersonic.cd@2":0.4288938,"supersonic.cna@2":9.904424,"supersonic.cp@2":0.2336246}},
   "_notes": [
-    "Geometry from docs/research/validation-anchors-2026-08-03.md section 4.2. d = 30.00 mm, total 10.0 cal.",
+    "Geometry of the Army-Navy Basic Finner free-flight model in DREV-TM-9703, the report its anchors are read from (see the series sources in anchors.json). d = 30.00 mm, total 10.0 cal.",
     "Nose: 10 deg half-angle sharp cone, length 2.836 cal (meplat 0.004 cal ignored).",
     "Fins: 4 rectangular, 1.0 x 1.0 cal, flush with base. Section: sharp-LE single wedge thickening to 0.08 cal at the blunt TE - modeled exactly with the feature-#4 'singlewedge' airfoil section (thickness wave tau^2/beta + fin base drag; the 0.004-cal LE radius is essentially sharp, left 0).",
     "Finish: polished (machined steel free-flight model).",
