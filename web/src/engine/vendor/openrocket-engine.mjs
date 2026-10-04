@@ -52900,8 +52900,8 @@ a_ComponentFactory_dbl = ($node, $key, $fallback) => {
     return $v;
 },
 a_ComponentFactory_create = $node => {
-    let $type, var$3, $c, var$5, var$6, $shapeParam, $shR, $shL, $shT, $clippedRaw, $fore, $aft, $fShR, $fShL, $aShR, $aShL, $fShT, $aShT, var$20, var$21, $rawPoints, $list, var$24, $pts, $i, $finName, $row, var$29, var$30, $or, $tubeRot, $clusterName, $cc, var$35, $known, $ir, $pR, $cd, $chuteSurf, $chuteLine, $sR, $streamerSurf, $scR, $cordLine, $w, $hgt, $od, $rbH, $rbId, $rbBase, $rbFlange, $rbScrew, $name, $density, $m, $finish, $fs, $rot, $section, $s, $filletRadius, $filletDensity, $line, $sep, $rc, $autoOuter,
-    $overrideMass, $overrideCGX, $overrideCD, $position;
+    let $type, var$3, $c, var$5, var$6, $shapeParam, $shR, $shL, $shT, $clippedRaw, $fore, $aft, $fShR, $fShL, $aShR, $aShL, $fShT, $aShT, var$20, var$21, $rawPoints, $list, var$24, $pts, $i, $finName, $row, var$29, var$30, $or, $tubeRot, $clusterName, $cc, var$35, $known, $ir, $od, $rbH, $rbId, $rbBase, $rbFlange, $rbScrew, $pR, $cd, $chuteSurf, $chuteLine, $sR, $streamerSurf, $scR, $cordLine, $w, $hgt, $name, $density, $m, $finish, $fs, $rot, $section, $s, $filletRadius, $filletDensity, $line, $sep, $rc, $mo,
+    $autoOuter, $overrideMass, $overrideCGX, $overrideCD, $position;
     a_ComponentFactory_$callClinit();
     a: {
         $type = a_JsonLite_str($node, $rt_s(111), $rt_s(97));
@@ -53242,12 +53242,7 @@ a_ComponentFactory_create = $node => {
                     $c.$setInnerRadius($ir);
                 break b;
             case 10:
-                $c = iocr_Bulkhead__init_0();
-                iocr_RingComponent_setLength($c, a_ComponentFactory_dbl($node, $rt_s(186), 0.002));
-                $or = a_ComponentFactory_dbl($node, $rt_s(1896), NaN);
-                if (!(isNaN($or) ? 1 : 0))
-                    $c.$setOuterRadius($or);
-                break b;
+                break;
             case 11:
                 $c = iocr_EngineBlock__init_0();
                 iocr_RingComponent_setLength($c, a_ComponentFactory_dbl($node, $rt_s(186), 0.005));
@@ -53264,69 +53259,89 @@ a_ComponentFactory_create = $node => {
                 $c.$setAngleOffset(a_ComponentFactory_dbl($node, $rt_s(1923), 3.141592653589793));
                 break b;
             case 13:
-                break;
+                $c = iocr_RailButton__init_0();
+                $od = a_ComponentFactory_dbl($node, $rt_s(1924), NaN);
+                if (!(isNaN($od) ? 1 : 0))
+                    $c.$setOuterDiameter($od);
+                $c.$setAngleOffset(a_ComponentFactory_dbl($node, $rt_s(1923), 3.141592653589793));
+                $rbH = a_ComponentFactory_dbl($node, $rt_s(1904), NaN);
+                if (!(isNaN($rbH) ? 1 : 0))
+                    $c.$setTotalHeight($rbH);
+                $rbId = a_ComponentFactory_dbl($node, $rt_s(1925), NaN);
+                if (!(isNaN($rbId) ? 1 : 0))
+                    $c.$setInnerDiameter($rbId);
+                $rbBase = a_ComponentFactory_dbl($node, $rt_s(1926), NaN);
+                if (!(isNaN($rbBase) ? 1 : 0))
+                    $c.$setBaseHeight($rbBase);
+                $rbFlange = a_ComponentFactory_dbl($node, $rt_s(1927), NaN);
+                if (!(isNaN($rbFlange) ? 1 : 0))
+                    $c.$setFlangeHeight($rbFlange);
+                $rbScrew = a_ComponentFactory_dbl($node, $rt_s(1928), NaN);
+                if (!(isNaN($rbScrew) ? 1 : 0))
+                    $c.$setScrewHeight($rbScrew);
+                break b;
             case 14:
                 $c = iocr_Parachute__init_();
                 $c.$setLength0(a_ComponentFactory_dbl($node, $rt_s(186), 0.025));
-                $pR = a_ComponentFactory_dbl($node, $rt_s(1924), NaN);
+                $pR = a_ComponentFactory_dbl($node, $rt_s(1929), NaN);
                 if (!(isNaN($pR) ? 1 : 0))
                     $c.$setRadius($pR);
-                $c.$setDiameter0(a_ComponentFactory_dbl($node, $rt_s(1925), 0.3));
-                $cd = a_ComponentFactory_dbl($node, $rt_s(1926), NaN);
+                $c.$setDiameter0(a_ComponentFactory_dbl($node, $rt_s(1930), 0.3));
+                $cd = a_ComponentFactory_dbl($node, $rt_s(1931), NaN);
                 if (!(isNaN($cd) ? 1 : 0))
                     $c.$setCD($cd);
-                iocr_Parachute_setLineCount($c, a_ComponentFactory_count($node, $rt_s(1927), 6, 1024));
-                iocr_Parachute_setLineLength($c, a_ComponentFactory_dbl($node, $rt_s(1928), 0.3));
-                $chuteSurf = a_ComponentFactory_dbl($node, $rt_s(1929), NaN);
+                iocr_Parachute_setLineCount($c, a_ComponentFactory_count($node, $rt_s(1932), 6, 1024));
+                iocr_Parachute_setLineLength($c, a_ComponentFactory_dbl($node, $rt_s(1933), 0.3));
+                $chuteSurf = a_ComponentFactory_dbl($node, $rt_s(1934), NaN);
                 if (!(isNaN($chuteSurf) ? 1 : 0)) {
                     iocm_Material$Type_$callClinit();
                     var$24 = iocm_Material$Type_SURFACE;
-                    var$5 = a_JsonLite_str($node, $rt_s(1930), $rt_s(1683));
+                    var$5 = a_JsonLite_str($node, $rt_s(1935), $rt_s(1683));
                     iocr_RecoveryDevice_setMaterial($c, iocm_Material_newMaterial(var$24, var$5, $chuteSurf, 1));
                 }
-                $chuteLine = a_ComponentFactory_dbl($node, $rt_s(1931), NaN);
+                $chuteLine = a_ComponentFactory_dbl($node, $rt_s(1936), NaN);
                 if (!(isNaN($chuteLine) ? 1 : 0)) {
                     iocm_Material$Type_$callClinit();
                     var$24 = iocm_Material$Type_LINE;
-                    var$5 = a_JsonLite_str($node, $rt_s(1932), $rt_s(1683));
+                    var$5 = a_JsonLite_str($node, $rt_s(1937), $rt_s(1683));
                     iocr_Parachute_setLineMaterial($c, iocm_Material_newMaterial(var$24, var$5, $chuteLine, 1));
                 }
-                $c.$setDrogue(a_JsonLite_bool($node, $rt_s(1933), 0));
+                $c.$setDrogue(a_JsonLite_bool($node, $rt_s(1938), 0));
                 a_ComponentFactory_applyDeployment($c, $node);
                 break b;
             case 15:
                 $c = iocr_Streamer__init_0();
                 $c.$setLength0(a_ComponentFactory_dbl($node, $rt_s(186), 0.025));
-                $sR = a_ComponentFactory_dbl($node, $rt_s(1924), NaN);
+                $sR = a_ComponentFactory_dbl($node, $rt_s(1929), NaN);
                 if (!(isNaN($sR) ? 1 : 0))
                     $c.$setRadius($sR);
-                $c.$setStripLength(a_ComponentFactory_dbl($node, $rt_s(1934), 0.5));
-                $c.$setStripWidth(a_ComponentFactory_dbl($node, $rt_s(1935), 0.05));
-                $cd = a_ComponentFactory_dbl($node, $rt_s(1926), NaN);
+                $c.$setStripLength(a_ComponentFactory_dbl($node, $rt_s(1939), 0.5));
+                $c.$setStripWidth(a_ComponentFactory_dbl($node, $rt_s(1940), 0.05));
+                $cd = a_ComponentFactory_dbl($node, $rt_s(1931), NaN);
                 if (!(isNaN($cd) ? 1 : 0))
                     $c.$setCD($cd);
-                $streamerSurf = a_ComponentFactory_dbl($node, $rt_s(1929), NaN);
+                $streamerSurf = a_ComponentFactory_dbl($node, $rt_s(1934), NaN);
                 if (!(isNaN($streamerSurf) ? 1 : 0)) {
                     iocm_Material$Type_$callClinit();
                     var$24 = iocm_Material$Type_SURFACE;
-                    var$5 = a_JsonLite_str($node, $rt_s(1930), $rt_s(1683));
+                    var$5 = a_JsonLite_str($node, $rt_s(1935), $rt_s(1683));
                     iocr_RecoveryDevice_setMaterial($c, iocm_Material_newMaterial(var$24, var$5, $streamerSurf, 1));
                 }
-                $c.$setDrogue(a_JsonLite_bool($node, $rt_s(1933), 0));
+                $c.$setDrogue(a_JsonLite_bool($node, $rt_s(1938), 0));
                 a_ComponentFactory_applyDeployment($c, $node);
                 break b;
             case 16:
                 $c = iocr_ShockCord__init_0();
                 $c.$setLength0(a_ComponentFactory_dbl($node, $rt_s(186), 0.025));
-                $scR = a_ComponentFactory_dbl($node, $rt_s(1924), NaN);
+                $scR = a_ComponentFactory_dbl($node, $rt_s(1929), NaN);
                 if (!(isNaN($scR) ? 1 : 0))
                     $c.$setRadius($scR);
-                $c.$setCordLength(a_ComponentFactory_dbl($node, $rt_s(1936), 0.3));
-                $cordLine = a_ComponentFactory_dbl($node, $rt_s(1931), NaN);
+                $c.$setCordLength(a_ComponentFactory_dbl($node, $rt_s(1941), 0.3));
+                $cordLine = a_ComponentFactory_dbl($node, $rt_s(1936), NaN);
                 if (!(isNaN($cordLine) ? 1 : 0)) {
                     iocm_Material$Type_$callClinit();
                     var$24 = iocm_Material$Type_LINE;
-                    var$5 = a_JsonLite_str($node, $rt_s(1932), $rt_s(1683));
+                    var$5 = a_JsonLite_str($node, $rt_s(1937), $rt_s(1683));
                     $c.$setMaterial(iocm_Material_newMaterial(var$24, var$5, $cordLine, 1));
                 }
                 break b;
@@ -53334,10 +53349,8 @@ a_ComponentFactory_create = $node => {
                 $c = iocr_MassComponent__init_0();
                 $c.$setComponentMass(a_ComponentFactory_dbl($node, $rt_s(187), 0.01));
                 $c.$setLength0(a_ComponentFactory_dbl($node, $rt_s(186), 0.02));
-                $c.$setRadius(a_ComponentFactory_dbl($node, $rt_s(1924), 0.005));
-                iocr_MassObject_setRadialPosition($c, a_ComponentFactory_dbl($node, $rt_s(1920), 0.0));
-                iocr_MassObject_setRadialDirection($c, a_ComponentFactory_dbl($node, $rt_s(1921), 0.0));
-                $c.$setMassComponentType(a_ComponentFactory_massComponentTypeOf(a_JsonLite_str($node, $rt_s(1937), $rt_s(1858))));
+                $c.$setRadius(a_ComponentFactory_dbl($node, $rt_s(1929), 0.005));
+                $c.$setMassComponentType(a_ComponentFactory_massComponentTypeOf(a_JsonLite_str($node, $rt_s(1942), $rt_s(1858))));
                 break b;
             case 18:
                 $c = iocr_PodSet__init_0();
@@ -53349,37 +53362,22 @@ a_ComponentFactory_create = $node => {
                 $c = iocr_MassComponent__init_0();
                 $c.$setComponentMass(a_ComponentFactory_dbl($node, $rt_s(187), 0.03));
                 $c.$setLength0(a_ComponentFactory_dbl($node, $rt_s(186), 0.08));
-                $w = a_ComponentFactory_dbl($node, $rt_s(1938), 0.025);
+                $w = a_ComponentFactory_dbl($node, $rt_s(1943), 0.025);
                 $hgt = a_ComponentFactory_dbl($node, $rt_s(1904), 0.02);
                 $c.$setRadius(jl_Math_max($w, $hgt) / 2.0);
                 break b;
             default:
                 var$24 = new jl_IllegalArgumentException;
                 var$5 = jl_StringBuilder__init_();
-                jl_StringBuilder_append1(jl_StringBuilder_append(jl_StringBuilder_append(var$5, $rt_s(1939)), $type), 39);
+                jl_StringBuilder_append1(jl_StringBuilder_append(jl_StringBuilder_append(var$5, $rt_s(1944)), $type), 39);
                 jl_IllegalArgumentException__init_(var$24, jl_StringBuilder_toString(var$5));
                 $rt_throw(var$24);
         }
-        $c = iocr_RailButton__init_0();
-        $od = a_ComponentFactory_dbl($node, $rt_s(1940), NaN);
-        if (!(isNaN($od) ? 1 : 0))
-            $c.$setOuterDiameter($od);
-        $c.$setAngleOffset(a_ComponentFactory_dbl($node, $rt_s(1923), 3.141592653589793));
-        $rbH = a_ComponentFactory_dbl($node, $rt_s(1904), NaN);
-        if (!(isNaN($rbH) ? 1 : 0))
-            $c.$setTotalHeight($rbH);
-        $rbId = a_ComponentFactory_dbl($node, $rt_s(1941), NaN);
-        if (!(isNaN($rbId) ? 1 : 0))
-            $c.$setInnerDiameter($rbId);
-        $rbBase = a_ComponentFactory_dbl($node, $rt_s(1942), NaN);
-        if (!(isNaN($rbBase) ? 1 : 0))
-            $c.$setBaseHeight($rbBase);
-        $rbFlange = a_ComponentFactory_dbl($node, $rt_s(1943), NaN);
-        if (!(isNaN($rbFlange) ? 1 : 0))
-            $c.$setFlangeHeight($rbFlange);
-        $rbScrew = a_ComponentFactory_dbl($node, $rt_s(1944), NaN);
-        if (!(isNaN($rbScrew) ? 1 : 0))
-            $c.$setScrewHeight($rbScrew);
+        $c = iocr_Bulkhead__init_0();
+        iocr_RingComponent_setLength($c, a_ComponentFactory_dbl($node, $rt_s(186), 0.002));
+        $or = a_ComponentFactory_dbl($node, $rt_s(1896), NaN);
+        if (!(isNaN($or) ? 1 : 0))
+            $c.$setOuterRadius($or);
     }
     $name = a_JsonLite_str($node, $rt_s(90), null);
     if ($name !== null)
@@ -53487,6 +53485,10 @@ a_ComponentFactory_create = $node => {
         $rc = $c;
         $rc.$setRadialPosition(a_ComponentFactory_dbl($node, $rt_s(1920), 0.0));
         $rc.$setRadialDirection(a_ComponentFactory_dbl($node, $rt_s(1921), 0.0));
+    } else if ($c instanceof iocr_MassObject) {
+        $mo = $c;
+        iocr_MassObject_setRadialPosition($mo, a_ComponentFactory_dbl($node, $rt_s(1920), 0.0));
+        iocr_MassObject_setRadialDirection($mo, a_ComponentFactory_dbl($node, $rt_s(1921), 0.0));
     }
     $autoOuter = a_JsonLite_bool($node, $rt_s(1899), 0);
     if ($autoOuter) {
@@ -54141,8 +54143,8 @@ a_ComponentFactory_axialMethodOf = $name => {
     return iocrp_AxialMethod_TOP;
 },
 a_ComponentFactory__clinit_ = () => {
-    a_ComponentFactory_NON_NEGATIVE = ju_HashSet__init_3(ju_Arrays_asList($rt_wrapArray(jl_String, [$rt_s(186), $rt_s(1875), $rt_s(1896), $rt_s(1922), $rt_s(1924), $rt_s(1874), $rt_s(1886), $rt_s(1904), $rt_s(1901), $rt_s(1902), $rt_s(1925), $rt_s(1940), $rt_s(1941), $rt_s(1879), $rt_s(1878), $rt_s(1880), $rt_s(1889), $rt_s(1888), $rt_s(1892), $rt_s(1891), $rt_s(1890), $rt_s(1893), $rt_s(1928), $rt_s(1938), $rt_s(1936), $rt_s(1934), $rt_s(1935), $rt_s(1945), $rt_s(1929), $rt_s(1931), $rt_s(1954), $rt_s(187),
-    $rt_s(1963), $rt_s(1953), $rt_s(1952), $rt_s(1991), $rt_s(1992), $rt_s(1943), $rt_s(1942), $rt_s(1944), $rt_s(1957), $rt_s(1975), $rt_s(1974), $rt_s(1926)])));
+    a_ComponentFactory_NON_NEGATIVE = ju_HashSet__init_3(ju_Arrays_asList($rt_wrapArray(jl_String, [$rt_s(186), $rt_s(1875), $rt_s(1896), $rt_s(1922), $rt_s(1929), $rt_s(1874), $rt_s(1886), $rt_s(1904), $rt_s(1901), $rt_s(1902), $rt_s(1930), $rt_s(1924), $rt_s(1925), $rt_s(1879), $rt_s(1878), $rt_s(1880), $rt_s(1889), $rt_s(1888), $rt_s(1892), $rt_s(1891), $rt_s(1890), $rt_s(1893), $rt_s(1933), $rt_s(1943), $rt_s(1941), $rt_s(1939), $rt_s(1940), $rt_s(1945), $rt_s(1934), $rt_s(1936), $rt_s(1954), $rt_s(187),
+    $rt_s(1963), $rt_s(1953), $rt_s(1952), $rt_s(1991), $rt_s(1992), $rt_s(1927), $rt_s(1926), $rt_s(1928), $rt_s(1957), $rt_s(1975), $rt_s(1974), $rt_s(1931)])));
 },
 oti_AsyncCallback = $rt_classWithoutFields(0);
 function ju_IllegalFormatConversionException() {
@@ -62394,7 +62396,7 @@ $rt_stringPool(["Can\'t enter monitor from another thread synchronously", "roll.
 "initializing GroundStepper", "step:  position=", ", velocity=", "EOI", "SimulationStepperMethod.RK6.name", "SimulationStepperMethod.RK4.name", "%32s / %4s - %s", "Invalid UUID string: ", "\' must be a whole number in 1..", " (got ", "\' is out of range (got ", "; the limit is 1000000.0)", "\' must not be negative (got ", "transition", "bulkhead", "fairing", "ellipticalfinset", "masscomponent", "podset", "tubefinset", "launchlug", "freeformfinset", "parallelstage", "centeringring", "nosecone", "bodytube", "engineblock",
 "streamer", "shockcord", "parachute", "trapezoidfinset", "shape", "ogive", "aftRadius", "thickness", "shapeParameter", "filled", "shoulderRadius", "shoulderLength", "shoulderThickness", "shoulderCapped", "flipped", "aftRadiusAuto", "conical", "clipped", "foreRadius", "foreRadiusAuto", "foreShoulderRadius", "foreShoulderLength", "aftShoulderRadius", "aftShoulderLength", "foreShoulderThickness", "aftShoulderThickness", "foreShoulderCapped", "aftShoulderCapped", "outerRadius", "motorMount", "motorOverhang", "outerRadiusAuto",
 "finCount", "rootChord", "tipChord", "sweep", "height", "cant", "crossSection", "points", "freeformfinset has ", " points; the limit is 10000", "freeformfinset needs at least 3 points", "freeform fin set", "Fin set \"", "\": its outline crosses or touches itself, so it cannot be simulated. Redraw it in the fin editor.", "freeformfinset points must be [[x,y],...] numbers", "rotation", "cluster", "Unknown cluster configuration: ", "clusterScale", "clusterRotation", "radialPosition", "radialDirection", "innerRadius",
-"angleOffset", "radius", "diameter", "cd", "lineCount", "lineLength", "surfaceDensity", "surfaceMaterialName", "lineDensity", "lineMaterialName", "drogue", "stripLength", "stripWidth", "cordLength", "massComponentType", "width", "Unknown component type: \'", "outerDiameter", "innerDiameter", "baseHeight", "flangeHeight", "screwHeight", "density", "materialName", "finish", "airfoilSection", "Unknown airfoilSection \'", "airfoilLeDiamond", "airfoilTeDiamond", "finLeRadius", "filletRadius", "filletDensity", "filletMaterialName",
+"angleOffset", "outerDiameter", "innerDiameter", "baseHeight", "flangeHeight", "screwHeight", "radius", "diameter", "cd", "lineCount", "lineLength", "surfaceDensity", "surfaceMaterialName", "lineDensity", "lineMaterialName", "drogue", "stripLength", "stripWidth", "cordLength", "massComponentType", "width", "Unknown component type: \'", "density", "materialName", "finish", "airfoilSection", "Unknown airfoilSection \'", "airfoilLeDiamond", "airfoilTeDiamond", "finLeRadius", "filletRadius", "filletDensity", "filletMaterialName",
 "instanceCount", "instanceSeparation", "innerRadiusAuto", "radiusAuto", "cdAuto", "lineLengthAuto", "cordLengthAuto", "overrideMass", "overrideCGX", "overrideCD", "overrideSubcomponentsMass", "overrideSubcomponentsCG", "overrideSubcomponentsCD", "position", "method", "top", "offset", "deployEvent", "deployAltitude", "deployDelay", "lowerstageseparation", "Unknown deploy event: \'", "\' (expected one of launch, ejection, apogee, altitude, lower_stage_separation, never)", "optimum", "roughunfinished", "mirror",
 "normal", "smooth", "rough", "polished", "unfinished", "regular", "finishpolished", "Unknown surface finish: \'", "\' (expected one of rough, roughunfinished, unfinished, normal, smooth, polished, finishpolished, optimum, mirror)", "tabHeight", "tabLength", "tabOffsetMethod", "middle", "tabOffset", "radiusMethod", "relative", "radiusOffset", "angleMethod", "bottom", "surface", "free", "coaxial", "Unknown radius method: \'", "\' (expected one of relative, free, surface, coaxial)", "mirrorxy", "fixed", "Unknown angle method: \'",
 "\' (expected one of relative, fixed, mirror_xy)", "haack", "power", "ellipsoid", "parabolic", "Unknown nose or transition shape: \'", "\' (expected one of conical, ogive, ellipsoid, power, parabolic, haack)", "deploymentcharge", "altimeter", "tracker", "payload", "recoveryhardware", "battery", "flightcomputer", "Unknown mass component type: \'", "\' (expected one of masscomponent, altimeter, flightcomputer, deploymentcharge, tracker, payload, recoveryhardware, battery)", "Unknown fin cross-section: \'", "\' (expected one of square, rounded, airfoil)",

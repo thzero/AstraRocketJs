@@ -187,6 +187,18 @@ const writeTransition: PartWriter = (w, d, n) => {
   put(w, d, 'RearShoulderLen', numOpt(n, 'aftShoulderLength'), mm);
 };
 
+/**
+ * Off-axis placement, written where desktop's exporter writes it: an inner
+ * tube and every ring part (BasePartDTO's RingComponent branch) and a mass
+ * component or shock cord (MassObjectDTO). A parachute or streamer has neither,
+ * and desktop's importer reads the pair back only for an inner tube or a pod.
+ */
+function writeRadial(w: Writer, d: number, n: ComponentNode): void {
+  put(w, d, 'RadialLoc', numOpt(n, 'radialPosition'), mm);
+  const dir = numOpt(n, 'radialDirection');
+  if (dir) el(w, d, 'RadialAngle', deg(dir));
+}
+
 /** Both our tube types are one RockSim element, told apart by `IsInsideTube`. */
 const writeTube =
   (inner: boolean): PartWriter =>
@@ -200,11 +212,7 @@ const writeTube =
     el(w, d, 'IsInsideTube', inner ? 1 : 0);
     el(w, d, 'IsMotorMount', n['motorMount'] === true ? 1 : 0);
     put(w, d, 'EngineOverhang', numOpt(n, 'motorOverhang'), mm);
-    if (inner) {
-      put(w, d, 'RadialLoc', numOpt(n, 'radialPosition'), mm);
-      const dir = numOpt(n, 'radialDirection');
-      if (dir) el(w, d, 'RadialAngle', deg(dir));
-    }
+    if (inner) writeRadial(w, d, n);
   };
 
 /** Our four ring types are one RockSim `Ring`, told apart by `UsageCode`. */
@@ -223,6 +231,7 @@ const writeRing: PartWriter = (w, d, n) => {
   if (n.type === 'bulkhead') el(w, d, 'ID', 0);
   else if (ir !== undefined) el(w, d, 'ID', dia(ir));
   else if (or !== undefined && th !== undefined) el(w, d, 'ID', dia(or - th));
+  writeRadial(w, d, n);
 };
 
 const writeLaunchLug: PartWriter = (w, d, n) => {
@@ -328,6 +337,7 @@ const writeMassObject =
       put(w, d, 'Dia', numOpt(n, 'radius'), dia);
       el(w, d, 'KnownMass', g(numOpt(n, 'mass') ?? 0));
     }
+    writeRadial(w, d, n);
   };
 
 const writePod: PartWriter = (w, d, n) => {

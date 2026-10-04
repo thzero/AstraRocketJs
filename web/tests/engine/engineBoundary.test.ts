@@ -1187,6 +1187,18 @@ describe('the audit gaps reach the kernel', () => {
     expect(roll(0.012)).toBeGreaterThan(roll(0));
   });
 
+  it.each([
+    { type: 'parachute', diameter: 0.4, cd: 0.8 },
+    { type: 'streamer', stripLength: 0.5, stripWidth: 0.05 },
+    { type: 'shockcord', cordLength: 1 },
+  ])('moves a $type off the axis when the design says so', (part) => {
+    const roll = (radialPosition: number) =>
+      OpenRocketDesign.buildTree(
+        withPart({ id: 'r', ...part, length: 0.05, radius: 0.005, radialPosition, radialDirection: 1 }),
+      ).staticInfo().rollInertia;
+    expect(roll(0.012)).toBeGreaterThan(roll(0));
+  });
+
   it('packs a recovery device at the radius the design gives it', () => {
     const narrow = OpenRocketDesign.buildTree(
       withPart({ id: 'p', type: 'parachute', diameter: 0.4, cd: 0.8, length: 0.05, radius: 0.005 }),

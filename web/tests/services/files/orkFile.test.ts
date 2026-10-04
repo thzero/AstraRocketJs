@@ -2,7 +2,12 @@
 import { describe, it, expect } from 'vitest';
 import { exportOrk, importOrk, type OrkExportMotor } from '../../../src/services/files/orkFile';
 import { specToTree } from '../../testing/specTree';
-import type { RocketSpec, ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
+import {
+  PLUGGED_DELAY,
+  type RocketSpec,
+  type ComponentNode,
+  type RocketTree,
+} from '../../../src/engine/openRocketEngine';
 import type { DesignInfo } from '../../../src/services/files/orkTypes';
 import { badDimensions } from '../../../src/services/design/requiredComponent';
 import { updateNode } from '../../../src/services/design/treeEdit';
@@ -83,6 +88,25 @@ describe('exportOrk → importOrk round-trip', () => {
 
   it('accepts its own output as a bare XML string (no zip)', () => {
     expect(() => importOrk(xml)).not.toThrow();
+  });
+
+  // Desktop's MotorHandler: an absent or unparseable <delay> is plugged, not 0 s.
+  it.each([
+    ['absent', ''],
+    ['unparseable', '<delay>three</delay>'],
+    ['blank', '<delay></delay>'],
+  ])('imports a motor whose delay is %s as plugged', (_, replacement) => {
+    expect(xml).toContain('<delay>3</delay>');
+    const res = importOrk(xml.replace('<delay>3</delay>', replacement));
+    expect(res.motor?.delay).toBe(PLUGGED_DELAY);
+    expect(res.notes.join('\n')).toContain('the file gives no readable delay');
+  });
+
+  it('keeps a stated delay and a stated "none"', () => {
+    expect(importOrk(xml).motor?.delay).toBe(3);
+    const res = importOrk(xml.replace('<delay>3</delay>', '<delay>none</delay>'));
+    expect(res.motor?.delay).toBe(PLUGGED_DELAY);
+    expect(res.notes.join('\n')).not.toContain('the file gives no readable delay');
   });
 });
 
@@ -374,6 +398,37 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
     expect(mass.radialPosition).toBeCloseTo(0.018, 6);
     expect(mass.radialDirection).toBeCloseTo(Math.PI / 4, 6);
   });
+
+  // Desktop loads and saves the pair on every RingComponent and MassObject.
+  it.each(['parachute', 'streamer', 'shockcord', 'tubecoupler', 'centeringring', 'bulkhead', 'engineblock'])(
+    'preserves an off-axis %s',
+    (type) => {
+      const withPart = {
+        components: [
+          {
+            type: 'stage',
+            name: 'Sustainer',
+            id: 's1',
+            children: [
+              {
+                type: 'bodytube',
+                id: 'body',
+                length: 0.3,
+                outerRadius: 0.026,
+                thickness: 0.0005,
+                children: [{ type, id: 'part', length: 0.02, radialPosition: 0.006, radialDirection: Math.PI / 2 }],
+              },
+            ],
+          },
+        ],
+      } as unknown as RocketTree;
+      const xml = exportOrk({ name: 'Offset', tree: withPart });
+      expect(xml).toContain('<radialdirection>90</radialdirection>');
+      const part = findByType(importOrk(xml).tree, type) as { radialPosition?: number; radialDirection?: number };
+      expect(part.radialPosition).toBeCloseTo(0.006, 9);
+      expect(part.radialDirection).toBeCloseTo(Math.PI / 2, 9);
+    },
+  );
 });
 
 describe('recovery-device features round-trip', () => {

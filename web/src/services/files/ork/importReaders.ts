@@ -155,7 +155,7 @@ const readBodytube: NodeReader = (ctx, el) => {
   const btR = autoRadiusTag(el, 'radius');
   if (btR === undefined) n['outerRadiusAuto'] = true;
   n['outerRadius'] = btR ?? 0.012;
-  n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.bodytube.thickness);
+  readThicknessOrFilled(el, n, COMPONENT_DEFAULTS.bodytube.thickness);
   readMotor(ctx, el, n);
   // Extension tag: sub-minimum flag (motor case is the airframe).
   if (text(el, ':scope > caseairframe') === 'true') n['caseAirframe'] = true;
@@ -267,6 +267,7 @@ const readTubecoupler: NodeReader = (_ctx, el) => {
   const n = base(el, 'tubecoupler', true);
   n['length'] = nonNegTag(el, 'length', 0.05);
   n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.tubecoupler.thickness);
+  readRadial(el, n);
   const or = autoRadiusTag(el, 'outerradius');
   if (or === undefined) n['outerRadiusAuto'] = true;
   if (or !== undefined) n['outerRadius'] = or;
@@ -276,6 +277,7 @@ const readTubecoupler: NodeReader = (_ctx, el) => {
 const readCenteringring: NodeReader = (_ctx, el) => {
   const n = base(el, 'centeringring', true);
   n['length'] = nonNegTag(el, 'length', COMPONENT_DEFAULTS.centeringring.length);
+  readRadial(el, n);
   const cor = autoRadiusTag(el, 'outerradius');
   if (cor === undefined) n['outerRadiusAuto'] = true;
   if (cor !== undefined) n['outerRadius'] = cor;
@@ -289,6 +291,7 @@ const readCenteringring: NodeReader = (_ctx, el) => {
 const readBulkhead: NodeReader = (_ctx, el) => {
   const n = base(el, 'bulkhead', true);
   n['length'] = nonNegTag(el, 'length', COMPONENT_DEFAULTS.bulkhead.length);
+  readRadial(el, n);
   // No inner radius: a bulkhead is solid, and upstream's saver omits the
   // element for one entirely (RadiusRingComponentSaver).
   const bor = autoRadiusTag(el, 'outerradius');
@@ -302,6 +305,7 @@ const readEngineblock: NodeReader = (_ctx, el) => {
   const n = base(el, 'engineblock', true);
   n['length'] = nonNegTag(el, 'length', COMPONENT_DEFAULTS.engineblock.length);
   n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.engineblock.thickness);
+  readRadial(el, n);
   const eor = autoRadiusTag(el, 'outerradius');
   if (eor === undefined) n['outerRadiusAuto'] = true;
   if (eor !== undefined) n['outerRadius'] = eor;
@@ -362,6 +366,7 @@ const readFairing: NodeReader = (_ctx, el) => {
 const readParachute: NodeReader = (ctx, el) => {
   const n = base(el, 'parachute', true);
   readPackedSize(el, n);
+  readRadial(el, n);
   n['diameter'] = nonNegTag(el, 'diameter', 0.3);
   readCd(el, n);
   // Bounded: the kernel sums line mass per line, and a file can say anything.
@@ -387,6 +392,7 @@ const readParachute: NodeReader = (ctx, el) => {
 const readStreamer: NodeReader = (ctx, el) => {
   const n = base(el, 'streamer', true);
   readPackedSize(el, n);
+  readRadial(el, n);
   n['stripLength'] = nonNegTag(el, 'striplength', 0.5);
   n['stripWidth'] = nonNegTag(el, 'stripwidth', 0.05);
   readCd(el, n);
@@ -400,6 +406,7 @@ const readStreamer: NodeReader = (ctx, el) => {
 const readShockcord: NodeReader = (_ctx, el) => {
   const n = base(el, 'shockcord', true);
   readPackedSize(el, n);
+  readRadial(el, n);
   if (!readAutoValue(el, n, 'cordlength', 'cordLengthAuto')) n['cordLength'] = nonNegTag(el, 'cordlength', 0.3);
   readSoftMaterial(el, n, 'line', 'lineDensity', 'lineMaterialName');
   return n;

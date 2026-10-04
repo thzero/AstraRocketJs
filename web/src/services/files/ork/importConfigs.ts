@@ -151,6 +151,18 @@ export function captureSeparations(ctx: OrkImportContext, el: Element, node: Com
   }
 }
 
+/**
+ * A motor's ejection delay. Desktop's MotorHandler treats "none", an absent
+ * <delay> and one it cannot parse alike: plugged, no ejection charge. A 0 s
+ * fallback would fire the charge at burnout instead.
+ */
+function readDelay(motorEl: Element): number {
+  const t = text(motorEl, ':scope > delay');
+  if (t === null || t === 'none') return PLUGGED_DELAY;
+  const v = Number(t.trim());
+  return t.trim() !== '' && Number.isFinite(v) ? Math.max(0, v) : PLUGGED_DELAY;
+}
+
 /** A mount's <motormount>: the mount flag, its overhang, and every configuration's motor. */
 export function readMotor(ctx: OrkImportContext, el: Element, node: ComponentNode): void {
   const mountEl = el.querySelector(':scope > motormount');
@@ -167,7 +179,6 @@ export function readMotor(ctx: OrkImportContext, el: Element, node: ComponentNod
   // (Motor.PLUGGED_DELAY). Represent as the JSON-safe PLUGGED_DELAY sentinel,
   // which the engine maps to +Inf ("never fires") at the kernel boundary.
   const resolveRef = (motorEl: Element, igEl: Element): OrkMotorRef => {
-    const delayText = text(motorEl, ':scope > delay');
     // Carried through rather than used: the motor is resolved from our own
     // catalog, but a design saved again should still name the desktop entry the
     // file named, including for a motor we could not resolve. Absent stays
@@ -179,7 +190,7 @@ export function readMotor(ctx: OrkImportContext, el: Element, node: ComponentNod
       manufacturer: text(motorEl, ':scope > manufacturer') ?? 'unknown',
       diameter: nonNegTag(motorEl, 'diameter', 0.018),
       length: nonNegTag(motorEl, 'length', 0.07),
-      delay: delayText === 'none' ? PLUGGED_DELAY : nonNegTag(motorEl, 'delay', 0),
+      delay: readDelay(motorEl),
       mountId: node.id,
       ignitionEvent: text(igEl, ':scope > ignitionevent') ?? undefined,
       ignitionDelay: nonNegTag(igEl, 'ignitiondelay', 0),
@@ -204,8 +215,9 @@ export function readMotor(ctx: OrkImportContext, el: Element, node: ComponentNod
   // (desktop writes defaults bare, overrides in <ignitionconfiguration>).
   const ref = resolveRef(motorEl, configScoped(ctx, mountEl, 'ignitionconfiguration') ?? mountEl);
   if (ref.delay >= PLUGGED_DELAY) {
+    const unstated = text(motorEl, ':scope > delay') !== 'none' ? ' (the file gives no readable delay)' : '';
     ctx.notes.push(
-      `Motor ${ref.designation}: plugged (no ejection charge) — make sure recovery deploys on apogee/altitude, not the ejection charge.`,
+      `Motor ${ref.designation}: plugged (no ejection charge)${unstated} — make sure recovery deploys on apogee/altitude, not the ejection charge.`,
     );
   }
   if (node.id) {

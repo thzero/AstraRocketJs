@@ -379,3 +379,88 @@ describe('exportRkt — a clustered motor mount', () => {
     expect(xml.match(/<Name>Block<\/Name>/g)).toHaveLength(1);
   });
 });
+
+describe('exportRkt — off-axis placement, as desktop writes it', () => {
+  // BasePartDTO writes RadialLoc/RadialAngle for a RingComponent and
+  // MassObjectDTO for a mass component or shock cord. ParachuteDTO and
+  // StreamerDTO write neither. RadialAngle is degrees, our one deliberate
+  // divergence from desktop's radians.
+  const PLACED = ['tubecoupler', 'centeringring', 'bulkhead', 'engineblock', 'masscomponent', 'shockcord'];
+  const NOT_PLACED = ['parachute', 'streamer'];
+
+  const partXml = (type: string): string => {
+    const { xml } = exportRkt('Offset', {
+      name: 'Offset',
+      components: [
+        {
+          type: 'stage',
+          id: 's1',
+          name: 'S',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'b1',
+              name: 'Body',
+              length: 0.3,
+              outerRadius: 0.02,
+              thickness: 0.001,
+              children: [
+                { type, id: 'p', name: 'Part', length: 0.02, radialPosition: 0.006, radialDirection: Math.PI / 2 },
+              ],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree);
+    // The part's own element: from its name to the next part's name or the end.
+    const at = xml.indexOf('<Name>Part</Name>');
+    const next = xml.indexOf('<Name>', at + 1);
+    return xml.slice(at, next === -1 ? undefined : next);
+  };
+
+  it.each(PLACED)('writes the offset of a %s', (type) => {
+    const x = partXml(type);
+    expect(x).toContain('<RadialLoc>6</RadialLoc>');
+    expect(x).toContain('<RadialAngle>90</RadialAngle>');
+  });
+
+  it.each(NOT_PLACED)('writes no offset for a %s', (type) => {
+    const x = partXml(type);
+    expect(x).not.toContain('<RadialLoc>');
+    expect(x).not.toContain('<RadialAngle>');
+  });
+
+  it.each(PLACED)('reads no offset back for a %s, as desktop reads none', (type) => {
+    const { xml } = exportRkt('Offset', {
+      name: 'Offset',
+      components: [
+        {
+          type: 'stage',
+          id: 's1',
+          name: 'S',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'b1',
+              name: 'Body',
+              length: 0.3,
+              outerRadius: 0.02,
+              thickness: 0.001,
+              children: [{ type, id: 'p', name: 'Part', length: 0.02, radialPosition: 0.006 }],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree);
+    const nodes: ComponentNode[] = [];
+    const walk = (ns: ComponentNode[] = []) =>
+      ns.forEach((n) => {
+        nodes.push(n);
+        walk(n.children);
+      });
+    walk(importRkt(xml).tree.components);
+    const part = nodes.find((n) => n.name === 'Part');
+    expect(part).toBeDefined();
+    expect(part?.['radialPosition']).toBeUndefined();
+  });
+});
