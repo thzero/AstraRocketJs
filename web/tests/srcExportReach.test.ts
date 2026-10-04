@@ -5,20 +5,17 @@ import { fileURLToPath } from 'node:url';
 /**
  * Which `src` exports are reached ONLY from tests.
  *
- * This is the gate T7 asked for, and it is a test rather than a knip
- * configuration because knip cannot express it. Both fixes the audit suggested
- * were tried and neither works:
+ * A test rather than a knip configuration, because knip cannot express it:
  *
- * - A second knip run with `project: ['src/**']` reports nothing. knip resolves
+ * - A knip run with `project: ['src/**']` reports nothing. knip resolves
  *   importers through the TypeScript program, so a `tests/` file importing an src
- *   export counts as a use however `project` is scoped. Demonstrated by planting a
- *   genuinely unreferenced export in the same file as a known test-only one: knip
- *   flagged the plant and not the test-only export.
+ *   export counts as a use however `project` is scoped. A genuinely unreferenced
+ *   export planted beside a known test-only one is flagged; the test-only one is
+ *   not.
  * - Giving that run its own tsconfig with `include: ['src']` changes nothing, for
  *   the same reason.
- *
- * `knip --production` is no good either, for the reason the audit records: it
- * reports none of these and emits ten false-positive unused dependencies.
+ * - `knip --production` reports none of these and emits ten false-positive unused
+ *   dependencies.
  *
  * So the rule lives here. A test-only export is not wrong in itself - a reset for
  * module state is a legitimate seam - but the SET of them should be a decision.
