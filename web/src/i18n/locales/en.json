@@ -282,6 +282,7 @@
     "launchNote": "Default launch conditions for newly-created simulations. Edit an existing simulation's conditions in its Launch panel.",
     "defaultSpeed": "Default speed",
     "confirmDelete": "Confirm deletion of simulations",
+    "autoRunOutdated": "Run outdated simulations automatically",
     "warnings": "Safety warnings",
     "railExitMin": "Min rail-exit velocity",
     "deploySpeedWarn": "Deploy-speed warning above",

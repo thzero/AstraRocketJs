@@ -21,7 +21,7 @@ const GUARDED = [
   'components/sim/LaunchPanel.tsx',
   'components/sim/WindProfileDialog.tsx',
   'components/sim/MotorDialog.tsx',
-  'components/canvas/FlightPathExport.tsx',
+  'components/canvas/useExportTemplates.ts',
 ];
 
 describe('the surfaces that resolve after an await carry a generation guard', () => {

@@ -73,16 +73,16 @@ import {
 } from '../services/flight/windSweep';
 import { loadSettings } from '../services/storage/settings';
 import { defaultMaterialPatch } from '../services/design/materialSlots';
-import { launchLimitViolations, limitText } from '../services/flight/safetyLimits';
 import {
   unflyable,
   unflyableText,
   hasThrustCurve,
   designBlocker,
   designBlockerText,
-  type Unflyable,
 } from '../services/flight/runnability';
-import { isComplete, type CompleteLaunch } from '../services/flight/requiredLaunch';
+import { landingView, planRun, runProblems } from '../services/flight/runPlan';
+import { importNotes } from '../services/files/importBanner';
+import { isComplete } from '../services/flight/requiredLaunch';
 import { defaultDesignName } from '../services/app/appInfo';
 import { getDesignLibrary, type DesignMeta } from '../services/storage/designLibrary';
 import { getWorkspaceStore, type Workspace } from '../services/storage/workspaceStore';
@@ -259,7 +259,7 @@ export interface WorkspaceState {
    * several flights at once. It is deliberately NOT part of a `Simulation`,
    * which is persisted: "running" must not survive a reload.
    *
-   * The failed entries carry their design because CenterView's "auto-run
+   * The failed entries carry their design because useAutoRunOutdated's "auto-run
    * outdated" re-fires whenever `simBusy` goes false while a result view is open
    * and there is no result — exactly the state a failed run leaves behind, so a
    * reproducible failure (a sim that times out) retried without limit.
@@ -1414,38 +1414,31 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
      */
     runSims: async (ids, prefs) => {
       const s = get();
-      // A fault in the DESIGN stops the whole batch: no motor mount (nowhere to
-      // seat a motor) or a part whose required dimension is zero. The Run button
-      // is disabled for these too; this is the belt-and-suspenders guard so a
-      // programmatic run cannot get past it, and so a zero-volume body tube can
-      // never hand back an apogee.
-      const targets = ids.filter((id) => s.sims.some((x) => x.id === id));
-      const blocker = designBlocker(s.tree);
-      if (blocker) {
-        // Recorded as failed ON this design, like a row skipped for its motor, so
-        // `selectRunFailed` holds auto-run back until the design changes.
-        const failedOn = { phase: 'failed', tree: s.tree } as const;
-        set((st) => ({
-          err: designBlockerText(blocker, i18n.t),
-          simRuns: { ...st.simRuns, ...Object.fromEntries(targets.map((id) => [id, failedOn])) },
-        }));
-        return;
-      }
-      if (!targets.length) return;
-
+      // What flies and what does not is decided BEFORE anything is dispatched,
+      // so the queued rows all light up together rather than one at a time.
+      const plan = planRun(ids, s.sims, s.tree, s.configs);
       // What we are about to fly. The awaits below can outlast the design: if the
       // user edits while the pool is busy, the answers coming back describe a
       // rocket that no longer exists, and installing them would show numbers for
       // geometry that is no longer on screen.
       const ranOn = s.tree;
-      // Collected, not reported as they happen: a per-skip `set({ err })` leaves
-      // only whichever row failed last, with no name on it. They are reported
-      // together, named, once the batch drains.
-      const skipped: Unflyable[] = [];
-      // Collected for the same reason skips are, and kept separate from them:
-      // sharing one `err` slot means six rows with two timeouts and one missing
-      // motor report only the missing motor, with no sign that two flights
-      // failed at all.
+      if (plan.failedIds.length) {
+        const failedOn = { phase: 'failed', tree: ranOn } as const;
+        set((st) => ({
+          simRuns: { ...st.simRuns, ...Object.fromEntries(plan.failedIds.map((id) => [id, failedOn])) },
+        }));
+      }
+      if (plan.blocker) {
+        set({ err: designBlockerText(plan.blocker, i18n.t) });
+        return;
+      }
+      const { flying, skipped } = plan;
+      if (!flying.length) {
+        if (skipped.length) set({ err: runProblems(skipped, [], i18n.t, displayUnits()).join(' ') });
+        return;
+      }
+      // Failures are collected and reported with the skips once the batch drains
+      // (see runProblems).
       const failed: { name: string; msg: string }[] = [];
       /** Patch one row's transient run state, leaving every other row alone. */
       const setRun = (simId: string, run: SimRun | null) =>
@@ -1455,37 +1448,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           else delete next[simId];
           return { simRuns: next };
         });
-
-      // Decide what actually flies BEFORE anything is dispatched, so the queued
-      // rows all light up together rather than one at a time.
-      const flying: { sim: Simulation; launch: CompleteLaunch }[] = [];
-      for (const simId of targets) {
-        const sim = s.sims.find((x) => x.id === simId);
-        if (!sim) continue;
-        // Why a row cannot fly is decided in ONE place, shared with the Run
-        // button (services/flight/runnability). A row with no usable motor, or with
-        // launch conditions outside the NAR/Tripoli codes, is skipped: those
-        // are simulation settings rather than design, so there is nothing to
-        // preserve by flying them, and a number this app will not stand
-        // behind is worse than no number. One bad row never abandons the rest.
-        const reason = unflyable(sim, primaryMotor(s.tree, configOf(s.configs, sim)));
-        if (reason) {
-          skipped.push({ id: simId, name: sim.name, reason });
-          setRun(simId, { phase: 'failed', tree: ranOn });
-          continue;
-        }
-        // `unflyable` already established that every required launch field is
-        // present; this restates it for the type system, which cannot see
-        // that through the reason object. simConditions takes a CompleteLaunch
-        // precisely so a blank can never be quietly turned into a number on
-        // its way to the engine.
-        if (!isComplete(sim.launch)) continue;
-        flying.push({ sim, launch: sim.launch });
-      }
-      if (!flying.length) {
-        if (skipped.length) set({ err: skipped.map((u) => unflyableText(u, i18n.t, displayUnits())).join(' ') });
-        return;
-      }
 
       // One controller for the whole batch: Cancel is "stop what I started",
       // not "stop this row". Replaced per batch rather than reused, since an
@@ -1559,31 +1521,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // A canceled batch says nothing further: the user stopped it, so
         // neither the skip list nor a jump to the Results tab is wanted.
         if (abort.signal.aborted) return;
-        // ONE line for everything that did not produce a flight, refusals and
-        // failures together, each naming its row.
-        const problems = [
-          ...skipped.map((u) => unflyableText(u, i18n.t, displayUnits())),
-          ...failed.map((f) => i18n.t('sim.failedNamed', { name: f.name, message: f.msg })),
-        ];
+        const problems = runProblems(skipped, failed, i18n.t, displayUnits());
         if (problems.length) set({ err: problems.join(' ') });
         // Show the run. Every run, one or twelve: running IS asking to see the
-        // answer, and having to click over to Results afterwards was a step with
+        // answer, and having to click over to Results afterwards is a step with
         // nothing behind it.
-        //
-        // `lastRunIds` is what the Results tab reads to decide between a name and
-        // a picker, and `resultSimId` points it at this run rather than at
-        // whatever was being read before.
         if (get().tree !== ranOn) return;
         const landed = flying.map((f) => f.sim.id).filter((id) => get().sims.find((x) => x.id === id)?.result);
-        if (landed.length) {
-          // Show the row you were working on when it is one of the ones that
-          // flew, else the first of the batch. Landing on some other row's
-          // flight after running is disorienting: you asked for these, and the
-          // active one is the one you were just looking at.
-          const active = selectActive(get()).id;
-          const show = landed.includes(active) ? active : landed[0]!;
-          set({ lastRunIds: landed, resultSimId: show, view: 'flight', tab: 'results' });
-        }
+        const show = landingView(landed, selectActive(get()).id);
+        if (show) set({ ...show, view: 'flight', tab: 'results' });
       } finally {
         // Only if no LATER batch has started: a run kicked off while this one
         // was unwinding owns the flag and the controller now.
@@ -1828,15 +1774,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // design of the same name, in which case that entry IS its home.
         getWorkspaceStore().setActiveId?.(home.id);
         if (!home.id) getWorkspaceStore().setPendingName?.(home.name);
-        // Launch conditions are simulation settings, so a file carrying them
-        // outside the safety codes is flagged on the way in rather than
-        // silently flown. The run refuses too (see runSims).
-        // Every imported simulation shares the file's launch conditions, so one
-        // check answers for all of them.
-        const outside = launchLimitViolations(sims[0]!.launch);
-        const notes = outside.length
-          ? [...loadedMeta.notes, ...outside.map((v) => limitText(v, i18n.t, displayUnits()))]
-          : loadedMeta.notes;
+        const notes = importNotes(loadedMeta.notes, sims[0]!.launch, i18n.t, displayUnits());
         // A file is the likeliest source of a value no material has, and the
         // one place the app can still say where it came from.
         const fixed = repairValues(tree);

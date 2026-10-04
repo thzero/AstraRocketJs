@@ -1,57 +1,41 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { clampEntry } from '../../prefs/entryValue';
 import { useWorkspaceStore, selectActive, selectConfig } from '../../state/store';
 import { primaryMotor } from '../../services/flight/flightConfigs';
-import { download as saveDownload, exportFilename, safeFilename } from '../../services/files/saveFile';
-import { useUnits } from '../../prefs/useUnits';
+import { download as saveDownload, exportFilename } from '../../services/files/saveFile';
 import {
   buildFlightPathModel,
-  asAltitudeReference,
-  asDistanceUnit,
-  asStageTrackStart,
-  asWaypointKinds,
-  defaultBranchColor,
-  defaultGroundColor,
-  defaultPinColor,
-  defaultExportOptions,
   exportBranchNames,
   hasLaunchPosition,
-  hexToRgbInt,
-  rgbToHex,
   renderUserTemplate,
   mimeForExtension,
-  EXPORT_FORMATS,
   WAYPOINT_KINDS,
   WAYPOINT_LABEL_KEY,
-  type FlightPathExportOptions,
   type Translate,
   type WaypointKind,
-  type AltitudeReference,
-  type DistanceUnit,
   type StageTrackStart,
 } from '../../services/exports/flightPathExport';
-import { getTemplateStore, parseTemplateFilename, type UserTemplate } from '../../services/exports/templateStore';
 import { Dialog } from '../common/Dialog';
-import { decodeStageColors, encodeStageColors } from '../../services/storage/settings';
-import { useSettings } from '../../state/SettingsProvider';
 import { LANGUAGES } from '../../i18n';
-import { useLatest } from '../common/useLatest';
+import { AltitudeRefSelect, Check, Section, UnitRow } from './PathExportControls';
+import { ExportFormatPicker } from './ExportFormatPicker';
+import { StageColorDialog } from './StageColorDialog';
+import { EXPORT_PRESETS, matchingPreset } from './pathExportPresets';
+import { useExportOptions } from './useExportOptions';
+import { useExportTemplates } from './useExportTemplates';
 
 /**
- * "Export flight path" — a port of OpenRocket's 3D-path export dialog. Renders a
+ * "Export flight path" - a port of OpenRocket's 3D-path export dialog. Renders a
  * button that opens a modal to pick the format (built-in KML / GPX / waypoint
  * CSV, or an imported Mustache template) and the options (which waypoints,
  * flight-path/ground-track lines, path stride, altitude/distance units), then
  * downloads the rendered file. Self-sources the active simulation's result,
  * launch site, and design metadata from the store.
  *
- * User templates are imported `.mustache` files persisted in the template store
- * — the browser equivalent of OpenRocket's desktop `ExportTemplates` folder.
+ * User templates are imported `.mustache` files persisted in the template store,
+ * the browser equivalent of OpenRocket's desktop `ExportTemplates` folder.
  */
-
-const UNITS: DistanceUnit[] = ['m', 'ft', 'km', 'mi'];
-const USER_PREFIX = 'user:';
 
 export function FlightPathExport({ variant = 'chip' }: { variant?: 'chip' | 'overlay' }) {
   const { t } = useTranslation();
@@ -89,7 +73,7 @@ export function FlightPathExport({ variant = 'chip' }: { variant?: 'chip' | 'ove
 
 /**
  * Exported for `FlightPathExport.test.tsx`. The button that opens it lives only
- * in the 3D path view, which needs WebGL — headless Chromium crashes rendering
+ * in the 3D path view, which needs WebGL - headless Chromium crashes rendering
  * it, so the dialog's own behavior is covered as a component instead.
  */
 export function ExportDialog({
@@ -104,111 +88,13 @@ export function ExportDialog({
   result: import('../../engine/openRocketEngine').FlightResult;
 }) {
   const { t, i18n } = useTranslation();
-  const store = useMemo(() => getTemplateStore(), []);
-  const [selected, setSelected] = useState<string>(EXPORT_FORMATS[0]!.id);
-  const units = useUnits();
-  const { settings, update } = useSettings();
-  // Carried in from last time, except the mission name - see
-  // PathExportSettings for why that one still starts fresh every export.
-  //
-  // Each field falls back independently: a stored value that this build does
-  // not recognize (an older store, a newer one, a hand edit) costs that field
-  // and nothing else. The units are the interesting case - ABSENT means follow
-  // the app's distance preference, which is what a fresh install does, while a
-  // stored value is an explicit dialog choice and outranks it.
-  const [opts, setOpts] = useState<FlightPathExportOptions>(() => {
-    const base = defaultExportOptions(units.sym('distance'));
-    const p = settings.pathExport;
-    // A saved EMPTY selection is a selection (the user unchecked every marker),
-    // not an absence; only a missing or unreadable list falls back.
-    const waypoints = asWaypointKinds(p.waypoints);
-    return {
-      ...base,
-      waypoints: waypoints ?? base.waypoints,
-      includeFlightPath: p.includeFlightPath ?? base.includeFlightPath,
-      includeGroundTrack: p.includeGroundTrack ?? base.includeGroundTrack,
-      pathStride: p.pathStride ?? base.pathStride,
-      altitudeUnit: asDistanceUnit(p.altitudeUnit) ?? base.altitudeUnit,
-      distanceUnit: asDistanceUnit(p.distanceUnit) ?? base.distanceUnit,
-      altitudeReference: asAltitudeReference(p.altitudeReference) ?? base.altitudeReference,
-      waypointAltitudeReference: asAltitudeReference(p.waypointAltitudeReference) ?? base.waypointAltitudeReference,
-      drawShadow: p.drawShadow ?? base.drawShadow,
-      stageTrackStart: asStageTrackStart(p.stageTrackStart) ?? base.stageTrackStart,
-      showWaypointLabels: p.showWaypointLabels ?? base.showWaypointLabels,
-      colorWaypointPins: p.colorWaypointPins ?? base.colorWaypointPins,
-      includeDescriptions: p.includeDescriptions ?? base.includeDescriptions,
-      // '' is a real choice ("follow the app"), so unlike the units there is no
-      // absent-means-something rule here: whatever is stored is what was picked.
-      language: p.exportLanguage ?? base.language,
-      labelWaypointsWithMission: p.labelWaypointsWithMission,
-      branchColors: decodeStageColors(p.branchColors),
-      branchGroundColors: decodeStageColors(p.branchGroundColors),
-      branchPinColors: decodeStageColors(p.branchPinColors),
-    };
-  });
+  const { opts, patchOpts, change, setUnit } = useExportOptions();
   const [colorsOpen, setColorsOpen] = useState(false);
-  // Which of the two unit fields is an explicit dialog choice. A stored unit
-  // is one; so is any pick made here. Anything else stays ABSENT in the store,
-  // so the next open still follows the app's distance preference rather than
-  // whatever unit the app happened to show the first time this dialog opened.
-  const explicitUnits = useRef({
-    altitude: asDistanceUnit(settings.pathExport.altitudeUnit) !== undefined,
-    distance: asDistanceUnit(settings.pathExport.distanceUnit) !== undefined,
-  });
-  // Write the preference-shaped fields back from the handlers that change them,
-  // and nowhere else. An effect keyed on `opts` would run on mount and on every
-  // keystroke in the mission field, and each write recreates the settings context
-  // and hits localStorage. The mission name is excluded at the source (it is not
-  // in PathExportSettings), so it cannot leak into the store.
-  const persist = (next: FlightPathExportOptions) => {
-    const explicit = explicitUnits.current;
-    update({
-      pathExport: {
-        labelWaypointsWithMission: next.labelWaypointsWithMission,
-        waypoints: [...next.waypoints],
-        includeFlightPath: next.includeFlightPath,
-        includeGroundTrack: next.includeGroundTrack,
-        pathStride: next.pathStride,
-        ...(explicit.altitude ? { altitudeUnit: next.altitudeUnit } : {}),
-        ...(explicit.distance ? { distanceUnit: next.distanceUnit } : {}),
-        altitudeReference: next.altitudeReference,
-        waypointAltitudeReference: next.waypointAltitudeReference,
-        drawShadow: next.drawShadow,
-        stageTrackStart: next.stageTrackStart,
-        showWaypointLabels: next.showWaypointLabels,
-        colorWaypointPins: next.colorWaypointPins,
-        includeDescriptions: next.includeDescriptions,
-        exportLanguage: next.language,
-        branchColors: encodeStageColors(next.branchColors),
-        branchGroundColors: encodeStageColors(next.branchGroundColors),
-        branchPinColors: encodeStageColors(next.branchPinColors),
-      },
-    });
-  };
-  // The latest options, for handlers. Spreading the render's closed-over `opts`
-  // builds the second of two changes committed in one tick on a stale copy and
-  // drops the first. A ref that every writer updates gives the handlers the
-  // current value without a side effect inside a state updater.
-  const optsRef = useRef(opts);
-  const patchOpts = (patch: Partial<FlightPathExportOptions>): FlightPathExportOptions => {
-    const next = { ...optsRef.current, ...patch };
-    optsRef.current = next;
-    setOpts(next);
-    return next;
-  };
-  /** Change persisted option(s): the dialog AND the store. Every handler
-   *  below except the mission field's goes through this. */
-  const change = (patch: Partial<FlightPathExportOptions>) => persist(patchOpts(patch));
-  const [templates, setTemplates] = useState<UserTemplate[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  // Which template-store write is current: a file read plus an IndexedDB write,
-  // and this dialog can close under either.
-  const storeWrite = useLatest();
   // Where a stage's track begins only means something once there is more than
   // one stage, so the control stays out of the way of a single-stage flight.
   const staged = (result.branches?.length ?? 0) > 1;
   // The stages that will actually get a track, in the order the model numbers
-  // them — so a swatch always lines up with the branch it colors.
+  // them - so a swatch always lines up with the branch it colors.
   const branchNames = useMemo(() => exportBranchNames(result, meta), [result, meta]);
   // Which preset the controls currently spell out, or none. Derived every
   // render rather than remembered from the last click: a preset only SETS the
@@ -231,97 +117,29 @@ export function ExportDialog({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  useEffect(() => {
-    store
-      .list()
-      .then(setTemplates)
-      .catch(() => setTemplates([]));
-  }, [store]);
-
-  // Resolve the current selection to either a built-in format or a user template.
-  const resolved = useMemo(() => {
-    if (selected.startsWith(USER_PREFIX)) {
-      const id = selected.slice(USER_PREFIX.length);
-      const template = templates.find((tp) => tp.id === id);
-      if (template) return { kind: 'user' as const, template };
-    }
-    const format = EXPORT_FORMATS.find((f) => f.id === selected) ?? EXPORT_FORMATS[0]!;
-    return { kind: 'builtin' as const, format };
-  }, [selected, templates]);
+  const {
+    selected,
+    setSelected,
+    templates,
+    resolved,
+    selectedUser,
+    error,
+    setError,
+    onImport,
+    deleteSelected,
+    downloadTemplate,
+  } = useExportTemplates();
 
   // The built-in waypoint CSV ignores the path/geometry options; everything else
   // (KML, GPX, and any user template) may use them.
   const showPath = !(resolved.kind === 'builtin' && resolved.format.id === 'waypoints-csv');
   const noPosition = !hasLaunchPosition(launch);
-  const selectedUser = resolved.kind === 'user' ? resolved.template : null;
 
   const toggleWaypoint = (k: WaypointKind) => {
     const waypoints = new Set(opts.waypoints);
     if (waypoints.has(k)) waypoints.delete(k);
     else waypoints.add(k);
     change({ waypoints });
-  };
-
-  const onImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = ''; // let the same file be re-imported after edits
-    if (!file) return;
-    const mine = storeWrite.claim();
-    try {
-      const source = await file.text();
-      if (!mine()) return;
-      if (!source.trim()) {
-        setError(t('pathExport.importEmpty'));
-        return;
-      }
-      const { id, name, ext } = parseTemplateFilename(file.name);
-      await store.add({ id, name, ext, source });
-      const listed = await store.list();
-      // The store write is deliberately NOT undone on a stale token - the
-      // template is stored and should stay stored. What must not happen is
-      // selecting it in a dialog that has moved on, or reporting the outcome of
-      // one import over another's.
-      if (!mine()) return;
-      setTemplates(listed);
-      setSelected(`${USER_PREFIX}${id}`);
-      setError(null);
-    } catch {
-      if (!mine()) return;
-      setError(t('pathExport.importError'));
-    }
-  };
-
-  const deleteSelected = async () => {
-    if (!selectedUser) return;
-    const mine = storeWrite.claim();
-    try {
-      await store.remove(selectedUser.id);
-      // Inside the try as well: a listing that fails after the delete would
-      // otherwise reject out of the handler, leaving the row gone from the store,
-      // still shown in the dialog, and no error reported.
-      const listed = await store.list();
-      if (!mine()) return;
-      setTemplates(listed);
-    } catch {
-      if (!mine()) return;
-      // The template store reports a refused write rather than resolving cleanly
-      // on one, so this can throw.
-      setError(t('storage.full'));
-      return;
-    }
-    setSelected(EXPORT_FORMATS[0]!.id);
-    setError(null);
-  };
-
-  // Download the selected template's Mustache source — a built-in as a starting
-  // point for a custom template, or a user template to edit and re-import.
-  const downloadTemplate = () => {
-    if (resolved.kind === 'user') {
-      const tp = resolved.template;
-      saveDownload(`${safeFilename(tp.name, 'flight')}.${tp.ext}.mustache`, tp.source);
-    } else {
-      saveDownload(resolved.format.templateFilename, resolved.format.source);
-    }
   };
 
   const download = () => {
@@ -365,64 +183,21 @@ export function ExportDialog({
       >
         <div className="space-y-4">
           {/* Format */}
-          <div className="space-y-2">
-            <label className="flex items-center justify-between gap-3">
-              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                {t('pathExport.format')}
-              </span>
-              <select
-                value={selected}
-                onChange={(e) => {
-                  setSelected(e.target.value);
-                  setError(null);
-                }}
-                className="flex-1 rounded-md bg-slate-800 px-2 py-1.5 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
-              >
-                <optgroup label={t('pathExport.builtIns')}>
-                  {EXPORT_FORMATS.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {t(`pathExport.fmt.${f.id}`)}
-                    </option>
-                  ))}
-                </optgroup>
-                {templates.length > 0 && (
-                  <optgroup label={t('pathExport.custom')}>
-                    {templates.map((tp) => (
-                      <option key={tp.id} value={`${USER_PREFIX}${tp.id}`}>
-                        {tp.name} (.{tp.ext})
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
-            </label>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap gap-2">
-                <label className="cursor-pointer rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700">
-                  {t('pathExport.import')}
-                  <input type="file" accept=".mustache" className="hidden" onChange={onImport} />
-                </label>
-                <button
-                  onClick={downloadTemplate}
-                  title={t('pathExport.downloadTemplateTitle')}
-                  className="rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
-                >
-                  {t('pathExport.downloadTemplate')}
-                </button>
-              </div>
-              {selectedUser && (
-                <button
-                  onClick={deleteSelected}
-                  className="rounded-md bg-rose-600/80 px-2 py-1 text-[11px] font-medium text-white ring-1 ring-rose-400/30 hover:bg-rose-600"
-                >
-                  {t('pathExport.delete')}
-                </button>
-              )}
-            </div>
-          </div>
+          <ExportFormatPicker
+            selected={selected}
+            templates={templates}
+            canDelete={selectedUser !== null}
+            onSelect={(value) => {
+              setSelected(value);
+              setError(null);
+            }}
+            onImport={onImport}
+            onDownloadTemplate={downloadTemplate}
+            onDelete={deleteSelected}
+          />
 
           {/* Presets sit ABOVE the three sections because they reach into all
-              three — which waypoints, whether the lines are drawn, and how it is
+              three - which waypoints, whether the lines are drawn, and how it is
               all placed. They only set the controls below, never act behind
               them, so what the file will contain is always what the dialog
               shows and any one of them is a starting point you can adjust. */}
@@ -469,7 +244,7 @@ export function ExportDialog({
             </div>
           </Section>
 
-          {/* Path geometry — irrelevant to the built-in waypoint CSV. */}
+          {/* Path geometry - irrelevant to the built-in waypoint CSV. */}
           {showPath && (
             <Section title={t('pathExport.path')}>
               <Check
@@ -565,7 +340,7 @@ export function ExportDialog({
             <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.pinsNote')}</p>
           </Section>
 
-          {/* What the file SAYS, rather than where it sits — so it is neither
+          {/* What the file SAYS, rather than where it sits - so it is neither
               Placement nor Flight path, and no preset touches it. */}
           <Section title={t('pathExport.balloons')}>
             <Check
@@ -581,18 +356,12 @@ export function ExportDialog({
             <UnitRow
               label={t('pathExport.altitude')}
               value={opts.altitudeUnit}
-              onChange={(u) => {
-                explicitUnits.current.altitude = true; // a dialog choice: stored from now on
-                change({ altitudeUnit: u });
-              }}
+              onChange={(u) => setUnit('altitude', u)}
             />
             <UnitRow
               label={t('pathExport.distance')}
               value={opts.distanceUnit}
-              onChange={(u) => {
-                explicitUnits.current.distance = true;
-                change({ distanceUnit: u });
-              }}
+              onChange={(u) => setUnit('distance', u)}
             />
             <label className="flex items-center justify-between gap-3">
               <span className="text-xs text-slate-400">{t('pathExport.language')}</span>
@@ -623,7 +392,7 @@ export function ExportDialog({
               aria-label={t('pathExport.mission')}
               placeholder={t('pathExport.missionPlaceholder')}
               // Dialog state only: the mission name is never persisted, and
-              // typing it must not write the settings (see `persist`).
+              // typing it must not write the settings (see `useExportOptions`).
               onChange={(e) => patchOpts({ missionName: e.target.value })}
               className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-sm text-slate-100 ring-1 ring-white/10 placeholder:text-slate-600 focus:outline-none focus:ring-sky-500"
             />
@@ -681,328 +450,5 @@ export function ExportDialog({
         />
       )}
     </>
-  );
-}
-
-/** The three independently colorable things the exporter draws per stage. */
-const COLOR_ROLES = ['path', 'ground', 'pin'] as const;
-type ColorRole = (typeof COLOR_ROLES)[number];
-
-const ROLE_DEFAULT: Record<ColorRole, (index: number) => number> = {
-  path: defaultBranchColor,
-  ground: defaultGroundColor,
-  pin: defaultPinColor,
-};
-
-const ROLE_LABEL: Record<ColorRole, string> = {
-  path: 'pathExport.colorRolePath',
-  ground: 'pathExport.colorRoleGround',
-  pin: 'pathExport.colorRolePin',
-};
-
-/**
- * A grid of swatches: one row per stage, one column per role.
- *
- * A modal rather than inline pickers because the stage count comes from the
- * design, and a variable-length list needs room the panel does not have.
- *
- * Edits a DRAFT per role, so Cancel leaves the prior selection exactly as it
- * was and only Apply commits. Reset clears the drafts back to the palettes
- * rather than writing each palette color in as an override, so a stage nobody
- * chose a color for keeps following its palette.
- *
- * The three columns are deliberately INDEPENDENT. An earlier design had ground
- * and pin follow the path swatch while they were still on their derived value
- * and stop once moved. It demos well and is bad: two swatches showing the same
- * color behave differently depending on history, nothing on screen says which
- * are still following, and setting a color to exactly the derived value gets
- * you a swatch that silently keeps moving. Changing one column here never
- * moves another.
- */
-function StageColorDialog({
-  names,
-  colors,
-  groundColors,
-  pinColors,
-  onApply,
-  onCancel,
-}: {
-  names: string[];
-  colors: Map<number, number>;
-  groundColors: Map<number, number>;
-  pinColors: Map<number, number>;
-  onApply: (colors: Map<number, number>, groundColors: Map<number, number>, pinColors: Map<number, number>) => void;
-  onCancel: () => void;
-}) {
-  const { t } = useTranslation();
-  const [drafts, setDrafts] = useState<Record<ColorRole, Map<number, number>>>(() => ({
-    path: new Map(colors),
-    ground: new Map(groundColors),
-    pin: new Map(pinColors),
-  }));
-  // Escape is handled by the shell, whose rule covers every dialog: it reaches
-  // the topmost one only.
-
-  const setColor = (role: ColorRole, i: number, rgb: number) =>
-    setDrafts((d) => {
-      const next = new Map(d[role]);
-      next.set(i, rgb);
-      return { ...d, [role]: next };
-    });
-
-  return (
-    <Dialog
-      id="pathExportColors"
-      title={t('pathExport.stageColorsTitle')}
-      onClose={onCancel}
-      // Opened from the export dialog, which is itself a base dialog.
-      layer="over"
-      size="sm"
-      layout="pad"
-      // Three swatch columns and a stage name. There is nothing here that more
-      // width would reveal.
-      expandable={false}
-    >
-      <>
-        <div className="space-y-1.5">
-          {/* Header row: three columns is past the point where a bare swatch
-              says what it paints. */}
-          <div className="flex items-center justify-between gap-2 pb-1">
-            <span className="flex-1" />
-            {COLOR_ROLES.map((role) => (
-              <span key={role} className="w-12 shrink-0 text-center text-[10px] uppercase tracking-wide text-slate-400">
-                {t(ROLE_LABEL[role])}
-              </span>
-            ))}
-          </div>
-          {names.map((name, i) => {
-            const stage = name || t('pathExport.stageN', { n: i + 1 });
-            return (
-              <div key={`${i}-${name}`} className="flex items-center justify-between gap-2">
-                <span className="flex-1 truncate text-sm text-slate-300">{stage}</span>
-                {COLOR_ROLES.map((role) => (
-                  <input
-                    key={role}
-                    type="color"
-                    aria-label={`${stage} ${t(ROLE_LABEL[role])}`}
-                    value={rgbToHex(drafts[role].get(i) ?? ROLE_DEFAULT[role](i))}
-                    onChange={(e) => setColor(role, i, hexToRgbInt(e.target.value))}
-                    className="h-7 w-12 shrink-0 cursor-pointer rounded-md bg-slate-800 ring-1 ring-white/10"
-                  />
-                ))}
-              </div>
-            );
-          })}
-        </div>
-        <div className="mt-4 flex flex-wrap justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => setDrafts({ path: new Map(), ground: new Map(), pin: new Map() })}
-            className="mr-auto rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
-          >
-            {t('pathExport.resetColors')}
-          </button>
-          <button
-            onClick={onCancel}
-            className="rounded-lg bg-slate-800 px-4 py-2 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
-          >
-            {t('pathExport.cancel')}
-          </button>
-          <button
-            onClick={() => onApply(drafts.path, drafts.ground, drafts.pin)}
-            className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
-          >
-            {t('pathExport.apply')}
-          </button>
-        </div>
-      </>
-    </Dialog>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-xl bg-slate-800/40 p-3 ring-1 ring-white/10">
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{title}</h3>
-      <div className="space-y-1.5">{children}</div>
-    </section>
-  );
-}
-
-function Check({
-  checked,
-  onChange,
-  label,
-  disabled,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-  disabled?: boolean;
-}) {
-  return (
-    <label className={`flex items-center gap-2 text-sm ${disabled ? 'text-slate-600' : 'text-slate-300'}`}>
-      <input
-        type="checkbox"
-        checked={checked}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.checked)}
-        className="accent-sky-500 disabled:opacity-40"
-      />
-      {label}
-    </label>
-  );
-}
-
-/** One of the two altitude-reference dropdowns: the track's, and the pins'. */
-function AltitudeRefSelect({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: AltitudeReference;
-  onChange: (v: AltitudeReference) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <label className="flex items-center justify-between gap-3">
-      <span className="text-xs text-slate-400">{label}</span>
-      <select
-        aria-label={label}
-        value={value}
-        onChange={(e) => onChange(e.target.value as AltitudeReference)}
-        className="w-40 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
-      >
-        <option value="automatic">{t('pathExport.altRef.automatic')}</option>
-        <option value="ground">{t('pathExport.altRef.ground')}</option>
-        <option value="sealevel">{t('pathExport.altRef.sealevel')}</option>
-        <option value="clamped">{t('pathExport.altRef.clamped')}</option>
-      </select>
-    </label>
-  );
-}
-
-/**
- * One-click export shapes, after the three export buttons GPS DC offers. Each
- * spans all three sections of the dialog — which waypoints, whether the lines
- * are drawn, and how the result is placed — because those are the three things
- * that have to agree for a file to answer one question well.
- *
- * They set the controls and nothing else. Nothing is inferred at render time, so
- * the dialog always shows what the file will contain.
- *
- * Each states its selection IN FULL, waypoints included, never a subset. A
- * preset that sets only some of the controls is a one-way door: Landing plots
- * narrows the waypoints to the landing, and if Drift cast then leaves the
- * waypoints alone there is no way back to the other two presets as they are
- * described. Stating all of it keeps every preset reachable from every other.
- */
-// `waypoints` is required rather than optional, so the rule that a preset
-// states its whole selection is enforced by the compiler and not by memory.
-const EXPORT_PRESETS: {
-  id: string;
-  options: Partial<FlightPathExportOptions> & { waypoints: Set<WaypointKind> };
-}[] = [
-  {
-    // What the rocket drifts OVER: everything flat on the terrain, and the 3D
-    // line dropped because clamped it would only trace the ground track again.
-    id: 'driftCast',
-    options: {
-      waypoints: new Set<WaypointKind>(WAYPOINT_KINDS),
-      altitudeReference: 'clamped',
-      waypointAltitudeReference: 'clamped',
-      includeFlightPath: false,
-      includeGroundTrack: true,
-      drawShadow: false,
-    },
-  },
-  {
-    // How high it went: suspended in the air where it belongs.
-    //
-    // No shadow. A plumb line under ONE pin reads as a position; a curtain
-    // under the whole length of an arcing flight path is a solid wall that
-    // buries the flight it is meant to explain. The checkbox stays, for the
-    // case it is good at.
-    //
-    // This preset must state exactly what `defaultExportOptions` gives a fresh
-    // dialog, or the panel opens in a shape no button claims. It is the
-    // default state AND a selected one.
-    id: 'flightPath',
-    options: {
-      waypoints: new Set<WaypointKind>(WAYPOINT_KINDS),
-      altitudeReference: 'automatic',
-      waypointAltitudeReference: 'automatic',
-      includeFlightPath: true,
-      includeGroundTrack: true,
-      drawShadow: false,
-    },
-  },
-  {
-    // Where it comes down, and nothing else.
-    id: 'landing',
-    options: {
-      waypoints: new Set<WaypointKind>(['landing']),
-      altitudeReference: 'clamped',
-      waypointAltitudeReference: 'clamped',
-      includeFlightPath: false,
-      includeGroundTrack: false,
-      drawShadow: false,
-    },
-  },
-];
-
-/**
- * The preset whose stated options the dialog currently matches, or null.
- *
- * The highlight has to be able to show NOTHING. A preset only sets the
- * controls, so the moment one of them is adjusted by hand the state is no
- * preset's, and a button still claiming it would be lying about what the file
- * will contain. Clearing it — and reselecting when the controls match again —
- * is what keeps the highlight honest.
- *
- * Compared over whatever each preset STATES, read off the object rather than
- * listed here, so a preset that grows a key joins the comparison with it.
- */
-function matchingPreset(opts: FlightPathExportOptions): string | null {
-  const same = (a: unknown, b: unknown): boolean => {
-    if (a instanceof Set) {
-      const other = b as Set<unknown>;
-      return other instanceof Set && other.size === a.size && [...a].every((v) => other.has(v));
-    }
-    return a === b;
-  };
-  const current = opts as unknown as Record<string, unknown>;
-  const match = EXPORT_PRESETS.find((preset) =>
-    Object.entries(preset.options).every(([key, value]) => same(value, current[key])),
-  );
-  return match?.id ?? null;
-}
-
-function UnitRow({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: DistanceUnit;
-  onChange: (u: DistanceUnit) => void;
-}) {
-  return (
-    <label className="flex items-center justify-between gap-3">
-      <span className="text-xs text-slate-400">{label}</span>
-      <select
-        aria-label={label}
-        value={value}
-        onChange={(e) => onChange(e.target.value as DistanceUnit)}
-        className="w-24 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
-      >
-        {UNITS.map((u) => (
-          <option key={u} value={u}>
-            {u}
-          </option>
-        ))}
-      </select>
-    </label>
   );
 }

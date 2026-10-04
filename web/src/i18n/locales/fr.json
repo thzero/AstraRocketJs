@@ -282,6 +282,7 @@
     "launchNote": "Conditions de lancement par défaut des simulations nouvellement créées. Les conditions d'une simulation existante se modifient dans son panneau Lancement.",
     "defaultSpeed": "Vitesse par défaut",
     "confirmDelete": "Confirmer la suppression des simulations",
+    "autoRunOutdated": "Exécuter automatiquement les simulations obsolètes",
     "warnings": "Avertissements de sécurité",
     "railExitMin": "Vitesse min. en sortie de rampe",
     "deploySpeedWarn": "Avertir au-dessus d'une vitesse de déploiement de",

@@ -282,6 +282,7 @@
     "launchNote": "Condições de lançamento predefinidas para as simulações recém-criadas. As condições de uma simulação existente editam-se no painel Lançamento dela.",
     "defaultSpeed": "Velocidade predefinida",
     "confirmDelete": "Confirmar a eliminação de simulações",
+    "autoRunOutdated": "Executar automaticamente simulações desatualizadas",
     "warnings": "Avisos de segurança",
     "railExitMin": "Velocidade mín. ao sair da calha",
     "deploySpeedWarn": "Avisar velocidade de abertura acima de",

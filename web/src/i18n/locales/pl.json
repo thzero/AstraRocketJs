@@ -282,6 +282,7 @@
     "launchNote": "Domyślne warunki startu dla nowo tworzonych symulacji. Warunki istniejącej symulacji zmienia się w jej panelu Start.",
     "defaultSpeed": "Domyślna prędkość",
     "confirmDelete": "Potwierdzaj usuwanie symulacji",
+    "autoRunOutdated": "Automatycznie uruchamiaj nieaktualne symulacje",
     "warnings": "Ostrzeżenia bezpieczeństwa",
     "railExitMin": "Min. prędkość przy zejściu z szyny",
     "deploySpeedWarn": "Ostrzegaj przy prędkości otwarcia powyżej",

@@ -282,6 +282,7 @@
     "launchNote": "Standaard lanceeromstandigheden voor nieuwe simulaties. De omstandigheden van een bestaande simulatie pas je aan in het paneel Lancering daarvan.",
     "defaultSpeed": "Standaardsnelheid",
     "confirmDelete": "Verwijderen van simulaties bevestigen",
+    "autoRunOutdated": "Verouderde simulaties automatisch uitvoeren",
     "warnings": "Veiligheidswaarschuwingen",
     "railExitMin": "Min. snelheid bij verlaten rail",
     "deploySpeedWarn": "Waarschuwen bij openingssnelheid boven",

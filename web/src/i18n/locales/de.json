@@ -282,6 +282,7 @@
     "launchNote": "Standard-Startbedingungen für neu angelegte Simulationen. Die Bedingungen einer bestehenden Simulation ändern Sie in deren Start-Panel.",
     "defaultSpeed": "Standardgeschwindigkeit",
     "confirmDelete": "Löschen von Simulationen bestätigen",
+    "autoRunOutdated": "Veraltete Simulationen automatisch ausführen",
     "warnings": "Sicherheitswarnungen",
     "railExitMin": "Min. Geschwindigkeit am Schienenende",
     "deploySpeedWarn": "Warnung bei Auswurfgeschwindigkeit über",

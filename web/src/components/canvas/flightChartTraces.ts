@@ -119,7 +119,7 @@ export type Branch = {
  *
  * The key carries the simulation id as well as the branch index, so a hidden
  * stage of one flight never hides the same-numbered stage of another; the
- * chart itself is keyed on the simulation id by its host (CenterView), which
+ * chart itself is keyed on the simulation id by its host (CenterCanvas), which
  * is what gives a different flight a fresh selection and zoom.
  */
 export function buildTraces(flight: ChartFlight | null, stageLabel: (i: number) => string): Branch[] {

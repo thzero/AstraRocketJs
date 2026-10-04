@@ -282,6 +282,7 @@
     "launchNote": "Condiciones de lanzamiento predeterminadas para las simulaciones nuevas. Edita las condiciones de una simulación existente en su panel de Lanzamiento.",
     "defaultSpeed": "Velocidad predeterminada",
     "confirmDelete": "Confirmar la eliminación de simulaciones",
+    "autoRunOutdated": "Ejecutar automáticamente las simulaciones desactualizadas",
     "warnings": "Avisos de seguridad",
     "railExitMin": "Vel. mínima de salida del riel",
     "deploySpeedWarn": "Aviso de vel. de despliegue sobre",

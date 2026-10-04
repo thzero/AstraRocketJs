@@ -7,7 +7,7 @@ import { useLatest } from '../../../src/components/common/useLatest';
  * The guard five surfaces needed and one had.
  *
  * `LaunchPanel`'s geolocation callbacks, `WindProfileDialog.importCsv`,
- * `MotorDialog`'s import and delete and `FlightPathExport.onImport` each await a
+ * `MotorDialog`'s import and delete and `useExportTemplates.onImport` each await a
  * file read, a permission prompt or an IndexedDB round trip and then call an
  * `onChange` that writes to whatever rows are the CURRENT edit targets. A
  * geolocation prompt can sit unanswered for minutes. `MotorDialog.pick` already

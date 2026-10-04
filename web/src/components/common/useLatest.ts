@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef } from 'react';
  *
  * Five surfaces did the same thing without one: `LaunchPanel`'s geolocation
  * callbacks, `WindProfileDialog.importCsv`, `MotorDialog`'s import and delete,
- * and `FlightPathExport.onImport`. Each awaits a file read, a browser permission
+ * and `useExportTemplates.onImport`. Each awaits a file read, a browser permission
  * prompt or an IndexedDB round trip and then calls an `onChange` that writes to
  * whatever rows are the current edit targets, which may not be the ones that were
  * on screen when the work started. A geolocation prompt can sit unanswered for

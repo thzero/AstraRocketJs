@@ -296,8 +296,11 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               checked={settings.simulation.confirmDelete}
               onChange={(v) => setSim({ confirmDelete: v })}
             />
-            {/* 'Run outdated simulations automatically' hidden for now (setting still
-                  defaults to off; the auto-run effect just never triggers). */}
+            <CheckRow
+              label={t('settings.autoRunOutdated')}
+              checked={settings.simulation.autoRunOutdated}
+              onChange={(v) => setSim({ autoRunOutdated: v })}
+            />
             <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
               {t('settings.simOptions')}
             </div>
