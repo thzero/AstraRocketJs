@@ -1419,12 +1419,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // is disabled for these too; this is the belt-and-suspenders guard so a
       // programmatic run cannot get past it, and so a zero-volume body tube can
       // never hand back an apogee.
+      const targets = ids.filter((id) => s.sims.some((x) => x.id === id));
       const blocker = designBlocker(s.tree);
       if (blocker) {
-        set({ err: designBlockerText(blocker, i18n.t) });
+        // Recorded as failed ON this design, like a row skipped for its motor, so
+        // `selectRunFailed` holds auto-run back until the design changes.
+        const failedOn = { phase: 'failed', tree: s.tree } as const;
+        set((st) => ({
+          err: designBlockerText(blocker, i18n.t),
+          simRuns: { ...st.simRuns, ...Object.fromEntries(targets.map((id) => [id, failedOn])) },
+        }));
         return;
       }
-      const targets = ids.filter((id) => s.sims.some((x) => x.id === id));
       if (!targets.length) return;
 
       // What we are about to fly. The awaits below can outlast the design: if the

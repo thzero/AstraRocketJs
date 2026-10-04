@@ -695,6 +695,20 @@ describe('simulation run guards', () => {
     expect(s().simBusy).toBe(false); // never entered the running state
     expect(active().result).toBeNull();
   });
+
+  // A blocked design leaves the same state a thrown run does, so it needs the
+  // same record or auto-run would try it again on every chance it gets.
+  it('records a blocked design as a failed run, until the design changes', async () => {
+    s().setSelectedId('mount');
+    s().removeSelected();
+    await s().runSim({} as SimPrefs);
+    expect(simulateMock).not.toHaveBeenCalled();
+    expect(selectRunFailed(s())).toBe(true);
+
+    s().setSelectedId('nose');
+    s().patchSelected({ length: 0.2 });
+    expect(selectRunFailed(s())).toBe(false);
+  });
 });
 
 /**

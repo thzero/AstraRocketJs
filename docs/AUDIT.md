@@ -1233,7 +1233,12 @@ These are design findings, not defects. Each names a concrete split.
   carries a whole `RocketTree` reference for no other reason. The store comment
   records the shipped failure, a reproducible timeout retried without limit. A
   second hole remains: the design-blocker early return writes `err` but no
-  `simRuns` entry, so the guard does not cover it.
+  `simRuns` entry, so the guard does not cover it. That hole is FIXED
+  2026-10-03: a blocked run now records each requested row as failed on the
+  current tree, as a row skipped for its motor already was, so `selectRunFailed`
+  holds auto-run back until the design changes. The setting is off and hidden
+  today, so no user could hit it. Moving auto-run from an effect to a command is
+  still open.
 - **God components.** `CenterView.tsx` (480-line body, eight concerns),
   `HelpDialog.tsx` (536-line body, six concerns, seven `useState` and five
   `useEffect`), `FlightPathExport.tsx`'s dialog (575 lines with two hydrate and
