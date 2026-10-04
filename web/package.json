@@ -36,6 +36,7 @@
     "sync:motor-digests": "node scripts/sync-motor-digests.mjs",
     "check:ork": "node scripts/check-ork-opens.mjs",
     "e2e": "playwright test",
+    "e2e:core": "node scripts/e2e-core.mjs",
     "e2e:ui": "playwright test --ui",
     "e2e:update": "node scripts/check-update-flow.mjs",
     "e2e:offline-help": "node scripts/check-offline-help.mjs",

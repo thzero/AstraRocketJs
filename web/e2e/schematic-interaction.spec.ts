@@ -17,6 +17,20 @@ test.describe('2D schematic interaction', () => {
       .first();
 
   /**
+   * The screen y of the rocket's centerline: the middle of the nose cone's shape.
+   * The svg's own middle is not it, because the drawing centers between the
+   * ruler lanes that are on, and the default set is top and left only.
+   */
+  const centerlineY = async (page: Page) => {
+    const nose = (await schematic(page)
+      .locator('title', { hasText: /^Nose cone$/ })
+      .first()
+      .locator('..')
+      .boundingBox())!;
+    return nose.y + nose.height / 2;
+  };
+
+  /**
    * Open the app and wait for the drawing to settle before measuring it.
    *
    * These tests click at coordinates derived from the svg's bounding box, so a
@@ -37,7 +51,7 @@ test.describe('2D schematic interaction', () => {
     const svg = schematic(page);
     const box = (await svg.boundingBox())!;
     // Centerline, mid-rocket → lands on the airframe (body tube).
-    await page.mouse.click(box.x + box.width * 0.45, box.y + box.height / 2);
+    await page.mouse.click(box.x + box.width * 0.45, await centerlineY(page));
 
     await expect(hint).toBeHidden(); // selection populated the property editor
   });
@@ -49,7 +63,7 @@ test.describe('2D schematic interaction', () => {
     // Two thirds back, which is airframe and nothing else: the default design
     // packs a chute, a shock cord, wadding and a lug along the forward half, and
     // the tag names whichever part is under the cursor.
-    await page.mouse.move(box.x + box.width * 0.62, box.y + box.height / 2);
+    await page.mouse.move(box.x + box.width * 0.62, await centerlineY(page));
     await expect(svg.locator('text', { hasText: /Body tube/i })).toBeVisible();
   });
 

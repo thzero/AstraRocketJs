@@ -525,6 +525,18 @@ export interface FlightPathBranch {
   groundColorKml: string;
   /** The waypoint-pin color as an opaque KML aabbggrr literal. */
   pinColorKml: string;
+  /**
+   * The CSV `color` column: the stage's pin color as `#RRGGBB` when pins are
+   * colored, else `yellow`, the fixed color that column always carried. A map
+   * importer reads it, so pins match the KML's per-stage colors.
+   */
+  csvPinColor: string;
+  /**
+   * Whether this stage's waypoint `<Style>` carries anything: a pin color, or
+   * hidden labels. With neither it would be an empty element every waypoint
+   * points at, so the style and the `styleUrl` are both left out.
+   */
+  waypointStyled: boolean;
   waypoints: FlightPathWaypoint[];
   path: FlightPathPoint[];
   /** Template convenience (mirrors the desktop model's methods). */
@@ -904,6 +916,8 @@ export function buildFlightPathModel(
     branch.pathColorKml = kmlColor(rgb, 0xff);
     branch.groundColorKml = kmlColor(groundRgb, 0xff);
     branch.pinColorKml = kmlColor(pinRgb, 0xff);
+    branch.csvPinColor = model.colorWaypointPins ? `#${rgbHex(pinRgb)}` : 'yellow';
+    branch.waypointStyled = model.colorWaypointPins || !model.showWaypointLabels;
     model.branches.push(branch);
   }
 
@@ -1043,6 +1057,8 @@ function buildBranch(
     pathColorKml: '',
     groundColorKml: '',
     pinColorKml: '',
+    csvPinColor: 'yellow',
+    waypointStyled: true,
     waypoints: [],
     path: [],
     hasPath: false,
@@ -1290,7 +1306,6 @@ const KML_TEMPLATE_SOURCE = `<?xml version="1.0" encoding="UTF-8"?>
 		<name>{{title}}</name>
 		<open>1</open>
 {{#includeDescriptions}}
-		<Snippet></Snippet>
 		<description>&lt;b&gt;{{labels.rocket}}:&lt;/b&gt; {{rocketName}}&lt;br/&gt;
 {{#configuration}}&lt;b&gt;{{labels.configuration}}:&lt;/b&gt; {{configuration}}&lt;br/&gt;
 {{/configuration}}&lt;b&gt;{{labels.launchSite}}:&lt;/b&gt; {{launchLatitudeStr}}, {{launchLongitudeStr}} {{labels.latLon}}{{#launchAltitudeMeters}}, {{launchAltitude}} {{altitudeUnit}} {{labels.aboveSeaLevel}}{{/launchAltitudeMeters}}&lt;br/&gt;
@@ -1306,6 +1321,7 @@ const KML_TEMPLATE_SOURCE = `<?xml version="1.0" encoding="UTF-8"?>
 {{#branches}}
 		<Style id="flightPath{{index}}"><LineStyle><color>{{pathColorKml}}</color><width>3</width></LineStyle></Style>
 		<Style id="groundTrack{{index}}"><LineStyle><color>{{groundColorKml}}</color><width>2</width></LineStyle></Style>
+{{#waypointStyled}}
 		<Style id="waypoint{{index}}">
 {{#colorWaypointPins}}
 			<IconStyle>
@@ -1318,12 +1334,12 @@ const KML_TEMPLATE_SOURCE = `<?xml version="1.0" encoding="UTF-8"?>
 			<LabelStyle><scale>0</scale></LabelStyle>
 {{/showWaypointLabels}}
 		</Style>
+{{/waypointStyled}}
 {{/branches}}
 {{#branches}}
 		<Folder>
 			<name>{{name}}</name>
 {{#includeDescriptions}}
-			<Snippet></Snippet>
 			<description>&lt;b&gt;{{labels.maxRange}}:&lt;/b&gt; {{maxRange}} {{distanceUnit}} {{labels.fromThePad}}&lt;br/&gt;
 {{#hasLanding}}&lt;b&gt;{{labels.landing}}:&lt;/b&gt; {{landingLatitudeStr}}, {{landingLongitudeStr}} {{labels.latLon}}; {{landingText}} {{labels.fromThePad}}; T+{{landingTime}} s&lt;br/&gt;
 {{/hasLanding}}</description>
@@ -1332,14 +1348,14 @@ const KML_TEMPLATE_SOURCE = `<?xml version="1.0" encoding="UTF-8"?>
 			<Placemark>
 				<name>{{qualifiedLabel}}</name>
 {{#includeDescriptions}}
-				<Snippet></Snippet>
 				<description>&lt;b&gt;{{labels.time}}:&lt;/b&gt; T+{{timeText}} s&lt;br/&gt;
 &lt;b&gt;{{labels.altitude}}:&lt;/b&gt; {{altitude}} {{altitudeUnit}} {{labels.abovePad}}{{#launchAltitudeMeters}}, {{altitudeMsl}} {{altitudeUnit}} {{labels.aboveSeaLevel}}{{/launchAltitudeMeters}}&lt;br/&gt;
 &lt;b&gt;{{labels.position}}:&lt;/b&gt; {{rangeText}} {{labels.fromThePad}}&lt;br/&gt;
 &lt;b&gt;{{labels.coordinates}}:&lt;/b&gt; {{latitudeStr}}, {{longitudeStr}} {{labels.latLon}}{{#device}}&lt;br/&gt;
 &lt;b&gt;{{labels.device}}:&lt;/b&gt; {{device}}{{/device}}</description>
 {{/includeDescriptions}}
-				<styleUrl>#waypoint{{index}}</styleUrl>
+{{#waypointStyled}}				<styleUrl>#waypoint{{index}}</styleUrl>
+{{/waypointStyled}}
 				<Point>
 {{#extrudeWaypoints}}					<extrude>1</extrude>
 {{/extrudeWaypoints}}					<altitudeMode>{{kmlWaypointAltitudeMode}}</altitudeMode>
@@ -1413,7 +1429,7 @@ const GPX_TEMPLATE_SOURCE = `<?xml version="1.0" encoding="UTF-8"?>
 // CRLF line endings, matching the app's other CSV exports (Excel-friendly).
 const WAYPOINTS_CSV_TEMPLATE_SOURCE =
   '"altitude({{altitudeUnit}})","latitude","longitude","label","symbol","color","label_color","name"\r\n' +
-  '{{#branches}}{{#waypoints}}"{{altitude}}","{{latitudeStr}}","{{longitudeStr}}","{{type}}","pushpin","yellow","white","{{rocketName}} {{motor}} {{label}} - {{altitude}} {{altitudeUnit}} - {{distance}} {{distanceUnit}} @ {{bearing}} deg"\r\n' +
+  '{{#branches}}{{#waypoints}}"{{altitude}}","{{latitudeStr}}","{{longitudeStr}}","{{type}}","pushpin","{{csvPinColor}}","white","{{rocketName}} {{motor}} {{label}} - {{altitude}} {{altitudeUnit}} - {{distance}} {{distanceUnit}} @ {{bearing}} deg"\r\n' +
   '{{/waypoints}}{{/branches}}\r\n';
 
 export const EXPORT_FORMATS: ExportFormat[] = [

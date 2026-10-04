@@ -12,9 +12,10 @@ import { test, expect, openTab, runFlight } from './base';
  *
  * REQUIRES THE DOCS, and in CI that is not negotiable. `web/public/docs` is
  * gitignored, so for a long time these tests skipped on every CI run and the
- * shard reported green: the in-app Help dialog and offline Help had no
- * automated coverage anywhere, which is not what a passing e2e job looks like.
- * The e2e and update-flow jobs now run `npm run docs:build` for themselves.
+ * job reported green: the in-app Help dialog and offline Help had no automated
+ * coverage anywhere, which is not what a passing e2e job looks like. The
+ * e2e-full workflow and the update-flow job run `npm run docs:build` for
+ * themselves.
  *
  * So the skip is LOCAL ONLY. Without the docs a CI run fails loudly and names
  * the missing step, because a silent skip is the exact failure this spec was

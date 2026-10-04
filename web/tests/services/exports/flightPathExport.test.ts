@@ -1054,14 +1054,22 @@ describe('KML summary balloons', () => {
     expect(asBalloonText(kml)).toContain('Device: Main chute');
   });
 
-  it('gives every described feature an empty Snippet, before the description', () => {
-    // Without it Google Earth prints the first lines of the description under
-    // the feature name in the Places tree, turning the waypoint list into a
-    // wall of text. KML fixes the order: name, Snippet, description, styleUrl.
-    expect(kml.split('<Snippet></Snippet>').length).toBe(kml.split('<description>').length);
-    for (const [, between] of kml.matchAll(/<Snippet><\/Snippet>([\s\S]*?)<description>/g)) {
-      expect(between!.trim()).toBe('');
-    }
+  it('writes no Snippet', () => {
+    // An empty <Snippet> did not stop Google Earth desktop listing the
+    // description under the name, and Google Earth for web rejects its maxLines
+    // form as an unsupported element. It did nothing and could only cause errors.
+    expect(kml).not.toContain('Snippet');
+  });
+
+  it('leaves out a waypoint style that would carry nothing, and the styleUrl to it', () => {
+    // Pins uncolored and labels shown: the <Style> would be empty.
+    const plain = renderKml(build(result, { colorWaypointPins: false, showWaypointLabels: true }));
+    expect(plain).not.toContain('<Style id="waypoint');
+    expect(plain).not.toContain('#waypoint');
+    // Either setting gives it content, and then every waypoint points at it.
+    const hidden = renderKml(build(result, { colorWaypointPins: false, showWaypointLabels: false }));
+    expect(hidden).toContain('<Style id="waypoint0">');
+    expect(hidden.split('<styleUrl>#waypoint0</styleUrl>').length - 1).toBe(hidden.split('<Point>').length - 1);
   });
 
   it('shows the range and the landing as the different numbers they are', () => {
@@ -1113,6 +1121,22 @@ describe('renderGpx', () => {
 });
 
 describe('renderWaypointCsv', () => {
+  it('colors each pin with its stage pin color, as the KML does', () => {
+    const m = model();
+    const rows = renderWaypointCsv(m).trimEnd().split('\r\n').slice(1);
+    const want = m.colorWaypointPins ? `"#${m.branches[0]!.pinColorRgb}"` : '"yellow"';
+    expect(rows.every((r) => r.split(',')[5] === want)).toBe(true);
+    expect(want).not.toBe('"yellow"'); // pins are colored by default
+  });
+
+  it('keeps the fixed yellow when pin coloring is off', () => {
+    const rows = renderWaypointCsv(build(result, { colorWaypointPins: false }))
+      .trimEnd()
+      .split('\r\n')
+      .slice(1);
+    expect(rows.every((r) => r.split(',')[5] === '"yellow"')).toBe(true);
+  });
+
   it('has the header and one quoted row per waypoint', () => {
     const csv = renderWaypointCsv(model());
     const lines = csv.trimEnd().split('\r\n');
