@@ -118,7 +118,7 @@ const EXPECTED_EXPORTS = [
   // calculator's own setters and appear in any build, so listing them checked
   // nothing about the export surface.
   'setSupersonicAero', 'setRogersModifiedBarrowman', 'setStubbyNoseDrag',
-  'runParity',
+  'runParity', 'free',
 ];
 for (const target of targets) {
   const artifact = TARGETS[target].copies[0][0];

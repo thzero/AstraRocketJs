@@ -8,6 +8,7 @@
  *   node validation/score.mjs --supersonic  # score with the supersonicAero flag ON
  *   node validation/score.mjs --strict      # exit 1 if any gate point fails
  *   node validation/score.mjs --record-expect  # re-record each fixture's _expect.aero (deliberate only)
+ *   node validation/score.mjs [--supersonic] --check-floors  # the CI ratchet, from validation/floors.json
  *
  * Requires the engine to be built first (`npm run build`, or
  * `npm run build -w @online-openrocket/engine`).
@@ -25,8 +26,13 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 // Drive the vendored TeaVM engine directly (no TS wrapper build needed). Install the stdout
 // sinks the kernel reads once at evaluation, then adapt the handful of facade calls score uses.
+// stderr is COLLECTED, not discarded: a fixture that drives the kernel into a
+// logged failure path would otherwise be scored as if nothing happened. A clean
+// scoring run writes nothing to stderr at all (measured), so anything there
+// fails the run, with what was logged.
+let kernelStderr = '';
 globalThis.$rt_putStdoutCustom ??= () => {};
-globalThis.$rt_putStderrCustom ??= () => {};
+globalThis.$rt_putStderrCustom = (chunk) => { kernelStderr += chunk; };
 const engine = await import(
   pathToFileURL(join(here, '..', '..', 'web', 'src', 'engine', 'vendor', 'openrocket-engine.mjs')).href
 );
@@ -56,16 +62,22 @@ const numArg = (flag) => {
   }
   return v;
 };
-const minPass = numArg('--min');
-const expectGates = numArg('--expect-gates');
 const supersonic = process.argv.includes('--supersonic');
+// --check-floors takes the ratchet from validation/floors.json, the one place the
+// floors live: they were written out in gates.yml with a second hand-kept copy
+// in the README and nothing comparing the two. Explicit flags still override.
+const floors = process.argv.includes('--check-floors')
+  ? JSON.parse(readFileSync(join(here, 'floors.json'), 'utf8'))
+  : null;
+const minPass = numArg('--min') ?? (floors ? floors.min[supersonic ? 'supersonic' : 'classic'] : null);
+const expectGates = numArg('--expect-gates') ?? (floors ? floors.gates : null);
 // The IDENTITY of the gated set, not only its size: --expect-gates holds when
 // nine hard points are switched off and nine easy ones switched on, or when a
 // tolerance is widened, and the score rises with CI green. A sha256 over every
 // gated point's series, Mach, anchor and tolerance pins all of it.
 const gateHashAt = process.argv.indexOf('--expect-gate-hash');
-const expectGateHash = gateHashAt < 0 ? null : process.argv[gateHashAt + 1];
-if (gateHashAt >= 0 && !/^[0-9a-f]{64}$/.test(expectGateHash ?? '')) {
+const expectGateHash = gateHashAt < 0 ? (floors ? floors.gateHash : null) : process.argv[gateHashAt + 1];
+if (expectGateHash != null && !/^[0-9a-f]{64}$/.test(expectGateHash)) {
   console.error('score: --expect-gate-hash needs a sha256 in hex');
   process.exit(2);
 }
@@ -260,17 +272,22 @@ if (gateTotal === 0) {
 }
 
 let failed = false;
+if (kernelStderr.trim()) {
+  console.error('score: the kernel logged errors while the anchors were scored:');
+  kernelStderr.trim().split(/\r?\n/).slice(0, 20).forEach((l) => console.error(`  ${l}`));
+  failed = true;
+}
 // Silent shrinkage of the anchor set is the other way this fails open: the
 // denominator just gets smaller and the scorecard reads normally. Pin it.
 if (expectGates != null && gateTotal !== expectGates) {
   console.error(`score: expected ${expectGates} gated point(s), scored ${gateTotal}.`);
-  console.error('score:   anchors.json changed shape. If deliberate, update --expect-gates.');
+  console.error('score:   anchors.json changed shape. If deliberate, update gates in validation/floors.json.');
   failed = true;
 }
 if (expectGateHash != null && gateHash !== expectGateHash) {
   console.error(`score: the gated set changed: sha256 ${gateHash}, expected ${expectGateHash}.`);
   console.error('score:   a gate flag, Mach range, anchor or tolerance moved in anchors.json.');
-  console.error('score:   If deliberate, update --expect-gate-hash in gates.yml and say why in review.');
+  console.error('score:   If deliberate, update gateHash in validation/floors.json and say why in review.');
   failed = true;
 }
 if (minPass != null && gatePass < minPass) {

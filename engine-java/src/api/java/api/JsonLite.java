@@ -167,15 +167,20 @@ public final class JsonLite {
                         // "\\u-123" silently injected (char) -291 into a
                         // component name and "\\u12" threw the wrong exception
                         // type. Validate all four digits are hex first.
-                        if (pos + 4 > src.length()) throw err("4 hex digits after \\u");
-                        int cp = 0;
-                        for (int k = 0; k < 4; k++) {
-                            int d = Character.digit(src.charAt(pos + k), 16);
-                            if (d < 0) throw err("4 hex digits after \\u");
-                            cp = (cp << 4) | d;
-                        }
+                        int cp = hex4();
+                        // A surrogate is only half a character: a high one must be
+                        // followed by a low one, and a low one cannot stand alone.
+                        // Kept, a lone one was re-emitted raw and left the output
+                        // not well-formed UTF-8 for anything that encoded it.
+                        if (Character.isLowSurrogate((char) cp)) throw err("a high surrogate before \\u" + Integer.toHexString(cp));
                         sb.append((char) cp);
-                        pos += 4;
+                        if (Character.isHighSurrogate((char) cp)) {
+                            if (!src.startsWith("\\u", pos)) throw err("a low surrogate after a high one");
+                            pos += 2;
+                            int low = hex4();
+                            if (!Character.isLowSurrogate((char) low)) throw err("a low surrogate after a high one");
+                            sb.append((char) low);
+                        }
                         break;
                     default: throw err("escape");
                 }
@@ -185,6 +190,19 @@ public final class JsonLite {
         }
     }
 
+    /** Four hex digits at pos, consumed. */
+    private int hex4() {
+        if (pos + 4 > src.length()) throw err("4 hex digits after \\u");
+        int cp = 0;
+        for (int k = 0; k < 4; k++) {
+            int d = Character.digit(src.charAt(pos + k), 16);
+            if (d < 0) throw err("4 hex digits after \\u");
+            cp = (cp << 4) | d;
+        }
+        pos += 4;
+        return cp;
+    }
+
     private Double number() {
         int start = pos;
         while (pos < src.length() && "+-0123456789.eE".indexOf(src.charAt(pos)) >= 0) {
@@ -192,6 +210,12 @@ public final class JsonLite {
         }
         if (start == pos) throw err("number");
         final String text = src.substring(start, pos);
+        // JSON's own grammar, not Double.parseDouble's: `01`, `+0.3` and `.3` are
+        // numbers to Java and errors to JSON.parse, so a payload the JS side would
+        // reject was read here as if it were valid.
+        if (!isJsonNumber(text)) {
+            throw new IllegalArgumentException("JSON: bad number '" + text + "' at " + start);
+        }
         final double d;
         try {
             d = Double.parseDouble(text);
@@ -208,6 +232,35 @@ public final class JsonLite {
             throw new IllegalArgumentException("JSON: non-finite number '" + text + "' at " + start);
         }
         return Double.valueOf(d);
+    }
+
+    /** -?(0|[1-9][0-9]*)(.[0-9]+)?([eE][+-]?[0-9]+)? */
+    private static boolean isJsonNumber(String t) {
+        int i = 0;
+        final int n = t.length();
+        if (i < n && t.charAt(i) == '-') i++;
+        if (i >= n) return false;
+        if (t.charAt(i) == '0') {
+            i++;
+        } else if (t.charAt(i) >= '1' && t.charAt(i) <= '9') {
+            while (i < n && Character.isDigit(t.charAt(i))) i++;
+        } else {
+            return false;
+        }
+        if (i < n && t.charAt(i) == '.') {
+            i++;
+            final int digits = i;
+            while (i < n && Character.isDigit(t.charAt(i))) i++;
+            if (i == digits) return false;
+        }
+        if (i < n && (t.charAt(i) == 'e' || t.charAt(i) == 'E')) {
+            i++;
+            if (i < n && (t.charAt(i) == '+' || t.charAt(i) == '-')) i++;
+            final int digits = i;
+            while (i < n && Character.isDigit(t.charAt(i))) i++;
+            if (i == digits) return false;
+        }
+        return i == n;
     }
 
     private void ws() {

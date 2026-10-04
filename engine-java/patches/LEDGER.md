@@ -67,8 +67,8 @@ reconstructed.
 | `rocketcomponent/FlightConfigurationId.java` | `java.util.UUID` → `core.util.LongUUID` (TeaVM's UUID has no `(long, long)` constructor, `getMostSignificantBits` or `compareTo`). |
 | `rocketcomponent/InstanceMap.java` | `ConcurrentHashMap` → `LinkedHashMap`; also makes iteration order stable. |
 | `motor/MotorConfigurationId.java` | Same `LongUUID` swap, same TeaVM gap. |
-| `simulation/BasicEventSimulationEngine.java` | `"%g"` → `"%s"` — TeaVM's `Formatter` lacks `%g`. Plus `PATCH(drogue-low-speed)`: upstream's own drogue-low-speed check, uncommented (see below). |
-| `util/BoundingBox.java` | Dropped `java.awt.geom.Rectangle2D`. |
+| `simulation/BasicEventSimulationEngine.java` | `PATCH(teavm-format-g)`: `"%g"` → `"%s"` — TeaVM's `Formatter` lacks `%g`. Plus `PATCH(drogue-low-speed)`: upstream's own drogue-low-speed check, uncommented (see below). |
+| `util/BoundingBox.java` | Dropped `java.awt.geom.Rectangle2D`, and with it the public `update(Rectangle2D)` and `toRectangle()` (it does not use `Geo2D`). `PATCH(teavm-format-g)`: `toString()` built by concatenation, since TeaVM's `Formatter` has no `%g`. |
 | `aerodynamics/BarrowmanDragCalculator.java` | `Reflection.construct` → an `instanceof` chain (no reflection under TeaVM); `buildCalcMap` widened to `protected`; `effectiveBaseCD`/`turbulentCompressibility` seams for the RASAero shims. |
 | `aerodynamics/BarrowmanStabilityCalculator.java` | Same reflection replacement and `protected` widening, for the stability half. |
 | `simulation/SimulationOptions.java` | Dropped the `java.nio.file` lookup-table subsystem — absent from TeaVM's classlib. |
@@ -1111,6 +1111,15 @@ outlines are indistinguishable from having sent no outline.
 
 ---
 
+## `BoundingBox.toString()` without `%g` - 2026-10-04
+
+`PATCH(teavm-format-g)` in `util/BoundingBox.java` (`docs/AUDIT_ENGINE.md` P9).
+`toString()` used six `%g` conversions, which TeaVM's `Formatter` does not have,
+so the first log line or message that printed a bounding box would have thrown
+inside the kernel, an uncatchable trap on the WASM-GC target. Nothing calls it
+today. It is now built by concatenation, the same shape as upstream's with
+`Double.toString` for each number. `BoundingBox.java` 19 to 28 lines.
+
 ## Off-axis tubes and motors carry their roll inertia - 2026-09-27
 
 `PATCH(offaxis-roll-inertia)`, in `masscalc/MassCalculation.java` and
@@ -1229,3 +1238,38 @@ modeled.
   taken as whole files. The two hunks were ported onto upstream's current files.
 - **Upstreamable,** and should be offered: the defect is in desktop OpenRocket
   too. Retire this patch when upstream fixes it.
+
+## Repinned to upstream `b4eb02a48` - 2026-10-04
+
+From `98f05af97` (2026-09-21) to `b4eb02a48` (2026-10-03), the head of canonical
+`unstable` on the day. 298 commits, most of them Crowdin translations. Seven
+extracted files moved:
+
+- **`simulation/AbstractRKSimulationStepper.java`**, with
+  `AbstractSimulationStepper.java` and `FlightDataType.java` (PR #3327). Thrust
+  now carries the pressure term of the rocket thrust equation:
+  `nozzleExitArea * (101325 Pa - ambient pressure)`, added only while a motor
+  is thrusting and has a nozzle exit area. The term is stored as the new
+  `TYPE_THRUST_CORRECTION`. Taken unpatched: we already ride upstream's
+  per-motor nozzle exit diameter.
+- **`simulation/SimulationOptions.java`** (patched). Upstream's `equals()` now
+  compares `useISA`, `launchIntoWind` and `geodeticComputation`, and those three
+  lines are carried into the patch. Its other two `equals()` lines and the
+  `copyConditionsFrom()` hunk are about the CSV lookup tables, which this patch
+  removes, so they are left out. Divergence 155 to 161, blessed: the six are
+  upstream's lookup lines this patch does not have.
+- **`util/Reflection.java`**, a class-lookup cache (`ConcurrentHashMap`,
+  `Optional`). Builds under TeaVM unchanged.
+- **`aerodynamics/FlightConditions.java`** (a comment) and
+  **`aerodynamics/barrowman/TubeFinSetCalc.java`** (two debug log lines removed).
+
+Shims re-reviewed and blessed in `SHIMS.txt`: upstream's `OpenRocketDocument`
+(undo event handling), `Simulation` (an interrupted run stays outdated) and
+`ApplicationPreferences` (a save-data preference) changed only in code our lean
+replacements do not have.
+
+- **Golden:** one value moved, `flight.mindia`, the only scenario with a nozzle
+  exit (14 mm on a C6): apogee 332.79 m to 337.86 m. Every other line is
+  bit-identical. Re-recorded.
+- **Parity:** JS and WASM agree with the JVM on all 356 lines.
+- **Validation:** classic 9/135 and supersonic 61/135, both at their floors.

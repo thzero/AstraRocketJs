@@ -227,6 +227,12 @@ function linesMatch(a, b, forGolden = false) {
   const fb = b.split('|');
   if (fa.length !== fb.length || fa[0] !== fb[0]) return false;
   const isFlight = fa[0].startsWith('flight.');
+  // Against the golden, a line that is not time-integrated has no drift to
+  // excuse: the JVM reproduces every one of them bit for bit (measured, all 356
+  // golden values, flights included, on the recording machine). Only the
+  // integrated flight lines keep a band, for a golden recorded on another
+  // platform, and the run reports how many needed it.
+  if (forGolden && !isFlight) return false;
   const isTurbulent = fa[0].startsWith('flight.conditions');
   const isSeriesLens = fa[0] === 'flight.conditions.serieslens';
   const scale = forGolden ? GOLDEN_TOL_SCALE : 1;
@@ -324,9 +330,12 @@ const readGolden = () => {
 // Returns the number of moved values, printing the first 10.
 const compareGolden = (golden, what) => {
   let moved = 0;
+  let banded = 0;
   const gn = Math.max(golden.length, jvm.length);
   for (let i = 0; i < gn; i++) {
-    if (!linesMatch(golden[i], jvm[i], true)) {
+    const m = linesMatch(golden[i], jvm[i], true);
+    if (m === 'ulp') banded++;
+    if (!m) {
       if (moved < 10) {
         console.error(`${what} line ${i + 1}:`);
         console.error(`  expected: ${golden[i] ?? '<missing>'}`);
@@ -335,7 +344,16 @@ const compareGolden = (golden, what) => {
       moved++;
     }
   }
-  return { moved, gn };
+  return { moved, gn, banded };
+};
+
+// Where the golden was recorded, so a flight line that stops matching exactly can
+// be traced to a platform change rather than read as a regression.
+const platform = () => {
+  // `java -version` writes to stderr.
+  const r = spawnSync(javaExe(gradleEnv), ['-version'], { encoding: 'utf8' });
+  const java = `${r.stderr ?? ''}${r.stdout ?? ''}`.split(/\r?\n/)[0] || 'unknown';
+  return `${process.platform}-${process.arch} ${java.trim().replace(/\s+/g, '_')}`;
 };
 
 if (writeGolden) {
@@ -353,6 +371,7 @@ if (writeGolden) {
   } catch { /* not a checkout, or no git: provenance degrades, the sha256 does not */ }
   const header = [
     `${GOLDEN_MAGIC} sha256=${goldenDigest(jvm)} lines=${jvm.length} generated=${new Date().toISOString()} commit=${commit}`,
+    `# recorded on: ${platform()}`,
     '# The JVM reference output, recorded deliberately with `npm run parity:golden`.',
     '# parity.mjs re-verifies the sha256 above on every run, so a hand-edited value',
     '# here fails the gate instead of quietly becoming the new truth.',
@@ -393,14 +412,18 @@ if (writeGolden) {
     console.error('  --expect-lines in .github/workflows/gates.yml and say why in review.');
     process.exit(1);
   }
-  const { moved, gn } = compareGolden(data, 'GOLDEN');
+  const { moved, gn, banded } = compareGolden(data, 'GOLDEN');
   if (moved) {
     console.error(`GOLDEN FAILURE: ${moved} value(s) of ${gn} moved.`);
     console.error('The physics changed. If that was deliberate, re-run with --golden and');
     console.error('say in the commit message WHY the numbers moved.');
     process.exit(1);
   }
-  say(`golden ok: ${data.length} reference value(s) unchanged`);
+  say(`golden ok: ${data.length} reference value(s) unchanged (${data.length - banded} bit-identical, ${banded} flight line(s) within tolerance)`);
+  if (banded) {
+    const rec = readFileSync(goldenPath, 'utf8').match(/^# recorded on: (.*)$/m);
+    say(`  the golden was recorded on ${rec ? rec[1] : 'an unrecorded platform'}; this run is ${platform()}`);
+  }
 }
 
 // --- exit: nothing from here up may need the event loop ---------------------

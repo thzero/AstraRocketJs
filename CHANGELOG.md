@@ -8,7 +8,26 @@ so most entries describe getting a computation to match OpenRocket exactly.
 
 ## [Unreleased]
 
+### Added
+- **"Run outdated simulations automatically" can be turned on** in Settings > Simulation (off by default). It acts only while the Results tab is showing, so an edit on the Simulations tab no longer re-flies a row and pulls you to Results.
+- **The launch-site map works from the keyboard**: arrows pan, plus and minus zoom, and Enter puts the location at the center, marked by a crosshair while the map has focus.
+
 ### Fixed
+- **Flight path exports.** The KML no longer writes empty `Snippet` elements, and leaves out a waypoint style that would carry nothing. The CSV color column takes each stage's pin color instead of always `yellow`, so imported pins match the KML.
+- **Accessibility.** Tab now reaches the Help page inside its dialog. Settings and the design library have real tabs (one tab stop, arrow keys, linked panels). The image export menu names each width with its format. Glyph-only buttons are labeled, Loop and Follow report their state, color rows no longer bind one label to two controls, motor tables mark their column headers, and a failed catalog download is announced.
+- **Help.** A section picked in the contents rail before its page finished loading now opens there, and the rail tracks the right section after the page re-renders.
+- **Fin count is capped at 8**, the engine's own limit, in the editor and on `.ork` import. A trapezoid fin count outside 1 to 8 is refused instead of quietly flying as a different number of fins.
+- **Import limits match the engine's**: 64 instances and 30 component levels, so a file that imports also builds.
+- **Bad input is refused, not guessed at.** An unknown shape, cross-section, finish, position method or deploy event is an error naming the field and the accepted values, instead of a silent default; a negative size, a dimension past 1e6, or a malformed `children` list is refused instead of building a different or massless rocket. OpenRocket's `after` position, `lower_stage_separation` deployment and `mirror`/`optimum` finishes are now read correctly instead of as defaults.
+- **Motor names sort the way the desktop sorts them.** Names containing `.`, `'`, `_` or `/` no longer compare equal to the same name without the mark.
+- **Radial distance and direction on parachutes, streamers and shock cords fly**, as on the desktop: the part's mass sits at the offset. The value is now read from and saved to `.ork` for these and for couplers, centering rings, bulkheads and engine blocks, which used to import centered and save as 0. A ring part still flies on the axis, as OpenRocket computes it.
+- **`.rkt` saves write an off-axis ring part, mass component or shock cord's radial distance and angle**, as desktop OpenRocket's exporter does. Parachutes and streamers carry none, and on open the offset is still read only for inner tubes and pods, both as on the desktop.
+- **A solid body tube saves and opens as solid.** `.ork` now writes and reads desktop's `<thickness>filled</thickness>` for a body tube, as it already did for nose cones and transitions; the tube used to reopen hollow.
+- **Every field on the Design tab is checked against the file and the engine.** Two tests walk the full field list: each field must survive a `.ork` save and reopen, and each must change what the engine computes unless it is listed with the reason it cannot (flight-only events, symmetric rotations, ring parts the engine keeps on the axis).
+- **A `.ork` motor with no readable ejection delay imports as plugged**, as desktop OpenRocket reads it, with an import note. An absent, blank or unparseable `<delay>` used to import as 0 s, which fires the charge at burnout.
+- **Off-axis roll inertia** counts for couplers and engine blocks, not only inner tubes.
+- **A result reads outdated exactly when its inputs changed**, including after an undo back to the flown value, and survives a reload correctly. Editing a dimension no longer rebuilds the engine on every keystroke.
+
 - **The nose-cone and transition curves were checked against themselves.** `shapeProfile.ts` draws the six profile shapes - `conical`, `ellipsoid`, `power`, `parabolic`, `haack`, `ogive` - which decide the schematic outline, the 3D mesh, the STL, and the cross-sectional area the kernel takes drag from. Where its test checked interior points, it computed the expected value by calling `shapeRadius`, the function under test, so a wrong formula produced a wrong expectation and the test agreed with itself.
 
   `tests/tree/shapeProfile.kernel.test.ts` transcribes all six formulas from `Transition.java` and reimplements them independently, sweeping seven interior stations. A disagreement between the two now says which expression to look at, rather than confirming whatever the module currently does.
@@ -227,6 +246,7 @@ so most entries describe getting a computation to match OpenRocket exactly.
   Nothing here is in the app build. It is a data step, run when the catalog is refreshed, and `tests/state/defaultRocketParts.test.ts` holds a floor under it so a catalog refreshed without it fails rather than quietly shipping parts that no longer reach the file.
 
 ### Changed
+- **Engine repinned to OpenRocket `b4eb02a48` (2026-10-03), the head of `unstable`.** Thrust now includes the nozzle exit pressure term from upstream (PR #3327): a motor with a nozzle exit area gains `area × (101325 Pa - ambient pressure)` while it burns, so it pushes harder as the air thins. Flights with a nozzle exit diameter fly a little higher; the reference minimum-diameter C6 design with a 14 mm exit went from 332.8 m to 337.9 m. A motor with no nozzle exit area flies exactly as before. The rest of the 298 commits are translations, desktop UI and build work.
 - **Descent sizing says it is an estimate, and hands over to the kernel once a run has one.** Every figure in the parachute panel's **Descent sizing** block, and the **Mass (Recovery)** stats tile, was the app doing its own physics: the mass is loaded mass less the propellant that burns off, the rate comes from the descent equation at an air density we model ourselves, and the two suggested diameters are that equation solved backwards. None of it came from the engine, and none of it said so.
 
   The block now reads *Estimated for a descent mass of…* before a run, and *Measured in the last run…* once one has flown that device, with the mass and the rate read straight out of the kernel's own series at the time of its own events: the mass series at the deployment event, and the velocity at the end of that device's descent phase (the next chute, or the ground) where the rate has settled. The tile's label reads **Mass (Recovery, est.)** until the same thing happens. The marker sits on the label rather than in place of the unit chip beneath it, because that chip is the control that sets the tile's unit and a marker is not worth a control.

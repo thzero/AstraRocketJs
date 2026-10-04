@@ -18,6 +18,10 @@ node validation/score.mjs --supersonic       # the opt-in supersonic aero model
 node validation/score.mjs --strict           # exit 1 unless every gate point passes
 ```
 
+`--strict` (also `npm run validate:strict`) is the goal, not a gate: with 9 of 135
+points passing on the classic model and 61 on the supersonic one, it fails today
+by design. CI gates on the ratchet in `floors.json` instead.
+
 ## Scoreboard
 
 **ANCHOR REVISION (2026-08-04 audit, 137 → 135 gates):** the ARCAS M1.19 rows
@@ -98,6 +102,8 @@ node validation/score.mjs --supersonic > validation/scorecard-supersonic.md
     free-flight data to M4.47
   - `hb2.json` — AGARD HB-2 blunt cone-cylinder-flare, finless body anchor to
     M10 (geometry approximated pending nose-bluntness support)
+- `floors.json` — the CI ratchet: gate count, gated-set hash and the two score
+  floors, read by `score.mjs --check-floors`
 - `anchors.json` — machine-readable anchor tables (units/conventions in its
   `_readme`; `gate: false` series are informational)
 - `score.mjs` — builds each fixture, runs `aeroSweep` (which emits CD
@@ -130,9 +136,10 @@ Keep gates honest: never widen a tolerance to make a phase pass — the
 tolerances come from the datasets' own stated accuracies.
 
 That rule is enforced, not only stated. The scorecard prints a sha256 of the
-gated set (every gated point's series, Mach, anchor and tolerance), and CI
-passes it as `--expect-gate-hash`, so a widened tolerance or a swapped gate flag
-fails even when the gate count holds. Each fixture's `_expect.aero` pins its own
+gated set (every gated point's series, Mach, anchor and tolerance). CI runs
+`score.mjs --check-floors`, which takes the gate count, that hash and the two
+score floors from `floors.json`, the one place they live, so a widened tolerance
+or a swapped gate flag fails even when the gate count holds. Each fixture's `_expect.aero` pins its own
 drag, CNa and CP at Mach 0.5 and 2.0 under both models, so a fixture that stops
 modeling its rocket fails before it is scored. A deliberate aero model change
 re-records those with `node validation/score.mjs --record-expect`.

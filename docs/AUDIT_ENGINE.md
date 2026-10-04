@@ -274,7 +274,7 @@ offset no flight here acts on. `patches/LEDGER.md` now says that upstream's
 so the asymmetry reads as a decision. P5 removed the part of it that made one ring
 type disagree with another.
 
-### P7. The Van Driest fade misses the polished-finish branch (MED, REPORTED)
+### P7. The Van Driest fade misses the polished-finish branch (MED, REPORTED) - CLOSED, out of scope
 
 `src/shims/.../RASAeroDragCalculator.java:112`'s `turbulentCompressibility` seam is
 reached from only one of `BarrowmanDragCalculator.calculateFrictionCoefficient`'s
@@ -293,7 +293,7 @@ desktop setting that never takes effect here.
 Fix: seam the partial-laminar branch too, or document that the fade is
 turbulent-only; separately, wire `perfectFinish` through the facade.
 
-### P8. A documented sweep-relief expression is identically 1.0 (LOW, REPORTED)
+### P8. A documented sweep-relief expression is identically 1.0 (LOW, REPORTED) - CLOSED, out of scope
 
 `patches/.../barrowman/FinSetCalc.java`'s `sweepWaveFactor` supersonic-LE branch is
 `Math.min(1.0, Math.max(c2, beta*cosGammaLead/betaN))`. Since
@@ -307,7 +307,7 @@ values, and credits a measured RM A53D02 result to a formula that is not running
 Fix: drop the dead expression and document that sweep relief switches off at the
 sonic leading edge, or replace it with a factor that is actually below 1.
 
-### P9. `BoundingBox.toString()` keeps six `%g` conversions (LOW, REPORTED)
+### P9. `BoundingBox.toString()` keeps six `%g` conversions (LOW, REPORTED) - FIXED 2026-10-04
 
 `patches/.../util/BoundingBox.java:172` exists solely to make the file TeaVM-safe
 and leaves six `%g` conversions, the exact conversion its sibling patch in
@@ -334,6 +334,11 @@ returned. `PATCH(drogue-low-speed)` is exactly upstream's own commented-out bloc
 uncommented, with the four code lines byte-identical. `ArrayList.clone()` is a
 faithful shallow copy. `SimulationOptions`' 137 changed lines are entirely deletion
 of the `java.nio.file` CSV subsystem, with no new flag, field or default added.
+
+**FIXED 2026-10-04.** `toString()` is built by concatenation, the same shape as
+upstream's with `Double.toString` for each number, under `PATCH(teavm-format-g)`.
+The ledger now names that marker for both `%g` patches, and its `BoundingBox` row
+and the README no longer claim the file uses `Geo2D`. Re-blessed, 19 to 28 lines.
 
 ---
 
@@ -550,7 +555,7 @@ the setting, so those variables do not reach the forked toolchain compiler on th
 setup. The setting stays because it costs nothing and makes the build state its
 encoding instead of inheriting it.
 
-### G9. The validation floors sit exactly on the measurement (MED, VERIFIED)
+### G9. The validation floors sit exactly on the measurement (MED, VERIFIED) - FIXED 2026-10-04
 
 Ran both commands:
 
@@ -568,6 +573,12 @@ numbers, with nothing comparing them.
 
 Fix: keep the floors at the measurement and have `score.mjs` read them from one
 committed file the README renders from.
+
+**FIXED 2026-10-04.** The gate count, the gated-set hash and both floors live in
+`validation/floors.json` and nowhere else. CI runs `score.mjs --check-floors`, which
+reads them; `gates.yml` no longer repeats the numbers, and the validation README
+points at the file. Checked both ways: raising the classic floor to 10 or
+changing the gate count to 134 fails the run.
 
 ### G10. The committed scorecards are wrong on almost every row (MED, VERIFIED totals) - FIXED 2026-10-04
 
@@ -593,7 +604,7 @@ longer claim a date its content has outgrown. The two stale "current" files
 the phase-1 to phase-4 snapshots stay, labeled historical. The validation README's
 table, regenerate command and file list point at the new files.
 
-### G11. Golden tolerances are loose where they need not be (MED, REPORTED)
+### G11. Golden tolerances are loose where they need not be (MED, REPORTED) - FIXED 2026-10-04
 
 Measured by perturbing the JVM reference and running the real comparison: static
 lines 6e-14 relative (bit-exact in practice), `flight.*` 0.30 percent (0.99 m of a
@@ -610,7 +621,18 @@ Fix: record the golden on a pinned platform and split it into a bit-exact sectio
 and a tolerance-based one, so the loose band is visibly confined to the chaotic-wind
 scenario.
 
-### G12. `validate` scores only the JS artifact and discards kernel logs (MED, REPORTED)
+**FIXED 2026-10-04, in the part that can be checked here.** A fresh JVM run
+reproduces all 356 golden values bit for bit on the recording machine, turbulent
+flights included. So against the golden, every line that is not time-integrated
+must now match exactly (it had a 6e-14 band). The flight lines keep their band
+only because CI records on another OS, which could not be measured from here: the
+run now reports how many golden values matched only within tolerance (0 today),
+and the golden header records the platform it was recorded on
+(`win32-x64`, OpenJDK 21.0.12), so a flight line that stops matching exactly
+points at a platform change. Tightening the flight band further waits on a CI
+measurement.
+
+### G12. `validate` scores only the JS artifact and discards kernel logs (MED, REPORTED) - FIXED 2026-10-04
 
 `score.mjs` imports `web/src/engine/vendor/openrocket-engine.mjs` directly, never
 the WASM-GC module the app loads by default, installs the stdout and stderr sinks as
@@ -623,6 +645,10 @@ a fixture that drives the kernel into a logged failure path scores silently.
 Fix: collect rather than discard, and fail if the kernel logged an error while a
 gated point was computed.
 
+**FIXED 2026-10-04.** `score.mjs` collects the kernel's stderr instead of
+discarding it. A clean scoring run writes nothing there (measured), so any output
+fails the run and prints what was logged; a planted error line was caught.
+
 ### G13. The largest body of original physics is pinned by 10 golden lines (MED, REPORTED) - CLOSED, out of scope
 
 The opt-in RASAero model, two shim calculators plus patched upstream files, is
@@ -633,7 +659,7 @@ against real anchors but gates only on a floor it already sits exactly on.
 Fix: extend the `ssaero` sweep to the Mach grid the classic `aero.cp` scenario
 already uses.
 
-### G14. A `--golden` rewrite is visible only as an ordinary diff (MED, REPORTED)
+### G14. A `--golden` rewrite is visible only as an ordinary diff (MED, REPORTED) - FIXED 2026-10-04
 
 The `--golden` run does print how many values moved, but that transcript is on the
 developer's machine and CI never sees it. No CI step mentions `golden.txt` at all.
@@ -647,7 +673,14 @@ plausible commit message, with nothing forcing a second pair of eyes.
 Fix, cheapest effective: a PR step that fails if `golden.txt` differs from the merge
 base unless a commit message carries an explicit marker.
 
-### G15. Smaller gate holes, each demonstrated
+**FIXED 2026-10-04, as a report rather than a gate.** A `golden-report` job on
+pull requests lists, in the job summary, every golden value the request moved,
+added or removed, compared by value so a header-only re-record reports nothing.
+It never fails: the point is that a re-record is seen where it is reviewed, not
+that it is blocked. Tested in a scratch repository from `engine-java/`, as CI runs
+it.
+
+### G15. Smaller gate holes, each demonstrated - FIXED 2026-10-04
 
 - **A duplicate manifest line passes.** Appending a second
   `info/openrocket/core/util/MathUtil.java` gives exit 0, and the run still reports
@@ -685,6 +718,14 @@ pinned clone returns OK, exit 0. Parity's four failure modes all correctly fail:
 non-zero exit, zero exit with no output, a truncated run, and a hang, each with the
 deciding line identified; the two dangerous ones are closed deliberately and
 documented as having been found.
+
+**FIXED 2026-10-04.** A duplicate manifest line is refused. A patch identical to
+upstream counts as a failure and `--bless` refuses to record it. The `describe`
+field must end in the pinned ref's short hash (the clone is shallow, so the tag
+half cannot be checked here, but a bump that forgets `describe` fails). `--bless`
+prints a paste-ready ledger stub for every entry that moved. Each was replayed:
+the duplicate line, a mismatched `describe` and an upstream-identical
+`ArrayList.java` all fail. The job timeouts were already in place.
 
 ---
 
@@ -771,7 +812,7 @@ non-list (`should be a list`) and any element that is not an object. Both
 measured cases, `"children":[1,2,3]` and `"children":{...}`, are now errors, each
 tested against the rebuilt kernel.
 
-### B4. Seven string-to-enum mappers silently default (MED, DEMONSTRATED)
+### B4. Seven string-to-enum mappers silently default (MED, DEMONSTRATED) - FIXED 2026-10-04
 
 `crossSectionOf`, `shapeOf`, `axialMethodOf`, `deployEventOf`, `finishOf`,
 `radiusMethodOf`/`angleMethodOf` and `massComponentTypeOf` all default an
@@ -786,7 +827,18 @@ or when the chute comes out. `shapeOf`'s silent OGIVE changes CP.
 
 Fix: throw on an unknown name, as the type switch already does.
 
-### B5. The two backends disagree on one error path (MED, DEMONSTRATED)
+**FIXED 2026-10-04.** Every reader takes every name of its upstream enum, case- and
+underscore-insensitive, and refuses anything else, naming the kind and the accepted
+values. That closed four silent misreadings as well as the defaults: `after` (the
+app can still carry it) now means `AxialMethod.AFTER`, not TOP; a desktop file's
+`lower_stage_separation` chute no longer opens at ejection; the `mirror` and
+`optimum` finishes and the `mirror_xy` angle method are no longer read as NORMAL
+and RELATIVE. The facade's own nose-cone builder uses the same reader instead of a
+lenient copy. Tested against the rebuilt kernel, including that `mirror` carries
+less drag than `normal` (they were equal before); the full e2e suite passes, so
+nothing the app sends is refused.
+
+### B5. The two backends disagree on one error path (MED, DEMONSTRATED) - FIXED 2026-10-04
 
 The `machAlt` block is the only place in the facade with unchecked casts, and the
 only path where the backends differ on a reportable error:
@@ -804,7 +856,12 @@ involve no casts, so this divergence is untested.
 Fix: validate each row the way `freeformfinset` validates its points, and name the
 row index.
 
-### B6. The `addX` builders validate nothing (MED, DEMONSTRATED)
+**FIXED 2026-10-04.** `machAlt` is checked, not cast: a present non-list is refused,
+and each row must be two numbers, with the row index in the message. Both backends
+now return the same envelope, `'machAlt' row 1 should be [mach, altitude] numbers`,
+asserted on JS and WASM in `engineBoundary.wasm.test.ts`.
+
+### B6. The `addX` builders validate nothing (MED, DEMONSTRATED) - FIXED 2026-10-04
 
 `engine-java/README.md` states these methods throw "an `IllegalArgumentException`
 with a message that names the field". For the five `addX` builders and
@@ -823,7 +880,13 @@ stated threat model.
 Fix: a shared `finite(name,v)`/`positive(name,v)` guard at the head of each, plus a
 null check on `shape`.
 
-### B7. No way to free one handle (MED, REPORTED)
+**FIXED 2026-10-04.** Each builder checks its arguments first: a shape is required,
+sizes must be finite and within the file-input magnitude bound, lengths and radii
+positive, thicknesses non-negative, and a fin count 1 to 8; `getWorstThetaDeg`
+refuses a non-finite Mach or angle. Each message names the argument. The README's
+claim that these throw naming the field is now true.
+
+### B7. No way to free one handle (MED, REPORTED) - FIXED 2026-10-04
 
 `reset()` is all-or-nothing and nothing else ever removes a map entry. Every `addX`
 call registers a component permanently, and two `buildRocket` calls without a reset
@@ -841,7 +904,13 @@ correctly on both targets.
 
 Fix: export `free(int handle)`, and stop registering from the `addX` builders.
 
-### B8. The two sides of the boundary disagree about limits (MED, VERIFIED by table)
+**FIXED 2026-10-04.** The facade exports `free(handle)`, which releases one handle
+and refuses an unknown one; a freed id stays unknown, as after `reset()`. The
+builders still register their components, because callers pass those handles
+back as parents, and `free` releases them the same way. Tested on the rebuilt
+kernel: freeing one rocket leaves another intact.
+
+### B8. The two sides of the boundary disagree about limits (MED, VERIFIED by table) - FIXED 2026-10-04
 
 Every numeric default agrees. The limits do not:
 
@@ -865,7 +934,16 @@ it.
 Fix: derive the browser caps from the kernel's so refusal happens where it can name
 the component.
 
-### B9. Boundary details, low
+**FIXED 2026-10-04.** The browser's import ceilings now come from the kernel's. Fin
+count was already 8 (B2). Assembly, ring and lug instances are 64, the kernel's
+`MAX_INSTANCE_COUNT`, down from 1000. Nesting is 30 component levels
+(`MAX_NESTING_DEPTH` 29), down from 100: measured against the kernel, whose JSON
+reader refuses 31 levels when the deepest part is a freeform fin, and the test
+pins that the importer's deepest file passes the kernel's nesting check while one
+level more does not. The kernel gained the browser's 10,000-point freeform
+ceiling. Shroud lines stay as they were (browser stricter, harmless).
+
+### B9. Boundary details, low - FIXED 2026-10-04
 
 `JsonLite.number()` scans a character class and hands the span to
 `Double.parseDouble`, so `01`, `+0.3` and `.3` are accepted where `JSON.parse`
@@ -890,6 +968,14 @@ hex digits, and `dbl`/`bool`/`str` throw on a present-but-wrong-typed key. Every
 validated failure is byte-identical across both targets except B5.
 `GuideClearanceListener` is clean, and the listener-instead-of-patch rationale
 holds.
+
+**FIXED 2026-10-04.** `JsonLite` accepts only JSON's number grammar (`01`, `+0.3`,
+`.3`, `1.` and `1e` are refused) and refuses a lone surrogate escape while still
+decoding a pair. Sizes, densities and masses are refused below 0 instead of
+building a massless part; positions, angles, sweep and overhang stay signed.
+`appendSeries` escapes its key, `escape(null)` and the component-name lookup are
+null-safe, and the handle counter refuses to wrap. The freeform point cap landed
+with B8. Each is tested against the rebuilt kernel and fails on the previous one.
 
 ---
 
@@ -1019,6 +1105,25 @@ cause the next real bug.
   group yields a different id than the desktop; canonical 8-4-4-4-12 strings, which is
   everything `.ork` writes, are bit-identical.
 
+**Status, 2026-10-04.** Fixed: the dangling citations and the stale scorecards
+(see G10 and the spec-of-record bullet above); `teavm-format-g` is named in the
+LEDGER; `BoundingBox` is no longer described as using `Geo2D` (LEDGER row and
+README); `UPSTREAM` no longer cites a misnumbered finding; the `build.gradle` WASM
+block reads as the production backend it is; `LongUUID`'s javadoc describes the
+mixed counter it uses, with the raw-counter defects stated as why the mixing is
+required; `web/src/tree/kernelDefaults.ts` gives `parallelstage` its instance
+count of 2 and every planar fin its kernel thickness of 0.003 (with
+`componentDefaults.ts` reading it from there instead of calling it "not a kernel
+default"), cites the `ComponentFactory` case for each row instead of line numbers,
+and `kernelDefaults.kernel.test.ts` pins the four new values against the engine;
+`extract.mjs`'s marker comment names every tag instead of a count; the unused
+`com.google.inject.Inject` stub is deleted (the README now counts eleven shims);
+`validate:strict` is documented as the goal that fails today, not a gate. Left
+alone: the RASAero items (the prose spec, the reviewable diffs, the LEDGER phase
+table, the space-form `PATCH (` comments in its code) are out of scope, and the
+shim default differences and latent hazards are recorded behavior notes, not
+defects to fix.
+
 ---
 
 ## △ UPSTREAM findings
@@ -1055,7 +1160,7 @@ gating and an exhaustive dispatch chain, so the order below reflects that result
 the patches are in better shape than the gates that are supposed to protect them.
 
 **Steps 6, 7 and 9 are DONE too (2026-10-04):** G4, G5, G1 with G7, and P4 to P6.
-**Step 8 is CLOSED, out of scope:** P2, P3 and G13 are defects in the opt-in
+**Step 8 is CLOSED, out of scope:** P2, P3, P7, P8 and G13 are defects in the opt-in
 supersonic aero model, which nothing in the app enables. RASAero matters to this
 project only as an export format (`.CDX1`), so its kernel aero model is not
 maintained work. Step 10 (documentation) remains.
@@ -1112,7 +1217,10 @@ something untrue. The validation fixtures citing an uncommitted anchors document
 the one to do first, because it is the provenance of every number the scorecard
 reports.
 
-**Deferred, with reasons.** G9's zero-slack floors are the right ratchet and should
+**Deferred items, since done (2026-10-04):** G9, G11 (the checkable part), G12,
+G14, G15, B7, B9 and P9 are fixed, each marked above.
+
+**Deferred, with reasons (original plan).** G9's zero-slack floors are the right ratchet and should
 stay until the one-copy refactor is worth doing. G11's golden tolerances want a
 pinned recording platform first. G12, G14, G15 and the LOW boundary items are real
 but none is urgent. The △ UPSTREAM findings need no action here beyond not

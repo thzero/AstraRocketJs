@@ -51,7 +51,8 @@ Established directly, not relayed:
 | `vitest run`                                | 263 files, 3490 tests, all passing                                                                          | PR, master, every branch          |
 | coverage floor                              | lines 70, branches 62, functions 61, statements 69 (`verify:ci`)                                             | PR, master, every branch          |
 | `vite build`                                | in `verify`, before the suite (~20 s)                                                                        | PR, master, every branch          |
-| e2e, 3 shards                               | 29 specs, Chromium, docs built so Help is covered                                           | PR and master only               |
+| e2e core (`e2e:core`)                       | 14 specs, 99 tests, Chromium, 2 workers                                                     | PR and master only               |
+| e2e full (`e2e-full.yml`)                   | 44 specs, 213 tests, 2 shards, docs built so Help is covered                                | by hand                          |
 | engine `parity`, `reproducible`, `validate`  | all three present and running                                                                               | PR and master only               |
 
 Measured coverage, 2026-10-02 after the correctness work: lines **74.86%**

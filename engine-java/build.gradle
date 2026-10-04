@@ -129,9 +129,10 @@ teavm.js {
     // ClassCastException. JS Math transcendentals differ from Java's by 1-2 ULPs.
 }
 
-// SPIKE: WASM-GC target, parallel to teavm.js. Additive — the JS build and the shipped engine are
-// untouched; `generateWasmGC` writes to build/generated/teavm/wasm-gc/. Mirrors the JS guardrails
-// against the optimizer miscompile (see teavm.js above); re-verify they hold on the WASM backend.
+// The WASM-GC target: the backend the app loads by default wherever the browser supports it, with
+// the JS build above as the fallback. Both ship, and parity checks both. It mirrors the JS
+// guardrails against the optimizer miscompile (see teavm.js above): change one, change both, and
+// re-verify on both backends. `buildWasmGC` writes to build/generated/teavm/wasm-gc/.
 teavm.wasmGC {
     mainClass = 'api.OpenRocketEngine'
     obfuscated = false
