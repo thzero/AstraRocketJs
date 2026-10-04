@@ -1587,6 +1587,8 @@
     "zoomOut": "Zoom out",
     "recenter": "Center on the location",
     "pick": "Click the map to move the location.",
+    "keysPick": "Arrow keys move the map, plus and minus zoom, and Enter puts the location at the center.",
+    "keysView": "Arrow keys move the map, and plus and minus zoom.",
     "noCoords": "Enter a latitude and longitude to place the location.",
     "tooClose": "No imagery this close in",
     "offline": "No imagery offline"

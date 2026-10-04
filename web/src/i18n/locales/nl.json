@@ -1587,6 +1587,8 @@
     "zoomOut": "Uitzoomen",
     "recenter": "Op de locatie centreren",
     "pick": "Klik op de kaart om de locatie te verplaatsen.",
+    "keysPick": "Pijltoetsen verschuiven de kaart, plus en min zoomen, en Enter zet de locatie in het midden.",
+    "keysView": "Pijltoetsen verschuiven de kaart, en plus en min zoomen.",
     "noCoords": "Voer een breedte- en lengtegraad in om de locatie te plaatsen.",
     "tooClose": "Geen beeld op deze zoom",
     "offline": "Geen beeld offline"

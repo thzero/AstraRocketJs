@@ -50,6 +50,7 @@ export function ImageExportMenu({
   }, [open]);
 
   const widthLabel = (w: number) => (w >= 7680 ? '8K' : w >= 3840 ? '4K' : 'HD');
+  const formatName = (fmt: ImageFormat) => (fmt === 'png' ? 'PNG' : 'JPG');
 
   return (
     <div ref={wrap} style={{ position: 'relative', display: 'inline-block' }}>
@@ -96,11 +97,14 @@ export function ImageExportMenu({
           }}
         >
           {(['png', 'jpeg'] as ImageFormat[]).map((fmt) => [
+            // The row label is for the eye. Each item names its own format, so
+            // the six read as "PNG HD" and "JPG HD" rather than "HD" twice.
             <span
               key={`${fmt}-label`}
+              aria-hidden="true"
               style={{ alignSelf: 'center', padding: '0 6px', color: 'var(--text-muted, #999)' }}
             >
-              {fmt === 'png' ? 'PNG' : 'JPG'}
+              {formatName(fmt)}
             </span>,
             ...IMAGE_WIDTHS.map((w) => (
               <button
@@ -108,6 +112,7 @@ export function ImageExportMenu({
                 role="menuitem"
                 className="file-btn"
                 title={`${w} px wide`}
+                aria-label={`${formatName(fmt)} ${widthLabel(w)}, ${w} px`}
                 onClick={() => {
                   setOpen(false);
                   onPick(fmt, w, { fit: !!fitOption && fit });
@@ -134,7 +139,13 @@ export function ImageExportMenu({
               }}
               title={t('export.fitFrameHint')}
             >
-              <input type="checkbox" checked={fit} onChange={(e) => setFit(e.target.checked)} />
+              <input
+                type="checkbox"
+                role="menuitemcheckbox"
+                aria-checked={fit}
+                checked={fit}
+                onChange={(e) => setFit(e.target.checked)}
+              />
               {t('export.fitFrame')}
             </label>
           )}

@@ -107,9 +107,11 @@ export function MotorGrid({
         <table className="min-w-full border-collapse whitespace-nowrap text-sm">
           <thead className="sticky top-0 z-10 bg-slate-900 text-[10px] uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="w-8 px-2 py-1.5" />
+              <th scope="col" className="w-8 px-2 py-1.5">
+                <span className="sr-only">{t('dash.compareTitle')}</span>
+              </th>
               {cols.map((c) => (
-                <th key={c.id} className={`px-2 py-1.5 font-semibold ${ALIGN[c.align]}`}>
+                <th key={c.id} scope="col" className={`px-2 py-1.5 font-semibold ${ALIGN[c.align]}`}>
                   {c.sortVal ? (
                     <button
                       onClick={() => onSort(c.id)}

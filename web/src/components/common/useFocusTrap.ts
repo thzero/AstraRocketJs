@@ -1,9 +1,12 @@
 import { useEffect, useRef } from 'react';
 
 // Elements that can receive keyboard focus. Disabled and tabindex=-1 nodes are
-// excluded so Tab cycling skips them, matching browser behavior.
+// excluded so Tab cycling skips them, matching browser behavior. `iframe` is a
+// stop of its own: the Help dialog's content is one, and without it Tab reaches
+// every control in that dialog and never the page it exists to show.
 const FOCUSABLE = [
   'a[href]',
+  'iframe:not([tabindex="-1"])',
   'button:not([disabled])',
   'input:not([disabled])',
   'select:not([disabled])',
@@ -118,9 +121,22 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean, { onEscape 
       }
     };
 
+    // Tab inside an iframe is the FRAME document's keydown, which the listener
+    // above never hears, so tabbing past the frame's last link moves focus out of
+    // the panel into the page behind. Anything that lands outside is brought back
+    // to the first control, unless a surface opened on top of this one owns it.
+    const onFocusIn = (e: FocusEvent) => {
+      if (topmostSurface() !== panel || panel.contains(e.target as Node)) return;
+      const first = focusable()[0];
+      if (first) first.focus();
+      else panel.focus();
+    };
+
     panel.addEventListener('keydown', onKeyDown);
+    document.addEventListener('focusin', onFocusIn);
     return () => {
       panel.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('focusin', onFocusIn);
       panel.removeAttribute(SURFACE);
       previouslyFocused?.focus?.();
     };

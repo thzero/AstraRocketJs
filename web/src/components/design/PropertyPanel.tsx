@@ -133,6 +133,7 @@ export function PropertyPanel({
                 onClick={() => onMove(-1)}
                 disabled={!canMoveUp}
                 title={t('prop.moveUp')}
+                aria-label={t('prop.moveUp')}
                 className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-slate-800"
               >
                 ↑
@@ -141,6 +142,7 @@ export function PropertyPanel({
                 onClick={() => onMove(1)}
                 disabled={!canMoveDown}
                 title={t('prop.moveDown')}
+                aria-label={t('prop.moveDown')}
                 className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-slate-800"
               >
                 ↓

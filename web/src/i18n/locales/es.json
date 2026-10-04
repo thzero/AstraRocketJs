@@ -1596,6 +1596,8 @@
     "zoomOut": "Alejar",
     "recenter": "Centrar en la ubicación",
     "pick": "Haz clic en el mapa para mover la ubicación.",
+    "keysPick": "Las flechas mueven el mapa, más y menos hacen zoom, e Intro coloca la ubicación en el centro.",
+    "keysView": "Las flechas mueven el mapa, y más y menos hacen zoom.",
     "noCoords": "Introduce una latitud y una longitud para situar la ubicación.",
     "tooClose": "Sin imágenes a esta escala",
     "offline": "Sin imágenes sin conexión"

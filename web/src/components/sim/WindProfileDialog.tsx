@@ -72,7 +72,9 @@ function ProfileChart({ levels, u, showVectors }: { levels: WindLevel[]; u: Unit
     .sort((a, b) => b.y - a.y);
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-hidden="true">
+    // Hidden from assistive tech: it pictures the levels the editable rows
+    // already list, so announcing it would read them twice.
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" aria-hidden="true">
       <line x1={padL} y1={padT} x2={padL} y2={H - padB} stroke="currentColor" className="text-slate-600" />
       <line x1={padL} y1={H - padB} x2={W - padR} y2={H - padB} stroke="currentColor" className="text-slate-600" />
       {pts.length > 1 && (

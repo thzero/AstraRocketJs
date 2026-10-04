@@ -415,6 +415,7 @@ export function FlightPath3D({
         <button
           onClick={handleReset}
           title={t('flight.reset')}
+          aria-label={t('flight.reset')}
           className="shrink-0 rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
         >
           ⟲
@@ -422,6 +423,8 @@ export function FlightPath3D({
         <button
           onClick={() => setLoop((l) => !l)}
           title={t('flight.loop')}
+          aria-label={t('flight.loop')}
+          aria-pressed={loop}
           className={`shrink-0 rounded-md px-2 py-1 text-xs ring-1 ring-white/10 ${loop ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-200 hover:bg-slate-700'}`}
         >
           ⟳
@@ -429,6 +432,7 @@ export function FlightPath3D({
         <button
           onClick={() => setFollow((f) => !f)}
           title={t('flight.follow')}
+          aria-pressed={follow}
           className={`shrink-0 rounded-md px-2 py-1 text-xs ring-1 ring-white/10 ${follow ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-200 hover:bg-slate-700'}`}
         >
           ⊙ {t('flight.follow')}

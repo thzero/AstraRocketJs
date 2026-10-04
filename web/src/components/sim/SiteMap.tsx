@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   MIN_ZOOM,
@@ -57,6 +57,9 @@ const LAYERS = [
 /** Below this many pixels of pointer travel, a drag was really a click. */
 const CLICK_SLOP_PX = 4;
 
+/** How far one arrow key pans the map, in screen pixels. */
+const KEY_PAN_PX = 80;
+
 interface View {
   lat: number;
   lon: number;
@@ -78,6 +81,7 @@ export function SiteMap({
   const { t } = useTranslation();
   const u = useUnits();
   const hostRef = useRef<HTMLDivElement>(null);
+  const keysId = useId();
   const [size, setSize] = useState({ w: 320, h: 256 });
   const [source, setSource] = useState<TileSourceId>(tileLayer());
   const [view, setView] = useState<View>({
@@ -197,6 +201,37 @@ export function SiteMap({
     });
   };
 
+  /**
+   * The keyboard path, for everything the pointer does: arrows pan, + and -
+   * zoom, and Enter or Space puts the location at the center of the view, which
+   * a crosshair marks while the map has keyboard focus. Keys aimed at the
+   * buttons inside the map are theirs.
+   */
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.target !== e.currentTarget) return;
+    const pan = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (pan) {
+      e.preventDefault();
+      const n = 2 ** view.zoom;
+      const cx = lonToTileX(view.lon, view.zoom) + (pan[0]! * KEY_PAN_PX) / TILE_SIZE;
+      const cy = Math.max(0, Math.min(n, latToTileY(view.lat, view.zoom) + (pan[1]! * KEY_PAN_PX) / TILE_SIZE));
+      setView({ lat: tileYToLat(cy, view.zoom), lon: normalizeLon(tileXToLon(cx, view.zoom)), zoom: view.zoom });
+    } else if (e.key === '+' || e.key === '=') {
+      e.preventDefault();
+      setZoom(view.zoom + 1);
+    } else if (e.key === '-' || e.key === '_') {
+      e.preventDefault();
+      setZoom(view.zoom - 1);
+    } else if ((e.key === 'Enter' || e.key === ' ') && onPick) {
+      e.preventDefault();
+      // Rounded like a click (see onPointerUp).
+      const lat = +view.lat.toFixed(4);
+      const lon = +view.lon.toFixed(4);
+      emitted.current = { lat, lon };
+      onPick(lat, lon);
+    }
+  };
+
   const onPointerUp = (e: React.PointerEvent) => {
     const d = drag.current;
     drag.current = null;
@@ -253,10 +288,13 @@ export function SiteMap({
         ref={hostRef}
         role="group"
         aria-label={ariaLabel}
+        aria-describedby={imagery === 'unavailable' ? undefined : keysId}
+        tabIndex={imagery === 'unavailable' ? undefined : 0}
+        onKeyDown={imagery === 'unavailable' ? undefined : onKeyDown}
         // `active:` rather than a class chosen from the drag ref: whether a
         // pointer is down is the browser's business, and reading a ref while
         // rendering is how a component ends up not re-rendering when it moves.
-        className={`relative min-h-0 flex-1 overflow-hidden rounded-lg bg-slate-800 ring-1 ring-white/10 ${
+        className={`group relative min-h-0 flex-1 overflow-hidden rounded-lg bg-slate-800 ring-1 ring-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
           imagery === 'unavailable'
             ? 'cursor-default'
             : `${onPick ? 'cursor-crosshair' : 'cursor-grab'} active:cursor-grabbing`
@@ -326,6 +364,19 @@ export function SiteMap({
 
         {imagery !== 'unavailable' && (
           <>
+            <span id={keysId} className="sr-only">
+              {t(onPick ? 'map.keysPick' : 'map.keysView')}
+            </span>
+            {onPick && (
+              // Where Enter will put the location. Shown only for keyboard focus:
+              // a pointer user clicks the spot itself.
+              <div
+                aria-hidden
+                className="pointer-events-none absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 text-xl text-sky-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] group-focus-visible:block"
+              >
+                +
+              </div>
+            )}
             <div className="absolute left-1 top-1 flex overflow-hidden rounded-md ring-1 ring-black/40">
               {LAYERS.map((layer) => (
                 <button

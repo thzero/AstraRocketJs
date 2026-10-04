@@ -1605,6 +1605,8 @@
     "zoomOut": "Pomniejsz",
     "recenter": "Wyśrodkuj na miejscu",
     "pick": "Kliknij mapę, aby przenieść miejsce.",
+    "keysPick": "Strzałki przesuwają mapę, plus i minus przybliżają, a Enter ustawia lokalizację na środku.",
+    "keysView": "Strzałki przesuwają mapę, a plus i minus przybliżają.",
     "noCoords": "Podaj szerokość i długość geograficzną, aby umieścić miejsce.",
     "tooClose": "Przy takim zbliżeniu nie ma zdjęć",
     "offline": "Bez sieci nie ma zdjęć"

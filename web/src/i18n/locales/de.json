@@ -1587,6 +1587,8 @@
     "zoomOut": "Verkleinern",
     "recenter": "Auf den Ort zentrieren",
     "pick": "Klicken Sie auf die Karte, um den Ort zu verschieben.",
+    "keysPick": "Pfeiltasten verschieben die Karte, Plus und Minus zoomen, und die Eingabetaste setzt den Standort in die Mitte.",
+    "keysView": "Pfeiltasten verschieben die Karte, Plus und Minus zoomen.",
     "noCoords": "Geben Sie Breite und Länge ein, um den Ort zu platzieren.",
     "tooClose": "Keine Bilddaten in dieser Vergrößerung",
     "offline": "Offline keine Bilddaten"

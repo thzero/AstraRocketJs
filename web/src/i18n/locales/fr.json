@@ -1596,6 +1596,8 @@
     "zoomOut": "Zoom arrière",
     "recenter": "Centrer sur le lieu",
     "pick": "Cliquez sur la carte pour déplacer le lieu.",
+    "keysPick": "Les flèches déplacent la carte, plus et moins zooment, et Entrée place le site au centre.",
+    "keysView": "Les flèches déplacent la carte, et plus et moins zooment.",
     "noCoords": "Saisissez une latitude et une longitude pour placer le lieu.",
     "tooClose": "Pas d'imagerie à ce niveau de zoom",
     "offline": "Pas d'imagerie hors ligne"

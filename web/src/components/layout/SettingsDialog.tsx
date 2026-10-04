@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
+import { useTabs } from '../common/useTabs';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../state/SettingsProvider';
 import { DEFAULT_SETTINGS, SIM_BOUNDS, type SimulationSettings } from '../../services/storage/settings';
@@ -37,6 +38,11 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const { settings, update, reset } = useSettings();
   const u = useUnits();
   const [tab, setTab] = useState<TabKey>('general');
+  const tabs = useTabs(
+    TABS.map((x) => x.key),
+    tab,
+    setTab,
+  );
   // Stored in radians like the kernel's field; edited in the user's angle
   // unit through the same FieldUnit the property panel's angle fields use,
   // rather than an inline `* 180 / Math.PI`.
@@ -82,9 +88,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           {TABS.map((tb) => (
             <button
               key={tb.key}
-              role="tab"
-              aria-selected={tab === tb.key}
-              onClick={() => setTab(tb.key)}
+              {...tabs.tab(tb.key)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium ${tab === tb.key ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
             >
               {t(tb.label)}
@@ -117,7 +121,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         </div>
       }
     >
-      <div className="space-y-2 p-4">
+      <div {...tabs.panel} className="space-y-2 p-4">
         {tab === 'materials' && (
           <DefaultMaterials
             defaults={settings.defaultMaterials}
@@ -569,11 +573,17 @@ function ColorRow({
   onReset?: () => void;
   resetTitle?: string;
 }) {
+  const id = useId();
   return (
-    <label className="flex items-center justify-between gap-3">
-      <span className="text-sm text-slate-300">{label}</span>
+    // A row, not one big <label>: the reset button is a second control, and a
+    // label may only bind to one.
+    <div className="flex items-center justify-between gap-3">
+      <label htmlFor={id} className="text-sm text-slate-300">
+        {label}
+      </label>
       <span className="flex items-center gap-2">
         <input
+          id={id}
           type="color"
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -583,12 +593,13 @@ function ColorRow({
           <button
             onClick={onReset}
             title={resetTitle}
+            aria-label={resetTitle}
             className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-400 ring-1 ring-white/10 hover:bg-slate-700"
           >
             ↺
           </button>
         )}
       </span>
-    </label>
+    </div>
   );
 }

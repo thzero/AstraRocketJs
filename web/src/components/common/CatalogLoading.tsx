@@ -63,7 +63,11 @@ export function CatalogError({ message, onRetry }: { message: string; onRetry: (
   const { t } = useTranslation();
   return (
     <div className="space-y-3 px-3 py-6 text-center text-base">
-      <p className="text-amber-300">{message}</p>
+      {/* An alert because it replaces a loading line in a cell that is already on
+          screen: nothing else tells a screen reader the download failed. */}
+      <p role="alert" className="text-amber-300">
+        {message}
+      </p>
       <button onClick={onRetry} className="rounded-lg bg-slate-700 px-4 py-2 text-slate-100 hover:bg-slate-600">
         {t('catalog.retry')}
       </button>

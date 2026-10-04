@@ -91,9 +91,11 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
         <table className="w-full border-collapse whitespace-nowrap text-xs tabular-nums">
           <thead className="text-[10px] uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-2 py-1 text-left font-semibold">{t('dash.colMotor')}</th>
+              <th scope="col" className="px-2 py-1 text-left font-semibold">
+                {t('dash.colMotor')}
+              </th>
               {specCols.map((c) => (
-                <th key={c.id} className={`px-2 py-1 font-semibold ${ALIGN[c.align]}`}>
+                <th key={c.id} scope="col" className={`px-2 py-1 font-semibold ${ALIGN[c.align]}`}>
                   {heading(c, t, u)}
                 </th>
               ))}

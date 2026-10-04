@@ -1596,6 +1596,8 @@
     "zoomOut": "Reduzir",
     "recenter": "Centrar no local",
     "pick": "Clique no mapa para mover o local.",
+    "keysPick": "As setas movem o mapa, mais e menos aplicam zoom, e Enter coloca o local no centro.",
+    "keysView": "As setas movem o mapa, e mais e menos aplicam zoom.",
     "noCoords": "Introduza uma latitude e uma longitude para colocar o local.",
     "tooClose": "Sem imagens a esta aproximação",
     "offline": "Sem imagens sem ligação"
