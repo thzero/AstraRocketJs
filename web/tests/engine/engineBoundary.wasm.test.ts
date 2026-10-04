@@ -240,6 +240,10 @@ describe('both targets agree on the errors the facade can actually report', () =
     ['an unknown handle', (e) => e.simulateJson(99999, '{}')],
     ['a malformed options blob', (e) => e.simulateJson(e.buildRocket(tree()), '{oops')],
     ['an unknown component type', (e) => e.getComponentInfo(e.buildRocket(tree()), 'nope')],
+    // Unchecked casts here once failed as a minified TeaVM TypeError on JS and a
+    // bare ClassCastException on WASM, neither naming the row.
+    ['a machAlt row that is not a pair', (e) => e.getAeroSweep(e.buildRocket(tree()), '{"machAlt":["a"]}')],
+    ['a machAlt row of strings', (e) => e.getAeroSweep(e.buildRocket(tree()), '{"machAlt":[[0.5,0],["x","y"]]}')],
   ];
 
   it.each(enveloped)('%s reports identically on JS and WASM', (_name, call) => {
@@ -249,6 +253,15 @@ describe('both targets agree on the errors the facade can actually report', () =
     const b = outcome(() => call(wasm));
     expect(b.kind).toBe(a.kind);
     expect(b.message).toBe(a.message);
+  });
+
+  it('names the field and the row for a bad machAlt table, on both', () => {
+    for (const e of [js, wasm]) {
+      e.reset();
+      const got = outcome(() => e.getAeroSweep(e.buildRocket(tree()), '{"machAlt":[[0.5,0],["x","y"]]}'));
+      expect(got.kind).toBe('envelope');
+      expect(got.message).toMatch(/'machAlt' row 1/);
+    }
   });
 });
 

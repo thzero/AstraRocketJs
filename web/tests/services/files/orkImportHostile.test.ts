@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { zipSync, strToU8 } from 'fflate';
 import { importOrk } from '../../../src/services/files/orkFile';
+import { MAX_NESTING_DEPTH } from '../../../src/services/files/ork/importLimits';
 
 /**
  * The untrusted-input parser, exercised with untrusted input.
@@ -72,11 +73,11 @@ describe('the hostile-input caps actually fire', () => {
   /**
    * Deep `<subcomponents>` nesting is the stack-overflow vector: the parser
    * recurses per level, so without a depth cap a crafted file exhausts the JS
-   * stack with an opaque RangeError. MAX_NESTING_DEPTH is 100; nothing had
-   * ever tripped it.
+   * stack with an opaque RangeError. The cap is the kernel's: 30 component
+   * levels (MAX_NESTING_DEPTH 29), past which its JSON reader refuses the design.
    */
   it('refuses nesting past MAX_NESTING_DEPTH with a clear error', () => {
-    const depth = 150; // over the cap of 100, but cheap for the XML parser
+    const depth = 150; // far over the cap, and cheap for the XML parser
     const open = '<subcomponents><bodytube><name>b</name><length>0.1</length><radius>0.01</radius>'.repeat(depth);
     const close = '</bodytube></subcomponents>'.repeat(depth);
     const xml = `<?xml version="1.0"?><openrocket version="1.8"><rocket><name>T</name><subcomponents><stage><name>S</name>${open}${close}</stage></subcomponents></rocket></openrocket>`;
@@ -98,6 +99,20 @@ describe('the hostile-input caps actually fire', () => {
     const many = '<bodytube><name>b</name><length>0.1</length><radius>0.01</radius></bodytube>'.repeat(200);
     const res = importOrk(ork(wrap(many)));
     expect(res.tree.components[0]?.children?.length).toBe(200);
+  });
+
+  // Exactly at the cap: the stage plus 29 levels of parts is 30 levels, the most
+  // the kernel always builds. One more is refused here rather than by the engine.
+  const nested = (depth: number) => {
+    const open = '<subcomponents><bodytube><name>b</name><length>0.1</length><radius>0.01</radius>'.repeat(depth);
+    const close = '</bodytube></subcomponents>'.repeat(depth);
+    return ork(
+      `<?xml version="1.0"?><openrocket version="1.8"><rocket><name>T</name><subcomponents><stage><name>S</name>${open}${close}</stage></subcomponents></rocket></openrocket>`,
+    );
+  };
+  it('accepts nesting up to the kernel limit, and refuses one level more', () => {
+    expect(() => importOrk(nested(MAX_NESTING_DEPTH))).not.toThrow();
+    expect(() => importOrk(nested(MAX_NESTING_DEPTH + 1))).toThrow(/nest|deep/i);
   });
 
   it('still accepts nesting a real design could plausibly use', () => {
@@ -217,15 +232,17 @@ describe('file-sourced counts are clamped to domain ceilings', () => {
     expect(first(inTube(tubes), 'tubefinset').finCount).toBe(8);
   });
 
-  it('caps an instance count at 1000 on rings, lugs and assemblies', () => {
+  // 64 is the kernel's instance ceiling (ComponentFactory.MAX_INSTANCE_COUNT): a
+  // count past it imported and then failed every build.
+  it('caps an instance count at 64 on rings, lugs and assemblies', () => {
     const ring = `<centeringring><name>R</name><instancecount>1000000</instancecount><length>0.002</length></centeringring>`;
-    expect(first(inTube(ring), 'centeringring').instanceCount).toBe(1000);
+    expect(first(inTube(ring), 'centeringring').instanceCount).toBe(64);
     const lug = `<launchlug><name>L</name><instancecount>5000</instancecount><length>0.03</length></launchlug>`;
-    expect(first(inTube(lug), 'launchlug').instanceCount).toBe(1000);
+    expect(first(inTube(lug), 'launchlug').instanceCount).toBe(64);
     const pod =
       `<podset><name>P</name><instancecount>1e12</instancecount><subcomponents>` +
       `<bodytube><length>0.1</length><radius>0.005</radius></bodytube></subcomponents></podset>`;
-    expect(first(inTube(pod), 'podset').instanceCount).toBe(1000);
+    expect(first(inTube(pod), 'podset').instanceCount).toBe(64);
   });
 
   /**
