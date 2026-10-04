@@ -265,3 +265,32 @@ test('the Safety card opens Help without leaving the results', async ({ page }) 
   const dialog = page.getByRole('dialog', { name: helpDialog });
   await expect(dialog.getByRole('heading', { name: 'Safety' })).toBeVisible();
 });
+
+/**
+ * The rail's headings come from the fetched page HTML, so they are clickable
+ * while the frame is still loading that page. A click in that window has to land
+ * once the frame arrives rather than scroll a document that is not there yet.
+ */
+test('a rail heading picked before the frame has loaded still takes you there', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Menu' }).click();
+  await page.getByRole('menuitem', { name: 'Help' }).click();
+  const dialog = page.getByRole('dialog', { name: helpDialog });
+  const contents = dialog.getByRole('navigation', { name: 'Contents' });
+  await expect(contents.getByRole('button', { name: 'Designing a Rocket', exact: true })).toBeVisible();
+
+  // Hold back only the frame's document; the dialog's own fetch of the page,
+  // which builds the rail, goes through.
+  await page.route('**/docs/**', async (route) => {
+    const req = route.request();
+    if (req.resourceType() === 'document' && req.frame() !== page.mainFrame()) {
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    await route.continue();
+  });
+
+  await contents.getByRole('button', { name: 'Designing a Rocket', exact: true }).click();
+  const heading = contents.getByRole('button', { name: 'The component tree' });
+  await heading.click();
+  await expect(heading).toHaveAttribute('aria-current', 'location', { timeout: 10_000 });
+});

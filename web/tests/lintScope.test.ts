@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { ESLint } from 'eslint';
 import { fileURLToPath } from 'node:url';
 
@@ -21,6 +21,14 @@ import { fileURLToPath } from 'node:url';
  */
 const cwd = fileURLToPath(new URL('..', import.meta.url));
 const eslint = new ESLint({ cwd });
+
+// The first query loads the whole config (typescript-eslint and every plugin):
+// about half a second alone, and many times that while the full suite saturates
+// the CPU. Loaded here, on its own budget, so it is not charged to whichever test
+// happens to run first.
+beforeAll(async () => {
+  await eslint.calculateConfigForFile('src/main.tsx');
+}, 30_000);
 
 describe('the generated trees are outside the linter', () => {
   it.each(['src/engine/vendor/openrocket-engine.mjs', 'public/sw.js'])('ignores %s', async (rel) => {

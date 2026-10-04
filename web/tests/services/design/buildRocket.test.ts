@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { OpenRocketDesign, RocketTree, StaticInfo } from '../../../src/engine/openRocketEngine';
-import { computeStaticInfo, flightKey } from '../../../src/services/design/buildRocket';
+import { computeStaticInfo } from '../../../src/services/design/buildRocket';
+import { flightKey } from '../../../src/services/flight/simulations';
 import { newFlightConfig } from '../../../src/services/flight/flightConfigs';
 
 const tree = { components: [] } as unknown as RocketTree;

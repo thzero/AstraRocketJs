@@ -1,6 +1,6 @@
 # AUDIT - `web/` engineering audit
 
-<!-- cspell:ignore astrarrocketjs -->
+<!-- cspell:ignore astrarrocketjs shrnk fiel mapp postion -->
 
 Date: 2026-10-01. Branch `test` at b610c12. Run per `docs/AUDIT_PROMPT.md`, six
 parallel review agents over five slices, every HIGH finding re-verified against
@@ -13,11 +13,12 @@ and was not audited. `engine-java/` has its own prompt and its own report.
 finding at every severity (10 HIGH, 19 MED, 12 LOW) is fixed, each with a test
 proven to discriminate: the fix was reverted, the test watched to fail, and the
 fix restored. That includes the `.rkt` component cap S2 left open. Every TOOLING
-finding is fixed too: T1 to T5 at HIGH, T6 to T10 at MED, and eight of the nine
-tooling-LOW items, with only the i18n triangle left open by decision. The dead
-code, the duplicated helpers and the test list are done. What remains is the
-architecture refactors, the accessibility list, and all 32 findings in
-`docs/AUDIT_ENGINE.md`, which has not been touched.
+finding is fixed too: T1 to T5 at HIGH, T6 to T10 at MED, and all nine
+tooling-LOW items. The dead code, the duplicated helpers, the test list, the
+`outdated` derivation and the rebuild debounce are done. What remains is the
+other architecture refactors (`runSims` and `openOrkFile` extraction, auto-run as
+a command, the three god components), the accessibility list, and all 32
+findings in `docs/AUDIT_ENGINE.md`, which has not been touched.
 
 Two MED findings in this report were closed without being worked on: C1 removed
 the duplicate `finTabFront` and the unclamped schematic tab as collateral. They
@@ -1188,11 +1189,44 @@ These are design findings, not defects. Each names a concrete split.
   Store it on the result and expose `outdated` as a selector; that deletes the
   invalidation effect, `hydrationGen`, `markOutdated` and `markPrefsOutdated`.
   Two shipped misses are already recorded in comments.
+
+  FIXED 2026-10-03. A run stores `resultKey` on the row: one string over the
+  design (`flightKey`, part names left out), the configuration (less its id and
+  name), the launch conditions and the effective run preferences, built by the
+  same `effectivePrefs` merge the run uses. `selectOutdated` compares it with the
+  current inputs on every read. The identity pair `simInputs`/`sameSimInputs`
+  was not enough on its own, because results persist and a reload makes every
+  object new; the key is a VALUE, with object keys sorted, since `sanitizeSims`
+  rebuilds the launch block in a different key order on every load. That removed
+  the design watcher, its two refs, `hydrationGen`, `markOutdated`,
+  `markPrefsOutdated` and the `outdated: true` writes in `patchTargets`,
+  `patchConfig`, `restore`, `deleteConfig` and `setSimConfig`. The store mirrors
+  the nine flight preferences (`simPrefs`, synced from Settings) so it can compare
+  against them, and a row that pins a key is unaffected by the global moving
+  because its override is what the merge reads. Two behaviors changed, both
+  toward accuracy: an edit undone back to the flown value reads current again,
+  and pointing a row at an identical copy of its configuration is not a change.
+  A stored row with a result and the old flag but no key is keyed on load: the
+  flag's "current" becomes the key of the inputs it loads with, and its
+  "outdated" stays outdated. `runSims` keeps its identity check at install time,
+  which guards a different thing: an edit landing while the flight is in the air.
+  With the derivation disabled, 23 tests fail.
 - **The engine rebuild is not debounced** while the autosave beside it is
   debounced 500 ms and the sim work was moved off-thread for this reason.
   `NumberInput` emits per keystroke, so dragging a dimension slider runs one
   full main-thread kernel build per input event. `useAeroSweep` already solves
   this for the cheaper call. Give the rebuild the same deferral.
+
+  FIXED 2026-10-03, with a 150 ms trailing debounce (`REBUILD_DEBOUNCE_MS`) rather
+  than `useAeroSweep`'s zero-delay deferral: keystrokes and slider events are
+  separate tasks, so a zero delay still builds once per event. Each change cancels
+  the pending build, so a burst costs one build of the design after the last
+  event. The first build after the design and the engine are ready runs at once,
+  so boot shows numbers without the wait. Until a debounced build lands, `info`
+  and `rocket` describe the design before the burst; their readers are display
+  (the stats strip, stability, the aero pane) and the Run button's enable, and a
+  run flies the tree, not `info`. A test drives four edits inside the window and
+  asserts one build of the last value, and fails with the debounce removed.
 - **Auto-run is an effect, not a command.** `CenterView.tsx` fires a simulation,
   a user action with worker side effects, from an effect whose guard is
   `!runFailed`, where the selector exists only to break the loop and `SimRun`
@@ -1234,7 +1268,7 @@ These are design findings, not defects. Each names a concrete split.
 
 ### Tooling, low
 
-Nine items. **Eight are fixed**; only 5, the i18n triangle, is open by decision.
+Nine items. **All nine are fixed**; 5, the i18n triangle, was the last.
 Two of the eight turned out to rest on a claim that was wrong, and one of them
 under-counted its own scope, which is recorded rather than quietly dropped.
 
@@ -1286,13 +1320,26 @@ under-counted its own scope, which is recorded rather than quietly dropped.
    711, all clean. Verified by planting a misspelling in `website/README.md` and
    watching the gate fail on it.
 
-5. **Nothing asserts the src-to-`en.json` direction of the i18n triangle.** OPEN by
-   decision. `tests/i18n/keys.test.ts` checks the other direction - every English key
-   is reachable from the source - so a DEAD string fails the gate and a mistyped
-   `t()` call does not: it renders the raw key, in every locale, with nothing
-   failing. Verified clean today across 328 files against 1449 keys, which is why it
-   is low rather than a defect, but it is the only item in this section with a
-   user-visible failure mode.
+5. **Nothing asserts the src-to-`en.json` direction of the i18n triangle.** FIXED
+   2026-10-03. `tests/i18n/keys.test.ts` checked only the other direction (every
+   English key is reachable from the source), so a mistyped `t()` call rendered the
+   raw key in every locale with nothing failing. It now also parses every non-test
+   file under `src` with the TypeScript compiler and requires each key the source
+   names to exist in `en.json`, or as the base of its plural or context forms
+   (`_one`, `_other`, `_noWrap`). A key is read from the first argument of `t()` or
+   any `x.t()` (a literal, both branches of `?:`, either side of `??` or `||`, or a
+   lookup into a const object table such as `EVENT_LABEL[type]`), from
+   `<Trans i18nKey>`, from a `...Key:` property such as `labelKey`, and from any
+   other string literal whose first dotted segment is an `en.json` namespace (those
+   may also name an object, for code that joins a stem with a value). A template
+   key with a dynamic part, such as `` t(`part.${node.type}`) ``, is not enumerated:
+   its static head must be the start of at least one key. An argument passed through
+   a variable or prop is not resolved; the literal that feeds it is checked where it
+   is written. No allowlist was needed. Clean across 334 files against 1449 keys.
+   Verified by planting `dialog.shrnk` in a `t()` call, `fiel.stl` in a lookup table,
+   `mapp.none` in a `labelKey` and `` `postionFrom.${m}` `` in a template key: each
+   failed the gate naming its file and line, and none of the first three failed the
+   old direction, because the correct keys are still used elsewhere.
 
 6. **Jobs with no `timeout-minutes` inherited the 360-minute default** - FIXED
    2026-10-03, and the item under-counted: **six** jobs across **four** workflows,
@@ -1588,8 +1635,7 @@ section and the Architecture entries. The guard against it growing back is
 `tests/srcExportReach.test.ts`, not a second knip run, because knip counts a test
 importer as a use however it is scoped (T7).
 
-**10. Deferred refactors.** The `outdated` derivation, `runSims` and
-`openOrkFile` extraction, the rebuild debounce, auto-run as a command, and the
-three god components. Each is a real improvement and none is urgent; the
-`outdated` derivation has the best ratio, since it deletes more machinery than
-it adds and has two shipped misses on its record.
+**10. Deferred refactors.** The `outdated` derivation and the rebuild debounce
+are DONE (see Architecture). Left: the `runSims` and `openOrkFile` extraction,
+auto-run as a command, and the three god components. Each is a real improvement
+and none is urgent.

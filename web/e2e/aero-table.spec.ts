@@ -189,15 +189,18 @@ test('always shows roll dynamics, and fills it in once the fins are canted', asy
   await page.getByRole('button', { name: 'Aero', exact: true }).click();
 
   await expect(page.getByRole('heading', { name: 'Roll dynamics' })).toBeVisible();
-  const roll = await tableRows(page, 'Roll dynamics');
-  const forcing = Number(
-    defined(
-      roll.find((x) => /Fin Set/.test(x[0] ?? '')),
-      'the fin set row',
-    )[1],
-  );
-  note('roll forcing at 3 deg cant', forcing);
-  expect(forcing).toBeGreaterThan(0);
+  const finForcing = async () => {
+    const roll = await tableRows(page, 'Roll dynamics');
+    return Number(
+      defined(
+        roll.find((x) => /Fin Set/.test(x[0] ?? '')),
+        'the fin set row',
+      )[1],
+    );
+  };
+  // Polled: the engine rebuild that carries the cant is debounced.
+  await expect.poll(finForcing).toBeGreaterThan(0);
+  note('roll forcing at 3 deg cant', await finForcing());
 });
 
 /**

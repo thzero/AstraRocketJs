@@ -7,6 +7,7 @@ import {
   selectDesignName,
   selectMotorDims,
   selectRunFailed,
+  selectOutdated,
 } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
 import { fireAction } from '../../state/fireAction';
@@ -83,7 +84,7 @@ export function CenterView() {
   const sims = useWorkspaceStore((s) => s.sims);
   const activeId = useWorkspaceStore((s) => selectActive(s).id);
   const resultSimId = useWorkspaceStore((s) => s.resultSimId);
-  const outdated = useWorkspaceStore((s) => selectActive(s).outdated);
+  const outdated = useWorkspaceStore((s) => selectOutdated(s));
   const simName = useWorkspaceStore((s) => selectActive(s).name);
   const config = useWorkspaceStore(selectConfig);
   const motors = useMemo(() => selectMotorDims(tree, config), [tree, config]);

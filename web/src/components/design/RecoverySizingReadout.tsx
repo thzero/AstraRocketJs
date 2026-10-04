@@ -6,7 +6,7 @@ import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { num } from '../../tree/nodeProps';
-import { useWorkspaceStore, selectActive, selectConfig } from '../../state/store';
+import { useWorkspaceStore, selectActive, selectConfig, selectOutdated } from '../../state/store';
 import { motorSpecs } from '../../services/flight/flightConfigs';
 import { deviceDescent } from '../../services/flight/recoveryFlown';
 import {
@@ -61,7 +61,7 @@ export function RecoverySizingReadout({ node }: { node: ComponentNode }) {
   const launch = useWorkspaceStore((s) => selectActive(s).launch);
   // An OUTDATED run describes a design or settings that have since moved, so its
   // figures are not this device's any more; the estimate is the honest fallback.
-  const result = useWorkspaceStore((s) => (selectActive(s).outdated ? null : selectActive(s).result));
+  const result = useWorkspaceStore((s) => (selectOutdated(s) ? null : selectActive(s).result));
 
   // `num(..., 0.8)`, not `|| 0.8`: `nodeProps.num` already returns 0 for an
   // absent or non-finite value, so the truthiness fallback also swallowed a

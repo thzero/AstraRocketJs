@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18nGlobal from '../i18n';
 import { useWorkspaceStore, selectConfig, saveFailure } from './store';
@@ -7,9 +7,8 @@ import { useEngineStore } from './engineStore';
 import { getWorkspaceStore } from '../services/storage/workspaceStore';
 import { onStorageDegraded } from '../services/storage/idbKeyValueStore';
 import { requestPersistentStorage } from '../services/storage/persistStorage';
-import { computeStaticInfo, flightKey, buildKey } from '../services/design/buildRocket';
+import { computeStaticInfo, buildKey } from '../services/design/buildRocket';
 import { designBlockerText } from '../services/flight/runnability';
-import { changedPrefKeys } from '../services/flight/simulations';
 import { useSettings } from './SettingsProvider';
 import { warmSimWorker } from '../engine/simClient';
 import { appName } from '../services/app/appInfo';
@@ -19,6 +18,13 @@ import { appName } from '../services/app/appInfo';
  * hydrate + autosave to browser storage, and rebuild the engine (recomputing
  * stability) whenever the design or its motors change. Mounted once, in App.
  */
+/**
+ * How long the design must sit still before the engine rebuilds it. Long enough
+ * to span the gap between keystrokes or slider events, short enough that the
+ * figures follow a pause without a visible wait.
+ */
+export const REBUILD_DEBOUNCE_MS = 150;
+
 export function useWorkspaceEffects() {
   // `i18n`, never `t`: `t` gets a NEW IDENTITY on every language change, and
   // every effect below that listed it in its deps therefore re-ran on a
@@ -218,6 +224,10 @@ export function useWorkspaceEffects() {
   // names DO stay in this key — the engine labels its per-component rows with
   // them, so a rename has to reach the engine.
   const components = tree.components;
+  // Whether the design has been built since the engine came up. The first build
+  // runs at once so boot shows numbers without a wait; every one after it is
+  // debounced (REBUILD_DEBOUNCE_MS).
+  const builtOnce = useRef(false);
   useEffect(() => {
     if (!ready) return; // wait for hydration so we build the real design once, not the default first
     // And wait for the kernel, which the app no longer blocks on before mounting
@@ -225,96 +235,56 @@ export function useWorkspaceEffects() {
     // that into a red error banner over what is really just "not loaded yet" -
     // EngineNotice says that, and says it once. `enginePhase` is a dependency,
     // so the design builds itself the moment the engine arrives.
-    if (enginePhase !== 'ready') return;
-    const store = useWorkspaceStore.getState();
-    // Tree and configuration read from the STORE rather than closed over, so the
-    // effect need not depend on either object to use them: `components` and
-    // `seated` are the narrow keys that say when a rebuild is owed. The handle
-    // still carries the current ignition overrides, because the configuration is
-    // read here at build time.
-    const res = computeStaticInfo(store.tree, selectConfig(store));
-    if ('error' in res) {
-      store.applyBuild(null, null);
-      // The design's own explanation when it has one. The engine's message for
-      // a zero dimension names no part ("The number NaN cannot be converted to
-      // a BigInt" for a tube fin set with no length), and the Run button
-      // already says which part and which field, in those words.
-      store.setErr(
-        res.bad?.length
-          ? designBlockerText({ kind: 'badGeometry', bad: res.bad }, i18nGlobal.t.bind(i18nGlobal))
-          : res.error,
-      );
-    } else {
-      store.applyBuild(res.info, res.rocket);
-      store.setErr(null);
-    }
-  }, [ready, enginePhase, components, buildInputs]);
-
-  // Editing the design invalidates every simulation's cached result.
-  //
-  // Keyed on what can change a FLIGHT, which is narrower still: a part rename
-  // has to reach the engine (above) but must not throw away results that are
-  // still perfectly valid for the geometry they were flown on.
-  // JSON.stringify of the whole component tree. In the hook body it ran on
-  // EVERY render, including ones caused by tab, err and storageWarning — none
-  // of which can change it.
-  const flight = useMemo(() => flightKey(tree), [tree]);
-  // The key this effect last acted on. Needed because RESTORING a design is
-  // not editing it: on mount `flight` is the DEFAULT rocket's key, `hydrate()`
-  // then swaps in the saved design, the key changes, and this fired - marking
-  // every result the user had already run as stale. With
-  // `simulation.autoRunOutdated` on and a result view open, CenterView then
-  // immediately re-flew them. The rebuild effect above already waits for
-  // `ready`; this one did not.
-  //
-  // And not only on boot. File > Open (`openDesign`) hydrates AGAIN, with a
-  // library design whose saved results are current, and its key differs from
-  // the design it replaces - so a baseline seeded once, at boot, read that as
-  // an edit and aged every restored flight. `hydrationGen` moves with every
-  // hydrate; a change in it re-seeds the baseline instead of marking outdated.
-  // Both land in the same store write, so this runs once per hydrate.
-  const hydrationGen = useWorkspaceStore((s) => s.hydrationGen);
-  const lastFlight = useRef<string | null>(null);
-  const lastHydration = useRef<number | null>(null);
-  useEffect(() => {
-    if (!ready) return; // pre-hydration keys describe the default rocket
-    if (lastFlight.current === null || lastHydration.current !== hydrationGen) {
-      lastFlight.current = flight; // a hydrate sets the baseline; it is not an edit
-      lastHydration.current = hydrationGen;
+    if (enginePhase !== 'ready') {
+      builtOnce.current = false;
       return;
     }
-    if (lastFlight.current === flight) return;
-    lastFlight.current = flight;
-    useWorkspaceStore.getState().markOutdated();
-  }, [ready, flight, hydrationGen]);
+    const build = () => {
+      const store = useWorkspaceStore.getState();
+      // Tree and configuration read from the STORE rather than closed over, so the
+      // effect need not depend on either object to use them: `components` and
+      // `seated` are the narrow keys that say when a rebuild is owed. The handle
+      // still carries the current ignition overrides, because the configuration is
+      // read here at build time.
+      const res = computeStaticInfo(store.tree, selectConfig(store));
+      if ('error' in res) {
+        store.applyBuild(null, null);
+        // The design's own explanation when it has one. The engine's message for
+        // a zero dimension names no part ("The number NaN cannot be converted to
+        // a BigInt" for a tube fin set with no length), and the Run button
+        // already says which part and which field, in those words.
+        store.setErr(
+          res.bad?.length
+            ? designBlockerText({ kind: 'badGeometry', bad: res.bad }, i18nGlobal.t.bind(i18nGlobal))
+            : res.error,
+        );
+      } else {
+        store.applyBuild(res.info, res.rocket);
+        store.setErr(null);
+      }
+    };
+    if (!builtOnce.current) {
+      builtOnce.current = true;
+      build();
+      return;
+    }
+    // A build is a full kernel run on the main thread, and a typed or dragged
+    // dimension changes the design once per input event. Each change cancels the
+    // pending build, so a burst of edits costs one build after the last. Until it
+    // lands, `info` and `rocket` describe the design as it was before the burst.
+    const id = setTimeout(build, REBUILD_DEBOUNCE_MS);
+    return () => clearTimeout(id);
+  }, [ready, enginePhase, components, buildInputs]);
 
   /**
-   * The same invalidation for the GLOBAL run preferences.
-   *
-   * A design edit ages its results through the effect above, a simulation's own
-   * edits through `patchTargets`, and a flight configuration's (motor, ignition,
-   * deployment, separation) through `patchConfig`. The globals in Settings >
-   * Simulation were the one input a flight reads that nothing watched, so
-   * changing the time step or the flight model left every saved result claiming
-   * to be current - and results are persisted, so it survived a reload too.
-   *
-   * `changedPrefKeys` compares the nine keys rather than the object, because the
-   * settings store hands out a new `simulation` object on every unrelated change
-   * in it: switching a unit or a part color would otherwise age every result.
-   *
-   * Unlike the design watcher this needs no hydration guard. It compares against
-   * what it last SAW rather than against a stored baseline, and the settings are
-   * loaded once before the first paint, so there is no restore to mistake for an
-   * edit.
+   * Mirror the global run preferences into the store, which compares each result
+   * against them (`selectOutdated`). `setSimPrefs` ignores a settings object
+   * whose flight keys did not move: the settings store hands out a new
+   * `simulation` object on every unrelated change in it, such as a unit switch.
    */
   const { settings } = useSettings();
   const simPrefs = settings.simulation;
-  const lastPrefs = useRef<typeof simPrefs | null>(null);
   useEffect(() => {
-    const before = lastPrefs.current;
-    lastPrefs.current = simPrefs;
-    if (before === null) return; // first sight is the baseline, not a change
-    const changed = changedPrefKeys(before, simPrefs);
-    if (changed.length > 0) useWorkspaceStore.getState().markPrefsOutdated(changed);
+    useWorkspaceStore.getState().setSimPrefs(simPrefs);
   }, [simPrefs]);
 }

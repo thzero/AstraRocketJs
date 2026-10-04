@@ -4,6 +4,7 @@ import { screen } from '@testing-library/react';
 import { RecoverySizingReadout } from '../../../src/components/design/RecoverySizingReadout';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import { useWorkspaceStore, selectActive } from '../../../src/state/store';
+import { asFlown } from '../../testing/flown';
 import type { ComponentNode, FlightResult, RocketTree } from '../../../src/engine/openRocketEngine';
 
 /**
@@ -83,8 +84,12 @@ function seed(opts: { result?: FlightResult | null; outdated?: boolean } = {}): 
     tree: TREE,
     info: INFO,
     configs: [CONFIG],
-    sims: [{ ...first!, configId: 'c1', result: opts.result ?? null, outdated: opts.outdated ?? false }],
+    sims: [{ ...first!, configId: 'c1', result: opts.result ?? null, resultKey: undefined }],
   });
+  // Current unless asked otherwise: a row with no `resultKey` reads outdated.
+  if (!opts.outdated) {
+    useWorkspaceStore.setState((st) => ({ sims: st.sims.map((x) => asFlown(st, x)) }));
+  }
   // The panel reads the ACTIVE simulation, so make sure the seeded row is it.
   useWorkspaceStore.setState({ activeId: selectActive(useWorkspaceStore.getState()).id });
 }

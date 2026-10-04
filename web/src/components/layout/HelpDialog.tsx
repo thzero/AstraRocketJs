@@ -105,6 +105,15 @@ function Marked({ text, tokens }: { text: string; tokens: string[] }) {
 export function HelpDialog({ page, onClose }: { page: string; onClose: () => void }) {
   const { t, i18n } = useTranslation();
   const frameRef = useRef<HTMLIFrameElement>(null);
+  /**
+   * An anchor on the current page asked for before the frame has loaded it.
+   *
+   * The rail's headings come from the fetched page HTML, so they can be clicked
+   * while the frame is still loading; scrolling a document that is not there yet
+   * does nothing, and the frame then opens at the top. Held here and applied on
+   * load instead. '' means the top of the page.
+   */
+  const pendingAnchor = useRef<string | null>(null);
 
   // `page` is only the ENTRY point: whoever opened Help named a topic.
   // Navigation from INSIDE the frame moves `current` and pushes onto `stack`.
@@ -212,15 +221,20 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
         // is already showing.
         const doc = frameRef.current?.contentDocument;
         const id = to.hash ? decodeURIComponent(to.hash.slice(1)) : '';
+        if (!ready) {
+          pendingAnchor.current = id;
+          return;
+        }
         const el = id ? doc?.getElementById(id) : null;
         if (el) el.scrollIntoView();
         else doc?.defaultView?.scrollTo(0, 0);
         return;
       }
+      pendingAnchor.current = null; // another page carries its own anchor
       setStack((s) => [...s, current]);
       setCurrent(next);
     },
-    [current, i18n.language, target.slug],
+    [current, i18n.language, target.slug, ready],
   );
 
   const goBack = useCallback(() => {
@@ -318,6 +332,13 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
       // Once now, so a page opened ON an anchor is highlighted before it is
       // touched.
       spy();
+      const wanted = pendingAnchor.current;
+      pendingAnchor.current = null;
+      if (wanted !== null) {
+        const el = wanted ? doc.getElementById(wanted) : null;
+        if (el) el.scrollIntoView();
+        else win.scrollTo(0, 0);
+      }
     }
 
     // Nothing is READ out of the frame. The heading and the rail come from the

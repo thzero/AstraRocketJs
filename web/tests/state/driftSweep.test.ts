@@ -69,7 +69,7 @@ describe('a drift sweep', () => {
     );
     while (st().sims.length > 1) st().deleteSim(st().sims[st().sims.length - 1]!.id);
     useWorkspaceStore.setState({
-      sims: st().sims.map((x) => ({ ...x, result: null, outdated: false })),
+      sims: st().sims.map((x) => ({ ...x, result: null })),
       driftSweep: null,
       driftSweepRun: null,
       err: null,

@@ -34,14 +34,15 @@ export interface Simulation {
   /** Cached last flight result (null until this simulation has ever been run). */
   result: FlightResult | null;
   /**
-   * The cached result no longer matches the inputs.
+   * What `result` was flown from, as {@link resultKey} wrote it at dispatch.
    *
-   * An edit flags the result rather than nulling it, which is what OpenRocket
-   * does: the numbers stay readable so a change can be compared against the run
-   * before it, the Results tab stays put, the status column goes amber, and
-   * re-running clears the flag.
+   * Whether the result is outdated is DERIVED from this ({@link isOutdated}),
+   * never stored: an edit leaves the result readable, as OpenRocket does, and the
+   * row reads outdated for as long as the current inputs differ from these.
+   * Being a value rather than a set of object references, it survives a reload,
+   * and an edit undone back to the flown value reads current again.
    */
-  outdated?: boolean;
+  resultKey?: string;
   /**
    * Per-simulation overrides of the global run preferences (Settings ›
    * Simulation). Unset keys fall through to the global value, so a workspace
@@ -89,6 +90,77 @@ export function simInputs(sim: Simulation, config: FlightConfig): SimInputs {
 /** True when nothing a flight depends on has moved since `a` was captured. */
 export function sameSimInputs(a: SimInputs, b: SimInputs): boolean {
   return a.config === b.config && a.launch === b.launch && a.prefs === b.prefs;
+}
+
+/**
+ * The run preferences a flight actually reads: the row's own overrides over the
+ * globals. The run and {@link resultKey} both use this, so what a result is
+ * compared against is what it was flown with.
+ */
+export function effectivePrefs(globals: SimPrefs, own: Partial<SimPrefs> | undefined): SimPrefs {
+  return { ...globals, ...own };
+}
+
+/**
+ * JSON with object keys sorted, so equal values give equal strings whatever
+ * order their keys were written in. `sanitizeSims` rebuilds a launch block as
+ * `{ ...defaults, ...stored }` on every load, which reorders it. Keys named in
+ * `skip` are left out at every depth.
+ */
+function stableJson(value: unknown, skip?: ReadonlySet<string>): string {
+  return JSON.stringify(value, (key, v: unknown) => {
+    if (skip?.has(key)) return undefined;
+    if (v === null || typeof v !== 'object' || Array.isArray(v)) return v;
+    const o = v as Record<string, unknown>;
+    return Object.fromEntries(
+      Object.keys(o)
+        .sort()
+        .map((k) => [k, o[k]]),
+    );
+  });
+}
+
+const PART_NAME = new Set(['name']);
+/** One key per tree object. A design edit replaces the tree, so every row of every render until then is a cache hit. */
+const treeKeys = new WeakMap<RocketTree, string>();
+
+/**
+ * A key over everything about a design that can change a FLIGHT.
+ *
+ * Deliberately narrower than the tree object: the root carries `name`,
+ * `designer`, `comment`, `revision` and `designType`, which are round-tripped to
+ * the `.ork` and touch no physics, and every node carries a `name` that is a
+ * label. So typing a designer name or renaming a part leaves results current.
+ *
+ * Everything else is treated as flight-bearing, including fields we may not know
+ * about (`ComponentNode` has an open index signature). That is the safe
+ * direction to be wrong in: a needless invalidation costs a re-run, a missed one
+ * shows numbers for a rocket that no longer exists.
+ */
+export function flightKey(tree: RocketTree): string {
+  let key = treeKeys.get(tree);
+  if (key === undefined) {
+    key = stableJson(tree.components, PART_NAME);
+    treeKeys.set(tree, key);
+  }
+  return key;
+}
+
+/**
+ * Everything one row's flight is computed from, as one comparable string: the
+ * design ({@link flightKey}), the configuration (less its id and name), the launch
+ * conditions, and the {@link effectivePrefs}. A row that pins a preference is
+ * unaffected by the global one moving, because its override is what it reads.
+ */
+export function resultKey(tree: RocketTree, config: FlightConfig, sim: Simulation, globals: SimPrefs): string {
+  const { id: _id, name: _name, ...flown } = config;
+  const prefs = effectivePrefs(globals, sim.prefs);
+  return stableJson([flightKey(tree), flown, sim.launch, SIM_PREF_KEYS.map((k) => prefs[k] ?? null)]);
+}
+
+/** The row has a result, and it was flown from inputs other than the current ones. */
+export function isOutdated(sim: Simulation, tree: RocketTree, config: FlightConfig, globals: SimPrefs): boolean {
+  return sim.result !== null && sim.resultKey !== resultKey(tree, config, sim, globals);
 }
 
 /** The flight the Results tab is drawing. */
@@ -155,13 +227,18 @@ export type SimRun = { phase: 'queued' } | { phase: 'running' } | { phase: 'fail
  * A `failed` entry only counts against the design it was recorded on. On any
  * other design it is stale, and the row falls back to describing its result.
  */
-export function simStatus(sim: Simulation, runs: Record<string, SimRun>, tree: RocketTree): SimStatus {
+export function simStatus(
+  sim: Simulation,
+  runs: Record<string, SimRun>,
+  tree: RocketTree,
+  outdated: boolean,
+): SimStatus {
   const run = runs[sim.id];
   if (run?.phase === 'queued') return 'queued';
   if (run?.phase === 'running') return 'running';
   if (run?.phase === 'failed' && run.tree === tree) return 'failed';
   if (!sim.result) return 'notRun';
-  return sim.outdated ? 'outdated' : 'upToDate';
+  return outdated ? 'outdated' : 'upToDate';
 }
 
 /** Globally-unique id for a new simulation — a UUID (like OpenRocket's own ids),

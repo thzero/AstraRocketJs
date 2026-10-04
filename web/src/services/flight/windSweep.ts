@@ -102,7 +102,7 @@ export interface DriftSweep {
    * are still the honest answer for the rocket that flew them, and throwing
    * them away on the first fin tweak would mean re-flying a few dozen sims to
    * get back a picture the user was still reading. Same posture as a
-   * simulation's own `outdated` flag.
+   * simulation whose result reads outdated.
    */
   tree: RocketTree;
   /**

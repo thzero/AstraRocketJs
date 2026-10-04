@@ -29,11 +29,12 @@ test('two parts sharing a name are two rows, not one merged one', async ({ page 
   await page.getByRole('button', { name: 'Per component', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Drag by component' })).toBeVisible();
 
+  // Two rows, not one merged one; merged, they would sum into a single row whose
+  // Cd covers both parts and whose CP belongs to neither. Polled because the
+  // engine rebuild that carries the renames is debounced.
+  const twins = async () => (await tableRows(page, 'Drag by component')).filter((x) => x[0] === 'Twin');
+  await expect.poll(async () => (await twins()).length).toBe(2);
   const r = await tableRows(page, 'Drag by component');
-  // Two rows, not one merged one. Before the fix these summed into a single row
-  // whose Cd covered both parts and whose CP belonged to neither.
-  const named = r.filter((x) => x[0] === 'Twin');
-  expect(named).toHaveLength(2);
 
   // And the rows still account for the whole rocket — the split must not have
   // double-counted or dropped anything.

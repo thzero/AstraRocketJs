@@ -30,6 +30,7 @@ import {
   findStages,
 } from '../../src/services/design/treeEdit';
 import { seatMotor, CURVELESS } from '../testing/seatMotor';
+import { asFlown, isStale } from '../testing/flown';
 import type { FlightResult } from '../../src/engine/openRocketEngine';
 import type { SimPrefs } from '../../src/services/flight/simulations';
 
@@ -370,7 +371,7 @@ describe('a simulation flies one configuration', () => {
     s().addConfig();
     s().setSimConfig(second, s().selectedConfigId!);
     useWorkspaceStore.setState((st) => ({
-      sims: st.sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: false })),
+      sims: st.sims.map((x) => ({ ...x, result: { summary: {} } as never })).map((x) => asFlown(st, x)),
     }));
 
     s().setMountMotor(
@@ -386,8 +387,8 @@ describe('a simulation flies one configuration', () => {
     );
 
     const byId = (id: string) => s().sims.find((x) => x.id === id)!;
-    expect(byId(first).outdated).toBe(true);
-    expect(byId(second).outdated).toBe(false); // it flies a different setup
+    expect(isStale(byId(first))).toBe(true);
+    expect(isStale(byId(second))).toBe(false); // it flies a different setup
   });
 
   it('a duplicate flies the same configuration', () => {
@@ -461,15 +462,17 @@ describe('managing configurations', () => {
     const doomed = config().id;
     s().addConfig();
     const keep = s().selectedConfigId!;
+    // A copy flies the same thing; make the survivor differ so moving to it is a change.
+    s().setMountMotor(keep, mountId(), { ...C6, designation: 'D12' });
     useWorkspaceStore.setState((st) => ({
-      sims: st.sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: false })),
+      sims: st.sims.map((x) => ({ ...x, result: { summary: {} } as never })).map((x) => asFlown(st, x)),
     }));
 
     s().deleteConfig(doomed);
 
     expect(s().configs).toHaveLength(1);
     expect(s().sims.every((x) => x.configId === keep)).toBe(true);
-    expect(s().sims.every((x) => x.outdated)).toBe(true); // they fly something else now
+    expect(s().sims.every((x) => isStale(x))).toBe(true); // they fly something else now
   });
 
   it('points one row at another configuration, ageing only that row', () => {
@@ -477,19 +480,20 @@ describe('managing configurations', () => {
     const second = s().activeId;
     s().addConfig();
     const other = s().selectedConfigId!;
+    s().setMountMotor(other, mountId(), { ...C6, designation: 'D12' });
     useWorkspaceStore.setState((st) => ({
-      sims: st.sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: false })),
+      sims: st.sims.map((x) => ({ ...x, result: { summary: {} } as never })).map((x) => asFlown(st, x)),
     }));
 
     s().setSimConfig(second, other);
 
     const byId = (id: string) => s().sims.find((x) => x.id === id)!;
     expect(byId(second).configId).toBe(other);
-    expect(byId(second).outdated).toBe(true);
+    expect(isStale(byId(second))).toBe(true);
     expect(
       s()
         .sims.filter((x) => x.id !== second)
-        .every((x) => !x.outdated),
+        .every((x) => !isStale(x)),
     ).toBe(true);
   });
 
@@ -524,10 +528,10 @@ describe('per-configuration recovery', () => {
   it('ages every flight flown on the configuration that changed', () => {
     s().addSim();
     useWorkspaceStore.setState((st) => ({
-      sims: st.sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: false })),
+      sims: st.sims.map((x) => ({ ...x, result: { summary: {} } as never })).map((x) => asFlown(st, x)),
     }));
     s().setDeployment(config().id, chuteId(), 'deployEvent', 'altitude');
-    expect(s().sims.every((x) => x.outdated)).toBe(true);
+    expect(s().sims.every((x) => isStale(x))).toBe(true);
   });
 
   it('is undone in one step, like any other edit', () => {
@@ -560,10 +564,10 @@ describe('per-configuration staging', () => {
   it('ages every flight flown on the configuration that changed', () => {
     s().addSim();
     useWorkspaceStore.setState((st) => ({
-      sims: st.sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: false })),
+      sims: st.sims.map((x) => ({ ...x, result: { summary: {} } as never })).map((x) => asFlown(st, x)),
     }));
     s().setSeparation(config().id, boosterId(), 'separationEvent', 'burnout');
-    expect(s().sims.every((x) => x.outdated)).toBe(true);
+    expect(s().sims.every((x) => isStale(x))).toBe(true);
   });
 
   it('drops the override when its booster is deleted', () => {
@@ -620,10 +624,10 @@ describe('per-configuration stage activeness', () => {
   it('ages every flight flown on the configuration that changed', () => {
     const [, booster] = stageIds();
     useWorkspaceStore.setState((st) => ({
-      sims: st.sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: false })),
+      sims: st.sims.map((x) => ({ ...x, result: { summary: {} } as never })).map((x) => asFlown(st, x)),
     }));
     s().setStageFlies(config().id, booster!, false);
-    expect(s().sims.every((x) => x.outdated)).toBe(true);
+    expect(s().sims.every((x) => isStale(x))).toBe(true);
   });
 });
 
@@ -702,7 +706,7 @@ describe('simulation run guards', () => {
 describe('results age instead of being destroyed', () => {
   const seed = (): void => {
     useWorkspaceStore.setState((st) => ({
-      sims: st.sims.map((x) => ({ ...x, result: { summary: { maxAltitude: 271 } } as never, outdated: false })),
+      sims: st.sims.map((x) => asFlown(st, { ...x, result: { summary: { maxAltitude: 271 } } as never })),
     }));
   };
   beforeEach(() => {
@@ -711,34 +715,45 @@ describe('results age instead of being destroyed', () => {
   });
 
   it('flags every simulation when the design changes', () => {
-    s().markOutdated();
+    const id = s().tree.components[0]!.id as string;
+    s().setSelectedId(id);
+    s().patchSelected({ length: 0.2 });
     expect(active().result).not.toBeNull();
-    expect(active().outdated).toBe(true);
+    expect(s().sims.every((x) => isStale(x))).toBe(true);
+  });
+
+  it('flags nothing when only a part name changes', () => {
+    s().setSelectedId(s().tree.components[0]!.id as string);
+    s().patchSelected({ name: 'Ogive' });
+    expect(s().sims.every((x) => !isStale(x))).toBe(true);
   });
 
   it('flags the active simulation when its own inputs change', () => {
     s().patchLaunch({ windAverage: 4 });
     expect(active().result).not.toBeNull();
-    expect(active().outdated).toBe(true);
+    expect(isStale(active())).toBe(true);
   });
 
   it('flags only the row whose motor changed, because the configuration forks', () => {
     // A motor edit is about one row (store.patchActiveConfig): a configuration
     // several rows fly is forked first, so the others keep flying what they flew.
     s().setMountMotor(config().id, mountId(), { ...C6, designation: 'D12' });
-    expect(active().outdated).toBe(true);
+    expect(isStale(active())).toBe(true);
     expect(
       s()
         .sims.filter((x) => x.id !== s().activeId)
-        .every((x) => x.result && !x.outdated),
+        .every((x) => x.result && !isStale(x)),
     ).toBe(true);
   });
 
   it('a finished run is current again', async () => {
-    s().markOutdated();
+    s().patchLaunch({ windAverage: 4 });
+    expect(isStale(active())).toBe(true);
     simulateMock.mockResolvedValueOnce({ summary: { maxAltitude: 300 } } as unknown as FlightResult);
-    await s().runSim({} as SimPrefs);
-    expect(active().outdated).toBe(false);
+    // The globals the app passes are the ones the store mirrors; the key records
+    // what the run actually flew with.
+    await s().runSim(s().simPrefs);
+    expect(isStale(active())).toBe(false);
   });
 
   it('carries results through an undo rather than blanking them', () => {
@@ -748,10 +763,21 @@ describe('results age instead of being destroyed', () => {
     s().commitEdit();
     s().undo();
 
-    // The inputs came back; the numbers stayed, flagged, because the design just
-    // moved under them.
+    // The numbers stayed through the edit and the undo. The undo put back the
+    // inputs they were flown from, so they read current again.
     expect(active().result).not.toBeNull();
-    expect(active().outdated).toBe(true);
+    expect(isStale(active())).toBe(false);
+  });
+
+  it('reads outdated after an undo that lands on inputs it was not flown from', () => {
+    const id = s().tree.components[0]!.id as string;
+    s().setSelectedId(id);
+    s().patchSelected({ length: 0.2 });
+    s().commitEdit();
+    seed(); // flown on the edited design
+    s().undo();
+    expect(active().result).not.toBeNull();
+    expect(isStale(active())).toBe(true);
   });
 });
 
@@ -1373,7 +1399,21 @@ describe('replacing the workspace resets the transient run state', () => {
     dirty();
     s().hydrate(snapshot as never);
     clean();
-    expect(s().hydrationGen).toBeGreaterThan(0);
+    expect(s().activeId).toBe(snapshot.activeId); // and it did install the snapshot
+  });
+
+  it('hydrate keeps a stored result the old flag called outdated reading outdated', () => {
+    s().resetWorkspace();
+    const sims = s().sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: true }));
+    s().hydrate({ tree: s().tree, sims, configs: s().configs, activeId: s().activeId, loadedMeta: null } as never);
+    expect(isStale(active())).toBe(true);
+  });
+
+  it('hydrate keys a stored result the old flag called current to the inputs it loads with', () => {
+    s().resetWorkspace();
+    const sims = s().sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: false }));
+    s().hydrate({ tree: s().tree, sims, configs: s().configs, activeId: s().activeId, loadedMeta: null } as never);
+    expect(isStale(active())).toBe(false);
   });
 
   it('happens in ONE set: no subscriber sees the new design with the old run state', () => {

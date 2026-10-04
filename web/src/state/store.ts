@@ -47,8 +47,12 @@ import { wireLoadedOrk } from '../services/files/wireLoadedOrk';
 // INEFFECTIVE_DYNAMIC_IMPORT warning without moving a byte.
 import { fetchExample } from '../services/storage/exampleLibrary';
 import {
+  changedPrefKeys,
+  effectivePrefs,
   freshSeed,
+  isOutdated,
   newSimulation,
+  resultKey,
   sameSimInputs,
   simConditions,
   simInputs,
@@ -337,29 +341,14 @@ export interface WorkspaceState {
   /** The autosave landed. From useWorkspaceEffects, on a successful write. */
   markSaved: () => void;
   applyBuild: (info: StaticInfo | null, rocket: Rocket | null) => void; // from the rebuild effect
-  markOutdated: () => void; // from the tree-change effect
   /**
-   * Age the results a change to the GLOBAL run preferences invalidates.
-   *
-   * A design edit and a simulation edit already age their own rows, and so does
-   * a flight-configuration edit (motor, ignition, deployment, separation) -
-   * those go through `patchConfig`. The global preferences were the one input a
-   * flight reads that nothing watched, so changing the time step or the flight
-   * model left every saved result on screen claiming to be current, including
-   * after a reload.
-   *
-   * Takes the CHANGED keys rather than marking everything, because a row with
-   * its own override for a key the global moved is not affected: its override
-   * wins at run time, so its numbers still stand.
+   * The global run preferences (Settings > Simulation), mirrored from the
+   * settings so the store can tell whether a result is outdated
+   * ({@link selectOutdated}). Synced by useWorkspaceEffects.
    */
-  markPrefsOutdated: (changed: readonly (keyof SimPrefs)[]) => void;
-  /**
-   * Bumped by every `hydrate`. Restoring a design is not editing it: the
-   * flight-invalidation effect (useWorkspaceEffects) re-seeds its baseline on
-   * a change here instead of flagging the restored results stale. Boot is one
-   * hydrate; File > Open is another, and that one can arrive carrying results.
-   */
-  hydrationGen: number;
+  simPrefs: SimPrefs;
+  /** Replace the mirrored globals. A no-op when none of the flight keys moved. */
+  setSimPrefs: (prefs: SimPrefs) => void;
   hydrate: (w: {
     tree: RocketTree;
     sims: Simulation[];
@@ -587,6 +576,15 @@ export const configOf = (configs: readonly FlightConfig[], sim: Simulation): Fli
   configFor(configs, sim.configId);
 
 /**
+ * Whether a row's result was flown from inputs other than the current ones: the
+ * design, its configuration, its launch conditions or the run preferences it
+ * reads. Derived on every read rather than stored, so no edit has to remember to
+ * set it. The active row when `sim` is omitted.
+ */
+export const selectOutdated = (s: WorkspaceState, sim: Simulation = selectActive(s)): boolean =>
+  isOutdated(sim, s.tree, configOf(s.configs, sim), s.simPrefs);
+
+/**
  * True when the ACTIVE sim's last run threw on the design that is still loaded.
  *
  * Self-expiring by construction: it compares the recorded tree against the
@@ -629,6 +627,17 @@ function sanitizeSims(sims: Simulation[], configs: FlightConfig[]): Simulation[]
     // by the workspace store before this sees them (workspaceStore.withResults).
     result: s.result ?? null,
   }));
+}
+
+/**
+ * A stored row with a result and no `resultKey` carries a stored `outdated` flag
+ * instead. One the flag called current takes the key of the inputs it loads
+ * with; one it called outdated takes none, so it still reads outdated.
+ */
+function legacyResultKey(sim: Simulation, tree: RocketTree, config: FlightConfig, prefs: SimPrefs): Simulation {
+  if (!sim.result || sim.resultKey !== undefined) return sim;
+  const { outdated, ...rest } = sim as Simulation & { outdated?: boolean };
+  return outdated ? rest : { ...rest, resultKey: resultKey(tree, config, rest, prefs) };
 }
 
 /**
@@ -759,26 +768,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
    */
   const patchTargets = (make: (sim: Simulation) => Partial<Simulation>) => {
     const ids = new Set(selectEditIds(get()));
-    // `outdated` is set HERE, once, rather than by each caller. Every edit that
-    // reaches this helper changes a simulation's INPUTS, so every one of them
-    // invalidates its cached flight - and having each of the seven call sites
-    // remember to say so meant the next one to be added would not. A caller
-    // can still override it in its patch if it ever genuinely must.
-    set((s) => ({ sims: s.sims.map((x) => (ids.has(x.id) ? { ...x, outdated: true, ...make(x) } : x)) }));
+    set((s) => ({ sims: s.sims.map((x) => (ids.has(x.id) ? { ...x, ...make(x) } : x)) }));
   };
 
   /**
-   * Edit one flight configuration in place, and age every flight that was flown
-   * on it.
+   * Edit one flight configuration in place.
    *
    * SHARED by design: a configuration is a setup several simulations can point
    * at, so changing its motors changes what all of them fly. That is what the
    * configurations tab is for, and it is why motors are edited there and nowhere
    * else - two surfaces writing the same loadout under different rules is how
    * they come to disagree.
-   *
-   * The affected rows' cached flights are stale by definition, so they are aged
-   * here rather than by each caller.
    */
   const patchConfig = (configId: string, mutate: (c: FlightConfig) => FlightConfig) => {
     set((s) => {
@@ -786,10 +786,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (!current) return {};
       const edited = mutate(current);
       if (edited === current) return {};
-      return {
-        configs: s.configs.map((c) => (c.id === configId ? edited : c)),
-        sims: s.sims.map((x) => (x.configId === configId ? { ...x, outdated: true } : x)),
-      };
+      return { configs: s.configs.map((c) => (c.id === configId ? edited : c)) };
     });
   };
 
@@ -819,8 +816,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
    *
    * History entries hold no results (see {@link snap}), so the live ones are
    * carried across rather than blanked: an undo of a typo must not throw away
-   * numbers that are still readable. The design did change, so what comes back
-   * is flagged outdated rather than presented as current.
+   * numbers that are still readable. Each carries the key it was flown from, so
+   * it reads outdated against the restored inputs unless they are the ones it
+   * flew.
    */
   const restore = (e: HistoryEntry) => {
     const live = new Map(get().sims.map((x) => [x.id, x]));
@@ -828,8 +826,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       tree: e.tree,
       selectedId: e.selectedId,
       sims: e.sims.map((x) => {
-        const held = live.get(x.id)?.result;
-        return held ? { ...x, result: held, outdated: true } : x;
+        const held = live.get(x.id);
+        return held?.result ? { ...x, result: held.result, resultKey: held.resultKey } : x;
       }),
       configs: e.configs,
       activeId: e.activeId,
@@ -1061,7 +1059,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     resetKey: 0,
     designs: [],
     activeDesignId: null,
-    hydrationGen: 0,
+    simPrefs: loadSettings().simulation,
 
     setErr: (err) => set({ err }),
     setStorageWarning: (storageWarning, kind) =>
@@ -1070,40 +1068,27 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set((s) => (s.storageWarningKind === 'full' ? { storageWarning: null, storageWarningKind: null } : {})),
     markSaved: () => set({ lastSavedAt: Date.now() }),
     applyBuild: (info, rocket) => set({ info, rocket }),
-    // A design edit does not destroy the numbers, it ages them. See
-    // `Simulation.outdated`.
-    markOutdated: () =>
-      set((s) =>
-        s.sims.some((x) => x.result && !x.outdated)
-          ? { sims: s.sims.map((x) => (x.result ? { ...x, outdated: true } : x)) }
-          : {},
-      ),
-    markPrefsOutdated: (changed) =>
-      set((s) => {
-        // A row is affected only where it does NOT pin the key itself.
-        const affected = (sim: Simulation) => changed.some((k) => sim.prefs?.[k] === undefined);
-        if (!s.sims.some((x) => x.result && !x.outdated && affected(x))) return {};
-        return { sims: s.sims.map((x) => (x.result && affected(x) ? { ...x, outdated: true } : x)) };
-      }),
+    setSimPrefs: (prefs) => set((s) => (changedPrefKeys(s.simPrefs, prefs).length ? { simPrefs: prefs } : {})),
     hydrate: (w) => {
       // A stored workspace is lifted to the current shape before it gets here
       // (services/storage/workspaceMigrate), so this only has to repair a blob that is
       // the right shape and still partial.
       const configs = sanitizeConfigs(w.tree, w.configs);
-      const sims = sanitizeSims(w.sims, configs);
-      const activeId = sims.some((s) => s.id === w.activeId) ? w.activeId : sims[0]!.id;
       // And the VALUES, which nothing clamped on the way in: a design autosaved
       // by a build from before a limit existed, or opened from a file by one,
       // can carry a density no material has. See `repairValues`.
       const fixed = repairValues(w.tree);
-      replaceWorkspace((s) => ({
+      const sims = sanitizeSims(w.sims, configs).map((x) =>
+        legacyResultKey(x, fixed.tree, configOf(configs, x), get().simPrefs),
+      );
+      const activeId = sims.some((s) => s.id === w.activeId) ? w.activeId : sims[0]!.id;
+      replaceWorkspace(() => ({
         repairNotes: repairNotes(fixed.repaired),
         tree: fixed.tree,
         sims,
         configs,
         activeId,
         loadedMeta: w.loadedMeta ?? null,
-        hydrationGen: s.hydrationGen + 1,
       }));
     },
 
@@ -1310,11 +1295,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (!rest.length) return; // the last one: every simulation needs one to fly
       recordStep();
       // The rows that flew it have to fly something, so they take the first
-      // remaining configuration - and are aged, because what they fly changed.
+      // remaining configuration.
       const fallback = rest[0]!.id;
       set({
         configs: rest,
-        sims: s.sims.map((x) => (x.configId === id ? { ...x, configId: fallback, outdated: true } : x)),
+        sims: s.sims.map((x) => (x.configId === id ? { ...x, configId: fallback } : x)),
         selectedConfigId: s.selectedConfigId === id ? fallback : s.selectedConfigId,
       });
     },
@@ -1323,7 +1308,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const sim = s.sims.find((x) => x.id === simId);
       if (!sim || sim.configId === configId || !s.configs.some((c) => c.id === configId)) return;
       recordStep();
-      set({ sims: s.sims.map((x) => (x.id === simId ? { ...x, configId, outdated: true } : x)) });
+      set({ sims: s.sims.map((x) => (x.id === simId ? { ...x, configId } : x)) });
     },
     patchLaunch: (p) => {
       beginEdit();
@@ -1511,6 +1496,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             // conditions and run overrides that only this row carries.
             const config = configOf(get().configs, sim);
             const flownFrom = simInputs(sim, config);
+            const flownKey = resultKey(ranOn, config, sim, prefs);
             try {
               // The sim runs in a Web Worker (its own engine instance), off the main
               // thread, so a ~500 ms flight never freezes the UI. The worker rebuilds
@@ -1522,7 +1508,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
                   config,
                   // The sim's own overrides win over the global preferences; unset keys
                   // fall through, so a workspace that never touches them runs as before.
-                  options: simConditions(launch, { ...prefs, ...sim.prefs }),
+                  options: simConditions(launch, effectivePrefs(prefs, sim.prefs)),
                 },
                 // Queued and running are different states once there is a pool:
                 // the client says when this one actually reached a worker.
@@ -1545,7 +1531,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               }
               setRun(sim.id, null);
               set((st) => ({
-                sims: st.sims.map((x) => (x.id === sim.id ? { ...x, result, outdated: false } : x)),
+                sims: st.sims.map((x) => (x.id === sim.id ? { ...x, result, resultKey: flownKey } : x)),
               }));
             } catch (e) {
               // Canceling is not a fault: the row goes back to what it was
@@ -1612,9 +1598,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
      * ticked.
      */
     runOutdated: async (prefs) => {
-      const stale = get()
-        .sims.filter((x) => !x.result || x.outdated)
-        .map((x) => x.id);
+      const s = get();
+      const stale = s.sims.filter((x) => !x.result || selectOutdated(s, x)).map((x) => x.id);
       if (!stale.length) return;
       await get().runSims(stale, prefs);
     },

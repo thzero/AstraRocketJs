@@ -6,25 +6,6 @@ import { badDimensions, type BadDimension } from './requiredComponent';
 import { hasUsableCurve } from '../motors/motorCurve';
 
 /**
- * A key over everything about a design that can change a FLIGHT.
- *
- * Deliberately narrower than the tree object: the root carries `name`,
- * `designer`, `comment`, `revision` and `designType`, which are round-tripped to
- * the `.ork` and touch no physics, and every node carries a `name` that is a
- * label. Keying result-invalidation on the tree's object identity meant typing a
- * designer name in the Rocket-configuration dialog — or renaming a part —
- * silently threw away every simulation result the user had.
- *
- * Everything else is treated as flight-bearing, including fields we may not know
- * about (`ComponentNode` has an open index signature). That is the safe
- * direction to be wrong in: a needless invalidation costs a re-run, a missed one
- * shows numbers for a rocket that no longer exists.
- */
-export function flightKey(tree: RocketTree): string {
-  return JSON.stringify(tree.components, (k, v) => (k === 'name' ? undefined : (v as unknown)));
-}
-
-/**
  * A key over every CONFIGURATION input that can change the STATIC info.
  *
  * `buildConfiguredRocket` reads three things off the configuration, and the

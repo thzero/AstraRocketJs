@@ -13,6 +13,7 @@ import { useWorkspaceStore } from '../../src/state/store';
 import { C6 } from '../../src/engine/api';
 import { findMounts } from '../../src/services/design/treeEdit';
 import { simStatus, type SimPrefs } from '../../src/services/flight/simulations';
+import { asFlown, isStale } from '../testing/flown';
 import type { FlightResult } from '../../src/engine/openRocketEngine';
 // The real class (the mock spreads the actual module), so the store's
 // `instanceof SimCanceledError` check sees the same identity it would in the app.
@@ -24,7 +25,7 @@ const st = () => useWorkspaceStore.getState();
 /** The default design's one motor mount, which is where a swapped motor goes. */
 const mountId = () => findMounts(st().tree)[0]!.id as string;
 const byName = (n: string) => st().sims.find((x) => x.name === n)!;
-const statusOf = (n: string) => simStatus(byName(n), st().simRuns, st().tree);
+const statusOf = (n: string) => simStatus(byName(n), st().simRuns, st().tree, isStale(byName(n)));
 
 const PREFS = {
   timeStep: 0.05,
@@ -36,6 +37,10 @@ const PREFS = {
   mainLowSpeedWarn: 15.24,
   drogueLowSpeedWarn: 3.048,
 } as SimPrefs;
+
+// The store compares each result against the globals it mirrors, and these runs
+// fly PREFS, so the mirror has to hold PREFS for an installed result to read current.
+beforeEach(() => st().setSimPrefs(PREFS));
 
 const result = (apogee: number) =>
   ({ summary: { maxAltitude: apogee }, events: [], series: {} }) as unknown as FlightResult;
@@ -76,7 +81,7 @@ describe('a batch over the worker pool', () => {
     st().renameSim(st().sims[2]!.id, 'C');
     st().commitEdit();
     useWorkspaceStore.setState({
-      sims: st().sims.map((x) => ({ ...x, motor: C6, result: null, outdated: false })),
+      sims: st().sims.map((x) => ({ ...x, motor: C6, result: null })),
       err: null,
       simRuns: {},
     });
@@ -207,7 +212,7 @@ describe('canceling a batch', () => {
     st().renameSim(st().sims[1]!.id, 'B');
     st().commitEdit();
     useWorkspaceStore.setState({
-      sims: st().sims.map((x) => ({ ...x, motor: C6, result: null, outdated: false })),
+      sims: st().sims.map((x) => ({ ...x, motor: C6, result: null })),
       err: null,
       simRuns: {},
     });
@@ -268,15 +273,12 @@ describe('running everything outdated', () => {
     st().renameSim(st().sims[2]!.id, 'NeverFlown');
     st().commitEdit();
     useWorkspaceStore.setState({
-      sims: st().sims.map((x) => ({
-        ...x,
-        motor: C6,
-        result: x.name === 'NeverFlown' ? null : result(1),
-        outdated: x.name === 'Stale',
-      })),
+      sims: st().sims.map((x) => ({ ...x, motor: C6, result: x.name === 'NeverFlown' ? null : result(1) })),
       err: null,
       simRuns: {},
     });
+    // Fresh was flown on today's inputs; Stale carries no key, so it reads outdated.
+    useWorkspaceStore.setState((s) => ({ sims: s.sims.map((x) => (x.name === 'Fresh' ? asFlown(s, x) : x)) }));
   });
 
   it('flies the stale and the never-flown, and leaves the current one alone', async () => {
@@ -297,8 +299,9 @@ describe('running everything outdated', () => {
 
   it('does nothing at all when every row is current', async () => {
     useWorkspaceStore.setState({
-      sims: st().sims.map((x) => ({ ...x, result: result(1), outdated: false })),
+      sims: st().sims.map((x) => ({ ...x, result: result(1) })),
     });
+    useWorkspaceStore.setState((s) => ({ sims: s.sims.map((x) => asFlown(s, x)) }));
     await st().runOutdated(PREFS);
     expect(simulateMock).not.toHaveBeenCalled();
     expect(st().simBusy).toBe(false);
@@ -311,10 +314,9 @@ describe('running everything outdated', () => {
  * The design has always had `ranOn`: an answer flown against a tree that has
  * since changed is discarded. A row's OWN inputs had no such guard, and were
  * protected by locking the simulation editor for the duration of a run instead.
- * That lock is gone, so the guard has to be real: a result installs with
- * `outdated: false`, and without the check it would overwrite an edit made
- * mid-run and leave the row claiming to be current against conditions it no
- * longer has.
+ * That lock is gone, so the guard has to be real: without the check a result
+ * would overwrite an edit made mid-run and show numbers for conditions the row
+ * no longer has.
  */
 describe('a simulation edited while it is in the air', () => {
   let calls: Call[];
@@ -335,7 +337,7 @@ describe('a simulation edited while it is in the air', () => {
     st().renameSim(st().sims[1]!.id, 'B');
     st().commitEdit();
     useWorkspaceStore.setState({
-      sims: st().sims.map((x) => ({ ...x, motor: C6, result: null, outdated: false })),
+      sims: st().sims.map((x) => ({ ...x, motor: C6, result: null })),
       err: null,
       simRuns: {},
     });
@@ -356,7 +358,7 @@ describe('a simulation edited while it is in the air', () => {
 
     // The numbers described the wind it no longer has, so they are not kept.
     expect(byName('A').result).toBeNull();
-    expect(byName('A').outdated).toBe(true);
+    expect(statusOf('A')).toBe('notRun');
     expect(st().simRuns).toEqual({});
   });
 
@@ -372,7 +374,7 @@ describe('a simulation edited while it is in the air', () => {
     await run;
     // Nothing this flight depends on moved, so it installs as normal.
     expect(byName('A').result?.summary.maxAltitude).toBe(123);
-    expect(byName('A').outdated).toBe(false);
+    expect(isStale(byName('A'))).toBe(false);
   });
 
   it('drops it for a motor swap too, not just launch conditions', async () => {
