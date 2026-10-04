@@ -44,7 +44,7 @@ const PAN_SLOP = 4;
 /** Every ruler on. Module scope, not a default-parameter literal: `rulers` is a
  *  dependency of the layout memo, and a fresh object per render defeated it
  *  for every caller that left the prop off. */
-const DEFAULT_RULERS = { top: true, bottom: true, left: true, right: true };
+const DEFAULT_RULERS = { top: true, bottom: false, left: true, right: false };
 /** Wheel step and zoom ceiling; hoisted so the hook's options keep one identity. */
 const WHEEL_ZOOM = { factor: 1.2, max: 12 };
 

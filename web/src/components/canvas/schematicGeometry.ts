@@ -305,7 +305,7 @@ export function computeSchematicLayout(
   // Side view reserves a ruler lane per requested side (length top/bottom, radial
   // left/right); each kept out of the fit so the drawing centers inside the frame.
   // A side that's toggled off reserves nothing, so the drawing reclaims that space.
-  const R = dims.rulers ?? { top: true, bottom: true, left: true, right: true };
+  const R = dims.rulers ?? { top: true, bottom: false, left: true, right: false };
   const rTop = R.top ? RULER_H : 0;
   const rBot = R.bottom ? RULER_H : 0;
   const rLeft = R.left ? RULER_W : 0;

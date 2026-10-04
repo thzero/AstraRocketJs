@@ -487,7 +487,7 @@ export const DEFAULT_SETTINGS: Settings = {
   treePaneWidth: TREE_PANE_DEFAULT,
   sidePaneWidth: SIDE_PANE_DEFAULT,
   maximizeCenter: false,
-  rulers: { top: true, bottom: true, left: true, right: true },
+  rulers: { top: true, bottom: false, left: true, right: false },
   saveDesignInfo: false,
   report: DEFAULT_REPORT,
   pathExport: DEFAULT_PATH_EXPORT,
