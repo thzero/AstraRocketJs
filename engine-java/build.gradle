@@ -62,6 +62,15 @@ sourceSets {
 // engine (about 2%), never executed by the app.
 sourceSets.main.java.srcDir 'test'
 
+// UTF-8, stated rather than inherited. Some sources carry non-ASCII characters
+// inside string literals that ship as constants, and javac otherwise decodes
+// with the platform default, which a `file.encoding` in JAVA_OPTS or GRADLE_OPTS
+// (both forwarded by gradle-exec.mjs) can change. A different decode changes the
+// vendored bytes, and CI's committed-engine check then fails on a binary diff.
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
 compileJdkStubsJava {
     // Collator's package (java.text) is patched into java.base.
     options.compilerArgs += ['--patch-module', "java.base=${file('src/jdkstubs')}"]

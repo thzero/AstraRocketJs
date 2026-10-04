@@ -527,7 +527,7 @@ in BOTH artifacts before vendoring either, reading the wasm as latin1. The old
 "no ParityMain" check is gone, since the harness now ships; `runParity` is on the
 export list instead, and the previous wasm, which lacks it, would be refused.
 
-### G8. javac source encoding is left to the platform (MED, REPORTED)
+### G8. javac source encoding is left to the platform (MED, REPORTED) - FIXED 2026-10-04
 
 No `options.encoding` on any `JavaCompile` task, while `gradle-exec.mjs` forwards
 `GRADLE_OPTS` and `JAVA_OPTS` verbatim, so a `file.encoding` override reaches the
@@ -540,6 +540,15 @@ job's `git diff --exit-code` then fails with a binary diff whose printed hint po
 the reader at `java -version` rather than at encoding.
 
 Fix: `tasks.withType(JavaCompile) { options.encoding = 'UTF-8' }`.
+
+**FIXED 2026-10-04**, as a declaration rather than a cure for an observed failure.
+`build.gradle` sets `options.encoding = 'UTF-8'` on every `JavaCompile` task. The
+rebuilt engine is byte-identical, since JDK 18+ already defaults to UTF-8. The
+hazard could not be reproduced here: building with `file.encoding=ISO-8859-1` in
+both `GRADLE_OPTS` and `JAVA_TOOL_OPTIONS` gave identical bytes with and without
+the setting, so those variables do not reach the forked toolchain compiler on this
+setup. The setting stays because it costs nothing and makes the build state its
+encoding instead of inheriting it.
 
 ### G9. The validation floors sit exactly on the measurement (MED, VERIFIED)
 
