@@ -22,6 +22,57 @@ const SPY_OFFSET_PX = 96;
  * `navigate` is the one way to move: an anchor on the page already showing
  * scrolls the frame, anything else goes through `open` onto the back stack.
  */
+/** How long an anchor applied at load is held against the page settling under it. */
+const ANCHOR_HOLD_MS = 10_000;
+
+/**
+ * Jump to an anchor in a page that has just loaded, and keep it there while the
+ * page settles.
+ *
+ * The docs site can hydrate AFTER the load event when the machine is busy, and
+ * hydrating re-renders the page: its content is replaced by a placeholder, the
+ * scroll falls back to the top, and the content arrives a beat later. A single
+ * jump at load is undone, so the jump is made again whenever the page's content
+ * changes, until the reader scrolls, clicks or types in the frame (the page is
+ * theirs from then on) or the hold runs out.
+ *
+ * Content changes, not size: in the embedded layout <html> and <body> are both
+ * fixed to the viewport and the page scrolls past them, so neither resizes as
+ * the content comes and goes.
+ */
+function holdAnchor(doc: Document, win: Window, id: string): void {
+  // Looked up by id each time: hydration can replace the element.
+  const go = () => {
+    const el = id ? doc.getElementById(id) : null;
+    if (el) el.scrollIntoView();
+    else win.scrollTo(0, 0);
+  };
+  go();
+  // One jump per frame however many nodes a re-render touches.
+  let queued = false;
+  const settle = () => {
+    if (queued) return;
+    queued = true;
+    win.requestAnimationFrame(() => {
+      queued = false;
+      go();
+    });
+  };
+  // The frame's own constructor: an observer from this window would watch a
+  // document in another realm.
+  const Observer = (win as Window & typeof globalThis).MutationObserver;
+  const content = new Observer(settle);
+  content.observe(doc.body ?? doc.documentElement, { childList: true, subtree: true });
+  const inputs = ['wheel', 'pointerdown', 'keydown', 'touchstart'] as const;
+  const release = () => {
+    content.disconnect();
+    for (const kind of inputs) win.removeEventListener(kind, release, true);
+    win.clearTimeout(timer);
+  };
+  for (const kind of inputs) win.addEventListener(kind, release, { capture: true, passive: true });
+  const timer = win.setTimeout(release, ANCHOR_HOLD_MS);
+}
+
 export function useHelpFrame(
   target: HelpTarget,
   language: string,
@@ -143,7 +194,11 @@ export function useHelpFrame(
      */
     const win = doc.defaultView;
     if (win) {
-      const marks = [...doc.querySelectorAll<HTMLElement>('.theme-doc-markdown h2[id], .theme-doc-markdown h3[id]')];
+      // Queried on every pass, not once at load: hydration can replace the
+      // headings, and a detached one reports a zero rect, which reads as
+      // scrolled past and puts the rail on the wrong section.
+      const headings = () =>
+        doc.querySelectorAll<HTMLElement>('.theme-doc-markdown h2[id], .theme-doc-markdown h3[id]');
       let queued = false;
       const spy = () => {
         if (queued) return;
@@ -151,7 +206,7 @@ export function useHelpFrame(
         win.requestAnimationFrame(() => {
           queued = false;
           let active = '';
-          for (const mark of marks) {
+          for (const mark of headings()) {
             if (mark.getBoundingClientRect().top > SPY_OFFSET_PX) break;
             active = `#${mark.id}`;
           }
@@ -164,11 +219,7 @@ export function useHelpFrame(
       spy();
       const wanted = pendingAnchor.current;
       pendingAnchor.current = null;
-      if (wanted !== null) {
-        const el = wanted ? doc.getElementById(wanted) : null;
-        if (el) el.scrollIntoView();
-        else win.scrollTo(0, 0);
-      }
+      if (wanted !== null) holdAnchor(doc, win, wanted);
     }
 
     // Nothing is READ out of the frame. The heading and the rail come from the

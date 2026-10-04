@@ -7,7 +7,7 @@ import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
 import { clampEntry } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
-import { MAX_INSTANCE_COUNT, num, str } from '../../tree/nodeProps';
+import { MAX_FIN_COUNT, MAX_INSTANCE_COUNT, num, str } from '../../tree/nodeProps';
 import { clusterCount } from '../../tree/cluster';
 import { shapeIsClippable, shapeParamMax, shapeUsesParameter } from '../../tree/shapeProfile';
 import { FIELDS, type Field, type PanelSection } from '../../services/design/componentFields';
@@ -348,17 +348,20 @@ export function FieldRow({
           />
         </label>
       );
-    case 'count':
+    case 'count': {
+      // Every fin type's count is `finCount`, and the kernel builds at most 8.
+      const max = f.key === 'finCount' ? MAX_FIN_COUNT : MAX_INSTANCE_COUNT;
       return numeric({
         value: num(node, f.key),
         step: 1,
         min: 1,
-        max: MAX_INSTANCE_COUNT,
+        max,
         // Clamped at the SOURCE as well as in every consumer: the field had a
         // floor and no ceiling, so the count reached the node and was
         // persisted and exported before any renderer saw it.
-        onChange: (v) => patchNumber({ [f.key]: Math.min(MAX_INSTANCE_COUNT, Math.max(1, Math.round(v))) }),
+        onChange: (v) => patchNumber({ [f.key]: Math.min(max, Math.max(1, Math.round(v))) }),
       });
+    }
     case 'mass': {
       const fu = u.at(scope, 'mass');
       return numeric({

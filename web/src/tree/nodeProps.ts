@@ -33,6 +33,13 @@ export const numOpt = (n: ComponentNode, key: string): number | undefined =>
 export const MAX_INSTANCE_COUNT = 64;
 
 /**
+ * The most fins a fin set can carry: the kernel's own limit. `FinSet.setFinCount`
+ * clamps to 8, and the engine boundary rejects anything above it for every fin
+ * type, so a count past this is a design the engine will not build.
+ */
+export const MAX_FIN_COUNT = 8;
+
+/**
  * An instance count (fins, tubes, pod instances): a whole number in
  * [1, {@link MAX_INSTANCE_COUNT}].
  *

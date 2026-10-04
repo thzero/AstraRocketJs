@@ -202,16 +202,19 @@ describe('file-sourced counts are clamped to domain ceilings', () => {
     return walk(importOrk(ork(xml)).tree.components as never)!;
   };
 
-  it('caps a fin count at 64 and floors it at 1', () => {
+  // 8 is the kernel's limit, which desktop OpenRocket applies on load as well:
+  // anything above it is a fin set the engine will not build.
+  it('caps a fin count at 8 and floors it at 1', () => {
     const fins = (n: string) =>
       `<trapezoidfinset><name>F</name><fincount>${n}</fincount><rootchord>0.05</rootchord><height>0.03</height></trapezoidfinset>`;
-    expect(first(inTube(fins('100000')), 'trapezoidfinset').finCount).toBe(64);
+    expect(first(inTube(fins('100000')), 'trapezoidfinset').finCount).toBe(8);
+    expect(first(inTube(fins('9')), 'trapezoidfinset').finCount).toBe(8);
     expect(first(inTube(fins('0')), 'trapezoidfinset').finCount).toBe(1);
     expect(first(inTube(fins('-7')), 'trapezoidfinset').finCount).toBe(1);
     expect(first(inTube(fins('Infinity')), 'trapezoidfinset').finCount).toBe(3); // non-finite: the default
     expect(first(inTube(fins('4')), 'trapezoidfinset').finCount).toBe(4);
     const tubes = `<tubefinset><name>T</name><fincount>9999</fincount><length>0.1</length></tubefinset>`;
-    expect(first(inTube(tubes), 'tubefinset').finCount).toBe(64);
+    expect(first(inTube(tubes), 'tubefinset').finCount).toBe(8);
   });
 
   it('caps an instance count at 1000 on rings, lugs and assemblies', () => {

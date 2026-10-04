@@ -344,6 +344,50 @@ describe('error envelopes, from the Java side', () => {
   });
 });
 
+/**
+ * Bad input the kernel used to accept silently, flying a different rocket than
+ * the one described, or none, with no error to say so.
+ */
+describe('the boundary refuses what it cannot build faithfully', () => {
+  /** TREE with one component's fields replaced. */
+  const withPart = (id: string, patch: Record<string, unknown>) => {
+    const tree = structuredClone(TREE) as unknown as { components: Record<string, unknown>[] };
+    const visit = (nodes: Record<string, unknown>[]) => {
+      for (const n of nodes) {
+        const kids = n['children'];
+        if (Array.isArray(kids)) visit(kids as Record<string, unknown>[]);
+        if (n['id'] === id) Object.assign(n, patch);
+      }
+    };
+    visit(tree.components);
+    return tree as unknown as RocketTree;
+  };
+
+  it('refuses a trapezoid fin count the kernel would quietly clamp or truncate', () => {
+    // FinSet.setFinCount clamps to 8, and a bare (int) cast truncated 3.9 to 3:
+    // each built a rocket with a different fin count than the file's.
+    for (const finCount of [12, 3.9, 0]) {
+      expect(() => OpenRocketDesign.buildTree(withPart('fins', { finCount })).staticInfo()).toThrow(/finCount.*1\.\.8/);
+    }
+    expect(OpenRocketDesign.buildTree(withPart('fins', { finCount: 8 })).staticInfo().mass).toBeGreaterThan(0);
+  });
+
+  it('refuses a dimension past any real part, instead of reporting an all-null design', () => {
+    expect(() => OpenRocketDesign.buildTree(withPart('nose', { length: 1e300 })).staticInfo()).toThrow(
+      /length.*out of range/,
+    );
+  });
+
+  it('refuses a children key that is not a list of parts, instead of dropping the subtree', () => {
+    expect(() => OpenRocketDesign.buildTree(withPart('tube', { children: [1, 2, 3] })).staticInfo()).toThrow(
+      /children.*object/,
+    );
+    expect(() =>
+      OpenRocketDesign.buildTree(withPart('tube', { children: { type: 'trapezoidfinset' } })).staticInfo(),
+    ).toThrow(/children.*list/);
+  });
+});
+
 describe('motor validation at the boundary', () => {
   it('accepts a well-formed motor', () => {
     const d = build();

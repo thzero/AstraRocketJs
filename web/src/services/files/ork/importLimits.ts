@@ -1,4 +1,4 @@
-import { MAX_INSTANCE_COUNT } from '../../../tree/nodeProps';
+import { MAX_FIN_COUNT as KERNEL_MAX_FIN_COUNT } from '../../../tree/nodeProps';
 
 /**
  * Ceilings the .ork reader holds an untrusted file to. A real design is a few
@@ -21,9 +21,10 @@ export const MAX_MOTOR_CONFIGS = 256;
 // Domain ceilings for the counts a file can declare. Every consumer loops on
 // these (a mesh per fin, a shape per instance, a vertex per fin point), so an
 // unbounded count from a crafted file is a frozen tab, not a big rocket.
-// Fins share the editor's own ceiling (nodeProps.MAX_INSTANCE_COUNT); pods and
-// rings can legitimately repeat more, but nothing buildable repeats a thousand.
-export const MAX_FIN_COUNT = MAX_INSTANCE_COUNT;
+// Fins take the kernel's ceiling (nodeProps.MAX_FIN_COUNT), which desktop
+// OpenRocket applies on load too; pods and rings can legitimately repeat more,
+// but nothing buildable repeats a thousand.
+export const MAX_FIN_COUNT = KERNEL_MAX_FIN_COUNT;
 export const MAX_ASSEMBLY_INSTANCES = 1000;
 export const MAX_FIN_POINTS = 10_000;
 // Total components in one file. The byte caps above do NOT bound this: a
