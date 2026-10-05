@@ -152,7 +152,8 @@
     "storage": "設計、シミュレーション、環境設定、独自に追加した材料やモーターは、ご利用の端末のブラウザーのローカルストレージに保存され、当方や第三者に送られることは一切ありません。ブラウザーのデータを消去する（または「新規」を使う）と削除されます。",
     "network": "本アプリはモーターと部品のカタログを公開の配信ネットワークから取得し、モーターを選んだときにはその推力曲線のデータを公開のモーターデータベースから取得することがあります。いずれもローカルにキャッシュされ、それぞれの提供元の規約に従います。それ以外に、利用者のデータを伴う通信は行いません。",
     "hosting": "本アプリを設置している事業者は、どの Web サイトとも同様に、一般的な Web サーバーのアクセスログ（IP アドレスや日時など）を保持することがあります。アプリ自体は何も収集しません。",
-    "close": "閉じる"
+    "close": "閉じる",
+    "weather": "天気ダイアログで「取得」を押すと、発射地点の座標と標高、選んだ日付が Open-Meteo に送られ、予報が返されます。それ以外には何も送信されません。リクエストには、このアプリや配信元のサイトを示す情報は含まれません。"
   },
   "help": {
     "title": "ヘルプ",
@@ -433,7 +434,8 @@
     "ruler_top_abbr": "上",
     "ruler_bottom_abbr": "下",
     "ruler_left_abbr": "左",
-    "ruler_right_abbr": "右"
+    "ruler_right_abbr": "右",
+    "environment": "環境"
   },
   "stability": {
     "onPad": "安定性（発射台上）",
@@ -597,7 +599,10 @@
       "longitudeDeg": "経度"
     },
     "locationDenied": "現在地を取得できませんでした。ブラウザーの許可設定を確認して、もう一度お試しください。",
-    "locating": "現在地を取得中…"
+    "locating": "現在地を取得中…",
+    "getWeather": "天気を取得…",
+    "forecastProfile": "{{top}}までの予報大気",
+    "clearForecastProfile": "削除"
   },
   "csv": {
     "title": "飛行データをエクスポート",
@@ -1618,5 +1623,81 @@
     "payload": "ペイロード",
     "recoveryhardware": "回収用金具",
     "battery": "バッテリー"
+  },
+  "weather": {
+    "title": "Open-Meteo の天気",
+    "dateLabel": "日付",
+    "hourLabel": "時刻(発射地点の時刻)",
+    "fetch": "取得",
+    "fetching": "取得中…",
+    "apply": "適用",
+    "needSite": "先に発射地点の緯度と経度を入力してください。",
+    "siteLine": "地点 {{lat}}, {{lon}} 標高 {{alt}}",
+    "noHour": "その時刻のデータがありません。",
+    "validForecast": "{{time}} の予報",
+    "validArchive": "{{time}} の観測値",
+    "archiveNoAloft": "これほど過去の日付では地上の値のみで、上空の風や大気はありません。",
+    "useTerrain": "地形の標高 {{terrain}} を発射地点に使う(現在 {{site}})",
+    "forecastNote": "予報はモデルによる推定であり、測定値ではありません。",
+    "credit": "気象データ:Open-Meteo.com",
+    "windValue": "{{speed}}、{{from}}° から、突風 {{gust}}、{{top}} までのプロファイル",
+    "atmosphereValue": "{{top}} までのプロファイル",
+    "group": {
+      "temperature": "気温",
+      "pressure": "気圧",
+      "humidity": "湿度",
+      "wind": "風",
+      "atmosphere": "上空の大気"
+    },
+    "dateRefusal": {
+      "tooFarAhead": "Open-Meteo の予報は最大 15 日先までです。",
+      "tooEarly": "Open-Meteo の記録は 1940 年 1 月 1 日からです。",
+      "badDate": "日付を選んでください。"
+    },
+    "error": {
+      "offline": "Open-Meteo に接続できませんでした。 打ち上げ条件は変更されていません。",
+      "timeout": "Open-Meteo が時間内に応答しませんでした。 打ち上げ条件は変更されていません。",
+      "aborted": "キャンセルしました。 打ち上げ条件は変更されていません。",
+      "refused": "Open-Meteo がリクエストを拒否しました:{{detail}}。 打ち上げ条件は変更されていません。",
+      "badKey": "Open-Meteo は「設定、打ち上げ」の API キーを受け付けませんでした。 打ち上げ条件は変更されていません。",
+      "quota": "Open-Meteo の無料枠を使い切りました。後でもう一度試すか、「設定、打ち上げ」で API キーを追加してください。 打ち上げ条件は変更されていません。",
+      "http": "Open-Meteo がエラーを返しました({{detail}})。 打ち上げ条件は変更されていません。",
+      "shape": "Open-Meteo の応答を読み取れませんでした({{detail}})。 打ち上げ条件は変更されていません。",
+      "units": "Open-Meteo がアプリの読めない単位で応答しました({{detail}})。 打ち上げ条件は変更されていません。",
+      "noData": "Open-Meteo にはこの場所のその日付のデータがありません。 打ち上げ条件は変更されていません。"
+    },
+    "keyLabel": "Open-Meteo API キー",
+    "keyPlaceholder": "なし(無料サービス)",
+    "keyNote": "任意。キーがない場合、天気は非商用向けの Open-Meteo 無料サービスから取得します。Open-Meteo の有料プランのキーを使うと制限がなくなります。キーはこのブラウザーにのみ保存されます。",
+    "keyNotSaved": "このブラウザーにキーを保存できませんでした。",
+    "source": {
+      "forecast": "Open-Meteo の予報 {{when}}、{{where}}(取得 {{fetched}})",
+      "record": "Open-Meteo の観測値 {{when}}、{{where}}(取得 {{fetched}})",
+      "edited": "適用後に編集されています。",
+      "otherSite": "取得後に発射地点が変更されています。",
+      "old": "3 時間以上前に取得しました。新しい予報とは異なる可能性があります。",
+      "refresh": "更新…"
+    },
+    "fetchedAt": "{{time}} に取得しました。",
+    "reused": "{{time}} の取得結果を再利用しています。30 分経過後に Open-Meteo へ再度問い合わせます。",
+    "fetchFresh": "再取得"
+  },
+  "env": {
+    "elevation": "発射地点の標高",
+    "note": "飛行中に記録した大気の状態です。上昇と下降の両方で、地面から高度 {{apogee}} の頂点まで。",
+    "ascent": "上昇",
+    "descent": "下降",
+    "noData": "この結果には大気データがありません。シミュレーションを再実行してください。",
+    "q": {
+      "windSpeed": "風速",
+      "windDirection": "風向",
+      "temperature": "気温",
+      "pressure": "気圧",
+      "density": "空気密度",
+      "speedOfSound": "音速"
+    },
+    "when": "日時",
+    "latitude": "緯度",
+    "longitude": "経度"
   }
 }

@@ -152,7 +152,8 @@
     "storage": "Je ontwerpen, simulaties, voorkeuren en eventuele eigen materialen of motoren worden opgeslagen in de lokale opslag van je browser, op je eigen apparaat, en gaan nooit naar ons of naar iemand anders. Als je je browsergegevens wist (of Nieuw gebruikt) zijn ze weg.",
     "network": "De app haalt de motor- en onderdelencatalogus op bij een openbaar contentnetwerk en kan, als je een motor kiest, de stuwkrachtcurve van die motor ophalen uit een openbare motordatabase; beide worden lokaal gecachet en vallen onder de voorwaarden van die aanbieders. Verder doet de app geen netwerkverzoeken met jouw gegevens.",
     "hosting": "Wie de app host kan gewone toegangslogs van de webserver bewaren (zoals IP-adres en tijdstip), zoals elke website doet. De app zelf verzamelt niets.",
-    "close": "Sluiten"
+    "close": "Sluiten",
+    "weather": "Als je in het weervenster op Ophalen drukt, gaan de coördinaten en hoogte van de lanceerplaats en de gekozen datum naar Open-Meteo, dat met de voorspelling antwoordt. Anders wordt er niets verzonden. De verzoeken noemen deze app en de site die haar levert niet."
   },
   "help": {
     "title": "Help",
@@ -434,7 +435,8 @@
     "ruler_top_abbr": "B",
     "ruler_bottom_abbr": "O",
     "ruler_left_abbr": "L",
-    "ruler_right_abbr": "R"
+    "ruler_right_abbr": "R",
+    "environment": "Omgeving"
   },
   "stability": {
     "onPad": "Stabiliteit (op het platform)",
@@ -600,7 +602,10 @@
       "longitudeDeg": "lengtegraad"
     },
     "locationDenied": "Kon je locatie niet bepalen. Controleer de toestemming in de browser en probeer het opnieuw.",
-    "locating": "Locatie bepalen…"
+    "locating": "Locatie bepalen…",
+    "getWeather": "Weer ophalen…",
+    "forecastProfile": "Voorspelde atmosfeer tot {{top}}",
+    "clearForecastProfile": "Wissen"
   },
   "csv": {
     "title": "Vluchtgegevens exporteren",
@@ -1628,5 +1633,81 @@
     "payload": "Nuttige last",
     "recoveryhardware": "Bergingsmateriaal",
     "battery": "Batterij"
+  },
+  "weather": {
+    "title": "Weer van Open-Meteo",
+    "dateLabel": "Datum",
+    "hourLabel": "Uur (lokale tijd van de lanceerplaats)",
+    "fetch": "Ophalen",
+    "fetching": "Bezig met ophalen…",
+    "apply": "Toepassen",
+    "needSite": "Vul eerst de breedte- en lengtegraad van de lanceerplaats in.",
+    "siteLine": "Lanceerplaats {{lat}}, {{lon}} op {{alt}}",
+    "noHour": "Het antwoord bevat geen gegevens voor dat uur.",
+    "validForecast": "Voorspelling voor {{time}}",
+    "validArchive": "Gemeten weer voor {{time}}",
+    "archiveNoAloft": "Voor een datum zo ver terug zijn alleen grondwaarden beschikbaar, zonder wind en atmosfeer op hoogte.",
+    "useTerrain": "De terreinhoogte, {{terrain}}, gebruiken voor de lanceerplaats (nu {{site}})",
+    "forecastNote": "Een voorspelling is een schatting van een model, geen meting.",
+    "credit": "Weergegevens van Open-Meteo.com",
+    "windValue": "{{speed}} uit {{from}}°, windstoten {{gust}}, profiel tot {{top}}",
+    "atmosphereValue": "Profiel tot {{top}}",
+    "group": {
+      "temperature": "Temperatuur",
+      "pressure": "Luchtdruk",
+      "humidity": "Luchtvochtigheid",
+      "wind": "Wind",
+      "atmosphere": "Atmosfeer op hoogte"
+    },
+    "dateRefusal": {
+      "tooFarAhead": "Open-Meteo voorspelt tot 15 dagen vooruit.",
+      "tooEarly": "De gegevens van Open-Meteo beginnen op 1 januari 1940.",
+      "badDate": "Kies een datum."
+    },
+    "error": {
+      "offline": "Open-Meteo is niet bereikbaar. Je lanceeromstandigheden zijn niet gewijzigd.",
+      "timeout": "Open-Meteo antwoordde niet op tijd. Je lanceeromstandigheden zijn niet gewijzigd.",
+      "aborted": "Geannuleerd. Je lanceeromstandigheden zijn niet gewijzigd.",
+      "refused": "Open-Meteo weigerde het verzoek: {{detail}}. Je lanceeromstandigheden zijn niet gewijzigd.",
+      "badKey": "Open-Meteo accepteerde de API-sleutel uit Instellingen, Lancering niet. Je lanceeromstandigheden zijn niet gewijzigd.",
+      "quota": "De gratis limiet van Open-Meteo is voorlopig op. Probeer het later opnieuw of voeg een API-sleutel toe in Instellingen, Lancering. Je lanceeromstandigheden zijn niet gewijzigd.",
+      "http": "Open-Meteo antwoordde met een fout ({{detail}}). Je lanceeromstandigheden zijn niet gewijzigd.",
+      "shape": "Het antwoord van Open-Meteo kon niet worden gelezen ({{detail}}). Je lanceeromstandigheden zijn niet gewijzigd.",
+      "units": "Open-Meteo antwoordde in eenheden die de app niet leest ({{detail}}). Je lanceeromstandigheden zijn niet gewijzigd.",
+      "noData": "Open-Meteo heeft hier geen gegevens voor die datum. Je lanceeromstandigheden zijn niet gewijzigd."
+    },
+    "keyLabel": "Open-Meteo-API-sleutel",
+    "keyPlaceholder": "Geen (gratis dienst)",
+    "keyNote": "Optioneel. Zonder sleutel komt het weer van de gratis dienst van Open-Meteo, die bedoeld is voor niet-commercieel gebruik. Een sleutel van een betaald Open-Meteo-abonnement heft de limieten op. De sleutel wordt alleen in deze browser bewaard.",
+    "keyNotSaved": "De sleutel kon niet in deze browser worden opgeslagen.",
+    "source": {
+      "forecast": "Open-Meteo-voorspelling voor {{when}} op {{where}}, opgehaald {{fetched}}",
+      "record": "Open-Meteo-meting voor {{when}} op {{where}}, opgehaald {{fetched}}",
+      "edited": "Bewerkt sinds het toepassen.",
+      "otherSite": "De lanceerplaats is verplaatst sinds het ophalen.",
+      "old": "Meer dan 3 uur geleden opgehaald. Een nieuwere voorspelling kan afwijken.",
+      "refresh": "Vernieuwen…"
+    },
+    "fetchedAt": "Opgehaald om {{time}}.",
+    "reused": "Hergebruikt van {{time}}. Open-Meteo wordt na 30 minuten opnieuw gevraagd.",
+    "fetchFresh": "Opnieuw ophalen"
+  },
+  "env": {
+    "elevation": "Hoogte van de lanceerplaats",
+    "note": "De lucht zoals de vlucht die tegenkwam, vastgelegd op weg omhoog en terug omlaag, van de grond tot het apogeum op {{apogee}}.",
+    "ascent": "Opstijging",
+    "descent": "Afdaling",
+    "noData": "Dit resultaat bevat geen atmosfeergegevens. Voer de simulatie opnieuw uit.",
+    "q": {
+      "windSpeed": "Windsnelheid",
+      "windDirection": "Windrichting",
+      "temperature": "Luchttemperatuur",
+      "pressure": "Luchtdruk",
+      "density": "Luchtdichtheid",
+      "speedOfSound": "Geluidssnelheid"
+    },
+    "when": "Datum / tijd",
+    "latitude": "Breedtegraad",
+    "longitude": "Lengtegraad"
   }
 }

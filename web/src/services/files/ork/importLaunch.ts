@@ -2,6 +2,8 @@ import type { LaunchConditions } from '../../design/orkTree';
 import { xmlText as text } from '../xmlUtil';
 import { stdDevForIntensity } from '../../flight/windTurbulence';
 import { usableWindLevels } from '../../flight/windLevels';
+import { usableAtmosphereLevels } from '../../flight/atmosphereLevels';
+import { isWeatherSource, restoredSource } from '../../weather/weatherSource';
 import { finiteNum } from './numbers';
 import { numTag } from './importTags';
 
@@ -55,8 +57,33 @@ export function readLaunchConditions(doc: Document): Partial<LaunchConditions> |
 
   const gm = (text(condEl, ':scope > geodeticmethod') ?? '').toLowerCase();
   if (gm) launch.geodetic = gm === 'flat' ? 'flat' : gm === 'wgs84' ? 'wgs84' : 'spherical';
+  readWeatherSource(condEl, launch);
 
   return Object.keys(launch).length > 0 ? launch : undefined;
+}
+
+/** This app's Weather stamp (see exportSimulation); one that does not read whole is dropped. */
+function readWeatherSource(condEl: Element, launch: Partial<LaunchConditions>): void {
+  const el = condEl.querySelector(':scope > weathersource');
+  if (!el) return;
+  const a = (k: string) => el.getAttribute(k) ?? '';
+  const num = (k: string) => (a(k).trim() === '' ? NaN : Number(a(k)));
+  const source = {
+    provider: a('provider'),
+    endpoint: a('endpoint'),
+    date: a('date'),
+    hour: num('hour'),
+    timezone: a('timezone'),
+    latitudeDeg: num('latitude'),
+    longitudeDeg: num('longitude'),
+    elevationM: num('elevation'),
+    validAt: a('valid'),
+    fetchedAt: a('fetched'),
+    groups: a('groups').split(/\s+/).filter(Boolean),
+    elevationApplied: a('elevationapplied') === 'true',
+    ...(a('edited') === 'true' ? { edited: true as const } : {}),
+  };
+  if (isWeatherSource(source)) launch.weatherSource = restoredSource(source, launch as LaunchConditions);
 }
 
 function readWind(condEl: Element, launch: Partial<LaunchConditions>): void {
@@ -132,9 +159,31 @@ function readAtmosphere(condEl: Element, launch: Partial<LaunchConditions>): voi
     const pPa = numTag(atmEl, 'basepressure', NaN);
     if (!Number.isNaN(pPa)) launch.pressureHPa = pPa / 100;
   }
-  // A FRACTION on disk, as the kernel holds it. Read from either place: we
-  // write it inside <atmosphere>, and a desktop that carries it alongside the
-  // other launch fields puts it on <conditions>.
-  const rh = numTag(atmEl, 'relativehumidity', numTag(condEl, 'launchrelativehumidity', NaN));
+  // A FRACTION on disk, as the kernel holds it. <baserelativehumidity> is
+  // desktop's element and what this app writes; <relativehumidity> is what this
+  // app wrote before, and <launchrelativehumidity> on <conditions> is read too.
+  const rh = numTag(
+    atmEl,
+    'baserelativehumidity',
+    numTag(atmEl, 'relativehumidity', numTag(condEl, 'launchrelativehumidity', NaN)),
+  );
   if (!Number.isNaN(rh)) launch.relativeHumidity = rh;
+  // This app's forecast atmosphere (see exportSimulation). Kelvin and pascal on
+  // disk; a level the engine would refuse is dropped rather than failing the run.
+  const levels = usableAtmosphereLevels(
+    Array.from(atmEl.querySelectorAll(':scope > forecastlevel')).map((l) => {
+      // An absent attribute is NaN, not the 0 Number(null) would make of it.
+      const at = (name: string) => {
+        const v = l.getAttribute(name);
+        return v === null || v.trim() === '' ? NaN : Number(v);
+      };
+      return {
+        altitudeM: at('altitude'),
+        temperatureC: at('temperature') - 273.15,
+        pressureHPa: at('pressure') / 100,
+        relativeHumidity: at('relativehumidity'),
+      };
+    }),
+  );
+  if (levels.length) launch.atmosphereLevels = levels;
 }

@@ -152,7 +152,8 @@
     "storage": "Tus diseños, simulaciones, preferencias y cualquier material o motor personalizado se guardan en el almacenamiento local de tu navegador, en tu dispositivo — nunca se envían a nosotros ni a nadie. Borrar los datos del navegador (o usar Nuevo) los elimina.",
     "network": "La aplicación descarga sus catálogos de motores y componentes desde una red pública de distribución de contenidos y, al elegir un motor, puede descargar los datos de la curva de empuje de ese motor desde una base de datos pública de motores; ambos se almacenan localmente y están sujetos a los términos de esos proveedores. Por lo demás, la aplicación no realiza llamadas de red con tus datos.",
     "hosting": "Quien aloje la aplicación puede conservar registros de acceso del servidor web estándar (como la dirección IP y la marca de tiempo), como cualquier sitio web. La aplicación en sí no recopila nada.",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "weather": "Cuando pulsas Consultar en el diálogo del tiempo, las coordenadas y la elevación del sitio de lanzamiento y la fecha elegida se envían a Open-Meteo, que responde con el pronóstico. No se envía nada en otro caso. Las solicitudes no identifican esta aplicación ni el sitio que la sirve."
   },
   "help": {
     "title": "Ayuda",
@@ -435,7 +436,8 @@
     "ruler_top_abbr": "Ar",
     "ruler_bottom_abbr": "Ab",
     "ruler_left_abbr": "Iz",
-    "ruler_right_abbr": "De"
+    "ruler_right_abbr": "De",
+    "environment": "Entorno"
   },
   "stability": {
     "onPad": "Estabilidad (en plataforma)",
@@ -603,7 +605,10 @@
       "longitudeDeg": "longitud geográfica"
     },
     "locationDenied": "No se pudo obtener tu ubicación. Revisa el permiso del navegador e inténtalo de nuevo.",
-    "locating": "Localizando…"
+    "locating": "Localizando…",
+    "getWeather": "Obtener el tiempo…",
+    "forecastProfile": "Atmósfera pronosticada hasta {{top}}",
+    "clearForecastProfile": "Quitar"
   },
   "csv": {
     "title": "Exportar datos de vuelo",
@@ -1638,5 +1643,81 @@
     "payload": "Carga útil",
     "recoveryhardware": "Herrajes de recuperación",
     "battery": "Batería"
+  },
+  "weather": {
+    "title": "Tiempo de Open-Meteo",
+    "dateLabel": "Fecha",
+    "hourLabel": "Hora (hora del sitio)",
+    "fetch": "Consultar",
+    "fetching": "Consultando…",
+    "apply": "Aplicar",
+    "needSite": "Indica primero la latitud y la longitud del sitio de lanzamiento.",
+    "siteLine": "Sitio {{lat}}, {{lon}} a {{alt}}",
+    "noHour": "La respuesta no tiene datos para esa hora.",
+    "validForecast": "Pronóstico para {{time}}",
+    "validArchive": "Tiempo registrado para {{time}}",
+    "archiveNoAloft": "Para una fecha tan antigua solo hay condiciones de superficie, sin vientos ni atmósfera en altura.",
+    "useTerrain": "Usar la elevación del terreno, {{terrain}}, para el sitio (ahora {{site}})",
+    "forecastNote": "Un pronóstico es una estimación de un modelo, no una medición.",
+    "credit": "Datos meteorológicos de Open-Meteo.com",
+    "windValue": "{{speed}} desde {{from}}°, ráfagas {{gust}}, perfil hasta {{top}}",
+    "atmosphereValue": "Perfil hasta {{top}}",
+    "group": {
+      "temperature": "Temperatura",
+      "pressure": "Presión",
+      "humidity": "Humedad",
+      "wind": "Viento",
+      "atmosphere": "Atmósfera en altura"
+    },
+    "dateRefusal": {
+      "tooFarAhead": "Open-Meteo pronostica hasta 15 días por delante.",
+      "tooEarly": "Los registros de Open-Meteo empiezan el 1 de enero de 1940.",
+      "badDate": "Elige una fecha."
+    },
+    "error": {
+      "offline": "No se pudo conectar con Open-Meteo. Tus condiciones de lanzamiento no han cambiado.",
+      "timeout": "Open-Meteo no respondió a tiempo. Tus condiciones de lanzamiento no han cambiado.",
+      "aborted": "Cancelado. Tus condiciones de lanzamiento no han cambiado.",
+      "refused": "Open-Meteo rechazó la solicitud: {{detail}}. Tus condiciones de lanzamiento no han cambiado.",
+      "badKey": "Open-Meteo no aceptó la clave de API de Ajustes, Lanzamiento. Tus condiciones de lanzamiento no han cambiado.",
+      "quota": "El límite gratuito de Open-Meteo está agotado por ahora. Inténtalo más tarde o añade una clave de API en Ajustes, Lanzamiento. Tus condiciones de lanzamiento no han cambiado.",
+      "http": "Open-Meteo respondió con un error ({{detail}}). Tus condiciones de lanzamiento no han cambiado.",
+      "shape": "No se pudo leer la respuesta de Open-Meteo ({{detail}}). Tus condiciones de lanzamiento no han cambiado.",
+      "units": "Open-Meteo respondió en unidades que la aplicación no lee ({{detail}}). Tus condiciones de lanzamiento no han cambiado.",
+      "noData": "Open-Meteo no tiene datos para esa fecha aquí. Tus condiciones de lanzamiento no han cambiado."
+    },
+    "keyLabel": "Clave de API de Open-Meteo",
+    "keyPlaceholder": "Ninguna (servicio gratuito)",
+    "keyNote": "Opcional. Sin clave, el tiempo viene del servicio gratuito de Open-Meteo, que es para uso no comercial. Una clave de un plan de pago de Open-Meteo elimina sus límites. La clave solo se guarda en este navegador.",
+    "keyNotSaved": "No se pudo guardar la clave en este navegador.",
+    "source": {
+      "forecast": "Pronóstico de Open-Meteo para {{when}} en {{where}}, consultado {{fetched}}",
+      "record": "Registro de Open-Meteo para {{when}} en {{where}}, consultado {{fetched}}",
+      "edited": "Editado después de aplicarlo.",
+      "otherSite": "El sitio de lanzamiento ha cambiado desde la consulta.",
+      "old": "Consultado hace más de 3 horas. Un pronóstico más reciente puede ser distinto.",
+      "refresh": "Actualizar…"
+    },
+    "fetchedAt": "Consultado a las {{time}}.",
+    "reused": "Reutilizado de las {{time}}. Se vuelve a consultar Open-Meteo pasados 30 minutos.",
+    "fetchFresh": "Consultar de nuevo"
+  },
+  "env": {
+    "elevation": "Altitud del sitio",
+    "note": "El aire tal como lo encontró el vuelo, registrado en la subida y en la bajada, desde el suelo hasta el apogeo a {{apogee}}.",
+    "ascent": "Subida",
+    "descent": "Bajada",
+    "noData": "Este resultado no tiene datos de la atmósfera. Vuelve a ejecutar la simulación.",
+    "q": {
+      "windSpeed": "Velocidad del viento",
+      "windDirection": "Wind direction",
+      "temperature": "Temperatura del aire",
+      "pressure": "PresiÃ³n del aire",
+      "density": "Air density",
+      "speedOfSound": "Velocidad del sonido"
+    },
+    "when": "Fecha / hora",
+    "latitude": "Latitud",
+    "longitude": "Longitud"
   }
 }

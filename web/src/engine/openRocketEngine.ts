@@ -516,6 +516,10 @@ export interface SimulationOptions {
   pressure?: number;
   /** Launch-site relative humidity as a FRACTION (0..1). Default: ISA standard. */
   relativeHumidity?: number;
+  /** A forecast atmosphere in place of the standard one above the site:
+   *  altitude m MSL, temperature K, pressure Pa, relativeHumidity a fraction.
+   *  With temperature and pressure also given, the site anchors the profile. */
+  atmosphereLevels?: { altitude: number; temperature: number; pressure: number; relativeHumidity: number }[];
   /** DEGREES (exception to the radians rule — WorldCoordinate's own unit). */
   launchLatitude?: number;
   /** DEGREES (exception to the radians rule). */
@@ -1302,6 +1306,7 @@ export class OpenRocketDesign {
           temperature: options.temperature,
           pressure: options.pressure,
           relativeHumidity: options.relativeHumidity,
+          atmosphereLevels: options.atmosphereLevels,
           launchLatitude: options.launchLatitude,
           launchLongitude: options.launchLongitude,
           timeStep: options.timeStep ?? 0.05,

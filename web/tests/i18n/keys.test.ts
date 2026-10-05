@@ -78,6 +78,10 @@ const DYNAMIC_PREFIXES: string[] = [
   'radiusMethod.', // same
   'noseShape.', // same - the nose cone and transition shape lists
   'shapeDesc.', // t(`shapeDesc.${node.type}.${shape}`) - ShapeDescription
+  'weather.group.', // t(`weather.group.${g}`) - WeatherDialog's checkbox labels
+  'weather.error.', // t(`weather.error.${err.kind}`) - WeatherDialog's failure lines
+  'weather.dateRefusal.', // t(`weather.dateRefusal.${reason}`) - WeatherDialog, a date no endpoint answers
+  'env.q.', // t(`env.q.${q}`) - EnvironmentView's quantity labels
   'tabOffsetMethod.', // same - what a fin tab's offset is measured from
   'positionFrom.', // t(`positionFrom.${m}`) - PlacementSection's own select
   'units.q.', // t(`units.q.${q}`) - unit quantity names

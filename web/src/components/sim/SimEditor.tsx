@@ -160,7 +160,7 @@ export function SimEditor() {
           </button>
         </section>
 
-        <LaunchPanel launch={launch} onChange={onLaunchChange} onCommit={onCommit} diff={launchDiff} />
+        <LaunchPanel launch={launch} onChange={onLaunchChange} onCommit={onCommit} diff={launchDiff} weather />
         <SimOptions diff={prefDiff} />
       </div>
     </div>

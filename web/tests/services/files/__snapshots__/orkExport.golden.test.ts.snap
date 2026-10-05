@@ -2519,7 +2519,7 @@ exports[`golden .ork export > writes every configuration, block and component ty
         <atmosphere model="extendedisa">
           <basetemperature>298.15</basetemperature>
           <basepressure>101325</basepressure>
-          <relativehumidity>0.4</relativehumidity>
+          <baserelativehumidity>0.4</baserelativehumidity>
         </atmosphere>
         <timestep>0.05</timestep>
         <maxtime>1200.0</maxtime>

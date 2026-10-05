@@ -152,7 +152,8 @@
     "storage": "Your designs, simulations, preferences, and any custom materials or motors are saved in your browser's local storage, on your device — never sent to us or anyone else. Clearing your browser data (or using New) removes them.",
     "network": "The app downloads its motor and component catalogs from a public content-delivery network, and when you pick a motor it may fetch that motor's thrust-curve data from a public motor database; both are cached locally and subject to those providers' terms. Otherwise the app makes no network calls with your data.",
     "hosting": "Whoever hosts the app may keep standard web-server access logs (such as IP address and timestamp), as any website does. The app itself collects nothing.",
-    "close": "Close"
+    "close": "Close",
+    "weather": "When you press Fetch in the Weather dialog, the launch site’s coordinates and elevation and the chosen date go to Open-Meteo, which answers with the forecast. Nothing is sent otherwise. The requests do not name this app or the site serving it."
   },
   "help": {
     "title": "Help",
@@ -434,7 +435,8 @@
     "ruler_top_abbr": "T",
     "ruler_bottom_abbr": "B",
     "ruler_left_abbr": "L",
-    "ruler_right_abbr": "R"
+    "ruler_right_abbr": "R",
+    "environment": "Environment"
   },
   "stability": {
     "onPad": "Stability (on pad)",
@@ -600,7 +602,10 @@
       "longitudeDeg": "longitude"
     },
     "locationDenied": "Could not get your location. Check the browser permission and try again.",
-    "locating": "Locating…"
+    "locating": "Locating…",
+    "getWeather": "Get weather…",
+    "forecastProfile": "Forecast atmosphere to {{top}}",
+    "clearForecastProfile": "Clear"
   },
   "csv": {
     "title": "Export flight data",
@@ -1628,5 +1633,81 @@
     "payload": "Payload",
     "recoveryhardware": "Recovery hardware",
     "battery": "Battery"
+  },
+  "weather": {
+    "title": "Weather from Open-Meteo",
+    "dateLabel": "Date",
+    "hourLabel": "Hour (site time)",
+    "fetch": "Fetch",
+    "fetching": "Fetching…",
+    "apply": "Apply",
+    "needSite": "Set the launch site’s latitude and longitude first.",
+    "siteLine": "Site {{lat}}, {{lon}} at {{alt}}",
+    "noHour": "The answer has no data for that hour.",
+    "validForecast": "Forecast for {{time}}",
+    "validArchive": "Recorded weather for {{time}}",
+    "archiveNoAloft": "For a date this far back only surface conditions are available, with no winds or atmosphere aloft.",
+    "useTerrain": "Use the terrain elevation, {{terrain}}, for the site (now {{site}})",
+    "forecastNote": "A forecast is a model’s estimate, not a measurement.",
+    "credit": "Weather data by Open-Meteo.com",
+    "windValue": "{{speed}} from {{from}}°, gusts {{gust}}, profile to {{top}}",
+    "atmosphereValue": "Profile to {{top}}",
+    "group": {
+      "temperature": "Temperature",
+      "pressure": "Pressure",
+      "humidity": "Humidity",
+      "wind": "Wind",
+      "atmosphere": "Atmosphere aloft"
+    },
+    "dateRefusal": {
+      "tooFarAhead": "Open-Meteo forecasts up to 15 days ahead.",
+      "tooEarly": "Open-Meteo’s records start on 1 January 1940.",
+      "badDate": "Pick a date."
+    },
+    "error": {
+      "offline": "Could not reach Open-Meteo. Your launch conditions are unchanged.",
+      "timeout": "Open-Meteo did not answer in time. Your launch conditions are unchanged.",
+      "aborted": "Canceled. Your launch conditions are unchanged.",
+      "refused": "Open-Meteo refused the request: {{detail}}. Your launch conditions are unchanged.",
+      "badKey": "Open-Meteo did not accept the API key in Settings, Launch. Your launch conditions are unchanged.",
+      "quota": "Open-Meteo’s free limit is used up for now. Try again later, or add an API key in Settings, Launch. Your launch conditions are unchanged.",
+      "http": "Open-Meteo answered with an error ({{detail}}). Your launch conditions are unchanged.",
+      "shape": "Open-Meteo’s answer could not be read ({{detail}}). Your launch conditions are unchanged.",
+      "units": "Open-Meteo answered in units the app does not read ({{detail}}). Your launch conditions are unchanged.",
+      "noData": "Open-Meteo has no data for that date here. Your launch conditions are unchanged."
+    },
+    "keyLabel": "Open-Meteo API key",
+    "keyPlaceholder": "None (free service)",
+    "keyNote": "Optional. Without a key, weather comes from Open-Meteo’s free service, which is for non-commercial use. A key from a paid Open-Meteo plan removes its limits. The key is kept only in this browser.",
+    "keyNotSaved": "The key could not be saved in this browser.",
+    "source": {
+      "forecast": "Open-Meteo forecast for {{when}} at {{where}}, fetched {{fetched}}",
+      "record": "Open-Meteo record for {{when}} at {{where}}, fetched {{fetched}}",
+      "edited": "Edited since it was applied.",
+      "otherSite": "The launch site has moved since it was fetched.",
+      "old": "Fetched over 3 hours ago. A newer forecast may differ.",
+      "refresh": "Refresh…"
+    },
+    "fetchedAt": "Fetched at {{time}}.",
+    "reused": "Reused from {{time}}. Open-Meteo is asked again after 30 minutes.",
+    "fetchFresh": "Fetch fresh"
+  },
+  "env": {
+    "elevation": "Site elevation",
+    "note": "The air as the flight met it, recorded on the way up and back down, from the ground to apogee at {{apogee}}.",
+    "ascent": "Ascent",
+    "descent": "Descent",
+    "noData": "This result has no atmosphere data. Run the simulation again.",
+    "q": {
+      "windSpeed": "Wind speed",
+      "windDirection": "Wind direction",
+      "temperature": "Air temperature",
+      "pressure": "Air pressure",
+      "density": "Air density",
+      "speedOfSound": "Speed of sound"
+    },
+    "when": "Date / time",
+    "latitude": "Latitude",
+    "longitude": "Longitude"
   }
 }

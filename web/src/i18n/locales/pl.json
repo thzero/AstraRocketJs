@@ -152,7 +152,8 @@
     "storage": "Twoje projekty, symulacje, preferencje oraz wszelkie własne materiały i silniki są zapisywane w pamięci lokalnej przeglądarki, na twoim urządzeniu, i nigdy nie trafiają do nas ani do nikogo innego. Wyczyszczenie danych przeglądarki (albo użycie opcji Nowy) je usuwa.",
     "network": "Aplikacja pobiera katalogi silników i części z publicznej sieci dostarczania treści, a po wybraniu silnika może sięgnąć po jego krzywą ciągu do publicznej bazy silników; jedno i drugie jest buforowane lokalnie i podlega warunkom tych dostawców. Poza tym aplikacja nie wysyła twoich danych przez sieć.",
     "hosting": "Ten, kto hostuje aplikację, może prowadzić zwykłe dzienniki dostępu serwera (adres IP, czas i podobne), tak jak każda witryna. Sama aplikacja nie zbiera niczego.",
-    "close": "Zamknij"
+    "close": "Zamknij",
+    "weather": "Gdy naciśniesz Pobierz w oknie pogody, współrzędne i wysokość miejsca startu oraz wybrana data trafiają do Open-Meteo, które odpowiada prognozą. Poza tym nic nie jest wysyłane. Żądania nie wskazują tej aplikacji ani witryny, która ją udostępnia."
   },
   "help": {
     "title": "Pomoc",
@@ -436,7 +437,8 @@
     "ruler_top_abbr": "G",
     "ruler_bottom_abbr": "D",
     "ruler_left_abbr": "L",
-    "ruler_right_abbr": "P"
+    "ruler_right_abbr": "P",
+    "environment": "Otoczenie"
   },
   "stability": {
     "onPad": "Stabilność (na wyrzutni)",
@@ -606,7 +608,10 @@
       "longitudeDeg": "długość geograficzna"
     },
     "locationDenied": "Nie udało się ustalić twojej lokalizacji. Sprawdź uprawnienie w przeglądarce i spróbuj ponownie.",
-    "locating": "Ustalanie lokalizacji…"
+    "locating": "Ustalanie lokalizacji…",
+    "getWeather": "Pobierz pogodę…",
+    "forecastProfile": "Prognozowana atmosfera do {{top}}",
+    "clearForecastProfile": "Usuń"
   },
   "csv": {
     "title": "Eksport danych lotu",
@@ -1648,5 +1653,81 @@
     "payload": "Ładunek",
     "recoveryhardware": "Osprzęt odzysku",
     "battery": "Akumulator"
+  },
+  "weather": {
+    "title": "Pogoda z Open-Meteo",
+    "dateLabel": "Data",
+    "hourLabel": "Godzina (czas miejsca startu)",
+    "fetch": "Pobierz",
+    "fetching": "Pobieranie…",
+    "apply": "Zastosuj",
+    "needSite": "Najpierw podaj szerokość i długość geograficzną miejsca startu.",
+    "siteLine": "Miejsce {{lat}}, {{lon}} na wysokości {{alt}}",
+    "noHour": "Odpowiedź nie zawiera danych dla tej godziny.",
+    "validForecast": "Prognoza na {{time}}",
+    "validArchive": "Zarejestrowana pogoda na {{time}}",
+    "archiveNoAloft": "Dla tak odległej daty dostępne są tylko warunki przy powierzchni, bez wiatru i atmosfery na wysokości.",
+    "useTerrain": "Użyj wysokości terenu, {{terrain}}, dla miejsca startu (obecnie {{site}})",
+    "forecastNote": "Prognoza to oszacowanie modelu, a nie pomiar.",
+    "credit": "Dane pogodowe: Open-Meteo.com",
+    "windValue": "{{speed}} z {{from}}°, porywy {{gust}}, profil do {{top}}",
+    "atmosphereValue": "Profil do {{top}}",
+    "group": {
+      "temperature": "Temperatura",
+      "pressure": "Ciśnienie",
+      "humidity": "Wilgotność",
+      "wind": "Wiatr",
+      "atmosphere": "Atmosfera na wysokości"
+    },
+    "dateRefusal": {
+      "tooFarAhead": "Open-Meteo prognozuje do 15 dni naprzód.",
+      "tooEarly": "Dane Open-Meteo zaczynają się 1 stycznia 1940.",
+      "badDate": "Wybierz datę."
+    },
+    "error": {
+      "offline": "Nie można połączyć się z Open-Meteo. Twoje warunki startu nie zostały zmienione.",
+      "timeout": "Open-Meteo nie odpowiedziało na czas. Twoje warunki startu nie zostały zmienione.",
+      "aborted": "Anulowano. Twoje warunki startu nie zostały zmienione.",
+      "refused": "Open-Meteo odrzuciło żądanie: {{detail}}. Twoje warunki startu nie zostały zmienione.",
+      "badKey": "Open-Meteo nie przyjęło klucza API z Ustawień, Start. Twoje warunki startu nie zostały zmienione.",
+      "quota": "Darmowy limit Open-Meteo jest na razie wyczerpany. Spróbuj później lub dodaj klucz API w Ustawieniach, Start. Twoje warunki startu nie zostały zmienione.",
+      "http": "Open-Meteo odpowiedziało błędem ({{detail}}). Twoje warunki startu nie zostały zmienione.",
+      "shape": "Nie udało się odczytać odpowiedzi Open-Meteo ({{detail}}). Twoje warunki startu nie zostały zmienione.",
+      "units": "Open-Meteo odpowiedziało w jednostkach, których aplikacja nie odczytuje ({{detail}}). Twoje warunki startu nie zostały zmienione.",
+      "noData": "Open-Meteo nie ma tu danych dla tej daty. Twoje warunki startu nie zostały zmienione."
+    },
+    "keyLabel": "Klucz API Open-Meteo",
+    "keyPlaceholder": "Brak (darmowa usługa)",
+    "keyNote": "Opcjonalnie. Bez klucza pogoda pochodzi z darmowej usługi Open-Meteo, przeznaczonej do użytku niekomercyjnego. Klucz z płatnego planu Open-Meteo znosi jej limity. Klucz jest przechowywany tylko w tej przeglądarce.",
+    "keyNotSaved": "Nie udało się zapisać klucza w tej przeglądarce.",
+    "source": {
+      "forecast": "Prognoza Open-Meteo na {{when}} dla {{where}}, pobrana {{fetched}}",
+      "record": "Zapis Open-Meteo na {{when}} dla {{where}}, pobrany {{fetched}}",
+      "edited": "Edytowano od zastosowania.",
+      "otherSite": "Miejsce startu zmieniło się od pobrania.",
+      "old": "Pobrano ponad 3 godziny temu. Nowsza prognoza może się różnić.",
+      "refresh": "Odśwież…"
+    },
+    "fetchedAt": "Pobrano o {{time}}.",
+    "reused": "Użyto ponownie z {{time}}. Open-Meteo jest pytane ponownie po 30 minutach.",
+    "fetchFresh": "Pobierz ponownie"
+  },
+  "env": {
+    "elevation": "Wysokość miejsca startu",
+    "note": "Powietrze, jakie napotkał lot, zapisane w drodze w górę i z powrotem, od ziemi do apogeum na {{apogee}}.",
+    "ascent": "Wznoszenie",
+    "descent": "Opadanie",
+    "noData": "Ten wynik nie zawiera danych atmosfery. Uruchom symulację ponownie.",
+    "q": {
+      "windSpeed": "Prędkość wiatru",
+      "windDirection": "Kierunek wiatru",
+      "temperature": "Temperatura powietrza",
+      "pressure": "Ciśnienie powietrza",
+      "density": "Gęstość powietrza",
+      "speedOfSound": "Prędkość dźwięku"
+    },
+    "when": "Data / godzina",
+    "latitude": "Szerokość",
+    "longitude": "Długość"
   }
 }

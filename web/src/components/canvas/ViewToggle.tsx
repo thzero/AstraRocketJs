@@ -7,7 +7,7 @@ export { isResultView, type ViewMode };
 
 /**
  * Center-pane view switch, showing one family: 2D · 3D · Aero on the Design tab,
- * Flight · 3D path · Ground track on Results.
+ * Flight · 3D path · Ground track · Environment on Results.
  *
  * The tab picks the family and this only switches within it. Rendering all five
  * together would offer "3D path" from Sketch, which jumps to another tab.

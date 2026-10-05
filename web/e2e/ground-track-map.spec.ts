@@ -97,8 +97,11 @@ test('draws no imagery until the ground is asked for', async ({ page }) => {
   await expect(page.getByText(/Imagery: Esri/)).toHaveCount(0);
 
   await showGround(page);
-  expect((await rects(page)).tiles).toBeGreaterThan(0);
-  expect(asked.length).toBeGreaterThan(0);
+  // Polled, both: the tile elements are drawn when the layer turns on and the
+  // first request goes out after that, so a single sample on a loaded machine
+  // can land in between and read zero.
+  await expect.poll(async () => (await rects(page)).tiles, { timeout: 15_000 }).toBeGreaterThan(0);
+  await expect.poll(() => asked.length, { timeout: 15_000 }).toBeGreaterThan(0);
 });
 
 test('the tile layer covers the plot it sits under, exactly', async ({ page }) => {
@@ -150,5 +153,6 @@ test('turns the imagery off and keeps the measurement', async ({ page }) => {
 
   // And back on, which is the half of a toggle that is easy to leave broken.
   await page.getByRole('button', { name: 'Satellite', exact: true }).click();
-  expect((await rects(page)).tiles).toBeGreaterThan(0);
+  // Polled for the same reason as above: the layer draws after the click.
+  await expect.poll(async () => (await rects(page)).tiles, { timeout: 15_000 }).toBeGreaterThan(0);
 });

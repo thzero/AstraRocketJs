@@ -440,6 +440,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                   the blank -- which is why no red marker ever shows up in this
                   copy of the panel. */}
             <LaunchPanel
+              weatherKey
               launch={settings.launchDefaults}
               onChange={(patch) =>
                 update({

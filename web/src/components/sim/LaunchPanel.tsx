@@ -19,6 +19,9 @@ import {
   turbulenceLevel,
 } from '../../services/flight/windTurbulence';
 import { WindProfileDialog } from './WindProfileDialog';
+import { WeatherDialog } from './WeatherDialog';
+import { WeatherSourceLine } from './WeatherSourceLine';
+import { WeatherKeyField } from './WeatherKeyField';
 import { LocationPicker } from './LocationPicker';
 import { LAUNCH_SITE_LIMITS } from '../../services/storage/launchLocationStore';
 import { SiteMapDialog } from './SiteMapDialog';
@@ -209,6 +212,8 @@ export function LaunchPanel({
   onChange,
   onCommit,
   diff,
+  weather = false,
+  weatherKey = false,
 }: {
   launch: LaunchConditions;
   onChange: (patch: Partial<LaunchConditions>) => void;
@@ -221,6 +226,17 @@ export function LaunchPanel({
   /** Close the current edit's undo entry. Number fields commit via the panel's
    *  container blur (React blur bubbles); discrete controls commit immediately. */
   onCommit?: () => void;
+  /**
+   * Offer the Weather dialog. The simulation editor does; the Settings copy,
+   * which edits the defaults every future simulation starts from, does not: a
+   * forecast is for one day at one site.
+   */
+  weather?: boolean;
+  /**
+   * Offer the Open-Meteo API key, at the bottom of the Atmosphere card. Only the
+   * Settings copy does: the key is one setting for every simulation.
+   */
+  weatherKey?: boolean;
 }) {
   const { t } = useTranslation();
   const u = useUnits();
@@ -235,6 +251,10 @@ export function LaunchPanel({
     return withUnit(fmtUpTo(ui, ladderDigits(ui)), fu.sym);
   };
   const [profileOpen, setProfileOpen] = useState(false);
+  const [weatherOpen, setWeatherOpen] = useState(false);
+  // Opened from the source line's Refresh rather than the Get weather button.
+  const [weatherRefresh, setWeatherRefresh] = useState(false);
+  const atmosphereLevels = launch.atmosphereLevels ?? [];
   // Geolocation is a 10 s round trip that can simply be refused. Without a
   // pending state and a reported error, both outcomes are invisible and the
   // button appears to do nothing.
@@ -454,15 +474,37 @@ export function LaunchPanel({
       </Group>
 
       <Group title={t('launch.atmosphere')}>
+        {weather && (
+          <button
+            onClick={() => {
+              setWeatherRefresh(false);
+              setWeatherOpen(true);
+            }}
+            className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
+          >
+            {t('launch.getWeather')}
+          </button>
+        )}
+        <WeatherSourceLine
+          launch={launch}
+          onRefresh={
+            weather
+              ? () => {
+                  setWeatherRefresh(true);
+                  setWeatherOpen(true);
+                }
+              : undefined
+          }
+        />
         <QNum
           label={t('launch.temperature')}
           field="temperature"
           kind="degC"
-          // Below absolute zero is not a launch condition. These three were
-          // the only QNums with neither bound while every sibling is bounded,
-          // and they go straight to the kernel's atmosphere model.
-          minSi={-90}
-          maxSi={70}
+          // -90 to 70 degrees C, below and above any recorded air temperature.
+          // In KELVIN, because a QNum bound is SI: written as -90 and 70 they
+          // capped every entry at 70 K, about -203 degrees C.
+          minSi={-90 + 273.15}
+          maxSi={70 + 273.15}
           u={u}
           stepSi={1}
           placeholder={t('launch.isa')}
@@ -500,6 +542,28 @@ export function LaunchPanel({
           value={launch.relativeHumidity == null ? null : Math.round(launch.relativeHumidity * 100)}
           onChange={(v) => onChange({ relativeHumidity: v == null ? null : v / 100 })}
         />
+        {/* A forecast atmosphere replaces the standard one above the site. It
+            is shown and can be removed here, where the standard atmosphere's
+            own fields are, so nothing flies that the panel does not show. */}
+        {atmosphereLevels.length > 0 && (
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs text-slate-400">
+              {t('launch.forecastProfile', {
+                top: `${u.fmt('distance', atmosphereLevels[atmosphereLevels.length - 1]!.altitudeM, 0)} ${u.sym('distance')}`,
+              })}
+            </span>
+            <button
+              onClick={() => {
+                onChange({ atmosphereLevels: undefined });
+                onCommit?.();
+              }}
+              className="rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+            >
+              {t('launch.clearForecastProfile')}
+            </button>
+          </div>
+        )}
+        {weatherKey && <WeatherKeyField />}
       </Group>
 
       <Group title={t('launch.wind')}>
@@ -664,6 +728,15 @@ export function LaunchPanel({
         )}
       </Group>
 
+      {weatherOpen && (
+        <WeatherDialog
+          launch={launch}
+          onChange={onChange}
+          onCommit={onCommit}
+          onClose={() => setWeatherOpen(false)}
+          refresh={weatherRefresh}
+        />
+      )}
       {/* Mounted only while open: its error line and row keys reset by unmount. */}
       {profileOpen && (
         <WindProfileDialog

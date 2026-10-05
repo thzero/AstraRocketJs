@@ -105,6 +105,8 @@ const testOnlyExports = (): string[] => {
 const BASELINE = [
   'src/engine/openRocketEngine.ts#__setEngineForTests',
   'src/services/app/helpSearch.ts#resetHelpIndex',
+  'src/services/weather/openMeteo.ts#resetWeatherState',
+  'src/services/weather/openMeteo.ts#setWeatherTransport',
 ];
 
 describe('src exports reached only from tests are a decision', () => {

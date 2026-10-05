@@ -26,8 +26,9 @@ function same(a: unknown, b: unknown): boolean {
   if (a == null && b == null) return true;
   if (a == null || b == null) return false;
   if (typeof a !== 'object' || typeof b !== 'object') return false;
-  // Wind levels are the only structured launch value, and their order is
-  // meaningful (the list is not kept sorted), so a plain deep compare is right.
+  // The structured launch values are lists of levels (wind, atmosphere), and
+  // wind levels are not kept sorted, so order is meaningful and a plain deep
+  // compare is right.
   return JSON.stringify(a) === JSON.stringify(b);
 }
 

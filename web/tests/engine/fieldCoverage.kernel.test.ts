@@ -81,7 +81,7 @@ const BASE: Record<string, Record<string, unknown>> = {
   podset: { instanceCount: 2, radiusOffset: 0.03 },
   parallelstage: { instanceCount: 2, radiusOffset: 0.03 },
 };
-const POD_KIDS = [{ id: 'podtube', type: 'bodytube', length: 0.1, outerRadius: 0.01, thickness: 0.001 }];
+const POD_KIDS = [{ id: 'pod-tube', type: 'bodytube', length: 0.1, outerRadius: 0.01, thickness: 0.001 }];
 
 /** What a field needs beside it before it can have any effect. */
 const shoulder = (side: string, r: number) => ({

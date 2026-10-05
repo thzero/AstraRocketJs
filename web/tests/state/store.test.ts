@@ -211,6 +211,33 @@ describe('simulation undo/redo', () => {
     expect(active().launch.launchRodAngleDeg).toBe(before);
   });
 
+  it('leaves a result current when only the weather stamp changes, and ages it when a value does', () => {
+    useWorkspaceStore.setState((st) => ({
+      sims: st.sims.map((x) => ({ ...x, result: { summary: {} } as never })).map((x) => asFlown(st, x)),
+    }));
+    const stamp = {
+      provider: 'open-meteo',
+      endpoint: 'forecast',
+      date: '2026-10-05',
+      hour: 12,
+      timezone: 'America/Denver',
+      latitudeDeg: 40,
+      longitudeDeg: -105,
+      elevationM: 1500,
+      validAt: '2026-10-05T18:00:00.000Z',
+      fetchedAt: '2026-10-04T15:00:00.000Z',
+      groups: ['temperature'],
+      elevationApplied: false,
+    } as const;
+    // A refresh that brings back the same values writes a new stamp only.
+    s().patchLaunch({ weatherSource: { ...stamp, groups: [...stamp.groups] } });
+    expect(isStale(active())).toBe(false);
+    s().patchLaunch({ weatherSource: { ...stamp, groups: [...stamp.groups], fetchedAt: '2026-10-04T18:00:00.000Z' } });
+    expect(isStale(active())).toBe(false);
+    s().patchLaunch({ temperatureC: 3 });
+    expect(isStale(active())).toBe(true);
+  });
+
   it('undoes add / rename / delete of a simulation and restores the active sim', () => {
     const firstId = active().id;
     s().addSim();

@@ -4,6 +4,7 @@ import type { CompleteLaunch } from '../flight/requiredLaunch';
 import { DEFAULT_HEADING_DEG } from '../flight/simulations';
 import { DEFAULT_CSV_COLUMNS } from '../flight/flightColumns';
 import { usableWindLevels } from '../flight/windLevels';
+import { usableAtmosphereLevels } from '../flight/atmosphereLevels';
 import {
   METRIC_UNITS,
   UNIT_CHOICES,
@@ -709,6 +710,14 @@ export function loadSettings(): Settings {
             ? usableWindLevels(l.windLevels)
             : DEFAULT_SETTINGS.launchDefaults.windLevels;
         }
+        // Same reasoning for a forecast atmosphere: one bad level fails the run.
+        if (l.atmosphereLevels !== undefined) {
+          const kept = Array.isArray(l.atmosphereLevels) ? usableAtmosphereLevels(l.atmosphereLevels) : [];
+          if (kept.length) l.atmosphereLevels = kept;
+          else delete l.atmosphereLevels;
+        }
+        // Defaults seed every new simulation; a forecast's stamp describes one.
+        delete l.weatherSource;
         return l;
       })(),
       showMarkers: typeof s.showMarkers === 'boolean' ? s.showMarkers : DEFAULT_SETTINGS.showMarkers,

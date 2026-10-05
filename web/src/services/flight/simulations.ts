@@ -155,7 +155,9 @@ export function flightKey(tree: RocketTree): string {
 export function resultKey(tree: RocketTree, config: FlightConfig, sim: Simulation, globals: SimPrefs): string {
   const { id: _id, name: _name, ...flown } = config;
   const prefs = effectivePrefs(globals, sim.prefs);
-  return stableJson([flightKey(tree), flown, sim.launch, SIM_PREF_KEYS.map((k) => prefs[k] ?? null)]);
+  // Where the weather came from describes the launch; it is not flown.
+  const { weatherSource: _source, ...launch } = sim.launch;
+  return stableJson([flightKey(tree), flown, launch, SIM_PREF_KEYS.map((k) => prefs[k] ?? null)]);
 }
 
 /** The row has a result, and it was flown from inputs other than the current ones. */
@@ -384,6 +386,14 @@ export function simConditions(launch: CompleteLaunch, prefs?: SimPrefs) {
     // Omitted rather than sent as standard when null: the bridge reads an absent
     // key as NaN and only leaves ISA when one of the three is actually given.
     relativeHumidity: launch.relativeHumidity ?? undefined,
+    atmosphereLevels: launch.atmosphereLevels?.length
+      ? launch.atmosphereLevels.map((l) => ({
+          altitude: l.altitudeM,
+          temperature: l.temperatureC + 273.15,
+          pressure: l.pressureHPa * 100,
+          relativeHumidity: l.relativeHumidity,
+        }))
+      : undefined,
     timeStep: prefs?.timeStep,
     maxTime: prefs?.maxTime,
     randomSeed: prefs?.randomSeed ?? freshSeed(),

@@ -23,6 +23,7 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
         <p>{t('privacy.intro', { name: appName() })}</p>
         <p>{t('privacy.storage')}</p>
         <p>{t('privacy.network')}</p>
+        <p>{t('privacy.weather')}</p>
         <p className="text-xs text-slate-500">{t('privacy.hosting')}</p>
       </div>
 
