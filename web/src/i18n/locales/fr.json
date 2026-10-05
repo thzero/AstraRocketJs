@@ -402,7 +402,8 @@
     "simulations": "Simulations",
     "workbench": "Établi",
     "configs": "Configurations",
-    "configsShort": "Config."
+    "configsShort": "Config.",
+    "tools": "Outils"
   },
   "view": {
     "2d": "2D",
@@ -1718,6 +1719,49 @@
     },
     "when": "Date / heure",
     "latitude": "Latitude",
-    "longitude": "Longitude"
+    "longitude": "Longitude",
+    "landing": {
+      "title": "Atterrissage",
+      "stage": "L’étage {{stage}} atterrit à",
+      "flyHours": "Voler les heures autour de cette prévision",
+      "flying": "Vol en cours… {{done}} sur {{total}}",
+      "flyHoursNote": "Fait voler cette conception sous la prévision de chaque heure, de deux avant à deux après, telle que la prévision est maintenant.",
+      "hour": "Heure",
+      "noForecast": "Remplissez les conditions de lancement avec Obtenir la météo… pour voir comment l’atterrissage se déplace au fil des heures autour de la prévision.",
+      "failed": "Les vols n’ont pas pu être menés à bien."
+    }
+  },
+  "landing": {
+    "title": "Estimation d’atterrissage",
+    "intro": "Où une fusée retombe, à partir d’un site, d’une heure de prévision, de son apogée et de ses vitesses de descente. C’est une estimation : la montée n’est pas modélisée et les vitesses sont celles que vous saisissez. Une fusée conçue ici obtient son atterrissage de la simulation, dans l’onglet Résultats.",
+    "site": "Site de lancement",
+    "siteElevation": "Altitude du site",
+    "terrain": "Terrain",
+    "siteElevationHint": "Laissez vide pour utiliser la hauteur du modèle de terrain au site.",
+    "when": "Quand",
+    "flight": "Vol",
+    "apogee": "Apogée au-dessus du pas de tir",
+    "recovery": "Récupération",
+    "recovery_single": "Simple",
+    "recovery_dual": "Double",
+    "descentRate": "Vitesse de descente",
+    "drogueRate": "Descente sous l’extracteur",
+    "mainRate": "Descente sous le principal",
+    "mainAltitude": "Le principal s’ouvre au-dessus du pas de tir à",
+    "mainAboveApogee": "Le principal doit s’ouvrir sous l’apogée.",
+    "estimate": "Estimer l’atterrissage",
+    "estimating": "Estimation…",
+    "empty": "Indiquez le site, l’heure et le vol, puis appuyez sur Estimer l’atterrissage.",
+    "lands": "Atterrit à",
+    "distance": "Distance",
+    "bearing": "Cap depuis le pas de tir",
+    "descentTime": "Durée de descente",
+    "zone": "Zone d’atterrissage (2σ)",
+    "noZone": "Dispersion trop faible pour être tracée",
+    "groundAtLanding": "Sol à l’atterrissage",
+    "estimateNote": "Une estimation à partir de vitesses de descente saisies. La zone couvre {{descents}} descentes : {{hours}} heures de prévision, la vitesse du vent à 20% près, la direction à 15° près et la vitesse de descente à 10% près.",
+    "flatGround": "La forme du terrain n’a pas pu être récupérée, l’atterrissage se fait donc sur un sol plat à la hauteur du pas de tir.",
+    "surfaceWindOnly": "L'historique d'Open-Meteo pour cette date n'a que le vent près du sol, donc toute la descente dérive avec lui.",
+    "mapLabel": "Estimation d’atterrissage vue d’en haut, atterrissage à {{distance}} du pas de tir"
   }
 }

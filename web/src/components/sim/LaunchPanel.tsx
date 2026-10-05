@@ -34,7 +34,7 @@ import { useLatest } from '../common/useLatest';
  * App feeds these straight into simulate(). Populated from an imported .ork.
  */
 
-function Num({
+export function Num({
   label,
   unit,
   value,
@@ -126,7 +126,7 @@ function Num({
  * the STORED convention (see SI above); `stepSi`/`minSi` are given in SI, so a
  * sensible 0.5 m/s or 10 m stays sensible once it is shown in ft/s or ft.
  */
-function QNum({
+export function QNum({
   label,
   chipLabel,
   field,

@@ -13019,14 +13019,14 @@ otp_PlatformRunnable = $rt_classWithoutFields(0);
 function jl_Object$monitorEnterWait$lambda$_6_0() {
     let a = this; jl_Object.call(a);
     a.$_00 = null;
-    a.$_1 = null;
+    a.$_10 = null;
     a.$_2 = 0;
     a.$_3 = null;
 }
 let jl_Object$monitorEnterWait$lambda$_6_0__init_ = (var$0, var$1, var$2, var$3, var$4) => {
     jl_Object__init_(var$0);
     var$0.$_00 = var$1;
-    var$0.$_1 = var$2;
+    var$0.$_10 = var$2;
     var$0.$_2 = var$3;
     var$0.$_3 = var$4;
 },
@@ -13036,7 +13036,7 @@ jl_Object$monitorEnterWait$lambda$_6_0__init_0 = (var_0, var_1, var_2, var_3) =>
     return var_4;
 },
 jl_Object$monitorEnterWait$lambda$_6_0_run = var$0 => {
-    jl_Object_lambda$monitorEnterWait$0(var$0.$_00, var$0.$_1, var$0.$_2, var$0.$_3);
+    jl_Object_lambda$monitorEnterWait$0(var$0.$_00, var$0.$_10, var$0.$_2, var$0.$_3);
 };
 function ju_TreeMap$EntryIterator() {
     let a = this; jl_Object.call(a);
@@ -24244,23 +24244,25 @@ let jur_AbstractCharClass$LazyNonDigit_computeValue = $this => {
     return $chCl;
 };
 function a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1() {
-    jl_Object.call(this);
-    this.$_0 = 0.0;
+    let a = this; jl_Object.call(a);
+    a.$_0 = 0.0;
+    a.$_1 = 0.0;
 }
-let a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1__init_ = (var$0, var$1) => {
+let a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1__init_ = (var$0, var$1, var$2) => {
     jl_Object__init_(var$0);
     var$0.$_0 = var$1;
+    var$0.$_1 = var$2;
 },
-a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1__init_0 = var_0 => {
-    let var_1 = new a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1();
-    a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1__init_(var_1, var_0);
-    return var_1;
+a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1__init_0 = (var_0, var_1) => {
+    let var_2 = new a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1();
+    a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1__init_(var_2, var_0, var_1);
+    return var_2;
 },
 a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1_test0 = (var$0, var$1) => {
     return a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1_test(var$0, var$1);
 },
 a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1_test = (var$0, var$1) => {
-    return a_OpenRocketEngine_lambda$atmosphereProfileOf$2(var$0.$_0, var$1);
+    return a_OpenRocketEngine_lambda$atmosphereProfileOf$2(var$0.$_0, var$0.$_1, var$1);
 },
 a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_0 = $rt_classWithoutFields(),
 a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_0__init_ = var$0 => {
@@ -50229,7 +50231,7 @@ a_OpenRocketEngine_atmosphereProfileOf = ($levels, $launchAltitude, $temperature
     $rows.$sort4(a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_0__init_0());
     $anchored = !(isNaN($temperature) ? 1 : 0) && !(isNaN($pressure) ? 1 : 0) ? 1 : 0;
     if ($anchored) {
-        $rows.$removeIf(a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1__init_0($launchAltitude));
+        $rows.$removeIf(a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1__init_0($launchAltitude, $pressure));
         if (isNaN($siteHumidity) ? 1 : 0)
             $siteHumidity = $rows.$isEmpty() ? 0.0 : ($rows.$get0(0)).data[3];
         $rows.$add3(0, $rt_createDoubleArrayFromData([$launchAltitude, $temperature, $pressure, $siteHumidity]));
@@ -50549,9 +50551,11 @@ a_OpenRocketEngine_escape = $s => {
     }
     return $sb.$toString();
 },
-a_OpenRocketEngine_lambda$atmosphereProfileOf$2 = ($launchAltitude, $r) => {
+a_OpenRocketEngine_lambda$atmosphereProfileOf$2 = ($launchAltitude, $pressure, $r) => {
+    let var$4;
     a_OpenRocketEngine_$callClinit();
-    return !($r.data[0] <= $launchAltitude) ? 0 : 1;
+    var$4 = $r.data;
+    return !(var$4[0] <= $launchAltitude) && var$4[2] < $pressure ? 0 : 1;
 },
 a_OpenRocketEngine_lambda$atmosphereProfileOf$1 = ($a, $b) => {
     a_OpenRocketEngine_$callClinit();
@@ -61971,7 +61975,7 @@ jm_BigInteger, "BigInteger", 6, jl_Number, [jl_Comparable, ji_Serializable], 1, 
 "$doubleValue", $rt_wrapFunction0(jm_BigInteger_doubleValue), "$compareTo3", $rt_wrapFunction1(jm_BigInteger_compareTo), "$hashCode", $rt_wrapFunction0(jm_BigInteger_hashCode), "$equals", $rt_wrapFunction1(jm_BigInteger_equals), "$equalsArrays", $rt_wrapFunction1(jm_BigInteger_equalsArrays), "$toString", $rt_wrapFunction0(jm_BigInteger_toString), "$multiply1", $rt_wrapFunction1(jm_BigInteger_multiply), "$pow1", $rt_wrapFunction1(jm_BigInteger_pow), "$divideAndRemainder", $rt_wrapFunction1(jm_BigInteger_divideAndRemainder),
 "$divide0", $rt_wrapFunction1(jm_BigInteger_divide), "$remainder", $rt_wrapFunction1(jm_BigInteger_remainder), "$cutOffLeadingZeroes", $rt_wrapFunction0(jm_BigInteger_cutOffLeadingZeroes), "$isOne", $rt_wrapFunction0(jm_BigInteger_isOne), "$getFirstNonzeroDigit", $rt_wrapFunction0(jm_BigInteger_getFirstNonzeroDigit), "$compareTo0", $rt_wrapFunction1(jm_BigInteger_compareTo0)],
 jur_AbstractCharClass$LazyNonDigit, "AbstractCharClass$LazyNonDigit", 2, jur_AbstractCharClass$LazyDigit, [], 0, [jur_AbstractCharClass,0,0], 0, ["$_init_0", $rt_wrapFunction0(jur_AbstractCharClass$LazyNonDigit__init_), "$computeValue", $rt_wrapFunction0(jur_AbstractCharClass$LazyNonDigit_computeValue)],
-a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1, "OpenRocketEngine$atmosphereProfileOf$lambda$_51_1", 24, jl_Object, [juf_Predicate], 1, [0,0,0], 0, ["$_init_22", $rt_wrapFunction1(a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1__init_), "$test", $rt_wrapFunction1(a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1_test0), "$test0", $rt_wrapFunction1(a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1_test)],
+a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1, "OpenRocketEngine$atmosphereProfileOf$lambda$_51_1", 24, jl_Object, [juf_Predicate], 1, [0,0,0], 0, ["$_init_26", $rt_wrapFunction2(a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1__init_), "$test", $rt_wrapFunction1(a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1_test0), "$test0", $rt_wrapFunction1(a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_1_test)],
 a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_0, "OpenRocketEngine$atmosphereProfileOf$lambda$_51_0", 24, jl_Object, [ju_Comparator], 1, [0,0,0], 0, ["$_init_0", $rt_wrapFunction0(a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_0__init_), "$compare2", $rt_wrapFunction2(a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_0_compare0), "$compare3", $rt_wrapFunction2(a_OpenRocketEngine$atmosphereProfileOf$lambda$_51_0_compare)],
 jur_CIBackReferenceSet, "CIBackReferenceSet", 2, jur_JointSet, [], 0, [0,0,0], 0, ["$_init_48", $rt_wrapFunction2(jur_CIBackReferenceSet__init_), "$matches1", $rt_wrapFunction3(jur_CIBackReferenceSet_matches), "$setNext", $rt_wrapFunction1(jur_CIBackReferenceSet_setNext), "$getString", $rt_wrapFunction1(jur_CIBackReferenceSet_getString), "$getName", $rt_wrapFunction0(jur_CIBackReferenceSet_getName), "$hasConsumed", $rt_wrapFunction1(jur_CIBackReferenceSet_hasConsumed)],
 jur_AbstractCharClass$1, "AbstractCharClass$1", 2, jur_AbstractCharClass, [], 0, [jur_AbstractCharClass,0,0], 0, ["$_init_45", $rt_wrapFunction2(jur_AbstractCharClass$1__init_), "$contains0", $rt_wrapFunction1(jur_AbstractCharClass$1_contains)],

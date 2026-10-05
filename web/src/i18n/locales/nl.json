@@ -401,7 +401,8 @@
     "simulations": "Simulaties",
     "workbench": "Werkbank",
     "configs": "Configuraties",
-    "configsShort": "Config."
+    "configsShort": "Config.",
+    "tools": "Hulpmiddelen"
   },
   "view": {
     "2d": "2D",
@@ -1708,6 +1709,49 @@
     },
     "when": "Datum / tijd",
     "latitude": "Breedtegraad",
-    "longitude": "Lengtegraad"
+    "longitude": "Lengtegraad",
+    "landing": {
+      "title": "Landing",
+      "stage": "Trap {{stage}} landt op",
+      "flyHours": "De uren rond deze voorspelling vliegen",
+      "flying": "Bezig met vliegen… {{done}} van {{total}}",
+      "flyHoursNote": "Vliegt dit ontwerp onder de voorspelling voor elk uur van twee ervoor tot twee erna, zoals de voorspelling nu is.",
+      "hour": "Uur",
+      "noForecast": "Vul de lanceeromstandigheden met Weer ophalen… om te zien hoe de landing verschuift over de uren rond de voorspelling.",
+      "failed": "De vluchten konden niet worden voltooid."
+    }
+  },
+  "landing": {
+    "title": "Landingsschatting",
+    "intro": "Waar een raket neerkomt, uit een lanceerplaats, een voorspellingsuur, het apogeum en de daalsnelheden. Dit is een schatting: de opstijging wordt niet gemodelleerd en de snelheden zijn wat je invult. Een raket die hier is ontworpen, krijgt haar landing uit de simulatie, op het tabblad Resultaten.",
+    "site": "Lanceerplaats",
+    "siteElevation": "Hoogte van de lanceerplaats",
+    "terrain": "Terrein",
+    "siteElevationHint": "Laat leeg om de hoogte van het terreinmodel op de lanceerplaats te gebruiken.",
+    "when": "Wanneer",
+    "flight": "Vlucht",
+    "apogee": "Apogeum boven het platform",
+    "recovery": "Berging",
+    "recovery_single": "Enkel",
+    "recovery_dual": "Dubbel",
+    "descentRate": "Daalsnelheid",
+    "drogueRate": "Daalsnelheid aan de remparachute",
+    "mainRate": "Daalsnelheid aan de hoofdparachute",
+    "mainAltitude": "Hoofdparachute opent boven het platform op",
+    "mainAboveApogee": "De hoofdparachute moet onder het apogeum opengaan.",
+    "estimate": "Landing schatten",
+    "estimating": "Bezig met schatten…",
+    "empty": "Vul de lanceerplaats, het uur en de vlucht in en druk op Landing schatten.",
+    "lands": "Landt op",
+    "distance": "Afstand",
+    "bearing": "Richting vanaf het platform",
+    "descentTime": "Daaltijd",
+    "zone": "Landingszone (2σ)",
+    "noZone": "Te weinig spreiding om te tekenen",
+    "groundAtLanding": "Grond bij de landing",
+    "estimateNote": "Een schatting uit ingevulde daalsnelheden. De zone omvat {{descents}} afdalingen: {{hours}} voorspellingsuren, windsnelheid 20% hoger en lager, richting 15° naar beide kanten en daalsnelheid 10% hoger en lager.",
+    "flatGround": "De vorm van het terrein kon niet worden opgehaald, dus de landing is op vlakke grond op de hoogte van het platform.",
+    "surfaceWindOnly": "Het archief van Open-Meteo voor deze datum heeft alleen de wind bij de grond, dus de hele afdaling drijft daarop.",
+    "mapLabel": "Landingsschatting van bovenaf, landing op {{distance}} van het platform"
   }
 }

@@ -32,7 +32,7 @@ const WIDE_FACE = 'html, body, header, header * { font-family: Verdana, sans-ser
  * mobile-layout.spec.ts is run by that project.
  */
 test('the workbench tabs live in the header rather than a row of their own', async ({ page }) => {
-  // The narrowest desktop width (the lg breakpoint), with all four tabs showing.
+  // The narrowest desktop width (the lg breakpoint), with all five tabs showing.
   await page.setViewportSize({ width: 1024, height: 900 });
   await ready(page);
   await runFlight(page);
@@ -45,7 +45,7 @@ test('the workbench tabs live in the header rather than a row of their own', asy
   await page.addStyleTag({ content: WIDE_FACE });
 
   const nav = page.getByRole('navigation', { name: /Workbench/i });
-  await expect(nav.getByRole('button')).toHaveCount(4);
+  await expect(nav.getByRole('button')).toHaveCount(5);
 
   const h = await box(header);
   const n = await box(nav);

@@ -401,7 +401,8 @@
     "simulations": "Simulations",
     "workbench": "Workbench",
     "configs": "Configurations",
-    "configsShort": "Config"
+    "configsShort": "Config",
+    "tools": "Tools"
   },
   "view": {
     "2d": "2D",
@@ -1708,6 +1709,49 @@
     },
     "when": "Date / time",
     "latitude": "Latitude",
-    "longitude": "Longitude"
+    "longitude": "Longitude",
+    "landing": {
+      "title": "Landing",
+      "stage": "Stage {{stage}} lands at",
+      "flyHours": "Fly the hours around this forecast",
+      "flying": "Flying… {{done}} of {{total}}",
+      "flyHoursNote": "Flies this design under the forecast for each hour from two before to two after, as the forecast stands now.",
+      "hour": "Hour",
+      "noForecast": "Fill the launch conditions with Get weather… to see how the landing moves over the hours around the forecast.",
+      "failed": "The flights could not be completed."
+    }
+  },
+  "landing": {
+    "title": "Landing estimator",
+    "intro": "Where a rocket comes down, from a site, a forecast hour, its apogee and its descent rates. This is an estimate: the flight up is not modeled and the rates are the ones you type. A rocket designed here gets its landing from the simulation, on the Results tab.",
+    "site": "Launch site",
+    "siteElevation": "Site elevation",
+    "terrain": "Terrain",
+    "siteElevationHint": "Leave blank to use the terrain model's height at the site.",
+    "when": "When",
+    "flight": "Flight",
+    "apogee": "Apogee above the pad",
+    "recovery": "Recovery",
+    "recovery_single": "Single",
+    "recovery_dual": "Dual",
+    "descentRate": "Descent rate",
+    "drogueRate": "Drogue descent rate",
+    "mainRate": "Main descent rate",
+    "mainAltitude": "Main opens above the pad at",
+    "mainAboveApogee": "The main has to open below apogee.",
+    "estimate": "Estimate landing",
+    "estimating": "Estimating…",
+    "empty": "Set the site, the hour and the flight, then press Estimate landing.",
+    "lands": "Lands at",
+    "distance": "Distance",
+    "bearing": "Bearing from the pad",
+    "descentTime": "Descent time",
+    "zone": "Landing zone (2σ)",
+    "noZone": "Too little spread to draw",
+    "groundAtLanding": "Ground at landing",
+    "estimateNote": "An estimate from typed descent rates. The zone covers {{descents}} descents: {{hours}} forecast hours, wind speed 20% either way, direction 15° either way, and descent rate 10% either way.",
+    "flatGround": "The ground's shape could not be fetched, so the landing is on flat ground at the pad's height.",
+    "surfaceWindOnly": "Open-Meteo's record for this date has only the wind near the ground, so the whole descent drifts on it.",
+    "mapLabel": "Landing estimate seen from above, landing {{distance}} from the pad"
   }
 }

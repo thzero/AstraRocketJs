@@ -4,6 +4,7 @@ import { useUnits, type FieldUnit } from '../../prefs/useUnits';
 import type { Quantity } from '../../prefs/units';
 import type { ResultFlight } from '../../services/flight/simulations';
 import { WeatherSourceLine } from '../sim/WeatherSourceLine';
+import { EnvironmentLanding } from './EnvironmentLanding';
 import {
   environmentProfile,
   type EnvironmentQuantity,
@@ -95,6 +96,7 @@ export function EnvironmentView({ flight }: { flight: ResultFlight }) {
           </div>
         )}
       </section>
+      <EnvironmentLanding flight={flight} />
       <p className="text-xs text-slate-400">{t('env.note', { apogee: sig4(dist, env.apogee) })}</p>
       <div className="grid gap-3 md:grid-cols-2">
         {CHARTS.map((q) => (

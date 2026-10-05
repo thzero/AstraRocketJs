@@ -401,7 +401,8 @@
     "simulations": "Simulationen",
     "workbench": "Werkbank",
     "configs": "Konfigurationen",
-    "configsShort": "Konfig."
+    "configsShort": "Konfig.",
+    "tools": "Werkzeuge"
   },
   "view": {
     "2d": "2D",
@@ -1708,6 +1709,49 @@
     },
     "when": "Datum / Uhrzeit",
     "latitude": "Breite",
-    "longitude": "Länge"
+    "longitude": "Länge",
+    "landing": {
+      "title": "Landung",
+      "stage": "Stufe {{stage}} landet bei",
+      "flyHours": "Die Stunden um diese Vorhersage fliegen",
+      "flying": "Wird geflogen… {{done}} von {{total}}",
+      "flyHoursNote": "Fliegt diesen Entwurf unter der Vorhersage für jede Stunde von zwei davor bis zwei danach, nach dem aktuellen Stand der Vorhersage.",
+      "hour": "Stunde",
+      "noForecast": "Füllen Sie die Startbedingungen mit Wetter abrufen…, um zu sehen, wie sich die Landung über die Stunden um die Vorhersage verschiebt.",
+      "failed": "Die Flüge konnten nicht abgeschlossen werden."
+    }
+  },
+  "landing": {
+    "title": "Landeschätzung",
+    "intro": "Wo eine Rakete herunterkommt, aus Startplatz, Vorhersagestunde, Gipfelhöhe und Sinkgeschwindigkeiten. Dies ist eine Schätzung: Der Aufstieg wird nicht modelliert, und die Geschwindigkeiten sind die eingegebenen. Eine hier entworfene Rakete erhält ihre Landung aus der Simulation, im Tab Ergebnisse.",
+    "site": "Startplatz",
+    "siteElevation": "Höhe des Startplatzes",
+    "terrain": "Gelände",
+    "siteElevationHint": "Leer lassen, um die Höhe des Geländemodells am Startplatz zu verwenden.",
+    "when": "Wann",
+    "flight": "Flug",
+    "apogee": "Gipfelhöhe über dem Startplatz",
+    "recovery": "Bergung",
+    "recovery_single": "Einfach",
+    "recovery_dual": "Doppelt",
+    "descentRate": "Sinkgeschwindigkeit",
+    "drogueRate": "Sinkgeschwindigkeit am Bremsschirm",
+    "mainRate": "Sinkgeschwindigkeit am Hauptschirm",
+    "mainAltitude": "Hauptschirm öffnet über dem Startplatz in",
+    "mainAboveApogee": "Der Hauptschirm muss unterhalb der Gipfelhöhe öffnen.",
+    "estimate": "Landung schätzen",
+    "estimating": "Wird geschätzt…",
+    "empty": "Startplatz, Stunde und Flug angeben, dann auf Landung schätzen klicken.",
+    "lands": "Landet bei",
+    "distance": "Entfernung",
+    "bearing": "Richtung vom Startplatz",
+    "descentTime": "Sinkdauer",
+    "zone": "Landezone (2σ)",
+    "noZone": "Zu wenig Streuung zum Zeichnen",
+    "groundAtLanding": "Boden am Landepunkt",
+    "estimateNote": "Eine Schätzung aus eingegebenen Sinkgeschwindigkeiten. Die Zone umfasst {{descents}} Abstiege: {{hours}} Vorhersagestunden, Windgeschwindigkeit 20% nach oben und unten, Richtung 15° zu jeder Seite und Sinkgeschwindigkeit 10% nach oben und unten.",
+    "flatGround": "Die Geländeform konnte nicht abgerufen werden, daher landet die Rakete auf ebenem Boden in Höhe des Startplatzes.",
+    "surfaceWindOnly": "Die Open-Meteo-Aufzeichnung für dieses Datum enthält nur den Wind in Bodennähe, daher treibt der ganze Abstieg mit ihm.",
+    "mapLabel": "Landeschätzung von oben, Landung {{distance}} vom Startplatz"
   }
 }

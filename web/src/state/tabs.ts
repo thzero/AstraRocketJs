@@ -12,7 +12,7 @@
  * every desktop pane rule to carry an `lg:` override undoing a split that only
  * matters on a phone.
  */
-export type Tab = 'design' | 'configs' | 'sim' | 'results';
+export type Tab = 'design' | 'configs' | 'sim' | 'results' | 'tools';
 
 export type DesignPane = 'stats' | 'sketch';
 

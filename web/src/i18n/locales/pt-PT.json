@@ -402,7 +402,8 @@
     "simulations": "Simulações",
     "workbench": "Bancada",
     "configs": "Configurações",
-    "configsShort": "Config."
+    "configsShort": "Config.",
+    "tools": "Ferramentas"
   },
   "view": {
     "2d": "2D",
@@ -1718,6 +1719,49 @@
     },
     "when": "Data / hora",
     "latitude": "Latitude",
-    "longitude": "Longitude"
+    "longitude": "Longitude",
+    "landing": {
+      "title": "Aterragem",
+      "stage": "O andar {{stage}} aterra em",
+      "flyHours": "Voar as horas em torno desta previsão",
+      "flying": "A voar… {{done}} de {{total}}",
+      "flyHoursNote": "Voa este desenho com a previsão de cada hora, de duas antes a duas depois, tal como a previsão está agora.",
+      "hour": "Hora",
+      "noForecast": "Preencha as condições de lançamento com Obter meteorologia… para ver como a aterragem se desloca nas horas em torno da previsão.",
+      "failed": "Não foi possível concluir os voos."
+    }
+  },
+  "landing": {
+    "title": "Estimativa de aterragem",
+    "intro": "Onde um foguete cai, a partir de um local, uma hora da previsão, o seu apogeu e as suas velocidades de descida. É uma estimativa: a subida não é modelada e as velocidades são as que escreve. Um foguete desenhado aqui obtém a sua aterragem da simulação, no separador Resultados.",
+    "site": "Local de lançamento",
+    "siteElevation": "Altitude do local",
+    "terrain": "Terreno",
+    "siteElevationHint": "Deixe em branco para usar a altura do modelo de terreno no local.",
+    "when": "Quando",
+    "flight": "Voo",
+    "apogee": "Apogeu acima da plataforma",
+    "recovery": "Recuperação",
+    "recovery_single": "Simples",
+    "recovery_dual": "Dupla",
+    "descentRate": "Velocidade de descida",
+    "drogueRate": "Descida no drogue",
+    "mainRate": "Descida no principal",
+    "mainAltitude": "O principal abre acima da plataforma a",
+    "mainAboveApogee": "O principal tem de abrir abaixo do apogeu.",
+    "estimate": "Estimar aterragem",
+    "estimating": "A estimar…",
+    "empty": "Indique o local, a hora e o voo e carregue em Estimar aterragem.",
+    "lands": "Aterra em",
+    "distance": "Distância",
+    "bearing": "Rumo a partir da plataforma",
+    "descentTime": "Tempo de descida",
+    "zone": "Zona de aterragem (2σ)",
+    "noZone": "Dispersão demasiado pequena para desenhar",
+    "groundAtLanding": "Solo na aterragem",
+    "estimateNote": "Uma estimativa a partir de velocidades de descida escritas. A zona cobre {{descents}} descidas: {{hours}} horas da previsão, velocidade do vento 20% para mais e para menos, direção 15° para cada lado e velocidade de descida 10% para mais e para menos.",
+    "flatGround": "Não foi possível obter a forma do terreno, por isso a aterragem é em solo plano à altura da plataforma.",
+    "surfaceWindOnly": "O registo do Open-Meteo para esta data tem apenas o vento junto ao solo, por isso toda a descida deriva com ele.",
+    "mapLabel": "Estimativa de aterragem vista de cima, aterragem a {{distance}} da plataforma"
   }
 }

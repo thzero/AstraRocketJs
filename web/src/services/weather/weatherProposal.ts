@@ -121,11 +121,13 @@ export function proposalFor(s: HourSample, elevationM: number): WeatherProposal 
     };
   }
 
-  // The atmosphere above the pad. A level below or at the pad is the model's
-  // extrapolation into the ground and is left out.
+  // The atmosphere above the pad. A level below or at the pad, by height or by
+  // pressure, is the model's extrapolation into the ground and is left out.
+  const surfaceHPa = p.pressureHPa;
   const atmosphere = usableAtmosphereLevels(
     s.levels
       .filter((l) => l.altitudeM !== null && l.altitudeM > elevationM)
+      .filter((l) => surfaceHPa === undefined || l.pressureHPa < surfaceHPa)
       .map((l) => ({
         altitudeM: l.altitudeM,
         temperatureC: l.temperatureC,

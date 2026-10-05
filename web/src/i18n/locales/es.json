@@ -402,7 +402,8 @@
     "simulations": "Simulaciones",
     "workbench": "Banco de trabajo",
     "configs": "Configuraciones",
-    "configsShort": "Config."
+    "configsShort": "Config.",
+    "tools": "Herramientas"
   },
   "view": {
     "2d": "2D",
@@ -1718,6 +1719,49 @@
     },
     "when": "Fecha / hora",
     "latitude": "Latitud",
-    "longitude": "Longitud"
+    "longitude": "Longitud",
+    "landing": {
+      "title": "Aterrizaje",
+      "stage": "La etapa {{stage}} aterriza en",
+      "flyHours": "Volar las horas alrededor de este pronóstico",
+      "flying": "Volando… {{done}} de {{total}}",
+      "flyHoursNote": "Vuela este diseño con el pronóstico de cada hora, desde dos antes hasta dos después, tal como está ahora el pronóstico.",
+      "hour": "Hora",
+      "noForecast": "Rellena las condiciones de lanzamiento con Obtener el tiempo… para ver cómo se mueve el aterrizaje en las horas alrededor del pronóstico.",
+      "failed": "No se pudieron completar los vuelos."
+    }
+  },
+  "landing": {
+    "title": "Estimador de aterrizaje",
+    "intro": "Dónde cae un cohete, a partir de un sitio, una hora del pronóstico, su apogeo y sus velocidades de descenso. Es una estimación: no se modela la subida y las velocidades son las que escribes. Un cohete diseñado aquí obtiene su aterrizaje de la simulación, en la pestaña Resultados.",
+    "site": "Sitio de lanzamiento",
+    "siteElevation": "Altitud del sitio",
+    "terrain": "Terreno",
+    "siteElevationHint": "Déjalo en blanco para usar la altura del modelo de terreno en el sitio.",
+    "when": "Cuándo",
+    "flight": "Vuelo",
+    "apogee": "Apogeo sobre la plataforma",
+    "recovery": "Recuperación",
+    "recovery_single": "Simple",
+    "recovery_dual": "Doble",
+    "descentRate": "Velocidad de descenso",
+    "drogueRate": "Descenso con el drogue",
+    "mainRate": "Descenso con el principal",
+    "mainAltitude": "El principal se abre sobre la plataforma a",
+    "mainAboveApogee": "El principal tiene que abrirse por debajo del apogeo.",
+    "estimate": "Estimar aterrizaje",
+    "estimating": "Estimando…",
+    "empty": "Indica el sitio, la hora y el vuelo, y pulsa Estimar aterrizaje.",
+    "lands": "Aterriza en",
+    "distance": "Distancia",
+    "bearing": "Rumbo desde la plataforma",
+    "descentTime": "Tiempo de descenso",
+    "zone": "Zona de aterrizaje (2σ)",
+    "noZone": "Demasiada poca dispersión para dibujarla",
+    "groundAtLanding": "Suelo en el aterrizaje",
+    "estimateNote": "Una estimación a partir de velocidades de descenso escritas. La zona cubre {{descents}} descensos: {{hours}} horas del pronóstico, la velocidad del viento un 20% arriba y abajo, la dirección 15° a cada lado y la velocidad de descenso un 10% arriba y abajo.",
+    "flatGround": "No se pudo obtener la forma del terreno, así que el aterrizaje es sobre suelo llano a la altura de la plataforma.",
+    "surfaceWindOnly": "El registro de Open-Meteo para esta fecha solo tiene el viento cerca del suelo, así que todo el descenso deriva con él.",
+    "mapLabel": "Estimación de aterrizaje vista desde arriba, aterrizaje a {{distance}} de la plataforma"
   }
 }

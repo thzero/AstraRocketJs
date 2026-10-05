@@ -82,6 +82,7 @@ const DYNAMIC_PREFIXES: string[] = [
   'weather.error.', // t(`weather.error.${err.kind}`) - WeatherDialog's failure lines
   'weather.dateRefusal.', // t(`weather.dateRefusal.${reason}`) - WeatherDialog, a date no endpoint answers
   'env.q.', // t(`env.q.${q}`) - EnvironmentView's quantity labels
+  'landing.recovery_', // t(`landing.recovery_${r}`) - LandingEstimator's single / dual radios
   'tabOffsetMethod.', // same - what a fin tab's offset is measured from
   'positionFrom.', // t(`positionFrom.${m}`) - PlacementSection's own select
   'units.q.', // t(`units.q.${q}`) - unit quantity names

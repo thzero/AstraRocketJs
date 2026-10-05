@@ -389,6 +389,16 @@ export function parseForecast(body: unknown, elevationsM: readonly number[]): Fo
 }
 
 /** The terrain model's ground height from an elevation answer, to 1 m, or null. */
+/** Most points one elevation request carries; Open-Meteo refuses more. */
+export const ELEVATION_BATCH = 100;
+
+/** The terrain heights for several points, in request order, as an elevation answer gives them. */
+export function parseElevations(body: unknown, count: number): number[] | null {
+  if (!isObj(body) || !Array.isArray(body['elevation']) || body['elevation'].length !== count) return null;
+  const out = body['elevation'].map(finiteOrNull);
+  return out.every((e): e is number => e !== null) ? out : null;
+}
+
 export function parseElevation(body: unknown): number | null {
   if (!isObj(body) || !Array.isArray(body['elevation'])) return null;
   const e = finiteOrNull(body['elevation'][0]);
@@ -532,6 +542,34 @@ export async function fetchElevation(
     if (err instanceof WeatherError && err.kind === 'aborted') throw err;
     return null;
   }
+}
+
+/**
+ * The terrain model's ground height at many points (meters above sea level),
+ * in batches of `ELEVATION_BATCH`. Throws `WeatherError` when any batch fails:
+ * a ground surface with holes in it is not one to land a rocket on.
+ */
+export async function fetchElevations(
+  points: readonly { latitudeDeg: number; longitudeDeg: number }[],
+  apiKey: string | undefined,
+  o: FetchOpts = {},
+): Promise<number[]> {
+  const out: number[] = [];
+  for (let i = 0; i < points.length; i += ELEVATION_BATCH) {
+    const batch = points.slice(i, i + ELEVATION_BATCH);
+    const url =
+      `${(apiKey ? PAID : FREE).forecast}/v1/elevation?latitude=${batch.map((p) => dp3(p.latitudeDeg)).join(',')}` +
+      `&longitude=${batch.map((p) => dp3(p.longitudeDeg)).join(',')}${keyParam(apiKey)}`;
+    const heights = await cached(url, o, async () => {
+      const a = await getJson(url, o);
+      if (a.status < 200 || a.status >= 300) throw httpError(a.status, a.json);
+      const e = parseElevations(a.json, batch.length);
+      if (!e) throw new WeatherError('shape', 'elevation');
+      return e;
+    });
+    out.push(...heights);
+  }
+  return out;
 }
 
 /** Everything one Fetch brings back. */

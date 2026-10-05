@@ -35,25 +35,55 @@ export function WorkbenchTabs() {
       {showResults && (
         <TabButton active={tab === 'results'} onClick={() => onTab('results')} label={t('tabs.results')} />
       )}
+      {/* The fifth tab gives way first: its word only on the widest screens,
+          its glyph below that, so the identity block and the other tabs keep
+          the row (see workbench-header.spec.ts). */}
+      <TabButton active={tab === 'tools'} onClick={() => onTab('tools')} label={t('tabs.tools')} glyph="🧰" />
     </nav>
   );
 }
 
-function TabButton({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+function TabButton({
+  active,
+  onClick,
+  label,
+  glyph,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  /** Shown in place of the word below 2xl; the word stays the button's name. */
+  glyph?: string;
+}) {
   return (
     <button
       onClick={onClick}
+      aria-label={glyph ? label : undefined}
+      title={glyph ? label : undefined}
       aria-current={active ? 'page' : undefined}
       // A bottom border rather than a fill: the tab sits directly above the
       // panes it labels, so the active one should read as continuous with them.
       // `-mb-px` pulls it over the header's border rather than stacking on it.
-      className={`-mb-px flex items-center border-b-2 px-3 text-sm font-semibold ${
+      // Tighter below 2xl: with five tabs the header row has no slack left at
+      // 1024 in English or 1280 in Portuguese (workbench-header.spec.ts).
+      className={`-mb-px flex items-center border-b-2 px-2 text-sm font-semibold 2xl:px-3 ${
         active
           ? 'border-sky-500 text-sky-300'
           : 'border-transparent text-slate-400 hover:border-white/20 hover:text-slate-200'
       }`}
     >
-      {label}
+      {glyph ? (
+        <>
+          <span aria-hidden="true" className="2xl:hidden">
+            {glyph}
+          </span>
+          <span aria-hidden="true" className="hidden 2xl:inline">
+            {label}
+          </span>
+        </>
+      ) : (
+        label
+      )}
     </button>
   );
 }

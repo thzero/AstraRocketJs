@@ -46,6 +46,7 @@ export function TabBar() {
       {showResults && (
         <TabButton active={tab === 'results'} onClick={() => onTab('results')} label={t('tabs.results')} icon="📊" />
       )}
+      <TabButton active={tab === 'tools'} onClick={() => onTab('tools')} label={t('tabs.tools')} icon="🧰" />
     </nav>
   );
 }

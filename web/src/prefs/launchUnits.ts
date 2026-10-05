@@ -31,6 +31,8 @@ export const LAUNCH_SI = {
   distance: identity('distance'),
   /** Wind speed and gusts: already m/s. */
   windspeed: identity('windspeed'),
+  /** Descent rates (Tools, landing estimate): already m/s, shown as a velocity. */
+  velocity: identity('velocity'),
   /** Rod angle, rod direction, wind direction: stored in degrees. */
   deg: {
     q: 'angle',

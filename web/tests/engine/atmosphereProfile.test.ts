@@ -100,11 +100,13 @@ describe('a forecast atmosphere', () => {
     expect(hotSite).toBeGreaterThan(apogee({ atmosphereLevels: cold }));
   });
 
-  it('refuses a site pressure below the level above it, naming the level', () => {
-    // 950 hPa at the pad under 977.6 hPa at 500 m: air does not do that.
-    expect(() =>
-      apogee({ atmosphereLevels: levelsOf(column(-10, 1040)), temperature: 308.15, pressure: 95_000 }),
-    ).toThrow(/atmosphere level 2 of 3 has a pressure no lower/);
+  it('drops a level whose pressure is not below the pad, as it drops one below the pad', () => {
+    // 950 hPa at the pad under 977.6 hPa at 500 m: that level is ground the pad
+    // stands on, not air above it. The flight goes ahead on the levels above.
+    const levels = levelsOf(column(-10, 1040));
+    const withLow = apogee({ atmosphereLevels: levels, temperature: 308.15, pressure: 95_000 });
+    const without = apogee({ atmosphereLevels: [levels[2]!], temperature: 308.15, pressure: 95_000 });
+    expect(withLow).toBeCloseTo(without, 9);
   });
 
   it('reaches the engine from launch conditions through simConditions', () => {

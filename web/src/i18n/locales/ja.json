@@ -400,7 +400,8 @@
     "simulations": "シミュレーション",
     "workbench": "作業台",
     "configs": "構成",
-    "configsShort": "構成"
+    "configsShort": "構成",
+    "tools": "ツール"
   },
   "view": {
     "2d": "2D",
@@ -1698,6 +1699,49 @@
     },
     "when": "日時",
     "latitude": "緯度",
-    "longitude": "経度"
+    "longitude": "経度",
+    "landing": {
+      "title": "着地",
+      "stage": "ステージ {{stage}} の着地点",
+      "flyHours": "この予報の前後の時刻で飛行",
+      "flying": "飛行中… {{done}} / {{total}}",
+      "flyHoursNote": "2 時間前から 2 時間後までの各時刻の予報で、この設計を飛行させます。予報は現時点のものを使います。",
+      "hour": "時刻",
+      "noForecast": "「天気を取得…」で打ち上げ条件を設定すると、予報の前後の時刻で着地点がどう動くかを表示できます。",
+      "failed": "飛行を完了できませんでした。"
+    }
+  },
+  "landing": {
+    "title": "着地点の推定",
+    "intro": "発射地点、予報の時刻、到達高度、降下速度から、ロケットの着地点を推定します。これは推定値です。上昇は計算に含まれず、降下速度は入力した値を使います。ここで設計したロケットの着地点は、結果タブのシミュレーションから得られます。",
+    "site": "発射地点",
+    "siteElevation": "発射地点の標高",
+    "terrain": "地形",
+    "siteElevationHint": "空欄にすると、地形モデルの発射地点の標高を使います。",
+    "when": "日時",
+    "flight": "飛行",
+    "apogee": "発射台からの到達高度",
+    "recovery": "回収",
+    "recovery_single": "シングル",
+    "recovery_dual": "デュアル",
+    "descentRate": "降下速度",
+    "drogueRate": "ドローグでの降下速度",
+    "mainRate": "メインでの降下速度",
+    "mainAltitude": "メインが開く発射台からの高度",
+    "mainAboveApogee": "メインは到達高度より下で開く必要があります。",
+    "estimate": "着地点を推定",
+    "estimating": "推定中…",
+    "empty": "発射地点、時刻、飛行を入力して「着地点を推定」を押してください。",
+    "lands": "着地点",
+    "distance": "距離",
+    "bearing": "発射台からの方位",
+    "descentTime": "降下時間",
+    "zone": "着地範囲 (2σ)",
+    "noZone": "ばらつきが小さすぎて描けません",
+    "groundAtLanding": "着地点の地面の標高",
+    "estimateNote": "入力した降下速度による推定です。範囲は {{descents}} 回の降下を含みます:予報 {{hours}} 時間分、風速 ±20%、風向 ±15°、降下速度 ±10%。",
+    "flatGround": "地形の形状を取得できなかったため、発射台と同じ高さの平らな地面に着地するものとしています。",
+    "surfaceWindOnly": "この日付の Open-Meteo の記録には地表付近の風しかないため、降下全体がその風で流されます。",
+    "mapLabel": "上から見た着地点の推定。発射台から {{distance}} の地点に着地"
   }
 }

@@ -60,6 +60,13 @@ describe('proposalFor', () => {
     expect(usableAtmosphereLevels(a)).toEqual(a);
   });
 
+  it('leaves out a pressure level at or above the surface pressure, whatever its height', () => {
+    // A sea-level pad given an 850 hPa surface: the 1000 to 850 hPa levels sit
+    // above it by height but below it by pressure.
+    const a = proposalFor(hour(0), 0).atmosphere!;
+    expect(a.every((l) => l.pressureHPa < 850)).toBe(true);
+  });
+
   it('offers no group it has nothing for', () => {
     const s = { ...hour(), windSpeed: null, levels: [], humidityPct: null };
     const p = proposalFor(s, 1500);

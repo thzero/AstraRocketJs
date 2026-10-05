@@ -50,7 +50,7 @@ import { buildTraces, type ChartFlight } from './FlightChart';
  */
 
 /** 'off' is a real choice: imagery is context, and sometimes it is in the way. */
-type Layer = 'off' | TileSourceId;
+export type Layer = 'off' | TileSourceId;
 
 /**
  * The three buttons, with their labels spelled out.
@@ -58,14 +58,14 @@ type Layer = 'off' | TileSourceId;
  * Not `t(`map.${id}`)`: a key built from a variable is invisible to the
  * key-coverage test, which then reports these as dead strings.
  */
-const LAYERS = [
+export const LAYERS = [
   { id: 'off', labelKey: 'map.none' },
   { id: 'satellite', labelKey: 'map.satellite' },
   { id: 'street', labelKey: 'map.street' },
 ] as const satisfies readonly { id: Layer; labelKey: string }[];
 
 /** Ink for a label that has to read over aerial imagery as well as over nothing. */
-const HALO = {
+export const HALO = {
   paintOrder: 'stroke',
   stroke: 'rgba(2,6,23,0.75)',
   strokeWidth: 3,
@@ -73,7 +73,7 @@ const HALO = {
 } as const;
 
 /** The dark liner under every marked line, so a track never sinks into a field. */
-const LINER = 'rgba(2,6,23,0.75)';
+export const LINER = 'rgba(2,6,23,0.75)';
 
 /**
  * How far the imagery may be magnified past its own resolution before it stops
@@ -92,7 +92,7 @@ const LINER = 'rgba(2,6,23,0.75)';
  * job. Below about twenty meters across, a screen pixel is finer than anything
  * Esri holds and there is no ground left to show.
  */
-const MAX_MAGNIFICATION = 4;
+export const MAX_MAGNIFICATION = 4;
 
 export function GroundTrack({
   flight,

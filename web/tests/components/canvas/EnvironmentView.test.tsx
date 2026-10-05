@@ -116,6 +116,39 @@ describe('EnvironmentView', () => {
     expect(screen.queryByRole('link', { name: 'CC BY 4.0' })).toBeNull();
   });
 
+  it('gives where the flight landed, and offers the forecast hours only after a forecast', () => {
+    // 300 m east and 400 m north of the pad: 500 m away on a bearing of 37 degrees.
+    const track = {
+      ...AIR,
+      Px: col(() => 0).map((_, i, a) => (300 * i) / (a.length - 1)),
+      Py: col(() => 0).map((_, i, a) => (400 * i) / (a.length - 1)),
+    };
+    const site = { launchAltitudeM: 0, latitudeDeg: 40, longitudeDeg: -105 };
+    const { unmount } = renderWithProviders(<EnvironmentView flight={{ ...flight(track), launch: site } as never} />);
+    expect(screen.getByRole('heading', { name: 'Landing' })).toBeTruthy();
+    expect(screen.getByText('500 m, 37°')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Fly the hours around this forecast' })).toBeNull();
+    expect(screen.getByText(/^Fill the launch conditions with Get weather/)).toBeTruthy();
+    unmount();
+
+    const weatherSource = {
+      provider: 'open-meteo' as const,
+      endpoint: 'forecast' as const,
+      date: '2026-10-05',
+      hour: 12,
+      timezone: 'America/Denver',
+      latitudeDeg: 40,
+      longitudeDeg: -105,
+      elevationM: 0,
+      validAt: '2026-10-05T18:00:00.000Z',
+      fetchedAt: '2026-10-04T15:14:00.000Z',
+      groups: ['wind' as const],
+      elevationApplied: false,
+    };
+    renderWithProviders(<EnvironmentView flight={{ ...flight(track), launch: { ...site, weatherSource } } as never} />);
+    expect(screen.getByRole('button', { name: 'Fly the hours around this forecast' })).toBeTruthy();
+  });
+
   it('says so when the result has no air series', () => {
     renderWithProviders(<EnvironmentView flight={flight({ altitude })} />);
     expect(screen.getByText('This result has no atmosphere data. Run the simulation again.')).toBeTruthy();

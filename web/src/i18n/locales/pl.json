@@ -403,7 +403,8 @@
     "simulations": "Symulacje",
     "workbench": "Warsztat",
     "configs": "Konfiguracje",
-    "configsShort": "Konfig."
+    "configsShort": "Konfig.",
+    "tools": "Narzędzia"
   },
   "view": {
     "2d": "2D",
@@ -1728,6 +1729,49 @@
     },
     "when": "Data / godzina",
     "latitude": "Szerokość",
-    "longitude": "Długość"
+    "longitude": "Długość",
+    "landing": {
+      "title": "Lądowanie",
+      "stage": "Stopień {{stage}} ląduje w",
+      "flyHours": "Przeleć godziny wokół tej prognozy",
+      "flying": "Trwa lot… {{done}} z {{total}}",
+      "flyHoursNote": "Przelatuje ten projekt w prognozie dla każdej godziny, od dwóch przed do dwóch po, według obecnej prognozy.",
+      "hour": "Godzina",
+      "noForecast": "Wypełnij warunki startu przyciskiem Pobierz pogodę…, aby zobaczyć, jak lądowanie przesuwa się w godzinach wokół prognozy.",
+      "failed": "Nie udało się ukończyć lotów."
+    }
+  },
+  "landing": {
+    "title": "Szacowanie lądowania",
+    "intro": "Gdzie rakieta spadnie, na podstawie miejsca, godziny prognozy, apogeum i prędkości opadania. To szacunek: wznoszenie nie jest modelowane, a prędkości są takie, jakie wpiszesz. Rakieta zaprojektowana tutaj dostaje lądowanie z symulacji, na karcie Wyniki.",
+    "site": "Miejsce startu",
+    "siteElevation": "Wysokość miejsca startu",
+    "terrain": "Teren",
+    "siteElevationHint": "Zostaw puste, aby użyć wysokości modelu terenu w miejscu startu.",
+    "when": "Kiedy",
+    "flight": "Lot",
+    "apogee": "Apogeum nad stanowiskiem",
+    "recovery": "Odzysk",
+    "recovery_single": "Pojedynczy",
+    "recovery_dual": "Podwójny",
+    "descentRate": "Prędkość opadania",
+    "drogueRate": "Opadanie na spadochronie hamującym",
+    "mainRate": "Opadanie na spadochronie głównym",
+    "mainAltitude": "Spadochron główny otwiera się nad stanowiskiem na",
+    "mainAboveApogee": "Spadochron główny musi otworzyć się poniżej apogeum.",
+    "estimate": "Oszacuj lądowanie",
+    "estimating": "Szacowanie…",
+    "empty": "Podaj miejsce, godzinę i lot, a potem naciśnij Oszacuj lądowanie.",
+    "lands": "Ląduje w",
+    "distance": "Odległość",
+    "bearing": "Kierunek od stanowiska",
+    "descentTime": "Czas opadania",
+    "zone": "Strefa lądowania (2σ)",
+    "noZone": "Zbyt mały rozrzut, by go narysować",
+    "groundAtLanding": "Teren w miejscu lądowania",
+    "estimateNote": "Szacunek na podstawie wpisanych prędkości opadania. Strefa obejmuje {{descents}} opadań: {{hours}} godzin prognozy, prędkość wiatru 20% w górę i w dół, kierunek 15° w każdą stronę i prędkość opadania 10% w górę i w dół.",
+    "flatGround": "Nie udało się pobrać kształtu terenu, więc lądowanie jest na płaskim terenie na wysokości stanowiska.",
+    "surfaceWindOnly": "Archiwum Open-Meteo dla tej daty ma tylko wiatr przy ziemi, więc całe opadanie dryfuje z nim.",
+    "mapLabel": "Szacowane lądowanie z góry, lądowanie {{distance}} od stanowiska"
   }
 }
