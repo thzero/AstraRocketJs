@@ -105,6 +105,9 @@ const testOnlyExports = (): string[] => {
 const BASELINE = [
   'src/engine/openRocketEngine.ts#__setEngineForTests',
   'src/components/tools/LandingEstimator.tsx#forgetLandingEstimator',
+  'src/components/tools/OffTheRail.tsx#forgetOffTheRail',
+  'src/components/tools/ParachuteTool.tsx#forgetParachuteTool',
+  'src/components/tools/ToolsPane.tsx#forgetToolsPane',
   'src/services/app/helpSearch.ts#resetHelpIndex',
   'src/services/weather/openMeteo.ts#resetWeatherState',
   'src/services/weather/openMeteo.ts#setWeatherTransport',

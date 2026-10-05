@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { RecoverySizingReadout } from '../../../src/components/design/RecoverySizingReadout';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import { useWorkspaceStore, selectActive } from '../../../src/state/store';
@@ -96,23 +96,29 @@ function seed(opts: { result?: FlightResult | null; outdated?: boolean } = {}): 
 
 const body = () => document.body.textContent ?? '';
 
+/** The figures live in a dialog the editor's button opens. */
+function open(node: ComponentNode, onChange: (p: Partial<ComponentNode>) => void = () => {}): void {
+  renderWithProviders(<RecoverySizingReadout node={node} onChange={onChange} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Descent sizing…' }));
+}
+
 describe('the descent-sizing block', () => {
   beforeEach(() => seed());
 
   it('says the figures are estimated when nothing has flown', () => {
-    renderWithProviders(<RecoverySizingReadout node={CHUTE} />);
+    open(CHUTE);
     expect(body()).toMatch(/Estimated for a descent mass/);
     expect(body()).not.toMatch(/Measured in the last run/);
   });
 
   it('always marks the suggested diameters as estimates', () => {
-    renderWithProviders(<RecoverySizingReadout node={CHUTE} />);
+    open(CHUTE);
     expect(body()).toMatch(/Diameters are estimates to design against/);
   });
 
   it('reports the kernel figures once the device has flown', () => {
     seed({ result: RESULT('') });
-    renderWithProviders(<RecoverySizingReadout node={CHUTE} />);
+    open(CHUTE);
     expect(body()).toMatch(/Measured in the last run/);
     // The kernel's 0.44 kg, not the estimate's 0.6 less the propellant.
     expect(screen.getByText(/440/)).toBeTruthy();
@@ -122,7 +128,7 @@ describe('the descent-sizing block', () => {
 
   it('names the branch when the flight had more than one', () => {
     seed({ result: RESULT('Sustainer') });
-    renderWithProviders(<RecoverySizingReadout node={CHUTE} />);
+    open(CHUTE);
     expect(body()).toMatch(/Measured in the last run on Sustainer/);
   });
 
@@ -133,7 +139,7 @@ describe('the descent-sizing block', () => {
    */
   it('falls back to the estimate when the run is outdated', () => {
     seed({ result: RESULT(''), outdated: true });
-    renderWithProviders(<RecoverySizingReadout node={CHUTE} />);
+    open(CHUTE);
     expect(body()).toMatch(/Estimated for a descent mass/);
   });
 
@@ -141,7 +147,16 @@ describe('the descent-sizing block', () => {
   it('stays an estimate for a device the run never deployed', () => {
     seed({ result: RESULT('') });
     const other = { ...CHUTE, id: 'other', name: 'Drogue' } as unknown as ComponentNode;
-    renderWithProviders(<RecoverySizingReadout node={other} />);
+    open(other);
     expect(body()).toMatch(/Estimated for a descent mass/);
+  });
+
+  it('opens as a dialog, and sets a suggested diameter on the canopy', () => {
+    const patches: Partial<ComponentNode>[] = [];
+    open(CHUTE, (p) => patches.push(p));
+    expect(screen.getByRole('dialog', { name: 'Descent sizing' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Use the main diameter' }));
+    expect(patches).toHaveLength(1);
+    expect((patches[0] as { diameter: number }).diameter).toBeGreaterThan(0.5);
   });
 });

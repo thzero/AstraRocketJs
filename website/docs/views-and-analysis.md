@@ -125,6 +125,24 @@ The 3D path replays the flight rather than only drawing it. **▶ Play flight** 
 
 The speed a run starts at comes from **[Settings ▸ Playback](./settings.md#playback)**.
 
+## Environment (after a simulation) {#environment-after-a-simulation}
+
+The air the flight actually flew through, as the engine recorded it at every step. The launch panel shows what you entered; this shows what that became, including the standard atmosphere when temperature and pressure are left blank, a wind profile measured above ground turned into real heights, and a [forecast](./running-a-simulation.md#weather) when one is applied.
+
+The row along the top gives the site's latitude, longitude and elevation, the date and time when the conditions came from a forecast, and the air when the motor lit: temperature, pressure, density, speed of sound, wind speed and wind direction. Still air has no direction, so it shows a dash. When the conditions came from [Open-Meteo](./running-a-simulation.md#weather), Open-Meteo's CC BY 4.0 credit follows, with a note if a value has been edited or the site moved since it was applied.
+
+Four charts plot **wind speed**, **wind direction**, **air temperature** and **air pressure** against altitude above the pad, from the ground to apogee. The way up is the bright line. The way down is the faint one under it: a rocket under a parachute passes the same heights for a minute or more while the gusts keep changing, so its wind is a dense scatter rather than a curve. Temperature and pressure are the same on both passes, so there the two lines lie on top of each other. A wind direction line breaks where it crosses north instead of sweeping across the chart.
+
+The charts cover only the altitudes the flight reached. Values use your units, and density is shown to four significant figures so that it reads sensibly in g/cm³ as well as kg/m³.
+
+### Where it landed {#where-it-landed}
+
+Under the charts, **Landing** gives where each stage came down: its latitude and longitude, and its distance and bearing from the pad.
+
+When the launch conditions came from an [Open-Meteo forecast](./running-a-simulation.md#weather), **Fly the hours around this forecast** flies this design again under the forecast for each hour from two before to two after. Every one of these flights uses the same random seed, so only the weather differs between them. They use the forecast as it stands now, which may have changed since it was applied. A map then shows the flight's path from above, a dot where each hour's flight landed and the 2σ ellipse around them, and a table lists each hour's landing.
+
+Without a forecast, the section says how to get one. For a rocket not designed here, the [landing estimator](./tools.md#landing-estimator) on the Tools tab gives an estimate from typed descent rates.
+
 ## Reading the stats strip
 
 The bottom strip summarizes the current design as a grid of tiles (collapse it with the chevron on its header):

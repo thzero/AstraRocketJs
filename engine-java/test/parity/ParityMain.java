@@ -60,6 +60,9 @@ public final class ParityMain {
         collatorScenarios();
         uuidScenarios();
         preferencesScenarios();
+        // Last, so the process-wide state it touches (the UUID counter, the
+        // flight order) leaves every earlier line where it was.
+        atmosphereProfileScenarios();
     }
 
     /**
@@ -359,6 +362,48 @@ public final class ParityMain {
         java.util.Map<String, Object> parsed = api.JsonLite.parseObject(result);
         java.util.Map<String, Object> summary = asMap(parsed.get("summary"));
         line("flight.mindia",
+                api.JsonLite.dbl(summary, "maxAltitude", Double.NaN),
+                api.JsonLite.dbl(summary, "maxVelocity", Double.NaN),
+                api.JsonLite.dbl(summary, "timeToApogee", Double.NaN));
+    }
+
+    /**
+     * A forecast atmosphere (api.AtmosphereProfile) in place of the standard
+     * one. The same rocket flies three ways: on its own levels, anchored at a
+     * site above sea level (which drops the levels below the pad), and with
+     * a top level low enough that the flight climbs past it onto the standard
+     * shape. The levels are colder and thinner than standard so a lost profile
+     * cannot hide behind ISA.
+     */
+    private static void atmosphereProfileScenarios() {
+        String json = "{\"name\":\"Atmo\",\"components\":[{\"type\":\"stage\",\"name\":\"S\",\"children\":["
+                + "{\"type\":\"nosecone\",\"length\":0.10,\"aftRadius\":0.012,\"thickness\":0.002},"
+                + "{\"type\":\"bodytube\",\"id\":\"body\",\"length\":0.45,\"outerRadius\":0.012,\"thickness\":0.0005,\"density\":950,\"motorMount\":true,\"children\":["
+                + "  {\"type\":\"trapezoidfinset\",\"finCount\":3,\"rootChord\":0.05,\"tipChord\":0.03,\"sweep\":0.02,\"height\":0.025,\"thickness\":0.003},"
+                + "  {\"type\":\"parachute\",\"diameter\":0.30}"
+                + "]}]}]}";
+        int r = api.OpenRocketEngine.buildRocket(json);
+        api.OpenRocketEngine.setMotorById(r, "body", "C6", 0.018, 0.070,
+                new double[] { 0, 0.1, 0.3, 0.5, 1.0, 1.5, 1.85, 2.0 },
+                new double[] { 0, 12.0, 6.0, 5.1, 4.9, 4.8, 4.5, 0 },
+                new double[] { 0.0240, 0.0231, 0.0215, 0.0202, 0.0174, 0.0147, 0.0133, 0.0132 },
+                0.035, 5.0);
+        String levels = "[{\"altitude\":0,\"temperature\":268.15,\"pressure\":99000,\"relativeHumidity\":0.8},"
+                + "{\"altitude\":150,\"temperature\":266.0,\"pressure\":97200,\"relativeHumidity\":0.7},"
+                + "{\"altitude\":400,\"temperature\":270.0,\"pressure\":94300,\"relativeHumidity\":0.5},"
+                + "{\"altitude\":1500,\"temperature\":262.0,\"pressure\":82500,\"relativeHumidity\":0.3}]";
+        atmosphereFlight("flight.atmo.levels", r, "{\"rodLength\":1.0,\"atmosphereLevels\":" + levels + "}");
+        atmosphereFlight("flight.atmo.anchored", r, "{\"rodLength\":1.0,\"launchAltitude\":100,"
+                + "\"temperature\":271.0,\"pressure\":97800,\"atmosphereLevels\":" + levels + "}");
+        atmosphereFlight("flight.atmo.pasttop", r, "{\"rodLength\":1.0,\"atmosphereLevels\":"
+                + "[{\"altitude\":0,\"temperature\":268.15,\"pressure\":99000,\"relativeHumidity\":0.8},"
+                + "{\"altitude\":120,\"temperature\":267.0,\"pressure\":97600,\"relativeHumidity\":0.8}]}");
+    }
+
+    private static void atmosphereFlight(String tag, int rocket, String options) {
+        java.util.Map<String, Object> summary =
+                asMap(api.JsonLite.parseObject(api.OpenRocketEngine.simulateJson(rocket, options)).get("summary"));
+        line(tag,
                 api.JsonLite.dbl(summary, "maxAltitude", Double.NaN),
                 api.JsonLite.dbl(summary, "maxVelocity", Double.NaN),
                 api.JsonLite.dbl(summary, "timeToApogee", Double.NaN));

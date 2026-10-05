@@ -104,6 +104,10 @@ Ten en cuenta que estos seis son *obligatorios*, no *distintos de cero*: aire en
 
 En este diálogo esos campos nunca pueden acabar en blanco: inicializan cada nueva simulación, así que borrar uno aquí simplemente conserva el valor que tenía.
 
+### Clave de API de Open-Meteo {#open-meteo-key}
+
+Al final de la tarjeta Atmósfera de la pestaña Lanzamiento hay un campo para una clave de API de Open-Meteo, que usa [el tiempo de Open-Meteo](./running-a-simulation.md#weather). Déjalo vacío para usar el servicio gratuito de Open-Meteo, que es para uso no comercial. Una clave de un plan de pago de Open-Meteo envía las solicitudes a su servicio de pago. La clave se guarda solo en este navegador, fuera de estos ajustes, así que **Restablecer** no la toca y ningún diseño ni `.ork` que guardes la lleva.
+
 ## Reproducción {#playback}
 
 - **Velocidad predeterminada** — la velocidad a la que empieza a reproducirse la trayectoria de vuelo 3D, de 0,25× a 4×. Es un punto de partida, no un bloqueo: el control de velocidad de la vista cambia la reproducción actual sin tocar este ajuste.

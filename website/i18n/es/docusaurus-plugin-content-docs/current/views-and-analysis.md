@@ -125,6 +125,24 @@ La trayectoria 3D reproduce el vuelo en lugar de solo dibujarlo. **▶ Reproduci
 
 La velocidad con la que arranca una reproducción viene de **[Ajustes ▸ Reproducción](./settings.md#playback)**.
 
+## Entorno (tras una simulación) {#environment-after-a-simulation}
+
+El aire que realmente atravesó el vuelo, tal como lo registró el motor de cálculo en cada paso. El panel de lanzamiento muestra lo que introdujiste; esto muestra en qué se convirtió, incluida la atmósfera estándar cuando dejas en blanco la temperatura y la presión, un perfil de viento medido sobre el suelo convertido en alturas reales y un [pronóstico](./running-a-simulation.md#weather) cuando lo aplicas.
+
+La fila superior da la latitud, la longitud y la altitud del sitio, la fecha y la hora cuando las condiciones vienen de un pronóstico, y el aire cuando se encendió el motor: temperatura, presión, densidad, velocidad del sonido, velocidad del viento y dirección del viento. El aire en calma no tiene dirección, así que se muestra un guion. Cuando las condiciones vienen de [Open-Meteo](./running-a-simulation.md#weather), sigue el crédito CC BY 4.0 de Open-Meteo, con una nota si se ha cambiado un valor o se ha movido el sitio después de aplicarlo.
+
+Cuatro gráficas representan la **velocidad del viento**, la **dirección del viento**, la **temperatura del aire** y la **presión del aire** frente a la altura sobre la plataforma, desde el suelo hasta el apogeo. La subida es la línea brillante. La bajada es la tenue que queda debajo: un cohete bajo un paracaídas pasa por las mismas alturas durante un minuto o más mientras las ráfagas siguen cambiando, así que su viento es una nube densa y no una curva. La temperatura y la presión son las mismas en las dos pasadas, así que ahí las dos líneas se superponen. La línea de la dirección del viento se corta donde cruza el norte en lugar de atravesar la gráfica.
+
+Las gráficas cubren solo las alturas que alcanzó el vuelo. Los valores usan tus unidades, y la densidad se muestra con cuatro cifras significativas para que se lea bien tanto en g/cm³ como en kg/m³.
+
+### Dónde aterrizó {#where-it-landed}
+
+Debajo de las gráficas, **Aterrizaje** da dónde bajó cada etapa: su latitud y longitud, y su distancia y rumbo desde la plataforma.
+
+Cuando las condiciones de lanzamiento vienen de un [pronóstico de Open-Meteo](./running-a-simulation.md#weather), **Volar las horas alrededor de este pronóstico** vuela este diseño de nuevo bajo el pronóstico de cada hora, desde dos antes hasta dos después. Todos estos vuelos usan la misma semilla aleatoria, así que solo cambia el tiempo entre ellos. Usan el pronóstico tal como está ahora, que puede haber cambiado desde que se aplicó. Después, un mapa muestra la trayectoria del vuelo desde arriba, un punto donde aterrizó el vuelo de cada hora y la elipse 2σ alrededor de ellos, y una tabla da el aterrizaje de cada hora.
+
+Sin un pronóstico, la sección explica cómo obtenerlo. Para un cohete no diseñado aquí, el [estimador de aterrizaje](./tools.md#landing-estimator) de la pestaña Herramientas da una estimación a partir de velocidades de descenso escritas.
+
 ## Leer la franja de estadísticas {#reading-the-stats-strip}
 
 La franja inferior resume el diseño actual como una cuadrícula de fichas (se pliega con el galón de su cabecera):

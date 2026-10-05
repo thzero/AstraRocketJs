@@ -2,16 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUnits } from '../../prefs/useUnits';
 import { useSettings } from '../../state/SettingsProvider';
-import type { LaunchConditions } from '../../services/design/orkTree';
 import { hourInZone, WeatherError, ymdInZone } from '../../services/weather/openMeteo';
 import { readWeatherKey } from '../../services/weather/weatherKey';
 import { runLandingEstimate, type LandingRun } from '../../services/landing/landingEstimate';
 import type { DescentPlan } from '../../services/landing/descentDrift';
-import { LAUNCH_SITE_LIMITS } from '../../services/storage/launchLocationStore';
-import { LocationPicker } from '../sim/LocationPicker';
-import { SiteMapDialog } from '../sim/SiteMapDialog';
-import { Num, QNum } from '../sim/LaunchPanel';
+import { QNum } from '../sim/LaunchPanel';
 import { LandingMap } from './LandingMap';
+import { SiteFields, WhenFields, type ToolSite } from './SiteFields';
+import { OpenMeteoCredit, ToolGroup } from './ToolGroup';
 
 /**
  * Where a rocket will come down, for a flight that has not been designed here:
@@ -20,11 +18,6 @@ import { LandingMap } from './LandingMap';
  * from typed rates, and it says so; a designed rocket's landing comes from the
  * engine, on its Results tab.
  */
-
-const btn =
-  'rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-50';
-const input =
-  'rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500';
 
 const nextHour = () => Date.now() + 3_600_000;
 const today = () => ymdInZone(Date.now(), undefined);
@@ -40,7 +33,7 @@ type State =
  * another tab come back to the estimate as it was left.
  */
 interface Remembered {
-  site: { latitudeDeg: number | null; longitudeDeg: number | null; launchAltitudeM: number | null };
+  site: ToolSite;
   date: string;
   hour: number;
   apogee: number | null;
@@ -56,15 +49,6 @@ let remembered: Remembered | null = null;
 /** Clears the remembered inputs and result, so each test starts from the defaults. */
 export function forgetLandingEstimator(): void {
   remembered = null;
-}
-
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{title}</h3>
-      <div className="space-y-2">{children}</div>
-    </section>
-  );
 }
 
 export function LandingEstimator() {
@@ -90,7 +74,6 @@ export function LandingEstimator() {
   const [drogueRate, setDrogueRate] = useState<number | null>(() => (remembered ? remembered.drogueRate : 25));
   const [mainRate, setMainRate] = useState<number | null>(() => (remembered ? remembered.mainRate : 6));
   const [mainAgl, setMainAgl] = useState<number | null>(() => (remembered ? remembered.mainAgl : 150));
-  const [mapOpen, setMapOpen] = useState(false);
   // A request still out when the tab closed is aborted, so it comes back idle.
   const [state, setState] = useState<State>(() =>
     remembered && remembered.state.kind !== 'loading' ? remembered.state : { kind: 'idle' },
@@ -177,78 +160,22 @@ export function LandingEstimator() {
   const minutes = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
 
   return (
-    <div className="grid h-full gap-4 overflow-auto p-3 lg:grid-cols-[22rem_minmax(0,1fr)]">
+    <div className="grid gap-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
       <div className="space-y-4">
         <div>
           <h2 className="text-sm font-semibold text-slate-200">{t('landing.title')}</h2>
           <p className="mt-1 text-xs text-slate-400">{t('landing.intro')}</p>
         </div>
 
-        <Group title={t('landing.site')}>
-          <LocationPicker
-            launch={site as unknown as LaunchConditions}
-            onChange={(p) =>
-              setSite((s) => ({
-                latitudeDeg: p.latitudeDeg !== undefined ? p.latitudeDeg : s.latitudeDeg,
-                longitudeDeg: p.longitudeDeg !== undefined ? p.longitudeDeg : s.longitudeDeg,
-                launchAltitudeM: p.launchAltitudeM !== undefined ? p.launchAltitudeM : s.launchAltitudeM,
-              }))
-            }
-          />
-          <Num
-            label={t('launch.latitude')}
-            unit="°"
-            step={1}
-            min={LAUNCH_SITE_LIMITS.latitudeDeg.min}
-            max={LAUNCH_SITE_LIMITS.latitudeDeg.max}
-            value={site.latitudeDeg}
-            onChange={(v) => setSite((s) => ({ ...s, latitudeDeg: v }))}
-          />
-          <Num
-            label={t('launch.longitude')}
-            unit="°"
-            step={1}
-            min={LAUNCH_SITE_LIMITS.longitudeDeg.min}
-            max={LAUNCH_SITE_LIMITS.longitudeDeg.max}
-            value={site.longitudeDeg}
-            onChange={(v) => setSite((s) => ({ ...s, longitudeDeg: v }))}
-          />
-          <QNum
-            label={t('landing.siteElevation')}
-            field="landingSiteElevation"
-            kind="distance"
-            u={u}
-            stepSi={10}
-            minSi={LAUNCH_SITE_LIMITS.launchAltitudeM.min}
-            maxSi={LAUNCH_SITE_LIMITS.launchAltitudeM.max}
-            placeholder={t('landing.terrain')}
-            hint={t('landing.siteElevationHint')}
-            value={site.launchAltitudeM}
-            onChange={(v) => setSite((s) => ({ ...s, launchAltitudeM: v }))}
-          />
-          <button className={`${btn} w-full`} onClick={() => setMapOpen(true)}>
-            🗺 {t('map.show')}
-          </button>
-        </Group>
+        <ToolGroup title={t('landing.site')}>
+          <SiteFields site={site} onChange={setSite} elevation />
+        </ToolGroup>
 
-        <Group title={t('landing.when')}>
-          <label className="flex items-center justify-between gap-3">
-            <span className="text-xs text-slate-400">{t('weather.dateLabel')}</span>
-            <input type="date" className={input} value={date} onChange={(ev) => setDate(ev.target.value)} />
-          </label>
-          <label className="flex items-center justify-between gap-3">
-            <span className="text-xs text-slate-400">{t('weather.hourLabel')}</span>
-            <select className={input} value={hour} onChange={(ev) => setHour(Number(ev.target.value))}>
-              {Array.from({ length: 24 }, (_, h) => (
-                <option key={h} value={h}>
-                  {String(h).padStart(2, '0')}:00
-                </option>
-              ))}
-            </select>
-          </label>
-        </Group>
+        <ToolGroup title={t('landing.when')}>
+          <WhenFields date={date} hour={hour} onDate={setDate} onHour={setHour} />
+        </ToolGroup>
 
-        <Group title={t('landing.flight')}>
+        <ToolGroup title={t('landing.flight')}>
           <QNum
             label={t('landing.apogee')}
             field="landingApogee"
@@ -326,7 +253,7 @@ export function LandingEstimator() {
               />
             </>
           )}
-        </Group>
+        </ToolGroup>
 
         <button
           className="w-full rounded-md bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
@@ -374,39 +301,12 @@ export function LandingEstimator() {
             {run.answer.endpoint === 'archive' && (
               <p className="text-xs text-amber-400">{t('landing.surfaceWindOnly')}</p>
             )}
-            <p className="text-[11px] text-slate-500">
-              <a
-                className="text-sky-400 hover:underline"
-                href="https://open-meteo.com/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                {t('weather.credit')}
-              </a>
-              {' · '}
-              <a
-                className="text-sky-400 hover:underline"
-                href="https://creativecommons.org/licenses/by/4.0/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                CC BY 4.0
-              </a>
-            </p>
+            <OpenMeteoCredit />
           </>
         ) : (
           <p className="p-4 text-sm text-slate-500">{t('landing.empty')}</p>
         )}
       </div>
-
-      {mapOpen && (
-        <SiteMapDialog
-          latitudeDeg={site.latitudeDeg}
-          longitudeDeg={site.longitudeDeg}
-          onPick={(la, lo) => setSite((s) => ({ ...s, latitudeDeg: la, longitudeDeg: lo }))}
-          onClose={() => setMapOpen(false)}
-        />
-      )}
     </div>
   );
 }

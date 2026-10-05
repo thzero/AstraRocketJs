@@ -25,6 +25,8 @@ OpenRocket's full `core` module is ~700 Java files and pulls in Guice, JAXB, Gra
 
 `api/GuideClearanceListener.java` is the worked example: the opt-in guide-aware rod clearance model. `firePostStep` runs before the engine's own launch-guide check and is handed the mutable status; handling a `LAUNCHROD` event does nothing but set `launchRodCleared`, and the engine's own check is guarded on that same flag, so an event added earlier suppresses the engine's later one instead of duplicating it. Both steppers key the rod constraint on the flag, so the event releases the rocket as well as reporting it, and `FlightData` already interpolates `launchRodVelocity` at the event's own time. Two traps: override `isSystemListener()` to return true or every flight raises `Warning.LISTENERS_AFFECTED`, and capture a branch's origin in `startSimulationBranch`, which is where the engine reads its own.
 
+The same goes for the models `SimulationConditions` holds: the atmosphere, wind, gravity and aerodynamic calculator are interfaces the bridge sets per flight. `api/AtmosphereProfile.java` is the example: an `AtmosphericModel` built from a forecast's levels (temperature, pressure, humidity by altitude) that `simulateJson` passes in place of `ExtendedISAModel` when a flight carries `atmosphereLevels`. It is not an upstream class, so it needs no patch and no bless, and it is covered by the `flight.atmo.*` parity lines.
+
 Extracted sources by area:
 
 | files | package | what it is |

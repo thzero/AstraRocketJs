@@ -104,6 +104,10 @@ Note these six are *required*, not *non-zero*: still air, no gusts, sea level, t
 
 In this dialog the same fields can never end up blank at all — they seed every new simulation, so clearing one here simply keeps the value it had.
 
+### Open-Meteo API key {#open-meteo-key}
+
+At the bottom of the Atmosphere card on the Launch tab is a field for an Open-Meteo API key, used by [weather from Open-Meteo](./running-a-simulation.md#weather). Leave it empty to use Open-Meteo's free service, which is for non-commercial use. A key from a paid Open-Meteo plan sends requests to its paid service instead. The key is stored only in this browser, outside these settings, so **Reset** leaves it alone and no design or `.ork` you save carries it.
+
 ## Playback {#playback}
 
 - **Default speed** — the speed the 3D flight path starts playing at, from 0.25× to 4×. It is a starting point, not a lock: the speed control in the view changes the current playback without touching this.

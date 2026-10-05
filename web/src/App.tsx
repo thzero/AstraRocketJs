@@ -15,7 +15,7 @@ import { FlightEventsTable } from './components/sim/FlightEventsTable';
 import { SimSummary } from './components/sim/SimSummary';
 import { FlightWarnings } from './components/sim/FlightWarnings';
 import { TabBar } from './components/layout/TabBar';
-import { LandingEstimator } from './components/tools/LandingEstimator';
+import { ToolsPane } from './components/tools/ToolsPane';
 import { WorkInProgressDialog } from './components/layout/WorkInProgressDialog';
 import { ConfirmDialog } from './components/common/ConfirmDialog';
 import { PromptDialog } from './components/common/PromptDialog';
@@ -301,7 +301,7 @@ export default function App() {
             Longitude in the document. The estimator keeps its own inputs. */}
         {tab === 'tools' && (
           <section className="flex min-h-0 flex-1 flex-col lg:h-full lg:overflow-hidden" aria-label={t('tabs.tools')}>
-            <LandingEstimator />
+            <ToolsPane />
           </section>
         )}
       </main>

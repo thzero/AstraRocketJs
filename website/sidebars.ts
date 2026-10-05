@@ -29,6 +29,7 @@ const sidebars: SidebarsConfig = {
         'flight-configurations',
         'views-and-analysis',
         'running-a-simulation',
+        'tools',
         'files-and-exports',
         'safety',
       ],

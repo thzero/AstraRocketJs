@@ -386,7 +386,7 @@ export function PropertyPanel({
       {/* Descent sizing — canopy diameter for the descent bands + this chute's
           own descent rate, from the live descent mass. Parachutes only (the
           sqrt-law is diameter-based; streamers size differently). */}
-      {node.type === 'parachute' && <RecoverySizingReadout node={node} />}
+      {node.type === 'parachute' && <RecoverySizingReadout node={node} onChange={onChange} onCommit={onCommit} />}
 
       {/* Placement — only meaningful for parts nested inside a tube. */}
       {node.type !== 'stage' && !isAxial(node.type) && (

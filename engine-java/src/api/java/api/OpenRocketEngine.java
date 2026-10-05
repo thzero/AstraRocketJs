@@ -1431,10 +1431,14 @@ public final class OpenRocketEngine {
                 JsonLite.dbl(o, "launchLongitude", -80.60),
                 launchAltitude));
         conditions.setGeodeticComputation(geodeticOf(JsonLite.str(o, "geodetic", "spherical")));
+        List<Map<String, Object>> atmosphereLevels = JsonLite.objList(o, "atmosphereLevels");
+        if (atmosphereLevels != null && !atmosphereLevels.isEmpty()) {
+            conditions.setAtmosphericModel(
+                    atmosphereProfileOf(atmosphereLevels, launchAltitude, temperature, pressure, humidity));
         // Any ONE of the three is enough to leave standard ISA: humidity alone is
         // a real case (ISA temperature and pressure, a muggy field), and keying
         // this off temperature/pressure only would have silently dropped it.
-        if (!Double.isNaN(temperature) || !Double.isNaN(pressure) || !Double.isNaN(humidity)) {
+        } else if (!Double.isNaN(temperature) || !Double.isNaN(pressure) || !Double.isNaN(humidity)) {
             // Upstream changed the 3-arg ExtendedISAModel to (temp, pressure, humidity)
             // and added a 4-arg (altitude, temp, pressure, humidity). Use the 4-arg form
             // so custom values keep their altitude meaning.
@@ -1579,6 +1583,54 @@ public final class OpenRocketEngine {
     }
 
     // ---------- helpers ----------
+
+    /**
+     * The atmosphere for a flight that carries {@code atmosphereLevels}: each
+     * {altitude (m MSL), temperature (K), pressure (Pa), relativeHumidity
+     * (fraction)}, in any order. See {@link AtmosphereProfile}.
+     * <p>
+     * When the site's temperature and pressure are both given, the site is the
+     * profile's lowest level and any level at or below the site, by height or
+     * by pressure, is dropped: the conditions stated for the pad win where the
+     * rocket starts. The site's
+     * humidity defaults to the lowest level kept above it. Without both site
+     * values the levels are used as they are.
+     */
+    private static AtmosphereProfile atmosphereProfileOf(List<Map<String, Object>> levels,
+            double launchAltitude, double temperature, double pressure, double humidity) {
+        List<double[]> rows = new ArrayList<>();
+        for (int i = 0; i < levels.size(); i++) {
+            Map<String, Object> l = levels.get(i);
+            rows.add(new double[] {
+                    JsonLite.dbl(l, "altitude", Double.NaN),
+                    JsonLite.dbl(l, "temperature", Double.NaN),
+                    JsonLite.dbl(l, "pressure", Double.NaN),
+                    JsonLite.dbl(l, "relativeHumidity", ExtendedISAModel.STANDARD_RELATIVE_HUMIDITY) });
+        }
+        rows.sort((a, b) -> Double.compare(a[0], b[0]));
+        boolean anchored = !Double.isNaN(temperature) && !Double.isNaN(pressure);
+        if (anchored) {
+            // A level at or below the pad, by height or by pressure, is ground
+            // the pad stands on, not air above it: the site's own values hold
+            // there. By pressure as well because the two can disagree, a typed
+            // site pressure against a forecast's levels, and a pressure that
+            // rises with height is not an atmosphere.
+            rows.removeIf(r -> r[0] <= launchAltitude || !(r[2] < pressure));
+            double siteHumidity = !Double.isNaN(humidity) ? humidity
+                    : rows.isEmpty() ? ExtendedISAModel.STANDARD_RELATIVE_HUMIDITY : rows.get(0)[3];
+            rows.add(0, new double[] { launchAltitude, temperature, pressure, siteHumidity });
+        }
+        int n = rows.size();
+        double[] alt = new double[n], t = new double[n], p = new double[n], rh = new double[n];
+        for (int i = 0; i < n; i++) {
+            double[] r = rows.get(i);
+            alt[i] = r[0];
+            t[i] = r[1];
+            p[i] = r[2];
+            rh[i] = r[3];
+        }
+        return new AtmosphereProfile(alt, t, p, rh);
+    }
 
     /** Map a geodetic-model name to the kernel strategy (default spherical). */
     private static GeodeticComputationStrategy geodeticOf(String name) {

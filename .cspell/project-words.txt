@@ -33,9 +33,11 @@ Altus
 angleoffset
 angus
 aopalliance
+apikey
 ARCAS
 arcgisonline
 astrarocketjs
+atmo
 authorable
 axialoffset
 barrowman
@@ -43,6 +45,7 @@ Barrowman's
 baseheight
 basematerials
 basepressure
+baserelativehumidity
 basetemperature
 bbody
 bfins
@@ -88,6 +91,7 @@ crosshairs
 crossrange
 crosssection
 Crêpe
+currentconditions
 curveless
 customexpression
 customreference
@@ -130,6 +134,7 @@ edgessameasinside
 efins
 Eggtimer
 ejectioncharge
+elevationapplied
 ellipticalfinset
 ENDSEC
 ENDTAB
@@ -165,6 +170,7 @@ flangeheight
 Fleeman
 flightcomputer
 flightdata
+forecastlevel
 foreradius
 foreshouldercapped
 foreshoulderlength
@@ -179,6 +185,7 @@ geodeticmethod
 Geographics
 Geolocator
 GEOMS
+geopotential
 glenmarc
 GLTF
 Golay
@@ -300,6 +307,7 @@ motorconfiguration
 motormount
 mountainmanrockets
 msvc
+mtnmanak
 multisampled
 multiset
 myfinset
@@ -315,6 +323,7 @@ nozzleexitdiameter
 nudgeable
 opacityaffectstexture
 opencsv
+openmeteo
 openrocket
 openstreetmap
 openxmlformats
@@ -458,6 +467,7 @@ thrustcurve
 thrustcurve's
 thrustcurves
 thzero
+timeformat
 Timeto
 tipchord
 titebond
@@ -487,6 +497,7 @@ undoable
 unfloored
 unflyable
 unioned
+unixtime
 unmanifested
 unmemoized
 unmetered
@@ -513,6 +524,7 @@ verts
 visualização
 Vuelo
 weathercocking
+weathersource
 windaverage
 winddirection
 windlevel
