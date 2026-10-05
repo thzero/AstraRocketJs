@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, screen, within } from '@testing-library/react';
 import { FlightEventsTable } from '../../../src/components/sim/FlightEventsTable';
-import { renderWithProviders } from '../../testing/renderWithProviders';
+import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import * as saveFile from '../../../src/services/files/saveFile';
 import type { FlightResult, FlightSeries } from '../../../src/engine/openRocketEngine';
 
@@ -95,6 +95,21 @@ describe('FlightEventsTable', () => {
     expect(screen.getByText('1.80 cal · TWR 12.0 · Angle of attack 0.0°')).toBeTruthy();
     // Apogee is read for none of them, so it carries no extras line.
     expect(screen.queryByText(/TWR/)).toBe(screen.getByText(/1\.80 cal/));
+  });
+
+  it('spaces an angle in radians from its value, as every other unit is', () => {
+    // withUnit closes up only the degree sign; "0.0rad" was the hand join.
+    seedSettings({ units: { angle: 'rad' } });
+    renderWithProviders(
+      <FlightEventsTable
+        sim={result({
+          events: [{ type: 'LAUNCHROD', time: 1 }],
+          series: series({ Twr: [0, 12, 8, 0], stability: [1.8, 1.8, 1.8, 1.8] }),
+        })}
+      />,
+    );
+    expect(screen.getByText(/Angle of attack 0\.0 rad$/)).toBeTruthy();
+    localStorage.clear();
   });
 
   it('derives a Max-Q row the kernel never recorded, with its pressure and Mach', () => {

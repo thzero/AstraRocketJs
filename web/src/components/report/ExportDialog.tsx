@@ -11,6 +11,7 @@ import { assembleReport, type ReportBuild, type ReportModel } from '../../servic
 import { isPlanarFinSet } from '../../tree/tubefins';
 import { markingGuides } from '../../services/report/markingGuide';
 import type { ComponentNode } from '../../engine/openRocketEngine';
+import { stageLabel } from '../../i18n/format';
 
 interface StageSel {
   parts: boolean;
@@ -130,7 +131,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
             // fins produce no template, so a stage finned only with tubes must
             // not offer one.
             hasFins: hasType(st.children ?? [], isPlanarFinSet),
-            label: (st.name as string) || model.partsByStage[i]?.stage || `Stage ${i + 1}`,
+            label: stageLabel(t, i, st.name),
           })),
         }
       : null,

@@ -54,7 +54,7 @@ let nextId = 1;
 const pending = new Map<number, { resolve: (r: AnonymousResponse) => void; reject: (e: Error) => void }>();
 
 /** Why a request did not complete: the network failed, or it was canceled. */
-export class AnonymousFetchError extends Error {
+class AnonymousFetchError extends Error {
   readonly kind: 'network' | 'aborted';
   constructor(kind: 'network' | 'aborted') {
     super(kind);

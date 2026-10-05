@@ -549,7 +549,7 @@ export function LaunchPanel({
           <div className="flex items-center justify-between gap-3">
             <span className="text-xs text-slate-400">
               {t('launch.forecastProfile', {
-                top: `${u.fmt('distance', atmosphereLevels[atmosphereLevels.length - 1]!.altitudeM, 0)} ${u.sym('distance')}`,
+                top: `${u.fmtSym('distance', atmosphereLevels[atmosphereLevels.length - 1]!.altitudeM, 0)}`,
               })}
             </span>
             <button

@@ -1,9 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import type { StaticInfo } from '../../engine/openRocketEngine';
-import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
-import { stabilityState, type StabilityState } from '../../services/flight/simReport.js';
-import { calloutLayout, hoverTagFor, MARKER_R, STABILITY_GLYPH, type Ctx, type HoverBox } from './schematicGeometry';
+import type { StabilityState } from '../../services/flight/simReport.js';
+import { calloutLayout, hoverTagFor, marginText, MARKER_R, type Ctx, type HoverBox } from './schematicGeometry';
 
 /**
  * The decoration drawn OVER the TreeSchematic's part outlines, inside the
@@ -44,20 +43,13 @@ export function StabilityOverlay({
   // on-axis symbols AND the leader-line callouts (all gated on cgX/cpX below).
   const cgX = info && showMarkers ? ctx.x0 + info.cg * scale : null;
   const cpX = info && showMarkers ? ctx.x0 + info.cp * scale : null;
-  const stab = info ? stabilityState(info.stabilityCalibers) : null;
-  // The engine's own figure, not ours: see StaticInfo.stabilityPercent.
-  const marginPct = info ? info.stabilityPercent : null;
-  const stabWord =
-    stab === 'under' ? t('schematic.underStable') : stab === 'over' ? t('schematic.overStable') : t('schematic.ok');
-  // A zero-length design has no margin percentage to print, so it gets no margin
-  // text either: asserted non-null, `marginPct` prints "NaN%".
-  const marginText =
-    info && stab && marginPct !== null
-      ? `${STABILITY_GLYPH[stab]} ${fmtNum(info.stabilityCalibers, 2)} ${t('stability.caliber')} · ${fmtNum(marginPct, 1)}% — ${stabWord}`
-      : null;
-  const cgLabel = info ? `${t('schematic.cg')} · ${u.fmt('length', info.cg)} ${u.sym('length')}` : t('schematic.cg');
-  const cpLabel = info ? `${t('schematic.cp')} · ${u.fmt('length', info.cp)} ${u.sym('length')}` : t('schematic.cp');
-  const callouts = calloutLayout(cgX, cpX, ctx.cy, vHalf * scale, w, h, marginText);
+  // The engine's own percentage, not ours: see StaticInfo.stabilityPercent. A
+  // zero-length design has none, so it gets no margin text either.
+  const margin = info ? marginText(info.stabilityCalibers, info.stabilityPercent, t) : null;
+  const stab = margin?.state ?? null;
+  const cgLabel = info ? `${t('schematic.cg')} · ${u.fmtSym('length', info.cg)}` : t('schematic.cg');
+  const cpLabel = info ? `${t('schematic.cp')} · ${u.fmtSym('length', info.cp)}` : t('schematic.cp');
+  const callouts = calloutLayout(cgX, cpX, ctx.cy, vHalf * scale, w, h, margin?.text ?? null);
 
   return (
     <>
@@ -147,7 +139,7 @@ export function StabilityOverlay({
               fontWeight="bold"
               fill={STABILITY_VAR[stab]}
             >
-              {marginText}
+              {margin?.text}
             </text>
           )}
         </g>

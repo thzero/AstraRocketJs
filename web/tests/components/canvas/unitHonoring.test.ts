@@ -34,12 +34,10 @@ describe('the diameter caliper prints its unit', () => {
     // The `aria-valuetext` always had it, so sighted users were getting LESS than
     // screen-reader users.
     const text = src('components/canvas/SchematicCalipers.tsx');
-    const readouts = [...text.matchAll(/\{u\.fmt\('length', Math\.abs\([^)]*\)\)\}/g)];
+    // Each span readout formats WITH its symbol (fmtSym), not the bare number.
+    const readouts = [...text.matchAll(/\{u\.fmtSym\('length', Math\.abs\([^)]*\)\)\}/g)];
     expect(readouts.length, 'both span readouts').toBe(2);
-    for (const m of readouts) {
-      const after = text.slice(m.index! + m[0].length, m.index! + m[0].length + 24);
-      expect(after, m[0]).toContain("u.sym('length')");
-    }
+    expect(text).not.toMatch(/\{u\.fmt\('length', Math\.abs\(/);
   });
 });
 
@@ -68,5 +66,20 @@ describe('the per-simulation angle override resolves its unit', () => {
     expect(text).toContain("unitScope('settings', 'maxAngleStep')");
     expect(text).toContain('unit={angle.sym}');
     expect(text).not.toContain('* 180) / Math.PI');
+  });
+});
+
+/**
+ * The 3D view's legend dot identifies its marker, so it is the marker's ink. The
+ * CG marker was blue, its legend dot a third gray matching nothing drawn.
+ */
+describe('the 3D legend matches its markers', () => {
+  it('draws the CG and CP marker and legend from the shared inks', () => {
+    const text = src('components/canvas/Rocket3D.tsx');
+    expect(text).toContain('markerTexture(CG_INK)');
+    expect(text).toContain('markerTexture(CP_INK)');
+    expect(text).toContain('color: CG_INK');
+    expect(text).toContain('color: CP_INK');
+    expect(text).not.toMatch(/#2b6cff|#aab2bd|#e34948/);
   });
 });

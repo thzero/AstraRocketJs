@@ -70,6 +70,15 @@ export function freeformPoints(n: ComponentNode): [number, number][] {
   return n.type === 'freeformfinset' ? normalizeFreeformPoints(n['points'] as [number, number][] | undefined) : [];
 }
 
+/**
+ * A part's own `length`, else the kernel's length for its type, else 0 for a
+ * type the factory reads none for. Not the positioning extent (fins and
+ * assemblies differ there): see {@link axialLength}.
+ */
+export function partLength(n: ComponentNode): number {
+  return num(n, 'length', kernelLength(n.type) ?? 0);
+}
+
 /** A component's axial extent used for positioning (fins use root chord). */
 export function axialLength(n: ComponentNode): number {
   if (n.type === 'freeformfinset') {
@@ -93,7 +102,7 @@ export function axialLength(n: ComponentNode): number {
   // 25 mm where it flies 100 mm. Types the factory reads no length for (a
   // rail button, a stage) resolve to 0, which is the kernel's own
   // RocketComponent.length initial value.
-  return num(n, 'length', kernelLength(n.type) ?? 0);
+  return partLength(n);
 }
 
 /**

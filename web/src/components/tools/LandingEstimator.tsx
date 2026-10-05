@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useUnits } from '../../prefs/useUnits';
+import { fmtGroundDistance, useUnits } from '../../prefs/useUnits';
 import { useSettings } from '../../state/SettingsProvider';
 import { hourInZone, WeatherError, ymdInZone } from '../../services/weather/openMeteo';
 import { readWeatherKey } from '../../services/weather/weatherKey';
@@ -10,6 +10,7 @@ import { QNum } from '../sim/LaunchPanel';
 import { LandingMap } from './LandingMap';
 import { SiteFields, WhenFields, type ToolSite } from './SiteFields';
 import { OpenMeteoCredit, ToolGroup } from './ToolGroup';
+import { formatCoord } from '../../services/map/slippyMap';
 
 /**
  * Where a rocket will come down, for a flight that has not been designed here:
@@ -143,7 +144,7 @@ export function LandingEstimator() {
   };
 
   const dist = u.plain('distance');
-  const fmtM = (m: number) => `${dist.fmt(m, Math.abs(dist.toUi(m)) >= 100 ? 0 : 1)} ${dist.sym}`;
+  const fmtM = (m: number) => fmtGroundDistance(dist, m);
   const run = state.kind === 'ready' ? state.run : null;
   const e = run?.estimate;
   const validTime = run
@@ -278,11 +279,10 @@ export function LandingEstimator() {
               landing={e.nominal.landing}
               samples={e.samples}
               ellipse={e.ellipse}
+              distanceUnit={dist}
             />
             <dl className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-x-4 gap-y-2 rounded-xl bg-slate-900 p-3 text-xs ring-1 ring-white/10">
-              <Stat label={t('landing.lands')}>
-                {`${e.nominal.landingLatDeg.toFixed(5)}°, ${e.nominal.landingLonDeg.toFixed(5)}°`}
-              </Stat>
+              <Stat label={t('landing.lands')}>{formatCoord(e.nominal.landingLatDeg, e.nominal.landingLonDeg, 5)}</Stat>
               <Stat label={t('landing.distance')}>{fmtM(e.nominal.distanceM)}</Stat>
               <Stat label={t('landing.bearing')}>{`${Math.round(e.nominal.bearingDeg)}°`}</Stat>
               <Stat label={t('landing.descentTime')}>{minutes(e.nominal.timeS)}</Stat>

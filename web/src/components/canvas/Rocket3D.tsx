@@ -15,6 +15,7 @@ import { AxisCallout, markerTexture } from './rocketCallouts';
 import { StabilityCallout } from './StabilityCallout';
 import { RocketModel } from './RocketModel';
 import { useRocketExport, type R3fHandles } from './useRocketExport';
+import { CG_INK, CP_INK } from './stabilityGadget';
 
 // The store imports the motor-dims shape from here; the definition lives with
 // the other shared view helpers.
@@ -87,8 +88,8 @@ export function Rocket3D({
   const center = totalLen / 2;
   const camDist = Math.max(totalLen * 1.1, maxR * 6, 0.25);
   const markerR = markerRadius(totalLen, maxR);
-  const cgTex = useMemo(() => markerTexture('#2b6cff'), []);
-  const cpTex = useMemo(() => markerTexture('#e34948'), []);
+  const cgTex = useMemo(() => markerTexture(CG_INK), []);
+  const cpTex = useMemo(() => markerTexture(CP_INK), []);
   useEffect(
     () => () => {
       cgTex.dispose();
@@ -237,7 +238,7 @@ export function Rocket3D({
                 dir={1}
                 color="#dbe3ea"
                 tex={cgTex}
-                label={`${t('schematic.cg')} · ${u.fmt('length', info.cg)} ${u.sym('length')}`}
+                label={`${t('schematic.cg')} · ${u.fmtSym('length', info.cg)}`}
                 len={maxR * 1.7}
                 markerR={markerR}
               />
@@ -265,8 +266,8 @@ export function Rocket3D({
         {showMarkers && (
           <>
             {' · '}
-            <span style={{ color: '#aab2bd' }}>●</span> {t('schematic.cg')} ·{' '}
-            <span style={{ color: '#e34948' }}>●</span> {t('schematic.cp')}
+            <span style={{ color: CG_INK }}>●</span> {t('schematic.cg')} · <span style={{ color: CP_INK }}>●</span>{' '}
+            {t('schematic.cp')}
           </>
         )}
       </p>

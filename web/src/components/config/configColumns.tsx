@@ -65,7 +65,7 @@ export function recoveryColumns(
       const delay = over?.deployDelay ?? num(device, 'deployDelay');
       // The altitude is only read by the altitude trigger, so printing it beside
       // "apogee" would be printing a number the flight never uses.
-      const text = `${t(`deployEvent.${event}`)}${event === 'altitude' ? ` ${u.fmt(altitude)} ${u.sym}` : ''}${
+      const text = `${t(`deployEvent.${event}`)}${event === 'altitude' ? ` ${u.fmtSym(altitude)}` : ''}${
         delay ? ` +${delay}s` : ''
       }`;
       return over ? <Overridden>{text}</Overridden> : text;
@@ -99,7 +99,7 @@ export function separationColumns(
       // The altitude belongs to the two altitude triggers only, so printing it
       // beside "ejection" would be printing a number the flight never uses.
       const text = `${t(`separationEvent.${event}`)}${
-        event.startsWith('altitude') ? ` ${u.fmt(altitude)} ${u.sym}` : ''
+        event.startsWith('altitude') ? ` ${u.fmtSym(altitude)}` : ''
       }${delay ? ` +${delay}s` : ''}`;
       return over ? <Overridden>{text}</Overridden> : text;
     },

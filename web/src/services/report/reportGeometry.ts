@@ -2,10 +2,10 @@ import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { countOf, num, numOpt } from '../../tree/nodeProps';
 import { isFinSet, tubeFinRadius } from '../../tree/tubefins';
 import { FREEFORM_FALLBACK, finPlanformPoints, finRootChord, finSpan, finTabSpan } from '../../tree/finPlanform';
-import { outerProfile } from '../../tree/shapeProfile';
+import { nodeShape, outerProfile } from '../../tree/shapeProfile';
 // From the tree module: a service must not reach into a canvas component for
 // half its geometry. `schematicGeometry.axialStart` is the same formula.
-import { axialStart } from '../../tree/position';
+import { axialStart, partLength } from '../../tree/position';
 import { assemblyChainLength, isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly';
 
 /**
@@ -53,13 +53,11 @@ export function profileMm(
   node: ComponentNode,
   foreR: number,
   aftR: number,
-  shapeDefault: string,
 ): { w: number; h: number; pts: Pt[] } | null {
-  const len = num(node, 'length', 0);
+  const len = partLength(node);
   if (len <= 0) return null;
-  const shape = typeof node['shape'] === 'string' ? (node['shape'] as string) : shapeDefault;
   const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
-  const prof = outerProfile(shape, numOpt(node, 'shapeParameter'), len, foreR, aftR, 80, undefined, clipped);
+  const prof = outerProfile(nodeShape(node), numOpt(node, 'shapeParameter'), len, foreR, aftR, 80, undefined, clipped);
   const maxR = Math.max(...prof.map(([, r]) => r), aftR, foreR);
   const h = maxR * 2 * M_TO_MM;
   const cy = h / 2;
@@ -91,17 +89,16 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
    * aft radius drew a fin on a 12 to 8 mm boat tail with its root at +8 mm
    * while the silhouette there is +12 mm: the fin root 4 mm INSIDE the airframe.
    */
-  const radiusSampler =
-    (node: ComponentNode, foreR: number, aftR: number, len: number, shapeDefault: string) => (lx: number) => {
-      if (!(len > 0)) return aftR;
-      const shape = typeof node['shape'] === 'string' ? (node['shape'] as string) : shapeDefault;
-      const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
-      const at = Math.max(0, Math.min(len, lx));
-      // `extraX` gives the profile an exact sample at the station we asked for,
-      // so this reads the true curve rather than a chord between two samples.
-      const pts = outerProfile(shape, numOpt(node, 'shapeParameter'), len, foreR, aftR, 1, [at], clipped);
-      return pts.find(([px]) => Math.abs(px - at) < 1e-9)?.[1] ?? aftR;
-    };
+  const radiusSampler = (node: ComponentNode, foreR: number, aftR: number, len: number) => (lx: number) => {
+    if (!(len > 0)) return aftR;
+    const shape = nodeShape(node);
+    const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
+    const at = Math.max(0, Math.min(len, lx));
+    // `extraX` gives the profile an exact sample at the station we asked for,
+    // so this reads the true curve rather than a chord between two samples.
+    const pts = outerProfile(shape, numOpt(node, 'shapeParameter'), len, foreR, aftR, 1, [at], clipped);
+    return pts.find(([px]) => Math.abs(px - at) < 1e-9)?.[1] ?? aftR;
+  };
 
   /**
    * A fin set's silhouette, mirrored about the centerline it is mounted on.
@@ -180,8 +177,8 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
     // no symmetric parent to hang off, so it needs the chain's final extent.
     const deferred: ComponentNode[] = [];
 
-    const revolve = (node: ComponentNode, foreR: number, aftR: number, shapeDefault: string, len: number) => {
-      const shape = typeof node['shape'] === 'string' ? (node['shape'] as string) : shapeDefault;
+    const revolve = (node: ComponentNode, foreR: number, aftR: number, len: number) => {
+      const shape = nodeShape(node);
       const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
       for (const [px, r] of outerProfile(
         shape,
@@ -208,14 +205,14 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
     };
 
     for (const n of nodes) {
-      const len = num(n, 'length', 0);
+      const len = partLength(n);
       if (n.type === 'nosecone') {
-        const R = num(n, 'aftRadius', 0.012);
-        revolve(n, 0, R, 'ogive', len);
-        emitChildren(n, len, radiusSampler(n, 0, R, len, 'ogive'));
+        const R = num(n, 'aftRadius', KERNEL_DEFAULTS.nosecone.aftRadius);
+        revolve(n, 0, R, len);
+        emitChildren(n, len, radiusSampler(n, 0, R, len));
         x += len;
       } else if (n.type === 'bodytube') {
-        const R = num(n, 'outerRadius', 0.012);
+        const R = num(n, 'outerRadius', KERNEL_DEFAULTS.bodytube.outerRadius);
         profile.push([x, R], [x + len, R]);
         chainMaxR = Math.max(chainMaxR, R);
         emitChildren(n, len, () => R);
@@ -223,12 +220,12 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
       } else if (n.type === 'transition') {
         const foreR = num(n, 'foreRadius', 0.012);
         const aftR = num(n, 'aftRadius', 0.009);
-        revolve(n, foreR, aftR, 'conical', len);
+        revolve(n, foreR, aftR, len);
         // Transitions host fin sets too (treeEdit.ts:137 allows trapezoid,
         // elliptical and freeform on one) and this branch was the only one that
         // never looked. A boat-tail-mounted fin set was silently absent from the
         // PDF's whole-rocket side view: a finless rocket, with no warning.
-        emitChildren(n, len, radiusSampler(n, foreR, aftR, len, 'conical'));
+        emitChildren(n, len, radiusSampler(n, foreR, aftR, len));
         x += len;
       } else if (isAssembly(n.type)) {
         deferred.push(n);

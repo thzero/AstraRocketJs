@@ -1,9 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import i18n from '../../../src/i18n';
 import {
   MAX_LAT,
   TILE_SIZE,
   TILE_SOURCES,
   formatCoord,
+  formatLat,
+  formatLon,
   latToTileY,
   lonToTileX,
   metersPerPixel,
@@ -234,5 +239,44 @@ describe('zoomForMetersPerPixel', () => {
     // A degenerate extent must not hand back NaN, which would render a tile URL
     // reading `tile/NaN/NaN/NaN`.
     expect(Number.isFinite(zoomForMetersPerPixel(39.05, 0, 19))).toBe(true);
+  });
+});
+
+/**
+ * Every view prints a coordinate the same way: hemisphere letters, digits in
+ * the reader's locale. Six views printed a signed `toFixed` value instead, so
+ * the same site read "-104.8000°" in the Environment tab and "104.8000° W" on
+ * the map, with "." in a German page full of ",".
+ */
+describe('formatLat / formatLon', () => {
+  afterEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+
+  it('names the hemisphere instead of signing the number', () => {
+    expect(formatLat(-33.87)).toBe('33.8700° S');
+    expect(formatLon(-104.8, 5)).toBe('104.80000° W');
+  });
+
+  it('writes the digits in the reader locale', async () => {
+    await i18n.changeLanguage('de');
+    expect(formatCoord(39.05, -104.8, 3)).toBe('39,050° N, 104,800° W');
+  });
+
+  it('is the only way a view prints a coordinate', () => {
+    const src = resolve(__dirname, '../../../src');
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir)) {
+        const path = join(dir, entry);
+        if (statSync(path).isDirectory()) {
+          if (entry !== 'vendor' && entry !== 'locales') walk(path);
+        } else if (/\.tsx?$/.test(entry) && /toFixed\(\d\)\}\s?°/.test(readFileSync(path, 'utf8'))) {
+          offenders.push(path.slice(src.length + 1));
+        }
+      }
+    };
+    walk(src);
+    expect(offenders).toEqual([]);
   });
 });

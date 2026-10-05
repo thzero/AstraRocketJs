@@ -39,7 +39,7 @@ import type { LaunchConditions } from '../services/design/orkTree';
 import type { OrkExportMotor } from '../services/files/orkFile';
 import type { DesignInfo } from '../services/files/orkTypes';
 import { buildExportMotorMap, fillMotorDigests } from '../services/motors/exportMotors';
-import { repairValues, type RepairedValue } from '../services/design/repairValues';
+import { repairedText, repairValues, type RepairedValue } from '../services/design/repairValues';
 import { wireLoadedOrk } from '../services/files/wireLoadedOrk';
 // Static, not the lazy import the neighboring .ork paths use: this is a fetch
 // wrapper with no heavy dependencies, and the library dialog imports it
@@ -83,7 +83,7 @@ import {
 import { landingView, planRun, runProblems } from '../services/flight/runPlan';
 import { importNotes } from '../services/files/importBanner';
 import { isComplete } from '../services/flight/requiredLaunch';
-import { defaultDesignName } from '../services/app/appInfo';
+import { defaultDesignName, designNameOf } from '../services/app/appInfo';
 import { getDesignLibrary, type DesignMeta } from '../services/storage/designLibrary';
 import { getWorkspaceStore, type Workspace } from '../services/storage/workspaceStore';
 import { migrateWorkspace } from '../services/storage/workspaceMigrate';
@@ -132,15 +132,7 @@ type HistoryEntry = {
 const HISTORY_LIMIT = 100;
 
 /** Each repaired value as the banner's own line. */
-const repairNotes = (repaired: RepairedValue[]): string[] =>
-  repaired.map((r) =>
-    i18n.t('banner.repaired', {
-      part: r.name,
-      field: i18n.t(`prop.${r.field}`),
-      was: r.was,
-      now: r.now,
-    }),
-  );
+const repairNotes = (repaired: RepairedValue[]): string[] => repaired.map((r) => repairedText(r, i18n.t));
 
 /** Which condition raised `storageWarning` — only 'full' is save-clearable. */
 export type StorageWarningKind = 'full' | 'degraded' | 'loadFailed' | 'conflict';
@@ -524,8 +516,7 @@ export const selectActive = (s: WorkspaceState): Simulation => s.sims.find((x) =
  * spelled out inline; it is here so every download that carries the rocket's
  * name carries the same one (see `exportFilename`).
  */
-export const selectDesignName = (s: WorkspaceState): string =>
-  (typeof s.tree.name === 'string' && s.tree.name) || s.loadedMeta?.name || defaultDesignName();
+export const selectDesignName = (s: WorkspaceState): string => designNameOf(s.tree, s.loadedMeta);
 
 /**
  * What the Run button will fly: the ticked rows, or the active simulation when
@@ -2007,7 +1998,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // file for something they are no longer looking at.
         if (replaced()) return;
         downloadOrk({
-          name: tree.name || loadedMeta?.name || defaultDesignName(),
+          name: designNameOf(tree, loadedMeta),
           tree,
           configs,
           activeConfigId,
@@ -2022,7 +2013,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       try {
         const { tree, loadedMeta } = get();
         const { downloadRkt } = await import('../services/files/saveOrk');
-        const name = tree.name || loadedMeta?.name || defaultDesignName();
+        const name = designNameOf(tree, loadedMeta);
         const skipped = await downloadRkt(name, tree);
         // RockSim has no element for some of what this app can build (rail
         // buttons, parallel stages, the fairing extension). The file is still
@@ -2039,7 +2030,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       try {
         const { tree, loadedMeta } = get();
         const { downloadRocket3mf } = await import('../services/exports/rocketPrintExport');
-        const name = tree.name || loadedMeta?.name || defaultDesignName();
+        const name = designNameOf(tree, loadedMeta);
         const { skipped } = await downloadRocket3mf(name, tree, opts);
         // A part whose geometry fails the manifold check is left out rather
         // than written as a file no slicer would accept — but silently leaving
@@ -2059,7 +2050,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // The RASAero writer is a lazily-imported chunk — only needed on export.
         const { downloadCdx1 } = await import('../services/files/rasaeroExport');
         downloadCdx1({
-          name: tree.name || loadedMeta?.name || defaultDesignName(),
+          name: designNameOf(tree, loadedMeta),
           tree,
           motors,
           launch: active.launch,
@@ -2074,7 +2065,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     exportComponent: async (nodeId, format) => {
       try {
         const { exportComponent } = await import('../services/files/componentExport');
-        const ok = await exportComponent(get().tree, nodeId, format);
+        const ok = await exportComponent(get().tree, nodeId, format, selectDesignName(get()));
         if (!ok) set({ err: i18n.t('errors.exportUnsupported', { format: format.toUpperCase() }) });
       } catch (e) {
         set({

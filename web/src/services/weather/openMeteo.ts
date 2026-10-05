@@ -34,7 +34,7 @@ const PAID = {
 } as const;
 
 /** Each request's own deadline. Open-Meteo answers in well under a second. */
-export const REQUEST_TIMEOUT_MS = 12_000;
+const REQUEST_TIMEOUT_MS = 12_000;
 
 /**
  * Least time between two weather requests. One request asks for about a hundred
@@ -42,23 +42,23 @@ export const REQUEST_TIMEOUT_MS = 12_000;
  * user under the free tier's hourly limit. Desktop OpenRocket's client spaces
  * them the same way.
  */
-export const REQUEST_SPACING_MS = 5_000;
+const REQUEST_SPACING_MS = 5_000;
 
 /**
  * How long an answer is reused for the same request. The fastest model behind
  * a forecast publishes a new run once an hour, so a fetch within half an hour
  * of the last rarely has anything new to bring; `force` asks anyway.
  */
-export const CACHE_TTL_MS = 30 * 60 * 1000;
+const CACHE_TTL_MS = 30 * 60 * 1000;
 
 /** The forecast endpoint's reach either side of today, in days. */
-export const FORECAST_DAYS_BACK = 92;
-export const FORECAST_DAYS_AHEAD = 15;
+const FORECAST_DAYS_BACK = 92;
+const FORECAST_DAYS_AHEAD = 15;
 /** The archive (ERA5 reanalysis) starts here. */
-export const ARCHIVE_FIRST_DATE = '1940-01-01';
+const ARCHIVE_FIRST_DATE = '1940-01-01';
 
 /** Site and terrain within this many meters are the same pad (a 90 m terrain model). */
-export const ELEVATION_AGREE_M = 30;
+const ELEVATION_AGREE_M = 30;
 
 /** Surface variables; the archive has these too. */
 export const SURFACE_VARS = [
@@ -71,7 +71,7 @@ export const SURFACE_VARS = [
 ] as const;
 
 /** Wind heights above ground the forecast reports, in meters. */
-export const WIND_HEIGHTS = [80, 120, 180] as const;
+const WIND_HEIGHTS = [80, 120, 180] as const;
 
 /** Open-Meteo's pressure levels, hPa, the same 19 desktop OpenRocket asks for. */
 export const PRESSURE_LEVELS = [
@@ -146,7 +146,7 @@ function parseYmd(ymd: string): { y: number; m: number; d: number } | null {
 }
 
 /** `ymd` moved by `days` calendar days. */
-export function addDaysYmd(ymd: string, days: number): string {
+function addDaysYmd(ymd: string, days: number): string {
   const p = parseYmd(ymd);
   if (!p) return ymd;
   const t = new Date(Date.UTC(p.y, p.m - 1, p.d + days));
@@ -229,7 +229,7 @@ export function forecastUrl(q: {
 }
 
 /** The terrain model's ground height at a point. */
-export function elevationUrl(latitudeDeg: number, longitudeDeg: number, apiKey?: string): string {
+function elevationUrl(latitudeDeg: number, longitudeDeg: number, apiKey?: string): string {
   return `${(apiKey ? PAID : FREE).forecast}/v1/elevation?latitude=${dp3(latitudeDeg)}&longitude=${dp3(longitudeDeg)}${keyParam(apiKey)}`;
 }
 
@@ -293,7 +293,7 @@ const isObj = (x: unknown): x is Record<string, unknown> => typeof x === 'object
 const finiteOrNull = (x: unknown): number | null => (typeof x === 'number' && Number.isFinite(x) ? x : null);
 
 /** Open-Meteo's own refusal, `{"error": true, "reason": "..."}`, or null. */
-export function refusalReason(body: unknown): string | null {
+function refusalReason(body: unknown): string | null {
   const one = Array.isArray(body) ? body[0] : body;
   return isObj(one) && one['error'] === true
     ? typeof one['reason'] === 'string'
@@ -390,16 +390,16 @@ export function parseForecast(body: unknown, elevationsM: readonly number[]): Fo
 
 /** The terrain model's ground height from an elevation answer, to 1 m, or null. */
 /** Most points one elevation request carries; Open-Meteo refuses more. */
-export const ELEVATION_BATCH = 100;
+const ELEVATION_BATCH = 100;
 
 /** The terrain heights for several points, in request order, as an elevation answer gives them. */
-export function parseElevations(body: unknown, count: number): number[] | null {
+function parseElevations(body: unknown, count: number): number[] | null {
   if (!isObj(body) || !Array.isArray(body['elevation']) || body['elevation'].length !== count) return null;
   const out = body['elevation'].map(finiteOrNull);
   return out.every((e): e is number => e !== null) ? out : null;
 }
 
-export function parseElevation(body: unknown): number | null {
+function parseElevation(body: unknown): number | null {
   if (!isObj(body) || !Array.isArray(body['elevation'])) return null;
   const e = finiteOrNull(body['elevation'][0]);
   return e === null ? null : Math.round(e);

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fmtNum } from '../../i18n/format';
+import { fmtNum, stageLabel } from '../../i18n/format';
 import { EVENT_LABEL, clusterEventLabels } from '../../services/flight/simReport';
 import { FlightCsvDialog } from '../sim/FlightCsvDialog';
 import { useSettings } from '../../state/SettingsProvider';
@@ -43,7 +43,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
   const [w, setW] = useState(640);
 
   // Every branch as a colored, selectable trace.
-  const branches = useMemo(() => buildTraces(flight, (i) => `${t('flight.stage')} ${i + 1}`), [flight, t]);
+  const branches = useMemo(() => buildTraces(flight, (i) => stageLabel(t, i)), [flight, t]);
   const multistage = branches.length >= 2;
 
   // Which traces are HIDDEN. Exclusions rather than inclusions: a new set of

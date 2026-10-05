@@ -19,6 +19,7 @@ import {
 } from '../../services/map/slippyMap';
 import { rememberTileLayer, tileLayer } from '../../services/map/tileLayer';
 import { useUnits, type Units } from '../../prefs/useUnits';
+import { fmtNum, withUnit } from '../../i18n/format';
 
 /**
  * The launch site, seen from above.
@@ -467,7 +468,7 @@ function scaleLabel(u: Units, lat: number, zoom: number): string {
   const up = SCALE_PROMOTION[sym];
   if (up && ui >= up.perUnit) {
     const big = ui / up.perUnit;
-    return `${big.toFixed(big >= 10 ? 0 : 1)} ${up.sym}`;
+    return withUnit(fmtNum(big, big >= 10 ? 0 : 1), up.sym);
   }
   return `${u.fmt('distance', meters, 0)} ${sym}`;
 }

@@ -53,6 +53,13 @@ const topmostSurface = (): Element | null => {
 };
 
 /**
+ * Whether any modal surface is open, for a window-level key handler outside a
+ * dialog that must leave Escape to it. Every surface carries the marker,
+ * whatever its role: an `alertdialog` is a surface too.
+ */
+export const hasOpenSurface = (): boolean => topmostSurface() !== null;
+
+/**
  * Trap keyboard focus inside a dialog while `active`, then restore focus to
  * whatever was focused before it opened once it closes or unmounts. Without
  * this, Tab walks the still-present page behind an `aria-modal` overlay and the

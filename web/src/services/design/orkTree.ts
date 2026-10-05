@@ -17,6 +17,17 @@ export function asStageNodes(tree: RocketTree): ComponentNode[] {
     : [{ type: 'stage', name: 'Sustainer', children: tree.components } as ComponentNode];
 }
 
+/**
+ * The name a file gives an unnamed stage: "Sustainer" for the first, "Booster n"
+ * after it, as the `.ork` and `.rkt` readers and the `.ork` writer name them.
+ * File text, not a display label (that is `stageLabel` in i18n/format.ts).
+ */
+export const defaultStageName = (i: number): string => (i === 0 ? 'Sustainer' : `Booster ${i}`);
+
+/** A stage's name as a file states it: its own, else {@link defaultStageName}. */
+export const stageFileName = (st: ComponentNode, i: number): string =>
+  typeof st.name === 'string' ? st.name : defaultStageName(i);
+
 /** Launch conditions parsed from a .ork's first `<simulation>` `<conditions>`. */
 export interface WindLevel {
   /** Altitude MSL, meters. */

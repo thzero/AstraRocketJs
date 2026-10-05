@@ -12,6 +12,7 @@ import {
 } from '../../services/design/componentActions';
 import { num } from '../../tree/nodeProps';
 import { useWorkspaceStore } from '../../state/store';
+import { partLabel } from '../../i18n/format';
 
 /**
  * The buttons on OpenRocket's config dialogs that change the TREE rather than a
@@ -32,7 +33,7 @@ export function ComponentActions({ node }: { node: ComponentNode }) {
   const id = node.id as string;
   // What the copies get numbered from. An unnamed part shows its type, which is
   // what the tree displays for it, so that is what a copy of it is called.
-  const baseName = (node.name as string) || t(`part.${node.type}`, { defaultValue: node.type });
+  const baseName = partLabel(t, node);
 
   const isFinSet = node.type.endsWith('finset');
   const splitLabel =

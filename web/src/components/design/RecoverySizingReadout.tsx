@@ -112,7 +112,7 @@ function SizingBody({ node, onUse }: { node: ComponentNode; onUse: (diameterM: n
             one, since otherwise there is nothing to distinguish. */}
         {t(
           sizing.measured ? (sizing.branch ? 'recovery.forMassRunBranch' : 'recovery.forMassRun') : 'recovery.forMass',
-          { mass: `${massUnit.fmt(sizing.mass)} ${massUnit.sym}`, branch: sizing.branch },
+          { mass: `${massUnit.fmtSym(sizing.mass)}`, branch: sizing.branch },
         )}
       </p>
       <SizingFigures

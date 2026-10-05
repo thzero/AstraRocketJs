@@ -1,5 +1,6 @@
 import type { ComponentNode } from '../../../engine/openRocketEngine';
 import { COMPONENT_DEFAULTS } from '../../design/componentDefaults';
+import { nodeShape } from '../../../tree/shapeProfile';
 import { IN, fmt, nnum, type Cdx1Writer } from './units';
 import { SECTION_TO_AIRFOIL } from './surface';
 
@@ -113,7 +114,7 @@ export function finXml(w: Cdx1Writer, parent: ComponentNode): void {
 
 function noseXml(w: Cdx1Writer, node: ComponentNode): void {
   const { emit } = w;
-  const shape = String(node['shape'] ?? 'ogive');
+  const shape = nodeShape(node);
   const param = nnum(node, 'shapeParameter', NaN);
   let rasShape: string;
   let powerLaw: number | null = null;
@@ -175,7 +176,7 @@ function tubeXml(w: Cdx1Writer, node: ComponentNode): void {
 
 function transitionXml(w: Cdx1Writer, node: ComponentNode): void {
   const { emit } = w;
-  if (String(node['shape'] ?? 'conical') !== 'conical') {
+  if (nodeShape(node) !== 'conical') {
     throw new Error('RASAero transitions must be conical — change the shape or export as .ork.');
   }
   const len = nnum(node, 'length', 0.04);

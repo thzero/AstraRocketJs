@@ -3,10 +3,10 @@ import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { num, numOpt } from '../../tree/nodeProps';
 import { finCutContour, finRootChord, finSpan } from '../../tree/finPlanform';
-import { freeformPoints } from '../../tree/position';
-import { outerProfile } from '../../tree/shapeProfile';
+import { freeformPoints, partLength } from '../../tree/position';
+import { nodeShape, outerProfile } from '../../tree/shapeProfile';
 import { tubeFinRadius } from '../../tree/tubefins';
-import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
+import { FIN_DEFAULTS, KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
 import { meshTolerances, validateSolid } from './meshValidate';
 
 /**
@@ -383,7 +383,7 @@ export function discSolid(outerR: number, innerR: number, length: number): THREE
 function oneFinSolid(child: ComponentNode, parentRadius: number | null): THREE.BufferGeometry | null {
   const root = finRootChord(child, 0);
   const height = finSpan(child);
-  const thickness = num(child, 'thickness', 0.003);
+  const thickness = num(child, 'thickness', FIN_DEFAULTS.thickness);
 
   // Degenerate planform -> no printable solid: a zero-area outline (thickness,
   // root or height <= 0) or a freeform with < 3 points extrudes to a broken /
@@ -482,12 +482,12 @@ export function discSolidForNode(outerR: number, innerR: number, length: number)
 }
 
 function buildSolid(node: ComponentNode, parentRadius: number | null): THREE.BufferGeometry | null {
-  const len = num(node, 'length', 0);
+  const len = partLength(node);
   switch (node.type) {
     case 'nosecone': {
       const R = num(node, 'aftRadius', KERNEL_DEFAULTS.nosecone.aftRadius);
       if (!(R > 0) || !(len > 0)) return null; // zero-radius/length → empty, non-manifold lathe
-      const shape = typeof node['shape'] === 'string' ? (node['shape'] as string) : 'ogive';
+      const shape = nodeShape(node);
       const surface = outerProfile(shape, numOpt(node, 'shapeParameter'), len, 0, R, SEGMENTS);
       // Aft shoulder: a smaller-radius stub that plugs into the body tube.
       const shR = num(node, 'shoulderRadius', 0);
@@ -499,7 +499,7 @@ function buildSolid(node: ComponentNode, parentRadius: number | null): THREE.Buf
       const rf = num(node, 'foreRadius', 0.012);
       const ra = num(node, 'aftRadius', 0.009);
       if (!(len > 0) || !(Math.max(rf, ra) > 0)) return null; // degenerate → no solid
-      const shape = typeof node['shape'] === 'string' ? (node['shape'] as string) : 'conical';
+      const shape = nodeShape(node);
       const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
       let surface = outerProfile(shape, numOpt(node, 'shapeParameter'), len, rf, ra, SEGMENTS, undefined, clipped);
       // Fore/aft shoulders: stubs that plug into the tubes on either side.

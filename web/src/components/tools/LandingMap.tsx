@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useUnits } from '../../prefs/useUnits';
-import { fmtNum } from '../../i18n/format';
+import { fmtGroundDistance, type FieldUnit } from '../../prefs/useUnits';
 import { rangeRings, type GroundPoint } from '../../services/flight/groundTrack';
 import { ellipsePolygon, type DriftEllipse } from '../../services/flight/driftEllipse';
 import {
@@ -29,6 +28,7 @@ export function LandingMap({
   landing,
   samples,
   ellipse,
+  distanceUnit,
 }: {
   latitudeDeg: number;
   longitudeDeg: number;
@@ -36,10 +36,10 @@ export function LandingMap({
   landing: GroundPoint;
   samples: readonly GroundPoint[];
   ellipse: DriftEllipse | null;
+  /** The unit the host reads this landing's distance in, so the rings agree with it. */
+  distanceUnit: FieldUnit;
 }) {
   const { t } = useTranslation();
-  const u = useUnits();
-  const dist = u.plain('distance');
   const [size, setSize] = useState(320);
   const fitRef = useRef<HTMLDivElement>(null);
   const [layer, setLayer] = useState<Layer>(() => (groundImagery() ? tileLayer() : 'off'));
@@ -90,10 +90,7 @@ export function LandingMap({
     setLayer(next);
   };
 
-  const fmtDist = (m: number) => {
-    const v = dist.toUi(m);
-    return `${fmtNum(v, Math.abs(v) >= 100 ? 0 : 1)} ${dist.sym}`;
-  };
+  const fmtDist = (m: number) => fmtGroundDistance(distanceUnit, m);
   const grid = mapOn ? 'stroke-white/40' : 'stroke-white/10';
 
   return (

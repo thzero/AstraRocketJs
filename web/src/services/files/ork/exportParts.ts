@@ -1,5 +1,5 @@
 import type { ComponentNode, ComponentPosition } from '../../../engine/openRocketEngine';
-import { shapeParamDefault } from '../../../tree/shapeProfile';
+import { nodeShape, shapeParamDefault } from '../../../tree/shapeProfile';
 import { num } from '../../../tree/nodeProps';
 import { kernelPresetType } from './presetTypes';
 import { escapeXml } from '../xmlUtil';
@@ -322,7 +322,7 @@ export function packedXml(w: OrkWriter, depth: number, node: ComponentNode): voi
 // Engine defaults from Transition.Shape.defaultParameter() — writing any
 // other fallback silently reshapes the nose (haack's default is 0, not 1).
 export function shapeParamXml(w: OrkWriter, depth: number, node: ComponentNode): void {
-  const dflt = shapeParamDefault(String(node['shape'] ?? 'ogive'));
+  const dflt = shapeParamDefault(nodeShape(node));
   w.emit(depth, `<shapeparameter>${num(node, 'shapeParameter', dflt)}</shapeparameter>`);
 }
 

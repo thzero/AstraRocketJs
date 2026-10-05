@@ -14,7 +14,7 @@ import type { LaunchConditions, WeatherSource } from '../design/orkTree';
 export const STALE_AFTER_MS = 3 * 3_600_000;
 
 /** Coordinates within this many degrees are the site the forecast was asked for (requests round to 3 dp). */
-export const SAME_SITE_DEG = 0.0005;
+const SAME_SITE_DEG = 0.0005;
 
 /** The fields each applied group writes, and the site altitude when the terrain elevation was applied. */
 const GROUP_FIELDS: Record<WeatherSource['groups'][number], (keyof LaunchConditions)[]> = {

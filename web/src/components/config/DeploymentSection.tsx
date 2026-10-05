@@ -7,6 +7,7 @@ import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { num, str } from '../../tree/nodeProps';
+import { partLabel } from '../../i18n/format';
 
 /** The kernel's DeployEvent vocabulary, in the order the property panel offers it. */
 const DEPLOY_EVENTS = ['apogee', 'ejection', 'altitude', 'launch', 'never'] as const;
@@ -34,7 +35,7 @@ export function DeploymentSection({ config, device }: { config: FlightConfig; de
   const scope = unitScope('prop', device.type, 'deployAltitude');
   const alt = u.at(scope, 'distance');
 
-  const name = str(device, 'name') || t(`part.${device.type}`);
+  const name = partLabel(t, device);
   return (
     <section aria-label={name} className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
       <div className="mb-2 flex items-baseline justify-between gap-2">

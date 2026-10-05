@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { discDims, plateOuter, tubeRadii, type Tube } from '../../../src/services/design/discGeometry';
+import { boreAt, discDims, plateOuter, tubeRadii, type Tube } from '../../../src/services/design/discGeometry';
 import type { ComponentNode } from '../../../src/engine/openRocketEngine';
+import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
 
 const node = (o: object) => o as unknown as ComponentNode;
 
@@ -58,5 +59,25 @@ describe('tubeRadii', () => {
 
   it('is null for a component that is not a tube', () => {
     expect(tubeRadii(node({ type: 'bulkhead' }))).toBeNull();
+  });
+});
+
+/**
+ * A tube with no `thickness` key takes its OWN type's kernel wall, wherever its
+ * bore is read. The kernel gives an inner tube and a coupler 0.5 mm
+ * (ComponentFactory, cases "innertube" and "tubecoupler") and a body tube
+ * 0.3 mm; reading the body tube's for all three made a coupler's bore, as the
+ * tube enclosing a ring, 0.2 mm wider than the coupler itself.
+ */
+describe('a keyless tube wall', () => {
+  const tube = (type: string, outerRadius: number) => ({ type, id: type, outerRadius }) as unknown as ComponentNode;
+
+  it.each([
+    ['bodytube', KERNEL_DEFAULTS.bodytube.thickness],
+    ['innertube', KERNEL_DEFAULTS.innertube.thickness],
+    ['tubecoupler', KERNEL_DEFAULTS.tubecoupler.thickness],
+  ])('is the kernel default for a %s', (type, wall) => {
+    expect(tubeRadii(tube(type, 0.02))!.innerR).toBeCloseTo(0.02 - wall, 12);
+    expect(boreAt(tube(type, 0.02), 'fore')).toBeCloseTo(0.02 - wall, 12);
   });
 });

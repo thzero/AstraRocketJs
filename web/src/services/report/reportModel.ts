@@ -6,7 +6,8 @@ import { motorStats, type MotorStats } from './rocketReport';
 import { num } from '../../tree/nodeProps';
 import { isFinSet } from '../../tree/tubefins';
 import { axialLength } from '../../tree/position';
-import { defaultDesignName } from '../app/appInfo';
+import { designNameOf } from '../app/appInfo';
+import { stageFileName } from '../design/orkTree';
 
 /** The full data model for the rocket report (SI). Pure data; the PDF formats it. */
 
@@ -163,14 +164,16 @@ export function assembleReport(install?: (built: ReportBuild) => void): ReportMo
   const s = useWorkspaceStore.getState();
   const { tree, info, rocket } = s;
   if (!info || !rocket) return null;
-  const name = s.loadedMeta?.name || tree.name || defaultDesignName();
+  const name = designNameOf(tree, s.loadedMeta);
   const stages = tree.components.filter((n) => n.type === 'stage');
   const stageList = stages.length
     ? stages
     : [{ type: 'stage', name: '', children: tree.components } as unknown as ComponentNode];
 
   const infoRocket = rocket as unknown as { componentInfo: (id: string) => { mass: number; positionX: number } };
-  const stageName = (st: ComponentNode, i: number) => (st.name as string) || `Stage ${i + 1}`;
+  // The name the .ork written beside this report gives the stage, since the
+  // report's own rows go into that file's <designinfo> and the design CSV.
+  const stageName = stageFileName;
 
   // Parts + fin-set positions need the live handle — gather BEFORE any rebuild.
   const partsByStage = stageList.map((st, i) => ({

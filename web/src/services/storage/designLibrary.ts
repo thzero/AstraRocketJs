@@ -20,6 +20,7 @@ import { IndexedDbKeyValueStore } from './idbKeyValueStore';
 import type { Workspace } from './workspaceStore';
 import type { FlightResult } from '../../engine/openRocketEngine';
 import { nsKey } from './storageKeys';
+import { defaultDesignName, designNameOf } from '../app/appInfo';
 
 /** A design's cached flights, by simulation id. */
 export type StoredResults = Record<string, FlightResult>;
@@ -338,16 +339,14 @@ export class DesignLibrary {
   }
 }
 
-/** Name the migrated design after its imported .ork, else a sensible default. */
+/** Name the migrated design the way every download names it. */
 function legacyName(raw: string): string {
   try {
     const w = JSON.parse(raw) as Workspace;
-    const name = w.loadedMeta?.name?.trim();
-    if (name) return name;
+    return designNameOf(w.tree ?? {}, w.loadedMeta);
   } catch {
-    /* fall through */
+    return defaultDesignName();
   }
-  return 'My Rocket';
 }
 
 let library = new DesignLibrary();

@@ -534,3 +534,23 @@ describe('a shoulder RockSim gives a length to', () => {
     expect(t['aftShoulderCapped']).toBeUndefined();
   });
 });
+
+/**
+ * `TubeFinSet.setFinCount` clamps to 8, like every fin set, and the engine
+ * boundary rejects a count above it. A tube count past 8 that imported as
+ * written would open as a design the engine refuses to build.
+ */
+describe('a tube fin set', () => {
+  const tubes = (count: number): ComponentNode =>
+    find(
+      parts(
+        `<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID><AttachedParts><TubeFinSet><Name>TF</Name><TubeCount>${count}</TubeCount><Len>50</Len><OD>10</OD><ID>9</ID></TubeFinSet></AttachedParts></BodyTube>`,
+      ),
+      'TF',
+    );
+
+  it('clamps the tube count to the kernel fin limit', () => {
+    expect(tubes(12)['finCount']).toBe(8);
+    expect(tubes(6)['finCount']).toBe(6);
+  });
+});

@@ -7,6 +7,7 @@
 // question is answered once.
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { numOpt } from '../../tree/nodeProps';
+import { tubeWall } from '../design/discGeometry';
 import { findNode, findParent } from '../design/treeEdit';
 import type { FitContext } from './componentFilter';
 
@@ -24,7 +25,7 @@ function outerDiameter(n: ComponentNode): number | undefined {
 }
 
 /**
- * Bore of a tube-like component, or undefined when it has no wall to subtract.
+ * Bore of a tube-like component, or undefined when its stated wall leaves none.
  *
  * A body tube carries an outer radius and a wall thickness rather than a bore, so
  * the number a coupler has to fit is not stored but derived here.
@@ -32,8 +33,10 @@ function outerDiameter(n: ComponentNode): number | undefined {
 function innerDiameter(n: ComponentNode): number | undefined {
   if (n.type !== 'bodytube' && n.type !== 'tubecoupler' && n.type !== 'innertube') return undefined;
   const or = numOpt(n, 'outerRadius');
-  const th = numOpt(n, 'thickness');
-  if (or == null || th == null || th <= 0 || th >= or) return undefined;
+  // A missing wall is the type's kernel default; a stated one that leaves no
+  // bore (zero, or at least the radius) is a bad value and answers nothing.
+  const th = numOpt(n, 'thickness') ?? tubeWall(n.type);
+  if (or == null || th <= 0 || th >= or) return undefined;
   return (or - th) * 2;
 }
 

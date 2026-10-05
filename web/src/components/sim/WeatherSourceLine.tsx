@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LaunchConditions } from '../../services/design/orkTree';
 import { sourceStatus } from '../../services/weather/weatherSource';
+import { formatCoord } from '../../services/map/slippyMap';
 
 /** How often the "old forecast" check is looked at again. */
 const TICK_MS = 60_000;
@@ -65,7 +66,7 @@ export function WeatherSourceLine({
         <p className="text-xs text-slate-300">
           {t(source.endpoint === 'archive' ? 'weather.source.record' : 'weather.source.forecast', {
             when: fmt(source.validAt, source.timezone),
-            where: `${source.latitudeDeg.toFixed(3)}°, ${source.longitudeDeg.toFixed(3)}°`,
+            where: formatCoord(source.latitudeDeg, source.longitudeDeg, 3),
             fetched: fmt(source.fetchedAt, undefined),
           })}
         </p>

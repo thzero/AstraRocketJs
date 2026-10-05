@@ -1,16 +1,18 @@
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { FREEFORM_FALLBACK, finPlanformPoints, finRootChord, finSpan, finTabSpan } from '../../tree/finPlanform';
 import { countOf, num } from '../../tree/nodeProps';
-import { KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
+import { KERNEL_DEFAULTS, KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { DISPLAY_NAME } from '../../tree/schema.js';
+import { partLength } from '../../tree/position.js';
 import { DISC_TYPES } from '../../services/files/componentFormats.js';
 import { discDims, tubeRadii } from '../../services/design/discGeometry.js';
 import { assemblyChainLength, isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
 import {
   axialStart,
   colorOf,
+  innerTubeExtent,
   internalExtent,
   profilePath,
   unionBox,
@@ -403,7 +405,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         // PARALLEL to the axis, so roll doesn't squash its 2·rt silhouette — only
         // its center moves, to (pRadius + rt)·cos θ. Tubes whose silhouette falls
         // entirely inside the airframe are hidden behind it and dropped.
-        const len = num(child, 'length', 0.1);
+        const len = num(child, 'length', KERNEL_DEFAULTS.tubefinset.length);
         const rt = tubeFinRadius(child, pRadius);
         const start = axialStart(child, len, pStart, pLen);
         const X = ctx.x0 + start * ctx.scale;
@@ -475,8 +477,8 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
       } else if (t === 'fairing') {
         // External shroud: SOLID outline (it's on the outside — Eric's spec),
         // drawn on the top surface; radial angle isn't modeled.
-        const len = num(child, 'length', 0.08);
-        const hgt = num(child, 'height', 0.02);
+        const len = num(child, 'length', KERNEL_DEFAULTS.fairing.length);
+        const hgt = num(child, 'height', KERNEL_DEFAULTS.fairing.height);
         const fshape = String(child['fairingShape'] ?? 'halfround');
         const start = axialStart(child, len, pStart, pLen);
         const X = ctx.x0 + start * ctx.scale;
@@ -524,8 +526,10 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         // Rail buttons are edited via 'outerDiameter' (their only size field)
         // and have no axial 'length' — a button is about as long as it is wide.
         const btnDia = t === 'railbutton' ? num(child, 'outerDiameter', KERNEL_RAILBUTTON_OUTER_DIAMETER) : 0;
-        const len = t === 'railbutton' ? btnDia : num(child, 'length', 0.01);
-        const r = t === 'railbutton' ? btnDia / 2 : num(child, 'outerRadius', 0.002);
+        // A lug with no size keys is the kernel's own (ComponentFactory, case
+        // "launchlug"), the size the 3D view and the exporters already use.
+        const len = t === 'railbutton' ? btnDia : num(child, 'length', KERNEL_DEFAULTS.launchlug.length);
+        const r = t === 'railbutton' ? btnDia / 2 : num(child, 'outerRadius', KERNEL_DEFAULTS.launchlug.outerRadius);
         const start = axialStart(child, len, pStart, pLen);
         // Project the radial mount angle onto the side profile: 0° stands at full
         // height above the tube, ±90° is edge-on (foreshortens away), 180° sits
@@ -573,20 +577,23 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         // A ring, coupler, bulkhead or engine block is sized the way the DXF cut
         // sheet and the printed solid size it: its own radii, else the bore of
         // the tube it sits in, with a ring's bore taken from the mount through
-        // it. Everything else keeps `internalExtent`, whose 85% cap is what
+        // it. An inner tube is drawn at its own size, the one it flies at
+        // (innerTubeExtent). Everything else keeps `internalExtent`, whose 85% cap is what
         // keeps a chute's INVENTED fallback box off the tube wall - a real
         // dimension does not need protecting from itself, and a coupler hit
         // that cap every time, since filling the bore is what a coupler is.
         const disc = DISC_TYPES.has(child.type) ? discDims(child, tubeRadii(parent), parent.children ?? []) : null;
         const { length: len, radius: r } = disc
           ? { length: disc.length, radius: disc.outerR }
-          : internalExtent(child, pRadius);
+          : child.type === 'innertube'
+            ? innerTubeExtent(child)
+            : internalExtent(child, pRadius);
         const start = axialStart(child, len, pStart, pLen);
         const offsets =
           child.type === 'innertube'
             ? clusterOffsets(
                 child['cluster'] as string | undefined,
-                num(child, 'outerRadius', 0.0095),
+                r,
                 num(child, 'clusterScale', 1),
                 num(child, 'clusterRotation', 0),
               )
@@ -769,9 +776,9 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   const renderChain = (nodes: ComponentNode[], xStart: number, baseY: number) => {
     let cx = xStart;
     for (const n of nodes) {
-      const len = num(n, 'length', 0);
+      const len = partLength(n);
       if (n.type === 'nosecone') {
-        const r = num(n, 'aftRadius', 0.012);
+        const r = num(n, 'aftRadius', KERNEL_DEFAULTS.nosecone.aftRadius);
         noteHover(n, ctx.x0 + cx * scale, baseY - r * scale, ctx.x0 + (cx + len) * scale, baseY + r * scale);
         shapes.push(
           <path
@@ -787,7 +794,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         renderChildren(n, cx, len, r, baseY);
         cx += len;
       } else if (n.type === 'bodytube') {
-        const r = num(n, 'outerRadius', 0.012);
+        const r = num(n, 'outerRadius', KERNEL_DEFAULTS.bodytube.outerRadius);
         // A zero-size "phantom" tube (length 0, radius 0) is a modeling hack
         // used only to hang an off-axis fin set at a chosen radius (e.g. a
         // T-tail's horizontal stabilizer). Draw no rect for it — a degenerate

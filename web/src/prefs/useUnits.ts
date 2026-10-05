@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useSettings } from '../state/SettingsProvider';
-import { fmtNum, ladderDigits } from '../i18n/format';
+import { fmtNum, ladderDigits, withUnit } from '../i18n/format';
 import { niceStep, siToUi, siToUiDelta, uiToSi, unitFor, type Quantity, type UnitSelection } from './units';
 import { siEntry } from './entryValue';
 
@@ -31,6 +31,8 @@ export interface FieldUnit {
    */
   toSi: (ui: number | null | undefined, then?: (si: number) => number) => number | null;
   fmt: (si: number, digits?: number) => string;
+  /** {@link FieldUnit.fmt} with the symbol, joined by `withUnit`. */
+  fmtSym: (si: number, digits?: number) => string;
   step: (si: number) => number;
 }
 
@@ -56,6 +58,9 @@ export interface Units {
    * where a hard-coded 0 dp would round that same length to "49 in".
    */
   fmt: (q: Quantity, si: number, digits?: number) => string;
+  /** {@link Units.fmt} with the symbol, joined by `withUnit`: a degree sign
+   *  closes up and every other symbol takes a space. */
+  fmtSym: (q: Quantity, si: number, digits?: number) => string;
   /** An SI step (e.g. 0.001 m) → a "nice" spinner step in the user's unit. */
   step: (q: Quantity, si: number) => number;
   /**
@@ -96,17 +101,34 @@ export interface Units {
  * the decimal separator differs per language — fmtSi stays for export code,
  * which runs outside React and must not depend on the active i18n language.
  */
+/**
+ * A distance over the ground (a landing, a range ring), in a field's unit: whole
+ * units from 100 up, one decimal below. The number alone, for a caller that
+ * places the symbol itself.
+ */
+export function groundDistanceNumber(fu: FieldUnit, m: number): string {
+  const v = fu.toUi(m);
+  return fmtNum(v, Math.abs(v) >= 100 ? 0 : 1);
+}
+
+/** {@link groundDistanceNumber} with the unit symbol. */
+export function fmtGroundDistance(fu: FieldUnit, m: number): string {
+  return withUnit(groundDistanceNumber(fu, m), fu.sym);
+}
+
 export function useUnits(): Units {
   const { settings } = useSettings();
   const { units, unitOverrides } = settings;
   return useMemo(() => {
     const bind = (q: Quantity, sym: string): FieldUnit => {
+      const fmt = (si: number, digits?: number) => (Number.isFinite(si) ? format(siToUi(q, sym, si), digits) : '—');
       return {
         sym,
         toUi: (si) => siToUi(q, sym, si),
         fromUi: (ui) => uiToSi(q, sym, ui),
         toSi: (ui, then) => siEntry(q, sym, ui, then),
-        fmt: (si, digits) => (Number.isFinite(si) ? format(siToUi(q, sym, si), digits) : '—'),
+        fmt,
+        fmtSym: (si, digits) => withUnit(fmt(si, digits), sym),
         step: (si) => niceStep(siToUiDelta(q, sym, si)),
       };
     };
@@ -118,6 +140,8 @@ export function useUnits(): Units {
       fromUi: (q, ui) => uiToSi(q, units[q], ui),
       toSi: (q, ui, then) => siEntry(q, units[q], ui, then),
       fmt: (q, si, digits) => (Number.isFinite(si) ? format(siToUi(q, units[q], si), digits) : '—'),
+      fmtSym: (q, si, digits) =>
+        withUnit(Number.isFinite(si) ? format(siToUi(q, units[q], si), digits) : '—', units[q]),
       step: (q, si) => niceStep(siToUiDelta(q, units[q], si)),
       factor: (q) => siToUiDelta(q, units[q], 1),
       plain: (q) => bind(q, units[q]),

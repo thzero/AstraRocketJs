@@ -20,7 +20,8 @@
  *   same profile the engine then flies.
  */
 import type { ComponentNode } from '../engine/openRocketEngine';
-import { num } from './nodeProps';
+import { KERNEL_SHAPES } from './kernelDefaults';
+import { num, numOpt } from './nodeProps';
 
 const MINFEATURE = 0.001;
 const CLIP_PRECISION = 0.0001;
@@ -244,6 +245,18 @@ export function outerProfile(
 }
 
 /**
+ * A nose cone or transition's profile shape: its own `shape` key, or the one the
+ * kernel builds when the key is absent (KERNEL_SHAPES). Every reader of a
+ * profile goes through this, so a keyless node is drawn, meshed and measured as
+ * the shape that flies.
+ */
+export function nodeShape(node: ComponentNode): string {
+  const shape = node['shape'];
+  if (typeof shape === 'string') return shape;
+  return node.type === 'nosecone' ? KERNEL_SHAPES.nosecone : KERNEL_SHAPES.transition;
+}
+
+/**
  * The outer radius of a SYMMETRIC component at one station along it, in meters.
  *
  * `SymmetricComponent.getRadius(x)`: a tube is one radius end to end, a nose
@@ -264,11 +277,9 @@ export function stationRadius(node: ComponentNode, x: number): number {
       const foreR = node.type === 'nosecone' ? 0 : num(node, 'foreRadius');
       const aftR = num(node, 'aftRadius');
       if (!(length > 0)) return aftR;
-      const shape = typeof node['shape'] === 'string' ? (node['shape'] as string) : 'conical';
       const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
       const at = Math.max(0, Math.min(length, x));
-      const param = typeof node['shapeParameter'] === 'number' ? (node['shapeParameter'] as number) : undefined;
-      const pts = outerProfile(shape, param, length, foreR, aftR, 1, [at], clipped);
+      const pts = outerProfile(nodeShape(node), numOpt(node, 'shapeParameter'), length, foreR, aftR, 1, [at], clipped);
       return pts.find(([px]) => Math.abs(px - at) < 1e-9)?.[1] ?? aftR;
     }
     default:

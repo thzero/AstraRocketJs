@@ -10,6 +10,7 @@
  * Everything here is pure, so the projection is tested against published tile
  * numbers rather than by looking at whether the picture came out right.
  */
+import { fmtNum } from '../../i18n/format';
 
 /** Every source below serves 256px tiles. */
 export const TILE_SIZE = 256;
@@ -119,15 +120,25 @@ export function normalizeLon(lonDeg: number): number {
 }
 
 /**
- * A coordinate as a person reads it: hemisphere letters rather than a sign.
+ * A latitude as a person reads it: hemisphere letter rather than a sign, digits
+ * in the reader's locale. Every view that prints a coordinate goes through this
+ * pair, so one site reads the same everywhere.
  *
- * The error this whole map exists to catch is a dropped minus sign, and
+ * The error the site map exists to catch is a dropped minus sign, and
  * "104.8000° W" is harder to misread than "-104.8000".
  */
+export function formatLat(latDeg: number, places = 4): string {
+  return `${fmtNum(Math.abs(latDeg), places)}° ${latDeg < 0 ? 'S' : 'N'}`;
+}
+
+/** A longitude, the same way as {@link formatLat}. */
+export function formatLon(lonDeg: number, places = 4): string {
+  return `${fmtNum(Math.abs(lonDeg), places)}° ${lonDeg < 0 ? 'W' : 'E'}`;
+}
+
+/** A latitude and longitude pair. */
 export function formatCoord(latDeg: number, lonDeg: number, places = 4): string {
-  const lat = `${Math.abs(latDeg).toFixed(places)}° ${latDeg < 0 ? 'S' : 'N'}`;
-  const lon = `${Math.abs(lonDeg).toFixed(places)}° ${lonDeg < 0 ? 'W' : 'E'}`;
-  return `${lat}, ${lon}`;
+  return `${formatLat(latDeg, places)}, ${formatLon(lonDeg, places)}`;
 }
 
 export interface TileRef {

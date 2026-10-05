@@ -174,7 +174,7 @@ export function ThrustChart({ samples, avg, burn }: { samples: [number, number][
         <path d={line} fill="none" stroke="#f97316" strokeWidth="1.75" />
         <circle cx={X(peak[0])} cy={Y(peak[1])} r="3" fill="#f97316" />
         <text x={X(peak[0])} y={Y(peak[1]) - 6} textAnchor="middle" className="fill-slate-200 text-[9px] font-semibold">
-          {u.fmt('force', peak[1], 1)} {u.sym('force')}
+          {u.fmtSym('force', peak[1], 1)}
         </text>
       </svg>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-400">

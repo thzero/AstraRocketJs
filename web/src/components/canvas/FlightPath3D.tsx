@@ -366,8 +366,8 @@ export function FlightPath3D({
       </Canvas>
 
       <div className="pointer-events-none absolute left-3 top-3 flex gap-3 rounded-lg bg-slate-900/80 px-3 py-2 text-xs ring-1 ring-white/10">
-        <Hud label={t('flight.altitude')} value={`${u.fmt('distance', alts[idx] ?? 0)} ${u.sym('distance')}`} />
-        <Hud label={t('flight.velocity')} value={`${u.fmt('velocity', vels[idx] ?? 0)} ${u.sym('velocity')}`} />
+        <Hud label={t('flight.altitude')} value={`${u.fmtSym('distance', alts[idx] ?? 0)}`} />
+        <Hud label={t('flight.velocity')} value={`${u.fmtSym('velocity', vels[idx] ?? 0)}`} />
         <Hud label={t('flight.time')} value={`${fmtNum(nowT, 1)} s`} />
       </div>
       <div className="pointer-events-none absolute right-3 top-3 flex flex-col gap-1 rounded-lg bg-slate-900/80 px-2 py-1.5 text-[10px] ring-1 ring-white/10">

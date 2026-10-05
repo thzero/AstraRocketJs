@@ -11,6 +11,7 @@ import {
   type ProfileLegs,
   type ProfilePoint,
 } from '../../services/flight/environmentProfile';
+import { formatLat, formatLon } from '../../services/map/slippyMap';
 
 /**
  * The air the flight met, as the kernel recorded it: what it was at the pad,
@@ -38,9 +39,9 @@ const PAD: EnvironmentQuantity[] = ['temperature', 'pressure', 'density', 'speed
 function sig4(fu: FieldUnit, si: number): string {
   const ui = fu.toUi(si);
   if (!Number.isFinite(ui)) return '—';
-  if (ui === 0) return `${fu.fmt(si, 0)} ${fu.sym}`;
+  if (ui === 0) return `${fu.fmtSym(si, 0)}`;
   const mag = Math.floor(Math.log10(Math.abs(ui)));
-  return `${fu.fmt(si, Math.max(0, 3 - mag))} ${fu.sym}`;
+  return `${fu.fmtSym(si, Math.max(0, 3 - mag))}`;
 }
 
 export function EnvironmentView({ flight }: { flight: ResultFlight }) {
@@ -73,15 +74,15 @@ export function EnvironmentView({ flight }: { flight: ResultFlight }) {
           )}
           <div>
             <dt className="text-slate-400">{t('env.latitude')}</dt>
-            <dd className="tabular-nums text-slate-100">{deg(flight.launch.latitudeDeg)}</dd>
+            <dd className="tabular-nums text-slate-100">{latText(flight.launch.latitudeDeg)}</dd>
           </div>
           <div>
             <dt className="text-slate-400">{t('env.longitude')}</dt>
-            <dd className="tabular-nums text-slate-100">{deg(flight.launch.longitudeDeg)}</dd>
+            <dd className="tabular-nums text-slate-100">{lonText(flight.launch.longitudeDeg)}</dd>
           </div>
           <div>
             <dt className="text-slate-400">{t('env.elevation')}</dt>
-            <dd className="tabular-nums text-slate-100">{`${dist.fmt(flight.launch.launchAltitudeM ?? 0, 0)} ${dist.sym}`}</dd>
+            <dd className="tabular-nums text-slate-100">{`${dist.fmtSym(flight.launch.launchAltitudeM ?? 0, 0)}`}</dd>
           </div>
           {PAD.map((q) => (
             <div key={q}>
@@ -118,7 +119,8 @@ export function EnvironmentView({ flight }: { flight: ResultFlight }) {
 }
 
 /** A latitude or longitude as the launch panel holds it, to the 4 decimals (about 10 m) it is entered to. */
-const deg = (v: number | null) => (v == null ? '—' : `${v.toFixed(4)}°`);
+const latText = (v: number | null) => (v == null ? '—' : formatLat(v));
+const lonText = (v: number | null) => (v == null ? '—' : formatLon(v));
 
 /** An instant on the site's clock, with the zone named so it cannot be read as the viewer's. */
 function siteTime(iso: string, timeZone: string, language: string): string {
@@ -216,7 +218,7 @@ function ProfileChart({
 
   const loUi = x.label(lo);
   const hiUi = x.label(hi);
-  const label = `${title}: ${loUi} to ${hiUi} ${xSym}, ground to ${y.fmt(apogee, 0)} ${y.sym}`;
+  const label = `${title}: ${loUi} to ${hiUi} ${xSym}, ground to ${y.fmtSym(apogee, 0)}`;
 
   return (
     <figure className="rounded-xl bg-slate-900 p-2 ring-1 ring-white/10">

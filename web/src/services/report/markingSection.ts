@@ -1,5 +1,5 @@
 import type { jsPDF } from 'jspdf';
-import { fmtNum } from '../../i18n/format';
+import { fmtNum, partLabel } from '../../i18n/format';
 import { hexToRgbTuple } from './layout';
 import { ensure, heading, sectionBreak, writeRuler, type PdfPage } from './pdfPage';
 import { GUIDE_WIDTH_MM, cutPoints, type MarkingGuide, type MarkingGuideSet } from './markingGuide';
@@ -126,7 +126,7 @@ function writeOmitted(p: PdfPage, set: MarkingGuideSet): void {
   for (const reason of ['noWrap', 'noFins'] as const) {
     const parts = set.omitted.filter((o) => o.reason === reason);
     if (!parts.length) continue;
-    const names = parts.map((o) => o.name || t(`part.${o.type}`, { defaultValue: o.type })).join(', ');
+    const names = parts.map((o) => partLabel(t, o)).join(', ');
     ensure(p, 10);
     doc.setFont('helvetica', 'italic').setFontSize(8).setTextColor(120);
     const lines = doc.splitTextToSize(t(OMIT_KEY[reason], { names }), CW) as string[];
@@ -168,7 +168,7 @@ function drawPanel(p: PdfPage, panel: Panel, x: number, top: number): void {
   for (const mark of guide.marks) {
     if (mark.posMm < panel.startMm || mark.posMm >= end) continue;
     const yc = y + (mark.posMm - panel.startMm);
-    const label = mark.name || t(`part.${mark.type}`, { defaultValue: mark.type });
+    const label = partLabel(t, mark);
 
     if (mark.cant === 0) {
       doc.setDrawColor(...stroke).setLineWidth(0.3);

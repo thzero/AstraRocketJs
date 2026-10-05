@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { clampEntry } from '../../prefs/entryValue';
-import { useWorkspaceStore, selectActive, selectConfig } from '../../state/store';
+import { useWorkspaceStore, selectActive, selectConfig, selectDesignName } from '../../state/store';
 import { primaryMotor } from '../../services/flight/flightConfigs';
 import { download as saveDownload, exportFilename } from '../../services/files/saveFile';
 import {
@@ -45,7 +45,7 @@ export function FlightPathExport({ variant = 'chip' }: { variant?: 'chip' | 'ove
   const launch = useWorkspaceStore((s) => selectActive(s).launch);
   const simName = useWorkspaceStore((s) => selectActive(s).name);
   const motor = useWorkspaceStore((s) => primaryMotor(s.tree, selectConfig(s)));
-  const tree = useWorkspaceStore((s) => s.tree);
+  const rocketName = useWorkspaceStore(selectDesignName);
 
   if (!result) return null;
 
@@ -62,7 +62,7 @@ export function FlightPathExport({ variant = 'chip' }: { variant?: 'chip' | 'ove
       {open && (
         <ExportDialog
           onClose={() => setOpen(false)}
-          meta={{ simName, rocketName: tree.name ?? '', motorName: motor?.designation ?? '' }}
+          meta={{ simName, rocketName, motorName: motor?.designation ?? '' }}
           launch={launch}
           result={result}
         />
@@ -108,14 +108,6 @@ export function ExportDialog({
     () => (opts.language ? (i18n.getFixedT(opts.language) as unknown as Translate) : (t as Translate)),
     [opts.language, i18n, t],
   );
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   const {
     selected,

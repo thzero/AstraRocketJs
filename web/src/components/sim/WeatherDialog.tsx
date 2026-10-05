@@ -20,6 +20,7 @@ import {
 } from '../../services/weather/weatherProposal';
 import { readWeatherKey } from '../../services/weather/weatherKey';
 import { sourceFor } from '../../services/weather/weatherSource';
+import { formatLat, formatLon } from '../../services/map/slippyMap';
 
 /**
  * Launch conditions from an Open-Meteo forecast for a date and hour at the
@@ -175,10 +176,10 @@ export function WeatherDialog({
     setTicked(next);
   };
 
-  const temp = (c: number) => `${u.fmt('temperature', c + 273.15, 1)} ${u.sym('temperature')}`;
-  const pres = (hPa: number) => `${u.fmt('pressure', hPa * 100, 1)} ${u.sym('pressure')}`;
-  const wind = (ms: number) => `${u.fmt('windspeed', ms, 1)} ${u.sym('windspeed')}`;
-  const alt = (m: number) => `${u.fmt('distance', m, 0)} ${u.sym('distance')}`;
+  const temp = (c: number) => `${u.fmtSym('temperature', c + 273.15, 1)}`;
+  const pres = (hPa: number) => `${u.fmtSym('pressure', hPa * 100, 1)}`;
+  const wind = (ms: number) => `${u.fmtSym('windspeed', ms, 1)}`;
+  const alt = (m: number) => `${u.fmtSym('distance', m, 0)}`;
 
   const describe = (g: ProposalGroup): string => {
     const p = proposal!;
@@ -276,7 +277,7 @@ export function WeatherDialog({
               </button>
             </div>
             <p className="text-xs text-slate-400">
-              {t('weather.siteLine', { lat: lat.toFixed(3), lon: lon.toFixed(3), alt: alt(siteM) })}
+              {t('weather.siteLine', { lat: formatLat(lat, 3), lon: formatLon(lon, 3), alt: alt(siteM) })}
             </p>
           </>
         )}

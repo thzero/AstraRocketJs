@@ -1,5 +1,6 @@
 // Pure helpers for the motor picker / detail — extracted from the components so
 // they're unit-testable without rendering. No React, no DOM.
+import { tubeWall } from '../design/discGeometry';
 
 // Standard motor diameters (mm) — the stops on the range slider.
 export const STD_DIAMS = [6, 13, 18, 24, 29, 38, 54, 75, 98, 150];
@@ -59,7 +60,9 @@ export interface MountFit {
 export function mountFit(node: Record<string, unknown>): MountFit | null {
   const or = typeof node['outerRadius'] === 'number' ? node['outerRadius'] : null;
   if (or == null) return null;
-  const th = typeof node['thickness'] === 'number' ? node['thickness'] : 0;
+  // A missing or non-finite wall is the type's kernel default, never 0 (the
+  // bore would be the whole outside) and never NaN (every fit would pass).
+  const th = Number.isFinite(node['thickness']) ? (node['thickness'] as number) : tubeWall(node['type']);
   const tubeLen = typeof node['length'] === 'number' ? node['length'] : null;
   const overhang = typeof node['motorOverhang'] === 'number' ? node['motorOverhang'] : 0;
   return {

@@ -5,6 +5,7 @@ import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import type { FlightResult } from '../../engine/api';
 import { maxQ } from '../../services/flight/flightEvents';
+import { distanceFromPad, landingPoint } from '../../services/flight/groundTrack';
 import { lerpAt } from '../../services/flight/interpolate';
 import { stabilityTone } from '../../services/flight/simReport';
 import { useSettings } from '../../state/SettingsProvider';
@@ -12,16 +13,6 @@ import { confirm } from '../../state/confirmStore';
 import { useHelpStore } from '../../state/helpStore';
 import { Stat } from '../common/Stat';
 import { WARNING_TONE } from './warningTone';
-
-/** Last finite value of a (possibly gappy) series — the value at flight's end. */
-function lastFinite(arr?: (number | null)[]): number | null {
-  if (!arr) return null;
-  for (let i = arr.length - 1; i >= 0; i--) {
-    const v = arr[i];
-    if (v != null && Number.isFinite(v)) return v;
-  }
-  return null;
-}
 
 /**
  * What the numbers below are and are not, as a card of its own above them.
@@ -186,6 +177,8 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
   const maxAccel = u.at(unitScope('sim', 'maxAccel'), 'acceleration');
   const maxQUnit = u.at(unitScope('sim', 'maxQ'), 'pressure');
   const maxSpeed = u.at(unitScope('sim', 'maxSpeed'), 'velocity');
+  // No fixed digits on these tiles: the ladder's precision follows the size of
+  // the number in the reader's unit, and is what the simulations table shows.
   const { settings } = useSettings();
   const { deploymentSpeedWarn, railExitVelocityMin } = settings.simulation;
   const s = sim?.summary;
@@ -199,10 +192,10 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
   const rodTime = sim?.events.find((e) => e.type === 'LAUNCHROD')?.time;
   const railMargin = sim && rodTime != null ? lerpAt(sim.series.time, sim.series.stability, rodTime) : null;
   const railCp = sim && rodTime != null ? lerpAt(sim.series.time, sim.series.cpLocation, rodTime) : null;
-  // Downrange (lateral) landing distance from the drift series' final point.
-  const px = sim ? lastFinite(sim.series.Px) : null;
-  const py = sim ? lastFinite(sim.series.Py) : null;
-  const downrange = px != null && py != null ? Math.hypot(px, py) : null;
+  // Downrange (lateral) landing distance: the last sample where both halves of
+  // the drift are finite, the same point the ground track reports.
+  const landing = sim ? landingPoint(sim.series) : null;
+  const downrange = landing ? distanceFromPad(landing) : null;
   // Max-Q: the kernel never recorded it, but it records both halves of it, so
   // it is derived here rather than in the engine. Null on a result saved back
   // when the app asked for the `summary` series set, which carries neither air
@@ -225,7 +218,7 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
         <Stat
           card
           label={t('sim.rodExit')}
-          value={rodExit.fmt(s.launchRodVelocity, 1)}
+          value={rodExit.fmt(s.launchRodVelocity)}
           sub={<UnitChip label={t('sim.rodExit')} quantity="velocity" scope={unitScope('sim', 'rodExit')} />}
           // The threshold is stored in SI, so the comparison stays in SI —
           // only the number on screen changes unit.
@@ -262,7 +255,7 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
           <Stat
             card
             label={t('sim.deployVelocity')}
-            value={deployVel.fmt(s.deploymentVelocity, 1)}
+            value={deployVel.fmt(s.deploymentVelocity)}
             sub={
               <UnitChip
                 label={t('sim.deployVelocity')}
@@ -277,7 +270,7 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
           <Stat
             card
             label={t('sim.landing')}
-            value={landingVel.fmt(s.groundHitVelocity, 1)}
+            value={landingVel.fmt(s.groundHitVelocity)}
             sub={<UnitChip label={t('sim.landing')} quantity="velocity" scope={unitScope('sim', 'landing')} />}
           />
         )}
@@ -293,13 +286,13 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
         <Stat
           card
           label={t('sim.maxAccel')}
-          value={maxAccel.fmt(s.maxAcceleration, 0)}
+          value={maxAccel.fmt(s.maxAcceleration)}
           sub={<UnitChip label={t('sim.maxAccel')} quantity="acceleration" scope={unitScope('sim', 'maxAccel')} />}
         />
         <Stat
           card
           label={t('sim.maxSpeed')}
-          value={maxSpeed.fmt(s.maxVelocity, 0)}
+          value={maxSpeed.fmt(s.maxVelocity)}
           sub={<UnitChip label={t('sim.maxSpeed')} quantity="velocity" scope={unitScope('sim', 'maxSpeed')} />}
         />
         <Stat card label={t('sim.maxMach')} value={fmtNum(s.maxMachNumber, 2)} sub="Mach" />

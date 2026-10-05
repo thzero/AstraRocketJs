@@ -74,8 +74,9 @@ export const KERNEL_DEFAULTS = {
   // RocketComponent.length, so its axial length is the field's initial 0
   // (RocketComponent.java:91): no `length` entry here on purpose.
   railbutton: { outerDiameter: 0.0097 },
-  // ComponentFactory, case "fairing" (modeled as a MassComponent)
-  fairing: { length: 0.08, mass: 0.03 },
+  // ComponentFactory, case "fairing" (modeled as a MassComponent whose radius is
+  // max(width, height) / 2)
+  fairing: { length: 0.08, mass: 0.03, width: 0.025, height: 0.02 },
   // ComponentFactory, case "parachute"
   parachute: { length: 0.025, diameter: 0.3, lineLength: 0.3 },
   // ComponentFactory, case "streamer"
@@ -88,6 +89,18 @@ export const KERNEL_DEFAULTS = {
   podset: { instanceCount: 2 },
   parallelstage: { instanceCount: 2 },
 } as const satisfies Record<ComponentType, Readonly<Record<string, number>>>;
+
+/**
+ * The profile shape the kernel builds when a node names none: ComponentFactory
+ * reads `str(node, "shape", "ogive")` for a nose cone (case "nosecone") and
+ * `"conical"` for a transition (case "transition"). Strings, so a table of their
+ * own rather than a row of KERNEL_DEFAULTS. Verified the same way, by building
+ * each part with the key absent and with the value below.
+ */
+export const KERNEL_SHAPES = {
+  nosecone: 'ogive',
+  transition: 'conical',
+} as const;
 
 /**
  * The material the kernel gives a component that names none, by material type.
@@ -158,4 +171,7 @@ export const FIN_DEFAULTS = {
   tipChord: KERNEL_DEFAULTS.trapezoidfinset.tipChord,
   sweep: KERNEL_DEFAULTS.trapezoidfinset.sweep,
   height: KERNEL_DEFAULTS.trapezoidfinset.height,
+  // The same for all three planar sets (cases "trapezoidfinset",
+  // "ellipticalfinset" and "freeformfinset").
+  thickness: KERNEL_DEFAULTS.trapezoidfinset.thickness,
 } as const;

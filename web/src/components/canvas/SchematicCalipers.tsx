@@ -73,7 +73,7 @@ export function HorizontalCaliper({
               aria-valuemin={0}
               aria-valuemax={totalLen}
               aria-valuenow={cal[k]}
-              aria-valuetext={`${u.fmt('length', cal[k])} ${u.sym('length')}`}
+              aria-valuetext={`${u.fmtSym('length', cal[k])}`}
               onKeyDown={onKey(k)}
             />
             <circle cx={x} cy={top + 2} r={3.5} fill="var(--accent)" pointerEvents="none" />
@@ -101,7 +101,7 @@ export function HorizontalCaliper({
           strokeWidth="0.8"
         />
         <text x={mid} y={dimY - 1} textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--accent)">
-          {u.fmt('length', Math.abs(cal.b - cal.a))} {u.sym('length')}
+          {u.fmtSym('length', Math.abs(cal.b - cal.a))}
         </text>
       </g>
     </g>
@@ -166,7 +166,7 @@ export function VerticalCaliper({
               aria-valuemin={-vHalf}
               aria-valuemax={vHalf}
               aria-valuenow={cal[k]}
-              aria-valuetext={`${u.fmt('length', cal[k])} ${u.sym('length')}`}
+              aria-valuetext={`${u.fmtSym('length', cal[k])}`}
               onKeyDown={onKey(k)}
             />
             <circle cx={left + 4} cy={y} r={3.5} fill="var(--accent)" pointerEvents="none" />
@@ -199,7 +199,7 @@ export function VerticalCaliper({
           strokeWidth="0.8"
         />
         <text x={dimX} y={mid + 3} textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--accent)">
-          {u.fmt('length', Math.abs(cal.a - cal.b))} {u.sym('length')}
+          {u.fmtSym('length', Math.abs(cal.a - cal.b))}
         </text>
       </g>
     </g>

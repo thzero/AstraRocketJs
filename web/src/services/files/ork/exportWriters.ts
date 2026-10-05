@@ -1,5 +1,5 @@
 import type { ComponentNode, ComponentType } from '../../../engine/openRocketEngine';
-import { shapeIsClippable } from '../../../tree/shapeProfile';
+import { nodeShape, shapeIsClippable } from '../../../tree/shapeProfile';
 import { num } from '../../../tree/nodeProps';
 import { escapeXml } from '../xmlUtil';
 import { uuid } from '../../app/uuid';
@@ -24,6 +24,7 @@ import {
   shapeParamXml,
   thicknessXml,
 } from './exportParts';
+import { stageFileName } from '../../design/orkTree';
 
 /**
  * One writer per component type: the element body the desktop's saver for
@@ -107,7 +108,7 @@ const writeNosecone: NodeWriter = (w, node, d) => {
   material(w, d, node);
   w.emit(d, `<length>${num(node, 'length', COMPONENT_DEFAULTS.nosecone.length)}</length>`);
   thicknessXml(w, d, node, COMPONENT_DEFAULTS.nosecone.thickness);
-  w.emit(d, `<shape>${escapeXml(String(node['shape'] ?? 'ogive'))}</shape>`);
+  w.emit(d, `<shape>${escapeXml(nodeShape(node))}</shape>`);
   w.emit(d, '<shapeclipped>false</shapeclipped>');
   shapeParamXml(w, d, node);
   w.emit(
@@ -127,7 +128,7 @@ const writeTransition: NodeWriter = (w, node, d) => {
   material(w, d, node);
   w.emit(d, `<length>${num(node, 'length', COMPONENT_DEFAULTS.transition.length)}</length>`);
   thicknessXml(w, d, node, COMPONENT_DEFAULTS.transition.thickness);
-  w.emit(d, `<shape>${escapeXml(String(node['shape'] ?? 'conical'))}</shape>`);
+  w.emit(d, `<shape>${escapeXml(nodeShape(node))}</shape>`);
   // Write what actually simulated so the desktop reproduces our
   // aerodynamics: an explicit imported/edited 'clipped' wins; otherwise
   // the kernel's default clipped state, which setShapeType() sets to
@@ -136,7 +137,7 @@ const writeTransition: NodeWriter = (w, node, d) => {
   // shapes — a conical transition carries no tag, and emitting one
   // anyway would grow a 'clipped' field on re-import that the golden
   // file never had (breaking bit-stable round trips).
-  if (shapeIsClippable(String(node['shape'] ?? 'conical'))) {
+  if (shapeIsClippable(nodeShape(node))) {
     const clippedOut = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : true;
     w.emit(d, `<shapeclipped>${clippedOut}</shapeclipped>`);
   }
@@ -458,7 +459,7 @@ function emitNode(w: OrkWriter, node: ComponentNode, depth: number): void {
 export function stageXml(w: OrkWriter, depth: number, st: ComponentNode, i: number): void {
   const { emit } = w;
   emit(depth, '<stage>');
-  emit(depth + 1, `<name>${escapeXml(st.name ?? (i === 0 ? 'Sustainer' : `Booster ${i}`))}</name>`);
+  emit(depth + 1, `<name>${escapeXml(stageFileName(st, i))}</name>`);
   emit(depth + 1, `<id>${uuid()}</id>`);
   // A stage can be overridden like any other component, and the kernel applies
   // it. This block writes its own name and id rather than going through

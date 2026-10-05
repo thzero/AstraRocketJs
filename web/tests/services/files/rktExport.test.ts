@@ -372,6 +372,35 @@ describe('exportRkt — a clustered motor mount', () => {
     }
   });
 
+  it('turns the pattern by the clock angle less the radial direction, as the kernel does', () => {
+    // InnerTube.getClusterPoints rotates by `clusterRotation - radialDirection`.
+    // With the mount's direction at 90 degrees and no offset, the 3-ring's
+    // (-0.5, -0.289), (0.5, -0.289), (0, 0.577) turn to -60, 60 and 180 degrees.
+    const xml = exportRkt('Cluster', {
+      name: 'Cluster',
+      components: [
+        {
+          type: 'stage',
+          id: 's1',
+          name: 'Sustainer',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'tube',
+              name: 'Body',
+              length: 0.4,
+              outerRadius: 0.04,
+              thickness: 0.001,
+              children: [{ ...mount('3-ring'), radialDirection: Math.PI / 2 }],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree).xml;
+    const angles = [...xml.matchAll(/<RadialAngle>([^<]+)<\/RadialAngle>/g)].map((m) => Math.round(Number(m[1])));
+    expect(angles.slice(0, 3).sort((a, b) => a - b)).toEqual([-60, 60, 180]);
+  });
+
   it('leaves a single mount as one tube', () => {
     const xml = clustered('single');
     expect(xml).toContain('<Name>Mount</Name>');

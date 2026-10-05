@@ -96,8 +96,8 @@ describe('EnvironmentView', () => {
       />,
     );
     const pad = within(document.querySelector('dl')!);
-    expect(pad.getByText('Latitude').nextSibling?.textContent).toBe('39.7392°');
-    expect(pad.getByText('Longitude').nextSibling?.textContent).toBe('-104.9903°');
+    expect(pad.getByText('Latitude').nextSibling?.textContent).toBe('39.7392° N');
+    expect(pad.getByText('Longitude').nextSibling?.textContent).toBe('104.9903° W');
     expect(pad.getByText('Date / time').nextSibling?.textContent).toMatch(/^Oct 5, 2026, 12:00 PM MDT$/);
     // The row carries the date, time and place, so the sentence repeating them is left out.
     expect(screen.queryByText(/^Open-Meteo forecast for /)).toBeNull();

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useUnits } from '../../prefs/useUnits';
+import { fmtGroundDistance, groundDistanceNumber, useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
-import { fmtNum } from '../../i18n/format';
+import { fmtNum, stageLabel } from '../../i18n/format';
 import {
   groundTrackLine,
   rangeRings,
@@ -129,9 +129,7 @@ export function GroundTrack({
 
   const lines = useMemo<GroundTrackLine[]>(
     () =>
-      buildTraces(flight, (i) => `${t('flight.stage')} ${i + 1}`).map((tr) =>
-        groundTrackLine(tr.key, tr.name, tr.color, tr.series),
-      ),
+      buildTraces(flight, (i) => stageLabel(t, i)).map((tr) => groundTrackLine(tr.key, tr.name, tr.color, tr.series)),
     [flight, t],
   );
   const drawn = lines.filter((l) => l.points.length >= 2);
@@ -262,13 +260,8 @@ export function GroundTrack({
     setLayer(next);
   };
 
-  // `toUi` rather than a raw factor: the field unit owns the conversion, and a
-  // distance carries no temperature-style offset to worry about either way.
-  const distNum = (m: number) => {
-    const v = dist.toUi(m);
-    return fmtNum(v, Math.abs(v) >= 100 ? 0 : 1);
-  };
-  const fmtDist = (m: number) => `${distNum(m)} ${dist.sym}`;
+  const distNum = (m: number) => groundDistanceNumber(dist, m);
+  const fmtDist = (m: number) => fmtGroundDistance(dist, m);
 
   const gridStroke = mapOn ? 'stroke-white/40' : 'stroke-white/10';
 

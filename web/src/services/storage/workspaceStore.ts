@@ -16,6 +16,7 @@ import type { FlightConfig } from '../flight/flightConfigs';
 import { migrateWorkspace } from './workspaceMigrate';
 import type { OrkExportMotor } from '../files/orkFile';
 import { nsKey } from './storageKeys';
+import { designNameOf } from '../app/appInfo';
 
 export interface Workspace {
   version: 2;
@@ -130,8 +131,8 @@ function clearJournal(): void {
   }
 }
 
-/** Name a brand-new design; the .ork name wins when one was imported. */
-const nameFor = (w: Workspace) => w.loadedMeta?.name?.trim() || 'My Rocket';
+/** Name a brand-new design the way every download names it. */
+const nameFor = (w: Workspace) => designNameOf(w.tree, w.loadedMeta);
 
 /** Default store: the active design, persisted through the design library. */
 export class LibraryWorkspaceStore implements WorkspaceStore {

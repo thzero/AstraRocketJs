@@ -3,13 +3,16 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { countOf, num } from '../../tree/nodeProps';
-import { KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
+import { FIN_DEFAULTS, KERNEL_DEFAULTS, KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
 import { finSpan } from '../../tree/finPlanform.js';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
-import { colorOf, ZOOM_IDENTITY, zoomAbout, type MotorDims } from './schematicGeometry';
+import { colorOf, innerTubeExtent, ZOOM_IDENTITY, zoomAbout, type MotorDims } from './schematicGeometry';
 import { useWheelZoom } from './useWheelZoom';
+import { discDims, tubeRadii } from '../../services/design/discGeometry';
+import { DISC_TYPES } from '../../services/files/componentFormats';
+import { partLabel } from '../../i18n/format';
 
 /**
  * Aft end view — the rocket seen from behind (down the +X axis). This is the
@@ -77,7 +80,7 @@ function buildAftScene(
   };
   // Unnamed parts read as the tree panel's translated type name, not a
   // hard-coded English word.
-  const nameOf = (n: ComponentNode) => n.name ?? t(`part.${n.type}`);
+  const nameOf = (n: ComponentNode) => partLabel(t, n);
   const keyOf = (n: ComponentNode, i: number) => `${n.id ?? n.type}:${i}`;
   const motorShape = (n: ComponentNode, i: number, y: number, z: number, diameter: number): Shape => ({
     kind: 'circle',
@@ -135,7 +138,7 @@ function buildAftScene(
       } else if (type === 'trapezoidfinset' || type === 'ellipticalfinset' || type === 'freeformfinset') {
         const count = countOf(child, 'finCount', 3);
         const span = finSpan(child);
-        const thick = num(child, 'thickness', 0.003);
+        const thick = num(child, 'thickness', FIN_DEFAULTS.thickness);
         for (let i = 0; i < count; i++) {
           // First fin straight up (desktop rear-view convention) plus the
           // set's own rotation about the body axis.
@@ -175,8 +178,8 @@ function buildAftScene(
         reach(cy, cz, pRadius + 2 * rt);
       } else if (type === 'fairing') {
         // Shroud cross-section at the top (radial angle not modeled).
-        const wid = num(child, 'width', 0.025);
-        const hgt = num(child, 'height', 0.02);
+        const wid = num(child, 'width', KERNEL_DEFAULTS.fairing.width);
+        const hgt = num(child, 'height', KERNEL_DEFAULTS.fairing.height);
         outer.push({
           kind: 'fin',
           key: keyOf(child, 0),
@@ -197,7 +200,7 @@ function buildAftScene(
         const r =
           type === 'railbutton'
             ? num(child, 'outerDiameter', KERNEL_RAILBUTTON_OUTER_DIAMETER) / 2
-            : num(child, 'outerRadius', 0.002);
+            : num(child, 'outerRadius', KERNEL_DEFAULTS.launchlug.outerRadius);
         // Radial mount angle (kernel default 180°). The +π/2 is the aft view's
         // "up = 0°" convention — the same offset the fin sets carry here — so a
         // lug clocks consistently with the fins and with the 3D view.
@@ -215,7 +218,7 @@ function buildAftScene(
         });
         reach(cy, cz, pRadius + 2 * r);
       } else if (type === 'innertube') {
-        const r = num(child, 'outerRadius', 0.0095);
+        const r = innerTubeExtent(child).radius;
         const offs = clusterOffsets(
           child['cluster'] as string | undefined,
           r,
@@ -242,19 +245,26 @@ function buildAftScene(
           reach(cy + off.y, cz + off.z, r);
         });
         walkChildren(child, r, cy, cz);
-      } else if (type === 'tubecoupler' || type === 'centeringring' || type === 'engineblock' || type === 'bulkhead') {
-        const r = Math.min(pRadius * 0.98, num(child, 'outerRadius', pRadius * 0.95));
-        inner.push({
-          kind: 'circle',
-          key: keyOf(child, 0),
-          y: cy,
-          z: cz,
-          r,
-          fill: 'none',
-          stroke: colorOf(child, '#9a978f'),
-          dash: '2 3',
-          title: nameOf(child),
-        });
+      } else if (DISC_TYPES.has(type)) {
+        // Sized as the side view, the 3D model and the cut sheet size it: its own
+        // radii, else the bore of the tube it sits in, with a ring's bore taken
+        // from the mount through it. A wall that leaves no bore is no part.
+        const disc = discDims(child, tubeRadii(parent), parent.children ?? []);
+        if (!disc) continue;
+        const rings = disc.innerR > 0 ? [disc.outerR, disc.innerR] : [disc.outerR];
+        rings.forEach((r, i) =>
+          inner.push({
+            kind: 'circle',
+            key: keyOf(child, i),
+            y: cy,
+            z: cz,
+            r,
+            fill: 'none',
+            stroke: colorOf(child, '#9a978f'),
+            dash: '2 3',
+            title: nameOf(child),
+          }),
+        );
       }
       // parachute/streamer/shockcord/mass: no meaningful cross-section here.
     }

@@ -394,9 +394,7 @@ export function MotorDialog({
                       <span className="shrink-0 text-xs tabular-nums text-slate-400">
                         {isLoading
                           ? t('motorDlg.loading')
-                          : `${u.fmt('impulse', m.impulse, m.impulse < 10 ? 1 : 0)} ${u.sym(
-                              'impulse',
-                            )} · ${u.fmt('motorDimensions', m.diameter / 1000, 0)} ${u.sym('motorDimensions')}`}
+                          : `${u.fmtSym('impulse', m.impulse, m.impulse < 10 ? 1 : 0)} · ${u.fmtSym('motorDimensions', m.diameter / 1000, 0)}`}
                       </span>
                     </button>
                     {m.custom && (

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { repairValues } from '../../../src/services/design/repairValues';
+import { repairedText, repairValues } from '../../../src/services/design/repairValues';
+import i18n from '../../../src/i18n';
 import { SI_LIMITS } from '../../../src/prefs/entryValue';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
 
@@ -49,7 +50,7 @@ describe('repairValues', () => {
     // Osmium, the densest thing there is, is about 22,590 kg/m³.
     const out = repairValues(tree(1e9));
     expect(tube(out.tree)['density']).toBe(MAX);
-    expect(out.repaired).toContainEqual({ name: 'Body', field: 'density', was: 1e9, now: MAX });
+    expect(out.repaired).toContainEqual({ type: 'bodytube', name: 'Body', field: 'density', was: 1e9, now: MAX });
   });
 
   it('reaches parts nested inside other parts', () => {
@@ -58,10 +59,10 @@ describe('repairValues', () => {
     expect(out.repaired).toHaveLength(2);
   });
 
-  it('names the part, falling back to its type when it has no name', () => {
+  it('carries the type and an empty name for a part with none, for the banner to label', () => {
     const t = tree(1e9);
     delete tube(t)['name'];
-    expect(repairValues(t).repaired[0]!.name).toBe('bodytube');
+    expect(repairValues(t).repaired[0]).toMatchObject({ type: 'bodytube', name: '' });
   });
 
   it('leaves an ordinary density alone, and the tree with it', () => {
@@ -82,5 +83,20 @@ describe('repairValues', () => {
     expect(repairValues(tree(undefined)).repaired).toEqual([]);
     expect(repairValues(tree('heavy')).repaired).toEqual([]);
     expect(repairValues(tree(Infinity)).repaired).toEqual([]);
+  });
+});
+
+/**
+ * The banner line names an unnamed part by its translated type, as every other
+ * message does; it printed the raw key ("bodytube").
+ */
+describe('repairedText', () => {
+  it('translates the type of an unnamed part', () => {
+    const t = i18n.getFixedT('en');
+    const line = repairedText({ type: 'bodytube', name: '', field: 'density', was: 1e9, now: MAX }, t);
+    expect(line.startsWith(`${t('part.bodytube')}:`)).toBe(true);
+    expect(
+      repairedText({ type: 'bodytube', name: 'Body', field: 'density', was: 1e9, now: MAX }, t).startsWith('Body:'),
+    ).toBe(true);
   });
 });

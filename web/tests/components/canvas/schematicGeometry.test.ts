@@ -12,7 +12,9 @@ import {
   hoverTagFor,
   unionBox,
   zoomAbout,
+  marginText,
 } from '../../../src/components/canvas/schematicGeometry';
+import i18n from '../../../src/i18n';
 
 const node = (o: object): ComponentNode => o as unknown as ComponentNode;
 
@@ -258,5 +260,26 @@ describe('colorOf', () => {
   it('falls back when the override is absent or not a string', () => {
     expect(colorOf({ type: 'bodytube' } as ComponentNode, '#000')).toBe('#000');
     expect(colorOf({ type: 'bodytube', color: 5 } as unknown as ComponentNode, '#000')).toBe('#000');
+  });
+});
+
+/**
+ * One margin text for every view that prints one, the 2D overlay and the 3D CP
+ * callout alike: the tiered glyph, calibers, percent and the verdict word. The
+ * 3D copy printed one warning emoji for both under and over and no word at all
+ * when the design was fine.
+ */
+describe('marginText', () => {
+  const t = (k: string) => i18n.t(k);
+
+  it('marks each band with its own glyph and word', () => {
+    expect(marginText(7, 12, t)!.text).toBe(`△ 7.00 cal · 12.0% — ${t('schematic.overStable')}`);
+    expect(marginText(0.5, 1, t)!.text).toBe(`⚠ 0.50 cal · 1.0% — ${t('schematic.underStable')}`);
+    expect(marginText(2, 8, t)!.text).toBe(`✓ 2.00 cal · 8.0% — ${t('schematic.ok')}`);
+  });
+
+  it('prints nothing without a finite margin and percentage', () => {
+    expect(marginText(Number.NaN, 8, t)).toBeNull();
+    expect(marginText(2, null, t)).toBeNull();
   });
 });

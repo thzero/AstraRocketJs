@@ -1,5 +1,6 @@
 import type { StaticInfo } from '../../engine/openRocketEngine';
 import { fmtSi, type UnitSelection } from '../../prefs/units.js';
+import { appName } from '../app/appInfo.js';
 import { escapeXml } from '../files/xmlUtil.js';
 
 /**
@@ -44,7 +45,7 @@ export function dataHeaderLines(d: ExportData): string[] {
         `margin ${i.stabilityCalibers.toFixed(2)} cal`,
     );
   }
-  lines.push(`ArsRocketJs Sim v${d.appVersion} — ${new Date().toISOString().slice(0, 10)}`);
+  lines.push(`${appName()} v${d.appVersion} — ${new Date().toISOString().slice(0, 10)}`);
   return lines;
 }
 

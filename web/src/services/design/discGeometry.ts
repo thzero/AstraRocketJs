@@ -20,6 +20,23 @@ import { COMPONENT_DEFAULTS } from './componentDefaults';
 /** Used when a ring's outer radius can't be resolved from its parent tube. */
 const FALLBACK_RADIUS = 0.012;
 
+/**
+ * Each tube type's own wall when the node states none: the kernel gives an inner
+ * tube and a coupler 0.5 mm and a body tube 0.3 mm. Read per type, so a part's
+ * bore is the same whether it is asked for as the part or as the tube around
+ * something else.
+ */
+const TUBE_WALL = {
+  bodytube: COMPONENT_DEFAULTS.bodytube.thickness,
+  innertube: COMPONENT_DEFAULTS.innertube.thickness,
+  tubecoupler: COMPONENT_DEFAULTS.tubecoupler.thickness,
+} as const;
+
+/** The default wall for a tube type, or the inner tube's for any other (a mount). */
+export function tubeWall(type: unknown): number {
+  return type === 'bodytube' || type === 'tubecoupler' ? TUBE_WALL[type] : TUBE_WALL.innertube;
+}
+
 export interface Tube {
   outerR: number;
   innerR: number;
@@ -29,8 +46,7 @@ export function tubeRadii(node: ComponentNode): Tube | null {
   const t = node.type;
   if (t === 'bodytube' || t === 'innertube' || t === 'tubecoupler') {
     const or = num(node, 'outerRadius', NaN);
-    if (!Number.isNaN(or))
-      return { outerR: or, innerR: Math.max(0, or - num(node, 'thickness', COMPONENT_DEFAULTS.bodytube.thickness)) };
+    if (!Number.isNaN(or)) return { outerR: or, innerR: Math.max(0, or - num(node, 'thickness', TUBE_WALL[t])) };
   } else if (t === 'nosecone') {
     const ar = num(node, 'aftRadius', NaN);
     if (!Number.isNaN(ar)) {
@@ -172,7 +188,7 @@ export function boreAt(node: ComponentNode, end: 'fore' | 'aft'): number | null 
     case 'bodytube':
     case 'innertube':
     case 'tubecoupler':
-      return bore(num(node, 'outerRadius', NaN), wall(COMPONENT_DEFAULTS.bodytube.thickness));
+      return bore(num(node, 'outerRadius', NaN), wall(TUBE_WALL[node.type]));
     case 'transition':
       return bore(
         num(node, end === 'fore' ? 'foreRadius' : 'aftRadius', NaN),

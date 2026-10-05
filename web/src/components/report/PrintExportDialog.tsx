@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
 import { Dialog } from '../common/Dialog';
 import { printableParts } from '../../services/exports/printableParts';
+import { partLabel } from '../../i18n/format';
 
 /**
  * The whole-rocket 3D-print export.
@@ -24,7 +25,7 @@ export function PrintExportDialog({ onClose }: { onClose: () => void }) {
   const parts = useMemo(() => printableParts(tree), [tree]);
   // What the list shows, and what the file's object names become for a part
   // with no name of its own — the same string in both places.
-  const label = (p: (typeof parts)[number]) => p.name || t(`part.${p.type}`, { defaultValue: p.type });
+  const label = (p: (typeof parts)[number]) => partLabel(t, p);
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [separateFiles, setSeparateFiles] = useState(false);
   const [placeOnPlate, setPlaceOnPlate] = useState(true);

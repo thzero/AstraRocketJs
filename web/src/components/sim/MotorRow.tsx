@@ -81,7 +81,7 @@ export function MotorRow({
               <div className="text-xs text-slate-500">
                 {u.fmt('motorDimensions', motor.diameter)} × {u.fmt('motorDimensions', motor.length)}{' '}
                 {u.sym('motorDimensions')}
-                {hasCurve ? ` · ${u.fmt('mass', motor.masses[0]!)} ${u.sym('mass')}` : ''}
+                {hasCurve ? ` · ${u.fmtSym('mass', motor.masses[0]!)}` : ''}
               </div>
               {hasCurve ? (
                 <div className="mt-0.5 text-xs text-slate-500">

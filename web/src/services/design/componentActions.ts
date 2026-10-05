@@ -1,5 +1,5 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
-import { clusterCount, clusterOffsets, isClusterPattern } from '../../tree/cluster';
+import { clusterCount, clusterPoints, isClusterPattern } from '../../tree/cluster';
 import { finPlanformPoints } from '../../tree/finPlanform';
 import { num } from '../../tree/nodeProps';
 import { scaleNode } from '../../tree/scaleRocket';
@@ -175,28 +175,24 @@ export const canSplitCluster = (node: ComponentNode | null | undefined): boolean
 export function splitCluster(tree: RocketTree, id: string, baseName: string): RocketTree {
   const node = findIn(tree, id);
   if (!node || !canSplitCluster(node)) return tree;
-  const dir = num(node, 'radialDirection', 0);
-  const pos = num(node, 'radialPosition', 0);
-  // The kernel rotates the pattern by `clusterRotation - radialDirection` and
-  // then adds the tube's own radial offset (InnerTube.getClusterPoints), so a
-  // cluster that was already off-center splits into tubes that stay where they
-  // were drawn.
-  const offsets = clusterOffsets(
+  // InnerTube.getClusterPoints, so a cluster that was already off-center splits
+  // into tubes that stay where they were drawn.
+  const places = clusterPoints(
     node['cluster'] as string,
     num(node, 'outerRadius'),
     num(node, 'clusterScale', 1),
-    num(node, 'clusterRotation', 0) - dir,
+    num(node, 'clusterRotation', 0),
+    num(node, 'radialPosition', 0),
+    num(node, 'radialDirection', 0),
   );
-  const copies = offsets.map((o, i) => {
+  const copies = places.map((p, i) => {
     const copy = reid(node);
-    const y = o.y + pos * Math.cos(dir);
-    const z = o.z + pos * Math.sin(dir);
     copy['cluster'] = 'single';
     copy['clusterScale'] = 1;
     copy['clusterRotation'] = 0;
-    // `setRadialShift`: the same y/z offset stated as a distance and a direction.
-    copy['radialPosition'] = Math.hypot(y, z);
-    copy['radialDirection'] = Math.atan2(z, y);
+    // `setRadialShift`: the y/z offset stated as a distance and a direction.
+    copy['radialPosition'] = p.radialPosition;
+    copy['radialDirection'] = p.radialDirection;
     copy.name = baseName + ' #' + String(i + 1);
     return copy;
   });

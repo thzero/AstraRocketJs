@@ -30,7 +30,7 @@ export type EnvironmentQuantity =
   'windSpeed' | 'windDirection' | 'temperature' | 'pressure' | 'density' | 'speedOfSound';
 
 /** The kernel's series symbol for each quantity (FlightDataType.getSymbol()). */
-export const SERIES_KEY: Record<EnvironmentQuantity, string> = {
+const SERIES_KEY: Record<EnvironmentQuantity, string> = {
   windSpeed: 'Vw',
   windDirection: 'θw',
   temperature: 'T',

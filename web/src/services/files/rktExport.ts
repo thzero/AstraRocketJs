@@ -1,5 +1,5 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
-import { clusterCount, clusterOffsets } from '../../tree/cluster';
+import { clusterCount, clusterPoints } from '../../tree/cluster';
 import { numOpt } from '../../tree/nodeProps';
 import { asStageNodes } from '../design/orkTree';
 import { escapeXml } from './xmlUtil';
@@ -393,27 +393,23 @@ function clusterMembers(n: ComponentNode): ComponentNode[] {
   const pattern = strOf(n, 'cluster');
   const count = clusterCount(pattern);
   if (n.type !== 'innertube' || count <= 1) return [n];
-  const offsets = clusterOffsets(
+  const places = clusterPoints(
     pattern,
     numOpt(n, 'outerRadius') ?? 0,
     numOpt(n, 'clusterScale') ?? 1,
     numOpt(n, 'clusterRotation') ?? 0,
+    numOpt(n, 'radialPosition') ?? 0,
+    numOpt(n, 'radialDirection') ?? 0,
   );
-  const baseR = numOpt(n, 'radialPosition') ?? 0;
-  const baseDir = numOpt(n, 'radialDirection') ?? 0;
-  const baseY = baseR * Math.cos(baseDir);
-  const baseZ = baseR * Math.sin(baseDir);
-  return offsets.map((o, i) => {
-    const y = baseY + o.y;
-    const z = baseZ + o.z;
-    return {
-      ...n,
-      name: `${n.name ?? 'Mount'} #${i + 1}`,
-      cluster: 'single',
-      radialPosition: Math.hypot(y, z),
-      radialDirection: Math.atan2(z, y),
-    } as unknown as ComponentNode;
-  });
+  return places.map(
+    (p, i) =>
+      ({
+        ...n,
+        name: `${n.name ?? 'Mount'} #${i + 1}`,
+        cluster: 'single',
+        ...p,
+      }) as unknown as ComponentNode,
+  );
 }
 
 /** One part and, in `<AttachedParts>`, everything mounted on it. */

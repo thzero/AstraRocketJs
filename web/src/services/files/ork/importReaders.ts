@@ -1,5 +1,5 @@
 import type { ComponentNode, ComponentType } from '../../../engine/openRocketEngine';
-import { freshId } from '../../design/orkTree';
+import { defaultStageName, freshId } from '../../design/orkTree';
 import { shapeParamDefault } from '../../../tree/shapeProfile';
 import { xmlText as text } from '../xmlUtil';
 import { COMPONENT_DEFAULTS } from '../../design/componentDefaults';
@@ -527,7 +527,7 @@ export function readStages(ctx: OrkImportContext, stages: Element[]): ComponentN
     const stage: ComponentNode = {
       type: 'stage',
       id: freshId(),
-      name: text(stageEl, ':scope > name') ?? (i === 0 ? 'Sustainer' : `Booster ${i}`),
+      name: text(stageEl, ':scope > name') ?? defaultStageName(i),
     };
     // A stage can be overridden like any other component, and the writer emits
     // it, but this builds its own node rather than going through the part

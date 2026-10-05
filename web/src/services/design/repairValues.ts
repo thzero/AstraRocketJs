@@ -1,10 +1,12 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { SI_LIMITS } from '../../prefs/entryValue';
 import type { Quantity } from '../../prefs/units';
+import { partLabel } from '../../i18n/format';
 
 /** One value a loaded design carried that no value of its quantity can be. */
 export interface RepairedValue {
-  /** The part's own name, falling back to its type for the message. */
+  type: string;
+  /** The part's own name, empty when it has none (the reader labels it). */
   name: string;
   /** The node key, which is also the `prop.*` label the panel shows. */
   field: string;
@@ -38,6 +40,11 @@ const LIMITED: Record<string, Quantity> = { density: 'density' };
  * Returns the SAME tree and nodes when nothing was out of range, so the ordinary
  * load allocates nothing and cannot be told from one that never ran this.
  */
+/** One repaired value as the banner's line, the part named by {@link partLabel}. */
+export function repairedText(r: RepairedValue, t: (key: string, opts?: Record<string, unknown>) => string): string {
+  return t('banner.repaired', { part: partLabel(t, r), field: t(`prop.${r.field}`), was: r.was, now: r.now });
+}
+
 export function repairValues(tree: RocketTree): { tree: RocketTree; repaired: RepairedValue[] } {
   const repaired: RepairedValue[] = [];
 
@@ -49,7 +56,7 @@ export function repairValues(tree: RocketTree): { tree: RocketTree; repaired: Re
       if (!limit || typeof v !== 'number' || !Number.isFinite(v)) continue;
       const now = Math.min(limit.max ?? Infinity, Math.max(limit.min ?? -Infinity, v));
       if (now === v) continue;
-      repaired.push({ name: (typeof node.name === 'string' && node.name) || node.type, field: key, was: v, now });
+      repaired.push({ type: node.type, name: typeof node.name === 'string' ? node.name : '', field: key, was: v, now });
       out = { ...out, [key]: now } as ComponentNode;
     }
     return out;

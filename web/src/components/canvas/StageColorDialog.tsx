@@ -8,6 +8,7 @@ import {
   rgbToHex,
 } from '../../services/exports/flightPathExport';
 import { Dialog } from '../common/Dialog';
+import { stageLabel } from '../../i18n/format';
 
 /** The three independently colorable things the exporter draws per stage. */
 const COLOR_ROLES = ['path', 'ground', 'pin'] as const;
@@ -101,7 +102,7 @@ export function StageColorDialog({
             ))}
           </div>
           {names.map((name, i) => {
-            const stage = name || t('pathExport.stageN', { n: i + 1 });
+            const stage = stageLabel(t, i, name);
             return (
               <div key={`${i}-${name}`} className="flex items-center justify-between gap-2">
                 <span className="flex-1 truncate text-sm text-slate-300">{stage}</span>

@@ -7,6 +7,7 @@ import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { num, str } from '../../tree/nodeProps';
+import { partLabel } from '../../i18n/format';
 
 /**
  * The kernel's SeparationEvent vocabulary, in the order the property panel
@@ -55,7 +56,7 @@ export function SeparationSection({
   const baseEvent = str(stage, 'separationEvent') || 'ejection';
   const event = over?.separationEvent ?? baseEvent;
   const alt = u.at(unitScope('prop', stage.type, 'separationAltitude'), 'distance');
-  const name = str(stage, 'name') || t(`part.${stage.type}`);
+  const name = partLabel(t, stage);
 
   return (
     <section aria-label={name} className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">

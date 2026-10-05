@@ -89,9 +89,10 @@ describe('badDimensions', () => {
     expect(bad.map((d) => `${d.name}.${d.field}`)).toEqual(['Body tube.outerRadius', 'Fins.thickness']);
   });
 
-  it('falls back to the type when a part has no name', () => {
+  it('carries no name for a part that has none, leaving the label to the reader', () => {
     const bad = badDimensions(tree({ tube: { name: undefined, outerRadius: 0 } }));
-    expect(bad[0]!.name).toBe('bodytube');
+    expect(bad[0]!.name).toBe('');
+    expect(bad[0]!.type).toBe('bodytube');
   });
 
   it('knows nothing about types it has no rules for', () => {
@@ -119,6 +120,13 @@ describe('designBlocker', () => {
     // would leak an internal name into the message.
     const b = designBlocker(tree({ tube: { name: undefined, outerRadius: 0 } }))!;
     expect(designBlockerText(b, t)).toContain('part.bodytube');
+  });
+
+  it("keeps a part's own name even when it reads like a type", () => {
+    // An unnamed part used to arrive named after its type, so the message could
+    // not tell it from a part someone had called "bodytube", and translated both.
+    const b = designBlocker(tree({ tube: { name: 'bodytube', outerRadius: 0 } }))!;
+    expect(designBlockerText(b, t)).toContain('"bodytube"');
   });
 
   it('names each part once, listing all of its bad dimensions together', () => {

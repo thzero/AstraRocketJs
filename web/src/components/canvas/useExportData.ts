@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useWorkspaceStore } from '../../state/store';
 import { useUnits } from '../../prefs/useUnits';
-import { APP_VERSION, appName } from '../../services/app/appInfo';
+import { APP_VERSION, designNameOf } from '../../services/app/appInfo';
 
 /**
  * The header block the 2D/3D image exports stamp on the page — name, the
@@ -20,7 +20,7 @@ export function useExportData(motors: object) {
   const units = useUnits();
   return useMemo(
     () => ({
-      name: loadedMeta?.name || (typeof treeName === 'string' && treeName) || appName(),
+      name: designNameOf({ name: treeName }, loadedMeta),
       info,
       units: units.all,
       withMotors: Object.keys(motors).length > 0,

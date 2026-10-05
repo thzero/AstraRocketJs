@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { DesignLibrary } from '../../../src/services/storage/designLibrary';
 import type { KeyValueStore } from '../../../src/services/storage/keyValueStore';
 import type { Workspace } from '../../../src/services/storage/workspaceStore';
+import { defaultDesignName } from '../../../src/services/app/appInfo';
 
 class FakeKv implements KeyValueStore {
   readonly map = new Map<string, string>();
@@ -171,9 +172,9 @@ describe('migrating the pre-library single workspace', () => {
     expect((await lib.list())[0]!.name).toBe('Fireball ZL1');
   });
 
-  it('falls back to a default name for a design with no .ork origin', async () => {
+  it('falls back to the translated default name for a design with no .ork origin', async () => {
     kv.map.set(LEGACY, JSON.stringify(ws('x')));
-    expect((await lib.list())[0]!.name).toBe('My Rocket');
+    expect((await lib.list())[0]!.name).toBe(defaultDesignName());
   });
 
   it('keeps the legacy blob if the migrating write fails', async () => {

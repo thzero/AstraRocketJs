@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { LibraryWorkspaceStore, type Workspace } from '../../../src/services/storage/workspaceStore';
 import { DesignLibrary, setDesignLibrary } from '../../../src/services/storage/designLibrary';
 import type { KeyValueStore } from '../../../src/services/storage/keyValueStore';
+import { defaultDesignName } from '../../../src/services/app/appInfo';
 
 class FakeKv implements KeyValueStore {
   map = new Map<string, string>();
@@ -240,7 +241,7 @@ describe('LibraryWorkspaceStore', () => {
     await store.save(workspace());
     store.setActiveId(null);
     await store.save(workspace());
-    expect((await new DesignLibrary(kv).list()).map((m) => m.name)).toEqual(['My Rocket', 'Once']);
+    expect((await new DesignLibrary(kv).list()).map((m) => m.name)).toEqual([defaultDesignName(), 'Once']);
   });
 
   /**

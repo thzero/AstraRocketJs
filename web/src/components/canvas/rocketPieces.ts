@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { countOf, num, numOpt } from '../../tree/nodeProps';
+import { partLength } from '../../tree/position';
+import { FIN_DEFAULTS, KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
 import { FREEFORM_FALLBACK, finPlanformPoints, finRootChord, finSpan } from '../../tree/finPlanform';
 import {
   assemblyBoundingRadius,
@@ -11,12 +13,12 @@ import {
 } from '../../tree/assembly.js';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
-import { outerProfile } from '../../tree/shapeProfile.js';
+import { nodeShape, outerProfile } from '../../tree/shapeProfile.js';
 import { colorForType, DEFAULT_PART_COLORS, type PartPalette } from '../../services/design/partColors';
 import { COMPONENT_DEFAULTS } from '../../services/design/componentDefaults';
 import { DISC_TYPES } from '../../services/files/componentFormats';
 import { resolveDisc } from '../../services/design/discGeometry';
-import { axialStart, colorOf, internalExtent, type MotorDims } from './schematicGeometry';
+import { axialStart, colorOf, innerTubeExtent, internalExtent, type MotorDims } from './schematicGeometry';
 
 /**
  * Owns the 3D geometry of the rocket: the component tree to Piece list build
@@ -196,7 +198,7 @@ export function buildPieces(
     const count = countOf(child, 'finCount', 3);
     const root = finRootChord(child);
     const height = finSpan(child);
-    const thickness = num(child, 'thickness', 0.003);
+    const thickness = num(child, 'thickness', FIN_DEFAULTS.thickness);
     const start = axialStart(child, root, pStart, pLen);
     maxR = Math.max(maxR, pRadius + height);
 
@@ -240,7 +242,7 @@ export function buildPieces(
       } else if (child.type === 'tubefinset') {
         // Ring of open tubes around the body, each tangent to the surface.
         const count = countOf(child, 'finCount', 6);
-        const len = num(child, 'length', 0.1);
+        const len = num(child, 'length', KERNEL_DEFAULTS.tubefinset.length);
         const rt = tubeFinRadius(child, pRadius);
         const wall = Math.min(num(child, 'thickness', 0.0005), rt * 0.45);
         const start = axialStart(child, len, pStart, pLen);
@@ -264,9 +266,9 @@ export function buildPieces(
         }
       } else if (child.type === 'fairing') {
         // External shroud on the +Y surface (radial angle not modeled).
-        const len = num(child, 'length', 0.08);
-        const wid = num(child, 'width', 0.025);
-        const hgt = num(child, 'height', 0.02);
+        const len = num(child, 'length', KERNEL_DEFAULTS.fairing.length);
+        const wid = num(child, 'width', KERNEL_DEFAULTS.fairing.width);
+        const hgt = num(child, 'height', KERNEL_DEFAULTS.fairing.height);
         const start = axialStart(child, len, pStart, pLen);
         maxR = Math.max(maxR, pRadius + hgt);
         const geo = new THREE.BoxGeometry(len, hgt, wid);
@@ -279,8 +281,8 @@ export function buildPieces(
           xform,
         );
       } else if (child.type === 'launchlug') {
-        const len = num(child, 'length', 0.05);
-        const r = num(child, 'outerRadius', 0.0022);
+        const len = num(child, 'length', KERNEL_DEFAULTS.launchlug.length);
+        const r = num(child, 'outerRadius', KERNEL_DEFAULTS.launchlug.outerRadius);
         // Ride around the body at the radial mount angle (kernel default 180°),
         // staying axial. y = R·cosθ, z = R·sinθ — the pod/cluster convention.
         const ang = num(child, 'angleOffset', Math.PI);
@@ -299,8 +301,7 @@ export function buildPieces(
         // Motor mount / inner tube, one per cluster position — visible through
         // the translucent shell. A loaded motor seats flush against the
         // mount's aft end (how motors actually load), same as the 2D view.
-        const len = num(child, 'length', 0.05);
-        const r = num(child, 'outerRadius', 0.0095);
+        const { length: len, radius: r } = innerTubeExtent(child);
         const start = axialStart(child, len, pStart, pLen);
         const motor = child.id ? motors?.[child.id] : undefined;
         for (const off of clusterOffsets(
@@ -400,10 +401,10 @@ export function buildPieces(
     let x = 0;
     for (const n of nodes) {
       curId = n.id;
-      const len = num(n, 'length', 0);
+      const len = partLength(n);
       if (n.type === 'nosecone') {
-        const R = num(n, 'aftRadius', 0.012);
-        const shapeName = typeof n['shape'] === 'string' ? (n['shape'] as string) : 'ogive';
+        const R = num(n, 'aftRadius', KERNEL_DEFAULTS.nosecone.aftRadius);
+        const shapeName = nodeShape(n);
         const pts = lathePoints(
           shapeName,
           numOpt(n, 'shapeParameter'),
@@ -427,7 +428,7 @@ export function buildPieces(
         addChildren(n, x, len, R, xform);
         x += len;
       } else if (n.type === 'bodytube') {
-        const R = num(n, 'outerRadius', 0.012);
+        const R = num(n, 'outerRadius', KERNEL_DEFAULTS.bodytube.outerRadius);
         // Hollow: the wall the part list already carries, revolved, so a
         // cutaway shows a wall and a bore instead of a solid rod.
         const wall = num(n, 'thickness', COMPONENT_DEFAULTS.bodytube.thickness);
@@ -460,7 +461,7 @@ export function buildPieces(
       } else if (n.type === 'transition') {
         const rf = num(n, 'foreRadius', 0.012);
         const ra = num(n, 'aftRadius', 0.009);
-        const shapeName = typeof n['shape'] === 'string' ? (n['shape'] as string) : 'conical';
+        const shapeName = nodeShape(n);
         // Same lathe pattern as the nose: profile y runs fore→aft, and after
         // rotation.z = -π/2 the lathe's +Y axis points along +X (aft).
         // node['clipped'] (.ork <shapeclipped>) rides along so an unclipped

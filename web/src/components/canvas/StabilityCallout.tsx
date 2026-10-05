@@ -3,11 +3,10 @@ import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import { Line } from '@react-three/drei';
 import type { StaticInfo } from '../../engine/openRocketEngine';
-import { fmtNum } from '../../i18n/format';
-import { stabilityState } from '../../services/flight/simReport.js';
 import { useUnits } from '../../prefs/useUnits';
 import { CalloutLabel } from './rocketCallouts';
-import { MARGIN_COLOR } from './stabilityGadget';
+import { marginText } from './schematicGeometry';
+import { CP_INK, MARGIN_COLOR } from './stabilityGadget';
 
 /**
  * Owns the CP row of the 3D view: marker, dashed leader and the
@@ -37,24 +36,16 @@ export function StabilityCallout({
   const cal = info.stabilityCalibers;
   // The CP row as ONE text label (proven labelTexture/CalloutLabel path), laid
   // out left→right like the 2D: "CP · X cm   ⚠ N cal · P% — word". The tiers
-  // and inks are the shared stabilityState / MARGIN_COLOR, the same pair the
-  // callout gadget (stabilityGadget.ts) uses, rather than a second copy of the 1..6 band.
+  // and inks are the shared marginText / MARGIN_COLOR, the same text the 2D
+  // overlay prints and the inks the callout gadget (stabilityGadget.ts) uses.
   const cpCallout = useMemo(() => {
     if (!Number.isFinite(info.cp)) return null;
-    const state = stabilityState(cal);
-    if (!state || cal == null) return null;
-    // The engine's own figure, not ours: see StaticInfo.stabilityPercent.
-    const pct = fmtNum(info.stabilityPercent, 1);
-    const word =
-      state === 'under'
-        ? ` — ${t('schematic.underStable')}`
-        : state === 'over'
-          ? ` — ${t('schematic.overStable')}`
-          : '';
-    const warn = state === 'ok' ? '' : '⚠️ ';
+    // The engine's own percentage, not ours: see StaticInfo.stabilityPercent.
+    const margin = marginText(cal, info.stabilityPercent, t);
+    if (!margin) return null;
     return {
-      text: `${t('schematic.cp')} · ${u.fmt('length', info.cp)} ${u.sym('length')}    ${warn}${fmtNum(cal, 2)} ${t('stability.caliber')} · ${pct}%${word}`,
-      color: MARGIN_COLOR[state],
+      text: `${t('schematic.cp')} · ${u.fmtSym('length', info.cp)}    ${margin.text}`,
+      color: MARGIN_COLOR[margin.state],
     };
   }, [info, cal, t, u]);
   // The CP leader's endpoints, memoized: drei's Line rebuilds its geometry on
@@ -76,7 +67,7 @@ export function StabilityCallout({
       </sprite>
       <Line
         points={cpLeader}
-        color="#e34948"
+        color={CP_INK}
         lineWidth={1.4}
         dashed
         dashSize={maxR * 0.15}

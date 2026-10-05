@@ -9,7 +9,7 @@ import { Num, QNum } from '../sim/LaunchPanel';
 
 export const toolBtn =
   'rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-50';
-export const toolInput =
+const toolInput =
   'rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500';
 
 export interface ToolSite {

@@ -6,6 +6,7 @@ import { fitContextFor } from '../../services/parts/componentFit';
 import { useWorkspaceStore } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
 import { num } from '../../tree/nodeProps';
+import { partLabel } from '../../i18n/format';
 
 /**
  * Everything {@link PropertyPanel} needs about the current selection: the node,
@@ -54,7 +55,7 @@ export function useSelectedComponent() {
     if (!node || isOnlyStage) return;
     // Every deletion confirms; the last motor mount carries an extra warning
     // (it also loses simulate-ability). Name the part being removed.
-    const label = (node.name as string) || t(`part.${node.type}`, { defaultValue: node.type });
+    const label = partLabel(t, node);
     const message = isOnlyMount ? t('warn.lastMountDelete') : t('warn.deletePart', { name: label });
     if (!(await confirm({ message, confirmLabel: t('common.delete'), danger: true }))) return;
     remove();

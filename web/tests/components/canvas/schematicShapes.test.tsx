@@ -3,7 +3,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { isValidElement } from 'react';
 import type { ComponentNode } from '../../../src/engine/openRocketEngine';
 import { buildSchematicShapes } from '../../../src/components/canvas/schematicShapes';
-import { KERNEL_MASSCOMPONENT_RADIUS } from '../../../src/tree/kernelDefaults.js';
+import { KERNEL_DEFAULTS, KERNEL_MASSCOMPONENT_RADIUS } from '../../../src/tree/kernelDefaults.js';
 import { COMPONENT_DEFAULTS } from '../../../src/services/design/componentDefaults';
 
 /** Every `<rect>` in a node list, keyed by its `<title>` text. */
@@ -173,5 +173,76 @@ describe('a coupler is sized like the part you would cut', () => {
     expect(c.props['stroke']).not.toBe('#9a978f');
     expect(i.props['stroke']).not.toBe('#9a978f');
     expect(c.props['stroke']).not.toBe(i.props['stroke']);
+  });
+});
+
+/**
+ * A launch lug with no size keys is drawn at the size the kernel flies it:
+ * ComponentFactory's launch lug is 50 mm long with a 2.2 mm outer radius
+ * (KERNEL_DEFAULTS.launchlug). The 3D view, the `.ork` writer and RASAero
+ * already used those; the side view drew a 10 mm by 2 mm lug.
+ */
+describe('a launch lug with no size keys', () => {
+  it('is drawn at the kernel default length and radius', () => {
+    // The lug's rect carries no <title>; it is the one shorter than the 300 mm tube.
+    const { shapes } = build([{ type: 'launchlug', id: 'l', angleOffset: 0 } as ComponentNode]);
+    const lug = shapes
+      .filter((n): n is ReactElement<Record<string, unknown>> => isValidElement(n) && n.type === 'rect')
+      .find((r) => Number(r.props['width']) < 300);
+    expect(lug).toBeDefined();
+    expect(lug!.props['width']).toBeCloseTo(KERNEL_DEFAULTS.launchlug.length * 1000, 6);
+    expect(lug!.props['height']).toBeCloseTo(2 * KERNEL_DEFAULTS.launchlug.outerRadius * 1000, 6);
+  });
+});
+
+/**
+ * An inner tube is drawn at the size it flies. With no keys that is the kernel's
+ * 70 mm by 9.5 mm (ComponentFactory, case "innertube"); the side view drew 25 mm.
+ * And a stated radius is drawn as stated: the 85% cap that keeps an invented
+ * chute box off the wall is not for a real motor mount.
+ */
+describe('an inner tube', () => {
+  const mount = (o: Record<string, unknown> = {}) =>
+    rectsByTitle(build([{ type: 'innertube', id: 'm', ...o } as unknown as ComponentNode]).overlay).get('Inner tube');
+
+  it('is drawn at the kernel default size when it states none', () => {
+    const r = mount()!;
+    expect(r).toBeDefined();
+    expect(r.props['width']).toBeCloseTo(KERNEL_DEFAULTS.innertube.length * 1000, 6);
+    expect(r.props['height']).toBeCloseTo(2 * KERNEL_DEFAULTS.innertube.outerRadius * 1000, 6);
+  });
+
+  it('is not capped below its stated radius', () => {
+    expect(mount({ outerRadius: 0.019, length: 0.1 })!.props['height']).toBeCloseTo(38, 6);
+  });
+});
+
+/**
+ * A nose cone, body tube or transition with no `length` key is laid out at the
+ * kernel's length for its type (ComponentFactory: nose 70 mm, body 300 mm,
+ * transition 50 mm), not at zero. Zero drew the part as nothing while the
+ * engine flew it full length. An explicit 0 (the phantom tube a T-tail hangs
+ * from) is still 0.
+ */
+describe('a chain part with no length key', () => {
+  it('pushes the next part back by the kernel length', () => {
+    const { shapes } = buildSchematicShapes({
+      chain: [
+        { type: 'nosecone', id: 'n', aftRadius: 0.02 } as unknown as ComponentNode,
+        { type: 'bodytube', id: 'b', outerRadius: 0.02, length: 0.3 } as ComponentNode,
+      ],
+      ctx: { scale: 1000, cy: 200, x0: 0 },
+      scale: 1000,
+      w: 800,
+      h: 400,
+      roll: 0,
+      uid: 't',
+      setHoverId: () => {},
+    });
+    const body = shapes
+      .filter((n): n is ReactElement<Record<string, unknown>> => isValidElement(n) && n.type === 'rect')
+      .find((r) => Number(r.props['width']) === 300);
+    expect(body).toBeDefined();
+    expect(body!.props['x']).toBeCloseTo(KERNEL_DEFAULTS.nosecone.length * 1000, 6);
   });
 });

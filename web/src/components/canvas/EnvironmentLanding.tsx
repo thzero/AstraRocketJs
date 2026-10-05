@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useUnits } from '../../prefs/useUnits';
+import { fmtGroundDistance, useUnits } from '../../prefs/useUnits';
 import { configOf, useWorkspaceStore } from '../../state/store';
 import { useSettings } from '../../state/SettingsProvider';
 import type { ResultFlight } from '../../services/flight/simulations';
@@ -12,6 +12,8 @@ import { offsetToLatLon } from '../../services/landing/descentDrift';
 import { WeatherError } from '../../services/weather/openMeteo';
 import { readWeatherKey } from '../../services/weather/weatherKey';
 import { LandingMap } from '../tools/LandingMap';
+import { formatCoord } from '../../services/map/slippyMap';
+import { unitScope } from '../../prefs/units';
 
 /**
  * Where the flight came down, and, when its conditions came from a forecast,
@@ -32,7 +34,8 @@ const btn =
 export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
   const { t, i18n } = useTranslation();
   const u = useUnits();
-  const dist = u.plain('distance');
+  // The flight's distance unit, as Ground Track reads this same landing.
+  const dist = u.at(unitScope('sim', 'apogee'), 'distance');
   const { settings } = useSettings();
   const tree = useWorkspaceStore((s) => s.tree);
   const configs = useWorkspaceStore((s) => s.configs);
@@ -53,12 +56,12 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
   const source = flight.launch.weatherSource;
   if (!landing || lat == null || lon == null) return null;
 
-  const fmtM = (m: number) => `${dist.fmt(m, Math.abs(dist.toUi(m)) >= 100 ? 0 : 1)} ${dist.sym}`;
+  const fmtM = (m: number) => fmtGroundDistance(dist, m);
   const bearing = (p: GroundPoint) =>
     `${Math.round(((((Math.atan2(p.east, p.north) * 180) / Math.PI) % 360) + 360) % 360)}°`;
   const where = (p: GroundPoint) => {
     const ll = offsetToLatLon(lat, lon, p);
-    return `${ll.lat.toFixed(5)}°, ${ll.lon.toFixed(5)}°`;
+    return formatCoord(ll.lat, ll.lon, 5);
   };
 
   const fly = async () => {
@@ -149,6 +152,7 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
                 landing={landing}
                 samples={hourLandings}
                 ellipse={spread}
+                distanceUnit={dist}
               />
               <table className="w-full text-xs">
                 <thead>

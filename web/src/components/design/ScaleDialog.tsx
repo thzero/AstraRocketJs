@@ -8,6 +8,7 @@ import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { maxBodyDiameter, rocketLength } from '../../tree/scaleRocket';
+import { fmtNum } from '../../i18n/format';
 
 /**
  * Scale the whole rocket by one factor: every length, diameter, wall, fin
@@ -33,7 +34,7 @@ export function ScaleDialog({ onClose }: { onClose: () => void }) {
   const baseD = maxBodyDiameter(tree); // m
   const baseL = rocketLength(tree); // m
 
-  const pct = (factor * 100).toFixed(0);
+  const pct = fmtNum(factor * 100, 0);
   const usable = Number.isFinite(factor) && factor > 0 && factor !== 1 && baseD > 0;
   const apply = () => {
     if (!usable) return;
@@ -98,7 +99,7 @@ export function ScaleDialog({ onClose }: { onClose: () => void }) {
                 className={input}
               />
               <span className="text-xs text-slate-500">
-                {t('scale.currentDiameter', { mm: `${fu.fmt(baseD)} ${fu.sym}` })}
+                {t('scale.currentDiameter', { mm: `${fu.fmtSym(baseD)}` })}
               </span>
             </div>
           </div>
@@ -113,7 +114,7 @@ export function ScaleDialog({ onClose }: { onClose: () => void }) {
             </span>
           </p>
           <p className="mt-2 text-xs leading-relaxed text-slate-500">
-            {t('scale.massNote', { cube: (factor ** 3).toFixed(2) })}
+            {t('scale.massNote', { cube: fmtNum(factor ** 3, 2) })}
           </p>
 
           <div className="mt-5 flex justify-end gap-2">

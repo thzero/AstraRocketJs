@@ -16,6 +16,7 @@ import {
 import { parseWindProfileCsv, WindProfileCsvError } from '../../services/flight/windProfileCsv';
 import { duplicateAltitudeRows } from '../../services/flight/windLevels';
 import { useLatest } from '../common/useLatest';
+import { fmtNum } from '../../i18n/format';
 
 /**
  * The altitude-layered wind profile, as OpenRocket's Wind Profile Editor: one
@@ -109,7 +110,7 @@ function ProfileChart({ levels, u, showVectors }: { levels: WindLevel[]; u: Unit
         0
       </text>
       <text x={W - padR} y={H - padB + 12} textAnchor="end" className="fill-slate-500 text-[9px]">
-        {sHi.toFixed(sHi < 10 ? 1 : 0)}
+        {fmtNum(sHi, sHi < 10 ? 1 : 0)}
       </text>
     </svg>
   );

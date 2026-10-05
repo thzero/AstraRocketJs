@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import { fmtNum } from '../../i18n/format';
+import { fmtNum, fmtSig } from '../../i18n/format';
 import type { StaticInfo } from '../../engine/api';
-import { stabilityTone, stabilityVerdictKey } from '../../services/flight/simReport';
+import { stabilityState, stabilityToneOf, stabilityVerdictKey } from '../../services/flight/simReport';
 import { Stat } from '../common/Stat';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
@@ -47,15 +47,13 @@ export function StabilityBadge({
   const cpTile = u.at(unitScope('stats', 'cp'), 'length');
   if (!info) return null;
   const cal = info.stabilityCalibers;
+  // Colored by band, as the drawing and the info card beside it are.
+  const padTone = stabilityToneOf(stabilityState(cal) ?? 'under');
   // The engine's own figure, not ours: see StaticInfo.stabilityPercent.
   const pct = info.stabilityPercent;
   // Moments of inertia span orders of magnitude (roll ~1e-5, pitch ~1e-3 kg·m²);
   // exponential below 1e-4, 4-sig-fig fixed above, so both read cleanly.
-  const fmtInertia = (v: number) => {
-    if (!Number.isFinite(v)) return '—';
-    if (v === 0) return '0';
-    return Math.abs(v) < 1e-4 ? v.toExponential(3) : String(Number(v.toPrecision(4)));
-  };
+  const fmtInertia = (v: number) => fmtSig(v, 4);
   return (
     <div className="@container mx-3 mb-3 mt-3">
       <button
@@ -71,7 +69,7 @@ export function StabilityBadge({
         {!expanded && (
           <span className="ml-auto truncate text-[11px] tabular-nums text-slate-400">
             {lengthTile.fmt(info.length)} {lengthTile.sym} ·{' '}
-            <span className={stabilityTone(cal)}>
+            <span className={padTone}>
               {fmtNum(cal, 2)} {t('stability.caliber')}
             </span>
           </span>
@@ -163,7 +161,7 @@ export function StabilityBadge({
             label={t('stability.onPad')}
             value={`${fmtNum(cal, 2)} / ${fmtNum(pct, 1)}`}
             sub={`${t('stability.caliber')} / % · ${t(stabilityVerdictKey(cal))}`}
-            tone={stabilityTone(cal)}
+            tone={padTone}
           />
           <Stat card label={t('stats.cd')} value={info.cd != null ? fmtNum(info.cd, 3) : '—'} sub="Ma 0.3" />
           {/* Symbol lives in the sub — the tile label is uppercased, which would

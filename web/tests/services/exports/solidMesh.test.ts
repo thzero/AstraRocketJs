@@ -11,6 +11,7 @@ import {
   countBoundaryEdges,
   isSimplePolygon,
 } from '../../../src/services/exports/solidMesh';
+import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
 
 /** Count open (hole) and non-manifold edges of one geometry, by vertex position. */
 function quality(g: THREEType.BufferGeometry): { hole: number; nonManifold: number } {
@@ -452,5 +453,22 @@ describe('discSolidForNode applies the same validation as solidForNode', () => {
     // itself rejects; the wrapper must not resurrect it.
     expect(discSolid(0.012, 0.012, 0.003)).toBeNull();
     expect(discSolidForNode(0.012, 0.012, 0.003)).toBeNull();
+  });
+});
+
+/**
+ * A nose cone, body tube or transition with no `length` key is laid out at the
+ * kernel's length for its type (ComponentFactory: nose 70 mm, body 300 mm,
+ * transition 50 mm), not at zero. Zero drew the part as nothing while the
+ * engine flew it full length. An explicit 0 (the phantom tube a T-tail hangs
+ * from) is still 0.
+ */
+describe('a keyless chain part as a printable solid', () => {
+  it('is meshed at the kernel length, not refused as zero-length', () => {
+    const geo = solidForNode({ type: 'nosecone', shape: 'ogive', aftRadius: 0.012 } as unknown as ComponentNode);
+    expect(geo).not.toBeNull();
+    geo!.computeBoundingBox();
+    const b = geo!.boundingBox!;
+    expect(b.max.x - b.min.x).toBeCloseTo(KERNEL_DEFAULTS.nosecone.length, 6);
   });
 });

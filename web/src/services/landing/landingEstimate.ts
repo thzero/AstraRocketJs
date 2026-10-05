@@ -29,9 +29,9 @@ import { fetchTerrain, groundAt, type TerrainGrid } from './terrain';
  */
 
 export const HOUR_OFFSETS = [-2, -1, 0, 1, 2] as const;
-export const SPEED_FACTORS = [0.8, 1, 1.2] as const;
-export const DIRECTION_OFFSETS_DEG = [-15, 0, 15] as const;
-export const RATE_FACTORS = [0.9, 1, 1.1] as const;
+const SPEED_FACTORS = [0.8, 1, 1.2] as const;
+const DIRECTION_OFFSETS_DEG = [-15, 0, 15] as const;
+const RATE_FACTORS = [0.9, 1, 1.1] as const;
 
 /** The wind profile for the hour starting at `unix`, from one forecast answer, or null. */
 export function windAt(variant: ForecastVariant, unix: number): WindLayer[] | null {
@@ -89,7 +89,7 @@ export function estimateLanding(q: {
  * the terrain model and a surveyed site altitude disagree by a few meters,
  * and without this a descent could end before reaching the pad's own ground.
  */
-export function relativeGround(grid: TerrainGrid, latDeg: number, lonDeg: number, padElevationM: number) {
+function relativeGround(grid: TerrainGrid, latDeg: number, lonDeg: number, padElevationM: number) {
   const g = groundAt(grid);
   const shift = padElevationM - g(latDeg, lonDeg);
   return (lat: number, lon: number) => g(lat, lon) + shift;
@@ -118,7 +118,7 @@ export interface LandingRun {
 }
 
 /** Most the terrain grid reaches from the pad, meters: past this the drift is not a recovery. */
-export const MAX_TERRAIN_HALF_WIDTH_M = 30_000;
+const MAX_TERRAIN_HALF_WIDTH_M = 30_000;
 
 /**
  * A whole estimate: the pad's height if not given, the forecast, the landings

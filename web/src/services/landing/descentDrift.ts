@@ -63,7 +63,7 @@ export interface DriftResult {
 }
 
 /** Height of one integration step, meters. */
-export const STEP_M = 10;
+const STEP_M = 10;
 
 /** Mean Earth radius (m), for the small-offset conversion between meters and degrees. */
 const EARTH_RADIUS_M = 6_371_008.8;

@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { recoveryDevices } from '../../services/design/treeEdit';
 import { useWorkspaceStore } from '../../state/store';
+import { partLabel } from '../../i18n/format';
 
 /**
  * A stage's recovery plan: single deployment, or dual with one of its devices
@@ -36,7 +37,7 @@ export function StageRecovery({ node }: { node: ComponentNode }) {
   // WOULD become the drogue, so switching over is one click and not two.
   const picked = drogue?.id ?? devices[0]?.id ?? '';
 
-  const deviceName = (d: ComponentNode) => (d.name as string) || t(`part.${d.type}`, { defaultValue: d.type });
+  const deviceName = (d: ComponentNode) => partLabel(t, d);
 
   return (
     <div className="space-y-2 border-t border-white/5 pt-3">

@@ -1,12 +1,13 @@
 import type { ComponentNode, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
 import { num, numOpt } from '../../tree/nodeProps';
-import { axialLength, axialStart } from '../../tree/position.js';
+import { axialLength, axialStart, partLength } from '../../tree/position.js';
 import { finSpan } from '../../tree/finPlanform.js';
-import { outerProfile } from '../../tree/shapeProfile.js';
+import { nodeShape, outerProfile } from '../../tree/shapeProfile.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
-import { KERNEL_MASSCOMPONENT_RADIUS } from '../../tree/kernelDefaults.js';
+import { KERNEL_DEFAULTS, KERNEL_MASSCOMPONENT_RADIUS } from '../../tree/kernelDefaults.js';
 import { assemblyBoundingRadius, isAssembly, resolveAssemblyRadius } from '../../tree/assembly.js';
-import type { StabilityState } from '../../services/flight/simReport.js';
+import { stabilityState, type StabilityState } from '../../services/flight/simReport.js';
+import { fmtNum } from '../../i18n/format';
 
 export interface Ctx {
   scale: number;
@@ -141,7 +142,7 @@ export function profilePath(
   aftR: number,
   baseY: number,
 ): string {
-  const shape = typeof n['shape'] === 'string' ? (n['shape'] as string) : n.type === 'transition' ? 'conical' : 'ogive';
+  const shape = nodeShape(n);
   const param = numOpt(n, 'shapeParameter');
   // node['clipped'] (.ork <shapeclipped>) rides along so an unclipped
   // transition draws the way it simulates; absent = kernel default (clipped).
@@ -206,7 +207,7 @@ export function computeSchematicLayout(
   let maxR = 0.001;
   for (const n of chain) {
     if (n.type === 'nosecone' || n.type === 'bodytube' || n.type === 'transition') {
-      totalLen += num(n, 'length', 0);
+      totalLen += partLength(n);
       maxR = Math.max(maxR, num(n, 'aftRadius', 0), num(n, 'outerRadius', 0), num(n, 'foreRadius', 0));
     }
   }
@@ -248,7 +249,8 @@ export function computeSchematicLayout(
     return out;
   };
 
-  const protuberanceSpan = (n: ComponentNode): number => (n.type === 'fairing' ? num(n, 'height', 0.02) : 0);
+  const protuberanceSpan = (n: ComponentNode): number =>
+    n.type === 'fairing' ? num(n, 'height', KERNEL_DEFAULTS.fairing.height) : 0;
   const finH = Math.max(0, ...collectFinSpans(tree.components, maxR), ...collect(tree.components, protuberanceSpan));
   totalLen = Math.max(totalLen, 0.05);
 
@@ -277,7 +279,7 @@ export function computeSchematicLayout(
     let cx = 0;
     for (const n of chain) {
       if (n.type === 'nosecone' || n.type === 'bodytube' || n.type === 'transition') {
-        const len = num(n, 'length', 0);
+        const len = partLength(n);
         snapXs.push(cx, cx + len);
         for (const child of n.children ?? []) {
           const clen = axialLength(child);
@@ -365,6 +367,16 @@ export function internalExtent(node: ComponentNode, parentRadius: number): { len
 }
 
 /**
+ * The drawn extent of an inner tube (a motor mount), in every view: its own
+ * length and outer radius, else the kernel's (ComponentFactory, case
+ * "innertube"). No cap against the parent, unlike {@link internalExtent}: that
+ * cap keeps an invented box off the wall, and a mount's radius is real.
+ */
+export function innerTubeExtent(node: ComponentNode): { length: number; radius: number } {
+  return { length: axialLength(node), radius: num(node, 'outerRadius', KERNEL_DEFAULTS.innertube.outerRadius) };
+}
+
+/**
  * A component's own `color` override, else the caller's default. The 2D side
  * view, the aft view and the 3D builder each carried a private copy of this
  * one-liner; one definition means one place for the override rule to change.
@@ -383,6 +395,31 @@ export const STABILITY_GLYPH: Record<StabilityState, string> = {
   over: '△',
   ok: '✓',
 };
+
+const STABILITY_WORD: Record<StabilityState, string> = {
+  under: 'schematic.underStable',
+  over: 'schematic.overStable',
+  ok: 'schematic.ok',
+};
+
+/**
+ * The margin readout every drawing prints beside its CP: glyph, calibers,
+ * percent of length and the verdict word, e.g. "△ 7.00 cal · 12.0% — over-stable".
+ * One builder, so the 2D overlay and the 3D callout cannot word it differently.
+ * Null without a finite margin or percentage, rather than "NaN%".
+ */
+export function marginText(
+  cal: number,
+  pct: number | null,
+  t: (key: string) => string,
+): { state: StabilityState; text: string } | null {
+  const state = stabilityState(cal);
+  if (!state || pct == null || !Number.isFinite(pct)) return null;
+  return {
+    state,
+    text: `${STABILITY_GLYPH[state]} ${fmtNum(cal, 2)} ${t('stability.caliber')} · ${fmtNum(pct, 1)}% — ${t(STABILITY_WORD[state])}`,
+  };
+}
 
 /** View transform of a zoomable SVG drawing: scale `k` about the origin, then
  *  translate by (x, y), all in viewBox units. Identity = whole drawing fits. */

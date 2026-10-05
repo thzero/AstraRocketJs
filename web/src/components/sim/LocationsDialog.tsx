@@ -9,6 +9,7 @@ import { LAUNCH_SI } from '../../prefs/launchUnits';
 import { LocationEditor } from './LocationEditor';
 import { getLaunchLocationStore, type LaunchLocation } from '../../services/storage/launchLocationStore';
 import { useLocationList } from './useLocationList';
+import { formatCoord } from '../../services/map/slippyMap';
 
 /**
  * The saved launch locations, listed on the left and edited on the right.
@@ -177,8 +178,7 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
                       {/* Plain coordinates: the row that lets you tell two
                           fields both called "the club field" apart. */}
                       <span className="block text-xs tabular-nums text-slate-500">
-                        {p.latitudeDeg.toFixed(4)}°, {p.longitudeDeg.toFixed(4)}° · {altUnit.fmt(p.launchAltitudeM, 0)}{' '}
-                        {altUnit.sym}
+                        {formatCoord(p.latitudeDeg, p.longitudeDeg)} · {altUnit.fmt(p.launchAltitudeM, 0)} {altUnit.sym}
                       </span>
                     </button>
                   </li>

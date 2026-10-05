@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useSettings } from '../../state/SettingsProvider';
+import { hasOpenSurface } from '../common/useFocusTrap';
 
 /**
  * Give the drawing the whole window: both side columns step aside (App.tsx
@@ -11,12 +12,13 @@ export function useMaximizeCenter() {
   const maxed = settings.maximizeCenter;
   const toggleMaxed = () => update({ maximizeCenter: !maxed });
   // Escape gets out, because a mode that hides two panels needs a way back that
-  // does not depend on finding one small button. Ignored while a dialog is open:
-  // dialogs take Escape for themselves, and this would close both at once.
+  // does not depend on finding one small button. Ignored while any modal surface
+  // is open, alerts included: they take Escape for themselves, and this would
+  // close both at once.
   useEffect(() => {
     if (!maxed) return;
     const esc = (e: globalThis.KeyboardEvent) => {
-      if (e.key !== 'Escape' || document.querySelector('[role="dialog"]')) return;
+      if (e.key !== 'Escape' || hasOpenSurface()) return;
       update({ maximizeCenter: false });
     };
     window.addEventListener('keydown', esc);

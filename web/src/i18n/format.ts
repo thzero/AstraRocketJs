@@ -20,6 +20,22 @@ export function fmtNum(n: number, digits = 0): string {
 }
 
 /**
+ * `n` to `sig` significant figures in the current locale, for a figure that spans
+ * orders of magnitude (an inertia tile). Scientific notation below 1e-4, where
+ * fixed digits would be all leading zeros.
+ */
+export function fmtSig(n: number, sig: number): string {
+  if (!Number.isFinite(n)) return '—';
+  if (n === 0) return '0';
+  const lng = i18n.resolvedLanguage || 'en';
+  const tiny = Math.abs(n) < 1e-4;
+  return new Intl.NumberFormat(lng, {
+    maximumSignificantDigits: sig,
+    ...(tiny ? { notation: 'scientific', minimumSignificantDigits: sig } : {}),
+  }).format(n);
+}
+
+/**
  * Decimal places the magnitude ladder gives a value — the precision a readout
  * wants when the unit can change under it, since the same quantity is 1234 in
  * one unit and 48.6 in another.
@@ -49,6 +65,33 @@ export function fmtUpTo(v: number, digits: number): string {
  */
 export function withUnit(text: string, sym: string): string {
   return sym === '°' ? `${text}${sym}` : `${text} ${sym}`;
+}
+
+/**
+ * A stage as every view labels it: its own name, else "Stage n" through one
+ * interpolated key, so a language that puts the number first reads right. A
+ * view passes the `t` it renders with; `index` is zero-based.
+ */
+export function stageLabel(
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  index: number,
+  name?: unknown,
+): string {
+  const own = typeof name === 'string' ? name.trim() : '';
+  return own || t('flight.stageN', { n: index + 1 });
+}
+
+/**
+ * A part as every view names it: its own name, trimmed, else its translated
+ * type, else the raw type for one the locale does not know. A cleared Name field
+ * writes `name: ''`, so an empty name falls back too.
+ */
+export function partLabel(
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  node: { name?: unknown; type: string },
+): string {
+  const own = typeof node.name === 'string' ? node.name.trim() : '';
+  return own || t(`part.${node.type}`, { defaultValue: node.type });
 }
 
 const MB = 1024 * 1024;

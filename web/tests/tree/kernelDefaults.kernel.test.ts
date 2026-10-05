@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { KERNEL_DEFAULTS, kernelLength } from '../../src/tree/kernelDefaults';
+import { KERNEL_DEFAULTS, KERNEL_SHAPES, kernelLength } from '../../src/tree/kernelDefaults';
 import { defaultNode } from '../../src/services/design/treeEdit';
 import type { ComponentNode, ComponentType } from '../../src/engine/openRocketEngine';
 
@@ -466,6 +466,18 @@ const CASES: Case[] = [
   ],
   ['fairing.length', n({ type: 'fairing' }), TUBE, 'length', KERNEL_DEFAULTS.fairing.length, 'component', 0.12],
   ['fairing.mass', n({ type: 'fairing' }), TUBE, 'mass', KERNEL_DEFAULTS.fairing.mass, 'component', 0.05],
+  // The fairing's radius is max(width, height) / 2, so each is probed with the
+  // other set small enough that it decides the radius, and seen in roll inertia.
+  ['fairing.width', n({ type: 'fairing', height: 0.01 }), TUBE, 'width', KERNEL_DEFAULTS.fairing.width, 'rocket', 0.05],
+  [
+    'fairing.height',
+    n({ type: 'fairing', width: 0.01 }),
+    TUBE,
+    'height',
+    KERNEL_DEFAULTS.fairing.height,
+    'rocket',
+    0.04,
+  ],
   [
     'parachute.length',
     n({ type: 'parachute', diameter: 0.3 }),
@@ -553,6 +565,29 @@ describe('KERNEL_DEFAULTS matches the kernel', () => {
 
     const declared = observe(engine, n({ ...base, [field]: expected }), parent, scope);
     expect(declared).toBe(absent);
+  });
+});
+
+/**
+ * KERNEL_SHAPES, the same way: a keyless nose cone or transition builds exactly
+ * as the declared shape, and a different shape builds differently.
+ */
+describe('KERNEL_SHAPES matches the kernel', () => {
+  const SHAPE_CASES: [type: keyof typeof KERNEL_SHAPES, base: ComponentNode, other: string][] = [
+    ['nosecone', n({ type: 'nosecone', length: 0.1, aftRadius: 0.013, thickness: 0.001 }), 'conical'],
+    [
+      'transition',
+      n({ type: 'transition', length: 0.05, foreRadius: 0.013, aftRadius: 0.019, thickness: 0.001 }),
+      'ogive',
+    ],
+  ];
+
+  it.each(SHAPE_CASES)('%s', async (type, base, other) => {
+    const engine = await loadEngine();
+    const absent = observe(engine, base, null, 'component');
+    const different = observe(engine, n({ ...base, shape: other }), null, 'component');
+    expect(different, 'probe cannot observe the shape, so the check below proves nothing').not.toBe(absent);
+    expect(observe(engine, n({ ...base, shape: KERNEL_SHAPES[type] }), null, 'component')).toBe(absent);
   });
 });
 

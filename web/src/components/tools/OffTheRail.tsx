@@ -134,9 +134,9 @@ export function OffTheRail() {
   const speed = u.plain('velocity');
   const wind = u.plain('windspeed');
   const mass = u.plain('mass');
-  const fmtSpeed = (ms: number) => `${speed.fmt(ms, 1)} ${speed.sym}`;
-  const fmtWind = (ms: number) => `${wind.fmt(ms, 1)} ${wind.sym}`;
-  const fmtMass = (kg: number) => `${mass.fmt(kg)} ${mass.sym}`;
+  const fmtSpeed = (ms: number) => `${speed.fmtSym(ms, 1)}`;
+  const fmtWind = (ms: number) => `${wind.fmtSym(ms, 1)}`;
+  const fmtMass = (kg: number) => `${mass.fmtSym(kg)}`;
   const ratio = (r: number) => `${fmtNum(r, 1)} : 1`;
   const warn = 'text-amber-400';
 

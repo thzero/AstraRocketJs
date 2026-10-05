@@ -110,7 +110,7 @@ export function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs
   // column is only worth having when something actually has more than one of
   // itself -- usually the fin set, and nothing else.
   const { totalCd, unattributed, hasSplit, hasInstances } = useMemo(() => dragTotals(sweep, i), [sweep, i]);
-  const pct = (v: number) => (totalCd ? `${((v / totalCd) * 100).toFixed(0)}%` : '—');
+  const pct = (v: number) => (totalCd ? `${fmtNum((v / totalCd) * 100, 0)}%` : '—');
   const rows = useMemo(() => dragRows(sweep, i), [sweep, i]);
 
   // `number | null`: a null cell is the kernel saying this reading was not
@@ -283,7 +283,7 @@ export function StabilityTable({
 
   const cell = 'px-2 py-1 text-right tabular-nums';
   const head = 'px-2 py-1 text-right font-medium';
-  const pct = (v: number) => (totalCna ? `${((v / totalCna) * 100).toFixed(0)}%` : '—');
+  const pct = (v: number) => (totalCna ? `${fmtNum((v / totalCna) * 100, 0)}%` : '—');
   // CP as a percentage, over either length, the same two the CP vs Mach chart
   // offers. `% body` is the whole airframe ("how far along the rocket in front
   // of me"); `% length` is the AERODYNAMIC length, which is what the desktop's
@@ -308,8 +308,8 @@ export function StabilityTable({
               {hasMass && <th className={head}>{t('aero.totalMass', { unit: massUnit })}</th>}
               {hasMass && <th className={head}>{t('aero.cg', { unit: lengthUnit })}</th>}
               <th className={head}>CP ({lengthUnit})</th>
-              {hasBodyLen && <th className={head}>CP (% body)</th>}
-              {hasAeroLen && <th className={head}>CP (% length)</th>}
+              {hasBodyLen && <th className={head}>CP ({t('aero.pctBody')})</th>}
+              {hasAeroLen && <th className={head}>CP ({t('aero.pctLength')})</th>}
               <th className={head}>CNα</th>
               <th className={head}>%</th>
             </tr>

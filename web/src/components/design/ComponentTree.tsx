@@ -5,6 +5,7 @@ import type { ComponentNode, ComponentType, RocketTree } from '../../engine/open
 import { allowedChildren, findNode } from '../../services/design/treeEdit';
 import { ComponentExportButton } from './ComponentExportButton';
 import { useUnits, type Units } from '../../prefs/useUnits';
+import { partLabel } from '../../i18n/format';
 
 // Parts offered in the "Add part" menu, grouped like OpenRocket's palette.
 // Labels come from the `part.*` / `tree.*` i18n keys at render time.
@@ -69,7 +70,7 @@ function collectVisibleIds(
 
 /** A tree row's key dimension, in the user's length unit. */
 const len = (u: Units, v: unknown): string | null =>
-  typeof v === 'number' && Number.isFinite(v) ? `${u.fmt('length', v)} ${u.sym('length')}` : null;
+  typeof v === 'number' && Number.isFinite(v) ? `${u.fmtSym('length', v)}` : null;
 
 // Category colors match the app palette: structure = sky, fins = amber,
 // recovery = emerald, inner structure = slate, attachments/mass = violet.
@@ -125,7 +126,7 @@ const TYPE_SYMBOL: Record<string, string> = {
   parallelstage: '❚',
 };
 
-const partLabel = (type: string, t: TFunction): string => t(`part.${type}`, { defaultValue: type });
+const typeLabel = (type: string, t: TFunction): string => t(`part.${type}`, { defaultValue: type });
 
 function detail(n: ComponentNode, t: TFunction, u: Units): string {
   const ty = n.type;
@@ -140,7 +141,7 @@ function detail(n: ComponentNode, t: TFunction, u: Units): string {
     return d ? `⌀ ${d}` : '';
   }
   if (ty === 'streamer') return len(u, n.stripLength) ?? '';
-  if (ty === 'masscomponent') return typeof n.mass === 'number' ? `${u.fmt('mass', n.mass)} ${u.sym('mass')}` : '';
+  if (ty === 'masscomponent') return typeof n.mass === 'number' ? `${u.fmtSym('mass', n.mass)}` : '';
   if (ty === 'centeringring' || ty === 'bulkhead') {
     const d = len(u, (n.outerRadius as number) * 2);
     return d ? `⌀ ${d}` : '';
@@ -172,8 +173,8 @@ function Row({
   const u = useUnits();
   const color = TYPE_COLOR[node.type] ?? '#94a3b8';
   const symbol = TYPE_SYMBOL[node.type] ?? '□';
-  const label = partLabel(node.type, t);
-  const name = typeof node.name === 'string' && node.name ? node.name : label;
+  const label = typeLabel(node.type, t);
+  const name = partLabel(t, node);
   const isMount = node.motorMount === true;
   const det = detail(node, t, u);
   const id = typeof node.id === 'string' ? node.id : undefined;
@@ -375,13 +376,13 @@ export function ComponentTree({
   const selectedName = selectedNode
     ? typeof selectedNode.name === 'string' && selectedNode.name
       ? selectedNode.name
-      : partLabel(selectedNode.type, t)
+      : typeLabel(selectedNode.type, t)
     : null;
 
   // The Add menu is contextual: it offers only the child types valid for the
   // selected part (the stage when nothing is selected). A leaf part: no menu.
   const parentType = selectedNode?.type ?? 'stage';
-  const parentLabel = partLabel(parentType, t);
+  const parentLabel = typeLabel(parentType, t);
   const allowed = new Set<ComponentType>(allowedChildren(parentType));
   const groups = ADD_GROUPS.map((g) => ({ group: g.group, items: g.items.filter((ty) => allowed.has(ty)) })).filter(
     (g) => g.items.length > 0,
@@ -433,7 +434,7 @@ export function ComponentTree({
                 <optgroup key={g.group} label={t(`tree.${g.group}`)}>
                   {g.items.map((ty) => (
                     <option key={ty} value={ty}>
-                      {partLabel(ty, t)}
+                      {typeLabel(ty, t)}
                     </option>
                   ))}
                 </optgroup>

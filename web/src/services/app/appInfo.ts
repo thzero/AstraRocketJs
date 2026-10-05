@@ -127,3 +127,14 @@ export const appName = (): string => i18n.t('app.title');
 
 /** Default name for a new / exported design, e.g. "AstraRocketJs design" (translated). */
 export const defaultDesignName = (): string => i18n.t('app.designName', { name: appName() });
+
+/**
+ * What to CALL a design, everywhere it is named: its own name, else the name of
+ * the file it was imported from, else the app's default. The one copy of the
+ * chain, so every download, report and image header names a renamed rocket the
+ * same way.
+ */
+export function designNameOf(tree: { name?: unknown }, loadedMeta?: { name?: string } | null): string {
+  const own = typeof tree.name === 'string' ? tree.name.trim() : '';
+  return own || loadedMeta?.name?.trim() || defaultDesignName();
+}

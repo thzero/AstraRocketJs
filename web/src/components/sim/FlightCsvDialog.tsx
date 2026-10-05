@@ -10,6 +10,7 @@ import { flightDataCsv, CSV_MIME } from '../../services/exports/csvExport';
 import { exportFilename } from '../../services/files/saveFile';
 import { download } from '../../services/files/saveFile';
 import type { FlightResult } from '../../engine/openRocketEngine';
+import { stageLabel } from '../../i18n/format';
 
 /**
  * What goes in the flight CSV, before it is written — OpenRocket's Export data
@@ -218,7 +219,7 @@ export function FlightCsvDialog({
               >
                 {branches.map((b, i) => (
                   <option key={i} value={i}>
-                    {b.name || `${t('flight.stage')} ${i + 1}`}
+                    {stageLabel(t, i, b.name)}
                   </option>
                 ))}
               </select>

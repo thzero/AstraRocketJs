@@ -80,3 +80,98 @@ describe('the aft view gates its zoom controls', () => {
     expect(btn(FIT).disabled).toBe(false);
   });
 });
+
+/** The lug's ring sits at the kernel's 2.2 mm radius when the node states none. */
+describe('the aft view draws a keyless launch lug at the kernel size', () => {
+  it('scales the lug against the tube by 2.2 mm to 24 mm', () => {
+    const withLug = {
+      name: 'T',
+      components: [
+        {
+          type: 'stage',
+          id: 'stage',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'body',
+              name: 'Body tube',
+              length: 0.3,
+              outerRadius: 0.024,
+              thickness: 0.0015,
+              children: [{ type: 'launchlug', id: 'lug', name: 'Lug' }],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    const { container } = renderWithProviders(<AftView tree={withLug} />);
+    const radiusOf = (title: string) => {
+      const c = [...container.querySelectorAll('circle')].find(
+        (el) => el.querySelector('title')?.textContent === title,
+      );
+      return Number(c?.getAttribute('r'));
+    };
+    expect(radiusOf('Lug') / radiusOf('Body tube')).toBeCloseTo(0.0022 / 0.024, 6);
+  });
+});
+
+/**
+ * A ring, coupler, bulkhead or engine block is sized as every other view sizes
+ * it (discGeometry.discDims): its own radius, else the bore of the tube it sits
+ * in. The aft view drew 95% of the tube's OUTSIDE radius and left out the
+ * ring's own bore.
+ */
+describe('the aft view sizes a centering ring the way the cut sheet does', () => {
+  it('fills the bore of the tube and shows the ring bore', () => {
+    const withRing = {
+      name: 'T',
+      components: [
+        {
+          type: 'stage',
+          id: 'stage',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'body',
+              name: 'Body tube',
+              length: 0.3,
+              outerRadius: 0.024,
+              thickness: 0.0015,
+              children: [{ type: 'centeringring', id: 'cr', name: 'Ring', innerRadius: 0.01 }],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    const { container } = renderWithProviders(<AftView tree={withRing} />);
+    const radii = (title: string) =>
+      [...container.querySelectorAll('circle')]
+        .filter((el) => el.querySelector('title')?.textContent === title)
+        .map((c) => Number(c.getAttribute('r')));
+    const tube = radii('Body tube')[0]!;
+    const ring = radii('Ring').sort((a, b) => b - a);
+    expect(ring).toHaveLength(2);
+    expect(ring[0]! / tube).toBeCloseTo(0.0225 / 0.024, 6);
+    expect(ring[1]! / tube).toBeCloseTo(0.01 / 0.024, 6);
+  });
+});
+
+/** A cleared Name field writes `name: ''`; the part is still titled by its type. */
+describe('the aft view titles an empty-named part by its type', () => {
+  it('does not draw a blank title', () => {
+    const blank = {
+      name: 'T',
+      components: [
+        {
+          type: 'stage',
+          id: 'stage',
+          children: [{ type: 'bodytube', id: 'body', name: '', length: 0.3, outerRadius: 0.024, thickness: 0.0015 }],
+        },
+      ],
+    } as unknown as RocketTree;
+    const { container } = renderWithProviders(<AftView tree={blank} />);
+    const titles = [...container.querySelectorAll('circle title')].map((el) => el.textContent);
+    expect(titles).toContain('Body tube');
+    expect(titles).not.toContain('');
+  });
+});

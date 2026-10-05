@@ -4,6 +4,7 @@ import { parentRadiusOf } from '../../tree/finPlanform';
 import { solidForNode, discSolidForNode } from '../exports/solidMesh';
 import { solidToStl, solidToObj, solidToGlb, STL_MIME, OBJ_MIME, GLB_MIME } from '../exports/meshExport';
 import { download, exportFilename } from './saveFile';
+import { designNameOf } from '../app/appInfo';
 import { buildThreeMf, THREE_MF_MIME } from '../exports/threeMf';
 import { colorForType } from '../design/partColors';
 import { makeWatertight } from '../exports/solidMesh';
@@ -20,12 +21,17 @@ import { DISC_TYPES, type ExportFormat } from './componentFormats';
  */
 
 /** Build and download one component in the given format. Returns false on a no-op. */
-export async function exportComponent(tree: RocketTree, nodeId: string, format: ExportFormat): Promise<boolean> {
+export async function exportComponent(
+  tree: RocketTree,
+  nodeId: string,
+  format: ExportFormat,
+  rocketName: string = designNameOf(tree, null),
+): Promise<boolean> {
   const node = findNode(tree, nodeId);
   if (!node) return false;
   // Rocket first, then the part: a downloads folder holds the nose cones of
   // every design at once, and "Nose cone.stl" does not say whose.
-  const name = (ext: string) => exportFilename([tree.name, node.name || node.type], ext, 'part');
+  const name = (ext: string) => exportFilename([rocketName, node.name || node.type], ext, 'part');
 
   if (format === 'dxf') {
     const dxf = componentToDxf(tree, nodeId);

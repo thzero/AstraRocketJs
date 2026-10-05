@@ -1,10 +1,10 @@
 import { decodeFileText } from './decodeText';
 import type { ComponentNode, ComponentType } from '../../engine/openRocketEngine';
-import { freshId } from '../design/orkTree';
+import { defaultStageName, freshId } from '../design/orkTree';
 import { xmlText as text } from './xmlUtil';
 import { parseOrkXml } from './ork/importUnpack';
 import { clampCount, finiteNum } from './ork/numbers';
-import { MAX_COMPONENTS, MAX_FIN_POINTS, MAX_LINE_COUNT, MAX_NESTING_DEPTH } from './ork/importLimits';
+import { MAX_COMPONENTS, MAX_FIN_COUNT, MAX_FIN_POINTS, MAX_LINE_COUNT, MAX_NESTING_DEPTH } from './ork/importLimits';
 import type { OrkImportResult } from './orkTypes';
 
 /**
@@ -447,7 +447,7 @@ function readFinSet(ctx: RktContext, el: Element, parent?: ComponentNode): Compo
   const shape = clampCount(num(el, 'ShapeCode') ?? 0, 0, 2);
   const type: ComponentType = shape === 1 ? 'ellipticalfinset' : shape === 2 ? 'freeformfinset' : 'trapezoidfinset';
   const n = base(el, type, true);
-  n['finCount'] = clampCount(num(el, 'FinCount') ?? 3, 1, 8);
+  n['finCount'] = clampCount(num(el, 'FinCount') ?? 3, 1, MAX_FIN_COUNT);
   put(n, 'thickness', mm(el, 'Thickness'));
 
   if (type === 'trapezoidfinset') {
@@ -546,7 +546,7 @@ function readPointList(ctx: RktContext, el: Element): [number, number][] {
 
 const readTubeFinSet = (el: Element): ComponentNode => {
   const n = base(el, 'tubefinset', true);
-  n['finCount'] = clampCount(num(el, 'TubeCount') ?? 6, 1, 12);
+  n['finCount'] = clampCount(num(el, 'TubeCount') ?? 6, 1, MAX_FIN_COUNT);
   put(n, 'length', mmPos(el, 'Len'));
   const od = dia(el, 'OD');
   const id = dia(el, 'ID');
@@ -914,7 +914,7 @@ export function importRkt(data: ArrayBuffer | string): OrkImportResult {
     const stage: ComponentNode = {
       type: 'stage',
       id: freshId(),
-      name: i === 0 ? 'Sustainer' : `Booster ${i}`,
+      name: defaultStageName(i),
     };
     /**
      * RockSim's own figure for the whole stage, as a stage-level override.

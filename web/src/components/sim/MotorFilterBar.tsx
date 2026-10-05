@@ -360,7 +360,7 @@ export function FitsMount({
   return (
     <FilterCheck
       label={t('motorDlg.fitsMount', {
-        bore: `${u.fmt('motorDimensions', mount.bore / 1000)} ${u.sym('motorDimensions')}`,
+        bore: `${u.fmtSym('motorDimensions', mount.bore / 1000)}`,
       })}
       hint={t('motorDlg.fitsMountHint')}
       on={fits}

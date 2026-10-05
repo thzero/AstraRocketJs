@@ -10,6 +10,7 @@ import {
 } from '../../../src/components/canvas/Rocket3D';
 import { internalExtent } from '../../../src/components/canvas/schematicGeometry';
 import { resolveDisc } from '../../../src/services/design/discGeometry';
+import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
 
 /**
@@ -285,6 +286,32 @@ describe('buildPieces internals', () => {
     expect(e.x1 - e.x0).toBeCloseTo(want.length, 6);
   });
 
+  it('gives a keyless inner tube the kernel length and radius', () => {
+    // ComponentFactory, case "innertube": 70 mm by 9.5 mm. The 3D view drew 50 mm.
+    const keyless = {
+      name: 'Mount',
+      components: [
+        {
+          type: 'stage',
+          name: 'S',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'body',
+              length: 0.3,
+              outerRadius: 0.013,
+              thickness: 0.001,
+              children: [{ type: 'innertube', id: 'mount' }],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    const e = extent(byId(buildPieces(keyless).pieces, 'mount')[0]!);
+    expect(e.x1 - e.x0).toBeCloseTo(KERNEL_DEFAULTS.innertube.length, 6);
+    expect(e.r1).toBeCloseTo(KERNEL_DEFAULTS.innertube.outerRadius, 6);
+  });
+
   it('places every internal inside the tube that holds it', () => {
     const { pieces } = buildPieces(tree);
     for (const id of ['cr', 'bh', 'coupler', 'eb', 'chute', 'mount']) {
@@ -371,5 +398,35 @@ describe('buildPieces shoulders', () => {
     // tube ahead of it, and its aft shoulder past its own end.
     expect(e.x0).toBeCloseTo(0.18, 6);
     expect(e.x1).toBeCloseTo(0.265, 6);
+  });
+});
+
+/**
+ * A nose cone, body tube or transition with no `length` key is laid out at the
+ * kernel's length for its type (ComponentFactory: nose 70 mm, body 300 mm,
+ * transition 50 mm), not at zero. Zero drew the part as nothing while the
+ * engine flew it full length. An explicit 0 (the phantom tube a T-tail hangs
+ * from) is still 0.
+ */
+describe('a chain part with no length key', () => {
+  it('is laid out at the kernel length for its type', () => {
+    const keyless = {
+      name: 'K',
+      components: [
+        {
+          type: 'stage',
+          name: 'S',
+          children: [
+            { type: 'nosecone', id: 'nose', shape: 'ogive', aftRadius: 0.013 },
+            { type: 'bodytube', id: 'body', length: 0.2, outerRadius: 0.013, thickness: 0.001 },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    const { pieces } = buildPieces(keyless);
+    const nose = extent(byId(pieces, 'nose')[0]!);
+    const body = extent(byId(pieces, 'body')[0]!);
+    expect(nose.x1 - nose.x0).toBeCloseTo(KERNEL_DEFAULTS.nosecone.length, 6);
+    expect(body.x0).toBeCloseTo(KERNEL_DEFAULTS.nosecone.length, 6);
   });
 });
