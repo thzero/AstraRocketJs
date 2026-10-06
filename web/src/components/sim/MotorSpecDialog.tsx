@@ -7,6 +7,7 @@ import { initialThrust } from '../../services/motors/motorPicker';
 import { curveStats } from '../../services/motors/motorMath';
 import { Dialog } from '../common/Dialog';
 import { inUserUnit, withFixedUnit } from './motorFormat';
+import { motorName } from '../../services/motors/motorName';
 
 /**
  * Read-only popup for the simulation's current motor: its (flown) thrust curve
@@ -32,7 +33,7 @@ export function MotorSpecDialog({ motor, onClose }: { motor: MotorSpec; onClose:
     <Dialog
       id="motorSpec"
       eyebrow={motor.manufacturer || undefined}
-      title={motor.designation}
+      title={motorName(motor)}
       onClose={onClose}
       layout="pad"
       // A thrust chart and eight stats. Worth widening on a big screen.

@@ -17,9 +17,14 @@ export function delayString(delay: number): string {
   return String(roundTo(delay, 1));
 }
 
+/** A motor's name as shown: the full designation (`F67W`) when known, else the common name. */
+export function motorName(spec: Pick<MotorSpec, 'designation' | 'code'>): string {
+  return spec.code || spec.designation;
+}
+
 /**
- * How a SEATED motor is named: designation and the delay it was seated on,
- * `C6-5`, or `C6-P` for a plugged one.
+ * How a SEATED motor is named: its name and the delay it was seated on,
+ * `F67W-9`, or `C6-P` for a plugged one.
  *
  * The delay is half of what motor a rocket is flying - it is when the nose comes
  * off - so anywhere that names a seated motor without room to state the delay
@@ -27,7 +32,7 @@ export function delayString(delay: number): string {
  * (`Motor.getDesignation(delay)`). A motor CATALOG row is not seated and has no
  * delay yet, so the picker still lists a bare designation.
  */
-export function motorDesignation(spec: Pick<MotorSpec, 'designation' | 'ejectionDelay'>): string {
+export function motorDesignation(spec: Pick<MotorSpec, 'designation' | 'code' | 'ejectionDelay'>): string {
   if (!spec.designation) return '';
-  return `${spec.designation}-${delayString(spec.ejectionDelay)}`;
+  return `${motorName(spec)}-${delayString(spec.ejectionDelay)}`;
 }

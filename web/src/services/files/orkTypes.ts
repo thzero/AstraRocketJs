@@ -1,5 +1,6 @@
-import { type RocketTree } from '../../engine/openRocketEngine';
+import { type MotorSpec, type RocketTree } from '../../engine/openRocketEngine';
 import { type LaunchConditions } from '../design/orkTree';
+import type { EmbeddedMotorFile } from './ork/embeddedMotors';
 
 export interface OrkMotorRef {
   designation: string;
@@ -125,6 +126,13 @@ export interface OrkExportMotor {
   /** Kernel ignition-event name (automatic|launch|ejectioncharge|burnout|never). */
   ignitionEvent?: string;
   ignitionDelay?: number;
+  /**
+   * The curve of a motor our catalog does not have, written into the `.ork` zip
+   * under its digest so the file opens with it anywhere.
+   */
+  embedded?: EmbeddedMotorFile;
+  /** The seated motor, for a save to embed its curve when the catalog has no row for it. Not written itself. */
+  seated?: MotorSpec;
 }
 
 // ---- Optional <designinfo> block (derived statistics + fin-root positions) ----

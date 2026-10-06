@@ -22,6 +22,7 @@ import { uuid } from '../app/uuid';
 import { type DeployOverride, type MountMotor, type SepOverride } from '../flight/flightConfigs';
 import { errorMessage } from '../app/errorMessage';
 import { roundTo } from '../app/numbers';
+import { rseDigest } from './ork/embeddedMotors';
 
 /** One of the file's flight configurations, with its motors resolved. */
 export interface LoadedConfig {
@@ -159,19 +160,28 @@ function mountMotor(ref: OrkMotorRef, spec: MotorSpec): MountMotor {
  * whole open: the design is still perfectly loadable without it, and the mount
  * falls through to the unresolved placeholder it would have had anyway.
  */
-function embeddedCurves(files: string[] | undefined, notes: string[]): Map<string, CustomMotor> {
-  const out = new Map<string, CustomMotor>();
+function embeddedCurves(
+  files: string[] | undefined,
+  notes: string[],
+): { byName: Map<string, CustomMotor>; byDigest: Map<string, CustomMotor> } {
+  const byName = new Map<string, CustomMotor>();
+  const byDigest = new Map<string, CustomMotor>();
   for (const text of files ?? []) {
     try {
-      for (const motor of parseRse(text)) {
+      const motors = parseRse(text);
+      for (const motor of motors) {
         const key = removeDelay(motor.designation).toUpperCase();
-        if (!out.has(key)) out.set(key, motor);
+        if (!byName.has(key)) byName.set(key, motor);
       }
+      // The digest the desktop computes for the file, which is what a `.ork`
+      // names an embedded motor by. One motor per file, as the desktop writes.
+      const digest = motors.length === 1 ? rseDigest(text) : null;
+      if (digest) byDigest.set(digest, motors[0]!);
     } catch {
       notes.push('A thrust curve stored in the file could not be read and was skipped.');
     }
   }
-  return out;
+  return { byName, byDigest };
 }
 
 /**
@@ -286,9 +296,15 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   };
 
   const resolveOnce = async (ref: OrkMotorRef): Promise<MotorSpec> => {
-    const own = () => embedded.get(removeDelay(ref.designation).toUpperCase());
+    const own = () => embedded.byName.get(removeDelay(ref.designation).toUpperCase());
     const match = matchCatalogMotor(catalog, ref.designation, ref.manufacturer);
     const cat = match?.motor;
+    // The curve the file names by digest, unless the catalog holds that exact
+    // motor: an imported motor saved from this app, or any motor the catalog
+    // does not carry under that digest. A name match alone could be a different
+    // motor that happens to share it.
+    const named = ref.digest ? embedded.byDigest.get(ref.digest) : undefined;
+    if (named && !cat?.digests?.some((d) => d.digest === ref.digest)) return customMotorToSpec(named, ref.delay);
     if (match?.doubt) noteDoubt(ref, match.motor, match.doubt);
     if (!cat) {
       // Before giving up: the file may carry the curve itself.

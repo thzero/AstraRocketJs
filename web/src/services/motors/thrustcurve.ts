@@ -354,6 +354,11 @@ async function fetchSamplesCached(motor: TcMotor, cat: CatalogMotor): Promise<Tc
  * offline and instant, while a stale curve refreshes on its next use.
  */
 export async function fetchMotorSpec(cat: CatalogMotor, ejectionDelay: number, curveIndex = 0): Promise<MotorSpec> {
+  const spec = await buildMotorSpec(cat, ejectionDelay, curveIndex);
+  return cat.code && cat.code !== cat.designation ? { ...spec, code: cat.code } : spec;
+}
+
+async function buildMotorSpec(cat: CatalogMotor, ejectionDelay: number, curveIndex: number): Promise<MotorSpec> {
   // Imported (.eng / .rse) motors carry their own curve — build the spec from
   // local data, no thrustcurve lookup.
   if (cat.custom && cat.id) {

@@ -25,6 +25,7 @@ import { OpenMeteoCredit } from '../common/OpenMeteoCredit';
 import { weatherErrorText } from '../../services/weather/weatherErrorText';
 import { roundTo } from '../../services/app/numbers';
 import { useLatest } from '../common/useLatest';
+import { motorName } from '../../services/motors/motorName';
 
 /**
  * Off the rail, for a rocket that has not been designed here: a motor from the
@@ -139,7 +140,7 @@ export function OffTheRail() {
         <CardGroup title={t('rail.motor')}>
           <div className="flex items-center justify-between gap-3">
             <span className="min-w-0 truncate text-sm text-slate-200">
-              {motor ? `${motor.manufacturer ? `${motor.manufacturer} ` : ''}${motor.designation}` : t('rail.noMotor')}
+              {motor ? `${motor.manufacturer ? `${motor.manufacturer} ` : ''}${motorName(motor)}` : t('rail.noMotor')}
             </span>
             <button className={toolBtn} onClick={() => setMotorOpen(true)}>
               {motor ? t('sims.changeMotor') : t('rail.chooseMotor')}

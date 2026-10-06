@@ -6,6 +6,10 @@ import { catalogDigest, type CatalogMotor } from '../../../src/services/motors/m
 import { buildExportMotorMap, fillMotorDigests } from '../../../src/services/motors/exportMotors';
 import { newFlightConfig, type MountMotor } from '../../../src/services/flight/flightConfigs';
 import { exportOrk, importOrk, type OrkExportMotor } from '../../../src/services/files/orkFile';
+import { orkArchive } from '../../../src/services/files/saveOrk';
+import { unpackOrk } from '../../../src/services/files/ork/importUnpack';
+import { rseDigest } from '../../../src/services/files/ork/embeddedMotors';
+import { unzipSync } from 'fflate';
 import {
   PLUGGED_DELAY,
   type ComponentNode,
@@ -163,5 +167,57 @@ describe('a saved .ork names which motor it means', () => {
     // Carried through an export with no live motor to resolve one from, so a
     // file we could not resolve still names the entry it named.
     expect(xmlFor({ body: ref })).toContain(`<digest>${digest}</digest>`);
+  });
+});
+
+describe('a saved .ork carries the curve of a motor the catalog does not have', () => {
+  const node = (o: object) => o as unknown as ComponentNode;
+  const tree = {
+    components: [
+      node({
+        type: 'stage',
+        id: 's1',
+        children: [node({ type: 'bodytube', id: 'body', length: 0.3, outerRadius: 0.013, motorMount: true })],
+      }),
+    ],
+  } as unknown as RocketTree;
+  const curve = {
+    designation: 'ZZ9',
+    manufacturer: 'Nobody',
+    diameter: 0.018,
+    length: 0.07,
+    ejectionDelay: 5,
+    times: [0, 0.2, 1.8],
+    thrusts: [0, 14, 0],
+    masses: [0.024, 0.021, 0.012],
+    cgX: 0.035,
+  } as MotorSpec;
+  const config = (spec: MotorSpec) => newFlightConfig({ body: { spec } as MountMotor });
+  const save = async (spec: MotorSpec) => {
+    const motors = await fillMotorDigests(buildExportMotorMap(tree, config(spec)));
+    const zip = unzipSync(orkArchive({ name: 'Mine', tree, configs: [{ id: 'c', name: null, motors }] }));
+    return { motors, zip };
+  };
+
+  it('writes the curve where the desktop looks, named by its digest, and that digest in the motor', async () => {
+    const { motors, zip } = await save(curve);
+    const digest = motors.body!.digest!;
+    const text = new TextDecoder().decode(zip[`thrustcurves/${digest}.rse`]!);
+    expect(rseDigest(text)).toBe(digest);
+    expect(new TextDecoder().decode(zip['rocket.ork']!)).toContain(`<digest>${digest}</digest>`);
+  });
+
+  it('writes a motor the catalog has as the catalog motor, curve or not', async () => {
+    // A user's own curve for an Estes C6 is still an Estes C6 to the file.
+    const { motors, zip } = await save({ ...curve, designation: 'C6', manufacturer: 'Estes' });
+    expect(motors.body!.digest).toBe(catalogDigest(row('Estes', 'C6'), 5));
+    expect(Object.keys(zip).filter((n) => n.startsWith('thrustcurves/'))).toEqual([]);
+  });
+
+  it('is found by our own importer under that digest', async () => {
+    const motors = await fillMotorDigests(buildExportMotorMap(tree, config(curve)));
+    const bytes = orkArchive({ name: 'Mine', tree, configs: [{ id: 'c', name: null, motors }] });
+    const archive = unpackOrk(bytes.slice().buffer);
+    expect(archive.motorFiles.map(rseDigest)).toEqual([motors.body!.digest]);
   });
 });

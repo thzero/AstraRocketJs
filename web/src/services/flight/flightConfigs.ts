@@ -23,6 +23,7 @@ import { findMounts, findRecoveryDevices, findSeparators, findStages, updateNode
 import { uuid } from '../app/uuid';
 import type { ComponentNode, IgnitionEvent, MotorSpec, RocketTree } from '../../engine/openRocketEngine';
 import { KERNEL_DEPLOYMENT, KERNEL_SEPARATION } from '../../tree/kernelDefaults';
+import { motorName } from '../motors/motorName';
 
 /** One mount's cell: the motor seated in it, and when that motor ignites. */
 export interface MountMotor {
@@ -271,7 +272,7 @@ export function reconcileConfigs(tree: RocketTree, configs: FlightConfig[]): Fli
 export function loadoutLabel(tree: RocketTree, config: FlightConfig): string {
   return motorSpecs(tree, config)
     .filter((m) => m.designation)
-    .map((m) => (m.manufacturer ? `${m.manufacturer} ${m.designation}` : m.designation))
+    .map((m) => (m.manufacturer ? `${m.manufacturer} ${motorName(m)}` : motorName(m)))
     .join(' + ');
 }
 

@@ -2,6 +2,7 @@ import type { RocketTree } from '../../engine/openRocketEngine';
 import { catalogDigest, findCatalogMotor, loadCatalog } from './motorDb';
 import { liveMotors, type FlightConfig } from '../flight/flightConfigs';
 import type { OrkExportMotor } from '../files/orkFile';
+import { embeddedMotorFile } from '../files/ork/embeddedMotors';
 
 /**
  * Build the mount-id -> export-motor map shared verbatim by the `.ork` and
@@ -37,6 +38,7 @@ export function buildExportMotorMap(
       delay: m.spec.ejectionDelay,
       ignitionEvent: m.ignitionEvent,
       ignitionDelay: m.ignitionDelay,
+      seated: m.spec,
     };
   }
   return motors;
@@ -88,7 +90,11 @@ export async function fillMotorDigests(
     // diameter is what confirms it landed on the same motor.
     const same = row && Math.abs(row.diameter - m.diameter * 1000) <= DIAMETER_TOLERANCE_MM;
     const digest = same ? catalogDigest(row, m.delay) : undefined;
-    out[id] = digest ? { ...m, digest } : m;
+    // A motor the catalog does not have travels with its own curve, named by
+    // that curve's digest: no database has it, so nothing else could name it.
+    // One the catalog has is written as the catalog's, embedding nothing.
+    const embedded = !row && m.seated ? embeddedMotorFile(m.seated) : null;
+    out[id] = embedded ? { ...m, embedded, digest: embedded.digest } : digest ? { ...m, digest } : m;
   }
   return out;
 }

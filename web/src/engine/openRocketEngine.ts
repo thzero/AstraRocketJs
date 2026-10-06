@@ -456,7 +456,18 @@ export interface RocketSpec {
 }
 
 export interface MotorSpec {
+  /**
+   * The name the kernel and a `.ork` match on: the catalog's common name
+   * (`F67`), which is also OpenRocket's own database name.
+   */
   designation: string;
+  /**
+   * The full manufacturer designation (`F67W`), for display only. Several
+   * motors share a common name (AeroTech's F67C and F67W are both `F67`), so a
+   * label built from `designation` alone cannot tell them apart. Absent when
+   * the catalog row has none or it adds nothing.
+   */
+  code?: string;
   /** Manufacturer name/abbreviation (display only; the engine ignores it). */
   manufacturer?: string;
   diameter: number;

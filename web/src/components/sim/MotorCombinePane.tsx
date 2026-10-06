@@ -69,7 +69,7 @@ function CombineChart({
         </LegendSwatch>
         {usable.map((s) => (
           <LegendSwatch key={keyOf(s.m)} color={s.color} width={12}>
-            {s.m.designation}
+            {s.m.code || s.m.designation}
           </LegendSwatch>
         ))}
       </div>

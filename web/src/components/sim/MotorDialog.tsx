@@ -333,7 +333,7 @@ export function MotorDialog({
                             ★
                           </span>
                         )}
-                        <span className="font-medium text-slate-100">{m.designation}</span>
+                        <span className="font-medium text-slate-100">{m.code || m.designation}</span>
                         <span className="ml-2 text-xs text-slate-500">{m.manufacturer}</span>
                         {!m.custom && !hasCurve(m) && (
                           <span

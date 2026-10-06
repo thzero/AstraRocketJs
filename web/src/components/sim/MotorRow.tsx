@@ -7,6 +7,7 @@ import type { MountFit } from '../../services/motors/motorPicker';
 import { MotorSpecDialog } from './MotorSpecDialog';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
+import { motorName } from '../../services/motors/motorName';
 
 // Only meaningful on an upper stage: the sustainer triggers fire off the stage
 // below, and "never" (skip this motor) would just strand a single/bottom stage
@@ -77,7 +78,7 @@ export function MotorRow({
           </div>
           {motor ? (
             <>
-              <div className="truncate text-lg font-semibold text-sky-400">{motor.designation}</div>
+              <div className="truncate text-lg font-semibold text-sky-400">{motorName(motor)}</div>
               <div className="text-xs text-slate-500">
                 {u.fmt('motorDimensions', motor.diameter)} × {u.fmt('motorDimensions', motor.length)}{' '}
                 {u.sym('motorDimensions')}

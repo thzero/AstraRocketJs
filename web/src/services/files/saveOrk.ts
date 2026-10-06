@@ -3,11 +3,23 @@ import { exportOrk, type OrkTreeExportInput } from './orkFile';
 import { saveBlob, exportFilename } from './saveFile';
 import type { RocketTree } from '../../engine/openRocketEngine';
 
-/** Build a .ork (zip containing rocket.ork) Blob from an export input. */
-function orkBlob(input: OrkTreeExportInput): Blob {
+/** The bytes of a .ork: a zip holding rocket.ork and the curve of every motor outside the catalog. */
+export function orkArchive(input: OrkTreeExportInput): Uint8Array {
   const xml = exportOrk(input);
-  const zipped = zipSync({ 'rocket.ork': strToU8(xml) }, { level: 6 });
-  return new Blob([zipped as BlobPart], { type: 'application/vnd.openrocket.ork' });
+  const files: Record<string, Uint8Array> = { 'rocket.ork': strToU8(xml) };
+  // The curve of every motor outside the catalog that any configuration flies,
+  // once each, where the desktop looks for it (`thrustcurves/<digest>.rse`).
+  for (const config of input.configs ?? []) {
+    for (const m of Object.values(config.motors ?? {})) {
+      if (m.embedded) files[m.embedded.path] ??= strToU8(m.embedded.text);
+    }
+  }
+  return zipSync(files, { level: 6 });
+}
+
+/** Build a .ork Blob from an export input. */
+function orkBlob(input: OrkTreeExportInput): Blob {
+  return new Blob([orkArchive(input) as BlobPart], { type: 'application/vnd.openrocket.ork' });
 }
 
 /** Export a design as a .ork file the user downloads. */

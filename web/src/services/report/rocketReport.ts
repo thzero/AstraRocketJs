@@ -1,6 +1,7 @@
 import type { MotorSpec } from '../../engine/openRocketEngine';
 import { impulseClass } from '../motors/motorCombine';
 import { curveStats } from '../motors/motorMath';
+import { motorName } from '../motors/motorName';
 
 /**
  * Report computations — the numbers that back the print/export rocket report.
@@ -34,7 +35,7 @@ export function motorStats(spec: MotorSpec): MotorStats {
   // into arguments overflows the stack.
   const stats = curveStats(spec.times.map((t, i) => [t, spec.thrusts[i] ?? 0]));
   return {
-    designation: spec.designation,
+    designation: motorName(spec),
     manufacturer: spec.manufacturer,
     avgThrust: stats.avg,
     maxThrust: stats.max,

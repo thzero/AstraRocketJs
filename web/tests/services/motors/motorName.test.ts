@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { delayString, motorDesignation } from '../../../src/services/motors/motorName';
+import { delayString, motorDesignation, motorName } from '../../../src/services/motors/motorName';
 import { PLUGGED_DELAY, type MotorSpec } from '../../../src/engine/openRocketEngine';
 
 /**
@@ -40,5 +40,16 @@ describe('motorDesignation', () => {
     // An unresolved `.ork` motor is seated as a nameless placeholder; a bare
     // "-5" would read as a motor.
     expect(motorDesignation(spec('', 5))).toBe('');
+  });
+});
+
+describe('a motor that shares its common name', () => {
+  it('is named by its full designation, so F67C and F67W read apart', () => {
+    expect(motorDesignation({ designation: 'F67', code: 'F67W', ejectionDelay: 9 })).toBe('F67W-9');
+    expect(motorDesignation({ designation: 'F67', code: 'F67C', ejectionDelay: 9 })).toBe('F67C-9');
+  });
+
+  it('falls back to the common name when there is no full one', () => {
+    expect(motorName({ designation: 'C6' })).toBe('C6');
   });
 });

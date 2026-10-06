@@ -151,6 +151,17 @@ describe('fetchMotorSpec — bundled catalog motor (offline path)', () => {
     expect(spec.curveSrc).toBe('Certified · RASP');
   });
 
+  it('carries the full designation for display, keeping the common name the kernel and .ork match on', async () => {
+    const spec = await fetchMotorSpec({ ...bundled, designation: 'F67', code: 'F67W' } as CatalogMotor, 9);
+    expect(spec.designation).toBe('F67');
+    expect(spec.code).toBe('F67W');
+  });
+
+  it('adds no full designation that only repeats the common name', async () => {
+    const spec = await fetchMotorSpec({ ...bundled, code: 'C6' } as CatalogMotor, 5);
+    expect(spec.code).toBeUndefined();
+  });
+
   it('builds from the selected curve index and records its source', async () => {
     const multi = {
       designation: 'X',
