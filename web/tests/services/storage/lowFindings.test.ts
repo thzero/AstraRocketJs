@@ -228,7 +228,8 @@ describe('the traced fin image is bounded', () => {
       }
     }
     expect(() => finPointsFromImage({ width: w, height: h, data })).not.toThrow();
-  });
+    // A 16-megapixel image: a second or two alone, ten times that on a loaded CI runner.
+  }, 60_000);
 
   it('reads a channel past the end of the array as background, not as fin', async () => {
     const { finPointsFromImage, FinImageError } = await import('../../../src/services/design/finImage');

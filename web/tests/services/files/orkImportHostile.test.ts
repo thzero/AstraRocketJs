@@ -89,11 +89,15 @@ describe('the hostile-input caps actually fire', () => {
    * `<bodytube/>` is ~13 bytes, so the 64 MiB per-entry ceiling admits
    * millions of them from a small zip, and every one is then re-scanned per
    * declared configuration. Flat and wide, so the nesting cap never sees it.
+   *
+   * Its own timeout, like the freeform outline below: parsing ten thousand
+   * parts takes a second or two alone and has run ten times slower on a
+   * loaded CI runner.
    */
   it('refuses more components than MAX_COMPONENTS with a clear error', () => {
     const many = '<bodytube><name>b</name><length>0.1</length><radius>0.01</radius></bodytube>'.repeat(10_050);
     expect(() => importOrk(ork(wrap(many)))).toThrow(/too many components/i);
-  });
+  }, 60_000);
 
   it('still accepts a component count a real design could plausibly use', () => {
     const many = '<bodytube><name>b</name><length>0.1</length><radius>0.01</radius></bodytube>'.repeat(200);

@@ -334,10 +334,13 @@ describe('importRkt, hostile input', () => {
   /**
    * The element-COUNT vector, which the byte caps do not bound. Flat and wide,
    * so the nesting cap never sees it.
+   *
+   * Its own timeout: parsing ten thousand parts takes a second or two alone and
+   * has run ten times slower on a loaded CI runner.
    */
   it('refuses more components than MAX_COMPONENTS with a clear error', () => {
     expect(() => importRkt(rkt(tube.repeat(10_050)))).toThrow(/too many components/i);
-  });
+  }, 60_000);
 
   it('still accepts a component count a real design could plausibly use', () => {
     const res = importRkt(rkt(tube.repeat(200)));
