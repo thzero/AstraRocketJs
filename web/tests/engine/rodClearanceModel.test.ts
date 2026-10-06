@@ -29,7 +29,7 @@ import { KERNEL_TEST_TIMEOUT_MS } from '../testing/kernelTimeout';
  *
  * Flies the real kernel, so it takes seconds rather than milliseconds - see
  * `testing/kernelTimeout.ts` for the cap and why it is three times the measured
- * work rather than just over it: this is the slowest file in the suite, 55 s alone.
+ * work rather than just over it.
  */
 vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIMEOUT_MS });
 
@@ -129,6 +129,9 @@ const C6 = {
   masses: [0.0242, 0.021, 0.017, 0.013, 0.0108],
 } as unknown as MotorSpec;
 
+/** Seconds of flight simulated. The latest departure here, a full 2 m rod, is at 0.33 s. */
+const MAX_TIME = 0.5;
+
 /** Rod exit and the time it happened, flown on a 2 m rod. */
 function fly(tree: RocketTree, guideAware: boolean): { speed: number; time: number } {
   const d = OpenRocketDesign.buildTree(tree);
@@ -136,14 +139,20 @@ function fly(tree: RocketTree, guideAware: boolean): { speed: number; time: numb
   // A fine step on purpose: the LAUNCHROD event lands at the END of whichever
   // step crossed the threshold, so at the default 0.05 s two departures 40 mm
   // apart fall in the same step and report the same time. 1 ms resolves them.
+  //
+  // Only the departure is read, so the flight stops at MAX_TIME rather than
+  // flying to the ground: at a 1 ms step the rest of the trajectory is nearly
+  // all of the cost, and this file is the longest in the suite.
   const r = d.simulate({
     launchRodLength: 2,
     guideAwareRodClearance: guideAware,
     randomSeed: 1,
     timeStep: 0.001,
+    maxTime: MAX_TIME,
   });
   const ev = r.events.find((e) => e.type === 'LAUNCHROD');
   expect(ev, 'the flight must reach rod clearance').toBeTruthy();
+  expect(ev!.time, 'rod clearance must come before the flight is cut off').toBeLessThan(MAX_TIME);
   return { speed: r.summary.launchRodVelocity, time: ev!.time };
 }
 

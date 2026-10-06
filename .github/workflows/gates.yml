@@ -135,7 +135,7 @@ jobs:
       # gate while it still reports "ok". Change it only with a reason.
       - name: Parity — JVM vs TeaVM-JS and WASM-GC
         timeout-minutes: 20
-        run: npm run parity -- --expect-lines 356
+        run: npm run parity -- --expect-lines 359
 
       # Were the COMMITTED binaries actually built from this source?
       #

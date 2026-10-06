@@ -20,7 +20,7 @@
  *   node test/parity/parity.mjs --js      # TeaVM-JS only
  *   node test/parity/parity.mjs --wasm    # TeaVM WASM-GC only
  *   node test/parity/parity.mjs --golden  # rewrite golden.txt from this run (deliberate changes only)
- *   node test/parity/parity.mjs --expect-lines 356  # also require exactly this many golden values
+ *   node test/parity/parity.mjs --expect-lines 359  # also require exactly this many golden values
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
