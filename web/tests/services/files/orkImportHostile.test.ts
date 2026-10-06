@@ -269,7 +269,7 @@ describe('file-sourced counts are clamped to domain ceilings', () => {
     );
     const fin = `<freeformfinset><name>F</name><fincount>3</fincount><finpoints>${pts}</finpoints></freeformfinset>`;
     expect((first(inTube(fin), 'freeformfinset').points as unknown[]).length).toBe(10_000);
-  }, 30_000);
+  }, 60_000);
 
   it('caps a parachute line count at 100', () => {
     const chute = `<parachute><name>C</name><diameter>0.3</diameter><linecount>100000</linecount></parachute>`;

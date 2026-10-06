@@ -5,6 +5,10 @@ import { renderWithProviders } from '../../testing/renderWithProviders';
 import { resetHelpIndex } from '../../../src/services/app/helpSearch';
 import { HelpDialog } from '../../../src/components/layout/HelpDialog';
 
+// The search cases parse several served pages in jsdom: a quarter to half a
+// second each alone, ten times that on a loaded CI runner.
+vi.setConfig({ testTimeout: 60_000 });
+
 /**
  * Searching the guide from inside the app.
  *

@@ -1,8 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import ts from 'typescript';
 import en from '../../src/i18n/locales/en.json';
+
+// Both suites read and parse every file under src: half a second to a second
+// alone, ten times that on a loaded CI runner, and the work grows with src.
+vi.setConfig({ testTimeout: 60_000 });
 
 /**
  * Every English key must be reachable from the source.

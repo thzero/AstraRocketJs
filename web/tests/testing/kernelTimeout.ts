@@ -32,8 +32,9 @@
  *
  * ## Still opted into per file
  *
- * Imported where it is needed, not set globally. A global bump would slacken the
- * ~3400 tests that have no business taking seconds and hide exactly what a
- * timeout is for.
+ * Imported where it is needed, not set globally. Off CI the default stays at
+ * vitest's 5 s so a test that starts taking seconds is noticed locally; on CI
+ * vitest.config.ts raises the default to a minute for runner load, which is
+ * still short of what these files need.
  */
 export const KERNEL_TEST_TIMEOUT_MS = 180_000;

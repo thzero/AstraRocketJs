@@ -53,6 +53,13 @@ export default defineConfig({
     // Capping the pool fixes that and is ~4× faster: 46 s → 11.8 s with
     // coverage.
     maxWorkers: 4,
+    // CI runs the suite with coverage on a shared 4-vCPU runner, where tests
+    // run about ten times slower than on a developer machine: a 500 ms test
+    // passes the 5 s default there. On CI the default is a minute, which still
+    // catches a hang; off CI it stays at vitest's 5 s, so a test that has
+    // started taking seconds is noticed where it is written. Files that fly the
+    // kernel still set KERNEL_TEST_TIMEOUT_MS, which is longer.
+    ...(process.env.CI ? { testTimeout: 60_000, hookTimeout: 60_000 } : {}),
     // Reported AND enforced. `npm run verify:ci` (what both workflows run) fails
     // below these minimums; `npm run verify` and `npm test` do not collect coverage
     // at all and are unaffected, which is why instrumentation stays off the command
